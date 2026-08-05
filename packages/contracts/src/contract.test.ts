@@ -33,6 +33,16 @@ describe("the contract surface", () => {
   });
 });
 
+describe("pagination constants", () => {
+  it("pins the values rather than asserting them against themselves", () => {
+    // The previous assertions compared parsed output to the same constant they
+    // were testing, so raising MAX_PAGE_SIZE to 5000 passed. The cap exists to
+    // stop a client asking for the whole table; it has to be pinned literally.
+    expect(DEFAULT_PAGE_SIZE).toBe(20);
+    expect(MAX_PAGE_SIZE).toBe(50);
+  });
+});
+
 describe("feed pagination input", () => {
   it("defaults the page size so a client need not choose one", () => {
     const parsed = FeedListInputSchema.parse({

@@ -39,6 +39,10 @@ export const animalsRevealContract = oc
   .errors({
     NOT_FOUND: apiErrors.NOT_FOUND,
     ANIMAL_NOT_AVAILABLE: apiErrors.ANIMAL_NOT_AVAILABLE,
+    // Safe here, and only here: the caller was shown this shelter's card, so
+    // the refusal explains something they already know about rather than
+    // disclosing moderation state for an id they merely guessed.
     SHELTER_NOT_VISIBLE: apiErrors.SHELTER_NOT_VISIBLE,
+    UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
     RATE_LIMITED: apiErrors.RATE_LIMITED,
   });

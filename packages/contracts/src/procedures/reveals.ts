@@ -23,5 +23,6 @@ export const revealsListMineContract = oc
   .output(RevealsListMineOutputSchema)
   .errors({
     INVALID_CURSOR: apiErrors.INVALID_CURSOR,
+    UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
     RATE_LIMITED: apiErrors.RATE_LIMITED,
   });

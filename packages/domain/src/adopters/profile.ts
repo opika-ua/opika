@@ -11,7 +11,17 @@ import { FeedFiltersSchema } from "./feed-filters.js";
  * information with none of the guarantees.
  */
 export const AdopterIdentitySchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("anonymous"), deviceSessionId: z.string().min(1) }),
+  z.object({
+    kind: z.literal("anonymous"),
+    /**
+     * Server-issued and server-side only — it is carried to the client in an
+     * HttpOnly cookie and never appears in a request body or a view. The length
+     * floor encodes the minimum that is safe to treat as a bearer token: this
+     * value alone decides which adopter's reveal history a request can read,
+     * so a short or guessable one is an account takeover.
+     */
+    deviceSessionId: z.string().min(32),
+  }),
   z.object({ kind: z.literal("account"), accountId: AccountIdSchema, email: z.email() }),
 ]);
 export type AdopterIdentity = z.infer<typeof AdopterIdentitySchema>;
