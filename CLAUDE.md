@@ -145,26 +145,39 @@ solo 10h/week project.
   launch. Not in scope until M1 is reviewed and signed off. Full detail
   in `docs/build-plan.md`.
 
-## Open decisions — ask before assuming
+## Decisions made during M1 scoping (settled — don't re-ask)
 
-These are flagged in the ADR as genuinely open, or were raised during M1
-scoping. **Do not pick a default silently — ask.**
+1. **Contract layer: oRPC, on the stable 1.x line** (not the 2.0 beta).
+   Matches the contract-first principle natively; keep every procedure
+   definition in `packages/contracts` as a thin declarative object so a
+   future 1.x→2.0 migration stays a one-package job. tRPC v11 remains the
+   documented fallback if oRPC 1.x causes real friction.
+2. **Shelter location: approximate until reveal.** `Shelter.publicLocation`
+   (city/district/fuzzed lat-lng) is what the feed and profile expose;
+   `Shelter.exactAddress` exists on the domain object but is never part
+   of the public-facing contract type (`PublicShelterSchema` omits it).
+   The exact address only reaches an adopter inside
+   `ContactReveal.shelterSnapshot`, after they've committed to a reveal.
+   Same gating pattern as contact info — not a special case.
+3. **Size buckets:** 4-tier by weight — `small` (<10kg) / `medium`
+   (10–25kg) / `large` (25–40kg) / `giant` (40kg+). Applies uniformly to
+   dogs and cats.
+4. **Age buckets:** 4-tier, Petfinder-style — `baby` (<1yr) / `young`
+   (1–3yr) / `adult` (3–8yr) / `senior` (8yr+).
 
-1. **oRPC vs tRPC v11** for the contract layer. ADR recommends oRPC
-   (contract-first is its native model, OpenAPI emission, smaller
-   client) with tRPC v11 as the conservative fallback (oRPC 2.0 is in
-   beta as of the ADR's writing). Affects how `packages/contracts` is
-   structured. Ask before writing the ~8 procedure definitions.
-2. **Exact address vs. approximate shelter location** before contact is
-   revealed. Changes the `Shelter` schema shape (what's public on the
-   feed/profile vs. what's only in `ContactReveal`'s shelter snapshot).
-   Ask before writing the `Shelter` schema.
-3. **Size and age bucket definitions** for `Animal` and `FeedFilters`.
-   Propose options grounded in how Ukrainian shelters actually describe
-   animals; don't assume a Western breed-standard bucketing.
+## Still open / unconfirmed assumptions in the M1 type design
 
-Once answered, update this section (replace the open item with the
-decision and a one-line reason) so the next session doesn't re-ask.
+Flagged during the M1 design review, not yet confirmed:
+
+- `VerificationEvidence`'s shape (NGO registration number, bank account
+  holder name, reference contact) is a placeholder guess — the ADR
+  doesn't specify it.
+- The verification FSM allows `rejected --resubmit--> pending` and
+  `suspended --reinstate--> verified`, but not `suspended --> rejected`
+  directly. Confirm this matches the intended shelter lifecycle before
+  the transition table is implemented.
+- `Animal.type` is `"dog" | "cat"` only — confirm no other species are
+  in scope for the oblast's shelters.
 
 ## Non-negotiable test suites
 
@@ -185,16 +198,31 @@ solo project quietly accumulates the exact bugs they'd catch:
 
 You're developing on Windows. Two things matter here:
 
-- **Line endings:** `.gitattributes` normalizes everything to LF on
-  checkin regardless of platform (`* text=auto eol=lf`), which is the
-  primary defense. On top of that, set `git config --global core.autocrlf
-  true` (Windows convention: LF in the repo, CRLF in your working tree) —
-  it's a global one-time setting, so do it once outside any repo-specific
-  tooling, not something this repo's config can set for you.
+- **Line endings:** `.gitattributes`' `* text=auto eol=lf` doesn't just
+  normalize line endings *in the repo* — the `eol=lf` attribute overrides
+  `core.autocrlf` for every matched file (which is all of them) and forces
+  LF in your working tree too, on Windows included. That's deliberate:
+  it means every tracked file is LF on disk regardless of what
+  `core.autocrlf` is set to, so there's nothing else to configure for
+  files this repo already tracks. Modern editors (VS Code, WebStorm) save
+  LF files as LF without complaint. `core.autocrlf` still matters for
+  *new, untracked* files you create before they're covered by a
+  `.gitattributes` pattern — `git config --global core.autocrlf input` is
+  the safer default on Windows (normalizes CRLF→LF on commit, doesn't
+  force CRLF back on checkout), but don't expect it to change anything
+  for files already in this repo.
 - **corepack:** run `corepack enable` once (may need an elevated
   terminal the first time on Windows). After that, `pnpm` resolves to
   the exact version pinned in `package.json`'s `packageManager` field —
-  don't install pnpm globally via npm.
+  don't install pnpm globally via npm. Node 24 (this project's pinned
+  major) still bundles Corepack; Node 25+ drops it from the default
+  distribution, so a future Node upgrade will need `npm install -g
+  corepack` first. In CI, prefer `corepack enable && corepack install`
+  (activates the pinned version explicitly) over a bare `corepack enable`
+  followed by an implicit lazy download — the latter can hit Corepack's
+  interactive download-confirmation prompt, which doesn't reliably
+  suppress via `COREPACK_ENABLE_DOWNLOAD_PROMPT=0` on every Corepack
+  version. See `.github/workflows/ci.yml` for the pattern in practice.
 
 ## Commands
 

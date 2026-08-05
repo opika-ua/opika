@@ -9,16 +9,31 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Avoid Corepack's interactive "about to download" confirmation prompt,
+  # which has no reliable non-interactive bypass on some Corepack versions
+  # (see CLAUDE.md). `corepack install` below activates the pinned package
+  # manager explicitly before it's ever invoked lazily.
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # v7 — GitHub deprecated the Node 20 Actions runner in Sep 2025;
+      # anything older than actions/checkout@v5 targets that runtime and
+      # is not guaranteed to run on current hosted runners.
+      - uses: actions/checkout@v7
 
-      - name: Enable corepack
+      - name: Enable Corepack
         run: corepack enable
 
-      - uses: actions/setup-node@v4
+      - name: Activate pinned package manager
+        run: corepack install
+
+      # v6 — same Node-20-runner deprecation applies to setup-node; v6 is
+      # current as of this workflow and targets the node24 runtime.
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
