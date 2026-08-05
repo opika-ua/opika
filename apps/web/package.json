@@ -15,7 +15,6 @@
     "@opika/domain": "workspace:*",
     "@orpc/contract": "catalog:",
     "@orpc/server": "catalog:",
-    "drizzle-orm": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

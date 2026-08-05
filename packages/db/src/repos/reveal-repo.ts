@@ -1,5 +1,5 @@
 import type { AdopterId, AnimalId, ContactReveal, RevealId } from "@opika/domain";
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, count, desc, eq, gt, lt } from "drizzle-orm";
 import type { Database } from "../client.js";
 import { reveals } from "../schema/reveals.js";
 import { revealToRow, rowToReveal } from "./mappers.js";
@@ -42,6 +42,21 @@ export function revealRepo(db: Database) {
 
       const rows = await query;
       return rows.map(rowToReveal);
+    },
+
+    /**
+     * Count reveals by an adopter within a time window.
+     *
+     * Used by the reveal rate limiter. Keeping this query inside the
+     * repository prevents the Drizzle query builder from leaking into
+     * feature code (standing check: repository boundary).
+     */
+    async countRecentByAdopter(adopterId: AdopterId, since: Date): Promise<number> {
+      const rows = await db
+        .select({ cnt: count() })
+        .from(reveals)
+        .where(and(eq(reveals.adopterId, adopterId), gt(reveals.revealedAt, since)));
+      return rows[0]?.cnt ?? 0;
     },
 
     async insert(reveal: ContactReveal): Promise<void> {

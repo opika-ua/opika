@@ -1,7 +1,7 @@
 import type { Database } from "@opika/db";
+import { revealRepo } from "@opika/db/repos";
 import type { AdopterId } from "@opika/domain";
 import { ORPCError } from "@orpc/server";
-import { sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
 // Generic per-IP rate limiter (in-memory)
@@ -84,10 +84,9 @@ const REVEAL_RATE_LIMIT = {
 /**
  * Check whether the adopter has exceeded the reveal rate limit.
  *
- * Counts reveals in the last `windowSeconds` from the `reveals` table.
- * This is a read against an indexed column (adopter_id + revealed_at),
- * so it adds one query per reveal — acceptable given reveals are the
- * low-volume, high-value path.
+ * Counts reveals in the last `windowSeconds` via the reveal repository,
+ * keeping the Drizzle query builder inside `packages/db` where it belongs
+ * (standing check: repository boundary).
  *
  * Throws RATE_LIMITED if the limit is exceeded.
  */
@@ -98,16 +97,10 @@ export async function checkRevealRateLimit(
 ): Promise<void> {
   const cutoff = new Date(now.getTime() - REVEAL_RATE_LIMIT.windowSeconds * 1000);
 
-  const result = await db.execute(
-    sql`SELECT COUNT(*)::int AS cnt FROM reveals
-        WHERE adopter_id = ${adopterId}
-          AND revealed_at > ${cutoff.toISOString()}::timestamptz`,
-  );
+  const reveals = revealRepo(db);
+  const recentCount = await reveals.countRecentByAdopter(adopterId, cutoff);
 
-  const row = (result as unknown as Array<{ cnt: number }>)[0];
-  const count = row?.cnt ?? 0;
-
-  if (count >= REVEAL_RATE_LIMIT.maxReveals) {
+  if (recentCount >= REVEAL_RATE_LIMIT.maxReveals) {
     throw new ORPCError("RATE_LIMITED");
   }
 }

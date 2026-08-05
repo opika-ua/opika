@@ -42,13 +42,11 @@ export async function feedList(input: FeedInput, context: AppContext): Promise<F
     seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
   });
 
-  // Build shelter lookup for the page
+  // Build shelter lookup for the page — single batch query, not N+1
   const shelterIds = [...new Set(page.items.map((a) => a.shelterId))];
   const shelters = shelterRepo(context.db);
-  const shelterMap = new Map<string, Awaited<ReturnType<typeof shelters.findById>>>();
-  for (const id of shelterIds) {
-    shelterMap.set(id, await shelters.findById(id));
-  }
+  const shelterList = await shelters.findByIds(shelterIds);
+  const shelterMap = new Map(shelterList.map((s) => [s.id, s]));
 
   const items = page.items
     .map((animal) => {
