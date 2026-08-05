@@ -17,3 +17,4 @@ catalog:
   vitest: 4.1.10
   "@biomejs/biome": 2.5.6
   "@types/node": 24.13.3
+  "@orpc/contract": 1.14.14
