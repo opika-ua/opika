@@ -2,7 +2,7 @@
 
 import type { FeedCardView } from "@opika/contracts";
 import type { CSSProperties, RefCallback } from "react";
-import { freshnessLabel, freshnessPipLevel } from "./freshness-display.js";
+import { freshnessLabel, freshnessPips, type PipFill } from "./freshness-display.js";
 import { uk } from "./strings.uk.js";
 import { color, layout, radius, shadow } from "./tokens.js";
 
@@ -284,7 +284,7 @@ function FreshnessBlock({
   shelterSentence: FeedCardView["shelter"]["freshnessSentence"];
 }) {
   const label = freshnessLabel(freshness);
-  const level = freshnessPipLevel(freshness.kind);
+  const fills = freshnessPips(freshness.kind);
 
   return (
     <section
@@ -301,7 +301,7 @@ function FreshnessBlock({
     >
       {/* Pips + label */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <FreshnessPips level={level} />
+        <FreshnessPipRow fills={fills} />
         <span
           style={{
             fontFamily: "'Commissioner', sans-serif",
@@ -332,19 +332,24 @@ function FreshnessBlock({
   );
 }
 
-function FreshnessPips({ level }: { level: number }) {
-  const pips = [0, 1, 2];
+/**
+ * Three pips, always three, always in the same position.
+ * Design spec: 7x7 circles, gap 4px between pips, gap 8px to the label.
+ * Each pip is either filled (with the colour from freshnessPips) or
+ * empty (1px #C9BCA2 border, transparent fill).
+ */
+function FreshnessPipRow({ fills }: { fills: [PipFill, PipFill, PipFill] }) {
   return (
-    <div style={{ display: "flex", gap: 3 }} aria-hidden="true">
-      {pips.map((i) => (
+    <div style={{ display: "flex", gap: 4 }} aria-hidden="true">
+      {fills.map((fill, i) => (
         <div
           key={i}
           style={{
-            width: 4,
-            height: 16,
-            borderRadius: 2,
-            background: i < level ? color.ink4 : "transparent",
-            border: i < level ? "none" : `1px solid ${color.lineHeavy}`,
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: fill ?? "transparent",
+            border: fill ? "none" : `1px solid ${color.lineHeavy}`,
           }}
         />
       ))}
