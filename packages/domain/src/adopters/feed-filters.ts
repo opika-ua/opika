@@ -78,7 +78,8 @@ const canonicalizeSelection = <T extends string>(
     throw new Error("A oneOf filter selection must contain at least one value.");
   }
 
-  if (universe !== null && universe.every((value) => unique.includes(value))) {
+  const coversEverything = universe?.every((value) => unique.includes(value)) ?? false;
+  if (coversEverything) {
     return { kind: "any" };
   }
 
