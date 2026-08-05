@@ -1,1 +1,1 @@
-export * from "./city.js";
+export * from "./city";

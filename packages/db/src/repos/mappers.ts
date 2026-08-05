@@ -12,12 +12,12 @@ import type {
   TextProvenance,
 } from "@opika/domain";
 import { ageAnchorOf } from "@opika/domain";
-import type { adopters } from "../schema/adopters.js";
-import type { animals } from "../schema/animals.js";
-import type { cities } from "../schema/cities.js";
-import type { reveals } from "../schema/reveals.js";
-import type { shelters } from "../schema/shelters.js";
-import type { swipes } from "../schema/swipes.js";
+import type { adopters } from "../schema/adopters";
+import type { animals } from "../schema/animals";
+import type { cities } from "../schema/cities";
+import type { reveals } from "../schema/reveals";
+import type { shelters } from "../schema/shelters";
+import type { swipes } from "../schema/swipes";
 
 type CityRow = typeof cities.$inferSelect;
 type ShelterRow = typeof shelters.$inferSelect;

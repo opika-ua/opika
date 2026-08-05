@@ -9,8 +9,8 @@ import type {
   VerificationStatus,
 } from "@opika/domain";
 import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import { cities } from "./cities.js";
-import { jsonb } from "./helpers.js";
+import { cities } from "./cities";
+import { jsonb } from "./helpers";
 
 export const shelters = pgTable(
   "shelters",

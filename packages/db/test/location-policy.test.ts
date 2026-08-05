@@ -1,6 +1,6 @@
 import { assertProductionLocationPolicy, fuzzCoordinates } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import { hmacDigest, productionLocationPolicy } from "../src/location-policy.js";
+import { hmacDigest, productionLocationPolicy } from "../src/location-policy";
 
 describe("hmacDigest", () => {
   it("returns a value in [0, 1)", () => {

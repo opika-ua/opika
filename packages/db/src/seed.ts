@@ -48,10 +48,10 @@ import {
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { animalRepo } from "./repos/animal-repo.js";
-import { cityRepo } from "./repos/city-repo.js";
-import { shelterRepo } from "./repos/shelter-repo.js";
-import * as schema from "./schema/index.js";
+import { animalRepo } from "./repos/animal-repo";
+import { cityRepo } from "./repos/city-repo";
+import { shelterRepo } from "./repos/shelter-repo";
+import * as schema from "./schema/index";
 
 // ---------------------------------------------------------------------------
 // Safety gate

@@ -1,8 +1,8 @@
 import type { Animal, AnimalId, CityId, ShelterId } from "@opika/domain";
 import { eq } from "drizzle-orm";
-import type { Database } from "../client.js";
-import { animals } from "../schema/animals.js";
-import { animalToRowWithCity, rowToAnimal } from "./mappers.js";
+import type { Database } from "../client";
+import { animals } from "../schema/animals";
+import { animalToRowWithCity, rowToAnimal } from "./mappers";
 
 export function animalRepo(db: Database) {
   return {

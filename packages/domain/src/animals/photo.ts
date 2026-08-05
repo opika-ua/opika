@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { LocalizedTextSchema } from "../primitives/localized-text.js";
+import { LocalizedTextSchema } from "../primitives/localized-text";
 
 /**
  * A storage key, never a URL: variant naming and CDN host belong to the image

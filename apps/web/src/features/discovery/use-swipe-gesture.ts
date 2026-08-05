@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { type SwipeDirection, swipeDecision } from "./swipe-decision.js";
+import { type SwipeDirection, swipeDecision } from "./swipe-decision";
 
 // --- Design constants ---
 

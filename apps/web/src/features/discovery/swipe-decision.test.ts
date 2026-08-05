@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { swipeDecision } from "./swipe-decision.js";
+import { swipeDecision } from "./swipe-decision";
 
 describe("swipeDecision", () => {
   // --- distance-based commits ---

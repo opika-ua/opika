@@ -2,7 +2,7 @@ import type { RevealsListMineInputSchema, RevealsListMineOutputSchema } from "@o
 import { revealRepo } from "@opika/db/repos";
 import { ORPCError } from "@orpc/server";
 import type { z } from "zod";
-import type { AppContext } from "../context.js";
+import type { AppContext } from "../context";
 
 type Input = z.infer<typeof RevealsListMineInputSchema>;
 type Output = z.infer<typeof RevealsListMineOutputSchema>;

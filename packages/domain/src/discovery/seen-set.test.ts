@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { AdopterIdSchema, AnimalIdSchema } from "../primitives/ids.js";
+import { AdopterIdSchema, AnimalIdSchema } from "../primitives/ids";
 import {
   DEFAULT_SEEN_SET_POLICY,
   excludedAnimalIds,
   type Swipe,
   type SwipeDirection,
   stillExcludes,
-} from "./seen-set.js";
+} from "./seen-set";
 
 const NOW = new Date("2026-08-05T00:00:00.000Z");
 const ADOPTER = AdopterIdSchema.parse("11111111-1111-4111-8111-111111111111");

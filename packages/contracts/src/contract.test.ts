@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { contract } from "./contract.js";
-import { FeedListInputSchema } from "./procedures/feed.js";
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "./procedures/pagination.js";
+import { contract } from "./contract";
+import { FeedListInputSchema } from "./procedures/feed";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "./procedures/pagination";
 
 const procedurePaths = (node: object, prefix = ""): readonly string[] =>
   Object.entries(node).flatMap(([key, value]) => {

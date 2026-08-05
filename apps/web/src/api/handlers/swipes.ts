@@ -2,7 +2,7 @@ import type { SwipesRecordInputSchema, SwipesRecordOutputSchema } from "@opika/c
 import { animalRepo, swipeRepo } from "@opika/db/repos";
 import { ORPCError } from "@orpc/server";
 import type { z } from "zod";
-import type { AppContext } from "../context.js";
+import type { AppContext } from "../context";
 
 type SwipesInput = z.infer<typeof SwipesRecordInputSchema>;
 type SwipesOutput = z.infer<typeof SwipesRecordOutputSchema>;

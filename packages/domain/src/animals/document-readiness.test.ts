@@ -7,7 +7,7 @@ import {
   trackedDocumentReadiness,
   UNKNOWN_DOCUMENT_ITEM,
   UNKNOWN_DOCUMENT_READINESS,
-} from "./document-readiness.js";
+} from "./document-readiness";
 
 const AT = new Date("2026-08-05T00:00:00.000Z");
 

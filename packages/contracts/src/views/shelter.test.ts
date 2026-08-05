@@ -11,8 +11,8 @@ import {
   testOnlyLocationPolicy,
 } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import { ContactRevealViewSchema } from "./reveal.js";
-import { PublicShelterViewSchema, ShelterSummaryViewSchema } from "./shelter.js";
+import { ContactRevealViewSchema } from "./reveal";
+import { PublicShelterViewSchema, ShelterSummaryViewSchema } from "./shelter";
 
 const AT = new Date("2026-08-05T00:00:00.000Z");
 const SHELTER_ID = ShelterIdSchema.parse("dddddddd-dddd-4ddd-8ddd-dddddddddddd");

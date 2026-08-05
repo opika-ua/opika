@@ -10,9 +10,9 @@ import {
   ShelterIdSchema,
 } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import { AnimalDetailViewSchema, FeedCardViewSchema } from "./animal.js";
-import { AdopterViewSchema } from "./session.js";
-import { PublicShelterViewSchema, ShelterSummaryViewSchema } from "./shelter.js";
+import { AnimalDetailViewSchema, FeedCardViewSchema } from "./animal";
+import { AdopterViewSchema } from "./session";
+import { PublicShelterViewSchema, ShelterSummaryViewSchema } from "./shelter";
 
 const AT = new Date("2026-08-05T00:00:00.000Z");
 

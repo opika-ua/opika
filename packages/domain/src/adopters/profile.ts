@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { AccountIdSchema, AdopterIdSchema, CountryCodeSchema } from "../primitives/ids.js";
-import { LocaleSchema } from "../primitives/locale.js";
-import { FeedFiltersSchema } from "./feed-filters.js";
+import { AccountIdSchema, AdopterIdSchema, CountryCodeSchema } from "../primitives/ids";
+import { LocaleSchema } from "../primitives/locale";
+import { FeedFiltersSchema } from "./feed-filters";
 
 /**
  * The `account` variant is unreachable while adopter accounts are deferred.

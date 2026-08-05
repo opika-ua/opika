@@ -7,7 +7,7 @@ import {
   UNKNOWN_ATTESTATION,
   type VaccinationStatus,
   VaccinationStatusSchema,
-} from "./attestation.js";
+} from "./attestation";
 
 const AT = new Date("2026-08-05T00:00:00.000Z");
 

@@ -1,15 +1,15 @@
 import { z } from "zod";
-import { AnimalPhotoSchema } from "../animals/photo.js";
+import { AnimalPhotoSchema } from "../animals/photo";
 import {
   AdopterIdSchema,
   AnimalIdSchema,
   RevealIdSchema,
   ShelterIdSchema,
-} from "../primitives/ids.js";
-import { ShelterContactSchema } from "../shelters/contact.js";
-import { DonationLinkSchema } from "../shelters/donation.js";
-import { ExactAddressSchema, PublicLocationSchema } from "../shelters/location.js";
-import { VERIFICATION_STATUSES } from "../shelters/verification/state.js";
+} from "../primitives/ids";
+import { ShelterContactSchema } from "../shelters/contact";
+import { DonationLinkSchema } from "../shelters/donation";
+import { ExactAddressSchema, PublicLocationSchema } from "../shelters/location";
+import { VERIFICATION_STATUSES } from "../shelters/verification/state";
 
 /**
  * Denormalised on purpose. If a shelter changes its phone number, an adopter's

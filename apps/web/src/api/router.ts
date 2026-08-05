@@ -1,14 +1,14 @@
 import { contract } from "@opika/contracts";
 import { implement } from "@orpc/server";
-import type { AppContext } from "./context.js";
-import { animalsById } from "./handlers/animals.js";
-import { citiesList } from "./handlers/cities.js";
-import { feedList } from "./handlers/feed.js";
-import { animalsReveal } from "./handlers/reveal.js";
-import { revealsListMine } from "./handlers/reveals-list.js";
-import { sessionBootstrap } from "./handlers/session.js";
-import { sheltersById } from "./handlers/shelters.js";
-import { swipesRecord } from "./handlers/swipes.js";
+import type { AppContext } from "./context";
+import { animalsById } from "./handlers/animals";
+import { citiesList } from "./handlers/cities";
+import { feedList } from "./handlers/feed";
+import { animalsReveal } from "./handlers/reveal";
+import { revealsListMine } from "./handlers/reveals-list";
+import { sessionBootstrap } from "./handlers/session";
+import { sheltersById } from "./handlers/shelters";
+import { swipesRecord } from "./handlers/swipes";
 
 /**
  * The oRPC router, implementing the contract from @opika/contracts.

@@ -1,8 +1,8 @@
 import type { City, CityId } from "@opika/domain";
 import { eq } from "drizzle-orm";
-import type { Database } from "../client.js";
-import { cities } from "../schema/cities.js";
-import { cityToRow, rowToCity } from "./mappers.js";
+import type { Database } from "../client";
+import { cities } from "../schema/cities";
+import { cityToRow, rowToCity } from "./mappers";
 
 export function cityRepo(db: Database) {
   return {

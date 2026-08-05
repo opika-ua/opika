@@ -65,3 +65,9 @@ jobs:
 
       - name: Test
         run: pnpm run test
+
+      # `tsc` resolves `./x.js` to `./x.ts` under every moduleResolution mode,
+      # so typecheck stays green on relative imports the bundler cannot resolve.
+      # Only a real `next build` catches that class of break.
+      - name: Build web
+        run: pnpm run build:web

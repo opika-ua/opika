@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { CoordinatesSchema } from "../primitives/coordinates.js";
-import { CityIdSchema } from "../primitives/ids.js";
-import { LocalizedTextSchema } from "../primitives/localized-text.js";
+import { CoordinatesSchema } from "../primitives/coordinates";
+import { CityIdSchema } from "../primitives/ids";
+import { LocalizedTextSchema } from "../primitives/localized-text";
 
 /**
  * Cities are a controlled list rather than free text on a shelter, because the

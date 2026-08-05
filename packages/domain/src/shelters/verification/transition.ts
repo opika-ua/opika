@@ -1,6 +1,6 @@
-import type { VerificationEvent, VerificationEventType } from "./events.js";
-import type { VerificationEvidence } from "./evidence.js";
-import { enteredAt, type ShelterVerification, type VerificationStatus } from "./state.js";
+import type { VerificationEvent, VerificationEventType } from "./events";
+import type { VerificationEvidence } from "./evidence";
+import { enteredAt, type ShelterVerification, type VerificationStatus } from "./state";
 
 /**
  * A result union rather than a thrown error, so the function stays total and

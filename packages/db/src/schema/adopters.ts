@@ -1,7 +1,7 @@
 import type { AdopterId, CountryCode, FeedFilters, Locale } from "@opika/domain";
 import { sql } from "drizzle-orm";
 import { check, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import { jsonb } from "./helpers.js";
+import { jsonb } from "./helpers";
 
 export const adopters = pgTable(
   "adopters",

@@ -5,7 +5,7 @@ import {
   ageAnchorRange,
   ageBucketOf,
   isAgeEstimateUncertain,
-} from "./age.js";
+} from "./age";
 
 const NOW = new Date("2026-08-05T00:00:00.000Z");
 

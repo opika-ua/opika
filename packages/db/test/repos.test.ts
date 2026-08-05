@@ -1,12 +1,12 @@
 import { DEFAULT_SEEN_SET_POLICY, type FeedFilters, NO_FILTERS } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { adopterRepo } from "../src/repos/adopter-repo.js";
-import { animalRepo } from "../src/repos/animal-repo.js";
-import { cityRepo } from "../src/repos/city-repo.js";
-import { feedRepo } from "../src/repos/feed-repo.js";
-import { revealRepo } from "../src/repos/reveal-repo.js";
-import { shelterRepo } from "../src/repos/shelter-repo.js";
-import { swipeRepo } from "../src/repos/swipe-repo.js";
+import { adopterRepo } from "../src/repos/adopter-repo";
+import { animalRepo } from "../src/repos/animal-repo";
+import { cityRepo } from "../src/repos/city-repo";
+import { feedRepo } from "../src/repos/feed-repo";
+import { revealRepo } from "../src/repos/reveal-repo";
+import { shelterRepo } from "../src/repos/shelter-repo";
+import { swipeRepo } from "../src/repos/swipe-repo";
 import {
   makeAdopter,
   makeAnimal,
@@ -16,7 +16,7 @@ import {
   makeSwipe,
   setupTestDatabase,
   truncateAll,
-} from "../src/test-utils/index.js";
+} from "../src/test-utils/index";
 
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
 let cleanup: () => Promise<void>;

@@ -1,9 +1,9 @@
 import { AnimalIdSchema } from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
-import { apiErrors } from "../errors.js";
-import { AnimalDetailViewSchema } from "../views/animal.js";
-import { ContactRevealViewSchema } from "../views/reveal.js";
+import { apiErrors } from "../errors";
+import { AnimalDetailViewSchema } from "../views/animal";
+import { ContactRevealViewSchema } from "../views/reveal";
 
 export const AnimalsByIdInputSchema = z.object({
   animalId: AnimalIdSchema,

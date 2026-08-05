@@ -1,10 +1,10 @@
-import { animalsByIdContract, animalsRevealContract } from "./procedures/animals.js";
-import { citiesListContract } from "./procedures/cities.js";
-import { feedListContract } from "./procedures/feed.js";
-import { revealsListMineContract } from "./procedures/reveals.js";
-import { sessionBootstrapContract } from "./procedures/session.js";
-import { sheltersByIdContract } from "./procedures/shelters.js";
-import { swipesRecordContract } from "./procedures/swipes.js";
+import { animalsByIdContract, animalsRevealContract } from "./procedures/animals";
+import { citiesListContract } from "./procedures/cities";
+import { feedListContract } from "./procedures/feed";
+import { revealsListMineContract } from "./procedures/reveals";
+import { sessionBootstrapContract } from "./procedures/session";
+import { sheltersByIdContract } from "./procedures/shelters";
+import { swipesRecordContract } from "./procedures/swipes";
 
 /**
  * The API surface, as data.

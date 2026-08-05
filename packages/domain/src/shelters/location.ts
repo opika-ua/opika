@@ -4,9 +4,9 @@ import {
   FuzzedCoordinatesSchema,
   fuzzCoordinates,
   type LocationPrivacyPolicy,
-} from "../primitives/coordinates.js";
-import { type CityId, CityIdSchema, type ShelterId } from "../primitives/ids.js";
-import { type LocalizedText, LocalizedTextSchema } from "../primitives/localized-text.js";
+} from "../primitives/coordinates";
+import { type CityId, CityIdSchema, type ShelterId } from "../primitives/ids";
+import { type LocalizedText, LocalizedTextSchema } from "../primitives/localized-text";
 
 /**
  * "How well do we know this location" is a union, not a nullable — same idiom

@@ -1,8 +1,8 @@
 import type { AdopterId, Swipe } from "@opika/domain";
 import { eq } from "drizzle-orm";
-import type { Database } from "../client.js";
-import { swipes } from "../schema/swipes.js";
-import { rowToSwipe, swipeToRow } from "./mappers.js";
+import type { Database } from "../client";
+import { swipes } from "../schema/swipes";
+import { rowToSwipe, swipeToRow } from "./mappers";
 
 export function swipeRepo(db: Database) {
   return {

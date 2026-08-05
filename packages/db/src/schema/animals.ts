@@ -16,9 +16,9 @@ import type {
 } from "@opika/domain";
 import { sql } from "drizzle-orm";
 import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import { cities } from "./cities.js";
-import { jsonb } from "./helpers.js";
-import { shelters } from "./shelters.js";
+import { cities } from "./cities";
+import { jsonb } from "./helpers";
+import { shelters } from "./shelters";
 
 export const animals = pgTable(
   "animals",

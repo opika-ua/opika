@@ -1,5 +1,5 @@
-import type { ShelterLegalEntity } from "../legal-entity.js";
-import { countEvidence, type EvidenceKind, type VerificationEvidence } from "./evidence.js";
+import type { ShelterLegalEntity } from "../legal-entity";
+import { countEvidence, type EvidenceKind, type VerificationEvidence } from "./evidence";
 
 export type EvidenceRequirement = { kind: EvidenceKind; minimum: number };
 

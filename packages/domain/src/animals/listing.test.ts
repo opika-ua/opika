@@ -4,7 +4,7 @@ import {
   AnimalListingStateSchema,
   DISCOVERABLE_LISTING_KINDS,
   isDiscoverable,
-} from "./listing.js";
+} from "./listing";
 
 const AT = new Date("2026-08-05T00:00:00.000Z");
 

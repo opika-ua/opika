@@ -1,7 +1,7 @@
 import type { AdopterId } from "@opika/domain";
 import { eq } from "drizzle-orm";
-import type { Database } from "../client.js";
-import { sessions } from "../schema/sessions.js";
+import type { Database } from "../client";
+import { sessions } from "../schema/sessions";
 
 export type SessionRow = {
   tokenHash: string;

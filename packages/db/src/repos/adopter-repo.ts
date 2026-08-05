@@ -1,8 +1,8 @@
 import type { AdopterId, AdopterProfile } from "@opika/domain";
 import { eq } from "drizzle-orm";
-import type { Database } from "../client.js";
-import { adopters } from "../schema/adopters.js";
-import { adopterToRow, rowToAdopter } from "./mappers.js";
+import type { Database } from "../client";
+import { adopters } from "../schema/adopters";
+import { adopterToRow, rowToAdopter } from "./mappers";
 
 export function adopterRepo(db: Database) {
   return {

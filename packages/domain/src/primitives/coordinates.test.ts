@@ -8,7 +8,7 @@ import {
   keyedLocationPolicy,
   type LocationPrivacyPolicy,
   testOnlyLocationPolicy,
-} from "./coordinates.js";
+} from "./coordinates";
 
 // Kharkiv, roughly. Any point in the oblast would do.
 const EXACT: Coordinates = { lat: 49.9935, lng: 36.2304 };

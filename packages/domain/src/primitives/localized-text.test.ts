@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMachineTranslated, LocalizedTextSchema, textIn } from "./localized-text.js";
+import { isMachineTranslated, LocalizedTextSchema, textIn } from "./localized-text";
 
 const both = LocalizedTextSchema.parse({
   uk: "Лагідний кіт",

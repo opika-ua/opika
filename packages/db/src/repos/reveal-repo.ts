@@ -1,8 +1,8 @@
 import type { AdopterId, AnimalId, ContactReveal, RevealId } from "@opika/domain";
 import { and, count, desc, eq, gt, lt } from "drizzle-orm";
-import type { Database } from "../client.js";
-import { reveals } from "../schema/reveals.js";
-import { revealToRow, rowToReveal } from "./mappers.js";
+import type { Database } from "../client";
+import { reveals } from "../schema/reveals";
+import { revealToRow, rowToReveal } from "./mappers";
 
 export function revealRepo(db: Database) {
   return {

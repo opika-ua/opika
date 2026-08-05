@@ -2,7 +2,7 @@ import type { PublicShelterView, SheltersByIdInputSchema } from "@opika/contract
 import { shelterRepo } from "@opika/db/repos";
 import { ORPCError } from "@orpc/server";
 import type { z } from "zod";
-import type { AppContext } from "../context.js";
+import type { AppContext } from "../context";
 
 type SheltersInput = z.infer<typeof SheltersByIdInputSchema>;
 

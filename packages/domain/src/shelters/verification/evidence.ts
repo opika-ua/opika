@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { EdrpouSchema, ModeratorIdSchema } from "../../primitives/ids.js";
-import { LocalizedTextSchema } from "../../primitives/localized-text.js";
-import { ContactChannelSchema } from "../contact.js";
+import { EdrpouSchema, ModeratorIdSchema } from "../../primitives/ids";
+import { LocalizedTextSchema } from "../../primitives/localized-text";
+import { ContactChannelSchema } from "../contact";
 
 export const ReferenceRelationshipSchema = z.enum([
   "veterinary_clinic",

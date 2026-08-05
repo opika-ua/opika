@@ -1,13 +1,13 @@
 import { z } from "zod";
-import { AnimalIdSchema, ShelterIdSchema } from "../primitives/ids.js";
-import { LocalizedTextSchema } from "../primitives/localized-text.js";
-import { PublicLocationSchema } from "../shelters/location.js";
-import { AgeEstimateSchema } from "./age.js";
-import { SpayNeuterStatusSchema, VaccinationStatusSchema } from "./attestation.js";
-import { DocumentReadinessSchema } from "./document-readiness.js";
-import { AnimalListingStateSchema } from "./listing.js";
-import { type AnimalPhoto, AnimalPhotoSchema } from "./photo.js";
-import { SizeBucketSchema } from "./size.js";
+import { AnimalIdSchema, ShelterIdSchema } from "../primitives/ids";
+import { LocalizedTextSchema } from "../primitives/localized-text";
+import { PublicLocationSchema } from "../shelters/location";
+import { AgeEstimateSchema } from "./age";
+import { SpayNeuterStatusSchema, VaccinationStatusSchema } from "./attestation";
+import { DocumentReadinessSchema } from "./document-readiness";
+import { AnimalListingStateSchema } from "./listing";
+import { type AnimalPhoto, AnimalPhotoSchema } from "./photo";
+import { SizeBucketSchema } from "./size";
 
 /**
  * Closed at dog and cat. Adding a species later is an additive change the

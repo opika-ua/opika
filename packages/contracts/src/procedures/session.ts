@@ -1,7 +1,7 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
-import { apiErrors } from "../errors.js";
-import { SessionBootstrapViewSchema } from "../views/session.js";
+import { apiErrors } from "../errors";
+import { SessionBootstrapViewSchema } from "../views/session";
 
 /**
  * Takes no session identifier.

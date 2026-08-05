@@ -3,7 +3,7 @@ import { animalRepo, shelterRepo } from "@opika/db/repos";
 import { ageBucketOf, DEFAULT_FRESHNESS_POLICY, freshnessOf, isDiscoverable } from "@opika/domain";
 import { ORPCError } from "@orpc/server";
 import type { z } from "zod";
-import type { AppContext } from "../context.js";
+import type { AppContext } from "../context";
 
 type AnimalsInput = z.infer<typeof AnimalsByIdInputSchema>;
 

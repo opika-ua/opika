@@ -1,9 +1,9 @@
 import { FeedFiltersSchema } from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
-import { apiErrors } from "../errors.js";
-import { FeedCardViewSchema } from "../views/animal.js";
-import { FeedCursorSchema, pageSizeSchema } from "./pagination.js";
+import { apiErrors } from "../errors";
+import { FeedCardViewSchema } from "../views/animal";
+import { FeedCursorSchema, pageSizeSchema } from "./pagination";
 
 /**
  * A cursor is only valid for the filters it was issued against.
