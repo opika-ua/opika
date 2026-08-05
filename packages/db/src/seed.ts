@@ -75,7 +75,15 @@ if (!isLocalhost && !hasForce) {
 // Constants and helpers
 // ---------------------------------------------------------------------------
 
-const NOW = new Date("2026-08-05T12:00:00.000Z");
+/**
+ * Anchor for all relative dates. Defaults to the real clock so the shaped
+ * freshness distribution (50/30/20) stays correct whenever the seed runs.
+ * Override with --now=2026-08-05T12:00:00Z for deterministic test snapshots.
+ */
+const NOW = (() => {
+  const flag = process.argv.find((a) => a.startsWith("--now="));
+  return flag ? new Date(flag.slice("--now=".length)) : new Date();
+})();
 const DAY_MS = 86_400_000;
 const policy = testOnlyLocationPolicy("seed");
 
