@@ -1,12 +1,14 @@
 import { z } from "zod";
+import type { Coordinates } from "../primitives/coordinates.js";
 import {
   CoordinatesSchema,
   FuzzedCoordinatesSchema,
   fuzzCoordinates,
   type LocationPrivacyPolicy,
 } from "../primitives/coordinates.js";
-import { CityIdSchema, type ShelterId } from "../primitives/ids.js";
-import { LocalizedTextSchema } from "../primitives/localized-text.js";
+import type { CityId } from "../primitives/ids.js";
+import { type AnimalId, CityIdSchema, type ShelterId } from "../primitives/ids.js";
+import { type LocalizedText, LocalizedTextSchema } from "../primitives/localized-text.js";
 
 /**
  * What the feed and the public profile are allowed to show. District is
@@ -55,4 +57,24 @@ export const publicLocationOf = (
   cityId: exactAddress.cityId,
   district: exactAddress.district,
   approximate: fuzzCoordinates(exactAddress.coordinates, shelterId, policy),
+});
+
+/**
+ * Public location for an animal fostered away from its shelter.
+ *
+ * Uses the city centroid — never a foster carer's address — as the input to
+ * fuzzing, so the output reveals nothing about any private residence. The
+ * animal id is the seed, giving each fostered animal a distinct (but stable)
+ * offset within its foster city.
+ */
+export const animalPublicLocationOf = (
+  animalId: AnimalId,
+  cityId: CityId,
+  district: LocalizedText | null,
+  centroid: Coordinates,
+  policy: LocationPrivacyPolicy,
+): PublicLocation => ({
+  cityId,
+  district,
+  approximate: fuzzCoordinates(centroid, animalId, policy),
 });

@@ -30,6 +30,7 @@ const animal: Animal = {
   spayNeuter: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
   documentReadiness: { kind: "unknown" },
   listing: { kind: "published", publishedAt: AT },
+  publicLocation: null,
   createdAt: AT,
   lastUpdatedAt: AT,
 };
@@ -72,6 +73,7 @@ describe("animal views expose exactly their intended fields", () => {
       "id",
       "name",
       "primaryPhoto",
+      "publicLocation",
       "sex",
       "shelter",
       "size",
@@ -94,6 +96,7 @@ describe("animal views expose exactly their intended fields", () => {
       "id",
       "name",
       "photos",
+      "publicLocation",
       "sex",
       "shelter",
       "size",

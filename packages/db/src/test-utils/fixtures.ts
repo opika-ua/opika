@@ -108,6 +108,7 @@ export function makeAnimal(overrides: Partial<Animal> = {}): Animal {
     spayNeuter: { source: "shelter_declared", state: "unknown", declaredAt: now },
     documentReadiness: UNKNOWN_DOCUMENT_READINESS,
     listing: defaultListing,
+    publicLocation: null,
     createdAt: now,
     lastUpdatedAt: now,
     ...overrides,

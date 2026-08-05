@@ -23,6 +23,7 @@ export const FeedCardViewSchema = AnimalSchema.pick({
   species: true,
   sex: true,
   size: true,
+  publicLocation: true,
 })
   .extend(derivedAnimalFacts)
   .extend({
@@ -37,6 +38,7 @@ export const AnimalDetailViewSchema = AnimalSchema.pick({
   species: true,
   sex: true,
   size: true,
+  publicLocation: true,
   description: true,
   photos: true,
   vaccination: true,

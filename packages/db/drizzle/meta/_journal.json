@@ -8,6 +8,13 @@
       "when": 1785938956884,
       "tag": "0000_shallow_wasp",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785939637288,
+      "tag": "0001_dapper_mercury",
+      "breakpoints": true
     }
   ]
 }
