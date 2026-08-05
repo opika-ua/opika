@@ -16,7 +16,7 @@ const baseAnimal: Animal = {
   sex: "male",
   size: "small",
   age: { kind: "declared_bucket", bucket: "young", declaredAt: NOW },
-  description: { uk: "Лагідний кіт", en: null },
+  description: { uk: "Лагідний кіт, любить дітей та інших тварин. Привчений до лотка.", en: null },
   photos: [{ storageKey: "a/1.jpg", width: 1200, height: 900, alt: null }],
   vaccination: { source: "shelter_declared", state: "confirmed", declaredAt: NOW },
   spayNeuter: { source: "shelter_declared", state: "confirmed", declaredAt: NOW },
@@ -45,7 +45,7 @@ describe("scoreAnimal", () => {
   it("stays within [0, 1]", () => {
     const candidates = [
       baseAnimal,
-      animal({ photos: [], description: { uk: "", en: null } }),
+      animal({ photos: [], description: { uk: "Кіт", en: null } }),
       animal({ vaccination: { source: "shelter_declared", state: "unknown", declaredAt: NOW } }),
     ];
 
@@ -73,6 +73,29 @@ describe("staleness de-ranking", () => {
     expect(aging).toBeGreaterThan(stale);
   });
 
+  it("pins the default policy, so a weight typo is a test failure", () => {
+    // Every assertion below is a relative comparison, which a changed weight
+    // survives. Halving hasPhotos reordered the entire feed and passed.
+    expect(DEFAULT_SCORING_POLICY).toEqual({
+      componentWeights: { freshness: 0.5, completeness: 0.3, preference: 0.2 },
+      freshnessScore: { fresh: 1, aging: 0.6, stale: 0.15 },
+      completenessScore: { hasPhotos: 0.5, hasDescription: 0.25, vaccinationKnown: 0.25 },
+      minDescriptionChars: 40,
+    });
+  });
+
+  it("produces the exact scores the default policy implies", () => {
+    expect(scoreAt(baseAnimal, 20)).toBeCloseTo(0.8, 10);
+    expect(scoreAt(baseAnimal, 60)).toBeCloseTo(0.575, 10);
+    expect(scoreAt(animal({ photos: [] }), 0)).toBeCloseTo(0.85, 10);
+    expect(
+      scoreAt(
+        animal({ vaccination: { source: "shelter_declared", state: "unknown", declaredAt: NOW } }),
+        0,
+      ),
+    ).toBeCloseTo(0.925, 10);
+  });
+
   it("de-ranks a stale complete listing below a fresh incomplete one", () => {
     // The whole point of the freshness weighting: a listing nobody has
     // confirmed in two months should not outrank one that is current.
@@ -88,9 +111,17 @@ describe("completeness", () => {
     expect(scoreAt(baseAnimal, 0)).toBeGreaterThan(scoreAt(animal({ photos: [] }), 0));
   });
 
-  it("rewards a description", () => {
-    const undescribed = animal({ description: { uk: "", en: null } });
-    expect(scoreAt(baseAnimal, 0)).toBeGreaterThan(scoreAt(undescribed, 0));
+  it("rewards a description that actually says something", () => {
+    // The schema already forbids an empty description, so "length > 0" gave
+    // every animal the same credit and a single space earned full marks.
+    const terse = animal({ description: { uk: "Кіт", en: null } });
+    expect(scoreAt(baseAnimal, 0)).toBeGreaterThan(scoreAt(terse, 0));
+  });
+
+  it("does not credit whitespace padded to the threshold", () => {
+    const padded = animal({ description: { uk: `Кіт${" ".repeat(60)}`, en: null } });
+    const terse = animal({ description: { uk: "Кіт", en: null } });
+    expect(scoreAt(padded, 0)).toBe(scoreAt(terse, 0));
   });
 
   it("rewards a known vaccination state over an unknown one", () => {
@@ -130,9 +161,18 @@ describe("preference component", () => {
     expect(scoreAt(baseAnimal, 0, filters)).toBe(scoreAt(other, 0, filters));
   });
 
-  it("penalises a candidate outside the filters, for a future soft-match feed", () => {
-    const filters: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
-    expect(scoreAt(baseAnimal, 0, filters)).toBeLessThan(scoreAt(baseAnimal, 0, NO_FILTERS));
+  it("evaluates every filtered dimension, not just some of them", () => {
+    // Dropping the sizes dimension from the calculation passed the old suite,
+    // because only species and ages were ever exercised.
+    const misses: readonly FeedFilters[] = [
+      { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } },
+      { ...NO_FILTERS, sizes: { kind: "oneOf", values: ["large"] } },
+      { ...NO_FILTERS, ages: { kind: "oneOf", values: ["senior"] } },
+    ];
+
+    for (const filters of misses) {
+      expect(scoreAt(baseAnimal, 0, filters)).toBeLessThan(scoreAt(baseAnimal, 0, NO_FILTERS));
+    }
   });
 
   it("does not lower a score when a filter is widened", () => {
@@ -159,7 +199,7 @@ describe("policy is honoured", () => {
       ...DEFAULT_SCORING_POLICY,
       componentWeights: { freshness: 1, completeness: 0, preference: 0 },
     };
-    const sparse = animal({ photos: [], description: { uk: "", en: null } });
+    const sparse = animal({ photos: [], description: { uk: "Кіт", en: null } });
 
     expect(
       scoreAnimal(sparse, NO_FILTERS, freshnessOf(NOW, NOW, DEFAULT_FRESHNESS_POLICY), NOW, policy),

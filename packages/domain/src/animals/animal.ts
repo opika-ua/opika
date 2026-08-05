@@ -17,6 +17,8 @@ import { SizeBucketSchema } from "./size.js";
 export const AnimalSpeciesSchema = z.enum(["dog", "cat"]);
 export type AnimalSpecies = z.infer<typeof AnimalSpeciesSchema>;
 
+export const ANIMAL_SPECIES = ["dog", "cat"] as const satisfies readonly AnimalSpecies[];
+
 export const AnimalSexSchema = z.enum(["male", "female", "unknown"]);
 export type AnimalSex = z.infer<typeof AnimalSexSchema>;
 

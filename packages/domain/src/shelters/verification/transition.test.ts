@@ -3,11 +3,13 @@ import { ModeratorIdSchema } from "../../primitives/ids.js";
 import {
   VERIFICATION_EVENT_TYPES,
   type VerificationEvent,
+  VerificationEventSchema,
   type VerificationEventType,
 } from "./events.js";
 import type { VerificationEvidence } from "./evidence.js";
 import {
   type ShelterVerification,
+  ShelterVerificationSchema,
   VERIFICATION_STATUSES,
   type VerificationStatus,
 } from "./state.js";
@@ -21,8 +23,28 @@ const T1 = new Date("2026-02-01T00:00:00.000Z");
 
 const EVIDENCE: VerificationEvidence = { items: [], submittedAt: T0 };
 
-/** One representative state per status, all entered at T0. */
-const stateFor = (status: VerificationStatus): ShelterVerification => {
+/**
+ * Evidence that identifies which state it came from.
+ *
+ * With one shared empty record, an implementation that carried the wrong
+ * state's evidence forward was indistinguishable from a correct one.
+ */
+const evidenceFor = (status: VerificationStatus): VerificationEvidence => ({
+  items: [
+    {
+      kind: "reference_contact",
+      name: `ref-${status}`,
+      channel: { kind: "phone", e164: "+380501234567" },
+      relationship: "veterinary_clinic",
+    },
+  ],
+  submittedAt: T0,
+});
+
+/** One representative state per status, entered at `at`. */
+const stateFor = (status: VerificationStatus, at: Date = T0): ShelterVerification => {
+  const EVIDENCE = evidenceFor(status);
+  const T0 = at;
   switch (status) {
     case "pending":
       return { status, submittedAt: T0, evidence: EVIDENCE };
@@ -97,7 +119,12 @@ const LEGAL: Partial<
 };
 
 describe("verification transition table", () => {
-  it("covers every (state, event) pair", () => {
+  it("covers every (state, event) pair the schemas define", () => {
+    // Derived from the schemas, not hardcoded: `satisfies` permits omitting a
+    // variant from these arrays, so adding a state without listing it would
+    // otherwise shrink the table silently.
+    expect(VERIFICATION_STATUSES.length).toBe(ShelterVerificationSchema.options.length);
+    expect(VERIFICATION_EVENT_TYPES.length).toBe(VerificationEventSchema.options.length);
     expect(VERIFICATION_STATUSES.length * VERIFICATION_EVENT_TYPES.length).toBe(30);
   });
 
@@ -121,6 +148,54 @@ describe("verification transition table", () => {
       });
     }
   }
+});
+
+describe("evidence and actor survive every legal edge", () => {
+  const legal: ReadonlyArray<[VerificationStatus, VerificationEventType]> = [
+    ["pending", "start_review"],
+    ["pending", "reject"],
+    ["under_review", "approve"],
+    ["under_review", "reject"],
+    ["verified", "suspend"],
+    ["rejected", "resubmit"],
+    ["suspended", "reinstate"],
+    ["suspended", "reject"],
+  ];
+
+  for (const [status, eventType] of legal) {
+    it(`carries the right evidence through ${status} --${eventType}-->`, () => {
+      // Dropping evidence on suspend or reinstate passed the old suite, which
+      // only checked two of the six edges.
+      const event = eventFor(eventType);
+      const result = transition(stateFor(status), event);
+      if (result.kind !== "ok") throw new Error(`expected ${status} --${eventType}--> to be legal`);
+
+      const expected = event.type === "resubmit" ? event.evidence : evidenceFor(status);
+      expect(result.next.evidence).toEqual(expected);
+    });
+  }
+
+  it("records the acting moderator on each state that names one", () => {
+    const approved = transition(stateFor("under_review"), eventFor("approve"));
+    if (approved.kind !== "ok" || approved.next.status !== "verified")
+      throw new Error("expected verified");
+    expect(approved.next.verifiedBy).toBe(MODERATOR);
+
+    const reinstated = transition(stateFor("suspended"), eventFor("reinstate"));
+    if (reinstated.kind !== "ok" || reinstated.next.status !== "verified")
+      throw new Error("expected verified");
+    expect(reinstated.next.verifiedBy).toBe(MODERATOR);
+
+    const suspended = transition(stateFor("verified"), eventFor("suspend"));
+    if (suspended.kind !== "ok" || suspended.next.status !== "suspended")
+      throw new Error("expected suspended");
+    expect(suspended.next.suspendedBy).toBe(MODERATOR);
+
+    const rejected = transition(stateFor("pending"), eventFor("reject"));
+    if (rejected.kind !== "ok" || rejected.next.status !== "rejected")
+      throw new Error("expected rejected");
+    expect(rejected.next.rejectedBy).toBe(MODERATOR);
+  });
 });
 
 describe("the edges that are closed on purpose", () => {
@@ -151,7 +226,7 @@ describe("the edges that are closed on purpose", () => {
 describe("state carried through transitions", () => {
   it("preserves evidence when a submission enters review", () => {
     const result = transition(stateFor("pending"), eventFor("start_review"));
-    expect(result.kind === "ok" && result.next.evidence).toEqual(EVIDENCE);
+    expect(result.kind === "ok" && result.next.evidence).toEqual(evidenceFor("pending"));
   });
 
   it("replaces evidence on resubmission", () => {
@@ -176,6 +251,34 @@ describe("state carried through transitions", () => {
     }
     expect(result.next.reviewerId).toBe(REVIEWER);
   });
+});
+
+describe("event ordering, for every status", () => {
+  // Previously only `pending` was reachable here: every fixture state sat at T0
+  // and every event at T1, so the guard was only ever satisfied, never
+  // triggered. `enteredAt` could read the wrong field on four of five statuses
+  // and the suite stayed green.
+  const legalEventFor: Record<VerificationStatus, VerificationEventType> = {
+    pending: "start_review",
+    under_review: "approve",
+    verified: "suspend",
+    rejected: "resubmit",
+    suspended: "reinstate",
+  };
+
+  for (const status of VERIFICATION_STATUSES) {
+    it(`refuses an event predating a ${status} state`, () => {
+      const current = stateFor(status, T1);
+      const event = { ...eventFor(legalEventFor[status]), at: T0 };
+
+      expect(transition(current, event)).toEqual({
+        kind: "non_monotonic",
+        from: status,
+        stateTimestamp: T1,
+        eventTimestamp: T0,
+      });
+    });
+  }
 });
 
 describe("event ordering", () => {

@@ -87,5 +87,9 @@ export const enteredAt = (state: ShelterVerification): Date => {
  * evidence and reasons are internal, so the public projection is derived here
  * rather than assembled ad hoc at each call site.
  */
+export const FEED_VISIBLE_VERIFICATION_STATUSES = [
+  "verified",
+] as const satisfies readonly VerificationStatus[];
+
 export const isPubliclyVerified = (state: ShelterVerification): boolean =>
-  state.status === "verified";
+  (FEED_VISIBLE_VERIFICATION_STATUSES as readonly string[]).includes(state.status);

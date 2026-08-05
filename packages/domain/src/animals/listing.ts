@@ -32,9 +32,21 @@ export const AnimalListingStateSchema = z.discriminatedUnion("kind", [
 export type AnimalListingState = z.infer<typeof AnimalListingStateSchema>;
 
 /**
- * The single definition of feed eligibility. A reserved animal stays visible
- * deliberately — a reservation can fall through, and hiding it immediately
- * would empty the feed faster than shelters can refill it.
+ * Feed eligibility as data, not only as a predicate.
+ *
+ * A query builder cannot call a TypeScript function, so persistence would
+ * otherwise hand-write `IN ('published','reserved')` with no link back to
+ * this file — and adding a listing state later would update the predicate while
+ * the SQL kept the old list, silently. The `satisfies` makes that a build
+ * failure instead.
+ *
+ * A reserved animal stays visible deliberately: a reservation can fall through,
+ * and hiding it immediately would empty the feed faster than shelters refill it.
  */
+export const DISCOVERABLE_LISTING_KINDS = [
+  "published",
+  "reserved",
+] as const satisfies readonly AnimalListingState["kind"][];
+
 export const isDiscoverable = (listing: AnimalListingState): boolean =>
-  listing.kind === "published" || listing.kind === "reserved";
+  (DISCOVERABLE_LISTING_KINDS as readonly string[]).includes(listing.kind);

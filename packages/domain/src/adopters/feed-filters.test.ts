@@ -4,6 +4,7 @@ import {
   canonicalizeFilters,
   type FeedFilters,
   FeedFiltersSchema,
+  filtersFingerprint,
   isUnfiltered,
   matchesSelection,
   NO_FILTERS,
@@ -68,6 +69,27 @@ describe("canonicalizeFilters", () => {
     });
   });
 
+  it("collapses an exhaustive selection back to any", () => {
+    // Ticking every box means the same thing as ticking none. Two encodings of
+    // one question is exactly the cursor mismatch this function prevents.
+    const everySpecies: FeedFilters = {
+      ...NO_FILTERS,
+      species: { kind: "oneOf", values: ["dog", "cat"] },
+    };
+    expect(canonicalizeFilters(everySpecies)).toEqual(NO_FILTERS);
+    expect(isUnfiltered(canonicalizeFilters(everySpecies))).toBe(true);
+  });
+
+  it("does not collapse a partial selection", () => {
+    const oneSpecies: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
+    expect(canonicalizeFilters(oneSpecies).species).toEqual({ kind: "oneOf", values: ["dog"] });
+  });
+
+  it("cannot collapse cities, whose universe is data rather than a type", () => {
+    const cities: FeedFilters = { ...NO_FILTERS, cities: { kind: "oneOf", values: [KHARKIV] } };
+    expect(canonicalizeFilters(cities).cities).toEqual({ kind: "oneOf", values: [KHARKIV] });
+  });
+
   it("leaves an unconstrained selection alone", () => {
     expect(canonicalizeFilters(NO_FILTERS)).toEqual(NO_FILTERS);
   });
@@ -91,5 +113,33 @@ describe("isUnfiltered", () => {
     expect(isUnfiltered({ ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } })).toBe(
       false,
     );
+  });
+});
+
+describe("filtersFingerprint", () => {
+  it("matches for two filter sets that mean the same thing", () => {
+    const a: FeedFilters = { ...NO_FILTERS, cities: { kind: "oneOf", values: [POLTAVA, KHARKIV] } };
+    const b: FeedFilters = { ...NO_FILTERS, cities: { kind: "oneOf", values: [KHARKIV, POLTAVA] } };
+    expect(filtersFingerprint(a)).toBe(filtersFingerprint(b));
+  });
+
+  it("treats an exhaustive selection as unfiltered", () => {
+    const every: FeedFilters = {
+      ...NO_FILTERS,
+      sizes: { kind: "oneOf", values: ["small", "medium", "large"] },
+    };
+    expect(filtersFingerprint(every)).toBe(filtersFingerprint(NO_FILTERS));
+  });
+
+  it("differs when the filters differ", () => {
+    const dogs: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
+    expect(filtersFingerprint(dogs)).not.toBe(filtersFingerprint(NO_FILTERS));
+  });
+
+  it("distinguishes the dimension a value came from", () => {
+    // A fingerprint that concatenated values without separators would collide.
+    const bySize: FeedFilters = { ...NO_FILTERS, sizes: { kind: "oneOf", values: ["small"] } };
+    const byAge: FeedFilters = { ...NO_FILTERS, ages: { kind: "oneOf", values: ["baby"] } };
+    expect(filtersFingerprint(bySize)).not.toBe(filtersFingerprint(byAge));
   });
 });

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { type AgeEstimate, ageBucketOf, isAgeEstimateStale } from "./age.js";
+import {
+  type AgeEstimate,
+  ageAnchorOf,
+  ageAnchorRange,
+  ageBucketOf,
+  isAgeEstimateUncertain,
+} from "./age.js";
 
 const NOW = new Date("2026-08-05T00:00:00.000Z");
 
@@ -94,27 +100,99 @@ describe("ageBucketOf, from a declared bucket", () => {
   });
 });
 
-describe("isAgeEstimateStale", () => {
-  it("flags a declared bucket that has been carried past its meaning", () => {
+describe("isAgeEstimateUncertain", () => {
+  it("flags a declared bucket whose possible age now spans two buckets", () => {
+    const estimate: AgeEstimate = {
+      kind: "declared_bucket",
+      bucket: "baby",
+      declaredAt: yearsBefore(2.5),
+    };
+    // Declared under a year old, two and a half years ago: now somewhere in
+    // [2.5, 3.5) — young or adult, and the data cannot say which.
+    expect(isAgeEstimateUncertain(estimate, NOW)).toBe(true);
+    expect(ageBucketOf(estimate, NOW)).toBe("young");
+  });
+
+  it("does not flag a declaration that is still unambiguous", () => {
+    // A baby declared exactly two years ago is 2 to 3 years old, which sits
+    // entirely inside `young`. Carrying it forward is precise, not a guess.
     const estimate: AgeEstimate = {
       kind: "declared_bucket",
       bucket: "baby",
       declaredAt: yearsBefore(2),
     };
-    expect(isAgeEstimateStale(estimate, NOW)).toBe(true);
+    expect(isAgeEstimateUncertain(estimate, NOW)).toBe(false);
+    expect(ageBucketOf(estimate, NOW)).toBe("young");
   });
 
   it("does not flag a fresh declaration", () => {
     const estimate: AgeEstimate = { kind: "declared_bucket", bucket: "young", declaredAt: NOW };
-    expect(isAgeEstimateStale(estimate, NOW)).toBe(false);
+    expect(isAgeEstimateUncertain(estimate, NOW)).toBe(false);
   });
 
-  it("never flags a birth date, which cannot go stale", () => {
+  it("never flags a birth date, which cannot become ambiguous", () => {
     const estimate: AgeEstimate = {
       kind: "birth_date",
       date: yearsBefore(9),
       precision: "year",
     };
-    expect(isAgeEstimateStale(estimate, NOW)).toBe(false);
+    expect(isAgeEstimateUncertain(estimate, NOW)).toBe(false);
+  });
+
+  it("never flags senior, which has no upper bound to cross", () => {
+    const estimate: AgeEstimate = {
+      kind: "declared_bucket",
+      bucket: "senior",
+      declaredAt: yearsBefore(20),
+    };
+    expect(isAgeEstimateUncertain(estimate, NOW)).toBe(false);
+  });
+});
+
+describe("ageAnchorOf — the indexable form", () => {
+  it("is the birth date itself for a known birth date", () => {
+    const date = yearsBefore(4);
+    expect(ageAnchorOf({ kind: "birth_date", date, precision: "day" })).toEqual(date);
+  });
+
+  it("agrees with ageBucketOf for every bucket at every elapsed time", () => {
+    // This is the invariant that lets persistence store one derived column
+    // without it ever drifting from the value the feed displays.
+    for (const bucket of ["baby", "young", "adult", "senior"] as const) {
+      for (const years of [0, 0.5, 1, 2.5, 5, 9, 20]) {
+        const estimate: AgeEstimate = {
+          kind: "declared_bucket",
+          bucket,
+          declaredAt: yearsBefore(years),
+        };
+        const viaAnchor = ageBucketOf(
+          { kind: "birth_date", date: ageAnchorOf(estimate), precision: "day" },
+          NOW,
+        );
+        expect(viaAnchor).toBe(ageBucketOf(estimate, NOW));
+      }
+    }
+  });
+});
+
+describe("ageAnchorRange — the filter predicate", () => {
+  it("selects exactly the animals in the bucket", () => {
+    for (const bucket of ["baby", "young", "adult", "senior"] as const) {
+      const range = ageAnchorRange(bucket, NOW);
+
+      for (const years of [0, 0.5, 0.99, 1.5, 2.9, 4, 7.9, 8.5, 15]) {
+        const anchor = yearsBefore(years);
+        const inRange =
+          (range.afterExclusive === null || anchor.getTime() > range.afterExclusive.getTime()) &&
+          (range.atOrBefore === null || anchor.getTime() <= range.atOrBefore.getTime());
+
+        const actual = ageBucketOf({ kind: "birth_date", date: anchor, precision: "day" }, NOW);
+        expect(inRange).toBe(actual === bucket);
+      }
+    }
+  });
+
+  it("leaves senior unbounded below, since it is open-ended", () => {
+    expect(ageAnchorRange("senior", NOW).afterExclusive).toBeNull();
   });
 });

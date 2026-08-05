@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { AgeBucketSchema } from "../animals/age.js";
-import { AnimalSpeciesSchema } from "../animals/animal.js";
-import { SizeBucketSchema } from "../animals/size.js";
+import { AGE_BUCKETS, AgeBucketSchema } from "../animals/age.js";
+import { ANIMAL_SPECIES, AnimalSpeciesSchema } from "../animals/animal.js";
+import { SIZE_BUCKETS, SizeBucketSchema } from "../animals/size.js";
 import { CityIdSchema } from "../primitives/ids.js";
 
 /**
@@ -51,14 +51,37 @@ export const NO_FILTERS: FeedFilters = {
 export const matchesSelection = <T>(selection: FilterSelection<T>, value: T): boolean =>
   selection.kind === "any" || selection.values.includes(value);
 
+/**
+ * `universe` collapses an exhaustive selection back to "any".
+ *
+ * Without it, ticking every species box yields `{oneOf:["cat","dog"]}` while
+ * leaving the filter alone yields `{any}` — two encodings of the same question,
+ * which is exactly the cursor mismatch this function exists to prevent. Sorting
+ * alone does not catch it.
+ *
+ * Cities have no static universe, so they are ordered but never collapsed; the
+ * city list is data and does not belong in this package.
+ */
 const canonicalizeSelection = <T extends string>(
   selection: FilterSelection<T>,
+  universe: readonly T[] | null,
 ): FilterSelection<T> => {
   if (selection.kind === "any") return selection;
 
   const unique = [...new Set(selection.values)].sort();
   const [first, ...rest] = unique;
-  if (first === undefined) return { kind: "any" };
+  // Unreachable through the schema, which forbids an empty selection. Reaching
+  // it means a hand-built object, and widening to "any" there would silently
+  // show every animal — the opposite of what an empty selection suggests. Say
+  // so instead of guessing.
+  if (first === undefined) {
+    throw new Error("A oneOf filter selection must contain at least one value.");
+  }
+
+  if (universe !== null && universe.every((value) => unique.includes(value))) {
+    return { kind: "any" };
+  }
+
   return { kind: "oneOf", values: [first, ...rest] };
 };
 
@@ -68,11 +91,32 @@ const canonicalizeSelection = <T extends string>(
  * silently restarts. Also what makes filter state shareable in a URL.
  */
 export const canonicalizeFilters = (filters: FeedFilters): FeedFilters => ({
-  cities: canonicalizeSelection(filters.cities),
-  species: canonicalizeSelection(filters.species),
-  sizes: canonicalizeSelection(filters.sizes),
-  ages: canonicalizeSelection(filters.ages),
+  cities: canonicalizeSelection(filters.cities, null),
+  species: canonicalizeSelection(filters.species, ANIMAL_SPECIES),
+  sizes: canonicalizeSelection(filters.sizes, SIZE_BUCKETS),
+  ages: canonicalizeSelection(filters.ages, AGE_BUCKETS),
 });
+
+/**
+ * A stable identity for a filter set.
+ *
+ * A cursor is only valid for the filters it was issued against — page 2 of an
+ * unfiltered feed means nothing once a city is selected. Embedding this in the
+ * cursor payload turns "cursor reused across a filter change" from a silently
+ * wrong page into a rejected one. Doubles as the URL state key.
+ */
+export const filtersFingerprint = (filters: FeedFilters): string => {
+  const canonical = canonicalizeFilters(filters);
+  const encode = (selection: FilterSelection<string>): string =>
+    selection.kind === "any" ? "*" : selection.values.join(",");
+
+  return [
+    encode(canonical.cities),
+    encode(canonical.species),
+    encode(canonical.sizes),
+    encode(canonical.ages),
+  ].join("|");
+};
 
 export const isUnfiltered = (filters: FeedFilters): boolean =>
   filters.cities.kind === "any" &&

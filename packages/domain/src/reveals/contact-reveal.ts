@@ -54,6 +54,17 @@ export const ContactRevealSchema = z.object({
   id: RevealIdSchema,
   adopterId: AdopterIdSchema,
   animalId: AnimalIdSchema,
+  /**
+   * Duplicated from the snapshot on purpose: this is the indexed foreign key,
+   * the snapshot keeps the frozen historical copy.
+   *
+   * Reaching the shelter by joining through the animal would be wrong as well
+   * as slow — the animal can be withdrawn or moved, and the reveal is a record
+   * of what was true at the time. The queries that need it are the shelter's
+   * own reveal count, abuse investigation across a suspended shelter, and the
+   * reward ledger, which credits the shelter rather than the animal.
+   */
+  shelterId: ShelterIdSchema,
   revealedAt: z.date(),
   shelterSnapshot: ShelterContactSnapshotSchema,
   animalSnapshot: AnimalRevealSnapshotSchema,

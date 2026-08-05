@@ -1,14 +1,42 @@
+import { z } from "zod";
 import { type FeedFilters, matchesSelection } from "../adopters/feed-filters.js";
 import { ageBucketOf } from "../animals/age.js";
 import type { Animal } from "../animals/animal.js";
-import type { Freshness, FreshnessKind } from "./freshness.js";
+import type { Freshness } from "./freshness.js";
 
-export type ScoringPolicy = {
+const nonNegative = z.number().min(0);
+
+/**
+ * Given a schema so a tuned weight cannot leave the score outside [0, 1].
+ * A negative weight produced values in the millions, and these numbers are
+ * explicitly meant to be edited once there is a real feed to look at — which is
+ * exactly when a typo arrives.
+ */
+export const ScoringPolicySchema = z.object({
   /** Relative pull of each component. Need not sum to 1; the result is normalised. */
-  componentWeights: { freshness: number; completeness: number; preference: number };
-  freshnessScore: Record<FreshnessKind, number>;
-  completenessScore: { hasPhotos: number; hasDescription: number; vaccinationKnown: number };
-};
+  componentWeights: z.object({
+    freshness: nonNegative,
+    completeness: nonNegative,
+    preference: nonNegative,
+  }),
+  freshnessScore: z.object({
+    fresh: nonNegative.max(1),
+    aging: nonNegative.max(1),
+    stale: nonNegative.max(1),
+  }),
+  completenessScore: z.object({
+    hasPhotos: nonNegative,
+    hasDescription: nonNegative,
+    vaccinationKnown: nonNegative,
+  }),
+  /**
+   * A description has to say something to earn credit. The schema already
+   * requires a non-empty string, so "length > 0" rewarded every animal equally
+   * and a single space earned full marks.
+   */
+  minDescriptionChars: z.int().positive(),
+});
+export type ScoringPolicy = z.infer<typeof ScoringPolicySchema>;
 
 /**
  * Weights, not thresholds, but the same reasoning as the freshness policy:
@@ -23,6 +51,7 @@ export const DEFAULT_SCORING_POLICY: ScoringPolicy = {
   componentWeights: { freshness: 0.5, completeness: 0.3, preference: 0.2 },
   freshnessScore: { fresh: 1, aging: 0.6, stale: 0.15 },
   completenessScore: { hasPhotos: 0.5, hasDescription: 0.25, vaccinationKnown: 0.25 },
+  minDescriptionChars: 40,
 };
 
 const completenessOf = (animal: Animal, policy: ScoringPolicy): number => {
@@ -32,7 +61,7 @@ const completenessOf = (animal: Animal, policy: ScoringPolicy): number => {
 
   const earned =
     (animal.photos.length > 0 ? hasPhotos : 0) +
-    (animal.description.uk.length > 0 ? hasDescription : 0) +
+    (animal.description.uk.trim().length >= policy.minDescriptionChars ? hasDescription : 0) +
     (animal.vaccination.state === "unknown" ? 0 : vaccinationKnown);
 
   return earned / total;

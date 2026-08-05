@@ -17,10 +17,20 @@ export const FreshnessSchema = z.object({
 });
 export type Freshness = z.infer<typeof FreshnessSchema>;
 
-export const FreshnessPolicySchema = z.object({
-  freshMaxDays: z.int().positive(),
-  agingMaxDays: z.int().positive(),
-});
+export const FreshnessPolicySchema = z
+  .object({
+    freshMaxDays: z.int().positive(),
+    agingMaxDays: z.int().positive(),
+  })
+  /**
+   * An inverted policy silently removes a band rather than failing: with
+   * {fresh: 30, aging: 7} nothing is ever `aging` and a month-old listing reads
+   * as fresh, which is the exact dishonesty the badge exists to prevent.
+   */
+  .refine((policy) => policy.agingMaxDays >= policy.freshMaxDays, {
+    error: "agingMaxDays must be greater than or equal to freshMaxDays",
+    path: ["agingMaxDays"],
+  });
 export type FreshnessPolicy = z.infer<typeof FreshnessPolicySchema>;
 
 export const DEFAULT_FRESHNESS_POLICY: FreshnessPolicy = {
