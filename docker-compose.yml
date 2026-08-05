@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: opika
+      POSTGRES_PASSWORD: opika
+      POSTGRES_DB: opika
+    ports:
+      - "5432:5432"
+    volumes:
+      - opika-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opika -d opika"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  opika-db-data:

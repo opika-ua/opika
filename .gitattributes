@@ -1,0 +1,28 @@
+# Normalize everything to LF in the repo regardless of the checkout platform.
+# This is the primary defense against Windows/Linux line-ending churn — see
+# CLAUDE.md for the core.autocrlf setting you should still configure locally.
+* text=auto eol=lf
+
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+
+pnpm-lock.yaml text eol=lf -diff linguist-generated
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary

@@ -1,0 +1,19 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# One version of everything, referenced as "catalog:" from every package.json.
+# This is the pnpm-native fix for the #1 monorepo papercut (packages drifting
+# to different major versions of React/Zod/TypeScript) with zero build tooling.
+#
+# Note: Biome is pinned one patch behind npm's absolute latest on purpose —
+# it clears pnpm 11's default 24h minimumReleaseAge quarantine without
+# needing a minimumReleaseAgeExclude entry. Don't add exclude entries here;
+# that quarantine is the single best free defense against a repeat of the
+# 2025 npm worm incidents (see CLAUDE.md).
+catalog:
+  typescript: 7.0.2
+  zod: 4.4.3
+  vitest: 4.1.10
+  "@biomejs/biome": 2.5.6
+  "@types/node": 24.13.3
