@@ -34,21 +34,21 @@ require touching those two packages.
 
 ## Stack — condensed from the ADR, do not re-decide these
 
-| Layer | Choice |
-|---|---|
-| Client | Next.js 16.3 App Router, PWA (Serwist), React 19.2, React Compiler pinned exact |
-| Swipe deck | Hand-rolled `PointerEvent` + `transform` (no gesture library) |
-| API contract | oRPC (`@orpc/contract`) in contract-first mode, Zod 4 — **or tRPC v11, undecided, see Open Decisions** |
-| Server runtime | Node 24 LTS, inside Next.js route handlers; domain logic framework-free |
-| DB | Postgres 17 on Neon (Launch, `aws-eu-central-1`), PostGIS available but not enabled at MVP |
-| ORM | Drizzle 0.45.x |
-| Images | Cloudflare R2 + `sharp`-generated variants at upload, served via CF CDN. Never through Vercel's image optimizer |
-| Auth | Better Auth 1.6.x, self-hosted, `organization` plugin for shelters |
-| i18n | next-intl 4.13.x + native `Intl` for all dates/numbers/plurals (never Paraglide, never a hand-rolled `MONTHS` array) |
-| Hosting | Vercel Pro at MVP, spend cap on day one, images off-platform. Exit ramp: OpenNext → Cloudflare Workers (validate once, don't take yet) |
-| Repo | pnpm 11 workspaces + catalogs. Add Turborepo only when CI exceeds ~3 min |
-| Testing | Vitest 4 + RTL + MSW 2 + 4–6 Playwright specs. Plain Docker PostGIS, not Testcontainers |
-| CI | GitHub Actions, `typecheck → lint → test` |
+| Layer            | Choice                                                                                                                                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Client           | Next.js 16.3 App Router, PWA (Serwist), React 19.2, React Compiler pinned exact                                                                                                                                          |
+| Swipe deck       | Hand-rolled `PointerEvent` + `transform` (no gesture library)                                                                                                                                                            |
+| API contract     | oRPC (`@orpc/contract`) in contract-first mode, Zod 4 — **or tRPC v11, undecided, see Open Decisions**                                                                                                                   |
+| Server runtime   | Node 24 LTS, inside Next.js route handlers; domain logic framework-free                                                                                                                                                  |
+| DB               | Postgres 17 on Neon (Launch, `aws-eu-central-1`), PostGIS available but not enabled at MVP                                                                                                                               |
+| ORM              | Drizzle 0.45.x                                                                                                                                                                                                           |
+| Images           | Cloudflare R2 + `sharp`-generated variants at upload, served via CF CDN. Never through Vercel's image optimizer                                                                                                          |
+| Auth             | Better Auth 1.6.x, self-hosted, `organization` plugin for shelters                                                                                                                                                       |
+| i18n             | next-intl 4.13.x + native `Intl` for all dates/numbers/plurals (never Paraglide, never a hand-rolled `MONTHS` array)                                                                                                     |
+| Hosting          | Vercel Pro at MVP, spend cap on day one, images off-platform. Exit ramp: OpenNext → Cloudflare Workers (validate once, don't take yet)                                                                                   |
+| Repo             | pnpm 11 workspaces + catalogs. Add Turborepo only when CI exceeds ~3 min                                                                                                                                                 |
+| Testing          | Vitest 4 + RTL + MSW 2 + 4–6 Playwright specs. Plain Docker PostGIS, not Testcontainers                                                                                                                                  |
+| CI               | GitHub Actions, `typecheck → lint → test`                                                                                                                                                                                |
 | Backend language | TypeScript, not Go (see ADR §11 for the full argument — the performance delta is ~3ms and irrelevant at this scale; the real cost is losing exhaustive discriminated-union checking and doubling the maintainer surface) |
 
 Full rationale, current version numbers, and pricing sources:
@@ -86,10 +86,10 @@ task.
   booleans and string enums. If you're tempted by a boolean flag plus a
   comment explaining what it means in each state, it's a union.
 - **Contract-first.** Types and Zod schemas are defined and reviewed
-  *before* implementation. For `packages/contracts` and
+  _before_ implementation. For `packages/contracts` and
   `packages/domain` specifically: propose the type/union shapes for
   review before writing the implementing code or tests.
-- **Clean code.** Self-documenting names. Comments explain *why* a
+- **Clean code.** Self-documenting names. Comments explain _why_ a
   business rule exists (e.g. why `suspended` carries `priorStatus`), not
   what the code does.
 - **Performance as a default**, not an afterthought, once there's a UI to
@@ -166,8 +166,8 @@ solo 10h/week project.
 3. **Size buckets: 3-tier** — `small` / `medium` / `large`. Weight is
    **never stored**, only the bucket. `SIZE_BUCKET_WEIGHT_HINTS_KG`
    (<10kg / 10–25kg / 25kg+) exists purely as guidance for whoever fills in
-   the listing. *(Superseded the earlier 4-tier `giant` variant — that tier
-   is gone, deliberately, not by oversight.)*
+   the listing. _(Superseded the earlier 4-tier `giant` variant — that tier
+   is gone, deliberately, not by oversight.)_
 4. **Age buckets:** 4-tier, Petfinder-style — `baby` (<1yr) / `young`
    (1–3yr) / `adult` (3–8yr) / `senior` (8yr+). **The bucket is derived, not
    stored.** `Animal.age` holds an `AgeEstimate` (a birth date, or a bucket
@@ -225,12 +225,12 @@ Each is something the type system genuinely cannot enforce, so it has to
 live in a checklist rather than in a schema:
 
 - **Build the server with `implement(contract)`.** oRPC validates outputs
-  at runtime and returns the *stripped* object — verified in
+  at runtime and returns the _stripped_ object — verified in
   `@orpc/server@1.14.14` — but only when a schema is attached. A handler
   on the plain `os` builder with no `.output()` returns whatever the
   handler produced, and the `pick`-based leak protection evaporates.
 - **The session cookie is server-minted only**: ≥128 bits from a CSPRNG,
-  HttpOnly + Secure + SameSite=Lax, and *reject* an unknown session id
+  HttpOnly + Secure + SameSite=Lax, and _reject_ an unknown session id
   rather than treating it as a new one. Get-or-create on a client-supplied
   value is account takeover.
 - **Sign the cursor and bind it to the filters.** Payload carries a kind
@@ -279,14 +279,14 @@ solo project quietly accumulates the exact bugs they'd catch:
 You're developing on Windows. Two things matter here:
 
 - **Line endings:** `.gitattributes`' `* text=auto eol=lf` doesn't just
-  normalize line endings *in the repo* — the `eol=lf` attribute overrides
+  normalize line endings _in the repo_ — the `eol=lf` attribute overrides
   `core.autocrlf` for every matched file (which is all of them) and forces
   LF in your working tree too, on Windows included. That's deliberate:
   it means every tracked file is LF on disk regardless of what
   `core.autocrlf` is set to, so there's nothing else to configure for
   files this repo already tracks. Modern editors (VS Code, WebStorm) save
   LF files as LF without complaint. `core.autocrlf` still matters for
-  *new, untracked* files you create before they're covered by a
+  _new, untracked_ files you create before they're covered by a
   `.gitattributes` pattern — `git config --global core.autocrlf input` is
   the safer default on Windows (normalizes CRLF→LF on commit, doesn't
   force CRLF back on checkout), but don't expect it to change anything
@@ -297,7 +297,7 @@ You're developing on Windows. Two things matter here:
   don't install pnpm globally via npm. Node 24 (this project's pinned
   major) still bundles Corepack; Node 25+ drops it from the default
   distribution, so a future Node upgrade will need `npm install -g
-  corepack` first. In CI, prefer `corepack enable && corepack install`
+corepack` first. In CI, prefer `corepack enable && corepack install`
   (activates the pinned version explicitly) over a bare `corepack enable`
   followed by an implicit lazy download — the latter can hit Corepack's
   interactive download-confirmation prompt, which doesn't reliably
@@ -334,3 +334,4 @@ pins a version one patch behind npm's absolute latest, that's usually
 why — it's the newest version that's already cleared quarantine. Don't
 "fix" this by bumping to `latest` and adding a `minimumReleaseAgeExclude`
 entry; wait a day, or pick the next-newest cleared version instead.
+@docs/model-policy.md
