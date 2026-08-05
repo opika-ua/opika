@@ -89,8 +89,11 @@ Pure TypeScript. **No database, no Next.js, no I/O.** This is contract-first tak
 | Repositories: `animalRepo`, `shelterRepo`, `revealRepo`, `adopterRepo` — expose domain types, never the Drizzle client | 5 |
 | **Keyset-cursor feed query** with filter combinations + seen-set exclusion. Never `OFFSET` | 4 |
 | Integration-test harness: docker PG, per-test transaction rollback | 4 |
+| **Implement keyed HMAC digest + call `assertProductionLocationPolicy` at boot** | 1 |
 
 **Done when:** repository integration tests pass against real PostGIS, and `EXPLAIN ANALYZE` on the feed query shows an index scan with no sort.
+
+> ⚠️ **The location digest is a placeholder until M2 does this.** `packages/domain` ships only `testOnlyLocationPolicy`, whose offsets are reproducible by anyone holding a shelter id — which the feed publishes. Build the real one with `keyedLocationPolicy(hmac)` over a server-held secret, and call `assertProductionLocationPolicy` at boot beside `assertFullIcu`, so shipping the test policy is a process that refuses to start rather than a safety property that quietly disappeared.
 
 > The seen-set is the design problem here, not the pagination. Start with a `seen_animal_ids` array on the session row; move it to Redis only if it hurts.
 

@@ -3,12 +3,12 @@ import {
   DEFAULT_FUZZ_RADIUS_METRES,
   EdrpouSchema,
   type ExactAddress,
-  insecureUnkeyedDigest,
   type LocationPrivacyPolicy,
   ModeratorIdSchema,
   publicLocationOf,
   type Shelter,
   ShelterIdSchema,
+  testOnlyLocationPolicy,
 } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { ContactRevealViewSchema } from "./reveal.js";
@@ -33,10 +33,7 @@ const exactAddress: ExactAddress = {
   coordinates: { lat: 49.9935, lng: 36.2304 },
 };
 
-const privacyPolicy: LocationPrivacyPolicy = {
-  fuzzRadiusMetres: DEFAULT_FUZZ_RADIUS_METRES,
-  digest: (input) => insecureUnkeyedDigest(`test-key ${input}`),
-};
+const privacyPolicy: LocationPrivacyPolicy = testOnlyLocationPolicy("test-key");
 
 // Not hand-assembled: the branded fuzzed type makes publicLocationOf the only
 // way to build this, which is exactly the property under test.
