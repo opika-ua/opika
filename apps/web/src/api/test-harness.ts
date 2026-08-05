@@ -93,9 +93,9 @@ export async function createTestHarness() {
   async function call(
     path: string,
     body: unknown,
-    opts: { cookie?: string } = {},
+    opts: { cookie?: string; now?: Date } = {},
   ): Promise<{ status: number; body: unknown; headers: Headers }> {
-    const now = new Date("2026-08-01T12:00:00Z");
+    const now = opts.now ?? new Date("2026-08-01T12:00:00Z");
 
     // Validate session from cookie, same as the real route handler
     const session = await validateSession(db, opts.cookie ?? null, now);

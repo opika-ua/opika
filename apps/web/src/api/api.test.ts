@@ -1,6 +1,6 @@
-import { animalRepo, cityRepo, shelterRepo } from "@opika/db/repos";
-import { makeAnimal, makeCity, makeShelter } from "@opika/db/test";
-import { filtersFingerprint, NO_FILTERS } from "@opika/domain";
+import { animalRepo, cityRepo, revealRepo, shelterRepo } from "@opika/db/repos";
+import { makeAnimal, makeCity, makeReveal, makeShelter } from "@opika/db/test";
+import { type AdopterId, filtersFingerprint, NO_FILTERS } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { encodeFeedCursor, encodeRevealCursor } from "./cursor.js";
 import { createTestHarness, type TestHarness } from "./test-harness.js";
@@ -105,12 +105,57 @@ describe("session", () => {
     expect((body1.adopter as Record<string, unknown>).id).toBe(adopter2.id);
   });
 
-  it("an invalid cookie does not authenticate", async () => {
+  it("absolute expiry rejects a session older than 30 days", async () => {
+    const cookie = await bootstrap();
+
+    // 30 days + 1 second later, session should be expired
+    const thirtyDaysLater = new Date("2026-08-01T12:00:00Z");
+    thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
+    thirtyDaysLater.setSeconds(thirtyDaysLater.getSeconds() + 1);
+
+    // Authenticated endpoint should reject
+    const { animal } = await seedFeedAnimal();
+    const res = await h.call(
+      "animals.reveal",
+      { animalId: animal.id },
+      { cookie, now: thirtyDaysLater },
+    );
+    expectError(res, "UNAUTHENTICATED");
+  });
+
+  it("idle expiry rejects a session idle for more than 7 days", async () => {
+    const cookie = await bootstrap();
+
+    // 7 days + 1 second without activity
+    const sevenDaysLater = new Date("2026-08-01T12:00:00Z");
+    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+    sevenDaysLater.setSeconds(sevenDaysLater.getSeconds() + 1);
+
+    const { animal } = await seedFeedAnimal();
+    const res = await h.call(
+      "animals.reveal",
+      { animalId: animal.id },
+      { cookie, now: sevenDaysLater },
+    );
+    expectError(res, "UNAUTHENTICATED");
+  });
+
+  it("bootstrap mints a fresh session when the cookie is unknown", async () => {
+    // An unknown cookie triggers get-or-reject inside validateSession (returns
+    // { ok: false }), and bootstrap is the sole endpoint that responds by
+    // minting. This is NOT the old deviceSessionId vulnerability — 256-bit
+    // hashed tokens can't collide — but it means bootstrap MUST be per-IP rate
+    // limited because unauthenticated callers can create unbounded adopter rows.
     const res = await h.call("session.bootstrap", {}, { cookie: "session=bogus" });
     expect(res.status).toBe(200);
-    // Should mint a fresh session since the old one was invalid
     const cookie = h.extractSessionCookie(res.headers);
     expect(cookie).toBeTruthy();
+
+    // The new session should work
+    const res2 = await h.call("session.bootstrap", {}, { cookie: cookie! });
+    expect(res2.status).toBe(200);
+    const body2 = res2.body as Record<string, unknown>;
+    expect(body2).toHaveProperty("adopter");
   });
 });
 
@@ -321,5 +366,281 @@ describe("swipes", () => {
       at: new Date("2026-08-01T12:00:00Z"),
     });
     expectError(res, "UNAUTHENTICATED");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7. Reveal rate limit
+// ---------------------------------------------------------------------------
+
+describe("reveal rate limit", () => {
+  it("returns RATE_LIMITED after 30 reveals in 24h", async () => {
+    const cookie = await bootstrap();
+
+    // Bootstrap to discover adopterId
+    const bootstrapRes = await h.call("session.bootstrap", {}, { cookie });
+    const adopterId = (
+      (bootstrapRes.body as Record<string, unknown>).adopter as Record<string, unknown>
+    ).id as AdopterId;
+
+    // Seed one animal for the 31st reveal attempt
+    const { animal: targetAnimal, shelter, city } = await seedFeedAnimal();
+
+    // Insert 30 reveals directly via the repo (each for a different animal)
+    const reveals = revealRepo(h.db);
+    for (let i = 0; i < 30; i++) {
+      const animal = makeAnimal({ shelterId: shelter.id });
+      await animalRepo(h.db).insert(animal, city.id);
+
+      const reveal = makeReveal({
+        adopterId,
+        animalId: animal.id,
+        shelterId: shelter.id,
+        revealedAt: new Date("2026-08-01T11:00:00Z"),
+      });
+      await reveals.insert(reveal);
+    }
+
+    // 31st reveal via the API should be rate-limited
+    const res = await h.call("animals.reveal", { animalId: targetAnimal.id }, { cookie });
+    expectError(res, "RATE_LIMITED");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8. Cursor stability across inserts
+// ---------------------------------------------------------------------------
+
+describe("cursor stability", () => {
+  it("a new insert does not cause duplicates or skips across pages", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+
+    // Insert 4 animals with distinct timestamps
+    const timestamps = [
+      new Date("2026-07-28T12:00:00Z"),
+      new Date("2026-07-27T12:00:00Z"),
+      new Date("2026-07-26T12:00:00Z"),
+      new Date("2026-07-25T12:00:00Z"),
+    ];
+    const seededIds: string[] = [];
+    for (const ts of timestamps) {
+      const animal = makeAnimal({ shelterId: shelter.id, lastUpdatedAt: ts });
+      await animalRepo(h.db).insert(animal, city.id);
+      seededIds.push(animal.id);
+    }
+
+    // Fetch page 1 (limit 2)
+    const res1 = await h.call("feed.list", { filters: NO_FILTERS, cursor: null, limit: 2 });
+    expect(res1.status).toBe(200);
+    const body1 = res1.body as { items: Array<{ id: string }>; nextCursor: string | null };
+    expect(body1.items).toHaveLength(2);
+    expect(body1.nextCursor).toBeTruthy();
+    const page1Ids = body1.items.map((i) => i.id);
+
+    // Insert a NEW animal whose timestamp falls on the FIRST page (newer
+    // than anything already seen). This must not cause duplicates on page 2.
+    const newAnimal = makeAnimal({
+      shelterId: shelter.id,
+      lastUpdatedAt: new Date("2026-07-29T12:00:00Z"),
+    });
+    await animalRepo(h.db).insert(newAnimal, city.id);
+
+    // Fetch page 2 using the cursor from page 1
+    const res2 = await h.call("feed.list", {
+      filters: NO_FILTERS,
+      cursor: body1.nextCursor,
+      limit: 10,
+    });
+    expect(res2.status).toBe(200);
+    const body2 = res2.body as { items: Array<{ id: string }>; nextCursor: string | null };
+    const page2Ids = body2.items.map((i) => i.id);
+
+    // No id from page 1 should appear in page 2
+    for (const id of page1Ids) {
+      expect(page2Ids).not.toContain(id);
+    }
+
+    // All original seeded IDs that weren't on page 1 should be on page 2
+    const remainingOriginals = seededIds.filter((id) => !page1Ids.includes(id));
+    for (const id of remainingOriginals) {
+      expect(page2Ids).toContain(id);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 9. Filter coverage: city, size, age, multi-filter
+// ---------------------------------------------------------------------------
+
+describe("feed filters — city", () => {
+  it("city filter returns only animals in the selected city", async () => {
+    const city1 = makeCity({ name: { uk: "Київ", en: null } });
+    const city2 = makeCity({ name: { uk: "Львів", en: null } });
+    await cityRepo(h.db).insert(city1);
+    await cityRepo(h.db).insert(city2);
+
+    const shelter1 = makeShelter({
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city1.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    const shelter2 = makeShelter({
+      exactAddress: {
+        line1: "вул. Тестова 2",
+        line2: null,
+        postalCode: "79000",
+        cityId: city2.id,
+        district: null,
+        coordinates: { lat: 49.84, lng: 24.03 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter1);
+    await shelterRepo(h.db).insert(shelter2);
+
+    const a1 = makeAnimal({ shelterId: shelter1.id });
+    const a2 = makeAnimal({ shelterId: shelter2.id });
+    await animalRepo(h.db).insert(a1, city1.id);
+    await animalRepo(h.db).insert(a2, city2.id);
+
+    const res = await h.call("feed.list", {
+      filters: { ...NO_FILTERS, cities: { kind: "oneOf", values: [city1.id] } },
+      cursor: null,
+      limit: 50,
+    });
+    expect(res.status).toBe(200);
+    const body = res.body as { items: Array<{ id: string }> };
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0]?.id).toBe(a1.id);
+  });
+});
+
+describe("feed filters — size", () => {
+  it("size filter returns only matching animals", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+
+    const small = makeAnimal({ shelterId: shelter.id, size: "small" });
+    const large = makeAnimal({ shelterId: shelter.id, size: "large" });
+    await animalRepo(h.db).insert(small, city.id);
+    await animalRepo(h.db).insert(large, city.id);
+
+    const res = await h.call("feed.list", {
+      filters: { ...NO_FILTERS, sizes: { kind: "oneOf", values: ["small"] } },
+      cursor: null,
+      limit: 50,
+    });
+    expect(res.status).toBe(200);
+    const body = res.body as { items: Array<{ id: string; size: string }> };
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0]?.id).toBe(small.id);
+  });
+});
+
+describe("feed filters — age", () => {
+  it("age filter returns only animals in the selected bucket", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+
+    // "now" is 2026-08-01. A baby is <1yr, so born after 2025-08-01.
+    // A senior is 8yr+, so born before 2018-08-01.
+    const baby = makeAnimal({
+      shelterId: shelter.id,
+      age: { kind: "birth_date", date: new Date("2026-03-01"), precision: "day" as const },
+    });
+    const senior = makeAnimal({
+      shelterId: shelter.id,
+      age: { kind: "birth_date", date: new Date("2016-01-01"), precision: "day" as const },
+    });
+    await animalRepo(h.db).insert(baby, city.id);
+    await animalRepo(h.db).insert(senior, city.id);
+
+    const res = await h.call("feed.list", {
+      filters: { ...NO_FILTERS, ages: { kind: "oneOf", values: ["baby"] } },
+      cursor: null,
+      limit: 50,
+    });
+    expect(res.status).toBe(200);
+    const body = res.body as { items: Array<{ id: string; ageBucket: string }> };
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0]?.id).toBe(baby.id);
+    expect(body.items[0]?.ageBucket).toBe("baby");
+  });
+});
+
+describe("feed filters — multi-filter combination", () => {
+  it("species + size returns only animals matching both", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+
+    const smallDog = makeAnimal({ shelterId: shelter.id, species: "dog" as const, size: "small" });
+    const largeDog = makeAnimal({ shelterId: shelter.id, species: "dog" as const, size: "large" });
+    const smallCat = makeAnimal({ shelterId: shelter.id, species: "cat" as const, size: "small" });
+    await animalRepo(h.db).insert(smallDog, city.id);
+    await animalRepo(h.db).insert(largeDog, city.id);
+    await animalRepo(h.db).insert(smallCat, city.id);
+
+    const res = await h.call("feed.list", {
+      filters: {
+        ...NO_FILTERS,
+        species: { kind: "oneOf", values: ["dog"] },
+        sizes: { kind: "oneOf", values: ["small"] },
+      },
+      cursor: null,
+      limit: 50,
+    });
+    expect(res.status).toBe(200);
+    const body = res.body as { items: Array<{ id: string }> };
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0]?.id).toBe(smallDog.id);
   });
 });

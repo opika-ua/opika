@@ -17,13 +17,14 @@ export async function revealsListMine(input: Input, context: AppContext): Promis
   const secret = requireEnv("CURSOR_HMAC_SECRET");
   const reveals = revealRepo(context.db);
 
-  const listOpts: { limit: number; cursor?: Date } = { limit: input.limit + 1 };
+  type RevealCursor = { revealedAt: Date; id: string };
+  const listOpts: { limit: number; cursor?: RevealCursor } = { limit: input.limit + 1 };
   if (input.cursor) {
     const decoded = decodeRevealCursor(input.cursor, secret);
     if (!decoded) {
       throw new ORPCError("INVALID_CURSOR");
     }
-    listOpts.cursor = decoded.data.lastUpdatedAt;
+    listOpts.cursor = { revealedAt: decoded.data.lastUpdatedAt, id: decoded.data.id };
   }
 
   const items = await reveals.listByAdopter(context.adopterId, listOpts);
