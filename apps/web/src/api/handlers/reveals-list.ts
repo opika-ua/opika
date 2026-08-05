@@ -3,6 +3,8 @@ import { revealRepo } from "@opika/db/repos";
 import { ORPCError } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context.js";
+import { decodeRevealCursor, encodeRevealCursor } from "../cursor.js";
+import { requireEnv } from "../env.js";
 
 type Input = z.infer<typeof RevealsListMineInputSchema>;
 type Output = z.infer<typeof RevealsListMineOutputSchema>;
@@ -12,16 +14,16 @@ export async function revealsListMine(input: Input, context: AppContext): Promis
     throw new ORPCError("UNAUTHENTICATED");
   }
 
+  const secret = requireEnv("CURSOR_HMAC_SECRET");
   const reveals = revealRepo(context.db);
 
-  // Simple cursor: the revealedAt of the last item
   const listOpts: { limit: number; cursor?: Date } = { limit: input.limit + 1 };
   if (input.cursor) {
-    const ts = new Date(input.cursor);
-    if (Number.isNaN(ts.getTime())) {
+    const decoded = decodeRevealCursor(input.cursor, secret);
+    if (!decoded) {
       throw new ORPCError("INVALID_CURSOR");
     }
-    listOpts.cursor = ts;
+    listOpts.cursor = decoded.data.lastUpdatedAt;
   }
 
   const items = await reveals.listByAdopter(context.adopterId, listOpts);
@@ -30,7 +32,12 @@ export async function revealsListMine(input: Input, context: AppContext): Promis
   const pageItems = hasMore ? items.slice(0, input.limit) : items;
 
   const last = hasMore ? pageItems[pageItems.length - 1] : undefined;
-  const nextCursor = last ? (last.revealedAt.toISOString() as Output["nextCursor"]) : null;
+  const nextCursor = last
+    ? (encodeRevealCursor(
+        { lastUpdatedAt: last.revealedAt, id: last.id },
+        secret,
+      ) as Output["nextCursor"])
+    : null;
 
   return {
     items: pageItems.map((r) => ({
