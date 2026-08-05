@@ -426,6 +426,7 @@ interface ShelterDef {
   telegram: string | null;
   donationUrl: string | null;
   donationProvider: "monobank_jar" | "liqpay" | null;
+  freshnessSentenceUk: string | null;
   verificationStatus: "verified" | "pending" | "suspended";
 }
 
@@ -446,6 +447,8 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "dobri_lapy",
     donationUrl: "https://send.monobank.ua/jar/dobrilapy",
     donationProvider: "monobank_jar",
+    freshnessSentenceUk:
+      "Ми оновлювали цю картку {date}. З того часу не заходили — напишіть, і ми скажемо, чи {name} ще з нами.",
     verificationStatus: "verified",
   },
   {
@@ -464,6 +467,8 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "khvostatyi_dim",
     donationUrl: "https://send.monobank.ua/jar/khvostatyidim",
     donationProvider: "monobank_jar",
+    freshnessSentenceUk:
+      "Ми заходили сюди {date}. Напишіть — уточнимо, чи {name} ще чекає на родину.",
     verificationStatus: "verified",
   },
   {
@@ -481,6 +486,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: null,
     donationProvider: null,
+    freshnessSentenceUk: null,
     verificationStatus: "verified",
   },
   {
@@ -499,6 +505,8 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "murchyk_bucha",
     donationUrl: "https://www.liqpay.ua/uk/checkout/murchyk",
     donationProvider: "liqpay",
+    freshnessSentenceUk:
+      "Ми перевіряли {date}, чи {name} ще в нас. Якщо сумніваєтеся — просто напишіть.",
     verificationStatus: "verified",
   },
   {
@@ -517,6 +525,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "nadiya_brovary",
     donationUrl: null,
     donationProvider: null,
+    freshnessSentenceUk: null,
     verificationStatus: "verified",
   },
   {
@@ -534,6 +543,8 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: "https://send.monobank.ua/jar/lapusyk",
     donationProvider: "monobank_jar",
+    freshnessSentenceUk:
+      "Картку оновлено {date}. Якщо {name} ще шукає дім — ми скажемо, коли напишете.",
     verificationStatus: "verified",
   },
   {
@@ -552,6 +563,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: null,
     donationProvider: null,
+    freshnessSentenceUk: null,
     verificationStatus: "pending",
   },
   {
@@ -569,6 +581,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: null,
     donationProvider: null,
+    freshnessSentenceUk: null,
     verificationStatus: "suspended",
   },
 ];
@@ -653,6 +666,7 @@ function buildShelters(cities: City[]): Shelter[] {
         def.donationUrl && def.donationProvider
           ? { url: def.donationUrl, provider: def.donationProvider }
           : null,
+      freshnessSentence: def.freshnessSentenceUk ? { uk: def.freshnessSentenceUk, en: null } : null,
       verification: buildVerification(def),
       createdAt: daysAgo(120),
       lastUpdatedAt: daysAgo(1),

@@ -13,6 +13,17 @@ import { ShelterVerificationSchema } from "./verification/state.js";
  * listing the fields a view may contain, never by subtracting the fields it may
  * not — so a field added here cannot leak by default.
  */
+/**
+ * A shelter's own sentence describing how current its information is.
+ *
+ * Written once during verification, in the shelter's own words.
+ * The platform substitutes only `{date}` (last confirmed date) and
+ * `{name}` (animal name). Nothing else is generated or paraphrased.
+ * A shelter with no sentence falls back to the marker + day count alone.
+ */
+export const FreshnessSentenceSchema = LocalizedTextSchema.nullable();
+export type FreshnessSentence = z.infer<typeof FreshnessSentenceSchema>;
+
 export const ShelterSchema = z.object({
   id: ShelterIdSchema,
   displayName: z.string().min(1),
@@ -22,6 +33,7 @@ export const ShelterSchema = z.object({
   exactAddress: ExactAddressSchema,
   contact: ShelterContactSchema,
   donation: DonationLinkSchema.nullable(),
+  freshnessSentence: FreshnessSentenceSchema,
   verification: ShelterVerificationSchema,
   createdAt: z.date(),
   lastUpdatedAt: z.date(),

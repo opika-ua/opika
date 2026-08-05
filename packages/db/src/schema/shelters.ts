@@ -28,6 +28,9 @@ export const shelters = pgTable(
     contact: jsonb<ShelterContact>("contact").notNull(),
     donation: jsonb<DonationLink>("donation"),
 
+    freshnessSentenceUk: text("freshness_sentence_uk"),
+    freshnessSentenceEn: text("freshness_sentence_en"),
+
     /** Denormalised from the verification JSONB for feed-query filtering. */
     verificationStatus: text("verification_status", {
       enum: ["pending", "under_review", "verified", "rejected", "paused", "suspended"],
