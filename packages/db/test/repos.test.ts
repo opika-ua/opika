@@ -824,6 +824,86 @@ describe("feedRepo", () => {
     expect(page.items).toHaveLength(0);
   });
 
+  it("fostered animal appears under foster city, not shelter city", async () => {
+    const citiesR = cityRepo(db);
+    const sheltersR = shelterRepo(db);
+    const animalsR = animalRepo(db);
+    const feed = feedRepo(db);
+
+    const shelterCity = makeCity({ name: { uk: "Харків", en: null } });
+    const fosterCity = makeCity({ name: { uk: "Дніпро", en: null } });
+    await citiesR.insertMany([shelterCity, fosterCity]);
+
+    const shelter = makeShelter({
+      publicLocation: {
+        cityId: shelterCity.id,
+        district: null,
+        approximate: { center: { lat: 49.99, lng: 36.23 }, precisionMetres: 1000 } as never,
+      },
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "61000",
+        cityId: shelterCity.id,
+        district: null,
+        coordinates: { lat: 49.99, lng: 36.23 },
+      },
+    });
+    await sheltersR.insert(shelter);
+
+    // Animal at the shelter (no foster location)
+    const atShelter = makeAnimal({ shelterId: shelter.id, name: "Бровко" });
+    // Animal fostered in a different city
+    const fostered = makeAnimal({
+      shelterId: shelter.id,
+      name: "Мурка",
+      publicLocation: {
+        cityId: fosterCity.id,
+        district: null,
+        approximate: {
+          center: { lat: 48.46, lng: 35.04 },
+          precisionMetres: 1000,
+        } as never,
+      },
+      lastUpdatedAt: new Date("2026-08-01T11:00:00Z"),
+    });
+
+    await animalsR.insert(atShelter, shelterCity.id);
+    await animalsR.insert(fostered, fosterCity.id);
+
+    const filterByShelterCity: FeedFilters = {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf", values: [shelterCity.id] },
+    };
+    const filterByFosterCity: FeedFilters = {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf", values: [fosterCity.id] },
+    };
+    const now = new Date("2026-08-01T12:00:00Z");
+
+    const shelterCityPage = await feed.list({
+      filters: filterByShelterCity,
+      cursor: null,
+      limit: 10,
+      adopterId: null,
+      now,
+      seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
+    });
+    expect(shelterCityPage.items).toHaveLength(1);
+    expect(shelterCityPage.items[0]?.id).toBe(atShelter.id);
+
+    const fosterCityPage = await feed.list({
+      filters: filterByFosterCity,
+      cursor: null,
+      limit: 10,
+      adopterId: null,
+      now,
+      seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
+    });
+    expect(fosterCityPage.items).toHaveLength(1);
+    expect(fosterCityPage.items[0]?.id).toBe(fostered.id);
+  });
+
   it("excludes non-discoverable listings", async () => {
     const cities = cityRepo(db);
     const sheltersR = shelterRepo(db);

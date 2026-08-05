@@ -8,6 +8,7 @@ import type {
   CityId,
   DocumentReadiness,
   LocalizedText,
+  PublicLocation,
   ShelterId,
   SizeBucket,
   SpayNeuterStatus,
@@ -66,10 +67,18 @@ export const animals = pgTable(
       .$type<AnimalListingState["kind"]>(),
 
     /**
-     * Denormalised from the shelter for feed-query filtering. The build plan
-     * explicitly requires this: "Denormalise city_id onto animals as a
-     * persistence projection, and put equality columns before the ordering
-     * tuple in the feed index."
+     * Non-null when the animal is fostered away from its shelter. Contains
+     * city + district + fuzzed coordinates derived from the foster city's
+     * centroid (never from a foster carer's address). When null, the animal
+     * is at the shelter and inherits the shelter's public location.
+     */
+    publicLocation: jsonb<PublicLocation>("public_location"),
+
+    /**
+     * The city the animal is discoverable in. For animals at the shelter,
+     * this equals the shelter's city. For fostered animals, it is the
+     * foster city — legitimately independent of the shelter's city,
+     * supporting Ukrainian foster networks where animals move across cities.
      */
     cityId: text("city_id")
       .notNull()
@@ -107,7 +116,7 @@ export const animals = pgTable(
      * because Postgres can't skip middle columns.
      */
     index("animals_feed_unfiltered_idx")
-      .on(t.lastUpdatedAt.desc(), t.id.asc())
+      .on(t.lastUpdatedAt.desc().nullsFirst(), t.id.asc())
       .where(sql`listing_kind IN ('published', 'reserved')`),
   ],
 );

@@ -22,6 +22,7 @@ const baseAnimal: Animal = {
   spayNeuter: { source: "shelter_declared", state: "confirmed", declaredAt: NOW },
   documentReadiness: { kind: "unknown" },
   listing: { kind: "published", publishedAt: NOW },
+  publicLocation: null,
   createdAt: NOW,
   lastUpdatedAt: NOW,
 };

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AnimalIdSchema, ShelterIdSchema } from "../primitives/ids.js";
 import { LocalizedTextSchema } from "../primitives/localized-text.js";
+import { PublicLocationSchema } from "../shelters/location.js";
 import { AgeEstimateSchema } from "./age.js";
 import { SpayNeuterStatusSchema, VaccinationStatusSchema } from "./attestation.js";
 import { DocumentReadinessSchema } from "./document-readiness.js";
@@ -41,6 +42,17 @@ export const AnimalSchema = z.object({
   spayNeuter: SpayNeuterStatusSchema,
   documentReadiness: DocumentReadinessSchema,
   listing: AnimalListingStateSchema,
+  /**
+   * When an animal is fostered away from its shelter, it has its own public
+   * location (city + district + fuzzed coordinates derived from the city
+   * centroid). When null, the animal is at the shelter and inherits the
+   * shelter's public location.
+   *
+   * No exact foster address is ever stored — a foster home is a private
+   * residence. The fuzzed coordinates come from the city centroid via
+   * `animalPublicLocationOf`, so they reveal nothing about the foster carer.
+   */
+  publicLocation: PublicLocationSchema.nullable(),
   createdAt: z.date(),
   lastUpdatedAt: z.date(),
 });

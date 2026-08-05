@@ -150,6 +150,7 @@ export function animalToRowWithCity(animal: Animal, cityId: CityId): AnimalInser
     documentReadiness: animal.documentReadiness,
     listing: animal.listing,
     listingKind: animal.listing.kind,
+    publicLocation: animal.publicLocation,
     cityId,
     createdAt: animal.createdAt,
     lastUpdatedAt: animal.lastUpdatedAt,
@@ -175,6 +176,7 @@ export function rowToAnimal(row: AnimalRow): Animal {
     spayNeuter: row.spayNeuter,
     documentReadiness: row.documentReadiness,
     listing: row.listing,
+    publicLocation: row.publicLocation ?? null,
     createdAt: row.createdAt,
     lastUpdatedAt: row.lastUpdatedAt,
   };

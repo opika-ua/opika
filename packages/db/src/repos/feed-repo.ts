@@ -32,6 +32,15 @@ export function feedRepo(db: Database) {
      * Ordering: `(last_updated_at DESC, id ASC)` — newest first, ties broken
      * by id for determinism.
      *
+     * `last_updated_at` mutates when a shelter edits a listing, which moves
+     * the row's sort position. This means a cursor may skip a row that was
+     * behind the cursor and moved ahead, or revisit one that moved back.
+     * This is accepted: the seen-set exclusion absorbs duplicates, and a
+     * skipped-then-edited listing will surface on the next fetch with its
+     * new timestamp. Materialising a stable sort key would require a
+     * recompute job, which is the trade-off the build plan explicitly
+     * declined (see decision 10 in CLAUDE.md).
+     *
      * The seen-set exclusion uses a NOT IN subquery on the swipes table,
      * respecting the seen-set policy (direction-based expiry, cap).
      */
