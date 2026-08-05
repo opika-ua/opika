@@ -120,6 +120,8 @@ Pure TypeScript. **No database, no Next.js, no I/O.** This is contract-first tak
 | Anonymous device session (Better Auth anonymous plugin) — enough to track the seen-set | 3 |
 | Error mapping, Zod parse failures → typed responses, basic rate limiting | 3 |
 
+> **Migrations in CI.** Run `pnpm --filter @opika/db db:migrate` as a serialised CI job gated before deploy, never from application boot. Drizzle's migrator takes no advisory lock — concurrent migration runs against the same database can corrupt the journal. In development, one developer at a time is sufficient; in CI, a dedicated migration step (not the application process) is mandatory.
+
 ### M5 · The swipe deck — 16 h
 
 | Task | h |

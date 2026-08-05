@@ -107,7 +107,7 @@ export const animals = pgTable(
      * because Postgres can't skip middle columns.
      */
     index("animals_feed_unfiltered_idx")
-      .on(t.lastUpdatedAt.desc(), t.id.asc())
+      .on(t.lastUpdatedAt.desc().nullsFirst(), t.id.asc())
       .where(sql`listing_kind IN ('published', 'reserved')`),
   ],
 );
