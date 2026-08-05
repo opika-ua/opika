@@ -217,6 +217,37 @@ solo 10h/week project.
     `pick` breaks the build until someone decides. Non-negotiable, given
     that what's being withheld is an exact address.
 
+## Obligations the contract cannot express — carry these into M2/M4
+
+Found during the M1 review (`docs/m1-review.md`). Each is something the
+type system genuinely cannot enforce, so it has to live in a checklist:
+
+- **Build the server with `implement(contract)`.** oRPC validates outputs
+  at runtime and returns the *stripped* object — verified in
+  `@orpc/server@1.14.14` — but only when a schema is attached. A handler
+  on the plain `os` builder with no `.output()` returns whatever the
+  handler produced, and the `pick`-based leak protection evaporates.
+- **The session cookie is server-minted only**: ≥128 bits from a CSPRNG,
+  HttpOnly + Secure + SameSite=Lax, and *reject* an unknown session id
+  rather than treating it as a new one. Get-or-create on a client-supplied
+  value is account takeover.
+- **Sign the cursor and bind it to the filters.** Payload carries a kind
+  tag (`feed` / `reveal`) and `filtersFingerprint(filters)`; a mismatch is
+  `INVALID_CURSOR`. The branded type is a convenience for honest callers
+  and provides nothing at a trust boundary.
+- **Clamp `swipes.record`'s `at`** to `[now - maxOfflineWindow, now]`.
+- **Never construct a `PublicLocation` by hand** — `publicLocationOf` is
+  the only sanctioned path, and the branded `FuzzedCoordinates` enforces
+  it. The `LocationPrivacyPolicy.digest` must be an HMAC over a
+  server-held key; `insecureUnkeyedDigest` is for tests and seed data.
+- **Keep evidence documents out of the public image bucket.** Animal
+  photo keys are public; `documentKey` on verification evidence is the
+  same kind of value pointing at shelter registration paperwork.
+- **Store `age_anchor_at`** (from `ageAnchorOf`) as the indexed column and
+  filter with `ageAnchorRange`, rather than storing the age union.
+- **Denormalise `city_id` onto animals** as a persistence projection, and
+  put equality columns before the ordering tuple in the feed index.
+
 ## Still open in M1
 
 - The evidence item list and the two reason code lists are proposals, not
