@@ -39,6 +39,7 @@ export async function setupTestDatabase() {
   // Drop every application table and the drizzle migration journal so
   // migrations apply cleanly from scratch on every test run.
   await client.unsafe(`
+    DROP TABLE IF EXISTS sessions CASCADE;
     DROP TABLE IF EXISTS reveals CASCADE;
     DROP TABLE IF EXISTS swipes CASCADE;
     DROP TABLE IF EXISTS animals CASCADE;
@@ -63,5 +64,7 @@ export async function setupTestDatabase() {
  * preserves the schema.
  */
 export async function truncateAll(db: ReturnType<typeof drizzle<typeof schema>>) {
-  await db.execute(sql`TRUNCATE reveals, swipes, animals, adopters, shelters, cities CASCADE`);
+  await db.execute(
+    sql`TRUNCATE sessions, reveals, swipes, animals, adopters, shelters, cities CASCADE`,
+  );
 }
