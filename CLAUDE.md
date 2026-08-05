@@ -2,13 +2,16 @@
 
 Read this before doing anything else in this repo. It exists so a future
 session (or a future you) doesn't have to re-derive decisions that are
-already made. The two source documents this brief distills are in
+already made. The three source documents this brief distills are in
 `docs/`: `docs/stack-decision.md` (the ADR — full rationale, sources,
-verified prices/versions as of 2026-08-05) and `docs/build-plan.md` (the
-milestone plan and hour budget). **Both are the source of truth for their
-respective domains. Do not relitigate a stack choice or a milestone
-sequence that's already settled in those docs — if something there looks
-wrong, ask before overriding it.**
+verified prices/versions as of 2026-08-05), `docs/build-plan.md` (the
+milestone plan and hour budget), and `docs/design/README.md` (the
+"Keeper's Voice" design handoff — tokens, typography, spacing, motion,
+gesture spec, string table, and all eight screens at high fidelity).
+**All three are the source of truth for their respective domains. Do not
+relitigate a stack choice, a milestone sequence, or a design decision
+that's already settled in those docs — if something there looks wrong,
+ask before overriding it.**
 
 ## What this is
 
