@@ -703,6 +703,127 @@ describe("feedRepo", () => {
     expect(page.items[0]?.id).toBe(a2.id);
   });
 
+  it("re-shows a passed animal after reshowAfterDays expires", async () => {
+    const cities = cityRepo(db);
+    const sheltersR = shelterRepo(db);
+    const animalsR = animalRepo(db);
+    const adopters = adopterRepo(db);
+    const swipesR = swipeRepo(db);
+    const feed = feedRepo(db);
+
+    const city = makeCity();
+    await cities.insert(city);
+    const shelter = makeShelter({
+      publicLocation: {
+        cityId: city.id,
+        district: null,
+        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
+      },
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await sheltersR.insert(shelter);
+
+    const a1 = makeAnimal({ shelterId: shelter.id });
+    await animalsR.insert(a1, city.id);
+
+    const adopter = makeAdopter();
+    await adopters.insert(adopter);
+
+    // Pass on a1 31 days ago
+    const thirtyOneDaysAgo = new Date("2026-07-01T12:00:00Z");
+    await swipesR.record(
+      makeSwipe({
+        adopterId: adopter.id,
+        animalId: a1.id,
+        direction: "pass",
+        at: thirtyOneDaysAgo,
+      }),
+    );
+
+    const now = new Date("2026-08-01T12:00:00Z");
+    const policy = { maxTracked: 1000, reshowAfterDays: 30 };
+
+    // After 31 days, the passed animal should reappear
+    const page = await feed.list({
+      filters: NO_FILTERS,
+      cursor: null,
+      limit: 10,
+      adopterId: adopter.id,
+      now,
+      seenSetPolicy: policy,
+    });
+
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0]?.id).toBe(a1.id);
+  });
+
+  it("excludes a recently passed animal within reshowAfterDays", async () => {
+    const cities = cityRepo(db);
+    const sheltersR = shelterRepo(db);
+    const animalsR = animalRepo(db);
+    const adopters = adopterRepo(db);
+    const swipesR = swipeRepo(db);
+    const feed = feedRepo(db);
+
+    const city = makeCity();
+    await cities.insert(city);
+    const shelter = makeShelter({
+      publicLocation: {
+        cityId: city.id,
+        district: null,
+        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
+      },
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await sheltersR.insert(shelter);
+
+    const a1 = makeAnimal({ shelterId: shelter.id });
+    await animalsR.insert(a1, city.id);
+
+    const adopter = makeAdopter();
+    await adopters.insert(adopter);
+
+    // Pass on a1 10 days ago (within the 30-day window)
+    const tenDaysAgo = new Date("2026-07-22T12:00:00Z");
+    await swipesR.record(
+      makeSwipe({
+        adopterId: adopter.id,
+        animalId: a1.id,
+        direction: "pass",
+        at: tenDaysAgo,
+      }),
+    );
+
+    const now = new Date("2026-08-01T12:00:00Z");
+    const policy = { maxTracked: 1000, reshowAfterDays: 30 };
+
+    // Within 30 days, the passed animal should still be excluded
+    const page = await feed.list({
+      filters: NO_FILTERS,
+      cursor: null,
+      limit: 10,
+      adopterId: adopter.id,
+      now,
+      seenSetPolicy: policy,
+    });
+
+    expect(page.items).toHaveLength(0);
+  });
+
   it("excludes non-discoverable listings", async () => {
     const cities = cityRepo(db);
     const sheltersR = shelterRepo(db);

@@ -3,6 +3,7 @@ import {
   type Animal,
   ageAnchorRange,
   DISCOVERABLE_LISTING_KINDS,
+  FEED_VISIBLE_VERIFICATION_STATUSES,
   type FeedFilters,
   type SeenSetPolicy,
 } from "@opika/domain";
@@ -47,12 +48,14 @@ export function feedRepo(db: Database) {
       // Only discoverable listings from verified shelters
       conditions.push(inArray(animals.listingKind, [...DISCOVERABLE_LISTING_KINDS]));
 
-      // Join condition: only verified shelters
-      // We use a subquery approach instead of a join to keep the index scan clean
+      // Only shelters in a feed-visible verification state.
+      // Uses the domain constant so adding a state to
+      // FEED_VISIBLE_VERIFICATION_STATUSES updates the query automatically,
+      // mirroring how DISCOVERABLE_LISTING_KINDS is used above.
       conditions.push(
         sql`${animals.shelterId} IN (
           SELECT ${shelters.id} FROM ${shelters}
-          WHERE ${shelters.verificationStatus} = 'verified'
+          WHERE ${inArray(shelters.verificationStatus, [...FEED_VISIBLE_VERIFICATION_STATUSES])}
         )`,
       );
 

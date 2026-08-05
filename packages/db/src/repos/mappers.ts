@@ -97,7 +97,7 @@ export function shelterToRow(shelter: Shelter): ShelterInsert {
     publicLocation: shelter.publicLocation,
     exactAddress: shelter.exactAddress,
     contact: shelter.contact,
-    donation: shelter.donation ?? undefined,
+    donation: shelter.donation,
     verificationStatus: shelter.verification.status,
     verification: shelter.verification,
     cityId: shelter.publicLocation.cityId,
@@ -187,12 +187,12 @@ export function adopterToRow(profile: AdopterProfile): AdopterInsert {
   return {
     id: profile.id,
     identityKind: identity.kind,
-    deviceSessionId: identity.kind === "anonymous" ? identity.deviceSessionId : undefined,
-    accountId: identity.kind === "account" ? identity.accountId : undefined,
-    email: identity.kind === "account" ? identity.email : undefined,
+    deviceSessionId: identity.kind === "anonymous" ? identity.deviceSessionId : null,
+    accountId: identity.kind === "account" ? identity.accountId : null,
+    email: identity.kind === "account" ? identity.email : null,
     country: profile.country,
     preferredLocale: profile.preferredLocale,
-    savedFilters: profile.savedFilters ?? undefined,
+    savedFilters: profile.savedFilters,
     createdAt: profile.createdAt,
   };
 }
