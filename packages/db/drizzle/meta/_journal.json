@@ -15,6 +15,13 @@
       "when": 1785939637288,
       "tag": "0001_dapper_mercury",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785944631857,
+      "tag": "0002_glossy_baron_strucker",
+      "breakpoints": true
     }
   ]
 }

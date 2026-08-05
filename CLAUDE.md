@@ -144,10 +144,17 @@ solo 10h/week project.
   freshness functions. Most shapes in these two packages are decisions
   rather than defaults — the reasoning lives in the commit messages and in
   the decision list below, so read `git log` before changing one.
-- **M2 and later:** persistence (Drizzle), seed data, the minimal API,
-  the swipe deck, filters/reveal, images, admin, i18n, PWA, observability,
-  launch. Not in scope until M1 is reviewed and signed off. Full detail
-  in `docs/build-plan.md`.
+- **M2 — `packages/db`: done.** Drizzle schema mirroring domain unions,
+  repositories, keyset feed query with cursor stability and seen-set
+  exclusion, seed data (320 animals, 18 shelters, 22 cities). 30 tests.
+- **M3 — seed data: done.** Realistic Ukrainian seed data with correct
+  verification distributions and deterministic generation.
+- **M4 — minimal API: in progress.** oRPC router implementing the
+  contract, hand-rolled anonymous device session, cursor signing, split
+  rate limiting, all eight handlers. No integration tests yet (no test
+  infrastructure for the API layer at this milestone).
+- **M5 and later:** swipe deck, filters/reveal, images, admin, i18n,
+  PWA, observability, launch. Full detail in `docs/build-plan.md`.
 
 ## Decisions made during M1 scoping (settled — don't re-ask)
 
@@ -218,6 +225,29 @@ solo 10h/week project.
     allow-by-default and would leak a newly added `Shelter` field silently;
     `pick` breaks the build until someone decides. Non-negotiable, given
     that what's being withheld is an exact address.
+
+## Decisions settled during M4 (also don't re-ask)
+
+13. **Anonymous device session is hand-rolled, not Better Auth.** Better Auth's
+    value is the `organization` plugin for shelter accounts at M8; the anonymous
+    session is a simpler primitive. Token: ≥256 bits from `crypto.randomBytes`,
+    hex-encoded. Storage: SHA-256 hash of the token (never the token itself).
+    Lookup: timing-safe comparison. Cookie: `__Host-session` in production
+    (falls back to `session` in dev, where HTTPS is unavailable). Behaviour:
+    get-or-reject, never get-or-create. Expiry: absolute (30 days) AND idle
+    (7 days). The domain's `AdopterIdentity.anonymous.deviceSessionId` stores
+    the hash, not the token. Better Auth is deferred to M8, where it replaces
+    the anonymous session for adopters who upgrade to a real account and provides
+    the organization plugin for shelters.
+14. **Rate limiting is split.** Generic per-IP: in-memory sliding window behind
+    a `RateLimiter` interface (acknowledged per-instance in serverless; the
+    interface is stable for a Redis/KV swap). Reveal limit: Postgres-persisted,
+    30 reveals per 24h, counted from the existing `reveals` table — no new table
+    needed, survives cold starts.
+15. **Cursor is HMAC-signed.** `CURSOR_HMAC_SECRET` env var (separate from
+    `LOCATION_HMAC_SECRET`). Payload carries a `kind` tag (`feed` / `reveal`)
+    and `filtersFingerprint(filters)`; verification is timing-safe. Prevents
+    cross-list and cross-filter cursor reuse.
 
 ## Obligations the contract cannot express — carry these into M2/M4
 
