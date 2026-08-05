@@ -1,7 +1,12 @@
 import {
   CityIdSchema,
+  DEFAULT_FUZZ_RADIUS_METRES,
   EdrpouSchema,
+  type ExactAddress,
+  insecureUnkeyedDigest,
+  type LocationPrivacyPolicy,
   ModeratorIdSchema,
+  publicLocationOf,
   type Shelter,
   ShelterIdSchema,
 } from "@opika/domain";
@@ -19,14 +24,23 @@ const contact = {
   additional: [],
 } as const;
 
-const exactAddress = {
+const exactAddress: ExactAddress = {
   line1: "вул. Прикладна, 1",
   line2: null,
   postalCode: "61000",
   cityId: CITY_ID,
   district: null,
   coordinates: { lat: 49.9935, lng: 36.2304 },
-} as const;
+};
+
+const privacyPolicy: LocationPrivacyPolicy = {
+  fuzzRadiusMetres: DEFAULT_FUZZ_RADIUS_METRES,
+  digest: (input) => insecureUnkeyedDigest(`test-key ${input}`),
+};
+
+// Not hand-assembled: the branded fuzzed type makes publicLocationOf the only
+// way to build this, which is exactly the property under test.
+const publicLocation = publicLocationOf(SHELTER_ID, exactAddress, privacyPolicy);
 
 const shelter: Shelter = {
   id: SHELTER_ID,
@@ -38,11 +52,7 @@ const shelter: Shelter = {
     edrpou: EdrpouSchema.parse("12345678"),
     registeredAt: AT,
   },
-  publicLocation: {
-    cityId: CITY_ID,
-    district: null,
-    approximate: { center: { lat: 49.99, lng: 36.23 }, precisionMetres: 1000 },
-  },
+  publicLocation,
   exactAddress,
   contact,
   donation: null,
@@ -76,7 +86,14 @@ describe("public shelter projections withhold the private fields", () => {
   });
 
   it("still carries the approximate location, which is what a map needs", () => {
-    expect(projected.publicLocation.approximate.precisionMetres).toBe(1000);
+    expect(projected.publicLocation.approximate.precisionMetres).toBe(DEFAULT_FUZZ_RADIUS_METRES);
+  });
+
+  it("publishes a location that is not the shelter's real one", () => {
+    // The assertion that was missing: precisionMetres alone is an unenforced
+    // claim, and a view carrying the true coordinates with a 1 km label
+    // attached is worse than one carrying no location at all.
+    expect(projected.publicLocation.approximate.center).not.toEqual(exactAddress.coordinates);
   });
 
   it("withholds the same fields from the card summary", () => {
