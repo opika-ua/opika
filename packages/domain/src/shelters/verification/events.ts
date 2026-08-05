@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ModeratorIdSchema } from "../../primitives/ids.js";
 import { VerificationEvidenceSchema } from "./evidence.js";
-import { RejectionReasonSchema, SuspensionReasonSchema } from "./reasons.js";
+import { PauseReasonSchema, RejectionReasonSchema, SuspensionReasonSchema } from "./reasons.js";
 
 /**
  * Initial submission is deliberately absent from this union. There is no prior
@@ -43,6 +43,24 @@ export const VerificationEventSchema = z.discriminatedUnion("type", [
     at: z.date(),
     moderatorId: ModeratorIdSchema,
   }),
+  /**
+   * `pause` and `resume` carry a ModeratorId today because shelters have no
+   * login at MVP, so an admin acts on their behalf. That is the half-measure,
+   * not the design: keeping them as distinct events from suspend/reinstate is
+   * what makes the partner dashboard a change to who may send `resume` rather
+   * than a change to the lifecycle itself.
+   */
+  z.object({
+    type: z.literal("pause"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    reason: PauseReasonSchema,
+  }),
+  z.object({
+    type: z.literal("resume"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+  }),
 ]);
 export type VerificationEvent = z.infer<typeof VerificationEventSchema>;
 export type VerificationEventType = VerificationEvent["type"];
@@ -54,4 +72,6 @@ export const VERIFICATION_EVENT_TYPES = [
   "resubmit",
   "suspend",
   "reinstate",
+  "pause",
+  "resume",
 ] as const satisfies readonly VerificationEventType[];

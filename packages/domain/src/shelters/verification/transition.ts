@@ -40,7 +40,16 @@ export const submitForVerification = (
  * return" and "banned, never returning", which is one state carrying two
  * meanings.
  *
- * Two edges stay closed on purpose:
+ * `verified <-> paused` is the non-punitive exit. Suspension used to be the
+ * only way out of `verified`, so a shelter closing for the season or moving
+ * premises was recorded as suspended with a moderation reason — punitive in the
+ * admin UI, and conflating "we stopped them" with "they stopped themselves".
+ *
+ * `paused -> suspended` is open because a complaint does not wait for a shelter
+ * to reopen, and `reinstate` restores whatever was interrupted rather than
+ * always landing on `verified`.
+ *
+ * Three edges stay closed on purpose:
  *
  * `under_review -> suspended` — suspension is something that happens to a live
  * shelter, and a shelter under review is not in the feed. If a complaint
@@ -48,9 +57,15 @@ export const submitForVerification = (
  *
  * `verified -> under_review` — a verified shelter moved back to review would
  * silently vanish from the feed with no record that it had ever been verified,
- * which is the exact failure `priorStatus` was added to prevent. Periodic
+ * which is the exact failure `priorState` was added to prevent. Periodic
  * re-verification belongs in a future `re_review` state that carries its prior
- * status, not in an overload of the first-time review state.
+ * state, not in an overload of the first-time review state.
+ *
+ * `paused -> rejected` — banning a shelter that was already accepted is an
+ * escalation, and the audit trail should show the suspension that preceded it.
+ * This is a deliberate asymmetry with `pending -> rejected`, which is open:
+ * refusing an applicant needs no prior state, removing an accepted shelter
+ * does.
  */
 const nextState = (
   current: ShelterVerification,
@@ -107,7 +122,54 @@ const nextState = (
             suspendedAt: event.at,
             suspendedBy: event.moderatorId,
             reason: event.reason,
-            priorStatus: "verified",
+            priorState: {
+              status: "verified",
+              verifiedAt: current.verifiedAt,
+              verifiedBy: current.verifiedBy,
+            },
+            evidence: current.evidence,
+          };
+        case "pause":
+          return {
+            status: "paused",
+            // The original approval travels with the pause, so resuming credits
+            // whoever verified the shelter rather than whoever reopened it.
+            verifiedAt: current.verifiedAt,
+            verifiedBy: current.verifiedBy,
+            pausedAt: event.at,
+            pausedBy: event.moderatorId,
+            reason: event.reason,
+            evidence: current.evidence,
+          };
+        default:
+          return null;
+      }
+
+    case "paused":
+      switch (event.type) {
+        case "resume":
+          return {
+            status: "verified",
+            verifiedAt: current.verifiedAt,
+            verifiedBy: current.verifiedBy,
+            evidence: current.evidence,
+          };
+        case "suspend":
+          // A complaint does not wait for a shelter to reopen. The whole paused
+          // state is captured so reinstatement can put it back exactly.
+          return {
+            status: "suspended",
+            suspendedAt: event.at,
+            suspendedBy: event.moderatorId,
+            reason: event.reason,
+            priorState: {
+              status: "paused",
+              verifiedAt: current.verifiedAt,
+              verifiedBy: current.verifiedBy,
+              pausedAt: current.pausedAt,
+              pausedBy: current.pausedBy,
+              reason: current.reason,
+            },
             evidence: current.evidence,
           };
         default:
@@ -129,12 +191,25 @@ const nextState = (
     case "suspended":
       switch (event.type) {
         case "reinstate":
-          return {
-            status: "verified",
-            verifiedAt: event.at,
-            verifiedBy: event.moderatorId,
-            evidence: current.evidence,
-          };
+          // Restores the interrupted state exactly, rather than always landing
+          // on `verified`. Lifting a suspension from a shelter that had asked
+          // to be closed must not quietly reopen it.
+          return current.priorState.status === "paused"
+            ? {
+                status: "paused",
+                verifiedAt: current.priorState.verifiedAt,
+                verifiedBy: current.priorState.verifiedBy,
+                pausedAt: current.priorState.pausedAt,
+                pausedBy: current.priorState.pausedBy,
+                reason: current.priorState.reason,
+                evidence: current.evidence,
+              }
+            : {
+                status: "verified",
+                verifiedAt: current.priorState.verifiedAt,
+                verifiedBy: current.priorState.verifiedBy,
+                evidence: current.evidence,
+              };
         case "reject":
           return {
             status: "rejected",

@@ -23,6 +23,9 @@ const T1 = new Date("2026-02-01T00:00:00.000Z");
 
 const EVIDENCE: VerificationEvidence = { items: [], submittedAt: T0 };
 
+/** Strictly before T0, so a restored approval is distinguishable from a new one. */
+const VERIFIED_AT = new Date("2025-06-01T00:00:00.000Z");
+
 /**
  * Evidence that identifies which state it came from.
  *
@@ -60,13 +63,23 @@ const stateFor = (status: VerificationStatus, at: Date = T0): ShelterVerificatio
         reason: { code: "insufficient_evidence", note: null },
         evidence: EVIDENCE,
       };
+    case "paused":
+      return {
+        status,
+        verifiedAt: VERIFIED_AT,
+        verifiedBy: MODERATOR,
+        pausedAt: T0,
+        pausedBy: MODERATOR,
+        reason: { code: "seasonal_closure", note: null },
+        evidence: EVIDENCE,
+      };
     case "suspended":
       return {
         status,
         suspendedAt: T0,
         suspendedBy: MODERATOR,
         reason: { code: "unresponsive", note: null },
-        priorStatus: "verified",
+        priorState: { status: "verified", verifiedAt: VERIFIED_AT, verifiedBy: MODERATOR },
         evidence: EVIDENCE,
       };
     default: {
@@ -96,6 +109,15 @@ const eventFor = (type: VerificationEventType): VerificationEvent => {
       };
     case "reinstate":
       return { type, at: T1, moderatorId: MODERATOR };
+    case "pause":
+      return {
+        type,
+        at: T1,
+        moderatorId: MODERATOR,
+        reason: { code: "seasonal_closure", note: null },
+      };
+    case "resume":
+      return { type, at: T1, moderatorId: MODERATOR };
     default: {
       const unreachable: never = type;
       return unreachable;
@@ -113,8 +135,9 @@ const LEGAL: Partial<
 > = {
   pending: { start_review: "under_review", reject: "rejected" },
   under_review: { approve: "verified", reject: "rejected" },
-  verified: { suspend: "suspended" },
+  verified: { suspend: "suspended", pause: "paused" },
   rejected: { resubmit: "pending" },
+  paused: { resume: "verified", suspend: "suspended" },
   suspended: { reinstate: "verified", reject: "rejected" },
 };
 
@@ -125,7 +148,7 @@ describe("verification transition table", () => {
     // otherwise shrink the table silently.
     expect(VERIFICATION_STATUSES.length).toBe(ShelterVerificationSchema.options.length);
     expect(VERIFICATION_EVENT_TYPES.length).toBe(VerificationEventSchema.options.length);
-    expect(VERIFICATION_STATUSES.length * VERIFICATION_EVENT_TYPES.length).toBe(30);
+    expect(VERIFICATION_STATUSES.length * VERIFICATION_EVENT_TYPES.length).toBe(48);
   });
 
   for (const status of VERIFICATION_STATUSES) {
@@ -160,6 +183,9 @@ describe("evidence and actor survive every legal edge", () => {
     ["rejected", "resubmit"],
     ["suspended", "reinstate"],
     ["suspended", "reject"],
+    ["verified", "pause"],
+    ["paused", "resume"],
+    ["paused", "suspend"],
   ];
 
   for (const [status, eventType] of legal) {
@@ -235,13 +261,17 @@ describe("state carried through transitions", () => {
     expect(result.kind === "ok" && result.next.evidence.submittedAt).toEqual(T1);
   });
 
-  it("records that a suspended shelter was previously verified", () => {
+  it("records the state a suspension interrupted", () => {
     const result = transition(stateFor("verified"), eventFor("suspend"));
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok" || result.next.status !== "suspended") {
       throw new Error("expected a suspended state");
     }
-    expect(result.next.priorStatus).toBe("verified");
+    expect(result.next.priorState).toEqual({
+      status: "verified",
+      verifiedAt: T0,
+      verifiedBy: MODERATOR,
+    });
   });
 
   it("keeps the reviewer on the state while under review", () => {
@@ -263,6 +293,7 @@ describe("event ordering, for every status", () => {
     under_review: "approve",
     verified: "suspend",
     rejected: "resubmit",
+    paused: "resume",
     suspended: "reinstate",
   };
 
@@ -330,5 +361,79 @@ describe("submitForVerification", () => {
   it("produces a state that can immediately enter review", () => {
     const result = transition(submitForVerification(EVIDENCE, T0), eventFor("start_review"));
     expect(result.kind).toBe("ok");
+  });
+});
+
+describe("pausing is not a punishment", () => {
+  it("keeps the original approval when a shelter pauses", () => {
+    // A paused shelter is still one somebody verified. Losing that would mean
+    // asking it to re-submit evidence just because it closed for the winter.
+    const result = transition(stateFor("verified"), eventFor("pause"));
+    if (result.kind !== "ok" || result.next.status !== "paused") {
+      throw new Error("expected a paused state");
+    }
+    expect(result.next.verifiedAt).toEqual(T0);
+    expect(result.next.pausedAt).toEqual(T1);
+    expect(result.next.reason.code).toBe("seasonal_closure");
+  });
+
+  it("credits the original verifier on resume, not whoever reopened it", () => {
+    const paused = transition(stateFor("verified"), eventFor("pause"));
+    if (paused.kind !== "ok") throw new Error("expected a pause");
+
+    const resumed = transition(paused.next, { type: "resume", at: T1, moderatorId: REVIEWER });
+    if (resumed.kind !== "ok" || resumed.next.status !== "verified") {
+      throw new Error("expected a verified state");
+    }
+    expect(resumed.next.verifiedAt).toEqual(T0);
+    expect(resumed.next.verifiedBy).toBe(MODERATOR);
+  });
+
+  it("does not let a pause become a permanent ban directly", () => {
+    // Removing an accepted shelter is an escalation; the audit trail should
+    // show the suspension that preceded it.
+    expect(transition(stateFor("paused"), eventFor("reject")).kind).toBe("illegal");
+  });
+
+  it("uses a reason list of its own, not moderation codes", () => {
+    const result = transition(stateFor("verified"), eventFor("pause"));
+    if (result.kind !== "ok" || result.next.status !== "paused") {
+      throw new Error("expected a paused state");
+    }
+    // @ts-expect-error a suspension code is not a valid pause reason
+    result.next.reason.code = "complaint_upheld";
+  });
+});
+
+describe("reinstatement restores what the suspension interrupted", () => {
+  it("returns a paused shelter to paused, with its original reason", () => {
+    // The failure this prevents: lifting a suspension silently reopening a
+    // shelter that had asked to be closed.
+    const paused = transition(stateFor("verified"), eventFor("pause"));
+    if (paused.kind !== "ok") throw new Error("expected a pause");
+
+    const suspended = transition(paused.next, { ...eventFor("suspend"), at: T1 });
+    if (suspended.kind !== "ok") throw new Error("expected a suspension");
+
+    const reinstated = transition(suspended.next, {
+      type: "reinstate",
+      at: T1,
+      moderatorId: REVIEWER,
+    });
+    if (reinstated.kind !== "ok" || reinstated.next.status !== "paused") {
+      throw new Error("expected the shelter to return to paused");
+    }
+    expect(reinstated.next.reason.code).toBe("seasonal_closure");
+    expect(reinstated.next.pausedBy).toBe(MODERATOR);
+    expect(reinstated.next.verifiedAt).toEqual(T0);
+  });
+
+  it("returns a verified shelter to verified", () => {
+    const result = transition(stateFor("suspended"), eventFor("reinstate"));
+    if (result.kind !== "ok" || result.next.status !== "verified") {
+      throw new Error("expected a verified state");
+    }
+    // The approval it had before the suspension, not one dated to the lift.
+    expect(result.next.verifiedAt).toEqual(VERIFIED_AT);
   });
 });

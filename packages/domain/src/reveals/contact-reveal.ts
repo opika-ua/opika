@@ -9,6 +9,7 @@ import {
 import { ShelterContactSchema } from "../shelters/contact.js";
 import { DonationLinkSchema } from "../shelters/donation.js";
 import { ExactAddressSchema, PublicLocationSchema } from "../shelters/location.js";
+import { VERIFICATION_STATUSES } from "../shelters/verification/state.js";
 
 /**
  * Denormalised on purpose. If a shelter changes its phone number, an adopter's
@@ -25,13 +26,12 @@ export const ShelterContactSnapshotSchema = z.object({
   contact: ShelterContactSchema,
   exactAddress: ExactAddressSchema,
   publicLocation: PublicLocationSchema,
-  verificationStatusAtReveal: z.enum([
-    "pending",
-    "under_review",
-    "verified",
-    "rejected",
-    "suspended",
-  ]),
+  /**
+   * Derived from the lifecycle rather than restated, so adding a status cannot
+   * leave this list quietly behind — which is exactly what happened when
+   * `paused` was introduced.
+   */
+  verificationStatusAtReveal: z.enum(VERIFICATION_STATUSES),
   donation: DonationLinkSchema.nullable(),
 });
 export type ShelterContactSnapshot = z.infer<typeof ShelterContactSnapshotSchema>;

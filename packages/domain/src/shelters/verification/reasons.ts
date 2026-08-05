@@ -19,15 +19,39 @@ export const RejectionCodeSchema = z.enum([
 ]);
 export type RejectionCode = z.infer<typeof RejectionCodeSchema>;
 
+/**
+ * Every code here describes something the platform decided about a shelter.
+ *
+ * `shelter_requested` used to sit in this list, and its presence was the
+ * clearest evidence that `paused` was missing: a shelter closing for the season
+ * is not a moderation outcome, and recording it as one reads as punitive in the
+ * admin UI and in any conversation with that shelter. It now lives in
+ * `PauseCode`, on a state whose exit does not require a moderator.
+ */
 export const SuspensionCodeSchema = z.enum([
   "unresponsive",
   "complaint_upheld",
   "listing_quality",
   "suspected_fraud",
-  "shelter_requested",
   "other",
 ]);
 export type SuspensionCode = z.infer<typeof SuspensionCodeSchema>;
+
+/**
+ * Why a verified shelter is temporarily not taking adopters, by its own choice.
+ *
+ * A separate list from `SuspensionCode` for the same reason rejection and
+ * suspension are separate: this is self-declared, that is imposed, and a merged
+ * enum would offer nonsense in both dropdowns.
+ */
+export const PauseCodeSchema = z.enum([
+  "seasonal_closure",
+  "relocation",
+  "capacity_reached",
+  "staff_shortage",
+  "other",
+]);
+export type PauseCode = z.infer<typeof PauseCodeSchema>;
 
 /** `note` is the escape hatch that keeps `other` usable without reopening the enum. */
 export const RejectionReasonSchema = z.object({
@@ -41,3 +65,9 @@ export const SuspensionReasonSchema = z.object({
   note: z.string().min(1).nullable(),
 });
 export type SuspensionReason = z.infer<typeof SuspensionReasonSchema>;
+
+export const PauseReasonSchema = z.object({
+  code: PauseCodeSchema,
+  note: z.string().min(1).nullable(),
+});
+export type PauseReason = z.infer<typeof PauseReasonSchema>;

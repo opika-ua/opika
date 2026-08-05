@@ -31,12 +31,21 @@ const states: Record<string, ShelterVerification> = {
     reason: { code: "spam", note: null },
     evidence: EVIDENCE,
   },
+  paused: {
+    status: "paused",
+    verifiedAt: OTHER,
+    verifiedBy: MODERATOR,
+    pausedAt: AT,
+    pausedBy: MODERATOR,
+    reason: { code: "seasonal_closure", note: null },
+    evidence: EVIDENCE,
+  },
   suspended: {
     status: "suspended",
     suspendedAt: AT,
     suspendedBy: MODERATOR,
     reason: { code: "unresponsive", note: null },
-    priorStatus: "verified",
+    priorState: { status: "verified", verifiedAt: OTHER, verifiedBy: MODERATOR },
     evidence: EVIDENCE,
   },
 };
@@ -84,18 +93,39 @@ describe("isPubliclyVerified", () => {
 });
 
 describe("ShelterVerificationSchema", () => {
-  it("requires priorStatus on a suspended state", () => {
-    const { priorStatus: _dropped, ...withoutPrior } = states.suspended as Extract<
+  it("requires priorState on a suspended state", () => {
+    const { priorState: _dropped, ...withoutPrior } = states.suspended as Extract<
       ShelterVerification,
       { status: "suspended" }
     >;
     expect(ShelterVerificationSchema.safeParse(withoutPrior).success).toBe(false);
   });
 
-  it("rejects a suspension claiming a prior status other than verified", () => {
+  it("rejects a suspension claiming a prior state it cannot have come from", () => {
+    // Only verified and paused shelters can be suspended, so a suspension
+    // recording any other origin is a corrupt record rather than a new edge.
     expect(
-      ShelterVerificationSchema.safeParse({ ...states.suspended, priorStatus: "pending" }).success,
+      ShelterVerificationSchema.safeParse({
+        ...states.suspended,
+        priorState: { status: "pending", submittedAt: AT },
+      }).success,
     ).toBe(false);
+  });
+
+  it("keeps the pause details when a paused shelter is suspended", () => {
+    // Without them, reinstating would have to invent a reason or silently
+    // reopen a shelter that had asked to be closed.
+    const priorState = {
+      status: "paused" as const,
+      verifiedAt: OTHER,
+      verifiedBy: MODERATOR,
+      pausedAt: AT,
+      pausedBy: MODERATOR,
+      reason: { code: "relocation" as const, note: null },
+    };
+    expect(ShelterVerificationSchema.safeParse({ ...states.suspended, priorState }).success).toBe(
+      true,
+    );
   });
 
   it("has a fixture for every variant it defines", () => {
