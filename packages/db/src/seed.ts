@@ -263,6 +263,7 @@ interface ShelterDef {
   phone: string;
   telegram: string | null;
   donationUrl: string | null;
+  donationProvider: "monobank_jar" | "liqpay" | null;
   verificationStatus: "verified" | "pending" | "suspended";
 }
 
@@ -282,6 +283,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     phone: "+380501234567",
     telegram: "dobri_lapy",
     donationUrl: "https://send.monobank.ua/jar/dobrilapy",
+    donationProvider: "monobank_jar",
     verificationStatus: "verified",
   },
   {
@@ -299,6 +301,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     phone: "+380672345678",
     telegram: "khvostatyi_dim",
     donationUrl: "https://send.monobank.ua/jar/khvostatyidim",
+    donationProvider: "monobank_jar",
     verificationStatus: "verified",
   },
   {
@@ -315,6 +318,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     phone: "+380633456789",
     telegram: null,
     donationUrl: null,
+    donationProvider: null,
     verificationStatus: "verified",
   },
   {
@@ -332,6 +336,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     phone: "+380504567890",
     telegram: "murchyk_bucha",
     donationUrl: "https://www.liqpay.ua/uk/checkout/murchyk",
+    donationProvider: "liqpay",
     verificationStatus: "verified",
   },
   {
@@ -349,6 +354,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     phone: "+380505678901",
     telegram: "nadiya_brovary",
     donationUrl: null,
+    donationProvider: null,
     verificationStatus: "verified",
   },
   {
@@ -365,6 +371,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     phone: "+380676789012",
     telegram: null,
     donationUrl: "https://send.monobank.ua/jar/lapusyk",
+    donationProvider: "monobank_jar",
     verificationStatus: "verified",
   },
   {
@@ -382,6 +389,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     phone: "+380507890123",
     telegram: null,
     donationUrl: null,
+    donationProvider: null,
     verificationStatus: "pending",
   },
   {
@@ -398,6 +406,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     phone: "+380508901234",
     telegram: null,
     donationUrl: null,
+    donationProvider: null,
     verificationStatus: "suspended",
   },
 ];
@@ -478,9 +487,10 @@ function buildShelters(cities: City[]): Shelter[] {
       publicLocation: publicLocationOf(id, exactAddress, policy),
       exactAddress,
       contact,
-      donation: def.donationUrl
-        ? { url: def.donationUrl, provider: "monobank_jar" as const }
-        : null,
+      donation:
+        def.donationUrl && def.donationProvider
+          ? { url: def.donationUrl, provider: def.donationProvider }
+          : null,
       verification: buildVerification(def),
       createdAt: daysAgo(120),
       lastUpdatedAt: daysAgo(1),
