@@ -22,8 +22,12 @@ import { SessionBootstrapViewSchema } from "../views/session.js";
  * - Mint at least 128 bits from a CSPRNG. Never derive it from anything the
  *   client sends.
  * - Set HttpOnly, Secure, SameSite=Lax, and a path scoped to the API.
- * - Reject any session identifier the server did not issue, rather than
- *   treating an unknown value as a new session.
+ * - Session validation is get-or-reject: an unknown token returns
+ *   `{ ok: false }`, never a new session. Bootstrap is the sole exception —
+ *   when validation rejects (stale cookie, wiped DB, first visit), bootstrap
+ *   mints a fresh adopter and session. This is why bootstrap MUST be covered
+ *   by per-IP rate limiting: without it, unauthenticated callers can create
+ *   unbounded adopter rows.
  */
 export const sessionBootstrapContract = oc
   .input(z.object({}))
