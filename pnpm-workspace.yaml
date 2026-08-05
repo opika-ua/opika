@@ -19,3 +19,9 @@ catalog:
   "@types/node": 24.13.3
   "@orpc/contract": 1.14.14
   "@vitest/coverage-v8": 4.1.10
+  drizzle-orm: 0.45.2
+  drizzle-kit: 0.31.10
+  postgres: 3.4.9
+
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,33 @@
+{
+  "name": "@opika/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts",
+    "./repos": "./src/repos/index.ts",
+    "./test": "./src/test-utils/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@opika/domain": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "postgres": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@opika/contracts": "workspace:*",
+    "drizzle-kit": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "@types/node": "catalog:"
+  }
+}

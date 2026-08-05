@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: opika
       POSTGRES_DB: opika
     ports:
-      - "5432:5432"
+      - "${OPIKA_DB_PORT:-5433}:5432"
     volumes:
       - opika-db-data:/var/lib/postgresql/data
     healthcheck:
