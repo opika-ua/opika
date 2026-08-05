@@ -39,6 +39,7 @@ const shelterSummary = {
   id: animal.shelterId,
   displayName: "Тестовий притулок",
   publicLocation: {
+    precision: "fuzzed_address",
     cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     district: null,
     approximate: { center: { lat: 49.99, lng: 36.23 }, precisionMetres: 1000 },
@@ -125,6 +126,43 @@ describe("animal views expose exactly their intended fields", () => {
       expect(parsed).not.toHaveProperty("createdAt");
       expect(parsed).not.toHaveProperty("listing");
       expect(parsed).not.toHaveProperty("shelterId");
+    }
+  });
+});
+
+describe("public location precision", () => {
+  it("a fostered animal's city-precision location carries no coordinates", () => {
+    const fosteredAnimal: Animal = {
+      ...animal,
+      publicLocation: {
+        precision: "city",
+        cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never,
+        district: null,
+      },
+    };
+
+    for (const parsed of [
+      FeedCardViewSchema.parse({
+        ...fosteredAnimal,
+        ...derived,
+        primaryPhoto: null,
+        shelter: shelterSummary,
+      }),
+      AnimalDetailViewSchema.parse({ ...fosteredAnimal, ...derived, shelter: shelterSummary }),
+    ]) {
+      expect(parsed.publicLocation?.precision).toBe("city");
+      expect(JSON.stringify(parsed.publicLocation)).not.toContain("approximate");
+      expect(JSON.stringify(parsed.publicLocation)).not.toContain("center");
+    }
+  });
+
+  it("a shelter's fuzzed-address location still carries coordinates", () => {
+    expect(shelterSummary.publicLocation.precision).toBe("fuzzed_address");
+    const summary = ShelterSummaryViewSchema.parse({ ...shelterSummary });
+    expect(summary.publicLocation.precision).toBe("fuzzed_address");
+    if (summary.publicLocation.precision === "fuzzed_address") {
+      expect(summary.publicLocation.approximate.center).toBeDefined();
+      expect(summary.publicLocation.approximate.precisionMetres).toBe(1000);
     }
   });
 });

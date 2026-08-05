@@ -40,6 +40,7 @@ describe("feed query EXPLAIN", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {

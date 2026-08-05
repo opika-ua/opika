@@ -44,13 +44,14 @@ export const AnimalSchema = z.object({
   listing: AnimalListingStateSchema,
   /**
    * When an animal is fostered away from its shelter, it has its own public
-   * location (city + district + fuzzed coordinates derived from the city
-   * centroid). When null, the animal is at the shelter and inherits the
-   * shelter's public location.
+   * location at `city` precision (city + district, no coordinates). When
+   * null, the animal is at the shelter and inherits the shelter's
+   * `fuzzed_address`-precision public location.
    *
    * No exact foster address is ever stored — a foster home is a private
-   * residence. The fuzzed coordinates come from the city centroid via
-   * `animalPublicLocationOf`, so they reveal nothing about the foster carer.
+   * residence. The city centroid is available via `CityView.centroid` and
+   * is honestly labelled as such, rather than posing as the animal's
+   * position. Built via `animalPublicLocationOf(cityId, district)`.
    */
   publicLocation: PublicLocationSchema.nullable(),
   createdAt: z.date(),
