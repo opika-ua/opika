@@ -23,7 +23,7 @@ function clampSwipeTime(at: Date, now: Date): Date {
 
 export async function swipesRecord(input: SwipesInput, context: AppContext): Promise<SwipesOutput> {
   if (!context.adopterId) {
-    throw new ORPCError("NOT_FOUND");
+    throw new ORPCError("UNAUTHENTICATED");
   }
 
   const animals = animalRepo(context.db);
