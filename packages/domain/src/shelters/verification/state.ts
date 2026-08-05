@@ -75,6 +75,7 @@ export const enteredAt = (state: ShelterVerification): Date => {
       return state.rejectedAt;
     case "suspended":
       return state.suspendedAt;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = state;
       return unreachable;

@@ -86,6 +86,7 @@ export const ageAnchorOf = (estimate: AgeEstimate): Date => {
       return new Date(
         estimate.declaredAt.getTime() - AGE_BUCKET_MIN_YEARS[estimate.bucket] * MS_PER_YEAR,
       );
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = estimate;
       return unreachable;

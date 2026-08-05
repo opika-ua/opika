@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   assertFullIcu,
   DEFAULT_FRESHNESS_POLICY,
+  FreshnessPolicySchema,
   formatFreshnessRelative,
   freshnessOf,
 } from "./freshness.js";
@@ -24,6 +25,33 @@ describe("full ICU", () => {
     // Without it uk-UA collapses to English and the plural assertions below
     // would be testing the wrong language while still passing some of the time.
     expect(() => assertFullIcu()).not.toThrow();
+  });
+
+  it("throws, and reports what it saw, on a runtime without Ukrainian data", () => {
+    // The branch that matters: a boot assertion that cannot fail is decoration.
+    // The message has to name the value received, or the operator is left
+    // guessing which locale data is missing.
+    expect(() => assertFullIcu(() => "January")).toThrow(/January/);
+  });
+});
+
+describe("FreshnessPolicy validation", () => {
+  it("rejects a policy whose aging band sits below its fresh band", () => {
+    // {fresh: 30, aging: 7} parsed cleanly before this and made `aging`
+    // unreachable, so a month-old listing read as fresh.
+    expect(FreshnessPolicySchema.safeParse({ freshMaxDays: 30, agingMaxDays: 7 }).success).toBe(
+      false,
+    );
+  });
+
+  it("accepts equal bounds, which collapses aging to a single day", () => {
+    expect(FreshnessPolicySchema.safeParse({ freshMaxDays: 7, agingMaxDays: 7 }).success).toBe(
+      true,
+    );
+  });
+
+  it("accepts the shipped default", () => {
+    expect(FreshnessPolicySchema.safeParse(DEFAULT_FRESHNESS_POLICY).success).toBe(true);
   });
 });
 

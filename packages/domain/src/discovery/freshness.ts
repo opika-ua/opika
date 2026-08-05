@@ -84,10 +84,20 @@ export const formatFreshnessRelative = (freshness: Freshness, locale: Locale): s
  * silently collapses to English. A freshness badge reading "5 days ago" to a
  * Ukrainian adopter is the kind of defect that ships unnoticed.
  */
-export const assertFullIcu = (): void => {
-  const month = new Intl.DateTimeFormat("uk-UA", { month: "long" }).format(
-    new Date(Date.UTC(2026, 0, 5)),
-  );
+const ukrainianMonthName = (): string =>
+  new Intl.DateTimeFormat("uk-UA", { month: "long" }).format(new Date(Date.UTC(2026, 0, 5)));
+
+/**
+ * Fails loudly at boot on a runtime built without full ICU, where every locale
+ * silently collapses to English. A freshness badge reading "5 days ago" to a
+ * Ukrainian adopter is the kind of defect that ships unnoticed.
+ *
+ * The lookup is a parameter so the failure path can be exercised without
+ * stubbing a global constructor — a boot assertion whose throw branch is never
+ * tested is decoration.
+ */
+export const assertFullIcu = (resolveMonthName: () => string = ukrainianMonthName): void => {
+  const month = resolveMonthName();
   if (month !== "січень") {
     throw new Error(
       `Runtime lacks full ICU data: expected "січень" for uk-UA, received "${month}".`,

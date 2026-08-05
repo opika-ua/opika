@@ -147,6 +147,7 @@ const nextState = (
           return null;
       }
 
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = current;
       return unreachable;

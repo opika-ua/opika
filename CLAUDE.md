@@ -139,9 +139,11 @@ solo 10h/week project.
   exhaustive transition-table test, `Animal` with discriminated
   vaccination/spay-neuter unions, `AdopterProfile` + `FeedFilters`,
   `ContactReveal`, `Freshness` + `freshnessOf`, `scoreAnimal`, `City`, and
-  the API contract for the eight procedures. 137 tests. The reviewed type
-  design is `docs/m1-type-design.md` — read it before changing a shape in
-  either package, because most of them are decisions rather than defaults.
+  the API contract for the eight procedures, reviewed and hardened. 219
+  tests, coverage floors enforced on the verification machine and the
+  freshness functions. Most shapes in these two packages are decisions
+  rather than defaults — the reasoning lives in the commit messages and in
+  the decision list below, so read `git log` before changing one.
 - **M2 and later:** persistence (Drizzle), seed data, the minimal API,
   the swipe deck, filters/reveal, images, admin, i18n, PWA, observability,
   launch. Not in scope until M1 is reviewed and signed off. Full detail
@@ -219,8 +221,8 @@ solo 10h/week project.
 
 ## Obligations the contract cannot express — carry these into M2/M4
 
-Found during the M1 review (`docs/m1-review.md`). Each is something the
-type system genuinely cannot enforce, so it has to live in a checklist:
+Each is something the type system genuinely cannot enforce, so it has to
+live in a checklist rather than in a schema:
 
 - **Build the server with `implement(contract)`.** oRPC validates outputs
   at runtime and returns the *stripped* object — verified in
