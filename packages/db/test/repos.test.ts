@@ -77,6 +77,7 @@ describe("shelterRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: {
           center: { lat: 50.45, lng: 30.52 },
           precisionMetres: 1000,
@@ -108,6 +109,7 @@ describe("shelterRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: {
           center: { lat: 50.45, lng: 30.52 },
           precisionMetres: 1000,
@@ -145,6 +147,7 @@ describe("animalRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -177,6 +180,7 @@ describe("animalRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -240,6 +244,7 @@ describe("swipeRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -286,6 +291,7 @@ describe("swipeRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -337,6 +343,7 @@ describe("revealRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -378,6 +385,7 @@ describe("revealRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -420,6 +428,7 @@ describe("feedRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -511,6 +520,7 @@ describe("feedRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -568,6 +578,7 @@ describe("feedRepo", () => {
         publicLocation: {
           cityId: city.id,
           district: null,
+          precision: "fuzzed_address",
           approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
         },
         exactAddress: {
@@ -601,6 +612,7 @@ describe("feedRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.46, lng: 30.53 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -653,6 +665,7 @@ describe("feedRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -717,6 +730,7 @@ describe("feedRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -778,6 +792,7 @@ describe("feedRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -838,6 +853,7 @@ describe("feedRepo", () => {
       publicLocation: {
         cityId: shelterCity.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 49.99, lng: 36.23 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {
@@ -858,12 +874,9 @@ describe("feedRepo", () => {
       shelterId: shelter.id,
       name: "Мурка",
       publicLocation: {
+        precision: "city",
         cityId: fosterCity.id,
         district: null,
-        approximate: {
-          center: { lat: 48.46, lng: 35.04 },
-          precisionMetres: 1000,
-        } as never,
       },
       lastUpdatedAt: new Date("2026-08-01T11:00:00Z"),
     });
@@ -916,6 +929,7 @@ describe("feedRepo", () => {
       publicLocation: {
         cityId: city.id,
         district: null,
+        precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       exactAddress: {

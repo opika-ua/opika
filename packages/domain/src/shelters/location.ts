@@ -1,28 +1,45 @@
 import { z } from "zod";
-import type { Coordinates } from "../primitives/coordinates.js";
 import {
   CoordinatesSchema,
   FuzzedCoordinatesSchema,
   fuzzCoordinates,
   type LocationPrivacyPolicy,
 } from "../primitives/coordinates.js";
-import type { CityId } from "../primitives/ids.js";
-import { type AnimalId, CityIdSchema, type ShelterId } from "../primitives/ids.js";
+import { type CityId, CityIdSchema, type ShelterId } from "../primitives/ids.js";
 import { type LocalizedText, LocalizedTextSchema } from "../primitives/localized-text.js";
 
 /**
- * What the feed and the public profile are allowed to show. District is
- * nullable because smaller towns are not subdivided, and null survives a JSON
- * round trip in a way an absent property does not.
+ * "How well do we know this location" is a union, not a nullable — same idiom
+ * as `MedicalAttestation.source`, `DocumentItem.kind` and `Freshness.kind`.
+ * This makes the false-precision state unrepresentable rather than merely
+ * discouraged, and forces the UI to switch on `precision` and decide what to
+ * render.
  *
- * `approximate` requires the branded fuzzed type, so this object cannot be
- * assembled from a precise position by accident.
+ * `fuzzed_address`: the shelter has an exact address; the public sees the city,
+ * district, and fuzzed coordinates. Shelters always produce this variant.
+ *
+ * `city`: we know only the city (and optionally the district). No coordinates
+ * at all — the city centroid is available via `CityView.centroid` and is
+ * honestly labelled as such, rather than posing as the animal's position.
+ * Fostered animals with no known address produce this variant.
+ *
+ * District is nullable in both variants because smaller towns are not
+ * subdivided, and null survives a JSON round trip in a way an absent property
+ * does not.
  */
-export const PublicLocationSchema = z.object({
-  cityId: CityIdSchema,
-  district: LocalizedTextSchema.nullable(),
-  approximate: FuzzedCoordinatesSchema,
-});
+export const PublicLocationSchema = z.discriminatedUnion("precision", [
+  z.object({
+    precision: z.literal("fuzzed_address"),
+    cityId: CityIdSchema,
+    district: LocalizedTextSchema.nullable(),
+    approximate: FuzzedCoordinatesSchema,
+  }),
+  z.object({
+    precision: z.literal("city"),
+    cityId: CityIdSchema,
+    district: LocalizedTextSchema.nullable(),
+  }),
+]);
 export type PublicLocation = z.infer<typeof PublicLocationSchema>;
 
 /**
@@ -54,6 +71,7 @@ export const publicLocationOf = (
   exactAddress: ExactAddress,
   policy: LocationPrivacyPolicy,
 ): PublicLocation => ({
+  precision: "fuzzed_address",
   cityId: exactAddress.cityId,
   district: exactAddress.district,
   approximate: fuzzCoordinates(exactAddress.coordinates, shelterId, policy),
@@ -62,19 +80,18 @@ export const publicLocationOf = (
 /**
  * Public location for an animal fostered away from its shelter.
  *
- * Uses the city centroid — never a foster carer's address — as the input to
- * fuzzing, so the output reveals nothing about any private residence. The
- * animal id is the seed, giving each fostered animal a distinct (but stable)
- * offset within its foster city.
+ * Produces a `city`-precision location — no coordinates at all. The city
+ * centroid is available to the UI via `CityView.centroid` and is honestly
+ * labelled as a centroid rather than posing as the animal's position.
+ * Generating fuzzed coordinates from the centroid would be manufactured
+ * precision: a random point within 1 km of city centre reads as "we know
+ * roughly where this animal is" when in fact we only know the city.
  */
 export const animalPublicLocationOf = (
-  animalId: AnimalId,
   cityId: CityId,
   district: LocalizedText | null,
-  centroid: Coordinates,
-  policy: LocationPrivacyPolicy,
 ): PublicLocation => ({
+  precision: "city",
   cityId,
   district,
-  approximate: fuzzCoordinates(centroid, animalId, policy),
 });

@@ -238,17 +238,28 @@ live in a checklist rather than in a schema:
   `INVALID_CURSOR`. The branded type is a convenience for honest callers
   and provides nothing at a trust boundary.
 - **Clamp `swipes.record`'s `at`** to `[now - maxOfflineWindow, now]`.
-- **Never construct a `PublicLocation` by hand** — `publicLocationOf` is
-  the only sanctioned path, and the branded `FuzzedCoordinates` enforces
-  it. The `LocationPrivacyPolicy.digest` must be an HMAC over a
+- **Never construct a `PublicLocation` by hand** — `publicLocationOf`
+  (for shelters, always `fuzzed_address` precision) and
+  `animalPublicLocationOf` (for fostered animals, always `city`
+  precision) are the only sanctioned paths. `PublicLocation` is a
+  discriminated union on `precision`: `fuzzed_address` carries
+  `FuzzedCoordinates`, `city` carries no coordinates at all — the city
+  centroid is available via `CityView.centroid` and is honestly labelled
+  as such. The `LocationPrivacyPolicy.digest` must be an HMAC over a
   server-held key; `insecureUnkeyedDigest` is for tests and seed data.
 - **Keep evidence documents out of the public image bucket.** Animal
   photo keys are public; `documentKey` on verification evidence is the
   same kind of value pointing at shelter registration paperwork.
 - **Store `age_anchor_at`** (from `ageAnchorOf`) as the indexed column and
   filter with `ageAnchorRange`, rather than storing the age union.
-- **Denormalise `city_id` onto animals** as a persistence projection, and
-  put equality columns before the ordering tuple in the feed index.
+- **`city_id` on animals** is the city the animal is discoverable in.
+  For animals at their shelter it mirrors the shelter's city
+  (denormalised); for fostered animals it is the foster city — a
+  first-class property, not a projection. `Animal.publicLocation`
+  (nullable) is `city`-precision when set (city + district, no
+  coordinates); when null the animal is at the shelter and inherits the
+  shelter's `fuzzed_address`-precision public location. Put equality
+  columns before the ordering tuple in the feed index.
 
 ## Still open in M1
 

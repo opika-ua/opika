@@ -83,6 +83,8 @@ describe("public shelter projections withhold the private fields", () => {
   });
 
   it("still carries the approximate location, which is what a map needs", () => {
+    expect(projected.publicLocation.precision).toBe("fuzzed_address");
+    if (projected.publicLocation.precision !== "fuzzed_address") throw new Error("unreachable");
     expect(projected.publicLocation.approximate.precisionMetres).toBe(DEFAULT_FUZZ_RADIUS_METRES);
   });
 
@@ -90,6 +92,7 @@ describe("public shelter projections withhold the private fields", () => {
     // The assertion that was missing: precisionMetres alone is an unenforced
     // claim, and a view carrying the true coordinates with a 1 km label
     // attached is worse than one carrying no location at all.
+    if (projected.publicLocation.precision !== "fuzzed_address") throw new Error("unreachable");
     expect(projected.publicLocation.approximate.center).not.toEqual(exactAddress.coordinates);
   });
 
