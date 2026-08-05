@@ -134,12 +134,14 @@ solo 10h/week project.
   plus a few more — see the file), Biome for lint+format,
   `docker-compose.yml` (`postgis/postgis:17-3.5`), `.gitattributes` +
   autocrlf guidance below, GitHub Actions CI (`typecheck → lint → test`).
-- **M1 — `packages/contracts` + `packages/domain`: in progress.** Branded
-  IDs, `Money`, `Shelter` + verification FSM with an exhaustive
-  transition-table test, `Animal` with discriminated vaccination/spay-neuter
-  unions, `AdopterProfile` + `FeedFilters`, `ContactReveal`, `Freshness` +
-  `freshnessOf`, `scoreAnimal`, and the API contract for ~8 procedures.
-  Type design gets reviewed before implementation — see Open Decisions.
+- **M1 — `packages/contracts` + `packages/domain`: built, pending your
+  sign-off.** Branded IDs, `Money`, `Shelter` + verification FSM with an
+  exhaustive transition-table test, `Animal` with discriminated
+  vaccination/spay-neuter unions, `AdopterProfile` + `FeedFilters`,
+  `ContactReveal`, `Freshness` + `freshnessOf`, `scoreAnimal`, `City`, and
+  the API contract for the eight procedures. 137 tests. The reviewed type
+  design is `docs/m1-type-design.md` — read it before changing a shape in
+  either package, because most of them are decisions rather than defaults.
 - **M2 and later:** persistence (Drizzle), seed data, the minimal API,
   the swipe deck, filters/reveal, images, admin, i18n, PWA, observability,
   launch. Not in scope until M1 is reviewed and signed off. Full detail
@@ -159,25 +161,70 @@ solo 10h/week project.
    The exact address only reaches an adopter inside
    `ContactReveal.shelterSnapshot`, after they've committed to a reveal.
    Same gating pattern as contact info — not a special case.
-3. **Size buckets:** 4-tier by weight — `small` (<10kg) / `medium`
-   (10–25kg) / `large` (25–40kg) / `giant` (40kg+). Applies uniformly to
-   dogs and cats.
+3. **Size buckets: 3-tier** — `small` / `medium` / `large`. Weight is
+   **never stored**, only the bucket. `SIZE_BUCKET_WEIGHT_HINTS_KG`
+   (<10kg / 10–25kg / 25kg+) exists purely as guidance for whoever fills in
+   the listing. *(Superseded the earlier 4-tier `giant` variant — that tier
+   is gone, deliberately, not by oversight.)*
 4. **Age buckets:** 4-tier, Petfinder-style — `baby` (<1yr) / `young`
-   (1–3yr) / `adult` (3–8yr) / `senior` (8yr+).
+   (1–3yr) / `adult` (3–8yr) / `senior` (8yr+). **The bucket is derived, not
+   stored.** `Animal.age` holds an `AgeEstimate` (a birth date, or a bucket
+   declared at a known time) and `ageBucketOf(estimate, now)` computes the
+   bucket at read time, so a puppy listed in March is not still advertised
+   as a puppy in December.
 
-## Still open / unconfirmed assumptions in the M1 type design
+## Decisions settled during the M1 build (also don't re-ask)
 
-Flagged during the M1 design review, not yet confirmed:
+5. **Verification FSM edges.** 5 states × 6 events = 30 pairs, all asserted.
+   Open: `pending → rejected` (a rejection always has a moderator behind it;
+   requiring a formal review first on spam models a click, not a lifecycle)
+   and `suspended → rejected` (otherwise `suspended` means both "paused, may
+   return" and "banned"). Closed: `under_review → suspended` (nothing to
+   suspend — it isn't in the feed) and `verified → under_review` (it would
+   drop a shelter from the feed with no record it was ever verified, which is
+   what `priorStatus` exists to prevent). Periodic re-verification, when
+   needed, is a **new `re_review` state** carrying its prior status — not an
+   overload of `under_review`.
+6. **`VerificationEvidence` is a list of discriminated items**, not a fixed
+   record, because what a shelter can produce depends on its legal form. The
+   requirement rule therefore lives in `DEFAULT_VERIFICATION_POLICY` as a
+   pure predicate. An **unregistered volunteer group can reach `verified`**,
+   substituting a moderator site visit plus two independent references for
+   the registration and banking records a registered entity supplies.
+   ⚠ Those thresholds are my proposal, not your specification — the shape is
+   settled, the numbers are yours to change.
+7. **`RejectionReason` and `SuspensionReason` are separate code lists**
+   (+ optional free-text note). A shelter is rejected for reasons about its
+   application and suspended for reasons about its conduct; one merged enum
+   would be mostly invalid in either context.
+8. **Species stays closed at `dog | cat`.** Adding a literal later is a
+   compiler-guided edit; an open `other` variant would make the feed filter
+   permanently unenumerable and break the weight hints, which describe dogs
+   and cats.
+9. **`swipes.record` and `animals.reveal` stay separate.** Swipes are
+   best-effort and batchable; a reveal is transactional, idempotent and
+   append-only, and is the Phase 2 reward-ledger event.
+10. **Feed ordering: keyset on `(lastUpdatedAt DESC, id)`**, with
+    `scoreAnimal` re-ranking within the fetched page. No materialised score
+    column, so no recompute job as freshness decays and no backfill when the
+    weights are tuned. The accepted cost: de-ranking stale listings is a
+    within-page effect, not a global ordering. **M2 implements this.**
+11. **Coordinate fuzzing: 1 km, one global policy.** `fuzzCoordinates` is
+    deterministic on the shelter id — a per-request offset would let an
+    observer average repeated samples back to the true position.
+12. **Public views are built with `pick`, never `omit`.** `omit` is
+    allow-by-default and would leak a newly added `Shelter` field silently;
+    `pick` breaks the build until someone decides. Non-negotiable, given
+    that what's being withheld is an exact address.
 
-- `VerificationEvidence`'s shape (NGO registration number, bank account
-  holder name, reference contact) is a placeholder guess — the ADR
-  doesn't specify it.
-- The verification FSM allows `rejected --resubmit--> pending` and
-  `suspended --reinstate--> verified`, but not `suspended --> rejected`
-  directly. Confirm this matches the intended shelter lifecycle before
-  the transition table is implemented.
-- `Animal.type` is `"dog" | "cat"` only — confirm no other species are
-  in scope for the oblast's shelters.
+## Still open in M1
+
+- The evidence item list and the two reason code lists are proposals, not
+  specifications (see 6 and 7 above). The **shapes** are settled; changing a
+  code or a threshold is a one-line edit plus a test.
+- `Money` is deliberately unattached to any entity. Adding
+  `Animal.adoptionFee` would invite recording exactly the "symbolic fee" the
+  EU enforcement guidance flags, so it waits for a real requirement.
 
 ## Non-negotiable test suites
 
