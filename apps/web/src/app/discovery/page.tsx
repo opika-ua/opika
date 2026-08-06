@@ -43,6 +43,13 @@ export default function DiscoveryPage() {
         display: "flex",
         flexDirection: "column",
         padding: 16,
+        // Without this the 16px padding is added *outside* the 390px width and
+        // the 100dvh height, so the deck is 422x876 in a 390x844 viewport.
+        boxSizing: "border-box",
+        // The deck is a fixed surface, not a document. Nothing here should
+        // scroll; if something no longer fits, the harness should say so
+        // rather than a scrollbar quietly appearing.
+        overflow: "hidden",
         fontFamily: "'Commissioner', sans-serif",
       }}
     >

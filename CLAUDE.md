@@ -13,6 +13,62 @@ relitigate a stack choice, a milestone sequence, or a design decision
 that's already settled in those docs — if something there looks wrong,
 ask before overriding it.**
 
+## How work is verified — read this before marking anything done
+
+Two rules. They are first in this document because ignoring them is the
+single most expensive thing that has happened to this project so far.
+
+### 1. Markup is not evidence
+
+**A user-interface item may not be marked done on the basis of inspecting
+markup.** It requires one of:
+
+- a **rendered assertion** — a component test (`apps/web`, happy-dom +
+  Testing Library) or a harness run (`apps/web/test/harness`, Playwright);
+- or a **documented manual device test with a screenshot** attached.
+
+Text appearing in the HTML is not evidence that anything works. Neither is
+a green typecheck, a passing unit test on a neighbouring pure function, or
+a route returning 200.
+
+Three incidents, all of which passed the checks that were applied:
+
+- **M0** reported `pnpm check` passing when `node_modules` did not exist
+  and the command had never been run.
+- **M4** ticked its definition of done while noting, in the same
+  document, "structurally implemented, but no integration tests."
+- **M5** reported that `/discovery` rendered — a conclusion reached by
+  fetching the HTML and grepping it for card text. In the browser the
+  action row sat on top of the card, the page overflowed its viewport by
+  48px, and the swipe gesture did not work at all. Every one of those is
+  invisible to a grep, and all of them were in the HTML it matched.
+
+The build was the clearest case of all. Relative imports carried `.js`
+extensions, which `tsc` accepts under every module resolution mode, so
+typecheck stayed green while the app could not compile in a bundler.
+Nothing ran `next build` until someone opened a browser. That is why
+`build:web` and the harness are both marked DO NOT REMOVE in
+`.github/workflows/ci.yml` — see also "Module resolution" below.
+
+### 2. "Unlikely" is not a review verdict
+
+**A reviewer verifies, or records something as unverified. Never as
+unlikely.**
+
+"Theoretically possible but practically unlikely" was used to dismiss
+three findings during the M5 review. All three were real:
+
+- gesture listeners being torn down and re-attached on every render;
+- a commit path depending solely on a `transitionend` event, which wedges
+  the deck permanently if the event never arrives;
+- a conflict between two stated photo dimensions in the design doc.
+
+The cost of checking any of them was minutes. The cost of not checking
+was a debugging session whose output was then lost. If a finding cannot
+be checked in the time available, write it down as unverified and move
+on — that leaves a thread to pull. "Unlikely" closes the thread and keeps
+the bug.
+
 ## What this is
 
 A swipe-based pet adoption platform connecting adopters with verified
@@ -50,8 +106,8 @@ require touching those two packages.
 | i18n             | next-intl 4.13.x + native `Intl` for all dates/numbers/plurals (never Paraglide, never a hand-rolled `MONTHS` array)                                                                                                     |
 | Hosting          | Vercel Pro at MVP, spend cap on day one, images off-platform. Exit ramp: OpenNext → Cloudflare Workers (validate once, don't take yet)                                                                                   |
 | Repo             | pnpm 11 workspaces + catalogs. Add Turborepo only when CI exceeds ~3 min                                                                                                                                                 |
-| Testing          | Vitest 4 + RTL + MSW 2 + 4–6 Playwright specs. Plain Docker PostGIS, not Testcontainers                                                                                                                                  |
-| CI               | GitHub Actions, `typecheck → lint → test → build:web`                                                                                                                                                                                |
+| Testing          | Vitest 4 (+ happy-dom & RTL in `apps/web`) + MSW 2 + Playwright rendering harness. Plain Docker PostGIS, not Testcontainers                                                                                                                                  |
+| CI               | GitHub Actions, `typecheck → lint → test → build:web → test:harness`                                                                                                                                                                                |
 | Backend language | TypeScript, not Go (see ADR §11 for the full argument — the performance delta is ~3ms and irrelevant at this scale; the real cost is losing exhaustive discriminated-union checking and doubling the maintainer surface) |
 
 Full rationale, current version numbers, and pricing sources:
@@ -387,12 +443,17 @@ Node-ESM entry point. No live exposure today (`postgres` resolves ESM,
 ```bash
 corepack enable          # once, machine-wide
 pnpm i                   # install — resolves the pinned pnpm automatically
-pnpm check                # typecheck -> lint -> test -> build:web, same as CI
+pnpm check                # typecheck -> lint -> test -> build:web -> test:harness, same as CI
 pnpm typecheck
 pnpm lint                 # biome check .
 pnpm lint:fix              # biome check --write .
 pnpm format                # biome format --write .
-pnpm test
+pnpm test                 # vitest, all packages
+pnpm build:web            # DO NOT REMOVE from check — see "Module resolution"
+pnpm test:harness         # Playwright rendering harness against /discovery
+
+# One-time, and again after a Playwright version bump:
+pnpm --filter @opika/web test:harness:install   # downloads Chromium
 
 docker compose up -d      # local Postgres+PostGIS (postgis/postgis:17-3.5)
 docker compose down       # stop it; add -v to also drop the volume
@@ -400,7 +461,29 @@ docker compose down       # stop it; add -v to also drop the volume
 
 `pnpm i && pnpm check` must pass on a clean clone (no `node_modules`,
 fresh install) before any milestone is considered done — that's the M0
-definition of done, and it stays true going forward.
+definition of done, and it stays true going forward. Note that M0
+reported this passing when it had never been run; "I believe it passes"
+is not the same claim as "I ran it and here is the output."
+
+### The two browser-layer gates
+
+`build:web` and `test:harness` are the last two steps of `check` on
+purpose, and neither is redundant:
+
+- **`build:web`** catches what typecheck structurally cannot (see
+  "Module resolution"). It fails in seconds with a compiler error.
+- **`test:harness`** catches what a green build cannot: an app that
+  compiles perfectly and lays out wrongly. It measures real geometry and
+  drives real pointer events.
+
+The harness builds the app too, which makes `build:web` look duplicated.
+Keep both — `build:web` is the fast, specific failure, and it keeps
+working if the harness is ever broken or quarantined.
+
+One assertion in the harness is marked `test.fail()`: `/discovery` is a
+390px phone column and does not adapt at 1280x800. That gap is recorded,
+not hidden. When the responsive pass lands, Playwright will report an
+unexpected pass — that is the signal to delete the marker.
 
 ## Supply-chain note (why a version pin looks slightly stale)
 

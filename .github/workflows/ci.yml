@@ -66,8 +66,47 @@ jobs:
       - name: Test
         run: pnpm run test
 
-      # `tsc` resolves `./x.js` to `./x.ts` under every moduleResolution mode,
-      # so typecheck stays green on relative imports the bundler cannot resolve.
-      # Only a real `next build` catches that class of break.
+      # DO NOT REMOVE. `tsc` resolves `./x.js` to `./x.ts` under every
+      # moduleResolution mode, so a relative import carrying a `.js` extension
+      # typechecks perfectly clean and then fails in the bundler, which looks
+      # for a literal `x.js` on disk. That is precisely how /discovery reached
+      # main with a green CI while being unbuildable. Typecheck structurally
+      # cannot catch this class; only a real `next build` can.
+      #
+      # The harness below also builds the app, which makes this step look
+      # redundant. It is not: this one fails in seconds with a compiler error,
+      # and it keeps working if the harness is ever quarantined or broken.
       - name: Build web
         run: pnpm run build:web
+
+      # ~170MB and unchanged between runs of the same Playwright version, so
+      # key the cache on the lockfile — a version bump busts it.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @opika/web exec playwright install --with-deps chromium
+
+      # DO NOT REMOVE. The gate for the browser layer: real layout geometry and
+      # real pointer events against /discovery at 390x844 and 1280x800. Every
+      # assertion in it corresponds to a defect that shipped through a green CI
+      # because the check applied was "the text is in the HTML".
+      #
+      # One desktop assertion is marked `test.fail()` on purpose — the layout is
+      # phone-only and that gap is recorded rather than hidden. See the TODO in
+      # test/harness/discovery-layout.harness.ts.
+      - name: Rendering harness
+        run: pnpm run test:harness
+
+      # Failure screenshots and traces. Without these a red harness run in CI
+      # is just a number, and the first instinct is to re-run it.
+      - name: Upload harness artefacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-failures
+          path: apps/web/test-results/
+          retention-days: 7
