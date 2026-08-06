@@ -150,6 +150,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         {/* Name + meta */}
         <div>
           <div
+            data-testid="card-name"
             style={{
               fontFamily: "'Literata', serif",
               fontWeight: 500,
@@ -347,6 +348,8 @@ function FreshnessPipRow({ fills }: { fills: [PipFill, PipFill, PipFill] }) {
       {fills.map((fill, i) => (
         <div
           key={i}
+          data-testid="freshness-pip"
+          data-filled={fill ? "true" : "false"}
           style={{
             width: 7,
             height: 7,
