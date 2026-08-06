@@ -1,10 +1,9 @@
 "use client";
 
 import type { FeedCardView } from "@opika/contracts";
-import type { CSSProperties, RefCallback } from "react";
+import type { RefCallback } from "react";
 import { freshnessLabel, freshnessPips, type PipFill } from "./freshness-display";
 import { uk } from "./strings.uk";
-import { color, layout, radius, shadow } from "./tokens";
 
 interface SwipeCardProps {
   card: FeedCardView;
@@ -21,56 +20,29 @@ function affordanceOpacity(dx: number): number {
   return Math.min(Math.abs(dx) / 40, 1);
 }
 
-const cardBase: CSSProperties = {
-  position: "absolute",
-  borderRadius: radius.card,
-  overflow: "hidden",
-  willChange: "transform",
-  boxSizing: "border-box",
-};
-
-const stackStyles: CSSProperties[] = [
-  // top card
-  {
-    ...cardBase,
-    inset: 0,
-    background: color.paper,
-    boxShadow: shadow.card,
-    padding: layout.cardPadding,
-    zIndex: 3,
-  },
-  // mid card
-  {
-    ...cardBase,
-    left: layout.stackMidInset,
-    right: layout.stackMidInset,
-    top: layout.stackMidTop,
-    height: 200,
-    background: "#F9F3E9",
-    border: `1px solid ${color.line}`,
-    zIndex: 2,
-  },
-  // back card
-  {
-    ...cardBase,
-    left: layout.stackBackInset,
-    right: layout.stackBackInset,
-    top: layout.stackBackTop,
-    height: 200,
-    background: "#F7F0E4",
-    border: `1px solid ${color.line}`,
-    zIndex: 1,
-  },
-];
+/**
+ * Non-interactive stack layers (mid, back). Plain Tailwind classes — these
+ * never move, so unlike the top card there is no dynamic style to keep
+ * separate from the className.
+ */
+const cardBase = "absolute rounded-card overflow-hidden will-change-transform box-border";
+const STACK_LAYER_1_2 = [
+  // mid card. #F9F3E9 is not a tokens.ts colour, same as before this migration.
+  `${cardBase} left-1.5 right-1.5 top-1.25 h-50 bg-[#F9F3E9] border border-line z-2`,
+  // back card. #F7F0E4, likewise pre-existing and not a named token.
+  `${cardBase} left-3 right-3 top-2.5 h-50 bg-[#F7F0E4] border border-line z-1`,
+] as const;
 
 export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCardProps) {
-  const style = stackStyles[stackIndex];
-  if (!style) return null;
-
-  // Only the top card is interactive
+  // Only the top card (index 0) is interactive; 1 and 2 are inert stack
+  // layers; anything else (an out-of-range index) renders nothing, matching
+  // the original array-indexing bounds check.
   if (stackIndex > 0) {
-    return <div style={style} aria-hidden="true" />;
+    const className = STACK_LAYER_1_2[stackIndex - 1];
+    if (!className) return null;
+    return <div className={className} aria-hidden="true" />;
   }
+  if (stackIndex < 0) return null;
 
   const photo = card.primaryPhoto;
   const afOpacity = affordanceOpacity(dx);
@@ -81,78 +53,54 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
     <section
       ref={gestureRef}
       data-testid="swipe-card"
-      style={{
-        ...style,
-        cursor: "grab",
-        userSelect: "none",
-        // Column so the photo can give way to the text rather than the text
-        // being pushed out of the card's `overflow: hidden` box.
-        display: "flex",
-        flexDirection: "column",
-      }}
+      className={`${cardBase} inset-0 bg-paper shadow-card p-3 z-3 cursor-grab select-none flex flex-col`}
       aria-label={card.name}
       onClick={onTap}
       onKeyDown={undefined}
     >
-      {/* Photo area — see layout.photoHeight for why 396 and not a 4:5 ratio */}
+      {/*
+        Photo area. Height 396, not the design's other stated "4:5" ratio —
+        see the (long) rationale in git history / the M5 harness fix commit:
+        4:5 is the source photography's crop ratio, 396 is this slot's height,
+        and `object-cover` on the <img> below is what reconciles them. 396 on
+        a 334px content box was measured against the rest of the feed
+        screen's spacing; 4:5 would be 417.5, 21.5px taller than specified.
+        min-h-50 (200px): the photo shrinks before the text below it does — a
+        photo is croppable by definition (`object-cover`), the shelter's
+        sentence is not.
+      */}
       <div
         data-testid="card-photo"
-        style={{
-          width: "100%",
-          height: layout.photoHeight,
-          // Shrinks first when the card is short; the text below never does.
-          // A photo is croppable by definition — `object-fit: cover` below is
-          // exactly that contract — and the shelter's sentence is not.
-          flexGrow: 0,
-          flexShrink: 1,
-          minHeight: layout.photoMinHeight,
-          borderRadius: radius.photo,
-          overflow: "hidden",
-          background: `repeating-linear-gradient(135deg, ${color.sunkenDeep} 0 10px, #F6EFE3 10px 20px)`,
-          position: "relative",
-        }}
+        className="w-full h-99 grow-0 shrink min-h-50 rounded-photo overflow-hidden bg-photo-placeholder relative"
       >
         {photo && (
           <img
             src={photo.storageKey}
             alt={photo.alt?.uk ?? card.name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            className="w-full h-full object-cover block"
           />
         )}
 
-        {/* Affordance labels */}
+        {/* Affordance labels. Opacity is continuous (0..1, driven by drag
+            distance) — no fixed Tailwind step expresses that, so it stays
+            the one inline style on this element.
+            leading-[normal]: `text-lg` carries Tailwind's own paired line-
+            height (1.5556), which is not what an un-line-heighted 18px
+            label rendered as before this migration — see the note by the
+            shelter-line spans below for why `leading-[normal]` and not a
+            specific pixel value. */}
         {showLeft && afOpacity > 0 && (
           <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: 24,
-              transform: "translateY(-50%)",
-              opacity: afOpacity,
-              color: color.ink3,
-              fontFamily: "'Commissioner', sans-serif",
-              fontSize: 18,
-              fontWeight: 500,
-              pointerEvents: "none",
-            }}
+            className="absolute top-1/2 left-6 -translate-y-1/2 text-ink-3 font-sans text-lg leading-[normal] font-medium pointer-events-none"
+            style={{ opacity: afOpacity }}
           >
             {uk.swipe.left}
           </div>
         )}
         {showRight && afOpacity > 0 && (
           <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              right: 24,
-              transform: "translateY(-50%)",
-              opacity: afOpacity,
-              color: color.leaf,
-              fontFamily: "'Commissioner', sans-serif",
-              fontSize: 18,
-              fontWeight: 500,
-              pointerEvents: "none",
-            }}
+            className="absolute top-1/2 right-6 -translate-y-1/2 text-leaf font-sans text-lg leading-[normal] font-medium pointer-events-none"
+            style={{ opacity: afOpacity }}
           >
             {uk.swipe.right}
           </div>
@@ -160,43 +108,16 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
       </div>
 
       {/* Text content */}
-      <div
-        style={{
-          padding: "16px 4px 4px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          // Never sacrificed to fit the photo — this is the half of the card
-          // that carries the freshness claim and the shelter's own words.
-          flexShrink: 0,
-        }}
-      >
+      <div className="pt-group px-label pb-label flex flex-col gap-group shrink-0">
         {/* Name + meta */}
         <div>
           <div
             data-testid="card-name"
-            style={{
-              fontFamily: "'Literata', serif",
-              fontWeight: 500,
-              fontSize: 26,
-              lineHeight: "30px",
-              color: color.ink,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
+            className="font-serif font-medium text-[26px]/[30px] text-ink truncate"
           >
             {card.name}
           </div>
-          <div
-            style={{
-              fontFamily: "'Commissioner', sans-serif",
-              fontSize: 13,
-              lineHeight: "19.5px",
-              color: color.ink3,
-              marginTop: 4,
-            }}
-          >
+          <div className="font-sans text-[13px]/[19.5px] text-ink-3 mt-label">
             {formatMeta(card)}
           </div>
         </div>
@@ -207,28 +128,25 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
           shelterSentence={card.shelter.freshnessSentence}
         />
 
-        {/* Shelter line */}
-        <div data-testid="shelter-line" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        {/*
+          Shelter line. `leading-[normal]`, not a specific pixel value: these
+          two spans and the monogram never had an explicit `lineHeight` before
+          this migration, so they rendered at the browser's own UA-computed
+          "normal" for the fallback font — measured at 15px for 13px
+          Commissioner-fallback text in this environment, but that number is
+          font-and-platform-dependent and not something to hardcode. Without
+          this override they inherit Tailwind Preflight's `line-height: 1.5`
+          from <html> (19.5px here) instead, which is a real, measured 20px
+          vertical shift on this row — the CSS keyword is what restores the
+          original rendering exactly, in every environment, not just this one.
+        */}
+        <div data-testid="shelter-line" className="flex items-center gap-1.5">
           <ShelterMonogram name={card.shelter.displayName} />
-          <span
-            style={{
-              fontFamily: "'Commissioner', sans-serif",
-              fontSize: 13,
-              color: color.ink2,
-            }}
-          >
+          <span className="font-sans text-[13px] leading-[normal] text-ink-2">
             {card.shelter.displayName}
           </span>
           {card.shelter.verification === "verified" && (
-            <span
-              style={{
-                fontFamily: "'Commissioner', sans-serif",
-                fontSize: 13,
-                color: color.leaf,
-              }}
-            >
-              · перевірений
-            </span>
+            <span className="font-sans text-[13px] leading-[normal] text-leaf">· перевірений</span>
           )}
         </div>
       </div>
@@ -282,22 +200,7 @@ function ShelterMonogram({ name }: { name: string }) {
     .toUpperCase();
 
   return (
-    <div
-      style={{
-        width: 20,
-        height: 20,
-        borderRadius: "50%",
-        background: color.avatarBg,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "'Commissioner', sans-serif",
-        fontSize: 9,
-        fontWeight: 500,
-        color: color.ink3,
-        flexShrink: 0,
-      }}
-    >
+    <div className="size-5 rounded-full bg-avatar-bg flex items-center justify-center font-sans text-[9px] leading-[normal] font-medium text-ink-3 shrink-0">
       {initials}
     </div>
   );
@@ -314,45 +217,29 @@ function FreshnessBlock({
   const fills = freshnessPips(freshness.kind);
 
   return (
+    // min-h-27 (108px), not min-h-21 (84px). The original 84 was a
+    // content-box min-height — Tailwind Preflight resets every element to
+    // border-box globally, under which min-height caps the *whole* box
+    // (padding included) instead of just the content area. 84 content-box
+    // with 12px padding top and bottom floors the total at 84+24=108; the
+    // same 84 under border-box floors the total at 84 outright, 24px
+    // short — a real, measured height difference on any card whose
+    // shelter sentence is short enough to hit the floor, not a rounding
+    // artifact. 108 reproduces the original total.
     <section
       data-testid="freshness-block"
-      style={{
-        background: color.paperAlt,
-        borderRadius: radius.freshness,
-        padding: 12,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        minHeight: 84,
-      }}
+      className="bg-paper-alt rounded-freshness p-3 flex flex-col gap-row min-h-27"
       aria-label={label}
     >
       {/* Pips + label */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="flex items-center gap-row">
         <FreshnessPipRow fills={fills} />
-        <span
-          style={{
-            fontFamily: "'Commissioner', sans-serif",
-            fontSize: 13,
-            lineHeight: "19.5px",
-            color: color.ink2,
-          }}
-        >
-          {label}
-        </span>
+        <span className="font-sans text-[13px]/[19.5px] text-ink-2">{label}</span>
       </div>
 
       {/* Shelter sentence (if present) */}
       {shelterSentence?.uk && (
-        <div
-          style={{
-            fontFamily: "'Literata', serif",
-            fontWeight: 400,
-            fontSize: 13,
-            lineHeight: "19.5px",
-            color: color.ink2,
-          }}
-        >
+        <div className="font-serif font-normal text-[13px]/[19.5px] text-ink-2">
           {shelterSentence.uk}
         </div>
       )}
@@ -363,24 +250,18 @@ function FreshnessBlock({
 /**
  * Three pips, always three, always in the same position.
  * Design spec: 7x7 circles, gap 4px between pips, gap 8px to the label.
- * Each pip is either filled (with the colour from freshnessPips) or
- * empty (1px #C9BCA2 border, transparent fill).
+ * Each pip is either filled (a Tailwind bg-* class from freshnessPips) or
+ * empty (1px line-heavy border, transparent fill).
  */
 function FreshnessPipRow({ fills }: { fills: [PipFill, PipFill, PipFill] }) {
   return (
-    <div style={{ display: "flex", gap: 4 }} aria-hidden="true">
+    <div className="flex gap-label" aria-hidden="true">
       {fills.map((fill, i) => (
         <div
           key={i}
           data-testid="freshness-pip"
           data-filled={fill ? "true" : "false"}
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: "50%",
-            background: fill ?? "transparent",
-            border: fill ? "none" : `1px solid ${color.lineHeavy}`,
-          }}
+          className={`size-1.75 rounded-full ${fill ?? "bg-transparent border border-line-heavy"}`}
         />
       ))}
     </div>

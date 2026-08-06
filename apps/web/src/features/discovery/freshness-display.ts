@@ -1,7 +1,6 @@
 import type { Freshness, FreshnessKind } from "@opika/domain";
 import { formatFreshnessRelative } from "@opika/domain";
 import { uk as strings } from "./strings.uk";
-import { color } from "./tokens";
 
 /**
  * Per-pip fill state for the freshness marker.
@@ -14,19 +13,23 @@ import { color } from "./tokens";
  *   aging  (8-30d): 2 filled ink-4,    1 empty
  *   stale  (30d+):  2 filled ink-4 + 1 filled ink  (all three filled)
  *
- * Returning an array of fill colours rather than a count, because the
- * stale state uses two different fill colours.
+ * Returning an array of Tailwind background-colour classes rather than a
+ * count, because the stale state uses two different fill colours. These
+ * name the same tokens `globals.css`'s `@theme` block defines
+ * (`--color-leaf`, `--color-ink-4`, `--color-ink`) — not raw hex, so a
+ * rename of the underlying colour in the theme doesn't silently orphan
+ * the value returned here.
  */
 export type PipFill = string | null;
 
 export function freshnessPips(kind: FreshnessKind): [PipFill, PipFill, PipFill] {
   switch (kind) {
     case "fresh":
-      return [color.leaf, null, null];
+      return ["bg-leaf", null, null];
     case "aging":
-      return [color.ink4, color.ink4, null];
+      return ["bg-ink-4", "bg-ink-4", null];
     case "stale":
-      return [color.ink4, color.ink4, color.ink];
+      return ["bg-ink-4", "bg-ink-4", "bg-ink"];
   }
 }
 
