@@ -19,8 +19,14 @@ import { uk as strings } from "./strings.uk";
  * (`--color-leaf`, `--color-ink-4`, `--color-ink`) — not raw hex, so a
  * rename of the underlying colour in the theme doesn't silently orphan
  * the value returned here.
+ *
+ * A closed union of the three class names, not `string`. A misspelt
+ * Tailwind class has no failure mode of its own: it emits no rule, the
+ * build stays green, and the pip simply renders unstyled — the freshness
+ * signal degrades into three identical dots and nothing anywhere says so.
+ * Enumerating the three makes that a compile error instead.
  */
-export type PipFill = string | null;
+export type PipFill = "bg-leaf" | "bg-ink-4" | "bg-ink" | null;
 
 export function freshnessPips(kind: FreshnessKind): [PipFill, PipFill, PipFill] {
   switch (kind) {

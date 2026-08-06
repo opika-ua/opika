@@ -1,6 +1,6 @@
 import { contract } from "@opika/contracts";
 import { isContractProcedure } from "@orpc/contract";
-import { type AnyRouter, implement, isProcedure, os } from "@orpc/server";
+import { type AnyRouter, implement, isLazy, isProcedure, os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -41,10 +41,31 @@ type LeafInfo = {
  * `isProcedure` each recognise only their own kind — a router leaf is never
  * mistaken for a contract leaf and vice versa, so running this once per tree
  * and comparing path sets is exact, not approximate.
+ *
+ * Exact, however, only over the node kinds it understands. A *lazy* router
+ * (`os.lazy(...)`, oRPC's code-splitting primitive) is an object with no own
+ * enumerable keys — `Object.entries` on one returns `[]` — so the recursion
+ * below walks straight past it and reports zero leaves for the whole subtree
+ * behind it. Verified against @orpc/server 1.14.14: splicing
+ * `{ admin: os.lazy(async () => ({ default: { leak: os.handler(...) } })) }`
+ * into the router leaves every assertion in this file green while
+ * `RPCHandler` happily serves `POST /api/rpc/admin/leak` and returns the
+ * handler's raw object — exact address and phone number included. That is
+ * precisely the bypass these tests exist to make impossible, so a lazy node
+ * is a hard error rather than something to walk past: whoever introduces one
+ * must first teach this walk to resolve it (`unlazy` from @orpc/server).
  */
 function collectLeaves(node: unknown, path: readonly string[] = []): LeafInfo[] {
   if (isContractProcedure(node) || isProcedure(node)) {
     return [{ path: path.join("."), node }];
+  }
+  if (isLazy(node)) {
+    throw new Error(
+      `lazy router or procedure at "${path.join(".") || "<root>"}": this walk cannot see ` +
+        `through it, so every procedure behind it would be served without ever being ` +
+        `checked against the contract. Resolve it with \`unlazy\` before collecting, or ` +
+        `do not use a lazy router here.`,
+    );
   }
   if (node !== null && typeof node === "object" && !Array.isArray(node)) {
     return Object.entries(node as Record<string, unknown>).flatMap(([key, value]) =>
@@ -124,6 +145,27 @@ describe("every served procedure goes through implement(contract)", () => {
       ).toBe(contractSchema);
     },
   );
+});
+
+describe("collectLeaves refuses to walk past what it cannot see", () => {
+  /**
+   * The guard added to `collectLeaves` for lazy routers, exercised — a throw
+   * branch nothing reaches is the same as no guard at all. Without it this
+   * subtree contributes zero paths, so "nothing extra" above passes while
+   * `RPCHandler` serves `admin.leak` and returns its handler's object
+   * verbatim, output schema and all.
+   */
+  it("throws on a lazy router instead of silently reporting an empty subtree", () => {
+    const spliced = {
+      admin: os.lazy(async () => ({ default: { leak: os.handler(() => ({})) } })),
+    };
+
+    expect(() => collectLeaves(spliced)).toThrow(/lazy router or procedure at "admin"/);
+  });
+
+  it("still throws when the lazy node is the root", () => {
+    expect(() => collectLeaves(os.lazy(async () => ({ default: {} })))).toThrow(/<root>/);
+  });
 });
 
 describe("what an implement(contract) bypass actually leaks (mechanism check)", () => {

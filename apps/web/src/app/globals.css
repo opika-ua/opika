@@ -106,13 +106,17 @@
    * ---- Typography — font families ----
    * `next/font/google` (apps/web/src/app/fonts.ts) generates these two CSS
    * custom properties and applies them on <html> in layout.tsx. The
-   * literal fallback after each `var()` is next/font's own generated
-   * metric-matched substitute — a font-metrics-adjusted local font Next
-   * computes at build time so the *fallback itself* is sized like the web
-   * font, which is what keeps first paint from visibly reflowing when the
-   * real font finishes loading (`display: swap`'s usual cost). Do not
-   * replace these with a plain `serif`/`sans-serif` generic — that throws
-   * away the metric adjustment for no benefit.
+   * metric-matched fallback is already inside each generated variable, not
+   * written here: next/font emits
+   * `--font-literata: "Literata", "Literata Fallback"` (verified in the
+   * built stylesheet), where the "Fallback" face is a font-metrics-adjusted local
+   * face Next computes at build time so the *fallback itself* is sized like
+   * the web font — which is what keeps first paint from visibly reflowing
+   * when the real font arrives (`display: swap`'s usual cost). So there is
+   * deliberately nothing after the `var()` below: appending a generic would
+   * only ever be reached if the variable were undefined entirely, which
+   * means the root layout stopped applying the class and is a bug to fix
+   * rather than to paper over.
    *
    * No `--font-mono` override: IBM Plex Mono was measured and dropped —
    * see fonts.ts. `font-mono` now falls through to Tailwind's own default

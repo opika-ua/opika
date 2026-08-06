@@ -58,4 +58,20 @@ export const commissioner = Commissioner({
  * on that one eyebrow (SwipeDeck.tsx's ErrorState) costs nothing marginal
  * and reads the same — the eyebrow string is already uppercase in the
  * source copy, so no CSS transform is lost either.
+ *
+ * Deferred, not rejected — and the difference matters, because the design
+ * doc does not treat this family as optional. docs/design/README.md gives
+ * it two whole roles in the type scale (`measure`, 11/11 · 0.12em, for
+ * quantities; `eyebrow`, same metrics, for section labels), names it as one
+ * of the three families in the handoff summary, and calls for it by name on
+ * screen 04 — the donate row's "dobro.ua ↗". None of those surfaces exist
+ * yet. When M6 builds the profile and reveal screens, re-add the loader
+ * here (one call, `weight: ["500"]`, subsets cyrillic+latin), add
+ * `--font-mono` to globals.css's `@theme`, and put `font-mono` back on the
+ * ErrorState eyebrow: at that point the 15,560 bytes buy three surfaces
+ * rather than one, and this note's arithmetic no longer applies. Loading it
+ * before then is the premature scaffolding CLAUDE.md warns against; leaving
+ * this note reading as a permanent decision would be worse, because the
+ * next person to grep "IBM Plex Mono" would find it and conclude the family
+ * was dropped from the design rather than from the bundle.
  */

@@ -27,18 +27,53 @@ const CARD = "[data-testid='swipe-card']";
  * it happens to be today" as a second copy) and not zero (that's what
  * `expectContainedBy` already covers) — a real floor with slack on both
  * sides, chosen once real fonts made the underlying measurement portable
- * across platforms (see viewports.ts). Measured with next/font's Literata
- * and Commissioner loaded: 46.5px at 390x844, 16px at both 390x640 and
- * 1280x800 (the photo has already shrunk to its floor at both, so they
- * land on the same number). PHONE gets a generous floor since it's the
- * primary, unsqueezed case; the other two get a tighter one since a
- * deliberately squeezed layout has less to give.
+ * across platforms (see viewports.ts).
+ *
+ * Measured with next/font's Literata and Commissioner loaded: 46.5px at
+ * 390x844, 16px at both 390x640 and 1280x800. The two squeezed viewports
+ * land on the same 16 because the photo is the only flex item that can
+ * shrink, so it absorbs the whole height deficit and the column is left
+ * with no slack at all: what remains below the shelter line is just the
+ * structural padding — the card's own 12px (`p-3`) plus the text block's
+ * 4px (`pb-label`). It is *not* because the photo has bottomed out; at
+ * those two sizes it measures 222.5px and 382.5px against a 200px
+ * `min-h-50` floor. At 390x844 the photo sits at its natural 396 (it is
+ * `grow-0`), the column keeps 30.5px of unused space, and the margin is
+ * that 30.5 plus the same structural 16.
+ *
+ * Which is what makes the floors the sizes they are. PHONE's margin
+ * degrades continuously as the card shortens (46.5 -> 16), so 20 catches
+ * roughly the first 27px of erosion. The squeezed pair sit pinned at 16
+ * until the photo does hit its 200px floor, after which the margin drops
+ * fast: measured 16.0 at 390x620, 8.5 at 390x610, -1.5 at 390x600. A floor
+ * of 4 is about one 10px viewport step of warning before `expectContainedBy`
+ * would go red — narrow, but real, and nothing legitimately produces a
+ * margin between 4 and 16 there.
  */
-const MIN_SHELTER_MARGIN_PX: Record<string, number> = {
-  [PHONE.name]: 20,
-  [SHORT_PHONE.name]: 4,
-  [DESKTOP.name]: 4,
-};
+const MIN_SHELTER_MARGIN_PX = new Map<Viewport, number>([
+  [PHONE, 20],
+  [SHORT_PHONE, 4],
+  [DESKTOP, 4],
+]);
+
+/**
+ * Keyed by the viewport object, not its `name`, and loud when absent.
+ * `MIN_SHELTER_MARGIN_PX[v.name] ?? 0` would turn a renamed viewport — or a
+ * newly added one — into a silently vacuous assertion: a 0 floor passes for
+ * anything `expectContainedBy` already passes, so the test would still be
+ * green while asserting nothing.
+ */
+function minShelterMarginFor(viewport: Viewport): number {
+  const px = MIN_SHELTER_MARGIN_PX.get(viewport);
+  if (px === undefined) {
+    throw new Error(
+      `no shelter-line margin floor recorded for ${viewport.name}. Measure the margin at ` +
+        `that size and add an entry to MIN_SHELTER_MARGIN_PX — defaulting to 0 would leave ` +
+        `this assertion passing without checking anything.`,
+    );
+  }
+  return px;
+}
 
 for (const viewport of [PHONE, DESKTOP] satisfies Viewport[]) {
   test.describe(`/discovery at ${viewport.name}`, () => {
@@ -81,7 +116,7 @@ for (const viewport of [PHONE, DESKTOP] satisfies Viewport[]) {
       await expectMinimumBottomMargin(
         { label: "shelter line", locator: page.getByTestId("shelter-line") },
         { label: "swipe card", locator: page.getByTestId("swipe-card") },
-        MIN_SHELTER_MARGIN_PX[viewport.name] ?? 0,
+        minShelterMarginFor(viewport),
       );
     });
 
@@ -145,7 +180,7 @@ test.describe(`/discovery photo sizing at ${PHONE.name}`, () => {
     await expectMinimumBottomMargin(
       { label: "shelter line", locator: page.getByTestId("shelter-line") },
       { label: "swipe card", locator: page.getByTestId("swipe-card") },
-      MIN_SHELTER_MARGIN_PX[SHORT_PHONE.name] ?? 0,
+      minShelterMarginFor(SHORT_PHONE),
     );
   });
 });
