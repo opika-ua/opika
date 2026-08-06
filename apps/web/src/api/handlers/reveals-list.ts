@@ -3,8 +3,8 @@ import { revealRepo } from "@opika/db/repos";
 import { ORPCError } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
-import { decodeRevealCursor, encodeRevealCursor } from "../cursor.js";
-import { requireEnv } from "../env.js";
+import { decodeRevealCursor, encodeRevealCursor } from "../cursor";
+import { requireEnv } from "../env";
 
 type Input = z.infer<typeof RevealsListMineInputSchema>;
 type Output = z.infer<typeof RevealsListMineOutputSchema>;

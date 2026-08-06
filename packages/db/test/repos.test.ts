@@ -413,6 +413,75 @@ describe("revealRepo", () => {
     const found = await reveals.findByAdopterAndAnimal(adopter.id, animal.id);
     expect(found?.id).toBe(reveal.id);
   });
+
+  /**
+   * The keyset predicate has two branches — a strict `revealed_at <` and an
+   * `=` plus `id <` tiebreaker. Three reveals share a timestamp so the tie
+   * straddles the page boundary at limit 2, which is the only arrangement
+   * that exercises the second branch: a tie contained entirely within one
+   * page passes even with the tiebreaker missing.
+   */
+  it("paginates by keyset without duplicates or skips, including on tied timestamps", async () => {
+    const cities = cityRepo(db);
+    const sheltersR = shelterRepo(db);
+    const animals = animalRepo(db);
+    const adopters = adopterRepo(db);
+    const reveals = revealRepo(db);
+
+    const city = makeCity();
+    await cities.insert(city);
+    const shelter = makeShelter({
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await sheltersR.insert(shelter);
+    const adopter = makeAdopter();
+    await adopters.insert(adopter);
+
+    // Three reveals at 12:00, so the tie spans the boundary at limit 2.
+    const timestamps = [
+      "2026-08-01T12:00:00Z",
+      "2026-08-01T12:00:00Z",
+      "2026-08-01T12:00:00Z",
+      "2026-08-01T10:00:00Z",
+    ];
+    const inserted = [];
+    for (const ts of timestamps) {
+      const animal = makeAnimal({ shelterId: shelter.id });
+      await animals.insert(animal, city.id);
+      const reveal = makeReveal({
+        adopterId: adopter.id,
+        animalId: animal.id,
+        shelterId: shelter.id,
+        revealedAt: new Date(ts),
+      });
+      await reveals.insert(reveal);
+      inserted.push(reveal);
+    }
+
+    const all = await reveals.listByAdopter(adopter.id, { limit: 10 });
+    expect(all).toHaveLength(4);
+
+    const page1 = await reveals.listByAdopter(adopter.id, { limit: 2 });
+    const last = page1[page1.length - 1];
+    if (!last) throw new Error("expected a first page");
+
+    const page2 = await reveals.listByAdopter(adopter.id, {
+      limit: 2,
+      cursor: { revealedAt: last.revealedAt, id: last.id },
+    });
+
+    const paged = [...page1, ...page2].map((r) => r.id);
+    expect(paged).toEqual(all.map((r) => r.id));
+    expect(new Set(paged).size).toBe(4);
+    expect(new Set(paged)).toEqual(new Set(inserted.map((r) => r.id)));
+  });
 });
 
 describe("feedRepo", () => {
