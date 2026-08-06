@@ -69,6 +69,7 @@ export async function feedList(input: FeedInput, context: AppContext): Promise<F
           id: shelter.id,
           displayName: shelter.displayName,
           publicLocation: shelter.publicLocation,
+          freshnessSentence: shelter.freshnessSentence,
           verification:
             shelter.verification.status === "verified"
               ? ("verified" as const)

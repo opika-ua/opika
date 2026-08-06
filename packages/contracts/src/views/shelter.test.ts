@@ -53,6 +53,7 @@ const shelter: Shelter = {
   exactAddress,
   contact,
   donation: null,
+  freshnessSentence: null,
   verification: {
     status: "verified",
     verifiedAt: AT,

@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600&family=Commissioner:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #EFE9DE; color: #2A2118; }
+  a { color: #4F6B3A; text-decoration: none; }
+  a:hover { color: #2A2118; text-decoration: underline; }
+  @keyframes omSettle { 0%,10% { transform: translateX(0); } 90%,100% { transform: translateX(88px); } }
+</style>
+</helmet>
+
+<section style="display: flex; flex-direction: column; gap: 40px; padding: 56px 48px 96px; width: max-content;">
+
+  <div style="display: flex; flex-direction: column; gap: 12px; width: 760px;">
+    <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.14em; text-transform: uppercase; color: #6E5C44;">Opika · direction 1b · keeper's voice · turn 2</div>
+    <h1 style="margin: 0; font: 500 32px/1.15 'Literata', serif; letter-spacing: -0.01em;">Голос притулку</h1>
+    <p style="margin: 0; font: 400 15px/1.6 'Commissioner', sans-serif; color: #4A3D2C; text-wrap: pretty;">Eight screens, the system behind them, and every string in Ukrainian with English alongside. Two decisions resolved from last turn: the shelter's sentence is now paired with a three-step marker so freshness is comparable without reading, and that sentence is written once by the shelter during verification — the platform only templates the date, and says so.</p>
+  </div>
+
+  <div style="display: flex; gap: 24px; align-items: flex-start;">
+    <div style="width: 368px; background: #FBF7F0; border: 1px solid #E0D4BF; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">КОЛІР · LIGHT</div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #FBF7F0; border: 1px solid #E0D4BF; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #4A3D2C;">paper #FBF7F0</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #F4ECDF; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #4A3D2C;">sunken #F4ECDF</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #E8DECB; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #4A3D2C;">line #E8DECB</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #85735A; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #4A3D2C;">ink-3 #85735A</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #4A3D2C; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #4A3D2C;">ink-2 #4A3D2C</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #2A2118; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #4A3D2C;">ink #2A2118</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #4F6B3A; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #4A3D2C;">leaf #4F6B3A · verified only</span></div>
+      </div>
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">КОЛІР · DARK</div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; background: #1B1712;">
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #1B1712; border: 1px solid #3A3227; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #A2937D;">paper #1B1712</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #241F18; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #A2937D;">sunken #241F18</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #3A3227; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #A2937D;">line #3A3227</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #A2937D; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #A2937D;">ink-3 #A2937D</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #F2EDE3; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #A2937D;">ink #F2EDE3</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 6px; background: #8FA96F; flex: none;"></span><span style="font: 400 12px/1.4 'IBM Plex Mono', monospace; color: #A2937D;">leaf #8FA96F</span></div>
+      </div>
+      <div style="font: 400 12px/1.55 'Commissioner', sans-serif; color: #4A3D2C;">Dark is lamplight, not black. Leaf lightens to hold 4.5:1 on #1B1712. No hue anywhere else, so staleness can never be mistaken for an alarm.</div>
+    </div>
+
+    <div style="width: 368px; background: #FBF7F0; border: 1px solid #E0D4BF; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">ТИП · SCALE</div>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font: 500 30px/1.15 'Literata', serif;">Ластівка</span><span style="font: 400 11px/1.3 'IBM Plex Mono', monospace; color: #6E5C44;">display · Literata 500 · 30/34 · names, screen titles</span></div>
+        <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font: 400 19px/1.45 'Literata', serif;">«Ми оновлювали цю картку 25 червня.»</span><span style="font: 400 11px/1.3 'IBM Plex Mono', monospace; color: #6E5C44;">speech · Literata 400 · 19/28 · shelter words, empty states</span></div>
+        <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font: 500 16px/1.4 'Commissioner', sans-serif;">Медичний стан</span><span style="font: 400 11px/1.3 'IBM Plex Mono', monospace; color: #6E5C44;">heading · Commissioner 500 · 16/22</span></div>
+        <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font: 400 14px/1.55 'Commissioner', sans-serif;">Щеплення від сказу підтверджено реєстром тварин.</span><span style="font: 400 11px/1.3 'IBM Plex Mono', monospace; color: #6E5C44;">body · Commissioner 400 · 14/22</span></div>
+        <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font: 400 12px/1.4 'Commissioner', sans-serif; color: #6E5C44;">2 роки · середня · м. Бровари</span><span style="font: 400 11px/1.3 'IBM Plex Mono', monospace; color: #6E5C44;">meta · Commissioner 400 · 12/17</span></div>
+        <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">41 ДЕНЬ · KV-0412</span><span style="font: 400 11px/1.3 'IBM Plex Mono', monospace; color: #6E5C44;">measure · mono 500 · 11/11 · +0.12em · quantities only</span></div>
+      </div>
+      <div style="font: 400 12px/1.55 'Commissioner', sans-serif; color: #4A3D2C;">Ukrainian sets 10–15% longer than English: names truncate at one line with ellipsis, shelter speech wraps to a reserved 3-line minimum height (84px) and clamps at 4, metadata rows wrap rather than shrink. Nothing shrinks type to fit.</div>
+    </div>
+
+    <div style="width: 368px; background: #FBF7F0; border: 1px solid #E0D4BF; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">РИТМ · SPACING</div>
+      <div style="display: flex; flex-direction: column; gap: 8px; font: 400 12px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">
+        <div style="display: flex; gap: 10px;"><span style="width: 46px; flex: none; font-family: 'IBM Plex Mono', monospace; color: #6E5C44;">4</span><span>label to its value</span></div>
+        <div style="display: flex; gap: 10px;"><span style="width: 46px; flex: none; font-family: 'IBM Plex Mono', monospace; color: #6E5C44;">8</span><span>rows inside one group</span></div>
+        <div style="display: flex; gap: 10px;"><span style="width: 46px; flex: none; font-family: 'IBM Plex Mono', monospace; color: #6E5C44;">16</span><span>group to group · card padding</span></div>
+        <div style="display: flex; gap: 10px;"><span style="width: 46px; flex: none; font-family: 'IBM Plex Mono', monospace; color: #6E5C44;">24</span><span>section to section</span></div>
+        <div style="display: flex; gap: 10px;"><span style="width: 46px; flex: none; font-family: 'IBM Plex Mono', monospace; color: #6E5C44;">40</span><span>screen top · above primary action</span></div>
+      </div>
+      <div style="font: 400 12px/1.55 'Commissioner', sans-serif; color: #4A3D2C;">Only these five steps. Text blocks always sit in a flex column with an explicit gap — never a margin, never a blank paragraph. Every vertical distance on every screen is one of the five.</div>
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">РАДІУС · ТІНЬ</div>
+      <div style="display: flex; gap: 8px; align-items: flex-end;">
+        <span style="width: 44px; height: 44px; border-radius: 4px; background: #F4ECDF;"></span>
+        <span style="width: 44px; height: 44px; border-radius: 8px; background: #F4ECDF;"></span>
+        <span style="width: 44px; height: 44px; border-radius: 12px; background: #F4ECDF;"></span>
+        <span style="width: 44px; height: 44px; border-radius: 20px; background: #F4ECDF;"></span>
+        <span style="width: 44px; height: 44px; border-radius: 999px; background: #F4ECDF;"></span>
+      </div>
+      <div style="font: 400 12px/1.55 'Commissioner', sans-serif; color: #4A3D2C;">4 pips · 8 rows · 12 photo and controls · 20 cards and sheets · 999 chips. Elevation is two steps only: sm <code style="font-family: 'IBM Plex Mono', monospace;">0 1px 0 #F1EADE</code> for the deck's lower cards, lg <code style="font-family: 'IBM Plex Mono', monospace;">0 18px 40px -24px rgba(60,44,24,.45)</code> for the top card and sheets.</div>
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">РУХ</div>
+      <div style="height: 20px; display: flex; align-items: center;"><span style="width: 12px; height: 12px; border-radius: 50%; background: #4F6B3A; animation: omSettle 2.6s cubic-bezier(0.16,1,0.3,1) infinite alternate;"></span></div>
+      <div style="font: 400 12px/1.55 'Commissioner', sans-serif; color: #4A3D2C;">quick 160ms · settle 300ms · reveal 340ms, all <code style="font-family: 'IBM Plex Mono', monospace;">cubic-bezier(0.16,1,0.3,1)</code>. Spring-back stiffness 260 / damping 28, no overshoot past target. <code style="font-family: 'IBM Plex Mono', monospace;">prefers-reduced-motion</code> keeps opacity only, 120ms.</div>
+    </div>
+
+    <div style="width: 400px; background: #FBF7F0; border: 1px solid #E0D4BF; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">СВІЖІСТЬ · THE MARKER</div>
+      <div style="font: 400 12px/1.55 'Commissioner', sans-serif; color: #4A3D2C;">Three pips, always all three, always in the same place. Filled pips count how far the confirmation has travelled from ≤7d to 30d+. Scannable across a deck; the sentence underneath supplies the tone.</div>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="display: flex; gap: 4px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #4F6B3A;"></span><span style="width: 7px; height: 7px; border-radius: 50%; border: 1px solid #C9BCA2;"></span><span style="width: 7px; height: 7px; border-radius: 50%; border: 1px solid #C9BCA2;"></span></span>
+            <span style="font: 500 12px/1 'Commissioner', sans-serif; color: #2A2118;">Свіже · оновлено 3 дні тому</span>
+          </div>
+          <div style="font: 400 13px/1.5 'Literata', serif; color: #4A3D2C;">«Ластівка чекає на дім — ми перевірили це цього тижня.»</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="display: flex; gap: 4px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #85735A;"></span><span style="width: 7px; height: 7px; border-radius: 50%; background: #85735A;"></span><span style="width: 7px; height: 7px; border-radius: 50%; border: 1px solid #C9BCA2;"></span></span>
+            <span style="font: 500 12px/1 'Commissioner', sans-serif; color: #2A2118;">Оновлено 19 днів тому</span>
+          </div>
+          <div style="font: 400 13px/1.5 'Literata', serif; color: #4A3D2C;">«Ми заходили сюди пару тижнів тому. Напишіть — уточнимо.»</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="display: flex; gap: 4px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #85735A;"></span><span style="width: 7px; height: 7px; border-radius: 50%; background: #85735A;"></span><span style="width: 7px; height: 7px; border-radius: 50%; background: #2A2118;"></span></span>
+            <span style="font: 500 12px/1 'Commissioner', sans-serif; color: #2A2118;">Оновлено 41 день тому</span>
+          </div>
+          <div style="font: 400 13px/1.5 'Literata', serif; color: #4A3D2C;">«Ми оновлювали цю картку 25 червня. З того часу не заходили — напишіть, і ми скажемо, чи Ластівка ще з нами.»</div>
+        </div>
+      </div>
+      <div style="font: 400 12px/1.55 'Commissioner', sans-serif; color: #4A3D2C;">The sentence is written once by the shelter at verification, in their own words, and stored per shelter. Opika substitutes only the date and the animal's name, and the attribution line says <span style="font-family: 'IBM Plex Mono', monospace;">дата — автоматична</span> so the quote is never mistaken for a fresh message.</div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 32px; align-items: flex-start;">
+
+    <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="01 First run">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">01 · ПЕРШИЙ ЗАПУСК</div>
+      <div style="width: 390px; height: 844px; background: #FBF7F0; border: 1px solid #E0D4BF; border-radius: 32px; overflow: hidden; display: flex; flex-direction: column; padding: 40px 24px 24px;">
+        <div style="display: flex; flex-direction: column; gap: 40px; flex: 1;">
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="font: 500 30px/1.15 'Literata', serif; color: #2A2118;">Opika</div>
+            <div style="font: 400 19px/1.5 'Literata', serif; color: #4A3D2C; text-wrap: pretty;">Тварини з перевірених притулків Київщини. Гортайте, щоб подивитися, кого шукає дім.</div>
+            <div style="font: 400 14px/1.55 'Commissioner', sans-serif; color: #6E5C44; text-wrap: pretty;">Без реєстрації. Ми не беремо і не переказуємо грошей. «Не зараз» — це просто фільтр, а не оцінка тварини.</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="font: 500 16px/1.4 'Commissioner', sans-serif; color: #2A2118;">Ваше місто</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; background: #4F6B3A; color: #FBF7F0; font: 500 14px/1 'Commissioner', sans-serif;">Бровари</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Київ</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Ірпінь</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Буча</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Вишгород</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Бориспіль</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Уся Київщина</span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <button style="min-height: 52px; border: none; border-radius: 12px; background: #4F6B3A; color: #FBF7F0; font: 500 16px/1 'Commissioner', sans-serif;" style-hover="background: #445B32;">Дивитися тварин</button>
+          <div style="display: flex; justify-content: center; gap: 16px; font: 400 12px/1 'Commissioner', sans-serif; color: #6E5C44;">
+            <span style="text-decoration: underline;">Українська</span>
+            <span>English</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="02 Feed">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">02 · СТРІЧКА</div>
+      <div style="width: 390px; height: 844px; background: #F4ECDF; border: 1px solid #E0D4BF; border-radius: 32px; overflow: hidden; display: flex; flex-direction: column; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; min-height: 44px;">
+          <span style="font: 500 16px/1 'Commissioner', sans-serif; color: #2A2118;">Бровари</span>
+          <span style="display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid #E0D4BF; background: #FBF7F0; font: 400 13px/1 'Commissioner', sans-serif; color: #4A3D2C;">Фільтри · 2</span>
+        </div>
+        <div style="position: relative; flex: 1; margin-top: 16px;">
+          <div style="position: absolute; left: 12px; right: 12px; top: 10px; height: 200px; border-radius: 20px; background: #F7F0E4; border: 1px solid #E8DECB;"></div>
+          <div style="position: absolute; left: 6px; right: 6px; top: 5px; height: 200px; border-radius: 20px; background: #F9F3E9; border: 1px solid #E8DECB;"></div>
+          <div style="position: absolute; inset: 0; background: #FBF7F0; border-radius: 20px; padding: 12px; box-shadow: 0 18px 40px -24px rgba(60,44,24,0.45); display: flex; flex-direction: column;">
+            <div style="height: 396px; border-radius: 12px; background-image: repeating-linear-gradient(135deg, #EFE6D6 0 10px, #F6EFE3 10px 20px); display: flex; align-items: flex-end; padding: 12px;">
+              <span style="font: 400 10px/1.4 'IBM Plex Mono', monospace; color: #6E5C44; background: #FBF7F0; padding: 4px 6px; border-radius: 4px;">shelter photo · 4:5 · cover, safe-area crop</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 16px; padding: 16px 4px 4px;">
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <span style="font: 500 26px/1.15 'Literata', serif; color: #2A2118; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Ластівка</span>
+                <span style="font: 400 12px/1.4 'Commissioner', sans-serif; color: #6E5C44;">2 роки · середня · живе у волонтерки, м. Бровари</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #F4ECDF; border-radius: 12px; min-height: 84px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="display: flex; gap: 4px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #85735A;"></span><span style="width: 7px; height: 7px; border-radius: 50%; background: #85735A;"></span><span style="width: 7px; height: 7px; border-radius: 50%; background: #2A2118;"></span></span>
+                  <span style="font: 500 12px/1 'Commissioner', sans-serif; color: #2A2118;">Оновлено 41 день тому</span>
+                </div>
+                <div style="font: 400 13px/1.5 'Literata', serif; color: #4A3D2C; text-wrap: pretty;">«Ми оновлювали цю картку 25 червня. Напишіть — скажемо, чи Ластівка ще з нами.»</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; font: 400 12px/1.3 'Commissioner', sans-serif; color: #6E5C44;">
+                <span style="width: 20px; height: 20px; border-radius: 50%; background: #E3D6C0; display: flex; align-items: center; justify-content: center; font: 500 9px/1 'Commissioner', sans-serif; color: #6E5C44;">ПБ</span>
+                <span>Прихисток «Бровари»</span>
+                <span style="color: #4F6B3A;">· перевірений</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+          <button style="flex: 1; min-height: 52px; border: 1px solid #E0D4BF; background: #FBF7F0; border-radius: 12px; font: 400 14px/1 'Commissioner', sans-serif; color: #6E5C44;" style-hover="background: #F4ECDF;">Не зараз</button>
+          <button style="width: 52px; min-height: 52px; border: 1px solid #E0D4BF; background: #FBF7F0; border-radius: 12px; font: 400 13px/1 'Commissioner', sans-serif; color: #6E5C44;" style-hover="background: #F4ECDF;">Далі</button>
+          <button style="flex: 1; min-height: 52px; border: none; background: #4F6B3A; color: #FBF7F0; border-radius: 12px; font: 500 14px/1 'Commissioner', sans-serif;" style-hover="background: #445B32;">Написати</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="03 Filters">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">03 · ФІЛЬТРИ</div>
+      <div style="width: 390px; height: 844px; background: #EDE3D2; border: 1px solid #E0D4BF; border-radius: 32px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;">
+        <div style="background: #FBF7F0; border-radius: 20px 20px 0 0; padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 24px;">
+          <div style="display: flex; flex-direction: column; gap: 16px; align-items: center;">
+            <span style="width: 40px; height: 4px; border-radius: 999px; background: #E0D4BF;"></span>
+            <span style="font: 500 16px/1 'Commissioner', sans-serif; color: #2A2118; align-self: flex-start;">Фільтри</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">МІСТО</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; background: #4F6B3A; color: #FBF7F0; font: 500 14px/1 'Commissioner', sans-serif;">Бровари</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Київ</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Уся Київщина</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">ВИД</span>
+            <div style="display: flex; gap: 8px;">
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; background: #4F6B3A; color: #FBF7F0; font: 500 14px/1 'Commissioner', sans-serif;">Собаки</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Коти</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">РОЗМІР</span>
+            <div style="display: flex; gap: 8px;">
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Малий</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; background: #4F6B3A; color: #FBF7F0; font: 500 14px/1 'Commissioner', sans-serif;">Середній</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Великий</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">ВІК</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Малюк</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Молодий</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Дорослий</span>
+              <span style="min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; border: 1px solid #E0D4BF; color: #4A3D2C; font: 400 14px/1 'Commissioner', sans-serif;">Літній</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="font: 400 12px/1.5 'Commissioner', sans-serif; color: #6E5C44;">Підходить 12 тварин. Притулків у цьому місті — 3.</div>
+            <div style="display: flex; gap: 8px;">
+              <button style="min-height: 52px; padding: 0 20px; border: 1px solid #E0D4BF; background: transparent; border-radius: 12px; font: 400 14px/1 'Commissioner', sans-serif; color: #6E5C44;" style-hover="background: #F4ECDF;">Скинути</button>
+              <button style="flex: 1; min-height: 52px; border: none; background: #4F6B3A; color: #FBF7F0; border-radius: 12px; font: 500 15px/1 'Commissioner', sans-serif;" style-hover="background: #445B32;">Показати 12</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="04 Detail">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">04 · ДЕТАЛІ</div>
+      <div style="width: 390px; min-height: 844px; background: #FBF7F0; border: 1px solid #E0D4BF; border-radius: 32px; overflow: hidden; display: flex; flex-direction: column;">
+        <div style="height: 300px; flex: none; background-image: repeating-linear-gradient(135deg, #EFE6D6 0 10px, #F6EFE3 10px 20px); display: flex; align-items: flex-end; justify-content: space-between; padding: 12px;">
+          <span style="font: 400 10px/1.4 'IBM Plex Mono', monospace; color: #6E5C44; background: #FBF7F0; padding: 4px 6px; border-radius: 4px;">photo 1 / 3 · 4:5 · cover</span>
+          <span style="display: flex; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #2A2118;"></span><span style="width: 6px; height: 6px; border-radius: 50%; background: #C9BCA2;"></span><span style="width: 6px; height: 6px; border-radius: 50%; background: #C9BCA2;"></span></span>
+        </div>
+        <div style="flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 24px;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span style="font: 500 30px/1.15 'Literata', serif; color: #2A2118;">Ластівка</span>
+            <span style="font: 400 12px/1.4 'Commissioner', sans-serif; color: #6E5C44;">Метис · 2 роки · середня · стерилізація не записана</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="display: flex; gap: 4px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #6E5C44;"></span><span style="width: 7px; height: 7px; border-radius: 50%; background: #6E5C44;"></span><span style="width: 7px; height: 7px; border-radius: 50%; background: #2A2118;"></span></span>
+              <span style="font: 500 12px/1 'Commissioner', sans-serif; color: #2A2118;">Оновлено 41 день тому</span>
+            </div>
+            <div style="font: 400 15px/1.55 'Literata', serif; color: #2A2118; text-wrap: pretty;">«Ми оновлювали цю картку 25 червня. З того часу не заходили — напишіть, і ми скажемо, чи Ластівка ще з нами.»</div>
+            <div style="font: 400 11px/1.4 'Commissioner', sans-serif; color: #6E5C44;">Слова притулку · дата автоматична</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font: 500 16px/1.4 'Commissioner', sans-serif; color: #2A2118;">Медичний стан</span>
+            <div style="display: flex; justify-content: space-between; gap: 12px; font: 400 13px/1.4 'Commissioner', sans-serif;"><span style="color: #4A3D2C;">Сказ</span><span style="color: #4F6B3A; font-weight: 500;">Реєстр тварин</span></div>
+            <div style="display: flex; justify-content: space-between; gap: 12px; font: 400 13px/1.4 'Commissioner', sans-serif;"><span style="color: #4A3D2C;">Комплексне щеплення</span><span style="color: #4A3D2C;">Слова притулку</span></div>
+            <div style="display: flex; justify-content: space-between; gap: 12px; font: 400 13px/1.4 'Commissioner', sans-serif;"><span style="color: #4A3D2C;">Стерилізація</span><span style="color: #6E5C44;">Не записано</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font: 500 16px/1.4 'Commissioner', sans-serif; color: #2A2118;">Де живе</span>
+            <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+              <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #2A2118;">м. Бровари · у домі волонтерки</span>
+              <span style="font: 400 12px/1.5 'Commissioner', sans-serif; color: #6E5C44;">Карти тут немає: ми не знаємо точної адреси і не вигадуємо її. Місце зустрічі узгодите з притулком.</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+              <span style="width: 36px; height: 36px; flex: none; border-radius: 50%; background: #E3D6C0; display: flex; align-items: center; justify-content: center; font: 500 12px/1 'Commissioner', sans-serif; color: #5A4A35;">ПБ</span>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <span style="font: 500 13px/1.3 'Commissioner', sans-serif; color: #2A2118;">Прихисток «Бровари»</span>
+                <span style="font: 400 11px/1.3 'Commissioner', sans-serif; color: #445B32;">Перевірений вручну · 2 роки на Opika</span>
+              </div>
+            </div>
+            <a href="#top" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 12px; border: 1px solid #C9BCA2; border-radius: 12px; font: 400 13px/1.3 'Commissioner', sans-serif; color: #4A3D2C;"><span>Підтримати притулок</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6E5C44;">dobro.ua ↗</span></a>
+          </div>
+        </div>
+        <div style="flex: none; padding: 16px; border-top: 1px solid #E8DECB; display: flex; gap: 8px;">
+          <button style="flex: 1; min-height: 52px; border: 1px solid #C9BCA2; background: transparent; border-radius: 12px; font: 400 14px/1 'Commissioner', sans-serif; color: #4A3D2C;" style-hover="background: #F4ECDF;">Не зараз</button>
+          <button style="flex: 2; min-height: 52px; border: none; background: #4F6B3A; color: #FBF7F0; border-radius: 12px; font: 500 15px/1 'Commissioner', sans-serif;" style-hover="background: #3E5529;">Написати притулку</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="05 Reveal">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">05 · КОНТАКТИ ВІДКРИТО</div>
+      <div style="width: 390px; height: 844px; background: #F4ECDF; border: 1px solid #E0D4BF; border-radius: 32px; overflow: hidden; display: flex; flex-direction: column; padding: 40px 24px 24px;">
+        <div style="display: flex; flex-direction: column; gap: 24px; flex: 1;">
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <span style="font: 400 19px/1.5 'Literata', serif; color: #6E5C44;">Ви запитали про Ластівку.</span>
+            <span style="font: 500 30px/1.2 'Literata', serif; color: #2A2118;">Ось як зв'язатися з притулком.</span>
+            <span style="font: 400 14px/1.55 'Commissioner', sans-serif; color: #4A3D2C; text-wrap: pretty;">Притулок не знає про цей запит, поки ви не напишете самі. Нічого не сталося автоматично.</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #FBF7F0; border-radius: 20px;">
+            <span style="font: 500 13px/1.3 'Commissioner', sans-serif; color: #2A2118;">Прихисток «Бровари»</span>
+            <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 8px;">
+              <a href="#top" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 12px; background: #F4ECDF; font: 400 14px/1 'Commissioner', sans-serif; color: #2A2118;">+380 44 000 00 00</a>
+              <a href="#top" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 12px; background: #F4ECDF; font: 400 14px/1 'Commissioner', sans-serif; color: #2A2118;">Telegram · @prykhystok_brovary</a>
+              <div style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 12px; background: #F4ECDF; font: 400 14px/1 'Commissioner', sans-serif; color: #2A2118;">м. Бровари · місце узгодите в листуванні</div>
+            </div>
+            <span style="font: 400 11px/1.4 'Commissioner', sans-serif; color: #6E5C44; padding-top: 4px;">Контакти збережено такими, якими вони є сьогодні · 5 серпня 2026</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid #E0D4BF; border-radius: 20px;">
+            <span style="font: 400 15px/1.5 'Literata', serif; color: #2A2118;">Перед тим як писати — три речі, про які варто подумати спокійно:</span>
+            <div style="display: flex; flex-direction: column; gap: 8px; font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">
+              <span>Це 10–15 років разом, а не вихідні.</span>
+              <span>Корм, ветеринар, перевезення — щомісячні витрати.</span>
+              <span>Чи згодні всі, хто живе з вами.</span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button style="min-height: 52px; border: none; border-radius: 12px; background: #4F6B3A; color: #FBF7F0; font: 500 16px/1 'Commissioner', sans-serif;" style-hover="background: #3E5529;">Написати в Telegram</button>
+          <button style="min-height: 44px; border: none; background: transparent; font: 400 13px/1 'Commissioner', sans-serif; color: #4A3D2C;">Повернутися до стрічки</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="06 My reveals">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">06 · МОЇ ЗАПИТИ</div>
+      <div style="width: 390px; height: 844px; background: #FBF7F0; border: 1px solid #E0D4BF; border-radius: 32px; overflow: hidden; display: flex; flex-direction: column; padding: 40px 16px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 0 8px;">
+            <span style="font: 500 30px/1.2 'Literata', serif; color: #2A2118;">Мої запити</span>
+            <span style="font: 400 12px/1.5 'Commissioner', sans-serif; color: #6E5C44;">Зберігається лише на цьому пристрої. Ми не знаємо, хто ви.</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; gap: 12px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+              <span style="width: 56px; height: 56px; flex: none; border-radius: 8px; background-image: repeating-linear-gradient(135deg, #EFE6D6 0 8px, #F6EFE3 8px 16px);"></span>
+              <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+                <span style="font: 500 15px/1.2 'Literata', serif; color: #2A2118;">Ластівка</span>
+                <span style="font: 400 11px/1.3 'Commissioner', sans-serif; color: #6E5C44;">Прихисток «Бровари» · запит 5 серпня</span>
+                <span style="display: flex; align-items: center; gap: 6px; font: 400 11px/1.3 'Commissioner', sans-serif; color: #4A3D2C;"><span style="display: flex; gap: 3px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #6E5C44;"></span><span style="width: 6px; height: 6px; border-radius: 50%; background: #6E5C44;"></span><span style="width: 6px; height: 6px; border-radius: 50%; background: #2A2118;"></span></span>оновлено 41 день тому</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+              <span style="width: 56px; height: 56px; flex: none; border-radius: 8px; background-image: repeating-linear-gradient(135deg, #EFE6D6 0 8px, #F6EFE3 8px 16px);"></span>
+              <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+                <span style="font: 500 15px/1.2 'Literata', serif; color: #2A2118;">Мурчик</span>
+                <span style="font: 400 11px/1.3 'Commissioner', sans-serif; color: #6E5C44;">Котодім «Ірпінь» · запит 2 серпня</span>
+                <span style="display: flex; align-items: center; gap: 6px; font: 400 11px/1.3 'Commissioner', sans-serif; color: #4A3D2C;"><span style="display: flex; gap: 3px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #4F6B3A;"></span><span style="width: 6px; height: 6px; border-radius: 50%; border: 1px solid #A2917A;"></span><span style="width: 6px; height: 6px; border-radius: 50%; border: 1px solid #A2917A;"></span></span>оновлено 3 дні тому</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px; padding: 12px; background: #EFE6D6; border-radius: 12px;">
+              <span style="width: 56px; height: 56px; flex: none; border-radius: 8px; background-image: repeating-linear-gradient(135deg, #E6DAC6 0 8px, #EFE6D6 8px 16px);"></span>
+              <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+                <span style="font: 500 15px/1.2 'Literata', serif; color: #2A2118;">Бім</span>
+                <span style="font: 400 11px/1.3 'Commissioner', sans-serif; color: #6E5C44;">Прихисток «Бровари» · запит 12 липня</span>
+                <span style="font: 400 11px/1.3 'Commissioner', sans-serif; color: #2A2118;">Притулок каже: Бім уже вдома.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="07 Exhausted">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">07 · ВИ ПОДИВИЛИСЯ ВСІХ</div>
+      <div style="width: 390px; height: 844px; background: #FBF7F0; border: 1px solid #E0D4BF; border-radius: 32px; overflow: hidden; display: flex; flex-direction: column; padding: 40px 24px 24px;">
+        <div style="display: flex; flex-direction: column; gap: 24px; flex: 1; justify-content: center;">
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <span style="font: 500 30px/1.2 'Literata', serif; color: #2A2118;">Це всі, хто зараз підходить.</span>
+            <span style="font: 400 19px/1.5 'Literata', serif; color: #4A3D2C; text-wrap: pretty;">Ви подивилися 12 тварин у Броварах. Притулків тут небагато, тому список короткий — це нормально.</span>
+            <span style="font: 400 14px/1.55 'Commissioner', sans-serif; color: #6E5C44; text-wrap: pretty;">Нові тварини з'являються, коли притулки оновлюють картки. Зазвичай раз на кілька тижнів.</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button style="min-height: 52px; border: none; border-radius: 12px; background: #4F6B3A; color: #FBF7F0; font: 500 15px/1 'Commissioner', sans-serif;" style-hover="background: #3E5529;">Додати сусідні міста (+34)</button>
+            <button style="min-height: 52px; border: 1px solid #C9BCA2; border-radius: 12px; background: transparent; font: 400 15px/1 'Commissioner', sans-serif; color: #4A3D2C;" style-hover="background: #F4ECDF;">Змінити фільтри</button>
+            <button style="min-height: 52px; border: 1px solid #C9BCA2; border-radius: 12px; background: transparent; font: 400 15px/1 'Commissioner', sans-serif; color: #4A3D2C;" style-hover="background: #F4ECDF;">Переглянути ще раз спокійно</button>
+          </div>
+        </div>
+        <div style="font: 400 12px/1.55 'Commissioner', sans-serif; color: #6E5C44; text-wrap: pretty;">Якщо ви знаєте притулок на Київщині, якого тут немає — напишіть нам, і ми з ним поговоримо.</div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="08 Errors">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">08 · ПОМИЛКИ</div>
+      <div style="width: 390px; height: 844px; background: #F4ECDF; border: 1px solid #E0D4BF; border-radius: 32px; overflow: hidden; display: flex; flex-direction: column; gap: 16px; padding: 24px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #FBF7F0; border-radius: 20px;">
+          <span style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">БЕЗ ЗВ'ЯЗКУ</span>
+          <span style="font: 400 17px/1.45 'Literata', serif; color: #2A2118;">Зараз немає інтернету.</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Ці картки завантажені раніше — їх можна дивитися. Контакти відкриються, коли зв'язок повернеться.</span>
+          <button style="min-height: 44px; margin-top: 8px; border: 1px solid #C9BCA2; border-radius: 12px; background: transparent; font: 400 13px/1 'Commissioner', sans-serif; color: #4A3D2C;" style-hover="background: #F4ECDF;">Спробувати ще раз</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #FBF7F0; border-radius: 20px;">
+          <span style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">НЕ ЗАВАНТАЖИЛОСЯ</span>
+          <span style="font: 400 17px/1.45 'Literata', serif; color: #2A2118;">Щось не спрацювало на нашому боці.</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Це не ваша помилка і не помилка притулку. Спробуйте за хвилину.</span>
+          <button style="min-height: 44px; margin-top: 8px; border: 1px solid #C9BCA2; border-radius: 12px; background: transparent; font: 400 13px/1 'Commissioner', sans-serif; color: #4A3D2C;" style-hover="background: #F4ECDF;">Оновити</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #FBF7F0; border-radius: 20px;">
+          <span style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">СЕСІЯ ЗАВЕРШИЛАСЯ</span>
+          <span style="font: 400 17px/1.45 'Literata', serif; color: #2A2118;">Ми почали стрічку заново.</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Ваші запити збережені на цьому пристрої — вони на місці. Фільтри теж.</span>
+          <button style="min-height: 44px; margin-top: 8px; border: none; border-radius: 12px; background: #4F6B3A; color: #FBF7F0; font: 500 13px/1 'Commissioner', sans-serif;" style-hover="background: #3E5529;">До стрічки</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #FBF7F0; border-radius: 20px;">
+          <span style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">ФОТО НЕ ВІДКРИЛОСЯ</span>
+          <div style="height: 96px; border-radius: 12px; background: #F4ECDF; display: flex; align-items: center; justify-content: center; font: 400 12px/1.4 'Commissioner', sans-serif; color: #4A3D2C;">Фото немає — притулок ще не надіслав</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display: flex; gap: 24px; align-items: flex-start;">
+
+    <div style="width: 368px; background: #FBF7F0; border: 1px solid #E0D4BF; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">МІСЦЕ · ДВА ВИДИ</div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+        <span style="font: 500 12px/1 'Commissioner', sans-serif; color: #2A2118;">Притулок · приблизна точка</span>
+        <div style="height: 120px; border-radius: 8px; background-image: repeating-linear-gradient(135deg, #EFE6D6 0 10px, #F6EFE3 10px 20px); display: flex; align-items: center; justify-content: center;">
+          <span style="width: 76px; height: 76px; border-radius: 50%; background: rgba(79,107,58,0.16); border: 1px solid #4F6B3A; display: flex; align-items: center; justify-content: center;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #3E5529;"></span></span>
+        </div>
+        <span style="font: 400 12px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Точка зсунута приблизно на кілометр — так просять притулки. Коло і є відповідь: десь тут.</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+        <span style="font: 500 12px/1 'Commissioner', sans-serif; color: #2A2118;">Прихисток удома · тільки місто</span>
+        <div style="height: 120px; border-radius: 8px; background: #EFE6D6; display: flex; align-items: center; justify-content: center; font: 500 15px/1 'Literata', serif; color: #4A3D2C;">м. Бровари</div>
+        <span style="font: 400 12px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Жодної карти. Координат ми не маємо, тож і крапку не ставимо — вона брехала б про точність.</span>
+      </div>
+    </div>
+
+    <div style="width: 368px; background: #FBF7F0; border: 1px solid #E0D4BF; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">ДЖЕРЕЛО · БРОНЬ · ДОКУМЕНТИ</div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; font: 500 13px/1.4 'Commissioner', sans-serif; color: #2A2118;"><span style="width: 4px; height: 16px; background: #4F6B3A;"></span>Сказ · реєстр тварин</div>
+        <div style="display: flex; align-items: center; gap: 8px; font: 400 13px/1.4 'Commissioner', sans-serif; color: #2A2118;"><span style="width: 4px; height: 16px; background: #A2917A;"></span>Щеплення · слова притулку</div>
+        <div style="display: flex; align-items: center; gap: 8px; font: 400 13px/1.4 'Commissioner', sans-serif; color: #4A3D2C;"><span style="width: 4px; height: 16px; background: #E0D4BF;"></span>Стерилізація · не записано</div>
+        <span style="font: 400 12px/1.5 'Commissioner', sans-serif; color: #4A3D2C; padding-top: 4px;">Смуга ніколи не єдиний носій сенсу — джерело завжди підписане словами. Зелена буває тільки там, де підтвердила держава. «Не записано» — порожня графа, а не «ні».</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+        <span style="display: flex; align-items: center; gap: 6px; align-self: flex-start; min-height: 28px; padding: 0 10px; border-radius: 999px; background: #E3D6C0; font: 500 11px/1 'Commissioner', sans-serif; color: #3D3226;">Уже домовляються</span>
+        <span style="font: 400 12px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Забронована тварина залишається у стрічці з цією позначкою, а зелена кнопка змінює текст на «Стати другим у черзі». Домовленості зриваються, і тоді ви вже тут.</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #F4ECDF; border-radius: 12px;">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <span style="min-height: 28px; display: flex; align-items: center; padding: 0 10px; border-radius: 999px; border: 1px solid #A2917A; font: 400 11px/1 'Commissioner', sans-serif; color: #3D3226;">Чип є</span>
+          <span style="min-height: 28px; display: flex; align-items: center; padding: 0 10px; border-radius: 999px; border: 1px solid #A2917A; font: 400 11px/1 'Commissioner', sans-serif; color: #3D3226;">Сказ є</span>
+        </div>
+        <span style="font: 400 12px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Показуємо лише ті документи, що справді є. Якщо немає жодного — блок не з'являється взагалі, і ніде не написано «немає документів».</span>
+      </div>
+    </div>
+
+    <div style="width: 368px; background: #FBF7F0; border: 1px solid #E0D4BF; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">ДЕКА · ЖЕСТ</div>
+      <div style="display: flex; flex-direction: column; gap: 8px; font: 400 12px/1.55 'Commissioner', sans-serif; color: #4A3D2C;">
+        <div>Карта 358×720 у в'юпорті 390: фото 4:5, під ним 168 px тексту. Стек — три шари: верхній повний, під ним зсуви −5 і −10 px по вертикалі та 6 px з обох боків, без масштабування.</div>
+        <div>Тягнення пишеться прямо в <span style="font-family: 'IBM Plex Mono', monospace;">transform</span> вузла, не через стан React: <span style="font-family: 'IBM Plex Mono', monospace;">translate3d(x,0,0) rotate(x·0.03deg)</span>, максимум 6°, <span style="font-family: 'IBM Plex Mono', monospace;">touch-action: pan-y</span>, <span style="font-family: 'IBM Plex Mono', monospace;">setPointerCapture</span>.</div>
+        <div>Порог — 88 px (24% ширини) <em>або</em> швидкість 0.45 px/мс. Вихід 300 ms, повернення — пружина 260/28, без овершуту. Наступна сторінка підвантажується, коли в стеку лишається 5 карток.</div>
+        <div>Під час тягнення з'являється рівно одне: підпис «Не зараз» ліворуч або «Запитати» праворуч, opacity 0→1 на перших 40 px. Ні штампів, ні балів, ні вібрації.</div>
+      </div>
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">ДОСТУПНІСТЬ</div>
+      <div style="display: flex; flex-direction: column; gap: 8px; font: 400 12px/1.55 'Commissioner', sans-serif; color: #4A3D2C;">
+        <div>Кожен жест має кнопку: «Не зараз», «Далі», «Написати» — 52 px висоти, 44 px мінімум усюди. Свайп — прискорювач, а не єдиний шлях.</div>
+        <div>Контраст: основний текст #2A2118 на #FBF7F0 — 14.8:1; другорядний #6E5C44 — 5.6:1; зелений #4F6B3A — 5.4:1, а білий на ньому — 4.9:1. Нічого нижче 4.5:1, включно з підписами 11 px.</div>
+        <div>Три піпси свіжості ніколи не працюють самі: біля них завжди стоїть «оновлено N днів тому», і <span style="font-family: 'IBM Plex Mono', monospace;">aria-label</span> повторює те саме словами. Так само джерело медичних даних підписане, а не лише пофарбоване.</div>
+        <div>Стан «Бім уже вдома» позначений іншим фоном і текстом, а не приглушенням — прозорість ніколи не носій сенсу. <span style="font-family: 'IBM Plex Mono', monospace;">prefers-reduced-motion</span>: картка зникає через opacity за 120 ms, стек не рухається.</div>
+      </div>
+    </div>
+
+    <div style="width: 500px; background: #FBF7F0; border: 1px solid #E0D4BF; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+      <div style="font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #6E5C44;">КОПІЯ · UK / EN</div>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid #E8DECB;">
+          <span style="font: 500 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; color: #6E5C44;">freshness.fresh</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #2A2118;">Оновлено 3 дні тому</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Updated 3 days ago</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid #E8DECB;">
+          <span style="font: 500 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; color: #6E5C44;">freshness.aging</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #2A2118;">Оновлено 19 днів тому · «Ми заходили сюди пару тижнів тому. Напишіть — уточнимо.»</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Updated 19 days ago · “We last checked in a couple of weeks ago. Message us and we'll confirm.”</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid #E8DECB;">
+          <span style="font: 500 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; color: #6E5C44;">freshness.stale</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #2A2118;">Оновлено 41 день тому · «Ми оновлювали цю картку 25 червня. З того часу не заходили — напишіть, і ми скажемо, чи Ластівка ще з нами.»</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Updated 41 days ago · “We updated this card on 25 June. We haven't been back since — message us and we'll tell you whether Lastivka is still with us.”</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid #E8DECB;">
+          <span style="font: 500 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; color: #6E5C44;">freshness.attribution</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #2A2118;">Слова притулку · дата автоматична</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">The shelter's own words · date filled in automatically</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid #E8DECB;">
+          <span style="font: 500 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; color: #6E5C44;">swipe.left / swipe.right</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #2A2118;">Не зараз / Запитати</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Not right now / Ask about them</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid #E8DECB;">
+          <span style="font: 500 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; color: #6E5C44;">medical.unknown / medical.registry</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #2A2118;">Не записано / Підтверджено реєстром тварин</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Not recorded / Confirmed by the national pet registry</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid #E8DECB;">
+          <span style="font: 500 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; color: #6E5C44;">location.fostered</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #2A2118;">Живе у волонтерки, м. Бровари. Точної адреси ми не знаємо і не показуємо.</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Living with a volunteer in Brovary. We don't know the exact address and won't invent one.</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid #E8DECB;">
+          <span style="font: 500 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; color: #6E5C44;">reveal.title</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #2A2118;">Ось як зв'язатися з притулком. Притулок не знає про цей запит, поки ви не напишете самі.</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Here's how to reach the shelter. They won't know you asked until you write to them yourself.</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid #E8DECB;">
+          <span style="font: 500 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; color: #6E5C44;">exhausted.title</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #2A2118;">Це всі, хто зараз підходить. Притулків тут небагато, тому список короткий — це нормально.</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">That's everyone who fits right now. There aren't many shelters here, so the list is short — that's normal.</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font: 500 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.1em; color: #6E5C44;">reserved.badge</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #2A2118;">Уже домовляються / Стати другим у черзі</span>
+          <span style="font: 400 13px/1.5 'Commissioner', sans-serif; color: #4A3D2C;">Already in conversation / Ask to be second in line</span>
+        </div>
+      </div>
+      <div style="font: 400 12px/1.55 'Commissioner', sans-serif; color: #4A3D2C;">Дні беруться з <span style="font-family: 'IBM Plex Mono', monospace;">Intl.RelativeTimeFormat('uk')</span>, тож «1 день / 2 дні / 5 днів / 21 день / 22 дні» правильні без ручних правил. У JSON немає ні дат, ні чисел.</div>
+    </div>
+  </div>
+
+</section>
+
+</x-dc>
+</body>
+</html>

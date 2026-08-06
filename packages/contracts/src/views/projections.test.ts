@@ -44,6 +44,7 @@ const shelterSummary = {
     district: null,
     approximate: { center: { lat: 49.99, lng: 36.23 }, precisionMetres: 1000 },
   },
+  freshnessSentence: null,
   verification: "verified",
 };
 
@@ -183,6 +184,7 @@ describe("shelter views expose exactly their intended fields", () => {
   it("ShelterSummaryView", () => {
     expect(Object.keys(ShelterSummaryViewSchema.shape).sort()).toEqual([
       "displayName",
+      "freshnessSentence",
       "id",
       "publicLocation",
       "verification",

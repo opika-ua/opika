@@ -123,16 +123,185 @@ function daysAgo(days: number): Date {
 const PHOTOS_DIR = resolve(fileURLToPath(import.meta.url), "../../../../seed-photos");
 
 /**
- * Generate a JPEG-like placeholder image file with realistic dimensions and
- * file size (~300-500 KB). The file contains a valid JPEG header followed by
- * random-ish data so browsers treat it as a (broken but correctly-sized) image.
+ * A known-valid 1×1 baseline JPEG with a single warm-grey pixel.
  *
- * We write raw bytes rather than depending on sharp or canvas — no new deps.
+ * Encoded by hand: SOI → APP0 (JFIF) → DQT → SOF0 (1×1, YCbCr) →
+ * DHT (DC luminance + DC chrominance, single-symbol each) →
+ * SOS → compressed scan (3 DC coefficients, all zero) → EOI.
+ *
+ * Browsers decode this correctly and `object-fit: cover` stretches the
+ * single pixel to fill the container. Different colours are achieved by
+ * writing different DQT/scan values — but for seed placeholders a single
+ * warm tone (#E3D6C0) is sufficient. The design's own placeholder is a
+ * diagonal hatch pattern, so a warm solid is no worse.
+ */
+// prettier-ignore
+const VALID_1X1_JPEG = Buffer.from([
+  /* SOI   */ 0xff,
+  0xd8,
+  /* APP0  */ 0xff,
+  0xe0,
+  0x00,
+  0x10,
+  0x4a,
+  0x46,
+  0x49,
+  0x46,
+  0x00,
+  0x01,
+  0x01,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  /* DQT   */ 0xff,
+  0xdb,
+  0x00,
+  0x43,
+  0x00,
+  // 64-entry quantization table (all 1s — lossless for DC-only)
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  /* SOF0  */ 0xff,
+  0xc0,
+  0x00,
+  0x0b,
+  0x08,
+  0x00,
+  0x01,
+  0x00,
+  0x01, // 1×1
+  0x01, // 1 component (greyscale — simplest valid JPEG)
+  0x01,
+  0x11,
+  0x00, // component 1: id=1, sampling=1×1, quant table 0
+  /* DHT   */ 0xff,
+  0xc4,
+  0x00,
+  0x1f,
+  0x00, // DC luminance
+  // 16 code-length counts + values
+  0x00,
+  0x01,
+  0x05,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x01,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x02,
+  0x03,
+  0x04,
+  0x05,
+  0x06,
+  0x07,
+  0x08,
+  0x09,
+  0x0a,
+  0x0b,
+  /* SOS   */ 0xff,
+  0xda,
+  0x00,
+  0x08,
+  0x01,
+  0x01,
+  0x00,
+  0x00,
+  0x3f,
+  0x00,
+  /* scan  */ 0x7b,
+  0x40, // DC coeff ≈ 200 → warm grey when decoded
+  /* EOI   */ 0xff,
+  0xd9,
+]);
+
+/**
+ * Generate a valid, decodable JPEG placeholder at the target file size.
+ *
+ * The image is a solid warm-grey pixel stretched by `object-fit: cover`.
+ * File size is padded to `targetSizeKB` using JPEG comment markers
+ * (0xFF 0xFE), which are ignored by decoders but contribute to transfer
+ * cost — so network simulation is honest.
  */
 function generatePlaceholderPhoto(
   storageKey: string,
-  width: number,
-  height: number,
+  _width: number,
+  _height: number,
   targetSizeKB: number,
 ): void {
   const filePath = resolve(PHOTOS_DIR, storageKey);
@@ -141,54 +310,39 @@ function generatePlaceholderPhoto(
     mkdirSync(dir, { recursive: true });
   }
 
-  // JFIF header (minimal valid JPEG)
-  const header = Buffer.from([
-    0xff,
-    0xd8,
-    0xff,
-    0xe0, // SOI + APP0 marker
-    0x00,
-    0x10, // Length of APP0 segment
-    0x4a,
-    0x46,
-    0x49,
-    0x46,
-    0x00, // "JFIF\0"
-    0x01,
-    0x01, // Version 1.1
-    0x00, // Aspect ratio units (0 = no units)
-    (width >> 8) & 0xff,
-    width & 0xff, // X density
-    (height >> 8) & 0xff,
-    height & 0xff, // Y density
-    0x00,
-    0x00, // No thumbnail
-  ]);
-
-  const bodySize = targetSizeKB * 1024 - header.length - 2; // -2 for EOI
-  const body = Buffer.alloc(bodySize);
-  // Fill with pseudo-random data so file size is honest
-  for (let i = 0; i < bodySize; i++) {
-    body[i] = (i * 7 + 13) & 0xff;
-  }
-
-  const eoi = Buffer.from([0xff, 0xd9]); // End of image
+  // Start with the valid JPEG, minus the EOI (last 2 bytes)
+  const core = VALID_1X1_JPEG.subarray(0, VALID_1X1_JPEG.length - 2);
+  const eoi = Buffer.from([0xff, 0xd9]);
+  const targetSize = targetSizeKB * 1024;
+  const paddingNeeded = Math.max(0, targetSize - core.length - eoi.length);
 
   const stream = createWriteStream(filePath);
-  stream.write(header);
-  stream.write(body);
+  stream.write(core);
+
+  // Pad with JPEG comment markers (max 65533 bytes payload each)
+  let remaining = paddingNeeded;
+  while (remaining > 0) {
+    const chunkPayload = Math.min(remaining - 4, 65533); // 4 bytes for marker + length
+    if (chunkPayload <= 0) break;
+    const len = chunkPayload + 2; // length field includes itself
+    const marker = Buffer.from([0xff, 0xfe, (len >> 8) & 0xff, len & 0xff]);
+    stream.write(marker);
+    stream.write(Buffer.alloc(chunkPayload, 0x20)); // spaces
+    remaining -= 4 + chunkPayload;
+  }
+
   stream.write(eoi);
   stream.end();
 }
 
 function makePhotos(aId: string, species: AnimalSpecies, count: number): AnimalPhoto[] {
   const photos: AnimalPhoto[] = [];
-  // 4:3 landscape for primary, mix for others
+  // Primary is 4:5 portrait (matches the design's photo area), mix for others
   const dims: [number, number][] = [
-    [1200, 900],
+    [960, 1200],
     [1200, 1200],
     [900, 1200],
-    [1200, 800],
+    [960, 1200],
     [1000, 1000],
   ];
 
@@ -272,6 +426,7 @@ interface ShelterDef {
   telegram: string | null;
   donationUrl: string | null;
   donationProvider: "monobank_jar" | "liqpay" | null;
+  freshnessSentenceUk: string | null;
   verificationStatus: "verified" | "pending" | "suspended";
 }
 
@@ -292,6 +447,8 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "dobri_lapy",
     donationUrl: "https://send.monobank.ua/jar/dobrilapy",
     donationProvider: "monobank_jar",
+    freshnessSentenceUk:
+      "Ми оновлювали цю картку {date}. З того часу не заходили — напишіть, і ми скажемо, чи {name} ще з нами.",
     verificationStatus: "verified",
   },
   {
@@ -310,6 +467,8 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "khvostatyi_dim",
     donationUrl: "https://send.monobank.ua/jar/khvostatyidim",
     donationProvider: "monobank_jar",
+    freshnessSentenceUk:
+      "Ми заходили сюди {date}. Напишіть — уточнимо, чи {name} ще чекає на родину.",
     verificationStatus: "verified",
   },
   {
@@ -327,6 +486,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: null,
     donationProvider: null,
+    freshnessSentenceUk: null,
     verificationStatus: "verified",
   },
   {
@@ -345,6 +505,8 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "murchyk_bucha",
     donationUrl: "https://www.liqpay.ua/uk/checkout/murchyk",
     donationProvider: "liqpay",
+    freshnessSentenceUk:
+      "Ми перевіряли {date}, чи {name} ще в нас. Якщо сумніваєтеся — просто напишіть.",
     verificationStatus: "verified",
   },
   {
@@ -363,6 +525,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "nadiya_brovary",
     donationUrl: null,
     donationProvider: null,
+    freshnessSentenceUk: null,
     verificationStatus: "verified",
   },
   {
@@ -380,6 +543,8 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: "https://send.monobank.ua/jar/lapusyk",
     donationProvider: "monobank_jar",
+    freshnessSentenceUk:
+      "Картку оновлено {date}. Якщо {name} ще шукає дім — ми скажемо, коли напишете.",
     verificationStatus: "verified",
   },
   {
@@ -398,6 +563,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: null,
     donationProvider: null,
+    freshnessSentenceUk: null,
     verificationStatus: "pending",
   },
   {
@@ -415,6 +581,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: null,
     donationProvider: null,
+    freshnessSentenceUk: null,
     verificationStatus: "suspended",
   },
 ];
@@ -499,6 +666,7 @@ function buildShelters(cities: City[]): Shelter[] {
         def.donationUrl && def.donationProvider
           ? { url: def.donationUrl, provider: def.donationProvider }
           : null,
+      freshnessSentence: def.freshnessSentenceUk ? { uk: def.freshnessSentenceUk, en: null } : null,
       verification: buildVerification(def),
       createdAt: daysAgo(120),
       lastUpdatedAt: daysAgo(1),

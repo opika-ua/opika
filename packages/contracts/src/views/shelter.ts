@@ -34,6 +34,7 @@ export const ShelterSummaryViewSchema = ShelterSchema.pick({
   id: true,
   displayName: true,
   publicLocation: true,
+  freshnessSentence: true,
 }).extend({
   verification: VerificationBadgeSchema,
 });
