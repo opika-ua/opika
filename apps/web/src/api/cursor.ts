@@ -26,14 +26,10 @@ function sign(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("hex").slice(0, 16);
 }
 
-export function encodeFeedCursor(
-  data: FeedCursorData,
-  filtersFingerprint: string,
-  secret: string,
-): string {
+function encodeCursor(kind: CursorPayload["kind"], data: FeedCursorData, secret: string): string {
   const payload: CursorPayload = {
-    kind: "feed",
-    filtersFingerprint,
+    kind,
+    filtersFingerprint: "",
     lastUpdatedAt: data.lastUpdatedAt.toISOString(),
     id: data.id,
   };
@@ -42,25 +38,57 @@ export function encodeFeedCursor(
   return Buffer.from(`${mac}:${json}`).toString("base64url");
 }
 
-export type DecodedFeedCursor = {
+function encodeCursorWithFingerprint(
+  kind: CursorPayload["kind"],
+  data: FeedCursorData,
+  fingerprint: string,
+  secret: string,
+): string {
+  const payload: CursorPayload = {
+    kind,
+    filtersFingerprint: fingerprint,
+    lastUpdatedAt: data.lastUpdatedAt.toISOString(),
+    id: data.id,
+  };
+  const json = JSON.stringify(payload);
+  const mac = sign(json, secret);
+  return Buffer.from(`${mac}:${json}`).toString("base64url");
+}
+
+export function encodeFeedCursor(
+  data: FeedCursorData,
+  filtersFingerprint: string,
+  secret: string,
+): string {
+  return encodeCursorWithFingerprint("feed", data, filtersFingerprint, secret);
+}
+
+export function encodeRevealCursor(data: FeedCursorData, secret: string): string {
+  return encodeCursor("reveal", data, secret);
+}
+
+type DecodedCursor = {
   data: FeedCursorData;
   filtersFingerprint: string;
 };
 
+export type DecodedFeedCursor = DecodedCursor;
+
 /**
- * Decode and verify a feed cursor.
+ * Decode and verify a signed cursor, checking kind and optional fingerprint.
  *
  * Returns null if:
  * - The cursor is malformed
  * - The HMAC signature doesn't match (tampered)
- * - The kind is not "feed"
- * - The filters fingerprint doesn't match the current filters
+ * - The kind doesn't match expectedKind
+ * - The filters fingerprint doesn't match expectedFingerprint (if provided)
  */
-export function decodeFeedCursor(
+function decodeCursor(
   cursor: string,
-  expectedFingerprint: string,
+  expectedKind: CursorPayload["kind"],
+  expectedFingerprint: string | null,
   secret: string,
-): DecodedFeedCursor | null {
+): DecodedCursor | null {
   try {
     const raw = Buffer.from(cursor, "base64url").toString("utf8");
     const colonIndex = raw.indexOf(":");
@@ -82,8 +110,9 @@ export function decodeFeedCursor(
 
     const payload = JSON.parse(json) as CursorPayload;
 
-    if (payload.kind !== "feed") return null;
-    if (payload.filtersFingerprint !== expectedFingerprint) return null;
+    if (payload.kind !== expectedKind) return null;
+    if (expectedFingerprint !== null && payload.filtersFingerprint !== expectedFingerprint)
+      return null;
 
     const lastUpdatedAt = new Date(payload.lastUpdatedAt);
     if (Number.isNaN(lastUpdatedAt.getTime())) return null;
@@ -95,4 +124,19 @@ export function decodeFeedCursor(
   } catch {
     return null;
   }
+}
+
+export function decodeFeedCursor(
+  cursor: string,
+  expectedFingerprint: string,
+  secret: string,
+): DecodedFeedCursor | null {
+  return decodeCursor(cursor, "feed", expectedFingerprint, secret);
+}
+
+export function decodeRevealCursor(
+  cursor: string,
+  secret: string,
+): { data: FeedCursorData } | null {
+  return decodeCursor(cursor, "reveal", null, secret);
 }

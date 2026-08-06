@@ -4,6 +4,7 @@ import type { Database } from "../client";
 import { reveals } from "../schema/reveals";
 import { revealToRow, rowToReveal } from "./mappers";
 
+
 export function revealRepo(db: Database) {
   return {
     async findById(id: RevealId): Promise<ContactReveal | null> {
@@ -25,22 +26,39 @@ export function revealRepo(db: Database) {
       return row ? rowToReveal(row) : null;
     },
 
+    /**
+     * Keyset-paginated list of reveals for an adopter.
+     *
+     * Ordering: `(revealed_at DESC, id DESC)`. The id tiebreaker prevents
+     * skips or duplicates when two reveals share a timestamp — the same
+     * defect class as OFFSET pagination.
+     */
     async listByAdopter(
       adopterId: AdopterId,
-      opts: { limit: number; cursor?: Date },
+      opts: { limit: number; cursor?: { revealedAt: Date; id: string } },
     ): Promise<readonly ContactReveal[]> {
-      const query = db
+      const conditions = [eq(reveals.adopterId, adopterId)];
+
+      if (opts.cursor) {
+        const cursorTs = opts.cursor.revealedAt.toISOString();
+        conditions.push(
+          or(
+            lt(reveals.revealedAt, sql`${cursorTs}::timestamptz`),
+            and(
+              eq(reveals.revealedAt, sql`${cursorTs}::timestamptz`),
+              sql`${reveals.id} < ${opts.cursor.id}`,
+            ),
+          )!,
+        );
+      }
+
+      const rows = await db
         .select()
         .from(reveals)
-        .where(
-          opts.cursor
-            ? and(eq(reveals.adopterId, adopterId), lt(reveals.revealedAt, opts.cursor))
-            : eq(reveals.adopterId, adopterId),
-        )
-        .orderBy(desc(reveals.revealedAt))
+        .where(and(...conditions))
+        .orderBy(desc(reveals.revealedAt), desc(reveals.id))
         .limit(opts.limit);
 
-      const rows = await query;
       return rows.map(rowToReveal);
     },
 

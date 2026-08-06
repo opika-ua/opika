@@ -40,5 +40,6 @@ export const swipesRecordContract = oc
   .output(SwipesRecordOutputSchema)
   .errors({
     NOT_FOUND: apiErrors.NOT_FOUND,
+    UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
     RATE_LIMITED: apiErrors.RATE_LIMITED,
   });

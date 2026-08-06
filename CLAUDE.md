@@ -263,9 +263,14 @@ live in a checklist rather than in a schema:
   on the plain `os` builder with no `.output()` returns whatever the
   handler produced, and the `pick`-based leak protection evaporates.
 - **The session cookie is server-minted only**: ≥128 bits from a CSPRNG,
-  HttpOnly + Secure + SameSite=Lax, and _reject_ an unknown session id
-  rather than treating it as a new one. Get-or-create on a client-supplied
-  value is account takeover.
+  HttpOnly + Secure + SameSite=Lax. Session _validation_ is get-or-reject:
+  an unknown token is `{ ok: false }`, never a new session.
+  `session.bootstrap` is the sole endpoint that mints — when validation
+  rejects (stale cookie, first visit), it creates a fresh adopter + session.
+  This is safe because tokens are 256-bit random (no client-supplied value
+  to collide on), but it means bootstrap MUST sit behind per-IP rate
+  limiting — without it, unauthenticated callers can create unbounded
+  adopter rows.
 - **Sign the cursor and bind it to the filters.** Payload carries a kind
   tag (`feed` / `reveal`) and `filtersFingerprint(filters)`; a mismatch is
   `INVALID_CURSOR`. The branded type is a convenience for honest callers
