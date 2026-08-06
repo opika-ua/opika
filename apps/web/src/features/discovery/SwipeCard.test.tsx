@@ -4,7 +4,6 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { freshnessLabel } from "./freshness-display";
 import { SwipeCard } from "./SwipeCard";
-import { color } from "./tokens";
 
 /**
  * Behaviour tests for the card.
@@ -61,9 +60,9 @@ describe("SwipeCard freshness marker", () => {
    * "how far has this travelled" comparison the whole component exists for.
    */
   it.each([
-    ["fresh", 3, [color.leaf, null, null]],
-    ["aging", 19, [color.ink4, color.ink4, null]],
-    ["stale", 41, [color.ink4, color.ink4, color.ink]],
+    ["fresh", 3, ["bg-leaf", null, null]],
+    ["aging", 19, ["bg-ink-4", "bg-ink-4", null]],
+    ["stale", 41, ["bg-ink-4", "bg-ink-4", "bg-ink"]],
   ] as const)("renders three pips for %s, filled per the design table", (kind, days, expected) => {
     renderCard(makeCard({ freshness: makeFreshness(kind, days) }));
 
@@ -72,6 +71,11 @@ describe("SwipeCard freshness marker", () => {
     expect(pips.map((p) => p.getAttribute("data-filled"))).toEqual(
       expected.map((fill) => (fill ? "true" : "false")),
     );
+    // Stronger than the boolean check above: the *specific* fill colour per
+    // the design table, not just whether a pip is filled at all.
+    expected.forEach((fill, i) => {
+      if (fill) expect(pips[i]?.className).toContain(fill);
+    });
   });
 
   /**
@@ -125,11 +129,13 @@ describe("SwipeCard name", () => {
     renderCard(makeCard({ name: "Всеволода-Мирослава Великодушна з Броварського притулку" }));
 
     const nameEl = screen.getByTestId("card-name");
-    const style = nameEl.style;
 
-    expect(style.whiteSpace).toBe("nowrap");
-    expect(style.overflow).toBe("hidden");
-    expect(style.textOverflow).toBe("ellipsis");
+    // Tailwind's `truncate` utility is exactly `overflow:hidden;
+    // text-overflow:ellipsis; white-space:nowrap` — the same three
+    // properties this test checked individually before the Tailwind
+    // migration, now behind one class instead of three that could drift
+    // independently.
+    expect(nameEl.className.split(/\s+/)).toContain("truncate");
   });
 
   /**

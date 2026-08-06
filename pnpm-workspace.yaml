@@ -31,6 +31,12 @@ catalog:
   happy-dom: 20.11.1
   "@testing-library/react": 16.3.2
   "@testing-library/user-event": 14.6.3
+  # Styling. tailwindcss/@tailwindcss/postcss pinned at 4.3.3 (published
+  # 2026-07-16, well clear of the 24h quarantine); postcss at 8.5.25 rather
+  # than the newer 8.5.26, which published 2026-08-06 — inside the window.
+  tailwindcss: 4.3.3
+  "@tailwindcss/postcss": 4.3.3
+  postcss: 8.5.25
   drizzle-orm: 0.45.2
   drizzle-kit: 0.31.10
   next: 16.3.0

@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+/**
+ * Design tokens for the discovery flow, as a Tailwind v4 CSS theme.
+ *
+ * This is the port of `features/discovery/tokens.ts` — colours, radii,
+ * shadow, motion, and the five-step spacing scale — required to move
+ * SwipeCard/SwipeDeck/the discovery page off inline `style` objects.
+ * Inline styles cannot express a media query, which made responsive layout
+ * (the work this migration exists to unblock) impossible.
+ *
+ * `tokens.ts` itself is not deleted: `layout.stackLayers` is array-slicing
+ * logic, not a style, and stays there; the swipe gesture's own motion
+ * constants live in `use-swipe-gesture.ts` and are intentionally NOT wired
+ * to the values below (see the note under Motion).
+ */
+@theme {
+  /* ---- Colour — docs/design/README.md, "Colour — light ('warm paper')" ---- */
+  --color-paper: #fbf7f0;
+  --color-paper-alt: #f4ecdf;
+  --color-sunken-deep: #efe6d6;
+  --color-line: #e8decb;
+  --color-line-strong: #e0d4bf;
+  --color-line-heavy: #c9bca2;
+  --color-ink: #2a2118;
+  --color-ink-2: #4a3d2c;
+  --color-ink-3: #6e5c44;
+  --color-ink-4: #85735a;
+  --color-leaf: #4f6b3a;
+  --color-leaf-press: #3e5529;
+  --color-leaf-hover: #445b32;
+  --color-avatar-bg: #e3d6c0;
+
+  /*
+   * ---- Radius ----
+   * `photo`, `button` and `freshness` all happen to be 12px today. Kept as
+   * three names, not one, because that is tokens.ts's own choice — each
+   * names what it rounds, not the number, so changing e.g. only the button
+   * radius later is a one-line edit instead of a search for which 12s mean
+   * "button".
+   */
+  --radius-card: 20px;
+  --radius-photo: 12px;
+  --radius-button: 12px;
+  --radius-freshness: 12px;
+  --radius-chip: 999px;
+
+  /* ---- Shadow — the deck's top card only; the design's other elevation
+   * step ("sm", the lower stack cards) was never implemented in tokens.ts
+   * and is out of scope here — porting tokens.ts, not the full doc. ---- */
+  --shadow-card: 0 18px 40px -24px rgba(60, 44, 24, 0.45);
+
+  /*
+   * ---- Motion — durations and easing, ported for documentation and for
+   * any future CSS-driven transition. ----
+   * quick 160ms · settle 300ms · reveal 340ms · exit 300ms · reducedExit 120ms
+   * Tailwind's `duration-<n>` utility takes a bare millisecond number and
+   * needs no theme entry (`duration-300` already works); only the easing
+   * curve is non-default and gets a name.
+   *
+   * NOT wired to the swipe gesture. `use-swipe-gesture.ts` writes
+   * `node.style.transition` imperatively — CLAUDE.md's "hand-rolled
+   * PointerEvent + transform (no gesture library)" decision — because the
+   * duration differs under `prefers-reduced-motion` and the transition must
+   * be "none" while dragging and re-enabled only on release. A static
+   * Tailwind class cannot express that, so the gesture hook keeps its own
+   * copy of these same numbers rather than reading this theme.
+   */
+  --ease-keeper: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /*
+   * ---- Spacing — docs/design/README.md, "Spacing — exactly five steps" ----
+   * Every vertical distance in the design is one of these five, named for
+   * what it separates rather than its pixel value:
+   *   label  (4)  label -> value
+   *   row    (8)  rows within a group
+   *   group  (16) group -> group; the design also says "card padding" here
+   *   section(24) section -> section
+   *   screen (40) screen top; above the primary action
+   * These sit in Tailwind's unified `--spacing-*` scale, which every
+   * spacing/sizing utility (p-*, m-*, gap-*, inset-*, w-*, h-*, top-*, ...)
+   * draws from — so `gap-group`, `p-group`, `pt-screen` etc. all work.
+   *
+   * NOTE — a pre-existing deviation, not something this migration changes:
+   * tokens.ts's actual `layout.cardPadding` is 12px, not the 16px the design
+   * doc states for "card padding". This port keeps the codebase's existing
+   * 12px (arbitrary `p-[12px]` at the point of use, in SwipeCard.tsx) rather
+   * than silently correcting it to the doc's 16 — correcting it would change
+   * a rendered pixel, which this migration must not do. Flagged for the PR,
+   * not fixed here.
+   *
+   * One-off pixel geometry specific to the swipe deck (photo height, stack
+   * offsets, touch-target heights) is NOT part of this five-step system and
+   * is expressed as literal Tailwind arbitrary values (`h-[396px]`) at the
+   * point of use, each with the same explanatory comment tokens.ts carried —
+   * see SwipeCard.tsx and SwipeDeck.tsx. `layout.cardWidth` (358) is dropped
+   * entirely: it had no consumer anywhere in the codebase before this change.
+   */
+  --spacing-label: 4px;
+  --spacing-row: 8px;
+  --spacing-group: 16px;
+  --spacing-section: 24px;
+  --spacing-screen: 40px;
+
+  /*
+   * ---- Typography — font families ----
+   * `next/font/google` (apps/web/src/app/fonts.ts) generates these two CSS
+   * custom properties and applies them on <html> in layout.tsx. The
+   * metric-matched fallback is already inside each generated variable, not
+   * written here: next/font emits
+   * `--font-literata: "Literata", "Literata Fallback"` (verified in the
+   * built stylesheet), where the "Fallback" face is a font-metrics-adjusted local
+   * face Next computes at build time so the *fallback itself* is sized like
+   * the web font — which is what keeps first paint from visibly reflowing
+   * when the real font arrives (`display: swap`'s usual cost). So there is
+   * deliberately nothing after the `var()` below: appending a generic would
+   * only ever be reached if the variable were undefined entirely, which
+   * means the root layout stopped applying the class and is a bug to fix
+   * rather than to paper over.
+   *
+   * No `--font-mono` override: IBM Plex Mono was measured and dropped —
+   * see fonts.ts. `font-mono` now falls through to Tailwind's own default
+   * monospace stack, which is fine because nothing in this codebase uses
+   * the `font-mono` utility any more.
+   */
+  --font-serif: var(--font-literata);
+  --font-sans: var(--font-commissioner);
+
+  /*
+   * ---- Loading spinner ----
+   * Tailwind's built-in `animate-spin` is `1s linear infinite`; the design
+   * uses `0.8s`. Named separately rather than overriding Tailwind's own
+   * `--animate-spin`, so nothing else that might reach for the stock
+   * `animate-spin` utility elsewhere inherits this component's timing.
+   */
+  --animate-spin-fast: spin-fast 0.8s linear infinite;
+}
+
+@keyframes spin-fast {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * The diagonal-hatch placeholder standing in for shelter photography.
+ * `#F6EFE3` is not a tokens.ts colour — it was already a one-off hex inline
+ * before this migration; kept as one here rather than promoted to a named
+ * theme colour it never was.
+ */
+@utility bg-photo-placeholder {
+  background: repeating-linear-gradient(135deg, var(--color-sunken-deep) 0 10px, #f6efe3 10px 20px);
+}

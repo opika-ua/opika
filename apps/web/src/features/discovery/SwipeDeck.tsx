@@ -4,7 +4,7 @@ import type { FeedCardView } from "@opika/contracts";
 import { useCallback, useState } from "react";
 import { SwipeCard } from "./SwipeCard";
 import { uk } from "./strings.uk";
-import { color, layout, radius } from "./tokens";
+import { layout } from "./tokens";
 import { useSwipeGesture } from "./use-swipe-gesture";
 
 /** Number of cards remaining that triggers a prefetch. */
@@ -89,18 +89,11 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
     // inside the stack container, which put it *on top of* the card and over
     // the shelter line — invisible to any check that reads the markup, since
     // both elements are present and correct in the DOM.
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        marginTop: 16,
-        // Flex items default to min-height: auto, which lets the stack refuse
-        // to shrink and push the action row back off the bottom of the screen.
-        minHeight: 0,
-      }}
-    >
-      <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
+    <div className="flex-1 flex flex-col mt-group min-h-0">
+      {/* min-h-0: flex items default to min-height:auto, which lets the stack
+          refuse to shrink and push the action row back off the bottom of the
+          screen. */}
+      <div className="relative flex-1 min-h-0">
         {/* Render back-to-front so the top card is last in DOM (highest z-index) */}
         {visibleCards
           .slice()
@@ -121,31 +114,23 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
       </div>
 
       {/* Action buttons */}
-      <div
-        data-testid="action-row"
-        style={{
-          display: "flex",
-          gap: 8,
-          marginTop: 16,
-          flexShrink: 0,
-        }}
-      >
+      <div data-testid="action-row" className="flex gap-row mt-group shrink-0">
         <ActionButton
           label={uk.actions.notNow}
           variant="outlined"
-          style={{ flex: 1 }}
+          className="flex-1"
           onClick={() => handleCommit("left")}
         />
         <ActionButton
           label={uk.actions.next}
           variant="outlined"
-          style={{ width: 52 }}
+          className="w-13"
           onClick={() => handleCommit("left")}
         />
         <ActionButton
           label={uk.actions.write}
           variant="primary"
-          style={{ flex: 1 }}
+          className="flex-1"
           onClick={() => handleCommit("right")}
         />
       </div>
@@ -158,35 +143,24 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
 function ActionButton({
   label,
   variant,
-  style,
+  className,
   onClick,
 }: {
   label: string;
   variant: "outlined" | "primary";
-  style?: React.CSSProperties;
+  className?: string;
   onClick: () => void;
 }) {
-  const base: React.CSSProperties = {
-    minHeight: layout.actionHeight,
-    borderRadius: radius.button,
-    fontFamily: "'Commissioner', sans-serif",
-    fontSize: 14,
-    lineHeight: "1",
-    cursor: "pointer",
-    border: "none",
-    ...style,
-  };
+  // No border utility here at all — Preflight zeroes border-width by
+  // default, so the primary variant (which adds none) renders with no
+  // visible border, exactly matching the original inline `border: "none"`.
+  const base = "min-h-13 rounded-button font-sans text-sm leading-none cursor-pointer";
 
   if (variant === "primary") {
     return (
       <button
         type="button"
-        style={{
-          ...base,
-          background: color.leaf,
-          color: color.paper,
-          fontWeight: 400,
-        }}
+        className={`${base} bg-leaf text-paper font-normal ${className ?? ""}`}
         onClick={onClick}
       >
         {label}
@@ -197,13 +171,7 @@ function ActionButton({
   return (
     <button
       type="button"
-      style={{
-        ...base,
-        background: color.paper,
-        color: color.ink3,
-        border: `1px solid ${color.lineStrong}`,
-        fontWeight: 400,
-      }}
+      className={`${base} bg-paper text-ink-3 border border-line-strong font-normal ${className ?? ""}`}
       onClick={onClick}
     >
       {label}
@@ -213,103 +181,43 @@ function ActionButton({
 
 function LoadingState() {
   return (
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "'Commissioner', sans-serif",
-        fontSize: 14,
-        color: color.ink3,
-      }}
-    >
-      {/* Simple loading indicator */}
-      <div
-        style={{
-          width: 24,
-          height: 24,
-          borderRadius: "50%",
-          border: `2px solid ${color.lineStrong}`,
-          borderTopColor: color.leaf,
-          animation: "spin 0.8s linear infinite",
-        }}
-      />
+    <div className="flex-1 flex items-center justify-center font-sans text-sm leading-[normal] text-ink-3">
+      {/* Simple loading indicator. 0.8s, not Tailwind's built-in 1s
+          `animate-spin` — see `--animate-spin-fast` in globals.css. */}
+      <div className="size-6 rounded-full border-2 border-line-strong border-t-leaf animate-spin-fast" />
     </div>
   );
 }
 
 function ErrorState({ onRetry }: { onRetry?: (() => void) | undefined }) {
+  // `leading-[normal]` below (eyebrow, body, the retry button): none of
+  // these three had an explicit `lineHeight` before this migration, so they
+  // rendered at the browser's UA-computed "normal", not a specific pixel
+  // value and not Tailwind Preflight's inherited `line-height: 1.5` either
+  // — see the longer note by SwipeCard's shelter-line spans. Title keeps its
+  // explicit 24.65px pairing; that one was pinned in the original too.
   return (
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 16,
-        padding: 24,
-      }}
-    >
-      <div
-        style={{
-          background: color.paper,
-          borderRadius: radius.card,
-          border: `1px solid ${color.lineStrong}`,
-          padding: 16,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          width: "100%",
-          maxWidth: 358,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 11,
-            letterSpacing: "0.12em",
-            color: color.ink3,
-            fontWeight: 500,
-          }}
-        >
+    <div className="flex-1 flex flex-col items-center justify-center gap-group p-section">
+      <div className="bg-paper rounded-card border border-line-strong p-group flex flex-col gap-row w-full max-w-89.5">
+        {/* font-sans, not font-mono: IBM Plex Mono was measured and
+            dropped for costing 11.2% of the page's font payload to style
+            one label on a screen most sessions never see — see fonts.ts.
+            tracking-[0.12em] carries the "eyebrow" identity on its own;
+            the source string is already uppercase. */}
+        <div className="font-sans text-[11px] leading-[normal] tracking-[0.12em] text-ink-3 font-medium">
           {uk.errors.loadFailed.eyebrow}
         </div>
-        <div
-          style={{
-            fontFamily: "'Literata', serif",
-            fontSize: 17,
-            lineHeight: "24.65px",
-            color: color.ink,
-          }}
-        >
+        <div className="font-serif text-[17px]/[24.65px] text-ink">
           {uk.errors.loadFailed.title}
         </div>
-        <div
-          style={{
-            fontFamily: "'Commissioner', sans-serif",
-            fontSize: 13,
-            color: color.ink2,
-          }}
-        >
+        <div className="font-sans text-[13px] leading-[normal] text-ink-2">
           {uk.errors.loadFailed.body}
         </div>
         {onRetry && (
           <button
             type="button"
             onClick={onRetry}
-            style={{
-              minHeight: layout.minTouchTarget,
-              borderRadius: radius.button,
-              border: `1px solid ${color.lineStrong}`,
-              background: color.paper,
-              fontFamily: "'Commissioner', sans-serif",
-              fontSize: 14,
-              color: color.ink2,
-              cursor: "pointer",
-              marginTop: 8,
-            }}
+            className="min-h-11 rounded-button border border-line-strong bg-paper font-sans text-sm leading-[normal] text-ink-2 cursor-pointer mt-row"
           >
             {uk.errors.loadFailed.action}
           </button>
@@ -321,48 +229,10 @@ function ErrorState({ onRetry }: { onRetry?: (() => void) | undefined }) {
 
 function ExhaustedState(_props: { seenCount: number }) {
   return (
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 24,
-        padding: 24,
-        textAlign: "center",
-      }}
-    >
-      <div
-        style={{
-          fontFamily: "'Literata', serif",
-          fontWeight: 500,
-          fontSize: 26,
-          lineHeight: "30px",
-          color: color.ink,
-        }}
-      >
-        {uk.exhausted.title}
-      </div>
-      <div
-        style={{
-          fontFamily: "'Commissioner', sans-serif",
-          fontSize: 15,
-          lineHeight: "23px",
-          color: color.ink2,
-        }}
-      >
-        {uk.exhausted.body}
-      </div>
-      <div
-        style={{
-          fontFamily: "'Commissioner', sans-serif",
-          fontSize: 14,
-          color: color.ink3,
-        }}
-      >
-        {uk.exhausted.newAnimals}
-      </div>
+    <div className="flex-1 flex flex-col items-center justify-center gap-section p-section text-center">
+      <div className="font-serif font-medium text-[26px]/[30px] text-ink">{uk.exhausted.title}</div>
+      <div className="font-sans text-[15px]/[23px] text-ink-2">{uk.exhausted.body}</div>
+      <div className="font-sans text-sm leading-[normal] text-ink-3">{uk.exhausted.newAnimals}</div>
     </div>
   );
 }
