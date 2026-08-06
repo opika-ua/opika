@@ -199,7 +199,12 @@ function ErrorState({ onRetry }: { onRetry?: (() => void) | undefined }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-group p-section">
       <div className="bg-paper rounded-card border border-line-strong p-group flex flex-col gap-row w-full max-w-89.5">
-        <div className="font-mono text-[11px] leading-[normal] tracking-[0.12em] text-ink-3 font-medium">
+        {/* font-sans, not font-mono: IBM Plex Mono was measured and
+            dropped for costing 11.2% of the page's font payload to style
+            one label on a screen most sessions never see — see fonts.ts.
+            tracking-[0.12em] carries the "eyebrow" identity on its own;
+            the source string is already uppercase. */}
+        <div className="font-sans text-[11px] leading-[normal] tracking-[0.12em] text-ink-3 font-medium">
           {uk.errors.loadFailed.eyebrow}
         </div>
         <div className="font-serif text-[17px]/[24.65px] text-ink">

@@ -104,14 +104,23 @@
 
   /*
    * ---- Typography — font families ----
-   * Placeholder fallback stacks, matching exactly what the inline styles
-   * used today (`'Literata', serif` etc.) so this file alone changes no
-   * rendered pixel. `next/font` replaces these three lines with real
-   * Cyrillic-covering webfonts — see the font-loading commit.
+   * `next/font/google` (apps/web/src/app/fonts.ts) generates these two CSS
+   * custom properties and applies them on <html> in layout.tsx. The
+   * literal fallback after each `var()` is next/font's own generated
+   * metric-matched substitute — a font-metrics-adjusted local font Next
+   * computes at build time so the *fallback itself* is sized like the web
+   * font, which is what keeps first paint from visibly reflowing when the
+   * real font finishes loading (`display: swap`'s usual cost). Do not
+   * replace these with a plain `serif`/`sans-serif` generic — that throws
+   * away the metric adjustment for no benefit.
+   *
+   * No `--font-mono` override: IBM Plex Mono was measured and dropped —
+   * see fonts.ts. `font-mono` now falls through to Tailwind's own default
+   * monospace stack, which is fine because nothing in this codebase uses
+   * the `font-mono` utility any more.
    */
-  --font-serif: "Literata", serif;
-  --font-sans: "Commissioner", sans-serif;
-  --font-mono: "IBM Plex Mono", monospace;
+  --font-serif: var(--font-literata);
+  --font-sans: var(--font-commissioner);
 
   /*
    * ---- Loading spinner ----
