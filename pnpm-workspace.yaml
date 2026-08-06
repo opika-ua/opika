@@ -26,7 +26,7 @@ catalog:
   # (apps/web/test/harness) and is the e2e dependency the build plan calls
   # for at M12; happy-dom + Testing Library give apps/web a DOM environment
   # so React components can be asserted on at all. See CLAUDE.md,
-  # "Verifying user-interface work".
+  # "How work is verified".
   "@playwright/test": 1.62.1
   happy-dom: 20.11.1
   "@testing-library/react": 16.3.2

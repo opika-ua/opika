@@ -180,10 +180,15 @@ export interface DragOptions {
  * Drive a real pointerdown → pointermove* → pointerup sequence.
  *
  * The delays are the point. `page.mouse.move(x, y, { steps })` dispatches every
- * move in the same tick, so `event.timeStamp` barely advances and any
- * velocity computed from it is fiction. Spacing the moves in wall-clock time
- * is what makes this exercise the gesture rather than inspect it — including
- * the 2px-in-1ms flick that a real thumb produces when tapping.
+ * move in the same tick, so `event.timeStamp` barely advances and any velocity
+ * computed from it is fiction. Spacing the moves in wall-clock time is what
+ * makes this exercise the gesture rather than inspect it.
+ *
+ * Use this for *distance*-driven gestures only. It cannot express a velocity:
+ * the gap between two `page.mouse` events is however long the CDP round trip
+ * took — measured at ~3ms on an idle laptop and far more on a loaded runner —
+ * so the same script reads as 0.6 px/ms one run and 0.05 px/ms the next. For
+ * anything that turns on velocity, use `flickWithTimestamps`.
  */
 export async function dragHorizontally(
   page: Page,
@@ -205,4 +210,70 @@ export async function dragHorizontally(
 
   if (holdBeforeReleaseMs > 0) await page.waitForTimeout(holdBeforeReleaseMs);
   await page.mouse.up();
+}
+
+export interface FlickOptions {
+  /** Signed horizontal displacement in CSS px. Negative flicks left. */
+  readonly dx: number;
+  /** Time the displacement is stated to have taken. Velocity is `dx / overMs`. */
+  readonly overMs: number;
+}
+
+/**
+ * Flick with a *stated* velocity rather than a hoped-for one.
+ *
+ * The swipe hook decides between a tap and a fling from the instantaneous
+ * velocity between the last two pointermove samples. `page.mouse` cannot drive
+ * that: it stamps each event with the wall clock at the moment CDP delivers it,
+ * so the velocity a test produces is really a measurement of the machine's
+ * latency. That is not a slow test, it is a test that stops testing — an
+ * assertion that "a 2px twitch does not commit" passes on a loaded runner
+ * whether or not the code still refuses the twitch, and passes quietly.
+ *
+ * `Input.dispatchMouseEvent` takes an explicit timestamp and Blink carries it
+ * through to `event.timeStamp`, so the velocity below is the velocity the hook
+ * computes. Verified: `{ dx: 2, overMs: 1 }` arrives as a 1.00ms gap.
+ *
+ * Chromium-only, which this harness already is.
+ */
+export async function flickWithTimestamps(
+  page: Page,
+  target: Locator,
+  opts: FlickOptions,
+): Promise<void> {
+  const box = await rectOf(target, "flick target");
+  const x = Math.round(box.x + box.width / 2);
+  const y = Math.round(box.y + box.height / 2);
+
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    // Input.TimeSinceEpoch is seconds, fractional.
+    const t0 = Date.now() / 1000;
+    const common = { x, y, button: "left" as const };
+
+    await cdp.send("Input.dispatchMouseEvent", {
+      ...common,
+      type: "mousePressed",
+      buttons: 1,
+      clickCount: 1,
+      timestamp: t0,
+    });
+    await cdp.send("Input.dispatchMouseEvent", {
+      ...common,
+      x: x + opts.dx,
+      type: "mouseMoved",
+      buttons: 1,
+      timestamp: t0 + opts.overMs / 1000,
+    });
+    await cdp.send("Input.dispatchMouseEvent", {
+      ...common,
+      x: x + opts.dx,
+      type: "mouseReleased",
+      buttons: 0,
+      clickCount: 1,
+      timestamp: t0 + (opts.overMs + 1) / 1000,
+    });
+  } finally {
+    await cdp.detach();
+  }
 }

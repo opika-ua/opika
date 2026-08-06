@@ -15,7 +15,7 @@ import {
   openRoute,
   rectOf,
 } from "./harness";
-import { DESKTOP, PHONE, type Viewport } from "./viewports";
+import { DESKTOP, PHONE, SHORT_PHONE, type Viewport } from "./viewports";
 
 const ROUTE = "/discovery";
 const CARD = "[data-testid='swipe-card']";
@@ -82,27 +82,23 @@ test.describe(`/discovery photo sizing at ${PHONE.name}`, () => {
 
     expect(
       Math.round(photo.height),
-      `photo area is ${photo.height}px; docs/design/README.md:191 specifies 396. ` +
-        `417.5 means the container is carrying the 4:5 source ratio, which is the ` +
-        `asset's shape, not the slot's.`,
+      `photo area is ${photo.height}px; docs/design/README.md:191 specifies 396.\n` +
+        `        417.5 means the container is carrying the 4:5 source ratio, which is\n` +
+        `        the asset's shape, not the slot's.\n` +
+        `        Anything else means something above the photo grew, or the card\n` +
+        `        got shorter and the photo shrank to protect the text — check the\n` +
+        `        card height before assuming this is about the ratio.`,
     ).toBe(396);
   });
 
   /**
-   * The photo must be able to give way. Without this the two halves of the fix
-   * are separable: someone could pin the photo at a fixed 396 with
-   * `flex-shrink: 0`, pass the assertion above, and reintroduce the clipping
-   * on any shorter card.
+   * The photo must be able to give way, and this is a separate lock from the
+   * one above rather than a second opinion on it: pinning the photo at a fixed
+   * 396 with `flex-shrink: 0` passes the height assertion and reintroduces the
+   * clipping on any shorter card. Neither assertion implies the other.
    */
   test("the photo yields to the text when the card is short", async ({ page }) => {
-    await openRoute(
-      page,
-      ROUTE,
-      { name: "short phone", width: 390, height: 640 },
-      {
-        readySelector: CARD,
-      },
-    );
+    await openRoute(page, ROUTE, SHORT_PHONE, { readySelector: CARD });
 
     const photo = await rectOf(page.getByTestId("card-photo"), "photo area");
     expect(

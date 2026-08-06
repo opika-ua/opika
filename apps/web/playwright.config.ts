@@ -49,7 +49,13 @@ export default defineConfig({
     // exists. The build is a few seconds; a false green is not.
     command: `pnpm run build && pnpm exec next start --port ${PORT} --hostname 127.0.0.1`,
     url: `${ORIGIN}/discovery`,
-    reuseExistingServer: !process.env.CI,
+    // Not `!process.env.CI`, which is the usual idiom. Reusing a server that
+    // an aborted run left behind on :3100 would grade the build that server
+    // started with — the same stale-artefact false green the comment above
+    // rejects, just arriving locally instead of in CI. A loud "port in use"
+    // costs seconds; a green run against code that no longer exists is what
+    // this whole harness was written to stop.
+    reuseExistingServer: false,
     timeout: 180_000,
     stdout: "pipe",
     stderr: "pipe",

@@ -43,6 +43,19 @@ interface PointerState {
 }
 
 /**
+ * What the card is doing between gestures, and how to abandon it.
+ *
+ * The `kind` is load-bearing at pointerdown. A spring-back is a suggestion and
+ * may be dropped when the user grabs the card again. A commit is a decision the
+ * user has already made, and dropping it loses the swipe with no trace: the
+ * deck never advances, the card is left off screen, and nothing errors.
+ */
+interface PendingSettle {
+  readonly kind: "commit" | "snap_back";
+  readonly cancel: () => void;
+}
+
+/**
  * Run `done` when a CSS transition on `node` finishes — or when it doesn't.
  *
  * `transitionend` is not guaranteed to fire. A backgrounded tab, a transition
@@ -102,7 +115,7 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
   const stateRef = useRef<PointerState | null>(null);
   const nodeRef = useRef<HTMLElement | null>(null);
   const prefersReducedMotion = useRef(false);
-  const cancelPendingSettle = useRef<(() => void) | null>(null);
+  const pendingSettle = useRef<PendingSettle | null>(null);
 
   /**
    * The callbacks object is a fresh literal on every render of the deck, and
@@ -139,11 +152,20 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
 
       checkReducedMotion();
 
-      // A spring-back may still be settling from the previous gesture. Drop it,
-      // or its onSnapBack would land in the middle of this drag and reset the
-      // affordance under the user's finger.
-      cancelPendingSettle.current?.();
-      cancelPendingSettle.current = null;
+      // A press landing on a card that is already leaving must not renegotiate
+      // the swipe the user has just made. Cancelling the pending commit would
+      // drop it silently — and the exit's own `transitionend` would not save it
+      // either, because the `transition: none` written below is exactly the
+      // "interrupted by another style write" case the fallback timer exists for.
+      // So swallow the press: the exit finishes on its own and the deck
+      // replaces this card from under the finger.
+      if (pendingSettle.current?.kind === "commit") return;
+
+      // A spring-back is only a suggestion. Drop it, or its onSnapBack would
+      // land in the middle of this drag and reset the affordance under the
+      // user's finger.
+      pendingSettle.current?.cancel();
+      pendingSettle.current = null;
 
       node.setPointerCapture(e.pointerId);
       // Clear any in-progress transition
@@ -205,20 +227,34 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
         }
 
         const commitDirection = decision.direction;
-        cancelPendingSettle.current = whenTransitionSettles(node, durationMs, () => {
-          cancelPendingSettle.current = null;
-          callbacksRef.current.onCommit(commitDirection);
-        });
+        pendingSettle.current = {
+          kind: "commit",
+          cancel: whenTransitionSettles(node, durationMs, () => {
+            pendingSettle.current = null;
+            callbacksRef.current.onCommit(commitDirection);
+          }),
+        };
+      } else if (prefersReducedMotion.current) {
+        // Reduced motion: the stack does not move (docs/design/README.md:126,
+        // :348). Transitioning opacity only means the transform below applies
+        // in one frame — the card is simply back where it started. There is no
+        // transform transition, so there is nothing to wait for and no
+        // `transitionend` to wait for it with.
+        node.style.transition = `opacity ${REDUCED_EXIT_MS}ms ${EASE}`;
+        node.style.transform = "translate3d(0, 0, 0) rotate(0deg)";
+        callbacksRef.current.onSnapBack?.();
       } else {
         // Spring back to origin
-        const durationMs = prefersReducedMotion.current ? REDUCED_EXIT_MS : SPRING_BACK_MS;
-        node.style.transition = `transform ${durationMs}ms ${EASE}`;
+        node.style.transition = `transform ${SPRING_BACK_MS}ms ${EASE}`;
         node.style.transform = "translate3d(0, 0, 0) rotate(0deg)";
 
-        cancelPendingSettle.current = whenTransitionSettles(node, durationMs, () => {
-          cancelPendingSettle.current = null;
-          callbacksRef.current.onSnapBack?.();
-        });
+        pendingSettle.current = {
+          kind: "snap_back",
+          cancel: whenTransitionSettles(node, SPRING_BACK_MS, () => {
+            pendingSettle.current = null;
+            callbacksRef.current.onSnapBack?.();
+          }),
+        };
       }
     },
     [applyTransform],
@@ -269,8 +305,8 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
   // Leaving a timer pointing at a detached node keeps it alive to no purpose.
   useEffect(() => {
     return () => {
-      cancelPendingSettle.current?.();
-      cancelPendingSettle.current = null;
+      pendingSettle.current?.cancel();
+      pendingSettle.current = null;
     };
   }, []);
 

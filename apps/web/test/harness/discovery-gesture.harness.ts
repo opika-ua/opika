@@ -11,7 +11,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { dragHorizontally, openRoute } from "./harness";
+import { dragHorizontally, flickWithTimestamps, openRoute } from "./harness";
 import { PHONE } from "./viewports";
 
 const ROUTE = "/discovery";
@@ -62,25 +62,52 @@ test.describe(`/discovery gesture at ${PHONE.name}`, () => {
   });
 
   /**
-   * Lost fix 6, verified in a real browser rather than only in the pure
-   * function. A tap is never perfectly still: the pointer moves a pixel or
-   * two within a millisecond or so, which is an *instantaneous* velocity far
-   * above the 0.45 px/ms commit threshold. The unit test pins the decision
-   * function; this pins the thing the user actually does.
+   * The positive control for the pair below, and it has to come first: a test
+   * that asserts "the deck did not advance" proves nothing unless the same
+   * driver can also make it advance. Without this, a `flickWithTimestamps` that
+   * silently delivered no events at all would look like a passing tap test.
+   *
+   * 30px in 5ms is 6 px/ms — over the velocity threshold and well under the
+   * 88px distance threshold, so this can only commit down the velocity path.
+   */
+  test("a fast short flick past the velocity threshold advances the deck", async ({ page }) => {
+    const before = await topCardName(page);
+
+    await flickWithTimestamps(page, page.getByTestId("swipe-card"), { dx: 30, overMs: 5 });
+
+    await expect
+      .poll(() => topCardName(page), {
+        message:
+          `a 30px flick in 5ms (6 px/ms) is over the 0.45 px/ms commit velocity and should ` +
+          `have advanced the deck past "${before}" — if this fails alongside the tap test ` +
+          `below, suspect the driver rather than the gesture`,
+        timeout: 5_000,
+      })
+      .not.toBe(before);
+  });
+
+  /**
+   * Lost fix 6, in a real browser rather than only in the pure function.
+   *
+   * A tap is never perfectly still: the pointer moves a pixel or two within a
+   * millisecond or so, which is an *instantaneous* velocity far above the
+   * 0.45 px/ms commit threshold. 2px in 1ms is 2 px/ms.
+   *
+   * The timestamps have to be dispatched explicitly. Driving this with
+   * `page.mouse` produced whatever velocity the CDP round trip happened to
+   * imply — ~0.6 px/ms on an idle machine, a tenth of that under load — so the
+   * assertion passed on a loaded runner with the 12px floor deleted. It read as
+   * a lock and was a coin toss.
    */
   test("a 2px jitter during a tap does not fling the card away", async ({ page }) => {
     const before = await topCardName(page);
 
-    await dragHorizontally(page, page.getByTestId("swipe-card"), {
-      dx: 2,
-      steps: 1,
-      stepDelayMs: 1,
-    });
+    await flickWithTimestamps(page, page.getByTestId("swipe-card"), { dx: 2, overMs: 1 });
 
     await page.waitForTimeout(600);
     expect(
       await topCardName(page),
-      "a 2px twitch is a tap, not a swipe — the deck must not advance",
+      "a 2px twitch at 2 px/ms is a tap, not a swipe — the deck must not advance",
     ).toBe(before);
   });
 });

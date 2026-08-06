@@ -218,6 +218,85 @@ describe("swipe gesture commit path", () => {
   });
 
   /**
+   * The other half of the re-grab rule, and the one that costs the user
+   * something. A spring-back is a suggestion and may be dropped; a commit is a
+   * decision already made. Cancelling it loses the swipe with no trace — the
+   * deck never advances and the card sits off screen — and `transitionend`
+   * cannot rescue it either, because starting a new drag writes
+   * `transition: none`, which is precisely the interrupted-transition case the
+   * fallback timer exists for.
+   */
+  it("keeps a committed swipe when the card is pressed again mid-exit", () => {
+    const onCommit = vi.fn();
+    const card = mountCard({ onCommit });
+
+    drag(card, 150);
+    act(() => {
+      vi.advanceTimersByTime(50); // 50ms into the 300ms exit, still under the finger
+    });
+    act(() => {
+      card.dispatchEvent(pointerEvent("pointerdown", { clientX: 150 }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    expect(
+      onCommit,
+      "a press during the exit animation must not silently drop the swipe",
+    ).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith("right");
+  });
+
+  /** That press is swallowed, not turned into a drag on a card that is leaving. */
+  it("does not start a new drag on a card that is already exiting", () => {
+    const onSnapBack = vi.fn();
+    const card = mountCard({ onCommit: vi.fn(), onSnapBack });
+
+    drag(card, 150);
+    act(() => {
+      card.dispatchEvent(pointerEvent("pointerdown", { clientX: 150 }));
+    });
+    act(() => {
+      card.dispatchEvent(pointerEvent("pointermove", { clientX: 160 }));
+    });
+    act(() => {
+      card.dispatchEvent(pointerEvent("pointerup", { clientX: 160 }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    expect(
+      onSnapBack,
+      "the swallowed press must not produce a gesture of its own",
+    ).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The unmount branch of the cleanup, which nothing else exercises. A deck
+   * that is navigated away from mid-exit must not fire a commit into a tree
+   * that no longer exists.
+   */
+  it("drops a pending settle when the component unmounts mid-animation", () => {
+    const onCommit = vi.fn();
+    const { unmount } = render(<GestureHarness onCommit={onCommit} />);
+    const card = screen.getByTestId("card");
+    stubPointerCapture(card);
+
+    drag(card, 150);
+    unmount();
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    expect(
+      onCommit,
+      "a timer left pointing at a detached node must not fire its callback",
+    ).not.toHaveBeenCalled();
+  });
+
+  /**
    * Grabbing the card again while a spring-back is still settling must drop
    * the pending callback — otherwise it lands mid-drag and resets the
    * affordance under the user's finger.
@@ -235,5 +314,44 @@ describe("swipe gesture commit path", () => {
     });
 
     expect(onSnapBack).not.toHaveBeenCalled();
+  });
+
+  /**
+   * docs/design/README.md:126 and :348 — under reduced motion "the stack does
+   * not move". A spring-back therefore has no transform transition to animate
+   * or to wait for: the card is simply back where it started, in one frame.
+   *
+   * This path had no test, which is how it quietly acquired a 120ms transform
+   * animation during the fix-5 rewrite.
+   */
+  it("returns the card without animating it under prefers-reduced-motion", () => {
+    const matchMedia = vi.fn((query: string) => ({
+      matches: query.includes("prefers-reduced-motion"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      onchange: null,
+      dispatchEvent: vi.fn(),
+    }));
+    vi.stubGlobal("matchMedia", matchMedia);
+
+    try {
+      const onSnapBack = vi.fn();
+      const card = mountCard({ onCommit: vi.fn(), onSnapBack });
+
+      drag(card, 20);
+
+      expect(
+        card.style.transition,
+        "reduced motion must not put a transition on transform — the stack does not move",
+      ).not.toContain("transform");
+      expect(card.style.transform).toBe("translate3d(0, 0, 0) rotate(0deg)");
+      // Nothing is animating, so there is nothing to wait for.
+      expect(onSnapBack).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

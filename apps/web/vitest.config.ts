@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 /**
  * Two projects, because this package has two genuinely different kinds of test
@@ -17,6 +17,11 @@ import { defineConfig } from "vitest/config";
  * does no layout, so `getBoundingClientRect` is all zeros and computed styles
  * are the inline ones. Anything that depends on real geometry belongs in the
  * Playwright harness under `test/harness`, not here.
+ *
+ * `dom` therefore claims everything `api` does not, rather than only
+ * `src/features`. Two narrow globs would leave the rest of `src` matched by no
+ * project at all, and a test file added there would not fail — it would simply
+ * never run, which is the same silent green this whole branch exists to remove.
  */
 export default defineConfig({
   test: {
@@ -34,7 +39,8 @@ export default defineConfig({
         test: {
           name: "dom",
           environment: "happy-dom",
-          include: ["src/features/**/*.test.ts", "src/features/**/*.test.tsx"],
+          include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+          exclude: [...configDefaults.exclude, "src/api/**"],
           setupFiles: ["./test/setup-dom.ts"],
         },
       },

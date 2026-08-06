@@ -11,10 +11,13 @@ import { useSwipeGesture } from "./use-swipe-gesture";
 const PREFETCH_THRESHOLD = 5;
 
 /**
- * Ref for the non-interactive stack layers. Module-level so it keeps the same
- * identity across renders — an inline `() => {}` would make React detach and
- * re-attach the ref on every frame of a drag, which is the same defect the
- * gesture hook was just fixed for.
+ * Placeholder ref for the non-interactive stack layers.
+ *
+ * Nothing is attached to it today: `SwipeCard` ignores `gestureRef` entirely
+ * for `stackIndex > 0`, rendering those layers as an inert `aria-hidden` div.
+ * It is module-level rather than an inline `() => {}` so that if a stack layer
+ * ever does take a ref, its identity is already stable and it cannot turn into
+ * the per-frame detach/re-attach churn the gesture hook was just fixed for.
  */
 const noopRef = (): void => {};
 
