@@ -10,6 +10,7 @@
 import { expect, test } from "@playwright/test";
 import {
   expectContainedBy,
+  expectMinimumBottomMargin,
   expectNoOverlap,
   expectNoViewportOverflow,
   openRoute,
@@ -19,6 +20,25 @@ import { DESKTOP, PHONE, SHORT_PHONE, type Viewport } from "./viewports";
 
 const ROUTE = "/discovery";
 const CARD = "[data-testid='swipe-card']";
+
+/**
+ * Minimum bottom margin the shelter line must keep above the card's edge,
+ * per viewport. Not the measured value (that would just re-encode "whatever
+ * it happens to be today" as a second copy) and not zero (that's what
+ * `expectContainedBy` already covers) — a real floor with slack on both
+ * sides, chosen once real fonts made the underlying measurement portable
+ * across platforms (see viewports.ts). Measured with next/font's Literata
+ * and Commissioner loaded: 46.5px at 390x844, 16px at both 390x640 and
+ * 1280x800 (the photo has already shrunk to its floor at both, so they
+ * land on the same number). PHONE gets a generous floor since it's the
+ * primary, unsqueezed case; the other two get a tighter one since a
+ * deliberately squeezed layout has less to give.
+ */
+const MIN_SHELTER_MARGIN_PX: Record<string, number> = {
+  [PHONE.name]: 20,
+  [SHORT_PHONE.name]: 4,
+  [DESKTOP.name]: 4,
+};
 
 for (const viewport of [PHONE, DESKTOP] satisfies Viewport[]) {
   test.describe(`/discovery at ${viewport.name}`, () => {
@@ -50,6 +70,18 @@ for (const viewport of [PHONE, DESKTOP] satisfies Viewport[]) {
       await expectContainedBy(
         { label: "shelter line", locator: page.getByTestId("shelter-line") },
         { label: "swipe card", locator: page.getByTestId("swipe-card") },
+      );
+    });
+
+    // Task E: the containment check above is a correctness bar, not an early
+    // warning — it only fails once spill turns positive. This is the
+    // separate assertion that the margin measured with real fonts loaded
+    // (see MIN_SHELTER_MARGIN_PX) hasn't quietly eroded.
+    test("the shelter line keeps a real margin, not a vanishing one", async ({ page }) => {
+      await expectMinimumBottomMargin(
+        { label: "shelter line", locator: page.getByTestId("shelter-line") },
+        { label: "swipe card", locator: page.getByTestId("swipe-card") },
+        MIN_SHELTER_MARGIN_PX[viewport.name] ?? 0,
       );
     });
 
@@ -109,6 +141,11 @@ test.describe(`/discovery photo sizing at ${PHONE.name}`, () => {
     await expectContainedBy(
       { label: "shelter line", locator: page.getByTestId("shelter-line") },
       { label: "swipe card", locator: page.getByTestId("swipe-card") },
+    );
+    await expectMinimumBottomMargin(
+      { label: "shelter line", locator: page.getByTestId("shelter-line") },
+      { label: "swipe card", locator: page.getByTestId("swipe-card") },
+      MIN_SHELTER_MARGIN_PX[SHORT_PHONE.name] ?? 0,
     );
   });
 });

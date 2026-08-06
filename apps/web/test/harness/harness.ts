@@ -138,6 +138,38 @@ export async function expectContainedBy(inner: Measured, outer: Measured): Promi
 }
 
 /**
+ * Assert `inner`'s bottom edge sits at least `minMarginPx` above `outer`'s —
+ * not merely "not clipped", but "not dangerously close to clipping".
+ *
+ * `expectContainedBy` only fails once spill turns positive. That is the
+ * right bar for correctness, but it gives zero warning as the margin erodes
+ * from generous to razor-thin — a change (a longer localized string, a
+ * font swap, a line-height tweak) can eat the entire buffer and this would
+ * stay green right up until the pixel it goes negative. This is the second,
+ * separate thing worth asserting: that today's margin is a margin, not an
+ * accident one bad content change away from becoming a real clip.
+ */
+export async function expectMinimumBottomMargin(
+  inner: Measured,
+  outer: Measured,
+  minMarginPx: number,
+): Promise<void> {
+  const ri = await rectOf(inner.locator, inner.label);
+  const ro = await rectOf(outer.locator, outer.label);
+  const margin = ro.y + ro.height - (ri.y + ri.height);
+
+  expect(
+    margin,
+    `"${inner.label}" has only ${margin.toFixed(1)}px of margin above "${outer.label}"'s ` +
+      `bottom edge; expected at least ${minMarginPx}px.\n` +
+      `        ${inner.label}: ${fmt(ri)}\n` +
+      `        ${outer.label}: ${fmt(ro)}\n` +
+      `        The containment check elsewhere only fails at 0 — this exists so an eroding ` +
+      `margin is caught while there is still room to fix it, not the moment it clips.`,
+  ).toBeGreaterThanOrEqual(minMarginPx);
+}
+
+/**
  * Assert the document does not scroll in either axis.
  *
  * `window.innerWidth/Height` rather than the nominal viewport, because once a

@@ -28,16 +28,25 @@ export const DESKTOP: Viewport = { name: "1280x800 desktop", width: 1280, height
 export const SHORT_PHONE: Viewport = { name: "390x640 short phone", width: 390, height: 640 };
 
 /*
- * A caveat that applies to every measurement taken through this harness.
+ * Font-metrics portability — resolved, not a live caveat any more.
  *
- * `apps/web` does not load 'Literata' or 'Commissioner' via `next/font`, so
- * both fall back to whatever the platform serves — which differs between a
- * Windows dev machine and a Linux CI runner. Text block heights therefore vary
- * by a few pixels between environments.
+ * `apps/web` used to render Literata/Commissioner as bare font-family names
+ * with no `next/font` loader behind them, so both fell back to whatever the
+ * platform served — different fonts, different metrics, on a Windows dev
+ * machine versus a Linux CI runner, entirely outside this harness's control.
+ * As of the font-loading commit, both are loaded via `next/font/google`
+ * (apps/web/src/app/fonts.ts): the same two WOFF2 files render everywhere
+ * Chromium runs, so a Windows machine and a Linux CI runner now measure the
+ * same glyphs, not merely similar-looking substitutes.
  *
- * The containment assertions survive that today because the card carries
- * roughly 46px of vertical headroom at 390x844. That margin is the only thing
- * making them portable, and nothing enforces it. If these ever fail on one
- * machine and pass on another, this is the first thing to check — and the fix
- * is to load the real fonts, not to loosen the assertion.
+ * What that does and doesn't buy: the *margin* between the shelter line and
+ * the card's bottom edge is now a stable, reproducible number — 46.5px at
+ * 390x844, 16px at both 390x640 and 1280x800, measured with the real fonts
+ * loaded — rather than a platform-dependent unknown. It does not mean the
+ * margin can't erode from legitimate content changes (a longer localized
+ * string, a larger type-scale step); that is what
+ * `discovery-layout.harness.ts`'s `MIN_SHELTER_MARGIN_PX` floor and
+ * `expectMinimumBottomMargin` exist to catch, deliberately short of the
+ * measured value so there's real warning before an actual clip, not a
+ * second copy of "whatever it happens to be today".
  */
