@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ModeratorIdSchema } from "../../primitives/ids.js";
-import type { VerificationEvidence } from "./evidence.js";
+import { ModeratorIdSchema } from "../../primitives/ids";
+import type { VerificationEvidence } from "./evidence";
 import {
   enteredAt,
   FEED_VISIBLE_VERIFICATION_STATUSES,
@@ -8,7 +8,7 @@ import {
   type ShelterVerification,
   ShelterVerificationSchema,
   VERIFICATION_STATUSES,
-} from "./state.js";
+} from "./state";
 
 const MODERATOR = ModeratorIdSchema.parse("11111111-1111-4111-8111-111111111111");
 const AT = new Date("2026-08-05T00:00:00.000Z");

@@ -7,13 +7,13 @@ import {
   CountryCodeSchema,
   NO_FILTERS,
 } from "@opika/domain";
-import type { AppContext } from "../context.js";
+import type { AppContext } from "../context";
 import {
   DEFAULT_SESSION_POLICY,
   hashToken,
   mintSessionToken,
   setSessionCookie,
-} from "../session/index.js";
+} from "../session/index";
 
 export async function sessionBootstrap(
   _input: Record<string, never>,

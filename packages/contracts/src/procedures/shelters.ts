@@ -1,8 +1,8 @@
 import { ShelterIdSchema } from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
-import { apiErrors } from "../errors.js";
-import { PublicShelterViewSchema } from "../views/shelter.js";
+import { apiErrors } from "../errors";
+import { PublicShelterViewSchema } from "../views/shelter";
 
 export const SheltersByIdInputSchema = z.object({
   shelterId: ShelterIdSchema,

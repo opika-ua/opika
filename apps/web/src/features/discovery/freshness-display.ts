@@ -1,7 +1,7 @@
 import type { Freshness, FreshnessKind } from "@opika/domain";
 import { formatFreshnessRelative } from "@opika/domain";
-import { uk as strings } from "./strings.uk.js";
-import { color } from "./tokens.js";
+import { uk as strings } from "./strings.uk";
+import { color } from "./tokens";
 
 /**
  * Per-pip fill state for the freshness marker.

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { INTL_LOCALE, type Locale } from "../primitives/locale.js";
+import { INTL_LOCALE, type Locale } from "../primitives/locale";
 
 export const FreshnessKindSchema = z.enum(["fresh", "aging", "stale"]);
 export type FreshnessKind = z.infer<typeof FreshnessKindSchema>;

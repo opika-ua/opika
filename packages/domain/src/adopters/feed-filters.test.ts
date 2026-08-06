@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CityIdSchema } from "../primitives/ids.js";
+import { CityIdSchema } from "../primitives/ids";
 import {
   canonicalizeFilters,
   type FeedFilters,
@@ -8,7 +8,7 @@ import {
   isUnfiltered,
   matchesSelection,
   NO_FILTERS,
-} from "./feed-filters.js";
+} from "./feed-filters";
 
 const KHARKIV = CityIdSchema.parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 const POLTAVA = CityIdSchema.parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");

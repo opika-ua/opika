@@ -1,6 +1,6 @@
 import { AgeBucketSchema, AnimalPhotoSchema, AnimalSchema, FreshnessSchema } from "@opika/domain";
 import type { z } from "zod";
-import { ShelterSummaryViewSchema } from "./shelter.js";
+import { ShelterSummaryViewSchema } from "./shelter";
 
 /**
  * Age and freshness are sent as derived values rather than as the raw estimate

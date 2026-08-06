@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { type FeedFilters, matchesSelection } from "../adopters/feed-filters.js";
-import { ageBucketOf } from "../animals/age.js";
-import type { Animal } from "../animals/animal.js";
-import type { Freshness } from "./freshness.js";
+import { type FeedFilters, matchesSelection } from "../adopters/feed-filters";
+import { ageBucketOf } from "../animals/age";
+import type { Animal } from "../animals/animal";
+import type { Freshness } from "./freshness";
 
 const nonNegative = z.number().min(0);
 

@@ -5,7 +5,12 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "moduleDetection": "force",
-    "jsx": "preserve",
+
+    // `jsx` and `allowJs` are mandated by Next 16 — it rewrites both on every
+    // `next build`. Committing Next's own values keeps the tree clean after a
+    // build instead of producing a spurious diff each time.
+    "jsx": "react-jsx",
+    "allowJs": true,
 
     "strict": true,
     "noUncheckedIndexedAccess": true,
@@ -29,6 +34,12 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

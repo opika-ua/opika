@@ -2,10 +2,10 @@
 
 import type { FeedCardView } from "@opika/contracts";
 import { useCallback, useState } from "react";
-import { SwipeCard } from "./SwipeCard.js";
-import { uk } from "./strings.uk.js";
-import { color, layout, radius } from "./tokens.js";
-import { useSwipeGesture } from "./use-swipe-gesture.js";
+import { SwipeCard } from "./SwipeCard";
+import { uk } from "./strings.uk";
+import { color, layout, radius } from "./tokens";
+import { useSwipeGesture } from "./use-swipe-gesture";
 
 /** Number of cards remaining that triggers a prefetch. */
 const PREFETCH_THRESHOLD = 5;

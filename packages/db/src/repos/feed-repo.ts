@@ -8,11 +8,11 @@ import {
   type SeenSetPolicy,
 } from "@opika/domain";
 import { and, desc, inArray, or, type SQL, sql } from "drizzle-orm";
-import type { Database } from "../client.js";
-import { animals } from "../schema/animals.js";
-import { shelters } from "../schema/shelters.js";
-import { swipes } from "../schema/swipes.js";
-import { rowToAnimal } from "./mappers.js";
+import type { Database } from "../client";
+import { animals } from "../schema/animals";
+import { shelters } from "../schema/shelters";
+import { swipes } from "../schema/swipes";
+import { rowToAnimal } from "./mappers";
 
 export type FeedCursorData = {
   lastUpdatedAt: Date;

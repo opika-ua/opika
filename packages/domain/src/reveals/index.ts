@@ -1,1 +1,1 @@
-export * from "./contact-reveal.js";
+export * from "./contact-reveal";

@@ -1,7 +1,7 @@
 import type { AdopterId, AnimalId, SwipeDirection } from "@opika/domain";
 import { index, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
-import { adopters } from "./adopters.js";
-import { animals } from "./animals.js";
+import { adopters } from "./adopters";
+import { animals } from "./animals";
 
 export const swipes = pgTable(
   "swipes",

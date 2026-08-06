@@ -1,7 +1,7 @@
 import { AnimalIdSchema, SwipeDirectionSchema } from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
-import { apiErrors } from "../errors.js";
+import { apiErrors } from "../errors";
 
 export type { SwipeDirection } from "@opika/domain";
 /**

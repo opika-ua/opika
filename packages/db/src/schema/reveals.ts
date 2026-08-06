@@ -7,10 +7,10 @@ import type {
   ShelterId,
 } from "@opika/domain";
 import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import { adopters } from "./adopters.js";
-import { animals } from "./animals.js";
-import { jsonb } from "./helpers.js";
-import { shelters } from "./shelters.js";
+import { adopters } from "./adopters";
+import { animals } from "./animals";
+import { jsonb } from "./helpers";
+import { shelters } from "./shelters";
 
 export const reveals = pgTable(
   "reveals",

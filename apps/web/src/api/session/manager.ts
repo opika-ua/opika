@@ -1,8 +1,8 @@
 import type { Database } from "@opika/db";
 import { adopterRepo, sessionRepo } from "@opika/db/repos";
 import type { AdopterId, AdopterProfile } from "@opika/domain";
-import { parseSessionToken } from "./cookie.js";
-import { hashesEqual, hashToken } from "./token.js";
+import { parseSessionToken } from "./cookie";
+import { hashesEqual, hashToken } from "./token";
 
 /**
  * Session expiry policy.

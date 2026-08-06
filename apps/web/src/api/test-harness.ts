@@ -1,8 +1,8 @@
 import { setupTestDatabase, truncateAll } from "@opika/db/test";
 import { RPCHandler } from "@orpc/server/fetch";
-import type { AppContext } from "./context.js";
-import { router } from "./router.js";
-import { validateSession } from "./session/index.js";
+import type { AppContext } from "./context";
+import { router } from "./router";
+import { validateSession } from "./session/index";
 
 const CURSOR_HMAC_SECRET = "test-hmac-secret-for-cursor-signing";
 

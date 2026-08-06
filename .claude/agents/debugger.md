@@ -65,8 +65,11 @@ Failures here cluster in a few places — check these before general causes:
 - **Branded types.** A confusing assignability error usually means a value bypassed
   its only sanctioned constructor — e.g. `FuzzedCoordinates` built from exact
   coordinates. That error is the type system working; the call site is the bug.
-- **ESM.** `NodeNext` requires `.js` extensions on relative imports even in
-  TypeScript sources. A module-resolution error is usually a missing extension.
+- **ESM.** The repo is on `moduleResolution: Bundler` — relative imports are
+  extensionless. Do not "fix" a module-resolution error by adding a `.js`
+  extension: `tsc` maps `./x.js` to `./x.ts` in every resolution mode, so the
+  extension typechecks clean and fails only in Turbopack. `pnpm build:web` is
+  the gate that catches that class of break; `pnpm typecheck` cannot.
 - **pnpm workspaces.** A package resolving to a stale build often means a missing
   `workspace:*` dependency or a `catalog:` version drift.
 

@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { ShelterIdSchema } from "../primitives/ids.js";
-import { LocalizedTextSchema } from "../primitives/localized-text.js";
-import { ShelterContactSchema } from "./contact.js";
-import { DonationLinkSchema } from "./donation.js";
-import { ShelterLegalEntitySchema } from "./legal-entity.js";
-import { ExactAddressSchema, PublicLocationSchema } from "./location.js";
-import { ShelterVerificationSchema } from "./verification/state.js";
+import { ShelterIdSchema } from "../primitives/ids";
+import { LocalizedTextSchema } from "../primitives/localized-text";
+import { ShelterContactSchema } from "./contact";
+import { DonationLinkSchema } from "./donation";
+import { ShelterLegalEntitySchema } from "./legal-entity";
+import { ExactAddressSchema, PublicLocationSchema } from "./location";
+import { ShelterVerificationSchema } from "./verification/state";
 
 /**
  * `exactAddress` and `contact` sit on the domain object and are excluded from

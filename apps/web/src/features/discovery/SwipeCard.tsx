@@ -2,9 +2,9 @@
 
 import type { FeedCardView } from "@opika/contracts";
 import type { CSSProperties, RefCallback } from "react";
-import { freshnessLabel, freshnessPips, type PipFill } from "./freshness-display.js";
-import { uk } from "./strings.uk.js";
-import { color, layout, radius, shadow } from "./tokens.js";
+import { freshnessLabel, freshnessPips, type PipFill } from "./freshness-display";
+import { uk } from "./strings.uk";
+import { color, layout, radius, shadow } from "./tokens";
 
 interface SwipeCardProps {
   card: FeedCardView;

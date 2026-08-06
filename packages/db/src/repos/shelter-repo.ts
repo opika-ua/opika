@@ -1,8 +1,8 @@
 import type { Shelter, ShelterId } from "@opika/domain";
 import { eq, inArray } from "drizzle-orm";
-import type { Database } from "../client.js";
-import { shelters } from "../schema/shelters.js";
-import { rowToShelter, shelterToRow } from "./mappers.js";
+import type { Database } from "../client";
+import { shelters } from "../schema/shelters";
+import { rowToShelter, shelterToRow } from "./mappers";
 
 export function shelterRepo(db: Database) {
   return {

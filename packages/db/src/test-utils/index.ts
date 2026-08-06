@@ -9,5 +9,5 @@ export {
   now,
   policy,
   uuid,
-} from "./fixtures.js";
-export { setupTestDatabase, type TestContext, truncateAll } from "./setup.js";
+} from "./fixtures";
+export { setupTestDatabase, type TestContext, truncateAll } from "./setup";

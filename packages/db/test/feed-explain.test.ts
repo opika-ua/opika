@@ -1,15 +1,15 @@
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { animalRepo } from "../src/repos/animal-repo.js";
-import { cityRepo } from "../src/repos/city-repo.js";
-import { shelterRepo } from "../src/repos/shelter-repo.js";
+import { animalRepo } from "../src/repos/animal-repo";
+import { cityRepo } from "../src/repos/city-repo";
+import { shelterRepo } from "../src/repos/shelter-repo";
 import {
   makeAnimal,
   makeCity,
   makeShelter,
   setupTestDatabase,
   truncateAll,
-} from "../src/test-utils/index.js";
+} from "../src/test-utils/index";
 
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
 let cleanup: () => Promise<void>;

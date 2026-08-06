@@ -1,3 +1,3 @@
-export * from "./freshness.js";
-export * from "./scoring.js";
-export * from "./seen-set.js";
+export * from "./freshness";
+export * from "./scoring";
+export * from "./seen-set";

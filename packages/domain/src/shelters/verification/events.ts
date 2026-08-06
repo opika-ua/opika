@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { ModeratorIdSchema } from "../../primitives/ids.js";
-import { VerificationEvidenceSchema } from "./evidence.js";
-import { PauseReasonSchema, RejectionReasonSchema, SuspensionReasonSchema } from "./reasons.js";
+import { ModeratorIdSchema } from "../../primitives/ids";
+import { VerificationEvidenceSchema } from "./evidence";
+import { PauseReasonSchema, RejectionReasonSchema, SuspensionReasonSchema } from "./reasons";
 
 /**
  * Initial submission is deliberately absent from this union. There is no prior

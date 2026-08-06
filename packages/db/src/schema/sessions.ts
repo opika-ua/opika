@@ -1,6 +1,6 @@
 import type { AdopterId } from "@opika/domain";
 import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import { adopters } from "./adopters.js";
+import { adopters } from "./adopters";
 
 /**
  * Anonymous device sessions. The token itself never touches the database —

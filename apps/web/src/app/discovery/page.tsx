@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { generateMockCards } from "../../features/discovery/mock-data.js";
-import { type DeckState, SwipeDeck } from "../../features/discovery/SwipeDeck.js";
-import { uk } from "../../features/discovery/strings.uk.js";
-import { color } from "../../features/discovery/tokens.js";
+import { generateMockCards } from "../../features/discovery/mock-data";
+import { type DeckState, SwipeDeck } from "../../features/discovery/SwipeDeck";
+import { uk } from "../../features/discovery/strings.uk";
+import { color } from "../../features/discovery/tokens";
 
 /**
  * Discovery page — the swipe deck.

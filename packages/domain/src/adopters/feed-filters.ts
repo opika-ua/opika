@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { AGE_BUCKETS, AgeBucketSchema } from "../animals/age.js";
-import { ANIMAL_SPECIES, AnimalSpeciesSchema } from "../animals/animal.js";
-import { SIZE_BUCKETS, SizeBucketSchema } from "../animals/size.js";
-import { CityIdSchema } from "../primitives/ids.js";
+import { AGE_BUCKETS, AgeBucketSchema } from "../animals/age";
+import { ANIMAL_SPECIES, AnimalSpeciesSchema } from "../animals/animal";
+import { SIZE_BUCKETS, SizeBucketSchema } from "../animals/size";
+import { CityIdSchema } from "../primitives/ids";
 
 /**
  * An explicit "any" instead of an empty array.

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { EdrpouSchema, ModeratorIdSchema } from "../../primitives/ids.js";
-import type { ShelterLegalEntity } from "../legal-entity.js";
-import type { EvidenceItem, VerificationEvidence } from "./evidence.js";
-import { DEFAULT_VERIFICATION_POLICY, evidenceGaps, meetsEvidenceRequirements } from "./policy.js";
+import { EdrpouSchema, ModeratorIdSchema } from "../../primitives/ids";
+import type { ShelterLegalEntity } from "../legal-entity";
+import type { EvidenceItem, VerificationEvidence } from "./evidence";
+import { DEFAULT_VERIFICATION_POLICY, evidenceGaps, meetsEvidenceRequirements } from "./policy";
 
 const AT = new Date("2026-01-01T00:00:00.000Z");
 const MODERATOR = ModeratorIdSchema.parse("11111111-1111-4111-8111-111111111111");

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach } from "vitest";
-import { setupTestDatabase, truncateAll } from "../src/test-utils/index.js";
+import { setupTestDatabase, truncateAll } from "../src/test-utils/index";
 
 export let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
 let cleanup: () => Promise<void>;

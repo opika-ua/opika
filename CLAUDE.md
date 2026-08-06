@@ -51,7 +51,7 @@ require touching those two packages.
 | Hosting          | Vercel Pro at MVP, spend cap on day one, images off-platform. Exit ramp: OpenNext → Cloudflare Workers (validate once, don't take yet)                                                                                   |
 | Repo             | pnpm 11 workspaces + catalogs. Add Turborepo only when CI exceeds ~3 min                                                                                                                                                 |
 | Testing          | Vitest 4 + RTL + MSW 2 + 4–6 Playwright specs. Plain Docker PostGIS, not Testcontainers                                                                                                                                  |
-| CI               | GitHub Actions, `typecheck → lint → test`                                                                                                                                                                                |
+| CI               | GitHub Actions, `typecheck → lint → test → build:web`                                                                                                                                                                                |
 | Backend language | TypeScript, not Go (see ADR §11 for the full argument — the performance delta is ~3ms and irrelevant at this scale; the real cost is losing exhaustive discriminated-union checking and doubling the maintainer surface) |
 
 Full rationale, current version numbers, and pricing sources:
@@ -136,7 +136,7 @@ solo 10h/week project.
   (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
   plus a few more — see the file), Biome for lint+format,
   `docker-compose.yml` (`postgis/postgis:17-3.5`), `.gitattributes` +
-  autocrlf guidance below, GitHub Actions CI (`typecheck → lint → test`).
+  autocrlf guidance below, GitHub Actions CI (`typecheck → lint → test → build:web`).
 - **M1 — `packages/contracts` + `packages/domain`: built, pending your
   sign-off.** Branded IDs, `Money`, `Shelter` + verification FSM with an
   exhaustive transition-table test, `Animal` with discriminated
@@ -353,12 +353,41 @@ corepack` first. In CI, prefer `corepack enable && corepack install`
   suppress via `COREPACK_ENABLE_DOWNLOAD_PROMPT=0` on every Corepack
   version. See `.github/workflows/ci.yml` for the pattern in practice.
 
+## Module resolution (why `pnpm typecheck` is not enough)
+
+The whole repo is on `module: ESNext` / `moduleResolution: Bundler`.
+**Relative imports are extensionless** — `./freshness-display`, never
+`./freshness-display.js`.
+
+This is not cosmetic. `tsc` maps `./x.js` to `./x.ts` under *every*
+resolution mode, so a `.js` extension typechecks perfectly clean and then
+fails only in the bundler, which looks for a literal `x.js` on disk.
+That is exactly how `/discovery` shipped to a green CI while being
+unbuildable. Turbopack has no escape hatch here —
+`experimental.extensionAlias` is on its explicitly-unsupported list.
+
+`packages/*` were previously NodeNext, which mandates the extensions.
+That bought nothing: all three are `noEmit`, are exported as
+`./src/index.ts`, and have no raw-Node-ESM consumer (vitest uses Vite,
+`db:seed` uses `tsx`, drizzle-kit bundles). Its only observable effect
+was breaking the one bundler that does read those specifiers.
+
+**`pnpm build:web` is therefore a required gate, in `check` and in CI.**
+Typecheck structurally cannot catch this class of break. If you add a
+frontend surface, it stays behind that gate.
+
+One residual to know about: `module: ESNext` means TS no longer checks
+Node's ESM↔CJS interop rules for `pnpm db:seed`, the repo's only real
+Node-ESM entry point. No live exposure today (`postgres` resolves ESM,
+`drizzle-orm` and `zod` are dual), but a CJS-only dependency added to
+`packages/db` and named-imported would typecheck and fail at seed time.
+
 ## Commands
 
 ```bash
 corepack enable          # once, machine-wide
 pnpm i                   # install — resolves the pinned pnpm automatically
-pnpm check                # typecheck -> lint -> test, same as CI
+pnpm check                # typecheck -> lint -> test -> build:web, same as CI
 pnpm typecheck
 pnpm lint                 # biome check .
 pnpm lint:fix              # biome check --write .

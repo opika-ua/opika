@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EdrpouSchema } from "../primitives/ids.js";
+import { EdrpouSchema } from "../primitives/ids";
 
 /**
  * `unregistered_initiative` exists because a large share of shelter activity in

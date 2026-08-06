@@ -12,9 +12,9 @@ import {
 } from "@opika/domain";
 import { ORPCError } from "@orpc/server";
 import type { z } from "zod";
-import type { AppContext } from "../context.js";
-import { decodeFeedCursor, encodeFeedCursor } from "../cursor.js";
-import { requireEnv } from "../env.js";
+import type { AppContext } from "../context";
+import { decodeFeedCursor, encodeFeedCursor } from "../cursor";
+import { requireEnv } from "../env";
 
 type FeedInput = z.infer<typeof FeedListInputSchema>;
 type FeedOutput = z.infer<typeof FeedListOutputSchema>;

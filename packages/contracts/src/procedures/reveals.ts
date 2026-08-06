@@ -1,8 +1,8 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
-import { apiErrors } from "../errors.js";
-import { ContactRevealViewSchema } from "../views/reveal.js";
-import { pageSizeSchema, RevealCursorSchema } from "./pagination.js";
+import { apiErrors } from "../errors";
+import { ContactRevealViewSchema } from "../views/reveal";
+import { pageSizeSchema, RevealCursorSchema } from "./pagination";
 
 export const RevealsListMineInputSchema = z.object({
   cursor: RevealCursorSchema.nullable(),

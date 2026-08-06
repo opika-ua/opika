@@ -12,7 +12,8 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "test": "pnpm -r --if-present run test",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run test",
+    "build:web": "pnpm --filter @opika/web build",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run build:web",
     "test:coverage": "pnpm -r --if-present run test:coverage"
   },
   "devDependencies": {

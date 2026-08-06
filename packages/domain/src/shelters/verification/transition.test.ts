@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { ModeratorIdSchema } from "../../primitives/ids.js";
+import { ModeratorIdSchema } from "../../primitives/ids";
 import {
   VERIFICATION_EVENT_TYPES,
   type VerificationEvent,
   VerificationEventSchema,
   type VerificationEventType,
-} from "./events.js";
-import type { VerificationEvidence } from "./evidence.js";
+} from "./events";
+import type { VerificationEvidence } from "./evidence";
 import {
   type ShelterVerification,
   ShelterVerificationSchema,
   VERIFICATION_STATUSES,
   type VerificationStatus,
-} from "./state.js";
-import { submitForVerification, transition } from "./transition.js";
+} from "./state";
+import { submitForVerification, transition } from "./transition";
 
 const MODERATOR = ModeratorIdSchema.parse("11111111-1111-4111-8111-111111111111");
 const REVIEWER = ModeratorIdSchema.parse("22222222-2222-4222-8222-222222222222");

@@ -2,8 +2,8 @@ import { animalRepo, cityRepo, revealRepo, shelterRepo } from "@opika/db/repos";
 import { makeAnimal, makeCity, makeReveal, makeShelter } from "@opika/db/test";
 import { type AdopterId, filtersFingerprint, NO_FILTERS } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { encodeFeedCursor, encodeRevealCursor } from "./cursor.js";
-import { createTestHarness, type TestHarness } from "./test-harness.js";
+import { encodeFeedCursor, encodeRevealCursor } from "./cursor";
+import { createTestHarness, type TestHarness } from "./test-harness";
 
 let h: TestHarness;
 

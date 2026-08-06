@@ -1,6 +1,6 @@
 import type { CityView } from "@opika/contracts";
 import { cityRepo } from "@opika/db/repos";
-import type { AppContext } from "../context.js";
+import type { AppContext } from "../context";
 
 export async function citiesList(
   _input: Record<string, never>,

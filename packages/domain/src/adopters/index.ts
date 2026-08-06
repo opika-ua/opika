@@ -1,2 +1,2 @@
-export * from "./feed-filters.js";
-export * from "./profile.js";
+export * from "./feed-filters";
+export * from "./profile";

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type Locale, LocaleSchema } from "./locale.js";
+import { type Locale, LocaleSchema } from "./locale";
 
 /**
  * `machine` exists because English ships as machine translation plus review.

@@ -1,7 +1,7 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
-import { apiErrors } from "../errors.js";
-import { CityViewSchema } from "../views/shelter.js";
+import { apiErrors } from "../errors";
+import { CityViewSchema } from "../views/shelter";
 
 /**
  * Unpaginated: one oblast has a bounded, small list of cities, and the filter

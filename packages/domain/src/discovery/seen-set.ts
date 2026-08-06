@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AdopterIdSchema, AnimalIdSchema } from "../primitives/ids.js";
+import { AdopterIdSchema, AnimalIdSchema } from "../primitives/ids";
 
 /**
  * "interested" records which way a card went; it does not itself reveal

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { type FeedFilters, NO_FILTERS } from "../adopters/feed-filters.js";
-import type { Animal } from "../animals/animal.js";
-import { AnimalIdSchema, ShelterIdSchema } from "../primitives/ids.js";
-import { DEFAULT_FRESHNESS_POLICY, freshnessOf } from "./freshness.js";
-import { DEFAULT_SCORING_POLICY, scoreAnimal } from "./scoring.js";
+import { type FeedFilters, NO_FILTERS } from "../adopters/feed-filters";
+import type { Animal } from "../animals/animal";
+import { AnimalIdSchema, ShelterIdSchema } from "../primitives/ids";
+import { DEFAULT_FRESHNESS_POLICY, freshnessOf } from "./freshness";
+import { DEFAULT_SCORING_POLICY, scoreAnimal } from "./scoring";
 
 const NOW = new Date("2026-08-05T12:00:00.000Z");
 const daysAgo = (days: number): Date => new Date(NOW.getTime() - days * 86_400_000);

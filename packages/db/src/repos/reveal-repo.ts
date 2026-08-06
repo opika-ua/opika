@@ -1,8 +1,8 @@
 import type { AdopterId, AnimalId, ContactReveal, RevealId } from "@opika/domain";
-import { and, count, desc, eq, gt, lt, or, sql } from "drizzle-orm";
-import type { Database } from "../client.js";
-import { reveals } from "../schema/reveals.js";
-import { revealToRow, rowToReveal } from "./mappers.js";
+import { and, count, desc, eq, gt, type SQL, sql } from "drizzle-orm";
+import type { Database } from "../client";
+import { reveals } from "../schema/reveals";
+import { revealToRow, rowToReveal } from "./mappers";
 
 export function revealRepo(db: Database) {
   return {
@@ -36,18 +36,14 @@ export function revealRepo(db: Database) {
       adopterId: AdopterId,
       opts: { limit: number; cursor?: { revealedAt: Date; id: string } },
     ): Promise<readonly ContactReveal[]> {
-      const conditions = [eq(reveals.adopterId, adopterId)];
+      const conditions: SQL[] = [eq(reveals.adopterId, adopterId)];
 
       if (opts.cursor) {
         const cursorTs = opts.cursor.revealedAt.toISOString();
         conditions.push(
-          or(
-            lt(reveals.revealedAt, sql`${cursorTs}::timestamptz`),
-            and(
-              eq(reveals.revealedAt, sql`${cursorTs}::timestamptz`),
-              sql`${reveals.id} < ${opts.cursor.id}`,
-            ),
-          )!,
+          sql`(${reveals.revealedAt} < ${cursorTs}::timestamptz
+            OR (${reveals.revealedAt} = ${cursorTs}::timestamptz
+              AND ${reveals.id} < ${opts.cursor.id}))`,
         );
       }
 
