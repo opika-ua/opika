@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:harness": "playwright test",
+    "test:harness:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
     "@opika/contracts": "workspace:*",
@@ -22,9 +24,13 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@playwright/test": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "happy-dom": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

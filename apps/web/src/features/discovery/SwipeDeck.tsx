@@ -100,6 +100,7 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
 
       {/* Action buttons */}
       <div
+        data-testid="action-row"
         style={{
           position: "absolute",
           bottom: 0,

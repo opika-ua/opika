@@ -80,6 +80,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
   return (
     <section
       ref={gestureRef}
+      data-testid="swipe-card"
       style={{ ...style, cursor: "grab", userSelect: "none" }}
       aria-label={card.name}
       onClick={onTap}
@@ -87,6 +88,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
     >
       {/* Photo area */}
       <div
+        data-testid="card-photo"
         style={{
           width: "100%",
           aspectRatio: "4/5",
@@ -288,6 +290,7 @@ function FreshnessBlock({
 
   return (
     <section
+      data-testid="freshness-block"
       style={{
         background: color.paperAlt,
         borderRadius: radius.freshness,
