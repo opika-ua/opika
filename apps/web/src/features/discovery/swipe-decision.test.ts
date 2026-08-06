@@ -23,12 +23,12 @@ describe("swipeDecision", () => {
 
   it("commits right on a fast short flick (velocity >= 0.45 px/ms)", () => {
     expect(swipeDecision(30, 0.45)).toEqual({ committed: true, direction: "right" });
-    expect(swipeDecision(10, 1.2)).toEqual({ committed: true, direction: "right" });
+    expect(swipeDecision(20, 1.2)).toEqual({ committed: true, direction: "right" });
   });
 
   it("commits left on a fast short flick to the left", () => {
     expect(swipeDecision(-30, -0.45)).toEqual({ committed: true, direction: "left" });
-    expect(swipeDecision(-10, -1.2)).toEqual({ committed: true, direction: "left" });
+    expect(swipeDecision(-20, -1.2)).toEqual({ committed: true, direction: "left" });
   });
 
   it("does not commit on a slow short flick (velocity < 0.45 px/ms)", () => {
@@ -56,5 +56,38 @@ describe("swipeDecision", () => {
   it("uses dx sign for direction even when velocity has opposite sign", () => {
     // User dragged right 90px but was decelerating (negative velocity)
     expect(swipeDecision(90, -0.1)).toEqual({ committed: true, direction: "right" });
+  });
+
+  // --- tap jitter must not be read as a flick ---
+
+  /**
+   * The lost fix. Velocity is sampled between the last two pointermove events,
+   * so it is instantaneous: a finger lifting off a tap moves 2px in about a
+   * millisecond, which reads as 2 px/ms — four times the commit threshold.
+   * The card then flew off screen and the adopter had silently passed on an
+   * animal they were trying to open.
+   */
+  it("does not commit a 2px twitch however fast it was", () => {
+    expect(swipeDecision(2, 2.0)).toEqual({ committed: false });
+    expect(swipeDecision(-2, -2.0)).toEqual({ committed: false });
+    // Absurd velocity, still a tap.
+    expect(swipeDecision(1, 50)).toEqual({ committed: false });
+  });
+
+  it("holds the line right at the tap-slop boundary", () => {
+    expect(swipeDecision(11, 5)).toEqual({ committed: false });
+    expect(swipeDecision(12, 5)).toEqual({ committed: true, direction: "right" });
+    expect(swipeDecision(-11, -5)).toEqual({ committed: false });
+    expect(swipeDecision(-12, -5)).toEqual({ committed: true, direction: "left" });
+  });
+
+  /**
+   * The floor gates the *velocity* path only. A slow deliberate drag past the
+   * distance threshold must still commit — otherwise this fix would have
+   * traded one broken gesture for another.
+   */
+  it("still commits a long slow drag, which the floor must not block", () => {
+    expect(swipeDecision(88, 0)).toEqual({ committed: true, direction: "right" });
+    expect(swipeDecision(-88, 0)).toEqual({ committed: true, direction: "left" });
   });
 });

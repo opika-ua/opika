@@ -10,6 +10,14 @@ import { useSwipeGesture } from "./use-swipe-gesture";
 /** Number of cards remaining that triggers a prefetch. */
 const PREFETCH_THRESHOLD = 5;
 
+/**
+ * Ref for the non-interactive stack layers. Module-level so it keeps the same
+ * identity across renders — an inline `() => {}` would make React detach and
+ * re-attach the ref on every frame of a drag, which is the same defect the
+ * gesture hook was just fixed for.
+ */
+const noopRef = (): void => {};
+
 export type DeckState =
   | { kind: "loading" }
   | { kind: "ready"; cards: FeedCardView[] }
@@ -73,42 +81,50 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
   const visibleCards = state.cards.slice(0, layout.stackLayers);
 
   return (
+    // A column: the card stack takes the space that is left, and the action
+    // row sits beneath it. The row used to be `position: absolute; bottom: 0`
+    // inside the stack container, which put it *on top of* the card and over
+    // the shelter line — invisible to any check that reads the markup, since
+    // both elements are present and correct in the DOM.
     <div
       style={{
-        position: "relative",
         flex: 1,
+        display: "flex",
+        flexDirection: "column",
         marginTop: 16,
+        // Flex items default to min-height: auto, which lets the stack refuse
+        // to shrink and push the action row back off the bottom of the screen.
+        minHeight: 0,
       }}
     >
-      {/* Render back-to-front so the top card is last in DOM (highest z-index) */}
-      {visibleCards
-        .slice()
-        .reverse()
-        .map((card, reverseIdx) => {
-          const stackIndex = visibleCards.length - 1 - reverseIdx;
-          return (
-            <SwipeCard
-              key={card.id}
-              card={card}
-              gestureRef={stackIndex === 0 ? cardRef : () => {}}
-              dx={stackIndex === 0 ? dx : 0}
-              stackIndex={stackIndex}
-              onTap={stackIndex === 0 ? () => onCardTap?.(card.id) : undefined}
-            />
-          );
-        })}
+      <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
+        {/* Render back-to-front so the top card is last in DOM (highest z-index) */}
+        {visibleCards
+          .slice()
+          .reverse()
+          .map((card, reverseIdx) => {
+            const stackIndex = visibleCards.length - 1 - reverseIdx;
+            return (
+              <SwipeCard
+                key={card.id}
+                card={card}
+                gestureRef={stackIndex === 0 ? cardRef : noopRef}
+                dx={stackIndex === 0 ? dx : 0}
+                stackIndex={stackIndex}
+                onTap={stackIndex === 0 ? () => onCardTap?.(card.id) : undefined}
+              />
+            );
+          })}
+      </div>
 
       {/* Action buttons */}
       <div
         data-testid="action-row"
         style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
           display: "flex",
           gap: 8,
-          zIndex: 10,
+          marginTop: 16,
+          flexShrink: 0,
         }}
       >
         <ActionButton

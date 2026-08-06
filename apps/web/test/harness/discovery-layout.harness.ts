@@ -34,12 +34,21 @@ for (const viewport of [PHONE, DESKTOP] satisfies Viewport[]) {
       );
     });
 
-    // Lost fix 2. The photo pushing the text down is invisible in markup: the
-    // sentence is present in the DOM and merely clipped by the card's
-    // `overflow: hidden`.
+    // Lost fix 2, the property that matters at any size. Text sliding under
+    // the card's `overflow: hidden` edge is invisible in markup — the sentence
+    // is present in the DOM and simply not painted.
     test("the freshness block is fully visible inside the card", async ({ page }) => {
       await expectContainedBy(
         { label: "freshness block", locator: page.getByTestId("freshness-block") },
+        { label: "swipe card", locator: page.getByTestId("swipe-card") },
+      );
+    });
+
+    // The shelter's own words are the last thing in the card and therefore the
+    // first thing to be clipped by anything above them growing.
+    test("the shelter line is fully visible inside the card", async ({ page }) => {
+      await expectContainedBy(
+        { label: "shelter line", locator: page.getByTestId("shelter-line") },
         { label: "swipe card", locator: page.getByTestId("swipe-card") },
       );
     });
@@ -50,6 +59,63 @@ for (const viewport of [PHONE, DESKTOP] satisfies Viewport[]) {
     });
   });
 }
+
+/**
+ * Lost fix 2, the other half: which of the design doc's two photo dimensions
+ * won.
+ *
+ * README:191 gives the photo AREA height as 396. README:307's "photo 4:5"
+ * describes the source photography — :39 and :353 both say so, and say it is
+ * cropped `object-fit: cover`. So 4:5 is the asset's shape and 396 is the
+ * slot's; cover is what reconciles them. 4:5 applied to the container makes it
+ * 417.5px on the 334px content box, 21.5px taller than specified.
+ *
+ * Phone only, deliberately. 396 is a statement about the viewport the design
+ * was drawn at. At 1280x800 the card is shorter and the photo is *supposed* to
+ * shrink below 396 — it is the flex item that gives way so the shelter's words
+ * never do. Asserting 396 everywhere would forbid that.
+ */
+test.describe(`/discovery photo sizing at ${PHONE.name}`, () => {
+  test("the photo area is the height the feed screen specifies", async ({ page }) => {
+    await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
+    const photo = await rectOf(page.getByTestId("card-photo"), "photo area");
+
+    expect(
+      Math.round(photo.height),
+      `photo area is ${photo.height}px; docs/design/README.md:191 specifies 396. ` +
+        `417.5 means the container is carrying the 4:5 source ratio, which is the ` +
+        `asset's shape, not the slot's.`,
+    ).toBe(396);
+  });
+
+  /**
+   * The photo must be able to give way. Without this the two halves of the fix
+   * are separable: someone could pin the photo at a fixed 396 with
+   * `flex-shrink: 0`, pass the assertion above, and reintroduce the clipping
+   * on any shorter card.
+   */
+  test("the photo yields to the text when the card is short", async ({ page }) => {
+    await openRoute(
+      page,
+      ROUTE,
+      { name: "short phone", width: 390, height: 640 },
+      {
+        readySelector: CARD,
+      },
+    );
+
+    const photo = await rectOf(page.getByTestId("card-photo"), "photo area");
+    expect(
+      photo.height,
+      "on a 640px-tall screen the photo should have shrunk below its 396px design height",
+    ).toBeLessThan(396);
+
+    await expectContainedBy(
+      { label: "shelter line", locator: page.getByTestId("shelter-line") },
+      { label: "swipe card", locator: page.getByTestId("swipe-card") },
+    );
+  });
+});
 
 /**
  * The recorded desktop gap.

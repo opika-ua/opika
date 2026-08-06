@@ -81,17 +81,31 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
     <section
       ref={gestureRef}
       data-testid="swipe-card"
-      style={{ ...style, cursor: "grab", userSelect: "none" }}
+      style={{
+        ...style,
+        cursor: "grab",
+        userSelect: "none",
+        // Column so the photo can give way to the text rather than the text
+        // being pushed out of the card's `overflow: hidden` box.
+        display: "flex",
+        flexDirection: "column",
+      }}
       aria-label={card.name}
       onClick={onTap}
       onKeyDown={undefined}
     >
-      {/* Photo area */}
+      {/* Photo area — see layout.photoHeight for why 396 and not a 4:5 ratio */}
       <div
         data-testid="card-photo"
         style={{
           width: "100%",
-          aspectRatio: "4/5",
+          height: layout.photoHeight,
+          // Shrinks first when the card is short; the text below never does.
+          // A photo is croppable by definition — `object-fit: cover` below is
+          // exactly that contract — and the shelter's sentence is not.
+          flexGrow: 0,
+          flexShrink: 1,
+          minHeight: layout.photoMinHeight,
           borderRadius: radius.photo,
           overflow: "hidden",
           background: `repeating-linear-gradient(135deg, ${color.sunkenDeep} 0 10px, #F6EFE3 10px 20px)`,
@@ -146,7 +160,17 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
       </div>
 
       {/* Text content */}
-      <div style={{ padding: "16px 4px 4px", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div
+        style={{
+          padding: "16px 4px 4px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+          // Never sacrificed to fit the photo — this is the half of the card
+          // that carries the freshness claim and the shelter's own words.
+          flexShrink: 0,
+        }}
+      >
         {/* Name + meta */}
         <div>
           <div
@@ -184,7 +208,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         />
 
         {/* Shelter line */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div data-testid="shelter-line" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <ShelterMonogram name={card.shelter.displayName} />
           <span
             style={{

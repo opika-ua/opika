@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { type SwipeDirection, swipeDecision } from "./swipe-decision";
 
 // --- Design constants ---
@@ -18,6 +18,13 @@ const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
 /** Reduced-motion exit: opacity only, 120ms. */
 const REDUCED_EXIT_MS = 120;
 
+/**
+ * Grace period added to a transition's own duration before the fallback timer
+ * takes over. Long enough that the timer never beats a transition that is
+ * simply running a frame or two late.
+ */
+const TRANSITION_FALLBACK_SLACK_MS = 150;
+
 export interface SwipeGestureCallbacks {
   /** Called when the user drags. dx is signed displacement in px. */
   onDrag?: (dx: number) => void;
@@ -36,6 +43,55 @@ interface PointerState {
 }
 
 /**
+ * Run `done` when a CSS transition on `node` finishes — or when it doesn't.
+ *
+ * `transitionend` is not guaranteed to fire. A backgrounded tab, a transition
+ * interrupted by another style write, a dropped frame at the wrong moment, or
+ * simply `transition: none` resolving to no transition at all, and the event
+ * never arrives. Because the whole commit path hung off that one event, the
+ * deck would then wedge: the card sat off screen, the deck never advanced, and
+ * there was no way forward short of a reload.
+ *
+ * So the timer is not a nicety — it is the only thing making the commit
+ * guaranteed. Whichever of the two arrives first wins, exactly once.
+ *
+ * Returns a canceller for the case where the user grabs the card again before
+ * either has fired.
+ */
+function whenTransitionSettles(
+  node: HTMLElement,
+  durationMs: number,
+  done: () => void,
+): () => void {
+  let settled = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const finish = (): void => {
+    if (settled) return;
+    settled = true;
+    node.removeEventListener("transitionend", onTransitionEnd);
+    if (timer !== undefined) clearTimeout(timer);
+    done();
+  };
+
+  const onTransitionEnd = (event: Event): void => {
+    // Ignore transitions bubbling up from anything inside the card.
+    if (event.target !== node) return;
+    finish();
+  };
+
+  node.addEventListener("transitionend", onTransitionEnd);
+  timer = setTimeout(finish, durationMs + TRANSITION_FALLBACK_SLACK_MS);
+
+  return () => {
+    if (settled) return;
+    settled = true;
+    node.removeEventListener("transitionend", onTransitionEnd);
+    if (timer !== undefined) clearTimeout(timer);
+  };
+}
+
+/**
  * Hook that wires PointerEvent-based swipe gestures to a card element.
  *
  * Returns a ref callback — attach it to the draggable card element.
@@ -46,6 +102,22 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
   const stateRef = useRef<PointerState | null>(null);
   const nodeRef = useRef<HTMLElement | null>(null);
   const prefersReducedMotion = useRef(false);
+  const cancelPendingSettle = useRef<(() => void) | null>(null);
+
+  /**
+   * The callbacks object is a fresh literal on every render of the deck, and
+   * the deck re-renders on every pointermove because it tracks `dx` in state.
+   * When the handlers depended on it, each of them — and therefore the ref
+   * callback that registers them — changed identity ~60 times a second, so
+   * React detached and re-attached every listener on every frame of a drag.
+   *
+   * Reading through a ref keeps the handlers referentially stable for the life
+   * of the component while still calling the newest callbacks.
+   */
+  const callbacksRef = useRef(callbacks);
+  useEffect(() => {
+    callbacksRef.current = callbacks;
+  });
 
   // Check once on first interaction — avoids SSR issues
   const checkReducedMotion = useCallback(() => {
@@ -66,6 +138,12 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
       const node = e.currentTarget as HTMLElement;
 
       checkReducedMotion();
+
+      // A spring-back may still be settling from the previous gesture. Drop it,
+      // or its onSnapBack would land in the middle of this drag and reset the
+      // affordance under the user's finger.
+      cancelPendingSettle.current?.();
+      cancelPendingSettle.current = null;
 
       node.setPointerCapture(e.pointerId);
       // Clear any in-progress transition
@@ -98,9 +176,9 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
       state.lastTime = e.timeStamp;
 
       applyTransform(node, dx);
-      callbacks.onDrag?.(dx);
+      callbacksRef.current.onDrag?.(dx);
     },
-    [applyTransform, callbacks],
+    [applyTransform],
   );
 
   const onPointerUp = useCallback(
@@ -116,6 +194,7 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
       if (decision.committed) {
         // Exit animation: slide out in the committed direction
         const exitX = decision.direction === "left" ? -window.innerWidth : window.innerWidth;
+        const durationMs = prefersReducedMotion.current ? REDUCED_EXIT_MS : EXIT_MS;
 
         if (prefersReducedMotion.current) {
           node.style.transition = `opacity ${REDUCED_EXIT_MS}ms ${EASE}`;
@@ -126,50 +205,43 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
         }
 
         const commitDirection = decision.direction;
-        node.addEventListener(
-          "transitionend",
-          () => {
-            callbacks.onCommit(commitDirection);
-          },
-          { once: true },
-        );
+        cancelPendingSettle.current = whenTransitionSettles(node, durationMs, () => {
+          cancelPendingSettle.current = null;
+          callbacksRef.current.onCommit(commitDirection);
+        });
       } else {
         // Spring back to origin
-        if (prefersReducedMotion.current) {
-          node.style.transition = `opacity ${REDUCED_EXIT_MS}ms ${EASE}`;
-          node.style.transform = "translate3d(0, 0, 0) rotate(0deg)";
-        } else {
-          node.style.transition = `transform ${SPRING_BACK_MS}ms ${EASE}`;
-          node.style.transform = "translate3d(0, 0, 0) rotate(0deg)";
-        }
+        const durationMs = prefersReducedMotion.current ? REDUCED_EXIT_MS : SPRING_BACK_MS;
+        node.style.transition = `transform ${durationMs}ms ${EASE}`;
+        node.style.transform = "translate3d(0, 0, 0) rotate(0deg)";
 
-        node.addEventListener(
-          "transitionend",
-          () => {
-            callbacks.onSnapBack?.();
-          },
-          { once: true },
-        );
+        cancelPendingSettle.current = whenTransitionSettles(node, durationMs, () => {
+          cancelPendingSettle.current = null;
+          callbacksRef.current.onSnapBack?.();
+        });
       }
     },
-    [applyTransform, callbacks],
+    [applyTransform],
   );
 
-  const onPointerCancel = useCallback(
-    (e: PointerEvent) => {
-      const state = stateRef.current;
-      if (!state || e.pointerId !== state.pointerId) return;
-      stateRef.current = null;
+  const onPointerCancel = useCallback((e: PointerEvent) => {
+    const state = stateRef.current;
+    if (!state || e.pointerId !== state.pointerId) return;
+    stateRef.current = null;
 
-      const node = e.currentTarget as HTMLElement;
-      node.style.transition = `transform ${SPRING_BACK_MS}ms ${EASE}`;
-      node.style.transform = "translate3d(0, 0, 0) rotate(0deg)";
-      callbacks.onSnapBack?.();
-    },
-    [callbacks],
-  );
+    const node = e.currentTarget as HTMLElement;
+    node.style.transition = `transform ${SPRING_BACK_MS}ms ${EASE}`;
+    node.style.transform = "translate3d(0, 0, 0) rotate(0deg)";
+    callbacksRef.current.onSnapBack?.();
+  }, []);
 
-  /** Ref callback — attach to the card element. */
+  /**
+   * Ref callback — attach to the card element.
+   *
+   * Every dependency here is stable for the life of the component, so this
+   * callback is too: React calls it once on mount and once on unmount, and the
+   * listeners below are attached exactly once.
+   */
   const cardRef = useCallback(
     (node: HTMLElement | null) => {
       const prev = nodeRef.current;
@@ -192,6 +264,15 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
     },
     [onPointerDown, onPointerMove, onPointerUp, onPointerCancel],
   );
+
+  // A card can unmount mid-animation — the deck advancing is exactly that.
+  // Leaving a timer pointing at a detached node keeps it alive to no purpose.
+  useEffect(() => {
+    return () => {
+      cancelPendingSettle.current?.();
+      cancelPendingSettle.current = null;
+    };
+  }, []);
 
   return { cardRef };
 }
