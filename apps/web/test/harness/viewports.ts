@@ -21,6 +21,18 @@ export const PHONE: Viewport = { name: "390x844 phone", width: 390, height: 844 
 export const DESKTOP: Viewport = { name: "1280x800 desktop", width: 1280, height: 800 };
 
 /**
+ * The gallery's own breakpoints (docs/design/README.md, "Breakpoints &
+ * Surfaces") — 0-599 / 600-1023 / 1024-1439 / 1440+. `PHONE` (390) already
+ * sits in the first range and `DESKTOP` (1280) already sits in the third,
+ * so only the tablet and wide ranges need a viewport of their own.
+ */
+export const GALLERY_TABLET: Viewport = { name: "768x1024 tablet", width: 768, height: 1024 };
+/** Clear of the 1440 boundary on purpose, not pinned to it — a viewport
+ * exactly at a CSS breakpoint's edge is the one place a rounding disagreement
+ * between the test and the browser could hide a real off-by-one. */
+export const GALLERY_WIDE: Viewport = { name: "1600x900 wide desktop", width: 1600, height: 900 };
+
+/**
  * A short phone — an iPhone SE is 375x667, and a browser with its address bar
  * showing is shorter still. Used to prove the card gives up photo height
  * rather than clipping the shelter's words.

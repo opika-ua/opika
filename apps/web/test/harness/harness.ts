@@ -78,6 +78,34 @@ export async function rectOf(locator: Locator, label: string): Promise<Rect> {
   return box;
 }
 
+/**
+ * How many items share each row of a grid, in DOM order — the real check
+ * for "N columns," as opposed to reading a `grid-cols-N` class out of
+ * markup. Two rects are the same row when their top edges are within
+ * `tolerancePx`, which absorbs sub-pixel layout rounding without conflating
+ * two genuinely different rows.
+ *
+ * Assumes `locators` are already in the grid's visual reading order (DOM
+ * order for a plain `grid-auto-flow: row` container, which is what a card
+ * grid with no `order` overrides produces) — this does not re-derive row
+ * membership from `x`, only from the `y` grouping, so a caller that passes
+ * locators out of order gets a wrong answer rather than a caught one.
+ */
+export async function rowCounts(locators: readonly Locator[], tolerancePx = 1): Promise<number[]> {
+  const rects = await Promise.all(locators.map((l, i) => rectOf(l, `row item ${i}`)));
+  const counts: number[] = [];
+  let rowTop: number | null = null;
+  for (const rect of rects) {
+    if (rowTop === null || Math.abs(rect.y - rowTop) > tolerancePx) {
+      counts.push(1);
+      rowTop = rect.y;
+    } else {
+      counts[counts.length - 1] = (counts[counts.length - 1] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
 /** The intersection of two rects, or null when they do not meaningfully overlap. */
 export function overlapOf(a: Rect, b: Rect): Rect | null {
   const x = Math.max(a.x, b.x);
@@ -169,26 +197,46 @@ export async function expectMinimumBottomMargin(
   ).toBeGreaterThanOrEqual(minMarginPx);
 }
 
-/**
- * Assert the document does not scroll in either axis.
- *
- * `window.innerWidth/Height` rather than the nominal viewport, because once a
- * scrollbar appears it takes width from the layout and the nominal number
- * stops describing what the user sees.
- */
-export async function expectNoViewportOverflow(page: Page, viewport: Viewport): Promise<void> {
-  const m = await page.evaluate(() => ({
+async function viewportOverflow(page: Page) {
+  return page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
     scrollHeight: document.documentElement.scrollHeight,
     innerWidth: window.innerWidth,
     innerHeight: window.innerHeight,
   }));
+}
+
+/**
+ * Assert the document does not scroll sideways.
+ *
+ * `window.innerWidth` rather than the nominal viewport, because once a
+ * scrollbar appears it takes width from the layout and the nominal number
+ * stops describing what the user sees.
+ *
+ * Split from `expectNoViewportOverflow` for a page that is *supposed* to
+ * scroll vertically — a content list, or "this screen scrolls" pages like
+ * the eventual animal detail page (docs/design/README.md, "04 Detail —
+ * 1440") — where asserting `scrollHeight` would fail against correct
+ * behaviour rather than catch a real defect.
+ */
+export async function expectNoHorizontalOverflow(page: Page, viewport: Viewport): Promise<void> {
+  const m = await viewportOverflow(page);
 
   expect(
     m.scrollWidth,
     `document scrollWidth ${m.scrollWidth} exceeds the ${viewport.name} viewport ` +
       `(${m.innerWidth}px) by ${m.scrollWidth - m.innerWidth}px — the page scrolls sideways`,
   ).toBeLessThanOrEqual(m.innerWidth);
+}
+
+/**
+ * Assert the document does not scroll in either axis. For a page that must
+ * fit entirely within one screen (the swipe deck) — see
+ * `expectNoHorizontalOverflow` for a page allowed to grow vertically.
+ */
+export async function expectNoViewportOverflow(page: Page, viewport: Viewport): Promise<void> {
+  await expectNoHorizontalOverflow(page, viewport);
+  const m = await viewportOverflow(page);
 
   expect(
     m.scrollHeight,

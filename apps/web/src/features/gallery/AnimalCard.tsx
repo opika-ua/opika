@@ -32,6 +32,18 @@ export function AnimalCard({ card, cityName }: AnimalCardProps) {
   return (
     <Link
       href={`/tvaryny/${card.id}`}
+      // The destination 404s until Phase F (docs/gallery-contract-decisions.md
+      // §6) — nothing to prefetch yet. Also load-bearing, not just wasted
+      // work: Next's default prefetch fires one request per visible card, and
+      // every one of those passes through proxy.ts's rate limiter alongside
+      // the page's own request (its matcher covers /tvaryny/:path* on
+      // purpose, for the eventual real detail pages). Left on, a single
+      // 24-card gallery page load could burn a meaningful slice of the
+      // 100-req/min budget on prefetches nobody asked for — reproduced
+      // directly by test/harness/gallery-layout.harness.ts, which started
+      // getting 429'd mid-run before this was set. Revisit once F ships a
+      // real destination worth prefetching.
+      prefetch={false}
       aria-label={cardAccessibleName(card, cityName)}
       data-testid="animal-card"
       className="group flex flex-col tablet:flex-row desktop:flex-col gap-3 rounded-card border border-line-strong bg-paper p-3 box-border hover:border-line-heavy focus-visible:outline focus-visible:outline-2 focus-visible:outline-leaf focus-visible:outline-offset-2 transition-colors duration-[160ms]"
