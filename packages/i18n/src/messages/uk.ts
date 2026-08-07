@@ -37,11 +37,37 @@ export const uk = {
     ageYoung: "Молодий",
     ageAdult: "Дорослий",
     ageSenior: "Літній",
-    /** Template: "Підходить {count} тварин. Притулків у цьому місті — {shelterCount}." */
-    resultCount: "Підходить {count} тварин. Притулків у цьому місті — {shelterCount}.",
+    /**
+     * Template: "Підходить {count} {animalWord}. Притулків у цьому місті —
+     * {shelterCount}." `{animalWord}` is pre-pluralized by the caller
+     * (`pluralizeUk(count, uk.filters.animalWord)`) — the template cannot
+     * pick the right Ukrainian noun form itself, only compose around it.
+     * "Притулків" is a fixed label form here (a count-value pair, "Тварин: 12"
+     * in sentence form), not an embedded count-noun phrase, so it never
+     * varies with `shelterCount`.
+     */
+    resultCount: "Підходить {count} {animalWord}. Притулків у цьому місті — {shelterCount}.",
     reset: "Скинути",
     /** Template: "Показати {count}" */
     showCount: "Показати {count}",
+    /**
+     * docs/design/README.md, "Rail, count, sort": "Знайдено 34 тварини у 7
+     * притулках" — a different sentence from `resultCount` above, not the
+     * same one reused, matching the design's own distinct copy for the
+     * rail (≥1024) versus the sheet (<1024). `{shelterWord}` varies only
+     * between "притулку" (1) and "притулках" (2+) — Ukrainian locative
+     * plural doesn't distinguish few/many the way the nominative animal
+     * count does.
+     */
+    resultCountRail: "Знайдено {count} {animalWord} у {shelterCount} {shelterWord}",
+    animalWord: { one: "тварина", few: "тварини", many: "тварин" },
+    shelterWordLocative: { one: "притулку", few: "притулках", many: "притулках" },
+    sortLabel: "Сортування",
+    sortFreshest: "Спочатку найсвіжіші картки",
+    sortLongestWaiting: "Найдовше чекають",
+    allCities: "Уся Київщина",
+    railFooter:
+      "Немає фільтра «тільки свіжі картки». Тварина, про яку давно не писали, все одно чекає.",
   },
 
   // --- Swipe affordances ---

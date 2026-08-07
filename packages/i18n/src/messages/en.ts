@@ -45,11 +45,21 @@ export const en = {
     ageYoung: "Young",
     ageAdult: "Adult",
     ageSenior: "Senior",
-    /** Template: "{count} animals match. Shelters in this city — {shelterCount}." */
-    resultCount: "{count} animals match. Shelters in this city — {shelterCount}.",
+    /** Template: "{count} {animalWord} match. Shelters in this city — {shelterCount}." */
+    resultCount: "{count} {animalWord} match. Shelters in this city — {shelterCount}.",
     reset: "Reset",
     /** Template: "Show {count}" */
     showCount: "Show {count}",
+    /** Template: "Found {count} {animalWord} across {shelterCount} {shelterWord}" */
+    resultCountRail: "Found {count} {animalWord} across {shelterCount} {shelterWord}",
+    animalWord: { one: "animal", few: "animals", many: "animals" },
+    shelterWordLocative: { one: "shelter", few: "shelters", many: "shelters" },
+    sortLabel: "Sort",
+    sortFreshest: "Freshest cards first",
+    sortLongestWaiting: "Longest waiting",
+    allCities: "All of Kyiv oblast",
+    railFooter:
+      "There's no \"only fresh cards\" filter. An animal nobody's written about in a while is still waiting.",
   },
 
   // --- Swipe affordances ---
