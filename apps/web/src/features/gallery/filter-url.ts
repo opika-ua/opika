@@ -49,16 +49,29 @@ export type GalleryQuery = {
 const firstValue = (raw: string | string[] | undefined): string | undefined =>
   Array.isArray(raw) ? raw[0] : raw;
 
+/**
+ * A multi-select dimension arrives in two different shapes depending on
+ * which UI produced the URL, and both have to parse to the same result:
+ * the rail writes one comma-joined param (`?vyd=dog,cat`, `galleryHref`),
+ * but the sheet is a real `<form method="GET">` with several same-`name`
+ * checkboxes, and a native browser submission of two checked boxes named
+ * `vyd` produces a *repeated* param (`?vyd=dog&vyd=cat`) — an array here,
+ * never a comma inside one string. Reducing to `firstValue` (as every
+ * other, single-value param in this file does) would silently keep only
+ * the first checked box on every native sheet submission, which is
+ * exactly the shape of bug this file's tests exist to catch: it works
+ * perfectly with the rail and loses data with the sheet, invisibly.
+ */
+const tokensOf = (raw: string | string[] | undefined): string[] =>
+  (Array.isArray(raw) ? raw : (raw?.split(",") ?? [])).flatMap((entry) => entry.split(","));
+
 function parseSelection<T extends string>(
-  raw: string | undefined,
+  raw: string | string[] | undefined,
   schema: { safeParse: (value: unknown) => { success: boolean; data?: T } },
 ): FilterSelection<T> {
-  if (!raw) return ANY;
-
   const values = [
     ...new Set(
-      raw
-        .split(",")
+      tokensOf(raw)
         .map((token) => schema.safeParse(token))
         .filter((result): result is { success: true; data: T } => result.success)
         .map((result) => result.data),
@@ -87,13 +100,10 @@ function parseSelection<T extends string>(
  */
 export function parseGalleryQuery(searchParams: SearchParams): GalleryQuery {
   const filters = canonicalizeFilters({
-    cities: parseSelection<CityId>(firstValue(searchParams[CITY_PARAM]), CityIdSchema),
-    species: parseSelection<AnimalSpecies>(
-      firstValue(searchParams[SPECIES_PARAM]),
-      AnimalSpeciesSchema,
-    ),
-    sizes: parseSelection<SizeBucket>(firstValue(searchParams[SIZE_PARAM]), SizeBucketSchema),
-    ages: parseSelection<AgeBucket>(firstValue(searchParams[AGE_PARAM]), AgeBucketSchema),
+    cities: parseSelection<CityId>(searchParams[CITY_PARAM], CityIdSchema),
+    species: parseSelection<AnimalSpecies>(searchParams[SPECIES_PARAM], AnimalSpeciesSchema),
+    sizes: parseSelection<SizeBucket>(searchParams[SIZE_PARAM], SizeBucketSchema),
+    ages: parseSelection<AgeBucket>(searchParams[AGE_PARAM], AgeBucketSchema),
   });
 
   const sortResult = GallerySortSchema.safeParse(firstValue(searchParams[SORT_PARAM]));

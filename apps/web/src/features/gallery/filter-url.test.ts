@@ -64,10 +64,24 @@ describe("parseGalleryQuery", () => {
     expect(parseGalleryQuery({ stor: "4" }).page).toBe(4);
   });
 
-  it("takes the first value when Next hands back an array (repeated query key)", () => {
-    expect(parseGalleryQuery({ vyd: ["dog", "cat"] }).filters.species).toEqual({
+  it("keeps every value from a repeated query key, not just the first", () => {
+    // A native <form method="GET"> submitting two checked boxes named the
+    // same thing produces exactly this shape (?rozmir=small&rozmir=medium)
+    // — the real submission FilterSheet relies on, not a synthetic case.
+    // Two of three sizes, deliberately not all of them: with all three the
+    // result collapses to "any" regardless of whether this bug is present,
+    // which would make the assertion pass for the wrong reason.
+    // canonicalizeFilters sorts values, so "medium" < "small" alphabetically.
+    expect(parseGalleryQuery({ rozmir: ["small", "medium"] }).filters.sizes).toEqual({
       kind: "oneOf",
-      values: ["dog"],
+      values: ["medium", "small"],
+    });
+  });
+
+  it("keeps every repeated city — cities have no universe to collapse into, so this also covers the no-collapse path", () => {
+    expect(parseGalleryQuery({ misto: [CITY_A, CITY_B] }).filters.cities).toEqual({
+      kind: "oneOf",
+      values: [CITY_A, CITY_B],
     });
   });
 });
