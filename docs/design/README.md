@@ -446,12 +446,15 @@ button works, and it degrades to a plain list without JS. Footnote in the UI: "�
   міста" — see the note under "07 · Ви подивилися всіх" above; same reasoning applies here.)
 - **Error (whole list)** — "Список не відкрився." / "Це не ваша помилка і не помилка притулку.
   Фільтри збережені — адреса сторінки не змінилася." / "Спробувати ще раз".
-- **Out-of-range page** — not yet specified. `?stor=N` past the last real page is a stale
-  shared link, not an error: decided to serve the last valid page, 200, with a plain
-  non-alarming note that the page moved and nothing was hidden — same tonal contract as
-  "Error (next page)" below. The copy itself is an open Phase E4 task; write it here
-  before that state ships. Decision and reasoning: `docs/gallery-contract-decisions.md`
-  §3.
+- **Out-of-range page** — `?stor=N` past the last real page is a stale shared link, not
+  an error: served as 200, the last valid page, real cards rendering underneath. Not a
+  full-screen replacement state — a note above the grid, `#FBF7F0` on `#F4ECDF`, radius
+  12, padding `16 20`, same non-alarming register as the pagination footnote above it:
+  "Сторінки 7 більше немає." / "Список став коротшим — комусь із тварин уже знайшли дім.
+  Показуємо останню, 4." Both numbers are computed per request (the page that was asked
+  for, the actual last page) — never static copy, same rule as the relaxation-count
+  suggestions above. No action — the person is already looking at the page they landed
+  on. Decision and reasoning: `docs/gallery-contract-decisions.md` §3.
 - **Error (next page)** — "Сторінка 2 не прийшла." / "Ті, кого вже видно, залишаються на місці. Ми
   нічого не приховали." / "Завантажити сторінку 2". A grid error never removes already-visible
   cards, and is never red.

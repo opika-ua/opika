@@ -304,12 +304,14 @@ Mechanically: this needs a second, cheap query only in the out-of-range case (th
 in-range path stays the single-query shape above) — fetch `totalMatching` alone when the
 first attempt returns zero rows, compute `totalPages`, and re-run bounded to it.
 
-**The exact copy is not decided here and is not written here.** The design has a proven
-pattern for this tone but no string yet for this specific state — inventing Ukrainian UI
-copy in an engineering document is how a string nobody approved ends up in the product,
-which is exactly what this document refused to do for §4's relaxation-count copy too.
-This is an explicit Phase E4 task: author the copy in `docs/design/README.md` itself,
-modeled on the "Error (next page)" pattern above, before the out-of-range state ships.
+**The copy is written, but in `docs/design/README.md`'s "Gallery states," not here** —
+inventing Ukrainian UI copy in an engineering document is how a string nobody approved
+ends up in the product, which is exactly what this document refused to do, and exactly
+why it was left as an open Phase E4 task until it had an owner-approved home. Final copy
+(2026-08-07): "Сторінки 7 більше немає." / "Список став коротшим — комусь із тварин уже
+знайшли дім. Показуємо останню, 4." — both numbers computed per request, not static.
+Placed as a note above the grid, not a full-screen state, since real cards render
+underneath it.
 
 ### Distinct-shelter count: a genuinely different aggregate, still same handler
 
@@ -492,9 +494,8 @@ repositories now build the same WHERE clause.
    remains a proposal in the sense CLAUDE.md's decision #6 uses that word — reviewable,
    not permanent — but is not open going into Phase E.
 4. Out-of-range gallery pages (§3) — clamp server-side to the last valid page, 200, a
-   plain non-alarming note, not a redirect and not an error. The exact Ukrainian copy is
-   an explicit Phase E4 task, modeled on the existing "Error (next page)" tonal pattern —
-   not written here.
+   plain non-alarming note, not a redirect and not an error. Copy written and placed in
+   `docs/design/README.md`'s "Gallery states."
 5. The second, filtered `wait_anchor_at` index (§2) — built. Waiving the M2 "no sort" bar
    for one ordering, to save one index, sets a worse precedent than the write
    amplification costs.

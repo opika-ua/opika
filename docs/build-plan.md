@@ -122,7 +122,7 @@ anymore, it's an *implementation-order* one.
 | E1 | Gallery grid over `gallery.list` — responsive columns (1/2/3/4 per the design's breakpoint table), `AnimalCard`, freshness marker reused from the deck | 10 |
 | E2 | Filters as a visible rail (≥1024) / the existing sheet (<1024), extended with sort. Filter and sort state in the URL — shareable, back-button-correct | 6 |
 | E3 | Numbered pagination — `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram) | 4 |
-| E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, non-alarming note — copy not yet written, author it in `docs/design/README.md` as part of this task) states — both form factors | 4 |
+| E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, non-alarming note, copy in `docs/design/README.md`) states — both form factors | 4 |
 
 **Total: ~36 h.**
 
@@ -139,7 +139,7 @@ restated so the answer isn't re-litigated mid-implementation):
 - The 2,000-row OFFSET boundary (§1) — kept at 2,000; confirm it hasn't already been
   reached by the time this phase starts (it won't have been; the check costs one query).
 - Out-of-range gallery page (§3) — clamp to the last valid page server-side, 200, not an
-  error, not a redirect. Copy is an open E4 task, not decided here.
+  error, not a redirect. Copy written, in `docs/design/README.md`.
 - The second, filtered `wait_anchor_at` index (§2) — build it, E0. No `Sort`-node
   exemption.
 
