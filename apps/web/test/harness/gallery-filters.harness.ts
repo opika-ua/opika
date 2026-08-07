@@ -25,9 +25,14 @@ import { DESKTOP, PHONE } from "./viewports";
  * JS-disabled tests) need the header passed explicitly — `test.use()`
  * only configures the implicit `context`/`page` fixtures, not a context a
  * test creates itself via `browser.newContext()`.
+ *
+ * TEST-NET-2 (198.51.100.0/24), deliberately not the TEST-NET-3 block
+ * `gallery-rate-limit.harness.ts` draws a random host from each run — see
+ * `gallery-arrow-nav.harness.ts` for why a fixed address inside that block
+ * would be a 1-in-254 collision per run rather than no collision at all.
  */
-test.use({ extraHTTPHeaders: { "x-forwarded-for": "203.0.113.22" } });
-const SPOOFED_IP_HEADERS = { "x-forwarded-for": "203.0.113.22" };
+const SPOOFED_IP_HEADERS = { "x-forwarded-for": "198.51.100.22" };
+test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
 const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
