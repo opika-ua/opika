@@ -79,8 +79,21 @@ export async function renderGallery(
           />
         </div>
 
-        {/* 280 (rail) + 32 (rail-grid gap) + 960/1320 (grid's own content width) = 1272/1632. */}
-        <div className="desktop:flex desktop:gap-8 desktop:items-start desktop:max-w-[1272px] wide:max-w-[1632px] desktop:mx-auto">
+        {/*
+          No max-width on this row itself — it's implicitly bounded by its
+          children's own constraints (rail: fixed 280px; grid: max-width
+          960/1320) regardless of viewport, so an explicit outer cap would
+          only ever be redundant or, below the point every child's stated
+          size actually fits (1392px/1752px after padding — see
+          docs/design/README.md's note under "Breakpoints & Surfaces"),
+          actively wrong: it doesn't change how much room the grid gets,
+          but it looks like it should. The grid's own max-width is what
+          makes 960/1320 a ceiling the fluid case below it approaches
+          rather than a constant every viewport must hit exactly — E1's
+          own harness assumed the latter, correctly, before the rail
+          existed and there was nothing else in "content" to divide.
+        */}
+        <div className="desktop:flex desktop:gap-8 desktop:items-start">
           <ReplaceNav>
             <FilterRail filters={filters} sort={sort} cities={cityList} />
           </ReplaceNav>

@@ -33,6 +33,31 @@ export const GALLERY_TABLET: Viewport = { name: "768x1024 tablet", width: 768, h
 export const GALLERY_WIDE: Viewport = { name: "1600x900 wide desktop", width: 1600, height: 900 };
 
 /**
+ * E2 added a fixed 280px rail + 32px gap beside the grid, which the grid's
+ * own 960/1320 max-width numbers don't account for — see
+ * docs/design/README.md's "Breakpoints & Surfaces" note. Below
+ * viewport - 120 (page padding) - 280 - 32, the grid is genuinely, fluidly
+ * narrower than 960/1320, which is what `DESKTOP` and `GALLERY_WIDE`
+ * measure. These two exist to prove the OTHER half of "ceiling, not
+ * constant" — that 960/1320 are real numbers the grid actually reaches
+ * once there's enough room, not just a cap that never binds:
+ * `GALLERY_DESKTOP_ROOMY` (1400) clears 1392 (960 + 312 + 120) while
+ * staying under 1440, so it's still the 3-column desktop bracket, not
+ * `GALLERY_WIDE`'s 4-column one; `GALLERY_WIDE_ROOMY` (1800) clears 1752
+ * (1320 + 312 + 120) the same way for the wide bracket.
+ */
+export const GALLERY_DESKTOP_ROOMY: Viewport = {
+  name: "1400x800 roomy desktop",
+  width: 1400,
+  height: 800,
+};
+export const GALLERY_WIDE_ROOMY: Viewport = {
+  name: "1800x900 roomy wide",
+  width: 1800,
+  height: 900,
+};
+
+/**
  * A short phone — an iPhone SE is 375x667, and a browser with its address bar
  * showing is shorter still. Used to prove the card gives up photo height
  * rather than clipping the shelter's words.
