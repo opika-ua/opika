@@ -203,6 +203,22 @@ It is decided here, in writing, per `docs/standing-constraints.md` and
 before it's built — but it is not built in this document; it lands as an explicit Phase
 E0 task (`docs/build-plan.md`).
 
+> **Known honesty caveat (Phase E0, as built).** The backfill for rows that were
+> already `reserved` before this migration ran anchors `wait_anchor_at` to
+> `created_at`, not to a recovered `publishedAt` — no original publication date
+> was ever recorded for those rows anywhere, so there is nothing to restore, only
+> a proxy to choose. `created_at` is a *lower bound* on when the animal was
+> actually published (a listing is published at or after its row is created),
+> which means the backfilled anchor for those specific rows can slightly
+> **overstate** how long the animal has genuinely been waiting. This was the
+> deliberate direction to err in — never understating a wait is the safer
+> mistake for a sort named "longest waiting" — but it means «найдовше чекає»
+> is, for a handful of pre-E0 reserved animals, a claim the platform is making
+> on data it partially reconstructed rather than data the shelter gave it. Not
+> fixable without information that doesn't exist. Every row published or
+> reserved *after* this migration lands gets a real `publishedAt`, so the gap
+> is bounded to the pre-E0 corpus and does not grow.
+
 ### One index is not enough — the unfiltered case only
 
 `animals_wait_anchor_idx` above is the mirror of `animals_feed_unfiltered_idx`: it serves
@@ -502,6 +518,35 @@ stating so it isn't forgotten when Phase E actually wires the handlers: a `galle
 namespace added to the router but built on the plain `os` builder, not through `impl`,
 would be exactly the bypass that test exists to catch — and would catch it, as long as
 the new procedures are added to `contract` in the same commit as the router wiring.
+
+### Rate limiting — inherited today, a real gap once this mechanism is actually used
+
+As of Phase E0, `gallery.list` and `gallery.relaxationCounts` are only reachable over the
+HTTP route (`apps/web/src/app/api/rpc/[...rpc]/route.ts`), because nothing calls this
+section's in-process mechanism for them yet — `serverComponentRouter`
+(`apps/web/src/api/server-client.ts`) deliberately doesn't include them until a Server
+Component actually needs to. Over that HTTP path they inherit the same generic,
+cost-agnostic per-IP limiter (`apiRateLimiter`, 100 requests/minute, `apps/web/src/api/
+rate-limit.ts`) every other procedure gets — not unlimited, no special exception carved
+out. `relaxationCounts`'s `COUNT(*) FILTER` scan is cheap enough at today's 2,000-row
+ceiling that 100/min from one IP isn't a real concern (the same "negligible at this
+table's size" reasoning §3 and §4 already give `COUNT(*) OVER()` and the relaxation
+scan individually).
+
+**The gap this section's own mechanism opens, once it's actually used:** this document's
+whole point is that a Server Component calls the router *in-process* — no HTTP request,
+no IP header, no code path through `route.ts` at all. `apiRateLimiter` lives specifically
+in the HTTP route handler; it does not run for an in-process call. The moment Phase E1
+wires `gallery.list`/`gallery.relaxationCounts` into `serverComponentRouter` so the actual
+gallery page can render server-side, **every render of that page calls these procedures
+through a path with no rate limiting whatsoever** — and a page URL is a far more natural
+target for a scraper or a hostile crawler to hammer than the raw `/api/rpc/gallery.list`
+endpoint this section's limiter still covers. This is not E0's gap to close (nothing wires
+the unprotected path yet), but it is a real one, and it becomes live the instant E1 does
+what this section describes. E1's own plan needs to name how the page-render path gets
+protected — Next.js middleware keyed on the request IP before the Server Component even
+runs is the natural fit, since `apiRateLimiter`'s existing shape (a `RateLimiter` interface
+over an in-memory sliding window) could be reused for it directly — not left implicit.
 
 ---
 

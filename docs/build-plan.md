@@ -141,7 +141,7 @@ anymore, it's an *implementation-order* one.
 | E1 | Gallery grid over `gallery.list` — responsive columns (1/2/3/4 per the design's breakpoint table), `AnimalCard`, freshness marker reused from the deck | 10 |
 | E2 | Filters as a visible rail (≥1024) / the existing sheet (<1024), extended with sort. Filter and sort state in the URL — shareable, back-button-correct | 6 |
 | E3 | Numbered pagination — `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram) | 4 |
-| E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, non-alarming note, copy in `docs/design/README.md`) states — both form factors | 4 |
+| E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, **the note must actually render** — see the phase's own done-when below, not just the copy existing) states — both form factors | 4 |
 | E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. `sessionStorage`-persisted last mode, entry ("Гортати по одній") and exit ("До списку" / Esc, returning to the same scroll position per `docs/design/README.md` "Gallery ↔ Deck") | 3 |
 
 **Total: ~39 h.**
@@ -150,6 +150,16 @@ anymore, it's an *implementation-order* one.
 filters and sorts on both, shares a URL that reproduces exactly what they saw, and the
 no-match state's suggestions carry real numbers computed by `gallery.relaxationCounts`,
 not placeholders.
+
+**One case in that "reproduces exactly" claim needs its own check, not just its own
+copy.** E0's out-of-range clamp (`docs/gallery-contract-decisions.md` §3, "Rate limiting"
+neighbour note aside) means a stale `?stor=50` against a shrunk corpus now serves page 10
+with a 200 — correctly, per the decided behaviour, but a URL that no longer shows what it
+once did **without saying so** is exactly the silent-divergence failure this same "done
+when" line exists to rule out for every other case. E4 is done only when that note
+actually renders on the clamped page — verified by loading a URL past the true last page
+and seeing it, not by the copy existing in `docs/design/README.md` and being assumed
+wired in.
 
 **Decisions this phase implements, already settled** (`docs/gallery-contract-decisions.md`,
 restated so the answer isn't re-litigated mid-implementation):
