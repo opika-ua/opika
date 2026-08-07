@@ -297,6 +297,15 @@ live in a checklist rather than in a schema:
   same kind of value pointing at shelter registration paperwork.
 - **Store `age_anchor_at`** (from `ageAnchorOf`) as the indexed column and
   filter with `ageAnchorRange`, rather than storing the age union.
+- **Store `wait_anchor_at`** (from `waitAnchorOf`) as the indexed column,
+  nullable, the same pattern as `age_anchor_at` above. Never sort "longest
+  waiting" on `last_updated_at` (edit time, not availability time) or on
+  `reserved.since` (reservation start, not original publish — `reserved`
+  carries `publishedAt` forward precisely so the two don't collide). Two
+  partial indexes, not one — `animals_wait_anchor_idx` (unfiltered) and
+  `animals_wait_anchor_filtered_idx` (filtered) — see
+  `docs/gallery-contract-decisions.md` §2 for why one index can't serve
+  both cases.
 - **`city_id` on animals** is the city the animal is discoverable in.
   For animals at their shelter it mirrors the shelter's city
   (denormalised); for fostered animals it is the foster city — a

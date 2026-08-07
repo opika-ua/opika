@@ -47,6 +47,20 @@ export const animals = pgTable(
      */
     ageAnchorAt: timestamp("age_anchor_at", { withTimezone: true }).notNull(),
 
+    /**
+     * Derived from `waitAnchorOf(listing)` at write time — when the animal
+     * became available, which is what a "longest waiting" ordering sorts on.
+     *
+     * Nullable, unlike `age_anchor_at`, because the derivation is: a draft,
+     * adopted or withdrawn animal is not waiting for anyone. Both indexes
+     * below are partial on the discoverable kinds, so those nulls are never
+     * scanned rather than merely sorted last.
+     *
+     * Not `last_updated_at`, which is edit time — a shelter fixing a typo
+     * would make a four-month wait read as freshly available.
+     */
+    waitAnchorAt: timestamp("wait_anchor_at", { withTimezone: true }),
+
     descriptionUk: text("description_uk").notNull(),
     descriptionEnText: text("description_en_text"),
     descriptionEnProvenance: text("description_en_provenance", {
@@ -117,6 +131,34 @@ export const animals = pgTable(
      */
     index("animals_feed_unfiltered_idx")
       .on(t.lastUpdatedAt.desc().nullsFirst(), t.id.asc())
+      .where(sql`listing_kind IN ('published', 'reserved')`),
+
+    /**
+     * The mirror of `animals_feed_unfiltered_idx` for the longest-waiting
+     * ordering: unfiltered, ascending (oldest anchor first), partial on the
+     * discoverable kinds so the nulls this column carries for drafts and
+     * adopted animals never enter it.
+     */
+    index("animals_wait_anchor_idx")
+      .on(t.waitAnchorAt.asc().nullsLast(), t.id.asc())
+      .where(sql`listing_kind IN ('published', 'reserved')`),
+
+    /**
+     * The mirror of `animals_feed_idx`: equality columns first, then the
+     * ordering tuple, for a longest-waiting query that also filters.
+     *
+     * `listing_kind` deliberately does *not* lead here, unlike in
+     * `animals_feed_idx`. The partial predicate already restricts the index to
+     * the two discoverable kinds, so repeating it as a leading column would
+     * only put a two-element `IN` in front of `city_id` — and a btree scan
+     * whose leading column is matched by `= ANY(...)` rather than a single
+     * value returns rows grouped per array element, not in index order, which
+     * makes the planner add the `Sort` node this index exists to remove.
+     * `packages/db/test/wait-anchor-explain.test.ts` asserts the absence of
+     * that node for both filtered and unfiltered wait-anchor queries.
+     */
+    index("animals_wait_anchor_filtered_idx")
+      .on(t.cityId, t.species, t.size, t.waitAnchorAt.asc().nullsLast(), t.id.asc())
       .where(sql`listing_kind IN ('published', 'reserved')`),
   ],
 );

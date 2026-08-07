@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import { CityIdSchema } from "../primitives/ids";
 import {
   canonicalizeFilters,
+  FEED_FILTER_DIMENSIONS,
   type FeedFilters,
   FeedFiltersSchema,
   filtersFingerprint,
+  isConstrained,
   isUnfiltered,
   matchesSelection,
   NO_FILTERS,
+  relaxDimension,
 } from "./feed-filters";
 
 const KHARKIV = CityIdSchema.parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
@@ -141,5 +144,42 @@ describe("filtersFingerprint", () => {
     const bySize: FeedFilters = { ...NO_FILTERS, sizes: { kind: "oneOf", values: ["small"] } };
     const byAge: FeedFilters = { ...NO_FILTERS, ages: { kind: "oneOf", values: ["baby"] } };
     expect(filtersFingerprint(bySize)).not.toBe(filtersFingerprint(byAge));
+  });
+});
+
+describe("filter dimensions", () => {
+  it("names every dimension the filter schema actually has", () => {
+    // Derived from the schema, so a fifth filter cannot be added while the
+    // relaxation suggestions keep covering only four.
+    expect([...FEED_FILTER_DIMENSIONS].sort()).toEqual(Object.keys(NO_FILTERS).sort());
+  });
+
+  it("reports which dimensions are constrained", () => {
+    const dogs: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
+
+    expect(isConstrained(dogs, "species")).toBe(true);
+    expect(isConstrained(dogs, "sizes")).toBe(false);
+  });
+
+  it("relaxes exactly one dimension and leaves the rest alone", () => {
+    const narrow: FeedFilters = {
+      cities: { kind: "oneOf", values: [KHARKIV] },
+      species: { kind: "oneOf", values: ["dog"] },
+      sizes: { kind: "oneOf", values: ["small"] },
+      ages: { kind: "oneOf", values: ["baby"] },
+    };
+
+    const relaxed = relaxDimension(narrow, "sizes");
+
+    expect(relaxed.sizes).toEqual({ kind: "any" });
+    expect(relaxed.cities).toEqual(narrow.cities);
+    expect(relaxed.species).toEqual(narrow.species);
+    expect(relaxed.ages).toEqual(narrow.ages);
+  });
+
+  it("does not mutate the filters it relaxes", () => {
+    const dogs: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
+    relaxDimension(dogs, "species");
+    expect(dogs.species).toEqual({ kind: "oneOf", values: ["dog"] });
   });
 });

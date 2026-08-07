@@ -48,6 +48,35 @@ export const NO_FILTERS: FeedFilters = {
   ages: { kind: "any" },
 };
 
+/**
+ * The dimensions a filter set constrains, as data rather than as four
+ * hand-written string literals.
+ *
+ * `FeedFiltersSchema.keyof()` derives this from the schema itself, so adding a
+ * fifth dimension cannot leave a relaxation suggestion, a URL parameter or a
+ * count query silently covering only the original four.
+ */
+export const FeedFilterDimensionSchema = FeedFiltersSchema.keyof();
+export type FeedFilterDimension = z.infer<typeof FeedFilterDimensionSchema>;
+
+export const FEED_FILTER_DIMENSIONS = FeedFilterDimensionSchema.options;
+
+export const isConstrained = (filters: FeedFilters, dimension: FeedFilterDimension): boolean =>
+  filters[dimension].kind !== "any";
+
+/**
+ * The same filter set with one dimension dropped.
+ *
+ * Exists so "how many more animals would you see if you stopped filtering by
+ * size" is answered by the *same* predicate builder the real query uses, over a
+ * relaxed filter set — rather than by a second, parallel predicate builder that
+ * omits one clause and can drift from the first.
+ */
+export const relaxDimension = (
+  filters: FeedFilters,
+  dimension: FeedFilterDimension,
+): FeedFilters => ({ ...filters, [dimension]: ANY });
+
 export const matchesSelection = <T>(selection: FilterSelection<T>, value: T): boolean =>
   selection.kind === "any" || selection.values.includes(value);
 

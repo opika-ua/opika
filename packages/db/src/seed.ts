@@ -981,7 +981,18 @@ function buildAnimals(
       const roll = i % 20;
       if (roll < 14)
         return { kind: "published" as const, publishedAt: daysAgo(lastUpdatedDaysAgo(i, count)) };
-      if (roll < 16) return { kind: "reserved" as const, since: daysAgo(3) };
+      if (roll < 16)
+        return {
+          kind: "reserved" as const,
+          since: daysAgo(3),
+          // Staggered by the same distribution as `createdAt` below, not a
+          // constant. A constant would give every reserved animal an identical
+          // wait anchor, recreating in fresh seed data exactly the flat
+          // "longest waiting" ordering the wait_anchor_at backfill exists to
+          // remove from the old data — and it would look plausible, because
+          // the rows would still sort.
+          publishedAt: daysAgo(lastUpdatedDaysAgo(i, count) + 7),
+        };
       if (roll < 18) return { kind: "draft" as const };
       if (roll < 19) return { kind: "adopted" as const, adoptedAt: daysAgo(7) };
       return {
