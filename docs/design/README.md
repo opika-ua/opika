@@ -1,8 +1,9 @@
 # Handoff: Opika — Keeper's Voice (direction 1b)
 
 ## Overview
-Opika is a mobile animal-adoption app for the Kyiv region (Київщина). Users swipe through
-animals from manually verified shelters and, when interested, reveal the shelter's contact
+Opika is a mobile animal-adoption app for the Kyiv region (Київщина). Users browse
+animals from manually verified shelters in a responsive gallery — the primary, indexed surface —
+or enter a one-at-a-time swipe deck from it and, when interested, reveal the shelter's contact
 details and write to the shelter themselves. Opika never brokers the conversation, takes no
 money, and requires no account.
 
@@ -20,7 +21,9 @@ Two rules run through everything:
 ## About the Design Files
 The files in this bundle are **design references created in HTML** — prototypes showing intended
 look and behaviour, not production code to copy directly. `Opika - Keeper's Voice.dc.html` is a
-flat canvas showing eight phone screens side by side plus the system documentation cards; it is
+flat canvas: the gallery work sits in the **upper section (badge 2A)** — gallery at 1440/768/360,
+its loading, no-match and error states, the desktop detail and the contact-reveal modal, and the
+rule cards — and the original eight phone screens plus the system documentation cards sit below it; it is
 not an app shell and has no routing or interaction wired up.
 
 The task is to **recreate these designs in the target codebase's own environment** (React Native,
@@ -355,8 +358,161 @@ are monogram circles from initials — no logo files required.
 Fonts: Literata, Commissioner, IBM Plex Mono — all Google Fonts, all with full Cyrillic coverage.
 Use the codebase's existing font-loading mechanism.
 
+## Breakpoints & Surfaces
+
+The system was originally phone-only. The **gallery is now the primary surface** — it is what
+search engines index, what gets pasted into Telegram groups, and what a grant reviewer or shelter
+director opens on a laptop. The swipe deck is a **mode entered from the gallery**, not the front
+door.
+
+| Range | Gallery layout |
+|---|---|
+| 0–599 | 1 column, vertical card · filters in the existing sheet (03) · sticky bottom bar "Фільтри / Гортати" |
+| 600–1023 | 2 columns, **horizontal** card (120px photo left, text right) · filters in the sheet · both buttons in the header |
+| 1024–1439 | 3 columns · 280px filter rail always open · content 960 |
+| 1440+ | 4 columns · 280px rail · content **max 1320**, does not stretch further |
+
+**The gallery is the default at every width, phone included.** A 5-column layout is deliberately
+skipped: below ~210px a card can't hold "оновлено N днів тому" on one line, and that line does not
+wrap.
+
+Shell: header `#FBF7F0` with a 1px `#E8DECB` bottom border, `min-height: 68` desktop / `64`
+tablet / `56` phone; page background `#F4ECDF`; grid gap `24` desktop, `16` tablet/phone;
+rail↔grid gap `32`; page padding `40 60 56` desktop, `24` tablet, `16` phone.
+
+## The Gallery
+
+### Card
+One `<a>` per animal — **no nested buttons**, so Tab stops once per animal. Paper `#FBF7F0`,
+1px `#E0D4BF`, radius 20, padding 12, inner `gap: 12`; text block `gap: 8`, padding `0 4 4`.
+- Photo 4:5, radius 12, hatch placeholder.
+- Name — Literata 500, `19/1.2` desktop, `18` tablet, `20` phone; one line, ellipsis.
+- Meta — Commissioner 400 12/1.4 `#6E5C44`: age · size · housing + city.
+- **Freshness**: the three pips (7px, `gap: 4`) + "оновлено N днів тому" at 12/1.4 `#4A3D2C`,
+  `gap: 8`. Same thresholds and colours as everywhere else.
+- Shelter — 11/1.3 `#6E5C44`, with "перевірений" in `#4F6B3A`.
+- Reserved: the `#E3D6C0` "Уже домовляються" pill sits bottom-left **inside the photo**, 8px inset
+  (6px on the tablet card, labelled "Домовляються").
+
+**The shelter's sentence is NOT on gallery cards.** Pips + the day count in words always are. The
+sentence needs 3–4 lines to read as speech rather than a status string, so it stays on the detail
+page with its «дата автоматична» attribution. No freshness information is behind hover.
+
+### Hover / focus
+- Hover: border `#E0D4BF → #C9BCA2` and the name underlines (`text-underline-offset: 3px`), 160ms.
+  **No lift, no shadow** — the system still has exactly two elevation steps.
+- Focus-visible: `outline: 2px solid #4F6B3A; outline-offset: 2px` on the whole card. Never removed.
+- **Nothing appears on hover.** Pips, days, shelter, reserved badge are always rendered — hover
+  doesn't exist on a phone.
+
+### Rail, count, sort
+Rail is the 03 filter groups (МІСТО / ВИД / РОЗМІР / ВІК) in a paper card, radius 20, padding 16,
+`gap: 24`, with "Скинути" top-right and no "Показати" button — changes apply immediately and write
+to the URL. Below 1024 it collapses into the **existing 03 sheet**, extended with sort.
+
+Above the grid: "Знайдено 34 тварини у 7 притулках" left; a sort control right (44px, radius 12) —
+**Спочатку найсвіжіші картки** (default) or **Найдовше чекають**. Both show everyone.
+
+The rail closes with: "Немає фільтра «тільки свіжі картки». Тварина, про яку давно не писали, все
+одно чекає."
+
+### Pagination — not infinite scroll
+24 per page, numbered pages with prev/next, all targets 44px, active page leaf-filled. Chosen
+because this is the shareable indexed surface: every page has its own address (`?stor=2`), the back
+button works, and it degrades to a plain list without JS. Footnote in the UI: "Сторінки, а не
+безкінечна стрічка: у кожної сторінки своя адреса, кнопка «назад» працює, і посилання можна
+надіслати в Telegram."
+
+### Gallery states
+- **Loading** — skeleton cards, count equal to the page size so height doesn't jump. Photo block
+  `#EFE6D6`, text bars `#F1EADE`/`#EFE6D6`, radius 4. **No shimmer and no pulse** — an opacity
+  pulse would read as a data state. Grid gets `aria-busy="true"`; an `aria-live="polite"` region
+  says "Завантажуємо тварин".
+- **No match** — paper card, padding `40 24`, `gap: 24`: "Під ці фільтри зараз нікого немає." /
+  "У Броварах 7 притулків, і сьогодні серед середніх собак вільних немає. Це не помилка пошуку."
+  Then two 52px actions that **name their yield**: "Прибрати «розмір» (+11 тварин)" (leaf) and
+  "Додати сусідні міста (+34)". No suggestion without a number.
+- **Error (whole list)** — "Список не відкрився." / "Це не ваша помилка і не помилка притулку.
+  Фільтри збережені — адреса сторінки не змінилася." / "Спробувати ще раз".
+- **Error (next page)** — "Сторінка 2 не прийшла." / "Ті, кого вже видно, залишаються на місці. Ми
+  нічого не приховали." / "Завантажити сторінку 2". A grid error never removes already-visible
+  cards, and is never red.
+- **Exhausted (07)** belongs to the **deck, not the gallery** — the gallery has pages, not an end.
+  Its buttons lead back into the gallery.
+
+### Keyboard
+| Key | Behaviour |
+|---|---|
+| Tab | header → rail → sort → cards in reading order → pagination |
+| ← ↑ → ↓ | 2D movement across the grid while focus is inside it; edges do not wrap |
+| Home / End | first / last card on the page |
+| Enter | open the animal · Backspace returns to the grid at the same card |
+| Esc | close the filter sheet, the contact modal, or leave the deck |
+| In the deck | ← не зараз · → написати · ↓ далі · Esc до списку |
+
+Screen readers get name, age, city, then the sentence "оновлено 41 день тому" via `aria-label`;
+the pips are `aria-hidden`.
+
+### Deliberately absent
+No map with pins — the grid never becomes a map, and a fostered animal gets no point even at 1440
+where there is room. No freshness filter and no "verified first" sort. No view counts, no "5 people
+are looking", no urgency. No phantom tiles — 3 results render 3 cards, the last row is not padded.
+No infinite scroll as the only path.
+
+## Desktop Breakpoints for the Eight Screens
+
+### 04 Detail — 1440
+Content max 1200, padding `40 60 56`, two columns with `gap: 40`.
+- Left, 560 fixed and **sticky** on scroll: main photo 4:5 radius 20, then three 88px thumbnails
+  (radius 8, active one `outline: 2px #2A2118, offset 2`).
+- Right, fluid and scrolling: name Literata 500 `34/1.15`; meta; **freshness block** (`#F4ECDF`,
+  radius 12, padding 16 — pips + "Оновлено 41 день тому", sentence at Literata 400 17/1.55,
+  attribution 11px); then the action pair; then a nested two-column row — **Медичний стан** (with
+  the 4×16 source bars and the document pills) fluid, **Де живе** 260 fixed; hairline; shelter row
+  with the 36px monogram and the `dobro.ua ↗` donate button.
+- **The sticky footer disappears on desktop**: the action pair moves up under the freshness block
+  so the shelter's words are read before the button. "Не зараз" is padding-sized, "Написати
+  притулку" takes `flex: 1`.
+- 1024–1439: same grid, photo 480, "Де живе" moves below "Медичний стан".
+- Fostered animals still render the `#EFE6D6` place-name block and **no map**.
+
+### 05 Contact reveal — desktop modal
+A 640-wide dialog over the detail page (backdrop `#EDE3D2`), paper, radius 20, `lg` shadow,
+padding 24, `gap: 24`. Title block left with a 44px ✕ right; then contacts (`#F4ECDF`, radius 12)
+and the three-things card (outlined) **side by side**, `gap: 16`; then "Написати в Telegram"
+(leaf, `flex: 1`) + "Повернутися до галереї" (text, underlined).
+Modal, not a page, so the animal's URL stays in the address bar and remains shareable. Focus moves
+to the heading and is trapped; Esc closes; the page behind does not scroll. Below 768 it is the
+existing full screen 05 with the two cards stacked.
+
+### The other six
+- **01 First run** — becomes the first visit to the gallery, not a separate screen: the promise and
+  city choice sit in a 760-wide centred band above the grid and disappear once a city is chosen.
+  Nothing blocks browsing.
+- **02 Deck** — stays 390–420 centred on `#F4ECDF`; keyboard hints sit left and right, not extra
+  cards. Mouse drag works but is never required — the three buttons and arrow keys do the same.
+- **03 Filters** — the rail from 1024 up, always open, no "Показати" button; the existing sheet
+  below that, plus sort.
+- **06 My reveals** — single 720 centred column, same rows. "Зберігається лише на цьому пристрої"
+  moves directly under the title — it matters more on a shared laptop.
+- **07 Exhausted** — a 560 centred card in the deck's place.
+- **08 Errors** — one card in the place of the content that failed, max 560, never full-screen; the
+  header and rail stay usable.
+
+## Gallery ↔ Deck
+- **Entry**: "Гортати по одній" in the desktop header / the sticky bar on mobile. The deck inherits
+  the current filters and sort — exactly those 34 animals, in that order.
+- **URLs**: `/tvaryny?misto=brovary&stor=1` is the gallery and is indexed.
+  `/tvaryny/gortaty` is the deck and is `noindex` — it's a viewing state, not a page.
+- **Exit**: "До списку" in the deck header, or Esc. The gallery reopens on the same page and scrolls
+  to the animal you stopped on, which receives the focus ring.
+- **"Не зараз" hides an animal for the rest of the deck session but NOT in the gallery** — the
+  gallery is the full record, and a mood filter must not thin it.
+- **Memory**: the last mode lives in `sessionStorage`, not permanently — a link shared into Telegram
+  always opens the gallery.
+
 ## Files
-- `Opika - Keeper's Voice.dc.html` — the eight screens plus the system cards (colour, type,
+- `Opika - Keeper's Voice.dc.html` — section 2A (gallery + desktop breakpoints) above, then the eight phone screens plus the system cards (colour, type,
   spacing, freshness, location, source, deck gesture, and the uk/en string table). Open in a
   browser; it is a wide canvas, so scroll horizontally.
 - `Opika Directions.dc.html` — the earlier three-way comparison (1a The Record, 1b Keeper's
