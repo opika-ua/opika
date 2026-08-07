@@ -94,3 +94,49 @@ test.describe("/tvaryny card shape by breakpoint", () => {
     });
   }
 });
+
+/**
+ * `docs/design/README.md`: "content 960" (1024-1439) / "content max 1320"
+ * (1440+) — a real defect nearly shipped here, and one `rectOf` on the grid
+ * container itself cannot see: Preflight is border-box, so `max-width` caps
+ * the container's own *border* box regardless of its padding — a
+ * `max-w-[960px]` element measures 960px via `getBoundingClientRect()`
+ * whether or not `px-15` is also on it, because padding shrinks the
+ * *content* box the grid tracks lay out in, not the border box Playwright
+ * reads. Measuring a full row's actual card span (leftmost card's left edge
+ * to rightmost card's right edge) is what actually reflects the content
+ * box, and is what would have caught max-width and padding sharing one
+ * element (that mistake measures ~120px short — 840/1200, not 960/1320).
+ */
+test.describe("/tvaryny content width", () => {
+  const CONTENT_WIDTH: ReadonlyArray<{ viewport: Viewport; columns: number; px: number }> = [
+    { viewport: DESKTOP, columns: 3, px: 960 },
+    { viewport: GALLERY_WIDE, columns: 4, px: 1320 },
+  ];
+
+  for (const { viewport, columns, px } of CONTENT_WIDTH) {
+    test(`a full row of cards spans ${px}px, not padding-shrunk, at ${viewport.name}`, async ({
+      page,
+    }) => {
+      await openRoute(page, ROUTE, viewport, { readySelector: CARD });
+      const firstRow = await Promise.all(
+        Array.from({ length: columns }, (_, i) =>
+          rectOf(page.locator(CARD).nth(i), `card ${i} of the first row`),
+        ),
+      );
+
+      const left = Math.min(...firstRow.map((r) => r.x));
+      const right = Math.max(...firstRow.map((r) => r.x + r.width));
+      const span = right - left;
+
+      expect(
+        Math.abs(span - px),
+        `the first row's ${columns} cards span ${span.toFixed(1)}px at ${viewport.name}, ` +
+          `expected ${px}. A ~120px shortfall (landing near ${px - 120}) means max-width and ` +
+          `padding are back on the same border-box element, eating each other's budget — ` +
+          `rectOf(gallery-grid) alone would not have caught this, since max-width still caps ` +
+          `that element's own border box at ${px} either way.`,
+      ).toBeLessThanOrEqual(2);
+    });
+  }
+});

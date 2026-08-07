@@ -44,18 +44,30 @@ export async function renderGallery(
         <span className="font-serif font-medium text-[19px] text-ink">Opika</span>
       </header>
 
-      <main
-        data-testid="gallery-grid"
-        className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 gap-4 desktop:gap-6 p-4 tablet:p-6 desktop:pt-10 desktop:px-15 desktop:pb-14 desktop:max-w-[960px] wide:max-w-[1320px]"
-      >
-        {page.items.map((item) => (
-          <AnimalCard
-            key={item.id}
-            card={item}
-            cityName={cityNames.get(cardCityId(item)) ?? null}
-          />
-        ))}
-      </main>
+      {/*
+        Padding and max-width deliberately live on different elements.
+        Preflight is border-box, so a max-width and a padding on the SAME
+        element share one budget — max-w-[960px] plus px-15 (60px a side)
+        would leave 840px of actual content, not the design's 960. This way
+        the outer div's padding sets the page-edge margin and <main>'s
+        max-width is the real content width, matching how the design states
+        them as two separate numbers ("page padding 40 60 56 desktop ...
+        content 960").
+      */}
+      <div className="p-4 tablet:p-6 desktop:pt-10 desktop:px-15 desktop:pb-14">
+        <main
+          data-testid="gallery-grid"
+          className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px]"
+        >
+          {page.items.map((item) => (
+            <AnimalCard
+              key={item.id}
+              card={item}
+              cityName={cityNames.get(cardCityId(item)) ?? null}
+            />
+          ))}
+        </main>
+      </div>
     </div>
   );
 }
