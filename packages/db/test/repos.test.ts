@@ -1,4 +1,5 @@
 import { DEFAULT_SEEN_SET_POLICY, type FeedFilters, NO_FILTERS } from "@opika/domain";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
@@ -7,6 +8,7 @@ import { feedRepo } from "../src/repos/feed-repo";
 import { revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { swipeRepo } from "../src/repos/swipe-repo";
+import { animals as animalsTable } from "../src/schema/animals";
 import {
   makeAdopter,
   makeAnimal,
@@ -203,6 +205,68 @@ describe("animalRepo", () => {
 
     const list = await animals.findByShelterId(shelter.id);
     expect(list).toHaveLength(2);
+  });
+
+  it("derives wait_anchor_at on every write, including an update that changes it", async () => {
+    const cities = cityRepo(db);
+    const shelters = shelterRepo(db);
+    const animals = animalRepo(db);
+
+    const city = makeCity();
+    await cities.insert(city);
+
+    const shelter = makeShelter({
+      publicLocation: {
+        cityId: city.id,
+        district: null,
+        precision: "fuzzed_address",
+        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
+      },
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelters.insert(shelter);
+
+    const publishedAt = new Date("2026-03-01T10:00:00.000Z");
+    const animal = makeAnimal({
+      shelterId: shelter.id,
+      listing: { kind: "published", publishedAt },
+    });
+    await animals.insert(animal, city.id);
+
+    const anchorOf = async (id: string): Promise<Date | null> => {
+      const rows = await db
+        .select({ waitAnchorAt: animalsTable.waitAnchorAt })
+        .from(animalsTable)
+        .where(eq(animalsTable.id, id as never));
+      return rows[0]?.waitAnchorAt ?? null;
+    };
+
+    expect(await anchorOf(animal.id)).toEqual(publishedAt);
+
+    // The transition the column exists for: reserving must not move the anchor.
+    await animals.update(
+      {
+        ...animal,
+        listing: { kind: "reserved", since: new Date("2026-08-01T10:00:00.000Z"), publishedAt },
+      },
+      city.id,
+    );
+    expect(await anchorOf(animal.id)).toEqual(publishedAt);
+
+    // ...and leaving the discoverable kinds clears it, rather than leaving a
+    // stale anchor behind for a partial index to keep serving.
+    await animals.update(
+      { ...animal, listing: { kind: "adopted", adoptedAt: new Date("2026-08-05T10:00:00.000Z") } },
+      city.id,
+    );
+    expect(await anchorOf(animal.id)).toBeNull();
   });
 });
 
