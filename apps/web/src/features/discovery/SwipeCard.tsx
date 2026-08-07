@@ -3,8 +3,12 @@
 import type { FeedCardView } from "@opika/contracts";
 import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips, type PipFill } from "@opika/ui";
+import Image from "next/image";
 import type { RefCallback } from "react";
-import { photoUrl } from "../../api/photo-url";
+
+/** The deck stays 390-420px centred at every viewport (docs/design/README.md,
+ * "02 Deck") — never full-width, so `sizes` is close to a constant. */
+const PHOTO_SIZES = "(max-width: 420px) 100vw, 420px";
 
 interface SwipeCardProps {
   card: FeedCardView;
@@ -75,10 +79,12 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         className="w-full h-99 grow-0 shrink min-h-50 rounded-photo overflow-hidden bg-photo-placeholder relative"
       >
         {photo && (
-          <img
-            src={photoUrl(photo.storageKey)}
+          <Image
+            src={photo.storageKey}
             alt={photo.alt?.uk ?? card.name}
-            className="w-full h-full object-cover block"
+            fill
+            sizes={PHOTO_SIZES}
+            className="object-cover"
           />
         )}
 
