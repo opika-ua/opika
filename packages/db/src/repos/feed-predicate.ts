@@ -24,6 +24,12 @@ import { shelters } from "../schema/shelters";
  * predicate into every FILTER clause would repeat the shelter subquery once per
  * column.
  *
+ * Deliberately not re-exported from `repos/index.ts`, which is what feature
+ * code imports as `@opika/db/repos`. These return Drizzle `SQL`, and the
+ * repository boundary exists so a query builder never reaches a route handler;
+ * putting them on the barrel would make that reach the path of least
+ * resistance for the next caller who wants "just one more condition".
+ *
  * The condition order is load-bearing only in that
  * `test/feed-predicate-identity.test.ts` pins the SQL `feed.list` generates;
  * Postgres does not care, but a silent reordering would hide a genuine change

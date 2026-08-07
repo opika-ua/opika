@@ -7,6 +7,7 @@ import {
   type GallerySort,
   galleryPageCount,
   isConstrained,
+  maxNavigablePage,
   relaxDimension,
 } from "@opika/domain";
 import { and, asc, desc, type SQL, sql } from "drizzle-orm";
@@ -27,7 +28,8 @@ export type GalleryPage = {
   readonly totalShelters: number;
   readonly totalPages: number;
   /** The page actually served, which differs from the requested one when that
-   * page no longer exists. */
+   * page no longer exists, or when it lies past the navigable bound. Never
+   * greater than `totalPages` unless nothing matches at all. */
   readonly page: number;
 };
 
@@ -113,7 +115,14 @@ export function galleryRepo(db: Database) {
         return { rows };
       };
 
-      const first = await fetchPage(opts.page);
+      // Capped before the fetch, not after. `totalPages` alone would leave the
+      // bound as a number in the response that nothing enforced: past it, rows
+      // still exist, so the page query returns a full page and the response
+      // claims a `page` greater than the `totalPages` it just reported. The
+      // requested number comes from a user-editable, crawler-visible `?stor=`,
+      // never only from the page links this bound governs.
+      const requestedPage = Math.min(Math.max(opts.page, 1), maxNavigablePage(opts.pageSize));
+      const first = await fetchPage(requestedPage);
 
       // The in-range path: the window function already carried the total, so
       // nothing more is needed.
@@ -126,7 +135,7 @@ export function galleryRepo(db: Database) {
           totalMatching: firstTotal,
           totalShelters,
           totalPages,
-          page: opts.page,
+          page: requestedPage,
         };
       }
 
@@ -138,9 +147,9 @@ export function galleryRepo(db: Database) {
         countShelters(db, where),
       ]);
       const totalPages = galleryPageCount(totalMatching, opts.pageSize);
-      const page = clampGalleryPage(opts.page, totalPages);
+      const page = clampGalleryPage(requestedPage, totalPages);
 
-      if (totalPages === 0 || page === opts.page) {
+      if (totalPages === 0 || page === requestedPage) {
         // Genuinely no matches — or a page that is in range and simply empty,
         // which the predicate makes impossible but which costs nothing to
         // handle honestly rather than by re-running the same query.

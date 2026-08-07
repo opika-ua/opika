@@ -35,6 +35,22 @@ export const galleryPageCount = (totalMatching: number, pageSize: number): numbe
   Math.ceil(Math.min(totalMatching, MAX_GALLERY_NAVIGABLE_ROWS) / pageSize);
 
 /**
+ * The deepest page the bound permits at a given page size.
+ *
+ * `galleryPageCount` caps the number of page links drawn, but a page number
+ * arrives from a URL rather than from those links — `?stor=` is user-editable
+ * and crawler-visible — so a request can name a page past the bound while rows
+ * still exist under it. Without this, the bound would be a number reported in
+ * the response and nothing else: the query would happily serve depth 5,000 and
+ * return a `page` greater than the `totalPages` it had just claimed.
+ *
+ * `Math.max(1, ...)` because a page size larger than the whole bound still has
+ * a first page.
+ */
+export const maxNavigablePage = (pageSize: number): number =>
+  Math.max(1, Math.ceil(MAX_GALLERY_NAVIGABLE_ROWS / pageSize));
+
+/**
  * The page that will actually be served for a requested one.
  *
  * An out-of-range page is a shared link that went stale — animals were adopted

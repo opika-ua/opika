@@ -56,7 +56,9 @@ export const GalleryListOutputSchema = z.object({
   /**
    * The page actually served, which is not always the page requested: a link
    * shared before some animals were adopted resolves to the last real page
-   * rather than to an error or a silent bounce to the start.
+   * rather than to an error or a silent bounce to the start, and a page past
+   * the navigable bound resolves to the deepest page that bound permits.
+   * Never greater than `totalPages` unless nothing matches at all.
    *
    * Sent rather than left for the caller to recompute from `page` and
    * `totalPages`. The caller has to *say* which page it is showing and which

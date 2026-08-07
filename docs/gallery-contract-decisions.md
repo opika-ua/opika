@@ -1,8 +1,14 @@
 # Gallery ↔ contract reconciliation
 
-**Status:** decided, 2026-08-07 (owner sign-off — see the summary at the bottom) — nothing
-here is implemented. This is what Phase E (Gallery) in `docs/build-plan.md` builds from,
-and what its own definition of done is checked against.
+**Status:** decided, 2026-08-07 (owner sign-off — see the summary at the bottom). The
+server-side half is now built: Phase E0 landed §1-§4 (`gallery.list`,
+`gallery.relaxationCounts`, `wait_anchor_at` and both indexes, `reserved` carrying
+`publishedAt`, `buildFeedPredicate`), and §5's in-process router client landed earlier in
+C7 (`apps/web/src/api/server-client.ts`) — the gallery Server Component that calls it is
+E1. Sections marked "Correction ... (as built)" record where the implementation
+deliberately departed from what is written above them. This is still what the rest of
+Phase E in `docs/build-plan.md` builds from, and what its definition of done is checked
+against.
 
 **Why this exists as its own document:** it is a different subject from "what to build
 and in what order" (`docs/build-plan.md`) — this is the technical shape of five things
@@ -236,7 +242,13 @@ CREATE INDEX animals_wait_anchor_filtered_idx
 >
 > The decision this section makes — build a second, filtered index rather than
 > waive the no-Sort bar for one ordering — is unchanged. Only the column list
-> is corrected. `packages/db/test/wait-anchor-explain.test.ts` fails if it is
+> is corrected. One other as-built note, since the "Cost" paragraph below still
+> names the wrong file: the assertion landed in a **new**
+> `packages/db/test/wait-anchor-explain.test.ts` rather than as more cases in
+> `feed-explain.test.ts`, because it asks the question differently — it
+> explains the SQL `galleryRepo.list` actually emits, captured off the wire,
+> instead of a hand-written statement resembling it. Extend that file, not
+> `feed-explain.test.ts`, for any further wait-anchor ordering. `packages/db/test/wait-anchor-explain.test.ts` fails if it is
 > put back, and its header records a second finding: `count(*) OVER()` (§3)
 > removes the `LIMIT`'s early-stop advantage, so which plan Postgres *chooses*
 > under default settings is statistics-dependent even though the index can

@@ -3,6 +3,7 @@ import {
   type CityId,
   type FeedFilters,
   MAX_GALLERY_NAVIGABLE_ROWS,
+  maxNavigablePage,
   NO_FILTERS,
   type ShelterId,
 } from "@opika/domain";
@@ -367,25 +368,58 @@ describe("galleryRepo.list", () => {
   });
 
   it("caps navigable pages at the bound while reporting the true total", async () => {
-    // Asserted arithmetically rather than by seeding 2,001 rows: the cap lives
-    // in `galleryPageCount`, and what matters here is that the repo reports the
-    // capped page count beside an uncapped `totalMatching`.
+    // Seeded past the bound rather than asserted arithmetically. The cap has to
+    // hold in the *query*, not only in `galleryPageCount`: past the bound there
+    // are still rows under the offset, so a repo that clamped nothing would
+    // return a full page and a `page` greater than the `totalPages` it had just
+    // reported. Verified by mutation — removing the `maxNavigablePage` clamp in
+    // `galleryRepo.list` makes this fail with page 85 against totalPages 84.
     const city = makeCity();
     await cityRepo(db).insert(city);
     const shelter = await makeShelterInCity(city.id);
-    await seedPermutedOrderings(shelter.id, city.id, 3);
 
-    const page = await galleryRepo(db).list({
+    const overBound = MAX_GALLERY_NAVIGABLE_ROWS + 100;
+    const corpus: Animal[] = Array.from({ length: overBound }, (_, i) =>
+      makeAnimal({
+        shelterId: shelter.id,
+        name: `Тварина ${i}`,
+        lastUpdatedAt: new Date(NOW.getTime() - i * 60_000),
+      }),
+    );
+    const repo = animalRepo(db);
+    for (let i = 0; i < corpus.length; i += 250) {
+      await repo.insertMany(
+        corpus.slice(i, i + 250).map((animal) => ({ animal, cityId: city.id })),
+      );
+    }
+
+    const gallery = galleryRepo(db);
+    const lastNavigable = maxNavigablePage(PAGE_SIZE);
+    const beyond = await gallery.list({
       filters: NO_FILTERS,
       sort: "freshest",
-      page: 1,
-      pageSize: 1,
+      page: lastNavigable + 1,
+      pageSize: PAGE_SIZE,
       now: NOW,
     });
 
-    expect(page.totalPages).toBeLessThanOrEqual(MAX_GALLERY_NAVIGABLE_ROWS);
-    expect(page.totalPages).toBe(3);
-    expect(page.totalMatching).toBe(3);
+    // The count stays honest — the surface never claims to have found fewer
+    // animals than it did — while navigation stops at the bound.
+    expect(beyond.totalMatching).toBe(overBound);
+    expect(beyond.totalPages).toBe(lastNavigable);
+    expect(beyond.page).toBe(lastNavigable);
+    expect(beyond.page).toBeLessThanOrEqual(beyond.totalPages);
+
+    // ...and the capped page is the real last navigable page, not an empty one.
+    const last = await gallery.list({
+      filters: NO_FILTERS,
+      sort: "freshest",
+      page: lastNavigable,
+      pageSize: PAGE_SIZE,
+      now: NOW,
+    });
+    expect(beyond.items.map((a) => a.id)).toEqual(last.items.map((a) => a.id));
+    expect(beyond.items.length).toBeGreaterThan(0);
   });
 });
 

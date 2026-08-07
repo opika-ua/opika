@@ -3,6 +3,7 @@ import {
   clampGalleryPage,
   galleryPageCount,
   MAX_GALLERY_NAVIGABLE_ROWS,
+  maxNavigablePage,
 } from "./gallery-pagination";
 
 const PAGE_SIZE = 24;
@@ -25,6 +26,31 @@ describe("galleryPageCount", () => {
 
     expect(galleryPageCount(MAX_GALLERY_NAVIGABLE_ROWS + 1, PAGE_SIZE)).toBe(atBound);
     expect(galleryPageCount(MAX_GALLERY_NAVIGABLE_ROWS * 100, PAGE_SIZE)).toBe(atBound);
+  });
+});
+
+describe("maxNavigablePage", () => {
+  it("agrees with the page count at the bound, so the two cannot disagree", () => {
+    // The invariant the repository relies on: a page clamped to this is never
+    // greater than the `totalPages` the same bound produces, at any page size.
+    for (const pageSize of [1, 7, 24, 50]) {
+      expect(maxNavigablePage(pageSize)).toBe(
+        galleryPageCount(MAX_GALLERY_NAVIGABLE_ROWS, pageSize),
+      );
+      expect(maxNavigablePage(pageSize)).toBe(
+        galleryPageCount(MAX_GALLERY_NAVIGABLE_ROWS * 10, pageSize),
+      );
+    }
+  });
+
+  it("is 84 pages at the gallery's own page size", () => {
+    // ~83 pages is the number `docs/standing-constraints.md` names; 2000/24
+    // rounds up to 84 because the last page is partial.
+    expect(maxNavigablePage(24)).toBe(84);
+  });
+
+  it("still has a first page when one page would hold everything", () => {
+    expect(maxNavigablePage(MAX_GALLERY_NAVIGABLE_ROWS * 2)).toBe(1);
   });
 });
 
