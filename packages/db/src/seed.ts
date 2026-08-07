@@ -129,8 +129,9 @@ function daysAgo(days: number): Date {
  * Nine real, licence-clean placeholder photos (`apps/web/public/seed-photos/`,
  * `SOURCES.md` next to them records each one's source and licence) — every
  * seeded animal cycles through the ones matching its own species, resolved
- * to a URL by `apps/web/src/api/photo-url.ts`'s `photoUrl()` stub, which
- * M7's real R2/CDN pipeline replaces behind the same signature.
+ * to a URL by `apps/web/src/image-loader.ts` — the app's single `next/image`
+ * loader, wired globally by `next.config.ts`'s `images.loaderFile` — which
+ * H1's real R2/CDN pipeline replaces without touching any call site.
  *
  * Deliberately mixed aspect ratios (0.75 portrait to 2.09 wide landscape —
  * `SOURCES.md` has the full table), not nine copies of the design's own 4:5:

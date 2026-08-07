@@ -20,7 +20,19 @@ import type { ImageLoaderProps } from "next/image";
  * the whole function. Ignores `width`/`quality` — this stub has no real
  * variants to serve at different sizes; H1 is where both halves become
  * real.
+ *
+ * The leading-slash check is not defensive noise: `loaderFile` is global, so
+ * this runs for *every* `next/image` in the app, not only the two card
+ * components that hand it a bare storage key. Every other way a src reaches
+ * `next/image` is already root-relative — a statically imported asset
+ * (`/_next/static/media/…`), or the idiomatic `src="/icon.svg"` for a file
+ * under `public/`. Prefixing those a second time yields `//icon.svg`, which
+ * is protocol-relative: the browser resolves it to a *host* named
+ * `icon.svg` and requests it off-site. That fails as a silently broken
+ * image with nothing in typecheck, lint or the build to catch it, and the
+ * first person to add an `<Image>` outside these two cards would have hit
+ * it. Not "unlikely" — see `docs/standing-constraints.md`.
  */
 export default function opikaImageLoader({ src }: ImageLoaderProps): string {
-  return `/${src}`;
+  return src.startsWith("/") ? src : `/${src}`;
 }

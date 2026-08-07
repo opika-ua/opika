@@ -233,7 +233,7 @@ into `gallery.list`'s output per `docs/gallery-contract-decisions.md` §3.
 
 | # | Task | h |
 |---|---|---|
-| H1 | Image pipeline — R2, presigned upload, `sharp` variants, CDN. Replaces E1.5's `photoUrl()` stub with a real URL builder behind the same signature — not a call-site change in `AnimalCard`/`SwipeCard` — and retires E1.5's committed placeholder photos | 10 |
+| H1 | Image pipeline — R2, presigned upload, `sharp` variants, CDN. Replaces E1.5's `apps/web/src/image-loader.ts` stub — the app's single `next/image` loader — with real R2/CDN URL construction, which is a change to that one file and not to any call site in `AnimalCard`/`SwipeCard`, and retires E1.5's committed placeholder photos | 10 |
 | H2 | Internal admin — animal/shelter CRUD, CSV import, **desktop layouts** (addition — the original plan assumed a single admin form factor) | 12 |
 | H3 | i18n — next-intl wiring, uk + en message files, full-ICU boot assertion | 4 |
 | H4 | PWA — Serwist, manifest, offline shell, Lighthouse pass | 8 |

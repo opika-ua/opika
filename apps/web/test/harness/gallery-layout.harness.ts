@@ -201,33 +201,71 @@ test.describe("/tvaryny photos actually load", () => {
   /**
    * next/image's `fill` mode sizes the `<img>` to its parent via
    * `position: absolute; inset: 0` — it never sizes the parent itself, which
-   * is what `aspect-[4/5]`/`tablet:w-30` do independent of whether the image
-   * has loaded. That should make a layout shift structurally impossible
-   * here, not just unlikely — asserted by re-measuring the same container
-   * before and after confirming its image has decoded, rather than trusted.
+   * is what `aspect-[4/5]` (phone/desktop/wide) and flex stretch under
+   * `tablet:aspect-auto` do independently of whether the image has loaded.
+   * That should make a layout shift structurally impossible here, not just
+   * unlikely — asserted by measuring the same container before and after its
+   * image decodes.
+   *
+   * The photo responses are held open for `HOLD_PHOTO_MS` first, and the
+   * `<img>` is asserted to still be undecoded at the "before" measurement.
+   * Without both, this test is decoration: `openRoute` waits for the `load`
+   * event, by which point the first card's image has already decoded
+   * (measured: `naturalWidth` 624, not 0), so "before" and "after" are two
+   * post-load measurements of the same box and the comparison passes no
+   * matter what sizes it. Hence `page.goto` + a visible-card wait here
+   * rather than `openRoute` — waiting for `load` is exactly what has to
+   * not happen.
    */
-  test("the photo box does not resize once its image finishes loading", async ({ page }) => {
-    await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
-    const container = page.getByTestId("card-photo").first();
-    const before = await rectOf(container, "photo box, pre-load");
+  const HOLD_PHOTO_MS = 1_500;
 
-    await page
-      .locator(`${CARD} img`)
-      .first()
-      .evaluate(
+  for (const viewport of [PHONE, GALLERY_TABLET] satisfies Viewport[]) {
+    test(`the photo box does not resize once its image loads, at ${viewport.name}`, async ({
+      page,
+    }) => {
+      await page.route("**/seed-photos/*.jpg", async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, HOLD_PHOTO_MS));
+        await route.continue();
+      });
+
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto(ROUTE, { waitUntil: "domcontentloaded" });
+      await page.locator(CARD).first().waitFor({ state: "visible" });
+
+      const container = page.getByTestId("card-photo").first();
+      const img = page.locator(`${CARD} img`).first();
+
+      const naturalWidthBefore = await img.evaluate((el: HTMLImageElement) => el.naturalWidth);
+      expect(
+        naturalWidthBefore,
+        `the first card's image had already decoded (naturalWidth ` +
+          `${naturalWidthBefore}) before the "before" measurement — the ` +
+          `comparison below would then be two post-load rects and could not ` +
+          `fail. Is the ${HOLD_PHOTO_MS}ms photo hold still in effect?`,
+      ).toBe(0);
+
+      const before = await rectOf(container, "photo box, pre-load");
+
+      await img.evaluate(
         (el: HTMLImageElement) =>
           new Promise<void>((resolve) => {
             if (el.complete) resolve();
-            else el.addEventListener("load", () => resolve(), { once: true });
+            else {
+              el.addEventListener("load", () => resolve(), { once: true });
+              el.addEventListener("error", () => resolve(), { once: true });
+            }
           }),
       );
+      const naturalWidthAfter = await img.evaluate((el: HTMLImageElement) => el.naturalWidth);
+      expect(naturalWidthAfter, "the held photo never decoded at all").toBeGreaterThan(0);
 
-    const after = await rectOf(container, "photo box, post-load");
-    expect(
-      after,
-      `photo box measured ${before.width}x${before.height} before its image loaded and ` +
-        `${after.width}x${after.height} after — the box should be sized by CSS alone, ` +
-        `never by the image`,
-    ).toEqual(before);
-  });
+      const after = await rectOf(container, "photo box, post-load");
+      expect(
+        after,
+        `photo box measured ${before.width}x${before.height} before its image loaded and ` +
+          `${after.width}x${after.height} after — the box should be sized by CSS alone, ` +
+          `never by the image`,
+      ).toEqual(before);
+    });
+  }
 });
