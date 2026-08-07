@@ -1,25 +1,11 @@
-import { createDatabase } from "@opika/db";
 import { RPCHandler } from "@orpc/server/fetch";
 import type { AppContext } from "../../../../api/context";
-import { requireEnv } from "../../../../api/env";
+import { getDb } from "../../../../api/db";
 import { apiRateLimiter } from "../../../../api/rate-limit";
 import { router } from "../../../../api/router";
 import { validateSession } from "../../../../api/session/index";
 
 const handler = new RPCHandler(router);
-
-let cachedDb: ReturnType<typeof createDatabase> | undefined;
-
-/**
- * The connection is opened on first request rather than at module scope
- * because `next build` imports route modules to collect page data — a build
- * must not require a runtime secret to be present. Memoised so a server
- * instance still reuses a single pool across requests.
- */
-function getDb(): ReturnType<typeof createDatabase> {
-  cachedDb ??= createDatabase(requireEnv("DATABASE_URL"));
-  return cachedDb;
-}
 
 async function handleRequest(request: Request): Promise<Response> {
   const db = getDb();
