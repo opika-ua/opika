@@ -15,6 +15,7 @@ import type { z } from "zod";
 import type { AppContext } from "../context";
 import { decodeFeedCursor, encodeFeedCursor } from "../cursor";
 import { requireEnv } from "../env";
+import { discoverableListingKind } from "./discoverable-listing-kind";
 
 type FeedInput = z.infer<typeof FeedListInputSchema>;
 type FeedOutput = z.infer<typeof FeedListOutputSchema>;
@@ -65,6 +66,7 @@ export async function feedList(input: FeedInput, context: AppContext): Promise<F
         ageBucket: ageBucketOf(animal.age, context.now),
         freshness,
         primaryPhoto: primaryPhoto(animal),
+        listingKind: discoverableListingKind(animal.listing),
         shelter: {
           id: shelter.id,
           displayName: shelter.displayName,

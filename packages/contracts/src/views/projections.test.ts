@@ -51,6 +51,7 @@ const shelterSummary = {
 const derived = {
   ageBucket: "young",
   freshness: freshnessOf(AT, AT, DEFAULT_FRESHNESS_POLICY),
+  listingKind: "published" as const,
 };
 
 /**
@@ -73,6 +74,7 @@ describe("animal views expose exactly their intended fields", () => {
       "ageBucket",
       "freshness",
       "id",
+      "listingKind",
       "name",
       "primaryPhoto",
       "publicLocation",
