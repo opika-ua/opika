@@ -21,6 +21,18 @@ export function mockAppRouter() {
   };
 }
 
-export function WithMockRouter({ children }: { children: ReactNode }) {
-  return <AppRouterContext.Provider value={mockAppRouter()}>{children}</AppRouterContext.Provider>;
+/**
+ * Accepts an external router (from `mockAppRouter()`) so a caller can keep
+ * a reference and assert on it — `page.test.tsx` doesn't need that and
+ * creates its own internally by omitting `router`; `FilterSheet.test.tsx`
+ * does need it, to assert what `router.replace` was actually called with.
+ */
+export function WithMockRouter({
+  children,
+  router = mockAppRouter(),
+}: {
+  children: ReactNode;
+  router?: ReturnType<typeof mockAppRouter>;
+}) {
+  return <AppRouterContext.Provider value={router}>{children}</AppRouterContext.Provider>;
 }

@@ -135,7 +135,15 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
       // Every field in this form is a checkbox/radio value, never a file
       // input — the string check is a type-narrowing formality, not a real
       // branch this form can hit the other side of.
-      if (typeof value === "string") params.append(key, value);
+      if (typeof value !== "string") continue;
+      // A radio group always has exactly one value, unlike a checkbox group,
+      // which can be entirely unchecked — so a native submission always
+      // includes `sort`, even at its default. Dropped here to match
+      // galleryHref's own "default is the absent param" convention: the
+      // same state reached through the rail and through this form should
+      // produce the same URL, not two equivalent-but-different-looking ones.
+      if (key === "sort" && value === DEFAULT_GALLERY_SORT) continue;
+      params.append(key, value);
     }
     const qs = params.toString();
     navigateWithJs(qs ? `/tvaryny?${qs}` : "/tvaryny");
