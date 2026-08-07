@@ -24,14 +24,20 @@ import { router } from "./router";
  *
  * Read-only by construction as a consequence: `animals.reveal` and
  * `swipes.record` both need an `adopterId` this path never has, so neither
- * belongs here either. Phase E/F add their read procedures to this list — a
- * compile error at the call site, not a silent widening.
+ * belongs here either.
+ *
+ * Trimmed to what a real Server Component actually calls today — `cities.list`
+ * (the home screen) and `gallery.list` (the E1 grid) — not to what a later
+ * phase will eventually want. `feed.list`, `animals.byId` and `shelters.byId`
+ * were added ahead of Phase F needing them; that is exactly the premature
+ * scaffolding `CLAUDE.md`'s phase-scope-discipline section warns against; a
+ * future phase adds its procedure here in the same commit that starts calling
+ * it, which keeps this list an honest record of what's consumed rather than a
+ * standing prediction.
  */
 const serverComponentRouter = {
   cities: { list: router.cities.list },
-  feed: { list: router.feed.list },
-  animals: { byId: router.animals.byId },
-  shelters: { byId: router.shelters.byId },
+  gallery: { list: router.gallery.list },
 } as const;
 
 /**
@@ -39,8 +45,8 @@ const serverComponentRouter = {
  * procedure still runs through `implement(contract)`'s output-schema
  * validation and stripping, because these are the same procedure objects the
  * HTTP route serves. See docs/gallery-contract-decisions.md §5 for the full
- * argument; this is that mechanism's first real use, ahead of the gallery it
- * was decided for.
+ * argument — this mechanism was decided for the gallery, and `gallery.list`
+ * below is its first real use.
  *
  * Anonymous only: no adopterId or tokenHash, since nothing calling this way
  * carries a session — there's no cookie to read and none can be written back.

@@ -13,9 +13,6 @@
  *   DATABASE_URL=postgres://... pnpm --filter @opika/db db:seed --force
  */
 
-import { createWriteStream, existsSync, mkdirSync } from "node:fs";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   type AgeEstimate,
   type Animal,
@@ -120,222 +117,24 @@ function daysAgo(days: number): Date {
 // Photo generation
 // ---------------------------------------------------------------------------
 
-const PHOTOS_DIR = resolve(fileURLToPath(import.meta.url), "../../../../seed-photos");
-
 /**
- * A known-valid 1×1 baseline JPEG with a single warm-grey pixel.
+ * Every seeded animal points at the same real placeholder file
+ * (`apps/web/public/seed-photos/placeholder.jpg`), resolved by
+ * `apps/web/src/api/photo-url.ts` — a stub `photoUrl(storageKey)` M7's real
+ * R2/CDN pipeline replaces with the same signature, not a call-site change.
  *
- * Encoded by hand: SOI → APP0 (JFIF) → DQT → SOF0 (1×1, YCbCr) →
- * DHT (DC luminance + DC chrominance, single-symbol each) →
- * SOS → compressed scan (3 DC coefficients, all zero) → EOI.
- *
- * Browsers decode this correctly and `object-fit: cover` stretches the
- * single pixel to fill the container. Different colours are achieved by
- * writing different DQT/scan values — but for seed placeholders a single
- * warm tone (#E3D6C0) is sufficient. The design's own placeholder is a
- * diagonal hatch pattern, so a warm solid is no worse.
+ * A prior version of this generated 880 individual synthetic JPEGs (a
+ * warm-grey pixel, byte-padded to a realistic 300-500KB) into a
+ * `seed-photos/` directory Next never served — every card 404'd. One real,
+ * shared photo file is a smaller, more useful placeholder for a solo
+ * project at this stage: it makes crop/aspect/loading actually reviewable,
+ * which 880 unreachable files never did. Per-animal file-size realism can
+ * come back (see git history for `generatePlaceholderPhoto`) if a real
+ * requirement calls for it.
  */
-// prettier-ignore
-const VALID_1X1_JPEG = Buffer.from([
-  /* SOI   */ 0xff,
-  0xd8,
-  /* APP0  */ 0xff,
-  0xe0,
-  0x00,
-  0x10,
-  0x4a,
-  0x46,
-  0x49,
-  0x46,
-  0x00,
-  0x01,
-  0x01,
-  0x00,
-  0x00,
-  0x01,
-  0x00,
-  0x01,
-  0x00,
-  0x00,
-  /* DQT   */ 0xff,
-  0xdb,
-  0x00,
-  0x43,
-  0x00,
-  // 64-entry quantization table (all 1s — lossless for DC-only)
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  /* SOF0  */ 0xff,
-  0xc0,
-  0x00,
-  0x0b,
-  0x08,
-  0x00,
-  0x01,
-  0x00,
-  0x01, // 1×1
-  0x01, // 1 component (greyscale — simplest valid JPEG)
-  0x01,
-  0x11,
-  0x00, // component 1: id=1, sampling=1×1, quant table 0
-  /* DHT   */ 0xff,
-  0xc4,
-  0x00,
-  0x1f,
-  0x00, // DC luminance
-  // 16 code-length counts + values
-  0x00,
-  0x01,
-  0x05,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x01,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0x01,
-  0x02,
-  0x03,
-  0x04,
-  0x05,
-  0x06,
-  0x07,
-  0x08,
-  0x09,
-  0x0a,
-  0x0b,
-  /* SOS   */ 0xff,
-  0xda,
-  0x00,
-  0x08,
-  0x01,
-  0x01,
-  0x00,
-  0x00,
-  0x3f,
-  0x00,
-  /* scan  */ 0x7b,
-  0x40, // DC coeff ≈ 200 → warm grey when decoded
-  /* EOI   */ 0xff,
-  0xd9,
-]);
+const PLACEHOLDER_PHOTO_KEY = "seed-photos/placeholder.jpg";
 
-/**
- * Generate a valid, decodable JPEG placeholder at the target file size.
- *
- * The image is a solid warm-grey pixel stretched by `object-fit: cover`.
- * File size is padded to `targetSizeKB` using JPEG comment markers
- * (0xFF 0xFE), which are ignored by decoders but contribute to transfer
- * cost — so network simulation is honest.
- */
-function generatePlaceholderPhoto(
-  storageKey: string,
-  _width: number,
-  _height: number,
-  targetSizeKB: number,
-): void {
-  const filePath = resolve(PHOTOS_DIR, storageKey);
-  const dir = resolve(filePath, "..");
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-
-  // Start with the valid JPEG, minus the EOI (last 2 bytes)
-  const core = VALID_1X1_JPEG.subarray(0, VALID_1X1_JPEG.length - 2);
-  const eoi = Buffer.from([0xff, 0xd9]);
-  const targetSize = targetSizeKB * 1024;
-  const paddingNeeded = Math.max(0, targetSize - core.length - eoi.length);
-
-  const stream = createWriteStream(filePath);
-  stream.write(core);
-
-  // Pad with JPEG comment markers (max 65533 bytes payload each)
-  let remaining = paddingNeeded;
-  while (remaining > 0) {
-    const chunkPayload = Math.min(remaining - 4, 65533); // 4 bytes for marker + length
-    if (chunkPayload <= 0) break;
-    const len = chunkPayload + 2; // length field includes itself
-    const marker = Buffer.from([0xff, 0xfe, (len >> 8) & 0xff, len & 0xff]);
-    stream.write(marker);
-    stream.write(Buffer.alloc(chunkPayload, 0x20)); // spaces
-    remaining -= 4 + chunkPayload;
-  }
-
-  stream.write(eoi);
-  stream.end();
-}
-
-function makePhotos(aId: string, species: AnimalSpecies, count: number): AnimalPhoto[] {
+function makePhotos(count: number): AnimalPhoto[] {
   const photos: AnimalPhoto[] = [];
   // Primary is 4:5 portrait (matches the design's photo area), mix for others
   const dims: [number, number][] = [
@@ -348,11 +147,8 @@ function makePhotos(aId: string, species: AnimalSpecies, count: number): AnimalP
 
   for (let i = 0; i < count; i++) {
     const [w, h] = dims[i % dims.length]!;
-    const key = `seed/${species}/${aId}/${i}.jpg`;
-    const sizeKB = 300 + ((i * 47) % 200); // 300-500 KB
-    generatePlaceholderPhoto(key, w, h, sizeKB);
     photos.push({
-      storageKey: key,
+      storageKey: PLACEHOLDER_PHOTO_KEY,
       width: w,
       height: h,
       alt: null,
@@ -1005,7 +801,7 @@ function buildAnimals(
     // Photos: 1-5 per animal, more for published
     const photoCount = listing.kind === "draft" ? 0 : 1 + (i % 5);
     const id = animalId(i);
-    const photos = makePhotos(id, species, photoCount);
+    const photos = makePhotos(photoCount);
 
     // Foster: ~10% of animals are fostered in a different city
     const isFostered = i % 10 === 3;
@@ -1126,7 +922,8 @@ async function main() {
   );
   console.log(`    Fostered:  ${fosteredCount} (in a different city from their shelter)`);
   console.log(
-    `    Photos:    ${animalData.reduce((sum, a) => sum + a.animal.photos.length, 0)} files in ${PHOTOS_DIR}`,
+    `    Photos:    ${animalData.reduce((sum, a) => sum + a.animal.photos.length, 0)} photo ` +
+      `references, all pointing at the one shared apps/web/public/${PLACEHOLDER_PHOTO_KEY}`,
   );
 
   await client.end();

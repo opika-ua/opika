@@ -548,6 +548,75 @@ protected — Next.js middleware keyed on the request IP before the Server Compo
 runs is the natural fit, since `apiRateLimiter`'s existing shape (a `RateLimiter` interface
 over an in-memory sliding window) could be reused for it directly — not left implicit.
 
+> **Correction, Phase E1 (as built).** The gap above is closed, by the mechanism this
+> paragraph recommends — but under Next.js 16's renamed convention:
+> `apps/web/src/proxy.ts`, not `middleware.ts`. The file and the exported function were
+> both renamed, and `proxy.ts` defaults to the Node.js runtime (setting `runtime` in it
+> is an error, not an option). Two things the paragraph got ahead of itself on:
+>
+> - Only `gallery.list` is wired into `serverComponentRouter`.
+>   `gallery.relaxationCounts` has no Server Component consumer until E4, so it is still
+>   reachable over the HTTP route alone and still inherits that route's limiter — adding
+>   it here before something calls it would be the premature scaffolding this repo keeps
+>   out of that list on purpose.
+> - "`apiRateLimiter`'s existing shape ... could be reused for it directly" is true of
+>   the *module*, not of the budget. Vercel deploys the proxy and the route handlers as
+>   separate functions with separate module graphs — Next's own proxy reference is
+>   explicit that you "should not attempt relying on shared modules or globals" there —
+>   so importing the same `apiRateLimiter` from both gives each its own `Map`. The
+>   effective per-IP ceiling is 100/min on the page path *plus* 100/min on the API path,
+>   not one shared 100/min. Recorded in `apps/web/src/api/rate-limit.ts` as well, so the
+>   number is never asserted higher than it actually is; one genuinely shared budget
+>   needs the shared store this document's neighbour already calls for before deploy.
+>
+> Asserted rather than assumed, per this repo's own standard for a config file read on
+> faith: `apps/web/test/harness/gallery-rate-limit.harness.ts` spends the budget against
+> a real running server and requires the 429 — which also proves the matcher covers the
+> bare `/tvaryny`, not only its subpaths.
+
+---
+
+## 6. Animal detail URL — `/tvaryny/[animalId]`, a slug prefix deferred to F′
+
+**Decision: the gallery card's `<a>` points at `/tvaryny/{animalId}` — the bare
+`AnimalId` UUID, no slug — even though Phase F (the detail page this resolves to) is not
+built yet.**
+
+The design's Card section requires "one `<a>` per animal" so the whole card is a single
+tab stop with real focus/hover semantics. Building that in E1 and pointing it at a route
+that 404s until F is a smaller cost than building it in F′ instead: an unbuilt link target
+is free to fix later, an unbuilt focus state is a re-review, and this repo has already
+paid once for exactly that shortcut (the deck's action row shipped over a dead swipe
+gesture — `docs/standing-constraints.md`'s "How work is verified" section).
+
+### Forward compatibility with a slug — F′'s job, not E1's
+
+Nothing here locks the URL to a bare ID forever. F′ is expected to add an SEO-friendly
+form (`/tvaryny/marsik-a7f3k2`) once the detail page is the organic acquisition surface
+the design's "Gallery ↔ Deck" section describes — a Ukrainian adopter sharing a link in
+Viber or Telegram sees the URL text, and a name in it earns real clicks a bare UUID
+doesn't. The shape stays compatible with that addition without a migration: whatever F′
+parses, the *trailing* segment is the authoritative `AnimalId`, a bare ID (what E1 emits)
+still resolves once F′ ships, and a wrong or stale slug on an otherwise-valid ID redirects
+to the canonical slugged URL rather than 404ing. E1 does not build any of that parsing —
+there is no page at this route yet — it only emits the bare-ID `href` in the shape F′'s
+parser will accept unchanged.
+
+### The `gortaty` namespace — checked, not just assumed
+
+`/tvaryny/gortaty` (§ "Gallery ↔ Deck," `docs/design/README.md`) is a static sibling of
+this dynamic segment. Next.js resolves a static segment before a dynamic one at the same
+level, so the two coexist without a routing conflict *unless* an `AnimalId` could ever
+literally equal the string `"gortaty"`. It cannot: `AnimalIdSchema` is `z.uuid()`
+(`packages/domain/src/primitives/ids.ts`) — 36 characters, hyphens at fixed positions,
+every other character a hex digit — and `"gortaty"` is 7 characters and contains `g`,
+`o`, `r`, `t`, `y`, none of which are hex digits. Asserted as a real test, not just this
+paragraph: `apps/web/src/app/tvaryny/route-namespace.test.ts`.
+
+This is a standing check, not a one-time one: every future static child E2–E5 add under
+`/tvaryny` (a sort or filter route, a pagination shortcut) eats from the same namespace
+and needs the same "cannot collide with a valid AnimalId" property confirmed, not assumed.
+
 ---
 
 ## Summary — what Phase E actually builds because of this document

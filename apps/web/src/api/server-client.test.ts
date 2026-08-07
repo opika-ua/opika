@@ -1,5 +1,6 @@
-import { cityRepo, shelterRepo } from "@opika/db/repos";
-import { makeCity, makeShelter } from "@opika/db/test";
+import { animalRepo, cityRepo, shelterRepo } from "@opika/db/repos";
+import { makeAnimal, makeCity, makeShelter } from "@opika/db/test";
+import { NO_FILTERS } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { anonymousRouterClient } from "./server-client";
 import { createTestHarness, type TestHarness } from "./test-harness";
@@ -55,21 +56,26 @@ describe("anonymousRouterClient", () => {
       },
     });
     await shelterRepo(h.db).insert(shelter);
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: shelter.id }), city.id);
 
-    const view = await anonymousRouterClient(h.db).shelters.byId({ shelterId: shelter.id });
+    const page = await anonymousRouterClient(h.db).gallery.list({
+      filters: NO_FILTERS,
+      page: 1,
+      pageSize: 24,
+    });
 
     // The whole point of routing Server Components through the contract
-    // rather than calling shelterRepo directly: what a page renders is the
-    // picked view, not the domain object the repository returns.
-    expect(Object.keys(view).sort()).toEqual([
-      "createdAt",
-      "description",
+    // rather than calling the repositories directly: what a page renders is
+    // the picked view, not the domain objects the repositories return.
+    expect(page.items).toHaveLength(1);
+    expect(Object.keys(page.items[0]?.shelter ?? {}).sort()).toEqual([
       "displayName",
-      "donation",
+      "freshnessSentence",
       "id",
       "publicLocation",
       "verification",
     ]);
+    expect(JSON.stringify(page.items[0]?.shelter)).not.toContain("вул. Тестова");
   });
 
   /**

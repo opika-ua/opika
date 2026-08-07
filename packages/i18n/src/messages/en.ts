@@ -171,6 +171,7 @@ export const en = {
   // --- Reserved badge ---
   reserved: {
     badge: "Already in conversation",
+    badgeShort: "In talks",
     action: "Ask to be second in line",
   },
 
@@ -178,6 +179,22 @@ export const en = {
   documents: {
     chipPresent: "Microchipped",
     rabiesPresent: "Rabies vaccinated",
+  },
+
+  // --- Animal card meta line ---
+  // See the note on the uk key: English adjectives don't inflect for
+  // gender, so the mismatch that motivates that note doesn't reproduce
+  // here — this set exists only for key-shape parity with uk.ts.
+  cardMeta: {
+    ageBaby: "baby",
+    ageYoung: "young",
+    ageAdult: "adult",
+    ageSenior: "senior",
+    sizeSmall: "small",
+    sizeMedium: "medium",
+    sizeLarge: "large",
+    atShelter: "{city}",
+    fosteredHousing: "with a volunteer foster in {city}",
   },
 
   // --- Language toggle ---

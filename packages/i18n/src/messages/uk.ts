@@ -164,6 +164,8 @@ export const uk = {
   // --- Reserved badge ---
   reserved: {
     badge: "Уже домовляються",
+    /** The gallery card's tablet (600-1023) layout, 6px inset vs 8px elsewhere — docs/design/README.md, "The Gallery" > "Card". */
+    badgeShort: "Домовляються",
     action: "Стати другим у черзі",
   },
 
@@ -171,6 +173,36 @@ export const uk = {
   documents: {
     chipPresent: "Чип є",
     rabiesPresent: "Сказ є",
+  },
+
+  // --- Animal card meta line ("молодий · мала · живе у волонтерки, м. Бровари") ---
+  // A separate set from filters.age*/size*, which label standalone filter
+  // chips rather than sit inline in a sentence, and so aren't held to
+  // agreeing with anything around them.
+  //
+  // Carried over unchanged from the pre-gallery SwipeCard implementation:
+  // each bucket has one fixed word form, not one per Animal.sex, so a
+  // grammatical-gender mismatch with the size word (feminine) or with a
+  // female animal (every age word here is masculine: "молодий," not
+  // "молода") is a pre-existing gap this relocation preserves rather than
+  // introduces. Flagged, not fixed — fixing it is a copy decision, not a
+  // relocation one.
+  cardMeta: {
+    ageBaby: "малюк",
+    ageYoung: "молодий",
+    ageAdult: "дорослий",
+    ageSenior: "літній",
+    sizeSmall: "мала",
+    sizeMedium: "середня",
+    sizeLarge: "велика",
+    /**
+     * Templates: "{city}" -> "м. {city}". The gallery card's terse
+     * housing+city fragment (docs/design/README.md, "The Gallery" > "Card"),
+     * not the fuller sentence in location.fostered, which carries the
+     * detail page's own address disclaimer the card has no room for.
+     */
+    atShelter: "м. {city}",
+    fosteredHousing: "живе у волонтерки, м. {city}",
   },
 
   // --- Language toggle ---

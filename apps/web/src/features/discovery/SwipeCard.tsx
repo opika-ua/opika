@@ -1,9 +1,10 @@
 "use client";
 
 import type { FeedCardView } from "@opika/contracts";
-import { uk } from "@opika/i18n";
+import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips, type PipFill } from "@opika/ui";
 import type { RefCallback } from "react";
+import { photoUrl } from "../../api/photo-url";
 
 interface SwipeCardProps {
   card: FeedCardView;
@@ -75,7 +76,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
       >
         {photo && (
           <img
-            src={photo.storageKey}
+            src={photoUrl(photo.storageKey)}
             alt={photo.alt?.uk ?? card.name}
             className="w-full h-full object-cover block"
           />
@@ -161,34 +162,6 @@ function formatMeta(card: FeedCardView): string {
   if (card.ageBucket) parts.push(ageBucketLabel(card.ageBucket));
   parts.push(sizeLabel(card.size));
   return parts.join(" · ");
-}
-
-function ageBucketLabel(bucket: string): string {
-  switch (bucket) {
-    case "baby":
-      return "малюк";
-    case "young":
-      return "молодий";
-    case "adult":
-      return "дорослий";
-    case "senior":
-      return "літній";
-    default:
-      return bucket;
-  }
-}
-
-function sizeLabel(size: string): string {
-  switch (size) {
-    case "small":
-      return "мала";
-    case "medium":
-      return "середня";
-    case "large":
-      return "велика";
-    default:
-      return size;
-  }
 }
 
 function ShelterMonogram({ name }: { name: string }) {

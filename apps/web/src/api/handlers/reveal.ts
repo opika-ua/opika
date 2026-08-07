@@ -10,7 +10,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
-import { checkRevealRateLimit } from "../rate-limit";
+import { checkRevealRateLimit } from "../reveal-rate-limit";
 
 type RevealInput = z.infer<typeof AnimalsRevealInputSchema>;
 

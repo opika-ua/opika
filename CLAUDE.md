@@ -78,8 +78,10 @@ opika/
 │  │                              apps/web/src/features/*, not here
 │  └─ i18n/                     # uk/en message catalogues — Phase C4, done. Intl formatters
 │                                 (relative-time, plurals) stay in packages/domain, which
-│                                 already had them; this package is catalogues only until
-│                                 H3 wires next-intl
+│                                 already had them. Also small lookup helpers over the
+│                                 catalogues (ageBucketLabel/sizeLabel, E1) shared between
+│                                 the deck and the gallery — next-intl itself isn't wired
+│                                 until H3
 ├─ docs/                        # this repo's copies of the ADR, build plan, design, standing constraints
 └─ infra/ (docker-compose.yml lives at repo root instead, see below)
 ```

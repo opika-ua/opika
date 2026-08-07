@@ -1,5 +1,11 @@
-import { AgeBucketSchema, AnimalPhotoSchema, AnimalSchema, FreshnessSchema } from "@opika/domain";
-import type { z } from "zod";
+import {
+  AgeBucketSchema,
+  AnimalPhotoSchema,
+  AnimalSchema,
+  DISCOVERABLE_LISTING_KINDS,
+  FreshnessSchema,
+} from "@opika/domain";
+import { z } from "zod";
 import { ShelterSummaryViewSchema } from "./shelter";
 
 /**
@@ -16,6 +22,21 @@ const derivedAnimalFacts = {
   freshness: FreshnessSchema,
 };
 
+/**
+ * Narrower than `AnimalListingState["kind"]` on purpose: a `FeedCardView` is
+ * only ever built from a discoverable animal (the feed/gallery predicate
+ * already restricts to `DISCOVERABLE_LISTING_KINDS`), so `draft`, `adopted`
+ * and `withdrawn` are states this view can never actually carry. Reusing the
+ * domain constant rather than writing a fresh literal list means a change to
+ * which kinds are discoverable is a compile error here, not a silent gap.
+ *
+ * Exists so the deck and the gallery can both render the "Уже домовляються"
+ * reserved badge the design specifies — neither the deck nor (until now) the
+ * gallery card had any way to know an animal was reserved, since nothing in
+ * `FeedCardView` exposed listing state at all.
+ */
+const FeedCardListingKindSchema = z.enum(DISCOVERABLE_LISTING_KINDS);
+
 /** Deliberately lean: the deck holds several of these in memory at once. */
 export const FeedCardViewSchema = AnimalSchema.pick({
   id: true,
@@ -29,6 +50,7 @@ export const FeedCardViewSchema = AnimalSchema.pick({
   .extend({
     primaryPhoto: AnimalPhotoSchema.nullable(),
     shelter: ShelterSummaryViewSchema,
+    listingKind: FeedCardListingKindSchema,
   });
 export type FeedCardView = z.infer<typeof FeedCardViewSchema>;
 

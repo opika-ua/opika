@@ -42,6 +42,20 @@ export default defineConfig({
           include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
           exclude: [...configDefaults.exclude, "src/api/**"],
           setupFiles: ["./test/setup-dom.ts"],
+          // Most files here are pure component tests with no DB. A growing
+          // minority (src/app/page.test.tsx, src/app/tvaryny/page.test.tsx)
+          // call createTestHarness() against the real shared opika_test
+          // Postgres, the same DROP SCHEMA CASCADE + migrate cycle
+          // src/api's files do — which is exactly why *that* project sets
+          // this flag. `dom` didn't need it back when it had zero DB-backed
+          // files; now that it has two, they raced: one file's setup
+          // dropped `drizzle.__drizzle_migrations` out from under the
+          // other's still-running test, observed as "relation does not
+          // exist". Serialising the whole project is coarser than only
+          // serialising the DB-backed files, but simpler than a third
+          // project, and this suite is fast enough that the cost is real
+          // but small.
+          fileParallelism: false,
         },
       },
     ],

@@ -66,6 +66,9 @@ catalogs:
     tailwindcss:
       specifier: 4.3.3
       version: 4.3.3
+    tsx:
+      specifier: 4.23.5
+      version: 4.23.5
     typescript:
       specifier: 7.0.2
       version: 7.0.2
@@ -215,6 +218,9 @@ importers:
       drizzle-kit:
         specifier: 'catalog:'
         version: 0.31.10
+      tsx:
+        specifier: 'catalog:'
+        version: 4.23.5
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -239,6 +245,10 @@ importers:
         version: 4.1.10(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.5))
 
   packages/i18n:
+    dependencies:
+      '@opika/domain':
+        specifier: workspace:*
+        version: link:../domain
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'

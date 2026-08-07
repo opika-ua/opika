@@ -39,6 +39,17 @@ catalog:
   postcss: 8.5.25
   drizzle-orm: 0.45.2
   drizzle-kit: 0.31.10
+  # packages/db's own db:seed script runs `tsx src/seed.ts` directly, but
+  # nothing declared tsx — it only resolved because drizzle-kit depends on
+  # it too, and pnpm's hoisting made it reachable from packages/db's
+  # scripts by luck, not by declaration. Confirmed to actually break: CI's
+  # clean `pnpm install --frozen-lockfile` doesn't hoist it the same way a
+  # long-lived local node_modules does ("tsx: not found" the first time
+  # anything ran db:seed in CI). See GitHub issue #22 for the original
+  # find. 4.23.5 matches the version drizzle-kit was already pulling in,
+  # so this declares an existing resolution rather than introducing a new
+  # one.
+  tsx: 4.23.5
   next: 16.3.0
   postgres: 3.4.9
   react: 19.2.7

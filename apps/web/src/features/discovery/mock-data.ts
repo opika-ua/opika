@@ -73,6 +73,10 @@ export function generateMockCards(count: number): FeedCardView[] {
       i % 3 === 0 ? 2 : i % 3 === 1 ? 19 : 41,
     ),
     primaryPhoto: null,
+    // Always "published": the deck doesn't render the reserved badge yet
+    // (filed as a follow-up alongside E1's own listingKind addition), so
+    // there's nothing here for a "reserved" mock card to demonstrate.
+    listingKind: "published" as const,
     shelter: i % 2 === 0 ? mockShelter : mockShelterNoSentence,
   }));
 }
