@@ -1,7 +1,8 @@
 import type { CityId } from "@opika/domain";
-import { textIn } from "@opika/domain";
+import { filtersFingerprint, textIn } from "@opika/domain";
 import { anonymousRouterClient } from "../../api/server-client";
 import { AnimalCard } from "../../features/gallery/AnimalCard";
+import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
 import { cardCityId } from "../../features/gallery/card-text";
 import { FilterRail } from "../../features/gallery/FilterRail";
 import { FilterSheet } from "../../features/gallery/FilterSheet";
@@ -118,8 +119,19 @@ export async function renderGallery(
               </ReplaceNav>
             </div>
 
-            <main
-              data-testid="gallery-grid"
+            {/*
+              Keyed on the applied filter/sort/page state, not just mounted
+              once: a filter change re-renders this Server Component tree
+              with a fresh set of cards, and ArrowKeyGrid's roving-tabindex
+              setup runs once per *mount* (see its own doc comment) — a
+              stable key across a real data change would leave stale
+              tabIndex state attached to cards a filter change already
+              replaced. filtersFingerprint is the same identity function
+              cursor stability already uses for "these are the same
+              filters", not a second one invented here.
+            */}
+            <ArrowKeyGrid
+              key={`${filtersFingerprint(filters)}-${sort}-${pageNumber}`}
               className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px]"
             >
               {page.items.map((item, index) => (
@@ -130,7 +142,7 @@ export async function renderGallery(
                   priority={index < PRIORITY_ROW_SIZE}
                 />
               ))}
-            </main>
+            </ArrowKeyGrid>
           </div>
         </div>
       </div>
