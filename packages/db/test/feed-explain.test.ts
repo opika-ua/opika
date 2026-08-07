@@ -28,6 +28,16 @@ beforeEach(async () => {
   await truncateAll(db);
 });
 
+/**
+ * The deck's keyset query only. The gallery's two orderings are covered in
+ * `wait-anchor-explain.test.ts`, which is a separate file rather than more
+ * cases here because it asks the question differently: it explains the SQL
+ * `galleryRepo.list` actually emits, captured off the wire, instead of a
+ * hand-written statement that resembles it. That header also records what the
+ * `count(*) OVER()` window function does to the planner's incentive to pick an
+ * ordered scan at all — which does not apply to anything in this file, since
+ * `feed.list` has no window function and its `LIMIT` really can stop early.
+ */
 describe("feed query EXPLAIN", () => {
   it("uses an index scan with no sort for unfiltered feed", async () => {
     const cities = cityRepo(db);
