@@ -1,9 +1,9 @@
+import { uk } from "@opika/i18n";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { generateMockCards } from "./mock-data";
 import { SwipeDeck } from "./SwipeDeck";
-import { uk } from "./strings.uk";
 
 /**
  * The deck's action row is the only way through the feed for anyone who cannot

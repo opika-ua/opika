@@ -61,7 +61,7 @@ packages.
 Full rationale, current version numbers, and pricing sources:
 `docs/stack-decision.md`.
 
-## Repo layout (`packages/ui` and `packages/i18n` are the only parts still target-shape, not actual — Phase C4)
+## Repo layout
 
 ```
 opika/
@@ -73,8 +73,13 @@ opika/
 │  ├─ contracts/                # Zod schemas + oRPC contract — M1, done
 │  ├─ domain/                   # pure TS: FSM, freshness, scoring. No I/O. — M1, done
 │  ├─ db/                       # Drizzle schema + repositories — M2, done
-│  ├─ ui/                       # shared primitives — Phase C4, not yet
-│  └─ i18n/                     # message catalogues + Intl formatters — Phase C4, not yet
+│  ├─ ui/                       # shared primitives — Phase C4, done. Genuinely cross-feature
+│  │                              only (freshness display today); feature-local UI stays in
+│  │                              apps/web/src/features/*, not here
+│  └─ i18n/                     # uk/en message catalogues — Phase C4, done. Intl formatters
+│                                 (relative-time, plurals) stay in packages/domain, which
+│                                 already had them; this package is catalogues only until
+│                                 H3 wires next-intl
 ├─ docs/                        # this repo's copies of the ADR, build plan, design, standing constraints
 └─ infra/ (docker-compose.yml lives at repo root instead, see below)
 ```

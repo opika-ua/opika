@@ -1,9 +1,9 @@
 "use client";
 
+import { uk } from "@opika/i18n";
 import { useCallback, useRef, useState } from "react";
 import { generateMockCards } from "../../features/discovery/mock-data";
 import { type DeckState, SwipeDeck } from "../../features/discovery/SwipeDeck";
-import { uk } from "../../features/discovery/strings.uk";
 
 /**
  * Discovery page — the swipe deck.

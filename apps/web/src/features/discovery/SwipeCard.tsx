@@ -1,9 +1,9 @@
 "use client";
 
 import type { FeedCardView } from "@opika/contracts";
+import { uk } from "@opika/i18n";
+import { freshnessLabel, freshnessPips, type PipFill } from "@opika/ui";
 import type { RefCallback } from "react";
-import { freshnessLabel, freshnessPips, type PipFill } from "./freshness-display";
-import { uk } from "./strings.uk";
 
 interface SwipeCardProps {
   card: FeedCardView;

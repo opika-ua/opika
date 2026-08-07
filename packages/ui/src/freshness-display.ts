@@ -1,6 +1,6 @@
 import type { Freshness, FreshnessKind } from "@opika/domain";
 import { formatFreshnessRelative } from "@opika/domain";
-import { uk as strings } from "./strings.uk";
+import { uk as strings } from "@opika/i18n";
 
 /**
  * Per-pip fill state for the freshness marker.
@@ -36,6 +36,11 @@ export function freshnessPips(kind: FreshnessKind): [PipFill, PipFill, PipFill] 
       return ["bg-ink-4", "bg-ink-4", null];
     case "stale":
       return ["bg-ink-4", "bg-ink-4", "bg-ink"];
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = kind;
+      return unreachable;
+    }
   }
 }
 
@@ -44,5 +49,5 @@ export function freshnessPips(kind: FreshnessKind): [PipFill, PipFill, PipFill] 
  */
 export function freshnessLabel(freshness: Freshness): string {
   const relative = formatFreshnessRelative(freshness, "uk");
-  return `${strings.freshness.updatedAgo.replace("{days}", relative)}`;
+  return strings.freshness.updatedAgo.replace("{days}", relative);
 }
