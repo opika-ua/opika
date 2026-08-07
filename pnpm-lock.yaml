@@ -107,6 +107,9 @@ importers:
       '@opika/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@opika/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@orpc/contract':
         specifier: 'catalog:'
         version: 1.14.14
@@ -236,6 +239,25 @@ importers:
         version: 4.1.10(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.5))
 
   packages/i18n:
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 4.1.10(vitest@4.1.10)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.5))
+
+  packages/ui:
+    dependencies:
+      '@opika/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@opika/i18n':
+        specifier: workspace:*
+        version: link:../i18n
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'

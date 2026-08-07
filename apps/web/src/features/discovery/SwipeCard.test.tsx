@@ -1,8 +1,8 @@
 import type { FeedCardView } from "@opika/contracts";
 import type { Freshness, FreshnessKind } from "@opika/domain";
+import { freshnessLabel } from "@opika/ui";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { freshnessLabel } from "./freshness-display";
 import { SwipeCard } from "./SwipeCard";
 
 /**
