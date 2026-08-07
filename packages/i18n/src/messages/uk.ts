@@ -164,6 +164,8 @@ export const uk = {
   // --- Reserved badge ---
   reserved: {
     badge: "Уже домовляються",
+    /** The gallery card's tablet (600-1023) layout, 6px inset vs 8px elsewhere — docs/design/README.md, "The Gallery" > "Card". */
+    badgeShort: "Домовляються",
     action: "Стати другим у черзі",
   },
 
@@ -193,6 +195,14 @@ export const uk = {
     sizeSmall: "мала",
     sizeMedium: "середня",
     sizeLarge: "велика",
+    /**
+     * Templates: "{city}" -> "м. {city}". The gallery card's terse
+     * housing+city fragment (docs/design/README.md, "The Gallery" > "Card"),
+     * not the fuller sentence in location.fostered, which carries the
+     * detail page's own address disclaimer the card has no room for.
+     */
+    atShelter: "м. {city}",
+    fosteredHousing: "живе у волонтерки, м. {city}",
   },
 
   // --- Language toggle ---

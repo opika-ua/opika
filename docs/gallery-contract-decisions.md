@@ -550,6 +550,49 @@ over an in-memory sliding window) could be reused for it directly — not left i
 
 ---
 
+## 6. Animal detail URL — `/tvaryny/[animalId]`, a slug prefix deferred to F′
+
+**Decision: the gallery card's `<a>` points at `/tvaryny/{animalId}` — the bare
+`AnimalId` UUID, no slug — even though Phase F (the detail page this resolves to) is not
+built yet.**
+
+The design's Card section requires "one `<a>` per animal" so the whole card is a single
+tab stop with real focus/hover semantics. Building that in E1 and pointing it at a route
+that 404s until F is a smaller cost than building it in F′ instead: an unbuilt link target
+is free to fix later, an unbuilt focus state is a re-review, and this repo has already
+paid once for exactly that shortcut (the deck's action row shipped over a dead swipe
+gesture — `docs/standing-constraints.md`'s "How work is verified" section).
+
+### Forward compatibility with a slug — F′'s job, not E1's
+
+Nothing here locks the URL to a bare ID forever. F′ is expected to add an SEO-friendly
+form (`/tvaryny/marsik-a7f3k2`) once the detail page is the organic acquisition surface
+the design's "Gallery ↔ Deck" section describes — a Ukrainian adopter sharing a link in
+Viber or Telegram sees the URL text, and a name in it earns real clicks a bare UUID
+doesn't. The shape stays compatible with that addition without a migration: whatever F′
+parses, the *trailing* segment is the authoritative `AnimalId`, a bare ID (what E1 emits)
+still resolves once F′ ships, and a wrong or stale slug on an otherwise-valid ID redirects
+to the canonical slugged URL rather than 404ing. E1 does not build any of that parsing —
+there is no page at this route yet — it only emits the bare-ID `href` in the shape F′'s
+parser will accept unchanged.
+
+### The `gortaty` namespace — checked, not just assumed
+
+`/tvaryny/gortaty` (§ "Gallery ↔ Deck," `docs/design/README.md`) is a static sibling of
+this dynamic segment. Next.js resolves a static segment before a dynamic one at the same
+level, so the two coexist without a routing conflict *unless* an `AnimalId` could ever
+literally equal the string `"gortaty"`. It cannot: `AnimalIdSchema` is `z.uuid()`
+(`packages/domain/src/primitives/ids.ts`) — 36 characters, hyphens at fixed positions,
+every other character a hex digit — and `"gortaty"` is 7 characters and contains `g`,
+`o`, `r`, `t`, `y`, none of which are hex digits. Asserted as a real test, not just this
+paragraph: `apps/web/src/app/tvaryny/route-namespace.test.ts`.
+
+This is a standing check, not a one-time one: every future static child E2–E5 add under
+`/tvaryny` (a sort or filter route, a pagination shortcut) eats from the same namespace
+and needs the same "cannot collide with a valid AnimalId" property confirmed, not assumed.
+
+---
+
 ## Summary — what Phase E actually builds because of this document
 
 | Area | New surface | New schema | New index |

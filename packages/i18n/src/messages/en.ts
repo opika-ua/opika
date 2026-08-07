@@ -171,6 +171,7 @@ export const en = {
   // --- Reserved badge ---
   reserved: {
     badge: "Already in conversation",
+    badgeShort: "In talks",
     action: "Ask to be second in line",
   },
 
@@ -192,6 +193,8 @@ export const en = {
     sizeSmall: "small",
     sizeMedium: "medium",
     sizeLarge: "large",
+    atShelter: "{city}",
+    fosteredHousing: "with a volunteer foster in {city}",
   },
 
   // --- Language toggle ---

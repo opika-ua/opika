@@ -127,6 +127,22 @@
   --font-sans: var(--font-commissioner);
 
   /*
+   * ---- Breakpoints — docs/design/README.md, "Breakpoints & Surfaces" ----
+   * Named for the gallery layout each one turns on, not for a device class:
+   * `tablet` is where the card switches from vertical to horizontal, not
+   * "phones below this, tablets above." Custom names because the design's
+   * three cut points (600/1024/1440) don't line up with Tailwind's stock
+   * `sm`/`md`/`lg`/`xl` scale, and reusing those names at different pixel
+   * values than their defaults would be a trap for the next reader.
+   * `/discovery` predates these and does not use them — its 390px column is
+   * a separate, still-open gap (`docs/build-plan.md` G3), not something this
+   * addition changes.
+   */
+  --breakpoint-tablet: 600px;
+  --breakpoint-desktop: 1024px;
+  --breakpoint-wide: 1440px;
+
+  /*
    * ---- Loading spinner ----
    * Tailwind's built-in `animate-spin` is `1s linear infinite`; the design
    * uses `0.8s`. Named separately rather than overriding Tailwind's own
