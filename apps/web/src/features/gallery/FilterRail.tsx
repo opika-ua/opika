@@ -6,7 +6,7 @@ import type {
   GallerySort,
   SizeBucket,
 } from "@opika/domain";
-import { AGE_BUCKETS, ANIMAL_SPECIES, matchesSelection, SIZE_BUCKETS } from "@opika/domain";
+import { AGE_BUCKETS, ANIMAL_SPECIES, isExplicitlySelected, SIZE_BUCKETS } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Link from "next/link";
 import {
@@ -112,7 +112,7 @@ export function FilterRail({ filters, sort, cities }: FilterRailProps) {
           {cities.map((city) => (
             <Chip
               key={city.id}
-              active={matchesSelection(filters.cities, city.id)}
+              active={isExplicitlySelected(filters.cities, city.id)}
               href={galleryHref(withToggledCity(filters, city.id), sort)}
             >
               {city.name}
@@ -129,7 +129,7 @@ export function FilterRail({ filters, sort, cities }: FilterRailProps) {
           {ANIMAL_SPECIES.map((species) => (
             <Chip
               key={species}
-              active={matchesSelection(filters.species, species)}
+              active={isExplicitlySelected(filters.species, species)}
               href={galleryHref(withToggledSpecies(filters, species), sort)}
             >
               {SPECIES_LABEL[species]}
@@ -146,7 +146,7 @@ export function FilterRail({ filters, sort, cities }: FilterRailProps) {
           {SIZE_BUCKETS.map((size) => (
             <Chip
               key={size}
-              active={matchesSelection(filters.sizes, size)}
+              active={isExplicitlySelected(filters.sizes, size)}
               href={galleryHref(withToggledSize(filters, size), sort)}
             >
               {SIZE_LABEL[size]}
@@ -163,7 +163,7 @@ export function FilterRail({ filters, sort, cities }: FilterRailProps) {
           {AGE_BUCKETS.map((age) => (
             <Chip
               key={age}
-              active={matchesSelection(filters.ages, age)}
+              active={isExplicitlySelected(filters.ages, age)}
               href={galleryHref(withToggledAge(filters, age), sort)}
             >
               {AGE_LABEL[age]}

@@ -81,6 +81,20 @@ export const matchesSelection = <T>(selection: FilterSelection<T>, value: T): bo
   selection.kind === "any" || selection.values.includes(value);
 
 /**
+ * Whether `value` was explicitly chosen — never true for `{kind: "any"}`,
+ * unlike `matchesSelection`, which deliberately treats "any" as matching
+ * everything (the right behaviour for *filtering*: an unconstrained
+ * dimension excludes nothing). A filter-UI checkbox or chip asking "should
+ * I render as checked" wants this function instead: reusing
+ * `matchesSelection` there marks every single option active the moment
+ * nothing is filtered, which is a real bug, not a cosmetic one — a filter
+ * sheet whose "select all" state is indistinguishable from "nothing
+ * selected" cannot show the adopter what they actually chose.
+ */
+export const isExplicitlySelected = <T>(selection: FilterSelection<T>, value: T): boolean =>
+  selection.kind === "oneOf" && selection.values.includes(value);
+
+/**
  * `universe` collapses an exhaustive selection back to "any".
  *
  * Without it, ticking every species box yields `{oneOf:["cat","dog"]}` while

@@ -12,7 +12,7 @@ import {
   AGE_BUCKETS,
   ANIMAL_SPECIES,
   DEFAULT_GALLERY_SORT,
-  matchesSelection,
+  isExplicitlySelected,
   SIZE_BUCKETS,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
@@ -120,7 +120,23 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
         id={SHEET_ID}
         aria-label={uk.filters.title}
         data-testid="filter-sheet"
-        className="desktop:hidden m-0 mt-auto mb-0 w-full max-w-none max-h-[85vh] rounded-t-[20px] rounded-b-none border-0 bg-paper p-0 backdrop:bg-[#EDE3D2]/80"
+        // Fixed positioning is stated explicitly rather than left to the
+        // <dialog>'s native top-layer centering: showModal() DOES apply its
+        // own default centered placement, but this component also has to
+        // render as a real, correctly-positioned overlay with no JS at all
+        // (revealed only by :target, never entering the top layer), where
+        // nothing but this component's own CSS positions it. Relying on
+        // showModal()'s defaults for the JS path and something else for the
+        // no-JS path would be two different layouts to keep in sync;
+        // stating it once here covers both by construction.
+        //
+        // `z-50` is load-bearing, not decorative: `position: fixed` alone
+        // does not guarantee paint order over later DOM siblings unless a
+        // stacking context is established — without an explicit z-index,
+        // the gallery grid (which comes after this element in the tree)
+        // painted its cards' photos through the sheet in the no-JS path,
+        // caught by an actual browser render, not by reasoning about it.
+        className="desktop:hidden fixed inset-x-0 bottom-0 top-auto z-50 m-0 w-full max-w-none max-h-[85vh] overflow-y-auto rounded-t-[20px] rounded-b-none border-0 bg-paper p-0 backdrop:bg-[#EDE3D2]/80"
       >
         <form method="GET" action="/tvaryny" className="flex flex-col gap-section p-group pb-6">
           <div className="flex items-center justify-between">
@@ -157,7 +173,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
                     type="checkbox"
                     name="misto"
                     value={city.id}
-                    defaultChecked={matchesSelection(filters.cities, city.id)}
+                    defaultChecked={isExplicitlySelected(filters.cities, city.id)}
                     className="sr-only"
                   />
                   {city.name}
@@ -177,7 +193,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
                     type="checkbox"
                     name="vyd"
                     value={species}
-                    defaultChecked={matchesSelection(filters.species, species)}
+                    defaultChecked={isExplicitlySelected(filters.species, species)}
                     className="sr-only"
                   />
                   {SPECIES_LABEL[species]}
@@ -197,7 +213,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
                     type="checkbox"
                     name="rozmir"
                     value={size}
-                    defaultChecked={matchesSelection(filters.sizes, size)}
+                    defaultChecked={isExplicitlySelected(filters.sizes, size)}
                     className="sr-only"
                   />
                   {SIZE_LABEL[size]}
@@ -217,7 +233,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
                     type="checkbox"
                     name="vik"
                     value={age}
-                    defaultChecked={matchesSelection(filters.ages, age)}
+                    defaultChecked={isExplicitlySelected(filters.ages, age)}
                     className="sr-only"
                   />
                   {AGE_LABEL[age]}
