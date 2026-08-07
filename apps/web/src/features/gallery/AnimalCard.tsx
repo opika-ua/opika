@@ -27,10 +27,12 @@ interface AnimalCardProps {
    * where most cards start below the fold — but it also applies to the
    * cards that don't, on a page whose entire content is photographs, for
    * an audience the ADR names specifically as Ukrainian mobile users on
-   * carrier networks. The caller passes `true` for the first 4 cards — the
-   * `wide` breakpoint's column count (`globals.css`), a superset of every
-   * narrower breakpoint's first row, so whichever layout actually renders,
-   * that row is never left lazy.
+   * carrier networks. The caller passes `true` for a small prefix of cards
+   * (`PRIORITY_ROW_SIZE`, `apps/web/src/app/tvaryny/page.tsx`) sized to the
+   * *tablet* breakpoint's column count, not the widest one — a wider count
+   * would mean most of those "priority" preloads compete with the real LCP
+   * image for bandwidth at phone width, where only the first is ever on
+   * screen.
    */
   priority?: boolean;
 }

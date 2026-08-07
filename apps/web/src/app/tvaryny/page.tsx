@@ -19,11 +19,17 @@ import { SortControl } from "../../features/gallery/SortControl";
 export const dynamic = "force-dynamic";
 
 /**
- * The `wide` breakpoint's column count (`globals.css`) — the largest first
- * row any layout renders, so a superset of every narrower breakpoint's own
- * first row. See `AnimalCard`'s `priority` prop doc for why this matters.
+ * Not the `wide` breakpoint's column count (4) — that was tried first and
+ * rejected on review: at a 360px phone (1 column), it means 3 of the 4
+ * "priority" preloads compete with the real LCP image for bandwidth on
+ * exactly the audience (Ukrainian mobile, carrier networks) this matters
+ * most for, while nothing is even on screen to show for two of them. `2` is
+ * the tablet breakpoint's column count — still 1 wasted preload at phone
+ * width (unavoidable without threading the breakpoint into this Server
+ * Component), but half the waste this had before, and exactly right at
+ * tablet and a reasonable partial win at desktop/wide.
  */
-const PRIORITY_ROW_SIZE = 4;
+const PRIORITY_ROW_SIZE = 2;
 
 /**
  * E2's filters + sort, over E1's grid. `docs/build-plan.md`'s E2 row: "Filter
