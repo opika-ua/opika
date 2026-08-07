@@ -7,6 +7,7 @@ import { FilterRail } from "../../features/gallery/FilterRail";
 import { FilterSheet } from "../../features/gallery/FilterSheet";
 import { parseGalleryQuery, type SearchParams } from "../../features/gallery/filter-url";
 import { railResultCount, sheetResultCount } from "../../features/gallery/gallery-copy";
+import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { SortControl } from "../../features/gallery/SortControl";
 
 /**
@@ -80,14 +81,18 @@ export async function renderGallery(
 
         {/* 280 (rail) + 32 (rail-grid gap) + 960/1320 (grid's own content width) = 1272/1632. */}
         <div className="desktop:flex desktop:gap-8 desktop:items-start desktop:max-w-[1272px] wide:max-w-[1632px] desktop:mx-auto">
-          <FilterRail filters={filters} sort={sort} cities={cityList} />
+          <ReplaceNav>
+            <FilterRail filters={filters} sort={sort} cities={cityList} />
+          </ReplaceNav>
 
           <div className="flex-1 min-w-0">
             <div className="hidden desktop:flex items-center justify-between mb-4">
               <span className="font-sans text-sm text-ink-3">
                 {railResultCount(page.totalMatching, page.totalShelters)}
               </span>
-              <SortControl filters={filters} sort={sort} />
+              <ReplaceNav>
+                <SortControl filters={filters} sort={sort} />
+              </ReplaceNav>
             </div>
 
             <main

@@ -4,6 +4,7 @@ import { render, screen, within } from "@testing-library/react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { anonymousRouterClient } from "../../api/server-client";
 import { createTestHarness, type TestHarness } from "../../api/test-harness";
+import { WithMockRouter } from "../../features/gallery/test-router";
 import { renderGallery } from "./page";
 
 let h: TestHarness;
@@ -45,7 +46,7 @@ describe("/tvaryny (renderGallery)", () => {
     await animalRepo(h.db).insert(animal, city.id);
 
     const element = await renderGallery(anonymousRouterClient(h.db));
-    render(element);
+    render(<WithMockRouter>{element}</WithMockRouter>);
 
     // Scoped to the grid: the page around it now carries its own links too
     // (rail chips, sort control, the sheet trigger) — this assertion is
@@ -77,14 +78,14 @@ describe("/tvaryny (renderGallery)", () => {
     await animalRepo(h.db).insert(animal, city.id);
 
     const element = await renderGallery(anonymousRouterClient(h.db));
-    render(element);
+    render(<WithMockRouter>{element}</WithMockRouter>);
 
     expect(screen.getByTestId("reserved-badge")).toBeTruthy();
   });
 
   it("renders an empty grid, not a crash, when nothing is seeded", async () => {
     const element = await renderGallery(anonymousRouterClient(h.db));
-    render(element);
+    render(<WithMockRouter>{element}</WithMockRouter>);
 
     // Scoped to the grid for the same reason as above — the rail/sheet/sort
     // controls render their own links regardless of how many animals matched.

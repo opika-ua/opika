@@ -16,6 +16,7 @@ import {
   SIZE_BUCKETS,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { resetFiltersHref } from "./filter-url";
 import { showCountLabel } from "./gallery-copy";
@@ -69,6 +70,7 @@ const CHIP_LABEL_BASE =
  * background scroll, and returning focus to the trigger on close.
  */
 export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetProps) {
+  const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLAnchorElement>(null);
 
@@ -101,6 +103,42 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
   const closeWithJs = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     dialogRef.current?.close();
+  };
+
+  /**
+   * `router.replace`, not the default push a real `<a>`/form GET produces
+   * — same "ten clicks, ten history entries" reasoning as `ReplaceNav`
+   * (`apps/web/src/features/gallery/ReplaceNav.tsx`), applied here instead
+   * of wrapping this component in it: `FilterSheet` is already a Client
+   * Component with its own dialog-close bookkeeping, so a second layer of
+   * click interception would just be two mechanisms doing the same job.
+   */
+  const navigateWithJs = (href: string) => {
+    dialogRef.current?.close();
+    router.replace(href, { scroll: false });
+  };
+
+  const onAllCitiesClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    navigateWithJs(resetFiltersHref(sort));
+  };
+
+  const onResetClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    navigateWithJs(resetFiltersHref(sort));
+  };
+
+  const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const params = new URLSearchParams();
+    for (const [key, value] of new FormData(event.currentTarget)) {
+      // Every field in this form is a checkbox/radio value, never a file
+      // input — the string check is a type-narrowing formality, not a real
+      // branch this form can hit the other side of.
+      if (typeof value === "string") params.append(key, value);
+    }
+    const qs = params.toString();
+    navigateWithJs(qs ? `/tvaryny?${qs}` : "/tvaryny");
   };
 
   return (
@@ -138,7 +176,12 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
         // caught by an actual browser render, not by reasoning about it.
         className="desktop:hidden fixed inset-x-0 bottom-0 top-auto z-50 m-0 w-full max-w-none max-h-[85vh] overflow-y-auto rounded-t-[20px] rounded-b-none border-0 bg-paper p-0 backdrop:bg-[#EDE3D2]/80"
       >
-        <form method="GET" action="/tvaryny" className="flex flex-col gap-section p-group pb-6">
+        <form
+          method="GET"
+          action="/tvaryny"
+          onSubmit={onSubmit}
+          className="flex flex-col gap-section p-group pb-6"
+        >
           <div className="flex items-center justify-between">
             <span
               aria-hidden="true"
@@ -163,6 +206,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
             <div className="flex flex-wrap gap-row">
               <a
                 href={resetFiltersHref(sort)}
+                onClick={onAllCitiesClick}
                 className={`${CHIP_LABEL_BASE} ${filters.cities.kind === "any" ? "bg-leaf text-paper border-leaf" : ""}`}
               >
                 {uk.filters.allCities}
@@ -275,6 +319,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
           <div className="flex gap-row">
             <a
               href={resetFiltersHref(sort)}
+              onClick={onResetClick}
               className="min-h-13 flex items-center justify-center rounded-button border border-line-strong bg-paper text-ink-3 font-sans text-sm px-5"
             >
               {uk.filters.reset}
