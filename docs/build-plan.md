@@ -1,302 +1,259 @@
-# MVP Build Plan — Swipe Adoption Platform
+# Opika — Build Plan
 
-**Capacity assumption: ~10 h/week, solo.** Every number below is effort-hours, and the calendar column divides by 10. Companion to `stack-decision.md` — that document says *what* to build with; this one says *in what order* and *how long*.
+**The single plan.** This document, `docs/standing-constraints.md` (the rules that apply
+to every phase) and `docs/design/README.md` (the design, now including the gallery and
+desktop breakpoints) are the three documents `.claude/commands/phase.md` reads before
+starting any phase.
+
+`docs/course-correction.md` is now a pointer to this document — its reasoning (why the
+gallery became primary, the pattern behind three verification failures) is worth reading
+once; its plan content lived here from the moment this rewrite landed.
+
+**Capacity:** ~10 h/week solo, ~8 h/week of it code, ~2 h/week shelter recruitment — the
+actual gate on launch date, unaffected by anything below.
 
 ---
 
-## 0. The headline, before the detail
+## Part 1 — History: M0 through M5
 
-**Full MVP as specified: ~240 h ≈ 24 weeks ≈ 5.5 months.** At 10 h/week that's a launch around late January 2027, and side projects that run 6 months without shipping usually don't ship.
+What was originally a milestone-by-milestone plan (M0–M12) is now two things: this
+history section, recording what M0–M5 actually delivered against what was originally
+scoped, and Part 2, the phases that replace the original M6–M12 — restructured once,
+after an audit found the original plan phone-only and unaware that the gallery is now
+the primary surface.
 
-**Recommended: cut to ~150 h ≈ 15 weeks ≈ launch mid-November 2026.** Four cuts get you there, and none of them is architectural — every one is a *deferred feature*, not a *changed foundation*:
+Full detail on individual decisions from this era — the verification FSM edges, the
+evidence-item shape, the anonymous-session design — stays in `CLAUDE.md`'s decision
+lists; nothing here duplicates those.
 
-| Cut | Saves | Why it's safe |
+| Milestone | Scoped | Delivered |
 |---|---|---|
-| **No shelter partner dashboard** — you enter listings via an internal admin + CSV import | **~30 h** | At 5–10 shelters you're faster than any dashboard. Shelters will email you photos anyway. Build it when a shelter *asks* for it |
-| **No adopter accounts** — anonymous device session, reveal works without signup | **~12 h** | The reveal is free; there's nothing to protect. Better Auth's anonymous plugin means adding real accounts later is additive |
-| **You upload the photos** during shelter onboarding, via a script | **~8 h** | The upload *pipeline* still gets built (M6); only the shelter-facing upload UI is deferred |
-| **English via machine translation + your review**, not hand-authored | **~6 h** | The i18n *infrastructure* ships from day one. Only the copy quality is deferred |
+| **M0** — repo & tooling | pnpm workspace, strict TS, Biome, Docker Postgres, CI skeleton | Done. `pnpm i && pnpm check` on a clean clone is the standing bar — restated here because M0 once reported it green without having been run at all (see `docs/standing-constraints.md`) |
+| **M1** — contracts + domain | Branded IDs, `Shelter` + verification FSM, `Animal` unions, `Freshness`, `scoreAnimal`, 8-procedure oRPC contract | Done. Zero non-Zod dependencies in `packages/domain`; exhaustive FSM transition table; freshness correct at all uk plural boundaries. 252 tests |
+| **M2** — persistence | Drizzle schema, repositories, keyset feed query, HMAC location fuzzing | Done. `packages/db/test/feed-explain.test.ts` asserts the feed query's `EXPLAIN` plan has no `Sort` node and uses the partial index — mutation-checked (temporarily dropping the index makes the test fail) during this rewrite, closing an open contradiction from the pause brief: an earlier audit claimed nothing verified index usage; the test existed, ran, and was correct. The audit was wrong, not the test. 31 tests |
+| **M3** — seed data | 300+ animals, realistic distributions | Done. 320 animals, 8 shelters, shaped freshness and vaccination distributions, fostered animals, real photos. `db:seed` itself has not been re-run in a verification pass since — still merely asserted, not a live gap this rewrite closes. 27 Biome console warnings in the seed script are known and deliberately deferred — a dev-only script, not shipped code |
+| **M4** — minimal API | oRPC router, anonymous session, rate limiting | Done, and hardened beyond the original scope: hand-rolled anonymous device session (not Better Auth — that's deferred to shelter accounts), HMAC-signed cursors bound to a filters fingerprint, split rate limiting (per-IP sliding window; Postgres-persisted reveal limit). Session security properties — timing-safe comparison, `__Host-` cookie in production, 30-day/7-day expiry — are implemented but still merely asserted: no test currently exercises them end to end |
+| **M5** — swipe deck | `PointerEvent` + `transform`, release physics, deck component | Done, but this is the milestone the process failures cluster around. "`/discovery` renders" was originally verified by fetching HTML and grepping for card text, while an action row sat on top of the card and the gesture was dead. The rendering harness (`apps/web/test/harness`, Playwright) and the fixes it verifies — six of them, each now locked by a harness assertion or a unit test — are what actually closed this. Visual properties that aren't geometry (the 6° rotation cap, the 0.03deg/px factor, the 40px affordance ramp) still have no assertion; `onPointerCancel` ignoring `prefers-reduced-motion` is a known, deliberately deferred gap; iOS Safari's swipe failure has never reproduced on any other engine and — now that the deck is a mode entered from the gallery, not the front door — is off the critical path |
 
-That's ~56 h — nearly six weeks of your calendar. Everything cut lands in the first post-launch sprint, and none of it touches `packages/contracts`, `packages/domain`, or the schema.
+**Test counts at the end of M5:** 307 vitest (domain 252, contracts 24, db 31), 0 harness.
 
-**⚠️ The real critical path is not code.** Launching needs **5–10 verified shelters with photographed, described animals**. That is phone calls, site visits, trust-building, and chasing people for photos — and in a Ukrainian oblast during wartime it will take longer than you think. **Start it in week 1, in parallel.** If code is ready in week 15 and shelters aren't, you launch to an empty feed, which is worse than not launching. Budget ~2 of your 10 weekly hours to this from day one; the code estimates below assume 8 h/week of actual building.
+### What M5's audit changed, and why the plan restructured
 
-At 8 h/week of code, **~150 h ≈ 19 weeks ≈ launch mid-December 2026.** That's the honest number. Plan to that.
+Two things landed at once: a build failure that had been invisible to CI (`tsc` accepts
+`./x.js` relative imports under every resolution mode; the bundler doesn't — `next build`
+had never run), and a new, correct requirement that the original plan never carried:
+**the app must work on desktop, and animals must be browsable as a gallery, not only as a
+swipe deck.**
+
+The gallery becomes the **primary surface**, not the deck — it's what search engines
+index, what gets pasted into a Telegram group, what a grant reviewer or shelter director
+opens on a laptop. The deck remains the differentiator and still ships, but as a mode
+entered from the gallery, and off the critical path for launch. Full reasoning —
+including the pattern behind the three verification incidents, now generalised into
+`docs/standing-constraints.md` rather than restated per-document — is in
+`docs/course-correction.md`.
+
+**Consolidation work that followed the audit, before any gallery code:**
+
+| Landed | What |
+|---|---|
+| PR #15 | Verification gate — the Playwright harness, `next build` gated in CI, happy-dom + Testing Library, the six M5 fixes restored and locked |
+| PR #16 | Tailwind migration, `next/font` typography (Literata + Commissioner; IBM Plex Mono measured and dropped — 11.2% of font payload for one rarely-seen label), the `implement(contract)` security lock (`handlers-implement-contract.test.ts`), measurable margin enforcement in the harness |
+| PR #17 | Design handoff v2 landed at `docs/design/` (same path v1 was at — never a folder move), prototyping-runtime cleanup |
+
+**Test counts now:** 376 vitest, 17 harness.
 
 ---
 
-## 1. On "backend first" — a qualified yes
+## Part 2 — The phases
 
-You're right that contracts and domain come first. But **pure backend-first for 14 weeks is how side projects die.** You'd have no visible artifact until March, and the swipe feel — the one thing the entire product rests on — would be unvalidated until the end.
+Five phases replace the original M6–M12. Each has an id `.claude/commands/phase.md` can
+be invoked with (`/phase C4`, `/phase E`, a bare phase letter or a specific task within
+it), its tasks, an hour estimate, a definition of done, and the decisions that phase must
+surface before or during implementation.
 
-The shape that works:
+A sixth thing from the original course correction — **design pass 2** (desktop
+breakpoints, the gallery) — is not a phase here because it is already done: v2 of
+`docs/design/README.md` (34.5 KB, "Breakpoints & Surfaces", "The Gallery", "Desktop
+Breakpoints for the Eight Screens") is in the repository. It is folded into Part 1's
+history rather than carried forward as live work.
 
-```
-Phase A  weeks 1–6    Pure backend. Contracts → domain → persistence → seed data.
-                      Nothing visible. This is unavoidable and it is correctly first.
+### Phase C — Consolidate and unblock
 
-Phase B  weeks 7–10   ⬅ VERTICAL SLICE. Thin API + the swipe deck against real data.
-                      By week 10 you can hand someone your phone. Momentum secured.
+**Nothing new is built until the foundation supports two form factors and the process
+can tell truth from shape.** Four of seven tasks are already done; what's below is
+accurate as of this rewrite, not as of when the course correction was written.
 
-Phase C  weeks 11–15  Thicken. Reveal flow, images, admin, i18n, PWA.
+| # | Task | h | Status |
+|---|---|---|---|
+| C1 | Merge everything — one `main`, one truth | 3 | **Done.** M4 follow-up, M5, the bundler fix, PRs #15–#17 are all on `main` |
+| C2 | Verification gate — harness in CI, `next build` gated, markup-inspection ruled out as evidence | 6 | **Done** (PR #15), and generalised into `docs/standing-constraints.md` |
+| C3 | Tailwind migration — `tokens.ts` → Tailwind `@theme`, deck converted from inline styles | 8 | **Done** (PR #16). Pixel parity verified by screenshot diff, not assumed |
+| C4 | Extract `packages/ui` and `packages/i18n` — tokens and primitives out of `features/discovery`; strings out with them; add the English file the design's string table implies | 8 | **Remaining.** `tokens.ts` and `strings.uk.ts` are still feature-scoped; there is still no English string file |
+| C5 | Wire the typography — `next/font`, Cyrillic + Latin subsets, measure the payload | 2 | **Done** (PR #16) |
+| C6 | Component test infrastructure — RTL + happy-dom, real tests proving the setup | 4 | **Done** (PR #15) |
+| C7 | App shell and navigation — a real `page.tsx`, responsive layout, a view-mode switch with a persisted preference | 3 | **Remaining.** `apps/web/src/app/page.tsx` is still `"API-only at this milestone."` — no entry point, no navigation |
 
-Phase D  weeks 16–19  Harden and launch. Observability, legal, real shelter data, soft launch.
-```
+**Remaining: C4 + C7, ~11 h.**
 
-The vertical slice in Phase B is not a detour — it's the same API and the same deck you ship. It just gets built earlier than a strict layer-by-layer order would put it. And it de-risks the single largest unknown (does a hand-rolled `PointerEvent` deck actually feel good?) at week 10 instead of week 22.
+**Done when:** the home page is a real entry point with navigation between the gallery
+and the deck, design tokens and shared strings live in `packages/ui`/`packages/i18n` (not
+`features/discovery`), an English string file exists, and `pnpm check` stays green
+throughout — it already does for C1–C3/C5–C6; C4 and C7 must not regress it.
 
----
+**Decisions this phase must surface:** whether `packages/ui` takes any dependency beyond
+what's already justified in the catalog (per `docs/standing-constraints.md`'s "justify
+every dependency"); the view-mode preference's storage (the design's own answer,
+`docs/design/README.md` "Gallery ↔ Deck": `sessionStorage`, not permanent — a link shared
+into Telegram always opens the gallery).
 
-## 2. Phase A — Backend foundations (weeks 1–6, ~48 h)
+### Phase E — Gallery
 
-### M0 · Repo and tooling — 8 h
+**Do this after Phase C.** `docs/gallery-contract-decisions.md`'s five decisions are
+settled (owner sign-off, 2026-08-07) — the gate this note used to describe is closed;
+what's below already reflects the decided shape, not an open question. Building gallery
+UI ahead of the contracts it needs would still be the M5 mistake (grep for card text,
+ship a dead gesture) in a different shape — the gate just isn't a *decision* gate
+anymore, it's an *implementation-order* one.
 
-| Task | h |
-|---|---|
-| pnpm 11 workspace, catalogs in `pnpm-workspace.yaml`, `packageManager` pinned + corepack | 2 |
-| Base `tsconfig` (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`), Biome for lint+format (one tool, not ESLint+Prettier — lean deps) | 2 |
-| `docker-compose.yml` with `postgis/postgis:17-3.5`, `.env` handling, `direnv` or `dotenvx` | 2 |
-| GitHub repo (**public** — unlocks free Actions, Crowdin OSS, Blacksmith), CI skeleton: typecheck → lint → test | 2 |
-
-**Done when:** `pnpm i && pnpm check` passes on a clean clone, CI is green, `docker compose up` gives you a PostGIS database.
-
-> Leave `minimumReleaseAge: 1440` at its pnpm 11 default. It's your best supply-chain defense and it costs nothing.
-
-### M1 · Contracts + domain — 22 h ⭐ the most important milestone in the plan
-
-Pure TypeScript. **No database, no Next.js, no I/O.** This is contract-first taken literally, and it's the code you'd keep if you threw everything else away.
-
-| Task | h |
-|---|---|
-| Branded ID types, `Money`, `LocalizedText`, base primitives | 2 |
-| `Shelter` schema + verification FSM (`pending → under_review → verified \| rejected \| suspended`) with an exhaustive transition table test | 5 |
-| `Animal` schema — discriminated unions for vaccination/spay-neuter (`unknown \| in_progress \| confirmed`, with `source` in the discriminant), `DocumentReadiness` stub, required `lastUpdatedAt` | 5 |
-| `AdopterProfile` + `FeedFilters` (city, type, size, age) | 2 |
-| `ContactReveal` with shelter contact snapshot | 1 |
-| `Freshness` union + `freshnessOf(lastUpdatedAt, now)` + tests at uk plural boundaries (1, 2, 5, 11, 21, 22 days) | 3 |
-| `scoreAnimal(animal, filters) → number` ranking function + table-driven tests | 2 |
-| oRPC contract definitions (`@orpc/contract`) for the ~8 MVP procedures | 2 |
-
-**Done when:** `packages/domain` has zero dependencies beyond Zod, ≥90% test coverage on the FSM and freshness functions, and `packages/contracts` type-checks with no implementation in existence.
-
-> **Do not skip the exhaustive FSM test.** It's ~50 lines and it's the only thing standing between you and "we forgot the case where a suspended shelter gets re-verified" three months from now.
-
-### M2 · Persistence — 18 h
-
-| Task | h |
-|---|---|
-| Drizzle schema mirroring the contracts + first migration. `city_id` FK (btree) **and** `lat`/`lng` columns. PostGIS available but **not enabled** | 5 |
-| Repositories: `animalRepo`, `shelterRepo`, `revealRepo`, `adopterRepo` — expose domain types, never the Drizzle client | 5 |
-| **Keyset-cursor feed query** with filter combinations + seen-set exclusion. Never `OFFSET` | 4 |
-| Integration-test harness: docker PG, per-test transaction rollback | 4 |
-| **Implement keyed HMAC digest + call `assertProductionLocationPolicy` at boot** | 1 |
-
-**Done when:** repository integration tests pass against real PostGIS, and `EXPLAIN ANALYZE` on the feed query shows an index scan with no sort.
-
-> ⚠️ **The location digest is a placeholder until M2 does this.** `packages/domain` ships only `testOnlyLocationPolicy`, whose offsets are reproducible by anyone holding a shelter id — which the feed publishes. Build the real one with `keyedLocationPolicy(hmac)` over a server-held secret, and call `assertProductionLocationPolicy` at boot beside `assertFullIcu`, so shipping the test policy is a process that refuses to start rather than a safety property that quietly disappeared.
-
-> The seen-set is the design problem here, not the pagination. Start with a `seen_animal_ids` array on the session row; move it to Redis only if it hurts.
-
----
-
-## 3. Phase B — Vertical slice (weeks 7–10, ~32 h)
-
-**Goal: by the end of week 10 you can hand your phone to a friend and they can swipe through real animals from a real database.** Nothing else in this phase matters as much as that.
-
-### M3 · Seed data — 6 h
-
-| Task | h |
-|---|---|
-| Seed script: 8 fictional shelters across one oblast, **300+ animals** with realistic Ukrainian names, ages, sizes, mixed vaccination states, and `lastUpdatedAt` spread from today to 90 days ago | 4 |
-| Placeholder photos at correct aspect ratios and file sizes (~500 KB) so the feed's loading behaviour is honest | 2 |
-
-> **300 animals, not 20.** You cannot evaluate a swipe feed — pacing, exhaustion, filter usefulness, the freshness badge distribution — on a handful of records. This is the highest-ROI 6 hours in the plan and it's tempting to skip. Don't.
-
-### M4 · Minimal API — 10 h
-
-| Task | h |
-|---|---|
-| oRPC router implementing the contract, mounted in a Next route handler | 4 |
-| Anonymous device session (Better Auth anonymous plugin) — enough to track the seen-set | 3 |
-| Error mapping, Zod parse failures → typed responses, basic rate limiting | 3 |
-
-> **Migrations in CI.** Run `pnpm --filter @opika/db db:migrate` as a serialised CI job gated before deploy, never from application boot. Drizzle's migrator takes no advisory lock — concurrent migration runs against the same database can corrupt the journal. In development, one developer at a time is sufficient; in CI, a dedicated migration step (not the application process) is mandatory.
-
-### M5 · The swipe deck — 16 h
-
-| Task | h |
-|---|---|
-| `PointerEvent` + `transform` card drag: `setPointerCapture`, `touch-action: pan-y`, transforms written directly to the node (not through React state) | 6 |
-| Release physics — threshold on distance **or** velocity, spring-back, exit animation | 4 |
-| Deck component: prefetch next page at N-5 remaining, empty/exhausted state, error state | 4 |
-| Test on a real Android device **and** a real iPhone. Not a simulator | 2 |
-
-**Done when:** someone who has never seen the app swipes 30 cards without a hitch, on both platforms, on a mid-range Android over 4G.
-
-> This is the highest-risk 16 hours in the plan. If the deck feels wrong at week 10, you have 9 weeks to fix it. If you discover it at week 22, you don't.
-
----
-
-## 4. Phase C — Thicken (weeks 11–15, ~40 h)
-
-### M6 · Filters + animal profile + reveal — 14 h
-
-| Task | h |
-|---|---|
-| Filter sheet (city / type / size / age), state in URL so it's shareable and back-button-correct | 4 |
-| Animal profile page — full photos, description, **freshness badge**, shelter card, donate button (external link, `rel="noopener"`, destination domain visible) | 5 |
-| Reveal flow: like → contact + location shown, `ContactReveal` written server-side with the shelter snapshot | 3 |
-| "My reveals" list from local storage + server events | 2 |
-
-### M7 · Image pipeline — 10 h
-
-| Task | h |
-|---|---|
-| R2 bucket, presigned upload from a server action | 3 |
-| `sharp` variant generation at upload: thumb 400px, detail 1200px, OG card 1200×630, AVIF + WebP | 4 |
-| Cloudflare CDN domain, custom `next/image` loader pointed at R2 | 3 |
-
-> **Never point `next/image` at Vercel's optimizer on this project**, and no wildcard `remotePatterns`. That combination is the documented cause of the four-figure Vercel bills.
-
-### M8 · Internal admin — 12 h
-
-Replaces the partner dashboard for MVP. Route group `app/(admin)/`, gated on an admin role.
-
-| Task | h |
-|---|---|
-| Animal CRUD via Server Actions + `react-hook-form` with the Zod schemas from `packages/contracts` | 5 |
-| Shelter CRUD + verification transitions (drives the FSM from M1) | 4 |
-| CSV bulk import for initial listings | 3 |
-
-### M9 · i18n — 4 h
-
-| Task | h |
-|---|---|
-| next-intl wiring, `[locale]` routing, uk + en message files, `Intl` formatters in `packages/i18n` | 3 |
-| Boot assertion that the runtime has full ICU (`…format(new Date(2026,0,5)) === 'січень'`) | 1 |
-
-> Translate in Server Components and pass strings down. Zero dates, numbers, or currency in the message JSON — `Intl` handles those, correctly, including Ukrainian's four plural forms.
-
----
-
-## 5. Phase D — Harden and launch (weeks 16–19, ~30 h)
-
-### M10 · PWA + performance — 8 h
-
-Serwist service worker, manifest, install prompt for Android, offline shell for the feed, Lighthouse pass, React Compiler on with an **exactly pinned** version, bundle audit.
-
-### M11 · Observability + legal — 10 h
-
-| Task | h |
-|---|---|
-| Sentry (errors + 1 uptime monitor), PostHog (domain events: `animal_revealed`, `feed_exhausted`, `donation_link_clicked`, `stale_listing_shown`) | 4 |
-| Privacy policy + terms, **written to GDPR** (satisfies Ukraine's 2297-VI today and bill 8153 whenever it lands, and is mandatory the moment a Polish adopter uses it) | 4 |
-| Cookie/consent handling — minimal, since PostHog can run cookieless | 2 |
-
-### M12 · Real data + soft launch — 12 h
-
-Onboard the first 5–10 shelters for real, import their animals, verify each through the FSM, spot-check every listing, then soft-launch to one shelter's own audience before any wider announcement.
-
----
-
-## 6. Week-by-week, first eight weeks
-
-The part you'll actually work from. After week 8, plan a milestone at a time.
-
-| Wk | Code (8 h) | Shelters (2 h) |
+| # | Task | h |
 |---|---|---|
-| 1 | M0 repo + tooling | List every shelter in the oblast; find who runs each |
-| 2 | M1: branded IDs, `Shelter` + verification FSM + tests | First 3 intro calls |
-| 3 | M1: `Animal` unions, `DocumentReadiness`, `AdopterProfile` | Ask 1 shelter for a sample of their current listing data, in whatever format they have |
-| 4 | M1: `Freshness`, `scoreAnimal`, oRPC contracts. **Milestone: domain complete** | Verify shelter #1 (NGO registration, bank account, reference) |
-| 5 | M2: Drizzle schema, migration, repositories | Calls 4–6 |
-| 6 | M2: keyset feed query + integration tests. **Milestone: backend complete** | Photo-quality conversation — this is where listings live or die |
-| 7 | M3 seed data + M4 API start | Verify shelters #2–3 |
-| 8 | M4 API finish. **Milestone: `GET feed` returns real filtered data** | Collect real animal data from shelter #1 |
+| E0 | Contract + schema reconciliation — `gallery.list` (OFFSET), `gallery.relaxationCounts`, `wait_anchor_at` column + both indexes (unfiltered and filtered) + `waitAnchorOf`, `reserved` gains `publishedAt` (`packages/domain` type change + a backfill across the 320 seeded rows), `buildFeedPredicate` factored out of `feedRepo.list`, both new procedures added to `packages/contracts`' `contract` export | 12 |
+| E1 | Gallery grid over `gallery.list` — responsive columns (1/2/3/4 per the design's breakpoint table), `AnimalCard`, freshness marker reused from the deck | 10 |
+| E2 | Filters as a visible rail (≥1024) / the existing sheet (<1024), extended with sort. Filter and sort state in the URL — shareable, back-button-correct | 6 |
+| E3 | Numbered pagination — `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram) | 4 |
+| E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, non-alarming note, copy in `docs/design/README.md`) states — both form factors | 4 |
+
+**Total: ~36 h.**
+
+**Done when:** someone browses the full corpus on a 1920px desktop and a 360px phone,
+filters and sorts on both, shares a URL that reproduces exactly what they saw, and the
+no-match state's suggestions carry real numbers computed by `gallery.relaxationCounts`,
+not placeholders.
+
+**Decisions this phase implements, already settled** (`docs/gallery-contract-decisions.md`,
+restated so the answer isn't re-litigated mid-implementation):
+- `reserved` carries `publishedAt` forward (§2) — yes. Domain type change + backfill, E0.
+- The "сусідні міста" copy (§4) — changed to "Уся Київщина," recorded as a deviation in
+  `docs/design/README.md` directly. No adjacency schema.
+- The 2,000-row OFFSET boundary (§1) — kept at 2,000; confirm it hasn't already been
+  reached by the time this phase starts (it won't have been; the check costs one query).
+- Out-of-range gallery page (§3) — clamp to the last valid page server-side, 200, not an
+  error, not a redirect. Copy written, in `docs/design/README.md`.
+- The second, filtered `wait_anchor_at` index (§2) — build it, E0. No `Sort`-node
+  exemption.
+
+### Phase F — Detail & Reveal
+
+The former M6, responsive from the start rather than retrofitted, and now the SEO path
+the acquisition argument depends on (`docs/course-correction.md`, "The strategic
+call": no marketing budget, so shared links and indexed pages are the growth mechanism).
+
+| # | Task | h |
+|---|---|---|
+| F1 | Animal detail page, both form factors — desktop per `docs/design/README.md` "Desktop Breakpoints", "04 Detail — 1440" (sticky left column, fluid right, footer action pair moves up under the freshness block); mobile is the existing 04 | 10 |
+| F2 | `generateMetadata` / Open Graph on the detail page, via the same in-process router call `docs/gallery-contract-decisions.md` §5 establishes — never more than the public contract already permits a client to see | 3 |
+| F3 | Contact reveal — desktop modal (640-wide, focus-trapped, animal's URL stays in the address bar) over the existing full-screen mobile 05 | 4 |
+| F4 | "My reveals" list, both form factors | 3 |
+| F5 | Donation link — external, destination domain visible, `rel="noopener"` | 2 |
+
+**Total: ~22 h.**
+
+**Done when:** the detail page is reachable and correctly metadata'd without JavaScript,
+the reveal modal traps focus and restores it on close, and "my reveals" renders
+identically in substance on a phone and a 1440px desktop.
+
+**Decisions this phase must surface:** whether the Open Graph image is a static per-animal
+render or generated at request time (cost/freshness trade-off — the image pipeline this
+depends on is Phase H's M7-equivalent work, so this may block on that, not before).
+
+### Phase G — Deck completion
+
+**Off the critical path — ships when it works, does not block launch.** The deck is a
+mode entered from the gallery now, not the front door.
+
+| # | Task | h |
+|---|---|---|
+| G1 | iOS Safari investigation, restarting from scratch — the prior investigation notes were lost with the rest of the uncommitted M5 work (the incident behind `docs/standing-constraints.md`'s "commit after each task" rule) and are deliberately not being reconstructed; the failure has never reproduced on any other engine | 4 |
+| G2 | Device testing on real hardware — Android and iOS, not simulators | 3 |
+| G3 | Promote the deck from `/discovery` to its real route (`/tvaryny/gortaty` per the design's URL scheme, `noindex` — a viewing state, not a page), entered from the gallery with the gallery's current filters and sort inherited | 3 |
+
+**Total: ~10 h.**
+
+**Done when:** 30 uninterrupted swipes on a real mid-range Android and a real iPhone,
+entered from and returning to the gallery at the same scroll position and card.
+
+**Decisions this phase must surface:** none anticipated — flag if the iOS investigation
+turns up a fix that touches `packages/domain` or the gesture's pure decision function,
+per the standing stop-gate.
+
+### Phase H — Remainder to launch
+
+The former M7–M12, unchanged in substance, one addition here. The original course
+correction listed two; its second (the count queries) moved into Phase E's E0, folded
+into `gallery.list`'s output per `docs/gallery-contract-decisions.md` §3.
+
+| # | Task | h |
+|---|---|---|
+| H1 | Image pipeline — R2, presigned upload, `sharp` variants, CDN | 10 |
+| H2 | Internal admin — animal/shelter CRUD, CSV import, **desktop layouts** (addition — the original plan assumed a single admin form factor) | 12 |
+| H3 | i18n — next-intl wiring, uk + en message files, full-ICU boot assertion | 4 |
+| H4 | PWA — Serwist, manifest, offline shell, Lighthouse pass | 8 |
+| H5 | Observability + legal — Sentry, PostHog, privacy policy (GDPR), consent handling | 10 |
+| H6 | Real shelter data + soft launch — onboard 5–10 shelters, verify each through the FSM, spot-check every listing | 12 |
+
+**Total: ~56 h** (50 h original + the admin desktop-layout addition).
+
+**Done when:** matches the original M7–M12 definitions of done, unchanged — one uploaded
+photo produces all variants and renders through the CDN; a shelter and its animals can be
+added and verified without touching SQL; locale switch preserves route and state; the app
+installs on Android with Lighthouse ≥90; a thrown error appears in Sentry within a minute;
+5+ verified shelters and 50+ live animals at soft launch.
 
 ---
 
-## 7. Definition of done, per milestone
+## Part 3 — Timeline
 
-Aim these at "I could stop here and the thing still works," not at "it compiles."
+| Phase | Weeks | Hours |
+|---|---|---|
+| C — Consolidate (remaining) | ~1.5 | 11 |
+| E — Gallery | 4–5 | 36 |
+| F — Detail & reveal | 3 | 22 |
+| G — Deck completion | off critical path | 10 |
+| H — Remainder to launch | 7 | 56 |
+| **Total from this rewrite** | **~16 weeks** | **~135 h** |
 
-| Milestone | Done when |
-|---|---|
-| M0 | Clean clone → `pnpm i && pnpm check` green; CI green; Postgres up |
-| M1 | Zero non-Zod deps in `packages/domain`; FSM transition table exhaustive; freshness correct at all uk plural boundaries |
-| M2 | Integration tests green against real PostGIS; feed query `EXPLAIN` shows index scan, no sort |
-| M3 | 300+ animals, realistic distribution of freshness and vaccination states |
-| M4 | Feed endpoint returns correct pages under every filter combination; cursor is stable across inserts |
-| M5 | 30 uninterrupted swipes on a real mid-range Android and a real iPhone |
-| M6 | Reveal writes a `ContactReveal` with a contact snapshot; freshness badge visible on every card and profile |
-| M7 | One uploaded photo produces all variants in R2 and renders through the CDN |
-| M8 | You can add a shelter, verify it, and publish 10 animals without touching SQL |
-| M9 | Locale switch preserves route and state; no English leaks into the uk UI |
-| M10 | Installable on Android; Lighthouse ≥90 on the feed |
-| M11 | A thrown error appears in Sentry within a minute; domain events land in PostHog |
-| M12 | 5+ verified shelters, 50+ live animals, one real adoption conversation started |
+At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch lands early
+February 2027** — consistent with the course correction's estimate; the 2 h difference
+doesn't move a 16-week estimate measurably. The arithmetic: the course correction's 148 h,
+minus the ~23 h of Consolidate already spent and landed (C1, C2, C3, C5, C6) and the 8 h
+design pass 2, plus the ~18 h this rewrite adds (E0's contract and schema work — including
+the `reserved`/`publishedAt` domain change and backfill and the second wait-anchor index,
+both settled during the gallery-contract decision round — and the admin desktop layouts)
+— 135 h. The target does not move meaningfully; what remains of Consolidate is 11 h, not
+what was spent on it.
+
+**The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
+in Kyiv oblast with photographed, described animals, each shelter having written its own
+`freshnessSentence`. Shelter #1 fully verified with ten photographed animals was a week-6
+milestone in the original plan and remains outstanding.
 
 ---
 
-## 8. Decision points
+## Part 4 — Standing decision points
 
-Things you should *not* decide now, with the moment to decide them:
+Carried forward from the original plan, still undecided by design (decide at the stated
+moment, not now):
 
 | Decision | Decide at | Default if you don't |
 |---|---|---|
-| oRPC 1.x → 2.0 migration | When 2.0 hits stable and you're between milestones | Stay on 1.x through launch. All contracts live in one package, so migration stays a one-package job |
+| oRPC 1.x → 2.0 migration | When 2.0 hits stable and you're between phases | Stay on 1.x — all contracts live in one package, so migration stays a one-package job |
 | Add Turborepo | When CI exceeds ~3 min | Stay on plain pnpm workspaces |
-| Enable PostGIS | When you add radius search or Polish voivodeship polygons | `city_id` FK only. `lat`/`lng` are already stored |
-| Extract `apps/partner` from the web app | When a shelter asks for dashboard access **and** you have ≥15 shelters | Route group inside `apps/web` |
-| Adopter accounts | When someone asks for their reveal history across devices | Anonymous session, upgradeable |
-| Redis for the seen-set | When the `seen_animal_ids` array query shows up in slow logs | Postgres array column |
-| Telegram bot for notifications | Post-launch | No notifications at MVP |
+| Enable PostGIS | When real city-adjacency or radius search is needed (see `docs/gallery-contract-decisions.md` §4) | `city_id` FK + centroid only |
+| Extract `apps/partner` from `apps/web` | When a shelter asks for dashboard access **and** ≥15 shelters | Route group inside `apps/web` |
+| Adopter accounts | When someone asks for reveal history across devices | Anonymous session, upgradeable (Better Auth deferred to shelter accounts) |
+| Redis for the seen-set | When the array-column query shows up in slow logs | Postgres array column |
 
----
-
-## 9. If you fall behind — cut in this order
-
-Side projects slip. Decide the cut order *now*, while you're calm:
-
-1. **English copy** → uk only at launch, en right after. (i18n infra stays; only the copy is deferred.)
-2. **PWA install + service worker** → plain mobile web works fine. (~8 h)
-3. **CSV import** → paste listings in one at a time for the first 50. (~3 h)
-4. **"My reveals" list** → the reveal itself is the product; the history isn't. (~2 h)
-5. **Admin CRUD** → seed script + direct SQL for the first 5 shelters. Ugly, works. (~12 h)
-
-**Never cut:** the exhaustive FSM test, the freshness display, keyset pagination, or seed-data volume. Each of those is cheap now and expensive to retrofit — the first two because they're correctness, the last two because they're the shape of the system.
-
----
-
-## 10. What this plan deliberately does not include
-
-So the omissions read as decisions, not oversights:
-
-- **Shelter partner dashboard** — deferred to post-launch, gated on a shelter actually asking (§0)
-- **Payments of any kind** — donate is an external link; nothing is stored or processed (per the ADR, this is what keeps Phase 3 additive)
-- **Push notifications** — Telegram is the better channel in Ukraine and it's post-launch either way
-- **Native app** — Phase 3+ at the earliest, as a separate Expo app sharing `packages/contracts`
-- **Registry / Diia integration** — the registry holds ~6,000 records and has no public API. The `VaccinationSource` port exists in M1; the adapter does not
-- **Cross-border / EU document readiness** — the `DocumentReadiness` field shape ships in M1 as `{ kind: 'unknown' }`. The feature waits on the open regulatory question in the ADR
-- **Content moderation** — 5–10 verified shelters are human-reviewable
-- **Load testing beyond the seed set** — you are ~290 RPS away from needing it, and you'll launch at roughly 3
-
----
-
-## 11. Summary
-
-| Phase | Weeks | Hours | Output |
-|---|---|---|---|
-| **A — Backend foundations** | 1–6 | 48 | Contracts, domain, persistence. Nothing visible, everything load-bearing |
-| **B — Vertical slice** | 7–10 | 32 | A working swipe feed over real data on a real phone |
-| **C — Thicken** | 11–15 | 40 | Reveal, images, admin, i18n |
-| **D — Harden + launch** | 16–19 | 30 | Observability, legal, real shelters, soft launch |
-| | **19 wks** | **~150 h** | **Soft launch ~mid-December 2026** |
-
-Running in parallel throughout: **~2 h/week of shelter recruitment**, which is the actual gate on launch date.
-
-**The three things most likely to go wrong**, in order:
-
-1. **Shelter recruitment takes longer than 19 weeks.** Most likely failure mode by a wide margin. Mitigate by starting week 1 and treating "shelter #1 fully verified with 10 photographed animals" as a *week-6* milestone, not a week-16 one.
-2. **The swipe deck doesn't feel right and eats 20 h instead of 16.** Mitigated by scheduling it at week 10, with slack behind it.
-3. **Scope creep from the partner dashboard.** The moment you start building it, the MVP becomes a two-sided product with two auth models and two release cadences. Hold the line until a shelter asks.
+**Never cut, regardless of schedule pressure:** the exhaustive FSM test, the freshness
+display, keyset pagination for the deck, seed-data volume, the verification gate
+(`next build` + the harness in `pnpm check`). Each is cheap now and expensive to retrofit.

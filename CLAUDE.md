@@ -2,72 +2,20 @@
 
 Read this before doing anything else in this repo. It exists so a future
 session (or a future you) doesn't have to re-derive decisions that are
-already made. The three source documents this brief distills are in
+already made. The four source documents this brief distills are in
 `docs/`: `docs/stack-decision.md` (the ADR — full rationale, sources,
 verified prices/versions as of 2026-08-05), `docs/build-plan.md` (the
-milestone plan and hour budget), and `docs/design/README.md` (the
-"Keeper's Voice" design handoff — tokens, typography, spacing, motion,
-gesture spec, string table, and all eight screens at high fidelity).
-**All three are the source of truth for their respective domains. Do not
-relitigate a stack choice, a milestone sequence, or a design decision
-that's already settled in those docs — if something there looks wrong,
-ask before overriding it.**
+phase plan and hour budget), `docs/design/README.md` (the "Keeper's
+Voice" design handoff — tokens, typography, spacing, motion, gesture
+spec, string table, all eight screens, and the gallery + desktop
+breakpoints), and `docs/standing-constraints.md` (imported below — the
+rules that apply to every phase, every pull request, every agent).
+**All four are the source of truth for their respective domains. Do not
+relitigate a stack choice, a phase sequence, or a design decision that's
+already settled in those docs — if something there looks wrong, ask
+before overriding it.**
 
-## How work is verified — read this before marking anything done
-
-Two rules. They are first in this document because ignoring them is the
-single most expensive thing that has happened to this project so far.
-
-### 1. Markup is not evidence
-
-**A user-interface item may not be marked done on the basis of inspecting
-markup.** It requires one of:
-
-- a **rendered assertion** — a component test (`apps/web`, happy-dom +
-  Testing Library) or a harness run (`apps/web/test/harness`, Playwright);
-- or a **documented manual device test with a screenshot** attached.
-
-Text appearing in the HTML is not evidence that anything works. Neither is
-a green typecheck, a passing unit test on a neighbouring pure function, or
-a route returning 200.
-
-Three incidents, all of which passed the checks that were applied:
-
-- **M0** reported `pnpm check` passing when `node_modules` did not exist
-  and the command had never been run.
-- **M4** ticked its definition of done while noting, in the same
-  document, "structurally implemented, but no integration tests."
-- **M5** reported that `/discovery` rendered — a conclusion reached by
-  fetching the HTML and grepping it for card text. In the browser the
-  action row sat on top of the card, the page overflowed its viewport by
-  48px, and the swipe gesture did not work at all. Every one of those is
-  invisible to a grep, and all of them were in the HTML it matched.
-
-The build was the clearest case of all. Relative imports carried `.js`
-extensions, which `tsc` accepts under every module resolution mode, so
-typecheck stayed green while the app could not compile in a bundler.
-Nothing ran `next build` until someone opened a browser. That is why
-`build:web` and the harness are both marked DO NOT REMOVE in
-`.github/workflows/ci.yml` — see also "Module resolution" below.
-
-### 2. "Unlikely" is not a review verdict
-
-**A reviewer verifies, or records something as unverified. Never as
-unlikely.**
-
-"Theoretically possible but practically unlikely" was used to dismiss
-three findings during the M5 review. All three were real:
-
-- gesture listeners being torn down and re-attached on every render;
-- a commit path depending solely on a `transitionend` event, which wedges
-  the deck permanently if the event never arrives;
-- a conflict between two stated photo dimensions in the design doc.
-
-The cost of checking any of them was minutes. The cost of not checking
-was a debugging session whose output was then lost. If a finding cannot
-be checked in the time available, write it down as unverified and move
-on — that leaves a thread to pull. "Unlikely" closes the thread and keeps
-the bug.
+@docs/standing-constraints.md
 
 ## What this is
 
@@ -83,13 +31,13 @@ cross-border adoption to Poland/EU.
 "opieka") is a **working name**. It is used as the npm workspace scope
 (`@opika/contracts`, `@opika/domain`) and nowhere else that matters.
 
-**Hard rule: no hardcoded brand strings in `packages/domain` or
-`packages/contracts`.** No `"Opika"` in error messages, schema
-descriptions, default values, or comments that would need to change if
-the name changes. If you need a product name in output (e.g. an email
-template, a UI string), it belongs in an app-level config/i18n message,
-never in the domain or contract layer. Renaming the product should never
-require touching those two packages.
+`docs/standing-constraints.md`'s "no brand strings" rule means, concretely:
+no `"Opika"` in error messages, schema descriptions, default values, or
+comments that would need to change if the name changes. If you need a
+product name in output (e.g. an email template, a UI string), it belongs
+in an app-level config/i18n message, never in the domain or contract
+layer. Renaming the product should never require touching those two
+packages.
 
 ## Stack — condensed from the ADR, do not re-decide these
 
@@ -113,21 +61,21 @@ require touching those two packages.
 Full rationale, current version numbers, and pricing sources:
 `docs/stack-decision.md`.
 
-## Repo layout (target shape — most of this doesn't exist yet)
+## Repo layout (`packages/ui` and `packages/i18n` are the only parts still target-shape, not actual — Phase C4)
 
 ```
 opika/
 ├─ pnpm-workspace.yaml          # catalogs live here
 ├─ apps/
-│  ├─ web/                      # adopter PWA — NOT created yet (M4+)
-│  └─ partner/                  # only if the shelter dashboard ever splits out; starts as a route group in apps/web
+│  └─ web/                      # adopter PWA. apps/partner only if the shelter dashboard
+│                                 ever splits out; starts as a route group in apps/web
 ├─ packages/
-│  ├─ contracts/                # Zod schemas + oRPC/tRPC contract — M1
-│  ├─ domain/                   # pure TS: FSM, freshness, scoring. No I/O. — M1
-│  ├─ db/                       # Drizzle schema + repositories — M2, not yet
-│  ├─ ui/                       # shared primitives — later
-│  └─ i18n/                     # message catalogues + Intl formatters — later
-├─ docs/                        # this repo's copies of the ADR and build plan
+│  ├─ contracts/                # Zod schemas + oRPC contract — M1, done
+│  ├─ domain/                   # pure TS: FSM, freshness, scoring. No I/O. — M1, done
+│  ├─ db/                       # Drizzle schema + repositories — M2, done
+│  ├─ ui/                       # shared primitives — Phase C4, not yet
+│  └─ i18n/                     # message catalogues + Intl formatters — Phase C4, not yet
+├─ docs/                        # this repo's copies of the ADR, build plan, design, standing constraints
 └─ infra/ (docker-compose.yml lives at repo root instead, see below)
 ```
 
@@ -141,9 +89,6 @@ task.
 
 - **SOLID + DRY.** Composition over inheritance. Structure props/APIs so
   flexibility doesn't require prop-drilling.
-- **Zero tolerance for `any`.** Discriminated unions and generics over
-  booleans and string enums. If you're tempted by a boolean flag plus a
-  comment explaining what it means in each state, it's a union.
 - **Contract-first.** Types and Zod schemas are defined and reviewed
   _before_ implementation. For `packages/contracts` and
   `packages/domain` specifically: propose the type/union shapes for
@@ -156,64 +101,39 @@ task.
   should hold up cleanly past 300k MAU without an architecture change —
   see the ADR's RPS math in §11.1 for what that actually requires (it's
   keyset pagination and N+1 elimination, not language choice).
-- **Lean dependencies.** Justify every package added. Prefer native Web
-  APIs / native `Intl` over a library. The ADR's "buy vs build" table
-  (§12) is the existing list of what's already been decided either way —
-  check it before reaching for a new dependency in a covered area.
+- **Prefer native Web APIs / native `Intl`** over a library even where a
+  dependency would be justified. The ADR's "buy vs build" table (§12) is
+  the existing list of what's already been decided either way — check it
+  before reaching for a new dependency in a covered area.
 - **Modular by feature/domain**, not by technical layer.
 - **Testable and observable by construction.** Pure functions in
   `packages/domain` are the cheapest tests in the codebase — if a domain
   function needs a DB or a mock to test, that's a design smell, not a
   testing problem.
 
+(No `any`, discriminated unions over booleans, `now` as a parameter,
+justify every dependency — `docs/standing-constraints.md`, not restated
+here.)
+
 ## Hard constraints for `packages/domain` and `packages/contracts`
 
 - `packages/domain` has **no dependency beyond Zod**. No database driver,
-  no Next.js, no `fetch`, no file I/O, no `Date.now()` inside a function
-  that should be pure (pass `now` in). Pure functions only.
+  no Next.js, no `fetch`, no file I/O. Pure functions only — the general
+  "`now` is a parameter" rule is in `docs/standing-constraints.md`; this
+  is the additional, domain-specific list of what else isn't allowed in.
 - `packages/contracts` defines schemas and the API contract shape with
   **no implementation** — routers/handlers live elsewhere.
 - No hardcoded brand strings (see "the name is not final," above).
-- Every state that isn't a boolean is a discriminated union with the
-  distinguishing field named consistently (`kind`, `status`, or
-  `source` — pick per type and stay consistent within that type).
 
-## Milestone scope discipline
+## Phase scope discipline
 
-This repo is being built milestone-by-milestone against `docs/build-plan.md`.
-**Do not scaffold ahead of the current milestone** — e.g. do not add a
-Next.js app or a Drizzle/database schema until M2 explicitly calls for
-it, even if it would be convenient to stub out. Premature scaffolding is
-exactly the kind of thing that turns into stale, half-wired code in a
-solo 10h/week project.
-
-- **M0 — repo & tooling: done.** pnpm 11 workspace with catalogs,
-  `packageManager` pinned via corepack, strict base `tsconfig.base.json`
-  (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
-  plus a few more — see the file), Biome for lint+format,
-  `docker-compose.yml` (`postgis/postgis:17-3.5`), `.gitattributes` +
-  autocrlf guidance below, GitHub Actions CI (`typecheck → lint → test → build:web`).
-- **M1 — `packages/contracts` + `packages/domain`: built, pending your
-  sign-off.** Branded IDs, `Money`, `Shelter` + verification FSM with an
-  exhaustive transition-table test, `Animal` with discriminated
-  vaccination/spay-neuter unions, `AdopterProfile` + `FeedFilters`,
-  `ContactReveal`, `Freshness` + `freshnessOf`, `scoreAnimal`, `City`, and
-  the API contract for the eight procedures, reviewed and hardened. 219
-  tests, coverage floors enforced on the verification machine and the
-  freshness functions. Most shapes in these two packages are decisions
-  rather than defaults — the reasoning lives in the commit messages and in
-  the decision list below, so read `git log` before changing one.
-- **M2 — `packages/db`: done.** Drizzle schema mirroring domain unions,
-  repositories, keyset feed query with cursor stability and seen-set
-  exclusion, seed data (320 animals, 18 shelters, 22 cities). 30 tests.
-- **M3 — seed data: done.** Realistic Ukrainian seed data with correct
-  verification distributions and deterministic generation.
-- **M4 — minimal API: in progress.** oRPC router implementing the
-  contract, hand-rolled anonymous device session, cursor signing, split
-  rate limiting, all eight handlers. No integration tests yet (no test
-  infrastructure for the API layer at this milestone).
-- **M5 and later:** swipe deck, filters/reveal, images, admin, i18n,
-  PWA, observability, launch. Full detail in `docs/build-plan.md`.
+This repo is built phase-by-phase against `docs/build-plan.md`, whose
+Part 1 has the current status of everything through M5 and whose Part 2
+is the live phase list. **Do not scaffold ahead of the current phase** —
+e.g. do not add a package or a schema table before a phase explicitly
+calls for it, even if it would be convenient to stub out. Premature
+scaffolding is exactly the kind of thing that turns into stale,
+half-wired code in a solo 10h/week project.
 
 ## Decisions made during M1 scoping (settled — don't re-ask)
 
@@ -280,10 +200,10 @@ solo 10h/week project.
 11. **Coordinate fuzzing: 1 km, one global policy.** `fuzzCoordinates` is
     deterministic on the shelter id — a per-request offset would let an
     observer average repeated samples back to the true position.
-12. **Public views are built with `pick`, never `omit`.** `omit` is
-    allow-by-default and would leak a newly added `Shelter` field silently;
-    `pick` breaks the build until someone decides. Non-negotiable, given
-    that what's being withheld is an exact address.
+12. **`pick`, never `omit`, decided here first** — for `Shelter`
+    specifically, where what's withheld is the exact address. Generalised
+    into a standing rule in `docs/standing-constraints.md`; this entry
+    just records that M1 is where and why it started.
 
 ## Decisions settled during M4 (also don't re-ask)
 
@@ -308,16 +228,42 @@ solo 10h/week project.
     and `filtersFingerprint(filters)`; verification is timing-safe. Prevents
     cross-list and cross-filter cursor reuse.
 
+## Decisions settled during gallery contract reconciliation (also don't re-ask)
+
+Full reasoning for all five: `docs/gallery-contract-decisions.md`. Implemented in
+Phase E (`docs/build-plan.md`), not yet built as of this entry.
+
+16. **`AnimalListingState`'s `reserved` variant gains `publishedAt`, alongside its
+    existing `since`.** Same shape as decision #5's `suspended` carrying
+    `priorStatus`, for the same reason: without it, `reserved` means both "just
+    became unavailable" and "has waited the longest of anyone on the page,"
+    and a sort named longest-waiting needs the second meaning, not the first.
+    Reserved animals stay in the feed deliberately (reservations fall through),
+    so the one that's waited longest and is provisionally spoken for is exactly
+    the one that should stay visible. Requires a backfill across the 320 seeded
+    rows — a domain type change, not a pure addition.
+17. **Gallery pagination is OFFSET, by name and in writing an exception to
+    "keyset, never OFFSET."** `docs/standing-constraints.md`'s Code section
+    carries the guard; this entry just confirms it's not an oversight. Bounded
+    at 2,000 matching rows per filter combination — chosen because past that
+    depth numbered pagination stops being sensible UI, not because Postgres
+    needs protecting from the row-skip.
+
 ## Obligations the contract cannot express — carry these into M2/M4
 
 Each is something the type system genuinely cannot enforce, so it has to
 live in a checklist rather than in a schema:
 
-- **Build the server with `implement(contract)`.** oRPC validates outputs
-  at runtime and returns the _stripped_ object — verified in
+- **Every handler goes through `implement(contract)`** (the standing
+  rule; see `docs/standing-constraints.md`). Mechanism: oRPC validates
+  outputs at runtime and returns the _stripped_ object — verified in
   `@orpc/server@1.14.14` — but only when a schema is attached. A handler
   on the plain `os` builder with no `.output()` returns whatever the
   handler produced, and the `pick`-based leak protection evaporates.
+  `apps/web/src/api/handlers-implement-contract.test.ts` is the test that
+  makes this a build failure rather than a checklist item: it walks the
+  router tree and asserts every served procedure's output schema is the
+  contract's own schema instance, not merely present.
 - **The session cookie is server-minted only**: ≥128 bits from a CSPRNG,
   HttpOnly + Secure + SameSite=Lax. Session _validation_ is get-or-reject:
   an unknown token is `{ ok: false }`, never a new session.
