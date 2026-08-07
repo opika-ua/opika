@@ -1,4 +1,4 @@
-import { ANY, NO_FILTERS } from "@opika/domain";
+import { ANY, type CityId, NO_FILTERS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
   galleryHref,
@@ -10,8 +10,8 @@ import {
   withToggledSpecies,
 } from "./filter-url";
 
-const CITY_A = "11111111-1111-4111-8111-111111111111";
-const CITY_B = "22222222-2222-4222-8222-222222222222";
+const CITY_A = "11111111-1111-4111-8111-111111111111" as CityId;
+const CITY_B = "22222222-2222-4222-8222-222222222222" as CityId;
 
 describe("parseGalleryQuery", () => {
   it("defaults to no filters, the default sort, and page 1 when nothing is present", () => {
