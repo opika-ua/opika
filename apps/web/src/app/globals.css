@@ -167,3 +167,33 @@
 @utility bg-photo-placeholder {
   background: repeating-linear-gradient(135deg, var(--color-sunken-deep) 0 10px, #f6efe3 10px 20px);
 }
+
+/*
+ * FilterSheet's no-JS reveal. A <dialog> with no `open` attribute is
+ * `display: none` by the UA stylesheet's own `dialog:not([open])` rule —
+ * this ID-scoped, higher-specificity override is the ONLY thing that makes
+ * `<a href="#tvaryny-filters">` (a plain anchor jump, zero JS) actually
+ * show the sheet. Scoped to this one ID rather than a general `dialog:target`
+ * rule because there is exactly one filter sheet on the page and a general
+ * rule would silently apply to any future <dialog> that happens to be
+ * link-targeted for an unrelated reason.
+ *
+ * Wrapped in the same max-width the sheet's own `desktop:hidden` class
+ * uses: an ID selector's specificity beats a media-queried *class*
+ * selector regardless of source order, so without this the sheet would
+ * reappear at >=1024 for anyone who reached #tvaryny-filters at a narrow
+ * width and then resized (or opened a bookmarked/shared URL carrying the
+ * fragment directly at desktop width) — exactly the width the rail, not
+ * the sheet, owns.
+ *
+ * Deliberately NOT also gated on `:not([open])`: when JS calls
+ * `showModal()`, the browser sets `open` itself and renders the dialog in
+ * the top layer using its own default (non-`:target`) styling — this rule
+ * only needs to cover the case that default styling doesn't, which is
+ * "no JS ran, but the fragment matches."
+ */
+@media (max-width: 1023px) {
+  #tvaryny-filters:target {
+    display: block;
+  }
+}

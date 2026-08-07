@@ -22,6 +22,19 @@ interface AnimalCardProps {
   card: FeedCardView;
   /** Pre-resolved by the caller (`cities.list`) — the card never fetches. */
   cityName: string | null;
+  /**
+   * `next/image`'s `loading="lazy"` default is right for a 24-card grid
+   * where most cards start below the fold — but it also applies to the
+   * cards that don't, on a page whose entire content is photographs, for
+   * an audience the ADR names specifically as Ukrainian mobile users on
+   * carrier networks. The caller passes `true` for a small prefix of cards
+   * (`PRIORITY_ROW_SIZE`, `apps/web/src/app/tvaryny/page.tsx`) sized to the
+   * *tablet* breakpoint's column count, not the widest one — a wider count
+   * would mean most of those "priority" preloads compete with the real LCP
+   * image for bandwidth at phone width, where only the first is ever on
+   * screen.
+   */
+  priority?: boolean;
 }
 
 /**
@@ -38,7 +51,7 @@ interface AnimalCardProps {
  * own breakpoint names (globals.css), matching the design's 600/1024/1440
  * cut points rather than Tailwind's stock scale.
  */
-export function AnimalCard({ card, cityName }: AnimalCardProps) {
+export function AnimalCard({ card, cityName, priority = false }: AnimalCardProps) {
   const reserved = isReserved(card.listingKind);
   const photo = card.primaryPhoto;
   const fills = freshnessPips(card.freshness.kind);
@@ -73,7 +86,14 @@ export function AnimalCard({ card, cityName }: AnimalCardProps) {
         className="relative shrink-0 w-full aspect-[4/5] tablet:w-30 tablet:aspect-auto desktop:w-full desktop:aspect-[4/5] rounded-photo overflow-hidden bg-photo-placeholder"
       >
         {photo && (
-          <Image src={photo.storageKey} alt="" fill sizes={PHOTO_SIZES} className="object-cover" />
+          <Image
+            src={photo.storageKey}
+            alt=""
+            fill
+            sizes={PHOTO_SIZES}
+            priority={priority}
+            className="object-cover"
+          />
         )}
 
         {/*

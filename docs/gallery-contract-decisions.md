@@ -619,6 +619,55 @@ and needs the same "cannot collide with a valid AnimalId" property confirmed, no
 
 ---
 
+## 7. Browser history — `replace` is scoped to filter and sort changes, not page navigation
+
+E2 (`ReplaceNav`, `FilterSheet`'s own handlers) upgrades every filter-chip and sort-link
+click to `router.replace` instead of the browser's default `push`, when JavaScript is
+present. Ten filter clicks would otherwise cost ten back-presses to escape; `replace`
+collapses them into the single `/tvaryny` history entry a filtering session already
+occupies. Recorded here because it is a decision the next phase inherits, not just an E2
+implementation detail.
+
+### The scope is filter and sort only — E3 decides page navigation separately
+
+This does **not** extend to `?stor=N`. A user on page 5 who presses "next" and then Back
+expects page 4, the same way they'd expect Back to undo any other navigation — pages are
+the shareable, indexed, back-button-correct surface `docs/design/README.md`'s "Pagination
+— not infinite scroll" section is built around, and collapsing page transitions into one
+`replace`d entry would make Back skip pages instead of stepping through them one at a
+time, which is exactly the wrong shape for a paginated list.
+
+The reasoning that justifies `replace` for filters — "ten clicks, ten back-presses is an
+annoyance" — does not transfer to page links: nobody expects one Back to undo five
+individual next-page clicks in a single jump, the way they might expect it to undo five
+individual filter chip toggles. E3, when it builds `?stor=N`'s numbered page controls,
+decides this on its own terms rather than inheriting E2's answer by default. The likely
+shape (not yet decided, flagged here so it isn't skipped): `push` for page navigation,
+consistent with pagination being a sequence of distinct views rather than refinements of
+one view — but that is E3's call to make and justify, not something this document settles
+in advance.
+
+### JS-on / JS-off history divergence — accepted, not overlooked
+
+With JavaScript, a filter change `replace`s the current entry. Without it, every filter
+link or form submission is a normal browser navigation — an ordinary `push`, since there
+is no client-side router to intercept the click and nothing else can change that. This
+means the two paths produce different browsing-history *shapes* for the identical
+filtering action: a JS-enabled adopter who applies three filters in a row can return to
+the page before the gallery with one Back press; a JS-disabled adopter doing the same
+three clicks needs three. Both are individually correct — every intermediate state is a
+real, shareable URL either way, and pasting either the JS-on or JS-off end state into a
+fresh context reproduces the same result set (`apps/web/test/harness/
+gallery-filters.harness.ts` asserts this for both paths independently) — but they are not
+the *same* browsing experience, and that gap doesn't close without JavaScript. Accepted as
+the honest cost of "works with no JS at all" being structural (a real `<form>`/`<a>`
+navigation) rather than retrofitted: closing it would mean either giving up genuine no-JS
+filtering, or shipping a JS-only enhancement that changes *history* semantics specifically,
+which is a stranger thing to make conditional on script availability than the visual
+presentation E1's own no-JS/JS-on gap (`priority`, lazy-loading) already accepts.
+
+---
+
 ## Summary — what Phase E actually builds because of this document
 
 | Area | New surface | New schema | New index |

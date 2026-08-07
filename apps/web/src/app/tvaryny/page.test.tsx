@@ -1,9 +1,10 @@
 import { animalRepo, cityRepo, shelterRepo } from "@opika/db/repos";
 import { makeAnimal, makeCity, makeShelter } from "@opika/db/test";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { anonymousRouterClient } from "../../api/server-client";
 import { createTestHarness, type TestHarness } from "../../api/test-harness";
+import { WithMockRouter } from "../../features/gallery/test-router";
 import { renderGallery } from "./page";
 
 let h: TestHarness;
@@ -45,9 +46,13 @@ describe("/tvaryny (renderGallery)", () => {
     await animalRepo(h.db).insert(animal, city.id);
 
     const element = await renderGallery(anonymousRouterClient(h.db));
-    render(element);
+    render(<WithMockRouter>{element}</WithMockRouter>);
 
-    const link = screen.getByRole("link");
+    // Scoped to the grid: the page around it now carries its own links too
+    // (rail chips, sort control, the sheet trigger) — this assertion is
+    // about the one animal card, not "the only link on the page."
+    const grid = within(screen.getByTestId("gallery-grid"));
+    const link = grid.getByRole("link");
     expect(link.getAttribute("href")).toBe(`/tvaryny/${animal.id}`);
     expect(link.getAttribute("aria-label")).toContain("Мурчик");
     expect(screen.getByTestId("card-meta").textContent).toContain("Бровари");
@@ -73,16 +78,18 @@ describe("/tvaryny (renderGallery)", () => {
     await animalRepo(h.db).insert(animal, city.id);
 
     const element = await renderGallery(anonymousRouterClient(h.db));
-    render(element);
+    render(<WithMockRouter>{element}</WithMockRouter>);
 
     expect(screen.getByTestId("reserved-badge")).toBeTruthy();
   });
 
   it("renders an empty grid, not a crash, when nothing is seeded", async () => {
     const element = await renderGallery(anonymousRouterClient(h.db));
-    render(element);
+    render(<WithMockRouter>{element}</WithMockRouter>);
 
-    expect(screen.queryAllByRole("link")).toHaveLength(0);
+    // Scoped to the grid for the same reason as above — the rail/sheet/sort
+    // controls render their own links regardless of how many animals matched.
+    expect(within(screen.getByTestId("gallery-grid")).queryAllByRole("link")).toHaveLength(0);
     expect(screen.getByTestId("gallery-grid")).toBeTruthy();
   });
 });

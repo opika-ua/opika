@@ -14,7 +14,15 @@
 
 import { expect, test } from "@playwright/test";
 import { expectNoHorizontalOverflow, openRoute, rectOf, rowCounts } from "./harness";
-import { DESKTOP, GALLERY_TABLET, GALLERY_WIDE, PHONE, type Viewport } from "./viewports";
+import {
+  DESKTOP,
+  GALLERY_DESKTOP_ROOMY,
+  GALLERY_TABLET,
+  GALLERY_WIDE,
+  GALLERY_WIDE_ROOMY,
+  PHONE,
+  type Viewport,
+} from "./viewports";
 
 const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
@@ -97,27 +105,52 @@ test.describe("/tvaryny card shape by breakpoint", () => {
 
 /**
  * `docs/design/README.md`: "content 960" (1024-1439) / "content max 1320"
- * (1440+) — a real defect nearly shipped here, and one `rectOf` on the grid
- * container itself cannot see: Preflight is border-box, so `max-width` caps
- * the container's own *border* box regardless of its padding — a
- * `max-w-[960px]` element measures 960px via `getBoundingClientRect()`
- * whether or not `px-15` is also on it, because padding shrinks the
- * *content* box the grid tracks lay out in, not the border box Playwright
- * reads. Measuring a full row's actual card span (leftmost card's left edge
- * to rightmost card's right edge) is what actually reflects the content
- * box, and is what would have caught max-width and padding sharing one
- * element (that mistake measures ~120px short — 840/1200, not 960/1320).
+ * (1440+). Originally read (E1, no rail yet) as an exact constant every
+ * viewport in each bracket must hit, which is what the border-box bug this
+ * comment used to describe was measured against: `max-width` and padding
+ * sharing one element caps the container's own *border* box regardless of
+ * padding, landing ~120px short (840/1200) of the true content-box number
+ * — caught by measuring the first row's actual card span rather than
+ * `rectOf(gallery-grid)` alone, which max-width would have kept reporting
+ * as exactly 960/1320 either way.
+ *
+ * E2 added a fixed 280px rail + 32px gap beside the grid, which the
+ * 960/1320 figures never accounted for — arithmetic docs/design/README.md
+ * now states explicitly. 960/1320 are the grid's own ceiling, not a
+ * constant: `DESKTOP` (1280) and `GALLERY_WIDE` (1600) sit below the point
+ * where that ceiling is reachable at all once the rail is subtracted, so
+ * the correct span there is the *fluid* remainder, computed below, not
+ * 960/1320 themselves. `GALLERY_DESKTOP_ROOMY`/`GALLERY_WIDE_ROOMY` are
+ * the other half of that claim: proof the ceiling is a real number the
+ * grid actually reaches, not a cap that never binds.
  */
 test.describe("/tvaryny content width", () => {
-  const CONTENT_WIDTH: ReadonlyArray<{ viewport: Viewport; columns: number; px: number }> = [
-    { viewport: DESKTOP, columns: 3, px: 960 },
-    { viewport: GALLERY_WIDE, columns: 4, px: 1320 },
+  /** docs/design/README.md, "Breakpoints & Surfaces": page padding 60px a side (desktop/wide). */
+  const PAGE_PADDING_PX = 60 * 2;
+  /** docs/design/README.md, "The Gallery" > "Rail, count, sort": the rail's own fixed width. */
+  const RAIL_PX = 280;
+  /** docs/design/README.md, "Breakpoints & Surfaces": "rail↔grid gap 32". */
+  const RAIL_GAP_PX = 32;
+
+  const fluidContentWidth = (viewportPx: number, ceilingPx: number): number =>
+    Math.min(ceilingPx, viewportPx - PAGE_PADDING_PX - RAIL_PX - RAIL_GAP_PX);
+
+  const CONTENT_WIDTH: ReadonlyArray<{ viewport: Viewport; columns: number; ceilingPx: number }> = [
+    { viewport: DESKTOP, columns: 3, ceilingPx: 960 },
+    { viewport: GALLERY_DESKTOP_ROOMY, columns: 3, ceilingPx: 960 },
+    { viewport: GALLERY_WIDE, columns: 4, ceilingPx: 1320 },
+    { viewport: GALLERY_WIDE_ROOMY, columns: 4, ceilingPx: 1320 },
   ];
 
-  for (const { viewport, columns, px } of CONTENT_WIDTH) {
-    test(`a full row of cards spans ${px}px, not padding-shrunk, at ${viewport.name}`, async ({
-      page,
-    }) => {
+  for (const { viewport, columns, ceilingPx } of CONTENT_WIDTH) {
+    const expectedPx = fluidContentWidth(viewport.width, ceilingPx);
+    const reachesCeiling = expectedPx === ceilingPx;
+
+    test(`a full row of cards spans ${expectedPx}px ${
+      reachesCeiling
+        ? `(the ${ceilingPx} ceiling, reached)`
+        : `(fluid, below the ${ceilingPx} ceiling)`
+    } at ${viewport.name}`, async ({ page }) => {
       await openRoute(page, ROUTE, viewport, { readySelector: CARD });
       const firstRow = await Promise.all(
         Array.from({ length: columns }, (_, i) =>
@@ -130,12 +163,13 @@ test.describe("/tvaryny content width", () => {
       const span = right - left;
 
       expect(
-        Math.abs(span - px),
+        Math.abs(span - expectedPx),
         `the first row's ${columns} cards span ${span.toFixed(1)}px at ${viewport.name}, ` +
-          `expected ${px}. A ~120px shortfall (landing near ${px - 120}) means max-width and ` +
-          `padding are back on the same border-box element, eating each other's budget — ` +
-          `rectOf(gallery-grid) alone would not have caught this, since max-width still caps ` +
-          `that element's own border box at ${px} either way.`,
+          `expected ${expectedPx} (viewport ${viewport.width} - ${PAGE_PADDING_PX} page padding - ` +
+          `${RAIL_PX} rail - ${RAIL_GAP_PX} gap, capped at the ${ceilingPx} ceiling). A ~120px ` +
+          `shortfall below that means max-width and padding are back on the same border-box ` +
+          `element, eating each other's budget — rectOf(gallery-grid) alone would not have caught ` +
+          `this, since max-width still caps that element's own border box at ${ceilingPx} either way.`,
       ).toBeLessThanOrEqual(2);
     });
   }

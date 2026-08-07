@@ -34,6 +34,17 @@ record as unverified. Never as unlikely.
 depending solely on `transitionend`, and a conflict between two stated photo dimensions —
 were all real.
 
+**An accessibility technicality never closes a design requirement.** `docs/design/README.md`
+is the authority on what the product must do; WCAG is the floor beneath it, not the ceiling
+above it. "The markup doesn't carry a role that would make this mandatory" answers a
+different question than "does the design specify this," and only the second one closes a
+follow-up.
+
+*Why:* E1.5's residue check closed a 2D arrow-key-navigation follow-up as won't-do because
+the gallery grid carries no ARIA `grid` role — a correct answer to a WCAG question nobody
+had actually asked. `docs/design/README.md`'s own "Keyboard" table specifies exactly that
+behaviour, independent of ARIA role, and had been sitting unread the whole time.
+
 ---
 
 ## How work is kept

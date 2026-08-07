@@ -7,6 +7,7 @@ import {
   FeedFiltersSchema,
   filtersFingerprint,
   isConstrained,
+  isExplicitlySelected,
   isUnfiltered,
   matchesSelection,
   NO_FILTERS,
@@ -27,6 +28,27 @@ describe("matchesSelection", () => {
 
   it("excludes an unlisted value", () => {
     expect(matchesSelection({ kind: "oneOf", values: ["dog"] }, "cat")).toBe(false);
+  });
+});
+
+describe("isExplicitlySelected", () => {
+  it("is false for every value when the selection is any — unlike matchesSelection", () => {
+    // The bug this function exists to prevent: a filter-UI checkbox reusing
+    // matchesSelection would render every option checked the moment nothing
+    // is filtered, since matchesSelection's "any admits everything" is
+    // correct for querying and wrong for "what did the adopter pick."
+    expect(isExplicitlySelected({ kind: "any" }, "dog")).toBe(false);
+    expect(isExplicitlySelected({ kind: "any" }, "cat")).toBe(false);
+  });
+
+  it("is true only for a listed value", () => {
+    const selection = { kind: "oneOf", values: ["dog", "cat"] } as const;
+    expect(isExplicitlySelected(selection, "dog")).toBe(true);
+    expect(isExplicitlySelected(selection, "cat")).toBe(true);
+  });
+
+  it("is false for an unlisted value", () => {
+    expect(isExplicitlySelected({ kind: "oneOf", values: ["dog"] }, "cat")).toBe(false);
   });
 });
 

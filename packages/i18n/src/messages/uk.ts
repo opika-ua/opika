@@ -37,11 +37,57 @@ export const uk = {
     ageYoung: "Молодий",
     ageAdult: "Дорослий",
     ageSenior: "Літній",
-    /** Template: "Підходить {count} тварин. Притулків у цьому місті — {shelterCount}." */
-    resultCount: "Підходить {count} тварин. Притулків у цьому місті — {shelterCount}.",
+    /**
+     * Template: "Підходить {count} {animalWord}. Притулків у цьому місті —
+     * {shelterCount}." `{animalWord}` is pre-pluralized by the caller
+     * (`pluralizeUk(count, uk.filters.animalWord)`) — the template cannot
+     * pick the right Ukrainian noun form itself, only compose around it.
+     * "Притулків" is a fixed label form here (a count-value pair, "Тварин: 12"
+     * in sentence form), not an embedded count-noun phrase, so it never
+     * varies with `shelterCount`.
+     */
+    resultCount: "Підходить {count} {animalWord}. Притулків у цьому місті — {shelterCount}.",
+    /**
+     * The sheet's `resultCount` above is docs/design/README.md's own screen
+     * 03 copy, written for its own example (МІСТО constrained to one city —
+     * "Притулків у цьому місті" only means something when there is a
+     * "цьому місті"). With no city selected — "Уся Київщина" is the sheet's
+     * own default — `shelterCount` spans the whole oblast, and the sentence
+     * would claim a specific city that isn't selected. This is that case:
+     * same verb and register as `resultCount`, the rail's locative shelter
+     * phrasing instead of the false claim.
+     */
+    resultCountAnyCity: "Підходить {count} {animalWord} у {shelterCount} {shelterWord}.",
     reset: "Скинути",
     /** Template: "Показати {count}" */
     showCount: "Показати {count}",
+    /**
+     * docs/design/README.md, "Rail, count, sort": "Знайдено 34 тварини у 7
+     * притулках" — a different sentence from `resultCount` above, not the
+     * same one reused, matching the design's own distinct copy for the
+     * rail (≥1024) versus the sheet (<1024). `{shelterWord}` varies only
+     * between "притулку" (1) and "притулках" (2+) — Ukrainian locative
+     * plural doesn't distinguish few/many the way the nominative animal
+     * count does.
+     *
+     * `{animalWord}` here is `animalWordAccusative`, not `animalWord`: the
+     * impersonal "Знайдено" governs the accusative, so one result reads
+     * "Знайдено 1 тварину", while the sheet's "Підходить 1 тварина" is
+     * nominative. The two sentences differ only at the `one` form (1, 21,
+     * 31…) — which is exactly why one shared list would look right in the
+     * design's own 34-result example and be wrong on the day a filter
+     * matches a single animal.
+     */
+    resultCountRail: "Знайдено {count} {animalWord} у {shelterCount} {shelterWord}",
+    animalWord: { one: "тварина", few: "тварини", many: "тварин" },
+    animalWordAccusative: { one: "тварину", few: "тварини", many: "тварин" },
+    shelterWordLocative: { one: "притулку", few: "притулках", many: "притулках" },
+    sortLabel: "Сортування",
+    sortFreshest: "Спочатку найсвіжіші картки",
+    sortLongestWaiting: "Найдовше чекають",
+    allCities: "Уся Київщина",
+    railFooter:
+      "Немає фільтра «тільки свіжі картки». Тварина, про яку давно не писали, все одно чекає.",
   },
 
   // --- Swipe affordances ---

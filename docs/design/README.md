@@ -391,6 +391,41 @@ Shell: header `#FBF7F0` with a 1px `#E8DECB` bottom border, `min-height: 68` des
 tablet / `56` phone; page background `#F4ECDF`; grid gap `24` desktop, `16` tablet/phone;
 rail↔grid gap `32`; page padding `40 60 56` desktop, `24` tablet, `16` phone.
 
+> **What "content 960" / "content max 1320" measure, stated explicitly (2026-08-07):** the
+> grid's own max-width — the card row span `rowCounts`/`rectOf` in
+> `apps/web/test/harness/gallery-layout.harness.ts` actually measures — not the rail plus the
+> grid together. The rail's `280` and the `32` gap sit outside that number, on top of the page's
+> own `60`-a-side padding: reaching the stated 960 therefore needs a **1392px** viewport
+> (`960 + 280 + 32 + 120`), and 1320 needs **1752px** (`1320 + 280 + 32 + 120`) — both narrower
+> than most of each bracket's own range (1024–1439 and 1440+ respectively), including
+> `1280×800`, this project's own "smallest common laptop" test point.
+>
+> That gap is real, not a rounding error: at `1280×800` the grid gets `1280 − 120 − 280 − 32 =
+> 848px`, not 960 — confirmed against a real render, not computed on paper only. The other
+> reading — that 960/1320 describe the rail-plus-grid area together, so the grid alone would be
+> `960 − 280 − 32 = 648px` — was considered and rejected, but not because the resulting card
+> width is implausibly narrow in isolation (checked and re-checked: a fluid version of this
+> reading is monotonically non-decreasing as the viewport widens, so "cards get narrower as the
+> window gets bigger" does not actually hold under it — worth stating plainly rather than
+> asserting a stronger claim than the arithmetic supports). The real problem is arithmetic, not
+> plausibility: **the combined reading doesn't fit even at its own bracket's stated floor.**
+> `960` (content) `+ 120` (padding) `= 1080`, which is 56px *more* than the 1024px viewport the
+> 1024–1439 range claims to start at — the range's own minimum can't fit the range's own headline
+> number. (The 1440+ bracket fares only marginally better: `1320 + 120 = 1440` matches its floor
+> with exactly zero pixels of slack for a scrollbar or sub-pixel rounding.) And once the combined
+> total does reach its ceiling — around 1080px viewport width, per the arithmetic above — a flat
+> reading of "content 960" leaves the grid frozen at 648px for the remaining ~360px of the
+> bracket's own range (1080 to 1439), using none of it: not narrower as the viewport widens, but
+> not wider either, for most of the range this reading claims to describe. E1's own harness
+> (written before the rail existed, reviewed and merged on this basis) already measured the grid
+> alone at exactly 960 with the full 1160px available to it — the definition of done at the time,
+> not an oversight this note is correcting.
+>
+> Resolution: 960/1320 are a **ceiling the grid's `max-width` approaches, not a constant every
+> viewport in each bracket hits** — fluid and narrower than the ceiling below the 1392/1752
+> thresholds above, exactly at the ceiling above them. `docs/build-plan.md`'s E2 phase is where
+> the rail was added and this stopped being able to stay implicit.
+
 ## The Gallery
 
 ### Card

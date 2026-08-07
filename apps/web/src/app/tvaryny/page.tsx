@@ -1,8 +1,14 @@
 import type { CityId } from "@opika/domain";
-import { NO_FILTERS, textIn } from "@opika/domain";
+import { textIn } from "@opika/domain";
 import { anonymousRouterClient } from "../../api/server-client";
 import { AnimalCard } from "../../features/gallery/AnimalCard";
 import { cardCityId } from "../../features/gallery/card-text";
+import { FilterRail } from "../../features/gallery/FilterRail";
+import { FilterSheet } from "../../features/gallery/FilterSheet";
+import { parseGalleryQuery, type SearchParams } from "../../features/gallery/filter-url";
+import { railResultCount, sheetResultCount } from "../../features/gallery/gallery-copy";
+import { ReplaceNav } from "../../features/gallery/ReplaceNav";
+import { SortControl } from "../../features/gallery/SortControl";
 
 /**
  * Same reasoning as `../page.tsx`: without this, `next build` would try to
@@ -13,30 +19,42 @@ import { cardCityId } from "../../features/gallery/card-text";
 export const dynamic = "force-dynamic";
 
 /**
- * E1's grid over `gallery.list` — docs/build-plan.md. Deliberately narrow:
- * no rail, no sort control, no result count, no pagination links, no
- * loading/error/no-match states. Those belong to E2 (filters + sort), E3
- * (pagination) and E4 (states) respectively; building them here would be
- * exactly the ahead-of-phase scaffolding `CLAUDE.md`'s "Phase scope
- * discipline" section rules out. What's here is page 1, unfiltered, default
- * sort — a real page, just not yet the finished one.
+ * Not the `wide` breakpoint's column count (4) — that was tried first and
+ * rejected on review: at a 360px phone (1 column), it means 3 of the 4
+ * "priority" preloads compete with the real LCP image for bandwidth on
+ * exactly the audience (Ukrainian mobile, carrier networks) this matters
+ * most for, while nothing is even on screen to show for two of them. `2` is
+ * the tablet breakpoint's column count — still 1 wasted preload at phone
+ * width (unavoidable without threading the breakpoint into this Server
+ * Component), but half the waste this had before, and exactly right at
+ * tablet and a reasonable partial win at desktop/wide.
+ */
+const PRIORITY_ROW_SIZE = 2;
+
+/**
+ * E2's filters + sort, over E1's grid. `docs/build-plan.md`'s E2 row: "Filter
+ * and sort state in the URL — shareable, back-button-correct." Pagination
+ * (E3) and empty/loading/error states (E4) are still deliberately absent —
+ * `page` always resolves through `parseGalleryQuery`, but nothing here
+ * renders pager controls yet.
  *
  * Split from the default export for the same reason `renderHome` is:
- * `page.test.tsx` calls this directly with a test database, `Home`'s
- * counterpart here (`Page`, below) still calls it with zero arguments so
- * Next's own `{ params, searchParams }` call signature never collides with
- * the test-only client parameter.
+ * `page.test.tsx` calls this directly with a test database, `Page`'s own
+ * call below still calls it with Next's real `{ searchParams }` so the
+ * two call signatures never collide.
  */
 export async function renderGallery(
   client: ReturnType<typeof anonymousRouterClient> = anonymousRouterClient(),
+  rawSearchParams: SearchParams = {},
 ) {
+  const { filters, sort, page: pageNumber } = parseGalleryQuery(rawSearchParams);
+
   const [cities, page] = await Promise.all([
     client.cities.list({}),
-    client.gallery.list({ filters: NO_FILTERS }),
+    client.gallery.list({ filters, sort, page: pageNumber }),
   ]);
-  const cityNames = new Map<CityId, string>(
-    cities.map((city) => [city.id, textIn(city.name, "uk")]),
-  );
+  const cityList = cities.map((city) => ({ id: city.id, name: textIn(city.name, "uk") }));
+  const cityNames = new Map<CityId, string>(cityList.map((city) => [city.id, city.name]));
 
   return (
     <div className="min-h-dvh bg-paper-alt">
@@ -49,30 +67,78 @@ export async function renderGallery(
         Preflight is border-box, so a max-width and a padding on the SAME
         element share one budget — max-w-[960px] plus px-15 (60px a side)
         would leave 840px of actual content, not the design's 960. This way
-        the outer div's padding sets the page-edge margin and <main>'s
-        max-width is the real content width, matching how the design states
-        them as two separate numbers ("page padding 40 60 56 desktop ...
-        content 960").
+        the outer div's padding sets the page-edge margin and the rail/grid
+        row's own max-width is the real content width, matching how the
+        design states them as two separate numbers ("page padding 40 60 56
+        desktop ... content 960").
       */}
       <div className="p-4 tablet:p-6 desktop:pt-10 desktop:px-15 desktop:pb-14">
-        <main
-          data-testid="gallery-grid"
-          className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px]"
-        >
-          {page.items.map((item) => (
-            <AnimalCard
-              key={item.id}
-              card={item}
-              cityName={cityNames.get(cardCityId(item)) ?? null}
-            />
-          ))}
-        </main>
+        <div className="flex items-center justify-between gap-4 mb-4 desktop:hidden">
+          <span className="font-sans text-sm text-ink-3">
+            {sheetResultCount(
+              page.totalMatching,
+              page.totalShelters,
+              filters.cities.kind !== "any",
+            )}
+          </span>
+          <FilterSheet
+            filters={filters}
+            sort={sort}
+            cities={cityList}
+            resultCount={page.totalMatching}
+          />
+        </div>
+
+        {/*
+          No max-width on this row itself — it's implicitly bounded by its
+          children's own constraints (rail: fixed 280px; grid: max-width
+          960/1320) regardless of viewport, so an explicit outer cap would
+          only ever be redundant or, below the point every child's stated
+          size actually fits (1392px/1752px after padding — see
+          docs/design/README.md's note under "Breakpoints & Surfaces"),
+          actively wrong: it doesn't change how much room the grid gets,
+          but it looks like it should. The grid's own max-width is what
+          makes 960/1320 a ceiling the fluid case below it approaches
+          rather than a constant every viewport must hit exactly — E1's
+          own harness assumed the latter, correctly, before the rail
+          existed and there was nothing else in "content" to divide.
+        */}
+        <div className="desktop:flex desktop:gap-8 desktop:items-start">
+          <ReplaceNav>
+            <FilterRail filters={filters} sort={sort} cities={cityList} />
+          </ReplaceNav>
+
+          <div className="flex-1 min-w-0">
+            <div className="hidden desktop:flex items-center justify-between mb-4">
+              <span className="font-sans text-sm text-ink-3">
+                {railResultCount(page.totalMatching, page.totalShelters)}
+              </span>
+              <ReplaceNav>
+                <SortControl filters={filters} sort={sort} />
+              </ReplaceNav>
+            </div>
+
+            <main
+              data-testid="gallery-grid"
+              className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px]"
+            >
+              {page.items.map((item, index) => (
+                <AnimalCard
+                  key={item.id}
+                  card={item}
+                  cityName={cityNames.get(cardCityId(item)) ?? null}
+                  priority={index < PRIORITY_ROW_SIZE}
+                />
+              ))}
+            </main>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-/** Server Component. Next.js calls this with no usable arguments. */
-export default async function Page() {
-  return renderGallery();
+/** Server Component. Next.js calls this with `{ searchParams }` — a Promise, per Next 16's App Router contract. */
+export default async function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  return renderGallery(anonymousRouterClient(), await searchParams);
 }
