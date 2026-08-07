@@ -1,0 +1,366 @@
+# Gallery ↔ contract reconciliation
+
+**Status:** decisions only — nothing here is implemented. This is what Phase E (Gallery)
+in `docs/build-plan.md` builds from, and what its own definition of done is checked
+against.
+
+**Why this exists as its own document:** it is a different subject from "what to build
+and in what order" (`docs/build-plan.md`) — this is the technical shape of five things
+the v2 gallery design needs that do not exist yet in `packages/contracts` or the schema.
+Per `docs/standing-constraints.md`, one document per subject.
+
+Read `docs/design/README.md`'s "Breakpoints & Surfaces", "The Gallery" and "Desktop
+Breakpoints" sections alongside this. Every decision below traces to a specific line
+there.
+
+---
+
+## 1. Pagination — OFFSET for the gallery, keyset stays for the deck
+
+**Agree with the proposal.** Reasoning, then the guard.
+
+### Why OFFSET is correct here, not just tolerated
+
+Keyset pagination's entire advantage over OFFSET is avoiding two costs: the O(offset)
+row-skip as depth grows, and instability under concurrent writes at that depth. Neither
+cost is real at this table's size. ~320 animals at 24/page is 14 pages; even a
+6× corpus (Phase 2 shelter growth) is under 90 pages. Postgres skipping a few hundred to
+a couple of thousand rows via an index it already has for the ordering (`animals_feed_idx`,
+`animals_feed_unfiltered_idx`) is sub-millisecond. The ADR's "past 300k MAU" scale target
+(CLAUDE.md, Engineering principles) is about **concurrent request throughput**, not the
+depth of any single pagination — the deck's seen-set-excluding infinite scroll could
+plausibly walk deep into a session; nobody clicks to gallery page 80.
+
+More importantly, the numbered-page requirement **cannot be served by keyset at all**,
+independent of scale. "What's on page 7" has no answer from a cursor without walking
+pages 1–6 first, or maintaining a page-number → cursor index that goes stale on every
+write. This is not a discipline question — the shape of the requirement (`?stor=N`,
+degrades to a plain list without JS, indexed by search engines) only fits a query that
+can jump to an arbitrary offset.
+
+### The guard
+
+This is the first deliberate exception to a rule the codebase has enforced since M2
+(`docs/build-plan.md`'s M2 definition of done: *"feed query `EXPLAIN` shows index scan,
+no sort"*, and the task list's own *"Never `OFFSET`"*). Without a written, bounded
+exception, `/review-pr`'s pattern-matching (*"a green check on a broken artifact,"* the
+general "was this actually checked" instinct) will flag every future OFFSET site as the
+same mistake, including this deliberate one.
+
+**Written into `docs/standing-constraints.md`** (see that file, "Code" section):
+
+> OFFSET pagination is permitted for a single named case: the gallery's numbered pages,
+> where indexed page URLs are a product requirement `feed.list`'s keyset cursor
+> structurally cannot serve. Bounded at 2,000 matching rows per filter combination
+> (~83 pages at 24/page — roughly 6× today's corpus). Beyond that, `gallery.list` caps
+> navigable pages at the boundary and the UI says "Уточніть фільтри, щоб побачити решту"
+> rather than serving unbounded depth. `feed.list` (the deck) stays keyset — this
+> exception does not extend to it, and a reviewer should treat any OFFSET outside
+> `gallery.list`/`gallery.relaxationCounts` as the same finding it always was.
+
+2,000 is a number to revisit, not a permanent ceiling — if the corpus legitimately
+approaches it, that is a milestone worth its own review, not a silent slowdown. Chosen
+because it keeps worst-case row-skip trivial while giving multiple years of realistic
+shelter-recruitment headroom before it matters.
+
+### What changes in contracts
+
+A new namespace, **not** an extension of `feed.list`. The two consumption patterns
+(cursor-in, cursor-out, no total vs. page-number-in, total-out) don't share an input or
+output shape cleanly, and forcing them into one procedure with a discriminated
+`pagination` union would make every caller — including the deck, which never needs any
+of this — carry the gallery's concerns.
+
+```
+gallery.list
+  input:  { filters: FeedFilters, sort: GallerySort, page: PositiveInt, pageSize }
+  output: { items: readonly FeedCardView[], totalMatching: number,
+            totalShelters: number, totalPages: number }
+```
+
+`FeedCardView` is reused as-is — the gallery card's data needs (name, species, size,
+freshness, shelter summary, primary photo) are the same fields the deck card already
+projects through `pick`. No new view schema.
+
+### What changes in the schema and repositories
+
+Nothing new for pagination itself — `LIMIT`/`OFFSET` needs no new column or index, only
+a new repository method. But the **filter-predicate construction currently lives inside
+`feedRepo.list`** (`packages/db/src/repos/feed-repo.ts`), built inline as a `conditions:
+SQL[]` array. That has to be factored into a shared function —
+
+```
+buildFeedPredicate(filters: FeedFilters, now: Date): SQL[]
+```
+
+— called by both `feedRepo.list` (keyset) and the new `galleryRepo.list` (OFFSET). This
+is not optional cleanup: without it, a future filter (a sixth `FeedFilters` field) is a
+two-site edit, and `/review-pr`'s "denormalised values that can drift" check exists
+precisely for this shape of duplication. `feedRepo.list`'s keyset predicate and ordering
+stay untouched; only the WHERE-clause construction moves to a shared helper.
+
+`galleryRepo.list` orders by the `sort` input (see §2) and computes `totalMatching` via
+`COUNT(*) OVER()` in the same query as the page fetch — see §3 for why, and why this
+changes the answer to §3's original framing.
+
+---
+
+## 2. Sort — "freshest first" reuses the existing index; "longest waiting" needs a new column
+
+### Freshest first (default)
+
+No new work. This is `feed.list`'s existing ordering, `(last_updated_at DESC, id)`,
+already covered by `animals_feed_unfiltered_idx` and the ordering tail of
+`animals_feed_idx`. `gallery.list` reuses the same tuple for this sort mode.
+
+### Longest waiting — new column, new index, and a flag on the domain shape
+
+`lastUpdatedAt` is edit time, not availability time — a shelter fixing a typo resets it.
+"Longest waiting" needs when the animal **became available**, which the domain already
+models but does not index: `AnimalListingState`'s `published` variant carries
+`publishedAt: Date` (`packages/domain/src/animals/listing.ts`), buried in the `listing`
+JSONB column, unindexed.
+
+**Decision: add `wait_anchor_at`, mirroring the `age_anchor_at` pattern CLAUDE.md already
+establishes** (*"Store `age_anchor_at`... as the indexed column... rather than storing
+the age union"*). A new domain function, `waitAnchorOf(listing: AnimalListingState):
+Date | null`, computed at write time into an indexed `timestamptz` column — the exact
+shape `age_anchor_at` already set the precedent for, so this is a known obligation
+pattern, not a new one.
+
+```sql
+CREATE INDEX animals_wait_anchor_idx
+  ON animals (wait_anchor_at ASC NULLS LAST, id ASC)
+  WHERE listing_kind IN ('published', 'reserved');
+```
+
+Ascending, not descending — "longest waiting" is oldest-anchor-first, the mirror image of
+the freshness index.
+
+### The thing I think the current domain shape gets wrong for this — flagging, not deciding
+
+`reserved` carries only `since: Date` (when the reservation started), not the original
+`publishedAt`. Under a literal `waitAnchorOf`, an animal that has waited four months and
+was reserved yesterday would show `wait_anchor_at = yesterday` — reading as freshly
+available, when it has waited the longest of anyone on the page. That is the wrong answer
+for a sort literally named "longest waiting."
+
+The fix is the same shape CLAUDE.md's decision #5 already used for `suspended` carrying
+`priorStatus` — for exactly the same reason: *"otherwise `suspended` means both 'paused,
+may return' and 'banned'"* — here, `reserved` would mean both "just became unavailable"
+and "has been waiting a long time, provisionally spoken for." Proposed:
+
+```
+reserved: { kind: "reserved", since: Date, publishedAt: Date }
+```
+
+`waitAnchorOf` then reads `publishedAt` for both `published` and `reserved`, continuous
+across the transition.
+
+**This is a `packages/domain` type change, which `docs/standing-constraints.md` and
+`.claude/commands/phase.md`'s stop-gate both require surfacing before it's built, not
+deciding here.** I'm proposing it, not doing it. If you'd rather not carry `publishedAt`
+through `reserved`, the cheaper alternative is accepting that a reservation resets the
+wait clock — defensible (a reserved animal is momentarily off the open market), but say
+which one on purpose rather than by not looking at it.
+
+### Cost
+
+One `timestamptz` column (8 bytes/row — irrelevant at this table's size), one partial
+index of the same shape and maintenance cost as `animals_feed_unfiltered_idx`, one domain
+function, one write-time obligation to add to the existing `age_anchor_at` obligation
+list. Recommend a `feed-explain.test.ts`-shaped assertion for the wait-anchor ordering
+too — the M2 definition of done ("`EXPLAIN` shows an index scan, no sort") should apply
+to the new ordering as much as the old one, and `packages/db/test/feed-explain.test.ts`
+is exactly the pattern to extend, not a new mechanism to invent.
+
+---
+
+## 3. Counts — folded into `gallery.list`, not a standalone `feed.count`
+
+The task as given asks for `feed.count` returning matching animals and distinct
+shelters. **I'm proposing something narrower, and flagging the deviation rather than
+quietly building what was asked.**
+
+### Matching-animal count: same query plan as the page fetch, not a separate one
+
+A separate `COUNT(*)` query is correct but wasteful for the common case: every gallery
+page load wants the count (for "Знайдено 34 тварини" and for computing page numbers), and
+a second round-trip risks the two queries disagreeing under a concurrent write — rare at
+this traffic, but a real class of bug for no benefit. Postgres answers "the page, and the
+total that page is drawn from" in one query via a window function:
+
+```sql
+SELECT *, COUNT(*) OVER() AS total_matching
+FROM animals
+WHERE <predicate>
+ORDER BY <sort>
+LIMIT 24 OFFSET :offset
+```
+
+So `gallery.list`'s own output carries `totalMatching` (shown above in §1's output
+shape) — free, same scan, same round-trip the page fetch already needed.
+
+### Distinct-shelter count: a genuinely different aggregate, still same handler
+
+`COUNT(DISTINCT shelter_id)` isn't answerable by the same window trick. It needs its own
+query — but bundled server-side into the same `gallery.list` handler call, so the client
+still makes one round-trip. Two queries inside one handler, sharing `buildFeedPredicate`
+(§1), is the shape; `totalShelters` rides in the same output object.
+
+### So what happened to `feed.count`
+
+It doesn't exist as its own client-callable procedure. The two numbers the design needs
+on the result line are both answered by calling `gallery.list` — which every gallery page
+load does anyway. A standalone count-only procedure would be a second way to get numbers
+the first way already produces on every request that needs them, which is exactly the
+"second source of truth" `/review-pr` asks about (§4 of that skill: *"does it add a
+second source of truth?"*).
+
+The one place a real standalone count is needed — the no-match state, where there is no
+page of results to piggyback a count onto — is §4, and it is a different query with a
+different shape, not a reuse of this one.
+
+If you want `feed.count` to exist anyway (e.g. a future "N animals waiting" badge
+somewhere that isn't the gallery grid), that's a one-procedure addition later, cheaply —
+but building it now with no caller would be exactly the premature scaffolding CLAUDE.md's
+milestone-discipline section warns against.
+
+---
+
+## 4. Relaxation counts — one grouped query via `FILTER`, plus one flag on the copy
+
+### The query
+
+Postgres's `COUNT(*) FILTER (WHERE ...)` computes multiple conditional counts in a single
+table scan — the standard idiom for exactly this "faceted count" shape, and it satisfies
+"one grouped query, not N round-trips" literally, not approximately:
+
+```sql
+SELECT
+  COUNT(*) FILTER (WHERE <all active filters>)                    AS current,
+  COUNT(*) FILTER (WHERE <all active filters except size>)        AS without_size,
+  COUNT(*) FILTER (WHERE <all active filters except species>)     AS without_species,
+  COUNT(*) FILTER (WHERE <all active filters except age>)         AS without_age,
+  COUNT(*) FILTER (WHERE <all active filters except city>)        AS without_city
+FROM animals
+WHERE listing_kind IN ('published','reserved') AND <verified-shelter subquery>
+```
+
+Only the dimensions **currently constrained** (`kind !== "any"`) get a `FILTER` clause —
+no point computing "remove size" when size isn't applied, and it keeps the query as small
+as the active filter set rather than a fixed five columns every time. `gallery.relaxationCounts`
+takes the same `FeedFilters` input as `gallery.list`, built from the same
+`buildFeedPredicate` helper (§1) with one dimension dropped per column. The `+N` yield
+the design requires ("Прибрати «розмір» (+11 тварин)") is `without_X - current`, computed
+in the handler, not the query.
+
+### The thing the design names that the schema can't do — flagging, not deciding
+
+"Додати сусідні міста (+34)" (add neighbouring cities) implies a city-adjacency concept.
+It doesn't exist — `cities` (`packages/db/src/schema/cities.ts`) is id, name, centroid;
+no oblast hierarchy, no adjacency table, and PostGIS is explicitly not enabled at MVP
+(CLAUDE.md's stack table). The cheapest correct thing this query can compute today is
+`without_city` — identical mechanism to dropping any other dimension, not a genuine
+nearest-neighbour expansion.
+
+Since all seed cities already sit in one oblast (CLAUDE.md: *"verified shelters in one
+Ukrainian oblast"*), "drop the city filter" and "expand to the whole oblast" are the same
+operation today by coincidence, not by design. I'd flag the copy itself as slightly
+ahead of the data model — "Уся Київщина" (all of Kyiv oblast, which is exactly what
+dropping the filter does) reads honestly; "сусідні міста" (neighbouring cities) implies a
+capability (real adjacency) that isn't there and would need PostGIS or a hand-authored
+adjacency table to actually mean what it says. This is a design-copy question, not mine
+to resolve — flagging it rather than quietly building the honest version under a label
+that promises something else.
+
+### Cost
+
+Negligible at this table's size — one scan, a handful of `FILTER` aggregates, same base
+predicate and indexes `gallery.list` already uses. No new index.
+
+---
+
+## 5. Server rendering — in-process router call, not repositories directly
+
+**Decision: the gallery Server Component calls the oRPC router in-process
+(`createRouterClient`, exported by `@orpc/server@1.14.14`), not `feedRepo`/`shelterRepo`
+directly.**
+
+### Why repositories-directly is the wrong answer, not just a style preference
+
+CLAUDE.md's "Obligations the contract cannot express" section states the mechanism
+plainly: output stripping only happens for a handler built through `implement(contract)`
+and invoked *through* it. A Server Component calling `feedRepo.list()` or
+`shelterRepo.findById()` directly gets the raw domain object back — `Shelter.exactAddress`,
+unredacted `ShelterContactSnapshot` fields, everything `pick`-based view projection exists
+to withhold — with no schema in the path to strip it. This session's own
+`handlers-implement-contract.test.ts` (the security lock from the previous PR) walks the
+`router` tree specifically; a repository call bypassing the router entirely is invisible
+to it, the same shape of hole that test exists to close, just on a different door.
+
+### The mechanism
+
+`@orpc/server` exports `createRouterClient`, which wraps a router (the same `router`
+object `apps/web/src/app/api/rpc/[...rpc]/route.ts` already serves) as a directly
+callable client — **in the same process, no HTTP round-trip, no JSON
+serialize/deserialize** — while still running every procedure through
+`implement(contract)`'s output-schema validation and stripping. A Server Component gets:
+
+- the SSR/SEO the design requires ("degrades to a plain list without JS," indexed
+  `/tvaryny?misto=...&stor=N` URLs, and — this is the acquisition-channel argument —
+  `generateMetadata`/Open Graph tags on animal profile pages, computed from the same
+  `implement(contract)`-stripped view, so a crawler or a Telegram link preview can never
+  see more than a client already could);
+- the exact same leak protection the HTTP path has, because it's the same router;
+- and it's *faster* than the client-side path the deck currently uses, since there's no
+  network hop.
+
+### Context is simpler here than it looks
+
+`gallery.list` needs no `adopterId` — the gallery has no seen-set exclusion
+("'Не зараз' hides an animal for the rest of the deck session but NOT in the gallery,"
+docs/design/README.md, "Gallery ↔ Deck") and no personalization. The Server Component
+calls the in-process router with a minimal, anonymous `AppContext` — `db`,
+`adopterId: null`, `tokenHash: null`, `now: new Date()`, and a `setCookies` array that
+stays empty, since nothing on this path mints or reads a session. No cookie-writing
+problem to solve (which would otherwise be real — Server Components can read cookies via
+`next/headers` but cannot write them; a Server Action or route handler would be needed for
+that, and this path needs neither).
+
+### What changes in contracts
+
+`gallery.list`, `gallery.relaxationCounts` (and, per §3, no standalone `gallery.count`)
+join the same `contract` object `packages/contracts/src/contract.ts` already exports
+alongside `feed`, `cities`, `animals`, etc. — which is what puts them inside
+`handlers-implement-contract.test.ts`'s coverage automatically, the same lock that
+already watches the other eight procedures. This is a consequence of the decision worth
+stating so it isn't forgotten when Phase E actually wires the handlers: a `gallery`
+namespace added to the router but built on the plain `os` builder, not through `impl`,
+would be exactly the bypass that test exists to catch — and would catch it, as long as
+the new procedures are added to `contract` in the same commit as the router wiring.
+
+---
+
+## Summary — what Phase E actually builds because of this document
+
+| Area | New surface | New schema | New index |
+|---|---|---|---|
+| Pagination | `gallery.list` (OFFSET) | — | — (reuses existing) |
+| Sort (freshest) | `sort` input on `gallery.list` | — | — (reuses existing) |
+| Sort (longest waiting) | same | `animals.wait_anchor_at` + `waitAnchorOf` | `animals_wait_anchor_idx` |
+| Counts | `totalMatching`/`totalShelters` on `gallery.list`'s output | — | — |
+| Relaxation counts | `gallery.relaxationCounts` | — | — (reuses existing) |
+| Server rendering | Server Component via `createRouterClient` | — | — |
+
+Plus the shared-predicate factoring (`buildFeedPredicate`) §1 calls for, since two
+repositories now build the same WHERE clause.
+
+**Flagged for a decision that isn't mine to make silently:**
+1. Whether `reserved` should carry `publishedAt` forward (§2) — a `packages/domain` type
+   change, which stops at the plan gate either way.
+2. The "сусідні міста" copy implying an adjacency concept the schema doesn't have (§4).
+
+**Not building:** a standalone `feed.count`/`gallery.count` procedure (§3) — folded into
+`gallery.list`'s output instead, with the reasoning for why that's not a lesser version
+of what was asked.

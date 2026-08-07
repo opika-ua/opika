@@ -71,6 +71,15 @@ describes a moment.
   rationale is worse than none, because the next reader trusts it.
 - **No brand strings** in `packages/domain` or `packages/contracts`.
 - **Justify every dependency** beyond what is already in the catalog.
+- **Keyset pagination, never `OFFSET` — with one named exception.** `gallery.list` and
+  `gallery.relaxationCounts` may use `OFFSET`, because the gallery's numbered pages
+  (`?stor=N`, indexed, degrading to a plain list without JS) are a product requirement a
+  keyset cursor cannot serve at all — not a discipline question, a shape one. Bounded at
+  2,000 matching rows per filter combination (~83 pages at 24/page); beyond that,
+  `gallery.list` caps navigable pages at the boundary rather than serving unbounded depth.
+  `feed.list` (the deck) stays keyset — this exception does not extend to it, and any
+  other `OFFSET` in the codebase is the finding it always was. Full reasoning in
+  `docs/gallery-contract-decisions.md` §1.
 
 ---
 
