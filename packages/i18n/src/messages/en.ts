@@ -180,6 +180,20 @@ export const en = {
     rabiesPresent: "Rabies vaccinated",
   },
 
+  // --- Animal card meta line ---
+  // See the note on the uk key: English adjectives don't inflect for
+  // gender, so the mismatch that motivates that note doesn't reproduce
+  // here — this set exists only for key-shape parity with uk.ts.
+  cardMeta: {
+    ageBaby: "baby",
+    ageYoung: "young",
+    ageAdult: "adult",
+    ageSenior: "senior",
+    sizeSmall: "small",
+    sizeMedium: "medium",
+    sizeLarge: "large",
+  },
+
   // --- Language toggle ---
   // Language names stay in their own language regardless of locale — this
   // matches uk.ts's own `en: "English"` (never "Англійська").

@@ -173,6 +173,28 @@ export const uk = {
     rabiesPresent: "Сказ є",
   },
 
+  // --- Animal card meta line ("молодий · мала · живе у волонтерки, м. Бровари") ---
+  // A separate set from filters.age*/size*, which label standalone filter
+  // chips rather than sit inline in a sentence, and so aren't held to
+  // agreeing with anything around them.
+  //
+  // Carried over unchanged from the pre-gallery SwipeCard implementation:
+  // each bucket has one fixed word form, not one per Animal.sex, so a
+  // grammatical-gender mismatch with the size word (feminine) or with a
+  // female animal (every age word here is masculine: "молодий," not
+  // "молода") is a pre-existing gap this relocation preserves rather than
+  // introduces. Flagged, not fixed — fixing it is a copy decision, not a
+  // relocation one.
+  cardMeta: {
+    ageBaby: "малюк",
+    ageYoung: "молодий",
+    ageAdult: "дорослий",
+    ageSenior: "літній",
+    sizeSmall: "мала",
+    sizeMedium: "середня",
+    sizeLarge: "велика",
+  },
+
   // --- Language toggle ---
   locale: {
     uk: "Українська",

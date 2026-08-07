@@ -239,6 +239,10 @@ importers:
         version: 4.1.10(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.5))
 
   packages/i18n:
+    dependencies:
+      '@opika/domain':
+        specifier: workspace:*
+        version: link:../domain
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'
