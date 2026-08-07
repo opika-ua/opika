@@ -27,3 +27,13 @@ seed-photos/
 # Regenerated on every run; the assertions are the artefact worth keeping.
 test-results/
 playwright-report/
+
+# Next.js's own scaffolded agent-context files (next dev auto-writes these
+# under any app the moment it detects an AI coding agent — verified against
+# node_modules/next/dist/server/lib/generate-agent-files.js). Content is a
+# generic "read the bundled docs, this Next version may differ from your
+# training data" disclaimer, not project instructions — the real ones are
+# the root CLAUDE.md and docs/standing-constraints.md. Ignored rather than
+# committed so `next dev` doesn't reintroduce them into every future diff.
+apps/*/AGENTS.md
+apps/*/CLAUDE.md
