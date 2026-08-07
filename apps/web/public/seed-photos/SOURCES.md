@@ -1,10 +1,10 @@
 # Seed placeholder photos — sources and licences
 
-Every file in this directory is either CC0 (public domain dedication) or provided directly
-by this project's own maintainer. None depicts a real Opika shelter or a real Opika animal
-— `docs/standing-constraints.md`'s "No real shelter data in the repository" rule is about
-this repo's *own* shelters and animals being fictional, and these are placeholder photos
-for a fictional seed corpus, not photographs sourced from any of them.
+Every file in this directory is CC0 (public domain dedication). None depicts a real Opika
+shelter or a real Opika animal — `docs/standing-constraints.md`'s "No real shelter data in
+the repository" rule is about this repo's *own* shelters and animals being fictional, and
+these are placeholder photos for a fictional seed corpus, not photographs sourced from any
+of them.
 
 CC0 does not require attribution, but it's recorded here anyway — for provenance, and so a
 later reviewer can verify the licence claim rather than take it on faith, per this repo's
@@ -20,7 +20,7 @@ the canonical Creative Commons deed for CC0 1.0, the same for every entry.
 | `dog-2.jpg` | "Dominoe And the Apartment" | cogdogblog | https://www.flickr.com/photos/37996646802@N01/4826185758 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `dog-3.jpg` | "Beautiful Ritta" | Lottie's pets & stuff | https://www.flickr.com/photos/36943025@N07/4853534151 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `dog-4.jpg` | "2017/365/234 Biking is Hard Work" | cogdogblog | https://www.flickr.com/photos/37996646802@N01/35940625783 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
-| `dog-5.jpg` | (untitled, a bull terrier) | Provided directly by this project's maintainer | — | Used with the owner's permission |
+| `dog-5.jpg` | "Dog Talk" | cogdogblog | https://www.flickr.com/photos/37996646802@N01/2472941436 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `cat-1.jpg` | "Welcome to Our Family, Salvia" | andymiccone | https://www.flickr.com/photos/129822560@N05/29525568580 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `cat-2.jpg` | "The dreamer" | Lottie's pets & stuff | https://www.flickr.com/photos/36943025@N07/18363988709 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `cat-3.jpg` | "Theme day: Tired" | Greenville, SC Daily Photo | https://www.flickr.com/photos/120143184@N05/47943128917 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
@@ -63,7 +63,7 @@ picks the next batch, not just applied silently:
 | `dog-3.jpg` | 1023×782 | 1.31 (landscape) |
 | `dog-2.jpg` | 766×1024 | 0.75 (portrait, close to the design's 4:5) |
 | `cat-4.jpg` | 768×1024 | 0.75 (portrait, close to the design's 4:5) |
-| `dog-5.jpg` | 387×516 | 0.75 (portrait, close to the design's 4:5) |
+| `dog-5.jpg` | 768×1024 | 0.75 (portrait, close to the design's 4:5) |
 
 Every card renders its photo through a fixed CSS box (`aspect-[4/5]` vertical /
 `w-30`-fixed-width horizontal, `object-cover` — `apps/web/src/features/gallery/
@@ -71,8 +71,22 @@ AnimalCard.tsx`), so a source photo whose own ratio doesn't match the slot is th
 case, not an edge case — these nine exist specifically so that cropping path renders for
 real during review, instead of every source image happening to already be the target shape.
 
-## EXIF stripped
+## Metadata stripped
 
-Every file had its EXIF segment (APP1) removed before being committed — one original
-carried GPS coordinates, which have no business surviving into a publicly served file
-regardless of the photo's own licence.
+Every file has had every APPn segment (APP0–APP15) and COM comment removed before being
+committed — not only APP1/EXIF. The first pass stripped APP1 alone, which removed one
+original's GPS coordinates, but every file still carried an APP13/Photoshop-IPTC block —
+`dog-4.jpg`'s named the photographer's email and home town — and IPTC routinely carries
+creator/copyright fields that are exactly the kind of thing that shouldn't survive into a
+publicly redistributed file. The current strip removes every marker segment except SOI,
+DQT, SOF, DHT, DRI, SOS and EOI, which is the minimum a baseline JPEG needs to decode — no
+EXIF, no IPTC, no XMP, no embedded ICC profile. Re-run after any photo in this directory
+changes; each file's pixel dimensions were verified unchanged before and after.
+
+## `dog-5.jpg` was replaced
+
+The original `dog-5.jpg` was supplied directly by this project's maintainer under an
+unwritten "owner's permission," not a real licence — a licence gap in a public repository,
+flagged in `#27`'s review. Replaced with a CC0 Flickr photo from the same curation process
+as the other eight (see the table above), so all nine entries are now CC0 and verifiable
+the same way, per `docs/standing-constraints.md`'s "verify, don't assume" standard.

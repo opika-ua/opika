@@ -154,7 +154,7 @@ const DOG_PHOTOS: AnimalPhoto[] = [
   { storageKey: "seed-photos/dog-2.jpg", width: 766, height: 1024, alt: null },
   { storageKey: "seed-photos/dog-3.jpg", width: 1023, height: 782, alt: null },
   { storageKey: "seed-photos/dog-4.jpg", width: 1024, height: 768, alt: null },
-  { storageKey: "seed-photos/dog-5.jpg", width: 387, height: 516, alt: null },
+  { storageKey: "seed-photos/dog-5.jpg", width: 768, height: 1024, alt: null },
 ];
 const CAT_PHOTOS: AnimalPhoto[] = [
   { storageKey: "seed-photos/cat-1.jpg", width: 1024, height: 490, alt: null },
