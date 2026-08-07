@@ -1,17 +1,9 @@
-import {
-  type AdopterId,
-  type Animal,
-  ageAnchorRange,
-  DISCOVERABLE_LISTING_KINDS,
-  FEED_VISIBLE_VERIFICATION_STATUSES,
-  type FeedFilters,
-  type SeenSetPolicy,
-} from "@opika/domain";
-import { and, desc, inArray, or, type SQL, sql } from "drizzle-orm";
+import type { AdopterId, Animal, FeedFilters, SeenSetPolicy } from "@opika/domain";
+import { and, desc, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
-import { shelters } from "../schema/shelters";
 import { swipes } from "../schema/swipes";
+import { buildFeedPredicate } from "./feed-predicate";
 import { rowToAnimal } from "./mappers";
 
 export type FeedCursorData = {
@@ -52,52 +44,9 @@ export function feedRepo(db: Database) {
       now: Date;
       seenSetPolicy: SeenSetPolicy;
     }): Promise<FeedPage> {
-      const conditions: SQL[] = [];
-
-      // Only discoverable listings from verified shelters
-      conditions.push(inArray(animals.listingKind, [...DISCOVERABLE_LISTING_KINDS]));
-
-      // Only shelters in a feed-visible verification state.
-      // Uses the domain constant so adding a state to
-      // FEED_VISIBLE_VERIFICATION_STATUSES updates the query automatically,
-      // mirroring how DISCOVERABLE_LISTING_KINDS is used above.
-      conditions.push(
-        sql`${animals.shelterId} IN (
-          SELECT ${shelters.id} FROM ${shelters}
-          WHERE ${inArray(shelters.verificationStatus, [...FEED_VISIBLE_VERIFICATION_STATUSES])}
-        )`,
-      );
-
-      // Apply filters
-      if (opts.filters.cities.kind === "oneOf") {
-        conditions.push(inArray(animals.cityId, [...opts.filters.cities.values]));
-      }
-      if (opts.filters.species.kind === "oneOf") {
-        conditions.push(inArray(animals.species, [...opts.filters.species.values]));
-      }
-      if (opts.filters.sizes.kind === "oneOf") {
-        conditions.push(inArray(animals.size, [...opts.filters.sizes.values]));
-      }
-      if (opts.filters.ages.kind === "oneOf") {
-        const ageConditions: SQL[] = opts.filters.ages.values.map((bucket) => {
-          const range = ageAnchorRange(bucket, opts.now);
-          const parts: SQL[] = [];
-          if (range.afterExclusive) {
-            const after = range.afterExclusive.toISOString();
-            parts.push(sql`${animals.ageAnchorAt} > ${after}::timestamptz`);
-          }
-          if (range.atOrBefore) {
-            const atOrBefore = range.atOrBefore.toISOString();
-            parts.push(sql`${animals.ageAnchorAt} <= ${atOrBefore}::timestamptz`);
-          }
-          return parts.length > 1 ? sql`(${and(...parts)})` : (parts[0] ?? sql`TRUE`);
-        });
-        conditions.push(
-          ageConditions.length === 1
-            ? (ageConditions[0] ?? sql`TRUE`)
-            : sql`(${or(...ageConditions)})`,
-        );
-      }
+      // Discoverability and filters are shared with `galleryRepo.list`; only
+      // the cursor and the seen-set below are the deck's own.
+      const conditions: SQL[] = buildFeedPredicate(opts.filters, opts.now);
 
       // Keyset cursor: (last_updated_at DESC, id ASC)
       // "Give me rows that come after the cursor in this ordering"
