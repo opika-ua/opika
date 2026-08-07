@@ -109,39 +109,39 @@ into Telegram always opens the gallery).
 
 ### Phase E — Gallery
 
-**Do this after Phase C, and only once `docs/gallery-contract-decisions.md`'s five
-decisions are settled** — building gallery UI ahead of the contracts it needs is exactly
-the M5 mistake (grep for card text, ship a dead gesture) in a different shape.
+**Do this after Phase C.** `docs/gallery-contract-decisions.md`'s five decisions are
+settled (owner sign-off, 2026-08-07) — the gate this note used to describe is closed;
+what's below already reflects the decided shape, not an open question. Building gallery
+UI ahead of the contracts it needs would still be the M5 mistake (grep for card text,
+ship a dead gesture) in a different shape — the gate just isn't a *decision* gate
+anymore, it's an *implementation-order* one.
 
 | # | Task | h |
 |---|---|---|
-| E0 | Contract + schema reconciliation — `gallery.list` (OFFSET), `gallery.relaxationCounts`, `wait_anchor_at` column + index + `waitAnchorOf`, `buildFeedPredicate` factored out of `feedRepo.list`, both new procedures added to `packages/contracts`' `contract` export | 10 |
+| E0 | Contract + schema reconciliation — `gallery.list` (OFFSET), `gallery.relaxationCounts`, `wait_anchor_at` column + both indexes (unfiltered and filtered) + `waitAnchorOf`, `reserved` gains `publishedAt` (`packages/domain` type change + a backfill across the 320 seeded rows), `buildFeedPredicate` factored out of `feedRepo.list`, both new procedures added to `packages/contracts`' `contract` export | 12 |
 | E1 | Gallery grid over `gallery.list` — responsive columns (1/2/3/4 per the design's breakpoint table), `AnimalCard`, freshness marker reused from the deck | 10 |
 | E2 | Filters as a visible rail (≥1024) / the existing sheet (<1024), extended with sort. Filter and sort state in the URL — shareable, back-button-correct | 6 |
 | E3 | Numbered pagination — `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram) | 4 |
-| E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design) states — both form factors | 4 |
+| E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, non-alarming note — copy not yet written, author it in `docs/design/README.md` as part of this task) states — both form factors | 4 |
 
-**Total: ~34 h.**
+**Total: ~36 h.**
 
 **Done when:** someone browses the full corpus on a 1920px desktop and a 360px phone,
 filters and sorts on both, shares a URL that reproduces exactly what they saw, and the
 no-match state's suggestions carry real numbers computed by `gallery.relaxationCounts`,
 not placeholders.
 
-**Decisions this phase must surface (from `docs/gallery-contract-decisions.md`, restated
-so they aren't missed mid-implementation):**
-- Whether `reserved` carries `publishedAt` forward (§2) — a `packages/domain` change,
-  stops at the plan gate regardless of which way it's decided.
-- The "сусідні міста" copy implying city adjacency the schema doesn't have (§4) — a
-  design-copy call, not an engineering one.
-- The 2,000-row OFFSET boundary (§1) is a proposal, not a specification — confirm the
-  number, and confirm it hasn't already been reached by the time this phase starts (it
-  won't have been; the check costs one query).
-- Out-of-range gallery page: clamp to the last page server-side, or a
-  `PAGE_OUT_OF_RANGE` contract error (§3) — recommended: clamp.
-- The second, filtered `wait_anchor_at` index (§2): build it now, or accept a `Sort` node
-  on filtered longest-waiting and exempt it from the M2 "no sort" bar — recommended:
-  build it.
+**Decisions this phase implements, already settled** (`docs/gallery-contract-decisions.md`,
+restated so the answer isn't re-litigated mid-implementation):
+- `reserved` carries `publishedAt` forward (§2) — yes. Domain type change + backfill, E0.
+- The "сусідні міста" copy (§4) — changed to "Уся Київщина," recorded as a deviation in
+  `docs/design/README.md` directly. No adjacency schema.
+- The 2,000-row OFFSET boundary (§1) — kept at 2,000; confirm it hasn't already been
+  reached by the time this phase starts (it won't have been; the check costs one query).
+- Out-of-range gallery page (§3) — clamp to the last valid page server-side, 200, not an
+  error, not a redirect. Copy is an open E4 task, not decided here.
+- The second, filtered `wait_anchor_at` index (§2) — build it, E0. No `Sort`-node
+  exemption.
 
 ### Phase F — Detail & Reveal
 
@@ -217,18 +217,21 @@ installs on Android with Lighthouse ≥90; a thrown error appears in Sentry with
 | Phase | Weeks | Hours |
 |---|---|---|
 | C — Consolidate (remaining) | ~1.5 | 11 |
-| E — Gallery | 4–5 | 34 |
+| E — Gallery | 4–5 | 36 |
 | F — Detail & reveal | 3 | 22 |
 | G — Deck completion | off critical path | 10 |
 | H — Remainder to launch | 7 | 56 |
-| **Total from this rewrite** | **~16 weeks** | **~133 h** |
+| **Total from this rewrite** | **~16 weeks** | **~135 h** |
 
 At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch lands early
-February 2027** — consistent with the course correction's estimate. The arithmetic: the
-course correction's 148 h, minus the ~23 h of Consolidate already spent and landed
-(C1, C2, C3, C5, C6) and the 8 h design pass 2, plus the ~16 h this rewrite adds (E0's
-contract and schema work, the admin desktop layouts) — 133 h. The target does not move;
-what remains of Consolidate is 11 h, not what was spent on it.
+February 2027** — consistent with the course correction's estimate; the 2 h difference
+doesn't move a 16-week estimate measurably. The arithmetic: the course correction's 148 h,
+minus the ~23 h of Consolidate already spent and landed (C1, C2, C3, C5, C6) and the 8 h
+design pass 2, plus the ~18 h this rewrite adds (E0's contract and schema work — including
+the `reserved`/`publishedAt` domain change and backfill and the second wait-anchor index,
+both settled during the gallery-contract decision round — and the admin desktop layouts)
+— 135 h. The target does not move meaningfully; what remains of Consolidate is 11 h, not
+what was spent on it.
 
 **The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own

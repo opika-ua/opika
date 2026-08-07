@@ -228,6 +228,27 @@ half-wired code in a solo 10h/week project.
     and `filtersFingerprint(filters)`; verification is timing-safe. Prevents
     cross-list and cross-filter cursor reuse.
 
+## Decisions settled during gallery contract reconciliation (also don't re-ask)
+
+Full reasoning for all five: `docs/gallery-contract-decisions.md`. Implemented in
+Phase E (`docs/build-plan.md`), not yet built as of this entry.
+
+16. **`AnimalListingState`'s `reserved` variant gains `publishedAt`, alongside its
+    existing `since`.** Same shape as decision #5's `suspended` carrying
+    `priorStatus`, for the same reason: without it, `reserved` means both "just
+    became unavailable" and "has waited the longest of anyone on the page,"
+    and a sort named longest-waiting needs the second meaning, not the first.
+    Reserved animals stay in the feed deliberately (reservations fall through),
+    so the one that's waited longest and is provisionally spoken for is exactly
+    the one that should stay visible. Requires a backfill across the 320 seeded
+    rows — a domain type change, not a pure addition.
+17. **Gallery pagination is OFFSET, by name and in writing an exception to
+    "keyset, never OFFSET."** `docs/standing-constraints.md`'s Code section
+    carries the guard; this entry just confirms it's not an oversight. Bounded
+    at 2,000 matching rows per filter combination — chosen because past that
+    depth numbered pagination stops being sensible UI, not because Postgres
+    needs protecting from the row-skip.
+
 ## Obligations the contract cannot express — carry these into M2/M4
 
 Each is something the type system genuinely cannot enforce, so it has to

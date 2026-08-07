@@ -263,9 +263,20 @@ Third row is the **resolved** state — background `#EFE6D6` (not opacity), pips
 Centred, `gap: 24`. Display: "Це всі, хто зараз підходить." Speech: "Ви подивилися 12 тварин у
 Броварах. Притулків тут небагато, тому список короткий — це нормально." Body `#6E5C44`: "Нові
 тварини з'являються, коли притулки оновлюють картки. Зазвичай раз на кілька тижнів."
-Three stacked 52px buttons: "Додати сусідні міста (+34)" (leaf) · "Змінити фільтри" (outlined) ·
+Three stacked 52px buttons: "Уся Київщина (+34)" (leaf) · "Змінити фільтри" (outlined) ·
 "Переглянути ще раз спокійно" (outlined). Footnote pinned bottom: "Якщо ви знаєте притулок на
 Київщині, якого тут немає — напишіть нам, і ми з ним поговоримо."
+
+> **Deviation from the original handoff (2026-08-07):** this button read "Додати сусідні
+> міста" (add neighbouring cities), which implies real geographic adjacency. The schema
+> has none — no oblast hierarchy, no adjacency table, and PostGIS isn't enabled at MVP —
+> so "neighbouring cities" would be honest only about `PostGIS` being on the roadmap, not
+> about what the button actually does today, which is drop the city filter entirely. "Уся
+> Київщина" is not a new string: it's the existing МІСТО chip value (above, "01 · Перший
+> запуск" and "03 · Фільтри"), and reusing it says exactly what happens — every shelter in
+> the oblast, not a fabricated notion of "nearby." Becomes a genuine adjacency feature,
+> not just a relabelled full-oblast one, if coverage ever expands past one oblast.
+> Reasoning: `docs/gallery-contract-decisions.md` §4.
 
 ### 08 · Помилки (Error states)
 Four cards, `#FBF7F0` on `#F4ECDF`, radius 20, padding 16, `gap: 8`; each is eyebrow +
@@ -431,9 +442,16 @@ button works, and it degrades to a plain list without JS. Footnote in the UI: "�
 - **No match** — paper card, padding `40 24`, `gap: 24`: "Під ці фільтри зараз нікого немає." /
   "У Броварах 7 притулків, і сьогодні серед середніх собак вільних немає. Це не помилка пошуку."
   Then two 52px actions that **name their yield**: "Прибрати «розмір» (+11 тварин)" (leaf) and
-  "Додати сусідні міста (+34)". No suggestion without a number.
+  "Уся Київщина (+34)". No suggestion without a number. (Deviation from "Додати сусідні
+  міста" — see the note under "07 · Ви подивилися всіх" above; same reasoning applies here.)
 - **Error (whole list)** — "Список не відкрився." / "Це не ваша помилка і не помилка притулку.
   Фільтри збережені — адреса сторінки не змінилася." / "Спробувати ще раз".
+- **Out-of-range page** — not yet specified. `?stor=N` past the last real page is a stale
+  shared link, not an error: decided to serve the last valid page, 200, with a plain
+  non-alarming note that the page moved and nothing was hidden — same tonal contract as
+  "Error (next page)" below. The copy itself is an open Phase E4 task; write it here
+  before that state ships. Decision and reasoning: `docs/gallery-contract-decisions.md`
+  §3.
 - **Error (next page)** — "Сторінка 2 не прийшла." / "Ті, кого вже видно, залишаються на місці. Ми
   нічого не приховали." / "Завантажити сторінку 2". A grid error never removes already-visible
   cards, and is never red.

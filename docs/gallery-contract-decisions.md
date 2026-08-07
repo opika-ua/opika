@@ -1,8 +1,8 @@
 # Gallery ↔ contract reconciliation
 
-**Status:** decisions only — nothing here is implemented. This is what Phase E (Gallery)
-in `docs/build-plan.md` builds from, and what its own definition of done is checked
-against.
+**Status:** decided, 2026-08-07 (owner sign-off — see the summary at the bottom) — nothing
+here is implemented. This is what Phase E (Gallery) in `docs/build-plan.md` builds from,
+and what its own definition of done is checked against.
 
 **Why this exists as its own document:** it is a different subject from "what to build
 and in what order" (`docs/build-plan.md`) — this is the technical shape of five things
@@ -68,14 +68,26 @@ nobody approved ends up in the product. Phase E should take that copy from
 `docs/design/README.md` or ask for it, not from this file.
 
 2,000 is a number to revisit, not a permanent ceiling — if the corpus legitimately
-approaches it, that is a milestone worth its own review, not a silent slowdown. Chosen
-because it keeps worst-case row-skip trivial while giving multiple years of realistic
-shelter-recruitment headroom before it matters.
+approaches it, that is a milestone worth its own review, not a silent slowdown.
+
+**Decided (2026-08-07): keep 2,000. The rationale above was wrong, and is corrected
+here rather than left standing.** The guard was framed as protecting the database — it
+doesn't need protecting. `OFFSET` at 2,000 rows is free, and would still be free at
+20,000; skipping a few thousand rows via an index Postgres already has for the ordering
+costs nothing worth guarding against. The actual limit is the UI: 83 pages is already
+past where numbered pagination is a sensible way to browse anything — nobody pages to
+40. The cap is really an admission that past this depth the fix isn't a higher ceiling,
+it's better filtering — narrower results, not more pages of the same ones. Writing it as
+a performance guard invites someone to raise it to 20,000 later on a performance
+argument that was never the actual reason it exists — that argument would be correct on
+its own terms and would still be the wrong move.
 
 ⚠ **2,000 is my proposal, not your specification** — the same flag CLAUDE.md's decision
 #6 uses for the verification-evidence thresholds. The *shape* of the guard (a bounded
 exception, named procedures, a cap rather than unbounded depth) is what this document is
-actually deciding; the specific number is mine to suggest and yours to change.
+actually deciding; the specific number is mine to suggest and yours to change. Confirmed
+at 2,000, with the UI-sensibility rationale above superseding the row-skip-cost argument
+this section originally gave.
 
 ### What changes in contracts
 
@@ -151,7 +163,7 @@ CREATE INDEX animals_wait_anchor_idx
 Ascending, not descending — "longest waiting" is oldest-anchor-first, the mirror image of
 the freshness index.
 
-### The thing I think the current domain shape gets wrong for this — flagging, not deciding
+### `reserved` carrying `publishedAt` forward — decided
 
 `reserved` carries only `since: Date` (when the reservation started), not the original
 `publishedAt`. Under a literal `waitAnchorOf`, an animal that has waited four months and
@@ -162,7 +174,15 @@ for a sort literally named "longest waiting."
 The fix is the same shape CLAUDE.md's decision #5 already used for `suspended` carrying
 `priorStatus` — for exactly the same reason: *"otherwise `suspended` means both 'paused,
 may return' and 'banned'"* — here, `reserved` would mean both "just became unavailable"
-and "has been waiting a long time, provisionally spoken for." Proposed:
+and "has been waiting a long time, provisionally spoken for."
+
+**Decided (2026-08-07): yes.** There's a product reason beyond the sort-correctness
+argument: `reserved` animals stay in the feed deliberately, because reservations fall
+through (the comment on `DISCOVERABLE_LISTING_KINDS` in
+`packages/domain/src/animals/listing.ts` already says as much) — so the animal that has
+waited longest and is provisionally spoken for is exactly the one that should stay
+visible high in that sort, not drop to the bottom because a reservation reset its clock
+yesterday.
 
 ```
 reserved: { kind: "reserved", since: Date, publishedAt: Date }
@@ -171,12 +191,11 @@ reserved: { kind: "reserved", since: Date, publishedAt: Date }
 `waitAnchorOf` then reads `publishedAt` for both `published` and `reserved`, continuous
 across the transition.
 
-**This is a `packages/domain` type change, which `docs/standing-constraints.md` and
-`.claude/commands/phase.md`'s stop-gate both require surfacing before it's built, not
-deciding here.** I'm proposing it, not doing it. If you'd rather not carry `publishedAt`
-through `reserved`, the cheaper alternative is accepting that a reservation resets the
-wait clock — defensible (a reserved animal is momentarily off the open market), but say
-which one on purpose rather than by not looking at it.
+**This is a `packages/domain` type change plus a backfill across the 320 seeded rows.**
+It is decided here, in writing, per `docs/standing-constraints.md` and
+`.claude/commands/phase.md`'s stop-gate requirement that a domain type change surface
+before it's built — but it is not built in this document; it lands as an explicit Phase
+E0 task (`docs/build-plan.md`).
 
 ### One index is not enough — the unfiltered case only
 
@@ -199,11 +218,15 @@ CREATE INDEX animals_wait_anchor_filtered_idx
 
 Without it, `feed-explain.test.ts`'s own bar — no `Sort` node — would **fail** for any
 filtered longest-waiting query, contradicting the recommendation two paragraphs below to
-extend that exact test to the new ordering. Either add this index, or state explicitly
-that filtered longest-waiting accepts a `Sort` node and is exempt from the M2 bar — I'd
-add the index; a `Sort` over a few hundred to low-thousand rows is cheap today, but
-accepting a hole in this specific bar sets a precedent for waiving it elsewhere later,
-which is a worse trade than one more column-width index.
+extend that exact test to the new ordering.
+
+**Decided (2026-08-07): add it.** A `Sort` over a few hundred to low-thousand rows is
+cheap today — that was never in question. What's not acceptable is a hole in the M2 "no
+sort" bar for one ordering while this same document argues for extending that bar to
+cover it. Waiving the bar here, to save one index, sets a precedent for waiving it
+elsewhere — that precedent is a materially worse trade than the write amplification
+below, on a table whose writes are shelters editing listings, not a per-request or
+per-user event.
 
 ### Cost
 
@@ -264,16 +287,29 @@ surface where the page number is user-editable, crawler-indexed, and pasted into
 Telegram. The no-match state would render "Під ці фільтри зараз нікого немає" for a
 filter set that isn't empty.
 
-**Recommendation: clamp `page` to `totalPages` server-side and serve the last page**,
-rather than adding a new error state. This needs a second, cheap query only in the
-out-of-range case (the common, in-range path stays the single-query shape above) — fetch
-`totalMatching` alone when the first attempt returns zero rows, compute `totalPages`, and
-re-run bounded to it. Consistent with the design's own "no phantom tiles" honesty (an
-empty state should mean genuinely empty, not "you asked for something that doesn't
-exist"), and it means a shared link with a stale page number degrades to *something
-real* instead of a false negative. The alternative — a `PAGE_OUT_OF_RANGE` contract error
-— is more honest about what happened but needs a UI state the design doesn't have; I'd
-only take that path if you'd rather the URL not silently redirect.
+**Decided (2026-08-07): serve the last valid page, 200, no redirect, no error.** An
+out-of-range page is not a broken link — it's a shared link that went stale: someone sent
+`?stor=7`, animals got adopted, there are four pages now. That's the product working (the
+feed shrinking as animals find homes), not a failure state, and it should read that way:
+a 200 response carrying the last valid page, with a plain, non-alarming note explaining
+that the page moved and nothing was hidden. Not a 404 — the link isn't broken. Not a
+silent redirect to page 1 — that loses the person's place in the list and hides what
+actually happened, which is exactly the "no phantom tiles," nothing-hidden honesty the
+rest of this design already commits to (the "Error (next page)" state,
+`docs/design/README.md:437-439`: *"Ті, кого вже видно, залишаються на місці. Ми нічого не
+приховали"* — "what's already visible stays in place; we haven't hidden anything" — is
+the same tonal contract this state needs).
+
+Mechanically: this needs a second, cheap query only in the out-of-range case (the common,
+in-range path stays the single-query shape above) — fetch `totalMatching` alone when the
+first attempt returns zero rows, compute `totalPages`, and re-run bounded to it.
+
+**The exact copy is not decided here and is not written here.** The design has a proven
+pattern for this tone but no string yet for this specific state — inventing Ukrainian UI
+copy in an engineering document is how a string nobody approved ends up in the product,
+which is exactly what this document refused to do for §4's relaxation-count copy too.
+This is an explicit Phase E4 task: author the copy in `docs/design/README.md` itself,
+modeled on the "Error (next page)" pattern above, before the out-of-range state ships.
 
 ### Distinct-shelter count: a genuinely different aggregate, still same handler
 
@@ -329,7 +365,7 @@ takes the same `FeedFilters` input as `gallery.list`, built from the same
 the design requires ("Прибрати «розмір» (+11 тварин)") is `without_X - current`, computed
 in the handler, not the query.
 
-### The thing the design names that the schema can't do — flagging, not deciding
+### The thing the design names that the schema can't do — decided: change the copy, not the schema
 
 "Додати сусідні міста (+34)" (add neighbouring cities) implies a city-adjacency concept.
 It doesn't exist — `cities` (`packages/db/src/schema/cities.ts`) is id, name, centroid;
@@ -338,15 +374,22 @@ no oblast hierarchy, no adjacency table, and PostGIS is explicitly not enabled a
 `without_city` — identical mechanism to dropping any other dimension, not a genuine
 nearest-neighbour expansion.
 
-Since all seed cities already sit in one oblast (CLAUDE.md: *"verified shelters in one
-Ukrainian oblast"*), "drop the city filter" and "expand to the whole oblast" are the same
-operation today by coincidence, not by design. I'd flag the copy itself as slightly
-ahead of the data model — "Уся Київщина" (all of Kyiv oblast, which is exactly what
-dropping the filter does) reads honestly; "сусідні міста" (neighbouring cities) implies a
-capability (real adjacency) that isn't there and would need PostGIS or a hand-authored
-adjacency table to actually mean what it says. This is a design-copy question, not mine
-to resolve — flagging it rather than quietly building the honest version under a label
-that promises something else.
+**Decided (2026-08-07): change the copy, don't build adjacency.** Since all seed cities
+already sit in one oblast (CLAUDE.md: *"verified shelters in one Ukrainian oblast"*),
+"drop the city filter" and "expand to the whole oblast" are the same operation today —
+and "Уся Київщина" is not a new string invented for this: it's the existing МІСТО chip
+value (`docs/design/README.md:180, :212`, the first-run screen and the filter sheet), so
+reusing it here is consistency, not invention. "Сусідні міста" promises a capability
+(real geographic adjacency) that isn't there and would need PostGIS or a hand-authored
+adjacency table to actually mean what it says — that's real work for a feature whose only
+observable effect today would be identical to dropping the city filter. Not building it
+now; it becomes real when coverage expands past one oblast, which is Phase 2.
+
+Recorded as a deliberate design deviation directly in `docs/design/README.md`, with the
+reasoning, at both places the "сусідні міста" copy appears (the gallery no-match state
+and the deck's Exhausted screen) — so the next person reading the design sees why it
+says what it says, instead of reading "сусідні міста," assuming it's still live, and
+reinstating a string the schema can't back.
 
 ### Cost
 
@@ -436,17 +479,25 @@ the new procedures are added to `contract` in the same commit as the router wiri
 Plus the shared-predicate factoring (`buildFeedPredicate`) §1 calls for, since two
 repositories now build the same WHERE clause.
 
-**Flagged for a decision that isn't mine to make silently:**
-1. Whether `reserved` should carry `publishedAt` forward (§2) — a `packages/domain` type
-   change, which stops at the plan gate either way.
-2. The "сусідні міста" copy implying an adjacency concept the schema doesn't have (§4).
-3. The 2,000-row OFFSET boundary (§1) — the shape of the guard is settled, the number is
-   my proposal, per `docs/standing-constraints.md`'s own flag on the rule.
-4. Whether an out-of-range gallery page clamps server-side to the last page, or returns an
-   explicit `PAGE_OUT_OF_RANGE` (§3) — I'd clamp; both are defensible.
-5. Whether the second, filtered `wait_anchor_at` index (§2) is worth its write
-   amplification now, or the filtered longest-waiting query is allowed a `Sort` node and
-   exempted from the M2 "no sort" bar — I'd add the index; both are defensible.
+**Decided, 2026-08-07 (owner sign-off — none of these are open going into Phase E):**
+1. `reserved` carries `publishedAt` forward (§2) — yes. A `packages/domain` type change
+   plus a backfill across the 320 seeded rows; lands as an explicit Phase E0 task, not
+   built in this document.
+2. The "сусідні міста" copy (§4) — changed to reuse the existing "Уся Київщина" chip
+   vocabulary, recorded as a deviation directly in `docs/design/README.md`. No adjacency
+   schema built.
+3. The 2,000-row OFFSET boundary (§1) — kept at 2,000, with the rationale corrected: the
+   guard isn't protecting the database (that cost is negligible even at 20,000), it's
+   admitting numbered pagination stops being sensible UI past that depth. The number
+   remains a proposal in the sense CLAUDE.md's decision #6 uses that word — reviewable,
+   not permanent — but is not open going into Phase E.
+4. Out-of-range gallery pages (§3) — clamp server-side to the last valid page, 200, a
+   plain non-alarming note, not a redirect and not an error. The exact Ukrainian copy is
+   an explicit Phase E4 task, modeled on the existing "Error (next page)" tonal pattern —
+   not written here.
+5. The second, filtered `wait_anchor_at` index (§2) — built. Waiving the M2 "no sort" bar
+   for one ordering, to save one index, sets a worse precedent than the write
+   amplification costs.
 
 **Not building:** a standalone `feed.count`/`gallery.count` procedure (§3) — folded into
 `gallery.list`'s output instead, with the reasoning for why that's not a lesser version

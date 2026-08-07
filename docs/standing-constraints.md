@@ -50,6 +50,18 @@ pointer. Never leave a stale one looking authoritative.
 *Why:* a build plan whose later milestones no longer applied, and a state document naming a
 folder that had since moved. Both were true when written.
 
+**Deduplication is a lossy operation — verify it, the same way you'd verify code.** After
+removing content because another document now covers it, check that every requirement
+still exists exactly once: not zero times (silently dropped, not merely restated) and not
+twice (the duplication you meant to remove). "I removed the duplicate" is a claim about
+where content ended up, not just that it left the first place.
+
+*Why:* trimming `CLAUDE.md` against a new standing-constraints document, on the
+instruction to remove what was now duplicated, dropped a real requirement — the
+affirmative "every non-boolean state is a discriminated union" rule — because the
+replacement text covering it was narrower than the original. Caught by a reviewer diffing
+the actual requirement set, not by re-reading the instruction.
+
 **Check a document's claims before relying on them.** Paths, files, branches. A handoff
 describes a moment.
 
@@ -77,15 +89,19 @@ describes a moment.
   `gallery.relaxationCounts` may use `OFFSET`, because the gallery's numbered pages
   (`?stor=N`, indexed, degrading to a plain list without JS) are a product requirement a
   keyset cursor cannot serve at all — not a discipline question, a shape one. Bounded at
-  2,000 matching rows per filter combination (~83 pages at 24/page); beyond that,
-  `gallery.list` caps navigable pages at the boundary rather than serving unbounded depth.
+  2,000 matching rows per filter combination (~83 pages at 24/page) — not because
+  Postgres struggles with the row-skip (it wouldn't, even at 20,000), but because past
+  that depth numbered pagination has stopped being a sensible way to browse anything, and
+  the fix is better filtering, not a higher cap. Beyond it, `gallery.list` caps navigable
+  pages at the boundary rather than serving unbounded depth.
   `feed.list` (the deck) stays keyset — this exception does not extend to it, and any
   other `OFFSET` in the codebase is the finding it always was. Full reasoning in
   `docs/gallery-contract-decisions.md` §1.
 
-  ⚠ The 2,000-row bound is a proposal, not a specification, in the same sense CLAUDE.md's
-  decision #6 flags its verification-evidence thresholds — the *exception's shape* is
-  settled; the number is negotiable.
+  ⚠ 2,000 is confirmed, not a placeholder — but it is a number to revisit if the corpus
+  legitimately approaches it, not a permanent ceiling, in the same sense CLAUDE.md's
+  decision #6 treats its verification-evidence thresholds as reviewable rather than fixed
+  forever.
 
 ---
 
