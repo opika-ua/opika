@@ -1,4 +1,5 @@
 import { RPCHandler } from "@orpc/server/fetch";
+import { clientIp } from "../../../../api/client-ip";
 import type { AppContext } from "../../../../api/context";
 import { getDb } from "../../../../api/db";
 import { apiRateLimiter } from "../../../../api/rate-limit";
@@ -12,10 +13,7 @@ async function handleRequest(request: Request): Promise<Response> {
   const now = new Date();
 
   // Per-IP rate limit (in-memory, per-instance — see rate-limit.ts)
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    request.headers.get("x-real-ip") ??
-    "unknown";
+  const ip = clientIp(request);
 
   if (!apiRateLimiter.check(ip, now)) {
     return new Response("Too Many Requests", { status: 429 });

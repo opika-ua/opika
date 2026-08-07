@@ -1,8 +1,3 @@
-import type { Database } from "@opika/db";
-import { revealRepo } from "@opika/db/repos";
-import type { AdopterId } from "@opika/domain";
-import { ORPCError } from "@orpc/server";
-
 // ---------------------------------------------------------------------------
 // Generic per-IP rate limiter (in-memory)
 // ---------------------------------------------------------------------------
@@ -14,6 +9,13 @@ import { ORPCError } from "@orpc/server";
  * Before deploying to production, replace with a shared store (Redis,
  * Postgres advisory locks, or Vercel's KV). The interface is stable; only
  * the backing implementation changes.
+ *
+ * Deliberately has no dependency on `@opika/db` or anything else Node-only —
+ * this module is imported from `apps/web/src/middleware.ts`, which runs in a
+ * separate deployment unit from the HTTP route handlers. A Postgres driver
+ * import here would make that bundle needlessly heavier at best, and fail to
+ * bundle at worst; the DB-dependent reveal limiter lives in its own file
+ * (`reveal-rate-limit.ts`) for exactly this reason.
  */
 export interface RateLimiter {
   /** Returns true if the request is allowed, false if rate-limited. */
@@ -59,48 +61,20 @@ export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: numbe
 
 /**
  * Default API rate limiter: 100 requests per minute per IP.
+ *
+ * Imported from two independent entry points — the `/api/rpc` route handler
+ * and `middleware.ts` — which on Vercel deploy as separate functions with
+ * separate module graphs. Importing this same module from both does NOT
+ * give them the same `Map`: each gets its own instance. The effective
+ * ceiling for one IP is therefore 100/min through the API *plus* 100/min
+ * through any middleware-protected page, 200/min total, not a single shared
+ * 100/min budget. This is a real, known gap, not an oversight — a genuinely
+ * shared budget needs a shared store (Redis/Upstash), which is the same
+ * "move to a shared store before deploy" item already called out above, not
+ * a new one. Documented here so the number is never asserted higher than it
+ * actually is.
  */
 export const apiRateLimiter = inMemoryRateLimiter({
   windowMs: 60_000,
   maxRequests: 100,
 });
-
-// ---------------------------------------------------------------------------
-// Reveal rate limiter (Postgres-persisted)
-// ---------------------------------------------------------------------------
-
-/**
- * Reveal rate limit policy.
- *
- * Shelter contact details are the scrapeable asset. The reveal limit must
- * survive across serverless instances, so it is persisted in Postgres
- * rather than held in memory.
- */
-const REVEAL_RATE_LIMIT = {
-  maxReveals: 30,
-  windowSeconds: 24 * 3600, // 24 hours
-};
-
-/**
- * Check whether the adopter has exceeded the reveal rate limit.
- *
- * Counts reveals in the last `windowSeconds` via the reveal repository,
- * keeping the Drizzle query builder inside `packages/db` where it belongs
- * (standing check: repository boundary).
- *
- * Throws RATE_LIMITED if the limit is exceeded.
- */
-export async function checkRevealRateLimit(
-  db: Database,
-  adopterId: AdopterId,
-  now: Date,
-): Promise<void> {
-  const cutoff = new Date(now.getTime() - REVEAL_RATE_LIMIT.windowSeconds * 1000);
-
-  const reveals = revealRepo(db);
-  const recentCount = await reveals.countRecentByAdopter(adopterId, cutoff);
-
-  if (recentCount >= REVEAL_RATE_LIMIT.maxReveals) {
-    throw new ORPCError("RATE_LIMITED");
-  }
-}
