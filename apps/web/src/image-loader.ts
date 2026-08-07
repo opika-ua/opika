@@ -32,7 +32,16 @@ import type { ImageLoaderProps } from "next/image";
  * image with nothing in typecheck, lint or the build to catch it, and the
  * first person to add an `<Image>` outside these two cards would have hit
  * it. Not "unlikely" — see `docs/standing-constraints.md`.
+ *
+ * `http(s)://` and `data:` sources pass through untouched, for the same
+ * "global, not just these two cards" reason — and because H1's entire job is
+ * to make this function return a real CDN URL (`https://cdn.…`) instead of a
+ * root-relative one. Without this guard, the stub would prefix H1's own
+ * output and break the thing it exists to become.
  */
+const ABSOLUTE_URL = /^https?:\/\//i;
+
 export default function opikaImageLoader({ src }: ImageLoaderProps): string {
+  if (ABSOLUTE_URL.test(src) || src.startsWith("data:")) return src;
   return src.startsWith("/") ? src : `/${src}`;
 }

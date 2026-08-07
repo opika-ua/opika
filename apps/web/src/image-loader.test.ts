@@ -29,4 +29,20 @@ describe("opikaImageLoader", () => {
     expect(out).toBe(src);
     expect(out.startsWith("//")).toBe(false);
   });
+
+  /**
+   * H1's whole job is to make this function return one of these instead of a
+   * root-relative path — without this passthrough, the stub would prefix
+   * H1's own CDN URL and break the thing it exists to become. Same failure
+   * shape as the `//icon.svg` case above: `startsWith("/")` is false for
+   * `https://…`, so without this branch the naive prefix rule would turn it
+   * into `/https://cdn.example/x.jpg`.
+   */
+  it.each([
+    ["https://cdn.opika.example/photo.jpg", "an absolute https URL"],
+    ["http://cdn.opika.example/photo.jpg", "an absolute http URL"],
+    ["data:image/png;base64,iVBORw0KGgo=", "a data URI"],
+  ])("passes %s through unchanged — %s", (src) => {
+    expect(opikaImageLoader({ src, width: 640, quality: 75 })).toBe(src);
+  });
 });
