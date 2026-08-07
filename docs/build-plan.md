@@ -141,11 +141,12 @@ anymore, it's an *implementation-order* one.
 | E1 | Gallery grid over `gallery.list` — responsive columns (1/2/3/4 per the design's breakpoint table), `AnimalCard`, freshness marker reused from the deck | 10 |
 | E1.5 | Image resolution stub — `storageKey` resolves to a real URL through one function H1 later replaces; licence-clean placeholder photos in the repo; seed wired deterministically. Makes E2–E5 visually reviewable and gives shelter outreach something to show. Not the real pipeline — no R2, no upload, no variants | 3 |
 | E2 | Filters as a visible rail (≥1024) / the existing sheet (<1024), extended with sort. Filter and sort state in the URL — shareable, back-button-correct | 6 |
+| E2.5 | 2D arrow-key navigation across the gallery grid (`docs/design/README.md`'s "Keyboard" table — ← ↑ → ↓ move focus by column count, edges don't wrap; Home/End jump to first/last card), independent of ARIA role. Runs before E3/E4 so page-boundary and zero-result focus behaviour are inherited already-settled, not invented per-phase. Roving tabindex applied client-side, after hydration, only — the grid ships fully tabbable by default with no JS; both states asserted separately in the harness | 3 |
 | E3 | Numbered pagination — `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram) | 4 |
 | E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, **the note must actually render** — see the phase's own done-when below, not just the copy existing) states — both form factors | 4 |
 | E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. `sessionStorage`-persisted last mode, entry ("Гортати по одній") and exit ("До списку" / Esc, returning to the same scroll position per `docs/design/README.md` "Gallery ↔ Deck") | 3 |
 
-**Total: ~42 h.**
+**Total: ~45 h.**
 
 **Why E1.5 exists as its own task rather than waiting for H1:** every phase from E2 on is
 reviewed against what the gallery actually looks like — filter and sort results, empty and
@@ -153,6 +154,17 @@ loading states, the pagination footer. Building E2–E4 against a grid of broken
 repeats exactly the retrofit pattern this course correction exists to stop: the visual
 problems surface all at once, in one lump, the day real photos finally arrive at H1,
 instead of being caught phase by phase as they're introduced.
+
+**Why E2.5 exists as its own task rather than folding into E2 or E3:** it was found during
+E1.5's own residue check (closed, incorrectly, as won't-do — see
+`docs/standing-constraints.md`, "An accessibility technicality never closes a design
+requirement") and confirmed as real, unbuilt scope once `docs/design/README.md`'s own
+"Keyboard" table was actually read rather than inferred from ARIA semantics. It sits
+between E2 and E3 specifically because keyboard behaviour at a page boundary (E3) and
+focus behaviour against zero results (E4) are exactly the kind of thing each phase would
+otherwise invent independently if arrow-key navigation didn't already exist to answer them
+first — issue #28 records the two build-time constraints (roving tabindex is client-only,
+never server-rendered; ordering ahead of E3/E4) in full.
 
 **Done when:** someone browses the full corpus on a 1920px desktop and a 360px phone,
 filters and sorts on both, shares a URL that reproduces exactly what they saw, and the
@@ -255,11 +267,11 @@ installs on Android with Lighthouse ≥90; a thrown error appears in Sentry with
 | Phase | Weeks | Hours |
 |---|---|---|
 | C — Consolidate | — | 0 (done) |
-| E — Gallery | 4–5 | 42 |
+| E — Gallery | 4–5 | 45 |
 | F — Detail & reveal | 3 | 22 |
 | G — Deck completion | off critical path | 10 |
 | H — Remainder to launch | 7 | 56 |
-| **Total from this rewrite** | **~16 weeks** | **~130 h** |
+| **Total from this rewrite** | **~16 weeks** | **~133 h** |
 
 At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch still lands early
 February 2027** — the total dropped from ~135 h to ~127 h (C fully closed out, E gaining
@@ -270,8 +282,9 @@ rewrite and its implementation add (E0's contract and schema work — including 
 `reserved`/`publishedAt` domain change and backfill and the second wait-anchor index, both
 settled during the gallery-contract decision round — E5's view-mode switch moved in from
 C7, and the admin desktop layouts) — 127 h. E1.5's addition (3 h, see Phase E above) brings
-this to 130 h — same reasoning as E5's addition: ~16 weeks at this cadence absorbs a few
-extra hours without moving the week count.
+this to 130 h, and E2.5's addition (3 h, also Phase E above) brings it to 133 h — same
+reasoning both times: ~16 weeks at this cadence absorbs a few extra hours without moving
+the week count.
 
 **The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own
