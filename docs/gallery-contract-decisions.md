@@ -216,6 +216,32 @@ CREATE INDEX animals_wait_anchor_filtered_idx
   WHERE listing_kind IN ('published', 'reserved');
 ```
 
+> **Correction, Phase E0 (as built).** The column list above does not work, and
+> the built index drops `listing_kind` from the front:
+>
+> ```sql
+> CREATE INDEX animals_wait_anchor_filtered_idx
+>   ON animals (city_id, species, size, wait_anchor_at, id)
+>   WHERE listing_kind IN ('published', 'reserved');
+> ```
+>
+> A btree whose leading column is matched by `= ANY(...)` — which is what
+> `listing_kind IN ('published','reserved')` is — returns rows grouped per array
+> element rather than in index order, so the ordering tail is not usable and the
+> planner adds the `Sort` node this index exists to remove. Measured, not
+> reasoned: with the shape above, `EXPLAIN` declines the index entirely and
+> falls back to `animals_feed_idx` plus a sort. The partial predicate already
+> restricts the index to the two discoverable kinds, so repeating `listing_kind`
+> as a column bought nothing in the first place.
+>
+> The decision this section makes — build a second, filtered index rather than
+> waive the no-Sort bar for one ordering — is unchanged. Only the column list
+> is corrected. `packages/db/test/wait-anchor-explain.test.ts` fails if it is
+> put back, and its header records a second finding: `count(*) OVER()` (§3)
+> removes the `LIMIT`'s early-stop advantage, so which plan Postgres *chooses*
+> under default settings is statistics-dependent even though the index can
+> supply the ordering.
+
 Without it, `feed-explain.test.ts`'s own bar — no `Sort` node — would **fail** for any
 filtered longest-waiting query, contradicting the recommendation two paragraphs below to
 extend that exact test to the new ordering.
