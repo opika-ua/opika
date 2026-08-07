@@ -1,6 +1,7 @@
 import { animalsByIdContract, animalsRevealContract } from "./procedures/animals";
 import { citiesListContract } from "./procedures/cities";
 import { feedListContract } from "./procedures/feed";
+import { galleryListContract, galleryRelaxationCountsContract } from "./procedures/gallery";
 import { revealsListMineContract } from "./procedures/reveals";
 import { sessionBootstrapContract } from "./procedures/session";
 import { sheltersByIdContract } from "./procedures/shelters";
@@ -23,6 +24,10 @@ export const contract = {
   },
   feed: {
     list: feedListContract,
+  },
+  gallery: {
+    list: galleryListContract,
+    relaxationCounts: galleryRelaxationCountsContract,
   },
   animals: {
     byId: animalsByIdContract,

@@ -1,6 +1,7 @@
 export * from "./animals";
 export * from "./cities";
 export * from "./feed";
+export * from "./gallery";
 export * from "./pagination";
 export * from "./reveals";
 export * from "./session";

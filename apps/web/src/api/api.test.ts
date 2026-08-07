@@ -644,3 +644,210 @@ describe("feed filters — multi-filter combination", () => {
     expect(body.items[0]?.id).toBe(smallDog.id);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Gallery
+// ---------------------------------------------------------------------------
+
+describe("gallery.list", () => {
+  const NOW = new Date("2026-08-01T12:00:00Z");
+  const daysBefore = (days: number) => new Date(NOW.getTime() - days * 86_400_000);
+
+  /** Four animals whose edit order and publication order are different. */
+  async function seedGalleryCorpus() {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+
+    // Edited recently, published long ago — a shelter tending an old listing,
+    // which is the case that makes `last_updated_at` the wrong wait column.
+    const oldTimer = makeAnimal({
+      shelterId: shelter.id,
+      name: "Старожил",
+      lastUpdatedAt: daysBefore(1),
+      listing: { kind: "published", publishedAt: daysBefore(200) },
+    });
+    const middling = makeAnimal({
+      shelterId: shelter.id,
+      name: "Середній",
+      lastUpdatedAt: daysBefore(40),
+      listing: { kind: "published", publishedAt: daysBefore(60) },
+    });
+    const newcomer = makeAnimal({
+      shelterId: shelter.id,
+      name: "Новенький",
+      lastUpdatedAt: daysBefore(2),
+      listing: { kind: "published", publishedAt: daysBefore(3) },
+    });
+    for (const animal of [oldTimer, middling, newcomer]) {
+      await animalRepo(h.db).insert(animal, city.id);
+    }
+    return { city, shelter, oldTimer, middling, newcomer };
+  }
+
+  it("returns a page with totals and the same card view the deck uses", async () => {
+    const { oldTimer } = await seedGalleryCorpus();
+
+    const res = await h.call("gallery.list", { filters: NO_FILTERS }, { now: NOW });
+    expect(res.status).toBe(200);
+    const body = res.body as {
+      items: Array<Record<string, unknown>>;
+      totalMatching: number;
+      totalShelters: number;
+      totalPages: number;
+      page: number;
+    };
+
+    expect(body.totalMatching).toBe(3);
+    expect(body.totalShelters).toBe(1);
+    expect(body.totalPages).toBe(1);
+    expect(body.page).toBe(1);
+    expect(body.items).toHaveLength(3);
+
+    const card = body.items.find((item) => item.id === oldTimer.id);
+    expect(card).toBeDefined();
+    expect(card).toHaveProperty("ageBucket");
+    expect(card).toHaveProperty("freshness");
+    // `implement(contract)` strips anything the view does not declare; these
+    // are the fields that would be a leak, not merely noise.
+    expect(card).not.toHaveProperty("listing");
+    expect(card?.shelter).not.toHaveProperty("exactAddress");
+    expect(card?.shelter).not.toHaveProperty("contact");
+  });
+
+  it("returns the sorted order the query produced, not a re-ranked one", async () => {
+    // The lock on the one thing copying `feed.ts` too closely would break.
+    // `feed.list` re-ranks its page with `scoreAnimal`, whose dominant term is
+    // freshness — so a gallery handler that did the same would return
+    // longest-waiting in something close to freshest order. Старожил is first
+    // by wait and first by freshness; Новенький and Середній are the pair that
+    // separate the two orderings.
+    const { oldTimer, middling, newcomer } = await seedGalleryCorpus();
+
+    const waiting = await h.call(
+      "gallery.list",
+      { filters: NO_FILTERS, sort: "longest_waiting" },
+      { now: NOW },
+    );
+    const freshest = await h.call(
+      "gallery.list",
+      { filters: NO_FILTERS, sort: "freshest" },
+      { now: NOW },
+    );
+
+    const names = (res: { body: unknown }) =>
+      (res.body as { items: Array<{ name: string }> }).items.map((item) => item.name);
+
+    expect(names(waiting)).toEqual([oldTimer.name, middling.name, newcomer.name]);
+    expect(names(freshest)).toEqual([oldTimer.name, newcomer.name, middling.name]);
+    // If either had been re-scored, both would have come back in the same
+    // freshness-driven order.
+    expect(names(waiting)).not.toEqual(names(freshest));
+  });
+
+  it("is reproducible as the clock advances", async () => {
+    // The property Phase E's definition of done rests on — "shares a URL that
+    // reproduces exactly what they saw". Score is a function of freshness
+    // decay, so a re-ranked page would drift between these two calls.
+    await seedGalleryCorpus();
+
+    const early = await h.call(
+      "gallery.list",
+      { filters: NO_FILTERS, sort: "longest_waiting" },
+      { now: NOW },
+    );
+    const later = await h.call(
+      "gallery.list",
+      { filters: NO_FILTERS, sort: "longest_waiting" },
+      { now: new Date(NOW.getTime() + 45 * 86_400_000) },
+    );
+
+    const ids = (res: { body: unknown }) =>
+      (res.body as { items: Array<{ id: string }> }).items.map((item) => item.id);
+    expect(ids(later)).toEqual(ids(early));
+  });
+
+  it("serves the last real page for a page number that has gone stale", async () => {
+    await seedGalleryCorpus();
+
+    const res = await h.call(
+      "gallery.list",
+      { filters: NO_FILTERS, page: 9, pageSize: 2 },
+      { now: NOW },
+    );
+
+    expect(res.status).toBe(200);
+    const body = res.body as {
+      items: unknown[];
+      totalMatching: number;
+      totalPages: number;
+      page: number;
+    };
+    // A 200 carrying the last valid page, not a 404 and not a bounce to 1 —
+    // the link is stale, not broken.
+    expect(body.totalMatching).toBe(3);
+    expect(body.totalPages).toBe(2);
+    expect(body.page).toBe(2);
+    expect(body.items).toHaveLength(1);
+  });
+
+  it("rejects a page number beyond any that could exist", async () => {
+    const res = await h.call("gallery.list", { filters: NO_FILTERS, page: 10_000 }, { now: NOW });
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+});
+
+describe("gallery.relaxationCounts", () => {
+  it("reports the gain from dropping each applied filter, and nothing for the rest", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+
+    const smallCat = makeAnimal({ shelterId: shelter.id, species: "cat" as const, size: "small" });
+    const largeCat = makeAnimal({ shelterId: shelter.id, species: "cat" as const, size: "large" });
+    const smallDog = makeAnimal({ shelterId: shelter.id, species: "dog" as const, size: "small" });
+    for (const animal of [smallCat, largeCat, smallDog]) {
+      await animalRepo(h.db).insert(animal, city.id);
+    }
+
+    const res = await h.call("gallery.relaxationCounts", {
+      filters: {
+        ...NO_FILTERS,
+        species: { kind: "oneOf", values: ["cat"] },
+        sizes: { kind: "oneOf", values: ["small"] },
+      },
+    });
+
+    expect(res.status).toBe(200);
+    const body = res.body as {
+      current: number;
+      relaxations: Array<{ dimension: string; additional: number }>;
+    };
+
+    expect(body.current).toBe(1);
+    // Only the two constrained dimensions; no "+0" row for cities or ages.
+    expect(body.relaxations.map((r) => r.dimension).sort()).toEqual(["sizes", "species"]);
+    expect(body.relaxations.find((r) => r.dimension === "sizes")?.additional).toBe(1);
+    expect(body.relaxations.find((r) => r.dimension === "species")?.additional).toBe(1);
+  });
+});

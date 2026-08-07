@@ -86,14 +86,19 @@ describe("every served procedure goes through implement(contract)", () => {
   // A canary against the check below passing vacuously. If `collectLeaves`
   // ever stopped recognising procedures (an @orpc major bump renaming
   // `isContractProcedure`, say), both trees would walk to zero leaves and
-  // every assertion that follows would pass on an empty set. The count is
-  // CLAUDE.md's own accounting: "the API contract for the eight procedures".
-  it("finds exactly the eight contracted procedures", () => {
+  // every assertion that follows would pass on an empty set.
+  //
+  // The list is spelled out rather than counted so that adding a procedure is
+  // a deliberate edit here, made while looking at what is being served, rather
+  // than a number quietly incremented. `gallery.*` joined it in Phase E0.
+  it("finds exactly the ten contracted procedures", () => {
     expect(contractLeaves.map((l) => l.path).sort()).toEqual([
       "animals.byId",
       "animals.reveal",
       "cities.list",
       "feed.list",
+      "gallery.list",
+      "gallery.relaxationCounts",
       "reveals.listMine",
       "session.bootstrap",
       "shelters.byId",
