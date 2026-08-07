@@ -126,8 +126,13 @@ export const uk = {
     body: "Притулків тут небагато, тому список короткий — це нормально.",
     newAnimals:
       "Нові тварини з'являються, коли притулки оновлюють картки. Зазвичай раз на кілька тижнів.",
-    /** Template: "Додати сусідні міста (+{count})" */
-    addNearbyCities: "Додати сусідні міста (+{count})",
+    /**
+     * Template: "Уся Київщина (+{count})"
+     * Deviation from the original handoff's "Додати сусідні міста" (add
+     * neighbouring cities) — that promised real geographic adjacency the
+     * schema doesn't have. Reasoning: docs/gallery-contract-decisions.md §4.
+     */
+    addNearbyCities: "Уся Київщина (+{count})",
     changeFilters: "Змінити фільтри",
     reviewAgain: "Переглянути ще раз спокійно",
     footnote:

@@ -16,6 +16,7 @@
     "@opika/contracts": "workspace:*",
     "@opika/db": "workspace:*",
     "@opika/domain": "workspace:*",
+    "@opika/i18n": "workspace:*",
     "@orpc/contract": "catalog:",
     "@orpc/server": "catalog:",
     "next": "catalog:",

@@ -1,9 +1,9 @@
 "use client";
 
 import type { FeedCardView } from "@opika/contracts";
+import { uk } from "@opika/i18n";
 import { useCallback, useState } from "react";
 import { SwipeCard } from "./SwipeCard";
-import { uk } from "./strings.uk";
 import { layout } from "./tokens";
 import { useSwipeGesture } from "./use-swipe-gesture";
 
