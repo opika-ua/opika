@@ -140,3 +140,28 @@ test.describe("/tvaryny content width", () => {
     });
   }
 });
+
+/**
+ * `<img src>` occupying the right box (asserted above, at every breakpoint)
+ * is not evidence the image actually decoded — `photo.storageKey` used to
+ * be rendered as a bare object key, 404ing on every card, and the layout
+ * assertions above stayed green through that the whole time: the
+ * `aspect-[4/5]`/`w-30` box holds its size and `bg-photo-placeholder`'s
+ * hatch shows through a failed `<img>` exactly the same as a loading one.
+ * This is the check that would actually have caught it.
+ */
+test.describe("/tvaryny photos actually load", () => {
+  test("the first card's photo decodes, not just occupies its box", async ({ page }) => {
+    await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
+    const img = page.locator(`${CARD} img`).first();
+    await img.waitFor({ state: "attached" });
+
+    const loaded = await img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0);
+    const src = await img.getAttribute("src");
+
+    expect(
+      loaded,
+      `<img src="${src}"> did not decode — complete/naturalWidth say it 404'd or is broken`,
+    ).toBe(true);
+  });
+});

@@ -2,6 +2,7 @@ import type { FeedCardView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips } from "@opika/ui";
 import Link from "next/link";
+import { photoUrl } from "../../api/photo-url";
 import { cardAccessibleName, cardMetaLine, isReserved } from "./card-text";
 
 interface AnimalCardProps {
@@ -59,7 +60,11 @@ export function AnimalCard({ card, cityName }: AnimalCardProps) {
         className="relative shrink-0 w-full aspect-[4/5] tablet:w-30 tablet:aspect-auto desktop:w-full desktop:aspect-[4/5] rounded-photo overflow-hidden bg-photo-placeholder"
       >
         {photo && (
-          <img src={photo.storageKey} alt="" className="w-full h-full object-cover block" />
+          <img
+            src={photoUrl(photo.storageKey)}
+            alt=""
+            className="w-full h-full object-cover block"
+          />
         )}
 
         {/*

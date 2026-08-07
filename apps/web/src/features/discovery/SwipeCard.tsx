@@ -4,6 +4,7 @@ import type { FeedCardView } from "@opika/contracts";
 import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips, type PipFill } from "@opika/ui";
 import type { RefCallback } from "react";
+import { photoUrl } from "../../api/photo-url";
 
 interface SwipeCardProps {
   card: FeedCardView;
@@ -75,7 +76,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
       >
         {photo && (
           <img
-            src={photo.storageKey}
+            src={photoUrl(photo.storageKey)}
             alt={photo.alt?.uk ?? card.name}
             className="w-full h-full object-cover block"
           />
