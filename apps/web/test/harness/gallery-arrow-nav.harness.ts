@@ -11,6 +11,28 @@ import { expect, test } from "@playwright/test";
 import { openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
+/**
+ * `proxy.ts` rate-limits `/tvaryny` at 100 req/min per IP
+ * (`api/rate-limit.ts`), keyed on the real client IP unless spoofed —
+ * every test file that requests `/tvaryny` under its real identity shares
+ * ONE budget with every other one, in the same 60s window, on a suite that
+ * only grows. `gallery-rate-limit.harness.ts`'s own file comment named
+ * this risk directly ("present or future" tests colliding) and solved it
+ * for its own single test; it did not, and could not, solve it for a file
+ * that didn't exist yet. Confirmed as the actual cause here, not assumed:
+ * `pnpm check`'s harness step started failing two of gallery-layout's
+ * content-width tests with a real 429 ("Too Many Requests") the moment
+ * this file's ~9 additional real requests were added to the shared
+ * budget — reproduced by running file combinations until the minimal
+ * failing set (this file + gallery-filters + gallery-layout) was found.
+ * A unique per-file `x-forwarded-for` isolates this file's own request
+ * volume from every other file's, the same way `gallery-rate-limit.
+ * harness.ts` already isolates its own deliberate budget exhaustion —
+ * see that file for why spoofing this header is expected and harmless
+ * in this environment.
+ */
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "203.0.113.21" } });
+
 const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
 

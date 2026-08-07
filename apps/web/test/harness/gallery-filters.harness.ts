@@ -13,6 +13,22 @@ import { expect, test } from "@playwright/test";
 import { openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
+/**
+ * `proxy.ts` rate-limits `/tvaryny` at 100 req/min per IP, shared across
+ * every harness file that requests it under the real local identity —
+ * `gallery-rate-limit.harness.ts`'s own comment names this as a risk for
+ * "present or future" tests. Confirmed as a real, reproducing 429 once
+ * `gallery-arrow-nav.harness.ts` (E2.5) added its own real requests to the
+ * shared pile — see that file's comment for the full story. Isolates this
+ * file's volume the same way that file's own dedicated test already
+ * isolates itself. Manually-created contexts below (the fresh-context and
+ * JS-disabled tests) need the header passed explicitly — `test.use()`
+ * only configures the implicit `context`/`page` fixtures, not a context a
+ * test creates itself via `browser.newContext()`.
+ */
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "203.0.113.22" } });
+const SPOOFED_IP_HEADERS = { "x-forwarded-for": "203.0.113.22" };
+
 const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
 /** The id the no-JS `:target` reveal keys on — `FilterSheet`'s `SHEET_ID`. */
@@ -78,8 +94,12 @@ test.describe("/tvaryny filters — URL is the single source of truth", () => {
     ).toBeGreaterThan(0);
 
     // A genuinely fresh context — no cookies, no session, standing in for
-    // "someone else opens the link you sent them."
-    const freshContext = await browser.newContext();
+    // "someone else opens the link you sent them." Still spoofs this
+    // file's own IP: a real distinct visitor wouldn't share it in
+    // production, but this is the harness's own request budget, not
+    // theirs, and letting it consume the shared local-IP budget is
+    // exactly the collision this file works around everywhere else.
+    const freshContext = await browser.newContext({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
     const freshPage = await freshContext.newPage();
     await freshPage.goto(filteredUrl, { waitUntil: "load" });
     await freshPage.locator(CARD).first().waitFor({ state: "visible" });
@@ -133,7 +153,10 @@ test.describe("/tvaryny filters — URL is the single source of truth", () => {
 
 test.describe("/tvaryny filters — work with JavaScript disabled", () => {
   test("the sheet's native form narrows the result set with no JS at all", async ({ browser }) => {
-    const context = await browser.newContext({ javaScriptEnabled: false });
+    const context = await browser.newContext({
+      javaScriptEnabled: false,
+      extraHTTPHeaders: SPOOFED_IP_HEADERS,
+    });
     const page = await context.newPage();
     await page.setViewportSize({ width: PHONE.width, height: PHONE.height });
     await page.goto(ROUTE, { waitUntil: "load" });
@@ -185,7 +208,10 @@ test.describe("/tvaryny filters — work with JavaScript disabled", () => {
   test("every card is still reachable by Tab with no JS — the grid never relies on script to be tabbable", async ({
     browser,
   }) => {
-    const context = await browser.newContext({ javaScriptEnabled: false });
+    const context = await browser.newContext({
+      javaScriptEnabled: false,
+      extraHTTPHeaders: SPOOFED_IP_HEADERS,
+    });
     const page = await context.newPage();
     await page.setViewportSize({ width: PHONE.width, height: PHONE.height });
     await page.goto(ROUTE, { waitUntil: "load" });
