@@ -54,7 +54,15 @@ import * as schema from "./schema/index";
 // Safety gate
 // ---------------------------------------------------------------------------
 
-const DATABASE_URL = process.env.DATABASE_URL ?? "postgres://opika:opika@localhost:5432/opika";
+// Port matches docker-compose.yml's own OPIKA_DB_PORT (default 5433, mapped to the
+// container's internal 5432) — read from the same env var rather than a second hardcoded
+// copy, so the two can't drift apart again. They already had: this fallback said 5432,
+// which nothing in local dev actually listens on unless OPIKA_DB_PORT was overridden to
+// match, and running db:seed without an explicit DATABASE_URL failed with what looked
+// like a credentials error rather than the port mismatch it actually was (issue #22).
+const DB_PORT = process.env.OPIKA_DB_PORT ?? "5433";
+const DATABASE_URL =
+  process.env.DATABASE_URL ?? `postgres://opika:opika@localhost:${DB_PORT}/opika`;
 
 const isLocalhost = /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(DATABASE_URL);
 const hasForce = process.argv.includes("--force");
@@ -118,43 +126,54 @@ function daysAgo(days: number): Date {
 // ---------------------------------------------------------------------------
 
 /**
- * Every seeded animal points at the same real placeholder file
- * (`apps/web/public/seed-photos/placeholder.jpg`), resolved by
- * `apps/web/src/api/photo-url.ts` — a stub `photoUrl(storageKey)` M7's real
- * R2/CDN pipeline replaces with the same signature, not a call-site change.
+ * Nine real, licence-clean placeholder photos (`apps/web/public/seed-photos/`,
+ * `SOURCES.md` next to them records each one's source and licence) — every
+ * seeded animal cycles through the ones matching its own species, resolved
+ * to a URL by `apps/web/src/image-loader.ts` — the app's single `next/image`
+ * loader, wired globally by `next.config.ts`'s `images.loaderFile` — which
+ * H1's real R2/CDN pipeline replaces without touching any call site.
+ *
+ * Deliberately mixed aspect ratios (0.75 portrait to 2.09 wide landscape —
+ * `SOURCES.md` has the full table), not nine copies of the design's own 4:5:
+ * `AnimalCard`'s photo box is a fixed CSS shape, and a source photo that
+ * already matches it exactly is the one case that would never exercise the
+ * `object-cover` cropping path real shelter uploads will actually need.
+ * `width`/`height` below are each photo's true dimensions, not a fabricated
+ * uniform value — the whole point is that they disagree with the box.
  *
  * A prior version of this generated 880 individual synthetic JPEGs (a
  * warm-grey pixel, byte-padded to a realistic 300-500KB) into a
- * `seed-photos/` directory Next never served — every card 404'd. One real,
- * shared photo file is a smaller, more useful placeholder for a solo
- * project at this stage: it makes crop/aspect/loading actually reviewable,
- * which 880 unreachable files never did. Per-animal file-size realism can
- * come back (see git history for `generatePlaceholderPhoto`) if a real
+ * `seed-photos/` directory Next never served — every card 404'd. A second
+ * prior version pointed every animal at one single real file — real, but
+ * indistinguishable card to card. Per-animal file-size realism can come
+ * back (see git history for `generatePlaceholderPhoto`) if a real
  * requirement calls for it.
  */
-const PLACEHOLDER_PHOTO_KEY = "seed-photos/placeholder.jpg";
+const DOG_PHOTOS: AnimalPhoto[] = [
+  { storageKey: "seed-photos/dog-1.jpg", width: 1024, height: 768, alt: null },
+  { storageKey: "seed-photos/dog-2.jpg", width: 766, height: 1024, alt: null },
+  { storageKey: "seed-photos/dog-3.jpg", width: 1023, height: 782, alt: null },
+  { storageKey: "seed-photos/dog-4.jpg", width: 1024, height: 768, alt: null },
+  { storageKey: "seed-photos/dog-5.jpg", width: 768, height: 1024, alt: null },
+];
+const CAT_PHOTOS: AnimalPhoto[] = [
+  { storageKey: "seed-photos/cat-1.jpg", width: 1024, height: 490, alt: null },
+  { storageKey: "seed-photos/cat-2.jpg", width: 1024, height: 740, alt: null },
+  { storageKey: "seed-photos/cat-3.jpg", width: 1024, height: 683, alt: null },
+  { storageKey: "seed-photos/cat-4.jpg", width: 768, height: 1024, alt: null },
+];
 
-function makePhotos(count: number): AnimalPhoto[] {
-  const photos: AnimalPhoto[] = [];
-  // Primary is 4:5 portrait (matches the design's photo area), mix for others
-  const dims: [number, number][] = [
-    [960, 1200],
-    [1200, 1200],
-    [900, 1200],
-    [960, 1200],
-    [1000, 1000],
-  ];
-
-  for (let i = 0; i < count; i++) {
-    const [w, h] = dims[i % dims.length]!;
-    photos.push({
-      storageKey: PLACEHOLDER_PHOTO_KEY,
-      width: w,
-      height: h,
-      alt: null,
-    });
-  }
-  return photos;
+/**
+ * `animalIndex`, not a random pick — the same animal gets the same photo
+ * set on every seed run, so a harness screenshot or a manually-reviewed
+ * page doesn't reshuffle out from under whoever's looking at it between
+ * runs. Cycling starts at a different offset per animal (`animalIndex`
+ * itself, not always 0) so two animals with the same `count` don't render
+ * identical photo sequences card-to-card.
+ */
+function makePhotos(species: AnimalSpecies, animalIndex: number, count: number): AnimalPhoto[] {
+  const pool = species === "dog" ? DOG_PHOTOS : CAT_PHOTOS;
+  return Array.from({ length: count }, (_, i) => pool[(animalIndex + i) % pool.length]!);
 }
 
 // ---------------------------------------------------------------------------
@@ -801,7 +820,7 @@ function buildAnimals(
     // Photos: 1-5 per animal, more for published
     const photoCount = listing.kind === "draft" ? 0 : 1 + (i % 5);
     const id = animalId(i);
-    const photos = makePhotos(photoCount);
+    const photos = makePhotos(species, i, photoCount);
 
     // Foster: ~10% of animals are fostered in a different city
     const isFostered = i % 10 === 3;
@@ -923,7 +942,8 @@ async function main() {
   console.log(`    Fostered:  ${fosteredCount} (in a different city from their shelter)`);
   console.log(
     `    Photos:    ${animalData.reduce((sum, a) => sum + a.animal.photos.length, 0)} photo ` +
-      `references, all pointing at the one shared apps/web/public/${PLACEHOLDER_PHOTO_KEY}`,
+      `references, cycling ${DOG_PHOTOS.length} dog + ${CAT_PHOTOS.length} cat photos from ` +
+      `apps/web/public/seed-photos/ (SOURCES.md has each one's licence)`,
   );
 
   await client.end();

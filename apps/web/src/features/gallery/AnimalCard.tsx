@@ -1,9 +1,22 @@
 import type { FeedCardView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips } from "@opika/ui";
+import Image from "next/image";
 import Link from "next/link";
-import { photoUrl } from "../../api/photo-url";
 import { cardAccessibleName, cardMetaLine, isReserved } from "./card-text";
+
+/**
+ * The photo's rendered width by breakpoint: full card width on phone (1
+ * column), a fixed 120px on tablet (`w-30`, not viewport-relative at all),
+ * roughly a third of the 960px content column on desktop (3 columns), a
+ * quarter of 1320px on wide (4 columns) — `globals.css`'s `tablet`/
+ * `desktop`/`wide` breakpoints, `docs/design/README.md`'s own numbers.
+ * Doesn't change what loads today (`image-loader.ts`'s stub has no real
+ * variants to choose between), but is the value H1's real variants need
+ * this component to already be passing.
+ */
+const PHOTO_SIZES =
+  "(max-width: 599px) 100vw, (max-width: 1023px) 120px, (max-width: 1439px) 320px, 330px";
 
 interface AnimalCardProps {
   card: FeedCardView;
@@ -60,11 +73,7 @@ export function AnimalCard({ card, cityName }: AnimalCardProps) {
         className="relative shrink-0 w-full aspect-[4/5] tablet:w-30 tablet:aspect-auto desktop:w-full desktop:aspect-[4/5] rounded-photo overflow-hidden bg-photo-placeholder"
       >
         {photo && (
-          <img
-            src={photoUrl(photo.storageKey)}
-            alt=""
-            className="w-full h-full object-cover block"
-          />
+          <Image src={photo.storageKey} alt="" fill sizes={PHOTO_SIZES} className="object-cover" />
         )}
 
         {/*
