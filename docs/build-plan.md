@@ -31,7 +31,7 @@ lists; nothing here duplicates those.
 | **M0** — repo & tooling | pnpm workspace, strict TS, Biome, Docker Postgres, CI skeleton | Done. `pnpm i && pnpm check` on a clean clone is the standing bar — restated here because M0 once reported it green without having been run at all (see `docs/standing-constraints.md`) |
 | **M1** — contracts + domain | Branded IDs, `Shelter` + verification FSM, `Animal` unions, `Freshness`, `scoreAnimal`, 8-procedure oRPC contract | Done. Zero non-Zod dependencies in `packages/domain`; exhaustive FSM transition table; freshness correct at all uk plural boundaries. 252 tests |
 | **M2** — persistence | Drizzle schema, repositories, keyset feed query, HMAC location fuzzing | Done. `packages/db/test/feed-explain.test.ts` asserts the feed query's `EXPLAIN` plan has no `Sort` node and uses the partial index — mutation-checked (temporarily dropping the index makes the test fail) during this rewrite, closing an open contradiction from the pause brief: an earlier audit claimed nothing verified index usage; the test existed, ran, and was correct. The audit was wrong, not the test. 31 tests |
-| **M3** — seed data | 300+ animals, realistic distributions | Done. 320 animals, 8 shelters, shaped freshness and vaccination distributions, fostered animals, real photos. `db:seed` itself has not been re-run in a verification pass since — still merely asserted, not a live gap this rewrite closes |
+| **M3** — seed data | 300+ animals, realistic distributions | Done. 320 animals, 8 shelters, shaped freshness and vaccination distributions, fostered animals, real photos. `db:seed` itself has not been re-run in a verification pass since — still merely asserted, not a live gap this rewrite closes. 27 Biome console warnings in the seed script are known and deliberately deferred — a dev-only script, not shipped code |
 | **M4** — minimal API | oRPC router, anonymous session, rate limiting | Done, and hardened beyond the original scope: hand-rolled anonymous device session (not Better Auth — that's deferred to shelter accounts), HMAC-signed cursors bound to a filters fingerprint, split rate limiting (per-IP sliding window; Postgres-persisted reveal limit). Session security properties — timing-safe comparison, `__Host-` cookie in production, 30-day/7-day expiry — are implemented but still merely asserted: no test currently exercises them end to end |
 | **M5** — swipe deck | `PointerEvent` + `transform`, release physics, deck component | Done, but this is the milestone the process failures cluster around. "`/discovery` renders" was originally verified by fetching HTML and grepping for card text, while an action row sat on top of the card and the gesture was dead. The rendering harness (`apps/web/test/harness`, Playwright) and the fixes it verifies — six of them, each now locked by a harness assertion or a unit test — are what actually closed this. Visual properties that aren't geometry (the 6° rotation cap, the 0.03deg/px factor, the 40px affordance ramp) still have no assertion; `onPointerCancel` ignoring `prefers-reduced-motion` is a known, deliberately deferred gap; iOS Safari's swipe failure has never reproduced on any other engine and — now that the deck is a mode entered from the gallery, not the front door — is off the critical path |
 
@@ -134,15 +134,20 @@ so they aren't missed mid-implementation):**
   stops at the plan gate regardless of which way it's decided.
 - The "сусідні міста" copy implying city adjacency the schema doesn't have (§4) — a
   design-copy call, not an engineering one.
-- Confirm the 2,000-row OFFSET boundary (`docs/standing-constraints.md`) hasn't already
-  been reached by the time this phase starts — it won't have been, but the check costs
-  one query.
+- The 2,000-row OFFSET boundary (§1) is a proposal, not a specification — confirm the
+  number, and confirm it hasn't already been reached by the time this phase starts (it
+  won't have been; the check costs one query).
+- Out-of-range gallery page: clamp to the last page server-side, or a
+  `PAGE_OUT_OF_RANGE` contract error (§3) — recommended: clamp.
+- The second, filtered `wait_anchor_at` index (§2): build it now, or accept a `Sort` node
+  on filtered longest-waiting and exempt it from the M2 "no sort" bar — recommended:
+  build it.
 
 ### Phase F — Detail & Reveal
 
 The former M6, responsive from the start rather than retrofitted, and now the SEO path
-the acquisition argument depends on (`docs/course-correction.md` §4: no marketing budget,
-so shared links and indexed pages are the growth mechanism).
+the acquisition argument depends on (`docs/course-correction.md`, "The strategic
+call": no marketing budget, so shared links and indexed pages are the growth mechanism).
 
 | # | Task | h |
 |---|---|---|
@@ -169,7 +174,7 @@ mode entered from the gallery now, not the front door.
 
 | # | Task | h |
 |---|---|---|
-| G1 | iOS Safari investigation, restarting from scratch — the prior investigation notes were lost with the rest of the uncommitted M5 work and are deliberately not being reconstructed (`docs/session-state.md`); the failure has never reproduced on any other engine | 4 |
+| G1 | iOS Safari investigation, restarting from scratch — the prior investigation notes were lost with the rest of the uncommitted M5 work (the incident behind `docs/standing-constraints.md`'s "commit after each task" rule) and are deliberately not being reconstructed; the failure has never reproduced on any other engine | 4 |
 | G2 | Device testing on real hardware — Android and iOS, not simulators | 3 |
 | G3 | Promote the deck from `/discovery` to its real route (`/tvaryny/gortaty` per the design's URL scheme, `noindex` — a viewing state, not a page), entered from the gallery with the gallery's current filters and sort inherited | 3 |
 
@@ -184,7 +189,9 @@ per the standing stop-gate.
 
 ### Phase H — Remainder to launch
 
-The former M7–M12, unchanged in substance, two additions.
+The former M7–M12, unchanged in substance, one addition here. The original course
+correction listed two; its second (the count queries) moved into Phase E's E0, folded
+into `gallery.list`'s output per `docs/gallery-contract-decisions.md` §3.
 
 | # | Task | h |
 |---|---|---|
@@ -217,8 +224,11 @@ installs on Android with Lighthouse ≥90; a thrown error appears in Sentry with
 | **Total from this rewrite** | **~16 weeks** | **~133 h** |
 
 At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch lands early
-February 2027** — consistent with the course correction's estimate; this rewrite reflects
-~11 h of Consolidate work already spent and landed rather than changing the target.
+February 2027** — consistent with the course correction's estimate. The arithmetic: the
+course correction's 148 h, minus the ~23 h of Consolidate already spent and landed
+(C1, C2, C3, C5, C6) and the 8 h design pass 2, plus the ~16 h this rewrite adds (E0's
+contract and schema work, the admin desktop layouts) — 133 h. The target does not move;
+what remains of Consolidate is 11 h, not what was spent on it.
 
 **The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own

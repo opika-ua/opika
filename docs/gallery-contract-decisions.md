@@ -47,21 +47,35 @@ exception, `/review-pr`'s pattern-matching (*"a green check on a broken artifact
 general "was this actually checked" instinct) will flag every future OFFSET site as the
 same mistake, including this deliberate one.
 
-**Written into `docs/standing-constraints.md`** (see that file, "Code" section):
+**Written into `docs/standing-constraints.md`**, "Code" section, verbatim:
 
-> OFFSET pagination is permitted for a single named case: the gallery's numbered pages,
-> where indexed page URLs are a product requirement `feed.list`'s keyset cursor
-> structurally cannot serve. Bounded at 2,000 matching rows per filter combination
-> (~83 pages at 24/page — roughly 6× today's corpus). Beyond that, `gallery.list` caps
-> navigable pages at the boundary and the UI says "Уточніть фільтри, щоб побачити решту"
-> rather than serving unbounded depth. `feed.list` (the deck) stays keyset — this
-> exception does not extend to it, and a reviewer should treat any OFFSET outside
-> `gallery.list`/`gallery.relaxationCounts` as the same finding it always was.
+> **Keyset pagination, never `OFFSET` — with one named exception.** `gallery.list` and
+> `gallery.relaxationCounts` may use `OFFSET`, because the gallery's numbered pages
+> (`?stor=N`, indexed, degrading to a plain list without JS) are a product requirement a
+> keyset cursor cannot serve at all — not a discipline question, a shape one. Bounded at
+> 2,000 matching rows per filter combination (~83 pages at 24/page); beyond that,
+> `gallery.list` caps navigable pages at the boundary rather than serving unbounded depth.
+> `feed.list` (the deck) stays keyset — this exception does not extend to it, and any
+> other `OFFSET` in the codebase is the finding it always was. Full reasoning in
+> `docs/gallery-contract-decisions.md` §1.
+
+2,000 matching rows is ~6× today's corpus of 320.
+
+What the boundary looks like in the UI is **not settled here and is not mine to settle** —
+the design's string table has no copy for "there are more results than this surface will
+page through," and inventing Ukrainian UI copy in an engineering document is how a string
+nobody approved ends up in the product. Phase E should take that copy from
+`docs/design/README.md` or ask for it, not from this file.
 
 2,000 is a number to revisit, not a permanent ceiling — if the corpus legitimately
 approaches it, that is a milestone worth its own review, not a silent slowdown. Chosen
 because it keeps worst-case row-skip trivial while giving multiple years of realistic
 shelter-recruitment headroom before it matters.
+
+⚠ **2,000 is my proposal, not your specification** — the same flag CLAUDE.md's decision
+#6 uses for the verification-evidence thresholds. The *shape* of the guard (a bounded
+exception, named procedures, a cap rather than unbounded depth) is what this document is
+actually deciding; the specific number is mine to suggest and yours to change.
 
 ### What changes in contracts
 
@@ -164,15 +178,47 @@ through `reserved`, the cheaper alternative is accepting that a reservation rese
 wait clock — defensible (a reserved animal is momentarily off the open market), but say
 which one on purpose rather than by not looking at it.
 
+### One index is not enough — the unfiltered case only
+
+`animals_wait_anchor_idx` above is the mirror of `animals_feed_unfiltered_idx`: it serves
+"longest waiting, no filters." It does **not** serve the normal case — filtered — because
+Postgres can't skip a middle column, and the rail applies filters immediately
+(`docs/design/README.md:411`, and the deck inherits "the current filters and sort" when
+entered from the gallery, `:503-504`). Without a filtered counterpart, the index CLAUDE.md's
+own obligation calls for ("put equality columns before the ordering tuple") is missing
+for this ordering specifically — `animals_feed_idx` has it for the freshest-first sort,
+nothing mirrors it for wait-anchor.
+
+**Add a second index, mirroring `animals_feed_idx`'s own shape:**
+
+```sql
+CREATE INDEX animals_wait_anchor_filtered_idx
+  ON animals (listing_kind, city_id, species, size, wait_anchor_at, id)
+  WHERE listing_kind IN ('published', 'reserved');
+```
+
+Without it, `feed-explain.test.ts`'s own bar — no `Sort` node — would **fail** for any
+filtered longest-waiting query, contradicting the recommendation two paragraphs below to
+extend that exact test to the new ordering. Either add this index, or state explicitly
+that filtered longest-waiting accepts a `Sort` node and is exempt from the M2 bar — I'd
+add the index; a `Sort` over a few hundred to low-thousand rows is cheap today, but
+accepting a hole in this specific bar sets a precedent for waiving it elsewhere later,
+which is a worse trade than one more column-width index.
+
 ### Cost
 
-One `timestamptz` column (8 bytes/row — irrelevant at this table's size), one partial
-index of the same shape and maintenance cost as `animals_feed_unfiltered_idx`, one domain
-function, one write-time obligation to add to the existing `age_anchor_at` obligation
-list. Recommend a `feed-explain.test.ts`-shaped assertion for the wait-anchor ordering
-too — the M2 definition of done ("`EXPLAIN` shows an index scan, no sort") should apply
-to the new ordering as much as the old one, and `packages/db/test/feed-explain.test.ts`
-is exactly the pattern to extend, not a new mechanism to invent.
+Two `timestamptz`-adjacent additions, not one: the column (8 bytes/row — irrelevant at
+this table's size) and now two partial indexes, not one — `animals_wait_anchor_idx` for
+the unfiltered case, `animals_wait_anchor_filtered_idx` for the filtered one. Doubling the
+composite index is real write amplification on `animals`, not free: negligible at
+today's volume, a genuine (if still small) cost at Phase 2 scale, which is exactly why
+it's written down here as a decision rather than discovered mid-implementation. Plus one
+domain function, one write-time obligation to add to the existing `age_anchor_at`
+obligation list, and a `feed-explain.test.ts`-shaped assertion for **both** the filtered
+and unfiltered wait-anchor orderings — the M2 definition of done ("`EXPLAIN` shows an
+index scan, no sort") should apply to the new ordering exactly as it does to the old one,
+and `packages/db/test/feed-explain.test.ts` is the pattern to extend, not a new mechanism
+to invent.
 
 ---
 
@@ -200,6 +246,34 @@ LIMIT 24 OFFSET :offset
 
 So `gallery.list`'s own output carries `totalMatching` (shown above in §1's output
 shape) — free, same scan, same round-trip the page fetch already needed.
+
+Not quite free, one correction to §1's own cost argument: §1 says the OFFSET cost is a
+bounded index skip, sub-millisecond. `COUNT(*) OVER()` changes what actually runs — the
+window function has to consume every matching row to compute the total, not just the
+`LIMIT` window, so the real per-request cost is a full scan of the match set, not a
+bounded skip. Harmless at today's scale (2,000 rows, this decision's own ceiling, is
+still a trivial scan) but the two sections' arguments should be read together, not §1's
+in isolation, if this is ever revisited at a materially larger corpus.
+
+**An edge case this shape doesn't handle on its own: a page number past the end.**
+`OFFSET` landing beyond the last matching row returns zero rows — and with it, no row to
+carry `total_matching`, since the window function has nothing to attach the aggregate to.
+`gallery.list` would report `{ items: [], totalMatching: 0, totalPages: 0 }` for, say,
+`?stor=900` against 34 real matches — indistinguishable from a genuine no-match, on a
+surface where the page number is user-editable, crawler-indexed, and pasted into
+Telegram. The no-match state would render "Під ці фільтри зараз нікого немає" for a
+filter set that isn't empty.
+
+**Recommendation: clamp `page` to `totalPages` server-side and serve the last page**,
+rather than adding a new error state. This needs a second, cheap query only in the
+out-of-range case (the common, in-range path stays the single-query shape above) — fetch
+`totalMatching` alone when the first attempt returns zero rows, compute `totalPages`, and
+re-run bounded to it. Consistent with the design's own "no phantom tiles" honesty (an
+empty state should mean genuinely empty, not "you asked for something that doesn't
+exist"), and it means a shared link with a stale page number degrades to *something
+real* instead of a false negative. The alternative — a `PAGE_OUT_OF_RANGE` contract error
+— is more honest about what happened but needs a UI state the design doesn't have; I'd
+only take that path if you'd rather the URL not silently redirect.
 
 ### Distinct-shelter count: a genuinely different aggregate, still same handler
 
@@ -276,8 +350,14 @@ that promises something else.
 
 ### Cost
 
-Negligible at this table's size — one scan, a handful of `FILTER` aggregates, same base
-predicate and indexes `gallery.list` already uses. No new index.
+Negligible at this table's size — one scan, a handful of `FILTER` aggregates over the
+same base predicate `gallery.list` uses. Not quite "the same indexes," though the
+conclusion doesn't change: each relaxation deliberately drops one equality column, so it
+can't ride `animals_feed_idx`'s full `(city_id, species, size)` prefix the way
+`gallery.list`'s own query can — a `without_city` count, for instance, only has
+`listing_kind` and the verified-shelter subquery to seek on. Still a single, cheap,
+partial-index-assisted scan at hundreds to low thousands of rows; just not the identical
+plan. No new index either way.
 
 ---
 
@@ -348,8 +428,8 @@ the new procedures are added to `contract` in the same commit as the router wiri
 |---|---|---|---|
 | Pagination | `gallery.list` (OFFSET) | — | — (reuses existing) |
 | Sort (freshest) | `sort` input on `gallery.list` | — | — (reuses existing) |
-| Sort (longest waiting) | same | `animals.wait_anchor_at` + `waitAnchorOf` | `animals_wait_anchor_idx` |
-| Counts | `totalMatching`/`totalShelters` on `gallery.list`'s output | — | — |
+| Sort (longest waiting) | same | `animals.wait_anchor_at` + `waitAnchorOf` | `animals_wait_anchor_idx` (unfiltered) + `animals_wait_anchor_filtered_idx` |
+| Counts | `totalMatching`/`totalShelters` on `gallery.list`'s output, out-of-range page clamped server-side | — | — |
 | Relaxation counts | `gallery.relaxationCounts` | — | — (reuses existing) |
 | Server rendering | Server Component via `createRouterClient` | — | — |
 
@@ -360,6 +440,13 @@ repositories now build the same WHERE clause.
 1. Whether `reserved` should carry `publishedAt` forward (§2) — a `packages/domain` type
    change, which stops at the plan gate either way.
 2. The "сусідні міста" copy implying an adjacency concept the schema doesn't have (§4).
+3. The 2,000-row OFFSET boundary (§1) — the shape of the guard is settled, the number is
+   my proposal, per `docs/standing-constraints.md`'s own flag on the rule.
+4. Whether an out-of-range gallery page clamps server-side to the last page, or returns an
+   explicit `PAGE_OUT_OF_RANGE` (§3) — I'd clamp; both are defensible.
+5. Whether the second, filtered `wait_anchor_at` index (§2) is worth its write
+   amplification now, or the filtered longest-waiting query is allowed a `Sort` node and
+   exempted from the M2 "no sort" bar — I'd add the index; both are defensible.
 
 **Not building:** a standalone `feed.count`/`gallery.count` procedure (§3) — folded into
 `gallery.list`'s output instead, with the reasoning for why that's not a lesser version

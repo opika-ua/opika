@@ -58,8 +58,10 @@ describes a moment.
 ## Code
 
 - **No `any`.** Biome errors on it.
-- **Discriminated unions over booleans plus a comment.** If a flag needs a comment
-  explaining what it means in each state, it is a union.
+- **Every state that isn't a boolean is a discriminated union**, generics over string
+  enums, distinguishing field named consistently within a type (`kind`, `status`, or
+  `source` — pick one per type). If a boolean flag needs a comment explaining what it
+  means in each state, that comment is the union struggling to get out.
 - **`now` is a parameter** to any function that should be pure. Never read the clock inside
   one.
 - **Public views are built with `pick`, never `omit`.** `omit` is allow-by-default: a field
@@ -80,6 +82,10 @@ describes a moment.
   `feed.list` (the deck) stays keyset — this exception does not extend to it, and any
   other `OFFSET` in the codebase is the finding it always was. Full reasoning in
   `docs/gallery-contract-decisions.md` §1.
+
+  ⚠ The 2,000-row bound is a proposal, not a specification, in the same sense CLAUDE.md's
+  decision #6 flags its verification-evidence thresholds — the *exception's shape* is
+  settled; the number is negotiable.
 
 ---
 

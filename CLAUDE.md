@@ -124,8 +124,6 @@ here.)
 - `packages/contracts` defines schemas and the API contract shape with
   **no implementation** — routers/handlers live elsewhere.
 - No hardcoded brand strings (see "the name is not final," above).
-- Every discriminated union's distinguishing field is named consistently
-  within its type (`kind`, `status`, or `source` — pick one per type).
 
 ## Phase scope discipline
 
