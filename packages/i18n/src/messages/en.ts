@@ -2,7 +2,7 @@
  * English UI strings — mirrors uk.ts key-for-key.
  *
  * Machine-translated in the design's established voice (plain, warm, never
- * alarming), not a native-speaker pass. Nine keys use the literal English
+ * alarming), not a native-speaker pass. Eleven keys use the literal English
  * the design canvas gives directly (`Opika - Keeper's Voice.dc.html`,
  * "КОПІЯ · UK / EN"): freshness.attribution, swipe.left/right,
  * medical.unknown/registryConfirmed, location.fostered, reveal.title,
@@ -131,7 +131,6 @@ export const en = {
   // --- Exhausted (07) ---
   exhausted: {
     title: "That's everyone who fits right now.",
-    /** Template: "You've seen {count} animals in {city}..." */
     body: "There aren't many shelters here, so the list is short — that's normal.",
     newAnimals: "New animals appear when shelters update their cards. Usually every few weeks.",
     /**

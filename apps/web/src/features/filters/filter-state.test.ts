@@ -36,4 +36,40 @@ describe("filter state persistence", () => {
 
     expect(readStoredFilters(window.sessionStorage)).toEqual(NO_FILTERS);
   });
+
+  /**
+   * A browser with site data blocked doesn't hand back an empty storage — it
+   * throws on every operation. Losing a filter preference is acceptable;
+   * taking the page down over one is not.
+   */
+  describe("when the browser refuses storage entirely", () => {
+    const blocked: Storage = {
+      get length(): number {
+        throw new DOMException("blocked", "SecurityError");
+      },
+      clear() {
+        throw new DOMException("blocked", "SecurityError");
+      },
+      getItem() {
+        throw new DOMException("blocked", "SecurityError");
+      },
+      key() {
+        throw new DOMException("blocked", "SecurityError");
+      },
+      removeItem() {
+        throw new DOMException("blocked", "SecurityError");
+      },
+      setItem() {
+        throw new DOMException("blocked", "SecurityError");
+      },
+    };
+
+    it("reads as NO_FILTERS instead of throwing", () => {
+      expect(readStoredFilters(blocked)).toEqual(NO_FILTERS);
+    });
+
+    it("writes silently instead of throwing", () => {
+      expect(() => writeStoredFilters(blocked, withCity(BROVARY_ID))).not.toThrow();
+    });
+  });
 });

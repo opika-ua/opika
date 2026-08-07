@@ -1,6 +1,6 @@
 import { type CityId, type FeedFilters, NO_FILTERS } from "@opika/domain";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readStoredFilters } from "./filter-state";
 import { useFeedFilters } from "./use-feed-filters";
 
@@ -41,5 +41,40 @@ describe("useFeedFilters", () => {
 
     expect(result.current[0]).toEqual(next);
     expect(readStoredFilters(window.sessionStorage)).toEqual(next);
+  });
+
+  /**
+   * Reading `window.sessionStorage` throws, rather than returning null, when
+   * the document has no access to storage. This mount effect runs on the app's
+   * front door, so an unhandled throw here is a blank error boundary instead of
+   * a home page.
+   */
+  describe("when reading window.sessionStorage throws", () => {
+    const real = Object.getOwnPropertyDescriptor(window, "sessionStorage");
+
+    beforeEach(() => {
+      Object.defineProperty(window, "sessionStorage", {
+        configurable: true,
+        get(): Storage {
+          throw new DOMException("blocked", "SecurityError");
+        },
+      });
+    });
+
+    afterEach(() => {
+      if (real) Object.defineProperty(window, "sessionStorage", real);
+    });
+
+    it("still mounts, at NO_FILTERS, and still accepts a selection", () => {
+      const { result } = renderHook(() => useFeedFilters());
+
+      expect(result.current[0]).toEqual(NO_FILTERS);
+
+      act(() => {
+        result.current[1](withCity(BROVARY_ID));
+      });
+
+      expect(result.current[0]).toEqual(withCity(BROVARY_ID));
+    });
   });
 });

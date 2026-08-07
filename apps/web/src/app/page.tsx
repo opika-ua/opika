@@ -13,12 +13,28 @@ import { HomeScreen } from "../features/home/HomeScreen";
 export const dynamic = "force-dynamic";
 
 /**
- * Server Component: fetches cities in-process (anonymousRouterClient, no
- * HTTP hop, same implement(contract) output-stripping the HTTP route gets —
+ * Fetches cities in-process (anonymousRouterClient, no HTTP hop, same
+ * implement(contract) output-stripping the HTTP route gets —
  * docs/gallery-contract-decisions.md §5) so Screen 01's city chips carry
  * real CityIds from the first paint.
+ *
+ * A separate function from the default export, purely so page.test.tsx can
+ * call it with a test database injected — `client` defaults to the real
+ * production client, so `Home()` below still calls this with zero arguments,
+ * exactly as it did before this split. Giving `Home` itself an optional
+ * parameter was considered and rejected: Next.js calls page components with
+ * its own `{ params, searchParams }` object, which would silently override a
+ * default value rather than leave it unset, breaking the real page to make
+ * the test convenient.
  */
-export default async function Home() {
-  const cities = await anonymousRouterClient().cities.list({});
+export async function renderHome(
+  client: ReturnType<typeof anonymousRouterClient> = anonymousRouterClient(),
+) {
+  const cities = await client.cities.list({});
   return <HomeScreen cities={cities} />;
+}
+
+/** Server Component. Next.js calls this with no usable arguments. */
+export default async function Home() {
+  return renderHome();
 }

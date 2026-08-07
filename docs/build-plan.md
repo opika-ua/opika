@@ -63,7 +63,7 @@ including the pattern behind the three verification incidents, now generalised i
 | PR #18 | This plan rewrite, `docs/gallery-contract-decisions.md`'s five decisions, `docs/standing-constraints.md` |
 | C4 + C7 (this branch) | `packages/ui`/`packages/i18n` extracted, `en.ts` added, the real home page (Screen 01) replacing `page.tsx`'s placeholder — Phase C fully closed out |
 
-**Test counts now:** 402 vitest, 17 harness.
+**Test counts now:** 409 vitest, 17 harness.
 
 ---
 

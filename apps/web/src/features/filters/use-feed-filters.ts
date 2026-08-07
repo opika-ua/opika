@@ -5,6 +5,23 @@ import { useCallback, useEffect, useState } from "react";
 import { readStoredFilters, writeStoredFilters } from "./filter-state";
 
 /**
+ * `window.sessionStorage` is not merely absent on the server: reading the
+ * property *throws* `SecurityError` whenever the document has no access to
+ * storage — an opaque origin, or a browser with site data blocked for the
+ * site (verified in Chromium). Unhandled, that throw happens inside a mount
+ * effect on the app's front door and replaces the whole screen with an error
+ * boundary, over a filter preference. A browser that won't remember is a
+ * session that doesn't remember, not a broken page.
+ */
+function sessionStorageOrNull(): Storage | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Filter state shared across the app, backed by sessionStorage.
  *
  * Starts at NO_FILTERS on every render — including the first client
@@ -18,12 +35,14 @@ export function useFeedFilters(): [FeedFilters, (next: FeedFilters) => void] {
   const [filters, setFiltersState] = useState<FeedFilters>(NO_FILTERS);
 
   useEffect(() => {
-    setFiltersState(readStoredFilters(window.sessionStorage));
+    const storage = sessionStorageOrNull();
+    if (storage) setFiltersState(readStoredFilters(storage));
   }, []);
 
   const setFilters = useCallback((next: FeedFilters) => {
     setFiltersState(next);
-    writeStoredFilters(window.sessionStorage, next);
+    const storage = sessionStorageOrNull();
+    if (storage) writeStoredFilters(storage, next);
   }, []);
 
   return [filters, setFilters];
