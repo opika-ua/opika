@@ -139,12 +139,20 @@ anymore, it's an *implementation-order* one.
 |---|---|---|
 | E0 | Contract + schema reconciliation — `gallery.list` (OFFSET), `gallery.relaxationCounts`, `wait_anchor_at` column + both indexes (unfiltered and filtered) + `waitAnchorOf`, `reserved` gains `publishedAt` (`packages/domain` type change + a backfill across the 320 seeded rows), `buildFeedPredicate` factored out of `feedRepo.list`, both new procedures added to `packages/contracts`' `contract` export | 12 |
 | E1 | Gallery grid over `gallery.list` — responsive columns (1/2/3/4 per the design's breakpoint table), `AnimalCard`, freshness marker reused from the deck | 10 |
+| E1.5 | Image resolution stub — `storageKey` resolves to a real URL through one function H1 later replaces; licence-clean placeholder photos in the repo; seed wired deterministically. Makes E2–E5 visually reviewable and gives shelter outreach something to show. Not the real pipeline — no R2, no upload, no variants | 3 |
 | E2 | Filters as a visible rail (≥1024) / the existing sheet (<1024), extended with sort. Filter and sort state in the URL — shareable, back-button-correct | 6 |
 | E3 | Numbered pagination — `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram) | 4 |
 | E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, **the note must actually render** — see the phase's own done-when below, not just the copy existing) states — both form factors | 4 |
 | E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. `sessionStorage`-persisted last mode, entry ("Гортати по одній") and exit ("До списку" / Esc, returning to the same scroll position per `docs/design/README.md` "Gallery ↔ Deck") | 3 |
 
-**Total: ~39 h.**
+**Total: ~42 h.**
+
+**Why E1.5 exists as its own task rather than waiting for H1:** every phase from E2 on is
+reviewed against what the gallery actually looks like — filter and sort results, empty and
+loading states, the pagination footer. Building E2–E4 against a grid of broken image icons
+repeats exactly the retrofit pattern this course correction exists to stop: the visual
+problems surface all at once, in one lump, the day real photos finally arrive at H1,
+instead of being caught phase by phase as they're introduced.
 
 **Done when:** someone browses the full corpus on a 1920px desktop and a 360px phone,
 filters and sorts on both, shares a URL that reproduces exactly what they saw, and the
@@ -225,7 +233,7 @@ into `gallery.list`'s output per `docs/gallery-contract-decisions.md` §3.
 
 | # | Task | h |
 |---|---|---|
-| H1 | Image pipeline — R2, presigned upload, `sharp` variants, CDN | 10 |
+| H1 | Image pipeline — R2, presigned upload, `sharp` variants, CDN. Replaces E1.5's `photoUrl()` stub with a real URL builder behind the same signature — not a call-site change in `AnimalCard`/`SwipeCard` — and retires E1.5's committed placeholder photos | 10 |
 | H2 | Internal admin — animal/shelter CRUD, CSV import, **desktop layouts** (addition — the original plan assumed a single admin form factor) | 12 |
 | H3 | i18n — next-intl wiring, uk + en message files, full-ICU boot assertion | 4 |
 | H4 | PWA — Serwist, manifest, offline shell, Lighthouse pass | 8 |
@@ -247,11 +255,11 @@ installs on Android with Lighthouse ≥90; a thrown error appears in Sentry with
 | Phase | Weeks | Hours |
 |---|---|---|
 | C — Consolidate | — | 0 (done) |
-| E — Gallery | 4–5 | 39 |
+| E — Gallery | 4–5 | 42 |
 | F — Detail & reveal | 3 | 22 |
 | G — Deck completion | off critical path | 10 |
 | H — Remainder to launch | 7 | 56 |
-| **Total from this rewrite** | **~16 weeks** | **~127 h** |
+| **Total from this rewrite** | **~16 weeks** | **~130 h** |
 
 At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch still lands early
 February 2027** — the total dropped from ~135 h to ~127 h (C fully closed out, E gaining
@@ -261,7 +269,9 @@ spent and landed (C1–C7, all seven tasks) and the 8 h design pass 2, plus the 
 rewrite and its implementation add (E0's contract and schema work — including the
 `reserved`/`publishedAt` domain change and backfill and the second wait-anchor index, both
 settled during the gallery-contract decision round — E5's view-mode switch moved in from
-C7, and the admin desktop layouts) — 127 h.
+C7, and the admin desktop layouts) — 127 h. E1.5's addition (3 h, see Phase E above) brings
+this to 130 h — same reasoning as E5's addition: ~16 weeks at this cadence absorbs a few
+extra hours without moving the week count.
 
 **The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own
