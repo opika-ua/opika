@@ -60,8 +60,10 @@ including the pattern behind the three verification incidents, now generalised i
 | PR #15 | Verification gate — the Playwright harness, `next build` gated in CI, happy-dom + Testing Library, the six M5 fixes restored and locked |
 | PR #16 | Tailwind migration, `next/font` typography (Literata + Commissioner; IBM Plex Mono measured and dropped — 11.2% of font payload for one rarely-seen label), the `implement(contract)` security lock (`handlers-implement-contract.test.ts`), measurable margin enforcement in the harness |
 | PR #17 | Design handoff v2 landed at `docs/design/` (same path v1 was at — never a folder move), prototyping-runtime cleanup |
+| PR #18 | This plan rewrite, `docs/gallery-contract-decisions.md`'s five decisions, `docs/standing-constraints.md` |
+| C4 + C7 (this branch) | `packages/ui`/`packages/i18n` extracted, `en.ts` added, the real home page (Screen 01) replacing `page.tsx`'s placeholder — Phase C fully closed out |
 
-**Test counts now:** 376 vitest, 17 harness.
+**Test counts now:** 402 vitest, 17 harness.
 
 ---
 
@@ -81,31 +83,48 @@ history rather than carried forward as live work.
 ### Phase C — Consolidate and unblock
 
 **Nothing new is built until the foundation supports two form factors and the process
-can tell truth from shape.** Four of seven tasks are already done; what's below is
-accurate as of this rewrite, not as of when the course correction was written.
+can tell truth from shape.** All seven tasks are done.
 
 | # | Task | h | Status |
 |---|---|---|---|
 | C1 | Merge everything — one `main`, one truth | 3 | **Done.** M4 follow-up, M5, the bundler fix, PRs #15–#17 are all on `main` |
 | C2 | Verification gate — harness in CI, `next build` gated, markup-inspection ruled out as evidence | 6 | **Done** (PR #15), and generalised into `docs/standing-constraints.md` |
 | C3 | Tailwind migration — `tokens.ts` → Tailwind `@theme`, deck converted from inline styles | 8 | **Done** (PR #16). Pixel parity verified by screenshot diff, not assumed |
-| C4 | Extract `packages/ui` and `packages/i18n` — tokens and primitives out of `features/discovery`; strings out with them; add the English file the design's string table implies | 8 | **Remaining.** `tokens.ts` and `strings.uk.ts` are still feature-scoped; there is still no English string file |
+| C4 | Extract `packages/ui` and `packages/i18n` — primitives out of `features/discovery`; strings out with them; add the English file the design's string table implies | 8 | **Done.** `freshness-display.ts` moved to `packages/ui` as the one genuinely cross-feature primitive; `tokens.ts` stayed put — `layout.stackLayers` is deck-only, and C3 had already moved the real design tokens into `globals.css`'s `@theme`, so there was less here to extract than the task line assumed. `strings.uk.ts` moved to `packages/i18n`, `en.ts` added (key-parity tested against `uk.ts`) |
 | C5 | Wire the typography — `next/font`, Cyrillic + Latin subsets, measure the payload | 2 | **Done** (PR #16) |
 | C6 | Component test infrastructure — RTL + happy-dom, real tests proving the setup | 4 | **Done** (PR #15) |
-| C7 | App shell and navigation — a real `page.tsx`, responsive layout, a view-mode switch with a persisted preference | 3 | **Remaining.** `apps/web/src/app/page.tsx` is still `"API-only at this milestone."` — no entry point, no navigation |
+| C7 | A real `page.tsx` | 3 | **Done**, on a corrected done-when — see below |
 
-**Remaining: C4 + C7, ~11 h.**
+**Done when:** the home page is a real entry point (Screen 01, on-design, not "API-only at
+this milestone"), design tokens and shared strings live in `packages/ui`/`packages/i18n`
+(not `features/discovery`), an English string file exists, and `pnpm check` stays green
+throughout.
 
-**Done when:** the home page is a real entry point with navigation between the gallery
-and the deck, design tokens and shared strings live in `packages/ui`/`packages/i18n` (not
-`features/discovery`), an English string file exists, and `pnpm check` stays green
-throughout — it already does for C1–C3/C5–C6; C4 and C7 must not regress it.
+**Correction to C7's original scope, made while implementing it:** the task line called
+for "a view-mode switch with a persisted preference" — unbuildable this phase, since the
+gallery it would switch to doesn't exist until Phase E. Screen 01 gives `page.tsx` a real,
+fully-specified entry point on its own (wordmark, promise, disclaimer, city chips, CTA),
+so C7 delivers that and routes the CTA to `/discovery` — today's only real destination.
+The view-mode switch, and its `sessionStorage` persistence, move to Phase E's task list
+(below), where the gallery shell it belongs to actually gets built. This is the same
+"plan conflict" the `/phase` gate exists to catch — caught and resolved before building
+the wrong thing, not discovered after.
 
-**Decisions this phase must surface:** whether `packages/ui` takes any dependency beyond
-what's already justified in the catalog (per `docs/standing-constraints.md`'s "justify
-every dependency"); the view-mode preference's storage (the design's own answer,
-`docs/design/README.md` "Gallery ↔ Deck": `sessionStorage`, not permanent — a link shared
-into Telegram always opens the gallery).
+**Decisions this phase surfaced:**
+- Whether `packages/ui` takes any dependency beyond what's already justified in the
+  catalog — **no.** It holds pure TS (`freshnessPips`/`freshnessLabel`), depending only on
+  `@opika/domain` and `@opika/i18n`, both internal workspace packages, not new external
+  ones.
+- Where the new, still-mobile-shaped Screen 01 gets its real `CityId`s from — the
+  existing `cities.list` procedure, called in-process (`anonymousRouterClient`,
+  `docs/gallery-contract-decisions.md` §5), rather than a client-side fetch that would
+  have needed `@orpc/client` as a new dependency. This is that mechanism's first real use,
+  pulled forward from Phase E because Screen 01 needed real IDs, not because Phase E's own
+  work started early.
+- City-filter storage — `sessionStorage`, extending the design's one explicit storage
+  precedent (the gallery/deck view-mode memory) to the filter state Phase E's rail will
+  also read. Reuses `@opika/domain`'s existing `FeedFilters`/`NO_FILTERS` directly, not a
+  parallel shape, so Phase E needs no migration.
 
 ### Phase E — Gallery
 
@@ -123,8 +142,9 @@ anymore, it's an *implementation-order* one.
 | E2 | Filters as a visible rail (≥1024) / the existing sheet (<1024), extended with sort. Filter and sort state in the URL — shareable, back-button-correct | 6 |
 | E3 | Numbered pagination — `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram) | 4 |
 | E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, non-alarming note, copy in `docs/design/README.md`) states — both form factors | 4 |
+| E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. `sessionStorage`-persisted last mode, entry ("Гортати по одній") and exit ("До списку" / Esc, returning to the same scroll position per `docs/design/README.md` "Gallery ↔ Deck") | 3 |
 
-**Total: ~36 h.**
+**Total: ~39 h.**
 
 **Done when:** someone browses the full corpus on a 1920px desktop and a 360px phone,
 filters and sorts on both, shares a URL that reproduces exactly what they saw, and the
@@ -216,22 +236,22 @@ installs on Android with Lighthouse ≥90; a thrown error appears in Sentry with
 
 | Phase | Weeks | Hours |
 |---|---|---|
-| C — Consolidate (remaining) | ~1.5 | 11 |
-| E — Gallery | 4–5 | 36 |
+| C — Consolidate | — | 0 (done) |
+| E — Gallery | 4–5 | 39 |
 | F — Detail & reveal | 3 | 22 |
 | G — Deck completion | off critical path | 10 |
 | H — Remainder to launch | 7 | 56 |
-| **Total from this rewrite** | **~16 weeks** | **~135 h** |
+| **Total from this rewrite** | **~16 weeks** | **~127 h** |
 
-At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch lands early
-February 2027** — consistent with the course correction's estimate; the 2 h difference
-doesn't move a 16-week estimate measurably. The arithmetic: the course correction's 148 h,
-minus the ~23 h of Consolidate already spent and landed (C1, C2, C3, C5, C6) and the 8 h
-design pass 2, plus the ~18 h this rewrite adds (E0's contract and schema work — including
-the `reserved`/`publishedAt` domain change and backfill and the second wait-anchor index,
-both settled during the gallery-contract decision round — and the admin desktop layouts)
-— 135 h. The target does not move meaningfully; what remains of Consolidate is 11 h, not
-what was spent on it.
+At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch still lands early
+February 2027** — the total dropped from ~135 h to ~127 h (C fully closed out, E gaining
+E5's 3 h), but ~1 week at this pace doesn't move a ~16-week estimate expressed in weeks.
+The arithmetic: the course correction's 148 h, minus the ~34 h of Consolidate now fully
+spent and landed (C1–C7, all seven tasks) and the 8 h design pass 2, plus the ~21 h this
+rewrite and its implementation add (E0's contract and schema work — including the
+`reserved`/`publishedAt` domain change and backfill and the second wait-anchor index, both
+settled during the gallery-contract decision round — E5's view-mode switch moved in from
+C7, and the admin desktop layouts) — 127 h.
 
 **The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own
