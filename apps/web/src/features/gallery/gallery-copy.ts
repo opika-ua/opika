@@ -11,21 +11,37 @@ import { uk } from "@opika/i18n";
  */
 
 const animalWord = (count: number) => pluralizeUk(count, uk.filters.animalWord);
+/** The rail's "Знайдено …" governs the accusative; the sheet's "Підходить …" is nominative. They differ only at `one` — see `uk.ts`'s note on `resultCountRail`. */
+const animalWordAccusative = (count: number) => pluralizeUk(count, uk.filters.animalWordAccusative);
 const shelterWordLocative = (count: number) => pluralizeUk(count, uk.filters.shelterWordLocative);
 
-/** "Підходить {count} тварин. Притулків у цьому місті — {shelterCount}." */
-export function sheetResultCount(count: number, shelterCount: number): string {
-  return uk.filters.resultCount
+/**
+ * "Підходить {count} тварин. Притулків у цьому місті — {shelterCount}." when
+ * a city is selected — design's own screen 03 copy, written for exactly
+ * that case. With no city constrained (`cityConstrained: false` — "Уся
+ * Київщина", the sheet's own default), `shelterCount` spans the whole
+ * oblast and "у цьому місті" would name a city that isn't selected; falls
+ * back to the rail's locative shelter phrasing instead, in the sheet's own
+ * verb and register.
+ */
+export function sheetResultCount(
+  count: number,
+  shelterCount: number,
+  cityConstrained: boolean,
+): string {
+  const template = cityConstrained ? uk.filters.resultCount : uk.filters.resultCountAnyCity;
+  return template
     .replace("{count}", String(count))
     .replace("{animalWord}", animalWord(count))
-    .replace("{shelterCount}", String(shelterCount));
+    .replace("{shelterCount}", String(shelterCount))
+    .replace("{shelterWord}", shelterWordLocative(shelterCount));
 }
 
 /** "Знайдено {count} тварин у {shelterCount} притулках" */
 export function railResultCount(count: number, shelterCount: number): string {
   return uk.filters.resultCountRail
     .replace("{count}", String(count))
-    .replace("{animalWord}", animalWord(count))
+    .replace("{animalWord}", animalWordAccusative(count))
     .replace("{shelterCount}", String(shelterCount))
     .replace("{shelterWord}", shelterWordLocative(shelterCount));
 }

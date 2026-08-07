@@ -15,6 +15,8 @@ import { DESKTOP, PHONE } from "./viewports";
 
 const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
+/** The id the no-JS `:target` reveal keys on — `FilterSheet`'s `SHEET_ID`. */
+const SHEET = "#tvaryny-filters";
 
 async function cardNames(page: {
   locator(selector: string): { allTextContents(): Promise<string[]> };
@@ -142,7 +144,16 @@ test.describe("/tvaryny filters — work with JavaScript disabled", () => {
     // No JS: the trigger is a plain <a href="#tvaryny-filters"> revealed by
     // the :target CSS rule, and the form is a real <form method="GET">.
     await page.getByTestId("filter-sheet-trigger").click();
-    const speciesCheckbox = page.locator('#tvaryny-filters input[name="vyd"][value="dog"]');
+    // The reveal itself, asserted rather than left implicit in a later
+    // click's actionability timeout: with no JS this is `:target` and the
+    // one ID-scoped rule in globals.css doing all of the work, and if that
+    // rule were dropped the dialog would stay `display: none` from the UA
+    // stylesheet's own `dialog:not([open])`.
+    await expect(
+      page.locator(SHEET),
+      "the <dialog> should be revealed by the :target rule alone, with no JS",
+    ).toBeVisible();
+    const speciesCheckbox = page.locator(`${SHEET} input[name="vyd"][value="dog"]`);
     await expect(
       speciesCheckbox,
       "the species checkbox should be reachable without JS",
@@ -157,7 +168,7 @@ test.describe("/tvaryny filters — work with JavaScript disabled", () => {
       speciesCheckbox,
       "clicking the label should check the checkbox it wraps",
     ).toBeChecked();
-    await page.locator('#tvaryny-filters button[type="submit"]').click();
+    await page.locator(`${SHEET} button[type="submit"]`).click();
 
     await page.waitForURL(/vyd=dog/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
@@ -181,13 +192,31 @@ test.describe("/tvaryny filters — work with JavaScript disabled", () => {
     await page.locator(CARD).first().waitFor({ state: "visible" });
 
     const firstCardHref = await page.locator(CARD).first().getAttribute("href");
-    await page.locator(CARD).first().focus();
-    const focusedHref = await page.evaluate(() => document.activeElement?.getAttribute("href"));
+
+    // Real Tab presses, not `locator.focus()`: `focus()` succeeds on an
+    // element with `tabindex="-1"`, so a card deliberately removed from the
+    // tab order would still pass a focus()-based assertion — the exact
+    // "would this fail if the thing it guards were broken" case
+    // docs/standing-constraints.md rules out. Walking the tab order is the
+    // only version of this test that can fail for the reason it names.
+    const MAX_TAB_PRESSES = 12;
+    let presses = 0;
+    let reachedFirstCard = false;
+    while (presses < MAX_TAB_PRESSES && !reachedFirstCard) {
+      await page.keyboard.press("Tab");
+      presses += 1;
+      reachedFirstCard = await page.evaluate(
+        (href) => document.activeElement?.getAttribute("href") === href,
+        firstCardHref,
+      );
+    }
+
     expect(
-      focusedHref,
-      "the first card should be focusable directly (no roving tabindex removing it from " +
-        "the tab order) when JS never ran to set one up",
-    ).toBe(firstCardHref);
+      reachedFirstCard,
+      `the first card was not reached within ${MAX_TAB_PRESSES} Tab presses — with no JS it ` +
+        `must sit in the natural tab order (no tabindex="-1" roving scheme that only a ` +
+        `script would ever repair)`,
+    ).toBe(true);
 
     await context.close();
   });

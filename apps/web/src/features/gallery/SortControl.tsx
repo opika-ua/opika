@@ -34,7 +34,9 @@ export function SortControl({ filters, sort }: SortControlProps) {
         <Link
           key={option}
           href={galleryHref(filters, option)}
-          aria-pressed={sort === option}
+          // `aria-current`, not `aria-pressed` — same reason as FilterRail's
+          // Chip: `aria-pressed` is not an allowed attribute on role="link".
+          aria-current={sort === option ? "true" : undefined}
           className={`flex items-center px-4 font-sans text-sm whitespace-nowrap ${
             sort === option ? "bg-leaf text-paper" : "text-ink-3 hover:text-ink-2"
           }`}

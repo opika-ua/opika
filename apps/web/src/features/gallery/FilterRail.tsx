@@ -45,6 +45,15 @@ const CHIP_BASE =
 const CHIP_ACTIVE = "bg-leaf text-paper";
 const CHIP_INACTIVE = "bg-paper text-ink-3 border border-line-strong hover:border-line-heavy";
 
+/**
+ * `aria-current`, not `aria-pressed`: an `<a href>` is `role="link"`, and
+ * `aria-pressed` is defined only for `role="button"` — a screen reader is
+ * free to drop it, and axe reports it as `aria-allowed-attr`. These chips
+ * cannot become buttons without giving up being real navigations (which is
+ * the whole reason the rail works with no JS), so the selected state is
+ * carried by an attribute that IS allowed on any element, plus the design's
+ * own visible ✓, which is in the accessible name either way.
+ */
 function Chip({
   active,
   href,
@@ -57,7 +66,7 @@ function Chip({
   return (
     <Link
       href={href}
-      aria-pressed={active}
+      aria-current={active ? "true" : undefined}
       className={`${CHIP_BASE} ${active ? CHIP_ACTIVE : CHIP_INACTIVE}`}
     >
       {active ? "✓ " : ""}
@@ -72,9 +81,10 @@ function Chip({
  * changes apply immediately and write to the URL." Every chip is a plain
  * `<a>`, not a checkbox + client handler: a click is a real navigation
  * (works with no JS by construction, not retrofitted), and "immediately"
- * is just what a normal link already does. `apps/web/src/features/gallery/
- * history-enhance.tsx` layers `router.replace` on top when JS is present,
- * so this component itself has no client-side behaviour of its own.
+ * is just what a normal link already does. `ReplaceNav`
+ * (`apps/web/src/features/gallery/ReplaceNav.tsx`) layers `router.replace`
+ * on top when JS is present, so this component itself has no client-side
+ * behaviour of its own.
  *
  * Visible only at `desktop:` (>=1024) — `hidden desktop:flex`. Below that,
  * `FilterSheet` owns the same filter state through a different UI.

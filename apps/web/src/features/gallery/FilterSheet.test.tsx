@@ -1,4 +1,4 @@
-import { type CityId, CityIdSchema, NO_FILTERS } from "@opika/domain";
+import { type CityId, CityIdSchema, type FeedFilters, NO_FILTERS } from "@opika/domain";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { FilterSheet } from "./FilterSheet";
@@ -25,12 +25,22 @@ const CITIES: ReadonlyArray<{ id: CityId; name: string }> = [
 
 function renderSheet(filters = NO_FILTERS, sort: "freshest" | "longest_waiting" = "freshest") {
   const router = mockAppRouter();
-  render(
+  const { rerender } = render(
     <WithMockRouter router={router}>
       <FilterSheet filters={filters} sort={sort} cities={CITIES} resultCount={12} />
     </WithMockRouter>,
   );
-  return router;
+  /** Stands in for a navigation the sheet's own form did not cause — the back button, or one of the sheet's instant-apply links having landed. */
+  const applyFromElsewhere = (
+    nextFilters: FeedFilters,
+    nextSort: "freshest" | "longest_waiting" = sort,
+  ) =>
+    rerender(
+      <WithMockRouter router={router}>
+        <FilterSheet filters={nextFilters} sort={nextSort} cities={CITIES} resultCount={3} />
+      </WithMockRouter>,
+    );
+  return { router, applyFromElsewhere };
 }
 
 describe("FilterSheet", () => {
@@ -51,7 +61,7 @@ describe("FilterSheet", () => {
   });
 
   it("submitting with two boxes checked in one group sends both — not just the first", () => {
-    const router = renderSheet();
+    const { router } = renderSheet();
     const sheet = within(screen.getByTestId("filter-sheet"));
 
     fireEvent.click(sheet.getByLabelText("Малий"));
@@ -61,11 +71,16 @@ describe("FilterSheet", () => {
     expect(router.replace).toHaveBeenCalledTimes(1);
     const [href] = router.replace.mock.calls[0] as [string];
     const params = new URL(href, "http://x").searchParams;
-    expect(params.getAll("rozmir").sort()).toEqual(["medium", "small"]);
+    // One comma-joined param, not two repeated ones: the submit goes back
+    // out through `galleryHref`, so the sheet and the rail spell the same
+    // state the same way. Both values surviving is what this asserts — the
+    // native no-JS submission's repeated-key shape is `filter-url.test.ts`'s
+    // and the JS-disabled harness test's job, on the parse side.
+    expect(params.get("rozmir")).toBe("medium,small");
   });
 
   it("submitting with the default (freshest) sort omits the sort param", () => {
-    const router = renderSheet();
+    const { router } = renderSheet();
     const sheet = within(screen.getByTestId("filter-sheet"));
     fireEvent.click(sheet.getByRole("button", { name: /Показати/, hidden: true }));
 
@@ -73,17 +88,25 @@ describe("FilterSheet", () => {
     expect(href).not.toContain("sort=");
   });
 
-  it("'Уся Київщина' replaces immediately, without needing a submit", () => {
-    const router = renderSheet({ ...NO_FILTERS, cities: { kind: "oneOf", values: [BROVARY] } });
-    fireEvent.click(screen.getByRole("link", { name: "Уся Київщина", hidden: true }));
+  it("'Уся Київщина' drops the city filter and keeps every other group — it is not a second 'Скинути'", () => {
+    const { router } = renderSheet({
+      ...NO_FILTERS,
+      cities: { kind: "oneOf", values: [BROVARY] },
+      species: { kind: "oneOf", values: ["dog"] },
+    });
+    const allCities = screen.getByRole("link", { name: "Уся Київщина", hidden: true });
 
+    // The href matters as much as the handler: with no JS this link is the
+    // whole behaviour, and nothing intercepts it.
+    expect(allCities.getAttribute("href")).toBe("/tvaryny?vyd=dog");
+
+    fireEvent.click(allCities);
     expect(router.replace).toHaveBeenCalledTimes(1);
-    const [href] = router.replace.mock.calls[0] as [string];
-    expect(href).not.toContain("misto=");
+    expect(router.replace).toHaveBeenCalledWith("/tvaryny?vyd=dog", { scroll: false });
   });
 
   it("'Скинути' replaces with every filter cleared, sort preserved", () => {
-    const router = renderSheet(
+    const { router } = renderSheet(
       { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } },
       "longest_waiting",
     );
@@ -92,5 +115,50 @@ describe("FilterSheet", () => {
     expect(router.replace).toHaveBeenCalledWith("/tvaryny?sort=longest_waiting", {
       scroll: false,
     });
+  });
+  it("a ticked box does not survive a filter change that came from somewhere else", () => {
+    // Uncontrolled inputs keep their dirty checkedness across a re-render:
+    // without the form's `key`, ticking "Собаки" and then reaching an
+    // unrelated filter state (back button, "Скинути", "Уся Київщина")
+    // leaves the sheet showing a selection the URL does not have — hidden
+    // client state outliving the single source of truth.
+    const { applyFromElsewhere } = renderSheet();
+    const sheet = within(screen.getByTestId("filter-sheet"));
+
+    fireEvent.click(sheet.getByLabelText("Собаки"));
+    expect((sheet.getByLabelText("Собаки") as HTMLInputElement).checked).toBe(true);
+
+    applyFromElsewhere({ ...NO_FILTERS, sizes: { kind: "oneOf", values: ["small"] } });
+
+    const after = within(screen.getByTestId("filter-sheet"));
+    expect((after.getByLabelText("Собаки") as HTMLInputElement).checked).toBe(false);
+    expect((after.getByLabelText("Малий") as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("the ✕ falls through to its own href when the dialog was revealed by :target, not showModal()", () => {
+    // `dialog.close()` is a no-op on a dialog with no `open` attribute — the
+    // state a pre-hydration click on the trigger, or a shared URL already
+    // carrying #tvaryny-filters, leaves the sheet in. Swallowing the click
+    // there would leave the sheet with no way to close at all.
+    renderSheet();
+    const dialog = screen.getByTestId("filter-sheet") as HTMLDialogElement;
+    expect(dialog.open).toBe(false);
+
+    const notPrevented = fireEvent.click(
+      screen.getByRole("link", { name: "Закрити", hidden: true }),
+    );
+    expect(notPrevented, "the anchor's own href='#' must still run").toBe(true);
+  });
+
+  it("the ✕ closes the dialog itself once it really is open", () => {
+    renderSheet();
+    const dialog = screen.getByTestId("filter-sheet") as HTMLDialogElement;
+    dialog.showModal();
+
+    const prevented = fireEvent.click(screen.getByRole("link", { name: "Закрити" }));
+    expect(dialog.open).toBe(false);
+    expect(prevented, "an open dialog closes in place, without navigating the fragment").toBe(
+      false,
+    );
   });
 });

@@ -47,12 +47,16 @@ export const en = {
     ageSenior: "Senior",
     /** Template: "{count} {animalWord} match. Shelters in this city — {shelterCount}." */
     resultCount: "{count} {animalWord} match. Shelters in this city — {shelterCount}.",
+    /** Template: "{count} {animalWord} match, across {shelterCount} {shelterWord}." — used when no city is selected, see uk.ts's note. */
+    resultCountAnyCity: "{count} {animalWord} match, across {shelterCount} {shelterWord}.",
     reset: "Reset",
     /** Template: "Show {count}" */
     showCount: "Show {count}",
     /** Template: "Found {count} {animalWord} across {shelterCount} {shelterWord}" */
     resultCountRail: "Found {count} {animalWord} across {shelterCount} {shelterWord}",
     animalWord: { one: "animal", few: "animals", many: "animals" },
+    /** English has no case system, so this is `animalWord` again — it exists for key-shape parity with uk.ts, where the rail's "Знайдено" governs a different form than the sheet's "Підходить". */
+    animalWordAccusative: { one: "animal", few: "animals", many: "animals" },
     shelterWordLocative: { one: "shelter", few: "shelters", many: "shelters" },
     sortLabel: "Sort",
     sortFreshest: "Freshest cards first",

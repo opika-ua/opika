@@ -4,14 +4,14 @@ import { describe, expect, it } from "vitest";
 import { SortControl } from "./SortControl";
 
 describe("SortControl", () => {
-  it("marks the current sort pressed and the other one not", () => {
+  it("marks the current sort as current and the other one not", () => {
     render(<SortControl filters={NO_FILTERS} sort="freshest" />);
     expect(
-      screen.getByRole("link", { name: "Спочатку найсвіжіші картки" }).getAttribute("aria-pressed"),
+      screen.getByRole("link", { name: "Спочатку найсвіжіші картки" }).getAttribute("aria-current"),
     ).toBe("true");
     expect(
-      screen.getByRole("link", { name: "Найдовше чекають" }).getAttribute("aria-pressed"),
-    ).toBe("false");
+      screen.getByRole("link", { name: "Найдовше чекають" }).getAttribute("aria-current"),
+    ).toBeNull();
   });
 
   it("the non-default option's href carries the sort param, the default one's does not", () => {

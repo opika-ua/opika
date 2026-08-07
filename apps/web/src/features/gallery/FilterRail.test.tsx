@@ -18,13 +18,13 @@ describe("FilterRail", () => {
     // This is the regression test for the bug a real run caught: reusing
     // matchesSelection (which treats "any" as matching everything) here
     // would render every species/size/age chip active too.
-    expect(rail.getByRole("link", { name: /Уся Київщина/ }).getAttribute("aria-pressed")).toBe(
+    expect(rail.getByRole("link", { name: /Уся Київщина/ }).getAttribute("aria-current")).toBe(
       "true",
     );
-    expect(rail.getByRole("link", { name: "Собаки" }).getAttribute("aria-pressed")).toBe("false");
-    expect(rail.getByRole("link", { name: "Коти" }).getAttribute("aria-pressed")).toBe("false");
-    expect(rail.getByRole("link", { name: "Малий" }).getAttribute("aria-pressed")).toBe("false");
-    expect(rail.getByRole("link", { name: "Малюк" }).getAttribute("aria-pressed")).toBe("false");
+    expect(rail.getByRole("link", { name: "Собаки" }).getAttribute("aria-current")).toBeNull();
+    expect(rail.getByRole("link", { name: "Коти" }).getAttribute("aria-current")).toBeNull();
+    expect(rail.getByRole("link", { name: "Малий" }).getAttribute("aria-current")).toBeNull();
+    expect(rail.getByRole("link", { name: "Малюк" }).getAttribute("aria-current")).toBeNull();
   });
 
   it("marks only the explicitly-selected species chip active", () => {
@@ -37,9 +37,9 @@ describe("FilterRail", () => {
 
     // The active chip's accessible name gains a "✓ " prefix, so an exact
     // "Собаки" match would (correctly) fail for the active chip — /Собаки/
-    // matches either state, and aria-pressed is the actual assertion.
-    expect(rail.getByRole("link", { name: /Собаки/ }).getAttribute("aria-pressed")).toBe("true");
-    expect(rail.getByRole("link", { name: "Коти" }).getAttribute("aria-pressed")).toBe("false");
+    // matches either state, and aria-current is the actual assertion.
+    expect(rail.getByRole("link", { name: /Собаки/ }).getAttribute("aria-current")).toBe("true");
+    expect(rail.getByRole("link", { name: "Коти" }).getAttribute("aria-current")).toBeNull();
   });
 
   it("a city chip's href toggles that city into the filter set", () => {

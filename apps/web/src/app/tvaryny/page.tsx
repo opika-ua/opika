@@ -69,7 +69,11 @@ export async function renderGallery(
       <div className="p-4 tablet:p-6 desktop:pt-10 desktop:px-15 desktop:pb-14">
         <div className="flex items-center justify-between gap-4 mb-4 desktop:hidden">
           <span className="font-sans text-sm text-ink-3">
-            {sheetResultCount(page.totalMatching, page.totalShelters)}
+            {sheetResultCount(
+              page.totalMatching,
+              page.totalShelters,
+              filters.cities.kind !== "any",
+            )}
           </span>
           <FilterSheet
             filters={filters}

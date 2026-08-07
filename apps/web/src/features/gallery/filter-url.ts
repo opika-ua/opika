@@ -38,6 +38,24 @@ const AGE_PARAM = "vik";
 const SORT_PARAM = "sort";
 const PAGE_PARAM = "stor";
 
+/**
+ * The same six names, exported for the one caller that cannot go through
+ * `galleryHref`: `FilterSheet`'s `<form method="GET">`, whose field `name`
+ * attributes ARE the query keys the browser submits with no JS running.
+ * Spelling them as literals there would be a second, uncompiled copy of
+ * this file's scheme — the drift `parseGalleryQuery` could not detect,
+ * because a renamed param and a stale `name=` both parse to "that
+ * constraint didn't apply."
+ */
+export const GALLERY_PARAM = {
+  city: CITY_PARAM,
+  species: SPECIES_PARAM,
+  size: SIZE_PARAM,
+  age: AGE_PARAM,
+  sort: SORT_PARAM,
+  page: PAGE_PARAM,
+} as const;
+
 export type SearchParams = Record<string, string | string[] | undefined>;
 
 export type GalleryQuery = {
@@ -113,6 +131,28 @@ export function parseGalleryQuery(searchParams: SearchParams): GalleryQuery {
   const page = Number.isInteger(pageRaw) && pageRaw >= 1 ? pageRaw : 1;
 
   return { filters, sort, page };
+}
+
+/**
+ * A native `<form method="GET">` submission and Next's `searchParams` prop
+ * carry the same information in the same shape (repeated keys become an
+ * array), so the sheet's JS-intercepted submit re-uses `parseGalleryQuery`
+ * rather than reading `FormData` into a URL of its own: one parser, one
+ * `galleryHref` writer, and therefore one URL scheme — the rail and the
+ * sheet cannot drift into two spellings of the same state.
+ */
+export function searchParamsFromFormData(formData: FormData): SearchParams {
+  const params: Record<string, string[]> = {};
+  for (const [key, value] of formData) {
+    // Every field in this form is a checkbox/radio value, never a file
+    // input — the string check is a type-narrowing formality, not a real
+    // branch this form can hit the other side of.
+    if (typeof value !== "string") continue;
+    const existing = params[key];
+    if (existing) existing.push(value);
+    else params[key] = [value];
+  }
+  return params;
 }
 
 const toggle = <T extends string>(selection: FilterSelection<T>, value: T): FilterSelection<T> => {

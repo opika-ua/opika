@@ -11,6 +11,7 @@ import type {
 import {
   AGE_BUCKETS,
   ANIMAL_SPECIES,
+  ANY,
   DEFAULT_GALLERY_SORT,
   isExplicitlySelected,
   SIZE_BUCKETS,
@@ -18,7 +19,13 @@ import {
 import { uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { resetFiltersHref } from "./filter-url";
+import {
+  GALLERY_PARAM,
+  galleryHref,
+  parseGalleryQuery,
+  resetFiltersHref,
+  searchParamsFromFormData,
+} from "./filter-url";
 import { showCountLabel } from "./gallery-copy";
 
 const SHEET_ID = "tvaryny-filters";
@@ -47,8 +54,18 @@ const AGE_LABEL: Record<AgeBucket, string> = {
   senior: uk.filters.ageSenior,
 };
 
+/**
+ * `has-[:focus-visible]:` is not a nicety here: the real `<input>` is
+ * `sr-only` (1x1, clipped), so the focus ring the browser draws on it is
+ * drawn on a pixel nobody can see. Without lifting that ring onto the
+ * visible `<label>`, a keyboard user tabbing through the sheet has no
+ * indication of where they are — docs/design/README.md's "Keyboard" table
+ * routes Tab through these controls, and its focus-visible rule
+ * (`outline: 2px solid #4F6B3A; outline-offset: 2px`) is stated as "never
+ * removed", which drawing it where nobody can see it is a way of removing.
+ */
 const CHIP_LABEL_BASE =
-  "min-h-9 inline-flex items-center rounded-chip px-3 font-sans text-sm leading-none cursor-pointer transition-colors duration-[160ms] has-[:checked]:bg-leaf has-[:checked]:text-paper border border-line-strong has-[:checked]:border-leaf text-ink-3";
+  "min-h-9 inline-flex items-center rounded-chip px-3 font-sans text-sm leading-none cursor-pointer transition-colors duration-[160ms] has-[:checked]:bg-leaf has-[:checked]:text-paper border border-line-strong has-[:checked]:border-leaf text-ink-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-leaf has-[:focus-visible]:outline-offset-2";
 
 /**
  * docs/design/README.md, "03 · Фільтри" + "Rail, count, sort": "Below
@@ -100,9 +117,23 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
     dialog.showModal();
   };
 
+  /**
+   * Two ways this sheet can be on screen, and only one of them has an
+   * `open` attribute. `showModal()` sets it; the no-JS `:target` reveal
+   * (`globals.css`) does not — and `HTMLDialogElement.close()` on a dialog
+   * without `open` returns immediately, firing no `close` event. So when
+   * the sheet was revealed by the fragment — a click on the trigger before
+   * hydration finished, or a shared/bookmarked URL already carrying
+   * `#tvaryny-filters` — swallowing this anchor's own navigation would
+   * leave the ✕ dead and the sheet unclosable. Falling through to the
+   * plain `href="#"` clears the fragment, which is exactly what closes it
+   * in that state, with or without JS.
+   */
   const closeWithJs = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    const dialog = dialogRef.current;
+    if (!dialog?.open) return;
     event.preventDefault();
-    dialogRef.current?.close();
+    dialog.close();
   };
 
   /**
@@ -118,9 +149,20 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
     router.replace(href, { scroll: false });
   };
 
+  /**
+   * "Уся Київщина" drops the city constraint and nothing else — the same
+   * href the rail's own chip carries (`FilterRail`), and what
+   * docs/design/README.md's deviation note says the string means: "what
+   * the button actually does today, which is drop the city filter
+   * entirely." It is a МІСТО-group chip, not a second "Скинути": clearing
+   * species/size/age from here would silently discard choices the adopter
+   * made in three other groups.
+   */
+  const allCitiesHref = galleryHref({ ...filters, cities: ANY }, sort);
+
   const onAllCitiesClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    navigateWithJs(resetFiltersHref(sort));
+    navigateWithJs(allCitiesHref);
   };
 
   const onResetClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -128,25 +170,28 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
     navigateWithJs(resetFiltersHref(sort));
   };
 
+  /**
+   * The submitted form is read back through the same `parseGalleryQuery` a
+   * cold request goes through and written out through the same
+   * `galleryHref` the rail's chips use, rather than assembling a URL of
+   * its own — so the same state reached through the sheet and through the
+   * rail produces the same URL, not two equivalent-but-different-looking
+   * ones. Two things that would otherwise need restating here come free
+   * with that: a radio group always submits, so a native submission always
+   * carries `sort` even at its default, and `galleryHref` already omits a
+   * default sort; and a group with every value checked canonicalizes back
+   * to "unconstrained" instead of spelling out the universe.
+   *
+   * The no-JS path is untouched by this — the browser submits the form
+   * itself and the server reads the repeated params through the same
+   * parser. This enhances that path; it does not replace it.
+   */
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const params = new URLSearchParams();
-    for (const [key, value] of new FormData(event.currentTarget)) {
-      // Every field in this form is a checkbox/radio value, never a file
-      // input — the string check is a type-narrowing formality, not a real
-      // branch this form can hit the other side of.
-      if (typeof value !== "string") continue;
-      // A radio group always has exactly one value, unlike a checkbox group,
-      // which can be entirely unchecked — so a native submission always
-      // includes `sort`, even at its default. Dropped here to match
-      // galleryHref's own "default is the absent param" convention: the
-      // same state reached through the rail and through this form should
-      // produce the same URL, not two equivalent-but-different-looking ones.
-      if (key === "sort" && value === DEFAULT_GALLERY_SORT) continue;
-      params.append(key, value);
-    }
-    const qs = params.toString();
-    navigateWithJs(qs ? `/tvaryny?${qs}` : "/tvaryny");
+    const submitted = parseGalleryQuery(
+      searchParamsFromFormData(new FormData(event.currentTarget)),
+    );
+    navigateWithJs(galleryHref(submitted.filters, submitted.sort));
   };
 
   return (
@@ -184,7 +229,21 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
         // caught by an actual browser render, not by reasoning about it.
         className="desktop:hidden fixed inset-x-0 bottom-0 top-auto z-50 m-0 w-full max-w-none max-h-[85vh] overflow-y-auto rounded-t-[20px] rounded-b-none border-0 bg-paper p-0 backdrop:bg-[#EDE3D2]/80"
       >
+        {/*
+          `key` is what keeps this form honest. Its inputs are uncontrolled
+          (`defaultChecked`), and React writes a changed `defaultChecked`
+          to the *attribute* only — an input the adopter has actually
+          clicked keeps its own dirty checkedness regardless. So after any
+          filter change that did NOT come from submitting this form
+          ("Скинути", "Уся Київщина", the back button), the boxes would go
+          on showing what was last clicked while the URL says something
+          else: hidden client state outliving the URL that is supposed to
+          be the only source of truth. Keying the subtree on the applied
+          state remounts the inputs whenever it changes, so what is ticked
+          is always what the address bar says.
+        */}
         <form
+          key={galleryHref(filters, sort)}
           method="GET"
           action="/tvaryny"
           onSubmit={onSubmit}
@@ -213,7 +272,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
             </legend>
             <div className="flex flex-wrap gap-row">
               <a
-                href={resetFiltersHref(sort)}
+                href={allCitiesHref}
                 onClick={onAllCitiesClick}
                 className={`${CHIP_LABEL_BASE} ${filters.cities.kind === "any" ? "bg-leaf text-paper border-leaf" : ""}`}
               >
@@ -223,7 +282,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
                 <label key={city.id} className={CHIP_LABEL_BASE}>
                   <input
                     type="checkbox"
-                    name="misto"
+                    name={GALLERY_PARAM.city}
                     value={city.id}
                     defaultChecked={isExplicitlySelected(filters.cities, city.id)}
                     className="sr-only"
@@ -243,7 +302,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
                 <label key={species} className={CHIP_LABEL_BASE}>
                   <input
                     type="checkbox"
-                    name="vyd"
+                    name={GALLERY_PARAM.species}
                     value={species}
                     defaultChecked={isExplicitlySelected(filters.species, species)}
                     className="sr-only"
@@ -263,7 +322,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
                 <label key={size} className={CHIP_LABEL_BASE}>
                   <input
                     type="checkbox"
-                    name="rozmir"
+                    name={GALLERY_PARAM.size}
                     value={size}
                     defaultChecked={isExplicitlySelected(filters.sizes, size)}
                     className="sr-only"
@@ -283,7 +342,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
                 <label key={age} className={CHIP_LABEL_BASE}>
                   <input
                     type="checkbox"
-                    name="vik"
+                    name={GALLERY_PARAM.age}
                     value={age}
                     defaultChecked={isExplicitlySelected(filters.ages, age)}
                     className="sr-only"
@@ -302,7 +361,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
               <label className={CHIP_LABEL_BASE}>
                 <input
                   type="radio"
-                  name="sort"
+                  name={GALLERY_PARAM.sort}
                   value="freshest"
                   defaultChecked={sort === DEFAULT_GALLERY_SORT}
                   className="sr-only"
@@ -312,7 +371,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
               <label className={CHIP_LABEL_BASE}>
                 <input
                   type="radio"
-                  name="sort"
+                  name={GALLERY_PARAM.sort}
                   value="longest_waiting"
                   defaultChecked={sort === "longest_waiting"}
                   className="sr-only"
