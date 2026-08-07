@@ -154,8 +154,8 @@ export const animals = pgTable(
      * whose leading column is matched by `= ANY(...)` rather than a single
      * value returns rows grouped per array element, not in index order, which
      * makes the planner add the `Sort` node this index exists to remove.
-     * `packages/db/test/feed-explain.test.ts` asserts the absence of that node
-     * for both filtered and unfiltered wait-anchor queries.
+     * `packages/db/test/wait-anchor-explain.test.ts` asserts the absence of
+     * that node for both filtered and unfiltered wait-anchor queries.
      */
     index("animals_wait_anchor_filtered_idx")
       .on(t.cityId, t.species, t.size, t.waitAnchorAt.asc().nullsLast(), t.id.asc())
