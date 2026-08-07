@@ -11,7 +11,7 @@
  * the backing implementation changes.
  *
  * Deliberately has no dependency on `@opika/db` or anything else Node-only —
- * this module is imported from `apps/web/src/middleware.ts`, which runs in a
+ * this module is imported from `apps/web/src/proxy.ts`, which runs in a
  * separate deployment unit from the HTTP route handlers. A Postgres driver
  * import here would make that bundle needlessly heavier at best, and fail to
  * bundle at worst; the DB-dependent reveal limiter lives in its own file
@@ -63,11 +63,11 @@ export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: numbe
  * Default API rate limiter: 100 requests per minute per IP.
  *
  * Imported from two independent entry points — the `/api/rpc` route handler
- * and `middleware.ts` — which on Vercel deploy as separate functions with
+ * and `proxy.ts` — which on Vercel deploy as separate functions with
  * separate module graphs. Importing this same module from both does NOT
  * give them the same `Map`: each gets its own instance. The effective
  * ceiling for one IP is therefore 100/min through the API *plus* 100/min
- * through any middleware-protected page, 200/min total, not a single shared
+ * through any proxy-protected page, 200/min total, not a single shared
  * 100/min budget. This is a real, known gap, not an oversight — a genuinely
  * shared budget needs a shared store (Redis/Upstash), which is the same
  * "move to a shared store before deploy" item already called out above, not

@@ -12,7 +12,7 @@ import { ORPCError } from "@orpc/server";
  *
  * Deliberately its own file, not part of `rate-limit.ts`: this one imports
  * `@opika/db/repos`, a Postgres driver dependency. `rate-limit.ts` is also
- * imported from `apps/web/src/middleware.ts`, a separate deployment unit
+ * imported from `apps/web/src/proxy.ts`, a separate deployment unit
  * from the route handlers — pulling a DB driver into that bundle would be
  * wrong regardless of what any specific runtime does or doesn't support.
  * Single responsibility here removes the question rather than resolving it.

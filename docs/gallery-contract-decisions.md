@@ -548,6 +548,32 @@ protected — Next.js middleware keyed on the request IP before the Server Compo
 runs is the natural fit, since `apiRateLimiter`'s existing shape (a `RateLimiter` interface
 over an in-memory sliding window) could be reused for it directly — not left implicit.
 
+> **Correction, Phase E1 (as built).** The gap above is closed, by the mechanism this
+> paragraph recommends — but under Next.js 16's renamed convention:
+> `apps/web/src/proxy.ts`, not `middleware.ts`. The file and the exported function were
+> both renamed, and `proxy.ts` defaults to the Node.js runtime (setting `runtime` in it
+> is an error, not an option). Two things the paragraph got ahead of itself on:
+>
+> - Only `gallery.list` is wired into `serverComponentRouter`.
+>   `gallery.relaxationCounts` has no Server Component consumer until E4, so it is still
+>   reachable over the HTTP route alone and still inherits that route's limiter — adding
+>   it here before something calls it would be the premature scaffolding this repo keeps
+>   out of that list on purpose.
+> - "`apiRateLimiter`'s existing shape ... could be reused for it directly" is true of
+>   the *module*, not of the budget. Vercel deploys the proxy and the route handlers as
+>   separate functions with separate module graphs — Next's own proxy reference is
+>   explicit that you "should not attempt relying on shared modules or globals" there —
+>   so importing the same `apiRateLimiter` from both gives each its own `Map`. The
+>   effective per-IP ceiling is 100/min on the page path *plus* 100/min on the API path,
+>   not one shared 100/min. Recorded in `apps/web/src/api/rate-limit.ts` as well, so the
+>   number is never asserted higher than it actually is; one genuinely shared budget
+>   needs the shared store this document's neighbour already calls for before deploy.
+>
+> Asserted rather than assumed, per this repo's own standard for a config file read on
+> faith: `apps/web/test/harness/gallery-rate-limit.harness.ts` spends the budget against
+> a real running server and requires the 429 — which also proves the matcher covers the
+> bare `/tvaryny`, not only its subpaths.
+
 ---
 
 ## 6. Animal detail URL — `/tvaryny/[animalId]`, a slug prefix deferred to F′

@@ -1,11 +1,11 @@
 /**
- * Middleware rate limiting for `/tvaryny`, verified against a real running
+ * Proxy rate limiting for `/tvaryny`, verified against a real running
  * server rather than assumed from the matcher config.
  *
  * Two things this proves in one test: the matcher actually covers the *bare*
- * `/tvaryny` path (not only a subpath — a plausible gap `middleware.ts`'s own
+ * `/tvaryny` path (not only a subpath — a plausible gap `proxy.ts`'s own
  * config comment names), and the limiter actually returns 429 once the
- * budget is spent, rather than the middleware silently no-op'ing. A matcher
+ * budget is spent, rather than the proxy silently no-op'ing. A matcher
  * typo or a limiter wired to the wrong check would both be invisible to
  * anything short of this — the exact shape of failure this project's harness
  * exists to catch instead of a config file read on faith.
