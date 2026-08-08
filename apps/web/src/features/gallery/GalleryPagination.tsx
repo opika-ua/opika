@@ -2,7 +2,7 @@ import type { FeedFilters, GallerySort } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Link from "next/link";
 import { galleryPageHref } from "./filter-url";
-import { paginationWindow } from "./gallery-pagination";
+import { hasPagination, paginationWindow } from "./gallery-pagination";
 
 interface GalleryPaginationProps {
   filters: FeedFilters;
@@ -13,11 +13,28 @@ interface GalleryPaginationProps {
   totalPages: number;
 }
 
-const PILL =
-  "min-h-11 min-w-11 inline-flex items-center justify-center rounded-button font-sans text-sm px-2";
-const PILL_INACTIVE = `${PILL} border border-line-strong bg-paper text-ink-2 hover:border-line-heavy`;
-const PILL_ACTIVE = `${PILL} bg-leaf text-paper`;
-const PILL_DISABLED = `${PILL} border border-line text-ink-4`;
+/**
+ * `docs/design/Opika - Keeper's Voice.dc.html`'s 1440 GALLERY block, the
+ * pagination row's literal styles — prev/next as `min-height: 44px; padding:
+ * 0 16px` text buttons, an available/unavailable pair (leaf border and text
+ * vs. line-heavy border, ink-3 text), applied symmetrically to whichever of
+ * prev/next is at its own end. The mock only shows one example of each (page
+ * 1: prev unavailable, next available) — this applies the same two
+ * treatments to whichever control is inert on any given page.
+ */
+const NAV_BUTTON = "inline-flex items-center min-h-11 px-4 rounded-button font-sans text-[13px]";
+const NAV_BUTTON_AVAILABLE = `${NAV_BUTTON} border border-leaf text-leaf font-medium`;
+const NAV_BUTTON_UNAVAILABLE = `${NAV_BUTTON} border border-line-heavy text-ink-3`;
+
+/** The number pills — `min-width: 44px; min-height: 44px`, centred, no
+ * horizontal padding (unlike prev/next, whose text needs it). The mock sets
+ * these in IBM Plex Mono; this codebase deliberately dropped that family
+ * (`apps/web/src/app/fonts.ts`), so `font-sans` (Commissioner) here, not a
+ * one-off reintroduction of a font nothing else uses. */
+const PAGE_PILL =
+  "min-h-11 min-w-11 inline-flex items-center justify-center rounded-button font-sans text-[13px]";
+const PAGE_PILL_INACTIVE = `${PAGE_PILL} border border-line-strong text-ink-2`;
+const PAGE_PILL_ACTIVE = `${PAGE_PILL} bg-leaf text-paper font-medium`;
 
 function pageAriaLabel(page: number): string {
   return uk.pagination.pageLabel.replace("{page}", String(page));
@@ -34,6 +51,13 @@ function pageAriaLabel(page: number): string {
  * work with no JS at all, the same requirement the design states for the
  * whole surface.
  *
+ * Prev/next carry their own visible text ("← Назад" / "Далі →", the design's
+ * own copy) rather than an icon plus a separate `aria-label` — an aria-label
+ * that doesn't contain the visible text is a WCAG 2.5.3 accessible-name
+ * mismatch (a voice-control user saying "click назад" would fail to match a
+ * label that instead read "Попередня сторінка"); an earlier draft of this
+ * component had exactly that bug, caught on review before it shipped.
+ *
  * The current page renders as a non-interactive `<span>`, not a link to
  * itself — `aria-current="page"` plus the leaf fill carry the state; a
  * click that would navigate to the page already showing has nothing to do.
@@ -45,9 +69,10 @@ function pageAriaLabel(page: number): string {
  * (nothing here ever sets `tabIndex` on more than this one, fixed element).
  */
 export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPaginationProps) {
-  if (totalPages <= 1) return null;
+  if (!hasPagination(totalPages)) return null;
 
   const items = paginationWindow(page, totalPages);
+  const ofTotal = uk.pagination.ofTotal.replace("{total}", String(totalPages));
 
   return (
     <nav
@@ -55,24 +80,27 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
       tabIndex={-1}
       data-testid="gallery-pagination"
       aria-label={uk.pagination.navLabel}
-      className="mt-8 flex flex-col items-center gap-3"
+      className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-2"
     >
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        {page > 1 ? (
-          <Link
-            href={galleryPageHref(filters, sort, page - 1)}
-            aria-label={uk.pagination.prevLabel}
-            data-testid="pagination-prev"
-            className={PILL_INACTIVE}
-          >
-            ‹
-          </Link>
-        ) : (
-          <span aria-hidden="true" data-testid="pagination-prev-disabled" className={PILL_DISABLED}>
-            ‹
-          </span>
-        )}
+      {page > 1 ? (
+        <Link
+          href={galleryPageHref(filters, sort, page - 1)}
+          data-testid="pagination-prev"
+          className={NAV_BUTTON_AVAILABLE}
+        >
+          {uk.pagination.prev}
+        </Link>
+      ) : (
+        <span
+          aria-hidden="true"
+          data-testid="pagination-prev-disabled"
+          className={NAV_BUTTON_UNAVAILABLE}
+        >
+          {uk.pagination.prev}
+        </span>
+      )}
 
+      <div className="flex flex-wrap items-center justify-center gap-2">
         {items.map((item, index) =>
           item === "ellipsis" ? (
             <span key={`ellipsis-${index}`} aria-hidden="true" className="px-1 text-ink-3">
@@ -84,7 +112,7 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
               aria-current="page"
               data-testid="pagination-page"
               data-active="true"
-              className={PILL_ACTIVE}
+              className={PAGE_PILL_ACTIVE}
             >
               {item}
               <span className="sr-only">, {uk.pagination.current}</span>
@@ -95,30 +123,34 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
               href={galleryPageHref(filters, sort, item)}
               aria-label={pageAriaLabel(item)}
               data-testid="pagination-page"
-              className={PILL_INACTIVE}
+              className={PAGE_PILL_INACTIVE}
             >
               {item}
             </Link>
           ),
         )}
-
-        {page < totalPages ? (
-          <Link
-            href={galleryPageHref(filters, sort, page + 1)}
-            aria-label={uk.pagination.nextLabel}
-            data-testid="pagination-next"
-            className={PILL_INACTIVE}
-          >
-            ›
-          </Link>
-        ) : (
-          <span aria-hidden="true" data-testid="pagination-next-disabled" className={PILL_DISABLED}>
-            ›
-          </span>
-        )}
+        <span className="font-sans text-[13px] text-ink-3">{ofTotal}</span>
       </div>
 
-      <p className="text-center font-sans text-xs text-ink-3">{uk.pagination.footnote}</p>
+      {page < totalPages ? (
+        <Link
+          href={galleryPageHref(filters, sort, page + 1)}
+          data-testid="pagination-next"
+          className={NAV_BUTTON_AVAILABLE}
+        >
+          {uk.pagination.next}
+        </Link>
+      ) : (
+        <span
+          aria-hidden="true"
+          data-testid="pagination-next-disabled"
+          className={NAV_BUTTON_UNAVAILABLE}
+        >
+          {uk.pagination.next}
+        </span>
+      )}
+
+      <p className="w-full text-center font-sans text-xs text-ink-3">{uk.pagination.footnote}</p>
     </nav>
   );
 }

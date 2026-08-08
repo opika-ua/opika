@@ -9,6 +9,7 @@
  * least one page transition works with JavaScript disabled.
  */
 
+import { uk } from "@opika/i18n";
 import { expect, test } from "@playwright/test";
 import { openRoute, rectOf } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
@@ -195,5 +196,30 @@ test.describe("/tvaryny pagination", () => {
 
     const secondPageLink = page.locator(PAGE_LINK).filter({ hasText: /^2$/ });
     await expect(secondPageLink).toHaveAttribute("aria-label", "Сторінка 2");
+  });
+
+  test("prev/next carry the design's own visible text, not a bare glyph with a separate label", async ({
+    page,
+  }) => {
+    // docs/design's mock (`Opika - Keeper's Voice.dc.html`, 1440 GALLERY
+    // block) sets "← Назад" / "Далі →" as the buttons' own visible text —
+    // an earlier draft used a bare "‹"/"›" glyph plus an aria-label that
+    // didn't contain it, a WCAG 2.5.3 accessible-name mismatch caught on
+    // review. Asserting the visible text (not just the aria-label) is what
+    // would have caught that draft.
+    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
+
+    await expect(page.getByTestId("pagination-prev-disabled")).toHaveText(uk.pagination.prev);
+    await expect(page.getByTestId("pagination-next")).toHaveText(uk.pagination.next);
+  });
+
+  test("the number group ends with the design's own 'з N' count", async ({ page }) => {
+    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
+
+    const navText = await page.locator(NAV).innerText();
+    expect(
+      navText,
+      `expected a "з N" count somewhere in the pagination nav, got: ${navText}`,
+    ).toMatch(/з \d+/);
   });
 });

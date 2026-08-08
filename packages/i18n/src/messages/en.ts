@@ -214,10 +214,11 @@ export const en = {
   // --- Pagination footer (E3) ---
   pagination: {
     navLabel: "Pages",
-    prevLabel: "Previous page",
-    nextLabel: "Next page",
+    prev: "← Back",
+    next: "Next →",
     pageLabel: "Page {page}",
     current: "current",
+    ofTotal: "of {total}",
     skipLink: "Skip to pages",
     footnote:
       "Pages, not an endless feed: every page has its own address, the back button works, " +

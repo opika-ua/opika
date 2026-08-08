@@ -252,17 +252,27 @@ export const uk = {
   },
 
   // --- Pagination footer (E3) ---
-  // docs/design/README.md's "Pagination — not infinite scroll" gives the
-  // footnote below verbatim; the rest (nav label, prev/next, per-page
-  // aria-label, skip link) has no design-string-table entry to draw from,
-  // so it's written here in the same plain, non-alarming register.
+  // `docs/design/Opika - Keeper's Voice.dc.html`'s 1440 GALLERY block has
+  // the literal pagination row: prev/next are visible-text buttons ("←
+  // Назад" / "Далі →"), not glyph-only controls, and the number group ends
+  // with a "з N" count. `prevLabel`/`nextLabel` below are the VISIBLE
+  // button text now, not a separate aria-label — an aria-label that didn't
+  // contain that text would be a WCAG 2.5.3 accessible-name mismatch, an
+  // earlier draft of this component had exactly that bug. The design sets
+  // the page numbers in IBM Plex Mono; this codebase deliberately dropped
+  // that family (see apps/web/src/app/fonts.ts, "measured, then dropped" —
+  // 11.2% of font payload for one rarely-seen label) and nothing since has
+  // reintroduced it, so the numbers render in Commissioner (`font-sans`)
+  // like the rest of this table's copy, not a new one-off exception.
   pagination: {
     navLabel: "Сторінки",
-    prevLabel: "Попередня сторінка",
-    nextLabel: "Наступна сторінка",
+    prev: "← Назад",
+    next: "Далі →",
     /** Template: "Сторінка {page}" — each numbered link's accessible name. */
     pageLabel: "Сторінка {page}",
     current: "поточна",
+    /** Template: "з {total}" — docs/design's own count label, after the numbers. */
+    ofTotal: "з {total}",
     /**
      * Above the grid, visible only on keyboard focus. Dropping E2.5's
      * roving tabindex means every card is a real Tab stop — 24 of them —
