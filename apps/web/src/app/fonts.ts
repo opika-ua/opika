@@ -74,4 +74,14 @@ export const commissioner = Commissioner({
  * this note reading as a permanent decision would be worse, because the
  * next person to grep "IBM Plex Mono" would find it and conclude the family
  * was dropped from the design rather than from the bundle.
+ *
+ * One more substitution since, so the count above stays honest: E3's
+ * gallery pager. The mock (`docs/design/Opika - Keeper's Voice.dc.html`,
+ * 1440 GALLERY) sets its numbered page pills in Plex Mono 13px, and
+ * `GalleryPagination.tsx` renders them in Commissioner for exactly this
+ * note's reason, saying so at the point of use. It does not change the
+ * decision — the pager reads the same in Commissioner as the ErrorState
+ * eyebrow does — but when the loader comes back at M6, the pills are a
+ * fourth place to put `font-mono` back, not a place that was already
+ * fine.
  */

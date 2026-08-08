@@ -9,7 +9,6 @@
  * least one page transition works with JavaScript disabled.
  */
 
-import { uk } from "@opika/i18n";
 import { expect, test } from "@playwright/test";
 import { openRoute, rectOf } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
@@ -31,6 +30,17 @@ const CARD = "[data-testid='animal-card']";
 const NAV = "[data-testid='gallery-pagination']";
 const PAGE_LINK = "[data-testid='pagination-page']";
 const MIN_TARGET_PX = 44;
+
+/**
+ * The mock's own literals (`docs/design/Opika - Keeper's Voice.dc.html`,
+ * the 1440 GALLERY pagination row), NOT `uk.pagination.prev`/`next`:
+ * comparing the rendered text to the same constant the component renders
+ * would hold no matter what that constant said, which is the one thing
+ * these two assertions exist to pin. Copy drifting away from the design
+ * should fail here and send the next reader back to the mock.
+ */
+const DESIGN_PREV = "← Назад";
+const DESIGN_NEXT = "Далі →";
 
 test.describe("/tvaryny pagination", () => {
   test("the seeded corpus is genuinely multi-page — a precondition for every test below", async ({
@@ -195,7 +205,12 @@ test.describe("/tvaryny pagination", () => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
     const secondPageLink = page.locator(PAGE_LINK).filter({ hasText: /^2$/ });
-    await expect(secondPageLink).toHaveAttribute("aria-label", "Сторінка 2");
+    // The computed name, not the `aria-label` attribute: the attribute is
+    // only one of the inputs to it, and this test's claim is about what a
+    // screen reader actually announces. "Сторінка 2" also contains the
+    // visible label ("2"), which is what keeps it on the right side of WCAG
+    // 2.5.3 while prev/next carry their text directly.
+    await expect(secondPageLink).toHaveAccessibleName("Сторінка 2");
   });
 
   test("prev/next carry the design's own visible text, not a bare glyph with a separate label", async ({
@@ -209,8 +224,8 @@ test.describe("/tvaryny pagination", () => {
     // would have caught that draft.
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await expect(page.getByTestId("pagination-prev-disabled")).toHaveText(uk.pagination.prev);
-    await expect(page.getByTestId("pagination-next")).toHaveText(uk.pagination.next);
+    await expect(page.getByTestId("pagination-prev-disabled")).toHaveText(DESIGN_PREV);
+    await expect(page.getByTestId("pagination-next")).toHaveText(DESIGN_NEXT);
   });
 
   test("the number group ends with the design's own 'з N' count", async ({ page }) => {

@@ -255,7 +255,7 @@ export const uk = {
   // `docs/design/Opika - Keeper's Voice.dc.html`'s 1440 GALLERY block has
   // the literal pagination row: prev/next are visible-text buttons ("←
   // Назад" / "Далі →"), not glyph-only controls, and the number group ends
-  // with a "з N" count. `prevLabel`/`nextLabel` below are the VISIBLE
+  // with a "з N" count. `prev`/`next` below are the VISIBLE
   // button text now, not a separate aria-label — an aria-label that didn't
   // contain that text would be a WCAG 2.5.3 accessible-name mismatch, an
   // earlier draft of this component had exactly that bug. The design sets

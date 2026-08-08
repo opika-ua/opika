@@ -80,7 +80,7 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
       tabIndex={-1}
       data-testid="gallery-pagination"
       aria-label={uk.pagination.navLabel}
-      className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-2"
+      className="mt-section flex flex-wrap items-center justify-between gap-4 border-t border-line pt-2"
     >
       {page > 1 ? (
         <Link
@@ -150,7 +150,10 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
         </span>
       )}
 
-      <p className="w-full text-center font-sans text-xs text-ink-3">{uk.pagination.footnote}</p>
+      {/* The mock puts the footnote outside the row, left-aligned, 24px
+        below it (the grid column's own `gap: 24`) — not centred. `mt-row`
+        on top of the row's 16px `gap-4` is that 24px. */}
+      <p className="mt-row w-full font-sans text-xs text-ink-3">{uk.pagination.footnote}</p>
     </nav>
   );
 }
