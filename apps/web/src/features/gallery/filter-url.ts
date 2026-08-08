@@ -175,14 +175,7 @@ export const withToggledSize = (filters: FeedFilters, size: SizeBucket): FeedFil
 export const withToggledAge = (filters: FeedFilters, age: AgeBucket): FeedFilters =>
   canonicalizeFilters({ ...filters, ages: toggle(filters.ages, age) });
 
-/**
- * `page` is deliberately never carried forward here: a filter or sort
- * change always returns to page 1 (the previous page number belongs to a
- * result set that no longer exists), and page 1 has no `stor` param at all
- * — matching `sort`'s own "default is the absent param" convention, not a
- * second one.
- */
-export function galleryHref(filters: FeedFilters, sort: GallerySort): string {
+function filterAndSortParams(filters: FeedFilters, sort: GallerySort): URLSearchParams {
   const canonical = canonicalizeFilters(filters);
   const params = new URLSearchParams();
 
@@ -200,6 +193,35 @@ export function galleryHref(filters: FeedFilters, sort: GallerySort): string {
   }
   if (sort !== DEFAULT_GALLERY_SORT) {
     params.set(SORT_PARAM, sort);
+  }
+
+  return params;
+}
+
+/**
+ * `page` is deliberately never carried forward here: a filter or sort
+ * change always returns to page 1 (the previous page number belongs to a
+ * result set that no longer exists), and page 1 has no `stor` param at all
+ * — matching `sort`'s own "default is the absent param" convention, not a
+ * second one.
+ */
+export function galleryHref(filters: FeedFilters, sort: GallerySort): string {
+  const qs = filterAndSortParams(filters, sort).toString();
+  return qs ? `/tvaryny?${qs}` : "/tvaryny";
+}
+
+/**
+ * A page link, unlike `galleryHref` above: filters and sort are carried
+ * forward unchanged (a page link refines "where in this result set,"
+ * never "which result set"), and `page` itself follows the same
+ * absent-param-is-the-default convention `sort` already uses — page 1 has
+ * no `stor` in the URL, so the first page's own link matches what
+ * `parseGalleryQuery` already treats as the implicit start.
+ */
+export function galleryPageHref(filters: FeedFilters, sort: GallerySort, page: number): string {
+  const params = filterAndSortParams(filters, sort);
+  if (page > 1) {
+    params.set(PAGE_PARAM, String(page));
   }
 
   const qs = params.toString();
