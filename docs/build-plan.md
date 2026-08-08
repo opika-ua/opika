@@ -143,10 +143,12 @@ anymore, it's an *implementation-order* one.
 | E2 | Filters as a visible rail (≥1024) / the existing sheet (<1024), extended with sort. Filter and sort state in the URL — shareable, back-button-correct | 6 |
 | E2.5 | 2D arrow-key navigation across the gallery grid (`docs/design/README.md`'s "Keyboard" table — ← ↑ → ↓ move focus by column count, edges don't wrap; Home/End jump to first/last card), independent of ARIA role. Runs before E3/E4 so page-boundary and zero-result focus behaviour are inherited already-settled, not invented per-phase. Tab order deliberately untouched — every card keeps its native tab stop and arrow keys are a purely additive client-side shortcut. Issue #28's own roving-tabindex constraint was dropped on review: it contradicts the same ticket's "Tab order unaffected: still header → rail → sort → cards in reading order → pagination" requirement, which `docs/design/README.md`'s Keyboard table states too and therefore wins (see `ArrowKeyGrid`'s doc comment). The harness asserts the arrow behaviour (JS on, by definition) and the unchanged Tab order (JS on and JS off) separately | 3 |
 | E3 | Numbered pagination — `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram). **Definition of done includes** a skip link above the grid, visible on focus, jumping straight to the pagination controls — dropping E2.5's roving tabindex means a keyboard user now tabs through all 24 cards to reach "next page," and this is the fix, not a follow-up. Arrow-key behaviour at a page boundary (Right on the last card, Left on the first) is this phase's to decide and record — see `docs/gallery-contract-decisions.md` §8 | 4 |
+| V1 | Design handoff intake — replace `docs/design/` with the new handoff, verify it covers every surface, confirm the four product rules survive | 2 |
+| V2 | Implementation — new tokens through `packages/ui` and the Tailwind config, every existing surface re-skinned including E3's pagination, harness assertions repointed to the new design's values | 10 |
 | E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, **the note must actually render** — see the phase's own done-when below, not just the copy existing) states — both form factors | 4 |
 | E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. `sessionStorage`-persisted last mode, entry ("Гортати по одній") and exit ("До списку" / Esc, returning to the same scroll position per `docs/design/README.md` "Gallery ↔ Deck") | 3 |
 
-**Total: ~45 h.**
+**Total: ~57 h.**
 
 **Why E1.5 exists as its own task rather than waiting for H1:** every phase from E2 on is
 reviewed against what the gallery actually looks like — filter and sort results, empty and
@@ -167,6 +169,14 @@ first — issue #28 records both of its build-time constraints in full, of which
 ordering one survived the build: its roving-tabindex constraint was dropped because that
 mechanism contradicts the same ticket's own "Tab order unaffected" requirement, and arrow
 keys ship instead as a shortcut layered over an untouched Tab order.
+
+**Why Phase V sits between E3 and E4, not before E3:** a new visual-language handoff
+replaces `docs/design/` (V1 intakes and verifies it; V2 re-skins). E3 shipped first, so V2's
+re-skin is now scoped to include E3's pagination alongside everything E0–E2.5 already
+built — one re-skin pass over the whole gallery surface built so far, rather than E3
+building against a design that's about to be replaced. It sits before E4/E5 so those two
+build against the final visual language once, instead of shipping against the old one and
+absorbing a second re-skin pass later.
 
 **Done when:** someone browses the full corpus on a 1920px desktop and a 360px phone,
 filters and sorts on both, shares a URL that reproduces exactly what they saw, and the
@@ -269,11 +279,11 @@ installs on Android with Lighthouse ≥90; a thrown error appears in Sentry with
 | Phase | Weeks | Hours |
 |---|---|---|
 | C — Consolidate | — | 0 (done) |
-| E — Gallery | 4–5 | 45 |
+| E — Gallery | 4–5 | 57 |
 | F — Detail & reveal | 3 | 22 |
 | G — Deck completion | off critical path | 10 |
 | H — Remainder to launch | 7 | 56 |
-| **Total from this rewrite** | **~16 weeks** | **~133 h** |
+| **Total from this rewrite** | **~16 weeks** | **~145 h** |
 
 At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch still lands early
 February 2027** — the total dropped from ~135 h to ~127 h (C fully closed out, E gaining
@@ -287,6 +297,15 @@ C7, and the admin desktop layouts) — 127 h. E1.5's addition (3 h, see Phase E 
 this to 130 h, and E2.5's addition (3 h, also Phase E above) brings it to 133 h — same
 reasoning both times: ~16 weeks at this cadence absorbs a few extra hours without moving
 the week count.
+
+**Phase V's addition (12 h, V1+V2 above) does not fit that same "absorbed, week count
+unmoved" reasoning, and is not claimed here as if it did.** 12 h at 8 h/week of code is
+~1.5 weeks — the two prior 3 h additions were each ~0.4 week, comfortably inside a "~16
+weeks" figure's own rounding; 1.5 weeks is not. **145 h ÷ 8 h/week ≈ 18.1 weeks of code
+time alone**, before the same rough-estimate slack the rest of this document carries.
+Whether that actually moves the project's week estimate past "~16 weeks" — and if so, by
+how much — is a real re-plan question this document is not settling here; V1's intake
+report is the next input into that question, not this arithmetic update.
 
 **The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own
