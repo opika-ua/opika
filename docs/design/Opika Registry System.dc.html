@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+@font-face { font-family: 'e-Ukraine'; src: url('https://cdn.jsdelivr.net/gh/haos616/e-Ukraine@master/static/fonts/e-Ukraine-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'e-Ukraine'; src: url('https://cdn.jsdelivr.net/gh/haos616/e-Ukraine@master/static/fonts/e-Ukraine-Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'e-Ukraine'; src: url('https://cdn.jsdelivr.net/gh/haos616/e-Ukraine@master/static/fonts/e-Ukraine-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+body { margin: 0; background: #DFDFDC; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+a:hover { color: inherit; }
+</style>
+</helmet>
+
+<section style="display: flex; flex-direction: column; gap: 48px; padding: 64px 56px 120px; width: max-content; font-family: 'e-Ukraine', 'Manrope', system-ui, sans-serif;">
+  <div style="display: flex; flex-direction: column; gap: 16px; width: 1000px;">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <svg width="40" height="40" viewBox="0 0 96 96" fill="none" aria-hidden="true" style="flex: none;"><path d="M22 70V46a26 26 0 0 1 52 0v24" stroke="#101112" stroke-width="10" stroke-linecap="round"></path><path d="M14 88h68" stroke="#101112" stroke-width="10" stroke-linecap="round"></path><circle cx="48" cy="79" r="6" fill="#101112"></circle></svg>
+      <span style="font-size: 34px; font-weight: 700; letter-spacing: -0.035em; color: #101112;">Opika</span>
+    </div>
+    <h1 style="margin: 0; font-size: 48px; line-height: 1.08; font-weight: 700; letter-spacing: -0.035em; color: #101112;">«Реєстр» — візуальна система</h1>
+    <p style="margin: 0; font-size: 17px; line-height: 1.6; color: #45484B; text-wrap: pretty; max-width: 900px;">Структура, шкала й повітря Дії та Резерв+, застосовані без пом'якшення. Кольору в інтерфейсі немає: головна дія чорна, один синій #1B3A6B тримає єдиний сигнал, який має право на колір — підтверджено державним реєстром. Увесь колір на екрані приходить із фотографій тварин.</p>
+    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #45484B; text-wrap: pretty; max-width: 900px;">Це ре-скін, не редизайн. Що на якому екрані стоїть, брейкпоінти, кількість колонок, контейнери 960 і 1320, рейка від 1024 та адреси сторінок — без змін. Знак «Поріг · Межа» стоїть у шапці поруч зі словом.</p>
+  </div>
+
+    <div style="display: flex; flex-direction: column; gap: 40px;">
+
+      <div style="display: flex; flex-direction: column; gap: 12px; width: 1320px;">
+        <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #45484B;">Візуальна система · затверджений напрям</span>
+        <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #45484B; text-wrap: pretty; max-width: 940px;">Нейтраль охолоджена до паперово-сірої. Це виглядає як довідка, і в цьому вся ставка: грантодавець і директор притулку читають стриманість як серйозність, а тварина на фотографії лишається єдиним теплим об'єктом на сторінці.</p>
+      </div>
+
+      <div style="display: flex; gap: 24px; align-items: flex-start;">
+        <div style="width: 648px; background: #FFFFFF; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #63676B;">Палітра · світла</span>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 56px; border-radius: 16px; background: #ECECEA;"></div><span style="font-size: 13px; font-weight: 500; color: #101112;">page</span><span style="font-size: 13px; color: #63676B;">#ECECEA</span></div>
+            <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 56px; border-radius: 16px; background: #FFFFFF;"></div><span style="font-size: 13px; font-weight: 500; color: #101112;">surface</span><span style="font-size: 13px; color: #63676B;">#FFFFFF</span></div>
+            <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 56px; border-radius: 16px; background: #F2F2F0;"></div><span style="font-size: 13px; font-weight: 500; color: #101112;">fill</span><span style="font-size: 13px; color: #63676B;">#F2F2F0</span></div>
+            <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 56px; border-radius: 16px; background: #DCDCD9;"></div><span style="font-size: 13px; font-weight: 500; color: #101112;">fill-strong</span><span style="font-size: 13px; color: #63676B;">#DCDCD9</span></div>
+            <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 56px; border-radius: 16px; background: #101112;"></div><span style="font-size: 13px; font-weight: 500; color: #101112;">ink · дія</span><span style="font-size: 13px; color: #63676B;">#101112 · 18.7:1</span></div>
+            <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 56px; border-radius: 16px; background: #45484B;"></div><span style="font-size: 13px; font-weight: 500; color: #101112;">ink-2</span><span style="font-size: 13px; color: #63676B;">#45484B · 9.6:1</span></div>
+            <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 56px; border-radius: 16px; background: #63676B;"></div><span style="font-size: 13px; font-weight: 500; color: #101112;">ink-3</span><span style="font-size: 13px; color: #63676B;">#63676B · 5.9:1</span></div>
+            <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 56px; border-radius: 16px; background: #1B3A6B;"></div><span style="font-size: 13px; font-weight: 500; color: #101112;">registry</span><span style="font-size: 13px; color: #63676B;">#1B3A6B · 11.3:1</span></div>
+          </div>
+          <div style="height: 1px; background: #ECECEA;"></div>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; color: #45484B;">
+            <span><strong style="font-weight: 700; color: #101112;">Під 7:1:</strong> ink-3 #63676B — 5.9:1 на surface, 5.4:1 на page, 5.6:1 на fill. Більше нічого під 7 немає: усі головні пари 9.6:1 і вище.</span>
+            <span><strong style="font-weight: 700; color: #101112;">#1B3A6B</strong> не вживається як кнопка й не з'являється у свіжості, крім першої пипки — інакше він перестає означати «реєстр».</span>
+            <span><strong style="font-weight: 700; color: #101112;">Темна:</strong> page #0E0F10 · surface #17191B · fill #202325 · fill-strong #2C3033 · ink #F4F5F6 (17.4:1) · ink-2 #B9BEC2 (9.7:1) · ink-3 #8E9498 (5.7:1) · registry #8FB4E6 (8.6:1)</span>
+          </div>
+        </div>
+
+        <div style="width: 648px; background: #FFFFFF; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #63676B;">Шкала · e-Ukraine · три накреслення</span>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; align-items: baseline; gap: 16px;"><span style="width: 108px; flex: none; font-size: 12px; color: #63676B;">display-l</span><span style="font-size: 44px; line-height: 46px; font-weight: 700; letter-spacing: -0.035em; color: #101112;">Ластівка</span><span style="font-size: 12px; color: #63676B;">44/46 · 700 · −0.035em</span></div>
+            <div style="display: flex; align-items: baseline; gap: 16px;"><span style="width: 108px; flex: none; font-size: 12px; color: #63676B;">display-m</span><span style="font-size: 34px; line-height: 38px; font-weight: 700; letter-spacing: -0.03em; color: #101112;">34 тварини</span><span style="font-size: 12px; color: #63676B;">34/38 · 700</span></div>
+            <div style="display: flex; align-items: baseline; gap: 16px;"><span style="width: 108px; flex: none; font-size: 12px; color: #63676B;">display-s</span><span style="font-size: 24px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; color: #101112;">Ім'я на картці</span><span style="font-size: 12px; color: #63676B;">24/28 · 700</span></div>
+            <div style="display: flex; align-items: baseline; gap: 16px;"><span style="width: 108px; flex: none; font-size: 12px; color: #63676B;">title</span><span style="font-size: 19px; line-height: 24px; font-weight: 500; color: #101112;">Медичний стан</span><span style="font-size: 12px; color: #63676B;">19/24 · 500</span></div>
+            <div style="display: flex; align-items: baseline; gap: 16px;"><span style="width: 108px; flex: none; font-size: 12px; color: #63676B;">body-l</span><span style="font-size: 17px; line-height: 26px; color: #101112;">Слова притулку</span><span style="font-size: 12px; color: #63676B;">17/26 · 400</span></div>
+            <div style="display: flex; align-items: baseline; gap: 16px;"><span style="width: 108px; flex: none; font-size: 12px; color: #63676B;">body</span><span style="font-size: 15px; line-height: 22px; color: #101112;">2 роки · середня · Бровари</span><span style="font-size: 12px; color: #63676B;">15/22 · 400</span></div>
+            <div style="display: flex; align-items: baseline; gap: 16px;"><span style="width: 108px; flex: none; font-size: 12px; color: #63676B;">caption</span><span style="font-size: 13px; line-height: 18px; color: #63676B;">Слова притулку · дата автоматична</span><span style="font-size: 12px; color: #63676B;">13/18 · 400</span></div>
+            <div style="display: flex; align-items: baseline; gap: 16px;"><span style="width: 108px; flex: none; font-size: 12px; color: #63676B;">label</span><span style="font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #45484B;">МІСТО</span><span style="font-size: 12px; color: #63676B;">12/16 · 500 · 0.08em</span></div>
+          </div>
+          <div style="height: 1px; background: #ECECEA;"></div>
+          <div style="font-size: 13px; line-height: 1.55; color: #45484B; text-wrap: pretty;">Три файли: <strong style="font-weight: 700; color: #101112;">e-Ukraine Regular 400, Medium 500, Bold 700</strong>, woff2, сабсет Cyrillic + Latin basic + пунктуація, font-display: swap, самохостинг — разом ≈ 84 КБ. e-Ukraine Head не вантажимо: Bold закриває всі заголовки. Нижче 400 не спускаємось — Light на дешевому Android гуляє. Заголовки великі й щільні, бо в монохромі вони несуть увесь характер.</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 24px; align-items: stretch;" data-screen-label="B0 Logo lockup">
+        <div style="flex: 1; background: #FFFFFF; border-radius: 24px; padding: 24px 32px; display: flex; align-items: center; gap: 40px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <svg width="48" height="48" viewBox="0 0 96 96" fill="none" aria-hidden="true" style="flex: none;"><path d="M22 70V46a26 26 0 0 1 52 0v24" stroke="#101112" stroke-width="10" stroke-linecap="round"></path><path d="M14 88h68" stroke="#101112" stroke-width="10" stroke-linecap="round"></path><circle cx="48" cy="79" r="6" fill="#101112"></circle></svg>
+            <span style="font-size: 34px; font-weight: 700; letter-spacing: -0.035em; color: #101112;">Opika</span>
+          </div>
+          <div style="width: 1px; align-self: stretch; background: #ECECEA;"></div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <svg width="30" height="30" viewBox="0 0 96 96" fill="none" aria-hidden="true" style="flex: none;"><path d="M22 70V46a26 26 0 0 1 52 0v24" stroke="#101112" stroke-width="11" stroke-linecap="round"></path><path d="M14 88h68" stroke="#101112" stroke-width="11" stroke-linecap="round"></path><circle cx="48" cy="79" r="6.5" fill="#101112"></circle></svg>
+            <span style="font-size: 22px; font-weight: 700; letter-spacing: -0.03em; color: #101112;">Opika</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 18px; color: #45484B;">
+            <span>Знак чорнильний, ніколи не синій: #1B3A6B лишається за реєстром.</span>
+            <span>Відступ знак → слово = висота крапки. Оптичне вирівнювання по межі, не по боксу.</span>
+            <span>Захисне поле = висота знака ÷ 2. Не нахиляти, не додавати тінь, не заливати.</span>
+          </div>
+        </div>
+        <div style="width: 300px; background: #101112; border-radius: 24px; padding: 24px 32px; display: flex; align-items: center; gap: 12px;">
+          <svg width="48" height="48" viewBox="0 0 96 96" fill="none" aria-hidden="true" style="flex: none;"><path d="M22 70V46a26 26 0 0 1 52 0v24" stroke="#F4F5F6" stroke-width="10" stroke-linecap="round"></path><path d="M14 88h68" stroke="#F4F5F6" stroke-width="10" stroke-linecap="round"></path><circle cx="48" cy="79" r="6" fill="#F4F5F6"></circle></svg>
+          <span style="font-size: 34px; font-weight: 700; letter-spacing: -0.035em; color: #F4F5F6;">Opika</span>
+        </div>
+        <div style="width: 300px; background: #FFFFFF; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 12px;">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #63676B;">16 · 24 · 32 · фавікон</span>
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <svg width="16" height="16" viewBox="0 0 96 96" fill="none" aria-hidden="true" style="flex: none;"><path d="M22 70V46a26 26 0 0 1 52 0v24" stroke="#101112" stroke-width="15" stroke-linecap="round"></path><path d="M14 88h68" stroke="#101112" stroke-width="15" stroke-linecap="round"></path></svg><svg width="24" height="24" viewBox="0 0 96 96" fill="none" aria-hidden="true" style="flex: none;"><path d="M22 70V46a26 26 0 0 1 52 0v24" stroke="#101112" stroke-width="13" stroke-linecap="round"></path><path d="M14 88h68" stroke="#101112" stroke-width="13" stroke-linecap="round"></path></svg><svg width="32" height="32" viewBox="0 0 96 96" fill="none" aria-hidden="true" style="flex: none;"><path d="M22 70V46a26 26 0 0 1 52 0v24" stroke="#101112" stroke-width="12" stroke-linecap="round"></path><path d="M14 88h68" stroke="#101112" stroke-width="12" stroke-linecap="round"></path><circle cx="48" cy="79" r="7" fill="#101112"></circle></svg>
+            <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: #101112;"><svg width="22" height="22" viewBox="0 0 96 96" fill="none" aria-hidden="true" style="flex: none;"><path d="M22 70V46a26 26 0 0 1 52 0v24" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round"></path><path d="M14 88h68" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round"></path></svg></span>
+          </div>
+          <span style="font-size: 13px; line-height: 1.5; color: #45484B; text-wrap: pretty;">На 16 і 24 крапка знімається: три елементи на такому розмірі зливаються в пляму. Лишається арка над межею — силует тримається, зміст лишається.</span>
+        </div>
+      </div>
+
+      <!-- B gallery 1920 -->
+      <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="B1 Gallery 1920">
+        <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #45484B;">Галерея · 1920 · контент 1320 · 4 колонки</span>
+        <div style="width: 1920px; background: #ECECEA; border-radius: 20px; overflow: hidden;">
+          <div style="background: #FFFFFF;">
+            <div style="max-width: 1320px; margin: 0 auto; padding: 0 32px; min-height: 88px; display: flex; align-items: center; gap: 32px;">
+              <span style="display: inline-flex; align-items: center; gap: 10px;"><svg width="30" height="30" viewBox="0 0 96 96" fill="none" aria-hidden="true" style="flex: none;"><path d="M22 70V46a26 26 0 0 1 52 0v24" stroke="#101112" stroke-width="11" stroke-linecap="round"></path><path d="M14 88h68" stroke="#101112" stroke-width="11" stroke-linecap="round"></path><circle cx="48" cy="79" r="6.5" fill="#101112"></circle></svg><span style="font-size: 26px; font-weight: 700; letter-spacing: -0.03em; color: #101112;">Opika</span></span>
+              <span style="display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; font-size: 15px; font-weight: 500; color: #101112;">Бровари <span style="font-size: 12px; color: #63676B;">▾</span></span>
+              <div style="flex: 1;"></div>
+              <span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 16px; font-size: 15px; color: #45484B;">Мої запити · 3</span>
+              <span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 16px; font-size: 15px; color: #63676B;">UA / EN</span>
+              <span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 24px; border-radius: 16px; background: #F2F2F0; font-size: 15px; font-weight: 500; color: #101112;">Гортати по одній</span>
+            </div>
+          </div>
+          <div style="max-width: 1320px; margin: 0 auto; padding: 40px 32px 56px; display: flex; gap: 32px; align-items: flex-start;">
+            <div style="width: 280px; flex: none; display: flex; flex-direction: column; gap: 28px; background: #FFFFFF; border-radius: 24px; padding: 24px;">
+              <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                <span style="font-size: 19px; font-weight: 700; letter-spacing: -0.02em; color: #101112;">Фільтри</span>
+                <span style="font-size: 15px; color: #63676B; text-decoration: underline;">Скинути</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 12px;"><span style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #63676B;">МІСТО</span><div style="display: flex; flex-wrap: wrap; gap: 8px;"><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #101112; color: #FFFFFF; font-size: 15px; font-weight: 500;">Бровари</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Київ</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Уся Київщина</span></div></div><div style="display: flex; flex-direction: column; gap: 12px;"><span style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #63676B;">ВИД</span><div style="display: flex; flex-wrap: wrap; gap: 8px;"><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #101112; color: #FFFFFF; font-size: 15px; font-weight: 500;">Собаки</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Коти</span></div></div><div style="display: flex; flex-direction: column; gap: 12px;"><span style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #63676B;">РОЗМІР</span><div style="display: flex; flex-wrap: wrap; gap: 8px;"><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Малий</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #101112; color: #FFFFFF; font-size: 15px; font-weight: 500;">Середній</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Великий</span></div></div><div style="display: flex; flex-direction: column; gap: 12px;"><span style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #63676B;">ВІК</span><div style="display: flex; flex-wrap: wrap; gap: 8px;"><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Малюк</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Молодий</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Дорослий</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Літній</span></div></div>
+              <div style="background: #F2F2F0; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+                <span style="font-size: 15px; line-height: 22px; color: #101112;">Підходить 34 тварини у 7 притулках.</span>
+                <span style="font-size: 13px; line-height: 18px; color: #63676B; text-wrap: pretty;">Фільтра свіжості немає. Тварина, про яку давно не писали, все одно чекає.</span>
+              </div>
+            </div>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+                <span style="font-size: 34px; line-height: 38px; font-weight: 700; letter-spacing: -0.03em; color: #101112;">34 тварини поруч</span>
+                <span style="display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 20px; border-radius: 16px; background: #FFFFFF; font-size: 15px; color: #101112;">Спочатку найсвіжіші <span style="font-size: 12px; color: #63676B;">▾</span></span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;">
+                <div style="background: #FFFFFF; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 16px;">
+  <div style="aspect-ratio: 4 / 5; border-radius: 16px; background: repeating-linear-gradient(135deg, #DCDCD9 0 10px, #EFEFED 10px 20px);"></div>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 0 8px 8px;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 24px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; color: #101112; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Ася</span>
+      <span style="font-size: 15px; line-height: 22px; color: #45484B; text-wrap: pretty;">5 місяців · мала · у волонтерки, Буча</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;"><span style="display: flex; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #1B3A6B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #DCDCD9;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #DCDCD9;"></span></span><span style="font-size: 15px; color: #101112;">оновлено 2 дні тому</span></div>
+    <span style="font-size: 13px; line-height: 18px; color: #63676B;">Прихисток «Буча» · перевірений</span>
+  </div>
+</div>
+                <div style="background: #FFFFFF; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 16px;">
+  <div style="aspect-ratio: 4 / 5; border-radius: 16px; background: repeating-linear-gradient(135deg, #DCDCD9 0 10px, #EFEFED 10px 20px);"></div>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 0 8px 8px;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 24px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; color: #101112; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Гриць</span>
+      <span style="font-size: 15px; line-height: 22px; color: #45484B; text-wrap: pretty;">4 роки · великий · притулок, Бровари</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;"><span style="display: flex; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #DCDCD9;"></span></span><span style="font-size: 15px; color: #101112;">оновлено 19 днів тому</span></div>
+    <span style="font-size: 13px; line-height: 18px; color: #63676B;">Притулок «Домівка» · перевірений</span>
+  </div>
+</div>
+                <div style="background: #FFFFFF; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 16px; outline: 3px solid #1B3A6B; outline-offset: 3px;">
+  <div style="aspect-ratio: 4 / 5; border-radius: 16px; background: repeating-linear-gradient(135deg, #DCDCD9 0 10px, #EFEFED 10px 20px);"></div>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 0 8px 8px;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 24px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; color: #101112; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Ніка</span>
+      <span style="font-size: 15px; line-height: 22px; color: #45484B; text-wrap: pretty;">6 років · середня · притулок, Вишгород</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;"><span style="display: flex; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #1B3A6B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #DCDCD9;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #DCDCD9;"></span></span><span style="font-size: 15px; color: #101112;">оновлено 6 днів тому</span></div>
+    <span style="font-size: 13px; line-height: 18px; color: #63676B;">Притулок «Вишгород» · перевірений</span>
+  </div>
+</div>
+                <div style="background: #FFFFFF; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 16px;">
+  <div style="aspect-ratio: 4 / 5; border-radius: 16px; background: repeating-linear-gradient(135deg, #DCDCD9 0 10px, #EFEFED 10px 20px);"></div>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 0 8px 8px;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 24px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; color: #101112; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Ластівка</span>
+      <span style="font-size: 15px; line-height: 22px; color: #45484B; text-wrap: pretty;">2 роки · середня · у волонтерки, Бровари</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;"><span style="display: flex; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #101112;"></span></span><span style="font-size: 15px; color: #101112;">оновлено 41 день тому</span></div>
+    <span style="font-size: 13px; line-height: 18px; color: #63676B;">Притулок «Домівка» · перевірений</span>
+  </div>
+</div>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 8px;">
+                <span style="display: inline-flex; align-items: center; min-height: 56px; padding: 0 24px; border-radius: 16px; background: #FFFFFF; font-size: 15px; color: #63676B;">← Назад</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 16px; background: #101112; color: #FFFFFF; font-size: 15px; font-weight: 500;">1</span>
+                  <span style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 16px; background: #FFFFFF; color: #101112; font-size: 15px;">2</span>
+                  
+                </div>
+                <span style="display: inline-flex; align-items: center; min-height: 56px; padding: 0 28px; border-radius: 16px; background: #101112; color: #FFFFFF; font-size: 15px; font-weight: 500;">Далі →</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 24px; align-items: flex-start;">
+        <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="B2 Gallery 360">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #45484B;">Галерея · 360</span>
+          <div style="width: 360px; height: 980px; background: #ECECEA; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column;">
+            <div style="background: #FFFFFF; padding: 0 16px; min-height: 64px; display: flex; align-items: center; gap: 12px;">
+              <span style="display: inline-flex; align-items: center; gap: 8px;"><svg width="26" height="26" viewBox="0 0 96 96" fill="none" aria-hidden="true" style="flex: none;"><path d="M22 70V46a26 26 0 0 1 52 0v24" stroke="#101112" stroke-width="12" stroke-linecap="round"></path><path d="M14 88h68" stroke="#101112" stroke-width="12" stroke-linecap="round"></path><circle cx="48" cy="79" r="7" fill="#101112"></circle></svg><span style="font-size: 22px; font-weight: 700; letter-spacing: -0.03em; color: #101112;">Opika</span></span>
+              <div style="flex: 1;"></div>
+              <span style="display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px; border-radius: 999px; background: #F2F2F0; font-size: 15px; font-weight: 500; color: #101112;">Бровари ▾</span>
+            </div>
+            <div style="flex: 1; overflow: hidden; padding: 20px 16px; display: flex; flex-direction: column; gap: 16px;">
+              <span style="font-size: 34px; line-height: 38px; font-weight: 700; letter-spacing: -0.03em; color: #101112;">34 тварини поруч</span>
+              <div style="background: #FFFFFF; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 16px;">
+  <div style="aspect-ratio: 4 / 5; border-radius: 16px; background: repeating-linear-gradient(135deg, #DCDCD9 0 10px, #EFEFED 10px 20px);"></div>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 0 8px 8px;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 24px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; color: #101112; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Ася</span>
+      <span style="font-size: 15px; line-height: 22px; color: #45484B; text-wrap: pretty;">5 місяців · мала · у волонтерки, Буча</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;"><span style="display: flex; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #1B3A6B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #DCDCD9;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #DCDCD9;"></span></span><span style="font-size: 15px; color: #101112;">оновлено 2 дні тому</span></div>
+    <span style="font-size: 13px; line-height: 18px; color: #63676B;">Прихисток «Буча» · перевірений</span>
+  </div>
+</div>
+              <div style="background: #FFFFFF; border-radius: 24px; padding: 12px; display: flex; gap: 12px;">
+                <div style="width: 96px; flex: none; aspect-ratio: 4 / 5; border-radius: 16px; background: repeating-linear-gradient(135deg, #DCDCD9 0 10px, #EFEFED 10px 20px);"></div>
+                <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 4px 4px 4px 0;">
+                  <span style="font-size: 22px; line-height: 26px; font-weight: 700; letter-spacing: -0.02em; color: #101112;">Ластівка</span>
+                  <span style="font-size: 15px; line-height: 22px; color: #45484B;">2 роки · середня · Бровари</span>
+                  <div style="display: flex; align-items: center; gap: 10px;"><span style="display: flex; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #101112;"></span></span><span style="font-size: 15px; color: #101112;">41 день тому</span></div>
+                </div>
+              </div>
+            </div>
+            <div style="background: #FFFFFF; padding: 12px 16px 20px; display: flex; gap: 8px;">
+              <span style="flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 16px; background: #F2F2F0; font-size: 15px; font-weight: 500; color: #101112;">Фільтри · 2</span>
+              <span style="flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 16px; background: #101112; color: #FFFFFF; font-size: 15px; font-weight: 500;">Гортати</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="width: 400px; display: flex; flex-direction: column; gap: 12px;" data-screen-label="B3 Freshness">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #45484B;">Маркер свіжості · три стани</span>
+          <div style="background: #FFFFFF; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 24px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 10px;"><span style="display: flex; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #1B3A6B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #DCDCD9;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #DCDCD9;"></span></span><span style="font-size: 17px; line-height: 26px; color: #101112;">Оновлено 3 дні тому</span></div>
+              <span style="font-size: 13px; line-height: 18px; color: #63676B;">fresh · ≤ 7 днів · 1 × #1B3A6B, 2 × #DCDCD9</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 10px;"><span style="display: flex; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #DCDCD9;"></span></span><span style="font-size: 17px; line-height: 26px; color: #101112;">Оновлено 19 днів тому</span></div>
+              <span style="font-size: 13px; line-height: 18px; color: #63676B;">aging · 8–30 днів · 2 × #63676B, 1 × #DCDCD9</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 10px;"><span style="display: flex; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #101112;"></span></span><span style="font-size: 17px; line-height: 26px; color: #101112;">Оновлено 41 день тому</span></div>
+              <span style="font-size: 13px; line-height: 18px; color: #63676B;">stale · 30+ днів · 2 × #63676B, 3-тя #101112</span>
+            </div>
+            <div style="background: #F2F2F0; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+              <span style="font-size: 17px; line-height: 26px; color: #101112; text-wrap: pretty;">«Ми оновлювали цю картку 25 червня. З того часу не заходили — напишіть, і ми скажемо, чи Ластівка ще з нами.»</span>
+              <span style="font-size: 13px; line-height: 18px; color: #63676B;">Слова притулку · дата автоматична</span>
+            </div>
+            <div style="font-size: 13px; line-height: 1.55; color: #45484B; text-wrap: pretty;">Маркер працює тут найчистіше: коли в інтерфейсі немає кольору, три сірі кружки не конкурують ні з чим і читаються як шкала, а не як статус. Синій на першій пипці — той самий синій, що й «реєстр», і це навмисно: обидва означають «хтось це підтвердив».</div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="B4 No match">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #45484B;">Нічого не підійшло</span>
+          <div style="width: 560px; background: #ECECEA; border-radius: 20px; padding: 24px;">
+            <div style="background: #FFFFFF; border-radius: 24px; padding: 48px 32px; display: flex; flex-direction: column; gap: 32px; align-items: flex-start;">
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <span style="font-size: 34px; line-height: 38px; font-weight: 700; letter-spacing: -0.03em; color: #101112; text-wrap: pretty;">Під ці фільтри зараз нікого немає.</span>
+                <span style="font-size: 17px; line-height: 26px; color: #45484B; text-wrap: pretty;">У Броварах 7 притулків, і сьогодні серед середніх собак вільних немає. Це не помилка пошуку.</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                <span style="display: inline-flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 16px; background: #101112; color: #FFFFFF; font-size: 15px; font-weight: 500;">Прибрати «розмір» (+11 тварин)</span>
+                <span style="display: inline-flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 16px; background: #F2F2F0; color: #101112; font-size: 15px; font-weight: 500;">Додати сусідні міста (+34)</span>
+              </div>
+              <span style="font-size: 13px; line-height: 18px; color: #63676B; text-wrap: pretty;">Кожна пропозиція називає, скільки тварин вона додасть. Порожній екран не питає «спробуйте інше» без числа.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- B: cards, sheet, deck, tokens -->
+      <div style="display: flex; gap: 24px; align-items: flex-start;" data-screen-label="B5 Card variants">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #45484B;">Картка · три варіанти · 296px</span>
+          <div style="display: flex; gap: 24px; background: #ECECEA; border-radius: 20px; padding: 24px;">
+            <div style="width: 296px;"><div style="background: #FFFFFF; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 16px;">
+  <div style="aspect-ratio: 4 / 5; border-radius: 16px; background: repeating-linear-gradient(135deg, #DCDCD9 0 10px, #EFEFED 10px 20px);"></div>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 0 8px 8px;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 24px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; color: #101112; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Ластівка</span>
+      <span style="font-size: 15px; line-height: 22px; color: #45484B; text-wrap: pretty;">2 роки · середня · у волонтерки, Бровари</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;"><span style="display: flex; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #101112;"></span></span><span style="font-size: 15px; color: #101112;">оновлено 41 день тому</span></div>
+    <span style="font-size: 13px; line-height: 18px; color: #63676B;">Притулок «Домівка» · перевірений</span>
+  </div>
+</div></div>
+            <div style="width: 296px; background: #FFFFFF; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 16px;">
+              <div style="aspect-ratio: 4 / 5; border-radius: 16px; background: repeating-linear-gradient(135deg, #DCDCD9 0 10px, #EFEFED 10px 20px); position: relative;">
+                <span style="position: absolute; left: 12px; bottom: 12px; display: inline-flex; align-items: center; min-height: 32px; padding: 0 14px; border-radius: 999px; background: #FFFFFF; color: #101112; font-size: 13px; font-weight: 500;">Уже домовляються</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 12px; padding: 0 8px 8px;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <span style="font-size: 24px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; color: #101112;">Ніка</span>
+                  <span style="font-size: 15px; line-height: 22px; color: #45484B;">6 років · середня · притулок, Вишгород</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;"><span style="display: flex; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #1B3A6B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #DCDCD9;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #DCDCD9;"></span></span><span style="font-size: 15px; color: #101112;">оновлено 6 днів тому</span></div>
+                <span style="font-size: 13px; line-height: 18px; color: #63676B;">Притулок «Вишгород» · перевірений</span>
+              </div>
+            </div>
+            <div style="width: 296px; background: #DCDCD9; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 16px;">
+              <div style="aspect-ratio: 4 / 5; border-radius: 16px; background: repeating-linear-gradient(135deg, #CFCFCB 0 10px, #E0E0DD 10px 20px);"></div>
+              <div style="display: flex; flex-direction: column; gap: 12px; padding: 0 8px 8px;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <span style="font-size: 24px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; color: #101112;">Бім</span>
+                  <span style="font-size: 15px; line-height: 22px; color: #45484B;">3 роки · середній · притулок, Бровари</span>
+                </div>
+                <span style="font-size: 15px; line-height: 22px; color: #101112;">Притулок каже: Бім уже вдома.</span>
+                <span style="font-size: 13px; line-height: 18px; color: #45484B;">Притулок «Домівка» · перевірений</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="B6 Sheet">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #45484B;">Лист · до 1023 · 360</span>
+          <div style="width: 360px; height: 830px; background: #B9B9B5; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;">
+            <div style="background: #FFFFFF; border-radius: 24px 24px 0 0; padding: 16px 20px 24px; display: flex; flex-direction: column; gap: 28px; box-shadow: 0 -24px 48px -32px rgba(16,17,18,0.4);">
+              <div style="width: 48px; height: 5px; border-radius: 999px; background: #DCDCD9; align-self: center;"></div>
+              <span style="font-size: 24px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; color: #101112;">Фільтри</span>
+              <div style="display: flex; flex-direction: column; gap: 12px;"><span style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #63676B;">МІСТО</span><div style="display: flex; flex-wrap: wrap; gap: 8px;"><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #101112; color: #FFFFFF; font-size: 15px; font-weight: 500;">Бровари</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Київ</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Уся Київщина</span></div></div><div style="display: flex; flex-direction: column; gap: 12px;"><span style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #63676B;">ВИД</span><div style="display: flex; flex-wrap: wrap; gap: 8px;"><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #101112; color: #FFFFFF; font-size: 15px; font-weight: 500;">Собаки</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Коти</span></div></div><div style="display: flex; flex-direction: column; gap: 12px;"><span style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #63676B;">РОЗМІР</span><div style="display: flex; flex-wrap: wrap; gap: 8px;"><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Малий</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #101112; color: #FFFFFF; font-size: 15px; font-weight: 500;">Середній</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Великий</span></div></div><div style="display: flex; flex-direction: column; gap: 12px;"><span style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #63676B;">ВІК</span><div style="display: flex; flex-wrap: wrap; gap: 8px;"><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Малюк</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Молодий</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Дорослий</span><span style="display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 999px; background: #F2F2F0; color: #101112; font-size: 15px;">Літній</span></div></div>
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <span style="font-size: 15px; line-height: 22px; color: #45484B;">Підходить 34 тварини у 7 притулках.</span>
+                <div style="display: flex; gap: 8px;">
+                  <span style="display: inline-flex; align-items: center; justify-content: center; min-height: 56px; padding: 0 24px; border-radius: 16px; background: #F2F2F0; font-size: 15px; font-weight: 500; color: #101112;">Скинути</span>
+                  <span style="flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 16px; background: #101112; color: #FFFFFF; font-size: 15px; font-weight: 500;">Показати 34</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 24px; align-items: flex-start;">
+        <div style="display: flex; flex-direction: column; gap: 12px;" data-screen-label="B7 Deck card">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #45484B;">Колода · картка 358 у 390</span>
+          <div style="width: 390px; background: #ECECEA; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="position: relative; height: 660px;">
+              <div style="position: absolute; left: 12px; right: 12px; top: 10px; height: 220px; background: #F7F7F5; border-radius: 24px;"></div>
+              <div style="position: absolute; left: 6px; right: 6px; top: 5px; height: 220px; background: #FCFCFB; border-radius: 24px;"></div>
+              <div style="position: absolute; inset: 0; background: #FFFFFF; border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px -32px rgba(16,17,18,0.4);">
+                <div style="height: 400px; border-radius: 16px; background: repeating-linear-gradient(135deg, #DCDCD9 0 10px, #EFEFED 10px 20px);"></div>
+                <div style="display: flex; flex-direction: column; gap: 12px; padding: 0 8px;">
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-size: 34px; line-height: 38px; font-weight: 700; letter-spacing: -0.03em; color: #101112;">Ластівка</span>
+                    <span style="font-size: 15px; line-height: 22px; color: #45484B;">2 роки · середня · у волонтерки, Бровари</span>
+                  </div>
+                  <div style="background: #F2F2F0; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 8px; min-height: 88px;">
+                    <div style="display: flex; align-items: center; gap: 10px;"><span style="display: flex; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #63676B;"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #101112;"></span></span><span style="font-size: 15px; color: #101112;">оновлено 41 день тому</span></div>
+                    <span style="font-size: 15px; line-height: 22px; color: #45484B; text-wrap: pretty;">«Ми оновлювали цю картку 25 червня. Напишіть — скажемо, чи Ластівка ще з нами.»</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <span style="flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 16px; background: #FFFFFF; font-size: 15px; font-weight: 500; color: #101112;">Не зараз</span>
+              <span style="width: 56px; display: inline-flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 16px; background: #FFFFFF; font-size: 15px; color: #45484B;">↓</span>
+              <span style="flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 16px; background: #101112; color: #FFFFFF; font-size: 15px; font-weight: 500;">Написати</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="width: 400px; background: #FFFFFF; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #63676B;">Радіуси · щільність · рух</span>
+          <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px; line-height: 1.5; color: #45484B;">
+            <div style="display: flex; gap: 12px;"><span style="width: 96px; flex: none; font-weight: 500; color: #101112;">Радіуси</span><span>8 пипки й теги · 16 кнопки, поля, внутрішні блоки, фото в картці · 24 картки, рейка, лист · 999 чипи</span></div>
+            <div style="display: flex; gap: 12px;"><span style="width: 96px; flex: none; font-weight: 500; color: #101112;">Межі</span><span>Немає жодної, включно з роздільниками: усередині картки розділяє відступ 24, а не лінія.</span></div>
+            <div style="display: flex; gap: 12px;"><span style="width: 96px; flex: none; font-weight: 500; color: #101112;">Тінь</span><span>Один крок, два місця: верхня картка колоди й лист. 0 24px 48px −32px rgba(16,17,18,0.4).</span></div>
+            <div style="display: flex; gap: 12px;"><span style="width: 96px; flex: none; font-weight: 500; color: #101112;">Крок</span><span>4 · 8 · 12 · 16 · 24 · 32 · 48. Усе вертикальне — gap, ніколи margin.</span></div>
+            <div style="display: flex; gap: 12px;"><span style="width: 96px; flex: none; font-weight: 500; color: #101112;">Ціль</span><span>48 мінімум, 56 головні дії, 88 шапка десктоп, 64 шапка мобільна.</span></div>
+            <div style="display: flex; gap: 12px;"><span style="width: 96px; flex: none; font-weight: 500; color: #101112;">Сторінки</span><span>«з N» з'являється тільки з трикрапкою: 1 2 3 … 9, з 12. Дві сторінки поруч самі себе рахують.</span></div>
+            <div style="display: flex; gap: 12px;"><span style="width: 96px; flex: none; font-weight: 500; color: #101112;">Фокус</span><span>outline 3px #1B3A6B, offset 3 — єдине місце, де синій виходить за межі «реєстру», бо фокус має бути помітно не-чорним.</span></div>
+            <div style="display: flex; gap: 12px;"><span style="width: 96px; flex: none; font-weight: 500; color: #101112;">Наведення</span><span>#FFFFFF → #F7F7F5, 120ms. Підкреслення імені прибрано: у монохромі воно читається як посилання в документі.</span></div>
+            <div style="display: flex; gap: 12px;"><span style="width: 96px; flex: none; font-weight: 500; color: #101112;">Рух</span><span>quick 120ms · settle 220ms · reveal 280ms, cubic-bezier(0.3, 0, 0, 1) — коротко й сухо, без пружності в інтерфейсі. Пружина лишається тільки в колоді: 280/30, без перельоту. reduced-motion — прозорість 120ms.</span></div>
+            <div style="display: flex; gap: 12px;"><span style="width: 96px; flex: none; font-weight: 500; color: #101112;">Іконки</span><span>Бібліотеки немає. Сім власних гліфів, контур 2 при 24, круглі кінці: ▾ ← → ↓ ✕ ✓ ↗. У монохромі іконка помітніша, ніж у кольорі, тому ставимо її лише там, де слово було б довшим. Стрілка ↗ — єдина, що стоїть поруч із доменом донату.</span></div>
+            <div style="display: flex; gap: 12px;"><span style="width: 96px; flex: none; font-weight: 500; color: #101112;">Фото</span><span>4:5, cover, заглушка #DCDCD9. Нейтральна рамка нічого не робить із кольором знімка — у цьому й задум: увесь колір на сторінці приходить від тварин.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  
+
+  <div style="display: flex; gap: 24px; align-items: flex-start;" data-screen-label="Z Scope">
+    <div style="width: 648px; background: #FFFFFF; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+      <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #63676B;">Не змінено</span>
+      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.55; color: #45484B;">
+        <span>Брейкпоінти 0–599 / 600–1023 / 1024–1439 / 1440+ і кількість колонок 1 / 2 / 3 / 4.</span>
+        <span>Контейнер 960 на 1024–1439, 1320 на 1440+; на 1920 сторінка не розтягується — ростуть поля.</span>
+        <span>Рейка від 1024, лист нижче. Склад груп фільтрів той самий.</span>
+        <span>Сторінки з адресами, /tvaryny?misto=…&amp;stor=…, і /tvaryny/gortaty з noindex.</span>
+        <span>Що на якому екрані стоїть — жоден блок не переїхав і не з'явився.</span>
+      </div>
+    </div>
+    <div style="width: 648px; background: #FFFFFF; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+      <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #63676B;">Чотири правила · де саме вони живуть у скіні</span>
+      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.55; color: #45484B;">
+        <span><strong style="font-weight: 700; color: #101112;">Свіжість.</strong> Три пипки 10px плюс дні словами, завжди обидва. Червоного й бурштинового немає серед токенів узагалі. Прозорість ніде не несе сенсу: «уже вдома» — інша заливка картки.</span>
+        <span><strong style="font-weight: 700; color: #101112;">Не записано.</strong> Порожнє поле — це слово «Не записано» кольором ink-3, не прочерк і не червоне.</span>
+        <span><strong style="font-weight: 700; color: #101112;">Без шпильки.</strong> Тварина під опікою волонтерки отримує назву міста в блоці-заливці. Мапа не малюється взагалі, навіть на 1920.</span>
+        <span><strong style="font-weight: 700; color: #101112;">Гроші.</strong> Донат — рядок-заливка з доменом dobro.ua і стрілкою ↗ перед натисканням. Синій #1B3A6B на ньому не використовується.</span>
+      </div>
+    </div>
+  </div>
+
+</section>
+</x-dc>
+</body>
+</html>

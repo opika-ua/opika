@@ -45,6 +45,20 @@ the gallery grid carries no ARIA `grid` role — a correct answer to a WCAG ques
 had actually asked. `docs/design/README.md`'s own "Keyboard" table specifies exactly that
 behaviour, independent of ARIA role, and had been sitting unread the whole time.
 
+**When a mock exists, open the mock.** A prose summary of a design is not the design. If a
+surface has a mock file, build from that file — a README's description of it is a lossy
+secondary source.
+
+*Why:* E3's pagination was built from the design doc's prose summary rather than the mock.
+It shipped bare chevrons with a conflicting aria-label (WCAG 2.5.3 failure), no «з N»
+count, and spacing off the design's scale.
+
+**A test may not compare output against the same constant the code renders.** Assert
+against the design's own literal copy, transcribed from the mock. A test that checks a
+variable equals itself passes against any value.
+
+*Why:* two E3 harness tests did exactly this and survived to round two.
+
 ---
 
 ## How work is kept
