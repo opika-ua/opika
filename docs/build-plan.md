@@ -309,6 +309,10 @@ installs on Android with Lighthouse ≥90; a thrown error appears in Sentry with
 
 ## Part 3 — Timeline
 
+The **Hours** column is a relative-complexity signal, not a schedule. These figures were estimated
+as solo human effort at 8–10 h/week; phases are landing in a fraction of that wall-clock time.
+What sets the calendar is review bandwidth and shelter recruitment — not the hour totals.
+
 | Phase | Weeks | Hours |
 |---|---|---|
 | C — Consolidate | — | 0 (done) |
