@@ -144,7 +144,7 @@ anymore, it's an *implementation-order* one.
 | E2.5 | 2D arrow-key navigation across the gallery grid (`docs/design/README.md`'s "Keyboard" table — ← ↑ → ↓ move focus by column count, edges don't wrap; Home/End jump to first/last card), independent of ARIA role. Runs before E3/E4 so page-boundary and zero-result focus behaviour are inherited already-settled, not invented per-phase. Tab order deliberately untouched — every card keeps its native tab stop and arrow keys are a purely additive client-side shortcut. Issue #28's own roving-tabindex constraint was dropped on review: it contradicts the same ticket's "Tab order unaffected: still header → rail → sort → cards in reading order → pagination" requirement, which `docs/design/README.md`'s Keyboard table states too and therefore wins (see `ArrowKeyGrid`'s doc comment). The harness asserts the arrow behaviour (JS on, by definition) and the unchanged Tab order (JS on and JS off) separately | 3 |
 | E3 | Numbered pagination — `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram). **Definition of done includes** a skip link above the grid, visible on focus, jumping straight to the pagination controls — dropping E2.5's roving tabindex means a keyboard user now tabs through all 24 cards to reach "next page," and this is the fix, not a follow-up. Arrow-key behaviour at a page boundary (Right on the last card, Left on the first) is this phase's to decide and record — see `docs/gallery-contract-decisions.md` §8 | 4 |
 | V1 | Design handoff intake — replace `docs/design/` with the new handoff, verify it covers every surface, confirm the four product rules survive | 2 |
-| V2 | Implementation — new tokens through `packages/ui` and the Tailwind config, every existing surface re-skinned including E3's pagination, harness assertions repointed to the new design's values | 10 |
+| V2 | Implementation — new tokens through `packages/ui` and the Tailwind config, every existing surface re-skinned including E3's pagination, harness assertions repointed to the new design's values. **Static visual language only** — colour, type, radii, card treatment. The deck's gesture *physics* (release spring, motion timings on the drag itself) are explicitly out of scope here — see G4 | 10 |
 | E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, **the note must actually render** — see the phase's own done-when below, not just the copy existing) states — both form factors | 4 |
 | E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. `sessionStorage`-persisted last mode, entry ("Гортати по одній") and exit ("До списку" / Esc, returning to the same scroll position per `docs/design/README.md` "Gallery ↔ Deck") | 3 |
 
@@ -177,6 +177,35 @@ built — one re-skin pass over the whole gallery surface built so far, rather t
 building against a design that's about to be replaced. It sits before E4/E5 so those two
 build against the final visual language once, instead of shipping against the old one and
 absorbing a second re-skin pass later.
+
+**V2's definition of done, beyond "re-skinned":**
+- **Pagination's "з N" count is a behaviour change, not a restyle, and needs its own test.**
+  The new handoff makes it conditional — it renders only when the page-number list is
+  truncated with an ellipsis (`docs/design/README.md`, "Pagination — not infinite scroll";
+  confirmed against the mock, `docs/design/intake-report.md` §C). E3's `GalleryPagination`
+  renders it unconditionally. Truncation logic doesn't get verified by looking at it — a
+  harness test asserting the count is absent at a small page count and present once the
+  window truncates is required, separate from any visual/colour assertion on the same
+  element.
+- **e-Ukraine attribution ships as part of this phase, not deferred.** CC BY 4.0 + self-
+  hosting the files is distribution, which triggers the licence's attribution requirement —
+  the handoff itself states this wrong ("free to use", no attribution mentioned; verified
+  independently, `docs/design/intake-report.md` §E). Required: a licence file alongside the
+  font files in the repo, and a user-reachable credit (footer colophon or `/about`). Also
+  added to H5's legal-pages list below.
+- **Deck gesture physics is explicitly excluded.** The release spring, drag motion timings,
+  and easing curve values the new handoff specifies for the deck move to Phase G (G4,
+  below) — not V2. G already owns the deck's unresolved iOS investigation, which touches
+  the same constants (`use-swipe-gesture.ts`) and would otherwise mean changing them twice.
+  V2's own deck work is limited to the card's static visual treatment (colour, type, radii)
+  under the existing physics.
+- **Every harness assertion V2 repoints gets a one-line note saying which design value
+  changed and to what**, so a reviewer can confirm each change tracks a real design value
+  rather than a quietly relaxed assertion — a redesign is exactly the kind of cover that
+  makes that hard to tell apart from a distance.
+- **Skin, not skeleton.** Breakpoints, column counts, the 960/1320 containers, the rail/sheet
+  split at 1024, the URL scheme, and the information architecture do not move. If the new
+  design turns out to require any of them to move, that is a stop, not a V2 task.
 
 **Done when:** someone browses the full corpus on a 1920px desktop and a 360px phone,
 filters and sorts on both, shares a URL that reproduces exactly what they saw, and the
@@ -239,15 +268,19 @@ mode entered from the gallery now, not the front door.
 | G1 | iOS Safari investigation, restarting from scratch — the prior investigation notes were lost with the rest of the uncommitted M5 work (the incident behind `docs/standing-constraints.md`'s "commit after each task" rule) and are deliberately not being reconstructed; the failure has never reproduced on any other engine | 4 |
 | G2 | Device testing on real hardware — Android and iOS, not simulators | 3 |
 | G3 | Promote the deck from `/discovery` to its real route (`/tvaryny/gortaty` per the design's URL scheme, `noindex` — a viewing state, not a page), entered from the gallery with the gallery's current filters and sort inherited | 3 |
+| G4 | Deck gesture-physics re-skin — the new handoff's motion values (`docs/design/README.md`, "Geometry, density, elevation, motion": quick 120ms / settle 220ms / reveal 280ms, `cubic-bezier(0.3, 0, 0, 1)`; release spring stiffness 280 / damping 30, no overshoot) applied to `use-swipe-gesture.ts`'s own constants — moved out of V2 deliberately (`docs/build-plan.md`'s Phase E table, V2 row) so these values change once, alongside whatever G1's iOS investigation also touches in the same file, not twice | 3 |
 
-**Total: ~10 h.**
+**Total: ~13 h.**
 
 **Done when:** 30 uninterrupted swipes on a real mid-range Android and a real iPhone,
-entered from and returning to the gallery at the same scroll position and card.
+entered from and returning to the gallery at the same scroll position and card, on the new
+motion values.
 
-**Decisions this phase must surface:** none anticipated — flag if the iOS investigation
-turns up a fix that touches `packages/domain` or the gesture's pure decision function,
-per the standing stop-gate.
+**Decisions this phase must surface:** none anticipated for G1–G3 — flag if the iOS
+investigation turns up a fix that touches `packages/domain` or the gesture's pure decision
+function, per the standing stop-gate. G4 is gesture-physics work
+(`docs/model-policy.md`: "M5 swipe deck | Opus | Gesture physics and pointer capture") —
+model it Opus, not Sonnet, regardless of what the rest of G uses.
 
 ### Phase H — Remainder to launch
 
@@ -261,7 +294,7 @@ into `gallery.list`'s output per `docs/gallery-contract-decisions.md` §3.
 | H2 | Internal admin — animal/shelter CRUD, CSV import, **desktop layouts** (addition — the original plan assumed a single admin form factor) | 12 |
 | H3 | i18n — next-intl wiring, uk + en message files, full-ICU boot assertion. Also: native-speaker review of `pluralizeUk`'s output (`packages/domain/src/primitives/plural.ts`, added E2) across every noun form it composes — verified mechanically (`Intl.PluralRules('uk')` boundaries, tested at 1/2/5/11/21/22) but not by a native speaker, and animate feminine nouns plus accusative government under case-governing verbs ("Знайдено" vs "Підходить") is not something rule-reasoning alone reliably gets right | 4 |
 | H4 | PWA — Serwist, manifest, offline shell, Lighthouse pass | 8 |
-| H5 | Observability + legal — Sentry, PostHog, privacy policy (GDPR), consent handling | 10 |
+| H5 | Observability + legal — Sentry, PostHog, privacy policy (GDPR), consent handling, e-Ukraine's CC BY 4.0 attribution (licence file + user-reachable credit — should already exist from V2; this is the launch-readiness check that it's still there and still correct, not the first time it's added) | 10 |
 | H6 | Real shelter data + soft launch — onboard 5–10 shelters, verify each through the FSM, spot-check every listing | 12 |
 
 **Total: ~56 h** (50 h original + the admin desktop-layout addition).
@@ -276,14 +309,18 @@ installs on Android with Lighthouse ≥90; a thrown error appears in Sentry with
 
 ## Part 3 — Timeline
 
+The **Hours** column is a relative-complexity signal, not a schedule. These figures were estimated
+as solo human effort at 8–10 h/week; phases are landing in a fraction of that wall-clock time.
+What sets the calendar is review bandwidth and shelter recruitment — not the hour totals.
+
 | Phase | Weeks | Hours |
 |---|---|---|
 | C — Consolidate | — | 0 (done) |
 | E — Gallery | 4–5 | 57 |
 | F — Detail & reveal | 3 | 22 |
-| G — Deck completion | off critical path | 10 |
+| G — Deck completion | off critical path | 13 |
 | H — Remainder to launch | 7 | 56 |
-| **Total from this rewrite** | **~16 weeks** | **~145 h** |
+| **Total from this rewrite** | **~16 weeks** | **~148 h** |
 
 At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch still lands early
 February 2027** — the total dropped from ~135 h to ~127 h (C fully closed out, E gaining
@@ -302,8 +339,13 @@ the week count.
 unmoved" reasoning, and is not claimed here as if it did.** 12 h at 8 h/week of code is
 ~1.5 weeks — the two prior 3 h additions were each ~0.4 week, comfortably inside a "~16
 weeks" figure's own rounding; 1.5 weeks is not. **145 h ÷ 8 h/week ≈ 18.1 weeks of code
-time alone**, before the same rough-estimate slack the rest of this document carries.
-Whether that actually moves the project's week estimate past "~16 weeks" — and if so, by
+time alone** for the critical path (C+E+F+H — G stays off it, per its own header, both
+before and after G4), before the same rough-estimate slack the rest of this document
+carries. G4's own 3 h (deck gesture-physics re-skin, moved out of V2) brings the grand
+total including the off-critical-path phase to 148 h, but doesn't change that 18.1-week
+figure — G was already excluded from the critical-path week math, and stays excluded.
+Whether the 12 h Phase V addition actually moves the project's week estimate past "~16
+weeks" — and if so, by
 how much — is a real re-plan question this document is not settling here; V1's intake
 report is the next input into that question, not this arithmetic update.
 
