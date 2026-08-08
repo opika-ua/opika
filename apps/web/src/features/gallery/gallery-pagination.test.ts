@@ -10,9 +10,18 @@ describe("paginationWindow", () => {
     expect(paginationWindow(1, 1)).toEqual([1]);
   });
 
-  it("shows every page below the threshold, no ellipsis", () => {
+  it("shows every page at or below the threshold, no ellipsis", () => {
     expect(paginationWindow(1, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(paginationWindow(4, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  it("the transition is at exactly 7 -> 8, and 8 is the first windowed total", () => {
+    // The boundary the constant's own name states, asserted on both sides
+    // from the same current page: a `<` instead of `<=` in the threshold
+    // check would abbreviate 7 pages that fit fine, and a `<=` on 8 would
+    // draw all 8 the window exists to avoid.
+    expect(paginationWindow(4, 7)).toHaveLength(7);
+    expect(paginationWindow(4, 8)).toEqual([1, "ellipsis", 3, 4, 5, "ellipsis", 8]);
   });
 
   it("windows around the current page once past the threshold, ellipsis on both sides", () => {
