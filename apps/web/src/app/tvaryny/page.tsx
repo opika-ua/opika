@@ -1,5 +1,6 @@
 import type { CityId } from "@opika/domain";
 import { textIn } from "@opika/domain";
+import { uk } from "@opika/i18n";
 import { anonymousRouterClient } from "../../api/server-client";
 import { AnimalCard } from "../../features/gallery/AnimalCard";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
@@ -7,7 +8,9 @@ import { cardCityId } from "../../features/gallery/card-text";
 import { FilterRail } from "../../features/gallery/FilterRail";
 import { FilterSheet } from "../../features/gallery/FilterSheet";
 import { parseGalleryQuery, type SearchParams } from "../../features/gallery/filter-url";
+import { GalleryPagination } from "../../features/gallery/GalleryPagination";
 import { railResultCount, sheetResultCount } from "../../features/gallery/gallery-copy";
+import { hasPagination } from "../../features/gallery/gallery-pagination";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { SortControl } from "../../features/gallery/SortControl";
 
@@ -33,11 +36,17 @@ export const dynamic = "force-dynamic";
 const PRIORITY_ROW_SIZE = 2;
 
 /**
- * E2's filters + sort, over E1's grid. `docs/build-plan.md`'s E2 row: "Filter
- * and sort state in the URL — shareable, back-button-correct." Pagination
- * (E3) and empty/loading/error states (E4) are still deliberately absent —
- * `page` always resolves through `parseGalleryQuery`, but nothing here
- * renders pager controls yet.
+ * E1's grid, E2's filters + sort, E3's numbered pagination.
+ * `docs/build-plan.md`'s E2 row: "Filter and sort state in the URL —
+ * shareable, back-button-correct"; its E3 row adds the `?stor=N` controls
+ * below the grid and the skip link that reaches them without tabbing
+ * through all 24 cards.
+ *
+ * Empty/loading/error states (E4) are still deliberately absent. That
+ * includes the out-of-range-page note: `gallery.list` already clamps a
+ * stale `?stor=` server-side and this page already renders the clamped
+ * page, but the note saying so ("Сторінки 7 більше немає") is E4's, not
+ * rendered here yet.
  *
  * Split from the default export for the same reason `renderHome` is:
  * `page.test.tsx` calls this directly with a test database, `Page`'s own
@@ -119,6 +128,26 @@ export async function renderGallery(
               </ReplaceNav>
             </div>
 
+            {/*
+              Dropping E2.5's roving tabindex (docs/build-plan.md's E2.5 row)
+              means every card is a real Tab stop — 24 of them — so this is
+              the shortcut past them to "next page," not decoration. Only
+              rendered when GalleryPagination itself will be, through the
+              same `hasPagination` both sides read: a skip link to an id
+              that isn't on the page goes nowhere.
+              `sr-only focus:not-sr-only`: invisible until a keyboard user
+              actually reaches it by Tab, which is exactly who needs it.
+            */}
+            {hasPagination(page.totalPages) && (
+              <a
+                href="#pagination"
+                data-testid="pagination-skip-link"
+                className="sr-only focus:not-sr-only focus:mb-3 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-button focus:bg-leaf focus:px-4 focus:font-sans focus:text-sm focus:text-paper"
+              >
+                {uk.pagination.skipLink}
+              </a>
+            )}
+
             <ArrowKeyGrid className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px]">
               {page.items.map((item, index) => (
                 <AnimalCard
@@ -129,6 +158,13 @@ export async function renderGallery(
                 />
               ))}
             </ArrowKeyGrid>
+
+            <GalleryPagination
+              filters={filters}
+              sort={sort}
+              page={page.page}
+              totalPages={page.totalPages}
+            />
           </div>
         </div>
       </div>

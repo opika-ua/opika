@@ -251,6 +251,39 @@ export const uk = {
     fosteredHousing: "живе у волонтерки, м. {city}",
   },
 
+  // --- Pagination footer (E3) ---
+  // `docs/design/Opika - Keeper's Voice.dc.html`'s 1440 GALLERY block has
+  // the literal pagination row: prev/next are visible-text buttons ("←
+  // Назад" / "Далі →"), not glyph-only controls, and the number group ends
+  // with a "з N" count. `prev`/`next` below are the VISIBLE
+  // button text now, not a separate aria-label — an aria-label that didn't
+  // contain that text would be a WCAG 2.5.3 accessible-name mismatch, an
+  // earlier draft of this component had exactly that bug. The design sets
+  // the page numbers in IBM Plex Mono; this codebase deliberately dropped
+  // that family (see apps/web/src/app/fonts.ts, "measured, then dropped" —
+  // 11.2% of font payload for one rarely-seen label) and nothing since has
+  // reintroduced it, so the numbers render in Commissioner (`font-sans`)
+  // like the rest of this table's copy, not a new one-off exception.
+  pagination: {
+    navLabel: "Сторінки",
+    prev: "← Назад",
+    next: "Далі →",
+    /** Template: "Сторінка {page}" — each numbered link's accessible name. */
+    pageLabel: "Сторінка {page}",
+    current: "поточна",
+    /** Template: "з {total}" — docs/design's own count label, after the numbers. */
+    ofTotal: "з {total}",
+    /**
+     * Above the grid, visible only on keyboard focus. Dropping E2.5's
+     * roving tabindex means every card is a real Tab stop — 24 of them —
+     * so this is the shortcut past them, not decoration.
+     */
+    skipLink: "Перейти до сторінок",
+    footnote:
+      "Сторінки, а не безкінечна стрічка: у кожної сторінки своя адреса, кнопка «назад» " +
+      "працює, і посилання можна надіслати в Telegram.",
+  },
+
   // --- Language toggle ---
   locale: {
     uk: "Українська",

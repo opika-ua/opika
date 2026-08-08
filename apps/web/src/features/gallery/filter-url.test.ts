@@ -2,6 +2,7 @@ import { ANY, type CityId, NO_FILTERS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
   galleryHref,
+  galleryPageHref,
   parseGalleryQuery,
   resetFiltersHref,
   withToggledAge,
@@ -143,5 +144,28 @@ describe("galleryHref", () => {
 describe("resetFiltersHref", () => {
   it("clears every filter but keeps the sort", () => {
     expect(resetFiltersHref("longest_waiting")).toBe("/tvaryny?sort=longest_waiting");
+  });
+});
+
+describe("galleryPageHref", () => {
+  it("page 1 has no stor param — matching sort's absent-param-is-default convention", () => {
+    expect(galleryPageHref(NO_FILTERS, "freshest", 1)).toBe("/tvaryny");
+  });
+
+  it("carries a non-default page as ?stor=N", () => {
+    expect(galleryPageHref(NO_FILTERS, "freshest", 3)).toBe("/tvaryny?stor=3");
+  });
+
+  it("carries filters and sort forward unchanged, unlike galleryHref", () => {
+    const filters = withToggledSpecies(withToggledCity(NO_FILTERS, CITY_A), "dog");
+    const href = galleryPageHref(filters, "longest_waiting", 2);
+    const reparsed = parseGalleryQuery(Object.fromEntries(new URL(href, "http://x").searchParams));
+    expect(reparsed).toEqual({ filters, sort: "longest_waiting", page: 2 });
+  });
+
+  it("orders params the same way galleryHref does, stor last", () => {
+    expect(galleryPageHref(NO_FILTERS, "longest_waiting", 2)).toBe(
+      "/tvaryny?sort=longest_waiting&stor=2",
+    );
   });
 });
