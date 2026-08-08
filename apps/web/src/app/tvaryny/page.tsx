@@ -1,5 +1,6 @@
 import type { CityId } from "@opika/domain";
 import { textIn } from "@opika/domain";
+import { uk } from "@opika/i18n";
 import { anonymousRouterClient } from "../../api/server-client";
 import { AnimalCard } from "../../features/gallery/AnimalCard";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
@@ -7,6 +8,7 @@ import { cardCityId } from "../../features/gallery/card-text";
 import { FilterRail } from "../../features/gallery/FilterRail";
 import { FilterSheet } from "../../features/gallery/FilterSheet";
 import { parseGalleryQuery, type SearchParams } from "../../features/gallery/filter-url";
+import { GalleryPagination } from "../../features/gallery/GalleryPagination";
 import { railResultCount, sheetResultCount } from "../../features/gallery/gallery-copy";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { SortControl } from "../../features/gallery/SortControl";
@@ -119,6 +121,25 @@ export async function renderGallery(
               </ReplaceNav>
             </div>
 
+            {/*
+              Dropping E2.5's roving tabindex (docs/build-plan.md's E2.5 row)
+              means every card is a real Tab stop — 24 of them — so this is
+              the shortcut past them to "next page," not decoration. Only
+              rendered when GalleryPagination itself will be (page.totalPages
+              > 1): a skip link to an id that isn't on the page goes nowhere.
+              `sr-only focus:not-sr-only`: invisible until a keyboard user
+              actually reaches it by Tab, which is exactly who needs it.
+            */}
+            {page.totalPages > 1 && (
+              <a
+                href="#pagination"
+                data-testid="pagination-skip-link"
+                className="sr-only focus:not-sr-only focus:mb-3 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-button focus:bg-leaf focus:px-4 focus:font-sans focus:text-sm focus:text-paper"
+              >
+                {uk.pagination.skipLink}
+              </a>
+            )}
+
             <ArrowKeyGrid className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px]">
               {page.items.map((item, index) => (
                 <AnimalCard
@@ -129,6 +150,13 @@ export async function renderGallery(
                 />
               ))}
             </ArrowKeyGrid>
+
+            <GalleryPagination
+              filters={filters}
+              sort={sort}
+              page={page.page}
+              totalPages={page.totalPages}
+            />
           </div>
         </div>
       </div>
