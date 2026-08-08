@@ -126,7 +126,16 @@ This replaces the four families the current build loads.
 | body-l | 17 / 26 | 400 | — | the shelter's sentence, empty-state prose |
 | body | 15 / 22 | 400 | — | metadata, buttons, chips, freshness label |
 | caption | 13 / 18 | 400 | — | shelter line, attribution, helper text |
-| label | 12 / 16 | 500 | 0.08em, uppercase | filter group labels |
+| label | 12 / 16 | 500 | 0.06em, uppercase, `ink-3` | filter group labels |
+
+**Correction (V1 intake, `docs/design/intake-report.md` §C):** the type-scale
+swatch this table was transcribed from renders the "label" role at `0.08em`
+in `ink-2` (`#45484B`) — but every actual instance of a filter group label in
+the mock (the rail and the sheet, `Opika Registry System.dc.html`, `МІСТО`/
+`ВИД`/`РОЗМІР`/`ВІК`) renders at `0.06em` in `ink-3` (`#63676B`), with no
+explicit `line-height` set. The applied instances win: they are what
+actually renders on the two real screens this role is used on, not the
+abstract legend. Row above corrected to match; build from `0.06em`/`ink-3`.
 
 Mobile card name drops to 22 / 26 · 700 · −0.02em on the compact horizontal card.
 
@@ -244,7 +253,10 @@ Surface white, radius 24, padding 12, inner `gap: 16`; text block `gap: 12`, pad
    «Уже домовляються», bottom-left **inside the photo** at 12px inset. White because shelter photos
    are unpredictable — it reads on dark and on blown-out alike. The animal stays in the deck; the
    primary button relabels to «Стати другим у черзі».
-3. **Resolved** — card fill becomes `#DCDCD9`, photo placeholder darkens to its own hatch, and the
+3. **Resolved** — card fill becomes `#DCDCD9`, photo placeholder darkens to its own hatch —
+   `repeating-linear-gradient(135deg, #CFCFCB 0 10px, #E0E0DD 10px 20px)`, distinct from the
+   standard placeholder's `#DCDCD9 0 10px, #EFEFED 10px 20px` (exact value only in the mock,
+   `Opika Registry System.dc.html`; added here per V1 intake, `intake-report.md` §C) — and the
    pips are replaced by the sentence «Притулок каже: Бім уже вдома.» **Different fill and different
    text — never dimming.**
 
