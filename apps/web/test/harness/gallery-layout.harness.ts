@@ -24,6 +24,20 @@ import {
   type Viewport,
 } from "./viewports";
 
+/**
+ * `proxy.ts` rate-limits `/tvaryny` at 100 req/min per IP, shared across
+ * every harness file that requests it under the real local identity — see
+ * `gallery-arrow-nav.harness.ts`'s comment for the real, reproducing 429
+ * this caused once that file's requests joined this one's and
+ * `gallery-filters.harness.ts`'s in the same shared budget. Isolates this
+ * file's own volume the same way `gallery-rate-limit.harness.ts` already
+ * isolates its own deliberate budget exhaustion. TEST-NET-2
+ * (198.51.100.0/24), deliberately not the TEST-NET-3 block that file draws
+ * a random host from each run — see `gallery-arrow-nav.harness.ts` for why
+ * a fixed address inside that block would be a 1-in-254 collision per run.
+ */
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.23" } });
+
 const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
 const GALLERY_PAGE_SIZE = 24;

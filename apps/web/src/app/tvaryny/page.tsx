@@ -2,6 +2,7 @@ import type { CityId } from "@opika/domain";
 import { textIn } from "@opika/domain";
 import { anonymousRouterClient } from "../../api/server-client";
 import { AnimalCard } from "../../features/gallery/AnimalCard";
+import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
 import { cardCityId } from "../../features/gallery/card-text";
 import { FilterRail } from "../../features/gallery/FilterRail";
 import { FilterSheet } from "../../features/gallery/FilterSheet";
@@ -118,10 +119,7 @@ export async function renderGallery(
               </ReplaceNav>
             </div>
 
-            <main
-              data-testid="gallery-grid"
-              className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px]"
-            >
+            <ArrowKeyGrid className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px]">
               {page.items.map((item, index) => (
                 <AnimalCard
                   key={item.id}
@@ -130,7 +128,7 @@ export async function renderGallery(
                   priority={index < PRIORITY_ROW_SIZE}
                 />
               ))}
-            </main>
+            </ArrowKeyGrid>
           </div>
         </div>
       </div>
