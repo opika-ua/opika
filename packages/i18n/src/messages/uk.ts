@@ -251,6 +251,29 @@ export const uk = {
     fosteredHousing: "живе у волонтерки, м. {city}",
   },
 
+  // --- Pagination footer (E3) ---
+  // docs/design/README.md's "Pagination — not infinite scroll" gives the
+  // footnote below verbatim; the rest (nav label, prev/next, per-page
+  // aria-label, skip link) has no design-string-table entry to draw from,
+  // so it's written here in the same plain, non-alarming register.
+  pagination: {
+    navLabel: "Сторінки",
+    prevLabel: "Попередня сторінка",
+    nextLabel: "Наступна сторінка",
+    /** Template: "Сторінка {page}" — each numbered link's accessible name. */
+    pageLabel: "Сторінка {page}",
+    current: "поточна",
+    /**
+     * Above the grid, visible only on keyboard focus. Dropping E2.5's
+     * roving tabindex means every card is a real Tab stop — 24 of them —
+     * so this is the shortcut past them, not decoration.
+     */
+    skipLink: "Перейти до сторінок",
+    footnote:
+      "Сторінки, а не безкінечна стрічка: у кожної сторінки своя адреса, кнопка «назад» " +
+      "працює, і посилання можна надіслати в Telegram.",
+  },
+
   // --- Language toggle ---
   locale: {
     uk: "Українська",

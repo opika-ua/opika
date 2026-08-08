@@ -211,6 +211,19 @@ export const en = {
     fosteredHousing: "with a volunteer foster in {city}",
   },
 
+  // --- Pagination footer (E3) ---
+  pagination: {
+    navLabel: "Pages",
+    prevLabel: "Previous page",
+    nextLabel: "Next page",
+    pageLabel: "Page {page}",
+    current: "current",
+    skipLink: "Skip to pages",
+    footnote:
+      "Pages, not an endless feed: every page has its own address, the back button works, " +
+      "and the link can be sent on Telegram.",
+  },
+
   // --- Language toggle ---
   // Language names stay in their own language regardless of locale — this
   // matches uk.ts's own `en: "English"` (never "Англійська").
