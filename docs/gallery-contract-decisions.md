@@ -666,6 +666,32 @@ filtering, or shipping a JS-only enhancement that changes *history* semantics sp
 which is a stranger thing to make conditional on script availability than the visual
 presentation E1's own no-JS/JS-on gap (`priority`, lazy-loading) already accepts.
 
+## 8. Arrow-key navigation at a page boundary — the same "edges never wrap" rule, not a second one
+
+E2.5 (`ArrowKeyGrid.tsx`) settled "edges never wrap" for the grid as a whole: `ArrowRight`
+at the end of a row, `ArrowLeft` at its start, `ArrowDown` past the last row, `ArrowUp`
+above the first, all leave focus where it was rather than moving it. Nothing in that
+component knows or needs to know how many cards exist beyond the ones currently rendered —
+`cardsOf(grid)` only ever sees the current page's DOM.
+
+That means a page boundary needs no new rule. "The last card of page 3" is, from
+`ArrowKeyGrid`'s perspective, indistinguishable from "the last card of the grid" — it's
+already the row-end or bounds-end case E2.5 wrote, not a new one E3 has to invent. Pressing
+`ArrowRight` on the last card of a page, or `ArrowLeft` on the first, does nothing: no
+implicit page fetch, no focus jump onto a card that hasn't loaded yet, no keyboard path
+that bypasses the pagination controls' own 44px targets. Reaching page 4 by keyboard means
+Tabbing (or using the new skip link, §E3's definition of done in `docs/build-plan.md`) to
+the pagination controls and activating one, exactly as reaching it by mouse does.
+
+The alternative — arrows silently paginating — was considered and rejected here rather than
+left for E3 to reconsider, because it would be a real, second interaction model (an async
+page fetch triggered from a keydown handler, a decision about where focus lands on the new
+page, and a way for a screen-reader user to be moved to unannounced content) for a benefit
+("Right" advancing one page) the skip link already delivers more predictably. **E3's actual
+work here is verification, not design**: a harness test on a page >1 that asserts `Right`/
+`Left`/`Down`/`Up` at each page-relative edge leaves focus in place and fires no network
+request, on the same page `ArrowKeyGrid`'s existing edge tests already cover for page 1.
+
 ---
 
 ## Summary — what Phase E actually builds because of this document
