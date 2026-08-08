@@ -269,6 +269,52 @@ test.describe("/tvaryny arrow-key grid navigation — Tab order is never touched
   });
 });
 
+test.describe("/tvaryny arrow-key grid navigation — page boundaries never trigger navigation", () => {
+  test("Right on the last card and Left on the first card of page 2 leave focus and the URL unchanged", async ({
+    page,
+  }) => {
+    // docs/gallery-contract-decisions.md §8: a page boundary gets no new
+    // rule — ArrowKeyGrid only ever sees the current page's own DOM, so
+    // "the last card of page 2" is already the row-end/bounds-end case the
+    // tests above cover for page 1, not a case E3 had to invent. What this
+    // test actually proves, that page 1's own edge tests cannot: the
+    // boundary is a property of "the DOM's current edge," not "page 1
+    // specifically" — and that no implicit pagination (a fetch, a focus
+    // jump onto an unloaded card) happens on ArrowRight/ArrowLeft at
+    // page 2's own edges.
+    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
+
+    await page.getByTestId("pagination-next").click();
+    await page.waitForURL(/stor=2/);
+    await page.locator(CARD).first().waitFor({ state: "visible" });
+    const urlOnPage2 = page.url();
+
+    await page.locator(CARD).first().focus();
+    expect(await focusedIndex(page), "starts focused on page 2's first card").toBe(0);
+    await page.keyboard.press("ArrowLeft");
+    expect(
+      await focusedIndex(page),
+      "ArrowLeft at the first card of page 2 must not move focus onto page 1's cards — " +
+        "there is nothing in the DOM to move onto",
+    ).toBe(0);
+    expect(page.url(), "ArrowLeft must not trigger a page navigation").toBe(urlOnPage2);
+
+    const lastIndex = await page.evaluate(
+      () => document.querySelectorAll("[data-testid='animal-card']").length - 1,
+    );
+    await page.evaluate(() => {
+      const cards = document.querySelectorAll("[data-testid='animal-card']");
+      (cards[cards.length - 1] as HTMLElement).focus();
+    });
+    await page.keyboard.press("ArrowRight");
+    expect(
+      await focusedIndex(page),
+      "ArrowRight at the last card of page 2 must not move focus onto page 3's cards",
+    ).toBe(lastIndex);
+    expect(page.url(), "ArrowRight must not trigger a page navigation").toBe(urlOnPage2);
+  });
+});
+
 test.describe("/tvaryny arrow-key grid navigation (phone, 1 column)", () => {
   test("ArrowRight/ArrowLeft do nothing — a single column has no horizontal neighbour", async ({
     page,
