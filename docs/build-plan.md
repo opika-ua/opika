@@ -193,6 +193,13 @@ absorbing a second re-skin pass later.
   independently, `docs/design/intake-report.md` §E). Required: a licence file alongside the
   font files in the repo, and a user-reachable credit (footer colophon or `/about`). Also
   added to H5's legal-pages list below.
+- **e-Ukraine subsetting is an open follow-up, not done.** The three vendored files
+  (`apps/web/src/app/fonts/e-ukraine/`) are the mirror's full character set — ≈95 KB total,
+  against the design's own "≈84 KB" Cyrillic + Latin basic + punctuation subset estimate —
+  unlike `literata`/`commissioner`, which already subset via Google's own pipeline
+  (`apps/web/src/app/fonts.ts`). Not required for V2's "done when" below; recorded here so
+  it's a real line item and not just the code comment (`fonts.ts`, that directory's
+  `LICENSE.txt`) that already pointed here.
 - **Deck gesture physics is explicitly excluded.** The release spring, drag motion timings,
   and easing curve values the new handoff specifies for the deck move to Phase G (G4,
   below) — not V2. G already owns the deck's unresolved iOS investigation, which touches
