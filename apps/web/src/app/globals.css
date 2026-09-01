@@ -250,11 +250,25 @@
    * `animate-spin` utility elsewhere inherits this component's timing.
    */
   --animate-spin-fast: spin-fast 0.8s linear infinite;
+
+  /*
+   * ---- Card entrance ----
+   * `Opika Registry README.md`'s error/reveal cards: "Card enters by
+   * opacity 220ms." A plain fade, no movement — this system's own motion
+   * rule ("short and dry; no springiness") applies here too.
+   */
+  --animate-fade-in: fade-in 220ms ease-out;
 }
 
 @keyframes spin-fast {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
   }
 }
 

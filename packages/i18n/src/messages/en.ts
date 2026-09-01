@@ -242,11 +242,6 @@ export const en = {
       '"try something else" without a number.',
   },
 
-  // --- Gallery loading — see the uk key's own note ---
-  galleryLoading: {
-    liveRegion: "Loading animals",
-  },
-
   // --- Gallery error — see the uk key's own note ---
   galleryError: {
     eyebrow: "DIDN'T LOAD",

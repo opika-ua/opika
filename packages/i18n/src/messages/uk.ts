@@ -325,14 +325,6 @@ export const uk = {
       "«спробуйте інше» без числа.",
   },
 
-  // --- Gallery loading (E4, V2 mock frames L1/L2) ---
-  galleryLoading: {
-    /** Polite live-region text while the skeleton grid is on screen —
-     * `aria-busy="true"` on the grid itself, this is the announcement.
-     * `docs/design/README.md`, "Loading (L1/L2)". */
-    liveRegion: "Завантажуємо тварин",
-  },
-
   // --- Gallery error (E4, V2 mock frames E1/E2 — copy adapted, see
   // docs/design/README.md's note at that section for why) ---
   galleryError: {

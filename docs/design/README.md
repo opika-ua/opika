@@ -453,7 +453,18 @@ is false once a next-page click has already moved the URL to the page that then 
 load. Shipped as neutral copy true in both cases instead — «Сторінку не вдалося завантажити.»
 / «Це не ваша помилка і не помилка притулку. Ваші фільтри збережені.» — see
 `apps/web/src/app/tvaryny/error.tsx` and `packages/i18n/src/messages/uk.ts`'s `galleryError`.
-Radius, padding, sizing, eyebrow and button label are unchanged from the mock.
+Radius, padding, sizing, eyebrow and button label are unchanged from the mock. Card entrance
+(opacity 220ms) and focus moving to the heading on mount are both built, matching the mock.
+
+**Second deviation, same section — "Never full-screen … header, rail and sort stay usable" is
+not met.** Recorded, not silently shipped: `apps/web/src/app/tvaryny/error.tsx`'s own comment
+has the full reasoning. In short, Next.js error boundaries replace everything the failing
+Server Component's render tree would have produced, and `page.tsx`'s header and rail are
+constructed only after the same `Promise.all` that can throw — when it does, they never
+rendered in the first place, so there is no working chrome left for this file to preserve.
+Making the mock's claim true needs the header/rail moved into a `layout.tsx` sibling to this
+route, rendering independently of the fetch that can fail — real restructuring, not built
+this phase.
 
 ### Next-page error (E3/E4) — a different surface than E1
 
@@ -492,6 +503,16 @@ declension for an arbitrary N (the total page count varies with the live corpus 
 filters) is real grammar work with no groundwork anywhere in this codebase — the same class
 of gap `noMatch`'s own dropped example sentence already represents, not a new one. See
 `packages/i18n/src/messages/uk.ts`'s `outOfRangePage`.
+
+**Follow-up, not built this phase — the `?stor=10` canonical tag.** The clamp itself is real
+(E0) and the visible notice ships; the `<link rel="canonical">` pointing a clamped request at
+its resolved URL does not. No route under `/tvaryny` has a `generateMetadata` at all yet —
+`docs/build-plan.md`'s F2 row is where that infrastructure is scoped (Open Graph, canonical,
+for the detail page). Adding a canonical tag to only the out-of-range case, ahead of the
+general metadata pass every other filter/sort/page URL equally needs, would be exactly the
+kind of premature, one-off scaffolding `CLAUDE.md`'s phase-scope-discipline section warns
+against. Tracked here so F2 (or whichever task ends up owning gallery metadata) picks it up
+rather than it being silently dropped.
 
 ### Deck chrome and the mode switch (V1/V2/V3)
 The deck's header **replaces** the gallery header — never two navigations at once:

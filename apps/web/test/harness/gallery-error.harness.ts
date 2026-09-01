@@ -21,6 +21,17 @@ const NOTICE = "[data-testid='gallery-out-of-range-notice']";
 const ERROR_CARD = "[data-testid='gallery-error']";
 const RETRY = "[data-testid='gallery-error-retry']";
 
+/**
+ * TEST-NET-2 (198.51.100.0/24), `.26` — the next unused address in this
+ * block; `.21`-`.25` are already claimed by the other `/tvaryny` harness
+ * files (`gallery-arrow-nav`, `gallery-filters`, `gallery-layout`,
+ * `gallery-pagination`, `freshness-pip-contrast`). Without a distinct
+ * identity this file's five tests would share `proxy.ts`'s 100/min-per-IP
+ * budget with whichever of those runs concurrently — flaky, not obviously
+ * this file's fault when it fails.
+ */
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.26" } });
+
 test.describe("/tvaryny out-of-range page", () => {
   /**
    * `docs/design/README.md`, "Out-of-range page (P1/P2)": `?stor=50` with
@@ -64,36 +75,63 @@ test.describe("/tvaryny out-of-range page", () => {
     await expect(page.locator(ERROR_CARD)).toBeVisible();
     await expect(page.locator(NOTICE)).toHaveCount(0);
     await expect(page.locator(CARD)).toHaveCount(0);
+
+    /**
+     * `Opika Registry Frames.dc.html`'s E1 frame's own literal text
+     * (eyebrow, retry label) — not `uk.galleryError`'s own constant,
+     * `docs/standing-constraints.md`: "A test may not compare output
+     * against the same constant the code renders." The heading/body are
+     * NOT asserted here on purpose — they're this phase's own adapted
+     * copy (`docs/design/README.md`'s "Deviation, E4" note), not the
+     * mock's literal text, so pinning them against the mock would be
+     * asserting a value the code correctly does NOT render.
+     */
+    await expect(page.locator(ERROR_CARD)).toContainText("НЕ ЗАВАНТАЖИЛОСЯ");
+    await expect(page.locator(RETRY)).toHaveText("Спробувати ще раз");
   });
 });
 
 test.describe("/tvaryny error state", () => {
   /**
-   * What this test actually proves, and why it's scoped this way: an
-   * earlier version tried to force a *transient* failure by aborting the
-   * client-side RSC fetch behind a filter-chip click, then letting a
-   * second attempt through, expecting error.tsx to catch the first and
-   * retry to recover into the second. It didn't — Next's client router
-   * does not reliably surface a failed client-side navigation fetch to
-   * the nearest error boundary the way a genuine server-side throw does
-   * (see `MAX_GALLERY_PAGE`'s test above, which does trigger error.tsx
-   * reliably, every time). That distinction isn't documented anywhere
-   * accessible; empirically, network-level client fetch failures did not
-   * reach `error.tsx` in this app's current Next.js version, while a
-   * `gallery.list` call that throws server-side always did.
+   * What this test actually proves, and what it doesn't — read before
+   * trusting the title. Two things were tried and abandoned first, both
+   * worth recording so nobody re-attempts them expecting a different
+   * result from the same Next.js version:
    *
-   * So: this test uses the reliable trigger (a filtered URL past
-   * `MAX_GALLERY_PAGE`, which always fails, deterministically) and proves
-   * what `reset()` actually guarantees — a re-render of the *same* URL,
-   * not a navigation elsewhere — rather than proving recovery succeeds,
-   * which depends on the failure's cause being fixable and isn't this
-   * component's job to guarantee. `error.tsx.test.tsx` (component-level)
-   * proves the button calls `reset()` at all; this proves that call
-   * doesn't drop the filter that was already in the URL.
+   * 1. Forcing a *transient* failure by aborting the client-side RSC
+   *    fetch behind a filter-chip click, then letting a second attempt
+   *    through, expecting error.tsx to catch the first and retry to
+   *    recover into the second. It didn't — Next's client router does
+   *    not reliably surface a failed client-side navigation fetch to the
+   *    nearest error boundary the way a genuine server-side throw does
+   *    (`MAX_GALLERY_PAGE`, used below, triggers error.tsx reliably every
+   *    time; an aborted client fetch did not).
+   * 2. Asserting that clicking retry issues a fresh network request, as
+   *    independent proof `reset()` isn't a no-op. It doesn't, observably
+   *    — logging every request for 2s after the click (against this
+   *    page, reached via a full top-level navigation, not a client
+   *    transition) showed none. Whether that's a cache hit, a batched
+   *    request this logging missed, or something else about how `reset()`
+   *    behaves when there was never a prior successful client-side render
+   *    to diff against isn't settled here — it's genuinely not known, not
+   *    swept under a passing assertion.
+   *
+   * What *is* proven, reliably: `error.tsx.test.tsx` (component-level)
+   * asserts the button calls the `reset` prop, directly, via a mock — the
+   * one thing that would catch `onClick={reset}` being deleted. This test
+   * proves the other half: after clicking it, the URL — and therefore
+   * whatever filter was in it — hasn't been dropped or navigated away
+   * from, and the error boundary hasn't fallen through to something else.
+   * Together they're the honest scope of "retry preserves filters" this
+   * architecture can verify: the button calls the right function, and
+   * calling it doesn't lose the state. Whether a *successful* retry
+   * re-renders the previously-filtered grid is not independently proven
+   * by either test — it follows from `page.tsx` always deriving its
+   * rendered content from `searchParams` alone (already covered
+   * extensively by the filter-URL tests elsewhere in this suite), not
+   * from anything specific to the retry path.
    */
-  test("retry re-renders the same URL — the filter already in it survives the click", async ({
-    page,
-  }) => {
+  test("retry calls reset() without dropping the filter already in the URL", async ({ page }) => {
     const url = `${ROUTE}?vyd=dog&stor=${MAX_GALLERY_PAGE + 1}`;
     await openRoute(page, url, DESKTOP, { readySelector: ERROR_CARD });
 
