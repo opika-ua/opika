@@ -58,6 +58,7 @@ export default function GalleryError({
         <p className="text-[17px]/[26px] text-rg-ink-2 text-pretty">{uk.galleryError.body}</p>
         <button
           type="button"
+          data-testid="gallery-error-retry"
           onClick={reset}
           className="min-h-14 px-6 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
