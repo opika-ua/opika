@@ -15,20 +15,29 @@ const SORT_LABEL: Record<GallerySort, string> = {
 };
 
 /**
- * docs/design/README.md, "Rail, count, sort": "Above the grid: '...' left;
- * a sort control right (44px, radius 12)." A standalone control, not part
- * of the rail card — it sits beside the result-count line above the grid
- * at every width the rail also appears, and is folded into the sheet's own
- * form (as radios) below 1024. Two links, same "instant apply, no button"
- * behaviour as the rail's chips, for the same reason: a click is already a
- * real navigation.
+ * docs/design/README.md, "Rail, count, sort": "sort control right (48,
+ * radius 16)." A standalone control, not part of the rail card — it sits
+ * beside the result-count line above the grid at every width the rail also
+ * appears, and is folded into the sheet's own form (as radios) below 1024.
+ *
+ * The mock (`Opika Registry System.dc.html`'s B1 frame) draws this as a
+ * single closed dropdown showing the active choice plus a "▾" caret — but
+ * with only two options ever, rebuilding that as a real opening menu would
+ * trade a working, no-JS, keyboard-native pair of links for a client
+ * component that has to reinvent focus management, Escape-to-close and a
+ * no-JS fallback none of which the mock actually specifies (it only shows
+ * the closed state). That is new interaction surface, not a restyle, so
+ * this keeps the two-link structure — both options are always real,
+ * instantly-applying navigations, same as the rail's chips — and applies
+ * the mock's sizing/radius/colour to it instead of its dropdown affordance.
+ * Flagged in the V2 PR description for a second look.
  */
 export function SortControl({ filters, sort }: SortControlProps) {
   return (
     <nav
       data-testid="sort-control"
       aria-label={uk.filters.sortLabel}
-      className="hidden desktop:flex rounded-button border border-line-strong bg-paper overflow-hidden h-11"
+      className="font-rg hidden desktop:flex rounded-rg-button bg-rg-surface overflow-hidden h-12"
     >
       {GALLERY_SORTS.map((option) => (
         <Link
@@ -37,8 +46,8 @@ export function SortControl({ filters, sort }: SortControlProps) {
           // `aria-current`, not `aria-pressed` — same reason as FilterRail's
           // Chip: `aria-pressed` is not an allowed attribute on role="link".
           aria-current={sort === option ? "true" : undefined}
-          className={`flex items-center px-4 font-sans text-sm whitespace-nowrap ${
-            sort === option ? "bg-leaf text-paper" : "text-ink-3 hover:text-ink-2"
+          className={`flex items-center px-5 text-[15px] whitespace-nowrap transition-colors duration-[120ms] ease-rg ${
+            sort === option ? "bg-rg-ink text-rg-surface font-medium" : "text-rg-ink-3 hover:text-rg-ink-2"
           }`}
         >
           {SORT_LABEL[option]}
