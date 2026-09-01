@@ -96,6 +96,7 @@ export async function renderGallery(
             sort={sort}
             cities={cityList}
             resultCount={page.totalMatching}
+            shelterCount={page.totalShelters}
           />
         </div>
 
@@ -115,7 +116,13 @@ export async function renderGallery(
         */}
         <div className="desktop:flex desktop:gap-8 desktop:items-start">
           <ReplaceNav>
-            <FilterRail filters={filters} sort={sort} cities={cityList} />
+            <FilterRail
+              filters={filters}
+              sort={sort}
+              cities={cityList}
+              resultCount={page.totalMatching}
+              shelterCount={page.totalShelters}
+            />
           </ReplaceNav>
 
           <div className="flex-1 min-w-0">

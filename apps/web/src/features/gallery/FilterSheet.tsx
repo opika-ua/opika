@@ -26,7 +26,7 @@ import {
   resetFiltersHref,
   searchParamsFromFormData,
 } from "./filter-url";
-import { showCountLabel } from "./gallery-copy";
+import { sheetResultCount, showCountLabel } from "./gallery-copy";
 
 const SHEET_ID = "tvaryny-filters";
 
@@ -36,6 +36,8 @@ interface FilterSheetProps {
   cities: ReadonlyArray<{ id: CityId; name: string }>;
   /** The count a submit right now would show — matches the design's live preview, computed from the *current* (already-applied) filters, same value the rail's result line uses. A checkbox ticked but not yet submitted does not change this number; only a real submission does. */
   resultCount: number;
+  /** For the sheet's own "Підходить N тварин у M притулках." sentence — `Opika Registry System.dc.html`'s B6 frame, same sentence the rail's closing box shows. */
+  shelterCount: number;
 }
 
 const SPECIES_LABEL: Record<AnimalSpecies, string> = {
@@ -65,7 +67,7 @@ const AGE_LABEL: Record<AgeBucket, string> = {
  * removed", which drawing it where nobody can see it is a way of removing.
  */
 const CHIP_LABEL_BASE =
-  "min-h-9 inline-flex items-center rounded-chip px-3 font-sans text-sm leading-none cursor-pointer transition-colors duration-[160ms] has-[:checked]:bg-leaf has-[:checked]:text-paper border border-line-strong has-[:checked]:border-leaf text-ink-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-leaf has-[:focus-visible]:outline-offset-2";
+  "min-h-12 inline-flex items-center rounded-rg-chip px-5 font-rg text-[15px] leading-none cursor-pointer transition-colors duration-[120ms] ease-rg has-[:checked]:bg-rg-ink has-[:checked]:text-rg-surface has-[:checked]:font-medium bg-rg-fill text-rg-ink has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-rg-registry has-[:focus-visible]:outline-offset-[3px]";
 
 /**
  * docs/design/README.md, "03 · Фільтри" + "Rail, count, sort": "Below
@@ -86,7 +88,7 @@ const CHIP_LABEL_BASE =
  * adds only what `showModal()` doesn't provide for free: locking
  * background scroll, and returning focus to the trigger on close.
  */
-export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetProps) {
+export function FilterSheet({ filters, sort, cities, resultCount, shelterCount }: FilterSheetProps) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLAnchorElement>(null);
@@ -201,7 +203,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
         href={`#${SHEET_ID}`}
         onClick={openWithJs}
         data-testid="filter-sheet-trigger"
-        className="desktop:hidden min-h-11 inline-flex items-center rounded-button border border-line-strong bg-paper px-4 font-sans text-sm text-ink-2"
+        className="font-rg desktop:hidden min-h-11 inline-flex items-center rounded-rg-button bg-rg-fill px-4 text-[15px] text-rg-ink"
       >
         {uk.feed.filtersLabel}
       </a>
@@ -227,7 +229,7 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
         // the gallery grid (which comes after this element in the tree)
         // painted its cards' photos through the sheet in the no-JS path,
         // caught by an actual browser render, not by reasoning about it.
-        className="desktop:hidden fixed inset-x-0 bottom-0 top-auto z-50 m-0 w-full max-w-none max-h-[85vh] overflow-y-auto rounded-t-[20px] rounded-b-none border-0 bg-paper p-0 backdrop:bg-[#EDE3D2]/80"
+        className="font-rg desktop:hidden fixed inset-x-0 bottom-0 top-auto z-50 m-0 w-full max-w-none max-h-[85vh] overflow-y-auto rounded-t-[24px] rounded-b-none border-0 bg-rg-surface p-0 shadow-rg-card backdrop:bg-[#B9B9B5]/80"
       >
         {/*
           `key` is what keeps this form honest. Its inputs are uncontrolled
@@ -247,34 +249,36 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
           method="GET"
           action="/tvaryny"
           onSubmit={onSubmit}
-          className="flex flex-col gap-section p-group pb-6"
+          className="flex flex-col gap-7 p-6 pb-6"
         >
           <div className="flex items-center justify-between">
             <span
               aria-hidden="true"
-              className="mx-auto h-1 w-10 rounded-chip bg-line-strong absolute top-2 left-1/2 -translate-x-1/2"
+              className="mx-auto h-[5px] w-12 rounded-rg-chip bg-rg-fill-strong absolute top-4 left-1/2 -translate-x-1/2"
             />
-            <h2 className="font-serif text-lg text-ink">{uk.filters.title}</h2>
+            <h2 className="text-[24px]/[28px] font-bold tracking-[-0.02em] text-rg-ink">
+              {uk.filters.title}
+            </h2>
             {/* biome-ignore lint/a11y/useValidAnchor: real navigation, not a disguised button — without JS this is the only way to clear #tvaryny-filters and make the :target rule hide the sheet again; a <button> cannot change the URL fragment on its own. */}
             <a
               href="#"
               onClick={closeWithJs}
               aria-label="Закрити"
-              className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-button text-ink-3"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-rg-button text-rg-ink-3"
             >
               ✕
             </a>
           </div>
 
-          <fieldset className="flex flex-col gap-label">
-            <legend className="font-sans font-medium text-xs tracking-wide text-ink-3 uppercase mb-label">
+          <fieldset className="flex flex-col gap-3">
+            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
               {uk.filters.city}
             </legend>
-            <div className="flex flex-wrap gap-row">
+            <div className="flex flex-wrap gap-2">
               <a
                 href={allCitiesHref}
                 onClick={onAllCitiesClick}
-                className={`${CHIP_LABEL_BASE} ${filters.cities.kind === "any" ? "bg-leaf text-paper border-leaf" : ""}`}
+                className={`${CHIP_LABEL_BASE} ${filters.cities.kind === "any" ? "bg-rg-ink text-rg-surface font-medium" : ""}`}
               >
                 {uk.filters.allCities}
               </a>
@@ -293,11 +297,11 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
             </div>
           </fieldset>
 
-          <fieldset className="flex flex-col gap-label">
-            <legend className="font-sans font-medium text-xs tracking-wide text-ink-3 uppercase mb-label">
+          <fieldset className="flex flex-col gap-3">
+            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
               {uk.filters.species}
             </legend>
-            <div className="flex flex-wrap gap-row">
+            <div className="flex flex-wrap gap-2">
               {ANIMAL_SPECIES.map((species) => (
                 <label key={species} className={CHIP_LABEL_BASE}>
                   <input
@@ -313,11 +317,11 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
             </div>
           </fieldset>
 
-          <fieldset className="flex flex-col gap-label">
-            <legend className="font-sans font-medium text-xs tracking-wide text-ink-3 uppercase mb-label">
+          <fieldset className="flex flex-col gap-3">
+            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
               {uk.filters.size}
             </legend>
-            <div className="flex flex-wrap gap-row">
+            <div className="flex flex-wrap gap-2">
               {SIZE_BUCKETS.map((size) => (
                 <label key={size} className={CHIP_LABEL_BASE}>
                   <input
@@ -333,11 +337,11 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
             </div>
           </fieldset>
 
-          <fieldset className="flex flex-col gap-label">
-            <legend className="font-sans font-medium text-xs tracking-wide text-ink-3 uppercase mb-label">
+          <fieldset className="flex flex-col gap-3">
+            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
               {uk.filters.age}
             </legend>
-            <div className="flex flex-wrap gap-row">
+            <div className="flex flex-wrap gap-2">
               {AGE_BUCKETS.map((age) => (
                 <label key={age} className={CHIP_LABEL_BASE}>
                   <input
@@ -353,11 +357,11 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
             </div>
           </fieldset>
 
-          <fieldset className="flex flex-col gap-label">
-            <legend className="font-sans font-medium text-xs tracking-wide text-ink-3 uppercase mb-label">
+          <fieldset className="flex flex-col gap-3">
+            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
               {uk.filters.sortLabel}
             </legend>
-            <div className="flex flex-wrap gap-row">
+            <div className="flex flex-wrap gap-2">
               <label className={CHIP_LABEL_BASE}>
                 <input
                   type="radio"
@@ -381,22 +385,30 @@ export function FilterSheet({ filters, sort, cities, resultCount }: FilterSheetP
             </div>
           </fieldset>
 
-          <p className="font-sans text-xs text-ink-3 leading-snug">{uk.filters.railFooter}</p>
-
-          <div className="flex gap-row">
-            <a
-              href={resetFiltersHref(sort)}
-              onClick={onResetClick}
-              className="min-h-13 flex items-center justify-center rounded-button border border-line-strong bg-paper text-ink-3 font-sans text-sm px-5"
-            >
-              {uk.filters.reset}
-            </a>
-            <button
-              type="submit"
-              className="min-h-13 flex-1 rounded-button bg-leaf text-paper font-sans text-sm cursor-pointer"
-            >
-              {showCountLabel(resultCount)}
-            </button>
+          {/* docs/design/README.md, "Sheet": the same closing sentence pair
+            the rail's own box shows, immediately above the footer buttons
+            here rather than in its own filled block — `Opika Registry
+            System.dc.html`'s B6 frame nests both directly in the form's
+            own flow, not in a separate fill. */}
+          <div className="flex flex-col gap-3">
+            <p className="text-[15px]/[22px] text-rg-ink-2">
+              {sheetResultCount(resultCount, shelterCount, filters.cities.kind !== "any")}
+            </p>
+            <div className="flex gap-2">
+              <a
+                href={resetFiltersHref(sort)}
+                onClick={onResetClick}
+                className="min-h-14 flex items-center justify-center rounded-rg-button bg-rg-fill text-rg-ink font-medium text-[15px] px-6"
+              >
+                {uk.filters.reset}
+              </a>
+              <button
+                type="submit"
+                className="min-h-14 flex-1 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer"
+              >
+                {showCountLabel(resultCount)}
+              </button>
+            </div>
           </div>
         </form>
       </dialog>
