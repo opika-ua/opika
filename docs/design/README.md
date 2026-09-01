@@ -61,7 +61,7 @@ scores, streaks or celebration.
 | page | `#ECECEA` | page background behind cards |
 | surface | `#FFFFFF` | cards, rail, sheet, header |
 | fill | `#F2F2F0` | sunken blocks, unselected chips, secondary buttons |
-| fill-strong | `#DCDCD9` | resolved/closed cards, empty pips, image placeholder |
+| fill-strong | `#DCDCD9` | resolved/closed cards, image placeholder |
 | ink | `#101112` | primary text **and** the primary action fill |
 | ink-2 | `#45484B` | body and metadata |
 | ink-3 | `#63676B` | captions, labels, tertiary |
@@ -83,6 +83,20 @@ ink-3 is restricted to 13px+ captions and labels and never carries meaning on it
 
 `#1B3A6B` is never used as a button fill and never appears in freshness except as the first pip —
 otherwise it stops meaning "registry".
+
+### Decorative-only values
+
+Two values appear only in photo-placeholder gradients and convey no information — WCAG 1.4.11
+does not apply to them. **Do not reuse either value outside a placeholder gradient:**
+
+| Value | Use |
+|---|---|
+| `#CFCFCB` | Resolved-card placeholder stripe (`repeating-linear-gradient`) |
+| `#E0E0DD` | Resolved-card placeholder stripe |
+
+`#E0E0DD` is close enough to `#DCDCD9` that it would fail WCAG 1.4.11 at roughly the same ratios
+if reused for any element that conveys meaning. That is exactly what the pip deviation above
+corrects — label these here so the same defect cannot be re-introduced by reusing the wrong hex.
 
 ### Dark
 | Token | Hex | Ratio |
@@ -126,7 +140,16 @@ This replaces the four families the current build loads.
 | body-l | 17 / 26 | 400 | — | the shelter's sentence, empty-state prose |
 | body | 15 / 22 | 400 | — | metadata, buttons, chips, freshness label |
 | caption | 13 / 18 | 400 | — | shelter line, attribution, helper text |
-| label | 12 / 16 | 500 | 0.08em, uppercase | filter group labels |
+| label | 12 / 16 | 500 | 0.06em, uppercase, `ink-3` | filter group labels |
+
+**Correction (V1 intake, `docs/design/intake-report.md` §C):** the type-scale
+swatch this table was transcribed from renders the "label" role at `0.08em`
+in `ink-2` (`#45484B`) — but every actual instance of a filter group label in
+the mock (the rail and the sheet, `Opika Registry System.dc.html`, `МІСТО`/
+`ВИД`/`РОЗМІР`/`ВІК`) renders at `0.06em` in `ink-3` (`#63676B`), with no
+explicit `line-height` set. The applied instances win: they are what
+actually renders on the two real screens this role is used on, not the
+abstract legend. Row above corrected to match; build from `0.06em`/`ink-3`.
 
 Mobile card name drops to 22 / 26 · 700 · −0.02em on the compact horizontal card.
 
@@ -198,8 +221,21 @@ dot       circle cx=48 cy=79 r=6                filled
 | `stale` | 30+ days | 2 × `#63676B`, 3rd `#101112` | Оновлено 41 день тому |
 
 Geometry: **10×10px**, `border-radius: 50%`, `gap: 6` between pips, `gap: 10` to the label.
-Grown from 7px — at 1.5× density on a cheap Android panel 7px pips disappeared. The empty pip is a
-**fill**, not a 1px ring: a hairline circle moirés on a weak GPU.
+Grown from 7px — at 1.5× density on a cheap Android panel 7px pips disappeared. The mock renders
+the empty pip as a solid `#DCDCD9` fill (12 instances, `Opika Registry System.dc.html` lines
+150/161/172/183/220/229/244/248/252/293/306/358).
+
+**Owner-approved deviation — empty pip:** Measured contrast of `#DCDCD9` as a filled pip:
+1.37:1 vs `#FFFFFF`, 1.23:1 vs `#F2F2F0`, 1.16:1 vs `#ECECEA`. WCAG 1.4.11 requires 3:1 for
+non-text graphics that convey required information; this fails on every background the pip appears
+on. It also reproduces what "opacity never carries meaning" exists to prevent: a fixed-lightness hex
+standing in for filled vs. empty is a lightness gradient in practice, whether or not it is an alpha
+channel in source.
+
+Build the empty pip as **transparent-fill with a `1.5–2px` border in `#63676B`** instead —
+5.70:1 vs `#FFFFFF`, clears 3:1 on `#F2F2F0` and `#ECECEA`. Diameter, positions, and inter-pip
+`gap` are unchanged. The day count in words renders beside the pips at all times — nothing else in
+this block moves.
 
 The blue on the first pip is deliberately the same blue as "registry" — both mean *someone confirmed
 this*.
@@ -244,7 +280,10 @@ Surface white, radius 24, padding 12, inner `gap: 16`; text block `gap: 12`, pad
    «Уже домовляються», bottom-left **inside the photo** at 12px inset. White because shelter photos
    are unpredictable — it reads on dark and on blown-out alike. The animal stays in the deck; the
    primary button relabels to «Стати другим у черзі».
-3. **Resolved** — card fill becomes `#DCDCD9`, photo placeholder darkens to its own hatch, and the
+3. **Resolved** — card fill becomes `#DCDCD9`, photo placeholder darkens to its own hatch —
+   `repeating-linear-gradient(135deg, #CFCFCB 0 10px, #E0E0DD 10px 20px)`, distinct from the
+   standard placeholder's `#DCDCD9 0 10px, #EFEFED 10px 20px` (exact value only in the mock,
+   `Opika Registry System.dc.html`; added here per V1 intake, `intake-report.md` §C) — and the
    pips are replaced by the sentence «Притулок каже: Бім уже вдома.» **Different fill and different
    text — never dimming.**
 
