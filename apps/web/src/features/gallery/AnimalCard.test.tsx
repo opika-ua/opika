@@ -153,13 +153,7 @@ describe("AnimalCard resolved variant", () => {
   });
 
   it("never shows the reserved badge, even if the underlying listingKind is reserved", () => {
-    render(
-      <AnimalCard
-        card={makeCard({ listingKind: "reserved" })}
-        cityName="Бровари"
-        resolved
-      />,
-    );
+    render(<AnimalCard card={makeCard({ listingKind: "reserved" })} cityName="Бровари" resolved />);
     expect(screen.queryByTestId("reserved-badge")).toBeNull();
   });
 

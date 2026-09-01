@@ -278,7 +278,11 @@
  * literal hex rather than inventing a token that is never used anywhere else.
  */
 @utility bg-rg-photo-placeholder {
-  background: repeating-linear-gradient(135deg, var(--color-rg-fill-strong) 0 10px, #efefed 10px 20px);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-rg-fill-strong) 0 10px,
+    #efefed 10px 20px
+  );
 }
 @utility bg-rg-photo-placeholder-resolved {
   background: repeating-linear-gradient(135deg, #cfcfcb 0 10px, #e0e0dd 10px 20px);

@@ -11,6 +11,7 @@ import { parseGalleryQuery, type SearchParams } from "../../features/gallery/fil
 import { GalleryPagination } from "../../features/gallery/GalleryPagination";
 import { railResultCount, sheetResultCount } from "../../features/gallery/gallery-copy";
 import { hasPagination } from "../../features/gallery/gallery-pagination";
+import { NoMatch } from "../../features/gallery/NoMatch";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { SortControl } from "../../features/gallery/SortControl";
 
@@ -42,11 +43,11 @@ const PRIORITY_ROW_SIZE = 2;
  * below the grid and the skip link that reaches them without tabbing
  * through all 24 cards.
  *
- * Empty/loading/error states (E4) are still deliberately absent. That
- * includes the out-of-range-page note: `gallery.list` already clamps a
- * stale `?stor=` server-side and this page already renders the clamped
- * page, but the note saying so ("Сторінки 7 більше немає") is E4's, not
- * rendered here yet.
+ * The no-match state (V2, `docs/design/README.md` "Gallery states" > "No
+ * match") is now built — it's one of the surfaces V2's own mock covers.
+ * Loading, whole-list error, next-page error, and the out-of-range-page
+ * note ("Сторінки 7 більше немає") have no mock and are deliberately still
+ * absent, deferred to whichever phase gives them one.
  *
  * Split from the default export for the same reason `renderHome` is:
  * `page.test.tsx` calls this directly with a test database, `Page`'s own
@@ -65,6 +66,18 @@ export async function renderGallery(
   ]);
   const cityList = cities.map((city) => ({ id: city.id, name: textIn(city.name, "uk") }));
   const cityNames = new Map<CityId, string>(cityList.map((city) => [city.id, city.name]));
+
+  /**
+   * docs/design/README.md, "Gallery states" > "No match". Only queried when
+   * there's actually nothing to show — `gallery.relaxationCounts` is its
+   * own scan (`packages/contracts/src/procedures/gallery.ts`: "a single
+   * scan with one COUNT(*) FILTER per constrained dimension, not a reuse of
+   * the page fetch"), so a normal, matching page never pays for it.
+   */
+  const relaxations =
+    page.totalMatching === 0
+      ? (await client.gallery.relaxationCounts({ filters })).relaxations
+      : [];
 
   return (
     <div className="min-h-dvh bg-paper-alt">
@@ -145,33 +158,39 @@ export async function renderGallery(
               `sr-only focus:not-sr-only`: invisible until a keyboard user
               actually reaches it by Tab, which is exactly who needs it.
             */}
-            {hasPagination(page.totalPages) && (
-              <a
-                href="#pagination"
-                data-testid="pagination-skip-link"
-                className="sr-only focus:not-sr-only focus:mb-3 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-button focus:bg-leaf focus:px-4 focus:font-sans focus:text-sm focus:text-paper"
-              >
-                {uk.pagination.skipLink}
-              </a>
-            )}
+            {page.totalMatching === 0 ? (
+              <NoMatch filters={filters} sort={sort} relaxations={relaxations} />
+            ) : (
+              <>
+                {hasPagination(page.totalPages) && (
+                  <a
+                    href="#pagination"
+                    data-testid="pagination-skip-link"
+                    className="sr-only focus:not-sr-only focus:mb-3 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-button focus:bg-leaf focus:px-4 focus:font-sans focus:text-sm focus:text-paper"
+                  >
+                    {uk.pagination.skipLink}
+                  </a>
+                )}
 
-            <ArrowKeyGrid className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px]">
-              {page.items.map((item, index) => (
-                <AnimalCard
-                  key={item.id}
-                  card={item}
-                  cityName={cityNames.get(cardCityId(item)) ?? null}
-                  priority={index < PRIORITY_ROW_SIZE}
+                <ArrowKeyGrid className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px]">
+                  {page.items.map((item, index) => (
+                    <AnimalCard
+                      key={item.id}
+                      card={item}
+                      cityName={cityNames.get(cardCityId(item)) ?? null}
+                      priority={index < PRIORITY_ROW_SIZE}
+                    />
+                  ))}
+                </ArrowKeyGrid>
+
+                <GalleryPagination
+                  filters={filters}
+                  sort={sort}
+                  page={page.page}
+                  totalPages={page.totalPages}
                 />
-              ))}
-            </ArrowKeyGrid>
-
-            <GalleryPagination
-              filters={filters}
-              sort={sort}
-              page={page.page}
-              totalPages={page.totalPages}
-            />
+              </>
+            )}
           </div>
         </div>
       </div>

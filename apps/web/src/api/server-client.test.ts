@@ -78,6 +78,28 @@ describe("anonymousRouterClient", () => {
     expect(JSON.stringify(page.items[0]?.shelter)).not.toContain("вул. Тестова");
   });
 
+  it("also exposes gallery.relaxationCounts — V2's no-match state, read-only same as gallery.list", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: {
+        precision: "fuzzed_address",
+        cityId: city.id,
+        district: null,
+        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: shelter.id, species: "dog" }), city.id);
+
+    const result = await anonymousRouterClient(h.db).gallery.relaxationCounts({
+      filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
+    });
+
+    expect(result.current).toBe(0);
+    expect(result.relaxations).toEqual([{ dimension: "species", additional: 1 }]);
+  });
+
   /**
    * This path throws `setCookies` away — a Server Component cannot write a
    * cookie. `session.bootstrap` inserts an adopter row and a session row

@@ -23,8 +23,7 @@ interface GalleryPaginationProps {
  * unavailable, next available) — this applies the same two treatments to
  * whichever control is inert on any given page.
  */
-const NAV_BUTTON =
-  "font-rg inline-flex items-center min-h-14 px-6 rounded-rg-button text-[15px]";
+const NAV_BUTTON = "font-rg inline-flex items-center min-h-14 px-6 rounded-rg-button text-[15px]";
 const NAV_BUTTON_AVAILABLE = `${NAV_BUTTON} bg-rg-ink text-rg-surface font-medium`;
 const NAV_BUTTON_UNAVAILABLE = `${NAV_BUTTON} bg-rg-surface text-rg-ink-3`;
 

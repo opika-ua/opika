@@ -83,13 +83,21 @@ describe("/tvaryny (renderGallery)", () => {
     expect(screen.getByTestId("reserved-badge")).toBeTruthy();
   });
 
-  it("renders an empty grid, not a crash, when nothing is seeded", async () => {
+  /**
+   * V2 repoint: this used to assert "an empty grid, not a crash" — the E4
+   * no-match state had no mock yet, so an empty `<main>` was the honest
+   * placeholder. docs/design/README.md's "Gallery states" > "No match" now
+   * has one (`Opika Registry System.dc.html`'s B4 frame), built as
+   * `NoMatch.tsx` and wired in here — the design value that changed is the
+   * whole rendered branch, "empty grid" -> "the no-match card", not a
+   * colour or a class.
+   */
+  it("renders the no-match state, not an empty grid, when nothing is seeded", async () => {
     const element = await renderGallery(anonymousRouterClient(h.db));
     render(<WithMockRouter>{element}</WithMockRouter>);
 
-    // Scoped to the grid for the same reason as above — the rail/sheet/sort
-    // controls render their own links regardless of how many animals matched.
-    expect(within(screen.getByTestId("gallery-grid")).queryAllByRole("link")).toHaveLength(0);
-    expect(screen.getByTestId("gallery-grid")).toBeTruthy();
+    expect(screen.queryByTestId("gallery-grid")).toBeNull();
+    expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
+    expect(screen.getByText("Під ці фільтри зараз нікого немає.")).toBeTruthy();
   });
 });

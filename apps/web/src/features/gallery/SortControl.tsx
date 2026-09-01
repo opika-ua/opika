@@ -47,7 +47,9 @@ export function SortControl({ filters, sort }: SortControlProps) {
           // Chip: `aria-pressed` is not an allowed attribute on role="link".
           aria-current={sort === option ? "true" : undefined}
           className={`flex items-center px-5 text-[15px] whitespace-nowrap transition-colors duration-[120ms] ease-rg ${
-            sort === option ? "bg-rg-ink text-rg-surface font-medium" : "text-rg-ink-3 hover:text-rg-ink-2"
+            sort === option
+              ? "bg-rg-ink text-rg-surface font-medium"
+              : "text-rg-ink-3 hover:text-rg-ink-2"
           }`}
         >
           {SORT_LABEL[option]}

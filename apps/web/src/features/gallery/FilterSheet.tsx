@@ -88,7 +88,13 @@ const CHIP_LABEL_BASE =
  * adds only what `showModal()` doesn't provide for free: locking
  * background scroll, and returning focus to the trigger on close.
  */
-export function FilterSheet({ filters, sort, cities, resultCount, shelterCount }: FilterSheetProps) {
+export function FilterSheet({
+  filters,
+  sort,
+  cities,
+  resultCount,
+  shelterCount,
+}: FilterSheetProps) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLAnchorElement>(null);

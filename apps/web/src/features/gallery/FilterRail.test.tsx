@@ -12,7 +12,15 @@ const CITIES: ReadonlyArray<{ id: CityId; name: string }> = [
 
 describe("FilterRail", () => {
   it("shows 'Уся Київщина' active and no other chip active when nothing is filtered", () => {
-    render(<FilterRail filters={NO_FILTERS} sort="freshest" cities={CITIES} resultCount={34} shelterCount={7} />);
+    render(
+      <FilterRail
+        filters={NO_FILTERS}
+        sort="freshest"
+        cities={CITIES}
+        resultCount={34}
+        shelterCount={7}
+      />,
+    );
     const rail = within(screen.getByTestId("filter-rail"));
 
     // This is the regression test for the bug a real run caught: reusing
@@ -32,7 +40,15 @@ describe("FilterRail", () => {
       ...NO_FILTERS,
       species: { kind: "oneOf" as const, values: ["dog"] as const },
     };
-    render(<FilterRail filters={filters} sort="freshest" cities={CITIES} resultCount={34} shelterCount={7} />);
+    render(
+      <FilterRail
+        filters={filters}
+        sort="freshest"
+        cities={CITIES}
+        resultCount={34}
+        shelterCount={7}
+      />,
+    );
     const rail = within(screen.getByTestId("filter-rail"));
 
     // The active chip's accessible name gains a "✓ " prefix, so an exact
@@ -43,7 +59,15 @@ describe("FilterRail", () => {
   });
 
   it("a city chip's href toggles that city into the filter set", () => {
-    render(<FilterRail filters={NO_FILTERS} sort="freshest" cities={CITIES} resultCount={34} shelterCount={7} />);
+    render(
+      <FilterRail
+        filters={NO_FILTERS}
+        sort="freshest"
+        cities={CITIES}
+        resultCount={34}
+        shelterCount={7}
+      />,
+    );
     const rail = within(screen.getByTestId("filter-rail"));
 
     const href = rail.getByRole("link", { name: "Бровари" }).getAttribute("href");
@@ -51,7 +75,15 @@ describe("FilterRail", () => {
   });
 
   it("Скинути links to the bare route when no sort override is set", () => {
-    render(<FilterRail filters={NO_FILTERS} sort="freshest" cities={CITIES} resultCount={34} shelterCount={7} />);
+    render(
+      <FilterRail
+        filters={NO_FILTERS}
+        sort="freshest"
+        cities={CITIES}
+        resultCount={34}
+        shelterCount={7}
+      />,
+    );
     expect(screen.getByRole("link", { name: "Скинути" }).getAttribute("href")).toBe("/tvaryny");
   });
 
@@ -67,13 +99,19 @@ describe("FilterRail", () => {
     );
     const rail = within(screen.getByTestId("filter-rail"));
     expect(rail.getByText("Підходить 34 тварини у 7 притулках.")).toBeTruthy();
-    expect(
-      rail.getByText(/Немає фільтра «тільки свіжі картки»/),
-    ).toBeTruthy();
+    expect(rail.getByText(/Немає фільтра «тільки свіжі картки»/)).toBeTruthy();
   });
 
   it("Скинути preserves the current sort", () => {
-    render(<FilterRail filters={NO_FILTERS} sort="longest_waiting" cities={CITIES} resultCount={34} shelterCount={7} />);
+    render(
+      <FilterRail
+        filters={NO_FILTERS}
+        sort="longest_waiting"
+        cities={CITIES}
+        resultCount={34}
+        shelterCount={7}
+      />,
+    );
     expect(screen.getByRole("link", { name: "Скинути" }).getAttribute("href")).toBe(
       "/tvaryny?sort=longest_waiting",
     );

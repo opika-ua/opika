@@ -292,6 +292,41 @@ export const uk = {
       "працює, і посилання можна надіслати в Telegram.",
   },
 
+  // --- Gallery no-match (B4), docs/design/README.md, "Gallery states" > "No match" ---
+  // The heading and reassurance are the mock's own literal, filter-value-
+  // independent copy. The mock's middle sentence ("У Броварах 7 притулків,
+  // і сьогодні серед середніх собак вільних немає.") names one specific
+  // filter combination as an example — generalising it to arbitrary filter
+  // combinations is real sentence-grammar work with no existing groundwork
+  // (unlike the relaxation counts themselves, `gallery.relaxationCounts`
+  // already built and tested in E2), so it's not reproduced here; the two
+  // suggestion buttons below carry the actual per-filter numbers instead.
+  noMatch: {
+    heading: "Під ці фільтри зараз нікого немає.",
+    reassurance: "Це не помилка пошуку.",
+    /** Template: "Прибрати «{dimension}» ({animalWord})" — one button per
+     * `GalleryRelaxation` the caller returns, `{dimension}` already
+     * resolved to a group label, `{animalWord}` pre-composed with
+     * `pluralizeUk` the same way `filters.resultCount` is. */
+    removeDimension: "Прибрати «{dimension}» ({animalWord})",
+    /** Cities relaxation is "drop the city filter entirely" (packages/domain's
+     * `relaxDimension`), not literally "add neighbouring cities" — the
+     * mock's own flavour text for its one example, kept generic to describe
+     * what the button actually does for any city selection. */
+    showAllCities: "Показати всі міста ({animalWord})",
+    /** Template: "+{count} тварин" — the number every suggestion names,
+     * never a suggestion with none (docs/design/README.md: "no suggestion
+     * without a number"). */
+    additionalAnimals: "+{count} {animalWord}",
+    /** Static, filter-value-independent — the mock's own closing caption
+     * below the two suggestion buttons (`Opika Registry System.dc.html`'s
+     * B4 frame), unlike the middle sentence above which names one specific
+     * example combination. */
+    suggestionExplainer:
+      "Кожна пропозиція називає, скільки тварин вона додасть. Порожній екран не питає " +
+      "«спробуйте інше» без числа.",
+  },
+
   // --- Language toggle ---
   locale: {
     uk: "Українська",

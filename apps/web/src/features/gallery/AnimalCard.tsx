@@ -66,7 +66,12 @@ interface AnimalCardProps {
  * own breakpoint names (globals.css), matching the design's 600/1024/1440
  * cut points rather than Tailwind's stock scale.
  */
-export function AnimalCard({ card, cityName, priority = false, resolved = false }: AnimalCardProps) {
+export function AnimalCard({
+  card,
+  cityName,
+  priority = false,
+  resolved = false,
+}: AnimalCardProps) {
   const reserved = !resolved && isReserved(card.listingKind);
   const photo = card.primaryPhoto;
   const fills = freshnessPips(card.freshness.kind);
