@@ -39,15 +39,19 @@ export function SortControl({ filters, sort }: SortControlProps) {
     <nav
       data-testid="sort-control"
       aria-label={uk.filters.sortLabel}
-      className="font-rg hidden desktop:flex bg-rg-surface h-12"
+      className="font-rg hidden desktop:flex rounded-rg-button bg-rg-surface h-12"
     >
       {/*
-        Rounding lives on each end link, not `overflow-hidden` on this nav —
-        an ancestor with `overflow-hidden` clips a focus-visible outline on
-        the two end links along with everything else, and this control's
-        own focus ring must never disappear (docs/design/README.md,
-        "Focus": "Never removed."). GALLERY_SORTS is a fixed 2-option union
-        (`packages/domain`), so first/last is exactly first/second here.
+        The nav keeps its own rounding (for the continuous-pill fill,
+        visible through the inactive link's transparent background) but
+        NOT `overflow-hidden` — that was clipping a focus-visible outline
+        on the two end links along with everything else, and this
+        control's own focus ring must never disappear
+        (docs/design/README.md, "Focus": "Never removed."). Rounding the
+        two end links individually (GALLERY_SORTS is a fixed 2-option
+        union — `packages/domain` — so first/last is exactly
+        first/second here) keeps each link's own corner from squaring
+        off against the nav's now-unclipped edges.
       */}
       {GALLERY_SORTS.map((option, index) => (
         <Link

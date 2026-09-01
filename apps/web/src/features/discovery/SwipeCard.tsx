@@ -219,13 +219,18 @@ function FreshnessBlock({
   const fills = freshnessPips(freshness.kind);
 
   return (
-    // padding 16 (p-4), min-height 88 (min-h-22) — `Opika Registry
-    // System.dc.html`'s B7 deck frame states both literally on this block.
-    // Border-box (Preflight) means min-height already caps the whole box,
-    // padding included, so no content-box arithmetic is needed here.
+    // padding 16 (p-4) — `Opika Registry System.dc.html`'s B7 deck frame
+    // states this literally. min-height is NOT the mock's literal 88,
+    // though: the mock has no box-sizing reset (its own <style> block sets
+    // only `body { margin: 0 }`), so `min-height: 88px` there is
+    // content-box — an 88+16+16=120px rendered box. Preflight resets this
+    // app to border-box, where min-height caps the whole box, padding
+    // included, so reproducing the mock's real 120px total needs
+    // min-h-30, not min-h-22. (The same conversion the pre-V2 code did
+    // for its own 84-content-box value — this restates it for V2's 88.)
     <section
       data-testid="freshness-block"
-      className="font-rg bg-rg-fill rounded-rg-freshness p-4 flex flex-col gap-row min-h-22"
+      className="font-rg bg-rg-fill rounded-rg-freshness p-4 flex flex-col gap-row min-h-30"
       aria-label={label}
     >
       {/* Pips + label. docs/design/README.md, "The freshness marker": the
