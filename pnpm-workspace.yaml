@@ -19,6 +19,7 @@ catalog:
   "@types/node": 24.13.3
   "@types/react": 19.2.17
   "@types/react-dom": 19.2.3
+  "@orpc/client": 1.14.14
   "@orpc/contract": 1.14.14
   "@orpc/server": 1.14.14
   "@vitest/coverage-v8": 4.1.10
