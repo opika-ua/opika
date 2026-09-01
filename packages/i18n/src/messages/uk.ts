@@ -325,6 +325,49 @@ export const uk = {
       "«спробуйте інше» без числа.",
   },
 
+  // --- Gallery loading (E4, V2 mock frames L1/L2) ---
+  galleryLoading: {
+    /** Polite live-region text while the skeleton grid is on screen —
+     * `aria-busy="true"` on the grid itself, this is the announcement.
+     * `docs/design/README.md`, "Loading (L1/L2)". */
+    liveRegion: "Завантажуємо тварин",
+  },
+
+  // --- Gallery error (E4, V2 mock frames E1/E2 — copy adapted, see
+  // docs/design/README.md's note at that section for why) ---
+  galleryError: {
+    eyebrow: "НЕ ЗАВАНТАЖИЛОСЯ",
+    /** Neutral on purpose: this same component renders both a cold first
+     * visit to /tvaryny AND a failed next-page navigation from deep in the
+     * result set (this architecture has no separate "next-page error" —
+     * see docs/design/README.md's note). The mock's own heading, "Список
+     * не відкрився" ("the list didn't open"), presumes nothing has loaded
+     * yet — wrong the moment page 3 was showing a second ago. */
+    title: "Сторінку не вдалося завантажити.",
+    /** Also neutral: the mock's body claims "адреса сторінки не
+     * змінилася" ("the page address hasn't changed"), true only for a
+     * first-load failure — a failed next-page click already changed the
+     * address to the page that failed to load. Dropped rather than
+     * asserted uncertainly. */
+    body: "Це не ваша помилка і не помилка притулку. Ваші фільтри збережені.",
+    action: "Спробувати ще раз",
+  },
+
+  // --- Gallery out-of-range page notice (E4, V2 mock frames P1/P2) ---
+  outOfRangePage: {
+    /** Template: "Сторінки {requested} не існує — тут лише {total}." */
+    notFound: "Сторінки {requested} не існує — тут лише {total}.",
+    /** Template: "Показуємо сторінку {total} — останню. Нічого не
+     * загубилось." Numerals, not the mock's spelled ordinal ("десяту") —
+     * Ukrainian ordinal declension for an arbitrary N is real grammar work
+     * with no groundwork in this codebase (same class of gap as
+     * `noMatch`'s own dropped middle sentence, docs/design/README.md
+     * records this one too), so a numeral phrasing avoids asserting an
+     * ordinal form that might be wrong. */
+    showingLast: "Показуємо сторінку {total} — останню. Нічого не загубилось.",
+    backToFirst: "На першу сторінку",
+  },
+
   // --- Footer ---
   footer: {
     /** e-Ukraine's CC BY 4.0 attribution requirement — the user-reachable

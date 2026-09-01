@@ -12,6 +12,7 @@ import { GalleryPagination } from "../../features/gallery/GalleryPagination";
 import { railResultCount, sheetResultCount } from "../../features/gallery/gallery-copy";
 import { hasPagination } from "../../features/gallery/gallery-pagination";
 import { NoMatch } from "../../features/gallery/NoMatch";
+import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { SortControl } from "../../features/gallery/SortControl";
 
@@ -44,10 +45,13 @@ const PRIORITY_ROW_SIZE = 2;
  * through all 24 cards.
  *
  * The no-match state (V2, `docs/design/README.md` "Gallery states" > "No
- * match") is now built — it's one of the surfaces V2's own mock covers.
- * Loading, whole-list error, next-page error, and the out-of-range-page
- * note ("Сторінки 7 більше немає") have no mock and are deliberately still
- * absent, deferred to whichever phase gives them one.
+ * match") is now built. E4 adds the rest of this route's states: loading
+ * (`loading.tsx`, sibling to this file), one error state covering both a
+ * cold-visit failure and a failed page navigation (`error.tsx` — see its
+ * own comment for why there is one, not the design's stated two), and the
+ * out-of-range-page notice, below. `docs/design/README.md`'s own
+ * "Next-page error" frame is intentionally not consumed anywhere — its
+ * note there explains why.
  *
  * Split from the default export for the same reason `renderHome` is:
  * `page.test.tsx` calls this directly with a test database, `Page`'s own
@@ -162,6 +166,25 @@ export async function renderGallery(
               <NoMatch filters={filters} sort={sort} relaxations={relaxations} />
             ) : (
               <>
+                {/*
+                  E4, docs/design/README.md's "Out-of-range page (P1/P2)":
+                  `pageNumber` is what was requested (parseGalleryQuery,
+                  unclamped beyond 1); `page.page` is what gallery.list
+                  actually resolved and served (E0's clamp). They differ
+                  only when the requested page was beyond `totalPages` but
+                  within `MAX_GALLERY_PAGE` — anything past that ceiling
+                  fails oRPC's own input validation before this component
+                  ever renders, and is caught by error.tsx instead.
+                */}
+                {pageNumber !== page.page && (
+                  <OutOfRangeNotice
+                    requestedPage={pageNumber}
+                    totalPages={page.totalPages}
+                    filters={filters}
+                    sort={sort}
+                  />
+                )}
+
                 {hasPagination(page.totalPages) && (
                   <a
                     href="#pagination"
