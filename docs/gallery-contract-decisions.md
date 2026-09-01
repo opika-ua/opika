@@ -666,6 +666,38 @@ filtering, or shipping a JS-only enhancement that changes *history* semantics sp
 which is a stranger thing to make conditional on script availability than the visual
 presentation E1's own no-JS/JS-on gap (`priority`, lazy-loading) already accepts.
 
+### `error.tsx` is a JS-only path — accepted, not overlooked
+
+Same shape as the divergence above, for E4's error state. Next.js requires error boundaries
+to be Client Components, so with JavaScript disabled the file cannot mount at all, by the
+framework's own constraint, not a choice this codebase made. A failed no-JS request shows
+Next's default error page (or whatever the hosting platform serves for a 5xx) instead of the
+«Спробувати ще раз» card — not broken, the honest baseline this app supports without script,
+same as the rest of `/tvaryny`. Confirmed, not assumed: the full no-JS harness suite passes
+with `error.tsx` present and no error triggered — adding the file changes nothing about the
+success path.
+
+The out-of-range notice (`OutOfRangeNotice.tsx`, wired from the clamp §3 already settled) is
+the opposite case and worth the contrast: it's server-rendered, no Client Component, no
+boundary — it works with JS off exactly like the rest of the gallery grid does.
+
+**A route-level `loading.tsx` was tried and reverted — it breaks no-JS outright, not just its
+own skeleton.** Next's `loading.tsx` file convention wraps the whole route in a Suspense
+boundary unconditionally, which forces every response (JS-on or off) through two-phase
+streaming: the initial HTML carries the loading fallback plus the real content in a hidden
+template, and a small inline script Next injects performs the swap. That script is still
+JavaScript — with it disabled, the swap never runs and the real content stays hidden forever,
+not merely "no skeleton shown." This is not a corner case: adding the file made four
+already-passing no-JS harness tests fail (`gallery-filters.harness.ts`,
+`gallery-pagination.harness.ts`, `gallery-arrow-nav.harness.ts`) — real content resolved to
+`hidden` in the DOM. Reverted for that reason. A correct loading indicator here needs to be
+client-driven — a pending state tracked with `useTransition`/`useLinkStatus` around the
+existing link-interception points (`ReplaceNav.tsx`, and a new equivalent for pagination,
+which isn't wrapped today) — never a route-level Suspense boundary, so the server's response
+is unconditionally complete and JS stays purely additive, the same guarantee every other
+enhancement on this route already keeps. Not built this phase; recorded here so nobody
+reaches for `loading.tsx` next time without knowing why it was rejected once already.
+
 ## 8. Arrow-key navigation at a page boundary — the same "edges never wrap" rule, not a second one
 
 E2.5 (`ArrowKeyGrid.tsx`) settled "edges never wrap" for the grid as a whole: `ArrowRight`

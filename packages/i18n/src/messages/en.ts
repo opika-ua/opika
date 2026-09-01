@@ -242,6 +242,21 @@ export const en = {
       '"try something else" without a number.',
   },
 
+  // --- Gallery error — see the uk key's own note ---
+  galleryError: {
+    eyebrow: "DIDN'T LOAD",
+    title: "The page couldn't be loaded.",
+    body: "This isn't your fault or the shelter's. Your filters are saved.",
+    action: "Try again",
+  },
+
+  // --- Gallery out-of-range page notice — see the uk key's own note ---
+  outOfRangePage: {
+    notFound: "Page {requested} doesn't exist — there are only {total}.",
+    showingLast: "Showing page {total} — the last one. Nothing was lost.",
+    backToFirst: "Back to the first page",
+  },
+
   // --- Footer — see the uk key's own note ---
   footer: {
     fontCredit:
