@@ -105,6 +105,25 @@ describe("GalleryPagination", () => {
     }
   });
 
+  /**
+   * V2 repoint (docs/design/README.md, "Pagination — not infinite scroll"):
+   * "«з N» renders only when the number list is truncated with an
+   * ellipsis... while every number is on screen the counter just restates
+   * what you can count." Previously rendered unconditionally whenever
+   * pagination existed at all (>1 page) — this is the untruncated case the
+   * old behaviour got wrong and the harness's real corpus (always past the
+   * truncation threshold) can't reach.
+   */
+  it("omits 'з N' when every page number is already on screen", () => {
+    render(<GalleryPagination filters={NO_FILTERS} sort="freshest" page={1} totalPages={4} />);
+    expect(screen.queryByText(/з \d+/)).toBeNull();
+  });
+
+  it("shows 'з N' once the number list is truncated with an ellipsis", () => {
+    render(<GalleryPagination filters={NO_FILTERS} sort="freshest" page={5} totalPages={9} />);
+    expect(screen.getByText("з 9")).toBeTruthy();
+  });
+
   it("page links carry the active filters and sort forward unchanged", () => {
     const filters = {
       ...NO_FILTERS,

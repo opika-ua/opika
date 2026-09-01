@@ -189,6 +189,11 @@ export const en = {
     action: "Ask to be second in line",
   },
 
+  // --- Resolved card variant — see the uk key's own note ---
+  resolved: {
+    sentence: "The shelter says: {name} is already home.",
+  },
+
   // --- Documents ---
   documents: {
     chipPresent: "Microchipped",
@@ -223,6 +228,24 @@ export const en = {
     footnote:
       "Pages, not an endless feed: every page has its own address, the back button works, " +
       "and the link can be sent on Telegram.",
+  },
+
+  // --- Gallery no-match (B4) — see the uk key's own note ---
+  noMatch: {
+    heading: "Nobody matches these filters right now.",
+    reassurance: "This isn't a search error.",
+    removeDimension: "Remove “{dimension}” ({animalWord})",
+    showAllCities: "Show every city ({animalWord})",
+    additionalAnimals: "+{count} {animalWord}",
+    suggestionExplainer:
+      "Each suggestion names how many animals it would add. An empty screen never says " +
+      '"try something else" without a number.',
+  },
+
+  // --- Footer — see the uk key's own note ---
+  footer: {
+    fontCredit:
+      "e-Ukraine typeface — Ukraine's Ministry of Digital Transformation (thedigital.gov.ua/fonts), Dmytro Rastvortsev / Fedoriv, CC BY 4.0.",
   },
 
   // --- Language toggle ---

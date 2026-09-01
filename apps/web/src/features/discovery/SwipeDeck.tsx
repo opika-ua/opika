@@ -113,8 +113,10 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
           })}
       </div>
 
-      {/* Action buttons */}
-      <div data-testid="action-row" className="flex gap-row mt-group shrink-0">
+      {/* Action buttons — docs/design/README.md, "The deck": "gap: 8, all
+        56, radius 16: «Не зараз» (flex: 1, white) · «↓» (56 wide, white) ·
+        «Написати» (flex: 1, #101112)." */}
+      <div data-testid="action-row" className="font-rg flex gap-2 mt-group shrink-0">
         <ActionButton
           label={uk.actions.notNow}
           variant="outlined"
@@ -123,8 +125,8 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
         />
         <ActionButton
           label={uk.actions.next}
-          variant="outlined"
-          className="w-13"
+          variant="quiet"
+          className="w-14"
           onClick={() => handleCommit("left")}
         />
         <ActionButton
@@ -147,20 +149,38 @@ function ActionButton({
   onClick,
 }: {
   label: string;
-  variant: "outlined" | "primary";
+  /**
+   * Three, not two — the mock's own "↓" button is visually distinct from
+   * "Не зараз" even though both are a plain white fill: `#101112`/500
+   * ("Не зараз") vs `#45484B`, no weight override ("↓") — a lower-emphasis
+   * utility action next to a real choice, not a second copy of the same
+   * button (`Opika Registry System.dc.html`'s B7 frame).
+   */
+  variant: "outlined" | "quiet" | "primary";
   className?: string;
   onClick: () => void;
 }) {
-  // No border utility here at all — Preflight zeroes border-width by
-  // default, so the primary variant (which adds none) renders with no
-  // visible border, exactly matching the original inline `border: "none"`.
-  const base = "min-h-13 rounded-button font-sans text-sm leading-none cursor-pointer";
+  // No border on any variant — "the single structural move that does most
+  // of the work: borders are gone" (docs/design/README.md).
+  const base = "min-h-14 rounded-rg-button text-[15px] leading-none cursor-pointer";
 
   if (variant === "primary") {
     return (
       <button
         type="button"
-        className={`${base} bg-leaf text-paper font-normal ${className ?? ""}`}
+        className={`${base} bg-rg-ink text-rg-surface font-medium ${className ?? ""}`}
+        onClick={onClick}
+      >
+        {label}
+      </button>
+    );
+  }
+
+  if (variant === "quiet") {
+    return (
+      <button
+        type="button"
+        className={`${base} bg-rg-surface text-rg-ink-2 ${className ?? ""}`}
         onClick={onClick}
       >
         {label}
@@ -171,7 +191,7 @@ function ActionButton({
   return (
     <button
       type="button"
-      className={`${base} bg-paper text-ink-3 border border-line-strong font-normal ${className ?? ""}`}
+      className={`${base} bg-rg-surface text-rg-ink font-medium ${className ?? ""}`}
       onClick={onClick}
     >
       {label}

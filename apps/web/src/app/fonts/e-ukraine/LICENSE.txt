@@ -1,0 +1,32 @@
+e-Ukraine typeface
+==================
+
+Designer: Dmytro Rastvortsev (Fedoriv design agency)
+Commissioned by: the Ministry of Digital Transformation of Ukraine, for Diia
+Official source: https://thedigital.gov.ua/fonts
+
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+Attribution required by this license. The credit shown to users of this
+product (docs/design/README.md's "Typeface" section; wired at the point
+V2 adds a user-reachable colophon/about credit — see
+docs/build-plan.md's V2 "definition of done, beyond 're-skinned'"):
+
+  Шрифт e-Ukraine — Міністерство цифрової трансформації України
+  (thedigital.gov.ua/fonts), Дмитро Растворцев / Fedoriv, CC BY 4.0.
+
+Files in this directory (e-Ukraine-Regular.woff2, e-Ukraine-Medium.woff2,
+e-Ukraine-Bold.woff2) were downloaded from a third-party mirror
+(github.com/haos616/e-Ukraine, the same one docs/design/
+"Opika Registry System.dc.html" itself references for its CDN preview)
+because the official site (thedigital.gov.ua/fonts) serves its download
+through a client-rendered page rather than a direct, linkable file URL at
+the time these were fetched (2026-08-08). The mirror's own README states
+the same CC BY 4.0 license this file states above. Not yet subset to
+Cyrillic + Latin basic + punctuation as docs/design/README.md specifies
+(≈95 KB total as shipped vs. the design's own "≈84 KB" subset estimate) —
+deliberately deferred, not silently skipped: see docs/build-plan.md's H3.5
+for the open item and why it waits until after H3 (subsetting picks a
+glyph set, and the set isn't final until H3 adds the English strings and
+the native-speaker pass on the Ukrainian copy).

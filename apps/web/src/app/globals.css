@@ -69,6 +69,97 @@
   --ease-keeper: cubic-bezier(0.16, 1, 0.3, 1);
 
   /*
+   * ==== «Реєстр» visual system (V2) — a second, parallel token set ====
+   *
+   * V2 re-skins only the surfaces `docs/design/intake-report.md` confirmed
+   * the new handoff actually specifies with a mock (gallery grid, the three
+   * card variants, filter rail/sheet, sort, pagination, the no-match state,
+   * the deck's static visual language) — not the whole app. The tokens
+   * above this block (`--color-paper` etc.) keep their exact names and
+   * values, unmodified, because every surface V2 does NOT touch (the home
+   * screen, the deck's dynamic gesture chrome, every E4 state without a
+   * mock) still reads them by those names. Renaming or overwriting them
+   * would re-skin those surfaces by accident.
+   *
+   * `rg-` (Реєстр/"Registry", the new system's own name) prefixes every
+   * token below for exactly one reason: three of its role names — `ink`,
+   * `ink-2`, `ink-3` — collide with existing token names above at
+   * different hex values, and CSS custom properties are a single global
+   * namespace. Prefixing the whole new set, not just the three that
+   * collide, keeps one rule ("new tokens are rg-, old tokens are bare")
+   * instead of two. Deliberately temporary: once a future phase finishes
+   * re-skinning every remaining surface, the old block above this comment
+   * is deleted and the `rg-` prefix comes off everything below — until
+   * then, greppable as one unit.
+   */
+  --color-rg-page: #ececea;
+  --color-rg-surface: #ffffff;
+  --color-rg-fill: #f2f2f0;
+  --color-rg-fill-strong: #dcdcd9;
+  --color-rg-ink: #101112;
+  --color-rg-ink-2: #45484b;
+  --color-rg-ink-3: #63676b;
+  --color-rg-registry: #1b3a6b;
+
+  /* `#FFFFFF -> #F7F7F5`, 120ms — docs/design/README.md, "Geometry, density,
+   * elevation, motion": "Hover: Card fill #FFFFFF -> #F7F7F5, 120ms. No
+   * lift, no shadow, and no underline on the name." */
+  --color-rg-surface-hover: #f7f7f5;
+
+  /*
+   * The empty freshness pip is the one deliberate departure from the mock
+   * in this whole block — `docs/design/README.md`, "The freshness marker"
+   * has the full reasoning and the measured contrast ratios (owner-approved
+   * after the mock's own `#DCDCD9` fill measured 1.16-1.37:1 against every
+   * background it appears on, failing WCAG 1.4.11's 3:1 by a wide margin).
+   * Reuses `--color-rg-ink-3` as a border colour rather than a new token,
+   * since it's the same value `aging`'s filled pips already use.
+   */
+
+  /*
+   * Radii: 8 (pips, small tags) · 16 (buttons, fields, inner blocks, photo
+   * inside a card) · 24 (cards, rail, sheet, modal) · 999 (chips) —
+   * `docs/design/README.md`, "Geometry, density, elevation, motion".
+   * `-photo`/`-button`/`-freshness` share the 16 value today the same way
+   * the old block's three 12px names did (see that block's own comment):
+   * named for what they round, not the number, so a future divergence is
+   * a one-line edit.
+   */
+  --radius-rg-tag: 8px;
+  --radius-rg-button: 16px;
+  --radius-rg-photo: 16px;
+  --radius-rg-freshness: 16px;
+  --radius-rg-card: 24px;
+  --radius-rg-chip: 999px;
+
+  /* One step, two places only: the deck's top card and the sheet
+   * (`docs/design/README.md`). Nothing else in the new system casts a
+   * shadow. */
+  --shadow-rg-card: 0 24px 48px -32px rgba(16, 17, 18, 0.4);
+
+  /*
+   * quick 120ms · settle 220ms · reveal 280ms, all on this one curve —
+   * `docs/design/README.md` is explicit that the new system uses a single
+   * easing throughout ("short and dry; no springiness in the interface"),
+   * unlike the old `--ease-keeper` above. Durations stay bare Tailwind
+   * `duration-<n>` utilities, same reasoning as the old block: only the
+   * curve is non-default.
+   */
+  --ease-rg: cubic-bezier(0.3, 0, 0, 1);
+
+  /*
+   * No new spacing tokens. The new 7-step scale — 4 · 8 · 12 · 16 · 24 ·
+   * 32 · 48 (`docs/design/README.md`) — maps exactly onto Tailwind's stock
+   * numeric spacing scale (`--spacing: 0.25rem`, so `gap-1`=4px through
+   * `gap-12`=48px), with no custom name needed for any of the seven steps.
+   * The old block's `--spacing-*` tokens exist because the old design
+   * wanted names ("what it separates, not its pixel value"); the new
+   * handoff gives its steps no names of its own, and inventing five new
+   * ones the source design doesn't have would be adding vocabulary, not
+   * porting it. In-scope components use bare `gap-3`/`p-6`/etc. directly.
+   */
+
+  /*
    * ---- Spacing — docs/design/README.md, "Spacing — exactly five steps" ----
    * Every vertical distance in the design is one of these five, named for
    * what it separates rather than its pixel value:
@@ -127,6 +218,15 @@
   --font-sans: var(--font-commissioner);
 
   /*
+   * `next/font/local` (fonts.ts's `eUkraine`), for the «Реєстр» visual
+   * system (V2) — a distinct utility (`font-rg`), not a redefinition of
+   * `--font-sans` above, because V2 re-skins only some surfaces (see the
+   * `--color-rg-*` block below for the same reasoning applied to colour).
+   * `literata`/`commissioner` keep serving every surface V2 doesn't touch.
+   */
+  --font-rg: var(--font-e-ukraine);
+
+  /*
    * ---- Breakpoints — docs/design/README.md, "Breakpoints & Surfaces" ----
    * Named for the gallery layout each one turns on, not for a device class:
    * `tablet` is where the card switches from vertical to horizontal, not
@@ -166,6 +266,26 @@
  */
 @utility bg-photo-placeholder {
   background: repeating-linear-gradient(135deg, var(--color-sunken-deep) 0 10px, #f6efe3 10px 20px);
+}
+
+/*
+ * V2's own placeholder stripes — docs/design/README.md, "Assets": standard
+ * is `#DCDCD9 0 10px, #EFEFED 10px 20px`; the resolved card variant darkens
+ * to its own hatch, `#CFCFCB 0 10px, #E0E0DD 10px 20px` (both decorative-only,
+ * "Decorative-only values" in the same doc — never reused outside this
+ * gradient). `#EFEFED` has no named token, same precedent as
+ * `bg-photo-placeholder` above keeping its own second stripe colour a
+ * literal hex rather than inventing a token that is never used anywhere else.
+ */
+@utility bg-rg-photo-placeholder {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-rg-fill-strong) 0 10px,
+    #efefed 10px 20px
+  );
+}
+@utility bg-rg-photo-placeholder-resolved {
+  background: repeating-linear-gradient(135deg, #cfcfcb 0 10px, #e0e0dd 10px 20px);
 }
 
 /*

@@ -59,22 +59,36 @@ describe("SwipeCard freshness marker", () => {
    * `fresh` would still look plausible in markup and would silently drop the
    * "how far has this travelled" comparison the whole component exists for.
    */
+  // V2 repoint (docs/design/README.md, "The freshness marker"): fill colours moved
+  // bg-leaf -> bg-rg-registry, bg-ink-4 -> bg-rg-ink-3, bg-ink -> bg-rg-ink (same role,
+  // new token names). The empty slot is no longer `null`/unstyled: it's the
+  // WCAG 1.4.11 fix — transparent fill + border-rg-ink-3 — replacing the mock's
+  // original solid #DCDCD9 fill, which measured 1.16-1.37:1 against every background
+  // it appears on and fails the 3:1 non-text-contrast requirement. The design was
+  // subsequently updated to specify the outline directly.
   it.each([
-    ["fresh", 3, ["bg-leaf", null, null]],
-    ["aging", 19, ["bg-ink-4", "bg-ink-4", null]],
-    ["stale", 41, ["bg-ink-4", "bg-ink-4", "bg-ink"]],
+    ["fresh", 3, ["bg-rg-registry", "empty", "empty"]],
+    ["aging", 19, ["bg-rg-ink-3", "bg-rg-ink-3", "empty"]],
+    ["stale", 41, ["bg-rg-ink-3", "bg-rg-ink-3", "bg-rg-ink"]],
   ] as const)("renders three pips for %s, filled per the design table", (kind, days, expected) => {
     renderCard(makeCard({ freshness: makeFreshness(kind, days) }));
 
     const pips = screen.getAllByTestId("freshness-pip");
     expect(pips).toHaveLength(3);
     expect(pips.map((p) => p.getAttribute("data-filled"))).toEqual(
-      expected.map((fill) => (fill ? "true" : "false")),
+      expected.map((fill) => (fill === "empty" ? "false" : "true")),
     );
     // Stronger than the boolean check above: the *specific* fill colour per
-    // the design table, not just whether a pip is filled at all.
+    // the design table, not just whether a pip is filled at all. The empty
+    // slot gets its own check — border-drawn, transparent, never a bg- fill.
     expected.forEach((fill, i) => {
-      if (fill) expect(pips[i]?.className).toContain(fill);
+      if (fill === "empty") {
+        expect(pips[i]?.className).toContain("bg-transparent");
+        expect(pips[i]?.className).toContain("border-rg-ink-3");
+        expect(pips[i]?.className).not.toContain("bg-rg-");
+      } else {
+        expect(pips[i]?.className).toContain(fill);
+      }
     });
   });
 

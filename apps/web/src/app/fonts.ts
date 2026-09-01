@@ -1,4 +1,5 @@
 import { Commissioner, Literata } from "next/font/google";
+import localFont from "next/font/local";
 
 /**
  * Two of the three type families from docs/design/README.md
@@ -33,6 +34,44 @@ export const commissioner = Commissioner({
   display: "swap",
   weight: ["400", "500"],
   variable: "--font-commissioner",
+});
+
+/**
+ * e-Ukraine — the «Реєстр» visual system's one family (V2,
+ * `docs/design/README.md` "Typeface"). Self-hosted via `next/font/local`
+ * rather than `next/font/google`: e-Ukraine isn't on Google Fonts.
+ * `./fonts/e-ukraine/LICENSE.txt` has the licence (CC BY 4.0, attribution
+ * required — see that file and `docs/build-plan.md`'s V2 "definition of
+ * done" for where the credit ships) and where the files came from.
+ *
+ * Deliberately additive, not a replacement for `literata`/`commissioner`
+ * above: V2 re-skins only the surfaces `docs/design/intake-report.md`
+ * confirmed the new handoff actually specifies (gallery, cards, filters,
+ * pagination, the no-match state, the deck's static visual language).
+ * Everything else — the home screen, the deck's dynamic gesture chrome,
+ * every E4 state without a mock — stays on Literata/Commissioner
+ * deliberately, per the standing "skin, not skeleton" rule for this
+ * phase. A two-font-system app for one phase, on purpose.
+ *
+ * Not yet subset to Cyrillic + Latin basic + punctuation, unlike
+ * `literata`/`commissioner` above (Google's own subsetting) — the three
+ * files as vendored are the mirror's full character set, ≈95 KB total
+ * against the design's own "≈84 KB" subset estimate. Deliberately not
+ * done here: subsetting picks a glyph set, and this one isn't final
+ * yet — H3 still adds the English strings and the native-speaker pass
+ * on the Ukrainian copy, either of which can introduce a character V2
+ * never used, and a shelter's free-text `freshnessSentence` isn't a
+ * character set anyone controls in the first place. Tracked as
+ * `docs/build-plan.md`'s H3.5, after H3, not here.
+ */
+export const eUkraine = localFont({
+  src: [
+    { path: "./fonts/e-ukraine/e-Ukraine-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/e-ukraine/e-Ukraine-Medium.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/e-ukraine/e-Ukraine-Bold.woff2", weight: "700", style: "normal" },
+  ],
+  display: "swap",
+  variable: "--font-e-ukraine",
 });
 
 /**
@@ -76,12 +115,10 @@ export const commissioner = Commissioner({
  * was dropped from the design rather than from the bundle.
  *
  * One more substitution since, so the count above stays honest: E3's
- * gallery pager. The mock (`docs/design/Opika - Keeper's Voice.dc.html`,
- * 1440 GALLERY) sets its numbered page pills in Plex Mono 13px, and
- * `GalleryPagination.tsx` renders them in Commissioner for exactly this
- * note's reason, saying so at the point of use. It does not change the
- * decision — the pager reads the same in Commissioner as the ErrorState
- * eyebrow does — but when the loader comes back at M6, the pills are a
- * fourth place to put `font-mono` back, not a place that was already
- * fine.
+ * gallery pager, briefly. The old "Keeper's Voice" mock set its numbered
+ * page pills in Plex Mono 13px; `GalleryPagination.tsx` rendered them in
+ * Commissioner for exactly this note's reason. Moot as of V2: the new
+ * «Реєстр» handoff replaces the whole pager (and every other in-scope
+ * surface) with `eUkraine` above, which supersedes this substitution
+ * rather than adding a fourth place to reverse it.
  */

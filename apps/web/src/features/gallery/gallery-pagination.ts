@@ -55,3 +55,13 @@ export function paginationWindow(current: number, total: number): PaginationItem
   }
   return items;
 }
+
+/**
+ * docs/design/README.md, "Pagination — not infinite scroll": "«з N»
+ * renders only when the number list is truncated with an ellipsis (1 2 3 …
+ * 9, з 12) — while every number is on screen the counter just restates
+ * what you can count." A page count on its own (no ellipsis) never needs
+ * the reader told there's a total — they can see it.
+ */
+export const isTruncated = (items: readonly PaginationItem[]): boolean =>
+  items.includes("ellipsis");

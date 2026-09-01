@@ -39,7 +39,12 @@ export default function DiscoveryPage() {
     // surface, not a document — nothing here should scroll; if something no
     // longer fits, the harness should say so rather than a scrollbar quietly
     // appearing.
-    <div className="max-w-97.5 mx-auto h-dvh bg-paper-alt flex flex-col p-group box-border overflow-hidden font-sans">
+    // Page background only — the header below stays on old tokens
+    // deliberately, it's E5's deck-chrome scope (docs/build-plan.md), not
+    // V2's. The card/stack/actions below it are what V2 actually re-skins,
+    // and they were chosen to read against rg-page (#ECECEA), not the old
+    // cream bg-paper-alt (#F4ECDF) this wrapper was still carrying.
+    <div className="max-w-97.5 mx-auto h-dvh bg-rg-page flex flex-col p-group box-border overflow-hidden font-sans">
       {/*
         Header. leading-[normal] on both text elements: neither had an
         explicit lineHeight before this migration. `text-xl` alone would

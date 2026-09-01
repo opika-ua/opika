@@ -1,5 +1,5 @@
 import "./globals.css";
-import { commissioner, literata } from "./fonts";
+import { commissioner, eUkraine, literata } from "./fonts";
 
 export const metadata = {
   title: "Adoption Platform",
@@ -7,7 +7,10 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uk" className={`${literata.variable} ${commissioner.variable}`}>
+    <html
+      lang="uk"
+      className={`${literata.variable} ${commissioner.variable} ${eUkraine.variable}`}
+    >
       {/*
         The user agent's default 8px body margin is not decoration: combined
         with content-box padding on a full-height page it pushed /discovery

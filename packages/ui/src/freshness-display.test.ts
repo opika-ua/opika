@@ -7,16 +7,16 @@ function makeFreshness(kind: Freshness["kind"], ageDays: number): Freshness {
 }
 
 describe("freshnessPips", () => {
-  it("fills one leaf pip when fresh", () => {
-    expect(freshnessPips("fresh")).toEqual(["bg-leaf", null, null]);
+  it("fills one registry pip when fresh, the rest empty", () => {
+    expect(freshnessPips("fresh")).toEqual(["bg-rg-registry", "empty", "empty"]);
   });
 
-  it("fills two ink-4 pips when aging", () => {
-    expect(freshnessPips("aging")).toEqual(["bg-ink-4", "bg-ink-4", null]);
+  it("fills two ink-3 pips when aging, the last empty", () => {
+    expect(freshnessPips("aging")).toEqual(["bg-rg-ink-3", "bg-rg-ink-3", "empty"]);
   });
 
   it("fills all three pips, the last a full ink, when stale", () => {
-    expect(freshnessPips("stale")).toEqual(["bg-ink-4", "bg-ink-4", "bg-ink"]);
+    expect(freshnessPips("stale")).toEqual(["bg-rg-ink-3", "bg-rg-ink-3", "bg-rg-ink"]);
   });
 });
 

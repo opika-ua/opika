@@ -145,8 +145,8 @@ anymore, it's an *implementation-order* one.
 | E3 | Numbered pagination — `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram). **Definition of done includes** a skip link above the grid, visible on focus, jumping straight to the pagination controls — dropping E2.5's roving tabindex means a keyboard user now tabs through all 24 cards to reach "next page," and this is the fix, not a follow-up. Arrow-key behaviour at a page boundary (Right on the last card, Left on the first) is this phase's to decide and record — see `docs/gallery-contract-decisions.md` §8 | 4 |
 | V1 | Design handoff intake — replace `docs/design/` with the new handoff, verify it covers every surface, confirm the four product rules survive | 2 |
 | V2 | Implementation — new tokens through `packages/ui` and the Tailwind config, every existing surface re-skinned including E3's pagination, harness assertions repointed to the new design's values. **Static visual language only** — colour, type, radii, card treatment. The deck's gesture *physics* (release spring, motion timings on the drag itself) are explicitly out of scope here — see G4 | 10 |
-| E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, **the note must actually render** — see the phase's own done-when below, not just the copy existing) states — both form factors | 4 |
-| E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. `sessionStorage`-persisted last mode, entry ("Гортати по одній") and exit ("До списку" / Esc, returning to the same scroll position per `docs/design/README.md` "Gallery ↔ Deck") | 3 |
+| E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, **the note must actually render** — see the phase's own done-when below, not just the copy existing) states — both form factors, built in the «Реєстр» language directly (`docs/design/README.md`'s "States and remaining screens", frames L1/L2, E1–E4, P1/P2) — see "Why there's no Phase V3" below | 4 |
+| E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. `sessionStorage`-persisted last mode, entry ("Гортати по одній") and exit ("До списку" / Esc, returning to the same scroll position per `docs/design/README.md` "Gallery ↔ Deck"), the deck header/exit chrome built in the «Реєстр» language directly (frames V1–V3) | 3 |
 
 **Total: ~57 h.**
 
@@ -178,6 +178,21 @@ building against a design that's about to be replaced. It sits before E4/E5 so t
 build against the final visual language once, instead of shipping against the old one and
 absorbing a second re-skin pass later.
 
+**Why there's no Phase V3.** V2's own scope (`docs/design/Opika Registry System.dc.html`)
+had no mock for E4's four states, E5's deck chrome, or F's screens 04–07 — those surfaces
+were unbuilt code, not existing UI to re-skin, so V2 skipped them. The plan on the table at
+the time was that E4/E5/F would build them on the old tokens regardless, and a follow-up
+phase — referred to informally as "V3" — would re-skin them later once a mock existed, the
+same way V2 itself re-skinned E0–E3. That follow-up phase is not needed: a design addendum
+(`docs/design/intake-report-v3.md`) shipped a real, dual-viewport mock for every one of
+those surfaces — `docs/design/Opika Registry Frames.dc.html`, 18 frames — before E4, E5, or
+F started. Each phase builds its own surfaces in the «Реєстр» language directly instead,
+per the frame citations on E4/E5 above and F below. No hours are being removed from this
+ledger for the cancelled follow-up phase, because none were ever allocated to it — "V3" was
+a name for anticipated future work, not a scoped, written phase with its own line in Part 3.
+The only real change to this ledger is F6, below, which **is** new: screen 07 (the deck's
+exhausted state) had no owner at all before the addendum, old-tokens or otherwise.
+
 **V2's definition of done, beyond "re-skinned":**
 - **Pagination's "з N" count is a behaviour change, not a restyle, and needs its own test.**
   The new handoff makes it conditional — it renders only when the page-number list is
@@ -193,6 +208,13 @@ absorbing a second re-skin pass later.
   independently, `docs/design/intake-report.md` §E). Required: a licence file alongside the
   font files in the repo, and a user-reachable credit (footer colophon or `/about`). Also
   added to H5's legal-pages list below.
+- **e-Ukraine subsetting is a tracked follow-up, not a V2 done-when criterion — see H3.5
+  below.** The three vendored files (`apps/web/src/app/fonts/e-ukraine/`) ship at the
+  mirror's full character set for now, deliberately: subsetting picks a glyph set, and the
+  glyph set can't be finalised until H3 lands the English strings and the native-speaker
+  pass on the Ukrainian copy, both of which can introduce characters V2 never used. Moved
+  out of this list because a bullet under "definition of done" is a done-when item by
+  construction, and this one explicitly isn't required to close V2.
 - **Deck gesture physics is explicitly excluded.** The release spring, drag motion timings,
   and easing curve values the new handoff specifies for the deck move to Phase G (G4,
   below) — not V2. G already owns the deck's unresolved iOS investigation, which touches
@@ -242,17 +264,19 @@ call": no marketing budget, so shared links and indexed pages are the growth mec
 
 | # | Task | h |
 |---|---|---|
-| F1 | Animal detail page, both form factors — desktop per `docs/design/README.md` "Desktop Breakpoints", "04 Detail — 1440" (sticky left column, fluid right, footer action pair moves up under the freshness block); mobile is the existing 04 | 10 |
+| F1 | Animal detail page, both form factors, in the «Реєстр» language — desktop per `docs/design/README.md` "04 Detail" / frames D1/D2 (sticky left column, fluid right, footer action pair moves up under the freshness block); mobile is the existing 04, re-specified at frame D2 | 10 |
 | F2 | `generateMetadata` / Open Graph on the detail page, via the same in-process router call `docs/gallery-contract-decisions.md` §5 establishes — never more than the public contract already permits a client to see | 3 |
-| F3 | Contact reveal — desktop modal (640-wide, focus-trapped, animal's URL stays in the address bar) over the existing full-screen mobile 05 | 4 |
-| F4 | "My reveals" list, both form factors | 3 |
+| F3 | Contact reveal, in the «Реєстр» language — desktop modal (640-wide, focus-trapped, animal's URL stays in the address bar) over the existing full-screen mobile 05, per frames R1/R2 | 4 |
+| F4 | "My reveals" list, both form factors, in the «Реєстр» language — frames M1/M2 | 3 |
 | F5 | Donation link — external, destination domain visible, `rel="noopener"` | 2 |
+| F6 | **Addition** — screen 07, the deck's exhausted state (`ExhaustedState` in `SwipeDeck.tsx`), in the «Реєстр» language directly per frames X1/X2. Had no mock and no owning phase before the addendum — deliberately excluded from V2 (`docs/design/README.md`'s V2 commit note: "screens without a V2 mock — old tokens, deferred") and never picked up anywhere else. `LoadingState`/`ErrorState` in the same file stay deferred — the addendum's frames cover the gallery's loading/error states (E4), not the deck's | 2 |
 
-**Total: ~22 h.**
+**Total: ~24 h.**
 
 **Done when:** the detail page is reachable and correctly metadata'd without JavaScript,
-the reveal modal traps focus and restores it on close, and "my reveals" renders
-identically in substance on a phone and a 1440px desktop.
+the reveal modal traps focus and restores it on close, "my reveals" renders identically in
+substance on a phone and a 1440px desktop, and the deck's exhausted state matches frames
+X1/X2 rather than the old tokens it shipped with through Phase G.
 
 **Decisions this phase must surface:** whether the Open Graph image is a static per-animal
 render or generated at request time (cost/freshness trade-off — the image pipeline this
@@ -284,7 +308,7 @@ model it Opus, not Sonnet, regardless of what the rest of G uses.
 
 ### Phase H — Remainder to launch
 
-The former M7–M12, unchanged in substance, one addition here. The original course
+The former M7–M12, unchanged in substance, two additions here. The original course
 correction listed two; its second (the count queries) moved into Phase E's E0, folded
 into `gallery.list`'s output per `docs/gallery-contract-decisions.md` §3.
 
@@ -293,11 +317,12 @@ into `gallery.list`'s output per `docs/gallery-contract-decisions.md` §3.
 | H1 | Image pipeline — R2, presigned upload, `sharp` variants, CDN. Replaces E1.5's `apps/web/src/image-loader.ts` stub — the app's single `next/image` loader — with real R2/CDN URL construction, which is a change to that one file and not to any call site in `AnimalCard`/`SwipeCard`, and retires E1.5's committed placeholder photos | 10 |
 | H2 | Internal admin — animal/shelter CRUD, CSV import, **desktop layouts** (addition — the original plan assumed a single admin form factor) | 12 |
 | H3 | i18n — next-intl wiring, uk + en message files, full-ICU boot assertion. Also: native-speaker review of `pluralizeUk`'s output (`packages/domain/src/primitives/plural.ts`, added E2) across every noun form it composes — verified mechanically (`Intl.PluralRules('uk')` boundaries, tested at 1/2/5/11/21/22) but not by a native speaker, and animate feminine nouns plus accusative government under case-governing verbs ("Знайдено" vs "Підходить") is not something rule-reasoning alone reliably gets right | 4 |
+| H3.5 | Perf pass — **addition**, sits here rather than V2 or its own phase because all three items bundle naturally once H3 lands: e-Ukraine subsetting (Cyrillic + Latin basic + punctuation; deferred from V2 specifically because the glyph set isn't final until H3's English strings and native-speaker Ukrainian pass exist — and stays generous even then, since a shelter's free-text `freshnessSentence` isn't a set anyone controls, so this subsets to a wide net rather than a tight one), the `next/image` `sizes` attribute overshoot, and the image-loading priority heuristic. 95 KB across three weights isn't worth a dedicated pass on its own; bundled with the other two, it is | 3 |
 | H4 | PWA — Serwist, manifest, offline shell, Lighthouse pass | 8 |
 | H5 | Observability + legal — Sentry, PostHog, privacy policy (GDPR), consent handling, e-Ukraine's CC BY 4.0 attribution (licence file + user-reachable credit — should already exist from V2; this is the launch-readiness check that it's still there and still correct, not the first time it's added) | 10 |
 | H6 | Real shelter data + soft launch — onboard 5–10 shelters, verify each through the FSM, spot-check every listing | 12 |
 
-**Total: ~56 h** (50 h original + the admin desktop-layout addition).
+**Total: ~59 h** (50 h original + the admin desktop-layout addition + the H3.5 perf pass).
 
 **Done when:** matches the original M7–M12 definitions of done, unchanged — one uploaded
 photo produces all variants and renders through the CDN; a shelter and its animals can be
@@ -317,10 +342,10 @@ What sets the calendar is review bandwidth and shelter recruitment — not the h
 |---|---|---|
 | C — Consolidate | — | 0 (done) |
 | E — Gallery | 4–5 | 57 |
-| F — Detail & reveal | 3 | 22 |
+| F — Detail & reveal | 3 | 24 |
 | G — Deck completion | off critical path | 13 |
-| H — Remainder to launch | 7 | 56 |
-| **Total from this rewrite** | **~16 weeks** | **~148 h** |
+| H — Remainder to launch | 7 | 59 |
+| **Total from this rewrite** | **~16 weeks** | **~153 h** |
 
 At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch still lands early
 February 2027** — the total dropped from ~135 h to ~127 h (C fully closed out, E gaining
@@ -348,6 +373,19 @@ Whether the 12 h Phase V addition actually moves the project's week estimate pas
 weeks" — and if so, by
 how much — is a real re-plan question this document is not settling here; V1's intake
 report is the next input into that question, not this arithmetic update.
+
+**H3.5's addition (3 h, Phase H above — the e-Ukraine subsetting/`sizes`/priority-heuristic
+perf pass, moved out of V2 for the reason recorded there) brings the critical path to
+148 h ÷ 8 h/week ≈ 18.5 weeks, and the grand total including G to 151 h.** Same reasoning
+as E1.5/E2.5's additions: absorbed inside the existing rough-estimate slack, not a figure
+this document claims moves the ~16-week estimate on its own.
+
+**F6's addition (2 h, Phase F above — screen 07's exhausted state, newly owned now that the
+addendum gives it a mock; see "Why there's no Phase V3" in Phase E) brings the critical path
+to 150 h ÷ 8 h/week ≈ 18.75 weeks, and the grand total including G to 153 h.** Same
+reasoning again: this is new scope the addendum surfaced, not scope moving from a
+Phase V3 that never had its own hour line to begin with — there is nothing to subtract
+elsewhere in this ledger to offset it.
 
 **The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own

@@ -1,8 +1,9 @@
 /**
  * E3's own verification list (docs/build-plan.md doesn't spell these out
  * per-phase, but the phase brief does): numbered pages render with the real
- * corpus's page count, all pagination targets are actually >=44px (measured,
- * not read off a class name), the active page is leaf-filled and carries
+ * corpus's page count, all pagination targets are actually >=56px (V2
+ * repoint from E3's original 44px — measured, not read off a class name),
+ * the active page is leaf-filled and carries
  * `aria-current="page"`, clicking a page link is a real `push` (unlike E2's
  * filter `replace` — docs/gallery-contract-decisions.md §7), the skip link
  * is invisible until focused and actually moves focus past the grid, and at
@@ -29,11 +30,15 @@ const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
 const NAV = "[data-testid='gallery-pagination']";
 const PAGE_LINK = "[data-testid='pagination-page']";
-const MIN_TARGET_PX = 44;
+// V2 repoint: 44 -> 56 (`Opika Registry System.dc.html`'s pagination row,
+// lines 189/195: `min-height: 56px` on both prev and next). The component
+// itself already renders 56 (`min-h-14`) — this assertion had gone stale
+// against it, silently looser than the code it's meant to guard.
+const MIN_TARGET_PX = 56;
 
 /**
- * The mock's own literals (`docs/design/Opika - Keeper's Voice.dc.html`,
- * the 1440 GALLERY pagination row), NOT `uk.pagination.prev`/`next`:
+ * The mock's own literals (`docs/design/Opika Registry System.dc.html`,
+ * lines 189/195), NOT `uk.pagination.prev`/`next`:
  * comparing the rendered text to the same constant the component renders
  * would hold no matter what that constant said, which is the one thing
  * these two assertions exist to pin. Copy drifting away from the design
@@ -55,7 +60,7 @@ test.describe("/tvaryny pagination", () => {
     ).toBeAttached();
   });
 
-  test("all pagination targets are measurably >=44px, not just styled that way", async ({
+  test("all pagination targets are measurably >=56px, not just styled that way", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
@@ -73,7 +78,7 @@ test.describe("/tvaryny pagination", () => {
     }
   });
 
-  test("the active page is leaf-filled, carries aria-current, and is not a link to itself", async ({
+  test("the active page is ink-filled, carries aria-current, and is not a link to itself", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
@@ -82,14 +87,18 @@ test.describe("/tvaryny pagination", () => {
     await expect(active, "exactly one page should be marked active on load").toHaveCount(1);
     await expect(active).toHaveAttribute("aria-current", "page");
     await expect(active, "page 1 is active on a bare /tvaryny visit").toHaveText(/^1/);
-    // A leaf-filled pill is a <span>, not an <a> — clicking "the page you're
+    // An ink-filled pill is a <span>, not an <a> — clicking "the page you're
     // already on" has nothing to do, so it should not be a navigation target.
     expect(await active.evaluate((el) => el.tagName)).toBe("SPAN");
 
     const bg = await active.evaluate((el) => getComputedStyle(el).backgroundColor);
-    // #4f6b3a = rgb(79, 107, 58) — globals.css's --color-leaf, read live
-    // rather than trusted from the class name.
-    expect(bg, "the active page's background should be the leaf token").toBe("rgb(79, 107, 58)");
+    // V2 repoint: the active-page fill moved from --color-leaf (#4f6b3a,
+    // green) to --color-rg-ink (#101112, black) — docs/design/README.md,
+    // "Pagination — not infinite scroll": "active page #101112 filled."
+    // The old system's leaf-green primary-action colour has no equivalent
+    // in a token set with "no colour in the interface at all" apart from
+    // the one registry blue, which pagination never uses.
+    expect(bg, "the active page's background should be the rg-ink token").toBe("rgb(16, 17, 18)");
   });
 
   test("prev is absent on page 1; clicking next moves the active page and the URL", async ({
@@ -216,8 +225,8 @@ test.describe("/tvaryny pagination", () => {
   test("prev/next carry the design's own visible text, not a bare glyph with a separate label", async ({
     page,
   }) => {
-    // docs/design's mock (`Opika - Keeper's Voice.dc.html`, 1440 GALLERY
-    // block) sets "← Назад" / "Далі →" as the buttons' own visible text —
+    // docs/design's mock (`Opika Registry System.dc.html`, lines 189/195)
+    // sets "← Назад" / "Далі →" as the buttons' own visible text —
     // an earlier draft used a bare "‹"/"›" glyph plus an aria-label that
     // didn't contain it, a WCAG 2.5.3 accessible-name mismatch caught on
     // review. Asserting the visible text (not just the aria-label) is what
@@ -228,7 +237,22 @@ test.describe("/tvaryny pagination", () => {
     await expect(page.getByTestId("pagination-next")).toHaveText(DESIGN_NEXT);
   });
 
-  test("the number group ends with the design's own 'з N' count", async ({ page }) => {
+  /**
+   * V2 repoint (docs/design/README.md, "Pagination — not infinite scroll"):
+   * "«з N» renders only when the number list is truncated with an ellipsis
+   * — while every number is on screen the counter just restates what you
+   * can count." Previously unconditional; `GalleryPagination.tsx` now
+   * gates it on `isTruncated`. This assertion's outcome is unchanged
+   * because the seeded corpus (256 discoverable animals / 24 per page ≈ 11
+   * pages) is genuinely past `ALWAYS_EXPANDED_THRESHOLD` (7) and always
+   * truncates at the default, unfiltered view this test loads — the
+   * untruncated case (no "з N") is covered instead in
+   * `GalleryPagination.test.tsx`, where a small `totalPages` is a prop, not
+   * something that needs 8+ real seeded pages to reach.
+   */
+  test("the number group ends with the design's own 'з N' count, because this corpus truncates", async ({
+    page,
+  }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
     const navText = await page.locator(NAV).innerText();

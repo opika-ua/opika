@@ -35,6 +35,21 @@ interface AnimalCardProps {
    * screen.
    */
   priority?: boolean;
+  /**
+   * The mock's third card variant (`docs/design/README.md`, "The gallery
+   * card" > "Resolved") — fill-strong background, the decorative-only
+   * placeholder stripe, and the pips replaced by "Притулок каже: {name} уже
+   * вдома." instead of freshness. Never set by any real caller today:
+   * `FeedCardView["listingKind"]` is `DISCOVERABLE_LISTING_KINDS`-narrowed
+   * (`published | reserved`, `packages/contracts/src/views/animal.ts`) and
+   * cannot carry "adopted" — the gallery/feed query never returns an
+   * adopted animal at all (`packages/domain/src/animals/listing.ts`).
+   * Widening that predicate is a data-model decision for a future phase,
+   * not this one; this prop exists so the *rendering* is real and tested
+   * (`AnimalCard.test.tsx`) rather than an unbuilt corner of the mock, with
+   * no live path exercising it until that decision is made.
+   */
+  resolved?: boolean;
 }
 
 /**
@@ -51,8 +66,13 @@ interface AnimalCardProps {
  * own breakpoint names (globals.css), matching the design's 600/1024/1440
  * cut points rather than Tailwind's stock scale.
  */
-export function AnimalCard({ card, cityName, priority = false }: AnimalCardProps) {
-  const reserved = isReserved(card.listingKind);
+export function AnimalCard({
+  card,
+  cityName,
+  priority = false,
+  resolved = false,
+}: AnimalCardProps) {
+  const reserved = !resolved && isReserved(card.listingKind);
   const photo = card.primaryPhoto;
   const fills = freshnessPips(card.freshness.kind);
 
@@ -73,7 +93,9 @@ export function AnimalCard({ card, cityName, priority = false }: AnimalCardProps
       prefetch={false}
       aria-label={cardAccessibleName(card, cityName)}
       data-testid="animal-card"
-      className="group flex flex-col tablet:flex-row desktop:flex-col gap-3 rounded-card border border-line-strong bg-paper p-3 box-border hover:border-line-heavy focus-visible:outline focus-visible:outline-2 focus-visible:outline-leaf focus-visible:outline-offset-2 transition-colors duration-[160ms]"
+      className={`font-rg flex flex-col tablet:flex-row desktop:flex-col gap-4 tablet:gap-3 desktop:gap-4 rounded-rg-card p-3 box-border transition-colors duration-[120ms] ease-rg focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] ${
+        resolved ? "bg-rg-fill-strong" : "bg-rg-surface hover:bg-rg-surface-hover"
+      }`}
     >
       {/*
         Vertical (phone, desktop): full-width, 4:5. Horizontal (tablet,
@@ -83,7 +105,9 @@ export function AnimalCard({ card, cityName, priority = false }: AnimalCardProps
       */}
       <div
         data-testid="card-photo"
-        className="relative shrink-0 w-full aspect-[4/5] tablet:w-30 tablet:aspect-auto desktop:w-full desktop:aspect-[4/5] rounded-photo overflow-hidden bg-photo-placeholder"
+        className={`relative shrink-0 w-full aspect-[4/5] tablet:w-30 tablet:aspect-auto desktop:w-full desktop:aspect-[4/5] rounded-rg-photo overflow-hidden ${
+          resolved ? "bg-rg-photo-placeholder-resolved" : "bg-rg-photo-placeholder"
+        }`}
       >
         {photo && (
           <Image
@@ -97,61 +121,81 @@ export function AnimalCard({ card, cityName, priority = false }: AnimalCardProps
         )}
 
         {/*
-          docs/design/README.md: "8px inset (6px on the tablet card, labelled
-          'Домовляються')." Two text nodes, complementary visibility, rather
-          than one node with breakpoint-conditional content — CSS cannot swap
-          text, only which element is displayed.
+          docs/design/README.md, "The gallery card" > "Reserved": "an
+          #FFFFFF pill... bottom-left inside the photo at 12px inset." Two
+          text nodes, complementary visibility, rather than one node with
+          breakpoint-conditional content — CSS cannot swap text, only which
+          element is displayed.
         */}
         {reserved && (
           <span
             data-testid="reserved-badge"
-            className="absolute bottom-2 left-2 tablet:bottom-1.5 tablet:left-1.5 desktop:bottom-2 desktop:left-2 min-h-7 flex items-center rounded-chip bg-avatar-bg px-2.5 font-sans font-medium text-[11px] leading-none text-[#3D3226]"
+            className="absolute bottom-3 left-3 min-h-8 flex items-center rounded-rg-chip bg-rg-surface px-3.5 font-medium text-[13px] leading-none text-rg-ink"
           >
-            {/* #3D3226 is a design value with no named token — docs/design/README.md's own colour table doesn't list it either; see globals.css for the precedent (bg-photo-placeholder's #F6EFE3) for keeping a genuine one-off as an arbitrary value instead of inventing a token for it. */}
             <span className="tablet:hidden desktop:inline">{uk.reserved.badge}</span>
             <span className="hidden tablet:inline desktop:hidden">{uk.reserved.badgeShort}</span>
           </span>
         )}
       </div>
 
-      <div className="flex flex-col gap-2 px-1 pb-1 min-w-0">
-        <span
-          data-testid="card-name"
-          className="font-serif font-medium text-[20px]/[24px] tablet:text-[18px]/[21.6px] desktop:text-[19px]/[22.8px] text-ink truncate group-hover:underline underline-offset-[3px]"
-        >
-          {card.name}
-        </span>
+      <div className="flex flex-col gap-3 px-2 pb-2 min-w-0">
+        <div className="flex flex-col gap-1">
+          <span
+            data-testid="card-name"
+            className="font-bold text-[24px]/[28px] tablet:text-[22px]/[26px] tracking-[-0.02em] text-rg-ink truncate"
+          >
+            {card.name}
+          </span>
 
-        <span data-testid="card-meta" className="font-sans text-[12px]/[16.8px] text-ink-3">
-          {cardMetaLine(card, cityName)}
-        </span>
+          <span data-testid="card-meta" className="text-[15px]/[22px] text-rg-ink-2">
+            {cardMetaLine(card, cityName)}
+          </span>
+        </div>
 
         {/*
           No boxed freshness block and no shelter sentence here, unlike the
           deck: "The shelter's sentence is NOT on gallery cards" —
-          docs/design/README.md, "The Gallery" > "Card".
+          docs/design/README.md, "The Gallery" > "Card". The resolved variant
+          replaces this row entirely with the shelter's own sentence instead
+          of freshness — "Different fill and different text — never
+          dimming" (docs/design/README.md, "The gallery card" > "Resolved").
         */}
-        <div className="flex items-center gap-row">
-          <div className="flex gap-label" aria-hidden="true">
-            {fills.map((fill, i) => (
-              <div
-                key={i}
-                data-testid="freshness-pip"
-                data-filled={fill ? "true" : "false"}
-                className={`size-1.75 rounded-full ${fill ?? "bg-transparent border border-line-heavy"}`}
-              />
-            ))}
-          </div>
-          <span className="font-sans text-[12px]/[16.8px] text-ink-2">
-            {freshnessLabel(card.freshness)}
+        {resolved ? (
+          <span className="text-[15px]/[22px] text-rg-ink">
+            {uk.resolved.sentence.replace("{name}", card.name)}
           </span>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2.5">
+            <div className="flex gap-1.5" aria-hidden="true">
+              {fills.map((fill, i) => (
+                <div
+                  key={i}
+                  data-testid="freshness-pip"
+                  data-filled={fill === "empty" ? "false" : "true"}
+                  className={`size-2.5 rounded-full ${
+                    fill === "empty" ? "bg-transparent border-[1.5px] border-rg-ink-3" : fill
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="text-[15px]/[22px] text-rg-ink">{freshnessLabel(card.freshness)}</span>
+          </div>
+        )}
 
-        <div data-testid="shelter-line" className="font-sans text-[11px]/[14.3px] text-ink-3">
+        {/*
+          "· перевірений" carries no colour of its own — docs/design/README.md,
+          "The gallery card": "caption 13/18 #63676B ... (no colour;
+          verification is stated, not tinted)." The resolved variant's
+          shelter line is ink-2, not ink-3 — the one other place this card's
+          text departs from the standard/reserved caption colour
+          (`Opika Registry System.dc.html`'s own B5 resolved-card frame).
+        */}
+        <div
+          data-testid="shelter-line"
+          className={`text-[13px]/[18px] ${resolved ? "text-rg-ink-2" : "text-rg-ink-3"}`}
+        >
           {card.shelter.displayName}
-          {card.shelter.verification === "verified" && (
-            <span className="text-leaf"> · перевірений</span>
-          )}
+          {card.shelter.verification === "verified" && " · перевірений"}
         </div>
       </div>
     </Link>

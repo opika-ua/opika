@@ -245,6 +245,34 @@ export async function expectNoViewportOverflow(page: Page, viewport: Viewport): 
   ).toBeLessThanOrEqual(m.innerHeight);
 }
 
+function relativeLuminance([r, g, b]: readonly [number, number, number]): number {
+  const [rl, gl, bl] = [r, g, b].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
+}
+
+function parseRgb(css: string): readonly [number, number, number] {
+  const m = css.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/);
+  if (!m) throw new Error(`not an rgb()/rgba() color: "${css}"`);
+  return [Number(m[1]), Number(m[2]), Number(m[3])];
+}
+
+/**
+ * WCAG contrast ratio between two colors, each as `getComputedStyle` resolves
+ * them — always an `rgb()`/`rgba()` string regardless of the source CSS
+ * syntax (a hex value, a `theme()` token, a named color). Assumes both are
+ * opaque against an opaque page, which holds for every surface this design
+ * system defines — there is no semi-transparent background anywhere in it.
+ */
+export function contrastRatio(colorA: string, colorB: string): number {
+  const lumA = relativeLuminance(parseRgb(colorA));
+  const lumB = relativeLuminance(parseRgb(colorB));
+  const [lighter, darker] = lumA >= lumB ? [lumA, lumB] : [lumB, lumA];
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 export interface DragOptions {
   /** Signed horizontal displacement in CSS px. Negative drags left. */
   readonly dx: number;

@@ -29,13 +29,19 @@ function affordanceOpacity(dx: number): number {
  * Non-interactive stack layers (mid, back). Plain Tailwind classes — these
  * never move, so unlike the top card there is no dynamic style to keep
  * separate from the className.
+ *
+ * V2 (`Opika Registry System.dc.html`'s B7 frame): the two inset/top pairs
+ * this codebase already had (6px/5px and 12px/10px) turned out to match the
+ * mock's own two stack layers exactly — only the fill colours and the
+ * border needed to change (`#F9F3E9`/`#F7F0E4` with a line border ->
+ * `#FCFCFB`/`#F7F7F5`, no border at all — "borders are gone").
  */
-const cardBase = "absolute rounded-card overflow-hidden will-change-transform box-border";
+const cardBase = "absolute rounded-rg-card overflow-hidden will-change-transform box-border";
 const STACK_LAYER_1_2 = [
-  // mid card. #F9F3E9 is not a tokens.ts colour, same as before this migration.
-  `${cardBase} left-1.5 right-1.5 top-1.25 h-50 bg-[#F9F3E9] border border-line z-2`,
-  // back card. #F7F0E4, likewise pre-existing and not a named token.
-  `${cardBase} left-3 right-3 top-2.5 h-50 bg-[#F7F0E4] border border-line z-1`,
+  // mid card — the mock's smaller inset (6px/5px).
+  `${cardBase} left-1.5 right-1.5 top-1.25 h-50 bg-[#FCFCFB] z-2`,
+  // back card — the mock's larger inset (12px/10px).
+  `${cardBase} left-3 right-3 top-2.5 h-50 bg-[#F7F7F5] z-1`,
 ] as const;
 
 export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCardProps) {
@@ -58,7 +64,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
     <section
       ref={gestureRef}
       data-testid="swipe-card"
-      className={`${cardBase} inset-0 bg-paper shadow-card p-3 z-3 cursor-grab select-none flex flex-col`}
+      className={`font-rg ${cardBase} inset-0 bg-rg-surface shadow-rg-card p-3 z-3 cursor-grab select-none flex flex-col gap-4`}
       aria-label={card.name}
       onClick={onTap}
       onKeyDown={undefined}
@@ -76,7 +82,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
       */}
       <div
         data-testid="card-photo"
-        className="w-full h-99 grow-0 shrink min-h-50 rounded-photo overflow-hidden bg-photo-placeholder relative"
+        className="w-full h-99 grow-0 shrink min-h-50 rounded-rg-photo overflow-hidden bg-rg-photo-placeholder relative"
       >
         {photo && (
           <Image
@@ -96,9 +102,18 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
             label rendered as before this migration — see the note by the
             shelter-line spans below for why `leading-[normal]` and not a
             specific pixel value. */}
+        {/*
+          V2: dropped the right-swipe affordance's leaf-green — "no colour
+          in the interface at all... all colour on screen comes from the
+          animals' photographs" (docs/design/README.md). Word choice, not
+          hue, is what already distinguishes the two directions; a coloured
+          affordance also reads as exactly the judgement/celebration cue
+          "the swipe is filtering, not judging... no stamps, no scores" rules
+          out.
+        */}
         {showLeft && afOpacity > 0 && (
           <div
-            className="absolute top-1/2 left-6 -translate-y-1/2 text-ink-3 font-sans text-lg leading-[normal] font-medium pointer-events-none"
+            className="absolute top-1/2 left-6 -translate-y-1/2 text-rg-ink-3 font-rg text-lg leading-[normal] font-medium pointer-events-none"
             style={{ opacity: afOpacity }}
           >
             {uk.swipe.left}
@@ -106,7 +121,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         )}
         {showRight && afOpacity > 0 && (
           <div
-            className="absolute top-1/2 right-6 -translate-y-1/2 text-leaf font-sans text-lg leading-[normal] font-medium pointer-events-none"
+            className="absolute top-1/2 right-6 -translate-y-1/2 text-rg-ink font-rg text-lg leading-[normal] font-medium pointer-events-none"
             style={{ opacity: afOpacity }}
           >
             {uk.swipe.right}
@@ -114,19 +129,22 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         )}
       </div>
 
-      {/* Text content */}
-      <div className="pt-group px-label pb-label flex flex-col gap-group shrink-0">
+      {/* Text content. `Opika Registry System.dc.html`'s B7 deck frame:
+        outer card `padding: 12px, gap: 16px` (the `gap-4` now on the
+        section above is that photo-to-text distance), text block itself
+        `gap: 12px; padding: 0 8px` — no top/bottom padding of its own. */}
+      <div className="px-2 flex flex-col gap-3 shrink-0">
         {/* Name + meta */}
         <div>
+          {/* display-m, docs/design/README.md's type scale: "deck card
+            name" is one of display-m's own named uses. */}
           <div
             data-testid="card-name"
-            className="font-serif font-medium text-[26px]/[30px] text-ink truncate"
+            className="font-bold text-[34px]/[38px] tracking-[-0.03em] text-rg-ink truncate"
           >
             {card.name}
           </div>
-          <div className="font-sans text-[13px]/[19.5px] text-ink-3 mt-label">
-            {formatMeta(card)}
-          </div>
+          <div className="text-[15px]/[22px] text-rg-ink-2 mt-1">{formatMeta(card)}</div>
         </div>
 
         {/* Freshness block */}
@@ -147,14 +165,19 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
           vertical shift on this row — the CSS keyword is what restores the
           original rendering exactly, in every environment, not just this one.
         */}
+        {/*
+          Not part of the B7 mock frame, which shows no shelter line at all
+          below the freshness block — kept anyway, re-skinned rather than
+          removed: dropping shelter attribution/verification is a content
+          decision, not a colour or type-scale one, and this phase is
+          re-skinning, not re-scoping what the deck card shows.
+        */}
         <div data-testid="shelter-line" className="flex items-center gap-1.5">
           <ShelterMonogram name={card.shelter.displayName} />
-          <span className="font-sans text-[13px] leading-[normal] text-ink-2">
+          <span className="text-[13px] leading-[normal] text-rg-ink-3">
             {card.shelter.displayName}
+            {card.shelter.verification === "verified" && " · перевірений"}
           </span>
-          {card.shelter.verification === "verified" && (
-            <span className="font-sans text-[13px] leading-[normal] text-leaf">· перевірений</span>
-          )}
         </div>
       </div>
     </section>
@@ -179,7 +202,7 @@ function ShelterMonogram({ name }: { name: string }) {
     .toUpperCase();
 
   return (
-    <div className="size-5 rounded-full bg-avatar-bg flex items-center justify-center font-sans text-[9px] leading-[normal] font-medium text-ink-3 shrink-0">
+    <div className="size-5 rounded-full bg-rg-fill flex items-center justify-center text-[9px] leading-[normal] font-medium text-rg-ink-3 shrink-0">
       {initials}
     </div>
   );
@@ -196,31 +219,35 @@ function FreshnessBlock({
   const fills = freshnessPips(freshness.kind);
 
   return (
-    // min-h-27 (108px), not min-h-21 (84px). The original 84 was a
-    // content-box min-height — Tailwind Preflight resets every element to
-    // border-box globally, under which min-height caps the *whole* box
-    // (padding included) instead of just the content area. 84 content-box
-    // with 12px padding top and bottom floors the total at 84+24=108; the
-    // same 84 under border-box floors the total at 84 outright, 24px
-    // short — a real, measured height difference on any card whose
-    // shelter sentence is short enough to hit the floor, not a rounding
-    // artifact. 108 reproduces the original total.
+    // padding 16 (p-4) — `Opika Registry System.dc.html`'s B7 deck frame
+    // states this literally. min-height is NOT the mock's literal 88,
+    // though: the mock has no box-sizing reset (its own <style> block sets
+    // only `body { margin: 0 }`), so `min-height: 88px` there is
+    // content-box — an 88+16+16=120px rendered box. Preflight resets this
+    // app to border-box, where min-height caps the whole box, padding
+    // included, so reproducing the mock's real 120px total needs
+    // min-h-30, not min-h-22. (The same conversion the pre-V2 code did
+    // for its own 84-content-box value — this restates it for V2's 88.)
     <section
       data-testid="freshness-block"
-      className="bg-paper-alt rounded-freshness p-3 flex flex-col gap-row min-h-27"
+      className="font-rg bg-rg-fill rounded-rg-freshness p-4 flex flex-col gap-row min-h-30"
       aria-label={label}
     >
-      {/* Pips + label */}
-      <div className="flex items-center gap-row">
+      {/* Pips + label. docs/design/README.md, "The freshness marker": the
+        label is body 15, rg-ink (not rg-ink-2) in every instance the mock
+        actually renders it. */}
+      <div className="flex items-center gap-2.5">
         <FreshnessPipRow fills={fills} />
-        <span className="font-sans text-[13px]/[19.5px] text-ink-2">{label}</span>
+        <span className="text-[15px]/[22px] text-rg-ink">{label}</span>
       </div>
 
-      {/* Shelter sentence (if present) */}
+      {/* Shelter sentence (if present) — 15/22, not the detail page's
+        body-l 17/26: docs/design/README.md's "The shelter's sentence"
+        states body-l for the full sentence, but the deck renders the
+        "shortened sentence" (same section, "The deck"), and the B7 frame's
+        own literal value for it is 15/22 — `Opika Registry System.dc.html`. */}
       {shelterSentence?.uk && (
-        <div className="font-serif font-normal text-[13px]/[19.5px] text-ink-2">
-          {shelterSentence.uk}
-        </div>
+        <div className="text-[15px]/[22px] text-rg-ink-2 text-pretty">{shelterSentence.uk}</div>
       )}
     </section>
   );
@@ -228,19 +255,27 @@ function FreshnessBlock({
 
 /**
  * Three pips, always three, always in the same position.
- * Design spec: 7x7 circles, gap 4px between pips, gap 8px to the label.
- * Each pip is either filled (a Tailwind bg-* class from freshnessPips) or
- * empty (1px line-heavy border, transparent fill).
+ * V2 geometry (docs/design/README.md, "The freshness marker"): 10x10px,
+ * gap 6 between pips, gap 10 to the label — "grown from 7px: at 1.5x
+ * density on a cheap Android panel 7px pips disappeared." Each pip is
+ * either filled (a Tailwind bg-* class from freshnessPips) or the "empty"
+ * variant — transparent fill, 1.5px border in rg-ink-3 (#63676B), the
+ * WCAG 1.4.11 fix recorded in the same section. The mock's original solid
+ * #DCDCD9 fill measured 1.16-1.37:1 against every background it appears
+ * on; the design was subsequently updated to specify the outline
+ * directly, so this is the current spec, not a deviation from it.
  */
 function FreshnessPipRow({ fills }: { fills: [PipFill, PipFill, PipFill] }) {
   return (
-    <div className="flex gap-label" aria-hidden="true">
+    <div className="flex gap-1.5" aria-hidden="true">
       {fills.map((fill, i) => (
         <div
           key={i}
           data-testid="freshness-pip"
-          data-filled={fill ? "true" : "false"}
-          className={`size-1.75 rounded-full ${fill ?? "bg-transparent border border-line-heavy"}`}
+          data-filled={fill === "empty" ? "false" : "true"}
+          className={`size-2.5 rounded-full ${
+            fill === "empty" ? "bg-transparent border-[1.5px] border-rg-ink-3" : fill
+          }`}
         />
       ))}
     </div>

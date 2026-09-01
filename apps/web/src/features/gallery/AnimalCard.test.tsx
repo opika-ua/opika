@@ -135,6 +135,34 @@ describe("AnimalCard freshness marker", () => {
   });
 });
 
+describe("AnimalCard resolved variant", () => {
+  /**
+   * `resolved` is never set by any real caller today — see
+   * AnimalCardProps["resolved"]'s own comment for why (the gallery/feed
+   * query never returns an adopted animal, so no live `FeedCardView` can
+   * express this). This is the one place the rendering is exercised at
+   * all: a hand-built fixture, per docs/design/README.md, "The gallery
+   * card" > "Resolved" — "Different fill and different text — never
+   * dimming."
+   */
+  it("replaces the freshness pips with the shelter's sentence, not a dimmed version of them", () => {
+    render(<AnimalCard card={makeCard({ name: "Бім" })} cityName="Бровари" resolved />);
+
+    expect(screen.queryByTestId("freshness-pip")).toBeNull();
+    expect(screen.getByText("Притулок каже: Бім уже вдома.")).toBeTruthy();
+  });
+
+  it("never shows the reserved badge, even if the underlying listingKind is reserved", () => {
+    render(<AnimalCard card={makeCard({ listingKind: "reserved" })} cityName="Бровари" resolved />);
+    expect(screen.queryByTestId("reserved-badge")).toBeNull();
+  });
+
+  it("gives the shelter line ink-2, not the standard card's ink-3", () => {
+    render(<AnimalCard card={makeCard()} cityName="Бровари" resolved />);
+    expect(screen.getByTestId("shelter-line").className).toContain("text-rg-ink-2");
+  });
+});
+
 describe("AnimalCard shelter line", () => {
   it("marks a verified shelter, without a monogram (the gallery card's own, simpler spec)", () => {
     render(<AnimalCard card={makeCard()} cityName="Бровари" />);

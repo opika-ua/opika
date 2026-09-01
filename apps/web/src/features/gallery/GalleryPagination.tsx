@@ -2,7 +2,7 @@ import type { FeedFilters, GallerySort } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Link from "next/link";
 import { galleryPageHref } from "./filter-url";
-import { hasPagination, paginationWindow } from "./gallery-pagination";
+import { hasPagination, isTruncated, paginationWindow } from "./gallery-pagination";
 
 interface GalleryPaginationProps {
   filters: FeedFilters;
@@ -14,27 +14,26 @@ interface GalleryPaginationProps {
 }
 
 /**
- * `docs/design/Opika - Keeper's Voice.dc.html`'s 1440 GALLERY block, the
- * pagination row's literal styles — prev/next as `min-height: 44px; padding:
- * 0 16px` text buttons, an available/unavailable pair (leaf border and text
- * vs. line-heavy border, ink-3 text), applied symmetrically to whichever of
- * prev/next is at its own end. The mock only shows one example of each (page
- * 1: prev unavailable, next available) — this applies the same two
- * treatments to whichever control is inert on any given page.
+ * `Opika Registry System.dc.html`'s B1 gallery frame, the pagination row's
+ * literal styles: prev/next 56 tall, radius 16, 15px, no border on either
+ * state — the mock's own available/unavailable pair is a fill contrast
+ * (`Далі →` filled `#101112`/white; `← Назад` plain `#FFFFFF`/`ink-3`), not
+ * a border-and-colour pair, applied symmetrically to whichever of prev/next
+ * is at its own end. The mock only shows one example of each (page 1: prev
+ * unavailable, next available) — this applies the same two treatments to
+ * whichever control is inert on any given page.
  */
-const NAV_BUTTON = "inline-flex items-center min-h-11 px-4 rounded-button font-sans text-[13px]";
-const NAV_BUTTON_AVAILABLE = `${NAV_BUTTON} border border-leaf text-leaf font-medium`;
-const NAV_BUTTON_UNAVAILABLE = `${NAV_BUTTON} border border-line-heavy text-ink-3`;
+const FOCUS_RING =
+  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
+const NAV_BUTTON = `font-rg inline-flex items-center min-h-14 px-6 rounded-rg-button text-[15px] ${FOCUS_RING}`;
+const NAV_BUTTON_AVAILABLE = `${NAV_BUTTON} bg-rg-ink text-rg-surface font-medium`;
+const NAV_BUTTON_UNAVAILABLE = `${NAV_BUTTON} bg-rg-surface text-rg-ink-3`;
 
-/** The number pills — `min-width: 44px; min-height: 44px`, centred, no
- * horizontal padding (unlike prev/next, whose text needs it). The mock sets
- * these in IBM Plex Mono; this codebase deliberately dropped that family
- * (`apps/web/src/app/fonts.ts`), so `font-sans` (Commissioner) here, not a
- * one-off reintroduction of a font nothing else uses. */
-const PAGE_PILL =
-  "min-h-11 min-w-11 inline-flex items-center justify-center rounded-button font-sans text-[13px]";
-const PAGE_PILL_INACTIVE = `${PAGE_PILL} border border-line-strong text-ink-2`;
-const PAGE_PILL_ACTIVE = `${PAGE_PILL} bg-leaf text-paper font-medium`;
+/** The number pills — 56x56, centred, no border on either state (the
+ * mock's inactive "2" is a plain white fill, not an outline). */
+const PAGE_PILL = `font-rg min-h-14 min-w-14 inline-flex items-center justify-center rounded-rg-button text-[15px] ${FOCUS_RING}`;
+const PAGE_PILL_INACTIVE = `${PAGE_PILL} bg-rg-surface text-rg-ink`;
+const PAGE_PILL_ACTIVE = `${PAGE_PILL} bg-rg-ink text-rg-surface font-medium`;
 
 function pageAriaLabel(page: number): string {
   return uk.pagination.pageLabel.replace("{page}", String(page));
@@ -72,6 +71,7 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
   if (!hasPagination(totalPages)) return null;
 
   const items = paginationWindow(page, totalPages);
+  const truncated = isTruncated(items);
   const ofTotal = uk.pagination.ofTotal.replace("{total}", String(totalPages));
 
   return (
@@ -80,7 +80,7 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
       tabIndex={-1}
       data-testid="gallery-pagination"
       aria-label={uk.pagination.navLabel}
-      className="mt-section flex flex-wrap items-center justify-between gap-4 border-t border-line pt-2"
+      className="font-rg mt-6 flex flex-wrap items-center justify-between gap-4 pt-2"
     >
       {page > 1 ? (
         <Link
@@ -103,7 +103,7 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
       <div className="flex flex-wrap items-center justify-center gap-2">
         {items.map((item, index) =>
           item === "ellipsis" ? (
-            <span key={`ellipsis-${index}`} aria-hidden="true" className="px-1 text-ink-3">
+            <span key={`ellipsis-${index}`} aria-hidden="true" className="px-1 text-rg-ink-3">
               …
             </span>
           ) : item === page ? (
@@ -129,7 +129,16 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
             </Link>
           ),
         )}
-        <span className="font-sans text-[13px] text-ink-3">{ofTotal}</span>
+        {/*
+          docs/design/README.md, "Pagination — not infinite scroll": "«з N»
+          renders only when the number list is truncated with an ellipsis
+          (1 2 3 … 9, з 12) — while every number is on screen the counter
+          just restates what you can count." Previously rendered
+          unconditionally whenever pagination existed at all (>1 page) —
+          repointed: the design value that changed is "always shown" ->
+          "shown only when `paginationWindow` actually emits an ellipsis."
+        */}
+        {truncated && <span className="text-[15px] text-rg-ink-3">{ofTotal}</span>}
       </div>
 
       {page < totalPages ? (
@@ -150,10 +159,10 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
         </span>
       )}
 
-      {/* The mock puts the footnote outside the row, left-aligned, 24px
-        below it (the grid column's own `gap: 24`) — not centred. `mt-row`
-        on top of the row's 16px `gap-4` is that 24px. */}
-      <p className="mt-row w-full font-sans text-xs text-ink-3">{uk.pagination.footnote}</p>
+      {/* Not part of any mock frame — an explanatory footnote E3 added on
+        its own, predating V2. Recoloured to the new tokens, left in place:
+        removing it would be a content decision this phase isn't making. */}
+      <p className="mt-2 w-full text-[13px]/[18px] text-rg-ink-3">{uk.pagination.footnote}</p>
     </nav>
   );
 }

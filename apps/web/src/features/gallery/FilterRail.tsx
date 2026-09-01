@@ -17,11 +17,17 @@ import {
   withToggledSize,
   withToggledSpecies,
 } from "./filter-url";
+import { sheetResultCount } from "./gallery-copy";
 
 interface FilterRailProps {
   filters: FeedFilters;
   sort: GallerySort;
   cities: ReadonlyArray<{ id: CityId; name: string }>;
+  /** For the closing result-count sentence — `Opika Registry System.dc.html`'s
+   * B1 frame gives the rail its own copy of the sheet's "Підходить N тварин
+   * у M притулках." box, distinct from the "Знайдено…" line above the grid. */
+  resultCount: number;
+  shelterCount: number;
 }
 
 const SPECIES_LABEL: Record<AnimalSpecies, string> = {
@@ -40,10 +46,16 @@ const AGE_LABEL: Record<AgeBucket, string> = {
   senior: uk.filters.ageSenior,
 };
 
+/**
+ * docs/design/README.md, "Rail...": "Chips: 48 min-height, padding 0 20,
+ * radius 999; selected = #101112 fill + white 500; unselected = #F2F2F0
+ * fill + ink 400." No border on either state — "the single structural move
+ * that does most of the work: borders are gone."
+ */
 const CHIP_BASE =
-  "min-h-9 inline-flex items-center rounded-chip px-3 font-sans text-sm leading-none cursor-pointer transition-colors duration-[160ms]";
-const CHIP_ACTIVE = "bg-leaf text-paper";
-const CHIP_INACTIVE = "bg-paper text-ink-3 border border-line-strong hover:border-line-heavy";
+  "min-h-12 inline-flex items-center rounded-rg-chip px-5 font-rg text-[15px] leading-none cursor-pointer transition-colors duration-[120ms] ease-rg focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
+const CHIP_ACTIVE = "bg-rg-ink text-rg-surface font-medium";
+const CHIP_INACTIVE = "bg-rg-fill text-rg-ink";
 
 /**
  * `aria-current`, not `aria-pressed`: an `<a href>` is `role="link"`, and
@@ -89,30 +101,30 @@ function Chip({
  * Visible only at `desktop:` (>=1024) — `hidden desktop:flex`. Below that,
  * `FilterSheet` owns the same filter state through a different UI.
  */
-export function FilterRail({ filters, sort, cities }: FilterRailProps) {
+export function FilterRail({ filters, sort, cities, resultCount, shelterCount }: FilterRailProps) {
   return (
     <aside
       data-testid="filter-rail"
       aria-label={uk.filters.title}
-      className="hidden desktop:flex flex-col gap-section w-70 shrink-0 rounded-card border border-line-strong bg-paper p-group h-fit"
+      className="font-rg hidden desktop:flex flex-col gap-7 w-70 shrink-0 rounded-rg-card bg-rg-surface p-6 h-fit"
     >
-      <div className="flex items-center justify-between">
-        <span className="font-sans font-medium text-xs tracking-wide text-ink-3 uppercase">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[19px] font-bold tracking-[-0.02em] text-rg-ink">
           {uk.filters.title}
         </span>
         <Link
           href={resetFiltersHref(sort)}
-          className="min-h-11 flex items-center font-sans text-sm text-ink-3 hover:text-ink-2 hover:underline underline-offset-2"
+          className="min-h-12 flex items-center text-[15px] text-rg-ink-3 underline underline-offset-2 hover:text-rg-ink-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
           {uk.filters.reset}
         </Link>
       </div>
 
-      <fieldset className="flex flex-col gap-label">
-        <legend className="font-sans font-medium text-xs tracking-wide text-ink-3 uppercase mb-label">
+      <fieldset className="flex flex-col gap-3">
+        <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
           {uk.filters.city}
         </legend>
-        <div className="flex flex-wrap gap-row">
+        <div className="flex flex-wrap gap-2">
           <Chip
             active={filters.cities.kind === "any"}
             href={galleryHref({ ...filters, cities: { kind: "any" } }, sort)}
@@ -131,11 +143,11 @@ export function FilterRail({ filters, sort, cities }: FilterRailProps) {
         </div>
       </fieldset>
 
-      <fieldset className="flex flex-col gap-label">
-        <legend className="font-sans font-medium text-xs tracking-wide text-ink-3 uppercase mb-label">
+      <fieldset className="flex flex-col gap-3">
+        <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
           {uk.filters.species}
         </legend>
-        <div className="flex flex-wrap gap-row">
+        <div className="flex flex-wrap gap-2">
           {ANIMAL_SPECIES.map((species) => (
             <Chip
               key={species}
@@ -148,11 +160,11 @@ export function FilterRail({ filters, sort, cities }: FilterRailProps) {
         </div>
       </fieldset>
 
-      <fieldset className="flex flex-col gap-label">
-        <legend className="font-sans font-medium text-xs tracking-wide text-ink-3 uppercase mb-label">
+      <fieldset className="flex flex-col gap-3">
+        <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
           {uk.filters.size}
         </legend>
-        <div className="flex flex-wrap gap-row">
+        <div className="flex flex-wrap gap-2">
           {SIZE_BUCKETS.map((size) => (
             <Chip
               key={size}
@@ -165,11 +177,11 @@ export function FilterRail({ filters, sort, cities }: FilterRailProps) {
         </div>
       </fieldset>
 
-      <fieldset className="flex flex-col gap-label">
-        <legend className="font-sans font-medium text-xs tracking-wide text-ink-3 uppercase mb-label">
+      <fieldset className="flex flex-col gap-3">
+        <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
           {uk.filters.age}
         </legend>
-        <div className="flex flex-wrap gap-row">
+        <div className="flex flex-wrap gap-2">
           {AGE_BUCKETS.map((age) => (
             <Chip
               key={age}
@@ -182,7 +194,14 @@ export function FilterRail({ filters, sort, cities }: FilterRailProps) {
         </div>
       </fieldset>
 
-      <p className="font-sans text-xs text-ink-3 leading-snug">{uk.filters.railFooter}</p>
+      {/* docs/design/README.md, "Rail...": "Closes with a #F2F2F0 block" —
+        both sentences, same box, same as the sheet's own closing block. */}
+      <div className="flex flex-col gap-2 rounded-rg-freshness bg-rg-fill p-4">
+        <p className="text-[15px]/[22px] text-rg-ink">
+          {sheetResultCount(resultCount, shelterCount, filters.cities.kind !== "any")}
+        </p>
+        <p className="text-[13px]/[18px] text-rg-ink-3">{uk.filters.railFooter}</p>
+      </div>
     </aside>
   );
 }

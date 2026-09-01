@@ -27,7 +27,13 @@ function renderSheet(filters = NO_FILTERS, sort: "freshest" | "longest_waiting" 
   const router = mockAppRouter();
   const { rerender } = render(
     <WithMockRouter router={router}>
-      <FilterSheet filters={filters} sort={sort} cities={CITIES} resultCount={12} />
+      <FilterSheet
+        filters={filters}
+        sort={sort}
+        cities={CITIES}
+        resultCount={12}
+        shelterCount={5}
+      />
     </WithMockRouter>,
   );
   /** Stands in for a navigation the sheet's own form did not cause — the back button, or one of the sheet's instant-apply links having landed. */
@@ -37,13 +43,25 @@ function renderSheet(filters = NO_FILTERS, sort: "freshest" | "longest_waiting" 
   ) =>
     rerender(
       <WithMockRouter router={router}>
-        <FilterSheet filters={nextFilters} sort={nextSort} cities={CITIES} resultCount={3} />
+        <FilterSheet
+          filters={nextFilters}
+          sort={nextSort}
+          cities={CITIES}
+          resultCount={3}
+          shelterCount={2}
+        />
       </WithMockRouter>,
     );
   return { router, applyFromElsewhere };
 }
 
 describe("FilterSheet", () => {
+  it("shows the same result-count sentence the rail's own closing box uses", () => {
+    renderSheet();
+    const sheet = within(screen.getByTestId("filter-sheet"));
+    expect(sheet.getByText(/Підходить 12 тварин/, { selector: "p" })).toBeTruthy();
+  });
+
   it("checks no box when nothing is filtered — the same bug FilterRail's chips had", () => {
     renderSheet();
     const sheet = within(screen.getByTestId("filter-sheet"));
