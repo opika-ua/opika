@@ -23,14 +23,15 @@ interface GalleryPaginationProps {
  * unavailable, next available) — this applies the same two treatments to
  * whichever control is inert on any given page.
  */
-const NAV_BUTTON = "font-rg inline-flex items-center min-h-14 px-6 rounded-rg-button text-[15px]";
+const FOCUS_RING =
+  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
+const NAV_BUTTON = `font-rg inline-flex items-center min-h-14 px-6 rounded-rg-button text-[15px] ${FOCUS_RING}`;
 const NAV_BUTTON_AVAILABLE = `${NAV_BUTTON} bg-rg-ink text-rg-surface font-medium`;
 const NAV_BUTTON_UNAVAILABLE = `${NAV_BUTTON} bg-rg-surface text-rg-ink-3`;
 
 /** The number pills — 56x56, centred, no border on either state (the
  * mock's inactive "2" is a plain white fill, not an outline). */
-const PAGE_PILL =
-  "font-rg min-h-14 min-w-14 inline-flex items-center justify-center rounded-rg-button text-[15px]";
+const PAGE_PILL = `font-rg min-h-14 min-w-14 inline-flex items-center justify-center rounded-rg-button text-[15px] ${FOCUS_RING}`;
 const PAGE_PILL_INACTIVE = `${PAGE_PILL} bg-rg-surface text-rg-ink`;
 const PAGE_PILL_ACTIVE = `${PAGE_PILL} bg-rg-ink text-rg-surface font-medium`;
 
@@ -161,7 +162,7 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
       {/* Not part of any mock frame — an explanatory footnote E3 added on
         its own, predating V2. Recoloured to the new tokens, left in place:
         removing it would be a content decision this phase isn't making. */}
-      <p className="mt-2 w-full text-xs text-rg-ink-3">{uk.pagination.footnote}</p>
+      <p className="mt-2 w-full text-[13px]/[18px] text-rg-ink-3">{uk.pagination.footnote}</p>
     </nav>
   );
 }

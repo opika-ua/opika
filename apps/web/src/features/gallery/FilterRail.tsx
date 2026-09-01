@@ -53,7 +53,7 @@ const AGE_LABEL: Record<AgeBucket, string> = {
  * that does most of the work: borders are gone."
  */
 const CHIP_BASE =
-  "min-h-12 inline-flex items-center rounded-rg-chip px-5 font-rg text-[15px] leading-none cursor-pointer transition-colors duration-[120ms] ease-rg";
+  "min-h-12 inline-flex items-center rounded-rg-chip px-5 font-rg text-[15px] leading-none cursor-pointer transition-colors duration-[120ms] ease-rg focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
 const CHIP_ACTIVE = "bg-rg-ink text-rg-surface font-medium";
 const CHIP_INACTIVE = "bg-rg-fill text-rg-ink";
 
@@ -114,7 +114,7 @@ export function FilterRail({ filters, sort, cities, resultCount, shelterCount }:
         </span>
         <Link
           href={resetFiltersHref(sort)}
-          className="min-h-11 flex items-center text-[15px] text-rg-ink-3 underline underline-offset-2 hover:text-rg-ink-2"
+          className="min-h-12 flex items-center text-[15px] text-rg-ink-3 underline underline-offset-2 hover:text-rg-ink-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
           {uk.filters.reset}
         </Link>

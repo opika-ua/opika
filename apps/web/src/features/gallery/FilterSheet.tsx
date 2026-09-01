@@ -209,7 +209,7 @@ export function FilterSheet({
         href={`#${SHEET_ID}`}
         onClick={openWithJs}
         data-testid="filter-sheet-trigger"
-        className="font-rg desktop:hidden min-h-11 inline-flex items-center rounded-rg-button bg-rg-fill px-4 text-[15px] text-rg-ink"
+        className="font-rg desktop:hidden min-h-12 inline-flex items-center rounded-rg-button bg-rg-fill px-4 text-[15px] text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
       >
         {uk.feed.filtersLabel}
       </a>
@@ -255,7 +255,7 @@ export function FilterSheet({
           method="GET"
           action="/tvaryny"
           onSubmit={onSubmit}
-          className="flex flex-col gap-7 p-6 pb-6"
+          className="flex flex-col gap-7 pt-4 px-5 pb-6"
         >
           <div className="flex items-center justify-between">
             <span
@@ -270,7 +270,7 @@ export function FilterSheet({
               href="#"
               onClick={closeWithJs}
               aria-label="Закрити"
-              className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-rg-button text-rg-ink-3"
+              className="min-h-12 min-w-12 inline-flex items-center justify-center rounded-rg-button text-rg-ink-3 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
             >
               ✕
             </a>
@@ -404,13 +404,13 @@ export function FilterSheet({
               <a
                 href={resetFiltersHref(sort)}
                 onClick={onResetClick}
-                className="min-h-14 flex items-center justify-center rounded-rg-button bg-rg-fill text-rg-ink font-medium text-[15px] px-6"
+                className="min-h-14 flex items-center justify-center rounded-rg-button bg-rg-fill text-rg-ink font-medium text-[15px] px-6 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
               >
                 {uk.filters.reset}
               </a>
               <button
                 type="submit"
-                className="min-h-14 flex-1 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer"
+                className="min-h-14 flex-1 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
               >
                 {showCountLabel(resultCount)}
               </button>

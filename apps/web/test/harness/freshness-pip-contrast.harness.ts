@@ -1,10 +1,11 @@
 /**
- * The empty freshness pip's contrast is a deviation from the mock, recorded
- * and owner-approved in `docs/design/README.md`, "The freshness marker": the
- * mock's own solid `#DCDCD9` fill measured 1.16-1.37:1 against every
- * background it appears on, failing WCAG 1.4.11's 3:1 non-text-contrast
- * minimum by a wide margin. The approved fix is a transparent fill with a
- * 1.5-2px border in `rg-ink-3` (`#63676B`) instead.
+ * The empty freshness pip's contrast fix is recorded in
+ * `docs/design/README.md`, "The freshness marker": the mock's original solid
+ * `#DCDCD9` fill measured 1.16-1.37:1 against every background it appears
+ * on, failing WCAG 1.4.11's 3:1 non-text-contrast minimum by a wide margin.
+ * The fix is a transparent fill with a 1.5-2px border in `rg-ink-3`
+ * (`#63676B`) instead — the design was subsequently updated to specify the
+ * outline directly, so this is the current spec, not a standing deviation.
  *
  * A markup or class-name check cannot catch a regression here — the mock is
  * one edit away, and `docs/design/README.md`'s own colour table sits right
@@ -89,8 +90,8 @@ test.describe("freshness marker — empty pip contrast", () => {
         ratio,
         `empty pip colour ${foreground} against card background ${background} measured ` +
           `${ratio.toFixed(2)}:1 — WCAG 1.4.11 requires >=${MIN_CONTRAST}:1 for a non-text ` +
-          `graphic that conveys required information. This is the exact deviation ` +
-          `docs/design/README.md's "The freshness marker" records and approves; a border ` +
+          `graphic that conveys required information. This is the exact fix ` +
+          `docs/design/README.md's "The freshness marker" records; a border ` +
           `colour or background change that erodes this ratio regresses that decision.`,
       ).toBeGreaterThanOrEqual(MIN_CONTRAST);
     }
@@ -115,7 +116,7 @@ test.describe("freshness marker — empty pip contrast", () => {
       expect(
         ratio,
         `empty pip colour ${foreground} against deck card background ${background} measured ` +
-          `${ratio.toFixed(2)}:1 — WCAG 1.4.11 requires >=${MIN_CONTRAST}:1. Same deviation as ` +
+          `${ratio.toFixed(2)}:1 — WCAG 1.4.11 requires >=${MIN_CONTRAST}:1. Same fix as ` +
           `the gallery card above; the deck reuses the same @opika/ui freshnessPips values.`,
       ).toBeGreaterThanOrEqual(MIN_CONTRAST);
     }

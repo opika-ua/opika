@@ -17,12 +17,14 @@ import { uk as strings } from "@opika/i18n";
  *   aging  (8-30d): 2 filled ink-3,    1 empty
  *   stale  (30d+):  2 filled ink-3 + 1 filled ink  (all three filled)
  *
- * `"empty"` is a deliberate departure from the mock, not a value it
- * specifies — see `docs/design/README.md`'s own note under "The freshness
- * marker" for the full reasoning and the measured contrast ratios
- * (owner-approved: the mock's `#DCDCD9` fill measured 1.16-1.37:1 against
- * every background it appears on, failing WCAG 1.4.11's 3:1 by a wide
- * margin). The caller renders `"empty"` as a transparent fill with a
+ * `"empty"` is a deliberate WCAG 1.4.11 fix, not the mock's original
+ * value — see `docs/design/README.md`'s own note under "The freshness
+ * marker" for the full reasoning and the measured contrast ratios (the
+ * mock's original `#DCDCD9` fill measured 1.16-1.37:1 against every
+ * background it appears on, failing the 3:1 requirement by a wide
+ * margin; the design was subsequently updated to specify the outline
+ * directly, so this is the current spec, not a standing deviation from
+ * it). The caller renders `"empty"` as a transparent fill with a
  * border in the same colour as `"bg-rg-ink-3"`, not as its own fill colour
  * — kept as a fourth named variant here, not spelled out as classes,
  * for the same reason the three fills are: a closed union turns a typo

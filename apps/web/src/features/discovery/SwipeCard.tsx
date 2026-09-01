@@ -64,7 +64,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
     <section
       ref={gestureRef}
       data-testid="swipe-card"
-      className={`font-rg ${cardBase} inset-0 bg-rg-surface shadow-rg-card p-3 z-3 cursor-grab select-none flex flex-col`}
+      className={`font-rg ${cardBase} inset-0 bg-rg-surface shadow-rg-card p-3 z-3 cursor-grab select-none flex flex-col gap-4`}
       aria-label={card.name}
       onClick={onTap}
       onKeyDown={undefined}
@@ -129,8 +129,11 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         )}
       </div>
 
-      {/* Text content */}
-      <div className="pt-group px-label pb-label flex flex-col gap-group shrink-0">
+      {/* Text content. `Opika Registry System.dc.html`'s B7 deck frame:
+        outer card `padding: 12px, gap: 16px` (the `gap-4` now on the
+        section above is that photo-to-text distance), text block itself
+        `gap: 12px; padding: 0 8px` — no top/bottom padding of its own. */}
+      <div className="px-2 flex flex-col gap-3 shrink-0">
         {/* Name + meta */}
         <div>
           {/* display-m, docs/design/README.md's type scale: "deck card
@@ -216,18 +219,13 @@ function FreshnessBlock({
   const fills = freshnessPips(freshness.kind);
 
   return (
-    // min-h-27 (108px), not min-h-21 (84px). The original 84 was a
-    // content-box min-height — Tailwind Preflight resets every element to
-    // border-box globally, under which min-height caps the *whole* box
-    // (padding included) instead of just the content area. 84 content-box
-    // with 12px padding top and bottom floors the total at 84+24=108; the
-    // same 84 under border-box floors the total at 84 outright, 24px
-    // short — a real, measured height difference on any card whose
-    // shelter sentence is short enough to hit the floor, not a rounding
-    // artifact. 108 reproduces the original total.
+    // padding 16 (p-4), min-height 88 (min-h-22) — `Opika Registry
+    // System.dc.html`'s B7 deck frame states both literally on this block.
+    // Border-box (Preflight) means min-height already caps the whole box,
+    // padding included, so no content-box arithmetic is needed here.
     <section
       data-testid="freshness-block"
-      className="font-rg bg-rg-fill rounded-rg-freshness p-3 flex flex-col gap-row min-h-27"
+      className="font-rg bg-rg-fill rounded-rg-freshness p-4 flex flex-col gap-row min-h-22"
       aria-label={label}
     >
       {/* Pips + label. docs/design/README.md, "The freshness marker": the
@@ -238,10 +236,13 @@ function FreshnessBlock({
         <span className="text-[15px]/[22px] text-rg-ink">{label}</span>
       </div>
 
-      {/* Shelter sentence (if present) — body-l 17/26, docs/design/README.md,
-        "The shelter's sentence". */}
+      {/* Shelter sentence (if present) — 15/22, not the detail page's
+        body-l 17/26: docs/design/README.md's "The shelter's sentence"
+        states body-l for the full sentence, but the deck renders the
+        "shortened sentence" (same section, "The deck"), and the B7 frame's
+        own literal value for it is 15/22 — `Opika Registry System.dc.html`. */}
       {shelterSentence?.uk && (
-        <div className="text-[17px]/[26px] text-rg-ink-2 text-pretty">{shelterSentence.uk}</div>
+        <div className="text-[15px]/[22px] text-rg-ink-2 text-pretty">{shelterSentence.uk}</div>
       )}
     </section>
   );
@@ -254,9 +255,10 @@ function FreshnessBlock({
  * density on a cheap Android panel 7px pips disappeared." Each pip is
  * either filled (a Tailwind bg-* class from freshnessPips) or the "empty"
  * variant — transparent fill, 1.5px border in rg-ink-3 (#63676B), the
- * owner-approved WCAG 1.4.11 fix recorded in the same section. Not the
- * mock's own solid #DCDCD9 fill, which measured 1.16-1.37:1 against every
- * background it appears on.
+ * WCAG 1.4.11 fix recorded in the same section. The mock's original solid
+ * #DCDCD9 fill measured 1.16-1.37:1 against every background it appears
+ * on; the design was subsequently updated to specify the outline
+ * directly, so this is the current spec, not a deviation from it.
  */
 function FreshnessPipRow({ fills }: { fills: [PipFill, PipFill, PipFill] }) {
   return (

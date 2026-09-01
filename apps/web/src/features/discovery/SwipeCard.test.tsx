@@ -62,9 +62,10 @@ describe("SwipeCard freshness marker", () => {
   // V2 repoint (docs/design/README.md, "The freshness marker"): fill colours moved
   // bg-leaf -> bg-rg-registry, bg-ink-4 -> bg-rg-ink-3, bg-ink -> bg-rg-ink (same role,
   // new token names). The empty slot is no longer `null`/unstyled: it's the
-  // owner-approved WCAG 1.4.11 fix — transparent fill + border-rg-ink-3 — replacing the
-  // mock's own solid #DCDCD9 fill, which measured 1.16-1.37:1 against every background
-  // it appears on and fails the 3:1 non-text-contrast requirement.
+  // WCAG 1.4.11 fix — transparent fill + border-rg-ink-3 — replacing the mock's
+  // original solid #DCDCD9 fill, which measured 1.16-1.37:1 against every background
+  // it appears on and fails the 3:1 non-text-contrast requirement. The design was
+  // subsequently updated to specify the outline directly.
   it.each([
     ["fresh", 3, ["bg-rg-registry", "empty", "empty"]],
     ["aging", 19, ["bg-rg-ink-3", "bg-rg-ink-3", "empty"]],

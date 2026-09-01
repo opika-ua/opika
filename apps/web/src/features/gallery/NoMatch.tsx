@@ -43,7 +43,7 @@ export function NoMatch({ filters, sort, relaxations }: NoMatchProps) {
   return (
     <div
       data-testid="gallery-no-match"
-      className="font-rg bg-rg-surface rounded-rg-card p-12 tablet:px-8 flex flex-col items-start gap-8"
+      className="font-rg bg-rg-surface rounded-rg-card py-12 px-8 flex flex-col items-start gap-8"
     >
       <div className="flex flex-col gap-3">
         <h2 className="text-[34px]/[38px] font-bold tracking-[-0.03em] text-rg-ink text-pretty">
@@ -60,7 +60,7 @@ export function NoMatch({ filters, sort, relaxations }: NoMatchProps) {
                 key={dimension}
                 href={galleryHref(relaxDimension(filters, dimension), sort)}
                 data-testid="no-match-suggestion"
-                className={`min-h-14 flex items-center justify-center rounded-rg-button font-medium text-[15px] ${
+                className={`min-h-14 flex items-center justify-center rounded-rg-button font-medium text-[15px] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] ${
                   index === 0 ? "bg-rg-ink text-rg-surface" : "bg-rg-fill text-rg-ink"
                 }`}
               >

@@ -259,19 +259,17 @@ export const uk = {
     fosteredHousing: "живе у волонтерки, м. {city}",
   },
 
-  // --- Pagination footer (E3) ---
-  // `docs/design/Opika - Keeper's Voice.dc.html`'s 1440 GALLERY block has
-  // the literal pagination row: prev/next are visible-text buttons ("←
-  // Назад" / "Далі →"), not glyph-only controls, and the number group ends
-  // with a "з N" count. `prev`/`next` below are the VISIBLE
-  // button text now, not a separate aria-label — an aria-label that didn't
-  // contain that text would be a WCAG 2.5.3 accessible-name mismatch, an
-  // earlier draft of this component had exactly that bug. The design sets
-  // the page numbers in IBM Plex Mono; this codebase deliberately dropped
-  // that family (see apps/web/src/app/fonts.ts, "measured, then dropped" —
-  // 11.2% of font payload for one rarely-seen label) and nothing since has
-  // reintroduced it, so the numbers render in Commissioner (`font-sans`)
-  // like the rest of this table's copy, not a new one-off exception.
+  // --- Pagination footer (E3, re-skinned V2) ---
+  // `docs/design/Opika Registry System.dc.html`'s pagination row (lines
+  // 189-195) has the literal values: prev/next are visible-text buttons
+  // ("← Назад" / "Далі →"), not glyph-only controls, and the number group
+  // ends with a "з N" count. `prev`/`next` below are the VISIBLE button
+  // text, not a separate aria-label — an aria-label that didn't contain
+  // that text would be a WCAG 2.5.3 accessible-name mismatch, an earlier
+  // draft of this component had exactly that bug. Unlike the V1 mock this
+  // superseded, V2's own pagination row carries no monospace styling on
+  // the numbers at all — they render in the same e-Ukraine (`font-rg`)
+  // as the rest of the row, no IBM-Plex-Mono exception to reason about.
   pagination: {
     navLabel: "Сторінки",
     prev: "← Назад",
@@ -325,6 +323,16 @@ export const uk = {
     suggestionExplainer:
       "Кожна пропозиція називає, скільки тварин вона додасть. Порожній екран не питає " +
       "«спробуйте інше» без числа.",
+  },
+
+  // --- Footer ---
+  footer: {
+    /** e-Ukraine's CC BY 4.0 attribution requirement — the user-reachable
+     * credit `apps/web/src/app/fonts/e-ukraine/LICENSE.txt` and
+     * `docs/design/README.md`'s V2 definition-of-done both call for.
+     * Verbatim text from the licence file; do not paraphrase. */
+    fontCredit:
+      "Шрифт e-Ukraine — Міністерство цифрової трансформації України (thedigital.gov.ua/fonts), Дмитро Растворцев / Fedoriv, CC BY 4.0.",
   },
 
   // --- Language toggle ---

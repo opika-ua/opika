@@ -28,27 +28,22 @@ const CARD = "[data-testid='swipe-card']";
  * `expectContainedBy` already covers) — a real floor with slack where slack
  * still exists (see viewports.ts).
  *
- * V2 repoint: the deck card's name grew from 26px to display-m (34px,
- * docs/design/README.md's type scale — "deck card name" is display-m's own
- * named use), and the photo is the only flex item that can shrink to make
- * room for it. Re-measured with e-Ukraine loaded: PHONE 46.5px -> 16.0px
- * (photo 396 -> 388), DESKTOP unchanged at 16.0px (photo has more room to
- * give there, 344px, well above its 200px floor), SHORT_PHONE 16.0px ->
- * 0.0px — the photo is already pinned at its 200px `min-h-50` floor at this
- * size, so the whole increase lands directly on the margin with nowhere
- * else to go.
- *
- * SHORT_PHONE's floor is therefore 0, not a smaller-but-still-positive
- * number: 0 is the actual measured value, confirmed still fully contained
- * (not clipped — `expectContainedBy` covers that separately), not an
- * estimate with headroom. This is a real, accepted cost of the larger V2
- * name at this one edge-case viewport (a short-phone / address-bar-visible
- * stress case, not the primary supported size) — recorded here rather than
- * papered over with a floor the measurement doesn't support.
+ * V2 repoint, in two stages. First (name growing 26px -> display-m 34px):
+ * PHONE 46.5px -> 16.0px, DESKTOP unchanged at 16.0px, SHORT_PHONE 16.0px
+ * -> 0.0px — the photo was already pinned at its 200px `min-h-50` floor at
+ * that size, so the whole increase landed on the margin with nowhere else
+ * to go. Second (the deck text block's own spacing corrected to
+ * `Opika Registry System.dc.html`'s actual values — the sentence at 15/22
+ * not body-l's 17/26, freshness block padding 16 not 12, min-height 88 not
+ * 108, text block gap 12/padding `0 8` not the old spacing tokens):
+ * SHORT_PHONE's margin recovered to a measured 12.0px, PHONE and DESKTOP
+ * unaffected (their photos had room to give and already absorbed stage
+ * one). Floors below carry a few px of slack under each measured value,
+ * matching the margin already recorded for PHONE.
  */
 const MIN_SHELTER_MARGIN_PX = new Map<Viewport, number>([
   [PHONE, 12],
-  [SHORT_PHONE, 0],
+  [SHORT_PHONE, 8],
   [DESKTOP, 4],
 ]);
 
@@ -140,13 +135,17 @@ for (const viewport of [PHONE, DESKTOP] satisfies Viewport[]) {
  */
 test.describe(`/discovery photo sizing at ${PHONE.name}`, () => {
   /**
-   * V2 repoint: 396 -> 388. The photo's own slot didn't change — the deck
-   * card name growing to display-m (34px, up from 26px) did, and the photo
-   * is the one flex item that yields to it (see MIN_SHELTER_MARGIN_PX's own
-   * comment for the full accounting). 388 is the new natural height with
-   * e-Ukraine loaded, not a floor or a ceiling — this test exists to catch
-   * an *accidental* shift (something above the photo growing further, or
-   * the card getting shorter), not to keep it pinned at the old number.
+   * V2 repoint: 396 -> 388 -> back to 396. The first repoint (name growing
+   * to display-m, 34px up from 26px) was real, but the text block below it
+   * was oversized at the time — 17/26 shelter sentence instead of the B7
+   * frame's own 15/22, and padding/gap values that didn't match
+   * `Opika Registry System.dc.html` (12/8 padding, 12 gap, not the pre-V2
+   * spacing tokens the migration had left in place). Correcting those gave
+   * the photo its room back; 396 is what the card's real content actually
+   * yields, not a coincidence that it matches the pre-V2 number. This test
+   * exists to catch an *accidental* shift (something above the photo
+   * growing further, or the card getting shorter), not to keep any one
+   * number pinned regardless of why it changed.
    */
   test("the photo area is the height the feed screen specifies", async ({ page }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
@@ -154,12 +153,12 @@ test.describe(`/discovery photo sizing at ${PHONE.name}`, () => {
 
     expect(
       Math.round(photo.height),
-      `photo area is ${photo.height}px; expected 388 (V2's name/meta block at ` +
-        `${PHONE.name}, docs/design/README.md's "The deck").\n` +
+      `photo area is ${photo.height}px; expected 396 (V2's name/meta/freshness ` +
+        `block at ${PHONE.name}, docs/design/README.md's "The deck").\n` +
         `        Anything else means something above the photo grew, or the card\n` +
         `        got shorter and the photo shrank to protect the text — check the\n` +
         `        card height before assuming this is about the ratio.`,
-    ).toBe(388);
+    ).toBe(396);
   });
 
   /**
@@ -174,8 +173,8 @@ test.describe(`/discovery photo sizing at ${PHONE.name}`, () => {
     const photo = await rectOf(page.getByTestId("card-photo"), "photo area");
     expect(
       photo.height,
-      "on a 640px-tall screen the photo should have shrunk below its 388px design height",
-    ).toBeLessThan(388);
+      "on a 640px-tall screen the photo should have shrunk below its 396px design height",
+    ).toBeLessThan(396);
 
     await expectContainedBy(
       { label: "shelter line", locator: page.getByTestId("shelter-line") },

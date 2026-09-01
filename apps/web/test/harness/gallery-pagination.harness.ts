@@ -1,8 +1,9 @@
 /**
  * E3's own verification list (docs/build-plan.md doesn't spell these out
  * per-phase, but the phase brief does): numbered pages render with the real
- * corpus's page count, all pagination targets are actually >=44px (measured,
- * not read off a class name), the active page is leaf-filled and carries
+ * corpus's page count, all pagination targets are actually >=56px (V2
+ * repoint from E3's original 44px — measured, not read off a class name),
+ * the active page is leaf-filled and carries
  * `aria-current="page"`, clicking a page link is a real `push` (unlike E2's
  * filter `replace` — docs/gallery-contract-decisions.md §7), the skip link
  * is invisible until focused and actually moves focus past the grid, and at
@@ -29,11 +30,15 @@ const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
 const NAV = "[data-testid='gallery-pagination']";
 const PAGE_LINK = "[data-testid='pagination-page']";
-const MIN_TARGET_PX = 44;
+// V2 repoint: 44 -> 56 (`Opika Registry System.dc.html`'s pagination row,
+// lines 189/195: `min-height: 56px` on both prev and next). The component
+// itself already renders 56 (`min-h-14`) — this assertion had gone stale
+// against it, silently looser than the code it's meant to guard.
+const MIN_TARGET_PX = 56;
 
 /**
- * The mock's own literals (`docs/design/Opika - Keeper's Voice.dc.html`,
- * the 1440 GALLERY pagination row), NOT `uk.pagination.prev`/`next`:
+ * The mock's own literals (`docs/design/Opika Registry System.dc.html`,
+ * lines 189/195), NOT `uk.pagination.prev`/`next`:
  * comparing the rendered text to the same constant the component renders
  * would hold no matter what that constant said, which is the one thing
  * these two assertions exist to pin. Copy drifting away from the design
@@ -55,7 +60,7 @@ test.describe("/tvaryny pagination", () => {
     ).toBeAttached();
   });
 
-  test("all pagination targets are measurably >=44px, not just styled that way", async ({
+  test("all pagination targets are measurably >=56px, not just styled that way", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
@@ -220,8 +225,8 @@ test.describe("/tvaryny pagination", () => {
   test("prev/next carry the design's own visible text, not a bare glyph with a separate label", async ({
     page,
   }) => {
-    // docs/design's mock (`Opika - Keeper's Voice.dc.html`, 1440 GALLERY
-    // block) sets "← Назад" / "Далі →" as the buttons' own visible text —
+    // docs/design's mock (`Opika Registry System.dc.html`, lines 189/195)
+    // sets "← Назад" / "Далі →" as the buttons' own visible text —
     // an earlier draft used a bare "‹"/"›" glyph plus an aria-label that
     // didn't contain it, a WCAG 2.5.3 accessible-name mismatch caught on
     // review. Asserting the visible text (not just the aria-label) is what

@@ -242,6 +242,12 @@ export const en = {
       '"try something else" without a number.',
   },
 
+  // --- Footer — see the uk key's own note ---
+  footer: {
+    fontCredit:
+      "e-Ukraine typeface — Ukraine's Ministry of Digital Transformation (thedigital.gov.ua/fonts), Dmytro Rastvortsev / Fedoriv, CC BY 4.0.",
+  },
+
   // --- Language toggle ---
   // Language names stay in their own language regardless of locale — this
   // matches uk.ts's own `en: "English"` (never "Англійська").

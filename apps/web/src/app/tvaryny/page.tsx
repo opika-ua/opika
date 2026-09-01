@@ -80,9 +80,9 @@ export async function renderGallery(
       : [];
 
   return (
-    <div className="min-h-dvh bg-paper-alt">
-      <header className="min-h-14 tablet:min-h-16 desktop:min-h-17 flex items-center bg-paper border-b border-line px-4 tablet:px-6 desktop:px-15">
-        <span className="font-serif font-medium text-[19px] text-ink">Opika</span>
+    <div className="font-rg min-h-dvh bg-rg-page">
+      <header className="min-h-14 tablet:min-h-16 desktop:min-h-17 flex items-center bg-rg-surface px-4 tablet:px-6 desktop:px-15">
+        <span className="font-bold text-[19px] text-rg-ink">Opika</span>
       </header>
 
       {/*
@@ -97,7 +97,7 @@ export async function renderGallery(
       */}
       <div className="p-4 tablet:p-6 desktop:pt-10 desktop:px-15 desktop:pb-14">
         <div className="flex items-center justify-between gap-4 mb-4 desktop:hidden">
-          <span className="font-sans text-sm text-ink-3">
+          <span className="text-[15px]/[22px] text-rg-ink-2">
             {sheetResultCount(
               page.totalMatching,
               page.totalShelters,
@@ -140,7 +140,7 @@ export async function renderGallery(
 
           <div className="flex-1 min-w-0">
             <div className="hidden desktop:flex items-center justify-between mb-4">
-              <span className="font-sans text-sm text-ink-3">
+              <span className="text-[15px]/[22px] text-rg-ink-2">
                 {railResultCount(page.totalMatching, page.totalShelters)}
               </span>
               <ReplaceNav>
@@ -166,7 +166,7 @@ export async function renderGallery(
                   <a
                     href="#pagination"
                     data-testid="pagination-skip-link"
-                    className="sr-only focus:not-sr-only focus:mb-3 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-button focus:bg-leaf focus:px-4 focus:font-sans focus:text-sm focus:text-paper"
+                    className="sr-only focus:not-sr-only focus:mb-3 focus:inline-flex focus:min-h-12 focus:items-center focus:rounded-rg-button focus:bg-rg-ink focus:px-4 focus:text-[15px] focus:text-rg-surface focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
                   >
                     {uk.pagination.skipLink}
                   </a>
@@ -193,6 +193,14 @@ export async function renderGallery(
             )}
           </div>
         </div>
+
+        {/*
+          e-Ukraine's CC BY 4.0 attribution requirement — the user-reachable
+          credit `docs/design/README.md`'s V2 definition-of-done calls for,
+          alongside the licence file at
+          apps/web/src/app/fonts/e-ukraine/LICENSE.txt.
+        */}
+        <footer className="mt-8 text-[13px]/[18px] text-rg-ink-3">{uk.footer.fontCredit}</footer>
       </div>
     </div>
   );
