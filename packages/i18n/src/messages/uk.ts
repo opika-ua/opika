@@ -210,9 +210,17 @@ export const uk = {
   // --- Reserved badge ---
   reserved: {
     badge: "Уже домовляються",
-    /** The gallery card's tablet (600-1023) layout, 6px inset vs 8px elsewhere — docs/design/README.md, "The Gallery" > "Card". */
+    /** The gallery card's tablet (600-1023) layout, shown instead of `badge` when the compact horizontal card has less room — docs/design/README.md, "The Gallery" > "Card". */
     badgeShort: "Домовляються",
     action: "Стати другим у черзі",
+  },
+
+  // --- Resolved card variant (docs/design/README.md, "The gallery card" > "Resolved") ---
+  // Template: "Притулок каже: {name} уже вдома." Replaces the freshness row
+  // entirely on a resolved card — never rendered by any live query today,
+  // see AnimalCardProps["resolved"]'s own comment for why.
+  resolved: {
+    sentence: "Притулок каже: {name} уже вдома.",
   },
 
   // --- Documents ---

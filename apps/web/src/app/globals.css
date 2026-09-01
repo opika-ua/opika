@@ -101,6 +101,11 @@
   --color-rg-ink-3: #63676b;
   --color-rg-registry: #1b3a6b;
 
+  /* `#FFFFFF -> #F7F7F5`, 120ms — docs/design/README.md, "Geometry, density,
+   * elevation, motion": "Hover: Card fill #FFFFFF -> #F7F7F5, 120ms. No
+   * lift, no shadow, and no underline on the name." */
+  --color-rg-surface-hover: #f7f7f5;
+
   /*
    * The empty freshness pip is the one deliberate departure from the mock
    * in this whole block — `docs/design/README.md`, "The freshness marker"
@@ -261,6 +266,22 @@
  */
 @utility bg-photo-placeholder {
   background: repeating-linear-gradient(135deg, var(--color-sunken-deep) 0 10px, #f6efe3 10px 20px);
+}
+
+/*
+ * V2's own placeholder stripes — docs/design/README.md, "Assets": standard
+ * is `#DCDCD9 0 10px, #EFEFED 10px 20px`; the resolved card variant darkens
+ * to its own hatch, `#CFCFCB 0 10px, #E0E0DD 10px 20px` (both decorative-only,
+ * "Decorative-only values" in the same doc — never reused outside this
+ * gradient). `#EFEFED` has no named token, same precedent as
+ * `bg-photo-placeholder` above keeping its own second stripe colour a
+ * literal hex rather than inventing a token that is never used anywhere else.
+ */
+@utility bg-rg-photo-placeholder {
+  background: repeating-linear-gradient(135deg, var(--color-rg-fill-strong) 0 10px, #efefed 10px 20px);
+}
+@utility bg-rg-photo-placeholder-resolved {
+  background: repeating-linear-gradient(135deg, #cfcfcb 0 10px, #e0e0dd 10px 20px);
 }
 
 /*
