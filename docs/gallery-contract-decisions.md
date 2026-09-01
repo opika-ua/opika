@@ -666,6 +666,25 @@ filtering, or shipping a JS-only enhancement that changes *history* semantics sp
 which is a stranger thing to make conditional on script availability than the visual
 presentation E1's own no-JS/JS-on gap (`priority`, lazy-loading) already accepts.
 
+### `loading.tsx` and `error.tsx` are JS-only paths — accepted, not overlooked
+
+Same shape as the divergence above, for E4's two new files. Next.js's `loading.tsx`
+convention only fires for a client-side (JS-on) transition — it implicitly wraps the route
+in a Suspense boundary that a real, full browser navigation never passes through. `error.tsx`
+is stricter still: Next.js requires error boundaries to be Client Components, so with
+JavaScript disabled the file cannot mount at all, by the framework's own constraint, not a
+choice this codebase made. With JS disabled, a slow `/tvaryny` request shows the browser's
+own native loading UI instead of the skeleton, and a failed one shows Next's default error
+page (or whatever the hosting platform serves for a 5xx) instead of the «Спробувати ще раз»
+card — neither is broken, both are the honest baseline this app supports without script,
+same as the rest of `/tvaryny`. Written down here because it's easy to rediscover the hard
+way: a no-JS harness run against a route with an artificially slow or failing response will
+never show the skeleton or the error card, and that is correct, not a bug in the test.
+
+The out-of-range notice (`OutOfRangeNotice.tsx`, wired from the clamp §3 already settled) is
+the opposite case and worth the contrast: it's server-rendered, no Client Component, no
+boundary — it works with JS off exactly like the rest of the gallery grid does.
+
 ## 8. Arrow-key navigation at a page boundary — the same "edges never wrap" rule, not a second one
 
 E2.5 (`ArrowKeyGrid.tsx`) settled "edges never wrap" for the grid as a whole: `ArrowRight`

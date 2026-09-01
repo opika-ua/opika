@@ -443,7 +443,34 @@ display-m «Список не відкрився.», body-l «Це не ваша
 stay usable — changing a filter is also a way out. Card enters by opacity 220ms; focus moves to
 the heading; `aria-live="assertive"`. Never full-screen, never red.
 
+**Deviation, E4 — heading and body copy, not the values above.** This is the app's only error
+state (see "Next-page error," above) — the same card now also renders after a failed
+navigation from deep in the result set, not only on a cold first visit. Two claims in the
+mock's copy are true only for a first-load failure and read wrong in the second case: «Список
+не відкрився» ("the list didn't open") presumes nothing rendered yet, false the moment page 3
+was on screen a second ago; «адреса сторінки не змінилася» ("the page address hasn't changed")
+is false once a next-page click has already moved the URL to the page that then failed to
+load. Shipped as neutral copy true in both cases instead — «Сторінку не вдалося завантажити.»
+/ «Це не ваша помилка і не помилка притулку. Ваші фільтри збережені.» — see
+`apps/web/src/app/tvaryny/error.tsx` and `packages/i18n/src/messages/uk.ts`'s `galleryError`.
+Radius, padding, sizing, eyebrow and button label are unchanged from the mock.
+
 ### Next-page error (E3/E4) — a different surface than E1
+
+**NOT REACHABLE in this architecture — not-planned, not deferred.** This frame stays in
+`Opika Registry Frames.dc.html` (and the values below) as a record of what was specified;
+nothing in the codebase consumes it, and nothing should. `GalleryPagination`'s links are
+plain `<a href>`/`next/link` server navigation — settled deliberately, not an oversight
+(`docs/gallery-contract-decisions.md` §7). A failed request for page 4 is therefore a failed
+page load at the URL `?stor=4`, exactly the same kind of event as a failed first visit to
+`/tvaryny` — both are caught by the same `error.tsx` boundary and replace the same content.
+There is no client-side moment where page 3's cards stay on screen while page 4 fails behind
+them to distinguish this from "the list didn't open" — that would require a real client-side
+fetch layer for pagination specifically, which is the thing §7 decided against. E4 built one
+error state, covering both cases; see `apps/web/src/app/tvaryny/error.tsx`'s own comment.
+If a future architecture change makes pagination client-fetched, this frame is what to build
+against — until then, leave it alone rather than rebuilding it in a later phase.
+
 A **strip under the grid**, not a card replacing it: `#F2F2F0`, radius 16, padding `20 24` (16
 on mobile). Heading 19/24·500 «Сторінка 2 не прийшла.» — deliberately not display-m, it is not
 a screen-level event. Body «Ті, кого вже видно, залишаються на місці. Ми нічого не приховали.»,
@@ -458,6 +485,13 @@ radius 16, padding `16 20`; line 1 15/22·500 «Сторінки 50 не існ�
 «На першу сторінку» (navigation, not an operation — so not a button). Pager is truncated
 (1 … 8 9 10) so «з 10» is legitimate here. «Далі →» disabled: fill `#F2F2F0`, text ink-3
 (5.6:1), `aria-disabled="true"`, still focusable. Announced via polite live region.
+
+**Deviation, E4 — line 2's wording, not its size/colour.** Shipped as «Показуємо сторінку
+10 — останню.», a numeral, not the mock's spelled ordinal «десяту». Ukrainian ordinal
+declension for an arbitrary N (the total page count varies with the live corpus and active
+filters) is real grammar work with no groundwork anywhere in this codebase — the same class
+of gap `noMatch`'s own dropped example sentence already represents, not a new one. See
+`packages/i18n/src/messages/uk.ts`'s `outOfRangePage`.
 
 ### Deck chrome and the mode switch (V1/V2/V3)
 The deck's header **replaces** the gallery header — never two navigations at once:
