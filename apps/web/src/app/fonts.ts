@@ -56,8 +56,13 @@ export const commissioner = Commissioner({
  * Not yet subset to Cyrillic + Latin basic + punctuation, unlike
  * `literata`/`commissioner` above (Google's own subsetting) — the three
  * files as vendored are the mirror's full character set, ≈95 KB total
- * against the design's own "≈84 KB" subset estimate. Flagged as an open
- * follow-up in the V2 PR, not silently accepted as done.
+ * against the design's own "≈84 KB" subset estimate. Deliberately not
+ * done here: subsetting picks a glyph set, and this one isn't final
+ * yet — H3 still adds the English strings and the native-speaker pass
+ * on the Ukrainian copy, either of which can introduce a character V2
+ * never used, and a shelter's free-text `freshnessSentence` isn't a
+ * character set anyone controls in the first place. Tracked as
+ * `docs/build-plan.md`'s H3.5, after H3, not here.
  */
 export const eUkraine = localFont({
   src: [

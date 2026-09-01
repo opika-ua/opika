@@ -26,5 +26,7 @@ the time these were fetched (2026-08-08). The mirror's own README states
 the same CC BY 4.0 license this file states above. Not yet subset to
 Cyrillic + Latin basic + punctuation as docs/design/README.md specifies
 (≈95 KB total as shipped vs. the design's own "≈84 KB" subset estimate) —
-flagged as a follow-up, not silently done: see docs/build-plan.md's V2 PR
-for the open item.
+deliberately deferred, not silently skipped: see docs/build-plan.md's H3.5
+for the open item and why it waits until after H3 (subsetting picks a
+glyph set, and the set isn't final until H3 adds the English strings and
+the native-speaker pass on the Ukrainian copy).

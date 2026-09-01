@@ -193,13 +193,13 @@ absorbing a second re-skin pass later.
   independently, `docs/design/intake-report.md` §E). Required: a licence file alongside the
   font files in the repo, and a user-reachable credit (footer colophon or `/about`). Also
   added to H5's legal-pages list below.
-- **e-Ukraine subsetting is an open follow-up, not done.** The three vendored files
-  (`apps/web/src/app/fonts/e-ukraine/`) are the mirror's full character set — ≈95 KB total,
-  against the design's own "≈84 KB" Cyrillic + Latin basic + punctuation subset estimate —
-  unlike `literata`/`commissioner`, which already subset via Google's own pipeline
-  (`apps/web/src/app/fonts.ts`). Not required for V2's "done when" below; recorded here so
-  it's a real line item and not just the code comment (`fonts.ts`, that directory's
-  `LICENSE.txt`) that already pointed here.
+- **e-Ukraine subsetting is a tracked follow-up, not a V2 done-when criterion — see H3.5
+  below.** The three vendored files (`apps/web/src/app/fonts/e-ukraine/`) ship at the
+  mirror's full character set for now, deliberately: subsetting picks a glyph set, and the
+  glyph set can't be finalised until H3 lands the English strings and the native-speaker
+  pass on the Ukrainian copy, both of which can introduce characters V2 never used. Moved
+  out of this list because a bullet under "definition of done" is a done-when item by
+  construction, and this one explicitly isn't required to close V2.
 - **Deck gesture physics is explicitly excluded.** The release spring, drag motion timings,
   and easing curve values the new handoff specifies for the deck move to Phase G (G4,
   below) — not V2. G already owns the deck's unresolved iOS investigation, which touches
@@ -291,7 +291,7 @@ model it Opus, not Sonnet, regardless of what the rest of G uses.
 
 ### Phase H — Remainder to launch
 
-The former M7–M12, unchanged in substance, one addition here. The original course
+The former M7–M12, unchanged in substance, two additions here. The original course
 correction listed two; its second (the count queries) moved into Phase E's E0, folded
 into `gallery.list`'s output per `docs/gallery-contract-decisions.md` §3.
 
@@ -300,11 +300,12 @@ into `gallery.list`'s output per `docs/gallery-contract-decisions.md` §3.
 | H1 | Image pipeline — R2, presigned upload, `sharp` variants, CDN. Replaces E1.5's `apps/web/src/image-loader.ts` stub — the app's single `next/image` loader — with real R2/CDN URL construction, which is a change to that one file and not to any call site in `AnimalCard`/`SwipeCard`, and retires E1.5's committed placeholder photos | 10 |
 | H2 | Internal admin — animal/shelter CRUD, CSV import, **desktop layouts** (addition — the original plan assumed a single admin form factor) | 12 |
 | H3 | i18n — next-intl wiring, uk + en message files, full-ICU boot assertion. Also: native-speaker review of `pluralizeUk`'s output (`packages/domain/src/primitives/plural.ts`, added E2) across every noun form it composes — verified mechanically (`Intl.PluralRules('uk')` boundaries, tested at 1/2/5/11/21/22) but not by a native speaker, and animate feminine nouns plus accusative government under case-governing verbs ("Знайдено" vs "Підходить") is not something rule-reasoning alone reliably gets right | 4 |
+| H3.5 | Perf pass — **addition**, sits here rather than V2 or its own phase because all three items bundle naturally once H3 lands: e-Ukraine subsetting (Cyrillic + Latin basic + punctuation; deferred from V2 specifically because the glyph set isn't final until H3's English strings and native-speaker Ukrainian pass exist — and stays generous even then, since a shelter's free-text `freshnessSentence` isn't a set anyone controls, so this subsets to a wide net rather than a tight one), the `next/image` `sizes` attribute overshoot, and the image-loading priority heuristic. 95 KB across three weights isn't worth a dedicated pass on its own; bundled with the other two, it is | 3 |
 | H4 | PWA — Serwist, manifest, offline shell, Lighthouse pass | 8 |
 | H5 | Observability + legal — Sentry, PostHog, privacy policy (GDPR), consent handling, e-Ukraine's CC BY 4.0 attribution (licence file + user-reachable credit — should already exist from V2; this is the launch-readiness check that it's still there and still correct, not the first time it's added) | 10 |
 | H6 | Real shelter data + soft launch — onboard 5–10 shelters, verify each through the FSM, spot-check every listing | 12 |
 
-**Total: ~56 h** (50 h original + the admin desktop-layout addition).
+**Total: ~59 h** (50 h original + the admin desktop-layout addition + the H3.5 perf pass).
 
 **Done when:** matches the original M7–M12 definitions of done, unchanged — one uploaded
 photo produces all variants and renders through the CDN; a shelter and its animals can be
@@ -326,8 +327,8 @@ What sets the calendar is review bandwidth and shelter recruitment — not the h
 | E — Gallery | 4–5 | 57 |
 | F — Detail & reveal | 3 | 22 |
 | G — Deck completion | off critical path | 13 |
-| H — Remainder to launch | 7 | 56 |
-| **Total from this rewrite** | **~16 weeks** | **~148 h** |
+| H — Remainder to launch | 7 | 59 |
+| **Total from this rewrite** | **~16 weeks** | **~151 h** |
 
 At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch still lands early
 February 2027** — the total dropped from ~135 h to ~127 h (C fully closed out, E gaining
@@ -355,6 +356,12 @@ Whether the 12 h Phase V addition actually moves the project's week estimate pas
 weeks" — and if so, by
 how much — is a real re-plan question this document is not settling here; V1's intake
 report is the next input into that question, not this arithmetic update.
+
+**H3.5's addition (3 h, Phase H above — the e-Ukraine subsetting/`sizes`/priority-heuristic
+perf pass, moved out of V2 for the reason recorded there) brings the critical path to
+148 h ÷ 8 h/week ≈ 18.5 weeks, and the grand total including G to 151 h.** Same reasoning
+as E1.5/E2.5's additions: absorbed inside the existing rough-estimate slack, not a figure
+this document claims moves the ~16-week estimate on its own.
 
 **The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own
