@@ -145,8 +145,8 @@ anymore, it's an *implementation-order* one.
 | E3 | Numbered pagination — `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram). **Definition of done includes** a skip link above the grid, visible on focus, jumping straight to the pagination controls — dropping E2.5's roving tabindex means a keyboard user now tabs through all 24 cards to reach "next page," and this is the fix, not a follow-up. Arrow-key behaviour at a page boundary (Right on the last card, Left on the first) is this phase's to decide and record — see `docs/gallery-contract-decisions.md` §8 | 4 |
 | V1 | Design handoff intake — replace `docs/design/` with the new handoff, verify it covers every surface, confirm the four product rules survive | 2 |
 | V2 | Implementation — new tokens through `packages/ui` and the Tailwind config, every existing surface re-skinned including E3's pagination, harness assertions repointed to the new design's values. **Static visual language only** — colour, type, radii, card treatment. The deck's gesture *physics* (release spring, motion timings on the drag itself) are explicitly out of scope here — see G4 | 10 |
-| E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, **the note must actually render** — see the phase's own done-when below, not just the copy existing) states — both form factors | 4 |
-| E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. `sessionStorage`-persisted last mode, entry ("Гортати по одній") and exit ("До списку" / Esc, returning to the same scroll position per `docs/design/README.md` "Gallery ↔ Deck") | 3 |
+| E4 | Empty (no-match, with relaxation-count suggestions), loading (skeleton, no shimmer/pulse), error (whole-list and next-page, distinguished per the design), out-of-range page (200, last valid page, **the note must actually render** — see the phase's own done-when below, not just the copy existing) states — both form factors, built in the «Реєстр» language directly (`docs/design/README.md`'s "States and remaining screens", frames L1/L2, E1–E4, P1/P2) — see "Why there's no Phase V3" below | 4 |
+| E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. `sessionStorage`-persisted last mode, entry ("Гортати по одній") and exit ("До списку" / Esc, returning to the same scroll position per `docs/design/README.md` "Gallery ↔ Deck"), the deck header/exit chrome built in the «Реєстр» language directly (frames V1–V3) | 3 |
 
 **Total: ~57 h.**
 
@@ -177,6 +177,21 @@ built — one re-skin pass over the whole gallery surface built so far, rather t
 building against a design that's about to be replaced. It sits before E4/E5 so those two
 build against the final visual language once, instead of shipping against the old one and
 absorbing a second re-skin pass later.
+
+**Why there's no Phase V3.** V2's own scope (`docs/design/Opika Registry System.dc.html`)
+had no mock for E4's four states, E5's deck chrome, or F's screens 04–07 — those surfaces
+were unbuilt code, not existing UI to re-skin, so V2 skipped them. The plan on the table at
+the time was that E4/E5/F would build them on the old tokens regardless, and a follow-up
+phase — referred to informally as "V3" — would re-skin them later once a mock existed, the
+same way V2 itself re-skinned E0–E3. That follow-up phase is not needed: a design addendum
+(`docs/design/intake-report-v3.md`) shipped a real, dual-viewport mock for every one of
+those surfaces — `docs/design/Opika Registry Frames.dc.html`, 18 frames — before E4, E5, or
+F started. Each phase builds its own surfaces in the «Реєстр» language directly instead,
+per the frame citations on E4/E5 above and F below. No hours are being removed from this
+ledger for the cancelled follow-up phase, because none were ever allocated to it — "V3" was
+a name for anticipated future work, not a scoped, written phase with its own line in Part 3.
+The only real change to this ledger is F6, below, which **is** new: screen 07 (the deck's
+exhausted state) had no owner at all before the addendum, old-tokens or otherwise.
 
 **V2's definition of done, beyond "re-skinned":**
 - **Pagination's "з N" count is a behaviour change, not a restyle, and needs its own test.**
@@ -249,17 +264,19 @@ call": no marketing budget, so shared links and indexed pages are the growth mec
 
 | # | Task | h |
 |---|---|---|
-| F1 | Animal detail page, both form factors — desktop per `docs/design/README.md` "Desktop Breakpoints", "04 Detail — 1440" (sticky left column, fluid right, footer action pair moves up under the freshness block); mobile is the existing 04 | 10 |
+| F1 | Animal detail page, both form factors, in the «Реєстр» language — desktop per `docs/design/README.md` "04 Detail" / frames D1/D2 (sticky left column, fluid right, footer action pair moves up under the freshness block); mobile is the existing 04, re-specified at frame D2 | 10 |
 | F2 | `generateMetadata` / Open Graph on the detail page, via the same in-process router call `docs/gallery-contract-decisions.md` §5 establishes — never more than the public contract already permits a client to see | 3 |
-| F3 | Contact reveal — desktop modal (640-wide, focus-trapped, animal's URL stays in the address bar) over the existing full-screen mobile 05 | 4 |
-| F4 | "My reveals" list, both form factors | 3 |
+| F3 | Contact reveal, in the «Реєстр» language — desktop modal (640-wide, focus-trapped, animal's URL stays in the address bar) over the existing full-screen mobile 05, per frames R1/R2 | 4 |
+| F4 | "My reveals" list, both form factors, in the «Реєстр» language — frames M1/M2 | 3 |
 | F5 | Donation link — external, destination domain visible, `rel="noopener"` | 2 |
+| F6 | **Addition** — screen 07, the deck's exhausted state (`ExhaustedState` in `SwipeDeck.tsx`), in the «Реєстр» language directly per frames X1/X2. Had no mock and no owning phase before the addendum — deliberately excluded from V2 (`docs/design/README.md`'s V2 commit note: "screens without a V2 mock — old tokens, deferred") and never picked up anywhere else. `LoadingState`/`ErrorState` in the same file stay deferred — the addendum's frames cover the gallery's loading/error states (E4), not the deck's | 2 |
 
-**Total: ~22 h.**
+**Total: ~24 h.**
 
 **Done when:** the detail page is reachable and correctly metadata'd without JavaScript,
-the reveal modal traps focus and restores it on close, and "my reveals" renders
-identically in substance on a phone and a 1440px desktop.
+the reveal modal traps focus and restores it on close, "my reveals" renders identically in
+substance on a phone and a 1440px desktop, and the deck's exhausted state matches frames
+X1/X2 rather than the old tokens it shipped with through Phase G.
 
 **Decisions this phase must surface:** whether the Open Graph image is a static per-animal
 render or generated at request time (cost/freshness trade-off — the image pipeline this
@@ -325,10 +342,10 @@ What sets the calendar is review bandwidth and shelter recruitment — not the h
 |---|---|---|
 | C — Consolidate | — | 0 (done) |
 | E — Gallery | 4–5 | 57 |
-| F — Detail & reveal | 3 | 22 |
+| F — Detail & reveal | 3 | 24 |
 | G — Deck completion | off critical path | 13 |
 | H — Remainder to launch | 7 | 59 |
-| **Total from this rewrite** | **~16 weeks** | **~151 h** |
+| **Total from this rewrite** | **~16 weeks** | **~153 h** |
 
 At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch still lands early
 February 2027** — the total dropped from ~135 h to ~127 h (C fully closed out, E gaining
@@ -362,6 +379,13 @@ perf pass, moved out of V2 for the reason recorded there) brings the critical pa
 148 h ÷ 8 h/week ≈ 18.5 weeks, and the grand total including G to 151 h.** Same reasoning
 as E1.5/E2.5's additions: absorbed inside the existing rough-estimate slack, not a figure
 this document claims moves the ~16-week estimate on its own.
+
+**F6's addition (2 h, Phase F above — screen 07's exhausted state, newly owned now that the
+addendum gives it a mock; see "Why there's no Phase V3" in Phase E) brings the critical path
+to 150 h ÷ 8 h/week ≈ 18.75 weeks, and the grand total including G to 153 h.** Same
+reasoning again: this is new scope the addendum surfaced, not scope moving from a
+Phase V3 that never had its own hour line to begin with — there is nothing to subtract
+elsewhere in this ledger to offset it.
 
 **The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own
