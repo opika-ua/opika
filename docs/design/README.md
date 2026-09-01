@@ -1,5 +1,12 @@
 # Opika — «Реєстр» visual system · developer handoff
 
+> **Read this before any other number in this document.** Geometry values in the mock are
+> content-box. This app is border-box. Every px value read from `Opika Registry System.dc.html`
+> (or `Opika Registry Frames.dc.html`) must be translated before use — the stated
+> freshness-block height of 88px is 120px in this codebase. This has cost a review round
+> twice: V2's freshness block, and #26's 840-vs-960 container, the same trap from the other
+> direction.
+
 ## What this is
 Opika is a pet-adoption platform for Kyiv oblast (Київщина), Ukrainian-first, mobile-heavy,
 targeting mid-range Android on carrier networks. Adopters browse animals from manually verified
