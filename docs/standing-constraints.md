@@ -59,6 +59,13 @@ variable equals itself passes against any value.
 
 *Why:* two E3 harness tests did exactly this and survived to round two.
 
+**An interactive element ships with its focus-visible styling and a test.** Focus is not
+polish applied later; a keyboard user has no other way to know where they are.
+
+*Why:* V2 shipped five components — filter chips, reset, sort links, pagination controls,
+no-match buttons — with no focus indication at all. The reviewer caught it; nothing in the
+gate would have.
+
 ---
 
 ## How work is kept
