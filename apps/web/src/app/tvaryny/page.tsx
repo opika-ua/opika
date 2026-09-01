@@ -45,11 +45,19 @@ const PRIORITY_ROW_SIZE = 2;
  * through all 24 cards.
  *
  * The no-match state (V2, `docs/design/README.md` "Gallery states" > "No
- * match") is now built. E4 adds the rest of this route's states: loading
- * (`loading.tsx`, sibling to this file), one error state covering both a
- * cold-visit failure and a failed page navigation (`error.tsx` — see its
- * own comment for why there is one, not the design's stated two), and the
- * out-of-range-page notice, below. `docs/design/README.md`'s own
+ * match") is now built. E4 adds two more of this route's states: one error
+ * state covering both a cold-visit failure and a failed page navigation
+ * (`error.tsx` — see its own comment for why there is one, not the
+ * design's stated two), and the out-of-range-page notice, below. A
+ * loading state (L1/L2) was investigated and deliberately NOT built this
+ * pass — Next's route-level `loading.tsx` convention forces every
+ * response through Suspense/streaming, which broke the no-JS path
+ * outright (real content stayed in a hidden template a no-JS browser
+ * never swaps in — caught by this repo's own no-JS harness tests, not
+ * guessed at). A correct version needs a client-driven pending indicator
+ * that never touches server rendering, which is real new scope, not a
+ * one-file addition — see the open question this phase's PR raises.
+ * `docs/design/README.md`'s own
  * "Next-page error" frame is intentionally not consumed anywhere — its
  * note there explains why.
  *
