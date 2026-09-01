@@ -11,10 +11,16 @@ layout. Structure, breakpoints, column counts, container widths, the rail/sheet 
 scheme are **unchanged**; what changes is palette, typeface, type scale, radii, borders-vs-fills,
 elevation, density, iconography and motion.
 
-The design reference is `Opika Registry System.dc.html` — a flat canvas of mock frames, not an app.
-Open it in a browser and scroll; it is wide. Recreate the values in the repository's own stack
-(Next.js 16 / React 19 / Tailwind per the stack decision). Do not ship the HTML. It uses inline
-styles and a prototyping runtime wrapper (`support.js`) — take the numbers, not the markup.
+The design reference is two files: `Opika Registry System.dc.html` (tokens, type scale, logo,
+gallery, cards, rail/sheet, freshness, deck card) and `Opika Registry Frames.dc.html` (the
+states and remaining screens `System.dc.html` left as prose or left out entirely — loading,
+both error surfaces, the out-of-range page notice, deck chrome and the gallery↔deck mode
+switch, and screens 04–07 — each mocked at 1920 and 360 with a spec caption; see "States and
+remaining screens" below). Both are flat canvases of mock frames, not an app. Open them in a
+browser and scroll; they are wide. Recreate the values in the repository's own stack (Next.js 16
+/ React 19 / Tailwind per the stack decision). Do not ship either HTML file. Both reference a
+prototyping runtime (`support.js`) needed only to open them in a browser — deliberately not
+committed here; take the numbers, not the markup.
 
 **Fidelity: high.** Every colour, size, line-height, radius, spacing step, motion timing and
 contrast ratio below is final and verified against an automated harness. The only placeholders are
@@ -95,7 +101,7 @@ does not apply to them. **Do not reuse either value outside a placeholder gradie
 | `#E0E0DD` | Resolved-card placeholder stripe |
 
 `#E0E0DD` is close enough to `#DCDCD9` that it would fail WCAG 1.4.11 at roughly the same ratios
-if reused for any element that conveys meaning. That is exactly what the pip deviation above
+if reused for any element that conveys meaning. That is exactly what the pip decision above
 corrects — label these here so the same defect cannot be re-introduced by reusing the wrong hex.
 
 ### Dark
@@ -216,26 +222,36 @@ dot       circle cx=48 cy=79 r=6                filled
 
 | State | Age | Pips (left → right) | Label |
 |---|---|---|---|
-| `fresh` | ≤ 7 days | 1 × `#1B3A6B`, 2 × `#DCDCD9` | Оновлено 3 дні тому |
-| `aging` | 8–30 days | 2 × `#63676B`, 1 × `#DCDCD9` | Оновлено 19 днів тому |
+| `fresh` | ≤ 7 days | 1 × `#1B3A6B`, 2 outlined | Оновлено 3 дні тому |
+| `aging` | 8–30 days | 2 × `#63676B`, 1 outlined | Оновлено 19 днів тому |
 | `stale` | 30+ days | 2 × `#63676B`, 3rd `#101112` | Оновлено 41 день тому |
 
 Geometry: **10×10px**, `border-radius: 50%`, `gap: 6` between pips, `gap: 10` to the label.
-Grown from 7px — at 1.5× density on a cheap Android panel 7px pips disappeared. The mock renders
-the empty pip as a solid `#DCDCD9` fill (12 instances, `Opika Registry System.dc.html` lines
-150/161/172/183/220/229/244/248/252/293/306/358).
+Grown from 7px — at 1.5× density on a cheap Android panel 7px pips disappeared. The empty pip
+renders as an outline — transparent fill, `border: 2px solid #63676B`, `box-sizing: border-box`
+(12 instances, `Opika Registry System.dc.html` lines 150/161/172/220/244/248/306).
 
-**Owner-approved deviation — empty pip:** Measured contrast of `#DCDCD9` as a filled pip:
-1.37:1 vs `#FFFFFF`, 1.23:1 vs `#F2F2F0`, 1.16:1 vs `#ECECEA`. WCAG 1.4.11 requires 3:1 for
-non-text graphics that convey required information; this fails on every background the pip appears
-on. It also reproduces what "opacity never carries meaning" exists to prevent: a fixed-lightness hex
-standing in for filled vs. empty is a lightness gradient in practice, whether or not it is an alpha
-channel in source.
+**Decision — the empty pip is outlined, not filled.** The mock originally rendered it as a
+solid `#DCDCD9` fill. Measured contrast of that fill: 1.37:1 vs `#FFFFFF`, 1.23:1 vs `#F2F2F0`,
+1.16:1 vs `#ECECEA`. WCAG 1.4.11 requires 3:1 for non-text graphics that convey required
+information; this failed on every background the pip appears on. It also reproduced what
+"opacity never carries meaning" exists to prevent: a fixed-lightness hex standing in for filled
+vs. empty is a lightness gradient in practice, whether or not it is an alpha channel in source.
 
-Build the empty pip as **transparent-fill with a `1.5–2px` border in `#63676B`** instead —
-5.70:1 vs `#FFFFFF`, clears 3:1 on `#F2F2F0` and `#ECECEA`. Diameter, positions, and inter-pip
-`gap` are unchanged. The day count in words renders beside the pips at all times — nothing else in
-this block moves.
+Fixed as transparent-fill with a `1.5–2px` border in `#63676B` instead — 5.70:1 vs `#FFFFFF`,
+clears 3:1 on `#F2F2F0` and `#ECECEA`. Diameter, positions, and inter-pip `gap` are unchanged.
+The day count in words renders beside the pips at all times — nothing else in this block moves.
+
+**History:** shipped first as an owner-approved deviation from the then-current mock —
+`packages/ui/src/freshness-display.ts` (commit `30a60d6`) added the outline as a token variant,
+`SwipeCard.tsx`/`AnimalCard.tsx` (commit `d588c69`) fixed both call sites to render it, and
+`apps/web/test/harness/freshness-pip-contrast.harness.ts` asserts the measured contrast on both
+`/tvaryny` and `/discovery`, mutation-tested against the old solid fill to confirm it actually
+fails. The design was updated afterward to match: `Opika Registry System.dc.html` now specifies
+the outline directly at the seven lines cited above, and the addendum export's own token-delta
+note (`Opika Registry Frames.dc.html`, the "T" frame) restates the identical fix. **This is no
+longer a deviation from the mock — the mock and the implementation agree**, and the fix predates
+the mock update, not the other way around.
 
 The blue on the first pip is deliberately the same blue as "registry" — both mean *someone confirmed
 this*.
@@ -327,20 +343,30 @@ the number list is truncated with an ellipsis** (1 2 3 … 9, з 12) — while e
 the counter just restates what you can count.
 
 ### Gallery states
-- **Loading** — skeleton cards, count equal to the page size so height never jumps. Photo block
-  `#DCDCD9`, text bars `#F2F2F0`, radius 8. **No shimmer, no pulse** — an opacity pulse would read
-  as a data state. Grid gets `aria-busy="true"`; a polite live region says "Завантажуємо тварин".
+Full values for every state below except **No match** are in "States and remaining screens —
+frame reference" further down; each is mocked at 1920 and 360 in `Opika Registry
+Frames.dc.html`. **No match** is the one state that already shipped in V2 (`NoMatch.tsx`) —
+its summary here is complete on its own.
+
+- **Loading** (frames L1/L2) — skeleton cards, count equal to the page size so height never
+  jumps. Photo block `#DCDCD9`, text bars `#F2F2F0`, radius 8. **No shimmer, no pulse** — an
+  opacity pulse would read as a data state. Grid gets `aria-busy="true"`; a polite live region
+  says "Завантажуємо тварин".
 - **No match** — white card, radius 24, padding `48 32`, `gap: 32`:
   «Під ці фільтри зараз нікого немає.» (display-m) /
   «У Броварах 7 притулків, і сьогодні серед середніх собак вільних немає. Це не помилка пошуку.»
   (body-l) / two 56px actions that **name their yield** — «Прибрати «розмір» (+11 тварин)» (`#101112`)
   and «Додати сусідні міста (+34)» (fill). No suggestion without a number.
-- **Error, whole list** — «Список не відкрився.» / «Це не ваша помилка і не помилка притулку.
-  Фільтри збережені — адреса сторінки не змінилася.» / «Спробувати ще раз».
-- **Error, next page** — «Сторінка 2 не прийшла.» / «Ті, кого вже видно, залишаються на місці. Ми
-  нічого не приховали.» / «Завантажити сторінку 2». A grid error never removes visible cards, and is
-  never red.
-- **Exhausted** belongs to the **deck**, not the gallery — the gallery has pages, not an end.
+- **Error, whole list** (frames E1/E2) — «Список не відкрився.» / «Це не ваша помилка і не
+  помилка притулку. Фільтри збережені — адреса сторінки не змінилася.» / «Спробувати ще раз».
+- **Error, next page** (frames E3/E4) — a genuinely different surface from the one above, not
+  a smaller version of it: «Сторінка 2 не прийшла.» / «Ті, кого вже видно, залишаються на місці.
+  Ми нічого не приховали.» / «Завантажити сторінку 2». A grid error never removes visible cards,
+  and is never red.
+- **Out-of-range page** (frames P1/P2) — a notice strip, not an error: `?stor=50` against 10
+  real pages returns the last page with HTTP 200, not a 404 or a silent redirect.
+- **Exhausted** (frames X1/X2) belongs to the **deck**, not the gallery — the gallery has pages,
+  not an end.
 
 ### Detail (04)
 Content max 1200, padding `40 32 56`, two columns, `gap: 40`.
@@ -386,10 +412,113 @@ The reassurance is load-bearing and must not be cut: «Притулок не з�
 - **02 Deck** — see below.
 - **03 Filters** — the rail from 1024 up, the sheet below.
 - **06 My reveals** — single 720 centred column. «Зберігається лише на цьому пристрої. Ми не знаємо,
-  хто ви.» sits directly under the title — it matters more on a shared laptop.
+  хто ви.» sits directly under the title — it matters more on a shared laptop. Full values:
+  frames M1/M2, below.
 - **07 Exhausted** — a 560 centred card in the deck's place; its buttons lead back to the gallery.
+  Full values: frames X1/X2, below.
 - **08 Errors** — one card in the place of the content that failed, max 560, never full-screen; the
-  header and rail stay usable. No error state is red; every one names whose fault it isn't.
+  header and rail stay usable. No error state is red; every one names whose fault it isn't. Full
+  values: frames E1–E4, below.
+
+---
+
+## States and remaining screens — frame reference
+
+Everything in this section was prose-only or entirely unmocked until the V3 addendum
+(`docs/design/intake-report-v3.md`) — `Opika Registry Frames.dc.html` is the first real mock
+for all of it. All of the following are mocked at 1920 and 360 with a spec caption under each
+frame; open the file and scroll rather than building from the summary below alone, per
+`docs/standing-constraints.md`'s "when a mock exists, open the mock."
+
+### Loading (L1/L2)
+Skeleton cards, count = page size (24) so grid height never jumps. Photo block `#DCDCD9`; text
+bars `#F2F2F0` (name bar 108×20 `#DCDCD9`), radius 8. **No shimmer, no pulse** — an opacity
+pulse would read as a data state. Grid `aria-busy="true"`; polite live region says
+«Завантажуємо тварин». Real cards replace skeletons by opacity, 120ms, no movement.
+
+### Whole-list error (E1/E2)
+A card in the grid's place, max 560, radius 24, padding 32: eyebrow НЕ ЗАВАНТАЖИЛОСЯ, heading
+display-m «Список не відкрився.», body-l «Це не ваша помилка і не помилка притулку. Фільтри
+збережені — адреса сторінки не змінилася.», primary «Спробувати ще раз». Header, rail and sort
+stay usable — changing a filter is also a way out. Card enters by opacity 220ms; focus moves to
+the heading; `aria-live="assertive"`. Never full-screen, never red.
+
+### Next-page error (E3/E4) — a different surface than E1
+A **strip under the grid**, not a card replacing it: `#F2F2F0`, radius 16, padding `20 24` (16
+on mobile). Heading 19/24·500 «Сторінка 2 не прийшла.» — deliberately not display-m, it is not
+a screen-level event. Body «Ті, кого вже видно, залишаються на місці. Ми нічого не приховали.»,
+action «Завантажити сторінку 2» (56, primary). **Already-visible cards are never removed.**
+Pagination stays clickable. `aria-live="polite"`, focus is not stolen.
+
+### Out-of-range page (P1/P2)
+`?stor=50` with 10 pages existing: the server returns **the last page with HTTP 200** and a
+canonical to `?stor=10` — no 404, no silent redirect. Above the grid a notice strip: `#F2F2F0`,
+radius 16, padding `16 20`; line 1 15/22·500 «Сторінки 50 не існує — тут лише 10.», line 2
+15/22 ink-2 «Показуємо останню, десяту. Нічого не загубилось.», action an underlined text link
+«На першу сторінку» (navigation, not an operation — so not a button). Pager is truncated
+(1 … 8 9 10) so «з 10» is legitimate here. «Далі →» disabled: fill `#F2F2F0`, text ink-3
+(5.6:1), `aria-disabled="true"`, still focusable. Announced via polite live region.
+
+### Deck chrome and the mode switch (V1/V2/V3)
+The deck's header **replaces** the gallery header — never two navigations at once:
+- «← До списку»: fill `#F2F2F0`, radius 16, height 48, padding `0 20 0 16`.
+- The inherited filters in words beside it: «Бровари · собаки · середні» (15/22 ink-2).
+- Right: position «6 з 34» (ink-3) + progress bar 200×6 (mobile 328×6), radius 999, track
+  `#DCDCD9`, fill `#101112`. In the deck the total is otherwise invisible, so «з N» is correct
+  here.
+- Mobile: card fills the 328 content column; actions in the sticky bottom bar (56, radius 16).
+
+Transition, both directions:
+- Gallery → deck: header crossfades 120ms; grid fades out 120ms; deck card fades in 220ms
+  `cubic-bezier(0.3, 0, 0, 1)`. **No scale, no shared-element morph** — a morph drops to
+  ~40fps on mid-range Android and the system promises 60. URL pushes `/tvaryny/gortaty`
+  (noindex) onto history, so browser back exits. Focus lands on the top card; polite
+  announcement «Режим по одній. Тварина 1 з 34».
+- Deck → gallery: «До списку», Esc, or browser back — all three identical. The gallery reopens
+  on the same page and **scrolls instantly** (not animated — animated scroll past 24 cards
+  reads as a glitch) to the animal you stopped on, which receives the focus ring.
+- «Не зараз» hides an animal for the rest of the deck session, **not** in the gallery.
+- `prefers-reduced-motion`: opacity only, 120ms, both directions.
+
+### 04 Detail (D1/D2)
+Frames pin the values already specified above (`### Detail (04)`). Desktop: left column 560
+sticky (main photo 4:5 radius 24, three 88px thumbnails radius 16, active `outline 3px #101112
+offset 3`), right column `gap: 24` — name 44/46, meta, freshness block (`#F2F2F0` radius 16
+padding 16: pips + label 15, sentence 17/26, attribution 13/18), action pair (secondary «Не
+зараз» + primary `flex: 1`), then Медичний стан beside Де живе (260 fixed). Fostered =
+`#DCDCD9` block with the city name at 15/22·500 — **no map, even at 1920**. Shelter row (44px
+monogram circle) + donate row: fill `#F2F2F0`, 56, label left, `dobro.ua ↗` right in ink-2 —
+domain visible before the tap, no accent colour. Mobile: photo 380 full-bleed with dot indicator
+(8px, active `#101112`, inactive outlined 2px `#63676B`), single column, sticky footer returns
+(«Не зараз» `flex: 1` + «Написати притулку» `flex: 2`).
+
+### 05 Contact reveal (R1/R2)
+Frames pin the values already specified above (`### Contact reveal (05)`). Desktop: modal 640,
+radius 24, padding 24, `gap: 24`, the one shadow, backdrop `#B9B9B5`; ✕ 48×48 fill `#F2F2F0`.
+Sequence: caption «Ви запитали про Ластівку.» (ink-3) → display-m «Ось як зв'язатися з
+притулком.» → body-l reassurance «Притулок не знає про цей запит, поки ви не напишете самі.
+Нічого не сталося автоматично.» (load-bearing, do not cut). Contacts card (`#F2F2F0` radius 16;
+phone and Telegram rows white fill, 56, 17px; snapshot footnote 13/18) beside the three-things
+card. Footer: «Написати в Telegram» primary `flex: 1` + «Повернутися до галереї» underlined
+text button. Enter by opacity 220ms, focus trapped, Esc closes, page behind does not scroll.
+Mobile: full screen, cards stacked, actions in the bottom bar.
+
+### 06 My reveals (M1/M2)
+A **720 centred column even at 1920** — three rows stretched to 1320 read as an accounting
+table. Title 44/46 with «Зберігається лише на цьому пристрої. Ми не знаємо, хто ви…» directly
+beneath (it matters more on a shared laptop). Row: radius 24, padding 12, `gap: 16`; 72px
+thumbnail radius 16; name 19/24·700; shelter + request date 13/18 ink-3; freshness pips + days
+right. Resolved row: fill `#DCDCD9`, pips replaced by «Притулок каже: Бім уже вдома.» —
+different fill and different text, never dimming.
+
+### 07 Exhausted (X1/X2)
+Belongs to the deck: deck header with the counter at «34 з 34», a 560 card centred in the
+deck's place (radius 24, padding `48 32`, `gap: 32`). Display-m «Це всі, хто зараз підходить.»,
+body-l naming the count and the shelter density, ink-3 line about update cadence. Three stacked
+56 actions, first one naming its yield: «Додати сусідні міста (+198)» primary, «Змінити
+фільтри» and «Повернутися до списку» secondary. Footnote 13/18: «Якщо ви знаєте притулок на
+Київщині, якого тут немає — напишіть нам…». All exits lead back to the gallery — the gallery
+has pages, not an end.
 
 ---
 
@@ -479,5 +608,13 @@ State: `city` and `filters` persisted and URL-bound; `deck` array + cursor with 
 `locale` `uk` default, drives `Intl.RelativeTimeFormat`.
 
 ## Files
-- `Opika Registry System.dc.html` — the design reference. Open in a browser; scroll horizontally.
-- `support.js` — prototyping runtime, needed only to open the HTML. Not part of the design.
+- `Opika Registry System.dc.html` — the core system: tokens, type scale, logo, gallery, cards,
+  rail/sheet, freshness, deck card. Open in a browser; scroll horizontally.
+- `Opika Registry Frames.dc.html` — the states and remaining screens `System.dc.html` left as
+  prose or left out entirely: loading, both error surfaces, the out-of-range page notice, deck
+  chrome and the gallery↔deck mode switch, and screens 04–07. 18 frames, each at 1920 and 360
+  with a spec caption — see "States and remaining screens" above for the values.
+- `support.js` — the design tool's own prototyping runtime, needed only to open either HTML
+  file in a browser. Not part of the design and deliberately not committed here; both files
+  render as a blank canvas without it — expected, since the point is the markup's numbers, not
+  a rendered page.
