@@ -137,8 +137,10 @@ export function AnimalCard({ card, cityName, priority = false }: AnimalCardProps
               <div
                 key={i}
                 data-testid="freshness-pip"
-                data-filled={fill ? "true" : "false"}
-                className={`size-1.75 rounded-full ${fill ?? "bg-transparent border border-line-heavy"}`}
+                data-filled={fill === "empty" ? "false" : "true"}
+                className={`size-1.75 rounded-full ${
+                  fill === "empty" ? "bg-transparent border-[1.5px] border-rg-ink-3" : fill
+                }`}
               />
             ))}
           </div>

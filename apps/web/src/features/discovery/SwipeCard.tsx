@@ -229,8 +229,11 @@ function FreshnessBlock({
 /**
  * Three pips, always three, always in the same position.
  * Design spec: 7x7 circles, gap 4px between pips, gap 8px to the label.
- * Each pip is either filled (a Tailwind bg-* class from freshnessPips) or
- * empty (1px line-heavy border, transparent fill).
+ * Each pip is either filled (a Tailwind bg-* class from freshnessPips) or the
+ * "empty" variant — transparent fill, 1.5px border in rg-ink-3 (#63676B), the
+ * owner-approved WCAG 1.4.11 fix recorded in docs/design/README.md's
+ * freshness-marker section. Not the mock's own solid #DCDCD9 fill, which
+ * measured 1.16-1.37:1 against every background it appears on.
  */
 function FreshnessPipRow({ fills }: { fills: [PipFill, PipFill, PipFill] }) {
   return (
@@ -239,8 +242,10 @@ function FreshnessPipRow({ fills }: { fills: [PipFill, PipFill, PipFill] }) {
         <div
           key={i}
           data-testid="freshness-pip"
-          data-filled={fill ? "true" : "false"}
-          className={`size-1.75 rounded-full ${fill ?? "bg-transparent border border-line-heavy"}`}
+          data-filled={fill === "empty" ? "false" : "true"}
+          className={`size-1.75 rounded-full ${
+            fill === "empty" ? "bg-transparent border-[1.5px] border-rg-ink-3" : fill
+          }`}
         />
       ))}
     </div>
