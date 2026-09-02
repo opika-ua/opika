@@ -78,23 +78,29 @@ describe("HomeScreen", () => {
     expect(stored.cities).toEqual({ kind: "oneOf", values: [IRPIN.id] });
   });
 
-  it("the CTA still links to /discovery — HomeScreen's own routing wasn't updated when E5 gave the gallery/deck their real URLs", () => {
+  it("the CTA links to the gallery, unfiltered, before any city is picked", () => {
     render(<HomeScreen cities={[BROVARY]} />);
 
     const cta = screen.getByRole("link", { name: "Дивитися тварин" });
-    // Still works: next.config.ts permanently redirects /discovery to
-    // /tvaryny/gortaty now — but this component itself doesn't know that,
-    // and reconciling it (pointing at /tvaryny directly, say) is a real
-    // open question this file's own top comment now records rather than
-    // deciding here.
-    expect(cta.getAttribute("href")).toBe("/discovery");
+    expect(cta.getAttribute("href")).toBe("/tvaryny");
   });
 
-  it("shows the language label without a non-functional English option", () => {
+  it("selecting a city changes the CTA's real destination, not just the chip state", async () => {
+    const user = userEvent.setup();
+    render(<HomeScreen cities={[BROVARY, IRPIN]} />);
+
+    await user.click(screen.getByRole("button", { name: "Бровари" }));
+
+    const cta = screen.getByRole("link", { name: "Дивитися тварин" });
+    const href = cta.getAttribute("href") ?? "";
+    expect(href.startsWith("/tvaryny")).toBe(true);
+    expect(href).toContain(BROVARY.id);
+  });
+
+  it("renders no language toggle at all — deferred until H3 wires real English, not re-skinned here", () => {
     render(<HomeScreen cities={[BROVARY]} />);
 
-    expect(screen.getByText("Українська")).toBeTruthy();
+    expect(screen.queryByText("Українська")).toBeNull();
     expect(screen.queryByText("English")).toBeNull();
-    expect(screen.queryByRole("button", { name: /English/ })).toBeNull();
   });
 });

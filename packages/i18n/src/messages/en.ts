@@ -13,10 +13,10 @@
  * here is user-visible in production today.
  */
 export const en = {
-  // --- Screen 01 · First run ---
+  // --- Home / first run ---
   firstRun: {
     promise:
-      "Animals from verified shelters across Kyiv oblast. Swipe through to see who's looking for a home.",
+      "Animals from verified shelters across Kyiv oblast. Browse the list and see who's looking for a home.",
     disclaimer:
       'No registration. We never handle or transfer money. "Not right now" is just a filter, not a judgement of the animal.',
     cityHeading: "Your city",
