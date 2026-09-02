@@ -39,12 +39,22 @@ interface AnimalDetailScreenProps {
  * matching the gallery's own approach: a Server Component cannot know the
  * client's width, and this page must render correctly with no JS.
  *
- * Two real deviations from the mock, both recorded rather than silently
+ * Real deviations from the mock, all recorded rather than silently
  * resolved — see this phase's PR body for the full account:
- * 1. The subtitle drops "Метис" (breed) — `Animal` has no breed field.
+ * 1. The subtitle is 3 segments (species · age · size), not the mock's 4
+ *    ("Метис · 2 роки · середня · стерилізація не записана"). Two changes,
+ *    not one: "Метис" (breed) is dropped because `Animal` has no breed
+ *    field at all; the trailing sterilisation clause is dropped because
+ *    that fact already gets its own full row in the medical section below
+ *    — repeating it in the subtitle risked the two disagreeing the moment
+ *    either one changed independently.
  * 2. The medical section renders two rows (vaccination, spayNeuter), not
  *    the mock's three ("Сказ" / "Комплексне щеплення" / "Стерилізація") —
  *    `medical-labels.ts`'s own comment has the full reasoning.
+ * 3. The header carries only the back link, not the mock's own
+ *    logo+wordmark beside it (D1's header shows both) — this page's
+ *    header already matches the gallery's own detail-adjacent chrome
+ *    rather than repeating the wordmark a second time on every route.
  */
 export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDetailScreenProps) {
   const photo = animal.photos[0] ?? null;
@@ -176,13 +186,28 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
           </div>
 
           <div className="flex gap-2">
-            <button
-              type="button"
+            {/*
+              Real navigation back to the gallery, not an inert button — a
+              reviewer finding, caught by checking for an onClick/href
+              rather than trusting the visible label: this used to be a
+              `<button>` with neither, the same "renders but does nothing"
+              failure standing-constraints was written for
+              (`/discovery`'s dead swipe gesture). Unlike the deck, this
+              page has no "next card" to advance to on decline — "Не
+              зараз" here means "not this one, back to the list," so it
+              goes to the same place the header's own back link does.
+              Not `swipes.record`: that call is deck-scoped today (a
+              browsing context this page isn't), and inventing a second
+              meaning for it here is a product decision this fix isn't
+              making.
+            */}
+            <Link
+              href="/tvaryny"
               data-testid="not-now-button"
-              className="min-h-14 flex-1 rounded-rg-button bg-rg-fill text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+              className="min-h-14 flex-1 flex items-center justify-center rounded-rg-button bg-rg-fill text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
             >
               {uk.actions.notNow}
-            </button>
+            </Link>
             <RevealFlow animalId={animal.id} animalName={animal.name} cityName={cityName} />
           </div>
 

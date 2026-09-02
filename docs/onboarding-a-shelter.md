@@ -16,7 +16,9 @@ public location before anything touches the live database.
   never touches money).
 - **A freshness sentence, in their own words** — one or two sentences about
   how current their listings are. Required; don't onboard without it.
-- **Who you're talking to** — their name, for the verification record.
+- **Real verification evidence** — see below. Not their name for the record;
+  actual evidence the domain's own verification policy requires, or the
+  script refuses to write a `verified` shelter at all.
 - **For each animal**: name, species, sex, size bucket, age bucket, a short
   description, and at least one photo already placed under
   `apps/web/public/seed-photos/` (or another path under `apps/web/public/`)
@@ -59,7 +61,24 @@ before anything is computed):
     },
     "donation": { "url": "https://send.monobank.ua/jar/example", "provider": "monobank_jar" },
     "freshnessSentenceUk": "Оновлюємо картки щотижня, у суботу.",
-    "vettedByName": "Олексій Колотенко"
+    "evidence": [
+      {
+        "kind": "site_visit",
+        "notes": "Дзвінок з Оленою 1 вересня — розповіла про притулок, показала фото тварин на місці."
+      },
+      {
+        "kind": "reference_contact",
+        "name": "Притулок «Хвостатий дім» (сусідній, знає «Домівку» особисто)",
+        "channel": { "kind": "phone", "e164": "+380671111111" },
+        "relationship": "partner_organisation"
+      },
+      {
+        "kind": "reference_contact",
+        "name": "Ветклініка, з якою працює притулок",
+        "channel": { "kind": "phone", "e164": "+380672222222" },
+        "relationship": "veterinary_clinic"
+      }
+    ]
   },
   "animals": [
     {
@@ -83,6 +102,29 @@ before anything is computed):
 them between runs of the same shelter; do use a new one for a genuinely
 different animal.
 
+### Evidence — what's actually required, per legal shape
+
+`packages/domain`'s own `DEFAULT_VERIFICATION_POLICY` decides this, not the
+script — `buildShelter` checks against it and refuses to produce a
+`verified` shelter (dry run included) if the evidence given falls short.
+
+| Legal shape | Needs |
+|---|---|
+| `unregistered_initiative` (most volunteer groups) | 1× `site_visit`, 2× `reference_contact` |
+| `registered_ngo` / `sole_proprietor` | 1× `edrpou_registration`, 1× `bank_account_holder`, 1× `reference_contact` |
+
+A `reference_contact`'s `channel` must be someone **other than the shelter
+itself** — a neighbouring shelter, a vet clinic they work with, anyone who
+can independently confirm this is real. Pointing it at the shelter's own
+phone number isn't evidence, it's the thing being verified restating
+itself, and an earlier version of this script did exactly that by mistake
+(caught on review, fixed before ever being used for real).
+
+A `site_visit` doesn't require you to have physically gone anywhere — a
+real phone call where you actually talked to someone and can say what you
+learned counts; `notes` should say what actually happened, in your own
+words, since this becomes a permanent part of the shelter's record.
+
 ## Run it: dry run, then commit
 
 ```bash
@@ -97,11 +139,16 @@ DATABASE_URL=<neon-direct-url> \
 
 This is a **dry run** — nothing is written. Read the printed output
 carefully: it shows the *computed* public location (the fuzzed
-coordinates), not the address you typed in. That's the actual proof
+coordinates), not the address you typed in — that's the actual proof
 `productionLocationPolicy` ran with your secret before anything real was
-at stake. If the printed coordinates look anything like the real address,
-stop and check `LOCATION_HMAC_SECRET` is set correctly — don't proceed to
-`--commit`.
+at stake. Check the **offset line** specifically: `Offset from the real
+address: 743m (radius: 1000m) — looks right`. At a 1km fuzz radius the
+raw coordinates always share their first two decimal digits with the real
+address — that's what the radius means, and eyeballing them tells you
+nothing. The offset figure is the actual check: it should read "looks
+right," a non-zero number inside the stated radius. If it says "CHECK
+THIS" or reads suspiciously close to 0m, stop and check
+`LOCATION_HMAC_SECRET` is set correctly — don't proceed to `--commit`.
 
 Once it looks right:
 

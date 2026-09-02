@@ -101,6 +101,72 @@ describe("anonymousRouterClient", () => {
   });
 
   /**
+   * F1 put `animals.byId` and `shelters.byId` on this path, which changes the
+   * shape of the guard below rather than duplicating it: `animals` is now a
+   * legitimately-defined namespace, so its mere presence proves nothing. What
+   * must stay absent from it is `reveal` — the one procedure that needs an
+   * `adopterId` a Server Component render never has, and the only one that
+   * discloses an exact address and contact details.
+   */
+  it("exposes animals.byId but never animals.reveal, whose adopterId this path cannot supply", () => {
+    const client = anonymousRouterClient(h.db);
+
+    expect(Reflect.get(client.animals, "byId")).toBeDefined();
+    expect(Reflect.get(client.animals, "reveal")).toBeUndefined();
+  });
+
+  it("animals.byId and shelters.byId withhold the contact details a reveal would carry", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      exactAddress: {
+        line1: "вул. Прихована 7",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+      contact: {
+        primary: { kind: "phone", e164: "+380670000001" },
+        additional: [],
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    const animal = makeAnimal({ shelterId: shelter.id });
+    await animalRepo(h.db).insert(animal, city.id);
+
+    const client = anonymousRouterClient(h.db);
+    const detail = await client.animals.byId({ animalId: animal.id });
+    const publicShelter = await client.shelters.byId({ shelterId: shelter.id });
+
+    // Asserted as a full key set rather than "does not contain X": `pick`
+    // is deny-by-default and this is the assertion that keeps it that way,
+    // so a field added to `Shelter` shows up here as a failure instead of
+    // travelling silently to a page that never asked for it.
+    expect(Object.keys(publicShelter).sort()).toEqual([
+      "createdAt",
+      "description",
+      "displayName",
+      "donation",
+      "id",
+      "publicLocation",
+      "verification",
+    ]);
+    expect(Object.keys(detail.shelter).sort()).toEqual([
+      "displayName",
+      "freshnessSentence",
+      "id",
+      "publicLocation",
+      "verification",
+    ]);
+
+    const rendered = JSON.stringify([detail, publicShelter]);
+    expect(rendered).not.toContain("вул. Прихована");
+    expect(rendered).not.toContain("+380670000001");
+  });
+
+  /**
    * This path throws `setCookies` away — a Server Component cannot write a
    * cookie. `session.bootstrap` inserts an adopter row and a session row
    * before it queues its Set-Cookie, so exposing it here would mint an

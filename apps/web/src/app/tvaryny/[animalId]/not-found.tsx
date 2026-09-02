@@ -25,6 +25,7 @@ export default function NotFound() {
         <span className="text-[17px]/[26px] text-rg-ink-2">{copy.body}</span>
         <Link
           href="/tvaryny"
+          data-testid="not-found-action"
           className="min-h-14 inline-flex items-center rounded-rg-button bg-rg-ink px-6 text-[15px] font-medium text-rg-surface focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
           {copy.action}

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ContactRevealView } from "@opika/contracts";
-import type { AnimalId, ContactChannel } from "@opika/domain";
+import { type AnimalId, allChannels, type ContactChannel } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { safe } from "@orpc/client";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -15,12 +15,19 @@ type RevealState =
 
 /**
  * The dialog's own primary action, keyed on whichever channel the shelter
- * actually gave as `primary` — the mock's R1/R2 frames only ever show
- * Telegram, but real seed data has phone-only shelters. Found by looking
- * at a real rendered reveal, not assumed: a phone-only shelter left the
- * dialog with no primary action at all before this existed. `viber`/
- * `website` fall back to `null` (no action row rendered) rather than a
- * guessed deep-link scheme this codebase has never used anywhere else.
+ * actually gave as `primary` — the shelter's own stated preference, not
+ * this component's guess. The mock's R1/R2 frames only ever show the
+ * Telegram case, but real seed data has phone-primary shelters. Found by
+ * looking at a real rendered reveal, not assumed: a phone-only shelter
+ * left the dialog with no primary action at all before this existed.
+ *
+ * `viber`/`website` return `null` rather than a guessed deep-link scheme
+ * this codebase has never used anywhere else, and no fallback to a
+ * *different* channel's action is attempted — the contact rows below list
+ * every channel either way, so such a shelter's details are readable and
+ * copyable; only the one-tap button is absent. Which channel should win
+ * the button when the primary cannot supply one is a product decision, not
+ * this function's to invent.
  */
 function primaryContactAction(
   channel: ContactChannel,
@@ -39,6 +46,44 @@ function primaryContactAction(
     case "viber":
     case "website":
       return null;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = channel;
+      return unreachable;
+    }
+  }
+}
+
+/**
+ * Every channel the shelter gave, not just `contact.primary` — the mock's
+ * own R1/R2 frames show two rows for one shelter ("+380 67 123 45 67" and
+ * "@domivka_brovary"), and today's seed data puts the phone in `primary`
+ * and Telegram in `additional` for every shelter that has both. Keying the
+ * rows off `primary` alone dropped the Telegram handle from every real
+ * reveal, and rendered nothing at all for a `viber`/`website`-primary
+ * shelter — an empty dialog that had still spent one of the adopter's 30
+ * daily reveals.
+ *
+ * `allChannels` (packages/domain) is the domain's own primary-then-additional
+ * ordering; the mock's row order is the same.
+ *
+ * "Viber" is written out because a Viber number and a phone number are both
+ * bare `+380…` strings — two identical-looking rows with nothing to tell
+ * them apart reads as a duplication bug. It is a proper noun, spelled the
+ * same in both catalogues, so it is not a missing translation.
+ */
+function contactChannelText(channel: ContactChannel): string {
+  switch (channel.kind) {
+    case "phone":
+      return channel.e164;
+    case "email":
+      return channel.address;
+    case "telegram":
+      return `@${channel.handle}`;
+    case "viber":
+      return `Viber · ${channel.e164}`;
+    case "website":
+      return channel.url;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = channel;
@@ -69,6 +114,13 @@ interface RevealFlowProps {
  * unlike the gallery/detail page's own content. That's consistent with
  * the mock's own framing: "розкриття контактів — це пошук у довіднику" —
  * an interactive lookup, not a page navigation.
+ *
+ * One recorded deviation: R2's own header reads "← До {animal name}"
+ * (frame R2's back link is named, not a bare glyph); this implementation
+ * uses the same ✕ close button at both breakpoints instead of a second,
+ * differently-worded close control unique to mobile. `onClose` already
+ * reaches the same place (`isOpen` false, focus back on the trigger)
+ * either way — the difference is the label, not the behaviour.
  */
 export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) {
   const [state, setState] = useState<RevealState>({ kind: "idle" });
@@ -127,12 +179,19 @@ export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) 
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) {
+      // Indexed against the focusable list rather than compared to first/last
+      // directly, because the element focus actually starts on is neither:
+      // the dialog's heading carries tabindex="-1" and so is not in this
+      // list at all. Comparing only to `first` left Shift+Tab from the
+      // heading falling through to the trigger button behind the overlay —
+      // the trap held forwards and leaked backwards. `-1` also covers the
+      // error state, where focus can still be outside the dialog.
+      const active = document.activeElement;
+      const index =
+        active instanceof HTMLElement ? Array.prototype.indexOf.call(focusable, active) : -1;
+      if (event.shiftKey ? index <= 0 : index === -1 || index === focusable.length - 1) {
         event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
+        (event.shiftKey ? last : first).focus();
       }
     }
 
@@ -170,7 +229,7 @@ export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) 
             className="font-rg w-full h-full desktop:h-auto desktop:max-w-[640px] desktop:max-h-[85vh] overflow-y-auto bg-rg-surface desktop:rounded-rg-card p-6 desktop:shadow-[0_24px_48px_-32px_rgba(16,17,18,0.4)] flex flex-col gap-6"
           >
             {state.kind === "error" && (
-              <RevealError animalId={animalId} onClose={close} onRetry={reveal} />
+              <RevealError headingRef={headingRef} onClose={close} onRetry={reveal} />
             )}
             {state.kind === "open" && (
               <RevealContent
@@ -188,11 +247,19 @@ export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) 
   );
 }
 
+/**
+ * The error card carries `#reveal-heading` too, and takes focus the same way
+ * the success card does. Both are load-bearing rather than symmetry for its
+ * own sake: the dialog's `aria-labelledby` points at that id unconditionally,
+ * so without it the error dialog announced with no accessible name at all,
+ * and focus stayed on the trigger button *behind* the overlay.
+ */
 function RevealError({
+  headingRef,
   onClose,
   onRetry,
 }: {
-  animalId: AnimalId;
+  headingRef: React.RefObject<HTMLHeadingElement | null>;
   onClose: () => void;
   onRetry: () => void;
 }) {
@@ -204,7 +271,14 @@ function RevealError({
           <span className="text-[11px] font-medium tracking-[0.12em] text-rg-ink-3">
             {copy.eyebrow}
           </span>
-          <span className="text-[26px]/[30px] font-bold text-rg-ink">{copy.title}</span>
+          <h2
+            ref={headingRef}
+            id="reveal-heading"
+            tabIndex={-1}
+            className="text-[26px]/[30px] font-bold text-rg-ink outline-none"
+          >
+            {copy.title}
+          </h2>
           <span className="text-[15px]/[22px] text-rg-ink-2">{copy.body}</span>
         </div>
         <button
@@ -243,7 +317,6 @@ function RevealContent({
   onClose: () => void;
 }) {
   const shelter = reveal.shelterSnapshot;
-  const telegram = shelter.contact.primary.kind === "telegram" ? shelter.contact.primary : null;
   const dateLabel = new Intl.DateTimeFormat("uk-UA", {
     day: "numeric",
     month: "long",
@@ -282,16 +355,15 @@ function RevealContent({
       <div className="flex flex-col desktop:flex-row gap-4">
         <div className="flex-1 min-w-0 bg-rg-fill rounded-rg-button p-4 flex flex-col gap-2">
           <span className="text-[15px]/[22px] font-medium text-rg-ink">{shelter.displayName}</span>
-          {shelter.contact.primary.kind === "phone" && (
-            <span className="flex items-center min-h-14 px-4 rounded-rg-button bg-rg-surface text-[17px] text-rg-ink">
-              {shelter.contact.primary.e164}
+          {allChannels(shelter.contact).map((channel) => (
+            <span
+              key={`${channel.kind}:${contactChannelText(channel)}`}
+              data-testid="reveal-contact-row"
+              className="flex items-center min-h-14 px-4 rounded-rg-button bg-rg-surface text-[17px] text-rg-ink break-all"
+            >
+              {contactChannelText(channel)}
             </span>
-          )}
-          {telegram && (
-            <span className="flex items-center min-h-14 px-4 rounded-rg-button bg-rg-surface text-[17px] text-rg-ink">
-              @{telegram.handle}
-            </span>
-          )}
+          ))}
           <span className="flex items-center min-h-14 px-4 text-[15px]/[22px] text-rg-ink-2">
             {cityName
               ? `${uk.location.lineAtShelter.replace("{city}", cityName)} · ${uk.reveal.meetingPlace}`

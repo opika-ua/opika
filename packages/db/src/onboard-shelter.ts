@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   type Animal,
@@ -8,11 +8,18 @@ import {
   AnimalIdSchema,
   AnimalSexSchema,
   AnimalSpeciesSchema,
+  ContactChannelSchema,
+  type Coordinates,
+  DEFAULT_VERIFICATION_POLICY,
   DonationLinkSchema,
+  EdrpouSchema,
+  type EvidenceItem,
   ExactAddressSchema,
   type ModeratorId,
   ModeratorIdSchema,
+  meetsEvidenceRequirements,
   publicLocationOf,
+  ReferenceRelationshipSchema,
   type Shelter,
   ShelterContactSchema,
   ShelterIdSchema,
@@ -21,8 +28,9 @@ import {
   UNKNOWN_ATTESTATION,
   UNKNOWN_DOCUMENT_READINESS,
 } from "@opika/domain";
+import postgres from "postgres";
 import { z } from "zod";
-import { createDatabase } from "./client";
+import { createDatabaseWithClient } from "./client";
 import { productionLocationPolicy } from "./location-policy";
 import { animalRepo, cityRepo, shelterRepo } from "./repos";
 
@@ -51,7 +59,54 @@ import { animalRepo, cityRepo, shelterRepo } from "./repos";
  * dry-run-then-commit walkthrough.
  */
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
+/**
+ * Both sides of the "is this file inside the repo?" comparison go through
+ * this, so the two are compared in the same normal form.
+ *
+ * `resolve()` alone is not enough, and neither gap is theoretical on the one
+ * platform this script is actually run from (`CLAUDE.md`'s "Windows
+ * development notes"):
+ * - Windows paths are case-insensitive, so `d:\startup\opika\shelter.json`
+ *   names a file inside the repo while failing a case-sensitive `startsWith`
+ *   against `D:\Startup\opika` — the guard would wave through exactly the
+ *   file it exists to refuse.
+ * - A symlink outside the tree can point at a file inside it, and only
+ *   `realpathSync` sees through that. What would get committed is the real
+ *   file, not the link.
+ *
+ * `realpathSync` throws on a path that does not exist yet, which is a legal
+ * input here (the missing-file message below is a better error than a raw
+ * ENOENT), so the parent directory is resolved instead and the basename
+ * re-joined.
+ */
+function canonicalPath(input: string): string {
+  const resolved = resolve(input);
+  let real: string;
+  try {
+    real = realpathSync(resolved);
+  } catch {
+    try {
+      real = join(realpathSync(dirname(resolved)), basename(resolved));
+    } catch {
+      real = resolved;
+    }
+  }
+  return process.platform === "win32" ? real.toLowerCase() : real;
+}
+
+const REPO_ROOT = canonicalPath(fileURLToPath(new URL("../../..", import.meta.url)));
+
+/** Great-circle distance, for the dry-run printout's "is the offset actually inside the radius" check. */
+function haversineMetres(a: Coordinates, b: Coordinates): number {
+  const EARTH_RADIUS_METRES = 6_371_000;
+  const toRadians = (deg: number) => (deg * Math.PI) / 180;
+  const deltaLat = toRadians(b.lat - a.lat);
+  const deltaLng = toRadians(b.lng - a.lng);
+  const h =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(toRadians(a.lat)) * Math.cos(toRadians(b.lat)) * Math.sin(deltaLng / 2) ** 2;
+  return 2 * EARTH_RADIUS_METRES * Math.asin(Math.sqrt(h));
+}
 
 /**
  * Deterministic, not random: re-running this script against the same input
@@ -105,6 +160,66 @@ const OnboardAnimalSchema = z.object({
     .min(1),
 });
 
+/**
+ * An operator-friendly shape for `EvidenceItemSchema` — the real domain
+ * schema needs a `ModeratorId` (a UUID) on `site_visit` and a `submittedAt`
+ * on the whole evidence bundle, neither of which an operator hand-writing
+ * this file on a phone call has any business supplying by hand. Both are
+ * filled in automatically (`FOUNDER_MODERATOR_ID`, `now`) by
+ * `toEvidenceItem`/`buildShelter` below, not asked for here.
+ */
+const OnboardEvidenceItemSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("edrpou_registration"), edrpou: EdrpouSchema }),
+  z.object({ kind: z.literal("bank_account_holder"), holderName: z.string().min(1) }),
+  z.object({
+    kind: z.literal("reference_contact"),
+    name: z.string().min(1),
+    channel: ContactChannelSchema,
+    relationship: ReferenceRelationshipSchema,
+  }),
+  z.object({ kind: z.literal("site_visit"), notes: z.string().min(1) }),
+  z.object({
+    kind: z.literal("supporting_document"),
+    labelUk: z.string().min(1),
+    documentKey: z.string().min(1),
+  }),
+]);
+type OnboardEvidenceItem = z.infer<typeof OnboardEvidenceItemSchema>;
+
+function toEvidenceItem(item: OnboardEvidenceItem, now: Date): EvidenceItem {
+  switch (item.kind) {
+    case "edrpou_registration":
+      return { kind: "edrpou_registration", edrpou: item.edrpou, documentKey: null };
+    case "bank_account_holder":
+      return { kind: "bank_account_holder", holderName: item.holderName, documentKey: null };
+    case "reference_contact":
+      return {
+        kind: "reference_contact",
+        name: item.name,
+        channel: item.channel,
+        relationship: item.relationship,
+      };
+    case "site_visit":
+      return {
+        kind: "site_visit",
+        visitedAt: now,
+        visitedBy: FOUNDER_MODERATOR_ID,
+        notes: item.notes,
+      };
+    case "supporting_document":
+      return {
+        kind: "supporting_document",
+        label: { uk: item.labelUk, en: null },
+        documentKey: item.documentKey,
+      };
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = item;
+      return unreachable;
+    }
+  }
+}
+
 const OnboardInputSchema = z.object({
   shelter: z.object({
     idSeed: z.string().min(1),
@@ -120,8 +235,19 @@ const OnboardInputSchema = z.object({
      * shelter nobody actually asked for one.
      */
     freshnessSentenceUk: z.string().min(1),
-    /** Whoever on your side actually vetted this shelter — becomes the evidence record. */
-    vettedByName: z.string().min(1),
+    /**
+     * What you actually have, not a name this script used to turn into a
+     * fabricated `reference_contact` pointing at the shelter's own phone
+     * number as if it were independent corroboration — caught on review,
+     * not by construction the first time: an `unregistered_initiative`
+     * needs a site visit plus two real references; a registered entity
+     * needs its EDRPOU and bank-holder records. `buildShelter` below
+     * refuses to produce a `verified` shelter (dry run or `--commit`) if
+     * what's here doesn't clear `DEFAULT_VERIFICATION_POLICY` for the
+     * `legalEntity.kind` given — see docs/onboarding-a-shelter.md for a
+     * worked example per legal shape.
+     */
+    evidence: z.array(OnboardEvidenceItemSchema).min(1),
   }),
   animals: z.array(OnboardAnimalSchema).min(1),
 });
@@ -129,15 +255,11 @@ const OnboardInputSchema = z.object({
 type OnboardInput = z.infer<typeof OnboardInputSchema>;
 
 export function refuseIfInsideRepo(inputPath: string): void {
-  const resolved = resolve(inputPath);
-  if (
-    resolved === REPO_ROOT ||
-    resolved.startsWith(`${REPO_ROOT}/`) ||
-    resolved.startsWith(`${REPO_ROOT}\\`)
-  ) {
+  const resolved = canonicalPath(inputPath);
+  if (resolved === REPO_ROOT || resolved.startsWith(`${REPO_ROOT}${sep}`)) {
     console.error(
       "ERROR: input file is inside the repository.\n" +
-        `  ${resolved}\n` +
+        `  ${resolve(inputPath)}\n` +
         "This file will contain a real shelter's exact address and phone number, and\n" +
         "docs/standing-constraints.md forbids real shelter data in the repository —\n" +
         "it is public. Move the file outside the working tree and pass that path instead.",
@@ -146,9 +268,34 @@ export function refuseIfInsideRepo(inputPath: string): void {
   }
 }
 
+/**
+ * Throws rather than returning an error, deliberately: this is checked
+ * before the dry-run printout even happens, so an operator on the phone
+ * with a shelter finds out their evidence is short *before* reading a
+ * "looks right, add --commit" message that would have written a `verified`
+ * shelter the domain's own `DEFAULT_VERIFICATION_POLICY` doesn't actually
+ * back.
+ */
 export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: string): Shelter {
   const policy = productionLocationPolicy(secret);
   const id = ShelterIdSchema.parse(deterministicId(`shelter:${input.idSeed}`)) as Shelter["id"];
+
+  const evidence = {
+    items: input.evidence.map((item) => toEvidenceItem(item, now)),
+    submittedAt: now,
+  };
+
+  const meetsPolicy = meetsEvidenceRequirements(
+    input.legalEntity,
+    evidence,
+    DEFAULT_VERIFICATION_POLICY,
+  );
+  if (!meetsPolicy) {
+    throw new Error(
+      `Evidence does not meet DEFAULT_VERIFICATION_POLICY for a "${input.legalEntity.kind}" shelter. ` +
+        "See docs/onboarding-a-shelter.md for what each legal shape needs.",
+    );
+  }
 
   return {
     id,
@@ -164,17 +311,7 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
       status: "verified",
       verifiedAt: now,
       verifiedBy: FOUNDER_MODERATOR_ID,
-      evidence: {
-        items: [
-          {
-            kind: "reference_contact",
-            name: input.vettedByName,
-            channel: input.contact.primary,
-            relationship: "other",
-          },
-        ],
-        submittedAt: now,
-      },
+      evidence,
     },
     createdAt: now,
     lastUpdatedAt: now,
@@ -257,9 +394,26 @@ async function main(): Promise<void> {
   // ran before anything touches the database. Every animal below inherits
   // this one computed value (publicLocation: null → the shelter's), so
   // there is one fuzzed location to show, not one per animal.
+  //
+  // The offset in metres, not "does this coordinate look like the real
+  // one" — at a 1km radius the fuzzed point's first two decimal digits
+  // always resemble the real address (that's what a 1km radius means), so
+  // eyeballing the raw coordinates was never actually checkable. A metres
+  // figure inside the configured radius is.
   console.log(`\n${commit ? "COMMIT" : "DRY RUN"} — ${input.shelter.displayName}\n`);
   console.log("Computed public location (productionLocationPolicy output, not the input address):");
   console.log(JSON.stringify(shelter.publicLocation, null, 2));
+  if (shelter.publicLocation.precision === "fuzzed_address") {
+    const offset = haversineMetres(
+      input.shelter.exactAddress.coordinates,
+      shelter.publicLocation.approximate.center,
+    );
+    console.log(
+      `Offset from the real address: ${Math.round(offset)}m ` +
+        `(radius: ${shelter.publicLocation.approximate.precisionMetres}m) — ` +
+        `${offset > 0 && offset <= shelter.publicLocation.approximate.precisionMetres * 1.05 ? "looks right" : "CHECK THIS — outside the expected radius"}`,
+    );
+  }
   console.log(`\nShelter id:  ${shelter.id}`);
   console.log(`Animals (${animals.length}):`);
   for (const animal of animals) {
@@ -271,7 +425,15 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  const db = createDatabase(databaseUrl);
+  // The connection is opened here and closed explicitly below, rather than
+  // through `createDatabase`, which keeps its `postgres.Sql` private. Without
+  // the `end()`, postgres.js holds an idle socket open and the script never
+  // exits after printing "Done." — on a script whose whole job is writing
+  // real rows to a live database, a hang after the last log line reads as a
+  // failure and invites a Ctrl+C mid-write on the next run. `seed.ts` ends
+  // its own client for the same reason.
+  const sql = postgres(databaseUrl);
+  const db = createDatabaseWithClient(sql);
   const shelters = shelterRepo(db);
   const cities = cityRepo(db);
   const animalsRepo = animalRepo(db);
@@ -306,6 +468,8 @@ async function main(): Promise<void> {
     await animalsRepo.insert(animal, cityId);
     insertedCount += 1;
   }
+
+  await sql.end();
 
   console.log(
     `Inserted ${insertedCount} animal(s), skipped ${skippedCount} already present. Done.`,

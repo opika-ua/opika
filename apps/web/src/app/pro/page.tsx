@@ -10,9 +10,13 @@ export const metadata = { title: `${uk.about.title} — Opika` };
  * `dynamic = "force-dynamic"`, since there's nothing here that can go
  * stale between builds.
  *
- * `{contact}` in `uk.about.contact` is a placeholder — fill in a real
- * email or Telegram handle before this deploys; there is no default here
- * that would be honest to ship.
+ * ⚠ `hello@opika.org.ua` below is a placeholder that IS currently being
+ * rendered — the comment here used to claim no default was shipped, which
+ * was wrong the moment the string was filled in. It must be replaced with
+ * a mailbox that actually receives mail (or a Telegram handle) before this
+ * page is reachable by a real shelter: a page whose whole purpose is
+ * "here is who is behind this, get in touch" is worse than absent if the
+ * address bounces. Tracked as a launch gate, not a TODO to notice later.
  */
 export default function AboutPage() {
   return (

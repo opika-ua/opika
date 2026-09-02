@@ -1,3 +1,4 @@
+import { basename, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CityIdSchema } from "@opika/domain";
 import { describe, expect, it, vi } from "vitest";
@@ -20,6 +21,23 @@ const EXACT_ADDRESS = {
   coordinates: { lat: 50.5111, lng: 30.7903 },
 };
 
+/** Satisfies DEFAULT_VERIFICATION_POLICY's unregistered_initiative row: one site_visit, two reference_contacts. */
+const SUFFICIENT_EVIDENCE = [
+  { kind: "site_visit" as const, notes: "Особисто говорив з Оленою по телефону 1 вересня." },
+  {
+    kind: "reference_contact" as const,
+    name: "Сусідній притулок «Хвостатий дім»",
+    channel: { kind: "phone" as const, e164: "+380671111111" },
+    relationship: "partner_organisation" as const,
+  },
+  {
+    kind: "reference_contact" as const,
+    name: "Ветклініка «Айболить»",
+    channel: { kind: "phone" as const, e164: "+380672222222" },
+    relationship: "veterinary_clinic" as const,
+  },
+];
+
 const SHELTER_INPUT = {
   idSeed: "test-shelter",
   displayName: "Тестовий притулок",
@@ -32,7 +50,7 @@ const SHELTER_INPUT = {
   },
   donation: null,
   freshnessSentenceUk: "Оновлюємо щотижня.",
-  vettedByName: "Олексій",
+  evidence: SUFFICIENT_EVIDENCE,
 };
 
 const now = new Date("2026-09-06T12:00:00Z");
@@ -72,6 +90,28 @@ describe("buildShelter's public location", () => {
     // one, catches the swap; the two tests above still pass either way,
     // since both policies produce *some* keyed-looking variation.
     expect(() => buildShelter(SHELTER_INPUT, now, "short")).toThrow(/32 characters/);
+  });
+});
+
+describe("buildShelter's evidence requirement", () => {
+  it("throws when the supplied evidence doesn't meet DEFAULT_VERIFICATION_POLICY for the legal entity kind", () => {
+    const insufficientInput = {
+      ...SHELTER_INPUT,
+      evidence: [{ kind: "site_visit" as const, notes: "Один візит, без референсів." }],
+    };
+    expect(() => buildShelter(insufficientInput, now, SECRET_A)).toThrow(
+      /DEFAULT_VERIFICATION_POLICY/,
+    );
+  });
+
+  it("does not fabricate a reference_contact pointing at the shelter's own number — evidence comes only from what the input actually supplied", () => {
+    const shelter = buildShelter(SHELTER_INPUT, now, SECRET_A);
+    const referenceContacts = shelter.verification.evidence.items.filter(
+      (item) => item.kind === "reference_contact",
+    );
+    for (const ref of referenceContacts) {
+      expect(ref.channel).not.toEqual(SHELTER_INPUT.contact.primary);
+    }
   });
 });
 
@@ -115,6 +155,63 @@ describe("refuseIfInsideRepo", () => {
     exitSpy.mockRestore();
     errorSpy.mockRestore();
   });
+
+  /**
+   * `resolve()` normalises `..` away, so this is the guard working as
+   * intended rather than a hole — asserted because the normalisation is the
+   * whole reason a `..` path cannot be used to smuggle a real shelter file
+   * back into the working tree under a different-looking name.
+   */
+  it("exits for a path that leaves the repository and comes back via ..", () => {
+    vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit called");
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const repoRoot = resolve(fileURLToPath(import.meta.url), "../../../..");
+    // Assembled with `sep` rather than `join`, which would normalise the
+    // `..` away here in the test and leave the guard's own normalisation
+    // untested.
+    const roundTrip = [
+      repoRoot,
+      "..",
+      basename(repoRoot),
+      "packages",
+      "db",
+      "test",
+      "onboard-shelter.test.ts",
+    ].join(sep);
+    expect(roundTrip, "the path under test must actually contain a .. segment").toContain("..");
+    expect(() => refuseIfInsideRepo(roundTrip)).toThrow("process.exit called");
+
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Windows-only because it is a Windows-only hole, and this script is run
+   * from a Windows machine (`CLAUDE.md`'s "Windows development notes"): NTFS
+   * is case-insensitive, so `d:...` and `D:...` name the same file, and a
+   * case-sensitive `startsWith` against the repo root would let the
+   * lowercase spelling through. Fails on that platform if `canonicalPath`
+   * stops case-folding; on POSIX a differently-cased path is a genuinely
+   * different file, so there is nothing to assert.
+   */
+  it.runIf(process.platform === "win32")(
+    "exits for a differently-cased spelling of a path inside the repository",
+    () => {
+      const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+        throw new Error("process.exit called");
+      });
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const inRepo = fileURLToPath(import.meta.url);
+      expect(() => refuseIfInsideRepo(inRepo.toLowerCase())).toThrow("process.exit called");
+      expect(() => refuseIfInsideRepo(inRepo.toUpperCase())).toThrow("process.exit called");
+      expect(exitSpy).toHaveBeenCalled();
+
+      vi.restoreAllMocks();
+    },
+  );
 
   it("does not exit for a path outside the repository", () => {
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
