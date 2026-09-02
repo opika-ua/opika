@@ -317,7 +317,7 @@ into `gallery.list`'s output per `docs/gallery-contract-decisions.md` §3.
 | H1 | Image pipeline — R2, presigned upload, `sharp` variants, CDN. Replaces E1.5's `apps/web/src/image-loader.ts` stub — the app's single `next/image` loader — with real R2/CDN URL construction, which is a change to that one file and not to any call site in `AnimalCard`/`SwipeCard`, and retires E1.5's committed placeholder photos | 10 |
 | H2 | Internal admin — animal/shelter CRUD, CSV import, **desktop layouts** (addition — the original plan assumed a single admin form factor) | 12 |
 | H3 | i18n — next-intl wiring, uk + en message files, full-ICU boot assertion. Also: native-speaker review of `pluralizeUk`'s output (`packages/domain/src/primitives/plural.ts`, added E2) across every noun form it composes — verified mechanically (`Intl.PluralRules('uk')` boundaries, tested at 1/2/5/11/21/22) but not by a native speaker, and animate feminine nouns plus accusative government under case-governing verbs ("Знайдено" vs "Підходить") is not something rule-reasoning alone reliably gets right | 4 |
-| H3.5 | Perf pass — **addition**, sits here rather than V2 or its own phase because all three items bundle naturally once H3 lands: e-Ukraine subsetting (Cyrillic + Latin basic + punctuation; deferred from V2 specifically because the glyph set isn't final until H3's English strings and native-speaker Ukrainian pass exist — and stays generous even then, since a shelter's free-text `freshnessSentence` isn't a set anyone controls, so this subsets to a wide net rather than a tight one), the `next/image` `sizes` attribute overshoot, and the image-loading priority heuristic. 95 KB across three weights isn't worth a dedicated pass on its own; bundled with the other two, it is | 3 |
+| H3.5 | Perf pass — **addition**, sits here rather than V2 or its own phase because all three items bundle naturally once H3 lands: e-Ukraine subsetting (Cyrillic + Latin basic + punctuation; deferred from V2 specifically because the glyph set isn't final until H3's English strings and native-speaker Ukrainian pass exist — and stays generous even then, since a shelter's free-text `freshnessSentence` isn't a set anyone controls, so this subsets to a wide net rather than a tight one), ~~the `next/image` `sizes` attribute overshoot~~ (**done** — H1's real-R2 verification pass measured it as a live 2.1× overfetch on phones rather than a theoretical overshoot, and it was fixed in #48 and #50 with a variant-selection harness lock; nothing left here), and the image-loading priority heuristic. 95 KB across three weights isn't worth a dedicated pass on its own; bundled with the other two, it is | 3 |
 | H4 | PWA — Serwist, manifest, offline shell, Lighthouse pass | 8 |
 | H5 | Observability + legal — Sentry, PostHog, privacy policy (GDPR), consent handling, e-Ukraine's CC BY 4.0 attribution (licence file + user-reachable credit — should already exist from V2; this is the launch-readiness check that it's still there and still correct, not the first time it's added). Vercel Analytics + Speed Insights landed early, in Phase F — see `docs/stack-decision.md`'s "Amendment, Phase F" note; this row still owns the privacy policy and consent handling that should have accompanied them | 10 |
 | H6 | Real shelter data + soft launch — onboard 5–10 shelters, verify each through the FSM, spot-check every listing | 12 |
@@ -329,6 +329,62 @@ photo produces all variants and renders through the CDN; a shelter and its anima
 added and verified without touching SQL; locale switch preserves route and state; the app
 installs on Android with Lighthouse ≥90; a thrown error appears in Sentry within a minute;
 5+ verified shelters and 50+ live animals at soft launch.
+
+---
+
+### Phase T — Trust and wayfinding
+
+Added after the post-Phase F design and copy critiques (`docs/design-critique.md`,
+`docs/copy-and-ia-critique.md`). Not a polish phase, and the distinction is the whole
+reason it exists: of eighteen findings across both documents, almost nothing that was
+*built* is wrong — the reveal modal matches its mock down to the shadow value, touch-target
+spacing is clean, register is consistent, every error state pairs what happened with what to
+do. The findings that matter are about **surfaces that do not exist**. This phase builds
+them.
+
+It sits before **H6** (real shelter data + soft launch), not after. H6 is the point where a
+volunteer is emailed a link, and T2 below is the page that link goes to.
+
+| # | Task | h |
+|---|---|---|
+| T1 | A header on every user-facing surface except the deck, carrying the wordmark and links to «Про проєкт» and «Для притулків». Closes critique E5 (the about page was linked from exactly one place in the whole app), E1 (a shared detail-page link arrived with no brand and no route to context), B2 (the detail header dropped the wordmark, contradicting mock D1) and E7. Takes the header to the design's own 64/88 heights in the same component (A2). **Deliberately not the deck** — `docs/design/README.md:589` states the deck's header replaces the gallery's, "never two navigations at once" | 3 |
+| T2 | «Для притулків» — the first surface in this project written for shelters rather than adopters, and the page an outreach message links to. Closes E3. Structure and argument in `docs/prytulkam-argument.md`; the Ukrainian is written from that structure, not translated from it | 4 |
+| T3 | A1 — reset the gallery card name to display-s (24/28) at desktop and wide. The compact 22/26 belongs to the 600–1023 horizontal card only, and was never un-set | 0.5 |
+| T4 | D1 — remove `pagination.footnote`, the product explaining its own engineering to an adopter who did not ask. `noMatch.suggestionExplainer` was **kept**: the critique described both as stray doc-comment text, but that one is verbatim mock copy (`Opika Registry System.dc.html:275`, frame B4), so cutting it would have been a design override rather than a copy fix | 0.5 |
+| T5 | C1 — one 25+ character animal name and one long shelter name in the seed corpus, so truncation is exercised near its limit permanently rather than by a manual check nobody repeats | 0.5 |
+
+**Total: ~8.5 h.**
+
+**Done when:** every user-facing surface but the deck carries the wordmark and both nav
+links, measured in a real browser; the header meets 64/88; a shelter can read what joining
+involves, what verification means, and what to prepare, without emailing first; the card
+name is 24/28 on every vertical card; and the seed corpus contains a name long enough to
+make `truncate` engage.
+
+**Explicitly not in this phase, accepted rather than deferred** — recorded so they are not
+rediscovered as new findings: A4 (0.2px of tracking at 44px), A3 (desktop padding 60px vs
+the spec's 32px — document whether it was intentional, then leave it), B1 (grid row-stretch
+whitespace, an observation), B3 (the first-run band above a zero-result state — revisit if
+the no-match state is touched), C4 (the Ukrainian "11" plural boundary was unreachable on
+the live corpus; `packages/domain`'s own tests cover it), D3 (`freshness.attribution`'s
+middot-joined fragments — folds into H3's native-speaker pass), E4 (no report-a-stale-listing
+path; with five shelters the maintainer *is* the reporting channel), E2 (downstream of E1).
+
+**Checked, not fixed, and paired with real work rather than manufactured:** C6 — the detail
+page's photo crop against real source aspect ratios. It concerns photographs of animals,
+which is the product, and it is genuinely unverified. It becomes checkable the moment a real
+shelter's photos land, so it belongs to the first onboarding (H6), not to a pass that would
+need invented test images.
+
+**Not in this phase, pending a measurement:** C7 — dark mode is fully specified in
+`docs/design/README.md` (8 tokens, each with a measured contrast ratio) and entirely
+unimplemented; there is no `prefers-color-scheme` or `dark:` rule anywhere in `globals.css`.
+The critique established that the media query never fires, which is *not* the same as
+establishing severity: Android Chrome's Auto Dark Theme does not read that query, it
+actively rewrites colours on pages that do not declare dark support, and it handles a warm
+cream ground (`#ECECEA`) worst of all. So the real question — "some users see a light page"
+versus "some users see a mangled page" — is unanswered until it is checked on real Android
+hardware with forced dark mode on. That check gates whether this is a phase or a shrug.
 
 ---
 

@@ -1,5 +1,5 @@
 import { uk } from "@opika/i18n";
-import Link from "next/link";
+import { SiteHeader } from "../../features/chrome/SiteHeader";
 
 export const metadata = { title: `${uk.about.title} — Opika` };
 
@@ -25,14 +25,7 @@ export const metadata = { title: `${uk.about.title} — Opika` };
 export default function AboutPage() {
   return (
     <div className="font-rg min-h-dvh bg-rg-page">
-      <header className="min-h-14 tablet:min-h-16 desktop:min-h-17 flex items-center bg-rg-surface px-4 tablet:px-6 desktop:px-15">
-        <Link
-          href="/tvaryny"
-          className="font-bold text-[19px] text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] rounded-rg-button"
-        >
-          Opika
-        </Link>
-      </header>
+      <SiteHeader />
 
       <div className="max-w-[640px] mx-auto p-4 tablet:p-6 desktop:py-16 flex flex-col gap-6">
         <h1 className="font-bold text-[34px]/[38px] desktop:text-[44px]/[46px] tracking-[-0.03em] text-rg-ink">

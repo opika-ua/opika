@@ -259,7 +259,19 @@ test.describe("/tvaryny filters — work with JavaScript disabled", () => {
     // "would this fail if the thing it guards were broken" case
     // docs/standing-constraints.md rules out. Walking the tab order is the
     // only version of this test that can fail for the reason it names.
-    const MAX_TAB_PRESSES = 12;
+    /**
+     * 12 before Phase T, 14 after: `SiteHeader` added two site-nav links
+     * («Для притулків», «Про проєкт») ahead of the content, which is exactly
+     * the order docs/design/README.md:763 specifies — header, then rail, then
+     * sort, then cards in reading order.
+     *
+     * Kept tight rather than made generous. Its job is not only "the card is
+     * reachable at all" — a roving tabindex would leave it unreachable at any
+     * bound — but "the content is not receding behind chrome," and a number
+     * nudged upward whenever something is added to the header would quietly
+     * stop measuring the second thing.
+     */
+    const MAX_TAB_PRESSES = 14;
     let presses = 0;
     let reachedFirstCard = false;
     while (presses < MAX_TAB_PRESSES && !reachedFirstCard) {

@@ -5,6 +5,18 @@
  * to next-intl message files without touching components. Keys mirror
  * the design string table in docs/design/.
  */
+
+/**
+ * Marks a string whose real Ukrainian has not been written yet.
+ *
+ * A distinctive, greppable sentinel rather than an empty string or a bare
+ * "TODO": an empty value renders as a silently missing paragraph, and a
+ * "TODO" is indistinguishable from the several hundred legitimate ones in a
+ * codebase. This one cannot be mistaken for copy by a reader, a reviewer, or
+ * a grep, and `forSheltersPlaceholdersRemaining()` counts it.
+ */
+export const COPY_PENDING = "[COPY PENDING]";
+
 export const uk = {
   // --- 01 First run — docs/design/README.md:427, a band above the
   // gallery grid (FirstRunBand.tsx), not a separate screen ---
@@ -344,9 +356,6 @@ export const uk = {
      * so this is the shortcut past them, not decoration.
      */
     skipLink: "Перейти до сторінок",
-    footnote:
-      "Сторінки, а не безкінечна стрічка: у кожної сторінки своя адреса, кнопка «назад» " +
-      "працює, і посилання можна надіслати в Telegram.",
   },
 
   // --- Gallery no-match (B4), docs/design/README.md, "Gallery states" > "No match" ---
@@ -436,7 +445,22 @@ export const uk = {
      * Verbatim text from the licence file; do not paraphrase. */
     fontCredit:
       "Шрифт e-Ukraine — Міністерство цифрової трансформації України (thedigital.gov.ua/fonts), Дмитро Растворцев / Fedoriv, CC BY 4.0.",
+  },
+
+  /**
+   * Phase T. The site-wide header's own links, shared with the gallery
+   * footer — `footer.about` used to hold this same string separately, which
+   * meant one concept in two keys the moment the header started rendering
+   * it too.
+   *
+   * Not in `docs/design/README.md`'s own header content list (line 337 gives
+   * mark + wordmark, city chip, «Мої запити · N», «UA / EN», «Гортати по
+   * одній») — composed for Phase T to close the critique's E5/E1/E3, and
+   * recorded as composition rather than specification.
+   */
+  nav: {
     about: "Про проєкт",
+    forShelters: "Для притулків",
   },
 
   /**
@@ -457,5 +481,52 @@ export const uk = {
     analytics:
       "Реєстр збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко працюють сторінки — без кукі і без реклами.",
     contact: "Зв'язатися з розробником: {contact}",
+  },
+
+  /**
+   * «Для притулків» (Phase T) — the first surface in this project written
+   * for shelters rather than adopters, and the page an outreach message
+   * links to.
+   *
+   * ⚠ EVERY VALUE BELOW IS A PLACEHOLDER AND MUST NOT SHIP. The Ukrainian is
+   * written by the maintainer, from `docs/prytulkam-argument.md`'s structure
+   * — *from* it, not translated from the English hints here. Translating
+   * sentence-by-sentence is how calques get in, and the copy critique (D3)
+   * already found one construction in this catalogue that reads translated.
+   *
+   * `forSheltersPlaceholdersRemaining()` (packages/i18n) counts what is left
+   * and `messages.test.ts` reports it, so the number is visible rather than
+   * discovered later. The argument document is the spec for what each key
+   * has to establish and — for `whyThatSentence`, the hardest one — what it
+   * must not sound like.
+   */
+  forShelters: {
+    title: "Для притулків",
+    /** §1 — one sentence. What this is. Nothing else. */
+    whatThisIs: `${COPY_PENDING} 1. What this is — a register of animals from verified shelters in Kyiv oblast, one sentence.`,
+    /** §2 — free now and later. Early, because it is what they are bracing for. */
+    cost: `${COPY_PENDING} 2. What it costs — nothing, now and later. No paid tier, no expiring trial.`,
+    /** §3 — a page each, with photographs, shareable. */
+    whatHappensToAnimals: `${COPY_PENDING} 3. What happens to their animals — a page each, with photographs, at an address that can be sent to someone.`,
+    /** §4 — the trust section. People write to THEM; Opika never speaks for them. */
+    whoContactsWhom: `${COPY_PENDING} 4. Who contacts whom — adopters write to the shelter directly; Opika never contacts an adopter on their behalf and never speaks for them.`,
+    /** §4, its own sentence — no queue of leads, no obligation. */
+    noObligation: `${COPY_PENDING} 4b. The shelter does not learn someone looked until that person writes themselves. No lead queue, nothing to answer.`,
+    /** §5 — never touched; their own donation page, destination visible first. */
+    money: `${COPY_PENDING} 5. Money — never touched. Their own donation page is linked and the destination is visible before the tap.`,
+    /** §6 — concrete, not reassuring-sounding. A person checks; here is what that is. */
+    verification: `${COPY_PENDING} 6. What "verified" means — a person checks. Registered orgs show EDRPOU and a bank record plus one reference; unregistered volunteer groups substitute a visit and two independent references.`,
+    /** §6 — the bar was set so an unregistered group can clear it. */
+    verificationOpenToVolunteers: `${COPY_PENDING} 6b. A "visit" includes a real phone conversation. A reference must be someone other than the shelter itself.`,
+    /** §7 — practical, short, answerable in ten seconds. Not a form. */
+    whatToPrepare: `${COPY_PENDING} 7. What to prepare — photographs, a short description per animal, contact details they answer on, a donation link if they have one.`,
+    /** §8 — the paragraph needing the most care. See the argument doc. */
+    whyThatSentence: `${COPY_PENDING} 8. Why we ask for one sentence about how current their listings are — listings go stale everywhere, most registries hide it, we will not pretend theirs are fresher than they are, and the site shows how recently they confirmed, in their voice.`,
+    /** §9 — honest about the mechanism, which is a message today. */
+    whenAnimalFindsHome: `${COPY_PENDING} 9. When an animal finds a home — tell us, and it matters more than adding new ones. Currently a message, handled by hand; there is no self-serve edit yet.`,
+    /** §10 — a named person, not "our team". */
+    whoIsBehindThis: `${COPY_PENDING} 10. Who is behind this — one named person, outside of work, no team and no investor.`,
+    /** §11 — one instruction, and what happens next. */
+    howToStart: `${COPY_PENDING} 11. How to start — write to {contact}. Then a conversation, then verification, then the animals go up.`,
   },
 } as const;

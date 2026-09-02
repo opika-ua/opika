@@ -12,6 +12,8 @@
  * native-speaker read yet, and next-intl isn't wired until H3, so nothing
  * here is user-visible in production today.
  */
+import { COPY_PENDING } from "./uk";
+
 export const en = {
   // --- 01 First run — a band above the gallery grid, not a separate screen ---
   firstRun: {
@@ -241,9 +243,6 @@ export const en = {
     current: "current",
     ofTotal: "of {total}",
     skipLink: "Skip to pages",
-    footnote:
-      "Pages, not an endless feed: every page has its own address, the back button works, " +
-      "and the link can be sent on Telegram.",
   },
 
   // --- Gallery no-match (B4) — see the uk key's own note ---
@@ -278,7 +277,12 @@ export const en = {
   footer: {
     fontCredit:
       "e-Ukraine typeface — Ukraine's Ministry of Digital Transformation (thedigital.gov.ua/fonts), Dmytro Rastvortsev / Fedoriv, CC BY 4.0.",
+  },
+
+  // --- Site-wide header links (Phase T) — see the uk key's own note ---
+  nav: {
     about: "About",
+    forShelters: "For shelters",
   },
 
   // --- About page — see the uk key's own note ---
@@ -294,5 +298,31 @@ export const en = {
       "The registry collects basic visit statistics — how many people visit and how fast the pages load — with no cookies and no advertising.",
     /** Template: "Get in touch: {contact}" */
     contact: "Get in touch: {contact}",
+  },
+
+  /**
+   * «Для притулків» (Phase T) — see the uk key's own note.
+   *
+   * ⚠ Pending in BOTH locales, deliberately. The Ukrainian is written first,
+   * from `docs/prytulkam-argument.md`; the English is written from the
+   * finished Ukrainian at H3's native-speaker pass, not the other way round.
+   * Filling this side in first would make it the de-facto source and
+   * reintroduce exactly the translated-from-English register D3 flagged.
+   */
+  forShelters: {
+    title: "For shelters",
+    whatThisIs: `${COPY_PENDING} 1. What this is — one sentence.`,
+    cost: `${COPY_PENDING} 2. What it costs — nothing, now and later.`,
+    whatHappensToAnimals: `${COPY_PENDING} 3. What happens to their animals.`,
+    whoContactsWhom: `${COPY_PENDING} 4. Who contacts whom.`,
+    noObligation: `${COPY_PENDING} 4b. No lead queue, nothing to answer.`,
+    money: `${COPY_PENDING} 5. Money — never touched.`,
+    verification: `${COPY_PENDING} 6. What "verified" means.`,
+    verificationOpenToVolunteers: `${COPY_PENDING} 6b. Open to unregistered volunteer groups.`,
+    whatToPrepare: `${COPY_PENDING} 7. What to prepare.`,
+    whyThatSentence: `${COPY_PENDING} 8. Why we ask for the freshness sentence.`,
+    whenAnimalFindsHome: `${COPY_PENDING} 9. When an animal finds a home.`,
+    whoIsBehindThis: `${COPY_PENDING} 10. Who is behind this.`,
+    howToStart: `${COPY_PENDING} 11. How to start — write to {contact}.`,
   },
 } as const;

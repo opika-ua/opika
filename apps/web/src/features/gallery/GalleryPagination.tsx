@@ -159,10 +159,20 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
         </span>
       )}
 
-      {/* Not part of any mock frame — an explanatory footnote E3 added on
-        its own, predating V2. Recoloured to the new tokens, left in place:
-        removing it would be a content decision this phase isn't making. */}
-      <p className="mt-2 w-full text-[13px]/[18px] text-rg-ink-3">{uk.pagination.footnote}</p>
+      {/*
+        The footnote that used to sit here («Сторінки, а не безкінечна
+        стрічка: у кожної сторінки своя адреса…») is gone — Phase T, critique
+        finding D1. It was never part of any mock frame; E3 added it, and the
+        comment here previously said removing it "would be a content decision
+        this phase isn't making." This is that decision: it was the product
+        explaining its own engineering to an adopter who did not arrive
+        wondering why the gallery isn't infinite-scroll.
+
+        `filters.railFooter` is the model for what earns a place — it also
+        explains a design absence, but aimed at an adopter's real worry (does
+        an old listing mean the animal is gone?) rather than at the
+        interface's philosophy. It stays.
+      */}
     </nav>
   );
 }

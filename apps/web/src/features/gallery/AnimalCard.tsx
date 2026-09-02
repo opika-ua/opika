@@ -166,7 +166,17 @@ export function AnimalCard({
         <div className="flex flex-col gap-1">
           <span
             data-testid="card-name"
-            className="font-bold text-[24px]/[28px] tablet:text-[22px]/[26px] tracking-[-0.02em] text-rg-ink truncate"
+            /*
+              `desktop:text-[24px]/[28px]` restores display-s above 1024
+              (critique A1). The compact 22/26 step belongs to the 600-1023
+              *horizontal* card only — docs/design/README.md's Scale table:
+              "Mobile card name drops to 22/26·700·−0.02em on the compact
+              horizontal card." The class was written for that case and never
+              un-set, so the vertical card at desktop and wide — the majority
+              of desktop visitors — rendered an undersized name for two of the
+              four documented breakpoints.
+            */
+            className="font-bold text-[24px]/[28px] tablet:text-[22px]/[26px] desktop:text-[24px]/[28px] tracking-[-0.02em] text-rg-ink truncate"
           >
             {card.name}
           </span>
