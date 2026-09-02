@@ -45,5 +45,16 @@ export async function validateLocalPhoto(resolvedPath: string): Promise<LocalPho
   if (!metadata.width || !metadata.height) {
     throw new Error(`Photo file has no readable dimensions: ${resolvedPath}`);
   }
-  return { width: metadata.width, height: metadata.height };
+  // sharp's metadata() reports the STORED pixel grid, not the displayed
+  // orientation — EXIF Orientation 5-8 means a 90°/270° rotation, so the
+  // stored width/height are transposed relative to how the photo actually
+  // displays (and how `generateVariants`' own `.rotate()` will output it).
+  // Round-1 review found this missing: without the swap, a portrait phone
+  // photo stored with a rotation tag would report landscape dimensions,
+  // and AnimalPhoto.width/height (which downstream code trusts as real —
+  // packages/domain/src/animals/photo.ts's aspectRatio()) would be wrong.
+  const isRotated90or270 = metadata.orientation !== undefined && metadata.orientation >= 5;
+  return isRotated90or270
+    ? { width: metadata.height, height: metadata.width }
+    : { width: metadata.width, height: metadata.height };
 }

@@ -85,7 +85,7 @@ export function isRealPhotoKey(storageKey: string): boolean {
   return storageKey.startsWith("animals/");
 }
 
-/** The public URL the browser actually fetches — `R2_PUBLIC_BASE_URL` + the derived variant key. */
+/** The public URL the browser actually fetches — `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` + the derived variant key. */
 export function r2PublicUrl(
   publicBaseUrl: string,
   storageKey: string,
@@ -93,4 +93,14 @@ export function r2PublicUrl(
 ): string {
   const base = publicBaseUrl.endsWith("/") ? publicBaseUrl.slice(0, -1) : publicBaseUrl;
   return `${base}/${variantObjectKey(storageKey, variant)}`;
+}
+
+/**
+ * R2's S3-compatible API endpoint, derived from the account id — a string
+ * derivation, not a network call, so round-1 review moved it out of
+ * `r2-client.ts` (the one file in this module that's genuinely untestable
+ * without a real bucket) into this pure, tested one.
+ */
+export function r2EndpointUrl(accountId: string): string {
+  return `https://${accountId}.r2.cloudflarestorage.com`;
 }

@@ -1,4 +1,5 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { r2EndpointUrl } from "./variants";
 
 /**
  * Deliberately thin — `put`, nothing else. Every decision that isn't "make
@@ -33,7 +34,7 @@ export interface R2Config {
 export function createR2Client(config: R2Config): ImageStorageClient {
   const client = new S3Client({
     region: "auto",
-    endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
+    endpoint: r2EndpointUrl(config.accountId),
     credentials: {
       accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey,

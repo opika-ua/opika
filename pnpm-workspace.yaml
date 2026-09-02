@@ -70,7 +70,14 @@ catalog:
   # at upload time (packages/db/src/image-pipeline); @aws-sdk/client-s3
   # talks to R2's S3-compatible API — the standard client Cloudflare's own
   # docs point to, no lighter official alternative exists.
-  sharp: 0.35.4
+  #
+  # 0.35.3, not 0.35.4 — round-1 review found next@16.3.0 already carries
+  # sharp@0.35.3 as its own optional dependency (Next's built-in image
+  # optimizer can use it), so pinning the same version here dedupes the
+  # native binary download instead of installing both. Not the newest
+  # cleared version for its own sake; matching an existing resolution
+  # already in the tree, same reasoning CLAUDE.md's own tsx pin gives.
+  sharp: 0.35.3
   "@aws-sdk/client-s3": 3.1123.0
 
 allowBuilds:

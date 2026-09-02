@@ -5,6 +5,7 @@ import {
   IMAGE_VARIANTS,
   isRealPhotoKey,
   nearestVariant,
+  r2EndpointUrl,
   r2PublicUrl,
   variantObjectKey,
 } from "./variants";
@@ -82,6 +83,12 @@ describe("r2PublicUrl", () => {
     expect(r2PublicUrl("https://cdn.example.com/", "animals/x/0", "card")).toBe(
       "https://cdn.example.com/animals/x/0/card.webp",
     );
+  });
+});
+
+describe("r2EndpointUrl", () => {
+  it("builds R2's S3-compatible endpoint from the account id", () => {
+    expect(r2EndpointUrl("abc123")).toBe("https://abc123.r2.cloudflarestorage.com");
   });
 });
 

@@ -186,11 +186,18 @@ R2_BUCKET_NAME=<your R2 bucket name> \
 ```
 
 If it fails partway through (network blip, a typo caught mid-run), just
-run the exact same command again — already-inserted rows are detected by
-their stable id and skipped, not duplicated. A photo that already uploaded
-successfully re-uploads on a retry (uploading is not currently
-skip-if-exists the way the database insert is) — harmless, since the
-result is identical bytes at the same key, just not free.
+run the exact same command again — each animal's existence is checked
+*before* its photos are uploaded, so an already-inserted animal is
+skipped entirely (no re-upload, no re-insert) and only the animals that
+never made it through the first time do any work.
+
+**A re-run does not update an existing animal** — if you edit a photo
+list (add or replace a file) for an animal that already exists, the
+script warns loudly (`WARNING: ... already exists with N photo(s), but
+this input now lists M`) and does nothing further for that animal:
+no upload, no insert, no change. There's no update path yet — treat an
+onboarded animal's photos as fixed once inserted, or ask for this to be
+built if you need to correct one.
 
 ## Where `LOCATION_HMAC_SECRET` comes from
 

@@ -36,11 +36,13 @@ If this turns out wrong once real photos exist (e.g. `card` reads soft on some d
 Per your instruction, the web app requires only the public read side; write credentials never reach Vercel — same shape as `LOCATION_HMAC_SECRET`'s split, for the same reason (the onboarding script runs from an operator's machine, never through the deployed instance):
 
 - **Operator-only, local shell, never in Vercel**: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`
-- **Deployed app, `validateEnv()`'s required schema**: `R2_PUBLIC_BASE_URL`
+- **Deployed app, `validateEnv()`'s required schema**: `NEXT_PUBLIC_R2_PUBLIC_BASE_URL`
 
-**This is a real risk, not a formality — flagging it loudly rather than burying it in a diff.** Unlike `LOCATION_HMAC_SECRET` (deliberately kept *out* of the required schema to avoid exactly this), `R2_PUBLIC_BASE_URL` going into `validateEnv()`'s required list means **the next production deploy refuses to boot if it isn't set in Vercel first** — `validateEnv()` runs at `instrumentation.ts`'s `register()`, before the instance accepts its first request, same as `DATABASE_URL`/`CURSOR_HMAC_SECRET` today. Today's live site has zero real R2-hosted photos (every animal is still a seed placeholder, which never touches R2 at all), so this env var currently does nothing for the live site — until this code merges, at which point it becomes load-bearing immediately. **Action item, blocking, before this branch merges to `main`: set `R2_PUBLIC_BASE_URL` in Vercel (Production and Preview).** I can't do this myself — same reason I couldn't generate `LOCATION_HMAC_SECRET`'s value for you, except this one actually breaks the site if skipped, that one didn't.
+**This is a real risk, not a formality — flagging it loudly rather than burying it in a diff.** Unlike `LOCATION_HMAC_SECRET` (deliberately kept *out* of the required schema to avoid exactly this), `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` going into `validateEnv()`'s required list means **the next production deploy refuses to boot if it isn't set in Vercel first** — `validateEnv()` runs at `instrumentation.ts`'s `register()`, before the instance accepts its first request, same as `DATABASE_URL`/`CURSOR_HMAC_SECRET` today. Today's live site has zero real R2-hosted photos (every animal is still a seed placeholder, which never touches R2 at all), so this env var currently does nothing for the live site — until this code merges, at which point it becomes load-bearing immediately. **Action item, blocking, before this branch merges to `main`: set `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` in Vercel (Production and Preview).** I can't do this myself — same reason I couldn't generate `LOCATION_HMAC_SECRET`'s value for you, except this one actually breaks the site if skipped, that one didn't.
 
-Local dev and the harness are unaffected either way — `validateEnv()` only enforces when `NODE_ENV === "production"`, so nothing here changes what you need running locally.
+**Round-1 review correction — `validateEnv()`'s check is real but incomplete, found by inspecting an actual built client bundle, not assumed.** `NEXT_PUBLIC_*` values are inlined into the client bundle at *build* time; `validateEnv()` checks the *server's* live `process.env` at *boot*. Those can disagree — a promoted or rolled-back build, or any build job that doesn't forward this var, ships a client bundle that throws on hydration for every real photo, on a server instance whose own `validateEnv()` still passes cleanly. `next.config.ts` now carries the actual load-bearing check (gated on `process.env.VERCEL`, so a bare local `next build` / CI's structural check doesn't require a real CDN domain) — see its own comment and `apps/web/src/api/env.ts`'s corrected one.
+
+Local dev and the harness are unaffected either way — `validateEnv()` only enforces when `NODE_ENV === "production"`, so nothing here changes what you need running locally. (The harness's own webServer runs `next start` in production mode and needed a placeholder value added to `playwright.config.ts` for this reason — see that file's own comment.)
 
 ## What stays unverified until a real bucket exists
 
@@ -50,6 +52,6 @@ Per your rule 1 — listed explicitly, not asserted as done:
 - CORS configuration on the real bucket
 - Content-type headers actually served back by R2/the CDN
 - Auth (does the access key/secret pair actually authenticate)
-- Whether `R2_PUBLIC_BASE_URL` + a real object key actually resolves to a working image over HTTP
+- Whether `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` + a real object key actually resolves to a working image over HTTP
 
 Per rule 2 — the adapter carrying all of that is a `put(key, buffer, contentType)` / `get(key)` interface, nothing else. Every decision above it (which variants, what key, what URL) is a pure function, tested with real image fixtures and no network.

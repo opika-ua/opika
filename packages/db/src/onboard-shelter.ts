@@ -471,6 +471,26 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // `noUncheckedIndexedAccess` types every `animalPhotoValidations[i]` as
+  // possibly-undefined, even though `Promise.all(input.animals.map(...))`
+  // above makes an out-of-bounds index structurally impossible — same
+  // length, same order, every time. Round-1 review found the original code
+  // defaulting to `?? []`/`?? 0` at each call site instead: a real index
+  // mismatch (a future refactor breaking the 1:1 correspondence) would
+  // then silently insert a photoless animal rather than failing loudly,
+  // exactly the kind of "theoretically fine" gap standing-constraints.md
+  // warns about. One throwing accessor instead of four silent defaults.
+  function validatedPhotosFor(index: number): Awaited<ReturnType<typeof validateAnimalPhotos>> {
+    const validated = animalPhotoValidations[index];
+    if (!validated) {
+      throw new Error(
+        `Internal error: no photo validation result for animal index ${index} — ` +
+          "animalPhotoValidations should always have one entry per input.animals.",
+      );
+    }
+    return validated;
+  }
+
   // The whole point of this gate: prove productionLocationPolicy actually
   // ran before anything touches the database. Every animal below inherits
   // this one computed value (publicLocation: null → the shelter's), so
@@ -498,7 +518,7 @@ async function main(): Promise<void> {
   console.log(`\nShelter id:  ${shelter.id}`);
   console.log(`Animals (${input.animals.length}):`);
   for (const [i, animalInput] of input.animals.entries()) {
-    const photoCount = animalPhotoValidations[i]?.length ?? 0;
+    const photoCount = validatedPhotosFor(i).length;
     console.log(
       `  ${animalIdFor(animalInput.idSeed)}  ${animalInput.name}  ` +
         `(${photoCount} photo(s) found and validated, not yet uploaded)`,
@@ -543,18 +563,6 @@ async function main(): Promise<void> {
     bucketName: r2BucketName,
   });
 
-  // NOT VERIFIED against a real bucket until this actually runs against
-  // one — see docs/h1-decisions.md's explicit list (auth, CORS,
-  // content-type, whether the public URL resolves).
-  const animals: Animal[] = [];
-  for (const [i, animalInput] of input.animals.entries()) {
-    const validated = animalPhotoValidations[i] ?? [];
-    const animalId = animalIdFor(animalInput.idSeed);
-    console.log(`Uploading ${validated.length} photo(s) for ${animalInput.name}...`);
-    const photos = await uploadAnimalPhotos(r2, animalId, validated);
-    animals.push(buildAnimal(animalInput, photos, shelter.id, now));
-  }
-
   // The connection is opened here and closed explicitly below, rather than
   // through `createDatabase`, which keeps its `postgres.Sql` private. Without
   // the `end()`, postgres.js holds an idle socket open and the script never
@@ -587,15 +595,42 @@ async function main(): Promise<void> {
     console.log(`\nInserted shelter ${shelter.id}.`);
   }
 
+  // Existence checked BEFORE uploading, not after — round-1 review found
+  // the original order (upload every animal's photos, then check
+  // existence) wasted a real upload on every already-inserted animal on
+  // every retry, and — worse — silently discarded an edited photo list:
+  // an operator re-running after adding or replacing a photo would see
+  // "Uploading N photo(s)..." followed by "skipped, already present" and
+  // reasonably conclude the new photo landed. It uploaded to R2 and was
+  // never referenced by the animal row. This order makes that
+  // undetectable case detectable instead: a real, loud warning naming the
+  // mismatch, rather than a silent no-op.
+  //
+  // NOT VERIFIED against a real bucket until this actually runs against
+  // one — see docs/h1-decisions.md's explicit list (auth, CORS,
+  // content-type, whether the public URL resolves).
   let insertedCount = 0;
   let skippedCount = 0;
-  for (const animal of animals) {
-    const existingAnimal = await animalsRepo.findById(animal.id);
+  for (const [i, animalInput] of input.animals.entries()) {
+    const animalId = animalIdFor(animalInput.idSeed);
+    const validated = validatedPhotosFor(i);
+    const existingAnimal = await animalsRepo.findById(animalId);
     if (existingAnimal) {
       skippedCount += 1;
+      if (existingAnimal.photos.length !== validated.length) {
+        console.log(
+          `\nWARNING: ${animalInput.name} (${animalId}) already exists with ` +
+            `${existingAnimal.photos.length} photo(s), but this input now lists ` +
+            `${validated.length}. Nothing was uploaded or changed for ` +
+            "this animal — re-running does not update an existing row. If the photo list " +
+            "genuinely changed, this needs a real update path, not a re-run of this script.",
+        );
+      }
       continue;
     }
-    await animalsRepo.insert(animal, cityId);
+    console.log(`Uploading ${validated.length} photo(s) for ${animalInput.name}...`);
+    const photos = await uploadAnimalPhotos(r2, animalId, validated);
+    await animalsRepo.insert(buildAnimal(animalInput, photos, shelter.id, now), cityId);
     insertedCount += 1;
   }
 

@@ -16,6 +16,7 @@ export {
   type ImageVariantName,
   isRealPhotoKey,
   nearestVariant,
+  r2EndpointUrl,
   r2PublicUrl,
   variantObjectKey,
 } from "./variants";
