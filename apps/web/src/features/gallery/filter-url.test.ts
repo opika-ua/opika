@@ -1,8 +1,11 @@
 import { ANY, type CityId, NO_FILTERS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
+  deckEntryHref,
+  filtersInWords,
   galleryHref,
   galleryPageHref,
+  parseDeckQuery,
   parseGalleryQuery,
   resetFiltersHref,
   withToggledAge,
@@ -167,5 +170,69 @@ describe("galleryPageHref", () => {
     expect(galleryPageHref(NO_FILTERS, "longest_waiting", 2)).toBe(
       "/tvaryny?sort=longest_waiting&stor=2",
     );
+  });
+});
+
+describe("deckEntryHref / parseDeckQuery", () => {
+  it("round-trips filters and carries the total through, with no sort/page params at all", () => {
+    const filters = withToggledSpecies(withToggledCity(NO_FILTERS, CITY_A), "dog");
+    const href = deckEntryHref(filters, 34);
+
+    expect(href).not.toContain("sort=");
+    expect(href).not.toContain("stor=");
+
+    const reparsed = parseDeckQuery(Object.fromEntries(new URL(href, "http://x").searchParams));
+    expect(reparsed).toEqual({ filters, total: 34 });
+  });
+
+  it("an unfiltered gallery produces a bare href with only the total", () => {
+    expect(deckEntryHref(NO_FILTERS, 320)).toBe("/tvaryny/gortaty?total=320");
+  });
+
+  it("parseDeckQuery falls back to null when total is missing — direct navigation, not a filtered click", () => {
+    expect(parseDeckQuery({})).toEqual({ filters: NO_FILTERS, total: null });
+  });
+
+  it("parseDeckQuery falls back to null on a garbage total rather than throwing", () => {
+    expect(parseDeckQuery({ total: "not-a-number" })).toEqual({ filters: NO_FILTERS, total: null });
+  });
+
+  it("parseDeckQuery falls back to null on an implausibly large total — untrusted input, not rendered verbatim", () => {
+    expect(parseDeckQuery({ total: "99999999" })).toEqual({ filters: NO_FILTERS, total: null });
+  });
+
+  it("parseDeckQuery falls back to null on total=0 — deckEntryHref never produces one, so it's already a stale or hand-edited link", () => {
+    expect(parseDeckQuery({ total: "0" })).toEqual({ filters: NO_FILTERS, total: null });
+  });
+
+  it("ignores a stray sort/stor param carried over by accident", () => {
+    const { filters } = parseDeckQuery({ sort: "longest_waiting", stor: "3", total: "10" });
+    expect(filters).toEqual(NO_FILTERS);
+  });
+});
+
+describe("filtersInWords", () => {
+  const cityNames = new Map([[CITY_A, "Бровари"]]);
+
+  it("names nothing when every dimension is unconstrained", () => {
+    expect(filtersInWords(NO_FILTERS, cityNames)).toBeNull();
+  });
+
+  it("joins only the dimensions actually constrained, city first", () => {
+    const filters = withToggledSize(
+      withToggledSpecies(withToggledCity(NO_FILTERS, CITY_A), "dog"),
+      "medium",
+    );
+    expect(filtersInWords(filters, cityNames)).toBe("Бровари · собаки · середній");
+  });
+
+  it("an unknown city id (map miss) is dropped rather than rendering 'undefined'", () => {
+    const filters = withToggledCity(NO_FILTERS, CITY_B);
+    expect(filtersInWords(filters, cityNames)).toBeNull();
+  });
+
+  it("multiple selected values in one dimension join with a slash", () => {
+    const filters = withToggledAge(withToggledAge(NO_FILTERS, "baby"), "senior");
+    expect(filtersInWords(filters, cityNames)).toBe("малюк/літній");
   });
 });

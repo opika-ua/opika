@@ -412,7 +412,7 @@ pnpm lint:fix              # biome check --write .
 pnpm format                # biome format --write .
 pnpm test                 # vitest, all packages
 pnpm build:web            # DO NOT REMOVE from check — see "Module resolution"
-pnpm test:harness         # Playwright rendering harness against /discovery
+pnpm test:harness         # Playwright rendering harness against /tvaryny and /tvaryny/gortaty
 
 # One-time, and again after a Playwright version bump:
 pnpm --filter @opika/web test:harness:install   # downloads Chromium
@@ -442,10 +442,11 @@ The harness builds the app too, which makes `build:web` look duplicated.
 Keep both — `build:web` is the fast, specific failure, and it keeps
 working if the harness is ever broken or quarantined.
 
-One assertion in the harness is marked `test.fail()`: `/discovery` is a
-390px phone column and does not adapt at 1280x800. That gap is recorded,
-not hidden. When the responsive pass lands, Playwright will report an
-unexpected pass — that is the signal to delete the marker.
+One assertion in the harness is marked `test.fail()`: the deck
+(`/tvaryny/gortaty`, migrated from `/discovery` in E5) is a 390px phone
+column and does not adapt at 1280x800. That gap is recorded, not hidden.
+When the responsive pass lands, Playwright will report an unexpected
+pass — that is the signal to delete the marker.
 
 ## Supply-chain note (why a version pin looks slightly stale)
 

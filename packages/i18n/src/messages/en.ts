@@ -27,6 +27,10 @@ export const en = {
   // --- Screen 02 · Feed / deck ---
   feed: {
     filtersLabel: "Filters",
+    enterDeck: "Swipe one at a time",
+    enterDeckShort: "Swipe",
+    backToList: "← Back to the list",
+    deckEntryAnnouncement: "One-at-a-time mode. Animal {position} of {total}.",
   },
 
   // --- Screen 03 · Filters ---
@@ -248,6 +252,7 @@ export const en = {
     title: "The page couldn't be loaded.",
     body: "This isn't your fault or the shelter's. Your filters are saved.",
     action: "Try again",
+    showAll: "Show all animals",
   },
 
   // --- Gallery out-of-range page notice — see the uk key's own note ---

@@ -9,6 +9,9 @@ catalogs:
     '@biomejs/biome':
       specifier: 2.5.6
       version: 2.5.6
+    '@orpc/client':
+      specifier: 1.14.14
+      version: 1.14.14
     '@orpc/contract':
       specifier: 1.14.14
       version: 1.14.14
@@ -113,6 +116,9 @@ importers:
       '@opika/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@orpc/client':
+        specifier: 'catalog:'
+        version: 1.14.14
       '@orpc/contract':
         specifier: 'catalog:'
         version: 1.14.14

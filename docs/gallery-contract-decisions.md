@@ -731,6 +731,58 @@ work here is verification, not design**: a harness test on a page >1 that assert
 `Left`/`Down`/`Up` at each page-relative edge leaves focus in place and fires no network
 request, on the same page `ArrowKeyGrid`'s existing edge tests already cover for page 1.
 
+## 9. The deck's real data — a browser-side client, and what E5 deliberately didn't wire up
+
+E5 gave the deck (`/tvaryny/gortaty`) its first real `feed.list` data, replacing
+`generateMockCards`. Three decisions worth recording, none of them contract changes:
+
+**A browser-side oRPC client, the first one in this repo.** Every existing caller either
+runs in-process through `anonymousRouterClient` (§5, Server Components) or isn't called
+from the browser at all. The deck's own pagination — fetch on mount, prefetch ahead of the
+user running out of cards — is client-driven by construction (§7's reasoning for why
+pagination stays server-rendered for the *gallery* specifically doesn't extend to the deck,
+which was never a shareable, crawlable, no-JS-first surface to begin with). Trimmed to
+`feed.list` alone (`apps/web/src/api/browser-client.ts`), the same `pick`-not-`omit`
+discipline `serverComponentRouter` documents for its own trim — a procedure added to the
+contract later doesn't become callable from client-side JavaScript by default.
+
+**No swipe persistence, no session bootstrap, this phase.** `feed.list`'s seen-set exclusion
+(`DEFAULT_SEEN_SET_POLICY`) already degrades gracefully to "none" when `adopterId` is
+`null` — confirmed by reading `feed-repo.ts`, not assumed — so the deck works correctly for
+a fully anonymous visitor with no session cookie at all. `session.bootstrap` (decision #13)
+has never been called from any real page yet; wiring it up is real, separate scope (an
+adopter identity flow), not something E5 needed to touch to make the deck honest. Swipe
+*direction* is therefore not recorded anywhere — dropping the top card is the only real
+effect either direction has, matching what the mock-data implementation this replaces
+already did.
+
+The trade this makes explicit, not just a gap: `feed-repo.ts`'s own comment reasons that
+cursor drift across concurrent edits is tolerable because "the seen-set exclusion absorbs
+duplicates." With the deck anonymous and `useFeedDeck` concatenating pages with no dedupe
+of its own, that absorption isn't happening here — a shelter editing a listing mid-session
+can, in principle, re-serve an animal the same session already swiped past. Accepted for
+the same reason the rest of this section accepts anonymity: real seen-set exclusion needs
+`session.bootstrap` wired up, which is out of scope this phase, and the failure mode (an
+already-decided animal reappearing) is a repeat, not a wrong or unsafe result.
+
+**A cursor mismatch restarts the feed, it doesn't error past recovery.** `feed.list`'s
+cursor is bound to `filtersFingerprint(filters)` (decision #15) — since the deck's filters
+are fixed for its lifetime (no in-deck filter UI), an `INVALID_CURSOR` response is not a
+real steady-state case, but the deck still treats it as one it recovers from automatically
+(`useFeedDeck`'s `sessionExpired` reason restarts from page one) rather than a dead end.
+
+**`/tvaryny/gortaty` needed its own `error.tsx` — found by checking, not by assuming
+sharing a URL prefix meant sharing an error boundary.** Next.js error boundaries nest by
+route segment: a segment with no `error.tsx` of its own falls through to its nearest
+ancestor's. `/tvaryny/gortaty` initially had none, so a failure in `GortatyPage`'s own
+server-side `cities.list()` call (needed for the deck header's inherited-filters phrase)
+would have been caught by `/tvaryny/error.tsx` instead — rendering the gallery's
+filter-specific copy («Ваші фільтри збережені») for a deck failure with no filters
+involved at all. Fixed with a dedicated `apps/web/src/app/tvaryny/gortaty/error.tsx`,
+reusing `uk.errors.loadFailed` (the same generic copy `SwipeDeck`'s own client-side error
+state already uses for this class of failure) rather than inventing new copy for what is,
+narratively, the same kind of event.
+
 ---
 
 ## Summary — what Phase E actually builds because of this document

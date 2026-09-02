@@ -146,7 +146,7 @@ anymore, it's an *implementation-order* one.
 | V1 | Design handoff intake — replace `docs/design/` with the new handoff, verify it covers every surface, confirm the four product rules survive | 2 |
 | V2 | Implementation — new tokens through `packages/ui` and the Tailwind config, every existing surface re-skinned including E3's pagination, harness assertions repointed to the new design's values. **Static visual language only** — colour, type, radii, card treatment. The deck's gesture *physics* (release spring, motion timings on the drag itself) are explicitly out of scope here — see G4 | 10 |
 | E4 | Empty (no-match, already built in V2 — this row is the remainder), error (**one state**, not the design's stated whole-list/next-page pair — pagination is plain link navigation per `docs/gallery-contract-decisions.md` §7, so a failed next page and a failed first load are the same event to this app's router; the "Next-page error" frame is marked NOT REACHABLE, not deferred, in `docs/design/README.md`), out-of-range page (200, last valid page, **the note must actually render** — see the phase's own done-when below, not just the copy existing) states — built in the «Реєстр» language directly (`docs/design/README.md`'s "States and remaining screens", frames E1/E2, P1/P2). Loading (L1/L2) was investigated and NOT built this phase — Next's route-level `loading.tsx` puts the whole route into streaming SSR unconditionally, and the inline script that swaps the hidden real content in for the fallback is itself JavaScript, so a no-JS visitor never sees the swap and is stuck on the skeleton permanently; four no-JS harness tests failing on the attempt confirmed it. A correct version is client-driven (`useLinkStatus`/`useTransition` around the existing link-interception points, never a Suspense boundary) — real new scope, tracked against E5, not this row's remaining hours | 4 |
-| E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. `sessionStorage`-persisted last mode, entry ("Гортати по одній") and exit ("До списку" / Esc, returning to the same scroll position per `docs/design/README.md` "Gallery ↔ Deck"), the deck header/exit chrome built in the «Реєстр» language directly (frames V1–V3). **Also owns two E4 carry-overs**, both real restructuring the view-mode split already requires touching: (1) the `layout.tsx` split moving `/tvaryny`'s header and rail out of `page.tsx`, so `error.tsx` stops replacing them — without it, a failed request leaves an adopter with no way to narrow a query that might succeed, only retry-and-fail-again or back; (2) a client-driven pending indicator (`useLinkStatus`/`useTransition`) for soft navigation, with the open question of whether the mock's full skeleton fits a filter/sort change or something lighter should — see `docs/gallery-contract-decisions.md`'s loading note. Neither is committed scope until E5's own Phase 1 plan sizes them | 3 |
+| E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. Real scope turned out much larger than "chrome": no browser-side oRPC client existed yet, `/discovery` still ran entirely on mock data, and no gallery-side entry control existed at all. Built: `/tvaryny/gortaty` as the deck's real, `noindex` route on real `feed.list` data (browser-side oRPC client, cursor/prefetch, `useFeedDeck`); the gallery's own entry control (desktop header + mobile row, hidden when there are zero matches); exit ("До списку" / Esc / browser back — genuinely one mechanism, `router.back()` when a same-tab marker confirms it's safe, else a fresh gallery link) with scroll-restore coming from the browser's own history mechanism, not custom bookkeeping; the inherited-filters header phrase and position/progress counter (carried-over total, since `feed.list` has no count of its own). Also investigated and resolved: the E4-carried "header/rail stay usable during an error" gap — found the guessed fix (a `layout.tsx` split) structurally impossible (layouts can't read `searchParams`) and, separately, not actually useful (a filter rail doesn't help when the failure is backend-side); shipped a real escape hatch instead (a link to the bare, unfiltered gallery) — see `docs/design/README.md`'s "Whole-list error" section. A second, sibling gap found during review and fixed the same way: `/tvaryny/gortaty` had no `error.tsx` of its own, so a failure in its own `cities.list()` call fell through to the *gallery's* error boundary and rendered filter-specific copy for a deck failure — given its own `error.tsx` now, reusing the deck's existing `uk.errors.loadFailed` copy. The client-driven pending indicator (`useLinkStatus`/`useTransition`) this row's earlier text also carried over from E4 was **not built** — real scope of its own, still a follow-up, not folded in here. Also not built, recorded as deviations rather than dropped — see `docs/design/README.md`'s "Gallery ↔ deck" section: the `sessionStorage`-persisted "last mode" this row originally named, and full filter-*and*-sort inheritance (`feed.list` has no sort input at all) | 3 |
 
 **Total: ~57 h.**
 
@@ -291,16 +291,16 @@ mode entered from the gallery now, not the front door.
 |---|---|---|
 | G1 | iOS Safari investigation, restarting from scratch — the prior investigation notes were lost with the rest of the uncommitted M5 work (the incident behind `docs/standing-constraints.md`'s "commit after each task" rule) and are deliberately not being reconstructed; the failure has never reproduced on any other engine | 4 |
 | G2 | Device testing on real hardware — Android and iOS, not simulators | 3 |
-| G3 | Promote the deck from `/discovery` to its real route (`/tvaryny/gortaty` per the design's URL scheme, `noindex` — a viewing state, not a page), entered from the gallery with the gallery's current filters and sort inherited | 3 |
+| ~~G3~~ | ~~Promote the deck from `/discovery` to its real route...~~ **Done — built by E5, not G**, found while E5 checked what "the deck's own entry/exit chrome" actually required rather than assuming G3 owned the route. `/tvaryny/gortaty` (`noindex`), the gallery's entry control, and exit (`router.back()` when safe, else a fresh gallery link, scroll position coming from the browser's own history mechanism) are all real and shipped. **Filters inherited, sort is not** — `feed.list` has no sort input at all, recorded as a deviation in `docs/design/README.md`'s "Gallery ↔ deck" section, not something G3 can pick back up (there's no sort concept for the deck to receive). | ~~3~~ |
 | G4 | Deck gesture-physics re-skin — the new handoff's motion values (`docs/design/README.md`, "Geometry, density, elevation, motion": quick 120ms / settle 220ms / reveal 280ms, `cubic-bezier(0.3, 0, 0, 1)`; release spring stiffness 280 / damping 30, no overshoot) applied to `use-swipe-gesture.ts`'s own constants — moved out of V2 deliberately (`docs/build-plan.md`'s Phase E table, V2 row) so these values change once, alongside whatever G1's iOS investigation also touches in the same file, not twice | 3 |
 
-**Total: ~13 h.**
+**Total: ~10 h** (13 h original, minus G3's 3 h — already spent as part of E5's own overage, not double-counted here; see `docs/build-plan.md`'s Part 3 ledger).
 
 **Done when:** 30 uninterrupted swipes on a real mid-range Android and a real iPhone,
 entered from and returning to the gallery at the same scroll position and card, on the new
 motion values.
 
-**Decisions this phase must surface:** none anticipated for G1–G3 — flag if the iOS
+**Decisions this phase must surface:** none anticipated for G1–G2 — flag if the iOS
 investigation turns up a fix that touches `packages/domain` or the gesture's pure decision
 function, per the standing stop-gate. G4 is gesture-physics work
 (`docs/model-policy.md`: "M5 swipe deck | Opus | Gesture physics and pointer capture") —
@@ -386,6 +386,20 @@ to 150 h ÷ 8 h/week ≈ 18.75 weeks, and the grand total including G to 153 h.*
 reasoning again: this is new scope the addendum surfaced, not scope moving from a
 Phase V3 that never had its own hour line to begin with — there is nothing to subtract
 elsewhere in this ledger to offset it.
+
+**E5's real cost was ~18 h against its own 3 h line — a +15 h overage, and like Phase V's
+12 h, this does not fit the "absorbed, week count unmoved" reasoning either.** Phase 0
+investigation found the 3 h estimate priced "chrome" against a deck that was already
+reachable; the real state was that `/discovery` still ran on `generateMockCards` entirely,
+no browser-side oRPC client existed anywhere in the repo, and no gallery-side entry control
+existed at all — wiring real data, a real route, and a real entry point was the actual
+scope once that was checked, not assumed. Stopped and reported before starting, per this
+repo's own gate conditions, rather than either quietly absorbing a 6x estimate or shipping
+half the scope under the original number. Brings the critical path to 165 h ÷ 8 h/week ≈
+20.6 weeks, and the grand total including G to 168 h. Whether this — on top of Phase V's
+already-unresolved 12 h — actually moves the project's week estimate past "~16 weeks," and
+by how much, remains the same open re-plan question Phase V's own paragraph raised; this
+entry doesn't re-settle it, only adds its number to the pile waiting on that question.
 
 **The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own

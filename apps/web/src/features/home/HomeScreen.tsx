@@ -15,13 +15,16 @@ interface HomeScreenProps {
  *
  * On desktop this screen doesn't exist as its own page — the promise and
  * city choice fold into the gallery's first-visit state ("Desktop
- * Breakpoints for the Eight Screens", "01 First run"). That's Phase E's
- * gallery, not built yet, so this stays the phone-frame shape the design
- * actually specifies today rather than guessing at a desktop treatment
- * nothing describes.
+ * Breakpoints for the Eight Screens", "01 First run"). Phase E's gallery
+ * (`/tvaryny`) is built now; this phone-frame screen hasn't been retired or
+ * reconciled with it yet — that's a real open question (does this screen
+ * still have a job once `/tvaryny` handles first-visit on desktop?), not
+ * decided here.
  *
- * The CTA routes to /discovery — the only real destination that exists.
- * The gallery/deck view-mode switch belongs to Phase E, once there are two.
+ * The CTA still routes to `/discovery`, which E5 turned into a permanent
+ * redirect to `/tvaryny/gortaty` (`next.config.ts`) rather than a page — it
+ * still works, transparently, but this screen's own routing hasn't been
+ * updated to point at the real gallery/deck URLs directly.
  *
  * Three deliberate deviations from the design canvas
  * ("Opika - Keeper's Voice.dc.html", data-screen-label="01 First run"):

@@ -263,7 +263,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     donationUrl: "https://send.monobank.ua/jar/dobrilapy",
     donationProvider: "monobank_jar",
     freshnessSentenceUk:
-      "Ми оновлювали цю картку {date}. З того часу не заходили — напишіть, і ми скажемо, чи {name} ще з нами.",
+      "Ми оновлювали цю картку 12 серпня. Напишіть — скажемо, чи тварина ще з нами.",
     verificationStatus: "verified",
   },
   {
@@ -282,8 +282,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "khvostatyi_dim",
     donationUrl: "https://send.monobank.ua/jar/khvostatyidim",
     donationProvider: "monobank_jar",
-    freshnessSentenceUk:
-      "Ми заходили сюди {date}. Напишіть — уточнимо, чи {name} ще чекає на родину.",
+    freshnessSentenceUk: "Ми заходили сюди 3 вересня. Напишіть — уточнимо, чи тварина ще чекає.",
     verificationStatus: "verified",
   },
   {
@@ -320,8 +319,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "murchyk_bucha",
     donationUrl: "https://www.liqpay.ua/uk/checkout/murchyk",
     donationProvider: "liqpay",
-    freshnessSentenceUk:
-      "Ми перевіряли {date}, чи {name} ще в нас. Якщо сумніваєтеся — просто напишіть.",
+    freshnessSentenceUk: "Ми перевіряли 20 липня, чи тварина ще в нас. Просто напишіть.",
     verificationStatus: "verified",
   },
   {
@@ -358,8 +356,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: "https://send.monobank.ua/jar/lapusyk",
     donationProvider: "monobank_jar",
-    freshnessSentenceUk:
-      "Картку оновлено {date}. Якщо {name} ще шукає дім — ми скажемо, коли напишете.",
+    freshnessSentenceUk: "Картку оновлено 5 червня. Напишіть — скажемо, чи тварина ще шукає дім.",
     verificationStatus: "verified",
   },
   {

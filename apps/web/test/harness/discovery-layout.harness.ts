@@ -1,15 +1,21 @@
 /**
- * Layout assertions for /discovery.
+ * Layout assertions for the deck.
  *
  * Each test here corresponds to a defect that shipped through a green CI and a
  * "renders correctly" sign-off, because the only check applied was that the
  * text appeared somewhere in the HTML. Text in the HTML is exactly what all
  * three of these had.
+ *
+ * E5: migrated from `/discovery` (retired, now a redirect) to
+ * `/tvaryny/gortaty` — the deck's real route on real `feed.list` data. Every
+ * assertion here is pure geometry, none of it about specific card content, so
+ * the migration is the route, a rate-limit IP identity, and nothing else.
  */
 
 import { expect, test } from "@playwright/test";
 import {
   expectContainedBy,
+  expectFocusVisibleOutline,
   expectMinimumBottomMargin,
   expectNoOverlap,
   expectNoViewportOverflow,
@@ -18,8 +24,14 @@ import {
 } from "./harness";
 import { DESKTOP, PHONE, SHORT_PHONE, type Viewport } from "./viewports";
 
-const ROUTE = "/discovery";
+const ROUTE = "/tvaryny/gortaty";
 const CARD = "[data-testid='swipe-card']";
+
+/**
+ * TEST-NET-2 (198.51.100.0/24), `.28` — same reasoning as
+ * `discovery-gesture.harness.ts`'s `.27`. `.21`-`.27` are already claimed.
+ */
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.28" } });
 
 /**
  * Minimum bottom margin the shelter line must keep above the card's edge,
@@ -67,7 +79,7 @@ function minShelterMarginFor(viewport: Viewport): number {
 }
 
 for (const viewport of [PHONE, DESKTOP] satisfies Viewport[]) {
-  test.describe(`/discovery at ${viewport.name}`, () => {
+  test.describe(`/tvaryny/gortaty at ${viewport.name}`, () => {
     test.beforeEach(async ({ page }) => {
       await openRoute(page, ROUTE, viewport, { readySelector: CARD });
     });
@@ -133,7 +145,7 @@ for (const viewport of [PHONE, DESKTOP] satisfies Viewport[]) {
  * shrink below 396 — it is the flex item that gives way so the shelter's words
  * never do. Asserting 396 everywhere would forbid that.
  */
-test.describe(`/discovery photo sizing at ${PHONE.name}`, () => {
+test.describe(`/tvaryny/gortaty photo sizing at ${PHONE.name}`, () => {
   /**
    * V2 repoint: 396 -> 388 -> back to 396. The first repoint (name growing
    * to display-m, 34px up from 26px) was real, but the text block below it
@@ -191,7 +203,7 @@ test.describe(`/discovery photo sizing at ${PHONE.name}`, () => {
 /**
  * The recorded desktop gap.
  *
- * TODO(responsive): /discovery is a 390px phone column centred in whatever
+ * TODO(responsive): /tvaryny/gortaty is a 390px phone column centred in whatever
  * width it is given. This assertion states the requirement — the deck should
  * use the space a laptop has — and is expected to fail until the responsive
  * pass lands. `test.fail()` keeps it running rather than skipped, so when the
@@ -199,7 +211,7 @@ test.describe(`/discovery photo sizing at ${PHONE.name}`, () => {
  * whoever fixed it is told to delete this marker. A `skip` would go quiet
  * instead, which is how a known gap turns into a forgotten one.
  */
-test.describe("/discovery responsive gap", () => {
+test.describe("/tvaryny/gortaty responsive gap", () => {
   test.fail();
 
   test(`the deck uses the available width at ${DESKTOP.name}`, async ({ page }) => {
@@ -211,5 +223,20 @@ test.describe("/discovery responsive gap", () => {
       `the card is ${card.width}px wide in a ${DESKTOP.width}px viewport — the layout is ` +
         `phone-only and does not adapt`,
     ).toBeGreaterThan(500);
+  });
+});
+
+/**
+ * docs/standing-constraints.md: "An interactive element ships with its
+ * focus-visible styling and a test."
+ */
+test.describe("/tvaryny/gortaty keyboard focus", () => {
+  test("the back-to-list button shows a real focus-visible outline", async ({ page }) => {
+    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
+
+    await expectFocusVisibleOutline(page, {
+      label: "back-to-list button",
+      locator: page.getByTestId("deck-back-to-list"),
+    });
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Gesture assertions for /discovery, driven through real pointer events.
+ * Gesture assertions for the deck, driven through real pointer events.
  *
  * M5 was signed off as working while the gesture did not function at all. No
  * amount of reading the hook would have settled it; the only thing that
@@ -8,14 +8,28 @@
  *
  * The card exposes its animal name as `aria-label`, so "did the deck advance"
  * is observable without reaching into React internals.
+ *
+ * E5: migrated from `/discovery` (retired, now a redirect) to
+ * `/tvaryny/gortaty` — the deck's real route on real `feed.list` data. None
+ * of these assertions are about specific card content, so the migration is
+ * the route and a rate-limit IP identity, nothing else.
  */
 
 import { expect, test } from "@playwright/test";
 import { dragHorizontally, flickWithTimestamps, openRoute } from "./harness";
 import { PHONE } from "./viewports";
 
-const ROUTE = "/discovery";
+const ROUTE = "/tvaryny/gortaty";
 const CARD = "[data-testid='swipe-card']";
+
+/**
+ * TEST-NET-2 (198.51.100.0/24), `.27` — `/tvaryny/gortaty` sits under
+ * `proxy.ts`'s per-IP page-render limiter same as every other `/tvaryny`
+ * route (its own server-side `cities.list()` call), and separately drives
+ * real `feed.list()` traffic client-side. `.21`-`.26` are already claimed by
+ * the other `/tvaryny` harness files.
+ */
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.27" } });
 
 /** The name on the currently-top card. */
 async function topCardName(page: import("@playwright/test").Page): Promise<string> {
@@ -24,7 +38,7 @@ async function topCardName(page: import("@playwright/test").Page): Promise<strin
   return label ?? "";
 }
 
-test.describe(`/discovery gesture at ${PHONE.name}`, () => {
+test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
   test.beforeEach(async ({ page }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
   });

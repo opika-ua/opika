@@ -97,18 +97,24 @@ test.describe("freshness marker — empty pip contrast", () => {
     }
   });
 
-  test("/discovery: the top card's empty pips clear 3:1 against the deck card background", async ({
+  test("/tvaryny/gortaty: the top card's empty pips clear 3:1 against the deck card background", async ({
     page,
   }) => {
-    await openRoute(page, "/discovery", PHONE, { readySelector: '[data-testid="swipe-card"]' });
+    // E5: migrated from /discovery (retired, now a redirect) to
+    // /tvaryny/gortaty — the deck's real route on real feed.list data.
+    await openRoute(page, "/tvaryny/gortaty", PHONE, {
+      readySelector: '[data-testid="swipe-card"]',
+    });
 
     const pairs = await emptyPipContrastPairs(page);
     expect(
       pairs.length,
-      "expected the deck's first-served card to have at least one empty pip — the seeded " +
-        "corpus's freshest animal (lastUpdatedAt DESC, packages/db/src/seed.ts) sorts first " +
-        "and is always 'fresh' (2 of 3 pips empty), so a fresh anonymous session's first " +
-        "card should always contain some",
+      "expected the deck's first-served card to have at least one empty pip — feed.list's " +
+        "own repo query orders the whole feed by lastUpdatedAt DESC before scoreAnimal " +
+        "re-ranks within the fetched page (apps/web/src/api/handlers/feed.ts), so the most " +
+        "recently updated seeded animal is always among the first served, and 'fresh' is " +
+        "2 of 3 pips empty — an anonymous session's first real card should always contain " +
+        "some",
     ).toBeGreaterThan(0);
 
     for (const { foreground, background } of pairs) {

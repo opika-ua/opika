@@ -2,7 +2,7 @@
 
 import type { FeedCardView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SwipeCard } from "./SwipeCard";
 import { layout } from "./tokens";
 import { useSwipeGesture } from "./use-swipe-gesture";
@@ -21,11 +21,26 @@ const PREFETCH_THRESHOLD = 5;
  */
 const noopRef = (): void => {};
 
+/**
+ * `reason` names one of the three failure copies `packages/i18n` already
+ * carries (`uk.errors.offline` / `.loadFailed` / `.sessionExpired`) —
+ * pre-written for exactly this deck, never wired to a real caller until
+ * E5. `offline`: the fetch itself never reached the server (no network,
+ * not an oRPC response). `sessionExpired`: the feed's cursor was rejected
+ * (`INVALID_CURSOR` — signed and bound to this filter set, so a mismatch
+ * means resuming a stale cursor, not a user mistake); retrying restarts the
+ * feed from its first page, matching the copy's own "Ми почали стрічку
+ * заново." `loadFailed`: anything else — a real server-side failure, or an
+ * oRPC-defined error (e.g. `RATE_LIMITED`) with no dedicated copy of its
+ * own.
+ */
+export type DeckErrorReason = "offline" | "loadFailed" | "sessionExpired";
+
 export type DeckState =
   | { kind: "loading" }
   | { kind: "ready"; cards: FeedCardView[] }
   | { kind: "exhausted"; seenCount: number }
-  | { kind: "error"; message: string };
+  | { kind: "error"; reason: DeckErrorReason };
 
 interface SwipeDeckProps {
   state: DeckState;
@@ -64,12 +79,43 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
     onSnapBack: handleSnapBack,
   });
 
+  /**
+   * "Focus lands on the top card" (docs/design/README.md, "Gallery → deck")
+   * — on entering the deck, and again on recovering into it from an error
+   * (retry): when the error card unmounts, its own focused heading goes
+   * with it, and with no explicit re-focus a keyboard user would land on
+   * `<body>` with no sense of where they are — worse than "focus moved
+   * again," not better. Deliberately NOT guarded against re-firing on
+   * every swipe: `state.kind` stays `"ready"` across swipes (only the
+   * `cards` array changes), so this effect's own `[state.kind]` dependency
+   * already skips it without an extra ref — verified by mutation, not
+   * assumed (`SwipeDeck.test.tsx`'s "does not steal focus back to the card
+   * on a later swipe"). `topCardNodeRef` is a second callback ref on the
+   * same element `cardRef` already attaches to; `useSwipeGesture` doesn't
+   * expose its own internal node reference, so this is the plain way to
+   * also get a handle on it without changing that hook's contract.
+   */
+  const topCardNodeRef = useRef<HTMLElement | null>(null);
+  const setTopCardNode = useCallback(
+    (node: HTMLElement | null) => {
+      topCardNodeRef.current = node;
+      cardRef(node);
+    },
+    [cardRef],
+  );
+
+  useEffect(() => {
+    if (state.kind === "ready") {
+      topCardNodeRef.current?.focus();
+    }
+  }, [state.kind]);
+
   if (state.kind === "loading") {
     return <LoadingState />;
   }
 
   if (state.kind === "error") {
-    return <ErrorState onRetry={onRetry} />;
+    return <ErrorState reason={state.reason} onRetry={onRetry} />;
   }
 
   if (state.kind === "exhausted") {
@@ -104,7 +150,7 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
               <SwipeCard
                 key={card.id}
                 card={card}
-                gestureRef={stackIndex === 0 ? cardRef : noopRef}
+                gestureRef={stackIndex === 0 ? setTopCardNode : noopRef}
                 dx={stackIndex === 0 ? dx : 0}
                 stackIndex={stackIndex}
                 onTap={stackIndex === 0 ? () => onCardTap?.(card.id) : undefined}
@@ -209,7 +255,17 @@ function LoadingState() {
   );
 }
 
-function ErrorState({ onRetry }: { onRetry?: (() => void) | undefined }) {
+function ErrorState({
+  reason,
+  onRetry,
+}: {
+  reason: DeckErrorReason;
+  onRetry?: (() => void) | undefined;
+}) {
+  // `loadFailed` is the only one of the three with a `body` line — `offline`
+  // and `sessionExpired` are short enough without one.
+  const copy = uk.errors[reason];
+
   // `leading-[normal]` below (eyebrow, body, the retry button): none of
   // these three had an explicit `lineHeight` before this migration, so they
   // rendered at the browser's UA-computed "normal", not a specific pixel
@@ -225,21 +281,19 @@ function ErrorState({ onRetry }: { onRetry?: (() => void) | undefined }) {
             tracking-[0.12em] carries the "eyebrow" identity on its own;
             the source string is already uppercase. */}
         <div className="font-sans text-[11px] leading-[normal] tracking-[0.12em] text-ink-3 font-medium">
-          {uk.errors.loadFailed.eyebrow}
+          {copy.eyebrow}
         </div>
-        <div className="font-serif text-[17px]/[24.65px] text-ink">
-          {uk.errors.loadFailed.title}
-        </div>
-        <div className="font-sans text-[13px] leading-[normal] text-ink-2">
-          {uk.errors.loadFailed.body}
-        </div>
+        <div className="font-serif text-[17px]/[24.65px] text-ink">{copy.title}</div>
+        {"body" in copy && (
+          <div className="font-sans text-[13px] leading-[normal] text-ink-2">{copy.body}</div>
+        )}
         {onRetry && (
           <button
             type="button"
             onClick={onRetry}
             className="min-h-11 rounded-button border border-line-strong bg-paper font-sans text-sm leading-[normal] text-ink-2 cursor-pointer mt-row"
           >
-            {uk.errors.loadFailed.action}
+            {copy.action}
           </button>
         )}
       </div>

@@ -7,6 +7,16 @@
 > twice: V2's freshness block, and #26's 840-vs-960 container, the same trap from the other
 > direction.
 
+> **Data-dependent chrome in a state frame is a question, not a requirement.** Three separate
+> frames in `Opika Registry Frames.dc.html` have now turned out to assume a client-side data
+> layer this app deliberately doesn't have: client-fetched pagination (§7 of
+> `docs/gallery-contract-decisions.md`, kept server-rendered on purpose), the loading skeleton
+> (`loading.tsx` forces Suspense/streaming, breaking no-JS outright — this page's "Loading
+> (L1/L2)" section), and the error state's filter rail (below — not only unbuildable, but not
+> actually an escape hatch even if it were). Treat a mock frame that implies live filtering,
+> a fetch, or a count *inside* a state that itself represents a failure or a loading moment as
+> something to verify against this app's actual architecture before building, not as a given.
+
 ## What this is
 Opika is a pet-adoption platform for Kyiv oblast (Київщина), Ukrainian-first, mobile-heavy,
 targeting mid-range Android on carrier networks. Adopters browse animals from manually verified
@@ -484,18 +494,48 @@ Radius, padding, sizing, eyebrow and button label are unchanged from the mock. C
 (opacity 220ms) and focus moving to the heading on mount are both built, matching the mock.
 
 **Second deviation, same section — "Never full-screen … header, rail and sort stay usable" is
-not met.** Recorded, not silently shipped: `apps/web/src/app/tvaryny/error.tsx`'s own comment
-has the full reasoning. In short, Next.js error boundaries replace everything the failing
-Server Component's render tree would have produced, and `page.tsx`'s header and rail are
-constructed only after the same `Promise.all` that can throw — when it does, they never
-rendered in the first place, so there is no working chrome left for this file to preserve.
-This is not a cosmetic gap: losing the rail on a failed request means the only ways out are
-retry (fails again for the same reason) or back — an adopter whose filter combination happens
-to trip a real error has no way to narrow the query to something that might succeed. **Assigned
-to E5**, in `docs/build-plan.md`: E5 already splits gallery and deck chrome for the view-mode
-switch, so moving the header/rail into a `layout.tsx` sibling of this route — rendering
-independently of the fetch that can fail — lands as part of that same restructuring rather than
-as an orphaned follow-up with no owning phase.
+not met, and E5 confirmed it can't be, not just "wasn't built yet."** `apps/web/src/app/
+tvaryny/error.tsx`'s own comment has the full reasoning; summarized here because E4's original
+guess (below) turned out to be wrong in a way worth recording precisely.
+
+Next.js error boundaries replace everything the failing Server Component's render tree would
+have produced, and `page.tsx`'s header and rail are constructed only after the same
+`Promise.all` that can throw — when it does, they never rendered in the first place, so there
+is no working chrome left for this file to preserve. E4 guessed the fix was "move the
+header/rail into a `layout.tsx` sibling to this route." E5 tried to build that and found two
+independent reasons it doesn't work:
+
+1. **Next.js layouts cannot read `searchParams` at all** ("Layouts do not rerender on
+   navigation, so they cannot access search params" — Next's own docs). `FilterRail`'s every
+   active-chip state is derived from the current URL's search params, so there is no
+   `filters`/`sort` for a `layout.tsx` to render the rail against.
+2. **A filter rail inside the error card would not actually be an escape hatch anyway.** This
+   file only ever renders on a `gallery.list` failure — backend down, a timeout, or a 429. In
+   every one of those, clicking a filter chip re-issues the same kind of request down the same
+   path and fails the same way. The only failure class a different query fixes is a
+   pathological filter combination — rare, and worth handling more cheaply than rebuilding the
+   whole rail (see below). Rendering the rail here would also need a client-side `cities.list()`
+   fetch at the exact moment the backend is already failing, giving inert error UI a network
+   dependency — and therefore a loading/error state — of its own.
+
+**NOT PLANNED, not deferred** — a future phase should not rebuild a rail here; the reasoning
+says this is the wrong fix, not a postponed one.
+
+**Third deviation, same section — a real escape hatch shipped instead, not in the mock.** A
+plain link below retry, to bare `/tvaryny` with no query string (`uk.galleryError.showAll`,
+«Показати всіх тварин»). It's the cheapest, most-likely-to-succeed request this app can make,
+and it's what actually resolves the one failure class changing the query can fix. Built as a
+genuine `<a href>`, not `next/link`'s `Link` — confirmed by the harness, not assumed, that a
+`Link` click here changes the URL bar but leaves the same error boundary on screen, because it
+soft-navigates within a segment Next already knows just errored; only `reset()` or a real
+navigation retries it.
+
+The header stays inside the same failing tree, unmoved, for one more reason specific to E5: it
+now carries the "Гортати по одні" deck-entry link (`filter-url.ts`'s `deckEntryHref`), which
+needs both the current `filters` (from `searchParams` — a `layout.tsx` can't read it either
+way) and the real `totalMatching` count (from the very `gallery.list` call that can fail). A
+header with no state at all could move to a `layout.tsx` safely; this one no longer qualifies,
+and moving it was checked, not assumed.
 
 ### Next-page error (E3/E4) — a different surface than E1
 
@@ -565,6 +605,32 @@ Transition, both directions:
   reads as a glitch) to the animal you stopped on, which receives the focus ring.
 - «Не зараз» hides an animal for the rest of the deck session, **not** in the gallery.
 - `prefers-reduced-motion`: opacity only, 120ms, both directions.
+
+**Deviations, E5 — recorded, not silently shipped:**
+
+- **Back button is 44px, not the mock's 48.** `min-h-11` matches every other control this
+  header sits beside (`page.tsx`'s own header, `FilterSheet`'s trigger) — a deliberate
+  consistency choice over the frame's own literal number, not an oversight.
+- **Transitions: only the deck's own entrance (opacity, 220ms, `animate-fade-in`) is built.**
+  The header crossfade and grid fade-out described above happen on the *gallery's* outgoing
+  view, at the moment of navigating away — Next.js has no built-in mechanism for a
+  cross-route transition like that (the View Transitions API integration wasn't evaluated
+  this phase), and building one is real, separate scope from "the deck is reachable and
+  honest." Not built; no owning phase yet.
+- **Position/progress total is carried, not "otherwise invisible."** `feed.list` has no
+  count of its own — the gallery's `totalMatching` rides along on the entry link
+  (`deckEntryHref`) instead. Anyone who reaches `/tvaryny/gortaty` without it (a reload, a
+  bookmark) sees the position alone, no denominator — an honest degradation, not a guess.
+- **Mobile entry sits in the existing, non-sticky filter row, not a sticky bottom bar.**
+  `docs/design/README.md`'s own 0–599 row calls for a "sticky bottom bar «Фільтри · N /
+  Гортати»" — this app's mobile filter row (built in an earlier phase) was never sticky and
+  never carried a combined «Фільтри · N» label to begin with. Both are pre-existing gaps
+  from whichever phase built that row, not introduced here; E5 added "Гортати" beside the
+  existing trigger rather than retrofitting the row's positioning to match this one frame.
+- **Inherited-filters phrase uses singular labels, not the mock's plural adjective
+  agreement.** «Бровари · собаки · середній», not «...середні» — this codebase's filter-chip
+  label catalogue has no plural-adjective forms, the same class of gap as the out-of-range
+  notice's ordinal-vs-numeral deviation above. See `filtersInWords` in `filter-url.ts`.
 
 ### 04 Detail (D1/D2)
 Frames pin the values already specified above (`### Detail (04)`). Desktop: left column 560
@@ -643,6 +709,33 @@ Buttons below, `gap: 8`, all 56, radius 16: «Не зараз» (`flex: 1`, whit
 - **Default is the gallery at every width, phone included.** The deck is never the front door: it
   isn't indexable, and a shared link must always open the list.
 - **Memory**: last mode in `sessionStorage`, not permanently.
+
+**Deviations, E5 — recorded, not silently dropped from the build-plan row that used to name
+them:**
+
+- **"Memory: last mode in `sessionStorage`" is NOT built.** `sessionStorage` is used for exactly
+  one thing this phase (the one-shot entry marker `deck-entry-marker.ts` reads to decide whether
+  `router.back()` is safe) — there is no persisted "last mode" a gallery visit checks to decide
+  whether to auto-enter the deck. E5's own build-plan row originally named this feature and lost
+  the mention entirely in a later rewrite of that row, rather than moving it to a "not built"
+  note — exactly the lossy-deduplication mistake `docs/standing-constraints.md` has its own entry
+  about. Recorded here instead: deciding *when* a remembered mode should override the gallery's
+  own "default is the gallery at every width" rule is a real product question (every visit? only
+  a same-session return?), not a small addition, and no phase owns it yet.
+- **"The deck inherits the current filters and sort" — filters only.** `feed.list` has no `sort`
+  input at all: the deck is a keyset feed, always ordered by recency then re-ranked per page by
+  `scoreAnimal` (`docs/gallery-contract-decisions.md` §9), independent of the gallery's
+  freshest/longest-waiting toggle. There is no sort concept for the deck to inherit. A further,
+  smaller gap this creates: `DeckScreen`'s exit fallback (for anyone who reached
+  `/tvaryny/gortaty` directly, with no safe `router.back()`) returns to the gallery via
+  `galleryHref(filters, DEFAULT_GALLERY_SORT)` — filters preserved, but a non-default sort the
+  user had chosen before entering the deck is silently reset to "freshest." Not fixable by
+  carrying `sort` through the deck URL (the deck itself has nowhere to use it); fixable only by
+  also carrying the gallery's sort choice through the entry link purely to hand back on exit,
+  which wasn't built this phase.
+- **The mobile entry link is 44px too, same reasoning as the back button above** — `min-h-11`,
+  matching the row it sits in (`FilterSheet`'s own trigger), not the design's stated 48px minimum
+  target everywhere.
 
 ---
 

@@ -12,7 +12,7 @@
 
 import { MAX_GALLERY_PAGE } from "@opika/contracts";
 import { expect, test } from "@playwright/test";
-import { openRoute } from "./harness";
+import { expectFocusVisibleOutline, openRoute } from "./harness";
 import { DESKTOP } from "./viewports";
 
 const ROUTE = "/tvaryny";
@@ -89,55 +89,80 @@ test.describe("/tvaryny out-of-range page", () => {
     await expect(page.locator(ERROR_CARD)).toContainText("НЕ ЗАВАНТАЖИЛОСЯ");
     await expect(page.locator(RETRY)).toHaveText("Спробувати ще раз");
   });
+
+  /**
+   * E5's real escape hatch (see `error.tsx`'s own top comment for why a
+   * filter rail here would not be one): a plain link to the bare,
+   * unfiltered gallery. Asserted end to end — following it actually
+   * lands on a working page with real cards and no leftover filter, not
+   * just that the href string looks right.
+   */
+  test("the 'show all animals' link recovers to a real, unfiltered gallery", async ({ page }) => {
+    await openRoute(page, `${ROUTE}?vyd=dog&stor=${MAX_GALLERY_PAGE + 1}`, DESKTOP, {
+      readySelector: ERROR_CARD,
+    });
+
+    await page.getByTestId("gallery-error-show-all").click();
+
+    await page.waitForURL((url) => url.pathname === "/tvaryny" && url.search === "");
+    await expect(page.locator(CARD).first()).toBeVisible();
+    await expect(page.locator(ERROR_CARD)).toHaveCount(0);
+  });
+
+  /**
+   * docs/standing-constraints.md: "An interactive element ships with its
+   * focus-visible styling and a test" — a keyboard user has no other way
+   * to know where they are. Retry and the "show all animals" link are the
+   * only two interactive elements on this card.
+   */
+  test("retry and the 'show all animals' link both show a real focus-visible outline", async ({
+    page,
+  }) => {
+    await openRoute(page, `${ROUTE}?stor=${MAX_GALLERY_PAGE + 1}`, DESKTOP, {
+      readySelector: ERROR_CARD,
+    });
+
+    await expectFocusVisibleOutline(page, {
+      label: "retry button",
+      locator: page.locator(RETRY),
+    });
+    await expectFocusVisibleOutline(page, {
+      label: "show-all-animals link",
+      locator: page.getByTestId("gallery-error-show-all"),
+    });
+  });
 });
 
 test.describe("/tvaryny error state", () => {
   /**
-   * What this test actually proves, and what it doesn't — read before
-   * trusting the title. Two things were tried and abandoned first, both
-   * worth recording so nobody re-attempts them expecting a different
-   * result from the same Next.js version:
+   * History worth keeping: this test originally tried to prove retry
+   * issues a fresh network request and gave up, twice — once trying to
+   * force a *transient* failure by aborting a client-side RSC fetch (Next's
+   * client router doesn't reliably surface an aborted client-side
+   * navigation fetch to the nearest error boundary the way a genuine
+   * server-side throw does), and once because clicking retry produced no
+   * observable request at all within 2 seconds of logging every request.
    *
-   * 1. Forcing a *transient* failure by aborting the client-side RSC
-   *    fetch behind a filter-chip click, then letting a second attempt
-   *    through, expecting error.tsx to catch the first and retry to
-   *    recover into the second. It didn't — Next's client router does
-   *    not reliably surface a failed client-side navigation fetch to the
-   *    nearest error boundary the way a genuine server-side throw does
-   *    (`MAX_GALLERY_PAGE`, used below, triggers error.tsx reliably every
-   *    time; an aborted client fetch did not).
-   * 2. Asserting that clicking retry issues a fresh network request, as
-   *    independent proof `reset()` isn't a no-op. It doesn't, observably
-   *    — logging every request for 2s after the click (against this
-   *    page, reached via a full top-level navigation, not a client
-   *    transition) showed none. Whether that's a cache hit, a batched
-   *    request this logging missed, or something else about how `reset()`
-   *    behaves when there was never a prior successful client-side render
-   *    to diff against isn't settled here — it's genuinely not known, not
-   *    swept under a passing assertion.
-   *
-   * What *is* proven, reliably: `error.tsx.test.tsx` (component-level)
-   * asserts the button calls the `reset` prop, directly, via a mock — the
-   * one thing that would catch `onClick={reset}` being deleted. This test
-   * proves the other half: after clicking it, the URL — and therefore
-   * whatever filter was in it — hasn't been dropped or navigated away
-   * from, and the error boundary hasn't fallen through to something else.
-   * Together they're the honest scope of "retry preserves filters" this
-   * architecture can verify: the button calls the right function, and
-   * calling it doesn't lose the state. Whether a *successful* retry
-   * re-renders the previously-filtered grid is not independently proven
-   * by either test — it follows from `page.tsx` always deriving its
-   * rendered content from `searchParams` alone (already covered
-   * extensively by the filter-URL tests elsewhere in this suite), not
-   * from anything specific to the retry path.
+   * The second one had a real cause, found by round-2 review: `error.tsx`
+   * was calling `reset()` instead of `retry()`. Next passes both, and only
+   * `retry()` calls `router.refresh()` — `reset()` alone clears the
+   * boundary's local state without re-running anything, so of course no
+   * request fired; there was nothing left to observe. Fixed, and this test
+   * now asserts the request that was missing every time before.
    */
-  test("retry calls reset() without dropping the filter already in the URL", async ({ page }) => {
+  test("retry actually re-fetches, and the filter already in the URL survives it", async ({
+    page,
+  }) => {
     const url = `${ROUTE}?vyd=dog&stor=${MAX_GALLERY_PAGE + 1}`;
     await openRoute(page, url, DESKTOP, { readySelector: ERROR_CARD });
 
     expect(page.url()).toContain("vyd=dog");
 
+    const refetch = page.waitForRequest(
+      (req) => req.url().includes(`stor=${MAX_GALLERY_PAGE + 1}`) && req.url().includes("_rsc="),
+    );
     await page.locator(RETRY).click();
+    await refetch;
 
     // Deterministic failure — retrying the exact same invalid page number
     // fails again, correctly. What matters here is that it failed against
