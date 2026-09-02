@@ -347,6 +347,143 @@ export function contrastRatio(colorA: string, colorB: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+/** What a `sizes` attribute actually resolves to at the current viewport. */
+export interface ResolvedSizes {
+  /** The clause that won, verbatim — named so a failure says which one. */
+  readonly source: string;
+  /** Its resolved CSS-pixel length. */
+  readonly px: number;
+}
+
+/**
+ * Resolve a real `sizes` attribute the way the browser does: walk the
+ * comma-separated clauses, take the first whose media condition matches
+ * (or the trailing default), then resolve its length through real CSS.
+ *
+ * Read the attribute off the shipped element and pass it here — never
+ * hand-write the string in a test. `docs/standing-constraints.md`: "a test
+ * may not compare output against the same constant the code renders."
+ *
+ * Real `matchMedia` and a real element's computed width, rather than parsing
+ * lengths in JS, because the clause can be a `calc()` — which is exactly what
+ * an honest declaration for an inset box looks like, and a hand-rolled parser
+ * would quietly not support it.
+ */
+export async function resolveSizesAttribute(
+  page: Page,
+  sizesAttribute: string,
+): Promise<ResolvedSizes> {
+  const resolved = await page.evaluate((sizes) => {
+    const clauses = sizes.split(",").map((c) => c.trim());
+    let winner: string | null = null;
+    for (const clause of clauses) {
+      const withCondition = clause.match(/^(\(.+\))\s+(.+)$/);
+      if (!withCondition) {
+        winner = clause; // trailing default, no media condition
+        break;
+      }
+      if (window.matchMedia(withCondition[1] as string).matches) {
+        winner = withCondition[2] as string;
+        break;
+      }
+    }
+    if (winner === null) return null;
+
+    const probe = document.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.width = winner;
+    document.body.appendChild(probe);
+    const px = probe.getBoundingClientRect().width;
+    probe.remove();
+    return { source: winner, px };
+  }, sizesAttribute);
+
+  if (resolved === null) {
+    throw new Error(`no clause of sizes="${sizesAttribute}" matched at this viewport`);
+  }
+  return resolved;
+}
+
+/**
+ * Which variant the browser itself picks, given a real `sizes` string and the
+ * real variant width ladder, at the context's real `deviceScaleFactor`.
+ *
+ * This runs the browser's own srcset selection rather than reimplementing it.
+ * That matters: the selection multiplies the resolved `sizes` length by DPR
+ * before comparing against `w` descriptors, and it is that multiplication —
+ * not the declaration alone — that decides whether a phone downloads 136KB or
+ * 284KB. A test that modelled the rule in JS would agree with a wrong `sizes`
+ * just as happily as with a right one.
+ *
+ * The probe URLs are fulfilled locally, so this measures selection, not the
+ * network, and needs no R2 credentials.
+ *
+ * ## Do not identify a variant from `naturalWidth`
+ *
+ * Read `currentSrc` (which is what this helper does) or the network request.
+ * Never `naturalWidth`. This cost a full re-measurement during H1's real-R2
+ * verification pass, and it is genuinely counter-intuitive, so it is written
+ * down here rather than rediscovered.
+ *
+ * When an image is selected from a `srcset` carrying `w` descriptors,
+ * `naturalWidth`/`naturalHeight` do **not** report the file's real pixel
+ * dimensions. Per the HTML spec the UA derives a "current pixel density" from
+ * the chosen descriptor and the resolved `sizes`, and `naturalWidth` returns
+ * the *density-corrected* intrinsic width — `realWidth / density`. A real
+ * 1120x1400 `detail.webp` selected for a 360px box reports `360x450`.
+ *
+ * Two consequences, both encountered for real:
+ * - A single-DPR reading looks exactly like the wrong variant was served when
+ *   it wasn't. Only `currentSrc` distinguishes them.
+ * - To confirm a variant's true dimensions you must fetch the URL and measure
+ *   the response bytes, which is what the H1 pass did against the real bucket.
+ *
+ * `naturalWidth > 0` remains a valid check for "did it decode at all", and
+ * nothing more.
+ */
+export async function selectVariantFromSrcset(
+  page: Page,
+  sizesAttribute: string,
+  variantWidths: Readonly<Record<string, number>>,
+): Promise<string> {
+  const PROBE_PREFIX = "/__variant-probe/";
+  // 1x1 transparent GIF — the bytes are irrelevant, the descriptors are the test.
+  const PIXEL = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+  await page.route(`**${PROBE_PREFIX}*`, (route) =>
+    route.fulfill({ status: 200, contentType: "image/gif", body: PIXEL }),
+  );
+
+  const srcset = Object.entries(variantWidths)
+    .map(([name, width]) => `${PROBE_PREFIX}${name} ${width}w`)
+    .join(", ");
+
+  const chosen = await page.evaluate(
+    async ({ sizes, set, prefix }) => {
+      const img = document.createElement("img");
+      img.setAttribute("sizes", sizes);
+      img.setAttribute("srcset", set);
+      document.body.appendChild(img);
+      try {
+        await img.decode();
+      } catch {
+        // Selection is what's under test; a decode failure must not mask it.
+      }
+      const current = img.currentSrc;
+      img.remove();
+      return current.includes(prefix) ? (current.split(prefix)[1] ?? null) : null;
+    },
+    { sizes: sizesAttribute, set: srcset, prefix: PROBE_PREFIX },
+  );
+
+  if (chosen === null) {
+    throw new Error(
+      `browser selected no variant from srcset="${srcset}" sizes="${sizesAttribute}"`,
+    );
+  }
+  return chosen;
+}
+
 export interface DragOptions {
   /** Signed horizontal displacement in CSS px. Negative drags left. */
   readonly dx: number;
