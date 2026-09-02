@@ -1,3 +1,4 @@
+import { GALLERY_PAGE_SIZE, MAX_GALLERY_PAGE } from "@opika/contracts";
 import type {
   AgeBucket,
   AnimalSpecies,
@@ -278,11 +279,24 @@ export type DeckQuery = { filters: FeedFilters; total: number | null };
  * carried over by accident degrades to "unused," not an error, matching
  * this file's existing posture toward unrecognised input).
  */
+/**
+ * The same ceiling `gallery.list` itself is bounded at — `MAX_GALLERY_PAGE`
+ * pages of `GALLERY_PAGE_SIZE` each — not an arbitrary new number. `total`
+ * is a display-only value carried across from the gallery (see
+ * `deckEntryHref`'s own comment), but an untrusted one: this is the one
+ * place in the app that reads it back out of a URL, so a hand-edited or
+ * malicious `?total=` gets the same "stale link, not an error" treatment
+ * `parseGalleryQuery`'s own page-number parsing already gives out-of-range
+ * input, rather than rendering whatever number was typed.
+ */
+const MAX_DECK_TOTAL = MAX_GALLERY_PAGE * GALLERY_PAGE_SIZE;
+
 export function parseDeckQuery(searchParams: SearchParams): DeckQuery {
   const { filters } = parseGalleryQuery(searchParams);
 
   const totalRaw = Number(firstValue(searchParams[TOTAL_PARAM]));
-  const total = Number.isInteger(totalRaw) && totalRaw >= 0 ? totalRaw : null;
+  const total =
+    Number.isInteger(totalRaw) && totalRaw >= 0 && totalRaw <= MAX_DECK_TOTAL ? totalRaw : null;
 
   return { filters, total };
 }

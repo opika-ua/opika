@@ -64,7 +64,13 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
     <section
       ref={gestureRef}
       data-testid="swipe-card"
-      className={`font-rg ${cardBase} inset-0 bg-rg-surface shadow-rg-card p-3 z-3 cursor-grab select-none flex flex-col gap-4`}
+      // -1: programmatic-only focus target (docs/design/README.md, "Gallery
+      // → deck": "Focus lands on the top card"), never a Tab stop of its
+      // own — the action row below is already the keyboard path through
+      // the deck (SwipeDeck.test.tsx), and adding this card to the Tab
+      // order too would be a second, redundant one.
+      tabIndex={-1}
+      className={`font-rg ${cardBase} inset-0 bg-rg-surface shadow-rg-card p-3 z-3 cursor-grab select-none flex flex-col gap-4 outline-none`}
       aria-label={card.name}
       onClick={onTap}
       onKeyDown={undefined}

@@ -749,11 +749,32 @@ adopter identity flow), not something E5 needed to touch to make the deck honest
 effect either direction has, matching what the mock-data implementation this replaces
 already did.
 
+The trade this makes explicit, not just a gap: `feed-repo.ts`'s own comment reasons that
+cursor drift across concurrent edits is tolerable because "the seen-set exclusion absorbs
+duplicates." With the deck anonymous and `useFeedDeck` concatenating pages with no dedupe
+of its own, that absorption isn't happening here — a shelter editing a listing mid-session
+can, in principle, re-serve an animal the same session already swiped past. Accepted for
+the same reason the rest of this section accepts anonymity: real seen-set exclusion needs
+`session.bootstrap` wired up, which is out of scope this phase, and the failure mode (an
+already-decided animal reappearing) is a repeat, not a wrong or unsafe result.
+
 **A cursor mismatch restarts the feed, it doesn't error past recovery.** `feed.list`'s
 cursor is bound to `filtersFingerprint(filters)` (decision #15) — since the deck's filters
 are fixed for its lifetime (no in-deck filter UI), an `INVALID_CURSOR` response is not a
 real steady-state case, but the deck still treats it as one it recovers from automatically
 (`useFeedDeck`'s `sessionExpired` reason restarts from page one) rather than a dead end.
+
+**`/tvaryny/gortaty` needed its own `error.tsx` — found by checking, not by assuming
+sharing a URL prefix meant sharing an error boundary.** Next.js error boundaries nest by
+route segment: a segment with no `error.tsx` of its own falls through to its nearest
+ancestor's. `/tvaryny/gortaty` initially had none, so a failure in `GortatyPage`'s own
+server-side `cities.list()` call (needed for the deck header's inherited-filters phrase)
+would have been caught by `/tvaryny/error.tsx` instead — rendering the gallery's
+filter-specific copy («Ваші фільтри збережені») for a deck failure with no filters
+involved at all. Fixed with a dedicated `apps/web/src/app/tvaryny/gortaty/error.tsx`,
+reusing `uk.errors.loadFailed` (the same generic copy `SwipeDeck`'s own client-side error
+state already uses for this class of failure) rather than inventing new copy for what is,
+narratively, the same kind of event.
 
 ---
 

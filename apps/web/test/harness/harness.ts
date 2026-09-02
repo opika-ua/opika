@@ -245,6 +245,80 @@ export async function expectNoViewportOverflow(page: Page, viewport: Viewport): 
   ).toBeLessThanOrEqual(m.innerHeight);
 }
 
+/**
+ * Real Tab presses, not `locator.focus()` — same reasoning
+ * `gallery-filters.harness.ts`'s tab-order test already documents:
+ * `focus()` succeeds on a `tabindex="-1"` element (removed from the tab
+ * order) and even on elements with no visible focus styling at all, so a
+ * `focus()`-based check can't fail for the reason a focus-visible test
+ * needs to fail for. Walking the real tab order, then reading the
+ * genuinely-focused element's own computed outline, is the only version
+ * that can.
+ *
+ * Chromium's own `:focus-visible` heuristic is what's actually exercised
+ * here: keyboard-driven focus qualifies, a mouse click on a button/link
+ * generally doesn't. Asserting a real, non-zero outline after reaching the
+ * target by keyboard is therefore a genuine test of
+ * `docs/standing-constraints.md`'s "an interactive element ships with its
+ * focus-visible styling and a test" — not a proxy for it.
+ */
+export async function expectFocusVisibleOutline(
+  page: Page,
+  target: Measured,
+  maxTabPresses = 25,
+): Promise<void> {
+  const handle = await target.locator.elementHandle();
+  if (!handle) throw new Error(`${target.label}: element not found, cannot Tab to it`);
+
+  let presses = 0;
+  let reached = false;
+  while (presses < maxTabPresses && !reached) {
+    await page.keyboard.press("Tab");
+    presses += 1;
+    reached = await page.evaluate((el) => document.activeElement === el, handle);
+  }
+
+  expect(reached, `${target.label} was not reached within ${maxTabPresses} Tab presses`).toBe(true);
+
+  const outline = await page.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      width: style.outlineWidth,
+      style: style.outlineStyle,
+      offset: style.outlineOffset,
+    };
+  }, handle);
+
+  /**
+   * `outline-width >= 2px` alone is not enough — verified by mutation, not
+   * assumed: Chromium's own fallback focus ring for a plain link/button
+   * that has no author styling at all (`outline-style: auto`) still reports
+   * a non-"none" style and a >0 width (1px, 1px offset, in the browsers
+   * this suite runs against) — deleting this app's actual
+   * `focus-visible:outline-*` classes from an element and re-running this
+   * check used to still pass, against the native fallback. Both `width`
+   * and `offset` being at least 2px is what actually distinguishes this
+   * design system's intentional styling (every focus ring in this app is
+   * 3px, offset 3px) from that fallback, which never reaches 2px on
+   * either axis.
+   */
+  const MIN_INTENTIONAL_PX = 2;
+  expect(
+    outline.style,
+    `${target.label}: focus-visible outline-style is "${outline.style}" — no visible focus ring`,
+  ).not.toBe("none");
+  expect(
+    Number.parseFloat(outline.width),
+    `${target.label}: focus-visible outline-width is "${outline.width}" — looks like the ` +
+      `browser's own unstyled fallback ring (1px), not this app's intentional styling`,
+  ).toBeGreaterThanOrEqual(MIN_INTENTIONAL_PX);
+  expect(
+    Number.parseFloat(outline.offset),
+    `${target.label}: focus-visible outline-offset is "${outline.offset}" — looks like the ` +
+      `browser's own unstyled fallback ring (1px offset), not this app's intentional styling`,
+  ).toBeGreaterThanOrEqual(MIN_INTENTIONAL_PX);
+}
+
 function relativeLuminance([r, g, b]: readonly [number, number, number]): number {
   const [rl, gl, bl] = [r, g, b].map((c) => {
     const s = c / 255;

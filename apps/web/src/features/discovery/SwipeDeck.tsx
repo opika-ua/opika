@@ -2,7 +2,7 @@
 
 import type { FeedCardView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SwipeCard } from "./SwipeCard";
 import { layout } from "./tokens";
 import { useSwipeGesture } from "./use-swipe-gesture";
@@ -79,6 +79,31 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
     onSnapBack: handleSnapBack,
   });
 
+  /**
+   * "Focus lands on the top card" (docs/design/README.md, "Gallery → deck")
+   * — once, on entering the deck, not on every card the user swipes to.
+   * `topCardNodeRef` is a second callback ref on the same element
+   * `cardRef` already attaches to; `useSwipeGesture` doesn't expose its own
+   * internal node reference, so this is the plain way to also get a handle
+   * on it without changing that hook's contract.
+   */
+  const topCardNodeRef = useRef<HTMLElement | null>(null);
+  const hasFocusedOnEntryRef = useRef(false);
+  const setTopCardNode = useCallback(
+    (node: HTMLElement | null) => {
+      topCardNodeRef.current = node;
+      cardRef(node);
+    },
+    [cardRef],
+  );
+
+  useEffect(() => {
+    if (state.kind === "ready" && !hasFocusedOnEntryRef.current) {
+      hasFocusedOnEntryRef.current = true;
+      topCardNodeRef.current?.focus();
+    }
+  }, [state.kind]);
+
   if (state.kind === "loading") {
     return <LoadingState />;
   }
@@ -119,7 +144,7 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
               <SwipeCard
                 key={card.id}
                 card={card}
-                gestureRef={stackIndex === 0 ? cardRef : noopRef}
+                gestureRef={stackIndex === 0 ? setTopCardNode : noopRef}
                 dx={stackIndex === 0 ? dx : 0}
                 stackIndex={stackIndex}
                 onTap={stackIndex === 0 ? () => onCardTap?.(card.id) : undefined}

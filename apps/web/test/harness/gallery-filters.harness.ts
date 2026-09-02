@@ -10,7 +10,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { openRoute } from "./harness";
+import { expectFocusVisibleOutline, openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
 /**
@@ -77,6 +77,32 @@ test.describe("/tvaryny rail vs sheet — mutually exclusive by breakpoint", () 
       "filter-rail should have no bounding box (display:none) at phone width — the sheet " +
         "owns filtering there, not the rail",
     ).toBeNull();
+  });
+});
+
+/**
+ * docs/standing-constraints.md: "An interactive element ships with its
+ * focus-visible styling and a test." E5's deck-entry control has two
+ * instances — desktop header, mobile row — CSS-hidden by breakpoint, same
+ * as the rail/sheet split above, so each needs its own viewport.
+ */
+test.describe("/tvaryny deck entry — keyboard focus", () => {
+  test("the desktop entry link shows a real focus-visible outline", async ({ page }) => {
+    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
+
+    await expectFocusVisibleOutline(page, {
+      label: "desktop deck-entry link",
+      locator: page.getByTestId("deck-entry-desktop"),
+    });
+  });
+
+  test("the mobile entry link shows a real focus-visible outline", async ({ page }) => {
+    await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
+
+    await expectFocusVisibleOutline(page, {
+      label: "mobile deck-entry link",
+      locator: page.getByTestId("deck-entry-mobile"),
+    });
   });
 });
 

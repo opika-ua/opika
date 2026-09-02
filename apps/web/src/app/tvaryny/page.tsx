@@ -115,12 +115,15 @@ export async function renderGallery(
           of those exist yet (My reveals and i18n are separate, later
           phases), so this is the one piece E5 actually owns. `hidden
           desktop:inline-flex`: the mobile half of this same control lives
-          in the sticky filter row below instead, matching the mock's own
-          split between a header button and a mobile bar.
+          in the row below instead — that row's own comment records why
+          it's neither the mock's sticky bottom bar nor a combined
+          "Фільтри · N" label, both pre-existing gaps this phase didn't
+          introduce.
         */}
         {page.totalMatching > 0 && (
           <DeckEntryLink
             href={deckHref}
+            testId="deck-entry-desktop"
             className="hidden desktop:inline-flex min-h-12 items-center rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
           >
             {uk.feed.enterDeck}
@@ -160,6 +163,7 @@ export async function renderGallery(
             {page.totalMatching > 0 && (
               <DeckEntryLink
                 href={deckHref}
+                testId="deck-entry-mobile"
                 className="min-h-11 inline-flex items-center rounded-rg-button bg-rg-fill px-3.5 text-[13px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
               >
                 {uk.feed.enterDeckShort}

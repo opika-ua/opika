@@ -12,7 +12,7 @@
 
 import { MAX_GALLERY_PAGE } from "@opika/contracts";
 import { expect, test } from "@playwright/test";
-import { openRoute } from "./harness";
+import { expectFocusVisibleOutline, openRoute } from "./harness";
 import { DESKTOP } from "./viewports";
 
 const ROUTE = "/tvaryny";
@@ -107,6 +107,29 @@ test.describe("/tvaryny out-of-range page", () => {
     await page.waitForURL((url) => url.pathname === "/tvaryny" && url.search === "");
     await expect(page.locator(CARD).first()).toBeVisible();
     await expect(page.locator(ERROR_CARD)).toHaveCount(0);
+  });
+
+  /**
+   * docs/standing-constraints.md: "An interactive element ships with its
+   * focus-visible styling and a test" — a keyboard user has no other way
+   * to know where they are. Retry and the "show all animals" link are the
+   * only two interactive elements on this card.
+   */
+  test("retry and the 'show all animals' link both show a real focus-visible outline", async ({
+    page,
+  }) => {
+    await openRoute(page, `${ROUTE}?stor=${MAX_GALLERY_PAGE + 1}`, DESKTOP, {
+      readySelector: ERROR_CARD,
+    });
+
+    await expectFocusVisibleOutline(page, {
+      label: "retry button",
+      locator: page.locator(RETRY),
+    });
+    await expectFocusVisibleOutline(page, {
+      label: "show-all-animals link",
+      locator: page.getByTestId("gallery-error-show-all"),
+    });
   });
 });
 

@@ -26,13 +26,31 @@ export function useFeedDeck(filters: FeedFilters) {
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
   const cursorRef = useRef<FeedCursor | null>(null);
-  const fetchingRef = useRef(false);
   const swipedCountRef = useRef(0);
   const fingerprint = filtersFingerprint(filters);
 
+  /**
+   * Bumped by anything that starts a *new* feed from scratch (a filter
+   * change, a retry) — not by prefetch, which extends the same feed rather
+   * than replacing it. `fetchPage` captures the generation it was called
+   * under and discards its own response if a newer one has already started
+   * by the time it resolves, so a slow response to a filter that's no
+   * longer current can't land cards (or a cursor) for the wrong feed.
+   * Verified reachable, not theoretical: changing filters while a fetch is
+   * in flight, then letting the stale one resolve, used to leave the deck
+   * showing the *old* filters' cards under the *new* filters' header, with
+   * no error and no way to notice.
+   */
+  const generationRef = useRef(0);
+  /** Scoped to `onPrefetch` alone — a rapid double-trigger (two swipes
+   * before the first prefetch resolves) must not issue two requests for
+   * the same next page, but this must never block a fresh `fetchPage` call
+   * from a filter change or retry, which is what sharing one flag across
+   * every call used to do. */
+  const prefetchInFlightRef = useRef(false);
+
   const fetchPage = useCallback(async (cursor: FeedCursor | null, mode: "replace" | "append") => {
-    if (fetchingRef.current) return;
-    fetchingRef.current = true;
+    const generation = generationRef.current;
 
     const [error, result] = await safe(
       feedBrowserClient.feed.list({
@@ -42,14 +60,29 @@ export function useFeedDeck(filters: FeedFilters) {
       }),
     );
 
-    fetchingRef.current = false;
+    if (generation !== generationRef.current) return;
 
     if (error) {
-      const reason: DeckErrorReason = !isDefinedError(error)
-        ? "offline"
-        : error.code === "INVALID_CURSOR"
-          ? "sessionExpired"
-          : "loadFailed";
+      /**
+       * `error instanceof TypeError` — not `!isDefinedError(error)` — is
+       * the "offline" test. Confirmed necessary, not a style choice:
+       * `isDefinedError` is true only for the two *declared* contract
+       * errors, so an undeclared server-side failure, or the rate
+       * limiter's raw `new Response("Too Many Requests", {status:429})`
+       * (returned before oRPC's own handler ever runs, so it isn't a
+       * well-formed oRPC response at all), both come back with
+       * `isDefinedError === false` — landing on "offline" under the old
+       * check even though the server responded and the user's network is
+       * fine. A genuine network failure (no response reached at all) is a
+       * `TypeError` at the fetch layer, per the Fetch API's own contract —
+       * that's the actual signal "offline" should key on.
+       */
+      const reason: DeckErrorReason =
+        error instanceof TypeError
+          ? "offline"
+          : isDefinedError(error) && error.code === "INVALID_CURSOR"
+            ? "sessionExpired"
+            : "loadFailed";
       setState({ kind: "error", reason });
       return;
     }
@@ -66,6 +99,7 @@ export function useFeedDeck(filters: FeedFilters) {
   }, []);
 
   useEffect(() => {
+    generationRef.current += 1;
     cursorRef.current = null;
     swipedCountRef.current = 0;
     setState({ kind: "loading" });
@@ -81,8 +115,11 @@ export function useFeedDeck(filters: FeedFilters) {
    * these filters," never "hasn't loaded yet."
    */
   const onPrefetch = useCallback(() => {
-    if (cursorRef.current === null) return;
-    fetchPage(cursorRef.current, "append");
+    if (cursorRef.current === null || prefetchInFlightRef.current) return;
+    prefetchInFlightRef.current = true;
+    fetchPage(cursorRef.current, "append").finally(() => {
+      prefetchInFlightRef.current = false;
+    });
   }, [fetchPage]);
 
   /**
@@ -110,6 +147,7 @@ export function useFeedDeck(filters: FeedFilters) {
    * deck view, and `sessionExpired`'s own copy ("Ми почали стрічку
    * заново") specifically promises this. */
   const onRetry = useCallback(() => {
+    generationRef.current += 1;
     cursorRef.current = null;
     swipedCountRef.current = 0;
     setState({ kind: "loading" });

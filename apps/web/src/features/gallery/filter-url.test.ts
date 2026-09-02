@@ -197,6 +197,10 @@ describe("deckEntryHref / parseDeckQuery", () => {
     expect(parseDeckQuery({ total: "not-a-number" })).toEqual({ filters: NO_FILTERS, total: null });
   });
 
+  it("parseDeckQuery falls back to null on a total beyond what the gallery could ever report — untrusted input, not rendered verbatim", () => {
+    expect(parseDeckQuery({ total: "99999999" })).toEqual({ filters: NO_FILTERS, total: null });
+  });
+
   it("ignores a stray sort/stor param carried over by accident", () => {
     const { filters } = parseDeckQuery({ sort: "longest_waiting", stor: "3", total: "10" });
     expect(filters).toEqual(NO_FILTERS);

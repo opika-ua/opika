@@ -78,10 +78,15 @@ describe("HomeScreen", () => {
     expect(stored.cities).toEqual({ kind: "oneOf", values: [IRPIN.id] });
   });
 
-  it("the CTA links to /discovery, the only real destination today", () => {
+  it("the CTA still links to /discovery — HomeScreen's own routing wasn't updated when E5 gave the gallery/deck their real URLs", () => {
     render(<HomeScreen cities={[BROVARY]} />);
 
     const cta = screen.getByRole("link", { name: "Дивитися тварин" });
+    // Still works: next.config.ts permanently redirects /discovery to
+    // /tvaryny/gortaty now — but this component itself doesn't know that,
+    // and reconciling it (pointing at /tvaryny directly, say) is a real
+    // open question this file's own top comment now records rather than
+    // deciding here.
     expect(cta.getAttribute("href")).toBe("/discovery");
   });
 

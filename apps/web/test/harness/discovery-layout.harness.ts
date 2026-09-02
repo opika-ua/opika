@@ -15,6 +15,7 @@
 import { expect, test } from "@playwright/test";
 import {
   expectContainedBy,
+  expectFocusVisibleOutline,
   expectMinimumBottomMargin,
   expectNoOverlap,
   expectNoViewportOverflow,
@@ -222,5 +223,20 @@ test.describe("/tvaryny/gortaty responsive gap", () => {
       `the card is ${card.width}px wide in a ${DESKTOP.width}px viewport — the layout is ` +
         `phone-only and does not adapt`,
     ).toBeGreaterThan(500);
+  });
+});
+
+/**
+ * docs/standing-constraints.md: "An interactive element ships with its
+ * focus-visible styling and a test."
+ */
+test.describe("/tvaryny/gortaty keyboard focus", () => {
+  test("the back-to-list button shows a real focus-visible outline", async ({ page }) => {
+    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
+
+    await expectFocusVisibleOutline(page, {
+      label: "back-to-list button",
+      locator: page.getByTestId("deck-back-to-list"),
+    });
   });
 });

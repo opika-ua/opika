@@ -5,22 +5,9 @@ import { uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { galleryHref } from "../gallery/filter-url";
+import { consumeEnteredFromGalleryMarker } from "./deck-entry-marker";
 import { SwipeDeck } from "./SwipeDeck";
 import { useFeedDeck } from "./use-feed-deck";
-
-/**
- * Set by the gallery's own entry link (`page.tsx`'s "Гортати по одні"/
- * "Гортати") right before it navigates — read once here to tell "the user
- * just came from the gallery, in this tab" apart from "this route was
- * reached directly" (a reload, a bookmark, a shared link). `sessionStorage`,
- * not a URL param: it needs to survive exactly one navigation and be gone
- * after, which a query string doesn't do on its own.
- */
-const FROM_GALLERY_KEY = "opika:deck-entered-from-gallery";
-
-export function markEnteringFromGallery(): void {
-  sessionStorage.setItem(FROM_GALLERY_KEY, "1");
-}
 
 /**
  * docs/design/README.md, "Gallery ↔ deck": "«До списку», Esc, or browser
@@ -30,10 +17,10 @@ export function markEnteringFromGallery(): void {
  * scroll restoration already does that for a same-tab back navigation, no
  * manual scroll bookkeeping needed.
  *
- * `router.back()` is only safe when `FROM_GALLERY_KEY` says this tab's
- * history actually has the gallery one step behind — otherwise it could
- * leave the app entirely (whatever this tab's history held before Opika
- * ever loaded). The fallback is a freshly-built gallery link from the
+ * `router.back()` is only safe when `consumeEnteredFromGalleryMarker()` says
+ * this tab's history actually has the gallery one step behind — otherwise
+ * it could leave the app entirely (whatever this tab's history held before
+ * Opika ever loaded). The fallback is a freshly-built gallery link from the
  * filters this route was given; it can't restore a scroll position that
  * was never established in this tab to begin with, so it doesn't try to.
  */
@@ -42,10 +29,7 @@ function useDeckExit(filters: FeedFilters) {
   const [cameFromGallery, setCameFromGallery] = useState(false);
 
   useEffect(() => {
-    if (sessionStorage.getItem(FROM_GALLERY_KEY)) {
-      sessionStorage.removeItem(FROM_GALLERY_KEY);
-      setCameFromGallery(true);
-    }
+    if (consumeEnteredFromGalleryMarker()) setCameFromGallery(true);
   }, []);
 
   const exit = useCallback(() => {
@@ -80,7 +64,28 @@ export function DeckScreen({
   }, [exit]);
 
   const position = Math.min(shownCount + 1, total ?? Number.POSITIVE_INFINITY);
-  const showPosition = total !== null && state.kind !== "error";
+  // Only "ready" has a real card to number — during "loading" no fetch has
+  // resolved yet (there is nothing to confirm position 1 even exists), and
+  // "exhausted" has already told the user, in its own words, that there is
+  // nothing left; numbering a card past the last one there is a genuine
+  // off-by-one, not a rounding choice.
+  const showPosition = total !== null && state.kind === "ready";
+
+  /**
+   * Frozen at mount, not derived from `position` — docs/design/README.md's
+   * own announcement is specifically about *entering* the deck ("Режим по
+   * одній. Тварина 1 з N"), not a running commentary. A live region whose
+   * text changes on every swipe re-announces on every swipe (`aria-live`'s
+   * whole contract), talking over `SwipeDeck`'s own focus/DOM changes on
+   * commit — confirmed by rendering and swiping, not assumed. The lazy
+   * initializer runs once; `total` from props is enough to write "1 з N"
+   * without waiting for the first fetch to resolve.
+   */
+  const [entryAnnouncement] = useState(() =>
+    total !== null
+      ? uk.feed.deckEntryAnnouncement.replace("{position}", "1").replace("{total}", String(total))
+      : null,
+  );
 
   return (
     // Same outer shape as the /discovery wrapper it replaces (max-w-97.5,
@@ -109,10 +114,10 @@ export function DeckScreen({
           </span>
         )}
 
-        {showPosition && (
+        {showPosition && total !== null && (
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <span data-testid="deck-position" className="text-[12px] text-rg-ink-3">
-              {total !== null ? `${position} з ${total}` : position}
+              {position} з {total}
             </span>
             <div
               aria-hidden="true"
@@ -120,22 +125,19 @@ export function DeckScreen({
             >
               <div
                 className="h-full bg-rg-ink"
-                style={{ width: `${total ? Math.min(100, (position / total) * 100) : 0}%` }}
+                style={{ width: `${Math.min(100, (position / total) * 100)}%` }}
               />
             </div>
           </div>
         )}
       </header>
 
-      {/* docs/design/README.md's own polite announcement on entry — fires
-          once per mount, not per swipe (SwipeDeck's action buttons already
-          move focus/DOM in a way a live region re-announcing every card
-          would talk over). */}
-      {total !== null && (
+      {/* docs/design/README.md's own polite announcement on entry — see
+          `entryAnnouncement`'s own comment for why its text never changes
+          after mount. */}
+      {entryAnnouncement && (
         <span role="status" aria-live="polite" className="sr-only">
-          {uk.feed.deckEntryAnnouncement
-            .replace("{position}", String(position))
-            .replace("{total}", String(total))}
+          {entryAnnouncement}
         </span>
       )}
 

@@ -82,6 +82,83 @@ describe("DeckScreen", () => {
     expect(screen.queryByTestId("deck-position")).toBeNull();
   });
 
+  it("hides the position while loading — no fetch has resolved yet to confirm a first card exists", () => {
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "loading" },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} />
+      </WithMockRouter>,
+    );
+
+    expect(screen.queryByTestId("deck-position")).toBeNull();
+  });
+
+  it("hides the position once exhausted — numbering a card past the last one is a real off-by-one, not shown", () => {
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "exhausted", seenCount: 3 },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 3,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} />
+      </WithMockRouter>,
+    );
+
+    expect(screen.queryByTestId("deck-position")).toBeNull();
+  });
+
+  it("announces entering the deck at position 1, and the announcement never changes as the user swipes", () => {
+    const { rerender } = render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} />
+      </WithMockRouter>,
+    );
+
+    expect(screen.getByRole("status").textContent).toBe("Режим по одній. Тварина 1 з 34.");
+
+    // A later render with a higher shownCount (as if the user had swiped
+    // several cards) must not re-announce — docs/design/README.md's
+    // announcement is about *entering* the deck, not a running commentary,
+    // and a live region whose text keeps changing re-announces on every
+    // change (aria-live's own contract), talking over SwipeDeck's own
+    // focus/DOM changes on commit.
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 5,
+    });
+    rerender(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} />
+      </WithMockRouter>,
+    );
+
+    expect(screen.getByRole("status").textContent).toBe("Режим по одній. Тварина 1 з 34.");
+  });
+
+  it("renders no announcement region at all when there's no total to announce", () => {
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+      </WithMockRouter>,
+    );
+
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   it("clicking back-to-list calls router.back() when the gallery entry marker is present", () => {
     sessionStorage.setItem(FROM_GALLERY_KEY, "1");
     const router = mockAppRouter();
