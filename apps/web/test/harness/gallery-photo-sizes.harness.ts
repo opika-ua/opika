@@ -51,6 +51,7 @@ import { expect, test } from "@playwright/test";
 import { openRoute, rectOf, resolveSizesAttribute, selectVariantFromSrcset } from "./harness";
 import {
   DETAIL_DESKTOP,
+  DETAIL_PHONE,
   GALLERY_DESKTOP_1920,
   GALLERY_PHONE_360,
   GALLERY_TABLET,
@@ -91,27 +92,93 @@ async function sizesAttributeOf(
 }
 
 /**
- * The four combinations the H1 report tabulated, plus tablet — which the
- * report did not cover and which is the one breakpoint whose declaration is a
- * fixed px rather than viewport-relative, so it fails differently.
+ * The four combinations the H1 report tabulated, on both photo surfaces, plus
+ * tablet — which the report did not cover and which is the one breakpoint
+ * where the gallery's declaration is a fixed px rather than viewport-relative,
+ * so it fails differently.
+ *
+ * `expectedVariant` is not "card" everywhere, and the places it isn't are the
+ * point rather than an exception. The detail photo is a genuinely larger box:
+ * 328 CSS px at a 360px viewport, which at 2x needs 656 device px and so
+ * legitimately resolves to `detail` — `card`'s 640w would be under-resolved.
+ * Pinning every row to "card" would have been a test asserting a preference
+ * instead of the rule, and would fail the moment the ladder gains a tier.
  */
 interface Case {
   readonly surface: "gallery" | "detail";
   readonly viewport: Viewport;
   readonly dpr: number;
   readonly expectedVariant: string;
+  /** Why this row expects what it expects, quoted back in the failure message. */
+  readonly because: string;
 }
 
 const CASES: readonly Case[] = [
-  { surface: "gallery", viewport: GALLERY_PHONE_360, dpr: 1, expectedVariant: "card" },
-  // The regression guard. Before the fix this selected `detail`.
-  { surface: "gallery", viewport: GALLERY_PHONE_360, dpr: 2, expectedVariant: "card" },
-  { surface: "gallery", viewport: GALLERY_DESKTOP_1920, dpr: 1, expectedVariant: "card" },
-  { surface: "gallery", viewport: GALLERY_TABLET, dpr: 2, expectedVariant: "card" },
-  { surface: "detail", viewport: DETAIL_DESKTOP, dpr: 1, expectedVariant: "card" },
+  {
+    surface: "gallery",
+    viewport: GALLERY_PHONE_360,
+    dpr: 1,
+    expectedVariant: "card",
+    because: "304 CSS px x 1 = 304 device px, and card (640w) is the smallest tier that covers it",
+  },
+  {
+    // The regression guard F-1 exists for. Before the fix this selected `detail`.
+    surface: "gallery",
+    viewport: GALLERY_PHONE_360,
+    dpr: 2,
+    expectedVariant: "card",
+    because:
+      "304 CSS px x 2 = 608 device px, which still fits card (640w) — it is the 56px of " +
+      "overstatement in an inaccurate sizes, not the real box, that pushes this to detail",
+  },
+  {
+    surface: "gallery",
+    viewport: GALLERY_DESKTOP_1920,
+    dpr: 1,
+    expectedVariant: "card",
+    because: "288 CSS px x 1 = 288 device px, well inside card (640w)",
+  },
+  {
+    surface: "gallery",
+    viewport: GALLERY_TABLET,
+    dpr: 2,
+    expectedVariant: "card",
+    because: "a fixed 120px column x 2 = 240 device px, inside card (640w)",
+  },
+  {
+    surface: "detail",
+    viewport: DETAIL_PHONE,
+    dpr: 1,
+    expectedVariant: "card",
+    because: "328 CSS px x 1 = 328 device px, inside card (640w)",
+  },
+  {
+    // Correctly `detail`, not a defect: the box genuinely needs more than 640w.
+    surface: "detail",
+    viewport: DETAIL_PHONE,
+    dpr: 2,
+    expectedVariant: "detail",
+    because:
+      "328 CSS px x 2 = 656 device px, which exceeds card (640w) — detail (1120w) is the " +
+      "smallest tier that actually covers it, so card here would be visibly soft",
+  },
+  {
+    surface: "detail",
+    viewport: GALLERY_TABLET,
+    dpr: 2,
+    expectedVariant: "detail",
+    because: "720 CSS px x 2 = 1440 device px, past every tier — detail (1120w) is the ceiling",
+  },
+  {
+    surface: "detail",
+    viewport: DETAIL_DESKTOP,
+    dpr: 1,
+    expectedVariant: "card",
+    because: "a constant 560px column x 1 = 560 device px, inside card (640w)",
+  },
 ];
 
-for (const { surface, viewport, dpr, expectedVariant } of CASES) {
+for (const { surface, viewport, dpr, expectedVariant, because } of CASES) {
   test.describe(`${surface} photo at ${viewport.name} @${dpr}x`, () => {
     test.use({ deviceScaleFactor: dpr });
 
@@ -132,6 +199,7 @@ for (const { surface, viewport, dpr, expectedVariant } of CASES) {
           `        matched clause: "${resolved.source}" -> ${resolved.px}px\n` +
           `        needed: ${resolved.px} x ${dpr} = ${resolved.px * dpr} device px\n` +
           `        ladder: ${JSON.stringify(VARIANT_WIDTHS)}\n` +
+          `        expected because: ${because}\n` +
           `        A wrong variant here is invisible in the UI — the symptom is bandwidth. ` +
           `If "${chosen}" is larger than expected, the sizes clause above overstates the ` +
           `box; if smaller, the photo is now under-resolved and will look soft.`,
