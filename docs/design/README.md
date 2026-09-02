@@ -713,26 +713,44 @@ Buttons below, `gap: 8`, all 56, radius 16: «Не зараз» (`flex: 1`, whit
 **Deviations, E5 — recorded, not silently dropped from the build-plan row that used to name
 them:**
 
-- **"Memory: last mode in `sessionStorage`" is NOT built.** `sessionStorage` is used for exactly
-  one thing this phase (the one-shot entry marker `deck-entry-marker.ts` reads to decide whether
-  `router.back()` is safe) — there is no persisted "last mode" a gallery visit checks to decide
-  whether to auto-enter the deck. E5's own build-plan row originally named this feature and lost
-  the mention entirely in a later rewrite of that row, rather than moving it to a "not built"
-  note — exactly the lossy-deduplication mistake `docs/standing-constraints.md` has its own entry
-  about. Recorded here instead: deciding *when* a remembered mode should override the gallery's
-  own "default is the gallery at every width" rule is a real product question (every visit? only
-  a same-session return?), not a small addition, and no phase owns it yet.
+- **"Memory: last mode in `sessionStorage`" is an unmet definition-of-done item, not a deferred
+  nice-to-have — the build plan's E5 line names it explicitly.** `sessionStorage` is used for
+  exactly one thing this phase (the one-shot entry marker `deck-entry-marker.ts` reads to decide
+  whether `router.back()` is safe) — there is no persisted "last mode" a gallery visit checks to
+  decide whether to auto-enter the deck. E5's own build-plan row originally named this feature
+  and lost the mention entirely in a later rewrite of that row, rather than moving it to an
+  unmet-item note — exactly the lossy-deduplication mistake `docs/standing-constraints.md` has
+  its own entry about; restored here as an explicit gap, not a silent drop.
+
+  **The decision: don't persist it, and this is a product call, not an oversight.** A returning
+  visitor who lands straight in the deck lands in the surface that's off the critical path
+  (`docs/build-plan.md`'s Phase G header), carries an unresolved iOS Safari gesture failure that
+  has never reproduced on any other engine (G1), and doesn't persist swipe decisions across a
+  session — auto-entering it is auto-entering the worse-supported of the two modes. The gallery
+  is deliberately the front door at every width (this section's own "Default is the gallery"
+  rule); nothing about "last mode" should compete with that until the deck is actually finished.
+  Revisit after G3.
 - **"The deck inherits the current filters and sort" — filters only.** `feed.list` has no `sort`
-  input at all: the deck is a keyset feed, always ordered by recency then re-ranked per page by
-  `scoreAnimal` (`docs/gallery-contract-decisions.md` §9), independent of the gallery's
-  freshest/longest-waiting toggle. There is no sort concept for the deck to inherit. A further,
-  smaller gap this creates: `DeckScreen`'s exit fallback (for anyone who reached
-  `/tvaryny/gortaty` directly, with no safe `router.back()`) returns to the gallery via
-  `galleryHref(filters, DEFAULT_GALLERY_SORT)` — filters preserved, but a non-default sort the
-  user had chosen before entering the deck is silently reset to "freshest." Not fixable by
-  carrying `sort` through the deck URL (the deck itself has nowhere to use it); fixable only by
-  also carrying the gallery's sort choice through the entry link purely to hand back on exit,
-  which wasn't built this phase.
+  parameter today: the deck is a keyset feed, always ordered by recency then re-ranked per page
+  by `scoreAnimal` (`docs/gallery-contract-decisions.md` §9), independent of the gallery's
+  freshest/longest-waiting toggle. **This is not an architectural block — it's a missing
+  contract field.** E0 already built `wait_anchor_at` plus both indexes (unfiltered and
+  filtered) to serve either ordering, and `buildFeedPredicate` is already shared between
+  `gallery.list` and `feed.list` — the plumbing a `sort` parameter would need mostly exists.
+  Adding one is a `packages/contracts` change, which is a Phase 1 gate-stop condition on its
+  own terms, and E5 chose not to make it rather than finding it impossible. Checked the
+  consequence, not just the gap: `DeckScreen`'s header shows `filtersInWords(filters, ...)`
+  (cities/species/size/age only — `apps/web/src/features/gallery/filter-url.ts` never
+  mentions sort), so the header asserts nothing about ordering and this is a clean omission,
+  not the forced-dishonesty pattern the rest of this document watches for. A smaller,
+  separate gap the missing parameter does create: `DeckScreen`'s exit fallback (for anyone
+  who reached `/tvaryny/gortaty` directly, with no safe `router.back()`) returns to the
+  gallery via `galleryHref(filters, DEFAULT_GALLERY_SORT)` — filters preserved, but a
+  non-default sort the user had chosen before entering the deck is silently reset to
+  "freshest." Not fixable without the contract change above (the deck itself has nowhere to
+  use a carried `sort` until it has one); fixable today only by also carrying the gallery's
+  sort choice through the entry link purely to hand back on exit, which wasn't built this
+  phase either.
 - **The mobile entry link is 44px too, same reasoning as the back button above** — `min-h-11`,
   matching the row it sits in (`FilterSheet`'s own trigger), not the design's stated 48px minimum
   target everywhere.
