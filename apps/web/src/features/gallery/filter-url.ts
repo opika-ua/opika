@@ -18,6 +18,7 @@ import {
   NO_FILTERS,
   SizeBucketSchema,
 } from "@opika/domain";
+import { uk } from "@opika/i18n";
 
 /**
  * The design's own URL example (`/tvaryny?misto=brovary&stor=1`,
@@ -230,3 +231,115 @@ export function galleryPageHref(filters: FeedFilters, sort: GallerySort, page: n
 
 /** "Скинути" — clears every filter dimension, keeps the current sort. */
 export const resetFiltersHref = (sort: GallerySort): string => galleryHref(NO_FILTERS, sort);
+
+/**
+ * `total` isn't a gallery filter dimension — it rides along on the deck
+ * entry link for one reason only, documented on `deckEntryHref` below.
+ */
+const TOTAL_PARAM = "total";
+
+/**
+ * The gallery already knows `totalMatching` (it just fetched `gallery.list`
+ * to render); `feed.list` has no total field at all — a keyset feed doesn't
+ * paginate by count. Carrying the number across at the moment of the click
+ * is cheaper and more honest than inventing a second query just to restate
+ * a number the caller already has. `parseDeckQuery`'s `total` comes back
+ * `null` for anyone who reaches `/tvaryny/gortaty` without it (a reload, a
+ * bookmark, a shared link) — the deck header degrades to showing position
+ * alone rather than guessing a denominator it was never given.
+ */
+export function deckEntryHref(filters: FeedFilters, total: number): string {
+  const canonical = canonicalizeFilters(filters);
+  const params = new URLSearchParams();
+
+  if (canonical.cities.kind === "oneOf") {
+    params.set(CITY_PARAM, canonical.cities.values.join(","));
+  }
+  if (canonical.species.kind === "oneOf") {
+    params.set(SPECIES_PARAM, canonical.species.values.join(","));
+  }
+  if (canonical.sizes.kind === "oneOf") {
+    params.set(SIZE_PARAM, canonical.sizes.values.join(","));
+  }
+  if (canonical.ages.kind === "oneOf") {
+    params.set(AGE_PARAM, canonical.ages.values.join(","));
+  }
+  params.set(TOTAL_PARAM, String(total));
+
+  return `/tvaryny/gortaty?${params.toString()}`;
+}
+
+export type DeckQuery = { filters: FeedFilters; total: number | null };
+
+/**
+ * The deck's own reading of the same URL scheme `parseGalleryQuery` reads —
+ * same four filter params, `sort`/`stor` simply don't apply to a
+ * cursor-paginated feed and are ignored if present (a stray `?stor=3`
+ * carried over by accident degrades to "unused," not an error, matching
+ * this file's existing posture toward unrecognised input).
+ */
+export function parseDeckQuery(searchParams: SearchParams): DeckQuery {
+  const { filters } = parseGalleryQuery(searchParams);
+
+  const totalRaw = Number(firstValue(searchParams[TOTAL_PARAM]));
+  const total = Number.isInteger(totalRaw) && totalRaw >= 0 ? totalRaw : null;
+
+  return { filters, total };
+}
+
+const SPECIES_WORDS: Record<AnimalSpecies, string> = {
+  dog: uk.filters.speciesDogs,
+  cat: uk.filters.speciesCats,
+};
+const SIZE_WORDS: Record<SizeBucket, string> = {
+  small: uk.filters.sizeSmall,
+  medium: uk.filters.sizeMedium,
+  large: uk.filters.sizeLarge,
+};
+const AGE_WORDS: Record<AgeBucket, string> = {
+  baby: uk.filters.ageBaby,
+  young: uk.filters.ageYoung,
+  adult: uk.filters.ageAdult,
+  senior: uk.filters.ageSenior,
+};
+
+/**
+ * "Бровари · собаки · середні" — `docs/design/README.md`'s "Deck chrome and
+ * the mode switch," the header phrase naming what the deck inherited from
+ * the gallery. Only dimensions actually constrained are named; entering the
+ * deck with every dimension at `ANY` says nothing extra, rather than
+ * inventing a claim like "every city" that reads as a filter when it isn't
+ * one.
+ *
+ * Deviation: the mock's own example uses plural adjective agreement
+ * ("середні," not "середній") this codebase's label catalogue doesn't
+ * carry — the same class of gap as E4's ordinal-page deviation
+ * (`docs/design/README.md`'s "Out-of-range page" note). Shipped as the
+ * existing filter-chip labels, lower-cased, rather than inventing new
+ * declension entries with no groundwork anywhere else in the app.
+ */
+export function filtersInWords(
+  filters: FeedFilters,
+  cityNames: ReadonlyMap<CityId, string>,
+): string | null {
+  const canonical = canonicalizeFilters(filters);
+  const parts: string[] = [];
+
+  if (canonical.cities.kind === "oneOf") {
+    const names = canonical.cities.values
+      .map((id) => cityNames.get(id))
+      .filter((name): name is string => Boolean(name));
+    if (names.length > 0) parts.push(names.join("/"));
+  }
+  if (canonical.species.kind === "oneOf") {
+    parts.push(canonical.species.values.map((s) => SPECIES_WORDS[s].toLowerCase()).join("/"));
+  }
+  if (canonical.sizes.kind === "oneOf") {
+    parts.push(canonical.sizes.values.map((s) => SIZE_WORDS[s].toLowerCase()).join("/"));
+  }
+  if (canonical.ages.kind === "oneOf") {
+    parts.push(canonical.ages.values.map((a) => AGE_WORDS[a].toLowerCase()).join("/"));
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
