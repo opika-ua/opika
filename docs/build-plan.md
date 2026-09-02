@@ -387,6 +387,20 @@ reasoning again: this is new scope the addendum surfaced, not scope moving from 
 Phase V3 that never had its own hour line to begin with — there is nothing to subtract
 elsewhere in this ledger to offset it.
 
+**E5's real cost was ~18 h against its own 3 h line — a +15 h overage, and like Phase V's
+12 h, this does not fit the "absorbed, week count unmoved" reasoning either.** Phase 0
+investigation found the 3 h estimate priced "chrome" against a deck that was already
+reachable; the real state was that `/discovery` still ran on `generateMockCards` entirely,
+no browser-side oRPC client existed anywhere in the repo, and no gallery-side entry control
+existed at all — wiring real data, a real route, and a real entry point was the actual
+scope once that was checked, not assumed. Stopped and reported before starting, per this
+repo's own gate conditions, rather than either quietly absorbing a 6x estimate or shipping
+half the scope under the original number. Brings the critical path to 165 h ÷ 8 h/week ≈
+20.6 weeks, and the grand total including G to 168 h. Whether this — on top of Phase V's
+already-unresolved 12 h — actually moves the project's week estimate past "~16 weeks," and
+by how much, remains the same open re-plan question Phase V's own paragraph raised; this
+entry doesn't re-settle it, only adds its number to the pile waiting on that question.
+
 **The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own
 `freshnessSentence`. Shelter #1 fully verified with ten photographed animals was a week-6

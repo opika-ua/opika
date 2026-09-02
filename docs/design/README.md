@@ -586,6 +586,32 @@ Transition, both directions:
 - «Не зараз» hides an animal for the rest of the deck session, **not** in the gallery.
 - `prefers-reduced-motion`: opacity only, 120ms, both directions.
 
+**Deviations, E5 — recorded, not silently shipped:**
+
+- **Back button is 44px, not the mock's 48.** `min-h-11` matches every other control this
+  header sits beside (`page.tsx`'s own header, `FilterSheet`'s trigger) — a deliberate
+  consistency choice over the frame's own literal number, not an oversight.
+- **Transitions: only the deck's own entrance (opacity, 220ms, `animate-fade-in`) is built.**
+  The header crossfade and grid fade-out described above happen on the *gallery's* outgoing
+  view, at the moment of navigating away — Next.js has no built-in mechanism for a
+  cross-route transition like that (the View Transitions API integration wasn't evaluated
+  this phase), and building one is real, separate scope from "the deck is reachable and
+  honest." Not built; no owning phase yet.
+- **Position/progress total is carried, not "otherwise invisible."** `feed.list` has no
+  count of its own — the gallery's `totalMatching` rides along on the entry link
+  (`deckEntryHref`) instead. Anyone who reaches `/tvaryny/gortaty` without it (a reload, a
+  bookmark) sees the position alone, no denominator — an honest degradation, not a guess.
+- **Mobile entry sits in the existing, non-sticky filter row, not a sticky bottom bar.**
+  `docs/design/README.md`'s own 0–599 row calls for a "sticky bottom bar «Фільтри · N /
+  Гортати»" — this app's mobile filter row (built in an earlier phase) was never sticky and
+  never carried a combined «Фільтри · N» label to begin with. Both are pre-existing gaps
+  from whichever phase built that row, not introduced here; E5 added "Гортати" beside the
+  existing trigger rather than retrofitting the row's positioning to match this one frame.
+- **Inherited-filters phrase uses singular labels, not the mock's plural adjective
+  agreement.** «Бровари · собаки · середній», not «...середні» — this codebase's filter-chip
+  label catalogue has no plural-adjective forms, the same class of gap as the out-of-range
+  notice's ordinal-vs-numeral deviation above. See `filtersInWords` in `filter-url.ts`.
+
 ### 04 Detail (D1/D2)
 Frames pin the values already specified above (`### Detail (04)`). Desktop: left column 560
 sticky (main photo 4:5 radius 24, three 88px thumbnails radius 16, active `outline 3px #101112
