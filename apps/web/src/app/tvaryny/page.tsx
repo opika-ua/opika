@@ -1,11 +1,11 @@
 import type { CityId } from "@opika/domain";
 import { textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import Link from "next/link";
 import { anonymousRouterClient } from "../../api/server-client";
 import { AnimalCard } from "../../features/gallery/AnimalCard";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
 import { cardCityId } from "../../features/gallery/card-text";
+import { DeckEntryLink } from "../../features/gallery/DeckEntryLink";
 import { FilterRail } from "../../features/gallery/FilterRail";
 import { FilterSheet } from "../../features/gallery/FilterSheet";
 import {
@@ -119,12 +119,12 @@ export async function renderGallery(
           split between a header button and a mobile bar.
         */}
         {page.totalMatching > 0 && (
-          <Link
+          <DeckEntryLink
             href={deckHref}
             className="hidden desktop:inline-flex min-h-12 items-center rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
           >
             {uk.feed.enterDeck}
-          </Link>
+          </DeckEntryLink>
         )}
       </header>
 
@@ -158,12 +158,12 @@ export async function renderGallery(
           */}
           <div className="flex items-center gap-2">
             {page.totalMatching > 0 && (
-              <Link
+              <DeckEntryLink
                 href={deckHref}
                 className="min-h-11 inline-flex items-center rounded-rg-button bg-rg-fill px-3.5 text-[13px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
               >
                 {uk.feed.enterDeckShort}
-              </Link>
+              </DeckEntryLink>
             )}
             <FilterSheet
               filters={filters}

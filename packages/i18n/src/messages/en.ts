@@ -29,6 +29,8 @@ export const en = {
     filtersLabel: "Filters",
     enterDeck: "Swipe one at a time",
     enterDeckShort: "Swipe",
+    backToList: "← Back to the list",
+    deckEntryAnnouncement: "One-at-a-time mode. Animal {position} of {total}.",
   },
 
   // --- Screen 03 · Filters ---

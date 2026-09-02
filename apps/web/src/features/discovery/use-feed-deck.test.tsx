@@ -50,16 +50,20 @@ describe("useFeedDeck", () => {
     await waitFor(() => expect(result.current.state.kind).toBe("ready"));
 
     act(() => result.current.onPrefetch());
-    await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    // Waiting on the merged card count, not just "list was called twice" —
+    // the second call's response still has to clear its own await/setState
+    // before the merge is actually visible in `state`.
+    await waitFor(() =>
+      expect(result.current.state).toEqual({
+        kind: "ready",
+        cards: [...firstPage, ...secondPage],
+      }),
+    );
 
     expect(list).toHaveBeenLastCalledWith({
       filters: NO_FILTERS,
       cursor: "cursor-1",
       limit: 20,
-    });
-    expect(result.current.state).toEqual({
-      kind: "ready",
-      cards: [...firstPage, ...secondPage],
     });
   });
 

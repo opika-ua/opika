@@ -116,5 +116,13 @@ export function useFeedDeck(filters: FeedFilters) {
     fetchPage(null, "replace");
   }, [fetchPage]);
 
-  return { state, onSwipe, onPrefetch, onRetry };
+  /**
+   * How many cards this session has already swiped past — the deck
+   * header's "6 з 34" position is `shownCount + 1` (the card on screen
+   * right now, 1-indexed). Read straight off the ref rather than mirrored
+   * into its own `useState`: it only ever changes inside `onSwipe`, which
+   * already calls `setState` in the same tick, so any render that sees a
+   * new `state` also sees the ref's already-updated value.
+   */
+  return { state, onSwipe, onPrefetch, onRetry, shownCount: swipedCountRef.current };
 }

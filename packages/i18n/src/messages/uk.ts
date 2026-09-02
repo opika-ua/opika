@@ -23,6 +23,10 @@ export const uk = {
     enterDeck: "Гортати по одній",
     /** Mobile sticky-bar short form, same destination — "sticky bottom bar «Фільтри · N / Гортати»." */
     enterDeckShort: "Гортати",
+    /** The deck's own header, exit control — docs/design/README.md "Deck chrome and the mode switch." */
+    backToList: "← До списку",
+    /** Screen-reader announcement on entering the deck, template: "Тварина {position} з {total}." */
+    deckEntryAnnouncement: "Режим по одній. Тварина {position} з {total}.",
   },
 
   // --- Screen 03 · Filters ---
