@@ -261,19 +261,31 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
   );
 }
 
+/**
+ * Stacked (label above status), not side-by-side: the medical column
+ * shares its row with the fixed-width "Де живе" column at desktop
+ * (`w-65`), which leaves it real but narrow — a side-by-side layout with
+ * "Комплексне щеплення" as the label overlapped its own status text at
+ * 1920, caught by looking at the actual rendered screenshot, not assumed
+ * from the JSX. Stacking removes the width budget entirely rather than
+ * trimming it closer to a number that might collide again with a longer
+ * translation later.
+ */
 function MedicalRowView({ row }: { row: ReturnType<typeof vaccinationRow> }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-start gap-3">
       <span
         aria-hidden="true"
-        className={`w-1 h-4 rounded-rg-chip flex-none ${row.barClassName}`}
+        className={`w-1 h-4 mt-1 rounded-rg-chip flex-none ${row.barClassName}`}
       />
-      <span className="flex-1 min-w-0 text-[15px]/[22px] text-rg-ink">{row.label}</span>
-      <span
-        className={`text-[15px]/[22px] ${row.barClassName === "bg-rg-registry" ? "font-medium text-rg-registry" : row.barClassName === "bg-rg-ink-3" ? "text-rg-ink-2" : "text-rg-ink-3"}`}
-      >
-        {row.statusText}
-      </span>
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className="text-[15px]/[22px] text-rg-ink">{row.label}</span>
+        <span
+          className={`text-[13px]/[18px] ${row.barClassName === "bg-rg-registry" ? "font-medium text-rg-registry" : row.barClassName === "bg-rg-ink-3" ? "text-rg-ink-2" : "text-rg-ink-3"}`}
+        >
+          {row.statusText}
+        </span>
+      </div>
     </div>
   );
 }

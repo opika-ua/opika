@@ -192,6 +192,15 @@ export const uk = {
     reflection3: "Чи згодні всі, хто живе з вами.",
     writeTelegram: "Написати в Telegram",
     /**
+     * Not every shelter's primary contact channel is Telegram — real seed
+     * data has phone-only shelters, and the mock's own R1/R2 frames only
+     * ever show the Telegram example. Found by looking at a real rendered
+     * reveal, not assumed: a phone-only shelter left this dialog with no
+     * primary action at all, only "Повернутися до галереї".
+     */
+    call: "Подзвонити",
+    writeEmail: "Написати листа",
+    /**
      * "Опика Registry Frames.dc.html" (R1/R2) says «Повернутися до
      * галереї» verbatim — corrected from an earlier "до стрічки" here,
      * which predates the gallery-first course correction and never

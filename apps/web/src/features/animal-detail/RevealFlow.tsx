@@ -1,7 +1,7 @@
 "use client";
 
 import type { ContactRevealView } from "@opika/contracts";
-import type { AnimalId } from "@opika/domain";
+import type { AnimalId, ContactChannel } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { safe } from "@orpc/client";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -12,6 +12,40 @@ type RevealState =
   | { kind: "loading" }
   | { kind: "error" }
   | { kind: "open"; reveal: ContactRevealView };
+
+/**
+ * The dialog's own primary action, keyed on whichever channel the shelter
+ * actually gave as `primary` — the mock's R1/R2 frames only ever show
+ * Telegram, but real seed data has phone-only shelters. Found by looking
+ * at a real rendered reveal, not assumed: a phone-only shelter left the
+ * dialog with no primary action at all before this existed. `viber`/
+ * `website` fall back to `null` (no action row rendered) rather than a
+ * guessed deep-link scheme this codebase has never used anywhere else.
+ */
+function primaryContactAction(
+  channel: ContactChannel,
+): { label: string; href: string; external: boolean } | null {
+  switch (channel.kind) {
+    case "telegram":
+      return {
+        label: uk.reveal.writeTelegram,
+        href: `https://t.me/${channel.handle}`,
+        external: true,
+      };
+    case "phone":
+      return { label: uk.reveal.call, href: `tel:${channel.e164}`, external: false };
+    case "email":
+      return { label: uk.reveal.writeEmail, href: `mailto:${channel.address}`, external: false };
+    case "viber":
+    case "website":
+      return null;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = channel;
+      return unreachable;
+    }
+  }
+}
 
 interface RevealFlowProps {
   animalId: AnimalId;
@@ -215,6 +249,7 @@ function RevealContent({
     month: "long",
     year: "numeric",
   }).format(reveal.revealedAt);
+  const primaryAction = primaryContactAction(shelter.contact.primary);
 
   return (
     <>
@@ -276,15 +311,15 @@ function RevealContent({
       </div>
 
       <div className="flex flex-col desktop:flex-row gap-2 desktop:items-center">
-        {telegram && (
+        {primaryAction && (
           <a
-            href={`https://t.me/${telegram.handle}`}
-            target="_blank"
-            rel="noopener"
-            data-testid="reveal-telegram"
+            href={primaryAction.href}
+            target={primaryAction.external ? "_blank" : undefined}
+            rel={primaryAction.external ? "noopener" : undefined}
+            data-testid="reveal-primary-action"
             className="min-h-14 flex-1 flex items-center justify-center rounded-rg-button bg-rg-ink text-[15px] font-medium text-rg-surface focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
           >
-            {uk.reveal.writeTelegram}
+            {primaryAction.label}
           </a>
         )}
         <button

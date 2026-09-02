@@ -64,6 +64,22 @@ export const GALLERY_WIDE_ROOMY: Viewport = {
  */
 export const SHORT_PHONE: Viewport = { name: "390x640 short phone", width: 390, height: 640 };
 
+/**
+ * F1's own detail-page mock frames — `Opika Registry Frames.dc.html`'s "D2
+ * Деталі · 360" and "D1 Деталі · 1920" name these exact widths, not the
+ * generic `PHONE`/`DESKTOP` pair above. Heights are tall enough to fit the
+ * page's own content without scrolling in the harness's own screenshots
+ * (a real device would scroll; the assertions below don't depend on
+ * everything fitting above the fold, but the PR's required screenshots do
+ * read better without a mid-scroll crop).
+ */
+export const DETAIL_PHONE: Viewport = { name: "360x1200 detail phone", width: 360, height: 1200 };
+export const DETAIL_DESKTOP: Viewport = {
+  name: "1920x1080 detail desktop",
+  width: 1920,
+  height: 1080,
+};
+
 /*
  * Font-metrics portability — resolved, not a live caveat any more.
  *
