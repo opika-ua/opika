@@ -45,10 +45,40 @@ export function requireEnv(name: string): string {
  * real in-app handler (a future admin surface) ever calls
  * `productionLocationPolicy` directly from a request path, add it here in
  * that same change — not before.
+ *
+ * `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` (H1) is the opposite case from
+ * `LOCATION_HMAC_SECRET`: genuinely required by this app's own runtime, not
+ * just by the operator's onboarding script. Every real animal photo routes
+ * through `apps/web/src/image-loader.ts`, which throws without it the
+ * moment a real (non-seed-placeholder) `storageKey` needs a URL — see that
+ * file's own comment. The R2 *write* credentials (`R2_ACCOUNT_ID`,
+ * `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) follow
+ * `LOCATION_HMAC_SECRET`'s pattern instead — they belong to
+ * `onboard-shelter.ts`'s own operator-local run, never to Vercel.
+ *
+ * ⚠ Listing it here is a real check, but not the one that actually protects
+ * the client — found by inspecting a built client bundle, not assumed.
+ * `NEXT_PUBLIC_*` values are inlined into the client bundle at *build*
+ * time; this schema's check runs against the *server's* live
+ * `process.env` at *boot*. Those can disagree: a promoted or rolled-back
+ * build, or any build job that doesn't forward this var (`next.config.ts`
+ * carries the actual load-bearing check, gated on `process.env.VERCEL`,
+ * for exactly this reason), ships a client bundle that throws on hydration
+ * for any real photo, on a server instance whose own `validateEnv()` still
+ * passes cleanly — the server-side env is fine, the frozen bundle isn't.
+ * This entry still earns its place: it's what turns "some request 500s"
+ * into "every request 500s, from boot," for the server-rendered half of
+ * every page, which is real signal even though it can't see the client
+ * bundle's own baked-in value. Deploy-order note: unlike
+ * `LOCATION_HMAC_SECRET` (kept out specifically so a missing var could
+ * never take the site down), this one needed `NEXT_PUBLIC_R2_PUBLIC_BASE_
+ * URL` set in Vercel (Production and Preview) *before* the first build
+ * after this entry landed, not after. See `docs/h1-decisions.md`.
  */
 const RequiredProductionEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   CURSOR_HMAC_SECRET: z.string().min(1, "CURSOR_HMAC_SECRET is required"),
+  NEXT_PUBLIC_R2_PUBLIC_BASE_URL: z.string().min(1, "NEXT_PUBLIC_R2_PUBLIC_BASE_URL is required"),
 });
 
 /**

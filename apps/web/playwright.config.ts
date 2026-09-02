@@ -30,6 +30,20 @@ const HARNESS_DATABASE_URL = "postgres://opika:opika@127.0.0.1:5433/opika_test";
 /** Same literal apps/web/src/api/test-harness.ts uses — recognizable as the test secret, not a real one. */
 const CURSOR_HMAC_SECRET = "test-hmac-secret-for-cursor-signing";
 
+/**
+ * H1: `validateEnv()` now requires this (`apps/web/src/api/env.ts`), and
+ * `next start` below runs in production mode, so the webServer refuses to
+ * boot without it — found by actually running the harness after adding the
+ * requirement, not anticipated in advance. The seeded corpus only ever uses
+ * `seed-photos/*.jpg` placeholder keys (`packages/db/src/seed.ts`), which
+ * never route through this value at all (`isRealPhotoKey`,
+ * `apps/web/src/image-loader.ts`) — so the actual string here is
+ * unreachable by any harness assertion, same reasoning as
+ * `CURSOR_HMAC_SECRET` above being a recognizable placeholder, not a real
+ * secret.
+ */
+const R2_PUBLIC_BASE_URL = "https://cdn.test.invalid";
+
 export default defineConfig({
   testDir: "./test/harness",
   testMatch: /.*\.harness\.ts$/,
@@ -98,6 +112,7 @@ export default defineConfig({
     env: {
       DATABASE_URL: HARNESS_DATABASE_URL,
       CURSOR_HMAC_SECRET,
+      NEXT_PUBLIC_R2_PUBLIC_BASE_URL: R2_PUBLIC_BASE_URL,
     },
     stdout: "pipe",
     stderr: "pipe",
