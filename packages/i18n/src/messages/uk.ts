@@ -6,22 +6,20 @@
  * the design string table in docs/design/.
  */
 export const uk = {
-  // --- Home / first run ---
+  // --- 01 First run — docs/design/README.md:427, a band above the
+  // gallery grid (FirstRunBand.tsx), not a separate screen ---
   firstRun: {
     /**
      * Rewritten for the gallery-first course correction — "Гортайте, щоб
      * подивитися" (swipe to see) named the deck as the way to look at
      * animals, which stopped being true the moment the gallery became the
-     * primary surface. "Перегляньте список" (browse the list) names the
-     * actual home page CTA's actual destination.
+     * primary surface. "Перегляньте список" (browse the list) names what
+     * is actually right below the band: the gallery grid itself.
      */
     promise:
       "Тварини з перевірених притулків Київщини. Перегляньте список і подивіться, кого шукає дім.",
     disclaimer:
       "Без реєстрації. Ми не беремо і не переказуємо грошей. «Не зараз» — це просто фільтр, а не оцінка тварини.",
-    cityHeading: "Ваше місто",
-    allRegion: "Уся Київщина",
-    viewAnimals: "Дивитися тварин",
   },
 
   // --- Screen 02 · Feed / deck ---
@@ -457,13 +455,7 @@ export const uk = {
       "Opika ніколи не бере участі в грошах: немає прийому платежів, немає комісії, немає збору донатів через платформу. Кнопка «Підтримати притулок» веде на власну сторінку притулку в іншому сервісі (наприклад, monobank) — реєстр лише показує посилання, гроші йдуть напряму, і видно, куди саме.",
     data: "Дані, які вносить притулок — адреса, контакти, картки тварин — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише наближену локацію. Притулок може попросити видалити свій запис у будь-який момент.",
     analytics:
-      "Реєстр збирає знеособлену статистику відвідувань — скільки людей заходить і наскільки швидко працюють сторінки. Без кукі, без персональних даних, без реклами.",
+      "Реєстр збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко працюють сторінки — без кукі і без реклами.",
     contact: "Зв'язатися з розробником: {contact}",
-  },
-
-  // --- Language toggle ---
-  locale: {
-    uk: "Українська",
-    en: "English",
   },
 } as const;

@@ -121,12 +121,13 @@ test.describe("/tvaryny pagination", () => {
     page,
   }) => {
     // A real prior page, the same reasoning gallery-filters.harness.ts's own
-    // push/replace test uses: what this proves is push, specifically, by
+    // push/replace test uses (including why it's /pro and not / — see that
+    // file's own comment): what this proves is push, specifically, by
     // contrast with E2's filter replace — ten filter clicks collapse to one
     // history entry, but page navigation must not collapse the same way, or
     // "back" from page 4 would skip straight past 3 and 2 to the pre-gallery
     // page instead of landing on 3.
-    await page.goto("/", { waitUntil: "load" });
+    await page.goto("/pro", { waitUntil: "load" });
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
     await page.getByTestId("pagination-next").click();
@@ -147,7 +148,7 @@ test.describe("/tvaryny pagination", () => {
     ).not.toHaveURL(/stor=/);
 
     await page.goBack();
-    await expect(page, "a third back-press should reach the real prior page").toHaveURL("/");
+    await expect(page, "a third back-press should reach the real prior page").toHaveURL("/pro");
   });
 
   test("the skip link is invisible until focused, and activating it moves focus to the pagination nav", async ({

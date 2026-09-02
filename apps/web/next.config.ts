@@ -15,7 +15,18 @@ const nextConfig: NextConfig = {
    * the filesystem and apply to a full navigation the same way regardless.
    */
   async redirects() {
-    return [{ source: "/discovery", destination: "/tvaryny/gortaty", permanent: true }];
+    return [
+      { source: "/discovery", destination: "/tvaryny/gortaty", permanent: true },
+      /**
+       * `docs/design/README.md:427`'s "01 First run" is explicit that the
+       * first-visit promise + city choice is a band above the gallery
+       * grid, not a separate screen — see `FirstRunBand.tsx` and
+       * `tvaryny/page.tsx`. A standalone `/` route was built first,
+       * contradicted that spec, and was reverted in favour of this
+       * redirect once the conflict was found.
+       */
+      { source: "/", destination: "/tvaryny", permanent: true },
+    ];
   },
   /**
    * `NOINDEX_EVERYTHING` (`src/seo-flags.ts`) — this corpus is fictional,

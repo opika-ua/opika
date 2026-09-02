@@ -3,19 +3,26 @@
  * frames D1/D2 (detail) and R1/R2 (reveal), opened directly per
  * docs/standing-constraints.md's "when a mock exists, open the mock file."
  *
- * Every assertion here is against a real animal reached by clicking through
- * the gallery grid, not a hardcoded seed id — the gallery's own first card
- * is the one real integration point between E1's grid and F1's detail page,
- * and asserting through it is what actually proves the 404 this phase set
- * out to fix is gone, not just that the route exists in isolation.
+ * One test ("clicking a gallery card actually reaches a real detail page")
+ * reaches the detail page by clicking through the gallery grid, the one real
+ * integration point between E1's grid and F1's detail page, and is what
+ * actually proves the 404 this phase set out to fix is gone, not just that
+ * the route exists in isolation. Every other test below reuses that first
+ * test's discovered href directly (see `discoverFirstAnimalHref` below) —
+ * they assert against a real seeded animal, just not by re-navigating the
+ * gallery to find one.
  *
  * A dedicated `x-forwarded-for` isolates this file's own request budget from
  * proxy.ts's shared 100 req/min limiter — the same reasoning
  * `gallery-filters.harness.ts` and siblings already give for their own IPs
  * (TEST-NET-2, 198.51.100.0/24; .21 through .28 are already claimed by
- * other harness files, this one is .29). Every test here opens the gallery
- * *and* the detail page, several open the reveal dialog too — real volume
- * that hit the shared budget and started timing out before this was added.
+ * other harness files, this one is .29). Confirmed empirically (not just
+ * reasoned about) that the dedicated IP alone is not enough: with caching
+ * removed and only the IP isolation in place, "Esc closes the dialog" and
+ * "Tab is trapped" still time out identically waiting on the gallery page —
+ * this file's own ~20 tests, each doing a full gallery navigation, exhaust
+ * its own budget before the file finishes. `discoverFirstAnimalHref` below
+ * is a real fix, not a guess.
  */
 
 import { expect, test } from "@playwright/test";
@@ -47,21 +54,26 @@ async function discoverFirstAnimalHref(
 ): Promise<string> {
   if (cachedAnimalHref) return cachedAnimalHref;
   const page = await browser.newPage({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
-  await openRoute(page, GALLERY_ROUTE, DETAIL_DESKTOP, { readySelector: CARD });
-  const href = await page.locator(CARD).first().getAttribute("href");
-  expect(href, "the first gallery card should link somewhere").not.toBeNull();
-  await page.close();
-  cachedAnimalHref = href as string;
-  return cachedAnimalHref;
+  try {
+    await openRoute(page, GALLERY_ROUTE, DETAIL_DESKTOP, { readySelector: CARD });
+    const href = await page.locator(CARD).first().getAttribute("href");
+    expect(href, "the first gallery card should link somewhere").not.toBeNull();
+    cachedAnimalHref = href as string;
+    return cachedAnimalHref;
+  } finally {
+    await page.close();
+  }
 }
 
 async function openFirstAnimalDetail(
   page: import("@playwright/test").Page,
   viewport: typeof DETAIL_PHONE,
 ) {
-  const href = await discoverFirstAnimalHref(
-    page.context().browser() as import("@playwright/test").Browser,
-  );
+  const browser = page.context().browser();
+  if (!browser) {
+    throw new Error("expected the page's context to carry a live Browser instance");
+  }
+  const href = await discoverFirstAnimalHref(browser);
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   await page.goto(href, { waitUntil: "load" });
   await page.getByTestId("animal-name").waitFor({ state: "visible" });
