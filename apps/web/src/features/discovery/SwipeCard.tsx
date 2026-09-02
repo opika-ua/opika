@@ -84,6 +84,17 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         data-testid="card-photo"
         className="w-full h-99 grow-0 shrink min-h-50 rounded-rg-photo overflow-hidden bg-rg-photo-placeholder relative"
       >
+        {/*
+          draggable={false}: found via E5, not assumed — every harness test
+          and the deck's only real route (`/discovery`, pre-E5) always ran
+          against `generateMockCards`'s `primaryPhoto: null`, so a real
+          <img> here never existed until real `feed.list` data did. A real
+          <img> is draggable by default; starting a native browser image
+          drag on `pointerdown` suppresses the `pointermove` events
+          `use-swipe-gesture.ts` needs, so the card silently stopped
+          committing the moment a real photo was behind it — `onCommit`
+          never fired at all, not a wrong threshold.
+        */}
         {photo && (
           <Image
             src={photo.storageKey}
@@ -91,6 +102,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
             fill
             sizes={PHOTO_SIZES}
             className="object-cover"
+            draggable={false}
           />
         )}
 

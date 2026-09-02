@@ -25,14 +25,20 @@ const browserContract = {
 } as const;
 
 /**
- * `RPCLink`'s `url` is relative to the page origin, which is what makes this
- * safe to construct once at module scope: unlike `anonymousRouterClient`'s
- * per-call `AppContext` (built fresh so `now` reads the clock per request),
- * there's no server-side state here to go stale between calls — every call
- * still issues its own `fetch`, through the same `/api/rpc` route and the
- * same per-IP rate limit (`apiRateLimiter`) any other HTTP caller hits.
+ * `url` is a function, not the string `"/api/rpc"` directly — confirmed
+ * necessary, not a style preference: oRPC's own encoder does `new URL(url)`
+ * with no base, which throws `Invalid URL` on a relative path (a relative
+ * string works with `fetch()` itself, but not with the `URL` constructor
+ * oRPC builds on top of it). A function defers evaluation to call time,
+ * which only happens client-side (`feed.list()` is only ever invoked from
+ * an effect or an event handler, never during this module's own SSR
+ * evaluation as part of `DeckScreen`'s Client Component bundle) — so
+ * `window` is always defined by the time this runs, even though the module
+ * itself is also evaluated server-side.
  */
-const link = new RPCLink<Record<never, never>>({ url: "/api/rpc" });
+const link = new RPCLink<Record<never, never>>({
+  url: () => `${window.location.origin}/api/rpc`,
+});
 
 export const feedBrowserClient: ContractRouterClient<typeof browserContract> =
   createORPCClient(link);

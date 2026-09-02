@@ -1,6 +1,6 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
 import { NO_FILTERS } from "@opika/domain";
 import { ORPCError } from "@orpc/client";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateMockCards } from "./mock-data";
 import { useFeedDeck } from "./use-feed-deck";
@@ -120,7 +120,9 @@ describe("useFeedDeck", () => {
       .mockResolvedValueOnce({ items: generateMockCards(1), nextCursor: null });
 
     const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
-    await waitFor(() => expect(result.current.state).toEqual({ kind: "error", reason: "loadFailed" }));
+    await waitFor(() =>
+      expect(result.current.state).toEqual({ kind: "error", reason: "loadFailed" }),
+    );
 
     act(() => result.current.onRetry());
     await waitFor(() => expect(result.current.state.kind).toBe("ready"));

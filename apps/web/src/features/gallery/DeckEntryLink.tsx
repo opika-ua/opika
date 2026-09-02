@@ -11,6 +11,17 @@ import { markEnteringFromGallery } from "../discovery/DeckScreen";
  * aside — so this thin wrapper exists purely to hold that one handler.
  * `DeckScreen`'s own doc comment on `markEnteringFromGallery` explains what
  * it's for.
+ *
+ * `prefetch={false}` — confirmed necessary, not a micro-optimisation: both
+ * the desktop and mobile instances of this control are always present in
+ * the DOM (only CSS-hidden by breakpoint, never unmounted), so `next/link`'s
+ * default viewport-triggered prefetch fired `/tvaryny/gortaty`'s full
+ * Server Component render — including its own `cities.list()` call — from
+ * *every* `/tvaryny` page view, from both instances independently. Caught
+ * by `gallery-layout.harness.ts` failing with a real 429 from `proxy.ts`'s
+ * rate limiter, not assumed: a single gallery load was issuing 6-7 requests
+ * where it used to issue 1-3, entirely from prefetches nothing on the page
+ * was about to need.
  */
 export function DeckEntryLink({
   href,
@@ -22,7 +33,7 @@ export function DeckEntryLink({
   children: React.ReactNode;
 }) {
   return (
-    <Link href={href} className={className} onClick={markEnteringFromGallery}>
+    <Link href={href} className={className} onClick={markEnteringFromGallery} prefetch={false}>
       {children}
     </Link>
   );
