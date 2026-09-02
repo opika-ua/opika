@@ -21,6 +21,15 @@ dead.
 
 *Why:* M0 reported `pnpm check` green when `node_modules` did not exist on disk.
 
+**A test count is reported as the workspace total, or with each figure's scope named.** A
+bare number ("272 unit tests") reads as the whole suite by default; a per-package count
+handed over unlabelled invites exactly that misread, and the misread reads as a test loss.
+
+*Why:* the fourth such incident in this project. E5's PR summary cited "272 apps/web unit
+tests" with no total figure, against a real workspace total of 662 (607 at #39, before E5's
+own 46 new tests) — the PR body itself had it right, scoped to `apps/web`; the chat summary
+that repeated the same number without repeating the scope is what set off the alarm.
+
 **Ask of every test: would this fail if the thing it guards were broken?** If you cannot
 answer, the test is decoration.
 
