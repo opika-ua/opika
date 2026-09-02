@@ -191,13 +191,17 @@ run the exact same command again — each animal's existence is checked
 skipped entirely (no re-upload, no re-insert) and only the animals that
 never made it through the first time do any work.
 
-**A re-run does not update an existing animal** — if you edit a photo
-list (add or replace a file) for an animal that already exists, the
-script warns loudly (`WARNING: ... already exists with N photo(s), but
-this input now lists M`) and does nothing further for that animal:
-no upload, no insert, no change. There's no update path yet — treat an
-onboarded animal's photos as fixed once inserted, or ask for this to be
-built if you need to correct one.
+**A re-run does not update an existing animal, and the warning that catches
+this only sees photo *count*, not content.** If you add or remove a photo
+for an animal that already exists — changing how many it has — the script
+warns loudly (`WARNING: ... already exists with N photo(s), but this
+input now lists M`) and does nothing further: no upload, no insert, no
+change. **If you replace a photo file one-for-one, the count doesn't
+change and the script stays silent** — it has no way to tell the new file
+apart from the one already recorded. There's no real update path yet —
+treat an onboarded animal's photos as fixed once inserted. If you need to
+correct a photo (not just add one), that has to be done by hand for now,
+not by re-running this script.
 
 ## Where `LOCATION_HMAC_SECRET` comes from
 

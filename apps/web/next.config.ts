@@ -14,14 +14,19 @@ import { NOINDEX_EVERYTHING } from "./src/seo-flags";
  * every page with a real photo, on an instance whose own `validateEnv()`
  * still passes (the server side is fine; the frozen bundle isn't).
  *
- * Gated on `process.env.VERCEL`, not `NODE_ENV` — `next build` always sets
- * `NODE_ENV=production` regardless of target, and a bare local `next build`
- * (`pnpm run build:web`, CI's structural check) never deploys, so it has no
- * real CDN domain to require. Vercel sets `VERCEL=1` in every build it
- * runs, Production and Preview alike, which is exactly the set of builds
- * this var has to be correct for.
+ * Gated on `process.env.VERCEL`/`VERCEL_ENV`, not `NODE_ENV` — `next build`
+ * always sets `NODE_ENV=production` regardless of target, and a bare local
+ * `next build` (`pnpm run build:web`, CI's structural check — confirmed
+ * CI's own workflow never sets either variable) never deploys, so it has
+ * no real CDN domain to require. Both are documented as always present in
+ * a Vercel build; checking either is cheap insurance against one being
+ * absent for a project-configuration reason this repo can't see from
+ * here — round-2 review flagged relying on a single variable as
+ * fail-open and unverified against Vercel's actual behaviour, not
+ * "unlikely," which standing-constraints.md treats as a real gap, not a
+ * closed one.
  */
-if (process.env.VERCEL && !process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL) {
+if ((process.env.VERCEL || process.env.VERCEL_ENV) && !process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL) {
   throw new Error(
     "Missing required environment variable: NEXT_PUBLIC_R2_PUBLIC_BASE_URL — " +
       "set it in Vercel's Production and Preview environments before building. " +
@@ -95,6 +100,16 @@ const nextConfig: NextConfig = {
      * one of the three real variant widths exactly, so `nearestVariant`
      * always resolves to the tier the sizing in `docs/h1-decisions.md`
      * was actually measured for.
+     *
+     * Verified against real served output, not just Next's source
+     * (`get-img-props.js`): a `sizes` with no `vw` unit — the fixed
+     * `"88px"` thumbnail — still gets offered every width in this list
+     * (`176w, 640w, 1120w`), not only 176; a `vw`-based `sizes` — the
+     * gallery/deck cards — is filtered down to `640w, 1120w` only. Either
+     * way every offered candidate is a real variant width; a DPR-3
+     * browser reading the thumbnail's srcset can still legitimately pick
+     * 640 (`card`) over 176 (`thumb`) at that density, which is the
+     * correct, intended behaviour, not a residual bug.
      */
     deviceSizes: [640, 1120],
     imageSizes: [176],

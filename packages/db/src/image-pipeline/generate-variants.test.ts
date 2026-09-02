@@ -10,10 +10,25 @@ import { IMAGE_VARIANTS } from "./variants";
 // (off-centre subjects, real JPEG artefacts, real varied aspect ratios)
 // catch things a synthetic fixture wouldn't, and apps/web/public/
 // seed-photos/ already has nine of them with a licence file next to them.
-// Renaming or removing a file there breaks this file's tests too; dog-3.jpg's
-// exact 1023x782 below is asserted against, not assumed.
+// Renaming or removing a file there would break this file's landscape test
+// below (it asserts width > height, not an exact number).
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../..", import.meta.url)));
 const REAL_PHOTO = readFileSync(resolve(REPO_ROOT, "apps/web/public/seed-photos/cat-1.jpg"));
+
+/** Average RGB of a small square at (x,y) in a raw (non-alpha) pixel buffer. */
+function pixelAt(
+  data: Buffer,
+  info: { width: number; channels: number },
+  x: number,
+  y: number,
+): [number, number, number] {
+  const i = (y * info.width + x) * info.channels;
+  return [data.readUInt8(i), data.readUInt8(i + 1), data.readUInt8(i + 2)];
+}
+
+function isRed([r, g, b]: [number, number, number]): boolean {
+  return r > 200 && g < 50 && b < 50;
+}
 
 describe("generateVariants", () => {
   it("produces exactly the three named variants", async () => {
@@ -65,5 +80,40 @@ describe("generateVariants", () => {
     // (a "fill" resize would also hit the target box, but by squeezing).
     expect(cardMeta.width).toBe(IMAGE_VARIANTS.card.width);
     expect(cardMeta.height).toBe(IMAGE_VARIANTS.card.height);
+  });
+
+  it("applies EXIF orientation, not just source pixels — round-2 review found this untested", async () => {
+    // Round-2 review found that removing generateVariants' .rotate() call
+    // left every prior test in this file green, since fixed-size crops
+    // can't reveal a missing rotation from dimensions alone. Direct pixel
+    // proof instead: a synthetic photo, stored-top-left carries a red
+    // marker on a grey field, tagged EXIF orientation 6 ("rotate 90° CW to
+    // display correctly"). Ground truth measured once by hand (see this
+    // test's own history): WITH .rotate() applied, the marker lands at
+    // the DISPLAYED top-right; WITHOUT it, the raw pixel grid is used
+    // unrotated and the marker stays at the raw top-left.
+    const marker = await sharp({
+      create: { width: 60, height: 60, channels: 3, background: { r: 255, g: 0, b: 0 } },
+    })
+      .png()
+      .toBuffer();
+    const source = await sharp({
+      create: { width: 300, height: 200, channels: 3, background: { r: 50, g: 50, b: 50 } },
+    })
+      .composite([{ input: marker, left: 0, top: 0 }])
+      .withMetadata({ orientation: 6 })
+      .jpeg()
+      .toBuffer();
+
+    const variants = await generateVariants(source);
+    const { data, info } = await sharp(variants.thumb).raw().toBuffer({ resolveWithObject: true });
+
+    const topLeft = pixelAt(data, info, 2, 2);
+    const topRight = pixelAt(data, info, info.width - 3, 2);
+
+    expect(isRed(topLeft), `top-left should be background, was rgb(${topLeft})`).toBe(false);
+    expect(isRed(topRight), `top-right should carry the rotated marker, was rgb(${topRight})`).toBe(
+      true,
+    );
   });
 });

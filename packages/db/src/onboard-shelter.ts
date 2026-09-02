@@ -599,18 +599,24 @@ async function main(): Promise<void> {
   // the original order (upload every animal's photos, then check
   // existence) wasted a real upload on every already-inserted animal on
   // every retry, and — worse — silently discarded an edited photo list:
-  // an operator re-running after adding or replacing a photo would see
-  // "Uploading N photo(s)..." followed by "skipped, already present" and
-  // reasonably conclude the new photo landed. It uploaded to R2 and was
-  // never referenced by the animal row. This order makes that
-  // undetectable case detectable instead: a real, loud warning naming the
-  // mismatch, rather than a silent no-op.
+  // an operator re-running after adding a photo would see "Uploading N
+  // photo(s)..." followed by "skipped, already present" and reasonably
+  // conclude the new photo landed. It uploaded to R2 and was never
+  // referenced by the animal row. This order catches the COUNT-changed
+  // case with a loud warning instead of a silent no-op.
+  //
+  // Round-2 review found this still doesn't catch a one-for-one photo
+  // REPLACEMENT — count stays the same, so the check below can't tell a
+  // fresh file apart from the one already recorded, and stays silent.
+  // docs/onboarding-a-shelter.md's own re-run section states this limit
+  // plainly rather than overclaiming the warning catches every edit.
   //
   // NOT VERIFIED against a real bucket until this actually runs against
   // one — see docs/h1-decisions.md's explicit list (auth, CORS,
   // content-type, whether the public URL resolves).
   let insertedCount = 0;
   let skippedCount = 0;
+  let mismatchCount = 0;
   for (const [i, animalInput] of input.animals.entries()) {
     const animalId = animalIdFor(animalInput.idSeed);
     const validated = validatedPhotosFor(i);
@@ -618,7 +624,13 @@ async function main(): Promise<void> {
     if (existingAnimal) {
       skippedCount += 1;
       if (existingAnimal.photos.length !== validated.length) {
-        console.log(
+        mismatchCount += 1;
+        // console.error, not console.log — round-2 review found the
+        // original console.log call could scroll off above the final
+        // success-shaped summary line unnoticed. The count below in that
+        // summary is the second half of making this loud, not just
+        // present.
+        console.error(
           `\nWARNING: ${animalInput.name} (${animalId}) already exists with ` +
             `${existingAnimal.photos.length} photo(s), but this input now lists ` +
             `${validated.length}. Nothing was uploaded or changed for ` +
@@ -637,7 +649,11 @@ async function main(): Promise<void> {
   await sql.end();
 
   console.log(
-    `Inserted ${insertedCount} animal(s), skipped ${skippedCount} already present. Done.`,
+    `Inserted ${insertedCount} animal(s), skipped ${skippedCount} already present` +
+      (mismatchCount > 0
+        ? ` (${mismatchCount} with a photo-count mismatch — see WARNINGs above)`
+        : "") +
+      ". Done.",
   );
 }
 
