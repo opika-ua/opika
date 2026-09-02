@@ -440,3 +440,17 @@ moment, not now):
 **Never cut, regardless of schedule pressure:** the exhaustive FSM test, the freshness
 display, keyset pagination for the deck, seed-data volume, the verification gate
 (`next build` + the harness in `pnpm check`). Each is cheap now and expensive to retrofit.
+
+---
+
+## Part 5 — Launch gate
+
+Items that must be true before real shelter data may enter the system, or before any route
+may be indexed — not phase-scoped work, but standing conditions checked at that specific
+moment regardless of which phase is current.
+
+| Item | Why it's gated, not just deferred |
+|---|---|
+| Flip `NOINDEX_EVERYTHING` (`apps/web/src/seo-flags.ts`) off, or replace it with per-route logic | The whole corpus is fictional until real shelters are onboarded (`CLAUDE.md`'s "No real shelter data" rule). Indexing it would put fictional animals in front of a real adopter |
+| Wire `productionLocationPolicy` (`packages/db/src/location-policy.ts`) into whatever creates a real shelter or animal record, and add `LOCATION_HMAC_SECRET` to `apps/web/src/api/env.ts`'s required-production schema in that same change | `packages/db/src/seed.ts` computes `publicLocation` with `testOnlyLocationPolicy("seed")` — deterministic, unkeyed, and reversible by anyone reading the source. Correct for fictional seed data; would defeat the entire point of location fuzzing for a real foster carer's address the moment real data used the same path |
+| Move the in-memory rate limiter (`apps/web/src/api/rate-limit.ts`) to a shared store (Redis/Upstash/Vercel KV) | Already documented in that file's own comment as a known gap: each serverless instance holds its own counter, so the effective per-IP ceiling is `limit × instance count`, not the stated limit — adequate as a first-line defense at near-zero traffic, not at real usage |
