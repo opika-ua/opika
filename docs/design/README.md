@@ -713,15 +713,23 @@ Buttons below, `gap: 8`, all 56, radius 16: «Не зараз» (`flex: 1`, whit
 **Deviations, E5 — recorded, not silently dropped from the build-plan row that used to name
 them:**
 
-- **"Memory: last mode in `sessionStorage`" is NOT built.** `sessionStorage` is used for exactly
-  one thing this phase (the one-shot entry marker `deck-entry-marker.ts` reads to decide whether
-  `router.back()` is safe) — there is no persisted "last mode" a gallery visit checks to decide
-  whether to auto-enter the deck. E5's own build-plan row originally named this feature and lost
-  the mention entirely in a later rewrite of that row, rather than moving it to a "not built"
-  note — exactly the lossy-deduplication mistake `docs/standing-constraints.md` has its own entry
-  about. Recorded here instead: deciding *when* a remembered mode should override the gallery's
-  own "default is the gallery at every width" rule is a real product question (every visit? only
-  a same-session return?), not a small addition, and no phase owns it yet.
+- **"Memory: last mode in `sessionStorage`" is an unmet definition-of-done item, not a deferred
+  nice-to-have — the build plan's E5 line names it explicitly.** `sessionStorage` is used for
+  exactly one thing this phase (the one-shot entry marker `deck-entry-marker.ts` reads to decide
+  whether `router.back()` is safe) — there is no persisted "last mode" a gallery visit checks to
+  decide whether to auto-enter the deck. E5's own build-plan row originally named this feature
+  and lost the mention entirely in a later rewrite of that row, rather than moving it to an
+  unmet-item note — exactly the lossy-deduplication mistake `docs/standing-constraints.md` has
+  its own entry about; restored here as an explicit gap, not a silent drop.
+
+  **The decision: don't persist it, and this is a product call, not an oversight.** A returning
+  visitor who lands straight in the deck lands in the surface that's off the critical path
+  (`docs/build-plan.md`'s Phase G header), carries an unresolved iOS Safari gesture failure that
+  has never reproduced on any other engine (G1), and doesn't persist swipe decisions across a
+  session — auto-entering it is auto-entering the worse-supported of the two modes. The gallery
+  is deliberately the front door at every width (this section's own "Default is the gallery"
+  rule); nothing about "last mode" should compete with that until the deck is actually finished.
+  Revisit after G3.
 - **"The deck inherits the current filters and sort" — filters only.** `feed.list` has no `sort`
   parameter today: the deck is a keyset feed, always ordered by recency then re-ranked per page
   by `scoreAnimal` (`docs/gallery-contract-decisions.md` §9), independent of the gallery's
