@@ -7,6 +7,16 @@
 > twice: V2's freshness block, and #26's 840-vs-960 container, the same trap from the other
 > direction.
 
+> **Data-dependent chrome in a state frame is a question, not a requirement.** Three separate
+> frames in `Opika Registry Frames.dc.html` have now turned out to assume a client-side data
+> layer this app deliberately doesn't have: client-fetched pagination (§7 of
+> `docs/gallery-contract-decisions.md`, kept server-rendered on purpose), the loading skeleton
+> (`loading.tsx` forces Suspense/streaming, breaking no-JS outright — this page's "Loading
+> (L1/L2)" section), and the error state's filter rail (below — not only unbuildable, but not
+> actually an escape hatch even if it were). Treat a mock frame that implies live filtering,
+> a fetch, or a count *inside* a state that itself represents a failure or a loading moment as
+> something to verify against this app's actual architecture before building, not as a given.
+
 ## What this is
 Opika is a pet-adoption platform for Kyiv oblast (Київщина), Ukrainian-first, mobile-heavy,
 targeting mid-range Android on carrier networks. Adopters browse animals from manually verified
@@ -464,14 +474,48 @@ Radius, padding, sizing, eyebrow and button label are unchanged from the mock. C
 (opacity 220ms) and focus moving to the heading on mount are both built, matching the mock.
 
 **Second deviation, same section — "Never full-screen … header, rail and sort stay usable" is
-not met.** Recorded, not silently shipped: `apps/web/src/app/tvaryny/error.tsx`'s own comment
-has the full reasoning. In short, Next.js error boundaries replace everything the failing
-Server Component's render tree would have produced, and `page.tsx`'s header and rail are
-constructed only after the same `Promise.all` that can throw — when it does, they never
-rendered in the first place, so there is no working chrome left for this file to preserve.
-Making the mock's claim true needs the header/rail moved into a `layout.tsx` sibling to this
-route, rendering independently of the fetch that can fail — real restructuring, not built
-this phase.
+not met, and E5 confirmed it can't be, not just "wasn't built yet."** `apps/web/src/app/
+tvaryny/error.tsx`'s own comment has the full reasoning; summarized here because E4's original
+guess (below) turned out to be wrong in a way worth recording precisely.
+
+Next.js error boundaries replace everything the failing Server Component's render tree would
+have produced, and `page.tsx`'s header and rail are constructed only after the same
+`Promise.all` that can throw — when it does, they never rendered in the first place, so there
+is no working chrome left for this file to preserve. E4 guessed the fix was "move the
+header/rail into a `layout.tsx` sibling to this route." E5 tried to build that and found two
+independent reasons it doesn't work:
+
+1. **Next.js layouts cannot read `searchParams` at all** ("Layouts do not rerender on
+   navigation, so they cannot access search params" — Next's own docs). `FilterRail`'s every
+   active-chip state is derived from the current URL's search params, so there is no
+   `filters`/`sort` for a `layout.tsx` to render the rail against.
+2. **A filter rail inside the error card would not actually be an escape hatch anyway.** This
+   file only ever renders on a `gallery.list` failure — backend down, a timeout, or a 429. In
+   every one of those, clicking a filter chip re-issues the same kind of request down the same
+   path and fails the same way. The only failure class a different query fixes is a
+   pathological filter combination — rare, and worth handling more cheaply than rebuilding the
+   whole rail (see below). Rendering the rail here would also need a client-side `cities.list()`
+   fetch at the exact moment the backend is already failing, giving inert error UI a network
+   dependency — and therefore a loading/error state — of its own.
+
+**NOT PLANNED, not deferred** — a future phase should not rebuild a rail here; the reasoning
+says this is the wrong fix, not a postponed one.
+
+**Third deviation, same section — a real escape hatch shipped instead, not in the mock.** A
+plain link below retry, to bare `/tvaryny` with no query string (`uk.galleryError.showAll`,
+«Показати всіх тварин»). It's the cheapest, most-likely-to-succeed request this app can make,
+and it's what actually resolves the one failure class changing the query can fix. Built as a
+genuine `<a href>`, not `next/link`'s `Link` — confirmed by the harness, not assumed, that a
+`Link` click here changes the URL bar but leaves the same error boundary on screen, because it
+soft-navigates within a segment Next already knows just errored; only `reset()` or a real
+navigation retries it.
+
+The header stays inside the same failing tree, unmoved, for one more reason specific to E5: it
+now carries the "Гортати по одні" deck-entry link (`filter-url.ts`'s `deckEntryHref`), which
+needs both the current `filters` (from `searchParams` — a `layout.tsx` can't read it either
+way) and the real `totalMatching` count (from the very `gallery.list` call that can fail). A
+header with no state at all could move to a `layout.tsx` safely; this one no longer qualifies,
+and moving it was checked, not assumed.
 
 ### Next-page error (E3/E4) — a different surface than E1
 

@@ -89,6 +89,25 @@ test.describe("/tvaryny out-of-range page", () => {
     await expect(page.locator(ERROR_CARD)).toContainText("НЕ ЗАВАНТАЖИЛОСЯ");
     await expect(page.locator(RETRY)).toHaveText("Спробувати ще раз");
   });
+
+  /**
+   * E5's real escape hatch (see `error.tsx`'s own top comment for why a
+   * filter rail here would not be one): a plain link to the bare,
+   * unfiltered gallery. Asserted end to end — following it actually
+   * lands on a working page with real cards and no leftover filter, not
+   * just that the href string looks right.
+   */
+  test("the 'show all animals' link recovers to a real, unfiltered gallery", async ({ page }) => {
+    await openRoute(page, `${ROUTE}?vyd=dog&stor=${MAX_GALLERY_PAGE + 1}`, DESKTOP, {
+      readySelector: ERROR_CARD,
+    });
+
+    await page.getByTestId("gallery-error-show-all").click();
+
+    await page.waitForURL((url) => url.pathname === "/tvaryny" && url.search === "");
+    await expect(page.locator(CARD).first()).toBeVisible();
+    await expect(page.locator(ERROR_CARD)).toHaveCount(0);
+  });
 });
 
 test.describe("/tvaryny error state", () => {

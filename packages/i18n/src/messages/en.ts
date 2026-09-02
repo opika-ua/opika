@@ -252,6 +252,7 @@ export const en = {
     title: "The page couldn't be loaded.",
     body: "This isn't your fault or the shelter's. Your filters are saved.",
     action: "Try again",
+    showAll: "Show all animals",
   },
 
   // --- Gallery out-of-range page notice — see the uk key's own note ---

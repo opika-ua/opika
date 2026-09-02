@@ -20,4 +20,16 @@ describe("GalleryError", () => {
 
     expect(reset).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * E5: the real escape hatch, added after finding that a filter rail here
+   * would not be one (see this file's own top comment). A bare `/tvaryny`
+   * link, no query string — never the current, already-failing one.
+   */
+  it("offers a link to the bare, unfiltered gallery — not a re-run of the same query", () => {
+    render(<GalleryError error={new Error("boom")} reset={vi.fn()} />);
+
+    const link = screen.getByTestId("gallery-error-show-all");
+    expect(link.getAttribute("href")).toBe("/tvaryny");
+  });
 });

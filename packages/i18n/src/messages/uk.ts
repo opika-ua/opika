@@ -351,6 +351,15 @@ export const uk = {
      * asserted uncertainly. */
     body: "Це не ваша помилка і не помилка притулку. Ваші фільтри збережені.",
     action: "Спробувати ще раз",
+    /**
+     * E5: not the mock's own frame — a real escape hatch, added after
+     * finding the mock's filter rail wouldn't be one (see this key's own
+     * doc comment in error.tsx). A bare `/tvaryny` link, no params, is the
+     * cheapest request this app can make — the one query most likely to
+     * succeed when a filtered one just failed for a backend reason a
+     * different filter combination wouldn't fix anyway.
+     */
+    showAll: "Показати всіх тварин",
   },
 
   // --- Gallery out-of-range page notice (E4, V2 mock frames P1/P2) ---
