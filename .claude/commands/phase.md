@@ -46,6 +46,15 @@ Then check it against the gate conditions below.
 **Otherwise proceed without waiting.** Say in one line which gate conditions you checked
 and why none applied.
 
+If Phase 0's own investigation is what reveals the 150% line has been crossed — not the
+plan's original number, but what you found once you looked — say so in gate terms before
+moving on to whatever other question the finding raises. E5 crossed it in Phase 0 (3 h
+planned, and the investigation alone found several times that missing) and the stop that
+followed was framed around two architecture questions, never around the hours condition
+itself; the right outcome happened, but not because the gate fired — see
+`docs/build-plan.md`'s Part 3, E5 correction paragraph. A gate satisfied by coincidence
+isn't one the next overrun can rely on.
+
 The gate exists because wrong-direction work is far more expensive than a round-trip, and
 on a ten-hour week a wasted session is a wasted week. It is not a formality — but nor
 should it fire on work that is genuinely mechanical.

@@ -393,13 +393,28 @@ investigation found the 3 h estimate priced "chrome" against a deck that was alr
 reachable; the real state was that `/discovery` still ran on `generateMockCards` entirely,
 no browser-side oRPC client existed anywhere in the repo, and no gallery-side entry control
 existed at all — wiring real data, a real route, and a real entry point was the actual
-scope once that was checked, not assumed. Stopped and reported before starting, per this
-repo's own gate conditions, rather than either quietly absorbing a 6x estimate or shipping
-half the scope under the original number. Brings the critical path to 165 h ÷ 8 h/week ≈
-20.6 weeks, and the grand total including G to 168 h. Whether this — on top of Phase V's
-already-unresolved 12 h — actually moves the project's week estimate past "~16 weeks," and
-by how much, remains the same open re-plan question Phase V's own paragraph raised; this
-entry doesn't re-settle it, only adds its number to the pile waiting on that question.
+scope once that was checked, not assumed. Stopped and reported before starting, and the
+resulting scope questions went back to the user rather than being decided in-session. Brings
+the critical path to 165 h ÷ 8 h/week ≈ 20.6 weeks, and the grand total including G to
+168 h. Whether this — on top of Phase V's already-unresolved 12 h — actually moves the
+project's week estimate past "~16 weeks," and by how much, remains the same open re-plan
+question Phase V's own paragraph raised; this entry doesn't re-settle it, only adds its
+number to the pile waiting on that question.
+
+**Correction: that stop was not the 150%-hours gate condition firing, even though the
+number it should have fired on was already visible.** `.claude/commands/phase.md`'s gate
+checks an estimate against 150% of the plan's hours; E5's investigation crossed that line
+immediately — 3 h planned, and Phase 0 alone had already found enough missing (no browser
+client, no real route, mock data throughout) to put the real number several times past
+4.5 h. The stop that happened was driven by two separate architecture questions (could the
+gallery's header survive a `layout.tsx` split; should the deck get real data at all) framed
+and asked on their own terms, not by naming the hours condition explicitly. The outcome was
+the same — work paused and went back to the user before implementation — but a gate that
+gets satisfied by coincidence rather than by being invoked isn't a gate a future overrun can
+rely on; the next one might cross 150% without also raising an architecture question
+someone happens to stop and ask about. Worth watching in Phase F: when Phase 0 turns up
+scope beyond the plan's number, say so in those terms — "this trips the 150% condition" —
+before moving on to whatever question prompted the check.
 
 **The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own
