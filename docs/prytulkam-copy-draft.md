@@ -58,7 +58,7 @@ Opika — реєстр тварин із перевірених притулкі
 
 ## §4 — Хто кому пише · `whoContactsWhom`
 
-Людина, яка хоче взяти тварину, пише вам напряму — на той контакт, який ви вкажете. Ми не пишемо за вас, не пишемо від вашого імені і не спілкуємося з нею замість вас.
+Людина, яка хоче взяти тварину, пише вам напряму — на той контакт, який ви вкажете. Opika не пише за вас, не пише від вашого імені і не спілкується з нею замість вас.
 
 ## §4b — Ніяких зобов'язань · `noObligation`
 
@@ -66,7 +66,7 @@ Opika — реєстр тварин із перевірених притулкі
 
 ## §5 — Гроші · `money`
 
-Ми не беремо і не переказуємо грошей: ні комісії, ні оплати, ні збору донатів через нас. Якщо у вас є власна сторінка для донатів — банка в monobank, наприклад — ми поставимо на неї посилання, і людина побачить, куди воно веде, ще до того як натисне.
+Реєстр не бере і не переказує грошей: ні комісії, ні оплати, ні збору донатів через себе. Якщо у вас є власна сторінка для донатів — банка в monobank, наприклад — на картці буде посилання на неї, і людина побачить, куди воно веде, ще до того як натисне.
 
 ## §6 — Що означає «перевірений» · `verification`
 
@@ -90,7 +90,7 @@ Opika — реєстр тварин із перевірених притулкі
 посилання на донати, якщо воно у вас є;
 і одне речення про те, як часто ви оновлюєте інформацію — про нього нижче.
 
-Заповнювати анкету не треба. Ми проговоримо це, і я внесу все сам.
+Заповнювати анкету не треба: ви розкажете, а я внесу все сам.
 
 ## §8 — Навіщо те речення · `whyThatSentence`
 
@@ -112,7 +112,7 @@ Opika — реєстр тварин із перевірених притулкі
 
 ## §9 — Коли тварина знайшла дім · `whenAnimalFindsHome`
 
-Найважливіше, що ви можете нам сказати, — що тварина знайшла дім. Важливіше, ніж додати нову.
+Найважливіше, що ви можете мені сказати, — що тварина знайшла дім. Важливіше, ніж додати нову.
 
 Тварина, яка вже вдома, але досі в списку, — це єдине, що робить усі інші картки недостовірними: людина дзвонить, чує «її забрали три місяці тому», і далі не вірить жодній картці — ні вашій, ні чужій.
 
@@ -135,26 +135,42 @@ Opika робить одна людина — я, поза основною ро�
 
 ---
 
-## Open question the owner has to settle: «ми» vs «я»
+## Voice: settled as a three-way split, not a pronoun swap
 
-Not a typo — a voice decision, flagged rather than silently resolved.
+**«я» where the actor is a person. «Opika» / «реєстр» where the actor is the
+system. «ми» nowhere.**
 
-The draft says **«ми»** in §4 («Ми не пишемо за вас»), §5 («Ми не беремо») and
-§7 («Ми проговоримо це»), then §10 says **«Немає команди»**. §7 contains both in
-one sentence: «Ми проговоримо це, і я внесу все сам».
+The draft originally used «ми» for both jobs, which read as one voice but was
+two. In §7's «Ми проговоримо це» the actor is a person, and «ми» there is a
+small inflation — the exact species the rest of the page spends its credibility
+avoiding. In §4's «Ми не пишемо за вас» the actor is the system, and «я» would
+read oddly, because the point is that no messaging feature exists, not that one
+person personally refrains.
 
-A volunteer can notice that. Either:
-- **All «я»** — consistent with §10 and with `about.intro`'s «який я роблю сам,
-  поза роботою», and the smallness is the credential here rather than something
-  to dress up; or
-- **«ми» stays as the registry's voice** for the things that are properties of
-  the product rather than of a person (§5's money rules especially), and §10
-  simply explains who is behind it.
+Applied:
+- **§4** → «Opika не пише за вас…» — a property of the thing.
+- **§5** → «Реєстр не бере і не переказує грошей…», and the donation link became
+  «на картці буде посилання», dropping the actor entirely.
+- **§7** → «ви розкажете, а я внесу все сам» — you-and-me made explicit rather
+  than hidden behind a plural.
+- **§9** → «що ви можете **мені** сказати» (was «нам»).
 
-The first is more honest and matches the existing catalogue. The second is more
-conventional. The agent did not pick, because it is the owner's voice.
+The counter-argument for keeping «ми» on §5 — that «я не беру грошей» sounds
+like a habit where «ми не беремо» sounds like a policy — does not survive §2,
+which already carries the durability in «ви дізнаєтеся заздалегідь». The notice
+promise is what makes it a policy, not the pronoun.
 
-**First appearance of «я» is §6b**, not §9 — so the reader does meet an
-unintroduced first-person singular before §10 introduces who that person is, but
-three sections earlier than feared, and inside a sentence about the verification
-call rather than about a manual process they are being asked to rely on.
+### Two «ми» that must survive any future find-and-replace
+
+Both are other people speaking, quoted inside the copy:
+
+1. **§2** — «поки ми не виростемо», a quoted lie told by other services.
+2. **§8** — «дзвоніть, ми скажемо точно», one of three examples of *the
+   shelter's own* freshness sentence. That «ми» is theirs.
+
+A global replace eats both and neither failure is visible in review.
+
+**First «я» is §6b**, inside the sentence about the verification call — three
+sections before §10 introduces who that person is. Left as is: the reader meets
+it attached to a concrete act rather than to a process they are asked to rely
+on, and §10 answers it shortly after.
