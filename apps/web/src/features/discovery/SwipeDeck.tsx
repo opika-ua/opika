@@ -81,14 +81,21 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
 
   /**
    * "Focus lands on the top card" (docs/design/README.md, "Gallery → deck")
-   * — once, on entering the deck, not on every card the user swipes to.
-   * `topCardNodeRef` is a second callback ref on the same element
-   * `cardRef` already attaches to; `useSwipeGesture` doesn't expose its own
-   * internal node reference, so this is the plain way to also get a handle
-   * on it without changing that hook's contract.
+   * — on entering the deck, and again on recovering into it from an error
+   * (retry): when the error card unmounts, its own focused heading goes
+   * with it, and with no explicit re-focus a keyboard user would land on
+   * `<body>` with no sense of where they are — worse than "focus moved
+   * again," not better. Deliberately NOT guarded against re-firing on
+   * every swipe: `state.kind` stays `"ready"` across swipes (only the
+   * `cards` array changes), so this effect's own `[state.kind]` dependency
+   * already skips it without an extra ref — verified by mutation, not
+   * assumed (`SwipeDeck.test.tsx`'s "does not steal focus back to the card
+   * on a later swipe"). `topCardNodeRef` is a second callback ref on the
+   * same element `cardRef` already attaches to; `useSwipeGesture` doesn't
+   * expose its own internal node reference, so this is the plain way to
+   * also get a handle on it without changing that hook's contract.
    */
   const topCardNodeRef = useRef<HTMLElement | null>(null);
-  const hasFocusedOnEntryRef = useRef(false);
   const setTopCardNode = useCallback(
     (node: HTMLElement | null) => {
       topCardNodeRef.current = node;
@@ -98,8 +105,7 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
   );
 
   useEffect(() => {
-    if (state.kind === "ready" && !hasFocusedOnEntryRef.current) {
-      hasFocusedOnEntryRef.current = true;
+    if (state.kind === "ready") {
       topCardNodeRef.current?.focus();
     }
   }, [state.kind]);

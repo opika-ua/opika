@@ -1,4 +1,3 @@
-import { GALLERY_PAGE_SIZE, MAX_GALLERY_PAGE } from "@opika/contracts";
 import type {
   AgeBucket,
   AnimalSpecies,
@@ -273,30 +272,43 @@ export function deckEntryHref(filters: FeedFilters, total: number): string {
 export type DeckQuery = { filters: FeedFilters; total: number | null };
 
 /**
+ * A sanity bound, not a real domain ceiling — checked, not assumed to
+ * mirror one. `gallery.list`'s `totalMatching` is an uncapped
+ * `count(*) OVER()` (`packages/db/src/repos/gallery-repo.ts`); only
+ * *navigable pages* are capped at `MAX_GALLERY_NAVIGABLE_ROWS` rows
+ * (`docs/standing-constraints.md`), so there is no real number
+ * `totalMatching` itself provably can't exceed. This exists only to reject
+ * an obviously-fabricated `?total=` (a hand-edited or malicious URL) —
+ * comfortably above any plausible real total for this app's actual scale
+ * (a single-oblast platform; the seeded corpus is 320), not derived from
+ * any other constant in the codebase.
+ */
+const MAX_PLAUSIBLE_DECK_TOTAL = 1_000_000;
+
+/**
  * The deck's own reading of the same URL scheme `parseGalleryQuery` reads —
  * same four filter params, `sort`/`stor` simply don't apply to a
  * cursor-paginated feed and are ignored if present (a stray `?stor=3`
  * carried over by accident degrades to "unused," not an error, matching
- * this file's existing posture toward unrecognised input).
+ * this file's existing posture toward unrecognised input). `total` is an
+ * untrusted value read back out of a URL — see `MAX_PLAUSIBLE_DECK_TOTAL`
+ * above — so a hand-edited or malicious `?total=` gets the same "stale
+ * link, not an error" treatment `parseGalleryQuery`'s own page-number
+ * parsing already gives out-of-range input, rather than rendering
+ * whatever number was typed.
  */
-/**
- * The same ceiling `gallery.list` itself is bounded at — `MAX_GALLERY_PAGE`
- * pages of `GALLERY_PAGE_SIZE` each — not an arbitrary new number. `total`
- * is a display-only value carried across from the gallery (see
- * `deckEntryHref`'s own comment), but an untrusted one: this is the one
- * place in the app that reads it back out of a URL, so a hand-edited or
- * malicious `?total=` gets the same "stale link, not an error" treatment
- * `parseGalleryQuery`'s own page-number parsing already gives out-of-range
- * input, rather than rendering whatever number was typed.
- */
-const MAX_DECK_TOTAL = MAX_GALLERY_PAGE * GALLERY_PAGE_SIZE;
-
 export function parseDeckQuery(searchParams: SearchParams): DeckQuery {
   const { filters } = parseGalleryQuery(searchParams);
 
   const totalRaw = Number(firstValue(searchParams[TOTAL_PARAM]));
+  // > 0, not >= 0: deckEntryHref is only ever built when the gallery found
+  // at least one match (page.tsx's own totalMatching > 0 guard), so a
+  // legitimate link never carries ?total=0 — one arriving here is already
+  // a stale or hand-edited URL, same treatment as any other untrusted value.
   const total =
-    Number.isInteger(totalRaw) && totalRaw >= 0 && totalRaw <= MAX_DECK_TOTAL ? totalRaw : null;
+    Number.isInteger(totalRaw) && totalRaw > 0 && totalRaw <= MAX_PLAUSIBLE_DECK_TOTAL
+      ? totalRaw
+      : null;
 
   return { filters, total };
 }

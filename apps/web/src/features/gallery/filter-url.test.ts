@@ -197,8 +197,12 @@ describe("deckEntryHref / parseDeckQuery", () => {
     expect(parseDeckQuery({ total: "not-a-number" })).toEqual({ filters: NO_FILTERS, total: null });
   });
 
-  it("parseDeckQuery falls back to null on a total beyond what the gallery could ever report — untrusted input, not rendered verbatim", () => {
+  it("parseDeckQuery falls back to null on an implausibly large total — untrusted input, not rendered verbatim", () => {
     expect(parseDeckQuery({ total: "99999999" })).toEqual({ filters: NO_FILTERS, total: null });
+  });
+
+  it("parseDeckQuery falls back to null on total=0 — deckEntryHref never produces one, so it's already a stale or hand-edited link", () => {
+    expect(parseDeckQuery({ total: "0" })).toEqual({ filters: NO_FILTERS, total: null });
   });
 
   it("ignores a stray sort/stor param carried over by accident", () => {

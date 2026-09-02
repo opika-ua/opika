@@ -124,6 +124,32 @@ describe("SwipeDeck entry focus", () => {
 
     expect(document.activeElement?.textContent).toBe(uk.actions.notNow);
   });
+
+  /**
+   * The path `state.kind`'s own dependency array doesn't skip: ready →
+   * error → loading → ready (a retry) genuinely changes `state.kind` at
+   * every step, so this effect re-fires on the final transition back to
+   * "ready" the same way it does on first entry. Deliberate, not an
+   * oversight — when the error card unmounts, its own focused heading
+   * goes with it, and leaving focus on `<body>` after a successful retry
+   * would be worse than moving it again.
+   */
+  it("re-focuses the top card after a successful retry, the same as on first entry", () => {
+    const cards = generateMockCards(2);
+    const { rerender } = render(
+      <SwipeDeck
+        state={{ kind: "error", reason: "loadFailed" }}
+        onSwipe={vi.fn()}
+        onPrefetch={vi.fn()}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    rerender(<SwipeDeck state={{ kind: "loading" }} onSwipe={vi.fn()} onPrefetch={vi.fn()} />);
+    rerender(<SwipeDeck state={{ kind: "ready", cards }} onSwipe={vi.fn()} onPrefetch={vi.fn()} />);
+
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(cards[0]?.name);
+  });
 });
 
 /**
@@ -131,13 +157,16 @@ describe("SwipeDeck entry focus", () => {
  * this, per a real reviewer finding on the branch that introduced it:
  * nothing asserted that `offline`/`sessionExpired`/`loadFailed` actually
  * render their own distinct copy, rather than all silently collapsing to
- * one. Each reason has real, different i18n keys (`uk.errors.*`); pinning
- * against those directly, not the component's own constant, matches
+ * one. Pinned against the literal Ukrainian strings, transcribed from
+ * `packages/i18n/src/messages/uk.ts`, not against `uk.errors.*` itself —
+ * round-2 review caught an earlier version of this file that read the copy
+ * back off the same `uk.errors[reason]` constant the component renders,
+ * which would pass against any value and doesn't satisfy
  * `docs/standing-constraints.md`'s "a test may not compare output against
- * the same constant the code renders."
+ * the same constant the code renders" the way it claimed to.
  */
 describe("SwipeDeck error state", () => {
-  it("renders the offline copy, with no body line — uk.errors.offline has none", () => {
+  it("renders the offline copy, with no body line", () => {
     render(
       <SwipeDeck
         state={{ kind: "error", reason: "offline" }}
@@ -147,9 +176,9 @@ describe("SwipeDeck error state", () => {
       />,
     );
 
-    expect(screen.getByText(uk.errors.offline.eyebrow)).toBeTruthy();
-    expect(screen.getByText(uk.errors.offline.title)).toBeTruthy();
-    expect(screen.getByRole("button", { name: uk.errors.offline.action })).toBeTruthy();
+    expect(screen.getByText("БЕЗ ЗВ'ЯЗКУ")).toBeTruthy();
+    expect(screen.getByText("Зараз немає інтернету.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Спробувати ще раз" })).toBeTruthy();
   });
 
   it("renders the loadFailed copy, including its body line", () => {
@@ -162,13 +191,13 @@ describe("SwipeDeck error state", () => {
       />,
     );
 
-    expect(screen.getByText(uk.errors.loadFailed.eyebrow)).toBeTruthy();
-    expect(screen.getByText(uk.errors.loadFailed.title)).toBeTruthy();
-    expect(screen.getByText(uk.errors.loadFailed.body)).toBeTruthy();
-    expect(screen.getByRole("button", { name: uk.errors.loadFailed.action })).toBeTruthy();
+    expect(screen.getByText("НЕ ЗАВАНТАЖИЛОСЯ")).toBeTruthy();
+    expect(screen.getByText("Щось не спрацювало на нашому боці.")).toBeTruthy();
+    expect(screen.getByText("Це не ваша помилка і не помилка притулку.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Оновити" })).toBeTruthy();
   });
 
-  it("renders the sessionExpired copy, with no body line — uk.errors.sessionExpired has none", () => {
+  it("renders the sessionExpired copy, with no body line", () => {
     render(
       <SwipeDeck
         state={{ kind: "error", reason: "sessionExpired" }}
@@ -178,9 +207,9 @@ describe("SwipeDeck error state", () => {
       />,
     );
 
-    expect(screen.getByText(uk.errors.sessionExpired.eyebrow)).toBeTruthy();
-    expect(screen.getByText(uk.errors.sessionExpired.title)).toBeTruthy();
-    expect(screen.getByRole("button", { name: uk.errors.sessionExpired.action })).toBeTruthy();
+    expect(screen.getByText("СЕСІЯ ЗАВЕРШИЛАСЯ")).toBeTruthy();
+    expect(screen.getByText("Ми почали стрічку заново.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "До стрічки" })).toBeTruthy();
   });
 
   it("calls onRetry when the error card's action button is activated", () => {
@@ -194,7 +223,7 @@ describe("SwipeDeck error state", () => {
       />,
     );
 
-    screen.getByRole("button", { name: uk.errors.loadFailed.action }).click();
+    screen.getByRole("button", { name: "Оновити" }).click();
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

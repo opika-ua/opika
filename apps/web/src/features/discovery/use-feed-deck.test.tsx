@@ -32,11 +32,13 @@ describe("useFeedDeck", () => {
     expect(result.current.state).toEqual({ kind: "loading" });
     await waitFor(() => expect(result.current.state.kind).toBe("ready"));
 
-    expect(list).toHaveBeenCalledExactlyOnceWith({
-      filters: NO_FILTERS,
-      cursor: null,
-      limit: 20,
-    });
+    // Second arg is the AbortController.signal the entry effect's cleanup
+    // uses to cancel a superseded fetch (see use-feed-deck.ts) — a real
+    // AbortSignal instance, not a literal to compare structurally against.
+    expect(list).toHaveBeenCalledExactlyOnceWith(
+      { filters: NO_FILTERS, cursor: null, limit: 20 },
+      { signal: expect.any(AbortSignal) },
+    );
     expect(result.current.state).toEqual({ kind: "ready", cards });
   });
 
@@ -61,11 +63,12 @@ describe("useFeedDeck", () => {
       }),
     );
 
-    expect(list).toHaveBeenLastCalledWith({
-      filters: NO_FILTERS,
-      cursor: "cursor-1",
-      limit: 20,
-    });
+    // No signal for a prefetch ("append") call — only "replace" calls
+    // (entry, retry) carry one; see use-feed-deck.ts's own comment.
+    expect(list).toHaveBeenLastCalledWith(
+      { filters: NO_FILTERS, cursor: "cursor-1", limit: 20 },
+      undefined,
+    );
   });
 
   it("does not prefetch once the feed's own cursor says it's exhausted", async () => {
@@ -189,6 +192,34 @@ describe("useFeedDeck", () => {
     expect(result.current.state).toEqual({ kind: "ready", cards: freshCards });
   });
 
+  /**
+   * The generation check (above) discards a stale *response*; this is the
+   * separate guarantee that a superseded fetch is also actually cancelled,
+   * not just ignored — confirmed by mutation, not assumed: deleting the
+   * entry effect's `return () => controller.abort()` in use-feed-deck.ts
+   * leaves this test's `signal.aborted` false while every other test in
+   * this file still passes, since none of the others can tell an aborted
+   * request from an ignored one.
+   */
+  it("aborts the superseded fetch's own request when filters change mid-flight", async () => {
+    let capturedSignal: AbortSignal | undefined;
+    list.mockImplementationOnce((_input, options?: { signal?: AbortSignal }) => {
+      capturedSignal = options?.signal;
+      return new Promise(() => {}); // never resolves — only the abort matters
+    });
+    list.mockResolvedValueOnce({ items: generateMockCards(1), nextCursor: null });
+
+    const OTHER_FILTERS = withToggledSpecies(NO_FILTERS, "dog");
+    const { rerender } = renderHook(({ filters }) => useFeedDeck(filters), {
+      initialProps: { filters: NO_FILTERS },
+    });
+
+    expect(capturedSignal?.aborted).toBe(false);
+    rerender({ filters: OTHER_FILTERS });
+
+    expect(capturedSignal?.aborted).toBe(true);
+  });
+
   it("retry after an error restarts from page one, not from the failed cursor", async () => {
     list
       .mockRejectedValueOnce(new ORPCError("RATE_LIMITED", { defined: true }))
@@ -202,6 +233,9 @@ describe("useFeedDeck", () => {
     act(() => result.current.onRetry());
     await waitFor(() => expect(result.current.state.kind).toBe("ready"));
 
-    expect(list).toHaveBeenLastCalledWith({ filters: NO_FILTERS, cursor: null, limit: 20 });
+    expect(list).toHaveBeenLastCalledWith(
+      { filters: NO_FILTERS, cursor: null, limit: 20 },
+      { signal: expect.any(AbortSignal) },
+    );
   });
 });

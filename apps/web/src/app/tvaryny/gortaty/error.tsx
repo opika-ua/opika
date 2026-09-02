@@ -22,16 +22,19 @@ import { useEffect, useRef } from "react";
  * didn't load" regardless of whether the failure happened before or after
  * the client took over.
  *
- * `reset()`, not a manual re-navigation — same reasoning as `/tvaryny`'s
- * own `error.tsx`: it retries this route's own render, so a working
- * `cities.list()` on the next attempt is enough, with nothing here needing
- * to remember what failed.
+ * `retry()`, not `reset()` — same finding as `/tvaryny/error.tsx`'s own
+ * comment: `reset()` alone clears the boundary without re-running
+ * `GortatyPage`'s Server Component, so it cannot recover from the
+ * server-side `cities.list()` failure that reaches this file. `retry()`
+ * calls `router.refresh()` first, which is what actually gives a working
+ * `cities.list()` on the next attempt a chance to render.
  */
 export default function GortatyError({
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
+  retry: () => void;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -62,7 +65,7 @@ export default function GortatyError({
           <button
             type="button"
             data-testid="gortaty-error-retry"
-            onClick={reset}
+            onClick={retry}
             className="min-h-14 px-6 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
           >
             {uk.errors.loadFailed.action}

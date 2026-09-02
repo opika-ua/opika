@@ -291,16 +291,16 @@ mode entered from the gallery now, not the front door.
 |---|---|---|
 | G1 | iOS Safari investigation, restarting from scratch — the prior investigation notes were lost with the rest of the uncommitted M5 work (the incident behind `docs/standing-constraints.md`'s "commit after each task" rule) and are deliberately not being reconstructed; the failure has never reproduced on any other engine | 4 |
 | G2 | Device testing on real hardware — Android and iOS, not simulators | 3 |
-| G3 | Promote the deck from `/discovery` to its real route (`/tvaryny/gortaty` per the design's URL scheme, `noindex` — a viewing state, not a page), entered from the gallery with the gallery's current filters and sort inherited | 3 |
+| ~~G3~~ | ~~Promote the deck from `/discovery` to its real route...~~ **Done — built by E5, not G**, found while E5 checked what "the deck's own entry/exit chrome" actually required rather than assuming G3 owned the route. `/tvaryny/gortaty` (`noindex`), the gallery's entry control, and exit (`router.back()` when safe, else a fresh gallery link, scroll position coming from the browser's own history mechanism) are all real and shipped. **Filters inherited, sort is not** — `feed.list` has no sort input at all, recorded as a deviation in `docs/design/README.md`'s "Gallery ↔ deck" section, not something G3 can pick back up (there's no sort concept for the deck to receive). | ~~3~~ |
 | G4 | Deck gesture-physics re-skin — the new handoff's motion values (`docs/design/README.md`, "Geometry, density, elevation, motion": quick 120ms / settle 220ms / reveal 280ms, `cubic-bezier(0.3, 0, 0, 1)`; release spring stiffness 280 / damping 30, no overshoot) applied to `use-swipe-gesture.ts`'s own constants — moved out of V2 deliberately (`docs/build-plan.md`'s Phase E table, V2 row) so these values change once, alongside whatever G1's iOS investigation also touches in the same file, not twice | 3 |
 
-**Total: ~13 h.**
+**Total: ~10 h** (13 h original, minus G3's 3 h — already spent as part of E5's own overage, not double-counted here; see `docs/build-plan.md`'s Part 3 ledger).
 
 **Done when:** 30 uninterrupted swipes on a real mid-range Android and a real iPhone,
 entered from and returning to the gallery at the same scroll position and card, on the new
 motion values.
 
-**Decisions this phase must surface:** none anticipated for G1–G3 — flag if the iOS
+**Decisions this phase must surface:** none anticipated for G1–G2 — flag if the iOS
 investigation turns up a fix that touches `packages/domain` or the gesture's pure decision
 function, per the standing stop-gate. G4 is gesture-physics work
 (`docs/model-policy.md`: "M5 swipe deck | Opus | Gesture physics and pointer capture") —

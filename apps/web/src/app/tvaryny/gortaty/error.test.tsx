@@ -8,22 +8,24 @@ import GortatyError from "./error";
  * nesting means `/tvaryny`'s own `error.tsx` would catch a failure in
  * this route too, rendering gallery-specific copy («Ваші фільтри
  * збережені») for a deck failure. This component test covers what a
- * component test can — that retry calls `reset()` and the escape link
- * points at the gallery; the boundary-isolation claim itself is a
- * property of Next's own routing, not something a render test exercises.
+ * component test can — that retry calls `retry()`, not `reset()` (round
+ * 2 found `reset()` alone doesn't re-run the Server Component that can
+ * fail — see this file's own top comment), and the escape link points at
+ * the gallery; the boundary-isolation claim itself is a property of
+ * Next's own routing, not something a render test exercises.
  */
 describe("GortatyError", () => {
-  it("calls reset(), not anything that would navigate away", () => {
-    const reset = vi.fn();
-    render(<GortatyError error={new Error("boom")} reset={reset} />);
+  it("calls retry(), not reset() — reset() alone cannot recover from a server-side failure", () => {
+    const retry = vi.fn();
+    render(<GortatyError error={new Error("boom")} reset={vi.fn()} retry={retry} />);
 
     fireEvent.click(screen.getByTestId("gortaty-error-retry"));
 
-    expect(reset).toHaveBeenCalledTimes(1);
+    expect(retry).toHaveBeenCalledTimes(1);
   });
 
   it("offers a link back to the gallery", () => {
-    render(<GortatyError error={new Error("boom")} reset={vi.fn()} />);
+    render(<GortatyError error={new Error("boom")} reset={vi.fn()} retry={vi.fn()} />);
 
     const link = screen.getByTestId("gortaty-error-back-to-list");
     expect(link.getAttribute("href")).toBe("/tvaryny");

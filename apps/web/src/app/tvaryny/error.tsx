@@ -26,10 +26,22 @@ import { useEffect, useRef } from "react";
  * notice, wired in `page.tsx`); above `MAX_GALLERY_PAGE` throws, and lands
  * here.
  *
- * `reset()`, not a manual re-navigation: it retries rendering the current
- * route with its current `searchParams` unchanged, so "Спробувати ще раз"
- * naturally re-applies whatever filters/sort were already in the URL — the
- * URL is the state, and this file never has to know what it was.
+ * `retry()`, not `reset()` — found via round-2 review, not assumed: Next
+ * passes both to every error boundary, and they are not equivalent
+ * (`node_modules/next/dist/client/components/error-boundary.js`). `reset()`
+ * only clears the boundary's own state and re-renders whatever `page.tsx`
+ * last produced client-side — it does NOT re-run the Server Component, so
+ * it cannot recover from the kind of failure that reaches this file at all
+ * (a server-side `gallery.list` throw). `retry()` calls `router.refresh()`
+ * first, which is what actually re-executes `page.tsx` against the current
+ * `searchParams`, THEN resets the boundary. Verified end to end against a
+ * real production build: with the database stopped, «Спробувати ще раз»
+ * with `reset()` left the error card on screen after the database came
+ * back up; the same click with `retry()` recovered to the real gallery.
+ * "Спробувати ще раз" re-applies whatever filters/sort were already in the
+ * URL either way — the URL is the state, and this file never has to know
+ * what it was — but only `retry()` actually re-asks the server the
+ * question that failed.
  *
  * JS-only: Next.js requires error boundaries to be Client Components, so
  * with JavaScript disabled this file cannot mount at all — see
@@ -93,10 +105,11 @@ import { useEffect, useRef } from "react";
  * move to a `layout.tsx` safely; this one no longer qualifies.
  */
 export default function GalleryError({
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
+  retry: () => void;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -129,7 +142,7 @@ export default function GalleryError({
           <button
             type="button"
             data-testid="gallery-error-retry"
-            onClick={reset}
+            onClick={retry}
             className="min-h-14 px-6 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
           >
             {uk.galleryError.action}
@@ -141,9 +154,10 @@ export default function GalleryError({
             assumed — a `Link` click here changes the URL bar but leaves
             this same error boundary on screen, because it soft-navigates
             within the segment Next already knows just errored, and only
-            `reset()` (the retry button) or a real navigation actually
-            retries it. A hard navigation sidesteps that entirely, at the
-            unavoidable cost of a full reload instead of a transition.
+            `retry()` (the retry button above) or a real navigation
+            actually retries it. A hard navigation sidesteps that
+            entirely, at the unavoidable cost of a full reload instead of
+            a transition.
           */}
           <a
             href="/tvaryny"
