@@ -17,6 +17,10 @@ export const metadata = { title: `${uk.about.title} — Opika` };
  * page is reachable by a real shelter: a page whose whole purpose is
  * "here is who is behind this, get in touch" is worse than absent if the
  * address bounces. Tracked as a launch gate, not a TODO to notice later.
+ *
+ * `uk.about.analytics` discloses @vercel/analytics + @vercel/speed-insights
+ * (mounted in the root layout) — the disclosure ships in the same phase as
+ * the collection, not after.
  */
 export default function AboutPage() {
   return (
@@ -38,6 +42,7 @@ export default function AboutPage() {
         <p className="text-[17px]/[26px] text-rg-ink">{uk.about.free}</p>
         <p className="text-[17px]/[26px] text-rg-ink">{uk.about.money}</p>
         <p className="text-[17px]/[26px] text-rg-ink">{uk.about.data}</p>
+        <p className="text-[17px]/[26px] text-rg-ink">{uk.about.analytics}</p>
         <p className="text-[15px]/[22px] text-rg-ink-2 pt-2">
           {uk.about.contact.replace("{contact}", "hello@opika.org.ua")}
         </p>

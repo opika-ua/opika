@@ -21,6 +21,8 @@
     "@orpc/client": "catalog:",
     "@orpc/contract": "catalog:",
     "@orpc/server": "catalog:",
+    "@vercel/analytics": "catalog:",
+    "@vercel/speed-insights": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

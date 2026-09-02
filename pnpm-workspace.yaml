@@ -55,6 +55,12 @@ catalog:
   postgres: 3.4.9
   react: 19.2.7
   react-dom: 19.2.7
+  # Cookieless, no-op-without-JS. Speed Insights reports real Core Web
+  # Vitals from actual devices in the field, which the harness cannot
+  # simulate; Analytics gives aggregate page-view counts. Both free on
+  # Vercel's Hobby tier. See apps/web/src/app/layout.tsx for the mount.
+  "@vercel/analytics": 2.0.1
+  "@vercel/speed-insights": 2.0.0
 
 allowBuilds:
   esbuild: true
