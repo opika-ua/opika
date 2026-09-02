@@ -79,17 +79,18 @@ export function AnimalCard({
   return (
     <Link
       href={`/tvaryny/${card.id}`}
-      // The destination 404s until Phase F (docs/gallery-contract-decisions.md
-      // §6) — nothing to prefetch yet. Also load-bearing, not just wasted
-      // work: Next's default prefetch fires one request per visible card, and
-      // every one of those passes through proxy.ts's rate limiter alongside
-      // the page's own request (its matcher covers /tvaryny/:path* on
-      // purpose, for the eventual real detail pages). Left on, a single
-      // 24-card gallery page load could burn a meaningful slice of the
-      // 100-req/min budget on prefetches nobody asked for — reproduced
-      // directly by test/harness/gallery-layout.harness.ts, which started
-      // getting 429'd mid-run before this was set. Revisit once F ships a
-      // real destination worth prefetching.
+      // F1 shipped a real destination at this URL (docs/gallery-contract-
+      // decisions.md §6) — prefetch stays off regardless. Next's default
+      // prefetch fires one request per visible card, and every one of those
+      // passes through proxy.ts's rate limiter alongside the page's own
+      // request (its matcher covers /tvaryny/:path* on purpose, for exactly
+      // this route). Left on, a single 24-card gallery page load could burn
+      // a meaningful slice of the 100-req/min budget on prefetches nobody
+      // asked for — reproduced directly by
+      // test/harness/gallery-layout.harness.ts, which started getting
+      // 429'd mid-run before this was set. Still the right trade with a
+      // real destination behind it: a click is a real navigation either
+      // way, prefetch only ever saved the time between hover and click.
       prefetch={false}
       aria-label={cardAccessibleName(card, cityName)}
       data-testid="animal-card"

@@ -25,6 +25,26 @@ const browserContract = {
 } as const;
 
 /**
+ * F2's reveal flow: `session.bootstrap` (mint-or-return an anonymous
+ * session, only ever triggered by the reveal button itself — see
+ * `docs/gallery-contract-decisions.md` §5, still true here: nothing on the
+ * server-rendered detail page mints or reads a session) and
+ * `animals.reveal` (the disclosure itself, session-gated server-side by
+ * `context.adopterId`, not by anything this client trims).
+ *
+ * A second, separate `ContractRouterClient` rather than adding to
+ * `browserContract` above and renaming its export: `feedBrowserClient` is
+ * already imported by `use-feed-deck.ts`, and splitting by *use*
+ * (pagination vs. the reveal flow) rather than merging into one grab-bag
+ * keeps each file's contract list an honest, narrow record of what that
+ * one feature actually calls.
+ */
+const revealBrowserContract = {
+  session: { bootstrap: contract.session.bootstrap },
+  animals: { reveal: contract.animals.reveal },
+} as const;
+
+/**
  * `url` is a function, not the string `"/api/rpc"` directly — confirmed
  * necessary, not a style preference: oRPC's own encoder does `new URL(url)`
  * with no base, which throws `Invalid URL` on a relative path (a relative
@@ -41,4 +61,7 @@ const link = new RPCLink<Record<never, never>>({
 });
 
 export const feedBrowserClient: ContractRouterClient<typeof browserContract> =
+  createORPCClient(link);
+
+export const revealBrowserClient: ContractRouterClient<typeof revealBrowserContract> =
   createORPCClient(link);
