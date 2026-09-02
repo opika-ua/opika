@@ -6,17 +6,40 @@ import Link from "next/link";
 import { cardAccessibleName, cardMetaLine, isReserved } from "./card-text";
 
 /**
- * The photo's rendered width by breakpoint: full card width on phone (1
- * column), a fixed 120px on tablet (`w-30`, not viewport-relative at all),
- * roughly a third of the 960px content column on desktop (3 columns), a
- * quarter of 1320px on wide (4 columns) — `globals.css`'s `tablet`/
- * `desktop`/`wide` breakpoints, `docs/design/README.md`'s own numbers.
- * Doesn't change what loads today (`image-loader.ts`'s stub has no real
- * variants to choose between), but is the value H1's real variants need
- * this component to already be passing.
+ * The photo's rendered width by breakpoint. Every number here is derived from
+ * the layout that actually produces the box, not estimated — `sizes` is a
+ * promise to the browser about how wide this image will be, and nothing in
+ * the toolchain checks that promise against reality. Overstating it is not a
+ * cosmetic inaccuracy: the browser multiplies by DPR before picking from
+ * `srcset`, so a declaration that is 18% too wide crosses a variant boundary
+ * at 2x and downloads the next tier up for every phone user, forever, with
+ * no visible symptom. Understating it is worse in the other direction — a
+ * genuinely blurry photo. So each clause is the *maximum* real width in its
+ * range, and `gallery-photo-sizes.harness.ts` asserts these against the
+ * measured box rather than trusting the arithmetic below to stay true.
+ *
+ * Phone (<600, `grid-cols-1`): page `p-4` (16px a side) + card `p-3` (12px a
+ * side) = 56px of chrome, so the photo is `100vw - 56px` exactly — 304px at
+ * a 360px viewport, measured. Not `100vw`, which was the H1 bug: it declared
+ * the full viewport for a box inset by 56px, and at 2x that pushed 720
+ * device px past `card`'s 640w into `detail`'s 1120w — a 284KB download in
+ * place of a 136KB one, on the device class least able to afford it.
+ *
+ * Tablet (600-1023): the card turns horizontal and the photo becomes a fixed
+ * `tablet:w-30` column — 120px, not viewport-relative at all. Already exact.
+ *
+ * Desktop (1024-1439, 3 columns): grid caps at `max-w-[960px]` with
+ * `gap-6` (24px x 2 gaps), so a column is (960 - 48) / 3 = 304px, less the
+ * card's own 24px of padding = 280px. That is the ceiling; below ~1080px of
+ * viewport the grid is fluidly narrower and the photo is smaller, which is
+ * the safe direction to be wrong in.
+ *
+ * Wide (1440+, 4 columns): grid caps at `max-w-[1320px]`, `gap-6` x 3 gaps,
+ * so a column is (1320 - 72) / 4 = 312px, less 24px of card padding = 288px
+ * — measured at a 1920px viewport. Constant above 1440, since the cap binds.
  */
 const PHOTO_SIZES =
-  "(max-width: 599px) 100vw, (max-width: 1023px) 120px, (max-width: 1439px) 320px, 330px";
+  "(max-width: 599px) calc(100vw - 56px), (max-width: 1023px) 120px, (max-width: 1439px) 280px, 288px";
 
 interface AnimalCardProps {
   card: FeedCardView;
