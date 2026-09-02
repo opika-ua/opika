@@ -68,6 +68,19 @@ Opika — реєстр тварин із перевірених притулкі
 
 Реєстр не бере і не переказує грошей: ні комісії, ні оплати, ні збору донатів через себе. Якщо у вас є власна сторінка для донатів — банка в monobank, наприклад — на картці буде посилання на неї, і людина побачить, куди воно веде, ще до того як натисне.
 
+> **The visibility claim is verified true.** «людина побачить, куди воно веде,
+> ще до того як натисне» is a claim about rendering, and on a phone there is no
+> hover and no status bar to fall back on. `AnimalDetailScreen.tsx` renders
+> `donationHost(shelter.donation)` — `new URL(link.url).host` — as visible text
+> beside the label, so the row reads «Підтримати притулок · send.monobank.ua ↗».
+> The sentence holds.
+>
+> **Open wording question: «на картці» vs «на сторінці».** The donation link
+> lives on the animal's *page*, not on the grid card. Elsewhere this draft uses
+> «картка» for the listing entry (§3, §8) and «сторінка» for the page (§3, §8),
+> so «на сторінці» would be consistent and unambiguous. Left as «на картці»
+> pending the owner's ear.
+
 ## §6 — Що означає «перевірений» · `verification`
 
 «Перевірений» означає, що вас перевіряла людина. Ось що це означає конкретно.
