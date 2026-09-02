@@ -698,6 +698,13 @@ is unconditionally complete and JS stays purely additive, the same guarantee eve
 enhancement on this route already keeps. Not built this phase; recorded here so nobody
 reaches for `loading.tsx` next time without knowing why it was rejected once already.
 
+Tracked against E5 as an option, not a commitment — `docs/design/README.md`'s "Loading
+(L1/L2)" section carries the same note plus an open design question: whether the mock's full
+24-card skeleton is the right weight for a filter/sort change (already-visible content,
+replaced in place) or whether something lighter than a first-load-style skeleton fits that
+trigger better. Either way, a no-JS visitor is unaffected — no soft navigation means no
+pending state to show, same as today.
+
 ## 8. Arrow-key navigation at a page boundary — the same "edges never wrap" rule, not a second one
 
 E2.5 (`ArrowKeyGrid.tsx`) settled "edges never wrap" for the grid as a whole: `ArrowRight`

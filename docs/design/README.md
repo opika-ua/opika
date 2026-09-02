@@ -453,6 +453,26 @@ bars `#F2F2F0` (name bar 108×20 `#DCDCD9`), radius 8. **No shimmer, no pulse** 
 pulse would read as a data state. Grid `aria-busy="true"`; polite live region says
 «Завантажуємо тварин». Real cards replace skeletons by opacity, 120ms, no movement.
 
+**Tried and reverted — not shipped in any form.** A route-level `loading.tsx` matching this
+frame was built in E4, then reverted: Next's `loading.tsx` convention puts the whole route into
+streaming SSR unconditionally, which means every response — JS-on or off — ships as a hidden
+template holding the real content plus this skeleton as the visible fallback, with a small
+inline script performing the swap. That script is JavaScript; with it disabled, the swap never
+runs and the real content stays hidden permanently, not "no skeleton shown." Confirmed by
+running the suite, not by reasoning about it: adding the file failed four already-passing no-JS
+harness tests. Full account: `docs/gallery-contract-decisions.md`.
+
+**Tracked against E5, not built yet.** The frame's own skeleton only ever mattered for
+client-side soft navigation (a no-JS visitor never sees a pending state at all — the browser's
+own loading UI covers that case, untouched, both before and after this finding). The mechanism
+that delivers a pending state on soft navigation without streaming or a Suspense boundary is
+`useLinkStatus()` (a `<Link>`'s own pending flag) or `useTransition`, wired around the existing
+link-interception points (`ReplaceNav.tsx`, and pagination, which isn't wrapped today) — server
+response stays unconditionally complete either way. **Open design question, not yet settled:**
+whether this frame's full 24-card skeleton grid is the right weight for every trigger, or
+whether a filter/sort change (already on-screen content, replaced in place) warrants something
+lighter than a first-load-style full skeleton. Not built this phase.
+
 ### Whole-list error (E1/E2)
 A card in the grid's place, max 560, radius 24, padding 32: eyebrow НЕ ЗАВАНТАЖИЛОСЯ, heading
 display-m «Список не відкрився.», body-l «Це не ваша помилка і не помилка притулку. Фільтри
