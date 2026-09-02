@@ -47,3 +47,10 @@ playwright-report/
 # committed so `next dev` doesn't reintroduce them into every future diff.
 apps/*/AGENTS.md
 apps/*/CLAUDE.md
+
+# Real shelter onboarding input (packages/db/src/onboard-shelter.ts): a real
+# exact address and phone number. The script itself refuses to run on a file
+# inside the repo, whether or not it matches this pattern — this is a second,
+# independent layer, not the enforcement mechanism.
+shelter-*.json
+onboard-*.json
