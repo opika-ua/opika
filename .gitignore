@@ -34,6 +34,17 @@ Thumbs.db
 test-results/
 playwright-report/
 
+# Critique/audit screenshots. Ignored rather than committed because git never
+# forgets: a full-page PNG set for one review pass ran to ~50 MB, and once
+# committed every clone carries it forever with no clean removal short of
+# rewriting history. The rule this enforces is in docs/design-critique.md's
+# own "Evidence policy" — a finding is written precisely enough to stand on a
+# measured value, a cause located in source, and a stated reproduction. If a
+# finding genuinely cannot survive without an image, crop the relevant region
+# to a small WebP and commit that one file somewhere outside this directory,
+# deliberately, rather than committing the capture set that produced it.
+docs/screenshots/critique/
+
 # Isolated git worktrees created for background agent runs (Agent tool,
 # isolation: "worktree"). Ephemeral scratch space, not repo content.
 .claude/worktrees/
