@@ -7,7 +7,35 @@ import Link from "next/link";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
 
-const PHOTO_SIZES = "(max-width: 1023px) 100vw, 560px";
+/**
+ * Derived from the layout that produces the box, not estimated — same rule and
+ * same reason as `AnimalCard.tsx`'s own `PHOTO_SIZES`, which is where this
+ * defect was first found and is worth reading for the full argument. Short
+ * version: `sizes` is a promise about how wide this image will be, the browser
+ * multiplies it by DPR before choosing from `srcset`, and nothing in the
+ * toolchain checks the promise. Overstating silently downloads a larger
+ * variant forever; understating ships a blurry photo. Each clause is the
+ * maximum real width in its range.
+ *
+ * This one needed the phone/tablet clause *split*, which is why it wasn't
+ * fixed alongside the gallery card: the container is `p-4 tablet:p-6`, so a
+ * single `(max-width: 1023px)` clause spans two genuinely different widths —
+ * 16px of padding a side below 600, 24px above it.
+ *
+ * Phone (<600):     `p-4`  -> 100vw - 32px.  328px at 360, measured.
+ * Tablet (600-1023): `p-6`  -> 100vw - 48px.  720px at 768, measured.
+ * Desktop (1024+):  the photo column is `desktop:w-[560px] desktop:flex-none`
+ *                   — a constant 560px at every desktop width, not derived
+ *                   from the viewport at all. Already exact; unchanged.
+ *
+ * Note this changed no variant selection on the day it landed: at 360 @2x,
+ * 328 x 2 = 656 still exceeds `card`'s 640w and correctly resolves to
+ * `detail`, exactly as the overstated `100vw` did. It was fixed anyway,
+ * because the moment a variant is added to the ladder an overstated `sizes`
+ * stops being dormant and becomes a live overfetch.
+ */
+const PHOTO_SIZES =
+  "(max-width: 599px) calc(100vw - 32px), (max-width: 1023px) calc(100vw - 48px), 560px";
 
 /**
  * "Перевірений вручну · {years} на Opika" — years is whole, floored, never
