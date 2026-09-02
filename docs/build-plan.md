@@ -445,12 +445,58 @@ display, keyset pagination for the deck, seed-data volume, the verification gate
 
 ## Part 5 — Launch gate
 
-Items that must be true before real shelter data may enter the system, or before any route
-may be indexed — not phase-scoped work, but standing conditions checked at that specific
-moment regardless of which phase is current.
+Standing conditions, not phase-scoped work — checked at the specific moment each names, not
+bundled into one "before launch" deadline. Two different triggers live in this list:
+onboarding the first real shelter is the nearer one, and can arrive days after a deploy, not
+weeks.
 
-| Item | Why it's gated, not just deferred |
-|---|---|
-| Flip `NOINDEX_EVERYTHING` (`apps/web/src/seo-flags.ts`) off, or replace it with per-route logic | The whole corpus is fictional until real shelters are onboarded (`CLAUDE.md`'s "No real shelter data" rule). Indexing it would put fictional animals in front of a real adopter |
-| Wire `productionLocationPolicy` (`packages/db/src/location-policy.ts`) into whatever creates a real shelter or animal record, and add `LOCATION_HMAC_SECRET` to `apps/web/src/api/env.ts`'s required-production schema in that same change | `packages/db/src/seed.ts` computes `publicLocation` with `testOnlyLocationPolicy("seed")` — deterministic, unkeyed, and reversible by anyone reading the source. Correct for fictional seed data; would defeat the entire point of location fuzzing for a real foster carer's address the moment real data used the same path |
-| Move the in-memory rate limiter (`apps/web/src/api/rate-limit.ts`) to a shared store (Redis/Upstash/Vercel KV) | Already documented in that file's own comment as a known gap: each serverless instance holds its own counter, so the effective per-IP ceiling is `limit × instance count`, not the stated limit — adequate as a first-line defense at near-zero traffic, not at real usage |
+### Before the first real shelter or animal record is inserted
+
+This is the sharp one. It is not "before launch" — shelter onboarding can happen the moment
+someone says yes to an outreach email, independent of whatever else is or isn't ready.
+
+**Location fuzzing.** `packages/db/src/seed.ts` computes every seeded `publicLocation` with
+`testOnlyLocationPolicy("seed")` — deterministic, unkeyed, and reversible by anyone reading
+the source. Correct for fictional seed data; would defeat the entire point of location
+fuzzing the moment a real foster carer's exact address used the same path.
+
+Two guards now shipped, so this can no longer happen silently:
+
+1. `testOnlyLocationPolicy` itself throws if constructed with `NODE_ENV=production`
+   (`packages/domain/src/primitives/coordinates.ts`, mutation-tested,
+   `coordinates.test.ts`'s "refuses to construct in production"). Not opt-in the way
+   `assertProductionLocationPolicy` is — it fires the moment the insecure policy is
+   constructed at all, not only if some later step remembers to check the value.
+2. `publicLocationOf` (`packages/domain/src/shelters/location.ts`) already took `policy` as
+   a required, no-default parameter before this check — verified, not assumed; there is no
+   second, laxer path into a `Shelter`'s `publicLocation` (`shelterRepo.insert` takes an
+   already-fully-formed `Shelter`, computed nowhere but `publicLocationOf`). No change was
+   needed here.
+
+**Still open, and this is the actual remaining gate:** nothing yet calls
+`productionLocationPolicy` (`packages/db/src/location-policy.ts`) from a real handler — the
+only caller anywhere is `seed.ts`, and it deliberately uses the test-only policy. Before the
+first real address is inserted:
+
+- Wire `productionLocationPolicy` into whatever creates a real shelter or animal record.
+- Add `LOCATION_HMAC_SECRET` to `apps/web/src/api/env.ts`'s `RequiredProductionEnvSchema` in
+  that same change — not before (nothing to validate yet) and not separately (the two must
+  land together or the requirement and its consumer can drift apart again, the way the seed
+  path already did once).
+
+### Before any route is indexed
+
+**Flip `NOINDEX_EVERYTHING` (`apps/web/src/seo-flags.ts`) off, or replace it with per-route
+logic.** The whole corpus is fictional until real shelters are onboarded (`CLAUDE.md`'s "No
+real shelter data" rule). Indexing it would put fictional animals in front of a real
+adopter. Later than the location-fuzzing gate above, not earlier — a real shelter can exist
+in the database, verified and reachable by direct link, before the site is meant to be
+publicly discoverable at all.
+
+### Before real traffic (not urgent at preview-only volume)
+
+**Move the in-memory rate limiter (`apps/web/src/api/rate-limit.ts`) to a shared store**
+(Redis/Upstash/Vercel KV). Already documented in that file's own comment as a known gap:
+each serverless instance holds its own counter, so the effective per-IP ceiling is `limit ×
+instance count`, not the stated limit — adequate as a first-line defense at near-zero
+traffic, not at real usage.
