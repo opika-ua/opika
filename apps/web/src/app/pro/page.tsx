@@ -1,7 +1,8 @@
 import { uk } from "@opika/i18n";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 
-export const metadata = { title: `${uk.about.title} — Opika` };
+/** Subject only — the root layout's `title.template` appends the product name. */
+export const metadata = { title: uk.about.title };
 
 /**
  * «Про проєкт» — no mock, per this phase's own scope: "three or four

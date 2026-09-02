@@ -311,6 +311,20 @@ export const en = {
    */
   forShelters: {
     title: "For shelters",
+    /** Real copy in both locales — see the uk key's own note. */
+    headings: {
+      whatThisIs: "What this is",
+      cost: "What it costs",
+      whatHappensToAnimals: "What happens to your animals",
+      whoContactsWhom: "Who contacts whom",
+      money: "About money",
+      verification: "What «verified» means",
+      whatToPrepare: "What to prepare",
+      whyThatSentence: "Why we ask for that sentence",
+      whenAnimalFindsHome: "When an animal finds a home",
+      whoIsBehindThis: "Who is behind this",
+      howToStart: "How to start",
+    },
     whatThisIs: `${COPY_PENDING} 1. What this is — one sentence.`,
     cost: `${COPY_PENDING} 2. What it costs — nothing, now and later.`,
     whatHappensToAnimals: `${COPY_PENDING} 3. What happens to their animals.`,

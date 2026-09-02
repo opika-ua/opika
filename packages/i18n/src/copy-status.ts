@@ -14,9 +14,9 @@ import { COPY_PENDING } from "./messages/uk";
  * recursive version would return ambiguous bare key names instead of ones a
  * reader can find.
  */
-export function pendingCopyKeys(group: Readonly<Record<string, string>>): string[] {
+export function pendingCopyKeys(group: Readonly<Record<string, unknown>>): string[] {
   return Object.entries(group)
-    .filter(([, value]) => value.startsWith(COPY_PENDING))
+    .filter(([, value]) => typeof value === "string" && value.startsWith(COPY_PENDING))
     .map(([key]) => key)
     .sort();
 }

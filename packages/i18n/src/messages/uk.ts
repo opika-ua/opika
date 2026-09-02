@@ -502,6 +502,35 @@ export const uk = {
    */
   forShelters: {
     title: "Для притулків",
+    /**
+     * Real copy, not placeholders — promoted from the section names in
+     * `docs/prytulkam-argument.md`, which were already phrased as the
+     * reader's own questions rather than as labels. That phrasing is the
+     * point: «Вартість» / «Контакти» / «Верифікація» would turn a letter
+     * into a marketing page, which is the one thing this page is carefully
+     * not being.
+     *
+     * They exist because linear reading is not the only use case. Someone
+     * comes back a week later to re-check what was said about money before
+     * committing, and without headings they re-read eleven sections or give
+     * up.
+     *
+     * Two were adjusted from the draft's own labels to keep the question
+     * form consistent: §5 was «Гроші» and §8 was «Навіщо те речення».
+     */
+    headings: {
+      whatThisIs: "Що це",
+      cost: "Скільки це коштує",
+      whatHappensToAnimals: "Що буде з вашими тваринами",
+      whoContactsWhom: "Хто кому пише",
+      money: "Що з грошима",
+      verification: "Що означає «перевірений»",
+      whatToPrepare: "Що підготувати",
+      whyThatSentence: "Навіщо те речення про оновлення",
+      whenAnimalFindsHome: "Коли тварина знайшла дім",
+      whoIsBehindThis: "Хто це робить",
+      howToStart: "Як почати",
+    },
     /** §1 — one sentence. What this is. Nothing else. */
     whatThisIs: `${COPY_PENDING} 1. What this is — a register of animals from verified shelters in Kyiv oblast, one sentence.`,
     /** §2 — free now and later. Early, because it is what they are bracing for. */
