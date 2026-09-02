@@ -80,6 +80,25 @@ export const DETAIL_DESKTOP: Viewport = {
   height: 1080,
 };
 
+/**
+ * The two widths the H1 real-R2 verification pass actually tabulated when it
+ * found the gallery card overfetching at 2x (see `gallery-photo-sizes.
+ * harness.ts`). Same numbers as `DETAIL_PHONE`/`DETAIL_DESKTOP` above by
+ * coincidence of the design's own frame widths, kept separate because these
+ * measure the *gallery*, and a later change to either pair must not silently
+ * move the other.
+ */
+export const GALLERY_PHONE_360: Viewport = {
+  name: "360x800 gallery phone",
+  width: 360,
+  height: 800,
+};
+export const GALLERY_DESKTOP_1920: Viewport = {
+  name: "1920x1080 gallery desktop",
+  width: 1920,
+  height: 1080,
+};
+
 /*
  * Font-metrics portability — resolved, not a live caveat any more.
  *
