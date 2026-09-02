@@ -20,10 +20,7 @@ public location before anything touches the live database.
   actual evidence the domain's own verification policy requires, or the
   script refuses to write a `verified` shelter at all.
 - **For each animal**: name, species, sex, size bucket, age bucket, a short
-  description, and at least one photo already placed under
-  `apps/web/public/seed-photos/` (or another path under `apps/web/public/`)
-  — there is no upload pipeline yet, so photos are files you copy in by hand
-  before running the script.
+  description, and at least one real photo file — see "Photos" below.
 
 ## The input file
 
@@ -90,7 +87,7 @@ before anything is computed):
       "ageBucket": "adult",
       "descriptionUk": "Спокійна, любить дітей, вже привчена до повідка.",
       "photos": [
-        { "storageKey": "/seed-photos/dog-3.jpg", "width": 1200, "height": 1500 }
+        { "localPath": "photos/lastivka-1.jpg" }
       ]
     }
   ]
@@ -125,6 +122,31 @@ real phone call where you actually talked to someone and can say what you
 learned counts; `notes` should say what actually happened, in your own
 words, since this becomes a permanent part of the shelter's record.
 
+### Photos
+
+`localPath` (in each animal's `photos` array) points at a real file on your
+own machine — relative paths resolve against **the input JSON's own
+directory**, not wherever you happen to run the command from. Keep a
+`photos/` folder next to the input file:
+
+```
+~/opika-shelters/
+  domivka-brovary.json
+  photos/
+    lastivka-1.jpg
+    lastivka-2.jpg
+```
+
+You don't supply width/height — the script reads the real file for its
+actual dimensions, both in dry run and `--commit`. A missing file or one
+sharp can't decode (wrong format, corrupted download) fails immediately,
+before anything is uploaded or written, with the file path in the error.
+
+Uploading only happens on `--commit` — the dry run validates that every
+photo file exists and is readable, and nothing more. `--commit` generates
+three real sizes per photo (thumbnail, gallery-card, detail-page) and
+uploads each to R2; see "R2 credentials" below for what that step needs.
+
 ## Run it: dry run, then commit
 
 ```bash
@@ -150,17 +172,25 @@ right," a non-zero number inside the stated radius. If it says "CHECK
 THIS" or reads suspiciously close to 0m, stop and check
 `LOCATION_HMAC_SECRET` is set correctly — don't proceed to `--commit`.
 
-Once it looks right:
+Once it looks right, `--commit` additionally needs the R2 write
+credentials (below):
 
 ```bash
 LOCATION_HMAC_SECRET=<your secret> \
 DATABASE_URL=<neon-direct-url> \
+R2_ACCOUNT_ID=<your R2 account id> \
+R2_ACCESS_KEY_ID=<your R2 access key id> \
+R2_SECRET_ACCESS_KEY=<your R2 secret access key> \
+R2_BUCKET_NAME=<your R2 bucket name> \
   pnpm --filter @opika/db run onboard:shelter -- ~/opika-shelters/domivka-brovary.json --commit
 ```
 
 If it fails partway through (network blip, a typo caught mid-run), just
 run the exact same command again — already-inserted rows are detected by
-their stable id and skipped, not duplicated.
+their stable id and skipped, not duplicated. A photo that already uploaded
+successfully re-uploads on a retry (uploading is not currently
+skip-if-exists the way the database insert is) — harmless, since the
+result is identical bytes at the same key, just not free.
 
 ## Where `LOCATION_HMAC_SECRET` comes from
 
@@ -168,3 +198,24 @@ Generate one once with `openssl rand -hex 32`. Keep it somewhere you can
 find it again — the same value must be used every time you onboard a
 shelter, or a shelter onboarded with a different secret would get a public
 location fuzzed against a key nothing else remembers.
+
+## R2 credentials
+
+Four values, from Cloudflare's dashboard (R2 → your bucket → **Manage API
+tokens**): `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+`R2_BUCKET_NAME`. **Local shell only, never in Vercel** — same reasoning as
+`LOCATION_HMAC_SECRET`: this script runs from your own machine, never
+through the deployed site. The deployed app needs a fifth, different value
+instead — `NEXT_PUBLIC_R2_PUBLIC_BASE_URL`, the bucket's *public* read URL
+— set once in Vercel (Production and Preview), not per onboarding run; see
+`docs/h1-decisions.md` for why that one's required at boot and what it
+means if it's ever missing there.
+
+⚠ **Not yet run against a real bucket.** The upload path (`packages/db/src/
+image-pipeline`) is fully unit-tested against real image fixtures and a
+mocked storage client, but the actual authenticated `PutObject` call, CORS,
+content-type headers, and whether `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` +
+a real key resolves over HTTP are all unverified until this runs once for
+real. Treat the first real onboarding run as that verification, not as a
+formality — watch the upload log lines closely and check the resulting
+photo actually loads on the live detail page before trusting the rest.

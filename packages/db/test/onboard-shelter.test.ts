@@ -133,8 +133,9 @@ describe("buildShelter and buildAnimal ids", () => {
         size: "medium",
         ageBucket: "adult",
         descriptionUk: "Опис.",
-        photos: [{ storageKey: "/seed-photos/dog-1.jpg", width: 800, height: 1000 }],
+        photos: [{ localPath: "dog-1.jpg" }],
       },
+      [{ storageKey: "animals/test/0", width: 800, height: 1000, alt: null }],
       shelter.id,
       now,
     );

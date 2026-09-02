@@ -66,6 +66,12 @@ catalog:
   # mount.
   "@vercel/analytics": 2.0.1
   "@vercel/speed-insights": 2.0.0
+  # H1's image pipeline. sharp generates the three real variants server-side
+  # at upload time (packages/db/src/image-pipeline); @aws-sdk/client-s3
+  # talks to R2's S3-compatible API — the standard client Cloudflare's own
+  # docs point to, no lighter official alternative exists.
+  sharp: 0.35.4
+  "@aws-sdk/client-s3": 3.1123.0
 
 allowBuilds:
   esbuild: true

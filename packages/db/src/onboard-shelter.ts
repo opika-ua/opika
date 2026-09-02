@@ -6,6 +6,7 @@ import {
   type Animal,
   type AnimalId,
   AnimalIdSchema,
+  type AnimalPhoto,
   AnimalSexSchema,
   AnimalSpeciesSchema,
   ContactChannelSchema,
@@ -31,6 +32,13 @@ import {
 import postgres from "postgres";
 import { z } from "zod";
 import { createDatabaseWithClient } from "./client";
+import {
+  createR2Client,
+  type ImageStorageClient,
+  resolveLocalPhotoPath,
+  uploadAnimalPhoto,
+  validateLocalPhoto,
+} from "./image-pipeline/server";
 import { productionLocationPolicy } from "./location-policy";
 import { animalRepo, cityRepo, shelterRepo } from "./repos";
 
@@ -141,6 +149,20 @@ const FOUNDER_MODERATOR_ID = ModeratorIdSchema.parse(
   deterministicId("moderator:founder-manual-vetting"),
 ) as ModeratorId;
 
+/**
+ * `localPath`, not `storageKey`/`width`/`height` — an operator has a folder
+ * of real photo files next to their input JSON (`docs/onboarding-a-
+ * shelter.md`'s documented convention: a `photos/` directory alongside the
+ * input file), not R2 object keys or hand-measured pixel dimensions. Both
+ * are computed by this script now: `resolveLocalPhotoPath` +
+ * `validateLocalPhoto` read the real file for its real dimensions (H1 —
+ * see `docs/h1-decisions.md`), and `uploadAnimalPhoto` derives the storage
+ * key from the animal id and the photo's position in this array.
+ */
+const OnboardPhotoSchema = z.object({
+  localPath: z.string().min(1),
+});
+
 const OnboardAnimalSchema = z.object({
   idSeed: z.string().min(1),
   name: z.string().min(1),
@@ -149,15 +171,7 @@ const OnboardAnimalSchema = z.object({
   size: SizeBucketSchema,
   ageBucket: z.enum(["baby", "young", "adult", "senior"]),
   descriptionUk: z.string().min(1),
-  photos: z
-    .array(
-      z.object({
-        storageKey: z.string().min(1),
-        width: z.int().positive(),
-        height: z.int().positive(),
-      }),
-    )
-    .min(1),
+  photos: z.array(OnboardPhotoSchema).min(1),
 });
 
 /**
@@ -318,13 +332,29 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
   };
 }
 
+/**
+ * Split out of `buildAnimal` so the animal id is computable before the
+ * photo-upload step, which needs it (`animalPhotoStorageKey(animalId,
+ * index)`) before the rest of the animal record exists.
+ */
+export function animalIdFor(idSeed: string): AnimalId {
+  return AnimalIdSchema.parse(deterministicId(`animal:${idSeed}`)) as AnimalId;
+}
+
+/**
+ * `photos` arrives already resolved to real `AnimalPhoto` records — this
+ * function no longer derives them from the raw input, `main()` does, via
+ * `resolveAndUploadPhotos` below. Keeps this function pure and testable
+ * without touching the filesystem or R2, same as before H1.
+ */
 export function buildAnimal(
   input: z.infer<typeof OnboardAnimalSchema>,
+  photos: readonly AnimalPhoto[],
   shelterId: Shelter["id"],
   now: Date,
 ): Animal {
   return {
-    id: AnimalIdSchema.parse(deterministicId(`animal:${input.idSeed}`)) as AnimalId,
+    id: animalIdFor(input.idSeed),
     shelterId,
     name: input.name,
     species: input.species,
@@ -332,7 +362,7 @@ export function buildAnimal(
     size: input.size,
     age: { kind: "declared_bucket", bucket: input.ageBucket, declaredAt: now },
     description: { uk: input.descriptionUk, en: null },
-    photos: input.photos.map((p) => ({ ...p, alt: null })),
+    photos,
     vaccination: UNKNOWN_ATTESTATION(now),
     spayNeuter: UNKNOWN_ATTESTATION(now),
     documentReadiness: UNKNOWN_DOCUMENT_READINESS,
@@ -344,6 +374,44 @@ export function buildAnimal(
     createdAt: now,
     lastUpdatedAt: now,
   };
+}
+
+/**
+ * Runs in both dry-run and `--commit` — resolves each photo's local path
+ * against the input file's own directory and confirms it's a real,
+ * readable image, without uploading anything. This is what catches a
+ * shelter's missing or corrupt photo file before the dry-run's "looks
+ * right, add --commit" message, the same reasoning `buildShelter`'s
+ * evidence-policy check already applies to verification evidence.
+ */
+async function validateAnimalPhotos(
+  inputPath: string,
+  animal: z.infer<typeof OnboardAnimalSchema>,
+): Promise<Array<{ resolvedPath: string; dimensions: { width: number; height: number } }>> {
+  return Promise.all(
+    animal.photos.map(async (photo) => {
+      const resolvedPath = resolveLocalPhotoPath(inputPath, photo.localPath);
+      const dimensions = await validateLocalPhoto(resolvedPath);
+      return { resolvedPath, dimensions };
+    }),
+  );
+}
+
+/**
+ * `NOT VERIFIED against a real bucket` — this is `--commit`-only, and the
+ * one place in this script that calls `uploadAnimalPhoto`, which is itself
+ * the one place that calls the R2 client. See `docs/h1-decisions.md`.
+ */
+async function uploadAnimalPhotos(
+  r2: ImageStorageClient,
+  animalId: AnimalId,
+  validated: Array<{ resolvedPath: string; dimensions: { width: number; height: number } }>,
+): Promise<AnimalPhoto[]> {
+  const photos: AnimalPhoto[] = [];
+  for (const [index, { resolvedPath, dimensions }] of validated.entries()) {
+    photos.push(await uploadAnimalPhoto(r2, resolvedPath, animalId, index, dimensions));
+  }
+  return photos;
 }
 
 async function main(): Promise<void> {
@@ -388,7 +456,20 @@ async function main(): Promise<void> {
 
   const now = new Date();
   const shelter = buildShelter(input.shelter, now, secret);
-  const animals = input.animals.map((a) => buildAnimal(a, shelter.id, now));
+
+  // Runs in both dry-run and --commit, before either branch: a shelter's
+  // photo folder missing a file or containing something sharp can't decode
+  // is caught here, the same "before the looks-right message, not after"
+  // posture buildShelter's own evidence-policy check already applies.
+  let animalPhotoValidations: Awaited<ReturnType<typeof validateAnimalPhotos>>[];
+  try {
+    animalPhotoValidations = await Promise.all(
+      input.animals.map((animal) => validateAnimalPhotos(inputPath, animal)),
+    );
+  } catch (error) {
+    console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
 
   // The whole point of this gate: prove productionLocationPolicy actually
   // ran before anything touches the database. Every animal below inherits
@@ -415,14 +496,63 @@ async function main(): Promise<void> {
     );
   }
   console.log(`\nShelter id:  ${shelter.id}`);
-  console.log(`Animals (${animals.length}):`);
-  for (const animal of animals) {
-    console.log(`  ${animal.id}  ${animal.name}`);
+  console.log(`Animals (${input.animals.length}):`);
+  for (const [i, animalInput] of input.animals.entries()) {
+    const photoCount = animalPhotoValidations[i]?.length ?? 0;
+    console.log(
+      `  ${animalIdFor(animalInput.idSeed)}  ${animalInput.name}  ` +
+        `(${photoCount} photo(s) found and validated, not yet uploaded)`,
+    );
   }
 
   if (!commit) {
-    console.log("\nDry run only — nothing was written. Re-run with --commit to insert.");
+    console.log(
+      "\nDry run only — nothing was written or uploaded. Re-run with --commit to insert.",
+    );
     process.exit(0);
+  }
+
+  // R2 write credentials — operator-only, never in Vercel (same split as
+  // LOCATION_HMAC_SECRET, same reason: this script runs from an operator's
+  // own machine, never through the deployed apps/web instance). Checked
+  // only here, past the dry-run branch, so a dry run never needs them.
+  const r2AccountId = process.env.R2_ACCOUNT_ID;
+  if (!r2AccountId) {
+    console.error("ERROR: R2_ACCOUNT_ID is not set.");
+    process.exit(1);
+  }
+  const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
+  if (!r2AccessKeyId) {
+    console.error("ERROR: R2_ACCESS_KEY_ID is not set.");
+    process.exit(1);
+  }
+  const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  if (!r2SecretAccessKey) {
+    console.error("ERROR: R2_SECRET_ACCESS_KEY is not set.");
+    process.exit(1);
+  }
+  const r2BucketName = process.env.R2_BUCKET_NAME;
+  if (!r2BucketName) {
+    console.error("ERROR: R2_BUCKET_NAME is not set.");
+    process.exit(1);
+  }
+  const r2 = createR2Client({
+    accountId: r2AccountId,
+    accessKeyId: r2AccessKeyId,
+    secretAccessKey: r2SecretAccessKey,
+    bucketName: r2BucketName,
+  });
+
+  // NOT VERIFIED against a real bucket until this actually runs against
+  // one — see docs/h1-decisions.md's explicit list (auth, CORS,
+  // content-type, whether the public URL resolves).
+  const animals: Animal[] = [];
+  for (const [i, animalInput] of input.animals.entries()) {
+    const validated = animalPhotoValidations[i] ?? [];
+    const animalId = animalIdFor(animalInput.idSeed);
+    console.log(`Uploading ${validated.length} photo(s) for ${animalInput.name}...`);
+    const photos = await uploadAnimalPhotos(r2, animalId, validated);
+    animals.push(buildAnimal(animalInput, photos, shelter.id, now));
   }
 
   // The connection is opened here and closed explicitly below, rather than

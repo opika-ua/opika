@@ -18,15 +18,18 @@ describe("validateEnv", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("DATABASE_URL", "");
     vi.stubEnv("CURSOR_HMAC_SECRET", "");
+    vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", "");
 
     expect(() => validateEnv()).toThrow(/DATABASE_URL/);
     expect(() => validateEnv()).toThrow(/CURSOR_HMAC_SECRET/);
+    expect(() => validateEnv()).toThrow(/NEXT_PUBLIC_R2_PUBLIC_BASE_URL/);
   });
 
   it("does not throw in production once every required secret is set", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("DATABASE_URL", "postgres://user:pass@host/db");
     vi.stubEnv("CURSOR_HMAC_SECRET", "a".repeat(32));
+    vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", "https://cdn.opika.org.ua");
 
     expect(() => validateEnv()).not.toThrow();
   });
@@ -35,7 +38,17 @@ describe("validateEnv", () => {
     vi.stubEnv("NODE_ENV", "test");
     vi.stubEnv("DATABASE_URL", "");
     vi.stubEnv("CURSOR_HMAC_SECRET", "");
+    vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", "");
 
     expect(() => validateEnv()).not.toThrow();
+  });
+
+  it("requires NEXT_PUBLIC_R2_PUBLIC_BASE_URL specifically — H1's runtime dependency, not just the operator script's", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DATABASE_URL", "postgres://user:pass@host/db");
+    vi.stubEnv("CURSOR_HMAC_SECRET", "a".repeat(32));
+    vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", "");
+
+    expect(() => validateEnv()).toThrow(/NEXT_PUBLIC_R2_PUBLIC_BASE_URL/);
   });
 });

@@ -45,10 +45,30 @@ export function requireEnv(name: string): string {
  * real in-app handler (a future admin surface) ever calls
  * `productionLocationPolicy` directly from a request path, add it here in
  * that same change — not before.
+ *
+ * `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` (H1) is the opposite case from
+ * `LOCATION_HMAC_SECRET`: genuinely required by this app's own runtime, not
+ * just by the operator's onboarding script. Every real animal photo routes
+ * through `apps/web/src/image-loader.ts`, which throws without it the
+ * moment a real (non-seed-placeholder) `storageKey` needs a URL — see that
+ * file's own comment. Listing it here means that failure happens once, at
+ * boot, with every other missing secret, instead of on whichever request
+ * first renders a real shelter's photo. The R2 *write* credentials
+ * (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+ * `R2_BUCKET_NAME`) follow `LOCATION_HMAC_SECRET`'s pattern instead — they
+ * belong to `onboard-shelter.ts`'s own operator-local run, never to Vercel.
+ *
+ * ⚠ Deploy-order matters here in a way most entries in this schema don't:
+ * `LOCATION_HMAC_SECRET` was kept out specifically so a missing env var
+ * could never take the live site down. This one is the reverse — it's
+ * required, so the first deploy after this entry landed needed
+ * `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` already set in Vercel (Production and
+ * Preview) *before* merging, not after. See `docs/h1-decisions.md`.
  */
 const RequiredProductionEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   CURSOR_HMAC_SECRET: z.string().min(1, "CURSOR_HMAC_SECRET is required"),
+  NEXT_PUBLIC_R2_PUBLIC_BASE_URL: z.string().min(1, "NEXT_PUBLIC_R2_PUBLIC_BASE_URL is required"),
 });
 
 /**
