@@ -76,15 +76,35 @@ const insecureUnkeyedDigest: KeyedUnitDigest = (input) => {
  *
  * The `key` is a label rather than a secret: it exists so two fixtures can
  * produce different offsets, not to protect anything.
+ *
+ * Throws if called with `NODE_ENV=production` — the guard `assertProduction
+ * LocationPolicy` provides is opt-in (only fires if some later step remembers
+ * to call it on the constructed value); this one applies the moment the
+ * insecure policy is constructed at all, regardless of what happens to it
+ * afterward. Closes the exact failure mode this file's own `LocationPrivacy
+ * Policy` comment already names: "a safety property that depends on somebody
+ * remembering is not one." `packages/db/src/seed.ts` is this function's only
+ * production-package caller today, and it never runs with `NODE_ENV=
+ * production` set — this only fires if that ever changes, or a future
+ * caller copies this function into a real request path by mistake.
  */
 export const testOnlyLocationPolicy = (
   key = "test",
   fuzzRadiusMetres: number = DEFAULT_FUZZ_RADIUS_METRES,
-): LocationPrivacyPolicy => ({
-  assurance: "test_only",
-  fuzzRadiusMetres,
-  digest: (input) => insecureUnkeyedDigest(`${key} ${input}`),
-});
+): LocationPrivacyPolicy => {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "testOnlyLocationPolicy() must never run with NODE_ENV=production. " +
+        "Its offsets are reproducible from public data. Use keyedLocationPolicy " +
+        "with a server-held secret instead.",
+    );
+  }
+  return {
+    assurance: "test_only",
+    fuzzRadiusMetres,
+    digest: (input) => insecureUnkeyedDigest(`${key} ${input}`),
+  };
+};
 
 /**
  * The production constructor. `digest` must be keyed on a server-held secret —

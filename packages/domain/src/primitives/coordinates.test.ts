@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assertProductionLocationPolicy,
   type Coordinates,
@@ -181,5 +181,33 @@ describe("a test-only policy cannot reach production unnoticed", () => {
   it("marks its assurance in the value, so it is inspectable at runtime", () => {
     expect(testOnlyLocationPolicy().assurance).toBe("test_only");
     expect(keyedLocationPolicy(() => 0.5).assurance).toBe("keyed");
+  });
+});
+
+/**
+ * `assertProductionLocationPolicy` above only closes the gap if some later
+ * step remembers to call it on the constructed value. This is the stronger
+ * guard: `testOnlyLocationPolicy` refuses to construct at all under
+ * `NODE_ENV=production`, so there is no window where an insecure policy
+ * value exists in a production process, remembered-to-be-checked or not.
+ */
+describe("testOnlyLocationPolicy refuses to construct in production", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("throws when NODE_ENV is production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(() => testOnlyLocationPolicy()).toThrow(/NODE_ENV=production/);
+  });
+
+  it("names the production alternative", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(() => testOnlyLocationPolicy()).toThrow(/keyedLocationPolicy/);
+  });
+
+  it("does not throw outside production", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    expect(() => testOnlyLocationPolicy()).not.toThrow();
   });
 });
