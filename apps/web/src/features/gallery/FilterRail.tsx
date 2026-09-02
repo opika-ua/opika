@@ -66,7 +66,12 @@ const CHIP_INACTIVE = "bg-rg-fill text-rg-ink";
  * carried by an attribute that IS allowed on any element, plus the design's
  * own visible ✓, which is in the accessible name either way.
  */
-function Chip({
+/**
+ * Exported for `tvaryny/page.tsx`'s first-run band — same chip, same
+ * real-navigation-not-checkbox reasoning, reused rather than a second copy
+ * of `CHIP_BASE`/`CHIP_ACTIVE`/`CHIP_INACTIVE`.
+ */
+export function Chip({
   active,
   href,
   children,

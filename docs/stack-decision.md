@@ -449,6 +449,18 @@ main:  ↑ + drizzle-kit migrate (gated job) → deploy → playwright smoke aga
 
 **Sources:** [Vitest 4](https://voidzero.dev/posts/announcing-vitest-4) · [GitHub Actions billing](https://docs.github.com/en/billing/managing-billing-for-your-products/about-billing-for-github-actions) · [Blacksmith pricing](https://www.blacksmith.sh/pricing) · [drizzle-kit overview](https://orm.drizzle.team/docs/kit-overview) · [Sentry pricing](https://sentry.io/pricing/) · [PostHog pricing](https://posthog.com/pricing)
 
+⚠ **Amendment, Phase F:** `@vercel/analytics` + `@vercel/speed-insights` were added ahead
+of this schedule, by explicit owner instruction, not a re-derivation of this ADR. They
+displace only the pageview/RUM slice above — Speed Insights covers real-device Core Web
+Vitals this line never specified a source for at all; Analytics covers what the
+self-hosted Umami line above would have. Sentry + PostHog (errors, session replay,
+feature flags, the `animal_revealed`/`shelter_listing_updated`/… domain events above)
+remain unbuilt and still belong to their original phase. `docs/build-plan.md`'s H5 row
+still owns the privacy policy and consent handling that would normally accompany
+analytics going live; Phase F's «Про проєкт» addition (`uk.about.analytics`) is a
+stopgap disclosure, not a substitute for it — H5 must still land before real shelter
+traffic depends on this being someone's only privacy notice.
+
 ---
 
 ## 9. Refining the data contract

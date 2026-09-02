@@ -27,21 +27,32 @@ import { router } from "./router";
  * belongs here either.
  *
  * Trimmed to what a real Server Component actually calls today — `cities.list`
- * (the home screen), `gallery.list` (the E1 grid), and `gallery.relaxationCounts`
- * (V2's no-match state, `apps/web/src/features/gallery/NoMatch.tsx`) — not to
- * what a later phase will eventually want. `feed.list`, `animals.byId` and
- * `shelters.byId` were added ahead of Phase F needing them; that is exactly the
- * premature scaffolding `CLAUDE.md`'s phase-scope-discipline section warns
- * against; a future phase adds its procedure here in the same commit that
- * starts calling it, which keeps this list an honest record of what's
- * consumed rather than a standing prediction.
+ * (the home screen), `gallery.list` (the E1 grid), `gallery.relaxationCounts`
+ * (V2's no-match state, `apps/web/src/features/gallery/NoMatch.tsx`),
+ * `animals.byId` and `shelters.byId` (F1's detail page, both read-only with
+ * no `adopterId` involved) — not to what a later phase will eventually want.
+ * `feed.list` was added ahead of Phase F needing it and stayed unused on
+ * this path; that is exactly the premature scaffolding `CLAUDE.md`'s
+ * phase-scope-discipline section warns against — E5 ended up giving the
+ * deck its own client-side caller instead
+ * (`apps/web/src/api/browser-client.ts`), since deck pagination is
+ * inherently client-driven. `animals.byId`/`shelters.byId` land here
+ * instead, in the same commit that starts calling them, because the detail
+ * page genuinely is server-rendered.
  *
  * `relaxationCounts` is safe on this path for the same reason `gallery.list`
  * is: read-only, filters-only input, no `adopterId` or cookie involved.
+ * `animals.byId`/`shelters.byId` are the same shape of safe: public
+ * projections, no `adopterId` read or written. `animals.reveal` is not
+ * here and must not be — it needs a real `adopterId` this path never has
+ * (see `apps/web/src/api/browser-client.ts` for where the reveal flow's
+ * client-side caller lives).
  */
 const serverComponentRouter = {
   cities: { list: router.cities.list },
   gallery: { list: router.gallery.list, relaxationCounts: router.gallery.relaxationCounts },
+  animals: { byId: router.animals.byId },
+  shelters: { byId: router.shelters.byId },
 } as const;
 
 /**

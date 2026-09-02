@@ -31,17 +31,20 @@ export function requireEnv(name: string): string {
  * the instance accepts its first request, all missing names at once, not
  * one 500 per handler as each is separately discovered.
  *
- * `LOCATION_HMAC_SECRET` is deliberately NOT listed here even though
- * `CLAUDE.md`'s decision #15 names it as a real, separate secret from
- * `CURSOR_HMAC_SECRET`. Nothing in this app's request path reads it today —
- * `productionLocationPolicy` (`packages/db`) exists and is tested, but the
- * only caller of any location policy is `packages/db/src/seed.ts`, and it
- * uses `testOnlyLocationPolicy("seed")`, not the production one. Requiring
- * an unread variable at boot would be validation with nothing to guard.
- * Add it here in the same change that wires a real per-shelter policy into
- * a live handler — not before, and not separately, so the requirement and
- * its consumer land together and can't drift the way the seed path already
- * has. See `docs/build-plan.md`'s launch-gate list.
+ * `LOCATION_HMAC_SECRET` is still deliberately NOT listed here, even now
+ * that `packages/db/src/onboard-shelter.ts` is a real, live caller of
+ * `productionLocationPolicy`. That script is not part of this app: it runs
+ * from an operator's own machine against Neon's direct connection string,
+ * the same way migrations do — never through a Vercel-deployed instance of
+ * `apps/web`. Requiring it here would mean the deployed site refuses to
+ * boot over a variable it never reads, which is a real, avoidable outage
+ * risk (a missing Vercel env var taking the live site down) for no safety
+ * benefit `onboard-shelter.ts`'s own check doesn't already provide.
+ * `LOCATION_HMAC_SECRET` belongs in the operator's local shell when running
+ * that script, not in Vercel — see `docs/onboarding-a-shelter.md`. If a
+ * real in-app handler (a future admin surface) ever calls
+ * `productionLocationPolicy` directly from a request path, add it here in
+ * that same change — not before.
  */
 const RequiredProductionEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),

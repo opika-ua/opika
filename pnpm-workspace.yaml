@@ -55,6 +55,17 @@ catalog:
   postgres: 3.4.9
   react: 19.2.7
   react-dom: 19.2.7
+  # Cookieless, no-op-without-JS. Speed Insights reports real Core Web
+  # Vitals from actual devices in the field, which the harness cannot
+  # simulate; Analytics gives aggregate page-view counts. NOT free on this
+  # project's actual plan (CLAUDE.md pins Vercel Pro): Speed Insights is
+  # $10/mo per project including 10k events then metered; Web Analytics is
+  # metered per event beyond its included allotment. At MVP traffic this
+  # should stay near-zero, but it counts against the day-one spend cap —
+  # watch it, don't assume "free." See apps/web/src/app/layout.tsx for the
+  # mount.
+  "@vercel/analytics": 2.0.1
+  "@vercel/speed-insights": 2.0.0
 
 allowBuilds:
   esbuild: true

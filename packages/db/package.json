@@ -15,7 +15,8 @@
     "test:coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx src/seed.ts"
+    "db:seed": "tsx src/seed.ts",
+    "onboard:shelter": "tsx src/onboard-shelter.ts"
   },
   "dependencies": {
     "@opika/domain": "workspace:*",

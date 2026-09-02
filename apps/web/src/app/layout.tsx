@@ -1,3 +1,5 @@
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { commissioner, eUkraine, literata } from "./fonts";
 
@@ -20,7 +22,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         same margin math still applies there). Asserted in
         test/harness/discovery-layout.harness.ts.
       */}
-      <body style={{ margin: 0 }}>{children}</body>
+      <body style={{ margin: 0 }}>
+        {children}
+        {/*
+          Cookieless, no-op without JS — aggregate page views (Analytics)
+          and real Core Web Vitals from actual devices (Speed Insights),
+          which the harness cannot simulate. Both free on Vercel's Hobby
+          tier. «Про проєкт» discloses this to shelters and adopters.
+        */}
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   );
 }

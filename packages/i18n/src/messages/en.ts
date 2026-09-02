@@ -13,15 +13,12 @@
  * here is user-visible in production today.
  */
 export const en = {
-  // --- Screen 01 · First run ---
+  // --- 01 First run — a band above the gallery grid, not a separate screen ---
   firstRun: {
     promise:
-      "Animals from verified shelters across Kyiv oblast. Swipe through to see who's looking for a home.",
+      "Animals from verified shelters across Kyiv oblast. Browse the list and see who's looking for a home.",
     disclaimer:
       'No registration. We never handle or transfer money. "Not right now" is just a filter, not a judgement of the animal.',
-    cityHeading: "Your city",
-    allRegion: "All of Kyiv oblast",
-    viewAnimals: "View animals",
   },
 
   // --- Screen 02 · Feed / deck ---
@@ -95,6 +92,7 @@ export const en = {
   medical: {
     heading: "Medical",
     unknown: "Not recorded",
+    inProgress: "In progress",
     registryConfirmed: "Confirmed by the national pet registry",
     shelterDeclared: "The shelter's own words",
     rabies: "Rabies",
@@ -111,6 +109,8 @@ export const en = {
       "Living with a volunteer in {city}. We don't know the exact address and won't invent one.",
     noMapExplanation:
       "There's no map here: we don't know the exact address, and we won't make one up. You'll agree on a meeting place with the shelter.",
+    lineFostered: "{city} · living with a volunteer",
+    lineAtShelter: "{city}",
   },
 
   // --- Detail screen (04) ---
@@ -118,6 +118,16 @@ export const en = {
     /** Template: "Manually verified · {years} on Opika" — brand string lives here, not in domain */
     shelterVerifiedYears: "Manually verified · {years} on Opika",
     donateShelter: "Support the shelter",
+    /** Template: "← All animals in {city}" */
+    backToListIn: "← All animals in {city}",
+    speciesDog: "Dog",
+    speciesCat: "Cat",
+    notFound: {
+      eyebrow: "NOT FOUND",
+      title: "This listing is gone.",
+      body: "The animal has already been removed from the registry, or the link is out of date. This isn't an error — the listing is simply no longer here.",
+      action: "All animals",
+    },
   },
 
   // --- Contact reveal (05) ---
@@ -135,7 +145,9 @@ export const en = {
     reflection2: "Food, the vet, transport — monthly costs.",
     reflection3: "Whether everyone you live with agrees.",
     writeTelegram: "Message on Telegram",
-    backToFeed: "Back to the feed",
+    call: "Call",
+    writeEmail: "Send an email",
+    backToFeed: "Back to the gallery",
   },
 
   // --- My reveals (06) ---
@@ -266,13 +278,21 @@ export const en = {
   footer: {
     fontCredit:
       "e-Ukraine typeface — Ukraine's Ministry of Digital Transformation (thedigital.gov.ua/fonts), Dmytro Rastvortsev / Fedoriv, CC BY 4.0.",
+    about: "About",
   },
 
-  // --- Language toggle ---
-  // Language names stay in their own language regardless of locale — this
-  // matches uk.ts's own `en: "English"` (never "Англійська").
-  locale: {
-    uk: "Українська",
-    en: "English",
+  // --- About page — see the uk key's own note ---
+  about: {
+    title: "About this project",
+    intro:
+      "Opika is a registry of shelter animals in the Kyiv region, built by one person, outside of a day job. There's no team, no investor — just someone who believes finding an animal a home shouldn't depend on whether a shelter knows how to run an outdated spreadsheet.",
+    free: 'The registry is free for shelters today and will stay free. No paid tiers, no "free for the first three months." If that were ever to change, every shelter would know well in advance, not after the fact.',
+    money:
+      'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) — the registry only shows the link; the money goes directly, and you can see exactly where.',
+    data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: an adopter only ever sees an approximate location. A shelter can ask to have its listing removed at any time.",
+    analytics:
+      "The registry collects basic visit statistics — how many people visit and how fast the pages load — with no cookies and no advertising.",
+    /** Template: "Get in touch: {contact}" */
+    contact: "Get in touch: {contact}",
   },
 } as const;

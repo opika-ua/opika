@@ -46,6 +46,15 @@ Then check it against the gate conditions below.
 **Otherwise proceed without waiting.** Say in one line which gate conditions you checked
 and why none applied.
 
+The 150% condition exists to tell the owner something is larger than planned, not to
+prompt cutting scope — report and wait for direction, don't pre-narrow the options to fit
+the original estimate. See `docs/standing-constraints.md`'s "Time is not a decision
+input": there is no deadline unless the owner states one in this phase's own brief: never
+infer one from a previous phase's framing or from how much work remains. When presenting
+options at a stop, describe what each achieves and what it costs in work — never contrast
+one as "fast" against another as "real" or "thorough"; that framing pre-decides the
+tradeoff the stop exists to let the owner make.
+
 If Phase 0's own investigation is what reveals the 150% line has been crossed — not the
 plan's original number, but what you found once you looked — say so in gate terms before
 moving on to whatever other question the finding raises. E5 crossed it in Phase 0 (3 h

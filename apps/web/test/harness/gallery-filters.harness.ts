@@ -149,7 +149,10 @@ test.describe("/tvaryny filters — URL is the single source of truth", () => {
     page,
   }) => {
     // A real prior page, not Playwright's own about:blank tab state — the
-    // page the adopter was actually on before they started filtering.
+    // page the adopter was actually on before they started filtering. `/`
+    // itself can't serve this purpose (it 308-redirects to /tvaryny —
+    // FirstRunBand.tsx, next.config.ts), so `/pro` stands in as any other
+    // real, distinct route would.
     //
     // This is the "replace, not push" decision (ReplaceNav) made visible:
     // a filter click REPLACES the current history entry rather than adding
@@ -158,7 +161,7 @@ test.describe("/tvaryny filters — URL is the single source of truth", () => {
     // don't cost ten back-presses to undo. What still has to hold is that
     // back lands somewhere real (not stuck, not an error) and forward
     // faithfully restores the filtered rows, not just the filtered URL.
-    await page.goto("/", { waitUntil: "load" });
+    await page.goto("/pro", { waitUntil: "load" });
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
     await page.getByTestId("filter-rail").getByRole("link", { name: "Малий" }).click();
@@ -170,7 +173,7 @@ test.describe("/tvaryny filters — URL is the single source of truth", () => {
     await expect(
       page,
       "one back-press should return to the real page visited before /tvaryny",
-    ).toHaveURL("/");
+    ).toHaveURL("/pro");
 
     await page.goForward();
     await page.locator(CARD).first().waitFor({ state: "visible" });

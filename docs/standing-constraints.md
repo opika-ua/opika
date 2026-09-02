@@ -7,6 +7,35 @@ is recorded so it survives after the incident is forgotten.
 
 ---
 
+## Time is not a decision input
+
+There is no deadline on this project unless the owner states one explicitly in a phase's
+brief. Absent that statement, assume none, and never infer one from context, tone, or a
+previous phase's framing.
+
+**When two options differ in quality and cost, choose quality.** The gate exists to
+surface what something costs so the owner can decide, not to justify a shortcut.
+
+**"Faster" is never a reason in a decision record.** If a cheaper option is chosen, the
+record must state what quality was traded and what would trigger revisiting it. A
+deviation documented for speed becomes permanent — the documenting is what makes it feel
+resolved.
+
+**Do not offer speed as a dimension when presenting options to the owner.** Describe what
+each option achieves and what it costs in work. Do not label one "recommended (fast)" or
+contrast "ships tonight" against "real rearchitecture." If time matters, the owner will
+say so; presenting it as a variable invites trading away quality that was never offered
+for trade.
+
+The 150%-of-estimate gate condition (`.claude/commands/phase.md`, Phase 1) stays, but its
+purpose is to inform the owner that something is larger than planned — not to prompt
+cutting scope. Report and wait.
+
+*Why:* a phase framed around an unstated deadline led to two options being presented as
+"document the deviation (fast)" vs. "real rearchitecture" — a false economy that would
+have shipped a home page contradicting its own design spec, on a deadline nobody had
+actually set.
+
 ## How work is verified
 
 **A user-interface item may not be marked done on the basis of inspecting markup.** It
@@ -61,6 +90,14 @@ secondary source.
 *Why:* E3's pagination was built from the design doc's prose summary rather than the mock.
 It shipped bare chevrons with a conflicting aria-label (WCAG 2.5.3 failure), no «з N»
 count, and spacing off the design's scale.
+
+**When no mock exists, the prose is the spec.** Companion to the rule above. If a surface
+has no mock frame, the design document's prose is its specification and must be read
+before building. Not finding a frame does not mean the surface is unspecified.
+
+*Why:* the home page was built as a standalone route while `docs/design/README.md:427`
+specified a band above the gallery grid. The frame search returned nothing and the prose
+was never read.
 
 **A test may not compare output against the same constant the code renders.** Assert
 against the design's own literal copy, transcribed from the mock. A test that checks a

@@ -6,14 +6,20 @@
  * the design string table in docs/design/.
  */
 export const uk = {
-  // --- Screen 01 · First run ---
+  // --- 01 First run — docs/design/README.md:427, a band above the
+  // gallery grid (FirstRunBand.tsx), not a separate screen ---
   firstRun: {
-    promise: "Тварини з перевірених притулків Київщини. Гортайте, щоб подивитися, кого шукає дім.",
+    /**
+     * Rewritten for the gallery-first course correction — "Гортайте, щоб
+     * подивитися" (swipe to see) named the deck as the way to look at
+     * animals, which stopped being true the moment the gallery became the
+     * primary surface. "Перегляньте список" (browse the list) names what
+     * is actually right below the band: the gallery grid itself.
+     */
+    promise:
+      "Тварини з перевірених притулків Київщини. Перегляньте список і подивіться, кого шукає дім.",
     disclaimer:
       "Без реєстрації. Ми не беремо і не переказуємо грошей. «Не зараз» — це просто фільтр, а не оцінка тварини.",
-    cityHeading: "Ваше місто",
-    allRegion: "Уся Київщина",
-    viewAnimals: "Дивитися тварин",
   },
 
   // --- Screen 02 · Feed / deck ---
@@ -123,6 +129,7 @@ export const uk = {
   medical: {
     heading: "Медичний стан",
     unknown: "Не записано",
+    inProgress: "У процесі",
     registryConfirmed: "Підтверджено реєстром тварин",
     shelterDeclared: "Слова притулку",
     rabies: "Сказ",
@@ -138,6 +145,15 @@ export const uk = {
     fostered: "Живе у волонтерки, м. {city}. Точної адреси ми не знаємо і не показуємо.",
     noMapExplanation:
       "Карти тут немає: ми не знаємо точної адреси і не вигадуємо її. Місце зустрічі узгодите з притулком.",
+    /**
+     * The detail screen's own "Де живе" block (D1/D2) — a short first line,
+     * `noMapExplanation` above as the second. Distinct from `fostered`
+     * above, which is one longer combined sentence for a different slot
+     * (the gallery card's meta line uses `cardMeta.fosteredHousing`/
+     * `atShelter` instead, also separate from both of these).
+     */
+    lineFostered: "м. {city} · у домі волонтерки",
+    lineAtShelter: "м. {city}",
   },
 
   // --- Detail screen (04) ---
@@ -145,6 +161,25 @@ export const uk = {
     /** Template: "Перевірений вручну · {years} на Opika" — brand string lives here, not in domain */
     shelterVerifiedYears: "Перевірений вручну · {years} на Opika",
     donateShelter: "Підтримати притулок",
+    /** Template: "← Усі тварини у {city}" — the mock's D1 desktop back link (frame D1). */
+    backToListIn: "← Усі тварини у {city}",
+    /**
+     * The subtitle line's species word — "Метис · 2 роки · середня" in the
+     * mock, but "Метис" (mixed breed) has no domain field at all (`Animal`
+     * has `species`, not `breed`); no filter-chip label works either,
+     * those are plural ("Собаки"/"Коти" for the rail). Singular, common
+     * gender regardless of `sex` — same simplification `cardMeta`'s own
+     * age words already make (documented there as a flagged, not fixed,
+     * gap), not a new one introduced here.
+     */
+    speciesDog: "Собака",
+    speciesCat: "Кіт",
+    notFound: {
+      eyebrow: "НЕ ЗНАЙДЕНО",
+      title: "Цієї картки більше немає.",
+      body: "Тварину вже забрали з реєстру, або посилання застаріле. Це не помилка — просто картки тут більше немає.",
+      action: "Усі тварини",
+    },
   },
 
   // --- Contact reveal (05) ---
@@ -162,7 +197,23 @@ export const uk = {
     reflection2: "Корм, ветеринар, перевезення — щомісячні витрати.",
     reflection3: "Чи згодні всі, хто живе з вами.",
     writeTelegram: "Написати в Telegram",
-    backToFeed: "Повернутися до стрічки",
+    /**
+     * Not every shelter's primary contact channel is Telegram — real seed
+     * data has phone-only shelters, and the mock's own R1/R2 frames only
+     * ever show the Telegram example. Found by looking at a real rendered
+     * reveal, not assumed: a phone-only shelter left this dialog with no
+     * primary action at all, only "Повернутися до галереї".
+     */
+    call: "Подзвонити",
+    writeEmail: "Написати листа",
+    /**
+     * "Опика Registry Frames.dc.html" (R1/R2) says «Повернутися до
+     * галереї» verbatim — corrected from an earlier "до стрічки" here,
+     * which predates the gallery-first course correction and never
+     * matched the mock. `docs/standing-constraints.md`: "when a mock
+     * exists, open the mock file."
+     */
+    backToFeed: "Повернутися до галереї",
   },
 
   // --- My reveals (06) ---
@@ -385,11 +436,26 @@ export const uk = {
      * Verbatim text from the licence file; do not paraphrase. */
     fontCredit:
       "Шрифт e-Ukraine — Міністерство цифрової трансформації України (thedigital.gov.ua/fonts), Дмитро Растворцев / Fedoriv, CC BY 4.0.",
+    about: "Про проєкт",
   },
 
-  // --- Language toggle ---
-  locale: {
-    uk: "Українська",
-    en: "English",
+  /**
+   * "«Про проєкт» page, no mock — a volunteer deciding whether Opika is
+   * legitimate looks for exactly this and finds nothing without it.
+   * Four required subjects, each its own paragraph: who's behind this,
+   * that it's free now and stays free, that the platform never touches
+   * money, what happens to a shelter's data, how to get in touch.
+   */
+  about: {
+    title: "Про проєкт",
+    intro:
+      "Opika — реєстр тварин притулків Київщини, який я роблю сам, поза роботою. Немає команди, немає інвестора — є одна людина, яка вважає, що знайти дім для тварини не повинно залежати від того, чи вміє притулок вести застарілий Excel-файл.",
+    free: "Реєстр безкоштовний для притулків сьогодні і лишиться безкоштовним. Жодних платних тарифів, жодного «спробуйте безкоштовно перші три місяці» — якщо це колись зміниться, кожен притулок дізнається про це заздалегідь, а не постфактум.",
+    money:
+      "Opika ніколи не бере участі в грошах: немає прийому платежів, немає комісії, немає збору донатів через платформу. Кнопка «Підтримати притулок» веде на власну сторінку притулку в іншому сервісі (наприклад, monobank) — реєстр лише показує посилання, гроші йдуть напряму, і видно, куди саме.",
+    data: "Дані, які вносить притулок — адреса, контакти, картки тварин — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише наближену локацію. Притулок може попросити видалити свій запис у будь-який момент.",
+    analytics:
+      "Реєстр збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко працюють сторінки — без кукі і без реклами.",
+    contact: "Зв'язатися з розробником: {contact}",
   },
 } as const;
