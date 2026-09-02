@@ -1,13 +1,18 @@
 import type { CityId } from "@opika/domain";
 import { textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
+import Link from "next/link";
 import { anonymousRouterClient } from "../../api/server-client";
 import { AnimalCard } from "../../features/gallery/AnimalCard";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
 import { cardCityId } from "../../features/gallery/card-text";
 import { FilterRail } from "../../features/gallery/FilterRail";
 import { FilterSheet } from "../../features/gallery/FilterSheet";
-import { parseGalleryQuery, type SearchParams } from "../../features/gallery/filter-url";
+import {
+  deckEntryHref,
+  parseGalleryQuery,
+  type SearchParams,
+} from "../../features/gallery/filter-url";
 import { GalleryPagination } from "../../features/gallery/GalleryPagination";
 import { railResultCount, sheetResultCount } from "../../features/gallery/gallery-copy";
 import { hasPagination } from "../../features/gallery/gallery-pagination";
@@ -80,6 +85,15 @@ export async function renderGallery(
   const cityNames = new Map<CityId, string>(cityList.map((city) => [city.id, city.name]));
 
   /**
+   * E5, docs/design/README.md "Gallery ↔ deck" > "Entry": the deck has
+   * nothing to show when the gallery itself has no matches, so the control
+   * is only rendered alongside the grid, never alongside `NoMatch`. `total`
+   * rides along on the URL rather than the deck re-deriving it — see
+   * `deckEntryHref`'s own comment.
+   */
+  const deckHref = deckEntryHref(filters, page.totalMatching);
+
+  /**
    * docs/design/README.md, "Gallery states" > "No match". Only queried when
    * there's actually nothing to show — `gallery.relaxationCounts` is its
    * own scan (`packages/contracts/src/procedures/gallery.ts`: "a single
@@ -93,8 +107,25 @@ export async function renderGallery(
 
   return (
     <div className="font-rg min-h-dvh bg-rg-page">
-      <header className="min-h-14 tablet:min-h-16 desktop:min-h-17 flex items-center bg-rg-surface px-4 tablet:px-6 desktop:px-15">
+      <header className="min-h-14 tablet:min-h-16 desktop:min-h-17 flex items-center justify-between bg-rg-surface px-4 tablet:px-6 desktop:px-15">
         <span className="font-bold text-[19px] text-rg-ink">Opika</span>
+        {/*
+          docs/design/README.md "Screens" > "Gallery": the header's full row
+          also has a city chip, "Мої запити · N" and a UA/EN switch — none
+          of those exist yet (My reveals and i18n are separate, later
+          phases), so this is the one piece E5 actually owns. `hidden
+          desktop:inline-flex`: the mobile half of this same control lives
+          in the sticky filter row below instead, matching the mock's own
+          split between a header button and a mobile bar.
+        */}
+        {page.totalMatching > 0 && (
+          <Link
+            href={deckHref}
+            className="hidden desktop:inline-flex min-h-12 items-center rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+          >
+            {uk.feed.enterDeck}
+          </Link>
+        )}
       </header>
 
       {/*
@@ -116,13 +147,32 @@ export async function renderGallery(
               filters.cities.kind !== "any",
             )}
           </span>
-          <FilterSheet
-            filters={filters}
-            sort={sort}
-            cities={cityList}
-            resultCount={page.totalMatching}
-            shelterCount={page.totalShelters}
-          />
+          {/*
+            docs/design/README.md's 0–599 row calls this a "sticky bottom
+            bar «Фільтри · N / Гортати»" — this row is neither sticky nor
+            that combined "N" label (`FilterSheet`'s own trigger predates
+            E5 and reads plainly "Фільтри"). Both are pre-existing gaps
+            from whichever phase built this row, not introduced here;
+            adding "Гортати" beside the existing trigger is E5's actual
+            scope, not a retrofit of the row's positioning.
+          */}
+          <div className="flex items-center gap-2">
+            {page.totalMatching > 0 && (
+              <Link
+                href={deckHref}
+                className="min-h-11 inline-flex items-center rounded-rg-button bg-rg-fill px-3.5 text-[13px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+              >
+                {uk.feed.enterDeckShort}
+              </Link>
+            )}
+            <FilterSheet
+              filters={filters}
+              sort={sort}
+              cities={cityList}
+              resultCount={page.totalMatching}
+              shelterCount={page.totalShelters}
+            />
+          </div>
         </div>
 
         {/*

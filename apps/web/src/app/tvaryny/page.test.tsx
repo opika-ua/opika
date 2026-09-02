@@ -100,4 +100,42 @@ describe("/tvaryny (renderGallery)", () => {
     expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
     expect(screen.getByText("Під ці фільтри зараз нікого немає.")).toBeTruthy();
   });
+
+  /**
+   * E5: the deck has nothing to show when the gallery has no matches, so
+   * the entry control must not offer a destination that's immediately
+   * exhausted — a rendered assertion of its absence, not just "the no-match
+   * branch doesn't call the component that renders it."
+   */
+  it("does not render the deck entry control when there are no matches", async () => {
+    const element = await renderGallery(anonymousRouterClient(h.db));
+    render(<WithMockRouter>{element}</WithMockRouter>);
+
+    expect(screen.queryByText("Гортати по одній")).toBeNull();
+    expect(screen.queryByText("Гортати")).toBeNull();
+  });
+
+  it("the deck entry control links to /tvaryny/gortaty carrying the real total", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: {
+        precision: "fuzzed_address",
+        cityId: city.id,
+        district: null,
+        approximate: { center: { lat: 50.51, lng: 30.79 }, precisionMetres: 1000 } as never,
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: shelter.id }), city.id);
+
+    const element = await renderGallery(anonymousRouterClient(h.db));
+    render(<WithMockRouter>{element}</WithMockRouter>);
+
+    const entryLinks = screen.getAllByText("Гортати по одній", { selector: "a" });
+    expect(entryLinks.length).toBeGreaterThan(0);
+    for (const link of entryLinks) {
+      expect(link.getAttribute("href")).toBe("/tvaryny/gortaty?total=1");
+    }
+  });
 });

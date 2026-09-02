@@ -27,6 +27,8 @@ export const en = {
   // --- Screen 02 · Feed / deck ---
   feed: {
     filtersLabel: "Filters",
+    enterDeck: "Swipe one at a time",
+    enterDeckShort: "Swipe",
   },
 
   // --- Screen 03 · Filters ---

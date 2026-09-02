@@ -19,6 +19,10 @@ export const uk = {
   // --- Screen 02 · Feed / deck ---
   feed: {
     filtersLabel: "Фільтри",
+    /** Desktop gallery header, full phrase — docs/design/README.md "Screens" > "Gallery." */
+    enterDeck: "Гортати по одній",
+    /** Mobile sticky-bar short form, same destination — "sticky bottom bar «Фільтри · N / Гортати»." */
+    enterDeckShort: "Гортати",
   },
 
   // --- Screen 03 · Filters ---
