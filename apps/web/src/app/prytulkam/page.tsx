@@ -88,11 +88,12 @@ export default function ForSheltersPage() {
         <p className="text-[17px]/[26px] text-rg-ink">{uk.forShelters.whoIsBehindThis}</p>
 
         {/*
-          `hello@opika.org.ua` is the same placeholder `app/pro/page.tsx`
-          already carries as a launch gate — and this page raises the stakes,
-          because a shelter is *sent* here rather than stumbling on it. A page
-          whose entire purpose is "write to us" is worse than absent if the
-          address bounces.
+          `hello@opika.org.ua` is live and receives mail (Cloudflare Email
+          Routing, delivery tested 2026-09-02) — the same address
+          `app/pro/page.tsx` renders. It mattered more here than there: a
+          shelter is *sent* to this page rather than stumbling on it, and a
+          page whose entire purpose is "write to us" is worse than absent if
+          the address bounces. That gate is satisfied, not outstanding.
         */}
         <p className="text-[17px]/[26px] text-rg-ink pt-2">
           {uk.forShelters.howToStart.replace("{contact}", "hello@opika.org.ua")}

@@ -18,6 +18,23 @@ the one thing that would make this page dishonest.
 The existing `about.intro` («…який я роблю сам, поза роботою») is the closest
 model already in the repo for the voice this page needs.
 
+## How to write it (the owner's own method, recorded so it survives)
+
+Don't write it as website copy. Write it as a message to one specific shelter
+volunteer you can actually picture — someone in Brovary, fifties, runs things off
+Instagram, has been let down by a startup before. Write to her, in one sitting,
+badly. Then delete the greeting and the sign-off, and what's left is the page.
+
+The reasoning: copy written as copy comes out in the register of a company. Copy
+written to a person comes out in the maintainer's own, which is the entire reason
+this document is an argument rather than a draft, and the reason the Ukrainian is
+written here rather than composed by an agent.
+
+**Write the outreach message in the same sitting, in the same voice.** If the
+page is the maintainer's and the message is someone else's, a volunteer reading
+both feels the seam without being able to name it — and the seam is exactly the
+thing this page exists to not have.
+
 ---
 
 ## 1. What this is — one sentence
@@ -207,9 +224,10 @@ trust it exists to build.
 
 ---
 
-## Open item this page depends on
+## The one thing this page depended on — satisfied
 
-`hello@opika.org.ua` must be a mailbox that actually receives mail before this
-page is linked in any outreach message. `apps/web/src/app/pro/page.tsx` already
-carries this as a launch gate; this page raises the stakes, because it is the
-page a shelter is *sent to* rather than one they might stumble on.
+`hello@opika.org.ua` is live and receives mail (Cloudflare Email Routing,
+delivery tested 2026-09-02). It had to be, before this page could be linked in
+any outreach message: this is the page a shelter is *sent to* rather than one
+they might stumble on, and §11 is a single instruction to write to that address.
+Nothing here is blocked on it any more.
