@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { NOINDEX_EVERYTHING } from "./src/seo-flags";
 
 const nextConfig: NextConfig = {
   // Transpile workspace packages so Next.js can resolve .ts source files
@@ -15,6 +16,23 @@ const nextConfig: NextConfig = {
    */
   async redirects() {
     return [{ source: "/discovery", destination: "/tvaryny/gortaty", permanent: true }];
+  },
+  /**
+   * `NOINDEX_EVERYTHING` (`src/seo-flags.ts`) — this corpus is fictional,
+   * every route is blocked from indexing until real shelters exist.
+   * `app/robots.ts` disallows crawling from the same flag; this header
+   * additionally covers anything a crawler reaches without ever consulting
+   * robots.txt (a direct link, a referrer), and covers `/public` files too
+   * — "checked before the filesystem" per Next's own `headers()` docs.
+   */
+  async headers() {
+    if (!NOINDEX_EVERYTHING) return [];
+    return [
+      {
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+    ];
   },
   images: {
     // Not a per-instance `loader` prop: a function prop from a Server
