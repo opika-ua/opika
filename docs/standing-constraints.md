@@ -72,6 +72,19 @@ The same sweep found the harness's narrowest frame was 390 (an iPhone width) whi
 product's stated audience is budget Android at 360, which was therefore unmeasured rather
 than known-good, and measured a real clip once looked at.
 
+**The mutation for a floor is crossing it, not perturbing the measurement.** A floor exists
+precisely because it carries slack under the value it guards; a floor that fails on a 1px
+change is a change-detector wearing a floor's name, and it will be re-based on every
+legitimate layout change until it means nothing. To prove a floor works, move the real
+measurement *past* it and check the failure names the value, the limit and the case.
+
+*Why:* the instruction given for `MIN_SHELTER_MARGIN_PX` was "shrinking the margin by 1px
+must turn it red." It could not, by construction — the floor was 8 against a measured 12 —
+and the only way to satisfy it would have been to re-base the floor onto the measurement,
+which the comment above that constant already forbids. Costing the card 5px instead crossed
+the floor and produced the right failure. The instruction was withdrawn once its own
+evidence was in.
+
 **Ask of every test: would this fail if the thing it guards were broken?** If you cannot
 answer, the test is decoration.
 
