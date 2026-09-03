@@ -82,13 +82,52 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         and `object-cover` on the <img> below is what reconciles them. 396 on
         a 334px content box was measured against the rest of the feed
         screen's spacing; 4:5 would be 417.5, 21.5px taller than specified.
-        min-h-50 (200px): the photo shrinks before the text below it does — a
-        photo is croppable by definition (`object-cover`), the shelter's
-        sentence is not.
+        The photo shrinks before the text below it does — a photo is croppable
+        by definition (`object-cover`), the shelter's sentence is not. That
+        ordering was always the intent; what it lacked was room.
+
+        `flex-1 min-h-38 max-h-99`, not the previous `h-99 grow-0 shrink
+        min-h-50`. The old form could shrink from 396 only as far as 200, and
+        200 was too tall for a 640px-high screen once the text below took its
+        intrinsic height: measured, the photo sat *pinned at exactly 200* on
+        every 640-tall viewport, having already absorbed everything it could,
+        while the shelter line spilled past the card's `overflow-hidden` edge
+        and simply was not painted.
+
+          320x640   photo 200 (floor)   shelter margin -22   <- clipped
+          360x640   photo 200 (floor)   shelter margin   0   <- no tolerance
+          390x640   photo 200 (floor)   shelter margin  12
+          390x844   photo 396           shelter margin  20
+
+        360 is the modal Android width and the one this product's audience is
+        most likely holding. A 0.0 margin there is not a tight budget, it is a
+        layout with no tolerance: it clips on any text scaling above 100%, any
+        shelter name that wraps to a second line, or any font-metric shift.
+        It clipped *today* for those users; the touch-target sweep revealed it
+        rather than caused it.
+
+        With the floor at 152 the photo absorbs the difference everywhere and
+        every viewport lands on a 12px margin — which is exactly the card's own
+        `p-3` bottom padding, i.e. the text now ends where it should:
+
+          320x640   photo 166   margin 12      360x640   photo 188   margin 12
+          390x640   photo 200   margin 12      390x844   photo 396   margin 20
+
+        `max-h-99` preserves 396 as the ceiling, so nothing changes at the
+        design's own 390x844 frame — that row is byte-identical before and
+        after.
+
+        ⚠ 152 (`min-h-38`) is a proposal, not a measured design value. It is
+        the point below which this stops being a photograph of an animal and
+        becomes a strip, and it currently carries 14px of headroom under the
+        smallest real measurement (166 at 320). `discovery-layout.harness.ts`
+        asserts it: a layout that would force the photo below it fails loudly
+        naming the viewport and both numbers, rather than clipping text
+        invisibly the way this did.
       */}
       <div
         data-testid="card-photo"
-        className="w-full h-99 grow-0 shrink min-h-50 rounded-rg-photo overflow-hidden bg-rg-photo-placeholder relative"
+        className="w-full flex-1 min-h-38 max-h-99 rounded-rg-photo overflow-hidden bg-rg-photo-placeholder relative"
       >
         {/*
           draggable={false}: found via E5, not assumed — every harness test

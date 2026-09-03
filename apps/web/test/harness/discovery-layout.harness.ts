@@ -22,7 +22,14 @@ import {
   openRoute,
   rectOf,
 } from "./harness";
-import { DESKTOP, PHONE, SHORT_PHONE, type Viewport } from "./viewports";
+import {
+  ANDROID_PHONE,
+  DESKTOP,
+  NARROW_PHONE,
+  PHONE,
+  SHORT_PHONE,
+  type Viewport,
+} from "./viewports";
 
 const ROUTE = "/tvaryny/gortaty";
 const CARD = "[data-testid='swipe-card']";
@@ -57,7 +64,27 @@ const MIN_SHELTER_MARGIN_PX = new Map<Viewport, number>([
   [PHONE, 12],
   [SHORT_PHONE, 8],
   [DESKTOP, 4],
+  // Both added with DECK-1, which made the photo genuinely elastic. Every
+  // 640-tall viewport now measures a 12px margin — the card's own `p-3` bottom
+  // padding, i.e. the text ends exactly where the card's padding says it
+  // should — so 8 keeps the same few px of slack the entries above carry.
+  // Before DECK-1 these measured 0 (360) and -22 (320).
+  [ANDROID_PHONE, 8],
+  [NARROW_PHONE, 8],
 ]);
+
+/**
+ * `SwipeCard`'s `min-h-38`. Below this the photo stops being a photograph of
+ * an animal and becomes a strip.
+ *
+ * Asserted rather than assumed because it is the *other* half of DECK-1's
+ * invariant. Making the photo absorb all the slack is only safe if running out
+ * of slack is loud: without this, a future layout change that needs more room
+ * than the photo can give would silently return to clipping the shelter line,
+ * which is the exact defect DECK-1 fixed. Text is never clipped; the photo
+ * absorbs; and if the photo cannot absorb enough, *this* fails.
+ */
+const MIN_PHOTO_HEIGHT_PX = 152;
 
 /**
  * Keyed by the viewport object, not its `name`, and loud when absent.
@@ -85,12 +112,19 @@ function minShelterMarginFor(viewport: Viewport): number {
  * unnoticed. A documented limit with no test exercising it is not a limit;
  * see `docs/standing-constraints.md`.
  *
- * `ANDROID_PHONE` (360) and `NARROW_PHONE` (320) are deliberately absent here
- * and measured separately: 320 already clips on unmodified code, so asserting
- * on it would turn the suite red for a pre-existing defect rather than
- * guarding against a new one.
+ * `ANDROID_PHONE` (360) and `NARROW_PHONE` (320) joined the loop with DECK-1,
+ * which is what made them assertable: before it, 360 measured a 0.0px margin
+ * and 320 measured -22px, so including them would have turned the suite red
+ * for a pre-existing clip rather than guarding against a new one. Now every
+ * one of them lands on 12px and the photo absorbs the difference.
  */
-for (const viewport of [PHONE, SHORT_PHONE, DESKTOP] satisfies Viewport[]) {
+for (const viewport of [
+  NARROW_PHONE,
+  ANDROID_PHONE,
+  SHORT_PHONE,
+  PHONE,
+  DESKTOP,
+] satisfies Viewport[]) {
   test.describe(`/tvaryny/gortaty at ${viewport.name}`, () => {
     test.beforeEach(async ({ page }) => {
       await openRoute(page, ROUTE, viewport, { readySelector: CARD });
@@ -133,6 +167,29 @@ for (const viewport of [PHONE, SHORT_PHONE, DESKTOP] satisfies Viewport[]) {
         { label: "swipe card", locator: page.getByTestId("swipe-card") },
         minShelterMarginFor(viewport),
       );
+    });
+
+    /**
+     * The other half of DECK-1's invariant, and the reason making the photo
+     * elastic is safe. The margin assertion above says text is never clipped;
+     * this says the photo is what pays for that, and only down to a stated
+     * limit. Running out of room becomes a named failure instead of the
+     * invisible clip it used to be — the photo was pinned at exactly its old
+     * 200px floor on every 640-tall viewport while the shelter line spilled
+     * out of the card, and nothing anywhere went red.
+     */
+    test("the photo absorbs the slack, but never below its floor", async ({ page }) => {
+      const photo = await rectOf(page.getByTestId("card-photo"), "card photo");
+
+      expect(
+        photo.height,
+        `the photo is ${photo.height.toFixed(1)}px tall at ${viewport.name}; the floor is ` +
+          `${MIN_PHOTO_HEIGHT_PX}px (SwipeCard's own min-h-38). The photo absorbs whatever the ` +
+          `text below it needs — so reaching this floor means the text needs more room than ` +
+          `the card has, and the next thing to give would be the shelter line spilling past ` +
+          `the card's overflow-hidden edge, unpainted and unreported. Recover height or state ` +
+          `that this viewport is unsupported; do not lower the floor to make this pass.`,
+      ).toBeGreaterThanOrEqual(MIN_PHOTO_HEIGHT_PX);
     });
 
     // Lost fix 3.
