@@ -223,9 +223,45 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
                 {freshnessLabel(animal.freshness)}
               </span>
             </div>
-            {shelter.description.uk && (
-              <span className="text-[17px]/[26px] text-rg-ink">
-                “{textIn(shelter.description, "uk")}”
+            {/*
+              `freshnessSentence`, NOT `description` — this block quoted the
+              shelter's general description («Один з найбільших притулків
+              Києва, працює з 2015 року…») under an attribution that reads
+              «Слова притулку · дата автоматична», inside a freshness block.
+              Wrong field, and wrong against the design: README's freshness
+              section specifies a sentence "written once by the shelter at
+              verification, in their own words" about how current their
+              listings are, which is what `freshnessSentence` holds and what
+              `SwipeCard` already renders. The contract exposes it
+              (`ShelterSummaryViewSchema`) and the handler already passes it;
+              only this surface read the wrong one.
+
+              Found by verifying a claim in `/prytulkam`'s own copy — §8 tells
+              shelters their sentence appears on the animal's page, which was
+              false here. A copy claim that could not be checked against the
+              screen is how the page would have shipped describing a product
+              that did not exist.
+
+              Read from `animal.shelter`, not the `shelter` prop:
+              `PublicShelterViewSchema` does not `pick` `freshnessSentence`
+              (which is why this reached for `description` in the first place),
+              but `AnimalDetailView`'s own nested `ShelterSummaryView` does and
+              the handler already populates it. Using the data already on the
+              page beats widening a public view — `pick`, never `omit`, means
+              every field on that view is a deliberate decision, and this one
+              needs no new decision.
+
+              Nullable by design: a shelter with no sentence falls back to the
+              pips and day count alone (`FreshnessSentenceSchema`'s own note),
+              which is why this stays conditional rather than gaining a
+              placeholder.
+            */}
+            {animal.shelter.freshnessSentence && (
+              <span
+                data-testid="shelter-freshness-sentence"
+                className="text-[17px]/[26px] text-rg-ink"
+              >
+                “{textIn(animal.shelter.freshnessSentence, "uk")}”
               </span>
             )}
             <span className="text-[13px]/[18px] text-rg-ink-3">{uk.freshness.attribution}</span>

@@ -53,7 +53,14 @@ export const metadata = { title: uk.forShelters.title };
  * them, they are keys to add, not a layout change.
  */
 const h = uk.forShelters.headings;
-const BODY = "text-[17px]/[26px] text-rg-ink";
+/**
+ * `whitespace-pre-line` so a section's own paragraph breaks survive as one
+ * catalogue string. The alternative — a key per paragraph — would triple the
+ * key count and let a translator silently drop one, which is exactly the shape
+ * of loss `messages.test.ts`'s parity check exists to catch and cannot see
+ * inside a single string.
+ */
+const BODY = "text-[17px]/[26px] text-rg-ink whitespace-pre-line";
 
 /**
  * A real `<h2>` under the page's `<h1>`, not a styled paragraph — the whole
@@ -129,6 +136,16 @@ export default function ForSheltersPage() {
         </Section>
         <Section heading={h.whenAnimalFindsHome}>
           <p className={BODY}>{uk.forShelters.whenAnimalFindsHome}</p>
+        </Section>
+        {/*
+          The largest unspoken objection on the page, and previously unanswered
+          in eleven sections: what happens if they change their mind. It is the
+          first question anyone asks before handing their data to a stranger
+          with a website, and the answer is one of the strongest things the
+          project can say.
+        */}
+        <Section heading={h.howToLeave}>
+          <p className={BODY}>{uk.forShelters.howToLeave}</p>
         </Section>
         <Section heading={h.whoIsBehindThis}>
           <p className={BODY}>{uk.forShelters.whoIsBehindThis}</p>
