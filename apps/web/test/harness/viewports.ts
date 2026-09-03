@@ -65,6 +65,32 @@ export const GALLERY_WIDE_ROOMY: Viewport = {
 export const SHORT_PHONE: Viewport = { name: "390x640 short phone", width: 390, height: 640 };
 
 /**
+ * 360x640 — the modal Android viewport width, and the one this product's
+ * actual audience is most likely holding: budget Android hardware, which
+ * `docs/stack-decision.md` names as the target throughout.
+ *
+ * Added in Phase D because it was **unmeasured rather than known-good**. The
+ * suite's narrowest frame was `PHONE` at 390 (an iPhone width), and the deck's
+ * shelter-line margin measured 20px there against -22px at 320 — so the
+ * behaviour at 360, where most real visitors are, sat in an untested gap
+ * between a comfortable pass and a silent clip.
+ */
+export const ANDROID_PHONE: Viewport = { name: "360x640 android phone", width: 360, height: 640 };
+
+/**
+ * 320x640 — the narrowest width still worth calling a real device (iPhone SE
+ * 1st gen, small budget Androids).
+ *
+ * Deliberately NOT in the deck's assertion loop: the shelter line already
+ * measures -22px here on unmodified code, which is a real pre-existing clip
+ * rather than a regression, and asserting against it would make the suite red
+ * for a defect it did not cause. It exists so that clip is *measured* and can
+ * be tracked, per the standing rule that a documented limit with no test
+ * exercising it is not a limit.
+ */
+export const NARROW_PHONE: Viewport = { name: "320x640 narrow phone", width: 320, height: 640 };
+
+/**
  * F1's own detail-page mock frames — `Opika Registry Frames.dc.html`'s "D2
  * Деталі · 360" and "D1 Деталі · 1920" name these exact widths, not the
  * generic `PHONE`/`DESKTOP` pair above. Heights are tall enough to fit the

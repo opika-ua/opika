@@ -287,11 +287,32 @@ function ErrorState({
         {"body" in copy && (
           <div className="font-sans text-[13px] leading-[normal] text-ink-2">{copy.body}</div>
         )}
+        {/*
+          Two fixes on the retry button below, and one thing deliberately left
+          alone.
+
+          Fixed: 48px, not 44 (README:200), and a real focus-visible ring —
+          this button previously had *no* focus styling at all, which
+          `docs/standing-constraints.md`'s "an interactive element ships with
+          its focus-visible styling and a test" rules out outright. A keyboard
+          user reaching the retry on a failed deck had no way to see where they
+          were.
+
+          NOT fixed, reported instead: every other token on this element is
+          pre-V2 (`rounded-button`, `border-line-strong`, `bg-paper`,
+          `text-ink-2`, `mt-row`) where the rest of the app uses `rg-*`. That is
+          a visual migration this state never got, not a touch-target or a11y
+          defect, and restyling it silently inside Phase D would be a design
+          change wearing a bug-fix label. The ring uses `rg-registry`
+          regardless, because that is the ring every other focusable element in
+          the app has and the one the harness asserts against.
+        */}
         {onRetry && (
           <button
             type="button"
             onClick={onRetry}
-            className="min-h-11 rounded-button border border-line-strong bg-paper font-sans text-sm leading-[normal] text-ink-2 cursor-pointer mt-row"
+            data-testid="deck-error-retry"
+            className="min-h-12 rounded-button border border-line-strong bg-paper font-sans text-sm leading-[normal] text-ink-2 cursor-pointer mt-row focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
           >
             {copy.action}
           </button>

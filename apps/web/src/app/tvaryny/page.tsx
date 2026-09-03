@@ -173,7 +173,10 @@ export async function renderGallery(
               <DeckEntryLink
                 href={deckHref}
                 testId="deck-entry-mobile"
-                className="min-h-11 inline-flex items-center rounded-rg-button bg-rg-fill px-3.5 text-[13px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+                /* 48, not 44 — README:200's minimum touch target. This one is
+                   the mobile deck entry, so it is on the gallery for every
+                   phone visitor; found by Phase D's sweep, not by a report. */
+                className="min-h-12 inline-flex items-center rounded-rg-button bg-rg-fill px-3.5 text-[13px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
               >
                 {uk.feed.enterDeckShort}
               </DeckEntryLink>

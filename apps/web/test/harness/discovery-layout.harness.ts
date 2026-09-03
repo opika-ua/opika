@@ -78,7 +78,19 @@ function minShelterMarginFor(viewport: Viewport): number {
   return px;
 }
 
-for (const viewport of [PHONE, DESKTOP] satisfies Viewport[]) {
+/**
+ * `SHORT_PHONE` added in Phase D. It has had a `MIN_SHELTER_MARGIN_PX` entry
+ * since V2 and **nothing ever exercised it** — which is precisely how its
+ * margin reached exactly 8.0px, its own floor, with zero remaining headroom,
+ * unnoticed. A documented limit with no test exercising it is not a limit;
+ * see `docs/standing-constraints.md`.
+ *
+ * `ANDROID_PHONE` (360) and `NARROW_PHONE` (320) are deliberately absent here
+ * and measured separately: 320 already clips on unmodified code, so asserting
+ * on it would turn the suite red for a pre-existing defect rather than
+ * guarding against a new one.
+ */
+for (const viewport of [PHONE, SHORT_PHONE, DESKTOP] satisfies Viewport[]) {
   test.describe(`/tvaryny/gortaty at ${viewport.name}`, () => {
     test.beforeEach(async ({ page }) => {
       await openRoute(page, ROUTE, viewport, { readySelector: CARD });

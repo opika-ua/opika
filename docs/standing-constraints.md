@@ -59,6 +59,19 @@ tests" with no total figure, against a real workspace total of 662 (607 at #39, 
 own 46 new tests) — the PR body itself had it right, scoped to `apps/web`; the chat summary
 that repeated the same number without repeating the scope is what set off the alarm.
 
+**A documented limit with no test exercising it is not a limit.** A constant, a floor, a
+threshold or a viewport that appears in the source but in no assertion is documentation, and
+it decays silently at exactly the rate the thing it describes changes.
+
+*Why:* the third variant of one failure. First conditional assertions (a test skipping its
+own checks when the element was absent — which is the broken state). Then self-comparing
+tests (asserting a value equals the constant that produced it). Now `MIN_SHELTER_MARGIN_PX`
+carried a `SHORT_PHONE` entry from V2 that no loop ever ran, so that viewport's margin
+eroded to exactly its own floor — 8.0px against a floor of 8 — with nothing red anywhere.
+The same sweep found the harness's narrowest frame was 390 (an iPhone width) while the
+product's stated audience is budget Android at 360, which was therefore unmeasured rather
+than known-good, and measured a real clip once looked at.
+
 **Ask of every test: would this fail if the thing it guards were broken?** If you cannot
 answer, the test is decoration.
 
