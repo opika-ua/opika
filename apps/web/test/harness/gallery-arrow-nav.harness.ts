@@ -243,7 +243,9 @@ test.describe("/tvaryny arrow-key grid navigation — Tab order is never touched
     // Real Tab presses, never `focus()`: `focus()` succeeds on a
     // `tabindex="-1"` element, so a focus()-based version of this passes
     // against the exact defect it names.
-    const MAX_TAB_PRESSES = 12;
+    /** 14, not 12, since Phase T's header — see gallery-filters.harness.ts's
+     * own note on this bound for why it stays tight rather than generous. */
+    const MAX_TAB_PRESSES = 14;
     let reachedFirst = false;
     for (let i = 0; i < MAX_TAB_PRESSES && !reachedFirst; i++) {
       await page.keyboard.press("Tab");

@@ -297,3 +297,75 @@ test.describe("/tvaryny/[animalId] contact reveal — before, after, and close",
     );
   });
 });
+
+/**
+ * The freshness block quotes the shelter's *freshness sentence*, not its
+ * general description.
+ *
+ * This is a regression guard for a real bug, and one that shipped precisely
+ * because nothing asserted which field the block reads. It rendered
+ * `shelter.description` — «Один з найбільших притулків Києва, працює з 2015
+ * року…» — under the attribution «Слова притулку · дата автоматична», inside a
+ * block about how current the listings are. Both fields are the shelter's own
+ * words, both are prose, and the wrong one looks entirely plausible on screen.
+ *
+ * Found by verifying a claim in `/prytulkam`'s copy, which tells shelters their
+ * sentence appears on the animal's page. `docs/design/README.md`'s freshness
+ * section specifies a sentence "written once by the shelter at verification, in
+ * their own words"; `SwipeCard` had always used the right field.
+ */
+test.describe("the detail page's freshness block quotes the right field", () => {
+  test("shows the shelter's freshness sentence and not its description", async ({
+    page,
+    browser,
+  }) => {
+    await openRoute(page, await discoverFirstAnimalHref(browser), DETAIL_DESKTOP, {
+      readySelector: "[data-testid='detail-photo']",
+    });
+
+    /**
+     * Unconditional on purpose. The first version of this test skipped its
+     * own assertions when the element was absent — and the element is absent
+     * in exactly the broken state, because the wrong field carries no test
+     * id. It passed against a deliberate reintroduction of the bug, which is
+     * the "would this fail if the thing it guards were broken?" case
+     * `docs/standing-constraints.md` rules out. Caught by mutation testing,
+     * not by review.
+     *
+     * The seeded corpus's verified shelters all carry a freshness sentence,
+     * so requiring it here is a real precondition rather than an assumption:
+     * if a future corpus change removed them, this fails loudly and says so,
+     * which is better than silently guarding nothing again.
+     */
+    const quoted = page.getByTestId("shelter-freshness-sentence");
+    await expect(
+      quoted,
+      "no freshness sentence rendered in the freshness block. Either this animal's shelter has " +
+        "no `freshnessSentence` in the seeded corpus (a fixture problem — say so and pick another " +
+        "animal), or the block is reading a different field again, which is the bug this exists " +
+        "for: it previously quoted `shelter.description` under the «Слова притулку» attribution.",
+    ).toHaveCount(1);
+
+    const text = ((await quoted.textContent()) ?? "").replace(/[“”]/g, "").trim();
+    expect(text.length, "the freshness quote rendered empty").toBeGreaterThan(0);
+
+    /**
+     * The description is not rendered on this page, so it cannot be compared
+     * against directly. What distinguishes the two fields in the seeded
+     * corpus is subject: every description opens by describing the shelter
+     * itself ("Один з найбільших притулків…", "Маленький сімейний притулок…"),
+     * while every freshness sentence is about update cadence. Asserting the
+     * quote does not begin like a shelter description catches the specific
+     * regression without pinning either string.
+     */
+    expect(
+      text.startsWith("Притулок") || text.includes("притулок у") || text.includes("притулків"),
+      `the freshness block is quoting something that reads like the shelter's description ` +
+        `rather than its freshness sentence: "${text}"`,
+    ).toBe(false);
+
+    // The attribution is what makes the quote a claim about freshness rather
+    // than just a nice sentence from the shelter.
+    await expect(page.getByText("Слова притулку · дата автоматична")).toBeVisible();
+  });
+});

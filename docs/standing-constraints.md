@@ -204,6 +204,35 @@ payment page, with the destination domain visible before the user taps.
 
 ---
 
+## Commitments the «Для притулків» page makes
+
+`/prytulkam` (Phase T) is the page a shelter is *sent* to in an outreach message.
+Everything on it is deliberately a description of how the system behaves rather
+than a promise about the future, so that each claim **breaks loudly** — someone
+reading the relevant code sees the page contradicting it — instead of quietly
+becoming false.
+
+That only works if the list is written down. These are the claims, the key each
+lives in (`packages/i18n/src/messages/uk.ts`, `forShelters.*`), and the change
+that would falsify each one. Any work in those areas has to walk into this list
+rather than around it.
+
+⚠ Activates when the copy lands. `forShelters.*` currently holds `COPY_PENDING`
+placeholders; the draft is `docs/prytulkam-copy-draft.md`. The commitments below
+are already settled in substance — what is pending is the final Ukrainian.
+
+| # | Commitment | Key | Falsified by |
+|---|---|---|---|
+| 1 | **Ordering inputs are date, plus card completeness in the deck — and nothing else.** «Це все, що впливає на порядок.» | `whatHappensToAnimals` | Any new ranking input. Paid placement obviously, but equally a "featured shelter" flag, a manual boost column, or a relevance score on the list surface. The list is date-only today (`GallerySortSchema` is closed at `freshest`/`longest_waiting`, and `gallery-repo.ts` deliberately does not call `scoreAnimal`); the deck re-ranks within a page on freshness 0.5 / completeness 0.3 / preference 0.2 (`DEFAULT_SCORING_POLICY`). **Phase 2 is rewarded-video ads (`docs/stack-decision.md`, "Phase 2 — rewarded-video ads"). Ads sitting *beside* listings leave this true; ads influencing *order* make it false.** |
+| 2 | **A shelter is never told that someone looked at a card.** «Ви не дізнаєтеся, що хтось дивився картку, поки ця людина сама вам не напише.» | `noObligation` | Any shelter-facing surface that reports adopter engagement. This is closer than it looks: the data already exists and is already indexed for exactly that query — `reveals` stores `(adopter_id, animal_id, shelter_id, revealed_at)` **with `reveals_shelter_id_idx` on `shelter_id`**, and `swipes` stores `(adopter_id, animal_id, direction, swiped_at)`. It is true today only because no shelter-facing surface exists at all. **H2 (internal admin) is where this breaks by accident** — a "12 people took your contact this week" tile is one query, not a migration. |
+| 3 | **Free today and later, with advance notice if that ever changes.** «Якщо це колись зміниться, ви дізнаєтеся заздалегідь, а не з рахунку.» | `cost` | Introducing any shelter-side charge without notifying every onboarded shelter first. Note the commitment is not "free forever" — it is *notice before change*, which is a promise about conduct and survives a pricing decision made honestly. |
+| 4 | **Opika never contacts an adopter on a shelter's behalf, and never speaks for them.** «Opika не пише за вас, не пише від вашого імені і не спілкується з нею замість вас.» | `whoContactsWhom` | Any messaging, auto-reply, or notification feature that puts the registry between the adopter and the shelter. Including a well-meant "we let the shelter know you're interested." |
+| 5 | **The registry never touches money.** «Реєстр не бере і не переказує грошей…» | `money` | Payment handling of any kind, including donation collection routed through the platform. Already a standing product rule above; listed here because the shelter-facing page states it as a commitment *to them*, which is a second, independent reason it cannot quietly change. |
+| 7 | **The freshness date says only what it measures: «коли інформацію востаннє оновлювали».** Not "when you last confirmed" — the page must never claim a confirmation the data model does not record. | `whyThatSentence` | Already the narrower of two available truths, chosen after checking. `freshnessOf` reads `animals.last_updated_at` directly, and that column's own schema comment calls it edit time — "a shelter fixing a typo would make a four-month wait read as freshly available". Today it never moves at all: `animalRepo.update` writes whatever `lastUpdatedAt` its caller passes, does not auto-bump, and **has no callers outside tests**, so the date currently means "when the listing was created". **When H2 builds the edit path this becomes live**, and the honest fix is a real confirmation concept — a separate column and a shelter-facing "still looking" action — not a wider sentence. Widening the copy to match a sloppier field is the one exit that is not available, because §8's entire argument is that the number can be read literally. |
+| 6 | **The work on our side is done by a person, and the page says so in three places.** «ви розкажете, а я внесу все сам» (§7) · «напишіть, і я приберу» (§9) · «коли ви пишете на цю адресу, відповідаю я» (§10) | `whatToPrepare`, `whenAnimalFindsHome`, `whoIsBehindThis` | All three are true today and all three are load-bearing for trust — a volunteer is being asked to rely on a named human rather than a form. **H2 (internal admin) is where they stop being true**, and the failure mode is not that a shelter dashboard is wrong to build; it is that shipping one while these sentences still say "write to me and I'll do it" makes the page describe a product that no longer exists. When self-serve arrives, this copy gets rewritten in the same change — not left to be discovered by a shelter following an instruction that no longer matches the screen. |
+
+---
+
 ## Where the gates are
 
 - `pnpm check` — typecheck, lint, tests, `next build`, and the rendering harness.

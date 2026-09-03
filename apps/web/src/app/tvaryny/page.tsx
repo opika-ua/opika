@@ -3,6 +3,7 @@ import { textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Link from "next/link";
 import { anonymousRouterClient } from "../../api/server-client";
+import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { AnimalCard } from "../../features/gallery/AnimalCard";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
 import { cardCityId } from "../../features/gallery/card-text";
@@ -116,19 +117,16 @@ export async function renderGallery(
 
   return (
     <div className="font-rg min-h-dvh bg-rg-page">
-      <header className="min-h-14 tablet:min-h-16 desktop:min-h-17 flex items-center justify-between bg-rg-surface px-4 tablet:px-6 desktop:px-15">
-        <span className="font-bold text-[19px] text-rg-ink">Opika</span>
-        {/*
-          docs/design/README.md "Screens" > "Gallery": the header's full row
-          also has a city chip, "Мої запити · N" and a UA/EN switch — none
-          of those exist yet (My reveals and i18n are separate, later
-          phases), so this is the one piece E5 actually owns. `hidden
-          desktop:inline-flex`: the mobile half of this same control lives
-          in the row below instead — that row's own comment records why
-          it's neither the mock's sticky bottom bar nor a combined
-          "Фільтри · N" label, both pre-existing gaps this phase didn't
-          introduce.
-        */}
+      {/*
+        Phase T moved the wordmark, heights and nav into `SiteHeader` — see
+        that component for what the design specifies and what was composed.
+        The deck entry stays here rather than moving with them: it is the
+        gallery's own control, not site-wide chrome, and `hidden
+        desktop:inline-flex` keeps its mobile half in the row below (that
+        row's own comment records why it's neither the mock's sticky bottom
+        bar nor a combined "Фільтри · N" label — both pre-existing gaps).
+      */}
+      <SiteHeader wordmarkIsCurrentPage>
         {page.totalMatching > 0 && (
           <DeckEntryLink
             href={deckHref}
@@ -138,7 +136,7 @@ export async function renderGallery(
             {uk.feed.enterDeck}
           </DeckEntryLink>
         )}
-      </header>
+      </SiteHeader>
 
       {/*
         Padding and max-width deliberately live on different elements.
@@ -302,7 +300,7 @@ export async function renderGallery(
             href="/pro"
             className="shrink-0 underline focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] rounded-rg-button"
           >
-            {uk.footer.about}
+            {uk.nav.about}
           </Link>
         </footer>
       </div>

@@ -342,7 +342,20 @@ const SHELTER_DEFS: ShelterDef[] = [
     verificationStatus: "verified",
   },
   {
-    displayName: "Притулок «Лапусик»",
+    /**
+     * Deliberately the longest shelter name in the corpus — critique finding
+     * C1, the shelter half. Every other name here is a short «Притулок «X»»
+     * of roughly 18-24 characters, so the card's shelter line and the detail
+     * page's shelter block had never been rendered against a name a
+     * registered organisation would plausibly actually have. 44 characters,
+     * and the legal-entity prefix is the realistic part: a registered NGO's
+     * own name is rarely short.
+     *
+     * Verified, and in a city with animals, on purpose — a long name on the
+     * suspended or pending shelter would never reach the gallery at all and
+     * would test nothing.
+     */
+    displayName: "Благодійна організація «Прихисток на Лісовій»",
     descriptionUk:
       "Маленький сімейний притулок. Утримуємо до 30 кішок і 15 собак. Кожна тварина отримує індивідуальну увагу.",
     descriptionEn: null,
@@ -521,6 +534,21 @@ const DOG_NAMES = [
   "Зевс",
   "Альф",
   "Гром",
+  /**
+   * Deliberately the longest name in the corpus, and the only reason it is
+   * here — critique finding C1. Every other name in these pools is six
+   * characters or fewer, so `AnimalCard`'s `truncate` (the design's own
+   * "animal names truncate to one line with ellipsis") had never once been
+   * exercised anywhere near its limit: the safety net existed and was
+   * untested at any realistic width.
+   *
+   * A real shelter's names are not drawn from a curated six-character pool.
+   * 30 characters is not absurd for a rescue's own naming, and it overflows
+   * the card's name line at every breakpoint, which is exactly the point:
+   * the harness now carries this permanently instead of a one-off manual
+   * check nobody repeats.
+   */
+  "Бартоломеус-Максиміліан Третій",
 ];
 
 const DOG_NAMES_F = [

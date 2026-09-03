@@ -508,6 +508,15 @@ type ShelterVerification =
 
 ### Phase 2 — rewarded-video ads
 
+> **Read `docs/standing-constraints.md`'s "Commitments the «Для притулків» page
+> makes" before building this.** `/prytulkam` states, to the shelters being
+> recruited, that ordering inputs are date plus card completeness in the deck
+> and *nothing else* («Це все, що впливає на порядок»). Ads sitting **beside**
+> listings leave that true. Ads influencing **order** — paid placement, a
+> "featured" flag, a boost — make a page written to earn a volunteer's trust
+> into a false one. That is a product decision available to be taken
+> deliberately; it is not one to arrive at by implementation.
+
 **Stack additions:** an ad SDK (client), a server-side reward verification endpoint, a `RewardGrant` ledger table.
 
 **Architectural fit: clean.** Reward verification is a stateless server callback — validate the SDK's signature, write one idempotent row keyed on the SDK's transaction ID, credit the shelter's fund. It slots into `packages/domain` as a pure function plus one repository call. This is also, incidentally, the *cheapest possible thing to extract into a separate service* if you ever want to (see §11).

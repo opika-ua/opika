@@ -4,6 +4,7 @@ import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips } from "@opika/ui";
 import Image from "next/image";
 import Link from "next/link";
+import { SiteHeader } from "../chrome/SiteHeader";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
 
@@ -79,10 +80,16 @@ interface AnimalDetailScreenProps {
  * 2. The medical section renders two rows (vaccination, spayNeuter), not
  *    the mock's three ("Сказ" / "Комплексне щеплення" / "Стерилізація") —
  *    `medical-labels.ts`'s own comment has the full reasoning.
- * 3. The header carries only the back link, not the mock's own
- *    logo+wordmark beside it (D1's header shows both) — this page's
- *    header already matches the gallery's own detail-adjacent chrome
- *    rather than repeating the wordmark a second time on every route.
+ * 3. ~~The header carries only the back link, not the mock's own
+ *    logo+wordmark beside it.~~ **Reversed in Phase T, and the reasoning
+ *    that stood here was wrong.** It argued against "repeating the wordmark
+ *    a second time on every route" while itself noting that mock D1 shows
+ *    both — so the mock had already settled it, and this deviated from it
+ *    knowingly. The design critique found the cost: this URL is the one
+ *    people paste into Telegram, and it arrived with no brand, no promise
+ *    text, and no route to «Про проєкт» (critique E1/B2). The header is now
+ *    the shared `SiteHeader`, which carries the wordmark and site nav on
+ *    every surface but the deck.
  */
 export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDetailScreenProps) {
   const photo = animal.photos[0] ?? null;
@@ -113,22 +120,33 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
 
   return (
     <div className="font-rg min-h-dvh bg-rg-page">
-      <header className="min-h-14 tablet:min-h-16 desktop:min-h-17 flex items-center gap-3 bg-rg-surface px-4 tablet:px-6 desktop:px-15">
-        <Link
-          href="/tvaryny"
-          data-testid="back-to-list"
-          className="min-h-11 inline-flex items-center gap-1.5 rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] desktop:hidden"
-        >
-          {uk.feed.backToList}
-        </Link>
-        <Link
-          href="/tvaryny"
-          data-testid="back-to-list-desktop"
-          className="hidden desktop:inline-flex min-h-11 items-center text-[15px] text-rg-ink-2 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-        >
-          {uk.detail.backToListIn.replace("{city}", cityName ?? "")}
-        </Link>
-      </header>
+      {/*
+        `min-h-12` (48), not the `min-h-11` (44) these carried before:
+        docs/design/README.md:200 sets 48 as the minimum touch target
+        *anywhere*, and calls it a civic-trust metric rather than the WCAG
+        floor. Same rule as the header-height fix (critique A2) and found in
+        the same pass, one component over.
+      */}
+      <SiteHeader
+        leading={
+          <>
+            <Link
+              href="/tvaryny"
+              data-testid="back-to-list"
+              className="min-h-12 inline-flex items-center gap-1.5 rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] desktop:hidden"
+            >
+              {uk.feed.backToList}
+            </Link>
+            <Link
+              href="/tvaryny"
+              data-testid="back-to-list-desktop"
+              className="hidden desktop:inline-flex min-h-12 items-center text-[15px] text-rg-ink-2 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+            >
+              {uk.detail.backToListIn.replace("{city}", cityName ?? "")}
+            </Link>
+          </>
+        }
+      />
 
       <div className="desktop:max-w-[1200px] desktop:mx-auto p-4 tablet:p-6 desktop:py-10 desktop:px-8 desktop:flex desktop:gap-10 desktop:items-start">
         {/* Photo column — sticky on desktop, fixed-height strip on mobile. */}
@@ -205,9 +223,45 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
                 {freshnessLabel(animal.freshness)}
               </span>
             </div>
-            {shelter.description.uk && (
-              <span className="text-[17px]/[26px] text-rg-ink">
-                “{textIn(shelter.description, "uk")}”
+            {/*
+              `freshnessSentence`, NOT `description` — this block quoted the
+              shelter's general description («Один з найбільших притулків
+              Києва, працює з 2015 року…») under an attribution that reads
+              «Слова притулку · дата автоматична», inside a freshness block.
+              Wrong field, and wrong against the design: README's freshness
+              section specifies a sentence "written once by the shelter at
+              verification, in their own words" about how current their
+              listings are, which is what `freshnessSentence` holds and what
+              `SwipeCard` already renders. The contract exposes it
+              (`ShelterSummaryViewSchema`) and the handler already passes it;
+              only this surface read the wrong one.
+
+              Found by verifying a claim in `/prytulkam`'s own copy — §8 tells
+              shelters their sentence appears on the animal's page, which was
+              false here. A copy claim that could not be checked against the
+              screen is how the page would have shipped describing a product
+              that did not exist.
+
+              Read from `animal.shelter`, not the `shelter` prop:
+              `PublicShelterViewSchema` does not `pick` `freshnessSentence`
+              (which is why this reached for `description` in the first place),
+              but `AnimalDetailView`'s own nested `ShelterSummaryView` does and
+              the handler already populates it. Using the data already on the
+              page beats widening a public view — `pick`, never `omit`, means
+              every field on that view is a deliberate decision, and this one
+              needs no new decision.
+
+              Nullable by design: a shelter with no sentence falls back to the
+              pips and day count alone (`FreshnessSentenceSchema`'s own note),
+              which is why this stays conditional rather than gaining a
+              placeholder.
+            */}
+            {animal.shelter.freshnessSentence && (
+              <span
+                data-testid="shelter-freshness-sentence"
+                className="text-[17px]/[26px] text-rg-ink"
+              >
+                “{textIn(animal.shelter.freshnessSentence, "uk")}”
               </span>
             )}
             <span className="text-[13px]/[18px] text-rg-ink-3">{uk.freshness.attribution}</span>

@@ -5,6 +5,18 @@
  * to next-intl message files without touching components. Keys mirror
  * the design string table in docs/design/.
  */
+
+/**
+ * Marks a string whose real Ukrainian has not been written yet.
+ *
+ * A distinctive, greppable sentinel rather than an empty string or a bare
+ * "TODO": an empty value renders as a silently missing paragraph, and a
+ * "TODO" is indistinguishable from the several hundred legitimate ones in a
+ * codebase. This one cannot be mistaken for copy by a reader, a reviewer, or
+ * a grep, and `forSheltersPlaceholdersRemaining()` counts it.
+ */
+export const COPY_PENDING = "[COPY PENDING]";
+
 export const uk = {
   // --- 01 First run — docs/design/README.md:427, a band above the
   // gallery grid (FirstRunBand.tsx), not a separate screen ---
@@ -344,9 +356,6 @@ export const uk = {
      * so this is the shortcut past them, not decoration.
      */
     skipLink: "Перейти до сторінок",
-    footnote:
-      "Сторінки, а не безкінечна стрічка: у кожної сторінки своя адреса, кнопка «назад» " +
-      "працює, і посилання можна надіслати в Telegram.",
   },
 
   // --- Gallery no-match (B4), docs/design/README.md, "Gallery states" > "No match" ---
@@ -436,7 +445,22 @@ export const uk = {
      * Verbatim text from the licence file; do not paraphrase. */
     fontCredit:
       "Шрифт e-Ukraine — Міністерство цифрової трансформації України (thedigital.gov.ua/fonts), Дмитро Растворцев / Fedoriv, CC BY 4.0.",
+  },
+
+  /**
+   * Phase T. The site-wide header's own links, shared with the gallery
+   * footer — `footer.about` used to hold this same string separately, which
+   * meant one concept in two keys the moment the header started rendering
+   * it too.
+   *
+   * Not in `docs/design/README.md`'s own header content list (line 337 gives
+   * mark + wordmark, city chip, «Мої запити · N», «UA / EN», «Гортати по
+   * одній») — composed for Phase T to close the critique's E5/E1/E3, and
+   * recorded as composition rather than specification.
+   */
+  nav: {
     about: "Про проєкт",
+    forShelters: "Для притулків",
   },
 
   /**
@@ -457,5 +481,173 @@ export const uk = {
     analytics:
       "Реєстр збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко працюють сторінки — без кукі і без реклами.",
     contact: "Зв'язатися з розробником: {contact}",
+  },
+
+  /**
+   * «Для притулків» (Phase T) — the first surface in this project written
+   * for shelters rather than adopters, and the page an outreach message
+   * links to.
+   *
+   * ⚠ EVERY VALUE BELOW IS A PLACEHOLDER AND MUST NOT SHIP. The Ukrainian is
+   * written by the maintainer, from `docs/prytulkam-argument.md`'s structure
+   * — *from* it, not translated from the English hints here. Translating
+   * sentence-by-sentence is how calques get in, and the copy critique (D3)
+   * already found one construction in this catalogue that reads translated.
+   *
+   * `forSheltersPlaceholdersRemaining()` (packages/i18n) counts what is left
+   * and `messages.test.ts` reports it, so the number is visible rather than
+   * discovered later. The argument document is the spec for what each key
+   * has to establish and — for `whyThatSentence`, the hardest one — what it
+   * must not sound like.
+   */
+  forShelters: {
+    title: "Для притулків",
+    /**
+     * Real copy, not placeholders — promoted from the section names in
+     * `docs/prytulkam-argument.md`, which were already phrased as the
+     * reader's own questions rather than as labels. That phrasing is the
+     * point: «Вартість» / «Контакти» / «Верифікація» would turn a letter
+     * into a marketing page, which is the one thing this page is carefully
+     * not being.
+     *
+     * They exist because linear reading is not the only use case. Someone
+     * comes back a week later to re-check what was said about money before
+     * committing, and without headings they re-read eleven sections or give
+     * up.
+     *
+     * Two were adjusted from the draft's own labels to keep the question
+     * form consistent: §5 was «Гроші» and §8 was «Навіщо те речення».
+     */
+    headings: {
+      whatThisIs: "Що це",
+      cost: "Скільки це коштує",
+      whatHappensToAnimals: "Що буде з вашими тваринами",
+      whoContactsWhom: "Хто кому пише",
+      money: "Що з грошима",
+      verification: "Що означає «перевірений»",
+      whatToPrepare: "Що підготувати",
+      whyThatSentence: "Навіщо те речення про оновлення",
+      whenAnimalFindsHome: "Коли тварина знайшла дім",
+      howToLeave: "Якщо ви захочете піти",
+      whoIsBehindThis: "Хто це робить",
+      howToStart: "Як почати",
+    },
+    /** §1 — one sentence. What this is. Nothing else. */
+    whatThisIs:
+      "Opika — реєстр тварин із перевірених притулків Київщини, де кожен ваш підопічний отримує власну сторінку.",
+    /** §2 — free now and later. Early, because it is what they are bracing for. */
+    cost:
+      "Це безкоштовно. Не «безкоштовно перші три місяці» і не «безкоштовно, поки ми не виростемо» — " +
+      "просто безкоштовно, сьогодні і далі. Якщо це колись зміниться, ви дізнаєтеся заздалегідь, а не з рахунку.",
+    /**
+     * §3 — a page each, shareable, and the ordering rule.
+     *
+     * The third paragraph is a description of mechanism, not a promise about
+     * the future, and that is the point: a promise fails silently, a
+     * description fails loudly the moment someone reading the ordering code
+     * sees the page contradicting it. See `docs/standing-constraints.md`,
+     * "Commitments the «Для притулків» page makes", commitment 1.
+     */
+    whatHappensToAnimals:
+      "Кожна тварина отримує власну сторінку з фотографіями і власною адресою — її можна надіслати " +
+      "в Telegram, показати знайомим, залишити під дописом.\n\n" +
+      "Тварин можна дивитися списком або по одній. Обидва способи показують усіх.\n\n" +
+      "Порядок у списку — за датою: спочатку ті, кого оновлювали найновіше, або ті, хто чекає " +
+      "найдовше; людина обирає сама. У режимі «по одній» до дати додається повнота картки — та, де " +
+      "є фотографії, опис і відмітка про щеплення, показується раніше. Це все, що впливає на порядок.\n\n" +
+      "Якщо тварину вже комусь пообіцяли, картка лишається на місці з позначкою: домовленості " +
+      "зриваються, і тоді краще, щоб її було видно, ніж щоб вона зникла і повернулася.",
+    /** §4 — the trust section. The actor is the system, so «Opika», never «я». */
+    whoContactsWhom:
+      "Людина, яка хоче взяти тварину, пише вам напряму — на той контакт, який ви вкажете. " +
+      "Opika не пише за вас, не пише від вашого імені і не спілкується з нею замість вас.",
+    /** §4b — no lead queue. Commitment 2; H2 is where this breaks by accident. */
+    noObligation:
+      "Ви не дізнаєтеся, що хтось дивився картку, поки ця людина сама вам не напише. Немає списку " +
+      "заявок, немає непрочитаних, немає нічого, на що треба відповідати. Якщо вам ніхто не " +
+      "написав — значить, справді ніхто не написав, і ви нічого не пропустили.",
+    /**
+     * §5 — the actor is the registry, not a person. The visibility claim is
+     * verified: `AnimalDetailScreen` renders `donationHost()` as visible text
+     * beside the label, so it holds on a phone with no hover and no status bar.
+     */
+    money:
+      "Реєстр не бере і не переказує грошей: ні комісії, ні оплати, ні збору донатів через себе. " +
+      "Якщо у вас є власна сторінка для донатів — банка в monobank, наприклад — на сторінці тварини " +
+      "буде посилання на неї, і людина побачить, куди воно веде, ще до того як натисне.",
+    /** §6 — checked against DEFAULT_VERIFICATION_POLICY, not against prose. */
+    verification:
+      "«Перевірений» означає, що вас перевіряла людина. Ось що це означає конкретно.\n\n" +
+      "Зареєстрована організація показує ЄДРПОУ, банківські реквізити на ту саму організацію і одну " +
+      "незалежну рекомендацію.\n\n" +
+      "Незареєстрована ініціатива — а це більшість волонтерських груп — показує візит і дві " +
+      "незалежні рекомендації.",
+    /**
+     * §6b — ends on «Ваш другий номер телефону — не рекомендація», the only
+     * sentence that anticipates someone gaming the process. It proves the
+     * verification is enforced rather than described; a general version («ми
+     * перевіряємо рекомендації на справжність») would read as suspicious where
+     * this reads as experienced. It means §6 closes on fraud, which is why §7
+     * opening on «потрібно небагато» must stay adjacent to it.
+     */
+    verificationOpenToVolunteers:
+      "«Візит» не означає, що хтось обов'язково приїде. Справжня телефонна розмова, після якої я " +
+      "можу переказати, що почув, теж рахується. Рекомендація має бути від когось іншого, ніж ви: " +
+      "сусідній притулок, ветклініка, з якою ви працюєте, будь-хто, хто може підтвердити, що ви " +
+      "існуєте і робите те, що кажете. Ваш другий номер телефону — не рекомендація.",
+    /** §7 — practical, answerable in ten seconds. Not a form. Commitment 6. */
+    whatToPrepare:
+      "Щоб почати, потрібно небагато:\n\n" +
+      "фотографії тварин — справжні файли, а не скріншоти;\n" +
+      "кілька речень про кожну: ім'я, приблизний вік, розмір, вдача;\n" +
+      "контакт, на який ви справді відповідаєте;\n" +
+      "посилання на донати, якщо воно у вас є;\n" +
+      "і одне речення про те, як часто ви оновлюєте інформацію — про нього нижче.\n\n" +
+      "Фотографії використовуються тільки для сторінок ваших тварин.\n\n" +
+      "Заповнювати анкету не треба: ви розкажете, а я внесу все сам.",
+    /**
+     * §8 — the section needing the most care. Says what the date IS, never
+     * what the feature isn't: pre-empting the objection is what plants it.
+     *
+     * ⚠ «коли інформацію востаннє оновлювали», NOT «коли ви востаннє
+     * підтверджували». The date is `animals.last_updated_at`, which
+     * `freshnessOf` reads directly, and the schema's own comment calls it edit
+     * time — "a shelter fixing a typo would make a four-month wait read as
+     * freshly available". There is no confirmation concept in the data model,
+     * so the sentence describes what the number measures rather than what
+     * would be nicer for it to mean. See commitment 7.
+     */
+    whyThatSentence:
+      "Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого " +
+      "тижня, а про кого — позаторік. Тому на картці видно, коли інформацію востаннє оновлювали, " +
+      "а на сторінці тварини — ваше речення про те, як часто ви це робите, вашими словами.\n\n" +
+      "Дата ставиться сама. Речення пишете ви — один раз, як вам зручно: «оновлюємо щосуботи», " +
+      "«дзвоніть, ми скажемо точно», «влітку рідше».\n\n" +
+      "Саме це робить решту карток вартими довіри. Коли видно, що ви оновлюєте інформацію " +
+      "щосуботи, ваше «ця тварина ще шукає дім» означає рівно те, що написано.",
+    /** §9 — honest that the mechanism is a message handled by hand. Commitment 6. */
+    whenAnimalFindsHome:
+      "Найважливіше, що ви можете мені сказати, — що тварина знайшла дім. Важливіше, ніж додати нову.\n\n" +
+      "Тварина, яка вже вдома, але досі в списку, — це єдине, що робить усі інші картки " +
+      "недостовірними: людина дзвонить, чує «її забрали три місяці тому», і далі не вірить жодній " +
+      "картці — ні вашій, ні чужій.\n\n" +
+      "Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет, " +
+      "якого не існує.",
+    /**
+     * §9b — how to leave. The largest unspoken objection on the page: the
+     * first question anyone asks before handing their data to a stranger with
+     * a website, and previously unanswered anywhere in eleven sections.
+     */
+    howToLeave:
+      "І якщо ви колись захочете піти — напишіть, і я приберу все: тварин, фотографії, ваш запис. " +
+      "Без питань і без умов. Ви нічого не підписували і нічого не втрачаєте.",
+    /** §10 — one person. `about.intro`'s framing; the smallness is the credential. */
+    whoIsBehindThis:
+      "Opika робить одна людина — я, поза основною роботою. Немає команди, немає інвестора, немає " +
+      "відділу підтримки: коли ви пишете на цю адресу, відповідаю я.",
+    /** §11 — one instruction, and what happens next. `{contact}` filled by the page. */
+    howToStart:
+      "Напишіть на {contact}. Достатньо розказати, хто ви і скільки у вас тварин. Далі — розмова, " +
+      "перевірка, про яку йшлося вище, і ваші тварини з'являються в реєстрі.",
   },
 } as const;
