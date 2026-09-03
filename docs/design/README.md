@@ -775,6 +775,42 @@ them:**
 - Resolved and closed states use a different fill and different text — never dimming.
 - `prefers-reduced-motion`: opacity only, 120ms.
 
+### ⚠ Text scaling is unverified, and the harness cannot verify it
+
+Recorded as a known gap rather than left unstated, per `docs/standing-constraints.md`'s rule
+that a documented limit with no test exercising it is not a limit — and its corollary: do not
+assert what you cannot exercise.
+
+**What was tried.** Phase D added `ANDROID_PHONE` (360×640) and made the deck's photo elastic
+so text is never the thing that clips. The natural next assertion is the same deck at ~1.15×
+text scale, which is routine on budget Android. It cannot be written: injecting
+`-webkit-text-size-adjust: 115%` in the harness measured a shelter line at 13px before and
+**13px after**. Chromium's text autosizing is a mobile-only engine setting that Playwright
+cannot enable, so the property simply does not apply.
+
+**Why page zoom is not a substitute.** Zooming to 115% scales the layout as well as the text,
+so the card grows with its contents and the ratio is preserved — it would pass trivially while
+testing nothing. The hard case is text growing inside a card that does not, which is exactly
+what page zoom does not reproduce.
+
+**A related fact, worth knowing on its own.** This app's type scale is entirely in `px` — 126
+`text-[Npx]` classes, zero in `rem`. A user's browser *font-size preference* therefore has no
+effect on it at all; page zoom is the only user-side lever that works. That satisfies WCAG
+1.4.4 (resize to 200% via zoom) but it means the accessibility setting most people reach for
+first does nothing here. Converting the scale to `rem` is a real change with real layout
+consequences and is not proposed lightly — it is noted so the choice is visible rather than
+accidental.
+
+**What does get exercised.** The same failure mode reached through content instead of scaling:
+a shelter name long enough to wrap to a second line needs the same extra vertical room that
+scaled text would, and Phase D's hostile corpus (D-4) puts one in the seeded data
+deliberately. That is a genuine partial cover, not a replacement — it tests one increment, not
+a continuous multiplier.
+
+**To close this properly** needs a real device: Android Chrome, Settings → Accessibility →
+Text scaling at 115% and above, on the deck at 360px. Pair it with the Auto Dark Theme check
+(critique C7), which is blocked on the same hardware.
+
 ---
 
 ## Deliberately absent
