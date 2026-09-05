@@ -428,6 +428,26 @@ engine or a first-time visitor; the demo corpus is hostile enough to exercise ev
 edge case named in D-4; and the transition to real data is a documented, guarded procedure
 rather than a manual judgment call.
 
+### Phase R — Deck memory, two actions, inline reveal
+
+Not a Phase D fix — an unbuilt feature on the product's namesake surface. Two product decisions
+from Oleksii (`docs/observations.md`, "Decisions 1 & 2", 2026-09-05), reached after
+O-15's diagnosis found the deck's «Написати» button never invoked the reveal path at all (it
+called the same handler as a skip) and no swipe was ever persisted. Scoped as its own row set
+per Oleksii's explicit instruction; **not started before Phase D finishes.**
+
+| # | Task | Status |
+|---|---|---|
+| R1 | Wire `swipes.record` from the deck (drag commit and the skip button), keyed on the existing anonymous session. A skip excludes that animal from the deck's own re-serving, **device-scoped, not session-scoped** — persists across reload and later visits, not just the current tab. **Deck-only**: the gallery's `feed`/`gallery` query is unaffected; a skipped animal stays fully reachable by direct link and in the gallery list. Does **not** feed `scoreAnimal` — ordering inputs stay filters + freshness + completeness, unchanged, so `/prytulkam` §1 stays true | Untouched |
+| R2 | Two-action deck: drop «Далі» (`SwipeDeck.tsx`'s third button and its keyboard binding). «Не зараз» skips (R1). «Написати» reveals | Untouched. **Depends on:** R1, R3 |
+| R3 | Inline reveal: wire `session.bootstrap` + `animals.reveal` into the deck's own browser client (today `feedBrowserClient` exposes only `feed.list` — see V1, `docs/observations.md`) and open the contact in a sheet over the deck, per `docs/design/README.md`'s frame 05 (Contact reveal). The deck session must survive a reveal — no exit back to the gallery | Untouched. **Depends on:** none |
+| R4 | `/prytulkam` §3 copy amendment: «Обидва способи показують усіх» no longer holds unqualified for the deck under R1. English sense drafted in `docs/observations.md`'s commitments-register note; Ukrainian is `[COPY PENDING]`, pinned by `copy-status.test.ts` | Untouched |
+
+**Done when:** a skip in the deck survives a reload and a later visit from the same browser
+without appearing in the gallery's exclusion; the gallery's own count and listing are provably
+unaffected by any skip; «Написати» opens contact info in a sheet without leaving the deck; and
+`/prytulkam` §3's Ukrainian is no longer `[COPY PENDING]`.
+
 ---
 
 ## Part 3 — Timeline
@@ -606,3 +626,20 @@ earlier.
 each serverless instance holds its own counter, so the effective per-IP ceiling is `limit ×
 instance count`, not the stated limit — adequate as a first-line defense at near-zero
 traffic, not at real usage.
+
+### Before the MVP gate — DB connection strategy (O-9)
+
+Unlike the rate limiter above, **this one is already live at today's near-zero traffic** —
+`docs/observations.md`'s O-9 measured every DB-backed production page plateauing at a
+~1s floor that repeated warm requests don't reduce, while the identical code against a local
+Postgres runs in ~130ms. No Vercel function region is pinned anywhere in the repo
+(`apps/web/vercel.json` sets only `framework`); production's own `X-Vercel-Id` shows the function
+executing in `iad1` (US East) against Neon's `aws-eu-central-1` (Frankfurt).
+`packages/db/src/client.ts` uses the plain TCP driver (`postgres`/postgres-js) over that gap
+rather than the pooled/HTTP path `docs/stack-decision.md:145` names as Neon Launch's own answer
+to serverless connection cost.
+
+**Own row, scheduled after Phase D and before this gate — not a mid-D patch:** fix
+`packages/db/src/client.ts`'s connection strategy (pooled connection string and/or Neon's HTTP
+driver), informed by Oleksii's own Network-tab timing of the actual reveal click (still pending
+as of O-9's diagnosis) to confirm how much of the reveal flow's latency this actually closes.
