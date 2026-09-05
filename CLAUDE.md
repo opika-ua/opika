@@ -529,3 +529,25 @@ they get skipped:
 - A test may not compare output against the same constant the code renders.
 - Where a mock exists, open the mock. Where none exists, the prose is the specification.
 - Anything demo mode suppresses needs harness coverage of its non-demo state.
+
+## Process tiers
+
+Not every change earns the same scrutiny. Classify before starting; say which tier and why.
+
+TIER 1 — full gate. Phase 0 questions answered and sent to Oleksii before code. Reviewer
+required. Mutation required. Applies to: production data, seed/truncate/migration paths,
+secrets and security, user-facing claims and the /prytulkam commitments, Ukrainian copy,
+asset licensing, anything a real shelter's data flows through.
+
+TIER 2 — reviewer only. No gate to Oleksii, no round trip. Do the work, pnpm check, invoke
+opika-reviewer, act on the verdict, commit, continue. Applies to: app code, layout, tests,
+harness work, refactors.
+
+TIER 3 — light. pnpm check and commit. Reviewer runs once at PR level over the batch, not per
+commit. Applies to: renames with no behaviour change, doc edits, comments, formatting,
+config with no runtime effect.
+
+When a tier is ambiguous, pick the higher one and say so in one line. When a Tier 3 change
+turns out to touch behaviour, stop and re-tier rather than continuing at the lower bar.
+
+Do not bundle tiers. A Tier 1 item riding inside a Tier 3 commit erases the distinction.
