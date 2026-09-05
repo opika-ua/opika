@@ -65,11 +65,12 @@ const nextConfig: NextConfig = {
    * `SITE_IS_PUBLICLY_DISCOVERABLE` (`src/seo-flags.ts`) — every route is
    * blocked from indexing until this deploy is meant to be found, a
    * separate fact from whether the registry holds real shelters (see that
-   * file's own comment). `app/robots.ts` disallows crawling from the same
-   * flag; this header additionally covers anything a crawler reaches
-   * without ever consulting robots.txt (a direct link, a referrer), and
-   * covers `/public` files too — "checked before the filesystem" per
-   * Next's own `headers()` docs.
+   * file's own comment). `app/robots.ts` always allows crawling (D-3) — a
+   * crawler must be able to fetch a page to see this header at all — so
+   * this header, together with the root layout's `robots` metadata, is the
+   * entire noindex mechanism now, not one layer behind robots.txt. Covers
+   * `/public` files too — "checked before the filesystem" per Next's own
+   * `headers()` docs.
    */
   async headers() {
     if (SITE_IS_PUBLICLY_DISCOVERABLE) return [];

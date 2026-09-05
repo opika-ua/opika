@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 import "./globals.css";
+import { SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
 import { commissioner, eUkraine, literata } from "./fonts";
 
 /**
@@ -42,6 +43,15 @@ export const metadata: Metadata = {
     title: "Opika — тварини з притулків Київщини",
     description: uk.firstRun.promise,
   },
+  /**
+   * D-3: the noindex signal a crawler can actually see once `app/robots.ts`
+   * stops disallowing fetches. `next.config.ts`'s `X-Robots-Tag` header
+   * already carries the same flag; this is the HTML-level copy of that same
+   * decision, not a second source of truth for it.
+   */
+  robots: SITE_IS_PUBLICLY_DISCOVERABLE
+    ? { index: true, follow: true }
+    : { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

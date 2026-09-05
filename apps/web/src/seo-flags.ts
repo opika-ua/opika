@@ -37,14 +37,16 @@ export const REGISTRY_HAS_NO_REAL_SHELTERS = true;
 
 /**
  * Is this deploy meant to be found by a search engine or crawled at all.
- * Drives `next.config.ts`'s `X-Robots-Tag` header and `app/robots.ts`'s
- * disallow rule — and, once D-3 lands, the root-layout `robots` metadata
- * that replaces `robots.ts`'s current `Disallow: /` (the "removal trap":
- * `Disallow: /` stops a crawler fetching pages at all, so it never sees a
- * `noindex` meta tag or the `X-Robots-Tag` header — a URL already indexed
- * before this flag flips stays indexed, since de-indexing needs the
- * crawler to *visit* the page and read the exclusion, not merely be told
- * not to. Which is why D-3 exists rather than just flipping this flag).
+ * Drives `next.config.ts`'s `X-Robots-Tag` header and the root layout's
+ * `robots` metadata (`app/layout.tsx`) — both are read this way, rather
+ * than `app/robots.ts` disallowing crawling, because of the "removal
+ * trap" D-3 fixed: `Disallow: /` stops a crawler fetching pages at all,
+ * so it never sees a `noindex` meta tag or the `X-Robots-Tag` header — a
+ * URL already indexed before this flag flips would stay indexed, since
+ * de-indexing needs the crawler to *visit* the page and read the
+ * exclusion, not merely be told not to. `app/robots.ts` now always
+ * allows crawling, so a crawler can actually reach the header and the
+ * metadata this flag drives.
  *
  * Independent of `REGISTRY_HAS_NO_REAL_SHELTERS`: a verified real shelter
  * can exist in the database, reachable by direct link, while this is still

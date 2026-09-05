@@ -2,6 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertDemoDiscoverabilityInvariant } from "./seo-flags";
 
 /**
+ * D-3's tests import `./app/layout` for its `metadata.robots`, and that
+ * module's top-level `fonts.ts` import calls `next/font/google`/`local` —
+ * calls Next's own build step transforms away, which Vitest never runs.
+ * Without this, the call itself throws (`Literata is not a function`)
+ * before any test body runs; the shape returned only needs to satisfy
+ * `RootLayout`'s JSX (`.variable`), which this test never renders anyway.
+ */
+vi.mock("next/font/google", () => ({
+  Literata: () => ({ variable: "--font-literata" }),
+  Commissioner: () => ({ variable: "--font-commissioner" }),
+}));
+vi.mock("next/font/local", () => ({
+  default: () => ({ variable: "--font-e-ukraine" }),
+}));
+
+/**
  * `vi.doMock` registers a factory that stays active for the rest of this
  * file — `vi.resetModules()` alone clears the module cache, not the
  * registered mock. Tests run in file order, so the very first describe
@@ -21,14 +37,19 @@ afterEach(() => {
 });
 
 /**
- * D-1: proves `robots.ts` and `next.config.ts`'s `headers()` both derive
- * their noindex behaviour from `SITE_IS_PUBLICLY_DISCOVERABLE` specifically
- * — not merely from "some flag in this module" — rather than each
- * hand-maintaining its own copy of the same decision. `vi.doMock` replaces
- * the one module both consumers import from; if either consumer stopped
- * reading it, that consumer's assertion below would fail to move with the
- * mock while the other one still did, which is exactly the drift this test
- * exists to catch.
+ * D-1/D-3: proves `next.config.ts`'s `headers()` and the root layout's
+ * `robots` metadata both derive their noindex behaviour from
+ * `SITE_IS_PUBLICLY_DISCOVERABLE` specifically — not merely from "some flag
+ * in this module" — rather than each hand-maintaining its own copy of the
+ * same decision. `vi.doMock` replaces the one module both consumers import
+ * from; if either consumer stopped reading it, that consumer's assertion
+ * below would fail to move with the mock while the other one still did,
+ * which is exactly the drift this test exists to catch.
+ *
+ * `app/robots.ts` is asserted separately, once, outside this describe block
+ * — D-3 made it unconditional (always `allow: "/"`), specifically so a
+ * crawler can reach the header and the metadata this test does cover. It no
+ * longer reads the flag at all, so it has nothing to vary here.
  *
  * The three cases deliberately do NOT vary both constants in lockstep. Two
  * cases that only ever move opposite each other (`SITE=false,REGISTRY=true`
@@ -49,50 +70,64 @@ describe("SITE_IS_PUBLICLY_DISCOVERABLE — single source for noindex behaviour"
     vi.resetModules();
   });
 
-  it("disallows crawling and sends X-Robots-Tag when the flag is false", async () => {
+  it("sends X-Robots-Tag and noindex metadata when the flag is false", async () => {
     vi.doMock("./seo-flags", () => ({
       SITE_IS_PUBLICLY_DISCOVERABLE: false,
       REGISTRY_HAS_NO_REAL_SHELTERS: true,
       assertDemoDiscoverabilityInvariant: vi.fn(),
     }));
 
-    const robots = (await import("./app/robots")).default;
+    const { metadata } = await import("./app/layout");
     const nextConfig = (await import("../next.config")).default;
 
-    expect(robots().rules).toEqual({ userAgent: "*", disallow: "/" });
+    expect(metadata.robots).toEqual({ index: false, follow: false });
     expect(await nextConfig.headers?.()).toEqual([
       { source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
     ]);
   });
 
-  it("stays disallowed at the launch-gate window — real shelters present, still not discoverable", async () => {
+  it("stays noindex at the launch-gate window — real shelters present, still not discoverable", async () => {
     vi.doMock("./seo-flags", () => ({
       SITE_IS_PUBLICLY_DISCOVERABLE: false,
       REGISTRY_HAS_NO_REAL_SHELTERS: false,
       assertDemoDiscoverabilityInvariant: vi.fn(),
     }));
 
-    const robots = (await import("./app/robots")).default;
+    const { metadata } = await import("./app/layout");
     const nextConfig = (await import("../next.config")).default;
 
-    expect(robots().rules).toEqual({ userAgent: "*", disallow: "/" });
+    expect(metadata.robots).toEqual({ index: false, follow: false });
     expect(await nextConfig.headers?.()).toEqual([
       { source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
     ]);
   });
 
-  it("allows crawling and sends no header when the flag is true", async () => {
+  it("sends indexable metadata and no header when the flag is true", async () => {
     vi.doMock("./seo-flags", () => ({
       SITE_IS_PUBLICLY_DISCOVERABLE: true,
       REGISTRY_HAS_NO_REAL_SHELTERS: false,
       assertDemoDiscoverabilityInvariant: vi.fn(),
     }));
 
-    const robots = (await import("./app/robots")).default;
+    const { metadata } = await import("./app/layout");
     const nextConfig = (await import("../next.config")).default;
 
-    expect(robots().rules).toEqual({ userAgent: "*", allow: "/" });
+    expect(metadata.robots).toEqual({ index: true, follow: true });
     expect(await nextConfig.headers?.()).toEqual([]);
+  });
+});
+
+/**
+ * D-3: `app/robots.ts` no longer reads `SITE_IS_PUBLICLY_DISCOVERABLE` at
+ * all — it always allows crawling, unconditionally, so that a crawler can
+ * actually reach the `X-Robots-Tag` header and `robots` metadata the
+ * describe block above covers. No flag to vary, so a single assertion
+ * (not a per-flag-value case) is the correct amount of test here.
+ */
+describe("app/robots.ts — always allows crawling", () => {
+  it("always allows — reads no flag at all", async () => {
+    const robots = (await import("./app/robots")).default;
+    expect(robots().rules).toEqual({ userAgent: "*", allow: "/" });
   });
 });
 
