@@ -459,3 +459,73 @@ why — it's the newest version that's already cleared quarantine. Don't
 "fix" this by bumping to `latest` and adding a `minimumReleaseAgeExclude`
 entry; wait a day, or pick the next-newest cleared version instead.
 @docs/model-policy.md
+
+# Working loop
+
+Append this section to CLAUDE.md. It is what makes the reviewer fire without being asked, and
+what lets work continue without Oleksii gating every step.
+
+## The loop
+
+Work proceeds in iterations. One iteration is one plan item — a D-row, a DECK-row, a fix, a
+sweep. For each iteration:
+
+1. Do the work.
+2. Run `pnpm check`.
+3. **Invoke the `opika-reviewer` subagent** with the diff, the plan item it was meant to
+   satisfy, and every claim being made about it. This is not optional and not conditional on
+   the change looking small.
+4. Act on the verdict:
+   - **PASS** — commit, then start the next plan item without asking.
+   - **PASS WITH NOTES** — address the notes, re-invoke the reviewer on the fix, then commit
+     and continue.
+   - **STOP** — do not commit, do not continue, do not work around it. Write to Oleksii: what
+     the decision is, the options with their consequences, and what you recommend. Then wait.
+5. When a phase's rows are all committed, open the PR with the verified-vs-asserted ledger in
+   the body, and tell Oleksii it is ready. Do not merge.
+
+Never invoke the reviewer on work you have not finished, and never continue past a STOP by
+reinterpreting it as a note.
+
+## What continues automatically, and what does not
+
+Continue without asking:
+
+- the next row in the current phase's plan
+- fixes the reviewer asked for
+- sweeps the reviewer identified as the same defect class
+- anything already decided in this conversation or recorded in `docs/`
+
+Stop and ask, regardless of what the reviewer said:
+
+- the reviewer's STOP list (production, deletion, Ukrainian copy, user-facing claims, secrets,
+  asset licensing, ambiguous design with no mock, widening a schema for a temporary mode)
+- a collision between an instruction and the code that cannot be resolved without choosing
+- a plan item whose acceptance criterion turns out not to be measurable as written
+- anything that would take more than one phase to do properly
+
+When you stop, stop with work in hand: do the preparatory part that is unambiguous, then
+present the decision. Do not sit idle waiting.
+
+## Reporting
+
+Between iterations, keep it short — what shipped, what the reviewer found, what is next. The
+long form belongs in the PR body, not in chat.
+
+When you stop for a decision, the message has four parts and nothing else: the decision, the
+options, the consequence of each, your recommendation. No recap of what you built.
+
+## Standing constraints that outrank convenience
+
+These live in `docs/standing-constraints.md` and are repeated here because the loop is where
+they get skipped:
+
+- Time is not a decision input. No deadline unless Oleksii states one. Where options differ,
+  the better product wins. "Faster" never appears in a decision record.
+- A claim verified against shape is not verified. Run it.
+- The mutation for a floor is crossing it, not perturbing the measurement.
+- A documented limit with no test exercising it is not a limit.
+- An assertion inside a conditional is not an assertion.
+- A test may not compare output against the same constant the code renders.
+- Where a mock exists, open the mock. Where none exists, the prose is the specification.
+- Anything demo mode suppresses needs harness coverage of its non-demo state.
