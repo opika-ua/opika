@@ -104,9 +104,13 @@ export function DeckScreen({
 
         Deliberately landed AFTER DECK-1 and as its own commit. Before DECK-1
         this cost 4px of a shelter-line margin that had none — it clipped 360
-        outright. Now it costs 4px of photo, which is bounded, visible in the
-        measurements below, and exactly what the elastic photo exists to
-        absorb. Same 4px; the difference is what pays for it.
+        outright. Now it costs 4px of photo, which is bounded, measured (the
+        table in `SwipeCard.tsx`'s photo-area comment), and exactly what the
+        elastic photo exists to absorb. Same 4px; the difference is what pays
+        for it. The one frame where the photo cannot pay is 390x844, where it
+        sits at its `max-h-99` ceiling — there the 4px comes off the
+        shelter-line margin instead, 20 -> 16, still clear of that viewport's
+        floor of 12.
 
         The header's own floor follows the button rather than leading it — a
         44px floor under a 48px child was already doing nothing.

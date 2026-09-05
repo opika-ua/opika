@@ -296,7 +296,11 @@ function ErrorState({
           `docs/standing-constraints.md`'s "an interactive element ships with
           its focus-visible styling and a test" rules out outright. A keyboard
           user reaching the retry on a failed deck had no way to see where they
-          were.
+          were. Both halves are asserted in
+          `discovery-layout.harness.ts`'s "/tvaryny/gortaty error state",
+          which reaches this state by refusing the deck's own `feed.list`
+          request — the state had no harness coverage of any kind before, which
+          is how a 44px target with no focus ring survived every gate.
 
           NOT fixed, reported instead: every other token on this element is
           pre-V2 (`rounded-button`, `border-line-strong`, `bg-paper`,

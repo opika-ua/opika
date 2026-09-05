@@ -801,11 +801,18 @@ first does nothing here. Converting the scale to `rem` is a real change with rea
 consequences and is not proposed lightly — it is noted so the choice is visible rather than
 accidental.
 
-**What does get exercised.** The same failure mode reached through content instead of scaling:
-a shelter name long enough to wrap to a second line needs the same extra vertical room that
-scaled text would, and Phase D's hostile corpus (D-4) puts one in the seeded data
-deliberately. That is a genuine partial cover, not a replacement — it tests one increment, not
-a continuous multiplier.
+**What is *not* exercised either, contrary to an earlier draft of this note.** The nearest
+reachable stand-in is the same failure mode reached through content instead of scaling: the
+deck's shelter line is a plain wrapping span (`SwipeCard.tsx`, no `truncate`, no `nowrap`), so
+a shelter name long enough to run to a second line needs the same extra vertical room that
+scaled text would. Nothing renders that case today. The deck harness always measures the top
+card of `feed.list`, which under the seeded order is «Притулок «Добрі лапи»» — a short name,
+measured at a one-line 32px at both 320 and 360. The corpus *does* carry one deliberately long
+shelter name (critique C1 / T5), but it is exercised only on the gallery card, where the design
+calls for `truncate` — one line, no extra height, which is the opposite of the mechanism this
+paragraph is about. Closing this needs a long-named shelter at the head of the deck's own feed
+order, which is a seed change with its own knock-on effect on every measured number in
+`discovery-layout.harness.ts`; it is named here as unbuilt rather than counted as partial cover.
 
 **To close this properly** needs a real device: Android Chrome, Settings → Accessibility →
 Text scaling at 115% and above, on the deck at 360px. Pair it with the Auto Dark Theme check

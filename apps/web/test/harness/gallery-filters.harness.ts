@@ -10,7 +10,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { expectFocusVisibleOutline, openRoute } from "./harness";
+import { expectFocusVisibleOutline, openRoute, rectOf } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
 /**
@@ -36,6 +36,8 @@ test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
 const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
+/** docs/design/README.md:200 — 48 minimum touch target anywhere. */
+const MIN_TOUCH_TARGET_PX = 48;
 /** The id the no-JS `:target` reveal keys on — `FilterSheet`'s `SHEET_ID`. */
 const SHEET = "#tvaryny-filters";
 
@@ -103,6 +105,33 @@ test.describe("/tvaryny deck entry — keyboard focus", () => {
       label: "mobile deck-entry link",
       locator: page.getByTestId("deck-entry-mobile"),
     });
+  });
+});
+
+/**
+ * Phase D raised this control from `min-h-11` to `min-h-12`. Asserted rather
+ * than left in the class list: a `min-h-*` with no measurement behind it is
+ * documentation, and the same branch's own standing constraint — a documented
+ * limit with no test exercising it is not a limit — is what makes this a
+ * required assertion rather than a nicety. `min-height` is also not the
+ * rendered height: padding, a line box, or a flex parent can each leave the
+ * real target short of the class's number without the class ever changing.
+ *
+ * Mobile only, matching the diff that raised it. The desktop instance is a
+ * separate element with its own classes and is not this change's to assert.
+ */
+test.describe("/tvaryny deck entry — touch target", () => {
+  test("the mobile entry link meets the 48px minimum", async ({ page }) => {
+    await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
+    const rect = await rectOf(page.getByTestId("deck-entry-mobile"), "mobile deck-entry link");
+
+    expect(
+      rect.height,
+      `the mobile deck-entry link is ${rect.height.toFixed(1)}px tall; ` +
+        `docs/design/README.md:200 sets ${MIN_TOUCH_TARGET_PX} as the minimum touch target ` +
+        `anywhere, stated as a civic-trust metric rather than the WCAG floor. It was 44 ` +
+        `before Phase D.`,
+    ).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_PX);
   });
 });
 

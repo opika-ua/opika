@@ -107,20 +107,24 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         rather than caused it.
 
         With the floor at 152 the photo absorbs the difference everywhere and
-        every viewport lands on a 12px margin — which is exactly the card's own
-        `p-3` bottom padding, i.e. the text now ends where it should:
+        every 640-tall viewport lands on a 12px margin — which is exactly the
+        card's own `p-3` bottom padding, i.e. the text now ends where it
+        should. Measured at HEAD, i.e. after DECK-2's 4px back button landed
+        on top of this change:
 
-          320x640   photo 166   margin 12      360x640   photo 188   margin 12
-          390x640   photo 200   margin 12      390x844   photo 396   margin 20
+          320x640   photo 162   margin 12      360x640   photo 184   margin 12
+          390x640   photo 196   margin 12      390x844   photo 396   margin 16
 
-        `max-h-99` preserves 396 as the ceiling, so nothing changes at the
-        design's own 390x844 frame — that row is byte-identical before and
-        after.
+        `max-h-99` preserves 396 as the ceiling, so the photo is unchanged at
+        the design's own 390x844 frame. The margin there is not: the photo is
+        pinned at its ceiling and cannot absorb, so DECK-2's 4px came off the
+        margin instead (20 -> 16, still clear of PHONE's floor of 12). That
+        frame is the one place the elastic photo does not pay.
 
         ⚠ 152 (`min-h-38`) is a proposal, not a measured design value. It is
         the point below which this stops being a photograph of an animal and
-        becomes a strip, and it currently carries 14px of headroom under the
-        smallest real measurement (166 at 320). `discovery-layout.harness.ts`
+        becomes a strip, and it currently carries 10px of headroom under the
+        smallest real measurement (162 at 320). `discovery-layout.harness.ts`
         asserts it: a layout that would force the photo below it fails loudly
         naming the viewport and both numbers, rather than clipping text
         invisibly the way this did.

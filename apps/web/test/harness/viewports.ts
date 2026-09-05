@@ -81,12 +81,13 @@ export const ANDROID_PHONE: Viewport = { name: "360x640 android phone", width: 3
  * 320x640 — the narrowest width still worth calling a real device (iPhone SE
  * 1st gen, small budget Androids).
  *
- * Deliberately NOT in the deck's assertion loop: the shelter line already
- * measures -22px here on unmodified code, which is a real pre-existing clip
- * rather than a regression, and asserting against it would make the suite red
- * for a defect it did not cause. It exists so that clip is *measured* and can
- * be tracked, per the standing rule that a documented limit with no test
- * exercising it is not a limit.
+ * Added outside the deck's assertion loop and moved into it in the same
+ * branch: on unmodified code the shelter line measured -22px here — a real
+ * pre-existing clip rather than a regression — so asserting on it first would
+ * have made the suite red for a defect it did not cause. DECK-1's elastic
+ * photo is what made it assertable; it now carries a real floor in
+ * `discovery-layout.harness.ts`'s `MIN_SHELTER_MARGIN_PX` like every other
+ * viewport in that loop.
  */
 export const NARROW_PHONE: Viewport = { name: "320x640 narrow phone", width: 320, height: 640 };
 

@@ -12,7 +12,7 @@
  * the migration is the route, a rate-limit IP identity, and nothing else.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import {
   expectContainedBy,
   expectFocusVisibleOutline,
@@ -85,6 +85,20 @@ const MIN_SHELTER_MARGIN_PX = new Map<Viewport, number>([
  * absorbs; and if the photo cannot absorb enough, *this* fails.
  */
 const MIN_PHOTO_HEIGHT_PX = 152;
+
+/**
+ * docs/design/README.md:200 — 48 minimum touch target anywhere, stated there
+ * as a civic-trust metric rather than the WCAG floor.
+ *
+ * Both of the deck's own buttons were `min-h-11` (44) until Phase D raised
+ * them. Measured rather than trusted to the class list for two reasons: a
+ * `min-h-*` with no assertion behind it is documentation and decays at
+ * exactly the rate the layout changes (`docs/standing-constraints.md`), and
+ * `min-height` is not the rendered height — a flex parent, a line box or a
+ * later padding change can leave the real target short of the class's number
+ * without the class ever changing.
+ */
+const MIN_TOUCH_TARGET_PX = 48;
 
 /**
  * Keyed by the viewport object, not its `name`, and loud when absent.
@@ -190,6 +204,25 @@ for (const viewport of [
           `the card's overflow-hidden edge, unpainted and unreported. Recover height or state ` +
           `that this viewport is unsupported; do not lower the floor to make this pass.`,
       ).toBeGreaterThanOrEqual(MIN_PHOTO_HEIGHT_PX);
+    });
+
+    /**
+     * In the loop, not once at one size: this is the button DECK-2 raised,
+     * and the narrow viewports are exactly where a header row runs out of
+     * width and a control gets squeezed. The back button is also the deck's
+     * only exit for a touch user.
+     */
+    test(`the back-to-list button is at least ${MIN_TOUCH_TARGET_PX}px tall`, async ({ page }) => {
+      const button = await rectOf(page.getByTestId("deck-back-to-list"), "back-to-list button");
+
+      expect(
+        button.height,
+        `the back-to-list button is ${button.height.toFixed(1)}px tall at ${viewport.name}; ` +
+          `docs/design/README.md:200 sets ${MIN_TOUCH_TARGET_PX} as the minimum touch target ` +
+          `anywhere. It was 44 before Phase D, and the 4px that closed the gap comes out of ` +
+          `the photo (see SwipeCard's own note), so a regression here and a regression in the ` +
+          `photo floor above are the same budget seen from two ends.`,
+      ).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_PX);
     });
 
     // Lost fix 3.
@@ -306,6 +339,53 @@ test.describe("/tvaryny/gortaty keyboard focus", () => {
     await expectFocusVisibleOutline(page, {
       label: "back-to-list button",
       locator: page.getByTestId("deck-back-to-list"),
+    });
+  });
+});
+
+/**
+ * The deck's error state, which had no harness coverage of any kind before
+ * Phase D — so the retry button's 44px target and its complete absence of
+ * focus styling both survived every gate until a manual sweep looked.
+ *
+ * Reached by aborting the one request the deck makes from the browser
+ * (`feed.list` over `/api/rpc`, `use-feed-deck.ts`). A refused fetch is a
+ * `TypeError` at the fetch layer, which that hook maps to the `offline`
+ * reason — the copy differs per reason, but the retry button is the same
+ * element in all three, so this covers the control rather than one message.
+ *
+ * `readySelector: RETRY` is load-bearing, not boilerplate: the error state is
+ * client-rendered after a failed fetch, so measuring without waiting for the
+ * button would race hydration. It also makes a disappeared retry button fail
+ * as a timeout naming the selector, rather than as a `rectOf` null-box further
+ * down with less to say.
+ */
+test.describe("/tvaryny/gortaty error state", () => {
+  const RETRY = "[data-testid='deck-error-retry']";
+
+  async function openFailedDeck(page: Page): Promise<void> {
+    await page.route("**/api/rpc**", (route) => route.abort());
+    await openRoute(page, ROUTE, PHONE, { readySelector: RETRY });
+  }
+
+  test(`the retry button is at least ${MIN_TOUCH_TARGET_PX}px tall`, async ({ page }) => {
+    await openFailedDeck(page);
+    const button = await rectOf(page.locator(RETRY), "deck retry button");
+
+    expect(
+      button.height,
+      `the deck's retry button is ${button.height.toFixed(1)}px tall; ` +
+        `docs/design/README.md:200 sets ${MIN_TOUCH_TARGET_PX} as the minimum touch target ` +
+        `anywhere. It was 44 before Phase D.`,
+    ).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_PX);
+  });
+
+  test("the retry button shows a real focus-visible outline", async ({ page }) => {
+    await openFailedDeck(page);
+
+    await expectFocusVisibleOutline(page, {
+      label: "deck retry button",
+      locator: page.locator(RETRY),
     });
   });
 });
