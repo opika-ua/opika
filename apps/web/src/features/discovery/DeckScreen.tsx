@@ -95,12 +95,32 @@ export function DeckScreen({
     // phase. font-rg is scoped to the new header below, not this wrapper,
     // so it can't shift the geometry those harnesses assert on.
     <div className="max-w-97.5 mx-auto h-dvh bg-rg-page flex flex-col p-group box-border overflow-hidden font-sans">
-      <header className="font-rg flex items-center gap-3 min-h-11">
+      {/*
+        `min-h-12` (48), not `min-h-11` (44): docs/design/README.md:200 sets 48
+        as the minimum touch target *anywhere* and calls it a civic-trust
+        metric rather than the WCAG floor. Phase T fixed the same defect on the
+        detail page; a Phase D sweep found this one plus the gallery's mobile
+        deck entry and the deck error state's retry button.
+
+        Deliberately landed AFTER DECK-1 and as its own commit. Before DECK-1
+        this cost 4px of a shelter-line margin that had none — it clipped 360
+        outright. Now it costs 4px of photo, which is bounded, measured (the
+        table in `SwipeCard.tsx`'s photo-area comment), and exactly what the
+        elastic photo exists to absorb. Same 4px; the difference is what pays
+        for it. The one frame where the photo cannot pay is 390x844, where it
+        sits at its `max-h-99` ceiling — there the 4px comes off the
+        shelter-line margin instead, 20 -> 16, still clear of that viewport's
+        floor of 12.
+
+        The header's own floor follows the button rather than leading it — a
+        44px floor under a 48px child was already doing nothing.
+      */}
+      <header className="font-rg flex items-center gap-3 min-h-12">
         <button
           type="button"
           onClick={exit}
           data-testid="deck-back-to-list"
-          className="min-h-11 inline-flex items-center gap-2 shrink-0 rounded-rg-button bg-rg-fill px-4 text-[13px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+          className="min-h-12 inline-flex items-center gap-2 shrink-0 rounded-rg-button bg-rg-fill px-4 text-[13px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
           {uk.feed.backToList}
         </button>
