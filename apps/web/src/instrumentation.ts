@@ -15,5 +15,7 @@ export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { validateEnv } = await import("./api/env");
     validateEnv();
+    const { assertDemoDiscoverabilityInvariant } = await import("./seo-flags");
+    assertDemoDiscoverabilityInvariant();
   }
 }

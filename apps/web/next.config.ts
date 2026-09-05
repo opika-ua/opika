@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { NOINDEX_EVERYTHING } from "./src/seo-flags";
+import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./src/seo-flags";
 
 /**
  * H1's real deploy invariant, checked where it's actually load-bearing —
@@ -62,15 +62,17 @@ const nextConfig: NextConfig = {
     ];
   },
   /**
-   * `NOINDEX_EVERYTHING` (`src/seo-flags.ts`) — this corpus is fictional,
-   * every route is blocked from indexing until real shelters exist.
-   * `app/robots.ts` disallows crawling from the same flag; this header
-   * additionally covers anything a crawler reaches without ever consulting
-   * robots.txt (a direct link, a referrer), and covers `/public` files too
-   * — "checked before the filesystem" per Next's own `headers()` docs.
+   * `SITE_IS_PUBLICLY_DISCOVERABLE` (`src/seo-flags.ts`) — every route is
+   * blocked from indexing until this deploy is meant to be found, a
+   * separate fact from whether the registry holds real shelters (see that
+   * file's own comment). `app/robots.ts` disallows crawling from the same
+   * flag; this header additionally covers anything a crawler reaches
+   * without ever consulting robots.txt (a direct link, a referrer), and
+   * covers `/public` files too — "checked before the filesystem" per
+   * Next's own `headers()` docs.
    */
   async headers() {
-    if (!NOINDEX_EVERYTHING) return [];
+    if (SITE_IS_PUBLICLY_DISCOVERABLE) return [];
     return [
       {
         source: "/:path*",

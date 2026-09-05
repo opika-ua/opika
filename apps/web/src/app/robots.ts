@@ -1,15 +1,16 @@
 import type { MetadataRoute } from "next";
-import { NOINDEX_EVERYTHING } from "../seo-flags";
+import { SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
 
 /**
- * `NOINDEX_EVERYTHING` (`src/seo-flags.ts`) — this corpus is fictional
- * shelters and animals; nothing here may reach a search index. Disallowing
- * everything is the crawler-cooperative half of that; `next.config.ts`'s
- * `X-Robots-Tag` header (from the same flag) is the half that still applies
- * even if a crawler never requests this file.
+ * `SITE_IS_PUBLICLY_DISCOVERABLE` (`src/seo-flags.ts`) — this is a fact
+ * about launch readiness, independent of whether the registry holds real
+ * shelters (see that file's own comment for why they're separate).
+ * Disallowing everything is the crawler-cooperative half of not being
+ * ready; `next.config.ts`'s `X-Robots-Tag` header (from the same flag) is
+ * the half that still applies even if a crawler never requests this file.
  */
 export default function robots(): MetadataRoute.Robots {
-  if (!NOINDEX_EVERYTHING) {
+  if (SITE_IS_PUBLICLY_DISCOVERABLE) {
     return { rules: { userAgent: "*", allow: "/" } };
   }
   return { rules: { userAgent: "*", disallow: "/" } };

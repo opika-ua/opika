@@ -388,6 +388,48 @@ hardware with forced dark mode on. That check gates whether this is a phase or a
 
 ---
 
+### Phase D — Demo honesty
+
+Production is publicly reachable and holds 320 fabricated animals from fabricated shelters,
+unlabelled, while `/prytulkam` opens with «реєстр тварин із перевірених притулків». A shelter
+volunteer can open the site before replying to an outreach message and see a registry of
+animals that do not exist. This phase does not remove the demo data — it labels it,
+de-indexes it, and makes the seeded corpus varied enough to actually test the surfaces it
+exercises, rather than remaining a well-behaved fiction that never breaks anything.
+
+Planned in a working session whose transcript, not this document, was its only record until
+now — written down here per `docs/standing-constraints.md`'s "check a document's claims
+before relying on them" and "one document per subject," after `opika-reviewer` correctly
+flagged every `D-#` code comment referencing a plan that didn't exist in `docs/`. Hours were
+not estimated per row in the original brief; none are given below rather than invented.
+
+Three rows (DECK-1 through DECK-3) were carved out first and already shipped, because D-2's
+banner needs a deck with spare height budget and the deck had none — see their own commit
+messages and `docs/design/README.md`'s text-scaling-gap section for the full record.
+
+| # | Task | Status |
+|---|---|---|
+| DECK-1 | Invert what the deck's card yields under height pressure — the photo shrinks (to a documented floor), never the shelter-line text. Recovered −22px (320×640) and 0px (360×640) margins to 12px everywhere | **Done** — #52 |
+| DECK-2 | The deck's three 44px touch targets (back-to-list, gallery's mobile deck-entry, error-state retry) raised to 48px, plus the retry button's missing focus ring. Cost lands on photo height (DECK-1's slack) at every 640-tall viewport; at 390×844 the photo is already pinned at its `max-h-99` ceiling and can't absorb, so there the 4px comes off the shelter-line margin instead (20 → 16, still clear of that viewport's floor) | **Done** — #52 |
+| DECK-3 | Record, not assert, that Android text-scaling is unverifiable in the Playwright harness (`-webkit-text-size-adjust` has no effect in desktop Chromium) | **Done** — #52 |
+| D-0 | Remove the production `DATABASE_URL` from Oleksii's persistent Windows environment. **Blocks:** D-6, D-9's live verification, D-7's rehearsal | Open — Oleksii's |
+| D-1 | Two constants, not one: `REGISTRY_HAS_NO_REAL_SHELTERS` (drives the demo banner, `firstRun.promise` swap, `shelterVerifiedYears` badge suppression — all D-2) and `SITE_IS_PUBLICLY_DISCOVERABLE` (drives `X-Robots-Tag`, `robots.ts`, and D-3's root-layout metadata), plus `assertDemoDiscoverabilityInvariant`, thrown only if both are true and permitting the launch-gate window below where real shelters predate public discoverability. The real day-to-day gate is `seo-flags.test.ts` catching that combination in CI on the real constants before either reaches a deploy; the runtime call from `instrumentation.ts` is defense-in-depth, not a verified hard boot refusal — a throw there follows `validateEnv()`'s own documented behaviour (`apps/web/src/api/env.ts`: per-request 500s, not a stop). A single flag shipped first (#43) and was reverted here after `docs/standing-constraints.md`'s "two facts" entry — see that entry and this row's own history for why | In progress |
+| D-3 | Add `robots` to root-layout metadata; drop `Disallow: /` from `robots.ts`. `Disallow: /` stops a crawler fetching pages at all, so it never reads a page's own `noindex` meta or the `X-Robots-Tag` header — an already-indexed URL can't be de-indexed without the crawler visiting it, which `Disallow: /` itself prevents. Root-layout metadata avoids that trap. **Depends on:** D-1 | Untouched |
+| D-2 | Compact demo banner inside the deck's existing header row (replace, don't add — zero new height) plus the `firstRun.promise` swap. Ukrainian ships `[COPY PENDING]`, pinned by `copy-status.test.ts`. **Depends on:** D-1 | Untouched |
+| D-8 | Make the image path honest in dev/test: no `.env.local`/R2 credentials, every route still renders. **Blocks:** D-4, D-6 | Untouched |
+| D-9 | Demo-marker column plus a positive seed guard: `seed.ts` refuses to truncate — regardless of `--force` — if any shelter or animal lacks the marker. **Blocks:** D-4, D-6 | Untouched |
+| D-5 | Every demo shelter's contact is a clearly-marked placeholder sentinel; no invented phone number or handle anywhere in the corpus | Untouched |
+| D-4 | Hostile corpus: registered/unregistered legal forms, with/without donation link, a wrapping shelter name, no freshness sentence, 0/1/6-photo animals, a wrapping animal name, no description, unknown vaccination, one reserved-and-listed, freshness anchors spanning all three pip states on one page. **Depends on:** D-5, D-8, D-9 | Untouched |
+| D-6 | 5–6 real CC0/public-domain photographs through the R2 pipeline, provenance recorded per file, no operator-identifying EXIF/IPTC. **Depends on:** D-0, D-8, D-9 | Untouched, blocked on D-0 |
+| D-7 | Write the demo-to-real transition into `docs/standing-constraints.md` and the onboarding checklist: wipe before the first `onboard-shelter --commit`; the banner (`REGISTRY_HAS_NO_REAL_SHELTERS`) comes down when the wipe happens, separately from noindex (`SITE_IS_PUBLICLY_DISCOVERABLE`), which stays down through the launch-gate window until the site is actually meant to be found — the two do **not** come down together, that is the whole point of D-1's two constants; why `robots.txt` allowing crawl is deliberate; the coexistence window named as the point of maximum danger. **Depends on:** D-0 | Untouched, blocked on D-0 |
+
+**Done when:** production no longer silently presents fabricated shelters as real to a search
+engine or a first-time visitor; the demo corpus is hostile enough to exercise every rendering
+edge case named in D-4; and the transition to real data is a documented, guarded procedure
+rather than a manual judgment call.
+
+---
+
 ## Part 3 — Timeline
 
 The **Hours** column is a relative-complexity signal, not a schedule. These figures were estimated
@@ -542,12 +584,20 @@ first real address is inserted:
 
 ### Before any route is indexed
 
-**Flip `NOINDEX_EVERYTHING` (`apps/web/src/seo-flags.ts`) off, or replace it with per-route
-logic.** The whole corpus is fictional until real shelters are onboarded (`CLAUDE.md`'s "No
-real shelter data" rule). Indexing it would put fictional animals in front of a real
-adopter. Later than the location-fuzzing gate above, not earlier — a real shelter can exist
-in the database, verified and reachable by direct link, before the site is meant to be
-publicly discoverable at all.
+**Flip `SITE_IS_PUBLICLY_DISCOVERABLE` (`apps/web/src/seo-flags.ts`) on, or replace it with
+per-route logic.** This is a separate fact from `REGISTRY_HAS_NO_REAL_SHELTERS` in the same
+file — the two constants exist specifically because this paragraph's window collapses to
+nothing if they don't: a real shelter can exist in the database, verified and reachable by
+direct link, before the site is meant to be publicly discoverable at all.
+`REGISTRY_HAS_NO_REAL_SHELTERS` may already be `false` by this point (the demo corpus
+wiped, real shelters onboarded); `SITE_IS_PUBLICLY_DISCOVERABLE` is the later, separate
+gate. Indexing while the registry still holds no real shelters would put fictional animals
+in front of a real adopter — caught in CI by `seo-flags.test.ts`'s own assertion on the real
+constants before either ever reaches a deploy. `assertDemoDiscoverabilityInvariant`
+(`instrumentation.ts`) is the second, runtime layer of the same check: defense in depth for
+a build that reached a running instance without that test having run, not the mechanism
+this gate is actually relying on day to day. Later than the location-fuzzing gate above, not
+earlier.
 
 ### Before real traffic (not urgent at preview-only volume)
 

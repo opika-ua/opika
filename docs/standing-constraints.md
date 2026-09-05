@@ -180,6 +180,20 @@ describes a moment.
   means in each state, that comment is the union struggling to get out.
 - **`now` is a parameter** to any function that should be pure. Never read the clock inside
   one.
+- **Two facts that happen to be true at the same time are not one fact.** Before collapsing
+  two conditions into a single flag "so they can never disagree," find the state where they
+  diverge. If a plan or a design document reserves that state on purpose, the conditions stay
+  separate constants and the relationship between them — usually an asserted implication, not
+  a shared boolean — is what actually protects the invariant the single flag was trying to.
+
+  *Why:* `NOINDEX_EVERYTHING` (#43) already conflated "the registry holds no real shelters"
+  and "the site is publicly discoverable" into one flag, unreviewed, across a phase
+  boundary. Phase D's D-1 inherited and named the conflation rather than introducing it —
+  found only when `docs/build-plan.md`'s launch-gate paragraph, sitting two lines below the
+  edit, turned out to reserve exactly the state where the two facts diverge: a verified real
+  shelter can exist, reachable by direct link, before the site is meant to be publicly
+  discoverable. One flag could not express that without either deleting the window or naming
+  itself after only one of the two facts.
 - **Public views are built with `pick`, never `omit`.** `omit` is allow-by-default: a field
   added to a domain object appears in the API silently. The fields being withheld are
   shelters' exact addresses and phone numbers.
