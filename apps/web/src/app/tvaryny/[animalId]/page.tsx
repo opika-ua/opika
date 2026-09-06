@@ -111,10 +111,10 @@ const safeById = cache(async (animalId: AnimalId) => {
  * D-2: this route builds its own `description`/`openGraph.description` rather
  * than inheriting the root layout's — Next does not merge them, it overrides.
  * Without its own demo swap, `/tvaryny/{id}` would preview an animal's
- * age/size with no demo-data disclosure at all, while every other route
- * correctly shows one — exactly the shared link `/prytulkam` tells shelters
- * they can paste into Telegram, so this is the route the disclosure matters
- * on most, not least.
+ * age/size with no demo-data disclosure at all — exactly the shared link
+ * `/prytulkam` tells shelters they can paste into Telegram, so this is one
+ * of the routes the disclosure matters on most (see the root layout's own
+ * comment for which routes deliberately don't carry it).
  */
 export async function generateMetadata({
   params,
@@ -129,7 +129,7 @@ export async function generateMetadata({
   if (!animal) return {};
 
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
-    ? uk.demo.promise
+    ? uk.demo.bannerNotice
     : [ageBucketLabel(animal.ageBucket), sizeLabel(animal.size)].join(" · ");
   const photo = animal.photos[0];
   const publicBaseUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;

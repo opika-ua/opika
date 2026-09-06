@@ -91,7 +91,7 @@ existing header. `docs/copy-and-ia-critique.md`'s D5/E6 sections are annotated a
 rather than left to read as still-current advice against exactly what was done.
 
 **Done, 2026-09-06 — all three D-2 strings landed, nothing renders a marker anywhere.**
-`uk.demo.promise`, `uk.demo.bannerNotice`, and `uk.actions.notAJudgementNotice` all have real
+`uk.demo.bannerNotice`, `uk.demo.deckLabel`, and `uk.actions.notAJudgementNotice` all have real
 Ukrainian (`copy-status.test.ts` confirms zero placeholders across all three), with English
 counterparts in `en.ts`. The disclaimer was confirmed to be a single string (not two keys)
 before writing anything, per Oleksii's stated condition for that check.
@@ -101,10 +101,9 @@ The paragraph above originally read as if all three strings, including the edit 
 «просто» from the recovered notice, were Oleksii's own wording. They were not, and the review
 was right to stop on it. Corrected, on Oleksii's own account:
 
-- `uk.demo.promise` and `uk.demo.bannerNotice` — **drafted by Claude from an English sense.**
-  Oleksii selected these two from three offered options on 2026-09-05. Approved wording, not
-  authored wording — recorded as such in both `packages/i18n/src/messages/uk.ts` and
-  `docs/build-plan.md`'s D-2 row.
+- `uk.demo.bannerNotice` and `uk.demo.deckLabel` (named `promise`/`bannerNotice` until a second
+  rename below) — **drafted by Claude from an English sense; Oleksii selected these from
+  offered options on 2026-09-05.**
 - `uk.actions.notAJudgementNotice` — **the «просто» cut was Claude's unapproved edit, not
   Oleksii's instruction, and it is reverted.** The notice now ships exactly as the original
   `firstRun.disclaimer`'s third clause read: «Не зараз» — це просто фільтр, а не оцінка
@@ -112,19 +111,31 @@ was right to stop on it. Corrected, on Oleksii's own account:
   needs no fresh approval, which is precisely why reverting the edit was the right fix rather
   than seeking approval for the edited version.
 
-Every test and doc comment asserting the edited (просто-less) string, or attributing the two
-drafted strings to Oleksii directly, has been corrected alongside this entry — `uk.ts`, `en.ts`,
+Every test and doc comment asserting the edited (просто-less) string, or misstating either
+string's provenance, has been corrected alongside this entry — `uk.ts`, `en.ts`,
 `copy-status.test.ts`, `animal-detail.harness.ts`, `AnimalDetailScreen.tsx`,
 `docs/design/README.md`, `docs/copy-and-ia-critique.md`, `docs/build-plan.md`.
 
-**Amendment to the D2 decision on `og:description`:** the original decision omitted
-`description`/`openGraph.description` entirely rather than render `[COPY PENDING]` — a
-fallback for having no honest string. `uk.demo.promise` is real now, so every route uses it as
-its description while `REGISTRY_HAS_NO_REAL_SHELTERS`, `/prytulkam` included: that page is the
-link Oleksii actually sends to shelters, and a weaker title-only fallback there works against
-the honesty this phase exists for. `DeckScreen.tsx`'s `pendingCopyKeys`-based fallback (built
-for the same reason, before `bannerNotice` had real text) is likewise removed — both keys are
-simple, direct catalogue references now.
+**Renamed, 2026-09-06 (PR #53 review):** the keys `demo.promise` and `demo.bannerNotice`
+described each other's contents, not their own — `promise` (mirroring `firstRun.promise` by
+habit) actually held the sentence shown in a shared link's preview *banner*, and `bannerNotice`
+actually held the deck's short *label*. Renamed to `demo.bannerNotice` (the banner sentence) and
+`demo.deckLabel` (the deck label) so each name describes what it holds.
+
+**Amendment to the D2 decision on `og:description`, scoped (Option B, 2026-09-06 — PR #53
+review):** the original decision omitted `description`/`openGraph.description` entirely rather
+than render `[COPY PENDING]` — a fallback for having no honest string. `uk.demo.bannerNotice` is
+real now, so the root layout defaults to it as the description while
+`REGISTRY_HAS_NO_REAL_SHELTERS` — **but this is a default, not a blanket rule.** An earlier pass
+had every route use it, `/prytulkam` and `/pro` included, without either page's inclusion ever
+being confirmed as intentional — the same unattributed-decision problem as the wording
+correction above, one level up. Oleksii scoped it: `/prytulkam` and `/pro` override the root
+default with their own existing opening sentences (`uk.forShelters.whatThisIs`,
+`uk.about.intro`, both verbatim, no new keys, no trimming) — this disclosure was never meant to
+reach those two specifically, only the surfaces that actually show fabricated data.
+`DeckScreen.tsx`'s `pendingCopyKeys`-based fallback (built for the same reason, before
+`deckLabel` had real text) is likewise removed — both keys are simple, direct catalogue
+references now.
 
 The previously-open question — whether the detail-page notice rendering a marker live and
 ungated was consistent with the banner/preview's "withhold while pending" treatment — is now

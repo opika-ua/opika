@@ -1,8 +1,35 @@
 import { uk } from "@opika/i18n";
+import type { Metadata } from "next";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 
-/** Subject only — the root layout's `title.template` appends the product name. */
-export const metadata = { title: uk.about.title };
+/**
+ * Title only, plus an explicit `description`/`openGraph` override (Option B,
+ * 2026-09-06, see `docs/observations.md`) — without one this page would
+ * inherit the root layout's default, which swaps to the demo-data
+ * disclosure while `REGISTRY_HAS_NO_REAL_SHELTERS`. That disclosure was
+ * never meant to reach this page specifically. `uk.about.intro` is the
+ * page's own existing, already-shipped opening sentence — used verbatim,
+ * not trimmed, and not a new key. A full `openGraph` object, not just
+ * `description` — Next replaces a parent's `openGraph` wholesale rather
+ * than deep-merging it once a child sets any part of it (same gotcha
+ * `/tvaryny/[animalId]/page.tsx` already has its own note on). No `title`
+ * inside `openGraph`, deliberately: unlike the nested object as a whole,
+ * Next resolves a missing `openGraph.title` from the page's own
+ * already-templated `title` («Про проєкт — Opika»); setting it explicitly
+ * here would instead freeze it at the untemplated subject, dropping the
+ * brand name from the link-preview headline (PR #53 review, caught by
+ * rebuilding and diffing the served `og:title`, not by inspection).
+ */
+export const metadata: Metadata = {
+  title: uk.about.title,
+  description: uk.about.intro,
+  openGraph: {
+    type: "website",
+    siteName: "Opika",
+    locale: "uk_UA",
+    description: uk.about.intro,
+  },
+};
 
 /**
  * «Про проєкт» — no mock, per this phase's own scope: "three or four

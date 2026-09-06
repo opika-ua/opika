@@ -16,11 +16,13 @@
 
 /**
  * Does the registry currently hold zero real shelters. Drives the deck's
- * demo banner (`DeckScreen.tsx`), the root layout's `firstRun.promise` swap
- * (`app/layout.tsx`), and suppression of the `shelterVerifiedYears` badge
- * (`AnimalDetailScreen.tsx`) — everything that would otherwise assert
- * something true about a fictional shelter to a visitor. All three are D-2,
- * and all three are built.
+ * demo label (`DeckScreen.tsx`), the root layout's default `description`
+ * swap (`app/layout.tsx` — `/prytulkam` and `/pro` override this default
+ * with their own opening sentences instead, Option B, see
+ * `docs/observations.md`), and suppression of the `shelterVerifiedYears`
+ * badge (`AnimalDetailScreen.tsx`) — everything that would otherwise assert
+ * something true about a fictional shelter to a visitor. All are D-2, and
+ * all are built.
  *
  * This is a fact about *data*, not about *reach*. It goes `false` the
  * moment the demo corpus is wiped and the first real shelter is onboarded —

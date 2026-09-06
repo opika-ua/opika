@@ -1,12 +1,42 @@
 import { uk } from "@opika/i18n";
+import type { Metadata } from "next";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 
 /**
- * The subject only. The root layout's `title.template` («%s — Opika») appends
+ * The subject. The root layout's `title.template` («%s — Opika») appends
  * the product name — spelling it out here too rendered «Для притулків — Opika —
  * Opika», caught by reading the served HTML rather than by any assertion.
+ *
+ * `description`/`openGraph` are an explicit override (Option B, 2026-09-06,
+ * see `docs/observations.md`) — without one this page would inherit the
+ * root layout's default, which swaps to the demo-data disclosure while
+ * `REGISTRY_HAS_NO_REAL_SHELTERS`. This is the link Oleksii actually sends
+ * to shelters, and that disclosure was never meant to reach it specifically
+ * — a scope decided, not an oversight. `uk.forShelters.whatThisIs` is the
+ * page's own existing, already-shipped §1 sentence (the first paragraph
+ * under the `<h1>`) — used verbatim, not trimmed, and not a new key. A full
+ * `openGraph` object, not just `description` — Next replaces a parent's
+ * `openGraph` wholesale rather than deep-merging it once a child sets any
+ * part of it (same gotcha `/tvaryny/[animalId]/page.tsx` already has its
+ * own note on). No `title` inside `openGraph`, deliberately: unlike the
+ * nested object as a whole, Next resolves a missing `openGraph.title` from
+ * the page's own already-templated `title` («Для притулків — Opika»),
+ * exactly the string above — setting it explicitly here would instead
+ * freeze it at the untemplated subject, dropping the brand name from the
+ * one link-preview headline this page's own comment already flags as
+ * having failed the same way once (PR #53 review, caught by rebuilding and
+ * diffing the served `og:title`, not by inspection).
  */
-export const metadata = { title: uk.forShelters.title };
+export const metadata: Metadata = {
+  title: uk.forShelters.title,
+  description: uk.forShelters.whatThisIs,
+  openGraph: {
+    type: "website",
+    siteName: "Opika",
+    locale: "uk_UA",
+    description: uk.forShelters.whatThisIs,
+  },
+};
 
 /**
  * «Для притулків» — Phase T, closing critique finding E3.

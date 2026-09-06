@@ -216,23 +216,34 @@ describe("/tvaryny/gortaty noindex — independent of both seo-flags constants",
 });
 
 /**
- * D-2 (Oleksii, Phase D decisions, amended 2026-09-06): a shared link's
- * preview must not claim verified shelters exist while the registry holds
- * none. The original decision omitted the description entirely rather than
- * show a `[COPY PENDING]` marker — that was a fallback for having no
- * honest string. `uk.demo.promise` is real Ukrainian now, so every route
- * uses it, `/prytulkam` included: that's the link Oleksii actually sends to
- * shelters, and a weaker title-only fallback there is the opposite of this
- * phase's intent. Varied independently of `SITE_IS_PUBLICLY_DISCOVERABLE` —
- * same discipline as the describe block above — so this doesn't pass for a
- * consumer that actually reads the wrong flag.
+ * Transcribed from `uk.ts`, not imported from it — the describe blocks below
+ * assert `metadata.description`/`openGraph.description` against these, and
+ * comparing against the same constant the code renders would pass against
+ * any value that constant happens to hold, including an accidentally-deleted
+ * one.
  */
-describe("REGISTRY_HAS_NO_REAL_SHELTERS — link-preview description swap (D-2)", () => {
+const DEMO_BANNER_NOTICE =
+  "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.";
+const REAL_PROMISE =
+  "Тварини з перевірених притулків Київщини. Перегляньте список і подивіться, кого шукає дім.";
+
+/**
+ * D-2: a shared link's preview must not claim verified shelters exist while
+ * the registry holds none — this is the root layout's **default**, which
+ * every route inherits unless it overrides its own `description`.
+ * `/tvaryny/[animalId]` does (own describe block further down); `/prytulkam`
+ * and `/pro` do too, deliberately NOT with this swap (see their own describe
+ * blocks below — Option B, 2026-09-06, `docs/observations.md`). Varied
+ * independently of `SITE_IS_PUBLICLY_DISCOVERABLE` — same discipline as the
+ * describe block above — so this doesn't pass for a consumer that actually
+ * reads the wrong flag.
+ */
+describe("REGISTRY_HAS_NO_REAL_SHELTERS — root layout's default description swap (D-2)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
 
-  it("uses the demo promise while the registry holds no real shelters", async () => {
+  it("uses the demo banner notice while the registry holds no real shelters", async () => {
     vi.doMock("./seo-flags", () => ({
       SITE_IS_PUBLICLY_DISCOVERABLE: false,
       REGISTRY_HAS_NO_REAL_SHELTERS: true,
@@ -241,12 +252,8 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — link-preview description swap (D-2)"
 
     const { metadata } = await import("./app/layout");
 
-    // Transcribed from `uk.ts` rather than compared against `uk.demo.promise`
-    // itself — a self-comparing assertion passes against any value the constant
-    // happens to hold.
-    const demoPromise = "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.";
-    expect(metadata.description).toBe(demoPromise);
-    expect(metadata.openGraph?.description).toBe(demoPromise);
+    expect(metadata.description).toBe(DEMO_BANNER_NOTICE);
+    expect(metadata.openGraph?.description).toBe(DEMO_BANNER_NOTICE);
   });
 
   it("uses the real promise at the launch-gate window — real shelters, still not discoverable", async () => {
@@ -258,13 +265,8 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — link-preview description swap (D-2)"
 
     const { metadata } = await import("./app/layout");
 
-    // Transcribed from `uk.ts` rather than compared against `uk.firstRun.promise`
-    // itself — a self-comparing assertion passes against any value the constant
-    // happens to hold.
-    const realPromise =
-      "Тварини з перевірених притулків Київщини. Перегляньте список і подивіться, кого шукає дім.";
-    expect(metadata.description).toBe(realPromise);
-    expect(metadata.openGraph?.description).toBe(realPromise);
+    expect(metadata.description).toBe(REAL_PROMISE);
+    expect(metadata.openGraph?.description).toBe(REAL_PROMISE);
   });
 
   it("uses the real promise once fully launched", async () => {
@@ -276,14 +278,72 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — link-preview description swap (D-2)"
 
     const { metadata } = await import("./app/layout");
 
-    // Transcribed from `uk.ts` rather than compared against `uk.firstRun.promise`
-    // itself — a self-comparing assertion passes against any value the constant
-    // happens to hold.
-    const realPromise =
-      "Тварини з перевірених притулків Київщини. Перегляньте список і подивіться, кого шукає дім.";
-    expect(metadata.description).toBe(realPromise);
-    expect(metadata.openGraph?.description).toBe(realPromise);
+    expect(metadata.description).toBe(REAL_PROMISE);
+    expect(metadata.openGraph?.description).toBe(REAL_PROMISE);
   });
+});
+
+/**
+ * Option B, 2026-09-06 (`docs/observations.md`): `/prytulkam` is the link
+ * Oleksii sends to shelters directly — its own `description`/
+ * `openGraph.description` is `uk.forShelters.whatThisIs`, its existing §1
+ * sentence, and this page's `metadata` object does not read either
+ * seo-flags constant at all. `vi.doMock` here is therefore a no-op today
+ * (this page imports no such thing) rather than a demonstration that this
+ * override "wins" over the root layout's default — that part is Next's
+ * metadata-resolution behaviour (a child's own `description` replaces the
+ * parent's, verified separately by building and reading the served HTML,
+ * not by this unit test). What `it.each` actually guards: if a future edit
+ * ever makes this page read `REGISTRY_HAS_NO_REAL_SHELTERS` after all, the
+ * mock stops being a no-op and this test starts noticing.
+ */
+describe("/prytulkam — description is its own opening sentence, never the demo swap", () => {
+  it.each([true, false])(
+    "uses uk.forShelters.whatThisIs when REGISTRY_HAS_NO_REAL_SHELTERS=%s",
+    async (registryHasNoRealShelters) => {
+      vi.resetModules();
+      vi.doMock("./seo-flags", () => ({
+        SITE_IS_PUBLICLY_DISCOVERABLE: false,
+        REGISTRY_HAS_NO_REAL_SHELTERS: registryHasNoRealShelters,
+        assertDemoDiscoverabilityInvariant: vi.fn(),
+      }));
+
+      const { metadata } = await import("./app/prytulkam/page");
+
+      const whatThisIs =
+        "Opika — реєстр тварин із перевірених притулків Київщини, де кожен ваш підопічний отримує власну сторінку.";
+      expect(metadata.description).toBe(whatThisIs);
+      expect(metadata.openGraph?.description).toBe(whatThisIs);
+      expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
+    },
+  );
+});
+
+/**
+ * Same reasoning as `/prytulkam` above, for `/pro` — its own `uk.about.intro`,
+ * and the same caveat about what the `it.each` parameterisation does and
+ * does not prove today.
+ */
+describe("/pro — description is its own opening sentence, never the demo swap", () => {
+  it.each([true, false])(
+    "uses uk.about.intro when REGISTRY_HAS_NO_REAL_SHELTERS=%s",
+    async (registryHasNoRealShelters) => {
+      vi.resetModules();
+      vi.doMock("./seo-flags", () => ({
+        SITE_IS_PUBLICLY_DISCOVERABLE: false,
+        REGISTRY_HAS_NO_REAL_SHELTERS: registryHasNoRealShelters,
+        assertDemoDiscoverabilityInvariant: vi.fn(),
+      }));
+
+      const { metadata } = await import("./app/pro/page");
+
+      const intro =
+        "Opika — реєстр тварин притулків Київщини, який я роблю сам, поза роботою. Немає команди, немає інвестора — є одна людина, яка вважає, що знайти дім для тварини не повинно залежати від того, чи вміє притулок вести застарілий Excel-файл.";
+      expect(metadata.description).toBe(intro);
+      expect(metadata.openGraph?.description).toBe(intro);
+      expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
+    },
+  );
 });
 
 /**
@@ -334,12 +394,8 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — /tvaryny/[animalId] link-preview des
       params: Promise.resolve({ animalId: fakeAnimal.id }),
     });
 
-    // Transcribed from `uk.ts` rather than compared against `uk.demo.promise`
-    // itself — a self-comparing assertion passes against any value the constant
-    // happens to hold.
-    const demoPromise = "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.";
-    expect(metadata.description).toBe(demoPromise);
-    expect(metadata.openGraph?.description).toBe(demoPromise);
+    expect(metadata.description).toBe(DEMO_BANNER_NOTICE);
+    expect(metadata.openGraph?.description).toBe(DEMO_BANNER_NOTICE);
   });
 
   it("uses the animal's own age/size at the launch-gate window — real shelters, still not discoverable", async () => {

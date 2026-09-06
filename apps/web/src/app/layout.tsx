@@ -31,19 +31,17 @@ import { commissioner, eUkraine, literata } from "./fonts";
  * the real domain.
  */
 /**
- * D-2 (Oleksii, Phase D decisions, amended 2026-09-06): a shared link's
- * preview must not claim verified shelters exist while
- * `REGISTRY_HAS_NO_REAL_SHELTERS`. The original decision omitted the
- * description entirely rather than show a `[COPY PENDING]` marker to a
- * real visitor — that was a fallback for having no honest string yet.
- * `uk.demo.promise` is real Ukrainian now, so every route uses it as its
- * description while the flag is true, `/prytulkam` included — that page is
- * the link Oleksii actually sends to shelters, and carrying this disclosure
- * into its preview is the honesty this phase is for, not a reason to prefer
- * a weaker title-only fallback.
+ * D-2: a shared link's preview must not claim verified shelters exist while
+ * `REGISTRY_HAS_NO_REAL_SHELTERS`. This is the **default** every route
+ * inherits unless it sets its own `description` — `/tvaryny/[animalId]`
+ * does (its own per-animal swap); `/prytulkam` and `/pro` do too, overriding
+ * with their own existing opening sentences rather than this disclosure
+ * (Option B, 2026-09-06, see `docs/observations.md`) — this default was
+ * never meant to reach those two specifically, and reaching them was an
+ * unconfirmed scope expansion, corrected here.
  */
 const linkPreviewDescription = REGISTRY_HAS_NO_REAL_SHELTERS
-  ? uk.demo.promise
+  ? uk.demo.bannerNotice
   : uk.firstRun.promise;
 
 export const metadata: Metadata = {
