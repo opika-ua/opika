@@ -354,7 +354,7 @@ test.describe("/tvaryny/gortaty demo banner", () => {
       await openRoute(page, `${ROUTE}?total=34`, viewport, { readySelector: CARD });
 
       const banner = page.getByTestId("deck-demo-banner");
-      // Transcribed from `uk.ts`, not compared against `uk.demo.bannerNotice`
+      // Transcribed from `uk.ts`, not compared against `uk.demo.deckLabel`
       // itself — a self-comparing assertion passes against any value the
       // constant happens to hold, including an empty string.
       await expect(banner).toHaveText("Демо");

@@ -61,15 +61,14 @@ describe("«Для притулків» copy status", () => {
 
 /**
  * D-2 (`docs/observations.md`): both strings are now live — `DeckScreen.tsx`
- * shows the demo banner, and the root layout uses `promise` as the
- * description for every route while `REGISTRY_HAS_NO_REAL_SHELTERS`, per the
- * D-2 amendment (a link preview has no fixed-width slot to
- * omit-and-fall-back for; the original "omit while pending" behaviour only
- * ever existed because there was no honest string yet). Both strings were
- * drafted by Claude from an English sense; Oleksii chose these two from
- * three offered options on 2026-09-05 — approved wording, not his own.
- * Same shape as the `forShelters` assertion above: this stays empty, and it
- * fails the moment either string reverts to a placeholder mid-edit.
+ * shows `deckLabel`, and the root layout defaults to `bannerNotice` as the
+ * description while `REGISTRY_HAS_NO_REAL_SHELTERS` (Option B, 2026-09-06:
+ * `/prytulkam` and `/pro` override this default with their own opening
+ * sentences instead — see `app/prytulkam/page.tsx`/`app/pro/page.tsx`).
+ * Provenance: drafted by Claude from an English sense; Oleksii selected
+ * these from offered options on 2026-09-05. Same shape as the
+ * `forShelters` assertion above: this stays empty, and it fails the moment
+ * either string reverts to a placeholder mid-edit.
  */
 describe("demo-mode copy status (D-2)", () => {
   it("has no placeholders left — both strings are written", () => {

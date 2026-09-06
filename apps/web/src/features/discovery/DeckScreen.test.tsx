@@ -254,7 +254,7 @@ describe("DeckScreen", () => {
  * `REGISTRY_HAS_NO_REAL_SHELTERS: true`, which is the real, live value on
  * production today. `vi.doMock` + `vi.resetModules` + a dynamic re-import of
  * `DeckScreen`, not the statically-imported one, because the static import
- * already bound to the file-level mock's `false`. `uk.demo.bannerNotice`
+ * already bound to the file-level mock's `false`. `uk.demo.deckLabel`
  * ("Демо") is real Ukrainian, landed 2026-09-06 — no i18n mocking needed to
  * exercise this branch.
  */

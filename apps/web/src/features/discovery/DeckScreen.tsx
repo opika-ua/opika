@@ -142,7 +142,7 @@ export function DeckScreen({
             data-testid="deck-demo-banner"
             className="truncate text-[13px] leading-[normal] text-rg-ink-2"
           >
-            {uk.demo.bannerNotice}
+            {uk.demo.deckLabel}
           </span>
         ) : (
           filtersLabel && (

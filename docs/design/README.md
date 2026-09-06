@@ -645,9 +645,9 @@ Transition, both directions:
   unconditionally whenever the demo notice is showing (it only duplicates the count; the count
   alone answers the "otherwise invisible" argument), which is what actually buys the notice its
   width. Reverts to the ordinary filters phrase and the bar together the moment the flag goes
-  `false`. `uk.demo.bannerNotice` carries the copy — «Демо», landed 2026-09-06 (drafted by
-  Claude, chosen by Oleksii from three offered options; see `packages/i18n/src/messages/uk.ts`'s
-  own comment). Real-text geometry is covered at four viewports by
+  `false`. `uk.demo.deckLabel` carries the copy — «Демо», landed 2026-09-06 (drafted by Claude,
+  selected by Oleksii from offered options; see `packages/i18n/src/messages/uk.ts`'s own
+  comment). Real-text geometry is covered at four viewports by
   `test/harness/discovery-layout.harness.ts`'s "demo banner" block, against the real shipped
   string, not a mock.
 

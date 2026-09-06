@@ -23,8 +23,8 @@ export const en = {
   },
 
   demo: {
-    promise: "The registry doesn't hold any real shelters yet — every card here is a demo.",
-    bannerNotice: "Demo",
+    bannerNotice: "The registry doesn't hold any real shelters yet — every card here is a demo.",
+    deckLabel: "Demo",
   },
 
   // --- Screen 02 · Feed / deck ---

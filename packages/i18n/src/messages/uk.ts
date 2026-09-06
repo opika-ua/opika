@@ -43,31 +43,41 @@ export const uk = {
    * i.e. today, on production. Both keys confirmed empty of `COPY_PENDING`
    * by `copy-status.test.ts`, same pattern as `forShelters` below.
    *
-   * Provenance, corrected 2026-09-06: both strings were drafted by Claude
-   * from an English sense, not authored by Oleksii — he chose these two
-   * from three offered options on 2026-09-05. Approved wording, not his own
-   * wording; see `docs/observations.md`'s O-3 section for the full record.
+   * Provenance: drafted by Claude from an English sense; Oleksii selected
+   * these from offered options on 2026-09-05.
+   *
+   * Renamed 2026-09-06 — the two keys previously named `promise` and
+   * `bannerNotice` described each other's contents, not their own: the long
+   * sentence below (a notice shown in the link-preview banner a shared URL
+   * produces) was called `promise`, mirroring `firstRun.promise` above by
+   * habit rather than by what it actually is; the short deck string (a
+   * plain label, not a notice) was called `bannerNotice`. `bannerNotice`
+   * now names the actual banner notice; `deckLabel` names the actual deck
+   * label.
    */
   demo: {
     /**
-     * Root layout's `description`/`og:description` in place of
+     * Root layout's `description`/`og:description` default in place of
      * `firstRun.promise` (`app/layout.tsx`) — the link-preview text anyone
-     * sharing a URL from this deploy actually sees. Every route defaults to
-     * this as its description while the registry holds no real shelters
-     * (per the D-2 amendment: a link preview is free-flowing text, not a
+     * sharing a URL from this deploy actually sees, while the registry
+     * holds no real shelters. A link preview is free-flowing text, not a
      * fixed-width UI slot, so there's no truncation budget to fit like
-     * `bannerNotice` below has). `/prytulkam` in particular is the link
-     * Oleksii will actually send to shelters — carrying this disclosure
-     * into its own preview, rather than falling back to title-only, is the
-     * honesty this phase exists for.
+     * `deckLabel` below has.
+     *
+     * Scoped, Option B (2026-09-06, see `docs/observations.md`): `/prytulkam`
+     * and `/pro` override this root default with their own existing opening
+     * sentences instead of inheriting it — this disclosure was never meant
+     * to reach those two specifically, only the surfaces that actually show
+     * fabricated animals/shelters (the gallery, the deck, and the detail
+     * page inherit or set this).
      */
-    promise: "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.",
+    bannerNotice: "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.",
     /**
-     * The deck header's compact banner (`DeckScreen.tsx`) — replaces only
+     * The deck header's compact label (`DeckScreen.tsx`) — replaces only
      * `filtersLabel`. The position count stays (Oleksii, D-1: demo mode is
      * the whole testing period, a deck missing the count for weeks is not
      * the deck being tested); the progress bar is hidden unconditionally
-     * whenever this banner shows, to give the label the room the bar would
+     * whenever this label shows, to give it the room the bar would
      * otherwise take (D-1's degrade order — the count alone already
      * answers README.md:597-600's "otherwise invisible" argument).
      *
@@ -75,7 +85,7 @@ export const uk = {
      * ~107px available, safely fits up to ~12 Cyrillic characters. «Демо»
      * (4 characters) is nowhere near that ceiling at any asserted viewport.
      */
-    bannerNotice: "Демо",
+    deckLabel: "Демо",
   },
 
   // --- Screen 02 · Feed / deck ---
