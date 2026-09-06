@@ -407,26 +407,78 @@ Three rows (DECK-1 through DECK-3) were carved out first and already shipped, be
 banner needs a deck with spare height budget and the deck had none — see their own commit
 messages and `docs/design/README.md`'s text-scaling-gap section for the full record.
 
+**Reprioritised, 2026-09-06 — reduced scope, recorded as a decision, not drift.** This
+phase's opening paragraph argues from a shelter volunteer opening the site before being
+told what it is. That premise no longer holds: Oleksii has decided no outreach happens
+until the MVP gate, and the site is `noindex`ed and not publicly discoverable
+(`SITE_IS_PUBLICLY_DISCOVERABLE = false`, Part 5's "Before any route is indexed"). Nobody
+arrives. The disclosure work that actually answered the original argument — the demo
+banner, the metadata swap, the two-constant flag split, `robots.ts` allowing crawl so the
+`noindex` can be seen at all — is done, on PR #53, D-1/D-2/D-3. What remained splits into
+three different kinds of work, and only two of them earn time before the gate:
+
+- **Data protection** (D-9) is real regardless of who can see the site — a stray
+  `pnpm db:seed --force` truncating a database that by then holds a real onboarded shelter
+  is unrecoverable, and that risk doesn't wait for launch. **Kept, reduced.** The marker
+  column + migration this row originally specified is dropped; the same protection is
+  built directly into `seed.ts`'s existing localhost check, twenty minutes instead of a
+  migration. See the row below for the exact mechanism.
+- **UI test data** (D-4, D-6) makes rendering problems visible *now*, while the product is
+  still being judged and iterated on. The current corpus is well-behaved, which is
+  precisely why it never breaks in front of Oleksii — a hostile corpus and real awkward
+  photographs are the actual finding-generator D-4/D-6 always were, independent of who is
+  or isn't looking at production. **Kept, reframed as local-only.** Nothing here runs
+  against a production connection string; `pnpm db:seed` already refuses a non-localhost
+  target (and D-9 below hardens exactly that check), so this was never at risk of touching
+  production, but it's stated here explicitly rather than left implicit.
+- **Paperwork for a transition that is weeks away** (D-5's placeholder-contact format, D-7's
+  transition procedure) has no audience to protect yet — a fake phone number on a page
+  nobody but the maintainer can reach harms no one. Writing it now would be effort spent
+  against a target that will have moved by the time it matters (D-5's own placeholder
+  *format* is a real open design decision — see below — and deciding it eight weeks before
+  it's load-bearing risks deciding it twice). **Both deferred**, not dropped: moved to a
+  single build-plan row each, due in the hour before `SITE_IS_PUBLICLY_DISCOVERABLE` is
+  flipped (Part 5), so the obligation is recorded rather than quietly lost. See D-5 and D-7
+  below for the exact deferred scope.
+
+**D-0 comes off the critical path.** It previously blocked D-6, D-9's live verification,
+and D-7's rehearsal. With D-6 reframed as local-only, D-9 reduced to a code check verified
+against a real *local* database (no live/production verification needed), and D-7 deferred
+past this phase entirely, nothing left in this phase's scope needs D-0 done first. It
+remains Oleksii's own action item, on his own timeline, blocking nothing here.
+
+**What this changes about the phase's own "Done when," below:** demo-corpus honesty
+(labelling, de-indexing) is fully done; the "hostile enough to exercise every rendering
+edge case" half of the original criterion is still being pursued (D-4/D-6, now local-only);
+the "documented, guarded procedure" half for the demo-to-real transition is deferred with
+its own due point, not met by this phase.
+
 | # | Task | Status |
 |---|---|---|
 | DECK-1 | Invert what the deck's card yields under height pressure — the photo shrinks (to a documented floor), never the shelter-line text. Recovered −22px (320×640) and 0px (360×640) margins to 12px everywhere | **Done** — #52 |
 | DECK-2 | The deck's three 44px touch targets (back-to-list, gallery's mobile deck-entry, error-state retry) raised to 48px, plus the retry button's missing focus ring. Cost lands on photo height (DECK-1's slack) at every 640-tall viewport; at 390×844 the photo is already pinned at its `max-h-99` ceiling and can't absorb, so there the 4px comes off the shelter-line margin instead (20 → 16, still clear of that viewport's floor) | **Done** — #52 |
 | DECK-3 | Record, not assert, that Android text-scaling is unverifiable in the Playwright harness (`-webkit-text-size-adjust` has no effect in desktop Chromium) | **Done** — #52 |
-| D-0 | Remove the production `DATABASE_URL` from Oleksii's persistent Windows environment. **Blocks:** D-6, D-9's live verification, D-7's rehearsal | Open — Oleksii's |
+| D-0 | Remove the production `DATABASE_URL` from Oleksii's persistent Windows environment. **Blocks:** nothing in this phase as of the 2026-09-06 reprioritisation (see above) — D-6 is local-only, D-9 is verified against a local DB, D-7 is deferred past this phase | Open — Oleksii's, off the critical path |
 | D-1 | Two constants, not one: `REGISTRY_HAS_NO_REAL_SHELTERS` (drives the demo banner, `firstRun.promise` swap, `shelterVerifiedYears` badge suppression — all D-2) and `SITE_IS_PUBLICLY_DISCOVERABLE` (drives `X-Robots-Tag` and, since D-3, the root-layout `robots` metadata — `robots.ts` itself no longer reads either flag), plus `assertDemoDiscoverabilityInvariant`, thrown only if both are true and permitting the launch-gate window below where real shelters predate public discoverability. The real day-to-day gate is `seo-flags.test.ts` catching that combination in CI on the real constants before either reaches a deploy; the runtime call from `instrumentation.ts` is defense-in-depth, not a verified hard boot refusal — a throw there follows `validateEnv()`'s own documented behaviour (`apps/web/src/api/env.ts`: per-request 500s, not a stop). A single flag shipped first (#43) and was reverted here after `docs/standing-constraints.md`'s "two facts" entry — see that entry and this row's own history for why | Done |
 | D-3 | Add `robots` to root-layout metadata; drop `Disallow: /` from `robots.ts`. `Disallow: /` stops a crawler fetching pages at all, so it never reads a page's own `noindex` meta or the `X-Robots-Tag` header — an already-indexed URL can't be de-indexed without the crawler visiting it, which `Disallow: /` itself prevents. Root-layout metadata avoids that trap. **Depends on:** D-1 | Done |
 | D-2 | Compact demo notice inside the deck's existing header row (replace, don't add — zero new height) plus the `firstRun.promise` swap and `shelterVerifiedYears` badge suppression. Ukrainian ships real text, pinned empty of `[COPY PENDING]` by `copy-status.test.ts`. **Depends on:** D-1 | **Done, 2026-09-06 — Ukrainian landed, nothing renders a marker anywhere.** Decided (Oleksii, Phase D decisions): the deck notice (`uk.demo.deckLabel`, «Демо») replaces only `filtersLabel` — the position count stays (demo mode is the whole testing period; a deck missing the count for weeks isn't the deck being tested); the progress bar degrades instead, hidden unconditionally whenever the notice shows, which is what buys it its width. Recorded as a Phase D deviation in `docs/design/README.md`'s deck-chrome section. Width budget measured before the copy landed, bar hidden: tightest at 320px (~107px available), a 12-character label fits, 14 clips — «Демо» (4 characters) is nowhere near that ceiling; geometry re-asserted since at four viewports by the harness against the real shipped string (`discovery-layout.harness.ts`'s "demo banner" block). **Amendment to the original `og:description` decision:** it said omit entirely rather than render `[COPY PENDING]` — a fallback for having no honest string. With `uk.demo.bannerNotice` real, the root layout defaults to it as the description while the flag is true; the detail page's not-a-judgement notice (recovered verbatim, «просто» included, from the deleted `firstRun.disclaimer` — not this document's own D-3 row, an unrelated robots-metadata task — see `docs/observations.md`) is also real and live now. **Provenance:** `uk.demo.bannerNotice`/`uk.demo.deckLabel` (renamed from `promise`/`bannerNotice` on 2026-09-06 — the original names described each other's contents, not their own) were drafted by Claude from an English sense; Oleksii selected these from offered options on 2026-09-05. The notice's «просто» clause was briefly dropped by an unapproved Claude edit and reverted; the shipped sentence is Oleksii's own pre-existing copy, reproduced verbatim, needing no fresh approval. Full record in `docs/observations.md`'s O-3 section. **Route scope (Option B, 2026-09-06):** the root layout's description swap is a default every route inherits unless it overrides — `/tvaryny/[animalId]` overrides with its own per-animal swap (its `generateMetadata` didn't inherit the root's default at all; Next overrides route metadata rather than merging it, so this was fixed in the same pass, asserted in `seo-flags.test.ts` for both flag states); `/prytulkam` and `/pro` override with their own existing opening sentences (`uk.forShelters.whatThisIs`, `uk.about.intro`) instead of the demo swap — that disclosure was never meant to reach those two specifically. **Badge positive control (PR #53 review):** the harness only ever checked the badge's suppressed state, an absence check with no proof the assertion would catch the badge's JSX being deleted outright rather than gated — `AnimalDetailScreen.test.tsx` (new) exercises both flag states directly, mutation-confirmed both directions (deleting the badge, and inverting the condition) |
 | D-8 | Make the image path honest in dev/test: no `.env.local`/R2 credentials, every route still renders. **Blocks:** D-4, D-6 | **Done, 2026-09-06 — already true of the shipped H1 code, verified rather than assumed.** `image-loader.ts`'s `isRealPhotoKey` gate only routes the `animals/` namespace through the R2 CDN URL; `packages/db/src/seed.ts`'s fictional corpus stores plain `seed-photos/*.jpg` keys, which fall through to the pre-H1 root-relative path unconditionally — already unit-tested in `image-loader.test.ts`. What hadn't been checked with a real build: `apps/web/.env.local` was renamed aside (no R2 var anywhere in the shell either), then `pnpm build:web` and the full `pnpm test:harness` (171/171, every route including `/tvaryny/[animalId]`) were run against that real build and passed — `.env.local` restored unread afterward. CI already exercises this on every run without knowing it: no workflow secret ever sets an R2 var and no `.env.local` exists in a checkout, so `build:web`/`test:harness` going green in CI *is* this row's regression guard going forward, not merely an accident of the sandbox this was checked in |
-| D-9 | Demo-marker column plus a positive seed guard: `seed.ts` refuses to truncate — regardless of `--force` — if any shelter or animal lacks the marker. **Blocks:** D-4, D-6 | Untouched |
-| D-5 | Every demo shelter's contact is a clearly-marked placeholder sentinel; no invented phone number or handle anywhere in the corpus | Untouched |
-| D-4 | Hostile corpus: registered/unregistered legal forms, with/without donation link, a wrapping shelter name, no freshness sentence, 0/1/6-photo animals, a wrapping animal name, no description, unknown vaccination, one reserved-and-listed, freshness anchors spanning all three pip states on one page. **Depends on:** D-5, D-8, D-9 | Untouched |
-| D-6 | 5–6 real CC0/public-domain photographs through the R2 pipeline, provenance recorded per file, no operator-identifying EXIF/IPTC. **Depends on:** D-0, D-8, D-9 | Untouched, blocked on D-0 |
-| D-7 | Write the demo-to-real transition into `docs/standing-constraints.md` and the onboarding checklist: wipe before the first `onboard-shelter --commit`; the banner (`REGISTRY_HAS_NO_REAL_SHELTERS`) comes down when the wipe happens, separately from noindex (`SITE_IS_PUBLICLY_DISCOVERABLE`), which stays down through the launch-gate window until the site is actually meant to be found — the two do **not** come down together, that is the whole point of D-1's two constants; why `robots.txt` allowing crawl is deliberate; the coexistence window named as the point of maximum danger. **Depends on:** D-0 | Untouched, blocked on D-0 |
+| D-9 | **Reduced, 2026-09-06 (see above) — no marker column, no migration.** `seed.ts` is hardened directly instead: it refuses any non-localhost target outright, full stop, and the only override requires the target database's own name passed as an explicit CLI argument, matched against the connection string — `--force` alone is no longer sufficient. Same protection against truncating a database holding a real shelter as the original marker-column design, twenty minutes instead of a migration and a backfill. Will be verified against a real local database, not by reading the code, before this row is marked done: a non-localhost URL with `--force` and no matching `--db-name` must exit non-zero and truncate nothing; a mutation test (removing the check) must confirm the guard is what's stopping it, not an unrelated failure | Reduced, not yet built |
+| D-5 | **Deferred, 2026-09-06 (see above) — dropped from this phase, not from the plan.** Every demo shelter's contact is a clearly-marked placeholder sentinel; no invented phone number or handle anywhere in the corpus. Moved to Part 5's launch gate as its own row, due in the hour before `SITE_IS_PUBLICLY_DISCOVERABLE` is flipped — see that section. The exact placeholder *format* (an obviously-fake number pattern vs. a real-shaped number with a visible marker suffix vs. something else) is still an open design decision, deliberately not settled here: deciding it now, weeks before it's load-bearing, risks deciding it twice | Deferred to Part 5, before public discoverability |
+| D-4 | Hostile corpus: registered/unregistered legal forms, with/without donation link, a wrapping shelter name, no freshness sentence, 0/1/6-photo animals, a wrapping animal name, no description, unknown vaccination, one reserved-and-listed, freshness anchors spanning all three pip states on one page. **Reframed, 2026-09-06:** this is UI test data, not demo hygiene — it makes rendering problems visible now, independent of who can reach the site. Local-only; no production connection string ever touched. **Depends on:** D-9 (safety-ordering only — D-4 runs against the same local DB D-9 hardens, not a hard blocker); D-5 dropped as a dependency (contact-format honesty is unrelated to corpus shape) | Untouched |
+| D-6 | 5–6 real CC0/public-domain photographs through the R2 pipeline, provenance recorded per file, no operator-identifying EXIF/IPTC, at deliberately awkward ratios (9:16 screenshot, 16:9, EXIF-rotated, ~400px, ~4000px) — feeds O-10 and critique-item C6 (detail-page photo crop; see Part 2's Phase T, "checked not fixed" — not build-plan's own, unrelated C6 in Phase C). **Reframed, 2026-09-06: local-only, D-0 dropped as a dependency** — the corpus and the Postgres side of this run entirely against a local DB. Licensing discipline unchanged: strict CC0/public domain, provenance recorded per file, EXIF **and** IPTC stripped and verified with `exiftool`; if a licence can't be established from the source page itself, the image is discarded. **Real open gap, not yet resolved:** the actual R2 upload step needs write credentials (`R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET_NAME`), which by `.env.example`'s own section 2 policy are never saved to a file and belong to an operator's own machine — there is no separate dev/demo bucket documented anywhere, only the one bucket `onboard-shelter.ts` targets. Sourcing, provenance recording, and EXIF/IPTC stripping can all happen without them; the upload itself needs either Oleksii running it with his own credentials against the prepared image set, or a deliberate decision to provision a second bucket so demo photos never share storage with a future real shelter's. **Depends on:** D-9 (safety-ordering only) | Untouched |
+| D-7 | Write the demo-to-real transition into `docs/standing-constraints.md` and the onboarding checklist: wipe before the first `onboard-shelter --commit`; the banner (`REGISTRY_HAS_NO_REAL_SHELTERS`) comes down when the wipe happens, separately from noindex (`SITE_IS_PUBLICLY_DISCOVERABLE`), which stays down through the launch-gate window until the site is actually meant to be found — the two do **not** come down together, that is the whole point of D-1's two constants; why `robots.txt` allowing crawl is deliberate; the coexistence window named as the point of maximum danger. **Deferred, 2026-09-06 (see above)** — paperwork for a transition weeks away; moved to Part 5's launch gate alongside D-5, both due in the hour before the flip, not before. **Depends on:** D-0 | Deferred to Part 5, before public discoverability |
 
-**Done when:** production no longer silently presents fabricated shelters as real to a search
-engine or a first-time visitor; the demo corpus is hostile enough to exercise every rendering
-edge case named in D-4; and the transition to real data is a documented, guarded procedure
-rather than a manual judgment call.
+**Done when (original):** production no longer silently presents fabricated shelters as real to
+a search engine or a first-time visitor; the demo corpus is hostile enough to exercise every
+rendering edge case named in D-4; and the transition to real data is a documented, guarded
+procedure rather than a manual judgment call.
+
+**Done when (reduced, 2026-09-06):** the first criterion is met (D-1/D-2/D-3, PR #53) and the
+second is being pursued locally (D-4/D-6, no production exposure either way now that the site
+is noindexed). The third criterion — a documented, guarded transition procedure — is
+deliberately not this phase's to close; it's D-7's, deferred to Part 5, due before the
+procedure is actually needed rather than before this phase closes.
 
 ### Phase R — Deck memory, two actions, inline reveal
 
@@ -436,8 +488,14 @@ O-15's diagnosis found the deck's «Написати» button never invoked the 
 called the same handler as a skip) and no swipe was ever persisted. Scoped as its own row set
 per Oleksii's explicit instruction; **not started before Phase D finishes.**
 
+**Sequencing, 2026-09-06 reprioritisation:** this is step "2.2" of the post-Phase-D order —
+after Phase D's reduced scope (D-9, D-4, D-6) and after O-9's DB connection fix (Part 5,
+"Before the MVP gate"), which every DB-backed page including this one pays today. See Phase
+D's own reprioritisation note for the full reasoning (`docs/build-plan.md`, Phase D).
+
 | # | Task | Status |
 |---|---|---|
+| R0 | **Verify first, added 2026-09-06 — before touching R1–R3's code:** (1) whether `feedBrowserClient`'s exclusion of `session.bootstrap`/`animals.reveal` (R3's blocker) was a deliberate scope cut or an oversight — report with evidence (the PR/commit that shipped `feedBrowserClient`, and what it says); (2) what cookies the site actually sets today, checked against `/pro`'s «без кукі» claim — if a cookie is already being set, that claim is currently false and is its own finding, independent of R1–R3; (3) whether the anonymous session identity is stable across a page reload and a full browser restart — R1's device-scoped persistence claim depends on this being true, and it has not been checked | Untouched |
 | R1 | Wire `swipes.record` from the deck (drag commit and the skip button), keyed on the existing anonymous session. A skip excludes that animal from the deck's own re-serving, **device-scoped, not session-scoped** — persists across reload and later visits, not just the current tab. **Deck-only**: the gallery's `feed`/`gallery` query is unaffected; a skipped animal stays fully reachable by direct link and in the gallery list. Does **not** feed `scoreAnimal` — ordering inputs stay filters + freshness + completeness, unchanged, so `/prytulkam` §1 stays true | Untouched |
 | R2 | Two-action deck: drop «Далі» (`SwipeDeck.tsx`'s third button and its keyboard binding). «Не зараз» skips (R1). «Написати» reveals. **Permanent home for the "«Не зараз» is a filter, not a judgement" sentence** (`docs/standing-constraints.md`, "The swipe is filtering, not judging") — an interim placement lives on the detail page (Phase D) until this row builds the deck with the height designed in for it, rather than squeezed into the existing header | Untouched. **Depends on:** R1, R3 |
 | R3 | Inline reveal: wire `session.bootstrap` + `animals.reveal` into the deck's own browser client (today `feedBrowserClient` exposes only `feed.list` — see V1, `docs/observations.md`) and open the contact in a sheet over the deck, per `docs/design/README.md`'s frame 05 (Contact reveal). The deck session must survive a reveal — no exit back to the gallery | Untouched. **Depends on:** none |
@@ -447,6 +505,52 @@ per Oleksii's explicit instruction; **not started before Phase D finishes.**
 without appearing in the gallery's exclusion; the gallery's own count and listing are provably
 unaffected by any skip; «Написати» opens contact info in a sheet without leaving the deck; and
 `/prytulkam` §3's Ukrainian is no longer `[COPY PENDING]`.
+
+### Phase P — Detail photos ("2.3")
+
+O-10 (detail page has no real photo gallery — only the primary photo is viewable at size, the
+rest are small thumbnails on a design that wastes large-screen space) built together with
+critique-item C6 (`docs/design-critique.md` — the detail carousel's crop against real source
+aspect ratios; **not** build-plan's own C6, Phase C's "component test infrastructure," a
+naming collision between the two documents worth noting so a future reader doesn't conflate
+them). One component, one session — `docs/observations.md`'s O-10 entry explicitly says not to
+split them. **Depends on:** D-6 (needs the real, deliberately awkward-ratio photographs to crop
+against — a mock or invented image would leave C6 exactly as unverified as it already is).
+
+Scoped in full — task breakdown, hours, done-when — when this phase is actually picked up, per
+`/phase`'s own Phase 1 planning step, not invented here ahead of the work it plans.
+
+### Phase S — City slugs ("2.4")
+
+O-6 (city filter URLs expose raw UUIDs — unreadable when shared, meaningless to a recipient,
+bad for search) and O-12 (the detail page's «← Усі тварини у Бровари» returns to the
+*unfiltered* gallery, not to Brovary — the link's text makes a claim the navigation doesn't
+honour) scheduled as one row per `docs/observations.md`'s own note on both entries ("same
+missing thing... never two [rows]"). Cities gain a stable public slug, URLs become
+`?misto=brovary`, and the detail page's back-link returns to the filtered list it names.
+Redirect the UUID form for links already shared, so nothing already in circulation breaks.
+
+Scoped in full when picked up, as above.
+
+### Phase K — Polish batch ("2.5")
+
+O-1 (header is a text wordmark, no logo — check the Claude Design export for what was actually
+specified before assuming a logo belongs there; if the wordmark was a deliberate choice, this
+is a decision change, not a defect), O-4 (filter-label-to-pill spacing too tight — open the
+mock before changing anything), O-5 (card grid gains columns above a breakpoint on wide
+screens — **recreates F-1's exact preconditions**: recompute the `sizes` attribute from
+measured box widths at each breakpoint and assert the variant actually fetched, don't port the
+existing clauses forward), O-8 (detail-page breadcrumb moves out of the header, below it,
+left-aligned — same "never two navigations at once" direction as `docs/design/README.md:589`),
+O-11 (a footer — secondary links and a home for credits), O-13 (e-Ukraine font attribution
+moves into that footer, or `/pro` — the attribution itself is non-negotiable under CC BY 4.0,
+only its placement is open), O-14 (informative pages' text column stays at its deliberate
+~65-character measure; what changes is the composition around it, not the line length —
+**superseding that entry's own "schedule after the MVP gate" note**: Oleksii's 2026-09-06
+reprioritisation places it in this batch, before the gate, superseding the earlier schedule).
+
+As one batch, not one row at a time, per Oleksii's explicit instruction. Scoped in full when
+picked up, as above.
 
 ---
 
@@ -602,6 +706,25 @@ first real address is inserted:
   land together or the requirement and its consumer can drift apart again, the way the seed
   path already did once).
 
+### Before any route is indexed (and, one hour earlier, before the same flip): D-5 and D-7
+
+Both deferred from Phase D on 2026-09-06 — see that phase's reprioritisation note for the full
+reasoning. Neither is urgent while the site is `noindex`ed and no outreach has happened; both
+become load-bearing in the same hour `SITE_IS_PUBLICLY_DISCOVERABLE` flips, so both are due
+just before it, not before.
+
+- **D-5.** Every demo shelter's contact becomes a clearly-marked placeholder sentinel — no
+  invented phone number or handle anywhere in the corpus. The placeholder *format* is still
+  undecided (obviously-fake number pattern vs. a real-shaped number with a visible marker vs.
+  something else) and needs a decision when this row is actually picked up, not before.
+- **D-7.** Write the demo-to-real transition into `docs/standing-constraints.md` and the
+  onboarding checklist: wipe before the first `onboard-shelter --commit`; the banner
+  (`REGISTRY_HAS_NO_REAL_SHELTERS`) comes down when the wipe happens, separately from noindex
+  (`SITE_IS_PUBLICLY_DISCOVERABLE`) below, which stays down through the launch-gate window
+  until the site is actually meant to be found — the two do **not** come down together, that
+  is the whole point of D-1's two constants; why `robots.txt` allowing crawl is deliberate;
+  the coexistence window named as the point of maximum danger.
+
 ### Before any route is indexed
 
 **Flip `SITE_IS_PUBLICLY_DISCOVERABLE` (`apps/web/src/seo-flags.ts`) on, or replace it with
@@ -627,7 +750,7 @@ each serverless instance holds its own counter, so the effective per-IP ceiling 
 instance count`, not the stated limit — adequate as a first-line defense at near-zero
 traffic, not at real usage.
 
-### Before the MVP gate — DB connection strategy (O-9)
+### Before the MVP gate — DB connection strategy (O-9) — "2.1" in the 2026-09-06 reprioritisation
 
 Unlike the rate limiter above, **this one is already live at today's near-zero traffic** —
 `docs/observations.md`'s O-9 measured every DB-backed production page plateauing at a
