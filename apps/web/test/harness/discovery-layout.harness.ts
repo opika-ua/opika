@@ -329,6 +329,69 @@ test.describe("/tvaryny/gortaty responsive gap", () => {
 });
 
 /**
+ * D-1/D-2 (Oleksii, Phase D decisions): `REGISTRY_HAS_NO_REAL_SHELTERS` is
+ * true in the build this harness runs against — the same value production
+ * runs — so the deck header shows the demo banner in place of the filters
+ * phrase, real Ukrainian ("Демо"), landed 2026-09-06. Asserts the two
+ * invariants D-1/D-2 make: "compact" (the text actually fits — `truncate`
+ * silently eating it would defeat the point of showing it at all) and
+ * "zero new height" (the header stays at its `min-h-12` floor). The
+ * position count stays and the progress bar degrades instead (D-1's
+ * degrade order — the count alone already answers README.md:597-600's
+ * "otherwise invisible" argument, the bar only duplicates it).
+ */
+test.describe("/tvaryny/gortaty demo banner", () => {
+  for (const viewport of [NARROW_PHONE, ANDROID_PHONE, SHORT_PHONE, PHONE]) {
+    test(`shows real demo copy, fits without clipping, count present, bar hidden, zero extra height, at ${viewport.name}`, async ({
+      page,
+    }) => {
+      // `?total=34`: without it (a bare bookmark/reload), `total` is `null` and
+      // neither the position nor the bar renders at all, regardless of the demo
+      // flag (`docs/design/README.md`'s "Position/progress total is carried, not
+      // 'otherwise invisible'" deviation) — this test is specifically about the
+      // row that includes them, so it enters the way `deckEntryHref` actually
+      // does.
+      await openRoute(page, `${ROUTE}?total=34`, viewport, { readySelector: CARD });
+
+      const banner = page.getByTestId("deck-demo-banner");
+      // Transcribed from `uk.ts`, not compared against `uk.demo.bannerNotice`
+      // itself — a self-comparing assertion passes against any value the
+      // constant happens to hold, including an empty string.
+      await expect(banner).toHaveText("Демо");
+
+      const { scrollWidth, clientWidth } = await banner.evaluate((el) => ({
+        scrollWidth: el.scrollWidth,
+        clientWidth: el.clientWidth,
+      }));
+      expect(
+        scrollWidth,
+        `the demo banner is clipped at ${viewport.name}: needs ${scrollWidth}px, has ` +
+          `${clientWidth}px. The whole point of D-2 is that a real visitor can read this.`,
+      ).toBeLessThanOrEqual(clientWidth);
+
+      const header = await rectOf(page.locator("header"), "deck header");
+      expect(
+        header.height,
+        `the deck header is ${header.height}px tall at ${viewport.name} — D-2's own row says ` +
+          `"zero new height", i.e. the header's min-h-12 (48px) floor`,
+      ).toBeLessThanOrEqual(48);
+
+      await expect(
+        page.getByTestId("deck-position"),
+        `the position count is missing at ${viewport.name} — demo mode must not drop it, ` +
+          `Oleksii's Phase D decision`,
+      ).toBeVisible();
+
+      await expect(
+        page.getByTestId("deck-progress-bar"),
+        `the progress bar is visible at ${viewport.name} alongside the demo banner — it should ` +
+          `degrade first (D-1's degrade order), before the count`,
+      ).toBeHidden();
+    });
+  }
+});
+
+/**
  * docs/standing-constraints.md: "An interactive element ships with its
  * focus-visible styling and a test."
  */

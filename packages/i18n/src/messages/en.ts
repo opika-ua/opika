@@ -15,12 +15,16 @@
 import { COPY_PENDING } from "./uk";
 
 export const en = {
-  // --- 01 First run — a band above the gallery grid, not a separate screen ---
+  // --- 01 First run — was a band above the gallery grid, removed in
+  // Phase D (see uk.ts's own comment); promise survives as og:description ---
   firstRun: {
     promise:
       "Animals from verified shelters across Kyiv oblast. Browse the list and see who's looking for a home.",
-    disclaimer:
-      'No registration. We never handle or transfer money. "Not right now" is just a filter, not a judgement of the animal.',
+  },
+
+  demo: {
+    promise: "The registry doesn't hold any real shelters yet — every card here is a demo.",
+    bannerNotice: "Demo",
   },
 
   // --- Screen 02 · Feed / deck ---
@@ -81,6 +85,7 @@ export const en = {
     next: "Next",
     write: "Message",
     writeShelter: "Message the shelter",
+    notAJudgementNotice: '"Not right now" is just a filter, not a judgement of the animal.',
   },
 
   // --- Freshness ---

@@ -426,6 +426,12 @@ The reassurance is load-bearing and must not be cut: «Притулок не з�
 ### The other screens
 - **01 First run** — the first visit to the gallery, not a separate screen: promise and city choice
   in a 760 centred band above the grid, gone once a city is chosen. Nothing blocks browsing.
+  **Reversed, Phase D (O-3, `docs/observations.md`):** the band duplicated the filter rail and
+  «Знайдено N тварин», and delayed the content it sat above. Removed from the page entirely —
+  the rail and the result count carry orientation instead. `uk.firstRun.promise` survives only as
+  the root layout's `og:description` (`app/layout.tsx`), not as on-page copy; `uk.firstRun.disclaimer`
+  had no other consumer and was removed with the component. A change of decision, not a defect —
+  recorded here so code and doc don't silently diverge.
 - **02 Deck** — see below.
 - **03 Filters** — the rail from 1024 up, the sheet below.
 - **06 My reveals** — single 720 centred column. «Зберігається лише на цьому пристрої. Ми не знаємо,
@@ -631,6 +637,19 @@ Transition, both directions:
   agreement.** «Бровари · собаки · середній», not «...середні» — this codebase's filter-chip
   label catalogue has no plural-adjective forms, the same class of gap as the out-of-range
   notice's ordinal-vs-numeral deviation above. See `filtersInWords` in `filter-url.ts`.
+- **Phase D (Oleksii, Phase D decisions) — while `REGISTRY_HAS_NO_REAL_SHELTERS`, the filters
+  phrase is replaced by a compact demo-data notice; the «N з M» count stays.** Demo mode is the
+  entire testing period, so a deck missing the count for weeks is not the deck being tested —
+  this section's own "the total is otherwise invisible in the deck" argument stands, and it
+  argues for keeping the count, not dropping it. The progress bar degrades instead, hidden
+  unconditionally whenever the demo notice is showing (it only duplicates the count; the count
+  alone answers the "otherwise invisible" argument), which is what actually buys the notice its
+  width. Reverts to the ordinary filters phrase and the bar together the moment the flag goes
+  `false`. `uk.demo.bannerNotice` carries the copy — «Демо», landed 2026-09-06 (drafted by
+  Claude, chosen by Oleksii from three offered options; see `packages/i18n/src/messages/uk.ts`'s
+  own comment). Real-text geometry is covered at four viewports by
+  `test/harness/discovery-layout.harness.ts`'s "demo banner" block, against the real shipped
+  string, not a mock.
 
 ### 04 Detail (D1/D2)
 Frames pin the values already specified above (`### Detail (04)`). Desktop: left column 560
@@ -643,6 +662,18 @@ monogram circle) + donate row: fill `#F2F2F0`, 56, label left, `dobro.ua ↗` ri
 domain visible before the tap, no accent colour. Mobile: photo 380 full-bleed with dot indicator
 (8px, active `#101112`, inactive outlined 2px `#63676B`), single column, sticky footer returns
 («Не зараз» `flex: 1` + «Написати притулку» `flex: 2`).
+
+**Deviation, Phase D (Oleksii's Phase D decisions — the not-a-judgement notice, not this
+build-plan's D-3 row, an unrelated robots-metadata task) — a line between the action pair and
+Медичний стан, not in this frame.** "«Не зараз» is a filter, not a judgement" is a standing
+product rule (`docs/standing-constraints.md`) that lost its only stated home when the first-run
+band was deleted (O-3). Real Ukrainian landed 2026-09-06, recovered verbatim from the deleted
+disclaimer. Interim placement only, until the deck rebuild (`docs/build-plan.md`'s R2) designs
+the height in properly; placement is asserted at both the desktop and mobile frames
+(`animal-detail.harness.ts`), but note the mobile frame this checks against is the reflowing
+single-column layout the app actually builds (`AnimalDetailScreen.tsx`, one DOM tree by
+breakpoint), not this frame's own sticky-footer
+variant — that variant isn't built at all yet, a pre-existing gap this deviation didn't create.
 
 ### 05 Contact reveal (R1/R2)
 Frames pin the values already specified above (`### Contact reveal (05)`). Desktop: modal 640,

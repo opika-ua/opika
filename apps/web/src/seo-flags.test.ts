@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertDemoDiscoverabilityInvariant } from "./seo-flags";
 
 /**
- * D-3's tests import `./app/layout` for its `metadata.robots`, and that
- * module's top-level `fonts.ts` import calls `next/font/google`/`local` —
- * calls Next's own build step transforms away, which Vitest never runs.
- * Without this, the call itself throws (`Literata is not a function`)
- * before any test body runs; the shape returned only needs to satisfy
- * `RootLayout`'s JSX (`.variable`), which this test never renders anyway.
+ * D-3's and D-2's tests both import `./app/layout` (for `metadata.robots`
+ * and `metadata.description` respectively), and that module's top-level
+ * `fonts.ts` import calls `next/font/google`/`local` — calls Next's own
+ * build step transforms away, which Vitest never runs. Without this, the
+ * call itself throws (`Literata is not a function`) before any test body
+ * runs; the shape returned only needs to satisfy `RootLayout`'s JSX
+ * (`.variable`), which these tests never render anyway.
  */
 vi.mock("next/font/google", () => ({
   Literata: () => ({ variable: "--font-literata" }),
@@ -61,9 +62,11 @@ afterEach(() => {
  * diverge — the launch-gate window itself — and is the one case that
  * actually distinguishes which constant a consumer reads.
  *
- * Doesn't cover the demo banner or the `firstRun.promise` swap yet — D-2
- * hasn't built either. Add them here, keyed on
- * `REGISTRY_HAS_NO_REAL_SHELTERS`, when it does.
+ * The `firstRun.promise` swap is covered by its own describe block further
+ * down this file, keyed on `REGISTRY_HAS_NO_REAL_SHELTERS`; the deck's demo
+ * banner and the detail page's badge suppression are covered where they
+ * render (`DeckScreen.test.tsx`, `animal-detail.harness.ts`) rather than
+ * here, since neither's markup is reachable from this file's imports.
  */
 describe("SITE_IS_PUBLICLY_DISCOVERABLE — single source for noindex behaviour", () => {
   beforeEach(() => {
@@ -210,4 +213,175 @@ describe("/tvaryny/gortaty noindex — independent of both seo-flags constants",
       expect(metadata.robots).toEqual({ index: false, follow: false });
     },
   );
+});
+
+/**
+ * D-2 (Oleksii, Phase D decisions, amended 2026-09-06): a shared link's
+ * preview must not claim verified shelters exist while the registry holds
+ * none. The original decision omitted the description entirely rather than
+ * show a `[COPY PENDING]` marker — that was a fallback for having no
+ * honest string. `uk.demo.promise` is real Ukrainian now, so every route
+ * uses it, `/prytulkam` included: that's the link Oleksii actually sends to
+ * shelters, and a weaker title-only fallback there is the opposite of this
+ * phase's intent. Varied independently of `SITE_IS_PUBLICLY_DISCOVERABLE` —
+ * same discipline as the describe block above — so this doesn't pass for a
+ * consumer that actually reads the wrong flag.
+ */
+describe("REGISTRY_HAS_NO_REAL_SHELTERS — link-preview description swap (D-2)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("uses the demo promise while the registry holds no real shelters", async () => {
+    vi.doMock("./seo-flags", () => ({
+      SITE_IS_PUBLICLY_DISCOVERABLE: false,
+      REGISTRY_HAS_NO_REAL_SHELTERS: true,
+      assertDemoDiscoverabilityInvariant: vi.fn(),
+    }));
+
+    const { metadata } = await import("./app/layout");
+
+    // Transcribed from `uk.ts` rather than compared against `uk.demo.promise`
+    // itself — a self-comparing assertion passes against any value the constant
+    // happens to hold.
+    const demoPromise = "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.";
+    expect(metadata.description).toBe(demoPromise);
+    expect(metadata.openGraph?.description).toBe(demoPromise);
+  });
+
+  it("uses the real promise at the launch-gate window — real shelters, still not discoverable", async () => {
+    vi.doMock("./seo-flags", () => ({
+      SITE_IS_PUBLICLY_DISCOVERABLE: false,
+      REGISTRY_HAS_NO_REAL_SHELTERS: false,
+      assertDemoDiscoverabilityInvariant: vi.fn(),
+    }));
+
+    const { metadata } = await import("./app/layout");
+
+    // Transcribed from `uk.ts` rather than compared against `uk.firstRun.promise`
+    // itself — a self-comparing assertion passes against any value the constant
+    // happens to hold.
+    const realPromise =
+      "Тварини з перевірених притулків Київщини. Перегляньте список і подивіться, кого шукає дім.";
+    expect(metadata.description).toBe(realPromise);
+    expect(metadata.openGraph?.description).toBe(realPromise);
+  });
+
+  it("uses the real promise once fully launched", async () => {
+    vi.doMock("./seo-flags", () => ({
+      SITE_IS_PUBLICLY_DISCOVERABLE: true,
+      REGISTRY_HAS_NO_REAL_SHELTERS: false,
+      assertDemoDiscoverabilityInvariant: vi.fn(),
+    }));
+
+    const { metadata } = await import("./app/layout");
+
+    // Transcribed from `uk.ts` rather than compared against `uk.firstRun.promise`
+    // itself — a self-comparing assertion passes against any value the constant
+    // happens to hold.
+    const realPromise =
+      "Тварини з перевірених притулків Київщини. Перегляньте список і подивіться, кого шукає дім.";
+    expect(metadata.description).toBe(realPromise);
+    expect(metadata.openGraph?.description).toBe(realPromise);
+  });
+});
+
+/**
+ * D-2, corrected: the root layout's swap does not reach
+ * `/tvaryny/[animalId]` at all — Next does not merge a route's own
+ * `generateMetadata` with the root layout's, it overrides it, and this
+ * route builds its own `description`/`openGraph.description` from the
+ * animal's age/size. Without its own demo swap this route would preview a
+ * fictional animal's age and size with no demo-data disclosure — exactly
+ * the shared-link surface `/prytulkam` tells shelters they can paste into
+ * Telegram, so the one route this disclosure matters on most.
+ *
+ * `anonymousRouterClient` is mocked rather than hitting a real database —
+ * this test is about the swap in `generateMetadata`, which `animals.byId`'s
+ * own integration coverage elsewhere does not touch.
+ */
+describe("REGISTRY_HAS_NO_REAL_SHELTERS — /tvaryny/[animalId] link-preview description swap (D-2)", () => {
+  const fakeAnimal = {
+    id: "a0000000-0000-4000-8000-000000000001",
+    name: "Мурчик",
+    ageBucket: "adult",
+    size: "medium",
+    photos: [],
+  };
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.doMock("./api/server-client", () => ({
+      anonymousRouterClient: () => ({
+        animals: { byId: async () => fakeAnimal },
+      }),
+    }));
+  });
+
+  afterEach(() => {
+    vi.doUnmock("./api/server-client");
+  });
+
+  it("uses the demo promise while the registry holds no real shelters", async () => {
+    vi.doMock("./seo-flags", () => ({
+      SITE_IS_PUBLICLY_DISCOVERABLE: false,
+      REGISTRY_HAS_NO_REAL_SHELTERS: true,
+      assertDemoDiscoverabilityInvariant: vi.fn(),
+    }));
+
+    const { generateMetadata } = await import("./app/tvaryny/[animalId]/page");
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ animalId: fakeAnimal.id }),
+    });
+
+    // Transcribed from `uk.ts` rather than compared against `uk.demo.promise`
+    // itself — a self-comparing assertion passes against any value the constant
+    // happens to hold.
+    const demoPromise = "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.";
+    expect(metadata.description).toBe(demoPromise);
+    expect(metadata.openGraph?.description).toBe(demoPromise);
+  });
+
+  it("uses the animal's own age/size at the launch-gate window — real shelters, still not discoverable", async () => {
+    // Deliberately does NOT vary both flags in lockstep with the case above
+    // — `(SITE=false, REGISTRY=false)` here vs. `(SITE=false, REGISTRY=true)`
+    // above. Two cases that only ever move opposite each other cannot tell a
+    // correct consumer (reads `REGISTRY_HAS_NO_REAL_SHELTERS`) from one that
+    // actually reads `!SITE_IS_PUBLICLY_DISCOVERABLE` instead — both flags
+    // are `false`-ish together in both of this file's other cases, so this
+    // is the one case that actually distinguishes which constant the route
+    // reads. Same discipline as the layout describe block further up this
+    // file.
+    vi.doMock("./seo-flags", () => ({
+      SITE_IS_PUBLICLY_DISCOVERABLE: false,
+      REGISTRY_HAS_NO_REAL_SHELTERS: false,
+      assertDemoDiscoverabilityInvariant: vi.fn(),
+    }));
+
+    const { generateMetadata } = await import("./app/tvaryny/[animalId]/page");
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ animalId: fakeAnimal.id }),
+    });
+
+    // Transcribed from `uk.ts`'s cardMeta section, not derived via
+    // `ageBucketLabel`/`sizeLabel` — same reasoning as above.
+    expect(metadata.description).toBe("дорослий · середня");
+    expect(metadata.openGraph?.description).toBe("дорослий · середня");
+  });
+
+  it("uses the animal's own age/size once fully launched", async () => {
+    vi.doMock("./seo-flags", () => ({
+      SITE_IS_PUBLICLY_DISCOVERABLE: true,
+      REGISTRY_HAS_NO_REAL_SHELTERS: false,
+      assertDemoDiscoverabilityInvariant: vi.fn(),
+    }));
+
+    const { generateMetadata } = await import("./app/tvaryny/[animalId]/page");
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ animalId: fakeAnimal.id }),
+    });
+
+    expect(metadata.description).toBe("дорослий · середня");
+    expect(metadata.openGraph?.description).toBe("дорослий · середня");
+  });
 });

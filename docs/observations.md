@@ -73,6 +73,73 @@ left to reason about.
 
 If removing the band turns out to touch more than FirstRunBand and its tests, stop and report.
 
+**Done, 2026-09-05 — it did touch one thing beyond FirstRunBand and its tests, reporting per
+the line above.** `uk.firstRun.disclaimer` («Без реєстрації. Ми не беремо і не переказуємо
+грошей. «Не зараз» — це просто фільтр, а не оцінка тварини.») was only ever rendered inside the
+band, and per this entry's own instruction ("`uk.firstRun.promise` survives... only") nothing
+said the disclaimer should survive elsewhere — so it was deleted from both locale catalogues
+(parity-tested). Consequence: `docs/copy-and-ia-critique.md`'s D5 had recorded this sentence as
+carrying 2 of the 4 adopter-facing promises a first-time visitor sees **without clicking
+anything**. The "no money handled" half is still reachable — restated on `/pro`, linked from the
+site header on every page since Phase T. **The "«Не зараз» is a filter, not a judgement" half
+was unstated for a time** — resolved by Oleksii's Phase D decisions (the not-a-judgement notice
+— not build-plan.md's D-3 row, an unrelated robots-metadata task): interim home is the detail
+page, directly under the not-now/reveal action pair (`AnimalDetailScreen.tsx`,
+`uk.actions.notAJudgementNotice`); permanent home is the deck rebuild
+(`docs/build-plan.md`'s R2), once the height is designed in rather than squeezed into the
+existing header. `docs/copy-and-ia-critique.md`'s D5/E6 sections are annotated as superseded
+rather than left to read as still-current advice against exactly what was done.
+
+**Done, 2026-09-06 — all three D-2 strings landed, nothing renders a marker anywhere.**
+`uk.demo.promise`, `uk.demo.bannerNotice`, and `uk.actions.notAJudgementNotice` all have real
+Ukrainian (`copy-status.test.ts` confirms zero placeholders across all three), with English
+counterparts in `en.ts`. The disclaimer was confirmed to be a single string (not two keys)
+before writing anything, per Oleksii's stated condition for that check.
+
+**Correction, 2026-09-06 — provenance, caught by `opika-reviewer`'s STOP on this same row.**
+The paragraph above originally read as if all three strings, including the edit dropping
+«просто» from the recovered notice, were Oleksii's own wording. They were not, and the review
+was right to stop on it. Corrected, on Oleksii's own account:
+
+- `uk.demo.promise` and `uk.demo.bannerNotice` — **drafted by Claude from an English sense.**
+  Oleksii selected these two from three offered options on 2026-09-05. Approved wording, not
+  authored wording — recorded as such in both `packages/i18n/src/messages/uk.ts` and
+  `docs/build-plan.md`'s D-2 row.
+- `uk.actions.notAJudgementNotice` — **the «просто» cut was Claude's unapproved edit, not
+  Oleksii's instruction, and it is reverted.** The notice now ships exactly as the original
+  `firstRun.disclaimer`'s third clause read: «Не зараз» — це просто фільтр, а не оцінка
+  тварини. This is already Oleksii's shipped copy, reproduced verbatim — recovering it exactly
+  needs no fresh approval, which is precisely why reverting the edit was the right fix rather
+  than seeking approval for the edited version.
+
+Every test and doc comment asserting the edited (просто-less) string, or attributing the two
+drafted strings to Oleksii directly, has been corrected alongside this entry — `uk.ts`, `en.ts`,
+`copy-status.test.ts`, `animal-detail.harness.ts`, `AnimalDetailScreen.tsx`,
+`docs/design/README.md`, `docs/copy-and-ia-critique.md`, `docs/build-plan.md`.
+
+**Amendment to the D2 decision on `og:description`:** the original decision omitted
+`description`/`openGraph.description` entirely rather than render `[COPY PENDING]` — a
+fallback for having no honest string. `uk.demo.promise` is real now, so every route uses it as
+its description while `REGISTRY_HAS_NO_REAL_SHELTERS`, `/prytulkam` included: that page is the
+link Oleksii actually sends to shelters, and a weaker title-only fallback there works against
+the honesty this phase exists for. `DeckScreen.tsx`'s `pendingCopyKeys`-based fallback (built
+for the same reason, before `bannerNotice` had real text) is likewise removed — both keys are
+simple, direct catalogue references now.
+
+The previously-open question — whether the detail-page notice rendering a marker live and
+ungated was consistent with the banner/preview's "withhold while pending" treatment — is now
+moot: nothing is pending anywhere. Also flagged and still true, separately: `CLAUDE.md`'s
+commitments table says `forShelters.*` "currently holds `COPY_PENDING` placeholders", which
+`copy-status.test.ts` shows is stale (`pendingCopyKeys(uk.forShelters)` returns `[]`) —
+unrelated to D-2, worth a correction whenever someone next touches that table.
+
+**Note for whoever next reuses the money half of the deleted disclaimer** («Ми не беремо і не
+переказуємо грошей») **— Oleksii's instruction, not yet actioned because nothing currently
+reuses it:** its «ми» must take the all-«я» treatment (registry voice, per the person/voice
+split already recorded — see `/prytulkam`'s `money` key, which already frames this fact as the
+registry's own action rather than "we"). Do not carry «ми» forward unchanged into a new
+placement.
+
 ## O-4 — Filter label to pill spacing too tight · design · open
 
 The gap between «МІСТО» / «ВИД» / «РОЗМІР» / «ВІК» and the pills below is visually too small.
@@ -261,6 +328,19 @@ confirmed under O-15) — this was O-15's bug wearing a design costume, not two 
 ever meant to differ; nothing in the design docs (`docs/design/README.md`'s deck section, buttons
 `«Не зараз» · «↓» · «Написати»`) explains a distinct meaning for the middle button beyond layout.
 **Decision 2 drops it.** Nothing further to design.
+
+## O-17 — A test importing the same constant its component renders · tooling · filed, not scheduled
+
+Filed by Oleksii, 2026-09-06, after the D-2 provenance STOP surfaced a fifth instance of this
+exact defect family (a test file importing a string/constant from the same module the component
+under test renders, then asserting equality against that import — which passes against any
+value, including an empty one, because the test never transcribes the real content). Reviewer
+vigilance keeps catching individual instances; that is not a mechanism, it is luck.
+
+**Wants:** a lint rule that fails when a test file imports a constant also imported (directly or
+transitively) by the component/module it is testing, then uses that same imported binding inside
+an `expect(...)`/`toHaveText(...)`/`toBe(...)` assertion. Scope and exact detection strategy not
+decided — this is filed, not designed. Do not build it now.
 
 ---
 

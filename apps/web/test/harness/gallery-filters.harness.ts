@@ -180,8 +180,8 @@ test.describe("/tvaryny filters — URL is the single source of truth", () => {
     // A real prior page, not Playwright's own about:blank tab state — the
     // page the adopter was actually on before they started filtering. `/`
     // itself can't serve this purpose (it 308-redirects to /tvaryny —
-    // FirstRunBand.tsx, next.config.ts), so `/pro` stands in as any other
-    // real, distinct route would.
+    // next.config.ts), so `/pro` stands in as any other real, distinct
+    // route would.
     //
     // This is the "replace, not push" decision (ReplaceNav) made visible:
     // a filter click REPLACES the current history entry rather than adding

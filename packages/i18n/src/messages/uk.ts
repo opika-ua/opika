@@ -18,20 +18,64 @@
 export const COPY_PENDING = "[COPY PENDING]";
 
 export const uk = {
-  // --- 01 First run — docs/design/README.md:427, a band above the
-  // gallery grid (FirstRunBand.tsx), not a separate screen ---
+  // --- 01 First run — docs/design/README.md:427. Was a band above the
+  // gallery grid (FirstRunBand.tsx); removed in Phase D (O-3,
+  // docs/observations.md) as redundant with the filter rail and result
+  // count. `promise` survives as the root layout's og:description only —
+  // see that section's amendment note ---
   firstRun: {
     /**
      * Rewritten for the gallery-first course correction — "Гортайте, щоб
      * подивитися" (swipe to see) named the deck as the way to look at
      * animals, which stopped being true the moment the gallery became the
-     * primary surface. "Перегляньте список" (browse the list) names what
-     * is actually right below the band: the gallery grid itself.
+     * primary surface. "Перегляньте список" (browse the list) named what
+     * was, at the time, right below the band: the gallery grid itself. Now
+     * link-preview copy only, but still an accurate invitation to the page
+     * it describes.
      */
     promise:
       "Тварини з перевірених притулків Київщини. Перегляньте список і подивіться, кого шукає дім.",
-    disclaimer:
-      "Без реєстрації. Ми не беремо і не переказуємо грошей. «Не зараз» — це просто фільтр, а не оцінка тварини.",
+  },
+
+  /**
+   * Phase D (`docs/build-plan.md`'s D-2) — relevant only while
+   * `REGISTRY_HAS_NO_REAL_SHELTERS` (`apps/web/src/seo-flags.ts`) is true,
+   * i.e. today, on production. Both keys confirmed empty of `COPY_PENDING`
+   * by `copy-status.test.ts`, same pattern as `forShelters` below.
+   *
+   * Provenance, corrected 2026-09-06: both strings were drafted by Claude
+   * from an English sense, not authored by Oleksii — he chose these two
+   * from three offered options on 2026-09-05. Approved wording, not his own
+   * wording; see `docs/observations.md`'s O-3 section for the full record.
+   */
+  demo: {
+    /**
+     * Root layout's `description`/`og:description` in place of
+     * `firstRun.promise` (`app/layout.tsx`) — the link-preview text anyone
+     * sharing a URL from this deploy actually sees. Every route defaults to
+     * this as its description while the registry holds no real shelters
+     * (per the D-2 amendment: a link preview is free-flowing text, not a
+     * fixed-width UI slot, so there's no truncation budget to fit like
+     * `bannerNotice` below has). `/prytulkam` in particular is the link
+     * Oleksii will actually send to shelters — carrying this disclosure
+     * into its own preview, rather than falling back to title-only, is the
+     * honesty this phase exists for.
+     */
+    promise: "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.",
+    /**
+     * The deck header's compact banner (`DeckScreen.tsx`) — replaces only
+     * `filtersLabel`. The position count stays (Oleksii, D-1: demo mode is
+     * the whole testing period, a deck missing the count for weeks is not
+     * the deck being tested); the progress bar is hidden unconditionally
+     * whenever this banner shows, to give the label the room the bar would
+     * otherwise take (D-1's degrade order — the count alone already
+     * answers README.md:597-600's "otherwise invisible" argument).
+     *
+     * Real width budget was measured before this landed: tightest at 320px,
+     * ~107px available, safely fits up to ~12 Cyrillic characters. «Демо»
+     * (4 characters) is nowhere near that ceiling at any asserted viewport.
+     */
+    bannerNotice: "Демо",
   },
 
   // --- Screen 02 · Feed / deck ---
@@ -128,6 +172,27 @@ export const uk = {
     next: "Далі",
     write: "Написати",
     writeShelter: "Написати притулку",
+    /**
+     * Oleksii's Phase D decisions (the not-a-judgement notice — not
+     * build-plan.md's D-3 row, an unrelated robots-metadata task):
+     * `docs/standing-constraints.md`'s "The swipe is filtering, not
+     * judging" is a standing product rule, and
+     * the only place it was ever stated — the sentence used to close
+     * `firstRun.disclaimer`, deleted with `FirstRunBand` — was gone with no
+     * replacement. Interim home: the detail page, directly under the
+     * `notNow`/`writeShelter` pair (`AnimalDetailScreen.tsx`), where there
+     * is vertical room the deck header doesn't have. Permanent home is the
+     * deck rebuild (`docs/build-plan.md`'s R2), where the height is
+     * designed in rather than squeezed into the existing header.
+     *
+     * Recovered verbatim, not newly written — the original disclaimer's own
+     * closing sentence, «просто» included. An earlier pass here dropped
+     * «просто» as an unapproved edit; restored because this sentence is
+     * Oleksii's existing shipped copy and needs no fresh approval at all
+     * once it's reproduced exactly, which is the whole point of recovering
+     * it rather than redrafting it.
+     */
+    notAJudgementNotice: "«Не зараз» — це просто фільтр, а не оцінка тварини.",
   },
 
   // --- Freshness ---

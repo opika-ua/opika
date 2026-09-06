@@ -11,16 +11,20 @@ shelter or animal data is ever committed here.
 ## What you can actually see right now
 
 The product is being built phase by phase (current status:
-[`docs/build-plan.md`](./docs/build-plan.md)). Two routes exist today:
+[`docs/build-plan.md`](./docs/build-plan.md)). `/` redirects to the routes below, which are
+the real, current surfaces:
 
-- **`/`** — the entry screen: promise, disclaimer, a city selector seeded from real
-  (fictional) cities in the database.
-- **`/discovery`** — the swipe deck. Pointer/touch drag, or the on-screen buttons, to move
-  through animals one at a time.
+- **`/tvaryny`** — the gallery: a browsable, filterable grid, the primary surface. Paginated,
+  works with JavaScript disabled. Not indexed yet — see the Phase D note below.
+- **`/tvaryny/gortaty`** — the swipe deck, entered from the gallery. Pointer/touch drag, or
+  the on-screen buttons, to move through animals one at a time. Not the front door on any
+  screen size, and not indexed.
+- **`/tvaryny/[animalId]`** — an animal's detail page, with contact reveal.
+- **`/pro`** and **`/prytulkam`** — about the project, and the page a shelter is sent to.
 
-The gallery (a browsable grid — the primary surface once it lands) and everything past it
-are not built yet; the backend contracts and schema for it landed in Phase E0, but there's
-no page for it. Don't expect to find it by clicking around.
+Phase D is labelling and de-indexing the demo data above so a real visitor can't mistake it
+for a real registry before real shelters exist — see `docs/observations.md` for what's
+currently true about it.
 
 ## Stack, briefly
 

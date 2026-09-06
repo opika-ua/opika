@@ -15,10 +15,12 @@
  */
 
 /**
- * Does the registry currently hold zero real shelters. Drives the demo
- * banner, the `firstRun.promise` swap, and (once built) suppression of the
- * `shelterVerifiedYears` badge — everything that would otherwise assert
- * something true about a fictional shelter to a visitor.
+ * Does the registry currently hold zero real shelters. Drives the deck's
+ * demo banner (`DeckScreen.tsx`), the root layout's `firstRun.promise` swap
+ * (`app/layout.tsx`), and suppression of the `shelterVerifiedYears` badge
+ * (`AnimalDetailScreen.tsx`) — everything that would otherwise assert
+ * something true about a fictional shelter to a visitor. All three are D-2,
+ * and all three are built.
  *
  * This is a fact about *data*, not about *reach*. It goes `false` the
  * moment the demo corpus is wiped and the first real shelter is onboarded —
@@ -26,12 +28,6 @@
  * be publicly discoverable. See `SITE_IS_PUBLICLY_DISCOVERABLE` below for
  * that separate fact, and `assertDemoDiscoverabilityInvariant`'s doc
  * comment for the one relationship the two constants are allowed to have.
- *
- * Has no product consumer yet — D-2 (the banner, the promise swap, the
- * badge suppression) is in this same phase and not yet built; today this
- * constant is read only by the invariant above and by its own test. Not
- * scaffolding ahead of the current phase (`CLAUDE.md`'s phase-discipline
- * rule) — D-1 exists specifically to give D-2 a name to read.
  */
 export const REGISTRY_HAS_NO_REAL_SHELTERS = true;
 

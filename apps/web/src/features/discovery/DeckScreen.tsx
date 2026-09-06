@@ -4,6 +4,7 @@ import { DEFAULT_GALLERY_SORT, type FeedFilters } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { galleryHref } from "../gallery/filter-url";
 import { consumeEnteredFromGalleryMarker } from "./deck-entry-marker";
 import { SwipeDeck } from "./SwipeDeck";
@@ -71,6 +72,8 @@ export function DeckScreen({
   // off-by-one, not a rounding choice.
   const showPosition = total !== null && state.kind === "ready";
 
+  const showDemoBanner = REGISTRY_HAS_NO_REAL_SHELTERS;
+
   /**
    * Frozen at mount, not derived from `position` — docs/design/README.md's
    * own announcement is specifically about *entering* the deck ("Режим по
@@ -125,13 +128,31 @@ export function DeckScreen({
           {uk.feed.backToList}
         </button>
 
-        {filtersLabel && (
+        {/**
+         * D-1 (Oleksii, Phase D decisions): the demo notice replaces only
+         * `filtersLabel` — the position count stays, because demo mode is
+         * the entire testing period and a deck missing the count for weeks
+         * is not the deck being tested. The progress bar degrades instead
+         * (see its own comment below) to give the short demo label the
+         * width it needs. Same slot, same styling as the real
+         * `filtersLabel` it stands in for.
+         */}
+        {showDemoBanner ? (
           <span
-            data-testid="deck-filters-label"
+            data-testid="deck-demo-banner"
             className="truncate text-[13px] leading-[normal] text-rg-ink-2"
           >
-            {filtersLabel}
+            {uk.demo.bannerNotice}
           </span>
+        ) : (
+          filtersLabel && (
+            <span
+              data-testid="deck-filters-label"
+              className="truncate text-[13px] leading-[normal] text-rg-ink-2"
+            >
+              {filtersLabel}
+            </span>
+          )
         )}
 
         {showPosition && total !== null && (
@@ -139,9 +160,25 @@ export function DeckScreen({
             <span data-testid="deck-position" className="text-[12px] text-rg-ink-3">
               {position} з {total}
             </span>
+            {/**
+             * Degrade order (Oleksii, Phase D decisions): if the demo label
+             * doesn't fit alongside the back link and the count, the bar
+             * goes first — the count alone already answers
+             * README.md:597-600's "otherwise invisible" argument, the bar
+             * only duplicates it. Measured (not a fixed breakpoint,
+             * deliberately): the bar's own 80px + gap costs more room than
+             * any viewport in this app's supported range gains by being
+             * wider, so keeping it at some widths and not others would cost
+             * the banner *more* space at the wider ones, not less — hidden
+             * unconditionally whenever the demo banner is showing, visible
+             * whenever the real `filtersLabel` is (unaffected).
+             */}
             <div
               aria-hidden="true"
-              className="h-1.5 w-20 overflow-hidden rounded-full bg-rg-fill-strong"
+              data-testid="deck-progress-bar"
+              className={`h-1.5 w-20 overflow-hidden rounded-full bg-rg-fill-strong ${
+                showDemoBanner ? "hidden" : "block"
+              }`}
             >
               <div
                 className="h-full bg-rg-ink"

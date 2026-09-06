@@ -3,7 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 import "./globals.css";
-import { SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
+import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
 import { commissioner, eUkraine, literata } from "./fonts";
 
 /**
@@ -30,18 +30,34 @@ import { commissioner, eUkraine, literata } from "./fonts";
  * `VERCEL_URL` would point link previews at a deployment hostname rather than
  * the real domain.
  */
+/**
+ * D-2 (Oleksii, Phase D decisions, amended 2026-09-06): a shared link's
+ * preview must not claim verified shelters exist while
+ * `REGISTRY_HAS_NO_REAL_SHELTERS`. The original decision omitted the
+ * description entirely rather than show a `[COPY PENDING]` marker to a
+ * real visitor — that was a fallback for having no honest string yet.
+ * `uk.demo.promise` is real Ukrainian now, so every route uses it as its
+ * description while the flag is true, `/prytulkam` included — that page is
+ * the link Oleksii actually sends to shelters, and carrying this disclosure
+ * into its preview is the honesty this phase is for, not a reason to prefer
+ * a weaker title-only fallback.
+ */
+const linkPreviewDescription = REGISTRY_HAS_NO_REAL_SHELTERS
+  ? uk.demo.promise
+  : uk.firstRun.promise;
+
 export const metadata: Metadata = {
   title: {
     default: "Opika — тварини з притулків Київщини",
     template: "%s — Opika",
   },
-  description: uk.firstRun.promise,
+  description: linkPreviewDescription,
   openGraph: {
     type: "website",
     siteName: "Opika",
     locale: "uk_UA",
     title: "Opika — тварини з притулків Київщини",
-    description: uk.firstRun.promise,
+    description: linkPreviewDescription,
   },
   /**
    * D-3: the noindex signal a crawler can actually see once `app/robots.ts`
