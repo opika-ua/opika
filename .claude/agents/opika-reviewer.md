@@ -98,8 +98,12 @@ what you would need from Oleksii to proceed. Do not pick a reasonable default.
 1. Anything touching production: `DATABASE_URL`, `db:seed --force`, R2 writes, migrations run
    against a non-local target, `onboard-shelter --commit`.
 2. Anything that truncates or deletes data, in any environment, for any reason.
-3. Ukrainian user-facing copy. New strings ship as `[COPY PENDING]` pinned by
-   `copy-status.test.ts`. Oleksii writes the Ukrainian; nobody drafts it into the catalogue.
+3. Ukrainian user-facing copy that has **no approved source** — i.e. text being invented in
+   this diff. New strings ship as `[COPY PENDING]` pinned by `copy-status.test.ts`.
+   **NOT a STOP:** how an already-approved string's approval is recorded. If an attribution
+   line is wrong or missing, report it as an ordinary finding with the correct wording, and
+   let the diff proceed. Wording that reaches users blocks; paperwork about that wording does
+   not.
 4. Any new or changed claim on a user-facing surface. The `/prytulkam` commitments list is the
    register — if a change makes one of those sentences false, or adds a seventh, it stops here.
 5. Secrets, cookie attributes, HMAC keys, rate limits, cursor signing, env validation.
@@ -108,6 +112,20 @@ what you would need from Oleksii to proceed. Do not pick a reasonable default.
 7. A design decision where no mock exists and the prose is ambiguous. Underspecified is a
    finding, not an invitation.
 8. Anything that widens a schema, contract or database field to serve a temporary mode.
+
+## How to review efficiently
+
+- Review the **diff** and the tests of the files it touches. Do not audit the wider repo. If a
+  finding requires reading beyond that, say so and name the file — do not go exploring.
+- **One pass, all decisions.** When returning STOP, enumerate every decision the diff needs,
+  ranked. A second STOP on the same diff for something that was present at the first STOP is a
+  reviewer failure and must be reported as one.
+- **Re-review only the delta.** After fixes, review what changed since your last pass. Do not
+  re-derive the whole diff.
+- **Maximum two passes per row.** Anything unresolved after the second pass becomes a PR
+  comment or a build-plan row, not a blocker.
+- **Output cap:** findings section under 400 words. If you cannot fit them, you have not
+  ranked them.
 
 ## The rule about time
 

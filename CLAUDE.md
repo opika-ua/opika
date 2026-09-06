@@ -502,6 +502,17 @@ production writes, deletions, and secrets. If the open PR is still a draft, keep
 until the STOP resolves; if it's already open for review, say in the same message that a STOP
 finding is unresolved rather than merging over it.
 
+### Amendment, 2026-09-06 — review cadence
+
+Between review passes on the same row, run only the test suites the fix actually touches, not
+the full `pnpm check`. Run a full `pnpm check` **once**, immediately before the commit — that
+is the one run whose green matters for the commit message and the PR body. Re-running the
+whole suite after every small fix is the same waste `test:harness` already warns against
+running twice concurrently: it slows the loop without changing what gets asserted.
+
+Tier 3 changes (see "Process tiers" below) get no reviewer pass at all — they are covered
+once, in the batch, at the PR-level pass.
+
 ## What continues automatically, and what does not
 
 Continue without asking:
