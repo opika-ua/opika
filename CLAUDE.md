@@ -479,13 +479,28 @@ sweep. For each iteration:
    - **PASS** — commit, then start the next plan item without asking.
    - **PASS WITH NOTES** — address the notes, re-invoke the reviewer on the fix, then commit
      and continue.
-   - **STOP** — do not commit, do not continue, do not work around it. Write to Oleksii: what
-     the decision is, the options with their consequences, and what you recommend. Then wait.
+   - **STOP** — do not continue past it and do not work around it, but **do commit first,
+     then push, then write to Oleksii**: what the decision is, the options with their
+     consequences, and what you recommend. Then wait. See the amendment below for why commit
+     precedes the wait rather than following it.
 5. When a phase's rows are all committed, open the PR with the verified-vs-asserted ledger in
    the body, and tell Oleksii it is ready. Do not merge.
 
 Never invoke the reviewer on work you have not finished, and never continue past a STOP by
 reinterpreting it as a note.
+
+### Amendment, 2026-09-06 — a STOP blocks a merge, not a commit
+
+A reviewer STOP blocks a **merge**, not a **commit**. When the reviewer returns STOP: commit
+the work on the branch first, push it, then surface the decision to Oleksii. Uncommitted work
+is a risk (a branch commit is not — it ships nothing to anyone and is fully reversible); never
+hold a green working tree uncommitted while waiting for an answer.
+
+Corollary: STOP-list items about documentation, attribution and provenance are **PR-blocking**,
+not commit-blocking. Only items that would reach users or destroy data block a commit —
+production writes, deletions, and secrets. If the open PR is still a draft, keep it in draft
+until the STOP resolves; if it's already open for review, say in the same message that a STOP
+finding is unresolved rather than merging over it.
 
 ## What continues automatically, and what does not
 
