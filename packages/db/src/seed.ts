@@ -150,7 +150,7 @@ export function assertSafeSeedTarget(databaseUrl: string, argv: readonly string[
  * freshness distribution (50/30/20) stays correct whenever the seed runs.
  * Override with --now=2026-08-05T12:00:00Z for deterministic test snapshots.
  */
-const NOW = (() => {
+export const NOW = (() => {
   const flag = process.argv.find((a) => a.startsWith("--now="));
   return flag ? new Date(flag.slice("--now=".length)) : new Date();
 })();
@@ -280,7 +280,7 @@ const CITY_DATA: { name: LocalizedText; centroid: { lat: number; lng: number } }
   },
 ];
 
-function buildCities(): City[] {
+export function buildCities(): City[] {
   return CITY_DATA.map((c, i) => ({
     id: cityId(i),
     name: c.name,
@@ -302,6 +302,30 @@ interface ShelterDef {
   lat: number;
   lng: number;
   edrpou: string;
+  /**
+   * Defaults to `"registered_ngo"` (the historical, only value here before
+   * D-4, 2026-09-06). Every shelter in the corpus was one legal form —
+   * `ShelterLegalEntitySchema`'s other two variants (`legal-entity.ts`)
+   * existed at the type level with nothing in the seed data ever
+   * constructing them. **Narrowed on review, 2026-09-06:** this did not
+   * mean a registered-only assumption could pass untested anywhere —
+   * `packages/domain/src/shelters/verification/policy.test.ts` and
+   * `packages/db/test/onboard-shelter.test.ts` already exercise
+   * `unregistered_initiative` directly, and nothing in `packages/contracts`
+   * or `apps/web` reads `legalEntity` at all yet. What was missing is
+   * narrower: this generated corpus itself had never constructed anything
+   * but `registered_ngo`, which is what this row fixes.
+   *
+   * Typed against `ShelterLegalEntity["kind"]` itself, not a hand-written
+   * copy of its three literals — `buildShelters`'s `switch` below is then
+   * exhaustive against the real schema, so a variant added to
+   * `ShelterLegalEntitySchema` fails this file's own build until handled,
+   * rather than silently compiling because this local type never learned
+   * about it (caught on a second review round: the first version *looked*
+   * exhaustive but was only exhaustive over this hand-written union).
+   */
+  legalEntityKind?: ShelterLegalEntity["kind"];
+  contactPersonName?: string;
   phone: string;
   telegram: string | null;
   donationUrl: string | null;
@@ -351,6 +375,18 @@ const SHELTER_DEFS: ShelterDef[] = [
     verificationStatus: "verified",
   },
   {
+    /**
+     * D-4, 2026-09-06 — the corpus's one `unregistered_initiative` shelter
+     * (`ShelterLegalEntitySchema`'s third variant, `legal-entity.ts`):
+     * "a large share of shelter activity in the target oblast is
+     * unincorporated volunteer groups" per that schema's own comment, and
+     * CLAUDE.md decision #6 explicitly says such a group can reach
+     * `verified` — a claim nothing in this corpus ever exercised before
+     * this row, since every prior shelter here was `registered_ngo`.
+     * `edrpou` stays on the def below for shape-consistency across
+     * `ShelterDef`, but `buildShelters` doesn't read it for this shelter —
+     * the domain type has no `edrpou` field on this variant at all.
+     */
     displayName: "Притулок «Вірний друг»",
     descriptionUk:
       "Ми рятуємо тварин після обстрілів та допомагаємо їм знайти нові родини. Працюємо з волонтерами з усієї області.",
@@ -361,6 +397,8 @@ const SHELTER_DEFS: ShelterDef[] = [
     lat: 50.518,
     lng: 30.243,
     edrpou: "40345678",
+    legalEntityKind: "unregistered_initiative",
+    contactPersonName: "Олена Ковальчук",
     phone: "+380633456789",
     telegram: null,
     donationUrl: null,
@@ -510,7 +548,7 @@ function buildVerification(def: ShelterDef): ShelterVerification {
   }
 }
 
-function buildShelters(cities: City[]): Shelter[] {
+export function buildShelters(cities: City[]): Shelter[] {
   return SHELTER_DEFS.map((def, i) => {
     const id = shelterId(i);
     const city = cities[def.cityIndex]!;
@@ -537,12 +575,39 @@ function buildShelters(cities: City[]): Shelter[] {
           : null,
     };
 
-    const legalEntity: ShelterLegalEntity = {
-      kind: "registered_ngo",
-      legalName: def.displayName,
-      edrpou: def.edrpou as Edrpou,
-      registeredAt: daysAgo(365 * 3),
-    };
+    // Exhaustive switch, not a ternary chain — same reasoning as
+    // buildVerification's own switch below: a fourth variant added to
+    // ShelterLegalEntitySchema should fail to compile here, not silently
+    // seed as registered_ngo with nothing red (caught on review).
+    const legalEntityKind = def.legalEntityKind ?? "registered_ngo";
+    let legalEntity: ShelterLegalEntity;
+    switch (legalEntityKind) {
+      case "unregistered_initiative":
+        legalEntity = {
+          kind: "unregistered_initiative",
+          contactPersonName: def.contactPersonName ?? def.displayName,
+        };
+        break;
+      case "sole_proprietor":
+        legalEntity = {
+          kind: "sole_proprietor",
+          legalName: def.displayName,
+          edrpou: def.edrpou as Edrpou,
+        };
+        break;
+      case "registered_ngo":
+        legalEntity = {
+          kind: "registered_ngo",
+          legalName: def.displayName,
+          edrpou: def.edrpou as Edrpou,
+          registeredAt: daysAgo(365 * 3),
+        };
+        break;
+      default: {
+        const unreachable: never = legalEntityKind;
+        throw new Error(`Unhandled legal entity kind: ${unreachable}`);
+      }
+    }
 
     return {
       id,
@@ -727,6 +792,28 @@ const DESCRIPTIONS_EN: { text: string; provenance: "human" | "machine" }[] = [
 ];
 
 /**
+ * D-4 hostile-corpus indices, 2026-09-06 (docs/build-plan.md, Phase D) —
+ * deliberate single instances, not statistical presence, so each is
+ * findable by a query rather than by luck. Same idiom as the long
+ * shelter/animal names above (Phase T's C1): a hostile shape gets exactly
+ * one guaranteed occurrence, not a hope that the bulk RNG produces one.
+ *
+ * Both fall in `roll < 14` (`i % 20 < 14`, see `listing` below) — published,
+ * not draft, because a draft's own 0-photo case was already covered before
+ * this row; the point here is that *published* animals need to survive
+ * having 0 or 6 photos too, which nothing in the corpus had ever produced.
+ *
+ * `SIX_PHOTO_INDEX`'s animal is a dog (`i % 3 !== 0`) and `DOG_PHOTOS` has
+ * only 5 entries, so `makePhotos` cycles and one photo repeats — this card
+ * is a duplicate-photo case as well as a six-photo one, not by separate
+ * design. Real shelters upload duplicates too, so left as-is rather than
+ * padding the pool to manufacture six genuinely distinct images.
+ */
+const ZERO_PHOTO_PUBLISHED_INDEX = 40;
+const SIX_PHOTO_INDEX = 41;
+const MINIMAL_DESCRIPTION_INDEX = 42;
+
+/**
  * Shaped freshness distribution:
  *   50% fresh  (0-7 days ago)
  *   30% aging  (8-30 days ago)
@@ -748,7 +835,7 @@ function lastUpdatedDaysAgo(index: number, total: number): number {
   return 31 + Math.round(staleIndex * 59);
 }
 
-function buildAnimals(
+export function buildAnimals(
   shelters: Shelter[],
   cities: City[],
   count: number,
@@ -806,13 +893,22 @@ function buildAnimals(
             precision: pick(["day", "month", "year"] as const, i * 31),
           };
 
-    // Description: Ukrainian always present, English ~60% of the time
+    // Description: Ukrainian always present (LocalizedTextSchema requires a
+    // non-empty string — an actually-empty description is not a
+    // constructable Animal, so D-4's "no description" hostile case is this:
+    // one animal (i === MINIMAL_DESCRIPTION_INDEX) with the shortest honest
+    // non-answer a shelter volunteer might actually type, rather than one
+    // of the real prose descriptions everything else in the corpus uses.
+    // English present ~60% of the time otherwise.
     const descIdx = i % DESCRIPTIONS_UK.length;
     const enDesc = i % 5 < 3 ? DESCRIPTIONS_EN[i % DESCRIPTIONS_EN.length]! : null;
-    const description: LocalizedText = {
-      uk: DESCRIPTIONS_UK[descIdx]!,
-      en: enDesc,
-    };
+    const description: LocalizedText =
+      i === MINIMAL_DESCRIPTION_INDEX
+        ? { uk: "Опис відсутній.", en: null }
+        : {
+            uk: DESCRIPTIONS_UK[descIdx]!,
+            en: enDesc,
+          };
 
     // Vaccination: mixed states
     const vaccination: VaccinationStatus = (() => {
@@ -908,7 +1004,14 @@ function buildAnimals(
     })();
 
     // Photos: 1-5 per animal, more for published
-    const photoCount = listing.kind === "draft" ? 0 : 1 + (i % 5);
+    const photoCount =
+      listing.kind === "draft"
+        ? 0
+        : i === ZERO_PHOTO_PUBLISHED_INDEX
+          ? 0
+          : i === SIX_PHOTO_INDEX
+            ? 6
+            : 1 + (i % 5);
     const id = animalId(i);
     const photos = makePhotos(species, i, photoCount);
 
