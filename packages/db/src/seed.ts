@@ -5,14 +5,18 @@
  * and 300+ animals with realistic Ukrainian names, ages, sizes, mixed
  * vaccination states, and a shaped freshness distribution.
  *
- * Safety: refuses to run unless DATABASE_URL points at localhost, unless
- * the --force flag is passed. Truncate-and-reseed is destructive by design.
+ * Safety: refuses to run unless DATABASE_URL points at localhost. A
+ * non-localhost target requires BOTH --force AND --db-name=<name> (matching
+ * the target database's own name, read out of DATABASE_URL itself) —
+ * --force alone is deliberately not enough. See assertSafeSeedTarget's own
+ * comment for why (docs/build-plan.md, D-9, 2026-09-06).
  *
  * Usage:
  *   pnpm --filter @opika/db db:seed
- *   DATABASE_URL=postgres://... pnpm --filter @opika/db db:seed --force
+ *   DATABASE_URL=postgres://... pnpm --filter @opika/db db:seed --force --db-name=opika
  */
 
+import { pathToFileURL } from "node:url";
 import {
   type AgeEstimate,
   type Animal,
@@ -64,14 +68,75 @@ const DB_PORT = process.env.OPIKA_DB_PORT ?? "5433";
 const DATABASE_URL =
   process.env.DATABASE_URL ?? `postgres://opika:opika@localhost:${DB_PORT}/opika`;
 
-const isLocalhost = /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(DATABASE_URL);
-const hasForce = process.argv.includes("--force");
+const DB_NAME_FLAG_PREFIX = "--db-name=";
 
-if (!isLocalhost && !hasForce) {
+/**
+ * Refuses to let this script's truncate-and-reseed run against anything but
+ * a local database, unless the caller proves — not just asserts with
+ * --force — that they know exactly what they're pointing it at.
+ *
+ * Originally a demo-marker DB column (D-9's first design): every shelter
+ * and animal row carries a marker, and the guard refuses to truncate if any
+ * row lacks it. Reduced, 2026-09-06 (docs/build-plan.md, Phase D
+ * reprioritisation): a real shelter existing in a non-local database is the
+ * actual risk this guards against, and the connection string already says
+ * where the script is about to point — no migration, no backfill, no
+ * column needed to check that. --force alone stays deliberately
+ * insufficient for a non-localhost target: it's typed from habit (every
+ * `db:seed --force` invocation in this repo's own history is that), so it
+ * proves nothing about whether the caller actually looked at the URL. A
+ * second flag whose value must be copied from that same URL is: producing
+ * it requires reading DATABASE_URL, not just remembering that --force
+ * unblocks things.
+ *
+ * Exported and called only from the CLI-only guard at the bottom of this
+ * file (never at module scope) — same reasoning as
+ * `onboard-shelter.ts`'s `refuseIfInsideRepo`: importing this module for a
+ * test must never have the side effect of running it, exiting the test
+ * process included.
+ */
+export function assertSafeSeedTarget(databaseUrl: string, argv: readonly string[]): void {
+  const parsed = new URL(databaseUrl);
+  // Exact match on the parsed hostname, never a substring test against the
+  // whole URL — a substring test is bypassable with zero flags by any
+  // connection string that merely *contains* "localhost" somewhere (a
+  // password, a database name, a query parameter), which is exactly the
+  // "refuses any non-localhost target outright, full stop" guarantee this
+  // row exists to provide. Caught by review, confirmed with a real (not
+  // reasoned-about) URL before this fix landed.
+  const isLocalhost =
+    parsed.hostname === "localhost" ||
+    parsed.hostname === "127.0.0.1" ||
+    parsed.hostname === "0.0.0.0";
+  if (isLocalhost) return;
+
+  const hasForce = argv.includes("--force");
+  const providedDbName = argv
+    .find((arg) => arg.startsWith(DB_NAME_FLAG_PREFIX))
+    ?.slice(DB_NAME_FLAG_PREFIX.length);
+  const actualDbName = parsed.pathname.replace(/^\//, "");
+  // actualDbName.length > 0 (not just equality) matters on its own: a
+  // pathless DATABASE_URL has an empty database name, and without this
+  // clause an empty --db-name= would trivially equal it — the override
+  // firing with no real name ever having been typed. Implies
+  // providedDbName can't be empty either (an empty string only equals a
+  // non-empty one if it isn't actually empty), so there's nothing left to
+  // check on that side.
+  const dbNameMatches =
+    providedDbName !== undefined && actualDbName.length > 0 && providedDbName === actualDbName;
+
+  if (hasForce && dbNameMatches) return;
+
+  const reason =
+    hasForce && providedDbName !== undefined
+      ? "the --db-name you passed does not match the database name in DATABASE_URL"
+      : "pass --force AND --db-name=<database name>";
   console.error(
     "ERROR: DATABASE_URL does not point at localhost.\n" +
-      "The seed script truncates all tables before inserting.\n" +
-      "Pass --force to override this safety check.",
+      "This script truncates every table before inserting — that is unrecoverable against a\n" +
+      "database that holds a real shelter.\n" +
+      `To override, ${reason}, matching the target's own database name exactly\n` +
+      "(read it out of DATABASE_URL yourself).",
   );
   process.exit(1);
 }
@@ -975,7 +1040,15 @@ async function main() {
   console.log("\n✅ Seed complete.");
 }
 
-main().catch((err) => {
-  console.error("Seed failed:", err);
-  process.exit(1);
-});
+// Only run the CLI when this file is executed directly (`tsx src/seed.ts`),
+// not when its exports are imported for testing — importing a module must
+// never have the side effect of running its whole script (same convention
+// as onboard-shelter.ts's own CLI guard, see that file's comment for the
+// Windows argv[1]/pathToFileURL reasoning).
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  assertSafeSeedTarget(DATABASE_URL, process.argv);
+  main().catch((err) => {
+    console.error("Seed failed:", err);
+    process.exit(1);
+  });
+}
