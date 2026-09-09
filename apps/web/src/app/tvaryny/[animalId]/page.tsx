@@ -1,11 +1,12 @@
 import { isRealPhotoKey, r2PublicUrl } from "@opika/db/image-pipeline";
 import { type AnimalId, AnimalIdSchema, textIn } from "@opika/domain";
-import { ageBucketLabel, sizeLabel } from "@opika/i18n";
+import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { anonymousRouterClient } from "../../../api/server-client";
 import { AnimalDetailScreen } from "../../../features/animal-detail/AnimalDetailScreen";
+import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
 
 /**
  * Same reasoning as `../page.tsx` and `../../page.tsx`: prerendering at
@@ -106,6 +107,14 @@ const safeById = cache(async (animalId: AnimalId) => {
  * is a 1200x630 JPEG OG variant in `packages/db/src/image-pipeline` — a
  * pipeline addition, deliberately not pre-emptively built here. Decided by what
  * the phone shows, not by what the spec says should work.
+ *
+ * D-2: this route builds its own `description`/`openGraph.description` rather
+ * than inheriting the root layout's — Next does not merge them, it overrides.
+ * Without its own demo swap, `/tvaryny/{id}` would preview an animal's
+ * age/size with no demo-data disclosure at all — exactly the shared link
+ * `/prytulkam` tells shelters they can paste into Telegram, so this is one
+ * of the routes the disclosure matters on most (see the root layout's own
+ * comment for which routes deliberately don't carry it).
  */
 export async function generateMetadata({
   params,
@@ -119,7 +128,9 @@ export async function generateMetadata({
   const animal = await safeById(parsedId.data);
   if (!animal) return {};
 
-  const description = [ageBucketLabel(animal.ageBucket), sizeLabel(animal.size)].join(" · ");
+  const description = REGISTRY_HAS_NO_REAL_SHELTERS
+    ? uk.demo.bannerNotice
+    : [ageBucketLabel(animal.ageBucket), sizeLabel(animal.size)].join(" · ");
   const photo = animal.photos[0];
   const publicBaseUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
 

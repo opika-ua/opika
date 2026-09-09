@@ -5,14 +5,18 @@
  * and 300+ animals with realistic Ukrainian names, ages, sizes, mixed
  * vaccination states, and a shaped freshness distribution.
  *
- * Safety: refuses to run unless DATABASE_URL points at localhost, unless
- * the --force flag is passed. Truncate-and-reseed is destructive by design.
+ * Safety: refuses to run unless DATABASE_URL points at localhost. A
+ * non-localhost target requires BOTH --force AND --db-name=<name> (matching
+ * the target database's own name, read out of DATABASE_URL itself) —
+ * --force alone is deliberately not enough. See assertSafeSeedTarget's own
+ * comment for why (docs/build-plan.md, D-9, 2026-09-06).
  *
  * Usage:
  *   pnpm --filter @opika/db db:seed
- *   DATABASE_URL=postgres://... pnpm --filter @opika/db db:seed --force
+ *   DATABASE_URL=postgres://... pnpm --filter @opika/db db:seed --force --db-name=opika
  */
 
+import { pathToFileURL } from "node:url";
 import {
   type AgeEstimate,
   type Animal,
@@ -64,14 +68,75 @@ const DB_PORT = process.env.OPIKA_DB_PORT ?? "5433";
 const DATABASE_URL =
   process.env.DATABASE_URL ?? `postgres://opika:opika@localhost:${DB_PORT}/opika`;
 
-const isLocalhost = /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(DATABASE_URL);
-const hasForce = process.argv.includes("--force");
+const DB_NAME_FLAG_PREFIX = "--db-name=";
 
-if (!isLocalhost && !hasForce) {
+/**
+ * Refuses to let this script's truncate-and-reseed run against anything but
+ * a local database, unless the caller proves — not just asserts with
+ * --force — that they know exactly what they're pointing it at.
+ *
+ * Originally a demo-marker DB column (D-9's first design): every shelter
+ * and animal row carries a marker, and the guard refuses to truncate if any
+ * row lacks it. Reduced, 2026-09-06 (docs/build-plan.md, Phase D
+ * reprioritisation): a real shelter existing in a non-local database is the
+ * actual risk this guards against, and the connection string already says
+ * where the script is about to point — no migration, no backfill, no
+ * column needed to check that. --force alone stays deliberately
+ * insufficient for a non-localhost target: it's typed from habit (every
+ * `db:seed --force` invocation in this repo's own history is that), so it
+ * proves nothing about whether the caller actually looked at the URL. A
+ * second flag whose value must be copied from that same URL is: producing
+ * it requires reading DATABASE_URL, not just remembering that --force
+ * unblocks things.
+ *
+ * Exported and called only from the CLI-only guard at the bottom of this
+ * file (never at module scope) — same reasoning as
+ * `onboard-shelter.ts`'s `refuseIfInsideRepo`: importing this module for a
+ * test must never have the side effect of running it, exiting the test
+ * process included.
+ */
+export function assertSafeSeedTarget(databaseUrl: string, argv: readonly string[]): void {
+  const parsed = new URL(databaseUrl);
+  // Exact match on the parsed hostname, never a substring test against the
+  // whole URL — a substring test is bypassable with zero flags by any
+  // connection string that merely *contains* "localhost" somewhere (a
+  // password, a database name, a query parameter), which is exactly the
+  // "refuses any non-localhost target outright, full stop" guarantee this
+  // row exists to provide. Caught by review, confirmed with a real (not
+  // reasoned-about) URL before this fix landed.
+  const isLocalhost =
+    parsed.hostname === "localhost" ||
+    parsed.hostname === "127.0.0.1" ||
+    parsed.hostname === "0.0.0.0";
+  if (isLocalhost) return;
+
+  const hasForce = argv.includes("--force");
+  const providedDbName = argv
+    .find((arg) => arg.startsWith(DB_NAME_FLAG_PREFIX))
+    ?.slice(DB_NAME_FLAG_PREFIX.length);
+  const actualDbName = parsed.pathname.replace(/^\//, "");
+  // actualDbName.length > 0 (not just equality) matters on its own: a
+  // pathless DATABASE_URL has an empty database name, and without this
+  // clause an empty --db-name= would trivially equal it — the override
+  // firing with no real name ever having been typed. Implies
+  // providedDbName can't be empty either (an empty string only equals a
+  // non-empty one if it isn't actually empty), so there's nothing left to
+  // check on that side.
+  const dbNameMatches =
+    providedDbName !== undefined && actualDbName.length > 0 && providedDbName === actualDbName;
+
+  if (hasForce && dbNameMatches) return;
+
+  const reason =
+    hasForce && providedDbName !== undefined
+      ? "the --db-name you passed does not match the database name in DATABASE_URL"
+      : "pass --force AND --db-name=<database name>";
   console.error(
     "ERROR: DATABASE_URL does not point at localhost.\n" +
-      "The seed script truncates all tables before inserting.\n" +
-      "Pass --force to override this safety check.",
+      "This script truncates every table before inserting — that is unrecoverable against a\n" +
+      "database that holds a real shelter.\n" +
+      `To override, ${reason}, matching the target's own database name exactly\n` +
+      "(read it out of DATABASE_URL yourself).",
   );
   process.exit(1);
 }
@@ -85,7 +150,7 @@ if (!isLocalhost && !hasForce) {
  * freshness distribution (50/30/20) stays correct whenever the seed runs.
  * Override with --now=2026-08-05T12:00:00Z for deterministic test snapshots.
  */
-const NOW = (() => {
+export const NOW = (() => {
   const flag = process.argv.find((a) => a.startsWith("--now="));
   return flag ? new Date(flag.slice("--now=".length)) : new Date();
 })();
@@ -215,7 +280,7 @@ const CITY_DATA: { name: LocalizedText; centroid: { lat: number; lng: number } }
   },
 ];
 
-function buildCities(): City[] {
+export function buildCities(): City[] {
   return CITY_DATA.map((c, i) => ({
     id: cityId(i),
     name: c.name,
@@ -237,6 +302,30 @@ interface ShelterDef {
   lat: number;
   lng: number;
   edrpou: string;
+  /**
+   * Defaults to `"registered_ngo"` (the historical, only value here before
+   * D-4, 2026-09-06). Every shelter in the corpus was one legal form —
+   * `ShelterLegalEntitySchema`'s other two variants (`legal-entity.ts`)
+   * existed at the type level with nothing in the seed data ever
+   * constructing them. **Narrowed on review, 2026-09-06:** this did not
+   * mean a registered-only assumption could pass untested anywhere —
+   * `packages/domain/src/shelters/verification/policy.test.ts` and
+   * `packages/db/test/onboard-shelter.test.ts` already exercise
+   * `unregistered_initiative` directly, and nothing in `packages/contracts`
+   * or `apps/web` reads `legalEntity` at all yet. What was missing is
+   * narrower: this generated corpus itself had never constructed anything
+   * but `registered_ngo`, which is what this row fixes.
+   *
+   * Typed against `ShelterLegalEntity["kind"]` itself, not a hand-written
+   * copy of its three literals — `buildShelters`'s `switch` below is then
+   * exhaustive against the real schema, so a variant added to
+   * `ShelterLegalEntitySchema` fails this file's own build until handled,
+   * rather than silently compiling because this local type never learned
+   * about it (caught on a second review round: the first version *looked*
+   * exhaustive but was only exhaustive over this hand-written union).
+   */
+  legalEntityKind?: ShelterLegalEntity["kind"];
+  contactPersonName?: string;
   phone: string;
   telegram: string | null;
   donationUrl: string | null;
@@ -286,6 +375,18 @@ const SHELTER_DEFS: ShelterDef[] = [
     verificationStatus: "verified",
   },
   {
+    /**
+     * D-4, 2026-09-06 — the corpus's one `unregistered_initiative` shelter
+     * (`ShelterLegalEntitySchema`'s third variant, `legal-entity.ts`):
+     * "a large share of shelter activity in the target oblast is
+     * unincorporated volunteer groups" per that schema's own comment, and
+     * CLAUDE.md decision #6 explicitly says such a group can reach
+     * `verified` — a claim nothing in this corpus ever exercised before
+     * this row, since every prior shelter here was `registered_ngo`.
+     * `edrpou` stays on the def below for shape-consistency across
+     * `ShelterDef`, but `buildShelters` doesn't read it for this shelter —
+     * the domain type has no `edrpou` field on this variant at all.
+     */
     displayName: "Притулок «Вірний друг»",
     descriptionUk:
       "Ми рятуємо тварин після обстрілів та допомагаємо їм знайти нові родини. Працюємо з волонтерами з усієї області.",
@@ -296,6 +397,8 @@ const SHELTER_DEFS: ShelterDef[] = [
     lat: 50.518,
     lng: 30.243,
     edrpou: "40345678",
+    legalEntityKind: "unregistered_initiative",
+    contactPersonName: "Олена Ковальчук",
     phone: "+380633456789",
     telegram: null,
     donationUrl: null,
@@ -445,7 +548,7 @@ function buildVerification(def: ShelterDef): ShelterVerification {
   }
 }
 
-function buildShelters(cities: City[]): Shelter[] {
+export function buildShelters(cities: City[]): Shelter[] {
   return SHELTER_DEFS.map((def, i) => {
     const id = shelterId(i);
     const city = cities[def.cityIndex]!;
@@ -472,12 +575,39 @@ function buildShelters(cities: City[]): Shelter[] {
           : null,
     };
 
-    const legalEntity: ShelterLegalEntity = {
-      kind: "registered_ngo",
-      legalName: def.displayName,
-      edrpou: def.edrpou as Edrpou,
-      registeredAt: daysAgo(365 * 3),
-    };
+    // Exhaustive switch, not a ternary chain — same reasoning as
+    // buildVerification's own switch below: a fourth variant added to
+    // ShelterLegalEntitySchema should fail to compile here, not silently
+    // seed as registered_ngo with nothing red (caught on review).
+    const legalEntityKind = def.legalEntityKind ?? "registered_ngo";
+    let legalEntity: ShelterLegalEntity;
+    switch (legalEntityKind) {
+      case "unregistered_initiative":
+        legalEntity = {
+          kind: "unregistered_initiative",
+          contactPersonName: def.contactPersonName ?? def.displayName,
+        };
+        break;
+      case "sole_proprietor":
+        legalEntity = {
+          kind: "sole_proprietor",
+          legalName: def.displayName,
+          edrpou: def.edrpou as Edrpou,
+        };
+        break;
+      case "registered_ngo":
+        legalEntity = {
+          kind: "registered_ngo",
+          legalName: def.displayName,
+          edrpou: def.edrpou as Edrpou,
+          registeredAt: daysAgo(365 * 3),
+        };
+        break;
+      default: {
+        const unreachable: never = legalEntityKind;
+        throw new Error(`Unhandled legal entity kind: ${unreachable}`);
+      }
+    }
 
     return {
       id,
@@ -662,6 +792,28 @@ const DESCRIPTIONS_EN: { text: string; provenance: "human" | "machine" }[] = [
 ];
 
 /**
+ * D-4 hostile-corpus indices, 2026-09-06 (docs/build-plan.md, Phase D) —
+ * deliberate single instances, not statistical presence, so each is
+ * findable by a query rather than by luck. Same idiom as the long
+ * shelter/animal names above (Phase T's C1): a hostile shape gets exactly
+ * one guaranteed occurrence, not a hope that the bulk RNG produces one.
+ *
+ * Both fall in `roll < 14` (`i % 20 < 14`, see `listing` below) — published,
+ * not draft, because a draft's own 0-photo case was already covered before
+ * this row; the point here is that *published* animals need to survive
+ * having 0 or 6 photos too, which nothing in the corpus had ever produced.
+ *
+ * `SIX_PHOTO_INDEX`'s animal is a dog (`i % 3 !== 0`) and `DOG_PHOTOS` has
+ * only 5 entries, so `makePhotos` cycles and one photo repeats — this card
+ * is a duplicate-photo case as well as a six-photo one, not by separate
+ * design. Real shelters upload duplicates too, so left as-is rather than
+ * padding the pool to manufacture six genuinely distinct images.
+ */
+const ZERO_PHOTO_PUBLISHED_INDEX = 40;
+const SIX_PHOTO_INDEX = 41;
+const MINIMAL_DESCRIPTION_INDEX = 42;
+
+/**
  * Shaped freshness distribution:
  *   50% fresh  (0-7 days ago)
  *   30% aging  (8-30 days ago)
@@ -683,7 +835,7 @@ function lastUpdatedDaysAgo(index: number, total: number): number {
   return 31 + Math.round(staleIndex * 59);
 }
 
-function buildAnimals(
+export function buildAnimals(
   shelters: Shelter[],
   cities: City[],
   count: number,
@@ -741,13 +893,22 @@ function buildAnimals(
             precision: pick(["day", "month", "year"] as const, i * 31),
           };
 
-    // Description: Ukrainian always present, English ~60% of the time
+    // Description: Ukrainian always present (LocalizedTextSchema requires a
+    // non-empty string — an actually-empty description is not a
+    // constructable Animal, so D-4's "no description" hostile case is this:
+    // one animal (i === MINIMAL_DESCRIPTION_INDEX) with the shortest honest
+    // non-answer a shelter volunteer might actually type, rather than one
+    // of the real prose descriptions everything else in the corpus uses.
+    // English present ~60% of the time otherwise.
     const descIdx = i % DESCRIPTIONS_UK.length;
     const enDesc = i % 5 < 3 ? DESCRIPTIONS_EN[i % DESCRIPTIONS_EN.length]! : null;
-    const description: LocalizedText = {
-      uk: DESCRIPTIONS_UK[descIdx]!,
-      en: enDesc,
-    };
+    const description: LocalizedText =
+      i === MINIMAL_DESCRIPTION_INDEX
+        ? { uk: "Опис відсутній.", en: null }
+        : {
+            uk: DESCRIPTIONS_UK[descIdx]!,
+            en: enDesc,
+          };
 
     // Vaccination: mixed states
     const vaccination: VaccinationStatus = (() => {
@@ -843,7 +1004,14 @@ function buildAnimals(
     })();
 
     // Photos: 1-5 per animal, more for published
-    const photoCount = listing.kind === "draft" ? 0 : 1 + (i % 5);
+    const photoCount =
+      listing.kind === "draft"
+        ? 0
+        : i === ZERO_PHOTO_PUBLISHED_INDEX
+          ? 0
+          : i === SIX_PHOTO_INDEX
+            ? 6
+            : 1 + (i % 5);
     const id = animalId(i);
     const photos = makePhotos(species, i, photoCount);
 
@@ -975,7 +1143,15 @@ async function main() {
   console.log("\n✅ Seed complete.");
 }
 
-main().catch((err) => {
-  console.error("Seed failed:", err);
-  process.exit(1);
-});
+// Only run the CLI when this file is executed directly (`tsx src/seed.ts`),
+// not when its exports are imported for testing — importing a module must
+// never have the side effect of running its whole script (same convention
+// as onboard-shelter.ts's own CLI guard, see that file's comment for the
+// Windows argv[1]/pathToFileURL reasoning).
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  assertSafeSeedTarget(DATABASE_URL, process.argv);
+  main().catch((err) => {
+    console.error("Seed failed:", err);
+    process.exit(1);
+  });
+}

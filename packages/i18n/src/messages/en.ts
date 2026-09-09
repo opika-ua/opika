@@ -15,12 +15,16 @@
 import { COPY_PENDING } from "./uk";
 
 export const en = {
-  // --- 01 First run — a band above the gallery grid, not a separate screen ---
+  // --- 01 First run — was a band above the gallery grid, removed in
+  // Phase D (see uk.ts's own comment); promise survives as og:description ---
   firstRun: {
     promise:
       "Animals from verified shelters across Kyiv oblast. Browse the list and see who's looking for a home.",
-    disclaimer:
-      'No registration. We never handle or transfer money. "Not right now" is just a filter, not a judgement of the animal.',
+  },
+
+  demo: {
+    bannerNotice: "The registry doesn't hold any real shelters yet — every card here is a demo.",
+    deckLabel: "Demo",
   },
 
   // --- Screen 02 · Feed / deck ---
@@ -81,6 +85,7 @@ export const en = {
     next: "Next",
     write: "Message",
     writeShelter: "Message the shelter",
+    notAJudgementNotice: '"Not right now" is just a filter, not a judgement of the animal.',
   },
 
   // --- Freshness ---
@@ -295,7 +300,7 @@ export const en = {
       'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) — the registry only shows the link; the money goes directly, and you can see exactly where.',
     data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: an adopter only ever sees an approximate location. A shelter can ask to have its listing removed at any time.",
     analytics:
-      "The registry collects basic visit statistics — how many people visit and how fast the pages load — with no cookies and no advertising.",
+      "The registry collects basic visit statistics — how many people visit and how fast the pages load — with no advertising.",
     /** Template: "Get in touch: {contact}" */
     contact: "Get in touch: {contact}",
   },

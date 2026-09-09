@@ -4,6 +4,7 @@ import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips } from "@opika/ui";
 import Image from "next/image";
 import Link from "next/link";
+import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
@@ -293,6 +294,23 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
             <RevealFlow animalId={animal.id} animalName={animal.name} cityName={cityName} />
           </div>
 
+          {/*
+            Oleksii's Phase D decisions (the not-a-judgement notice — not
+            build-plan.md's D-3 row, an unrelated robots-metadata task):
+            `docs/standing-constraints.md`'s "The swipe is filtering, not
+            judging" is a standing product rule, not presentation, and lost
+            its only home when `FirstRunBand` was deleted (its own sentence
+            carried it). Interim home, until the deck rebuild designs the
+            height in (`docs/build-plan.md`'s R2): directly under the action
+            pair above, where the rule actually applies. Text recovered
+            verbatim from the deleted `firstRun.disclaimer`, including
+            «просто» — already-shipped copy of Oleksii's, reproduced exactly,
+            not redrafted.
+          */}
+          <span data-testid="not-a-judgement-notice" className="text-[13px]/[18px] text-rg-ink-3">
+            {uk.actions.notAJudgementNotice}
+          </span>
+
           <div className="flex flex-col desktop:flex-row gap-6">
             <div className="flex-1 min-w-0 flex flex-col gap-3">
               <span className="text-[19px]/[24px] font-medium text-rg-ink">
@@ -343,9 +361,18 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
                 <span className="text-[15px]/[22px] font-medium text-rg-ink">
                   {shelter.displayName}
                 </span>
-                <span className="text-[13px]/[18px] text-rg-ink-3">
-                  {uk.detail.shelterVerifiedYears.replace("{years}", `${years} ${yearsLabel}`)}
-                </span>
+                {/*
+                  D-2 (seo-flags.ts's own comment on REGISTRY_HAS_NO_REAL_SHELTERS):
+                  this badge asserts something true about a *verified* shelter —
+                  fictional while the flag is true, which it is on production
+                  today. Suppressed rather than shown for a shelter that doesn't
+                  exist.
+                */}
+                {!REGISTRY_HAS_NO_REAL_SHELTERS && (
+                  <span className="text-[13px]/[18px] text-rg-ink-3">
+                    {uk.detail.shelterVerifiedYears.replace("{years}", `${years} ${yearsLabel}`)}
+                  </span>
+                )}
               </div>
             </div>
 

@@ -58,3 +58,52 @@ describe("«Для притулків» copy status", () => {
     }
   });
 });
+
+/**
+ * D-2 (`docs/observations.md`): both strings are now live — `DeckScreen.tsx`
+ * shows `deckLabel`, and the root layout defaults to `bannerNotice` as the
+ * description while `REGISTRY_HAS_NO_REAL_SHELTERS` (Option B, 2026-09-06:
+ * `/prytulkam` and `/pro` override this default with their own opening
+ * sentences instead — see `app/prytulkam/page.tsx`/`app/pro/page.tsx`).
+ * Provenance: drafted by Claude from an English sense; Oleksii selected
+ * these from offered options on 2026-09-05. Same shape as the
+ * `forShelters` assertion above: this stays empty, and it fails the moment
+ * either string reverts to a placeholder mid-edit.
+ */
+describe("demo-mode copy status (D-2)", () => {
+  it("has no placeholders left — both strings are written", () => {
+    expect(pendingCopyKeys(uk.demo)).toEqual([]);
+  });
+
+  it("still has both keys the D-2 row specifies", () => {
+    // Guards the guard: `toEqual([])` above also passes against an empty
+    // object, so deleting a key rather than writing it would look identical
+    // without this.
+    expect(Object.keys(uk.demo).length).toBe(2);
+  });
+});
+
+/**
+ * Oleksii's Phase D decisions (the not-a-judgement notice — not
+ * build-plan.md's D-3 row, an unrelated robots-metadata task): the "«Не
+ * зараз» is a filter, not a judgement" sentence — a standing product rule
+ * (`docs/standing-constraints.md`), not decoration — lost its only home
+ * when `FirstRunBand` was deleted. Landed 2026-09-06: recovered verbatim,
+ * including «просто», from the original disclaimer — already-shipped copy
+ * of Oleksii's, reproduced exactly rather than redrafted, so it needs no
+ * fresh approval. Interim home is the detail page
+ * (`AnimalDetailScreen.tsx`); permanent home is the deck rebuild
+ * (`docs/build-plan.md`'s R2).
+ */
+describe("detail-page not-a-judgement notice copy status", () => {
+  it("has no placeholder left — the notice is written", () => {
+    expect(pendingCopyKeys(uk.actions)).toEqual([]);
+  });
+
+  it("still has every key `uk.actions` is expected to carry", () => {
+    // Guards the guard: `toEqual([])` above also passes against an empty
+    // object, so deleting `notAJudgementNotice` rather than writing it would
+    // look identical without this.
+    expect(Object.keys(uk.actions).length).toBe(5);
+  });
+});

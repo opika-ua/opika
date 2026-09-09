@@ -180,6 +180,20 @@ describes a moment.
   means in each state, that comment is the union struggling to get out.
 - **`now` is a parameter** to any function that should be pure. Never read the clock inside
   one.
+- **Two facts that happen to be true at the same time are not one fact.** Before collapsing
+  two conditions into a single flag "so they can never disagree," find the state where they
+  diverge. If a plan or a design document reserves that state on purpose, the conditions stay
+  separate constants and the relationship between them — usually an asserted implication, not
+  a shared boolean — is what actually protects the invariant the single flag was trying to.
+
+  *Why:* `NOINDEX_EVERYTHING` (#43) already conflated "the registry holds no real shelters"
+  and "the site is publicly discoverable" into one flag, unreviewed, across a phase
+  boundary. Phase D's D-1 inherited and named the conflation rather than introducing it —
+  found only when `docs/build-plan.md`'s launch-gate paragraph, sitting two lines below the
+  edit, turned out to reserve exactly the state where the two facts diverge: a verified real
+  shelter can exist, reachable by direct link, before the site is meant to be publicly
+  discoverable. One flag could not express that without either deleting the window or naming
+  itself after only one of the two facts.
 - **Public views are built with `pick`, never `omit`.** `omit` is allow-by-default: a field
   added to a domain object appears in the API silently. The fields being withheld are
   shelters' exact addresses and phone numbers.
@@ -230,6 +244,36 @@ payment page, with the destination domain visible before the user taps.
 
 ---
 
+## Removing a false claim is not the same gate as adding one
+
+**Deleting a claim never requires the approval that adding one does.** A deletion can only
+reduce what a page asserts — it cannot introduce a new claim, a wrong translation, or an
+unapproved tone, which is what the Ukrainian-copy gate exists to catch. When a shipped change
+makes existing copy false, delete the false part immediately; do not hold the shipping change
+hostage to writing its honest replacement, and do not leave the false copy live while the
+replacement is drafted.
+
+**"Delete first, write later" is two separate actions, not one skipped.** The deletion needs no
+new Ukrainian and can land the moment the falsehood is found. The honest fuller replacement
+still goes through the same authoring process any new user-facing copy does — a narrower true
+sentence today does not excuse a sloppier one when the fuller version is finally written.
+
+**A narrowed commitment is recorded as narrowed, not as satisfied.** If a page used to promise
+more than the deletion leaves it promising, say so in whatever register tracks that commitment
+(this repo's commitments table, `docs/observations.md`'s commitments-register note, or
+equivalent) — "temporarily narrowed, restoring a fuller version in `<row>`" is a different, true
+statement from silently letting the shorter sentence look like the whole of what was ever
+promised.
+
+*Why:* R1 (Phase R, 2026-09-09) wired real per-device swipe memory into the deck, which made
+two live sentences false the same day it shipped — `/prytulkam` §3's "both browsing methods show
+everyone" and `/pro`'s "no cookies," each requiring a fuller honest replacement that wasn't
+written yet. Treating the deletion and the replacement as one blocked action would have held a
+real bug fix off `main` for copy that didn't exist yet, for no safety gained: a shorter true
+sentence needs no more review than a false one needs less.
+
+---
+
 ## Commitments the «Для притулків» page makes
 
 `/prytulkam` (Phase T) is the page a shelter is *sent* to in an outreach message.
@@ -243,9 +287,11 @@ lives in (`packages/i18n/src/messages/uk.ts`, `forShelters.*`), and the change
 that would falsify each one. Any work in those areas has to walk into this list
 rather than around it.
 
-⚠ Activates when the copy lands. `forShelters.*` currently holds `COPY_PENDING`
-placeholders; the draft is `docs/prytulkam-copy-draft.md`. The commitments below
-are already settled in substance — what is pending is the final Ukrainian.
+⚠ Active — the Ukrainian landed in Phase T; `forShelters.*` holds no `COPY_PENDING`
+placeholders (`copy-status.test.ts` asserts this and stays red if one reappears).
+The commitments below are enforced as written, not merely settled in substance
+awaiting copy. Row 8's temporary narrowing (2026-09-09) is the one live exception —
+see its own entry for what's currently true instead of the unqualified original.
 
 | # | Commitment | Key | Falsified by |
 |---|---|---|---|
@@ -256,6 +302,7 @@ are already settled in substance — what is pending is the final Ukrainian.
 | 5 | **The registry never touches money.** «Реєстр не бере і не переказує грошей…» | `money` | Payment handling of any kind, including donation collection routed through the platform. Already a standing product rule above; listed here because the shelter-facing page states it as a commitment *to them*, which is a second, independent reason it cannot quietly change. |
 | 7 | **The freshness date says only what it measures: «коли інформацію востаннє оновлювали».** Not "when you last confirmed" — the page must never claim a confirmation the data model does not record. | `whyThatSentence` | Already the narrower of two available truths, chosen after checking. `freshnessOf` reads `animals.last_updated_at` directly, and that column's own schema comment calls it edit time — "a shelter fixing a typo would make a four-month wait read as freshly available". Today it never moves at all: `animalRepo.update` writes whatever `lastUpdatedAt` its caller passes, does not auto-bump, and **has no callers outside tests**, so the date currently means "when the listing was created". **When H2 builds the edit path this becomes live**, and the honest fix is a real confirmation concept — a separate column and a shelter-facing "still looking" action — not a wider sentence. Widening the copy to match a sloppier field is the one exit that is not available, because §8's entire argument is that the number can be read literally. |
 | 6 | **The work on our side is done by a person, and the page says so in three places.** «ви розкажете, а я внесу все сам» (§7) · «напишіть, і я приберу» (§9) · «коли ви пишете на цю адресу, відповідаю я» (§10) | `whatToPrepare`, `whenAnimalFindsHome`, `whoIsBehindThis` | All three are true today and all three are load-bearing for trust — a volunteer is being asked to rely on a named human rather than a form. **H2 (internal admin) is where they stop being true**, and the failure mode is not that a shelter dashboard is wrong to build; it is that shipping one while these sentences still say "write to me and I'll do it" makes the page describe a product that no longer exists. When self-serve arrives, this copy gets rewritten in the same change — not left to be discovered by a shelter following an instruction that no longer matches the screen. |
+| 8 | **Both ways of browsing (list, one-by-one) show everyone** — describes the adopter-facing mechanics of `/tvaryny`/the deck, to the shelter reading about it. **Temporarily narrowed, not dropped, 2026-09-09.** R1 (Phase R) wired real per-device swipe memory into the deck, making the unqualified claim false the day it shipped: the deck stops re-serving what a device has skipped, so it no longer shows literally everyone on a return visit. Per "Removing a false claim is not the same gate as adding one" above, the false half («Обидва способи показують усіх») was deleted immediately rather than left live while the replacement was drafted; `whatHappensToAnimals` (`packages/i18n/src/messages/uk.ts`) currently states only the mechanism (list or one-at-a-time exist), not the show-everyone claim. **R4 restores a fuller, accurate version** — English sense already drafted in `docs/observations.md`'s commitments-register note ("the list shows everyone; the deck does not re-serve what you skipped; nothing is hidden from you that you did not hide yourself"). Not pinned by `copy-status.test.ts`: the false half was *deleted*, not replaced with a `[COPY_PENDING]` placeholder, so there is currently no marker for that test to catch — R4's Ukrainian is tracked only in `docs/build-plan.md`'s own row, not enforced by a tripwire. | `whatHappensToAnimals` | Any further change to what the deck does or doesn't re-serve, without updating whichever version of this row is live at the time. |
 
 ---
 

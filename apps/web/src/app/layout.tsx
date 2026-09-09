@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 import "./globals.css";
+import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
 import { commissioner, eUkraine, literata } from "./fonts";
 
 /**
@@ -29,19 +30,42 @@ import { commissioner, eUkraine, literata } from "./fonts";
  * `VERCEL_URL` would point link previews at a deployment hostname rather than
  * the real domain.
  */
+/**
+ * D-2: a shared link's preview must not claim verified shelters exist while
+ * `REGISTRY_HAS_NO_REAL_SHELTERS`. This is the **default** every route
+ * inherits unless it sets its own `description` — `/tvaryny/[animalId]`
+ * does (its own per-animal swap); `/prytulkam` and `/pro` do too, overriding
+ * with their own existing opening sentences rather than this disclosure
+ * (Option B, 2026-09-06, see `docs/observations.md`) — this default was
+ * never meant to reach those two specifically, and reaching them was an
+ * unconfirmed scope expansion, corrected here.
+ */
+const linkPreviewDescription = REGISTRY_HAS_NO_REAL_SHELTERS
+  ? uk.demo.bannerNotice
+  : uk.firstRun.promise;
+
 export const metadata: Metadata = {
   title: {
     default: "Opika — тварини з притулків Київщини",
     template: "%s — Opika",
   },
-  description: uk.firstRun.promise,
+  description: linkPreviewDescription,
   openGraph: {
     type: "website",
     siteName: "Opika",
     locale: "uk_UA",
     title: "Opika — тварини з притулків Київщини",
-    description: uk.firstRun.promise,
+    description: linkPreviewDescription,
   },
+  /**
+   * D-3: the noindex signal a crawler can actually see once `app/robots.ts`
+   * stops disallowing fetches. `next.config.ts`'s `X-Robots-Tag` header
+   * already carries the same flag; this is the HTML-level copy of that same
+   * decision, not a second source of truth for it.
+   */
+  robots: SITE_IS_PUBLICLY_DISCOVERABLE
+    ? { index: true, follow: true }
+    : { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

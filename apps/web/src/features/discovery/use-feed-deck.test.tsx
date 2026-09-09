@@ -7,9 +7,15 @@ import { generateMockCards } from "./mock-data";
 import { useFeedDeck } from "./use-feed-deck";
 
 const list = vi.fn();
+const bootstrap = vi.fn();
+const record = vi.fn();
 
 vi.mock("../../api/browser-client", () => ({
-  feedBrowserClient: { feed: { list: (...args: unknown[]) => list(...args) } },
+  feedBrowserClient: {
+    feed: { list: (...args: unknown[]) => list(...args) },
+    session: { bootstrap: (...args: unknown[]) => bootstrap(...args) },
+    swipes: { record: (...args: unknown[]) => record(...args) },
+  },
 }));
 
 /**
@@ -21,6 +27,8 @@ vi.mock("../../api/browser-client", () => ({
 describe("useFeedDeck", () => {
   beforeEach(() => {
     list.mockReset();
+    bootstrap.mockReset().mockResolvedValue({});
+    record.mockReset().mockResolvedValue({ recorded: true });
   });
 
   it("loads the first page on mount, with a null cursor", async () => {
@@ -40,6 +48,101 @@ describe("useFeedDeck", () => {
       { signal: expect.any(AbortSignal) },
     );
     expect(result.current.state).toEqual({ kind: "ready", cards });
+    expect(result.current.hasActiveSeenSet).toBe(false);
+  });
+
+  /**
+   * Oleksii's resolution to R1's STOP (`docs/build-plan.md`, Phase R,
+   * 2026-09-09): a *pre-existing* seen-set from an earlier visit — the
+   * server telling this device it already has history — must suppress the
+   * deck's own position counter, not just a seen-set built up during the
+   * current page load (the next test covers that half).
+   */
+  it("exposes hasActiveSeenSet true when the entry fetch reports a pre-existing one", async () => {
+    list.mockResolvedValueOnce({
+      items: generateMockCards(3),
+      nextCursor: null,
+      hasActiveSeenSet: true,
+    });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+
+    expect(result.current.hasActiveSeenSet).toBe(true);
+  });
+
+  /**
+   * The server only ever computes a real `true`/`false` on a "replace"
+   * call (the entry fetch or a retry-restart) — a prefetch response
+   * carries `null` ("not computed for this call", never a real answer,
+   * see `apps/web/src/api/handlers/feed.ts`'s and the contract's own
+   * comments). This is the guarantee that a prefetch response can't
+   * silently un-suppress a counter a "replace" call already confirmed
+   * should stay hidden — checking `=== true` treats both `null` and
+   * `false` as no-ops, so this holds regardless of which value a
+   * prefetch actually carries.
+   */
+  it("does not let a prefetch's own null hasActiveSeenSet override an already-true value", async () => {
+    list
+      .mockResolvedValueOnce({
+        items: generateMockCards(3),
+        nextCursor: "cursor-1",
+        hasActiveSeenSet: true,
+      })
+      .mockResolvedValueOnce({
+        items: generateMockCards(2),
+        nextCursor: null,
+        hasActiveSeenSet: null,
+      });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+    expect(result.current.hasActiveSeenSet).toBe(true);
+
+    act(() => result.current.onPrefetch());
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+
+    expect(result.current.hasActiveSeenSet).toBe(true);
+  });
+
+  /**
+   * The hook marks the seen-set non-empty the instant a real swipe is
+   * committed locally, without waiting for `swipes.record`'s own
+   * fire-and-forget round trip to resolve — see `use-feed-deck.ts`'s own
+   * comment on `onSwipe` for why this is deliberately optimistic (the
+   * record call could still fail) rather than a certainty, and why that
+   * trade-off is accepted anyway.
+   */
+  it("sets hasActiveSeenSet true the instant a real swipe commits, not after the record round trip", async () => {
+    const [only] = generateMockCards(1);
+    if (!only) throw new Error("generateMockCards(1) must return one card");
+    list.mockResolvedValueOnce({ items: [only, ...generateMockCards(1)], nextCursor: null });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+    expect(result.current.hasActiveSeenSet).toBe(false);
+
+    act(() => result.current.onSwipe(only.id, "left"));
+
+    // Synchronous — no `waitFor`/await needed, confirming this doesn't wait
+    // on `ensureSession`/`swipes.record`'s own async chain.
+    expect(result.current.hasActiveSeenSet).toBe(true);
+  });
+
+  /** Mirrors the previous test for `"advance"` (`SwipeDeck.tsx`'s «Далі»),
+   * which records nothing — the seen-set genuinely doesn't change, so
+   * nothing should claim it did. */
+  it("does not set hasActiveSeenSet for an 'advance' commit", async () => {
+    const [only] = generateMockCards(1);
+    if (!only) throw new Error("generateMockCards(1) must return one card");
+    list.mockResolvedValueOnce({ items: [only], nextCursor: null });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+
+    act(() => result.current.onSwipe(only.id, "advance"));
+
+    expect(result.current.hasActiveSeenSet).toBe(false);
   });
 
   it("appends, not replaces, on prefetch — and carries the stored cursor forward", async () => {
@@ -87,14 +190,172 @@ describe("useFeedDeck", () => {
 
   it("swiping the last card with an exhausted cursor moves straight to exhausted, seenCount included", async () => {
     const [only] = generateMockCards(1);
+    if (!only) throw new Error("generateMockCards(1) must return one card");
     list.mockResolvedValueOnce({ items: [only], nextCursor: null });
 
     const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
     await waitFor(() => expect(result.current.state.kind).toBe("ready"));
 
-    act(() => result.current.onSwipe());
+    act(() => result.current.onSwipe(only.id, "left"));
 
     expect(result.current.state).toEqual({ kind: "exhausted", seenCount: 1 });
+  });
+
+  /**
+   * Caught on review: nothing pinned that mounting the deck alone — no
+   * swipe yet — doesn't already mint a session. `session.bootstrap` only
+   * fires from the first real swipe; a deck that bootstraps eagerly on
+   * mount would set the `__Host-session` cookie for every visitor who
+   * merely opens the deck and never decides on anything, which is a
+   * materially different privacy posture than this row's own design
+   * intends (see R0's cookie investigation, this same session).
+   */
+  it("does not bootstrap a session merely by loading the deck, before any swipe", async () => {
+    list.mockResolvedValueOnce({ items: generateMockCards(3), nextCursor: null });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+
+    expect(bootstrap).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  /**
+   * `"advance"` is «Далі»/↓ (`SwipeDeck.tsx`) — a low-emphasis "skip
+   * visually" utility, not a real decision, and it must never persist
+   * one. Caught on review: it used to share `handleCommit("left")` with
+   * the real skip button, which recorded a real 30-day exclusion for an
+   * animal the adopter never actually decided about. R2 removes this
+   * button entirely; until then, this pins that it records nothing.
+   */
+  it("an 'advance' commit moves the deck forward without bootstrapping or recording anything", async () => {
+    const [only] = generateMockCards(1);
+    if (!only) throw new Error("generateMockCards(1) must return one card");
+    list.mockResolvedValueOnce({ items: [only], nextCursor: null });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+
+    act(() => result.current.onSwipe(only.id, "advance"));
+
+    expect(result.current.state).toEqual({ kind: "exhausted", seenCount: 1 });
+    expect(bootstrap).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  /**
+   * R1 (Phase R, 2026-09): the whole point of wiring this up — a skip or a
+   * write-intent must reach `swipes.record` with the domain's own
+   * direction vocabulary (`pass`/`interested`), not the deck UI's
+   * `left`/`right`, which exists only because that's the gesture, not a
+   * product concept. Bootstrap must resolve before record fires — a
+   * `swipes.record` call with no session is a guaranteed
+   * `UNAUTHENTICATED` (see `apps/web/src/api/handlers/swipes.ts`).
+   */
+  it.each([
+    ["left", "pass"],
+    ["right", "interested"],
+  ] as const)(
+    "a %s swipe records as direction=%s, after bootstrapping the session",
+    async (uiDirection, domainDirection) => {
+      const [only] = generateMockCards(1);
+      if (!only) throw new Error("generateMockCards(1) must return one card");
+      list.mockResolvedValueOnce({ items: [only], nextCursor: "cursor-1" });
+
+      const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+      await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+
+      act(() => result.current.onSwipe(only.id, uiDirection));
+
+      await waitFor(() => expect(record).toHaveBeenCalledTimes(1));
+      expect(bootstrap).toHaveBeenCalledTimes(1);
+      expect(record).toHaveBeenCalledWith({
+        animalId: only.id,
+        direction: domainDirection,
+        at: expect.any(Date),
+      });
+    },
+  );
+
+  /**
+   * Mint-or-return makes a second `bootstrap` call harmless server-side,
+   * but swiping is high-frequency — this is the guarantee that the
+   * *client* never pays for a second round trip it doesn't need. Verified
+   * by mutation: removing `sessionReadyRef`'s memoisation in
+   * `use-feed-deck.ts` (calling `feedBrowserClient.session.bootstrap`
+   * directly inside `onSwipe` instead of through `ensureSession`) turns
+   * this from 1 call to 2.
+   */
+  it("bootstraps the session at most once across multiple swipes", async () => {
+    const [first, second] = generateMockCards(2);
+    if (!first || !second) throw new Error("generateMockCards(2) must return two cards");
+    list.mockResolvedValueOnce({ items: [first, second], nextCursor: null });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+
+    act(() => result.current.onSwipe(first.id, "left"));
+    act(() => result.current.onSwipe(second.id, "right"));
+
+    await waitFor(() => expect(record).toHaveBeenCalledTimes(2));
+    expect(bootstrap).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Caught on review: the memoised promise pattern above caches a
+   * *failed* bootstrap just as eagerly as a successful one — `??=` only
+   * reassigns when the ref is null/undefined, and a resolved-false
+   * promise is neither. A swipe made while briefly offline would
+   * otherwise poison every later swipe in the same page load, silently,
+   * even once the network returned. `ensureSession` clears the ref on
+   * failure specifically so the next swipe gets a fresh attempt.
+   */
+  it("retries bootstrapping on a later swipe after an earlier bootstrap failed", async () => {
+    const [first, second] = generateMockCards(2);
+    if (!first || !second) throw new Error("generateMockCards(2) must return two cards");
+    list.mockResolvedValueOnce({ items: [first, second], nextCursor: null });
+    bootstrap.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({});
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+
+    act(() => result.current.onSwipe(first.id, "left"));
+    await waitFor(() => expect(bootstrap).toHaveBeenCalledTimes(1));
+    // The failed bootstrap must not have recorded anything.
+    expect(record).not.toHaveBeenCalled();
+
+    act(() => result.current.onSwipe(second.id, "right"));
+    await waitFor(() => expect(bootstrap).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(record).toHaveBeenCalledTimes(1));
+    expect(record).toHaveBeenCalledWith({
+      animalId: second.id,
+      direction: "interested",
+      at: expect.any(Date),
+    });
+  });
+
+  /**
+   * Decision #9 (`CLAUDE.md`): swipes are "best-effort and batchable" —
+   * a device offline mid-swipe must not freeze or roll back the deck the
+   * adopter is already looking at. The local advance (asserted below)
+   * happens synchronously inside `onSwipe`, before the async
+   * bootstrap/record chain even starts; this test's real job is
+   * confirming a rejection in that chain has no visible effect at all,
+   * not even a thrown/unhandled rejection.
+   */
+  it("a swipes.record failure does not block or roll back the deck's own advance", async () => {
+    const [first, second] = generateMockCards(2);
+    if (!first || !second) throw new Error("generateMockCards(2) must return two cards");
+    list.mockResolvedValueOnce({ items: [first, second], nextCursor: null });
+    record.mockRejectedValueOnce(new Error("network down"));
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+
+    act(() => result.current.onSwipe(first.id, "left"));
+
+    expect(result.current.state).toEqual({ kind: "ready", cards: [second] });
+    await waitFor(() => expect(record).toHaveBeenCalledTimes(1));
   });
 
   it("a network failure (no oRPC response at all) maps to the offline reason", async () => {

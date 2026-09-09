@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",
+    "@neondatabase/serverless": "catalog:",
     "@opika/domain": "workspace:*",
     "drizzle-orm": "catalog:",
     "postgres": "catalog:",

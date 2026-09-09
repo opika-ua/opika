@@ -1,6 +1,7 @@
 "use client";
 
 import type { FeedCardView } from "@opika/contracts";
+import type { AnimalId } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SwipeCard } from "./SwipeCard";
@@ -42,9 +43,24 @@ export type DeckState =
   | { kind: "exhausted"; seenCount: number }
   | { kind: "error"; reason: DeckErrorReason };
 
+/**
+ * `"advance"` is not a swipe: it's «Далі»/↓ (`uk.actions.next`), a
+ * low-emphasis "skip visually, decide nothing" utility distinct from
+ * «Не зараз» (design README's own "gap: 8, all 56, radius 16" spec names
+ * three separate controls). It used to share `handleCommit("left")` with
+ * the real skip button, which cost nothing before R1 — now that a `"left"`
+ * commit persists a 30-day exclusion (`swipes.record`, `use-feed-deck.ts`),
+ * that reuse would have silently recorded a real product decision the
+ * adopter never made. Caught on review. R2 removes this button and its
+ * keyboard binding entirely (`docs/build-plan.md`, Phase R) — this is a
+ * deliberately narrow, temporary fix for the branch's interim state, not
+ * a new permanent third swipe direction.
+ */
+export type CommitDirection = "left" | "right" | "advance";
+
 interface SwipeDeckProps {
   state: DeckState;
-  onSwipe: (cardId: string, direction: "left" | "right") => void;
+  onSwipe: (cardId: AnimalId, direction: CommitDirection) => void;
   onPrefetch: () => void;
   onCardTap?: ((cardId: string) => void) | undefined;
   onRetry?: (() => void) | undefined;
@@ -54,7 +70,7 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
   const [dx, setDx] = useState(0);
 
   const handleCommit = useCallback(
-    (direction: "left" | "right") => {
+    (direction: CommitDirection) => {
       if (state.kind !== "ready" || state.cards.length === 0) return;
       const topCard = state.cards[0];
       if (!topCard) return;
@@ -173,7 +189,7 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
           label={uk.actions.next}
           variant="quiet"
           className="w-14"
-          onClick={() => handleCommit("left")}
+          onClick={() => handleCommit("advance")}
         />
         <ActionButton
           label={uk.actions.write}

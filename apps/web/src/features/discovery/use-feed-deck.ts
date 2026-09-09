@@ -1,11 +1,11 @@
 "use client";
 
 import { DEFAULT_PAGE_SIZE, type FeedCursor } from "@opika/contracts";
-import { type FeedFilters, filtersFingerprint } from "@opika/domain";
+import { type AnimalId, type FeedFilters, filtersFingerprint } from "@opika/domain";
 import { isDefinedError, safe } from "@orpc/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { feedBrowserClient } from "../../api/browser-client";
-import type { DeckErrorReason, DeckState } from "./SwipeDeck";
+import type { CommitDirection, DeckErrorReason, DeckState } from "./SwipeDeck";
 
 /**
  * Owns everything `SwipeDeck` itself has no way to know: the real
@@ -28,6 +28,20 @@ export function useFeedDeck(filters: FeedFilters) {
   const cursorRef = useRef<FeedCursor | null>(null);
   const swipedCountRef = useRef(0);
   const fingerprint = filtersFingerprint(filters);
+
+  /**
+   * Oleksii's resolution to R1's STOP (`docs/build-plan.md`, Phase R,
+   * 2026-09-09): the deck's "N з M" counter and progress bar
+   * (`DeckScreen.tsx`) are computed from the gallery's own unfiltered
+   * total, which has no seen-set exclusion — showing them once this
+   * device's seen-set is non-empty risks a denominator the deck can't
+   * reach. `false` until proven otherwise, from either direction: the
+   * server (a real pre-existing seen-set from an earlier visit, see
+   * `fetchPage` below) or locally, the instant this session's own first
+   * real swipe is recorded (see `onSwipe` below) — the server doesn't
+   * need to be asked again for a fact the client already knows firsthand.
+   */
+  const [hasActiveSeenSet, setHasActiveSeenSet] = useState(false);
 
   /**
    * Bumped by anything that starts a *new* feed from scratch (a filter
@@ -104,6 +118,20 @@ export function useFeedDeck(filters: FeedFilters) {
         }
         return { kind: "ready", cards };
       });
+
+      // `result.hasActiveSeenSet` is `null` on a prefetch response — not
+      // computed, see apps/web/src/api/handlers/feed.ts's own comment —
+      // and a real `true`/`false` only on a fresh fetch (the entry fetch
+      // or a retry-restart). Checking `=== true` rather than truthiness
+      // makes both `null` and `false` no-ops without this hook also
+      // needing to track which fetch mode produced the response. Once
+      // `true`, never set back to `false` (or `null`) by a later fetch
+      // either: a retry-restart still has the same device history behind
+      // it, and this device's own local swipes (below, in `onSwipe`)
+      // don't un-happen just because a later fetch didn't confirm them.
+      if (result.hasActiveSeenSet === true) {
+        setHasActiveSeenSet(true);
+      }
     },
     [],
   );
@@ -148,24 +176,90 @@ export function useFeedDeck(filters: FeedFilters) {
   }, [fetchPage]);
 
   /**
-   * `cardId` is unused, matching the mock-data implementation this
-   * replaces (`/discovery/page.tsx`, pre-redirect): the top card is always
-   * `cards[0]`, and swipe *direction* isn't recorded anywhere yet — no
-   * adopter session is wired into the deck this phase (see the PR body),
-   * so there is nothing to persist a direction against. Dropping the top
-   * card is the only real effect either direction has today.
+   * Bootstraps the anonymous session at most once per page load, not once
+   * per swipe. `session.bootstrap` is mint-or-return (idempotent), so
+   * calling it again would be safe, but swiping is high-frequency (unlike
+   * the detail page's one-shot reveal) — re-bootstrapping before every
+   * single swipe would double every swipe's round trip for nothing, since
+   * the cookie it sets is what every later `feed.list`/`swipes.record`
+   * call already carries automatically. `sessionReadyRef` is a memoised
+   * promise, not a boolean, so concurrent swipes before the first
+   * bootstrap resolves share the same in-flight request rather than each
+   * firing their own.
+   *
+   * Caught on review: memoising with `??=` alone caches a *failed*
+   * attempt forever, just as eagerly as a successful one — a swipe made
+   * while briefly offline would poison every later swipe in the same page
+   * load, silently, with no retry, even once the network returned. The
+   * ref is cleared on failure specifically so the next swipe gets a fresh
+   * attempt; only a successful bootstrap stays cached.
    */
-  const onSwipe = useCallback(() => {
-    swipedCountRef.current += 1;
-    setState((prev) => {
-      if (prev.kind !== "ready") return prev;
-      const remaining = prev.cards.slice(1);
-      if (remaining.length === 0 && cursorRef.current === null) {
-        return { kind: "exhausted", seenCount: swipedCountRef.current };
-      }
-      return { kind: "ready", cards: remaining };
-    });
+  const sessionReadyRef = useRef<Promise<boolean> | null>(null);
+  const ensureSession = useCallback(async (): Promise<boolean> => {
+    sessionReadyRef.current ??= safe(feedBrowserClient.session.bootstrap({})).then(
+      ([error]) => !error,
+    );
+    const ready = await sessionReadyRef.current;
+    if (!ready) sessionReadyRef.current = null;
+    return ready;
   }, []);
+
+  /**
+   * R1 (Phase R, 2026-09): records the swipe against the anonymous
+   * session so `feed.list`'s existing seen-set exclusion
+   * (`buildSeenExclusion`, built at M2) has something to exclude — see
+   * `docs/build-plan.md`'s Phase R for why no new exclusion logic lives
+   * here. Fire-and-forget, after the local state update below, not
+   * awaited before it: decision #9 (`CLAUDE.md`) calls swipes
+   * "best-effort and batchable" specifically so a dropped connection
+   * never blocks the deck's own advance, which the `setState` call
+   * already guarantees regardless of whether the record below succeeds.
+   *
+   * `"advance"` (`SwipeDeck.tsx`'s «Далі»/↓ button, temporary until R2
+   * removes it) never reaches this branch — it moves the deck forward
+   * the same way a real swipe does, but records nothing, because the
+   * adopter didn't actually decide anything about that animal.
+   */
+  const onSwipe = useCallback(
+    (cardId: AnimalId, direction: CommitDirection) => {
+      swipedCountRef.current += 1;
+      setState((prev) => {
+        if (prev.kind !== "ready") return prev;
+        const remaining = prev.cards.slice(1);
+        if (remaining.length === 0 && cursorRef.current === null) {
+          return { kind: "exhausted", seenCount: swipedCountRef.current };
+        }
+        return { kind: "ready", cards: remaining };
+      });
+
+      if (direction === "advance") return;
+
+      // Set the instant the real swipe is committed locally, not after the
+      // fire-and-forget `swipes.record` call below resolves (or fails —
+      // decision #9, `CLAUDE.md`, calls swipes "best-effort," and nothing
+      // else in this function waits on it either). This is optimistic,
+      // not certain: if the record call is lost, the server-side seen-set
+      // stays empty and the counter is suppressed one swipe earlier than
+      // it strictly needs to be. Accepted deliberately — the alternative,
+      // waiting for confirmation before suppressing, risks the opposite
+      // and worse failure the whole row exists to prevent: a header still
+      // promising a total the deck can no longer reach.
+      setHasActiveSeenSet(true);
+
+      void (async () => {
+        const ready = await ensureSession();
+        if (!ready) return;
+        await safe(
+          feedBrowserClient.swipes.record({
+            animalId: cardId,
+            direction: direction === "left" ? "pass" : "interested",
+            at: new Date(),
+          }),
+        );
+      })();
+    },
+    [ensureSession],
+  );
 
   /** Every reason restarts the feed from its first page — there is no
    * partial state worth preserving once the error card has replaced the
@@ -195,5 +289,12 @@ export function useFeedDeck(filters: FeedFilters) {
    * already calls `setState` in the same tick, so any render that sees a
    * new `state` also sees the ref's already-updated value.
    */
-  return { state, onSwipe, onPrefetch, onRetry, shownCount: swipedCountRef.current };
+  return {
+    state,
+    onSwipe,
+    onPrefetch,
+    onRetry,
+    shownCount: swipedCountRef.current,
+    hasActiveSeenSet,
+  };
 }

@@ -34,14 +34,45 @@ export async function feedList(input: FeedInput, context: AppContext): Promise<F
   }
 
   const feed = feedRepo(context.db);
-  const page = await feed.list({
-    filters: input.filters,
-    cursor: cursorData,
-    limit: input.limit,
-    adopterId: context.adopterId,
-    now: context.now,
-    seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
-  });
+
+  /**
+   * Only queried on a fresh feed (`cursorData === null` — the entry fetch
+   * or a retry-restart), not on every prefetch. A prefetch doesn't need a
+   * fresh answer: if the seen-set was empty when the deck opened, the
+   * client already knows locally the moment it records its own first
+   * swipe this session (`use-feed-deck.ts`), without asking the server
+   * again. `null`, not `false`, for a prefetch — see the contract's own
+   * doc comment on why those two are different facts. A second tab (or a
+   * second device on the same session) that has already built up a
+   * seen-set this tab doesn't know about won't be reflected here until
+   * that tab's own next fresh fetch (a reload, or a retry-restart) —
+   * accepted, not fixed: the counter is honest about what *this* load
+   * has confirmed, not omniscient about every concurrent one.
+   *
+   * Run alongside `feed.list` below via `Promise.all`, not after it —
+   * the two queries don't depend on each other's result, and awaiting
+   * them in sequence would cost a full extra round trip on every fresh
+   * deck fetch (real latency on Neon's HTTP driver, the exact class of
+   * cost O-9 exists to remove).
+   */
+  const hasActiveSeenSetPromise: Promise<boolean | null> =
+    cursorData !== null
+      ? Promise.resolve(null)
+      : context.adopterId
+        ? feed.hasActiveSeenSet(context.adopterId, context.now, DEFAULT_SEEN_SET_POLICY)
+        : Promise.resolve(false);
+
+  const [page, hasActiveSeenSet] = await Promise.all([
+    feed.list({
+      filters: input.filters,
+      cursor: cursorData,
+      limit: input.limit,
+      adopterId: context.adopterId,
+      now: context.now,
+      seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
+    }),
+    hasActiveSeenSetPromise,
+  ]);
 
   // Build shelter lookup for the page — single batch query, not N+1
   const shelterIds = [...new Set(page.items.map((a) => a.shelterId))];
@@ -91,5 +122,6 @@ export async function feedList(input: FeedInput, context: AppContext): Promise<F
   return {
     items,
     nextCursor: nextCursor as FeedOutput["nextCursor"],
+    hasActiveSeenSet,
   };
 }

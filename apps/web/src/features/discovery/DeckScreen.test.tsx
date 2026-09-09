@@ -1,6 +1,6 @@
 import { NO_FILTERS } from "@opika/domain";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAppRouter, WithMockRouter } from "../gallery/test-router";
 import { DeckScreen } from "./DeckScreen";
 import { generateMockCards } from "./mock-data";
@@ -9,6 +9,20 @@ const useFeedDeckMock = vi.fn();
 
 vi.mock("./use-feed-deck", () => ({
   useFeedDeck: (...args: unknown[]) => useFeedDeckMock(...args),
+}));
+
+/**
+ * Default for every test below: the real `REGISTRY_HAS_NO_REAL_SHELTERS` is
+ * `true` on production today (Phase D), which would make the filters/position
+ * assertions in this file fail against the D-2 demo banner they never meant
+ * to exercise. Mocked `false` here so this file's existing tests keep
+ * covering the header's real (non-demo) behaviour; the demo-banner
+ * describe block below overrides it per-test via `vi.doMock` + a dynamic
+ * re-import, the same pattern `seo-flags.test.ts` uses.
+ */
+vi.mock("../../seo-flags", async (importOriginal) => ({
+  ...(await importOriginal()),
+  REGISTRY_HAS_NO_REAL_SHELTERS: false,
 }));
 
 const FROM_GALLERY_KEY = "opika:deck-entered-from-gallery";
@@ -51,6 +65,56 @@ describe("DeckScreen", () => {
     expect(screen.getByTestId("deck-filters-label").textContent).toBe("Бровари · собаки");
     // shownCount 5 means 5 cards already swiped past — the 6th is on screen.
     expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
+  });
+
+  /**
+   * Oleksii's resolution to R1's STOP (`docs/build-plan.md`, Phase R,
+   * 2026-09-09): `total` comes from the gallery's unfiltered count, which
+   * has no seen-set exclusion — once this device has a non-empty seen-set,
+   * the deck itself may not be able to reach `total` cards, and «6 з 34»
+   * would be a number the deck can't honour. The progress bar shares the
+   * same gate (`DeckScreen.tsx`'s single `showPosition` condition covers
+   * both), asserted here via its own testid rather than assumed.
+   */
+  it("hides the position AND the progress bar once the seen-set is non-empty", () => {
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 5,
+      hasActiveSeenSet: true,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel="Бровари · собаки" />
+      </WithMockRouter>,
+    );
+
+    expect(screen.getByTestId("deck-filters-label").textContent).toBe("Бровари · собаки");
+    expect(screen.queryByTestId("deck-position")).toBeNull();
+    expect(screen.queryByTestId("deck-progress-bar")).toBeNull();
+  });
+
+  it("keeps showing the position for a first-time visitor with an empty seen-set", () => {
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 5,
+      hasActiveSeenSet: false,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel="Бровари · собаки" />
+      </WithMockRouter>,
+    );
+
+    expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
+    expect(screen.getByTestId("deck-progress-bar")).toBeTruthy();
   });
 
   it("shows neither the filters phrase nor a position when given nothing to say", () => {
@@ -231,5 +295,86 @@ describe("DeckScreen", () => {
 
     expect(router.back).not.toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * D-1/D-2 (Oleksii, Phase D decisions): exercises the branch the top-level
+ * `vi.mock` above hides from every other test in this file —
+ * `REGISTRY_HAS_NO_REAL_SHELTERS: true`, which is the real, live value on
+ * production today. `vi.doMock` + `vi.resetModules` + a dynamic re-import of
+ * `DeckScreen`, not the statically-imported one, because the static import
+ * already bound to the file-level mock's `false`. `uk.demo.deckLabel`
+ * ("Демо") is real Ukrainian, landed 2026-09-06 — no i18n mocking needed to
+ * exercise this branch.
+ */
+describe("DeckScreen — demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    useFeedDeckMock.mockReset();
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 5,
+    });
+  });
+
+  afterEach(() => {
+    vi.doUnmock("../../seo-flags");
+  });
+
+  it("shows the demo banner, keeping the position but hiding the progress bar", async () => {
+    vi.doMock("../../seo-flags", async (importOriginal) => ({
+      ...(await importOriginal()),
+      REGISTRY_HAS_NO_REAL_SHELTERS: true,
+    }));
+    const { DeckScreen: DeckScreenDemo } = await import("./DeckScreen");
+
+    render(
+      <WithMockRouter>
+        <DeckScreenDemo filters={NO_FILTERS} total={34} filtersLabel="Бровари · собаки" />
+      </WithMockRouter>,
+    );
+
+    expect(screen.getByTestId("deck-demo-banner").textContent).toBe("Демо");
+    expect(screen.queryByTestId("deck-filters-label")).toBeNull();
+    // Kept per Oleksii's Phase D decision: demo mode is the whole testing
+    // period, so a deck missing the position count for weeks is not the
+    // deck being tested.
+    expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
+    // Degrades instead of the count (Oleksii, D-1): the bar only duplicates
+    // what the count already says, and giving up its width is what lets a
+    // short demo label fit at 320px. jsdom doesn't apply real CSS, so this
+    // asserts the Tailwind toggle class directly rather than computed
+    // visibility — the harness (`discovery-layout.harness.ts`) is what
+    // proves this actually renders hidden in a real browser. Split on
+    // whitespace, not a substring check — `overflow-hidden` already
+    // contains "hidden".
+    const barClasses = screen.getByTestId("deck-progress-bar").className.split(/\s+/);
+    expect(barClasses).toContain("hidden");
+    expect(barClasses).not.toContain("block");
+  });
+
+  it("shows the real filters phrase, position, and progress bar once the flag is false, same DeckScreen module", async () => {
+    vi.doMock("../../seo-flags", async (importOriginal) => ({
+      ...(await importOriginal()),
+      REGISTRY_HAS_NO_REAL_SHELTERS: false,
+    }));
+    const { DeckScreen: DeckScreenReal } = await import("./DeckScreen");
+
+    render(
+      <WithMockRouter>
+        <DeckScreenReal filters={NO_FILTERS} total={34} filtersLabel="Бровари · собаки" />
+      </WithMockRouter>,
+    );
+
+    expect(screen.queryByTestId("deck-demo-banner")).toBeNull();
+    expect(screen.getByTestId("deck-filters-label").textContent).toBe("Бровари · собаки");
+    expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
+    const barClasses = screen.getByTestId("deck-progress-bar").className.split(/\s+/);
+    expect(barClasses).toContain("block");
+    expect(barClasses).not.toContain("hidden");
   });
 });

@@ -68,7 +68,21 @@ Every single one pairs a plain statement of what happened with either a concrete
 
 ### D5 — The four adopter-facing promises: three are on the first-run band verbatim, the fourth is correctly scoped elsewhere
 
-Checked what a first-time visitor sees **without clicking anything**, on the band itself:
+⚠ **Superseded, Phase D (O-3, `docs/observations.md`): the band this section is about was
+removed entirely** — it duplicated the filter rail and the result count, and delayed the
+content it sat above. The "verified shelters" promise survives as the root layout's
+`og:description`, real Ukrainian since 2026-09-06 (drafted by Claude, chosen by Oleksii from
+three offered options — see `docs/observations.md`). Of the other two, "no money handled" is
+restated on `/pro`, reachable from the site header on every page (Phase T). "«Не зараз» is a
+filter, not a judgement" is not restated on any *first-visible* surface — it has an interim
+home instead, on the animal detail page (`AnimalDetailScreen.tsx`, D-3), also real since
+2026-09-06 (recovered verbatim from the deleted band's own disclaimer, already Oleksii's
+shipped copy), a page a visitor reaches by clicking through rather than seeing on arrival.
+Recorded here rather than silently left to contradict the code, per
+`docs/standing-constraints.md`'s "check a document's claims before relying on them."
+
+Checked what a first-time visitor sees **without clicking anything**, on the band itself
+(historical, describes a component that no longer exists):
 
 - "**Verified shelters**" — *"Тварини з перевірених притулків Київщини"* — stated directly in the promise sentence.
 - "**No money handled**" — *"Ми не беремо і не переказуємо грошей"* — stated directly in the disclaimer.
@@ -121,6 +135,10 @@ Same search, same result: nothing. An adopter who reveals a shelter's contact, c
 Grepped every `.tsx` file for `"/pro"` — it appears **once**: `apps/web/src/app/tvaryny/page.tsx:302`, the gallery's own footer. Not linked from the detail page, not from the deck, not from the reveal modal, not from the no-match or error states, not from `/` (which never renders anything of its own — it redirects straight past). On a 220-animal, 10-page gallery, reaching it means scrolling past the current page's cards and pagination controls first. This is the single largest concrete finding in this pass: the one page whose entire purpose is "is this legitimate, who's behind it, how do I get in touch" is reachable from one link, in one screen, below the fold.
 
 ### E6 — Does the first-run band carry enough for a first-time visitor? Recommendation: mostly yes, with one cheap fix
+
+⚠ **Superseded, Phase D (O-3) — the band was removed; see D5's own note above.** The header
+link this section recommends shipped separately in Phase T (`SiteHeader.tsx`) and stands on
+its own regardless of the band's removal.
 
 The design's own stated intent for this surface (`README.md:427`) is explicit: *"not a separate screen... nothing blocks browsing."* Measured against that stated goal rather than against a generic landing-page checklist, the band does its actual job — three of the four adopter-facing promises are stated in it verbatim (D5), and it gets out of the way in one screen's worth of content, exactly as specified. I don't think it needs to become a landing page; the design's bet that showing real, verified-badge-carrying animals immediately is more convincing than marketing copy is a reasonable one, and adding more to the band would work against the "nothing blocks browsing" rule it was explicitly written to satisfy.
 

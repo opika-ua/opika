@@ -10,7 +10,6 @@ import { cardCityId } from "../../features/gallery/card-text";
 import { DeckEntryLink } from "../../features/gallery/DeckEntryLink";
 import { FilterRail } from "../../features/gallery/FilterRail";
 import { FilterSheet } from "../../features/gallery/FilterSheet";
-import { FirstRunBand } from "../../features/gallery/FirstRunBand";
 import {
   deckEntryHref,
   parseGalleryQuery,
@@ -69,13 +68,14 @@ const PRIORITY_ROW_SIZE = 2;
  * "Next-page error" frame is intentionally not consumed anywhere — its
  * note there explains why.
  *
- * `FirstRunBand` (below the header, above the mobile summary row and the
- * rail+grid row) is `docs/design/README.md:427`'s "01 First run" — no mock
- * frame exists for it, but the prose does, and it's explicit that this is
- * not a separate screen: a band above the grid, gone once a city is
- * chosen. `/` now redirects here (`next.config.ts`) rather than serving
- * its own route — a standalone `/` page was tried first and reverted for
- * contradicting this exact spec.
+ * No `FirstRunBand` here (below the header, above the mobile summary row and
+ * the rail+grid row) — `docs/design/README.md:427`'s "01 First run" band was
+ * built, then removed in Phase D (O-3, `docs/observations.md`): it duplicated
+ * the filter rail and the result count, and delayed the content it sat
+ * above. See that section's own amendment note for what survives
+ * (`uk.firstRun.promise` as `og:description` only). `/` still redirects here
+ * (`next.config.ts`) rather than serving its own route — a standalone `/`
+ * page was tried first and reverted for contradicting the original spec.
  *
  * Split from the default export so `page.test.tsx` can call this directly
  * with a test database; `Page`'s own call below still calls it with Next's
@@ -149,8 +149,6 @@ export async function renderGallery(
         desktop ... content 960").
       */}
       <div className="p-4 tablet:p-6 desktop:pt-10 desktop:px-15 desktop:pb-14">
-        <FirstRunBand filters={filters} sort={sort} cities={cityList} />
-
         <div className="flex items-center justify-between gap-4 mb-4 desktop:hidden">
           <span className="text-[15px]/[22px] text-rg-ink-2">
             {sheetResultCount(
