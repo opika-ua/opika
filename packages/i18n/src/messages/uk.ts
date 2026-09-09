@@ -179,7 +179,6 @@ export const uk = {
   // --- Action buttons ---
   actions: {
     notNow: "Не зараз",
-    next: "Далі",
     write: "Написати",
     writeShelter: "Написати притулку",
     /**
@@ -189,11 +188,15 @@ export const uk = {
      * judging" is a standing product rule, and
      * the only place it was ever stated — the sentence used to close
      * `firstRun.disclaimer`, deleted with `FirstRunBand` — was gone with no
-     * replacement. Interim home: the detail page, directly under the
-     * `notNow`/`writeShelter` pair (`AnimalDetailScreen.tsx`), where there
-     * is vertical room the deck header doesn't have. Permanent home is the
-     * deck rebuild (`docs/build-plan.md`'s R2), where the height is
-     * designed in rather than squeezed into the existing header.
+     * replacement. Phase D's interim home was the detail page, directly
+     * under the `notNow`/`writeShelter` pair — R2 (Phase R,
+     * `docs/build-plan.md`) moves it to its permanent one, the deck
+     * itself (`SwipeDeck.tsx`), and removes it from the detail page. Not
+     * a duplication: the rule this sentence states is about what a
+     * *swipe* decision means, and the detail page's own «Не зараз» never
+     * was a swipe — it's a plain link back to the gallery
+     * (`AnimalDetailScreen.tsx`'s own comment on that button), recording
+     * no exclusion and needing no reassurance about one.
      *
      * Recovered verbatim, not newly written — the original disclaimer's own
      * closing sentence, «просто» included. An earlier pass here dropped

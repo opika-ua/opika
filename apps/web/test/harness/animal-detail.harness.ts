@@ -25,9 +25,8 @@
  * is a real fix, not a guess.
  */
 
-import { uk } from "@opika/i18n";
 import { expect, test } from "@playwright/test";
-import { expectFocusVisibleOutline, openRoute, rectOf } from "./harness";
+import { expectFocusVisibleOutline, openRoute } from "./harness";
 import { DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
 
 const SPOOFED_IP_HEADERS = { "x-forwarded-for": "198.51.100.29" };
@@ -395,60 +394,8 @@ test.describe("shelter-verified badge — suppressed while the registry holds no
 });
 
 /**
- * Oleksii's Phase D decisions (the not-a-judgement notice — not
- * build-plan.md's D-3 row, an unrelated robots-metadata task): interim home
- * for the "«Не зараз» is a filter, not a judgement" sentence, directly
- * under the action pair it describes. Not gated on
- * `REGISTRY_HAS_NO_REAL_SHELTERS` — this is a standing product rule
- * (`docs/standing-constraints.md`), true regardless of whether the
- * registry holds real shelters. Checked at both frames:
- * `AnimalDetailScreen.tsx` is one DOM tree reflowing by breakpoint, not two
- * separate layouts, but the mobile column is a materially different shape
- * (single column vs. desktop's two), so placement holding on one frame
- * doesn't prove it on the other. Note what "mobile" means here: this is the
- * app's actual reflowing single-column layout, not the design mock's own
- * sticky-footer variant for this frame — that variant was never built
- * (pre-existing gap, not introduced here) — see `docs/design/README.md`'s
- * "04 Detail" deviation note.
+ * The not-a-judgement notice's interim home was here, under the action
+ * pair (Phase D). R2 (Phase R, `docs/build-plan.md`) moved it to its
+ * permanent one, the deck itself (`SwipeDeck.tsx`) — see
+ * `discovery-layout.harness.ts`'s own coverage for the notice now.
  */
-test.describe("not-a-judgement notice — under the action row", () => {
-  for (const viewport of [DETAIL_DESKTOP, DETAIL_PHONE]) {
-    test(`renders directly between the not-now/reveal action pair and the medical section, at ${viewport.name}`, async ({
-      page,
-      browser,
-    }) => {
-      await openRoute(page, await discoverFirstAnimalHref(browser), viewport, {
-        readySelector: "[data-testid='detail-photo']",
-      });
-
-      const notice = page.getByTestId("not-a-judgement-notice");
-      await expect(notice).toBeVisible();
-      // Real Ukrainian, landed 2026-09-06 — recovered verbatim from the
-      // deleted `firstRun.disclaimer`, «просто» included. Transcribed here,
-      // not compared against `uk.actions.notAJudgementNotice` itself — a
-      // self-comparing assertion passes against any value the constant
-      // happens to hold.
-      await expect(notice).toHaveText("«Не зараз» — це просто фільтр, а не оцінка тварини.");
-
-      // Placement, not just presence: D-3's spec is "directly under the
-      // action pair," and a test asserting only visibility/text would stay
-      // green if the notice moved anywhere else on the page.
-      const actionRow = await rectOf(page.getByTestId("not-now-button"), "not-now-button");
-      const noticeRect = await rectOf(notice, "not-a-judgement-notice");
-      const medicalHeading = await rectOf(
-        page.getByText(uk.medical.heading).first(),
-        "medical heading",
-      );
-      expect(
-        noticeRect.y,
-        `at ${viewport.name}, the not-a-judgement notice should sit below the not-now/reveal ` +
-          `action row, not above it`,
-      ).toBeGreaterThanOrEqual(actionRow.y + actionRow.height - 1);
-      expect(
-        noticeRect.y,
-        `at ${viewport.name}, the not-a-judgement notice should sit above the medical section, ` +
-          `not below it`,
-      ).toBeLessThan(medicalHeading.y);
-    });
-  }
-});

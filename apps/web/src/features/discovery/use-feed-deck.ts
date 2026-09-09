@@ -214,11 +214,6 @@ export function useFeedDeck(filters: FeedFilters) {
    * "best-effort and batchable" specifically so a dropped connection
    * never blocks the deck's own advance, which the `setState` call
    * already guarantees regardless of whether the record below succeeds.
-   *
-   * `"advance"` (`SwipeDeck.tsx`'s «Далі»/↓ button, temporary until R2
-   * removes it) never reaches this branch — it moves the deck forward
-   * the same way a real swipe does, but records nothing, because the
-   * adopter didn't actually decide anything about that animal.
    */
   const onSwipe = useCallback(
     (cardId: AnimalId, direction: CommitDirection) => {
@@ -231,8 +226,6 @@ export function useFeedDeck(filters: FeedFilters) {
         }
         return { kind: "ready", cards: remaining };
       });
-
-      if (direction === "advance") return;
 
       // Set the instant the real swipe is committed locally, not after the
       // fire-and-forget `swipes.record` call below resolves (or fails —

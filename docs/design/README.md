@@ -666,17 +666,21 @@ domain visible before the tap, no accent colour. Mobile: photo 380 full-bleed wi
 (8px, active `#101112`, inactive outlined 2px `#63676B`), single column, sticky footer returns
 («Не зараз» `flex: 1` + «Написати притулку» `flex: 2`).
 
-**Deviation, Phase D (Oleksii's Phase D decisions — the not-a-judgement notice, not this
-build-plan's D-3 row, an unrelated robots-metadata task) — a line between the action pair and
-Медичний стан, not in this frame.** "«Не зараз» is a filter, not a judgement" is a standing
-product rule (`docs/standing-constraints.md`) that lost its only stated home when the first-run
-band was deleted (O-3). Real Ukrainian landed 2026-09-06, recovered verbatim from the deleted
-disclaimer. Interim placement only, until the deck rebuild (`docs/build-plan.md`'s R2) designs
-the height in properly; placement is asserted at both the desktop and mobile frames
-(`animal-detail.harness.ts`), but note the mobile frame this checks against is the reflowing
-single-column layout the app actually builds (`AnimalDetailScreen.tsx`, one DOM tree by
-breakpoint), not this frame's own sticky-footer
-variant — that variant isn't built at all yet, a pre-existing gap this deviation didn't create.
+**Deviation, Phase D, superseded R2 (Phase R, `docs/build-plan.md`) — this frame never showed a
+line between the action pair and Медичний стан, and as of R2 the built page doesn't show one
+here either.** "«Не зараз» is a filter, not a judgement" is a standing product rule
+(`docs/standing-constraints.md`) that lost its only stated home when the first-run band was
+deleted (O-3); Phase D gave it an interim one here, directly under the action pair, real
+Ukrainian landed 2026-09-06. R2 moved it to its permanent home, the deck itself ("The deck"
+section above) — the detail page no longer renders it at all
+(`animal-detail.harness.ts` no longer covers it either). Not a duplication removed for its own
+sake: the rule is about what a *swipe* decision means, and this page's own «Не зараз» was never
+a swipe (a plain link back to the gallery, `AnimalDetailScreen.tsx`'s own comment on that
+button) — it needed no reassurance about an exclusion it never recorded. Unrelated, still true,
+carried forward from the original note: this frame's own mobile sticky-footer variant has never
+been built — the app's actual mobile layout is `AnimalDetailScreen.tsx`'s reflowing
+single-column tree, not this sticky-footer mock — a pre-existing gap, not one this deviation
+created or closed.
 
 ### 05 Contact reveal (R1/R2)
 Frames pin the values already specified above (`### Contact reveal (05)`). Desktop: modal 640,
@@ -717,6 +721,17 @@ sentence. Stack: three layers, **no scaling** — back inset 12/top 10, mid inse
 
 Buttons below, `gap: 8`, all 56, radius 16: «Не зараз» (`flex: 1`, white) · «↓» (56 wide, white) ·
 «Написати» (`flex: 1`, `#101112`).
+
+**Deviation, R2 (Phase R, `docs/build-plan.md`) — this frame's own third button is gone, and a
+line the frame never showed is now below the row.** «↓» existed only as an interim R1 fix (see
+`SwipeDeck.tsx`'s own `CommitDirection` comment) and was never a permanent third direction —
+two real decisions, not three, is the actual product. Below the two-button row: the
+not-a-judgement notice (Phase D's interim home was the detail page, «Не зараз» is a filter, not
+a judgement — `docs/standing-constraints.md`), moved here as its permanent home. Real Ukrainian,
+recovered verbatim, not redrafted. Hidden below 360px width — the shelter line's own bottom
+margin has no slack left to give it at 320px (`discovery-layout.harness.ts`'s own coverage,
+`NARROW_PHONE`), and this product's stated audience starts at 360 (`docs/stack-decision.md`,
+"budget Android hardware") — visible everywhere at or above it.
 
 **Gesture:**
 - Drag written **directly to the node's `transform`, not through React state**:
@@ -801,7 +816,7 @@ them:**
 | Home / End | first / last card on the page |
 | Enter | open the animal · Backspace returns to the grid at the same card |
 | Esc | close the sheet, the contact modal, or leave the deck |
-| In the deck | ← не зараз · → написати · ↓ далі · Esc до списку |
+| In the deck | ← не зараз · → написати · Esc до списку (R2, Phase R, `docs/build-plan.md`: «↓ далі» dropped along with the third button it moved — see "The deck" section's own note above) |
 
 - 48px minimum target everywhere; 56 for primary actions.
 - Nothing appears on hover — pips, days, shelter and the reserved badge are always rendered; hover

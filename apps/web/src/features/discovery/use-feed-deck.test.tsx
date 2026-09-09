@@ -129,22 +129,6 @@ describe("useFeedDeck", () => {
     expect(result.current.hasActiveSeenSet).toBe(true);
   });
 
-  /** Mirrors the previous test for `"advance"` (`SwipeDeck.tsx`'s «Далі»),
-   * which records nothing — the seen-set genuinely doesn't change, so
-   * nothing should claim it did. */
-  it("does not set hasActiveSeenSet for an 'advance' commit", async () => {
-    const [only] = generateMockCards(1);
-    if (!only) throw new Error("generateMockCards(1) must return one card");
-    list.mockResolvedValueOnce({ items: [only], nextCursor: null });
-
-    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
-    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
-
-    act(() => result.current.onSwipe(only.id, "advance"));
-
-    expect(result.current.hasActiveSeenSet).toBe(false);
-  });
-
   it("appends, not replaces, on prefetch — and carries the stored cursor forward", async () => {
     const firstPage = generateMockCards(3);
     const secondPage = generateMockCards(2);
@@ -216,29 +200,6 @@ describe("useFeedDeck", () => {
     const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
     await waitFor(() => expect(result.current.state.kind).toBe("ready"));
 
-    expect(bootstrap).not.toHaveBeenCalled();
-    expect(record).not.toHaveBeenCalled();
-  });
-
-  /**
-   * `"advance"` is «Далі»/↓ (`SwipeDeck.tsx`) — a low-emphasis "skip
-   * visually" utility, not a real decision, and it must never persist
-   * one. Caught on review: it used to share `handleCommit("left")` with
-   * the real skip button, which recorded a real 30-day exclusion for an
-   * animal the adopter never actually decided about. R2 removes this
-   * button entirely; until then, this pins that it records nothing.
-   */
-  it("an 'advance' commit moves the deck forward without bootstrapping or recording anything", async () => {
-    const [only] = generateMockCards(1);
-    if (!only) throw new Error("generateMockCards(1) must return one card");
-    list.mockResolvedValueOnce({ items: [only], nextCursor: null });
-
-    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
-    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
-
-    act(() => result.current.onSwipe(only.id, "advance"));
-
-    expect(result.current.state).toEqual({ kind: "exhausted", seenCount: 1 });
     expect(bootstrap).not.toHaveBeenCalled();
     expect(record).not.toHaveBeenCalled();
   });

@@ -83,12 +83,20 @@ carrying 2 of the 4 adopter-facing promises a first-time visitor sees **without 
 anything**. The "no money handled" half is still reachable — restated on `/pro`, linked from the
 site header on every page since Phase T. **The "«Не зараз» is a filter, not a judgement" half
 was unstated for a time** — resolved by Oleksii's Phase D decisions (the not-a-judgement notice
-— not build-plan.md's D-3 row, an unrelated robots-metadata task): interim home is the detail
+— not build-plan.md's D-3 row, an unrelated robots-metadata task): interim home was the detail
 page, directly under the not-now/reveal action pair (`AnimalDetailScreen.tsx`,
-`uk.actions.notAJudgementNotice`); permanent home is the deck rebuild
-(`docs/build-plan.md`'s R2), once the height is designed in rather than squeezed into the
-existing header. `docs/copy-and-ia-critique.md`'s D5/E6 sections are annotated as superseded
-rather than left to read as still-current advice against exactly what was done.
+`uk.actions.notAJudgementNotice`). `docs/copy-and-ia-critique.md`'s D5/E6 sections are annotated
+as superseded rather than left to read as still-current advice against exactly what was done.
+
+**Moved to its permanent home, 2026-09-09 (Phase R, R2, `docs/build-plan.md`):** the notice now
+lives in the deck (`SwipeDeck.tsx`), directly under the action row, and no longer renders on the
+detail page at all. **Narrowed, not fully restored:** the deck hides it below 360px width
+(`NARROW_PHONE`/320 — a real measured shelter-line clip, not a style choice, see
+`SwipeDeck.tsx`'s own comment), so this promise is currently stated nowhere on the product for a
+visitor at that one width; it is stated at every width at or above 360 (`ANDROID_PHONE`, this
+product's actual stated target audience — `docs/stack-decision.md`). Recorded here per "a
+narrowed commitment is recorded as narrowed, not as satisfied"
+(`docs/standing-constraints.md`) — no new copy involved, so no gate.
 
 **Done, 2026-09-06 — all three D-2 strings landed, nothing renders a marker anywhere.**
 `uk.demo.bannerNotice`, `uk.demo.deckLabel`, and `uk.actions.notAJudgementNotice` all have real

@@ -82,7 +82,6 @@ export const en = {
   // --- Action buttons ---
   actions: {
     notNow: "Not right now",
-    next: "Next",
     write: "Message",
     writeShelter: "Message the shelter",
     notAJudgementNotice: '"Not right now" is just a filter, not a judgement of the animal.',

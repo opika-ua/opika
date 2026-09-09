@@ -12,6 +12,7 @@
  * the migration is the route, a rate-limit IP identity, and nothing else.
  */
 
+import { uk } from "@opika/i18n";
 import { expect, type Page, test } from "@playwright/test";
 import {
   expectContainedBy,
@@ -260,6 +261,20 @@ test.describe(`/tvaryny/gortaty photo sizing at ${PHONE.name}`, () => {
    * exists to catch an *accidental* shift (something above the photo
    * growing further, or the card getting shorter), not to keep any one
    * number pinned regardless of why it changed.
+   *
+   * R2 repoint: 396 -> 386 (Phase R, `docs/build-plan.md`). Real, deliberate
+   * cause, not an accident: `SwipeDeck.tsx` gained its own permanent
+   * not-a-judgement notice under the action row (moved from its interim
+   * home on the detail page), which this exact frame is wide enough to
+   * show (`min-[360px]:block` — see the notice's own comment for why
+   * `NARROW_PHONE` at 320 is the one width it's hidden at instead). Two
+   * spacing reclaims already absorbed part of the new line's cost before
+   * this number was allowed to move at all — the action row's own
+   * card-to-button margin (`mt-group` -> `mt-row`, -8px) and the notice's
+   * own margin above it (`mt-row` -> `mt-label`, -4px) — 386 is what's
+   * left once both of those and the notice's own line-height are actually
+   * accounted for, measured with the real Ukrainian sentence rendered, not
+   * assumed.
    */
   test("the photo area is the height the feed screen specifies", async ({ page }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
@@ -267,12 +282,13 @@ test.describe(`/tvaryny/gortaty photo sizing at ${PHONE.name}`, () => {
 
     expect(
       Math.round(photo.height),
-      `photo area is ${photo.height}px; expected 396 (V2's name/meta/freshness ` +
-        `block at ${PHONE.name}, docs/design/README.md's "The deck").\n` +
+      `photo area is ${photo.height}px; expected 386 (V2's name/meta/freshness ` +
+        `block, plus R2's not-a-judgement notice, at ${PHONE.name}, ` +
+        `docs/design/README.md's "The deck").\n` +
         `        Anything else means something above the photo grew, or the card\n` +
         `        got shorter and the photo shrank to protect the text — check the\n` +
         `        card height before assuming this is about the ratio.`,
-    ).toBe(396);
+    ).toBe(386);
   });
 
   /**
@@ -287,7 +303,11 @@ test.describe(`/tvaryny/gortaty photo sizing at ${PHONE.name}`, () => {
     const photo = await rectOf(page.getByTestId("card-photo"), "photo area");
     expect(
       photo.height,
-      "on a 640px-tall screen the photo should have shrunk below its 396px design height",
+      // 396 is `max-h-99`, the photo's own ceiling — unchanged by R2's
+      // notice, which only ever affects the *canonical* PHONE frame's
+      // measured height (386, see the test above), not this component's
+      // hard cap. A 640px-tall screen should shrink well below either.
+      "on a 640px-tall screen the photo should have shrunk below its 396px ceiling (max-h-99)",
     ).toBeLessThan(396);
 
     await expectContainedBy(
@@ -298,6 +318,61 @@ test.describe(`/tvaryny/gortaty photo sizing at ${PHONE.name}`, () => {
       { label: "shelter line", locator: page.getByTestId("shelter-line") },
       { label: "swipe card", locator: page.getByTestId("swipe-card") },
       minShelterMarginFor(SHORT_PHONE),
+    );
+  });
+});
+
+/**
+ * R2 (Phase R, `docs/build-plan.md`): the deck's own permanent home for
+ * `docs/standing-constraints.md`'s "The swipe is filtering, not judging" —
+ * moved here from its interim home on the detail page
+ * (`animal-detail.harness.ts` no longer covers it). Real Ukrainian,
+ * recovered verbatim, not redrafted. Visible from `ANDROID_PHONE` (360,
+ * `docs/stack-decision.md`'s actual stated target) up; hidden at
+ * `NARROW_PHONE` (320) specifically — see the notice's own comment in
+ * `SwipeDeck.tsx` for the measured reason (a real shelter-line clip at
+ * 320, not a style preference).
+ */
+test.describe("/tvaryny/gortaty not-a-judgement notice", () => {
+  for (const viewport of [ANDROID_PHONE, SHORT_PHONE, PHONE, DESKTOP]) {
+    test(`shows below the action row, real Ukrainian, at ${viewport.name}`, async ({ page }) => {
+      await openRoute(page, ROUTE, viewport, { readySelector: CARD });
+
+      const notice = page.getByTestId("not-a-judgement-notice");
+      await expect(notice).toBeVisible();
+      // Transcribed from the design's own recovered copy, not compared
+      // against `uk.actions.notAJudgementNotice` itself — a self-comparing
+      // assertion passes against any value the constant happens to hold.
+      await expect(notice).toHaveText("«Не зараз» — це просто фільтр, а не оцінка тварини.");
+
+      const actionRow = await rectOf(page.getByTestId("action-row"), "action row");
+      const noticeRect = await rectOf(notice, "not-a-judgement-notice");
+      expect(
+        noticeRect.y,
+        `at ${viewport.name}, the not-a-judgement notice should sit below the action row, ` +
+          `not above or overlapping it`,
+      ).toBeGreaterThanOrEqual(actionRow.y + actionRow.height - 1);
+    });
+  }
+
+  test(`is hidden at ${NARROW_PHONE.name} — the one width narrower than this product's stated audience`, async ({
+    page,
+  }) => {
+    await openRoute(page, ROUTE, NARROW_PHONE, { readySelector: CARD });
+
+    await expect(page.getByTestId("not-a-judgement-notice")).toBeHidden();
+
+    // Hidden, not silently broken: the shelter line this hide exists to
+    // protect must actually be intact at this width, not just "the notice
+    // isn't visible for some unrelated reason."
+    await expectContainedBy(
+      { label: "shelter line", locator: page.getByTestId("shelter-line") },
+      { label: "swipe card", locator: page.getByTestId("swipe-card") },
+    );
+    await expectMinimumBottomMargin(
+      { label: "shelter line", locator: page.getByTestId("shelter-line") },
+      { label: "swipe card", locator: page.getByTestId("swipe-card") },
+      minShelterMarginFor(NARROW_PHONE),
     );
   });
 });
@@ -404,6 +479,27 @@ test.describe("/tvaryny/gortaty keyboard focus", () => {
       locator: page.getByTestId("deck-back-to-list"),
     });
   });
+
+  /**
+   * R2's own rewrite of `ActionButton`'s variant union is exactly the kind
+   * of change `docs/standing-constraints.md`'s rule exists for — caught on
+   * review that neither remaining variant («Не зараз», outlined; «Написати»,
+   * primary) had ever carried focus-visible styling or a test, unlike
+   * every other focusable control in this app.
+   */
+  for (const [label, buttonLabel] of [
+    ["not-now button", uk.actions.notNow],
+    ["write button", uk.actions.write],
+  ] as const) {
+    test(`the ${label} shows a real focus-visible outline`, async ({ page }) => {
+      await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
+
+      await expectFocusVisibleOutline(page, {
+        label,
+        locator: page.getByRole("button", { name: buttonLabel }),
+      });
+    });
+  }
 });
 
 /**
