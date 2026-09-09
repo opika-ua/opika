@@ -19,7 +19,7 @@ are additions, not edits to a shared entry.
 **Row completed this session:** Phase S — city slugs (`docs/build-plan.md`'s reprioritisation
 queue item 5, closing O-6 + O-12 from `docs/observations.md`).
 
-**PR:** not yet opened — see this file once it is, for the URL and reviewer-round history.
+**PR:** [#56](https://github.com/opika-ua/opika/pull/56) — `feat/city-slugs` → `main`. Three reviewer rounds (STOP resolved, then two PASS WITH NOTES), all findings addressed, `pnpm check` green. Not merged — merging stays yours; see the migration-verification procedure above before you do.
 
 **A real decision, escalated by the reviewer rather than made here — resolved, not left open:**
 The first reviewer round returned **STOP** on the generated migration
@@ -118,7 +118,7 @@ Confidence: high on the 8 seeded cities (hand-verified) and on the digraph rule 
 fixed, and pinned with real Ukrainian place/word names, not synthetic ones); medium on names
 this table has still never been exercised against in production (hyphenated compounds beyond
 `Кам'янець-Подільський`, which is tested).
-Commit: (pending — see this row's own PR once opened)
+Commit: 7b32ece
 
 ## Phase S — cities-before-parse ordering
 Chose: `renderGallery` (`apps/web/src/app/tvaryny/page.tsx`) and `GortatyPage`
@@ -135,7 +135,7 @@ Reversibility: moderate — undoing this means building the cache (option b), no
 a diff; a real optimisation, tracked as a decision needing your eye above, not silently absorbed.
 Confidence: medium — `cities.list` is an 8-row, unfiltered table scan, cheap in absolute terms,
 but not measured against a real deployed instance the way O-9's timing work was.
-Commit: (pending — see this row's own PR once opened)
+Commit: 7b32ece
 
 ## Phase S — back-link scope: city only
 Chose: the animal detail page's «← Усі тварини у {city}» now returns to `/tvaryny` filtered by
@@ -154,7 +154,7 @@ Reversibility: trivial to widen later — `backToGalleryHref` is a single prop a
 this one computation (`tvaryny/[animalId]/page.tsx`); a future full-filter-restore would replace
 its one call site, not thread anything new through `AnimalDetailScreen.tsx` itself.
 Confidence: high — matches the literal wording of the observation being closed.
-Commit: (pending — see this row's own PR once opened)
+Commit: 7b32ece
 
 ## Phase S — the redirect only fires when every city token is fully resolvable
 Chose: `redirectHrefForLegacyCityIds` bails out to `null` (no redirect at all) if any city token
@@ -172,4 +172,4 @@ guessing under caching that outlives the mistake.
 Reversibility: trivial — a behavioural branch in one function, reverting is deleting the early
 `return null`.
 Confidence: high — this is a correctness fix, not a judgement call.
-Commit: (pending — see this row's own PR once opened)
+Commit: 7b32ece
