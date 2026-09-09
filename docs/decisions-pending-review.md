@@ -15,8 +15,12 @@ deck).
 - [#54](https://github.com/opika-ua/opika/pull/54) — `feat/deck-two-action` → `main`, R2. Two
   reviewer rounds (PASS WITH NOTES both), all findings addressed, `pnpm check` green. Not
   merged — merging stays yours.
-- R3's PR is next (branched from `feat/deck-two-action`, since R3's code depends on R2's —
-  stacked, will retarget `main` once #54 merges). URL added here once opened.
+- [#55](https://github.com/opika-ua/opika/pull/55) — `feat/deck-inline-reveal` →
+  `feat/deck-two-action`, R3. **Draft, deliberately** — the gesture-parity/`RATE_LIMITED`-copy
+  decision below is unresolved; the code itself is ready for review. Stacked on #54 (retarget to
+  `main` once that merges). Three reviewer rounds: round 1 STOP (a real session double-mint bug,
+  fixed; the gesture-parity decision, escalated below), rounds 2 and 3 PASS WITH NOTES (all
+  findings addressed), `pnpm check` green.
 
 **A real decision, not a reversible judgement call — needs your answer, not just your eye:**
 R3's own reviewer round found that a right-**drag** gesture on the deck now spends one of the
@@ -134,7 +138,7 @@ Reversibility: moderate — re-inlining is mechanical (move the code back into o
 touches both callers.
 Confidence: medium — the architecture call itself (new feature directory vs. an existing one)
 is the kind of thing you might have a house-style opinion on that I don't have visibility into.
-Commit: (pending — see PR)
+Commit: 69ab6bf
 
 ## R3 — cityName: implemented, not cut (supersedes an earlier version of this entry)
 An earlier draft of this row chose `cityName: null` unconditionally, on the stated reason that
@@ -155,7 +159,7 @@ Reversibility: trivial to revert to `null` if you'd rather the deck's reveal sta
 vaguer about location for some reason; the real lookup is a bigger loss to give back than it was
 to add.
 Confidence: high — this was a corrected mistake, not a judgement call.
-Commit: (pending — see PR)
+Commit: 69ab6bf
 
 ## R3 — no secondary action on the deck
 Chose: the deck's own `ContactRevealDialog` instance passes no `secondaryAction` at all — no
@@ -173,7 +177,7 @@ Reversibility: trivial once the Ukrainian exists — one `secondaryAction` prop,
 detail page's own usage exactly.
 Confidence: high on the "no gallery link" half; if you want a deck-specific dismiss link at
 all, that's a design call and needs its own copy.
-Commit: (pending — see PR)
+Commit: 69ab6bf
 
 ---
 
