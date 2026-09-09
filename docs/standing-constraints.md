@@ -138,9 +138,25 @@ polish applied later; a keyboard user has no other way to know where they are.
 no-match buttons — with no focus indication at all. The reviewer caught it; nothing in the
 gate would have.
 
----
+**Local Postgres and Neon are not the same database.** A green local suite proves nothing
+about production behaviour for anything that touches the driver, the connection, or SQL the
+two dialects handle differently. Any such change needs a check against a real Neon instance
+before it is called verified — a local integration test against `docker-compose`'s
+`postgis/postgis` image exercises the `postgres-js` driver only, and this repo runs a second,
+genuinely different driver (`drizzle-orm/neon-http`, `@neondatabase/serverless`) against
+production. The two return different raw result shapes from the same query family; a fix that
+only ever ran against the local branch can look correct while being wrong on the branch that
+actually ships.
 
-## How work is kept
+*Why:* `feedRepo.hasActiveSeenSet` (Phase R, R1) used a raw `db.execute(sql\`...EXISTS...\`)`
+call. Every local test passed — the local branch always runs against `postgres-js`, whose
+`.execute()` returns a `RowList` array. In production, `packages/db/src/client.ts` selects
+`drizzle-orm/neon-http` for any `.neon.tech` host, whose `.execute()` returns `{ rows: T[] }`
+instead — a plain object, not an array — so the same code silently returned `false` regardless
+of the real answer. Caught on review, not by any test run against the branch. The fix
+(`.select().limit(1)` instead of raw `.execute()`) is adapter-agnostic by construction — this
+constraint exists for the next time raw SQL, a driver-specific call, or a connection change
+looks locally verified and isn't.
 
 **Commit after each task, not at the end of a session.**
 

@@ -12,6 +12,12 @@ once; its plan content lived here from the moment this rewrite landed.
 **Capacity:** ~10 h/week solo, ~8 h/week of it code, ~2 h/week shelter recruitment — the
 actual gate on launch date, unaffected by anything below.
 
+**`pnpm check` wall time:** 119 seconds, measured 2026-09-09 on the dev machine (`date +%s`
+before/after, full pipeline: typecheck → lint → test → build:web → test:harness, warm
+`node_modules` and warm Postgres via `docker compose`, cold Next.js build cache). Answers a
+question asked across many rounds; not previously measured with a stopwatch rather than
+estimated from log timestamps.
+
 ---
 
 ## Part 1 — History: M0 through M5
@@ -941,3 +947,20 @@ cold figures have no post-fix counterpart here), and the reveal flow's own two-r
 (`session.bootstrap` then `animals.reveal`, O-9's other named structural multiplier), which this
 row doesn't touch at all. `pnpm check` is green (807 tests total in the final commit, `build:web`,
 and the full harness, all against local Postgres via the unchanged postgres-js path).
+
+**Amendment, 2026-09-09 (Phase R, new standing constraint) — what "verified" actually covers
+here.** `pnpm check`'s local suite exercises the `postgres-js` branch only; it cannot and does
+not verify `createDatabase`'s `neon-http` branch, which is what production actually runs. What
+*was* verified against real Neon: `isNeonHost`/`createDatabase`'s branch-selection logic (the
+timing runs above, against two real Vercel preview deployments, only succeed at all because the
+correct driver class is selected), and the driver class identity itself
+(`client.test.ts`'s own "offline-checkable half," honest about its own limit: "nothing here can
+reach" a real Neon instance). What was *not* independently re-verified per query: whether every
+individual repo method's result shape is actually adapter-agnostic, which `client.ts`'s own
+comment claims but which only holds so long as nothing in the repo layer calls raw `.execute()`
+— R1 found and fixed exactly one violation (`feedRepo.hasActiveSeenSet`, which silently returned
+`false` in production regardless of the real answer; see the standing constraint this amendment
+references). As of that fix, `grep -rn "\.execute(" packages/db/src/` returns nothing in the
+repo layer (only comments, `seed.ts`, and `test-utils/setup.ts` — neither of the latter two runs
+against Neon in production). O-9's own connection-selection change is not the source of open
+risk; the general class of risk it makes possible is what the standing constraint now names.
