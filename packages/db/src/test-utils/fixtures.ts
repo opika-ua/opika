@@ -6,6 +6,8 @@ import {
   type AnimalListingState,
   ageAnchorOf,
   type City,
+  type CityId,
+  CitySlugSchema,
   type ContactReveal,
   type CountryCode,
   type Edrpou,
@@ -49,8 +51,18 @@ const defaultVerification: ShelterVerification = {
 };
 
 export function makeCity(overrides: Partial<City> = {}): City {
+  const id = overrides.id ?? uuid<CityId>();
   return {
-    id: uuid(),
+    id,
+    // Derived from `id`, not a fixed string: `slug` is unique in the real
+    // schema, and a suite that calls this more than once per test (several
+    // do) would otherwise collide on the same default the moment more than
+    // one city is inserted. Not `citySlugOf(id)` — that would produce a
+    // slug that is *itself* UUID-shaped, which `redirectHrefForLegacyCityIds`
+    // (`apps/web`) treats as a legacy id needing rewriting, not a real slug.
+    // The `c-` prefix makes this fixture's default provably never collide
+    // with that shape.
+    slug: CitySlugSchema.parse(`c-${id}`),
     name: { uk: "Тест", en: null },
     centroid: { lat: 50.45, lng: 30.52 },
     ...overrides,

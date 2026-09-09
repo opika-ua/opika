@@ -11,7 +11,7 @@ import type {
   Swipe,
   TextProvenance,
 } from "@opika/domain";
-import { ageAnchorOf, waitAnchorOf } from "@opika/domain";
+import { ageAnchorOf, CitySlugSchema, waitAnchorOf } from "@opika/domain";
 import type { adopters } from "../schema/adopters";
 import type { animals } from "../schema/animals";
 import type { cities } from "../schema/cities";
@@ -67,6 +67,7 @@ export function cityToRow(city: City): CityInsert {
   const desc = localizedTextToColumns(city.name);
   return {
     id: city.id,
+    slug: city.slug,
     nameUk: desc.uk,
     nameEnText: desc.enText,
     nameEnProvenance: desc.enProvenance,
@@ -78,6 +79,7 @@ export function cityToRow(city: City): CityInsert {
 export function rowToCity(row: CityRow): City {
   return {
     id: row.id,
+    slug: CitySlugSchema.parse(row.slug),
     name: columnsToLocalizedText(row.nameUk, row.nameEnText, row.nameEnProvenance),
     centroid: { lat: row.centroidLat, lng: row.centroidLng },
   };

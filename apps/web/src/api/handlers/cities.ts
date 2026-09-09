@@ -10,6 +10,7 @@ export async function citiesList(
   const all = await cities.listAll();
   return all.map((c) => ({
     id: c.id,
+    slug: c.slug,
     name: c.name,
     centroid: c.centroid,
   }));

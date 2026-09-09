@@ -28,6 +28,7 @@ import {
   animalPublicLocationOf,
   type City,
   type CityId,
+  citySlugOf,
   type DocumentReadiness,
   type Edrpou,
   type ExactAddress,
@@ -283,6 +284,7 @@ const CITY_DATA: { name: LocalizedText; centroid: { lat: number; lng: number } }
 export function buildCities(): City[] {
   return CITY_DATA.map((c, i) => ({
     id: cityId(i),
+    slug: citySlugOf(c.name.uk),
     name: c.name,
     centroid: c.centroid,
   }));

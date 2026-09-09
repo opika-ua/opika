@@ -1,4 +1,4 @@
-import { type CityId, CityIdSchema, NO_FILTERS } from "@opika/domain";
+import { type CityId, CityIdSchema, citySlugOf, NO_FILTERS } from "@opika/domain";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { FilterRail } from "./FilterRail";
@@ -9,6 +9,10 @@ const CITIES: ReadonlyArray<{ id: CityId; name: string }> = [
   { id: BROVARY, name: "Бровари" },
   { id: KYIV, name: "Київ" },
 ];
+const CITY_SLUGS = new Map([
+  [BROVARY, citySlugOf("Бровари")],
+  [KYIV, citySlugOf("Київ")],
+]);
 
 describe("FilterRail", () => {
   it("shows 'Уся Київщина' active and no other chip active when nothing is filtered", () => {
@@ -17,6 +21,7 @@ describe("FilterRail", () => {
         filters={NO_FILTERS}
         sort="freshest"
         cities={CITIES}
+        citySlugs={CITY_SLUGS}
         resultCount={34}
         shelterCount={7}
       />,
@@ -45,6 +50,7 @@ describe("FilterRail", () => {
         filters={filters}
         sort="freshest"
         cities={CITIES}
+        citySlugs={CITY_SLUGS}
         resultCount={34}
         shelterCount={7}
       />,
@@ -58,12 +64,13 @@ describe("FilterRail", () => {
     expect(rail.getByRole("link", { name: "Коти" }).getAttribute("aria-current")).toBeNull();
   });
 
-  it("a city chip's href toggles that city into the filter set", () => {
+  it("a city chip's href toggles that city into the filter set, spelled as a slug", () => {
     render(
       <FilterRail
         filters={NO_FILTERS}
         sort="freshest"
         cities={CITIES}
+        citySlugs={CITY_SLUGS}
         resultCount={34}
         shelterCount={7}
       />,
@@ -71,7 +78,10 @@ describe("FilterRail", () => {
     const rail = within(screen.getByTestId("filter-rail"));
 
     const href = rail.getByRole("link", { name: "Бровари" }).getAttribute("href");
-    expect(href).toBe(`/tvaryny?misto=${BROVARY}`);
+    // Literal, not `citySlugOf("Бровари")` — CITY_SLUGS above is built from
+    // the same call, so comparing against it again would pass even if
+    // citySlugOf itself were broken, as long as it were broken consistently.
+    expect(href).toBe("/tvaryny?misto=brovary");
   });
 
   it("Скинути links to the bare route when no sort override is set", () => {
@@ -80,6 +90,7 @@ describe("FilterRail", () => {
         filters={NO_FILTERS}
         sort="freshest"
         cities={CITIES}
+        citySlugs={CITY_SLUGS}
         resultCount={34}
         shelterCount={7}
       />,
@@ -93,6 +104,7 @@ describe("FilterRail", () => {
         filters={NO_FILTERS}
         sort="freshest"
         cities={CITIES}
+        citySlugs={CITY_SLUGS}
         resultCount={34}
         shelterCount={7}
       />,
@@ -108,6 +120,7 @@ describe("FilterRail", () => {
         filters={NO_FILTERS}
         sort="longest_waiting"
         cities={CITIES}
+        citySlugs={CITY_SLUGS}
         resultCount={34}
         shelterCount={7}
       />,

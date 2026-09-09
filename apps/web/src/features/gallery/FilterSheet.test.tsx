@@ -1,4 +1,4 @@
-import { type CityId, CityIdSchema, type FeedFilters, NO_FILTERS } from "@opika/domain";
+import { type CityId, CityIdSchema, citySlugOf, type FeedFilters, NO_FILTERS } from "@opika/domain";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { FilterSheet } from "./FilterSheet";
@@ -18,10 +18,11 @@ import { mockAppRouter, WithMockRouter } from "./test-router";
 
 const BROVARY = CityIdSchema.parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 const KYIV = CityIdSchema.parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
-const CITIES: ReadonlyArray<{ id: CityId; name: string }> = [
-  { id: BROVARY, name: "Бровари" },
-  { id: KYIV, name: "Київ" },
+const CITIES: ReadonlyArray<{ id: CityId; name: string; slug: ReturnType<typeof citySlugOf> }> = [
+  { id: BROVARY, name: "Бровари", slug: citySlugOf("Бровари") },
+  { id: KYIV, name: "Київ", slug: citySlugOf("Київ") },
 ];
+const CITY_SLUGS = new Map(CITIES.map((city) => [city.id, city.slug]));
 
 function renderSheet(filters = NO_FILTERS, sort: "freshest" | "longest_waiting" = "freshest") {
   const router = mockAppRouter();
@@ -31,6 +32,7 @@ function renderSheet(filters = NO_FILTERS, sort: "freshest" | "longest_waiting" 
         filters={filters}
         sort={sort}
         cities={CITIES}
+        citySlugs={CITY_SLUGS}
         resultCount={12}
         shelterCount={5}
       />
@@ -47,6 +49,7 @@ function renderSheet(filters = NO_FILTERS, sort: "freshest" | "longest_waiting" 
           filters={nextFilters}
           sort={nextSort}
           cities={CITIES}
+          citySlugs={CITY_SLUGS}
           resultCount={3}
           shelterCount={2}
         />

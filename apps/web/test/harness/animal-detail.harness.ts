@@ -25,6 +25,8 @@
  * is a real fix, not a guess.
  */
 
+import { citySlugOf } from "@opika/domain";
+import { uk } from "@opika/i18n";
 import { expect, test } from "@playwright/test";
 import { expectFocusVisibleOutline, openRoute } from "./harness";
 import { DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
@@ -115,6 +117,55 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
       mobileBack,
       "the mobile back link should have no bounding box (display:none) at 1920",
     ).toBeHidden();
+
+    /**
+     * O-12 (`docs/observations.md`): «← Усі тварини у {city}» has to
+     * actually claim a real city, not the unfiltered gallery — the link's
+     * own text is the claim being checked. Folded into this existing test
+     * (rather than a standalone one) to add zero extra page loads:
+     * `gallery-filters.harness.ts` already proves a `?misto=` link
+     * genuinely narrows the gallery it lands on, so what's left to check
+     * here is that this href is built at all (not the bare `/tvaryny` the
+     * bug produced) and names *this animal's own* city, not a placeholder.
+     *
+     * A membership check against the known seeded slugs alone does not
+     * prove that — every seeded slug is equally "real," so a mutation that
+     * resolves the *wrong* city consistently (e.g. always Kyiv, for every
+     * animal) still produces a value that passes a bare "is this a real
+     * slug" assertion. The fix cross-checks two independently computed
+     * fields instead — `backToListIn`'s own visible city name (from
+     * `AnimalDetailScreen`'s `cityName` prop) and the href's `misto` slug
+     * (from its separate `backToGalleryHref` prop) — which catches the two
+     * fields disagreeing (one derivation swapped onto a different city than
+     * the other). It does **not** catch both being wrong the *same* way —
+     * a consistently-wrong `city` lookup in `page.tsx` that both props are
+     * built from would still make the two sides agree. Proving "the right
+     * one, not just a consistent one" needs an oracle outside this page
+     * (the real seeded corpus's actual per-animal city assignment), which
+     * costs a database read this harness test doesn't have — a real,
+     * accepted gap, not something the assertion below overclaims to close.
+     */
+    const linkText = await desktopBack.textContent();
+    const prefix = uk.detail.backToListIn.replace("{city}", "");
+    expect(linkText?.startsWith(prefix), `"${linkText}" should start with "${prefix}"`).toBe(true);
+    const visibleCityName = (linkText ?? "").slice(prefix.length).trim();
+    expect(
+      visibleCityName.length,
+      "a real city name must remain after stripping the template",
+    ).toBeGreaterThan(0);
+
+    const href = await desktopBack.getAttribute("href");
+    const url = new URL(href ?? "", "http://x");
+    expect(url.pathname).toBe("/tvaryny");
+    const citySlug = url.searchParams.get("misto");
+    expect(
+      citySlug,
+      "O-12: the link claims a city, so the href must actually carry one",
+    ).not.toBeNull();
+    expect(
+      citySlug,
+      `the href's city ("${citySlug}") must match the link's own visible city ("${visibleCityName}")`,
+    ).toBe(citySlugOf(visibleCityName));
   });
 
   test("clicking a gallery card actually reaches a real detail page, not a 404", async ({

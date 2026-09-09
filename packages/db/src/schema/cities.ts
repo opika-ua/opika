@@ -3,6 +3,7 @@ import { doublePrecision, pgTable, text } from "drizzle-orm/pg-core";
 
 export const cities = pgTable("cities", {
   id: text().primaryKey().$type<CityId>(),
+  slug: text().notNull().unique(),
   nameUk: text("name_uk").notNull(),
   nameEnText: text("name_en_text"),
   nameEnProvenance: text("name_en_provenance", {
