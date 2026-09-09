@@ -289,5 +289,20 @@ export function useFeedDeck(filters: FeedFilters) {
     onRetry,
     shownCount: swipedCountRef.current,
     hasActiveSeenSet,
+    /**
+     * R3 (Phase R, `docs/build-plan.md`) — exposed so `SwipeDeck.tsx`'s own
+     * reveal (`useReveal.ts`) can share this exact memoised bootstrap
+     * rather than calling `session.bootstrap` a second, independent time.
+     * Caught on review: a swipe-right used to fire `onSwipe`'s own
+     * `ensureSession` (above) and the reveal's `session.bootstrap` call
+     * concurrently, both with no cookie yet to prove they're the same
+     * visitor — the server has no way to tell they're one caller and mints
+     * two adopters, two sessions, and the browser keeps only one cookie,
+     * silently discarding whichever swipe or reveal landed under the lost
+     * identity. One shared promise closes the race by construction: the
+     * second caller always awaits the first's already-in-flight request
+     * instead of starting its own.
+     */
+    ensureSession,
   };
 }

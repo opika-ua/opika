@@ -74,6 +74,7 @@ describe("swipe gesture listener stability", () => {
         state={{ kind: "ready", cards: generateMockCards(5) }}
         onSwipe={vi.fn()}
         onPrefetch={vi.fn()}
+        ensureSession={() => Promise.resolve(true)}
       />,
     );
 

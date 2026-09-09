@@ -693,6 +693,16 @@ card. Footer: «Написати в Telegram» primary `flex: 1` + «Повер�
 text button. Enter by opacity 220ms, focus trapped, Esc closes, page behind does not scroll.
 Mobile: full screen, cards stacked, actions in the bottom bar.
 
+**Deviation, R3 (Phase R, `docs/build-plan.md`) — one caller of this frame omits the footer's
+second button.** This frame was always "a general contact-reveal spec, not detail-page-specific"
+(`docs/observations.md`'s V1), and R3 is what actually opens it from a second place: the deck
+(`SwipeDeck.tsx`), not just the detail page (`RevealFlow.tsx`, unchanged). The detail page still
+shows «Повернутися до галереї» — dismissing the reveal there already meant returning to the
+gallery before this dialog existed. The deck's own instance passes no second button at all: R3's
+own requirement is "the deck session must survive a reveal — no exit back to the gallery," and a
+link back to the gallery is exactly the exit that row rules out. The ✕ and Esc are the only ways
+out of the deck's dialog, both closing back into the deck itself.
+
 ### 06 My reveals (M1/M2)
 A **720 centred column even at 1920** — three rows stretched to 1320 read as an accounting
 table. Title 44/46 with «Зберігається лише на цьому пристрої. Ми не знаємо, хто ви…» directly

@@ -30,22 +30,29 @@ const browserContract = {
 } as const;
 
 /**
- * F2's reveal flow, for the server-rendered detail page: `session.bootstrap`
- * (mint-or-return an anonymous session, only ever triggered by the reveal
- * button itself — see `docs/gallery-contract-decisions.md` §5, still true
- * here: nothing on the server-rendered detail page mints or reads a
- * session) and `animals.reveal` (the disclosure itself, session-gated
+ * F2's reveal flow: `session.bootstrap` (mint-or-return an anonymous
+ * session, only ever triggered by a reveal itself — see
+ * `docs/gallery-contract-decisions.md` §5, still true for the
+ * server-rendered detail page: nothing there mints or reads a session on
+ * its own) and `animals.reveal` (the disclosure itself, session-gated
  * server-side by `context.adopterId`, not by anything this client trims).
  *
  * A second, separate `ContractRouterClient` rather than adding to
- * `browserContract` above: splitting by *use* (the deck vs. the detail
- * page's reveal flow) rather than merging into one grab-bag keeps each
- * file's contract list an honest, narrow record of what that one feature
+ * `browserContract` above: splitting by *use* (feed browsing vs. a
+ * contact reveal) rather than merging into one grab-bag keeps each file's
+ * contract list an honest, narrow record of what that one feature
  * actually calls. `session.bootstrap` appears in both — it's the same
- * idempotent procedure, mint-or-return, called from two different
- * features for two different reasons (R1: to have a session to record a
- * swipe against; here: to have one to reveal against), not a sign the
- * split should collapse.
+ * idempotent procedure, mint-or-return, called for two different reasons
+ * (R1: to have a session to record a swipe against; here: to have one to
+ * reveal against), not a sign the split should collapse.
+ *
+ * R3 (Phase R, `docs/build-plan.md`) made this client's own name literal
+ * rather than aspirational: the deck now imports it directly
+ * (`SwipeDeck.tsx`, via `../reveal/useReveal.ts`) for the identical reveal
+ * flow the detail page already used, alongside its own `feedBrowserClient`
+ * above — not folded into `browserContract`, since `feed.list` and
+ * `swipes.record` are still a materially different "use" (feed browsing)
+ * from a reveal, even though both now happen on the same route.
  */
 const revealBrowserContract = {
   session: { bootstrap: contract.session.bootstrap },
