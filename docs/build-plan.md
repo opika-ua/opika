@@ -816,8 +816,39 @@ crosses the Atlantic, this row only removes the handshake paid on top of that cr
   `entityKind` symbol, not `constructor.name`) — mutation-confirmed by inverting the branch and
   watching it fail.
 
-**Still cannot be verified from this position:** the neon-http driver's actual behaviour against
-a real Neon database. No credentials exist here to test it directly. `pnpm check` is green (798
-tests including the 9 new ones, `build:web`, and the full harness, all against local Postgres via
-the unchanged postgres-js path) — the Neon branch's real-world verification is a real Vercel
-preview deployment's before/after page timing, reported once available.
+**Real Vercel preview timing, obtained via `vercel curl` (the CLI's authenticated path through
+Deployment Protection — plain `curl` gets a 302 to a login page) against this branch's own PR #53
+preview, same region as production (`X-Vercel-Id` confirmed `iad1` on both):**
+
+| Page | Before (production, unchanged code, contemporaneous samples) | After (this preview, warmed) |
+|---|---|---|
+| `/tvaryny` (gallery) | median ~1.10s (9 samples, range 1.02–1.23s) | median ~0.90s (14 samples, range 0.78–1.12s) |
+| `/tvaryny/[id]` (detail) | median ~0.88s (8 samples, range 0.84–0.96s) | median ~0.70s (8 samples, range 0.65–0.92s, clear downward trend as it warmed) |
+
+**Honest reading: real improvement, ~18–20%, not the dramatic fix "the one-second floor" might
+suggest, and this row does not close the gate on its own.** The gallery page's samples overlap
+production's range more than the detail page's do — plausibly because its query is heavier (a
+scan, per the earlier decisive test), so query execution time is a larger share of its total and
+the connection-overhead saving is a smaller fraction of the whole. The detail page's samples show
+a real downward trend across 8 warm hits (0.92s → 0.65s), consistent with `neon-http`'s
+per-request HTTPS connections benefiting from keep-alive reuse once the underlying runtime has
+one open, the same way the old TCP driver's connections could in principle reuse a warm instance
+but empirically weren't (the original diagnosis's own working hypothesis).
+
+**What this result implies about the diagnosis, stated plainly:** switching from TCP to HTTPS
+does not eliminate a handshake — HTTPS pays its own TCP+TLS handshake. What it removes is the
+*Postgres-protocol* handshake layered on top (SSL negotiation, startup packet, auth exchange) —
+worth perhaps one fewer round trip, which is consistent with an 18–20% cut rather than the
+order-of-magnitude one might hope for. The dominant remaining cost is almost certainly the
+transatlantic round trip itself (`iad1` ↔ `aws-eu-central-1`), which no driver choice removes —
+only the region-pin named as this row's unaddressed other half would. **Recommendation, not
+actioned in this row:** pin `apps/web/vercel.json`'s `regions` to `fra1` (or wherever sits nearest
+Neon's `aws-eu-central-1`) as the next, likely higher-impact step — Oleksii's call on whether to
+schedule it now or roll it into this same gate later.
+
+**Still cannot be verified from this position:** a genuinely cold start for the fixed code (every
+sample above came from an already-warmed preview instance — the original diagnosis's 3.65–4.33s
+cold figures have no post-fix counterpart here), and the reveal flow's own two-round-trip cost
+(`session.bootstrap` then `animals.reveal`, O-9's other named structural multiplier), which this
+row doesn't touch at all. `pnpm check` is green (807 tests total in the final commit, `build:web`,
+and the full harness, all against local Postgres via the unchanged postgres-js path).
