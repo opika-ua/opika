@@ -32,7 +32,7 @@ both), all findings addressed, `pnpm check` green.
 **Phase K — the polish batch** (`docs/build-plan.md`'s reprioritisation queue item 6), covering
 O-1, O-4, O-5, O-8, O-11, O-13, O-14 from `docs/observations.md`.
 
-**PR:** not yet opened — see this file once it is.
+**PR:** [#57](https://github.com/opika-ua/opika/pull/57), open against `main`, not merged.
 
 **Disposition per item:** five done (O-1, O-5, O-8, O-11, O-13), one checked and closed with no
 code change (O-4 — the mock itself specifies the spacing already implemented), one parked
@@ -145,7 +145,7 @@ deadline.
 Reversibility: trivial if wrong — a one-line class change, `gap-3` to whatever's chosen.
 Confidence: high on "the mock says 12px"; the aesthetic judgement of whether 12px is actually
 too tight in practice is Oleksii's, not something this entry settles.
-Commit: (pending — see this row's own PR once opened)
+Commit: 8ece045 (fixes: 6c9b1ce), PR #57.
 
 ## Phase K — footer content: both nav links, not just the credit
 Chose: the new shared `Footer` carries both existing site-nav links (`uk.nav.forShelters` and
@@ -160,7 +160,7 @@ grid) is new *placement*, not new copy. Suppressed on the page it would point at
 uses, so `/pro` and `/prytulkam` never link to themselves from their own footer.
 Reversibility: trivial — delete one `<Link>` and its conditional.
 Confidence: high — no new copy, reuses an existing self-link-avoidance pattern.
-Commit: (pending — see this row's own PR once opened)
+Commit: 8ece045 (fixes: 6c9b1ce), PR #57.
 
 ## Phase K — O-5: same column width, more columns
 Chose: the new ultrawide bracket (2000px+, 6 columns) uses the same ~312px column width the
@@ -177,7 +177,7 @@ harness.ts`, `gallery-photo-sizes.harness.ts`) that currently expects 312px/288p
 bracket.
 Confidence: medium — a real interpretation call on ambiguous decision wording, not a mechanical
 derivation from a mock (none exists above 1440px).
-Commit: (pending — see this row's own PR once opened)
+Commit: 8ece045 (fixes: 6c9b1ce), PR #57.
 
 ---
 
