@@ -841,10 +841,34 @@ does not eliminate a handshake — HTTPS pays its own TCP+TLS handshake. What it
 worth perhaps one fewer round trip, which is consistent with an 18–20% cut rather than the
 order-of-magnitude one might hope for. The dominant remaining cost is almost certainly the
 transatlantic round trip itself (`iad1` ↔ `aws-eu-central-1`), which no driver choice removes —
-only the region-pin named as this row's unaddressed other half would. **Recommendation, not
-actioned in this row:** pin `apps/web/vercel.json`'s `regions` to `fra1` (or wherever sits nearest
-Neon's `aws-eu-central-1`) as the next, likely higher-impact step — Oleksii's call on whether to
-schedule it now or roll it into this same gate later.
+only the region-pin named as this row's unaddressed other half would.
+
+**2026-09-09, continued — region pin actioned.** `apps/web/vercel.json` now sets
+`"regions": ["fra1"]` (Frankfurt, Vercel's region code nearest Neon's `aws-eu-central-1`) —
+confirmed against Vercel's own current docs that `regions` is the correct, non-deprecated
+top-level key (not `functionFailoverRegions`, which is a separate, Enterprise-only failover
+mechanism) and that pinning a single region is available at the Pro tier this project is already
+on. Confirmed static routes (`/pro`, `/prytulkam`, `/robots.txt`) are unaffected — `pnpm build:web`
+produces a byte-identical route table with and without the config, and Vercel's own CDN serves
+static content from the region closest to the *visitor* regardless of the function region setting.
+**Accepted, not fixed:** dropping `iad1` from `regions` entirely (rather than listing
+`["iad1", "fra1"]`) removes US-region execution as a fallback — real failover
+(`functionFailoverRegions`) is Enterprise-only, and listing two regions in `regions` itself would
+route by proximity to the *visitor*, not act as failover, which would put US traffic back through
+`iad1` and undo this fix for exactly the visitors it's least needed for (a Ukrainian-oblast
+product). Single-region is the correct call at this plan tier, named as a real tradeoff rather
+than silently accepted.
+
+**Stray artefacts from this session's own investigation, cleaned up, not shipped:** the `.gitignore`
+addition from linking this project locally (`vercel link`, needed to run `vercel curl` against
+protected preview deployments — see the timing table above) originally added a bare `.env*` line,
+which silently overrode the pre-existing `!.env.example` negation three lines above it (gitignore
+resolves by last-matching-pattern) — a real, if latent, bug: `apps/web/.env.example` or any future
+`*.env.example` would have been silently git-ignored, never shipped, with nothing red anywhere.
+Fixed by removing the redundant line entirely — `.env`/`.env.local` were already covered by the
+file's existing patterns, confirmed via `git check-ignore` both before and after. Several other
+stray local files (curl/fetch output redirected to short filenames during this investigation) were
+found untracked and deleted before committing, not left for a future `git add -A` to catch.
 
 **Still cannot be verified from this position:** a genuinely cold start for the fixed code (every
 sample above came from an already-warmed preview instance — the original diagnosis's 3.65–4.33s

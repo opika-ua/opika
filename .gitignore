@@ -65,3 +65,5 @@ apps/*/CLAUDE.md
 # independent layer, not the enforcement mechanism.
 shelter-*.json
 onboard-*.json
+
+.vercel
