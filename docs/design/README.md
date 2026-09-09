@@ -609,7 +609,10 @@ Transition, both directions:
 - Deck → gallery: «До списку», Esc, or browser back — all three identical. The gallery reopens
   on the same page and **scrolls instantly** (not animated — animated scroll past 24 cards
   reads as a glitch) to the animal you stopped on, which receives the focus ring.
-- «Не зараз» hides an animal for the rest of the deck session, **not** in the gallery.
+- «Не зараз» hides an animal for 30 days, device-scoped via the anonymous session — not just
+  "for the rest of the deck session" (superseded, R1, 2026-09: `docs/build-plan.md`'s Phase R,
+  `DEFAULT_SEEN_SET_POLICY` in `packages/domain/src/discovery/seen-set.ts`) — and **not** in
+  the gallery.
 - `prefers-reduced-motion`: opacity only, 120ms, both directions.
 
 **Deviations, E5 — recorded, not silently shipped:**
@@ -735,8 +738,10 @@ Buttons below, `gap: 8`, all 56, radius 16: «Не зараз» (`flex: 1`, whit
   `/tvaryny/gortaty` is the deck and is `noindex` — a viewing state, not a page.
 - **Exit**: «До списку» in the deck header, or Esc. The gallery reopens on the same page and scrolls
   to the animal you stopped on, which receives the focus ring.
-- **«Не зараз» hides an animal for the rest of the deck session but NOT in the gallery** — the
-  gallery is the full record, and a mood filter must not thin it.
+- **«Не зараз» hides an animal for 30 days, device-scoped, but NOT in the gallery** —
+  superseded, R1, 2026-09: not just "for the rest of the deck session" (see the deck-chrome
+  section above for the same correction) — the gallery is the full record, and a mood filter
+  must not thin it.
 - **Default is the gallery at every width, phone included.** The deck is never the front door: it
   isn't indexable, and a shared link must always open the list.
 - **Memory**: last mode in `sessionStorage`, not permanently.

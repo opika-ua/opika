@@ -1,11 +1,11 @@
 "use client";
 
 import { DEFAULT_PAGE_SIZE, type FeedCursor } from "@opika/contracts";
-import { type FeedFilters, filtersFingerprint } from "@opika/domain";
+import { type AnimalId, type FeedFilters, filtersFingerprint } from "@opika/domain";
 import { isDefinedError, safe } from "@orpc/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { feedBrowserClient } from "../../api/browser-client";
-import type { DeckErrorReason, DeckState } from "./SwipeDeck";
+import type { CommitDirection, DeckErrorReason, DeckState } from "./SwipeDeck";
 
 /**
  * Owns everything `SwipeDeck` itself has no way to know: the real
@@ -148,24 +148,78 @@ export function useFeedDeck(filters: FeedFilters) {
   }, [fetchPage]);
 
   /**
-   * `cardId` is unused, matching the mock-data implementation this
-   * replaces (`/discovery/page.tsx`, pre-redirect): the top card is always
-   * `cards[0]`, and swipe *direction* isn't recorded anywhere yet — no
-   * adopter session is wired into the deck this phase (see the PR body),
-   * so there is nothing to persist a direction against. Dropping the top
-   * card is the only real effect either direction has today.
+   * Bootstraps the anonymous session at most once per page load, not once
+   * per swipe. `session.bootstrap` is mint-or-return (idempotent), so
+   * calling it again would be safe, but swiping is high-frequency (unlike
+   * the detail page's one-shot reveal) — re-bootstrapping before every
+   * single swipe would double every swipe's round trip for nothing, since
+   * the cookie it sets is what every later `feed.list`/`swipes.record`
+   * call already carries automatically. `sessionReadyRef` is a memoised
+   * promise, not a boolean, so concurrent swipes before the first
+   * bootstrap resolves share the same in-flight request rather than each
+   * firing their own.
+   *
+   * Caught on review: memoising with `??=` alone caches a *failed*
+   * attempt forever, just as eagerly as a successful one — a swipe made
+   * while briefly offline would poison every later swipe in the same page
+   * load, silently, with no retry, even once the network returned. The
+   * ref is cleared on failure specifically so the next swipe gets a fresh
+   * attempt; only a successful bootstrap stays cached.
    */
-  const onSwipe = useCallback(() => {
-    swipedCountRef.current += 1;
-    setState((prev) => {
-      if (prev.kind !== "ready") return prev;
-      const remaining = prev.cards.slice(1);
-      if (remaining.length === 0 && cursorRef.current === null) {
-        return { kind: "exhausted", seenCount: swipedCountRef.current };
-      }
-      return { kind: "ready", cards: remaining };
-    });
+  const sessionReadyRef = useRef<Promise<boolean> | null>(null);
+  const ensureSession = useCallback(async (): Promise<boolean> => {
+    sessionReadyRef.current ??= safe(feedBrowserClient.session.bootstrap({})).then(
+      ([error]) => !error,
+    );
+    const ready = await sessionReadyRef.current;
+    if (!ready) sessionReadyRef.current = null;
+    return ready;
   }, []);
+
+  /**
+   * R1 (Phase R, 2026-09): records the swipe against the anonymous
+   * session so `feed.list`'s existing seen-set exclusion
+   * (`buildSeenExclusion`, built at M2) has something to exclude — see
+   * `docs/build-plan.md`'s Phase R for why no new exclusion logic lives
+   * here. Fire-and-forget, after the local state update below, not
+   * awaited before it: decision #9 (`CLAUDE.md`) calls swipes
+   * "best-effort and batchable" specifically so a dropped connection
+   * never blocks the deck's own advance, which the `setState` call
+   * already guarantees regardless of whether the record below succeeds.
+   *
+   * `"advance"` (`SwipeDeck.tsx`'s «Далі»/↓ button, temporary until R2
+   * removes it) never reaches this branch — it moves the deck forward
+   * the same way a real swipe does, but records nothing, because the
+   * adopter didn't actually decide anything about that animal.
+   */
+  const onSwipe = useCallback(
+    (cardId: AnimalId, direction: CommitDirection) => {
+      swipedCountRef.current += 1;
+      setState((prev) => {
+        if (prev.kind !== "ready") return prev;
+        const remaining = prev.cards.slice(1);
+        if (remaining.length === 0 && cursorRef.current === null) {
+          return { kind: "exhausted", seenCount: swipedCountRef.current };
+        }
+        return { kind: "ready", cards: remaining };
+      });
+
+      if (direction === "advance") return;
+
+      void (async () => {
+        const ready = await ensureSession();
+        if (!ready) return;
+        await safe(
+          feedBrowserClient.swipes.record({
+            animalId: cardId,
+            direction: direction === "left" ? "pass" : "interested",
+            at: new Date(),
+          }),
+        );
+      })();
+    },
+    [ensureSession],
+  );
 
   /** Every reason restarts the feed from its first page — there is no
    * partial state worth preserving once the error card has replaced the

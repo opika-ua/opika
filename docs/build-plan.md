@@ -496,10 +496,57 @@ D's own reprioritisation note for the full reasoning (`docs/build-plan.md`, Phas
 | # | Task | Status |
 |---|---|---|
 | R0 | **Verify first, added 2026-09-06 — before touching R1–R3's code:** (1) whether `feedBrowserClient`'s exclusion of `session.bootstrap`/`animals.reveal` (R3's blocker) was a deliberate scope cut or an oversight — report with evidence (the PR/commit that shipped `feedBrowserClient`, and what it says); (2) what cookies the site actually sets today, checked against `/pro`'s «без кукі» claim — if a cookie is already being set, that claim is currently false and is its own finding, independent of R1–R3; (3) whether the anonymous session identity is stable across a page reload and a full browser restart — R1's device-scoped persistence claim depends on this being true, and it has not been checked | Untouched |
-| R1 | Wire `swipes.record` from the deck (drag commit and the skip button), keyed on the existing anonymous session. A skip excludes that animal from the deck's own re-serving, **device-scoped, not session-scoped** — persists across reload and later visits, not just the current tab. **Deck-only**: the gallery's `feed`/`gallery` query is unaffected; a skipped animal stays fully reachable by direct link and in the gallery list. Does **not** feed `scoreAnimal` — ordering inputs stay filters + freshness + completeness, unchanged, so `/prytulkam` §1 stays true | Untouched |
+| R1 | Wire `swipes.record` from the deck (drag commit and the skip button), keyed on the existing anonymous session. A skip excludes that animal from the deck's own re-serving, **device-scoped, not session-scoped** — persists across reload and later visits, not just the current tab. **Deck-only**: the gallery's `feed`/`gallery` query is unaffected; a skipped animal stays fully reachable by direct link and in the gallery list. Does **not** feed `scoreAnimal` — ordering inputs stay filters + freshness + completeness, unchanged, so `/prytulkam` §1 stays true. **Built, client-side only — the seen-set exclusion was already fully implemented server-side at M2** (`packages/db/src/repos/feed-repo.ts`'s `buildSeenExclusion`, reading `context.adopterId`, itself already resolved from the session cookie on every request by `apps/web/src/app/api/rpc/[...rpc]/route.ts`). `use-feed-deck.ts`'s `onSwipe` now bootstraps the anonymous session once per page load (memoised, not once per swipe — swiping is high-frequency, unlike the detail page's one-shot reveal) and calls `swipes.record` fire-and-forget after the local UI advance, never blocking it. **Verified two ways, not just unit-tested**: 18 unit tests in `use-feed-deck.test.tsx` (mocked client) plus 12 in `SwipeDeck.test.tsx`, and a real end-to-end check against the actual running dev server + real local Postgres (a throwaway Node script driving the same `createORPCClient`/`RPCLink` the browser uses) confirming an animal present in `feed.list` becomes excluded after `session.bootstrap` + `swipes.record(pass)` with the same cookie, stays excluded across a second `session.bootstrap` call with that cookie (get-or-return — what a reload/later-visit looks like), and is NOT excluded for a fresh request with no cookie at all (no cross-session leak) — script deleted, DB reseeded to a clean state afterward. **Two reviewer rounds, neither returning PASS outright.** Round 1 returned STOP — three findings are real product/copy decisions, not implementation bugs, and are not mine to resolve; see the STOP note below. Round 1's other findings (a session-bootstrap failure permanently poisoning later swipes; «Далі»/↓ silently persisting a 30-day exclusion for a non-decision, since it shared `handleCommit("left")` with the real skip button; a stale design-doc claim of "for the rest of the deck session" instead of the actual 30-day device-scoped policy) were fixed. Round 2 (PASS WITH NOTES) caught that the «Далі» fix had no test at its actual defect site — the hook-level tests only pinned what the hook does with a direction it's *given*, not that the button hands it the right one; reverting the button's own handler back to the pre-fix bug left every other test in both files green. Fixed: `SwipeDeck.test.tsx` now clicks «Далі» directly and asserts the direction it produces, mutation-confirmed. Round 2 also caught `use-feed-deck.ts` duplicating the `CommitDirection` union as an inline literal instead of importing it — R2's own removal of `"advance"` from the exported type would otherwise typecheck against the stale copy instead of failing the build; fixed | **STOP raised to Oleksii — see below. Committed and pushed regardless, not merged, per the working loop.** |
 | R2 | Two-action deck: drop «Далі» (`SwipeDeck.tsx`'s third button and its keyboard binding). «Не зараз» skips (R1). «Написати» reveals. **Permanent home for the "«Не зараз» is a filter, not a judgement" sentence** (`docs/standing-constraints.md`, "The swipe is filtering, not judging") — an interim placement lives on the detail page (Phase D) until this row builds the deck with the height designed in for it, rather than squeezed into the existing header | Untouched. **Depends on:** R1, R3 |
 | R3 | Inline reveal: wire `session.bootstrap` + `animals.reveal` into the deck's own browser client (today `feedBrowserClient` exposes only `feed.list` — see V1, `docs/observations.md`) and open the contact in a sheet over the deck, per `docs/design/README.md`'s frame 05 (Contact reveal). The deck session must survive a reveal — no exit back to the gallery | Untouched. **Depends on:** none |
 | R4 | `/prytulkam` §3 copy amendment: «Обидва способи показують усіх» no longer holds unqualified for the deck under R1. English sense drafted in `docs/observations.md`'s commitments-register note; Ukrainian is `[COPY PENDING]`, pinned by `copy-status.test.ts` | Untouched |
+
+**STOP raised on R1's own review, 2026-09-09 — three decisions for Oleksii, none of them mine to
+make.** Committed and pushed per the working loop's amendment (a STOP blocks the merge, not the
+commit); do not continue into R2/R3 until these are resolved, since R2 depends on R1 and R4 exists
+specifically to answer the first one below.
+
+1. **`/prytulkam` §3's «Обидва способи показують усіх» is now literally false** the moment a real
+   adopter skips an animal and returns later — R4 already exists to fix this, but its Ukrainian is
+   `[COPY PENDING]`. *Options:* (a) land R1 now, keep §3 false until R4's Ukrainian is ready — a
+   real gap between what ships and what the page claims, open for however long R4 takes; (b) hold
+   R1 off `main` until R4's copy lands, so the two ship together — this branch stays unmerged
+   either way, so the practical difference is only how long the gap between "built" and "true" is
+   documented as open, not whether users see it (nothing here is deployed). *Recommendation:* (b) —
+   R4 is copy-only, small, and pairing it with R1 in the same merge means the commitment is never
+   false at any point `main` could actually be deployed from.
+2. **`/pro`'s «без кукі» sentence (`uk.about.analytics`) reads more true than it now is.** R0
+   (earlier this session) confirmed the sentence is scoped to analytics, not a blanket
+   no-cookies claim, and that no cookie is set until a real action (`session.bootstrap`) fires —
+   true before R1 and still true after. What changed: the set of actions that fire it widened from
+   "tapped «Написати притулку» on the detail page" to "swiped once, in either direction, on the
+   deck" — a materially larger share of visitors now mint a session cookie. The sentence isn't
+   false, but a reader's takeaway from it (implicitly: "this site barely uses cookies") is less
+   true than before. *Options:* (a) leave the sentence as-is — it remains literally accurate; (b)
+   amend it to name the session cookie explicitly alongside the "no analytics cookies" claim, so
+   the page describes the actual, now-larger footprint. *Recommendation:* (b), but the Ukrainian is
+   not mine to draft — this is exactly the class of change `docs/standing-constraints.md` reserves
+   for a human.
+3. **The deck's «N з M» counter and progress bar can now show a number the deck can't honour.**
+   Both are computed from the gallery's own unfiltered total (`DeckScreen.tsx`), which has no
+   seen-set exclusion — a returning visitor who's skipped 10 of 34 sees a deck that visibly ends at
+   24, under a header that still promised 34, or (if they've skipped everything reachable) an
+   instantly-exhausted deck under the same «з 34». *Options:* (a) suppress the counter and bar
+   entirely once any session exists (simplest, no contract change, never shows a number the deck
+   can't reach); (b) keep the gallery total and accept a denominator the deck may not reach; (c)
+   give `feed.list` a real matching-count field — a contract widening, its own decision, and
+   likely more work than this row's scope. *Recommendation:* (a) — matches the standing product
+   rule that freshness (and by extension, any other number shown to an adopter) must be honest
+   rather than merely present.
+
+**STOP-list items 4-8 from the same review round were fixed on this branch, not escalated** —
+each was a real implementation bug or missing test, not a product/copy decision: a
+session-bootstrap failure permanently poisoning later swipes (the memoised-promise cache didn't
+distinguish success from failure); «Далі»/↓ silently persisting a 30-day exclusion for a
+non-decision, because it shared `handleCommit("left")` with the real skip button (fixed with a
+narrow, temporary third `"advance"` commit type — R2 removes this button and the distinction
+entirely); a stale `docs/design/README.md` claim of "for the rest of the deck session" instead of
+the actual 30-day device-scoped policy; and the missing regression tests for both bugs, now added.
 
 **Done when:** a skip in the deck survives a reload and a later visit from the same browser
 without appearing in the gallery's exclusion; the gallery's own count and listing are provably

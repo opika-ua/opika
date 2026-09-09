@@ -1,9 +1,10 @@
+import type { AnimalId } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { generateMockCards } from "./mock-data";
-import { type DeckState, SwipeDeck } from "./SwipeDeck";
+import { type CommitDirection, type DeckState, SwipeDeck } from "./SwipeDeck";
 
 /**
  * The deck's action row is the only way through the feed for anyone who cannot
@@ -12,7 +13,7 @@ import { type DeckState, SwipeDeck } from "./SwipeDeck";
  * correctness property, not a nicety.
  */
 
-function renderDeck(overrides: { onSwipe?: (id: string, dir: "left" | "right") => void } = {}) {
+function renderDeck(overrides: { onSwipe?: (id: AnimalId, dir: CommitDirection) => void } = {}) {
   const onSwipe = overrides.onSwipe ?? vi.fn();
   const onPrefetch = vi.fn();
   render(
@@ -82,6 +83,29 @@ describe("SwipeDeck action row", () => {
 
     expect(onSwipe).toHaveBeenCalledTimes(1);
     expect(onSwipe.mock.calls[0]?.[1]).toBe("right");
+  });
+
+  /**
+   * Caught on review: reverting «Далі»'s handler from `handleCommit("advance")`
+   * back to `handleCommit("left")` — the exact pre-fix bug, where it shared
+   * a real skip commit with «Не зараз» — left every other test in this file
+   * and in `use-feed-deck.test.tsx` green. Neither suite pinned that the
+   * button itself hands `onSwipe` the right direction; the hook-level tests
+   * only pin what the hook does with a direction it's *given*. This is the
+   * one that would actually catch that regression.
+   */
+  it("commits 'advance', not a real decision, when 'Далі' is activated", async () => {
+    const user = userEvent.setup();
+    const onSwipe = vi.fn();
+    renderDeck({ onSwipe });
+
+    await user.tab();
+    await user.tab();
+    expect(document.activeElement?.textContent).toBe(uk.actions.next);
+    await user.keyboard("{Enter}");
+
+    expect(onSwipe).toHaveBeenCalledTimes(1);
+    expect(onSwipe.mock.calls[0]?.[1]).toBe("advance");
   });
 });
 
