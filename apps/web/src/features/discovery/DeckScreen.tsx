@@ -53,7 +53,8 @@ export function DeckScreen({
   total: number | null;
   filtersLabel: string | null;
 }) {
-  const { state, onSwipe, onPrefetch, onRetry, shownCount } = useFeedDeck(filters);
+  const { state, onSwipe, onPrefetch, onRetry, shownCount, hasActiveSeenSet } =
+    useFeedDeck(filters);
   const exit = useDeckExit(filters);
 
   useEffect(() => {
@@ -70,7 +71,16 @@ export function DeckScreen({
   // "exhausted" has already told the user, in its own words, that there is
   // nothing left; numbering a card past the last one there is a genuine
   // off-by-one, not a rounding choice.
-  const showPosition = total !== null && state.kind === "ready";
+  //
+  // `!hasActiveSeenSet` (Oleksii's resolution to R1's STOP,
+  // `docs/build-plan.md`, Phase R, 2026-09-09): `total` comes from the
+  // *gallery's* unfiltered count, which has no seen-set exclusion — once
+  // this device has skipped or written about anything, the deck itself may
+  // no longer be able to reach `total` cards, and a header still promising
+  // it would be a number the deck can't honour. Suppressed only once
+  // there's something to exclude, not for every visitor with a session —
+  // a first-time visitor keeps the count the design specifies.
+  const showPosition = total !== null && state.kind === "ready" && !hasActiveSeenSet;
 
   const showDemoBanner = REGISTRY_HAS_NO_REAL_SHELTERS;
 

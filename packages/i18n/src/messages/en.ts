@@ -300,7 +300,7 @@ export const en = {
       'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) — the registry only shows the link; the money goes directly, and you can see exactly where.',
     data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: an adopter only ever sees an approximate location. A shelter can ask to have its listing removed at any time.",
     analytics:
-      "The registry collects basic visit statistics — how many people visit and how fast the pages load — with no cookies and no advertising.",
+      "The registry collects basic visit statistics — how many people visit and how fast the pages load — with no advertising.",
     /** Template: "Get in touch: {contact}" */
     contact: "Get in touch: {contact}",
   },

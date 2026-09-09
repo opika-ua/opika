@@ -48,6 +48,101 @@ describe("useFeedDeck", () => {
       { signal: expect.any(AbortSignal) },
     );
     expect(result.current.state).toEqual({ kind: "ready", cards });
+    expect(result.current.hasActiveSeenSet).toBe(false);
+  });
+
+  /**
+   * Oleksii's resolution to R1's STOP (`docs/build-plan.md`, Phase R,
+   * 2026-09-09): a *pre-existing* seen-set from an earlier visit — the
+   * server telling this device it already has history — must suppress the
+   * deck's own position counter, not just a seen-set built up during the
+   * current page load (the next test covers that half).
+   */
+  it("exposes hasActiveSeenSet true when the entry fetch reports a pre-existing one", async () => {
+    list.mockResolvedValueOnce({
+      items: generateMockCards(3),
+      nextCursor: null,
+      hasActiveSeenSet: true,
+    });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+
+    expect(result.current.hasActiveSeenSet).toBe(true);
+  });
+
+  /**
+   * The server only ever computes a real `true`/`false` on a "replace"
+   * call (the entry fetch or a retry-restart) — a prefetch response
+   * carries `null` ("not computed for this call", never a real answer,
+   * see `apps/web/src/api/handlers/feed.ts`'s and the contract's own
+   * comments). This is the guarantee that a prefetch response can't
+   * silently un-suppress a counter a "replace" call already confirmed
+   * should stay hidden — checking `=== true` treats both `null` and
+   * `false` as no-ops, so this holds regardless of which value a
+   * prefetch actually carries.
+   */
+  it("does not let a prefetch's own null hasActiveSeenSet override an already-true value", async () => {
+    list
+      .mockResolvedValueOnce({
+        items: generateMockCards(3),
+        nextCursor: "cursor-1",
+        hasActiveSeenSet: true,
+      })
+      .mockResolvedValueOnce({
+        items: generateMockCards(2),
+        nextCursor: null,
+        hasActiveSeenSet: null,
+      });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+    expect(result.current.hasActiveSeenSet).toBe(true);
+
+    act(() => result.current.onPrefetch());
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+
+    expect(result.current.hasActiveSeenSet).toBe(true);
+  });
+
+  /**
+   * The hook marks the seen-set non-empty the instant a real swipe is
+   * committed locally, without waiting for `swipes.record`'s own
+   * fire-and-forget round trip to resolve — see `use-feed-deck.ts`'s own
+   * comment on `onSwipe` for why this is deliberately optimistic (the
+   * record call could still fail) rather than a certainty, and why that
+   * trade-off is accepted anyway.
+   */
+  it("sets hasActiveSeenSet true the instant a real swipe commits, not after the record round trip", async () => {
+    const [only] = generateMockCards(1);
+    if (!only) throw new Error("generateMockCards(1) must return one card");
+    list.mockResolvedValueOnce({ items: [only, ...generateMockCards(1)], nextCursor: null });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+    expect(result.current.hasActiveSeenSet).toBe(false);
+
+    act(() => result.current.onSwipe(only.id, "left"));
+
+    // Synchronous — no `waitFor`/await needed, confirming this doesn't wait
+    // on `ensureSession`/`swipes.record`'s own async chain.
+    expect(result.current.hasActiveSeenSet).toBe(true);
+  });
+
+  /** Mirrors the previous test for `"advance"` (`SwipeDeck.tsx`'s «Далі»),
+   * which records nothing — the seen-set genuinely doesn't change, so
+   * nothing should claim it did. */
+  it("does not set hasActiveSeenSet for an 'advance' commit", async () => {
+    const [only] = generateMockCards(1);
+    if (!only) throw new Error("generateMockCards(1) must return one card");
+    list.mockResolvedValueOnce({ items: [only], nextCursor: null });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+
+    act(() => result.current.onSwipe(only.id, "advance"));
+
+    expect(result.current.hasActiveSeenSet).toBe(false);
   });
 
   it("appends, not replaces, on prefetch — and carries the stored cursor forward", async () => {

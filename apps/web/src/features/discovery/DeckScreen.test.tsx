@@ -67,6 +67,56 @@ describe("DeckScreen", () => {
     expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
   });
 
+  /**
+   * Oleksii's resolution to R1's STOP (`docs/build-plan.md`, Phase R,
+   * 2026-09-09): `total` comes from the gallery's unfiltered count, which
+   * has no seen-set exclusion — once this device has a non-empty seen-set,
+   * the deck itself may not be able to reach `total` cards, and «6 з 34»
+   * would be a number the deck can't honour. The progress bar shares the
+   * same gate (`DeckScreen.tsx`'s single `showPosition` condition covers
+   * both), asserted here via its own testid rather than assumed.
+   */
+  it("hides the position AND the progress bar once the seen-set is non-empty", () => {
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 5,
+      hasActiveSeenSet: true,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel="Бровари · собаки" />
+      </WithMockRouter>,
+    );
+
+    expect(screen.getByTestId("deck-filters-label").textContent).toBe("Бровари · собаки");
+    expect(screen.queryByTestId("deck-position")).toBeNull();
+    expect(screen.queryByTestId("deck-progress-bar")).toBeNull();
+  });
+
+  it("keeps showing the position for a first-time visitor with an empty seen-set", () => {
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 5,
+      hasActiveSeenSet: false,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel="Бровари · собаки" />
+      </WithMockRouter>,
+    );
+
+    expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
+    expect(screen.getByTestId("deck-progress-bar")).toBeTruthy();
+  });
+
   it("shows neither the filters phrase nor a position when given nothing to say", () => {
     render(
       <WithMockRouter>

@@ -565,6 +565,13 @@ required. Mutation required. Applies to: production data, seed/truncate/migratio
 secrets and security, user-facing claims and the /prytulkam commitments, Ukrainian copy,
 asset licensing, anything a real shelter's data flows through.
 
+**Deleting existing copy that a shipped change made false is not gated the same way** —
+`docs/standing-constraints.md`'s "Removing a false claim is not the same gate as adding one":
+a deletion needs no Phase 0 round trip, since it can only narrow what a page asserts, never
+introduce a new claim. Writing whatever fuller, honest replacement comes later still goes
+through the full Tier 1 gate like any other new copy — the deletion and its eventual
+replacement are two separate actions on two separate tiers, not one held hostage to the other.
+
 TIER 2 — reviewer only. No gate to Oleksii, no round trip. Do the work, pnpm check, invoke
 opika-reviewer, act on the verdict, commit, continue. Applies to: app code, layout, tests,
 harness work, refactors.

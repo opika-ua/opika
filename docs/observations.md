@@ -410,10 +410,12 @@ Decision 1 does not change this cookie's existence, but it does give that same c
 a new, more visible job — remembering what a visitor skipped, across visits — which makes "this
 registry doesn't use cookies" an even less accurate reader takeaway than it already is.
 
-**This is a commitments-register finding on existing production copy, independent of the skip
-feature, and it stops here** — the fix is Oleksii's Ukrainian (either scope the sentence
-explicitly to analytics, or disclose the session cookie separately), not something to redraft
-unilaterally.
+**Resolved, 2026-09-09 — Oleksii's decision on R1's STOP.** «без кукі» deleted from `uk.about.analytics`
+(and the matching English), keeping «без реклами» — per the new standing constraint ("Removing a
+false claim is not the same gate as adding one"), the disprovable-in-DevTools half was removed
+immediately rather than left live while a fuller sentence was drafted. R4 (Phase R) adds the
+honest fuller replacement — one session cookie, set only when the visitor acts, and what it's
+for — which is still Oleksii's Ukrainian to write, not something to redraft unilaterally.
 
 ### V3 — is the anonymous session identity stable across reload / restart?
 
@@ -433,17 +435,20 @@ worth Oleksii knowing rather than assuming "device-scoped" means "forever."
 
 ### Commitments register — `/prytulkam` §3
 
-«Обидва способи показують усіх» becomes false for the deck under Decision 1. Amendment (English
-sense — Ukrainian is Oleksii's, ships `[COPY PENDING]` pinned by `copy-status.test.ts`): **the
-list shows everyone; the deck does not re-serve what you skipped; nothing is hidden from you that
-you did not hide yourself.** The deck-only constraint above is what keeps this a small amendment
-rather than a reversal of the commitment.
+**Resolved, 2026-09-09 — Oleksii's decision on R1's STOP.** «Обидва способи показують усіх»
+became false for the deck under Decision 1, the moment R1 shipped real per-device swipe memory.
+Per the new standing constraint ("Removing a false claim is not the same gate as adding one",
+`docs/standing-constraints.md`), the false sentence was **deleted immediately** rather than held
+until its replacement was written — `whatHappensToAnimals` now states only the list/one-at-a-time
+mechanism, not the show-everyone claim. Amendment (English sense — Ukrainian is still Oleksii's, and is now R4's whole remaining job, not a
+fix for a false sentence; not pinned by `copy-status.test.ts` — the false sentence was deleted, not
+replaced with a `[COPY_PENDING]` placeholder, so no marker currently exists for that test to catch):
+**the list shows everyone; the deck does not re-serve what you skipped;
+nothing is hidden from you that you did not hide yourself.** The deck-only constraint above is
+what keeps this a small amendment rather than a reversal of the commitment.
 
-⚠ **Not yet in `docs/standing-constraints.md`'s commitments register.** That table
-(`CLAUDE.md`'s "Commitments the «Для притулків» page makes") currently lists seven numbered rows
-for `/prytulkam`'s shelter-facing promises; this §3 adopter-facing commitment isn't one of them,
-so the register is known-incomplete independent of whether Phase R ships. Needs Oleksii before
-Phase R starts — adding a row is itself a change to a Tier 1 document.
+Now row 8 in `docs/standing-constraints.md`'s commitments register (`CLAUDE.md`'s "Commitments
+the «Для притулків» page makes"), recorded as temporarily narrowed rather than satisfied.
 
 ### New feature row set (scoped, not started)
 

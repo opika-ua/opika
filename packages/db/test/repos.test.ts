@@ -972,6 +972,122 @@ describe("feedRepo", () => {
     expect(page.items).toHaveLength(0);
   });
 
+  describe("hasActiveSeenSet", () => {
+    async function seedAdopterWithShelter() {
+      const cities = cityRepo(db);
+      const sheltersR = shelterRepo(db);
+      const animalsR = animalRepo(db);
+      const adopters = adopterRepo(db);
+
+      const city = makeCity();
+      await cities.insert(city);
+      const shelter = makeShelter({
+        publicLocation: {
+          cityId: city.id,
+          district: null,
+          precision: "fuzzed_address",
+          approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
+        },
+        exactAddress: {
+          line1: "вул. Тестова 1",
+          line2: null,
+          postalCode: "01001",
+          cityId: city.id,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
+      });
+      await sheltersR.insert(shelter);
+
+      const animal = makeAnimal({ shelterId: shelter.id });
+      await animalsR.insert(animal, city.id);
+
+      const adopter = makeAdopter();
+      await adopters.insert(adopter);
+
+      return { animal, adopter };
+    }
+
+    it("is false for an adopter with no swipes", async () => {
+      const { adopter } = await seedAdopterWithShelter();
+      const feed = feedRepo(db);
+
+      const result = await feed.hasActiveSeenSet(
+        adopter.id,
+        new Date("2026-08-01T12:00:00Z"),
+        DEFAULT_SEEN_SET_POLICY,
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it("is true after an 'interested' swipe", async () => {
+      const { animal, adopter } = await seedAdopterWithShelter();
+      const swipesR = swipeRepo(db);
+      const feed = feedRepo(db);
+
+      await swipesR.record(
+        makeSwipe({ adopterId: adopter.id, animalId: animal.id, direction: "interested" }),
+      );
+
+      const result = await feed.hasActiveSeenSet(
+        adopter.id,
+        new Date("2026-08-01T12:00:00Z"),
+        DEFAULT_SEEN_SET_POLICY,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it("is true after a 'pass' swipe within reshowAfterDays", async () => {
+      const { animal, adopter } = await seedAdopterWithShelter();
+      const swipesR = swipeRepo(db);
+      const feed = feedRepo(db);
+      const policy = { maxTracked: 1000, reshowAfterDays: 30 };
+
+      await swipesR.record(
+        makeSwipe({
+          adopterId: adopter.id,
+          animalId: animal.id,
+          direction: "pass",
+          at: new Date("2026-07-22T12:00:00Z"),
+        }),
+      );
+
+      const result = await feed.hasActiveSeenSet(
+        adopter.id,
+        new Date("2026-08-01T12:00:00Z"),
+        policy,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it("is false once a 'pass' swipe has expired past reshowAfterDays", async () => {
+      const { animal, adopter } = await seedAdopterWithShelter();
+      const swipesR = swipeRepo(db);
+      const feed = feedRepo(db);
+      const policy = { maxTracked: 1000, reshowAfterDays: 30 };
+
+      await swipesR.record(
+        makeSwipe({
+          adopterId: adopter.id,
+          animalId: animal.id,
+          direction: "pass",
+          at: new Date("2026-07-01T12:00:00Z"),
+        }),
+      );
+
+      const result = await feed.hasActiveSeenSet(
+        adopter.id,
+        new Date("2026-08-01T12:00:00Z"),
+        policy,
+      );
+
+      expect(result).toBe(false);
+    });
+  });
+
   it("fostered animal appears under foster city, not shelter city", async () => {
     const citiesR = cityRepo(db);
     const sheltersR = shelterRepo(db);

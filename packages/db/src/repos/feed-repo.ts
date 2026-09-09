@@ -61,10 +61,7 @@ export function feedRepo(db: Database) {
 
       // Seen-set exclusion via NOT IN on the swipes table
       if (opts.adopterId) {
-        const seenSubquery = buildSeenExclusion(opts.adopterId, opts.now, opts.seenSetPolicy);
-        if (seenSubquery) {
-          conditions.push(seenSubquery);
-        }
+        conditions.push(buildSeenExclusion(opts.adopterId, opts.now, opts.seenSetPolicy));
       }
 
       // Fetch limit+1 to detect if there's a next page
@@ -92,23 +89,65 @@ export function feedRepo(db: Database) {
 
       return { items, nextCursor };
     },
+
+    /**
+     * Whether this adopter currently has at least one swipe that still
+     * excludes an animal under the given policy — filter-independent, not
+     * scoped to any particular `FeedFilters`. An adopter who has only ever
+     * swiped on dogs gets `true` here even against a cats-only feed, where
+     * nothing was actually excluded — deliberately conservative in the
+     * direction that matters, since this only ever suppresses a denominator
+     * that *might* now be wrong (`DeckScreen.tsx`'s "N з M" counter and
+     * progress bar are computed from the gallery's unfiltered total, which
+     * has no seen-set exclusion of its own), never asserts one is right.
+     * Oleksii's own resolution to R1's STOP (`docs/build-plan.md`, Phase R,
+     * 2026-09-09): suppress both, but only when this is true — a
+     * first-time visitor with an empty seen-set keeps the accurate count
+     * the design doc specifies.
+     *
+     * A separate query, not a re-use of `buildSeenExclusion`'s NOT IN
+     * clause: that clause is coupled to the outer query's `animals` alias
+     * (`animals.id NOT IN (...)`), and answering "is there at least one"
+     * doesn't need the `animals` table at all. Shares
+     * `stillExcludesCondition` with it so the two can't drift apart on what
+     * "still excludes" means.
+     *
+     * `.select().limit(1)`, not a raw `db.execute(sql\`...EXISTS...\`)`: the
+     * two adapters this repo runs against return genuinely different raw
+     * result shapes from `.execute()` (a `RowList` array for postgres-js,
+     * `{ rows: T[] }` for neon-http — `../client.ts`'s own comment on why
+     * `Database`'s cast is safe rests specifically on nothing in this repo
+     * layer calling `.execute()`). A typed `.select()` chain is what that
+     * comment's safety claim actually covers — Drizzle normalises its
+     * return shape identically across adapters.
+     */
+    async hasActiveSeenSet(
+      adopterId: AdopterId,
+      now: Date,
+      policy: SeenSetPolicy,
+    ): Promise<boolean> {
+      const rows = await db
+        .select({ id: swipes.animalId })
+        .from(swipes)
+        .where(stillExcludesCondition(adopterId, now, policy))
+        .limit(1);
+      return rows.length > 0;
+    },
   };
 }
 
 /**
- * Builds a NOT IN clause for seen-set exclusion.
- *
- * Rather than materializing all swipes into a JS array, this pushes the
- * policy logic into SQL. "interested" swipes always exclude; "pass" swipes
- * expire after `reshowAfterDays`.
+ * The WHERE condition matching swipe rows that still exclude their animal
+ * under the given policy — "interested" swipes exclude permanently, "pass"
+ * swipes expire after `reshowAfterDays`. Shared between `buildSeenExclusion`
+ * below and `feedRepo(db).hasActiveSeenSet`, so the two can't drift apart
+ * on what "still excludes" means.
  */
-function buildSeenExclusion(adopterId: AdopterId, now: Date, policy: SeenSetPolicy): SQL | null {
-  const parts: SQL[] = [];
+function stillExcludesCondition(adopterId: AdopterId, now: Date, policy: SeenSetPolicy): SQL {
+  const parts: SQL[] = [
+    sql`${swipes.adopterId} = ${adopterId} AND ${swipes.direction} = 'interested'`,
+  ];
 
-  // "interested" swipes exclude permanently
-  parts.push(sql`${swipes.adopterId} = ${adopterId} AND ${swipes.direction} = 'interested'`);
-
-  // "pass" swipes exclude if within reshowAfterDays
   if (policy.reshowAfterDays !== null) {
     const cutoff = new Date(now.getTime() - policy.reshowAfterDays * 86_400_000).toISOString();
     parts.push(
@@ -119,9 +158,19 @@ function buildSeenExclusion(adopterId: AdopterId, now: Date, policy: SeenSetPoli
     parts.push(sql`${swipes.adopterId} = ${adopterId} AND ${swipes.direction} = 'pass'`);
   }
 
+  return sql`(${sql.join(parts, sql` OR `)})`;
+}
+
+/**
+ * Builds a NOT IN clause for seen-set exclusion.
+ *
+ * Rather than materializing all swipes into a JS array, this pushes the
+ * policy logic into SQL.
+ */
+function buildSeenExclusion(adopterId: AdopterId, now: Date, policy: SeenSetPolicy): SQL {
   return sql`${animals.id} NOT IN (
     SELECT ${swipes.animalId} FROM ${swipes}
-    WHERE (${sql.join(parts, sql` OR `)})
+    WHERE ${stillExcludesCondition(adopterId, now, policy)}
     ORDER BY ${swipes.swipedAt} DESC
     LIMIT ${policy.maxTracked}
   )`;
