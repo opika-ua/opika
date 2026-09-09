@@ -1,8 +1,8 @@
 import type { CityId } from "@opika/domain";
 import { textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import Link from "next/link";
 import { anonymousRouterClient } from "../../api/server-client";
+import { Footer } from "../../features/chrome/Footer";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { AnimalCard } from "../../features/gallery/AnimalCard";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
@@ -267,7 +267,7 @@ export async function renderGallery(
                   </a>
                 )}
 
-                <ArrowKeyGrid className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px]">
+                <ArrowKeyGrid className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 ultrawide:grid-cols-6 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px] ultrawide:max-w-[1992px]">
                   {page.items.map((item, index) => (
                     <AnimalCard
                       key={item.id}
@@ -289,21 +289,7 @@ export async function renderGallery(
           </div>
         </div>
 
-        {/*
-          e-Ukraine's CC BY 4.0 attribution requirement — the user-reachable
-          credit `docs/design/README.md`'s V2 definition-of-done calls for,
-          alongside the licence file at
-          apps/web/src/app/fonts/e-ukraine/LICENSE.txt.
-        */}
-        <footer className="mt-8 flex items-center gap-4 text-[13px]/[18px] text-rg-ink-3">
-          <span>{uk.footer.fontCredit}</span>
-          <Link
-            href="/pro"
-            className="shrink-0 underline focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] rounded-rg-button"
-          >
-            {uk.nav.about}
-          </Link>
-        </footer>
+        <Footer />
       </div>
     </div>
   );

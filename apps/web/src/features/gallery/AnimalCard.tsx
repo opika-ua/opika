@@ -34,9 +34,29 @@ import { cardAccessibleName, cardMetaLine, isReserved } from "./card-text";
  * viewport the grid is fluidly narrower and the photo is smaller, which is
  * the safe direction to be wrong in.
  *
- * Wide (1440+, 4 columns): grid caps at `max-w-[1320px]`, `gap-6` x 3 gaps,
- * so a column is (1320 - 72) / 4 = 312px, less 24px of card padding = 288px
- * — measured at a 1920px viewport. Constant above 1440, since the cap binds.
+ * Wide (1440-1999, 4 columns): grid caps at `max-w-[1320px]`, `gap-6` x 3
+ * gaps, so a column is (1320 - 72) / 4 = 312px, less 24px of card padding =
+ * 288px — measured at a 1920px viewport, comfortably past the ~1752px
+ * (1320 + rail 280 + rail-gap 32 + page-padding 120) point where the cap
+ * actually binds. Below that, same caveat as the desktop bracket above: the
+ * grid is fluidly narrower and the real photo is smaller than 288px — this
+ * file's own `gallery-photo-sizes.harness.ts` only measures this bracket at
+ * 1920, so that narrower sub-range is unverified, not proven safe, the same
+ * untested gap the desktop bracket already has below ~1392px.
+ *
+ * Ultrawide (2000+, 6 columns, O-5 `docs/observations.md`): grid caps at
+ * `max-w-[1992px]`, `gap-6` x 5 gaps, so a column is (1992 - 120) / 6 = 312px
+ * — deliberately the *same* per-column width the wide bracket already
+ * reaches, chosen so the grid gains columns without the card itself
+ * visually jumping size at the boundary. Less the same 24px of card padding
+ * = 288px, identical to the wide bracket's own number, measured at 2560px —
+ * past the ~2424px (1992 + 432) point where *this* cap binds. The same
+ * fluid sub-range exists here too (2000-2424px, real box smaller than
+ * 288px): found while adding this bracket's own harness case (a 2200px
+ * probe measured 250.66px, not 288 — confirmed, not assumed, then the test
+ * was moved to the cap-reached viewport instead of chasing a fluid `calc()`
+ * expression across every bracket, which is real, separate scope — see
+ * `docs/observations.md`'s O-18).
  */
 const PHOTO_SIZES =
   "(max-width: 599px) calc(100vw - 56px), (max-width: 1023px) 120px, (max-width: 1439px) 280px, 288px";

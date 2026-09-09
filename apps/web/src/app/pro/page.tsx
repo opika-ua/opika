@@ -1,5 +1,6 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
+import { Footer } from "../../features/chrome/Footer";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 
 /**
@@ -72,6 +73,7 @@ export default function AboutPage() {
         <p className="text-[15px]/[22px] text-rg-ink-2 pt-2">
           {uk.about.contact.replace("{contact}", "hello@opika.org.ua")}
         </p>
+        <Footer currentPage="pro" />
       </div>
     </div>
   );

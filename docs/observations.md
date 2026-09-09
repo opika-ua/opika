@@ -159,13 +159,23 @@ split already recorded — see `/prytulkam`'s `money` key, which already frames 
 registry's own action rather than "we"). Do not carry «ми» forward unchanged into a new
 placement.
 
-## O-4 — Filter label to pill spacing too tight · design · open
+## O-4 — Filter label to pill spacing too tight · design · checked, not a defect (2026-09-10)
 
 The gap between «МІСТО» / «ВИД» / «РОЗМІР» / «ВІК» and the pills below is visually too small.
 
 Open the mock before changing anything. Either the implementation drifted from the design
 system's spacing token, or the mock itself is tight — different fixes, and the design doc is the
 authority.
+
+**Checked, not assumed — the mock itself specifies 12px.** `Opika Registry System.dc.html`'s own
+computed styles for each label+chip-row group are `display: flex; flex-direction: column; gap:
+12px` (both the B1 rail frame and its sheet equivalent). `FilterRail.tsx` and `FilterSheet.tsx`
+already render exactly `gap-3` (12px) for this same grouping — this is the second half of O-4's
+own instruction: "or the mock itself is tight." It is. The implementation has not drifted from
+the design system; the design system's own stated number is what reads as tight. **Not changed**
+— widening it would be a real design deviation (a spacing-token change), not a bug fix, and
+needs Oleksii's sign-off the way any other override of a mock-specified value would, not a
+default assumption that "looks tight" always means "implementation error."
 
 ## O-5 — Card grid does not use the width of large screens · decision · DECIDED
 
@@ -309,7 +319,27 @@ Not legal advice; if exact wording ever matters, read the licence deed directly.
 and widening it makes long-form text harder to read. What changes is the page around it — the
 column stops being alone on an empty field.
 
-Schedule after the MVP gate.
+Schedule after the MVP gate. **Reprioritised into the Phase K polish batch, 2026-09-06,
+superseding this schedule note** (`docs/build-plan.md`).
+
+**Parked, 2026-09-10 — the *what*, not the *whether*.** The footer half is done (O-11/O-13's
+shared `Footer` now renders on both pages, which is already a small step toward "not alone on an
+empty field"). The rest is a genuine composition choice with no mock to open —
+`docs/design/README.md` has no section for either page at all, confirmed by grep, and
+`/prytulkam`'s own file comment already records "the first surface in the project the design
+handoff does not describe at all." `docs/standing-constraints.md`'s "ambiguous design with no
+mock" is on the working loop's own stop-and-ask list regardless of what a reviewer says, and this
+qualifies: there is a real aesthetic decision here (how to fill the field), not a mechanical one.
+Two concrete directions, for Oleksii to choose between rather than one picked silently:
+(a) place the existing 640px column inside a wider (e.g. 1200px) shell, left-aligned, with a
+large low-opacity rendering of O-1's new logo mark filling the remaining space at desktop widths
+— reuses an asset already built this batch, adds no new copy; (b) leave the column centred and
+instead treat the empty sides as a deliberate colour-field (matching the "no colour in the
+interface... all colour comes from photographs" design principle would mean this stays
+monochrome too, so this option is closer to "no visual change, argue the empty field is fine
+once a footer anchors the bottom" than a real second option). Recommend (a) if a decision is
+wanted without a live conversation, since it is the more complete answer to "the column stops
+being alone" — but this is a preference, not a default to act on unasked.
 
 ## O-15 — Deck actions have no effect · BUG · DIAGNOSED, RESOLVED BY DECISION 1 (2026-09-05)
 
@@ -360,6 +390,40 @@ vigilance keeps catching individual instances; that is not a mechanism, it is lu
 transitively) by the component/module it is testing, then uses that same imported binding inside
 an `expect(...)`/`toHaveText(...)`/`toBe(...)` assertion. Scope and exact detection strategy not
 decided — this is filed, not designed. Do not build it now.
+
+---
+
+## O-18 — The gallery card's `sizes` attribute overstates the box in a fluid sub-range · tooling · found, not fixed
+
+Found 2026-09-10 while adding O-5's ultrawide bracket and its own harness case. `AnimalCard.tsx`'s
+`PHOTO_SIZES` declares a single flat px value for each bracket at and above 1024px width (280 for
+desktop, 288 for wide and ultrawide) — correct once the grid's own container has actually reached
+its max-width ceiling (960 / 1320 / 1992 respectively), which only happens once the viewport
+clears roughly `ceiling + 432` (the rail, its gap, and page padding). Below that point in each
+bracket the grid is genuinely fluid and the real photo box is narrower than the flat value
+declares — an overstatement, the same class of defect F-1 and H1 already found and fixed
+elsewhere, just in a sub-range no existing harness viewport happens to probe.
+
+**Confirmed, not assumed:** a probe at 2200px (inside the new ultrawide bracket's own fluid
+sub-range, 2000–2424px) measured a real photo box of 250.66px against a declared 288px — a
+37px overstatement. The desktop bracket (1024–1439) has the analogous gap below ~1392px and has
+*never* been measured by `gallery-photo-sizes.harness.ts` at any viewport at all (no case in that
+file's `CASES` list uses the plain `DESKTOP` viewport for the gallery surface). The wide bracket
+(1440–1999) has the same gap below ~1752px, also unmeasured — its own existing case only ever
+probes 1920px, past the point where the cap binds.
+
+**Not fixed here**, deliberately: a correct fix needs a real fluid `sizes` clause per bracket
+(a `calc()` expression in vw units, one per column count — e.g. wide's fluid zone is
+`calc(25vw - 150px)`, ultrawide's is `calc(16.6667vw - 116px)`, both derived from the same
+column-width arithmetic `AnimalCard.tsx`'s own comment already uses, just solved for a variable
+viewport instead of a fixed one), verified with a new harness case *inside* each fluid sub-range,
+for every bracket including the desktop one that was never covered from the start. That is
+real, separate scope — a `sizes`-attribute precision pass across the whole grid, not an O-5
+extension — and no user-visible symptom currently exists for it (the practical cost is bandwidth
+on a viewport width few real visitors sit at exactly, the same "invisible until measured" shape
+F-1/H1 both had, just smaller in absolute px terms here). O-5's own new ultrawide case was moved
+to the cap-reached 2560px viewport instead, matching the existing (if similarly incomplete)
+pattern the wide bracket's own 1920px case already set.
 
 ---
 

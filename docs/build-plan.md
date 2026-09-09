@@ -599,6 +599,66 @@ reprioritisation places it in this batch, before the gate, superseding the earli
 As one batch, not one row at a time, per Oleksii's explicit instruction. Scoped in full when
 picked up, as above.
 
+**2026-09-10 — five of seven done, one checked-and-closed with no code change, one parked.**
+
+- **O-1, done.** The header now draws the real «Поріг · Межа» mark (`SiteHeader.tsx`'s new
+  `LogoMark`) from `docs/design/README.md`'s own SVG path geometry — arch, threshold, dot, ink
+  `#101112` only, 30px desktop / 26px mobile, gap to the wordmark = the dot's own height. Not an
+  invented asset: the design doc names the exact path data, so drawing it is following the spec
+  the file's own prior comment recorded as unmet. Not built: the 16/24px dot-dropped variant and
+  the favicon (a separate asset pipeline, `app/icon.*`, not a header-lockup concern).
+- **O-8, done.** The detail page's back-link moved out of `SiteHeader`'s `leading` slot (removed
+  entirely — nothing else used it) into its own left-aligned element between the header and the
+  content, horizontally aligned with the content column below it. `SiteHeader` lost the
+  `flex-wrap`/`order-last` logic that slot needed at 360px, since nothing populates it anymore.
+- **O-11 + O-13, done together, one component.** A new shared `Footer` (`apps/web/src/features/
+  chrome/Footer.tsx`) replaces the one-off `<footer>` fragment that used to live only on the
+  gallery page — now rendered on every route that carries `SiteHeader` (gallery, `/pro`,
+  `/prytulkam`, detail; never the deck, same reasoning as the header itself). Carries
+  `uk.footer.fontCredit` verbatim (unchanged, per that key's own doc comment) plus both existing
+  nav links (`uk.nav.forShelters`/`uk.nav.about`) — new placement, not new copy. Suppresses the
+  matching link on the page it would point at (`currentPage` prop), the same self-link avoidance
+  `SiteHeader.wordmarkIsCurrentPage` already does.
+- **O-4, checked, not a defect — no code change.** `Opika Registry System.dc.html`'s own
+  computed style for a label+chip-row group is `gap: 12px`, exactly what `FilterRail.tsx`/
+  `FilterSheet.tsx` already render. The implementation has not drifted from the design system;
+  the design system's own number is what reads as tight. Widening it would be a real deviation
+  from a mock-specified value, not a bug fix — not done without sign-off. Full reasoning:
+  `docs/observations.md`'s O-4 entry.
+- **O-5, done.** A new breakpoint (`--breakpoint-ultrawide: 2000px`) and a 6th-of-24 column count
+  above it, capped at a new `max-w-[1992px]` — `docs/design/README.md`'s grid table amended with
+  the new row (not a replacement of the existing 1024-1439/1440+ rows), per the decision's own
+  instruction. Column width (312px) deliberately matches the existing wide bracket's own, so the
+  card does not visually resize at the new boundary. New viewports (`GALLERY_ULTRAWIDE`/
+  `_ROOMY`) and new harness cases in `gallery-layout.harness.ts` and `gallery-photo-sizes.
+  harness.ts` — not a port of the old 4-column assertions, per the decision's own explicit
+  warning about F-1's preconditions. **A real, previously-latent bug found in the process, not
+  hidden:** the first attempt at a new photo-sizes case (at a boundary-clear-but-fluid 2200px
+  viewport) measured a real photo box of 250.66px against a declared 288px — the grid had not
+  yet reached its new ceiling at that width. Root cause and full scope (the same gap already
+  existed, untested, in the desktop and wide brackets) filed as `docs/observations.md`'s new
+  O-18, not fixed in this row — the new case was moved to the cap-reached 2560px viewport
+  instead, matching the existing (if similarly incomplete) pattern the wide bracket's own case
+  already set at 1920px.
+- **O-14, parked — the *what*, not the *whether*.** The footer half (above) is done, which is
+  already a small step toward "not alone on an empty field." The rest needs an actual
+  composition decision with no mock to open (`docs/design/README.md` has no section for `/pro`
+  or `/prytulkam` at all) — `docs/standing-constraints.md`'s "ambiguous design with no mock" is
+  on the working loop's own stop-and-ask list regardless of what a reviewer would say, so this
+  wasn't decided unilaterally. Two concrete directions recorded in `docs/observations.md`'s O-14
+  entry, with a recommendation, for Oleksii to choose from rather than a default silently
+  shipped.
+
+**A second real regression caught by the harness, not assumed safe:** removing `SiteHeader`'s
+`flex-wrap` (reasoned, at the time, to be dead weight once O-8 removed its only real user, the
+`leading` slot) broke real horizontal-overflow assertions at 360px on both the gallery and
+detail pages — the mark's own ~38px (26px + 12px gap) was enough on its own to push the
+wordmark+nav row past 360px, independent of `leading` ever existing. Restored, with the doc
+comment corrected to explain why it's still load-bearing.
+
+`pnpm check` green: 872 workspace unit tests (311 domain + 20 i18n + 29 contracts + 10 ui + 139
+db + 363 apps/web), `build:web`, and 180 Playwright harness tests, all against local Postgres.
+
 ---
 
 ## Part 3 — Timeline

@@ -55,6 +55,7 @@ import {
   GALLERY_DESKTOP_1920,
   GALLERY_PHONE_360,
   GALLERY_TABLET,
+  GALLERY_ULTRAWIDE_ROOMY,
   type Viewport,
 } from "./viewports";
 
@@ -137,6 +138,28 @@ const CASES: readonly Case[] = [
     dpr: 1,
     expectedVariant: "card",
     because: "288 CSS px x 1 = 288 device px, well inside card (640w)",
+  },
+  {
+    // O-5 (`docs/observations.md`): the new 2000+/6-column bracket, tested at
+    // its own roomy viewport (2560, where the 1992 content ceiling is
+    // actually reached — see viewports.ts's own comment) rather than a
+    // boundary-clear-but-fluid one. The grid is genuinely narrower than 1992
+    // between 2000 and ~2424px (`AnimalCard.tsx`'s own comment on the fluid
+    // gap this uncovered), so a viewport in that range would fail this
+    // exact assertion for a real, if pre-existing-in-spirit, reason — not a
+    // defect in the new bracket, but the same untested-fluid-zone shape the
+    // 3-column desktop bracket already has at every viewport (no case here
+    // tests it either). Proves the *new* bracket resolves to the same box
+    // width by actually measuring it, rather than trusting
+    // `AnimalCard.tsx`'s own comment that the two brackets' arithmetic
+    // happens to match.
+    surface: "gallery",
+    viewport: GALLERY_ULTRAWIDE_ROOMY,
+    dpr: 2,
+    expectedVariant: "card",
+    because:
+      "288 CSS px x 2 = 576 device px, inside card (640w) — the ultrawide bracket's column " +
+      "width is deliberately the same as the wide bracket's, so this must resolve the same way",
   },
   {
     surface: "gallery",
