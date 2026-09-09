@@ -144,8 +144,6 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
         breakpoint) so the back-link's left edge lines up with the photo and
         text columns it sits above, not with the header's wider padding.
       */}
-      <SiteHeader />
-
       <div className="p-4 tablet:p-6 desktop:px-8 desktop:pt-6 desktop:max-w-[1200px] desktop:mx-auto">
         <Link
           href="/tvaryny"

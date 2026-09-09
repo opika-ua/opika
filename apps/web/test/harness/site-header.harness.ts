@@ -50,6 +50,9 @@ const HEADER = "[data-testid='site-header']";
 const WORDMARK = "[data-testid='site-wordmark']";
 const NAV_ABOUT = "[data-testid='nav-about']";
 const NAV_SHELTERS = "[data-testid='nav-for-shelters']";
+const FOOTER = "[data-testid='site-footer']";
+const FOOTER_ABOUT = "[data-testid='footer-about']";
+const FOOTER_SHELTERS = "[data-testid='footer-for-shelters']";
 const CARD = "[data-testid='animal-card']";
 const CARD_NAME = "[data-testid='card-name']";
 
@@ -136,6 +139,23 @@ test.describe("A2 — header height meets the design's own touch-target standard
     await openRoute(page, GALLERY, PHONE, { readySelector: HEADER });
 
     for (const selector of [NAV_ABOUT, NAV_SHELTERS]) {
+      const rect = await rectOf(page.locator(selector), selector);
+      expect(rect.height, `${selector} is ${rect.height.toFixed(1)}px tall`).toBeGreaterThanOrEqual(
+        MIN_TOUCH_TARGET_PX,
+      );
+    }
+  });
+
+  /**
+   * O-11/O-13 (`docs/observations.md`): the new shared `Footer` reuses both
+   * of the header's own nav links — a reviewer round found the first draft
+   * shipped them at the surrounding 18px line-height, the one-off `<footer>`
+   * fragment it replaced never having had a touch-target floor at all.
+   */
+  test("both footer links meet the 48px minimum touch target", async ({ page }) => {
+    await openRoute(page, GALLERY, PHONE, { readySelector: FOOTER });
+
+    for (const selector of [FOOTER_ABOUT, FOOTER_SHELTERS]) {
       const rect = await rectOf(page.locator(selector), selector);
       expect(rect.height, `${selector} is ${rect.height.toFixed(1)}px tall`).toBeGreaterThanOrEqual(
         MIN_TOUCH_TARGET_PX,

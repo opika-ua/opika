@@ -56,10 +56,19 @@ import type { ReactNode } from "react";
  * inventing one: arch `M22 70 V46 a26 26 0 0 1 52 0 v24`, threshold
  * `M14 88 h68` (both stroke 10, round caps), dot `cx=48 cy=79 r=6` (filled).
  * Ink `#101112` only (`currentColor`, via `text-rg-ink`). Lockup: 30px
- * desktop / 26px mobile, gap to the wordmark = the dot's own height (12px,
- * `gap-3`) — `items-end` approximates the spec's "align optically to the
- * threshold line, not the box," since the threshold sits near the bottom of
- * the mark's own box, closer to a text baseline than a vertical centre.
+ * desktop / 26px mobile. `items-end` approximates the spec's "align
+ * optically to the threshold line, not the box," since the threshold sits
+ * near the bottom of the mark's own box, closer to a text baseline than a
+ * vertical centre.
+ *
+ * Gap to the wordmark is `gap-3` (12px) — **not** a literal rendering of
+ * "the dot's own height," which the spec states in the mark's 96-unit grid
+ * (a 12-unit diameter) and which scales down to ~3.75px at the 30px desktop
+ * mark (~3.25px at 26px mobile) once actually rendered. That literal value
+ * reads as the mark and the wordmark touching, not a deliberate gap, at
+ * this lockup's real size — 12px is a practical rounding chosen for visible
+ * breathing room, recorded here as a deviation rather than claimed as an
+ * exact match with no mock available to check a different number against.
  * **Not built:** the 16/24px dot-dropped variant and the favicon (white mark
  * on an `#101112` rounded square) — the spec calls for both only at sizes
  * this header never renders at, and a browser favicon is a separate asset
@@ -70,8 +79,10 @@ import type { ReactNode } from "react";
  * Previously existed solely for the detail page's back-link, rendered beside
  * the wordmark where it read as a site nav item rather than the page's own
  * control. Moved into `AnimalDetailScreen.tsx`'s own layout, below the
- * header — this component no longer has a `leading` prop or the flex-wrap
- * logic that slot needed at 360px, since nothing populates it anymore.
+ * header — this component no longer has a `leading` prop, since nothing
+ * populates it anymore. The `flex-wrap` the slot's own content used to need
+ * at 360px stays — see the header element's own comment on why it's still
+ * load-bearing without `leading`, for an unrelated reason (O-1's logo mark).
  */
 
 /**

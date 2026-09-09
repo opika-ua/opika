@@ -29,9 +29,18 @@ import Link from "next/link";
  * already signed off rather than inventing footer-specific copy.
  */
 
+/**
+ * `min-h-12` (48) — `docs/design/README.md:200`'s minimum touch target
+ * *anywhere*, "a civic-trust metric rather than the WCAG floor." The
+ * original one-off `<footer>` fragment this component replaces never had
+ * one (its links were bare text at the surrounding 18px line-height); not
+ * ported forward, since this is exactly the class of defect the header
+ * height fix (critique A2) and the deck's own retry-button fix already
+ * found in two other components.
+ */
 const FOOTER_LINK_CLASS =
-  "shrink-0 underline focus-visible:outline focus-visible:outline-[3px] " +
-  "focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] rounded-rg-button";
+  "min-h-12 inline-flex items-center shrink-0 underline focus-visible:outline " +
+  "focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] rounded-rg-button";
 
 export interface FooterProps {
   /**
@@ -44,7 +53,7 @@ export interface FooterProps {
   readonly currentPage?: "pro" | "prytulkam";
 }
 
-export function Footer({ currentPage }: FooterProps = {}) {
+export function Footer({ currentPage }: FooterProps) {
   return (
     <footer
       data-testid="site-footer"
@@ -52,12 +61,12 @@ export function Footer({ currentPage }: FooterProps = {}) {
     >
       <span>{uk.footer.fontCredit}</span>
       {currentPage !== "prytulkam" && (
-        <Link href="/prytulkam" className={FOOTER_LINK_CLASS}>
+        <Link href="/prytulkam" data-testid="footer-for-shelters" className={FOOTER_LINK_CLASS}>
           {uk.nav.forShelters}
         </Link>
       )}
       {currentPage !== "pro" && (
-        <Link href="/pro" className={FOOTER_LINK_CLASS}>
+        <Link href="/pro" data-testid="footer-about" className={FOOTER_LINK_CLASS}>
           {uk.nav.about}
         </Link>
       )}

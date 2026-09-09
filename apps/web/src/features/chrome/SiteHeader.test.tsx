@@ -68,14 +68,22 @@ describe("SiteHeader", () => {
     expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
   });
 
-  it("the wordmark link's accessible name stays 'Opika' — the logo mark is decorative, not a second label", () => {
+  it("the logo mark is marked decorative", () => {
+    const { container } = render(<SiteHeader />);
+
+    // O-1: asserted directly, not just "the accessible name still comes out
+    // right" — an svg with no accessible text of its own contributes nothing
+    // to the name either way today, so that assertion alone would stay green
+    // even if `aria-hidden` were dropped entirely. This is the one that
+    // actually goes red for that regression.
+    const mark = container.querySelector("svg");
+    expect(mark, "expected the logo mark's <svg> to be present").not.toBeNull();
+    expect(mark?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("the wordmark link's accessible name stays 'Opika' regardless", () => {
     render(<SiteHeader />);
 
-    // O-1: the wordmark link now wraps a decorative <svg> mark ahead of the
-    // text. aria-hidden on the mark is what keeps it out of the accessible
-    // name computation — this is the regression that would catch it not
-    // being hidden (an svg with no accessible text of its own contributes
-    // nothing by default, but a future icon-with-title change could).
     expect(screen.getByRole("link", { name: "Opika" })).toBeTruthy();
   });
 });

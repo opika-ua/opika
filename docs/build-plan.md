@@ -609,8 +609,10 @@ picked up, as above.
   the favicon (a separate asset pipeline, `app/icon.*`, not a header-lockup concern).
 - **O-8, done.** The detail page's back-link moved out of `SiteHeader`'s `leading` slot (removed
   entirely — nothing else used it) into its own left-aligned element between the header and the
-  content, horizontally aligned with the content column below it. `SiteHeader` lost the
-  `flex-wrap`/`order-last` logic that slot needed at 360px, since nothing populates it anymore.
+  content, horizontally aligned with the content column below it. `SiteHeader`'s own `order-last`
+  logic (specific to the `leading` slot) went with it; `flex-wrap` itself stays — see the second
+  regression below, which is exactly a reviewer round catching a first draft of this bullet
+  claiming it was gone too.
 - **O-11 + O-13, done together, one component.** A new shared `Footer` (`apps/web/src/features/
   chrome/Footer.tsx`) replaces the one-off `<footer>` fragment that used to live only on the
   gallery page — now rendered on every route that carries `SiteHeader` (gallery, `/pro`,
@@ -656,8 +658,35 @@ detail pages — the mark's own ~38px (26px + 12px gap) was enough on its own to
 wordmark+nav row past 360px, independent of `leading` ever existing. Restored, with the doc
 comment corrected to explain why it's still load-bearing.
 
-`pnpm check` green: 872 workspace unit tests (311 domain + 20 i18n + 29 contracts + 10 ui + 139
-db + 363 apps/web), `build:web`, and 180 Playwright harness tests, all against local Postgres.
+**A third, this one self-inflicted during the branch move:** this row was implemented on top of
+`feat/city-slugs` (Phase S, PR #56, not yet merged) and then moved to its own branch off `main`
+per "one PR per queue item" — the `AnimalDetailScreen.tsx` merge conflict that move produced was
+resolved by hand, and the first resolution left two `<SiteHeader />` calls where one belonged,
+caught immediately by the same horizontal-overflow assertion (two wordmarks, two nav pairs, the
+`getByTestId` locator strict-mode-violating rather than silently picking one). Fixed before this
+row's own `pnpm check` was ever called green.
+
+**Reviewer round: PASS WITH NOTES.** Verified every claim above independently (read the actual
+design-doc sections and mock file rather than trusting the summary, ran the actual test suites,
+mutation-tested the flex-wrap and duplicate-header fixes) and found four real issues, all fixed:
+the polish-batch commit itself hadn't actually been made yet when first reviewed (the duplicate-
+header fix was sitting uncommitted — fixed by committing before any PR, this paragraph included);
+the new footer's two links rendered at 18px tall against the 48px touch-target floor
+(`docs/design/README.md:200`), the exact defect class this same batch's own O-1/O-8 work already
+found twice elsewhere — fixed (`min-h-12` added), and pinned with a new, mutation-confirmed
+harness assertion (`site-header.harness.ts`, run at exactly 18px before the fix to prove it
+catches the real number, not just some regression); this file's own O-8 bullet and
+`SiteHeader.tsx`'s top comment both claimed `flex-wrap` was removed, when the very next paragraph
+(this one's predecessor) already said it was restored — both corrected; and a test claiming to
+guard the logo mark's `aria-hidden` attribute never actually asserted it, passing unchanged when
+`aria-hidden` was deleted entirely — rewritten to assert the attribute directly, plus a comment
+correction admitting the mark-to-wordmark gap is a rounded practical value, not a literal
+render of the design doc's stated "dot's height" (which scales to under 4px at this lockup size).
+
+`pnpm check` green, on this row's own branch (`feat/polish-batch`, off `main`, independent of the
+still-open Phase S PR): 835 workspace unit tests (291 domain + 20 i18n + 29 contracts + 10 ui +
+135 db + 350 apps/web), `build:web`, and 179 Playwright harness tests, all against local
+Postgres.
 
 ---
 
