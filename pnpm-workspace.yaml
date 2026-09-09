@@ -40,6 +40,21 @@ catalog:
   postcss: 8.5.25
   drizzle-orm: 0.45.2
   drizzle-kit: 0.31.10
+  # O-9, 2026-09-06 reprioritisation ("2.1"): production's DB-backed pages
+  # plateau at a ~1s floor (reconfirmed against the live site before this
+  # was added) — every Vercel function invocation pays a fresh TCP+TLS
+  # handshake to Neon (aws-eu-central-1) from a function executing in iad1
+  # (US East), on top of the Atlantic round trip itself (the region-pin
+  # half of that is not addressed here — see packages/db/src/client.ts's
+  # own comment). Justified on its own terms: MIT, zero transitive
+  # dependencies, the only way to reach Neon over HTTP at all — not
+  # because docs/stack-decision.md's ADR specifically approved this choice
+  # (it names Neon's HTTP driver as a vendor feature, not a decision for
+  # this row). Used only by `packages/db/src/client.ts`'s `createDatabase`
+  # when the connection string's host is actually a Neon host; local dev
+  # and every test still go through `postgres`/postgres-js against local
+  # Postgres, which this driver cannot talk to at all.
+  "@neondatabase/serverless": 1.1.0
   # packages/db's own db:seed script runs `tsx src/seed.ts` directly, but
   # nothing declared tsx — it only resolved because drizzle-kit depends on
   # it too, and pnpm's hoisting made it reachable from packages/db's

@@ -12,6 +12,9 @@ catalogs:
     '@biomejs/biome':
       specifier: 2.5.6
       version: 2.5.6
+    '@neondatabase/serverless':
+      specifier: 1.1.0
+      version: 1.1.0
     '@orpc/client':
       specifier: 1.14.14
       version: 1.14.14
@@ -220,12 +223,15 @@ importers:
       '@aws-sdk/client-s3':
         specifier: 'catalog:'
         version: 3.1123.0
+      '@neondatabase/serverless':
+        specifier: 'catalog:'
+        version: 1.1.0
       '@opika/domain':
         specifier: workspace:*
         version: link:../domain
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.2(postgres@3.4.9)
+        version: 0.45.2(@neondatabase/serverless@1.1.0)(postgres@3.4.9)
       postgres:
         specifier: 'catalog:'
         version: 3.4.9
@@ -1108,6 +1114,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@neondatabase/serverless@1.1.0':
+    resolution: {integrity: sha512-r3ZZhRjEcfEdKIZnoB1RusNgvHuaBRqfCzV4Gi+5A9yUX0S4HTws/ASWqt13wL4y4I+0rqsWGdA2w7EQXHi3+Q==}
+    engines: {node: '>=19.0.0'}
 
   '@next/env@16.3.0':
     resolution: {integrity: sha512-o9r1S0BNiNreHP9Vs+Qnqd9kviDkJh8xIACY7UFZSmiGbbQRzPBBosvHzAU4TULHOIuOj/18RSsyz2qrREmIFw==}
@@ -3010,6 +3020,8 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@neondatabase/serverless@1.1.0': {}
+
   '@next/env@16.3.0': {}
 
   '@next/swc-darwin-arm64@16.3.0':
@@ -3513,8 +3525,9 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.5
 
-  drizzle-orm@0.45.2(postgres@3.4.9):
+  drizzle-orm@0.45.2(@neondatabase/serverless@1.1.0)(postgres@3.4.9):
     optionalDependencies:
+      '@neondatabase/serverless': 1.1.0
       postgres: 3.4.9
 
   enhanced-resolve@5.24.5:

@@ -766,3 +766,58 @@ to serverless connection cost.
 `packages/db/src/client.ts`'s connection strategy (pooled connection string and/or Neon's HTTP
 driver), informed by Oleksii's own Network-tab timing of the actual reveal click (still pending
 as of O-9's diagnosis) to confirm how much of the reveal flow's latency this actually closes.
+
+**2026-09-09 — diagnosis reconfirmed today, driver fix built and reviewed.** Before touching any
+code, the ~1s floor was re-measured against the live site (not trusted from four-day-old notes):
+`/tvaryny` 1.05–1.10s warm (3.65s cold), `/tvaryny/[id]` 0.85–0.95s warm, `/prytulkam` (non-DB)
+0.10–0.28s warm — same shape as the original diagnosis, still true. `X-Vercel-Id` still reads
+`iad1`. The prior session's decisive test (query count doesn't explain it — a 1-query endpoint
+was *slower* than a 2-query one) was not re-run against production (constructing the raw oRPC
+call by hand risked a malformed request against production for a result already established four
+days earlier with clear methodology); the page-level reconfirmation above stands in for it.
+
+**Fix:** `createDatabase` (`packages/db/src/client.ts`) now branches on the connection string's
+own hostname — a real Neon host (`*.neon.tech`, matched case-insensitively) gets
+`@neondatabase/serverless` + `drizzle-orm/neon-http` (one HTTP fetch per query, no TCP+TLS
+handshake to repeat); everything else, including every local dev and test run against
+docker-compose Postgres, keeps the existing `postgres`/postgres-js TCP driver, which the HTTP
+driver has no way to reach at all. `createDatabaseWithClient` (`onboard-shelter.ts`'s own direct
+Neon connection, and every test's local client) is untouched — it never goes through the new
+branch. `@neondatabase/serverless@1.1.0` added to the catalog, justified on its own terms (MIT,
+zero transitive dependencies, the only way to reach Neon over HTTP), not as something
+`docs/stack-decision.md`'s ADR specifically pre-approved — that line is a vendor-feature bullet,
+not a decision record for this row.
+
+**Does not close this gate on its own — only the connection-overhead half of the diagnosis is
+addressed.** The `iad1`-vs-`aws-eu-central-1` region mismatch is untouched; every request still
+crosses the Atlantic, this row only removes the handshake paid on top of that crossing.
+
+**Two review rounds, both real findings:**
+- Round 1: a real union return type (`PostgresJsDatabase | NeonHttpDatabase`) broke
+  `swipeRepo.record`'s `.onConflictDoUpdate(...).returning(...)` call (a TypeScript
+  overload-resolution artifact confirmed by the same call typechecking cleanly against each
+  adapter in isolation, not a real behavioural gap) — resolved by annotating `Database` as
+  `PostgresJsDatabase` and casting the Neon branch to it, justified narrowly: nothing in
+  `packages/db/src/repos` calls `.execute()` (the one place the two adapters' raw result shapes
+  genuinely differ) or `.transaction()` (which `neon-http` doesn't support at all and would only
+  fail against real Neon in production, never locally — the comment says so explicitly rather
+  than claiming the two adapter classes are interchangeable).
+- Round 2: `isNeonHost` was case-sensitive (`postgres:` isn't a WHATWG special scheme, so `URL`
+  never lowercases the host — an uppercased hostname in a real `DATABASE_URL` would have silently
+  kept the slow driver, nothing red anywhere) and a malformed connection string's parse error
+  leaked the whole string, password included, via `input`. Both fixed and mutation-tested — the
+  case-sensitivity fix reverted via `sed` (not the linted `Edit` path) and confirmed the new test
+  goes red without it. `apps/web/src/api/db.ts`'s memoisation comment, which said "reuses a single
+  pool" — no longer true on the Neon branch, which holds no pool at all — corrected. 9 new unit
+  tests (`packages/db/test/client.test.ts`) pin `isNeonHost`'s full matrix (real-shaped Neon
+  hosts, local hosts, an uppercased Neon host, `neon.tech` appearing outside the hostname, a
+  malformed URL not leaking its password) plus one offline-checkable structural test that
+  `createDatabase` actually returns a different driver class per branch (via Drizzle's own
+  `entityKind` symbol, not `constructor.name`) — mutation-confirmed by inverting the branch and
+  watching it fail.
+
+**Still cannot be verified from this position:** the neon-http driver's actual behaviour against
+a real Neon database. No credentials exist here to test it directly. `pnpm check` is green (798
+tests including the 9 new ones, `build:web`, and the full harness, all against local Postgres via
+the unchanged postgres-js path) — the Neon branch's real-world verification is a real Vercel
+preview deployment's before/after page timing, reported once available.
