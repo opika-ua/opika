@@ -870,6 +870,30 @@ file's existing patterns, confirmed via `git check-ignore` both before and after
 stray local files (curl/fetch output redirected to short filenames during this investigation) were
 found untracked and deleted before committing, not left for a future `git add -A` to catch.
 
+**Real timing with both fixes together, measured on the region-pinned preview (`X-Vercel-Id`
+confirmed `fra1` on this deployment):**
+
+| Page | Before (unfixed production) | After driver fix alone (previous preview, `iad1`) | After driver + region pin (this preview, `fra1`) |
+|---|---|---|---|
+| `/tvaryny` (gallery) | median ~1.10s | median ~0.90s | median ~0.42s (6 samples, range 0.27–0.55s) |
+| `/tvaryny/[id]` (detail) | median ~0.88s | median ~0.70s | median ~0.24s (6 samples, range 0.21–0.33s) |
+| `/prytulkam` (non-DB, unchanged) | ~0.10–0.28s | — | ~0.11–0.27s |
+
+**This is the real result, and it's the dramatic one the diagnosis pointed at all along — the
+region mismatch, not the driver, was the dominant cost.** ~62% off `/tvaryny`, ~72% off
+`/tvaryny/[id]`, both landing within roughly 2–3× of the non-DB baseline instead of 8–10×. The
+"one-second floor" this row set out to explain is gone on both measured pages. The driver fix's
+own, separately-measured ~18–20% (previous table) is still real and still worth having on its own
+terms (it's what made the region pin's improvement this clean — without it, some of this gain
+would have been masked by the Postgres-protocol handshake still riding on every request), but the
+region pin is unambiguously where most of the win came from.
+
+**This row is now done — both the connection-overhead half and the region-mismatch half of O-9's
+diagnosis are addressed and verified.** Remaining, explicitly out of this row's scope: a genuinely
+cold start against the fixed code (not measured — every sample above is warm), and the reveal
+flow's own two-round-trip structural cost (`session.bootstrap` then `animals.reveal`), which
+neither fix touches.
+
 **Still cannot be verified from this position:** a genuinely cold start for the fixed code (every
 sample above came from an already-warmed preview instance — the original diagnosis's 3.65–4.33s
 cold figures have no post-fix counterpart here), and the reveal flow's own two-round-trip cost
