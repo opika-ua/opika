@@ -9,8 +9,9 @@ section.
 
 **Rows completed this session:** R2 (two-action deck, not-a-judgement notice's permanent home).
 
-**PRs open:** #TBD — `feat/deck-two-action` → `main`, R2. Two reviewer rounds (PASS WITH NOTES
-both), all findings addressed, `pnpm check` green. Not merged — merging stays yours.
+**PRs open:** [#54](https://github.com/opika-ua/opika/pull/54) — `feat/deck-two-action` →
+`main`, R2. Two reviewer rounds (PASS WITH NOTES both), all findings addressed, `pnpm check`
+green. Not merged — merging stays yours.
 
 **Decisions needing your eye, ranked by cost to reverse:**
 1. **[trivial to reverse] Notice hidden below 360px width, not shown everywhere.** See
