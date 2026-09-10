@@ -18,6 +18,8 @@ import {
   DESKTOP,
   GALLERY_DESKTOP_ROOMY,
   GALLERY_TABLET,
+  GALLERY_ULTRAWIDE,
+  GALLERY_ULTRAWIDE_ROOMY,
   GALLERY_WIDE,
   GALLERY_WIDE_ROOMY,
   PHONE,
@@ -47,6 +49,7 @@ const BREAKPOINTS: ReadonlyArray<{ viewport: Viewport; columns: number }> = [
   { viewport: GALLERY_TABLET, columns: 2 },
   { viewport: DESKTOP, columns: 3 },
   { viewport: GALLERY_WIDE, columns: 4 },
+  { viewport: GALLERY_ULTRAWIDE, columns: 6 },
 ];
 
 for (const { viewport, columns } of BREAKPOINTS) {
@@ -102,7 +105,7 @@ test.describe("/tvaryny card shape by breakpoint", () => {
     ).toBeCloseTo(120, 0);
   });
 
-  for (const viewport of [PHONE, DESKTOP, GALLERY_WIDE] satisfies Viewport[]) {
+  for (const viewport of [PHONE, DESKTOP, GALLERY_WIDE, GALLERY_ULTRAWIDE] satisfies Viewport[]) {
     test(`the photo keeps a 4:5 ratio at ${viewport.name}`, async ({ page }) => {
       await openRoute(page, ROUTE, viewport, { readySelector: CARD });
       const photo = await rectOf(page.getByTestId("card-photo").first(), "first card's photo");
@@ -154,6 +157,8 @@ test.describe("/tvaryny content width", () => {
     { viewport: GALLERY_DESKTOP_ROOMY, columns: 3, ceilingPx: 960 },
     { viewport: GALLERY_WIDE, columns: 4, ceilingPx: 1320 },
     { viewport: GALLERY_WIDE_ROOMY, columns: 4, ceilingPx: 1320 },
+    { viewport: GALLERY_ULTRAWIDE, columns: 6, ceilingPx: 1992 },
+    { viewport: GALLERY_ULTRAWIDE_ROOMY, columns: 6, ceilingPx: 1992 },
   ];
 
   for (const { viewport, columns, ceilingPx } of CONTENT_WIDTH) {

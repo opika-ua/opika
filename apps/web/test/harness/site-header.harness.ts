@@ -50,6 +50,9 @@ const HEADER = "[data-testid='site-header']";
 const WORDMARK = "[data-testid='site-wordmark']";
 const NAV_ABOUT = "[data-testid='nav-about']";
 const NAV_SHELTERS = "[data-testid='nav-for-shelters']";
+const FOOTER = "[data-testid='site-footer']";
+const FOOTER_ABOUT = "[data-testid='footer-about']";
+const FOOTER_SHELTERS = "[data-testid='footer-for-shelters']";
 const CARD = "[data-testid='animal-card']";
 const CARD_NAME = "[data-testid='card-name']";
 
@@ -142,6 +145,99 @@ test.describe("A2 — header height meets the design's own touch-target standard
       );
     }
   });
+
+  /**
+   * O-11/O-13 (`docs/observations.md`): the new shared `Footer` reuses both
+   * of the header's own nav links — a reviewer round found the first draft
+   * shipped them at the surrounding 18px line-height, the one-off `<footer>`
+   * fragment it replaced never having had a touch-target floor at all.
+   */
+  test("both footer links meet the 48px minimum touch target", async ({ page }) => {
+    await openRoute(page, GALLERY, PHONE, { readySelector: FOOTER });
+
+    for (const selector of [FOOTER_ABOUT, FOOTER_SHELTERS]) {
+      const rect = await rectOf(page.locator(selector), selector);
+      expect(rect.height, `${selector} is ${rect.height.toFixed(1)}px tall`).toBeGreaterThanOrEqual(
+        MIN_TOUCH_TARGET_PX,
+      );
+    }
+  });
+});
+
+test.describe("O-1 — the logo mark aligns to the wordmark's baseline, not its box", () => {
+  /**
+   * Oleksii caught this one from a screenshot, not from reading the markup —
+   * exactly the `docs/standing-constraints.md` category ("requires a
+   * rendered assertion") this test exists to close. `items-end` (the
+   * original code) aligned the mark's own box bottom to the wordmark's
+   * line-box bottom, which sits below the true typographic baseline by the
+   * font's descent plus half its leading — a different point than the
+   * design's own "align optically to the threshold line, not the box."
+   *
+   * Baseline is read via a zero-size inline-block probe inserted right after
+   * the wordmark text (`vertical-align: baseline` places its own bottom edge
+   * exactly on the surrounding line's baseline) rather than `canvas.
+   * measureText`'s `fontBoundingBox*` metrics, which Chrome rounds to whole
+   * pixels — a ~0.5px systematic error that would otherwise eat half the
+   * tolerance below for no reason. The threshold line's position is read
+   * from the SVG's own client rect against the design doc's stated 88/96
+   * viewBox fraction (`docs/design/README.md`'s "The logo" section) — not
+   * `getBBox()`, which would (correctly) also report it, but the fraction is
+   * the more direct assertion against the spec's own stated grid position.
+   *
+   * Covers both lockup branches `SiteHeader` renders: the plain `<span>`
+   * (gallery, where the wordmark is the current page and self-link is
+   * suppressed) and the `<Link>` (`/pro` and everywhere else) — they compose
+   * the mark and wordmark identically, but `<Link>` additionally carries
+   * `min-h-12`, which a reviewer round found does shift the lockup's overall
+   * vertical position within the header even though the mark-to-baseline
+   * alignment itself is unaffected by it.
+   */
+  const CASES: ReadonlyArray<{ name: string; route: string; viewport: Viewport }> = [
+    { name: "desktop, span branch (gallery)", route: GALLERY, viewport: DESKTOP },
+    { name: "mobile, span branch (gallery)", route: GALLERY, viewport: PHONE },
+    { name: "desktop, link branch (/pro)", route: ABOUT, viewport: DESKTOP },
+    { name: "mobile, link branch (/pro)", route: ABOUT, viewport: PHONE },
+  ];
+
+  for (const { name, route, viewport } of CASES) {
+    test(`the mark's threshold sits on the wordmark's baseline — ${name}`, async ({ page }) => {
+      await openRoute(page, route, viewport, { readySelector: WORDMARK });
+
+      const { baselineY, thresholdY } = await page.evaluate(() => {
+        const wordmark = document.querySelector('[data-testid="site-wordmark"]');
+        if (!wordmark) throw new Error("no site-wordmark element");
+        const span = wordmark.querySelector("span");
+        const svg = wordmark.querySelector("svg");
+        if (!span || !svg) throw new Error("wordmark is missing its span or svg");
+
+        const probe = document.createElement("span");
+        probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
+        span.appendChild(probe);
+        const baselineY = probe.getBoundingClientRect().bottom;
+        probe.remove();
+
+        // The mark's threshold line is drawn at viewBox y=88 of a 0..96 grid
+        // (docs/design/README.md's "The logo" section) — 88/96 of the way
+        // down the rendered SVG box, regardless of its pixel size.
+        const svgRect = svg.getBoundingClientRect();
+        const thresholdY = svgRect.top + (88 / 96) * svgRect.height;
+
+        return { baselineY, thresholdY };
+      });
+
+      const offsetPx = Math.abs(thresholdY - baselineY);
+      expect(
+        offsetPx,
+        `mark's threshold line is at y=${thresholdY.toFixed(2)}, wordmark's real baseline is at ` +
+          `y=${baselineY.toFixed(2)} — off by ${(thresholdY - baselineY).toFixed(2)}px. ` +
+          `docs/design/README.md's "align optically to the threshold line, not the box" means ` +
+          "these two must land on the same pixel, allowing only for sub-pixel layout rounding " +
+          "(the original items-end defect was off by 6.5px at desktop / 5.3px at mobile, not a " +
+          "rounding artifact).",
+      ).toBeLessThanOrEqual(1);
+    });
+  }
 });
 
 test.describe("the header does not push any page sideways", () => {

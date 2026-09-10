@@ -58,6 +58,36 @@ export const GALLERY_WIDE_ROOMY: Viewport = {
 };
 
 /**
+ * O-5 (`docs/observations.md`): the new 2000+ / 6-column bracket
+ * (`docs/design/README.md`'s gallery grid table). Same "clear of the
+ * boundary, plus a roomy proof the ceiling is real" pair as
+ * `GALLERY_WIDE`/`GALLERY_WIDE_ROOMY` above.
+ *
+ * `GALLERY_ULTRAWIDE` (2200) is clear of the 2000 boundary on purpose, for
+ * the same reason `GALLERY_WIDE` states for its own 1600 — a viewport
+ * pinned exactly to a CSS breakpoint's edge is the one place a rounding
+ * disagreement between the test and the browser could hide a real
+ * off-by-one.
+ *
+ * `GALLERY_ULTRAWIDE_ROOMY` (2560) is the observation's own cited width —
+ * "at 2560px the grid renders four columns and stops" — used here to prove
+ * the *fixed* half of that complaint: this viewport now clears content
+ * width 1992 + rail 312 + page padding 120 = 2424, so it reaches the new
+ * 1992 ceiling with room to spare, the same way `GALLERY_WIDE_ROOMY` proves
+ * 1320 is a real, reachable number for the bracket below it.
+ */
+export const GALLERY_ULTRAWIDE: Viewport = {
+  name: "2200x1100 ultrawide desktop",
+  width: 2200,
+  height: 1100,
+};
+export const GALLERY_ULTRAWIDE_ROOMY: Viewport = {
+  name: "2560x1300 roomy ultrawide",
+  width: 2560,
+  height: 1300,
+};
+
+/**
  * A short phone — an iPhone SE is 375x667, and a browser with its address bar
  * showing is shorter still. Used to prove the card gives up photo height
  * rather than clipping the shelter's words.

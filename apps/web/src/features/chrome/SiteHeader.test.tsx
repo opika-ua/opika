@@ -54,18 +54,36 @@ describe("SiteHeader", () => {
     }
   });
 
-  it("renders surface-specific leading and trailing slots alongside the site nav", () => {
+  it("renders a surface-specific trailing slot alongside the site nav", () => {
     render(
-      <SiteHeader leading={<span>back</span>}>
+      <SiteHeader>
         <span>deck entry</span>
       </SiteHeader>,
     );
 
-    expect(screen.getByText("back")).toBeTruthy();
     expect(screen.getByText("deck entry")).toBeTruthy();
     // Both site links survive the presence of surface chrome — the regression
     // would be a slot that visually or structurally displaces the nav.
     expect(screen.getByRole("link", { name: uk.nav.about })).toBeTruthy();
     expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
+  });
+
+  it("the logo mark is marked decorative", () => {
+    const { container } = render(<SiteHeader />);
+
+    // O-1: asserted directly, not just "the accessible name still comes out
+    // right" — an svg with no accessible text of its own contributes nothing
+    // to the name either way today, so that assertion alone would stay green
+    // even if `aria-hidden` were dropped entirely. This is the one that
+    // actually goes red for that regression.
+    const mark = container.querySelector("svg");
+    expect(mark, "expected the logo mark's <svg> to be present").not.toBeNull();
+    expect(mark?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("the wordmark link's accessible name stays 'Opika' regardless", () => {
+    render(<SiteHeader />);
+
+    expect(screen.getByRole("link", { name: "Opika" })).toBeTruthy();
   });
 });
