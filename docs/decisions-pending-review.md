@@ -58,7 +58,59 @@ then forgotten.
    (unconditional, existing `uk.actions.notNow` label) already closes the dialog either way, so
    nothing is lost except a redundant, wrong-destination second control.
 
-**Reviewer round:** not yet run — see this file once it has.
+**Reviewer round: STOP.** Not proceeding — full reasoning below, this is the load-bearing entry
+in this file now, everything above is superseded by it.
+
+## STOP — PR #55 already exists and implements this more completely
+
+The reviewer found `feat/deck-inline-reveal` (PR #55, draft, opened 2026-09-09T20:30, "R3: inline
+reveal — the deck's «Написати» opens a real reveal") before this branch's work started. Built
+independently, with no knowledge of it — this branch duplicates its structure almost exactly
+(same `apps/web/src/features/reveal/` directory, same extraction of `RevealFlow.tsx`'s state
+machine and dialog) but is strictly worse on every point that differs:
+
+- **City name.** This branch passes `cityName={null}` to the deck's dialog, justified in an
+  earlier version of this file as "no resolved city name is available client-side" — the
+  reviewer found that claim **false**: `app/tvaryny/gortaty/page.tsx` already builds a city
+  lookup from `cities.list` for exactly this purpose, and #55 already wires it through.
+- **The race the reviewer's own finding #1 found** (two right-commits inside the loading window
+  can mismatch animal name against shelter contact, or land dialog content from a stale request)
+  is closed on #55 by a generation guard — this branch has none.
+- **#55 fixed a real session double-mint bug** (two distinct session tokens minted on one
+  swipe+reveal, reproduced against a real server and real seeded Postgres) that this branch never
+  discovered, because it never ran against a real server.
+- **#55 has real Playwright harness coverage** (`discovery-reveal.harness.ts`) for the deck's
+  reveal geometry and focus behaviour. This branch has none — the reviewer's own review could
+  only run the unit suite, explicitly flagging harness coverage as untested.
+- **#55 already escalated the exact two questions Oleksii's own 2026-09-10 status call answered**
+  — "should a right-drag reveal at all, or only the button" and the `RATE_LIMITED` copy — and has
+  been sitting in draft waiting specifically for those answers.
+
+**Recommendation: close this branch, finish PR #55 instead.** #55's own two blocking questions
+are now answered (gesture parity approved; rate-limit copy is Oleksii's own sentence, pending,
+per the same status call) — it needs those answers applied and a final commit, not a parallel
+implementation competing with three rounds of review it already passed.
+
+**Secondary findings, real regardless of which branch survives** (the reviewer's own ranking,
+most severe first — apply to whichever implementation continues):
+1. No in-flight guard on the reveal call — two rapid right-commits can mismatch dialog content
+   between two different animals/shelters. (#55 already fixes this via a generation guard —
+   confirms the above recommendation rather than adding new work.)
+2. The `direction === "right"` branch gating `onReveal` had no test — a mutation removing the
+   gate entirely (so a left-swipe also reveals) left the whole discovery suite green.
+3. The deck's Escape-to-exit guard keys on `isOpen`, which is false while the reveal request is
+   still in flight — Escape during that window exits the deck via `router.back()` with a unit
+   already spent and no dialog ever shown, contradicting R3's own "the deck session must survive
+   a reveal — no exit back to the gallery."
+4. The committed card is consumed (recorded, 30-day exclusion) unconditionally, independent of
+   whether the reveal itself actually succeeds.
+
+Three decisions the reviewer named as needing Oleksii specifically, not resolvable by either
+agent alone: (a) which PR survives — #55 or this one; (b) merge order against #58 (the
+reveal-counting fix) — gesture parity's own safety argument depends on it being live, and #58 is
+not yet merged; (c) the mock's own bottom-action-bar spec is empty for a `viber`/`website`-primary
+shelter on the deck, since no Ukrainian "back to the deck" string exists yet to fill it — needs
+either that string or an explicit decision to accept an empty footer for that one case.
 
 **Decisions needing your eye (reversible, not blocking):**
 1. **[trivial to reverse] Focus returns to the deck header's "back to list" button on close**,
