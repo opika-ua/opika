@@ -56,10 +56,36 @@ import type { ReactNode } from "react";
  * inventing one: arch `M22 70 V46 a26 26 0 0 1 52 0 v24`, threshold
  * `M14 88 h68` (both stroke 10, round caps), dot `cx=48 cy=79 r=6` (filled).
  * Ink `#101112` only (`currentColor`, via `text-rg-ink`). Lockup: 30px
- * desktop / 26px mobile. `items-end` approximates the spec's "align
- * optically to the threshold line, not the box," since the threshold sits
- * near the bottom of the mark's own box, closer to a text baseline than a
- * vertical centre.
+ * desktop / 26px mobile.
+ *
+ * **Correction, 2026-09-10 — Oleksii caught the mark floating above the
+ * wordmark in a real screenshot** (a rendered defect, not visible from
+ * markup — exactly the class `docs/standing-constraints.md`'s "requires a
+ * rendered assertion" exists for). The original lockup used `items-end`,
+ * which aligns the mark's own *box* bottom to the wordmark's line-box
+ * bottom — not the same point as the spec's "align optically to the
+ * threshold line, not the box." Two gaps, not stacked but *net*: a CSS line
+ * box extends below the true text baseline by the font's descent plus half
+ * its leading (this font/size: 5px descent + 4px half-leading = 9px at
+ * 26px/desktop), while the mark's own viewBox reserves 8 of its 96 units as
+ * clear space *above* the box's own bottom edge, i.e. the threshold sits
+ * 2.5px higher than the box bottom at 30px. 9 minus 2.5 nets the 6.5px the
+ * mutated build actually measured — confirmed by measuring both in a live
+ * render (canvas `measureText` against the wordmark's real computed font for
+ * ascent/descent/line-height; the SVG's own client rect against the design
+ * doc's stated 88/96 threshold position — not estimated from the SVG path by
+ * eye). Fixed with `items-baseline` (aligns the mark's box bottom to the
+ * wordmark's true typographic baseline via the browser's flex baseline
+ * synthesis for a replaced element) plus `translate-y-[8.3333%]` — a
+ * percentage translate resolves against the mark's own border box, so one
+ * value (8/96, the clear-space fraction baked into the viewBox) covers both
+ * the 26px mobile and 30px desktop sizes with no separate magic number to
+ * keep in sync with `w-[26px]`/`desktop:w-[30px]`. Verified against real
+ * measured pixels: threshold Y now equals baseline Y within a fraction of a
+ * pixel at both sizes, not merely close. `site-header.harness.ts`'s "the
+ * mark's threshold sits on the wordmark's baseline" test pins this at both
+ * the `<span>` (self-link-suppressed) and `<Link>` lockup branches,
+ * mutation-confirmed red against the original `items-end` reverted.
  *
  * Gap to the wordmark is `gap-3` (12px) — **not** a literal rendering of
  * "the dot's own height," which the spec states in the mark's 96-unit grid
@@ -128,7 +154,7 @@ function LogoMark() {
       viewBox="0 0 96 96"
       fill="none"
       aria-hidden="true"
-      className="w-[26px] h-[26px] desktop:w-[30px] desktop:h-[30px] shrink-0 text-rg-ink"
+      className="w-[26px] h-[26px] desktop:w-[30px] desktop:h-[30px] shrink-0 text-rg-ink translate-y-[8.3333%]"
     >
       <path
         d="M22 70 V46 a26 26 0 0 1 52 0 v24"
@@ -162,7 +188,7 @@ export function SiteHeader({ children, wordmarkIsCurrentPage = false }: SiteHead
       className="min-h-16 desktop:min-h-22 flex flex-wrap tablet:flex-nowrap items-center gap-3 desktop:gap-4 bg-rg-surface px-4 tablet:px-6 desktop:px-15 py-2 tablet:py-0"
     >
       {wordmarkIsCurrentPage ? (
-        <span data-testid="site-wordmark" className="inline-flex items-end gap-3">
+        <span data-testid="site-wordmark" className="inline-flex items-baseline gap-3">
           <LogoMark />
           <span className={WORDMARK_CLASS}>{WORDMARK}</span>
         </span>
@@ -170,7 +196,7 @@ export function SiteHeader({ children, wordmarkIsCurrentPage = false }: SiteHead
         <Link
           href="/tvaryny"
           data-testid="site-wordmark"
-          className="inline-flex min-h-12 items-end gap-3 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+          className="inline-flex min-h-12 items-baseline gap-3 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
           <LogoMark />
           <span className={WORDMARK_CLASS}>{WORDMARK}</span>
