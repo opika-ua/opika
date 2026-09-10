@@ -374,35 +374,214 @@ describe("swipes", () => {
 // ---------------------------------------------------------------------------
 
 describe("reveal rate limit", () => {
-  it("returns RATE_LIMITED after 30 reveals in 24h", async () => {
-    const cookie = await bootstrap();
+  // The test harness's `h.call` defaults `now` to 2026-08-01T12:00:00Z when
+  // no override is passed (see test-harness.ts) — these two constants are
+  // relative to that default.
+  /** Comfortably inside the 24h window. */
+  const WITHIN_WINDOW = new Date("2026-08-01T11:00:00Z");
+  /** Comfortably outside it (>24h before the harness's default `now`). */
+  const OUTSIDE_WINDOW = new Date("2026-07-30T11:00:00Z");
 
-    // Bootstrap to discover adopterId
+  async function bootstrapAdopter(): Promise<{ cookie: string; adopterId: AdopterId }> {
+    const cookie = await bootstrap();
     const bootstrapRes = await h.call("session.bootstrap", {}, { cookie });
     const adopterId = (
       (bootstrapRes.body as Record<string, unknown>).adopter as Record<string, unknown>
     ).id as AdopterId;
+    return { cookie, adopterId };
+  }
 
-    // Seed one animal for the 31st reveal attempt
-    const { animal: targetAnimal, shelter, city } = await seedFeedAnimal();
+  /** Insert one shelter (in `cityId`) with one animal; does not reveal it. */
+  async function insertShelterWithAnimal(cityId: (typeof city)["id"]) {
+    const shelter = makeShelter({
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    const animal = makeAnimal({ shelterId: shelter.id });
+    await animalRepo(h.db).insert(animal, cityId);
+    return { shelter, animal };
+  }
 
-    // Insert 30 reveals directly via the repo (each for a different animal)
+  let city: ReturnType<typeof makeCity>;
+  beforeEach(async () => {
+    city = makeCity();
+    await cityRepo(h.db).insert(city);
+  });
+
+  /**
+   * Seed `count` distinct shelters, each with one animal already revealed by
+   * `adopterId` at `revealedAt` — building blocks for the tests below.
+   * Distinct shelters, not distinct animals at one shelter, because the
+   * budget counts `COUNT(DISTINCT shelter_id)` (2026-09-10 correction —
+   * contacts are scrapeable per shelter, not per animal).
+   */
+  async function seedDistinctRevealedShelters(
+    adopterId: AdopterId,
+    count: number,
+    revealedAt: Date = WITHIN_WINDOW,
+  ) {
     const reveals = revealRepo(h.db);
-    for (let i = 0; i < 30; i++) {
-      const animal = makeAnimal({ shelterId: shelter.id });
-      await animalRepo(h.db).insert(animal, city.id);
+    const shelters = [];
+    for (let i = 0; i < count; i++) {
+      const { shelter, animal } = await insertShelterWithAnimal(city.id);
+      await reveals.insert(
+        makeReveal({ adopterId, animalId: animal.id, shelterId: shelter.id, revealedAt }),
+      );
+      shelters.push(shelter);
+    }
+    return shelters;
+  }
 
-      const reveal = makeReveal({
-        adopterId,
-        animalId: animal.id,
-        shelterId: shelter.id,
-        revealedAt: new Date("2026-08-01T11:00:00Z"),
-      });
-      await reveals.insert(reveal);
+  it("returns RATE_LIMITED after 30 distinct shelters revealed in 24h", async () => {
+    const { cookie, adopterId } = await bootstrapAdopter();
+    await seedDistinctRevealedShelters(adopterId, 30);
+
+    // A 31st, genuinely new shelter should be rate-limited.
+    const { animal: newAnimal } = await insertShelterWithAnimal(city.id);
+    const res = await h.call("animals.reveal", { animalId: newAnimal.id }, { cookie });
+    expectError(res, "RATE_LIMITED");
+  });
+
+  it("does not rate-limit at 29 distinct shelters — the boundary is exactly 30, not 29", async () => {
+    const { cookie, adopterId } = await bootstrapAdopter();
+    await seedDistinctRevealedShelters(adopterId, 29);
+
+    const { animal: thirtiethAnimal } = await insertShelterWithAnimal(city.id);
+    const res = await h.call("animals.reveal", { animalId: thirtiethAnimal.id }, { cookie });
+    expect(
+      res.status,
+      `the 30th distinct shelter must still succeed — the cap is exactly 30, got ${res.status}`,
+    ).toBe(200);
+  });
+
+  it("does not charge the budget for a repeat reveal of an already-revealed shelter", async () => {
+    const { cookie, adopterId } = await bootstrapAdopter();
+    const shelters = await seedDistinctRevealedShelters(adopterId, 30);
+
+    // A second, different animal at an already-revealed shelter costs
+    // nothing — the device already has that shelter's contact details.
+    const alreadyRevealedShelter = shelters[0]!;
+    const secondAnimal = makeAnimal({ shelterId: alreadyRevealedShelter.id });
+    await animalRepo(h.db).insert(secondAnimal, city.id);
+
+    const res = await h.call("animals.reveal", { animalId: secondAnimal.id }, { cookie });
+    expect(
+      res.status,
+      `re-revealing an already-counted shelter at the 30-shelter cap must be free, got ${res.status}`,
+    ).toBe(200);
+  });
+
+  /**
+   * The actual behaviour change, isolated from the free-re-reveal
+   * short-circuit above (which never reaches the distinct-count query at
+   * all): many reveal *rows* against a few shelters must not exhaust the
+   * budget the way many reveal rows against many shelters does. 5 distinct
+   * shelters, revealed 10 times each via 10 different animals apiece, is 50
+   * reveal rows — well past a row-count cap of 30 — but only 5 distinct
+   * shelters, so a 6th, genuinely new shelter must still succeed. Would not
+   * be caught by the boundary test above: 30 shelters revealed once each has
+   * row-count == distinct-count == 30, so a regression to plain `count()`
+   * still passes that test.
+   */
+  it("counts distinct shelters, not reveal rows — many repeats of a few shelters stay well under budget", async () => {
+    const { cookie, adopterId } = await bootstrapAdopter();
+    const reveals = revealRepo(h.db);
+
+    for (let s = 0; s < 5; s++) {
+      const { shelter } = await insertShelterWithAnimal(city.id);
+      for (let a = 0; a < 10; a++) {
+        const animal = makeAnimal({ shelterId: shelter.id });
+        await animalRepo(h.db).insert(animal, city.id);
+        await reveals.insert(
+          makeReveal({
+            adopterId,
+            animalId: animal.id,
+            shelterId: shelter.id,
+            revealedAt: WITHIN_WINDOW,
+          }),
+        );
+      }
     }
 
-    // 31st reveal via the API should be rate-limited
-    const res = await h.call("animals.reveal", { animalId: targetAnimal.id }, { cookie });
+    const { animal: newAnimal } = await insertShelterWithAnimal(city.id);
+    const res = await h.call("animals.reveal", { animalId: newAnimal.id }, { cookie });
+    expect(
+      res.status,
+      "50 reveal rows across only 5 shelters must not exhaust a 30-shelter budget",
+    ).toBe(200);
+  });
+
+  it("does not count reveals from outside the 24h window toward the budget", async () => {
+    const { cookie, adopterId } = await bootstrapAdopter();
+    // 30 distinct shelters, all revealed >24h before the call's `now` — none
+    // of these should count toward the current window's budget.
+    await seedDistinctRevealedShelters(adopterId, 30, OUTSIDE_WINDOW);
+
+    const { animal: newAnimal } = await insertShelterWithAnimal(city.id);
+    const res = await h.call("animals.reveal", { animalId: newAnimal.id }, { cookie });
+    expect(
+      res.status,
+      "30 shelters revealed >24h ago must not count toward the current window's budget",
+    ).toBe(200);
+  });
+
+  it("does not grant a free re-reveal for a shelter last revealed outside the window", async () => {
+    const { cookie, adopterId } = await bootstrapAdopter();
+    // 29 shelters revealed *within* the window, plus one more this same
+    // adopter revealed >24h ago (outside it) — the old one must not count
+    // as "already revealed" for the free-re-reveal check below.
+    await seedDistinctRevealedShelters(adopterId, 29);
+    const [oldShelter] = await seedDistinctRevealedShelters(adopterId, 1, OUTSIDE_WINDOW);
+
+    // A 30th *within-window* shelter brings the adopter to the cap.
+    const { animal: thirtiethAnimal } = await insertShelterWithAnimal(city.id);
+    const capRes = await h.call("animals.reveal", { animalId: thirtiethAnimal.id }, { cookie });
+    expect(capRes.status, "setup: the 30th within-window shelter must succeed").toBe(200);
+
+    // A second, different animal at oldShelter — its only reveal was outside
+    // the window, so this must NOT be free, and the adopter is now at the
+    // 30-shelter cap, so it must be rate-limited.
+    const secondOldAnimal = makeAnimal({ shelterId: oldShelter!.id });
+    await animalRepo(h.db).insert(secondOldAnimal, city.id);
+    const res = await h.call("animals.reveal", { animalId: secondOldAnimal.id }, { cookie });
+    expectError(res, "RATE_LIMITED");
+  });
+
+  it("does not treat another adopter's revealed shelter as this adopter's free re-reveal", async () => {
+    const adopterA = await bootstrapAdopter();
+    const adopterB = await bootstrapAdopter();
+
+    // Adopter B is already at the 30-shelter cap.
+    await seedDistinctRevealedShelters(adopterB.adopterId, 30);
+
+    // Only adopter A has revealed this shelter.
+    const { shelter: sharedShelter, animal: animalForA } = await insertShelterWithAnimal(city.id);
+    await revealRepo(h.db).insert(
+      makeReveal({
+        adopterId: adopterA.adopterId,
+        animalId: animalForA.id,
+        shelterId: sharedShelter.id,
+        revealedAt: WITHIN_WINDOW,
+      }),
+    );
+
+    // B reveals a different animal at that same shelter — B has never
+    // revealed this shelter themself, so it must count against B's own
+    // (already exhausted) budget, not ride free on A's history.
+    const animalForB = makeAnimal({ shelterId: sharedShelter.id });
+    await animalRepo(h.db).insert(animalForB, city.id);
+    const res = await h.call(
+      "animals.reveal",
+      { animalId: animalForB.id },
+      { cookie: adopterB.cookie },
+    );
     expectError(res, "RATE_LIMITED");
   });
 });

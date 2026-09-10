@@ -1,5 +1,5 @@
-import type { AdopterId, AnimalId, ContactReveal, RevealId } from "@opika/domain";
-import { and, count, desc, eq, gt, type SQL, sql } from "drizzle-orm";
+import type { AdopterId, AnimalId, ContactReveal, RevealId, ShelterId } from "@opika/domain";
+import { and, countDistinct, desc, eq, gt, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { reveals } from "../schema/reveals";
 import { revealToRow, rowToReveal } from "./mappers";
@@ -58,18 +58,48 @@ export function revealRepo(db: Database) {
     },
 
     /**
-     * Count reveals by an adopter within a time window.
+     * Count *distinct shelters* an adopter has revealed contact details for,
+     * within a time window.
      *
-     * Used by the reveal rate limiter. Keeping this query inside the
-     * repository prevents the Drizzle query builder from leaking into
-     * feature code (standing check: repository boundary).
+     * Used by the reveal rate limiter. Deliberately shelter-count, not
+     * row-count: contacts are scrapeable per shelter, not per animal, so a
+     * device right-swiping many animals at the same shelter should not cost
+     * more than one unit — `hasRevealedShelterRecently` below is what lets
+     * the caller skip this check entirely for a shelter already counted.
+     * Keeping this query inside the repository prevents the Drizzle query
+     * builder from leaking into feature code (standing check: repository
+     * boundary).
      */
-    async countRecentByAdopter(adopterId: AdopterId, since: Date): Promise<number> {
+    async countDistinctSheltersRecentByAdopter(adopterId: AdopterId, since: Date): Promise<number> {
       const rows = await db
-        .select({ cnt: count() })
+        .select({ cnt: countDistinct(reveals.shelterId) })
         .from(reveals)
         .where(and(eq(reveals.adopterId, adopterId), gt(reveals.revealedAt, since)));
       return rows[0]?.cnt ?? 0;
+    },
+
+    /**
+     * Whether an adopter has already revealed *this* shelter's contact
+     * details within a time window — the free-re-reveal check the rate
+     * limiter runs before it ever counts against the budget.
+     */
+    async hasRevealedShelterRecently(
+      adopterId: AdopterId,
+      shelterId: ShelterId,
+      since: Date,
+    ): Promise<boolean> {
+      const rows = await db
+        .select({ id: reveals.id })
+        .from(reveals)
+        .where(
+          and(
+            eq(reveals.adopterId, adopterId),
+            eq(reveals.shelterId, shelterId),
+            gt(reveals.revealedAt, since),
+          ),
+        )
+        .limit(1);
+      return rows.length > 0;
     },
 
     async insert(reveal: ContactReveal): Promise<void> {
