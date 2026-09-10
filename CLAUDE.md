@@ -555,6 +555,9 @@ they get skipped:
 - A test may not compare output against the same constant the code renders.
 - Where a mock exists, open the mock. Where none exists, the prose is the specification.
 - Anything demo mode suppresses needs harness coverage of its non-demo state.
+- Local Postgres and Neon are not the same database. A driver-, connection-, or dialect-touching
+  change needs a check against real Neon before it's called verified — a green local suite
+  alone doesn't cover it.
 
 ## Process tiers
 

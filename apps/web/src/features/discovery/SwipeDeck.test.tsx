@@ -1,6 +1,6 @@
 import type { AnimalId } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { generateMockCards } from "./mock-data";
@@ -27,19 +27,35 @@ function renderDeck(overrides: { onSwipe?: (id: AnimalId, dir: CommitDirection) 
 }
 
 describe("SwipeDeck action row", () => {
-  it("renders all three actions as buttons with their Ukrainian labels", () => {
+  it("renders exactly two actions — R2 dropped the third «Далі» button", () => {
     renderDeck();
 
-    expect(screen.getByRole("button", { name: uk.actions.notNow })).toBeTruthy();
-    expect(screen.getByRole("button", { name: uk.actions.next })).toBeTruthy();
-    expect(screen.getByRole("button", { name: uk.actions.write })).toBeTruthy();
+    const actionRow = within(screen.getByTestId("action-row"));
+    expect(actionRow.getByRole("button", { name: uk.actions.notNow })).toBeTruthy();
+    expect(actionRow.getByRole("button", { name: uk.actions.write })).toBeTruthy();
+    expect(actionRow.getAllByRole("button")).toHaveLength(2);
+  });
+
+  it("shows the not-a-judgement notice below the action row", () => {
+    renderDeck();
+
+    const notice = screen.getByTestId("not-a-judgement-notice");
+    expect(notice.textContent).toBe("«Не зараз» — це просто фільтр, а не оцінка тварини.");
+
+    // Real pixel placement is the harness's job (jsdom doesn't lay out);
+    // DOM order is what this test can actually check, and it's what
+    // "below" means for a `flex flex-col` sibling with no explicit order.
+    const actionRow = screen.getByTestId("action-row");
+    expect(actionRow.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
   });
 
   it("reaches every action by tabbing, in the order they are read", async () => {
     const user = userEvent.setup();
     renderDeck();
 
-    const expectedOrder = [uk.actions.notNow, uk.actions.next, uk.actions.write];
+    const expectedOrder = [uk.actions.notNow, uk.actions.write];
     const reached: string[] = [];
 
     for (let i = 0; i < expectedOrder.length; i++) {
@@ -77,35 +93,11 @@ describe("SwipeDeck action row", () => {
 
     await user.tab();
     await user.tab();
-    await user.tab();
     expect(document.activeElement?.textContent).toBe(uk.actions.write);
     await user.keyboard(" ");
 
     expect(onSwipe).toHaveBeenCalledTimes(1);
     expect(onSwipe.mock.calls[0]?.[1]).toBe("right");
-  });
-
-  /**
-   * Caught on review: reverting «Далі»'s handler from `handleCommit("advance")`
-   * back to `handleCommit("left")` — the exact pre-fix bug, where it shared
-   * a real skip commit with «Не зараз» — left every other test in this file
-   * and in `use-feed-deck.test.tsx` green. Neither suite pinned that the
-   * button itself hands `onSwipe` the right direction; the hook-level tests
-   * only pin what the hook does with a direction it's *given*. This is the
-   * one that would actually catch that regression.
-   */
-  it("commits 'advance', not a real decision, when 'Далі' is activated", async () => {
-    const user = userEvent.setup();
-    const onSwipe = vi.fn();
-    renderDeck({ onSwipe });
-
-    await user.tab();
-    await user.tab();
-    expect(document.activeElement?.textContent).toBe(uk.actions.next);
-    await user.keyboard("{Enter}");
-
-    expect(onSwipe).toHaveBeenCalledTimes(1);
-    expect(onSwipe.mock.calls[0]?.[1]).toBe("advance");
   });
 });
 

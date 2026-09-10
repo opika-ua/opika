@@ -44,19 +44,18 @@ export type DeckState =
   | { kind: "error"; reason: DeckErrorReason };
 
 /**
- * `"advance"` is not a swipe: it's «Далі»/↓ (`uk.actions.next`), a
- * low-emphasis "skip visually, decide nothing" utility distinct from
- * «Не зараз» (design README's own "gap: 8, all 56, radius 16" spec names
- * three separate controls). It used to share `handleCommit("left")` with
- * the real skip button, which cost nothing before R1 — now that a `"left"`
- * commit persists a 30-day exclusion (`swipes.record`, `use-feed-deck.ts`),
- * that reuse would have silently recorded a real product decision the
- * adopter never made. Caught on review. R2 removes this button and its
- * keyboard binding entirely (`docs/build-plan.md`, Phase R) — this is a
- * deliberately narrow, temporary fix for the branch's interim state, not
- * a new permanent third swipe direction.
+ * R2 (Phase R, `docs/build-plan.md`): two directions, not three. «Далі»/↓
+ * — a low-emphasis "skip visually, decide nothing" utility distinct from
+ * «Не зараз» — existed only as an interim fix for R1's own transition: it
+ * used to share `handleCommit("left")` with the real skip button, which
+ * cost nothing before R1 wired `swipes.record`, but once a `"left"`
+ * commit persists a 30-day exclusion, that reuse would have silently
+ * recorded a real product decision the adopter never made. A third,
+ * temporary `"advance"` direction closed that gap for one row; this row
+ * removes the button, the direction, and the gap it was patched around,
+ * all together.
  */
-export type CommitDirection = "left" | "right" | "advance";
+export type CommitDirection = "left" | "right";
 
 interface SwipeDeckProps {
   state: DeckState;
@@ -175,21 +174,19 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
           })}
       </div>
 
-      {/* Action buttons — docs/design/README.md, "The deck": "gap: 8, all
-        56, radius 16: «Не зараз» (flex: 1, white) · «↓» (56 wide, white) ·
-        «Написати» (flex: 1, #101112)." */}
-      <div data-testid="action-row" className="font-rg flex gap-2 mt-group shrink-0">
+      {/* Action buttons — docs/design/README.md, "The deck": originally
+        three ("«Не зараз» (flex: 1, white) · «↓» (56 wide, white) ·
+        «Написати» (flex: 1, #101112)"). R2 (Phase R, `docs/build-plan.md`)
+        drops the middle one — see `CommitDirection`'s own comment for why
+        it existed only as an interim fix, never a permanent third
+        direction — leaving the two real decisions the design's mock
+        frame never itself updated to show. */}
+      <div data-testid="action-row" className="font-rg flex gap-2 mt-row shrink-0">
         <ActionButton
           label={uk.actions.notNow}
           variant="outlined"
           className="flex-1"
           onClick={() => handleCommit("left")}
-        />
-        <ActionButton
-          label={uk.actions.next}
-          variant="quiet"
-          className="w-14"
-          onClick={() => handleCommit("advance")}
         />
         <ActionButton
           label={uk.actions.write}
@@ -198,6 +195,49 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
           onClick={() => handleCommit("right")}
         />
       </div>
+
+      {/*
+        R2's other half: the deck's own permanent home for
+        `docs/standing-constraints.md`'s "The swipe is filtering, not
+        judging" — previously only stated on the detail page
+        (`AnimalDetailScreen.tsx`), marked interim there specifically
+        because the deck had nowhere to put it without squeezing the
+        header (`docs/design/README.md`'s Phase D deviation note). Same
+        typography and text as that interim placement — recovered copy,
+        not redrafted. `mt-label` (4px), not `mt-group` (16px) or even
+        `mt-row` (8px): this is a secondary disclaimer under two
+        already-labelled buttons, not a new content block, and the deck's
+        vertical budget is genuinely tight (`SwipeCard.tsx`'s own
+        elastic-photo comment) — the card stack above is `flex-1 min-h-0`,
+        so this shrink-0 line's height comes out of the photo's own
+        elastic slack, the same mechanism that already absorbs the action
+        row's height.
+
+        `hidden min-[360px]:block`, measured, not guessed: at 320px
+        (`NARROW_PHONE`, its own doc comment calls it "the narrowest width
+        still worth calling a real device," not this product's stated
+        target) the shelter line's own bottom margin measured a real 12px
+        before this notice existed — 4px above its 8px floor — with 18px
+        of further slack in the photo above its own floor
+        (`MIN_PHOTO_HEIGHT_PX`). Not nothing, but not enough: at this
+        width the Ukrainian sentence wraps to two lines, costing ~40px
+        (36px of text plus its own margin), 18px more than the 22px this
+        viewport actually had left to give — a genuine clip
+        (measured: -10px against the 8px floor), not mere erosion.
+        360px (`ANDROID_PHONE`, `docs/stack-decision.md`'s actual stated
+        target — "budget Android hardware") fits the sentence on one line
+        and measured clean with real slack once this line existed — see
+        `discovery-layout.harness.ts`'s own coverage of both. The
+        shelter's words are never what gives; a secondary
+        disclaimer, at the one width narrower than this product's stated
+        audience, is.
+      */}
+      <span
+        data-testid="not-a-judgement-notice"
+        className="hidden min-[360px]:block font-sans text-[13px]/[18px] text-rg-ink-3 text-center mt-label shrink-0"
+      >
+        {uk.actions.notAJudgementNotice}
+      </span>
     </div>
   );
 }
@@ -211,38 +251,28 @@ function ActionButton({
   onClick,
 }: {
   label: string;
-  /**
-   * Three, not two — the mock's own "↓" button is visually distinct from
-   * "Не зараз" even though both are a plain white fill: `#101112`/500
-   * ("Не зараз") vs `#45484B`, no weight override ("↓") — a lower-emphasis
-   * utility action next to a real choice, not a second copy of the same
-   * button (`Opika Registry System.dc.html`'s B7 frame).
-   */
-  variant: "outlined" | "quiet" | "primary";
+  /** Two, since R2 dropped the mock's third "↓" button — see
+   * `CommitDirection`'s own comment. */
+  variant: "outlined" | "primary";
   className?: string;
   onClick: () => void;
 }) {
   // No border on any variant — "the single structural move that does most
-  // of the work: borders are gone" (docs/design/README.md).
-  const base = "min-h-14 rounded-rg-button text-[15px] leading-none cursor-pointer";
+  // of the work: borders are gone" (docs/design/README.md). Focus-visible
+  // outline is the same ring every other focusable control in this app
+  // carries (see the error state's retry button, below) — missing here
+  // until caught alongside R2's own rewrite of this component's variant
+  // union: `docs/standing-constraints.md`'s "an interactive element ships
+  // with its focus-visible styling and a test" rules out shipping either
+  // without the other.
+  const base =
+    "min-h-14 rounded-rg-button text-[15px] leading-none cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
 
   if (variant === "primary") {
     return (
       <button
         type="button"
         className={`${base} bg-rg-ink text-rg-surface font-medium ${className ?? ""}`}
-        onClick={onClick}
-      >
-        {label}
-      </button>
-    );
-  }
-
-  if (variant === "quiet") {
-    return (
-      <button
-        type="button"
-        className={`${base} bg-rg-surface text-rg-ink-2 ${className ?? ""}`}
         onClick={onClick}
       >
         {label}

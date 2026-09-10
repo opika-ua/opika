@@ -91,11 +91,13 @@ describe("demo-mode copy status (D-2)", () => {
  * when `FirstRunBand` was deleted. Landed 2026-09-06: recovered verbatim,
  * including «просто», from the original disclaimer — already-shipped copy
  * of Oleksii's, reproduced exactly rather than redrafted, so it needs no
- * fresh approval. Interim home is the detail page
- * (`AnimalDetailScreen.tsx`); permanent home is the deck rebuild
- * (`docs/build-plan.md`'s R2).
+ * fresh approval. Interim home was the detail page
+ * (`AnimalDetailScreen.tsx`); R2 (Phase R, `docs/build-plan.md`) moved it
+ * to its permanent one, the deck (`SwipeDeck.tsx`), and dropped `next`
+ * (`uk.actions.next`, «Далі») along with the button it labelled — 5 keys
+ * became 4, not 5 again with a different member.
  */
-describe("detail-page not-a-judgement notice copy status", () => {
+describe("deck not-a-judgement notice copy status", () => {
   it("has no placeholder left — the notice is written", () => {
     expect(pendingCopyKeys(uk.actions)).toEqual([]);
   });
@@ -104,6 +106,6 @@ describe("detail-page not-a-judgement notice copy status", () => {
     // Guards the guard: `toEqual([])` above also passes against an empty
     // object, so deleting `notAJudgementNotice` rather than writing it would
     // look identical without this.
-    expect(Object.keys(uk.actions).length).toBe(5);
+    expect(Object.keys(uk.actions).length).toBe(4);
   });
 });
