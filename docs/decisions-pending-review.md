@@ -14,7 +14,7 @@ still-pending, per "one document per subject... when superseded, replace it."
 actions — Oleksii's own diagnosis and instruction (§55 status call, 2026-09-10), not a
 unilateral decision.
 
-**PR:** not yet opened — see this file once it is.
+**PR:** [#58](https://github.com/opika-ua/opika/pull/58), open against `main`, not merged.
 
 **What changed:** `checkRevealRateLimit` (`apps/web/src/api/reveal-rate-limit.ts`) takes the
 target `shelterId`. Free re-reveal if this adopter already revealed this shelter within the 24h
