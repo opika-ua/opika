@@ -1,87 +1,74 @@
 # Decisions pending Oleksii's review
 
-Working log for the autonomous session started 2026-09-09, after PR #53 merged. Every
-reversible judgement call made without asking goes here instead of blocking on an answer —
-see `CLAUDE.md`'s working loop for the rule this implements. Newest entry last within each
-section.
+Working log for the autonomous session started 2026-09-09. Every reversible judgement call made
+without asking goes here instead of blocking on an answer — see `CLAUDE.md`'s working loop for
+the rule this implements. Newest entry last within each section.
+
+**Note on history:** this file's prior content (R2) shipped via PR #54, merged into `main`.
+Replaced here rather than left to read as still-pending, per "one document per subject...
+when superseded, replace it."
 
 ## Summary — read this first
 
-**Rows completed this session:** R2 (two-action deck, not-a-judgement notice's permanent home).
+**Row completed this session:** deck gesture parity — a right commit (drag or the «Написати»
+button, already the same code path before this row) now opens the real reveal, the same dialog
+the detail page's `RevealFlow` already used. Oleksii's own approval (2026-09-10 status call),
+contingent on the reveal budget counting distinct shelters rather than reveal actions — that
+half is PR #58, open separately.
 
-**PRs open:** [#54](https://github.com/opika-ua/opika/pull/54) — `feat/deck-two-action` →
-`main`, R2. Two reviewer rounds (PASS WITH NOTES both), all findings addressed, `pnpm check`
-green. Not merged — merging stays yours.
+**PR:** not yet opened — see this file once it is.
 
-**Decisions needing your eye, ranked by cost to reverse:**
-1. **[trivial to reverse] Notice hidden below 360px width, not shown everywhere.** See
-   `R2 — notice geometry` below. A CSS class change; reversible in minutes if you'd rather see
-   it smaller-but-present at 320 instead of absent.
-2. **[trivial to reverse] Notice moved off the detail page entirely, not duplicated.** See
-   `R2 — notice moved, not duplicated` below. Re-adding it there is a few lines if you disagree
-   with the reasoning.
-3. **[moderate to reverse — touches a harness assertion's own number] PHONE frame's exact photo
-   height assertion repointed 396→386.** See `R2 — photo height assertion` below. Reversing
-   means finding another 10px of vertical budget instead.
+**Depends on #58, loosely:** this branch's code does not require #58 to merge first — it
+doesn't touch `reveal-rate-limit.ts` at all, and works correctly against either the old or the
+new counting. But the *safety argument* Oleksii approved gesture parity on ("an accidental
+repeat drag on an already-revealed shelter costs nothing") only holds once #58's per-shelter
+counting is live. Mergeable in either order; flagging the dependency so it isn't merged and
+then forgotten.
+
+**What changed:**
+- Extracted the reveal state machine (`use-reveal-flow.ts`) and dialog rendering
+  (`RevealDialog.tsx`) out of `RevealFlow.tsx` into `apps/web/src/features/reveal/` — the detail
+  page's own behaviour is unchanged (`RevealFlow.test.tsx`'s 10 existing tests pass unmodified,
+  proving the extraction is behaviour-preserving), and the deck now shares the same dialog rather
+  than a second, drifting copy.
+- `SwipeDeck.tsx` gained an `onReveal?: (card: FeedCardView) => void` prop, called from
+  `handleCommit` on a right commit, with the card captured before `onSwipe` shifts it out of
+  `state.cards` (the deck still advances synchronously, unchanged from R1 — gesture parity adds
+  a dialog on top, it doesn't gate the advance on the reveal resolving).
+- `DeckScreen.tsx` owns the reveal state via `useRevealFlow`, renders `RevealDialog` as an
+  overlay, and fixed a real conflict the design's own keyboard table predicts but nothing built
+  yet exercised: `DeckScreen`'s own Escape-to-exit handler and the reveal dialog's Escape-to-close
+  handler would otherwise both fire on the same keypress. Guarded so Escape closes the topmost
+  thing (the dialog) first, matching `docs/design/README.md`'s "Esc — close the sheet, the
+  contact modal, or leave the deck."
+
+**Two disclosed simplifications, not oversights:**
+1. **`cityName` is always `null` for the deck's reveal dialog.** `FeedCardView.publicLocation`
+   carries only a `cityId`, not a resolved display name, and the deck has no city-lookup table
+   client-side the way the gallery's server-rendered props do. `RevealDialog`'s existing
+   `cityName={null}` path already renders correctly (falls back to the meeting-place sentence
+   alone) — not a special case, an existing branch. Extending `FeedCardView` to carry a resolved
+   name would be a contract change, out of this row's scope.
+2. **The dialog's "Повернутися до галереї" (back to gallery) link is omitted for the deck**
+   (`showBackLink={false}`), not relabelled. That sentence is false when the trigger was the
+   deck — the user isn't in the gallery — and there is no accurate Ukrainian string for "back to
+   the deck" yet. Writing one is new user-facing copy, a Tier 1 gate this row doesn't cross
+   unasked. Per "removing a false claim is not the same gate as adding one"
+   (`docs/standing-constraints.md`), omitting the link needed no new copy — the ✕ close button
+   (unconditional, existing `uk.actions.notNow` label) already closes the dialog either way, so
+   nothing is lost except a redundant, wrong-destination second control.
+
+**Reviewer round:** not yet run — see this file once it has.
+
+**Decisions needing your eye (reversible, not blocking):**
+1. **[trivial to reverse] Focus returns to the deck header's "back to list" button on close**,
+   not a per-card element (none is stable enough to hold a ref across commits the way the detail
+   page's own trigger button is). A judgement call, not a spec — reversible by pointing the ref
+   elsewhere.
+2. **[moderate to reverse — new Ukrainian copy, Tier 1] The missing "back to the deck" string.**
+   Once you have a sentence for it, `showBackLink` becomes a real label prop instead of a
+   boolean, and the omission goes away. Not urgent — the ✕ close button is a complete, working
+   substitute today.
 
 **Parked:**
-(none yet)
-
----
-
-## Decisions
-
-## R2 — notice moved, not duplicated
-Chose: moved the not-a-judgement notice from its interim home (detail page) to its permanent
-one (the deck), removing it from the detail page rather than keeping it in both places.
-Alternatives: keep it on both surfaces; keep it only on the detail page and never add it to the
-deck.
-Why this one: the sentence is about what a *swipe* decision means, and the detail page's own
-«Не зараз» was never a swipe (a plain link back to the gallery, no exclusion recorded) — it
-never needed the reassurance. `docs/build-plan.md`'s own R2 row description ("permanent home")
-reads as a relocation, not an addition, and the interim comment on both the detail page and
-`uk.ts` explicitly said "until the deck rebuild," not "in addition to."
-Reversibility: trivial — re-adding the JSX block to `AnimalDetailScreen.tsx` is a few lines,
-copy already exists.
-Confidence: high.
-Commit: (pending — see PR)
-
-## R2 — notice geometry
-Chose: hid the not-a-judgement notice below 360px viewport width (`min-[360px]:block`) rather
-than show it everywhere or shrink it further.
-Alternatives: (a) show it everywhere and accept a real shelter-line clip at 320px width — no,
-this repo's whole history is about never doing this; (b) compact the notice further (smaller
-font) to try to fit at 320 too — tried what was reasonable (margin reclaims), the remaining
-gap was ~18px, which a two-line-wrapped sentence at 13px can't close without going illegibly
-small; (c) redesign the whole action-row/notice layout — bigger change, not clearly better.
-Why this one: `ANDROID_PHONE` (360, this product's actual stated target audience per
-`docs/stack-decision.md`) shows the notice with real slack. `NARROW_PHONE` (320) is documented
-in its own file as "the narrowest width still worth calling a real device," not the target —
-and the shelter line (the animal/shelter identity) must never be what gives.
-Reversibility: trivial — one Tailwind class.
-Confidence: medium — the 360px cutoff is a judgement call, not a hard product decision from you.
-Commit: (pending — see PR)
-
-## R2 — photo height assertion
-Chose: updated `discovery-layout.harness.ts`'s exact `photo area === 396px` assertion (at the
-canonical `PHONE`/390x844 frame) to `386px`, with a comment explaining the real, deliberate
-cause (the new notice line), rather than finding another 10px of vertical budget to preserve
-396 exactly.
-Alternatives: keep hunting for 10 more px of margin somewhere else in the deck's chrome; make
-the notice's own typography smaller than the detail page's (breaking visual parity between the
-two surfaces where it does appear).
-Why this one: this is an exact-equality regression test, not a floor with slack —
-`docs/standing-constraints.md`'s "the mutation for a floor is crossing it, not perturbing the
-measurement" governs *floor* tests, not this one. The test's own comment already documents two
-prior precedents for exactly this situation (a deliberate content change legitimately moving
-the number).
-Reversibility: moderate — reversing means finding the missing 10px elsewhere, not just editing
-a number back.
-Confidence: high.
-Commit: (pending — see PR)
-
----
-
-## PARKED
-
-(none yet)
+(none)

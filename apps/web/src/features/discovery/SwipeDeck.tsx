@@ -63,9 +63,27 @@ interface SwipeDeckProps {
   onPrefetch: () => void;
   onCardTap?: ((cardId: string) => void) | undefined;
   onRetry?: (() => void) | undefined;
+  /**
+   * Gesture parity (Oleksii, 2026-09-10): a right commit — drag or the
+   * «Написати» button, both already the same `handleCommit("right")` call
+   * before this existed — does exactly what tapping the button always
+   * meant to do, and now actually does: open the real reveal. Fired with
+   * the committed card itself, captured here before `onSwipe` shifts it out
+   * of `state.cards` (`onSwipe` advances the deck synchronously; the caller
+   * needs the animal's own name for the dialog after that point, not
+   * whatever card happens to be on top by the time it renders).
+   */
+  onReveal?: ((card: FeedCardView) => void) | undefined;
 }
 
-export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: SwipeDeckProps) {
+export function SwipeDeck({
+  state,
+  onSwipe,
+  onPrefetch,
+  onCardTap,
+  onRetry,
+  onReveal,
+}: SwipeDeckProps) {
   const [dx, setDx] = useState(0);
 
   const handleCommit = useCallback(
@@ -73,6 +91,7 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
       if (state.kind !== "ready" || state.cards.length === 0) return;
       const topCard = state.cards[0];
       if (!topCard) return;
+      if (direction === "right") onReveal?.(topCard);
       onSwipe(topCard.id, direction);
       setDx(0);
 
@@ -81,7 +100,7 @@ export function SwipeDeck({ state, onSwipe, onPrefetch, onCardTap, onRetry }: Sw
         onPrefetch();
       }
     },
-    [state, onSwipe, onPrefetch],
+    [state, onSwipe, onPrefetch, onReveal],
   );
 
   const handleSnapBack = useCallback(() => {

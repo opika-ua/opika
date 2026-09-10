@@ -1,11 +1,14 @@
 "use client";
 
+import type { FeedCardView } from "@opika/contracts";
 import { DEFAULT_GALLERY_SORT, type FeedFilters } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { galleryHref } from "../gallery/filter-url";
+import { RevealDialog } from "../reveal/RevealDialog";
+import { useRevealFlow } from "../reveal/use-reveal-flow";
 import { consumeEnteredFromGalleryMarker } from "./deck-entry-marker";
 import { SwipeDeck } from "./SwipeDeck";
 import { useFeedDeck } from "./use-feed-deck";
@@ -57,13 +60,48 @@ export function DeckScreen({
     useFeedDeck(filters);
   const exit = useDeckExit(filters);
 
+  // Gesture parity's own trigger ref: there is no single button behind a
+  // drag-committed reveal the way the detail page's `RevealFlow` has one,
+  // so focus returns to the header's always-present "back to list" control
+  // on close rather than nowhere. `useRevealFlow`'s `close()` no-ops on a
+  // null ref regardless, so this degrades safely if the header is ever
+  // restructured to drop it.
+  const backToListRef = useRef<HTMLButtonElement | null>(null);
+  const {
+    state: revealState,
+    isOpen: revealIsOpen,
+    reveal,
+    close: closeReveal,
+    headingRef,
+    dialogRef,
+  } = useRevealFlow(backToListRef);
+  // Captured at commit time, not read from `state.cards[0]`: `onSwipe`
+  // (called the same tick as `onReveal` below) advances the deck
+  // synchronously, so by the time the dialog renders the committed card is
+  // already gone from `state`.
+  const [revealTarget, setRevealTarget] = useState<{ id: FeedCardView["id"]; name: string } | null>(
+    null,
+  );
+  const onReveal = useCallback(
+    (card: FeedCardView) => {
+      setRevealTarget({ id: card.id, name: card.name });
+      reveal(card.id);
+    },
+    [reveal],
+  );
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") exit();
+      // The design's own keyboard table ("Esc — close the sheet, the
+      // contact modal, or leave the deck") means one Esc closes whichever
+      // is topmost, not all of them at once — with the reveal dialog open,
+      // this handler must yield to `useRevealFlow`'s own Escape listener
+      // rather than exiting the deck out from under it.
+      if (event.key === "Escape" && !revealIsOpen) exit();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [exit]);
+  }, [exit, revealIsOpen]);
 
   const position = Math.min(shownCount + 1, total ?? Number.POSITIVE_INFINITY);
   // Only "ready" has a real card to number — during "loading" no fetch has
@@ -130,6 +168,7 @@ export function DeckScreen({
       */}
       <header className="font-rg flex items-center gap-3 min-h-12">
         <button
+          ref={backToListRef}
           type="button"
           onClick={exit}
           data-testid="deck-back-to-list"
@@ -208,7 +247,33 @@ export function DeckScreen({
         </span>
       )}
 
-      <SwipeDeck state={state} onSwipe={onSwipe} onPrefetch={onPrefetch} onRetry={onRetry} />
+      <SwipeDeck
+        state={state}
+        onSwipe={onSwipe}
+        onPrefetch={onPrefetch}
+        onRetry={onRetry}
+        onReveal={onReveal}
+      />
+
+      {revealIsOpen && revealTarget && (
+        <RevealDialog
+          state={revealState}
+          animalName={revealTarget.name}
+          // No resolved city name is available client-side here —
+          // `FeedCardView.publicLocation` carries only a `cityId`, and the
+          // deck has no city lookup the way the gallery's server-rendered
+          // props do. Disclosed simplification, not an oversight:
+          // `RevealDialog`'s own `cityName={null}` path already renders
+          // correctly (the location line falls back to the meeting-place
+          // sentence alone) rather than needing a special case here.
+          cityName={null}
+          headingRef={headingRef}
+          dialogRef={dialogRef}
+          onClose={closeReveal}
+          onRetry={() => reveal(revealTarget.id)}
+          showBackLink={false}
+        />
+      )}
     </div>
   );
 }

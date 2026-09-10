@@ -1,5 +1,12 @@
-import { NO_FILTERS } from "@opika/domain";
-import { fireEvent, render, screen } from "@testing-library/react";
+import type { ContactRevealView } from "@opika/contracts";
+import {
+  type AnimalIdSchema,
+  CityIdSchema,
+  NO_FILTERS,
+  RevealIdSchema,
+  ShelterIdSchema,
+} from "@opika/domain";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAppRouter, WithMockRouter } from "../gallery/test-router";
 import { DeckScreen } from "./DeckScreen";
@@ -9,6 +16,22 @@ const useFeedDeckMock = vi.fn();
 
 vi.mock("./use-feed-deck", () => ({
   useFeedDeck: (...args: unknown[]) => useFeedDeckMock(...args),
+}));
+
+/**
+ * Gesture parity (Oleksii, 2026-09-10): a right commit now opens the real
+ * reveal, the same `revealBrowserClient` `RevealFlow.test.tsx` mocks —
+ * `use-reveal-flow.ts` is the shared consumer both files' components
+ * import through.
+ */
+const revealBootstrap = vi.fn();
+const revealCall = vi.fn();
+
+vi.mock("../../api/browser-client", () => ({
+  revealBrowserClient: {
+    session: { bootstrap: (...args: unknown[]) => revealBootstrap(...args) },
+    animals: { reveal: (...args: unknown[]) => revealCall(...args) },
+  },
 }));
 
 /**
@@ -295,6 +318,160 @@ describe("DeckScreen", () => {
 
     expect(router.back).not.toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Gesture parity (Oleksii, 2026-09-10): a right commit — the «Написати»
+ * button and a right-drag already shared one `handleCommit("right")` call
+ * before this existed — now opens the real reveal, the same dialog
+ * `RevealFlow.test.tsx` covers on the detail page. `SwipeDeck` here is the
+ * real component (only `useFeedDeck` is mocked), so clicking its own
+ * «Написати» button is what actually exercises `SwipeDeck`'s `onReveal`
+ * prop end to end.
+ */
+describe("DeckScreen — gesture parity reveal", () => {
+  const REVEAL_ID = RevealIdSchema.parse("bbbbbbbb-cccc-4ddd-8eee-ffffffffffff");
+  const SHELTER_ID = ShelterIdSchema.parse("66666666-7777-4888-8999-aaaaaaaaaaaa");
+  const CITY_ID = CityIdSchema.parse("12121212-3434-4565-8787-909090909090");
+
+  function revealFor(animalId: ReturnType<typeof AnimalIdSchema.parse>): ContactRevealView {
+    return {
+      id: REVEAL_ID,
+      animalId,
+      revealedAt: new Date("2026-08-08T10:00:00Z"),
+      shelterSnapshot: {
+        shelterId: SHELTER_ID,
+        displayName: "Притулок «Домівка»",
+        contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
+        exactAddress: {
+          line1: "вул. Незалежності, 12",
+          line2: null,
+          postalCode: null,
+          cityId: CITY_ID,
+          district: null,
+          coordinates: { lat: 50.5111, lng: 30.7903 },
+        },
+        publicLocation: { precision: "city", cityId: CITY_ID, district: null },
+        verificationStatusAtReveal: "verified",
+        donation: null,
+      },
+      animalSnapshot: { name: "Мурчик", primaryPhoto: null },
+    };
+  }
+
+  beforeEach(() => {
+    revealBootstrap.mockReset();
+    revealCall.mockReset();
+    revealBootstrap.mockResolvedValue({});
+    const cards = generateMockCards(1);
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+    });
+    revealCall.mockResolvedValue(revealFor(cards[0]!.id));
+  });
+
+  it("clicking «Написати» opens the real reveal dialog for the top card, and the deck still advances", async () => {
+    const onSwipe = vi.fn();
+    const cards = generateMockCards(1);
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards },
+      onSwipe,
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+    });
+    revealCall.mockResolvedValue(revealFor(cards[0]!.id));
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+      </WithMockRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Написати" }));
+
+    // onSwipe (the deck's own advance, unchanged from R1) fires the same
+    // tick as the reveal — gesture parity adds a dialog, it doesn't gate
+    // the deck's own advance on the reveal resolving.
+    expect(onSwipe).toHaveBeenCalledWith(cards[0]!.id, "right");
+
+    await screen.findByTestId("reveal-dialog");
+    expect(revealCall).toHaveBeenCalledWith({ animalId: cards[0]!.id });
+    expect(screen.getByTestId("reveal-contact-row").textContent).toBe("+380671234567");
+    // The dialog's own copy names the card that was actually committed,
+    // not whatever `state.cards[0]` is by the time the dialog renders.
+    expect(screen.getByText("Ви запитали про Мурчик.")).toBeTruthy();
+  });
+
+  it("does not show the detail page's 'back to gallery' link — no accurate copy exists for the deck yet", async () => {
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+      </WithMockRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Написати" }));
+    await screen.findByTestId("reveal-dialog");
+
+    expect(screen.queryByTestId("reveal-back-to-gallery")).toBeNull();
+  });
+
+  it("Escape closes the reveal dialog without also exiting the deck", async () => {
+    const router = mockAppRouter();
+    sessionStorage.setItem(FROM_GALLERY_KEY, "1");
+
+    render(
+      <WithMockRouter router={router}>
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+      </WithMockRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Написати" }));
+    await screen.findByTestId("reveal-dialog");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    await waitFor(() => expect(screen.queryByTestId("reveal-dialog")).toBeNull());
+    // The design's own keyboard table: Esc closes the topmost thing first.
+    // Exiting the deck out from under an open dialog would be the second,
+    // unwanted Esc this same keypress must not also trigger.
+    expect(router.back).not.toHaveBeenCalled();
+  });
+
+  it("closing the dialog returns focus to the back-to-list button, not nowhere", async () => {
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+      </WithMockRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Написати" }));
+    await screen.findByTestId("reveal-dialog");
+
+    fireEvent.click(screen.getByTestId("reveal-close"));
+
+    await waitFor(() => expect(screen.queryByTestId("reveal-dialog")).toBeNull());
+    expect(document.activeElement).toBe(screen.getByTestId("deck-back-to-list"));
+  });
+
+  it("shows the real error dialog — including the reveal rate limit — the same as the detail page", async () => {
+    revealCall.mockRejectedValue(new Error("RATE_LIMITED"));
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+      </WithMockRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Написати" }));
+    await screen.findByTestId("reveal-dialog");
+
+    expect(screen.getByRole("dialog", { name: "Щось не спрацювало на нашому боці." })).toBeTruthy();
   });
 });
 
