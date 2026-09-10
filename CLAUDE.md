@@ -228,8 +228,15 @@ half-wired code in a solo 10h/week project.
 14. **Rate limiting is split.** Generic per-IP: in-memory sliding window behind
     a `RateLimiter` interface (acknowledged per-instance in serverless; the
     interface is stable for a Redis/KV swap). Reveal limit: Postgres-persisted,
-    30 reveals per 24h, counted from the existing `reveals` table — no new table
-    needed, survives cold starts.
+    30 per 24h, counted from the existing `reveals` table — no new table needed,
+    survives cold starts. **Correction, 2026-09-10:** the 30 counts *distinct
+    shelters revealed*, not reveal rows — `reveals.shelter_id` was already on
+    the row (decision unchanged), so no migration; the check gained a second
+    query (a free-re-reveal existence check ahead of the distinct-count one).
+    Contacts are scrapeable per shelter, not per animal; re-revealing a
+    shelter already seen in the window is free, and does not consume a unit.
+    See `apps/web/src/api/reveal-rate-limit.ts`'s own doc comment for the full
+    reasoning and its connection to the deck's gesture-parity decision.
 15. **Cursor is HMAC-signed.** `CURSOR_HMAC_SECRET` env var (separate from
     `LOCATION_HMAC_SECRET`). Payload carries a `kind` tag (`feed` / `reveal`)
     and `filtersFingerprint(filters)`; verification is timing-safe. Prevents

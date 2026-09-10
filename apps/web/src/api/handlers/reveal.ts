@@ -58,8 +58,10 @@ export async function animalsReveal(
     return toView(existing);
   }
 
-  // Rate limit check — persisted in Postgres, survives across instances
-  await checkRevealRateLimit(context.db, context.adopterId, context.now);
+  // Rate limit check — persisted in Postgres, survives across instances.
+  // Distinct-shelter budget: free if this shelter is already revealed
+  // within the window (see checkRevealRateLimit's own doc comment).
+  await checkRevealRateLimit(context.db, context.adopterId, shelter.id, context.now);
 
   const reveal: ContactReveal = {
     id: RevealIdSchema.parse(crypto.randomUUID()) as RevealId,
