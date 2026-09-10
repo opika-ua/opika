@@ -427,6 +427,36 @@ pattern the wide bracket's own 1920px case already set.
 
 ---
 
+## O-19 — The 48px touch-target floor is enforced by reviewer attention, not by a test mechanism · tooling · filed, not scheduled
+
+Filed by Oleksii, 2026-09-10, after PR #57's `Footer.tsx` shipped both its links at 18px against
+`docs/design/README.md:200`'s 48px minimum — caught by the `opika-reviewer` subagent, not by any
+test, on a project whose own standing constraints say a defect a reviewer catches instead of a
+test is a defect the test suite doesn't actually guard.
+
+**Checked, not assumed:** the assertion exists — `MIN_TOUCH_TARGET_PX = 48` — but as three
+independent copies (`discovery-layout.harness.ts`, `gallery-filters.harness.ts`,
+`site-header.harness.ts`), each applied by hand to whichever specific elements that file's
+author remembered to write a case for (the deck's back-to-list and retry buttons, the deck-entry
+link, the header's nav links, and now — after this row's own fix — the footer's two links). There
+is no shared helper, no lint rule, and no sweep that walks a page's real interactive elements and
+asserts the floor against all of them. A new component (`Footer.tsx`) shipping under the floor
+did not fail any existing test, because no existing test's scope included it — the mechanism is
+"whoever writes a harness file remembers to add a case," which is exactly reviewer-attention
+dressed as a test suite. This is the "documented limit with no test exercising it is not a limit"
+standing constraint, except the limit here already has *some* tests — just none that would catch
+a genuinely new offender rather than a regression in an element someone already thought to check.
+
+**Wants:** a single shared Playwright helper (something like `assertMinTouchTarget(page,
+selector)`, or a page-wide sweep over every `getByRole("link")`/`getByRole("button")` result) that
+new harness files reach for by construction, replacing the three duplicated local consts — and,
+ideally, one harness case per user-facing surface that sweeps *all* of that surface's interactive
+elements rather than a hand-picked subset, so a new button or link is covered the moment it
+exists rather than the next time someone happens to write a test for it by name. Scope and exact
+sweep strategy not decided — this is filed, not designed. Do not build it now.
+
+---
+
 ## Decisions 1 & 2 — Phase D, 2026-09-05
 
 **Decision 1 — a skip is remembered for the device.** Skipped animals do not return in the deck
