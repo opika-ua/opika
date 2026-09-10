@@ -684,9 +684,18 @@ correction admitting the mark-to-wordmark gap is a rounded practical value, not 
 render of the design doc's stated "dot's height" (which scales to under 4px at this lockup size).
 
 `pnpm check` green, on this row's own branch (`feat/polish-batch`, off `main`, independent of the
-still-open Phase S PR): 835 workspace unit tests (291 domain + 20 i18n + 29 contracts + 10 ui +
-135 db + 350 apps/web), `build:web`, and 179 Playwright harness tests, all against local
-Postgres.
+still-open Phase S PR): 833 workspace unit tests (291 domain + 20 i18n + 29 contracts + 10 ui +
+135 db + 348 apps/web), `build:web`, and 184 Playwright harness tests, all against local Postgres.
+
+**Rebased onto `main` after R2 (PR #54) merged, 2026-09-10.** R2 touched the same file this row's
+own O-8 work does (`AnimalDetailScreen.tsx`) for an unrelated reason — removing the not-a-
+judgement notice block R2 relocated to the deck — which put this branch in real conflict with
+`main`, not merely stale. Rebased rather than merged, per the standing preference for a clean
+history; `docs/decisions-pending-review.md`'s add/add conflict (both branches had their own copy)
+was reconciled by hand into one file, exactly as that file's own header note said it would need
+to be once either sibling branch landed first. The `AnimalDetailScreen.tsx` conflict itself
+auto-merged correctly with no manual intervention — confirmed by reading the result, not assumed.
+Full `pnpm check` re-run after the rebase, numbers above reflect that run, not the pre-rebase one.
 
 ---
 
