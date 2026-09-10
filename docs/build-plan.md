@@ -895,6 +895,35 @@ each serverless instance holds its own counter, so the effective per-IP ceiling 
 instance count`, not the stated limit — adequate as a first-line defense at near-zero
 traffic, not at real usage.
 
+### Before the MVP gate — a real touch-target/keyboard enforcement mechanism (O-19)
+
+**Scheduled here by Oleksii's own instruction (2026-09-10 status call), not filed-and-forgotten:**
+"the MVP gate requires 48px targets and keyboard-only on every surface; three hand-copied
+constants covering whatever was remembered cannot deliver that, and `Footer.tsx` is the proof."
+
+`docs/observations.md`'s O-19 has the full finding: `MIN_TOUCH_TARGET_PX = 48` is asserted
+correctly everywhere it's checked, but as three independent, hand-copied local consts
+(`discovery-layout.harness.ts`, `gallery-filters.harness.ts`, `site-header.harness.ts`), each
+applied only to the specific elements that file's author remembered to write a case for. A new
+interactive element ships with no assertion covering it until someone happens to add one by
+name — exactly how `Footer.tsx` shipped its two links at 18px, caught by `opika-reviewer`, not by
+the test suite that already existed to catch it.
+
+**What this row needs to build, when picked up:** a single shared Playwright helper (something
+like `assertMinTouchTarget(page, selector)`) that new harness files reach for by construction,
+replacing the three duplicated consts, *plus* — the part that actually closes the gap, not just
+tidies it — one harness case per user-facing surface that sweeps every real interactive element
+on that surface (every `getByRole("link")`/`getByRole("button")` result, not a hand-picked
+subset), so a new button or link is covered the moment it exists. The same shape of gap likely
+exists for keyboard reachability (a focus-visible check exists per-component today, same as the
+touch-target one) — the MVP gate's "keyboard-only on every surface" requirement is the same
+argument applied to a second property, and should be scoped into this row rather than left as a
+second, later rediscovery of the identical mechanism gap.
+
+Exact sweep strategy (walk the accessibility tree vs. enumerate roles vs. something else) not
+decided — `docs/observations.md`'s O-19 says so explicitly ("filed, not designed. Do not build
+it now") and that instruction stands; this entry only fixes *when*, not *how*.
+
 ### Before the MVP gate — DB connection strategy (O-9) — "2.1" in the 2026-09-06 reprioritisation
 
 Unlike the rate limiter above, **this one is already live at today's near-zero traffic** —
