@@ -1,87 +1,90 @@
 # Decisions pending Oleksii's review
 
-Working log for the autonomous session started 2026-09-09, after PR #53 merged. Every
-reversible judgement call made without asking goes here instead of blocking on an answer —
-see `CLAUDE.md`'s working loop for the rule this implements. Newest entry last within each
-section.
+Working log for the autonomous session started 2026-09-09. Every reversible judgement call made
+without asking goes here instead of blocking on an answer — see `CLAUDE.md`'s working loop for
+the rule this implements. Newest entry last within each section.
+
+**Note on history:** this file's prior content (R2 — notice moved/notice geometry/photo height
+assertion) shipped via PR #54, merged into `main`. Replaced here rather than left to read as
+still-pending, per "one document per subject... when superseded, replace it."
 
 ## Summary — read this first
 
-**Rows completed this session:** R2 (two-action deck, not-a-judgement notice's permanent home).
+**Row completed this session:** the reveal rate limit now counts distinct shelters, not reveal
+actions — Oleksii's own diagnosis and instruction (§55 status call, 2026-09-10), not a
+unilateral decision.
 
-**PRs open:** [#54](https://github.com/opika-ua/opika/pull/54) — `feat/deck-two-action` →
-`main`, R2. Two reviewer rounds (PASS WITH NOTES both), all findings addressed, `pnpm check`
-green. Not merged — merging stays yours.
+**PR:** not yet opened — see this file once it is.
 
-**Decisions needing your eye, ranked by cost to reverse:**
-1. **[trivial to reverse] Notice hidden below 360px width, not shown everywhere.** See
-   `R2 — notice geometry` below. A CSS class change; reversible in minutes if you'd rather see
-   it smaller-but-present at 320 instead of absent.
-2. **[trivial to reverse] Notice moved off the detail page entirely, not duplicated.** See
-   `R2 — notice moved, not duplicated` below. Re-adding it there is a few lines if you disagree
-   with the reasoning.
-3. **[moderate to reverse — touches a harness assertion's own number] PHONE frame's exact photo
-   height assertion repointed 396→386.** See `R2 — photo height assertion` below. Reversing
-   means finding another 10px of vertical budget instead.
+**What changed:** `checkRevealRateLimit` (`apps/web/src/api/reveal-rate-limit.ts`) takes the
+target `shelterId`. Free re-reveal if this adopter already revealed this shelter within the 24h
+window (a new `hasRevealedShelterRecently` existence check); otherwise the 30-per-24h budget now
+bounds `COUNT(DISTINCT shelter_id)`, not raw reveal-row count. `reveals.shelter_id` already
+existed with its own index — no migration.
+
+**Reviewer round: PASS WITH NOTES**, two high findings fixed before commit:
+1. `hasRevealedShelterRecently`'s adopter-scoping had no test proving it was load-bearing —
+   deleting the `adopterId` condition left every test green. Added: adopter B, already at their
+   own 30-shelter cap, targeting a shelter only adopter A ever revealed, must still be
+   rate-limited. Mutation-confirmed red without the fix.
+2. The 30-shelter budget was only pinned from above (blocked at 30) — a mutation to `maxReveals:
+   29` passed every test. Added: 29 distinct shelters must not rate-limit a 30th. Mutation-
+   confirmed red without the fix.
+
+Three medium findings addressed by correcting doc comments rather than code (the reviewer's own
+call on which route was right): a math error in the "cheap existence check" claim (real-corpus
+`EXPLAIN` showed it isn't cheap when a popular shelter has many other adopters' rows — comment
+now says so rather than overclaiming); a "gesture parity is closed by this change" overclaim
+(only *repeat* accidental drags become free — a first-time accidental drag on a never-revealed
+shelter still spends a unit and still irreversibly discloses contact details, same as an
+accidental button tap always did); CLAUDE.md's decision #14 correction note understated the
+change (added the free-re-reveal short-circuit to the description, not just the aggregate
+change).
+
+**Filed, not fixed:** O-20 (`docs/observations.md`) — `RATE_LIMITED` and other `ORPCError` codes
+carry no HTTP status mapping and answer bare `500`. Pre-existing (found by the reviewer, not
+introduced here); becomes user-visible once the deck's inline reveal (R3, gesture parity) ships
+and a real adopter hits the budget. Not filed as its own numbered entry in `docs/observations.md`
+in this branch's own copy — that file's `O-19` lives only on `feat/polish-batch` (PR #57,
+unmerged), and inserting `O-20` here would number-collide once the two merge in either order.
+Recorded here instead; move it into `docs/observations.md` proper once one of the two merges.
+
+**Decisions needing your eye (reversible, not blocking):**
+1. **[trivial to reverse] Two sequential queries (existence check, then distinct count) rather
+   than one combined query.** The reviewer measured the two-query shape as faster for the common
+   case (a repeat reveal short-circuits before ever running the more expensive distinct-count
+   query) and slower for the rare one (a first-time reveal pays both). Combining them into one
+   query (`count(distinct shelter_id), bool_or(shelter_id = $target)`) trades one for the other.
+   Not changed — the common case is the one worth optimising for, but it's a real trade, not a
+   free simplification, so it's flagged rather than assumed.
+2. **[trivial to reverse] `checkRevealRateLimit`'s new `shelterId` parameter reuses the shelter
+   object `reveal.ts`'s handler already fetched** for verification-status checking, rather than
+   a second lookup. Confirmed safe: `shelter.id` cannot diverge from `animal.shelterId` — the
+   fetch is keyed on it.
 
 **Parked:**
-(none yet)
+(none)
 
 ---
 
 ## Decisions
 
-## R2 — notice moved, not duplicated
-Chose: moved the not-a-judgement notice from its interim home (detail page) to its permanent
-one (the deck), removing it from the detail page rather than keeping it in both places.
-Alternatives: keep it on both surfaces; keep it only on the detail page and never add it to the
-deck.
-Why this one: the sentence is about what a *swipe* decision means, and the detail page's own
-«Не зараз» was never a swipe (a plain link back to the gallery, no exclusion recorded) — it
-never needed the reassurance. `docs/build-plan.md`'s own R2 row description ("permanent home")
-reads as a relocation, not an addition, and the interim comment on both the detail page and
-`uk.ts` explicitly said "until the deck rebuild," not "in addition to."
-Reversibility: trivial — re-adding the JSX block to `AnimalDetailScreen.tsx` is a few lines,
-copy already exists.
-Confidence: high.
-Commit: (pending — see PR)
-
-## R2 — notice geometry
-Chose: hid the not-a-judgement notice below 360px viewport width (`min-[360px]:block`) rather
-than show it everywhere or shrink it further.
-Alternatives: (a) show it everywhere and accept a real shelter-line clip at 320px width — no,
-this repo's whole history is about never doing this; (b) compact the notice further (smaller
-font) to try to fit at 320 too — tried what was reasonable (margin reclaims), the remaining
-gap was ~18px, which a two-line-wrapped sentence at 13px can't close without going illegibly
-small; (c) redesign the whole action-row/notice layout — bigger change, not clearly better.
-Why this one: `ANDROID_PHONE` (360, this product's actual stated target audience per
-`docs/stack-decision.md`) shows the notice with real slack. `NARROW_PHONE` (320) is documented
-in its own file as "the narrowest width still worth calling a real device," not the target —
-and the shelter line (the animal/shelter identity) must never be what gives.
-Reversibility: trivial — one Tailwind class.
-Confidence: medium — the 360px cutoff is a judgement call, not a hard product decision from you.
-Commit: (pending — see PR)
-
-## R2 — photo height assertion
-Chose: updated `discovery-layout.harness.ts`'s exact `photo area === 396px` assertion (at the
-canonical `PHONE`/390x844 frame) to `386px`, with a comment explaining the real, deliberate
-cause (the new notice line), rather than finding another 10px of vertical budget to preserve
-396 exactly.
-Alternatives: keep hunting for 10 more px of margin somewhere else in the deck's chrome; make
-the notice's own typography smaller than the detail page's (breaking visual parity between the
-two surfaces where it does appear).
-Why this one: this is an exact-equality regression test, not a floor with slack —
-`docs/standing-constraints.md`'s "the mutation for a floor is crossing it, not perturbing the
-measurement" governs *floor* tests, not this one. The test's own comment already documents two
-prior precedents for exactly this situation (a deliberate content change legitimately moving
-the number).
-Reversibility: moderate — reversing means finding the missing 10px elsewhere, not just editing
-a number back.
-Confidence: high.
-Commit: (pending — see PR)
+## Reveal budget — counts distinct shelters, not reveal rows
+Chose: `COUNT(DISTINCT shelter_id)` over the 24h window, with a free short-circuit for a shelter
+already revealed by this adopter in that window — exactly Oleksii's own instruction, not a
+judgement call between alternatives.
+Why: contacts are scrapeable per shelter, not per animal — the old row-count let a device
+right-swiping 40 cards across 6 shelters burn 40 units to see 6 phone numbers, which was the
+counter measuring the wrong quantity, not the budget being genuinely tight.
+Reversibility: trivial to revert the counting change itself (swap `countDistinct` back to
+`count()`, drop the short-circuit); the seven tests pinning this behaviour would need reverting
+alongside it or they'd fail against the reverted code.
+Confidence: high — implementation matches the instruction's own wording exactly
+(`COUNT(DISTINCT shelter_id)`), independently mutation-tested per finding.
+Commit: 60d69a1.
 
 ---
 
 ## PARKED
 
-(none yet)
+(none)
