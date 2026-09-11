@@ -22,6 +22,7 @@ import { NoMatch } from "../../features/gallery/NoMatch";
 import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { SortControl } from "../../features/gallery/SortControl";
+import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 
 /**
  * Same reasoning as `../page.tsx`: without this, `next build` would try to
@@ -76,6 +77,28 @@ const PRIORITY_ROW_SIZE = 2;
  * (`uk.firstRun.promise` as `og:description` only). `/` still redirects here
  * (`next.config.ts`) rather than serving its own route — a standalone `/`
  * page was tried first and reverted for contradicting the original spec.
+ *
+ * **Correction, 2026-09-10 — found by Oleksii, not by any test; a first
+ * draft of this correction then had its own history wrong, found by the
+ * reviewer.** `uk.firstRun.promise` survives as `og:description` *when real
+ * shelters exist*; the D-2 demo disclosure (`uk.demo.bannerNotice`, this
+ * page's `linkPreviewDescription` while `REGISTRY_HAS_NO_REAL_SHELTERS`)
+ * survives the same way — and both `description`/`og:description` render
+ * only in a shared-link preview or a search snippet, never in the page a
+ * visitor actually opens. **Not what `FirstRunBand` used to show**, on
+ * inspection of the deleted component itself (`git show`), not assumed:
+ * that band rendered `firstRun.promise` + `firstRun.disclaimer`, two
+ * different sentences, and its removal (O-3, unrelated reasons — duplicated
+ * the filter rail, delayed the content) is not what left `bannerNotice`
+ * invisible here. `bannerNotice` was *never* rendered in this page's body,
+ * at any point in this repo's history — only in metadata, always. The
+ * deck (`DeckScreen.tsx`) shows "Демо" in its own header; this route, the
+ * higher-traffic one, showed nothing at all. Fixed below: the same
+ * already-approved `bannerNotice` sentence, rendered visibly for the first
+ * time, directly under the header — not the slot `FirstRunBand` used to
+ * occupy (that band sat *inside* the padded `max-w-[760px] mx-auto mb-8`
+ * container below; this banner sits outside and above it). New placement of
+ * existing copy, not a restoration and not new copy either.
  *
  * Split from the default export so `page.test.tsx` can call this directly
  * with a test database; `Page`'s own call below still calls it with Next's
@@ -137,6 +160,23 @@ export async function renderGallery(
           </DeckEntryLink>
         )}
       </SiteHeader>
+
+      {/*
+        The gallery's own visible carrier of the D-2 demo disclosure — see
+        this file's top comment (2026-09-10 correction) for why the deck's
+        header label alone wasn't enough and `og:description` doesn't count
+        as visible. Muted, single line, no colour beyond the standard
+        caption tone: a factual notice, not an alert (this app's own
+        "freshness is honest and never alarming" rule, applied to the same
+        idea — demo status is stated, not tinted).
+      */}
+      {REGISTRY_HAS_NO_REAL_SHELTERS && (
+        <div className="px-4 tablet:px-6 desktop:px-15 pt-4 desktop:pt-6">
+          <span data-testid="gallery-demo-banner" className="text-[13px]/[18px] text-rg-ink-3">
+            {uk.demo.bannerNotice}
+          </span>
+        </div>
+      )}
 
       {/*
         Padding and max-width deliberately live on different elements.

@@ -118,3 +118,50 @@ describe("AnimalDetailScreen — shelterVerifiedYears badge (REGISTRY_HAS_NO_REA
     expect(screen.getByText("Перевірений вручну · 3 роки на Opika")).not.toBeNull();
   });
 });
+
+/**
+ * Found by the reviewer, 2026-09-10 — the gallery's own D-2 fix
+ * (`tvaryny/page.test.tsx`) covered `/tvaryny`, but this route carries the
+ * identical gap: `/prytulkam` itself tells a shelter to expect this exact
+ * URL shared into Telegram, and it had the demo disclosure in
+ * `generateMetadata` only, never in the body a visitor actually opens.
+ */
+describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("shows the demo banner in the page body while the registry holds no real shelters", async () => {
+    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter()}
+        now={NOW}
+        cityName="Бровари"
+      />,
+    );
+
+    expect(screen.getByTestId("detail-demo-banner").textContent).toBe(
+      "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.",
+    );
+  });
+
+  it("does not show the banner once real shelters exist", async () => {
+    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter()}
+        now={NOW}
+        cityName="Бровари"
+      />,
+    );
+
+    expect(screen.queryByTestId("detail-demo-banner")).toBeNull();
+  });
+});

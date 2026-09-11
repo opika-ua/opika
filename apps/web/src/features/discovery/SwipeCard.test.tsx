@@ -164,3 +164,28 @@ describe("SwipeCard name", () => {
     expect(screen.getByTestId("swipe-card").getAttribute("aria-label")).toBe(name);
   });
 });
+
+/**
+ * 2026-09-10, found by Oleksii, not by any test: this card had no
+ * assertion at all about the "· перевірений" suffix, and it rendered
+ * unconditionally — no reference anywhere to `REGISTRY_HAS_NO_REAL_SHELTERS`,
+ * the identical defect `AnimalCard.test.tsx`'s own gallery card had.
+ * `verificationSuffix` (`seo-flags.ts`) is the shared gate both cards now
+ * call. Real `REGISTRY_HAS_NO_REAL_SHELTERS` is `true` on production today —
+ * `seo-flags.test.ts`'s `verificationSuffix` describe block covers the
+ * other branch directly, via the function's own explicit parameter.
+ */
+describe("SwipeCard shelter line", () => {
+  it("does not mark a verified shelter as verified while the registry holds no real shelters", () => {
+    renderCard(makeCard());
+
+    const line = screen.getByTestId("shelter-line");
+    expect(line.textContent).toContain("Тестовий притулок");
+    expect(line.textContent).not.toContain("перевірений");
+  });
+
+  it("says nothing about verification for an unverified shelter, under today's real demo flag", () => {
+    renderCard(makeCard({ shelter: { ...makeCard().shelter, verification: "unverified" } }));
+    expect(screen.getByTestId("shelter-line").textContent).not.toContain("перевірений");
+  });
+});

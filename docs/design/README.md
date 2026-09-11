@@ -307,6 +307,21 @@ Surface white, radius 24, padding 12, inner `gap: 16`; text block `gap: 12`, pad
 - Freshness — pips + "оновлено N днів тому" at body 15, `gap: 10`.
 - Shelter — caption 13/18 `#63676B`, "· перевірений" (no colour; verification is stated, not tinted).
 
+**Demo deviation (Oleksii, found 2026-09-10, not in the mock) — while `REGISTRY_HAS_NO_REAL_SHELTERS`,
+the "· перевірений" suffix above is suppressed entirely, on every card, gallery and deck alike.**
+Every shelter in the seed corpus marked "verified" is fictional; the mock's own spec asserts a real
+moderator checked this shelter, which would be a false claim about fabricated data on the app's
+highest-traffic surface. `apps/web/src/seo-flags.ts`'s `verificationSuffix` is the one gate both
+`AnimalCard.tsx` and `SwipeCard.tsx` call. Reverts to the mock's literal spec the moment the flag
+goes `false`. Same demo-mode pattern as the deck's «Демо» label recorded below (`04 Discovery`),
+plus one more: the gallery page and the detail page (`tvaryny/page.tsx`,
+`AnimalDetailScreen.tsx`) each render a visible demo disclosure (`uk.demo.bannerNotice`) — a
+full sentence that wraps to two or three lines at the 320px floor rather than the deck label's
+single fixed-width word, and has no mock frame at all — invented under "when no mock exists, the
+prose is the spec," not transcribed from a frame, because no frame in this document was ever
+drawn against a registry with zero real shelters. Detail-page placement: directly under the
+header, above the back-link — `04 Detail` below has no frame for it either, for the same reason.
+
 **Three variants:**
 1. **Standard** — as above.
 2. **Reserved** — an `#FFFFFF` pill, min-height 32, padding `0 14`, radius 999, 13/500, reading
@@ -682,6 +697,18 @@ carried forward from the original note: this frame's own mobile sticky-footer va
 been built — the app's actual mobile layout is `AnimalDetailScreen.tsx`'s reflowing
 single-column tree, not this sticky-footer mock — a pre-existing gap, not one this deviation
 created or closed.
+
+**Demo deviations, none in any frame — `REGISTRY_HAS_NO_REAL_SHELTERS`.** Two, both gated on the
+same flag as "The gallery card" section's own deviation above:
+1. The shelter row's "Перевірений вручну · N років на Opika" badge (`AnimalDetailScreen.tsx`) is
+   suppressed entirely while the flag holds — same reasoning as the gallery card's suffix: every
+   shelter in the seed corpus is fictional, so a real moderator's check and a real founding date
+   are both false claims this frame never anticipated needing to hide. Present since the original
+   demo-mode work, never previously written down here — found only as a side effect of auditing
+   this section for the banner below, not itself a new defect.
+2. A visible demo disclosure (`uk.demo.bannerNotice`) renders directly under the header, above the
+   back-link — see "The gallery card" section above for the sentence's own wrapping behaviour and
+   why it has no frame.
 
 ### 05 Contact reveal (R1/R2)
 Frames pin the values already specified above (`### Contact reveal (05)`). Desktop: modal 640,

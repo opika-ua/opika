@@ -125,6 +125,25 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
       <SiteHeader />
 
       {/*
+        The gallery's own visible carrier of the D-2 demo disclosure
+        (`tvaryny/page.tsx`) needed the identical fix here — found by the
+        reviewer, not caught in the first pass: this route is the one
+        `/prytulkam` itself tells a shelter to expect shared into Telegram,
+        so a visitor reaching it directly (not via the gallery) saw no demo
+        disclosure at all, same gap, same reason (`description`/
+        `og:description` are metadata, never page body). See `seo-flags.ts`'s
+        own correction comment on `REGISTRY_HAS_NO_REAL_SHELTERS` for the
+        full history.
+      */}
+      {REGISTRY_HAS_NO_REAL_SHELTERS && (
+        <div className="p-4 tablet:p-6 desktop:px-8 desktop:max-w-[1200px] desktop:mx-auto">
+          <span data-testid="detail-demo-banner" className="text-[13px]/[18px] text-rg-ink-3">
+            {uk.demo.bannerNotice}
+          </span>
+        </div>
+      )}
+
+      {/*
         O-8 (`docs/observations.md`): this used to render inside `SiteHeader`
         via its `leading` slot, beside the wordmark, where it read as a site
         navigation item rather than the page's own back-link. Moved below

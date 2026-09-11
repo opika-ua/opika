@@ -3,6 +3,7 @@ import { uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips } from "@opika/ui";
 import Image from "next/image";
 import Link from "next/link";
+import { verificationSuffix } from "../../seo-flags";
 import { cardAccessibleName, cardMetaLine, isReserved } from "./card-text";
 
 /**
@@ -243,13 +244,20 @@ export function AnimalCard({
           shelter line is ink-2, not ink-3 — the one other place this card's
           text departs from the standard/reserved caption colour
           (`Opika Registry System.dc.html`'s own B5 resolved-card frame).
+
+          `verificationSuffix` (`seo-flags.ts`), not the raw
+          `card.shelter.verification` check this line used to have — found
+          2026-09-10, by Oleksii, not by any test: every one of this seed
+          corpus's 6 "verified" shelters is fictional, and this line asserted
+          a real moderator had checked them, on the gallery's own card grid,
+          with no reference anywhere to `REGISTRY_HAS_NO_REAL_SHELTERS`.
         */}
         <div
           data-testid="shelter-line"
           className={`text-[13px]/[18px] ${resolved ? "text-rg-ink-2" : "text-rg-ink-3"}`}
         >
           {card.shelter.displayName}
-          {card.shelter.verification === "verified" && " · перевірений"}
+          {verificationSuffix(card.shelter.verification)}
         </div>
       </div>
     </Link>
