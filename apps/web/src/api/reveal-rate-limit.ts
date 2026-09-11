@@ -1,7 +1,19 @@
+import type { apiErrors } from "@opika/contracts";
 import type { Database } from "@opika/db";
 import { revealRepo } from "@opika/db/repos";
 import type { AdopterId, ShelterId } from "@opika/domain";
-import { ORPCError } from "@orpc/server";
+import type { ORPCErrorConstructorMap } from "@orpc/server";
+
+/**
+ * Narrower than `AnimalsRevealErrors` (`handlers/reveal.ts`) on purpose:
+ * this module only ever throws one of these codes, and importing the
+ * handler's own type here would point the dependency the wrong way
+ * (`handlers/reveal.ts` already imports *this* file). See animals.ts's own
+ * comment for why any of this exists at all (O-20).
+ */
+type RevealRateLimitErrors = ORPCErrorConstructorMap<{
+  RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
+}>;
 
 /**
  * Reveal rate limit policy.
@@ -68,6 +80,7 @@ export async function checkRevealRateLimit(
   adopterId: AdopterId,
   shelterId: ShelterId,
   now: Date,
+  errors: RevealRateLimitErrors,
 ): Promise<void> {
   const cutoff = new Date(now.getTime() - REVEAL_RATE_LIMIT.windowSeconds * 1000);
   const reveals = revealRepo(db);
@@ -81,6 +94,6 @@ export async function checkRevealRateLimit(
   );
 
   if (distinctShelterCount >= REVEAL_RATE_LIMIT.maxReveals) {
-    throw new ORPCError("RATE_LIMITED");
+    throw errors.RATE_LIMITED();
   }
 }

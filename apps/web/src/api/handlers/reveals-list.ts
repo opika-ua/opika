@@ -1,6 +1,10 @@
-import type { RevealsListMineInputSchema, RevealsListMineOutputSchema } from "@opika/contracts";
+import type {
+  apiErrors,
+  RevealsListMineInputSchema,
+  RevealsListMineOutputSchema,
+} from "@opika/contracts";
 import { revealRepo } from "@opika/db/repos";
-import { ORPCError } from "@orpc/server";
+import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 import { decodeRevealCursor, encodeRevealCursor } from "../cursor";
@@ -9,9 +13,20 @@ import { requireEnv } from "../env";
 type Input = z.infer<typeof RevealsListMineInputSchema>;
 type Output = z.infer<typeof RevealsListMineOutputSchema>;
 
-export async function revealsListMine(input: Input, context: AppContext): Promise<Output> {
+/** The exact subset `revealsListMineContract` declares — see animals.ts's own comment (O-20). */
+type RevealsListMineErrors = ORPCErrorConstructorMap<{
+  INVALID_CURSOR: typeof apiErrors.INVALID_CURSOR;
+  UNAUTHENTICATED: typeof apiErrors.UNAUTHENTICATED;
+  RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
+}>;
+
+export async function revealsListMine(
+  input: Input,
+  context: AppContext,
+  errors: RevealsListMineErrors,
+): Promise<Output> {
   if (!context.adopterId) {
-    throw new ORPCError("UNAUTHENTICATED");
+    throw errors.UNAUTHENTICATED();
   }
 
   const secret = requireEnv("CURSOR_HMAC_SECRET");
@@ -22,7 +37,7 @@ export async function revealsListMine(input: Input, context: AppContext): Promis
   if (input.cursor) {
     const decoded = decodeRevealCursor(input.cursor, secret);
     if (!decoded) {
-      throw new ORPCError("INVALID_CURSOR");
+      throw errors.INVALID_CURSOR();
     }
     listOpts.cursor = { revealedAt: decoded.data.lastUpdatedAt, id: decoded.data.id };
   }

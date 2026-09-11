@@ -30,7 +30,7 @@ export const router = impl.router({
     list: impl.cities.list.handler(({ input, context }) => citiesList(input, context)),
   },
   feed: {
-    list: impl.feed.list.handler(({ input, context }) => feedList(input, context)),
+    list: impl.feed.list.handler(({ input, context, errors }) => feedList(input, context, errors)),
   },
   gallery: {
     list: impl.gallery.list.handler(({ input, context }) => galleryList(input, context)),
@@ -39,18 +39,26 @@ export const router = impl.router({
     ),
   },
   animals: {
-    byId: impl.animals.byId.handler(({ input, context }) => animalsById(input, context)),
-    reveal: impl.animals.reveal.handler(({ input, context }) => animalsReveal(input, context)),
+    byId: impl.animals.byId.handler(({ input, context, errors }) =>
+      animalsById(input, context, errors),
+    ),
+    reveal: impl.animals.reveal.handler(({ input, context, errors }) =>
+      animalsReveal(input, context, errors),
+    ),
   },
   reveals: {
-    listMine: impl.reveals.listMine.handler(({ input, context }) =>
-      revealsListMine(input, context),
+    listMine: impl.reveals.listMine.handler(({ input, context, errors }) =>
+      revealsListMine(input, context, errors),
     ),
   },
   shelters: {
-    byId: impl.shelters.byId.handler(({ input, context }) => sheltersById(input, context)),
+    byId: impl.shelters.byId.handler(({ input, context, errors }) =>
+      sheltersById(input, context, errors),
+    ),
   },
   swipes: {
-    record: impl.swipes.record.handler(({ input, context }) => swipesRecord(input, context)),
+    record: impl.swipes.record.handler(({ input, context, errors }) =>
+      swipesRecord(input, context, errors),
+    ),
   },
 });

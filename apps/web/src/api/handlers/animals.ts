@@ -1,28 +1,41 @@
-import type { AnimalDetailView, AnimalsByIdInputSchema } from "@opika/contracts";
+import type { AnimalDetailView, AnimalsByIdInputSchema, apiErrors } from "@opika/contracts";
 import { animalRepo, shelterRepo } from "@opika/db/repos";
 import { ageBucketOf, DEFAULT_FRESHNESS_POLICY, freshnessOf, isDiscoverable } from "@opika/domain";
-import { ORPCError } from "@orpc/server";
+import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 
 type AnimalsInput = z.infer<typeof AnimalsByIdInputSchema>;
 
+/**
+ * The exact subset `animalsByIdContract` declares (`packages/contracts/src/
+ * procedures/animals.ts`) — oRPC injects a constructor per declared code,
+ * pre-carrying that code's `status`/`message` from `apiErrors` (O-20,
+ * 2026-09-10), so a raw `new ORPCError(code)` here can no longer silently
+ * answer 500 for a code that has a real status declared for it.
+ */
+type AnimalsByIdErrors = ORPCErrorConstructorMap<{
+  NOT_FOUND: typeof apiErrors.NOT_FOUND;
+  RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
+}>;
+
 export async function animalsById(
   input: AnimalsInput,
   context: AppContext,
+  errors: AnimalsByIdErrors,
 ): Promise<AnimalDetailView> {
   const animals = animalRepo(context.db);
   const animal = await animals.findById(input.animalId);
 
   if (!animal || !isDiscoverable(animal.listing)) {
-    throw new ORPCError("NOT_FOUND");
+    throw errors.NOT_FOUND();
   }
 
   const shelters = shelterRepo(context.db);
   const shelter = await shelters.findById(animal.shelterId);
 
   if (shelter?.verification.status !== "verified") {
-    throw new ORPCError("NOT_FOUND");
+    throw errors.NOT_FOUND();
   }
 
   return {

@@ -1,11 +1,22 @@
-import type { SwipesRecordInputSchema, SwipesRecordOutputSchema } from "@opika/contracts";
+import type {
+  apiErrors,
+  SwipesRecordInputSchema,
+  SwipesRecordOutputSchema,
+} from "@opika/contracts";
 import { animalRepo, swipeRepo } from "@opika/db/repos";
-import { ORPCError } from "@orpc/server";
+import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 
 type SwipesInput = z.infer<typeof SwipesRecordInputSchema>;
 type SwipesOutput = z.infer<typeof SwipesRecordOutputSchema>;
+
+/** The exact subset `swipesRecordContract` declares — see animals.ts's own comment (O-20). */
+type SwipesRecordErrors = ORPCErrorConstructorMap<{
+  NOT_FOUND: typeof apiErrors.NOT_FOUND;
+  UNAUTHENTICATED: typeof apiErrors.UNAUTHENTICATED;
+  RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
+}>;
 
 /**
  * Clamp the swipe timestamp to [now - maxOfflineWindow, now].
@@ -21,15 +32,19 @@ function clampSwipeTime(at: Date, now: Date): Date {
   return at;
 }
 
-export async function swipesRecord(input: SwipesInput, context: AppContext): Promise<SwipesOutput> {
+export async function swipesRecord(
+  input: SwipesInput,
+  context: AppContext,
+  errors: SwipesRecordErrors,
+): Promise<SwipesOutput> {
   if (!context.adopterId) {
-    throw new ORPCError("UNAUTHENTICATED");
+    throw errors.UNAUTHENTICATED();
   }
 
   const animals = animalRepo(context.db);
   const animal = await animals.findById(input.animalId);
   if (!animal) {
-    throw new ORPCError("NOT_FOUND");
+    throw errors.NOT_FOUND();
   }
 
   const clampedAt = clampSwipeTime(input.at, context.now);
