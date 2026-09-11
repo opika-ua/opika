@@ -5,6 +5,7 @@ import { freshnessLabel, freshnessPips } from "@opika/ui";
 import Image from "next/image";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
+import { Footer } from "../chrome/Footer";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
@@ -121,33 +122,44 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
 
   return (
     <div className="font-rg min-h-dvh bg-rg-page">
+      <SiteHeader />
+
       {/*
+        O-8 (`docs/observations.md`): this used to render inside `SiteHeader`
+        via its `leading` slot, beside the wordmark, where it read as a site
+        navigation item rather than the page's own back-link. Moved below
+        the header, above the content, left-aligned — the same "never two
+        navigations at once" direction `docs/design/README.md`'s deck-chrome
+        section states for the gallery/deck split, applied here to header
+        nav vs. page-own navigation instead of gallery nav vs. deck nav.
+
         `min-h-12` (48), not the `min-h-11` (44) these carried before:
         docs/design/README.md:200 sets 48 as the minimum touch target
         *anywhere*, and calls it a civic-trust metric rather than the WCAG
         floor. Same rule as the header-height fix (critique A2) and found in
         the same pass, one component over.
+
+        Horizontal padding matches the content column immediately below
+        (`p-4 tablet:p-6`, desktop's own `desktop:px-8` starts at the same
+        breakpoint) so the back-link's left edge lines up with the photo and
+        text columns it sits above, not with the header's wider padding.
       */}
-      <SiteHeader
-        leading={
-          <>
-            <Link
-              href="/tvaryny"
-              data-testid="back-to-list"
-              className="min-h-12 inline-flex items-center gap-1.5 rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] desktop:hidden"
-            >
-              {uk.feed.backToList}
-            </Link>
-            <Link
-              href="/tvaryny"
-              data-testid="back-to-list-desktop"
-              className="hidden desktop:inline-flex min-h-12 items-center text-[15px] text-rg-ink-2 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-            >
-              {uk.detail.backToListIn.replace("{city}", cityName ?? "")}
-            </Link>
-          </>
-        }
-      />
+      <div className="p-4 tablet:p-6 desktop:px-8 desktop:pt-6 desktop:max-w-[1200px] desktop:mx-auto">
+        <Link
+          href="/tvaryny"
+          data-testid="back-to-list"
+          className="min-h-12 inline-flex items-center gap-1.5 rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] desktop:hidden"
+        >
+          {uk.feed.backToList}
+        </Link>
+        <Link
+          href="/tvaryny"
+          data-testid="back-to-list-desktop"
+          className="hidden desktop:inline-flex min-h-12 items-center text-[15px] text-rg-ink-2 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+        >
+          {uk.detail.backToListIn.replace("{city}", cityName ?? "")}
+        </Link>
+      </div>
 
       <div className="desktop:max-w-[1200px] desktop:mx-auto p-4 tablet:p-6 desktop:py-10 desktop:px-8 desktop:flex desktop:gap-10 desktop:items-start">
         {/* Photo column — sticky on desktop, fixed-height strip on mobile. */}
@@ -373,6 +385,10 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
             )}
           </div>
         </div>
+      </div>
+
+      <div className="p-4 tablet:p-6 desktop:px-8 desktop:max-w-[1200px] desktop:mx-auto">
+        <Footer />
       </div>
     </div>
   );

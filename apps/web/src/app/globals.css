@@ -241,6 +241,18 @@
   --breakpoint-tablet: 600px;
   --breakpoint-desktop: 1024px;
   --breakpoint-wide: 1440px;
+  /**
+   * O-5 (`docs/observations.md`): the gallery grid capped at 4 columns /
+   * 1320px and stopped, leaving a large empty region on very wide monitors
+   * (the observation's own example is 2560px). Added above `wide` rather
+   * than replacing it — `docs/design/README.md`'s grid table gains a new
+   * row, it does not change the existing 1024-1439/1440+ brackets. Clear of
+   * both `GALLERY_WIDE_ROOMY` (1800, the existing `wide` bracket's own
+   * ceiling-reached proof) and the pre-existing `GALLERY_DESKTOP_1920`/
+   * `DETAIL_DESKTOP` viewport constants, so neither's bracket membership
+   * changes.
+   */
+  --breakpoint-ultrawide: 2000px;
 
   /*
    * ---- Loading spinner ----

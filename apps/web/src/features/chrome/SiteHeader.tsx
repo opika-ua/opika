@@ -44,14 +44,71 @@ import type { ReactNode } from "react";
  *   «Про проєкт» and «Для притулків» are not in it. They are added to close
  *   E5/E1/E3 and are composed from the same `bg-rg-fill` pill primitive the
  *   list's own «Гортати по одній» uses, rather than a new visual idiom.
- * - **The mark is absent.** The spec's lockup is "mark 30px + wordmark"; this
- *   repo has no mark asset (nothing in `apps/web/public/` but seed photos).
- *   Shipping the wordmark alone is the honest half rather than inventing a
- *   mark to fill a spec line — recorded so the gap is visible, not silently
- *   satisfied.
  *
  * The city chip and «Мої запити · N» remain absent for the same reason they
  * always were: My Reveals and i18n are later phases. Unchanged by this one.
+ *
+ * **O-1 (`docs/observations.md`), 2026-09-10 — the mark shipped.** This file's
+ * own comment used to record the mark asset as absent, "the honest half
+ * rather than inventing a mark to fill a spec line." The design doc's "The
+ * logo — «Поріг · Межа»" section names the geometry exactly (a 96-grid path,
+ * not an image asset to source), so drawing it is following the spec, not
+ * inventing one: arch `M22 70 V46 a26 26 0 0 1 52 0 v24`, threshold
+ * `M14 88 h68` (both stroke 10, round caps), dot `cx=48 cy=79 r=6` (filled).
+ * Ink `#101112` only (`currentColor`, via `text-rg-ink`). Lockup: 30px
+ * desktop / 26px mobile.
+ *
+ * **Correction, 2026-09-10 — Oleksii caught the mark floating above the
+ * wordmark in a real screenshot** (a rendered defect, not visible from
+ * markup — exactly the class `docs/standing-constraints.md`'s "requires a
+ * rendered assertion" exists for). The original lockup used `items-end`,
+ * which aligns the mark's own *box* bottom to the wordmark's line-box
+ * bottom — not the same point as the spec's "align optically to the
+ * threshold line, not the box." Two gaps, not stacked but *net*: a CSS line
+ * box extends below the true text baseline by the font's descent plus half
+ * its leading (this font/size: 5px descent + 4px half-leading = 9px at
+ * 26px/desktop), while the mark's own viewBox reserves 8 of its 96 units as
+ * clear space *above* the box's own bottom edge, i.e. the threshold sits
+ * 2.5px higher than the box bottom at 30px. 9 minus 2.5 nets the 6.5px the
+ * mutated build actually measured — confirmed by measuring both in a live
+ * render (canvas `measureText` against the wordmark's real computed font for
+ * ascent/descent/line-height; the SVG's own client rect against the design
+ * doc's stated 88/96 threshold position — not estimated from the SVG path by
+ * eye). Fixed with `items-baseline` (aligns the mark's box bottom to the
+ * wordmark's true typographic baseline via the browser's flex baseline
+ * synthesis for a replaced element) plus `translate-y-[8.3333%]` — a
+ * percentage translate resolves against the mark's own border box, so one
+ * value (8/96, the clear-space fraction baked into the viewBox) covers both
+ * the 26px mobile and 30px desktop sizes with no separate magic number to
+ * keep in sync with `w-[26px]`/`desktop:w-[30px]`. Verified against real
+ * measured pixels: threshold Y now equals baseline Y within a fraction of a
+ * pixel at both sizes, not merely close. `site-header.harness.ts`'s "the
+ * mark's threshold sits on the wordmark's baseline" test pins this at both
+ * the `<span>` (self-link-suppressed) and `<Link>` lockup branches,
+ * mutation-confirmed red against the original `items-end` reverted.
+ *
+ * Gap to the wordmark is `gap-3` (12px) — **not** a literal rendering of
+ * "the dot's own height," which the spec states in the mark's 96-unit grid
+ * (a 12-unit diameter) and which scales down to ~3.75px at the 30px desktop
+ * mark (~3.25px at 26px mobile) once actually rendered. That literal value
+ * reads as the mark and the wordmark touching, not a deliberate gap, at
+ * this lockup's real size — 12px is a practical rounding chosen for visible
+ * breathing room, recorded here as a deviation rather than claimed as an
+ * exact match with no mock available to check a different number against.
+ * **Not built:** the 16/24px dot-dropped variant and the favicon (white mark
+ * on an `#101112` rounded square) — the spec calls for both only at sizes
+ * this header never renders at, and a browser favicon is a separate asset
+ * pipeline (`app/icon.*`), not a header-lockup concern this observation
+ * raised.
+ *
+ * **O-8 (`docs/observations.md`), 2026-09-10 — the `leading` slot removed.**
+ * Previously existed solely for the detail page's back-link, rendered beside
+ * the wordmark where it read as a site nav item rather than the page's own
+ * control. Moved into `AnimalDetailScreen.tsx`'s own layout, below the
+ * header — this component no longer has a `leading` prop, since nothing
+ * populates it anymore. The `flex-wrap` the slot's own content used to need
+ * at 360px stays — see the header element's own comment on why it's still
+ * load-bearing without `leading`, for an unrelated reason (O-1's logo mark).
  */
 
 /**
@@ -64,12 +121,6 @@ import type { ReactNode } from "react";
 const WORDMARK = "Opika";
 
 export interface SiteHeaderProps {
-  /**
-   * Surface-specific chrome that sits between the wordmark and the nav — the
-   * detail page's «← До списку», for instance. Rendered before the spacer so
-   * it reads as belonging to the current page rather than to the site.
-   */
-  readonly leading?: ReactNode;
   /** Surface-specific trailing actions, after the nav — the gallery's deck entry. */
   readonly children?: ReactNode;
   /**
@@ -91,45 +142,66 @@ const NAV_LINK_CLASS =
 const WORDMARK_CLASS =
   "font-bold text-[22px] desktop:text-[26px] tracking-[-0.03em] text-rg-ink whitespace-nowrap";
 
-export function SiteHeader({ leading, children, wordmarkIsCurrentPage = false }: SiteHeaderProps) {
+/**
+ * «Поріг · Межа» — an arch that never touches the ground, a threshold line
+ * below it, a dot between them. Geometry transcribed verbatim from
+ * `docs/design/README.md`'s "The logo" section; see this file's own top
+ * comment (O-1) for why it's drawn rather than sourced as an image asset.
+ */
+function LogoMark() {
+  return (
+    <svg
+      viewBox="0 0 96 96"
+      fill="none"
+      aria-hidden="true"
+      className="w-[26px] h-[26px] desktop:w-[30px] desktop:h-[30px] shrink-0 text-rg-ink translate-y-[8.3333%]"
+    >
+      <path
+        d="M22 70 V46 a26 26 0 0 1 52 0 v24"
+        stroke="currentColor"
+        strokeWidth="10"
+        strokeLinecap="round"
+      />
+      <path d="M14 88 h68" stroke="currentColor" strokeWidth="10" strokeLinecap="round" />
+      <circle cx="48" cy="79" r="6" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function SiteHeader({ children, wordmarkIsCurrentPage = false }: SiteHeaderProps) {
   return (
     <header
       data-testid="site-header"
       /*
-        `flex-wrap` below `tablet:` is load-bearing, not defensive. On the
-        detail page at 360px the row is wordmark + «← До списку» + two nav
-        links, which measures wider than the 328px content column and would
-        scroll the page sideways — the exact failure
-        `expectNoHorizontalOverflow` exists to catch. Above 600px everything
-        fits on one line and `tablet:flex-nowrap` restores the single row the
-        design's own header description assumes.
+        `flex-wrap` below `tablet:` is load-bearing, not defensive — confirmed
+        by a real regression, not assumed safe to drop: removing it once the
+        `leading` slot's own content stopped needing it (O-8 moved that
+        content out of this component entirely) broke real horizontal-scroll
+        harness assertions at 360px, on both the gallery and detail pages.
+        The wordmark + logo mark (O-1) + both nav pills no longer fit one row
+        at 360px on their own, mark or no `leading` content — the mark's
+        added ~38px (26px + 12px gap) was what tipped a row that used to fit
+        exactly into one that doesn't. Above 600px everything fits on one
+        line and `tablet:flex-nowrap` restores the single row the design's
+        own header description assumes.
       */
       className="min-h-16 desktop:min-h-22 flex flex-wrap tablet:flex-nowrap items-center gap-3 desktop:gap-4 bg-rg-surface px-4 tablet:px-6 desktop:px-15 py-2 tablet:py-0"
     >
       {wordmarkIsCurrentPage ? (
-        <span data-testid="site-wordmark" className={WORDMARK_CLASS}>
-          {WORDMARK}
+        <span data-testid="site-wordmark" className="inline-flex items-baseline gap-3">
+          <LogoMark />
+          <span className={WORDMARK_CLASS}>{WORDMARK}</span>
         </span>
       ) : (
         <Link
           href="/tvaryny"
           data-testid="site-wordmark"
-          className={`${WORDMARK_CLASS} inline-flex min-h-12 items-center rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]`}
+          className="inline-flex min-h-12 items-baseline gap-3 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
-          {WORDMARK}
+          <LogoMark />
+          <span className={WORDMARK_CLASS}>{WORDMARK}</span>
         </Link>
       )}
-
-      {/*
-        Ordered last and given the full row on phones so the wrap above puts
-        the *page's* control on its own line rather than orphaning a nav link
-        — the wordmark and site nav stay together as one recognisable row.
-      */}
-      {leading ? (
-        <div className="order-last w-full tablet:order-none tablet:w-auto flex items-center gap-3">
-          {leading}
-        </div>
-      ) : null}
 
       <span className="flex-1" />
 

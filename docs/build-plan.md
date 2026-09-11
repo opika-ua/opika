@@ -599,6 +599,104 @@ reprioritisation places it in this batch, before the gate, superseding the earli
 As one batch, not one row at a time, per Oleksii's explicit instruction. Scoped in full when
 picked up, as above.
 
+**2026-09-10 — five of seven done, one checked-and-closed with no code change, one parked.**
+
+- **O-1, done.** The header now draws the real «Поріг · Межа» mark (`SiteHeader.tsx`'s new
+  `LogoMark`) from `docs/design/README.md`'s own SVG path geometry — arch, threshold, dot, ink
+  `#101112` only, 30px desktop / 26px mobile, gap to the wordmark = the dot's own height. Not an
+  invented asset: the design doc names the exact path data, so drawing it is following the spec
+  the file's own prior comment recorded as unmet. Not built: the 16/24px dot-dropped variant and
+  the favicon (a separate asset pipeline, `app/icon.*`, not a header-lockup concern).
+- **O-8, done.** The detail page's back-link moved out of `SiteHeader`'s `leading` slot (removed
+  entirely — nothing else used it) into its own left-aligned element between the header and the
+  content, horizontally aligned with the content column below it. `SiteHeader`'s own `order-last`
+  logic (specific to the `leading` slot) went with it; `flex-wrap` itself stays — see the second
+  regression below, which is exactly a reviewer round catching a first draft of this bullet
+  claiming it was gone too.
+- **O-11 + O-13, done together, one component.** A new shared `Footer` (`apps/web/src/features/
+  chrome/Footer.tsx`) replaces the one-off `<footer>` fragment that used to live only on the
+  gallery page — now rendered on every route that carries `SiteHeader` (gallery, `/pro`,
+  `/prytulkam`, detail; never the deck, same reasoning as the header itself). Carries
+  `uk.footer.fontCredit` verbatim (unchanged, per that key's own doc comment) plus both existing
+  nav links (`uk.nav.forShelters`/`uk.nav.about`) — new placement, not new copy. Suppresses the
+  matching link on the page it would point at (`currentPage` prop), the same self-link avoidance
+  `SiteHeader.wordmarkIsCurrentPage` already does.
+- **O-4, checked, not a defect — no code change.** `Opika Registry System.dc.html`'s own
+  computed style for a label+chip-row group is `gap: 12px`, exactly what `FilterRail.tsx`/
+  `FilterSheet.tsx` already render. The implementation has not drifted from the design system;
+  the design system's own number is what reads as tight. Widening it would be a real deviation
+  from a mock-specified value, not a bug fix — not done without sign-off. Full reasoning:
+  `docs/observations.md`'s O-4 entry.
+- **O-5, done.** A new breakpoint (`--breakpoint-ultrawide: 2000px`) and a 6th-of-24 column count
+  above it, capped at a new `max-w-[1992px]` — `docs/design/README.md`'s grid table amended with
+  the new row (not a replacement of the existing 1024-1439/1440+ rows), per the decision's own
+  instruction. Column width (312px) deliberately matches the existing wide bracket's own, so the
+  card does not visually resize at the new boundary. New viewports (`GALLERY_ULTRAWIDE`/
+  `_ROOMY`) and new harness cases in `gallery-layout.harness.ts` and `gallery-photo-sizes.
+  harness.ts` — not a port of the old 4-column assertions, per the decision's own explicit
+  warning about F-1's preconditions. **A real, previously-latent bug found in the process, not
+  hidden:** the first attempt at a new photo-sizes case (at a boundary-clear-but-fluid 2200px
+  viewport) measured a real photo box of 250.66px against a declared 288px — the grid had not
+  yet reached its new ceiling at that width. Root cause and full scope (the same gap already
+  existed, untested, in the desktop and wide brackets) filed as `docs/observations.md`'s new
+  O-18, not fixed in this row — the new case was moved to the cap-reached 2560px viewport
+  instead, matching the existing (if similarly incomplete) pattern the wide bracket's own case
+  already set at 1920px.
+- **O-14, parked — the *what*, not the *whether*.** The footer half (above) is done, which is
+  already a small step toward "not alone on an empty field." The rest needs an actual
+  composition decision with no mock to open (`docs/design/README.md` has no section for `/pro`
+  or `/prytulkam` at all) — `docs/standing-constraints.md`'s "ambiguous design with no mock" is
+  on the working loop's own stop-and-ask list regardless of what a reviewer would say, so this
+  wasn't decided unilaterally. Two concrete directions recorded in `docs/observations.md`'s O-14
+  entry, with a recommendation, for Oleksii to choose from rather than a default silently
+  shipped.
+
+**A second real regression caught by the harness, not assumed safe:** removing `SiteHeader`'s
+`flex-wrap` (reasoned, at the time, to be dead weight once O-8 removed its only real user, the
+`leading` slot) broke real horizontal-overflow assertions at 360px on both the gallery and
+detail pages — the mark's own ~38px (26px + 12px gap) was enough on its own to push the
+wordmark+nav row past 360px, independent of `leading` ever existing. Restored, with the doc
+comment corrected to explain why it's still load-bearing.
+
+**A third, this one self-inflicted during the branch move:** this row was implemented on top of
+`feat/city-slugs` (Phase S, PR #56, not yet merged) and then moved to its own branch off `main`
+per "one PR per queue item" — the `AnimalDetailScreen.tsx` merge conflict that move produced was
+resolved by hand, and the first resolution left two `<SiteHeader />` calls where one belonged,
+caught immediately by the same horizontal-overflow assertion (two wordmarks, two nav pairs, the
+`getByTestId` locator strict-mode-violating rather than silently picking one). Fixed before this
+row's own `pnpm check` was ever called green.
+
+**Reviewer round: PASS WITH NOTES.** Verified every claim above independently (read the actual
+design-doc sections and mock file rather than trusting the summary, ran the actual test suites,
+mutation-tested the flex-wrap and duplicate-header fixes) and found four real issues, all fixed:
+the polish-batch commit itself hadn't actually been made yet when first reviewed (the duplicate-
+header fix was sitting uncommitted — fixed by committing before any PR, this paragraph included);
+the new footer's two links rendered at 18px tall against the 48px touch-target floor
+(`docs/design/README.md:200`), the exact defect class this same batch's own O-1/O-8 work already
+found twice elsewhere — fixed (`min-h-12` added), and pinned with a new, mutation-confirmed
+harness assertion (`site-header.harness.ts`, run at exactly 18px before the fix to prove it
+catches the real number, not just some regression); this file's own O-8 bullet and
+`SiteHeader.tsx`'s top comment both claimed `flex-wrap` was removed, when the very next paragraph
+(this one's predecessor) already said it was restored — both corrected; and a test claiming to
+guard the logo mark's `aria-hidden` attribute never actually asserted it, passing unchanged when
+`aria-hidden` was deleted entirely — rewritten to assert the attribute directly, plus a comment
+correction admitting the mark-to-wordmark gap is a rounded practical value, not a literal
+render of the design doc's stated "dot's height" (which scales to under 4px at this lockup size).
+
+`pnpm check` green, on this row's own branch (`feat/polish-batch`, off `main`, independent of the
+still-open Phase S PR): 833 workspace unit tests (291 domain + 20 i18n + 29 contracts + 10 ui +
+135 db + 348 apps/web), `build:web`, and 184 Playwright harness tests, all against local Postgres.
+
+**Rebased onto `main` after R2 (PR #54) merged, 2026-09-10.** R2 touched the same file this row's
+own O-8 work does (`AnimalDetailScreen.tsx`) for an unrelated reason — removing the not-a-
+judgement notice block R2 relocated to the deck — which put this branch in real conflict with
+`main`, not merely stale. Rebased rather than merged, per the standing preference for a clean
+history; `docs/decisions-pending-review.md`'s add/add conflict (both branches had their own copy)
+was reconciled by hand into one file, exactly as that file's own header note said it would need
+to be once either sibling branch landed first. The `AnimalDetailScreen.tsx` conflict itself
+auto-merged correctly with no manual intervention — confirmed by reading the result, not assumed.
+Full `pnpm check` re-run after the rebase, numbers above reflect that run, not the pre-rebase one.
+
 ---
 
 ## Part 3 — Timeline
@@ -796,6 +894,35 @@ earlier.
 each serverless instance holds its own counter, so the effective per-IP ceiling is `limit ×
 instance count`, not the stated limit — adequate as a first-line defense at near-zero
 traffic, not at real usage.
+
+### Before the MVP gate — a real touch-target/keyboard enforcement mechanism (O-19)
+
+**Scheduled here by Oleksii's own instruction (2026-09-10 status call), not filed-and-forgotten:**
+"the MVP gate requires 48px targets and keyboard-only on every surface; three hand-copied
+constants covering whatever was remembered cannot deliver that, and `Footer.tsx` is the proof."
+
+`docs/observations.md`'s O-19 has the full finding: `MIN_TOUCH_TARGET_PX = 48` is asserted
+correctly everywhere it's checked, but as three independent, hand-copied local consts
+(`discovery-layout.harness.ts`, `gallery-filters.harness.ts`, `site-header.harness.ts`), each
+applied only to the specific elements that file's author remembered to write a case for. A new
+interactive element ships with no assertion covering it until someone happens to add one by
+name — exactly how `Footer.tsx` shipped its two links at 18px, caught by `opika-reviewer`, not by
+the test suite that already existed to catch it.
+
+**What this row needs to build, when picked up:** a single shared Playwright helper (something
+like `assertMinTouchTarget(page, selector)`) that new harness files reach for by construction,
+replacing the three duplicated consts, *plus* — the part that actually closes the gap, not just
+tidies it — one harness case per user-facing surface that sweeps every real interactive element
+on that surface (every `getByRole("link")`/`getByRole("button")` result, not a hand-picked
+subset), so a new button or link is covered the moment it exists. The same shape of gap likely
+exists for keyboard reachability (a focus-visible check exists per-component today, same as the
+touch-target one) — the MVP gate's "keyboard-only on every surface" requirement is the same
+argument applied to a second property, and should be scoped into this row rather than left as a
+second, later rediscovery of the identical mechanism gap.
+
+Exact sweep strategy (walk the accessibility tree vs. enumerate roles vs. something else) not
+decided — `docs/observations.md`'s O-19 says so explicitly ("filed, not designed. Do not build
+it now") and that instruction stands; this entry only fixes *when*, not *how*.
 
 ### Before the MVP gate — DB connection strategy (O-9) — "2.1" in the 2026-09-06 reprioritisation
 

@@ -332,7 +332,8 @@ Everything below is layout that already exists and is verified. Only the visual 
 | 0–599 | 1 column, vertical card · filters in a sheet · sticky bottom bar «Фільтри · N / Гортати» |
 | 600–1023 | 2 columns, **horizontal** card (96–120px photo left, text right) · filters in a sheet |
 | 1024–1439 | 3 columns · 280px rail always open · content **960** |
-| 1440+ | 4 columns · 280px rail · content **max 1320** — at 1920 the margins grow, the content does not |
+| 1440–1999 | 4 columns · 280px rail · content **max 1320** — at 1920 the margins grow, the content does not |
+| 2000+ | 6 columns · 280px rail · content **max 1992** — O-5 (`docs/observations.md`), amending this table: 4 columns stopped at 1320 and left a large empty region on very wide monitors (the observation's own example, 2560px). 1992 keeps the same ~312px column width the 1440–1999 bracket already reaches (`(1992 - 5×24) / 6 = 312`, the same arithmetic `(1320 - 3×24) / 4 = 312` already used) rather than inventing new card proportions at the new breakpoint — the card does not visually resize at the boundary, only the column count changes. |
 
 Header: surface white, no bottom border, min-height 88 desktop / 64 mobile. Left to right: mark +
 wordmark, city chip (999, fill, 48), spacer, «Мої запити · N», «UA / EN», «Гортати по одній»
