@@ -1,4 +1,4 @@
-import type { AnimalsRevealInputSchema, ContactRevealView } from "@opika/contracts";
+import type { AnimalsRevealInputSchema, apiErrors, ContactRevealView } from "@opika/contracts";
 import { animalRepo, revealRepo, shelterRepo } from "@opika/db/repos";
 import {
   type ContactReveal,
@@ -7,12 +7,21 @@ import {
   type RevealId,
   RevealIdSchema,
 } from "@opika/domain";
-import { ORPCError } from "@orpc/server";
+import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 import { checkRevealRateLimit } from "../reveal-rate-limit";
 
 type RevealInput = z.infer<typeof AnimalsRevealInputSchema>;
+
+/** The exact subset `animalsRevealContract` declares — see animals.ts's own comment (O-20). */
+export type AnimalsRevealErrors = ORPCErrorConstructorMap<{
+  NOT_FOUND: typeof apiErrors.NOT_FOUND;
+  ANIMAL_NOT_AVAILABLE: typeof apiErrors.ANIMAL_NOT_AVAILABLE;
+  SHELTER_NOT_VISIBLE: typeof apiErrors.SHELTER_NOT_VISIBLE;
+  UNAUTHENTICATED: typeof apiErrors.UNAUTHENTICATED;
+  RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
+}>;
 
 /**
  * Reveal an animal's shelter contact details.
@@ -28,27 +37,28 @@ type RevealInput = z.infer<typeof AnimalsRevealInputSchema>;
 export async function animalsReveal(
   input: RevealInput,
   context: AppContext,
+  errors: AnimalsRevealErrors,
 ): Promise<ContactRevealView> {
   if (!context.adopterId) {
-    throw new ORPCError("UNAUTHENTICATED");
+    throw errors.UNAUTHENTICATED();
   }
 
   const animals = animalRepo(context.db);
   const animal = await animals.findById(input.animalId);
 
   if (!animal) {
-    throw new ORPCError("NOT_FOUND");
+    throw errors.NOT_FOUND();
   }
 
   if (!isDiscoverable(animal.listing)) {
-    throw new ORPCError("ANIMAL_NOT_AVAILABLE");
+    throw errors.ANIMAL_NOT_AVAILABLE();
   }
 
   const shelters = shelterRepo(context.db);
   const shelter = await shelters.findById(animal.shelterId);
 
   if (shelter?.verification.status !== "verified") {
-    throw new ORPCError("SHELTER_NOT_VISIBLE");
+    throw errors.SHELTER_NOT_VISIBLE();
   }
 
   // Idempotent: return existing reveal if one exists
@@ -61,7 +71,7 @@ export async function animalsReveal(
   // Rate limit check — persisted in Postgres, survives across instances.
   // Distinct-shelter budget: free if this shelter is already revealed
   // within the window (see checkRevealRateLimit's own doc comment).
-  await checkRevealRateLimit(context.db, context.adopterId, shelter.id, context.now);
+  await checkRevealRateLimit(context.db, context.adopterId, shelter.id, context.now, errors);
 
   const reveal: ContactReveal = {
     id: RevealIdSchema.parse(crypto.randomUUID()) as RevealId,

@@ -24,8 +24,29 @@ beforeEach(async () => {
 // ---------------------------------------------------------------------------
 
 /** Assert the response is an oRPC error with the given code. */
-function expectError(res: { status: number; body: unknown }, code: string) {
-  expect(res.status).toBeGreaterThanOrEqual(400);
+/**
+ * `expectedStatus`, added 2026-09-10 (O-20): optional so this file's many
+ * existing call sites don't all need touching at once, but every call this
+ * row itself adds passes it. Before O-20, every one of this app's custom
+ * error codes except `NOT_FOUND` (which happens to collide with an oRPC
+ * *common* code of the same name) answered a bare `500` regardless of the
+ * code thrown — `res.status >= 400` alone would have stayed green through
+ * that entire regression, since 500 is still `>= 400`. Asserting the real
+ * status a client receives, not merely "some error happened," is the actual
+ * guard.
+ */
+function expectError(
+  res: { status: number; body: unknown },
+  code: string,
+  expectedStatus?: number,
+) {
+  if (expectedStatus !== undefined) {
+    expect(res.status, `expected HTTP ${expectedStatus} for ${code}, got ${res.status}`).toBe(
+      expectedStatus,
+    );
+  } else {
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  }
   const body = res.body as Record<string, unknown>;
   expect(body).toHaveProperty("code", code);
   expect(body).toHaveProperty("defined", true);
@@ -120,7 +141,7 @@ describe("session", () => {
       { animalId: animal.id },
       { cookie, now: thirtyDaysLater },
     );
-    expectError(res, "UNAUTHENTICATED");
+    expectError(res, "UNAUTHENTICATED", 401);
   });
 
   it("idle expiry rejects a session idle for more than 7 days", async () => {
@@ -225,7 +246,7 @@ describe("feed cursor", () => {
       cursor: tampered,
       limit: 20,
     });
-    expectError(res, "INVALID_CURSOR");
+    expectError(res, "INVALID_CURSOR", 400);
   });
 
   it("a feed cursor used with different filters is rejected", async () => {
@@ -351,6 +372,49 @@ describe("reveal", () => {
     const res = await h.call("animals.reveal", { animalId: animal.id });
     expectError(res, "UNAUTHENTICATED");
   });
+
+  /**
+   * O-20 coverage gap, found by the reviewer 2026-09-11: `ANIMAL_NOT_AVAILABLE`
+   * and `SHELTER_NOT_VISIBLE` both changed status 500 -> 404 in the same row as
+   * RATE_LIMITED/UNAUTHENTICATED/INVALID_CURSOR, but neither had a test here at
+   * all — a status regression on either would have stayed green.
+   */
+  it("answers ANIMAL_NOT_AVAILABLE, at 404, for an adopted animal", async () => {
+    const cookie = await bootstrap();
+    const { animal } = await seedFeedAnimal({
+      listing: { kind: "adopted", adoptedAt: new Date("2026-08-01T00:00:00Z") },
+    });
+
+    const res = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
+    expectError(res, "ANIMAL_NOT_AVAILABLE", 404);
+  });
+
+  it("answers SHELTER_NOT_VISIBLE, at 404, once the shelter is no longer verified", async () => {
+    const cookie = await bootstrap();
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      verification: {
+        status: "pending",
+        submittedAt: new Date("2026-08-01T00:00:00Z"),
+        evidence: { items: [], submittedAt: new Date("2026-08-01T00:00:00Z") },
+      },
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    const animal = makeAnimal({ shelterId: shelter.id });
+    await animalRepo(h.db).insert(animal, city.id);
+
+    const res = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
+    expectError(res, "SHELTER_NOT_VISIBLE", 404);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -446,7 +510,7 @@ describe("reveal rate limit", () => {
     // A 31st, genuinely new shelter should be rate-limited.
     const { animal: newAnimal } = await insertShelterWithAnimal(city.id);
     const res = await h.call("animals.reveal", { animalId: newAnimal.id }, { cookie });
-    expectError(res, "RATE_LIMITED");
+    expectError(res, "RATE_LIMITED", 429);
   });
 
   it("does not rate-limit at 29 distinct shelters — the boundary is exactly 30, not 29", async () => {
@@ -551,7 +615,7 @@ describe("reveal rate limit", () => {
     const secondOldAnimal = makeAnimal({ shelterId: oldShelter!.id });
     await animalRepo(h.db).insert(secondOldAnimal, city.id);
     const res = await h.call("animals.reveal", { animalId: secondOldAnimal.id }, { cookie });
-    expectError(res, "RATE_LIMITED");
+    expectError(res, "RATE_LIMITED", 429);
   });
 
   it("does not treat another adopter's revealed shelter as this adopter's free re-reveal", async () => {
@@ -582,7 +646,7 @@ describe("reveal rate limit", () => {
       { animalId: animalForB.id },
       { cookie: adopterB.cookie },
     );
-    expectError(res, "RATE_LIMITED");
+    expectError(res, "RATE_LIMITED", 429);
   });
 });
 
