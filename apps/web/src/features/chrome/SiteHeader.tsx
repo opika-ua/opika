@@ -133,11 +133,27 @@ export interface SiteHeaderProps {
   readonly wordmarkIsCurrentPage?: boolean;
 }
 
+/**
+ * `shrink-0` + `whitespace-nowrap`, found 2026-09-12 chasing a CI-only
+ * (never local) horizontal-overflow failure at 320px: without them, a flex
+ * item with no explicit width can shrink below its own text's natural
+ * width, and the browser wraps the label internally instead ("Для" /
+ * "притулків" stacked inside one pill) — which measured at *exactly* zero
+ * slack against the 320px floor (288.0px of text against 288px available,
+ * confirmed by direct measurement, not estimated), one sub-pixel font-hint
+ * difference between platforms away from a real overflow. CI's Linux
+ * Chromium hit that exact difference; this machine's Windows Chromium
+ * didn't, which is why this shipped green locally and red on CI. Matches
+ * `Footer.tsx`'s own already-established pattern for the identical two-link
+ * case: the whole pill wraps to its own row (`flex-wrap` on the parent
+ * `nav`, below) rather than the pill's internal text wrapping — real slack
+ * instead of a coincidence of font rendering.
+ */
 const NAV_LINK_CLASS =
-  "inline-flex min-h-12 items-center rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium " +
-  "text-rg-ink transition-colors duration-[120ms] ease-rg hover:bg-rg-fill-strong " +
-  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry " +
-  "focus-visible:outline-offset-[3px]";
+  "inline-flex min-h-12 shrink-0 items-center whitespace-nowrap rounded-rg-button bg-rg-fill " +
+  "px-4 text-[15px] font-medium text-rg-ink transition-colors duration-[120ms] ease-rg " +
+  "hover:bg-rg-fill-strong focus-visible:outline focus-visible:outline-[3px] " +
+  "focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
 
 const WORDMARK_CLASS =
   "font-bold text-[22px] desktop:text-[26px] tracking-[-0.03em] text-rg-ink whitespace-nowrap";
@@ -210,7 +226,7 @@ export function SiteHeader({ children, wordmarkIsCurrentPage = false }: SiteHead
         on the gallery (the pagination nav is the other), and two unnamed
         `nav`s are indistinguishable in a screen reader's landmark list.
       */}
-      <nav aria-label={WORDMARK} className="flex items-center gap-2 desktop:gap-3">
+      <nav aria-label={WORDMARK} className="flex flex-wrap items-center gap-2 desktop:gap-3">
         <Link href="/prytulkam" data-testid="nav-for-shelters" className={NAV_LINK_CLASS}>
           {uk.nav.forShelters}
         </Link>
