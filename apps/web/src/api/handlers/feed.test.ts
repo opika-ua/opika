@@ -1,8 +1,22 @@
-import type { FeedCursor } from "@opika/contracts";
+import { apiErrors, type FeedCursor } from "@opika/contracts";
 import { filtersFingerprint, NO_FILTERS } from "@opika/domain";
+import { createORPCErrorConstructorMap } from "@orpc/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "../context";
 import { encodeFeedCursor } from "../cursor";
+
+/**
+ * The real oRPC mechanism (O-20, 2026-09-10) that gives each thrown error
+ * its declared `status`, not a stub — `feedList` no longer constructs
+ * `ORPCError` itself, so a test double here would test nothing about
+ * whether a thrown error carries the right status. None of the three tests
+ * below throw, but the handler's own signature now requires this argument
+ * either way.
+ */
+const errors = createORPCErrorConstructorMap({
+  INVALID_CURSOR: apiErrors.INVALID_CURSOR,
+  RATE_LIMITED: apiErrors.RATE_LIMITED,
+});
 
 const listMock = vi.fn();
 const hasActiveSeenSetMock = vi.fn();
@@ -46,6 +60,7 @@ describe("feedList — hasActiveSeenSet wiring", () => {
     const result = await feedList(
       { filters: NO_FILTERS, cursor: null, limit: 10 },
       makeContext(null),
+      errors,
     );
 
     expect(result.hasActiveSeenSet).toBe(false);
@@ -59,6 +74,7 @@ describe("feedList — hasActiveSeenSet wiring", () => {
     const result = await feedList(
       { filters: NO_FILTERS, cursor: null, limit: 10 },
       makeContext(adopterId),
+      errors,
     );
 
     expect(result.hasActiveSeenSet).toBe(true);
@@ -81,6 +97,7 @@ describe("feedList — hasActiveSeenSet wiring", () => {
     const result = await feedList(
       { filters: NO_FILTERS, cursor: cursor as FeedCursor, limit: 10 },
       makeContext(adopterId),
+      errors,
     );
 
     expect(result.hasActiveSeenSet).toBeNull();
