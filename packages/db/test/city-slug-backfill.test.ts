@@ -180,7 +180,7 @@ describe("0005 cities.slug backfill", () => {
    * a row missing the data the tightening assumes, confirmed to fail loudly
    * rather than silently truncating or nulling anything out.
    */
-  it("aborts rather than tightening name_en_text/provenance over a row missing either", async () => {
+  it("aborts rather than tightening name_en_text/provenance over a row missing both", async () => {
     for (const city of REAL_SEEDED_CITIES) {
       await insertLegacyCity(city.id, city.nameUk, city.nameEn);
     }
@@ -191,6 +191,51 @@ describe("0005 cities.slug backfill", () => {
     await expect(applyMigration(BACKFILL_TAG)).rejects.toThrow(
       /name_en_text\/name_en_provenance tightening is unsafe/,
     );
+  });
+
+  /**
+   * Reviewer found, 2026-09-12: the test above only exercises the guard's
+   * `OR` with *both* sides true (`text IS NULL OR provenance IS NULL`, both
+   * null at once) — the actual reason the two columns were tightened
+   * *together* (`packages/db/src/schema/cities.ts`'s own comment) is a row
+   * where only one is missing, which this covers and the other test does
+   * not.
+   */
+  it("aborts rather than tightening name_en_text/provenance over a row missing only one", async () => {
+    for (const city of REAL_SEEDED_CITIES) {
+      await insertLegacyCity(city.id, city.nameUk, city.nameEn);
+    }
+    // A real English string survives, but its own provenance doesn't — the
+    // exact half-null shape `columnsToLocalizedText` (historically) and
+    // `rowToCity` (today, directly) both treat as "no English name at all."
+    await client`UPDATE cities SET name_en_provenance = NULL WHERE id = ${REAL_SEEDED_CITIES[0].id}`;
+
+    await expect(applyMigration(BACKFILL_TAG)).rejects.toThrow(
+      /name_en_text\/name_en_provenance tightening is unsafe/,
+    );
+  });
+
+  /**
+   * Reviewer found, 2026-09-12: every other test here only proves the
+   * tightening's own *abort path* — nothing proved the `NOT NULL`
+   * constraint the migration is supposed to leave behind actually exists
+   * afterward. Deleting both `ALTER COLUMN ... SET NOT NULL` statements
+   * left every other test in this file green; this is the one that would
+   * have caught it. Symmetric to "the unique constraint is real" below,
+   * same reasoning, applied to the other guarantee this migration adds.
+   */
+  it("the NOT NULL constraint is real — neither column accepts a null after the migration", async () => {
+    for (const city of REAL_SEEDED_CITIES) {
+      await insertLegacyCity(city.id, city.nameUk, city.nameEn);
+    }
+    await applyMigration(BACKFILL_TAG);
+
+    await expect(
+      client`UPDATE cities SET name_en_text = NULL WHERE id = ${REAL_SEEDED_CITIES[0].id}`,
+    ).rejects.toThrow();
+    await expect(
+      client`UPDATE cities SET name_en_provenance = NULL WHERE id = ${REAL_SEEDED_CITIES[0].id}`,
+    ).rejects.toThrow();
   });
 
   it("the unique constraint is real — two rows can't share a slug after the migration", async () => {

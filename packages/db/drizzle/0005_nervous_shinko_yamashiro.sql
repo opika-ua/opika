@@ -13,9 +13,11 @@
 -- verification to still hold — the same "abort loudly, don't guess" posture
 -- `slug`'s own backfill uses two blocks down, applied to a claim instead of
 -- a computation. Tightened together, not `name_en_text` alone:
--- `packages/db/src/repos/mappers.ts`'s `columnsToLocalizedText` already
--- requires both non-null before it treats a city as having a real English
--- name at all — leaving one nullable would just move the same "required
+-- `packages/db/src/repos/mappers.ts`'s `columnsToLocalizedText` used to
+-- require both non-null before it treated a city as having a real English
+-- name at all, which is the finding that motivated tightening both — City's
+-- own mapper no longer calls that shared helper as of this same change, but
+-- leaving one column nullable would still move the identical "required
 -- value depending on an optional one" problem to whichever field was left
 -- open.
 DO $$

@@ -90,7 +90,7 @@ export function rowToCity(row: CityRow): City {
     slug: CitySlugSchema.parse(row.slug),
     name: {
       uk: row.nameUk,
-      en: { text: row.nameEnText, provenance: row.nameEnProvenance as TextProvenance },
+      en: { text: row.nameEnText, provenance: row.nameEnProvenance },
     },
     centroid: { lat: row.centroidLat, lng: row.centroidLng },
   };
