@@ -11,7 +11,7 @@ import type {
   Swipe,
   TextProvenance,
 } from "@opika/domain";
-import { ageAnchorOf, waitAnchorOf } from "@opika/domain";
+import { ageAnchorOf, CitySlugSchema, waitAnchorOf } from "@opika/domain";
 import type { adopters } from "../schema/adopters";
 import type { animals } from "../schema/animals";
 import type { cities } from "../schema/cities";
@@ -62,14 +62,23 @@ function columnsToLocalizedText(
 }
 
 // --- City ---
+//
+// Not `localizedTextToColumns`/`columnsToLocalizedText` — those two exist
+// for `LocalizedText`, whose `en` is genuinely nullable (a shelter or
+// animal description can be Ukrainian-only). `City.name` is the stricter
+// `CityName` (`packages/domain`, tightened 2026-09-12 alongside this
+// table's own `name_en_text`/`name_en_provenance` `NOT NULL` columns): `en`
+// is required, so there is no nullable case for a City-specific mapper to
+// handle, and reusing the general helpers here would silently widen back to
+// accepting a null `en` the type no longer permits.
 
 export function cityToRow(city: City): CityInsert {
-  const desc = localizedTextToColumns(city.name);
   return {
     id: city.id,
-    nameUk: desc.uk,
-    nameEnText: desc.enText,
-    nameEnProvenance: desc.enProvenance,
+    slug: city.slug,
+    nameUk: city.name.uk,
+    nameEnText: city.name.en.text,
+    nameEnProvenance: city.name.en.provenance,
     centroidLat: city.centroid.lat,
     centroidLng: city.centroid.lng,
   };
@@ -78,7 +87,11 @@ export function cityToRow(city: City): CityInsert {
 export function rowToCity(row: CityRow): City {
   return {
     id: row.id,
-    name: columnsToLocalizedText(row.nameUk, row.nameEnText, row.nameEnProvenance),
+    slug: CitySlugSchema.parse(row.slug),
+    name: {
+      uk: row.nameUk,
+      en: { text: row.nameEnText, provenance: row.nameEnProvenance },
+    },
     centroid: { lat: row.centroidLat, lng: row.centroidLng },
   };
 }

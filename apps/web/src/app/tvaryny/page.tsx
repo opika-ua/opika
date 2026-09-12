@@ -1,6 +1,7 @@
 import type { CityId } from "@opika/domain";
 import { textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
+import { permanentRedirect } from "next/navigation";
 import { anonymousRouterClient } from "../../api/server-client";
 import { Footer } from "../../features/chrome/Footer";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
@@ -13,6 +14,7 @@ import { FilterSheet } from "../../features/gallery/FilterSheet";
 import {
   deckEntryHref,
   parseGalleryQuery,
+  redirectHrefForLegacyCityIds,
   type SearchParams,
 } from "../../features/gallery/filter-url";
 import { GalleryPagination } from "../../features/gallery/GalleryPagination";
@@ -108,14 +110,30 @@ export async function renderGallery(
   client: ReturnType<typeof anonymousRouterClient> = anonymousRouterClient(),
   rawSearchParams: SearchParams = {},
 ) {
-  const { filters, sort, page: pageNumber } = parseGalleryQuery(rawSearchParams);
-
-  const [cities, page] = await Promise.all([
-    client.cities.list({}),
-    client.gallery.list({ filters, sort, page: pageNumber }),
-  ]);
-  const cityList = cities.map((city) => ({ id: city.id, name: textIn(city.name, "uk") }));
+  /**
+   * Cities have to be fetched before the URL can be parsed at all now — a
+   * city token in `?misto=` is a slug, and resolving a slug to a `CityId`
+   * needs the real city list, not just a shape check the way a raw UUID
+   * did. This costs the parallel `Promise.all` with `gallery.list` this file
+   * used to have (O-6/O-12, `docs/build-plan.md`'s Phase S) — a real,
+   * accepted latency tradeoff: `cities.list` is an 8-row, unfiltered table
+   * scan, not a cost in the same league as the O-9 work this follows.
+   */
+  const cities = await client.cities.list({});
+  const cityList = cities.map((city) => ({
+    id: city.id,
+    slug: city.slug,
+    name: textIn(city.name, "uk"),
+  }));
   const cityNames = new Map<CityId, string>(cityList.map((city) => [city.id, city.name]));
+  const citySlugs = new Map(cityList.map((city) => [city.id, city.slug]));
+  const citiesBySlug = new Map(cityList.map((city) => [city.slug, city.id]));
+
+  const legacyRedirect = redirectHrefForLegacyCityIds(rawSearchParams, "/tvaryny", citySlugs);
+  if (legacyRedirect) permanentRedirect(legacyRedirect);
+
+  const { filters, sort, page: pageNumber } = parseGalleryQuery(rawSearchParams, citiesBySlug);
+  const page = await client.gallery.list({ filters, sort, page: pageNumber });
 
   /**
    * E5, docs/design/README.md "Gallery ↔ deck" > "Entry": the deck has
@@ -124,7 +142,7 @@ export async function renderGallery(
    * rides along on the URL rather than the deck re-deriving it — see
    * `deckEntryHref`'s own comment.
    */
-  const deckHref = deckEntryHref(filters, page.totalMatching);
+  const deckHref = deckEntryHref(filters, page.totalMatching, citySlugs);
 
   /**
    * docs/design/README.md, "Gallery states" > "No match". Only queried when
@@ -245,6 +263,7 @@ export async function renderGallery(
               filters={filters}
               sort={sort}
               cities={cityList}
+              citySlugs={citySlugs}
               resultCount={page.totalMatching}
               shelterCount={page.totalShelters}
             />
@@ -271,6 +290,7 @@ export async function renderGallery(
               filters={filters}
               sort={sort}
               cities={cityList}
+              citySlugs={citySlugs}
               resultCount={page.totalMatching}
               shelterCount={page.totalShelters}
             />
@@ -282,7 +302,7 @@ export async function renderGallery(
                 {railResultCount(page.totalMatching, page.totalShelters)}
               </span>
               <ReplaceNav>
-                <SortControl filters={filters} sort={sort} />
+                <SortControl filters={filters} sort={sort} citySlugs={citySlugs} />
               </ReplaceNav>
             </div>
 
@@ -297,7 +317,12 @@ export async function renderGallery(
               actually reaches it by Tab, which is exactly who needs it.
             */}
             {page.totalMatching === 0 ? (
-              <NoMatch filters={filters} sort={sort} relaxations={relaxations} />
+              <NoMatch
+                filters={filters}
+                sort={sort}
+                citySlugs={citySlugs}
+                relaxations={relaxations}
+              />
             ) : (
               <>
                 {/*
@@ -316,6 +341,7 @@ export async function renderGallery(
                     totalPages={page.totalPages}
                     filters={filters}
                     sort={sort}
+                    citySlugs={citySlugs}
                   />
                 )}
 
@@ -343,6 +369,7 @@ export async function renderGallery(
                 <GalleryPagination
                   filters={filters}
                   sort={sort}
+                  citySlugs={citySlugs}
                   page={page.page}
                   totalPages={page.totalPages}
                 />

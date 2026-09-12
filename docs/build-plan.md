@@ -586,7 +586,139 @@ missing thing... never two [rows]"). Cities gain a stable public slug, URLs beco
 `?misto=brovary`, and the detail page's back-link returns to the filtered list it names.
 Redirect the UUID form for links already shared, so nothing already in circulation breaks.
 
-Scoped in full when picked up, as above.
+**2026-09-09 — done.** `City` (`packages/domain`) gains a `slug: CitySlug` field — stored, not
+derived from `name` at read time, the same reasoning as decision #16's `wait_anchor_at`: a name
+typo-fix must never silently change a URL already in circulation. `citySlugOf`
+(`packages/domain/src/geography/city-slug.ts`) implements the official Ukrainian National
+transliteration table (КМУ Resolution №55, 2010) as a pure function — verified by hand against
+all 8 seeded cities before writing it (`Київ` → `kyiv`, `Бориспіль` → `boryspil`, `Біла Церква`
+→ `bila-tserkva`, etc., each matching `seed.ts`'s own pre-existing English spellings), not just
+internally consistent with itself. `CityViewSchema` (`packages/contracts`) picks `slug`;
+`cities` (`packages/db/src/schema`) gains a `slug text not null unique` column via migration
+`0005_nervous_shinko_yamashiro`, hand-edited rather than drizzle-kit's plain generated form —
+the reviewer caught the real risk here, and it isn't dialect: `ADD COLUMN ... NOT NULL` with no
+default fails outright against any `cities` table that already has rows, which is the actual
+state of the one database that matters (Neon holds the same 8 seeded cities O-9 measured
+against). Rewritten to match 0004's own precedent exactly — add nullable, backfill by `id`
+against the 8 known seeded city ids (slugs computed by running `citySlugOf` itself, not
+hand-transcribed), assert zero rows still `NULL` before setting `NOT NULL`, so a row this
+migration doesn't recognise (an already-onboarded real city, H2) aborts the migration loudly
+instead of guessing or shipping a broken constraint. `packages/db/test/
+city-slug-backfill.test.ts` proves this against local Postgres seeded with the real pre-migration
+shape (raw-SQL inserts of the 8 real ids/names, the same technique
+`wait-anchor-backfill.test.ts` uses for 0004) — including the abort path, run and confirmed
+red-then-green, not merely reasoned about. Still genuinely unverified: whether Neon's actual
+`cities` table today holds exactly these 8 rows and nothing else — the migration's own assertion
+is what makes that an aborted migration rather than corrupted data if the assumption is wrong,
+but confirming the assumption itself needs a real Neon read, which stays parked for Oleksii.
+
+**2026-09-12 — Neon verified, and the derivation source corrected, Oleksii's own instruction.**
+The cities query came back: exactly 8 rows, ids `c1000000-…-000000000000` through `…007`,
+matching the seed set exactly. The migration-verification procedure above is resolved; the
+production assumption held. In the same response, `citySlugOf` stopped transliterating `name.uk`
+and now derives the slug directly from `name.en.text` (lowercase, spaces to hyphens) —
+`cities` already stores a human-authored English name for exactly this purpose, and computing
+the same city's Latin spelling a second, independent way (an algorithm run against the Ukrainian
+name) meant one city had two candidate spellings that were correct only for as long as they
+happened to agree; "happened to agree for all 8 seeded cities" was the finding that triggered
+the correction, not evidence the transliteration table was right. The Ukrainian transliteration
+table (letter map, digraph rule, word-initial exceptions) is deleted from the codebase, not
+merely unused. `LocalizedText.en` is nullable at the schema level, so every caller now must
+resolve and reject a missing English name itself before calling `citySlugOf` — `seed.ts`'s new
+`requireEnglishCityName` is the current, only real caller's guard, proven by a dedicated test
+(`seed-corpus.test.ts`). The migration's own hardcoded backfill values were already verified to
+match `name_en_text` for all 8 cities (see above), so the literal slugs it writes are unchanged —
+only the migration's own comment describing where they came from. Full reasoning:
+`docs/decisions-pending-review.md`'s "Phase S — English name over transliteration."
+
+**Same day, follow-up instruction — `name_en_text`/`name_en_provenance` tightened to `NOT NULL`
+in the same migration.** A required value (`slug`) cannot honestly depend on an optional one, and
+Oleksii's own cities-query confirmed all 8 real Neon rows already carry both fields. `0005` gains
+a new first block, before `slug` is even added: an independent `DO $$ ... RAISE EXCEPTION` check
+(same abort-loudly posture as `slug`'s own backfill assertion, applied to a claim instead of a
+computation), then the two `ALTER COLUMN ... SET NOT NULL` statements. Tightened together, not
+`name_en_text` alone — `packages/db/src/repos/mappers.ts`'s `columnsToLocalizedText` already
+requires both fields non-null before it treats a city as having a real English name, so leaving
+`name_en_provenance` nullable would have left the identical "required value depending on an
+optional one" gap one column over, invisible to a `NOT NULL` constraint that only watches its own
+column. The now-obsolete "backfill succeeds even with `name_en_text` null" test is replaced with
+one proving the migration now aborts over that exact gap instead. Full reasoning:
+`docs/decisions-pending-review.md`'s "Phase S — English name over transliteration."
+
+`?misto=` now carries the slug, not the raw id — `filter-url.ts`'s `galleryHref`/
+`galleryPageHref`/`deckEntryHref` all take a new required `citySlugs: ReadonlyMap<CityId,
+CitySlug>` parameter (built once per request from `cities.list`, threaded down as a prop the
+same way `filtersInWords`'s pre-existing `cityNames` map already was) — `resetFiltersHref` does
+not: it always forwards `NO_FILTERS`, whose `cities` is provably always `ANY`, so a reviewer
+round correctly caught the map as dead weight there and it was dropped. And
+`parseGalleryQuery`/`parseDeckQuery` take the reverse map to resolve a slug back to a `CityId`.
+A raw `CityId` in the URL still parses correctly (backward compatibility for a link already
+shared) but is no longer written by anything in the app; `redirectHrefForLegacyCityIds` detects
+the legacy form and the two page-level routes issue a real 308 (`permanentRedirect`) to the
+canonical slug URL, rewriting only the city param and preserving every other query param
+byte-for-byte. O-12: `tvaryny/[animalId]/page.tsx` now builds a real `backToGalleryHref` through
+`galleryHref` (the same URL scheme every other city link uses) instead of three hardcoded
+`href="/tvaryny"` literals; scoped to the city alone, not the adopter's full incoming filter
+state — see `docs/decisions-pending-review.md`'s "Phase S — back-link scope: city only" for why
+that's not a narrower fix than what O-12 actually asks for.
+
+Accepted cost, not hidden: `cities.list` now has to resolve before `parseGalleryQuery` can run
+at all (a slug can't be resolved to an id without the real city list), so the gallery and deck
+pages lost their previous `Promise.all([cities.list(), gallery.list()])` parallelism — an 8-row
+unfiltered scan now blocks the main query rather than running alongside it. Real, not measured
+against a live deployment; logged as its own decision (`docs/decisions-pending-review.md`) since
+reversing it means building a cache, not reverting a diff.
+
+`pnpm check` green after two full reviewer rounds and fixes (below): 866 workspace unit tests
+(311 domain + 20 i18n + 29 contracts + 10 ui + 139 db + 357 apps/web), `build:web`, and 173
+Playwright harness tests, all against local Postgres.
+
+**Reviewer round 1: STOP**, on the generated migration's real, missing-default `NOT NULL` risk
+against a non-empty `cities` table — resolved (see `docs/decisions-pending-review.md`) by
+hand-editing the migration to match `0004`'s own precedent, with a new regression test
+(`packages/db/test/city-slug-backfill.test.ts`) proving it against a locally-reproduced copy of
+Neon's real pre-migration shape. The same round also caught and fixed: a real transliteration
+gap (the `зг`→`zgh` digraph, Note 2 of the same KMU resolution — `Розгон` was rendering
+indistinguishably from a name containing `ж`); a real correctness bug in the legacy-id redirect
+(`?misto=<uuid>,brovary` was dropping the already-canonical `brovary` half, and a well-formed
+but unresolvable id was 308-redirecting to "no city filter" — a materially different, permanently
+cached result); O-12's fix being asserted only by inspection, not a real test; a test-fixture
+collision (`makeCity()`'s default slug colliding under the corpus's new unique constraint); and a
+cross-file test-isolation bug this round's own new migration test exposed
+(`wait-anchor-backfill.test.ts` and `city-slug-backfill.test.ts` both leave `drizzle`'s own
+migration-tracking schema dropped when they finish, which broke the harness's subsequent real
+`drizzle-kit migrate` step the one time this file happened to run last — both now restore it via
+`setupTestDatabase()` in `afterAll`).
+
+**Reviewer round 2: PASS WITH NOTES.** Confirmed round 1's STOP genuinely resolved (migration
+order-of-operations correct, abort path mutation-tested) and every other round-1 fix real, not
+cosmetic — then found the O-12 test itself was gameable (membership in the known-slugs list
+alone doesn't prove the link names *this* animal's city; a mutation swapping in a hardcoded city
+still passed), fixed by cross-checking the link's own visible city name against its href's slug —
+two independently-computed fields that catch the two disagreeing (one side swapped onto a
+different city than the other), though **not** both being wrong the *same* way (a `page.tsx`
+lookup resolving a consistently-wrong `city` for both props); that residual gap needs a database
+read this harness test doesn't have, and is recorded rather than papered over. Also fixed: a
+`DeckScreen` exit-link test that only ever exercised the "no filter, no citySlugs needed" path
+(now has a real-city-filter case); a self-comparing `FilterRail` assertion (`citySlugOf(...)`
+compared against itself); three doc inaccuracies (`resetFiltersHref` no longer takes
+`citySlugs` after this round's own simplification; a "measured" latency claim that wasn't;
+overstated language about param *order* preservation, when only param *values* are actually
+guaranteed); and a debt item accepted as-is rather than fixed in this row — the redirect's real
+308 behaviour now has its own end-to-end test (`gallery-filters.harness.ts`, a real
+`?misto=<uuid>` link followed through a real 308 to its canonical slug), but the
+`animal-detail.harness.ts` file itself sits at a hard per-file request-budget ceiling where the
+next test anyone adds risks breaking a *different*, unrelated test with a failure pointing
+nowhere near the actual cause — noted as debt for a future session (a second spoofed IP for a
+second describe block would remove it), not fixed here.
+
+**Reviewer round 3: PASS WITH NOTES.** Confirmed rounds 1–2 held, then caught round 2's own fix
+comment overclaiming what the O-12 cross-check actually catches (corrected above and in the
+harness file's own comment) and a self-comparison reintroduced in the very `DeckScreen` test that
+fixed a different self-comparison two rounds earlier (`citySlugOf("Бровари")` compared against
+itself again) — fixed with the same literal-string pattern `FilterRail`'s equivalent fix already
+used. Both are one-line corrections, not new test logic. Full findings and fixes across all three
+rounds: this row's own PR.
 
 ### Phase K — Polish batch ("2.5")
 

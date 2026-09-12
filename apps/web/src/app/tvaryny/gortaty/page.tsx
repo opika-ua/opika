@@ -1,11 +1,13 @@
 import type { CityId } from "@opika/domain";
 import { textIn } from "@opika/domain";
 import type { Metadata } from "next";
+import { permanentRedirect } from "next/navigation";
 import { anonymousRouterClient } from "../../../api/server-client";
 import { DeckScreen } from "../../../features/discovery/DeckScreen";
 import {
   filtersInWords,
   parseDeckQuery,
+  redirectHrefForLegacyCityIds,
   type SearchParams,
 } from "../../../features/gallery/filter-url";
 
@@ -53,15 +55,34 @@ export default async function GortatyPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const { filters, total } = parseDeckQuery(await searchParams);
-
+  const resolvedSearchParams = await searchParams;
   const client = anonymousRouterClient();
+
+  // Same reordering as `../page.tsx`, same reason: a `?misto=` token is now
+  // a slug, and resolving it needs the real city list before the URL can be
+  // parsed at all — see that file's own comment on the cost.
   const cities = await client.cities.list({});
   const cityNames = new Map<CityId, string>(
     cities.map((city) => [city.id, textIn(city.name, "uk")]),
   );
+  const citySlugs = new Map(cities.map((city) => [city.id, city.slug]));
+  const citiesBySlug = new Map(cities.map((city) => [city.slug, city.id]));
+
+  const legacyRedirect = redirectHrefForLegacyCityIds(
+    resolvedSearchParams,
+    "/tvaryny/gortaty",
+    citySlugs,
+  );
+  if (legacyRedirect) permanentRedirect(legacyRedirect);
+
+  const { filters, total } = parseDeckQuery(resolvedSearchParams, citiesBySlug);
 
   return (
-    <DeckScreen filters={filters} total={total} filtersLabel={filtersInWords(filters, cityNames)} />
+    <DeckScreen
+      filters={filters}
+      total={total}
+      filtersLabel={filtersInWords(filters, cityNames)}
+      citySlugs={citySlugs}
+    />
   );
 }

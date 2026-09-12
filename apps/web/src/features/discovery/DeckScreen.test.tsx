@@ -1,6 +1,7 @@
-import { NO_FILTERS } from "@opika/domain";
+import { CityIdSchema, citySlugOf, NO_FILTERS } from "@opika/domain";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { CitySlugsById } from "../gallery/filter-url";
 import { mockAppRouter, WithMockRouter } from "../gallery/test-router";
 import { DeckScreen } from "./DeckScreen";
 import { generateMockCards } from "./mock-data";
@@ -26,6 +27,7 @@ vi.mock("../../seo-flags", async (importOriginal) => ({
 }));
 
 const FROM_GALLERY_KEY = "opika:deck-entered-from-gallery";
+const CITY_SLUGS: CitySlugsById = new Map();
 
 /**
  * `useFeedDeck` is mocked here — its own real fetch/cursor/error behaviour
@@ -58,7 +60,12 @@ describe("DeckScreen", () => {
 
     render(
       <WithMockRouter>
-        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel="Бровари · собаки" />
+        <DeckScreen
+          filters={NO_FILTERS}
+          total={34}
+          filtersLabel="Бровари · собаки"
+          citySlugs={CITY_SLUGS}
+        />
       </WithMockRouter>,
     );
 
@@ -88,7 +95,12 @@ describe("DeckScreen", () => {
 
     render(
       <WithMockRouter>
-        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel="Бровари · собаки" />
+        <DeckScreen
+          filters={NO_FILTERS}
+          total={34}
+          filtersLabel="Бровари · собаки"
+          citySlugs={CITY_SLUGS}
+        />
       </WithMockRouter>,
     );
 
@@ -109,7 +121,12 @@ describe("DeckScreen", () => {
 
     render(
       <WithMockRouter>
-        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel="Бровари · собаки" />
+        <DeckScreen
+          filters={NO_FILTERS}
+          total={34}
+          filtersLabel="Бровари · собаки"
+          citySlugs={CITY_SLUGS}
+        />
       </WithMockRouter>,
     );
 
@@ -120,7 +137,7 @@ describe("DeckScreen", () => {
   it("shows neither the filters phrase nor a position when given nothing to say", () => {
     render(
       <WithMockRouter>
-        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
@@ -139,7 +156,7 @@ describe("DeckScreen", () => {
 
     render(
       <WithMockRouter>
-        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} />
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
@@ -157,7 +174,7 @@ describe("DeckScreen", () => {
 
     render(
       <WithMockRouter>
-        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} />
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
@@ -175,7 +192,7 @@ describe("DeckScreen", () => {
 
     render(
       <WithMockRouter>
-        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} />
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
@@ -185,7 +202,7 @@ describe("DeckScreen", () => {
   it("announces entering the deck at position 1, and the announcement never changes as the user swipes", () => {
     const { rerender } = render(
       <WithMockRouter>
-        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} />
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
@@ -206,7 +223,7 @@ describe("DeckScreen", () => {
     });
     rerender(
       <WithMockRouter>
-        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} />
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
@@ -216,7 +233,7 @@ describe("DeckScreen", () => {
   it("renders no announcement region at all when there's no total to announce", () => {
     render(
       <WithMockRouter>
-        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
@@ -229,7 +246,7 @@ describe("DeckScreen", () => {
 
     render(
       <WithMockRouter router={router}>
-        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
@@ -244,7 +261,7 @@ describe("DeckScreen", () => {
 
     render(
       <WithMockRouter>
-        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
@@ -256,7 +273,7 @@ describe("DeckScreen", () => {
 
     render(
       <WithMockRouter router={router}>
-        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
@@ -266,13 +283,43 @@ describe("DeckScreen", () => {
     expect(router.push).toHaveBeenCalledWith("/tvaryny");
   });
 
+  /**
+   * The bare-`NO_FILTERS` case above passes even if `citySlugs` were wired
+   * up wrong (an empty or garbage map produces the same "/tvaryny" either
+   * way, since there is no city to translate) — this is the case that
+   * actually exercises the threading: a real city filter, a real map,
+   * asserted against the real slug, not just "some string came back."
+   */
+  it("without the marker, a real city filter carries its real slug into the exit link", () => {
+    const BROVARY = CityIdSchema.parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    const filters = {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf" as const, values: [BROVARY] as const },
+    };
+    const citySlugs = new Map([[BROVARY, citySlugOf("Brovary")]]);
+    const router = mockAppRouter();
+
+    render(
+      <WithMockRouter router={router}>
+        <DeckScreen filters={filters} total={null} filtersLabel={null} citySlugs={citySlugs} />
+      </WithMockRouter>,
+    );
+
+    fireEvent.click(screen.getByTestId("deck-back-to-list"));
+
+    // Literal, not `citySlugOf("Brovary")` — `citySlugs` above is built from
+    // the same call, so comparing against it again would pass even if
+    // citySlugOf itself were broken, as long as it were broken consistently.
+    expect(router.push).toHaveBeenCalledWith("/tvaryny?misto=brovary");
+  });
+
   it("Escape triggers the same exit as the back-to-list button", () => {
     sessionStorage.setItem(FROM_GALLERY_KEY, "1");
     const router = mockAppRouter();
 
     render(
       <WithMockRouter router={router}>
-        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
@@ -287,7 +334,7 @@ describe("DeckScreen", () => {
 
     render(
       <WithMockRouter router={router}>
-        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} />
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
@@ -334,7 +381,12 @@ describe("DeckScreen — demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
 
     render(
       <WithMockRouter>
-        <DeckScreenDemo filters={NO_FILTERS} total={34} filtersLabel="Бровари · собаки" />
+        <DeckScreenDemo
+          filters={NO_FILTERS}
+          total={34}
+          filtersLabel="Бровари · собаки"
+          citySlugs={CITY_SLUGS}
+        />
       </WithMockRouter>,
     );
 
@@ -366,7 +418,12 @@ describe("DeckScreen — demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
 
     render(
       <WithMockRouter>
-        <DeckScreenReal filters={NO_FILTERS} total={34} filtersLabel="Бровари · собаки" />
+        <DeckScreenReal
+          filters={NO_FILTERS}
+          total={34}
+          filtersLabel="Бровари · собаки"
+          citySlugs={CITY_SLUGS}
+        />
       </WithMockRouter>,
     );
 

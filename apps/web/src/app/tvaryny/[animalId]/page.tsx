@@ -1,11 +1,18 @@
 import { isRealPhotoKey, r2PublicUrl } from "@opika/db/image-pipeline";
-import { type AnimalId, AnimalIdSchema, textIn } from "@opika/domain";
+import {
+  type AnimalId,
+  AnimalIdSchema,
+  DEFAULT_GALLERY_SORT,
+  NO_FILTERS,
+  textIn,
+} from "@opika/domain";
 import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { anonymousRouterClient } from "../../../api/server-client";
 import { AnimalDetailScreen } from "../../../features/animal-detail/AnimalDetailScreen";
+import { galleryHref } from "../../../features/gallery/filter-url";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
 
 /**
@@ -50,14 +57,34 @@ export default async function Page({ params }: { params: Promise<{ animalId: str
   const cityId = animalResult.publicLocation
     ? animalResult.publicLocation.cityId
     : shelter.publicLocation.cityId;
-  const cityLocalizedName = cities.find((city) => city.id === cityId)?.name ?? null;
+  const city = cities.find((c) => c.id === cityId) ?? null;
+
+  /**
+   * O-12 (`docs/observations.md`): «← Усі тварини у Бровари» has to actually
+   * return to Brovary, not the unfiltered gallery — the link's own text is a
+   * claim about where it goes. Built through `galleryHref`, the same URL
+   * scheme every other city link in the app uses, rather than a hand-rolled
+   * `/tvaryny?misto=...` string — one scheme, one place it can drift.
+   * `/tvaryny` unfiltered only when this animal's city genuinely isn't in
+   * the list `cities.list` returned (never expected in practice; every
+   * animal's location resolves to a real seeded city).
+   */
+  const citySlugs = new Map(cities.map((c) => [c.id, c.slug]));
+  const backToGalleryHref = city
+    ? galleryHref(
+        { ...NO_FILTERS, cities: { kind: "oneOf", values: [city.id] } },
+        DEFAULT_GALLERY_SORT,
+        citySlugs,
+      )
+    : "/tvaryny";
 
   return (
     <AnimalDetailScreen
       animal={animalResult}
       shelter={shelter}
+      backToGalleryHref={backToGalleryHref}
       now={new Date()}
-      cityName={cityLocalizedName ? textIn(cityLocalizedName, "uk") : null}
+      cityName={city ? textIn(city.name, "uk") : null}
     />
   );
 }

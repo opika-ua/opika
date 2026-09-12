@@ -93,6 +93,7 @@ describe("AnimalDetailScreen — shelterVerifiedYears badge (REGISTRY_HAS_NO_REA
         shelter={makeShelter({ createdAt: new Date("2023-01-01T00:00:00.000Z") })}
         now={NOW}
         cityName="Бровари"
+        backToGalleryHref="/tvaryny?misto=brovary"
       />,
     );
 
@@ -109,6 +110,7 @@ describe("AnimalDetailScreen — shelterVerifiedYears badge (REGISTRY_HAS_NO_REA
         shelter={makeShelter({ createdAt: new Date("2023-01-01T00:00:00.000Z") })}
         now={NOW}
         cityName="Бровари"
+        backToGalleryHref="/tvaryny?misto=brovary"
       />,
     );
 
@@ -141,6 +143,7 @@ describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
         shelter={makeShelter()}
         now={NOW}
         cityName="Бровари"
+        backToGalleryHref="/tvaryny?misto=brovary"
       />,
     );
 
@@ -159,6 +162,7 @@ describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
         shelter={makeShelter()}
         now={NOW}
         cityName="Бровари"
+        backToGalleryHref="/tvaryny?misto=brovary"
       />,
     );
 

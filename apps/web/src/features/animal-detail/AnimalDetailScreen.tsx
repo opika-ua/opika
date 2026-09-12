@@ -60,6 +60,13 @@ interface AnimalDetailScreenProps {
   now: Date;
   /** Resolved by the caller (`cities.list`), same pattern as the gallery's `AnimalCard` — this component never fetches. */
   cityName: string | null;
+  /** O-12 (`docs/observations.md`): where "← Усі тварини у {city}" actually
+   * goes — the gallery filtered to this animal's city, built by the caller
+   * through `galleryHref` (`/tvaryny` unfiltered only if the city couldn't
+   * be resolved). Every back-navigation on this screen shares it: the
+   * header's two links and the "Не зараз" button all mean the same "back to
+   * where I was," not three independent destinations. */
+  backToGalleryHref: string;
 }
 
 /**
@@ -93,7 +100,13 @@ interface AnimalDetailScreenProps {
  *    the shared `SiteHeader`, which carries the wordmark and site nav on
  *    every surface but the deck.
  */
-export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDetailScreenProps) {
+export function AnimalDetailScreen({
+  animal,
+  shelter,
+  now,
+  cityName,
+  backToGalleryHref,
+}: AnimalDetailScreenProps) {
   const photo = animal.photos[0] ?? null;
   const thumbnails = animal.photos.slice(1, 4);
   const fills = freshnessPips(animal.freshness.kind);
@@ -165,14 +178,14 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
       */}
       <div className="p-4 tablet:p-6 desktop:px-8 desktop:pt-6 desktop:max-w-[1200px] desktop:mx-auto">
         <Link
-          href="/tvaryny"
+          href={backToGalleryHref}
           data-testid="back-to-list"
           className="min-h-12 inline-flex items-center gap-1.5 rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] desktop:hidden"
         >
           {uk.feed.backToList}
         </Link>
         <Link
-          href="/tvaryny"
+          href={backToGalleryHref}
           data-testid="back-to-list-desktop"
           className="hidden desktop:inline-flex min-h-12 items-center text-[15px] text-rg-ink-2 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
@@ -316,7 +329,7 @@ export function AnimalDetailScreen({ animal, shelter, now, cityName }: AnimalDet
               making.
             */}
             <Link
-              href="/tvaryny"
+              href={backToGalleryHref}
               data-testid="not-now-button"
               className="min-h-14 flex-1 flex items-center justify-center rounded-rg-button bg-rg-fill text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
             >

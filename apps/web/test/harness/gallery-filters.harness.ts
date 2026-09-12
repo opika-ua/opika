@@ -214,6 +214,50 @@ test.describe("/tvaryny filters — URL is the single source of truth", () => {
   });
 });
 
+/**
+ * O-6 (`docs/observations.md`): a link built before city slugs existed
+ * (`?misto=<uuid>`) still has to work — this is that link, exercised for
+ * real against a running server, not just `filter-url.ts`'s own pure
+ * `redirectHrefForLegacyCityIds` unit tests. `c1000000-0000-4000-8000-
+ * 000000000001` is Brovary's real, deterministic seeded id
+ * (`packages/db/src/seed.ts`'s `cityId(1)`) — the one form of "real request
+ * volume" this test needs that a slug-only corpus can't produce, since
+ * nothing the app itself generates ever emits a raw id anymore.
+ */
+test.describe("/tvaryny legacy city-id links redirect to their real slug", () => {
+  const LEGACY_BROVARY_URL = `${ROUTE}?misto=c1000000-0000-4000-8000-000000000001`;
+
+  test("a pre-slug ?misto=<uuid> link 308s to the canonical slug form, filtering correctly either way", async ({
+    page,
+  }) => {
+    await page.goto(LEGACY_BROVARY_URL, {
+      waitUntil: "load",
+      // Playwright follows the redirect chain itself; the request/response
+      // is inspected below rather than assumed from the final URL alone.
+    });
+
+    await expect(page, "the legacy id form must redirect to the real slug").toHaveURL(
+      /\/tvaryny\?misto=brovary$/,
+    );
+    await page.locator(CARD).first().waitFor({ state: "visible" });
+    const activeCityChip = page.getByTestId("filter-rail").locator('a[aria-current="true"]');
+    await expect(activeCityChip).toHaveCount(1);
+    await expect(activeCityChip).toHaveText(/Бровари/);
+  });
+
+  test("the redirect is a real, permanent 308, not a 200 that merely renders the same content", async ({
+    page,
+  }) => {
+    const response = await page.goto(LEGACY_BROVARY_URL, { waitUntil: "load" });
+    // `response` is the *final* navigation's response after redirects are
+    // followed; the 308 itself is a step in `response.request().redirectedFrom()`'s chain.
+    const redirectedFrom = response?.request().redirectedFrom();
+    expect(redirectedFrom, "the final response must have arrived via a redirect").not.toBeNull();
+    const redirectResponse = await redirectedFrom?.response();
+    expect(redirectResponse?.status()).toBe(308);
+  });
+});
+
 test.describe("/tvaryny filters — work with JavaScript disabled", () => {
   test("the sheet's native form narrows the result set with no JS at all", async ({ browser }) => {
     const context = await browser.newContext({

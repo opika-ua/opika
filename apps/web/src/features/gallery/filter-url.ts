@@ -2,6 +2,7 @@ import type {
   AgeBucket,
   AnimalSpecies,
   CityId,
+  CitySlug,
   FeedFilters,
   FilterSelection,
   GallerySort,
@@ -22,15 +23,19 @@ import { uk } from "@opika/i18n";
 
 /**
  * The design's own URL example (`/tvaryny?misto=brovary&stor=1`,
- * docs/design/README.md "Gallery ↔ Deck") uses a slug — but `CityId` is a
- * bare UUID (`packages/domain/src/primitives/ids.ts`) with no slug field
- * anywhere in the schema. Treated as illustrative copy, not a literal
- * scheme: `misto`'s value is the raw `CityId`, consistent with this
- * codebase's existing precedent of raw UUIDs in URLs
- * (`docs/gallery-contract-decisions.md` §6, `/tvaryny/{id}`). `vyd`/
- * `rozmir`/`vik` (species/size/age) are new — the design specifies the
- * filter *groups* (МІСТО/ВИД/РОЗМІР/ВІК) but never their query-param
- * names, so these follow `misto`/`stor`'s transliteration convention.
+ * docs/design/README.md "Gallery ↔ Deck") is now literal: `misto`'s value is
+ * a city's `slug` (`docs/observations.md` O-6), not the raw `CityId` this
+ * file used before the slug field existed. `vyd`/`rozmir`/`vik`
+ * (species/size/age) are new — the design specifies the filter *groups*
+ * (МІСТО/ВИД/РОЗМІР/ВІК) but never their query-param names, so these follow
+ * `misto`/`stor`'s transliteration convention.
+ *
+ * Every function below that reads or writes the city param needs a lookup
+ * between `CityId` (what `FeedFilters` and every domain/contract type carry)
+ * and `CitySlug` (what the URL carries) — cities are seed/admin data, not
+ * something these pure functions can fetch themselves, so the lookup always
+ * arrives as a parameter built once by the caller (`cities.list`), the same
+ * pattern `filtersInWords`'s own `cityNames` map already established below.
  */
 const CITY_PARAM = "misto";
 const SPECIES_PARAM = "vyd";
@@ -102,6 +107,38 @@ function parseSelection<T extends string>(
   return { kind: "oneOf", values: [first, ...rest] };
 }
 
+/** The two directions every city-param function below needs — built once by
+ * the caller from `cities.list`, never fetched by these pure functions. */
+export type CitySlugsById = ReadonlyMap<CityId, CitySlug>;
+export type CityIdsBySlug = ReadonlyMap<CitySlug, CityId>;
+
+/**
+ * A city token gets two chances, not one: the current slug form via
+ * `citiesBySlug`, and — for a link already in circulation before slugs
+ * existed — the raw `CityId` form, accepted only when it's a well-formed
+ * UUID (not looked up against `citiesBySlug`'s values; an unknown-but-valid
+ * id degrades the same "stale link, not an error" way an unknown slug does,
+ * matching this file's existing tolerance for a since-removed city).
+ * `redirectHrefForLegacyCityIds`, not this function, decides whether a
+ * request using the second form gets redirected to the first.
+ */
+function parseCitySelection(
+  raw: string | string[] | undefined,
+  citiesBySlug: CityIdsBySlug,
+): FilterSelection<CityId> {
+  const values = [
+    ...new Set(
+      tokensOf(raw)
+        .map((token) => citiesBySlug.get(token as CitySlug) ?? CityIdSchema.safeParse(token).data)
+        .filter((id): id is CityId => id !== undefined),
+    ),
+  ];
+
+  const [first, ...rest] = values;
+  if (first === undefined) return ANY;
+  return { kind: "oneOf", values: [first, ...rest] };
+}
+
 /**
  * `searchParams` arrives as `Record<string, string | string[] | undefined>`
  * (Next's own shape for a page's `searchParams` prop) — every value is
@@ -117,9 +154,12 @@ function parseSelection<T extends string>(
  * behave identically from here on — same reason that function exists for
  * cursor stability, applied to page rendering instead.
  */
-export function parseGalleryQuery(searchParams: SearchParams): GalleryQuery {
+export function parseGalleryQuery(
+  searchParams: SearchParams,
+  citiesBySlug: CityIdsBySlug,
+): GalleryQuery {
   const filters = canonicalizeFilters({
-    cities: parseSelection<CityId>(searchParams[CITY_PARAM], CityIdSchema),
+    cities: parseCitySelection(searchParams[CITY_PARAM], citiesBySlug),
     species: parseSelection<AnimalSpecies>(searchParams[SPECIES_PARAM], AnimalSpeciesSchema),
     sizes: parseSelection<SizeBucket>(searchParams[SIZE_PARAM], SizeBucketSchema),
     ages: parseSelection<AgeBucket>(searchParams[AGE_PARAM], AgeBucketSchema),
@@ -132,6 +172,76 @@ export function parseGalleryQuery(searchParams: SearchParams): GalleryQuery {
   const page = Number.isInteger(pageRaw) && pageRaw >= 1 ? pageRaw : 1;
 
   return { filters, sort, page };
+}
+
+/**
+ * A pre-slug link (`?misto=<uuid>`) still has to work — dropping support
+ * outright would break every link already shared — but it should not stay
+ * the canonical form once a slug exists for it. `parseGalleryQuery` already
+ * accepts either form; this is the other half, called once by each page-level
+ * route before it renders: null means either the URL is already canonical
+ * (or has no city param at all), or it contains a raw id this function
+ * cannot confidently rewrite (see below) — a string means "308 here
+ * instead."
+ *
+ * Rewrites only the value of the city param — every other param's value
+ * (`stor`, `sort`, `vyd`, `rozmir`, `vik`, or anything this file doesn't
+ * recognise) survives unchanged once re-parsed, never dropped or altered.
+ * Not literally byte-for-byte: `URLSearchParams` re-serialises the whole
+ * query string, so `misto` always ends up last regardless of where it sat
+ * originally, and a value containing characters `URLSearchParams` encodes
+ * differently than the source URL did (spaces, `+`, non-ASCII) comes out
+ * re-encoded, not copied verbatim — the *value*, decoded, is what's
+ * guaranteed, not the query string's literal text. A
+ * token already in slug form (not UUID-shaped) is likewise carried through
+ * unchanged — a `?misto=<uuid>,brovary` link rewrites only the id half, it
+ * does not lose the city that was already canonical.
+ *
+ * A `CityId`-shaped token with no entry in `citySlugs` (a since-deleted
+ * city, or a malformed id that merely happens to parse) does **not** get
+ * silently dropped here the way an unrecognised token does elsewhere in
+ * this file — dropping it would change what the link shows (from "no
+ * matches for this city" to "every city," a materially different result)
+ * and this redirect is permanent (308, cached by the browser). Rather than
+ * ship a wrong cached redirect, this bails out to `null` entirely: the
+ * request falls through to the normal render path, where
+ * `parseGalleryQuery`'s own tolerant parsing handles the id exactly as it
+ * always did.
+ */
+export function redirectHrefForLegacyCityIds(
+  searchParams: SearchParams,
+  path: string,
+  citySlugs: CitySlugsById,
+): string | null {
+  const cityTokens = tokensOf(searchParams[CITY_PARAM]);
+  if (cityTokens.length === 0) return null;
+
+  const rewritten: string[] = [];
+  let sawResolvableLegacyId = false;
+  for (const token of cityTokens) {
+    const parsedId = CityIdSchema.safeParse(token);
+    if (!parsedId.success) {
+      rewritten.push(token);
+      continue;
+    }
+    const slug = citySlugs.get(parsedId.data);
+    if (slug === undefined) return null;
+    sawResolvableLegacyId = true;
+    rewritten.push(slug);
+  }
+  if (!sawResolvableLegacyId) return null;
+
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (key === CITY_PARAM) continue;
+    for (const v of Array.isArray(value) ? value : value === undefined ? [] : [value]) {
+      params.append(key, v);
+    }
+  }
+  params.set(CITY_PARAM, [...new Set(rewritten)].join(","));
+
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
 }
 
 /**
@@ -176,12 +286,25 @@ export const withToggledSize = (filters: FeedFilters, size: SizeBucket): FeedFil
 export const withToggledAge = (filters: FeedFilters, age: AgeBucket): FeedFilters =>
   canonicalizeFilters({ ...filters, ages: toggle(filters.ages, age) });
 
-function filterAndSortParams(filters: FeedFilters, sort: GallerySort): URLSearchParams {
+/** Any `CityId` the map has no slug for is dropped — see `parseCitySelection`'s
+ * own comment on the same "unmappable degrades silently" posture. In
+ * practice every id in `filters.cities` came from `cities.list` in the first
+ * place, so this is a safety net, not an expected path. */
+function citySlugsOf(ids: readonly CityId[], citySlugs: CitySlugsById): string[] {
+  return ids.map((id) => citySlugs.get(id)).filter((slug): slug is CitySlug => slug !== undefined);
+}
+
+function filterAndSortParams(
+  filters: FeedFilters,
+  sort: GallerySort,
+  citySlugs: CitySlugsById,
+): URLSearchParams {
   const canonical = canonicalizeFilters(filters);
   const params = new URLSearchParams();
 
   if (canonical.cities.kind === "oneOf") {
-    params.set(CITY_PARAM, canonical.cities.values.join(","));
+    const slugs = citySlugsOf(canonical.cities.values, citySlugs);
+    if (slugs.length > 0) params.set(CITY_PARAM, slugs.join(","));
   }
   if (canonical.species.kind === "oneOf") {
     params.set(SPECIES_PARAM, canonical.species.values.join(","));
@@ -206,8 +329,12 @@ function filterAndSortParams(filters: FeedFilters, sort: GallerySort): URLSearch
  * — matching `sort`'s own "default is the absent param" convention, not a
  * second one.
  */
-export function galleryHref(filters: FeedFilters, sort: GallerySort): string {
-  const qs = filterAndSortParams(filters, sort).toString();
+export function galleryHref(
+  filters: FeedFilters,
+  sort: GallerySort,
+  citySlugs: CitySlugsById,
+): string {
+  const qs = filterAndSortParams(filters, sort, citySlugs).toString();
   return qs ? `/tvaryny?${qs}` : "/tvaryny";
 }
 
@@ -219,8 +346,13 @@ export function galleryHref(filters: FeedFilters, sort: GallerySort): string {
  * no `stor` in the URL, so the first page's own link matches what
  * `parseGalleryQuery` already treats as the implicit start.
  */
-export function galleryPageHref(filters: FeedFilters, sort: GallerySort, page: number): string {
-  const params = filterAndSortParams(filters, sort);
+export function galleryPageHref(
+  filters: FeedFilters,
+  sort: GallerySort,
+  page: number,
+  citySlugs: CitySlugsById,
+): string {
+  const params = filterAndSortParams(filters, sort, citySlugs);
   if (page > 1) {
     params.set(PAGE_PARAM, String(page));
   }
@@ -229,8 +361,19 @@ export function galleryPageHref(filters: FeedFilters, sort: GallerySort, page: n
   return qs ? `/tvaryny?${qs}` : "/tvaryny";
 }
 
-/** "Скинути" — clears every filter dimension, keeps the current sort. */
-export const resetFiltersHref = (sort: GallerySort): string => galleryHref(NO_FILTERS, sort);
+/**
+ * "Скинути" — clears every filter dimension, keeps the current sort. No
+ * `citySlugs` parameter: `NO_FILTERS.cities` is always `{ kind: "any" }` by
+ * definition, so `galleryHref`'s own city-slug lookup can never fire for
+ * this call — threading a map through that is provably always unused would
+ * be surface for its own sake.
+ */
+export const resetFiltersHref = (sort: GallerySort): string =>
+  galleryHref(NO_FILTERS, sort, NO_CITY_SLUGS);
+
+/** Passed to `galleryHref` only by `resetFiltersHref` above, where the city
+ * dimension is always `ANY` and the map is provably never consulted. */
+const NO_CITY_SLUGS: CitySlugsById = new Map();
 
 /**
  * `total` isn't a gallery filter dimension — it rides along on the deck
@@ -248,12 +391,17 @@ const TOTAL_PARAM = "total";
  * bookmark, a shared link) — the deck header degrades to showing position
  * alone rather than guessing a denominator it was never given.
  */
-export function deckEntryHref(filters: FeedFilters, total: number): string {
+export function deckEntryHref(
+  filters: FeedFilters,
+  total: number,
+  citySlugs: CitySlugsById,
+): string {
   const canonical = canonicalizeFilters(filters);
   const params = new URLSearchParams();
 
   if (canonical.cities.kind === "oneOf") {
-    params.set(CITY_PARAM, canonical.cities.values.join(","));
+    const slugs = citySlugsOf(canonical.cities.values, citySlugs);
+    if (slugs.length > 0) params.set(CITY_PARAM, slugs.join(","));
   }
   if (canonical.species.kind === "oneOf") {
     params.set(SPECIES_PARAM, canonical.species.values.join(","));
@@ -297,8 +445,8 @@ const MAX_PLAUSIBLE_DECK_TOTAL = 1_000_000;
  * parsing already gives out-of-range input, rather than rendering
  * whatever number was typed.
  */
-export function parseDeckQuery(searchParams: SearchParams): DeckQuery {
-  const { filters } = parseGalleryQuery(searchParams);
+export function parseDeckQuery(searchParams: SearchParams, citiesBySlug: CityIdsBySlug): DeckQuery {
+  const { filters } = parseGalleryQuery(searchParams, citiesBySlug);
 
   const totalRaw = Number(firstValue(searchParams[TOTAL_PARAM]));
   // > 0, not >= 0: deckEntryHref is only ever built when the gallery found

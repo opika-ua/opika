@@ -1,12 +1,14 @@
 import type { FeedFilters, GallerySort } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Link from "next/link";
+import type { CitySlugsById } from "./filter-url";
 import { galleryPageHref } from "./filter-url";
 import { hasPagination, isTruncated, paginationWindow } from "./gallery-pagination";
 
 interface GalleryPaginationProps {
   filters: FeedFilters;
   sort: GallerySort;
+  citySlugs: CitySlugsById;
   /** The page actually served — `gallery.list`'s own `page`, already
    * clamped server-side, never the raw `?stor=` a stale link might carry. */
   page: number;
@@ -67,7 +69,13 @@ function pageAriaLabel(page: number): string {
  * sequence — the standard "skip nav" pattern, not a roving-tabindex scheme
  * (nothing here ever sets `tabIndex` on more than this one, fixed element).
  */
-export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPaginationProps) {
+export function GalleryPagination({
+  filters,
+  sort,
+  citySlugs,
+  page,
+  totalPages,
+}: GalleryPaginationProps) {
   if (!hasPagination(totalPages)) return null;
 
   const items = paginationWindow(page, totalPages);
@@ -84,7 +92,7 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
     >
       {page > 1 ? (
         <Link
-          href={galleryPageHref(filters, sort, page - 1)}
+          href={galleryPageHref(filters, sort, page - 1, citySlugs)}
           data-testid="pagination-prev"
           className={NAV_BUTTON_AVAILABLE}
         >
@@ -120,7 +128,7 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
           ) : (
             <Link
               key={item}
-              href={galleryPageHref(filters, sort, item)}
+              href={galleryPageHref(filters, sort, item, citySlugs)}
               aria-label={pageAriaLabel(item)}
               data-testid="pagination-page"
               className={PAGE_PILL_INACTIVE}
@@ -143,7 +151,7 @@ export function GalleryPagination({ filters, sort, page, totalPages }: GalleryPa
 
       {page < totalPages ? (
         <Link
-          href={galleryPageHref(filters, sort, page + 1)}
+          href={galleryPageHref(filters, sort, page + 1, citySlugs)}
           data-testid="pagination-next"
           className={NAV_BUTTON_AVAILABLE}
         >

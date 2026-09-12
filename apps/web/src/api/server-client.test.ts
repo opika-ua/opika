@@ -21,14 +21,21 @@ beforeEach(async () => {
 
 describe("anonymousRouterClient", () => {
   it("calls a real procedure in-process and returns real data", async () => {
-    const city = makeCity({ name: { uk: "Бровари", en: null } });
+    const city = makeCity({
+      name: { uk: "Бровари", en: { text: "Brovary", provenance: "human" } },
+    });
     await cityRepo(h.db).insert(city);
 
     const client = anonymousRouterClient(h.db);
     const cities = await client.cities.list({});
 
     expect(cities).toHaveLength(1);
-    expect(cities[0]).toEqual({ id: city.id, name: city.name, centroid: city.centroid });
+    expect(cities[0]).toEqual({
+      id: city.id,
+      slug: city.slug,
+      name: city.name,
+      centroid: city.centroid,
+    });
   });
 
   it("goes through the same router the HTTP route serves, not a parallel path", async () => {
