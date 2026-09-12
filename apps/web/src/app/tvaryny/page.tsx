@@ -189,8 +189,30 @@ export async function renderGallery(
         desktop ... content 960").
       */}
       <div className="p-4 tablet:p-6 desktop:pt-10 desktop:px-15 desktop:pb-14">
-        <div className="flex items-center justify-between gap-4 mb-4 desktop:hidden">
-          <span className="text-[15px]/[22px] text-rg-ink-2">
+        <div
+          data-testid="gallery-mobile-toolbar"
+          className="flex items-center justify-between gap-4 mb-4 desktop:hidden"
+        >
+          {/*
+            `min-w-0`, found 2026-09-12 as the real cause of a CI-only
+            horizontal-overflow failure at 320px. A flex item's default
+            `min-width: auto` floors it at its own min-content width — here
+            the longest Ukrainian word in the count sentence, 93px. At 320
+            the row has 288px of content box, the button group beside this
+            span needs 193px and will not shrink, so the span was clamped at
+            its 93px floor and the 15px that did not fit was pushed out of
+            the container instead: the group's right edge landed at 318.59px
+            against a 320px viewport. That 1.41px was font metrics, not
+            layout — CI's Linux Chromium renders this sentence a couple of
+            pixels wider than this machine's Windows Chromium and tipped it
+            to a 322px document, which is why it failed only there.
+            `min-w-0` removes the floor, so the sentence wraps to another
+            line and the group sits at the container's own padding edge
+            (304px) — a position set by padding rather than by text width,
+            which is what makes the slack real. Measured no-op at 360 and
+            390, where the span never reaches its floor.
+          */}
+          <span className="min-w-0 text-[15px]/[22px] text-rg-ink-2">
             {sheetResultCount(
               page.totalMatching,
               page.totalShelters,

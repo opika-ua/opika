@@ -134,20 +134,22 @@ export interface SiteHeaderProps {
 }
 
 /**
- * `shrink-0` + `whitespace-nowrap`, found 2026-09-12 chasing a CI-only
- * (never local) horizontal-overflow failure at 320px: without them, a flex
- * item with no explicit width can shrink below its own text's natural
- * width, and the browser wraps the label internally instead ("Для" /
- * "притулків" stacked inside one pill) — which measured at *exactly* zero
- * slack against the 320px floor (288.0px of text against 288px available,
- * confirmed by direct measurement, not estimated), one sub-pixel font-hint
- * difference between platforms away from a real overflow. CI's Linux
- * Chromium hit that exact difference; this machine's Windows Chromium
- * didn't, which is why this shipped green locally and red on CI. Matches
- * `Footer.tsx`'s own already-established pattern for the identical two-link
- * case: the whole pill wraps to its own row (`flex-wrap` on the parent
- * `nav`, below) rather than the pill's internal text wrapping — real slack
- * instead of a coincidence of font rendering.
+ * `shrink-0` + `whitespace-nowrap`. Added 2026-09-12 while chasing a
+ * CI-only horizontal-overflow failure at 320px, on the theory that this nav
+ * caused it. **It did not** — the overflow was the gallery's own mobile
+ * toolbar row (`app/tvaryny/page.tsx`), and the CI failure reproduced
+ * unchanged after this landed. Corrected here rather than reverted because
+ * the measurement behind it was real, even though the diagnosis was not: at
+ * 320 the two labels plus their gap came to *exactly* 288.0px against
+ * exactly 288px of available width, so the nav rendered with zero slack and
+ * Chromium wrapped a label internally ("Для" / "притулків" stacked inside
+ * one pill). That is a legibility defect on its own, but it could never
+ * push the page sideways — the nav is a flex child capped at its
+ * container's 288px, and measured `scrollWidth === clientWidth === 288`
+ * both with and without these classes. Matches `Footer.tsx`'s own pattern
+ * for the identical two-link case: the whole pill wraps to its own row
+ * (`flex-wrap` on the parent `nav`, below) rather than the pill's internal
+ * text wrapping.
  */
 const NAV_LINK_CLASS =
   "inline-flex min-h-12 shrink-0 items-center whitespace-nowrap rounded-rg-button bg-rg-fill " +
