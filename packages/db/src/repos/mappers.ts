@@ -62,15 +62,23 @@ function columnsToLocalizedText(
 }
 
 // --- City ---
+//
+// Not `localizedTextToColumns`/`columnsToLocalizedText` — those two exist
+// for `LocalizedText`, whose `en` is genuinely nullable (a shelter or
+// animal description can be Ukrainian-only). `City.name` is the stricter
+// `CityName` (`packages/domain`, tightened 2026-09-12 alongside this
+// table's own `name_en_text`/`name_en_provenance` `NOT NULL` columns): `en`
+// is required, so there is no nullable case for a City-specific mapper to
+// handle, and reusing the general helpers here would silently widen back to
+// accepting a null `en` the type no longer permits.
 
 export function cityToRow(city: City): CityInsert {
-  const desc = localizedTextToColumns(city.name);
   return {
     id: city.id,
     slug: city.slug,
-    nameUk: desc.uk,
-    nameEnText: desc.enText,
-    nameEnProvenance: desc.enProvenance,
+    nameUk: city.name.uk,
+    nameEnText: city.name.en.text,
+    nameEnProvenance: city.name.en.provenance,
     centroidLat: city.centroid.lat,
     centroidLng: city.centroid.lng,
   };
@@ -80,7 +88,10 @@ export function rowToCity(row: CityRow): City {
   return {
     id: row.id,
     slug: CitySlugSchema.parse(row.slug),
-    name: columnsToLocalizedText(row.nameUk, row.nameEnText, row.nameEnProvenance),
+    name: {
+      uk: row.nameUk,
+      en: { text: row.nameEnText, provenance: row.nameEnProvenance as TextProvenance },
+    },
     centroid: { lat: row.centroidLat, lng: row.centroidLng },
   };
 }

@@ -43,6 +43,7 @@ import {
   type ShelterVerification,
   type SizeBucket,
   type SpayNeuterStatus,
+  type TranslatedText,
   testOnlyLocationPolicy,
   UNKNOWN_DOCUMENT_READINESS,
   type VaccinationStatus,
@@ -281,13 +282,41 @@ const CITY_DATA: { name: LocalizedText; centroid: { lat: number; lng: number } }
   },
 ];
 
+/**
+ * `citySlugOf` (`packages/domain`) takes the plain English string, not a
+ * `LocalizedText` — it has no fallback for a missing English name now that
+ * it no longer transliterates the Ukrainian one (`city-slug.ts`'s own doc
+ * comment). Every `CITY_DATA` entry above does carry a real `en`, but the
+ * general `LocalizedText` type doesn't say so (`en` is nullable — a name can
+ * be Ukrainian-only), so this throws rather than silently reading `.text`
+ * off `null` or letting a typo'd empty string slip through as a slug source.
+ *
+ * Returns the whole `TranslatedText`, not just its `.text` — `CityName`
+ * (`packages/domain`, tightened 2026-09-12 alongside the DB's own
+ * `name_en_text`/`name_en_provenance` `NOT NULL` columns) requires a real
+ * `en: TranslatedText`, not a plain string, so this doubles as the one place
+ * that narrows `CITY_DATA`'s loosely-typed `LocalizedText` into the stricter
+ * shape `City` itself demands.
+ */
+export function requireEnglishCityName(name: LocalizedText): TranslatedText {
+  if (name.en === null || name.en.text.trim().length === 0) {
+    throw new Error(
+      `City "${name.uk}" has no English name recorded — a slug cannot be derived without one.`,
+    );
+  }
+  return name.en;
+}
+
 export function buildCities(): City[] {
-  return CITY_DATA.map((c, i) => ({
-    id: cityId(i),
-    slug: citySlugOf(c.name.uk),
-    name: c.name,
-    centroid: c.centroid,
-  }));
+  return CITY_DATA.map((c, i) => {
+    const en = requireEnglishCityName(c.name);
+    return {
+      id: cityId(i),
+      slug: citySlugOf(en.text),
+      name: { uk: c.name.uk, en },
+      centroid: c.centroid,
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------

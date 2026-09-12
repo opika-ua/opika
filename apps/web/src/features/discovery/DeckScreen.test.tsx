@@ -296,7 +296,7 @@ describe("DeckScreen", () => {
       ...NO_FILTERS,
       cities: { kind: "oneOf" as const, values: [BROVARY] as const },
     };
-    const citySlugs = new Map([[BROVARY, citySlugOf("Бровари")]]);
+    const citySlugs = new Map([[BROVARY, citySlugOf("Brovary")]]);
     const router = mockAppRouter();
 
     render(
@@ -307,7 +307,7 @@ describe("DeckScreen", () => {
 
     fireEvent.click(screen.getByTestId("deck-back-to-list"));
 
-    // Literal, not `citySlugOf("Бровари")` — `citySlugs` above is built from
+    // Literal, not `citySlugOf("Brovary")` — `citySlugs` above is built from
     // the same call, so comparing against it again would pass even if
     // citySlugOf itself were broken, as long as it were broken consistently.
     expect(router.push).toHaveBeenCalledWith("/tvaryny?misto=brovary");

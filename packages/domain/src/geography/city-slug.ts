@@ -14,120 +14,48 @@ export const CitySlugSchema = z
 export type CitySlug = z.infer<typeof CitySlugSchema>;
 
 /**
- * The Ukrainian National transliteration system (Резолюція КМУ №55,
- * 27.01.2010) — the same table Ukraine's own passport and road-sign
- * romanization uses, which is why it reproduces already-familiar spellings
- * for real places (`Київ` → `Kyiv`, `Бориспіль` → `Boryspil`) rather than an
- * invented scheme. Five letters (`є ї й ю я`) transliterate differently at
- * the start of a word than in the middle of one; every other letter is
- * position-independent — except the digraph handled separately below.
+ * Derives a `CitySlug` from a city's own human-authored English name
+ * (`City.name.en.text` — `packages/db/src/schema/cities.ts`'s `nameEnText`,
+ * always `provenance: "human"` for every city this repo seeds today).
+ * Lowercase, spaces to hyphens — Oleksii's own instruction, kept literal
+ * rather than widened into a general punctuation sanitiser. A run of
+ * whitespace collapses to one hyphen; nothing else is rewritten. A name
+ * containing anything `CitySlugSchema`'s regex doesn't accept (an
+ * apostrophe, a period, a digit-adjacent symbol) fails loudly at the
+ * `.parse()` below rather than being silently cleaned into something that
+ * merely looks plausible — this repo's own standing preference for a real
+ * name to force a real decision over a guessed one.
+ *
+ * **Not a transliteration of the Ukrainian name — dropped 2026-09-12,
+ * Oleksii's own instruction, after confirming Neon's real `cities` table
+ * holds exactly the 8 seeded rows.** The original implementation ran a real
+ * Ukrainian National transliteration table (Резолюція КМУ №55, 27.01.2010)
+ * against `name.uk`, and every seeded city's transliterated slug happened to
+ * agree with its own already-curated `name.en.text`. "Happened to agree" was
+ * the actual defect: `cities` already stores a human-authored English name
+ * for exactly this purpose, and deriving the slug from a *second*,
+ * independent source — an algorithm run against the Ukrainian name — gives
+ * one city two candidate Latin spellings that are correct only for as long
+ * as they never diverge. The day a city's official English name doesn't
+ * match what the transliteration table would produce (a documented KMU
+ * exception, a long-standing conventional spelling the algorithm's own table
+ * doesn't reach), the two sources disagree, and there is no rule for which
+ * one the slug should have followed. Deriving directly from the same
+ * human-verified field the product already trusts for display removes the
+ * second source entirely — there is no transliteration table in this file
+ * for a future edit to quietly bring back.
+ *
+ * Takes the plain English string, not a `LocalizedText` — `LocalizedText.en`
+ * is nullable (a city can be Ukrainian-only, schema-legally), and this
+ * function has no sensible fallback for that case now that transliteration
+ * is gone. **Every caller must resolve and reject a missing/empty English
+ * name itself, before calling this** — silently falling back to the
+ * Ukrainian name here would resurrect the exact two-sources problem this
+ * change exists to remove, just moved one call frame up.
+ * `packages/db/src/seed.ts`'s `requireEnglishCityName` is the current, only
+ * real caller's guard.
  */
-const LETTER: Record<string, string> = {
-  а: "a",
-  б: "b",
-  в: "v",
-  г: "h",
-  ґ: "g",
-  д: "d",
-  е: "e",
-  ж: "zh",
-  з: "z",
-  и: "y",
-  і: "i",
-  к: "k",
-  л: "l",
-  м: "m",
-  н: "n",
-  о: "o",
-  п: "p",
-  р: "r",
-  с: "s",
-  т: "t",
-  у: "u",
-  ф: "f",
-  х: "kh",
-  ц: "ts",
-  ч: "ch",
-  ш: "sh",
-  щ: "shch",
-  ь: "",
-  "'": "",
-  "’": "",
-};
-
-const WORD_INITIAL: Record<string, string> = {
-  є: "ye",
-  ї: "yi",
-  й: "y",
-  ю: "yu",
-  я: "ya",
-};
-
-const MID_WORD: Record<string, string> = {
-  є: "ie",
-  ї: "i",
-  й: "i",
-  ю: "iu",
-  я: "ia",
-};
-
-/**
- * Note 2 of the same resolution: `зг` renders `zgh`, not `z`+`h` — reserving
- * plain `zh` exclusively for `ж`, so `Згурівка` (a real Kyiv-oblast raion
- * centre) romanizes `zghurivka`, never `zhurivka`, which would be
- * indistinguishable from a name that actually contained `ж`. Checked before
- * the single-letter table below, and consumes both characters at once.
- */
-const ZH_DIGRAPH_SOURCE = "зг";
-const ZH_DIGRAPH_TARGET = "zgh";
-
-function transliterateWord(word: string): string {
-  let result = "";
-  let i = 0;
-  while (i < word.length) {
-    if (word.slice(i, i + 2) === ZH_DIGRAPH_SOURCE) {
-      result += ZH_DIGRAPH_TARGET;
-      i += 2;
-      continue;
-    }
-    const ch = word[i] ?? "";
-    if (i === 0 && ch in WORD_INITIAL) {
-      result += WORD_INITIAL[ch];
-    } else if (ch in MID_WORD) {
-      result += MID_WORD[ch];
-    } else if (ch in LETTER) {
-      result += LETTER[ch];
-    } else if (/[a-z0-9]/.test(ch)) {
-      result += ch;
-    }
-    // Anything else — punctuation, marks, a script this table doesn't cover
-    // — is dropped, not passed through: a stray "." or "(" would otherwise
-    // survive into the attempted slug and fail `CitySlugSchema`'s regex.
-    i += 1;
-  }
-  return result;
-}
-
-/**
- * Not total: a name that transliterates to nothing at all (empty, or purely
- * punctuation/marks this table doesn't cover) throws via `CitySlugSchema`'s
- * own parse, same as any other genuinely invalid input this codebase
- * validates at a boundary. A city name normally reaches this function as
- * curated content (a moderator or `seed.ts`), not raw user input, so this is
- * the same posture as everywhere else that trusts its own domain data — it
- * is not, however, guaranteed to succeed on every string, and callers should
- * not assume it is. Splitting on whitespace/hyphen, not apostrophe, is
- * deliberate: the apostrophe itself transliterates to nothing (`LETTER`,
- * above), so `Кам'янець` walks as one word and produces `kamianets` — the
- * same word-initial-vs-mid-word rule the standard applies to any interior
- * `я`.
- */
-export function citySlugOf(nameUk: string): CitySlug {
-  const slug = nameUk
-    .toLowerCase()
-    .split(/[\s-]+/)
-    .map(transliterateWord)
-    .filter((word) => word.length > 0)
-    .join("-");
+export function citySlugOf(nameEn: string): CitySlug {
+  const slug = nameEn.trim().toLowerCase().replace(/\s+/g, "-");
   return CitySlugSchema.parse(slug);
 }

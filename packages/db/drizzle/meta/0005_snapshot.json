@@ -422,13 +422,13 @@
           "name": "name_en_text",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "name_en_provenance": {
           "name": "name_en_provenance",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "centroid_lat": {
           "name": "centroid_lat",

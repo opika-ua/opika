@@ -34,6 +34,40 @@ import { DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
 const SPOOFED_IP_HEADERS = { "x-forwarded-for": "198.51.100.29" };
 test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
+/**
+ * `citySlugOf` (2026-09-12) takes a city's English name, not its Ukrainian
+ * one — see `packages/domain/src/geography/city-slug.ts`'s own doc comment
+ * for why the transliteration it used to do was dropped. This page renders
+ * only the Ukrainian name, so the test below (which has no database access
+ * of its own — see this file's top comment) can't ask `citySlugOf` to
+ * resolve a name it scraped from the DOM anymore. Pinned to `seed.ts`'s own
+ * `CITY_DATA`, the same real, only-ever corpus this repo seeds — confirmed
+ * exactly 8 rows against Neon before this migration shipped (Oleksii,
+ * 2026-09-12), same posture as `city-slug-backfill.test.ts`'s own
+ * `REAL_SEEDED_CITIES` table.
+ */
+const KNOWN_CITY_NAME_UK_TO_EN: Readonly<Record<string, string>> = {
+  Київ: "Kyiv",
+  Бровари: "Brovary",
+  Ірпінь: "Irpin",
+  Буча: "Bucha",
+  Вишгород: "Vyshhorod",
+  Бориспіль: "Boryspil",
+  Фастів: "Fastiv",
+  "Біла Церква": "Bila Tserkva",
+};
+
+function expectedSlugFor(visibleCityNameUk: string): string {
+  const nameEn = KNOWN_CITY_NAME_UK_TO_EN[visibleCityNameUk];
+  if (nameEn === undefined) {
+    throw new Error(
+      `"${visibleCityNameUk}" is not one of the 8 known seeded cities — either the seed corpus ` +
+        "grew (add it to KNOWN_CITY_NAME_UK_TO_EN above) or this is a real bug.",
+    );
+  }
+  return citySlugOf(nameEn);
+}
+
 const GALLERY_ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
 
@@ -165,7 +199,7 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
     expect(
       citySlug,
       `the href's city ("${citySlug}") must match the link's own visible city ("${visibleCityName}")`,
-    ).toBe(citySlugOf(visibleCityName));
+    ).toBe(expectedSlugFor(visibleCityName));
   });
 
   test("clicking a gallery card actually reaches a real detail page, not a 404", async ({

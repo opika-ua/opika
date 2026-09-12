@@ -10,8 +10,8 @@ const CITIES: ReadonlyArray<{ id: CityId; name: string }> = [
   { id: KYIV, name: "Київ" },
 ];
 const CITY_SLUGS = new Map([
-  [BROVARY, citySlugOf("Бровари")],
-  [KYIV, citySlugOf("Київ")],
+  [BROVARY, citySlugOf("Brovary")],
+  [KYIV, citySlugOf("Kyiv")],
 ]);
 
 describe("FilterRail", () => {
@@ -78,7 +78,7 @@ describe("FilterRail", () => {
     const rail = within(screen.getByTestId("filter-rail"));
 
     const href = rail.getByRole("link", { name: "Бровари" }).getAttribute("href");
-    // Literal, not `citySlugOf("Бровари")` — CITY_SLUGS above is built from
+    // Literal, not `citySlugOf("Brovary")` — CITY_SLUGS above is built from
     // the same call, so comparing against it again would pass even if
     // citySlugOf itself were broken, as long as it were broken consistently.
     expect(href).toBe("/tvaryny?misto=brovary");

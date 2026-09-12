@@ -729,8 +729,8 @@ describe("cursor stability", () => {
 
 describe("feed filters — city", () => {
   it("city filter returns only animals in the selected city", async () => {
-    const city1 = makeCity({ name: { uk: "Київ", en: null } });
-    const city2 = makeCity({ name: { uk: "Львів", en: null } });
+    const city1 = makeCity({ name: { uk: "Київ", en: { text: "Kyiv", provenance: "human" } } });
+    const city2 = makeCity({ name: { uk: "Львів", en: { text: "Lviv", provenance: "human" } } });
     await cityRepo(h.db).insert(city1);
     await cityRepo(h.db).insert(city2);
 

@@ -612,6 +612,39 @@ red-then-green, not merely reasoned about. Still genuinely unverified: whether N
 is what makes that an aborted migration rather than corrupted data if the assumption is wrong,
 but confirming the assumption itself needs a real Neon read, which stays parked for Oleksii.
 
+**2026-09-12 — Neon verified, and the derivation source corrected, Oleksii's own instruction.**
+The cities query came back: exactly 8 rows, ids `c1000000-…-000000000000` through `…007`,
+matching the seed set exactly. The migration-verification procedure above is resolved; the
+production assumption held. In the same response, `citySlugOf` stopped transliterating `name.uk`
+and now derives the slug directly from `name.en.text` (lowercase, spaces to hyphens) —
+`cities` already stores a human-authored English name for exactly this purpose, and computing
+the same city's Latin spelling a second, independent way (an algorithm run against the Ukrainian
+name) meant one city had two candidate spellings that were correct only for as long as they
+happened to agree; "happened to agree for all 8 seeded cities" was the finding that triggered
+the correction, not evidence the transliteration table was right. The Ukrainian transliteration
+table (letter map, digraph rule, word-initial exceptions) is deleted from the codebase, not
+merely unused. `LocalizedText.en` is nullable at the schema level, so every caller now must
+resolve and reject a missing English name itself before calling `citySlugOf` — `seed.ts`'s new
+`requireEnglishCityName` is the current, only real caller's guard, proven by a dedicated test
+(`seed-corpus.test.ts`). The migration's own hardcoded backfill values were already verified to
+match `name_en_text` for all 8 cities (see above), so the literal slugs it writes are unchanged —
+only the migration's own comment describing where they came from. Full reasoning:
+`docs/decisions-pending-review.md`'s "Phase S — English name over transliteration."
+
+**Same day, follow-up instruction — `name_en_text`/`name_en_provenance` tightened to `NOT NULL`
+in the same migration.** A required value (`slug`) cannot honestly depend on an optional one, and
+Oleksii's own cities-query confirmed all 8 real Neon rows already carry both fields. `0005` gains
+a new first block, before `slug` is even added: an independent `DO $$ ... RAISE EXCEPTION` check
+(same abort-loudly posture as `slug`'s own backfill assertion, applied to a claim instead of a
+computation), then the two `ALTER COLUMN ... SET NOT NULL` statements. Tightened together, not
+`name_en_text` alone — `packages/db/src/repos/mappers.ts`'s `columnsToLocalizedText` already
+requires both fields non-null before it treats a city as having a real English name, so leaving
+`name_en_provenance` nullable would have left the identical "required value depending on an
+optional one" gap one column over, invisible to a `NOT NULL` constraint that only watches its own
+column. The now-obsolete "backfill succeeds even with `name_en_text` null" test is replaced with
+one proving the migration now aborts over that exact gap instead. Full reasoning:
+`docs/decisions-pending-review.md`'s "Phase S — English name over transliteration."
+
 `?misto=` now carries the slug, not the raw id — `filter-url.ts`'s `galleryHref`/
 `galleryPageHref`/`deckEntryHref` all take a new required `citySlugs: ReadonlyMap<CityId,
 CitySlug>` parameter (built once per request from `cities.list`, threaded down as a prop the

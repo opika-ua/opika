@@ -19,8 +19,8 @@ import {
 
 const CITY_A = "11111111-1111-4111-8111-111111111111" as CityId;
 const CITY_B = "22222222-2222-4222-8222-222222222222" as CityId;
-const SLUG_A = citySlugOf("Бровари");
-const SLUG_B = citySlugOf("Київ");
+const SLUG_A = citySlugOf("Brovary");
+const SLUG_B = citySlugOf("Kyiv");
 
 const CITY_SLUGS: CitySlugsById = new Map([
   [CITY_A, SLUG_A],

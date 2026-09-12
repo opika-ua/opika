@@ -50,8 +50,8 @@ describe("cityRepo", () => {
 
   it("lists all cities", async () => {
     const cities = cityRepo(db);
-    const c1 = makeCity({ name: { uk: "Харків", en: null } });
-    const c2 = makeCity({ name: { uk: "Дніпро", en: null } });
+    const c1 = makeCity({ name: { uk: "Харків", en: { text: "Kharkiv", provenance: "human" } } });
+    const c2 = makeCity({ name: { uk: "Дніпро", en: { text: "Dnipro", provenance: "human" } } });
 
     await cities.insertMany([c1, c2]);
     const list = await cities.listAll();
@@ -1094,8 +1094,12 @@ describe("feedRepo", () => {
     const animalsR = animalRepo(db);
     const feed = feedRepo(db);
 
-    const shelterCity = makeCity({ name: { uk: "Харків", en: null } });
-    const fosterCity = makeCity({ name: { uk: "Дніпро", en: null } });
+    const shelterCity = makeCity({
+      name: { uk: "Харків", en: { text: "Kharkiv", provenance: "human" } },
+    });
+    const fosterCity = makeCity({
+      name: { uk: "Дніпро", en: { text: "Dnipro", provenance: "human" } },
+    });
     await citiesR.insertMany([shelterCity, fosterCity]);
 
     const shelter = makeShelter({

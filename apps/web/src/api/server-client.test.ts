@@ -21,7 +21,9 @@ beforeEach(async () => {
 
 describe("anonymousRouterClient", () => {
   it("calls a real procedure in-process and returns real data", async () => {
-    const city = makeCity({ name: { uk: "Бровари", en: null } });
+    const city = makeCity({
+      name: { uk: "Бровари", en: { text: "Brovary", provenance: "human" } },
+    });
     await cityRepo(h.db).insert(city);
 
     const client = anonymousRouterClient(h.db);

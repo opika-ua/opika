@@ -19,8 +19,8 @@ import { mockAppRouter, WithMockRouter } from "./test-router";
 const BROVARY = CityIdSchema.parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 const KYIV = CityIdSchema.parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
 const CITIES: ReadonlyArray<{ id: CityId; name: string; slug: ReturnType<typeof citySlugOf> }> = [
-  { id: BROVARY, name: "Бровари", slug: citySlugOf("Бровари") },
-  { id: KYIV, name: "Київ", slug: citySlugOf("Київ") },
+  { id: BROVARY, name: "Бровари", slug: citySlugOf("Brovary") },
+  { id: KYIV, name: "Київ", slug: citySlugOf("Kyiv") },
 ];
 const CITY_SLUGS = new Map(CITIES.map((city) => [city.id, city.slug]));
 

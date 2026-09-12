@@ -89,22 +89,28 @@ async function resetToPreSlugState(): Promise<void> {
 /** The exact 8 cities `seed.ts`'s `buildCities()` produces against an empty
  * database — deterministic ids (`seededUuid("c1000000", i)`), real names —
  * i.e. the actual shape of every database this migration will ever run
- * against for real, not a synthetic stand-in. */
+ * against for real, not a synthetic stand-in. `nameEn` is `seed.ts`'s own
+ * `CITY_DATA.name.en.text` for each — the field the migration's hardcoded
+ * slugs are now computed from (2026-09-12), not `nameUk`. */
 const REAL_SEEDED_CITIES = [
-  { id: "c1000000-0000-4000-8000-000000000000", nameUk: "Київ" },
-  { id: "c1000000-0000-4000-8000-000000000001", nameUk: "Бровари" },
-  { id: "c1000000-0000-4000-8000-000000000002", nameUk: "Ірпінь" },
-  { id: "c1000000-0000-4000-8000-000000000003", nameUk: "Буча" },
-  { id: "c1000000-0000-4000-8000-000000000004", nameUk: "Вишгород" },
-  { id: "c1000000-0000-4000-8000-000000000005", nameUk: "Бориспіль" },
-  { id: "c1000000-0000-4000-8000-000000000006", nameUk: "Фастів" },
-  { id: "c1000000-0000-4000-8000-000000000007", nameUk: "Біла Церква" },
+  { id: "c1000000-0000-4000-8000-000000000000", nameUk: "Київ", nameEn: "Kyiv" },
+  { id: "c1000000-0000-4000-8000-000000000001", nameUk: "Бровари", nameEn: "Brovary" },
+  { id: "c1000000-0000-4000-8000-000000000002", nameUk: "Ірпінь", nameEn: "Irpin" },
+  { id: "c1000000-0000-4000-8000-000000000003", nameUk: "Буча", nameEn: "Bucha" },
+  { id: "c1000000-0000-4000-8000-000000000004", nameUk: "Вишгород", nameEn: "Vyshhorod" },
+  { id: "c1000000-0000-4000-8000-000000000005", nameUk: "Бориспіль", nameEn: "Boryspil" },
+  { id: "c1000000-0000-4000-8000-000000000006", nameUk: "Фастів", nameEn: "Fastiv" },
+  { id: "c1000000-0000-4000-8000-000000000007", nameUk: "Біла Церква", nameEn: "Bila Tserkva" },
 ] as const;
 
-async function insertLegacyCity(id: string, nameUk: string): Promise<void> {
+async function insertLegacyCity(
+  id: string,
+  nameUk: string,
+  nameEn: string | null = null,
+): Promise<void> {
   await client`
-    INSERT INTO cities (id, name_uk, centroid_lat, centroid_lng)
-    VALUES (${id}, ${nameUk}, ${50.45}, ${30.52})`;
+    INSERT INTO cities (id, name_uk, name_en_text, name_en_provenance, centroid_lat, centroid_lng)
+    VALUES (${id}, ${nameUk}, ${nameEn}, ${nameEn === null ? null : "human"}, ${50.45}, ${30.52})`;
 }
 
 type SlugRow = { readonly id: string; readonly slug: string };
@@ -118,9 +124,9 @@ describe("0005 cities.slug backfill", () => {
     await resetToPreSlugState();
   });
 
-  it("backfills every one of the real seeded cities to the slug citySlugOf produces", async () => {
+  it("backfills every one of the real seeded cities to the slug citySlugOf produces from name_en_text", async () => {
     for (const city of REAL_SEEDED_CITIES) {
-      await insertLegacyCity(city.id, city.nameUk);
+      await insertLegacyCity(city.id, city.nameUk, city.nameEn);
     }
 
     await applyMigration(BACKFILL_TAG);
@@ -129,7 +135,7 @@ describe("0005 cities.slug backfill", () => {
     expect(rows).toHaveLength(REAL_SEEDED_CITIES.length);
     const bySlugId = new Map(rows.map((row) => [row.id, row.slug]));
     for (const city of REAL_SEEDED_CITIES) {
-      expect(bySlugId.get(city.id), `slug for ${city.nameUk}`).toBe(citySlugOf(city.nameUk));
+      expect(bySlugId.get(city.id), `slug for ${city.nameEn}`).toBe(citySlugOf(city.nameEn));
     }
   });
 
@@ -137,7 +143,7 @@ describe("0005 cities.slug backfill", () => {
     const subset = [REAL_SEEDED_CITIES[3], REAL_SEEDED_CITIES[0], REAL_SEEDED_CITIES[6]];
     for (const city of subset) {
       // biome-ignore lint/style/noNonNullAssertion: subset is a fixed literal of 3 real entries
-      await insertLegacyCity(city!.id, city!.nameUk);
+      await insertLegacyCity(city!.id, city!.nameUk, city!.nameEn);
     }
 
     await applyMigration(BACKFILL_TAG);
@@ -146,7 +152,7 @@ describe("0005 cities.slug backfill", () => {
     expect(rows).toHaveLength(subset.length);
     for (const row of rows) {
       const expected = subset.find((c) => c?.id === row.id);
-      expect(row.slug).toBe(citySlugOf(expected?.nameUk ?? ""));
+      expect(row.slug).toBe(citySlugOf(expected?.nameEn ?? ""));
     }
   });
 
@@ -154,15 +160,42 @@ describe("0005 cities.slug backfill", () => {
     // A row this migration's hardcoded CASE has never seen — real onboarding
     // (H2) already having added a city, or a database seeded from something
     // other than this repo's own seed.ts. Constructed with a real-shaped
-    // UUID that provably isn't one of the 8 known ids.
-    await insertLegacyCity("99999999-0000-4000-8000-000000000000", "Невідоме Місто");
+    // UUID that provably isn't one of the 8 known ids. Given a real English
+    // name so this reaches the slug-CASE abort specifically, not the
+    // name_en_text/provenance abort tested separately below.
+    await insertLegacyCity(
+      "99999999-0000-4000-8000-000000000000",
+      "Невідоме Місто",
+      "Unknown City",
+    );
 
     await expect(applyMigration(BACKFILL_TAG)).rejects.toThrow(/backfill is incomplete/);
   });
 
+  /**
+   * 2026-09-12 — the migration now tightens `name_en_text`/`name_en_provenance`
+   * to NOT NULL before it ever touches `slug` (Oleksii's own instruction, after
+   * confirming all 8 real Neon rows carry both). This is that tightening's own
+   * abort path, exercised the same way the slug backfill's own abort is above:
+   * a row missing the data the tightening assumes, confirmed to fail loudly
+   * rather than silently truncating or nulling anything out.
+   */
+  it("aborts rather than tightening name_en_text/provenance over a row missing either", async () => {
+    for (const city of REAL_SEEDED_CITIES) {
+      await insertLegacyCity(city.id, city.nameUk, city.nameEn);
+    }
+    // One real row regresses to no English name at all — the exact gap the
+    // tightening exists to catch before it ever reaches ALTER COLUMN.
+    await client`UPDATE cities SET name_en_text = NULL, name_en_provenance = NULL WHERE id = ${REAL_SEEDED_CITIES[0].id}`;
+
+    await expect(applyMigration(BACKFILL_TAG)).rejects.toThrow(
+      /name_en_text\/name_en_provenance tightening is unsafe/,
+    );
+  });
+
   it("the unique constraint is real — two rows can't share a slug after the migration", async () => {
     for (const city of REAL_SEEDED_CITIES) {
-      await insertLegacyCity(city.id, city.nameUk);
+      await insertLegacyCity(city.id, city.nameUk, city.nameEn);
     }
     await applyMigration(BACKFILL_TAG);
 

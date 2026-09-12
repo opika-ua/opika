@@ -63,7 +63,7 @@ export function makeCity(overrides: Partial<City> = {}): City {
     // The `c-` prefix makes this fixture's default provably never collide
     // with that shape.
     slug: CitySlugSchema.parse(`c-${id}`),
-    name: { uk: "Тест", en: null },
+    name: { uk: "Тест", en: { text: "Test", provenance: "human" } },
     centroid: { lat: 50.45, lng: 30.52 },
     ...overrides,
   };
