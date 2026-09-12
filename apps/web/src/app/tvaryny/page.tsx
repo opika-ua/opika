@@ -1,7 +1,6 @@
 import type { CityId } from "@opika/domain";
 import { textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import Link from "next/link";
 import { permanentRedirect } from "next/navigation";
 import { anonymousRouterClient } from "../../api/server-client";
 import { Footer } from "../../features/chrome/Footer";

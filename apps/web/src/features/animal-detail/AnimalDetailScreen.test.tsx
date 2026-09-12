@@ -143,6 +143,7 @@ describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
         shelter={makeShelter()}
         now={NOW}
         cityName="Бровари"
+        backToGalleryHref="/tvaryny?misto=brovary"
       />,
     );
 
@@ -161,6 +162,7 @@ describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
         shelter={makeShelter()}
         now={NOW}
         cityName="Бровари"
+        backToGalleryHref="/tvaryny?misto=brovary"
       />,
     );
 
