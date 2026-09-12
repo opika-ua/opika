@@ -965,6 +965,28 @@ Exact sweep strategy (walk the accessibility tree vs. enumerate roles vs. someth
 decided — `docs/observations.md`'s O-19 says so explicitly ("filed, not designed. Do not build
 it now") and that instruction stands; this entry only fixes *when*, not *how*.
 
+**2026-09-12 — the shared helper half done, the sweep half deliberately not attempted.**
+`expectMinTouchTarget(locator, label)` (`apps/web/test/harness/harness.ts`, beside `rectOf`,
+which it wraps) replaces all three hand-copied `const MIN_TOUCH_TARGET_PX = 48` +
+`expect(rect.height, ...).toBeGreaterThanOrEqual(...)` pairs in
+`discovery-layout.harness.ts`/`gallery-filters.harness.ts`/`site-header.harness.ts` — one call
+site, one message format, one place a future edit to the 48px figure itself has to land. Every
+existing case (back-to-list button, retry button, deck-entry link, both nav links, both footer
+links) now calls it; nothing about which elements get checked changed, only that they now share
+one mechanism instead of three independent hand-copies of the same three lines.
+
+**The sweep — "every interactive element gets this check by construction, not by someone
+remembering to write a case for it by name" — is the part that actually closes O-19's own gap,
+and it is deliberately not attempted here.** The exact strategy is a real, undecided design
+question (walk the accessibility tree? enumerate `getByRole("link")`/`getByRole("button")`
+across a page and exclude known-decorative ones? something else?), not a mechanical refactor —
+inventing an answer unilaterally, under this row's own "do not build it now" standing next to a
+still-open design question, is exactly the kind of scope creep this project's standing
+constraints warn against. What's shipped removes the three-copies problem the helper alone can
+fix; what's still open is recorded as open, not quietly narrowed into "helper exists, therefore
+O-19 is done." The same applies to O-19's second half (keyboard reachability swept the same
+way) — untouched, same reasoning.
+
 ### Before the MVP gate — DB connection strategy (O-9) — "2.1" in the 2026-09-06 reprioritisation
 
 Unlike the rate limiter above, **this one is already live at today's near-zero traffic** —
