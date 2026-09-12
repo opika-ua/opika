@@ -5,6 +5,7 @@ import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips, type PipFill } from "@opika/ui";
 import Image from "next/image";
 import type { RefCallback } from "react";
+import { verificationSuffix } from "../../seo-flags";
 
 /** The deck stays 390-420px centred at every viewport (docs/design/README.md,
  * "02 Deck") — never full-width, so `sizes` is close to a constant. */
@@ -232,12 +233,18 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
           removed: dropping shelter attribution/verification is a content
           decision, not a colour or type-scale one, and this phase is
           re-skinning, not re-scoping what the deck card shows.
+
+          `verificationSuffix` (`seo-flags.ts`), not the raw
+          `card.shelter.verification` check this line used to have — this
+          card and the gallery's `AnimalCard.tsx` shared the identical
+          un-gated line, found together 2026-09-10, neither ever referencing
+          `REGISTRY_HAS_NO_REAL_SHELTERS`.
         */}
         <div data-testid="shelter-line" className="flex items-center gap-1.5">
           <ShelterMonogram name={card.shelter.displayName} />
           <span className="text-[13px] leading-[normal] text-rg-ink-3">
             {card.shelter.displayName}
-            {card.shelter.verification === "verified" && " · перевірений"}
+            {verificationSuffix(card.shelter.verification)}
           </span>
         </div>
       </div>

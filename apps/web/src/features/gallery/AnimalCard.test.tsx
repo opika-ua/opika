@@ -163,16 +163,35 @@ describe("AnimalCard resolved variant", () => {
   });
 });
 
+/**
+ * `REGISTRY_HAS_NO_REAL_SHELTERS` is unmocked throughout this describe
+ * block — its real value is `true` on production today, which is exactly
+ * what the tests below assert against.
+ */
 describe("AnimalCard shelter line", () => {
-  it("marks a verified shelter, without a monogram (the gallery card's own, simpler spec)", () => {
+  /**
+   * 2026-09-10, found by Oleksii, not by any test: this test used to assert
+   * the opposite of what it should — a verified shelter's suffix rendering
+   * unconditionally, which is exactly the regression `verificationSuffix`
+   * (`seo-flags.ts`) exists to close. Real `REGISTRY_HAS_NO_REAL_SHELTERS`
+   * is `true` on production today, so the correct assertion here is
+   * suppression. The other branch (real shelters existing) is
+   * `seo-flags.test.ts`'s own job, via `verificationSuffix`'s explicit
+   * parameter — not `vi.doMock` here, which cannot reach it: the function
+   * is copied into a mocked module namespace by `...importOriginal()`, but
+   * still closes over its *original* module instance's own binding, the
+   * same limitation `assertDemoDiscoverabilityInvariant`'s own doc comment
+   * already documents (confirmed by hitting it, not assumed).
+   */
+  it("does not mark a verified shelter as verified while the registry holds no real shelters", () => {
     render(<AnimalCard card={makeCard()} cityName="Бровари" />);
 
     const line = screen.getByTestId("shelter-line");
     expect(line.textContent).toContain("Тестовий притулок");
-    expect(line.textContent).toContain("перевірений");
+    expect(line.textContent).not.toContain("перевірений");
   });
 
-  it("says nothing about verification for an unverified shelter", () => {
+  it("says nothing about verification for an unverified shelter, under today's real demo flag", () => {
     render(
       <AnimalCard
         card={makeCard({ shelter: { ...makeCard().shelter, verification: "unverified" } })}

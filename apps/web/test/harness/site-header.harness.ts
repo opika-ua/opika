@@ -35,6 +35,7 @@ import {
   GALLERY_PHONE_360,
   GALLERY_TABLET,
   GALLERY_WIDE,
+  NARROW_PHONE,
   PHONE,
   type Viewport,
 } from "./viewports";
@@ -262,6 +263,63 @@ test.describe("the header does not push any page sideways", () => {
       readySelector: HEADER,
     });
     await expectNoHorizontalOverflow(page, GALLERY_PHONE_360);
+  });
+});
+
+/**
+ * O-19-class gap the reviewer found in the D-2 gating fix (2026-09-10):
+ * the new demo banner (`gallery-demo-banner`/`detail-demo-banner`) had a
+ * real unit-level render assertion (`page.test.tsx`) but no measured
+ * geometry at all — a 66-character Ukrainian sentence, unlike the deck's
+ * 4-character «Демо» label, which already had a real width budget measured
+ * at four viewports before it shipped. `NARROW_PHONE` (320) is this
+ * project's own narrowest supported width (`docs/stack-decision.md`,
+ * "budget Android").
+ */
+test.describe("the demo banner is visible and does not push either page sideways", () => {
+  test("gallery banner is visible, unclipped, and the page has no horizontal overflow at 320", async ({
+    page,
+  }) => {
+    await openRoute(page, GALLERY, NARROW_PHONE, { readySelector: HEADER });
+    const banner = page.getByTestId("gallery-demo-banner");
+    await expect(banner).toBeVisible();
+    await expectNoHorizontalOverflow(page, NARROW_PHONE);
+
+    // Round 2 (2026-09-11): `toBeVisible()` alone doesn't catch clipping —
+    // `overflow-hidden` text-overflow-ellipsis (Tailwind's `truncate`) still
+    // reports visible while hiding most of the sentence. Same check as the
+    // deck's own demo label (`discovery-layout.harness.ts`), which exists for
+    // exactly this: confirmed by mutation that adding `truncate` here passes
+    // both toBeVisible() and expectNoHorizontalOverflow() while leaving only
+    // "У реєстрі поки немає спр…" on screen.
+    const { scrollWidth, clientWidth } = await banner.evaluate((el) => ({
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+    }));
+    expect(
+      scrollWidth,
+      `the gallery demo banner is clipped at ${NARROW_PHONE.name}: needs ${scrollWidth}px, has ` +
+        `${clientWidth}px. The whole point of D-2 is that a real visitor can read this.`,
+    ).toBeLessThanOrEqual(clientWidth);
+  });
+
+  test("detail page banner is visible, unclipped, and the page has no horizontal overflow at 320", async ({
+    page,
+  }) => {
+    await openRoute(page, await firstAnimalHref(page), NARROW_PHONE, { readySelector: HEADER });
+    const banner = page.getByTestId("detail-demo-banner");
+    await expect(banner).toBeVisible();
+    await expectNoHorizontalOverflow(page, NARROW_PHONE);
+
+    const { scrollWidth, clientWidth } = await banner.evaluate((el) => ({
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+    }));
+    expect(
+      scrollWidth,
+      `the detail demo banner is clipped at ${NARROW_PHONE.name}: needs ${scrollWidth}px, has ` +
+        `${clientWidth}px. The whole point of D-2 is that a real visitor can read this.`,
+    ).toBeLessThanOrEqual(clientWidth);
   });
 });
 

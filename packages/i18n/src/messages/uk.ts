@@ -60,9 +60,15 @@ export const uk = {
      * Root layout's `description`/`og:description` default in place of
      * `firstRun.promise` (`app/layout.tsx`) — the link-preview text anyone
      * sharing a URL from this deploy actually sees, while the registry
-     * holds no real shelters. A link preview is free-flowing text, not a
-     * fixed-width UI slot, so there's no truncation budget to fit like
-     * `deckLabel` below has.
+     * holds no real shelters. As metadata, a link preview is free-flowing
+     * text, not a fixed-width UI slot, so there was no truncation budget to
+     * fit like `deckLabel` below has. **That stopped being the whole story
+     * 2026-09-10** — see the correction below: the two visible render sites
+     * this string gained *do* sit inside a real container width, and do
+     * have a budget, just not a single-line one. They wrap instead of
+     * truncating; `site-header.harness.ts` asserts `scrollWidth <=
+     * clientWidth` at 320px specifically so a future `truncate` (which
+     * would clip most of the sentence) fails loudly rather than silently.
      *
      * Scoped, Option B (2026-09-06, see `docs/observations.md`): `/prytulkam`
      * and `/pro` override this root default with their own existing opening
@@ -70,6 +76,17 @@ export const uk = {
      * to reach those two specifically, only the surfaces that actually show
      * fabricated animals/shelters (the gallery, the deck, and the detail
      * page inherit or set this).
+     *
+     * **Correction, 2026-09-10 (Oleksii, then the reviewer) — also renders
+     * visibly, not only as metadata.** Until this date, this string only
+     * ever reached `<meta>` tags — invisible to a visitor who simply opens
+     * the page rather than sharing its link. `tvaryny/page.tsx` (the
+     * gallery) and `AnimalDetailScreen.tsx` (the detail page — the one
+     * `/prytulkam` itself tells a shelter to expect shared into Telegram)
+     * now both render this same sentence visibly in the page body too,
+     * gated on the same `REGISTRY_HAS_NO_REAL_SHELTERS` flag. One string,
+     * two independent render sites plus the metadata swap above — not a
+     * new sentence for the visible case.
      */
     bannerNotice: "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.",
     /**
