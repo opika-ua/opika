@@ -1,14 +1,21 @@
-import type { PublicShelterView, SheltersByIdInputSchema } from "@opika/contracts";
+import type { apiErrors, PublicShelterView, SheltersByIdInputSchema } from "@opika/contracts";
 import { shelterRepo } from "@opika/db/repos";
-import { ORPCError } from "@orpc/server";
+import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 
 type SheltersInput = z.infer<typeof SheltersByIdInputSchema>;
 
+/** The exact subset `sheltersByIdContract` declares — see animals.ts's own comment (O-20). */
+type SheltersByIdErrors = ORPCErrorConstructorMap<{
+  NOT_FOUND: typeof apiErrors.NOT_FOUND;
+  RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
+}>;
+
 export async function sheltersById(
   input: SheltersInput,
   context: AppContext,
+  errors: SheltersByIdErrors,
 ): Promise<PublicShelterView> {
   const shelters = shelterRepo(context.db);
   const shelter = await shelters.findById(input.shelterId);
@@ -16,7 +23,7 @@ export async function sheltersById(
   // A shelter that exists but is not verified answers NOT_FOUND, same as
   // one that does not exist. Distinguishing would leak moderation state.
   if (shelter?.verification.status !== "verified") {
-    throw new ORPCError("NOT_FOUND");
+    throw errors.NOT_FOUND();
   }
 
   return {

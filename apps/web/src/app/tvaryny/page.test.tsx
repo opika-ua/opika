@@ -1,7 +1,7 @@
 import { animalRepo, cityRepo, shelterRepo } from "@opika/db/repos";
 import { makeAnimal, makeCity, makeShelter } from "@opika/db/test";
 import { render, screen, within } from "@testing-library/react";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { anonymousRouterClient } from "../../api/server-client";
 import { createTestHarness, type TestHarness } from "../../api/test-harness";
 import { WithMockRouter } from "../../features/gallery/test-router";
@@ -137,5 +137,47 @@ describe("/tvaryny (renderGallery)", () => {
     for (const link of entryLinks) {
       expect(link.getAttribute("href")).toBe("/tvaryny/gortaty?total=1");
     }
+  });
+});
+
+/**
+ * Found 2026-09-10 (Oleksii, not a test): the only carrier of D-2's demo
+ * disclosure on this route was `og:description`/`description`
+ * (`seo-flags.test.ts`'s own describe block covers those) — invisible to a
+ * visitor who just opens the page. `bannerNotice` was never rendered in
+ * this page's body before this row — `FirstRunBand` (deleted by O-3, for
+ * unrelated reasons) rendered `firstRun.promise`/`firstRun.disclaimer`, a
+ * different pair of sentences, not this one (verified via `git show`, not
+ * assumed — an earlier draft of this file's own comment got this wrong).
+ * This describe block is the rendered assertion the metadata tests can't
+ * be: a real render of the page body itself, not a `<head>` tag.
+ */
+describe("/tvaryny — demo disclosure banner (D-2 correction, 2026-09-10)", () => {
+  afterEach(() => {
+    vi.doUnmock("../../seo-flags");
+    vi.resetModules();
+  });
+
+  it("shows the demo banner in the page body while the registry holds no real shelters", async () => {
+    const element = await renderGallery(anonymousRouterClient(h.db));
+    render(<WithMockRouter>{element}</WithMockRouter>);
+
+    expect(screen.getByTestId("gallery-demo-banner").textContent).toBe(
+      "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.",
+    );
+  });
+
+  it("does not show the banner once real shelters exist", async () => {
+    vi.resetModules();
+    vi.doMock("../../seo-flags", async (importOriginal) => ({
+      ...(await importOriginal()),
+      REGISTRY_HAS_NO_REAL_SHELTERS: false,
+    }));
+    const { renderGallery: renderGalleryReal } = await import("./page");
+
+    const element = await renderGalleryReal(anonymousRouterClient(h.db));
+    render(<WithMockRouter>{element}</WithMockRouter>);
+
+    expect(screen.queryByTestId("gallery-demo-banner")).toBeNull();
   });
 });

@@ -17,11 +17,13 @@ import { expectNoHorizontalOverflow, openRoute, rectOf, rowCounts } from "./harn
 import {
   DESKTOP,
   GALLERY_DESKTOP_ROOMY,
+  GALLERY_PHONE_360,
   GALLERY_TABLET,
   GALLERY_ULTRAWIDE,
   GALLERY_ULTRAWIDE_ROOMY,
   GALLERY_WIDE,
   GALLERY_WIDE_ROOMY,
+  NARROW_PHONE,
   PHONE,
   type Viewport,
 } from "./viewports";
@@ -319,6 +321,69 @@ test.describe("/tvaryny photos actually load", () => {
           `${after.width}x${after.height} after — the box should be sized by CSS alone, ` +
           `never by the image`,
       ).toEqual(before);
+    });
+  }
+});
+
+/**
+ * The mobile toolbar row — the count sentence beside the «Гортати»/«Фільтри»
+ * buttons, shown below `desktop:` only.
+ *
+ * This exists because of a CI-only failure (2026-09-12) that no local run
+ * could reproduce: `site-header.harness.ts`'s 320px overflow assertion read
+ * `document scrollWidth 322` on CI and exactly 320 here, twice, on two
+ * different commits. The reason it was invisible locally is that the
+ * document-level assertion only trips once the overflow has already crossed
+ * the viewport edge, and how far past the edge it lands depends on how wide
+ * the platform renders this Ukrainian sentence — Linux Chromium a couple of
+ * pixels wider than Windows Chromium, which was the entire margin.
+ *
+ * So the assertion here is deliberately NOT another document-level overflow
+ * check. It measures the defect itself: the row's two flex children have to
+ * fit inside the row's own content box, and the button group has to stay
+ * within it. Without `min-w-0` on the count span (see `app/tvaryny/page.tsx`)
+ * this reads 303px of content against a 288px box with the group's right
+ * edge at 318.59px — red on every platform, including the one where the
+ * document-level check passed.
+ */
+test.describe("/tvaryny mobile toolbar fits its row", () => {
+  const TOOLBAR = "[data-testid='gallery-mobile-toolbar']";
+  const FILTER_TRIGGER = "[data-testid='filter-sheet-trigger']";
+
+  for (const viewport of [NARROW_PHONE, GALLERY_PHONE_360, PHONE] as const) {
+    test(`the count and the buttons fit the row's content box at ${viewport.name}`, async ({
+      page,
+    }) => {
+      await openRoute(page, ROUTE, viewport, { readySelector: TOOLBAR });
+
+      const row = page.locator(TOOLBAR);
+      const { scrollWidth, clientWidth } = await row.evaluate((el) => ({
+        scrollWidth: el.scrollWidth,
+        clientWidth: el.clientWidth,
+      }));
+
+      expect(
+        scrollWidth,
+        `the mobile toolbar's content needs ${scrollWidth}px inside a ${clientWidth}px row at ` +
+          `${viewport.name}. The overflow does not clip — it is pushed past the row's right edge ` +
+          `and off the page, which is the 320px horizontal-overflow failure. The count span needs ` +
+          `min-w-0 so it can wrap below its own min-content width instead of the button group ` +
+          `being shoved out.`,
+      ).toBeLessThanOrEqual(clientWidth);
+
+      // The group is what actually escapes, so assert its edge directly rather
+      // than inferring it from the row's scrollWidth alone.
+      const rowRect = await rectOf(row, "the mobile toolbar row");
+      const trigger = await rectOf(page.locator(FILTER_TRIGGER), "the «Фільтри» trigger");
+      const rowRight = rowRect.x + rowRect.width;
+      const triggerRight = trigger.x + trigger.width;
+
+      expect(
+        triggerRight,
+        `the «Фільтри» trigger's right edge is at ${triggerRight.toFixed(2)}px, past the row's ` +
+          `own right edge at ${rowRight.toFixed(2)}px, at ${viewport.name} — the button group is ` +
+          `being pushed out of the row rather than the count sentence giving way.`,
+      ).toBeLessThanOrEqual(rowRight + 0.5);
     });
   }
 });

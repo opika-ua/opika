@@ -1,4 +1,4 @@
-import type { FeedListInputSchema, FeedListOutputSchema } from "@opika/contracts";
+import type { apiErrors, FeedListInputSchema, FeedListOutputSchema } from "@opika/contracts";
 import { feedRepo, shelterRepo } from "@opika/db/repos";
 import {
   ageBucketOf,
@@ -10,7 +10,7 @@ import {
   primaryPhoto,
   scoreAnimal,
 } from "@opika/domain";
-import { ORPCError } from "@orpc/server";
+import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 import { decodeFeedCursor, encodeFeedCursor } from "../cursor";
@@ -20,7 +20,17 @@ import { discoverableListingKind } from "./discoverable-listing-kind";
 type FeedInput = z.infer<typeof FeedListInputSchema>;
 type FeedOutput = z.infer<typeof FeedListOutputSchema>;
 
-export async function feedList(input: FeedInput, context: AppContext): Promise<FeedOutput> {
+/** The exact subset `feedListContract` declares — see animals.ts's own comment (O-20). */
+type FeedListErrors = ORPCErrorConstructorMap<{
+  INVALID_CURSOR: typeof apiErrors.INVALID_CURSOR;
+  RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
+}>;
+
+export async function feedList(
+  input: FeedInput,
+  context: AppContext,
+  errors: FeedListErrors,
+): Promise<FeedOutput> {
   const secret = requireEnv("CURSOR_HMAC_SECRET");
   const fp = filtersFingerprint(input.filters);
 
@@ -28,7 +38,7 @@ export async function feedList(input: FeedInput, context: AppContext): Promise<F
   if (input.cursor) {
     const decoded = decodeFeedCursor(input.cursor, fp, secret);
     if (!decoded) {
-      throw new ORPCError("INVALID_CURSOR");
+      throw errors.INVALID_CURSOR();
     }
     cursorData = decoded.data;
   }

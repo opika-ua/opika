@@ -22,6 +22,7 @@ import { NoMatch } from "../../features/gallery/NoMatch";
 import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { SortControl } from "../../features/gallery/SortControl";
+import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 
 /**
  * Same reasoning as `../page.tsx`: without this, `next build` would try to
@@ -76,6 +77,28 @@ const PRIORITY_ROW_SIZE = 2;
  * (`uk.firstRun.promise` as `og:description` only). `/` still redirects here
  * (`next.config.ts`) rather than serving its own route — a standalone `/`
  * page was tried first and reverted for contradicting the original spec.
+ *
+ * **Correction, 2026-09-10 — found by Oleksii, not by any test; a first
+ * draft of this correction then had its own history wrong, found by the
+ * reviewer.** `uk.firstRun.promise` survives as `og:description` *when real
+ * shelters exist*; the D-2 demo disclosure (`uk.demo.bannerNotice`, this
+ * page's `linkPreviewDescription` while `REGISTRY_HAS_NO_REAL_SHELTERS`)
+ * survives the same way — and both `description`/`og:description` render
+ * only in a shared-link preview or a search snippet, never in the page a
+ * visitor actually opens. **Not what `FirstRunBand` used to show**, on
+ * inspection of the deleted component itself (`git show`), not assumed:
+ * that band rendered `firstRun.promise` + `firstRun.disclaimer`, two
+ * different sentences, and its removal (O-3, unrelated reasons — duplicated
+ * the filter rail, delayed the content) is not what left `bannerNotice`
+ * invisible here. `bannerNotice` was *never* rendered in this page's body,
+ * at any point in this repo's history — only in metadata, always. The
+ * deck (`DeckScreen.tsx`) shows "Демо" in its own header; this route, the
+ * higher-traffic one, showed nothing at all. Fixed below: the same
+ * already-approved `bannerNotice` sentence, rendered visibly for the first
+ * time, directly under the header — not the slot `FirstRunBand` used to
+ * occupy (that band sat *inside* the padded `max-w-[760px] mx-auto mb-8`
+ * container below; this banner sits outside and above it). New placement of
+ * existing copy, not a restoration and not new copy either.
  *
  * Split from the default export so `page.test.tsx` can call this directly
  * with a test database; `Page`'s own call below still calls it with Next's
@@ -139,6 +162,23 @@ export async function renderGallery(
       </SiteHeader>
 
       {/*
+        The gallery's own visible carrier of the D-2 demo disclosure — see
+        this file's top comment (2026-09-10 correction) for why the deck's
+        header label alone wasn't enough and `og:description` doesn't count
+        as visible. Muted, single line, no colour beyond the standard
+        caption tone: a factual notice, not an alert (this app's own
+        "freshness is honest and never alarming" rule, applied to the same
+        idea — demo status is stated, not tinted).
+      */}
+      {REGISTRY_HAS_NO_REAL_SHELTERS && (
+        <div className="px-4 tablet:px-6 desktop:px-15 pt-4 desktop:pt-6">
+          <span data-testid="gallery-demo-banner" className="text-[13px]/[18px] text-rg-ink-3">
+            {uk.demo.bannerNotice}
+          </span>
+        </div>
+      )}
+
+      {/*
         Padding and max-width deliberately live on different elements.
         Preflight is border-box, so a max-width and a padding on the SAME
         element share one budget — max-w-[960px] plus px-15 (60px a side)
@@ -149,8 +189,30 @@ export async function renderGallery(
         desktop ... content 960").
       */}
       <div className="p-4 tablet:p-6 desktop:pt-10 desktop:px-15 desktop:pb-14">
-        <div className="flex items-center justify-between gap-4 mb-4 desktop:hidden">
-          <span className="text-[15px]/[22px] text-rg-ink-2">
+        <div
+          data-testid="gallery-mobile-toolbar"
+          className="flex items-center justify-between gap-4 mb-4 desktop:hidden"
+        >
+          {/*
+            `min-w-0`, found 2026-09-12 as the real cause of a CI-only
+            horizontal-overflow failure at 320px. A flex item's default
+            `min-width: auto` floors it at its own min-content width — here
+            the longest Ukrainian word in the count sentence, 93px. At 320
+            the row has 288px of content box, the button group beside this
+            span needs 193px and will not shrink, so the span was clamped at
+            its 93px floor and the 15px that did not fit was pushed out of
+            the container instead: the group's right edge landed at 318.59px
+            against a 320px viewport. That 1.41px was font metrics, not
+            layout — CI's Linux Chromium renders this sentence a couple of
+            pixels wider than this machine's Windows Chromium and tipped it
+            to a 322px document, which is why it failed only there.
+            `min-w-0` removes the floor, so the sentence wraps to another
+            line and the group sits at the container's own padding edge
+            (304px) — a position set by padding rather than by text width,
+            which is what makes the slack real. Measured no-op at 360 and
+            390, where the span never reaches its floor.
+          */}
+          <span className="min-w-0 text-[15px]/[22px] text-rg-ink-2">
             {sheetResultCount(
               page.totalMatching,
               page.totalShelters,

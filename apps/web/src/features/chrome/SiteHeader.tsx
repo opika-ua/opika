@@ -133,11 +133,29 @@ export interface SiteHeaderProps {
   readonly wordmarkIsCurrentPage?: boolean;
 }
 
+/**
+ * `shrink-0` + `whitespace-nowrap`. Added 2026-09-12 while chasing a
+ * CI-only horizontal-overflow failure at 320px, on the theory that this nav
+ * caused it. **It did not** — the overflow was the gallery's own mobile
+ * toolbar row (`app/tvaryny/page.tsx`), and the CI failure reproduced
+ * unchanged after this landed. Corrected here rather than reverted because
+ * the measurement behind it was real, even though the diagnosis was not: at
+ * 320 the two labels plus their gap came to *exactly* 288.0px against
+ * exactly 288px of available width, so the nav rendered with zero slack and
+ * Chromium wrapped a label internally ("Для" / "притулків" stacked inside
+ * one pill). That is a legibility defect on its own, but it could never
+ * push the page sideways — the nav is a flex child capped at its
+ * container's 288px, and measured `scrollWidth === clientWidth === 288`
+ * both with and without these classes. Matches `Footer.tsx`'s own pattern
+ * for the identical two-link case: the whole pill wraps to its own row
+ * (`flex-wrap` on the parent `nav`, below) rather than the pill's internal
+ * text wrapping.
+ */
 const NAV_LINK_CLASS =
-  "inline-flex min-h-12 items-center rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium " +
-  "text-rg-ink transition-colors duration-[120ms] ease-rg hover:bg-rg-fill-strong " +
-  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry " +
-  "focus-visible:outline-offset-[3px]";
+  "inline-flex min-h-12 shrink-0 items-center whitespace-nowrap rounded-rg-button bg-rg-fill " +
+  "px-4 text-[15px] font-medium text-rg-ink transition-colors duration-[120ms] ease-rg " +
+  "hover:bg-rg-fill-strong focus-visible:outline focus-visible:outline-[3px] " +
+  "focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
 
 const WORDMARK_CLASS =
   "font-bold text-[22px] desktop:text-[26px] tracking-[-0.03em] text-rg-ink whitespace-nowrap";
@@ -210,7 +228,7 @@ export function SiteHeader({ children, wordmarkIsCurrentPage = false }: SiteHead
         on the gallery (the pagination nav is the other), and two unnamed
         `nav`s are indistinguishable in a screen reader's landmark list.
       */}
-      <nav aria-label={WORDMARK} className="flex items-center gap-2 desktop:gap-3">
+      <nav aria-label={WORDMARK} className="flex flex-wrap items-center gap-2 desktop:gap-3">
         <Link href="/prytulkam" data-testid="nav-for-shelters" className={NAV_LINK_CLASS}>
           {uk.nav.forShelters}
         </Link>

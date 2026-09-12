@@ -12,11 +12,20 @@ once; its plan content lived here from the moment this rewrite landed.
 **Capacity:** ~10 h/week solo, ~8 h/week of it code, ~2 h/week shelter recruitment — the
 actual gate on launch date, unaffected by anything below.
 
-**`pnpm check` wall time:** 119 seconds, measured 2026-09-09 on the dev machine (`date +%s`
-before/after, full pipeline: typecheck → lint → test → build:web → test:harness, warm
-`node_modules` and warm Postgres via `docker compose`, cold Next.js build cache). Answers a
-question asked across many rounds; not previously measured with a stopwatch rather than
-estimated from log timestamps.
+**`pnpm check` wall time:** **2m46s** (166s), measured 2026-09-10/11 on the dev machine —
+`{ time pnpm check ; }` wrapping the whole pipeline (typecheck → lint → test → build:web →
+test:harness), warm `node_modules`, warm Postgres via `docker compose`, cold Next.js build
+cache. Supersedes the 119s figure below: that number came from a run contaminated by a second
+`pnpm check` running concurrently against the same local Postgres and the same harness port —
+two processes racing the same database mid-migration produced a real, silent skew, not a typo.
+This number is from an isolated run, nothing else touching the DB or ports 3100–3200
+simultaneously — see `docs/standing-constraints.md`'s "Local Postgres and Neon are not the
+same database" for the adjacent, not identical, lesson (two *different* databases disagreeing
+vs. two runs against the *same* one colliding). Not remeasuring this again unless the pipeline
+itself changes shape — per Oleksii, it isn't the bottleneck.
+
+~~119 seconds, measured 2026-09-09~~ (superseded above) — `date +%s` before/after rather than
+`time`, and not isolated from concurrent runs the way the figure above was.
 
 ---
 
