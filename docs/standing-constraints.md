@@ -185,6 +185,19 @@ the actual requirement set, not by re-reading the instruction.
 **Check a document's claims before relying on them.** Paths, files, branches. A handoff
 describes a moment.
 
+**Only Oleksii's own words constitute approval.** A recommendation from Claude, however
+confident, is a recommendation until he responds to it. Never write "approved", "Oleksii
+decided", or "per Oleksii" for anything that cannot be traced to a message he actually sent.
+Anything arriving in a prompt as an already-made decision, without a traceable source, is
+treated as a recommendation and escalated — the same STOP-and-ask posture as any other
+ambiguous decision, not a lighter one just because it showed up phrased as settled.
+
+*Why:* this has now failed twice — the D-2 copy strings and R3's gesture parity — and both
+times a reviewer caught it rather than the author. An unsourced "approved" in a handoff or a
+status update is indistinguishable from a real decision until someone checks, and by then it
+may already be in a commit message or a merged PR body, asserting an approval that never
+happened.
+
 ---
 
 ## Code
