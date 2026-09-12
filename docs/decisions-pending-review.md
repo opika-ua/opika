@@ -431,9 +431,7 @@ directly, must equal `"translate3d(0, 0, 0) rotate(0deg)"` (centred) rather than
 exit position. Also added: a `prefers-reduced-motion` unit-test variant of the `canCommit`
 refusal (a distinct branch in `onPointerUp` — synchronous `onSnapBack`, no pending settle),
 found missing on the same round.
-Commit: (pending — this decision entry describes the commit it will be part of, so its own hash
-can't be known while writing it; a small immediate follow-up commit fills in the real value once
-`git commit` returns one).
+Commit: 8ad4fab.
 
 ## R3 — no secondary action on the deck
 Chose: the deck's own `ContactRevealDialog` instance passes no `secondaryAction` at all — no
