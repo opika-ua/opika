@@ -46,6 +46,27 @@ export function requireEnv(name: string): string {
  * `productionLocationPolicy` directly from a request path, add it here in
  * that same change — not before.
  *
+ * `PRELAUNCH_GATE_SECRET` (2026-09-13) follows `CURSOR_HMAC_SECRET`'s pattern,
+ * not `LOCATION_HMAC_SECRET`'s: `proxy.ts` reads it on every single request
+ * while `SITE_IS_PUBLICLY_DISCOVERABLE` is false, which today is every
+ * request this app serves — an instance that booted without it would 500
+ * or, worse, silently deny every visitor with no way to open the gate at
+ * all. Required here rather than only where it's read, for the same reason
+ * every other secret in this schema is: fail at boot, not on the first
+ * request that happens to need it. Comes back out of this schema in the
+ * same change that removes the gate itself (`docs/build-plan.md`'s launch
+ * gate — the gate comes down in the same change that flips
+ * `SITE_IS_PUBLICLY_DISCOVERABLE`), not left behind as a requirement
+ * nothing reads anymore.
+ *
+ * ⚠ **Deploy-order note, same class of risk as `NEXT_PUBLIC_R2_PUBLIC_BASE_URL`'s
+ * own entry below.** Because this is read on every request rather than only
+ * a DB-backed one, a Production *or Preview* instance deployed before
+ * `PRELAUNCH_GATE_SECRET` exists in Vercel's dashboard does not fail one
+ * handler — it 500s on its very first request and stays that way, with no
+ * page left to open the gate from at all. Set it in Vercel, both
+ * environments, before this change is ever deployed — not after.
+ *
  * `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` (H1) is the opposite case from
  * `LOCATION_HMAC_SECRET`: genuinely required by this app's own runtime, not
  * just by the operator's onboarding script. Every real animal photo routes
@@ -79,6 +100,7 @@ const RequiredProductionEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   CURSOR_HMAC_SECRET: z.string().min(1, "CURSOR_HMAC_SECRET is required"),
   NEXT_PUBLIC_R2_PUBLIC_BASE_URL: z.string().min(1, "NEXT_PUBLIC_R2_PUBLIC_BASE_URL is required"),
+  PRELAUNCH_GATE_SECRET: z.string().min(1, "PRELAUNCH_GATE_SECRET is required"),
 });
 
 /**

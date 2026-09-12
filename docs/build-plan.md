@@ -896,13 +896,47 @@ a build that reached a running instance without that test having run, not the me
 this gate is actually relying on day to day. Later than the location-fuzzing gate above, not
 earlier.
 
-### Before real traffic (not urgent at preview-only volume)
+**The pre-launch access gate (`proxy.ts`'s `evaluatePrelaunchGate`, added 2026-09-13,
+`docs/decisions-pending-review.md`) is tied to `SITE_IS_PUBLICLY_DISCOVERABLE` specifically, and
+comes down in the same change that flips it — not before, and not left in place after.** It
+exists only to make the site unreachable while that flag is false; leaving it active past the
+flip would mean a real, launched visitor without the gate secret gets a 403 instead of the site.
+Remove the gate check from `proxy.ts` (or let it no-op — either way, verify with a real
+unauthenticated request against the flipped build, not by reading the code) in the same change,
+and drop `PRELAUNCH_GATE_SECRET` from `apps/web/src/api/env.ts`'s `RequiredProductionEnvSchema`
+at the same time, since nothing will read it anymore.
+
+⚠ **Open tension, not resolved here — flagged for Oleksii, not decided.** Oleksii's own
+instruction described this row as coming down "in the same change that flips
+`SITE_IS_PUBLICLY_DISCOVERABLE`, alongside the banner." Taken literally, that collides with D-7
+immediately above, which is explicit that the banner (`REGISTRY_HAS_NO_REAL_SHELTERS`, wiped at
+the first real `onboard-shelter --commit`) and the flag flip are **not** simultaneous — the
+banner routinely comes down first, with a whole launch-gate window still ahead of it. This
+section ties the new gate to the flag alone, since that is what the gate mechanism actually
+reads and what the rest of this instruction ("comes down in the same change that flips
+`SITE_IS_PUBLICLY_DISCOVERABLE`") unambiguously supports — the "alongside the banner" half is
+left as his shorthand for "part of the same pre-launch cleanup," not a claim that the two
+constants stop being independent. If that reading is wrong, this paragraph needs correcting
+before it's acted on.
+
+### Before any route is indexed — the in-memory rate limiter is a launch-gate blocker, not a nicety
 
 **Move the in-memory rate limiter (`apps/web/src/api/rate-limit.ts`) to a shared store**
 (Redis/Upstash/Vercel KV). Already documented in that file's own comment as a known gap:
 each serverless instance holds its own counter, so the effective per-IP ceiling is `limit ×
-instance count`, not the stated limit — adequate as a first-line defense at near-zero
-traffic, not at real usage.
+instance count`, not the stated limit.
+
+**Reclassified, 2026-09-13 — no longer "not urgent."** ~100 req/min of sustained,
+unidentified traffic against the noindexed, pre-launch site (investigated the same day —
+`docs/decisions-pending-review.md`) sailed through this limiter without a single 429 in six
+hours of Edge Requests data. That traffic is being stopped at the pre-launch gate
+(`proxy.ts`'s `evaluatePrelaunchGate`, same date) instead, which is a separate mechanism —
+the gate closes off *unauthenticated* traffic entirely; it does nothing for a legitimate,
+gate-holding visitor's own request rate once the gate itself comes down at launch. Real
+launch traffic, or any crawler let in after `SITE_IS_PUBLICLY_DISCOVERABLE` flips, would
+reproduce today's demonstration exactly. **Must be backed by a shared store before
+`SITE_IS_PUBLICLY_DISCOVERABLE` is ever flipped** — filed as a hard gate row, not a
+"before real traffic" aspiration.
 
 ### Before the MVP gate — a real touch-target/keyboard enforcement mechanism (O-19)
 
@@ -971,9 +1005,14 @@ zero transitive dependencies, the only way to reach Neon over HTTP), not as some
 `docs/stack-decision.md`'s ADR specifically pre-approved — that line is a vendor-feature bullet,
 not a decision record for this row.
 
-**Does not close this gate on its own — only the connection-overhead half of the diagnosis is
-addressed.** The `iad1`-vs-`aws-eu-central-1` region mismatch is untouched; every request still
-crosses the Atlantic, this row only removes the handshake paid on top of that crossing.
+**Did not close this gate on its own, at the point this paragraph was written — only the
+connection-overhead half of the diagnosis was addressed then.** The `iad1`-vs-`aws-eu-central-1`
+region mismatch was untouched at that point. **Corrected, 2026-09-13**: commit `f966242`
+("perf(web): O-9 continued — pin function region to fra1, near Neon", merged the same day via PR
+#53 / squash commit `61183b2`) pinned `apps/web/vercel.json`'s `regions` to `fra1`, closing the
+other half the same day. Left stale here
+until an unrelated bot-traffic investigation found it — same defect class `packages/db/src/client.ts`'s
+own comment had, corrected there in the same pass.
 
 **Two review rounds, both real findings:**
 - Round 1: a real union return type (`PostgresJsDatabase | NeonHttpDatabase`) broke

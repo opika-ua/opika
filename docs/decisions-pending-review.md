@@ -453,6 +453,144 @@ Commit: 69ab6bf
 
 ---
 
+## Investigation and decision, 2026-09-13 — bot traffic burning Neon's transfer allowance
+
+**Trigger:** Neon (project opika) showed 4.2 of 5 GB monthly public network transfer used since
+Sep 2, 29.37 CU-hours of compute over 10 days, against a 33 MB corpus. Vercel Observability
+showed ~100 req/min, flat and continuous over the visible 6h window, 33K of 37K requests to
+`/tvaryny` alone, 0% cache hit on every app route. The site is noindexed
+(`SITE_IS_PUBLICLY_DISCOVERABLE = false`), holds 220/320 fabricated animals, and no outreach has
+happened — there is no legitimate source for this traffic.
+
+**Investigated, reported findings-only first (Tier 1, no code changed until a decision came
+back):**
+
+1. **Who.** 89% of requests hit one route pattern (`/tvaryny`); Vercel's own automatic anomaly
+   detection (Firewall Actions) fired only 0–4 times across 6h, so this isn't tripping Vercel's
+   own bot heuristics. Could not identify the actual bot name or confirm one-URL-vs-enumeration
+   from here — the Vercel plugin session's authenticated identity cannot see this project at all
+   (`list_projects` empty, `get_project` 404s, `get_runtime_logs` 403s "does not exist or you do
+   not have access" against `prj_TCW2TP0zhesnhKIgT8dQXbQfTPYG`) — reported as its own item, below.
+2. **Is the rate limiter firing.** No. `apps/web/src/api/rate-limit.ts`'s in-memory `Map` is
+   per-serverless-instance by its own documented design; Edge Requests' 4XX line was flat and
+   near-zero the whole window, meaning no 429s were served at all — consistent with load spread
+   across concurrent Fluid Compute instances (and/or many source IPs), each seeing well under
+   100/min in its own private counter.
+3. **What one request costs.** Measured directly against local Postgres seeded with the real
+   320-row corpus (not guessed): one `/tvaryny` render is 3 DB round-trips (`gallery.list`'s page
+   query ≈33KB JSON, a `COUNT(DISTINCT shelter_id)`, `cities.list` ≈1.3KB) ≈35KB of payload per
+   render, all over `@neondatabase/serverless`'s HTTP driver — real "public network transfer" by
+   construction, since this connection is never VPC-peered. Extrapolated flat across the full
+   10-day billing window, 33K req/6h × ~35–40KB ≈ 48GB, roughly 10× the actual 4.2GB — the
+   reconciled read is that the current rate has been running for roughly a day, not the full ten,
+   which places its start near the robots.txt change (D-3) that dropped `Disallow: /`. Also
+   surfaced in this pass: `packages/db/src/client.ts`'s own comment claiming the function region
+   was unpinned and every request crossed the Atlantic was stale — `apps/web/vercel.json` has
+   pinned `regions: ["fra1"]` since commit `f966242` (2026-09-09, merged the same day as the
+   driver fix via PR #53 / squash commit `61183b2`) — production has run in Frankfurt, next to
+   Neon, for four days already. Corrected in `client.ts`, `docs/build-plan.md`'s O-9 section, and
+   this entry, same pass — the first two drafts of this entry repeated the same
+   commit-attribution error a reviewer later caught (citing the PR's squash commit while quoting
+   the actual commit's own message).
+4. **Why 0% cached.** `force-dynamic` on `/tvaryny` and `/tvaryny/[animalId]` is deliberate and
+   documented (avoids a build-time `DATABASE_URL` secret and a stale baked-in snapshot) — but
+   there is *also* zero query-level caching on top of that (no `unstable_cache`, no `fetch`
+   cache, no revalidate window anywhere in `gallery-repo.ts`/`city-repo.ts`/`server-client.ts`).
+   Dynamic-by-design is a real, defended decision; zero caching on top of it is not the same
+   decision and isn't defended anywhere.
+5. **Does the build read the corpus.** No `generateStaticParams` on either route; `next build`
+   never touches the database for these routes, previews or production.
+
+**Decision — Oleksii's own words, 2026-09-12/13:** "implement Option A, the pre-launch gate."
+Rationale, his own: "the 4.2 GB reconciles to roughly one day at the observed rate, not ten,
+which places the start near the robots.txt change that dropped Disallow: / (D-3). The request
+shape — 33K on /tvaryny, 28 on /tvaryny/[animalId] — is parameter enumeration of the gallery's
+filter/sort/page query space, not content crawling. Every response already carries
+X-Robots-Tag: noindex, nofollow, so whatever is doing this ignores what the site says;
+politeness measures cannot reach it." Explicit instruction, also his own words: no user-agent
+carve-out ("It is spoofable and it is a permanent hole for a ten-minute task"); the gate must not
+interfere with `SITE_IS_PUBLICLY_DISCOVERABLE`'s other consequences, assert both states; a
+mutation test must show removing the gate lets an unauthenticated request through; the gate comes
+down in the same change that flips the flag, alongside D-7's banner.
+
+**Implemented:**
+- `apps/web/src/api/prelaunch-gate.ts` — pure `evaluatePrelaunchGate(cookieHeader, queryValue,
+  secret)`, timing-safe secret comparison (same technique as `session/token.ts`'s
+  `hashesEqual`), `__Host-`-prefixed cookie in production (same pattern as
+  `session/cookie.ts`), no `Max-Age` (session-scoped — this is a launch-gate window measured in
+  weeks, not a credential worth persisting). 12 unit tests
+  (`apps/web/src/api/prelaunch-gate.test.ts`), including a reviewer-found regression: `secretsEqual`
+  originally compared string `.length` before calling `timingSafeEqual` on UTF-8 buffers, so a
+  same-`.length` guess containing one multi-byte character crashed the check with a `RangeError`
+  instead of being denied — any unauthenticated caller could trigger it. Fixed by comparing buffer
+  length instead; mutation-confirmed (reverted, watched the new test fail with that exact
+  `RangeError`, restored).
+- `apps/web/src/proxy.ts` — while `SITE_IS_PUBLICLY_DISCOVERABLE` is false, every request 403s
+  unless the gate cookie or the `?gate=` query parameter carries the secret (the latter mints
+  the cookie on the response). Matcher widened from `/tvaryny*` only to the whole site
+  (`/((?!_next/static|_next/image|favicon.ico).*)`) — "every request," per the decision, not
+  only the routes a crawler happened to hit this time; `/api/rpc/*` is in scope now too. The
+  pre-existing per-IP rate limiter is unchanged in behaviour, still scoped to `/tvaryny*` only,
+  now inside a helper (`respectingRateLimit`) the gate calls into rather than being the whole
+  function body. No user-agent branch anywhere in the file. 11 tests
+  (`apps/web/src/proxy.test.ts`) assert both `SITE_IS_PUBLICLY_DISCOVERABLE` states — denial,
+  cookie-allow, query-allow-and-mint, whole-site coverage (a non-`/tvaryny` route, the RPC
+  route), no user-agent carve-out, and that a launched site never even reads
+  `PRELAUNCH_GATE_SECRET`.
+- `PRELAUNCH_GATE_SECRET` added to `apps/web/src/api/env.ts`'s `RequiredProductionEnvSchema`,
+  boot-validated like `CURSOR_HMAC_SECRET` — documented there to come back out in the same
+  change that removes the gate.
+- **Mutation-tested**: reverted the gate's own denial check to a no-op
+  (`if (false && decision.kind === "denied")`), re-ran `proxy.test.ts` — 5 of 11 tests went red
+  with an unauthenticated request returning 200 instead of 403 (denial-by-default, the RPC
+  route, the non-`/tvaryny` route, and the user-agent-carve-out check all caught it). Restored
+  and reconfirmed green.
+- **Playwright harness**: `next start` runs in production mode, so the harness's real server now
+  403s every request the same way production does — no test-only bypass, on purpose, or the
+  harness would stop covering the gate. Added a `setup` project
+  (`test/harness/prelaunch-gate.setup.ts`) that opens the gate via a real navigation carrying
+  `?gate=`, the same way an operator would, and saves the resulting cookie jar
+  (`storageState`) for the `chromium` project (`dependencies: ["setup"]`) to reuse — no
+  gate-specific code needed in any of the ~15 existing `.harness.ts` files. `PRELAUNCH_GATE_SECRET`
+  added to the harness's `webServer.env`. Confirmed Playwright's own `webServer.url` readiness
+  probe tolerates a 403 (`isURLAvailable` accepts any `2xx`–`403`, checked against
+  `playwright-core`'s own source, not assumed). **Reviewer-found gap, second round**: every other
+  harness file only proves the gate can be *opened* — none of them, `prelaunch-gate.setup.ts`
+  included, ever proves the real server actually *denies* an unauthenticated caller. Added
+  `test/harness/prelaunch-gate.harness.ts` — 4 tests against the plain `request` fixture (which,
+  per `gallery-rate-limit.harness.ts`'s own finding, does not inherit `storageState`), covering:
+  no gate value at all, a wrong query value, a route outside `/tvaryny`, and the correct query
+  value succeeding. Run against the real server: all 4 pass.
+- **Reviewer's second-round found the byte-length crash above (finding 1) was the only high-severity
+  code defect; findings 3/4/6/7/8 (local-dev ergonomics, a stale `seo-flags.ts` cross-reference, an
+  untested cookie-attribute branch, an imprecise "every request" claim around config-level
+  redirects, and a commit-hash misattribution) were fixed the same round — `.env.example`,
+  `seo-flags.ts`, `prelaunch-gate.test.ts`, `proxy.ts`'s `config` comment, and the two hash
+  citations above, respectively.**
+- `docs/build-plan.md`'s launch-gate section: the gate's removal is now written down as due in the
+  same change that flips `SITE_IS_PUBLICLY_DISCOVERABLE` specifically — **not** asserted as
+  simultaneous with D-7's banner removal, which a first draft of this row got wrong (a reviewer
+  caught it): D-7 is explicit that the banner and the flag flip are deliberately *not*
+  simultaneous, so "alongside D-7" would have silently collapsed that distinction back into one
+  event. `build-plan.md` now carries an explicit "⚠ Open tension, not resolved here" callout
+  instead, laying out the collision between the flag-only reading above and Oleksii's own
+  "alongside the banner" phrasing, for him to confirm rather than for either of us to guess at.
+  The in-memory rate limiter's own gate row is reclassified from "before real traffic (not
+  urgent)" to a hard pre-launch blocker — today's traffic is the demonstration that it doesn't
+  hold under real load, and a real launch (or any crawler let in after the flip) would reproduce
+  it exactly.
+
+**Reported to Oleksii as its own item, not folded into this decision:** the Vercel API access
+failure (`list_projects` empty, `get_project` 404, `get_runtime_logs` 403 for `opika-web`) that
+prevented answering "who" from this session — worth fixing on its own, independent of the gate.
+
+**Still open, not blocking:** Bot Name and Paths tab screenshots, to be sent when convenient —
+they settle whether caching `/tvaryny` (Option B) would help at all (a narrow set of repeated
+filter/sort/page combinations is cacheable; a wide enumeration is not). Option B is not started
+until that is known.
+
+---
+
 ## PARKED
 
 ### R3 — focus-on-close has one uncovered edge case

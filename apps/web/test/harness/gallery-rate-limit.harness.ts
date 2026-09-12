@@ -19,6 +19,8 @@
  */
 
 import { expect, test } from "@playwright/test";
+import { PRELAUNCH_GATE_QUERY_PARAM } from "../../src/api/prelaunch-gate";
+import { HARNESS_PRELAUNCH_GATE_SECRET } from "../harness-env";
 
 const ROUTE = "/tvaryny";
 /** Matches apiRateLimiter's own configured budget — see api/rate-limit.ts. */
@@ -27,10 +29,24 @@ const BUDGET = 100;
 test.describe("gallery rate limiting", () => {
   test("the bare route is covered, and the budget is actually enforced", async ({ request }) => {
     const testIp = `203.0.113.${Math.floor(Math.random() * 254) + 1}`;
+    /**
+     * The `request` fixture is a standalone `APIRequestContext` — unlike
+     * `page`, it does NOT inherit the `chromium` project's `storageState`, so
+     * it never carries the pre-launch gate cookie `prelaunch-gate.setup.ts`
+     * mints for every other test. The query parameter, not a hand-built
+     * cookie header, is what opens the gate here: the gate cookie's own name
+     * depends on `NODE_ENV` at the point it's *read* (`__Host-` in
+     * production, plain otherwise — `prelaunch-gate.ts`'s own comment), and
+     * this test file runs in the Playwright test-runner process, not inside
+     * the `next start` server process the gate actually checks against — the
+     * two can disagree on `NODE_ENV`. The query parameter has no such
+     * ambiguity: the server accepts it under either name.
+     */
+    const routeWithGate = `${ROUTE}?${PRELAUNCH_GATE_QUERY_PARAM}=${HARNESS_PRELAUNCH_GATE_SECRET}`;
 
     let lastStatus = 0;
     for (let i = 0; i < BUDGET + 1; i++) {
-      const response = await request.get(ROUTE, {
+      const response = await request.get(routeWithGate, {
         headers: { "x-forwarded-for": testIp },
       });
       lastStatus = response.status();

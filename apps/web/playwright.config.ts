@@ -1,4 +1,8 @@
 import { defineConfig } from "@playwright/test";
+import {
+  HARNESS_PRELAUNCH_GATE_SECRET,
+  PRELAUNCH_GATE_STORAGE_STATE_PATH,
+} from "./test/harness-env";
 
 /**
  * The rendering harness. See `test/harness/harness.ts` for why it exists.
@@ -73,7 +77,25 @@ export default defineConfig({
     deviceScaleFactor: 1,
   },
 
-  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
+  projects: [
+    /**
+     * Runs once, before `chromium`, and only opens the pre-launch gate
+     * (`test/harness/prelaunch-gate.setup.ts`) — `proxy.ts` 403s every
+     * request while `SITE_IS_PUBLICLY_DISCOVERABLE` is false
+     * (`apps/web/src/seo-flags.ts`), this harness's real server included,
+     * on purpose: there is no test-only bypass, or the harness would stop
+     * covering the gate at all. `chromium`'s `dependencies` below is what
+     * orders this ahead of every other project — Playwright's own
+     * `webServer` guarantee (server ready before any project runs) covers
+     * the rest.
+     */
+    { name: "setup", testMatch: /.*\.setup\.ts$/ },
+    {
+      name: "chromium",
+      use: { browserName: "chromium", storageState: PRELAUNCH_GATE_STORAGE_STATE_PATH },
+      dependencies: ["setup"],
+    },
+  ],
 
   webServer: {
     // Builds before serving on purpose. `next dev` compiles per-request and
@@ -113,6 +135,7 @@ export default defineConfig({
       DATABASE_URL: HARNESS_DATABASE_URL,
       CURSOR_HMAC_SECRET,
       NEXT_PUBLIC_R2_PUBLIC_BASE_URL: R2_PUBLIC_BASE_URL,
+      PRELAUNCH_GATE_SECRET: HARNESS_PRELAUNCH_GATE_SECRET,
     },
     stdout: "pipe",
     stderr: "pipe",

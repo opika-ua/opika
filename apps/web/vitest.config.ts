@@ -30,7 +30,19 @@ export default defineConfig({
         test: {
           name: "api",
           environment: "node",
-          include: ["src/api/**/*.test.ts"],
+          /**
+           * `src/proxy.test.ts` joins this project, not `dom`, even though
+           * `proxy.ts` lives outside `src/api` — it constructs real
+           * `NextRequest`/`Headers` objects, and happy-dom's own DOM-shimmed
+           * globals silently produced a `Headers` that couldn't be read back
+           * (`cookie` came back empty even though the same construction
+           * worked correctly under plain Node) — found by a test that should
+           * have passed failing for the wrong reason, not by inspection.
+           * `proxy.ts` runs in the Node.js runtime in production anyway (its
+           * own comment explains why), so `node` is also the accurate
+           * environment to test it under, not merely the one that works.
+           */
+          include: ["src/api/**/*.test.ts", "src/proxy.test.ts"],
           testTimeout: 15_000,
           fileParallelism: false,
         },
@@ -40,7 +52,7 @@ export default defineConfig({
           name: "dom",
           environment: "happy-dom",
           include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
-          exclude: [...configDefaults.exclude, "src/api/**"],
+          exclude: [...configDefaults.exclude, "src/api/**", "src/proxy.test.ts"],
           setupFiles: ["./test/setup-dom.ts"],
           // Most files here are pure component tests with no DB. A growing
           // minority (src/app/page.test.tsx, src/app/tvaryny/page.test.tsx)
