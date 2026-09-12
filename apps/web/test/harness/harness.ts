@@ -79,6 +79,40 @@ export async function rectOf(locator: Locator, label: string): Promise<Rect> {
 }
 
 /**
+ * `docs/design/README.md:200` — 48px minimum touch target anywhere in this
+ * app, stated as a civic-trust metric rather than the WCAG floor (which is
+ * 44). O-19 (`docs/observations.md`), 2026-09-12: three harness files each
+ * hand-copied their own `const MIN_TOUCH_TARGET_PX = 48` and their own
+ * `expect(rect.height, ...).toBeGreaterThanOrEqual(...)` line —
+ * `discovery-layout.harness.ts`, `gallery-filters.harness.ts`,
+ * `site-header.harness.ts` — which is exactly how `Footer.tsx`'s first draft
+ * shipped its two links at the surrounding 18px line-height with nothing to
+ * catch it (O-11/O-13's own reviewer round; the one-off `<footer>` fragment
+ * it replaced never had a floor asserted at all, in any file). A floor
+ * copied by hand three times is a floor that misses the fourth new
+ * component by construction, not by oversight. One assertion here means a
+ * new interactive element gets this check by calling it, not by someone
+ * remembering to re-copy the constant into a fifth file.
+ *
+ * `min-height` in the class list is not the rendered height — a flex
+ * parent, a line box, or a later padding change can each leave the real
+ * target short of the class's number without the class itself ever
+ * changing, which is the whole reason this is a measurement and not a
+ * `className` grep.
+ */
+export const MIN_TOUCH_TARGET_PX = 48;
+
+/** Measures `locator`'s real rendered height against `MIN_TOUCH_TARGET_PX` — see its own doc comment. */
+export async function expectMinTouchTarget(locator: Locator, label: string): Promise<void> {
+  const rect = await rectOf(locator, label);
+  expect(
+    rect.height,
+    `${label} is ${rect.height.toFixed(1)}px tall; docs/design/README.md:200 sets ` +
+      `${MIN_TOUCH_TARGET_PX}px as the minimum touch target anywhere in this app.`,
+  ).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_PX);
+}
+
+/**
  * How many items share each row of a grid, in DOM order — the real check
  * for "N columns," as opposed to reading a `grid-cols-N` class out of
  * markup. Two rects are the same row when their top edges are within
