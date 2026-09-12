@@ -14,10 +14,73 @@ it was trimmed back to Phase S alone. The three copies will need reconciling by 
 first of the three PRs merges — a straightforward concatenation, since each PR's own decisions
 are additions, not edits to a shared entry.
 
+**Reconciled, 2026-09-12, this branch's own rebase onto `main`.** R2 (PR #54), Phase K (PR #57)
+and the reveal budget fix (PR #58) had all already merged into `main` by the time this branch
+rebased — folded back in below, by hand, same pattern as the note above describes. Two of
+`main`'s own claims were stale independent of anything this branch did: its copy of this file
+still said "PR #57, open against main, not merged" and "PR #58, open against main, not merged"
+after both had genuinely merged (confirmed via `gh pr view`, not assumed from the commit log
+alone) — corrected in place below, not left standing.
+
 ## Summary — read this first
 
 **Row completed this session:** Phase S — city slugs (`docs/build-plan.md`'s reprioritisation
 queue item 5, closing O-6 + O-12 from `docs/observations.md`).
+
+**Also folded in from `main`, all three already merged before this branch rebased:**
+
+**R2 — merged.** `feat/deck-two-action` → `main` via PR #54. Two reviewer rounds (PASS WITH NOTES
+both), all findings addressed, `pnpm check` green.
+
+**R2 decisions needing your eye, ranked by cost to reverse:**
+1. **[trivial to reverse] Notice hidden below 360px width, not shown everywhere.** See
+   `R2 — notice geometry` below. A CSS class change; reversible in minutes if you'd rather see
+   it smaller-but-present at 320 instead of absent.
+2. **[trivial to reverse] Notice moved off the detail page entirely, not duplicated.** See
+   `R2 — notice moved, not duplicated` below. Re-adding it there is a few lines if you disagree
+   with the reasoning.
+3. **[moderate to reverse — touches a harness assertion's own number] PHONE frame's exact photo
+   height assertion repointed 396→386.** See `R2 — photo height assertion` below. Reversing
+   means finding another 10px of vertical budget instead.
+
+**Phase K — merged.** `feat/polish-batch` → `main` via PR #57 (the polish batch,
+`docs/build-plan.md`'s reprioritisation queue item 6 — O-1, O-4, O-5, O-8, O-11, O-13, O-14 from
+`docs/observations.md`). Disposition per item: five done (O-1, O-5, O-8, O-11, O-13), one checked
+and closed with no code change (O-4 — the mock itself specifies the spacing already implemented),
+one parked (O-14 — see below). Reviewer round: PASS WITH NOTES, after independently verifying
+every claim; full detail in `docs/build-plan.md`'s own Phase K entry.
+
+**Phase K decisions needing your eye (reversible, not blocking), ranked by cost to reverse:**
+1. **[trivial to reverse] O-4 closed with no code change** — the mock's own computed spacing
+   for a filter label+chip-row group is `gap: 12px`, exactly what `FilterRail.tsx`/
+   `FilterSheet.tsx` already render. See `Phase K — O-4: the mock itself specifies the spacing`
+   below.
+2. **[trivial to reverse] The footer echoes both site-nav links, not just the font credit.** See
+   `Phase K — footer content: both nav links, not just the credit` below.
+3. **[moderate to reverse — a real per-bracket choice] The new ultrawide grid bracket's column
+   width matches the existing wide bracket's exactly (312px), rather than a wider column now
+   that there's more room.** See `Phase K — O-5: same column width, more columns` below.
+
+**Parked:** O-14's composition choice — see `docs/observations.md`'s own entry for the two
+options and a recommendation.
+
+**Reveal budget — merged.** `feat/reveal-per-shelter-budget` → `main` via PR #58. The reveal
+rate limit counts distinct shelters, not reveal actions — Oleksii's own diagnosis and
+instruction (§55 status call, 2026-09-10). `checkRevealRateLimit`
+(`apps/web/src/api/reveal-rate-limit.ts`) takes the target `shelterId`; free re-reveal if this
+adopter already revealed this shelter within the 24h window, otherwise the 30-per-24h budget
+bounds `COUNT(DISTINCT shelter_id)`, not raw reveal-row count. Reviewer round: PASS WITH NOTES,
+two high findings fixed before commit (adopter-scoping and the 30-shelter budget's own upper
+bound were both untested — both now mutation-confirmed). **O-20 (`RATE_LIMITED` and other
+`ORPCError` codes carrying no HTTP status), filed here as a gap this row found but didn't fix, has
+since shipped separately** — PR #60, merged into `main` before this reconciliation.
+
+**Decisions needing your eye from the reveal budget row (reversible, not blocking):**
+1. **[trivial to reverse] Two sequential queries (existence check, then distinct count) rather
+   than one combined query.** See `Reveal budget — counts distinct shelters, not reveal rows`
+   below.
+2. **[trivial to reverse] `checkRevealRateLimit`'s new `shelterId` parameter reuses the shelter
+   object `reveal.ts`'s handler already fetched**, rather than a second lookup.
 
 **PR:** [#56](https://github.com/opika-ua/opika/pull/56) — `feat/city-slugs` → `main`. Three reviewer rounds (STOP resolved, then two PASS WITH NOTES), all findings addressed, `pnpm check` green. Not merged — merging stays yours; see the migration-verification procedure above before you do.
 
@@ -136,6 +199,72 @@ procedure.
 
 ## Decisions
 
+## R2 — notice moved, not duplicated
+Chose: moved the not-a-judgement notice from its interim home (detail page) to its permanent
+one (the deck), removing it from the detail page rather than keeping it in both places.
+Reversibility: trivial — re-adding the JSX block to `AnimalDetailScreen.tsx` is a few lines,
+copy already exists.
+Confidence: high.
+Commit: 51ab9b1
+
+## R2 — notice geometry
+Chose: hid the not-a-judgement notice below 360px viewport width (`min-[360px]:block`) rather
+than show it everywhere or shrink it further. `ANDROID_PHONE` (360, this product's actual stated
+target audience) shows the notice with real slack; `NARROW_PHONE` (320) is documented as "the
+narrowest width still worth calling a real device," not the target.
+Reversibility: trivial — one Tailwind class.
+Confidence: medium — the 360px cutoff is a judgement call, not a hard product decision.
+Commit: 51ab9b1
+
+## R2 — photo height assertion
+Chose: updated `discovery-layout.harness.ts`'s exact `photo area === 396px` assertion to
+`386px`, with a comment explaining the real, deliberate cause (the new notice line), rather than
+finding another 10px of vertical budget to preserve 396 exactly.
+Reversibility: moderate — reversing means finding the missing 10px elsewhere, not just editing
+a number back.
+Confidence: high.
+Commit: 51ab9b1
+
+## Phase K — O-4: the mock itself specifies the spacing
+Chose: no code change. Checked `Opika Registry System.dc.html`'s own computed styles for a
+filter label+chip-row group before touching anything. Found `gap: 12px` — exactly what
+`FilterRail.tsx`/`FilterSheet.tsx` already render (`gap-3`).
+Reversibility: trivial if wrong — a one-line class change.
+Confidence: high on "the mock says 12px"; the aesthetic judgement of whether 12px reads too
+tight in practice is Oleksii's.
+Commit: 8ece045 (fixes: 6c9b1ce), PR #57.
+
+## Phase K — footer content: both nav links, not just the credit
+Chose: the new shared `Footer` carries both existing site-nav links (`uk.nav.forShelters` and
+`uk.nav.about`), not just the font-credit-plus-`/pro`-link the original one-off fragment had.
+Why: O-11's own wording asks for "secondary links," plural, and both links already exist
+verbatim in `SiteHeader`'s own nav. Suppressed on the page it would point at (`currentPage`
+prop), the same self-link avoidance `SiteHeader.wordmarkIsCurrentPage` already uses.
+Reversibility: trivial — delete one `<Link>` and its conditional.
+Confidence: high — no new copy, reuses an existing self-link-avoidance pattern.
+Commit: 8ece045 (fixes: 6c9b1ce), PR #57.
+
+## Phase K — O-5: same column width, more columns
+Chose: the new ultrawide bracket (2000px+, 6 columns) uses the same ~312px column width the
+existing wide bracket (1440-1999px, 4 columns) already reaches, rather than a wider column now
+that the viewport has more room to give. O-5's own decision text says "the grid gains
+columns... and uses the screen" — read as "show more," not "show bigger."
+Reversibility: moderate — reversing means picking new numbers and re-deriving `AnimalCard.tsx`'s
+`sizes` attribute and every harness assertion that depends on them.
+Confidence: medium — a real interpretation call on ambiguous decision wording.
+Commit: 8ece045 (fixes: 6c9b1ce), PR #57.
+
+## Reveal budget — counts distinct shelters, not reveal rows
+Chose: `COUNT(DISTINCT shelter_id)` over the 24h window, with a free short-circuit for a shelter
+already revealed by this adopter in that window — exactly Oleksii's own instruction. Contacts
+are scrapeable per shelter, not per animal — the old row-count let a device right-swiping 40
+cards across 6 shelters burn 40 units to see 6 phone numbers.
+Reversibility: trivial to revert the counting change itself; the seven tests pinning this
+behaviour would need reverting alongside it.
+Confidence: high — implementation matches the instruction's own wording exactly, independently
+mutation-tested per finding.
+Commit: 60d69a1.
+
 ## Phase S — English name over transliteration (supersedes this entry's original version)
 **Corrected 2026-09-12, Oleksii's own instruction, after the Neon cities-query verification
 above confirmed the production assumption held.** The original version of this entry (below,
@@ -246,3 +375,15 @@ Reversibility: trivial — a behavioural branch in one function, reverting is de
 `return null`.
 Confidence: high — this is a correctness fix, not a judgement call.
 Commit: 7b32ece
+
+---
+
+## PARKED
+
+**O-14's composition choice** (Phase K, folded in from `main`) — no mock exists for
+`/pro`/`/prytulkam`'s large-screen composition; two directions recorded in
+`docs/observations.md`'s own O-14 entry, with a recommendation, for Oleksii to choose from.
+
+**The Neon verification for this branch's own migration** — see the "A real decision, escalated
+by the reviewer" entry above for the written procedure. Resolved, 2026-09-12 — kept here as a
+record, not an open item.
