@@ -135,35 +135,41 @@ and `SHELTER_NOT_VISIBLE` had no test at any status) — fixed, two new cases ad
 
 **PRs open:**
 - [#55](https://github.com/opika-ua/opika/pull/55) — `feat/deck-inline-reveal` → `main`, R3.
-  **Draft, deliberately** — the gesture-parity/`RATE_LIMITED`-copy decision below is unresolved;
-  the code itself is ready for review. Three reviewer rounds: round 1 STOP (a real session
-  double-mint bug, fixed; the gesture-parity decision, escalated below), rounds 2 and 3 PASS
-  WITH NOTES (all findings addressed), `pnpm check` green. Retargeted to `main` and merged
+  **Draft, deliberately** — the `RATE_LIMITED`-copy question below is the one remaining blocker;
+  gesture parity itself is decided (see below) and implemented. Five reviewer rounds: round 1
+  STOP (a real session double-mint bug, fixed; the gesture-parity question, escalated at the
+  time), rounds 2–3 PASS WITH NOTES (all findings addressed). Retargeted to `main` and merged
   forward (2026-09-12) once #54, #57, and #58 landed ahead of it — a squash-merge history
   reconciliation, not new conflicting content; verified the pre-merge and post-merge code was
   byte-identical everywhere `git merge` reported a conflict, before resolving each in favour of
-  this branch's own (superset) content.
+  this branch's own (superset) content. Round 4, on this row's first gesture-parity
+  implementation attempt, PASS WITH NOTES but with a real high finding: a real-DOM probe proved
+  the guard (inside `handleCommit`) fired too late to undo anything (see `R3 — gesture parity`
+  below for the full story). Round 5, on the actual fix, PASS WITH NOTES — `pnpm check` green.
 
-**A real decision, not a reversible judgement call — needs your answer, not just your eye:**
-R3's own reviewer round found that a right-**drag** gesture on the deck now spends one of the
-adopter's 30 reveals/24h and writes a real, transactional `animals.reveal` row (decision #9's
-Phase-2 reward-ledger event), exactly the same as a deliberate «Написати» press — the row never
-decided whether that's the intended product, and it's reachable in seconds of normal browsing
-(thirty drags exhausts a day's budget). Two sub-questions:
-1. Gesture parity — should a right-drag reveal at all, or only «Написати» itself? Options: (a)
-   both reveal (current, shipped as-is pending your answer); (b) drag records `interested` only,
-   button reveals; (c) drag reveals but with a confirm step.
-2. What an adopter who hits the 30/24h limit actually sees. `RATE_LIMITED` today renders
-   `uk.errors.loadFailed` — «Щось не спрацювало на нашому боці. Це не ваша помилка і не
-   помилка притулку.» — which is false in this state (it *is* a limit applied to them). Honest
-   copy for it is new Ukrainian, not mine to invent, and R3 makes this state meaningfully more
-   reachable than it was. **Now technically unblocked either way** — O-20 (above) means a real
-   429 reaches the client on the wire, though the client-side code check (`isDefinedError` +
-   `code === "RATE_LIMITED"`) already worked before O-20 too, per that PR's own reviewer note;
-   what's still missing is the copy itself, which is this same open question, not a technical
-   gate.
-Nothing else in R3 depends on this being resolved before merge; it's recorded here rather than
-blocking the branch.
+**Decided — gesture parity, 2026-09-12.** Asked directly: "should dragging a card to the right do
+exactly what the «Написати» button does, including spending one unit of the reveal budget?" His
+answer, verbatim: **"yes."** A right-drag reveals the shelter's contact inline and counts against
+the budget, identically to tapping «Написати». Reasoning given alongside that answer, paraphrased
+here rather than quoted verbatim: a right-drag that does not reveal is indistinguishable from a
+skip, which recreates the «Далі» problem R2 removed; and since #58 (above) counts distinct
+shelters rather than reveal actions, an accidental drag on an already-revealed shelter costs
+nothing. This is not an inference and not "approved" — the question was asked directly, his
+answer is quoted verbatim, and the reasoning is his own but not his exact words, all on this
+date, per `docs/standing-constraints.md`'s "Only Oleksii's own words constitute approval." See
+`R3 — gesture parity: decided, and its own re-entrancy gap closed` below for what changed in
+the code as a result.
+
+**Still open — the `RATE_LIMITED` sentence. This is #55's only remaining blocker.** What an
+adopter who hits the 30/24h limit actually sees. `RATE_LIMITED` today renders
+`uk.errors.loadFailed` — «Щось не спрацювало на нашому боці. Це не ваша помилка і не помилка
+притулку.» — which is false in this state (it *is* a limit applied to them). Honest copy for it
+is new Ukrainian, not mine to invent, and R3 makes this state meaningfully more reachable than it
+was now that gesture parity is confirmed on. **Technically unblocked either way** — O-20 (above)
+means a real 429 reaches the client on the wire, and the client-side code check (`isDefinedError`
++ `code === "RATE_LIMITED"`) already worked before O-20 too, per that PR's own reviewer note;
+what's still missing is the copy sentence itself, nothing technical. #55 stays in draft until it
+arrives.
 
 **Decisions needing your eye (reversible, not blocking), ranked by cost to reverse:**
 1. **[trivial to reverse] Notice hidden below 360px width, not shown everywhere.** See
@@ -355,6 +361,79 @@ vaguer about location for some reason; the real lookup is a bigger loss to give 
 to add.
 Confidence: high — this was a corrected mistake, not a judgement call.
 Commit: 69ab6bf
+
+## R3 — gesture parity: decided, and its own re-entrancy gap closed
+Chose: implemented Oleksii's own decision (2026-09-12, see the Summary section above for the
+exact question, his verbatim answer, and the reasoning) — a right-drag on the deck reveals the
+shelter's contact inline and spends one reveal-budget unit, identically to «Написати». This was
+already structurally true in the code (`handleCommit` is the single shared path both the button's
+`onClick` and the drag gesture's `onCommit` call), so what remained was narrower than building it
+from scratch: recording the decision, and closing a real secondary gap the first reviewer round
+had found but left open pending the parity question itself — the button already had
+`disabled={revealState.kind === "loading"}`, which stops a second click from ever reaching
+`handleCommit` while a reveal is in flight; the drag path had no equivalent.
+
+**First attempt was wrong, caught on this row's own reviewer round.** Guarded inside
+`handleCommit` itself (`if (direction === "right" && revealState.kind === "loading") { setDx(0);
+return; }`) and called it closed. The reviewer ran a real-DOM probe rather than trusting the
+mutation test's own green result and found the guard fires too late to do anything: `onCommit`
+(and therefore `handleCommit`) only runs *after* the drag's exit animation has already finished —
+`useSwipeGesture` writes the off-screen `translate3d(...)` transform straight to the DOM node via
+`applyTransform`, a write `dx`/`setDx` never controlled in the first place. A blocked drag under
+the first attempt therefore returned early, but the card was already stuck at its exit position
+permanently — the deck didn't advance, nothing errored, and the adopter was left staring at an
+empty-looking stack.
+
+Chose instead (the actual fix): a new `canCommit?: (direction) => boolean` callback on
+`SwipeGestureCallbacks` (`use-swipe-gesture.ts`), checked synchronously inside `onPointerUp`
+*before* the exit animation starts — a decided commit whose `canCommit` returns `false` takes the
+exact same path as an under-threshold drag (spring back to centre, `onSnapBack` fires, no exit
+ever begins). `SwipeDeck.tsx` passes `canCommit: (direction) => !(direction === "right" &&
+revealState.kind === "loading")`. `handleCommit` itself now carries no guard at all — with the
+hook refusing the commit before it can start, `handleCommit` structurally cannot be reached with
+`direction === "right"` while a reveal is loading (the button's own `disabled` prop closes the
+other caller), so a guard there would have been dead code.
+Alternatives: a separate guard duplicated on each caller — rejected, one predicate checked in the
+one place both gestures fork from a decision is simpler than two copies that could drift.
+Exposing a `resetPosition` method from the hook for `handleCommit` to call after the fact —
+rejected, that still lets the exit animation run to completion first, so it would need to
+interrupt a transition mid-flight rather than simply never starting one; `canCommit` avoids the
+problem instead of patching around it.
+Why this one: the earlier version's defect was structural (the guard was in the wrong place, not
+merely missing a line), and reusing `useSwipeGesture`'s own spring-back path means a refused drag
+looks and behaves identically to a drag that never crossed the commit threshold — no new visual
+state to design or test separately.
+Reversibility: trivial to revert `canCommit` itself; reverting the parity decision itself is
+Oleksii's to make, not a code change judgement call.
+Confidence: high — mutation-tested three times, independently, at three different layers: (1) the
+hook's own guard (`decision.committed && canCommit` reverted to `decision.committed`) —
+`use-swipe-gesture.test.tsx`'s new case failed with the exact predicted symptom (`onCommit` fired,
+`onSnapBack` didn't, transform never reset), 31/32 other tests stayed green; (2) `SwipeDeck.tsx`'s
+own wiring (the `canCommit` line deleted from the `useSwipeGesture(...)` call) —
+`SwipeDeck.test.tsx`'s wiring test failed (`capturedCanCommit` stayed `null`), 19/20 others green;
+(3) the same guard, mutated against a real running server and real seeded Postgres (a
+compile-safe mutation this time — `decision.committed && (canCommit || true)` rather than
+deleting the reference outright, since the naive deletion trips `next build`'s own
+`noUnusedLocals` check before the test ever gets to run) —
+`discovery-reveal.harness.ts`'s new end-to-end case failed with the deck advancing past the
+second card ("Ніка" → "Зевс") instead of staying put. All three restored and reconfirmed green.
+The harness case exists because a reviewer's own real-DOM probe, not a unit test, is what caught
+the first attempt's defect — the same class of bug (a card visually stuck off-screen) has no
+component-test-level signal at all if the guard is merely absent rather than present-but-wrong,
+since jsdom does no layout and no real CSS transition timing.
+
+**Corrected on a second reviewer round, after this row's mutation-testing above was already
+written down**: the harness case's own reveal-request/deck-position/dialog-name assertions all
+pass identically against the pre-fix `handleCommit`-only guard too — that version also blocked
+`onSwipe` and a second `openReveal` call, just too late to undo the exit animation. Added the one
+assertion that actually distinguishes the two: the refused card's own `style.transform`, read
+directly, must equal `"translate3d(0, 0, 0) rotate(0deg)"` (centred) rather than staying at its
+exit position. Also added: a `prefers-reduced-motion` unit-test variant of the `canCommit`
+refusal (a distinct branch in `onPointerUp` — synchronous `onSnapBack`, no pending settle),
+found missing on the same round.
+Commit: (pending — this decision entry describes the commit it will be part of, so its own hash
+can't be known while writing it; a small immediate follow-up commit fills in the real value once
+`git commit` returns one).
 
 ## R3 — no secondary action on the deck
 Chose: the deck's own `ContactRevealDialog` instance passes no `secondaryAction` at all — no

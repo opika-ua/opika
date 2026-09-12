@@ -123,10 +123,14 @@ export function SwipeDeck({
    * equivalent right-drag gesture, both funnelled through this same
    * `handleCommit("right")` branch (docs/design/README.md's "Every gesture
    * has a button" — the two are meant to be indistinguishable outcomes,
-   * not a button-only feature). Snapshots `topCard.id`/`.name` *before*
-   * `onSwipe` runs, not after: `onSwipe` advances `state.cards` in the
-   * same tick, so reading from `state` after calling it would already be
-   * looking at the next card, or at nothing if the deck just exhausted.
+   * not a button-only feature; gesture parity confirmed by Oleksii,
+   * 2026-09-12, in direct answer to "should dragging a card to the right do
+   * exactly what «Написати» does, including spending one unit of the
+   * reveal budget?" — yes; see `docs/decisions-pending-review.md`).
+   * Snapshots `topCard.id`/`.name` *before* `onSwipe` runs, not after:
+   * `onSwipe` advances `state.cards` in the same tick, so reading from
+   * `state` after calling it would already be looking at the next card, or
+   * at nothing if the deck just exhausted.
    *
    * City name resolved the same way the gallery's own cards already do
    * (`cardCityId`, `../gallery/card-text.ts` — fostered animal's own city,
@@ -139,6 +143,14 @@ export function SwipeDeck({
    * discarded after its first use. `?? null` only for a city genuinely
    * missing from the lookup (a data gap, not a design choice) —
    * `ContactRevealDialog` already degrades gracefully for that case.
+   *
+   * No re-entrancy guard here for a reveal already in flight — that guard
+   * has to run *before* a right-drag's exit animation starts, not inside
+   * this function, which only ever runs after the card has already
+   * finished sliding off-screen (see `canCommit`, passed to
+   * `useSwipeGesture` below, and its own comment on
+   * `SwipeGestureCallbacks`). The button's own `disabled` prop covers the
+   * button half by never calling this function to begin with.
    */
   const handleCommit = useCallback(
     (direction: CommitDirection) => {
@@ -167,10 +179,22 @@ export function SwipeDeck({
     setDx(0);
   }, []);
 
+  // Refuses a right-drag's commit while a reveal from the *previous* card is
+  // still in flight — checked before the exit animation starts, so a refused
+  // drag springs back to centre exactly like an under-threshold one, rather
+  // than sliding off-screen and getting stuck there. See `canCommit`'s own
+  // comment on `SwipeGestureCallbacks` for why this can't live inside
+  // `handleCommit`/`onCommit` instead.
+  const canCommit = useCallback(
+    (direction: CommitDirection) => !(direction === "right" && revealState.kind === "loading"),
+    [revealState.kind],
+  );
+
   const { cardRef } = useSwipeGesture({
     onDrag: setDx,
     onCommit: handleCommit,
     onSnapBack: handleSnapBack,
+    canCommit,
   });
 
   /**
@@ -273,13 +297,13 @@ export function SwipeDeck({
             // the re-entrancy gap a second commit could otherwise open
             // (two reveals in flight is the "stale response overwrites a
             // newer one" race `useReveal.ts`'s own generation guard
-            // exists to make merely wasted, not visibly wrong) — the
-            // drag half is NOT closed by this: `handleCommit` has no
-            // `revealState` guard, and the card stays fully draggable
-            // while a reveal loads, since disabling the gesture itself is
-            // tangled up in the gesture-parity question this row
-            // escalated to Oleksii (`docs/decisions-pending-review.md`)
-            // rather than decided here.
+            // exists to make merely wasted, not visibly wrong). The drag
+            // half is closed too, by `canCommit` (passed to
+            // `useSwipeGesture`, above) — gesture parity (Oleksii,
+            // 2026-09-12) means the drag needs the identical outcome, not
+            // a separate mechanism; see `canCommit`'s own comment on
+            // `SwipeGestureCallbacks` for why it isn't this same `disabled`
+            // check reused, though.
             disabled={revealState.kind === "loading"}
           />
         </div>

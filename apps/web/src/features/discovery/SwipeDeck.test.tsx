@@ -57,6 +57,39 @@ vi.mock("../../api/browser-client", () => ({
   },
 }));
 
+/**
+ * Wraps the real `useSwipeGesture` (not a stand-in — `onDrag`/`cardRef`/
+ * `onSnapBack`/`onCommit` all keep behaving exactly as they do outside
+ * tests) purely to capture the `canCommit` predicate `SwipeDeck` passes in.
+ *
+ * `canCommit`, not `onCommit`: the re-entrancy guard for a right-drag while
+ * a reveal is already loading lives in `canCommit`, checked by the real
+ * hook *before* any exit animation starts — never inside `handleCommit`
+ * (`onCommit`) itself, which by construction only ever runs after a real
+ * drag's exit animation has already finished. A review caught that the
+ * inverse — guarding inside `onCommit` and calling `setDx(0)` — cannot
+ * actually undo anything: the exit animation writes the off-screen
+ * `transform` straight to the DOM node, a write `dx` never controlled to
+ * begin with, so a card blocked that way stayed stuck off-screen forever.
+ * `use-swipe-gesture.test.tsx` proves the hook itself takes the spring-back
+ * path when `canCommit` refuses a commit; this file's own job is narrower —
+ * proving `SwipeDeck` wires `canCommit` to `revealState.kind`, the one thing
+ * that test, driven by a bare harness with no reveal state at all, cannot
+ * reach.
+ */
+let capturedCanCommit: ((direction: CommitDirection) => boolean) | null = null;
+
+vi.mock("./use-swipe-gesture", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./use-swipe-gesture")>();
+  return {
+    ...actual,
+    useSwipeGesture: (callbacks: Parameters<typeof actual.useSwipeGesture>[0]) => {
+      capturedCanCommit = callbacks.canCommit ?? null;
+      return actual.useSwipeGesture(callbacks);
+    },
+  };
+});
+
 const SHELTER_ID = ShelterIdSchema.parse("66666666-7777-4888-8999-aaaaaaaaaaaa");
 const REVEAL_ID = RevealIdSchema.parse("bbbbbbbb-cccc-4ddd-8eee-ffffffffffff");
 const CITY_ID = CityIdSchema.parse("12121212-3434-4565-8787-909090909090");
@@ -355,6 +388,55 @@ describe("SwipeDeck reveal", () => {
     await screen.findByTestId("reveal-dialog");
 
     expect(writeButton.disabled).toBe(false);
+  });
+
+  /**
+   * Gesture parity (Oleksii, 2026-09-12, in direct answer to "should
+   * dragging a card to the right do exactly what «Написати» does, including
+   * spending one unit of the reveal budget": yes) means a right-drag while
+   * a reveal is already in flight needs the identical outcome the button's
+   * own `disabled` prop gives it. The test above proves the button half (a
+   * disabled button never reaches `handleCommit` at all); this proves
+   * `SwipeDeck` wires the drag half — `canCommit` — to the same
+   * `revealState.kind`, the one thing `use-swipe-gesture.test.tsx`'s own
+   * `canCommit` coverage cannot reach, since that file's harness carries no
+   * reveal state of its own. Reading `capturedCanCommit`'s return value
+   * directly, rather than simulating a drag and asserting on `onSwipe`/
+   * `revealCall` call counts, tests the actual predicate the real hook
+   * consults before ever starting an exit animation — not a side effect one
+   * step removed from it.
+   */
+  it("canCommit refuses a right-drag while a reveal is already in flight, allows it once resolved", async () => {
+    const { cards } = renderDeckForReveal();
+    const topCard = cards[0];
+    if (!topCard) throw new Error("generateMockCards(5) must return at least one card");
+    let resolveReveal: (value: ContactRevealView) => void = () => {};
+    revealCall.mockReturnValue(
+      new Promise<ContactRevealView>((resolve) => {
+        resolveReveal = resolve;
+      }),
+    );
+
+    expect(capturedCanCommit, "SwipeDeck must have called useSwipeGesture by now").not.toBeNull();
+    expect(capturedCanCommit?.("right"), "no reveal is loading yet").toBe(true);
+
+    const writeButton = screen.getByRole("button", { name: uk.actions.write }) as HTMLButtonElement;
+    fireEvent.click(writeButton);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(writeButton.disabled, "the commit should already be loading").toBe(true);
+
+    // A right-drag on the next card, while this reveal is still in flight,
+    // must be refused — matching what the disabled button itself blocks.
+    expect(capturedCanCommit?.("right"), "a reveal is loading").toBe(false);
+    // «Не зараз» (skip) was never part of this decision and stays unaffected.
+    expect(capturedCanCommit?.("left"), "skip is never gated by a reveal").toBe(true);
+
+    resolveReveal(
+      revealFor(topCard.id, { primary: { kind: "phone", e164: "+380671234567" }, additional: [] }),
+    );
+    await screen.findByTestId("reveal-dialog");
+    expect(writeButton.disabled).toBe(false);
+    expect(capturedCanCommit?.("right"), "the reveal has resolved").toBe(true);
   });
 
   /**

@@ -8,7 +8,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { expectFocusVisibleOutline, openRoute } from "./harness";
+import { dragHorizontally, expectFocusVisibleOutline, openRoute } from "./harness";
 import { PHONE } from "./viewports";
 
 const ROUTE = "/tvaryny/gortaty";
@@ -19,6 +19,13 @@ const CARD = "[data-testid='swipe-card']";
  * through `.31` are already claimed by the other harness files.
  */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.32" } });
+
+/** The name on the currently-top card — same helper as `discovery-gesture.harness.ts`. */
+async function topCardName(page: import("@playwright/test").Page): Promise<string> {
+  const label = await page.getByTestId("swipe-card").getAttribute("aria-label");
+  expect(label, "the top card should expose its animal name as aria-label").not.toBeNull();
+  return label ?? "";
+}
 
 test.describe(`${ROUTE} inline reveal`, () => {
   test.beforeEach(async ({ page }) => {
@@ -154,6 +161,141 @@ test.describe(`${ROUTE} inline reveal`, () => {
       `expected exactly one session token to ever be minted for this visitor, saw ` +
         `${sessionCookieTokens.size}: ${[...sessionCookieTokens].join(", ")} — two means two ` +
         `concurrent session.bootstrap calls raced and minted two adopters`,
+    ).toBe(1);
+  });
+
+  /**
+   * Gesture parity (Oleksii, 2026-09-12, in direct answer to "should
+   * dragging a card to the right do exactly what «Написати» does, including
+   * spending one unit of the reveal budget": yes) — the positive case,
+   * driven through a real pointer drag rather than a button click, against a
+   * real server. `discovery-gesture.harness.ts` already proves a right-drag
+   * advances the deck; this proves it also opens the identical reveal
+   * `discovery-reveal.harness.ts`'s own «Написати» test above already
+   * verifies in every other respect.
+   */
+  test("a right-drag past the threshold performs a real reveal, identically to «Написати»", async ({
+    page,
+  }) => {
+    const cardName = await page.getByTestId("swipe-card").getAttribute("aria-label");
+    expect(cardName, "the top card should expose its animal name as aria-label").toBeTruthy();
+
+    await dragHorizontally(page, page.getByTestId("swipe-card"), {
+      dx: 140,
+      steps: 12,
+      stepDelayMs: 16,
+    });
+
+    const dialog = page.getByTestId("reveal-dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute("role", "dialog");
+    await expect(dialog.getByText(`Ви запитали про ${cardName}.`)).toBeVisible();
+    // Real data, not a placeholder.
+    await expect(dialog.locator("text=/Притулок/").first()).toBeVisible();
+  });
+
+  /**
+   * The real-DOM bug a reviewer found in this row's first attempt: guarding
+   * the re-entrancy case *inside* `handleCommit` (`onCommit`) could never
+   * have worked, because `onCommit` only fires after the drag's own exit
+   * animation has already finished and written a real off-screen transform
+   * straight to the DOM node — there is nothing left at that point to
+   * "cancel." The actual fix (`canCommit`, checked by `useSwipeGesture`
+   * before the exit animation ever starts) is what this test drives against
+   * a real server and a real, deliberately delayed `animals.reveal`
+   * response — the one window in which the bug was reachable at all.
+   */
+  test("a right-drag while a reveal is already in flight springs back — no second reveal, and the deck does not advance past it", async ({
+    page,
+  }) => {
+    let revealRequests = 0;
+    let releaseReveal: () => void = () => {};
+    const revealGate = new Promise<void>((resolve) => {
+      releaseReveal = resolve;
+    });
+
+    await page.route("**/api/rpc/animals/reveal**", async (route) => {
+      revealRequests++;
+      await revealGate;
+      await route.continue();
+    });
+
+    const firstCardName = await topCardName(page);
+
+    // Commits the first card — its own `animals.reveal` request is held open
+    // by the route handler above until `releaseReveal()` runs, below.
+    await dragHorizontally(page, page.getByTestId("swipe-card"), {
+      dx: 140,
+      steps: 12,
+      stepDelayMs: 16,
+    });
+
+    // Wait for the deck to actually advance past the first card, proving the
+    // exit animation and `onSwipe` already ran — the second card is now the
+    // one under the drag below, and the first card's reveal is genuinely
+    // in flight (held by the gate) while it happens.
+    await expect
+      .poll(() => topCardName(page), {
+        message: `the deck should have advanced past "${firstCardName}" before the second drag`,
+        timeout: 5_000,
+      })
+      .not.toBe(firstCardName);
+    const secondCardName = await topCardName(page);
+
+    // The second card, dragged right while the first card's reveal is still
+    // loading. Gesture parity says this would normally reveal it too — but
+    // `canCommit` must refuse it, so this has to spring back instead of
+    // exiting.
+    await dragHorizontally(page, page.getByTestId("swipe-card"), {
+      dx: 140,
+      steps: 12,
+      stepDelayMs: 16,
+    });
+
+    // A refused commit takes the exact same path as an under-threshold drag
+    // (see `use-swipe-gesture.test.tsx`'s own unit coverage) — give the
+    // spring-back's own transition time to settle, then check the deck
+    // never advanced past the second card at all.
+    await page.waitForTimeout(600);
+    expect(
+      await topCardName(page),
+      "a right-drag refused by canCommit must not advance the deck",
+    ).toBe(secondCardName);
+
+    // The actual observable the pre-fix bug got wrong: caught on review, the
+    // three checks above (deck didn't advance, one reveal request, dialog
+    // names the first card) all pass identically under the pre-fix code too
+    // — that version's guard, inside `handleCommit` itself, also blocked
+    // `onSwipe` and a second `openReveal` call, just too late to undo the
+    // exit animation that had already run. The only observable that
+    // actually distinguishes "refused before the exit animation starts"
+    // (this fix) from "refused after it already finished" (the bug) is
+    // where the card's own transform ends up — centred here, stuck at its
+    // exit position there.
+    const transform = await page
+      .getByTestId("swipe-card")
+      .evaluate((el) => (el as HTMLElement).style.transform);
+    // A real browser's CSSOM normalises the numeric arguments to px
+    // (`translate3d(0px, 0px, 0px)`) — unlike jsdom, which preserves the
+    // literal string `useSwipeGesture` assigns
+    // (`use-swipe-gesture.test.tsx`'s own equivalent assertion has no units
+    // for exactly this reason).
+    expect(
+      transform,
+      "the refused card must spring back to centre, not stay stuck at its exit position — this " +
+        "is the one assertion that would have failed against the pre-fix `handleCommit`-only guard",
+    ).toBe("translate3d(0px, 0px, 0px) rotate(0deg)");
+
+    releaseReveal();
+    const dialog = page.getByTestId("reveal-dialog");
+    await expect(dialog).toBeVisible();
+    // The dialog names the *first* card — the only reveal that was ever
+    // actually allowed to start.
+    await expect(dialog.getByText(`Ви запитали про ${firstCardName}.`)).toBeVisible();
+
+    expect(
+      revealRequests,
+      "exactly one animals.reveal request — a refused second drag must never send one at all",
     ).toBe(1);
   });
 });
