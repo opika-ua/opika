@@ -80,36 +80,61 @@ export async function rectOf(locator: Locator, label: string): Promise<Rect> {
 
 /**
  * `docs/design/README.md:200` — 48px minimum touch target anywhere in this
- * app, stated as a civic-trust metric rather than the WCAG floor (which is
- * 44). O-19 (`docs/observations.md`), 2026-09-12: three harness files each
- * hand-copied their own `const MIN_TOUCH_TARGET_PX = 48` and their own
- * `expect(rect.height, ...).toBeGreaterThanOrEqual(...)` line —
- * `discovery-layout.harness.ts`, `gallery-filters.harness.ts`,
- * `site-header.harness.ts` — which is exactly how `Footer.tsx`'s first draft
- * shipped its two links at the surrounding 18px line-height with nothing to
- * catch it (O-11/O-13's own reviewer round; the one-off `<footer>` fragment
- * it replaced never had a floor asserted at all, in any file). A floor
- * copied by hand three times is a floor that misses the fourth new
- * component by construction, not by oversight. One assertion here means a
- * new interactive element gets this check by calling it, not by someone
- * remembering to re-copy the constant into a fifth file.
+ * app by default; some components declare their own higher floor (pagination
+ * targets are 56px, `Opika Registry System.dc.html` lines 189/195). Raised
+ * from this product's own previous 44px value at Phase D — not a WCAG
+ * number: WCAG 2.2's own target-size floor is 24px (2.5.8, AA) / 44px
+ * (2.5.5, AAA), so 48 is this design's own civic-trust choice, stricter than
+ * either WCAG level, not a restatement of one.
  *
- * `min-height` in the class list is not the rendered height — a flex
- * parent, a line box, or a later padding change can each leave the real
- * target short of the class's number without the class itself ever
+ * O-19 (`docs/observations.md`), 2026-09-12: four harness files each
+ * hand-copied their own `MIN_TOUCH_TARGET_PX`/`MIN_TARGET_PX` const and their
+ * own `expect(rect.height/width, ...).toBeGreaterThanOrEqual(...)` lines —
+ * `discovery-layout.harness.ts`, `gallery-filters.harness.ts`,
+ * `site-header.harness.ts`, `gallery-pagination.harness.ts` (the fourth,
+ * found on reviewer round 2 — its own 56px floor and its own *width* check,
+ * both missed by the first pass here, which only replaced the three sharing
+ * the exact 48px value and only checked height) — which is exactly how
+ * `Footer.tsx`'s first draft shipped its two links at the surrounding 18px
+ * line-height with nothing to catch it (O-11/O-13's own reviewer round; the
+ * one-off `<footer>` fragment it replaced never had a floor asserted at
+ * all, in any file). A floor copied by hand is a floor that misses the next
+ * new component by construction, not by oversight. One assertion here means
+ * a new interactive element gets this check by calling it, not by someone
+ * remembering to re-copy a constant into another file.
+ *
+ * `min-height`/`min-width` in the class list is not the rendered size — a
+ * flex parent, a line box, or a later padding change can each leave the
+ * real target short of the class's number without the class itself ever
  * changing, which is the whole reason this is a measurement and not a
  * `className` grep.
  */
 export const MIN_TOUCH_TARGET_PX = 48;
 
-/** Measures `locator`'s real rendered height against `MIN_TOUCH_TARGET_PX` — see its own doc comment. */
-export async function expectMinTouchTarget(locator: Locator, label: string): Promise<void> {
+/**
+ * Measures `locator`'s real rendered box (both height and width — a WCAG
+ * "target size" is a box, not a line height; the first version of this
+ * helper checked height only, which would have passed a real 48-tall,
+ * 20-wide icon button) against `minPx`, defaulting to `MIN_TOUCH_TARGET_PX`.
+ * Pass a component's own stricter floor explicitly (e.g. `56` for
+ * pagination) rather than adding a second constant beside this one.
+ */
+export async function expectMinTouchTarget(
+  locator: Locator,
+  label: string,
+  minPx: number = MIN_TOUCH_TARGET_PX,
+): Promise<void> {
   const rect = await rectOf(locator, label);
   expect(
     rect.height,
     `${label} is ${rect.height.toFixed(1)}px tall; docs/design/README.md:200 sets ` +
-      `${MIN_TOUCH_TARGET_PX}px as the minimum touch target anywhere in this app.`,
-  ).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_PX);
+      `${minPx}px as the minimum touch target here.`,
+  ).toBeGreaterThanOrEqual(minPx);
+  expect(
+    rect.width,
+    `${label} is ${rect.width.toFixed(1)}px wide; docs/design/README.md:200 sets ` +
+      `${minPx}px as the minimum touch target here.`,
+  ).toBeGreaterThanOrEqual(minPx);
 }
 
 /**

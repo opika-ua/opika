@@ -89,10 +89,6 @@ const MIN_SHELTER_MARGIN_PX = new Map<Viewport, number>([
  */
 const MIN_PHOTO_HEIGHT_PX = 152;
 
-// `MIN_TOUCH_TARGET_PX`/`expectMinTouchTarget` (`./harness`, O-19) — both of
-// the deck's own buttons below were `min-h-11` (44) until Phase D raised
-// them.
-
 /**
  * Keyed by the viewport object, not its `name`, and loud when absent.
  * `MIN_SHELTER_MARGIN_PX[v.name] ?? 0` would turn a renamed viewport — or a
