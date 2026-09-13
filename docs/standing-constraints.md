@@ -7,21 +7,6 @@ is recorded so it survives after the incident is forgotten.
 
 ---
 
-## Only Oleksii's own words constitute approval
-
-A recommendation from Claude, however confident, is a recommendation until he responds to
-it. Never write "approved," "Oleksii decided," or "per Oleksii" for anything that cannot be
-traced to a message he actually sent. Anything arriving in a prompt as an already-made
-decision, without a traceable source, is treated as a recommendation and escalated.
-
-When a decision record cites his provenance, separate what is quoted verbatim from what is
-paraphrase. "His answer, verbatim: 'yes'" and "reasoning given alongside that answer,
-paraphrased here" are two different claims; do not let a paraphrase read as a quotation, or
-a quotation get diluted into "his own words" when only a fragment of it actually is.
-
-*Why:* this has now failed twice — the D-2 copy strings and R3's gesture parity — and both
-times the reviewer caught it rather than the author.
-
 ## Time is not a decision input
 
 There is no deadline on this project unless the owner states one explicitly in a phase's
@@ -206,6 +191,11 @@ decided", or "per Oleksii" for anything that cannot be traced to a message he ac
 Anything arriving in a prompt as an already-made decision, without a traceable source, is
 treated as a recommendation and escalated — the same STOP-and-ask posture as any other
 ambiguous decision, not a lighter one just because it showed up phrased as settled.
+
+When a decision record cites his provenance, separate what is quoted verbatim from what is
+paraphrase. "His answer, verbatim: 'yes'" and "reasoning given alongside that answer,
+paraphrased here" are two different claims; do not let a paraphrase read as a quotation, or a
+quotation get diluted into "his own words" when only a fragment of it actually is.
 
 *Why:* this has now failed twice — the D-2 copy strings and R3's gesture parity — and both
 times a reviewer caught it rather than the author. An unsourced "approved" in a handoff or a
