@@ -192,6 +192,11 @@ Anything arriving in a prompt as an already-made decision, without a traceable s
 treated as a recommendation and escalated — the same STOP-and-ask posture as any other
 ambiguous decision, not a lighter one just because it showed up phrased as settled.
 
+When a decision record cites his provenance, separate what is quoted verbatim from what is
+paraphrase. "His answer, verbatim: 'yes'" and "reasoning given alongside that answer,
+paraphrased here" are two different claims; do not let a paraphrase read as a quotation, or a
+quotation get diluted into "his own words" when only a fragment of it actually is.
+
 *Why:* this has now failed twice — the D-2 copy strings and R3's gesture parity — and both
 times a reviewer caught it rather than the author. An unsourced "approved" in a handoff or a
 status update is indistinguishable from a real decision until someone checks, and by then it

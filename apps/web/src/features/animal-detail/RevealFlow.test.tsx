@@ -6,6 +6,7 @@ import {
   type ShelterContact,
   ShelterIdSchema,
 } from "@opika/domain";
+import { ORPCError } from "@orpc/client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RevealFlow } from "./RevealFlow";
@@ -212,6 +213,27 @@ describe("RevealFlow's dialog semantics", () => {
     // `aria-labelledby` dangles: an unnamed modal, with focus left on the
     // trigger button behind the overlay.
     expect(screen.getByRole("dialog", { name: "Щось не спрацювало на нашому боці." })).toBeTruthy();
+    await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
+  });
+
+  /**
+   * Oleksii's own words, 2026-09-13 (`docs/decisions-pending-review.md`) —
+   * the honest replacement for the generic "Щось не спрацювало" copy the
+   * dialog rendered for every error, this one included, until now. A
+   * rendered assertion, not a markup check: `docs/standing-constraints.md`'s
+   * "a UI item may not be marked done on the basis of inspecting markup."
+   */
+  it("shows the reveal-budget copy, not the generic error, when animals.reveal is RATE_LIMITED — and offers no retry", async () => {
+    revealCall.mockRejectedValue(new ORPCError("RATE_LIMITED", { defined: true }));
+    renderFlow();
+    fireEvent.click(screen.getByTestId("reveal-trigger"));
+    await screen.findByTestId("reveal-dialog");
+
+    expect(
+      screen.getByRole("dialog", { name: "Ви відкрили контакти багатьох притулків сьогодні." }),
+    ).toBeTruthy();
+    expect(screen.getByText("Наступні — завтра.")).toBeTruthy();
+    expect(screen.queryByTestId("reveal-retry")).toBeNull();
     await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
   });
 

@@ -228,11 +228,16 @@ anyway.
 Clicking the primary contact action on the detail page shows nothing for several seconds before
 the contact appears. This is the primary conversion action on the site.
 
-**Not the same bug as O-15.** Traced both client paths: the detail page's `RevealFlow.tsx` really
-does call `session.bootstrap` then `animals.reveal` (`revealBrowserClient`,
-`apps/web/src/api/browser-client.ts:42-45`); the deck's `feedBrowserClient`
-(`browser-client.ts:23-25`) exposes only `feed.list` and cannot reach either procedure. One is a
-slow real call, the other never attempts a call. See O-15 for that half.
+**Not the same bug as O-15.** Traced both client paths **at the time of this entry**: the detail
+page's `RevealFlow.tsx` really does call `session.bootstrap` then `animals.reveal`
+(`revealBrowserClient`, `apps/web/src/api/browser-client.ts:42-45`); the deck's
+`feedBrowserClient` (`browser-client.ts:23-25`) exposed only `feed.list` and could not reach
+either procedure. One was a slow real call, the other never attempted a call. See O-15 for that
+half. **Stale as of R3 (Phase R, `docs/build-plan.md`, 2026-09-09):** the deck now has its own
+reveal too (`SwipeDeck.tsx`, sharing `revealBrowserClient` via
+`apps/web/src/features/reveal/useReveal.ts`) — this diagnosis's "one never attempts a call" half
+no longer holds, though the underlying connection-latency finding this row is actually about is
+unaffected.
 
 **Measurements taken (read-only, no scripted mutating calls against production per Oleksii's
 instruction — he will time the actual click himself and paste the Network waterfall):**
@@ -358,6 +363,11 @@ clicking):
    skip calls — same effect, advance the stack, nothing else. It structurally cannot reach
    `animals.reveal`: the deck's browser client (`feedBrowserClient`) exposes only `feed.list`
    (`browser-client.ts:23-25`). Not a misfire — there was never a call to misfire.
+   **Stale as of R3 (Phase R, `docs/build-plan.md`, 2026-09-09):** «Написати» now does reveal —
+   `SwipeDeck.tsx`'s `handleCommit("right")` opens the deck's own reveal
+   (`apps/web/src/features/reveal/useReveal.ts`, sharing `revealBrowserClient`) alongside the
+   swipe it already recorded (R1). This item's own diagnosis was correct at the time; it just
+   describes a state the product has since moved past.
 3. **Nothing is persisted.** `swipes.record` has a real handler and repository server-side, but no
    surface in the app calls it — not the deck (`onSwipe` discards both its arguments), not the
    detail page (which has its own comment declining to, on the grounds that `swipes.record` is
@@ -504,12 +514,21 @@ not overriding a prior "keep reveal detail-page-only" call.
 **Every cookie the deployed site can set, enumerated:** exactly one —
 `__Host-session` in production / `session` in dev (`apps/web/src/api/session/cookie.ts`),
 HttpOnly, SameSite=Lax, Secure (prod), `Max-Age=2592000` (30 days). It is set **only** when
-`session.bootstrap` runs, which today fires **only** from the detail page's reveal flow
-(`RevealFlow.tsx`). Confirmed both by code trace and empirically: production GETs to `/`,
-`/tvaryny`, `/tvaryny/[id]`, `/tvaryny/gortaty`, `/pro`, and `/prytulkam` all came back with no
-`Set-Cookie` header at all. Vercel Analytics + Speed Insights are cookieless by Vercel's own
+`session.bootstrap` runs, which **at the time of this entry** fired only from the detail page's
+reveal flow (`RevealFlow.tsx`). Confirmed both by code trace and empirically: production GETs to
+`/`, `/tvaryny`, `/tvaryny/[id]`, `/tvaryny/gortaty`, `/pro`, and `/prytulkam` all came back with
+no `Set-Cookie` header at all. Vercel Analytics + Speed Insights are cookieless by Vercel's own
 design (and the codebase's own comment at `layout.tsx:65` says so); confirmed no other
 cookie-setting code exists anywhere in `apps/web/src`.
+
+**Stale as of R1, corrected R3 (Phase R, `docs/build-plan.md`, 2026-09-09) — this is now the
+enumeration to draft R4's `/pro` copy from, not the paragraph above.** R1 added a second trigger
+(any swipe, either direction, on the deck — `use-feed-deck.ts`'s own `ensureSession`); R3 added a
+reveal on the deck itself (`SwipeDeck.tsx`, `apps/web/src/features/reveal/useReveal.ts`), sharing
+that same session rather than minting a second one (a real double-mint bug this row's own review
+found and fixed — see `docs/decisions-pending-review.md`). Still exactly one cookie per visitor,
+same properties as above; what changed since this entry was written is which actions cause it to
+be set at all — "tapped «Написати притулку» on the detail page" is no longer the complete list.
 
 **The `/pro` sentence:** «Реєстр збирає базову статистику відвідувань … без кукі і без реклами.»
 Grammatically this is scoped to the analytics clause, and that clause is true. **But it reads to

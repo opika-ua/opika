@@ -199,6 +199,11 @@ export const en = {
       title: "We've started the feed over.",
       action: "To the feed",
     },
+    /** Mirrors uk.ts's rateLimited key-for-key — machine-translated like the rest of this file, not a native pass; see this file's own top comment. */
+    rateLimited: {
+      title: "You've revealed the contacts of many shelters today.",
+      body: "The next ones — tomorrow.",
+    },
     photoMissing: {
       placeholder: "No photo yet — the shelter hasn't sent one",
     },

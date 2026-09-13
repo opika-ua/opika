@@ -74,6 +74,7 @@ describe("swipe gesture listener stability", () => {
         state={{ kind: "ready", cards: generateMockCards(5) }}
         onSwipe={vi.fn()}
         onPrefetch={vi.fn()}
+        ensureSession={() => Promise.resolve(true)}
       />,
     );
 
@@ -112,12 +113,14 @@ describe("swipe gesture listener stability", () => {
 function GestureHarness(props: {
   onCommit: (direction: "left" | "right") => void;
   onSnapBack?: () => void;
+  canCommit?: (direction: "left" | "right") => boolean;
 }) {
   const [dx, setDx] = useState(0);
   const { cardRef } = useSwipeGesture({
     onDrag: setDx,
     onCommit: props.onCommit,
     ...(props.onSnapBack ? { onSnapBack: props.onSnapBack } : {}),
+    ...(props.canCommit ? { canCommit: props.canCommit } : {}),
   });
 
   return <div data-testid="card" data-dx={dx} ref={cardRef} />;
@@ -314,6 +317,89 @@ describe("swipe gesture commit path", () => {
     });
 
     expect(onSnapBack).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Gesture parity's own re-entrancy guard (`canCommit`, `SwipeDeck.tsx`'s
+   * `handleCommit` comment) lives here rather than inside `onCommit`, and
+   * this is the test proving why it has to: a review found that guarding
+   * only inside `onCommit` (calling `setDx(0)` and returning) could not
+   * actually recentre anything, because by the time `onCommit` fires the
+   * exit animation has already run to completion and written a real
+   * off-screen `transform` straight to the node — `setDx` never controlled
+   * that transform in the first place. A refused commit must therefore never
+   * start the exit animation at all; it has to take the exact same path as
+   * an under-threshold drag.
+   */
+  it("refuses a commit via canCommit — springs back instead of exiting, transform ends at centre", () => {
+    const onCommit = vi.fn();
+    const onSnapBack = vi.fn();
+    const canCommit = vi.fn(() => false);
+    const card = mountCard({ onCommit, onSnapBack, canCommit });
+
+    drag(card, 150); // well past the 88px commit distance
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+
+    expect(canCommit).toHaveBeenCalledWith("right");
+    expect(onCommit, "a refused commit must never fire onCommit").not.toHaveBeenCalled();
+    expect(onSnapBack, "a refused commit takes the same path as a snap-back").toHaveBeenCalledTimes(
+      1,
+    );
+    expect(
+      card.style.transform,
+      "the card must end up back at centre, not stuck at its exit position",
+    ).toBe("translate3d(0, 0, 0) rotate(0deg)");
+  });
+
+  /**
+   * The same refusal, under reduced motion — a distinct branch in
+   * `onPointerUp` (synchronous `onSnapBack`, no pending settle to wait on),
+   * found on review as the one `canCommit` path nothing else exercised.
+   */
+  it("refuses a commit via canCommit under prefers-reduced-motion — no animation, snaps back synchronously", () => {
+    const matchMedia = vi.fn((query: string) => ({
+      matches: query.includes("prefers-reduced-motion"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      onchange: null,
+      dispatchEvent: vi.fn(),
+    }));
+    vi.stubGlobal("matchMedia", matchMedia);
+
+    try {
+      const onCommit = vi.fn();
+      const onSnapBack = vi.fn();
+      const canCommit = vi.fn(() => false);
+      const card = mountCard({ onCommit, onSnapBack, canCommit });
+
+      drag(card, 150); // well past the 88px commit distance
+
+      expect(onCommit, "a refused commit must never fire onCommit").not.toHaveBeenCalled();
+      expect(card.style.transform).toBe("translate3d(0, 0, 0) rotate(0deg)");
+      // Reduced motion has nothing to wait for — the callback fires in the
+      // same tick as the refusal, not on a later transition/fallback timer.
+      expect(onSnapBack).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  /** Omitting `canCommit` entirely must not change any previously-decided commit. */
+  it("commits normally when canCommit is not provided at all", () => {
+    const onCommit = vi.fn();
+    const card = mountCard({ onCommit });
+
+    drag(card, 150);
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+
+    expect(onCommit).toHaveBeenCalledWith("right");
   });
 
   /**
