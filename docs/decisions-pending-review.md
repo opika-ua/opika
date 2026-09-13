@@ -511,7 +511,10 @@ politeness measures cannot reach it." Explicit instruction, also his own words: 
 carve-out ("It is spoofable and it is a permanent hole for a ten-minute task"); the gate must not
 interfere with `SITE_IS_PUBLICLY_DISCOVERABLE`'s other consequences, assert both states; a
 mutation test must show removing the gate lets an unauthenticated request through; the gate comes
-down in the same change that flips the flag, alongside D-7's banner.
+down in the same change that flips the flag, alongside D-7's banner. **This last clause — "alongside
+D-7's banner" — was his own instruction at the time, and he withdrew it further down this entry: see
+"Four further decisions" below, item covering the wording collision. Left here rather than edited
+out, since this whole file's job is the instruction as actually given, not as later corrected.**
 
 **Implemented:**
 - `apps/web/src/api/prelaunch-gate.ts` — pure `evaluatePrelaunchGate(cookieHeader, queryValue,
@@ -568,21 +571,57 @@ down in the same change that flips the flag, alongside D-7's banner.
   `seo-flags.ts`, `prelaunch-gate.test.ts`, `proxy.ts`'s `config` comment, and the two hash
   citations above, respectively.**
 - `docs/build-plan.md`'s launch-gate section: the gate's removal is now written down as due in the
-  same change that flips `SITE_IS_PUBLICLY_DISCOVERABLE` specifically — **not** asserted as
-  simultaneous with D-7's banner removal, which a first draft of this row got wrong (a reviewer
-  caught it): D-7 is explicit that the banner and the flag flip are deliberately *not*
-  simultaneous, so "alongside D-7" would have silently collapsed that distinction back into one
-  event. `build-plan.md` now carries an explicit "⚠ Open tension, not resolved here" callout
-  instead, laying out the collision between the flag-only reading above and Oleksii's own
-  "alongside the banner" phrasing, for him to confirm rather than for either of us to guess at.
-  The in-memory rate limiter's own gate row is reclassified from "before real traffic (not
-  urgent)" to a hard pre-launch blocker — today's traffic is the demonstration that it doesn't
-  hold under real load, and a real launch (or any crawler let in after the flip) would reproduce
-  it exactly.
+  same change that flips `SITE_IS_PUBLICLY_DISCOVERABLE` specifically — **not** simultaneous with
+  D-7's banner removal, which a first draft of this row got wrong (a reviewer caught it): D-7 is
+  explicit that the banner and the flag flip are deliberately *not* simultaneous. Raised to
+  Oleksii rather than resolved unilaterally; **his answer, verbatim: "you are right and the
+  instruction was wrong. D-7 deliberately separates the banner (removed at first real shelter
+  onboarding) from the SITE_IS_PUBLICLY_DISCOVERABLE flip (launch). The gate correctly reads the
+  FLAG."** Also his own words, verbatim, quoted here (`build-plan.md`'s own version paraphrases
+  the same instruction into its own prose, deliberately reframed there — see the note below — not
+  a second independent quotation): "during the window between them, a real shelter's data is
+  live while the site is still not meant to be discoverable — that is precisely when the gate
+  matters most" and, as two separate sentences, not one: "record that the gate link is how the
+  first shelter is shown their own listing before launch. That is a feature of this design, not a
+  workaround." **Note on `build-plan.md`'s own wording, found by a second reviewer round**: that
+  section's first draft echoed "a real shelter's data is live" closely enough to read as "the
+  gate protects real shelter data" — which contradicts decision 1 below (this is a shutter, not a
+  security boundary) — and has since been reworded there to say what's actually true: nothing
+  about that window is a data-exposure risk (`PublicShelterSchema`'s `pick`-based stripping
+  already covers that, unrelated to this gate); what the gate actually saves in that window is
+  the same bot noise and Neon cost this whole investigation was about, now potentially hitting a
+  real row instead of a fabricated one. The in-memory rate limiter's own gate row is reclassified
+  from "before real traffic (not urgent)" to a hard pre-launch blocker — today's traffic is the
+  demonstration that it doesn't hold under real load, and a real launch (or any crawler let in
+  after the flip) would reproduce it exactly.
+
+**Four further decisions, Oleksii's own words, 2026-09-13, all "proceed on all of them":**
+1. **Deploy order** — `PRELAUNCH_GATE_SECRET` set in Vercel on both Production and Preview before
+   this branch deploys, same value on both. His reasoning, verbatim: "Preview is currently dead
+   (no DATABASE_URL); gating it costs nothing now and covers the case where Preview later gets
+   its own Neon branch." Also his instruction, verbatim: "this is a SHUTTER against bots, not a
+   security boundary — what it covers is fabricated data. Do not let it be described as
+   protecting anything." Recorded in `prelaunch-gate.ts`'s own top comment, `env.ts`, and here —
+   not just here, since the code is what a future reader actually opens.
+2. **Secret policy** — 32+ characters, `openssl rand -hex 32`, matching every other secret's
+   convention. His reasoning, verbatim: "Not because the contents are valuable, but because a
+   short gate is guessable by exactly the traffic it exists to stop." Boot-validated —
+   `RequiredProductionEnvSchema`'s `PRELAUNCH_GATE_SECRET` entry is now `z.string().min(32, ...)`,
+   not `min(1)`; two new `env.test.ts` cases pin the floor at exactly 32 (accepted) and 31
+   (rejected).
+3. **Transport** — accept the `?gate=` query parameter appearing in Vercel's request logs and
+   browser history; no strip-redirect. His reasoning, verbatim: "the value guards fabricated
+   data, it is short-lived, and the redirect would cost a rework of
+   `gallery-rate-limit.harness.ts`'s request loop for no security gain." His instruction, also
+   verbatim: "Record the reasoning in the code so it is not 'fixed' later by someone reading it
+   as a leaked credential." Done — `prelaunch-gate.ts`'s `allowed_mint_cookie` variant carries
+   this reasoning directly on the type.
+4. Covered above (the D-7 wording collision).
 
 **Reported to Oleksii as its own item, not folded into this decision:** the Vercel API access
 failure (`list_projects` empty, `get_project` 404, `get_runtime_logs` 403 for `opika-web`) that
-prevented answering "who" from this session — worth fixing on its own, independent of the gate.
+prevented answering "who" from this session — he will check whether the plugin's token and scope
+actually cover this project.
 
 **Still open, not blocking:** Bot Name and Paths tab screenshots, to be sent when convenient —
 they settle whether caching `/tvaryny` (Option B) would help at all (a narrow set of repeated

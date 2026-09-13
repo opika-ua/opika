@@ -906,18 +906,34 @@ unauthenticated request against the flipped build, not by reading the code) in t
 and drop `PRELAUNCH_GATE_SECRET` from `apps/web/src/api/env.ts`'s `RequiredProductionEnvSchema`
 at the same time, since nothing will read it anymore.
 
-⚠ **Open tension, not resolved here — flagged for Oleksii, not decided.** Oleksii's own
-instruction described this row as coming down "in the same change that flips
-`SITE_IS_PUBLICLY_DISCOVERABLE`, alongside the banner." Taken literally, that collides with D-7
-immediately above, which is explicit that the banner (`REGISTRY_HAS_NO_REAL_SHELTERS`, wiped at
-the first real `onboard-shelter --commit`) and the flag flip are **not** simultaneous — the
-banner routinely comes down first, with a whole launch-gate window still ahead of it. This
-section ties the new gate to the flag alone, since that is what the gate mechanism actually
-reads and what the rest of this instruction ("comes down in the same change that flips
-`SITE_IS_PUBLICLY_DISCOVERABLE`") unambiguously supports — the "alongside the banner" half is
-left as his shorthand for "part of the same pre-launch cleanup," not a claim that the two
-constants stop being independent. If that reading is wrong, this paragraph needs correcting
-before it's acted on.
+**Resolved, 2026-09-13 — Oleksii's own correction of his prior instruction.** An earlier draft
+of this row described the gate as coming down "alongside the banner." Wrong, by his own words:
+"D-7 deliberately separates the banner (removed at first real shelter onboarding) from the
+`SITE_IS_PUBLICLY_DISCOVERABLE` flip (launch). The gate correctly reads the FLAG." The gate ties
+to the flag alone, as this section already implements — not to `REGISTRY_HAS_NO_REAL_SHELTERS`,
+and not simultaneously with D-7's banner removal.
+
+**The window this creates is where the gate matters most, not an edge case to route around —
+say what "matters most" means here precisely, since this gate is a bot shutter, not a security
+boundary (`apps/web/src/api/prelaunch-gate.ts`'s own top comment; do not read the paragraph below
+as contradicting that).** Between D-7's banner coming down (a real shelter's data now live) and
+this flag actually flipping (the site meant to be found), a real shelter's real listing exists
+behind a deploy that is still not meant to be publicly discoverable — precisely the state
+`docs/standing-constraints.md`'s "two facts that happen to be true at the same time are not one
+fact" entry names. Nothing about that window is a data-exposure risk on its own:
+`PublicShelterSchema`'s own `pick`-based stripping (unrelated to this gate) is what keeps an
+exact address or phone number out of any response, launched or not, gate or no gate. What the
+window *does* create, absent the gate, is the same low-cost, high-volume automated traffic this
+whole row exists because of, now hitting real rows instead of fabricated ones for no reason
+anyone chose — noise and Neon transfer cost, not a data leak. The gate's presence through this
+window, tied to the flag and not the banner, is what keeps that noise off a real shelter's own
+listing for as long as this launch-gate window lasts — a cost-and-timing concern, the same one
+`docs/decisions-pending-review.md`'s original investigation was about, not a new security claim.
+
+**A deliberate second use, not a workaround:** a direct `?gate=<secret>` link is how the first
+onboarded shelter is shown their own real listing before launch — the gate is the mechanism that
+makes that preview possible at all while the site stays unreachable to everyone else. Record this
+as a feature of the design, per Oleksii's own instruction, not as an incidental side door.
 
 ### Before any route is indexed — the in-memory rate limiter is a launch-gate blocker, not a nicety
 

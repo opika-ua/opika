@@ -2,10 +2,35 @@ import { timingSafeEqual } from "node:crypto";
 import { requireEnv } from "./env";
 
 /**
- * Pre-launch access gate. While `SITE_IS_PUBLICLY_DISCOVERABLE` is false,
- * nothing about this deploy is meant to be reachable by anyone who doesn't
- * already know that — see `docs/build-plan.md`'s "Before any route is
- * indexed" launch-gate section for what this is standing in for.
+ * Pre-launch bot shutter — NOT a security boundary. While
+ * `SITE_IS_PUBLICLY_DISCOVERABLE` is false, every request 403s unless it
+ * carries the one shared secret below. Say what it actually does, not more:
+ * it closes off automated traffic that ignores `X-Robots-Tag` and a
+ * noindexed `robots.txt`, over a deploy that today holds nothing but a
+ * fabricated corpus. It is not access control on anything valuable, it does
+ * not gate a real credential, and it must never be described — in a commit,
+ * a comment, or a decision record — as protecting shelter data, adopter
+ * data, or anything else that matters if it leaks. What it saves is Neon's
+ * transfer allowance and this deploy's own noise floor, nothing more.
+ * Oleksii's own correction, 2026-09-13, after an earlier draft of this
+ * comment overstated it: "Record in the code and the doc: this is a SHUTTER
+ * against bots, not a security boundary — what it covers is fabricated
+ * data. Do not let it be described as protecting anything."
+ *
+ * **This framing changes once a real shelter's data can exist behind the
+ * gate — see `docs/build-plan.md`'s launch-gate section.** Between the demo
+ * banner coming down (D-7, first real `onboard-shelter --commit`) and
+ * `SITE_IS_PUBLICLY_DISCOVERABLE` actually flipping, a real shelter's real
+ * listing can be live while the site is still not meant to be publicly
+ * found — the exact window `docs/standing-constraints.md`'s "two facts that
+ * happen to be true at the same time are not one fact" entry names. The
+ * gate matters most precisely there, and doubles as the mechanism for
+ * showing that first onboarded shelter their own listing before launch — a
+ * direct `?gate=` link to their own page is a deliberate feature of this
+ * design, not a workaround for one. Even then, this gate is still a
+ * traffic shutter, not the thing that makes a real shelter's exact address
+ * or phone number safe — `PublicShelterSchema`'s own `pick`-based
+ * stripping, unrelated to this file, is what does that.
  *
  * 2026-09-13 — decided after ~100 req/min of sustained, unidentified
  * traffic burned 4.2 GB of Neon's 5 GB monthly transfer allowance against a
@@ -18,7 +43,9 @@ import { requireEnv } from "./env";
  * implies Secure, Path=/, no Domain — a subdomain attacker can't set or
  * read it, and it's only ever sent over HTTPS. Falls back to a
  * non-prefixed name locally, where `__Host-` cookies are silently dropped
- * over plain HTTP.
+ * over plain HTTP. Same reasoning applies even though this isn't guarding
+ * anything valuable — the cookie attributes are free, and a shutter that's
+ * trivially sniffable over plain HTTP is a worse shutter for no savings.
  */
 
 const COOKIE_NAME_PROD = "__Host-prelaunch-gate";
@@ -90,7 +117,24 @@ function gateCookieHeader(secret: string): string {
 
 export type PrelaunchGateDecision =
   | { readonly kind: "allowed" }
-  /** Allowed by the query parameter this once — the caller must also set this cookie on the response so the next request is `"allowed"` without repeating the secret in a URL. */
+  /**
+   * Allowed by the query parameter this once — the caller must also set
+   * this cookie on the response so the next request is `"allowed"` without
+   * repeating the secret in a URL.
+   *
+   * **Deliberately no strip-redirect after minting.** The secret lands in
+   * Vercel's own request logs and in a browser's history via `?gate=` —
+   * known, accepted, not a gap to close. Oleksii's own decision,
+   * 2026-09-13: "accept the query parameter. Do NOT build the
+   * strip-redirect... the value guards fabricated data, it is short-lived,
+   * and the redirect would cost a rework of
+   * `gallery-rate-limit.harness.ts`'s request loop for no security gain."
+   * If a future reader is tempted to "fix" this as a leaked-credential
+   * finding: it isn't one, by design — see this file's own top comment for
+   * what the gate does and doesn't protect. A strip-redirect is real,
+   * reachable future work only if that framing ever changes, not a bug
+   * sitting here today.
+   */
   | { readonly kind: "allowed_mint_cookie"; readonly setCookieHeader: string }
   | { readonly kind: "denied" };
 

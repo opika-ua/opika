@@ -59,13 +59,26 @@ export function requireEnv(name: string): string {
  * `SITE_IS_PUBLICLY_DISCOVERABLE`), not left behind as a requirement
  * nothing reads anymore.
  *
+ * **This is a bot shutter, not a security boundary — see
+ * `apps/web/src/api/prelaunch-gate.ts`'s own top comment for what it does
+ * and does not protect.** The 32-character floor below is not because the
+ * value is precious; it's the same reasoning Oleksii gave for it directly:
+ * "a short gate is guessable by exactly the traffic it exists to stop."
+ * Generated the same way as every other secret in this schema:
+ * `openssl rand -hex 32`.
+ *
  * ⚠ **Deploy-order note, same class of risk as `NEXT_PUBLIC_R2_PUBLIC_BASE_URL`'s
  * own entry below.** Because this is read on every request rather than only
  * a DB-backed one, a Production *or Preview* instance deployed before
  * `PRELAUNCH_GATE_SECRET` exists in Vercel's dashboard does not fail one
  * handler — it 500s on its very first request and stays that way, with no
- * page left to open the gate from at all. Set it in Vercel, both
- * environments, before this change is ever deployed — not after.
+ * page left to open the gate from at all. Set it in Vercel, **both
+ * Production and Preview, the same value on both**, before this branch
+ * deploys — Oleksii's own instruction, 2026-09-13. Preview currently has no
+ * `DATABASE_URL` and cannot serve a DB-backed page regardless, so gating it
+ * changes nothing about what Preview can do today — it costs nothing now
+ * and covers the case where Preview later gets its own Neon branch and
+ * starts serving real pages.
  *
  * `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` (H1) is the opposite case from
  * `LOCATION_HMAC_SECRET`: genuinely required by this app's own runtime, not
@@ -100,7 +113,12 @@ const RequiredProductionEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   CURSOR_HMAC_SECRET: z.string().min(1, "CURSOR_HMAC_SECRET is required"),
   NEXT_PUBLIC_R2_PUBLIC_BASE_URL: z.string().min(1, "NEXT_PUBLIC_R2_PUBLIC_BASE_URL is required"),
-  PRELAUNCH_GATE_SECRET: z.string().min(1, "PRELAUNCH_GATE_SECRET is required"),
+  PRELAUNCH_GATE_SECRET: z
+    .string()
+    .min(
+      32,
+      "PRELAUNCH_GATE_SECRET must be at least 32 characters — generate with: openssl rand -hex 32",
+    ),
 });
 
 /**
@@ -125,7 +143,20 @@ export function validateEnv(): void {
   if (process.env.NODE_ENV !== "production") return;
   const result = RequiredProductionEnvSchema.safeParse(process.env);
   if (!result.success) {
-    const missing = result.error.issues.map((issue) => issue.path.join(".")).join(", ");
-    throw new Error(`Missing required environment variable(s): ${missing}`);
+    /**
+     * Each schema entry's own message, not `issue.path` alone — every
+     * message in `RequiredProductionEnvSchema` already names its own
+     * variable, so joining messages loses nothing a bare name would have
+     * given. Joining paths instead, as an earlier version of this function
+     * did, silently discarded `PRELAUNCH_GATE_SECRET`'s length-floor
+     * message: a 20-character value would fail validation and report
+     * "Missing required environment variable(s): PRELAUNCH_GATE_SECRET" —
+     * true-sounding but wrong, since the operator would find the variable
+     * genuinely set in Vercel and have no way to learn *why* boot still
+     * refused it. Found by a reviewer's own mutation, not read from the
+     * type signature.
+     */
+    const messages = result.error.issues.map((issue) => issue.message).join("; ");
+    throw new Error(`Invalid or missing required environment variable(s): ${messages}`);
   }
 }

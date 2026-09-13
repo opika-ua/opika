@@ -10,22 +10,16 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  * place in this app that sees a request before any page renders or any
  * `/api/rpc` handler runs.
  *
- * **The pre-launch gate**, added 2026-09-13. While `SITE_IS_PUBLICLY_
- * DISCOVERABLE` is false (`./seo-flags.ts`), nothing about this deploy is
- * meant to be reachable by anyone who doesn't already know that — see
- * `docs/build-plan.md`'s "Before any route is indexed" launch-gate section.
- * Decided after ~100 req/min of sustained, unidentified traffic burned 4.2 GB
- * of Neon's 5 GB monthly transfer allowance against a corpus of 220
- * fabricated animals, noindexed, with no outreach done — `X-Robots-Tag:
- * noindex, nofollow` was already on every response, and whatever was doing
- * this ignored it. A politeness signal can't reach traffic that doesn't
- * read it; a 403 can. See `docs/decisions-pending-review.md` for the full
- * investigation. Deliberately **no user-agent carve-out** for OG-preview
- * bots (Telegram, Viber, Instagram): a spoofable header is a permanent hole
- * opened for a ten-minute verification task. The MVP gate's own preview
- * checks are done with the gate temporarily open instead. The gate comes
- * down in the same change that flips `SITE_IS_PUBLICLY_DISCOVERABLE` — see
- * that flag's own comment and `docs/build-plan.md`'s launch-gate section.
+ * **The pre-launch gate**, added 2026-09-13 — a bot shutter, NOT a security
+ * boundary. While `SITE_IS_PUBLICLY_DISCOVERABLE` is false (`./seo-flags.ts`),
+ * every request 403s unless it carries the shared secret below. Full
+ * reasoning for what this does and does not protect, why there's no
+ * user-agent carve-out, and why the `?gate=` secret appearing in logs and
+ * browser history is accepted rather than fixed: `./api/prelaunch-gate.ts`'s
+ * own top comment — the authoritative source, not duplicated here. Incident
+ * writeup: `docs/decisions-pending-review.md`. The gate comes down in the
+ * same change that flips `SITE_IS_PUBLICLY_DISCOVERABLE` — see that flag's
+ * own comment and `docs/build-plan.md`'s launch-gate section.
  *
  * **Per-IP rate limiting**, for pages that render through the in-process
  * router client (`api/server-client.ts`), not the HTTP `/api/rpc` route.
