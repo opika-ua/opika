@@ -18,8 +18,10 @@ import {
   expectContainedBy,
   expectFocusVisibleOutline,
   expectMinimumBottomMargin,
+  expectMinTouchTarget,
   expectNoOverlap,
   expectNoViewportOverflow,
+  MIN_TOUCH_TARGET_PX,
   openRoute,
   rectOf,
 } from "./harness";
@@ -86,20 +88,6 @@ const MIN_SHELTER_MARGIN_PX = new Map<Viewport, number>([
  * absorbs; and if the photo cannot absorb enough, *this* fails.
  */
 const MIN_PHOTO_HEIGHT_PX = 152;
-
-/**
- * docs/design/README.md:200 — 48 minimum touch target anywhere, stated there
- * as a civic-trust metric rather than the WCAG floor.
- *
- * Both of the deck's own buttons were `min-h-11` (44) until Phase D raised
- * them. Measured rather than trusted to the class list for two reasons: a
- * `min-h-*` with no assertion behind it is documentation and decays at
- * exactly the rate the layout changes (`docs/standing-constraints.md`), and
- * `min-height` is not the rendered height — a flex parent, a line box or a
- * later padding change can leave the real target short of the class's number
- * without the class ever changing.
- */
-const MIN_TOUCH_TARGET_PX = 48;
 
 /**
  * Keyed by the viewport object, not its `name`, and loud when absent.
@@ -213,17 +201,15 @@ for (const viewport of [
      * width and a control gets squeezed. The back button is also the deck's
      * only exit for a touch user.
      */
+    // It was 44 before Phase D, and the 4px that closed the gap comes out of
+    // the photo (see SwipeCard's own note), so a regression here and a
+    // regression in the photo floor above are the same budget seen from two
+    // ends.
     test(`the back-to-list button is at least ${MIN_TOUCH_TARGET_PX}px tall`, async ({ page }) => {
-      const button = await rectOf(page.getByTestId("deck-back-to-list"), "back-to-list button");
-
-      expect(
-        button.height,
-        `the back-to-list button is ${button.height.toFixed(1)}px tall at ${viewport.name}; ` +
-          `docs/design/README.md:200 sets ${MIN_TOUCH_TARGET_PX} as the minimum touch target ` +
-          `anywhere. It was 44 before Phase D, and the 4px that closed the gap comes out of ` +
-          `the photo (see SwipeCard's own note), so a regression here and a regression in the ` +
-          `photo floor above are the same budget seen from two ends.`,
-      ).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_PX);
+      await expectMinTouchTarget(
+        page.getByTestId("deck-back-to-list"),
+        `back-to-list button at ${viewport.name}`,
+      );
     });
 
     // Lost fix 3.
@@ -527,16 +513,10 @@ test.describe("/tvaryny/gortaty error state", () => {
     await openRoute(page, ROUTE, PHONE, { readySelector: RETRY });
   }
 
+  // It was 44 before Phase D.
   test(`the retry button is at least ${MIN_TOUCH_TARGET_PX}px tall`, async ({ page }) => {
     await openFailedDeck(page);
-    const button = await rectOf(page.locator(RETRY), "deck retry button");
-
-    expect(
-      button.height,
-      `the deck's retry button is ${button.height.toFixed(1)}px tall; ` +
-        `docs/design/README.md:200 sets ${MIN_TOUCH_TARGET_PX} as the minimum touch target ` +
-        `anywhere. It was 44 before Phase D.`,
-    ).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_PX);
+    await expectMinTouchTarget(page.locator(RETRY), "deck retry button");
   });
 
   test("the retry button shows a real focus-visible outline", async ({ page }) => {
