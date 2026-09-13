@@ -1,5 +1,6 @@
 import type { ContactRevealView } from "@opika/contracts";
 import { AnimalIdSchema, CityIdSchema, RevealIdSchema, ShelterIdSchema } from "@opika/domain";
+import { ORPCError } from "@orpc/client";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useReveal } from "./useReveal";
@@ -66,6 +67,56 @@ beforeEach(() => {
  * and a fixed order is what makes a failure attributable to the guard
  * itself rather than to test flakiness.
  */
+describe("useReveal's error reason", () => {
+  /**
+   * Same pattern `use-feed-deck.test.tsx` already uses for `INVALID_CURSOR`:
+   * `defined: true` matters — it's what a real contract-declared error
+   * carries once the client deserializes it, and what `isDefinedError` (this
+   * hook's own check) actually keys on. A bare `new ORPCError(code)`
+   * defaults to `defined: false` and would silently take the "loadFailed"
+   * branch instead, testing nothing.
+   */
+  it("a RATE_LIMITED oRPC error maps to reason: 'rateLimited', not the generic loadFailed copy", async () => {
+    revealCall.mockRejectedValueOnce(new ORPCError("RATE_LIMITED", { defined: true }));
+
+    const { result } = renderHook(() => useReveal());
+    act(() => {
+      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+    });
+
+    await waitFor(() =>
+      expect(result.current.state).toMatchObject({ kind: "error", reason: "rateLimited" }),
+    );
+  });
+
+  it("an undeclared server-side error is reason: 'loadFailed', not rateLimited", async () => {
+    revealCall.mockRejectedValueOnce(new ORPCError("INTERNAL_SERVER_ERROR", { defined: false }));
+
+    const { result } = renderHook(() => useReveal());
+    act(() => {
+      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+    });
+
+    await waitFor(() =>
+      expect(result.current.state).toMatchObject({ kind: "error", reason: "loadFailed" }),
+    );
+  });
+
+  it("a failed session bootstrap is reason: 'loadFailed' — the per-IP limiter that actually protects it answers with a raw, non-oRPC 429, not a defined RATE_LIMITED error", async () => {
+    bootstrap.mockRejectedValueOnce(new Error("session bootstrap failed"));
+
+    const { result } = renderHook(() => useReveal());
+    act(() => {
+      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+    });
+
+    await waitFor(() =>
+      expect(result.current.state).toMatchObject({ kind: "error", reason: "loadFailed" }),
+    );
+    expect(revealCall).not.toHaveBeenCalled();
+  });
+});
+
 describe("useReveal's generation guard", () => {
   it("discards a slower first reveal response that resolves after a faster second one", async () => {
     let resolveFirst: (value: ContactRevealView) => void = () => {};

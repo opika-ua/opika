@@ -368,6 +368,24 @@ export const uk = {
       title: "Ми почали стрічку заново.",
       action: "До стрічки",
     },
+    /**
+     * `animals.reveal`'s own `RATE_LIMITED` (`apps/web/src/api/reveal-rate-limit.ts`)
+     * — 30 distinct shelters revealed in 24h. Oleksii's own words, 2026-09-13,
+     * given as the reveal dialog's honest replacement for the generic
+     * `loadFailed` copy it rendered for every error including this one
+     * (`docs/decisions-pending-review.md` has the fuller R3 history — this
+     * was the one remaining blocker on PR #55). No `eyebrow` or `action`:
+     * neither was given, and inventing either would be exactly the
+     * "honest copy for it isn't mine to write" line this row was blocked
+     * on in the first place. No retry action by design, not omission —
+     * `ContactRevealDialog.tsx`'s `RevealError` renders no retry button for
+     * this reason specifically, since retrying before tomorrow cannot
+     * succeed.
+     */
+    rateLimited: {
+      title: "Ви відкрили контакти багатьох притулків сьогодні.",
+      body: "Наступні — завтра.",
+    },
     photoMissing: {
       placeholder: "Фото немає — притулок ще не надіслав",
     },

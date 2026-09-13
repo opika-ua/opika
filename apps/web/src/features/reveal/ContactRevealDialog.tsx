@@ -4,7 +4,7 @@ import type { ContactRevealView } from "@opika/contracts";
 import { allChannels, type ContactChannel } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useEffect, useRef } from "react";
-import type { RevealState } from "./useReveal";
+import type { RevealErrorReason, RevealState } from "./useReveal";
 
 /**
  * The dialog's own primary action, keyed on whichever channel the shelter
@@ -194,7 +194,12 @@ export function ContactRevealDialog({
         className="font-rg w-full h-full desktop:h-auto desktop:max-w-[640px] desktop:max-h-[85vh] overflow-y-auto bg-rg-surface desktop:rounded-rg-card p-6 desktop:shadow-[0_24px_48px_-32px_rgba(16,17,18,0.4)] flex flex-col gap-6"
       >
         {state.kind === "error" && (
-          <RevealError headingRef={headingRef} onClose={onClose} onRetry={onRetry} />
+          <RevealError
+            reason={state.reason}
+            headingRef={headingRef}
+            onClose={onClose}
+            onRetry={onRetry}
+          />
         )}
         {state.kind === "open" && (
           <RevealContent
@@ -217,24 +222,34 @@ export function ContactRevealDialog({
  * own sake: the dialog's `aria-labelledby` points at that id unconditionally,
  * so without it the error dialog announced with no accessible name at all,
  * and focus stayed on the trigger button *behind* the overlay.
+ *
+ * `reason` picks the copy — `uk.errors.rateLimited` has no `eyebrow`
+ * (`"eyebrow" in copy` guards it) and no retry button at all, rendered
+ * conditionally rather than pointed at `uk.errors.loadFailed.action`: a
+ * reveal-budget refusal cannot succeed on retry before the window resets,
+ * so offering one would be a false affordance, not a convenience.
  */
 function RevealError({
+  reason,
   headingRef,
   onClose,
   onRetry,
 }: {
+  reason: RevealErrorReason;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   onClose: () => void;
   onRetry: () => void;
 }) {
-  const copy = uk.errors.loadFailed;
+  const copy = reason === "rateLimited" ? uk.errors.rateLimited : uk.errors.loadFailed;
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-2">
-          <span className="text-[11px] font-medium tracking-[0.12em] text-rg-ink-3">
-            {copy.eyebrow}
-          </span>
+          {"eyebrow" in copy && (
+            <span className="text-[11px] font-medium tracking-[0.12em] text-rg-ink-3">
+              {copy.eyebrow}
+            </span>
+          )}
           <h2
             ref={headingRef}
             id="reveal-heading"
@@ -255,14 +270,24 @@ function RevealError({
           ✕
         </button>
       </div>
-      <button
-        type="button"
-        onClick={onRetry}
-        data-testid="reveal-retry"
-        className="min-h-14 rounded-rg-button bg-rg-ink text-[15px] font-medium text-rg-surface focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-      >
-        {copy.action}
-      </button>
+      {/*
+        `!== "rateLimited"`, not `=== "loadFailed"` — states the actual rule
+        ("no retry only for a refusal that can't succeed sooner") rather
+        than "only this one specific reason gets a retry", which would
+        silently withhold retry from any future reason added to
+        `RevealErrorReason` that a caller *does* want retryable (an
+        "offline" reason, say, mirroring the deck's own `DeckErrorReason`).
+      */}
+      {reason !== "rateLimited" && (
+        <button
+          type="button"
+          onClick={onRetry}
+          data-testid="reveal-retry"
+          className="min-h-14 rounded-rg-button bg-rg-ink text-[15px] font-medium text-rg-surface focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+        >
+          {uk.errors.loadFailed.action}
+        </button>
+      )}
     </div>
   );
 }

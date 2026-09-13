@@ -2,7 +2,7 @@
 
 import type { ContactRevealView } from "@opika/contracts";
 import type { AnimalId } from "@opika/domain";
-import { safe } from "@orpc/client";
+import { isDefinedError, safe } from "@orpc/client";
 import { useCallback, useRef, useState } from "react";
 import { revealBrowserClient } from "../../api/browser-client";
 
@@ -18,10 +18,23 @@ export interface RevealSnapshot {
   cityName: string | null;
 }
 
+/**
+ * `reason` distinguishes `animals.reveal`'s own `RATE_LIMITED` — 30 distinct
+ * shelters in 24h, `apps/web/src/api/reveal-rate-limit.ts` — from every
+ * other failure, so `ContactRevealDialog` can render the honest, specific
+ * copy for it (`uk.errors.rateLimited`) instead of the generic "something
+ * failed on our side" every error used to collapse into. A discriminated
+ * union, not a boolean, per this repo's own standing rule — `rateLimited`
+ * and `loadFailed` are not "the same failure, sometimes flagged," they are
+ * different facts a caller needs to render differently (no retry action
+ * makes sense for the former).
+ */
+export type RevealErrorReason = "rateLimited" | "loadFailed";
+
 export type RevealState =
   | { kind: "idle" }
   | ({ kind: "loading" } & RevealSnapshot)
-  | ({ kind: "error" } & RevealSnapshot)
+  | ({ kind: "error"; reason: RevealErrorReason } & RevealSnapshot)
   | ({ kind: "open"; reveal: ContactRevealView } & RevealSnapshot);
 
 /**
@@ -70,7 +83,23 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
         : await safe(revealBrowserClient.session.bootstrap({})).then(([error]) => !error);
       if (generation !== callGenerationRef.current) return;
       if (!ready) {
-        setState({ kind: "error", ...snapshot });
+        /**
+         * Always `"loadFailed"`, never `"rateLimited"` — not because
+         * `session.bootstrap` can't declare `RATE_LIMITED` in its contract
+         * (`packages/contracts/src/procedures/session.ts` says it can), but
+         * because the mechanism that actually rate-limits it is the generic
+         * per-IP limiter (`apps/web/src/api/rate-limit.ts`), which answers
+         * with a raw `new Response("Too Many Requests", { status: 429 })`
+         * before oRPC's own handler ever runs
+         * (`app/api/rpc/[...rpc]/route.ts`) — never a well-formed, defined
+         * oRPC error. `ensureSession`'s own `.then(([error]) => !error)`
+         * also discards whatever error object this branch would need to
+         * inspect regardless. If `session.bootstrap` ever threw a real
+         * `errors.RATE_LIMITED()` from inside its own handler, this branch
+         * would need to inspect that error the same way the block below
+         * does — it doesn't today because nothing here can produce one.
+         */
+        setState({ kind: "error", reason: "loadFailed", ...snapshot });
         return;
       }
 
@@ -79,7 +108,16 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
       );
       if (generation !== callGenerationRef.current) return;
       if (revealError || !result) {
-        setState({ kind: "error", ...snapshot });
+        // Same `isDefinedError` + `error.code` pattern as
+        // `use-feed-deck.ts`'s own `INVALID_CURSOR` check — `RATE_LIMITED`
+        // is one of `animals.reveal`'s declared contract errors
+        // (`packages/contracts/src/procedures/animals.ts`), so a real
+        // response carrying it is `isDefinedError() === true`.
+        const reason: RevealErrorReason =
+          revealError && isDefinedError(revealError) && revealError.code === "RATE_LIMITED"
+            ? "rateLimited"
+            : "loadFailed";
+        setState({ kind: "error", reason, ...snapshot });
         return;
       }
       setState({ kind: "open", ...snapshot, reveal: result });

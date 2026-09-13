@@ -35,8 +35,11 @@ const noopRef = (): void => {};
  * means resuming a stale cursor, not a user mistake); retrying restarts the
  * feed from its first page, matching the copy's own "Ми почали стрічку
  * заново." `loadFailed`: anything else — a real server-side failure, or an
- * oRPC-defined error (e.g. `RATE_LIMITED`) with no dedicated copy of its
- * own.
+ * oRPC-defined error with no dedicated copy of its own — `feed.list`'s own
+ * `RATE_LIMITED` (the generic per-IP limiter, distinct from
+ * `animals.reveal`'s reveal-budget `RATE_LIMITED`, which gained its own
+ * `uk.errors.rateLimited` copy — see `useReveal.ts`) still falls here,
+ * unaddressed by that row.
  */
 export type DeckErrorReason = "offline" | "loadFailed" | "sessionExpired";
 

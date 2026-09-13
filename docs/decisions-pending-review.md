@@ -630,7 +630,108 @@ until that is known.
 
 ---
 
+## R3 — the RATE_LIMITED sentence, PR #55's last blocker, closed
+
+**His words, verbatim, sent in chat, 2026-09-13:** "Ви відкрили контакти багатьох притулків
+сьогодні. Наступні — завтра." No surrounding instruction — the sentence itself was the whole
+message. Confirmed by him, not assumed, that this was meant as the `RATE_LIMITED` copy (asked
+directly rather than guessed, since the alternative reading — a new incident report about bot
+traffic actually burning reveal budget in production — would have called for a completely
+different response).
+
+**Why this was the blocker in the first place:** `animals.reveal`'s own `RATE_LIMITED` — 30
+distinct shelters revealed in 24h, `apps/web/src/api/reveal-rate-limit.ts` — rendered the generic
+`uk.errors.loadFailed` ("Щось не спрацювало на нашому боці.") like every other reveal failure,
+which is false in this state: it *is* a limit applied to the adopter, not a server malfunction.
+Writing the honest replacement was never mine to do — see `CLAUDE.md`'s standing rule against
+inventing Ukrainian copy, and this row's own PR body, which has said so since R3 first shipped.
+
+**Implemented, using his two sentences exactly, nothing added:**
+- `packages/i18n/src/messages/uk.ts` — new `errors.rateLimited = { title, body }`. No `eyebrow`,
+  no `action`: neither was given, and this row exists specifically because inventing either would
+  repeat the mistake the whole blocker was about.
+- `apps/web/src/features/reveal/useReveal.ts` — `RevealState`'s `"error"` variant gains a
+  `reason: "rateLimited" | "loadFailed"` discriminant (a discriminated union, not a boolean, per
+  `docs/standing-constraints.md`). Detected with the same `isDefinedError(error) && error.code ===
+  "RATE_LIMITED"` idiom `use-feed-deck.ts` already established for `INVALID_CURSOR` — `RATE_LIMITED`
+  is one of `animals.reveal`'s declared contract errors, so a real response carrying it is
+  `isDefinedError() === true`. A session-bootstrap failure (a different code path, checked first)
+  is always `"loadFailed"` — that mechanism can't produce `RATE_LIMITED` at all.
+- `apps/web/src/features/reveal/ContactRevealDialog.tsx` — `RevealError` picks
+  `uk.errors.rateLimited` vs `uk.errors.loadFailed` off the new `reason`, and renders **no retry
+  button** for the rate-limited case: retrying before the window resets cannot succeed, so
+  offering one would be a false affordance. The eyebrow span is now conditional (`"eyebrow" in
+  copy`) since `rateLimited` doesn't have one.
+- `packages/i18n/src/messages/en.ts` — mirrored key-for-key, machine-translated like every other
+  entry in that file (its own top comment: not production-facing, next-intl isn't wired until
+  H3) — required by `messages.test.ts`'s uk/en key-shape parity check, not a second copy decision.
+
+**Verified vs. asserted:**
+- `useReveal.test.tsx`: 3 new tests — a `RATE_LIMITED` oRPC error (constructed with `new
+  ORPCError("RATE_LIMITED", { defined: true })`, the same technique `use-feed-deck.test.tsx` uses
+  for `INVALID_CURSOR`, since `defined: false` is the default and would test nothing) maps to
+  `reason: "rateLimited"`; an undeclared server error and a failed session bootstrap both map to
+  `"loadFailed"`.
+- `RevealFlow.test.tsx`: one new **rendered** assertion (`docs/standing-constraints.md`: "a UI
+  item may not be marked done on the basis of inspecting markup") — a mocked `RATE_LIMITED`
+  response renders a dialog named exactly "Ви відкрили контакти багатьох притулків сьогодні.",
+  shows "Наступні — завтра.", and has no `reveal-retry` button.
+- **Mutation-tested**: forced the reason to always resolve `"loadFailed"` — both the new
+  `useReveal.test.tsx` assertions and the new `RevealFlow.test.tsx` rendered assertion went red
+  (the latter failed to find a dialog with the expected accessible name at all, since the
+  generic copy rendered instead). Restored, confirmed byte-identical, reconfirmed green.
+- No Playwright harness test: the reveal-rate-limit's own budget is 30 *distinct shelters*, and
+  the seeded corpus has only 8 — a real end-to-end trigger of this exact condition is not
+  reachable with current seed data. (Not the same situation as
+  `discovery-reveal.harness.ts`'s own reveal tests, corrected on review: those use `page.route`
+  only to delay a real `animals.reveal` request via `route.continue()`, to create a controllable
+  race window — they never fabricate a response, so they're not a precedent for mocking a
+  condition the seed data can't reach.) The component-level rendered test above is the form of
+  verification `docs/standing-constraints.md`'s own wording accepts ("a component test **or** a
+  harness run").
+
+Full `pnpm check`: 896 workspace unit tests, 206 harness tests, all green.
+
+**Two things a reviewer round surfaced, reported rather than silently absorbed or fixed:**
+
+1. **"сьогодні… завтра" reads as a calendar-day reset; the mechanism is a rolling 24-hour window**
+   (`reveal-rate-limit.ts`, counted from each individual reveal's own timestamp, not from
+   midnight). If the oldest counted reveal was at 11:00 yesterday, a unit frees at 11:00 *today*,
+   not at the next calendar day. Not a reason to change his wording unilaterally — the sentence
+   under-promises rather than over-promises, and it's his call whether that's close enough or
+   worth a revision. Flagged to him as its own item, not decided here.
+2. **A real, adjacent gap found but deliberately not fixed in this change**: a genuine network
+   failure during `animals.reveal` (no response reached at all — a `TypeError`, same signal
+   `use-feed-deck.ts` already keys "offline" on) still falls through to `reason: "loadFailed"`
+   here, rendering "Щось не спрацювало на нашому боці." for a case that isn't the app's fault at
+   all — `uk.errors.offline` already exists and is approved copy for exactly this. Not fixed as
+   part of this row: it's a distinct, pre-existing gap this change happens to sit next to, not
+   something Oleksii asked to fix now, and folding it in here would make this diff about two
+   things instead of one. Parked as its own follow-up, same shape as `use-feed-deck.ts`'s existing
+   three-way branch (`TypeError` → offline, a specific code → its own reason, else → loadFailed).
+
+**PR #55 comes out of draft in the same change** — this was the one thing keeping it there.
+
+---
+
 ## PARKED
+
+### R3 — `useReveal`'s "error" state still renders the generic copy for a genuine network failure
+What's blocked: a real offline/network failure during `animals.reveal` (a `TypeError` — the fetch
+never reached a server at all, the same signal `use-feed-deck.ts` already keys "offline" on) is
+indistinguishable from any other reveal failure in `useReveal.ts` today — both resolve to
+`reason: "loadFailed"`, rendering "Щось не спрацювало на нашому боці." ("something went wrong on
+*our* side") for a case that is neither the app's fault nor the shelter's. `uk.errors.offline`
+already exists, is already approved copy, and is already wired for exactly this signal in the
+deck's own feed-loading error state (`SwipeDeck.tsx`'s `DeckErrorReason`) — this is the same gap,
+one component over, found while adding `RevealErrorReason` for the RATE_LIMITED row and
+deliberately not folded into that change (recorded there, not fixed there).
+What's needed to unblock: extend `RevealErrorReason` to a third value (`"offline"`), branch
+`useReveal.ts`'s error handling on `revealError instanceof TypeError` the same way
+`use-feed-deck.ts:102-104` already does, and give `RevealError` (`ContactRevealDialog.tsx`) an
+`"offline"` copy branch using the already-approved `uk.errors.offline`. No new Ukrainian needed —
+purely wiring an existing, approved string to a signal that already exists.
+Estimate once picked up: small — the pattern to copy already exists verbatim in a sibling file.
 
 ### R3 — focus-on-close has one uncovered edge case
 What's blocked: `SwipeDeck.tsx`'s `closeRevealAndRefocus` returns focus to the «Написати»
