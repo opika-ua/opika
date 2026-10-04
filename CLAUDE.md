@@ -484,24 +484,31 @@ sweep. For each iteration:
 
 1. Do the work.
 2. Run `pnpm check`.
-3. **Commit** (green `pnpm check`, output pasted in the commit body).
-4. Classify the row's tier (see Process tiers) and review it accordingly:
-   - **Tier 1** — invoke the `opika-reviewer` subagent synchronously, now, before continuing.
-     Unchanged from before 2026-10-04: this is where the discipline has caught real
-     production-shaped bugs.
-   - **Tier 2** — spawn `opika-reviewer` in the background against this commit range and
-     **immediately start the next row** without waiting. See the 2026-10-04 amendment.
-   - **Tier 3** — no per-row review; one PR-level pass over the batch.
-5. Act on a verdict once you have one (synchronously for Tier 1, or on reading a review file
-   for Tier 2):
-   - **PASS** — nothing further.
-   - **PASS WITH NOTES** — address the notes in a follow-up commit ("review: `<sha>` —
-     `<finding>`"), reviewed the same way (sync for Tier 1, async for Tier 2).
+3. Classify the row's tier (see Process tiers) — this decides whether review happens before or
+   after the commit:
+   - **Tier 1** — invoke the `opika-reviewer` subagent synchronously, now, **before
+     committing**. Unchanged from before 2026-10-04, ordering included: this is where the
+     discipline has caught real production-shaped bugs, and a secrets/cookie/migration/
+     production-data change is never committed un-reviewed. Act on the verdict (step 4), then
+     commit.
+   - **Tier 2** — **commit now** (green `pnpm check`, output pasted in the commit body), then
+     spawn `opika-reviewer` in the background against that commit and **immediately start the
+     next row** without waiting for it. See the 2026-10-04 amendment below.
+   - **Tier 3** — commit now; no per-row review, one PR-level pass over the batch later.
+4. Act on a verdict once you have one (synchronously before committing, for Tier 1; or on
+   reading a review file some time after committing, for Tier 2):
+   - **PASS** — commit if Tier 1 and not already committed; otherwise nothing further.
+   - **PASS WITH NOTES** — address the notes (before the first commit, for Tier 1; in a
+     follow-up commit "review: `<sha>` — `<finding>`", for Tier 2), reviewed the same way
+     again, then commit (or continue, for Tier 2).
    - **STOP** — do not continue past it and do not work around it, but **do commit first,
      then push, then write to Oleksii**: what the decision is, the options with their
      consequences, and what you recommend. Then wait. See the amendment below for why commit
-     precedes the wait rather than following it.
-6. When a phase's rows are all committed and every pending review file has been read, open the
+     precedes the wait rather than following it. (This is the one case where Tier 1 work is
+     committed without a clean PASS — the STOP itself was returned by the synchronous review,
+     so the review still ran before the commit; "commit first" refers to committing before
+     waiting for Oleksii, not before reviewing.)
+5. When a phase's rows are all committed and every pending review file has been read, open the
    PR with the verified-vs-asserted ledger in the body, and tell Oleksii it is ready. Do not
    merge.
 
@@ -570,7 +577,12 @@ copies for new decisions.
 
 - A **Tier 2 decision never blocks the builder.** Take the recommended default, write the
   inbox row, continue. Oleksii answers in bulk when he reviews the PR; an override becomes a
-  small follow-up commit.
+  small follow-up commit. **This does not touch the STOP list below** ("Stop and ask,
+  regardless of what the reviewer said") — an ambiguous design with no mock, a new or changed
+  user-facing claim, and the rest of that list are never "a Tier 2 decision" no matter which
+  tier the surrounding code change is, and still stop and wait rather than taking a default.
+  The inbox is for the other kind: a reversible implementation judgement call that used to be
+  a "decisions needing your eye, not blocking" entry in `docs/decisions-pending-review.md`.
 - A **Tier 1 decision still blocks the merge** — but not the rest of the branch. Write the
   row, commit the work, move to the next row that doesn't depend on it. Oleksii answers the
   batch, not one question at a time.

@@ -32,7 +32,13 @@ a migration, Tier 1) — but per this file's own 2026-09-12 note above ("expect 
 reconciliation again when it merges"), its Phase S decision entries are folded into this copy
 now rather than waiting, since the branch itself is stable (no further Phase S work is planned
 before merge) and leaving its ~180 lines of real decisions undiscoverable until an unrelated
-merge event serves nobody. The branch's own copy of this file additionally re-confirmed PRs
+merge event serves nobody. **Folded in abridged, not verbatim** — the "English name over
+transliteration," "cities-before-parse ordering," "back-link scope" and "redirect only fires"
+entries below keep every decision, alternative and reversibility note from the branch's own
+copy, but trim supporting detail (the migration's `RAISE EXCEPTION` re-check wording, the
+obsolete-test-replacement note, the зг→zgh transliteration catch, one rationale paragraph) that
+doesn't change what was decided. Read `git show feat/city-slugs:docs/decisions-pending-review.md`
+directly if the trimmed detail matters for a specific question. The branch's own copy additionally re-confirmed PRs
 #57 and #58 as merged, which this copy's own stale "open against main, not merged" wording
 below had not yet caught up to — corrected in place at each occurrence, same as that branch did.
 Also corrected here: #55, #59 and #60, all of which have since merged (#55 2026-09-13, #59

@@ -503,8 +503,9 @@ code**; every handler constructs its error via oRPC's own injected `errors.CODE(
 raw `new ORPCError(code)`, which is what makes the status mapping actually reach the response
 instead of being documentation nobody reads at the call site. Reviewer found a real coverage gap
 on first pass (`ANIMAL_NOT_AVAILABLE` and `SHELTER_NOT_VISIBLE` had no test at any status) —
-fixed, two new cases added to `api.test.ts`'s `reveal` describe block. Full detail:
-`docs/decisions-pending-review.md`'s O-20 entry.
+fixed, two new cases added to `api.test.ts`'s `reveal` describe block. Full detail: the
+"Fixed, 2026-09-12" paragraph in `docs/decisions-pending-review.md`'s Summary section (that
+file has no dedicated `O-20` heading of its own — the fix is described inline there).
 
 ---
 

@@ -12,7 +12,10 @@ are not migrated here.
 - A **Tier 2 decision never blocks the builder.** Take the recommended default, add a row here,
   continue. Oleksii answers in bulk when he reviews the PR; an override becomes a small
   follow-up commit, and the row's **Status** column is updated to `overridden` with a pointer to
-  that commit.
+  that commit. **This is not the STOP list** (`CLAUDE.md`'s "Stop and ask, regardless of what the
+  reviewer said") — an ambiguous design with no mock, a new or changed user-facing claim, and the
+  rest of that list still stop and wait, never take a default, no matter which tier the
+  surrounding code is.
 - A **Tier 1 decision still blocks the merge** — but not the rest of the branch. Add the row,
   commit the work, move to the next row that doesn't depend on it.
 - **Ukrainian copy never blocks code.** New strings ship as `[COPY PENDING]`, pinned by
@@ -21,8 +24,11 @@ are not migrated here.
   (`docs/standing-constraints.md`'s register), because a false sentence must never be live.
 - **Branches write new rows to `docs/decisions-inbox/<branch>.md`** (same columns, one table, no
   header boilerplate needed beyond the column row) rather than editing this file directly — this
-  file lives on `main` only. The PR merge appends the branch's rows to the table below, oldest
-  first, and the branch's own `docs/decisions-inbox/<branch>.md` is deleted in the same merge.
+  file lives on `main` only. **Appending the branch's rows to the table below is part of merging
+  the PR** — Oleksii's own action, since the agent never merges — done at the same time as
+  deleting the branch's own `docs/decisions-inbox/<branch>.md`. A branch's rows are not "in" the
+  inbox for his bulk-answer pass until that append has happened; say so explicitly in the PR body
+  rather than assuming it's automatic.
 - **Status** is one of: `open` (Tier 1, awaiting Oleksii), `default-taken` (Tier 2, no response
   needed unless he overrides), `answered` (he responded — see his answer column), `overridden`
   (he changed a default-taken row after the fact).
@@ -32,6 +38,10 @@ are not migrated here.
 | ID | Date | Row | Question (one line) | Options | Default taken | Oleksii's answer | Status |
 |----|------|-----|----------------------|---------|----------------|-------------------|--------|
 
-No entries yet — this session (block 0, `chore/handoff-2026-10-04`) only built the mechanism;
-the handoff's own DEFAULTs (§3, §3.1) are recorded here as the blocks that take them are
-actually started, not in advance of the work.
+No entries yet. **Deliberate deviation from the kickoff prompt's literal wording:** this
+session (block 0, `chore/handoff-2026-10-04`) only built the mechanism and did not pre-record
+the handoff's own DEFAULTs from §3/§3.1 (seed profiles, H2 scoping, EN-locale deferral, and the
+rest) — none of those blocks have started yet, and recording a default before the row that
+needs it exists would be exactly the kind of scaffolding-ahead-of-phase `CLAUDE.md`'s "Phase
+scope discipline" warns against. Each DEFAULT is recorded here when the block that takes it is
+actually started, not in advance.
