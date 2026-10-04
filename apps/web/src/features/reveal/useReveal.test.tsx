@@ -89,6 +89,19 @@ describe("useReveal's error reason", () => {
     );
   });
 
+  it("a network failure (no oRPC response at all) maps to reason: 'offline', not loadFailed", async () => {
+    revealCall.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    const { result } = renderHook(() => useReveal());
+    act(() => {
+      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+    });
+
+    await waitFor(() =>
+      expect(result.current.state).toMatchObject({ kind: "error", reason: "offline" }),
+    );
+  });
+
   it("an undeclared server-side error is reason: 'loadFailed', not rateLimited", async () => {
     revealCall.mockRejectedValueOnce(new ORPCError("INTERNAL_SERVER_ERROR", { defined: false }));
 

@@ -20,16 +20,16 @@ export interface RevealSnapshot {
 
 /**
  * `reason` distinguishes `animals.reveal`'s own `RATE_LIMITED` — 30 distinct
- * shelters in 24h, `apps/web/src/api/reveal-rate-limit.ts` — from every
- * other failure, so `ContactRevealDialog` can render the honest, specific
- * copy for it (`uk.errors.rateLimited`) instead of the generic "something
- * failed on our side" every error used to collapse into. A discriminated
- * union, not a boolean, per this repo's own standing rule — `rateLimited`
- * and `loadFailed` are not "the same failure, sometimes flagged," they are
- * different facts a caller needs to render differently (no retry action
- * makes sense for the former).
+ * shelters in 24h, `apps/web/src/api/reveal-rate-limit.ts` — and a genuine
+ * network failure, from every other failure, so `ContactRevealDialog` can
+ * render the honest, specific copy for each (`uk.errors.rateLimited` /
+ * `.offline`) instead of the generic "something failed on our side" every
+ * error used to collapse into. A discriminated union, not a boolean, per
+ * this repo's own standing rule — these are not "the same failure,
+ * sometimes flagged," they are different facts a caller needs to render
+ * differently (no retry action makes sense for `rateLimited`).
  */
-export type RevealErrorReason = "rateLimited" | "loadFailed";
+export type RevealErrorReason = "rateLimited" | "offline" | "loadFailed";
 
 export type RevealState =
   | { kind: "idle" }
@@ -108,15 +108,26 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
       );
       if (generation !== callGenerationRef.current) return;
       if (revealError || !result) {
-        // Same `isDefinedError` + `error.code` pattern as
-        // `use-feed-deck.ts`'s own `INVALID_CURSOR` check — `RATE_LIMITED`
-        // is one of `animals.reveal`'s declared contract errors
-        // (`packages/contracts/src/procedures/animals.ts`), so a real
-        // response carrying it is `isDefinedError() === true`.
+        /**
+         * `revealError instanceof TypeError` checked first — the same
+         * "offline" test `use-feed-deck.ts:102-104` already established and
+         * the same reasoning: a genuine network failure (the fetch never
+         * reached a server at all) is a `TypeError` at the fetch layer, per
+         * the Fetch API's own contract, and is neither the app's fault nor
+         * the shelter's — `uk.errors.loadFailed`'s "щось не спрацювало на
+         * нашому боці" is false for this case specifically. Otherwise, same
+         * `isDefinedError` + `error.code` pattern as `use-feed-deck.ts`'s own
+         * `INVALID_CURSOR` check — `RATE_LIMITED` is one of `animals.reveal`'s
+         * declared contract errors (`packages/contracts/src/procedures/
+         * animals.ts`), so a real response carrying it is
+         * `isDefinedError() === true`.
+         */
         const reason: RevealErrorReason =
-          revealError && isDefinedError(revealError) && revealError.code === "RATE_LIMITED"
-            ? "rateLimited"
-            : "loadFailed";
+          revealError instanceof TypeError
+            ? "offline"
+            : revealError && isDefinedError(revealError) && revealError.code === "RATE_LIMITED"
+              ? "rateLimited"
+              : "loadFailed";
         setState({ kind: "error", reason, ...snapshot });
         return;
       }
