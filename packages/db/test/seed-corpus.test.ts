@@ -1,6 +1,6 @@
 import { DEFAULT_FRESHNESS_POLICY, freshnessOf, isDiscoverable } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import { buildAnimals, buildCities, buildShelters, NOW } from "../src/seed";
+import { buildAnimals, buildCities, buildShelters, NOW, requireEnglishCityName } from "../src/seed";
 
 const LONG_SHELTER_NAME_MIN_CHARS = 40;
 // Same threshold apps/web/test/harness/site-header.harness.ts's "a name long
@@ -119,5 +119,33 @@ describe("seed corpus — D-4 hostile cases", () => {
     it(`has an animal name at least ${LONG_ANIMAL_NAME_MIN_CHARS} characters long`, () => {
       expect(animals.some((a) => a.name.length >= LONG_ANIMAL_NAME_MIN_CHARS)).toBe(true);
     });
+  });
+});
+
+/**
+ * `citySlugOf` (`packages/domain`) stopped transliterating `name.uk` and now
+ * expects an already-resolved English string (2026-09-12, Oleksii's own
+ * instruction — see `city-slug.ts`'s own doc comment for why). `en` is
+ * nullable on the general `LocalizedText` type, so this guard is what keeps
+ * a future city with no English name from either crashing on `null.text` or,
+ * worse, silently deriving a slug from something else. Every real
+ * `CITY_DATA` entry passes today (`buildCities()`'s own success is the
+ * positive case); these are the two ways it's supposed to fail.
+ */
+describe("requireEnglishCityName", () => {
+  it("throws, naming the city, when the English name is null", () => {
+    expect(() => requireEnglishCityName({ uk: "Тестове", en: null })).toThrow(/Тестове/);
+  });
+
+  it("throws when the English name is present but empty/whitespace-only", () => {
+    expect(() =>
+      requireEnglishCityName({ uk: "Тестове", en: { text: "   ", provenance: "human" } }),
+    ).toThrow(/Тестове/);
+  });
+
+  it("returns the whole TranslatedText, not just the string, when it's real", () => {
+    expect(
+      requireEnglishCityName({ uk: "Київ", en: { text: "Kyiv", provenance: "human" } }),
+    ).toEqual({ text: "Kyiv", provenance: "human" });
   });
 });

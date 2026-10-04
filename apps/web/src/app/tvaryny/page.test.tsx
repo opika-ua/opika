@@ -31,7 +31,9 @@ beforeEach(async () => {
  */
 describe("/tvaryny (renderGallery)", () => {
   it("renders a real seeded animal's card with its resolved city name", async () => {
-    const city = makeCity({ name: { uk: "Бровари", en: null } });
+    const city = makeCity({
+      name: { uk: "Бровари", en: { text: "Brovary", provenance: "human" } },
+    });
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
       publicLocation: {

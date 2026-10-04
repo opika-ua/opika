@@ -44,5 +44,6 @@ export const CityViewSchema = CitySchema.pick({
   id: true,
   name: true,
   centroid: true,
+  slug: true,
 });
 export type CityView = z.infer<typeof CityViewSchema>;

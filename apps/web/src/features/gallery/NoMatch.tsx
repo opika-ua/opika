@@ -3,11 +3,13 @@ import type { FeedFilterDimension, FeedFilters, GallerySort } from "@opika/domai
 import { pluralizeUk, relaxDimension } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Link from "next/link";
+import type { CitySlugsById } from "./filter-url";
 import { galleryHref } from "./filter-url";
 
 interface NoMatchProps {
   filters: FeedFilters;
   sort: GallerySort;
+  citySlugs: CitySlugsById;
   relaxations: readonly GalleryRelaxation[];
 }
 
@@ -39,7 +41,7 @@ function suggestionLabel(dimension: FeedFilterDimension, additional: number): st
  * useful suggestion first" (the contract's own words) without this
  * component re-sorting anything.
  */
-export function NoMatch({ filters, sort, relaxations }: NoMatchProps) {
+export function NoMatch({ filters, sort, citySlugs, relaxations }: NoMatchProps) {
   return (
     <div
       data-testid="gallery-no-match"
@@ -58,7 +60,7 @@ export function NoMatch({ filters, sort, relaxations }: NoMatchProps) {
             {relaxations.map(({ dimension, additional }, index) => (
               <Link
                 key={dimension}
-                href={galleryHref(relaxDimension(filters, dimension), sort)}
+                href={galleryHref(relaxDimension(filters, dimension), sort, citySlugs)}
                 data-testid="no-match-suggestion"
                 className={`min-h-14 flex items-center justify-center rounded-rg-button font-medium text-[15px] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] ${
                   index === 0 ? "bg-rg-ink text-rg-surface" : "bg-rg-fill text-rg-ink"

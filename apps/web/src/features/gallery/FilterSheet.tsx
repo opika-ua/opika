@@ -4,6 +4,7 @@ import type {
   AgeBucket,
   AnimalSpecies,
   CityId,
+  CitySlug,
   FeedFilters,
   GallerySort,
   SizeBucket,
@@ -19,6 +20,7 @@ import {
 import { uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
+import type { CitySlugsById } from "./filter-url";
 import {
   GALLERY_PARAM,
   galleryHref,
@@ -33,7 +35,8 @@ const SHEET_ID = "tvaryny-filters";
 interface FilterSheetProps {
   filters: FeedFilters;
   sort: GallerySort;
-  cities: ReadonlyArray<{ id: CityId; name: string }>;
+  cities: ReadonlyArray<{ id: CityId; name: string; slug: CitySlug }>;
+  citySlugs: CitySlugsById;
   /** The count a submit right now would show — matches the design's live preview, computed from the *current* (already-applied) filters, same value the rail's result line uses. A checkbox ticked but not yet submitted does not change this number; only a real submission does. */
   resultCount: number;
   /** For the sheet's own "Підходить N тварин у M притулках." sentence — `Opika Registry System.dc.html`'s B6 frame, same sentence the rail's closing box shows. */
@@ -92,12 +95,21 @@ export function FilterSheet({
   filters,
   sort,
   cities,
+  citySlugs,
   resultCount,
   shelterCount,
 }: FilterSheetProps) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLAnchorElement>(null);
+
+  /**
+   * The reverse of `citySlugs`, needed only here: `onSubmit` reads the
+   * form's own submission back through `parseGalleryQuery`, which resolves a
+   * city token by slug. Derived from the same `cities` prop `citySlugs`
+   * itself was built from at the call site, so the two can never disagree.
+   */
+  const citiesBySlug = new Map(cities.map((city) => [city.slug, city.id]));
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -166,7 +178,7 @@ export function FilterSheet({
    * species/size/age from here would silently discard choices the adopter
    * made in three other groups.
    */
-  const allCitiesHref = galleryHref({ ...filters, cities: ANY }, sort);
+  const allCitiesHref = galleryHref({ ...filters, cities: ANY }, sort, citySlugs);
 
   const onAllCitiesClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
@@ -198,8 +210,9 @@ export function FilterSheet({
     event.preventDefault();
     const submitted = parseGalleryQuery(
       searchParamsFromFormData(new FormData(event.currentTarget)),
+      citiesBySlug,
     );
-    navigateWithJs(galleryHref(submitted.filters, submitted.sort));
+    navigateWithJs(galleryHref(submitted.filters, submitted.sort, citySlugs));
   };
 
   return (
@@ -251,7 +264,7 @@ export function FilterSheet({
           is always what the address bar says.
         */}
         <form
-          key={galleryHref(filters, sort)}
+          key={galleryHref(filters, sort, citySlugs)}
           method="GET"
           action="/tvaryny"
           onSubmit={onSubmit}
@@ -293,7 +306,7 @@ export function FilterSheet({
                   <input
                     type="checkbox"
                     name={GALLERY_PARAM.city}
-                    value={city.id}
+                    value={city.slug}
                     defaultChecked={isExplicitlySelected(filters.cities, city.id)}
                     className="sr-only"
                   />

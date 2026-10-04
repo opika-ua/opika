@@ -1,11 +1,14 @@
 import { NO_FILTERS } from "@opika/domain";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import type { CitySlugsById } from "./filter-url";
 import { SortControl } from "./SortControl";
+
+const CITY_SLUGS: CitySlugsById = new Map();
 
 describe("SortControl", () => {
   it("marks the current sort as current and the other one not", () => {
-    render(<SortControl filters={NO_FILTERS} sort="freshest" />);
+    render(<SortControl filters={NO_FILTERS} sort="freshest" citySlugs={CITY_SLUGS} />);
     expect(
       screen.getByRole("link", { name: "Спочатку найсвіжіші картки" }).getAttribute("aria-current"),
     ).toBe("true");
@@ -15,7 +18,7 @@ describe("SortControl", () => {
   });
 
   it("the non-default option's href carries the sort param, the default one's does not", () => {
-    render(<SortControl filters={NO_FILTERS} sort="freshest" />);
+    render(<SortControl filters={NO_FILTERS} sort="freshest" citySlugs={CITY_SLUGS} />);
     expect(
       screen.getByRole("link", { name: "Спочатку найсвіжіші картки" }).getAttribute("href"),
     ).toBe("/tvaryny");
@@ -29,7 +32,7 @@ describe("SortControl", () => {
       ...NO_FILTERS,
       species: { kind: "oneOf" as const, values: ["dog"] as const },
     };
-    render(<SortControl filters={filters} sort="freshest" />);
+    render(<SortControl filters={filters} sort="freshest" citySlugs={CITY_SLUGS} />);
     expect(screen.getByRole("link", { name: "Найдовше чекають" }).getAttribute("href")).toBe(
       "/tvaryny?vyd=dog&sort=longest_waiting",
     );

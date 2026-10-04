@@ -1,6 +1,7 @@
 import type { FeedFilters, GallerySort } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Link from "next/link";
+import type { CitySlugsById } from "./filter-url";
 import { galleryPageHref } from "./filter-url";
 
 /**
@@ -27,11 +28,13 @@ export function OutOfRangeNotice({
   totalPages,
   filters,
   sort,
+  citySlugs,
 }: {
   requestedPage: number;
   totalPages: number;
   filters: FeedFilters;
   sort: GallerySort;
+  citySlugs: CitySlugsById;
 }) {
   return (
     <div
@@ -51,7 +54,7 @@ export function OutOfRangeNotice({
         </span>
       </div>
       <Link
-        href={galleryPageHref(filters, sort, 1)}
+        href={galleryPageHref(filters, sort, 1, citySlugs)}
         className="text-[15px] text-rg-ink underline underline-offset-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
       >
         {uk.outOfRangePage.backToFirst}

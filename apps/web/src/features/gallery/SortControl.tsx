@@ -2,11 +2,13 @@ import type { FeedFilters, GallerySort } from "@opika/domain";
 import { GALLERY_SORTS } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Link from "next/link";
+import type { CitySlugsById } from "./filter-url";
 import { galleryHref } from "./filter-url";
 
 interface SortControlProps {
   filters: FeedFilters;
   sort: GallerySort;
+  citySlugs: CitySlugsById;
 }
 
 const SORT_LABEL: Record<GallerySort, string> = {
@@ -34,7 +36,7 @@ const SORT_LABEL: Record<GallerySort, string> = {
  * same reasoning `docs/build-plan.md`'s Phase E entry for V2 states for
  * the phase as a whole. Recorded in the V2 PR description's decisions.
  */
-export function SortControl({ filters, sort }: SortControlProps) {
+export function SortControl({ filters, sort, citySlugs }: SortControlProps) {
   return (
     <nav
       data-testid="sort-control"
@@ -56,7 +58,7 @@ export function SortControl({ filters, sort }: SortControlProps) {
       {GALLERY_SORTS.map((option, index) => (
         <Link
           key={option}
-          href={galleryHref(filters, option)}
+          href={galleryHref(filters, option, citySlugs)}
           // `aria-current`, not `aria-pressed` — same reason as FilterRail's
           // Chip: `aria-pressed` is not an allowed attribute on role="link".
           aria-current={sort === option ? "true" : undefined}

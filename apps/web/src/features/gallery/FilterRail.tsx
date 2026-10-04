@@ -9,6 +9,7 @@ import type {
 import { AGE_BUCKETS, ANIMAL_SPECIES, isExplicitlySelected, SIZE_BUCKETS } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Link from "next/link";
+import type { CitySlugsById } from "./filter-url";
 import {
   galleryHref,
   resetFiltersHref,
@@ -23,6 +24,7 @@ interface FilterRailProps {
   filters: FeedFilters;
   sort: GallerySort;
   cities: ReadonlyArray<{ id: CityId; name: string }>;
+  citySlugs: CitySlugsById;
   /** For the closing result-count sentence — `Opika Registry System.dc.html`'s
    * B1 frame gives the rail its own copy of the sheet's "Підходить N тварин
    * у M притулках." box, distinct from the "Знайдено…" line above the grid. */
@@ -101,7 +103,14 @@ function Chip({
  * Visible only at `desktop:` (>=1024) — `hidden desktop:flex`. Below that,
  * `FilterSheet` owns the same filter state through a different UI.
  */
-export function FilterRail({ filters, sort, cities, resultCount, shelterCount }: FilterRailProps) {
+export function FilterRail({
+  filters,
+  sort,
+  cities,
+  citySlugs,
+  resultCount,
+  shelterCount,
+}: FilterRailProps) {
   return (
     <aside
       data-testid="filter-rail"
@@ -127,7 +136,7 @@ export function FilterRail({ filters, sort, cities, resultCount, shelterCount }:
         <div className="flex flex-wrap gap-2">
           <Chip
             active={filters.cities.kind === "any"}
-            href={galleryHref({ ...filters, cities: { kind: "any" } }, sort)}
+            href={galleryHref({ ...filters, cities: { kind: "any" } }, sort, citySlugs)}
           >
             {uk.filters.allCities}
           </Chip>
@@ -135,7 +144,7 @@ export function FilterRail({ filters, sort, cities, resultCount, shelterCount }:
             <Chip
               key={city.id}
               active={isExplicitlySelected(filters.cities, city.id)}
-              href={galleryHref(withToggledCity(filters, city.id), sort)}
+              href={galleryHref(withToggledCity(filters, city.id), sort, citySlugs)}
             >
               {city.name}
             </Chip>
@@ -152,7 +161,7 @@ export function FilterRail({ filters, sort, cities, resultCount, shelterCount }:
             <Chip
               key={species}
               active={isExplicitlySelected(filters.species, species)}
-              href={galleryHref(withToggledSpecies(filters, species), sort)}
+              href={galleryHref(withToggledSpecies(filters, species), sort, citySlugs)}
             >
               {SPECIES_LABEL[species]}
             </Chip>
@@ -169,7 +178,7 @@ export function FilterRail({ filters, sort, cities, resultCount, shelterCount }:
             <Chip
               key={size}
               active={isExplicitlySelected(filters.sizes, size)}
-              href={galleryHref(withToggledSize(filters, size), sort)}
+              href={galleryHref(withToggledSize(filters, size), sort, citySlugs)}
             >
               {SIZE_LABEL[size]}
             </Chip>
@@ -186,7 +195,7 @@ export function FilterRail({ filters, sort, cities, resultCount, shelterCount }:
             <Chip
               key={age}
               active={isExplicitlySelected(filters.ages, age)}
-              href={galleryHref(withToggledAge(filters, age), sort)}
+              href={galleryHref(withToggledAge(filters, age), sort, citySlugs)}
             >
               {AGE_LABEL[age]}
             </Chip>

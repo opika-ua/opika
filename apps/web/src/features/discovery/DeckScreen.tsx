@@ -5,6 +5,7 @@ import { uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
+import type { CitySlugsById } from "../gallery/filter-url";
 import { galleryHref } from "../gallery/filter-url";
 import { consumeEnteredFromGalleryMarker } from "./deck-entry-marker";
 import { SwipeDeck } from "./SwipeDeck";
@@ -25,7 +26,7 @@ import { useFeedDeck } from "./use-feed-deck";
  * filters this route was given; it can't restore a scroll position that
  * was never established in this tab to begin with, so it doesn't try to.
  */
-function useDeckExit(filters: FeedFilters) {
+function useDeckExit(filters: FeedFilters, citySlugs: CitySlugsById) {
   const router = useRouter();
   const [cameFromGallery, setCameFromGallery] = useState(false);
 
@@ -37,9 +38,9 @@ function useDeckExit(filters: FeedFilters) {
     if (cameFromGallery) {
       router.back();
     } else {
-      router.push(galleryHref(filters, DEFAULT_GALLERY_SORT));
+      router.push(galleryHref(filters, DEFAULT_GALLERY_SORT, citySlugs));
     }
-  }, [cameFromGallery, router, filters]);
+  }, [cameFromGallery, router, filters, citySlugs]);
 
   return exit;
 }
@@ -48,11 +49,13 @@ export function DeckScreen({
   filters,
   total,
   filtersLabel,
+  citySlugs,
   cityNames = {},
 }: {
   filters: FeedFilters;
   total: number | null;
   filtersLabel: string | null;
+  citySlugs: CitySlugsById;
   /**
    * R3 (Phase R, `docs/build-plan.md`): the same lookup `GortatyPage`
    * already builds for its own `filtersInWords` call, handed down so the
@@ -67,7 +70,7 @@ export function DeckScreen({
 }) {
   const { state, onSwipe, onPrefetch, onRetry, shownCount, hasActiveSeenSet, ensureSession } =
     useFeedDeck(filters);
-  const exit = useDeckExit(filters);
+  const exit = useDeckExit(filters, citySlugs);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {

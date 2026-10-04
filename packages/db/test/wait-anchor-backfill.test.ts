@@ -4,10 +4,9 @@ import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { cityRepo } from "../src/repos/city-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import * as schema from "../src/schema/index";
-import { makeCity, makeShelter } from "../src/test-utils/index";
+import { makeCity, makeShelter, setupTestDatabase } from "../src/test-utils/index";
 
 /**
  * The `wait_anchor_at` backfill, tested against data shaped the way the table
@@ -45,6 +44,17 @@ const client = postgres(TEST_DATABASE_URL, { max: 1 });
 const db = drizzle(client, { schema });
 
 afterAll(async () => {
+  // `resetToPreBackfillState` below drops `drizzle`'s own migration-tracking
+  // schema and never repopulates it via the real migrator (raw SQL applies
+  // the migration files directly, bypassing drizzle-kit's own bookkeeping).
+  // Most other test files' `setupTestDatabase()` calls do restore it, so
+  // this only matters when this file happens to be the last to touch the
+  // shared `opika_test` database — confirmed reachable, not theoretical:
+  // `city-slug-backfill.test.ts` (the same technique, for migration 0005)
+  // hit exactly this, breaking the harness's own `drizzle-kit migrate` step
+  // with a "relation already exists" conflict from replaying migration 0000
+  // against tables that already existed with no tracking row to match.
+  await (await setupTestDatabase()).cleanup();
   await client.end();
 });
 
@@ -164,9 +174,21 @@ function legacyReservedCorpus(): readonly LegacyAnimal[] {
   }));
 }
 
+/**
+ * Insert a city in the pre-0005 shape via raw SQL — `cityRepo.insert` writes
+ * the *current* schema, including the `slug` column added after
+ * `BACKFILL_TAG`, which does not exist yet at this test's frozen schema
+ * state. Same reasoning as `insertLegacyAnimal` above.
+ */
+async function insertLegacyCity(city: { id: string; name: { uk: string } }): Promise<void> {
+  await client`
+    INSERT INTO cities (id, name_uk, centroid_lat, centroid_lng)
+    VALUES (${city.id}, ${city.name.uk}, ${50.45}, ${30.52})`;
+}
+
 async function seedFixtureShelter(): Promise<{ shelterId: string; cityId: string }> {
   const city = makeCity();
-  await cityRepo(db).insert(city);
+  await insertLegacyCity(city);
   const shelter = makeShelter();
   await shelterRepo(db).insert({
     ...shelter,

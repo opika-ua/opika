@@ -1,6 +1,7 @@
 import { NO_FILTERS } from "@opika/domain";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import type { CitySlugsById } from "./filter-url";
 import { GalleryPagination } from "./GalleryPagination";
 
 /**
@@ -15,6 +16,8 @@ import { GalleryPagination } from "./GalleryPagination";
  * `totalPages <= 1` (a one-page result grows a pager that can only ever
  * point at itself) breaks nothing that runs.
  */
+
+const CITY_SLUGS: CitySlugsById = new Map();
 
 const pageOf = (href: string): number => {
   const stor = new URL(href, "http://x").searchParams.get("stor");
@@ -33,18 +36,38 @@ describe("GalleryPagination", () => {
     // link stops being the thing that is missing and starts being a link
     // to an anchor that is there but unreachable.
     const { container: single } = render(
-      <GalleryPagination filters={NO_FILTERS} sort="freshest" page={1} totalPages={1} />,
+      <GalleryPagination
+        filters={NO_FILTERS}
+        sort="freshest"
+        citySlugs={CITY_SLUGS}
+        page={1}
+        totalPages={1}
+      />,
     );
     expect(single.innerHTML).toBe("");
 
     const { container: none } = render(
-      <GalleryPagination filters={NO_FILTERS} sort="freshest" page={1} totalPages={0} />,
+      <GalleryPagination
+        filters={NO_FILTERS}
+        sort="freshest"
+        citySlugs={CITY_SLUGS}
+        page={1}
+        totalPages={0}
+      />,
     );
     expect(none.innerHTML).toBe("");
   });
 
   it("on the last page, next is inert and prev is a real link — the mirror of page 1", () => {
-    render(<GalleryPagination filters={NO_FILTERS} sort="freshest" page={4} totalPages={4} />);
+    render(
+      <GalleryPagination
+        filters={NO_FILTERS}
+        sort="freshest"
+        citySlugs={CITY_SLUGS}
+        page={4}
+        totalPages={4}
+      />,
+    );
 
     expect(screen.queryByTestId("pagination-next")).toBeNull();
     expect(screen.getByTestId("pagination-next-disabled").tagName).toBe("SPAN");
@@ -53,7 +76,15 @@ describe("GalleryPagination", () => {
   });
 
   it("on page 1, prev is inert and next points at page 2", () => {
-    render(<GalleryPagination filters={NO_FILTERS} sort="freshest" page={1} totalPages={4} />);
+    render(
+      <GalleryPagination
+        filters={NO_FILTERS}
+        sort="freshest"
+        citySlugs={CITY_SLUGS}
+        page={1}
+        totalPages={4}
+      />,
+    );
 
     expect(screen.queryByTestId("pagination-prev")).toBeNull();
     expect(screen.getByTestId("pagination-prev-disabled").tagName).toBe("SPAN");
@@ -61,7 +92,15 @@ describe("GalleryPagination", () => {
   });
 
   it("the current page is marked, inert, and drawn exactly once", () => {
-    render(<GalleryPagination filters={NO_FILTERS} sort="freshest" page={3} totalPages={9} />);
+    render(
+      <GalleryPagination
+        filters={NO_FILTERS}
+        sort="freshest"
+        citySlugs={CITY_SLUGS}
+        page={3}
+        totalPages={9}
+      />,
+    );
 
     const marked = screen
       .getAllByTestId("pagination-page")
@@ -88,6 +127,7 @@ describe("GalleryPagination", () => {
         <GalleryPagination
           filters={NO_FILTERS}
           sort="freshest"
+          citySlugs={CITY_SLUGS}
           page={page}
           totalPages={totalPages}
         />,
@@ -115,12 +155,28 @@ describe("GalleryPagination", () => {
    * truncation threshold) can't reach.
    */
   it("omits 'з N' when every page number is already on screen", () => {
-    render(<GalleryPagination filters={NO_FILTERS} sort="freshest" page={1} totalPages={4} />);
+    render(
+      <GalleryPagination
+        filters={NO_FILTERS}
+        sort="freshest"
+        citySlugs={CITY_SLUGS}
+        page={1}
+        totalPages={4}
+      />,
+    );
     expect(screen.queryByText(/з \d+/)).toBeNull();
   });
 
   it("shows 'з N' once the number list is truncated with an ellipsis", () => {
-    render(<GalleryPagination filters={NO_FILTERS} sort="freshest" page={5} totalPages={9} />);
+    render(
+      <GalleryPagination
+        filters={NO_FILTERS}
+        sort="freshest"
+        citySlugs={CITY_SLUGS}
+        page={5}
+        totalPages={9}
+      />,
+    );
     expect(screen.getByText("з 9")).toBeTruthy();
   });
 
@@ -129,7 +185,15 @@ describe("GalleryPagination", () => {
       ...NO_FILTERS,
       species: { kind: "oneOf" as const, values: ["dog"] as const },
     };
-    render(<GalleryPagination filters={filters} sort="longest_waiting" page={2} totalPages={4} />);
+    render(
+      <GalleryPagination
+        filters={filters}
+        sort="longest_waiting"
+        citySlugs={CITY_SLUGS}
+        page={2}
+        totalPages={4}
+      />,
+    );
 
     expect(screen.getByTestId("pagination-next").getAttribute("href")).toBe(
       "/tvaryny?vyd=dog&sort=longest_waiting&stor=3",
