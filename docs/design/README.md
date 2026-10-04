@@ -362,8 +362,15 @@ Above the grid: «34 тварини поруч» at display-m left, sort control
 right, then four label + chip-row groups (МІСТО / ВИД / РОЗМІР / ВІК). Chips: 48 min-height,
 padding `0 20`, radius 999; selected = `#101112` fill + white 500; unselected = `#F2F2F0` fill +
 ink 400. **No «Показати» button** — changes apply immediately and write to the URL. Closes with a
-`#F2F2F0` block: "Підходить 34 тварини у 7 притулках." and "Фільтра свіжості немає. Тварина, про
-яку давно не писали, все одно чекає."
+`#F2F2F0` block: "Підходить 34 тварини у 7 притулках." and "Немає фільтра «тільки свіжі картки».
+Тварина, про яку давно не писали, все одно чекає." — the second sentence's wording is a deliberate
+refinement over the original mock's draft ("Фільтра свіжості немає...": same point, less direct
+about what's missing), confirmed as the model to keep during the post-Phase-F copy critique
+(`docs/copy-and-ia-critique.md`'s D1 — it reads like it's aimed at an adopter's actual worry
+rather than narrating the interface's own philosophy, unlike two sibling strings D1 flags) and by
+Oleksii directly (O-7, `docs/observations.md`), settling an earlier disagreement over whether to
+cut it. Recorded here so a future pass reads this as the decided wording, not a stray divergence
+from the mock to silently "fix" back.
 
 **Sheet** (<1024): the same groups in a bottom sheet, radius `24 24 0 0`, padding `16 20 24`,
 `gap: 28`, the one shadow. 48×5 grabber pill `#DCDCD9` centred, title 24/700, and a footer pair —

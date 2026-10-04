@@ -207,7 +207,7 @@ links already in the wild.
 
 **Pairs with O-12** — same missing thing. Schedule as one row, never two.
 
-## O-7 — The no-match explainer is confusing · design · open
+## O-7 — The no-match explainer is confusing · design · done (2026-10-04)
 
 «Немає фільтра "тільки свіжі картки". Тварина, про яку давно не писали, все одно чекає.»
 
@@ -217,6 +217,19 @@ the mock is authority absent a decision from Oleksii. He has now made the decisi
 
 Record it as a design-system change, not a bug — the mock and the code must not silently
 diverge.
+
+**Done — kept as shipped, recorded as a design-system change, not fixed as a bug.** Checked
+before touching anything: the mock's own text (`Opika Registry System.dc.html:275`) actually
+reads "Фільтра свіжості немає. Тварина, про яку давно не писали, все одно чекає." — close to, but
+not byte-identical with, what shipped (`filters.railFooter`, `packages/i18n/src/messages/uk.ts`).
+That's the real divergence this entry's own closing line warned about, and it's resolved in the
+design doc's favour of the code, not the other way around: `docs/copy-and-ia-critique.md`'s D1
+independently reviewed the *shipped* wording and called it "worth keeping as the model" (clearer
+about what's actually missing than the mock's draft phrasing, and aimed at an adopter's real
+worry rather than narrating the interface's own design). `docs/design/README.md`'s own quote of
+this sentence is corrected to the shipped wording, with the reasoning recorded there so a future
+pass doesn't read the mismatch as an oversight and "fix" the code back to the mock's rougher
+draft. No code change — the sentence that shipped was already right.
 
 ## O-8 — Detail page breadcrumb lives in the header · design · done (PR #57, 2026-09-10)
 
