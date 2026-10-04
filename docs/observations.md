@@ -507,6 +507,33 @@ fixed, two new cases added to `api.test.ts`'s `reveal` describe block. Full deta
 "Fixed, 2026-09-12" paragraph in `docs/decisions-pending-review.md`'s Summary section (that
 file has no dedicated `O-20` heading of its own — the fix is described inline there).
 
+## O-21 — The deck's `ensureSession` path can't tell offline from any other bootstrap failure · tooling · found, not fixed (2026-10-04)
+
+Filed by a reviewer round on the "useReveal: a genuine network failure is 'offline'" row
+(`docs/handoff-2026-10-04.md`'s finish-line block 1): that row fixed the detail page's
+`RevealFlow.tsx` (no `ensureSession` injected — `useReveal.ts` calls `session.bootstrap` itself
+and can inspect the real error), but the deck's own path (`SwipeDeck.tsx`, `ensureSession`
+injected from `use-feed-deck.ts`) still cannot. `ensureSession` collapses its result to a plain
+boolean with no error object for `useReveal.ts` to check `instanceof TypeError` against.
+
+**A real, reachable gap, not a theoretical one** — found by reading `use-feed-deck.ts` directly
+rather than trusting an earlier claim that the deck's exposure window was "materially smaller"
+than the detail page's (that claim was wrong and has been corrected in `useReveal.ts`'s own
+comment, not left standing). `SwipeDeck.tsx`'s `handleCommit` calls `openReveal` *before*
+`onSwipe`, so a first-ever right-swipe already triggers a bootstrap through this path; separately,
+`use-feed-deck.ts`'s `onSwipe` does not await `ensureSession` before advancing the deck, and a
+failed bootstrap there clears `sessionReadyRef` rather than caching anything useful. A device that
+loses its connection and then right-swipes gets the generic "Щось не спрацювало на нашому боці"
+copy instead of the honest "Зараз немає інтернету." — the same false claim R3's original
+`useReveal.ts` made about every error, now narrowed to one path instead of closed on both.
+
+What's needed to unblock: `ensureSession` (`use-feed-deck.ts`) returns a discriminated result
+carrying the failure's error (or at least an `"offline"` tag) instead of a plain boolean, and
+`useReveal.ts`'s two branches collapse into one that checks the same signal either way. A
+contract-shape decision (what `ensureSession`'s return type becomes, since `use-feed-deck.ts`'s
+own swipe-handling also reads its boolean today) worth settling before writing the fix, not a
+one-line patch.
+
 ---
 
 ## Decisions 1 & 2 — Phase D, 2026-09-05

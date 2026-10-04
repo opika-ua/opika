@@ -84,13 +84,18 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
        * `SwipeDeck.tsx`) collapses its own result to a plain boolean in
        * `use-feed-deck.ts`'s `ensureSession`, with no error object this
        * hook could inspect — same reason the RATE_LIMITED comment below
-       * already gives for that path, now true of `offline` too. Not fixed
-       * here: the deck's first bootstrap attempt happens before any reveal
-       * is possible (a swipe, not a right-swipe specifically), so by the
-       * time `open()` can run, a prior bootstrap has already either
-       * succeeded (cached) or the adopter couldn't have swiped to begin
-       * with — a materially smaller window than the detail page's, which
-       * calls bootstrap for the first time right here.
+       * already gives for that path, now true of `offline` too.
+       *
+       * **Known gap, not fixed here (O-21, `docs/observations.md`):** a
+       * first-ever right-swipe (`SwipeDeck.tsx`'s `handleCommit` calls
+       * `openReveal` before `onSwipe`) while offline hits this exact branch
+       * too — `use-feed-deck.ts`'s own `onSwipe` doesn't await
+       * `ensureSession` before advancing the deck, and a failed bootstrap
+       * there clears `sessionReadyRef` rather than caching anything. An
+       * earlier version of this comment claimed the deck's exposure window
+       * was "materially smaller" than the detail page's; a reviewer found
+       * that claim false by reading `use-feed-deck.ts` directly rather than
+       * trusting it, and it's corrected here rather than left standing.
        */
       let bootstrapError: unknown = null;
       let ready: boolean;
