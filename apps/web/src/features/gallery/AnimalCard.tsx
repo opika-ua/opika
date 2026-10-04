@@ -37,10 +37,7 @@ import { cardAccessibleName, cardMetaLine, isReserved } from "./card-text";
  * 432px of chrome). Below 1392 and down to the bracket's own 1024px floor,
  * the grid is fluidly narrower: container = `100vw - 432px`, column =
  * `(container - 48) / 3`, photo = column - 24, which reduces to
- * `33.3333vw - 184px` (O-18, `docs/observations.md` — this file previously
- * said "~1080px" here, which was simply wrong, not a rounding choice;
- * corrected alongside adding the real fluid clause below rather than left
- * standing next to it).
+ * `33.3333vw - 184px` (O-18, `docs/observations.md`).
  *
  * Wide (1440-1999, 4 columns): grid caps at `max-w-[1320px]`, `gap-6` x 3
  * gaps, so a column is (1320 - 72) / 4 = 312px, less 24px of card padding =
@@ -66,6 +63,16 @@ import { cardAccessibleName, cardMetaLine, isReserved } from "./card-text";
  * never been measured at all before O-18), asserting the declared `sizes`
  * value against the real laid-out box the same way the flat-value cases
  * already did.
+ *
+ * `vw` means "viewport width," not "layout viewport width minus the
+ * scrollbar" — a classic (non-overlay) scrollbar on Windows/desktop Chrome
+ * narrows the actual content box by ~15-17px without narrowing what `vw`
+ * resolves against, so every `calc(Nvw - Mpx)` clause above overstates the
+ * real box by a few px on a platform with that scrollbar style. Already the
+ * safe direction (this file's own opening paragraph), and small enough
+ * never to cross a `srcset` tier boundary on its own — not fixed here, and
+ * invisible to this harness, since headless Chromium renders with no
+ * scrollbar at all.
  */
 const PHOTO_SIZES =
   "(max-width: 599px) calc(100vw - 56px), (max-width: 1023px) 120px, (max-width: 1391px) calc(33.3333vw - 184px), (max-width: 1439px) 280px, (max-width: 1751px) calc(25vw - 150px), (max-width: 1999px) 288px, (max-width: 2423px) calc(16.6667vw - 116px), 288px";
