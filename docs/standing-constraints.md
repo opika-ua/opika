@@ -36,6 +36,11 @@ cutting scope. Report and wait.
 have shipped a home page contradicting its own design spec, on a deadline nobody had
 actually set.
 
+**Process latency is a stated owner cost (2026-10-04).** The owner has asked that review
+and decisions run in parallel with building rather than ahead of it, per `CLAUDE.md`'s
+working loop. This governs *when* a check happens, never *whether* it happens, and it
+changes nothing about how product options are weighed.
+
 ## How work is verified
 
 **A user-interface item may not be marked done on the basis of inspecting markup.** It

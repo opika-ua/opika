@@ -1,5 +1,10 @@
 # Decisions pending Oleksii's review
 
+**Superseded by `docs/decisions-inbox.md` on 2026-10-04 — read-only.** New decisions go in the
+inbox table from here on (`docs/handoff-2026-10-04.md` §4.4); this file's own entries are not
+migrated, only reconciled one last time (the Phase S fold-in below) since that branch predates
+the switch. Keep for history.
+
 Working log for the autonomous session started 2026-09-09, after PR #53 merged. Every
 reversible judgement call made without asking goes here instead of blocking on an answer —
 see `CLAUDE.md`'s working loop for the rule this implements. Newest entry last within each
@@ -21,6 +26,28 @@ same pattern as the note above. Nothing was dropped; every decision entry from b
 survives below, and the "Filed, not fixed: O-20" note from `main`'s copy is updated to reflect
 that O-20 has since been fixed (PR #60, opened the same day as this reconciliation).
 
+**Note on history, 2026-10-04 (`docs/handoff-2026-10-04.md` block 0):** `feat/city-slugs`
+(Phase S, PR #56) is still open, not merged — merging it stays Oleksii's own action (it carries
+a migration, Tier 1) — but per this file's own 2026-09-12 note above ("expect the same
+reconciliation again when it merges"), its Phase S decision entries are folded into this copy
+now rather than waiting, since the branch itself is stable (no further Phase S work is planned
+before merge) and leaving its ~180 lines of real decisions undiscoverable until an unrelated
+merge event serves nobody. The branch's own copy of this file additionally re-confirmed PRs
+#57 and #58 as merged, which this copy's own stale "open against main, not merged" wording
+below had not yet caught up to — corrected in place at each occurrence, same as that branch did.
+Also corrected here: #55, #59 and #60, all of which have since merged (#55 2026-09-13, #59
+2026-09-12, #60 2026-09-11) and were still marked draft/open below. **PR #56 migration,
+verified this session:** `0005_nervous_shinko_yamashiro.sql` is a single self-contained file
+(schema tightening + a hardcoded 8-city backfill + the `slug NOT NULL UNIQUE` constraint), not
+additive-safe to run at arbitrary times — it must run against Neon immediately before
+promoting the deploy that reads `cities.slug`, in one step, no separate backfill script. Could
+not be exercised against a fresh local DB this session (Docker Desktop was not running on this
+machine) — reported as untested locally, not as passing. Current conflict against `main`: 5
+files (`apps/web/src/app/tvaryny/gortaty/page.tsx`, `apps/web/src/features/discovery/
+DeckScreen.tsx`, `apps/web/test/harness/gallery-filters.harness.ts`, `docs/build-plan.md`,
+`docs/decisions-pending-review.md` — this file, now partly resolved by this very
+reconciliation).
+
 ## Summary — read this first
 
 **Rows completed this session:** R2 (two-action deck, not-a-judgement notice's permanent home,
@@ -35,7 +62,7 @@ both), all findings addressed, `pnpm check` green.
 **Phase K — the polish batch** (`docs/build-plan.md`'s reprioritisation queue item 6), covering
 O-1, O-4, O-5, O-8, O-11, O-13, O-14 from `docs/observations.md`.
 
-**PR:** [#57](https://github.com/opika-ua/opika/pull/57), open against `main`, not merged.
+**PR:** [#57](https://github.com/opika-ua/opika/pull/57), merged into `main` 2026-09-10.
 
 **Disposition per item:** five done (O-1, O-5, O-8, O-11, O-13), one checked and closed with no
 code change (O-4 — the mock itself specifies the spacing already implemented), one parked
@@ -84,7 +111,7 @@ the two options and a recommendation.
 actions — Oleksii's own diagnosis and instruction (§55 status call, 2026-09-10), not a
 unilateral decision.
 
-**PR:** [#58](https://github.com/opika-ua/opika/pull/58), open against `main`, not merged.
+**PR:** [#58](https://github.com/opika-ua/opika/pull/58), merged into `main` 2026-09-10.
 
 **What changed:** `checkRevealRateLimit` (`apps/web/src/api/reveal-rate-limit.ts`) takes the
 target `shelterId`. Free re-reveal if this adopter already revealed this shelter within the 24h
@@ -113,8 +140,8 @@ change).
 
 **Fixed, 2026-09-12 (was "filed, not fixed" in an earlier version of this section):** O-20
 (`docs/observations.md`) — `RATE_LIMITED` and other `ORPCError` codes carried no HTTP status
-mapping and answered bare `500`. **PR:** [#60](https://github.com/opika-ua/opika/pull/60), open
-against `main`, not merged. `apiErrors` (`packages/contracts/src/errors.ts`) now declares a real
+mapping and answered bare `500`. **PR:** [#60](https://github.com/opika-ua/opika/pull/60), merged
+into `main` 2026-09-11. `apiErrors` (`packages/contracts/src/errors.ts`) now declares a real
 status per code; every handler constructs via oRPC's own injected `errors.CODE()` rather than a
 raw `new ORPCError(code)`. Reviewer found a real coverage gap on first pass (`ANIMAL_NOT_AVAILABLE`
 and `SHELTER_NOT_VISIBLE` had no test at any status) — fixed, two new cases added to
@@ -133,10 +160,11 @@ and `SHELTER_NOT_VISIBLE` had no test at any status) — fixed, two new cases ad
    a second lookup. Confirmed safe: `shelter.id` cannot diverge from `animal.shelterId` — the
    fetch is keyed on it.
 
-**PRs open:**
+**PR, since merged (2026-09-13, after the `RATE_LIMITED` sentence arrived — see below):**
 - [#55](https://github.com/opika-ua/opika/pull/55) — `feat/deck-inline-reveal` → `main`, R3.
-  **Draft, deliberately** — the `RATE_LIMITED`-copy question below is the one remaining blocker;
-  gesture parity itself is decided (see below) and implemented. Five reviewer rounds: round 1
+  Held in **draft** until the `RATE_LIMITED`-copy question below was resolved — that was the
+  one remaining blocker; gesture parity itself was decided (see below) and implemented first.
+  Five reviewer rounds: round 1
   STOP (a real session double-mint bug, fixed; the gesture-parity question, escalated at the
   time), rounds 2–3 PASS WITH NOTES (all findings addressed). Retargeted to `main` and merged
   forward (2026-09-12) once #54, #57, and #58 landed ahead of it — a squash-merge history
@@ -196,9 +224,82 @@ arrives.
 
 **Rows completed after this file's last reconciliation (2026-09-11/12):** D-2 (every demo-mode
 verification/realness claim gated from one place — two production regressions Oleksii asked to
-be verified before any fix; **PR** [#59](https://github.com/opika-ua/opika/pull/59), open
-against `main`, not merged, two reviewer rounds both PASS WITH NOTES, all findings addressed)
+be verified before any fix; **PR** [#59](https://github.com/opika-ua/opika/pull/59), merged into
+`main` 2026-09-12, two reviewer rounds both PASS WITH NOTES, all findings addressed)
 and O-20 (see above).
+
+**Row completed (folded in 2026-10-04, from `feat/city-slugs`'s own copy of this file — see the
+history note at the top):** Phase S — city slugs (`docs/build-plan.md`'s reprioritisation queue
+item 5, closing O-6 + O-12 from `docs/observations.md`), stable `?misto=` URLs and a real O-12
+back-link.
+
+**PR:** [#56](https://github.com/opika-ua/opika/pull/56) — `feat/city-slugs` → `main`. Three
+reviewer rounds (round 1 STOP, resolved; rounds 2–3 PASS WITH NOTES, all findings addressed),
+`pnpm check` green on the branch. **Not merged — merging stays Oleksii's own action**; see the
+migration run-order note in the 2026-10-04 history note above before he does.
+
+**A real decision, escalated by the reviewer rather than made here — resolved, not left open:**
+the first reviewer round returned **STOP** on the generated migration
+(`packages/db/drizzle/0005_nervous_shinko_yamashiro.sql`): a plain `ADD COLUMN "slug" text NOT
+NULL` with no default fails outright against any `cities` table that already has rows — which
+describes the one database that matters (Neon holds the same 8 seeded cities O-9 measured
+against). The reviewer named two routes and declined to pick between them (both sit on the STOP
+register — a production migration path and, for the other route, data deletion): (a) hand-edit
+the migration the way `0004`'s own backfill was hand-edited — add nullable, backfill by known
+`id`, assert completeness, then tighten to `NOT NULL` + `UNIQUE`; or (b) truncate and reseed the
+deployed database. **Resolved by implementing (a)** — the reviewer's own recommendation,
+matching established precedent (0004) exactly, and destroying nothing.
+`packages/db/test/city-slug-backfill.test.ts` proves the rewritten migration against a
+locally-reproduced pre-migration shape, including that it *aborts* rather than guesses when it
+encounters a city id the hardcoded backfill doesn't recognise. **Verified, 2026-09-12 — Oleksii
+ran the query.** Neon's real `cities` table holds exactly 8 rows, matching the seed set exactly
+— nothing extra, nothing missing. The migration-verification procedure is resolved; the
+production assumption held.
+
+**Also decided on this row: `citySlugOf` takes the hand-curated `name_en_text` directly, not a
+transliteration of `name.uk` (supersedes this row's own original choice).** Corrected
+2026-09-12, Oleksii's own instruction, after the Neon verification above confirmed the
+production assumption held. The original choice — implementing the official Ukrainian National
+transliteration system (КМУ Resolution №55, 2010) as a pure function over `name.uk` — produced a
+second, independently-computed Latin spelling of the same city that only happened to agree with
+the hand-curated `name_en_text` for all 8 seeded cities; agreement today was never proof the two
+sources would keep agreeing once a city's real English spelling diverged from what the table
+would produce. `citySlugOf` now takes the plain English name directly (lowercase, spaces to
+hyphens); the transliteration table is deleted from the codebase, not merely unused.
+`name_en_text` and `name_en_provenance` are both tightened to `NOT NULL` in the same migration,
+together rather than one alone — `mappers.ts`'s `columnsToLocalizedText` already required both
+non-null before treating a city as having a real English name, so a `NOT NULL` `name_en_text`
+paired with a still-nullable `name_en_provenance` would have let the DB guarantee a value the
+domain mapper could still read as absent.
+
+**Decisions needing your eye (reversible, not blocking), ranked by cost to reverse:**
+1. **[trivial to reverse] O-12's back-link restores only the city filter, not the adopter's full
+   filter state (species/size/age).** See `Phase S — back-link scope: city only` below. A
+   narrower fix than the design's own words might suggest; widening it needs a place to carry
+   the rest of the filter state across the detail page, which doesn't exist yet.
+2. **[moderate to reverse — a real, unmeasured latency cost] The gallery and deck pages now fetch
+   `cities.list` before parsing the URL, sequentially rather than in parallel with the main
+   query.** See `Phase S — cities-before-parse ordering` below. Reversing means caching the city
+   list somewhere request-independent so parsing doesn't have to wait on a network round trip —
+   a real optimisation this row didn't build, not a correctness gap.
+
+**Reviewer round 2: PASS WITH NOTES**, after verifying round 1's STOP was genuinely resolved.
+Found and fixed: the O-12 test itself was gameable (a mutation swapping in a hardcoded city
+still passed); a `DeckScreen` test that never exercised the `citySlugs`-threading path it
+claimed to; a self-comparing `FilterRail` assertion; three doc inaccuracies (`docs/build-plan.md`'s
+own Phase S entry).
+
+**Reviewer round 3: PASS WITH NOTES**, confirming rounds 1–2 held and catching that round 2's
+own fix comment overclaimed itself (cross-checking the visible city name against the href's
+slug catches the two fields disagreeing, but not a `page.tsx` city lookup that resolves the
+wrong city consistently) — comment corrected to say so plainly. Also found and fixed: round 2's
+own `DeckScreen` fix reintroduced the exact self-comparison pattern it was meant to remove.
+
+**Debt flagged, not fixed this row:** `apps/web/test/harness/animal-detail.harness.ts` sits at a
+hard per-file request-budget ceiling (~20 real page loads against a shared rate limit) where the
+next test anyone adds risks breaking a different, unrelated test. A second spoofed IP for a
+second describe block in that file would remove the ceiling; not built here, unrelated to Phase
+S itself.
 
 ---
 
@@ -450,6 +551,102 @@ detail page's own usage exactly.
 Confidence: high on the "no gallery link" half; if you want a deck-specific dismiss link at
 all, that's a design call and needs its own copy.
 Commit: 69ab6bf
+
+## Phase S — English name over transliteration (supersedes this entry's original version)
+**Corrected 2026-09-12, Oleksii's own instruction, after the Neon cities-query verification
+above confirmed the production assumption held.** The original version of this entry (below,
+kept rather than deleted, since the reasoning it records — what's wrong with a hand-curated
+per-city list, and with a naive ASCII-fold slugify — still holds) chose to implement the
+official Ukrainian National transliteration system (КМУ Resolution №55, 2010) as a pure function
+applied to `name.uk`.
+
+**What was wrong with it, found only by Oleksii, not by any reviewer round or test:** the
+transliterated slug and `seed.ts`'s own hand-authored `CITY_DATA.en.text` field were two
+independently-computed Latin spellings of the same city, verified to *agree* for all 8 seeded
+cities before shipping — but agreement today is not agreement forever. The table already stores
+a real, human-verified English name for exactly this purpose (`nameEnText` / `nameEnProvenance`,
+`packages/db/src/schema/cities.ts`); running a second algorithm against a different field to
+produce what should be the same string is a standing risk that the two sources diverge the first
+time a city's actual official English spelling doesn't match what the transliteration table
+would produce — and nothing before this correction would have caught that divergence, since the
+transliterated value silently *is* the slug, never checked against the authored one at write
+time.
+
+Chose instead: `citySlugOf` takes the plain English name directly (lowercase, spaces to hyphens
+— the literal instruction, not widened into a general punctuation sanitiser) and no longer
+touches `name.uk` at all. The Ukrainian transliteration table (letter map, digraph rule,
+word-initial exceptions) is deleted from the codebase, not merely unused. `LocalizedText.en` is
+nullable at the schema level, so every caller must resolve and reject a missing English name
+itself before calling `citySlugOf`; `seed.ts`'s new `requireEnglishCityName` is the one real
+caller's guard today, proven by a dedicated test.
+Reversibility: moderate now, not trivial — reintroducing transliteration means writing the table
+back (it's gone, not disabled), and would resurrect the exact two-sources risk this correction
+removes.
+Confidence: high — this was Oleksii's own explicit instruction, not a judgement call between
+options.
+
+**Original entry, 2026-09-10, kept for its still-valid reasoning against the alternatives:**
+Chose: `citySlugOf` implements the official Ukrainian National transliteration system (КМУ
+Resolution №55, 2010) as a pure function, applied to every seeded city's name, rather than a
+hand-picked slug per city.
+Alternatives: (a) a hand-curated `Record<CityId, string>` lookup — trivial for today's 8 cities,
+but every future city (H2 admin) would need a human to invent a slug; (b) a simpler
+ASCII-fold/slugify library ignoring Ukrainian-specific digraphs — would produce wrong-looking
+results (e.g. naive letter-by-letter mapping breaks on щ/ц/ж/х's multi-letter Latin forms).
+Why this one (superseded by the correction above, kept for the record): the official table
+reproduced exactly the Latin spellings already in `seed.ts`'s own `CITY_DATA.en.text` for every
+one of the 8 seeded cities — verified by hand before writing the implementation. **This is
+exactly the reasoning the correction above found insufficient — reproducing the same 8 values
+today was never proof the two sources would keep agreeing.**
+Commit: 7b32ece (PR #56, not yet merged)
+
+## Phase S — cities-before-parse ordering
+Chose: `renderGallery` (`apps/web/src/app/tvaryny/page.tsx`) and `GortatyPage`
+(`.../gortaty/page.tsx`) now fetch `cities.list` and await it *before* parsing `searchParams`,
+losing the previous `Promise.all([cities.list(), gallery.list()])` parallelism.
+Alternatives: (a) parse filters optimistically as raw `CityId`s first and re-resolve slugs after
+cities arrive — rejected, this reintroduces exactly the UUID-in-the-URL problem O-6 exists to
+close; (b) cache `cities.list` at the module or edge-config level so the fetch essentially never
+blocks — a real fix, not built this row.
+Why this one: resolving a slug to a `CityId` needs the real city list — there is no way to parse
+`?misto=brovary` into `FeedFilters` without it.
+Reversibility: moderate — undoing this means building the cache (option b), not just reverting a
+diff.
+Confidence: medium — `cities.list` is an 8-row, unfiltered table scan, cheap in absolute terms,
+but not measured against a real deployed instance.
+Commit: 7b32ece (PR #56, not yet merged)
+
+## Phase S — back-link scope: city only
+Chose: the animal detail page's «← Усі тварини у {city}» now returns to `/tvaryny` filtered by
+this animal's city alone — not the adopter's full incoming filter state (species/size/age), if
+any.
+Alternatives: (a) carry the adopter's full filter state across the detail page (via a `?from=`
+param or a referrer capture) — a bigger feature, no existing mechanism to build on; (b) do
+nothing until a fuller fix is designed — rejected, the current bug (returns to the *unfiltered*
+gallery) is strictly worse than this narrower fix in every case.
+Why this one: O-12's complaint is specifically that the link's text ("all animals in Brovary")
+promises a city filter the navigation doesn't honour — the city is the whole claim the copy
+makes.
+Reversibility: trivial to widen later — `backToGalleryHref` is a single prop already isolated to
+this one computation.
+Confidence: high — matches the literal wording of the observation being closed.
+Commit: 7b32ece (PR #56, not yet merged)
+
+## Phase S — the redirect only fires when every city token is fully resolvable
+Chose: `redirectHrefForLegacyCityIds` bails out to `null` (no redirect at all) if any city token
+in the URL is a raw `CityId` with no known slug — rather than rewriting the tokens it can and
+silently dropping the one it can't, which the first implementation did.
+Alternatives: rewrite what can be rewritten and drop the rest (the original behaviour) —
+rejected on reviewer finding: dropping an unresolvable city id changes what the destination page
+shows, and this redirect is a permanent 308 a browser caches — a wrong redirect here is not
+cheaply recoverable the way a wrong render would be.
+Why this one: a redirect this codebase can't fully verify as correct should not fire at all;
+falling through to the normal render path (where `parseGalleryQuery`'s own tolerant per-token
+parsing already handles an unresolvable id exactly as it always did) is strictly safer than
+guessing under caching that outlives the mistake.
+Reversibility: trivial — a behavioural branch in one function.
+Confidence: high — this is a correctness fix, not a judgement call.
+Commit: 7b32ece (PR #56, not yet merged)
 
 ---
 

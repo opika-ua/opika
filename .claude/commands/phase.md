@@ -70,25 +70,49 @@ should it fire on work that is genuinely mechanical.
 
 ## Phase 2 — Implement
 
-1. Branch: `git switch -c <type>/<phase-id>-<short-slug>`
-2. Implement in dependency order. Tests alongside each unit, not batched at the end.
-3. **Commit after each task, not at the end.** Nine files of finished work were once lost
-   to a branch switch because they sat uncommitted for hours.
-4. Run `pnpm check` at every natural checkpoint.
+Per `docs/handoff-2026-10-04.md` §4 / `CLAUDE.md`'s working loop (revised 2026-10-04): review
+now runs in parallel with building for Tier 2 rows, rather than only at the end of the phase.
+
+For each task, in dependency order:
+
+1. Implement it. Tests alongside the unit, not batched at the end.
+2. Run `pnpm check`.
+3. **Commit** (green `pnpm check`, output pasted in the commit body). Nine files of finished
+   work were once lost to a branch switch because they sat uncommitted for hours — commit
+   after each task, not at the end.
+4. Classify the task's tier (`CLAUDE.md`'s Process tiers) and review accordingly:
+   - **Tier 1** — invoke the `opika-reviewer` subagent now, synchronously, before the next
+     task. Act on the verdict per the working loop before continuing.
+   - **Tier 2** — spawn `opika-reviewer` in the background against this commit, with a file
+     path (`docs/reviews/<branch>/<short-sha>.md`) for it to write its verdict to, and start
+     the next task immediately without waiting. Cap at two rows in flight (one building, one
+     in review); pause for one review cycle if the reviewer falls three rows behind.
+   - **Tier 3** — no per-task review; it is covered by the single PR-level pass below.
+5. Read a pending Tier 2 review file when starting a task that touches the same files as an
+   already-reviewed one, and whenever one says `STOP`. A `STOP` blocks the PR, never the
+   commit — commit and push what's done, then surface the decision per the working loop.
 
 Apply `docs/standing-constraints.md` throughout. If something is genuinely ambiguous and
 Phase 1 did not settle it, stop and ask rather than guessing.
 
 ## Phase 3 — Review
 
-Invoke the **reviewer** subagent against `git diff main...HEAD`. It may fix what it finds
-and re-review, up to two rounds; anything surviving two rounds goes into the pull request
-as unresolved rather than being attempted a third time.
+Before opening the PR, make sure every pending review has actually been read and acted on:
+
+1. Read every file under `docs/reviews/<branch>/` produced during Phase 2. Resolve any
+   `PASS WITH NOTES` not yet addressed, with its own small commit, re-reviewed the same way
+   (async for Tier 2, up to two rounds total per row — anything surviving two rounds goes into
+   the pull request as unresolved rather than being attempted a third time).
+2. If any review file says `STOP` and it hasn't already been surfaced to Oleksii, do that now
+   per the working loop's STOP handling — the branch stays pushed with the decision pending,
+   and the PR (if opened) stays a draft until it resolves.
+3. Run **one PR-level `opika-reviewer` pass** over the accumulated Tier 3 diff (docs, renames,
+   formatting, config with no runtime effect) — the only review those rows get.
 
 If tests fail and the cause is not obvious, invoke the **debugger** subagent rather than
 guessing.
 
-If the reviewer returns `blocked`, stop and report. Do not open a pull request.
+If an unresolved `STOP` remains from step 2, stop and report. Do not open a pull request.
 
 ## Phase 4 — Pull request
 

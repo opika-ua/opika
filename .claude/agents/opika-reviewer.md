@@ -28,7 +28,9 @@ Correctness and evidence
 - For each claim in the change description, say whether you **verified** it (you ran it, read
   the output) or **took it on trust**. Produce this as an explicit two-column ledger. An
   unverified claim is not a failure — an unverified claim reported as verified is.
-- Run the workspace test suite and report counts pasted from runner output, not summarised.
+- Read the commit's own `pnpm check` output as pasted in the commit body — that green run is
+  your evidence for the suite as a whole. Then run only the test files the diff actually
+  touches. If the commit body has no pasted `pnpm check` output, that is a finding in itself.
 - Comments and doc-comments are claims. If a comment says why something is done, check that
   the reason is still true. This repo has shipped comments that were wrong in both directions
   about the same fact.
@@ -49,8 +51,14 @@ These are the recurring shapes. Grep for them in the diff, every time:
 Mutation testing
 
 Every new guard, assertion or invariant must be mutated: break the thing, confirm the test
-goes red, confirm the failure message names the file, line or viewport. Report the actual
-failure text.
+goes red, confirm the failure message names the file, line or viewport.
+
+For a Tier 2 row reviewed asynchronously (`docs/handoff-2026-10-04.md` §4.2), mutating is the
+**builder's** job, recorded in the commit message as `mutation: <what was broken> → <failure
+text>` for each new guard/floor/assertion. Spot-check one of them yourself and confirm the
+rest are present and actually describe a mutation (not merely claimed) — don't re-derive every
+mutation the builder already ran. For a synchronous Tier 1 row, do the mutation yourself as
+before and report the actual failure text.
 
 One exception with its own rule: **the mutation for a floor is crossing it, not perturbing the
 measurement.** A floor with deliberate slack cannot be 1px-sensitive, and a floor that fails on
@@ -106,6 +114,10 @@ what you would need from Oleksii to proceed. Do not pick a reasonable default.
    not.
 4. Any new or changed claim on a user-facing surface. The `/prytulkam` commitments list is the
    register — if a change makes one of those sentences false, or adds a seventh, it stops here.
+   **Deleting a claim never requires the approval that adding one does** (see
+   `docs/standing-constraints.md`'s "Removing a false claim is not the same gate as adding
+   one") — a diff that only deletes copy that a shipped change made false is not a STOP on
+   this item, even if the honest fuller replacement hasn't been written yet.
 5. Secrets, cookie attributes, HMAC keys, rate limits, cursor signing, env validation.
 6. Asset licensing and provenance. If a licence cannot be established from the source page
    itself, it is not established.
@@ -126,6 +138,12 @@ what you would need from Oleksii to proceed. Do not pick a reasonable default.
   comment or a build-plan row, not a blocker.
 - **Output cap:** findings section under 400 words. If you cannot fit them, you have not
   ranked them.
+- **When your prompt gives you a file path to write to, write your verdict there** (create the
+  path's parent directories if needed) instead of returning it in prose. This is the Tier 2
+  asynchronous-review path (`docs/handoff-2026-10-04.md` §4.1): the builder has already moved
+  to the next row and reads `docs/reviews/<branch>/<short-sha>.md` later, at the points named
+  in `CLAUDE.md`'s working loop. When no path is given (a synchronous Tier 1 call), return the
+  verdict in prose as before.
 
 ## The rule about time
 
