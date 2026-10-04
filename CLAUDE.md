@@ -472,6 +472,11 @@ entry; wait a day, or pick the next-newest cleared version instead.
 Append this section to CLAUDE.md. It is what makes the reviewer fire without being asked, and
 what lets work continue without Oleksii gating every step.
 
+Revised 2026-10-04 per `docs/handoff-2026-10-04.md` §4: review and decisions now run in
+parallel with building rather than ahead of it. The quality bar, the standing constraints and
+the Tier 1 gates are unchanged — what changed is *where* review happens and *what blocks the
+builder*. See the 2026-10-04 amendment below for the mechanism.
+
 ## The loop
 
 Work proceeds in iterations. One iteration is one plan item — a D-row, a DECK-row, a fix, a
@@ -479,21 +484,35 @@ sweep. For each iteration:
 
 1. Do the work.
 2. Run `pnpm check`.
-3. **Invoke the `opika-reviewer` subagent** with the diff, the plan item it was meant to
-   satisfy, and every claim being made about it. This is not optional and not conditional on
-   the change looking small.
-4. Act on the verdict:
-   - **PASS** — commit, then start the next plan item without asking.
-   - **PASS WITH NOTES** — address the notes, re-invoke the reviewer on the fix, then commit
-     and continue.
+3. Classify the row's tier (see Process tiers) — this decides whether review happens before or
+   after the commit:
+   - **Tier 1** — invoke the `opika-reviewer` subagent synchronously, now, **before
+     committing**. Unchanged from before 2026-10-04, ordering included: this is where the
+     discipline has caught real production-shaped bugs, and a secrets/cookie/migration/
+     production-data change is never committed un-reviewed. Act on the verdict (step 4), then
+     commit.
+   - **Tier 2** — **commit now** (green `pnpm check`, output pasted in the commit body), then
+     spawn `opika-reviewer` in the background against that commit and **immediately start the
+     next row** without waiting for it. See the 2026-10-04 amendment below.
+   - **Tier 3** — commit now; no per-row review, one PR-level pass over the batch later.
+4. Act on a verdict once you have one (synchronously before committing, for Tier 1; or on
+   reading a review file some time after committing, for Tier 2):
+   - **PASS** — commit if Tier 1 and not already committed; otherwise nothing further.
+   - **PASS WITH NOTES** — address the notes (before the first commit, for Tier 1; in a
+     follow-up commit "review: `<sha>` — `<finding>`", for Tier 2), reviewed the same way
+     again, then commit (or continue, for Tier 2).
    - **STOP** — do not continue past it and do not work around it, but **do commit first,
      then push, then write to Oleksii**: what the decision is, the options with their
      consequences, and what you recommend. Then wait. See the amendment below for why commit
-     precedes the wait rather than following it.
-5. When a phase's rows are all committed, open the PR with the verified-vs-asserted ledger in
-   the body, and tell Oleksii it is ready. Do not merge.
+     precedes the wait rather than following it. (This is the one case where Tier 1 work is
+     committed without a clean PASS — the STOP itself was returned by the synchronous review,
+     so the review still ran before the commit; "commit first" refers to committing before
+     waiting for Oleksii, not before reviewing.)
+5. When a phase's rows are all committed and every pending review file has been read, open the
+   PR with the verified-vs-asserted ledger in the body, and tell Oleksii it is ready. Do not
+   merge.
 
-Never invoke the reviewer on work you have not finished, and never continue past a STOP by
+Never spawn a review on work you have not finished, and never continue past a STOP by
 reinterpreting it as a note.
 
 ### Amendment, 2026-09-06 — a STOP blocks a merge, not a commit
@@ -519,6 +538,62 @@ running twice concurrently: it slows the loop without changing what gets asserte
 
 Tier 3 changes (see "Process tiers" below) get no reviewer pass at all — they are covered
 once, in the batch, at the PR-level pass.
+
+### Amendment, 2026-10-04 — Tier 2 review is asynchronous
+
+(`docs/handoff-2026-10-04.md` §4.1–§4.3, an owner-stated process change, not a quality
+change — see "Process latency is a stated owner cost" in `docs/standing-constraints.md`.)
+
+After a Tier 2 row's commit goes green, **spawn `opika-reviewer` in the background** against
+that commit range and start the next row without waiting. The reviewer writes its verdict to
+`docs/reviews/<branch>/<short-sha>.md` (git-tracked, Tier 3 to commit) instead of returning it
+to the builder's context — the agent file's own instructions say to write there, not in prose.
+
+Read a pending review file at three points only: starting a row that touches the same files as
+an already-reviewed row, before opening the PR, and whenever a review file says `STOP`.
+Fixes for a review finding are their own small commit, re-reviewed the same way.
+
+The reviewer does not re-run the full `pnpm check` for a Tier 2 row — the commit's own pasted
+green run is the evidence; it runs only the suites the diff touches, plus its own mutations.
+Mutation testing of a new guard, floor or assertion is **the builder's job**, recorded in the
+commit message as `mutation: <what was broken> → <failure text>`; the reviewer spot-checks one
+mutation per row and verifies the rest were done rather than redoing them.
+
+**Two rows in flight at once is the limit** (one building, one in review). If the reviewer
+falls three rows behind the builder, the builder pauses for one review cycle rather than
+piling up unread verdicts — the review is what catches real bugs, so it must not fall
+arbitrarily behind.
+
+Tier 1 is unchanged: synchronous, blocking, Phase 0 questions to Oleksii before code. A STOP
+on a Tier 2 row still blocks the **PR**, never the commit (the 2026-09-06 amendment above
+stands for both tiers).
+
+## Decisions stop blocking
+
+(`docs/handoff-2026-10-04.md` §4.4.) `docs/decisions-inbox.md` — one table, on `main` only,
+append-only, columns `ID | Date | Row | Question | Options | Default taken | Oleksii's answer
+| Status` — replaces `docs/decisions-pending-review.md`'s 752-line narrative of per-branch
+copies for new decisions.
+
+- A **Tier 2 decision never blocks the builder.** Take the recommended default, write the
+  inbox row, continue. Oleksii answers in bulk when he reviews the PR; an override becomes a
+  small follow-up commit. **This does not touch the STOP list below** ("Stop and ask,
+  regardless of what the reviewer said") — an ambiguous design with no mock, a new or changed
+  user-facing claim, and the rest of that list are never "a Tier 2 decision" no matter which
+  tier the surrounding code change is, and still stop and wait rather than taking a default.
+  The inbox is for the other kind: a reversible implementation judgement call that used to be
+  a "decisions needing your eye, not blocking" entry in `docs/decisions-pending-review.md`.
+- A **Tier 1 decision still blocks the merge** — but not the rest of the branch. Write the
+  row, commit the work, move to the next row that doesn't depend on it. Oleksii answers the
+  batch, not one question at a time.
+- **Ukrainian copy never blocks code.** New strings ship as `[COPY PENDING]`, pinned by
+  `copy-status.test.ts`, with the English sense and key name recorded in the inbox. The only
+  copy that *does* block a merge is a `/prytulkam` commitment sentence (the register in
+  `docs/standing-constraints.md`), because a false sentence must never be live.
+- Branches write new rows to `docs/decisions-inbox/<branch>.md`; the PR merge appends them to
+  the main table — no more hand-reconciled per-branch copies of a 750-line file.
+- `docs/decisions-pending-review.md` is superseded and kept as read-only history as of
+  2026-10-04 — don't add to it, don't migrate its already-resolved entries.
 
 ## What continues automatically, and what does not
 
@@ -547,6 +622,22 @@ long form belongs in the PR body, not in chat.
 
 When you stop for a decision, the message has four parts and nothing else: the decision, the
 options, the consequence of each, your recommendation. No recap of what you built.
+
+Session reports to Oleksii: what shipped, what's in the inbox, what's next — under ten lines.
+Everything else is in the PR.
+
+## Documentation diet
+
+(`docs/handoff-2026-10-04.md` §4.5.) The build-plan is this project's longest artefact and a
+real tax on every session's context. Standing rule from 2026-10-04:
+
+- A **build-plan row is at most five lines**: status, PR, one sentence of what shipped, what's
+  verified vs asserted, follow-ups by ID. The narrative — review rounds, measurements, what
+  was mutated — lives in the **PR body** and in `docs/reviews/`. Existing long rows are left
+  alone (don't spend a session rewriting history); new rows follow the rule.
+- The `pnpm check` wall-time paragraph and Part 3's hour-arithmetic paragraphs in
+  `docs/build-plan.md` are frozen — no more updates; `docs/handoff-2026-10-04.md` §3's ledger
+  is the plan of record for ordering from here.
 
 ## Standing constraints that outrank convenience
 
@@ -582,9 +673,10 @@ introduce a new claim. Writing whatever fuller, honest replacement comes later s
 through the full Tier 1 gate like any other new copy — the deletion and its eventual
 replacement are two separate actions on two separate tiers, not one held hostage to the other.
 
-TIER 2 — reviewer only. No gate to Oleksii, no round trip. Do the work, pnpm check, invoke
-opika-reviewer, act on the verdict, commit, continue. Applies to: app code, layout, tests,
-harness work, refactors.
+TIER 2 — reviewer only. No gate to Oleksii, no round trip. Do the work, pnpm check, commit,
+spawn opika-reviewer in the background against the commit (see the 2026-10-04 amendment to
+"The loop"), and continue to the next row without waiting on it. Applies to: app code, layout,
+tests, harness work, refactors.
 
 TIER 3 — light. pnpm check and commit. Reviewer runs once at PR level over the batch, not per
 commit. Applies to: renames with no behaviour change, doc edits, comments, formatting,
