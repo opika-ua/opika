@@ -31,36 +31,44 @@ import { cardAccessibleName, cardMetaLine, isReserved } from "./card-text";
  *
  * Desktop (1024-1439, 3 columns): grid caps at `max-w-[960px]` with
  * `gap-6` (24px x 2 gaps), so a column is (960 - 48) / 3 = 304px, less the
- * card's own 24px of padding = 280px. That is the ceiling; below ~1080px of
- * viewport the grid is fluidly narrower and the photo is smaller, which is
- * the safe direction to be wrong in.
+ * card's own 24px of padding = 280px. That is the ceiling, reached once the
+ * viewport clears 1392px (960 + rail 280 + rail-gap 32 + page-padding 120 —
+ * `tvaryny/page.tsx`'s own comment on the rail/grid row derives the same
+ * 432px of chrome). Below 1392 and down to the bracket's own 1024px floor,
+ * the grid is fluidly narrower: container = `100vw - 432px`, column =
+ * `(container - 48) / 3`, photo = column - 24, which reduces to
+ * `33.3333vw - 184px` (O-18, `docs/observations.md` — this file previously
+ * said "~1080px" here, which was simply wrong, not a rounding choice;
+ * corrected alongside adding the real fluid clause below rather than left
+ * standing next to it).
  *
  * Wide (1440-1999, 4 columns): grid caps at `max-w-[1320px]`, `gap-6` x 3
  * gaps, so a column is (1320 - 72) / 4 = 312px, less 24px of card padding =
- * 288px — measured at a 1920px viewport, comfortably past the ~1752px
- * (1320 + rail 280 + rail-gap 32 + page-padding 120) point where the cap
- * actually binds. Below that, same caveat as the desktop bracket above: the
- * grid is fluidly narrower and the real photo is smaller than 288px — this
- * file's own `gallery-photo-sizes.harness.ts` only measures this bracket at
- * 1920, so that narrower sub-range is unverified, not proven safe, the same
- * untested gap the desktop bracket already has below ~1392px.
+ * 288px — the ceiling, reached past the 1752px (1320 + 432) point where the
+ * cap actually binds. Below that and down to 1440, same fluid arithmetic as
+ * the desktop bracket, solved for 4 columns: `25vw - 150px` (O-18).
  *
  * Ultrawide (2000+, 6 columns, O-5 `docs/observations.md`): grid caps at
  * `max-w-[1992px]`, `gap-6` x 5 gaps, so a column is (1992 - 120) / 6 = 312px
  * — deliberately the *same* per-column width the wide bracket already
  * reaches, chosen so the grid gains columns without the card itself
  * visually jumping size at the boundary. Less the same 24px of card padding
- * = 288px, identical to the wide bracket's own number, measured at 2560px —
- * past the ~2424px (1992 + 432) point where *this* cap binds. The same
- * fluid sub-range exists here too (2000-2424px, real box smaller than
- * 288px): found while adding this bracket's own harness case (a 2200px
- * probe measured 250.66px, not 288 — confirmed, not assumed, then the test
- * was moved to the cap-reached viewport instead of chasing a fluid `calc()`
- * expression across every bracket, which is real, separate scope — see
- * `docs/observations.md`'s O-18).
+ * = 288px, identical to the wide bracket's own number — the ceiling, past
+ * the 2424px (1992 + 432) point where *this* cap binds. Below that and down
+ * to 2000, same fluid arithmetic solved for 6 columns: `16.6667vw - 116px`
+ * (O-18) — found while adding this bracket's own harness case (a 2200px
+ * probe measured 250.66px against the flat 288px the `sizes` attribute
+ * declared there at the time).
+ *
+ * Every fluid clause above is a real, separate `sizes` condition now, not
+ * documentation of a gap: `gallery-photo-sizes.harness.ts` has a case
+ * inside each bracket's own fluid sub-range (desktop included, which had
+ * never been measured at all before O-18), asserting the declared `sizes`
+ * value against the real laid-out box the same way the flat-value cases
+ * already did.
  */
 const PHOTO_SIZES =
-  "(max-width: 599px) calc(100vw - 56px), (max-width: 1023px) 120px, (max-width: 1439px) 280px, 288px";
+  "(max-width: 599px) calc(100vw - 56px), (max-width: 1023px) 120px, (max-width: 1391px) calc(33.3333vw - 184px), (max-width: 1439px) 280px, (max-width: 1751px) calc(25vw - 150px), (max-width: 1999px) 288px, (max-width: 2423px) calc(16.6667vw - 116px), 288px";
 
 interface AnimalCardProps {
   card: FeedCardView;

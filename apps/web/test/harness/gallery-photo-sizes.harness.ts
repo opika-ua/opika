@@ -50,12 +50,15 @@ import { IMAGE_VARIANTS } from "@opika/db/image-pipeline";
 import { expect, test } from "@playwright/test";
 import { openRoute, rectOf, resolveSizesAttribute, selectVariantFromSrcset } from "./harness";
 import {
+  DESKTOP,
   DETAIL_DESKTOP,
   DETAIL_PHONE,
   GALLERY_DESKTOP_1920,
   GALLERY_PHONE_360,
   GALLERY_TABLET,
+  GALLERY_ULTRAWIDE,
   GALLERY_ULTRAWIDE_ROOMY,
+  GALLERY_WIDE,
   type Viewport,
 } from "./viewports";
 
@@ -167,6 +170,41 @@ const CASES: readonly Case[] = [
     dpr: 2,
     expectedVariant: "card",
     because: "a fixed 120px column x 2 = 240 device px, inside card (640w)",
+  },
+  // O-18 (`docs/observations.md`): the three fluid sub-ranges below each
+  // bracket's own ceiling, previously unmeasured at any viewport — `DESKTOP`
+  // and `GALLERY_WIDE` already existed (used by `gallery-layout.harness.ts`
+  // to prove the ceiling is real, not a constant) and happen to sit inside
+  // the desktop and wide fluid zones respectively; `GALLERY_ULTRAWIDE` is
+  // the exact 2200px viewport O-18's own probe measurement was taken at.
+  // Reused rather than duplicated, same reasoning `GALLERY_WIDE`'s own
+  // comment gives for staying clear of a CSS breakpoint's exact edge.
+  {
+    surface: "gallery",
+    viewport: DESKTOP,
+    dpr: 1,
+    expectedVariant: "card",
+    because:
+      "fluid desktop bracket (1024-1391): calc(33.3333vw - 184px) at 1280px = 242.67 CSS px " +
+      "x 1 = 242.67 device px, inside card (640w)",
+  },
+  {
+    surface: "gallery",
+    viewport: GALLERY_WIDE,
+    dpr: 1,
+    expectedVariant: "card",
+    because:
+      "fluid wide bracket (1440-1751): calc(25vw - 150px) at 1600px = 250 CSS px x 1 = 250 " +
+      "device px, inside card (640w)",
+  },
+  {
+    surface: "gallery",
+    viewport: GALLERY_ULTRAWIDE,
+    dpr: 1,
+    expectedVariant: "card",
+    because:
+      "fluid ultrawide bracket (2000-2423): calc(16.6667vw - 116px) at 2200px = 250.67 CSS px " +
+      "(the exact box O-18's own probe measured) x 1 = 250.67 device px, inside card (640w)",
   },
   {
     surface: "detail",
