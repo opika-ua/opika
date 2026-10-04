@@ -254,9 +254,34 @@ describe("RevealFlow's dialog semantics", () => {
     await screen.findByTestId("reveal-dialog");
 
     expect(screen.getByRole("dialog", { name: "Зараз немає інтернету." })).toBeTruthy();
+    expect(screen.getByText("БЕЗ ЗВ'ЯЗКУ")).toBeTruthy();
+    // `uk.errors.offline` has no `body` field — the only text in this dialog
+    // is the eyebrow, the title (the dialog's own accessible name, asserted
+    // above) and the retry button; a stray loadFailed-style body line would
+    // mean the `"body" in copy` guard regressed.
+    expect(screen.queryByText("Це не ваша помилка і не помилка притулку.")).toBeNull();
     const retry = screen.getByTestId("reveal-retry");
     expect(retry.textContent).toBe("Спробувати ще раз");
     await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
+  });
+
+  /**
+   * Reviewer-found gap (`docs/reviews/chore/finish-line-block-1/b22b7c1.md`):
+   * the test above only proves the `animals.reveal` call's own offline path.
+   * `RevealFlow.tsx` calls `useReveal()` with no `ensureSession`, so
+   * `session.bootstrap` runs *first* on every open — a real outage is at
+   * least as likely to be caught there as at the reveal call, and the
+   * sibling test just above it (`beforeEach`'s `bootstrap.mockResolvedValue`)
+   * never exercises that path at all.
+   */
+  it("shows the offline copy when the session bootstrap itself never reaches a server", async () => {
+    bootstrap.mockRejectedValue(new TypeError("Failed to fetch"));
+    renderFlow();
+    fireEvent.click(screen.getByTestId("reveal-trigger"));
+    await screen.findByTestId("reveal-dialog");
+
+    expect(screen.getByRole("dialog", { name: "Зараз немає інтернету." })).toBeTruthy();
+    expect(revealCall).not.toHaveBeenCalled();
   });
 
   it("Escape closes the dialog, restores focus to the trigger, and unlocks page scroll", async () => {

@@ -78,13 +78,37 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
       const generation = ++callGenerationRef.current;
       setState({ kind: "loading", ...snapshot });
 
-      const ready = ensureSession
-        ? await ensureSession()
-        : await safe(revealBrowserClient.session.bootstrap({})).then(([error]) => !error);
+      /**
+       * `bootstrapError` only exists on the no-`ensureSession` path (the
+       * detail page, `RevealFlow.tsx`): the injected path (the deck,
+       * `SwipeDeck.tsx`) collapses its own result to a plain boolean in
+       * `use-feed-deck.ts`'s `ensureSession`, with no error object this
+       * hook could inspect — same reason the RATE_LIMITED comment below
+       * already gives for that path, now true of `offline` too. Not fixed
+       * here: the deck's first bootstrap attempt happens before any reveal
+       * is possible (a swipe, not a right-swipe specifically), so by the
+       * time `open()` can run, a prior bootstrap has already either
+       * succeeded (cached) or the adopter couldn't have swiped to begin
+       * with — a materially smaller window than the detail page's, which
+       * calls bootstrap for the first time right here.
+       */
+      let bootstrapError: unknown = null;
+      let ready: boolean;
+      if (ensureSession) {
+        ready = await ensureSession();
+      } else {
+        const [error] = await safe(revealBrowserClient.session.bootstrap({}));
+        bootstrapError = error;
+        ready = !error;
+      }
       if (generation !== callGenerationRef.current) return;
       if (!ready) {
         /**
-         * Always `"loadFailed"`, never `"rateLimited"` — not because
+         * `bootstrapError instanceof TypeError` is the same "offline" test
+         * `use-feed-deck.ts:102-104` and the `revealError` branch below both
+         * use — a genuine network failure reaching `session.bootstrap`
+         * itself, before `animals.reveal` is ever called. Otherwise
+         * `"loadFailed"`, never `"rateLimited"` — not because
          * `session.bootstrap` can't declare `RATE_LIMITED` in its contract
          * (`packages/contracts/src/procedures/session.ts` says it can), but
          * because the mechanism that actually rate-limits it is the generic
@@ -92,14 +116,14 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
          * with a raw `new Response("Too Many Requests", { status: 429 })`
          * before oRPC's own handler ever runs
          * (`app/api/rpc/[...rpc]/route.ts`) — never a well-formed, defined
-         * oRPC error. `ensureSession`'s own `.then(([error]) => !error)`
-         * also discards whatever error object this branch would need to
-         * inspect regardless. If `session.bootstrap` ever threw a real
+         * oRPC error. If `session.bootstrap` ever threw a real
          * `errors.RATE_LIMITED()` from inside its own handler, this branch
          * would need to inspect that error the same way the block below
          * does — it doesn't today because nothing here can produce one.
          */
-        setState({ kind: "error", reason: "loadFailed", ...snapshot });
+        const reason: RevealErrorReason =
+          bootstrapError instanceof TypeError ? "offline" : "loadFailed";
+        setState({ kind: "error", reason, ...snapshot });
         return;
       }
 

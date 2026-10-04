@@ -128,6 +128,30 @@ describe("useReveal's error reason", () => {
     );
     expect(revealCall).not.toHaveBeenCalled();
   });
+
+  /**
+   * Reviewer-found gap (`docs/reviews/chore/finish-line-block-1/b22b7c1.md`):
+   * a network failure reaching `session.bootstrap` itself — not
+   * `animals.reveal` — is the far more likely shape of "offline" on the
+   * detail page, since this is the *first* request `open()` makes with no
+   * `ensureSession` injected (`RevealFlow.tsx`'s own call site). The sibling
+   * test above (a plain `Error`) proved the fallback-to-loadFailed case; this
+   * one proves the fallback-to-offline case actually fires too, not just the
+   * later `revealError instanceof TypeError` check.
+   */
+  it("a session bootstrap that never reaches a server at all is reason: 'offline', not loadFailed", async () => {
+    bootstrap.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    const { result } = renderHook(() => useReveal());
+    act(() => {
+      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+    });
+
+    await waitFor(() =>
+      expect(result.current.state).toMatchObject({ kind: "error", reason: "offline" }),
+    );
+    expect(revealCall).not.toHaveBeenCalled();
+  });
 });
 
 describe("useReveal's generation guard", () => {
