@@ -11,7 +11,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { openRoute, rectOf } from "./harness";
+import { expectMinTouchTarget, openRoute, rectOf } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
 /**
@@ -33,7 +33,9 @@ const PAGE_LINK = "[data-testid='pagination-page']";
 // V2 repoint: 44 -> 56 (`Opika Registry System.dc.html`'s pagination row,
 // lines 189/195: `min-height: 56px` on both prev and next). The component
 // itself already renders 56 (`min-h-14`) — this assertion had gone stale
-// against it, silently looser than the code it's meant to guard.
+// against it, silently looser than the code it's meant to guard. 56, not
+// `harness.ts`'s own default `MIN_TOUCH_TARGET_PX` (48) — pagination's own
+// stricter floor, passed explicitly to `expectMinTouchTarget` below.
 const MIN_TARGET_PX = 56;
 
 /**
@@ -72,9 +74,7 @@ test.describe("/tvaryny pagination", () => {
     expect(count, "expected at least prev, one page number, and next").toBeGreaterThan(2);
 
     for (let i = 0; i < count; i++) {
-      const rect = await rectOf(targets.nth(i), `pagination target ${i}`);
-      expect(rect.height, `target ${i} height`).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-      expect(rect.width, `target ${i} width`).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+      await expectMinTouchTarget(targets.nth(i), `pagination target ${i}`, MIN_TARGET_PX);
     }
   });
 

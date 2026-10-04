@@ -10,7 +10,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { expectFocusVisibleOutline, openRoute, rectOf } from "./harness";
+import { expectFocusVisibleOutline, expectMinTouchTarget, openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
 /**
@@ -36,8 +36,6 @@ test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
 const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
-/** docs/design/README.md:200 — 48 minimum touch target anywhere. */
-const MIN_TOUCH_TARGET_PX = 48;
 /** The id the no-JS `:target` reveal keys on — `FilterSheet`'s `SHEET_ID`. */
 const SHEET = "#tvaryny-filters";
 
@@ -123,15 +121,7 @@ test.describe("/tvaryny deck entry — keyboard focus", () => {
 test.describe("/tvaryny deck entry — touch target", () => {
   test("the mobile entry link meets the 48px minimum", async ({ page }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
-    const rect = await rectOf(page.getByTestId("deck-entry-mobile"), "mobile deck-entry link");
-
-    expect(
-      rect.height,
-      `the mobile deck-entry link is ${rect.height.toFixed(1)}px tall; ` +
-        `docs/design/README.md:200 sets ${MIN_TOUCH_TARGET_PX} as the minimum touch target ` +
-        `anywhere, stated as a civic-trust metric rather than the WCAG floor. It was 44 ` +
-        `before Phase D.`,
-    ).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_PX);
+    await expectMinTouchTarget(page.getByTestId("deck-entry-mobile"), "mobile deck-entry link");
   });
 });
 

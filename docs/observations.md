@@ -37,13 +37,16 @@ connection-strategy change implied by O-9's findings. Not a mid-D patch.
 
 ---
 
-## O-1 — Header is a text wordmark, no logo · design · open
+## O-1 — Header is a text wordmark, no logo · design · done (PR #57, 2026-09-10)
 
 No logo in the header; the wordmark is plain text. A logo exists in the Claude Design export.
 
 Check the design export for what was specified before assuming a logo belongs there — the
 «Реєстр» system may have chosen a wordmark deliberately. If it did, this is a change of
 decision, not a defect, and should be recorded as such.
+
+**Done — Phase K (`feat/polish-batch`, PR #57).** Logo mark added to the header. Full detail:
+`docs/decisions-pending-review.md`'s Phase K entries, `docs/build-plan.md`'s own Phase K row.
 
 ## O-2 — The deck is offered on desktop · decision · DECIDED
 
@@ -215,7 +218,7 @@ the mock is authority absent a decision from Oleksii. He has now made the decisi
 Record it as a design-system change, not a bug — the mock and the code must not silently
 diverge.
 
-## O-8 — Detail page breadcrumb lives in the header · design · open
+## O-8 — Detail page breadcrumb lives in the header · design · done (PR #57, 2026-09-10)
 
 «← Усі тварини у Бровари» renders inside the site header beside the wordmark, where it reads as a
 navigation item. It belongs below the header, above the content, left-aligned.
@@ -223,16 +226,25 @@ navigation item. It belongs below the header, above the content, left-aligned.
 Moving it out of the header is the direction README:589 ("never two navigations at once") points
 anyway.
 
+**Done — Phase K (`feat/polish-batch`, PR #57).** Moved below the header, left-aligned, above the
+content. Full detail: `docs/decisions-pending-review.md`'s Phase K entries,
+`docs/build-plan.md`'s own Phase K row.
+
 ## O-9 — «Написати притулку» takes seconds to respond · BUG · CONNECTION HYPOTHESIS (2026-09-05)
 
 Clicking the primary contact action on the detail page shows nothing for several seconds before
 the contact appears. This is the primary conversion action on the site.
 
-**Not the same bug as O-15.** Traced both client paths: the detail page's `RevealFlow.tsx` really
-does call `session.bootstrap` then `animals.reveal` (`revealBrowserClient`,
-`apps/web/src/api/browser-client.ts:42-45`); the deck's `feedBrowserClient`
-(`browser-client.ts:23-25`) exposes only `feed.list` and cannot reach either procedure. One is a
-slow real call, the other never attempts a call. See O-15 for that half.
+**Not the same bug as O-15.** Traced both client paths **at the time of this entry**: the detail
+page's `RevealFlow.tsx` really does call `session.bootstrap` then `animals.reveal`
+(`revealBrowserClient`, `apps/web/src/api/browser-client.ts:42-45`); the deck's
+`feedBrowserClient` (`browser-client.ts:23-25`) exposed only `feed.list` and could not reach
+either procedure. One was a slow real call, the other never attempted a call. See O-15 for that
+half. **Stale as of R3 (Phase R, `docs/build-plan.md`, 2026-09-09):** the deck now has its own
+reveal too (`SwipeDeck.tsx`, sharing `revealBrowserClient` via
+`apps/web/src/features/reveal/useReveal.ts`) — this diagnosis's "one never attempts a call" half
+no longer holds, though the underlying connection-latency finding this row is actually about is
+unaffected.
 
 **Measurements taken (read-only, no scripted mutating calls against production per Oleksii's
 instruction — he will time the actual click himself and paste the Network waterfall):**
@@ -284,11 +296,16 @@ seen, and on large screens they waste the available space. Wants a slider or com
 and waiting on real photographs from D-6. Same component, same session — do not do them
 separately.
 
-## O-11 — No footer · design · open
+## O-11 — No footer · design · done (PR #57, 2026-09-10)
 
 No footer anywhere. Nowhere for secondary links, and nowhere for credits.
 
 **Related to O-13** — the footer is the natural home for the font attribution.
+
+**Done — Phase K (`feat/polish-batch`, PR #57).** Shared `Footer` component added, carrying both
+site-nav links (`uk.nav.forShelters`, `uk.nav.about`) and the font credit, self-link-avoided per
+the page it renders on. Full detail: `docs/decisions-pending-review.md`'s "Phase K — footer
+content" entry, `docs/build-plan.md`'s own Phase K row.
 
 ## O-12 — The back link does not restore the filter · BUG · open
 
@@ -298,7 +315,7 @@ user is told something untrue.
 
 **Pairs with O-6** — once cities have slugs, the filter is expressible in the return URL.
 
-## O-13 — Font attribution placement · design · open
+## O-13 — Font attribution placement · design · done (PR #57, 2026-09-10)
 
 «Шрифт e-Ukraine — Міністерство цифрової трансформації України … CC BY 4.0» sits where it is
 visually intrusive.
@@ -310,6 +327,10 @@ credits location (footer per O-11, or /pro), and keep the information intact —
 author, source, licence.
 
 Not legal advice; if exact wording ever matters, read the licence deed directly.
+
+**Done — Phase K (`feat/polish-batch`, PR #57).** Attribution moved into the new shared footer
+(O-11), text unchanged. Full detail: `docs/decisions-pending-review.md`'s Phase K entries,
+`docs/build-plan.md`'s own Phase K row.
 
 ## O-14 — Informative pages feel too narrow on large screens · decision · DECIDED
 
@@ -358,6 +379,11 @@ clicking):
    skip calls — same effect, advance the stack, nothing else. It structurally cannot reach
    `animals.reveal`: the deck's browser client (`feedBrowserClient`) exposes only `feed.list`
    (`browser-client.ts:23-25`). Not a misfire — there was never a call to misfire.
+   **Stale as of R3 (Phase R, `docs/build-plan.md`, 2026-09-09):** «Написати» now does reveal —
+   `SwipeDeck.tsx`'s `handleCommit("right")` opens the deck's own reveal
+   (`apps/web/src/features/reveal/useReveal.ts`, sharing `revealBrowserClient`) alongside the
+   swipe it already recorded (R1). This item's own diagnosis was correct at the time; it just
+   describes a state the product has since moved past.
 3. **Nothing is persisted.** `swipes.record` has a real handler and repository server-side, but no
    surface in the app calls it — not the deck (`onSwipe` discards both its arguments), not the
    detail page (which has its own comment declining to, on the grounds that `swipes.record` is
@@ -427,33 +453,59 @@ pattern the wide bracket's own 1920px case already set.
 
 ---
 
-## O-19 — The 48px touch-target floor is enforced by reviewer attention, not by a test mechanism · tooling · filed, not scheduled
+## O-19 — The 48px touch-target floor is enforced by reviewer attention, not by a test mechanism · tooling · partially resolved 2026-09-12
 
 Filed by Oleksii, 2026-09-10, after PR #57's `Footer.tsx` shipped both its links at 18px against
 `docs/design/README.md:200`'s 48px minimum — caught by the `opika-reviewer` subagent, not by any
 test, on a project whose own standing constraints say a defect a reviewer catches instead of a
 test is a defect the test suite doesn't actually guard.
 
-**Checked, not assumed:** the assertion exists — `MIN_TOUCH_TARGET_PX = 48` — but as three
-independent copies (`discovery-layout.harness.ts`, `gallery-filters.harness.ts`,
-`site-header.harness.ts`), each applied by hand to whichever specific elements that file's
-author remembered to write a case for (the deck's back-to-list and retry buttons, the deck-entry
-link, the header's nav links, and now — after this row's own fix — the footer's two links). There
-is no shared helper, no lint rule, and no sweep that walks a page's real interactive elements and
-asserts the floor against all of them. A new component (`Footer.tsx`) shipping under the floor
-did not fail any existing test, because no existing test's scope included it — the mechanism is
+**Checked, not assumed, at filing time:** the assertion existed — `MIN_TOUCH_TARGET_PX = 48` —
+as four independent copies (`discovery-layout.harness.ts`, `gallery-filters.harness.ts`,
+`site-header.harness.ts`, and `gallery-pagination.harness.ts`'s own `MIN_TARGET_PX = 56`, found
+only on a second reviewer round when the first pass at fixing this only replaced the three
+sharing the exact 48px value), each applied by hand to whichever specific elements that file's
+author remembered to write a case for. A new component (`Footer.tsx`) shipping under the floor
+did not fail any existing test, because no existing test's scope included it — the mechanism was
 "whoever writes a harness file remembers to add a case," which is exactly reviewer-attention
-dressed as a test suite. This is the "documented limit with no test exercising it is not a limit"
-standing constraint, except the limit here already has *some* tests — just none that would catch
-a genuinely new offender rather than a regression in an element someone already thought to check.
+dressed as a test suite.
 
-**Wants:** a single shared Playwright helper (something like `assertMinTouchTarget(page,
-selector)`, or a page-wide sweep over every `getByRole("link")`/`getByRole("button")` result) that
-new harness files reach for by construction, replacing the three duplicated local consts — and,
-ideally, one harness case per user-facing surface that sweeps *all* of that surface's interactive
-elements rather than a hand-picked subset, so a new button or link is covered the moment it
-exists rather than the next time someone happens to write a test for it by name. Scope and exact
-sweep strategy not decided — this is filed, not designed. Do not build it now.
+**Partially resolved, 2026-09-12 — the helper landed, the sweep did not.**
+`expectMinTouchTarget(locator, label, minPx?)` (`apps/web/test/harness/harness.ts`) is now the
+one shared mechanism all four files' existing cases call, checking both height *and* width (the
+first version checked height only — a real gap the same reviewer round caught: a 48-tall,
+20-wide element would have passed) against a floor that defaults to 48 and can be overridden per
+component (pagination passes its own 56). This closes "one hand-copied assertion becomes three
+different constants and three different bugs" — it does **not** close the actual gap this row
+exists to describe: a page-wide sweep that catches a *future* Footer-shaped miss automatically,
+without anyone writing a per-element case for it by name. That remains filed, not designed —
+see below, unchanged.
+
+**Still wants** — the shared-helper half above is done; this is the half that isn't: a page-wide
+sweep over every `getByRole("link")`/`getByRole("button")` result (or an equivalent walk of the
+accessibility tree) that runs per user-facing surface and checks *all* of that surface's
+interactive elements against the floor, rather than the hand-picked subset each file's own
+author thought to write a case for — so a new button or link is covered the moment it exists,
+not the next time someone happens to write a test for it by name. Scope and exact sweep strategy
+still not decided — this remains filed, not designed. Do not build it now.
+
+---
+
+## O-20 — `ORPCError` codes carried no HTTP status mapping · tooling · done (PR #60, 2026-09-11)
+
+Filed during the reveal-budget row (PR #58): `RATE_LIMITED` and every other `ORPCError` code
+answered a bare HTTP `500` on the wire, regardless of what the code actually meant — a client
+checking the real status (rather than decoding the error body) could not tell a rate limit from
+a genuine server fault.
+
+**Done — `apiErrors`** (`packages/contracts/src/errors.ts`) **now declares a real HTTP status per
+code**; every handler constructs its error via oRPC's own injected `errors.CODE()` rather than a
+raw `new ORPCError(code)`, which is what makes the status mapping actually reach the response
+instead of being documentation nobody reads at the call site. Reviewer found a real coverage gap
+on first pass (`ANIMAL_NOT_AVAILABLE` and `SHELTER_NOT_VISIBLE` had no test at any status) —
+fixed, two new cases added to `api.test.ts`'s `reveal` describe block. Full detail: the
+"Fixed, 2026-09-12" paragraph in `docs/decisions-pending-review.md`'s Summary section (that
+file has no dedicated `O-20` heading of its own — the fix is described inline there).
 
 ---
 
@@ -496,12 +548,21 @@ not overriding a prior "keep reveal detail-page-only" call.
 **Every cookie the deployed site can set, enumerated:** exactly one —
 `__Host-session` in production / `session` in dev (`apps/web/src/api/session/cookie.ts`),
 HttpOnly, SameSite=Lax, Secure (prod), `Max-Age=2592000` (30 days). It is set **only** when
-`session.bootstrap` runs, which today fires **only** from the detail page's reveal flow
-(`RevealFlow.tsx`). Confirmed both by code trace and empirically: production GETs to `/`,
-`/tvaryny`, `/tvaryny/[id]`, `/tvaryny/gortaty`, `/pro`, and `/prytulkam` all came back with no
-`Set-Cookie` header at all. Vercel Analytics + Speed Insights are cookieless by Vercel's own
+`session.bootstrap` runs, which **at the time of this entry** fired only from the detail page's
+reveal flow (`RevealFlow.tsx`). Confirmed both by code trace and empirically: production GETs to
+`/`, `/tvaryny`, `/tvaryny/[id]`, `/tvaryny/gortaty`, `/pro`, and `/prytulkam` all came back with
+no `Set-Cookie` header at all. Vercel Analytics + Speed Insights are cookieless by Vercel's own
 design (and the codebase's own comment at `layout.tsx:65` says so); confirmed no other
 cookie-setting code exists anywhere in `apps/web/src`.
+
+**Stale as of R1, corrected R3 (Phase R, `docs/build-plan.md`, 2026-09-09) — this is now the
+enumeration to draft R4's `/pro` copy from, not the paragraph above.** R1 added a second trigger
+(any swipe, either direction, on the deck — `use-feed-deck.ts`'s own `ensureSession`); R3 added a
+reveal on the deck itself (`SwipeDeck.tsx`, `apps/web/src/features/reveal/useReveal.ts`), sharing
+that same session rather than minting a second one (a real double-mint bug this row's own review
+found and fixed — see `docs/decisions-pending-review.md`). Still exactly one cookie per visitor,
+same properties as above; what changed since this entry was written is which actions cause it to
+be set at all — "tapped «Написати притулку» on the detail page" is no longer the complete list.
 
 **The `/pro` sentence:** «Реєстр збирає базову статистику відвідувань … без кукі і без реклами.»
 Grammatically this is scoped to the analytics clause, and that clause is true. **But it reads to

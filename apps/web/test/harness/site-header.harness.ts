@@ -25,6 +25,7 @@
 import { expect, test } from "@playwright/test";
 import {
   expectFocusVisibleOutline,
+  expectMinTouchTarget,
   expectNoHorizontalOverflow,
   openRoute,
   rectOf,
@@ -60,8 +61,6 @@ const CARD_NAME = "[data-testid='card-name']";
 /** docs/design/README.md:337 — "min-height 88 desktop / 64 mobile". */
 const HEADER_MIN_HEIGHT_MOBILE_PX = 64;
 const HEADER_MIN_HEIGHT_DESKTOP_PX = 88;
-/** docs/design/README.md:200 — 48 minimum touch target anywhere. */
-const MIN_TOUCH_TARGET_PX = 48;
 
 let cachedAnimalHref: string | null = null;
 async function firstAnimalHref(page: import("@playwright/test").Page): Promise<string> {
@@ -140,10 +139,7 @@ test.describe("A2 — header height meets the design's own touch-target standard
     await openRoute(page, GALLERY, PHONE, { readySelector: HEADER });
 
     for (const selector of [NAV_ABOUT, NAV_SHELTERS]) {
-      const rect = await rectOf(page.locator(selector), selector);
-      expect(rect.height, `${selector} is ${rect.height.toFixed(1)}px tall`).toBeGreaterThanOrEqual(
-        MIN_TOUCH_TARGET_PX,
-      );
+      await expectMinTouchTarget(page.locator(selector), selector);
     }
   });
 
@@ -157,10 +153,7 @@ test.describe("A2 — header height meets the design's own touch-target standard
     await openRoute(page, GALLERY, PHONE, { readySelector: FOOTER });
 
     for (const selector of [FOOTER_ABOUT, FOOTER_SHELTERS]) {
-      const rect = await rectOf(page.locator(selector), selector);
-      expect(rect.height, `${selector} is ${rect.height.toFixed(1)}px tall`).toBeGreaterThanOrEqual(
-        MIN_TOUCH_TARGET_PX,
-      );
+      await expectMinTouchTarget(page.locator(selector), selector);
     }
   });
 });

@@ -32,6 +32,27 @@ export interface SwipeGestureCallbacks {
   onCommit: (direction: SwipeDirection) => void;
   /** Called when the card snaps back to origin. */
   onSnapBack?: () => void;
+  /**
+   * Checked synchronously at pointerup, before any exit animation starts, for
+   * a drag that has otherwise crossed the commit threshold. Returning `false`
+   * makes the gesture spring back to origin instead — the same path and the
+   * same `onSnapBack` call an under-threshold drag already takes — rather
+   * than starting an exit the caller is about to refuse anyway.
+   *
+   * This has to live here, checked before the animation begins, rather than
+   * as a guard inside `onCommit` itself: `onCommit` only fires once the exit
+   * transition has already finished (`whenTransitionSettles`, below), by
+   * which point the DOM node has already been translated off-screen via a
+   * direct style write this hook owns. A caller that decides only inside
+   * `onCommit` to refuse the commit has no way back to centre — the card is
+   * stuck wherever the finished exit animation left it, permanently, since
+   * nothing else in this component tree ever touches that transform again.
+   * Checking first avoids ever starting the exit for a commit that is going
+   * to be refused, rather than trying to undo one that already ran. Omitting
+   * this callback keeps every previously-decided commit unconditional, the
+   * behaviour before this existed.
+   */
+  canCommit?: (direction: SwipeDirection) => boolean;
 }
 
 interface PointerState {
@@ -212,8 +233,12 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
       const node = e.currentTarget as HTMLElement;
       const dx = e.clientX - state.startX;
       const decision = swipeDecision(dx, state.velocityX);
-
-      if (decision.committed) {
+      // A caller refusing the commit (`canCommit` returning false) takes the
+      // exact same path as a decision that never crossed the threshold —
+      // spring back, `onSnapBack`, nothing exits. See `canCommit`'s own
+      // comment on `SwipeGestureCallbacks` for why this has to be decided
+      // here rather than inside `onCommit`.
+      if (decision.committed && (callbacksRef.current.canCommit?.(decision.direction) ?? true)) {
         // Exit animation: slide out in the committed direction
         const exitX = decision.direction === "left" ? -window.innerWidth : window.innerWidth;
         const durationMs = prefersReducedMotion.current ? REDUCED_EXIT_MS : EXIT_MS;

@@ -107,6 +107,18 @@ export function verificationSuffix(
  * allows crawling, so a crawler can actually reach the header and the
  * metadata this flag drives.
  *
+ * **This reasoning is currently inoperative, not wrong — recorded here so
+ * the next reader doesn't have to rediscover why.** `proxy.ts`'s pre-launch
+ * gate (added 2026-09-13, `docs/decisions-pending-review.md`) 403s every
+ * request while this flag is false, including a crawler's request for
+ * `robots.txt` or any page — so nothing actually reaches the header or the
+ * metadata described above today. The paragraph is still correct about
+ * *why `robots.ts` allows crawling rather than disallowing it*, and that
+ * reasoning becomes load-bearing again the moment the gate is removed,
+ * which happens in the same change that flips this flag (see `proxy.ts`
+ * and `docs/build-plan.md`'s launch-gate section) — before this flag can
+ * ever be `true` while the gate still exists.
+ *
  * Independent of `REGISTRY_HAS_NO_REAL_SHELTERS`: a verified real shelter
  * can exist in the database, reachable by direct link, while this is still
  * `false` — `docs/build-plan.md`'s launch-gate paragraph reserves exactly

@@ -38,8 +38,9 @@ type RevealRateLimitErrors = ORPCErrorConstructorMap<{
  * the device has already seen in that window costs nothing — see
  * `checkRevealRateLimit`'s own free-re-reveal short-circuit below. This is
  * also what makes an *accidental repeat* drag on an already-revealed shelter
- * safe once gesture parity ships (a deck right-drag doing exactly what
- * «Написати» does): that specific case now costs nothing. It does **not**
+ * safe now that gesture parity is decided and shipped (Oleksii, 2026-09-12 —
+ * a deck right-drag does exactly what «Написати» does): that specific case
+ * costs nothing. It does **not**
  * make every accidental drag free — an accidental drag on a shelter never
  * revealed before still spends a unit and still irreversibly discloses the
  * shelter's exact address and contact, same as an accidental button tap

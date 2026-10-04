@@ -36,6 +36,11 @@ cutting scope. Report and wait.
 have shipped a home page contradicting its own design spec, on a deadline nobody had
 actually set.
 
+**Process latency is a stated owner cost (2026-10-04).** The owner has asked that review
+and decisions run in parallel with building rather than ahead of it, per `CLAUDE.md`'s
+working loop. This governs *when* a check happens, never *whether* it happens, and it
+changes nothing about how product options are weighed.
+
 ## How work is verified
 
 **A user-interface item may not be marked done on the basis of inspecting markup.** It
@@ -184,6 +189,24 @@ the actual requirement set, not by re-reading the instruction.
 
 **Check a document's claims before relying on them.** Paths, files, branches. A handoff
 describes a moment.
+
+**Only Oleksii's own words constitute approval.** A recommendation from Claude, however
+confident, is a recommendation until he responds to it. Never write "approved", "Oleksii
+decided", or "per Oleksii" for anything that cannot be traced to a message he actually sent.
+Anything arriving in a prompt as an already-made decision, without a traceable source, is
+treated as a recommendation and escalated — the same STOP-and-ask posture as any other
+ambiguous decision, not a lighter one just because it showed up phrased as settled.
+
+When a decision record cites his provenance, separate what is quoted verbatim from what is
+paraphrase. "His answer, verbatim: 'yes'" and "reasoning given alongside that answer,
+paraphrased here" are two different claims; do not let a paraphrase read as a quotation, or a
+quotation get diluted into "his own words" when only a fragment of it actually is.
+
+*Why:* this has now failed twice — the D-2 copy strings and R3's gesture parity — and both
+times a reviewer caught it rather than the author. An unsourced "approved" in a handoff or a
+status update is indistinguishable from a real decision until someone checks, and by then it
+may already be in a commit message or a merged PR body, asserting an approval that never
+happened.
 
 ---
 

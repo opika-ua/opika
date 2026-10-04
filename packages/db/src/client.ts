@@ -49,11 +49,19 @@ export type Database = PostgresJsDatabase<typeof schema>;
  * already approved this specific choice — that line is a vendor-feature
  * bullet in a comparison table, not a decision record for this row.
  *
- * **Does not address the other named half of O-9's diagnosis on its
- * own**: the function still executes in `iad1` with no `regions` pin
- * anywhere in `apps/web/vercel.json`, so every request still crosses the
- * Atlantic — this row only removes the handshake paid on top of that
- * crossing, not the crossing itself.
+ * **Did not, on its own, address the other named half of O-9's
+ * diagnosis**: at the time this driver switch landed, the function still
+ * executed in `iad1` with no `regions` pin anywhere in `apps/web/vercel.json`,
+ * so every request still crossed the Atlantic on top of the handshake this
+ * row removes. **Corrected, 2026-09-13** — stale by then: `apps/web/vercel.json`
+ * has pinned `regions: ["fra1"]` since commit `f966242` ("perf(web): O-9
+ * continued — pin function region to fra1, near Neon", 2026-09-09, merged the
+ * same day as this driver fix via PR #53 / squash commit `61183b2`).
+ * Production has run in Frankfurt, next to Neon's own Frankfurt region, since
+ * that date; this
+ * comment describing an open gap was itself the stale-reason defect class
+ * `docs/standing-constraints.md` warns about, found while investigating
+ * unrelated bot traffic, not by anyone reading this file for its own sake.
  *
  * Branches on the connection string, not on `process.env.VERCEL` or
  * similar — the actual fact that matters is which database this is

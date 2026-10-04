@@ -83,6 +83,14 @@ export default async function GortatyPage({
       total={total}
       filtersLabel={filtersInWords(filters, cityNames)}
       citySlugs={citySlugs}
+      // R3 (Phase R, `docs/build-plan.md`): the same lookup `filtersInWords`
+      // above already needed, handed to the deck's own reveal
+      // (`SwipeDeck.tsx`) so it can name the swiped animal's real city
+      // instead of omitting one — a plain object, not the `Map` itself:
+      // Client Components receive this across the server/client boundary,
+      // and an object needs no serialization format beyond what every
+      // other prop already uses.
+      cityNames={Object.fromEntries(cityNames)}
     />
   );
 }
