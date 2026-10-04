@@ -293,6 +293,18 @@ the reveal modal traps focus and restores it on close, "my reveals" renders iden
 substance on a phone and a 1440px desktop, and the deck's exhausted state matches frames
 X1/X2 rather than the old tokens it shipped with through Phase G.
 
+**F4/F6 status (verified 2026-10-04, `docs/handoff-2026-10-04.md` block 0 — this table carried
+neither before now):**
+- **F4 — not started.** No route, no component, nowhere under `apps/web/src/app/` or
+  `apps/web/src/features/`. `SiteHeader.tsx:49`'s own comment names it explicitly: "My Reveals
+  and i18n are later phases."
+- **F6 — partially built.** `ExhaustedState` exists and is fully wired into the deck's state
+  machine (`SwipeDeck.tsx`, the `"exhausted"` union member and its render branch), covered by
+  `SwipeDeck.test.tsx`, `DeckScreen.test.tsx` and `use-feed-deck.test.tsx`. It fails this row's
+  own done-when line, though: its classes are the pre-V2 token set (`text-ink`, `font-serif`),
+  not the `rg-`-prefixed tokens V2-migrated components use — built, not re-skinned to frames
+  X1/X2.
+
 **Decisions this phase must surface:** whether the Open Graph image is a static per-animal
 render or generated at request time (cost/freshness trade-off — the image pipeline this
 depends on is Phase H's M7-equivalent work, so this may block on that, not before).

@@ -37,13 +37,16 @@ connection-strategy change implied by O-9's findings. Not a mid-D patch.
 
 ---
 
-## O-1 — Header is a text wordmark, no logo · design · open
+## O-1 — Header is a text wordmark, no logo · design · done (PR #57, 2026-09-10)
 
 No logo in the header; the wordmark is plain text. A logo exists in the Claude Design export.
 
 Check the design export for what was specified before assuming a logo belongs there — the
 «Реєстр» system may have chosen a wordmark deliberately. If it did, this is a change of
 decision, not a defect, and should be recorded as such.
+
+**Done — Phase K (`feat/polish-batch`, PR #57).** Logo mark added to the header. Full detail:
+`docs/decisions-pending-review.md`'s Phase K entries, `docs/build-plan.md`'s own Phase K row.
 
 ## O-2 — The deck is offered on desktop · decision · DECIDED
 
@@ -215,13 +218,17 @@ the mock is authority absent a decision from Oleksii. He has now made the decisi
 Record it as a design-system change, not a bug — the mock and the code must not silently
 diverge.
 
-## O-8 — Detail page breadcrumb lives in the header · design · open
+## O-8 — Detail page breadcrumb lives in the header · design · done (PR #57, 2026-09-10)
 
 «← Усі тварини у Бровари» renders inside the site header beside the wordmark, where it reads as a
 navigation item. It belongs below the header, above the content, left-aligned.
 
 Moving it out of the header is the direction README:589 ("never two navigations at once") points
 anyway.
+
+**Done — Phase K (`feat/polish-batch`, PR #57).** Moved below the header, left-aligned, above the
+content. Full detail: `docs/decisions-pending-review.md`'s Phase K entries,
+`docs/build-plan.md`'s own Phase K row.
 
 ## O-9 — «Написати притулку» takes seconds to respond · BUG · CONNECTION HYPOTHESIS (2026-09-05)
 
@@ -289,11 +296,16 @@ seen, and on large screens they waste the available space. Wants a slider or com
 and waiting on real photographs from D-6. Same component, same session — do not do them
 separately.
 
-## O-11 — No footer · design · open
+## O-11 — No footer · design · done (PR #57, 2026-09-10)
 
 No footer anywhere. Nowhere for secondary links, and nowhere for credits.
 
 **Related to O-13** — the footer is the natural home for the font attribution.
+
+**Done — Phase K (`feat/polish-batch`, PR #57).** Shared `Footer` component added, carrying both
+site-nav links (`uk.nav.forShelters`, `uk.nav.about`) and the font credit, self-link-avoided per
+the page it renders on. Full detail: `docs/decisions-pending-review.md`'s "Phase K — footer
+content" entry, `docs/build-plan.md`'s own Phase K row.
 
 ## O-12 — The back link does not restore the filter · BUG · open
 
@@ -303,7 +315,7 @@ user is told something untrue.
 
 **Pairs with O-6** — once cities have slugs, the filter is expressible in the return URL.
 
-## O-13 — Font attribution placement · design · open
+## O-13 — Font attribution placement · design · done (PR #57, 2026-09-10)
 
 «Шрифт e-Ukraine — Міністерство цифрової трансформації України … CC BY 4.0» sits where it is
 visually intrusive.
@@ -315,6 +327,10 @@ credits location (footer per O-11, or /pro), and keep the information intact —
 author, source, licence.
 
 Not legal advice; if exact wording ever matters, read the licence deed directly.
+
+**Done — Phase K (`feat/polish-batch`, PR #57).** Attribution moved into the new shared footer
+(O-11), text unchanged. Full detail: `docs/decisions-pending-review.md`'s Phase K entries,
+`docs/build-plan.md`'s own Phase K row.
 
 ## O-14 — Informative pages feel too narrow on large screens · decision · DECIDED
 
@@ -472,6 +488,23 @@ interactive elements against the floor, rather than the hand-picked subset each 
 author thought to write a case for — so a new button or link is covered the moment it exists,
 not the next time someone happens to write a test for it by name. Scope and exact sweep strategy
 still not decided — this remains filed, not designed. Do not build it now.
+
+---
+
+## O-20 — `ORPCError` codes carried no HTTP status mapping · tooling · done (PR #60, 2026-09-11)
+
+Filed during the reveal-budget row (PR #58): `RATE_LIMITED` and every other `ORPCError` code
+answered a bare HTTP `500` on the wire, regardless of what the code actually meant — a client
+checking the real status (rather than decoding the error body) could not tell a rate limit from
+a genuine server fault.
+
+**Done — `apiErrors`** (`packages/contracts/src/errors.ts`) **now declares a real HTTP status per
+code**; every handler constructs its error via oRPC's own injected `errors.CODE()` rather than a
+raw `new ORPCError(code)`, which is what makes the status mapping actually reach the response
+instead of being documentation nobody reads at the call site. Reviewer found a real coverage gap
+on first pass (`ANIMAL_NOT_AVAILABLE` and `SHELTER_NOT_VISIBLE` had no test at any status) —
+fixed, two new cases added to `api.test.ts`'s `reveal` describe block. Full detail:
+`docs/decisions-pending-review.md`'s O-20 entry.
 
 ---
 
