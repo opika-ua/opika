@@ -1091,17 +1091,19 @@ export function buildAnimals(
     const id = animalId(i);
     // D-6 (docs/build-plan.md) + O-10/critique-C6: `SIX_PHOTO_INDEX`'s own
     // photos are real CC0 Commons photographs at deliberately awkward
-    // aspect ratios (9:16, 16:9, EXIF-rotated, ~400px, ~4000px — see
-    // `apps/web/public/seed-photos/d6-real/SOURCES.md`) instead of the
-    // regular cycling pool, so the detail page's photo gallery has one
-    // deterministic, findable-by-query animal whose crop behaviour is
-    // actually exercised against real variance rather than 9 same-ish
-    // placeholders. Dog-only, matching this index's own species (comment
-    // above) — the pool's two cat photos aren't used here, not because they
-    // need stripping out of the repo, just because a dog's own listing
-    // showing a cat photo would be a real content mismatch, not a stress
-    // test. Four distinct images cycled to 6, same accepted
-    // duplicate-photo shape this index already had before this row.
+    // aspect ratios (9:16 tall, 16:9 wide, ~400px small, ~4000px large — see
+    // `D6_REAL_DOG_PHOTOS` above and `apps/web/public/seed-photos/d6-real/
+    // SOURCES.md`) instead of the regular cycling pool, so the detail page's
+    // photo gallery has one deterministic, findable-by-query animal whose
+    // crop behaviour is actually exercised against real variance rather than
+    // 9 same-ish placeholders. Dog-only, matching this index's own species
+    // (comment above) — the EXIF-rotated candidate and the pool's other cat
+    // photo aren't used here, not because they need stripping out of the
+    // repo (SOURCES.md records both as deliberately unwired, not forgotten),
+    // just because a dog's own listing showing a cat photo would be a real
+    // content mismatch, not a stress test. Four distinct images cycled to 6,
+    // same accepted duplicate-photo shape this index already had before this
+    // row.
     const photos =
       i === SIX_PHOTO_INDEX ? makeD6Photos(photoCount) : makePhotos(species, i, photoCount);
 

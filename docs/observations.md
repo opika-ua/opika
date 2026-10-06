@@ -300,7 +300,7 @@ of that. Still needs Oleksii's actual click-and-paste-the-waterfall to separate
 **Scheduled:** the `packages/db/src/client.ts` connection-strategy change this points toward is
 its **own row, after Phase D and before the MVP gate** — not a mid-D patch.
 
-## O-10 — Detail page has no photo gallery · design · open
+## O-10 — Detail page has no photo gallery · design · done (2026-10-06)
 
 Only the primary photo is viewable at size. The others are small thumbnails that cannot really be
 seen, and on large screens they waste the available space. Wants a slider or comparable.
@@ -308,6 +308,13 @@ seen, and on large screens they waste the available space. Wants a slider or com
 **Pairs with C6** (detail-carousel crop against real source aspect ratios), which is already open
 and waiting on real photographs from D-6. Same component, same session — do not do them
 separately.
+
+**Done, together with C6 and D-6** (`feat/d-6-detail-photo-gallery`) — `DetailPhotoGallery.tsx`
+is a client-side gallery capped at the mock's own 3-photo count, with a thumbnail strip (desktop)
+and dot indicator (mobile) that both let a visitor pick which of the 3 is shown at size, rather
+than only ever seeing `photos[0]`. Built from the mock file directly after an earlier version
+built from the design doc's prose got the shape wrong — see O-22, below, for the mock-reading
+finding that round of review turned up.
 
 ## O-11 — No footer · design · done (PR #57, 2026-09-10)
 
@@ -546,6 +553,30 @@ carrying the failure's error (or at least an `"offline"` tag) instead of a plain
 contract-shape decision (what `ensureSession`'s return type becomes, since `use-feed-deck.ts`'s
 own swipe-handling also reads its boolean today) worth settling before writing the fix, not a
 one-line patch.
+
+## O-22 — The mock's mobile photo-dot indicator sits where the freshness pips already overlay · design · found, not fixed (2026-10-06)
+
+Filed by a reviewer round on O-10/C6's photo gallery (`feat/d-6-detail-photo-gallery`). The
+mock's own D2 frame (`docs/design/Opika Registry Frames.dc.html`, opened directly — not taken
+from the design doc's prose, which an earlier version of this component had wrongly done)
+puts the photo's own navigation dots at the photo box's bottom-right corner — the exact
+position `AnimalDetailScreen.tsx`'s pre-existing (out of this row's scope) freshness-pips
+overlay already occupies on mobile.
+
+In the mock, this isn't a collision: the mock's mobile freshness block is a separate `#F2F2F0`
+card *below* the photo, never overlaid on it at all — same position as desktop. The codebase's
+mobile freshness-pips-on-photo overlay is itself a pre-existing deviation from the mock that
+predates this row, found only because building the new dot indicator correctly required
+reading the same frame the freshness block should also have been built from.
+
+**Not fixed here** — moving the freshness block off the photo on mobile is a layout change to
+a different, already-shipped surface, not something O-10/C6's gallery row owns. `DetailPhotoGallery.tsx`'s
+new dot indicator is placed bottom-*centre* instead of the mock's bottom-right, a deliberate,
+documented deviation from the mock's exact position rather than a second overlay colliding with
+the first. Whoever picks up the freshness-pips placement should move both elements to the
+mock's actual positions in one pass — the mobile freshness card to below the photo, and this
+gallery's dots can then move to match the mock's bottom-right position once nothing else sits
+there.
 
 ---
 

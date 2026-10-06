@@ -293,8 +293,9 @@ export const uk = {
      * (desktop), neither of which existed as interactive elements before.
      * `[COPY_PENDING]`-prefixed per this repo's own mechanism
      * (`packages/i18n/src/copy-status.ts`) — proposed English sense only,
-     * not approved Ukrainian; flagged in the decisions inbox rather than
-     * invented here. `{n}` is the photo's 1-based position.
+     * not approved Ukrainian; flagged as D6-3 in
+     * `docs/decisions-inbox/feat-d-6-detail-photo-gallery.md`, not invented
+     * here. `{n}` is the photo's 1-based position.
      */
     photoGalleryLabel: `${COPY_PENDING} "Photo gallery" (role="tablist" aria-label)`,
     photoGalleryDot: `${COPY_PENDING} "Photo {n}" (dot button aria-label)`,

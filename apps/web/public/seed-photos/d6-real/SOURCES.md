@@ -13,6 +13,18 @@ own Wikimedia Commons page at the time of download — not a category-level or s
 Re-verify at the source URL before relying on the licence for anything formal; Commons pages
 can and do change.
 
+**Only four of these six are currently wired into seed data.** `packages/db/src/seed.ts`'s
+`D6_REAL_DOG_PHOTOS` — the set `SIX_PHOTO_INDEX`'s animal actually renders — is dog-only:
+`dog-tall-9x16-sugarbelle.jpg`, `dogs-wide-16x9-bulldogs-lifejackets.jpg`,
+`dog-small-400px-joydogs.jpg`, `dog-large-4000px-chihuahua.jpg`. The two cat photos,
+`cat-exif-rotated-william-blanket.jpg` and `cat-bonus-muchi.jpg`, are committed here
+deliberately but intentionally **not** wired into any seeded animal — `SIX_PHOTO_INDEX`'s
+animal is a dog (species-mismatch avoidance: a dog's listing showing a cat photo would be a
+real content bug, not a stress test), and no other seed slot currently reaches into this
+directory. They are kept in the repo as sourced, licence-clean, metadata-verified candidates
+for whichever future row wants a cat-side equivalent of this stress test — not orphaned or
+forgotten files.
+
 | File | Slot | Source | Dimensions | Notes |
 |---|---|---|---|---|
 | `dog-tall-9x16-sugarbelle.jpg` | 9:16 tall | [File:Sugarbelle_the_Dog.jpg](https://commons.wikimedia.org/wiki/File:Sugarbelle_the_Dog.jpg) | 665×1182 (ratio 0.5626) | Single-subject outdoor portrait, own work, 2017. No humans/text in frame. |

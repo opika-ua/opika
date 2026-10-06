@@ -12,21 +12,29 @@ import { useState } from "react";
  * was ever viewable at size; the next three rendered as static, non-interactive
  * 88px thumbnails on desktop and not at all on mobile.
  *
- * Design: `docs/design/README.md`'s "04 Detail (D1/D2)" — desktop shows the
- * active photo (4:5, `desktop:aspect-[4/5]`) beside three 88px thumbnails,
- * `outline 3px #101112 offset 3` on whichever one is active; mobile shows the
- * active photo full-bleed with an 8px dot indicator (active filled `#101112`,
- * inactive outlined 2px `#63676B`). One component, not two — the breakpoint
- * split is CSS (`desktop:hidden` / `hidden desktop:flex`), matching how the
- * rest of this screen already reflows in one DOM tree rather than branching
- * in JS on viewport width (a Server Component one level up cannot know the
- * client's width at all).
+ * Design: `docs/design/README.md`'s "04 Detail" prose (`### Detail (04)`) and
+ * the "04 Detail (D1/D2)" frame pins, cross-checked against the mock file
+ * itself (`Opika Registry Frames.dc.html`'s own D2 frame) rather than taken
+ * from a paraphrase — caught on review that an earlier version of this
+ * component had the wrong shape entirely. The mock shows exactly 3 photos
+ * total, not 4: a main photo plus three 88px thumbnails that include the
+ * active photo (not three *alternatives* to it), the active one carrying
+ * `outline: 3px #101112, offset 3`. Clicking a different thumbnail changes
+ * which photo is active — the thumbnail itself stays in the row, it isn't
+ * swapped out. Mobile shows the active photo full-bleed with an 8px dot
+ * indicator, one per photo (active filled `#101112`, inactive outlined 2px
+ * `#63676B`) — same "all of them, mark which is active" shape as the
+ * thumbnails, just dots instead of images.
  *
- * Capped at 4 photos shown (1 active + 3 alternatives) — the frame's own
- * fixed thumbnail count, not an arbitrary limit this component invented.
- * `activeIndex` is state into that capped slice, not into the full
- * `animal.photos` array, so clicking a thumbnail or dot swaps which of the
- * 4 is "active" without ever needing a 5th slot.
+ * One component, not two — the breakpoint split is CSS (`desktop:hidden` /
+ * `hidden desktop:flex`), matching how the rest of this screen already
+ * reflows in one DOM tree rather than branching in JS on viewport width (a
+ * Server Component one level up cannot know the client's width at all).
+ *
+ * Capped at 3 photos shown — the frame's own fixed count, confirmed against
+ * the mock file directly. The mock doesn't say what happens with a 4th or
+ * later photo; `docs/decisions-inbox/feat-d-6-detail-photo-gallery.md`
+ * (D6-2) records that as Oleksii's call, not defaulted here.
  *
  * Critique C6's actual question — does a landscape source photo crop a
  * subject out of frame inside the portrait 4:5 box? — has no new answer
@@ -34,8 +42,15 @@ import { useState } from "react";
  * behaviour, already accepted), and no focal-point data exists anywhere in
  * the schema to crop toward instead. What changes is that this is now
  * verified against real, deliberately awkward source ratios (D-6,
- * `apps/web/public/seed-photos/d6-real/`) in the harness, rather than
- * asserted true from 9 same-ish placeholder photos that never stressed it.
+ * `apps/web/public/seed-photos/d6-real/`) — checked live against a real
+ * seeded animal in a real browser (desktop breakpoint; documented rather
+ * than asserted — see this row's own PR body), not asserted true from 9
+ * same-ish placeholder photos that never stressed it. No automated harness
+ * coverage of the crop itself: there's nothing to assert numerically once
+ * `object-fit: cover` is accepted as the mechanism (it has no "correct"
+ * output to compare against without focal-point data), so a prior version
+ * of this comment claiming harness verification was wrong and has been
+ * corrected rather than left standing.
  */
 export function DetailPhotoGallery({
   photos,
@@ -45,16 +60,29 @@ export function DetailPhotoGallery({
   photos: readonly AnimalPhoto[];
   /** `animal.name` — used when a photo's own `alt` is unset. */
   altFallback: string;
-  /** The freshness-pips overlay (mobile only), rendered as a sibling so it
-   * never has to know this component swaps photos underneath it. */
+  /**
+   * The freshness-pips overlay, rendered as a sibling so this component
+   * never has to know this component swaps photos underneath it.
+   *
+   * **Pre-existing deviation from the mock, not this row's to fix:** the
+   * mock's own D2 frame puts the photo's bottom-right corner overlay
+   * strictly for the *photo* dot indicator this component now adds — the
+   * freshness block in that frame is a separate `#F2F2F0` card below the
+   * photo (same position as desktop), never overlaid on it at all. The
+   * caller (`AnimalDetailScreen.tsx`) already overlaid freshness pips at
+   * that exact bottom-right corner on mobile before this row existed; that
+   * is out of scope here (a different, pre-existing surface), so this
+   * component's own new dot indicator is placed bottom-*centre* instead of
+   * colliding with it — a deliberate deviation from the mock's exact
+   * position, not a match, recorded here so a future reader doesn't assume
+   * otherwise. Filed as O-22 (`docs/observations.md`) for whoever picks up
+   * the freshness-pips placement itself.
+   */
   pipsOverlay: React.ReactNode;
 }) {
-  const visible = photos.slice(0, 4);
+  const visible = photos.slice(0, 3);
   const [activeIndex, setActiveIndex] = useState(0);
   const active = visible[activeIndex] ?? null;
-  const thumbnails = visible
-    .map((photo, index) => ({ photo, index }))
-    .filter(({ index }) => index !== activeIndex);
 
   return (
     <>
@@ -73,10 +101,6 @@ export function DetailPhotoGallery({
           />
         )}
         {pipsOverlay}
-        {/* Photo-gallery dots — distinct from the freshness pips above, which
-            always render top-right regardless of how many photos exist.
-            Bottom-centre keeps the two from ever overlapping. Only rendered
-            when there's something to switch between. */}
         {visible.length > 1 && (
           <div
             className="desktop:hidden absolute left-1/2 -translate-x-1/2 bottom-4 flex gap-2"
@@ -85,14 +109,18 @@ export function DetailPhotoGallery({
           >
             {visible.map((photo, index) => (
               <button
-                key={photo.storageKey}
+                key={`${index}-${photo.storageKey}`}
                 type="button"
                 role="tab"
                 aria-selected={index === activeIndex}
                 aria-label={uk.detail.photoGalleryDot.replace("{n}", String(index + 1))}
                 data-testid="detail-photo-dot"
                 onClick={() => setActiveIndex(index)}
-                className={`size-4 flex items-center justify-center focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] rounded-full`}
+                // 48px minimum target (docs/design/README.md: "48px minimum
+                // target everywhere"), the 8px visual dot centred inside it
+                // — same "small visual, real hit area" shape O-19
+                // (docs/observations.md) exists to keep from regressing.
+                className="size-12 flex items-center justify-center focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] rounded-full"
               >
                 <span
                   aria-hidden="true"
@@ -108,16 +136,21 @@ export function DetailPhotoGallery({
         )}
       </div>
 
-      {thumbnails.length > 0 && (
+      {visible.length > 1 && (
         <div className="hidden desktop:flex gap-2">
-          {thumbnails.map(({ photo, index }) => (
+          {visible.map((photo, index) => (
             <button
-              key={photo.storageKey}
+              key={`${index}-${photo.storageKey}`}
               type="button"
+              aria-pressed={index === activeIndex}
               aria-label={uk.detail.photoGalleryThumbnail.replace("{n}", String(index + 1))}
               data-testid="detail-photo-thumbnail"
               onClick={() => setActiveIndex(index)}
-              className="relative w-22 h-22 rounded-rg-photo overflow-hidden bg-rg-photo-placeholder focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+              className={`relative w-22 h-22 rounded-rg-photo overflow-hidden bg-rg-photo-placeholder focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] ${
+                index === activeIndex
+                  ? "outline outline-[3px] outline-offset-[3px] outline-rg-ink"
+                  : ""
+              }`}
             >
               <Image src={photo.storageKey} alt="" fill sizes="88px" className="object-cover" />
             </button>
