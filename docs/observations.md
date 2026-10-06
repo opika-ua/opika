@@ -579,6 +579,13 @@ dot indicator moved into the corner the mock actually specifies (`right-4 bottom
 nothing now competes for it. `AnimalDetailScreen.tsx` no longer passes any overlay prop to
 the gallery at all.
 
+**Follow-up, not fixed here (round 3, 2026-10-06):** no test actually pins the dot
+indicator's position — three straight review rounds got that position wrong or right by
+reasoning rather than by a rendered assertion, and moving it back to bottom-centre tomorrow
+would leave every current suite green. A harness check for the dot cluster's real bounding
+box against the photo's bottom-right corner is a real gap, filed here rather than added
+mid-row to a component whose basic interactive shape was still being corrected.
+
 ---
 
 ## Decisions 1 & 2 — Phase D, 2026-09-05

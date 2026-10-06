@@ -14,26 +14,19 @@ import { useState } from "react";
  *
  * Design: `docs/design/README.md`'s "04 Detail" prose (`### Detail (04)`) and
  * the D1 (1920 desktop) / D2 (360 mobile) frame pins, both opened directly in
- * the mock file itself (`Opika Registry Frames.dc.html`) rather than taken
- * from a paraphrase — caught on review that an earlier version of this
- * component had the wrong shape entirely, and that a second review round's
- * own citation of "D2" for the desktop thumbnail strip was itself wrong (the
- * thumbnails are D1's; D2 is mobile-only and has no thumbnail strip at all).
- * The mock shows exactly 3 photos total, not 4: D1's main photo beside three
- * 88px thumbnails that include the active photo (not three *alternatives* to
- * it), the active one carrying `outline: 3px #101112, offset 3`. Clicking a
+ * the mock file itself (`Opika Registry Frames.dc.html`), not a paraphrase —
+ * `docs/standing-constraints.md`'s "when a mock exists, open the mock file."
+ * The mock shows exactly 3 photos total: D1's main photo beside three 88px
+ * thumbnails that include the active photo (not three *alternatives* to it),
+ * the active one carrying `outline: 3px #101112, offset 3`. Clicking a
  * different thumbnail changes which photo is active — the thumbnail itself
  * stays in the row, it isn't swapped out. D2 shows the active photo
  * full-bleed with an 8px dot cluster at the photo's own bottom-right corner
  * (`right: 16px; bottom: 16px` in the mock), one dot per photo, active
  * filled `#101112`, inactive outlined 2px `#63676B` — same "all of them,
  * mark which is active" shape as the thumbnails, just dots instead of
- * images, in the same corner the freshness block does *not* occupy in
- * either frame (D1 and D2 both put freshness in a separate card below the
- * title, never overlaid on the photo — see O-22, `docs/observations.md`,
- * for the round-2 finding that an earlier version of this component
- * wrongly assumed otherwise and placed its dots bottom-*centre* to avoid a
- * collision that the mock never actually has).
+ * images. Neither frame overlays freshness on the photo — see O-22
+ * (`docs/observations.md`) for that surface's own history.
  *
  * One component, not two — the breakpoint split is CSS (`desktop:hidden` /
  * `hidden desktop:flex`), matching how the rest of this screen already
@@ -44,9 +37,9 @@ import { useState } from "react";
  * the mock file directly. The mock doesn't say what happens with a 4th or
  * later photo; `docs/decisions-inbox/feat-d-6-detail-photo-gallery.md`
  * (D6-2) records that as Oleksii's call, not defaulted here — and it is a
- * live question, not a hypothetical one: ~40% of the seeded corpus already
- * has 4 or 5 photos, so most published animals already lose at least one
- * photo to this cap today.
+ * live question, not a hypothetical one: `photoCount = 1 + (i % 5)` gives
+ * about 2 in 5 of the seeded corpus 4 or 5 photos already, so a real share
+ * of published animals already lose at least one photo to this cap today.
  *
  * Dot spacing is wider than the mock's own 6px gap between 8px decorative
  * dots — a deliberate, accepted deviation, not an oversight: the mock's
@@ -63,22 +56,19 @@ import { useState } from "react";
  * the schema to crop toward instead. What changes is that this is now
  * verified against real, deliberately awkward source ratios (D-6,
  * `apps/web/public/seed-photos/d6-real/`) — checked live against a real
- * seeded animal in a real browser (desktop breakpoint; documented rather
- * than asserted — see this row's own PR body), not asserted true from 9
+ * seeded animal in a real browser (desktop breakpoint, documented in this
+ * row's own PR body rather than asserted), not assumed true from 9
  * same-ish placeholder photos that never stressed it. No automated harness
  * coverage of the crop itself: there's nothing to assert numerically once
  * `object-fit: cover` is accepted as the mechanism (it has no "correct"
- * output to compare against without focal-point data), so a prior version
- * of this comment claiming harness verification was wrong and has been
- * corrected rather than left standing.
+ * output to compare against without focal-point data).
  *
  * Known, accepted gap, not fixed here: an active thumbnail that also holds
  * keyboard focus distinguishes the two states by outline colour alone
  * (`outline-rg-ink` vs `focus-visible:outline-rg-registry`), which CSS
  * resolves by source order rather than anything this component controls
- * explicitly. No test covers this combined state. Low-severity per round-2
- * review; left as a documented gap rather than a new assertion, since nothing
- * on the STOP list is implicated and scope here is the gallery's basic shape.
+ * explicitly. No test covers this combined state; nothing on the STOP list
+ * is implicated.
  */
 export function DetailPhotoGallery({
   photos,
