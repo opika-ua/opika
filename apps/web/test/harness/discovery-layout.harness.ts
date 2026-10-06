@@ -513,10 +513,20 @@ test.describe("/tvaryny/gortaty error state", () => {
     await openRoute(page, ROUTE, PHONE, { readySelector: RETRY });
   }
 
-  // It was 44 before Phase D.
-  test(`the retry button is at least ${MIN_TOUCH_TARGET_PX}px tall`, async ({ page }) => {
+  // It was 44 before Phase D, then the generic 48px floor through the V2
+  // token migration (F6 follow-up) — raised to 56 in the same migration,
+  // once the button took the primary treatment (DLE-1,
+  // docs/decisions-inbox/feat-deck-loading-error-v2.md): README:200 gives
+  // primary actions 56px, not the 48px floor "anywhere" else gets. 56, not
+  // the generic constant, because a regression to the smaller size must
+  // fail here rather than pass against a floor two sizes below the real
+  // target (docs/standing-constraints.md's "the mutation for a floor is
+  // crossing it, not perturbing the measurement").
+  const RETRY_MIN_PX = 56;
+
+  test(`the retry button is at least ${RETRY_MIN_PX}px tall`, async ({ page }) => {
     await openFailedDeck(page);
-    await expectMinTouchTarget(page.locator(RETRY), "deck retry button");
+    await expectMinTouchTarget(page.locator(RETRY), "deck retry button", RETRY_MIN_PX);
   });
 
   test("the retry button shows a real focus-visible outline", async ({ page }) => {
