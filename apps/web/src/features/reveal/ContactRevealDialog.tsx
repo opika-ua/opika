@@ -240,7 +240,7 @@ function RevealError({
   onClose: () => void;
   onRetry: () => void;
 }) {
-  const copy = reason === "rateLimited" ? uk.errors.rateLimited : uk.errors.loadFailed;
+  const copy = uk.errors[reason];
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
@@ -258,7 +258,7 @@ function RevealError({
           >
             {copy.title}
           </h2>
-          <span className="text-[15px]/[22px] text-rg-ink-2">{copy.body}</span>
+          {"body" in copy && <span className="text-[15px]/[22px] text-rg-ink-2">{copy.body}</span>}
         </div>
         <button
           type="button"
@@ -271,21 +271,26 @@ function RevealError({
         </button>
       </div>
       {/*
-        `!== "rateLimited"`, not `=== "loadFailed"` — states the actual rule
-        ("no retry only for a refusal that can't succeed sooner") rather
-        than "only this one specific reason gets a retry", which would
-        silently withhold retry from any future reason added to
-        `RevealErrorReason` that a caller *does* want retryable (an
-        "offline" reason, say, mirroring the deck's own `DeckErrorReason`).
+        `"action" in copy`, not `reason !== "rateLimited"` — states the
+        actual rule ("no retry only for a refusal with no action copy")
+        rather than "only this one specific reason gets a retry", which
+        would silently withhold retry from any future reason added to
+        `RevealErrorReason` that a caller *does* want retryable, and lets
+        TypeScript narrow `copy` itself so `copy.action` below is sound.
+        `offline` is exactly the retryable case this used to only
+        anticipate in a comment — `copy.action` (not a hardcoded
+        `uk.errors.loadFailed.action`) is what makes the button read
+        "Спробувати ще раз" there instead of "Оновити", mirroring the
+        deck's own `DeckErrorReason` handling.
       */}
-      {reason !== "rateLimited" && (
+      {"action" in copy && (
         <button
           type="button"
           onClick={onRetry}
           data-testid="reveal-retry"
           className="min-h-14 rounded-rg-button bg-rg-ink text-[15px] font-medium text-rg-surface focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
-          {uk.errors.loadFailed.action}
+          {copy.action}
         </button>
       )}
     </div>

@@ -237,6 +237,53 @@ describe("RevealFlow's dialog semantics", () => {
     await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
   });
 
+  /**
+   * Parked in `docs/decisions-pending-review.md`'s PARKED section (R3) and
+   * picked up here: a genuine network failure during `animals.reveal` used
+   * to collapse into the same "Щось не спрацювало на нашому боці" copy as
+   * every other error, which is false for this case specifically — neither
+   * the app's fault nor the shelter's. `uk.errors.offline` was already
+   * approved and already wired for the same signal in the deck
+   * (`SwipeDeck.tsx`'s `DeckErrorReason`); this only extends the existing
+   * wiring to the detail page's reveal flow.
+   */
+  it("shows the offline copy, with a retry, when animals.reveal never reaches a server at all", async () => {
+    revealCall.mockRejectedValue(new TypeError("Failed to fetch"));
+    renderFlow();
+    fireEvent.click(screen.getByTestId("reveal-trigger"));
+    await screen.findByTestId("reveal-dialog");
+
+    expect(screen.getByRole("dialog", { name: "Зараз немає інтернету." })).toBeTruthy();
+    expect(screen.getByText("БЕЗ ЗВ'ЯЗКУ")).toBeTruthy();
+    // `uk.errors.offline` has no `body` field — the only text in this dialog
+    // is the eyebrow, the title (the dialog's own accessible name, asserted
+    // above) and the retry button; a stray loadFailed-style body line would
+    // mean the `"body" in copy` guard regressed.
+    expect(screen.queryByText("Це не ваша помилка і не помилка притулку.")).toBeNull();
+    const retry = screen.getByTestId("reveal-retry");
+    expect(retry.textContent).toBe("Спробувати ще раз");
+    await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
+  });
+
+  /**
+   * Reviewer-found gap (`docs/reviews/chore/finish-line-block-1/b22b7c1.md`):
+   * the test above only proves the `animals.reveal` call's own offline path.
+   * `RevealFlow.tsx` calls `useReveal()` with no `ensureSession`, so
+   * `session.bootstrap` runs *first* on every open — a real outage is at
+   * least as likely to be caught there as at the reveal call, and the
+   * sibling test just above it (`beforeEach`'s `bootstrap.mockResolvedValue`)
+   * never exercises that path at all.
+   */
+  it("shows the offline copy when the session bootstrap itself never reaches a server", async () => {
+    bootstrap.mockRejectedValue(new TypeError("Failed to fetch"));
+    renderFlow();
+    fireEvent.click(screen.getByTestId("reveal-trigger"));
+    await screen.findByTestId("reveal-dialog");
+
+    expect(screen.getByRole("dialog", { name: "Зараз немає інтернету." })).toBeTruthy();
+    expect(revealCall).not.toHaveBeenCalled();
+  });
+
   it("Escape closes the dialog, restores focus to the trigger, and unlocks page scroll", async () => {
     revealCall.mockResolvedValue(
       revealFor({ primary: { kind: "phone", e164: "+380671234567" }, additional: [] }),
