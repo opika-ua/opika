@@ -673,11 +673,25 @@ export const uk = {
      * description fails loudly the moment someone reading the ordering code
      * sees the page contradicting it. See `docs/standing-constraints.md`,
      * "Commitments the «Для притулків» page makes", commitment 1.
+     *
+     * R4-1 (`docs/decisions-inbox.md`), 2026-10-06: the second paragraph is
+     * commitment 8's restored, fuller sentence, replacing the narrowed
+     * version R1 shipped on 2026-09-09 — both «Не зараз» (`pass`, expires
+     * after `DEFAULT_SEEN_SET_POLICY.reshowAfterDays`, 30) and «Запитати»
+     * (`interested`, excluded permanently) are named, per
+     * `packages/domain/src/discovery/seen-set.ts`'s own `stillExcludes`,
+     * rather than only the weaker "doesn't re-serve what you skipped" the
+     * English sense in `docs/observations.md` originally drafted. Oleksii's
+     * own Ukrainian, verbatim — not drafted or polished here.
      */
     whatHappensToAnimals:
       "Кожна тварина отримує власну сторінку з фотографіями і власною адресою — її можна надіслати " +
       "в Telegram, показати знайомим, залишити під дописом.\n\n" +
       "Тварин можна дивитися списком або по одній.\n\n" +
+      "Список завжди показує всіх. У режимі «по одній» людина більше не бачить тих, на кого вже " +
+      "натиснула «Не зараз» чи «Запитати», — це пам'ять лише її пристрою, і після «Не зараз» " +
+      "тварина згодом з'являється знову. Від людини не ховається нічого, крім того, що вона " +
+      "сховала сама.\n\n" +
       "Порядок у списку — за датою: спочатку ті, кого оновлювали найновіше, або ті, хто чекає " +
       "найдовше; людина обирає сама. У режимі «по одній» до дати додається повнота картки — та, де " +
       "є фотографії, опис і відмітка про щеплення, показується раніше. Це все, що впливає на порядок.\n\n" +
