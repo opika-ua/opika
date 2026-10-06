@@ -94,6 +94,26 @@ catalog:
   # already in the tree, same reasoning CLAUDE.md's own tsx pin gives.
   sharp: 0.35.3
   "@aws-sdk/client-s3": 3.1123.0
+  # Phase 3, block 4 (launch-gate infra, docs/handoff-2026-10-04.md §3):
+  # `apiRateLimiter` (apps/web/src/api/rate-limit.ts) is in-memory and does
+  # not survive serverless cold starts — each instance gets its own budget,
+  # so the real ceiling in production is (limit x instance count), not the
+  # stated limit. `@upstash/ratelimit` (not the lower-level `@upstash/redis`
+  # alone) is Upstash's own official, purpose-built rate-limiting SDK —
+  # sliding-window counting over a shared store via battle-tested Lua
+  # scripts, which is exactly this problem, rather than hand-rolling the
+  # same sliding-window algorithm again on top of raw Redis commands in
+  # application code. `@upstash/redis` is still a direct dependency of this
+  # app (not just a transitive one) because `@upstash/ratelimit` needs a
+  # concrete `Redis` client instance constructed from this app's own env
+  # vars. Both published >2 weeks before being pinned here, clear of pnpm's
+  # 24h quarantine with room to spare. REST-based (HTTP, not a TCP Redis
+  # protocol client), which is why it's the only Redis-compatible option
+  # that actually works from Vercel's Node.js and Edge runtimes alike —
+  # matches `@neondatabase/serverless`'s own reasoning for the DB side of
+  # this exact constraint, just above.
+  "@upstash/ratelimit": 2.2.0
+  "@upstash/redis": 1.39.0
 
 allowBuilds:
   esbuild: true
