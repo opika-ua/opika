@@ -134,6 +134,9 @@ export const en = {
       body: "The animal has already been removed from the registry, or the link is out of date. This isn't an error — the listing is simply no longer here.",
       action: "All animals",
     },
+    photoGalleryLabel: `${COPY_PENDING} Photo gallery`,
+    photoGalleryDot: `${COPY_PENDING} Photo {n}`,
+    photoGalleryThumbnail: `${COPY_PENDING} View photo {n}`,
   },
 
   // --- Contact reveal (05) ---

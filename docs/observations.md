@@ -300,7 +300,7 @@ of that. Still needs Oleksii's actual click-and-paste-the-waterfall to separate
 **Scheduled:** the `packages/db/src/client.ts` connection-strategy change this points toward is
 its **own row, after Phase D and before the MVP gate** — not a mid-D patch.
 
-## O-10 — Detail page has no photo gallery · design · open
+## O-10 — Detail page has no photo gallery · design · done (2026-10-06)
 
 Only the primary photo is viewable at size. The others are small thumbnails that cannot really be
 seen, and on large screens they waste the available space. Wants a slider or comparable.
@@ -308,6 +308,13 @@ seen, and on large screens they waste the available space. Wants a slider or com
 **Pairs with C6** (detail-carousel crop against real source aspect ratios), which is already open
 and waiting on real photographs from D-6. Same component, same session — do not do them
 separately.
+
+**Done, together with C6 and D-6** (`feat/d-6-detail-photo-gallery`) — `DetailPhotoGallery.tsx`
+is a client-side gallery capped at the mock's own 3-photo count, with a thumbnail strip (desktop)
+and dot indicator (mobile) that both let a visitor pick which of the 3 is shown at size, rather
+than only ever seeing `photos[0]`. Built from the mock file directly after an earlier version
+built from the design doc's prose got the shape wrong — see O-22, below, for the mock-reading
+finding that round of review turned up.
 
 ## O-11 — No footer · design · done (PR #57, 2026-09-10)
 
@@ -546,6 +553,38 @@ carrying the failure's error (or at least an `"offline"` tag) instead of a plain
 contract-shape decision (what `ensureSession`'s return type becomes, since `use-feed-deck.ts`'s
 own swipe-handling also reads its boolean today) worth settling before writing the fix, not a
 one-line patch.
+
+## O-22 — The mock's mobile photo-dot indicator sits where a redundant freshness overlay used to collide with it · design · done (2026-10-06)
+
+Filed by a reviewer round on O-10/C6's photo gallery (`feat/d-6-detail-photo-gallery`), then
+corrected and fixed by a second review round the same day. The mock's own D1/D2 frames
+(`docs/design/Opika Registry Frames.dc.html`, opened directly — not taken from the design
+doc's prose) put the photo's own navigation dots at the photo box's bottom-right corner on
+mobile (D2: `right: 16px; bottom: 16px`), with the freshness block always a *separate* card
+below the title in both frames — never overlaid on the photo, on mobile or desktop.
+
+**Round 1's diagnosis was wrong about what was colliding.** It assumed `AnimalDetailScreen
+.tsx`'s mobile freshness display and the mock's photo-dot corner were two different,
+legitimate things fighting over one position, and shipped the gallery's new dot indicator at
+bottom-*centre* to avoid that fight rather than resolve it. In fact the real, full freshness
+block (pips + sentence + attribution) already rendered below the title on mobile exactly as
+the mock specifies — what sat on the photo was a second, purely decorative cluster of the
+*same three pips with no text*, duplicating information the real block already showed one
+screen-width below. It existed only because an earlier version of this screen (predating
+this row) put it there, not because the mock called for it anywhere.
+
+**Fixed, round 2:** the redundant mini-pips overlay was deleted outright (no information
+lost — the real freshness block alone was always sufficient), and `DetailPhotoGallery.tsx`'s
+dot indicator moved into the corner the mock actually specifies (`right-4 bottom-4`), since
+nothing now competes for it. `AnimalDetailScreen.tsx` no longer passes any overlay prop to
+the gallery at all.
+
+**Follow-up, not fixed here (round 3, 2026-10-06):** no test actually pins the dot
+indicator's position — three straight review rounds got that position wrong or right by
+reasoning rather than by a rendered assertion, and moving it back to bottom-centre tomorrow
+would leave every current suite green. A harness check for the dot cluster's real bounding
+box against the photo's bottom-right corner is a real gap, filed here rather than added
+mid-row to a component whose basic interactive shape was still being corrected.
 
 ---
 
