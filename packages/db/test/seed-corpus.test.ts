@@ -1,4 +1,10 @@
-import { DEFAULT_FRESHNESS_POLICY, freshnessOf, isDiscoverable } from "@opika/domain";
+import {
+  AnimalSchema,
+  DEFAULT_FRESHNESS_POLICY,
+  freshnessOf,
+  isDiscoverable,
+  ShelterSchema,
+} from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { buildAnimals, buildCities, buildShelters, NOW, requireEnglishCityName } from "../src/seed";
 
@@ -22,6 +28,28 @@ describe("seed corpus — D-4 hostile cases", () => {
   const shelters = buildShelters(cities);
   const animalRecords = buildAnimals(shelters, cities, 320);
   const animals = animalRecords.map((r) => r.animal);
+
+  /**
+   * Phase 3 (seed profiles) found this corpus's `moderatorId()` helper
+   * produced a string that merely *looked* like a UUID ("m0d00000" — 'm'
+   * isn't a valid hex digit) and had worked everywhere as an opaque
+   * reference for months, because nothing had ever run a real shelter
+   * through `ShelterSchema.parse` directly. Caught by a new demo-profile
+   * test, fixed in the one shared helper both profiles call — pinned here
+   * too so the `test` corpus's own 320 shelters can't regress the same way
+   * silently again.
+   */
+  it("every shelter validates against its own full schema, not just a shape read by eye", () => {
+    for (const shelter of shelters) {
+      expect(() => ShelterSchema.parse(shelter)).not.toThrow();
+    }
+  });
+
+  it("every animal validates against its own full schema, not just a shape read by eye", () => {
+    for (const animal of animals) {
+      expect(() => AnimalSchema.parse(animal)).not.toThrow();
+    }
+  });
 
   describe("built for D-4, 2026-09-06", () => {
     it("has exactly one unregistered_initiative shelter alongside registered ones", () => {
