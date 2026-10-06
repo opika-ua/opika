@@ -209,6 +209,38 @@ describe("swipe gesture commit path", () => {
   });
 
   /**
+   * The committed-exit path under reduced motion is the one reduced-motion
+   * case where the easing is actually visible — opacity genuinely animates
+   * 1 -> 0, unlike the snap-back case's instant one-frame reset. Catches a
+   * real gap: the earlier version of this change pinned the invisible
+   * snap-back string but not this one.
+   */
+  it("exits on opacity under prefers-reduced-motion, on the same fixed timeline", () => {
+    const matchMedia = vi.fn((query: string) => ({
+      matches: query.includes("prefers-reduced-motion"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      onchange: null,
+      dispatchEvent: vi.fn(),
+    }));
+    vi.stubGlobal("matchMedia", matchMedia);
+
+    try {
+      const card = mountCard({ onCommit: vi.fn() });
+
+      drag(card, 150); // past the 88px commit distance
+
+      expect(card.style.transition).toBe("opacity 120ms cubic-bezier(0.3, 0, 0, 1)");
+      expect(card.style.opacity).toBe("0");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  /**
    * The spring-back path is explicitly NOT part of G4's safe sub-portion
    * (docs/model-policy.md assigns gesture physics to Opus) — this pins its
    * pre-existing, unchanged approximation so the boundary between "touched
@@ -436,8 +468,8 @@ describe("swipe gesture commit path", () => {
   });
 
   /**
-   * docs/design/README.md:126 and :348 — under reduced motion "the stack does
-   * not move". A spring-back therefore has no transform transition to animate
+   * docs/design/README.md:204, :639, :872 — under reduced motion "the stack
+   * does not move". A spring-back therefore has no transform transition to animate
    * or to wait for: the card is simply back where it started, in one frame.
    *
    * This path had no test, which is how it quietly acquired a 120ms transform

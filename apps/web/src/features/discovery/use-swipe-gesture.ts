@@ -16,22 +16,12 @@ const AFFORDANCE_FADE_PX = 40;
  */
 const EXIT_MS = 280;
 /**
- * Spring-back duration in ms — **not yet G4's real spec.** The design doc's
- * own "Geometry, density, elevation, motion" table is explicit that this is
- * the one place in the whole interface with genuine spring physics, not a
- * duration+easing pair: "return is the spring 280/30, no overshoot"
- * (stiffness 280, damping 30) — "no springiness in the interface" anywhere
- * else is the same sentence's own framing for why this is the exception.
- * A CSS `transition` can only approximate a spring with a fixed duration and
- * a cubic-bezier curve; it cannot reproduce stiffness/damping as physical
- * quantities (frame-rate-independent settling driven by an ODE, not a fixed
- * timeline). Implementing the real spring is gesture-physics work this
- * project's own `docs/model-policy.md` assigns to Opus specifically ("hard
- * to review by reading," the exact failure mode a wrong spring
- * approximation would be) — deliberately left as this pre-existing
- * approximation (unchanged duration and easing) rather than silently
- * replaced with a *different* wrong approximation. Tracked as a G4
- * follow-up, not resolved here.
+ * Spring-back duration in ms — **not yet G4's real spec.** The design calls
+ * for a genuine spring (stiffness 280, damping 30, no overshoot), which a
+ * fixed duration + cubic-bezier curve can only approximate, not reproduce.
+ * Deliberately left as the pre-existing approximation: implementing the
+ * real spring is gesture-physics work `docs/model-policy.md` assigns to
+ * Opus, tracked as a G4 follow-up (see `docs/build-plan.md`'s G4 row).
  */
 const SPRING_BACK_MS = 300;
 /**
@@ -55,8 +45,8 @@ const EXIT_EASE = "cubic-bezier(0.3, 0, 0, 1)";
  * Reduced-motion duration: opacity only — `docs/design/README.md`'s "quick
  * 120ms" (G4). Shared by the committed-exit and the snap-back path under
  * `prefers-reduced-motion`, since reduced motion bypasses the spring
- * entirely in both cases (docs/design/README.md:126, :348) and both get the
- * same fixed-timeline "quick" treatment. Already matched the spec's number
+ * entirely in both cases (docs/design/README.md:204, :639, :872) and both
+ * get the same fixed-timeline "quick" treatment. Already matched the spec's number
  * before this row; only the easing (now `EXIT_EASE`, see above) changed.
  */
 const REDUCED_EXIT_MS = 120;
@@ -303,10 +293,10 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
           }),
         };
       } else if (prefersReducedMotion.current) {
-        // Reduced motion: the stack does not move (docs/design/README.md:126,
-        // :348). Transitioning opacity only means the transform below applies
-        // in one frame — the card is simply back where it started. There is no
-        // transform transition, so there is nothing to wait for and no
+        // Reduced motion: the stack does not move (docs/design/README.md:204,
+        // :639, :872). Transitioning opacity only means the transform below
+        // applies in one frame — the card is simply back where it started.
+        // There is no transform transition, so there is nothing to wait for and no
         // `transitionend` to wait for it with. This is not the deck's spring
         // (reduced motion bypasses it entirely by design), so it uses the
         // same fixed-timeline "quick" easing as the exit path above, not the
