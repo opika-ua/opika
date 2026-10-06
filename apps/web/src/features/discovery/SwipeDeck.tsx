@@ -100,6 +100,7 @@ export function SwipeDeck({
   const [dx, setDx] = useState(0);
   const { state: revealState, open: openReveal, close: closeReveal } = useReveal(ensureSession);
   const writeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const exhaustedHeadingRef = useRef<HTMLDivElement | null>(null);
 
   // Focus back on «Написати» when the reveal closes — the same
   // "close returns focus to whatever opened this" contract
@@ -107,18 +108,22 @@ export function SwipeDeck({
   // until caught on review: without it, closing left focus nowhere in
   // particular (a keyboard user's next Tab would restart from the header).
   //
-  // Known residual gap, found on review, not closed here: a right-swipe
-  // on the *last* card opens the reveal and exhausts the deck in the same
-  // tick, unmounting «Написати» (and this ref along with it) while the
-  // dialog is still open — closing it then lands on `writeButtonRef.current
-  // === null`, and `?.focus()` silently no-ops rather than throwing, so
-  // focus falls back to whatever the browser does by default (`<body>`
-  // in practice). No single stable element exists to fall back to here
-  // (`ExhaustedState` renders no focusable control of its own), so fixing
-  // this properly is its own small follow-up, not a one-line patch.
+  // `writeButtonRef.current` is null in exactly one reachable state: a
+  // right-swipe on the *last* card opens the reveal and exhausts the deck
+  // in the same tick, unmounting «Написати» (and this ref along with it)
+  // while the dialog is still open. `exhaustedHeadingRef` is the fallback
+  // for that case — `ExhaustedState`'s own title, made focusable the same
+  // way a dialog's own `#reveal-heading` is (`tabIndex={-1}`), since it's
+  // the one element guaranteed to exist once the deck has rendered its
+  // exhausted content and is the natural "here's where you are now" landing
+  // spot, not an arbitrary one.
   const closeRevealAndRefocus = useCallback(() => {
     closeReveal();
-    writeButtonRef.current?.focus();
+    if (writeButtonRef.current) {
+      writeButtonRef.current.focus();
+    } else {
+      exhaustedHeadingRef.current?.focus();
+    }
   }, [closeReveal]);
 
   /**
@@ -238,9 +243,9 @@ export function SwipeDeck({
   } else if (state.kind === "error") {
     content = <ErrorState reason={state.reason} onRetry={onRetry} />;
   } else if (state.kind === "exhausted") {
-    content = <ExhaustedState seenCount={state.seenCount} />;
+    content = <ExhaustedState seenCount={state.seenCount} headingRef={exhaustedHeadingRef} />;
   } else if (state.cards.length === 0) {
-    content = <ExhaustedState seenCount={0} />;
+    content = <ExhaustedState seenCount={0} headingRef={exhaustedHeadingRef} />;
   } else {
     // Show up to 3 stack layers
     const visibleCards = state.cards.slice(0, layout.stackLayers);
@@ -528,10 +533,21 @@ function ErrorState({
   );
 }
 
-function ExhaustedState(_props: { seenCount: number }) {
+function ExhaustedState({
+  headingRef,
+}: {
+  seenCount: number;
+  headingRef: React.RefObject<HTMLDivElement | null>;
+}) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-section p-section text-center">
-      <div className="font-serif font-medium text-[26px]/[30px] text-ink">{uk.exhausted.title}</div>
+      <div
+        ref={headingRef}
+        tabIndex={-1}
+        className="font-serif font-medium text-[26px]/[30px] text-ink outline-none"
+      >
+        {uk.exhausted.title}
+      </div>
       <div className="font-sans text-[15px]/[23px] text-ink-2">{uk.exhausted.body}</div>
       <div className="font-sans text-sm leading-[normal] text-ink-3">{uk.exhausted.newAnimals}</div>
     </div>

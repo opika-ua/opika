@@ -20,16 +20,16 @@ export interface RevealSnapshot {
 
 /**
  * `reason` distinguishes `animals.reveal`'s own `RATE_LIMITED` — 30 distinct
- * shelters in 24h, `apps/web/src/api/reveal-rate-limit.ts` — from every
- * other failure, so `ContactRevealDialog` can render the honest, specific
- * copy for it (`uk.errors.rateLimited`) instead of the generic "something
- * failed on our side" every error used to collapse into. A discriminated
- * union, not a boolean, per this repo's own standing rule — `rateLimited`
- * and `loadFailed` are not "the same failure, sometimes flagged," they are
- * different facts a caller needs to render differently (no retry action
- * makes sense for the former).
+ * shelters in 24h, `apps/web/src/api/reveal-rate-limit.ts` — and a genuine
+ * network failure, from every other failure, so `ContactRevealDialog` can
+ * render the honest, specific copy for each (`uk.errors.rateLimited` /
+ * `.offline`) instead of the generic "something failed on our side" every
+ * error used to collapse into. A discriminated union, not a boolean, per
+ * this repo's own standing rule — these are not "the same failure,
+ * sometimes flagged," they are different facts a caller needs to render
+ * differently (no retry action makes sense for `rateLimited`).
  */
-export type RevealErrorReason = "rateLimited" | "loadFailed";
+export type RevealErrorReason = "rateLimited" | "offline" | "loadFailed";
 
 export type RevealState =
   | { kind: "idle" }
@@ -78,13 +78,42 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
       const generation = ++callGenerationRef.current;
       setState({ kind: "loading", ...snapshot });
 
-      const ready = ensureSession
-        ? await ensureSession()
-        : await safe(revealBrowserClient.session.bootstrap({})).then(([error]) => !error);
+      /**
+       * `bootstrapError` only exists on the no-`ensureSession` path (the
+       * detail page, `RevealFlow.tsx`): the injected path (the deck,
+       * `SwipeDeck.tsx`) collapses its own result to a plain boolean in
+       * `use-feed-deck.ts`'s `ensureSession`, with no error object this
+       * hook could inspect — same reason the RATE_LIMITED comment below
+       * already gives for that path, now true of `offline` too.
+       *
+       * **Known gap, not fixed here (O-21, `docs/observations.md`):** a
+       * first-ever right-swipe (`SwipeDeck.tsx`'s `handleCommit` calls
+       * `openReveal` before `onSwipe`) while offline hits this exact branch
+       * too — `use-feed-deck.ts`'s own `onSwipe` doesn't await
+       * `ensureSession` before advancing the deck, and a failed bootstrap
+       * there clears `sessionReadyRef` rather than caching anything. An
+       * earlier version of this comment claimed the deck's exposure window
+       * was "materially smaller" than the detail page's; a reviewer found
+       * that claim false by reading `use-feed-deck.ts` directly rather than
+       * trusting it, and it's corrected here rather than left standing.
+       */
+      let bootstrapError: unknown = null;
+      let ready: boolean;
+      if (ensureSession) {
+        ready = await ensureSession();
+      } else {
+        const [error] = await safe(revealBrowserClient.session.bootstrap({}));
+        bootstrapError = error;
+        ready = !error;
+      }
       if (generation !== callGenerationRef.current) return;
       if (!ready) {
         /**
-         * Always `"loadFailed"`, never `"rateLimited"` — not because
+         * `bootstrapError instanceof TypeError` is the same "offline" test
+         * `use-feed-deck.ts:102-104` and the `revealError` branch below both
+         * use — a genuine network failure reaching `session.bootstrap`
+         * itself, before `animals.reveal` is ever called. Otherwise
+         * `"loadFailed"`, never `"rateLimited"` — not because
          * `session.bootstrap` can't declare `RATE_LIMITED` in its contract
          * (`packages/contracts/src/procedures/session.ts` says it can), but
          * because the mechanism that actually rate-limits it is the generic
@@ -92,14 +121,14 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
          * with a raw `new Response("Too Many Requests", { status: 429 })`
          * before oRPC's own handler ever runs
          * (`app/api/rpc/[...rpc]/route.ts`) — never a well-formed, defined
-         * oRPC error. `ensureSession`'s own `.then(([error]) => !error)`
-         * also discards whatever error object this branch would need to
-         * inspect regardless. If `session.bootstrap` ever threw a real
+         * oRPC error. If `session.bootstrap` ever threw a real
          * `errors.RATE_LIMITED()` from inside its own handler, this branch
          * would need to inspect that error the same way the block below
          * does — it doesn't today because nothing here can produce one.
          */
-        setState({ kind: "error", reason: "loadFailed", ...snapshot });
+        const reason: RevealErrorReason =
+          bootstrapError instanceof TypeError ? "offline" : "loadFailed";
+        setState({ kind: "error", reason, ...snapshot });
         return;
       }
 
@@ -108,15 +137,26 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
       );
       if (generation !== callGenerationRef.current) return;
       if (revealError || !result) {
-        // Same `isDefinedError` + `error.code` pattern as
-        // `use-feed-deck.ts`'s own `INVALID_CURSOR` check — `RATE_LIMITED`
-        // is one of `animals.reveal`'s declared contract errors
-        // (`packages/contracts/src/procedures/animals.ts`), so a real
-        // response carrying it is `isDefinedError() === true`.
+        /**
+         * `revealError instanceof TypeError` checked first — the same
+         * "offline" test `use-feed-deck.ts:102-104` already established and
+         * the same reasoning: a genuine network failure (the fetch never
+         * reached a server at all) is a `TypeError` at the fetch layer, per
+         * the Fetch API's own contract, and is neither the app's fault nor
+         * the shelter's — `uk.errors.loadFailed`'s "щось не спрацювало на
+         * нашому боці" is false for this case specifically. Otherwise, same
+         * `isDefinedError` + `error.code` pattern as `use-feed-deck.ts`'s own
+         * `INVALID_CURSOR` check — `RATE_LIMITED` is one of `animals.reveal`'s
+         * declared contract errors (`packages/contracts/src/procedures/
+         * animals.ts`), so a real response carrying it is
+         * `isDefinedError() === true`.
+         */
         const reason: RevealErrorReason =
-          revealError && isDefinedError(revealError) && revealError.code === "RATE_LIMITED"
-            ? "rateLimited"
-            : "loadFailed";
+          revealError instanceof TypeError
+            ? "offline"
+            : revealError && isDefinedError(revealError) && revealError.code === "RATE_LIMITED"
+              ? "rateLimited"
+              : "loadFailed";
         setState({ kind: "error", reason, ...snapshot });
         return;
       }

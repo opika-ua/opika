@@ -357,6 +357,52 @@ describe("SwipeDeck reveal", () => {
   });
 
   /**
+   * Picks up the parked follow-up in `docs/decisions-pending-review.md`'s
+   * PARKED section ("R3 — focus-on-close has one uncovered edge case"): the
+   * same scenario as the test above (a right-swipe on the last card exhausts
+   * the deck while the reveal dialog is still open), carried one step
+   * further — actually closing it. `writeButtonRef.current` is `null` here
+   * (the button the ready-state branch renders has already unmounted), so
+   * `closeRevealAndRefocus` must fall back to `ExhaustedState`'s own
+   * heading rather than silently landing on `<body>`.
+   */
+  it("falls back to the exhausted state's own heading when the reveal that exhausted the deck is closed", async () => {
+    const onSwipe = vi.fn();
+    const [only] = generateMockCards(1);
+    if (!only) throw new Error("generateMockCards(1) must return one card");
+    revealCall.mockResolvedValue(
+      revealFor(only.id, { primary: { kind: "phone", e164: "+380671234567" }, additional: [] }),
+    );
+
+    const { rerender } = render(
+      <SwipeDeck
+        ensureSession={ENSURE_SESSION}
+        state={{ kind: "ready", cards: [only] }}
+        onSwipe={onSwipe}
+        onPrefetch={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: uk.actions.write }));
+    await screen.findByTestId("reveal-dialog");
+
+    rerender(
+      <SwipeDeck
+        ensureSession={ENSURE_SESSION}
+        state={{ kind: "exhausted", seenCount: 1 }}
+        onSwipe={onSwipe}
+        onPrefetch={vi.fn()}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(screen.queryByTestId("reveal-dialog")).toBeNull();
+    expect(document.activeElement).toBe(screen.getByText(uk.exhausted.title));
+  });
+
+  /**
    * Caught on review: with no guard, a second «Написати» press (or an
    * equivalent right-drag) while the first reveal is still in flight
    * could spend a second reveal on a slower network, and a stale first

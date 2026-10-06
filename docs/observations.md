@@ -207,7 +207,7 @@ links already in the wild.
 
 **Pairs with O-12** — same missing thing. Schedule as one row, never two.
 
-## O-7 — The no-match explainer is confusing · design · open
+## O-7 — The no-match explainer is confusing · design · done (2026-10-04)
 
 «Немає фільтра "тільки свіжі картки". Тварина, про яку давно не писали, все одно чекає.»
 
@@ -217,6 +217,19 @@ the mock is authority absent a decision from Oleksii. He has now made the decisi
 
 Record it as a design-system change, not a bug — the mock and the code must not silently
 diverge.
+
+**Done — kept as shipped, recorded as a design-system change, not fixed as a bug.** Checked
+before touching anything: the mock's own text (`Opika Registry System.dc.html:275`) actually
+reads "Фільтра свіжості немає. Тварина, про яку давно не писали, все одно чекає." — close to, but
+not byte-identical with, what shipped (`filters.railFooter`, `packages/i18n/src/messages/uk.ts`).
+That's the real divergence this entry's own closing line warned about, and it's resolved in the
+design doc's favour of the code, not the other way around: `docs/copy-and-ia-critique.md`'s D1
+independently reviewed the *shipped* wording and called it "worth keeping as the model" (clearer
+about what's actually missing than the mock's draft phrasing, and aimed at an adopter's real
+worry rather than narrating the interface's own design). `docs/design/README.md`'s own quote of
+this sentence is corrected to the shipped wording, with the reasoning recorded there so a future
+pass doesn't read the mismatch as an oversight and "fix" the code back to the mock's rougher
+draft. No code change — the sentence that shipped was already right.
 
 ## O-8 — Detail page breadcrumb lives in the header · design · done (PR #57, 2026-09-10)
 
@@ -506,6 +519,33 @@ on first pass (`ANIMAL_NOT_AVAILABLE` and `SHELTER_NOT_VISIBLE` had no test at a
 fixed, two new cases added to `api.test.ts`'s `reveal` describe block. Full detail: the
 "Fixed, 2026-09-12" paragraph in `docs/decisions-pending-review.md`'s Summary section (that
 file has no dedicated `O-20` heading of its own — the fix is described inline there).
+
+## O-21 — The deck's `ensureSession` path can't tell offline from any other bootstrap failure · tooling · found, not fixed (2026-10-04)
+
+Filed by a reviewer round on the "useReveal: a genuine network failure is 'offline'" row
+(`docs/handoff-2026-10-04.md`'s finish-line block 1): that row fixed the detail page's
+`RevealFlow.tsx` (no `ensureSession` injected — `useReveal.ts` calls `session.bootstrap` itself
+and can inspect the real error), but the deck's own path (`SwipeDeck.tsx`, `ensureSession`
+injected from `use-feed-deck.ts`) still cannot. `ensureSession` collapses its result to a plain
+boolean with no error object for `useReveal.ts` to check `instanceof TypeError` against.
+
+**A real, reachable gap, not a theoretical one** — found by reading `use-feed-deck.ts` directly
+rather than trusting an earlier claim that the deck's exposure window was "materially smaller"
+than the detail page's (that claim was wrong and has been corrected in `useReveal.ts`'s own
+comment, not left standing). `SwipeDeck.tsx`'s `handleCommit` calls `openReveal` *before*
+`onSwipe`, so a first-ever right-swipe already triggers a bootstrap through this path; separately,
+`use-feed-deck.ts`'s `onSwipe` does not await `ensureSession` before advancing the deck, and a
+failed bootstrap there clears `sessionReadyRef` rather than caching anything useful. A device that
+loses its connection and then right-swipes gets the generic "Щось не спрацювало на нашому боці"
+copy instead of the honest "Зараз немає інтернету." — the same false claim R3's original
+`useReveal.ts` made about every error, now narrowed to one path instead of closed on both.
+
+What's needed to unblock: `ensureSession` (`use-feed-deck.ts`) returns a discriminated result
+carrying the failure's error (or at least an `"offline"` tag) instead of a plain boolean, and
+`useReveal.ts`'s two branches collapse into one that checks the same signal either way. A
+contract-shape decision (what `ensureSession`'s return type becomes, since `use-feed-deck.ts`'s
+own swipe-handling also reads its boolean today) worth settling before writing the fix, not a
+one-line patch.
 
 ---
 
