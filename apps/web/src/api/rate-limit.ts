@@ -119,26 +119,49 @@ export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: numbe
  * sharing one Upstash database) — `@upstash/ratelimit` already prefixes
  * every key with `@upstash/ratelimit` internally, and this adds one more
  * level specific to *which* limiter instance, not a workaround for a gap
- * in the library's own default. **Not yet namespaced by deploy target**
- * (Production vs. Preview) — see the STOP this row was returned with
- * (`docs/decisions-inbox/feat-rate-limiter-shared-store.md`, RL-3):
- * Production and Preview currently share one prefix, so Preview traffic
- * spends Production's own budget if they share one Upstash database.
+ * in the library's own default. `apiRateLimiter`, below, further
+ * namespaces by deploy target (Production vs. Preview) — RL-3
+ * (`docs/decisions-inbox/feat-rate-limiter-shared-store.md`), resolved:
+ * Oleksii accepted the recommendation of one Upstash database with two
+ * prefixes over two separate databases.
  *
- * **No error handling around `ratelimit.limit()` — a known, undecided gap,
- * not an oversight left standing.** Tier 1 review's highest-severity
- * finding: a real Upstash outage or a revoked/wrong token currently
- * surfaces as an uncaught rejection, which `proxy.ts`/`route.ts` do not
- * catch either, failing the whole request (effectively fail-closed, by
- * accident rather than by decision) — up to several seconds of added
- * latency first, from the SDK's own internal retries against a genuinely
- * down store. Deliberately **not** silently resolved with a try/catch here:
- * which way to fail (open, serving every request with no rate limiting at
- * all while the store is down, or closed, as today) is exactly the kind of
- * STOP-list decision ("a collision between an instruction and the code
- * that cannot be resolved without choosing") this row was returned with,
- * recorded as RL-1 — not a Tier 2 default to silently pick.
+ * **Fails closed on a store error or a slow store, with a bounded
+ * timeout — RL-1, resolved (Oleksii accepted the recommendation).** Two
+ * distinct failure shapes, found to need two distinct fixes by reading
+ * `@upstash/ratelimit`'s own source rather than assuming one fix covers
+ * both, and corrected once more by a second Tier 1 review round that
+ * exercised the real library against a real (if deliberately unreachable)
+ * endpoint rather than trusting the first round's reasoning about which
+ * shape goes where:
+ *   1. **An outright, fast failure** (DNS failure, connection refused, a
+ *      bad-auth response) — `ratelimit.limit()` *rejects*. The caller of
+ *      this function passes a `Redis` client built with `retry: { retries:
+ *      0 }` (`apiRateLimiter`, below) specifically so this is fast — the
+ *      client's own default (5 retries, exponential backoff) would
+ *      otherwise spend several seconds retrying a connection that's
+ *      already failed before this even reaches the `timeout` option below,
+ *      during which every *other* concurrent request fans out its own
+ *      retry storm against a store that's already down. Caught explicitly
+ *      below, logged for observability, and resolved to `false`.
+ *   2. **A genuinely slow, not-yet-failing request** — `@upstash/
+ *      ratelimit`'s own `timeout` option (default 5000ms, set to
+ *      `UPSTASH_CHECK_TIMEOUT_MS` below) races its own internal promise and
+ *      *resolves* `{ success: true, reason: "timeout" }` when it fires —
+ *      the library's own default behaviour is to **fail open** on a
+ *      timeout ("allow requests to pass... in case of network problems",
+ *      its own doc comment), the opposite of RL-1's decision. `reason ===
+ *      "timeout"` is checked explicitly below and overridden to `false`
+ *      (also logged — found missing by the second review round: a request
+ *      that resolves instead of rejecting was silently denied with no
+ *      observability at all, which is still a real degraded-service event
+ *      worth logging even though it isn't an outright error).
+ * Both paths resolve `false` (deny) rather than rejecting, so neither
+ * `proxy.ts` nor the `/api/rpc` route handler needs its own error
+ * handling for this — a limiter that can't reach its store denies by
+ * design now, not by an uncaught exception bubbling up as a 500.
  */
+const UPSTASH_CHECK_TIMEOUT_MS = 1_000;
+
 export function upstashRateLimiter(opts: {
   redis: Redis;
   windowMs: number;
@@ -150,12 +173,22 @@ export function upstashRateLimiter(opts: {
     redis: opts.redis,
     limiter: Ratelimit.slidingWindow(opts.maxRequests, `${windowSeconds} s`),
     prefix: opts.prefix,
+    timeout: UPSTASH_CHECK_TIMEOUT_MS,
   });
 
   return {
     async check(key: string, _now: Date): Promise<boolean> {
-      const result = await ratelimit.limit(key);
-      return result.success;
+      try {
+        const result = await ratelimit.limit(key);
+        if (result.reason === "timeout") {
+          console.error("apiRateLimiter: Upstash check timed out — failing closed (RL-1)");
+          return false;
+        }
+        return result.success;
+      } catch (err) {
+        console.error("apiRateLimiter: Upstash check failed — failing closed (RL-1)", err);
+        return false;
+      }
     },
   };
 }
@@ -163,29 +196,43 @@ export function upstashRateLimiter(opts: {
 /**
  * Default API rate limiter: 100 requests per minute per IP.
  *
- * **Upstash-backed whenever `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_
- * TOKEN` are both set — the in-memory fallback otherwise.** A plain
- * presence check at module scope, not `requireEnv` (which throws): this
- * module is imported from `apps/web/src/proxy.ts`, which Next.js evaluates
- * at build time to collect route metadata, same build-time-secret hazard
- * `env.ts`'s own `requireEnv` doc comment describes for route handlers —
- * a hard-required Upstash credential here would make `next build` itself
- * depend on a deployment secret. Local dev, CI, and the Playwright harness
- * have no Upstash credentials at all and fall back to the in-memory
- * limiter exactly as they did before this row; only a real deployment with
- * both variables set gets the shared store. `validateEnv()` (`env.ts`)
- * separately *requires* both variables on a real Vercel deployment —
- * Production **and Preview**, not "production" in the `NODE_ENV` sense —
- * at boot.
+ * **Upstash-backed whenever a URL/token pair is set — the in-memory
+ * fallback otherwise.** Reads `KV_REST_API_URL`/`KV_REST_API_TOKEN` first,
+ * falling back to `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` —
+ * **not a guess, confirmed against this project's own real Vercel
+ * provisioning**: connecting Upstash for Redis through Vercel's Storage
+ * marketplace integration (the path this project actually used) names the
+ * injected variables `KV_REST_API_URL`/`KV_REST_API_TOKEN` — Vercel's
+ * legacy "Vercel KV" naming, kept for backward compatibility with the
+ * `@vercel/kv` package, even though the underlying store is plain Upstash
+ * Redis. `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` (Upstash's own
+ * naming, and `Redis.fromEnv()`'s default) is kept as a fallback for
+ * whoever connects the store a different way (Upstash's own dashboard, a
+ * manually-set env var) — both name pairs point at the same kind of
+ * credential, just from two different provisioning paths.
+ *
+ * A plain presence check at module scope, not `requireEnv` (which throws):
+ * this module is imported from `apps/web/src/proxy.ts`, which Next.js
+ * evaluates at build time to collect route metadata, same build-time-secret
+ * hazard `env.ts`'s own `requireEnv` doc comment describes for route
+ * handlers — a hard-required Upstash credential here would make `next
+ * build` itself depend on a deployment secret. Local dev, CI, and the
+ * Playwright harness have no Upstash credentials at all and fall back to
+ * the in-memory limiter exactly as they did before this row; only a real
+ * deployment with a URL/token pair set gets the shared store.
+ * `validateEnv()` (`env.ts`) separately *requires* one of the two pairs on
+ * a real Vercel deployment — Production **and Preview**, not "production"
+ * in the `NODE_ENV` sense — at boot.
  *
  * **Correction, Tier 1 review:** that boot check only proves both variables
  * are *present*, not that they're *valid* — a revoked or mistyped token
- * passes `validateEnv()` cleanly and then fails at the first real request,
- * compounding with this file's own undecided error-handling gap (RL-1,
- * above `upstashRateLimiter`'s own comment). "Refuses to start" is
- * therefore true only for the missing-variable case, not the
- * wrong-variable one — a stronger claim than this schema check can
- * actually back, and a previous version of this comment overstated it.
+ * passes `validateEnv()` cleanly and then fails at the first real request.
+ * `upstashRateLimiter`'s own RL-1 handling (above) is what that first real
+ * request then falls back on: fails closed, bounded, and logged, rather
+ * than 500ing. "Refuses to start" is therefore true only for the
+ * missing-variable case, not the wrong-variable one — a stronger claim
+ * than this schema check can actually back, and a previous version of
+ * this comment overstated it.
  *
  * **Operational hazard, flagged by Tier 1 review:** `vercel env pull`
  * writes `VERCEL=1` into the local `.env.local` it generates, which `next
@@ -207,17 +254,79 @@ export function upstashRateLimiter(opts: {
  * not merely configured identically. The in-memory fallback still has the
  * old double-budget gap — unavoidable without a shared store, which is
  * exactly why dev/test never needed one before now.
+ *
+ * **Prefix includes `VERCEL_ENV` — RL-3, resolved (Oleksii accepted the
+ * recommendation of one Upstash database, two prefixes, over provisioning
+ * two separate databases).** RL-4 confirmed one database, connected to both
+ * Production and Preview — without this prefix, the two would share one
+ * Redis key per IP on that one database, meaning a preview-URL visitor
+ * (manual QA, the rehearsal, anyone poking at a preview deploy) spends the
+ * same budget a real adopter on Production does, and vice versa. Falls
+ * back to the literal string `"unknown"` rather than `undefined`
+ * (`Ratelimit`'s own `prefix` option is typed `string`, not optional) for
+ * the one path that can reach this line with `VERCEL_ENV` unset: a real
+ * Vercel deployment always sets it (Production, Preview, or Development),
+ * so `"unknown"` is reachable only if Vercel's own documented behaviour
+ * ever changed — a safe, inert fallback rather than a crash, not a
+ * realistic case this needs to handle gracefully for any other reason.
+ *
+ * **Picks a complete pair as a unit, never cross-matching fields from the
+ * two naming conventions — a real bug found by this file's own test
+ * suite, not merely a defensive guess.** An earlier version resolved the
+ * URL and token independently (`KV_URL || UPSTASH_URL`, `KV_TOKEN ||
+ * UPSTASH_TOKEN`), which meant a `KV_REST_API_URL` set alongside a
+ * (leftover, unrelated) `UPSTASH_REDIS_REST_TOKEN` silently produced a
+ * `Redis` client built from two different accounts' credentials — nonsense
+ * that would only surface as a mysterious auth failure against a real
+ * store. `env.ts`'s own `hasKvCredentials`/`hasUpstashCredentials` already
+ * required a complete, non-cross-matched pair; this now matches that same
+ * logic exactly rather than silently disagreeing with it.
+ *
+ * `||`, not `??`, within each pair's own fallback and for the `VERCEL_ENV`
+ * default — deliberately treats an empty string the same as unset. `??`
+ * only falls through on `null`/`undefined`, so a variable set to `""`
+ * (unusual, but not impossible from a misconfigured deployment script)
+ * would otherwise "win" and be treated as present-but-empty. Matches this
+ * file's own neighbour, `env.ts`'s `requireEnv`, which already treats
+ * `!value` (empty-string included) as missing.
+ *
+ * `retry: { retries: 0 }` on the `Redis` client itself — a second Tier 1
+ * review round's finding: `@upstash/redis`'s own default is 5 retries with
+ * exponential backoff, which during a genuine outage means every single
+ * incoming request fans out up to 6 attempts against a store that's
+ * already failing, and delays the moment a connection failure actually
+ * rejects well past `UPSTASH_CHECK_TIMEOUT_MS` — the 1-second bound RL-1
+ * exists to guarantee stops meaning much if the client itself spends
+ * several seconds retrying underneath it. With retries disabled, an
+ * outright failure (DNS, connection refused, bad auth) rejects fast and
+ * lands in `upstashRateLimiter`'s own `catch` — logged, exactly the
+ * observability RL-1 calls for — rather than silently racing the SDK's own
+ * `timeout` option to a close no one can see happen.
  */
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const KV_URL = process.env.KV_REST_API_URL;
+const KV_TOKEN = process.env.KV_REST_API_TOKEN;
+const UPSTASH_NATIVE_URL = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_NATIVE_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+const [RESOLVED_REDIS_URL, RESOLVED_REDIS_TOKEN]: [string, string] | [undefined, undefined] =
+  KV_URL && KV_TOKEN
+    ? [KV_URL, KV_TOKEN]
+    : UPSTASH_NATIVE_URL && UPSTASH_NATIVE_TOKEN
+      ? [UPSTASH_NATIVE_URL, UPSTASH_NATIVE_TOKEN]
+      : [undefined, undefined];
+const VERCEL_ENV = process.env.VERCEL_ENV || "unknown";
 
 export const apiRateLimiter: RateLimiter =
-  UPSTASH_URL && UPSTASH_TOKEN
+  RESOLVED_REDIS_URL && RESOLVED_REDIS_TOKEN
     ? upstashRateLimiter({
-        redis: new Redis({ url: UPSTASH_URL, token: UPSTASH_TOKEN }),
+        redis: new Redis({
+          url: RESOLVED_REDIS_URL,
+          token: RESOLVED_REDIS_TOKEN,
+          retry: { retries: 0 },
+        }),
         windowMs: 60_000,
         maxRequests: 100,
-        prefix: "opika-api-ratelimit",
+        prefix: `opika-api-ratelimit-${VERCEL_ENV}`,
       })
     : inMemoryRateLimiter({
         windowMs: 60_000,

@@ -109,12 +109,15 @@ export function requireEnv(name: string): string {
  * URL` set in Vercel (Production and Preview) *before* the first build
  * after this entry landed, not after. See `docs/h1-decisions.md`.
  *
- * `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` (Phase 3, block 4,
- * `docs/handoff-2026-10-04.md` §3) are **deliberately not in this schema** —
- * see `validateEnv()`'s own comment below for why they need a different
- * gate than `NODE_ENV === "production"` alone, and
- * `apps/web/src/api/rate-limit.ts`'s own doc comment for what happens when
- * they're missing (a silent, not a thrown, fallback).
+ * The Upstash rate-limiter credentials (Phase 3, block 4,
+ * `docs/handoff-2026-10-04.md` §3 — either `KV_REST_API_URL`/
+ * `KV_REST_API_TOKEN`, from Vercel's own Storage marketplace integration,
+ * or `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`, Upstash's own
+ * naming) are **deliberately not in this schema** — see `validateEnv()`'s
+ * own comment below for why they need a different gate than
+ * `NODE_ENV === "production"` alone, and `apps/web/src/api/rate-limit.ts`'s
+ * own doc comment for what happens when they're missing (a silent, not a
+ * thrown, fallback).
  */
 const RequiredProductionEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -194,14 +197,30 @@ export function validateEnv(): void {
    * without also demanding a live credential from every local `next
    * start`, including the harness's own.
    */
+  /**
+   * Two accepted name pairs, not one — see `rate-limit.ts`'s own
+   * `apiRateLimiter` comment for the full "why two naming conventions"
+   * account (confirmed against this project's real Vercel provisioning,
+   * not assumed). This check and that file's own pair-resolution read the
+   * identical two pairs in the identical preference order, deliberately
+   * kept in sync rather than each inventing its own account of the same
+   * fact.
+   */
+  const hasKvCredentials =
+    Boolean(process.env.KV_REST_API_URL) && Boolean(process.env.KV_REST_API_TOKEN);
+  const hasUpstashCredentials =
+    Boolean(process.env.UPSTASH_REDIS_REST_URL) && Boolean(process.env.UPSTASH_REDIS_REST_TOKEN);
+
   if (
     (process.env.VERCEL || process.env.VERCEL_ENV) &&
-    (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN)
+    !hasKvCredentials &&
+    !hasUpstashCredentials
   ) {
     throw new Error(
-      "Invalid or missing required environment variable(s): UPSTASH_REDIS_REST_URL and " +
-        "UPSTASH_REDIS_REST_TOKEN are both required on a real Vercel deployment — set them " +
-        "in Production and Preview before the next deploy.",
+      "Invalid or missing required environment variable(s): either KV_REST_API_URL + " +
+        "KV_REST_API_TOKEN (Vercel's Upstash integration) or UPSTASH_REDIS_REST_URL + " +
+        "UPSTASH_REDIS_REST_TOKEN (Upstash's own naming) must both be set on a real Vercel " +
+        "deployment — set them in Production and Preview before the next deploy.",
     );
   }
 }
