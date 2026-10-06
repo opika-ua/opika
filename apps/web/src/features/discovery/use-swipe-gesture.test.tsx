@@ -31,6 +31,24 @@ function pointerEvent(type: string, init: { clientX: number; button?: number }):
 }
 
 /**
+ * Stubs `matchMedia` so `prefers-reduced-motion: reduce` reads as matched.
+ * Caller must restore with `vi.unstubAllGlobals()` in a `finally`.
+ */
+function stubReducedMotion(): void {
+  const matchMedia = vi.fn((query: string) => ({
+    matches: query.includes("prefers-reduced-motion"),
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    onchange: null,
+    dispatchEvent: vi.fn(),
+  }));
+  vi.stubGlobal("matchMedia", matchMedia);
+}
+
+/**
  * Count pointer-listener registrations on a node from this moment on.
  *
  * Wraps the two DOM methods rather than using `vi.spyOn`, because the real
@@ -216,17 +234,7 @@ describe("swipe gesture commit path", () => {
    * snap-back string but not this one.
    */
   it("exits on opacity under prefers-reduced-motion, on the same fixed timeline", () => {
-    const matchMedia = vi.fn((query: string) => ({
-      matches: query.includes("prefers-reduced-motion"),
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      onchange: null,
-      dispatchEvent: vi.fn(),
-    }));
-    vi.stubGlobal("matchMedia", matchMedia);
+    stubReducedMotion();
 
     try {
       const card = mountCard({ onCommit: vi.fn() });
@@ -424,17 +432,7 @@ describe("swipe gesture commit path", () => {
    * found on review as the one `canCommit` path nothing else exercised.
    */
   it("refuses a commit via canCommit under prefers-reduced-motion — no animation, snaps back synchronously", () => {
-    const matchMedia = vi.fn((query: string) => ({
-      matches: query.includes("prefers-reduced-motion"),
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      onchange: null,
-      dispatchEvent: vi.fn(),
-    }));
-    vi.stubGlobal("matchMedia", matchMedia);
+    stubReducedMotion();
 
     try {
       const onCommit = vi.fn();
@@ -476,17 +474,7 @@ describe("swipe gesture commit path", () => {
    * animation during the fix-5 rewrite.
    */
   it("returns the card without animating it under prefers-reduced-motion", () => {
-    const matchMedia = vi.fn((query: string) => ({
-      matches: query.includes("prefers-reduced-motion"),
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      onchange: null,
-      dispatchEvent: vi.fn(),
-    }));
-    vi.stubGlobal("matchMedia", matchMedia);
+    stubReducedMotion();
 
     try {
       const onSnapBack = vi.fn();
