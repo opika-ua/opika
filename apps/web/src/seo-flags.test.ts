@@ -1,5 +1,15 @@
+import { PENDING_R4_2_ANALYTICS_SENTENCE } from "@opika/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { assertDemoDiscoverabilityInvariant, verificationSuffix } from "./seo-flags";
+import {
+  assertAnalyticsCopyMatchesGateState,
+  assertDemoDiscoverabilityInvariant,
+  verificationSuffix,
+} from "./seo-flags";
+
+const INCOMPLETE_ANALYTICS_COPY =
+  "Реєстр збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко " +
+  "працюють сторінки — без реклами.";
+const LANDED_ANALYTICS_COPY = `${INCOMPLETE_ANALYTICS_COPY} ${PENDING_R4_2_ANALYTICS_SENTENCE}`;
 
 /**
  * D-3's and D-2's tests both import `./app/layout` (for `metadata.robots`
@@ -179,6 +189,61 @@ describe("assertDemoDiscoverabilityInvariant", () => {
 
   it("defaults to the real constants — permits today's actual state, no real shelters and not discoverable", () => {
     expect(() => assertDemoDiscoverabilityInvariant()).not.toThrow();
+  });
+});
+
+/**
+ * R4-2's tripwire (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`):
+ * `uk.about.analytics` must carry `PENDING_R4_2_ANALYTICS_SENTENCE` exactly
+ * when `SITE_IS_PUBLICLY_DISCOVERABLE` is true, and must not carry it while
+ * that flag is false — two-sided, not one, because the sentence landing
+ * early is its own violation («одне кукі» would be false while the gate
+ * still exists), not just the sentence missing late. Matched against the
+ * real exported constant, not a hand-typed substring like "кукі" — a
+ * reworded or partially-landed sentence must still trip this.
+ *
+ * The real flag is `false` today, so both "today's actual state" cases
+ * below are deliberately the vacuous half of each direction — neither has
+ * anything to catch yet, because the condition each guards hasn't happened.
+ * The two throwing cases above them are what prove each direction actually
+ * fires once it does.
+ */
+describe("assertAnalyticsCopyMatchesGateState", () => {
+  it("throws when the site is publicly discoverable but the analytics copy still lacks R4-2's sentence", () => {
+    expect(() => assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY, true)).toThrowError(
+      /SITE_IS_PUBLICLY_DISCOVERABLE.*uk\.about\.analytics/s,
+    );
+  });
+
+  it("permits the site being discoverable once the copy carries R4-2's exact sentence", () => {
+    expect(() => assertAnalyticsCopyMatchesGateState(LANDED_ANALYTICS_COPY, true)).not.toThrow();
+  });
+
+  it("throws when R4-2's sentence has already landed but the site is not yet publicly discoverable", () => {
+    expect(() => assertAnalyticsCopyMatchesGateState(LANDED_ANALYTICS_COPY, false)).toThrowError(
+      /SITE_IS_PUBLICLY_DISCOVERABLE.*false/s,
+    );
+  });
+
+  it("does not match on a reworded or partial version of R4-2's sentence", () => {
+    const reworded = `${INCOMPLETE_ANALYTICS_COPY} Реєстр ставить кукі після дії.`;
+    expect(() => assertAnalyticsCopyMatchesGateState(reworded, true)).toThrowError(
+      /SITE_IS_PUBLICLY_DISCOVERABLE.*uk\.about\.analytics/s,
+    );
+  });
+
+  it("permits today's incomplete copy while the site is not yet discoverable — the pre-launch window", () => {
+    expect(() =>
+      assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY, false),
+    ).not.toThrow();
+  });
+
+  it("defaults to the real flag — permits today's actual, incomplete copy while still not discoverable", () => {
+    expect(() => assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY)).not.toThrow();
+  });
+
+  it("defaults to the real copy and the real flag — today's actual state on both", () => {
+    expect(() => assertAnalyticsCopyMatchesGateState()).not.toThrow();
   });
 });
 

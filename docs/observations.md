@@ -684,10 +684,17 @@ moving independently, which Oleksii flagged as still open), whatever reads this 
 purpose needs to move to the new signal instead, not keep reading the wrong one by habit.
 
 **Condition 2: a tripwire, since copy that's merely incomplete (not false) earns no
-`[COPY_PENDING]` marker and would otherwise go unnoticed.** Required before this is considered
-resolved; landing in its own follow-up commit, separate from R4-1's. Cost acknowledged in the
-meantime: R4-2 doesn't go live until gate removal, which could be a while given "finish first,
-then demo" (Decision 1).
+`[COPY_PENDING]` marker and would otherwise go unnoticed. Landed, 2026-10-06, separate commit
+from R4-1's.** `apps/web/src/seo-flags.ts`'s `assertAnalyticsCopyMatchesGateState` (test-time
+only, not wired into the production boot check the way `assertDemoDiscoverabilityInvariant` is —
+a missing sentence shouldn't be able to take a boot down the way indexing fictional data would)
+throws if `SITE_IS_PUBLICLY_DISCOVERABLE` is `true` while `uk.about.analytics` still doesn't
+mention cookies. Mutation-tested against the real constants, not just hand-built test strings:
+flipping the real flag to `true` without landing R4-2 makes the "defaults to the real copy and
+the real flag" test in `seo-flags.test.ts` fail with the exact invariant message; reverted after
+confirming. Cost acknowledged in the meantime: R4-2 doesn't go live until gate removal, which
+could be a while given "finish first, then demo" (Decision 1) — the tripwire exists so that wait
+can't turn into a silent miss.
 
 **Falsified by** (recorded now so the sentence doesn't go stale silently later): any new cookie
 set on the adopter side; `session.bootstrap` being called before a user action rather than only
