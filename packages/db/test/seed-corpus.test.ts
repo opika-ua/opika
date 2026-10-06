@@ -40,6 +40,35 @@ describe("seed corpus — D-4 hostile cases", () => {
       expect(match).toBeDefined();
     });
 
+    /**
+     * D-6 (`docs/build-plan.md`) + O-10/critique-C6: the six-photo animal's
+     * own photos are real CC0 photographs at deliberately awkward aspect
+     * ratios (`apps/web/public/seed-photos/d6-real/`), not the regular
+     * cycling placeholder pool — this is what gives the detail page's photo
+     * gallery something genuinely ratio-varied to render, rather than 9
+     * same-ish placeholders that never stressed `object-fit: cover`.
+     */
+    it("the six-photo animal's photos are the real D-6 set, not the regular placeholder pool", () => {
+      const match = animals.find((a) => a.photos.length === 6);
+      if (!match) throw new Error("expected an animal with six photos (asserted above)");
+
+      for (const photo of match.photos) {
+        expect(photo.storageKey).toMatch(/^seed-photos\/d6-real\//);
+      }
+
+      // Real, measured aspect-ratio variance — not four copies of the same
+      // box. Four distinct images cycled to fill 6 slots (same accepted
+      // duplicate-photo shape this index already had before D-6).
+      const ratios = new Set(match.photos.map((p) => (p.width / p.height).toFixed(3)));
+      expect(ratios.size).toBe(4);
+
+      // At least one portrait (<1) and one landscape (>1) ratio — the
+      // actual shape critique C6 asks about, not just "four numbers differ."
+      const ratioValues = match.photos.map((p) => p.width / p.height);
+      expect(ratioValues.some((r) => r < 1)).toBe(true);
+      expect(ratioValues.some((r) => r > 1)).toBe(true);
+    });
+
     it("has at least one animal with a minimal, non-pool description", () => {
       const match = animals.find((a) => a.description.uk === "Опис відсутній.");
       expect(match).toBeDefined();

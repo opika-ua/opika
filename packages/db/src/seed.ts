@@ -231,6 +231,40 @@ const CAT_PHOTOS: AnimalPhoto[] = [
 ];
 
 /**
+ * D-6 (docs/build-plan.md) — real CC0 photographs at deliberately awkward
+ * aspect ratios, dog-only (see `SIX_PHOTO_INDEX`'s own comment below for
+ * why only the dog slots of the original 6-candidate set are used here).
+ * Full provenance: `apps/web/public/seed-photos/d6-real/SOURCES.md`.
+ * Dimensions are each file's real, measured values, not estimated.
+ */
+const D6_REAL_DOG_PHOTOS: AnimalPhoto[] = [
+  {
+    storageKey: "seed-photos/d6-real/dog-tall-9x16-sugarbelle.jpg",
+    width: 665,
+    height: 1182,
+    alt: null,
+  },
+  {
+    storageKey: "seed-photos/d6-real/dogs-wide-16x9-bulldogs-lifejackets.jpg",
+    width: 3999,
+    height: 2249,
+    alt: null,
+  },
+  {
+    storageKey: "seed-photos/d6-real/dog-small-400px-joydogs.jpg",
+    width: 393,
+    height: 387,
+    alt: null,
+  },
+  {
+    storageKey: "seed-photos/d6-real/dog-large-4000px-chihuahua.jpg",
+    width: 3000,
+    height: 4000,
+    alt: null,
+  },
+];
+
+/**
  * `animalIndex`, not a random pick — the same animal gets the same photo
  * set on every seed run, so a harness screenshot or a manually-reviewed
  * page doesn't reshuffle out from under whoever's looking at it between
@@ -241,6 +275,14 @@ const CAT_PHOTOS: AnimalPhoto[] = [
 function makePhotos(species: AnimalSpecies, animalIndex: number, count: number): AnimalPhoto[] {
   const pool = species === "dog" ? DOG_PHOTOS : CAT_PHOTOS;
   return Array.from({ length: count }, (_, i) => pool[(animalIndex + i) % pool.length]!);
+}
+
+/** `SIX_PHOTO_INDEX`'s own photo set — see that constant's comment. */
+function makeD6Photos(count: number): AnimalPhoto[] {
+  return Array.from(
+    { length: count },
+    (_, i) => D6_REAL_DOG_PHOTOS[i % D6_REAL_DOG_PHOTOS.length]!,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -834,11 +876,14 @@ const DESCRIPTIONS_EN: { text: string; provenance: "human" | "machine" }[] = [
  * this row; the point here is that *published* animals need to survive
  * having 0 or 6 photos too, which nothing in the corpus had ever produced.
  *
- * `SIX_PHOTO_INDEX`'s animal is a dog (`i % 3 !== 0`) and `DOG_PHOTOS` has
- * only 5 entries, so `makePhotos` cycles and one photo repeats — this card
- * is a duplicate-photo case as well as a six-photo one, not by separate
- * design. Real shelters upload duplicates too, so left as-is rather than
- * padding the pool to manufacture six genuinely distinct images.
+ * `SIX_PHOTO_INDEX`'s animal is a dog (`i % 3 !== 0`). **Its photos are no
+ * longer `makePhotos`'s regular cycling pool** — D-6 (`docs/build-plan.md`)
+ * gives it `makeD6Photos` instead: 4 real, distinct CC0 photographs at
+ * deliberately awkward aspect ratios, cycled to 6 (the 4th and 5th slots
+ * repeat the first two). Still a duplicate-photo case, same as before this
+ * change, just with real images instead of the regular placeholder pool —
+ * real shelters upload duplicates too, so this wasn't "fixed" into six
+ * genuinely distinct images, only upgraded from placeholder to real.
  */
 const ZERO_PHOTO_PUBLISHED_INDEX = 40;
 const SIX_PHOTO_INDEX = 41;
@@ -1044,7 +1089,21 @@ export function buildAnimals(
             ? 6
             : 1 + (i % 5);
     const id = animalId(i);
-    const photos = makePhotos(species, i, photoCount);
+    // D-6 (docs/build-plan.md) + O-10/critique-C6: `SIX_PHOTO_INDEX`'s own
+    // photos are real CC0 Commons photographs at deliberately awkward
+    // aspect ratios (9:16, 16:9, EXIF-rotated, ~400px, ~4000px — see
+    // `apps/web/public/seed-photos/d6-real/SOURCES.md`) instead of the
+    // regular cycling pool, so the detail page's photo gallery has one
+    // deterministic, findable-by-query animal whose crop behaviour is
+    // actually exercised against real variance rather than 9 same-ish
+    // placeholders. Dog-only, matching this index's own species (comment
+    // above) — the pool's two cat photos aren't used here, not because they
+    // need stripping out of the repo, just because a dog's own listing
+    // showing a cat photo would be a real content mismatch, not a stress
+    // test. Four distinct images cycled to 6, same accepted
+    // duplicate-photo shape this index already had before this row.
+    const photos =
+      i === SIX_PHOTO_INDEX ? makeD6Photos(photoCount) : makePhotos(species, i, photoCount);
 
     // Foster: ~10% of animals are fostered in a different city
     const isFostered = i % 10 === 3;

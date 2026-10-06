@@ -287,6 +287,18 @@ export const uk = {
       body: "Тварину вже забрали з реєстру, або посилання застаріле. Це не помилка — просто картки тут більше немає.",
       action: "Усі тварини",
     },
+    /**
+     * O-10 (`docs/observations.md`) + critique C6 — new accessibility copy
+     * for the photo gallery's dot indicator (mobile) and thumbnail strip
+     * (desktop), neither of which existed as interactive elements before.
+     * `[COPY_PENDING]`-prefixed per this repo's own mechanism
+     * (`packages/i18n/src/copy-status.ts`) — proposed English sense only,
+     * not approved Ukrainian; flagged in the decisions inbox rather than
+     * invented here. `{n}` is the photo's 1-based position.
+     */
+    photoGalleryLabel: `${COPY_PENDING} "Photo gallery" (role="tablist" aria-label)`,
+    photoGalleryDot: `${COPY_PENDING} "Photo {n}" (dot button aria-label)`,
+    photoGalleryThumbnail: `${COPY_PENDING} "View photo {n}" (thumbnail button aria-label)`,
   },
 
   // --- Contact reveal (05) ---
