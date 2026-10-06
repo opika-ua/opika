@@ -454,10 +454,16 @@ function ActionButton({
 
 function LoadingState() {
   return (
-    <div className="flex-1 flex items-center justify-center font-sans text-sm leading-[normal] text-ink-3">
+    <div className="flex-1 flex items-center justify-center font-rg text-sm leading-[normal] text-rg-ink-3">
       {/* Simple loading indicator. 0.8s, not Tailwind's built-in 1s
-          `animate-spin` — see `--animate-spin-fast` in globals.css. */}
-      <div className="size-6 rounded-full border-2 border-line-strong border-t-leaf animate-spin-fast" />
+          `animate-spin` — see `--animate-spin-fast` in globals.css. Track
+          and fill reuse `DeckScreen`'s own progress-bar pair (`rg-fill-
+          strong` / `rg-ink`) rather than `rg-registry` — that blue is a
+          reserved meaning ("confirmed by the state registry",
+          `docs/standing-constraints.md`'s commitment #7), not a generic
+          accent, so a plain loading spinner doesn't borrow it
+          (DLE-2, `docs/decisions-inbox/feat-deck-loading-error-v2.md`). */}
+      <div className="size-6 rounded-full border-2 border-rg-fill-strong border-t-rg-ink animate-spin-fast" />
     </div>
   );
 }
@@ -479,27 +485,35 @@ function ErrorState({
   // value and not Tailwind Preflight's inherited `line-height: 1.5` either
   // — see the longer note by SwipeCard's shelter-line spans. Title keeps its
   // explicit 24.65px pairing; that one was pinned in the original too.
+  //
+  // V2 re-skin (block 6, `docs/handoff-2026-10-04.md` §3): this state had no
+  // dedicated mock frame, so the token mapping below is synthesised from the
+  // gallery's own already-migrated, already-reviewed equivalent —
+  // `apps/web/src/app/tvaryny/error.tsx`'s whole-list error card — rather
+  // than invented fresh (`docs/standing-constraints.md`'s "when no mock
+  // exists, the prose is the spec" + the general V2 token rules in
+  // globals.css). One deliberate divergence from that reference, recorded as
+  // a Tier 2 decision (DLE-1, `docs/decisions-inbox/feat-deck-loading-error-
+  // v2.md`): the gallery's error card
+  // pairs a filled primary retry with a separate text-link secondary action;
+  // the deck's error state only ever has the one action, so retry takes the
+  // primary (`bg-rg-ink`/`text-rg-surface`) treatment on its own rather than
+  // the old near-invisible-against-its-own-card secondary look.
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-group p-section">
-      <div className="bg-paper rounded-card border border-line-strong p-group flex flex-col gap-row w-full max-w-89.5">
-        {/* font-sans, not font-mono: IBM Plex Mono was measured and
-            dropped for costing 11.2% of the page's font payload to style
-            one label on a screen most sessions never see — see fonts.ts.
-            tracking-[0.12em] carries the "eyebrow" identity on its own;
-            the source string is already uppercase. */}
-        <div className="font-sans text-[11px] leading-[normal] tracking-[0.12em] text-ink-3 font-medium">
+    <div className="flex-1 flex flex-col items-center justify-center gap-group p-section font-rg">
+      <div className="bg-rg-surface rounded-rg-card p-group flex flex-col gap-row w-full max-w-89.5">
+        {/* tracking-[0.12em] carries the "eyebrow" identity on its own; the
+            source string is already uppercase. */}
+        <div className="text-[11px] leading-[normal] tracking-[0.12em] text-rg-ink-3 font-medium">
           {copy.eyebrow}
         </div>
-        <div className="font-serif text-[17px]/[24.65px] text-ink">{copy.title}</div>
+        <div className="text-[17px]/[24.65px] text-rg-ink">{copy.title}</div>
         {"body" in copy && (
-          <div className="font-sans text-[13px] leading-[normal] text-ink-2">{copy.body}</div>
+          <div className="text-[13px] leading-[normal] text-rg-ink-2">{copy.body}</div>
         )}
         {/*
-          Two fixes on the retry button below, and one thing deliberately left
-          alone.
-
-          Fixed: 48px, not 44 (README:200), and a real focus-visible ring —
-          this button previously had *no* focus styling at all, which
+          48px, not 44 (README:200), and a real focus-visible ring — this
+          button previously had *no* focus styling at all, which
           `docs/standing-constraints.md`'s "an interactive element ships with
           its focus-visible styling and a test" rules out outright. A keyboard
           user reaching the retry on a failed deck had no way to see where they
@@ -507,23 +521,17 @@ function ErrorState({
           `discovery-layout.harness.ts`'s "/tvaryny/gortaty error state",
           which reaches this state by refusing the deck's own `feed.list`
           request — the state had no harness coverage of any kind before, which
-          is how a 44px target with no focus ring survived every gate.
-
-          NOT fixed, reported instead: every other token on this element is
-          pre-V2 (`rounded-button`, `border-line-strong`, `bg-paper`,
-          `text-ink-2`, `mt-row`) where the rest of the app uses `rg-*`. That is
-          a visual migration this state never got, not a touch-target or a11y
-          defect, and restyling it silently inside Phase D would be a design
-          change wearing a bug-fix label. The ring uses `rg-registry`
-          regardless, because that is the ring every other focusable element in
-          the app has and the one the harness asserts against.
+          is how a 44px target with no focus ring survived every gate. The
+          ring is `rg-registry` because that is the ring every other
+          focusable element in the app has and the one the harness asserts
+          against — not a claim this button is itself registry-related.
         */}
         {onRetry && (
           <button
             type="button"
             onClick={onRetry}
             data-testid="deck-error-retry"
-            className="min-h-12 rounded-button border border-line-strong bg-paper font-sans text-sm leading-[normal] text-ink-2 cursor-pointer mt-row focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+            className="min-h-12 rounded-rg-button bg-rg-ink text-rg-surface text-sm font-medium leading-[normal] cursor-pointer mt-row focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
           >
             {copy.action}
           </button>
