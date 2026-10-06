@@ -236,6 +236,20 @@ const CAT_PHOTOS: AnimalPhoto[] = [
  * why only the dog slots of the original 6-candidate set are used here).
  * Full provenance: `apps/web/public/seed-photos/d6-real/SOURCES.md`.
  * Dimensions are each file's real, measured values, not estimated.
+ *
+ * **Order matters, not just membership.** `DetailPhotoGallery.tsx` caps its
+ * gallery at 3 photos (the mock's own fixed count), and `makeD6Photos` below
+ * always starts cycling at index 0 regardless of which animal it's building
+ * for — so whichever 3 of these 4 sit first are the *only* 3 a site visitor
+ * can ever actually see through that gallery; the 4th exists in
+ * `animal.photos` but is structurally unreachable there. Found on review,
+ * 2026-10-06: the original order put the small, near-square photo ahead of
+ * the large one, silently hiding the large-pixel-dimension stress case
+ * entirely. Ordered here as tall / wide / large — the two most extreme
+ * aspect ratios plus the largest real pixel dimensions — with the
+ * near-square small photo deliberately last, since it's the least
+ * ratio-distinct of the four and the one most redundant with the regular
+ * `DOG_PHOTOS` pool's own near-square entries.
  */
 const D6_REAL_DOG_PHOTOS: AnimalPhoto[] = [
   {
@@ -251,15 +265,15 @@ const D6_REAL_DOG_PHOTOS: AnimalPhoto[] = [
     alt: null,
   },
   {
-    storageKey: "seed-photos/d6-real/dog-small-400px-joydogs.jpg",
-    width: 393,
-    height: 387,
-    alt: null,
-  },
-  {
     storageKey: "seed-photos/d6-real/dog-large-4000px-chihuahua.jpg",
     width: 3000,
     height: 4000,
+    alt: null,
+  },
+  {
+    storageKey: "seed-photos/d6-real/dog-small-400px-joydogs.jpg",
+    width: 393,
+    height: 387,
     alt: null,
   },
 ];
@@ -1104,6 +1118,18 @@ export function buildAnimals(
     // content mismatch, not a stress test. Four distinct images cycled to 6,
     // same accepted duplicate-photo shape this index already had before this
     // row.
+    //
+    // **Only 3 of these 4 are ever visible through the gallery itself**
+    // (`DetailPhotoGallery.tsx` caps at 3, the mock's own fixed count) — the
+    // small near-square photo is deliberately ordered last in
+    // `D6_REAL_DOG_PHOTOS` so the two most extreme ratios (tall, wide) and
+    // the largest pixel dimensions (large) are the three a visitor actually
+    // sees; see that array's own comment for why. Not a workaround for a
+    // gap — a real, accepted limit of showing 6 cycled photos through a
+    // 3-photo-capped gallery, the same structural fact D6-2
+    // (`docs/decisions-inbox/feat-d-6-detail-photo-gallery.md`) records for
+    // any animal with more than 3 photos, which today is ~40% of the
+    // published corpus, not a rare edge case.
     const photos =
       i === SIX_PHOTO_INDEX ? makeD6Photos(photoCount) : makePhotos(species, i, photoCount);
 

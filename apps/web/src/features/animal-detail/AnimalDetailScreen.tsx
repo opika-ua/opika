@@ -164,24 +164,7 @@ export function AnimalDetailScreen({
       <div className="desktop:max-w-[1200px] desktop:mx-auto p-4 tablet:p-6 desktop:py-10 desktop:px-8 desktop:flex desktop:gap-10 desktop:items-start">
         {/* Photo column — sticky on desktop, fixed-height strip on mobile. */}
         <div className="desktop:w-[560px] desktop:flex-none desktop:sticky desktop:top-10 flex flex-col gap-2">
-          <DetailPhotoGallery
-            photos={animal.photos}
-            altFallback={animal.name}
-            pipsOverlay={
-              /* Freshness pips overlay the photo on mobile only — desktop shows the freshness block below the name instead. */
-              <div
-                aria-hidden="true"
-                className="desktop:hidden absolute right-4 bottom-4 flex gap-1.5"
-              >
-                {fills.map((fill, i) => (
-                  <div
-                    key={i}
-                    className={`size-2 rounded-full ${fill === "empty" ? "bg-transparent border-[1.5px] border-rg-ink-3" : fill}`}
-                  />
-                ))}
-              </div>
-            }
-          />
+          <DetailPhotoGallery photos={animal.photos} altFallback={animal.name} />
         </div>
 
         {/* Content column */}
@@ -196,7 +179,18 @@ export function AnimalDetailScreen({
             <span className="text-[15px]/[22px] text-rg-ink-2">{subtitle}</span>
           </div>
 
-          {/* Freshness quote block — hidden on mobile above the fold since the photo overlay already shows pips; shown here on desktop, and on mobile below the name (design allows the block to repeat once the pips already appeared on the photo). */}
+          {/*
+            Freshness quote block — a separate card below the name, on both
+            mobile and desktop, matching the mock's D1 (1920) and D2 (360)
+            frames exactly: neither ever overlays freshness on the photo.
+            An earlier version of this screen also overlaid a redundant
+            freshness-pips-only cluster on the mobile photo (duplicating
+            this block's own pips for no reason, and incidentally occupying
+            the mock's actual photo-dot-indicator corner) — removed when
+            `DetailPhotoGallery.tsx`'s real dot indicator needed that corner
+            for what the mock actually puts there. See O-22,
+            `docs/observations.md`, for the full account.
+          */}
           <div
             data-testid="freshness-block"
             className="bg-rg-fill rounded-rg-button p-4 flex flex-col gap-2"

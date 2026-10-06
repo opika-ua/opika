@@ -554,29 +554,30 @@ contract-shape decision (what `ensureSession`'s return type becomes, since `use-
 own swipe-handling also reads its boolean today) worth settling before writing the fix, not a
 one-line patch.
 
-## O-22 — The mock's mobile photo-dot indicator sits where the freshness pips already overlay · design · found, not fixed (2026-10-06)
+## O-22 — The mock's mobile photo-dot indicator sits where a redundant freshness overlay used to collide with it · design · done (2026-10-06)
 
-Filed by a reviewer round on O-10/C6's photo gallery (`feat/d-6-detail-photo-gallery`). The
-mock's own D2 frame (`docs/design/Opika Registry Frames.dc.html`, opened directly — not taken
-from the design doc's prose, which an earlier version of this component had wrongly done)
-puts the photo's own navigation dots at the photo box's bottom-right corner — the exact
-position `AnimalDetailScreen.tsx`'s pre-existing (out of this row's scope) freshness-pips
-overlay already occupies on mobile.
+Filed by a reviewer round on O-10/C6's photo gallery (`feat/d-6-detail-photo-gallery`), then
+corrected and fixed by a second review round the same day. The mock's own D1/D2 frames
+(`docs/design/Opika Registry Frames.dc.html`, opened directly — not taken from the design
+doc's prose) put the photo's own navigation dots at the photo box's bottom-right corner on
+mobile (D2: `right: 16px; bottom: 16px`), with the freshness block always a *separate* card
+below the title in both frames — never overlaid on the photo, on mobile or desktop.
 
-In the mock, this isn't a collision: the mock's mobile freshness block is a separate `#F2F2F0`
-card *below* the photo, never overlaid on it at all — same position as desktop. The codebase's
-mobile freshness-pips-on-photo overlay is itself a pre-existing deviation from the mock that
-predates this row, found only because building the new dot indicator correctly required
-reading the same frame the freshness block should also have been built from.
+**Round 1's diagnosis was wrong about what was colliding.** It assumed `AnimalDetailScreen
+.tsx`'s mobile freshness display and the mock's photo-dot corner were two different,
+legitimate things fighting over one position, and shipped the gallery's new dot indicator at
+bottom-*centre* to avoid that fight rather than resolve it. In fact the real, full freshness
+block (pips + sentence + attribution) already rendered below the title on mobile exactly as
+the mock specifies — what sat on the photo was a second, purely decorative cluster of the
+*same three pips with no text*, duplicating information the real block already showed one
+screen-width below. It existed only because an earlier version of this screen (predating
+this row) put it there, not because the mock called for it anywhere.
 
-**Not fixed here** — moving the freshness block off the photo on mobile is a layout change to
-a different, already-shipped surface, not something O-10/C6's gallery row owns. `DetailPhotoGallery.tsx`'s
-new dot indicator is placed bottom-*centre* instead of the mock's bottom-right, a deliberate,
-documented deviation from the mock's exact position rather than a second overlay colliding with
-the first. Whoever picks up the freshness-pips placement should move both elements to the
-mock's actual positions in one pass — the mobile freshness card to below the photo, and this
-gallery's dots can then move to match the mock's bottom-right position once nothing else sits
-there.
+**Fixed, round 2:** the redundant mini-pips overlay was deleted outright (no information
+lost — the real freshness block alone was always sufficient), and `DetailPhotoGallery.tsx`'s
+dot indicator moved into the corner the mock actually specifies (`right-4 bottom-4`), since
+nothing now competes for it. `AnimalDetailScreen.tsx` no longer passes any overlay prop to
+the gallery at all.
 
 ---
 

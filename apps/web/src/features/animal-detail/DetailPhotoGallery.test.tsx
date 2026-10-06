@@ -11,12 +11,12 @@ const THREE_PHOTOS = [photo("/a.jpg"), photo("/b.jpg"), photo("/c.jpg")];
 
 describe("DetailPhotoGallery", () => {
   it("shows the first photo active, with all three photos as clickable thumbnails", () => {
-    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" pipsOverlay={null} />);
+    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
 
     const main = within(screen.getByTestId("detail-photo")).getByRole("img");
     expect(main.getAttribute("src")).toContain(encodeURIComponent("/a.jpg"));
 
-    // All three, not "the other two" — the mock's own D2 frame shows the
+    // All three, not "the other two" — the mock's own D1 frame shows the
     // active photo *inside* the thumbnail strip, ringed, not excluded from it.
     const thumbnails = screen.getAllByTestId("detail-photo-thumbnail");
     expect(thumbnails).toHaveLength(3);
@@ -25,7 +25,7 @@ describe("DetailPhotoGallery", () => {
   });
 
   it("clicking a thumbnail makes it the active photo — it stays in the strip, ringed, rather than swapping out", () => {
-    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" pipsOverlay={null} />);
+    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
 
     const thumbnails = screen.getAllByTestId("detail-photo-thumbnail");
     const second = thumbnails[1];
@@ -47,7 +47,7 @@ describe("DetailPhotoGallery", () => {
   });
 
   it("clicking a dot activates the same photo a thumbnail click would, on mobile", () => {
-    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" pipsOverlay={null} />);
+    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
 
     const dots = screen.getAllByTestId("detail-photo-dot");
     expect(dots).toHaveLength(3);
@@ -62,13 +62,7 @@ describe("DetailPhotoGallery", () => {
   });
 
   it("caps at 3 photos — a 4th never becomes a thumbnail, dot, or reachable active photo", () => {
-    render(
-      <DetailPhotoGallery
-        photos={[...THREE_PHOTOS, photo("/d.jpg")]}
-        altFallback="Мурчик"
-        pipsOverlay={null}
-      />,
-    );
+    render(<DetailPhotoGallery photos={[...THREE_PHOTOS, photo("/d.jpg")]} altFallback="Мурчик" />);
 
     expect(screen.getAllByTestId("detail-photo-thumbnail")).toHaveLength(3);
     expect(screen.getAllByTestId("detail-photo-dot")).toHaveLength(3);
@@ -79,9 +73,7 @@ describe("DetailPhotoGallery", () => {
   });
 
   it("renders no dots or thumbnails for a single-photo animal", () => {
-    render(
-      <DetailPhotoGallery photos={[photo("/only.jpg")]} altFallback="Мурчик" pipsOverlay={null} />,
-    );
+    render(<DetailPhotoGallery photos={[photo("/only.jpg")]} altFallback="Мурчик" />);
 
     expect(screen.queryByTestId("detail-photo-dot")).toBeNull();
     expect(screen.queryByTestId("detail-photo-thumbnail")).toBeNull();
@@ -89,26 +81,9 @@ describe("DetailPhotoGallery", () => {
   });
 
   it("renders nothing in the photo box for an animal with no photos at all, without throwing", () => {
-    render(<DetailPhotoGallery photos={[]} altFallback="Мурчик" pipsOverlay={null} />);
+    render(<DetailPhotoGallery photos={[]} altFallback="Мурчик" />);
 
     expect(screen.queryByRole("img")).toBeNull();
     expect(screen.getByTestId("detail-photo")).toBeTruthy();
-  });
-
-  it("renders the caller's pips overlay as a sibling, unaffected by which photo is active", () => {
-    render(
-      <DetailPhotoGallery
-        photos={THREE_PHOTOS}
-        altFallback="Мурчик"
-        pipsOverlay={<span data-testid="pips-stub">pips</span>}
-      />,
-    );
-
-    expect(screen.getByTestId("pips-stub")).toBeTruthy();
-    const thumbnails = screen.getAllByTestId("detail-photo-thumbnail");
-    const firstThumb = thumbnails[0];
-    if (!firstThumb) throw new Error("expected a thumbnail");
-    fireEvent.click(firstThumb);
-    expect(screen.getByTestId("pips-stub")).toBeTruthy();
   });
 });
