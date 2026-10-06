@@ -191,6 +191,39 @@ describe("swipe gesture commit path", () => {
     expect(onCommit).toHaveBeenCalledWith("left");
   });
 
+  /**
+   * G4 (`docs/handoff-2026-10-04.md` §3 block 6): the exit is a real design
+   * value on a fixed timeline — `docs/design/README.md`'s "Exit 280ms" via
+   * `cubic-bezier(0.3, 0, 0, 1)` — distinct from the spring-back curve below.
+   * Pins the 300ms→280ms frame correction and guards the easing split: a
+   * future edit (including the Opus spring-physics follow-up) that
+   * accidentally reuses the spring's curve on this path, or the exit's curve
+   * on the spring path, must fail here.
+   */
+  it("exits on the design's fixed 280ms timeline, not the spring-back curve", () => {
+    const card = mountCard({ onCommit: vi.fn() });
+
+    drag(card, 150); // past the 88px commit distance
+
+    expect(card.style.transition).toBe("transform 280ms cubic-bezier(0.3, 0, 0, 1)");
+  });
+
+  /**
+   * The spring-back path is explicitly NOT part of G4's safe sub-portion
+   * (docs/model-policy.md assigns gesture physics to Opus) — this pins its
+   * pre-existing, unchanged approximation so the boundary between "touched
+   * by G4" and "deferred to Opus" stays visible in a test, not just a
+   * comment.
+   */
+  it("snaps back on the pre-existing spring-back approximation, unchanged by G4", () => {
+    const onSnapBack = vi.fn();
+    const card = mountCard({ onCommit: vi.fn(), onSnapBack });
+
+    drag(card, 20); // short of the commit threshold
+
+    expect(card.style.transition).toBe("transform 300ms cubic-bezier(0.16, 1, 0.3, 1)");
+  });
+
   /** Belt and braces must not double-fire: one swipe is one swipe. */
   it("commits exactly once when both transitionend and the fallback would fire", () => {
     const onCommit = vi.fn();
@@ -235,7 +268,7 @@ describe("swipe gesture commit path", () => {
 
     drag(card, 150);
     act(() => {
-      vi.advanceTimersByTime(50); // 50ms into the 300ms exit, still under the finger
+      vi.advanceTimersByTime(50); // 50ms into the 280ms exit, still under the finger
     });
     act(() => {
       card.dispatchEvent(pointerEvent("pointerdown", { clientX: 150 }));
@@ -433,6 +466,10 @@ describe("swipe gesture commit path", () => {
         card.style.transition,
         "reduced motion must not put a transition on transform — the stack does not move",
       ).not.toContain("transform");
+      // G4: reduced motion bypasses the spring entirely, so this gets the
+      // same fixed-timeline "quick" easing as the exit path, not the
+      // spring-back approximation's curve.
+      expect(card.style.transition).toBe("opacity 120ms cubic-bezier(0.3, 0, 0, 1)");
       expect(card.style.transform).toBe("translate3d(0, 0, 0) rotate(0deg)");
       // Nothing is animating, so there is nothing to wait for.
       expect(onSnapBack).toHaveBeenCalledTimes(1);
