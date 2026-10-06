@@ -108,6 +108,13 @@ export function requireEnv(name: string): string {
  * never take the site down), this one needed `NEXT_PUBLIC_R2_PUBLIC_BASE_
  * URL` set in Vercel (Production and Preview) *before* the first build
  * after this entry landed, not after. See `docs/h1-decisions.md`.
+ *
+ * `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` (Phase 3, block 4,
+ * `docs/handoff-2026-10-04.md` §3) are **deliberately not in this schema** —
+ * see `validateEnv()`'s own comment below for why they need a different
+ * gate than `NODE_ENV === "production"` alone, and
+ * `apps/web/src/api/rate-limit.ts`'s own doc comment for what happens when
+ * they're missing (a silent, not a thrown, fallback).
  */
 const RequiredProductionEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -158,5 +165,43 @@ export function validateEnv(): void {
      */
     const messages = result.error.issues.map((issue) => issue.message).join("; ");
     throw new Error(`Invalid or missing required environment variable(s): ${messages}`);
+  }
+
+  /**
+   * Phase 3, block 4 (`docs/handoff-2026-10-04.md` §3) — gated on
+   * `process.env.VERCEL`/`VERCEL_ENV` (`next.config.ts`'s own established
+   * pattern for this exact class of problem, checked here rather than
+   * reused only for symmetry), **not** folded into
+   * `RequiredProductionEnvSchema` above. `NODE_ENV === "production"` alone
+   * is not "a real Vercel deployment": the Playwright harness's own
+   * `webServer` (`playwright.config.ts`) runs `next start`, which sets
+   * `NODE_ENV=production`, with no live Upstash account and no intention
+   * of ever having one — it must keep using `rate-limit.ts`'s in-memory
+   * fallback. Folding these into the schema above would force the harness
+   * to supply *some* value to pass validation, and unlike every other
+   * entry in that schema (a local secret, never a live external
+   * credential), a fake Upstash URL is not merely inert: `apiRateLimiter`
+   * would construct a real `Redis` client pointed at a garbage endpoint,
+   * and every rate-limited request the harness makes (`/tvaryny`, every
+   * `/api/rpc` call) would attempt a real, failing network call instead of
+   * using the in-memory limiter the harness actually needs.
+   *
+   * `apiRateLimiter`'s own construction (`rate-limit.ts`) never throws on
+   * a missing credential — it silently falls back to in-memory instead,
+   * which is exactly the per-instance behaviour this block exists to stop
+   * running in production. This check is what turns that silent fallback
+   * into a loud boot failure specifically on a real Vercel deployment,
+   * without also demanding a live credential from every local `next
+   * start`, including the harness's own.
+   */
+  if (
+    (process.env.VERCEL || process.env.VERCEL_ENV) &&
+    (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN)
+  ) {
+    throw new Error(
+      "Invalid or missing required environment variable(s): UPSTASH_REDIS_REST_URL and " +
+        "UPSTASH_REDIS_REST_TOKEN are both required on a real Vercel deployment — set them " +
+        "in Production and Preview before the next deploy.",
+    );
   }
 }

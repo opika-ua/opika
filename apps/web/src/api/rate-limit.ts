@@ -1,25 +1,46 @@
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
 // ---------------------------------------------------------------------------
-// Generic per-IP rate limiter (in-memory)
+// Generic per-IP rate limiter
 // ---------------------------------------------------------------------------
 
 /**
- * Interface for a rate limiter. The in-memory implementation below does NOT
- * survive across serverless instances — each cold start gets a fresh Map.
+ * Interface for a rate limiter. `check` is async because the production
+ * implementation (`upstashRateLimiter`, below) is a network call over
+ * Upstash's REST API — there is no synchronous way to ask a shared,
+ * cross-instance store anything. `inMemoryRateLimiter`'s own `check` has
+ * nothing to await, but still returns a `Promise<boolean>` so both
+ * implementations satisfy one interface and a caller never needs to know
+ * which one it's holding.
  *
- * Before deploying to production, replace with a shared store (Redis,
- * Postgres advisory locks, or Vercel's KV). The interface is stable; only
- * the backing implementation changes.
+ * Deliberately has no *unconditional* dependency on `@opika/db` or anything
+ * else Node-only — this module is imported from `apps/web/src/proxy.ts`,
+ * which runs in a separate deployment unit from the HTTP route handlers. A
+ * Postgres driver import here would make that bundle needlessly heavier at
+ * best, and fail to bundle at worst; the DB-dependent reveal limiter lives
+ * in its own file (`reveal-rate-limit.ts`) for exactly this reason.
+ * `@upstash/redis` is REST-based (plain `fetch`, no TCP socket), which is
+ * why it's safe to import from both deployment units the same way
+ * `@neondatabase/serverless` is safe on the DB side (`client.ts`'s own
+ * comment) — this is not the same class of risk `@opika/db` itself is.
  *
- * Deliberately has no dependency on `@opika/db` or anything else Node-only —
- * this module is imported from `apps/web/src/proxy.ts`, which runs in a
- * separate deployment unit from the HTTP route handlers. A Postgres driver
- * import here would make that bundle needlessly heavier at best, and fail to
- * bundle at worst; the DB-dependent reveal limiter lives in its own file
- * (`reveal-rate-limit.ts`) for exactly this reason.
+ * Does NOT take `now` as an explicit parameter the way this codebase's
+ * other pure functions do (`docs/standing-constraints.md`'s "`now` is a
+ * parameter"). This is a deliberate, documented exception, not an
+ * oversight: `@upstash/ratelimit`'s sliding-window algorithm runs as a Lua
+ * script on the Redis server itself and reads the server's own clock —
+ * there is no parameter on its `limit()` call this adapter could thread a
+ * caller-supplied `now` through even if it wanted to. `check`'s `now`
+ * parameter stays on the interface (both implementations still accept it)
+ * so call sites don't need to know which backing store they're calling
+ * into, but `upstashRateLimiter` silently ignores its value — callers
+ * needing deterministic, injectable time for a rate-limit decision (none
+ * exist in this codebase today) cannot get it from this implementation.
  */
 export interface RateLimiter {
-  /** Returns true if the request is allowed, false if rate-limited. */
-  check(key: string, now: Date): boolean;
+  /** Resolves true if the request is allowed, false if rate-limited. */
+  check(key: string, now: Date): Promise<boolean>;
 }
 
 type SlidingWindowEntry = { timestamps: number[] };
@@ -29,14 +50,16 @@ type SlidingWindowEntry = { timestamps: number[] };
  *
  * IMPORTANT: This does not survive serverless cold starts. Each instance
  * maintains its own counter, so the effective limit in production is
- * (limit × number_of_instances). Adequate for development and as a
- * first-line defense; must move to a shared store before deploy.
+ * (limit × number_of_instances). Used for local dev, CI, and the harness —
+ * `apiRateLimiter` below only ever falls back to this when no Upstash
+ * credentials are configured, which is true everywhere except a real
+ * Vercel deployment.
  */
 export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: number }): RateLimiter {
   const store = new Map<string, SlidingWindowEntry>();
 
   return {
-    check(key: string, now: Date): boolean {
+    async check(key: string, now: Date): Promise<boolean> {
       const nowMs = now.getTime();
       const cutoff = nowMs - opts.windowMs;
 
@@ -60,21 +83,143 @@ export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: numbe
 }
 
 /**
+ * Phase 3, block 4 (launch-gate infra, `docs/handoff-2026-10-04.md` §3) —
+ * the shared-store replacement `inMemoryRateLimiter`'s own doc comment has
+ * been calling for since this file was written. `@upstash/ratelimit`
+ * (not the lower-level `@upstash/redis` alone) is Upstash's own official,
+ * purpose-built rate-limiting SDK: a tested sliding-window Lua script
+ * against a shared store, rather than this codebase hand-rolling the same
+ * algorithm again in application code — `pnpm-workspace.yaml`'s own catalog
+ * comment has the full "why this dependency" account.
+ *
+ * `windowMs` is **rounded** (not truncated — found as a real bug by Tier 1
+ * review, not merely a wording slip) to whole seconds for `Ratelimit.
+ * slidingWindow`'s duration-string argument (`"60 s"`), floored at 1 second:
+ * `Math.round` alone sends any window under 500ms to `"0 s"`, which the
+ * library's own Lua script divides by — confirmed by reading
+ * `@upstash/ratelimit`'s source, not assumed. Sub-second windows aren't a
+ * real requirement anywhere this is called today, so the floor is a safe
+ * guard rather than a feature; a caller that actually needed sub-second
+ * precision would need a different algorithm choice, not a formatting fix.
+ *
+ * **Not an exact sliding-window log, unlike `inMemoryRateLimiter` above —
+ * found by reading `@upstash/ratelimit`'s own implementation, not assumed
+ * equivalent.** The library's sliding-window algorithm is a weighted
+ * two-bucket approximation (current + previous fixed window, weighted by
+ * elapsed fraction), not a per-timestamp log the way the in-memory
+ * implementation is. Worst case this can admit roughly 2x `maxRequests`
+ * within a rolling window, concentrated at a window-boundary — "100/min"
+ * in every comment in this file describing the Upstash-backed limiter
+ * means "Upstash's own approximation of 100/min," not an exact count the
+ * way the in-memory implementation's own 100/min is.
+ *
+ * `prefix` namespaces keys in the shared Redis store so this limiter's
+ * counters can never collide with a *different* limiter's keys that happen
+ * to reuse the same client (e.g. a future second rate-limited surface
+ * sharing one Upstash database) — `@upstash/ratelimit` already prefixes
+ * every key with `@upstash/ratelimit` internally, and this adds one more
+ * level specific to *which* limiter instance, not a workaround for a gap
+ * in the library's own default. **Not yet namespaced by deploy target**
+ * (Production vs. Preview) — see the STOP this row was returned with
+ * (`docs/decisions-inbox/feat-rate-limiter-shared-store.md`, RL-3):
+ * Production and Preview currently share one prefix, so Preview traffic
+ * spends Production's own budget if they share one Upstash database.
+ *
+ * **No error handling around `ratelimit.limit()` — a known, undecided gap,
+ * not an oversight left standing.** Tier 1 review's highest-severity
+ * finding: a real Upstash outage or a revoked/wrong token currently
+ * surfaces as an uncaught rejection, which `proxy.ts`/`route.ts` do not
+ * catch either, failing the whole request (effectively fail-closed, by
+ * accident rather than by decision) — up to several seconds of added
+ * latency first, from the SDK's own internal retries against a genuinely
+ * down store. Deliberately **not** silently resolved with a try/catch here:
+ * which way to fail (open, serving every request with no rate limiting at
+ * all while the store is down, or closed, as today) is exactly the kind of
+ * STOP-list decision ("a collision between an instruction and the code
+ * that cannot be resolved without choosing") this row was returned with,
+ * recorded as RL-1 — not a Tier 2 default to silently pick.
+ */
+export function upstashRateLimiter(opts: {
+  redis: Redis;
+  windowMs: number;
+  maxRequests: number;
+  prefix: string;
+}): RateLimiter {
+  const windowSeconds = Math.max(1, Math.round(opts.windowMs / 1000));
+  const ratelimit = new Ratelimit({
+    redis: opts.redis,
+    limiter: Ratelimit.slidingWindow(opts.maxRequests, `${windowSeconds} s`),
+    prefix: opts.prefix,
+  });
+
+  return {
+    async check(key: string, _now: Date): Promise<boolean> {
+      const result = await ratelimit.limit(key);
+      return result.success;
+    },
+  };
+}
+
+/**
  * Default API rate limiter: 100 requests per minute per IP.
  *
- * Imported from two independent entry points — the `/api/rpc` route handler
- * and `proxy.ts` — which on Vercel deploy as separate functions with
- * separate module graphs. Importing this same module from both does NOT
- * give them the same `Map`: each gets its own instance. The effective
- * ceiling for one IP is therefore 100/min through the API *plus* 100/min
- * through any proxy-protected page, 200/min total, not a single shared
- * 100/min budget. This is a real, known gap, not an oversight — a genuinely
- * shared budget needs a shared store (Redis/Upstash), which is the same
- * "move to a shared store before deploy" item already called out above, not
- * a new one. Documented here so the number is never asserted higher than it
- * actually is.
+ * **Upstash-backed whenever `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_
+ * TOKEN` are both set — the in-memory fallback otherwise.** A plain
+ * presence check at module scope, not `requireEnv` (which throws): this
+ * module is imported from `apps/web/src/proxy.ts`, which Next.js evaluates
+ * at build time to collect route metadata, same build-time-secret hazard
+ * `env.ts`'s own `requireEnv` doc comment describes for route handlers —
+ * a hard-required Upstash credential here would make `next build` itself
+ * depend on a deployment secret. Local dev, CI, and the Playwright harness
+ * have no Upstash credentials at all and fall back to the in-memory
+ * limiter exactly as they did before this row; only a real deployment with
+ * both variables set gets the shared store. `validateEnv()` (`env.ts`)
+ * separately *requires* both variables on a real Vercel deployment —
+ * Production **and Preview**, not "production" in the `NODE_ENV` sense —
+ * at boot.
+ *
+ * **Correction, Tier 1 review:** that boot check only proves both variables
+ * are *present*, not that they're *valid* — a revoked or mistyped token
+ * passes `validateEnv()` cleanly and then fails at the first real request,
+ * compounding with this file's own undecided error-handling gap (RL-1,
+ * above `upstashRateLimiter`'s own comment). "Refuses to start" is
+ * therefore true only for the missing-variable case, not the
+ * wrong-variable one — a stronger claim than this schema check can
+ * actually back, and a previous version of this comment overstated it.
+ *
+ * **Operational hazard, flagged by Tier 1 review:** `vercel env pull`
+ * writes `VERCEL=1` into the local `.env.local` it generates, which `next
+ * start` loads the same as any other `.env.local`. Running that command
+ * locally (e.g. to sync other Vercel-managed secrets) would silently flip
+ * a local `next start` into believing it's a real Vercel deployment and
+ * require working Upstash credentials for `validateEnv()` to pass — the
+ * opposite problem from the harness's own, and one a `.env.local` diff
+ * review would catch before it causes confusion.
+ *
+ * Previously imported from two independent entry points — the `/api/rpc`
+ * route handler and `proxy.ts`, separate Vercel deployment units with
+ * separate module graphs — and each held its *own* in-memory `Map`,
+ * meaning the real ceiling for one IP was double the stated limit (100/min
+ * through each path, 200/min combined). The Upstash-backed instance closes
+ * that gap for real for the first time: both deployment units construct
+ * their own `Ratelimit` object, but both point at the same Redis keys
+ * (same `prefix`, same account), so the budget is genuinely shared now,
+ * not merely configured identically. The in-memory fallback still has the
+ * old double-budget gap — unavoidable without a shared store, which is
+ * exactly why dev/test never needed one before now.
  */
-export const apiRateLimiter = inMemoryRateLimiter({
-  windowMs: 60_000,
-  maxRequests: 100,
-});
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+export const apiRateLimiter: RateLimiter =
+  UPSTASH_URL && UPSTASH_TOKEN
+    ? upstashRateLimiter({
+        redis: new Redis({ url: UPSTASH_URL, token: UPSTASH_TOKEN }),
+        windowMs: 60_000,
+        maxRequests: 100,
+        prefix: "opika-api-ratelimit",
+      })
+    : inMemoryRateLimiter({
+        windowMs: 60_000,
+        maxRequests: 100,
+      });

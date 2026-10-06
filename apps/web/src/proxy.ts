@@ -38,15 +38,19 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  * it: single responsibility was the reason regardless of which runtime ended
  * up applying.
  *
- * Reuses `apiRateLimiter` rather than a second instance with its own budget —
- * but reuse does not mean shared state. This proxy and the HTTP route are
- * separate deployment units on Vercel with independent module graphs; each
- * gets its own `Map`. The effective ceiling per IP is 100/min through this
- * path *plus* 100/min through the API, 200/min combined, not one shared
- * 100/min bucket. `rate-limit.ts`'s own comment carries the same note; this
- * one exists so it isn't missed reading this file in isolation.
+ * Reuses `apiRateLimiter` rather than a second instance with its own budget.
+ * In production (Phase 3, block 4, `docs/handoff-2026-10-04.md` §3) this is
+ * now genuinely shared: `apiRateLimiter` is Upstash-backed whenever its
+ * credentials are configured, and this proxy and the HTTP route — separate
+ * deployment units on Vercel with independent module graphs — both read and
+ * write the *same* Redis keys, not two independent counters. Only the
+ * in-memory fallback (no Upstash credentials — local dev, CI, the harness)
+ * still has the old per-instance gap: 100/min through this path *plus*
+ * 100/min through the API, 200/min combined, not one shared 100/min bucket.
+ * `rate-limit.ts`'s own comment carries the full account; this one exists
+ * so neither half of the story is missed reading this file in isolation.
  */
-export function proxy(request: NextRequest): NextResponse {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (!SITE_IS_PUBLICLY_DISCOVERABLE) {
     const decision = evaluatePrelaunchGate(
       request.headers.get("cookie"),
@@ -56,7 +60,7 @@ export function proxy(request: NextRequest): NextResponse {
       return new NextResponse("Not Found", { status: 403 });
     }
     if (decision.kind === "allowed_mint_cookie") {
-      const response = respectingRateLimit(request);
+      const response = await respectingRateLimit(request);
       response.headers.append("Set-Cookie", decision.setCookieHeader);
       return response;
     }
@@ -65,10 +69,10 @@ export function proxy(request: NextRequest): NextResponse {
   return respectingRateLimit(request);
 }
 
-function respectingRateLimit(request: NextRequest): NextResponse {
+async function respectingRateLimit(request: NextRequest): Promise<NextResponse> {
   if (
     isDiscoveryPagePath(request.nextUrl.pathname) &&
-    !apiRateLimiter.check(clientIp(request), new Date())
+    !(await apiRateLimiter.check(clientIp(request), new Date()))
   ) {
     return new NextResponse("Too Many Requests", { status: 429 });
   }

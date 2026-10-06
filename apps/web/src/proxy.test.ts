@@ -16,6 +16,13 @@ function request(url: string, headers: Record<string, string> = {}): NextRequest
  * plain imported binding — not a function closing over another module's own
  * copy of it — so mocking `./seo-flags` and re-importing `./proxy` fresh is
  * enough; no closure gotcha to work around here.
+ *
+ * `proxy` is async as of Phase 3, block 4 (`apiRateLimiter.check` is a
+ * `Promise<boolean>` once a shared Upstash store can back it) — every call
+ * below is awaited now. No Upstash env vars are set anywhere in this file,
+ * so `apiRateLimiter` resolves to the in-memory implementation
+ * (`rate-limit.ts`'s own module-scope branch), the same one these tests
+ * always exercised.
  */
 describe("proxy", () => {
   beforeEach(() => {
@@ -35,13 +42,13 @@ describe("proxy", () => {
 
     it("denies a request with no gate cookie and no gate query parameter", async () => {
       const { proxy } = await import("./proxy");
-      const response = proxy(request("https://opika.example/tvaryny"));
+      const response = await proxy(request("https://opika.example/tvaryny"));
       expect(response.status).toBe(403);
     });
 
     it("denies a request whose gate cookie is wrong", async () => {
       const { proxy } = await import("./proxy");
-      const response = proxy(
+      const response = await proxy(
         request("https://opika.example/tvaryny", { cookie: `${cookieName()}=wrong` }),
       );
       expect(response.status).toBe(403);
@@ -49,7 +56,7 @@ describe("proxy", () => {
 
     it("allows a request whose gate cookie is correct, and does not mint a new one", async () => {
       const { proxy } = await import("./proxy");
-      const response = proxy(
+      const response = await proxy(
         request("https://opika.example/tvaryny", { cookie: `${cookieName()}=${SECRET}` }),
       );
       expect(response.status).toBe(200);
@@ -58,26 +65,26 @@ describe("proxy", () => {
 
     it("allows a request whose gate query parameter is correct, and mints the cookie", async () => {
       const { proxy } = await import("./proxy");
-      const response = proxy(request(`https://opika.example/tvaryny?gate=${SECRET}`));
+      const response = await proxy(request(`https://opika.example/tvaryny?gate=${SECRET}`));
       expect(response.status).toBe(200);
       expect(response.headers.get("set-cookie")).toContain(`${cookieName()}=${SECRET}`);
     });
 
     it("denies a request to a route outside /tvaryny just the same — the gate covers the whole site", async () => {
       const { proxy } = await import("./proxy");
-      const response = proxy(request("https://opika.example/prytulkam"));
+      const response = await proxy(request("https://opika.example/prytulkam"));
       expect(response.status).toBe(403);
     });
 
     it("denies the RPC endpoint just the same as a page route", async () => {
       const { proxy } = await import("./proxy");
-      const response = proxy(request("https://opika.example/api/rpc/gallery/list"));
+      const response = await proxy(request("https://opika.example/api/rpc/gallery/list"));
       expect(response.status).toBe(403);
     });
 
     it("carries no user-agent carve-out: a Telegram-bot-shaped user agent is denied identically", async () => {
       const { proxy } = await import("./proxy");
-      const response = proxy(
+      const response = await proxy(
         request("https://opika.example/tvaryny/some-id", {
           "user-agent": "TelegramBot (like TwitterBot)",
         }),
@@ -93,14 +100,23 @@ describe("proxy", () => {
 
     it("allows a request with no gate cookie and no gate query parameter at all", async () => {
       const { proxy } = await import("./proxy");
-      const response = proxy(request("https://opika.example/tvaryny"));
+      const response = await proxy(request("https://opika.example/tvaryny"));
       expect(response.status).toBe(200);
     });
 
+    /**
+     * `proxy` is async now — an async function never throws synchronously
+     * even if its body does (the throw surfaces as a rejected Promise
+     * instead), so `expect(() => proxy(...)).not.toThrow()` would pass
+     * trivially regardless of whether the call actually succeeds. Asserting
+     * against the resolved Promise is what keeps this test capable of
+     * failing — would have let a reintroduced read of
+     * `PRELAUNCH_GATE_SECRET` on this path go undetected.
+     */
     it("never reads PRELAUNCH_GATE_SECRET at all — an unset secret does not break a launched site", async () => {
       vi.unstubAllEnvs();
       const { proxy } = await import("./proxy");
-      expect(() => proxy(request("https://opika.example/tvaryny"))).not.toThrow();
+      await expect(proxy(request("https://opika.example/tvaryny"))).resolves.toBeDefined();
     });
   });
 
@@ -111,20 +127,26 @@ describe("proxy", () => {
 
     it("429s a request past the per-IP limit on /tvaryny", async () => {
       const { proxy } = await import("./proxy");
-      let last = proxy(request("https://opika.example/tvaryny", { "x-forwarded-for": "9.9.9.9" }));
+      let last = await proxy(
+        request("https://opika.example/tvaryny", { "x-forwarded-for": "9.9.9.9" }),
+      );
       for (let i = 0; i < 100; i++) {
-        last = proxy(request("https://opika.example/tvaryny", { "x-forwarded-for": "9.9.9.9" }));
+        last = await proxy(
+          request("https://opika.example/tvaryny", { "x-forwarded-for": "9.9.9.9" }),
+        );
       }
       expect(last.status).toBe(429);
     });
 
     it("does not rate-limit a route outside /tvaryny", async () => {
       const { proxy } = await import("./proxy");
-      let last = proxy(
+      let last = await proxy(
         request("https://opika.example/prytulkam", { "x-forwarded-for": "8.8.8.8" }),
       );
       for (let i = 0; i < 150; i++) {
-        last = proxy(request("https://opika.example/prytulkam", { "x-forwarded-for": "8.8.8.8" }));
+        last = await proxy(
+          request("https://opika.example/prytulkam", { "x-forwarded-for": "8.8.8.8" }),
+        );
       }
       expect(last.status).toBe(200);
     });

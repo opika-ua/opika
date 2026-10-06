@@ -12,10 +12,11 @@ async function handleRequest(request: Request): Promise<Response> {
   const db = getDb();
   const now = new Date();
 
-  // Per-IP rate limit (in-memory, per-instance — see rate-limit.ts)
+  // Per-IP rate limit — Upstash-backed in production, in-memory otherwise
+  // (see rate-limit.ts)
   const ip = clientIp(request);
 
-  if (!apiRateLimiter.check(ip, now)) {
+  if (!(await apiRateLimiter.check(ip, now))) {
     return new Response("Too Many Requests", { status: 429 });
   }
 

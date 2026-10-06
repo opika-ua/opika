@@ -89,4 +89,87 @@ describe("validateEnv", () => {
 
     expect(() => validateEnv()).not.toThrow();
   });
+
+  /**
+   * Phase 3, block 4 — `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`
+   * are deliberately NOT part of `RequiredProductionEnvSchema` (see that
+   * schema's own comment): they're gated on `process.env.VERCEL`/
+   * `VERCEL_ENV`, not `NODE_ENV` alone, so the Playwright harness's own
+   * `next start` (which sets `NODE_ENV=production` with no Vercel env
+   * variable and no live Upstash account) can keep passing without them.
+   */
+  function setBaseRequiredEnv(): void {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DATABASE_URL", "postgres://user:pass@host/db");
+    vi.stubEnv("CURSOR_HMAC_SECRET", "a".repeat(32));
+    vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", "https://cdn.opika.org.ua");
+    vi.stubEnv("PRELAUNCH_GATE_SECRET", "a".repeat(32));
+  }
+
+  it("does not require Upstash credentials when VERCEL/VERCEL_ENV are unset — the harness's own next start", () => {
+    setBaseRequiredEnv();
+    vi.stubEnv("VERCEL", "");
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it("requires both Upstash variables on a real Vercel deployment (VERCEL set)", () => {
+    setBaseRequiredEnv();
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+
+    expect(() => validateEnv()).toThrow(/UPSTASH_REDIS_REST_URL/);
+  });
+
+  it("requires both Upstash variables on a real Vercel deployment (VERCEL_ENV set, VERCEL unset)", () => {
+    setBaseRequiredEnv();
+    vi.stubEnv("VERCEL", "");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+
+    expect(() => validateEnv()).toThrow(/UPSTASH_REDIS_REST_TOKEN/);
+  });
+
+  it("does not throw on a real Vercel deployment once both Upstash variables are set", () => {
+    setBaseRequiredEnv();
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://example-upstash.example.com");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "a-real-looking-token");
+
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  /**
+   * Tier 1 review's medium finding: both "requires both" tests above set
+   * *neither* variable, which can't distinguish `!URL || !TOKEN` (correct —
+   * throws unless both are present) from a regressed `!URL && !TOKEN`
+   * (throws only if *neither* is present, silently accepting exactly one)
+   * — both conditions agree on the "both missing" and "both present" cases
+   * and disagree only when exactly one is set. These two are what actually
+   * pin `||` over that specific wrong mutation.
+   */
+  it.each([
+    [
+      "UPSTASH_REDIS_REST_URL only",
+      "https://example-upstash.example.com",
+      "",
+      /UPSTASH_REDIS_REST_TOKEN/,
+    ],
+    ["UPSTASH_REDIS_REST_TOKEN only", "", "a-real-looking-token", /UPSTASH_REDIS_REST_URL/],
+  ])(
+    "still throws on a real Vercel deployment when only %s is set",
+    (_label, url, token, expected) => {
+      setBaseRequiredEnv();
+      vi.stubEnv("VERCEL", "1");
+      vi.stubEnv("UPSTASH_REDIS_REST_URL", url);
+      vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", token);
+
+      expect(() => validateEnv()).toThrow(expected);
+    },
+  );
 });
