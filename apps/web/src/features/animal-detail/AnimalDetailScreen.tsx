@@ -2,43 +2,13 @@ import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
 import { donationHost, hasAnyDocumentEvidence, pluralizeUk, textIn } from "@opika/domain";
 import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips } from "@opika/ui";
-import Image from "next/image";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { Footer } from "../chrome/Footer";
 import { SiteHeader } from "../chrome/SiteHeader";
+import { DetailPhotoGallery } from "./DetailPhotoGallery";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
-
-/**
- * Derived from the layout that produces the box, not estimated — same rule and
- * same reason as `AnimalCard.tsx`'s own `PHOTO_SIZES`, which is where this
- * defect was first found and is worth reading for the full argument. Short
- * version: `sizes` is a promise about how wide this image will be, the browser
- * multiplies it by DPR before choosing from `srcset`, and nothing in the
- * toolchain checks the promise. Overstating silently downloads a larger
- * variant forever; understating ships a blurry photo. Each clause is the
- * maximum real width in its range.
- *
- * This one needed the phone/tablet clause *split*, which is why it wasn't
- * fixed alongside the gallery card: the container is `p-4 tablet:p-6`, so a
- * single `(max-width: 1023px)` clause spans two genuinely different widths —
- * 16px of padding a side below 600, 24px above it.
- *
- * Phone (<600):     `p-4`  -> 100vw - 32px.  328px at 360, measured.
- * Tablet (600-1023): `p-6`  -> 100vw - 48px.  720px at 768, measured.
- * Desktop (1024+):  the photo column is `desktop:w-[560px] desktop:flex-none`
- *                   — a constant 560px at every desktop width, not derived
- *                   from the viewport at all. Already exact; unchanged.
- *
- * Note this changed no variant selection on the day it landed: at 360 @2x,
- * 328 x 2 = 656 still exceeds `card`'s 640w and correctly resolves to
- * `detail`, exactly as the overstated `100vw` did. It was fixed anyway,
- * because the moment a variant is added to the ladder an overstated `sizes`
- * stops being dormant and becomes a live overfetch.
- */
-const PHOTO_SIZES =
-  "(max-width: 599px) calc(100vw - 32px), (max-width: 1023px) calc(100vw - 48px), 560px";
 
 /**
  * "Перевірений вручну · {years} на Opika" — years is whole, floored, never
@@ -107,8 +77,6 @@ export function AnimalDetailScreen({
   cityName,
   backToGalleryHref,
 }: AnimalDetailScreenProps) {
-  const photo = animal.photos[0] ?? null;
-  const thumbnails = animal.photos.slice(1, 4);
   const fills = freshnessPips(animal.freshness.kind);
   const showDocuments =
     animal.documentReadiness.kind === "tracked" && hasAnyDocumentEvidence(animal.documentReadiness);
@@ -196,46 +164,7 @@ export function AnimalDetailScreen({
       <div className="desktop:max-w-[1200px] desktop:mx-auto p-4 tablet:p-6 desktop:py-10 desktop:px-8 desktop:flex desktop:gap-10 desktop:items-start">
         {/* Photo column — sticky on desktop, fixed-height strip on mobile. */}
         <div className="desktop:w-[560px] desktop:flex-none desktop:sticky desktop:top-10 flex flex-col gap-2">
-          <div
-            data-testid="detail-photo"
-            className="relative w-full h-[380px] tablet:h-[480px] desktop:h-auto desktop:aspect-[4/5] rounded-rg-card overflow-hidden bg-rg-photo-placeholder"
-          >
-            {photo && (
-              <Image
-                src={photo.storageKey}
-                alt={photo.alt?.uk ?? animal.name}
-                fill
-                sizes={PHOTO_SIZES}
-                priority
-                className="object-cover"
-              />
-            )}
-            {/* Freshness pips overlay the photo on mobile only — desktop shows the freshness block below the name instead. */}
-            <div
-              aria-hidden="true"
-              className="desktop:hidden absolute right-4 bottom-4 flex gap-1.5"
-            >
-              {fills.map((fill, i) => (
-                <div
-                  key={i}
-                  className={`size-2 rounded-full ${fill === "empty" ? "bg-transparent border-[1.5px] border-rg-ink-3" : fill}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          {thumbnails.length > 0 && (
-            <div className="hidden desktop:flex gap-2">
-              {thumbnails.map((thumb, i) => (
-                <div
-                  key={i}
-                  className="relative w-22 h-22 rounded-rg-photo overflow-hidden bg-rg-photo-placeholder"
-                >
-                  <Image src={thumb.storageKey} alt="" fill sizes="88px" className="object-cover" />
-                </div>
-              ))}
-            </div>
-          )}
+          <DetailPhotoGallery photos={animal.photos} altFallback={animal.name} />
         </div>
 
         {/* Content column */}
@@ -250,7 +179,18 @@ export function AnimalDetailScreen({
             <span className="text-[15px]/[22px] text-rg-ink-2">{subtitle}</span>
           </div>
 
-          {/* Freshness quote block — hidden on mobile above the fold since the photo overlay already shows pips; shown here on desktop, and on mobile below the name (design allows the block to repeat once the pips already appeared on the photo). */}
+          {/*
+            Freshness quote block — a separate card below the name, on both
+            mobile and desktop, matching the mock's D1 (1920) and D2 (360)
+            frames exactly: neither ever overlays freshness on the photo.
+            An earlier version of this screen also overlaid a redundant
+            freshness-pips-only cluster on the mobile photo (duplicating
+            this block's own pips for no reason, and incidentally occupying
+            the mock's actual photo-dot-indicator corner) — removed when
+            `DetailPhotoGallery.tsx`'s real dot indicator needed that corner
+            for what the mock actually puts there. See O-22,
+            `docs/observations.md`, for the full account.
+          */}
           <div
             data-testid="freshness-block"
             className="bg-rg-fill rounded-rg-button p-4 flex flex-col gap-2"

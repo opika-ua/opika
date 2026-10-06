@@ -231,6 +231,54 @@ const CAT_PHOTOS: AnimalPhoto[] = [
 ];
 
 /**
+ * D-6 (docs/build-plan.md) — real CC0 photographs at deliberately awkward
+ * aspect ratios, dog-only (see `SIX_PHOTO_INDEX`'s own comment below for
+ * why only the dog slots of the original 6-candidate set are used here).
+ * Full provenance: `apps/web/public/seed-photos/d6-real/SOURCES.md`.
+ * Dimensions are each file's real, measured values, not estimated.
+ *
+ * **Order matters, not just membership.** `DetailPhotoGallery.tsx` caps its
+ * gallery at 3 photos (the mock's own fixed count), and `makeD6Photos` below
+ * always starts cycling at index 0 regardless of which animal it's building
+ * for — so whichever 3 of these 4 sit first are the *only* 3 a site visitor
+ * can ever actually see through that gallery; the 4th exists in
+ * `animal.photos` but is structurally unreachable there. Found on review,
+ * 2026-10-06: the original order put the small, near-square photo ahead of
+ * the large one, silently hiding the large-pixel-dimension stress case
+ * entirely. Ordered here as tall / wide / large — the two most extreme
+ * aspect ratios plus the largest real pixel dimensions — with the
+ * near-square small photo deliberately last, since it's the least
+ * ratio-distinct of the four and the one most redundant with the regular
+ * `DOG_PHOTOS` pool's own near-square entries.
+ */
+const D6_REAL_DOG_PHOTOS: AnimalPhoto[] = [
+  {
+    storageKey: "seed-photos/d6-real/dog-tall-9x16-sugarbelle.jpg",
+    width: 665,
+    height: 1182,
+    alt: null,
+  },
+  {
+    storageKey: "seed-photos/d6-real/dogs-wide-16x9-bulldogs-lifejackets.jpg",
+    width: 3999,
+    height: 2249,
+    alt: null,
+  },
+  {
+    storageKey: "seed-photos/d6-real/dog-large-4000px-chihuahua.jpg",
+    width: 3000,
+    height: 4000,
+    alt: null,
+  },
+  {
+    storageKey: "seed-photos/d6-real/dog-small-400px-joydogs.jpg",
+    width: 393,
+    height: 387,
+    alt: null,
+  },
+];
+
+/**
  * `animalIndex`, not a random pick — the same animal gets the same photo
  * set on every seed run, so a harness screenshot or a manually-reviewed
  * page doesn't reshuffle out from under whoever's looking at it between
@@ -241,6 +289,14 @@ const CAT_PHOTOS: AnimalPhoto[] = [
 function makePhotos(species: AnimalSpecies, animalIndex: number, count: number): AnimalPhoto[] {
   const pool = species === "dog" ? DOG_PHOTOS : CAT_PHOTOS;
   return Array.from({ length: count }, (_, i) => pool[(animalIndex + i) % pool.length]!);
+}
+
+/** `SIX_PHOTO_INDEX`'s own photo set — see that constant's comment. */
+function makeD6Photos(count: number): AnimalPhoto[] {
+  return Array.from(
+    { length: count },
+    (_, i) => D6_REAL_DOG_PHOTOS[i % D6_REAL_DOG_PHOTOS.length]!,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -834,11 +890,14 @@ const DESCRIPTIONS_EN: { text: string; provenance: "human" | "machine" }[] = [
  * this row; the point here is that *published* animals need to survive
  * having 0 or 6 photos too, which nothing in the corpus had ever produced.
  *
- * `SIX_PHOTO_INDEX`'s animal is a dog (`i % 3 !== 0`) and `DOG_PHOTOS` has
- * only 5 entries, so `makePhotos` cycles and one photo repeats — this card
- * is a duplicate-photo case as well as a six-photo one, not by separate
- * design. Real shelters upload duplicates too, so left as-is rather than
- * padding the pool to manufacture six genuinely distinct images.
+ * `SIX_PHOTO_INDEX`'s animal is a dog (`i % 3 !== 0`). **Its photos are no
+ * longer `makePhotos`'s regular cycling pool** — D-6 (`docs/build-plan.md`)
+ * gives it `makeD6Photos` instead: 4 real, distinct CC0 photographs at
+ * deliberately awkward aspect ratios, cycled to 6 (the 4th and 5th slots
+ * repeat the first two). Still a duplicate-photo case, same as before this
+ * change, just with real images instead of the regular placeholder pool —
+ * real shelters upload duplicates too, so this wasn't "fixed" into six
+ * genuinely distinct images, only upgraded from placeholder to real.
  */
 const ZERO_PHOTO_PUBLISHED_INDEX = 40;
 const SIX_PHOTO_INDEX = 41;
@@ -1044,7 +1103,35 @@ export function buildAnimals(
             ? 6
             : 1 + (i % 5);
     const id = animalId(i);
-    const photos = makePhotos(species, i, photoCount);
+    // D-6 (docs/build-plan.md) + O-10/critique-C6: `SIX_PHOTO_INDEX`'s own
+    // photos are real CC0 Commons photographs at deliberately awkward
+    // aspect ratios (9:16 tall, 16:9 wide, ~400px small, ~4000px large — see
+    // `D6_REAL_DOG_PHOTOS` above and `apps/web/public/seed-photos/d6-real/
+    // SOURCES.md`) instead of the regular cycling pool, so the detail page's
+    // photo gallery has one deterministic, findable-by-query animal whose
+    // crop behaviour is actually exercised against real variance rather than
+    // 9 same-ish placeholders. Dog-only, matching this index's own species
+    // (comment above) — the EXIF-rotated candidate and the pool's other cat
+    // photo aren't used here, not because they need stripping out of the
+    // repo (SOURCES.md records both as deliberately unwired, not forgotten),
+    // just because a dog's own listing showing a cat photo would be a real
+    // content mismatch, not a stress test. Four distinct images cycled to 6,
+    // same accepted duplicate-photo shape this index already had before this
+    // row.
+    //
+    // **Only 3 of these 4 are ever visible through the gallery itself**
+    // (`DetailPhotoGallery.tsx` caps at 3, the mock's own fixed count) — the
+    // small near-square photo is deliberately ordered last in
+    // `D6_REAL_DOG_PHOTOS` so the two most extreme ratios (tall, wide) and
+    // the largest pixel dimensions (large) are the three a visitor actually
+    // sees; see that array's own comment for why. Not a workaround for a
+    // gap — a real, accepted limit of showing 6 cycled photos through a
+    // 3-photo-capped gallery, the same structural fact D6-2
+    // (`docs/decisions-inbox/feat-d-6-detail-photo-gallery.md`) records for
+    // any animal with more than 3 photos, which today is ~40% of the
+    // published corpus, not a rare edge case.
+    const photos =
+      i === SIX_PHOTO_INDEX ? makeD6Photos(photoCount) : makePhotos(species, i, photoCount);
 
     // Foster: ~10% of animals are fostered in a different city
     const isFostered = i % 10 === 3;
