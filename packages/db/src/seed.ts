@@ -1,19 +1,28 @@
 /**
  * Seed script for local development.
  *
- * Populates the database with 8 fictional shelters across the Kyiv oblast
- * and 300+ animals with realistic Ukrainian names, ages, sizes, mixed
- * vaccination states, and a shaped freshness distribution.
+ * Two named profiles (`--profile=test|demo`, `test` is the default — Phase
+ * 3, `docs/handoff-2026-10-04.md` §3.4):
+ *   - `test` — today's 320-animal, 8-shelter hostile corpus, unchanged.
+ *     Local and CI only; the harness and `pnpm check` both run this one.
+ *   - `demo` — a small, 18-animal, 2-shelter set reusing `test`'s own
+ *     shelter identities and real D-6 photographs, meant to actually be
+ *     shown to people (a preview deployment, the rehearsal). See
+ *     `buildDemoShelters`/`buildDemoAnimals`'s own comments for exactly
+ *     which hostile cases it carries and why.
  *
  * Safety: refuses to run unless DATABASE_URL points at localhost. A
- * non-localhost target requires BOTH --force AND --db-name=<name> (matching
- * the target database's own name, read out of DATABASE_URL itself) —
- * --force alone is deliberately not enough. See assertSafeSeedTarget's own
- * comment for why (docs/build-plan.md, D-9, 2026-09-06).
+ * non-localhost target is `demo`-only, and requires BOTH --force AND
+ * --db-name=<name> (matching the target database's own name, read out of
+ * DATABASE_URL itself) — --force alone is deliberately not enough. `test`
+ * gets no non-localhost override at all, under any flag combination. See
+ * `assertSafeSeedTarget`'s own comment for why (docs/build-plan.md, D-9,
+ * 2026-09-06, amended Phase 3).
  *
  * Usage:
  *   pnpm --filter @opika/db db:seed
- *   DATABASE_URL=postgres://... pnpm --filter @opika/db db:seed --force --db-name=opika
+ *   pnpm --filter @opika/db db:seed --profile=demo
+ *   DATABASE_URL=postgres://... pnpm --filter @opika/db db:seed --profile=demo --force --db-name=opika
  */
 
 import { pathToFileURL } from "node:url";
@@ -97,7 +106,11 @@ const DB_NAME_FLAG_PREFIX = "--db-name=";
  * test must never have the side effect of running it, exiting the test
  * process included.
  */
-export function assertSafeSeedTarget(databaseUrl: string, argv: readonly string[]): void {
+export function assertSafeSeedTarget(
+  databaseUrl: string,
+  argv: readonly string[],
+  profile: SeedProfile,
+): void {
   const parsed = new URL(databaseUrl);
   // Exact match on the parsed hostname, never a substring test against the
   // whole URL — a substring test is bypassable with zero flags by any
@@ -111,6 +124,24 @@ export function assertSafeSeedTarget(databaseUrl: string, argv: readonly string[
     parsed.hostname === "127.0.0.1" ||
     parsed.hostname === "0.0.0.0";
   if (isLocalhost) return;
+
+  // Phase 3 (seed profiles, `docs/handoff-2026-10-04.md` §3.4): "`demo` is
+  // the only [profile] allowed `--force --db-name` against Neon." `test`
+  // generates the full 320-row hostile corpus (duplicate-name stress cases,
+  // a long shelter name, deliberately awkward data) that has no business
+  // existing in any shared database — it gets *no* override at all, not
+  // even a correct --force/--db-name pair. Checked before the --force/
+  // --db-name logic below runs, not after, so a `test` run can never reach
+  // the branch that would otherwise let it through.
+  if (profile === "test") {
+    console.error(
+      "ERROR: DATABASE_URL does not point at localhost, and the `test` seed profile never\n" +
+        "runs against a non-local database — there is no override flag for this, by design.\n" +
+        "Use `--profile=demo` (with --force and --db-name) if you actually mean to seed a\n" +
+        "shared database with the small, human-reviewed demo corpus instead.",
+    );
+    process.exit(1);
+  }
 
   const hasForce = argv.includes("--force");
   const providedDbName = argv
@@ -156,6 +187,25 @@ export const NOW = (() => {
   const flag = process.argv.find((a) => a.startsWith("--now="));
   return flag ? new Date(flag.slice("--now=".length)) : new Date();
 })();
+
+/**
+ * Phase 3 (seed profiles, `docs/handoff-2026-10-04.md` §3.4) — `--profile`
+ * is a named choice, not a count flag, per that section's own "the point is
+ * two explicit, named profiles." `test` (today's untouched 320/8 generator)
+ * is the default, matching every existing call site (the harness, CI,
+ * local dev) that invokes this script with no flag at all and expects the
+ * corpus it has always gotten.
+ */
+export type SeedProfile = "test" | "demo";
+
+export function parseSeedProfile(argv: readonly string[]): SeedProfile {
+  const flag = argv.find((a) => a.startsWith("--profile="));
+  const value = flag?.slice("--profile=".length);
+  if (value === undefined || value === "test") return "test";
+  if (value === "demo") return "demo";
+  throw new Error(`--profile must be "test" or "demo", got "${value}"`);
+}
+
 const DAY_MS = 86_400_000;
 const policy = testOnlyLocationPolicy("seed");
 
@@ -176,7 +226,15 @@ function animalId(i: number): AnimalId {
   return seededUuid("a0000000", i) as AnimalId;
 }
 function moderatorId(): ModeratorId {
-  return seededUuid("m0d00000", 1) as ModeratorId;
+  // Not "m0d00000" (the original, mnemonic-looking prefix) — 'm' isn't a
+  // valid hex digit, so that prefix produced a string that merely looked
+  // like a UUID and worked everywhere as an opaque reference, but failed
+  // strict `z.uuid()` validation outright. Found by a new schema-validation
+  // test (Phase 3, seed profiles) that was the first thing in this
+  // codebase to ever call `ShelterSchema.parse` directly on seeded output
+  // — "ad" (admin/moderator) is the closest hex-only approximation of the
+  // original mnemonic.
+  return seededUuid("ad000000", 1) as ModeratorId;
 }
 
 /** Pick a random element from an array using a simple seeded approach. */
@@ -716,6 +774,109 @@ export function buildShelters(cities: City[]): Shelter[] {
   });
 }
 
+/**
+ * Phase 3 (seed profiles, `docs/handoff-2026-10-04.md` §3.4) — the `demo`
+ * profile's two shelters are **reused identities from the `test` corpus
+ * above, not new ones**, per that section's own "reuses `buildShelters`/
+ * `buildAnimals` with fixed inputs." Chosen because each already embodies
+ * one of the handoff's named "look plausible to a human" hostile cases as a
+ * property of the identity itself, with no special-casing needed:
+ *   - index 2, «Вірний друг» — already `unregistered_initiative`
+ *     (CLAUDE.md decision #6's "an unregistered volunteer group can reach
+ *     verified") and already has no freshness sentence
+ *     (`freshnessSentenceUk: null` on its own `ShelterDef` above).
+ *   - index 5, «Благодійна організація «Прихисток на Лісовій»» — already
+ *     the corpus's deliberately long shelter name (critique C1).
+ * Both are `verified` — the demo corpus never needs to exercise the
+ * pending/suspended/non-verified-exclusion invariants, which the `test`
+ * profile's other 6 shelters exist for.
+ */
+const DEMO_SHELTER_DEF_INDICES = [2, 5] as const;
+
+/**
+ * D-5 (pulled forward from Part 5 to Phase 3, `docs/handoff-2026-10-04.md`
+ * §3, row 3) — the `demo` profile is shown to real people (the rehearsal, a
+ * preview deployment), so nothing it reveals can actually reach, pay, or
+ * mislead a real person. DEFAULT placeholder format (the handoff's own
+ * words: "real-shaped Ukrainian number with a visible «демо» marker in the
+ * contact row"; not yet Oleksii's own words — recorded in
+ * `docs/decisions-inbox/feat-seed-profiles.md`, SP-1):
+ *
+ * **Contact.** Email is the *primary* channel, at a `.invalid` domain
+ * (`opika-demo.invalid`) — RFC 2606 reserves `.invalid` so that it can
+ * **never resolve or deliver, by internet standard, not by convention**.
+ * The local part carries the visible "демо"-equivalent marker
+ * (`ContactChannelSchema`'s email variant is free-form text before the @,
+ * unlike an E.164 phone number's strict digits-only shape, which cannot
+ * carry a marker inside the value at all). A Telegram handle was the first
+ * version of this (round-1 Tier 1 review caught it): a `demo_`-prefixed
+ * handle still satisfies Telegram's own 5–32-character username rule, so
+ * nothing stops a stranger from registering that exact handle and
+ * receiving whatever a confused rehearsal viewer sends it — a live
+ * contactability risk an `.invalid` email address cannot have, since it
+ * is not a namespace anyone can register into. The phone channel, kept in
+ * `additional` for UI parity with `test`'s own two-channel shelters, uses
+ * an all-zero subscriber number (`+380000000000`) — E.164-shaped, never an
+ * assigned Ukrainian range.
+ *
+ * **Donation.** `null` — the two reused identities' real `donationUrl`s
+ * point at real third-party payment providers (Monobank jar / LiqPay)
+ * whose own account ownership this codebase has no way to control or
+ * verify. Round-1 Tier 1 review's highest-severity finding: a rehearsal
+ * viewer tapping "donate" on the unmodified identity would have reached a
+ * real jar, which commitment #5 and the "platform never touches money"
+ * standing rule both forbid regardless of whose jar it actually is.
+ *
+ * **Exact address.** The reused identities' `exactAddress` and
+ * `publicLocation` are both real Kyiv-oblast street names and coordinates
+ * (fictional shelters, but genuine, physically real streets) — also
+ * flagged in round-1 review: a rehearsal viewer who reveals a demo
+ * shelter's contact sees a real address they could physically go to,
+ * expecting a shelter that was never there. Replaced with an obviously
+ * fictional street label and the shelter's own city centroid (already
+ * public, non-precise data — `CityView.centroid`, per
+ * `docs/standing-constraints.md`'s location-privacy note) as the
+ * coordinates, so even the reveal-gated "exact" address exposes nothing
+ * more precise than city level. `publicLocation` is recomputed from the
+ * new `exactAddress` via the same `publicLocationOf` call `buildShelters`
+ * itself uses, rather than left stale and now describing a location that
+ * disagrees with the demo `exactAddress` underneath it.
+ */
+const DEMO_EMAIL_LOCAL_PARTS: Readonly<Record<number, string>> = {
+  2: "demo-viddanyi-drug",
+  5: "demo-prykhystok-lisova",
+};
+
+export function buildDemoShelters(cities: City[]): Shelter[] {
+  const all = buildShelters(cities);
+  return DEMO_SHELTER_DEF_INDICES.map((defIndex) => {
+    const shelter = all[defIndex]!;
+    const shelterDef = SHELTER_DEFS[defIndex]!;
+    const city = cities[shelterDef.cityIndex]!;
+    const localPart = DEMO_EMAIL_LOCAL_PARTS[defIndex]!;
+
+    const demoContact: ShelterContact = {
+      primary: { kind: "email", address: `${localPart}@opika-demo.invalid` },
+      additional: [{ kind: "phone", e164: "+380000000000" }],
+    };
+
+    const demoExactAddress: ExactAddress = {
+      ...shelter.exactAddress,
+      line1: "вул. Демонстраційна, 1",
+      line2: null,
+      coordinates: city.centroid,
+    };
+
+    return {
+      ...shelter,
+      contact: demoContact,
+      donation: null,
+      exactAddress: demoExactAddress,
+      publicLocation: publicLocationOf(shelter.id, demoExactAddress, policy),
+    };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Animals — 300+ with realistic distributions
 // ---------------------------------------------------------------------------
@@ -940,7 +1101,14 @@ export function buildAnimals(
   const verifiedCount = Math.floor(count * 0.85);
 
   for (let i = 0; i < count; i++) {
-    const isForNonVerified = i >= verifiedCount;
+    // Phase 3 (seed profiles, docs/handoff-2026-10-04.md §3.4): the `demo`
+    // profile calls this same function with only 2, both-verified shelters
+    // (`buildDemoShelters`) — an empty `nonVerifiedShelters` pool falls back
+    // to the verified pool rather than `shelterPool[i % 0]` (NaN index,
+    // `undefined` cast through the `!`, a crash several fields downstream).
+    // `test`'s own 8-shelter corpus always has at least one non-verified
+    // shelter, so this fallback never changes `test`'s existing output.
+    const isForNonVerified = i >= verifiedCount && nonVerifiedShelters.length > 0;
     const shelterPool = isForNonVerified ? nonVerifiedShelters : verifiedShelters;
     const shelter = shelterPool[i % shelterPool.length]!;
     const shelterCityIdx = SHELTER_DEFS.findIndex(
@@ -1178,12 +1346,61 @@ export function buildAnimals(
   return results;
 }
 
+/**
+ * Phase 3 (seed profiles, `docs/handoff-2026-10-04.md` §3.4) — the `demo`
+ * profile's 18 animals. Reuses `buildAnimals` for the full base
+ * distribution (ages, sizes, vaccination, freshness, names, listing states
+ * — everything that function already produces) rather than inventing a
+ * second generator, per that section's own "reuses `buildShelters`/
+ * `buildAnimals` with fixed inputs." Of the handoff's five named "look
+ * plausible to a human" hostile cases, three already fall out of calling
+ * this with only 18 animals against the two reused shelters from
+ * `buildDemoShelters` — no override needed:
+ *   - **0-photo draft:** `buildAnimals`'s own listing-state roll
+ *     (`i % 20`, draft at rolls 16 and 17) always lands on indices 16 and
+ *     17 at an 18-animal count, and a draft's `photoCount` is
+ *     unconditionally 0 regardless of index.
+ *   - **no freshness sentence** and **unregistered_initiative:** both
+ *     already properties of the reused «Вірний друг» shelter identity
+ *     (`buildDemoShelters`'s own comment).
+ *   - **long name:** a property of the reused «Прихисток на Лісовій»
+ *     identity.
+ * The remaining named case — a 6-photo animal — has no natural equivalent
+ * at this scale (the regular per-animal photo count never exceeds 5
+ * without an explicit override), so it is the one case this function
+ * overlays directly, onto index 1 (the first published, dog-species index
+ * at this count under `buildAnimals`'s own species/listing formulas),
+ * reusing the real D-6 photographs `test`'s own `SIX_PHOTO_INDEX` uses — a
+ * real photo set, not a placeholder, since `demo` is actually shown to
+ * people.
+ */
+const DEMO_SIX_PHOTO_INDEX = 1;
+
+export function buildDemoAnimals(
+  shelters: Shelter[],
+  cities: City[],
+): { animal: Animal; cityId: CityId }[] {
+  const base = buildAnimals(shelters, cities, 18);
+
+  return base.map(({ animal, cityId }, i) => {
+    if (i !== DEMO_SIX_PHOTO_INDEX) return { animal, cityId };
+    if (animal.species !== "dog") {
+      throw new Error(
+        `DEMO_SIX_PHOTO_INDEX (${DEMO_SIX_PHOTO_INDEX}) must land on a dog — ` +
+          "buildAnimals's species formula changed under this constant.",
+      );
+    }
+    return { animal: { ...animal, photos: makeD6Photos(6) }, cityId };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
-async function main() {
+async function main(profile: SeedProfile) {
   console.log("🐾 Seeding database...");
+  console.log(`  Profile:      ${profile}`);
   console.log(`  DATABASE_URL: ${DATABASE_URL.replace(/:[^:@]+@/, ":***@")}`);
 
   const client = postgres(DATABASE_URL, { max: 1 });
@@ -1195,8 +1412,12 @@ async function main() {
 
   // Build data
   const citiesList = buildCities();
-  const sheltersList = buildShelters(citiesList);
-  const animalData = buildAnimals(sheltersList, citiesList, 320);
+  const sheltersList =
+    profile === "demo" ? buildDemoShelters(citiesList) : buildShelters(citiesList);
+  const animalData =
+    profile === "demo"
+      ? buildDemoAnimals(sheltersList, citiesList)
+      : buildAnimals(sheltersList, citiesList, 320);
 
   // Insert cities
   console.log(`  Inserting ${citiesList.length} cities...`);
@@ -1267,8 +1488,9 @@ async function main() {
 // as onboard-shelter.ts's own CLI guard, see that file's comment for the
 // Windows argv[1]/pathToFileURL reasoning).
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  assertSafeSeedTarget(DATABASE_URL, process.argv);
-  main().catch((err) => {
+  const profile = parseSeedProfile(process.argv);
+  assertSafeSeedTarget(DATABASE_URL, process.argv, profile);
+  main(profile).catch((err) => {
     console.error("Seed failed:", err);
     process.exit(1);
   });
