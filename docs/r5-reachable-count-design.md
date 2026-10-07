@@ -107,7 +107,8 @@ announcement, which is deliberately computed once at mount.
 All three open questions above are answered from the code. Two changes to the shape above
 were proposed, and one existing bug was found. Oleksii approved the shape (inbox R5-1) and it
 is implemented as written below, plus the zero-total guard noted under §1's drift list. The
-real-Neon run (R5-2) passed on 2026-10-07: on a non-production Neon branch, through `neon-http`,
+real-Neon run (R5-2) passed on 2026-10-07: on production `main`, read-only (first recorded as a
+non-production branch, which it was not; corrected), through `neon-http`,
 the count equalled what the feed actually serves for every adopter and filter set tried, and came
 back as a number.
 
