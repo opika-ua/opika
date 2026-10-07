@@ -616,3 +616,13 @@ on the shapes, so the document above can be read as the spec without re-deriving
 - **Copy (H2-8):** everything stays `[COPY PENDING]`, batched into one review sheet
   (`docs/h2-copy-sheet.md`). `/prytulkam` §7/§9/§10 still blocks the self-serve merge, and so
   does the commitment #7 sentence (Q3 = yes).
+- **H2-16 → B (decided 2026-10-07, for S3):** «Ще шукає»'s 8-second «Скасувати» is a
+  server-side undo, accepted only within the window. The previous `confirmedAt` is **stored**
+  when the confirmation is written and restored exactly on undo. It is never recomputed or
+  derived from history. Shape for S3 to propose in detail: the `confirm` write records the
+  instant it replaced, and an `undo_confirm` listing event restores that stored instant,
+  refused outside the window or once anything newer has been written. Oleksii's reasoning,
+  verbatim: "A silent drop of a confirmation the shelter believes was saved is a false
+  statement by the UI."
+- **H2-15:** `Freshness.updatedAt` keeps its wire name until the «Оновлено» copy decision
+  (copy sheet B2), and is renamed in the same PR as that copy.
