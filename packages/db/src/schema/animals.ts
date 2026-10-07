@@ -61,6 +61,22 @@ export const animals = pgTable(
      */
     waitAnchorAt: timestamp("wait_anchor_at", { withTimezone: true }),
 
+    /**
+     * Derived from `confirmationAnchorOf(listing)` at write time (H2): when
+     * the shelter last confirmed the animal is still looking. What freshness
+     * measures, and the ordering key of the deck's keyset and the gallery's
+     * `freshest` sort (decision #10, revised 2026-10-07).
+     *
+     * Nullable for the same reason as `wait_anchor_at`: a draft, adopted or
+     * withdrawn animal is confirmed as nothing. Both feed indexes below are
+     * partial on, or led by, the discoverable kinds.
+     *
+     * Deliberately not `last_updated_at`, which is edit time: once shelters
+     * can edit, a typo fix would otherwise make an old card read as fresh
+     * and jump to the top of both orderings.
+     */
+    lastConfirmedAt: timestamp("last_confirmed_at", { withTimezone: true }),
+
     descriptionUk: text("description_uk").notNull(),
     descriptionEnText: text("description_en_text"),
     descriptionEnProvenance: text("description_en_provenance", {
@@ -109,7 +125,7 @@ export const animals = pgTable(
 
     /**
      * The feed index. Equality columns first (the ones feed filters match on),
-     * then the keyset ordering tuple `(last_updated_at DESC, id)`.
+     * then the keyset ordering tuple `(last_confirmed_at DESC, id)`.
      *
      * Postgres can skip leading equality columns it doesn't need for a given
      * query, but it cannot skip columns in the middle. Listing kind and
@@ -121,16 +137,23 @@ export const animals = pgTable(
      * predicate and must be handled outside this index (it would break the
      * ordering guarantee if placed before the keyset columns).
      */
-    index("animals_feed_idx").on(t.listingKind, t.cityId, t.species, t.size, t.lastUpdatedAt, t.id),
+    index("animals_feed_idx").on(
+      t.listingKind,
+      t.cityId,
+      t.species,
+      t.size,
+      t.lastConfirmedAt,
+      t.id,
+    ),
 
     /**
      * Partial index for the unfiltered feed — the most common case.
-     * Covers `WHERE listing_kind IN ('published','reserved') ORDER BY last_updated_at DESC, id`.
+     * Covers `WHERE listing_kind IN ('published','reserved') ORDER BY last_confirmed_at DESC, id`.
      * The composite feed_idx above can't provide ordering when city/species/size aren't filtered
      * because Postgres can't skip middle columns.
      */
     index("animals_feed_unfiltered_idx")
-      .on(t.lastUpdatedAt.desc().nullsFirst(), t.id.asc())
+      .on(t.lastConfirmedAt.desc().nullsFirst(), t.id.asc())
       .where(sql`listing_kind IN ('published', 'reserved')`),
 
     /**

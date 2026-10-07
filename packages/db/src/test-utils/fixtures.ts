@@ -104,7 +104,11 @@ const defaultAge: AgeEstimate = {
   precision: "day",
 };
 
-const defaultListing: AnimalListingState = { kind: "published", publishedAt: now };
+const defaultListing: AnimalListingState = {
+  kind: "published",
+  publishedAt: now,
+  confirmedAt: now,
+};
 
 export function makeAnimal(overrides: Partial<Animal> = {}): Animal {
   return {

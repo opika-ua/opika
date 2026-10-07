@@ -65,25 +65,32 @@ async function makeShelterInCity(cityId: CityId, name = "Тестовий при
 }
 
 /**
- * A corpus in which edit time and publication time are *permuted* relative to
- * one another, so the two sort modes produce genuinely different orders.
+ * A corpus in which confirmation time, publication time and edit time are all
+ * *permuted* relative to one another, so each produces a genuinely different
+ * order.
  *
- * This matters more than it looks. If `lastUpdatedAt` and `publishedAt` ran in
- * step, both orderings would agree and every assertion about "longest waiting"
- * would pass just as well against a query that had ignored the sort input and
- * read `last_updated_at` — which is precisely the column the decisions doc
- * rejected, because a shelter fixing a typo resets it.
+ * This matters more than it looks. If any two ran in step, an assertion about
+ * one sort mode would pass just as well against a query reading the other
+ * column. Two of the three are columns the decisions rejected for a sort:
+ * `last_updated_at` for both (a shelter fixing a typo resets it — H2-3 moved
+ * `freshest` off it), and `publishedAt` for `freshest` (publishing once says
+ * nothing about whether the animal is still looking today).
  */
 async function seedPermutedOrderings(shelterId: ShelterId, cityId: CityId, count: number) {
   const animals: Animal[] = Array.from({ length: count }, (_, i) =>
     makeAnimal({
       shelterId,
       name: `Тварина ${i}`,
-      lastUpdatedAt: daysBefore(i + 1),
-      // Stride coprime to `count`, so publication order is a permutation of
-      // edit order rather than the same order or its reverse. The test asserts
-      // that it really is different before relying on it.
-      listing: { kind: "published", publishedAt: daysBefore(((i * 3) % count) + 30) },
+      // Strides 1, 3 and 5, all coprime to `count` (7), so the three orders are
+      // permutations of one another rather than the same order or its reverse.
+      // The test asserts they really differ before relying on it. Every
+      // confirmation (≤7 days ago) is after every publication (≥30 days ago).
+      lastUpdatedAt: daysBefore(((i * 5) % count) + 1),
+      listing: {
+        kind: "published",
+        publishedAt: daysBefore(((i * 3) % count) + 30),
+        confirmedAt: daysBefore(i + 1),
+      },
     }),
   );
   await animalRepo(db).insertMany(animals.map((animal) => ({ animal, cityId })));
@@ -92,6 +99,8 @@ async function seedPermutedOrderings(shelterId: ShelterId, cityId: CityId, count
 
 const publishedAtOf = (animal: Animal): number =>
   animal.listing.kind === "published" ? animal.listing.publishedAt.getTime() : Number.NaN;
+const confirmedAtOf = (animal: Animal): number =>
+  animal.listing.kind === "published" ? animal.listing.confirmedAt.getTime() : Number.NaN;
 
 describe("galleryRepo.list", () => {
   it("sorts each mode on its own column, which are not the same order", async () => {
@@ -116,6 +125,9 @@ describe("galleryRepo.list", () => {
       now: NOW,
     });
 
+    const byConfirmedDesc = [...seeded]
+      .sort((a, b) => confirmedAtOf(b) - confirmedAtOf(a))
+      .map((a) => a.id);
     const byEditDesc = [...seeded]
       .sort((a, b) => b.lastUpdatedAt.getTime() - a.lastUpdatedAt.getTime())
       .map((a) => a.id);
@@ -123,11 +135,17 @@ describe("galleryRepo.list", () => {
       .sort((a, b) => publishedAtOf(a) - publishedAtOf(b))
       .map((a) => a.id);
 
-    // The guard that makes both assertions below mean something: if these two
-    // agreed, a query reading `last_updated_at` for both sort modes would pass.
+    // The guards that make the assertions below mean something: if any two of
+    // these agreed, a query reading the wrong column would pass.
+    expect(byConfirmedDesc).not.toEqual(byEditDesc);
+    expect(byConfirmedDesc).not.toEqual(byPublishedAsc);
     expect(byEditDesc).not.toEqual(byPublishedAsc);
 
-    expect(freshest.items.map((a) => a.id)).toEqual(byEditDesc);
+    expect(freshest.items.map((a) => a.id)).toEqual(byConfirmedDesc);
+    expect(
+      freshest.items.map((a) => a.id),
+      "freshest must not follow edit time",
+    ).not.toEqual(byEditDesc);
     expect(waiting.items.map((a) => a.id)).toEqual(byPublishedAsc);
   });
 
@@ -144,13 +162,13 @@ describe("galleryRepo.list", () => {
       shelterId: shelter.id,
       name: "Старожил",
       lastUpdatedAt: daysBefore(1),
-      listing: { kind: "published", publishedAt: longWaitPublishedAt },
+      listing: { kind: "published", publishedAt: longWaitPublishedAt, confirmedAt: daysBefore(1) },
     });
     const newcomer = makeAnimal({
       shelterId: shelter.id,
       name: "Новенький",
       lastUpdatedAt: daysBefore(2),
-      listing: { kind: "published", publishedAt: daysBefore(3) },
+      listing: { kind: "published", publishedAt: daysBefore(3), confirmedAt: daysBefore(2) },
     });
     await animalRepo(db).insertMany([
       { animal: oldTimer, cityId: city.id },
@@ -172,7 +190,12 @@ describe("galleryRepo.list", () => {
     await animalRepo(db).update(
       {
         ...oldTimer,
-        listing: { kind: "reserved", since: NOW, publishedAt: longWaitPublishedAt },
+        listing: {
+          kind: "reserved",
+          since: NOW,
+          publishedAt: longWaitPublishedAt,
+          confirmedAt: daysBefore(1),
+        },
       },
       city.id,
     );

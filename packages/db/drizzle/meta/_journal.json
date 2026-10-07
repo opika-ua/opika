@@ -43,6 +43,13 @@
       "when": 1788986888228,
       "tag": "0005_nervous_shinko_yamashiro",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791375870742,
+      "tag": "0006_perpetual_thunderbolt",
+      "breakpoints": true
     }
   ]
 }

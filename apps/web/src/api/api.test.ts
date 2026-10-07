@@ -235,7 +235,7 @@ describe("feed cursor", () => {
 
   it("a tampered feed cursor is rejected", async () => {
     const cursor = encodeFeedCursor(
-      { lastUpdatedAt: new Date("2026-08-01T12:00:00Z"), id: "fake-id" },
+      { at: new Date("2026-08-01T12:00:00Z"), id: "fake-id" },
       filtersFingerprint(NO_FILTERS),
       h.cursorSecret,
     );
@@ -251,7 +251,7 @@ describe("feed cursor", () => {
 
   it("a feed cursor used with different filters is rejected", async () => {
     const cursor = encodeFeedCursor(
-      { lastUpdatedAt: new Date("2026-08-01T12:00:00Z"), id: "fake-id" },
+      { at: new Date("2026-08-01T12:00:00Z"), id: "fake-id" },
       filtersFingerprint({ ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } }),
       h.cursorSecret,
     );
@@ -266,7 +266,7 @@ describe("feed cursor", () => {
 
   it("a reveal cursor cannot be used as a feed cursor", async () => {
     const cursor = encodeRevealCursor(
-      { lastUpdatedAt: new Date("2026-08-01T12:00:00Z"), id: "fake-id" },
+      { at: new Date("2026-08-01T12:00:00Z"), id: "fake-id" },
       h.cursorSecret,
     );
 
@@ -288,7 +288,7 @@ describe("reveal cursor", () => {
     const cookie = await bootstrap();
 
     const cursor = encodeRevealCursor(
-      { lastUpdatedAt: new Date("2026-08-01T12:00:00Z"), id: "fake-id" },
+      { at: new Date("2026-08-01T12:00:00Z"), id: "fake-id" },
       h.cursorSecret,
     );
     const tampered = `${cursor.slice(0, -1)}${cursor.at(-1) === "A" ? "B" : "A"}`;
@@ -918,19 +918,19 @@ describe("gallery.list", () => {
       shelterId: shelter.id,
       name: "Старожил",
       lastUpdatedAt: daysBefore(1),
-      listing: { kind: "published", publishedAt: daysBefore(200) },
+      listing: { kind: "published", publishedAt: daysBefore(200), confirmedAt: daysBefore(1) },
     });
     const middling = makeAnimal({
       shelterId: shelter.id,
       name: "Середній",
       lastUpdatedAt: daysBefore(40),
-      listing: { kind: "published", publishedAt: daysBefore(60) },
+      listing: { kind: "published", publishedAt: daysBefore(60), confirmedAt: daysBefore(40) },
     });
     const newcomer = makeAnimal({
       shelterId: shelter.id,
       name: "Новенький",
       lastUpdatedAt: daysBefore(2),
-      listing: { kind: "published", publishedAt: daysBefore(3) },
+      listing: { kind: "published", publishedAt: daysBefore(3), confirmedAt: daysBefore(2) },
     });
     for (const animal of [oldTimer, middling, newcomer]) {
       await animalRepo(h.db).insert(animal, city.id);

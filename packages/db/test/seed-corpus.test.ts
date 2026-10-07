@@ -1,5 +1,6 @@
 import {
   AnimalSchema,
+  confirmationAnchorOf,
   DEFAULT_FRESHNESS_POLICY,
   freshnessOf,
   isDiscoverable,
@@ -138,10 +139,16 @@ describe("seed corpus — D-4 hostile cases", () => {
       expect(discoverableInCity.length).toBeGreaterThan(0);
       expect(discoverableInCity.length).toBeLessThanOrEqual(24); // one gallery page
 
+      // Measured from the confirmation, as every adopter-facing surface is
+      // (H2-3) — not from `lastUpdatedAt`, which the seed happens to set equal
+      // and which would keep this green if the two ever drifted apart.
       const kinds = new Set(
-        discoverableInCity.map(
-          (r) => freshnessOf(r.animal.lastUpdatedAt, NOW, DEFAULT_FRESHNESS_POLICY).kind,
-        ),
+        discoverableInCity.map((r) => {
+          const confirmedAt = confirmationAnchorOf(r.animal.listing);
+          if (confirmedAt == null)
+            throw new Error(`${r.animal.id} is discoverable but unconfirmed`);
+          return freshnessOf(confirmedAt, NOW, DEFAULT_FRESHNESS_POLICY).kind;
+        }),
       );
       expect(kinds.has("fresh")).toBe(true);
       expect(kinds.has("aging")).toBe(true);

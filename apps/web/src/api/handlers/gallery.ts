@@ -5,10 +5,11 @@ import type {
   GalleryRelaxationCountsOutputSchema,
 } from "@opika/contracts";
 import { galleryRepo, shelterRepo } from "@opika/db/repos";
-import { ageBucketOf, DEFAULT_FRESHNESS_POLICY, freshnessOf, primaryPhoto } from "@opika/domain";
+import { ageBucketOf, primaryPhoto } from "@opika/domain";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 import { discoverableListingKind } from "./discoverable-listing-kind";
+import { listingFreshness } from "./listing-freshness";
 
 type GalleryListInput = z.infer<typeof GalleryListInputSchema>;
 type GalleryListOutput = z.infer<typeof GalleryListOutputSchema>;
@@ -65,7 +66,7 @@ export async function galleryList(
         size: animal.size,
         publicLocation: animal.publicLocation,
         ageBucket: ageBucketOf(animal.age, context.now),
-        freshness: freshnessOf(animal.lastUpdatedAt, context.now, DEFAULT_FRESHNESS_POLICY),
+        freshness: listingFreshness(animal.listing, context.now),
         primaryPhoto: primaryPhoto(animal),
         listingKind: discoverableListingKind(animal.listing),
         shelter: {

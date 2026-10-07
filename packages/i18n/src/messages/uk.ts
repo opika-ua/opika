@@ -770,12 +770,14 @@ export const uk = {
      * what the feature isn't: pre-empting the objection is what plants it.
      *
      * ⚠ «коли інформацію востаннє оновлювали», NOT «коли ви востаннє
-     * підтверджували». The date is `animals.last_updated_at`, which
-     * `freshnessOf` reads directly, and the schema's own comment calls it edit
-     * time — "a shelter fixing a typo would make a four-month wait read as
-     * freshly available". There is no confirmation concept in the data model,
-     * so the sentence describes what the number measures rather than what
-     * would be nicer for it to mean. See commitment 7.
+     * підтверджували» — and this sentence is due to be replaced, not kept.
+     * Since H2-3 (2026-10-07) the date is `listing.confirmedAt`
+     * (`last_confirmed_at`): set when a listing is published, and — once the
+     * kabinet ships — by «Ще шукає». Today nothing but publishing sets it and
+     * nothing can edit a listing, so «оновлювали» is exactly as true as it
+     * was. It stops being true the day the kabinet lets a shelter edit or
+     * confirm, which is why its replacement (`docs/h2-copy-sheet.md` B1,
+     * Oleksii's Ukrainian) blocks the self-serve merge. See commitment 7.
      */
     whyThatSentence:
       "Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого " +

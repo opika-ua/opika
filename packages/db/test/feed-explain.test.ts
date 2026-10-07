@@ -65,13 +65,15 @@ describe("feed query EXPLAIN", () => {
     await shelters.insert(shelter);
 
     // Insert enough rows for the planner to consider index usage
-    const animalList = Array.from({ length: 50 }, (_, i) =>
-      makeAnimal({
+    const animalList = Array.from({ length: 50 }, (_, i) => {
+      const at = new Date(Date.UTC(2026, 7, 1, 12, 0, 0) - i * 3600000);
+      return makeAnimal({
         shelterId: shelter.id,
         name: `Тест ${i}`,
-        lastUpdatedAt: new Date(Date.UTC(2026, 7, 1, 12, 0, 0) - i * 3600000),
-      }),
-    );
+        lastUpdatedAt: at,
+        listing: { kind: "published", publishedAt: at, confirmedAt: at },
+      });
+    });
     await animals.insertMany(animalList.map((a) => ({ animal: a, cityId: city.id })));
 
     // Run ANALYZE so the planner has accurate statistics
@@ -88,7 +90,7 @@ describe("feed query EXPLAIN", () => {
       sql`EXPLAIN (FORMAT TEXT) SELECT * FROM animals
         WHERE listing_kind IN ('published', 'reserved')
           AND shelter_id IN (SELECT id FROM shelters WHERE verification_status = 'verified')
-        ORDER BY last_updated_at DESC, id
+        ORDER BY last_confirmed_at DESC, id
         LIMIT 20`,
     );
 

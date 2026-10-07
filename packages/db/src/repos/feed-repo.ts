@@ -7,7 +7,8 @@ import { buildFeedPredicate } from "./feed-predicate";
 import { rowToAnimal } from "./mappers";
 
 export type FeedCursorData = {
-  lastUpdatedAt: Date;
+  /** The row's `last_confirmed_at` — the keyset's ordering value. */
+  confirmedAt: Date;
   id: string;
 };
 
@@ -21,17 +22,17 @@ export function feedRepo(db: Database) {
     /**
      * Keyset-paginated feed query.
      *
-     * Ordering: `(last_updated_at DESC, id ASC)` — newest first, ties broken
-     * by id for determinism.
+     * Ordering: `(last_confirmed_at DESC, id ASC)` — most recently confirmed
+     * first, ties broken by id for determinism (decision #10, revised
+     * 2026-10-07: the key used to be `last_updated_at`, edit time).
      *
-     * `last_updated_at` mutates when a shelter edits a listing, which moves
-     * the row's sort position. This means a cursor may skip a row that was
-     * behind the cursor and moved ahead, or revisit one that moved back.
-     * This is accepted: the seen-set exclusion absorbs duplicates, and a
-     * skipped-then-edited listing will surface on the next fetch with its
-     * new timestamp. Materialising a stable sort key would require a
-     * recompute job, which is the trade-off the build plan explicitly
-     * declined (see decision 10 in CLAUDE.md).
+     * `last_confirmed_at` moves when a shelter confirms an animal is still
+     * looking, which moves the row's sort position. A cursor may therefore
+     * skip a row that moved ahead of it, or revisit one — accepted as it was
+     * for the old key: the seen-set exclusion absorbs duplicates, and a
+     * just-confirmed listing surfaces on the next fresh fetch. Editing a
+     * listing no longer moves it at all. Materialising a stable sort key
+     * would require a recompute job, which decision #10 declined.
      *
      * The seen-set exclusion uses a NOT IN subquery on the swipes table,
      * respecting the seen-set policy (direction-based expiry, cap).
@@ -48,13 +49,13 @@ export function feedRepo(db: Database) {
       // the cursor and the seen-set below are the deck's own.
       const conditions: SQL[] = buildFeedPredicate(opts.filters, opts.now);
 
-      // Keyset cursor: (last_updated_at DESC, id ASC)
+      // Keyset cursor: (last_confirmed_at DESC, id ASC)
       // "Give me rows that come after the cursor in this ordering"
       if (opts.cursor) {
-        const cursorTs = opts.cursor.lastUpdatedAt.toISOString();
+        const cursorTs = opts.cursor.confirmedAt.toISOString();
         conditions.push(
-          sql`(${animals.lastUpdatedAt} < ${cursorTs}::timestamptz
-            OR (${animals.lastUpdatedAt} = ${cursorTs}::timestamptz
+          sql`(${animals.lastConfirmedAt} < ${cursorTs}::timestamptz
+            OR (${animals.lastConfirmedAt} = ${cursorTs}::timestamptz
               AND ${animals.id} > ${opts.cursor.id}))`,
         );
       }
@@ -71,7 +72,7 @@ export function feedRepo(db: Database) {
         .select()
         .from(animals)
         .where(and(...conditions))
-        .orderBy(desc(animals.lastUpdatedAt), animals.id)
+        .orderBy(desc(animals.lastConfirmedAt), animals.id)
         .limit(fetchLimit);
 
       const hasMore = rows.length > opts.limit;
@@ -81,8 +82,15 @@ export function feedRepo(db: Database) {
       let nextCursor: FeedCursorData | null = null;
       const last = hasMore ? pageRows[pageRows.length - 1] : undefined;
       if (last) {
+        // Every row this query returns is discoverable, and every discoverable
+        // row has a confirmation (`confirmationAnchorOf`; migration 0006's guard
+        // refuses to leave one without). A null here is a broken invariant, and
+        // a cursor built from it would silently restart the feed.
+        if (last.lastConfirmedAt == null) {
+          throw new Error(`feed row ${last.id} is discoverable but has no last_confirmed_at`);
+        }
         nextCursor = {
-          lastUpdatedAt: last.lastUpdatedAt,
+          confirmedAt: last.lastConfirmedAt,
           id: last.id,
         };
       }

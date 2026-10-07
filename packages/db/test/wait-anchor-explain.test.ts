@@ -136,7 +136,11 @@ beforeAll(async () => {
       species: species[i % species.length] ?? "dog",
       size: sizes[i % sizes.length] ?? "medium",
       lastUpdatedAt: daysBefore(i % 400),
-      listing: { kind: "published", publishedAt: daysBefore((i * 7) % 900) },
+      listing: {
+        kind: "published",
+        publishedAt: daysBefore((i * 7) % 900),
+        confirmedAt: daysBefore(i % 400),
+      },
     });
   });
 

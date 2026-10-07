@@ -366,7 +366,9 @@ export function buildAnimal(
     vaccination: UNKNOWN_ATTESTATION(now),
     spayNeuter: UNKNOWN_ATTESTATION(now),
     documentReadiness: UNKNOWN_DOCUMENT_READINESS,
-    listing: { kind: "published", publishedAt: now },
+    // Publishing is the first confirmation: a shelter handing over a live
+    // animal is saying it is looking for a home today.
+    listing: { kind: "published", publishedAt: now, confirmedAt: now },
     // null: inherits the shelter's own publicLocation, computed above.
     // Only a fostered animal (not supported by this script) would need its
     // own city-precision location — see animal.ts's own comment on the field.

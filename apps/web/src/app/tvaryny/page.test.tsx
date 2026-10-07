@@ -75,7 +75,12 @@ describe("/tvaryny (renderGallery)", () => {
     const publishedAt = new Date("2026-07-01T00:00:00Z");
     const animal = makeAnimal({
       shelterId: shelter.id,
-      listing: { kind: "reserved", since: new Date("2026-08-01T00:00:00Z"), publishedAt },
+      listing: {
+        kind: "reserved",
+        since: new Date("2026-08-01T00:00:00Z"),
+        publishedAt,
+        confirmedAt: publishedAt,
+      },
     });
     await animalRepo(h.db).insert(animal, city.id);
 

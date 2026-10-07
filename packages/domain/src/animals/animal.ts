@@ -24,9 +24,10 @@ export const AnimalSexSchema = z.enum(["male", "female", "unknown"]);
 export type AnimalSex = z.infer<typeof AnimalSexSchema>;
 
 /**
- * `lastUpdatedAt` is required rather than nullable because the freshness signal
- * is a product property, not a diagnostic. A listing that cannot say when it was
- * last confirmed is a listing the feed cannot be honest about.
+ * `lastUpdatedAt` is edit time: when anything on the record last changed. It
+ * is not what freshness measures — that is `listing.confirmedAt` (H2-3), when
+ * the shelter last said the animal is still looking, which an edit never
+ * moves. Kept required because the kabinet shows it ("Чернетку збережено …").
  */
 export const AnimalSchema = z.object({
   id: AnimalIdSchema,

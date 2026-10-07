@@ -25,11 +25,24 @@ export type WithdrawalReason = z.infer<typeof WithdrawalReasonSchema>;
  * waiting, since some earlier date", and a sort named longest-waiting needs
  * the second meaning. A reservation falling through must not have reset the
  * animal's wait clock in the meantime.
+ *
+ * `confirmedAt` (H2) is when the shelter last said this animal is still
+ * looking: set on publishing, and again by each «Ще шукає» / «Ще
+ * домовляються». It is what freshness measures. It lives on the two
+ * variants an adopter can see, not on `Animal`, so "a draft that was
+ * confirmed on some date" cannot be written down at all. Editing a listing
+ * never touches it: that is `Animal.lastUpdatedAt`, which is edit time, and a
+ * typo fix must not make a four-month-old card read as fresh.
  */
 export const AnimalListingStateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("draft") }),
-  z.object({ kind: z.literal("published"), publishedAt: z.date() }),
-  z.object({ kind: z.literal("reserved"), since: z.date(), publishedAt: z.date() }),
+  z.object({ kind: z.literal("published"), publishedAt: z.date(), confirmedAt: z.date() }),
+  z.object({
+    kind: z.literal("reserved"),
+    since: z.date(),
+    publishedAt: z.date(),
+    confirmedAt: z.date(),
+  }),
   z.object({ kind: z.literal("adopted"), adoptedAt: z.date() }),
   z.object({
     kind: z.literal("withdrawn"),
@@ -90,6 +103,32 @@ export const waitAnchorOf = (listing: AnimalListingState): Date | null => {
       // the `published` state it came from, so the transition does not move
       // the animal in this ordering at all.
       return listing.publishedAt;
+    case "draft":
+    case "adopted":
+    case "withdrawn":
+      return null;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = listing;
+      return unreachable;
+    }
+  }
+};
+
+/**
+ * When the shelter last confirmed the animal is still looking — what
+ * freshness measures, what the deck's keyset and the gallery's `freshest`
+ * sort order on, and `null` for any listing no adopter can see.
+ *
+ * Mirrors `waitAnchorOf`: a pure derivation persistence writes into an
+ * indexed column (`last_confirmed_at`), so the sort key and the domain state
+ * cannot disagree.
+ */
+export const confirmationAnchorOf = (listing: AnimalListingState): Date | null => {
+  switch (listing.kind) {
+    case "published":
+    case "reserved":
+      return listing.confirmedAt;
     case "draft":
     case "adopted":
     case "withdrawn":
