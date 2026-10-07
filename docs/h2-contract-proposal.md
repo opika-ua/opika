@@ -575,8 +575,13 @@ on the shapes, so the document above can be read as the spec without re-deriving
 - **Q3 → yes.**
   - Freshness, the deck keyset and the gallery's `freshest` sort move to `last_confirmed_at`.
   - Edits never touch it.
-  - Backfill: `last_confirmed_at = created_at`. That is Oleksii's choice over §1.6's
-    `last_updated_at`; today the two are equal on every row anyway.
+  - Backfill: Oleksii chose `last_confirmed_at = created_at` over §1.6's `last_updated_at`.
+    **That choice rested on a false fact from me.** An earlier draft of this bullet, and the
+    chat summary he answered, said the two columns are "equal on every row". They are not.
+    The seed sets `created_at` 7 days before `last_updated_at` (`seed.ts:1339`), and a check
+    against the local corpus found 320/320 rows differ. 224 published or reserved rows also
+    have `created_at` before `publishedAt`. Reopened as inbox H2-14 rather than implemented
+    either way.
   - Decision #10 in `CLAUDE.md` and commitment #7 in `docs/standing-constraints.md` are
     updated in the same change.
   - The "blue pip" question (`docs/marketing/brand-improvements.md` #3) is closed against this
