@@ -582,6 +582,16 @@ on the shapes, so the document above can be read as the spec without re-deriving
     against the local corpus found 320/320 rows differ. 224 published or reserved rows also
     have `created_at` before `publishedAt`. Reopened as inbox H2-14 rather than implemented
     either way.
+  - **Decided (H2-14 → A): `last_confirmed_at = last_updated_at`.**
+    - **Guard:** the migration test, and one run against local data, assert that no row with
+      a `publishedAt` has `last_confirmed_at < publishedAt`. Any violating rows get
+      `GREATEST(last_updated_at, published_at)`, and the count is reported to Oleksii rather
+      than silently corrected.
+  - **Why not `created_at`, so nobody reverts to it.** In Oleksii's own words, the earlier
+    answer rested on "a listing's creation is a confirmation", and he names that as false
+    for drafts. A draft is created before anyone has said the animal is available. Its
+    creation confirms nothing. Separately, on this corpus `created_at` precedes `publishedAt`
+    on 224 rows.
   - Decision #10 in `CLAUDE.md` and commitment #7 in `docs/standing-constraints.md` are
     updated in the same change.
   - The "blue pip" question (`docs/marketing/brand-improvements.md` #3) is closed against this
@@ -597,8 +607,8 @@ on the shapes, so the document above can be read as the spec without re-deriving
 - **Q8 → yes.** S3 compares `registeredName` with `legalEntity.legalName` as well as
   `displayName` and `holderName`.
 - **Q9 → A.** No super_admin animal editing in H2.
-- **Q10 → A.** `withdrawn.reason` becomes `{ code, note | null }`. The backfill detail is open
-  as inbox H2-13: taken literally, the answer would overwrite real codes.
+- **Q10 → A.** `withdrawn.reason` becomes `{ code, note | null }`. Backfill (H2-13): each
+  existing withdrawn row keeps its own code, with `note: null`.
 - **H2-7 defaults accepted. Consequence recorded, so nobody "fixes" it later:** `adopted` is
   terminal. An animal that is adopted and later returned becomes a **new listing**, with a new
   id, a new URL and a wait clock starting from zero. The old listing stays `adopted` as the
