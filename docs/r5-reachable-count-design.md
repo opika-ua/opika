@@ -102,11 +102,12 @@ announcement, which is deliberately computed once at mount.
   `neon-http`, verify against both, the way `hasActiveSeenSet`'s own `RowList`-vs-`{rows}` bug
   was caught).
 
-## Opus resolution, 2026-10-07: proposed, not yet implemented
+## Opus resolution, 2026-10-07: approved (R5-1) and implemented; the Neon check (R5-2) is pending
 
 All three open questions above are answered from the code. Two changes to the shape above
-are proposed, and one existing bug was found. Nothing is implemented. This section is the
-shape for Oleksii's review (Tier 1, contract change).
+were proposed, and one existing bug was found. Oleksii approved the shape (inbox R5-1) and it
+is implemented as written below, plus the zero-total guard noted under §1's drift list. The
+real-Neon run (R5-2) is still pending, so the count is not yet called verified.
 
 ### 1. The count is a frozen snapshot, taken at the start of each fresh feed
 
@@ -137,9 +138,13 @@ the moment of the count, not across the whole session:
   If it sits on a later page, the record lands first and the page excludes it, so the
   denominator is one too high and the deck reaches «exhausted» one short of it. That *is* the
   overstatement R1 exists to prevent, bounded at one card per in-flight record, in a
-  sub-second window, and only on a retry. Accepted and recorded here. The alternative, making
+  sub-second window, and only on a fresh feed (a retry or a filter change). Accepted and recorded here. The alternative, making
   the retry await pending records, would block the error card's recovery on a best-effort
   write that decision #9 says must never block anything.
+- **A zero count while cards are served.** The count and the page are two statements run side
+  by side, not one snapshot, so a race can in principle return `reachableCount: 0` alongside a
+  non-empty page. The header shows no position at all for a total of 0 (`DeckScreen.tsx`)
+  rather than «0 з 0» or a `NaN%` bar.
 
 ### 2. Gate on "fresh fetch + session", not on `hasActiveSeenSet === true`
 

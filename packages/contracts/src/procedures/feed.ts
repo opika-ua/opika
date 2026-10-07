@@ -25,33 +25,24 @@ export const FeedListOutputSchema = z.object({
   /** Null means the feed is exhausted for these filters, not that it failed. */
   nextCursor: FeedCursorSchema.nullable(),
   /**
-   * Whether this caller currently has at least one swipe that still
-   * excludes an animal *somewhere* (R1, Phase R, 2026-09-09 — Oleksii's
-   * resolution to R1's STOP) — not specifically one under this call's own
-   * `filters`. The underlying check is filter-independent: an adopter who
-   * has only ever swiped on dogs gets `true` here even on a cats-only
-   * feed, where nothing was actually excluded. Deliberately conservative
-   * in the direction that matters — the deck's own "N з M" counter and
-   * progress bar are computed from the *gallery's* unfiltered total,
-   * which has no seen-set exclusion of its own, and `true` only ever
-   * suppresses a number that might now be wrong, never asserts one is. A
-   * real matching-count field on this procedure — scoped to the actual
-   * filters, reporting how many, not just whether any — is the fuller
-   * fix, deliberately not built here — its own future row, not this
-   * one's scope.
+   * How many animals this caller can still be served under these `filters`,
+   * counting from the start of this feed — their own seen-set excluded (R5,
+   * replacing R1's `hasActiveSeenSet`, which could only say *whether*
+   * anything was excluded, and not under which filters).
    *
-   * `null` means "not computed for this call" — every prefetch (a call
-   * with a non-null `cursor`) skips the check entirely rather than paying
-   * for it on every page, and `null` here is what tells a caller not to
-   * read anything into that. `false` is a real, computed answer: either
-   * an authenticated caller with a confirmed-empty seen-set, or an
-   * unauthenticated caller (no session, no seen set, always `false`).
-   * Collapsing "not computed" into `false` was the original shape — caught
-   * on review as conflating two different facts into one value, exactly
-   * what `docs/standing-constraints.md`'s "two facts that happen to be
-   * true at the same time are not one fact" warns against.
+   * A snapshot of the feed's start, not a running total: the deck counts
+   * its own position up from it (`shownCount`), so a later page must not
+   * re-count — by then this caller's own swipes are server-side exclusions
+   * and would shrink the total while the position also advanced. Hence:
+   *
+   * `null` on every prefetch (a call with a non-null `cursor`) — not
+   * computed, and nothing to read into it. Also `null` for a caller with no
+   * session: nothing can be excluded for them, so whatever total the client
+   * already has for these filters (the gallery's) is the honest one. A
+   * number only for a fresh fetch by a caller with a session — the one case
+   * where the seen-set can make the gallery's total an overstatement.
    */
-  hasActiveSeenSet: z.boolean().nullable(),
+  reachableCount: z.int().nonnegative().nullable(),
 });
 
 export const feedListContract = oc.input(FeedListInputSchema).output(FeedListOutputSchema).errors({

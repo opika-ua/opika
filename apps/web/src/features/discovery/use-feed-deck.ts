@@ -30,18 +30,22 @@ export function useFeedDeck(filters: FeedFilters) {
   const fingerprint = filtersFingerprint(filters);
 
   /**
-   * Oleksii's resolution to R1's STOP (`docs/build-plan.md`, Phase R,
-   * 2026-09-09): the deck's "N з M" counter and progress bar
-   * (`DeckScreen.tsx`) are computed from the gallery's own unfiltered
-   * total, which has no seen-set exclusion — showing them once this
-   * device's seen-set is non-empty risks a denominator the deck can't
-   * reach. `false` until proven otherwise, from either direction: the
-   * server (a real pre-existing seen-set from an earlier visit, see
-   * `fetchPage` below) or locally, the instant this session's own first
-   * real swipe is recorded (see `onSwipe` below) — the server doesn't
-   * need to be asked again for a fact the client already knows firsthand.
+   * The deck's total as of the start of the current feed (R5): `feed.list`'s
+   * `reachableCount` from the fresh fetch that started it — a number when
+   * that fetch had a session, `null` when it didn't (nothing could be
+   * excluded, so the gallery's own total, which `DeckScreen` already has,
+   * is the honest one).
+   *
+   * Taken from the fresh fetch only, and never updated by a prefetch or by
+   * this session's own swipes: the header counts `shownCount` up toward
+   * it, and the snapshot already includes the cards those swipes leave
+   * behind. Reset with everything else whenever a new feed starts (a filter
+   * change or a retry), together with `swipedCountRef`, so the pair stays
+   * consistent there too. This replaces R1's `hasActiveSeenSet`, which
+   * could only hide the counter, and hid it on a first-time visitor's very
+   * first swipe.
    */
-  const [hasActiveSeenSet, setHasActiveSeenSet] = useState(false);
+  const [reachableCount, setReachableCount] = useState<number | null>(null);
 
   /**
    * Bumped by anything that starts a *new* feed from scratch (a filter
@@ -119,18 +123,12 @@ export function useFeedDeck(filters: FeedFilters) {
         return { kind: "ready", cards };
       });
 
-      // `result.hasActiveSeenSet` is `null` on a prefetch response — not
-      // computed, see apps/web/src/api/handlers/feed.ts's own comment —
-      // and a real `true`/`false` only on a fresh fetch (the entry fetch
-      // or a retry-restart). Checking `=== true` rather than truthiness
-      // makes both `null` and `false` no-ops without this hook also
-      // needing to track which fetch mode produced the response. Once
-      // `true`, never set back to `false` (or `null`) by a later fetch
-      // either: a retry-restart still has the same device history behind
-      // it, and this device's own local swipes (below, in `onSwipe`)
-      // don't un-happen just because a later fetch didn't confirm them.
-      if (result.hasActiveSeenSet === true) {
-        setHasActiveSeenSet(true);
+      // Only the fetch that starts a feed defines its total; a prefetch's own
+      // `reachableCount` is always `null` ("not computed") and must not
+      // overwrite it. Same tick as `setState` above, so a render never sees
+      // the new cards with the previous feed's total.
+      if (mode === "replace") {
+        setReachableCount(result.reachableCount);
       }
     },
     [],
@@ -140,6 +138,7 @@ export function useFeedDeck(filters: FeedFilters) {
     generationRef.current += 1;
     cursorRef.current = null;
     swipedCountRef.current = 0;
+    setReachableCount(null);
     setState({ kind: "loading" });
 
     /**
@@ -227,18 +226,6 @@ export function useFeedDeck(filters: FeedFilters) {
         return { kind: "ready", cards: remaining };
       });
 
-      // Set the instant the real swipe is committed locally, not after the
-      // fire-and-forget `swipes.record` call below resolves (or fails —
-      // decision #9, `CLAUDE.md`, calls swipes "best-effort," and nothing
-      // else in this function waits on it either). This is optimistic,
-      // not certain: if the record call is lost, the server-side seen-set
-      // stays empty and the counter is suppressed one swipe earlier than
-      // it strictly needs to be. Accepted deliberately — the alternative,
-      // waiting for confirmation before suppressing, risks the opposite
-      // and worse failure the whole row exists to prevent: a header still
-      // promising a total the deck can no longer reach.
-      setHasActiveSeenSet(true);
-
       void (async () => {
         const ready = await ensureSession();
         if (!ready) return;
@@ -262,6 +249,7 @@ export function useFeedDeck(filters: FeedFilters) {
     generationRef.current += 1;
     cursorRef.current = null;
     swipedCountRef.current = 0;
+    setReachableCount(null);
     setState({ kind: "loading" });
 
     // A double-clicked retry aborts its own predecessor rather than
@@ -288,7 +276,7 @@ export function useFeedDeck(filters: FeedFilters) {
     onPrefetch,
     onRetry,
     shownCount: swipedCountRef.current,
-    hasActiveSeenSet,
+    reachableCount,
     /**
      * R3 (Phase R, `docs/build-plan.md`) — exposed so `SwipeDeck.tsx`'s own
      * reveal (`useReveal.ts`) can share this exact memoised bootstrap

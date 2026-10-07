@@ -75,63 +75,101 @@ describe("DeckScreen", () => {
   });
 
   /**
-   * Oleksii's resolution to R1's STOP (`docs/build-plan.md`, Phase R,
-   * 2026-09-09): `total` comes from the gallery's unfiltered count, which
-   * has no seen-set exclusion — once this device has a non-empty seen-set,
-   * the deck itself may not be able to reach `total` cards, and «6 з 34»
-   * would be a number the deck can't honour. The progress bar shares the
-   * same gate (`DeckScreen.tsx`'s single `showPosition` condition covers
-   * both), asserted here via its own testid rather than assumed.
+   * R5: once the starting fetch counted against a session, its
+   * `reachableCount` is the total — not the gallery's, which has no
+   * seen-set exclusion. Position and progress bar share the one total
+   * (`DeckScreen.tsx`'s `effectiveTotal`), so both are asserted.
    */
-  it("hides the position AND the progress bar once the seen-set is non-empty", () => {
+  it("numbers against the feed's own reachableCount, not the gallery's total", () => {
     useFeedDeckMock.mockReturnValue({
       state: { kind: "ready", cards: generateMockCards(1) },
       onSwipe: vi.fn(),
       onPrefetch: vi.fn(),
       onRetry: vi.fn(),
       shownCount: 5,
-      hasActiveSeenSet: true,
+      reachableCount: 20,
     });
 
     render(
       <WithMockRouter>
-        <DeckScreen
-          filters={NO_FILTERS}
-          total={34}
-          filtersLabel="Бровари · собаки"
-          citySlugs={CITY_SLUGS}
-        />
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
-    expect(screen.getByTestId("deck-filters-label").textContent).toBe("Бровари · собаки");
-    expect(screen.queryByTestId("deck-position")).toBeNull();
-    expect(screen.queryByTestId("deck-progress-bar")).toBeNull();
+    expect(screen.getByTestId("deck-position").textContent).toBe("6 з 20");
+    // Position 6 of 20 — a literal, not the component's own formula.
+    const fill = screen.getByTestId("deck-progress-bar").firstElementChild as HTMLElement;
+    expect(fill.style.width).toBe("30%");
   });
 
-  it("keeps showing the position for a first-time visitor with an empty seen-set", () => {
+  /**
+   * No session at the starting fetch means nothing was excluded, so the
+   * gallery's total is the honest snapshot — and stays shown after swipes,
+   * which R1 used to suppress from the very first one.
+   */
+  it("falls back to the gallery's total when the starting fetch had no session, and keeps it", () => {
     useFeedDeckMock.mockReturnValue({
       state: { kind: "ready", cards: generateMockCards(1) },
       onSwipe: vi.fn(),
       onPrefetch: vi.fn(),
       onRetry: vi.fn(),
       shownCount: 5,
-      hasActiveSeenSet: false,
+      reachableCount: null,
     });
 
     render(
       <WithMockRouter>
-        <DeckScreen
-          filters={NO_FILTERS}
-          total={34}
-          filtersLabel="Бровари · собаки"
-          citySlugs={CITY_SLUGS}
-        />
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
     expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
     expect(screen.getByTestId("deck-progress-bar")).toBeTruthy();
+  });
+
+  it("numbers against reachableCount even when the deck was entered with no gallery total", () => {
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+      reachableCount: 12,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} citySlugs={CITY_SLUGS} />
+      </WithMockRouter>,
+    );
+
+    expect(screen.getByTestId("deck-position").textContent).toBe("1 з 12");
+  });
+
+  /**
+   * The count and the page are separate statements, so a race can report 0
+   * with a card on screen. «0 з 0» and a NaN-width bar are worse than no
+   * number at all.
+   */
+  it("shows no position, and announces nothing, for a total of 0 with a card on screen", () => {
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+      reachableCount: 0,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} citySlugs={CITY_SLUGS} />
+      </WithMockRouter>,
+    );
+
+    expect(screen.queryByTestId("deck-position")).toBeNull();
+    expect(screen.queryByTestId("deck-progress-bar")).toBeNull();
+    expect(screen.getByRole("status").textContent).toBe("");
   });
 
   it("shows neither the filters phrase nor a position when given nothing to say", () => {
@@ -230,14 +268,84 @@ describe("DeckScreen", () => {
     expect(screen.getByRole("status").textContent).toBe("Режим по одній. Тварина 1 з 34.");
   });
 
-  it("renders no announcement region at all when there's no total to announce", () => {
+  it("announces nothing when there's no total to announce", () => {
     render(
       <WithMockRouter>
         <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
 
-    expect(screen.queryByRole("status")).toBeNull();
+    // The region exists (empty) so a later announcement would be heard; it
+    // must not carry a number-less variant of the sentence.
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+
+  /**
+   * R5: the announcement used to be written at mount from the gallery's
+   * total — before any fetch — and promised a returning visitor a number
+   * their seen-set had already made unreachable. It now waits for the
+   * first "ready" and uses the same total as the header.
+   */
+  it("announces the feed's own reachableCount, not the gallery's total", () => {
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+      reachableCount: 20,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} citySlugs={CITY_SLUGS} />
+      </WithMockRouter>,
+    );
+
+    expect(screen.getByRole("status").textContent).toBe("Режим по одній. Тварина 1 з 20.");
+  });
+
+  it("waits for the first card before announcing, then announces once", () => {
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "loading" },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+      reachableCount: null,
+    });
+    // A fresh element each time: re-rendering the identical element object
+    // lets React skip the update entirely, which would prove nothing.
+    const view = () => (
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel={null} citySlugs={CITY_SLUGS} />
+      </WithMockRouter>
+    );
+    const { rerender } = render(view());
+    expect(screen.getByRole("status").textContent, "nothing to announce while loading").toBe("");
+
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+      reachableCount: 20,
+    });
+    rerender(view());
+    expect(screen.getByRole("status").textContent).toBe("Режим по одній. Тварина 1 з 20.");
+
+    // A later feed (a retry) with a different total must not re-announce.
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+      reachableCount: 19,
+    });
+    rerender(view());
+    expect(screen.getByRole("status").textContent).toBe("Режим по одній. Тварина 1 з 20.");
   });
 
   it("clicking back-to-list calls router.back() when the gallery entry marker is present", () => {
