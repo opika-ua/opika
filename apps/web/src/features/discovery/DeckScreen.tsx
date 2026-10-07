@@ -3,7 +3,7 @@
 import { type CityId, DEFAULT_GALLERY_SORT, type FeedFilters } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import type { CitySlugsById } from "../gallery/filter-url";
 import { galleryHref } from "../gallery/filter-url";
@@ -68,7 +68,7 @@ export function DeckScreen({
    */
   cityNames?: Record<CityId, string>;
 }) {
-  const { state, onSwipe, onPrefetch, onRetry, shownCount, hasActiveSeenSet, ensureSession } =
+  const { state, onSwipe, onPrefetch, onRetry, shownCount, reachableCount, ensureSession } =
     useFeedDeck(filters);
   const exit = useDeckExit(filters, citySlugs);
 
@@ -80,40 +80,58 @@ export function DeckScreen({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [exit]);
 
-  const position = Math.min(shownCount + 1, total ?? Number.POSITIVE_INFINITY);
+  /**
+   * The total this feed started with (R5). `feed.list`'s `reachableCount`
+   * when the fetch that started the feed had a session — the seen-set
+   * excluded, scoped to these filters. Otherwise the gallery's own `total`,
+   * which is honest exactly then: with no session, nothing was excluded.
+   * Either way a snapshot the header counts `shownCount` up toward, never
+   * re-derived per swipe (`use-feed-deck.ts`'s `reachableCount` comment).
+   */
+  const effectiveTotal = reachableCount ?? total;
+  const position = Math.min(shownCount + 1, effectiveTotal ?? Number.POSITIVE_INFINITY);
   // Only "ready" has a real card to number — during "loading" no fetch has
   // resolved yet (there is nothing to confirm position 1 even exists), and
   // "exhausted" has already told the user, in its own words, that there is
   // nothing left; numbering a card past the last one there is a genuine
   // off-by-one, not a rounding choice.
   //
-  // `!hasActiveSeenSet` (Oleksii's resolution to R1's STOP,
-  // `docs/build-plan.md`, Phase R, 2026-09-09): `total` comes from the
-  // *gallery's* unfiltered count, which has no seen-set exclusion — once
-  // this device has skipped or written about anything, the deck itself may
-  // no longer be able to reach `total` cards, and a header still promising
-  // it would be a number the deck can't honour. Suppressed only once
-  // there's something to exclude, not for every visitor with a session —
-  // a first-time visitor keeps the count the design specifies.
-  const showPosition = total !== null && state.kind === "ready" && !hasActiveSeenSet;
+  // A total of 0 alongside a card on screen is only reachable through the
+  // count racing the page (two statements, not one snapshot — R5's drift
+  // list); «0 з 0» and a NaN-width bar would be worse than no number.
+  const showPosition = effectiveTotal !== null && effectiveTotal > 0 && state.kind === "ready";
 
   const showDemoBanner = REGISTRY_HAS_NO_REAL_SHELTERS;
 
   /**
-   * Frozen at mount, not derived from `position` — docs/design/README.md's
-   * own announcement is specifically about *entering* the deck ("Режим по
-   * одній. Тварина 1 з N"), not a running commentary. A live region whose
-   * text changes on every swipe re-announces on every swipe (`aria-live`'s
-   * whole contract), talking over `SwipeDeck`'s own focus/DOM changes on
-   * commit — confirmed by rendering and swiping, not assumed. The lazy
-   * initializer runs once; `total` from props is enough to write "1 з N"
-   * without waiting for the first fetch to resolve.
+   * Written once per mount, on the first "ready" state, and never again —
+   * docs/design/README.md's own announcement is specifically about
+   * *entering* the deck ("Режим по одній. Тварина 1 з N"), not a running
+   * commentary. A live region whose text changes on every swipe
+   * re-announces on every swipe (`aria-live`'s whole contract), talking over
+   * `SwipeDeck`'s own focus/DOM changes on commit — confirmed by rendering
+   * and swiping, not assumed.
+   *
+   * On the first "ready", not at mount (R5): the honest N is `effectiveTotal`,
+   * which needs the first fetch. Written at mount from the gallery's total,
+   * it promised a returning visitor a number their seen-set had already
+   * made unreachable — the overstatement R1 removed from the header and
+   * left in here. When there is no total, nothing is announced at all,
+   * exactly as before — never a variant of the sentence without a number.
    */
-  const [entryAnnouncement] = useState(() =>
-    total !== null
-      ? uk.feed.deckEntryAnnouncement.replace("{position}", "1").replace("{total}", String(total))
-      : null,
-  );
+  const [entryAnnouncement, setEntryAnnouncement] = useState<string | null>(null);
+  const announcedRef = useRef(false);
+  useEffect(() => {
+    if (announcedRef.current || state.kind !== "ready") return;
+    announcedRef.current = true;
+    if (effectiveTotal !== null && effectiveTotal > 0) {
+      setEntryAnnouncement(
+        uk.feed.deckEntryAnnouncement
+          .replace("{position}", "1")
+          .replace("{total}", String(effectiveTotal)),
+      );
+    }
+  }, [state.kind, effectiveTotal]);
 
   return (
     // Same outer shape as the /discovery wrapper it replaces (max-w-97.5,
@@ -180,10 +198,10 @@ export function DeckScreen({
           )
         )}
 
-        {showPosition && total !== null && (
+        {showPosition && effectiveTotal !== null && (
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <span data-testid="deck-position" className="text-[12px] text-rg-ink-3">
-              {position} з {total}
+              {position} з {effectiveTotal}
             </span>
             {/**
              * Degrade order (Oleksii, Phase D decisions): if the demo label
@@ -207,7 +225,7 @@ export function DeckScreen({
             >
               <div
                 className="h-full bg-rg-ink"
-                style={{ width: `${Math.min(100, (position / total) * 100)}%` }}
+                style={{ width: `${Math.min(100, (position / effectiveTotal) * 100)}%` }}
               />
             </div>
           </div>
@@ -215,13 +233,13 @@ export function DeckScreen({
       </header>
 
       {/* docs/design/README.md's own polite announcement on entry — see
-          `entryAnnouncement`'s own comment for why its text never changes
-          after mount. */}
-      {entryAnnouncement && (
-        <span role="status" aria-live="polite" className="sr-only">
-          {entryAnnouncement}
-        </span>
-      )}
+          `entryAnnouncement`'s own comment for why its text is written once.
+          The region itself is always present, empty until then: a live
+          region inserted already holding its text is announced less
+          reliably than one whose text arrives after it exists. */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {entryAnnouncement}
+      </span>
 
       <SwipeDeck
         state={state}

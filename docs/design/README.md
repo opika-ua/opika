@@ -649,10 +649,13 @@ Transition, both directions:
   cross-route transition like that (the View Transitions API integration wasn't evaluated
   this phase), and building one is real, separate scope from "the deck is reachable and
   honest." Not built; no owning phase yet.
-- **Position/progress total is carried, not "otherwise invisible."** `feed.list` has no
-  count of its own — the gallery's `totalMatching` rides along on the entry link
-  (`deckEntryHref`) instead. Anyone who reaches `/tvaryny/gortaty` without it (a reload, a
-  bookmark) sees the position alone, no denominator — an honest degradation, not a guess.
+- **Where the position's total comes from (R5, 2026-10-07).** When the deck's first fetch
+  carries a session, `feed.list` counts what this visitor can still reach under these filters
+  (`reachableCount`, their own seen-set excluded) and that is the total. Without a session
+  nothing can be excluded, so the gallery's `totalMatching`, carried on the entry link
+  (`deckEntryHref`), is the total. Reaching `/tvaryny/gortaty` with neither (a reload or
+  bookmark with no session) shows no position and no progress bar at all: an honest
+  degradation, not a guess.
 - **Mobile entry sits in the existing, non-sticky filter row, not a sticky bottom bar.**
   `docs/design/README.md`'s own 0–599 row calls for a "sticky bottom bar «Фільтри · N /
   Гортати»" — this app's mobile filter row (built in an earlier phase) was never sticky and

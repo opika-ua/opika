@@ -1,10 +1,17 @@
-import { DEFAULT_SEEN_SET_POLICY, type FeedFilters, NO_FILTERS } from "@opika/domain";
+import {
+  type AdopterId,
+  type Animal,
+  DEFAULT_SEEN_SET_POLICY,
+  type FeedFilters,
+  NO_FILTERS,
+} from "@opika/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
-import { feedRepo } from "../src/repos/feed-repo";
+import { type FeedCursorData, type FeedPage, feedRepo } from "../src/repos/feed-repo";
+import { galleryRepo } from "../src/repos/gallery-repo";
 import { revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { swipeRepo } from "../src/repos/swipe-repo";
@@ -972,15 +979,18 @@ describe("feedRepo", () => {
     expect(page.items).toHaveLength(0);
   });
 
-  describe("hasActiveSeenSet", () => {
-    async function seedAdopterWithShelter() {
-      const cities = cityRepo(db);
-      const sheltersR = shelterRepo(db);
-      const animalsR = animalRepo(db);
-      const adopters = adopterRepo(db);
+  /**
+   * R5. The count must equal what the deck can actually still serve, so every
+   * case is checked against the feed itself (paged to exhaustion), not only
+   * against an expected number.
+   */
+  describe("reachableCount", () => {
+    const NOW = new Date("2026-08-01T12:00:00Z");
+    const POLICY = { maxTracked: 1000, reshowAfterDays: 30 };
 
+    async function seedThreeDogsAndACat() {
       const city = makeCity();
-      await cities.insert(city);
+      await cityRepo(db).insert(city);
       const shelter = makeShelter({
         publicLocation: {
           cityId: city.id,
@@ -997,94 +1007,133 @@ describe("feedRepo", () => {
           coordinates: { lat: 50.45, lng: 30.52 },
         },
       });
-      await sheltersR.insert(shelter);
-
-      const animal = makeAnimal({ shelterId: shelter.id });
-      await animalsR.insert(animal, city.id);
-
+      await shelterRepo(db).insert(shelter);
+      const dogs = [0, 1, 2].map(() => makeAnimal({ shelterId: shelter.id, species: "dog" }));
+      const cat = makeAnimal({ shelterId: shelter.id, species: "cat" });
+      for (const animal of [...dogs, cat]) await animalRepo(db).insert(animal, city.id);
       const adopter = makeAdopter();
-      await adopters.insert(adopter);
-
-      return { animal, adopter };
+      await adopterRepo(db).insert(adopter);
+      return { dogs, cat, adopter };
     }
 
-    it("is false for an adopter with no swipes", async () => {
-      const { adopter } = await seedAdopterWithShelter();
-      const feed = feedRepo(db);
+    /** Everything `feed.list` will serve, page by page, until it says there is no more. */
+    async function servedCount(filters: FeedFilters, adopterId: AdopterId): Promise<number> {
+      let served = 0;
+      let cursor: FeedCursorData | null = null;
+      do {
+        const page: FeedPage = await feedRepo(db).list({
+          filters,
+          cursor,
+          limit: 2,
+          adopterId,
+          now: NOW,
+          seenSetPolicy: POLICY,
+        });
+        served += page.items.length;
+        cursor = page.nextCursor;
+      } while (cursor !== null);
+      return served;
+    }
 
-      const result = await feed.hasActiveSeenSet(
-        adopter.id,
-        new Date("2026-08-01T12:00:00Z"),
-        DEFAULT_SEEN_SET_POLICY,
+    async function expectCount(filters: FeedFilters, adopterId: AdopterId, expected: number) {
+      const counted = await feedRepo(db).reachableCount({
+        filters,
+        adopterId,
+        now: NOW,
+        seenSetPolicy: POLICY,
+      });
+      expect(counted, "reachableCount").toBe(expected);
+      expect(await servedCount(filters, adopterId), "what feed.list actually serves").toBe(
+        expected,
       );
+    }
 
-      expect(result).toBe(false);
+    it("counts everything for an adopter with no swipes", async () => {
+      const { adopter } = await seedThreeDogsAndACat();
+      await expectCount(NO_FILTERS, adopter.id, 4);
     });
 
-    it("is true after an 'interested' swipe", async () => {
-      const { animal, adopter } = await seedAdopterWithShelter();
-      const swipesR = swipeRepo(db);
-      const feed = feedRepo(db);
-
-      await swipesR.record(
-        makeSwipe({ adopterId: adopter.id, animalId: animal.id, direction: "interested" }),
+    it("excludes a pass inside reshowAfterDays and an interested swipe", async () => {
+      const { dogs, adopter } = await seedThreeDogsAndACat();
+      const [first, second] = dogs as [Animal, Animal, Animal];
+      await swipeRepo(db).record(
+        makeSwipe({ adopterId: adopter.id, animalId: first.id, direction: "interested" }),
       );
-
-      const result = await feed.hasActiveSeenSet(
-        adopter.id,
-        new Date("2026-08-01T12:00:00Z"),
-        DEFAULT_SEEN_SET_POLICY,
-      );
-
-      expect(result).toBe(true);
-    });
-
-    it("is true after a 'pass' swipe within reshowAfterDays", async () => {
-      const { animal, adopter } = await seedAdopterWithShelter();
-      const swipesR = swipeRepo(db);
-      const feed = feedRepo(db);
-      const policy = { maxTracked: 1000, reshowAfterDays: 30 };
-
-      await swipesR.record(
+      await swipeRepo(db).record(
         makeSwipe({
           adopterId: adopter.id,
-          animalId: animal.id,
+          animalId: second.id,
           direction: "pass",
           at: new Date("2026-07-22T12:00:00Z"),
         }),
       );
-
-      const result = await feed.hasActiveSeenSet(
-        adopter.id,
-        new Date("2026-08-01T12:00:00Z"),
-        policy,
-      );
-
-      expect(result).toBe(true);
+      await expectCount(NO_FILTERS, adopter.id, 2);
     });
 
-    it("is false once a 'pass' swipe has expired past reshowAfterDays", async () => {
-      const { animal, adopter } = await seedAdopterWithShelter();
-      const swipesR = swipeRepo(db);
-      const feed = feedRepo(db);
-      const policy = { maxTracked: 1000, reshowAfterDays: 30 };
-
-      await swipesR.record(
+    it("counts a pass again once it has expired past reshowAfterDays", async () => {
+      const { dogs, adopter } = await seedThreeDogsAndACat();
+      await swipeRepo(db).record(
         makeSwipe({
           adopterId: adopter.id,
-          animalId: animal.id,
+          animalId: (dogs[0] as Animal).id,
           direction: "pass",
           at: new Date("2026-07-01T12:00:00Z"),
         }),
       );
+      await expectCount(NO_FILTERS, adopter.id, 4);
+    });
 
-      const result = await feed.hasActiveSeenSet(
-        adopter.id,
-        new Date("2026-08-01T12:00:00Z"),
-        policy,
+    /**
+     * The case `hasActiveSeenSet` could not express and the reason it was
+     * filter-independent: a swipe on a dog excludes nothing from a cats-only
+     * feed, and the count says so.
+     */
+    it("is scoped to the filters — a swipe on a dog leaves a cats-only count untouched", async () => {
+      const { dogs, adopter } = await seedThreeDogsAndACat();
+      await swipeRepo(db).record(
+        makeSwipe({
+          adopterId: adopter.id,
+          animalId: (dogs[0] as Animal).id,
+          direction: "interested",
+        }),
       );
+      await expectCount(
+        { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
+        adopter.id,
+        1,
+      );
+      await expectCount(
+        { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } },
+        adopter.id,
+        2,
+      );
+    });
 
-      expect(result).toBe(false);
+    /**
+     * R5's client falls back to the gallery's `totalMatching` for a deck
+     * opened with no session. That is only honest if the two count the same
+     * predicate when nothing is excluded — an assumption carried over from R1,
+     * asserted here rather than left assumed.
+     */
+    it("matches the gallery's own total when nothing is excluded", async () => {
+      const { adopter } = await seedThreeDogsAndACat();
+      const catsOnly: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } };
+      for (const filters of [NO_FILTERS, catsOnly]) {
+        const gallery = await galleryRepo(db).list({
+          filters,
+          sort: "freshest",
+          page: 1,
+          pageSize: 24,
+          now: NOW,
+        });
+        const counted = await feedRepo(db).reachableCount({
+          filters,
+          adopterId: adopter.id,
+          now: NOW,
+          seenSetPolicy: POLICY,
+        });
+        expect(counted).toBe(gallery.totalMatching);
+      }
     });
   });
 

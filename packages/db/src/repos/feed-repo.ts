@@ -91,47 +91,40 @@ export function feedRepo(db: Database) {
     },
 
     /**
-     * Whether this adopter currently has at least one swipe that still
-     * excludes an animal under the given policy — filter-independent, not
-     * scoped to any particular `FeedFilters`. An adopter who has only ever
-     * swiped on dogs gets `true` here even against a cats-only feed, where
-     * nothing was actually excluded — deliberately conservative in the
-     * direction that matters, since this only ever suppresses a denominator
-     * that *might* now be wrong (`DeckScreen.tsx`'s "N з M" counter and
-     * progress bar are computed from the gallery's unfiltered total, which
-     * has no seen-set exclusion of its own), never asserts one is right.
-     * Oleksii's own resolution to R1's STOP (`docs/build-plan.md`, Phase R,
-     * 2026-09-09): suppress both, but only when this is true — a
-     * first-time visitor with an empty seen-set keeps the accurate count
-     * the design doc specifies.
+     * How many animals the deck can still serve this adopter under these
+     * filters, right now: the page query's own predicate and seen-set
+     * exclusion, counted instead of paged (R5).
      *
-     * A separate query, not a re-use of `buildSeenExclusion`'s NOT IN
-     * clause: that clause is coupled to the outer query's `animals` alias
-     * (`animals.id NOT IN (...)`), and answering "is there at least one"
-     * doesn't need the `animals` table at all. Shares
-     * `stillExcludesCondition` with it so the two can't drift apart on what
-     * "still excludes" means.
+     * Same `buildFeedPredicate` and the same `buildSeenExclusion` — including
+     * its `LIMIT maxTracked` cap — so the count excludes exactly what
+     * `list` excludes at this moment, not every swipe ever made. A separate
+     * query rather than a window function on the page query, because the
+     * page query has a keyset cursor and a LIMIT, and this must count the
+     * whole remaining feed.
      *
-     * `.select().limit(1)`, not a raw `db.execute(sql\`...EXISTS...\`)`: the
-     * two adapters this repo runs against return genuinely different raw
-     * result shapes from `.execute()` (a `RowList` array for postgres-js,
-     * `{ rows: T[] }` for neon-http — `../client.ts`'s own comment on why
-     * `Database`'s cast is safe rests specifically on nothing in this repo
-     * layer calling `.execute()`). A typed `.select()` chain is what that
-     * comment's safety claim actually covers — Drizzle normalises its
-     * return shape identically across adapters.
+     * A typed `.select()` with `count(*)` mapped to a number, not a raw
+     * `db.execute()` — the same adapter-agnostic shape as `galleryRepo`'s
+     * `countMatching`: postgres-js and neon-http return different raw result
+     * shapes from `.execute()` and both return `count(*)`'s bigint as a
+     * string, which `mapWith(Number)` normalises on either.
+     *
+     * The caller decides when this runs; see `handlers/feed.ts`.
      */
-    async hasActiveSeenSet(
-      adopterId: AdopterId,
-      now: Date,
-      policy: SeenSetPolicy,
-    ): Promise<boolean> {
+    async reachableCount(opts: {
+      filters: FeedFilters;
+      adopterId: AdopterId;
+      now: Date;
+      seenSetPolicy: SeenSetPolicy;
+    }): Promise<number> {
+      const conditions: SQL[] = [
+        ...buildFeedPredicate(opts.filters, opts.now),
+        buildSeenExclusion(opts.adopterId, opts.now, opts.seenSetPolicy),
+      ];
       const rows = await db
-        .select({ id: swipes.animalId })
-        .from(swipes)
-        .where(stillExcludesCondition(adopterId, now, policy))
-        .limit(1);
-      return rows.length > 0;
+        .select({ total: sql<number>`count(*)`.mapWith(Number) })
+        .from(animals)
+        .where(and(...conditions));
+      return rows[0]?.total ?? 0;
     },
   };
 }
@@ -139,9 +132,8 @@ export function feedRepo(db: Database) {
 /**
  * The WHERE condition matching swipe rows that still exclude their animal
  * under the given policy — "interested" swipes exclude permanently, "pass"
- * swipes expire after `reshowAfterDays`. Shared between `buildSeenExclusion`
- * below and `feedRepo(db).hasActiveSeenSet`, so the two can't drift apart
- * on what "still excludes" means.
+ * swipes expire after `reshowAfterDays`. Kept as its own function so what
+ * "still excludes" means is defined once.
  */
 function stillExcludesCondition(adopterId: AdopterId, now: Date, policy: SeenSetPolicy): SQL {
   const parts: SQL[] = [

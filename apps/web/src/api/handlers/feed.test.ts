@@ -19,11 +19,11 @@ const errors = createORPCErrorConstructorMap({
 });
 
 const listMock = vi.fn();
-const hasActiveSeenSetMock = vi.fn();
+const reachableCountMock = vi.fn();
 const findByIdsMock = vi.fn();
 
 vi.mock("@opika/db/repos", () => ({
-  feedRepo: () => ({ list: listMock, hasActiveSeenSet: hasActiveSeenSetMock }),
+  feedRepo: () => ({ list: listMock, reachableCount: reachableCountMock }),
   shelterRepo: () => ({ findByIds: findByIdsMock }),
 }));
 
@@ -32,17 +32,17 @@ process.env.CURSOR_HMAC_SECRET = "test-secret";
 const { feedList } = await import("./feed");
 
 /**
- * Only `hasActiveSeenSet`'s own wiring is under test here — the ternary in
- * `feed.ts` deciding when to call `feedRepo.hasActiveSeenSet` at all, and
+ * Only `reachableCount`'s own wiring is under test here — the ternary in
+ * `feed.ts` deciding when to call `feedRepo.reachableCount` at all, and
  * what it returns when it doesn't. `feedRepo.list` and `shelterRepo.findByIds`
  * are mocked to return nothing, so the item-mapping pipeline below that
  * ternary runs over an empty page rather than needing real fixtures — this
  * is deliberately not a full `feedList` behaviour test.
  */
-describe("feedList — hasActiveSeenSet wiring", () => {
+describe("feedList — reachableCount wiring", () => {
   beforeEach(() => {
     listMock.mockReset().mockResolvedValue({ items: [], nextCursor: null });
-    hasActiveSeenSetMock.mockReset().mockResolvedValue(true);
+    reachableCountMock.mockReset().mockResolvedValue(17);
     findByIdsMock.mockReset().mockResolvedValue([]);
   });
 
@@ -56,19 +56,19 @@ describe("feedList — hasActiveSeenSet wiring", () => {
     };
   }
 
-  it("is false, and never queries the repo, on a fresh fetch with no adopter", async () => {
+  it("is null, and never counts, on a fresh fetch with no session", async () => {
     const result = await feedList(
       { filters: NO_FILTERS, cursor: null, limit: 10 },
       makeContext(null),
       errors,
     );
 
-    expect(result.hasActiveSeenSet).toBe(false);
-    expect(hasActiveSeenSetMock).not.toHaveBeenCalled();
+    expect(result.reachableCount).toBeNull();
+    expect(reachableCountMock).not.toHaveBeenCalled();
   });
 
-  it("queries the repo and returns its answer on a fresh fetch with an adopter", async () => {
-    hasActiveSeenSetMock.mockResolvedValue(true);
+  it("counts, for these filters, and returns the count on a fresh fetch with a session", async () => {
+    reachableCountMock.mockResolvedValue(17);
     const adopterId = "11111111-1111-1111-1111-111111111111" as AppContext["adopterId"] & string;
 
     const result = await feedList(
@@ -77,15 +77,16 @@ describe("feedList — hasActiveSeenSet wiring", () => {
       errors,
     );
 
-    expect(result.hasActiveSeenSet).toBe(true);
-    expect(hasActiveSeenSetMock).toHaveBeenCalledWith(
+    expect(result.reachableCount).toBe(17);
+    expect(reachableCountMock).toHaveBeenCalledWith({
+      filters: NO_FILTERS,
       adopterId,
-      new Date("2026-09-09T12:00:00Z"),
-      expect.objectContaining({ maxTracked: expect.any(Number) }),
-    );
+      now: new Date("2026-09-09T12:00:00Z"),
+      seenSetPolicy: expect.objectContaining({ maxTracked: expect.any(Number) }),
+    });
   });
 
-  it("is null, and never queries the repo, on a prefetch (non-null cursor)", async () => {
+  it("is null, and never counts, on a prefetch (non-null cursor) — the total is a snapshot", async () => {
     const adopterId = "11111111-1111-1111-1111-111111111111" as AppContext["adopterId"] & string;
     const fp = filtersFingerprint(NO_FILTERS);
     const cursor = encodeFeedCursor(
@@ -100,7 +101,7 @@ describe("feedList — hasActiveSeenSet wiring", () => {
       errors,
     );
 
-    expect(result.hasActiveSeenSet).toBeNull();
-    expect(hasActiveSeenSetMock).not.toHaveBeenCalled();
+    expect(result.reachableCount).toBeNull();
+    expect(reachableCountMock).not.toHaveBeenCalled();
   });
 });

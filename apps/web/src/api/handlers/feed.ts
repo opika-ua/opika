@@ -46,33 +46,33 @@ export async function feedList(
   const feed = feedRepo(context.db);
 
   /**
-   * Only queried on a fresh feed (`cursorData === null` — the entry fetch
-   * or a retry-restart), not on every prefetch. A prefetch doesn't need a
-   * fresh answer: if the seen-set was empty when the deck opened, the
-   * client already knows locally the moment it records its own first
-   * swipe this session (`use-feed-deck.ts`), without asking the server
-   * again. `null`, not `false`, for a prefetch — see the contract's own
-   * doc comment on why those two are different facts. A second tab (or a
-   * second device on the same session) that has already built up a
-   * seen-set this tab doesn't know about won't be reflected here until
-   * that tab's own next fresh fetch (a reload, or a retry-restart) —
-   * accepted, not fixed: the counter is honest about what *this* load
-   * has confirmed, not omniscient about every concurrent one.
+   * Only counted on a fresh feed (`cursorData === null` — the entry fetch or
+   * a retry-restart), and only for a caller with a session: the contract's
+   * own doc comment on `reachableCount` says why a prefetch must not
+   * re-count, and why a caller with no session needs no count at all.
    *
-   * Run alongside `feed.list` below via `Promise.all`, not after it —
-   * the two queries don't depend on each other's result, and awaiting
-   * them in sequence would cost a full extra round trip on every fresh
-   * deck fetch (real latency on Neon's HTTP driver, the exact class of
-   * cost O-9 exists to remove).
+   * Gated on the session alone — not on first asking whether the seen-set
+   * is non-empty — so it runs alongside `feed.list` below via `Promise.all`
+   * rather than after a second query: awaiting them in sequence would cost a
+   * full extra round trip on every fresh deck fetch (real latency on Neon's
+   * HTTP driver, the exact class of cost O-9 exists to remove). An adopter
+   * with an empty seen-set pays one indexed count for it.
+   *
+   * A second tab building up its own seen-set concurrently isn't reflected
+   * until this tab's next fresh fetch — accepted, as it was for R1: the
+   * counter is honest about what this load confirmed.
    */
-  const hasActiveSeenSetPromise: Promise<boolean | null> =
-    cursorData !== null
-      ? Promise.resolve(null)
-      : context.adopterId
-        ? feed.hasActiveSeenSet(context.adopterId, context.now, DEFAULT_SEEN_SET_POLICY)
-        : Promise.resolve(false);
+  const reachableCountPromise: Promise<number | null> =
+    cursorData === null && context.adopterId
+      ? feed.reachableCount({
+          filters: input.filters,
+          adopterId: context.adopterId,
+          now: context.now,
+          seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
+        })
+      : Promise.resolve(null);
 
-  const [page, hasActiveSeenSet] = await Promise.all([
+  const [page, reachableCount] = await Promise.all([
     feed.list({
       filters: input.filters,
       cursor: cursorData,
@@ -81,7 +81,7 @@ export async function feedList(
       now: context.now,
       seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
     }),
-    hasActiveSeenSetPromise,
+    reachableCountPromise,
   ]);
 
   // Build shelter lookup for the page — single batch query, not N+1
@@ -132,6 +132,6 @@ export async function feedList(
   return {
     items,
     nextCursor: nextCursor as FeedOutput["nextCursor"],
-    hasActiveSeenSet,
+    reachableCount,
   };
 }
