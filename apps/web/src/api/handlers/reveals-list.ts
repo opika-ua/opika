@@ -39,7 +39,7 @@ export async function revealsListMine(
     if (!decoded) {
       throw errors.INVALID_CURSOR();
     }
-    listOpts.cursor = { revealedAt: decoded.data.lastUpdatedAt, id: decoded.data.id };
+    listOpts.cursor = { revealedAt: decoded.data.at, id: decoded.data.id };
   }
 
   const items = await reveals.listByAdopter(context.adopterId, listOpts);
@@ -49,10 +49,7 @@ export async function revealsListMine(
 
   const last = hasMore ? pageItems[pageItems.length - 1] : undefined;
   const nextCursor = last
-    ? (encodeRevealCursor(
-        { lastUpdatedAt: last.revealedAt, id: last.id },
-        secret,
-      ) as Output["nextCursor"])
+    ? (encodeRevealCursor({ at: last.revealedAt, id: last.id }, secret) as Output["nextCursor"])
     : null;
 
   return {

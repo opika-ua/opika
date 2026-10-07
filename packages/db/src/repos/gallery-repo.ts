@@ -44,14 +44,14 @@ export type GalleryRelaxationCounts = {
 
 /**
  * `ORDER BY` for each sort mode, as the ordering tuple the matching partial
- * index provides — `(last_updated_at DESC, id)` for `animals_feed_idx` /
+ * index provides — `(last_confirmed_at DESC, id)` for `animals_feed_idx` /
  * `animals_feed_unfiltered_idx`, `(wait_anchor_at ASC, id)` for the two
  * wait-anchor indexes. Diverging from these is how a `Sort` node appears.
  */
 function orderingFor(sort: GallerySort): SQL[] {
   switch (sort) {
     case "freshest":
-      return [desc(animals.lastUpdatedAt), asc(animals.id)];
+      return [desc(animals.lastConfirmedAt), asc(animals.id)];
     case "longest_waiting":
       // NULLS LAST matches the index declaration. No discoverable row should
       // have a null anchor at all — the migration's own guard refuses to leave
@@ -235,6 +235,7 @@ function getAnimalColumns() {
     age: animals.age,
     ageAnchorAt: animals.ageAnchorAt,
     waitAnchorAt: animals.waitAnchorAt,
+    lastConfirmedAt: animals.lastConfirmedAt,
     descriptionUk: animals.descriptionUk,
     descriptionEnText: animals.descriptionEnText,
     descriptionEnProvenance: animals.descriptionEnProvenance,

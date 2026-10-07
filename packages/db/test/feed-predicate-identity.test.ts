@@ -73,7 +73,7 @@ afterAll(async () => {
 /** The generated SQL for one `feedRepo.list` call, normalised for snapshotting. */
 async function sqlFor(opts: {
   filters: FeedFilters;
-  cursor: { lastUpdatedAt: Date; id: string } | null;
+  cursor: { confirmedAt: Date; id: string } | null;
   adopterId: AdopterId | null;
 }): Promise<{ query: string; parameters: readonly unknown[] }> {
   captured.length = 0;
@@ -126,7 +126,7 @@ describe("feed.list generated SQL is unchanged by the shared-predicate extractio
     expect(
       await sqlFor({
         filters: ALL_FILTERS,
-        cursor: { lastUpdatedAt: CURSOR_AT, id: CURSOR_ID },
+        cursor: { confirmedAt: CURSOR_AT, id: CURSOR_ID },
         adopterId: ADOPTER,
       }),
     ).toMatchSnapshot();

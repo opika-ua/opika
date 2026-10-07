@@ -108,6 +108,20 @@ It also ties the brand's only colour to the *state*, which feeds the confusion i
 **Lean: (a).** It makes the honesty mechanism and the visual system say the same thing, and it
 leaves Opika with no borrowed-authority colour — recognisability comes from #7 instead.
 
+**Closed 2026-10-07, without recolouring: resolved against H2-3 instead.** Oleksii's answer to
+inbox H2-3 (`docs/decisions-inbox/docs-h2-contract-proposal.md`), verbatim: "Note for the design
+spec: this makes "blue pip = someone confirmed this" true. Close
+docs/marketing/brand-improvements.md #3 against this change instead of recolouring the pip."
+The problem above was that the freshness date measured edit time, so a blue pip saying "someone
+confirmed this" claimed more than the data held. Since H2-3 the date *is* a confirmation:
+`listing.confirmedAt`, set at publish and by the shelter's «Ще шукає», and never moved by an
+edit. "Fresh pip = someone confirmed this recently" is now what the data says, so the blue
+stays on the fresh pip.
+
+Neither option above is taken. The copy that names the date (`docs/h2-copy-sheet.md` B1/B2)
+still has to say "confirmed" before the visual and the words fully agree, and that is the copy
+sheet's job, not a colour change.
+
 ---
 
 ## 4. Favicon, app icon, Telegram avatar

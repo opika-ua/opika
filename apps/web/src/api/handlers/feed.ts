@@ -1,12 +1,10 @@
 import type { apiErrors, FeedListInputSchema, FeedListOutputSchema } from "@opika/contracts";
-import { feedRepo, shelterRepo } from "@opika/db/repos";
+import { type FeedCursorData, feedRepo, shelterRepo } from "@opika/db/repos";
 import {
   ageBucketOf,
-  DEFAULT_FRESHNESS_POLICY,
   DEFAULT_SCORING_POLICY,
   DEFAULT_SEEN_SET_POLICY,
   filtersFingerprint,
-  freshnessOf,
   primaryPhoto,
   scoreAnimal,
 } from "@opika/domain";
@@ -16,6 +14,7 @@ import type { AppContext } from "../context";
 import { decodeFeedCursor, encodeFeedCursor } from "../cursor";
 import { requireEnv } from "../env";
 import { discoverableListingKind } from "./discoverable-listing-kind";
+import { listingFreshness } from "./listing-freshness";
 
 type FeedInput = z.infer<typeof FeedListInputSchema>;
 type FeedOutput = z.infer<typeof FeedListOutputSchema>;
@@ -34,13 +33,14 @@ export async function feedList(
   const secret = requireEnv("CURSOR_HMAC_SECRET");
   const fp = filtersFingerprint(input.filters);
 
-  let cursorData = null;
+  let cursorData: FeedCursorData | null = null;
   if (input.cursor) {
     const decoded = decodeFeedCursor(input.cursor, fp, secret);
     if (!decoded) {
       throw errors.INVALID_CURSOR();
     }
-    cursorData = decoded.data;
+    // The codec's neutral position, mapped onto the feed's own ordering key.
+    cursorData = { confirmedAt: decoded.data.at, id: decoded.data.id };
   }
 
   const feed = feedRepo(context.db);
@@ -95,7 +95,7 @@ export async function feedList(
       const shelter = shelterMap.get(animal.shelterId);
       if (!shelter) return null;
 
-      const freshness = freshnessOf(animal.lastUpdatedAt, context.now, DEFAULT_FRESHNESS_POLICY);
+      const freshness = listingFreshness(animal.listing, context.now);
 
       return {
         id: animal.id,
@@ -126,7 +126,11 @@ export async function feedList(
     .map(({ _score, ...rest }) => rest);
 
   const nextCursor = page.nextCursor
-    ? (encodeFeedCursor(page.nextCursor, fp, secret) as string)
+    ? (encodeFeedCursor(
+        { at: page.nextCursor.confirmedAt, id: page.nextCursor.id },
+        fp,
+        secret,
+      ) as string)
     : null;
 
   return {

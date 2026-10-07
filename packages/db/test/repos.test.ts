@@ -243,7 +243,7 @@ describe("animalRepo", () => {
     const publishedAt = new Date("2026-03-01T10:00:00.000Z");
     const animal = makeAnimal({
       shelterId: shelter.id,
-      listing: { kind: "published", publishedAt },
+      listing: { kind: "published", publishedAt, confirmedAt: publishedAt },
     });
     await animals.insert(animal, city.id);
 
@@ -261,7 +261,12 @@ describe("animalRepo", () => {
     await animals.update(
       {
         ...animal,
-        listing: { kind: "reserved", since: new Date("2026-08-01T10:00:00.000Z"), publishedAt },
+        listing: {
+          kind: "reserved",
+          since: new Date("2026-08-01T10:00:00.000Z"),
+          publishedAt,
+          confirmedAt: publishedAt,
+        },
       },
       city.id,
     );
@@ -582,14 +587,16 @@ describe("feedRepo", () => {
     });
     await shelters.insert(shelter);
 
-    const animalList = Array.from({ length: opts.animalCount }, (_, i) =>
-      makeAnimal({
+    const animalList = Array.from({ length: opts.animalCount }, (_, i) => {
+      const at = new Date(`2026-08-01T${String(12 - i).padStart(2, "0")}:00:00Z`);
+      return makeAnimal({
         shelterId: shelter.id,
         species: opts.species ?? "dog",
         name: `Тест ${i}`,
-        lastUpdatedAt: new Date(`2026-08-01T${String(12 - i).padStart(2, "0")}:00:00Z`),
-      }),
-    );
+        lastUpdatedAt: at,
+        listing: { kind: "published", publishedAt: at, confirmedAt: at },
+      });
+    });
     await animalsR.insertMany(animalList.map((a) => ({ animal: a, cityId: city.id })));
 
     return { city, shelter, animals: animalList };
@@ -610,8 +617,39 @@ describe("feedRepo", () => {
 
     expect(page.items).toHaveLength(5);
     expect(page.nextCursor).toBeNull();
-    // Newest first: the first seeded animal has the latest lastUpdatedAt
+    // Most recently confirmed first: the first seeded animal has the latest confirmedAt
     expect(page.items[0]?.id).toBe(seeded[0]?.id);
+  });
+
+  /**
+   * H2-3, at the query: the deck orders on confirmation, not edit time. An
+   * edit (a typo fix bumping `lastUpdatedAt`) must leave an old listing where
+   * it is; a «Ще шукає» confirmation is what moves it to the top.
+   */
+  it("moves a listing to the top when it is confirmed, and not when it is edited", async () => {
+    const { city, animals: seeded } = await seedFeed({ animalCount: 5 });
+    const feed = feedRepo(db);
+    const animalsR = animalRepo(db);
+    const now = new Date("2026-08-01T13:00:00Z");
+    const firstId = async () =>
+      (
+        await feed.list({
+          filters: NO_FILTERS,
+          cursor: null,
+          limit: 10,
+          adopterId: null,
+          now,
+          seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
+        })
+      ).items[0]?.id;
+    const oldest = seeded[4];
+    if (!oldest || oldest.listing.kind !== "published") throw new Error("seed shape changed");
+
+    await animalsR.update({ ...oldest, lastUpdatedAt: now }, city.id);
+    expect(await firstId(), "an edit must not move the listing").toBe(seeded[0]?.id);
+
+    await animalsR.update({ ...oldest, listing: { ...oldest.listing, confirmedAt: now } }, city.id);
+    expect(await firstId(), "a confirmation moves it to the top").toBe(oldest.id);
   });
 
   it("paginates with keyset cursor", async () => {

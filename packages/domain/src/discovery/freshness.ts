@@ -5,6 +5,10 @@ export const FreshnessKindSchema = z.enum(["fresh", "aging", "stale"]);
 export type FreshnessKind = z.infer<typeof FreshnessKindSchema>;
 
 /**
+ * `updatedAt` is the instant freshness is measured from. Since H2-3 every
+ * caller passes the listing's confirmation (`confirmationAnchorOf`), not its
+ * edit time; the field keeps its wire name pending inbox H2-15.
+ *
  * `ageDays` is carried even though it is derivable from `updatedAt`, because
  * the point of modelling freshness as a value is that no display surface ever
  * touches the clock. If a badge had to recompute the delta it would need `now`,
@@ -53,14 +57,14 @@ const MS_PER_DAY = 86_400_000;
  * A negative delta is clamped to zero. A device with a fast clock should not be
  * able to make a listing look fresher than it is.
  */
-export const freshnessOf = (lastUpdatedAt: Date, now: Date, policy: FreshnessPolicy): Freshness => {
-  const elapsedMs = Math.max(0, now.getTime() - lastUpdatedAt.getTime());
+export const freshnessOf = (measuredFrom: Date, now: Date, policy: FreshnessPolicy): Freshness => {
+  const elapsedMs = Math.max(0, now.getTime() - measuredFrom.getTime());
   const ageDays = Math.floor(elapsedMs / MS_PER_DAY);
 
   const kind: FreshnessKind =
     ageDays <= policy.freshMaxDays ? "fresh" : ageDays <= policy.agingMaxDays ? "aging" : "stale";
 
-  return { kind, updatedAt: lastUpdatedAt, ageDays };
+  return { kind, updatedAt: measuredFrom, ageDays };
 };
 
 /**

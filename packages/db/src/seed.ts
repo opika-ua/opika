@@ -1238,8 +1238,13 @@ export function buildAnimals(
     //   ~70% published, ~10% reserved, ~10% draft, ~5% adopted, ~5% withdrawn
     const listing: AnimalListingState = (() => {
       const roll = i % 20;
-      if (roll < 14)
-        return { kind: "published" as const, publishedAt: daysAgo(lastUpdatedDaysAgo(i, count)) };
+      // `confirmedAt` is the same instant as `lastUpdatedAt` below, which is
+      // exactly what migration 0006 backfills onto existing rows (inbox
+      // H2-14): a fresh seed and a migrated database show the same freshness.
+      if (roll < 14) {
+        const at = daysAgo(lastUpdatedDaysAgo(i, count));
+        return { kind: "published" as const, publishedAt: at, confirmedAt: at };
+      }
       if (roll < 16)
         return {
           kind: "reserved" as const,
@@ -1251,6 +1256,7 @@ export function buildAnimals(
           // remove from the old data — and it would look plausible, because
           // the rows would still sort.
           publishedAt: daysAgo(lastUpdatedDaysAgo(i, count) + 7),
+          confirmedAt: daysAgo(lastUpdatedDaysAgo(i, count)),
         };
       if (roll < 18) return { kind: "draft" as const };
       if (roll < 19) return { kind: "adopted" as const, adoptedAt: daysAgo(7) };

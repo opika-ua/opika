@@ -90,7 +90,7 @@ describe("feedList — reachableCount wiring", () => {
     const adopterId = "11111111-1111-1111-1111-111111111111" as AppContext["adopterId"] & string;
     const fp = filtersFingerprint(NO_FILTERS);
     const cursor = encodeFeedCursor(
-      { lastUpdatedAt: new Date("2026-09-01T00:00:00Z"), id: "some-animal-id" },
+      { at: new Date("2026-09-01T00:00:00Z"), id: "some-animal-id" },
       fp,
       "test-secret",
     );

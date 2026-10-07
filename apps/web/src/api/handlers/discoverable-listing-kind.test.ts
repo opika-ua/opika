@@ -12,8 +12,8 @@ const AT = new Date("2026-08-06T00:00:00Z");
  */
 const LISTINGS: Record<AnimalListingState["kind"], AnimalListingState> = {
   draft: { kind: "draft" },
-  published: { kind: "published", publishedAt: AT },
-  reserved: { kind: "reserved", since: AT, publishedAt: AT },
+  published: { kind: "published", publishedAt: AT, confirmedAt: AT },
+  reserved: { kind: "reserved", since: AT, publishedAt: AT, confirmedAt: AT },
   adopted: { kind: "adopted", adoptedAt: AT },
   withdrawn: { kind: "withdrawn", withdrawnAt: AT, reason: "adopted_elsewhere" },
 };

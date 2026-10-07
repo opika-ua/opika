@@ -11,7 +11,7 @@ import type {
   Swipe,
   TextProvenance,
 } from "@opika/domain";
-import { ageAnchorOf, CitySlugSchema, waitAnchorOf } from "@opika/domain";
+import { ageAnchorOf, CitySlugSchema, confirmationAnchorOf, waitAnchorOf } from "@opika/domain";
 import type { adopters } from "../schema/adopters";
 import type { animals } from "../schema/animals";
 import type { cities } from "../schema/cities";
@@ -169,6 +169,7 @@ export function animalToRowWithCity(animal: Animal, cityId: CityId): AnimalInser
     listing: animal.listing,
     listingKind: animal.listing.kind,
     waitAnchorAt: waitAnchorOf(animal.listing),
+    lastConfirmedAt: confirmationAnchorOf(animal.listing),
     publicLocation: animal.publicLocation,
     cityId,
     createdAt: animal.createdAt,

@@ -1,9 +1,10 @@
 import type { AnimalDetailView, AnimalsByIdInputSchema, apiErrors } from "@opika/contracts";
 import { animalRepo, shelterRepo } from "@opika/db/repos";
-import { ageBucketOf, DEFAULT_FRESHNESS_POLICY, freshnessOf, isDiscoverable } from "@opika/domain";
+import { ageBucketOf, isDiscoverable } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
+import { listingFreshness } from "./listing-freshness";
 
 type AnimalsInput = z.infer<typeof AnimalsByIdInputSchema>;
 
@@ -51,7 +52,7 @@ export async function animalsById(
     spayNeuter: animal.spayNeuter,
     documentReadiness: animal.documentReadiness,
     ageBucket: ageBucketOf(animal.age, context.now),
-    freshness: freshnessOf(animal.lastUpdatedAt, context.now, DEFAULT_FRESHNESS_POLICY),
+    freshness: listingFreshness(animal.listing, context.now),
     shelter: {
       id: shelter.id,
       displayName: shelter.displayName,

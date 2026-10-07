@@ -199,11 +199,19 @@ half-wired code in a solo 10h/week project.
 9. **`swipes.record` and `animals.reveal` stay separate.** Swipes are
    best-effort and batchable; a reveal is transactional, idempotent and
    append-only, and is the Phase 2 reward-ledger event.
-10. **Feed ordering: keyset on `(lastUpdatedAt DESC, id)`**, with
+10. **Feed ordering: keyset on `(last_confirmed_at DESC, id)`**, with
     `scoreAnimal` re-ranking within the fetched page. No materialised score
     column, so no recompute job as freshness decays and no backfill when the
     weights are tuned. The accepted cost: de-ranking stale listings is a
-    within-page effect, not a global ordering. **M2 implements this.**
+    within-page effect, not a global ordering. **M2 implemented this** on
+    `lastUpdatedAt`. **Revised 2026-10-07 (H2-3, Oleksii's answer in
+    `docs/decisions-inbox/docs-h2-contract-proposal.md`):** the key, freshness
+    itself and the gallery's `freshest` sort all moved to `last_confirmed_at`
+    (`listing.confirmedAt`, set at publish and by «Ще шукає»). `lastUpdatedAt`
+    is edit time, and once shelters can edit, a typo fix must not make an old
+    card read as fresh or jump the queue. Backfilled from `last_updated_at`
+    (H2-14), never from `created_at`, because a listing's creation is not a
+    confirmation.
 11. **Coordinate fuzzing: 1 km, one global policy.** `fuzzCoordinates` is
     deterministic on the shelter id — a per-request offset would let an
     observer average repeated samples back to the true position.

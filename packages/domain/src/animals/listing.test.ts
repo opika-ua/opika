@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   type AnimalListingState,
   AnimalListingStateSchema,
+  confirmationAnchorOf,
   DISCOVERABLE_LISTING_KINDS,
   isDiscoverable,
   waitAnchorOf,
@@ -13,8 +14,8 @@ const LONG_AGO = new Date("2026-04-05T00:00:00.000Z");
 
 const states: readonly AnimalListingState[] = [
   { kind: "draft" },
-  { kind: "published", publishedAt: AT },
-  { kind: "reserved", since: AT, publishedAt: LONG_AGO },
+  { kind: "published", publishedAt: AT, confirmedAt: AT },
+  { kind: "reserved", since: AT, publishedAt: LONG_AGO, confirmedAt: LONG_AGO },
   { kind: "adopted", adoptedAt: AT },
   { kind: "withdrawn", withdrawnAt: AT, reason: "deceased" },
 ];
@@ -28,7 +29,9 @@ describe("isDiscoverable", () => {
   it("keeps reserved animals visible, which is a deliberate product choice", () => {
     // A reservation can fall through, and hiding it immediately would empty the
     // feed faster than shelters can refill it.
-    expect(isDiscoverable({ kind: "reserved", since: AT, publishedAt: LONG_AGO })).toBe(true);
+    expect(
+      isDiscoverable({ kind: "reserved", since: AT, publishedAt: LONG_AGO, confirmedAt: LONG_AGO }),
+    ).toBe(true);
   });
 
   it("agrees with the constant the query layer will use", () => {
@@ -46,14 +49,25 @@ describe("isDiscoverable", () => {
 
 describe("waitAnchorOf", () => {
   it("is the publication instant for a published listing", () => {
-    expect(waitAnchorOf({ kind: "published", publishedAt: LONG_AGO })).toEqual(LONG_AGO);
+    expect(
+      waitAnchorOf({ kind: "published", publishedAt: LONG_AGO, confirmedAt: LONG_AGO }),
+    ).toEqual(LONG_AGO);
   });
 
   it("is continuous across published -> reserved", () => {
     // The defect this whole column exists to prevent: an animal that has waited
     // four months and was reserved today must not read as available-since-today.
-    const published: AnimalListingState = { kind: "published", publishedAt: LONG_AGO };
-    const reserved: AnimalListingState = { kind: "reserved", since: AT, publishedAt: LONG_AGO };
+    const published: AnimalListingState = {
+      kind: "published",
+      publishedAt: LONG_AGO,
+      confirmedAt: LONG_AGO,
+    };
+    const reserved: AnimalListingState = {
+      kind: "reserved",
+      since: AT,
+      publishedAt: LONG_AGO,
+      confirmedAt: LONG_AGO,
+    };
 
     expect(waitAnchorOf(reserved)).toEqual(waitAnchorOf(published));
   });
@@ -61,7 +75,9 @@ describe("waitAnchorOf", () => {
   it("never uses the reservation instant", () => {
     // A mutant returning `since` would satisfy "not null for reserved" and be
     // wrong in exactly the way that is invisible until the sort is inspected.
-    expect(waitAnchorOf({ kind: "reserved", since: AT, publishedAt: LONG_AGO })).not.toEqual(AT);
+    expect(
+      waitAnchorOf({ kind: "reserved", since: AT, publishedAt: LONG_AGO, confirmedAt: LONG_AGO }),
+    ).not.toEqual(AT);
   });
 
   it("is null for every listing kind an adopter cannot see", () => {
@@ -98,5 +114,42 @@ describe("AnimalListingStateSchema", () => {
       AnimalListingStateSchema.safeParse({ kind: "withdrawn", withdrawnAt: AT, reason: "bored" })
         .success,
     ).toBe(false);
+  });
+});
+
+describe("confirmationAnchorOf", () => {
+  const CONFIRMED = new Date("2026-07-01T00:00:00.000Z");
+
+  it("is the confirmation on the two states an adopter can see", () => {
+    expect(
+      confirmationAnchorOf({ kind: "published", publishedAt: LONG_AGO, confirmedAt: CONFIRMED }),
+    ).toEqual(CONFIRMED);
+    expect(
+      confirmationAnchorOf({
+        kind: "reserved",
+        since: AT,
+        publishedAt: LONG_AGO,
+        confirmedAt: CONFIRMED,
+      }),
+    ).toEqual(CONFIRMED);
+  });
+
+  /** Not `publishedAt` and not `since`: neither says anything about whether the animal is still looking. */
+  it("is never the publish or reservation instant", () => {
+    const reserved = {
+      kind: "reserved",
+      since: AT,
+      publishedAt: LONG_AGO,
+      confirmedAt: CONFIRMED,
+    } as const;
+    expect(confirmationAnchorOf(reserved)).not.toEqual(reserved.since);
+    expect(confirmationAnchorOf(reserved)).not.toEqual(reserved.publishedAt);
+  });
+
+  it("is null for every state no adopter can see", () => {
+    for (const state of states.filter((s) => !isDiscoverable(s))) {
+      expect(confirmationAnchorOf(state), state.kind).toBeNull();
+    }
+    expect(states.filter((s) => !isDiscoverable(s))).toHaveLength(3);
   });
 });

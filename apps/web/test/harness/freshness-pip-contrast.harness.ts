@@ -110,9 +110,9 @@ test.describe("freshness marker — empty pip contrast", () => {
     expect(
       pairs.length,
       "expected the deck's first-served card to have at least one empty pip — feed.list's " +
-        "own repo query orders the whole feed by lastUpdatedAt DESC before scoreAnimal " +
+        "own repo query orders the whole feed by last_confirmed_at DESC before scoreAnimal " +
         "re-ranks within the fetched page (apps/web/src/api/handlers/feed.ts), so the most " +
-        "recently updated seeded animal is always among the first served, and 'fresh' is " +
+        "recently confirmed seeded animal is always among the first served, and 'fresh' is " +
         "2 of 3 pips empty — an anonymous session's first real card should always contain " +
         "some",
     ).toBeGreaterThan(0);

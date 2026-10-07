@@ -29,7 +29,7 @@ const animal: Animal = {
   vaccination: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
   spayNeuter: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
   documentReadiness: { kind: "unknown" },
-  listing: { kind: "published", publishedAt: AT },
+  listing: { kind: "published", publishedAt: AT, confirmedAt: AT },
   publicLocation: null,
   createdAt: AT,
   lastUpdatedAt: AT,

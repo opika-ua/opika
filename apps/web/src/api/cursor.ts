@@ -1,5 +1,4 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { FeedCursorData } from "@opika/db/repos";
 
 /**
  * Cursor payload, signed with HMAC to prevent tampering.
@@ -7,8 +6,17 @@ import type { FeedCursorData } from "@opika/db/repos";
  * The cursor encodes:
  * - `kind`: which list this cursor belongs to (feed vs reveal)
  * - `filtersFingerprint`: a hash of the filters the cursor was issued against
- * - `lastUpdatedAt`: the ordering key
+ * - `at`: the ordering value — the feed's `last_confirmed_at`, the reveal
+ *   history's `revealed_at` (each list maps its own key onto this one, so
+ *   neither is stored under the other's name)
  * - `id`: the tiebreaker
+ *
+ * The key was `lastUpdatedAt` until H2-3 moved the feed's ordering onto
+ * confirmation, and renamed so neither list's value travels under the other's
+ * name. Cursors issued before that change decode as invalid
+ * (`INVALID_CURSOR`): the deck shows its `sessionExpired` error state, whose
+ * retry restarts the feed from the first page. `reveals.listMine` has no
+ * client caller yet, so no reveal cursor is in flight anywhere.
  *
  * Signing prevents:
  * - Constructing cursors to skip directly to a position
@@ -18,19 +26,22 @@ import type { FeedCursorData } from "@opika/db/repos";
 type CursorPayload = {
   kind: "feed" | "reveal";
   filtersFingerprint: string;
-  lastUpdatedAt: string;
+  at: string;
   id: string;
 };
+
+/** A keyset position: the ordering value and the id that breaks ties. */
+export type CursorPosition = { at: Date; id: string };
 
 function sign(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("hex").slice(0, 16);
 }
 
-function encodeCursor(kind: CursorPayload["kind"], data: FeedCursorData, secret: string): string {
+function encodeCursor(kind: CursorPayload["kind"], data: CursorPosition, secret: string): string {
   const payload: CursorPayload = {
     kind,
     filtersFingerprint: "",
-    lastUpdatedAt: data.lastUpdatedAt.toISOString(),
+    at: data.at.toISOString(),
     id: data.id,
   };
   const json = JSON.stringify(payload);
@@ -40,14 +51,14 @@ function encodeCursor(kind: CursorPayload["kind"], data: FeedCursorData, secret:
 
 function encodeCursorWithFingerprint(
   kind: CursorPayload["kind"],
-  data: FeedCursorData,
+  data: CursorPosition,
   fingerprint: string,
   secret: string,
 ): string {
   const payload: CursorPayload = {
     kind,
     filtersFingerprint: fingerprint,
-    lastUpdatedAt: data.lastUpdatedAt.toISOString(),
+    at: data.at.toISOString(),
     id: data.id,
   };
   const json = JSON.stringify(payload);
@@ -56,19 +67,19 @@ function encodeCursorWithFingerprint(
 }
 
 export function encodeFeedCursor(
-  data: FeedCursorData,
+  data: CursorPosition,
   filtersFingerprint: string,
   secret: string,
 ): string {
   return encodeCursorWithFingerprint("feed", data, filtersFingerprint, secret);
 }
 
-export function encodeRevealCursor(data: FeedCursorData, secret: string): string {
+export function encodeRevealCursor(data: CursorPosition, secret: string): string {
   return encodeCursor("reveal", data, secret);
 }
 
 type DecodedCursor = {
-  data: FeedCursorData;
+  data: CursorPosition;
   filtersFingerprint: string;
 };
 
@@ -114,11 +125,11 @@ function decodeCursor(
     if (expectedFingerprint !== null && payload.filtersFingerprint !== expectedFingerprint)
       return null;
 
-    const lastUpdatedAt = new Date(payload.lastUpdatedAt);
-    if (Number.isNaN(lastUpdatedAt.getTime())) return null;
+    const at = new Date(payload.at);
+    if (Number.isNaN(at.getTime())) return null;
 
     return {
-      data: { lastUpdatedAt, id: payload.id },
+      data: { at, id: payload.id },
       filtersFingerprint: payload.filtersFingerprint,
     };
   } catch {
@@ -137,6 +148,6 @@ export function decodeFeedCursor(
 export function decodeRevealCursor(
   cursor: string,
   secret: string,
-): { data: FeedCursorData } | null {
+): { data: CursorPosition } | null {
   return decodeCursor(cursor, "reveal", null, secret);
 }
