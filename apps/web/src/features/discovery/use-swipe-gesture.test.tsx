@@ -3,7 +3,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateMockCards } from "./mock-data";
 import { SwipeDeck } from "./SwipeDeck";
-import { useSwipeGesture } from "./use-swipe-gesture";
+import { releaseVelocity, useSwipeGesture } from "./use-swipe-gesture";
 
 /**
  * Tests for the two gesture defects a code review dismissed as "theoretically
@@ -28,6 +28,13 @@ function pointerEvent(type: string, init: { clientX: number; button?: number }):
     button: init.button ?? 0,
     clientX: init.clientX,
   });
+}
+
+/** The x offset the hook last wrote to the card's transform, in px. */
+function translateX(node: HTMLElement): number {
+  const match = /translate3d\((-?[\d.]+)(?:px)?,/.exec(node.style.transform);
+  if (!match?.[1]) throw new Error(`no translate3d in "${node.style.transform}"`);
+  return Number(match[1]);
 }
 
 /**
@@ -212,13 +219,12 @@ describe("swipe gesture commit path", () => {
   /**
    * G4 (`docs/handoff-2026-10-04.md` §3 block 6): the exit is a real design
    * value on a fixed timeline — `docs/design/README.md`'s "Exit 280ms" via
-   * `cubic-bezier(0.3, 0, 0, 1)` — distinct from the spring-back curve below.
-   * Pins the 300ms→280ms frame correction and guards the easing split: a
-   * future edit (including the Opus spring-physics follow-up) that
-   * accidentally reuses the spring's curve on this path, or the exit's curve
-   * on the spring path, must fail here.
+   * `cubic-bezier(0.3, 0, 0, 1)` — a timeline, unlike the return to centre,
+   * which is the deck's spring (below). Pins the 300ms→280ms frame
+   * correction; an edit that put the spring on this path, or any other
+   * duration or curve, must fail here.
    */
-  it("exits on the design's fixed 280ms timeline, not the spring-back curve", () => {
+  it("exits on the design's fixed 280ms timeline", () => {
     const card = mountCard({ onCommit: vi.fn() });
 
     drag(card, 150); // past the 88px commit distance
@@ -249,19 +255,34 @@ describe("swipe gesture commit path", () => {
   });
 
   /**
-   * The spring-back path is explicitly NOT part of G4's safe sub-portion
-   * (docs/model-policy.md assigns gesture physics to Opus) — this pins its
-   * pre-existing, unchanged approximation so the boundary between "touched
-   * by G4" and "deferred to Opus" stays visible in a test, not just a
-   * comment.
+   * G4 part 2: the return is the deck's spring, driven frame by frame — not a
+   * CSS transition with a duration and a curve, which is what this path was
+   * until now (`transform 300ms cubic-bezier(0.16, 1, 0.3, 1)`). Asserted on
+   * the rendered transform mid-flight: a jump to centre, or a transition left
+   * doing the work, both fail here. The spring's own physics — no overshoot,
+   * release velocity, settling — is pinned in `spring.test.ts`.
    */
-  it("snaps back on the pre-existing spring-back approximation, unchanged by G4", () => {
+  it("returns to centre on the spring, frame by frame, not on a CSS transition", () => {
     const onSnapBack = vi.fn();
     const card = mountCard({ onCommit: vi.fn(), onSnapBack });
 
-    drag(card, 20); // short of the commit threshold
+    drag(card, 60); // short of the 88px commit threshold
 
-    expect(card.style.transition).toBe("transform 300ms cubic-bezier(0.16, 1, 0.3, 1)");
+    expect(card.style.transition, "no CSS transition may drive the return").toBe("none");
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    const midFlight = translateX(card);
+    expect(midFlight, "100ms in, the card must be on its way back").toBeLessThan(60);
+    expect(midFlight, "…and not already at centre — that would be a jump").toBeGreaterThan(5);
+    expect(onSnapBack, "onSnapBack waits for the spring to arrive").not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(900);
+    });
+    expect(card.style.transform).toBe("translate3d(0, 0, 0) rotate(0deg)");
+    expect(onSnapBack).toHaveBeenCalledTimes(1);
   });
 
   /** Belt and braces must not double-fire: one swipe is one swipe. */
@@ -385,11 +406,16 @@ describe("swipe gesture commit path", () => {
     act(() => {
       card.dispatchEvent(pointerEvent("pointerdown", { clientX: 0 }));
     });
+    const underTheFinger = card.style.transform;
     act(() => {
       vi.advanceTimersByTime(5_000);
     });
 
     expect(onSnapBack).not.toHaveBeenCalled();
+    // The spring writes the transform itself every frame, so dropping its
+    // callback is not enough — its frames must stop too, or it would drag
+    // the card out from under the finger that just grabbed it.
+    expect(card.style.transform, "the abandoned spring kept moving the card").toBe(underTheFinger);
   });
 
   /**
@@ -496,5 +522,158 @@ describe("swipe gesture commit path", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  /**
+   * The browser cancelling the pointer (usually to take a vertical scroll)
+   * returns the card on the same spring as any other return — it used to
+   * write its own 300ms transform transition and fire `onSnapBack` before
+   * the card had moved at all.
+   */
+  it("returns to centre on the spring when the browser cancels the pointer", () => {
+    const onSnapBack = vi.fn();
+    const card = mountCard({ onCommit: vi.fn(), onSnapBack });
+
+    act(() => {
+      card.dispatchEvent(pointerEvent("pointerdown", { clientX: 0 }));
+    });
+    act(() => {
+      card.dispatchEvent(pointerEvent("pointermove", { clientX: 50 }));
+    });
+    act(() => {
+      card.dispatchEvent(pointerEvent("pointercancel", { clientX: 0 }));
+    });
+
+    expect(card.style.transition).toBe("none");
+    expect(onSnapBack, "onSnapBack waits for the card to arrive").not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(card.style.transform).toBe("translate3d(0, 0, 0) rotate(0deg)");
+    expect(onSnapBack).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * G4's known gap (`docs/build-plan.md`'s G4 row): the cancel path ignored
+   * `prefers-reduced-motion` entirely and animated the transform anyway,
+   * against README:204's "the stack does not move".
+   */
+  it("does not animate the card when the pointer is cancelled under prefers-reduced-motion", () => {
+    stubReducedMotion();
+
+    try {
+      const onSnapBack = vi.fn();
+      const card = mountCard({ onCommit: vi.fn(), onSnapBack });
+
+      act(() => {
+        card.dispatchEvent(pointerEvent("pointerdown", { clientX: 0 }));
+      });
+      act(() => {
+        card.dispatchEvent(pointerEvent("pointermove", { clientX: 50 }));
+      });
+      act(() => {
+        card.dispatchEvent(pointerEvent("pointercancel", { clientX: 0 }));
+      });
+
+      expect(
+        card.style.transition,
+        "reduced motion must not put a transition on transform — the stack does not move",
+      ).not.toContain("transform");
+      expect(card.style.transform).toBe("translate3d(0, 0, 0) rotate(0deg)");
+      expect(onSnapBack).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+/**
+ * The release velocity reaching the spring through the hook, end to end:
+ * pointer timestamps → `velocityX` (px/ms) → `releaseVelocity` → the spring
+ * (px/s). Everything else in this file releases at rest, and `spring.test.ts`
+ * hands the spring a velocity directly, so without these a lost unit
+ * conversion or a bypassed `releaseVelocity` left the whole suite green.
+ *
+ * `timeStamp` is read-only on a constructed event, so it is defined on the
+ * instance. 36px at 0.375 px/ms stays short of both commit thresholds (88px,
+ * 0.45 px/ms), so this is always a return, never an exit.
+ */
+describe("swipe gesture release velocity", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function timedPointerEvent(type: string, clientX: number, timeStamp: number): PointerEvent {
+    const event = pointerEvent(type, { clientX });
+    Object.defineProperty(event, "timeStamp", { value: timeStamp });
+    return event;
+  }
+
+  function dragOutwardAndRelease(card: HTMLElement, releasedAt: number): void {
+    act(() => {
+      card.dispatchEvent(timedPointerEvent("pointerdown", 0, 0));
+    });
+    act(() => {
+      card.dispatchEvent(timedPointerEvent("pointermove", 30, 100));
+    });
+    act(() => {
+      card.dispatchEvent(timedPointerEvent("pointermove", 36, 116)); // 0.375 px/ms outward
+    });
+    act(() => {
+      card.dispatchEvent(timedPointerEvent("pointerup", 36, releasedAt));
+    });
+  }
+
+  it("carries a card released while moving outward further out before it returns", () => {
+    const onCommit = vi.fn();
+    render(<GestureHarness onCommit={onCommit} />);
+    const card = screen.getByTestId("card");
+    stubPointerCapture(card);
+
+    dragOutwardAndRelease(card, 120); // 4ms after the last move: still moving
+
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
+    expect(
+      translateX(card),
+      "the release velocity must carry the card past where it was let go",
+    ).toBeGreaterThan(36);
+    expect(onCommit).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(card.style.transform).toBe("translate3d(0, 0, 0) rotate(0deg)");
+  });
+
+  it("returns a card held still before release straight back, with no carried velocity", () => {
+    render(<GestureHarness onCommit={vi.fn()} />);
+    const card = screen.getByTestId("card");
+    stubPointerCapture(card);
+
+    dragOutwardAndRelease(card, 400); // held for 284ms after the last move
+
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
+    expect(translateX(card), "a held card must not lurch outward on release").toBeLessThan(36);
+  });
+});
+
+describe("releaseVelocity", () => {
+  it("keeps the last move's velocity for a finger still moving at release", () => {
+    expect(releaseVelocity(0.4, 1_000, 1_016)).toBe(0.4);
+    expect(releaseVelocity(-0.3, 1_000, 1_100)).toBe(-0.3);
+  });
+
+  /** A held finger produces no pointermove, so the last one's speed is stale. */
+  it("treats a finger that stopped before release as at rest", () => {
+    expect(releaseVelocity(0.4, 1_000, 1_101)).toBe(0);
+    expect(releaseVelocity(0.4, 1_000, 3_000)).toBe(0);
   });
 });
