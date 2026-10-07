@@ -9,13 +9,46 @@ const ROTATION_FACTOR = 0.03;
 const MAX_ROTATION_DEG = 6;
 /** Pixels of drag over which the affordance label fades from 0 → 1 opacity. */
 const AFFORDANCE_FADE_PX = 40;
-/** Exit animation duration in ms. */
-const EXIT_MS = 300;
-/** Spring-back duration in ms (ease-out, no overshoot per spec). */
+/**
+ * Exit animation duration in ms — `docs/design/README.md`'s "The deck" ·
+ * "Gesture:" · "Exit 280ms" (G4, `docs/handoff-2026-10-04.md` §3 block 6).
+ * Was 300ms, pre-dating that frame pin.
+ */
+const EXIT_MS = 280;
+/**
+ * Spring-back duration in ms — **not yet G4's real spec.** The design calls
+ * for a genuine spring (stiffness 280, damping 30, no overshoot), which a
+ * fixed duration + cubic-bezier curve can only approximate, not reproduce.
+ * Deliberately left as the pre-existing approximation: implementing the
+ * real spring is gesture-physics work `docs/model-policy.md` assigns to
+ * Opus, tracked as a G4 follow-up (see `docs/build-plan.md`'s G4 row).
+ */
 const SPRING_BACK_MS = 300;
-/** Design easing: cubic-bezier(0.16, 1, 0.3, 1). */
+/**
+ * Easing for the spring-back approximation above — unchanged alongside
+ * `SPRING_BACK_MS` for the same reason: this whole path is superseded by
+ * G4's real spring implementation, not fixed here.
+ */
 const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
-/** Reduced-motion exit: opacity only, 120ms. */
+/**
+ * Exit easing for the two paths that actually move between fixed points on
+ * a declared timeline (full exit, and the reduced-motion opacity-only
+ * exit) — `docs/design/README.md`'s general motion table: "reveal 280ms"
+ * and "quick 120ms" both via `cubic-bezier(0.3, 0, 0, 1)` ("short and dry;
+ * no springiness"). Distinct from `EASE` above on purpose: that constant
+ * is the pre-existing spring-back approximation's own curve, not this
+ * system's real easing, and the two must not be conflated now that they
+ * genuinely differ.
+ */
+const EXIT_EASE = "cubic-bezier(0.3, 0, 0, 1)";
+/**
+ * Reduced-motion duration: opacity only — `docs/design/README.md`'s "quick
+ * 120ms" (G4). Shared by the committed-exit and the snap-back path under
+ * `prefers-reduced-motion`, since reduced motion bypasses the spring
+ * entirely in both cases (docs/design/README.md:204, :639, :872) and both
+ * get the same fixed-timeline "quick" treatment. Already matched the spec's number
+ * before this row; only the easing (now `EXIT_EASE`, see above) changed.
+ */
 const REDUCED_EXIT_MS = 120;
 
 /**
@@ -244,10 +277,10 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
         const durationMs = prefersReducedMotion.current ? REDUCED_EXIT_MS : EXIT_MS;
 
         if (prefersReducedMotion.current) {
-          node.style.transition = `opacity ${REDUCED_EXIT_MS}ms ${EASE}`;
+          node.style.transition = `opacity ${REDUCED_EXIT_MS}ms ${EXIT_EASE}`;
           node.style.opacity = "0";
         } else {
-          node.style.transition = `transform ${EXIT_MS}ms ${EASE}`;
+          node.style.transition = `transform ${EXIT_MS}ms ${EXIT_EASE}`;
           applyTransform(node, exitX);
         }
 
@@ -260,12 +293,15 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
           }),
         };
       } else if (prefersReducedMotion.current) {
-        // Reduced motion: the stack does not move (docs/design/README.md:126,
-        // :348). Transitioning opacity only means the transform below applies
-        // in one frame — the card is simply back where it started. There is no
-        // transform transition, so there is nothing to wait for and no
-        // `transitionend` to wait for it with.
-        node.style.transition = `opacity ${REDUCED_EXIT_MS}ms ${EASE}`;
+        // Reduced motion: the stack does not move (docs/design/README.md:204,
+        // :639, :872). Transitioning opacity only means the transform below
+        // applies in one frame — the card is simply back where it started.
+        // There is no transform transition, so there is nothing to wait for and no
+        // `transitionend` to wait for it with. This is not the deck's spring
+        // (reduced motion bypasses it entirely by design), so it uses the
+        // same fixed-timeline "quick" easing as the exit path above, not the
+        // spring-back approximation below.
+        node.style.transition = `opacity ${REDUCED_EXIT_MS}ms ${EXIT_EASE}`;
         node.style.transform = "translate3d(0, 0, 0) rotate(0deg)";
         callbacksRef.current.onSnapBack?.();
       } else {
