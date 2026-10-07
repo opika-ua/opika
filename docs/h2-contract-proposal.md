@@ -1,6 +1,8 @@
 # H2 — kabinet contract & domain shapes: proposal for review
 
-**Status:** proposal, 2026-10-07. Nothing here is implemented. Tier 1 — `packages/domain` and
+**Status:** answered by Oleksii, 2026-10-07. His answers, quoted verbatim, are in
+`docs/decisions-inbox/docs-h2-contract-proposal.md`; §10 below lists what they change in this
+document. Implementation follows §8's PR sequence. Originally a proposal, also 2026-10-07. Tier 1 — `packages/domain` and
 `packages/contracts` shapes reviewed by Oleksii before any code (`CLAUDE.md`, "Contract-first").
 Inputs: `docs/h2-contract-handoff.md` (the delta list), `docs/kabinet-contract-decisions.md`
 (his decisions), `docs/design/KABINET.md` (the design), `docs/handoff-2026-10-04.md` §3.1 (scope).
@@ -555,3 +557,47 @@ reversible:
   has no per-item date and an operator resubmission replaces the whole bundle anyway.
 - `confirm` stays a separate procedure from `transition`, even though it's also a listing
   event, because its undo needs its own compare-and-set entry point.
+
+---
+
+## 10. Decisions, 2026-10-07 — what the answers change above
+
+Oleksii's answers are quoted verbatim in the inbox file. This section records only their effect
+on the shapes, so the document above can be read as the spec without re-deriving it.
+
+- **Q1 → A.** S2 also collects `legalEntity`, `exactAddress`, `contact` and `description`,
+  reusing S4's sections (same components, same schemas). No onboarding record, and no nullable
+  `Shelter` fields.
+- **Q2 → A.** `shelter.verification.requestReview` exists: it resubmits the current evidence,
+  carried forward by the server. `resubmit` gains `actor: ShelterActor`. K5's copy must say
+  plainly that a person reviews the resubmission, with no implied automatic re-check (copy
+  sheet).
+- **Q3 → yes.**
+  - Freshness, the deck keyset and the gallery's `freshest` sort move to `last_confirmed_at`.
+  - Edits never touch it.
+  - Backfill: `last_confirmed_at = created_at`. That is Oleksii's choice over §1.6's
+    `last_updated_at`; today the two are equal on every row anyway.
+  - Decision #10 in `CLAUDE.md` and commitment #7 in `docs/standing-constraints.md` are
+    updated in the same change.
+  - The "blue pip" question (`docs/marketing/brand-improvements.md` #3) is closed against this
+    change rather than recoloured: a fresh pip will now mean someone confirmed the listing.
+- **Q4 → A.** The reason dialog gets a code select above the note. The code labels are
+  Ukrainian, so they go on the copy sheet.
+- **Q5 → required everywhere, plus a reseed.** `registeredName: z.string().min(1)` in the
+  domain schema, with no nullable. **Before the reseed:** a read-only query against production
+  confirms that no non-demo shelter exists. If one does, the work STOPs.
+- **Q6 → its own sub-PR.** The evidence bucket is private: no public URL ever, short-lived
+  presigned GETs, operator-only.
+- **Q7 → A.** `site_visit` input gains a required `visitedOn` date.
+- **Q8 → yes.** S3 compares `registeredName` with `legalEntity.legalName` as well as
+  `displayName` and `holderName`.
+- **Q9 → A.** No super_admin animal editing in H2.
+- **Q10 → A.** `withdrawn.reason` becomes `{ code, note | null }`. The backfill detail is open
+  as inbox H2-13: taken literally, the answer would overwrite real codes.
+- **H2-7 defaults accepted. Consequence recorded, so nobody "fixes" it later:** `adopted` is
+  terminal. An animal that is adopted and later returned becomes a **new listing**, with a new
+  id, a new URL and a wait clock starting from zero. The old listing stays `adopted` as the
+  record of the adoption that happened.
+- **Copy (H2-8):** everything stays `[COPY PENDING]`, batched into one review sheet
+  (`docs/h2-copy-sheet.md`). `/prytulkam` §7/§9/§10 still blocks the self-serve merge, and so
+  does the commitment #7 sentence (Q3 = yes).
