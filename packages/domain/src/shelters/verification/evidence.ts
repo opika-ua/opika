@@ -19,6 +19,17 @@ export const EvidenceItemSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("edrpou_registration"),
     edrpou: EdrpouSchema,
+    /**
+     * The name as ЄДР shows it at the time the code was checked. A reviewer
+     * compares it against the shelter's `displayName`, its claimed
+     * `legalEntity.legalName` and the bank evidence's `holderName`: the same
+     * identity check the bank evidence performs, from the registry's side.
+     * Required (H2-5): no record predates it (every seeded evidence list is
+     * empty), so a nullable would exist only for records that never will.
+     * No registry *status* alongside it: a point-in-time status goes stale the
+     * moment it is written and would read as current when it isn't.
+     */
+    registeredName: z.string().min(1),
     documentKey: z.string().min(1).nullable(),
   }),
   z.object({
