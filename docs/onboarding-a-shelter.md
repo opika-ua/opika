@@ -156,8 +156,16 @@ uploads each to R2; see "R2 credentials" below for what that step needs.
 
 LOCATION_HMAC_SECRET=<your secret> \
 DATABASE_URL=<neon-direct-url> \
-  pnpm --filter @opika/db run onboard:shelter -- ~/opika-shelters/domivka-brovary.json
+  pnpm --filter @opika/db run onboard:shelter -- ~/opika-shelters/domivka-brovary.json --prod
 ```
+
+**`--prod` is required when `DATABASE_URL` is production** (since
+2026-10-07, `packages/db/src/prod-guard.ts`). The script compares the
+target with `PROD_NEON_DATABASE_URL` from your environment and refuses
+production without the flag, so you can't onboard into production by
+habit. With `PROD_NEON_DATABASE_URL` unset it refuses *every* non-local
+target without `--prod`: it fails closed. The same rule applies to
+`db:migrate` and `db:seed`.
 
 This is a **dry run** — nothing is written. Read the printed output
 carefully: it shows the *computed* public location (the fuzzed
@@ -182,7 +190,7 @@ R2_ACCOUNT_ID=<your R2 account id> \
 R2_ACCESS_KEY_ID=<your R2 access key id> \
 R2_SECRET_ACCESS_KEY=<your R2 secret access key> \
 R2_BUCKET_NAME=<your R2 bucket name> \
-  pnpm --filter @opika/db run onboard:shelter -- ~/opika-shelters/domivka-brovary.json --commit
+  pnpm --filter @opika/db run onboard:shelter -- ~/opika-shelters/domivka-brovary.json --commit --prod
 ```
 
 If it fails partway through (network blip, a typo caught mid-run), just

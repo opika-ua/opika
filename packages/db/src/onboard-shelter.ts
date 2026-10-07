@@ -40,6 +40,7 @@ import {
   validateLocalPhoto,
 } from "./image-pipeline/server";
 import { productionLocationPolicy } from "./location-policy";
+import { assertProductionWriteAllowed } from "./prod-guard";
 import { animalRepo, cityRepo, shelterRepo } from "./repos";
 
 /**
@@ -59,7 +60,8 @@ import { animalRepo, cityRepo, shelterRepo } from "./repos";
  *
  * Usage:
  *   LOCATION_HMAC_SECRET=... DATABASE_URL=<neon-direct-url> \
- *     pnpm --filter @opika/db run onboard:shelter -- /path/to/shelter.json
+ *     pnpm --filter @opika/db run onboard:shelter -- /path/to/shelter.json --prod
+ *   (`--prod` is required when the target is production: see `./prod-guard.ts`.)
  *
  *   (add --commit once the dry-run output looks right)
  *
@@ -417,6 +419,16 @@ async function uploadAnimalPhotos(
 }
 
 async function main(): Promise<void> {
+  // First, before anything else this script checks or reads: which database
+  // it would write to. Checked even on a dry run, because it costs nothing and
+  // an operator learns before typing --commit that the target is production.
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    console.error("ERROR: DATABASE_URL is not set.");
+    process.exit(1);
+  }
+  assertProductionWriteAllowed(databaseUrl, process.argv);
+
   const args = process.argv.slice(2);
   const commit = args.includes("--commit");
   const inputPath = args.find((a) => !a.startsWith("--"));
@@ -438,12 +450,6 @@ async function main(): Promise<void> {
     console.error(
       "ERROR: LOCATION_HMAC_SECRET is not set. Generate one with: openssl rand -hex 32",
     );
-    process.exit(1);
-  }
-
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    console.error("ERROR: DATABASE_URL is not set.");
     process.exit(1);
   }
 

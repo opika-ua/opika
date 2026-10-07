@@ -5,6 +5,7 @@ import { citySlugOf } from "@opika/domain";
 import postgres from "postgres";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { setupTestDatabase } from "../src/test-utils/index";
+import { TEST_DATABASE_URL } from "../src/test-utils/setup";
 
 /**
  * Migration `0005_nervous_shinko_yamashiro` (`packages/db/drizzle`) adds
@@ -19,9 +20,6 @@ import { setupTestDatabase } from "../src/test-utils/index";
  * it doesn't recognise, rather than trusting the migration's own SQL by
  * reading it.
  */
-
-const TEST_DATABASE_URL =
-  process.env.TEST_DATABASE_URL ?? "postgres://opika:opika@localhost:5433/opika_test";
 
 const MIGRATIONS_DIR = resolve(fileURLToPath(import.meta.url), "../../drizzle");
 const BACKFILL_TAG = "0005_nervous_shinko_yamashiro";
