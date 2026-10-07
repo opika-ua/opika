@@ -587,6 +587,84 @@ describe("swipe gesture commit path", () => {
   });
 });
 
+/**
+ * The release velocity reaching the spring through the hook, end to end:
+ * pointer timestamps → `velocityX` (px/ms) → `releaseVelocity` → the spring
+ * (px/s). Everything else in this file releases at rest, and `spring.test.ts`
+ * hands the spring a velocity directly, so without these a lost unit
+ * conversion or a bypassed `releaseVelocity` left the whole suite green.
+ *
+ * `timeStamp` is read-only on a constructed event, so it is defined on the
+ * instance. 36px at 0.375 px/ms stays short of both commit thresholds (88px,
+ * 0.45 px/ms), so this is always a return, never an exit.
+ */
+describe("swipe gesture release velocity", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function timedPointerEvent(type: string, clientX: number, timeStamp: number): PointerEvent {
+    const event = pointerEvent(type, { clientX });
+    Object.defineProperty(event, "timeStamp", { value: timeStamp });
+    return event;
+  }
+
+  function dragOutwardAndRelease(card: HTMLElement, releasedAt: number): void {
+    act(() => {
+      card.dispatchEvent(timedPointerEvent("pointerdown", 0, 0));
+    });
+    act(() => {
+      card.dispatchEvent(timedPointerEvent("pointermove", 30, 100));
+    });
+    act(() => {
+      card.dispatchEvent(timedPointerEvent("pointermove", 36, 116)); // 0.375 px/ms outward
+    });
+    act(() => {
+      card.dispatchEvent(timedPointerEvent("pointerup", 36, releasedAt));
+    });
+  }
+
+  it("carries a card released while moving outward further out before it returns", () => {
+    const onCommit = vi.fn();
+    render(<GestureHarness onCommit={onCommit} />);
+    const card = screen.getByTestId("card");
+    stubPointerCapture(card);
+
+    dragOutwardAndRelease(card, 120); // 4ms after the last move: still moving
+
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
+    expect(
+      translateX(card),
+      "the release velocity must carry the card past where it was let go",
+    ).toBeGreaterThan(36);
+    expect(onCommit).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(card.style.transform).toBe("translate3d(0, 0, 0) rotate(0deg)");
+  });
+
+  it("returns a card held still before release straight back, with no carried velocity", () => {
+    render(<GestureHarness onCommit={vi.fn()} />);
+    const card = screen.getByTestId("card");
+    stubPointerCapture(card);
+
+    dragOutwardAndRelease(card, 400); // held for 284ms after the last move
+
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
+    expect(translateX(card), "a held card must not lurch outward on release").toBeLessThan(36);
+  });
+});
+
 describe("releaseVelocity", () => {
   it("keeps the last move's velocity for a finger still moving at release", () => {
     expect(releaseVelocity(0.4, 1_000, 1_016)).toBe(0.4);

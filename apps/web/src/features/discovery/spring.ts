@@ -27,10 +27,11 @@ export interface SpringSample {
 }
 
 /**
- * Below these the spring is at rest. Only reachable in the critically damped
- * and overdamped regimes, which approach the origin without crossing it; an
- * underdamped return always ends at its first crossing. Half a pixel is below
- * anything a transform can show.
+ * Below these the spring is at rest. What ends a return in the critically
+ * damped and overdamped regimes, which approach the origin without crossing
+ * it, and what ends one that starts within half a pixel of it in any regime.
+ * Otherwise an underdamped return ends at its first crossing. Half a pixel
+ * is below anything a transform can show.
  */
 const REST_DISPLACEMENT_PX = 0.5;
 const REST_SPEED_PX_PER_S = 5;

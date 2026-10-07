@@ -68,15 +68,19 @@ describe("returnToOrigin", () => {
     for (const x0 of [-240, -88, -20, -1, 1, 20, 88, 240]) {
       for (const v0 of [-3000, -900, -450, 0, 450, 900, 3000]) {
         const frameAt = returnToOrigin(DECK_RETURN_SPRING, x0, v0);
+        const moving: { ms: number; x: number }[] = [];
         for (let ms = 0; ms <= 2000; ms++) {
           const frame = frameAt(ms / 1000);
-          if (frame.kind === "moving") {
-            expect(
-              Math.sign(frame.x),
-              `x0=${x0} v0=${v0} rendered ${frame.x}px at ${ms}ms — past the origin`,
-            ).toBe(Math.sign(x0));
-          }
+          if (frame.kind === "moving") moving.push({ ms, x: frame.x });
         }
+        // Without this, a return that never moves at all — always `at_rest` —
+        // would pass the check below by rendering nothing to check.
+        expect(moving.length, `x0=${x0} v0=${v0} rendered no frames at all`).toBeGreaterThan(0);
+        const pastOrigin = moving.find(({ x }) => Math.sign(x) !== Math.sign(x0));
+        expect(
+          pastOrigin,
+          `x0=${x0} v0=${v0} rendered ${pastOrigin?.x}px at ${pastOrigin?.ms}ms — past the origin`,
+        ).toBeUndefined();
       }
     }
   });
