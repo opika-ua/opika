@@ -1,181 +1,154 @@
 # Kabinet ↔ domain reconciliation
 
-**Status:** investigating, pre-implementation. H2 (`docs/handoff-2026-10-04.md` §3.1) requires
-type/schema/route proposals reviewed by Oleksii before any code — this document is that review's
-input, not its output. Nothing here is a contract proposal yet; it is the reconciliation pass
-between `docs/design/KABINET.md` (the design handoff, landed 2026-10-07) and what `packages/domain`
-already decided, which the design pass worked from the build-plan's prose summary rather than the
-actual domain code for. Per `docs/standing-constraints.md`'s "when a mock exists, open the mock" —
-and its mirror, when the *code* already decided something, the design needs to open that, not
-re-derive it from a one-paragraph summary.
+**Status:** decided, 2026-10-07 (Oleksii's own answers below, on every item this document raised).
+Contract shapes not yet drafted — see "What this document is not" at the bottom. H2
+(`docs/handoff-2026-10-04.md` §3.1) requires type/schema/route proposals reviewed by Oleksii before
+any code; this document is that review's *input*, now resolved, not its output.
 
-Read `docs/design/KABINET.md` alongside this. Every finding below cites the domain file it checked
-against.
+Read `docs/design/KABINET.md` alongside this — it has been updated to match every decision below.
 
 ---
 
-## 1. Two of KABINET.md's four "open questions" are already answered by existing code
+## 1. Two of KABINET.md's four "open questions" were already answered by existing code
 
-The design pass flagged these as product decisions still needed. They aren't — the domain model
-already made both calls, just not by anyone the design pass consulted.
+**Agreed, both.**
 
 ### 1.1 Who sets «На паузі» (Open question 1)
 
-**Answered: the shelter does, self-service, not the operator.**
-`packages/domain/src/shelters/verification/reasons.ts`'s own comment is explicit: *"`shelter_requested`
-used to sit in [`SuspensionCode`], and its presence was the clearest evidence that `paused` was
-missing: a shelter closing for the season is not a moderation outcome... It now lives in `PauseCode`,
-on a state whose exit does not require a moderator."* `PauseReasonSchema`'s comment: *"this is
-self-declared, that is imposed"* (contrasting `pause` with `suspend`). The FSM has distinct `pause`/
-`resume` events (`events.ts`), separate from `suspend`/`reinstate`.
+The shelter does, self-service — `reasons.ts`'s own comment: pause "is self-declared,"
+suspend "is imposed." Distinct `pause`/`resume` events in the FSM, separate from
+`suspend`/`reinstate`.
 
-**Consequence for the design:** K2 or K4 (the shelter's own kabinet) needs a pause/resume control —
-e.g. "Призупинити прийом тварин" on the profile screen, with `PauseCodeSchema`'s five codes
-(`seasonal_closure`, `relocation`, `capacity_reached`, `staff_shortage`, `other`) as the reason
-options, the same `{code, note}` shape `RejectionReason`/`SuspensionReason` already use. S3/S4's
-existing "reinstate names the prior state" logic (N14) is unaffected — pausing and suspending remain
-genuinely separate interruption mechanisms, as decision 5 in `CLAUDE.md` already settled; this
-finding is about *who can start one of them*, not about merging the two.
+**Landed in the design:** K4 (shelter profile) gains a pause/resume control —
+"Призупинити прийом тварин", with `PauseCodeSchema`'s five codes as the reason options. K2 shows a
+persistent banner when paused, so a shelter managing animals is never left unaware of its own
+state.
 
 ### 1.2 Rejected → pending transition (Open question 2)
 
-**Answered: yes, it exists.** `transition.ts`'s `rejected` state handles a `resubmit` event,
-transitioning to `pending` with fresh evidence (`transition.ts:179-189`).
+Exists — `transition.ts`'s `rejected` state handles `resubmit` → `pending`.
 
-**Consequence for the design:** K5 (rejected shelter's own view) needs «Подати ще раз», not only
-«Написати Олексію» — matching what the design itself anticipated as the alternative ("If yes, K5
-gains «Подати ще раз»").
+**Landed in the design:** K5 gains «Подати ще раз», alongside «Написати Олексію», not instead of it.
 
 ---
 
-## 2. Real mismatches — design assumed fields or a UI shape the schema doesn't have
+## 2. Verification evidence — §2.1
 
-These are not questions the domain model already answered; they're places the design and the
-actual Zod shapes disagree, genuinely needing a decision before a contract proposal is written.
+**Decision: mostly (b), trim the design — with one schema change.**
 
-### 2.1 Verification evidence cards — two of five types show fields the schema doesn't carry
+- **`bank_account_holder`: no bank name, no IBAN, masked or not.** `holderName` + `documentKey`
+  only, matching the schema exactly today — no change needed there. Oleksii's own reasoning,
+  verbatim sense: *the verification copy promises "реквізити на ту саму організацію" — the
+  holder-name check is the check, and storing account data adds risk without adding rigour.* The
+  design's S3 table is corrected to drop "bank, masked IBAN".
+- **`edrpou_registration`: add `registeredName`.** The schema gains one field — the name as it
+  appears in ЄДР at the time evidence is checked — so the card can show it **side by side with the
+  shelter's own `displayName`/`holderName`**, which is the other half of the same identity check
+  the bank evidence performs. **No `edrStatus`** — a point-in-time registry status goes stale the
+  moment it's recorded and would read as current when it isn't; not added.
+- **`visitedBy` stays a `ModeratorId`, no picker.** §3 below settles who fills it.
 
-`packages/domain/src/shelters/verification/evidence.ts`'s `EvidenceItemSchema`, checked field by
-field against KABINET.md's S3 table:
-
-| Type | KABINET.md shows | Schema actually has | Match? |
-|---|---|---|---|
-| Реєстрація · ЄДРПОУ | code, **name in registry, ЄДР status** | `edrpou` (the code), `documentKey` | **Extra fields not in schema** |
-| Банківський рахунок | holder name, **bank, masked IBAN** | `holderName`, `documentKey` | **Extra fields not in schema** |
-| Рекомендація | who, how to reach them, relationship | `name`, `channel`, `relationship` (4 options matching exactly) | Match |
-| Візит на місце | who visited, when, note | `visitedBy` (a **moderator ID**, not free text), `visitedAt`, `notes` | Match, with a caveat below |
-| Документ | label | `label`, `documentKey` (required) | Match |
-
-**Decision needed on the two mismatched types** (CLAUDE.md decision #6: evidence item shape is "a
-proposal, not a specification... the numbers are yours to change" — this is exactly that kind of
-call):
-- (a) extend the schema — add `registeredName`/`edrStatus` to `edrpou_registration`, add
-  `bankName`/an IBAN field (masked how? last 4 digits, matching the design's "masked" framing) to
-  `bank_account_holder`; or
-- (b) correct the design to show only what the schema carries — EDRPOU code + document, holder
-  name + document.
-
-No recommendation given here — this is a verification-rigor tradeoff (how much a bank/registry
-claim needs to be independently checkable from the evidence card alone vs. from the attached
-document), not an engineering one.
-
-**Caveat on "Візит на місце":** `visitedBy` is a `ModeratorId`, not a free-text name — a future S3
-"add evidence" flow (see §3 below) would need a moderator picker there, not a text field. Doesn't
-block today's read-only review rendering (resolving the ID to a display name is enough for S3 as
-currently scoped), but worth knowing before anyone builds an entry form for this type.
-
-### 2.2 Health & documents section substantially under-specifies the real shapes
-
-KABINET.md's K3 "Здоров'я й документи" section: *"vaccination [Зроблено | Не зроблено | Не
-записано]; spay/neuter, same options; documents are multi-select checkbox chips (Чип · Ветпаспорт
-· Довідка про сказ). Registry-confirmed facts (e.g. rabies) are read-only here and update
-themselves."*
-
-Checked against `packages/domain/src/animals/attestation.ts` and `document-readiness.ts`:
-
-- **`VaccinationStatus`** is a discriminated union on `source`: `shelter_declared` (a 3-state
-  `MedicalState` — `unknown`/`in_progress`/`confirmed` — plus `declaredAt`) or `registry`
-  (pinned to `state: "confirmed"`, plus `registryRef`/`verifiedAt`, produced by a not-yet-built
-  Phase 3 adapter). The design's three options (done/not done/unrecorded) are missing
-  `in_progress` entirely, and conflate the two-source structure into one tri-state. The "registry-
-  confirmed facts are read-only" line in the design text is actually gesturing at the right idea
-  (correctly anticipating the `registry` variant should render read-only) but applies it to the
-  wrong field — it's written under "documents," not under vaccination, and vaccination is the
-  field that actually has a registry source today.
-- **`SpayNeuterStatus`** is `shelter_declared`-only (no registry variant — the schema's own comment
-  says a registry source "can never legitimately occur" for this fact), but still uses the same
-  3-state `MedicalState`, so it needs `in_progress` too, not just the 2 states the design offers
-  (plus unknown).
-- **`DocumentReadiness`** is the largest gap: `{kind: "tracked"}` holds **four** independently
-  tracked items (`microchip`, `rabiesVaccination`, `rabiesTitration`, `vetCertificate` — the
-  design's 3-item checkbox list is missing `rabiesTitration` entirely and names a generic
-  "Ветпаспорт"/"Довідка про сказ" that doesn't map cleanly onto the four real item names), and each
-  item is independently one of **four** states (`unknown`/`absent`/`pending` with a `since` date/
-  `present` with `issuedAt`+`expiresAt`+an optional `reference`) — not a boolean checkbox. The
-  schema's own comment explains why: *"the hard part of cross-border movement is the ordering
-  between items — chip before vaccination, titration a set interval after it."* This is
-  deliberately-built-ahead structure for the cross-border phase (Phase 4, per
-  `docs/stack-decision.md`), not accidental complexity.
-
-**Decision needed:**
-- (a) design a richer per-item document-status control now (4 items × 4 states, with conditional
-  date/reference fields for "present") — more design work, a follow-up pass on K3 specifically; or
-- (b) ship H2 with `documentReadiness` fixed at `{kind: "unknown"}` for every new animal (its own
-  documented default — "every animal ships as `{kind: unknown}`" per the schema's comment) and
-  **omit document-status editing from K3 entirely** for now, since the field already defaults
-  correctly without any admin UI at all, and the feature it serves (cross-border eligibility) isn't
-  live yet.
-
-Recommendation: (b) for documents specifically, matching `docs/standing-constraints.md`'s "do not
-scaffold ahead of the current phase" — the field already behaves correctly with zero UI, and
-building a mismatched 3-checkbox version now would need redoing when cross-border actually needs
-it. For vaccination/spay-neuter, the fix is small (a 3-option control instead of 2, writing a
-`shelter_declared` attestation; a conditional read-only render on `source === "registry"`, which
-can't actually occur yet but costs nothing to render correctly) — worth just fixing in the K3 spec
-rather than deferring, since unlike documents this field is in active, immediate use.
+This is a real `packages/domain` schema change (`EvidenceItemSchema`'s `edrpou_registration`
+variant gains `registeredName: string`), proposed in the contract-shapes step, not made here.
 
 ---
 
-## 3. A screen/flow KABINET.md doesn't show: how does evidence get into the system at all?
+## 3. Health & documents — §2.2
 
-S3 is specified as a *review* screen — it assumes `VerificationEvidence.items` already has
-content. Nothing in K1–K5 or S1–S5 shows evidence being submitted. H2's own scope
-(`docs/handoff-2026-10-04.md` §3.1) says `onboard-shelter.ts` "survives as the bulk import path for
-a shelter that hands over a spreadsheet" and CSV import is cut from the UI — but evidence
-*specifically* (registration docs, bank details, references, site-visit notes) isn't CSV-shaped
-data; it's the thing S2's "create shelter + invite" flow presumably needs to capture, or that
-`onboard-shelter.ts` already populates today. Needs a decision: does S2 grow an evidence-entry step
-(so the operator enters what a shelter emailed them), does the shelter submit it themselves before
-`verified` (a screen not yet in scope for anyone), or does the script remain the only path and S3
-is purely read-only until re-review is built? Check `onboard-shelter.ts` for what it already does
-before deciding — it's the one place evidence might already be getting created today, outside any
-of the screens above.
+**Decision: (b) for documents, fix vaccination/spay-neuter now.**
+
+- **`documentReadiness` stays `{kind: "unknown"}`, no K3 editing.** Matches the schema's own
+  documented default; the field already behaves correctly with zero UI, and the feature it serves
+  (cross-border eligibility) isn't live. K3's "Здоров'я й документи" section drops the
+  Чіп/Ветпаспорт/Довідка checkbox row entirely.
+- **Vaccination and spay/neuter get a real fix in the K3 spec, not a deferral:** both become a
+  3-option `MedicalState` control, writing a `shelter_declared` attestation. A `source ===
+  "registry"` value (not reachable yet — no adapter exists — but the shape already permits it)
+  renders read-only, reusing the exact same already-built, already-reviewed display logic below —
+  never as an editable control.
+- **Checked, not assumed: the public side already has this exact rendering.**
+  `apps/web/src/features/animal-detail/medical-labels.ts`'s `vaccinationRow`/`spayNeuterRow`
+  already implement the full `MedicalState`-to-label mapping, reusing `uk.medical.*`:
+  `unknown` → `uk.medical.unknown` («Не записано» — not «Невідомо»; the earlier draft of this row
+  had the wrong word), `in_progress` → `uk.medical.inProgress` («У процесі»), `confirmed` +
+  `shelter_declared` → `uk.medical.shelterDeclared` («Слова притулку»), `confirmed` + `registry` →
+  a rabies-specific badge (`uk.medical.rabies`/`uk.medical.registry`, per that file's own comment
+  on why a registry-sourced vaccination in Ukraine specifically means rabies). **K3's two input
+  controls reuse `uk.medical.unknown`/`uk.medical.inProgress` directly for their first two
+  options** — no parallel strings. The third option is a different case: `shelterDeclared`
+  ("Слова притулку") is a *display* badge naming the provenance, not an action label a shelter
+  admin would click to assert "this is done" — there is no existing plain "confirmed" action
+  string to reuse. This needs one new key (e.g. `uk.medical.confirm` or similar — Oleksii's to name
+  if he wants a specific word) used only by the edit control; **the resulting saved state still
+  renders through the unchanged `vaccinationRow`/`spayNeuterRow` functions**, so the display side
+  needs no new string and no risk of drifting from the adopter-facing copy.
+- **`documentReadiness` already has a public display path too, confirmed unaffected by this
+  decision:** `AnimalDetailScreen.tsx` renders `uk.documents.chipPresent`/`.rabiesPresent` chips
+  when those two specific items are `present` — an existing, narrower read path that has nothing to
+  do with K3's editing question and needs no change here.
 
 ---
 
-## 4. Smaller items, cheap to resolve, listed so they don't get silently picked either way
+## 4. Evidence entry — §3
 
-- **`ops@opika.org.ua` vs. the already-shipped `hello@opika.org.ua`** (`/pro`'s contact row,
-  `uk.about.contact`). KABINET.md's own file list calls this out as a placeholder — confirming here
-  that the product already has a real, different address live, in case that's the one to reuse
-  rather than standing up a second inbox.
-- **"«Олексій»" named directly** (S2's success copy, K5's "Написати Олексію") **vs. the
-  unnamed-first-person convention the rest of the product uses** — `/prytulkam`'s own commitment
-  register (`docs/standing-constraints.md`, commitment 6: «я внесу все сам», «відповідаю я») never
-  names him; K5 itself elsewhere says «оператор реєстру» (role, not name) in the same screen. Worth
-  picking one register and using it consistently, same reasoning as the name-not-final discipline
-  in `CLAUDE.md` — a literal name in a button label is a different kind of commitment than a role
-  description.
-- **Does a shelter's contact/donation edit need operator review before going live?** (KABINET.md's
-  own Open question 3.) Genuinely open, not resolved by any existing code — this one is really
-  Oleksii's call.
+**Decision: S2 gains an evidence step.**
+
+- Reuses `OnboardEvidenceItemSchema` from `packages/db/src/onboard-shelter.ts` — **extracted to a
+  shared module** so the script and the kabinet form validate against the exact same schema, one
+  definition, two callers (the script's CLI parsing, S2's form submission).
+- `site_visit.visitedBy` = **the acting moderator** (the logged-in super_admin completing S2),
+  never a free-text field or a picker. The shared schema's `site_visit` variant stays shaped the
+  way `OnboardEvidenceItemSchema` already has it (notes only — no `visitedBy` asked for in the
+  input shape); the caller fills `visitedBy`/`visitedAt` server-side. `onboard-shelter.ts` keeps
+  using its own `FOUNDER_MODERATOR_ID` stand-in (no real moderator login reaches that script); S2's
+  handler uses the real authenticated super_admin's id instead — one shared input schema, two
+  different fill-in values, matching the `toEvidenceItem`-style conversion already in
+  `onboard-shelter.ts`.
+- `onboard-shelter.ts` **stays the bulk/import path**, unchanged in its own CLI behaviour.
+- **Shelter self-submission is out of H2** — only S2 (operator-entered, at shelter creation)
+  exists; no shelter-facing evidence screen.
+
+---
+
+## 5. Smaller items — §4
+
+- **Email: `hello@opika.org.ua`.** No `ops@` inbox stood up. Every kabinet mention (S2 success
+  copy, K5) corrected.
+- **Naming register:** «Олексій» is fine inside the kabinet — logged-in shelters already know who
+  they're dealing with — but **one register per screen**, never mixed within the same screen.
+  **Name and email come from one app-level config value**, never hardcoded as a string literal at
+  each call site (same reasoning as `CLAUDE.md`'s "name is not final" discipline — one place to
+  change, not a grep-and-replace across every kabinet string). Public pages (`/pro`, `/prytulkam`)
+  stay unnamed «я», unchanged — this decision is kabinet-only.
+- **Profile edits (KABINET.md's own Open question 3) — split, not uniform:**
+  - **`donateUrl` and legal/verification data → pending until the operator approves.** Reasoning,
+    Oleksii's own: *a swapped donation link on a compromised shelter account is the realistic fraud
+    vector, and it's the field adopters trust because it was verified.*
+  - **Contacts and descriptions → live immediately**, recorded in an audit log visible in the
+    S-screens (S1/S4).
+  - **Checked against the FSM for a re-verify trigger, as asked — none fits.** `verified ->
+    under_review` is explicitly closed (`transition.ts`'s own comment: a verified shelter moved
+    back to review "would silently vanish from the feed with no record it had ever been verified").
+    `suspend` is moderator-imposed, punitive, and removes the shelter from the feed — wrong shape
+    and wrong optics for "a trusted field changed, give it a second look while staying live."
+    **No existing transition does "stay visible, flagged for re-check."** Building one properly is
+    the not-yet-built `re_review` state CLAUDE.md's decision 5 already named as future work, not
+    H2's. Proposed instead, as its own small addition in the contract-shapes step: a **pending-value
+    pair, not a status-machine change** — `donateUrl` gets a proposed value sitting beside the live
+    one (`{ url, proposedAt }` or similar) until a super-admin approves or rejects it; the
+    adopter-facing contract keeps reading only the live value regardless. Legal/verification data
+    edited by a super-admin on S4 needs no new mechanism at all — the operator is already the FSM's
+    own authority, so there's no third party to seek approval from; what it needs is the audit-log
+    entry below, not a pending-value pair.
+  - Both halves land in the actual contract shapes next, not here.
 
 ---
 
 ## What this document is not
 
-Not a contract proposal. The actual `packages/contracts` shapes for the kabinet router, the
-Zod schemas for new procedures, and the route map come after the decisions above — writing them
-before would mean building against evidence-card fields and a documents UI that may not survive
-review, the exact thing H2's own "contract-first... reviewed by Oleksii before implementation"
-requirement exists to prevent.
+Not a contract proposal. The actual `packages/contracts` shapes — the `EvidenceItemSchema` change,
+the extracted evidence-input module, the donation pending-value pair, the audit-log shape, the
+kabinet router's procedures — come next. `docs/model-policy.md` assigns exactly this kind of work
+("M1 contracts + domain | Opus | Type design. Every later milestone inherits these shapes") to
+Opus, the same reasoning already applied to G4's spring physics and R5's seen-set query this
+session — flagged for Oleksii's call before drafting, not decided unilaterally here.
