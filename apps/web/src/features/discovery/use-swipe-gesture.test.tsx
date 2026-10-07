@@ -31,6 +31,24 @@ function pointerEvent(type: string, init: { clientX: number; button?: number }):
 }
 
 /**
+ * Stubs `matchMedia` so `prefers-reduced-motion: reduce` reads as matched.
+ * Caller must restore with `vi.unstubAllGlobals()` in a `finally`.
+ */
+function stubReducedMotion(): void {
+  const matchMedia = vi.fn((query: string) => ({
+    matches: query.includes("prefers-reduced-motion"),
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    onchange: null,
+    dispatchEvent: vi.fn(),
+  }));
+  vi.stubGlobal("matchMedia", matchMedia);
+}
+
+/**
  * Count pointer-listener registrations on a node from this moment on.
  *
  * Wraps the two DOM methods rather than using `vi.spyOn`, because the real
@@ -191,6 +209,61 @@ describe("swipe gesture commit path", () => {
     expect(onCommit).toHaveBeenCalledWith("left");
   });
 
+  /**
+   * G4 (`docs/handoff-2026-10-04.md` §3 block 6): the exit is a real design
+   * value on a fixed timeline — `docs/design/README.md`'s "Exit 280ms" via
+   * `cubic-bezier(0.3, 0, 0, 1)` — distinct from the spring-back curve below.
+   * Pins the 300ms→280ms frame correction and guards the easing split: a
+   * future edit (including the Opus spring-physics follow-up) that
+   * accidentally reuses the spring's curve on this path, or the exit's curve
+   * on the spring path, must fail here.
+   */
+  it("exits on the design's fixed 280ms timeline, not the spring-back curve", () => {
+    const card = mountCard({ onCommit: vi.fn() });
+
+    drag(card, 150); // past the 88px commit distance
+
+    expect(card.style.transition).toBe("transform 280ms cubic-bezier(0.3, 0, 0, 1)");
+  });
+
+  /**
+   * The committed-exit path under reduced motion is the one reduced-motion
+   * case where the easing is actually visible — opacity genuinely animates
+   * 1 -> 0, unlike the snap-back case's instant one-frame reset. Catches a
+   * real gap: the earlier version of this change pinned the invisible
+   * snap-back string but not this one.
+   */
+  it("exits on opacity under prefers-reduced-motion, on the same fixed timeline", () => {
+    stubReducedMotion();
+
+    try {
+      const card = mountCard({ onCommit: vi.fn() });
+
+      drag(card, 150); // past the 88px commit distance
+
+      expect(card.style.transition).toBe("opacity 120ms cubic-bezier(0.3, 0, 0, 1)");
+      expect(card.style.opacity).toBe("0");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  /**
+   * The spring-back path is explicitly NOT part of G4's safe sub-portion
+   * (docs/model-policy.md assigns gesture physics to Opus) — this pins its
+   * pre-existing, unchanged approximation so the boundary between "touched
+   * by G4" and "deferred to Opus" stays visible in a test, not just a
+   * comment.
+   */
+  it("snaps back on the pre-existing spring-back approximation, unchanged by G4", () => {
+    const onSnapBack = vi.fn();
+    const card = mountCard({ onCommit: vi.fn(), onSnapBack });
+
+    drag(card, 20); // short of the commit threshold
+
+    expect(card.style.transition).toBe("transform 300ms cubic-bezier(0.16, 1, 0.3, 1)");
+  });
+
   /** Belt and braces must not double-fire: one swipe is one swipe. */
   it("commits exactly once when both transitionend and the fallback would fire", () => {
     const onCommit = vi.fn();
@@ -235,7 +308,7 @@ describe("swipe gesture commit path", () => {
 
     drag(card, 150);
     act(() => {
-      vi.advanceTimersByTime(50); // 50ms into the 300ms exit, still under the finger
+      vi.advanceTimersByTime(50); // 50ms into the 280ms exit, still under the finger
     });
     act(() => {
       card.dispatchEvent(pointerEvent("pointerdown", { clientX: 150 }));
@@ -359,17 +432,7 @@ describe("swipe gesture commit path", () => {
    * found on review as the one `canCommit` path nothing else exercised.
    */
   it("refuses a commit via canCommit under prefers-reduced-motion — no animation, snaps back synchronously", () => {
-    const matchMedia = vi.fn((query: string) => ({
-      matches: query.includes("prefers-reduced-motion"),
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      onchange: null,
-      dispatchEvent: vi.fn(),
-    }));
-    vi.stubGlobal("matchMedia", matchMedia);
+    stubReducedMotion();
 
     try {
       const onCommit = vi.fn();
@@ -403,25 +466,15 @@ describe("swipe gesture commit path", () => {
   });
 
   /**
-   * docs/design/README.md:126 and :348 — under reduced motion "the stack does
-   * not move". A spring-back therefore has no transform transition to animate
+   * docs/design/README.md:204, :639, :872 — under reduced motion "the stack
+   * does not move". A spring-back therefore has no transform transition to animate
    * or to wait for: the card is simply back where it started, in one frame.
    *
    * This path had no test, which is how it quietly acquired a 120ms transform
    * animation during the fix-5 rewrite.
    */
   it("returns the card without animating it under prefers-reduced-motion", () => {
-    const matchMedia = vi.fn((query: string) => ({
-      matches: query.includes("prefers-reduced-motion"),
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      onchange: null,
-      dispatchEvent: vi.fn(),
-    }));
-    vi.stubGlobal("matchMedia", matchMedia);
+    stubReducedMotion();
 
     try {
       const onSnapBack = vi.fn();
@@ -433,6 +486,10 @@ describe("swipe gesture commit path", () => {
         card.style.transition,
         "reduced motion must not put a transition on transform — the stack does not move",
       ).not.toContain("transform");
+      // G4: reduced motion bypasses the spring entirely, so this gets the
+      // same fixed-timeline "quick" easing as the exit path, not the
+      // spring-back approximation's curve.
+      expect(card.style.transition).toBe("opacity 120ms cubic-bezier(0.3, 0, 0, 1)");
       expect(card.style.transform).toBe("translate3d(0, 0, 0) rotate(0deg)");
       // Nothing is animating, so there is nothing to wait for.
       expect(onSnapBack).toHaveBeenCalledTimes(1);
