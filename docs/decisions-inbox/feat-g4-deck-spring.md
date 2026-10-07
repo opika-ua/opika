@@ -1,0 +1,4 @@
+| ID | Date | Row | Question | Options | Default taken | Oleksii's answer | Status |
+|---|---|---|---|---|---|---|---|
+| G4-1 | 2026-10-07 | G4 part 2 | `swipeDecision` gets `velocityX` from the last pointermove even if the finger has since stopped. So a quick drag, held, then released can still commit on the velocity path. The spring now ignores a velocity older than 100ms (`releaseVelocity`); the commit decision doesn't, because changing when a swipe commits is out of this row's scope | apply `releaseVelocity` to the commit decision too (own row, harness re-check) · leave as is | leave as is in this row; filed for a follow-up | | open |
+| G4-2 | 2026-10-07 | G4 part 2 | "280/30, no overshoot": at mass 1, 280/30 is underdamped (critical damping is ≈33.5), so the numbers alone overshoot slightly | clamp at the origin, React Native's `overshootClamping` (keeps the design's curve) · raise damping to ≥33.5 (changes the curve) | clamp; mass 1 | | default taken |

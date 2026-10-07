@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { DECK_RETURN_SPRING, returnToOrigin } from "./spring";
 import { type SwipeDirection, swipeDecision } from "./swipe-decision";
 
 // --- Design constants ---
@@ -16,29 +17,13 @@ const AFFORDANCE_FADE_PX = 40;
  */
 const EXIT_MS = 280;
 /**
- * Spring-back duration in ms — **not yet G4's real spec.** The design calls
- * for a genuine spring (stiffness 280, damping 30, no overshoot), which a
- * fixed duration + cubic-bezier curve can only approximate, not reproduce.
- * Deliberately left as the pre-existing approximation: implementing the
- * real spring is gesture-physics work `docs/model-policy.md` assigns to
- * Opus, tracked as a G4 follow-up (see `docs/build-plan.md`'s G4 row).
- */
-const SPRING_BACK_MS = 300;
-/**
- * Easing for the spring-back approximation above — unchanged alongside
- * `SPRING_BACK_MS` for the same reason: this whole path is superseded by
- * G4's real spring implementation, not fixed here.
- */
-const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
-/**
  * Exit easing for the two paths that actually move between fixed points on
  * a declared timeline (full exit, and the reduced-motion opacity-only
  * exit) — `docs/design/README.md`'s general motion table: "reveal 280ms"
  * and "quick 120ms" both via `cubic-bezier(0.3, 0, 0, 1)` ("short and dry;
- * no springiness"). Distinct from `EASE` above on purpose: that constant
- * is the pre-existing spring-back approximation's own curve, not this
- * system's real easing, and the two must not be conflated now that they
- * genuinely differ.
+ * no springiness"). The return to centre is not on a timeline at all: it is
+ * the deck's one spring (`./spring`, G4), driven per frame from the release
+ * position and velocity.
  */
 const EXIT_EASE = "cubic-bezier(0.3, 0, 0, 1)";
 /**
@@ -50,6 +35,20 @@ const EXIT_EASE = "cubic-bezier(0.3, 0, 0, 1)";
  * before this row; only the easing (now `EXIT_EASE`, see above) changed.
  */
 const REDUCED_EXIT_MS = 120;
+
+/** Where every return to centre ends, written exactly rather than via `applyTransform(0)`. */
+const ORIGIN_TRANSFORM = "translate3d(0, 0, 0) rotate(0deg)";
+
+/**
+ * A release counts as moving only if the finger moved this recently.
+ *
+ * `velocityX` is the speed of the last pointermove, and a finger held still
+ * produces no pointermove at all — so without this, a card dragged quickly,
+ * held, then let go would be released with the speed it had before the hold
+ * and lurch in that direction. Pointer events arrive every 8–16ms while a
+ * finger moves; 100ms without one is a finger at rest.
+ */
+const RELEASE_VELOCITY_WINDOW_MS = 100;
 
 /**
  * Grace period added to a transition's own duration before the fallback timer
@@ -159,11 +158,71 @@ function whenTransitionSettles(
 }
 
 /**
+ * Velocity at release in px/ms: the last move's, unless the finger had
+ * stopped (see `RELEASE_VELOCITY_WINDOW_MS`).
+ */
+export function releaseVelocity(velocityX: number, lastMoveAt: number, releasedAt: number): number {
+  return releasedAt - lastMoveAt > RELEASE_VELOCITY_WINDOW_MS ? 0 : velocityX;
+}
+
+/**
+ * Drive the card back to the origin on the deck's spring, one frame at a
+ * time, then run `done` — exactly once, unless cancelled first.
+ *
+ * Per-frame rather than a CSS transition because a transition takes a
+ * duration and a curve, and a spring has neither: its motion depends on the
+ * release velocity and it ends when it reaches the origin, not at a time
+ * chosen in advance. Position is computed from elapsed time, not from a
+ * frame count, so a dropped frame moves the card to where the spring is.
+ *
+ * No fallback timer, unlike `whenTransitionSettles`. That one exists because
+ * `transitionend` may never fire; a frame callback always does while the tab
+ * is visible, and in a hidden tab — where frames pause — there is no card on
+ * screen to be wrong about. When the tab returns, the first frame finds the
+ * spring long since at rest and finishes. A return to centre is also not a
+ * decision the user can lose, which is the reason the commit path needs its
+ * guarantee.
+ */
+function springToOrigin(
+  node: HTMLElement,
+  fromX: number,
+  velocityPxPerMs: number,
+  render: (x: number) => void,
+  done: () => void,
+): () => void {
+  node.style.transition = "none";
+  const frameAt = returnToOrigin(DECK_RETURN_SPRING, fromX, velocityPxPerMs * 1000);
+  const startedAt = performance.now();
+  let settled = false;
+  let frame = 0;
+
+  const step = (): void => {
+    const next = frameAt((performance.now() - startedAt) / 1000);
+    if (next.kind === "at_rest") {
+      settled = true;
+      node.style.transform = ORIGIN_TRANSFORM;
+      done();
+      return;
+    }
+    render(next.x);
+    frame = requestAnimationFrame(step);
+  };
+  frame = requestAnimationFrame(step);
+
+  return () => {
+    if (settled) return;
+    settled = true;
+    cancelAnimationFrame(frame);
+  };
+}
+
+/**
  * Hook that wires PointerEvent-based swipe gestures to a card element.
  *
  * Returns a ref callback — attach it to the draggable card element.
- * The hook writes transforms directly to the DOM node (no React state),
- * and uses CSS transitions for exit / spring-back animations.
+ * The hook writes transforms directly to the DOM node (no React state). The
+ * exit is a CSS transition on a fixed timeline; the return to centre is the
+ * deck's spring, driven per frame (`springToOrigin`).
  */
 export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
   const stateRef = useRef<PointerState | null>(null);
@@ -197,6 +256,44 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
     const rotation = Math.min(Math.max(dx * ROTATION_FACTOR, -MAX_ROTATION_DEG), MAX_ROTATION_DEG);
     node.style.transform = `translate3d(${dx}px, 0, 0) rotate(${rotation}deg)`;
   }, []);
+
+  /**
+   * Every way a card goes back to centre without committing — an
+   * under-threshold release, a refused commit (`canCommit`), and the browser
+   * cancelling the pointer — goes through here, so reduced motion is honoured
+   * on all of them. It used to be honoured on the first two only: the cancel
+   * path wrote its own transform transition and animated regardless.
+   */
+  const returnToCentre = useCallback(
+    (node: HTMLElement, fromX: number, velocityPxPerMs: number) => {
+      if (prefersReducedMotion.current) {
+        // Reduced motion: the stack does not move (docs/design/README.md:204,
+        // :639, :872). Transitioning opacity only means the transform below
+        // applies in one frame — the card is simply back where it started,
+        // with nothing to wait for. Reduced motion bypasses the spring
+        // entirely, so this takes the exit path's fixed "quick" easing.
+        node.style.transition = `opacity ${REDUCED_EXIT_MS}ms ${EXIT_EASE}`;
+        node.style.transform = ORIGIN_TRANSFORM;
+        callbacksRef.current.onSnapBack?.();
+        return;
+      }
+
+      pendingSettle.current = {
+        kind: "snap_back",
+        cancel: springToOrigin(
+          node,
+          fromX,
+          velocityPxPerMs,
+          (x) => applyTransform(node, x),
+          () => {
+            pendingSettle.current = null;
+            callbacksRef.current.onSnapBack?.();
+          },
+        ),
+      };
+    },
+    [applyTransform],
+  );
 
   const onPointerDown = useCallback(
     (e: PointerEvent) => {
@@ -292,45 +389,32 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
             callbacksRef.current.onCommit(commitDirection);
           }),
         };
-      } else if (prefersReducedMotion.current) {
-        // Reduced motion: the stack does not move (docs/design/README.md:204,
-        // :639, :872). Transitioning opacity only means the transform below
-        // applies in one frame — the card is simply back where it started.
-        // There is no transform transition, so there is nothing to wait for and no
-        // `transitionend` to wait for it with. This is not the deck's spring
-        // (reduced motion bypasses it entirely by design), so it uses the
-        // same fixed-timeline "quick" easing as the exit path above, not the
-        // spring-back approximation below.
-        node.style.transition = `opacity ${REDUCED_EXIT_MS}ms ${EXIT_EASE}`;
-        node.style.transform = "translate3d(0, 0, 0) rotate(0deg)";
-        callbacksRef.current.onSnapBack?.();
       } else {
-        // Spring back to origin
-        node.style.transition = `transform ${SPRING_BACK_MS}ms ${EASE}`;
-        node.style.transform = "translate3d(0, 0, 0) rotate(0deg)";
-
-        pendingSettle.current = {
-          kind: "snap_back",
-          cancel: whenTransitionSettles(node, SPRING_BACK_MS, () => {
-            pendingSettle.current = null;
-            callbacksRef.current.onSnapBack?.();
-          }),
-        };
+        // The card is where the last move put it, which is where the spring
+        // starts from — not at the pointerup's own coordinate.
+        returnToCentre(
+          node,
+          state.lastX - state.startX,
+          releaseVelocity(state.velocityX, state.lastTime, e.timeStamp),
+        );
       }
     },
-    [applyTransform],
+    [applyTransform, returnToCentre],
   );
 
-  const onPointerCancel = useCallback((e: PointerEvent) => {
-    const state = stateRef.current;
-    if (!state || e.pointerId !== state.pointerId) return;
-    stateRef.current = null;
+  const onPointerCancel = useCallback(
+    (e: PointerEvent) => {
+      const state = stateRef.current;
+      if (!state || e.pointerId !== state.pointerId) return;
+      stateRef.current = null;
 
-    const node = e.currentTarget as HTMLElement;
-    node.style.transition = `transform ${SPRING_BACK_MS}ms ${EASE}`;
-    node.style.transform = "translate3d(0, 0, 0) rotate(0deg)";
-    callbacksRef.current.onSnapBack?.();
-  }, []);
+      // The browser took the pointer (usually to scroll), so there is no
+      // fling to carry: the card returns from rest. A cancel's own clientX
+      // is not reliable, hence the last rendered position.
+      returnToCentre(e.currentTarget as HTMLElement, state.lastX - state.startX, 0);
+    },
+    [returnToCentre],
+  );
 
   /**
    * Ref callback — attach to the card element.
