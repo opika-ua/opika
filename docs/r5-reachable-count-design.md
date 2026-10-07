@@ -102,12 +102,14 @@ announcement, which is deliberately computed once at mount.
   `neon-http`, verify against both, the way `hasActiveSeenSet`'s own `RowList`-vs-`{rows}` bug
   was caught).
 
-## Opus resolution, 2026-10-07: approved (R5-1) and implemented; the Neon check (R5-2) is pending
+## Opus resolution, 2026-10-07: approved (R5-1), implemented, and verified on Neon (R5-2)
 
 All three open questions above are answered from the code. Two changes to the shape above
 were proposed, and one existing bug was found. Oleksii approved the shape (inbox R5-1) and it
 is implemented as written below, plus the zero-total guard noted under §1's drift list. The
-real-Neon run (R5-2) is still pending, so the count is not yet called verified.
+real-Neon run (R5-2) passed on 2026-10-07: on a non-production Neon branch, through `neon-http`,
+the count equalled what the feed actually serves for every adopter and filter set tried, and came
+back as a number.
 
 ### 1. The count is a frozen snapshot, taken at the start of each fresh feed
 
