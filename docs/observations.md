@@ -659,6 +659,54 @@ immediately rather than left live while a fuller sentence was drafted. R4 (Phase
 honest fuller replacement — one session cookie, set only when the visitor acts, and what it's
 for — which is still Oleksii's Ukrainian to write, not something to redraft unilaterally.
 
+**R4-2 answered, 2026-10-06 — Oleksii's own Ukrainian, verbatim** (`docs/decisions-inbox.md`'s
+R4-2 row has the full text: one cookie, set only after a first action, no PII, what it's for on
+both sides — deck re-serve memory and the reveal rate limiter's free-re-reveal check — and its
+7-day-idle/30-day-absolute expiry). **Not yet landed in `uk.about.analytics`** — gating question
+below, open.
+
+**Gating question, raised by Oleksii alongside the R4-2 text, 2026-10-06:** «одне кукі» is false
+for as long as the pre-launch gate (`__Host-prelaunch-gate`, `apps/web/src/api/prelaunch-
+gate.ts`) is live — a real visitor reaching `/pro` through the gate link already carries a second
+cookie the new sentence doesn't mention. Oleksii chose option (a) — land R4-2 together with the
+gate's removal, not behind a new runtime condition — on two further conditions.
+
+**Condition 1: couple R4-2 to the gate's removal specifically, not to
+`SITE_IS_PUBLICLY_DISCOVERABLE`, unless they're actually the same step today.** They are, checked
+directly rather than assumed: `apps/web/src/proxy.ts:54` reads `if (!SITE_IS_PUBLICLY_DISCOVERABLE)
+{ ...gate logic... }` — the gate's entire on/off switch *is* that flag, with no separate signal —
+and `apps/web/src/seo-flags.ts`'s own comment on the flag says so in words: "[the gate] comes down
+in the same change that flips this flag... before this flag can ever be `true` while the gate
+still exists." `docs/build-plan.md`'s R4 row now records R4-2 against the gate's removal, naming
+`SITE_IS_PUBLICLY_DISCOVERABLE` only as today's concrete implementation of that condition — if a
+future change ever decouples a "gate removed" signal from this flag (e.g. the noindex timing
+moving independently, which Oleksii flagged as still open), whatever reads this flag for this
+purpose needs to move to the new signal instead, not keep reading the wrong one by habit.
+
+**Condition 2: a tripwire, since copy that's merely incomplete (not false) earns no
+`[COPY_PENDING]` marker and would otherwise go unnoticed. Landed, 2026-10-06, separate commit
+from R4-1's.** `apps/web/src/seo-flags.ts`'s `assertAnalyticsCopyMatchesGateState` (test-time
+only, not wired into the production boot check the way `assertDemoDiscoverabilityInvariant` is —
+a missing sentence shouldn't be able to take a boot down the way indexing fictional data would)
+throws if `SITE_IS_PUBLICLY_DISCOVERABLE` is `true` while `uk.about.analytics` still doesn't
+mention cookies. Mutation-tested against the real constants, not just hand-built test strings:
+flipping the real flag to `true` without landing R4-2 makes the "defaults to the real copy and
+the real flag" test in `seo-flags.test.ts` fail with the exact invariant message; reverted after
+confirming. Cost acknowledged in the meantime: R4-2 doesn't go live until gate removal, which
+could be a while given "finish first, then demo" (Decision 1) — the tripwire exists so that wait
+can't turn into a silent miss.
+
+**Falsified by** (recorded now so the sentence doesn't go stale silently later): any new cookie
+set on the adopter side; `session.bootstrap` being called before a user action rather than only
+after one; a `DEFAULT_SESSION_POLICY` change to the 7-day-idle/30-day-absolute expiry the
+sentence states; H2's Better Auth shelter-admin cookies are a *different* actor
+(«Людині, яка шукає тварину» scopes the sentence to adopters, not shelter staff), so H2 does not
+by itself falsify this — but re-check the sentence's scoping once H2 ships, since a page that
+also serves shelter-admin traffic could blur the distinction a careless edit might not notice.
+Phase 2's rewarded-video ads (`docs/stack-decision.md`) will falsify the same key's «без реклами»
+clause — a pre-existing risk, not new to this entry, but recorded here since both clauses now
+live in the same sentence and a future editor touching one should see the other.
+
 ### V3 — is the anonymous session identity stable across reload / restart?
 
 **Yes, confirmed empirically, not just by reading the code.** Ran `session.bootstrap` against a
@@ -682,15 +730,20 @@ became false for the deck under Decision 1, the moment R1 shipped real per-devic
 Per the new standing constraint ("Removing a false claim is not the same gate as adding one",
 `docs/standing-constraints.md`), the false sentence was **deleted immediately** rather than held
 until its replacement was written — `whatHappensToAnimals` now states only the list/one-at-a-time
-mechanism, not the show-everyone claim. Amendment (English sense — Ukrainian is still Oleksii's, and is now R4's whole remaining job, not a
-fix for a false sentence; not pinned by `copy-status.test.ts` — the false sentence was deleted, not
-replaced with a `[COPY_PENDING]` placeholder, so no marker currently exists for that test to catch):
-**the list shows everyone; the deck does not re-serve what you skipped;
-nothing is hidden from you that you did not hide yourself.** The deck-only constraint above is
-what keeps this a small amendment rather than a reversal of the commitment.
+mechanism, not the show-everyone claim.
 
-Now row 8 in `docs/standing-constraints.md`'s commitments register (`CLAUDE.md`'s "Commitments
-the «Для притулків» page makes"), recorded as temporarily narrowed rather than satisfied.
+**English sense, corrected 2026-10-06** (the first draft, directly below in strikethrough-by-
+convention since this file doesn't delete its own history, undercounted what the deck actually
+excludes — it named only `pass`, not `interested`, and didn't say passed-on animals return):
+~~the list shows everyone; the deck does not re-serve what you skipped; nothing is hidden from you
+that you did not hide yourself~~ → **the list shows everyone; the deck does not re-serve what you
+passed on or asked about, on this device only, and passed-on animals return later; nothing is
+hidden that you did not hide yourself.**
+
+**R4-1 resolved, 2026-10-06 — Oleksii's own Ukrainian, verbatim, landed in
+`whatHappensToAnimals`** (`docs/decisions-inbox.md`'s R4-1 row has the full text). No longer
+pinned as "temporarily narrowed" — see `docs/standing-constraints.md`'s commitments register row
+8, updated to match.
 
 ### New feature row set (scoped, not started)
 
