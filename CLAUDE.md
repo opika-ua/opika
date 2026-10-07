@@ -421,6 +421,12 @@ Node-ESM entry point. No live exposure today (`postgres` resolves ESM,
 corepack enable          # once, machine-wide
 pnpm i                   # install — resolves the pinned pnpm automatically
 pnpm check                # typecheck -> lint -> test -> build:web -> test:harness, same as CI
+
+# Writing to production (Neon) needs an explicit --prod on db:migrate, db:seed and
+# onboard:shelter (packages/db/src/prod-guard.ts). The guard reads production's identity
+# from PROD_NEON_DATABASE_URL in the process environment; the scripts load no .env file
+# themselves, and with it unset every non-local target is refused (fail closed). Test
+# database setup is local-only with no override.
 pnpm typecheck
 pnpm lint                 # biome check .
 pnpm lint:fix              # biome check --write .

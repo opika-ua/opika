@@ -7,6 +7,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import * as schema from "../src/schema/index";
 import { makeCity, makeShelter, setupTestDatabase } from "../src/test-utils/index";
+import { TEST_DATABASE_URL } from "../src/test-utils/setup";
 
 /**
  * The `wait_anchor_at` backfill, tested against data shaped the way the table
@@ -29,9 +30,6 @@ import { makeCity, makeShelter, setupTestDatabase } from "../src/test-utils/inde
  * rows and `created_at` varying — the shape that makes a wrong source look
  * right.
  */
-
-const TEST_DATABASE_URL =
-  process.env.TEST_DATABASE_URL ?? "postgres://opika:opika@localhost:5433/opika_test";
 
 const MIGRATIONS_DIR = resolve(fileURLToPath(import.meta.url), "../../drizzle");
 

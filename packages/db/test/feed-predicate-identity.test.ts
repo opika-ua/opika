@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { feedRepo } from "../src/repos/feed-repo";
 import * as schema from "../src/schema/index";
 import { setupTestDatabase } from "../src/test-utils/index";
+import { TEST_DATABASE_URL } from "../src/test-utils/setup";
 
 /**
  * `feed.list`'s generated SQL, pinned character-for-character.
@@ -37,9 +38,6 @@ import { setupTestDatabase } from "../src/test-utils/index";
  * dropped without the query text changing shape — `IN ($1)` versus `IN ($1,$2)`
  * looks similar and is not.
  */
-
-const TEST_DATABASE_URL =
-  process.env.TEST_DATABASE_URL ?? "postgres://opika:opika@localhost:5433/opika_test";
 
 // Fixed rather than random: the parameter values are part of the snapshot.
 const CITY_A = "11111111-1111-4111-8111-111111111111" as CityId;

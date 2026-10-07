@@ -60,6 +60,7 @@ import {
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { assertProductionWriteAllowed } from "./prod-guard";
 import { animalRepo } from "./repos/animal-repo";
 import { cityRepo } from "./repos/city-repo";
 import { shelterRepo } from "./repos/shelter-repo";
@@ -1495,6 +1496,10 @@ async function main(profile: SeedProfile) {
 // Windows argv[1]/pathToFileURL reasoning).
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const profile = parseSeedProfile(process.argv);
+  // Production first (needs --prod), then the seed's own target rules
+  // (localhost, or `demo` with --force and a matching --db-name). Both
+  // must pass; neither flag substitutes for the other.
+  assertProductionWriteAllowed(DATABASE_URL, process.argv);
   assertSafeSeedTarget(DATABASE_URL, process.argv, profile);
   main(profile).catch((err) => {
     console.error("Seed failed:", err);
