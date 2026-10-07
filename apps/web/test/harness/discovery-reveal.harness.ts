@@ -254,8 +254,9 @@ test.describe(`${ROUTE} inline reveal`, () => {
 
     // A refused commit takes the exact same path as an under-threshold drag
     // (see `use-swipe-gesture.test.tsx`'s own unit coverage) — give the
-    // spring-back's own transition time to settle, then check the deck
-    // never advanced past the second card at all.
+    // return spring time to settle (it is at rest by ~390ms for any drag
+    // this test makes, `spring.test.ts`), then check the deck never
+    // advanced past the second card at all.
     await page.waitForTimeout(600);
     expect(
       await topCardName(page),
@@ -272,19 +273,25 @@ test.describe(`${ROUTE} inline reveal`, () => {
     // (this fix) from "refused after it already finished" (the bug) is
     // where the card's own transform ends up — centred here, stuck at its
     // exit position there.
-    const transform = await page
-      .getByTestId("swipe-card")
-      .evaluate((el) => (el as HTMLElement).style.transform);
+    // Polled rather than read once: the return is driven per frame, and a
+    // loaded runner can deliver its last frame late. A card stuck at its
+    // exit position never reaches centre, so polling cannot hide the bug.
     // A real browser's CSSOM normalises the numeric arguments to px
     // (`translate3d(0px, 0px, 0px)`) — unlike jsdom, which preserves the
     // literal string `useSwipeGesture` assigns
     // (`use-swipe-gesture.test.tsx`'s own equivalent assertion has no units
     // for exactly this reason).
-    expect(
-      transform,
-      "the refused card must spring back to centre, not stay stuck at its exit position — this " +
-        "is the one assertion that would have failed against the pre-fix `handleCommit`-only guard",
-    ).toBe("translate3d(0px, 0px, 0px) rotate(0deg)");
+    await expect
+      .poll(
+        () => page.getByTestId("swipe-card").evaluate((el) => (el as HTMLElement).style.transform),
+        {
+          message:
+            "the refused card must spring back to centre, not stay stuck at its exit position — this " +
+            "is the one assertion that would have failed against the pre-fix `handleCommit`-only guard",
+          timeout: 5_000,
+        },
+      )
+      .toBe("translate3d(0px, 0px, 0px) rotate(0deg)");
 
     releaseReveal();
     const dialog = page.getByTestId("reveal-dialog");
