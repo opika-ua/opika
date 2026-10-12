@@ -35,7 +35,12 @@ const INITIATIVE: ShelterLegalEntity = {
 describe("evidence requirements", () => {
   it("accepts a registered NGO with registration, banking and one reference", () => {
     const submitted = evidence([
-      { kind: "edrpou_registration", edrpou: EDRPOU, documentKey: "docs/ngo.pdf" },
+      {
+        kind: "edrpou_registration",
+        edrpou: EDRPOU,
+        registeredName: "ГО «Тестовий притулок»",
+        documentKey: "docs/ngo.pdf",
+      },
       { kind: "bank_account_holder", holderName: "Тестовий притулок", documentKey: null },
       reference("Ветклініка"),
     ]);
@@ -45,7 +50,12 @@ describe("evidence requirements", () => {
 
   it("reports which document an NGO is missing rather than a bare refusal", () => {
     const submitted = evidence([
-      { kind: "edrpou_registration", edrpou: EDRPOU, documentKey: null },
+      {
+        kind: "edrpou_registration",
+        edrpou: EDRPOU,
+        registeredName: "ГО «Тестовий притулок»",
+        documentKey: null,
+      },
     ]);
 
     expect(evidenceGaps(NGO, submitted, DEFAULT_VERIFICATION_POLICY)).toEqual([
