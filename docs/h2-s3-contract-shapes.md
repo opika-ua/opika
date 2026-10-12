@@ -1,6 +1,6 @@
 # H2 S3 — kabinet contract shapes: addendum for review
 
-**Status:** proposal, 2026-10-12. No code. `CLAUDE.md` requires `packages/contracts` shapes to be
+**Status:** approved by Oleksii 2026-10-12 with additions (inbox `docs/decisions-inbox/feat-h2-kabinet-contracts.md`, S3-Q1/S3-Q2, verbatim); §8 records what the additions change. Originally a proposal, also 2026-10-12. `CLAUDE.md` requires `packages/contracts` shapes to be
 reviewed before implementation. `docs/h2-contract-proposal.md` §4–§6 fixed the **procedure list**
 and the **access matrix**, and Oleksii answered them. This addendum fills in what those sections
 left as sketches: each procedure's exact input/output schema, the error set, the access-metadata
@@ -186,3 +186,30 @@ This is a JSONB shape change on published/reserved listings. The same migration 
 (§2), the views (§3) and the procedure inputs and outputs (§4). After your answer I build the
 contracts, the domain pieces and the undo migration as one Tier 1 PR. Handlers and Better Auth
 follow in the next slice.
+
+---
+
+## 8. Decisions, 2026-10-12: what the answers change above
+
+- **S3-Q1 → A, plus a double-tap rule.** A `confirm` while `undoable` is live (within
+  `UNDO_WINDOW_MS` of `undoable.confirmedAt`) keeps the **original** `previousConfirmedAt` and only
+  moves `confirmedAt`. Without that rule, confirm, confirm, undo would leave the animal confirmed.
+  A test pins exactly that sequence: confirm, confirm, undo restores the value from before the first
+  confirm.
+- **Reject/suspend note: trimmed, then `min(1)`.** A whitespace-only note is refused.
+- **§4 addition:** the reject/suspend note is shown to the shelter verbatim, so it follows
+  `docs/marketing/brand-voice.md`: first person «я», plain words, no officialese. The S-screen
+  dialog's helper text says, in sense, "the shelter will read this as written". That's Ukrainian
+  copy, so it goes on the copy sheet and ships `[COPY PENDING]`.
+- **§1 addition, which changes proposal §6:** besides "every procedure declares access", there's a
+  **cross-tenant negative test for every shelter-scoped procedure**, `confirm` and `undoConfirm`
+  included. A member of shelter A acting on shelter B's animal or shelter gets **`FORBIDDEN`**, per
+  Oleksii's instruction. That replaces proposal §6's `NOT_FOUND` for the `SA-other` column. The
+  trade accepted: a `FORBIDDEN` confirms an id exists elsewhere. Animal ids are already public on
+  every feed card, and draft ids are unguessable UUIDs.
+  - **Where the test lives:** the cross-tenant tests call real handlers, so they're an obligation
+    of the **handlers slice**, not S3. S3 declares `FORBIDDEN` on every shelter-scoped procedure,
+    and its contract test asserts that declaration.
+- **Migration rule:** the S3 migration runs on a real **child** Neon branch first, never through
+  the production connection string; production is a separate, later step.
+
