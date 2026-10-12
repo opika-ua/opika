@@ -138,9 +138,10 @@ const confirmed = <T extends Confirmable>(current: T, at: Date): T => ({
  * `confirmedAt`: the animal has been waiting all along (decision #16), and
  * nobody has newly confirmed anything by the reservation ending.
  *
- * `confirm` is a self-loop on the two visible states and moves nothing but
- * `confirmedAt`. It is one animal per event by construction; there is no
- * bulk form (KABINET N4: a bulk confirm becomes a rubber stamp).
+ * `confirm` is a self-loop on the two visible states. It moves `confirmedAt`
+ * and records what it replaced in `undoable`, so `undo_confirm` can put it
+ * back; nothing else changes. It is one animal per event by construction;
+ * there is no bulk form (KABINET N4: a bulk confirm becomes a rubber stamp).
  */
 const nextListing = (
   current: AnimalListingState,
