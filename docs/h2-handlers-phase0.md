@@ -113,3 +113,27 @@ It follows the 0008 rule: a real child branch first, then production with your s
 before #85 merges. The only question is whether the history table should wait for the registry
 PR instead. **Recommended: no.** `updateContact` and `updateFreshnessSentence` are in the 16 and
 must write history from day one, or the first edits go unrecorded.
+
+---
+
+## Decisions, 2026-10-13
+
+Answers verbatim in the inbox (HS-Q1–HS-Q6). Their effect on the slice:
+
+- **Q1 → A.** The contract is split into `shelterKabinetContract` and `registryContract`. #85
+  serves the 16 `shelter.*` procedures with real handlers. No stubs.
+- **Q2 → A.** `MagicLinkSender`: tests capture, dev prints, production answers 503 with no sender.
+  The provider is decided in the invite PR by a real delivery test to Gmail, ukr.net and i.ua.
+- **Q3 → A.** The gate is the first PR where a real shelter can sign in. The "no membership outside
+  tests" test names the `/prytulkam` keys it protects (A1–A3, B1, §7/§9/§10) in its title and
+  message.
+- **Q4 → A, plus:** `admin:grant` prints the host and the target email and asks for confirmation.
+  It refuses unless the user already exists. `admin:revoke` ships alongside it.
+- **Q5 → as proposed.** The email is trimmed and lowercased before it keys the limiter.
+- **Q6 → one 0009, including `shelter_history`.**
+  - Better Auth's tables are prefixed `auth_` so none can be confused with the adopter
+    `sessions` table.
+  - `shelter_history`'s columns are pinned by an exact-field test: no adopter, reveal or swipe
+    data, ever.
+  - Order: 0008 rehearsal → 0008 production (done, 2026-10-13) → 0009 rehearsal on a fresh child
+    branch.
