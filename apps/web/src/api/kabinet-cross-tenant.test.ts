@@ -1,4 +1,4 @@
-import { kabinetContract } from "@opika/contracts";
+import { shelterKabinetContract } from "@opika/contracts";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -42,7 +42,7 @@ const pathsOf = (node: object, prefix: string): readonly string[] =>
 describe("cross-tenant access to shelter-scoped procedures", () => {
   it("has an entry for every shelter.* procedure in the contract", () => {
     expect([...SHELTER_SCOPED_PROCEDURES].sort()).toEqual(
-      [...pathsOf(kabinetContract.shelter, "shelter")].sort(),
+      [...pathsOf(shelterKabinetContract.shelter, "shelter")].sort(),
     );
   });
 

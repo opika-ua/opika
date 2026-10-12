@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { contract } from "../contract";
 import { apiErrors } from "../errors";
 import type { KabinetAccess } from "./access";
-import { kabinetContract } from "./contract";
+import { registryContract, shelterKabinetContract } from "./contract";
 import {
   AnimalPatchSchema,
   KabinetListingEventInputSchema,
@@ -36,7 +36,7 @@ const procedures = (node: object, prefix = ""): readonly [string, ProcedureInter
       : [[path, value as ProcedureInternals] as const];
   });
 
-const all = procedures(kabinetContract);
+const all = [...procedures(shelterKabinetContract), ...procedures(registryContract)];
 const byPath = new Map(all);
 const internals = (path: string) => {
   const procedure = byPath.get(path);
@@ -96,6 +96,11 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
 describe("the kabinet surface", () => {
   it("is exactly the addendum's procedures", () => {
     expect(all.map(([path]) => path).sort()).toEqual(Object.keys(EXPECTED_ACCESS).sort());
+  });
+
+  it("splits the shelter surface from the operator's (HS-Q1)", () => {
+    expect(Object.keys(shelterKabinetContract)).toEqual(["shelter"]);
+    expect(Object.keys(registryContract).sort()).toEqual(["registry", "session"]);
   });
 
   it("is not merged into the adopter contract until its handlers exist", () => {

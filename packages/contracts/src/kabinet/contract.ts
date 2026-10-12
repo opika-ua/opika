@@ -12,17 +12,30 @@ import {
 } from "./procedures";
 
 /**
- * The kabinet's surface (H2 S3), kept apart from `contract` until its handlers
- * exist: `implement(contract)`'s router requires every procedure to be served,
- * so merging these now would break the adopter app's build over procedures
- * nobody serves yet. The handlers slice merges them.
+ * The kabinet is two contracts, not one (HS-Q1, Oleksii): `implement(...)`'s
+ * router requires every procedure in a contract to be served, and the two
+ * surfaces ship in different PRs. Splitting them means each router is
+ * complete when it's mounted: no stub ever answers a real route.
+ *
+ * The shelter's own cabinet. Every procedure takes its `shelterId` from the
+ * actor.
  */
-export const kabinetContract = {
+export const shelterKabinetContract = {
   shelter: {
     profile: shelterProfileContract,
     verification: shelterVerificationContract,
     animals: shelterAnimalsContract,
   },
+} as const;
+
+export type ShelterKabinetContract = typeof shelterKabinetContract;
+
+/**
+ * The operator's side, plus leaving support mode (the one call a support
+ * view makes that isn't a read of the shelter it's viewing). Unserved until
+ * the registry PR serves all of it.
+ */
+export const registryContract = {
   registry: {
     shelters: registrySheltersContract,
     verification: registryVerificationContract,
@@ -34,4 +47,4 @@ export const kabinetContract = {
   session: kabinetSessionContract,
 } as const;
 
-export type KabinetContract = typeof kabinetContract;
+export type RegistryContract = typeof registryContract;

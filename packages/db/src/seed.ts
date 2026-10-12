@@ -1416,7 +1416,12 @@ async function main(profile: SeedProfile) {
   const client = postgres(DATABASE_URL, { max: 1 });
   const db = drizzle(client, { schema });
 
-  // Truncate all tables
+  // Truncate all tables. CASCADE also empties every table that references
+  // `shelters`, which since 0009 includes `shelter_history`: a reseed erases
+  // the operator's audit trail along with the shelters it describes. The
+  // `auth_*` tables are not touched (shelters point at organizations, not the
+  // other way round), so kabinet users and organizations survive a reseed,
+  // unlinked from any shelter, and resolve to no role.
   console.log("  Truncating existing data...");
   await db.execute(sql`TRUNCATE reveals, swipes, animals, adopters, shelters, cities CASCADE`);
 

@@ -39,6 +39,12 @@ catalog:
   "@tailwindcss/postcss": 4.3.3
   postcss: 8.5.25
   drizzle-orm: 0.45.2
+  # H2 handlers slice (HS-Q1..Q6): the ADR's auth choice (docs/stack-decision.md
+  # §Auth: self-hosted, MIT, organization plugin for shelters), added only now
+  # because this is the first slice with an authenticated surface. Kabinet only:
+  # adopters keep the hand-rolled anonymous session (decision #13). 1.6.33 is
+  # the newest 1.6.x and published 2026-09-14, well clear of the 24h quarantine.
+  better-auth: 1.6.33
   drizzle-kit: 0.31.10
   # O-9, 2026-09-06 reprioritisation ("2.1"): production's DB-backed pages
   # plateau at a ~1s floor (reconfirmed against the live site before this
