@@ -61,6 +61,7 @@ before anything is computed):
     "evidence": [
       {
         "kind": "site_visit",
+        "visitedOn": "2026-09-01",
         "notes": "Дзвінок з Оленою 1 вересня — розповіла про притулок, показала фото тварин на місці."
       },
       {
@@ -121,6 +122,32 @@ A `site_visit` doesn't require you to have physically gone anywhere — a
 real phone call where you actually talked to someone and can say what you
 learned counts; `notes` should say what actually happened, in your own
 words, since this becomes a permanent part of the shelter's record.
+
+**`visitedOn` is required** (`YYYY-MM-DD`): the day the visit or call
+actually happened, not the day you're filling in this file. A date after
+today is refused, because a visit that hasn't happened can't back a
+verification. The script records you (its founder stand-in) as the person
+who vouches for it; there's no field for that.
+
+**An `edrpou_registration` needs `registeredName`**: the name exactly as ЄДР
+shows it on the day you check the code. A reviewer compares it with the
+shelter's own name and the bank holder's name, so copy it from the
+registry, don't retype it from the shelter's message. Leave `documentKey`
+out of `edrpou_registration` and `bank_account_holder`: the script refuses
+one until the private evidence bucket exists, because a key typed here
+points at nothing the system issued.
+
+```json
+{
+  "kind": "edrpou_registration",
+  "edrpou": "12345678",
+  "registeredName": "ГРОМАДСЬКА ОРГАНІЗАЦІЯ «ДОМІВКА»"
+}
+```
+
+(Changed 2026-10-07, H2: input files written before that need `visitedOn`
+added to each `site_visit` and `registeredName` to each `edrpou_registration`.
+The script refuses the old shape rather than guessing.)
 
 ### Photos
 

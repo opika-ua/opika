@@ -9,23 +9,21 @@ import {
   type AnimalPhoto,
   AnimalSexSchema,
   AnimalSpeciesSchema,
-  ContactChannelSchema,
   type Coordinates,
   DEFAULT_VERIFICATION_POLICY,
   DonationLinkSchema,
-  EdrpouSchema,
-  type EvidenceItem,
+  EvidenceItemInputSchema,
   ExactAddressSchema,
   type ModeratorId,
   ModeratorIdSchema,
   meetsEvidenceRequirements,
   publicLocationOf,
-  ReferenceRelationshipSchema,
   type Shelter,
   ShelterContactSchema,
   ShelterIdSchema,
   ShelterLegalEntitySchema,
   SizeBucketSchema,
+  toVerificationEvidence,
   UNKNOWN_ATTESTATION,
   UNKNOWN_DOCUMENT_READINESS,
 } from "@opika/domain";
@@ -175,65 +173,11 @@ const OnboardAnimalSchema = z.object({
 });
 
 /**
- * An operator-friendly shape for `EvidenceItemSchema` — the real domain
- * schema needs a `ModeratorId` (a UUID) on `site_visit` and a `submittedAt`
- * on the whole evidence bundle, neither of which an operator hand-writing
- * this file on a phone call has any business supplying by hand. Both are
- * filled in automatically (`FOUNDER_MODERATOR_ID`, `now`) by
- * `toEvidenceItem`/`buildShelter` below, not asked for here.
+ * Evidence input is `EvidenceItemInputSchema` from `@opika/domain`, shared with
+ * the kabinet's S2 evidence step (decisions §4: one schema, two callers). This
+ * script supplies the attribution itself — `FOUNDER_MODERATOR_ID` and `now` —
+ * because no operator login reaches it.
  */
-const OnboardEvidenceItemSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("edrpou_registration"), edrpou: EdrpouSchema }),
-  z.object({ kind: z.literal("bank_account_holder"), holderName: z.string().min(1) }),
-  z.object({
-    kind: z.literal("reference_contact"),
-    name: z.string().min(1),
-    channel: ContactChannelSchema,
-    relationship: ReferenceRelationshipSchema,
-  }),
-  z.object({ kind: z.literal("site_visit"), notes: z.string().min(1) }),
-  z.object({
-    kind: z.literal("supporting_document"),
-    labelUk: z.string().min(1),
-    documentKey: z.string().min(1),
-  }),
-]);
-type OnboardEvidenceItem = z.infer<typeof OnboardEvidenceItemSchema>;
-
-function toEvidenceItem(item: OnboardEvidenceItem, now: Date): EvidenceItem {
-  switch (item.kind) {
-    case "edrpou_registration":
-      return { kind: "edrpou_registration", edrpou: item.edrpou, documentKey: null };
-    case "bank_account_holder":
-      return { kind: "bank_account_holder", holderName: item.holderName, documentKey: null };
-    case "reference_contact":
-      return {
-        kind: "reference_contact",
-        name: item.name,
-        channel: item.channel,
-        relationship: item.relationship,
-      };
-    case "site_visit":
-      return {
-        kind: "site_visit",
-        visitedAt: now,
-        visitedBy: FOUNDER_MODERATOR_ID,
-        notes: item.notes,
-      };
-    case "supporting_document":
-      return {
-        kind: "supporting_document",
-        label: { uk: item.labelUk, en: null },
-        documentKey: item.documentKey,
-      };
-    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
-    default: {
-      const unreachable: never = item;
-      return unreachable;
-    }
-  }
-}
-
 const OnboardInputSchema = z.object({
   shelter: z.object({
     idSeed: z.string().min(1),
@@ -261,7 +205,7 @@ const OnboardInputSchema = z.object({
      * `legalEntity.kind` given — see docs/onboarding-a-shelter.md for a
      * worked example per legal shape.
      */
-    evidence: z.array(OnboardEvidenceItemSchema).min(1),
+    evidence: z.array(EvidenceItemInputSchema).min(1),
   }),
   animals: z.array(OnboardAnimalSchema).min(1),
 });
@@ -294,10 +238,33 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
   const policy = productionLocationPolicy(secret);
   const id = ShelterIdSchema.parse(deterministicId(`shelter:${input.idSeed}`)) as Shelter["id"];
 
-  const evidence = {
-    items: input.evidence.map((item) => toEvidenceItem(item, now)),
-    submittedAt: now,
-  };
+  // No private evidence bucket exists yet (H2-6), so a key typed into an input
+  // file points at nothing this system issued: a public photo path or a made-up
+  // string would be stored as verification evidence. Until that upload path
+  // exists these two kinds carry no document, exactly as this script always
+  // wrote them. (`supporting_document` keeps its required key: unchanged
+  // behaviour, and the operator is pointing at a document they hold.)
+  const typedKey = input.evidence.find(
+    (item) =>
+      (item.kind === "edrpou_registration" || item.kind === "bank_account_holder") &&
+      item.documentKey !== null,
+  );
+  if (typedKey) {
+    throw new Error(
+      `${typedKey.kind}.documentKey must be omitted for now: evidence documents need the private evidence bucket, which doesn't exist yet.`,
+    );
+  }
+
+  const recorded = toVerificationEvidence(input.evidence, {
+    recordedBy: FOUNDER_MODERATOR_ID,
+    recordedAt: now,
+  });
+  if (recorded.kind === "site_visit_in_future") {
+    throw new Error(
+      `site_visit.visitedOn ${recorded.visitedOn} is after today — a visit that hasn't happened can't back a verification.`,
+    );
+  }
+  const evidence = recorded.evidence;
 
   const meetsPolicy = meetsEvidenceRequirements(
     input.legalEntity,

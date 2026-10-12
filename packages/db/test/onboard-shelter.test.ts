@@ -1,6 +1,6 @@
 import { basename, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CityIdSchema } from "@opika/domain";
+import { CityIdSchema, EdrpouSchema } from "@opika/domain";
 import { describe, expect, it, vi } from "vitest";
 import {
   buildAnimal,
@@ -23,7 +23,11 @@ const EXACT_ADDRESS = {
 
 /** Satisfies DEFAULT_VERIFICATION_POLICY's unregistered_initiative row: one site_visit, two reference_contacts. */
 const SUFFICIENT_EVIDENCE = [
-  { kind: "site_visit" as const, notes: "Особисто говорив з Оленою по телефону 1 вересня." },
+  {
+    kind: "site_visit" as const,
+    visitedOn: "2026-09-01",
+    notes: "Особисто говорив з Оленою по телефону 1 вересня.",
+  },
   {
     kind: "reference_contact" as const,
     name: "Сусідній притулок «Хвостатий дім»",
@@ -91,13 +95,63 @@ describe("buildShelter's public location", () => {
     // since both policies produce *some* keyed-looking variation.
     expect(() => buildShelter(SHELTER_INPUT, now, "short")).toThrow(/32 characters/);
   });
+
+  /** H2-9: the visit's date is the day it happened, credited to the operator recording it. */
+  it("dates a site visit by visitedOn and credits it to the founder stand-in", () => {
+    const shelter = buildShelter(SHELTER_INPUT, now, SECRET_A);
+    const visit = shelter.verification.evidence.items.find((item) => item.kind === "site_visit");
+    expect(visit).toMatchObject({
+      kind: "site_visit",
+      visitedAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
+    expect(visit && "visitedBy" in visit && visit.visitedBy).toBe(
+      deterministicId("moderator:founder-manual-vetting"),
+    );
+  });
+
+  /** Until the private evidence bucket exists (H2-6), a typed key points at nothing this system issued. */
+  it.each([
+    {
+      kind: "edrpou_registration" as const,
+      edrpou: EdrpouSchema.parse("12345678"),
+      registeredName: "ГО «ДОМІВКА»",
+      documentKey: "photos/public/extract.jpg",
+    },
+    {
+      kind: "bank_account_holder" as const,
+      holderName: "ГО «Домівка»",
+      documentKey: "photos/public/statement.jpg",
+    },
+  ])("refuses a typed documentKey on $kind evidence", (keyed) => {
+    const withKey = { ...SHELTER_INPUT, evidence: [...SUFFICIENT_EVIDENCE, keyed] };
+    expect(() => buildShelter(withKey, now, SECRET_A)).toThrow(
+      new RegExp(`${keyed.kind}\.documentKey must be omitted`),
+    );
+  });
+
+  it("refuses a site visit dated after the day it is recorded", () => {
+    const futureVisit = {
+      ...SHELTER_INPUT,
+      evidence: [
+        { kind: "site_visit" as const, visitedOn: "2026-09-07", notes: "Завтра поїду" },
+        ...SUFFICIENT_EVIDENCE.slice(1),
+      ],
+    };
+    expect(() => buildShelter(futureVisit, now, SECRET_A)).toThrow(/2026-09-07 is after today/);
+  });
 });
 
 describe("buildShelter's evidence requirement", () => {
   it("throws when the supplied evidence doesn't meet DEFAULT_VERIFICATION_POLICY for the legal entity kind", () => {
     const insufficientInput = {
       ...SHELTER_INPUT,
-      evidence: [{ kind: "site_visit" as const, notes: "Один візит, без референсів." }],
+      evidence: [
+        {
+          kind: "site_visit" as const,
+          visitedOn: "2026-09-01",
+          notes: "Один візит, без референсів.",
+        },
+      ],
     };
     expect(() => buildShelter(insufficientInput, now, SECRET_A)).toThrow(
       /DEFAULT_VERIFICATION_POLICY/,
