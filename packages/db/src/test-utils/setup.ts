@@ -24,7 +24,7 @@ export const TEST_DATABASE_URL = localTestDatabaseUrl(
 );
 
 function localTestDatabaseUrl(url: string): string {
-  // With no flag and no production URL, the shared guard allows exactly the
+  // With no flag and no production endpoint, the shared guard allows exactly the
   // local hosts. Its messages never echo the URL (it may carry a password).
   if (checkProductionWrite(url, [], undefined).kind !== "allowed") {
     throw new Error(
