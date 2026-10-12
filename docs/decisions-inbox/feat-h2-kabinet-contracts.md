@@ -1,0 +1,4 @@
+| ID | Date | Row | Question | Options | Default taken | Oleksii's answer | Status |
+|---|---|---|---|---|---|---|---|
+| S3-Q1 | 2026-10-12 | H2 S3, `docs/h2-s3-contract-shapes.md` §5 | Where "store the previous confirmation, don't recompute" (H2-16) keeps the value | A: on the listing JSONB as `undoable: { previousConfirmedAt, confirmedAt } \| null`, set by `confirm` and cleared by every other event · B: in the shelter history table (which doesn't exist yet, and confirmations aren't in the shelter-level union) | **None: contract shape, needs review** (recommend A) | | open |
+| S3-Q2 | 2026-10-12 | same, §1–§4, §6 | Approve the S3 contract spec: access metadata (surface + mode, deny-by-default), the 7 new errors, the views, the per-procedure inputs and outputs, `Shelter.version` | approve · revise | **None: Tier 1 contract review** | | open |
