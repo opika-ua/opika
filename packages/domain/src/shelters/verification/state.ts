@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ModeratorIdSchema } from "../../primitives/ids";
+import { ShelterActorSchema } from "../actor";
 import { VerificationEvidenceSchema } from "./evidence";
 import { PauseReasonSchema, RejectionReasonSchema, SuspensionReasonSchema } from "./reasons";
 
@@ -16,9 +17,16 @@ const verifiedFacts = {
   verifiedBy: ModeratorIdSchema,
 };
 
+/**
+ * `pausedBy` is an actor, not a `ModeratorId` (H2). A pause is self-declared,
+ * so once shelters have a login it is usually the shelter's own
+ * administrator who pauses; storing their id under the moderator brand would
+ * make the record lie about who acted. Rows written before H2 were all
+ * moderator-entered and migrate to `{ kind: "moderator" }`.
+ */
 const pausedFacts = {
   pausedAt: z.date(),
-  pausedBy: ModeratorIdSchema,
+  pausedBy: ShelterActorSchema,
   reason: PauseReasonSchema,
 };
 
@@ -103,6 +111,9 @@ export const VERIFICATION_STATUSES = [
   "paused",
   "suspended",
 ] as const satisfies readonly VerificationStatus[];
+
+/** The status values as a schema, for records that store a status on its own (the shelter history). */
+export const VerificationStatusSchema = z.enum(VERIFICATION_STATUSES);
 
 /** The instant the current state was entered. Used to reject out-of-order events. */
 export const enteredAt = (state: ShelterVerification): Date => {

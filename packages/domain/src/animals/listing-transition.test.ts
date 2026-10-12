@@ -31,7 +31,7 @@ const stateFor = (kind: ListingKind): AnimalListingState => {
     case "adopted":
       return { kind, adoptedAt: ENDED_AT };
     case "withdrawn":
-      return { kind, withdrawnAt: ENDED_AT, reason: "listing_error" };
+      return { kind, withdrawnAt: ENDED_AT, reason: { code: "listing_error", note: null } };
     default: {
       const unreachable: never = kind;
       return unreachable;
@@ -40,7 +40,7 @@ const stateFor = (kind: ListingKind): AnimalListingState => {
 };
 
 const eventFor = (type: ListingEventType, at: Date = T1): ListingEvent =>
-  type === "withdraw" ? { type, at, reason: "transferred" } : { type, at };
+  type === "withdraw" ? { type, at, reason: { code: "transferred", note: null } } : { type, at };
 
 /** The expected next state for every legal pair; every pair absent here must be refused. */
 const LEGAL: Partial<Record<ListingKind, Partial<Record<ListingEventType, AnimalListingState>>>> = {
@@ -50,13 +50,13 @@ const LEGAL: Partial<Record<ListingKind, Partial<Record<ListingEventType, Animal
   published: {
     reserve: { kind: "reserved", since: T1, publishedAt: PUBLISHED_AT, confirmedAt: CONFIRMED_AT },
     adopt: { kind: "adopted", adoptedAt: T1 },
-    withdraw: { kind: "withdrawn", withdrawnAt: T1, reason: "transferred" },
+    withdraw: { kind: "withdrawn", withdrawnAt: T1, reason: { code: "transferred", note: null } },
     confirm: { kind: "published", publishedAt: PUBLISHED_AT, confirmedAt: T1 },
   },
   reserved: {
     release: { kind: "published", publishedAt: PUBLISHED_AT, confirmedAt: CONFIRMED_AT },
     adopt: { kind: "adopted", adoptedAt: T1 },
-    withdraw: { kind: "withdrawn", withdrawnAt: T1, reason: "transferred" },
+    withdraw: { kind: "withdrawn", withdrawnAt: T1, reason: { code: "transferred", note: null } },
     confirm: { kind: "reserved", since: SINCE, publishedAt: PUBLISHED_AT, confirmedAt: T1 },
   },
   withdrawn: {
@@ -172,5 +172,14 @@ describe("publishGaps", () => {
     expect(
       publishGaps({ photos: [{ storageKey: "k", width: 800, height: 1000, alt: null }] }),
     ).toEqual([]);
+  });
+});
+
+describe("withdrawing", () => {
+  it("keeps the shelter's note on the withdrawn state", () => {
+    const reason = { code: "other", note: "Забрали родичі волонтерки" } as const;
+    expect(
+      expectOk(transitionListing(stateFor("published"), { type: "withdraw", at: T1, reason })),
+    ).toEqual({ kind: "withdrawn", withdrawnAt: T1, reason });
   });
 });

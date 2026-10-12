@@ -36,7 +36,7 @@ const states: Record<string, ShelterVerification> = {
     verifiedAt: OTHER,
     verifiedBy: MODERATOR,
     pausedAt: AT,
-    pausedBy: MODERATOR,
+    pausedBy: { kind: "moderator", moderatorId: MODERATOR },
     reason: { code: "seasonal_closure", note: null },
     evidence: EVIDENCE,
   },
@@ -120,7 +120,7 @@ describe("ShelterVerificationSchema", () => {
       verifiedAt: OTHER,
       verifiedBy: MODERATOR,
       pausedAt: AT,
-      pausedBy: MODERATOR,
+      pausedBy: { kind: "moderator", moderatorId: MODERATOR },
       reason: { code: "relocation" as const, note: null },
     };
     expect(ShelterVerificationSchema.safeParse({ ...states.suspended, priorState }).success).toBe(

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ShelterIdSchema } from "../primitives/ids";
 import { LocalizedTextSchema } from "../primitives/localized-text";
 import { ShelterContactSchema } from "./contact";
-import { DonationLinkSchema } from "./donation";
+import { DonationLinkSchema, PendingDonationSchema } from "./donation";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema, PublicLocationSchema } from "./location";
 import { ShelterVerificationSchema } from "./verification/state";
@@ -33,6 +33,12 @@ export const ShelterSchema = z.object({
   exactAddress: ExactAddressSchema,
   contact: ShelterContactSchema,
   donation: DonationLinkSchema.nullable(),
+  /**
+   * A proposed replacement for `donation`, awaiting the operator (H2, N20).
+   * Never part of any public view: `PublicShelterViewSchema` is built with
+   * `pick`, and a test asserts this field is absent from it.
+   */
+  pendingDonation: PendingDonationSchema.nullable(),
   freshnessSentence: FreshnessSentenceSchema,
   verification: ShelterVerificationSchema,
   createdAt: z.date(),

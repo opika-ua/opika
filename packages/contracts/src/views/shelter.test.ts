@@ -53,6 +53,7 @@ const shelter: Shelter = {
   exactAddress,
   contact,
   donation: null,
+  pendingDonation: null,
   freshnessSentence: null,
   verification: {
     status: "verified",
@@ -101,6 +102,31 @@ describe("public shelter projections withhold the private fields", () => {
     const summary = ShelterSummaryViewSchema.parse({ ...shelter, verification: "verified" });
     expect(summary).not.toHaveProperty("exactAddress");
     expect(summary).not.toHaveProperty("contact");
+  });
+
+  /**
+   * H2 (N20): a proposed donation link is unapproved by definition, and the
+   * live link is the one adopters trust because it was verified. The input
+   * carries a real pending link, so this can't pass merely because the field
+   * was null.
+   */
+  it("never carries a pending (unapproved) donation link, in either view", () => {
+    const withPending = {
+      ...shelter,
+      pendingDonation: {
+        link: { url: "https://send.monobank.ua/jar/swapped", provider: "monobank_jar" as const },
+        proposedAt: AT,
+        proposedBy: "44444444-4444-4444-8444-444444444444" as never,
+      },
+      verification: "verified" as const,
+    };
+    for (const view of [
+      PublicShelterViewSchema.parse(withPending),
+      ShelterSummaryViewSchema.parse(withPending),
+    ]) {
+      expect(view).not.toHaveProperty("pendingDonation");
+      expect(JSON.stringify(view)).not.toContain("swapped");
+    }
   });
 });
 

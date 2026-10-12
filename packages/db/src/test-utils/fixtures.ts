@@ -90,6 +90,7 @@ export function makeShelter(overrides: Partial<Shelter> = {}): Shelter {
     exactAddress,
     contact: defaultContact,
     donation: null,
+    pendingDonation: null,
     freshnessSentence: null,
     verification: defaultVerification,
     createdAt: now,

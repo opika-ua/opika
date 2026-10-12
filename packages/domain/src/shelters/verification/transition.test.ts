@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ModeratorIdSchema } from "../../primitives/ids";
+import { ModeratorIdSchema, ShelterAdminIdSchema } from "../../primitives/ids";
 import {
   VERIFICATION_EVENT_TYPES,
   type VerificationEvent,
@@ -17,6 +17,9 @@ import { submitForVerification, transition } from "./transition";
 
 const MODERATOR = ModeratorIdSchema.parse("11111111-1111-4111-8111-111111111111");
 const REVIEWER = ModeratorIdSchema.parse("22222222-2222-4222-8222-222222222222");
+
+/** A pause or resume made by the operator, as every pre-H2 one was. */
+const AS_MODERATOR = { kind: "moderator", moderatorId: MODERATOR } as const;
 
 const T0 = new Date("2026-01-01T00:00:00.000Z");
 const T1 = new Date("2026-02-01T00:00:00.000Z");
@@ -69,7 +72,7 @@ const stateFor = (status: VerificationStatus, at: Date = T0): ShelterVerificatio
         verifiedAt: VERIFIED_AT,
         verifiedBy: MODERATOR,
         pausedAt: T0,
-        pausedBy: MODERATOR,
+        pausedBy: AS_MODERATOR,
         reason: { code: "seasonal_closure", note: null },
         evidence: EVIDENCE,
       };
@@ -99,7 +102,7 @@ const eventFor = (type: VerificationEventType): VerificationEvent => {
     case "reject":
       return { type, at: T1, moderatorId: MODERATOR, reason: { code: "spam", note: null } };
     case "resubmit":
-      return { type, at: T1, evidence: { items: [], submittedAt: T1 } };
+      return { type, at: T1, actor: AS_MODERATOR, evidence: { items: [], submittedAt: T1 } };
     case "suspend":
       return {
         type,
@@ -113,11 +116,11 @@ const eventFor = (type: VerificationEventType): VerificationEvent => {
       return {
         type,
         at: T1,
-        moderatorId: MODERATOR,
+        actor: AS_MODERATOR,
         reason: { code: "seasonal_closure", note: null },
       };
     case "resume":
-      return { type, at: T1, moderatorId: MODERATOR };
+      return { type, at: T1, actor: AS_MODERATOR };
     default: {
       const unreachable: never = type;
       return unreachable;
@@ -381,7 +384,11 @@ describe("pausing is not a punishment", () => {
     const paused = transition(stateFor("verified"), eventFor("pause"));
     if (paused.kind !== "ok") throw new Error("expected a pause");
 
-    const resumed = transition(paused.next, { type: "resume", at: T1, moderatorId: REVIEWER });
+    const resumed = transition(paused.next, {
+      type: "resume",
+      at: T1,
+      actor: { kind: "moderator", moderatorId: REVIEWER },
+    });
     if (resumed.kind !== "ok" || resumed.next.status !== "verified") {
       throw new Error("expected a verified state");
     }
@@ -424,7 +431,7 @@ describe("reinstatement restores what the suspension interrupted", () => {
       throw new Error("expected the shelter to return to paused");
     }
     expect(reinstated.next.reason.code).toBe("seasonal_closure");
-    expect(reinstated.next.pausedBy).toBe(MODERATOR);
+    expect(reinstated.next.pausedBy).toEqual(AS_MODERATOR);
     expect(reinstated.next.verifiedAt).toEqual(T0);
   });
 
@@ -435,5 +442,49 @@ describe("reinstatement restores what the suspension interrupted", () => {
     }
     // The approval it had before the suspension, not one dated to the lift.
     expect(result.next.verifiedAt).toEqual(VERIFIED_AT);
+  });
+});
+
+/** H2: a pause is self-declared, so the record says who actually paused. */
+describe("pause and resume by the shelter's own administrator", () => {
+  const ADMIN = {
+    kind: "shelter_admin",
+    shelterAdminId: ShelterAdminIdSchema.parse("33333333-3333-4333-8333-333333333333"),
+  } as const;
+
+  it("records the shelter admin, not a moderator, as having paused", () => {
+    const result = transition(stateFor("verified"), {
+      type: "pause",
+      at: T1,
+      actor: ADMIN,
+      reason: { code: "capacity_reached", note: null },
+    });
+    expect(result.kind).toBe("ok");
+    const next = (result as Extract<typeof result, { kind: "ok" }>).next;
+    expect(next).toMatchObject({ status: "paused", pausedBy: ADMIN });
+  });
+
+  /**
+   * Part of the kabinet's authorization is in the type: the moderator-only
+   * events take a bare ModeratorId, so a shelter actor can't be put on one.
+   * If either line below ever compiles, the @ts-expect-error itself fails
+   * the typecheck.
+   */
+  it("can't put a shelter admin on a moderator-only event", () => {
+    const suspend: VerificationEvent = {
+      type: "suspend",
+      at: T1,
+      // @ts-expect-error — suspend is moderator-only
+      moderatorId: ADMIN,
+      reason: { code: "unresponsive", note: null },
+    };
+    const approve: VerificationEvent = {
+      type: "approve",
+      at: T1,
+      // @ts-expect-error — approve is moderator-only
+      moderatorId: ADMIN.shelterAdminId,
+    };
+    expect(VerificationEventSchema.safeParse(suspend).success).toBe(false);
+    expect([suspend.type, approve.type]).toEqual(["suspend", "approve"]);
   });
 });

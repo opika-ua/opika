@@ -5,13 +5,27 @@ import { z } from "zod";
  * "Adopted" is the outcome the product exists for and deserves to be
  * distinguishable in analytics from a listing that was simply pulled.
  */
-export const WithdrawalReasonSchema = z.enum([
+export const WithdrawalCodeSchema = z.enum([
   "adopted_elsewhere",
   "transferred",
   "deceased",
   "listing_error",
   "other",
 ]);
+export type WithdrawalCode = z.infer<typeof WithdrawalCodeSchema>;
+
+/**
+ * A code plus an optional note, the same shape as the three verification
+ * reasons (H2-12). K2 takes a withdrawal through the reason dialog (N15),
+ * whose note the row then shows («Знято … · «причина»»). The code alone
+ * couldn't hold what a shelter wrote. `note` is the escape hatch that keeps
+ * `other` usable without reopening the enum. Rows written before H2 keep
+ * their code with `note: null` (H2-13).
+ */
+export const WithdrawalReasonSchema = z.object({
+  code: WithdrawalCodeSchema,
+  note: z.string().min(1).nullable(),
+});
 export type WithdrawalReason = z.infer<typeof WithdrawalReasonSchema>;
 
 /**

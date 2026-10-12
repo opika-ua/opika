@@ -1,13 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { shelterRepo } from "../src/repos/shelter-repo";
-import * as schema from "../src/schema/index";
 import { makeCity, makeShelter, setupTestDatabase } from "../src/test-utils/index";
 import { TEST_DATABASE_URL } from "../src/test-utils/setup";
+import { insertLegacyShelter } from "./legacy-rows";
 
 /**
  * The `wait_anchor_at` backfill, tested against data shaped the way the table
@@ -39,7 +37,6 @@ const BACKFILL_TAG = "0004_tan_romulus";
 type JournalEntry = { readonly tag: string };
 
 const client = postgres(TEST_DATABASE_URL, { max: 1 });
-const db = drizzle(client, { schema });
 
 afterAll(async () => {
   // `resetToPreBackfillState` below drops `drizzle`'s own migration-tracking
@@ -144,13 +141,13 @@ async function insertLegacyAnimal(
       listing, listing_kind, city_id, created_at, last_updated_at
     ) VALUES (
       ${animal.id}, ${shelterId}, ${"Тест"}, ${"dog"}, ${"unknown"}, ${"medium"},
-      ${JSON.stringify({ kind: "birth_date", date: AGE_ANCHOR.toISOString(), precision: "year" })}::jsonb,
+      ${JSON.stringify({ kind: "birth_date", date: AGE_ANCHOR.toISOString(), precision: "year" })}::text::jsonb,
       ${AGE_ANCHOR.toISOString()}::timestamptz, ${"Опис"},
-      ${"[]"}::jsonb,
-      ${declared}::jsonb,
-      ${declared}::jsonb,
-      ${JSON.stringify({ kind: "unknown" })}::jsonb,
-      ${JSON.stringify(animal.listing)}::jsonb, ${animal.listingKind}, ${cityId},
+      ${"[]"}::text::jsonb,
+      ${declared}::text::jsonb,
+      ${declared}::text::jsonb,
+      ${JSON.stringify({ kind: "unknown" })}::text::jsonb,
+      ${JSON.stringify(animal.listing)}::text::jsonb, ${animal.listingKind}, ${cityId},
       ${animal.createdAt.toISOString()}::timestamptz,
       ${animal.createdAt.toISOString()}::timestamptz
     )`;
@@ -188,10 +185,7 @@ async function seedFixtureShelter(): Promise<{ shelterId: string; cityId: string
   const city = makeCity();
   await insertLegacyCity(city);
   const shelter = makeShelter();
-  await shelterRepo(db).insert({
-    ...shelter,
-    publicLocation: { ...shelter.publicLocation, cityId: city.id },
-  });
+  await insertLegacyShelter(client, { id: shelter.id, cityId: city.id });
   return { shelterId: shelter.id, cityId: city.id };
 }
 

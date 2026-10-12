@@ -111,6 +111,7 @@ export function shelterToRow(shelter: Shelter): ShelterInsert {
     exactAddress: shelter.exactAddress,
     contact: shelter.contact,
     donation: shelter.donation,
+    pendingDonation: shelter.pendingDonation,
     freshnessSentenceUk: shelter.freshnessSentence?.uk ?? null,
     freshnessSentenceEn: shelter.freshnessSentence?.en?.text ?? null,
     verificationStatus: shelter.verification.status,
@@ -137,6 +138,7 @@ export function rowToShelter(row: ShelterRow): Shelter {
     exactAddress: row.exactAddress,
     contact: row.contact,
     donation: row.donation ?? null,
+    pendingDonation: row.pendingDonation ?? null,
     freshnessSentence: row.freshnessSentenceUk
       ? columnsToLocalizedText(row.freshnessSentenceUk, row.freshnessSentenceEn ?? null, "human")
       : null,

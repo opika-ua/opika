@@ -53,3 +53,12 @@ export const CountryCodeSchema = z
   .regex(/^[A-Z]{2}$/)
   .brand<"CountryCode">();
 export type CountryCode = z.infer<typeof CountryCodeSchema>;
+
+/**
+ * A shelter's own administrator (H2): a person who acts on one shelter's
+ * behalf, never on the platform's. Named for the role, as `ModeratorId` is:
+ * the verification history cares which kind of person acted, not which auth
+ * table issued the session.
+ */
+export const ShelterAdminIdSchema = brandedId<"ShelterAdminId">();
+export type ShelterAdminId = z.infer<typeof ShelterAdminIdSchema>;
