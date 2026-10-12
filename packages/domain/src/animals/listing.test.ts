@@ -17,7 +17,7 @@ const states: readonly AnimalListingState[] = [
   { kind: "published", publishedAt: AT, confirmedAt: AT },
   { kind: "reserved", since: AT, publishedAt: LONG_AGO, confirmedAt: LONG_AGO },
   { kind: "adopted", adoptedAt: AT },
-  { kind: "withdrawn", withdrawnAt: AT, reason: "deceased" },
+  { kind: "withdrawn", withdrawnAt: AT, reason: { code: "deceased", note: null } },
 ];
 
 describe("isDiscoverable", () => {
@@ -151,5 +151,36 @@ describe("confirmationAnchorOf", () => {
       expect(confirmationAnchorOf(state), state.kind).toBeNull();
     }
     expect(states.filter((s) => !isDiscoverable(s))).toHaveLength(3);
+  });
+});
+
+/** H2-12: a reason is a code plus an optional note; the pre-H2 bare string no longer parses. */
+describe("withdrawal reason", () => {
+  it("accepts a code with a note, and a code with none", () => {
+    for (const reason of [
+      { code: "other", note: "Забрали родичі волонтерки" },
+      { code: "transferred", note: null },
+    ]) {
+      expect(
+        AnimalListingStateSchema.safeParse({ kind: "withdrawn", withdrawnAt: AT, reason }).success,
+      ).toBe(true);
+    }
+  });
+
+  it("refuses the pre-H2 bare-string reason, which migration 0007 rewrites", () => {
+    expect(
+      AnimalListingStateSchema.safeParse({ kind: "withdrawn", withdrawnAt: AT, reason: "deceased" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("refuses an empty note: no note is null, not an empty string", () => {
+    expect(
+      AnimalListingStateSchema.safeParse({
+        kind: "withdrawn",
+        withdrawnAt: AT,
+        reason: { code: "other", note: "" },
+      }).success,
+    ).toBe(false);
   });
 });

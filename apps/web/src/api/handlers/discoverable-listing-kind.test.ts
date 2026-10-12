@@ -15,7 +15,11 @@ const LISTINGS: Record<AnimalListingState["kind"], AnimalListingState> = {
   published: { kind: "published", publishedAt: AT, confirmedAt: AT },
   reserved: { kind: "reserved", since: AT, publishedAt: AT, confirmedAt: AT },
   adopted: { kind: "adopted", adoptedAt: AT },
-  withdrawn: { kind: "withdrawn", withdrawnAt: AT, reason: "adopted_elsewhere" },
+  withdrawn: {
+    kind: "withdrawn",
+    withdrawnAt: AT,
+    reason: { code: "adopted_elsewhere", note: null },
+  },
 };
 
 describe("discoverableListingKind", () => {

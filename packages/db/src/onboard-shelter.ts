@@ -289,6 +289,7 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
     exactAddress: input.exactAddress,
     contact: input.contact,
     donation: input.donation,
+    pendingDonation: null,
     freshnessSentence: { uk: input.freshnessSentenceUk, en: null },
     verification: {
       status: "verified",

@@ -1,6 +1,7 @@
 import type {
   DonationLink,
   ExactAddress,
+  PendingDonation,
   PublicLocation,
   ShelterContact,
   ShelterId,
@@ -27,6 +28,12 @@ export const shelters = pgTable(
     exactAddress: jsonb<ExactAddress>("exact_address").notNull(),
     contact: jsonb<ShelterContact>("contact").notNull(),
     donation: jsonb<DonationLink>("donation"),
+    /**
+     * A shelter's proposed replacement for `donation`, awaiting the operator
+     * (H2, KABINET N20). Null when nothing is pending. The live `donation`
+     * column is what adopters see until approval copies this across.
+     */
+    pendingDonation: jsonb<PendingDonation>("pending_donation"),
 
     freshnessSentenceUk: text("freshness_sentence_uk"),
     freshnessSentenceEn: text("freshness_sentence_en"),

@@ -53,7 +53,7 @@ describe("listingFreshness", () => {
   it.each([
     { kind: "draft" },
     { kind: "adopted", adoptedAt: daysBefore(3) },
-    { kind: "withdrawn", withdrawnAt: daysBefore(3), reason: "deceased" },
+    { kind: "withdrawn", withdrawnAt: daysBefore(3), reason: { code: "deceased", note: null } },
   ] satisfies AnimalListingState[])("refuses a $kind listing loudly", (listing) => {
     expect(() => listingFreshness(listing, NOW)).toThrow(/reached a freshness calculation/);
   });

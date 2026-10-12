@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ModeratorIdSchema } from "../../primitives/ids";
+import { ShelterActorSchema } from "../actor";
 import { VerificationEvidenceSchema } from "./evidence";
 import { PauseReasonSchema, RejectionReasonSchema, SuspensionReasonSchema } from "./reasons";
 
@@ -27,9 +28,15 @@ export const VerificationEventSchema = z.discriminatedUnion("type", [
     moderatorId: ModeratorIdSchema,
     reason: RejectionReasonSchema,
   }),
+  /**
+   * `actor` (H2-2): either the operator resubmitting with amended evidence, or
+   * the shelter's own administrator asking for another look with the evidence
+   * it already has. The history needs to say which; a person reviews either way.
+   */
   z.object({
     type: z.literal("resubmit"),
     at: z.date(),
+    actor: ShelterActorSchema,
     evidence: VerificationEvidenceSchema,
   }),
   z.object({
@@ -44,22 +51,21 @@ export const VerificationEventSchema = z.discriminatedUnion("type", [
     moderatorId: ModeratorIdSchema,
   }),
   /**
-   * `pause` and `resume` carry a ModeratorId today because shelters have no
-   * login at MVP, so an admin acts on their behalf. That is the half-measure,
-   * not the design: keeping them as distinct events from suspend/reinstate is
-   * what makes the partner dashboard a change to who may send `resume` rather
-   * than a change to the lifecycle itself.
+   * `pause` and `resume` take an actor (H2): the shelter's own administrator
+   * once the kabinet exists, or the operator acting for a shelter with no
+   * login. Keeping them distinct from suspend/reinstate is what made this a
+   * change to *who may send* them rather than to the lifecycle itself.
    */
   z.object({
     type: z.literal("pause"),
     at: z.date(),
-    moderatorId: ModeratorIdSchema,
+    actor: ShelterActorSchema,
     reason: PauseReasonSchema,
   }),
   z.object({
     type: z.literal("resume"),
     at: z.date(),
-    moderatorId: ModeratorIdSchema,
+    actor: ShelterActorSchema,
   }),
 ]);
 export type VerificationEvent = z.infer<typeof VerificationEventSchema>;

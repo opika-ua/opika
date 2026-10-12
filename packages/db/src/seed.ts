@@ -767,6 +767,7 @@ export function buildShelters(cities: City[]): Shelter[] {
         def.donationUrl && def.donationProvider
           ? { url: def.donationUrl, provider: def.donationProvider }
           : null,
+      pendingDonation: null,
       freshnessSentence: def.freshnessSentenceUk ? { uk: def.freshnessSentenceUk, en: null } : null,
       verification: buildVerification(def),
       createdAt: daysAgo(120),
@@ -1264,7 +1265,7 @@ export function buildAnimals(
       return {
         kind: "withdrawn" as const,
         withdrawnAt: daysAgo(14),
-        reason: "adopted_elsewhere" as const,
+        reason: { code: "adopted_elsewhere" as const, note: null },
       };
     })();
 

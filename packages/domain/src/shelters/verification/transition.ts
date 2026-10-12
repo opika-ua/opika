@@ -137,7 +137,7 @@ const nextState = (
             verifiedAt: current.verifiedAt,
             verifiedBy: current.verifiedBy,
             pausedAt: event.at,
-            pausedBy: event.moderatorId,
+            pausedBy: event.actor,
             reason: event.reason,
             evidence: current.evidence,
           };

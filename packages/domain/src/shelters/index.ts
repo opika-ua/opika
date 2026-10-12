@@ -1,5 +1,7 @@
+export * from "./actor";
 export * from "./contact";
 export * from "./donation";
+export * from "./history";
 export * from "./legal-entity";
 export * from "./location";
 export * from "./shelter";

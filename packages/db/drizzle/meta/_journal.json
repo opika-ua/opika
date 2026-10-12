@@ -50,6 +50,13 @@
       "when": 1791375870742,
       "tag": "0006_perpetual_thunderbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791830030868,
+      "tag": "0007_lean_joshua_kane",
+      "breakpoints": true
     }
   ]
 }

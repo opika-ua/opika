@@ -7,10 +7,10 @@ import postgres from "postgres";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
-import { shelterRepo } from "../src/repos/shelter-repo";
 import * as schema from "../src/schema/index";
 import { makeCity, makeShelter, setupTestDatabase } from "../src/test-utils/index";
 import { TEST_DATABASE_URL } from "../src/test-utils/setup";
+import { insertLegacyShelter } from "./legacy-rows";
 
 /**
  * The `last_confirmed_at` backfill (H2-3, H2-14), tested against rows shaped
@@ -109,13 +109,13 @@ async function insertLegacyAnimal(a: LegacyAnimal, shelterId: string, cityId: st
       listing, listing_kind, city_id, created_at, last_updated_at
     ) VALUES (
       ${a.id}, ${shelterId}, ${"Тест"}, ${"dog"}, ${"unknown"}, ${"medium"},
-      ${JSON.stringify({ kind: "birth_date", date: AGE_ANCHOR.toISOString(), precision: "year" })}::jsonb,
+      ${JSON.stringify({ kind: "birth_date", date: AGE_ANCHOR.toISOString(), precision: "year" })}::text::jsonb,
       ${AGE_ANCHOR.toISOString()}::timestamptz,
       ${typeof publishedAt === "string" ? publishedAt : null}::timestamptz,
       ${"Опис"},
-      ${"[]"}::jsonb, ${declared}::jsonb, ${declared}::jsonb,
-      ${JSON.stringify({ kind: "unknown" })}::jsonb,
-      ${JSON.stringify(a.listing)}::jsonb, ${a.listingKind}, ${cityId},
+      ${"[]"}::text::jsonb, ${declared}::text::jsonb, ${declared}::text::jsonb,
+      ${JSON.stringify({ kind: "unknown" })}::text::jsonb,
+      ${JSON.stringify(a.listing)}::text::jsonb, ${a.listingKind}, ${cityId},
       ${a.createdAt.toISOString()}::timestamptz,
       ${a.lastUpdatedAt.toISOString()}::timestamptz
     )`;
@@ -182,10 +182,7 @@ async function seed(rows: readonly LegacyAnimal[]): Promise<void> {
   const city = makeCity();
   await cityRepo(db).insert(city);
   const shelter = makeShelter();
-  await shelterRepo(db).insert({
-    ...shelter,
-    publicLocation: { ...shelter.publicLocation, cityId: city.id },
-  });
+  await insertLegacyShelter(client, { id: shelter.id, cityId: city.id });
   for (const row of rows) await insertLegacyAnimal(row, shelter.id, city.id);
 }
 
