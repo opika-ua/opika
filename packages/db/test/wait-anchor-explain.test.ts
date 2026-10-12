@@ -14,6 +14,7 @@ import { galleryRepo } from "../src/repos/gallery-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import * as schema from "../src/schema/index";
 import { makeAnimal, makeCity, makeShelter, setupTestDatabase } from "../src/test-utils/index";
+import { TEST_DATABASE_URL } from "../src/test-utils/setup";
 
 /**
  * The M2 bar — `EXPLAIN` shows an index scan and no `Sort` node — applied to
@@ -63,9 +64,6 @@ import { makeAnimal, makeCity, makeShelter, setupTestDatabase } from "../src/tes
  * this surface's bounded depth the sort is cheap either way; the trade is
  * worth stating, not worth taking silently.
  */
-
-const TEST_DATABASE_URL =
-  process.env.TEST_DATABASE_URL ?? "postgres://opika:opika@localhost:5433/opika_test";
 
 const NOW = new Date("2026-08-05T12:00:00.000Z");
 const daysBefore = (days: number): Date => new Date(NOW.getTime() - days * 86_400_000);

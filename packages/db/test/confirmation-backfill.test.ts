@@ -10,6 +10,7 @@ import { cityRepo } from "../src/repos/city-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import * as schema from "../src/schema/index";
 import { makeCity, makeShelter, setupTestDatabase } from "../src/test-utils/index";
+import { TEST_DATABASE_URL } from "../src/test-utils/setup";
 
 /**
  * The `last_confirmed_at` backfill (H2-3, H2-14), tested against rows shaped
@@ -27,9 +28,6 @@ import { makeCity, makeShelter, setupTestDatabase } from "../src/test-utils/inde
  *   publishing.
  * - `now()` — would make the whole corpus read "confirmed today".
  */
-
-const TEST_DATABASE_URL =
-  process.env.TEST_DATABASE_URL ?? "postgres://opika:opika@localhost:5433/opika_test";
 
 const MIGRATIONS_DIR = resolve(fileURLToPath(import.meta.url), "../../drizzle");
 
