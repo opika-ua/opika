@@ -210,6 +210,11 @@ follow in the next slice.
   - **Where the test lives:** the cross-tenant tests call real handlers, so they're an obligation
     of the **handlers slice**, not S3. S3 declares `FORBIDDEN` on every shelter-scoped procedure,
     and its contract test asserts that declaration.
+  - **S3-Q3 (2026-10-13):** B. S3 is committed on the branch; PR #85 stays draft until the
+    handlers slice and its 16 cross-tenant tests are on this branch, with the ownership-filter
+    breakage in the mutation list. Oleksii's correction, verbatim: 'My "before commit"
+    should have said "before merge".' Until then, each test is an `it.todo` in
+    `apps/web/src/api/kabinet-cross-tenant.test.ts`.
 - **Migration rule:** the S3 migration runs on a real **child** Neon branch first, never through
   the production connection string; production is a separate, later step.
 

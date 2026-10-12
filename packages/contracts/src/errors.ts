@@ -1,3 +1,32 @@
+import {
+  EvidenceGapSchema,
+  LISTING_EVENT_TYPES,
+  LISTING_KINDS,
+  PublishGapSchema,
+  VERIFICATION_EVENT_TYPES,
+  VerificationStatusSchema,
+} from "@opika/domain";
+import { z } from "zod";
+
+/**
+ * Which state machine refused, and from where. A union on `machine` rather
+ * than one loose `{ from: string; event: string }`: the two FSMs' states and
+ * events are disjoint vocabularies, and a client rendering the refusal needs
+ * to know which one it's reading.
+ */
+export const IllegalTransitionDataSchema = z.discriminatedUnion("machine", [
+  z.object({
+    machine: z.literal("listing"),
+    from: z.enum(LISTING_KINDS),
+    event: z.enum(LISTING_EVENT_TYPES),
+  }),
+  z.object({
+    machine: z.literal("verification"),
+    from: VerificationStatusSchema,
+    event: z.enum(VERIFICATION_EVENT_TYPES),
+  }),
+]);
+
 /**
  * Failure modes that are part of the API's contract rather than incidents.
  *
@@ -64,6 +93,53 @@ export const apiErrors = {
   RATE_LIMITED: {
     status: 429,
     message: "Too many requests.",
+  },
+  /**
+   * H2 kabinet. Authenticated, but not as an actor this procedure accepts,
+   * including a shelter admin acting on another shelter's animal or shelter
+   * (S3-Q2: cross-tenant is FORBIDDEN, by Oleksii's instruction).
+   */
+  FORBIDDEN: {
+    status: 403,
+    message: "Not permitted for this account.",
+  },
+  /** A compare-and-set lost: someone else changed the record first. Reload and try again. */
+  CONFLICT: {
+    status: 409,
+    message: "The record changed since it was read.",
+  },
+  /** Either state machine refused the move (`data` names the state and the event). */
+  ILLEGAL_TRANSITION: {
+    status: 409,
+    message: "That change isn't possible from the current state.",
+    data: IllegalTransitionDataSchema,
+  },
+  /** Approve with evidence short of `DEFAULT_VERIFICATION_POLICY` (`data.gaps` says what's missing). */
+  EVIDENCE_INSUFFICIENT: {
+    status: 422,
+    message: "The evidence doesn't meet the verification policy yet.",
+    data: z.object({ gaps: z.array(EvidenceGapSchema).min(1).readonly() }),
+  },
+  /** Publish with something missing (`data.gaps`; today: no photo). */
+  PUBLISH_REQUIREMENTS_UNMET: {
+    status: 422,
+    message: "The listing isn't ready to publish.",
+    data: z.object({ gaps: z.array(PublishGapSchema).min(1).readonly() }),
+  },
+  /** An undo past its window, or after a newer write (H2-16). */
+  UNDO_EXPIRED: {
+    status: 409,
+    message: "That confirmation can no longer be undone.",
+  },
+  /**
+   * Evidence input refused (`data.reason`). One reason today, the only one
+   * `toVerificationEvidence` can return. The addendum's `document_not_issued`
+   * joins with the evidence-document upload, which is what can produce it.
+   */
+  INVALID_EVIDENCE: {
+    status: 422,
+    message: "The evidence couldn't be accepted.",
+    data: z.object({ reason: z.enum(["site_visit_in_future"]) }),
   },
 } as const;
 

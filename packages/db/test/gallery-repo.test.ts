@@ -90,6 +90,7 @@ async function seedPermutedOrderings(shelterId: ShelterId, cityId: CityId, count
         kind: "published",
         publishedAt: daysBefore(((i * 3) % count) + 30),
         confirmedAt: daysBefore(i + 1),
+        undoable: null,
       },
     }),
   );
@@ -162,13 +163,23 @@ describe("galleryRepo.list", () => {
       shelterId: shelter.id,
       name: "Старожил",
       lastUpdatedAt: daysBefore(1),
-      listing: { kind: "published", publishedAt: longWaitPublishedAt, confirmedAt: daysBefore(1) },
+      listing: {
+        kind: "published",
+        publishedAt: longWaitPublishedAt,
+        confirmedAt: daysBefore(1),
+        undoable: null,
+      },
     });
     const newcomer = makeAnimal({
       shelterId: shelter.id,
       name: "Новенький",
       lastUpdatedAt: daysBefore(2),
-      listing: { kind: "published", publishedAt: daysBefore(3), confirmedAt: daysBefore(2) },
+      listing: {
+        kind: "published",
+        publishedAt: daysBefore(3),
+        confirmedAt: daysBefore(2),
+        undoable: null,
+      },
     });
     await animalRepo(db).insertMany([
       { animal: oldTimer, cityId: city.id },
@@ -195,6 +206,7 @@ describe("galleryRepo.list", () => {
           since: NOW,
           publishedAt: longWaitPublishedAt,
           confirmedAt: daysBefore(1),
+          undoable: null,
         },
       },
       city.id,

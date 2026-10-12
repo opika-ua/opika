@@ -54,6 +54,7 @@ const shelter: Shelter = {
   contact,
   donation: null,
   pendingDonation: null,
+  version: 0,
   freshnessSentence: null,
   verification: {
     status: "verified",

@@ -57,6 +57,13 @@
       "when": 1791830030868,
       "tag": "0007_lean_joshua_kane",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791841047744,
+      "tag": "0008_eager_rocket_racer",
+      "breakpoints": true
     }
   ]
 }

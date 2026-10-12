@@ -149,6 +149,18 @@ action and the provenance badge are allowed to read differently.
 
 ---
 
+## E2. The operator's reject/suspend note: the dialog's helper text (blocks S3/S4's dialog only)
+
+**Key:** `registry.verificationNote.helper` (new; ships `[COPY PENDING]` with the S-screen dialog).
+**Where:** under the note field in the reject and suspend dialogs (S3/S4). The note is required
+(H2-4), trimmed, and a whitespace-only note is refused (S3-Q2).
+**English sense:** the shelter will read this note exactly as written. Oleksii's S3-Q2 addition:
+the note follows `docs/marketing/brand-voice.md` (first person «я», plain words, no officialese),
+so the helper text is what reminds whoever is writing it.
+**Current:** none.
+
+---
+
 ## F. Not on this sheet, by design
 
 The cabinet's own UI strings (K1–K5, S1–S5) are the designer's draft text in

@@ -10,6 +10,7 @@ import {
   type ListingTransitionResult,
   publishGaps,
   transitionListing,
+  UNDO_WINDOW_MS,
 } from "./listing-transition";
 
 /** Every state's own instants are distinct, so carrying the wrong one forward is visible. */
@@ -25,9 +26,15 @@ const stateFor = (kind: ListingKind): AnimalListingState => {
     case "draft":
       return { kind };
     case "published":
-      return { kind, publishedAt: PUBLISHED_AT, confirmedAt: CONFIRMED_AT };
+      return { kind, publishedAt: PUBLISHED_AT, confirmedAt: CONFIRMED_AT, undoable: null };
     case "reserved":
-      return { kind, since: SINCE, publishedAt: PUBLISHED_AT, confirmedAt: CONFIRMED_AT };
+      return {
+        kind,
+        since: SINCE,
+        publishedAt: PUBLISHED_AT,
+        confirmedAt: CONFIRMED_AT,
+        undoable: null,
+      };
     case "adopted":
       return { kind, adoptedAt: ENDED_AT };
     case "withdrawn":
@@ -45,19 +52,41 @@ const eventFor = (type: ListingEventType, at: Date = T1): ListingEvent =>
 /** The expected next state for every legal pair; every pair absent here must be refused. */
 const LEGAL: Partial<Record<ListingKind, Partial<Record<ListingEventType, AnimalListingState>>>> = {
   draft: {
-    publish: { kind: "published", publishedAt: T1, confirmedAt: T1 },
+    publish: { kind: "published", publishedAt: T1, confirmedAt: T1, undoable: null },
   },
   published: {
-    reserve: { kind: "reserved", since: T1, publishedAt: PUBLISHED_AT, confirmedAt: CONFIRMED_AT },
+    reserve: {
+      kind: "reserved",
+      since: T1,
+      publishedAt: PUBLISHED_AT,
+      confirmedAt: CONFIRMED_AT,
+      undoable: null,
+    },
     adopt: { kind: "adopted", adoptedAt: T1 },
     withdraw: { kind: "withdrawn", withdrawnAt: T1, reason: { code: "transferred", note: null } },
-    confirm: { kind: "published", publishedAt: PUBLISHED_AT, confirmedAt: T1 },
+    confirm: {
+      kind: "published",
+      publishedAt: PUBLISHED_AT,
+      confirmedAt: T1,
+      undoable: { previousConfirmedAt: CONFIRMED_AT, confirmedAt: T1 },
+    },
   },
   reserved: {
-    release: { kind: "published", publishedAt: PUBLISHED_AT, confirmedAt: CONFIRMED_AT },
+    release: {
+      kind: "published",
+      publishedAt: PUBLISHED_AT,
+      confirmedAt: CONFIRMED_AT,
+      undoable: null,
+    },
     adopt: { kind: "adopted", adoptedAt: T1 },
     withdraw: { kind: "withdrawn", withdrawnAt: T1, reason: { code: "transferred", note: null } },
-    confirm: { kind: "reserved", since: SINCE, publishedAt: PUBLISHED_AT, confirmedAt: T1 },
+    confirm: {
+      kind: "reserved",
+      since: SINCE,
+      publishedAt: PUBLISHED_AT,
+      confirmedAt: T1,
+      undoable: { previousConfirmedAt: CONFIRMED_AT, confirmedAt: T1 },
+    },
   },
   withdrawn: {
     restore_to_draft: { kind: "draft" },
@@ -73,7 +102,7 @@ describe("listing transition table", () => {
   it("covers every (state, event) pair the schemas define", () => {
     expect(LISTING_KINDS.length).toBe(AnimalListingStateSchema.options.length);
     expect(LISTING_EVENT_TYPES.length).toBe(ListingEventSchema.options.length);
-    expect(LISTING_KINDS.length * LISTING_EVENT_TYPES.length).toBe(35);
+    expect(LISTING_KINDS.length * LISTING_EVENT_TYPES.length).toBe(40);
   });
 
   for (const kind of LISTING_KINDS) {
@@ -81,12 +110,15 @@ describe("listing transition table", () => {
       const expected = LEGAL[kind]?.[eventType];
 
       if (expected === undefined) {
-        it(`refuses ${kind} --${eventType}-->`, () => {
-          expect(transitionListing(stateFor(kind), eventFor(eventType))).toEqual({
-            kind: "illegal",
-            from: kind,
-            event: eventType,
-          });
+        // On the two visible states the move exists but has nothing to undo
+        // (stateFor carries `undoable: null`), which is its own answer.
+        const visible = kind === "published" || kind === "reserved";
+        const refusal =
+          eventType === "undo_confirm" && visible
+            ? { kind: "undo_expired" }
+            : { kind: "illegal", from: kind, event: eventType };
+        it(`refuses ${kind} --${eventType}--> (${refusal.kind})`, () => {
+          expect(transitionListing(stateFor(kind), eventFor(eventType))).toEqual(refusal);
         });
         continue;
       }
@@ -113,7 +145,12 @@ describe("the decisions the table encodes, named", () => {
   it("restarts the wait clock when a withdrawn listing is published again", () => {
     const draft = expectOk(transitionListing(stateFor("withdrawn"), eventFor("restore_to_draft")));
     const republished = expectOk(transitionListing(draft, eventFor("publish")));
-    expect(republished).toEqual({ kind: "published", publishedAt: T1, confirmedAt: T1 });
+    expect(republished).toEqual({
+      kind: "published",
+      publishedAt: T1,
+      confirmedAt: T1,
+      undoable: null,
+    });
   });
 
   /** Decision #16: a reservation falling through doesn't move the animal in either ordering. */
@@ -159,6 +196,7 @@ describe("ordering", () => {
       kind: "published",
       publishedAt: ancient,
       confirmedAt: ancient,
+      undoable: null,
     });
   });
 });
@@ -181,5 +219,96 @@ describe("withdrawing", () => {
     expect(
       expectOk(transitionListing(stateFor("published"), { type: "withdraw", at: T1, reason })),
     ).toEqual({ kind: "withdrawn", withdrawnAt: T1, reason });
+  });
+});
+
+/** H2-16 → B, S3-Q1 → A: undo restores the stored instant exactly, and only within the window. */
+describe("undoing a confirmation", () => {
+  const at = (ms: number) => new Date(T1.getTime() + ms);
+  const confirmAt = (state: Parameters<typeof transitionListing>[0], when: Date) =>
+    expectOk(transitionListing(state, { type: "confirm", at: when }));
+
+  it("restores exactly the confirmation the confirm replaced", () => {
+    const confirmedOnce = confirmAt(stateFor("published"), T1);
+    expect(
+      expectOk(transitionListing(confirmedOnce, { type: "undo_confirm", at: at(2_000) })),
+    ).toEqual(stateFor("published"));
+  });
+
+  /** Oleksii's test, verbatim in sense: confirm, confirm, undo → the value before the first confirm. */
+  it("after a double tap, undo still restores the value from before the first confirm", () => {
+    const first = confirmAt(stateFor("published"), T1);
+    const second = confirmAt(first, at(1_000));
+    const undone = expectOk(transitionListing(second, { type: "undo_confirm", at: at(2_000) }));
+    expect(undone.kind === "published" && undone.confirmedAt).toEqual(CONFIRMED_AT);
+  });
+
+  it("accepts an undo at the last instant of the window and refuses one just after", () => {
+    const confirmedOnce = confirmAt(stateFor("reserved"), T1);
+    expect(
+      transitionListing(confirmedOnce, { type: "undo_confirm", at: at(UNDO_WINDOW_MS) }).kind,
+    ).toBe("ok");
+    expect(
+      transitionListing(confirmedOnce, { type: "undo_confirm", at: at(UNDO_WINDOW_MS + 1) }),
+    ).toEqual({ kind: "undo_expired" });
+  });
+
+  /** A confirm outside the window starts a new undo from the current value, not the stale one. */
+  it("a confirm after the window has closed undoes only to the confirmation just before it", () => {
+    const first = confirmAt(stateFor("published"), T1);
+    const late = confirmAt(first, at(UNDO_WINDOW_MS + 1_000));
+    const undone = expectOk(
+      transitionListing(late, { type: "undo_confirm", at: at(UNDO_WINDOW_MS + 2_000) }),
+    );
+    expect(undone.kind === "published" && undone.confirmedAt).toEqual(T1);
+  });
+
+  it("can't undo once anything else has been written since", () => {
+    const confirmedOnce = confirmAt(stateFor("published"), T1);
+    const reserved = expectOk(transitionListing(confirmedOnce, { type: "reserve", at: at(1_000) }));
+    expect(transitionListing(reserved, { type: "undo_confirm", at: at(2_000) })).toEqual({
+      kind: "undo_expired",
+    });
+  });
+
+  /**
+   * `release` keeps `confirmedAt`, so the "same confirmation" check alone
+   * wouldn't stop an undo here: only `release` clearing `undoable` does.
+   */
+  it("can't undo across a release, though release keeps the confirmation date", () => {
+    const confirmedOnce = confirmAt(stateFor("reserved"), T1);
+    const released = expectOk(transitionListing(confirmedOnce, { type: "release", at: at(1_000) }));
+    expect(released.kind === "published" && released.confirmedAt).toEqual(T1);
+    expect(transitionListing(released, { type: "undo_confirm", at: at(2_000) })).toEqual({
+      kind: "undo_expired",
+    });
+  });
+
+  /**
+   * Every event this module emits clears `undoable` when it moves
+   * `confirmedAt`, so only a write from outside it (a repository writing the
+   * column directly, a future migration) can leave the two out of step. The
+   * undo must still refuse rather than roll back that newer date.
+   */
+  it("refuses when the recorded confirmation isn't the current one", () => {
+    const outOfStep = {
+      kind: "published" as const,
+      publishedAt: PUBLISHED_AT,
+      confirmedAt: at(1_000),
+      undoable: { previousConfirmedAt: CONFIRMED_AT, confirmedAt: T1 },
+    };
+    expect(transitionListing(outOfStep, { type: "undo_confirm", at: at(2_000) })).toEqual({
+      kind: "undo_expired",
+    });
+  });
+
+  it("can undo only once", () => {
+    const confirmedOnce = confirmAt(stateFor("published"), T1);
+    const undone = expectOk(
+      transitionListing(confirmedOnce, { type: "undo_confirm", at: at(1_000) }),
+    );
+    expect(transitionListing(undone, { type: "undo_confirm", at: at(2_000) })).toEqual({
+      kind: "undo_expired",
+    });
   });
 });

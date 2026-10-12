@@ -9,7 +9,7 @@ import type {
   ShelterVerification,
   VerificationStatus,
 } from "@opika/domain";
-import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { cities } from "./cities";
 import { jsonb } from "./helpers";
 
@@ -56,6 +56,8 @@ export const shelters = pgTable(
     lastUpdatedAt: timestamp("last_updated_at", {
       withTimezone: true,
     }).notNull(),
+    /** Compare-and-set guard for audited writes (H2 S3, `Shelter.version`). */
+    version: integer("version").notNull().default(0),
   },
   (t) => [
     index("shelters_city_id_idx").on(t.cityId),

@@ -58,6 +58,15 @@ export const EvidenceItemSchema = z.discriminatedUnion("kind", [
 export type EvidenceItem = z.infer<typeof EvidenceItemSchema>;
 export type EvidenceKind = EvidenceItem["kind"];
 
+export const EVIDENCE_KINDS = [
+  "edrpou_registration",
+  "bank_account_holder",
+  "reference_contact",
+  "site_visit",
+  "supporting_document",
+] as const satisfies readonly EvidenceKind[];
+export const EvidenceKindSchema = z.enum(EVIDENCE_KINDS);
+
 /**
  * A list rather than a fixed record, because what a shelter can produce depends
  * on its legal form: a registered NGO has a registration code, a volunteer

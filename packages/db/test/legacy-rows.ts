@@ -65,3 +65,29 @@ export async function insertLegacyShelter(
       ${"50.45"}, ${"30.52"}, ${at}::timestamptz, ${at}::timestamptz
     )`;
 }
+
+/**
+ * An animal row with only the columns every migration from 0004 on accepts,
+ * written with raw SQL for the same reason as `insertLegacyShelter`. The
+ * listing goes in exactly as given, so a test can hand it an old shape.
+ */
+export async function insertLegacyAnimal(
+  client: postgres.Sql,
+  animal: { id: string; shelterId: string; cityId: string; listing: unknown; listingKind: string },
+): Promise<void> {
+  const at = "2026-06-01T12:00:00.000Z";
+  const declared = JSON.stringify({ source: "shelter_declared", state: "unknown", declaredAt: at });
+  await client`
+    INSERT INTO animals (
+      id, shelter_id, name, species, sex, size, age, age_anchor_at, description_uk,
+      photos, vaccination, spay_neuter, document_readiness, listing, listing_kind,
+      city_id, created_at, last_updated_at
+    ) VALUES (
+      ${animal.id}, ${animal.shelterId}, ${"Тест"}, ${"dog"}, ${"unknown"}, ${"medium"},
+      ${JSON.stringify({ kind: "birth_date", date: at, precision: "year" })}::text::jsonb,
+      ${at}::timestamptz, ${"Опис"}, ${"[]"}::text::jsonb, ${declared}::text::jsonb,
+      ${declared}::text::jsonb, ${JSON.stringify({ kind: "unknown" })}::text::jsonb,
+      ${JSON.stringify(animal.listing)}::text::jsonb, ${animal.listingKind},
+      ${animal.cityId}, ${at}::timestamptz, ${at}::timestamptz
+    )`;
+}

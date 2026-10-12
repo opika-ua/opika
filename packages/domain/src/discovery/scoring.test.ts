@@ -21,7 +21,7 @@ const baseAnimal: Animal = {
   vaccination: { source: "shelter_declared", state: "confirmed", declaredAt: NOW },
   spayNeuter: { source: "shelter_declared", state: "confirmed", declaredAt: NOW },
   documentReadiness: { kind: "unknown" },
-  listing: { kind: "published", publishedAt: NOW, confirmedAt: NOW },
+  listing: { kind: "published", publishedAt: NOW, confirmedAt: NOW, undoable: null },
   publicLocation: null,
   createdAt: NOW,
   lastUpdatedAt: NOW,

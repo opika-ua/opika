@@ -71,7 +71,7 @@ describe("feed query EXPLAIN", () => {
         shelterId: shelter.id,
         name: `Тест ${i}`,
         lastUpdatedAt: at,
-        listing: { kind: "published", publishedAt: at, confirmedAt: at },
+        listing: { kind: "published", publishedAt: at, confirmedAt: at, undoable: null },
       });
     });
     await animals.insertMany(animalList.map((a) => ({ animal: a, cityId: city.id })));

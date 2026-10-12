@@ -125,7 +125,7 @@ describe("buildShelter's public location", () => {
   ])("refuses a typed documentKey on $kind evidence", (keyed) => {
     const withKey = { ...SHELTER_INPUT, evidence: [...SUFFICIENT_EVIDENCE, keyed] };
     expect(() => buildShelter(withKey, now, SECRET_A)).toThrow(
-      new RegExp(`${keyed.kind}\.documentKey must be omitted`),
+      new RegExp(`${keyed.kind}.documentKey must be omitted`),
     );
   });
 

@@ -80,6 +80,7 @@ describe("/tvaryny (renderGallery)", () => {
         since: new Date("2026-08-01T00:00:00Z"),
         publishedAt,
         confirmedAt: publishedAt,
+        undoable: null,
       },
     });
     await animalRepo(h.db).insert(animal, city.id);

@@ -1,5 +1,11 @@
+import { z } from "zod";
 import type { ShelterLegalEntity } from "../legal-entity";
-import { countEvidence, type EvidenceKind, type VerificationEvidence } from "./evidence";
+import {
+  countEvidence,
+  type EvidenceKind,
+  EvidenceKindSchema,
+  type VerificationEvidence,
+} from "./evidence";
 
 export type EvidenceRequirement = { kind: EvidenceKind; minimum: number };
 
@@ -39,6 +45,13 @@ export const DEFAULT_VERIFICATION_POLICY: VerificationPolicy = {
 };
 
 export type EvidenceGap = EvidenceRequirement & { provided: number };
+
+/** The same gap as data, for an API error to carry (`EVIDENCE_INSUFFICIENT`). */
+export const EvidenceGapSchema = z.object({
+  kind: EvidenceKindSchema,
+  minimum: z.int().nonnegative(),
+  provided: z.int().nonnegative(),
+});
 
 /**
  * Returns what is missing rather than a bare boolean, so a reviewer can be told

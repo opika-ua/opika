@@ -138,6 +138,7 @@ beforeAll(async () => {
         kind: "published",
         publishedAt: daysBefore((i * 7) % 900),
         confirmedAt: daysBefore(i % 400),
+        undoable: null,
       },
     });
   });

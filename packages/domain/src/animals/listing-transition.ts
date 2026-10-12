@@ -17,6 +17,7 @@ export const ListingEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("withdraw"), at: z.date(), reason: WithdrawalReasonSchema }),
   z.object({ type: z.literal("restore_to_draft"), at: z.date() }),
   z.object({ type: z.literal("confirm"), at: z.date() }),
+  z.object({ type: z.literal("undo_confirm"), at: z.date() }),
 ]);
 export type ListingEvent = z.infer<typeof ListingEventSchema>;
 export type ListingEventType = ListingEvent["type"];
@@ -29,7 +30,16 @@ export const LISTING_EVENT_TYPES = [
   "withdraw",
   "restore_to_draft",
   "confirm",
+  "undo_confirm",
 ] as const satisfies readonly ListingEventType[];
+
+/**
+ * How long a confirmation stays undoable: K2's 8 seconds plus 5 seconds of
+ * slack for a slow connection, so an undo tapped at 7.9 s still lands
+ * (H2 S3 addendum §5). Measured on the server's clock from the confirmation
+ * being undone.
+ */
+export const UNDO_WINDOW_MS = 8_000 + 5_000;
 
 export type ListingKind = AnimalListingState["kind"];
 
@@ -45,7 +55,9 @@ export const LISTING_KINDS = [
 export type ListingTransitionResult =
   | { kind: "ok"; next: AnimalListingState }
   | { kind: "illegal"; from: ListingKind; event: ListingEventType }
-  | { kind: "non_monotonic"; from: ListingKind; stateTimestamp: Date; eventTimestamp: Date };
+  | { kind: "non_monotonic"; from: ListingKind; stateTimestamp: Date; eventTimestamp: Date }
+  /** `undo_confirm` with nothing undoable: past the window, or after a newer write. */
+  | { kind: "undo_expired" };
 
 /**
  * The latest instant recorded on a state, or `null` for a draft, which
@@ -74,6 +86,37 @@ const latestInstantOf = (listing: AnimalListingState): Date | null => {
     }
   }
 };
+
+/** The two visible states, the only ones a confirmation can land on. */
+type Confirmable = Extract<AnimalListingState, { kind: "published" | "reserved" }>;
+
+/** Whether `confirmable`'s last confirmation can still be undone at `at`. */
+const undoableAt = (
+  confirmable: Confirmable,
+  at: Date,
+): confirmable is Confirmable & {
+  undoable: NonNullable<Confirmable["undoable"]>;
+} =>
+  confirmable.undoable !== null &&
+  confirmable.undoable.confirmedAt.getTime() === confirmable.confirmedAt.getTime() &&
+  at.getTime() - confirmable.undoable.confirmedAt.getTime() <= UNDO_WINDOW_MS;
+
+/**
+ * A confirmation records the instant it replaced, so an undo can put it back
+ * exactly. A second confirm while the first is still undoable keeps the
+ * **original** previous instant and only moves `confirmedAt` (S3-Q1, Oleksii):
+ * otherwise confirm, confirm, undo would leave the animal confirmed.
+ */
+const confirmed = <T extends Confirmable>(current: T, at: Date): T => ({
+  ...current,
+  confirmedAt: at,
+  undoable: {
+    previousConfirmedAt: undoableAt(current, at)
+      ? current.undoable.previousConfirmedAt
+      : current.confirmedAt,
+    confirmedAt: at,
+  },
+});
 
 /**
  * The transition table, as code. `null` for every pair the lifecycle does not
@@ -106,7 +149,7 @@ const nextListing = (
   switch (current.kind) {
     case "draft":
       return event.type === "publish"
-        ? { kind: "published", publishedAt: event.at, confirmedAt: event.at }
+        ? { kind: "published", publishedAt: event.at, confirmedAt: event.at, undoable: null }
         : null;
 
     case "published":
@@ -117,13 +160,14 @@ const nextListing = (
             since: event.at,
             publishedAt: current.publishedAt,
             confirmedAt: current.confirmedAt,
+            undoable: null,
           };
         case "adopt":
           return { kind: "adopted", adoptedAt: event.at };
         case "withdraw":
           return { kind: "withdrawn", withdrawnAt: event.at, reason: event.reason };
         case "confirm":
-          return { ...current, confirmedAt: event.at };
+          return confirmed(current, event.at);
         default:
           return null;
       }
@@ -135,13 +179,14 @@ const nextListing = (
             kind: "published",
             publishedAt: current.publishedAt,
             confirmedAt: current.confirmedAt,
+            undoable: null,
           };
         case "adopt":
           return { kind: "adopted", adoptedAt: event.at };
         case "withdraw":
           return { kind: "withdrawn", withdrawnAt: event.at, reason: event.reason };
         case "confirm":
-          return { ...current, confirmedAt: event.at };
+          return confirmed(current, event.at);
         default:
           return null;
       }
@@ -168,6 +213,7 @@ export const transitionListing = (
   current: AnimalListingState,
   event: ListingEvent,
 ): ListingTransitionResult => {
+  if (event.type === "undo_confirm") return undoConfirmation(current, event.at);
   const next = nextListing(current, event);
   if (next === null) {
     return { kind: "illegal", from: current.kind, event: event.type };
@@ -187,7 +233,8 @@ export const transitionListing = (
 };
 
 /** One thing that keeps a draft from being published. */
-export type PublishGap = { kind: "photo" };
+export const PublishGapSchema = z.object({ kind: z.literal("photo") });
+export type PublishGap = z.infer<typeof PublishGapSchema>;
 
 /**
  * Returns what is missing rather than a bare boolean, so K2 can write the
@@ -201,3 +248,28 @@ export type PublishGap = { kind: "photo" };
  */
 export const publishGaps = (animal: Pick<Animal, "photos">): readonly PublishGap[] =>
   animal.photos.length === 0 ? [{ kind: "photo" }] : [];
+
+/**
+ * Restores the confirmation a `confirm` replaced, exactly as stored (H2-16).
+ * Only on the two visible states, only while the window is open, and only if
+ * nothing newer has been written since. Anything else is `undo_expired` rather
+ * than `illegal`: the move exists, it just isn't available any more.
+ */
+const undoConfirmation = (current: AnimalListingState, at: Date): ListingTransitionResult => {
+  if (current.kind !== "published" && current.kind !== "reserved") {
+    return { kind: "illegal", from: current.kind, event: "undo_confirm" };
+  }
+  if (at.getTime() < current.confirmedAt.getTime()) {
+    return {
+      kind: "non_monotonic",
+      from: current.kind,
+      stateTimestamp: current.confirmedAt,
+      eventTimestamp: at,
+    };
+  }
+  if (!undoableAt(current, at)) return { kind: "undo_expired" };
+  return {
+    kind: "ok",
+    next: { ...current, confirmedAt: current.undoable.previousConfirmedAt, undoable: null },
+  };
+};

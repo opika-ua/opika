@@ -243,7 +243,7 @@ describe("animalRepo", () => {
     const publishedAt = new Date("2026-03-01T10:00:00.000Z");
     const animal = makeAnimal({
       shelterId: shelter.id,
-      listing: { kind: "published", publishedAt, confirmedAt: publishedAt },
+      listing: { kind: "published", publishedAt, confirmedAt: publishedAt, undoable: null },
     });
     await animals.insert(animal, city.id);
 
@@ -266,6 +266,7 @@ describe("animalRepo", () => {
           since: new Date("2026-08-01T10:00:00.000Z"),
           publishedAt,
           confirmedAt: publishedAt,
+          undoable: null,
         },
       },
       city.id,
@@ -594,7 +595,7 @@ describe("feedRepo", () => {
         species: opts.species ?? "dog",
         name: `Тест ${i}`,
         lastUpdatedAt: at,
-        listing: { kind: "published", publishedAt: at, confirmedAt: at },
+        listing: { kind: "published", publishedAt: at, confirmedAt: at, undoable: null },
       });
     });
     await animalsR.insertMany(animalList.map((a) => ({ animal: a, cityId: city.id })));
@@ -648,7 +649,10 @@ describe("feedRepo", () => {
     await animalsR.update({ ...oldest, lastUpdatedAt: now }, city.id);
     expect(await firstId(), "an edit must not move the listing").toBe(seeded[0]?.id);
 
-    await animalsR.update({ ...oldest, listing: { ...oldest.listing, confirmedAt: now } }, city.id);
+    await animalsR.update(
+      { ...oldest, listing: { ...oldest.listing, confirmedAt: now, undoable: null } },
+      city.id,
+    );
     expect(await firstId(), "a confirmation moves it to the top").toBe(oldest.id);
   });
 

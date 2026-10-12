@@ -5,7 +5,6 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { cityRepo } from "../src/repos/city-repo";
-import { shelterRepo } from "../src/repos/shelter-repo";
 import * as schema from "../src/schema/index";
 import { makeCity, setupTestDatabase } from "../src/test-utils/index";
 import { TEST_DATABASE_URL } from "../src/test-utils/setup";
@@ -140,9 +139,16 @@ describe("0007 shelter-state reshape", () => {
 
     await applyMigration(RESHAPE_TAG);
 
-    const paused = await shelterRepo(db).findById(sid(1) as never);
-    const suspended = await shelterRepo(db).findById(sid(2) as never);
-    const untouched = await shelterRepo(db).findById(sid(3) as never);
+    // Raw reads, not `shelterRepo`: the repo selects the *current* schema's
+    // columns, and this test stops at 0007, before 0008's `version` exists.
+    const read = async (id: string) => {
+      const [row] = await client<{ verification: unknown; pending_donation: unknown }[]>`
+        SELECT verification, pending_donation FROM shelters WHERE id = ${id}`;
+      return row && { verification: row.verification, pendingDonation: row.pending_donation };
+    };
+    const paused = await read(sid(1));
+    const suspended = await read(sid(2));
+    const untouched = await read(sid(3));
     expect(paused?.verification).toMatchObject({
       status: "paused",
       pausedBy: { kind: "moderator", moderatorId: MOD_A },
