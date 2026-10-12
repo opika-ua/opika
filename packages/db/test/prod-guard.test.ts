@@ -1,11 +1,14 @@
 import { spawnSync } from "node:child_process";
-import { resolve } from "node:path";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { drizzleKitArgs } from "../src/migrate-args";
-import { checkProductionWrite } from "../src/prod-guard";
+import { checkProductionWrite, productionEndpoint } from "../src/prod-guard";
 
 /** Fake endpoints only. Nothing here resolves, and nothing should try. */
+const PROD_ENDPOINT = "ep-quiet-lake-a1b2c3";
 const PROD = "postgresql://u:secret@ep-quiet-lake-a1b2c3-pooler.eu-central-1.aws.neon.tech/neondb";
 const PROD_DIRECT = "postgresql://u:secret@ep-quiet-lake-a1b2c3.eu-central-1.aws.neon.tech/neondb";
 const CHILD_BRANCH =
@@ -17,12 +20,15 @@ describe("checkProductionWrite", () => {
     ["localhost", LOCAL],
     ["127.0.0.1", "postgres://opika:opika@127.0.0.1:5433/opika_test"],
   ])("lets a local database through without a flag (%s)", (_name, url) => {
-    expect(checkProductionWrite(url, [], PROD)).toEqual({ kind: "allowed", reason: "local" });
+    expect(checkProductionWrite(url, [], PROD_ENDPOINT)).toEqual({
+      kind: "allowed",
+      reason: "local",
+    });
     expect(checkProductionWrite(url, [], undefined)).toEqual({ kind: "allowed", reason: "local" });
   });
 
   it("refuses production without --prod", () => {
-    expect(checkProductionWrite(PROD, [], PROD)).toEqual({
+    expect(checkProductionWrite(PROD, [], PROD_ENDPOINT)).toEqual({
       kind: "refused",
       reason: "production_without_flag",
     });
@@ -30,21 +36,21 @@ describe("checkProductionWrite", () => {
 
   /** One compute, two hostnames: comparing hostnames alone would let this through. */
   it("refuses production under its other hostname too", () => {
-    expect(checkProductionWrite(PROD_DIRECT, [], PROD)).toEqual({
+    expect(checkProductionWrite(PROD_DIRECT, [], PROD_ENDPOINT)).toEqual({
       kind: "refused",
       reason: "production_without_flag",
     });
   });
 
   it("allows production with an explicit --prod", () => {
-    expect(checkProductionWrite(PROD, ["--prod"], PROD)).toEqual({
+    expect(checkProductionWrite(PROD, ["--prod"], PROD_ENDPOINT)).toEqual({
       kind: "allowed",
       reason: "production_flagged",
     });
   });
 
   it("lets a different Neon compute (a child branch) through", () => {
-    expect(checkProductionWrite(CHILD_BRANCH, [], PROD)).toEqual({
+    expect(checkProductionWrite(CHILD_BRANCH, [], PROD_ENDPOINT)).toEqual({
       kind: "allowed",
       reason: "not_production",
     });
@@ -65,7 +71,7 @@ describe("checkProductionWrite", () => {
   it("doesn't treat a URL that merely contains 'localhost' as local", () => {
     const sneaky =
       "postgresql://localhost:pw@ep-quiet-lake-a1b2c3.eu-central-1.aws.neon.tech/localhost";
-    expect(checkProductionWrite(sneaky, [], PROD).kind).toBe("refused");
+    expect(checkProductionWrite(sneaky, [], PROD_ENDPOINT).kind).toBe("refused");
   });
 });
 
@@ -88,21 +94,56 @@ describe("checkProductionWrite edge cases", () => {
       "postgresql://u:secret@ep-quiet-lake-a1b2c3.c-2.eu-central-1.aws.neon.tech/neondb",
     ],
   ])("still recognises production: %s", (_name, url) => {
-    expect(checkProductionWrite(url, [], PROD)).toEqual({
+    expect(checkProductionWrite(url, [], PROD_ENDPOINT)).toEqual({
       kind: "refused",
       reason: "production_without_flag",
     });
   });
 
-  it("refuses a target or production URL that won't parse, rather than throwing", () => {
-    expect(checkProductionWrite("not a url", [], PROD)).toEqual({
+  it("refuses a target that won't parse, and a production setting that isn't an endpoint id", () => {
+    expect(checkProductionWrite("not a url", [], PROD_ENDPOINT)).toEqual({
       kind: "refused",
       reason: "unparseable",
     });
-    expect(checkProductionWrite(CHILD_BRANCH, [], "also not a url")).toEqual({
+    expect(
+      checkProductionWrite(CHILD_BRANCH, [], "postgresql://u:secret@ep-x.neon.tech/db"),
+    ).toEqual({
       kind: "refused",
-      reason: "unparseable",
+      reason: "misconfigured",
     });
+  });
+});
+
+/** PG-2: the scripts read production's endpoint from the gitignored .env.local themselves. */
+describe("productionEndpoint", () => {
+  const envFile = (contents: string): string => {
+    const dir = mkdtempSync(join(tmpdir(), "opika-prod-guard-"));
+    const file = join(dir, ".env.local");
+    writeFileSync(file, contents);
+    return file;
+  };
+
+  it("reads PROD_NEON_ENDPOINT from the env file, and only that key", () => {
+    const file = envFile("VERCEL_OIDC_TOKEN=abc\nPROD_NEON_ENDPOINT=ep-quiet-lake-a1b2c3\n");
+    const env: Record<string, string | undefined> = { PROD_GUARD_ENV_FILE: file };
+    expect(productionEndpoint(env)).toBe("ep-quiet-lake-a1b2c3");
+    // Nothing else from the file is loaded into the environment.
+    expect(env.VERCEL_OIDC_TOKEN).toBeUndefined();
+    expect(process.env.VERCEL_OIDC_TOKEN === "abc").toBe(false);
+  });
+
+  it("prefers the process environment over the file", () => {
+    const file = envFile("PROD_NEON_ENDPOINT=ep-from-file\n");
+    expect(
+      productionEndpoint({ PROD_NEON_ENDPOINT: "ep-from-env", PROD_GUARD_ENV_FILE: file }),
+    ).toBe("ep-from-env");
+  });
+
+  it("is undefined when neither has it, so the guard fails closed", () => {
+    expect(
+      productionEndpoint({ PROD_GUARD_ENV_FILE: join(tmpdir(), "opika-no-such-file.env") }),
+    ).toBeUndefined();
+    expect(productionEndpoint({ PROD_GUARD_ENV_FILE: envFile("OTHER=1\n") })).toBeUndefined();
   });
 });
 
@@ -121,6 +162,8 @@ describe("drizzleKitArgs", () => {
  */
 describe("every writing CLI runs the guard first", () => {
   const PKG = resolve(fileURLToPath(import.meta.url), "../..");
+  // The developer's real .env.local must never decide a test's outcome.
+  const NO_ENV_FILE = resolve(tmpdir(), "opika-prod-guard-test-no-such-file.env");
   const run = (script: string, args: readonly string[] = []) =>
     spawnSync("npx", ["tsx", script, ...args], {
       cwd: PKG,
@@ -129,7 +172,8 @@ describe("every writing CLI runs the guard first", () => {
       env: {
         ...process.env,
         DATABASE_URL: PROD_DIRECT,
-        PROD_NEON_DATABASE_URL: PROD,
+        PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+        PROD_GUARD_ENV_FILE: NO_ENV_FILE,
         LOCATION_HMAC_SECRET: "x".repeat(64),
       },
       timeout: 60_000,
@@ -137,8 +181,8 @@ describe("every writing CLI runs the guard first", () => {
 
   /** Fail closed through the real CLI: with production unconfigured, a Neon target is refused. */
   it("db:migrate refuses a non-local target when production isn't configured", () => {
-    const env = { ...process.env, DATABASE_URL: CHILD_BRANCH };
-    delete (env as Record<string, string | undefined>).PROD_NEON_DATABASE_URL;
+    const env = { ...process.env, DATABASE_URL: CHILD_BRANCH, PROD_GUARD_ENV_FILE: NO_ENV_FILE };
+    delete (env as Record<string, string | undefined>).PROD_NEON_ENDPOINT;
     const result = spawnSync("npx", ["tsx", "src/migrate.ts"], {
       cwd: PKG,
       encoding: "utf8",
@@ -147,7 +191,7 @@ describe("every writing CLI runs the guard first", () => {
       timeout: 60_000,
     });
     expect(result.status, result.stderr).toBe(1);
-    expect(result.stderr).toContain("PROD_NEON_DATABASE_URL is not set");
+    expect(result.stderr).toContain("PROD_NEON_ENDPOINT is not set");
     expect(result.stderr).not.toContain("secret");
   });
 
@@ -160,7 +204,8 @@ describe("every writing CLI runs the guard first", () => {
       env: {
         ...process.env,
         DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host",
-        PROD_NEON_DATABASE_URL: PROD,
+        PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+        PROD_GUARD_ENV_FILE: NO_ENV_FILE,
       },
       timeout: 60_000,
     });
@@ -175,7 +220,7 @@ describe("every writing CLI runs the guard first", () => {
       cwd: PKG,
       encoding: "utf8",
       shell: process.platform === "win32",
-      env: { ...process.env, TEST_DATABASE_URL: CHILD_BRANCH },
+      env: { ...process.env, TEST_DATABASE_URL: CHILD_BRANCH, PROD_GUARD_ENV_FILE: NO_ENV_FILE },
       timeout: 60_000,
     });
     expect(result.status, result.stderr).not.toBe(0);

@@ -161,10 +161,11 @@ DATABASE_URL=<neon-direct-url> \
 
 **`--prod` is required when `DATABASE_URL` is production** (since
 2026-10-07, `packages/db/src/prod-guard.ts`). The script compares the
-target with `PROD_NEON_DATABASE_URL` from your environment and refuses
-production without the flag, so you can't onboard into production by
-habit. With `PROD_NEON_DATABASE_URL` unset it refuses *every* non-local
-target without `--prod`: it fails closed. The same rule applies to
+target's Neon compute with `PROD_NEON_ENDPOINT` (an endpoint id like
+`ep-…`, never a URL; read from your environment or the root `.env.local`)
+and refuses production without the flag, so you can't onboard into
+production by habit. With `PROD_NEON_ENDPOINT` unset it refuses *every*
+non-local target without `--prod`: it fails closed. The same rule applies to
 `db:migrate` and `db:seed`.
 
 This is a **dry run** — nothing is written. Read the printed output

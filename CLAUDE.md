@@ -423,10 +423,10 @@ pnpm i                   # install — resolves the pinned pnpm automatically
 pnpm check                # typecheck -> lint -> test -> build:web -> test:harness, same as CI
 
 # Writing to production (Neon) needs an explicit --prod on db:migrate, db:seed and
-# onboard:shelter (packages/db/src/prod-guard.ts). The guard reads production's identity
-# from PROD_NEON_DATABASE_URL in the process environment; the scripts load no .env file
-# themselves, and with it unset every non-local target is refused (fail closed). Test
-# database setup is local-only with no override.
+# onboard:shelter (packages/db/src/prod-guard.ts). Production is identified by its Neon
+# endpoint id only (PROD_NEON_ENDPOINT=ep-…, never a URL), read from the environment or,
+# for that one key, from the root .env.local. With it unset every non-local target is
+# refused (fail closed). Test database setup is local-only with no override.
 pnpm typecheck
 pnpm lint                 # biome check .
 pnpm lint:fix              # biome check --write .
