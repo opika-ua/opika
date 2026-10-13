@@ -1,0 +1,64 @@
+# H2 invite copy sheet: keys and context, for Oleksii's Ukrainian
+
+Inbox IN-Q5 (Oleksii, verbatim: "Q5: accepted. Draft the second copy sheet with keys and
+context only; I'll bring the Ukrainian."). The `/prytulkam` commitment sentences (A1–A3, B1)
+stay on the first sheet, `docs/h2-copy-sheet.md`; this sheet is the emails and the invite
+landing only.
+
+Every key below ships as `[COPY PENDING]` until its Ukrainian is written here, and an email
+refuses to send in production while any of its text is still `[COPY PENDING]` (IN-Q5's
+recommendation, accepted). For each string you get the key, where it shows, and the English
+sense of what is true. The English describes the facts. It is not a draft to translate.
+
+The product name is not final ("the name is not final" in CLAUDE.md), so no string here may
+name it. A sender name, where one is needed, comes from app config, never from a key.
+
+---
+
+## E1. The magic-link email (sign-in)
+
+Sent when a person asks to sign in (K1) or, once, when the invite landing sends the invited
+address its link (IN-Q3). The only email whose link signs someone in.
+
+| Key | Where | English sense |
+|---|---|---|
+| `kabinet.email.signIn.subject` | Subject line | A sign-in link for the shelters' cabinet. |
+| `kabinet.email.signIn.intro` | First line of the body | Someone asked to sign in with this address. |
+| `kabinet.email.signIn.action` | The link's label | Sign in. |
+| `kabinet.email.signIn.expiry` | Under the link | The link works once and expires in 15 minutes (`MAGIC_LINK_TTL_SECONDS`; the value is filled in, never typed into the string). |
+| `kabinet.email.signIn.notYou` | Last line | If you didn't ask for this, ignore the email: nothing happens without the link. |
+
+## E2. The invite email
+
+Sent when the operator invites an admin (`registry.admins.invite`, or the first admin on
+`registry.shelters.create`). **It is not a sign-in link** (IN-Q3): it links to the invite
+landing, which sends a fresh magic link to the invited address only.
+
+| Key | Where | English sense |
+|---|---|---|
+| `kabinet.email.invite.subject` | Subject line | You're invited to manage a shelter's listings in the registry. |
+| `kabinet.email.invite.intro` | Body | The operator (by display name, from config) invited this address to administer «shelter name» (filled in). |
+| `kabinet.email.invite.what` | Body | What the cabinet lets them do (the read-only "your shelter" view in the first screens PR; editing comes later). State only what exists when this ships. |
+| `kabinet.email.invite.action` | The link's label | Open the invitation. |
+| `kabinet.email.invite.expiry` | Under the link | The invitation stays valid for 72 hours; the operator can send it again (`INVITATION_TTL_MS`, filled in). |
+| `kabinet.email.invite.notYou` | Last line | If this isn't expected, ignore it: nobody gets access without signing in from this address. |
+
+## L. The invite landing (screens PR)
+
+The page the invite email links to. It sends a magic link to the invited address only, never
+to an address typed on the page. The invitation is accepted automatically on that address's
+first sign-in, so there is no accept screen (IN-Q3).
+
+| Key | Where | English sense |
+|---|---|---|
+| `kabinet.inviteLanding.title` | Heading | An invitation to administer «shelter name». |
+| `kabinet.inviteLanding.body` | Under the heading | We'll send a sign-in link to the invited address (masked, e.g. o•••@gmail.com); signing in with it accepts the invitation. |
+| `kabinet.inviteLanding.send` | Button | Send the sign-in link. |
+| `kabinet.inviteLanding.sent` | After sending | Check that inbox; the link works once and expires in 15 minutes. |
+| `kabinet.inviteLanding.expired` | Invitation expired or withdrawn | This invitation is no longer valid; ask the operator to send a new one. |
+| `kabinet.inviteLanding.alreadyAccepted` | Already a member | This invitation was already accepted; sign in as usual. |
+| `kabinet.inviteLanding.rateLimited` | Too many requests | Too many links were requested; try again later (the sign-in limits already in place). |
+
+---
+
+The sending domain (`mail.opika.org.ua`, IN-Q2a) is config, never part of a string: the name is not final.
