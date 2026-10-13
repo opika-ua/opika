@@ -26,6 +26,9 @@ questions go to Oleksii before code.
       equals the committed file's).
       **Frozen at 6b7fa12** (unchanged since; `drizzle-kit generate` reports no schema drift), and
       `check-migration-hashes.test.ts` pins its hash, so an edit fails CI instead of a rehearsal.
+      **On production 2026-10-13** (ep-dawn-pond-b1dz515g, Oleksii, RG-R4): `db:check-hashes` 12/12
+      match; 12 migrations; animals 18, all `version` 0; `support_sessions` and
+      `invitation_created_users` exist, 0 rows; shelters 2, auth users 0.
 - [ ] **The registry answers 503 without `LOCATION_HMAC_SECRET`** (RG-Q10) while the kabinet is
       unavailable. Shelter create and address changes recompute the public location with that
       key. `apps/web/src/api/env.ts`'s required production schema does not gain it here.
