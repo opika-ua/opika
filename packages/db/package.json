@@ -25,7 +25,8 @@
     "admin:grant": "tsx src/admin.ts grant",
     "admin:revoke": "tsx src/admin.ts revoke",
     "admin:sweep-invites": "tsx src/admin.ts sweep-invites",
-    "db:neon-smoke": "tsx test/neon-smoke.ts"
+    "db:neon-smoke": "tsx test/neon-smoke.ts",
+    "worktree:remove": "tsx src/tools/worktree-remove.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",
