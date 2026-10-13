@@ -33,6 +33,7 @@ const animal: Animal = {
   publicLocation: null,
   createdAt: AT,
   lastUpdatedAt: AT,
+  version: 0,
 };
 
 const shelterSummary = {

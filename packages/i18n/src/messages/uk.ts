@@ -812,4 +812,11 @@ export const uk = {
       "Напишіть на {contact}. Достатньо розказати, хто ви і скільки у вас тварин. Далі — розмова, " +
       "перевірка, про яку йшлося вище, і ваші тварини з'являються в реєстрі.",
   },
+  kabinet: {
+    /**
+     * The history actor label when `KABINET_OPERATOR_DISPLAY_NAME` is unset
+     * (RS-Q2): Oleksii's own wording. Nominative, used only where the nominative fits.
+     */
+    operatorFallbackName: "Оператор реєстру",
+  },
 } as const;

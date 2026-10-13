@@ -1,10 +1,12 @@
-import { contract, shelterKabinetContract } from "@opika/contracts";
+import { contract, registryContract, shelterKabinetContract } from "@opika/contracts";
 import { isContractProcedure } from "@orpc/contract";
 import { type AnyRouter, implement, isLazy, isProcedure, os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { registryRouter } from "../kabinet/registry-router";
 import { shelterKabinetRouter } from "../kabinet/router";
+import { kabinetRouter } from "../kabinet/rpc-route";
 import { router } from "./router";
 
 /**
@@ -163,8 +165,8 @@ describe("every served kabinet procedure goes through implement(shelterKabinetCo
   const contractLeaves = collectLeaves(shelterKabinetContract);
   const routerLeaves = collectLeaves(shelterKabinetRouter);
 
-  it("finds all sixteen shelter procedures (not vacuous)", () => {
-    expect(contractLeaves).toHaveLength(16);
+  it("finds all seventeen shelter procedures (not vacuous)", () => {
+    expect(contractLeaves).toHaveLength(17);
   });
 
   it("serves exactly the contracted paths", () => {
@@ -178,6 +180,43 @@ describe("every served kabinet procedure goes through implement(shelterKabinetCo
     (path) => {
       const contractSchema = outputSchemaOf(contractLeaves.find((l) => l.path === path)?.node);
       const routerSchema = outputSchemaOf(routerLeaves.find((l) => l.path === path)?.node);
+      expect(contractSchema).toBeDefined();
+      expect(routerSchema).toBe(contractSchema);
+    },
+  );
+});
+
+/**
+ * The registry router (registry PR), and the router actually mounted on
+ * `/api/kabinet/*`: the two surfaces merged. The merge is where a key from
+ * one could shadow the other's, so the mounted router must serve exactly
+ * the union of both contracts, each leaf with its contract's own schema.
+ */
+describe("every served registry procedure goes through implement(registryContract)", () => {
+  const contractLeaves = collectLeaves(registryContract);
+  const routerLeaves = collectLeaves(registryRouter);
+  const mountedLeaves = collectLeaves(kabinetRouter);
+
+  it("finds all nineteen registry procedures (eighteen plus session.exitSupport; not vacuous)", () => {
+    expect(contractLeaves).toHaveLength(19);
+  });
+
+  it("serves exactly the contracted paths", () => {
+    expect(routerLeaves.map((l) => l.path).sort()).toEqual(
+      contractLeaves.map((l) => l.path).sort(),
+    );
+  });
+
+  it("mounts exactly the shelter and registry contracts, nothing shadowed or extra", () => {
+    const union = [...collectLeaves(shelterKabinetContract), ...contractLeaves].map((l) => l.path);
+    expect(mountedLeaves.map((l) => l.path).sort()).toEqual(union.sort());
+  });
+
+  it.each(contractLeaves.map((l) => l.path))(
+    "%s: the served output schema is the contract's own schema instance",
+    (path) => {
+      const contractSchema = outputSchemaOf(contractLeaves.find((l) => l.path === path)?.node);
+      const routerSchema = outputSchemaOf(mountedLeaves.find((l) => l.path === path)?.node);
       expect(contractSchema).toBeDefined();
       expect(routerSchema).toBe(contractSchema);
     },

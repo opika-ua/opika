@@ -15,7 +15,7 @@ import type {
   VaccinationStatus,
 } from "@opika/domain";
 import { sql } from "drizzle-orm";
-import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { cities } from "./cities";
 import { jsonb } from "./helpers";
 import { shelters } from "./shelters";
@@ -135,6 +135,8 @@ export const animals = pgTable(
     lastUpdatedAt: timestamp("last_updated_at", {
       withTimezone: true,
     }).notNull(),
+    /** Compare-and-set guard for edits (S3-T6, `Animal.version`). Listing moves don't bump it. */
+    version: integer("version").notNull().default(0),
   },
   (t) => [
     index("animals_shelter_id_idx").on(t.shelterId),

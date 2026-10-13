@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { shelters } from "./shelters";
 
 /**
  * Better Auth's tables, for the kabinet only (H2 handlers slice). Adopters
@@ -176,3 +177,54 @@ export const superAdmins = pgTable(
     uniqueIndex("super_admins_active_user_unique").on(t.userId).where(sql`${t.revokedAt} IS NULL`),
   ],
 );
+
+/**
+ * An operator viewing one shelter's kabinet read-only (KABINET S5, RG-Q4,
+ * RS-Q0). Exactly the columns Oleksii approved: who, which shelter, when it
+ * started, when last used, when and why it ended. **No IP, no user-agent.**
+ * `token_hash` is the cookie's lookup key, stored as a hash and never the
+ * token, as decision #13 does for adopters (Oleksii: "Hashed token in
+ * support_sessions: fine"). Rows are never deleted: who viewed which shelter,
+ * and when, stays auditable.
+ */
+export const supportSessions = pgTable(
+  "support_sessions",
+  {
+    id: text().primaryKey(),
+    operatorUserId: text("operator_user_id")
+      .notNull()
+      .references(() => authUser.id),
+    shelterId: text("shelter_id")
+      .notNull()
+      .references(() => shelters.id),
+    tokenHash: text("token_hash").notNull().unique(),
+    startedAt: at("started_at"),
+    lastSeenAt: at("last_seen_at"),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    /**
+     * Why it ended: the operator left (`exited`), it sat idle past 30 minutes
+     * (`idle`), or the operator entered another shelter (`replaced`).
+     */
+    endReason: text("end_reason", { enum: ["exited", "idle", "replaced"] }),
+  },
+  (t) => [index("support_sessions_operator_idx").on(t.operatorUserId)],
+);
+
+/**
+ * A user that an invitation created (RG-Q3): written by `kabinetInvitationRepo`
+ * in the same write as the invitation, so the clean-up knows which users are
+ * its own. `first_session_at` is set by a Better Auth hook the first time the
+ * user signs in. That keeps "no sessions ever" a fact this table holds, not
+ * something inferred from `auth_session`, whose rows vanish on sign-out and
+ * expiry (RS-Q0).
+ */
+export const invitationCreatedUsers = pgTable("invitation_created_users", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => authUser.id, { onDelete: "cascade" }),
+  invitationId: text("invitation_id")
+    .notNull()
+    .references(() => authInvitation.id, { onDelete: "cascade" }),
+  createdAt: at("created_at"),
+  firstSessionAt: timestamp("first_session_at", { withTimezone: true }),
+});

@@ -353,4 +353,11 @@ export const en = {
     whoIsBehindThis: `${COPY_PENDING} 10. Who is behind this.`,
     howToStart: `${COPY_PENDING} 11. How to start — write to {contact}.`,
   },
+  kabinet: {
+    /**
+     * The history actor label when `KABINET_OPERATOR_DISPLAY_NAME` is unset
+     * (RS-Q2): the English sense of the Ukrainian. Nominative, used only where the nominative fits.
+     */
+    operatorFallbackName: "Registry operator",
+  },
 } as const;

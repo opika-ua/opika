@@ -41,7 +41,7 @@ type RevealInsert = typeof reveals.$inferInsert;
 
 // --- LocalizedText helpers ---
 
-function localizedTextToColumns(lt: LocalizedText): {
+export function localizedTextToColumns(lt: LocalizedText): {
   uk: string;
   enText: string | null;
   enProvenance: TextProvenance | null;
@@ -185,6 +185,7 @@ export function animalToRowWithCity(animal: Animal, cityId: CityId): AnimalInser
     cityId,
     createdAt: animal.createdAt,
     lastUpdatedAt: animal.lastUpdatedAt,
+    version: animal.version,
   };
 }
 
@@ -210,6 +211,7 @@ export function rowToAnimal(row: AnimalRow): Animal {
     publicLocation: row.publicLocation ?? null,
     createdAt: row.createdAt,
     lastUpdatedAt: row.lastUpdatedAt,
+    version: row.version,
   };
 }
 

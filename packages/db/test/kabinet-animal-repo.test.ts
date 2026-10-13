@@ -88,12 +88,14 @@ describe("kabinetAnimalRepo.writeEditIf", () => {
       lastUpdatedAt: new Date("2026-10-13T12:00:00.000Z"),
     };
     expect(
-      await kabinetAnimalRepo(db).writeEditIf(edited, cityId as never, animal.lastUpdatedAt),
+      await kabinetAnimalRepo(db).writeEditIf(edited, cityId as never, animal.version),
     ).toEqual({
       kind: "ok",
     });
     const after = await animalRepo(db).findById(animal.id);
     expect(after?.name).toBe("Нове");
+    // An edit bumps the guard by exactly one (S3-T6).
+    expect(after?.version).toBe(animal.version + 1);
     expect(after && confirmedAt(after.listing)).toEqual(new Date("2026-10-13T10:00:00.000Z"));
   });
 
@@ -101,7 +103,7 @@ describe("kabinetAnimalRepo.writeEditIf", () => {
     const { animal, cityId } = await seeded();
     const edited: Animal = { ...animal, name: "Нове", lastUpdatedAt: new Date() };
     expect(
-      await kabinetAnimalRepo(db).writeEditIf(edited, cityId as never, new Date("2020-01-01")),
+      await kabinetAnimalRepo(db).writeEditIf(edited, cityId as never, animal.version + 5),
     ).toEqual({ kind: "conflict" });
   });
 });
@@ -133,7 +135,7 @@ describe("kabinetAnimalRepo.deleteDraftIf (HS-Q9)", () => {
   it("won't delete a draft whose first_published_at is set", async () => {
     const { animal } = await seeded();
     await kabinetAnimalRepo(db).writeListingIf(animal.id, { kind: "draft" }, animal.listing);
-    expect(await kabinetAnimalRepo(db).deleteDraftIf(animal.id, animal.lastUpdatedAt)).toEqual({
+    expect(await kabinetAnimalRepo(db).deleteDraftIf(animal.id, animal.version)).toEqual({
       kind: "not_deleted",
     });
     expect(await animalRepo(db).findById(animal.id)).not.toBeNull();

@@ -25,6 +25,7 @@ const baseAnimal: Animal = {
   publicLocation: null,
   createdAt: NOW,
   lastUpdatedAt: NOW,
+  version: 0,
 };
 
 const animal = (overrides: Partial<Animal>): Animal => ({ ...baseAnimal, ...overrides });

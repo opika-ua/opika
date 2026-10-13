@@ -5,6 +5,7 @@ import {
   FreshnessSchema,
   PublishGapSchema,
   ShelterAdminIdSchema,
+  ShelterFacingHistoryItemSchema,
   ShelterFacingVerificationSchema,
   ShelterHistoryEntrySchema,
   ShelterSchema,
@@ -53,6 +54,7 @@ export const KabinetAnimalViewSchema = AnimalSchema.pick({
   publicLocation: true,
   createdAt: true,
   lastUpdatedAt: true,
+  version: true,
 });
 export type KabinetAnimalView = z.infer<typeof KabinetAnimalViewSchema>;
 
@@ -120,3 +122,11 @@ export type RegistryShelterView = z.infer<typeof RegistryShelterViewSchema>;
 
 /** Operator-only. Already shape-only in S2b; the history table ships with its writers. */
 export const HistoryEntryViewSchema = ShelterHistoryEntrySchema;
+
+/**
+ * A line of the shelter's own history (RG-Q8): the domain projection, with no
+ * evidence and no moderator ids, the operator shown by display name. A
+ * contract test pins every variant's key set.
+ */
+export const ShelterHistoryItemViewSchema = ShelterFacingHistoryItemSchema;
+export type ShelterHistoryItemView = z.infer<typeof ShelterHistoryItemViewSchema>;

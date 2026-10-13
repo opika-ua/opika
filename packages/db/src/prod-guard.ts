@@ -117,16 +117,24 @@ export function productionEndpoint(
   }
 }
 
-/** For CLIs: prints why and exits non-zero on refusal. Never prints a URL or the endpoint. */
+/**
+ * For CLIs: prints why and exits non-zero on refusal. Never prints a URL or the endpoint.
+ *
+ * `access` only changes the warning's wording. A read-only script that reads
+ * what production keeps private (`location:verify` reads every exact address)
+ * takes the same explicit flag, and must not claim to be writing.
+ */
 export function assertProductionWriteAllowed(
   targetUrl: string,
   argv: readonly string[],
   env: Readonly<Record<string, string | undefined>> = process.env,
+  access: "write" | "read" = "write",
 ): void {
   const check = checkProductionWrite(targetUrl, argv, productionEndpoint(env));
   if (check.kind === "allowed") {
     if (check.reason === "production_flagged") {
-      console.error(`WARNING: writing to PRODUCTION (${PROD_FLAG} given).`);
+      const verb = access === "write" ? "writing to" : "reading";
+      console.error(`WARNING: ${verb} PRODUCTION (${PROD_FLAG} given).`);
     }
     return;
   }

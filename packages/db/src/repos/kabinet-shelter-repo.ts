@@ -1,16 +1,25 @@
 import {
+  type DonationLink,
+  type ExactAddress,
   type FreshnessSentence,
   historyEntryAt,
+  type LocalizedText,
   type PendingDonation,
+  type PublicLocation,
+  type Shelter,
   type ShelterContact,
   type ShelterHistoryEntry,
   type ShelterId,
+  type ShelterLegalEntity,
   type ShelterVerification,
 } from "@opika/domain";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import type { Database } from "../client";
+import { animals } from "../schema/animals";
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
+import { historyRowSelect } from "./history-sql";
+import { localizedTextToColumns, shelterToRow } from "./mappers";
 
 /**
  * One audited change to a shelter, as a union rather than an arbitrary column
@@ -21,7 +30,17 @@ export type AuditedShelterChange =
   | { kind: "contact"; contact: ShelterContact }
   | { kind: "freshness_sentence"; freshnessSentence: FreshnessSentence }
   | { kind: "pending_donation"; pendingDonation: PendingDonation | null }
-  | { kind: "verification"; verification: ShelterVerification };
+  | { kind: "verification"; verification: ShelterVerification }
+  | { kind: "description"; description: LocalizedText }
+  | { kind: "legal_entity"; legalEntity: ShelterLegalEntity }
+  /**
+   * The premises moved (S4). The public location is recomputed by the caller
+   * with the location policy and travels with the address, never apart from
+   * it, so the fuzzed pin can't describe an address the row no longer holds.
+   */
+  | { kind: "exact_address"; exactAddress: ExactAddress; publicLocation: PublicLocation }
+  /** The operator approved the proposed link: it goes live and the proposal clears (N20). */
+  | { kind: "donation_approved"; donation: DonationLink };
 
 export type AuditedWriteResult = { kind: "ok" } | { kind: "conflict" };
 
@@ -41,6 +60,26 @@ function columnsOf(change: AuditedShelterChange) {
         verification: change.verification,
         verificationStatus: change.verification.status,
       };
+    case "description": {
+      const columns = localizedTextToColumns(change.description);
+      return {
+        descriptionUk: columns.uk,
+        descriptionEnText: columns.enText,
+        descriptionEnProvenance: columns.enProvenance,
+      };
+    }
+    case "legal_entity":
+      return { legalEntity: change.legalEntity };
+    case "exact_address":
+      return {
+        exactAddress: change.exactAddress,
+        publicLocation: change.publicLocation,
+        cityId: change.publicLocation.cityId,
+        exactLat: String(change.exactAddress.coordinates.lat),
+        exactLng: String(change.exactAddress.coordinates.lng),
+      };
+    case "donation_approved":
+      return { donation: change.donation, pendingDonation: null };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = change;
@@ -66,7 +105,7 @@ function columnsOf(change: AuditedShelterChange) {
  * differs between the two drivers (standing constraints, R1).
  */
 export function kabinetShelterRepo(db: Database) {
-  return {
+  const repo = {
     async applyAudited(input: {
       shelterId: ShelterId;
       expectedVersion: number;
@@ -75,29 +114,137 @@ export function kabinetShelterRepo(db: Database) {
       historyId: string;
       now: Date;
     }): Promise<AuditedWriteResult> {
+      return repo.applyAuditedMany({
+        shelterId: input.shelterId,
+        expectedVersion: input.expectedVersion,
+        changes: [input.change],
+        entries: [{ id: input.historyId, entry: input.entry }],
+        now: input.now,
+      });
+    },
+
+    /**
+     * Several audited changes as one write: one version bump, one history
+     * row per entry (an operator's profile edit that touches contact and
+     * description is two facts, recorded as two lines). Still one statement,
+     * so either every column and every entry lands or none does.
+     *
+     * An address change also moves every animal still at the shelter
+     * (`public_location IS NULL`) to the new city, in the same statement:
+     * their `city_id` mirrors the shelter's (CLAUDE.md, "`city_id` on
+     * animals"), and a second statement could fail after the first. A
+     * data-modifying CTE runs to completion whether or not the outer query
+     * reads it. Fostered animals keep their own city.
+     */
+    async applyAuditedMany(input: {
+      shelterId: ShelterId;
+      expectedVersion: number;
+      changes: readonly AuditedShelterChange[];
+      entries: readonly { id: string; entry: ShelterHistoryEntry }[];
+      now: Date;
+    }): Promise<AuditedWriteResult> {
+      if (input.entries.length === 0) throw new Error("An audited write needs at least one entry");
+      const columns = Object.assign({}, ...input.changes.map(columnsOf));
       const upd = db.$with("upd").as(
         db
           .update(shelters)
           .set({
-            ...columnsOf(input.change),
+            ...columns,
             version: sql`${shelters.version} + 1`,
             lastUpdatedAt: input.now,
           })
           .where(and(eq(shelters.id, input.shelterId), eq(shelters.version, input.expectedVersion)))
           .returning({ id: shelters.id }),
       );
-      // Text then jsonb, never a bare ::jsonb: postgres.js would otherwise
-      // JSON-encode the string a second time (see test/legacy-rows.ts).
-      const entryJson = JSON.stringify(input.entry);
-      const at = historyEntryAt(input.entry).toISOString();
+      const moved = input.changes.find((change) => change.kind === "exact_address");
+      const withs =
+        moved === undefined
+          ? [upd]
+          : [
+              upd,
+              db.$with("moved").as(
+                db
+                  .update(animals)
+                  .set({ cityId: moved.publicLocation.cityId as never })
+                  .where(
+                    and(
+                      sql`${animals.shelterId} IN (SELECT "id" FROM "upd")`,
+                      isNull(animals.publicLocation),
+                    ),
+                  )
+                  .returning({ id: animals.id }),
+              ),
+            ];
+      // One SELECT per entry, each reading `upd`: no update, no history.
+      const rows = sql.join(
+        input.entries.map(
+          (row) => sql`SELECT ${historyRowSelect(row, sql`"upd"."id"`)} FROM "upd"`,
+        ),
+        sql` UNION ALL `,
+      );
       const inserted = await db
-        .with(upd)
+        .with(...withs)
         .insert(shelterHistory)
-        .select(
-          sql`SELECT ${input.historyId}, "upd"."id", ${input.entry.kind}, ${at}::timestamptz, ${entryJson}::text::jsonb FROM "upd"`,
-        )
+        .select(rows)
         .returning({ id: shelterHistory.id });
-      return inserted.length === 1 ? { kind: "ok" } : { kind: "conflict" };
+      return inserted.length === input.entries.length ? { kind: "ok" } : { kind: "conflict" };
+    },
+
+    /**
+     * A new shelter and its `shelter_created` entry, as one statement: a
+     * shelter never exists without the line saying who brought it in.
+     */
+    async createWithHistory(shelter: Shelter, history: { id: string; entry: ShelterHistoryEntry }) {
+      const created = db
+        .$with("created")
+        .as(db.insert(shelters).values(shelterToRow(shelter)).returning({ id: shelters.id }));
+      await db
+        .with(created)
+        .insert(shelterHistory)
+        .select(sql`SELECT ${historyRowSelect(history, sql`"created"."id"`)} FROM "created"`);
+    },
+
+    /** A history line for something that changes no shelter column (an admin invited or reminded). */
+    async appendHistory(input: { id: string; shelterId: ShelterId; entry: ShelterHistoryEntry }) {
+      await db.insert(shelterHistory).values({
+        id: input.id,
+        shelterId: input.shelterId,
+        kind: input.entry.kind,
+        at: historyEntryAt(input.entry),
+        entry: input.entry,
+      });
+    },
+
+    /**
+     * One page of a shelter's history, newest first, keyset on `(at DESC, id
+     * DESC)` (never OFFSET). Reads only: RS-Q1 keeps the shelter's history
+     * read side-effect-free.
+     */
+    async historyPage(input: {
+      shelterId: ShelterId;
+      after: { at: Date; id: string } | null;
+      limit: number;
+    }): Promise<{ items: ShelterHistoryEntry[]; next: { at: Date; id: string } | null }> {
+      const conditions = [eq(shelterHistory.shelterId, input.shelterId)];
+      if (input.after !== null) {
+        const keyset = or(
+          lt(shelterHistory.at, input.after.at),
+          and(eq(shelterHistory.at, input.after.at), lt(shelterHistory.id, input.after.id)),
+        );
+        if (keyset) conditions.push(keyset);
+      }
+      const rows = await db
+        .select({ id: shelterHistory.id, at: shelterHistory.at, entry: shelterHistory.entry })
+        .from(shelterHistory)
+        .where(and(...conditions))
+        .orderBy(desc(shelterHistory.at), desc(shelterHistory.id))
+        .limit(input.limit + 1);
+      const page = rows.slice(0, input.limit);
+      const last = page.at(-1);
+      return {
+        items: page.map((row) => row.entry),
+        next: rows.length > input.limit && last ? { at: last.at, id: last.id } : null,
+      };
     },
 
     /** The history, newest first, for tests now and `registry.history.list` later. */
@@ -110,4 +257,5 @@ export function kabinetShelterRepo(db: Database) {
       return rows.map((row) => row.entry);
     },
   };
+  return repo;
 }

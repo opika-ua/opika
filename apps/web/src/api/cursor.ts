@@ -1,4 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import type { RegistryListPosition } from "@opika/db/repos";
+import type { ShelterId } from "@opika/domain";
 
 /**
  * Cursor payload, signed with HMAC to prevent tampering.
@@ -24,7 +26,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * - Reusing a cursor after changing filters (fingerprint mismatch)
  */
 type CursorPayload = {
-  kind: "feed" | "reveal" | "kabinet_animals";
+  kind: "feed" | "reveal" | "kabinet_animals" | "kabinet_history" | "registry_history";
   filtersFingerprint: string;
   at: string;
   id: string;
@@ -176,4 +178,103 @@ export function decodeKabinetAnimalsCursor(
   secret: string,
 ): { data: CursorPosition } | null {
   return decodeCursor(cursor, "kabinet_animals", expectedFingerprint, secret);
+}
+
+/** The shelter's own history (RG-Q8), bound to the shelter like the animal list. */
+export function encodeKabinetHistoryCursor(
+  data: CursorPosition,
+  shelterId: string,
+  secret: string,
+): string {
+  return encodeCursorWithFingerprint("kabinet_history", data, shelterId, secret);
+}
+
+export function decodeKabinetHistoryCursor(
+  cursor: string,
+  shelterId: string,
+  secret: string,
+): { data: CursorPosition } | null {
+  return decodeCursor(cursor, "kabinet_history", shelterId, secret);
+}
+
+/**
+ * The operator's history of one shelter (`registry.history.list`). Its own
+ * kind, not `kabinet_history`: the same position on a different list (the
+ * operator's full entries, not the shelter's projection) is still a different
+ * list, and a cursor never crosses lists.
+ */
+export function encodeRegistryHistoryCursor(
+  data: CursorPosition,
+  shelterId: string,
+  secret: string,
+): string {
+  return encodeCursorWithFingerprint("registry_history", data, shelterId, secret);
+}
+
+export function decodeRegistryHistoryCursor(
+  cursor: string,
+  shelterId: string,
+  secret: string,
+): { data: CursorPosition } | null {
+  const decoded = decodeCursor(cursor, "registry_history", shelterId, secret);
+  return decoded === null ? null : { data: decoded.data };
+}
+
+/** S1's keyset position: awaiting-rank, display name, id. The repo's own type, not a copy. */
+export type RegistrySheltersPosition = RegistryListPosition;
+
+type RegistrySheltersPayload = {
+  kind: "registry_shelters";
+  filtersFingerprint: string;
+  rank: 0 | 1;
+  name: string;
+  id: string;
+};
+
+/** Bound to the search and the status filter, like the feed's to its filters. */
+export const registrySheltersFingerprint = (search: string | null, status: string | null): string =>
+  JSON.stringify([search, status]);
+
+/**
+ * Its own payload, since the position is not `(at, id)`. Signed and checked
+ * exactly like every other cursor here: kind, fingerprint, timing-safe MAC.
+ */
+export function encodeRegistrySheltersCursor(
+  data: RegistrySheltersPosition,
+  fingerprint: string,
+  secret: string,
+): string {
+  const payload: RegistrySheltersPayload = {
+    kind: "registry_shelters",
+    filtersFingerprint: fingerprint,
+    rank: data.rank,
+    name: data.name,
+    id: data.id,
+  };
+  const json = JSON.stringify(payload);
+  return Buffer.from(`${sign(json, secret)}:${json}`).toString("base64url");
+}
+
+export function decodeRegistrySheltersCursor(
+  cursor: string,
+  expectedFingerprint: string,
+  secret: string,
+): { data: RegistrySheltersPosition } | null {
+  try {
+    const raw = Buffer.from(cursor, "base64url").toString("utf8");
+    const colonIndex = raw.indexOf(":");
+    if (colonIndex === -1) return null;
+    const mac = Buffer.from(raw.slice(0, colonIndex));
+    const json = raw.slice(colonIndex + 1);
+    const expected = Buffer.from(sign(json, secret));
+    if (mac.length !== expected.length || !timingSafeEqual(mac, expected)) return null;
+    const payload = JSON.parse(json) as Partial<RegistrySheltersPayload>;
+    if (payload.kind !== "registry_shelters") return null;
+    if (payload.filtersFingerprint !== expectedFingerprint) return null;
+    if (payload.rank !== 0 && payload.rank !== 1) return null;
+    if (typeof payload.name !== "string" || typeof payload.id !== "string") return null;
+    return { data: { rank: payload.rank, name: payload.name, id: payload.id as ShelterId } };
+  } catch {
+    return null;
+  }
 }

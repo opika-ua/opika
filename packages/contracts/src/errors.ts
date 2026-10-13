@@ -154,20 +154,30 @@ export const apiErrors = {
     message: "This listing can be withdrawn but not deleted.",
     data: z.object({ reason: z.enum(["was_published", "has_activity"]) }),
   },
+  /**
+   * The address already belongs to a shelter's admin (RG-Q3): one person
+   * administers one shelter (`auth_member_user_id_unique`). A typed refusal,
+   * never the database's unique-index error.
+   */
+  ALREADY_A_MEMBER: {
+    status: 409,
+    message: "That address already administers a shelter.",
+  },
   /** An undo past its window, or after a newer write (H2-16). */
   UNDO_EXPIRED: {
     status: 409,
     message: "That confirmation can no longer be undone.",
   },
   /**
-   * Evidence input refused (`data.reason`). One reason today, the only one
-   * `toVerificationEvidence` can return. The addendum's `document_not_issued`
-   * joins with the evidence-document upload, which is what can produce it.
+   * Evidence input refused (`data.reason`): a site visit dated in the future
+   * (`toVerificationEvidence`), or, once the registry writers land in this PR, a
+   * `documentKey` before the private evidence bucket exists (RG-Q5,
+   * `document_not_supported_yet`).
    */
   INVALID_EVIDENCE: {
     status: 422,
     message: "The evidence couldn't be accepted.",
-    data: z.object({ reason: z.enum(["site_visit_in_future"]) }),
+    data: z.object({ reason: z.enum(["site_visit_in_future", "document_not_supported_yet"]) }),
   },
 } as const;
 

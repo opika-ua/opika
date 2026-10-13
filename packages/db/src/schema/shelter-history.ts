@@ -5,7 +5,8 @@ import { shelters } from "./shelters";
 
 /**
  * A shelter's append-only history (`ShelterHistoryEntry`, KABINET N14/N23).
- * The operator reads it; the shelter never does.
+ * The operator reads all of it; the shelter reads it too since RG-Q8, through
+ * `shelterFacingHistoryOf` (no evidence, no moderator ids).
  *
  * Five columns, pinned by an exact-field test (HS-Q6, Oleksii): the shelter,
  * when, which kind, the entry, and its id. **No adopter, reveal or swipe data,

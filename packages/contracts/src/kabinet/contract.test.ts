@@ -1,3 +1,4 @@
+import { HistoryActorViewSchema } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { contract } from "../contract";
 import { apiErrors } from "../errors";
@@ -15,6 +16,7 @@ import {
   RegistryShelterRowViewSchema,
   RegistryShelterViewSchema,
   ShelterAdminViewSchema,
+  ShelterHistoryItemViewSchema,
 } from "./views";
 
 type ProcedureInternals = {
@@ -72,6 +74,7 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "shelter.animals.confirm": WRITE,
   "shelter.animals.undoConfirm": WRITE,
   "shelter.animals.deleteDraft": WRITE,
+  "shelter.history.list": READ,
   "registry.shelters.list": REGISTRY,
   "registry.shelters.byId": REGISTRY,
   "registry.shelters.create": REGISTRY,
@@ -118,6 +121,24 @@ describe("access is declared on every procedure (deny-by-default)", () => {
   });
 });
 
+/**
+ * RG-Q12 (Oleksii): the operator's donation decision carries the version it
+ * read, and a stale one is CONFLICT. Pinned at the contract, so neither the
+ * field nor the error can quietly drop off one of the two.
+ */
+describe("registry.donation.* compare-and-set on the version (RG-Q12)", () => {
+  it.each(["registry.donation.approve", "registry.donation.reject"])(
+    "%s requires expectedVersion and declares CONFLICT 409",
+    (path) => {
+      const shelterId = "51000000-0000-4000-8000-000000000001";
+      const input = internals(path).inputSchema;
+      expect(input?.safeParse({ shelterId, expectedVersion: 3 }).success).toBe(true);
+      expect(input?.safeParse({ shelterId }).success).toBe(false);
+      expect(internals(path).errorMap.CONFLICT?.status).toBe(409);
+    },
+  );
+});
+
 describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
   /**
    * S3-Q2: shelter A's member acting on shelter B's animal or shelter is
@@ -147,6 +168,7 @@ describe("kabinet error statuses", () => {
       UNDO_EXPIRED: apiErrors.UNDO_EXPIRED.status,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE.status,
       REGISTRY_CONFIRMED: apiErrors.REGISTRY_CONFIRMED.status,
+      ALREADY_A_MEMBER: apiErrors.ALREADY_A_MEMBER.status,
     }).toEqual({
       FORBIDDEN: 403,
       CONFLICT: 409,
@@ -156,6 +178,7 @@ describe("kabinet error statuses", () => {
       UNDO_EXPIRED: 409,
       INVALID_EVIDENCE: 422,
       REGISTRY_CONFIRMED: 409,
+      ALREADY_A_MEMBER: 409,
     });
   });
 });
@@ -203,6 +226,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "publicLocation",
         "createdAt",
         "lastUpdatedAt",
+        "version",
       ].sort(),
     );
   });
@@ -294,6 +318,7 @@ describe("every shelter-facing output carries exactly its listed keys", () => {
     "shelter.animals.confirm": ["animal", "undoUntil"],
     "shelter.animals.undoConfirm": ANIMAL_VIEW_KEYS,
     "shelter.animals.deleteDraft": [],
+    "shelter.history.list": ["items", "nextCursor"],
   };
 
   it("lists every shelter.* procedure", () => {
@@ -320,6 +345,102 @@ describe("every shelter-facing output carries exactly its listed keys", () => {
       shape: { animal: unknown };
     };
     expect(confirm.shape.animal).toBe(KabinetAnimalViewSchema);
+  });
+});
+
+describe("every shelter-facing history variant carries exactly its listed keys (RG-Q8)", () => {
+  /**
+   * The shelter sees its history with no evidence and no moderator ids. Each
+   * variant's key set is pinned by hand, so a field can't reach the shelter
+   * without an edit here.
+   */
+  const EXPECTED: Record<string, string[]> = {
+    verification: ["kind", "at", "actor", "from", "to", "event", "reason"],
+    contact_changed: ["kind", "at", "actor", "previous", "next"],
+    freshness_sentence_changed: ["kind", "at", "actor", "previous", "next"],
+    description_changed: ["kind", "at", "actor", "previous", "next"],
+    donation_proposed: ["kind", "at", "actor", "link"],
+    donation_proposal_cancelled: ["kind", "at", "actor"],
+    donation_decided: ["kind", "at", "actor", "decision", "link", "previousLive"],
+    verified_data_changed: ["kind", "at", "actor", "change"],
+    shelter_created: ["kind", "at", "actor"],
+    admin_invited: ["kind", "at", "actor", "email"],
+    admin_invitation_resent: ["kind", "at", "actor", "email"],
+    admin_removed: ["kind", "at", "actor", "email", "wasPending"],
+    animals_imported: ["kind", "at", "actor", "count"],
+  };
+  const variants = ShelterHistoryItemViewSchema.options.map(
+    (option) => [option.shape.kind.value, Object.keys(option.shape).sort()] as const,
+  );
+
+  it("has an expected key list for every variant, and no other", () => {
+    expect(variants.map(([kind]) => kind).sort()).toEqual(Object.keys(EXPECTED).sort());
+  });
+
+  it.each(variants)("%s", (kind, keys) => {
+    expect(keys).toEqual([...(EXPECTED[kind] ?? [])].sort());
+  });
+
+  /**
+   * Shapes §2's deep walk: every field name at any depth of the shelter-facing
+   * history, nested reasons, legal entities, addresses and links included. A
+   * field added to any of those schemas that names a moderator, evidence, a
+   * reviewer, a "…By" author or engagement data turns this red.
+   */
+  it("carries no moderator, evidence, reviewer, author or engagement field at any depth", () => {
+    type Def = {
+      type?: string;
+      shape?: Record<string, unknown>;
+      options?: unknown[];
+      [k: string]: unknown;
+    };
+    const names = new Set<string>();
+    const seen = new Set<unknown>();
+    const walk = (schema: unknown) => {
+      if (schema === null || typeof schema !== "object" || seen.has(schema)) return;
+      seen.add(schema);
+      const def = (schema as { _zod?: { def?: Def } })._zod?.def;
+      if (!def) return;
+      if (def.type === "object" && def.shape) {
+        for (const [key, child] of Object.entries(def.shape)) {
+          names.add(key);
+          walk(child);
+        }
+      }
+      for (const key of ["options", "items"]) {
+        const list = def[key];
+        if (Array.isArray(list)) for (const child of list) walk(child);
+      }
+      for (const key of ["innerType", "element", "in", "out", "valueType", "left", "right"]) {
+        if (def[key]) walk(def[key]);
+      }
+    };
+    walk(ShelterHistoryItemViewSchema);
+    // Sanity: the walk reaches nested schemas (a legal entity's field, a link's field).
+    expect(names).toContain("contactPersonName");
+    expect(names).toContain("provider");
+    const words = (name: string) => name.split(/(?=[A-Z])/).map((w) => w.toLowerCase());
+    const STEMS = [
+      "moderator",
+      "evidence",
+      "reviewer",
+      "adopter",
+      "reveal",
+      "swip",
+      "view",
+      "seen",
+    ];
+    const leaking = [...names].filter((name) => {
+      const ws = words(name);
+      return ws.some((w) => STEMS.some((stem) => w.startsWith(stem))) || ws.at(-1) === "by";
+    });
+    expect(leaking).toEqual([]);
+  });
+
+  it("the actor is an operator display name or the shelter, never an id", () => {
+    expect(
+      HistoryActorViewSchema.options.map((option) => Object.keys(option.shape).sort()),
+    ).toEqual([["displayName", "kind"], ["kind"]]);
   });
 });
 

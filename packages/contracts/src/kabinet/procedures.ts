@@ -34,6 +34,7 @@ import {
   RegistryShelterRowViewSchema,
   RegistryShelterViewSchema,
   ShelterAdminViewSchema,
+  ShelterHistoryItemViewSchema,
 } from "./views";
 
 /**
@@ -126,6 +127,25 @@ export const shelterVerificationContract = {
     .errors({ ...shelterScopedErrors, ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION }),
 };
 
+// ─── shelter.history ────────────────────────────────────────────────────────
+
+/**
+ * The shelter's own history (RG-Q8), newest first. Side-effect-free (RS-Q1):
+ * expired-invitation clean-up never runs on this read.
+ */
+export const shelterHistoryContract = {
+  list: kabinet
+    .$meta(shelterRead)
+    .input(z.strictObject({ cursor: KabinetCursorSchema.nullable(), limit: kabinetPageSizeSchema }))
+    .output(
+      z.object({
+        items: z.array(ShelterHistoryItemViewSchema).readonly(),
+        nextCursor: KabinetCursorSchema.nullable(),
+      }),
+    )
+    .errors({ ...shelterScopedErrors, INVALID_CURSOR: apiErrors.INVALID_CURSOR }),
+};
+
 // ─── shelter.animals ────────────────────────────────────────────────────────
 
 /**
@@ -205,12 +225,12 @@ export const shelterAnimalsContract = {
       }),
     )
     .errors(shelterScopedErrors),
-  /** Bumps `lastUpdatedAt` only, never `confirmedAt` (commitment #7). */
+  /** Compare-and-set on `version` (S3-T6); bumps `lastUpdatedAt` and `version`, never `confirmedAt` (commitment #7). */
   update: animalWrite
     .input(
       z.strictObject({
         animalId: AnimalIdSchema,
-        expectedLastUpdatedAt: z.date(),
+        expectedVersion: z.int().nonnegative(),
         patch: AnimalPatchSchema,
       }),
     )
@@ -292,6 +312,8 @@ export const registrySheltersContract = {
       UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
       FORBIDDEN: apiErrors.FORBIDDEN,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE,
+      // Its first admin may already administer another shelter (RG-Q3).
+      ALREADY_A_MEMBER: apiErrors.ALREADY_A_MEMBER,
     }),
   /** The locked fields: legal entity or premises address, one per call, each audited. */
   updateVerifiedData: registryShelter
@@ -366,9 +388,21 @@ export const registryVerificationContract = {
     }),
 };
 
+/**
+ * The operator decides on the proposal they read (RG-Q12, Oleksii): the
+ * version they read travels with the decision, and anything newer (a
+ * re-proposal, a cancellation, any other write) is CONFLICT, the same rule
+ * every S4 form follows.
+ */
+const donationDecision = z.strictObject({ shelterId: ShelterIdSchema, expectedVersion });
+
 export const registryDonationContract = {
-  approve: registryShelter.input(shelterRef).errors(registryErrors),
-  reject: registryShelter.input(shelterRef).errors(registryErrors),
+  approve: registryShelter
+    .input(donationDecision)
+    .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
+  reject: registryShelter
+    .input(donationDecision)
+    .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
 };
 
 const adminRef = z.strictObject({ shelterId: ShelterIdSchema, adminId: ShelterAdminIdSchema });
@@ -378,7 +412,7 @@ export const registryAdminsContract = {
     .$meta(registry)
     .input(z.strictObject({ shelterId: ShelterIdSchema, name: humanName, email: z.email() }))
     .output(ShelterAdminViewSchema)
-    .errors(registryErrors),
+    .errors({ ...registryErrors, ALREADY_A_MEMBER: apiErrors.ALREADY_A_MEMBER }),
   resendInvite: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
   remove: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
 };

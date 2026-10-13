@@ -73,6 +73,37 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
       next: { kind: "unregistered_initiative", contactPersonName: "Олена К." },
     },
   },
+  shelter_created: {
+    kind: "shelter_created",
+    at: new Date("2026-10-09T00:00:00.000Z"),
+    moderatorId: MOD,
+    via: "registry",
+  },
+  admin_invited: {
+    kind: "admin_invited",
+    at: new Date("2026-10-10T00:00:00.000Z"),
+    moderatorId: MOD,
+    email: "olena@example.org",
+  },
+  admin_invitation_resent: {
+    kind: "admin_invitation_resent",
+    at: new Date("2026-10-11T00:00:00.000Z"),
+    moderatorId: MOD,
+    email: "olena@example.org",
+  },
+  admin_removed: {
+    kind: "admin_removed",
+    at: new Date("2026-10-12T00:00:00.000Z"),
+    moderatorId: MOD,
+    email: "olena@example.org",
+    wasPending: false,
+  },
+  animals_imported: {
+    kind: "animals_imported",
+    at: new Date("2026-10-13T00:00:00.000Z"),
+    moderatorId: MOD,
+    count: 3,
+  },
 };
 
 describe("ShelterHistoryEntrySchema", () => {
@@ -107,6 +138,11 @@ describe("historyEntryAt", () => {
         "2026-10-06",
         "2026-10-07",
         "2026-10-08",
+        "2026-10-09",
+        "2026-10-10",
+        "2026-10-11",
+        "2026-10-12",
+        "2026-10-13",
       ],
     );
   });

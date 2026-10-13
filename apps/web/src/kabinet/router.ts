@@ -7,7 +7,9 @@ import {
 import { implement, ORPCError } from "@orpc/server";
 import {
   decodeKabinetAnimalsCursor,
+  decodeKabinetHistoryCursor,
   encodeKabinetAnimalsCursor,
+  encodeKabinetHistoryCursor,
   kabinetAnimalsFingerprint,
 } from "../api/cursor";
 import {
@@ -16,6 +18,7 @@ import {
   type ShelterReadScope,
   type ShelterWriteScope,
 } from "./access";
+import type { KabinetPrincipal } from "./actor";
 import type { KabinetContext } from "./context";
 import {
   animalsById,
@@ -27,6 +30,7 @@ import {
   animalsUndoConfirm,
   animalsUpdate,
 } from "./handlers/animals";
+import { historyList } from "./handlers/history";
 import {
   profileCancelDonationProposal,
   profileGet,
@@ -47,17 +51,24 @@ const base = implement(shelterKabinetContract).$context<KabinetContext>();
  * call it; it receives the scope this hands it, with the `shelterId` taken
  * from the actor, never from input.
  */
-const guarded = base.use(async ({ context, procedure, next }) => {
+export function accessOrThrow(
+  procedure: { "~orpc": { meta: unknown } },
+  principal: KabinetPrincipal,
+): Exclude<AccessDecision, { kind: "deny" }> {
   const meta = procedure["~orpc"].meta as { access?: KabinetAccess | null };
-  const decision = decideAccess(meta.access ?? null, context.principal);
+  const decision = decideAccess(meta.access ?? null, principal);
   if (decision.kind === "deny") {
     throw new ORPCError(decision.code, {
       status: apiErrors[decision.code].status,
       message: apiErrors[decision.code].message,
     });
   }
-  return next({ context: { access: decision } });
-});
+  return decision;
+}
+
+const guarded = base.use(async ({ context, procedure, next }) =>
+  next({ context: { access: accessOrThrow(procedure, context.principal) } }),
+);
 
 /**
  * The scope a handler declared it needs. The contract's access meta and the
@@ -107,6 +118,32 @@ export const shelterKabinetRouter = guarded.router({
       requestReview: guarded.shelter.verification.requestReview.handler(({ context, errors }) =>
         verificationRequestReview(context, writeScope(context.access), errors),
       ),
+    },
+    history: {
+      list: guarded.shelter.history.list.handler(({ context, input, errors }) => {
+        const scope = readScope(context.access);
+        let after: { at: Date; id: string } | null = null;
+        if (input.cursor !== null) {
+          const decoded = decodeKabinetHistoryCursor(
+            input.cursor,
+            scope.shelterId,
+            context.cursorSecret,
+          );
+          if (decoded === null) throw errors.INVALID_CURSOR();
+          after = decoded.data;
+        }
+        return historyList(
+          context,
+          scope,
+          { after, limit: input.limit },
+          (position) =>
+            encodeKabinetHistoryCursor(
+              position,
+              scope.shelterId,
+              context.cursorSecret,
+            ) as KabinetCursor,
+        );
+      }),
     },
     animals: {
       list: guarded.shelter.animals.list.handler(({ context, input, errors }) => {

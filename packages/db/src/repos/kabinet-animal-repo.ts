@@ -50,9 +50,9 @@ function isForeignKeyViolation(error: unknown): boolean {
  * `shelterId`; every list here is scoped to one shelter by construction.
  *
  * Two kinds of write, on disjoint columns (HS-T8):
- * - **Edits** (`writeEditIf`) compare-and-set on `last_updated_at`, the value
- *   the form read. Safe while only application code writes the column, at the
- *   millisecond precision a JS `Date` round-trips (inbox S3-T6).
+ * - **Edits** (`writeEditIf`) compare-and-set on the integer `version` the form
+ *   read, and bump it (S3-T6, Oleksii: timestamps rejected on precision, JS ms
+ *   vs Postgres µs).
  * - **Listing moves** (`writeListingIf`) compare-and-set on the listing itself
  *   (jsonb equality with the value the request read) and never touch
  *   `last_updated_at`.
@@ -77,8 +77,9 @@ export function kabinetAnimalRepo(db: Database) {
     },
 
     /**
-     * A K3 form save: the edited fields and `last_updated_at`, nothing else,
-     * compare-and-set on the `last_updated_at` the form read. It never writes
+     * A K3 form save: the edited fields, `last_updated_at` and a bumped
+     * `version`, nothing else, compare-and-set on the `version` the form read
+     * (S3-T6, RG-Q7). It never writes
      * the listing, so a «Ще шукає» landing while the form is open is neither
      * overwritten nor a conflict (HS-T8, Oleksii: edits and confirmations are
      * separate facts, written to disjoint fields).
@@ -86,7 +87,7 @@ export function kabinetAnimalRepo(db: Database) {
     async writeEditIf(
       animal: Animal,
       cityId: CityId,
-      expectedLastUpdatedAt: Date,
+      expectedVersion: number,
     ): Promise<ConditionalWrite> {
       const row = animalToRowWithCity(animal, cityId);
       const updated = await db
@@ -104,8 +105,9 @@ export function kabinetAnimalRepo(db: Database) {
           vaccination: row.vaccination,
           spayNeuter: row.spayNeuter,
           lastUpdatedAt: row.lastUpdatedAt,
+          version: sql`${animals.version} + 1`,
         })
-        .where(and(eq(animals.id, animal.id), eq(animals.lastUpdatedAt, expectedLastUpdatedAt)))
+        .where(and(eq(animals.id, animal.id), eq(animals.version, expectedVersion)))
         .returning({ id: animals.id });
       return updated.length === 1 ? { kind: "ok" } : { kind: "conflict" };
     },
@@ -154,7 +156,7 @@ export function kabinetAnimalRepo(db: Database) {
      * once-public listing is withdrawn, never deleted. `not_deleted` says only
      * that one of those conditions failed; the caller re-reads to say which.
      */
-    async deleteDraftIf(id: AnimalId, expectedLastUpdatedAt: Date): Promise<DraftDelete> {
+    async deleteDraftIf(id: AnimalId, expectedVersion: number): Promise<DraftDelete> {
       try {
         const deleted = await db
           .delete(animals)
@@ -163,7 +165,7 @@ export function kabinetAnimalRepo(db: Database) {
               eq(animals.id, id),
               eq(animals.listingKind, "draft"),
               isNull(animals.firstPublishedAt),
-              eq(animals.lastUpdatedAt, expectedLastUpdatedAt),
+              eq(animals.version, expectedVersion),
             ),
           )
           .returning({ id: animals.id });

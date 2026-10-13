@@ -1,5 +1,5 @@
 import type { Database } from "@opika/db";
-import { kabinetActorRepo } from "@opika/db/repos";
+import { kabinetActorRepo, kabinetInvitedUsersRepo } from "@opika/db/repos";
 import {
   authAccount,
   authInvitation,
@@ -130,6 +130,23 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
     account: { modelName: "auth_account" },
     verification: { modelName: "auth_verification" },
     emailAndPassword: { enabled: false },
+    databaseHooks: {
+      session: {
+        create: {
+          /**
+           * The first sign-in of a user an invitation created (RG-Q3, RS-Q0):
+           * stamped once, and from then on the clean-up never deletes them.
+           * A no-op for every other user.
+           */
+          after: async (session) => {
+            await kabinetInvitedUsersRepo(deps.db).markFirstSession(
+              session.userId,
+              (deps.now ?? (() => new Date()))(),
+            );
+          },
+        },
+      },
+    },
     hooks: {
       // Runs before any plugin's own before-hooks. A plugin that rewrites the
       // `cookie` header (a bearer plugin, say) would inject the session after
