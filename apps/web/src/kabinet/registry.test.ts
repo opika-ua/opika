@@ -745,6 +745,41 @@ describe("registry.admins.*", () => {
     expect(operator.body.data).toEqual({ reason: "operator" });
   });
 
+  /**
+   * Review of ee847a2, finding 1: invited to A, A's invitation expires, she is
+   * invited to B (allowed: A's is dead), then the operator resends A's. A
+   * resend revives it, so it is refused, and she keeps exactly one live
+   * invitation, B's.
+   */
+  it("refuses to resend an invitation whose address has since been invited elsewhere", async () => {
+    const a = await shelter();
+    const b = await shelter();
+    const invited = await call<{ id: string }>("registry.admins.invite", {
+      shelterId: a.id,
+      name: "Олена",
+      email: "olena@example.org",
+    });
+    expect(invited.status).toBe(200);
+    const later = new Date(NOW.getTime() + 73 * 60 * 60 * 1000);
+    const elsewhere = await call(
+      "registry.admins.invite",
+      { shelterId: b.id, name: "Олена", email: "olena@example.org" },
+      { now: later },
+    );
+    expect(elsewhere.status).toBe(200);
+    const resent = await call<{ data: unknown }>(
+      "registry.admins.resendInvite",
+      { shelterId: a.id, adminId: invited.body.id },
+      { now: later },
+    );
+    expect(resent.status).toBe(409);
+    expect(resent.body.data).toEqual({ reason: "invited_elsewhere" });
+    const live = (await db.select().from(authInvitation)).filter(
+      (row) => row.status === "pending" && row.expiresAt > later,
+    );
+    expect(live).toHaveLength(1);
+  });
+
   it("resends a pending invitation for the full window, and NOT_FOUND for a member", async () => {
     const s = await shelter();
     const invited = await call<{ id: string }>("registry.admins.invite", {

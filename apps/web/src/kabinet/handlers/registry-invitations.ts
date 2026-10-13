@@ -206,7 +206,7 @@ export async function registryAdminsResendInvite(
   deps: RegistryDeps,
   moderatorId: ModeratorId,
   input: { shelterId: ShelterId; adminId: ShelterAdminId },
-  errors: E<"NOT_FOUND">,
+  errors: E<"NOT_FOUND" | "ADDRESS_HAS_A_ROLE">,
 ): Promise<Record<string, never>> {
   await loadShelterOr404(deps, input.shelterId, errors);
   const organizationId = await organizationOf(deps, input.shelterId);
@@ -224,7 +224,12 @@ export async function registryAdminsResendInvite(
           shelterId: input.shelterId,
           entry: { kind: "admin_invitation_resent", at: deps.now, moderatorId, email: admin.email },
         });
-  if (resent === null) throw errors.NOT_FOUND();
+  // The role check lives in the repo's resend, at the write (every path
+  // that makes an invitation live again checks it, Oleksii 2026-10-13).
+  if (resent === null || resent.kind === "not_pending") throw errors.NOT_FOUND();
+  if (resent.kind === "address_has_a_role") {
+    throw errors.ADDRESS_HAS_A_ROLE({ data: { reason: resent.reason } });
+  }
   return {};
 }
 
