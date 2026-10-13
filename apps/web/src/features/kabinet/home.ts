@@ -1,14 +1,16 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { cityRepo } from "@opika/db/repos";
 import type { CityId } from "@opika/domain";
-import { decideAccess } from "../../kabinet/access";
+import { createRouterClient, ORPCError } from "@orpc/server";
 import type { KabinetPrincipal } from "../../kabinet/actor";
-import { type ProfileDeps, profileGet } from "../../kabinet/handlers/profile";
+import type { KabinetContext } from "../../kabinet/context";
+import { shelterKabinetRouter } from "../../kabinet/router";
 
 /**
- * What `/kabinet` shows to whom (KS-Q1, Oleksii: "A"). Decided by the same
- * access matrix the API applies to `shelter.profile.get` (`decideAccess` with
- * a shelter read), so the page can never show more than the procedure would:
+ * What `/kabinet` shows to whom (KS-Q1, Oleksii: "A"). The page calls the
+ * served procedure in-process, so the router's own access middleware decides
+ * and `KabinetShelterViewSchema`'s output parse strips (review of #93,
+ * finding 2): the page can never show more than `shelter.profile.get` returns.
  *
  * - no session: the sign-in page;
  * - a shelter admin: their own shelter;
@@ -29,16 +31,41 @@ export type KabinetHome =
       viewer: "admin" | "support";
     };
 
+export type KabinetHomeDeps = Pick<KabinetContext, "db" | "now" | "newId">;
+
+/**
+ * Only `shelter.profile.get`, picked, never the whole router: a page render
+ * can't write a cookie, so a procedure that queues one (support entry or
+ * exit) must not be reachable from here, the same rule as
+ * `api/server-client.ts`. That procedure reads none of the context fields
+ * given inert values below.
+ */
+const homeRouter = { shelter: { profile: { get: shelterKabinetRouter.shelter.profile.get } } };
+
 export async function kabinetHomeOf(
   principal: KabinetPrincipal,
-  deps: ProfileDeps,
+  deps: KabinetHomeDeps,
 ): Promise<KabinetHome> {
-  const access = decideAccess({ surface: "shelter", mode: "read" }, principal);
-  if (access.kind === "deny") {
-    return access.code === "UNAUTHENTICATED" ? { kind: "sign_in" } : { kind: "not_found" };
+  const client = createRouterClient(homeRouter, {
+    context: (): KabinetContext => ({
+      ...deps,
+      principal,
+      cursorSecret: "",
+      operatorDisplayName: "",
+      locationPolicy: null,
+      setCookies: [],
+      cookieHeader: null,
+      production: false,
+    }),
+  });
+  let view: KabinetShelterView;
+  try {
+    view = await client.shelter.profile.get({});
+  } catch (error) {
+    if (error instanceof ORPCError && error.code === "UNAUTHENTICATED") return { kind: "sign_in" };
+    if (error instanceof ORPCError && error.code === "FORBIDDEN") return { kind: "not_found" };
+    throw error;
   }
-  if (access.kind !== "allow_shelter_read") return { kind: "not_found" };
-  const view = await profileGet(deps, access.scope);
   // A city is public data (it names the card's location), not something the
   // shelter view withholds; the view carries only its id.
   const city = await cityRepo(deps.db).findById(view.exactAddress.cityId as CityId);
@@ -46,7 +73,7 @@ export async function kabinetHomeOf(
     kind: "shelter",
     view,
     cityName: city?.name.uk ?? null,
-    viewer: access.scope.kind === "support_view" ? "support" : "admin",
+    viewer: principal.kind === "support_view" ? "support" : "admin",
   };
 }
 

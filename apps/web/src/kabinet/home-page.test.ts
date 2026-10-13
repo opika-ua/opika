@@ -6,8 +6,8 @@ import { kabinetHomeOf, leavesSignIn } from "../features/kabinet/home";
 import type { KabinetPrincipal } from "./actor";
 
 /**
- * Who sees what at `/kabinet` (KS-Q1): decided by the API's own access matrix
- * for a shelter read, against a real database.
+ * Who sees what at `/kabinet` (KS-Q1): decided by the served procedure's own
+ * access middleware and output schema, against a real database.
  */
 
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
@@ -99,6 +99,28 @@ describe("kabinetHomeOf", () => {
       "verification",
       "version",
     ]);
+  });
+
+  it("never carries a nested field the view schema doesn't declare", async () => {
+    // A stored jsonb value can hold more than its type says (an older shape, a
+    // hand-edited row). The repository passes it through untouched; the
+    // procedure's output parse is what strips it, and the page sees only that.
+    const odd = makeShelter({
+      publicLocation: mine.publicLocation,
+      contact: { ...mine.contact, internalNote: "operator-only" } as Shelter["contact"],
+    });
+    await shelterRepo(db).insert(odd);
+    const home = await kabinetHomeOf(
+      {
+        kind: "shelter_admin",
+        shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
+        shelterId: odd.id,
+      },
+      deps(),
+    );
+    if (home.kind !== "shelter") throw new Error("unreachable");
+    expect(home.view.contact).toEqual(mine.contact);
+    expect(JSON.stringify(home)).not.toContain("operator-only");
   });
 });
 
