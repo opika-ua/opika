@@ -7,7 +7,9 @@ import {
 import { implement, ORPCError } from "@orpc/server";
 import {
   decodeKabinetAnimalsCursor,
+  decodeKabinetHistoryCursor,
   encodeKabinetAnimalsCursor,
+  encodeKabinetHistoryCursor,
   kabinetAnimalsFingerprint,
 } from "../api/cursor";
 import {
@@ -27,6 +29,7 @@ import {
   animalsUndoConfirm,
   animalsUpdate,
 } from "./handlers/animals";
+import { historyList } from "./handlers/history";
 import {
   profileCancelDonationProposal,
   profileGet,
@@ -107,6 +110,32 @@ export const shelterKabinetRouter = guarded.router({
       requestReview: guarded.shelter.verification.requestReview.handler(({ context, errors }) =>
         verificationRequestReview(context, writeScope(context.access), errors),
       ),
+    },
+    history: {
+      list: guarded.shelter.history.list.handler(({ context, input, errors }) => {
+        const scope = readScope(context.access);
+        let after: { at: Date; id: string } | null = null;
+        if (input.cursor !== null) {
+          const decoded = decodeKabinetHistoryCursor(
+            input.cursor,
+            scope.shelterId,
+            context.cursorSecret,
+          );
+          if (decoded === null) throw errors.INVALID_CURSOR();
+          after = decoded.data;
+        }
+        return historyList(
+          context,
+          scope,
+          { after, limit: input.limit },
+          (position) =>
+            encodeKabinetHistoryCursor(
+              position,
+              scope.shelterId,
+              context.cursorSecret,
+            ) as KabinetCursor,
+        );
+      }),
     },
     animals: {
       list: guarded.shelter.animals.list.handler(({ context, input, errors }) => {

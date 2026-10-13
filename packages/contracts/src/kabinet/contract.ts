@@ -7,6 +7,7 @@ import {
   registrySupportContract,
   registryVerificationContract,
   shelterAnimalsContract,
+  shelterHistoryContract,
   shelterProfileContract,
   shelterVerificationContract,
 } from "./procedures";
@@ -25,6 +26,7 @@ export const shelterKabinetContract = {
     profile: shelterProfileContract,
     verification: shelterVerificationContract,
     animals: shelterAnimalsContract,
+    history: shelterHistoryContract,
   },
 } as const;
 

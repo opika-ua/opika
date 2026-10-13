@@ -99,6 +99,7 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
     ip: "203.0.113.1",
     now: new Date(),
     newId: () => crypto.randomUUID(),
+    operatorDisplayName: "Олексій",
   });
   const text = await response.text();
   return { status: response.status, body: text ? fromRpcBody(JSON.parse(text)) : null };
@@ -178,6 +179,7 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
     ["shelter.profile.resume", () => smuggle({})],
     ["shelter.verification.requestReview", () => smuggle({})],
     ["shelter.animals.list", () => smuggle({ listing: null, cursor: null, limit: 50 })],
+    ["shelter.history.list", () => smuggle({ cursor: null, limit: 50 })],
     [
       "shelter.animals.createDraft",
       () =>
@@ -229,6 +231,31 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
   });
 });
 
+describe("cross-tenant: history", () => {
+  /** B has history; A's own read must show none of it (RG-Q8's new read, S3-Q2's rule). */
+  it("A's history read never returns B's entries", async () => {
+    const written = await kabinetShelterRepo(db).applyAudited({
+      shelterId: shelterB.id,
+      expectedVersion: 0,
+      change: { kind: "freshness_sentence", freshnessSentence: { uk: "Тільки Б", en: null } },
+      entry: {
+        kind: "freshness_sentence_changed",
+        at: new Date(),
+        actor: { kind: "moderator", moderatorId: "11111111-1111-4111-8111-111111111111" as never },
+        previous: null,
+        next: { uk: "Тільки Б", en: null },
+      },
+      historyId: crypto.randomUUID(),
+      now: new Date(),
+    });
+    expect(written.kind).toBe("ok");
+    const result = await call("shelter.history.list", { cursor: null, limit: 50 });
+    expect(result.status).toBe(200);
+    expect((result.body as { items: unknown[] }).items).toEqual([]);
+    expect(JSON.stringify(result.body)).not.toContain("Тільки Б");
+  });
+});
+
 describe("coverage", () => {
   it("covers every shelter.* procedure in the contract, exactly once", () => {
     const pathsOf = (node: object, prefix: string): string[] =>
@@ -255,8 +282,9 @@ describe("coverage", () => {
       "shelter.verification.requestReview",
       "shelter.animals.list",
       "shelter.animals.createDraft",
+      "shelter.history.list",
     ];
-    expect(new Set(covered).size).toBe(16);
+    expect(new Set(covered).size).toBe(17);
     expect([...covered].sort()).toEqual(pathsOf(shelterKabinetContract.shelter, "shelter").sort());
   });
 });

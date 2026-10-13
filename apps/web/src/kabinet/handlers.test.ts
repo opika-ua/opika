@@ -92,6 +92,7 @@ async function call<T = Record<string, unknown>>(
     }),
     now: opts.now ?? new Date(),
     newId: () => crypto.randomUUID(),
+    operatorDisplayName: "Олексій",
   });
   const text = await response.text();
   return { status: response.status, body: parsed(text) as T };
@@ -758,5 +759,61 @@ describe("no listing move touches last_updated_at (HS-T9)", () => {
     expect(after.lastUpdatedAt).toEqual(EDITED);
     // The undo really happened: the stored confirmation is back where it was.
     expect(after.listing).toMatchObject({ kind: "published", confirmedAt: PUBLISHED });
+  });
+});
+
+describe("shelter.history.list (RG-Q8)", () => {
+  const MOD = "11111111-1111-4111-8111-111111111111";
+
+  it("shows the shelter its own history: operator by display name, no ids, newest first, paged", async () => {
+    const repo = kabinetShelterRepo(db);
+    // The operator's change, then the shelter's own: the newer one must come first.
+    expect(
+      (
+        await repo.applyAudited({
+          shelterId: shelter.id,
+          expectedVersion: 0,
+          change: { kind: "freshness_sentence", freshnessSentence: { uk: "Щосуботи", en: null } },
+          entry: {
+            kind: "freshness_sentence_changed",
+            at: new Date("2026-10-01T00:00:00.000Z"),
+            actor: { kind: "moderator", moderatorId: MOD as never },
+            previous: null,
+            next: { uk: "Щосуботи", en: null },
+          },
+          historyId: "h1",
+          now: new Date("2026-10-01T00:00:00.000Z"),
+        })
+      ).kind,
+    ).toBe("ok");
+    const contact = { primary: { kind: "telegram", handle: "lapa_shelter" }, additional: [] };
+    expect(
+      (await call("shelter.profile.updateContact", { contact, expectedVersion: 1 })).status,
+    ).toBe(200);
+
+    const first = await call<{
+      items: { kind: string; actor: unknown }[];
+      nextCursor: string | null;
+    }>("shelter.history.list", { cursor: null, limit: 1 });
+    expect(first.status).toBe(200);
+    expect(first.body.items).toHaveLength(1);
+    expect(first.body.items[0]).toMatchObject({
+      kind: "contact_changed",
+      actor: { kind: "shelter" },
+    });
+    expect(first.body.nextCursor).not.toBeNull();
+
+    const second = await call<{
+      items: { kind: string; actor: unknown }[];
+      nextCursor: string | null;
+    }>("shelter.history.list", { cursor: first.body.nextCursor, limit: 1 });
+    expect(second.body.items[0]).toMatchObject({
+      kind: "freshness_sentence_changed",
+      actor: { kind: "operator", displayName: "Олексій" },
+    });
+    expect(second.body.nextCursor).toBeNull();
+    const json = JSON.stringify([first.body, second.body]);
+    expect(json).not.toContain(MOD);
+    expect(json).not.toContain(ADMIN);
   });
 });

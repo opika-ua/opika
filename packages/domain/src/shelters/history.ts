@@ -26,7 +26,8 @@ import { VerificationStatusSchema } from "./verification/state";
  * these call sites. A new auditable field is a new variant, and the compiler
  * then finds every renderer.
  *
- * Who sees it: the operator, all of it. The shelter, none of it. K5 shows a
+ * Who sees it: the operator, all of it. The shelter sees it too since RG-Q8,
+ * through `shelterFacingHistoryOf`: no evidence, no moderator ids. K5 shows a
  * rejection from the current verification state, not from here.
  *
  * Only the shape lives here. Its table ships with its first writer (the
@@ -104,6 +105,51 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
       }),
     ]),
   }),
+  /**
+   * The shelter came into being, created by the operator through the
+   * registry (S2) or entered by a script on the shelter's behalf (RG-Q8).
+   */
+  z.object({
+    kind: z.literal("shelter_created"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    via: z.enum(["registry", "script"]),
+  }),
+  /** The operator invited an admin (registry.admins.invite). */
+  z.object({
+    kind: z.literal("admin_invited"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    email: z.email(),
+  }),
+  z.object({
+    kind: z.literal("admin_invitation_resent"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    email: z.email(),
+  }),
+  /**
+   * An admin removed, or a pending invitation withdrawn (RG-Q6, RG-Q3).
+   * Removing the last admin is allowed, and recorded like any other.
+   */
+  z.object({
+    kind: z.literal("admin_removed"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    email: z.email(),
+    wasPending: z.boolean(),
+  }),
+  /**
+   * A script entered new animals on the shelter's behalf (RG-Q8, RS-Q0). One
+   * entry per batch, with a count: no script edits an existing animal, and
+   * one that ever does records per-animal entries instead.
+   */
+  z.object({
+    kind: z.literal("animals_imported"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    count: z.int().positive(),
+  }),
 ]);
 export type ShelterHistoryEntry = z.infer<typeof ShelterHistoryEntrySchema>;
 export type ShelterHistoryKind = ShelterHistoryEntry["kind"];
@@ -120,6 +166,11 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "donation_proposal_cancelled":
     case "donation_decided":
     case "verified_data_changed":
+    case "shelter_created":
+    case "admin_invited":
+    case "admin_invitation_resent":
+    case "admin_removed":
+    case "animals_imported":
       return entry.at;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {

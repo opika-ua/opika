@@ -7,7 +7,7 @@ import {
   type ShelterId,
   type ShelterVerification,
 } from "@opika/domain";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
@@ -98,6 +98,38 @@ export function kabinetShelterRepo(db: Database) {
         )
         .returning({ id: shelterHistory.id });
       return inserted.length === 1 ? { kind: "ok" } : { kind: "conflict" };
+    },
+
+    /**
+     * One page of a shelter's history, newest first, keyset on `(at DESC, id
+     * DESC)` (never OFFSET). Reads only: RS-Q1 keeps the shelter's history
+     * read side-effect-free.
+     */
+    async historyPage(input: {
+      shelterId: ShelterId;
+      after: { at: Date; id: string } | null;
+      limit: number;
+    }): Promise<{ items: ShelterHistoryEntry[]; next: { at: Date; id: string } | null }> {
+      const conditions = [eq(shelterHistory.shelterId, input.shelterId)];
+      if (input.after !== null) {
+        const keyset = or(
+          lt(shelterHistory.at, input.after.at),
+          and(eq(shelterHistory.at, input.after.at), lt(shelterHistory.id, input.after.id)),
+        );
+        if (keyset) conditions.push(keyset);
+      }
+      const rows = await db
+        .select({ id: shelterHistory.id, at: shelterHistory.at, entry: shelterHistory.entry })
+        .from(shelterHistory)
+        .where(and(...conditions))
+        .orderBy(desc(shelterHistory.at), desc(shelterHistory.id))
+        .limit(input.limit + 1);
+      const page = rows.slice(0, input.limit);
+      const last = page.at(-1);
+      return {
+        items: page.map((row) => row.entry),
+        next: rows.length > input.limit && last ? { at: last.at, id: last.id } : null,
+      };
     },
 
     /** The history, newest first, for tests now and `registry.history.list` later. */

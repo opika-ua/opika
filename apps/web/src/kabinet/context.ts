@@ -13,4 +13,6 @@ export type KabinetContext = {
   principal: KabinetPrincipal;
   /** `CURSOR_HMAC_SECRET`, injected rather than read in a handler. */
   cursorSecret: string;
+  /** The history actor label for the operator (`operatorDisplayName`, RS-Q2). */
+  operatorDisplayName: string;
 };

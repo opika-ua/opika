@@ -34,6 +34,7 @@ import {
   RegistryShelterRowViewSchema,
   RegistryShelterViewSchema,
   ShelterAdminViewSchema,
+  ShelterHistoryItemViewSchema,
 } from "./views";
 
 /**
@@ -124,6 +125,25 @@ export const shelterVerificationContract = {
   requestReview: shelterProfileWrite
     .input(empty)
     .errors({ ...shelterScopedErrors, ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION }),
+};
+
+// ─── shelter.history ────────────────────────────────────────────────────────
+
+/**
+ * The shelter's own history (RG-Q8), newest first. Side-effect-free (RS-Q1):
+ * expired-invitation clean-up never runs on this read.
+ */
+export const shelterHistoryContract = {
+  list: kabinet
+    .$meta(shelterRead)
+    .input(z.strictObject({ cursor: KabinetCursorSchema.nullable(), limit: kabinetPageSizeSchema }))
+    .output(
+      z.object({
+        items: z.array(ShelterHistoryItemViewSchema).readonly(),
+        nextCursor: KabinetCursorSchema.nullable(),
+      }),
+    )
+    .errors({ ...shelterScopedErrors, INVALID_CURSOR: apiErrors.INVALID_CURSOR }),
 };
 
 // ─── shelter.animals ────────────────────────────────────────────────────────
@@ -292,6 +312,8 @@ export const registrySheltersContract = {
       UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
       FORBIDDEN: apiErrors.FORBIDDEN,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE,
+      // Its first admin may already administer another shelter (RG-Q3).
+      ALREADY_A_MEMBER: apiErrors.ALREADY_A_MEMBER,
     }),
   /** The locked fields: legal entity or premises address, one per call, each audited. */
   updateVerifiedData: registryShelter
@@ -378,7 +400,7 @@ export const registryAdminsContract = {
     .$meta(registry)
     .input(z.strictObject({ shelterId: ShelterIdSchema, name: humanName, email: z.email() }))
     .output(ShelterAdminViewSchema)
-    .errors(registryErrors),
+    .errors({ ...registryErrors, ALREADY_A_MEMBER: apiErrors.ALREADY_A_MEMBER }),
   resendInvite: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
   remove: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
 };

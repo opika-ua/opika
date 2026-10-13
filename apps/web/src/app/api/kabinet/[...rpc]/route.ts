@@ -2,6 +2,7 @@ import { clientIp } from "../../../../api/client-ip";
 import { getDb } from "../../../../api/db";
 import { requireEnv } from "../../../../api/env";
 import { kabinetAuthAvailability } from "../../../../kabinet/auth-route";
+import { operatorDisplayName } from "../../../../kabinet/operator";
 import { kabinetIdentityOf } from "../../../../kabinet/principal";
 import { handleKabinetRpc } from "../../../../kabinet/rpc-route";
 import { kabinetAuth, kabinetLimiters } from "../../../../kabinet/runtime";
@@ -19,6 +20,9 @@ async function handle(request: Request): Promise<Response> {
     ip: clientIp(request),
     now,
     newId: () => crypto.randomUUID(),
+    operatorDisplayName: operatorDisplayName({
+      KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,
+    }),
   });
 }
 

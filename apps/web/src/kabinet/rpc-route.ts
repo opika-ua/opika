@@ -48,6 +48,7 @@ export async function handleKabinetRpc(
     ip: string;
     now: Date;
     newId: () => string;
+    operatorDisplayName: string;
   },
 ): Promise<Response> {
   if (!(await deps.limiters.perIp.check(`ip:${deps.ip}`, deps.now))) return tooMany();
@@ -60,7 +61,14 @@ export async function handleKabinetRpc(
   }
   const result = await handler.handle(request, {
     prefix: KABINET_RPC_PREFIX,
-    context: { db, now: deps.now, newId: deps.newId, principal, cursorSecret },
+    context: {
+      db,
+      now: deps.now,
+      newId: deps.newId,
+      principal,
+      cursorSecret,
+      operatorDisplayName: deps.operatorDisplayName,
+    },
   });
   return result.matched ? result.response : new Response("Not Found", { status: 404 });
 }

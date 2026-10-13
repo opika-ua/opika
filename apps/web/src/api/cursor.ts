@@ -24,7 +24,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * - Reusing a cursor after changing filters (fingerprint mismatch)
  */
 type CursorPayload = {
-  kind: "feed" | "reveal" | "kabinet_animals";
+  kind: "feed" | "reveal" | "kabinet_animals" | "kabinet_history";
   filtersFingerprint: string;
   at: string;
   id: string;
@@ -176,4 +176,21 @@ export function decodeKabinetAnimalsCursor(
   secret: string,
 ): { data: CursorPosition } | null {
   return decodeCursor(cursor, "kabinet_animals", expectedFingerprint, secret);
+}
+
+/** The shelter's own history (RG-Q8), bound to the shelter like the animal list. */
+export function encodeKabinetHistoryCursor(
+  data: CursorPosition,
+  shelterId: string,
+  secret: string,
+): string {
+  return encodeCursorWithFingerprint("kabinet_history", data, shelterId, secret);
+}
+
+export function decodeKabinetHistoryCursor(
+  cursor: string,
+  shelterId: string,
+  secret: string,
+): { data: CursorPosition } | null {
+  return decodeCursor(cursor, "kabinet_history", shelterId, secret);
 }

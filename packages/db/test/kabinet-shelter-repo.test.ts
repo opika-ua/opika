@@ -149,3 +149,35 @@ describe("kabinetShelterRepo.applyAudited", () => {
     expect(row?.verificationStatus).toBe("paused");
   });
 });
+
+describe("kabinetShelterRepo.historyPage", () => {
+  /** A script batch writes several entries at one instant: the id breaks the tie, newest id first. */
+  it("orders entries at the same instant by id, and pages across them without loss", async () => {
+    const s = await shelter();
+    const repo = kabinetShelterRepo(db);
+    const at = new Date("2026-10-13T12:00:00.000Z");
+    for (const [i, historyId] of ["h-a", "h-b", "h-c"].entries()) {
+      const result = await repo.applyAudited({
+        shelterId: s.id,
+        expectedVersion: i,
+        change: { kind: "freshness_sentence", freshnessSentence: { uk: historyId, en: null } },
+        entry: {
+          kind: "freshness_sentence_changed",
+          at,
+          actor: ADMIN,
+          previous: null,
+          next: { uk: historyId, en: null },
+        },
+        historyId,
+        now: at,
+      });
+      expect(result.kind).toBe("ok");
+    }
+    const sentence = (e: { kind: string }) => (e as unknown as { next: { uk: string } }).next.uk;
+    const first = await repo.historyPage({ shelterId: s.id, after: null, limit: 2 });
+    expect(first.items.map(sentence)).toEqual(["h-c", "h-b"]);
+    const second = await repo.historyPage({ shelterId: s.id, after: first.next, limit: 2 });
+    expect(second.items.map(sentence)).toEqual(["h-a"]);
+    expect(second.next).toBeNull();
+  });
+});
