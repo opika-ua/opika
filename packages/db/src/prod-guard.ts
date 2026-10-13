@@ -42,7 +42,12 @@ export type ProductionWriteCheck =
   | { kind: "allowed"; reason: "local" | "not_production" | "production_flagged" }
   | {
       kind: "refused";
-      reason: "production_without_flag" | "production_unknown" | "unparseable" | "misconfigured";
+      reason:
+        | "production_without_flag"
+        | "production_unknown"
+        | "unparseable"
+        | "ambiguous_host"
+        | "misconfigured";
     };
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
@@ -77,6 +82,7 @@ export type DatabaseTarget =
   | { kind: "neon"; endpoint: string; host: string }
   | { kind: "local"; host: string; port: string; database: string }
   | { kind: "remote"; host: string }
+  | { kind: "ambiguous_host" }
   | { kind: "unparseable" };
 
 /**
@@ -93,7 +99,7 @@ export function databaseTargetOf(url: string): DatabaseTarget {
   // A comma lists several hosts (postgres-js tries them in turn) and an empty
   // host falls back to PGHOST or localhost: either way the line couldn't
   // name the database honestly, and it exists to be proof (review, finding 2).
-  if (parsed.hostname === "" || parsed.hostname.includes(",")) return { kind: "unparseable" };
+  if (parsed.hostname === "" || parsed.hostname.includes(",")) return { kind: "ambiguous_host" };
   // `postgres:` isn't a WHATWG special scheme, so `URL` keeps the host's case;
   // the trailing dot is the same host written fully qualified.
   const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
@@ -123,6 +129,8 @@ export function databaseTargetLine(url: string): string {
       return `Target: local (${target.host}:${target.port}/${target.database || "<default database>"})`;
     case "remote":
       return `Target: remote host ${target.host} (not a Neon endpoint)`;
+    case "ambiguous_host":
+      return "Target: DATABASE_URL names several hosts or none, so it can't be named (not printing it).";
     case "unparseable":
       return "Target: DATABASE_URL could not be parsed (not printing it).";
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
@@ -148,7 +156,7 @@ export function checkProductionWrite(
   // PGHOST or localhost: neither can be shown not to be production
   // (review of 9ce9bc1, finding 1). Same rule as `databaseTargetOf`.
   if (target.hostname === "" || target.hostname.includes(",")) {
-    return { kind: "refused", reason: "unparseable" };
+    return { kind: "refused", reason: "ambiguous_host" };
   }
   // Exact hostname match, never a substring test: a URL merely *containing*
   // "localhost" (in a password, a query string) must not pass as local.
@@ -228,6 +236,8 @@ export function assertProductionWriteAllowed(
       `non-local target can't be shown not to be production. Set it, or pass ${PROD_FLAG} if ` +
       "you mean production.",
     unparseable: "ERROR: a database URL could not be parsed. Refusing (not printing it).",
+    ambiguous_host:
+      "ERROR: the database URL names several hosts or none; only one host can be checked against production. Refusing (not printing it).",
     misconfigured:
       `ERROR: ${PROD_ENDPOINT_ENV} doesn't look like a Neon endpoint id (ep-…). Refusing ` +
       "(not printing it).",

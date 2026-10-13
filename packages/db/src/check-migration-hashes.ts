@@ -88,7 +88,10 @@ async function main(): Promise<void> {
   // First, before connecting: a pasted report proves which database it came
   // from only if the target is part of it (Oleksii, 2026-10-13).
   console.log(databaseTargetLine(url));
-  if (databaseTargetOf(url).kind === "unparseable") process.exit(1);
+  // Nothing to check against if the target can't be named: a bad URL, or a
+  // host list / empty host that could reach any of several databases.
+  const kind = databaseTargetOf(url).kind;
+  if (kind === "unparseable" || kind === "ambiguous_host") process.exit(1);
   const db = createDatabase(url);
   const result = await db.execute(sql`SELECT hash, created_at FROM drizzle.__drizzle_migrations`);
   // postgres-js returns an array, neon-http `{ rows }` (standing constraints, R1).

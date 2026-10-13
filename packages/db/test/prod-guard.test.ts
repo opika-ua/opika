@@ -95,11 +95,11 @@ describe("checkProductionWrite edge cases", () => {
     ]) {
       expect(checkProductionWrite(url, [], PROD_ENDPOINT)).toEqual({
         kind: "refused",
-        reason: "unparseable",
+        reason: "ambiguous_host",
       });
       expect(checkProductionWrite(url, ["--prod"], PROD_ENDPOINT)).toEqual({
         kind: "refused",
-        reason: "unparseable",
+        reason: "ambiguous_host",
       });
     }
   });
@@ -192,7 +192,7 @@ describe("databaseTargetLine", () => {
       "postgres:///opika",
     ]) {
       expect(databaseTargetLine(url)).toBe(
-        "Target: DATABASE_URL could not be parsed (not printing it).",
+        "Target: DATABASE_URL names several hosts or none, so it can't be named (not printing it).",
       );
     }
   });
