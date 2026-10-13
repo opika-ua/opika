@@ -5,12 +5,12 @@ import {
   fetchEmailSender,
   providerRequest,
 } from "./email-provider";
-import { productionSignInOf } from "./production-sign-in";
 
 /**
- * IN-Q2 / IN-Q6: one fetch-based email module, three candidate providers,
- * and when production sign-in may be on. No real provider is called: the
- * request shapes are asserted, and sending goes through an injected fetch.
+ * IN-Q2: one fetch-based email module, three candidate providers. No real
+ * provider is called: the request shapes are asserted, and sending goes
+ * through an injected fetch. (When production sign-in may be on is
+ * production-sign-in.test.ts.)
  */
 
 const email = { to: "olena@example.org", subject: "S", html: "<p>H</p>", text: "T" };
@@ -21,7 +21,11 @@ describe("providerRequest", () => {
   it("builds Resend's request", () => {
     const { url, init } = providerRequest(config("resend"), email);
     expect(url).toBe("https://api.resend.com/emails");
-    expect(init.headers).toMatchObject({ Authorization: "Bearer key-123" });
+    expect(init.headers).toMatchObject({
+      Authorization: "Bearer key-123",
+      // Explicit (review of 3bc08a0, finding 6): Resend refuses a request without one.
+      "User-Agent": "kabinet-mailer/1",
+    });
     expect(JSON.parse(init.body as string)).toEqual({
       from: "Реєстр <kabinet@mail.example.org>",
       to: ["olena@example.org"],
@@ -89,14 +93,44 @@ describe("fetchEmailSender", () => {
   });
 });
 
+describe("fetchEmailSender, the failure modes the review named (3bc08a0)", () => {
+  it("passes an abort signal, so a hung provider is abandoned (finding 3)", async () => {
+    let seen: AbortSignal | null | undefined;
+    const capture = (async (_url: string, init?: RequestInit) => {
+      seen = init?.signal;
+      return new Response(JSON.stringify({ id: "x" }), { status: 200 });
+    }) as unknown as typeof fetch;
+    await fetchEmailSender(config("resend"), capture).send(email);
+    expect(seen).toBeInstanceOf(AbortSignal);
+  });
+
+  it("reports a send that never answered without naming the key or the recipient", async () => {
+    const hang = (async () => {
+      throw new DOMException("The operation timed out.", "TimeoutError");
+    }) as unknown as typeof fetch;
+    const sent = fetchEmailSender(config("postmark"), hang).send(email);
+    await expect(sent).rejects.toThrow(/did not answer/);
+    await expect(sent).rejects.not.toThrow(/key-123|olena@example\.org/);
+  });
+
+  it("treats a Postmark 200 it can't read as a failure, never a success (finding 6)", async () => {
+    const notJson = (async () =>
+      new Response("<html>ok</html>", { status: 200 })) as unknown as typeof fetch;
+    await expect(fetchEmailSender(config("postmark"), notJson).send(email)).rejects.toThrow(
+      /refused the send/,
+    );
+  });
+});
+
 describe("emailProviderConfigOf", () => {
   const base = {
     EMAIL_PROVIDER: "resend",
     EMAIL_PROVIDER_API_KEY: "key",
     EMAIL_FROM_ADDRESS: "kabinet@mail.example.org",
+    PRODUCTION_ORIGIN: "https://example.org",
   };
 
-  it("is configured from the three variables, the display name optional", () => {
+  it("is configured from the four variables, the display name optional", () => {
     expect(emailProviderConfigOf(base)).toEqual({
       kind: "configured",
       config: {
@@ -118,65 +152,37 @@ describe("emailProviderConfigOf", () => {
       "invalid",
     );
   });
-});
 
-describe("productionSignInOf (IN-Q6)", () => {
-  const full = {
-    EMAIL_PROVIDER: "postmark",
-    EMAIL_PROVIDER_API_KEY: "key",
-    EMAIL_FROM_ADDRESS: "kabinet@mail.example.org",
-    BETTER_AUTH_SECRET: "s".repeat(32),
-    BETTER_AUTH_URL: "https://example.org",
-    VERCEL_ENV: "production",
-    VERCEL_PROJECT_PRODUCTION_URL: "example.org",
-  };
-
-  it("is on exactly when the provider, the secret and the URL are set, and the URL is the production origin", () => {
-    expect(productionSignInOf(full).kind).toBe("on");
-    expect(productionSignInOf({ ...full, BETTER_AUTH_URL: "https://example.org/" }).kind).toBe(
-      "on",
-    );
-  });
-
-  it("is off with any of the three missing", () => {
-    expect(productionSignInOf({ ...full, EMAIL_PROVIDER_API_KEY: undefined })).toEqual({
-      kind: "off",
-      reason: "provider_not_configured",
-    });
-    expect(productionSignInOf({ ...full, BETTER_AUTH_SECRET: undefined })).toEqual({
-      kind: "off",
-      reason: "auth_config_missing",
-    });
-    expect(productionSignInOf({ ...full, BETTER_AUTH_URL: undefined })).toEqual({
-      kind: "off",
-      reason: "auth_config_missing",
-    });
-  });
-
-  it("is never on in a Preview, even with a provider key set there", () => {
-    expect(productionSignInOf({ ...full, VERCEL_ENV: "preview" })).toEqual({
-      kind: "off",
-      reason: "preview_never_sends",
-    });
-    expect(
-      productionSignInOf({ ...full, VERCEL_ENV: "preview", EMAIL_PROVIDER_API_KEY: undefined }),
-    ).toEqual({ kind: "off", reason: "preview_never_sends" });
-  });
-
-  it("is off on production when BETTER_AUTH_URL is not the production origin", () => {
-    for (const wrong of [
-      "https://preview-abc.vercel.app",
-      "http://example.org",
-      "https://www.example.org",
+  /**
+   * Review of 3bc08a0, finding 4; IN-R2 (Oleksii: "The From address is on
+   * mail.opika.org.ua"): the From domain is exactly mail. + PRODUCTION_ORIGIN's
+   * host, derived, never a literal.
+   */
+  it("refuses a From address on any mail. domain but the production origin's own", () => {
+    for (const from of [
+      "a@mail.attacker.example",
+      "a@mail.",
+      "a@mail.example.org.attacker.example",
+      "a@www.mail.example.org",
     ]) {
-      expect(productionSignInOf({ ...full, BETTER_AUTH_URL: wrong })).toEqual({
-        kind: "off",
-        reason: "auth_url_not_production_origin",
-      });
+      expect(emailProviderConfigOf({ ...base, EMAIL_FROM_ADDRESS: from }).kind, from).toBe(
+        "invalid",
+      );
     }
-    expect(productionSignInOf({ ...full, VERCEL_PROJECT_PRODUCTION_URL: undefined })).toEqual({
-      kind: "off",
-      reason: "auth_url_not_production_origin",
+    expect(
+      emailProviderConfigOf({ ...base, EMAIL_FROM_ADDRESS: "Kabinet@MAIL.example.org" }).kind,
+    ).toBe("configured");
+  });
+
+  it("needs PRODUCTION_ORIGIN, and only an https origin with no path", () => {
+    expect(emailProviderConfigOf({ ...base, PRODUCTION_ORIGIN: undefined })).toEqual({
+      kind: "missing",
+      missing: ["PRODUCTION_ORIGIN"],
     });
+    for (const origin of ["http://example.org", "https://example.org/kabinet", "not a url"]) {
+      expect(emailProviderConfigOf({ ...base, PRODUCTION_ORIGIN: origin }).kind, origin).toBe(
+        "invalid",
+      );
+    }
   });
 });

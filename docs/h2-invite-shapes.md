@@ -43,6 +43,17 @@ If Q7 goes B instead: keep the code `ALREADY_A_MEMBER`, add the same `data`. If 
 
 ## 2. Production sign-in availability (Q6)
 
+**As decided (IN-R2, 2026-10-13), superseding the sketch below where they differ.**
+`productionSignInOf` (`apps/web/src/kabinet/production-sign-in.ts`, not wired yet) is on only
+when `VERCEL_ENV` is `production` (a Preview is refused outright; an unset or unknown `VERCEL_ENV`
+fails closed), the provider is configured (`EMAIL_PROVIDER`, `EMAIL_PROVIDER_API_KEY`,
+`EMAIL_FROM_ADDRESS` on `mail.` + PRODUCTION_ORIGIN's host, `PRODUCTION_ORIGIN`),
+`BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` are set, and `BETTER_AUTH_URL` equals
+`PRODUCTION_ORIGIN` (pinned: `https://opika.org.ua`). Decision 1: from the wiring commit on, a
+production build fails if any variable is missing, and the runtime boot check stays as a second
+guard; until that commit nothing is required at boot. The env names below (`KABINET_EMAIL_*`)
+were the proposal's; the built names are `EMAIL_PROVIDER*` / `EMAIL_FROM_*` / `PRODUCTION_ORIGIN`.
+
 `apps/web/src/kabinet/auth-route.ts`:
 
 ```ts
