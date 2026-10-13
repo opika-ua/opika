@@ -377,7 +377,8 @@ You're developing on Windows. Two things matter here:
   terminal the first time on Windows). After that, `pnpm` resolves to
   the exact version pinned in `package.json`'s `packageManager` field —
   don't install pnpm globally via npm. Node 24 (this project's pinned
-  major) still bundles Corepack; Node 25+ drops it from the default
+  major — `.nvmrc` / `.node-version` select it for nvm, fnm and the like,
+  matching `engines` and CI) still bundles Corepack; Node 25+ drops it from the default
   distribution, so a future Node upgrade will need `npm install -g
 corepack` first. In CI, prefer `corepack enable && corepack install`
   (activates the pinned version explicitly) over a bare `corepack enable`
