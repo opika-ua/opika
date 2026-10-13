@@ -64,7 +64,9 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [ ] **The `/prytulkam` A1–A3 and B1 copy is live in this PR** (HS-Q3, commitments #6 and #7,
       `docs/h2-copy-sheet.md`). A false commitment sentence must never be live.
       `no-self-serve-yet.test.ts` is changed here, which is the signal.
-- [ ] **Magic-link provider** chosen by a real delivery test to Gmail, ukr.net and i.ua (HS-Q2).
+- [x] **Magic-link provider:** Brevo (IN-E2, 2026-10-13), Resend the documented fallback, not set
+      up. Gmail delivery test by `email:delivery-test` (IN-E5); ukr.net/i.ua postponed with a trigger
+      (IN-E4); apex DMARC `p=reject` is a follow-up (IN-E3).
 - [ ] **An invitation reaches the invitee.** The registry PR's `registry.admins.invite` and
       `registry.shelters.create` write the invitation and the invitee's user but send nothing
       (no provider yet). This PR decides how the invitee hears of it (an invite email through the
@@ -116,6 +118,13 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
   2. `admin:bootstrap <email>` on production (creates Oleksii's user and grants super_admin, once)
   3. Oleksii signs in on production
   4. first shelter invite
+
+  Full order as restated 2026-10-13 (IN-E1, verbatim): "LOCATION_HMAC_SECRET + location:verify →
+  provider, DNS and auth env → Neon run → merge → admin:bootstrap → sign-in → first invite → demo
+  corpus removed." Status of "provider, DNS and auth env": **provider and DNS done for Brevo**
+  (`mail.opika.org.ua` authenticated, DKIM and DMARC `p=none` in place, sender verified); **auth
+  env still pending** (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `EMAIL_*`, `PRODUCTION_ORIGIN` in
+  Vercel).
 
   HS-Q13's earlier order ("… → I sign in → admin:grant on my own user → …") couldn't run: sign-up is
   off, so no production user exists to sign in or to grant (RG-Q2).

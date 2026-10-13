@@ -1,9 +1,9 @@
 /**
  * The one module that sends email (IN-Q2, Oleksii: "Call the provider HTTP
- * API with fetch, no SDK, behind one module."). Which provider is still
- * open: HS-Q2 picks it by a real delivery test to Gmail, ukr.net and i.ua.
- * So the three candidates sit behind one interface and config chooses.
- * Their request shapes follow each provider's public API reference
+ * API with fetch, no SDK, behind one module."). Production uses Brevo;
+ * Resend is the documented fallback, not set up (IN-E2, 2026-10-13). All
+ * three stay behind one interface and config chooses, so a swap is an env
+ * change. Their request shapes follow each provider's public API reference
  * (2026-10-13):
  *
  * - Resend: `POST https://api.resend.com/emails`, `Authorization: Bearer`,
@@ -177,9 +177,18 @@ export function providerRequest(
   }
 }
 
+/** What a successful send reports: the HTTP status and the provider's id for the message, if it gave one. */
+export type SentEmail = { status: number; messageId: string | null };
+
 export interface EmailSender {
-  send(email: OutgoingEmail): Promise<void>;
+  send(email: OutgoingEmail): Promise<SentEmail>;
 }
+
+/** Each provider names its message id differently: Resend `id`, Postmark `MessageID`, Brevo `messageId`. */
+const messageIdOf = (body: Record<string, unknown> | null): string | null => {
+  const id = body?.messageId ?? body?.MessageID ?? body?.id;
+  return typeof id === "string" ? id : null;
+};
 
 /**
  * Sends through the configured provider. Throws on any failure, a 2xx
@@ -208,7 +217,9 @@ export function fetchEmailSender(
       } catch {
         throw new Error(`Email provider ${config.provider} did not answer the send.`);
       }
-      const body = (await response.json().catch(() => null)) as { ErrorCode?: number } | null;
+      const body = (await response.json().catch(() => null)) as
+        | (Record<string, unknown> & { ErrorCode?: number })
+        | null;
       // Postmark reports failures inside a 2xx, and one it can't be read as
       // success either (review of 3bc08a0, finding 6: a non-JSON 200).
       const postmarkError =
@@ -218,6 +229,7 @@ export function fetchEmailSender(
           `Email provider ${config.provider} refused the send (status ${response.status}).`,
         );
       }
+      return { status: response.status, messageId: messageIdOf(body) };
     },
   };
 }

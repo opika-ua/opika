@@ -86,7 +86,10 @@ LOCATION_HMAC_SECRET: z
 ```
 
 The provider-specific name (e.g. `RESEND_API_KEY`) replaces `KABINET_EMAIL_API_KEY` once Q2 picks
-one. The from-name is config, never a literal (the name is not final).
+one. The from-name is config, never a literal (the name is not final). **As built:** the names
+stayed generic (`EMAIL_PROVIDER_API_KEY`), and Q2 picked Brevo (IN-E2, 2026-10-13):
+`EMAIL_PROVIDER=brevo`, From `noreply@mail.opika.org.ua`, the From name from `EMAIL_FROM_NAME`;
+Resend is the documented fallback, not set up.
 
 ## 3. The invitation email (Q3 A)
 

@@ -8,8 +8,10 @@ shelter accounts.
 in. It lifts the production 503 on `/api/auth/*` and `/api/kabinet/*`.
 
 **Settled and not asked again:**
-- **Provider choice:** decided by a real magic-link delivery test to Gmail, ukr.net and i.ua
-  (HS-Q2).
+- **Provider choice:** ~~decided by a real magic-link delivery test to Gmail, ukr.net and i.ua
+  (HS-Q2)~~. **Decided 2026-10-13: Brevo**, with Resend as the documented fallback, not set up
+  (IN-E1/IN-E2). The delivery test is Gmail only; ukr.net and i.ua are postponed with a trigger
+  (IN-E4).
 - **Copy:** this PR carries the `/prytulkam` A1–A3/B1 copy (HS-Q13). A false commitment sentence is
   never live (HS-Q3).
 - **Real-Neon run:** sign-in, verify, getSession, accept-invitation, the audited-write CTE, the
@@ -72,7 +74,11 @@ verify URL 403s and sign-in can't complete.
 
 ## Q2. Which email provider, and from which domain?
 
-HS-Q2 settles how the provider is chosen. These are the inputs to that test.
+**Answered 2026-10-13 (IN-E1/IN-E2): Brevo, sending from `noreply@mail.opika.org.ua`, Resend the
+documented fallback (not set up).** The candidates below are kept as the record of what was
+weighed. The delivery test became Gmail only (IN-E5's script); ukr.net/i.ua are postponed (IN-E4).
+
+HS-Q2 settled how the provider was to be chosen. These were the inputs to that test.
 
 **Candidates.** Each is a Vercel-compatible HTTP API, EU-capable, with a free or low tier at this
 volume:
@@ -223,7 +229,8 @@ RG-Q2's order, with RG-Q10's steps and this PR's prerequisites folded in:
    script's, and run `location:verify --prod`. It must report 0 mismatches and no `PRIVACY` line;
    `demo` is expected.
 3. Provider, domain DNS (SPF, DKIM, DMARC), `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` are set in
-   Vercel; the delivery test (Q2) has passed.
+   Vercel; the delivery test (Q2) has passed. *(Provider and DNS done for Brevo, 2026-10-13, IN-E1;
+   the auth env and the Gmail delivery test still pending.)*
 4. The real-Neon run (Q9) is green on a child branch.
 5. Invite PR merged. RG-T10 is in it, and the env schema now requires the keys from steps 2–3.
 6. `admin:bootstrap <your email>` on production.

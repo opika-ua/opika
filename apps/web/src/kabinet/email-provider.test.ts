@@ -72,10 +72,10 @@ describe("fetchEmailSender", () => {
   it("resolves on the provider's success", async () => {
     await expect(
       fetchEmailSender(config("resend"), respond(200, { id: "x" })).send(email),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ status: 200, messageId: "x" });
     await expect(
       fetchEmailSender(config("brevo"), respond(201, { messageId: "m" })).send(email),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ status: 201, messageId: "m" });
   });
 
   it("throws on a refusal, and on Postmark's 2xx carrying an ErrorCode, never naming the key or the recipient", async () => {
