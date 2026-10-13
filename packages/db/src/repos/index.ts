@@ -31,4 +31,10 @@ export { kabinetSupportRepo, SUPPORT_IDLE_MS } from "./kabinet-support-repo";
 export { revealRepo } from "./reveal-repo";
 export { type SessionRow, sessionRepo } from "./session-repo";
 export { shelterRepo } from "./shelter-repo";
+export {
+  type BootstrapResult,
+  type GrantResult,
+  type RevokeResult,
+  superAdminRepo,
+} from "./super-admin-repo";
 export { swipeRepo } from "./swipe-repo";

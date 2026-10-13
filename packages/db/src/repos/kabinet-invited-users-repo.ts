@@ -71,6 +71,11 @@ export function kabinetInvitedUsersRepo(db: Database) {
             // clean-up would delete someone who can then never sign in to
             // accept it (sign-up is off).
             sql`NOT EXISTS (SELECT 1 FROM ${authInvitation} live WHERE live.email = ${authUser.email} AND live.status = 'pending' AND live.expires_at > ${input.now.toISOString()}::timestamptz)`,
+            // The same exclusions the delete applies, so a dry run never
+            // lists someone `--apply` would then skip (review of the scripts
+            // row, finding 7).
+            sql`NOT EXISTS (SELECT 1 FROM ${superAdmins} WHERE ${superAdmins.userId} = ${authUser.id})`,
+            sql`NOT EXISTS (SELECT 1 FROM ${supportSessions} WHERE ${supportSessions.operatorUserId} = ${authUser.id})`,
             input.organizationId === null
               ? undefined
               : eq(authInvitation.organizationId, input.organizationId),

@@ -29,7 +29,7 @@ import {
 } from "@opika/domain";
 import postgres from "postgres";
 import { z } from "zod";
-import { createDatabaseWithClient } from "./client";
+import { createDatabaseWithClient, type Database } from "./client";
 import {
   createR2Client,
   type ImageStorageClient,
@@ -40,6 +40,7 @@ import {
 import { productionLocationPolicy } from "./location-policy";
 import { assertProductionWriteAllowed } from "./prod-guard";
 import { animalRepo, cityRepo, shelterRepo } from "./repos";
+import { insertShelterFromScript, recordAnimalsImported, type ScriptActor } from "./script-history";
 
 /**
  * Onboards ONE real shelter and its animals — the only path in this repo that
@@ -388,6 +389,21 @@ async function uploadAnimalPhotos(
   return photos;
 }
 
+/**
+ * The shelter, once: a re-run finds it and inserts nothing, so its
+ * `shelter_created` line (RG-Q8, written in the same statement) is never
+ * duplicated. Exported so a test pins both.
+ */
+export async function insertOnboardedShelter(
+  db: Database,
+  shelter: Shelter,
+  by: ScriptActor,
+): Promise<"inserted" | "exists"> {
+  if ((await shelterRepo(db).findById(shelter.id)) !== null) return "exists";
+  await insertShelterFromScript(db, shelter, by);
+  return "inserted";
+}
+
 async function main(): Promise<void> {
   // First, before anything else this script checks or reads: which database
   // it would write to. Checked even on a dry run, because it costs nothing and
@@ -550,9 +566,9 @@ async function main(): Promise<void> {
   // its own client for the same reason.
   const sql = postgres(databaseUrl);
   const db = createDatabaseWithClient(sql);
-  const shelters = shelterRepo(db);
   const cities = cityRepo(db);
   const animalsRepo = animalRepo(db);
+  const scriptActor = { moderatorId: FOUNDER_MODERATOR_ID, now };
 
   const cityId = input.shelter.exactAddress.cityId;
   const city = await cities.findById(cityId);
@@ -563,13 +579,11 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const existingShelter = await shelters.findById(shelter.id);
-  if (existingShelter) {
+  if ((await insertOnboardedShelter(db, shelter, scriptActor)) === "exists") {
     console.log(
       `\nShelter ${shelter.id} already exists — skipping (re-run is safe, not duplicating).`,
     );
   } else {
-    await shelters.insert(shelter);
     console.log(`\nInserted shelter ${shelter.id}.`);
   }
 
@@ -623,6 +637,12 @@ async function main(): Promise<void> {
     await animalsRepo.insert(buildAnimal(animalInput, photos, shelter.id, now), cityId);
     insertedCount += 1;
   }
+
+  // RG-Q8: one history line for the batch, so the shelter's own history
+  // shows what was entered for it. A crash mid-loop leaves the inserted
+  // animals without this line; a re-run inserts no duplicates and records
+  // only what it newly inserts.
+  await recordAnimalsImported(db, shelter.id, insertedCount, scriptActor);
 
   await sql.end();
 

@@ -45,6 +45,16 @@ describe("db:check-hashes", () => {
     expect(checks.filter((check) => check.status === "mismatch")).toHaveLength(1);
   });
 
+  /**
+   * RS-R1: 0011 is frozen as of 6b7fa12, before any rehearsal; anything later
+   * goes in 0012. This pins the committed file, so an edit to it fails here
+   * rather than surfacing as a hash mismatch on a rehearsed branch.
+   */
+  it("0011 is frozen at the content committed in 6b7fa12 (RS-R1)", () => {
+    const frozen = committedHashes().find((entry) => entry.tag.startsWith("0011_"));
+    expect(frozen?.hash).toBe("78f140f35f10245321754fc6f3173bdf6be9a85a257a2664cc09e0e06a278f04");
+  });
+
   it("reports a migration the database never ran as not applied", () => {
     const checks = compareHashes([{ tag: "9999_future", when: 1, hash: "x" }], []);
     expect(checks).toEqual([{ tag: "9999_future", status: "not_applied" }]);

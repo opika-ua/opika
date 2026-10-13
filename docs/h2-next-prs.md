@@ -24,6 +24,8 @@ questions go to Oleksii before code.
       final 0011, and anything later goes in 0012. After the rehearsal, `pnpm --filter @opika/db
       db:check-hashes` against the rehearsal branch prints `match` for 0011 (its recorded hash
       equals the committed file's).
+      **Frozen at 6b7fa12** (unchanged since; `drizzle-kit generate` reports no schema drift), and
+      `check-migration-hashes.test.ts` pins its hash, so an edit fails CI instead of a rehearsal.
 - [ ] **The registry answers 503 without `LOCATION_HMAC_SECRET`** (RG-Q10) while the kabinet is
       unavailable. Shelter create and address changes recompute the public location with that
       key. `apps/web/src/api/env.ts`'s required production schema does not gain it here.

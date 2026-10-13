@@ -253,6 +253,10 @@ describe("every writing CLI runs the guard first", () => {
     ["onboard:shelter", "src/onboard-shelter.ts", ["does-not-matter.json"]],
     // Read-only, but it reads every exact address, so it takes --prod too (RG-Q10).
     ["location:verify", "src/verify-locations.ts", []],
+    ["admin:bootstrap", "src/admin.ts", ["bootstrap", "oleksii@example.org"]],
+    ["admin:grant", "src/admin.ts", ["grant", "oleksii@example.org"]],
+    ["admin:revoke", "src/admin.ts", ["revoke", "oleksii@example.org"]],
+    ["admin:sweep-invites", "src/admin.ts", ["sweep-invites"]],
   ] as const)("%s refuses production without --prod", (_name, script, args) => {
     const result = run(script, args);
     expect(result.status, result.stderr).toBe(1);

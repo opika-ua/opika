@@ -60,11 +60,12 @@ import {
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import type { Database } from "./client";
 import { assertProductionWriteAllowed } from "./prod-guard";
 import { animalRepo } from "./repos/animal-repo";
 import { cityRepo } from "./repos/city-repo";
-import { shelterRepo } from "./repos/shelter-repo";
 import * as schema from "./schema/index";
+import { insertShelterFromScript, recordAnimalsImported, type ScriptActor } from "./script-history";
 import { SEED_LOCATION_POLICY_KEY, SEED_SHELTER_ID_PREFIX } from "./seed-ids";
 
 // ---------------------------------------------------------------------------
@@ -210,6 +211,42 @@ export function parseSeedProfile(argv: readonly string[]): SeedProfile {
 
 const DAY_MS = 86_400_000;
 const policy = testOnlyLocationPolicy(SEED_LOCATION_POLICY_KEY);
+
+/**
+ * Writes the built data: cities, then each shelter with its `shelter_created`
+ * line, then the animals in batches of 50 (parameter limits) and one
+ * `animals_imported` line per shelter. RG-Q8: the seed enters data on the
+ * shelters' behalf like any script, so it writes their history too, with
+ * the seed's moderator. Exported so a test pins that it does.
+ */
+export async function insertSeedData(
+  db: Database,
+  data: {
+    cities: readonly City[];
+    shelters: readonly Shelter[];
+    animals: readonly { animal: Animal; cityId: CityId }[];
+  },
+  actor: ScriptActor,
+): Promise<void> {
+  console.log(`  Inserting ${data.cities.length} cities...`);
+  await cityRepo(db).insertMany(data.cities);
+  console.log(`  Inserting ${data.shelters.length} shelters...`);
+  for (const shelter of data.shelters) {
+    await insertShelterFromScript(db, shelter, actor);
+  }
+  console.log(`  Inserting ${data.animals.length} animals...`);
+  const batchSize = 50;
+  for (let i = 0; i < data.animals.length; i += batchSize) {
+    await animalRepo(db).insertMany(data.animals.slice(i, i + batchSize));
+  }
+  const importedPerShelter = new Map<ShelterId, number>();
+  for (const { animal } of data.animals) {
+    importedPerShelter.set(animal.shelterId, (importedPerShelter.get(animal.shelterId) ?? 0) + 1);
+  }
+  for (const [shelterId, count] of importedPerShelter) {
+    await recordAnimalsImported(db, shelterId, count, actor);
+  }
+}
 
 /** Deterministic UUID v4 from a numeric index, for reproducible seeds. */
 function seededUuid(prefix: string, index: number): string {
@@ -1436,27 +1473,11 @@ async function main(profile: SeedProfile) {
       ? buildDemoAnimals(sheltersList, citiesList)
       : buildAnimals(sheltersList, citiesList, 320);
 
-  // Insert cities
-  console.log(`  Inserting ${citiesList.length} cities...`);
-  const citiesR = cityRepo(db);
-  await citiesR.insertMany(citiesList);
-
-  // Insert shelters
-  console.log(`  Inserting ${sheltersList.length} shelters...`);
-  const sheltersR = shelterRepo(db);
-  for (const shelter of sheltersList) {
-    await sheltersR.insert(shelter);
-  }
-
-  // Insert animals
-  console.log(`  Inserting ${animalData.length} animals...`);
-  const animalsR = animalRepo(db);
-  // Insert in batches of 50 to avoid hitting parameter limits
-  const batchSize = 50;
-  for (let i = 0; i < animalData.length; i += batchSize) {
-    const batch = animalData.slice(i, i + batchSize);
-    await animalsR.insertMany(batch);
-  }
+  await insertSeedData(
+    db,
+    { cities: citiesList, shelters: sheltersList, animals: animalData },
+    { moderatorId: moderatorId(), now: new Date() },
+  );
 
   // Summary stats
   const verifiedShelterCount = sheltersList.filter(
