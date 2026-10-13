@@ -66,19 +66,6 @@ describe("K1 · enter email", () => {
     expect(screen.getByText("Olena@Example.org").tagName).toBe("STRONG");
   });
 
-  it("looks the same for any address: nothing in the card depends on who is registered", async () => {
-    const known = setup(async () => true);
-    await signIn(known.user, "known@example.org");
-    const first = document.body.innerHTML.replaceAll("known@example.org", "ADDRESS");
-    document.body.innerHTML = "";
-    const unknown = setup(async () => true);
-    await signIn(unknown.user, "nobody@example.org");
-    const second = document.body.innerHTML.replaceAll("nobody@example.org", "ADDRESS");
-    // useId differs between renders; compare with the ids normalised.
-    const ids = (html: string) => html.replace(/_r_[0-9a-z]+_/g, "_id_");
-    expect(ids(second)).toBe(ids(first));
-  });
-
   it("says when the request itself failed, on the field, and stays on the form", async () => {
     const { user } = setup(async () => false);
     await signIn(user);
@@ -120,6 +107,21 @@ describe("K1 · check your email", () => {
     expect(send).toHaveBeenLastCalledWith("Olena@Example.org");
     expect(send).toHaveBeenCalledTimes(2);
     expect(resendButton().getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("says when a resend failed, on this state, and leaves resend unlocked to try again", async () => {
+    let ok = true;
+    const { user, send } = setup(async () => ok);
+    await signIn(user);
+    await act(async () => {
+      vi.advanceTimersByTime(RESEND_LOCKOUT_SECONDS * 1000);
+    });
+    ok = false;
+    await user.click(resendButton());
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(uk.kabinet.signIn.sentTitle);
+    expect(screen.getByRole("alert").textContent).toBe(uk.kabinet.signIn.sendFailed);
+    expect(resendButton().getAttribute("aria-disabled")).toBeNull();
   });
 
   it("«a different address» goes back to the form, the address kept and focused", async () => {

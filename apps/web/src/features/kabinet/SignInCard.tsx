@@ -37,7 +37,7 @@ const countdown = (seconds: number): string =>
 
 type State =
   | { kind: "entering"; failed: boolean }
-  | { kind: "sent"; email: string; lockedFor: number };
+  | { kind: "sent"; email: string; lockedFor: number; resendFailed: boolean };
 
 export function SignInCard({
   send = defaultSend,
@@ -94,7 +94,12 @@ export function SignInCard({
     const address = email.trim();
     if (await request(address)) {
       pendingFocus.current = "title";
-      setState({ kind: "sent", email: address, lockedFor: RESEND_LOCKOUT_SECONDS });
+      setState({
+        kind: "sent",
+        email: address,
+        lockedFor: RESEND_LOCKOUT_SECONDS,
+        resendFailed: false,
+      });
     } else {
       setState({ kind: "entering", failed: true });
     }
@@ -102,7 +107,13 @@ export function SignInCard({
 
   async function onResend() {
     if (state.kind !== "sent" || state.lockedFor > 0 || busy) return;
-    if (await request(state.email)) setState({ ...state, lockedFor: RESEND_LOCKOUT_SECONDS });
+    // A failed resend says so here, on this state: tapping «send again» and
+    // seeing nothing change would read as sent (review of #93, finding 4).
+    if (await request(state.email)) {
+      setState({ ...state, lockedFor: RESEND_LOCKOUT_SECONDS, resendFailed: false });
+    } else {
+      setState({ ...state, resendFailed: true });
+    }
   }
 
   function onOtherAddress() {
@@ -185,6 +196,11 @@ export function SignInCard({
               {uk.kabinet.signIn.otherAddress}
             </button>
           </div>
+          {state.resendFailed ? (
+            <p role="alert" className="text-[15px] leading-[22px] font-medium text-rg-ink">
+              {uk.kabinet.signIn.sendFailed}
+            </p>
+          ) : null}
         </div>
       )}
     </section>
