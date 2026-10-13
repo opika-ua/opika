@@ -1,5 +1,11 @@
-import { cityRepo, kabinetActorRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
-import { authSession, superAdmins } from "@opika/db/schema";
+import {
+  cityRepo,
+  kabinetActorRepo,
+  kabinetInvitationRepo,
+  kabinetInvitedUsersRepo,
+  shelterRepo,
+} from "@opika/db/repos";
+import { authSession, invitationCreatedUsers, superAdmins } from "@opika/db/schema";
 import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
@@ -462,6 +468,48 @@ describe("plugins (HS-T2, HS-Q7)", () => {
       | { options?: { allowUserToCreateOrganization?: unknown } }
       | undefined;
     expect(org?.options?.allowUserToCreateOrganization).toBe(false);
+  });
+});
+
+describe("first sign-in of an invited user (RG-Q3, RS-Q0)", () => {
+  /**
+   * The hook that keeps "no sessions ever" a fact: once an invited user signs
+   * in, the clean-up can never delete them, whatever happens to the invitation.
+   */
+  it("stamps first_session_at, and the clean-up then leaves the user alone", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
+    });
+    await shelterRepo(db).insert(shelter);
+    const operator = await createUser("operator@example.org");
+    const invitations = kabinetInvitationRepo(db);
+    const invitedUsers = kabinetInvitedUsersRepo(db);
+    const invited = await invitations.invite({
+      shelterId: shelter.id,
+      email: "olena@example.org",
+      name: "Олена",
+      inviterUserId: operator.id,
+      ids: {
+        invitationId: crypto.randomUUID(),
+        userId: crypto.randomUUID(),
+        organizationId: crypto.randomUUID(),
+      },
+      now: new Date(),
+    });
+    if (invited.kind !== "invited") throw new Error("unreachable");
+    expect((await db.select().from(invitationCreatedUsers))[0]?.firstSessionAt).toBeNull();
+
+    await signIn("olena@example.org");
+
+    expect((await db.select().from(invitationCreatedUsers))[0]?.firstSessionAt).toBeInstanceOf(
+      Date,
+    );
+    await invitations.revoke(invited.invitationId);
+    expect(await invitedUsers.cleanupCandidates({ organizationId: null, now: new Date() })).toEqual(
+      [],
+    );
   });
 });
 

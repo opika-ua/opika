@@ -112,7 +112,11 @@ async function main(): Promise<void> {
         console.log(
           `UNKNOWN   recorded ${check.recorded.slice(0, 12)}… at ${check.createdAt}: matches no committed migration (regenerated after it ran?)`,
         );
-        break;
+        break; /* v8 ignore next 4 -- exists so the compiler rejects an unhandled status; unreachable at runtime */
+      default: {
+        const unreachable: never = check;
+        throw new Error(`Unhandled check ${JSON.stringify(unreachable)}`);
+      }
     }
   }
   process.exit(checks.some(isFailure) ? 1 : 0);

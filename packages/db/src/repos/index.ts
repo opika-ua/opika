@@ -10,7 +10,12 @@ export {
   type KabinetAnimalPosition,
   kabinetAnimalRepo,
 } from "./kabinet-animal-repo";
-export { INVITATION_TTL_MS, kabinetInvitationRepo } from "./kabinet-invitation-repo";
+export {
+  INVITATION_TTL_MS,
+  type InviteResult,
+  kabinetInvitationRepo,
+} from "./kabinet-invitation-repo";
+export { type CleanupCandidate, kabinetInvitedUsersRepo } from "./kabinet-invited-users-repo";
 export {
   type AuditedShelterChange,
   type AuditedWriteResult,
