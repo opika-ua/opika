@@ -637,30 +637,41 @@ describe("no listing move touches last_updated_at (HS-T9)", () => {
     reason: { code: "listing_error", note: null },
   } as const;
 
-  const cases: [string, Partial<Animal>, string, (id: string) => unknown][] = [
+  // [move, starting state, procedure, input, what the stored listing must show afterwards]
+  const cases: [
+    string,
+    Partial<Animal>,
+    string,
+    (id: string) => unknown,
+    (after: Animal) => void,
+  ][] = [
     [
       "publish",
       { listing: { kind: "draft" }, photos: [photo] },
       "shelter.animals.transition",
       (id) => ({ animalId: id, event: { type: "publish" } }),
+      (after) => expect(after.listing.kind).toBe("published"),
     ],
     [
       "reserve",
       { listing: published },
       "shelter.animals.transition",
       (id) => ({ animalId: id, event: { type: "reserve" } }),
+      (after) => expect(after.listing.kind).toBe("reserved"),
     ],
     [
       "release",
       { listing: reserved },
       "shelter.animals.transition",
       (id) => ({ animalId: id, event: { type: "release" } }),
+      (after) => expect(after.listing.kind).toBe("published"),
     ],
     [
       "adopt",
       { listing: published },
       "shelter.animals.transition",
       (id) => ({ animalId: id, event: { type: "adopt" } }),
+      (after) => expect(after.listing.kind).toBe("adopted"),
     ],
     [
       "withdraw",
@@ -670,17 +681,29 @@ describe("no listing move touches last_updated_at (HS-T9)", () => {
         animalId: id,
         event: { type: "withdraw", reason: { code: "transferred", note: null } },
       }),
+      (after) => expect(after.listing.kind).toBe("withdrawn"),
     ],
     [
       "back-to-draft",
       { listing: withdrawn },
       "shelter.animals.transition",
       (id) => ({ animalId: id, event: { type: "restore_to_draft" } }),
+      (after) => expect(after.listing.kind).toBe("draft"),
     ],
-    ["confirm", { listing: published }, "shelter.animals.confirm", (id) => ({ animalId: id })],
+    [
+      "confirm",
+      { listing: published },
+      "shelter.animals.confirm",
+      (id) => ({ animalId: id }),
+      // Still published, so the kind proves nothing: the confirmation must have moved.
+      (after) =>
+        expect((after.listing as { confirmedAt: Date }).confirmedAt.getTime()).toBeGreaterThan(
+          PUBLISHED.getTime(),
+        ),
+    ],
   ];
 
-  for (const [move, start, procedure, input] of cases) {
+  for (const [move, start, procedure, input, reached] of cases) {
     it(`${move} leaves last_updated_at as it was`, async () => {
       const a = await animal({ ...start, lastUpdatedAt: EDITED });
       const result = await call<{ lastUpdatedAt?: Date; animal?: { lastUpdatedAt: Date } }>(
@@ -689,7 +712,10 @@ describe("no listing move touches last_updated_at (HS-T9)", () => {
       );
       expect(result.status).toBe(200);
       expect(result.body.lastUpdatedAt ?? result.body.animal?.lastUpdatedAt).toEqual(EDITED);
-      expect((await reload(a.id)).lastUpdatedAt).toEqual(EDITED);
+      const after = await reload(a.id);
+      expect(after.lastUpdatedAt).toEqual(EDITED);
+      // The move really happened: "unchanged" proves nothing about a write that never ran.
+      reached(after);
     });
   }
 
