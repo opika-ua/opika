@@ -359,5 +359,25 @@ export const en = {
      * (RS-Q2): the English sense of the Ukrainian. Nominative, used only where the nominative fits.
      */
     operatorFallbackName: "Registry operator",
+    shell: {
+      label: "cabinet",
+    },
+    signIn: {
+      pageTitle: "Sign in to the cabinet",
+      title: "Sign in to the cabinet",
+      intro: "For shelters and the registry operator. There is no password: we email you a link.",
+      emailLabel: "Email address",
+      send: "Send the link",
+      addressNote:
+        "The operator adds your address when inviting your shelter. If it is not on the list no email arrives, and we do not say so, so that the form never reveals who is registered.",
+      sendFailed: "The link could not be sent. Check your connection and try again.",
+      sentTitle: "Check your email",
+      sentBody:
+        "We sent a link to {email}. It works for 15 minutes and opens the cabinet on this device.",
+      spamNote: "No email? Check your spam folder, or send it again after 60 seconds.",
+      resend: "Send again",
+      resendIn: "Send again · {time}",
+      otherAddress: "A different address",
+    },
   },
 } as const;

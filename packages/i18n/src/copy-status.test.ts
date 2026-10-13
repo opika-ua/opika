@@ -109,3 +109,37 @@ describe("deck not-a-judgement notice copy status", () => {
     expect(Object.keys(uk.actions).length).toBe(4);
   });
 });
+
+/**
+ * The kabinet screens PR: every UI string ships `[COPY PENDING]`
+ * (`docs/h2-copy-sheet.md` §F), Oleksii writes the Ukrainian. Pinned as the
+ * exact list, so a string that lands (or a new placeholder) shows up here as a
+ * diff someone has to accept, and `operatorFallbackName` (his own wording,
+ * RS-Q2) is pinned as written. Keys and English sense:
+ * `docs/decisions-inbox/feat-h2-kabinet-screens.md`.
+ */
+describe("kabinet copy status", () => {
+  it("K1 sign-in: every string is still pending, by name", () => {
+    expect(pendingCopyKeys(uk.kabinet.signIn)).toEqual([
+      "addressNote",
+      "emailLabel",
+      "intro",
+      "otherAddress",
+      "pageTitle",
+      "resend",
+      "resendIn",
+      "send",
+      "sendFailed",
+      "sentBody",
+      "sentTitle",
+      "spamNote",
+      "title",
+    ]);
+  });
+
+  it("the shell label is pending; the operator fallback name is Oleksii's and written", () => {
+    expect(pendingCopyKeys(uk.kabinet.shell)).toEqual(["label"]);
+    expect(pendingCopyKeys(uk.kabinet)).toEqual([]);
+    expect(uk.kabinet.operatorFallbackName).toBe("Оператор реєстру");
+  });
+});

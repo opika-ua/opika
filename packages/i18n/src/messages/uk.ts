@@ -818,5 +818,34 @@ export const uk = {
      * (RS-Q2): Oleksii's own wording. Nominative, used only where the nominative fits.
      */
     operatorFallbackName: "Оператор реєстру",
+    /**
+     * The kabinet's own UI strings ship `[COPY PENDING]` with their screens
+     * (`docs/h2-copy-sheet.md` §F): the designer's draft text in
+     * `docs/design/KABINET.md` is a draft, not approved Ukrainian. Each key's
+     * English sense and the mock's draft are recorded for Oleksii in
+     * `docs/decisions-inbox/feat-h2-kabinet-screens.md`.
+     */
+    shell: {
+      /** Next to the wordmark in the header (K1, N2). */
+      label: `${COPY_PENDING} "cabinet" (label next to the wordmark)`,
+    },
+    /** K1 · sign-in (N1), both states. */
+    signIn: {
+      pageTitle: `${COPY_PENDING} "Sign in to the cabinet" (browser tab title)`,
+      title: `${COPY_PENDING} "Sign in to the cabinet"`,
+      intro: `${COPY_PENDING} "For shelters and the registry operator. There is no password: we email you a link."`,
+      emailLabel: `${COPY_PENDING} "Email address"`,
+      send: `${COPY_PENDING} "Send the link"`,
+      addressNote: `${COPY_PENDING} "The operator adds your address when inviting your shelter. If it is not on the list no email arrives, and we do not say so, so that the form never reveals who is registered."`,
+      sendFailed: `${COPY_PENDING} "The link could not be sent. Check your connection and try again."`,
+      sentTitle: `${COPY_PENDING} "Check your email"`,
+      /** `{email}` is the address, shown in 500 weight. */
+      sentBody: `${COPY_PENDING} "We sent a link to {email}. It works for 15 minutes and opens the cabinet on this device."`,
+      spamNote: `${COPY_PENDING} "No email? Check «Spam», or send it again: you can after 60 seconds."`,
+      resend: `${COPY_PENDING} "Send again"`,
+      /** `{time}` is the countdown, m:ss. Shown while the 60s resend lockout runs. */
+      resendIn: `${COPY_PENDING} "Send again · {time}"`,
+      otherAddress: `${COPY_PENDING} "A different address"`,
+    },
   },
 } as const;

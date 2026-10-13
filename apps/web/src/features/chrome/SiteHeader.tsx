@@ -118,7 +118,7 @@ import type { ReactNode } from "react";
  * every locale so it is not a translation unit. One constant, one file to
  * change if the name changes.
  */
-const WORDMARK = "Opika";
+export const WORDMARK = "Opika";
 
 export interface SiteHeaderProps {
   /** Surface-specific trailing actions, after the nav — the gallery's deck entry. */
