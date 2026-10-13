@@ -72,7 +72,7 @@ describe("process listing", () => {
   const plausible =
     process.platform === "win32"
       ? JSON.stringify([{ ProcessId: 4, ParentProcessId: 0, CommandLine: "partial" }])
-      : "  4     0 partial\n";
+      : "  4     0 S    partial\n";
   it.each([
     ["exits non-zero", { status: 1, stdout: plausible }],
     [
