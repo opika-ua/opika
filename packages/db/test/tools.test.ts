@@ -104,6 +104,20 @@ describe("processesInside", () => {
     ]);
   });
 
+  /**
+   * Both rule sets, whichever OS runs the test: Windows paths by win32 rules
+   * above, POSIX paths by POSIX rules here. Resolving with the host's rules
+   * made the Windows cases fail on Linux CI, and these fail on Windows.
+   */
+  it("matches POSIX paths by POSIX rules, case-sensitively, on any host", () => {
+    const posixAll = [
+      proc(10, 1, "node /home/ci/repo/node_modules/.bin/next start"),
+      proc(11, 1, "node /home/ci/repo2/server.js"),
+      proc(12, 1, "node /home/ci/Repo/other.js"),
+    ];
+    expect(processesInside(posixAll, "/home/ci/repo", 999, false).map((p) => p.pid)).toEqual([10]);
+  });
+
   it("never lists the asking process or its ancestors", () => {
     expect(processesInside(all, "D:/Work/Review", 21, true).map((p) => p.pid)).toEqual([10]);
   });

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { basename, isAbsolute, resolve } from "node:path";
+import { basename, posix, win32 } from "node:path";
 
 /**
  * Processes on this machine, for the two repo tools that must know what is
@@ -86,7 +86,10 @@ export function parsePsProcesses(text: string): RunningProcess[] {
  * path comparison in these tools, so they can't disagree.
  */
 export const normalisePath = (path: string, windows: boolean): string => {
-  const forward = resolve(path).replaceAll("\\", "/").replace(/\/+$/, "");
+  // The platform's own path rules, chosen by the flag, never the host's: a
+  // Windows path resolved by POSIX rules is "relative" and gains the cwd
+  // (this ran green on Windows and red on Linux CI).
+  const forward = (windows ? win32 : posix).resolve(path).replaceAll("\\", "/").replace(/\/+$/, "");
   return windows ? forward.toLowerCase() : forward;
 };
 
@@ -166,7 +169,9 @@ export function classifyProcesses(
   const mentioning: RunningProcess[] = [];
   for (const p of candidates) {
     const runsFromInside = programPaths(p.command).some(
-      (path) => isAbsolute(path) && dirs.some((dir) => isPathInside(path, dir, windows)),
+      (path) =>
+        (windows ? win32 : posix).isAbsolute(path) &&
+        dirs.some((dir) => isPathInside(path, dir, windows)),
     );
     (runsFromInside ? owned : mentioning).push(p);
   }
