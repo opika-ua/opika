@@ -155,13 +155,19 @@ export const apiErrors = {
     data: z.object({ reason: z.enum(["was_published", "has_activity"]) }),
   },
   /**
-   * The address already belongs to a shelter's admin (RG-Q3): one person
-   * administers one shelter (`auth_member_user_id_unique`). A typed refusal,
-   * never the database's unique-index error.
+   * The address already has a role, so it can't be invited (RG-T10, IN-Q7,
+   * IN-Q8): it administers a shelter (one person, one shelter:
+   * `auth_member_user_id_unique`), it is an operator (one person is never
+   * both: `conflicting_roles`), or it holds a live invitation to another
+   * shelter (accepting both would hit the one-membership index). A typed
+   * refusal, never the database's error; the reason lets S2/S4 say which.
    */
-  ALREADY_A_MEMBER: {
+  ADDRESS_HAS_A_ROLE: {
     status: 409,
-    message: "That address already administers a shelter.",
+    message: "That address already has a role in the registry.",
+    data: z.object({
+      reason: z.enum(["shelter_admin", "operator", "invited_elsewhere"]),
+    }),
   },
   /** An undo past its window, or after a newer write (H2-16). */
   UNDO_EXPIRED: {

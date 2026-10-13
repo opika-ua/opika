@@ -126,17 +126,6 @@ export function kabinetRegistryRepo(db: Database) {
       return row?.organizationId ?? null;
     },
 
-    /** Whether the address already administers a shelter (one person, one shelter, HS-Q7). */
-    async isMember(email: string): Promise<boolean> {
-      const rows = await db
-        .select({ id: authMember.id })
-        .from(authMember)
-        .innerJoin(authUser, eq(authUser.id, authMember.userId))
-        .where(eq(authUser.email, email.trim().toLowerCase()))
-        .limit(1);
-      return rows.length > 0;
-    },
-
     /**
      * The shelter's admins: every member of its organization, then every
      * invitation still `pending` (expired ones included, so S4 can offer a

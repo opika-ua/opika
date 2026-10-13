@@ -1,5 +1,6 @@
 import type { apiErrors, RegistryShelterView, ShelterAdminView } from "@opika/contracts";
 import {
+  type AddressRole,
   cityRepo,
   kabinetInvitationRepo,
   kabinetInvitedUsersRepo,
@@ -60,7 +61,9 @@ async function invite(
   deps: RegistryDeps,
   moderatorId: ModeratorId,
   input: { shelterId: ShelterId; name: string; email: string },
-): Promise<{ kind: "invited"; view: ShelterAdminView } | { kind: "already_a_member" }> {
+): Promise<
+  { kind: "invited"; view: ShelterAdminView } | { kind: "address_has_a_role"; reason: AddressRole }
+> {
   const result = await kabinetInvitationRepo(deps.db).invite({
     shelterId: input.shelterId,
     email: input.email,
@@ -79,7 +82,7 @@ async function invite(
       },
     },
   });
-  if (result.kind === "already_a_member") return result;
+  if (result.kind === "address_has_a_role") return result;
   const admins = await kabinetRegistryRepo(deps.db).adminsOf(input.shelterId);
   const row = admins.find((admin) => admin.userId === result.userId);
   if (row === undefined) throw new Error(`Invited user ${result.userId} missing from admins`);
@@ -121,7 +124,7 @@ export async function registrySheltersCreate(
     evidence: readonly EvidenceItemInput[];
     firstAdmin: { name: string; email: string };
   },
-  errors: E<"INVALID_EVIDENCE" | "ALREADY_A_MEMBER">,
+  errors: E<"INVALID_EVIDENCE" | "ADDRESS_HAS_A_ROLE">,
 ): Promise<RegistryShelterView> {
   const accepted = acceptEvidence(input.evidence, { moderatorId, now: deps.now });
   if (accepted.kind === "refused") {
@@ -132,9 +135,16 @@ export async function registrySheltersCreate(
     // contract's typed refusals; answered as a bad request, never a 500.
     throw new ORPCError("BAD_REQUEST", { status: 400, message: "Unknown city" });
   }
-  if (await kabinetRegistryRepo(deps.db).isMember(input.firstAdmin.email)) {
-    throw errors.ALREADY_A_MEMBER();
-  }
+  // Checked before anything is created (RG-T10): a shelter, an operator
+  // grant, or a live invitation elsewhere all refuse the first admin, with
+  // the reason, so S2 can say which. The shelter doesn't exist yet, so any
+  // live invitation counts as elsewhere.
+  const role = await kabinetInvitationRepo(deps.db).roleOfAddress({
+    email: input.firstAdmin.email,
+    shelterId: null,
+    now: deps.now,
+  });
+  if (role !== null) throw errors.ADDRESS_HAS_A_ROLE({ data: { reason: role } });
 
   const id = deps.newId() as ShelterId;
   const shelter: Shelter = {
@@ -159,7 +169,7 @@ export async function registrySheltersCreate(
   });
   await invite(deps, moderatorId, { shelterId: id, ...input.firstAdmin });
   // Lost the race on the first admin's address after the check above: the
-  // shelter exists now, so answering ALREADY_A_MEMBER would invite a retry
+  // shelter exists now, so answering ADDRESS_HAS_A_ROLE would invite a retry
   // that creates a second one (review, finding 3). The view it returns shows
   // no admin, which is the truth, and S4's invite completes it.
   const created = await shelterRepo(deps.db).findById(id);
@@ -173,13 +183,15 @@ export async function registryAdminsInvite(
   deps: RegistryDeps,
   moderatorId: ModeratorId,
   input: { shelterId: ShelterId; name: string; email: string },
-  errors: E<"ALREADY_A_MEMBER" | "NOT_FOUND">,
+  errors: E<"ADDRESS_HAS_A_ROLE" | "NOT_FOUND">,
 ): Promise<ShelterAdminView> {
   await loadShelterOr404(deps, input.shelterId, errors);
   const organizationId = await organizationOf(deps, input.shelterId);
   if (organizationId !== null) await cleanUpInvitedUsers(deps, organizationId);
   const invited = await invite(deps, moderatorId, input);
-  if (invited.kind === "already_a_member") throw errors.ALREADY_A_MEMBER();
+  if (invited.kind === "address_has_a_role") {
+    throw errors.ADDRESS_HAS_A_ROLE({ data: { reason: invited.reason } });
+  }
   return invited.view;
 }
 
