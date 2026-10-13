@@ -135,8 +135,9 @@ Answers verbatim in the inbox (HS-Q1–HS-Q6). Their effect on the slice:
     `sessions` table.
   - `shelter_history`'s columns are pinned by an exact-field test: no adopter, reveal or swipe
     data, ever.
-  - Order: 0008 rehearsal → 0008 production (done, 2026-10-13) → 0009 rehearsal on a fresh child
-    branch.
+  - Order as answered: 0008 rehearsal → 0008 production → 0009 rehearsal on a fresh child branch.
+    What happened (HS-T12, Oleksii): 0008 and 0009 went straight to production, rehearsal
+    skipped, and the post-hoc prod check passed. 0010 was the first migration rehearsed.
 
 ### HS-T2 / HS-Q7 follow-up (answered 2026-10-13, verbatim in the inbox)
 
