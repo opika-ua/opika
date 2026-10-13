@@ -17,8 +17,16 @@
  *   textContent }`, 201 `{ messageId }`.
  *
  * Nothing here knows the product's name or domain: the From address comes
- * from env (`mail.<domain>`, IN-Q2a), because the name is not final.
+ * from env, and its domain must be `mail.` + the host of PRODUCTION_ORIGIN
+ * (IN-R2, Oleksii: "The From address is on mail.opika.org.ua"; derived, never
+ * a literal, because the name is not final).
  */
+
+/** How long one send may take before it is abandoned (no retry: a send isn't idempotent). */
+export const EMAIL_SEND_TIMEOUT_MS = 10_000;
+
+/** Sent explicitly (Resend refuses requests without one); generic, no product name. */
+const USER_AGENT = "kabinet-mailer/1";
 
 export const EMAIL_PROVIDERS = ["resend", "postmark", "brevo"] as const;
 export type EmailProvider = (typeof EMAIL_PROVIDERS)[number];
@@ -40,17 +48,21 @@ export type EmailConfigResult =
   | { kind: "invalid"; reason: string };
 
 /**
- * Reads `EMAIL_PROVIDER`, `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM_ADDRESS` and
- * the optional `EMAIL_FROM_NAME`. The From address must be on a `mail.`
- * subdomain (IN-Q2: "Send from mail.<domain>"). An unset key is reported
- * as missing, which is what turns sign-in off in a Preview (IN-Q6).
+ * Reads `EMAIL_PROVIDER`, `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM_ADDRESS`,
+ * `PRODUCTION_ORIGIN` and the optional `EMAIL_FROM_NAME`. The From
+ * address's domain must be exactly `mail.` + PRODUCTION_ORIGIN's host
+ * (review of 3bc08a0, finding 4: a bare "starts with mail." accepted
+ * `a@mail.attacker.example`).
  */
 export function emailProviderConfigOf(
   env: Readonly<Record<string, string | undefined>>,
 ): EmailConfigResult {
-  const missing = ["EMAIL_PROVIDER", "EMAIL_PROVIDER_API_KEY", "EMAIL_FROM_ADDRESS"].filter(
-    (name) => !env[name],
-  );
+  const missing = [
+    "EMAIL_PROVIDER",
+    "EMAIL_PROVIDER_API_KEY",
+    "EMAIL_FROM_ADDRESS",
+    "PRODUCTION_ORIGIN",
+  ].filter((name) => !env[name]);
   if (missing.length > 0) return { kind: "missing", missing };
   const provider = env.EMAIL_PROVIDER as string;
   if (!(EMAIL_PROVIDERS as readonly string[]).includes(provider)) {
@@ -59,12 +71,16 @@ export function emailProviderConfigOf(
       reason: `EMAIL_PROVIDER must be one of ${EMAIL_PROVIDERS.join(", ")}`,
     };
   }
+  const origin = productionOriginOf(env.PRODUCTION_ORIGIN as string);
+  if (origin === null) {
+    return { kind: "invalid", reason: "PRODUCTION_ORIGIN must be an https origin with no path" };
+  }
   const fromAddress = (env.EMAIL_FROM_ADDRESS as string).trim();
-  const domain = fromAddress.split("@")[1] ?? "";
-  if (!/^[^@\s]+@[^@\s]+$/.test(fromAddress) || !domain.startsWith("mail.")) {
+  const domain = (fromAddress.split("@")[1] ?? "").toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+$/.test(fromAddress) || domain !== `mail.${origin.host}`) {
     return {
       kind: "invalid",
-      reason: "EMAIL_FROM_ADDRESS must be an address on the mail. subdomain",
+      reason: "EMAIL_FROM_ADDRESS must be an address on mail.<PRODUCTION_ORIGIN's host>",
     };
   }
   return {
@@ -78,6 +94,23 @@ export function emailProviderConfigOf(
   };
 }
 
+/**
+ * PRODUCTION_ORIGIN as a parsed https origin (`https://host`, nothing after
+ * the host but an optional trailing slash), or null. Pinned explicitly, never
+ * derived from the platform (IN-R2, Decision 2).
+ */
+export function productionOriginOf(value: string): { origin: string; host: string } | null {
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" || url.username || url.password) return null;
+  if ((url.pathname !== "/" && url.pathname !== "") || url.search || url.hash) return null;
+  return { origin: url.origin, host: url.hostname.toLowerCase() };
+}
+
 /** The exact HTTP request for one email, per provider. Pure, so each shape is tested without a network. */
 export function providerRequest(
   config: EmailProviderConfig,
@@ -87,7 +120,12 @@ export function providerRequest(
     config.fromName === null ? config.fromAddress : `${config.fromName} <${config.fromAddress}>`;
   const json = (headers: Record<string, string>, body: unknown): RequestInit => ({
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json", ...headers },
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": USER_AGENT,
+      ...headers,
+    },
     body: JSON.stringify(body),
   });
   switch (config.provider) {
@@ -146,7 +184,10 @@ export interface EmailSender {
 /**
  * Sends through the configured provider. Throws on any failure, a 2xx
  * carrying an error included, with the provider and status only: never
- * the key, and never the recipient's address in the message.
+ * the key, and never the recipient's address in the message. A send is
+ * abandoned after EMAIL_SEND_TIMEOUT_MS and never retried (review of
+ * 3bc08a0, finding 3): a hung provider must not hold a request open, and a
+ * retry could send twice.
  */
 export function fetchEmailSender(
   config: EmailProviderConfig,
@@ -155,10 +196,20 @@ export function fetchEmailSender(
   return {
     async send(email) {
       const { url, init } = providerRequest(config, email);
-      const response = await fetchImpl(url, init);
+      let response: Response;
+      try {
+        response = await fetchImpl(url, {
+          ...init,
+          signal: AbortSignal.timeout(EMAIL_SEND_TIMEOUT_MS),
+        });
+      } catch {
+        throw new Error(`Email provider ${config.provider} did not answer the send.`);
+      }
       const body = (await response.json().catch(() => null)) as { ErrorCode?: number } | null;
+      // Postmark reports failures inside a 2xx, and one it can't be read as
+      // success either (review of 3bc08a0, finding 6: a non-JSON 200).
       const postmarkError =
-        config.provider === "postmark" && body !== null && (body.ErrorCode ?? 0) !== 0;
+        config.provider === "postmark" && (body === null || (body.ErrorCode ?? 0) !== 0);
       if (!response.ok || postmarkError) {
         throw new Error(
           `Email provider ${config.provider} refused the send (status ${response.status}).`,

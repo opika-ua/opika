@@ -90,6 +90,14 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [ ] **`LOCATION_HMAC_SECRET` joins the required production env schema** (RG-Q10) in
       `apps/web/src/api/env.ts`, only after the step above. The same change rewrites the comments
       that say it is never in Vercel (`env.ts`, `onboard-shelter.ts`'s R2 note), which become false.
+- [ ] **A production build fails without the five sign-in variables** (IN-R2, Decision 1;
+      Oleksii, verbatim: "From the commit that turns sign-in on: A production build fails if any of
+      the five variables is missing, so a bad deploy never goes live. Keep the runtime boot check as
+      a second guard. Until that commit, nothing changes."): `EMAIL_PROVIDER`,
+      `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM_ADDRESS`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (plus
+      `PRODUCTION_ORIGIN`, which they are checked against), in the wiring commit, with a test.
+- [ ] **The runtime boot check stays as the second guard** (IN-R2, Decision 1): production refuses
+      to boot without them from the same commit, tested.
 - [ ] **The one-membership unique violation is a typed error, never a 500** (IN-Q8, IN-T1): in the
       PR that first writes `auth_member` (auto-accept on first sign-in), `auth_member_user_id_unique`
       maps to `ADDRESS_HAS_A_ROLE` (`shelter_admin`), with a test that accepts two invitations for one
@@ -97,6 +105,8 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [ ] **`registry.admins.invite` refuses an operator's address** (RG-T10; Oleksii, verbatim: "RG-T10:
       accepted as an invite-PR item. It must land before admin:bootstrap."), so inviting an operator can
       never end in `conflicting_roles`. Lands before the rollout's `admin:bootstrap` step.
+- [ ] **`www.opika.org.ua` redirects 308 to the apex** (IN-R2, Decision 2): a Vercel domain setting,
+      Oleksii's action before sign-in goes live; `PRODUCTION_ORIGIN` is `https://opika.org.ua`.
 - [ ] **Production rollout order** (RG-Q2, superseding HS-Q13's; Oleksii, verbatim: "Rollout order
       becomes: invite merged → admin:bootstrap → I sign in → first shelter invite."), after the
       registry PR has merged:
