@@ -732,6 +732,9 @@ describe("no listing move touches last_updated_at (HS-T9)", () => {
     );
     expect(undone.status).toBe(200);
     expect(undone.body.lastUpdatedAt).toEqual(EDITED);
-    expect((await reload(a.id)).lastUpdatedAt).toEqual(EDITED);
+    const after = await reload(a.id);
+    expect(after.lastUpdatedAt).toEqual(EDITED);
+    // The undo really happened: the stored confirmation is back where it was.
+    expect(after.listing).toMatchObject({ kind: "published", confirmedAt: PUBLISHED });
   });
 });
