@@ -61,7 +61,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import type { Database } from "./client";
-import { assertProductionWriteAllowed } from "./prod-guard";
+import { assertProductionWriteAllowed, databaseTargetLine } from "./prod-guard";
 import { animalRepo } from "./repos/animal-repo";
 import { cityRepo } from "./repos/city-repo";
 import * as schema from "./schema/index";
@@ -1450,7 +1450,9 @@ export function buildDemoAnimals(
 async function main(profile: SeedProfile) {
   console.log("🐾 Seeding database...");
   console.log(`  Profile:      ${profile}`);
-  console.log(`  DATABASE_URL: ${DATABASE_URL.replace(/:[^:@]+@/, ":***@")}`);
+  // The shared target line, never the URL (Oleksii, 2026-10-13): no user,
+  // password or query string can print, whatever the URL holds.
+  console.log(`  ${databaseTargetLine(DATABASE_URL)}`);
 
   const client = postgres(DATABASE_URL, { max: 1 });
   const db = drizzle(client, { schema });

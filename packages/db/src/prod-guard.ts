@@ -42,7 +42,12 @@ export type ProductionWriteCheck =
   | { kind: "allowed"; reason: "local" | "not_production" | "production_flagged" }
   | {
       kind: "refused";
-      reason: "production_without_flag" | "production_unknown" | "unparseable" | "misconfigured";
+      reason:
+        | "production_without_flag"
+        | "production_unknown"
+        | "unparseable"
+        | "ambiguous_host"
+        | "misconfigured";
     };
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
@@ -60,6 +65,82 @@ const parseOrNull = (url: string): URL | null => {
 const computeOf = (hostOrId: string): string =>
   (hostOrId.toLowerCase().split(".")[0] ?? "").replace(/-pooler$/, "");
 
+/**
+ * Which database a script is about to touch, reduced to what can be printed.
+ *
+ * Why it exists (Oleksii, 2026-10-13): `db:check-hashes` and `db:migrate`
+ * printed their results with nothing saying where they came from, so a pasted
+ * "every hash matches" proved nothing about which branch it was run against.
+ * The line printed first is that proof.
+ *
+ * Built from named fields of the parsed URL, never by redacting the string:
+ * a redaction regex has to anticipate every place a secret can sit (password,
+ * user, `?password=`, `?options=`), whereas a field that is never copied
+ * can't leak. No user, no password, no query string, in any variant.
+ */
+export type DatabaseTarget =
+  | { kind: "neon"; endpoint: string; host: string }
+  | { kind: "local"; host: string; port: string; database: string }
+  | { kind: "remote"; host: string }
+  | { kind: "ambiguous_host" }
+  | { kind: "unparseable" };
+
+/**
+ * The same suffix test as `client.ts`'s `isNeonHost`, which picks the driver,
+ * applied after the trailing dot is stripped (a fully qualified
+ * `x.neon.tech.` is still Neon, so the label holds even where the two
+ * spellings differ).
+ */
+const isNeonHostname = (hostname: string): boolean => hostname.endsWith(".neon.tech");
+
+export function databaseTargetOf(url: string): DatabaseTarget {
+  const parsed = parseOrNull(url);
+  if (parsed === null) return { kind: "unparseable" };
+  // A comma lists several hosts (postgres-js tries them in turn) and an empty
+  // host falls back to PGHOST or localhost: either way the line couldn't
+  // name the database honestly, and it exists to be proof (review, finding 2).
+  if (parsed.hostname === "" || parsed.hostname.includes(",")) return { kind: "ambiguous_host" };
+  // `postgres:` isn't a WHATWG special scheme, so `URL` keeps the host's case;
+  // the trailing dot is the same host written fully qualified.
+  const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+  if (LOCAL_HOSTS.has(host.replace(/^\[|\]$/g, ""))) {
+    return {
+      kind: "local",
+      host,
+      // Postgres' own default, which is what an omitted port connects to.
+      port: parsed.port || "5432",
+      database: parsed.pathname.replace(/^\//, ""),
+    };
+  }
+  // The endpoint id is the compute, which is what the production guard compares,
+  // so the pooled and direct hostnames of one database print the same id.
+  const endpoint = computeOf(host);
+  if (isNeonHostname(host) && ENDPOINT_ID.test(endpoint)) return { kind: "neon", endpoint, host };
+  return { kind: "remote", host };
+}
+
+/** The line a script prints before its results. */
+export function databaseTargetLine(url: string): string {
+  const target = databaseTargetOf(url);
+  switch (target.kind) {
+    case "neon":
+      return `Target: Neon endpoint ${target.endpoint} (${target.host})`;
+    case "local":
+      return `Target: local (${target.host}:${target.port}/${target.database || "<default database>"})`;
+    case "remote":
+      return `Target: remote host ${target.host} (not a Neon endpoint)`;
+    case "ambiguous_host":
+      return "Target: DATABASE_URL names several hosts or none, so it can't be named (not printing it).";
+    case "unparseable":
+      return "Target: DATABASE_URL could not be parsed (not printing it).";
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
+    default: {
+      const unreachable: never = target;
+      throw new Error(`Unhandled target ${JSON.stringify(unreachable)}`);
+    }
+  }
+}
+
 export function checkProductionWrite(
   targetUrl: string,
   argv: readonly string[],
@@ -69,6 +150,14 @@ export function checkProductionWrite(
   // dump prints the input, password included.
   const target = parseOrNull(targetUrl);
   if (target === null) return { kind: "refused", reason: "unparseable" };
+  // Only one host can be checked against production. A comma lists several
+  // (postgres-js fails over through them, so a production host second in
+  // line would be reached without --prod), and an empty host falls back to
+  // PGHOST or localhost: neither can be shown not to be production
+  // (review of 9ce9bc1, finding 1). Same rule as `databaseTargetOf`.
+  if (target.hostname === "" || target.hostname.includes(",")) {
+    return { kind: "refused", reason: "ambiguous_host" };
+  }
   // Exact hostname match, never a substring test: a URL merely *containing*
   // "localhost" (in a password, a query string) must not pass as local.
   if (LOCAL_HOSTS.has(target.hostname.toLowerCase().replace(/^\[|\]$/g, ""))) {
@@ -147,6 +236,8 @@ export function assertProductionWriteAllowed(
       `non-local target can't be shown not to be production. Set it, or pass ${PROD_FLAG} if ` +
       "you mean production.",
     unparseable: "ERROR: a database URL could not be parsed. Refusing (not printing it).",
+    ambiguous_host:
+      "ERROR: the database URL names several hosts or none; only one host can be checked against production. Refusing (not printing it).",
     misconfigured:
       `ERROR: ${PROD_ENDPOINT_ENV} doesn't look like a Neon endpoint id (ep-…). Refusing ` +
       "(not printing it).",
