@@ -31,8 +31,10 @@ export function shelterRepo(db: Database) {
       await db.insert(shelters).values(shelterToRow(shelter));
     },
 
-    async update(shelter: Shelter): Promise<void> {
-      await db.update(shelters).set(shelterToRow(shelter)).where(eq(shelters.id, shelter.id));
-    },
+    // Deliberately no `update`. A whole-row write here would not bump
+    // `version`, so it could overwrite a field between a kabinet read and
+    // its compare-and-set write without the CAS noticing, and leave no
+    // history row. Changes to an existing shelter go through
+    // `kabinetShelterRepo.applyAudited*`; `repos.test.ts` asserts the absence.
   };
 }

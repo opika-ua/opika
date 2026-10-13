@@ -16,6 +16,7 @@ import { revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { swipeRepo } from "../src/repos/swipe-repo";
 import { animals as animalsTable } from "../src/schema/animals";
+import { shelters as sheltersTable } from "../src/schema/shelters";
 import {
   makeAdopter,
   makeAnimal,
@@ -107,7 +108,7 @@ describe("shelterRepo", () => {
     expect(found).toEqual(shelter);
   });
 
-  it("updates a shelter", async () => {
+  it("reads back a shelter row changed in place", async () => {
     const cities = cityRepo(db);
     const shelters = shelterRepo(db);
 
@@ -135,11 +136,24 @@ describe("shelterRepo", () => {
     });
     await shelters.insert(shelter);
 
-    const updated = { ...shelter, displayName: "Нова назва" };
-    await shelters.update(updated);
+    // A direct write rather than a repo method: `shelterRepo` has no
+    // unaudited `update` (see the next test), and display name is not an
+    // audited change kind. What this guards is the read path seeing a
+    // changed row.
+    await db
+      .update(sheltersTable)
+      .set({ displayName: "Нова назва" })
+      .where(eq(sheltersTable.id, shelter.id));
 
     const found = await shelters.findById(shelter.id);
     expect(found?.displayName).toBe("Нова назва");
+  });
+
+  it("exposes no unaudited whole-row update", () => {
+    // RG-Q12: a full-row write that skips the `version` bump is the one path
+    // that could slip past the kabinet's compare-and-set. Keys, not a type
+    // check, so re-adding any write method under another name also trips it.
+    expect(Object.keys(shelterRepo(db)).sort()).toEqual(["findById", "findByIds", "insert"]);
   });
 });
 
