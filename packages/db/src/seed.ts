@@ -1348,6 +1348,7 @@ export function buildAnimals(
       publicLocation,
       createdAt: daysAgo(updatedDaysAgo + 7), // created a week before last update
       lastUpdatedAt,
+      version: 0,
     };
 
     results.push({ animal, cityId: effectiveCityId });

@@ -131,6 +131,7 @@ export function makeAnimal(overrides: Partial<Animal> = {}): Animal {
     publicLocation: null,
     createdAt: now,
     lastUpdatedAt: now,
+    version: 0,
     ...overrides,
   };
 }

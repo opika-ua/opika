@@ -205,12 +205,12 @@ export const shelterAnimalsContract = {
       }),
     )
     .errors(shelterScopedErrors),
-  /** Bumps `lastUpdatedAt` only, never `confirmedAt` (commitment #7). */
+  /** Compare-and-set on `version` (S3-T6); bumps `lastUpdatedAt` and `version`, never `confirmedAt` (commitment #7). */
   update: animalWrite
     .input(
       z.strictObject({
         animalId: AnimalIdSchema,
-        expectedLastUpdatedAt: z.date(),
+        expectedVersion: z.int().nonnegative(),
         patch: AnimalPatchSchema,
       }),
     )

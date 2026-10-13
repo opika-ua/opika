@@ -53,6 +53,7 @@ export const KabinetAnimalViewSchema = AnimalSchema.pick({
   publicLocation: true,
   createdAt: true,
   lastUpdatedAt: true,
+  version: true,
 });
 export type KabinetAnimalView = z.infer<typeof KabinetAnimalViewSchema>;
 

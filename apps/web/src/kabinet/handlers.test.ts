@@ -251,12 +251,32 @@ describe("shelter.animals", () => {
     expect((await reload(result.body.id)).shelterId).toBe(shelter.id);
   });
 
+  /** S3-T6: an edit bumps version by exactly one, and a second save from the same read is CONFLICT. */
+  it("update bumps version, and a save from the old version is then CONFLICT", async () => {
+    const a = await animal();
+    const first = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { name: "Перше" },
+    });
+    expect(first.status).toBe(200);
+    expect(first.body.version).toBe(a.version + 1);
+    expect((await reload(a.id)).version).toBe(a.version + 1);
+    const second = await call("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { name: "Друге" },
+    });
+    expect(second.status).toBe(409);
+    expect((await reload(a.id)).name).toBe("Перше");
+  });
+
   /** Commitment #7: an edit moves lastUpdatedAt, never the confirmation date. */
   it("update edits, and leaves confirmedAt exactly where it was", async () => {
     const a = await animal();
     const result = await call("shelter.animals.update", {
       animalId: a.id,
-      expectedLastUpdatedAt: a.lastUpdatedAt,
+      expectedVersion: a.version,
       patch: { name: "Нове ім'я" },
     });
     expect(result.status).toBe(200);
@@ -272,7 +292,7 @@ describe("shelter.animals", () => {
     const a = await animal();
     const result = await call("shelter.animals.update", {
       animalId: a.id,
-      expectedLastUpdatedAt: new Date(a.lastUpdatedAt.getTime() - 1000),
+      expectedVersion: a.version + 1,
       patch: { name: "x" },
     });
     expect(result.status).toBe(409);
@@ -289,7 +309,7 @@ describe("shelter.animals", () => {
     });
     const result = await call("shelter.animals.update", {
       animalId: a.id,
-      expectedLastUpdatedAt: a.lastUpdatedAt,
+      expectedVersion: a.version,
       patch: { vaccination: { state: "unknown" } },
     });
     // Its own code, not 403 (HS-T6): 403 means access, and only access.
@@ -348,12 +368,12 @@ describe("shelter.animals", () => {
 
   it("an edit form opened before a «Ще шукає» still saves, and the confirmation survives it", async () => {
     const a = await animal();
-    const formReadAt = a.lastUpdatedAt;
+    const formReadVersion = a.version;
     const confirmedAt = new Date();
     await call("shelter.animals.confirm", { animalId: a.id }, { now: confirmedAt });
     const saved = await call("shelter.animals.update", {
       animalId: a.id,
-      expectedLastUpdatedAt: formReadAt,
+      expectedVersion: formReadVersion,
       patch: { name: "Збережено після підтвердження" },
     });
     expect(saved.status).toBe(200);
@@ -714,6 +734,8 @@ describe("no listing move touches last_updated_at (HS-T9)", () => {
       expect(result.body.lastUpdatedAt ?? result.body.animal?.lastUpdatedAt).toEqual(EDITED);
       const after = await reload(a.id);
       expect(after.lastUpdatedAt).toEqual(EDITED);
+      // RG-Q7: a move never bumps the edit guard either.
+      expect(after.version).toBe(a.version);
       // The move really happened: "unchanged" proves nothing about a write that never ran.
       reached(after);
     });

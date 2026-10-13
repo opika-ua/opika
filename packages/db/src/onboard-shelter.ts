@@ -346,6 +346,7 @@ export function buildAnimal(
     publicLocation: null,
     createdAt: now,
     lastUpdatedAt: now,
+    version: 0,
   };
 }
 

@@ -139,3 +139,25 @@ leftovers. **RS-Q1** asks when expiry clean-up runs.
   product copy, and it changes if the operator does.
 - **B:** a message in the i18n catalogue, next to the other kabinet strings, so it is reviewed as
   copy.
+
+---
+
+## Decisions, 2026-10-13 (verbatim in the inbox: RS-Q0, RS-Q1, RS-Q2)
+
+- **Approved (RS-Q0)**, with three amendments:
+  - **`animals_imported` covers new animals only.** Checked: no script edits an existing animal.
+    `onboard-shelter.ts` only inserts (an existing shelter and existing animals are skipped, with a
+    warning if they differ), and `seed.ts` truncates and inserts. So no script path needs
+    per-animal entries. If one ever edits an animal, it records per-animal history.
+  - **`support_sessions` columns** are exactly: id, `operator_user_id`, `shelter_id`, `started_at`,
+    `last_seen_at`, `ended_at`, `end_reason`. There is **no IP and no user-agent**, and rows are
+    never deleted. §5's `token_hash` stays as the lookup key for the cookie (a hash, never the
+    token, as decision #13): flagged here so the column list is complete, not slipped in.
+  - **`invitation_created_users` with the `first_session_at` hook**: as proposed.
+- **RS-Q1: lazy clean-up on `registry.admins.*` only.** `shelter.history.list` stays
+  side-effect-free. **`admin:sweep-invites`** sits behind the production guard: a dry run prints
+  what it would delete, and `--apply` deletes.
+- **RS-Q2: `KABINET_OPERATOR_DISPLAY_NAME`**, in the nominative case only, and used only where the
+  nominative fits (the history actor label). Sentences that need other cases stay catalogue keys.
+  - **Missing var:** the fallback is «Оператор реєстру» from the catalogue, and the kabinet never
+    fails to boot over it. This supersedes §7's "kabinet answers 503". A test covers the fallback.

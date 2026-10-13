@@ -57,6 +57,15 @@ export const AnimalSchema = z.object({
   publicLocation: PublicLocationSchema.nullable(),
   createdAt: z.date(),
   lastUpdatedAt: z.date(),
+  /**
+   * Bumped by every edit (S3-T6, Oleksii: "integer version for animals too
+   * (same as shelters)"). K3's form saves compare-and-set on it, so two
+   * people editing one animal can't overwrite each other. Listing moves never
+   * bump it (RG-Q7): they compare on the listing itself, so an open edit form
+   * and a «Ще шукає» never conflict. An integer, not `lastUpdatedAt`: JS
+   * dates hold milliseconds, Postgres timestamps microseconds.
+   */
+  version: z.int().nonnegative(),
 });
 export type Animal = z.infer<typeof AnimalSchema>;
 

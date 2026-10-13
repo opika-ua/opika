@@ -124,7 +124,7 @@ describe("cross-tenant: an animalId from another shelter is FORBIDDEN", () => {
       "shelter.animals.update",
       () => ({
         animalId: bPublished.id,
-        expectedLastUpdatedAt: bPublished.lastUpdatedAt,
+        expectedVersion: bPublished.version,
         patch: { name: "Чужий" },
       }),
     ],

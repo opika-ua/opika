@@ -250,6 +250,7 @@ function getAnimalColumns() {
     cityId: animals.cityId,
     createdAt: animals.createdAt,
     lastUpdatedAt: animals.lastUpdatedAt,
+    version: animals.version,
   };
 }
 

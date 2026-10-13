@@ -63,6 +63,7 @@ export function kabinetAnimalViewOf(animal: Animal): KabinetAnimalView {
     publicLocation: animal.publicLocation,
     createdAt: animal.createdAt,
     lastUpdatedAt: animal.lastUpdatedAt,
+    version: animal.version,
   };
 }
 
@@ -262,6 +263,7 @@ export async function animalsCreateDraft(
     publicLocation: null,
     createdAt: deps.now,
     lastUpdatedAt: deps.now,
+    version: 0,
   };
   // An animal at its shelter is discoverable in the shelter's city.
   await kabinetAnimalRepo(deps.db).insert(animal, shelter.publicLocation.cityId);
@@ -269,7 +271,7 @@ export async function animalsCreateDraft(
 }
 
 /**
- * A K3 form save. Compare-and-set on the `lastUpdatedAt` the form read, so a
+ * A K3 form save. Compare-and-set on the `version` the form read (S3-T6), so a
  * save never silently overwrites a newer edit. It writes the edited fields
  * only, never the listing, so a «Ще шукає» made while the form was open
  * neither conflicts nor gets undone. Moves `lastUpdatedAt`, never
@@ -280,7 +282,7 @@ export async function animalsUpdate(
   scope: ShelterWriteScope,
   input: {
     animalId: AnimalId;
-    expectedLastUpdatedAt: Date;
+    expectedVersion: number;
     patch: z.infer<typeof AnimalPatchSchema>;
   },
   errors: OwnErrors &
@@ -290,9 +292,7 @@ export async function animalsUpdate(
     }>,
 ): Promise<KabinetAnimalView> {
   const { animal, cityId } = await owned(deps, scope, input.animalId, errors);
-  if (animal.lastUpdatedAt.getTime() !== input.expectedLastUpdatedAt.getTime()) {
-    throw errors.CONFLICT();
-  }
+  if (animal.version !== input.expectedVersion) throw errors.CONFLICT();
   const { patch } = input;
   const vaccination = declared(animal.vaccination, patch.vaccination, deps.now);
   const spayNeuter = declared(animal.spayNeuter, patch.spayNeuter, deps.now);
@@ -308,8 +308,9 @@ export async function animalsUpdate(
     vaccination,
     spayNeuter,
     lastUpdatedAt: deps.now,
+    version: animal.version + 1,
   };
-  const result = await kabinetAnimalRepo(deps.db).writeEditIf(next, cityId, animal.lastUpdatedAt);
+  const result = await kabinetAnimalRepo(deps.db).writeEditIf(next, cityId, animal.version);
   if (result.kind === "conflict") throw errors.CONFLICT();
   return kabinetAnimalViewOf(next);
 }
@@ -392,7 +393,7 @@ export async function animalsDeleteDraft(
     }
     if (firstPublishedAt !== null)
       throw errors.WAS_PUBLISHED({ data: { reason: "was_published" } });
-    const result = await kabinetAnimalRepo(deps.db).deleteDraftIf(animal.id, animal.lastUpdatedAt);
+    const result = await kabinetAnimalRepo(deps.db).deleteDraftIf(animal.id, animal.version);
     if (result.kind === "ok") return {};
     // A swipe or reveal references it. Activity, not proof it was published
     // (HS-T10): a draft id can be swiped without the draft ever being public.

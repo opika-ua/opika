@@ -203,6 +203,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "publicLocation",
         "createdAt",
         "lastUpdatedAt",
+        "version",
       ].sort(),
     );
   });
