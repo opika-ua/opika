@@ -2,6 +2,7 @@ import type { Database } from "@opika/db";
 import { kabinetActorRepo } from "@opika/db/repos";
 import type { KabinetPrincipal } from "./actor";
 import { KABINET_SESSION, type KabinetAuth } from "./auth";
+import { withSupportMode } from "./support";
 
 /**
  * Who a request is, for the kabinet. Better Auth answers "which user, if
@@ -29,11 +30,22 @@ export async function kabinetIdentityOf(
   db: Database,
   headers: Headers,
   now: Date,
+  production: boolean,
 ): Promise<KabinetIdentity> {
   const session = await auth.api.getSession({ headers });
   if (session === null) return { principal: { kind: "anonymous" }, userId: null };
   if (now.getTime() - session.session.createdAt.getTime() > KABINET_SESSION.absoluteMs) {
     return { principal: { kind: "anonymous" }, userId: null };
   }
-  return { principal: await kabinetActorRepo(db).roleOf(session.user.id), userId: session.user.id };
+  const role = await kabinetActorRepo(db).roleOf(session.user.id);
+  // A super_admin with an open support session is a support view (RG-Q4).
+  const principal = await withSupportMode(
+    db,
+    role,
+    session.user.id,
+    headers.get("cookie"),
+    now,
+    production,
+  );
+  return { principal, userId: session.user.id };
 }

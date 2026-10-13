@@ -93,6 +93,8 @@ async function call<T = Record<string, unknown>>(
     now: opts.now ?? new Date(),
     newId: () => crypto.randomUUID(),
     operatorDisplayName: "Олексій",
+    locationPolicy: null,
+    production: false,
   });
   const text = await response.text();
   return { status: response.status, body: parsed(text) as T };

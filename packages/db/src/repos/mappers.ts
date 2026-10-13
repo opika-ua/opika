@@ -41,7 +41,7 @@ type RevealInsert = typeof reveals.$inferInsert;
 
 // --- LocalizedText helpers ---
 
-function localizedTextToColumns(lt: LocalizedText): {
+export function localizedTextToColumns(lt: LocalizedText): {
   uk: string;
   enText: string | null;
   enProvenance: TextProvenance | null;

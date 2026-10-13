@@ -55,6 +55,10 @@ const invite = (email: string, at = NOW, shelter = shelterId) =>
     inviterUserId: OPERATOR,
     ids: { invitationId: id("inv"), userId: id("user"), organizationId: id("org") },
     now: at,
+    history: {
+      id: crypto.randomUUID(),
+      entry: { kind: "admin_invited", at: at, moderatorId: OPERATOR as never, email: email },
+    },
   });
 
 const userByEmail = async (email: string) =>
@@ -200,12 +204,22 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
   it("resend extends a pending invitation, and revives nothing revoked", async () => {
     const r = await invite("olena@example.org");
     if (r.kind !== "invited") throw new Error("unreachable");
-    expect(await repo().resend(r.invitationId, later)).toEqual({
+    const resent = (email: string) => ({
+      id: crypto.randomUUID(),
+      shelterId: shelterId as never,
+      entry: {
+        kind: "admin_invitation_resent" as const,
+        at: later,
+        moderatorId: OPERATOR as never,
+        email,
+      },
+    });
+    expect(await repo().resend(r.invitationId, later, resent("olena@example.org"))).toEqual({
       expiresAt: new Date(later.getTime() + INVITATION_TTL_MS),
     });
     expect(await users().cleanupCandidates({ organizationId: null, now: later })).toEqual([]);
     await repo().revoke(r.invitationId);
-    expect(await repo().resend(r.invitationId, later)).toBeNull();
+    expect(await repo().resend(r.invitationId, later, resent("olena@example.org"))).toBeNull();
   });
 
   /** Finding 1: expired, then re-invited. The live invitation keeps the user. */

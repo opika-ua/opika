@@ -18,6 +18,7 @@ import {
   type ShelterReadScope,
   type ShelterWriteScope,
 } from "./access";
+import type { KabinetPrincipal } from "./actor";
 import type { KabinetContext } from "./context";
 import {
   animalsById,
@@ -50,17 +51,24 @@ const base = implement(shelterKabinetContract).$context<KabinetContext>();
  * call it; it receives the scope this hands it, with the `shelterId` taken
  * from the actor, never from input.
  */
-const guarded = base.use(async ({ context, procedure, next }) => {
+export function accessOrThrow(
+  procedure: { "~orpc": { meta: unknown } },
+  principal: KabinetPrincipal,
+): Exclude<AccessDecision, { kind: "deny" }> {
   const meta = procedure["~orpc"].meta as { access?: KabinetAccess | null };
-  const decision = decideAccess(meta.access ?? null, context.principal);
+  const decision = decideAccess(meta.access ?? null, principal);
   if (decision.kind === "deny") {
     throw new ORPCError(decision.code, {
       status: apiErrors[decision.code].status,
       message: apiErrors[decision.code].message,
     });
   }
-  return next({ context: { access: decision } });
-});
+  return decision;
+}
+
+const guarded = base.use(async ({ context, procedure, next }) =>
+  next({ context: { access: accessOrThrow(procedure, context.principal) } }),
+);
 
 /**
  * The scope a handler declared it needs. The contract's access meta and the

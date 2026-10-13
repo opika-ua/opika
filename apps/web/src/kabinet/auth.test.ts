@@ -7,6 +7,7 @@ import {
 } from "@opika/db/repos";
 import { authSession, invitationCreatedUsers, superAdmins } from "@opika/db/schema";
 import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
+import type { ModeratorId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import {
@@ -23,12 +24,16 @@ import {
 } from "./auth-route";
 import { capturingSender } from "./magic-link-sender";
 import { kabinetIdentityOf } from "./principal";
-
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
+import { enterSupport } from "./support";
 
 /** The principal the route acts on: `kabinetIdentityOf`, the function the route calls. */
-const principalOf = async (...args: Parameters<typeof kabinetIdentityOf>) =>
-  (await kabinetIdentityOf(...args)).principal;
+const principalOf = async (
+  auth: Parameters<typeof kabinetIdentityOf>[0],
+  db: Parameters<typeof kabinetIdentityOf>[1],
+  headers: Headers,
+  now: Date,
+) => (await kabinetIdentityOf(auth, db, headers, now, false)).principal;
 
 /**
  * Better Auth for real: a real instance, its real Drizzle adapter, real
@@ -220,6 +225,31 @@ describe("principalOf", () => {
       kind: "super_admin",
       moderatorId: user.id,
     });
+  });
+
+  /** RG-Q4: the real sign-in path resolves an open support session into a read-only view. */
+  it("is a support view for a super_admin carrying an open support session's cookie", async () => {
+    const user = await createUser("operator@example.org");
+    const cookie = await signIn("operator@example.org");
+    await db
+      .insert(superAdmins)
+      .values({ id: crypto.randomUUID(), userId: user.id, grantedAt: new Date() });
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
+    });
+    await shelterRepo(db).insert(shelter);
+    const setCookies: string[] = [];
+    await enterSupport(
+      { db, now: new Date(), newId: () => crypto.randomUUID(), setCookies, production: false },
+      user.id as ModeratorId,
+      shelter.id,
+    );
+    const support = setCookies[0]?.split(";")[0] ?? "";
+    expect(
+      await principalOf(auth, db, new Headers({ cookie: `${cookie}; ${support}` }), new Date()),
+    ).toEqual({ kind: "support_view", moderatorId: user.id, shelterId: shelter.id });
   });
 });
 
@@ -497,6 +527,15 @@ describe("first sign-in of an invited user (RG-Q3, RS-Q0)", () => {
         organizationId: crypto.randomUUID(),
       },
       now: new Date(),
+      history: {
+        id: crypto.randomUUID(),
+        entry: {
+          kind: "admin_invited",
+          at: new Date(),
+          moderatorId: operator.id as never,
+          email: "olena@example.org",
+        },
+      },
     });
     if (invited.kind !== "invited") throw new Error("unreachable");
     expect((await db.select().from(invitationCreatedUsers))[0]?.firstSessionAt).toBeNull();
@@ -545,6 +584,16 @@ describe("an invitation, written server-side and accepted through Better Auth (H
       email: " Olena@Example.org ",
       inviterUserId: operator.id,
       now,
+      history: {
+        id: crypto.randomUUID(),
+        shelterId: shelter.id,
+        entry: {
+          kind: "admin_invited",
+          at: now,
+          moderatorId: operator.id as never,
+          email: "olena@example.org",
+        },
+      },
     });
 
     const cookie = await signIn("olena@example.org");
@@ -584,6 +633,16 @@ describe("an invitation, written server-side and accepted through Better Auth (H
       email: "olena@example.org",
       inviterUserId: operator.id,
       now,
+      history: {
+        id: crypto.randomUUID(),
+        shelterId: shelter.id,
+        entry: {
+          kind: "admin_invited",
+          at: now,
+          moderatorId: operator.id as never,
+          email: "olena@example.org",
+        },
+      },
     });
     const cookie = await signIn("someone-else@example.org");
     const accepted = await auth.handler(

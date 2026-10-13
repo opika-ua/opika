@@ -1,4 +1,5 @@
 import type { Database } from "@opika/db";
+import type { LocationPrivacyPolicy } from "@opika/domain";
 import type { KabinetPrincipal } from "./actor";
 
 /**
@@ -15,4 +16,16 @@ export type KabinetContext = {
   cursorSecret: string;
   /** The history actor label for the operator (`operatorDisplayName`, RS-Q2). */
   operatorDisplayName: string;
+  /**
+   * The keyed location policy (`LOCATION_HMAC_SECRET`), or null when the key
+   * isn't configured. The route answers 503 to every `registry.*` call then
+   * (RG-Q10), so a registry handler never sees null.
+   */
+  locationPolicy: LocationPrivacyPolicy | null;
+  /** Set-Cookie values the route appends to the response (support mode's cookie). */
+  setCookies: string[];
+  /** The request's Cookie header, for leaving support mode. */
+  cookieHeader: string | null;
+  /** `__Host-` cookies and Secure only in production. */
+  production: boolean;
 };

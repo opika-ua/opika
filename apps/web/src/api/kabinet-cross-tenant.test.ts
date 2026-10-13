@@ -100,6 +100,8 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
     now: new Date(),
     newId: () => crypto.randomUUID(),
     operatorDisplayName: "Олексій",
+    locationPolicy: null,
+    production: false,
   });
   const text = await response.text();
   return { status: response.status, body: text ? fromRpcBody(JSON.parse(text)) : null };

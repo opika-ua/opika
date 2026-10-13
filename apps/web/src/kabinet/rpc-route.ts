@@ -1,11 +1,20 @@
 import type { Database } from "@opika/db";
+import type { LocationPrivacyPolicy } from "@opika/domain";
 import { RPCHandler } from "@orpc/server/fetch";
 import type { RateLimiter } from "../api/rate-limit";
 import type { KabinetPrincipal } from "./actor";
 import type { KabinetAuthAvailability } from "./auth-route";
+import { registryRouter } from "./registry-router";
 import { shelterKabinetRouter } from "./router";
 
-const handler = new RPCHandler(shelterKabinetRouter);
+/**
+ * Both surfaces on one handler (`shelter`, `registry`, `session` are disjoint
+ * top-level keys). Each router was built with `implement(...)` over its own
+ * contract and is complete, so no stub answers a real route (HS-Q1).
+ */
+export const kabinetRouter = { ...shelterKabinetRouter, ...registryRouter };
+
+const handler = new RPCHandler(kabinetRouter);
 
 export const KABINET_RPC_PREFIX = "/api/kabinet";
 
@@ -49,16 +58,25 @@ export async function handleKabinetRpc(
     now: Date;
     newId: () => string;
     operatorDisplayName: string;
+    locationPolicy: LocationPrivacyPolicy | null;
+    production: boolean;
   },
 ): Promise<Response> {
   if (!(await deps.limiters.perIp.check(`ip:${deps.ip}`, deps.now))) return tooMany();
   if (deps.availability.kind === "unavailable") {
     return new Response("Kabinet is not available", { status: 503 });
   }
+  // RG-Q10: without the location key the registry can't create a shelter or
+  // move one honestly, so all of it is unavailable rather than half of it.
+  const path = new URL(request.url).pathname;
+  if (deps.locationPolicy === null && path.startsWith(`${KABINET_RPC_PREFIX}/registry/`)) {
+    return new Response("Registry is not available", { status: 503 });
+  }
   const { principal, userId, db, cursorSecret } = await deps.resolve();
   if (userId !== null && !(await deps.limiters.perUser.check(`user:${userId}`, deps.now))) {
     return tooMany();
   }
+  const setCookies: string[] = [];
   const result = await handler.handle(request, {
     prefix: KABINET_RPC_PREFIX,
     context: {
@@ -68,7 +86,13 @@ export async function handleKabinetRpc(
       principal,
       cursorSecret,
       operatorDisplayName: deps.operatorDisplayName,
+      locationPolicy: deps.locationPolicy,
+      setCookies,
+      cookieHeader: request.headers.get("cookie"),
+      production: deps.production,
     },
   });
-  return result.matched ? result.response : new Response("Not Found", { status: 404 });
+  if (!result.matched) return new Response("Not Found", { status: 404 });
+  for (const cookie of setCookies) result.response.headers.append("Set-Cookie", cookie);
+  return result.response;
 }

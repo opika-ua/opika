@@ -3,6 +3,7 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { FORWARDED_AUTH_PATHS } from "./auth";
+import { kabinetAuthAvailability } from "./auth-route";
 
 /**
  * HS-Q3 (Oleksii): "self-serve shipped" is the first PR in which a real
@@ -52,6 +53,9 @@ function sourceFiles(): string[] {
 const filesMatching = (pattern: RegExp) =>
   sourceFiles().filter((file) => pattern.test(readFileSync(join(REPO, file), "utf8")));
 
+/** RG-Q9's one allowlisted importer of the invitation writer, by full path. */
+const INVITATION_MODULE = "apps/web/src/kabinet/handlers/registry-invitations.ts";
+
 const COPY_GATE =
   "/prytulkam A1–A3 (§7 whatToPrepare, §9 whenAnimalFindsHome, §10 whoIsBehindThis) and B1 " +
   "(whyThatSentence) must be live before this changes: see docs/h2-copy-sheet.md (HS-Q3)";
@@ -98,12 +102,33 @@ describe(`no shelter membership can be created outside tests — ${COPY_GATE}`, 
     ).toEqual([]);
   });
 
-  it("nothing outside tests calls the invitation writer yet", () => {
+  /**
+   * RG-Q9 (Oleksii): exactly one module may call the invitation writer, named
+   * by its full path (no glob, so moving or splitting it fails here), and
+   * only while nobody can act on an invitation: production sign-in answers
+   * 503 (no email provider) **and** accept-invitation isn't forwarded. If
+   * either flips, the allowlisted import fails on its own, independently of
+   * the two assertions above: that is the self-serve day, and the copy below
+   * has to be live first.
+   */
+  it("only the registry's invitation module calls the invitation writer, and only while no one can accept", () => {
+    const productionSignIn = kabinetAuthAvailability({
+      NODE_ENV: "production",
+      BETTER_AUTH_SECRET: "s".repeat(32),
+      BETTER_AUTH_URL: "https://example.org",
+    });
+    const acceptForwarded = FORWARDED_AUTH_PATHS.some((path) => path.includes("accept-invitation"));
+    const nobodyCanAccept = productionSignIn.kind === "unavailable" && !acceptForwarded;
     const importers = filesMatching(
       // An import of it, not a mention: comments may name it.
       /import\s*\{[^}]*kabinetInvitationRepo[^}]*\}\s*from|from\s+["'][^"']*kabinet-invitation-repo["']/,
     ).filter((file) => file !== "packages/db/src/repos/index.ts");
-    expect(importers, COPY_GATE).toEqual([]);
+    expect(
+      importers,
+      nobodyCanAccept
+        ? `Only ${INVITATION_MODULE} may call the invitation writer (RG-Q9). ${COPY_GATE}`
+        : `Production sign-in or accept-invitation is now live, so even ${INVITATION_MODULE} may not call the invitation writer until the copy ships. ${COPY_GATE}`,
+    ).toEqual(nobodyCanAccept ? [INVITATION_MODULE] : []);
   });
 });
 

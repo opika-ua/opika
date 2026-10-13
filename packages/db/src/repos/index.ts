@@ -17,10 +17,17 @@ export {
 } from "./kabinet-invitation-repo";
 export { type CleanupCandidate, kabinetInvitedUsersRepo } from "./kabinet-invited-users-repo";
 export {
+  kabinetRegistryRepo,
+  type RegistryAdminRow,
+  type RegistryListPosition,
+  type RegistryShelterRow,
+} from "./kabinet-registry-repo";
+export {
   type AuditedShelterChange,
   type AuditedWriteResult,
   kabinetShelterRepo,
 } from "./kabinet-shelter-repo";
+export { kabinetSupportRepo, SUPPORT_IDLE_MS } from "./kabinet-support-repo";
 export { revealRepo } from "./reveal-repo";
 export { type SessionRow, sessionRepo } from "./session-repo";
 export { shelterRepo } from "./shelter-repo";

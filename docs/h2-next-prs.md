@@ -33,6 +33,15 @@ questions go to Oleksii before code.
       identity, not by key (RG-Q11): a seed-range id (`51000000-…`) on the test-only key counts
       as `demo` on its own line and passes; the test-only key on any other id is a separate
       `PRIVACY` failure. One test per path.
+- [ ] **The registry's multi-step writes run on a real Neon branch** (Oleksii, verbatim, 2026-10-13: "I'll
+      create a fresh child branch, rehearsal-0011, and give you its endpoint id. Run 0011 there with
+      --expect <that endpoint>, then the registry's multi-step write tests against the same branch.
+      Report the counts."), through the production driver
+      (neon-http), each statement named (review of the registry handlers, finding 6):
+      `applyAuditedMany` (UNION ALL history rows + the at-shelter animals CTE), `createWithHistory`,
+      `removeMember` (membership + sessions + history), `withdrawPending`, `createInvitation` and
+      `resend` with their history rows, support `touch` (`make_interval`), and the S1 list's
+      row-comparison keyset. Counts reported.
 - [ ] Invitations go only through `kabinetInvitationRepo`, with the operator's own user as the
       inviter (HS-Q7). The end-to-end accept test passes on the pinned better-auth.
 - [ ] *Existing invariant (HS-Q7, already tested):* the organization plugin keeps `allowUserToCreateOrganization: false`.
@@ -49,6 +58,10 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       `docs/h2-copy-sheet.md`). A false commitment sentence must never be live.
       `no-self-serve-yet.test.ts` is changed here, which is the signal.
 - [ ] **Magic-link provider** chosen by a real delivery test to Gmail, ukr.net and i.ua (HS-Q2).
+- [ ] **An invitation reaches the invitee.** The registry PR's `registry.admins.invite` and
+      `registry.shelters.create` write the invitation and the invitee's user but send nothing
+      (no provider yet). This PR decides how the invitee hears of it (an invite email through the
+      provider, or the operator telling them and them signing in by magic link) and tests it.
 - [ ] **Real-Neon run before the production 503 lifts** (HS-T4, HS-T4b, HS-Q12): sign-in,
       verify, getSession, accept-invitation, the audited-write CTE, the listing jsonb
       compare-and-set, the deleteDraft 23503 catch, and the `last_updated_at` round-trip
