@@ -44,6 +44,8 @@ questions go to Oleksii before code.
       `removeMember` (membership + sessions + history), `withdrawPending`, `createInvitation` and
       `resend` with their history rows, support `touch` (`make_interval`), and the S1 list's
       row-comparison keyset. Counts reported.
+      **Run 2026-10-13 on rehearsal-0011 (ep-crimson-pine-b1ka29bi):** 0011 applied, `db:check-hashes`
+      12/12 match (0011 included), `db:neon-smoke` 14 passed / 0 failed.
 - [ ] Invitations go only through `kabinetInvitationRepo`, with the operator's own user as the
       inviter (HS-Q7). The end-to-end accept test passes on the pinned better-auth.
 - [ ] *Existing invariant (HS-Q7, already tested):* the organization plugin keeps `allowUserToCreateOrganization: false`.
@@ -82,6 +84,9 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [ ] **`LOCATION_HMAC_SECRET` joins the required production env schema** (RG-Q10) in
       `apps/web/src/api/env.ts`, only after the step above. The same change rewrites the comments
       that say it is never in Vercel (`env.ts`, `onboard-shelter.ts`'s R2 note), which become false.
+- [ ] **`registry.admins.invite` refuses an operator's address** (RG-T10; Oleksii, verbatim: "RG-T10:
+      accepted as an invite-PR item. It must land before admin:bootstrap."), so inviting an operator can
+      never end in `conflicting_roles`. Lands before the rollout's `admin:bootstrap` step.
 - [ ] **Production rollout order** (RG-Q2, superseding HS-Q13's; Oleksii, verbatim: "Rollout order
       becomes: invite merged → admin:bootstrap → I sign in → first shelter invite."), after the
       registry PR has merged:
