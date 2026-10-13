@@ -107,39 +107,11 @@ describe("shelterRepo", () => {
     expect(found).toEqual(shelter);
   });
 
-  it("updates a shelter", async () => {
-    const cities = cityRepo(db);
-    const shelters = shelterRepo(db);
-
-    const city = makeCity();
-    await cities.insert(city);
-
-    const shelter = makeShelter({
-      publicLocation: {
-        cityId: city.id,
-        district: null,
-        precision: "fuzzed_address",
-        approximate: {
-          center: { lat: 50.45, lng: 30.52 },
-          precisionMetres: 1000,
-        } as never,
-      },
-      exactAddress: {
-        line1: "вул. Тестова 1",
-        line2: null,
-        postalCode: "01001",
-        cityId: city.id,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
-      },
-    });
-    await shelters.insert(shelter);
-
-    const updated = { ...shelter, displayName: "Нова назва" };
-    await shelters.update(updated);
-
-    const found = await shelters.findById(shelter.id);
-    expect(found?.displayName).toBe("Нова назва");
+  it("exposes exactly its three methods: no unaudited whole-row update, and any addition a conscious one", () => {
+    // RG-Q12: a full-row write that skips the `version` bump is the one path
+    // that could slip past the kabinet's compare-and-set. Keys, not a type
+    // check, so re-adding any write method under another name also trips it.
+    expect(Object.keys(shelterRepo(db)).sort()).toEqual(["findById", "findByIds", "insert"]);
   });
 });
 
