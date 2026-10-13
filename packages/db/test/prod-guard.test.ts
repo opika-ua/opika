@@ -163,6 +163,18 @@ describe("databaseTargetLine", () => {
     );
   });
 
+  /** Review of 4e30965, finding 2: a line that exists to be proof never guesses. */
+  it("refuses to label a host list or an empty host", () => {
+    for (const url of [
+      "postgres://u:p@ep-a-pooler.x.neon.tech,localhost/db",
+      "postgres:///opika",
+    ]) {
+      expect(databaseTargetLine(url)).toBe(
+        "Target: DATABASE_URL could not be parsed (not printing it).",
+      );
+    }
+  });
+
   it("calls a non-Neon remote host neither Neon nor local", () => {
     expect(databaseTargetLine("postgres://u:secret@db.example.org:6543/app")).toBe(
       "Target: remote host db.example.org (not a Neon endpoint)",
@@ -411,5 +423,8 @@ describe("every writing CLI runs the guard first", () => {
     // Never echo the URL, even while refusing it.
     expect(result.stderr).not.toContain("secret");
     expect(result.stderr).not.toContain("ep-quiet-lake");
+    // A refused target gets the refusal only: the Target line comes after the
+    // guard, never before it (review of 4e30965, finding 1).
+    expect(result.stdout).not.toContain("Target:");
   });
 });

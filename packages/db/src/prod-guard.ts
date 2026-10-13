@@ -79,12 +79,21 @@ export type DatabaseTarget =
   | { kind: "remote"; host: string }
   | { kind: "unparseable" };
 
-/** Same test as `client.ts`'s `isNeonHost`, which picks the driver: the label must name the database the driver will actually reach. */
+/**
+ * The same suffix test as `client.ts`'s `isNeonHost`, which picks the driver,
+ * applied after the trailing dot is stripped (a fully qualified
+ * `x.neon.tech.` is still Neon, so the label holds even where the two
+ * spellings differ).
+ */
 const isNeonHostname = (hostname: string): boolean => hostname.endsWith(".neon.tech");
 
 export function databaseTargetOf(url: string): DatabaseTarget {
   const parsed = parseOrNull(url);
   if (parsed === null) return { kind: "unparseable" };
+  // A comma lists several hosts (postgres-js tries them in turn) and an empty
+  // host falls back to PGHOST or localhost: either way the line couldn't
+  // name the database honestly, and it exists to be proof (review, finding 2).
+  if (parsed.hostname === "" || parsed.hostname.includes(",")) return { kind: "unparseable" };
   // `postgres:` isn't a WHATWG special scheme, so `URL` keeps the host's case;
   // the trailing dot is the same host written fully qualified.
   const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
