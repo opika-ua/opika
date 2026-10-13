@@ -140,14 +140,19 @@ export const apiErrors = {
     message: "That fact is confirmed by the registry and can't be changed here.",
   },
   /**
-   * Deleting a draft that has been public before (HS-Q9, Oleksii): its URL,
-   * and possibly adopters' swipes and reveals, still point at it, so it is
-   * withdrawn, never deleted. Also the answer when the database refuses the
-   * delete because a swipe or reveal references the row.
+   * A draft that can't be deleted, only withdrawn (HS-Q9, Oleksii). `data.reason`
+   * says why, and the kabinet picks its message by it (HS-T10, Oleksii):
+   * - `was_published`: it has been public before (`first_published_at` set);
+   * - `has_activity`: a swipe or reveal still references it (the database's
+   *   own refusal). That is *not* a claim it was published: a draft id can
+   *   be swiped without the draft ever being public, so the message for this
+   *   reason must not say so.
+   * The fixed message below makes neither claim.
    */
   WAS_PUBLISHED: {
     status: 409,
-    message: "This listing has been public, so it can be withdrawn but not deleted.",
+    message: "This listing can be withdrawn but not deleted.",
+    data: z.object({ reason: z.enum(["was_published", "has_activity"]) }),
   },
   /** An undo past its window, or after a newer write (H2-16). */
   UNDO_EXPIRED: {

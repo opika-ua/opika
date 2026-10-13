@@ -390,11 +390,14 @@ export async function animalsDeleteDraft(
         data: { machine: "listing", from: animal.listing.kind, event: "delete_draft" },
       });
     }
-    if (firstPublishedAt !== null) throw errors.WAS_PUBLISHED();
+    if (firstPublishedAt !== null)
+      throw errors.WAS_PUBLISHED({ data: { reason: "was_published" } });
     const result = await kabinetAnimalRepo(deps.db).deleteDraftIf(animal.id, animal.lastUpdatedAt);
     if (result.kind === "ok") return {};
-    // A swipe or reveal references it: it has public history after all.
-    if (result.kind === "referenced") throw errors.WAS_PUBLISHED();
+    // A swipe or reveal references it. Activity, not proof it was published
+    // (HS-T10): a draft id can be swiped without the draft ever being public.
+    if (result.kind === "referenced")
+      throw errors.WAS_PUBLISHED({ data: { reason: "has_activity" } });
   }
   throw new Error(`Animal ${input.animalId}: lost ${MAX_ATTEMPTS} races in a row`);
 }

@@ -161,6 +161,23 @@ so the helper text is what reminds whoever is writing it.
 
 ---
 
+## E3. Refusing to delete a draft: one message per reason (blocks K2/K3's delete only)
+
+`shelter.animals.deleteDraft` answers `WAS_PUBLISHED` with `data.reason` (HS-T10, Oleksii). The
+kabinet picks the message by reason. **The `has_activity` message must not claim the animal was
+published**: a draft's id can be swiped without the draft ever being public.
+
+**Key:** `kabinet.deleteDraft.refused.wasPublished` (new, `[COPY PENDING]`).
+**English sense:** this animal was public before, so it can't be deleted; withdraw it instead.
+That way its link and its record stay.
+
+**Key:** `kabinet.deleteDraft.refused.hasActivity` (new, `[COPY PENDING]`).
+**English sense:** this animal can't be deleted because people have already interacted with it on
+the site; withdraw it instead. It makes no claim about having been published.
+**Current:** none, for either.
+
+---
+
 ## F. Not on this sheet, by design
 
 The cabinet's own UI strings (K1–K5, S1–S5) are the designer's draft text in

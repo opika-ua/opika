@@ -519,9 +519,12 @@ describe("deleting a draft (HS-Q9: only one that has never been public)", () => 
     ).toBe(200);
     expect((await reload(a.id)).listing.kind).toBe("draft");
 
-    const refused = await call<{ code: string }>("shelter.animals.deleteDraft", { animalId: a.id });
+    const refused = await call<{ code: string; data: unknown }>("shelter.animals.deleteDraft", {
+      animalId: a.id,
+    });
     expect(refused.status).toBe(409);
     expect(refused.body.code).toBe("WAS_PUBLISHED");
+    expect(refused.body.data).toEqual({ reason: "was_published" });
     expect(await animalRepo(db).findById(a.id)).not.toBeNull();
   });
 
@@ -537,14 +540,18 @@ describe("deleting a draft (HS-Q9: only one that has never been public)", () => 
    * can't normally have a swipe; this plants one to reach the database's own
    * refusal and proves it comes back typed.
    */
-  it("answers WAS_PUBLISHED, not a 500, when a swipe still references the draft", async () => {
+  it("answers WAS_PUBLISHED with reason has_activity, not a 500, when a swipe still references the draft", async () => {
     const a = await animal({ listing: { kind: "draft" } });
     const adopter = makeAdopter();
     await adopterRepo(db).insert(adopter);
     await swipeRepo(db).record(makeSwipe({ adopterId: adopter.id, animalId: a.id }));
-    const result = await call<{ code: string }>("shelter.animals.deleteDraft", { animalId: a.id });
+    const result = await call<{ code: string; data: unknown }>("shelter.animals.deleteDraft", {
+      animalId: a.id,
+    });
     expect(result.status).toBe(409);
     expect(result.body.code).toBe("WAS_PUBLISHED");
+    // Activity, not "was published" (HS-T10).
+    expect(result.body.data).toEqual({ reason: "has_activity" });
     expect(await animalRepo(db).findById(a.id)).not.toBeNull();
   });
 });
@@ -597,5 +604,108 @@ describe("the kabinet's own rate limits (HS-Q10)", () => {
     const route = readFileSync(join(__dirname, "../app/api/kabinet/[...rpc]/route.ts"), "utf8");
     expect(route).not.toContain("apiRateLimiter");
     expect(route).toContain("kabinetLimiters");
+  });
+});
+
+/**
+ * HS-T9 (Oleksii): "No listing move (publish, reserve, release, adopt,
+ * withdraw, back-to-draft, confirm, undo) touches last_updated_at. Add one
+ * test per move." Each starts from the state the move needs, makes the move
+ * through the served router, and checks the edit time both as stored and as
+ * returned.
+ */
+describe("no listing move touches last_updated_at (HS-T9)", () => {
+  const EDITED = new Date("2026-08-01T00:00:00.000Z");
+  const PUBLISHED = new Date("2026-07-01T00:00:00.000Z");
+  const photo = { storageKey: "a/1.jpg", width: 1200, height: 900, alt: null };
+  const published = {
+    kind: "published",
+    publishedAt: PUBLISHED,
+    confirmedAt: PUBLISHED,
+    undoable: null,
+  } as const;
+  const reserved = {
+    kind: "reserved",
+    since: PUBLISHED,
+    publishedAt: PUBLISHED,
+    confirmedAt: PUBLISHED,
+    undoable: null,
+  } as const;
+  const withdrawn = {
+    kind: "withdrawn",
+    withdrawnAt: PUBLISHED,
+    reason: { code: "listing_error", note: null },
+  } as const;
+
+  const cases: [string, Partial<Animal>, string, (id: string) => unknown][] = [
+    [
+      "publish",
+      { listing: { kind: "draft" }, photos: [photo] },
+      "shelter.animals.transition",
+      (id) => ({ animalId: id, event: { type: "publish" } }),
+    ],
+    [
+      "reserve",
+      { listing: published },
+      "shelter.animals.transition",
+      (id) => ({ animalId: id, event: { type: "reserve" } }),
+    ],
+    [
+      "release",
+      { listing: reserved },
+      "shelter.animals.transition",
+      (id) => ({ animalId: id, event: { type: "release" } }),
+    ],
+    [
+      "adopt",
+      { listing: published },
+      "shelter.animals.transition",
+      (id) => ({ animalId: id, event: { type: "adopt" } }),
+    ],
+    [
+      "withdraw",
+      { listing: published },
+      "shelter.animals.transition",
+      (id) => ({
+        animalId: id,
+        event: { type: "withdraw", reason: { code: "transferred", note: null } },
+      }),
+    ],
+    [
+      "back-to-draft",
+      { listing: withdrawn },
+      "shelter.animals.transition",
+      (id) => ({ animalId: id, event: { type: "restore_to_draft" } }),
+    ],
+    ["confirm", { listing: published }, "shelter.animals.confirm", (id) => ({ animalId: id })],
+  ];
+
+  for (const [move, start, procedure, input] of cases) {
+    it(`${move} leaves last_updated_at as it was`, async () => {
+      const a = await animal({ ...start, lastUpdatedAt: EDITED });
+      const result = await call<{ lastUpdatedAt?: Date; animal?: { lastUpdatedAt: Date } }>(
+        procedure,
+        input(a.id),
+      );
+      expect(result.status).toBe(200);
+      expect(result.body.lastUpdatedAt ?? result.body.animal?.lastUpdatedAt).toEqual(EDITED);
+      expect((await reload(a.id)).lastUpdatedAt).toEqual(EDITED);
+    });
+  }
+
+  it("undo leaves last_updated_at as it was", async () => {
+    const a = await animal({ listing: published, lastUpdatedAt: EDITED });
+    const t = new Date();
+    expect((await call("shelter.animals.confirm", { animalId: a.id }, { now: t })).status).toBe(
+      200,
+    );
+    const undone = await call<KabinetAnimalView>(
+      "shelter.animals.undoConfirm",
+      { animalId: a.id },
+      { now: t },
+    );
+    expect(undone.status).toBe(200);
+    expect(undone.body.lastUpdatedAt).toEqual(EDITED);
+    expect((await reload(a.id)).lastUpdatedAt).toEqual(EDITED);
   });
 });
