@@ -818,5 +818,17 @@ export const uk = {
      * (RS-Q2): Oleksii's own wording. Nominative, used only where the nominative fits.
      */
     operatorFallbackName: "Оператор реєстру",
+    /**
+     * The page an emailed sign-in link opens (IN-Q11): one button, and only
+     * its POST signs in, so a mail scanner opening the link burns nothing.
+     * Keys and English sense: `docs/h2-invite-copy-sheet.md` C.
+     */
+    confirm: {
+      title: `${COPY_PENDING} "Sign in to the shelters' cabinet" (heading)`,
+      intro: `${COPY_PENDING} "Press the button to finish signing in." (under the heading)`,
+      submit: `${COPY_PENDING} "Sign in" (the one button; Oleksii's working label «Увійти», IN-Q11)`,
+      invalid: `${COPY_PENDING} "This link has already been used or has expired." (after a failed POST, or a malformed link)`,
+      requestNew: `${COPY_PENDING} "Request a new link" (link back to sign-in)`,
+    },
   },
 } as const;

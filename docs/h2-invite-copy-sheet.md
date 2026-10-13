@@ -59,6 +59,28 @@ first sign-in, so there is no accept screen (IN-Q3).
 | `kabinet.inviteLanding.alreadyAccepted` | Already a member | This invitation was already accepted; sign in as usual. |
 | `kabinet.inviteLanding.rateLimited` | Too many requests | Too many links were requested; try again later (the sign-in limits already in place). |
 
+**Changed by IN-Q11** (Oleksii, 2026-10-13): opening the invite page *sends* the link, so there
+is no Send button. `kabinet.inviteLanding.send` goes, and `body` + `sent` merge into one
+"we've sent a sign-in link to o•••@gmail.com" message. Not built yet; the keys above don't
+exist in code.
+
+## C. The confirm page (IN-Q11)
+
+The page every emailed sign-in link opens. Its GET only shows the button; pressing it signs in
+(a mail scanner opening the link changes nothing). Once acceptance is built (IN-Q12), the same
+press also accepts a pending invitation, and the page may name the shelter it's for. In code
+now as `[COPY PENDING]`, pinned in `copy-status.test.ts`.
+
+| Key | Where | English sense |
+|---|---|---|
+| `kabinet.confirm.title` | Heading and tab title | Sign in to the shelters' cabinet. |
+| `kabinet.confirm.intro` | Under the heading | Press the button to finish signing in. |
+| `kabinet.confirm.submit` | The one button | Sign in (Oleksii's working label in IN-Q11: «Увійти»). |
+| `kabinet.confirm.invalid` | After a failed press, or a malformed link | This link has already been used or has expired. |
+| `kabinet.confirm.requestNew` | Link under it, to K1 | Request a new link. |
+| `kabinet.confirm.invitationFor` | Under the heading, when a pending invitation exists (after IN-Q12) | You're joining «shelter name» (filled in). Not in code yet. |
+| `kabinet.confirm.joinFailed` | `/kabinet`, signed in but the invitation couldn't be completed (after IN-Q12) | Joining didn't finish; reload, or ask the operator. Not in code yet. |
+
 ---
 
 The sending domain (`mail.opika.org.ua`, IN-Q2a) is config, never part of a string: the name is not final.

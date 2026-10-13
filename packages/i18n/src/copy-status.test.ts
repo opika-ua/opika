@@ -109,3 +109,20 @@ describe("deck not-a-judgement notice copy status", () => {
     expect(Object.keys(uk.actions).length).toBe(4);
   });
 });
+
+/**
+ * IN-Q11's confirm page: every string still waits for Oleksii's Ukrainian
+ * (`docs/h2-invite-copy-sheet.md` C). Pinned as pending so a key added
+ * without copy, or one written without the sheet, shows up here.
+ */
+describe("kabinet confirm page copy status (IN-Q11)", () => {
+  it("is all [COPY PENDING], every key", () => {
+    expect(pendingCopyKeys(uk.kabinet.confirm)).toEqual([
+      "intro",
+      "invalid",
+      "requestNew",
+      "submit",
+      "title",
+    ]);
+  });
+});
