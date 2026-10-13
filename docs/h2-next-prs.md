@@ -93,6 +93,8 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       a second guard. Until that commit, nothing changes."): `EMAIL_PROVIDER`,
       `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM_ADDRESS`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (plus
       `PRODUCTION_ORIGIN`, which they are checked against), in the wiring commit, with a test.
+      Whether `PRODUCTION_ORIGIN` itself joins the build-time check (a sixth variable, beyond
+      Decision 1's five) is decided in the wiring commit's Phase 0 (review pass 2, finding 4).
 - [ ] **The runtime boot check stays as the second guard** (IN-R2, Decision 1): production refuses
       to boot without them from the same commit, tested.
 - [ ] **The one-membership unique violation is a typed error, never a 500** (IN-Q8, IN-T1): in the

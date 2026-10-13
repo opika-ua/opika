@@ -104,6 +104,21 @@ describe("fetchEmailSender, the failure modes the review named (3bc08a0)", () =>
     expect(seen).toBeInstanceOf(AbortSignal);
   });
 
+  /**
+   * Review pass 2, finding 1: passing *a* signal proves nothing; a signal
+   * that never fires would pass the test above. This fetch answers only by
+   * rejecting when its signal aborts, so the send settles only if the
+   * timeout actually fires.
+   */
+  it("abandons a provider that never answers once the timeout fires", async () => {
+    const neverAnswers = ((_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+      })) as unknown as typeof fetch;
+    const sent = fetchEmailSender(config("resend"), neverAnswers, 20).send(email);
+    await expect(sent).rejects.toThrow(/did not answer/);
+  }, 2_000);
+
   it("reports a send that never answered without naming the key or the recipient", async () => {
     const hang = (async () => {
       throw new DOMException("The operation timed out.", "TimeoutError");

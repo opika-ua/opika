@@ -101,14 +101,19 @@ describe("proxy", () => {
       "/tvaryny?next=/kabinet",
       "/prytulkam/kabinet",
       // Encoded traversal and case (review of 7294f5e, finding 5). URL
-      // parsing resolves `%2e%2e` segments before proxy sees the path (as it
-      // does for the matcher's request), so these reach proxy as /prytulkam
-      // and /api/rpc/gallery.list; and paths are case-sensitive, so
-      // /API/auth is not the exempt /api/auth. A change that decoded or
-      // lowercased the path itself would turn these red.
+      // parsing resolves `%2e%2e` segments before proxy sees the path, so the
+      // first two reach proxy as /prytulkam and /api/rpc/gallery.list: they
+      // pin the parser's normalisation, not proxy's own handling. Paths are
+      // case-sensitive, so /API/auth is not the exempt /api/auth, and a
+      // change that lowercased the path would turn it red.
       "/kabinet/%2e%2e/prytulkam",
       "/api/auth/%2e%2e/rpc/gallery.list",
       "/API/auth/x",
+      // An encoded slash survives parsing as one segment, so this reaches
+      // proxy undecoded and gated. If proxy ever decoded the path before
+      // matching, it would read "/kabinet/../prytulkam" and exempt it: this
+      // is the case that turns red (review pass 2, finding 2).
+      "/kabinet%2f..%2fprytulkam",
     ])("still gates %s, which only looks like a kabinet route", async (path) => {
       const { proxy } = await import("./proxy");
       expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
