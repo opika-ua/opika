@@ -113,10 +113,23 @@ describe("ShelterProfile (K4, read-only)", () => {
     );
   });
 
-  it("names the operator in the block's note", () => {
+  it("names the operator in the block's note, without an instruction it gives no channel for", () => {
     renderProfile();
     const block = screen.getByRole("region", { name: t.lockedTitle });
-    expect(within(block).getByText(t.lockedNote.replaceAll("{operator}", "Олексій"))).toBeDefined();
+    const note = within(block).getByText(t.lockedNote.replaceAll("{operator}", "Олексій"));
+    // KS-T10: no operator address is configured, so the note may not tell the
+    // shelter to write to anyone (review of #93, finding 6).
+    expect(note.textContent).not.toMatch(/write to|напишіть/i);
+  });
+
+  it("puts the status chip after the note, in K4 360's order", () => {
+    renderProfile();
+    const block = screen.getByRole("region", { name: t.lockedTitle });
+    const note = within(block).getByText(t.lockedNote.replaceAll("{operator}", "Олексій"));
+    const chip = within(block).getByText(uk.kabinet.profileStatus.verified, { selector: "span" });
+    const title = within(block).getByRole("heading", { name: t.lockedTitle });
+    expect(title.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(note.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("shows an unregistered initiative's contact person, and no EDRPOU row", () => {

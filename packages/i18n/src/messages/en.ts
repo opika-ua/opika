@@ -402,7 +402,7 @@ export const en = {
         "One sentence in the first person, written by you. We fill in {date} and {name}, nothing else.",
       lockedTitle: "Set during verification",
       lockedNote:
-        "These details were set when the shelter was verified. They are shown here to read only: to change them, write to {operator}, the registry operator. Changing legal details may send the shelter back for review.",
+        "These details were entered by {operator}, the registry operator, when the shelter was verified, and are shown here to read only.",
       legalName: "Legal entity",
       edrpou: "EDRPOU code",
       contactPerson: "Contact person",

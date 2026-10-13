@@ -29,7 +29,7 @@ const CARD_TITLE = "text-[19px] leading-6 font-bold tracking-[-0.02em] text-rg-i
 const CAPTION = "text-[13px] leading-[18px] text-rg-ink-3";
 
 /** One fact: label above value on the phone (K4 360), a 200px label column from tablet up (K4 1440). */
-export function Row({ label, children }: { label: string; children: ReactNode }) {
+function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5 py-0 tablet:grid tablet:grid-cols-[200px_minmax(0,1fr)] tablet:gap-4 tablet:py-3">
       <dt className={ROW_LABEL}>{label}</dt>
@@ -211,18 +211,20 @@ export function ShelterProfile({ view, cityName, viewer, operatorName }: Shelter
 
               <section
                 aria-labelledby="kabinet-locked"
-                className="flex flex-col gap-3 rounded-rg-card border-2 border-dashed border-rg-ink-3 p-4 tablet:p-6"
+                className="flex flex-col gap-3 rounded-rg-card border-2 border-dashed border-rg-ink-3 p-4 tablet:grid tablet:grid-cols-[1fr_auto] tablet:p-6"
               >
-                <div className="flex flex-col items-start gap-3 tablet:flex-row tablet:items-center">
-                  <h2 id="kabinet-locked" className={`${CARD_TITLE} tablet:flex-1`}>
-                    {t.lockedTitle}
-                  </h2>
-                  <span className="inline-flex min-h-8 items-center rounded-rg-chip bg-rg-ink px-3 text-[13px] leading-[18px] font-medium whitespace-nowrap text-white">
-                    {uk.kabinet.profileStatus[view.verification.status]}
-                  </span>
-                </div>
-                <p className={CAPTION}>{fill(t.lockedNote, { operator: operatorName })}</p>
-                <dl className="flex flex-col gap-3 tablet:gap-0">
+                {/* Source order is K4 360's (title, note, chip); from tablet up
+                    the grid lifts the chip beside the title, as K4 1440 draws it. */}
+                <h2 id="kabinet-locked" className={`${CARD_TITLE} tablet:self-center`}>
+                  {t.lockedTitle}
+                </h2>
+                <p className={`${CAPTION} tablet:col-span-2`}>
+                  {fill(t.lockedNote, { operator: operatorName })}
+                </p>
+                <span className="inline-flex min-h-8 items-center self-start rounded-rg-chip bg-rg-ink px-3 text-[13px] leading-[18px] font-medium whitespace-nowrap text-white tablet:col-start-2 tablet:row-start-1 tablet:self-center">
+                  {uk.kabinet.profileStatus[view.verification.status]}
+                </span>
+                <dl className="flex flex-col gap-3 tablet:col-span-2 tablet:gap-0">
                   {legal.kind === "unregistered_initiative" ? (
                     <Row label={t.contactPerson}>{legal.contactPersonName}</Row>
                   ) : (
@@ -239,7 +241,7 @@ export function ShelterProfile({ view, cityName, viewer, operatorName }: Shelter
                   </Row>
                   <Row label={t.address}>{address === "" ? notRecorded : address}</Row>
                 </dl>
-                <p className={CAPTION}>{t.addressNote}</p>
+                <p className={`${CAPTION} tablet:col-span-2`}>{t.addressNote}</p>
               </section>
             </div>
           </div>

@@ -872,7 +872,7 @@ export const uk = {
       voiceNote: `${COPY_PENDING} "One sentence in the first person, written by you. We fill in {date} and {name}, nothing else."`,
       lockedTitle: `${COPY_PENDING} "Set during verification"`,
       /** `{operator}` is the operator's display name (RS-Q2). */
-      lockedNote: `${COPY_PENDING} "These details were set when the shelter was verified. They are shown here to read only: to change them, write to {operator}, the registry operator. Changing legal details may send the shelter back for review."`,
+      lockedNote: `${COPY_PENDING} "These details were entered by {operator}, the registry operator, when the shelter was verified, and are shown here to read only."`,
       legalName: `${COPY_PENDING} "Legal entity"`,
       edrpou: `${COPY_PENDING} "EDRPOU code"`,
       /** An unregistered initiative has a contact person, not a legal name. No mock frame. */
