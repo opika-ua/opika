@@ -20,6 +20,10 @@ questions go to Oleksii before code.
       and never deletes (HS-T2).
 - [ ] **`animals.version`** (S3-T6) in this PR's migration, **rehearsed on a child branch**
       before production. Edits compare-and-set on `version`; listing moves keep their own guard.
+- [ ] **Migration 0011 frozen before any rehearsal** (RS-R1): the PR names the commit holding the
+      final 0011, and anything later goes in 0012. After the rehearsal, `pnpm --filter @opika/db
+      db:check-hashes` against the rehearsal branch prints `match` for 0011 (its recorded hash
+      equals the committed file's).
 - [ ] Invitations go only through `kabinetInvitationRepo`, with the operator's own user as the
       inviter (HS-Q7). The end-to-end accept test passes on the pinned better-auth.
 - [ ] *Existing invariant (HS-Q7, already tested):* the organization plugin keeps `allowUserToCreateOrganization: false`.

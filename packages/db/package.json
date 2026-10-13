@@ -18,7 +18,8 @@
     "db:migrate": "tsx src/migrate.ts",
     "db:seed": "tsx src/seed.ts",
     "onboard:shelter": "tsx src/onboard-shelter.ts",
-    "test-db:ensure": "tsx src/test-utils/ensure-test-database.ts"
+    "test-db:ensure": "tsx src/test-utils/ensure-test-database.ts",
+    "db:check-hashes": "tsx src/check-migration-hashes.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",
