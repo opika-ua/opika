@@ -58,7 +58,9 @@ describe("process listing", () => {
 
   it("reads ps output", () => {
     expect(
-      parsePsProcesses("  12     1 node /repo/a.js\n  13    12 next start --port 3100\n"),
+      parsePsProcesses(
+        "  12     1 Ss   node /repo/a.js\n  13    12 Sl   next start --port 3100\n  14    12 Z    [node] <defunct>\n",
+      ),
     ).toEqual([proc(12, 1, "node /repo/a.js"), proc(13, 12, "next start --port 3100")]);
   });
 
@@ -348,7 +350,13 @@ describe("removeWorktree, for real", () => {
     expect(lines.some((line) => line.includes(`pid ${pid}`))).toBe(true);
     expect(await removeWorktree(wt, { kill: true, repo, log })).toBe(0);
     expect(existsSync(wt)).toBe(false);
-    expect(listProcesses().some((p) => p.pid === pid)).toBe(false);
+    // The kill is immediate; the OS listing catches up within moments.
+    let stillListed = true;
+    for (let i = 0; i < 50 && stillListed; i += 1) {
+      stillListed = listProcesses().some((p) => p.pid === pid);
+      if (stillListed) await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    expect(stillListed).toBe(false);
   }, 60_000);
 
   it("never ends a process that only mentions it, even with --kill", async () => {

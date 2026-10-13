@@ -44,7 +44,7 @@ export function listProcesses(run: ProcessListRunner = defaultRunner): RunningPr
           ],
           parseWindowsProcesses,
         ] as const)
-      : (["ps", ["-eo", "pid=,ppid=,args="], parsePsProcesses] as const);
+      : (["ps", ["-eo", "pid=,ppid=,stat=,args="], parsePsProcesses] as const);
   const out = run(command, args);
   if (out.error !== undefined || out.status !== 0) {
     throw new Error(
@@ -72,12 +72,18 @@ export function parseWindowsProcesses(json: string): RunningProcess[] {
     .map((p) => ({ pid: p.ProcessId, parentPid: p.ParentProcessId, command: p.CommandLine ?? "" }));
 }
 
+/**
+ * `ps -eo pid=,ppid=,stat=,args=`. Zombies (stat Z) are skipped: an ended
+ * process stays listed until its parent reaps it, and it holds no files and
+ * runs nothing, so it is neither in the way of a removal nor an orphan
+ * (#92's Linux CI saw a killed test child still listed as one).
+ */
 export function parsePsProcesses(text: string): RunningProcess[] {
   return text
     .split("\n")
-    .map((line) => line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/))
-    .filter((m): m is RegExpMatchArray => m !== null)
-    .map((m) => ({ pid: Number(m[1]), parentPid: Number(m[2]), command: m[3] ?? "" }));
+    .map((line) => line.trim().match(/^(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/))
+    .filter((m): m is RegExpMatchArray => m !== null && !(m[3] ?? "").startsWith("Z"))
+    .map((m) => ({ pid: Number(m[1]), parentPid: Number(m[2]), command: m[4] ?? "" }));
 }
 
 /**
