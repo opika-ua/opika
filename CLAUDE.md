@@ -205,7 +205,7 @@ half-wired code in a solo 10h/week project.
     weights are tuned. The accepted cost: de-ranking stale listings is a
     within-page effect, not a global ordering. **M2 implemented this** on
     `lastUpdatedAt`. **Revised 2026-10-07 (H2-3, Oleksii's answer in
-    `docs/decisions-inbox/docs-h2-contract-proposal.md`):** the key, freshness
+    `docs/decisions-inbox.md`):** the key, freshness
     itself and the gallery's `freshest` sort all moved to `last_confirmed_at`
     (`listing.confirmedAt`, set at publish and by «Ще шукає»). `lastUpdatedAt`
     is edit time, and once shelters can edit, a typo fix must not make an old

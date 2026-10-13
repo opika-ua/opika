@@ -1,6 +1,6 @@
 # H2 S3 — kabinet contract shapes: addendum for review
 
-**Status:** approved by Oleksii 2026-10-12 with additions (inbox `docs/decisions-inbox/feat-h2-kabinet-contracts.md`, S3-Q1/S3-Q2, verbatim); §8 records what the additions change. Originally a proposal, also 2026-10-12. `CLAUDE.md` requires `packages/contracts` shapes to be
+**Status:** approved by Oleksii 2026-10-12 with additions (inbox `docs/decisions-inbox.md`, S3-Q1/S3-Q2, verbatim); §8 records what the additions change. Originally a proposal, also 2026-10-12. `CLAUDE.md` requires `packages/contracts` shapes to be
 reviewed before implementation. `docs/h2-contract-proposal.md` §4–§6 fixed the **procedure list**
 and the **access matrix**, and Oleksii answered them. This addendum fills in what those sections
 left as sketches: each procedure's exact input/output schema, the error set, the access-metadata

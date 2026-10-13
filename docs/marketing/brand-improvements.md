@@ -109,7 +109,7 @@ It also ties the brand's only colour to the *state*, which feeds the confusion i
 leaves Opika with no borrowed-authority colour — recognisability comes from #7 instead.
 
 **Closed 2026-10-07, without recolouring: resolved against H2-3 instead.** Oleksii's answer to
-inbox H2-3 (`docs/decisions-inbox/docs-h2-contract-proposal.md`), verbatim: "Note for the design
+inbox H2-3 (`docs/decisions-inbox.md`), verbatim: "Note for the design
 spec: this makes "blue pip = someone confirmed this" true. Close
 docs/marketing/brand-improvements.md #3 against this change instead of recolouring the pip."
 The problem above was that the freshness date measured edit time, so a blue pip saying "someone
