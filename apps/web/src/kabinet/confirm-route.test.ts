@@ -1,0 +1,267 @@
+import { authSession, authVerification } from "@opika/db/schema";
+import { setupTestDatabase, truncateAll } from "@opika/db/test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { inMemoryRateLimiter } from "../api/rate-limit";
+import { createKabinetAuth, type KabinetAuth } from "./auth";
+import { handleKabinetAuth, type KabinetAuthAvailability } from "./auth-route";
+import { handleKabinetConfirm } from "./confirm-route";
+import { capturingInvitationSender } from "./email-senders";
+import { capturingSender } from "./magic-link-sender";
+
+/**
+ * IN-Q11: a GET never consumes anything. Real Better Auth, real Postgres,
+ * real `Request`s, as in `auth.test.ts`; the scanner is just a GET.
+ */
+
+const BASE = "http://localhost:3000";
+const CONFIRM = `${BASE}/kabinet/vkhid/pidtverdzhennia`;
+
+let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
+let cleanup: () => Promise<void>;
+let sender: ReturnType<typeof capturingSender>;
+let pending: Promise<void>[];
+let auth: KabinetAuth;
+
+beforeAll(async () => {
+  ({ db, cleanup } = await setupTestDatabase());
+});
+afterAll(async () => cleanup?.());
+
+beforeEach(async () => {
+  await truncateAll(db);
+  sender = capturingSender();
+  pending = [];
+  auth = createKabinetAuth({
+    db,
+    sender,
+    schedule: (work) => {
+      pending.push(work());
+    },
+    baseURL: BASE,
+    secret: "test-only-secret-that-is-long-enough-0123456789",
+    secureCookies: false,
+  });
+});
+
+const available: KabinetAuthAvailability = {
+  kind: "available",
+  sender: capturingSender(),
+  invites: capturingInvitationSender(),
+  secret: "unused-here",
+  baseURL: BASE,
+};
+const deps = () => ({ availability: available, auth: () => auth });
+
+/** A known user asks to sign in; returns the emailed link. */
+async function emailedLink(): Promise<string> {
+  const ctx = await auth.$context;
+  await ctx.internalAdapter.createUser({
+    email: "olena@example.org",
+    name: "Олена",
+    emailVerified: true,
+  });
+  await handleKabinetAuth(
+    new Request(`${BASE}/api/auth/sign-in/magic-link`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: BASE },
+      body: JSON.stringify({ email: "olena@example.org" }),
+    }),
+    {
+      availability: available,
+      auth: () => auth,
+      limiters: {
+        perAddress: inMemoryRateLimiter({ windowMs: 3_600_000, maxRequests: 1000 }),
+        perIp: inMemoryRateLimiter({ windowMs: 3_600_000, maxRequests: 1000 }),
+      },
+      now: new Date(),
+    },
+  );
+  await Promise.all(pending);
+  const link = sender.sent[0]?.url;
+  if (link === undefined) throw new Error("no link sent");
+  return link;
+}
+
+const tokenOf = (link: string) => new URL(link).searchParams.get("token") ?? "";
+
+const confirmPost = (token: string, origin: string | null = BASE) =>
+  handleKabinetConfirm(
+    new Request(CONFIRM, {
+      method: "POST",
+      headers: origin === null ? {} : { origin },
+      body: new URLSearchParams({ token }),
+    }),
+    deps(),
+  );
+
+const sessionCookieOf = (response: Response) =>
+  response.headers.getSetCookie().find((c) => c.startsWith("kabinet.session_token="));
+
+async function sessionCount() {
+  return (await db.select().from(authSession)).length;
+}
+
+function expectConfirmHeaders(response: Response) {
+  expect({
+    cacheControl: response.headers.get("cache-control"),
+    robots: response.headers.get("x-robots-tag"),
+    referrer: response.headers.get("referrer-policy"),
+  }).toEqual({
+    cacheControl: "no-store",
+    robots: "noindex, nofollow",
+    referrer: "no-referrer",
+  });
+}
+
+describe("the emailed link", () => {
+  it("is the confirm page on BETTER_AUTH_URL's origin, never Better Auth's verify", async () => {
+    const link = await emailedLink();
+    expect(link.startsWith(`${CONFIRM}?token=`)).toBe(true);
+    expect(link).not.toContain("magic-link/verify");
+    expect(tokenOf(link)).toMatch(/^[A-Za-z]{32}$/);
+  });
+});
+
+describe("GET leaves the token valid", () => {
+  it("shows one button carrying the token, writes nothing, and the POST after it still signs in", async () => {
+    const link = await emailedLink();
+    const before = await db.select().from(authVerification);
+
+    for (let i = 0; i < 2; i++) {
+      const shown = await handleKabinetConfirm(new Request(link), deps());
+      expect(shown.status).toBe(200);
+      const html = await shown.text();
+      expect(html.match(/<button/g)).toHaveLength(1);
+      expect(html).toContain(`name="token" value="${tokenOf(link)}"`);
+      expect(html).toContain('method="post"');
+    }
+    expect(await db.select().from(authVerification)).toEqual(before);
+    expect(await sessionCount()).toBe(0);
+
+    const confirmed = await confirmPost(tokenOf(link));
+    expect(confirmed.status).toBe(303);
+    expect(sessionCookieOf(confirmed)).toBeDefined();
+  });
+
+  it("Better Auth's own verify URL is 404 through the auth route, and consumes nothing", async () => {
+    const link = await emailedLink();
+    const scanned = await handleKabinetAuth(
+      new Request(`${BASE}/api/auth/magic-link/verify?token=${tokenOf(link)}`),
+      {
+        availability: available,
+        auth: () => auth,
+        limiters: {
+          perAddress: inMemoryRateLimiter({ windowMs: 1, maxRequests: 1 }),
+          perIp: inMemoryRateLimiter({ windowMs: 1, maxRequests: 1 }),
+        },
+        now: new Date(),
+      },
+    );
+    expect(scanned.status).toBe(404);
+    expect((await confirmPost(tokenOf(link))).status).toBe(303);
+  });
+});
+
+describe("POST consumes it, once", () => {
+  it("signs in: 303 to /kabinet with the session cookie, and get-session knows the user", async () => {
+    const link = await emailedLink();
+    const confirmed = await confirmPost(tokenOf(link));
+    expect(confirmed.status).toBe(303);
+    expect(confirmed.headers.get("location")).toBe("/kabinet");
+    const cookie = sessionCookieOf(confirmed);
+    expect(cookie).toMatch(/HttpOnly/);
+    expect(await confirmed.text()).toBe("");
+
+    const session = await auth.handler(
+      new Request(`${BASE}/api/auth/get-session`, {
+        headers: { cookie: cookie?.split(";")[0] ?? "", origin: BASE },
+      }),
+    );
+    expect(((await session.json()) as { user: { email: string } }).user.email).toBe(
+      "olena@example.org",
+    );
+    expect(await db.select().from(authVerification)).toEqual([]);
+  });
+
+  it("a second POST fails as already used: 400, no cookie, no second session", async () => {
+    const link = await emailedLink();
+    expect((await confirmPost(tokenOf(link))).status).toBe(303);
+    const again = await confirmPost(tokenOf(link));
+    expect(again.status).toBe(400);
+    expect(sessionCookieOf(again)).toBeUndefined();
+    expect(await again.text()).toContain(`<p role="alert">`);
+    expect(await sessionCount()).toBe(1);
+  });
+
+  it("refuses a token it never issued", async () => {
+    await emailedLink();
+    const forged = await confirmPost("A".repeat(32));
+    expect(forged.status).toBe(400);
+    expect(sessionCookieOf(forged)).toBeUndefined();
+  });
+});
+
+describe("login CSRF (IN-T7)", () => {
+  it.each([
+    ["another origin", "https://evil.example"],
+    ["no Origin", null],
+  ])("refuses a POST from %s with 403, and the token still works", async (_, origin) => {
+    const link = await emailedLink();
+    const refused = await confirmPost(tokenOf(link), origin);
+    expect(refused.status).toBe(403);
+    expect(sessionCookieOf(refused)).toBeUndefined();
+    expect((await confirmPost(tokenOf(link))).status).toBe(303);
+  });
+});
+
+describe("headers on every response", () => {
+  it("no-store, noindex and no-referrer on the GET, the 303, the 400, the 403, the 404 and the 405", async () => {
+    const link = await emailedLink();
+    const responses = [
+      await handleKabinetConfirm(new Request(link), deps()),
+      await handleKabinetConfirm(new Request(`${CONFIRM}?token=<script>`), deps()),
+      await confirmPost(tokenOf(link), "https://evil.example"),
+      await confirmPost(tokenOf(link)),
+      await confirmPost(tokenOf(link)),
+      await handleKabinetConfirm(new Request(link, { method: "PUT" }), deps()),
+      await handleKabinetConfirm(new Request(link), {
+        availability: { kind: "unavailable", reason: "no_sender_in_production" },
+        auth: () => auth,
+      }),
+    ];
+    expect(responses.map((r) => r.status)).toEqual([200, 400, 403, 303, 400, 405, 404]);
+    for (const response of responses) expectConfirmHeaders(response);
+  });
+});
+
+describe("the page itself", () => {
+  it("renders no form for a malformed token, and never echoes it", async () => {
+    const shown = await handleKabinetConfirm(
+      new Request(`${CONFIRM}?token=${encodeURIComponent('"><script>x</script>')}`),
+      deps(),
+    );
+    const html = await shown.text();
+    expect(shown.status).toBe(400);
+    expect(html).not.toContain("<form");
+    expect(html).not.toContain("<script>");
+  });
+
+  it("answers 404 to both methods while kabinet sign-in is unavailable, consuming nothing", async () => {
+    const link = await emailedLink();
+    const off = {
+      availability: { kind: "unavailable", reason: "no_sender_in_production" } as const,
+      auth: () => auth,
+    };
+    expect((await handleKabinetConfirm(new Request(link), off)).status).toBe(404);
+    const posted = await handleKabinetConfirm(
+      new Request(CONFIRM, {
+        method: "POST",
+        headers: { origin: BASE },
+        body: new URLSearchParams({ token: tokenOf(link) }),
+      }),
+      off,
+    );
+    expect(posted.status).toBe(404);
+    expect((await confirmPost(tokenOf(link))).status).toBe(303);
+  });
+});

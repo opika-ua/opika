@@ -457,5 +457,13 @@ export const en = {
     signInCard: {
       notArrived: `${COPY_PENDING} If the email hasn't arrived in a few minutes, write to me at {contact}.`,
     },
+    /** The confirm page an emailed sign-in link opens (IN-Q11). */
+    confirm: {
+      title: `${COPY_PENDING} Sign in to the shelters' cabinet`,
+      intro: `${COPY_PENDING} Press the button to finish signing in.`,
+      submit: `${COPY_PENDING} Sign in`,
+      invalid: `${COPY_PENDING} This link has already been used or has expired.`,
+      requestNew: `${COPY_PENDING} Request a new link`,
+    },
   },
 } as const;

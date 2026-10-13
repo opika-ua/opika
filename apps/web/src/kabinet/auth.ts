@@ -19,6 +19,20 @@ import type { MagicLinkSender } from "./magic-link-sender";
 /** KABINET N1: a link is good for 15 minutes. */
 export const MAGIC_LINK_TTL_SECONDS = 15 * 60;
 
+/**
+ * Where an emailed magic link lands (IN-Q11): a page whose GET only shows a
+ * button, so a mail scanner following the link consumes nothing. Better
+ * Auth's own verify URL consumes on GET, which is why it's never emailed and
+ * no longer forwarded (`docs/h2-invite-confirm-shapes.md`).
+ */
+export const CONFIRM_PATH = "/kabinet/vkhid/pidtverdzhennia";
+
+export const confirmUrlOf = (baseURL: string, token: string): string => {
+  const url = new URL(CONFIRM_PATH, baseURL);
+  url.searchParams.set("token", token);
+  return url.toString();
+};
+
 const DAY_SECONDS = 24 * 60 * 60;
 
 /**
@@ -192,7 +206,10 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
         disableSignUp: true,
         // The link is a credential; the database keeps only its hash.
         storeToken: "hashed",
-        sendMagicLink: async ({ email, url }) => {
+        // Better Auth's `url` is its consuming verify endpoint; the email
+        // carries the confirm page instead (IN-Q11).
+        sendMagicLink: async ({ email, token }) => {
+          const url = confirmUrlOf(deps.baseURL, token);
           deps.schedule(async () => {
             if (await actors.hasUserWithEmail(email)) await deps.sender.send({ email, url });
           });
@@ -220,7 +237,9 @@ export type KabinetAuth = ReturnType<typeof createKabinetAuth>;
  */
 export const FORWARDED_AUTH_PATHS = [
   "/api/auth/sign-in/magic-link",
-  "/api/auth/magic-link/verify",
+  // Not "/api/auth/magic-link/verify": it consumes the token on a GET, so a
+  // mail scanner would burn the link. The confirm page's POST reaches it
+  // server-side instead (`confirm-route.ts`, IN-Q11).
   "/api/auth/get-session",
   "/api/auth/sign-out",
 ] as const;

@@ -22,6 +22,7 @@ import {
   type KabinetAuthAvailability,
   kabinetAuthAvailability,
 } from "./auth-route";
+import { handleKabinetConfirm } from "./confirm-route";
 import type { OutgoingEmail } from "./email-provider";
 import { capturingInvitationSender, providerMagicLinkSender } from "./email-senders";
 import { capturingSender } from "./magic-link-sender";
@@ -118,13 +119,39 @@ async function createUser(email: string) {
   return user;
 }
 
+/**
+ * Opens an emailed link as a person does (IN-Q11): the GET shows the button,
+ * the button's form POST signs in.
+ */
+async function confirm(link: string, using = auth, base = BASE): Promise<Response> {
+  const availability: KabinetAuthAvailability = {
+    kind: "available",
+    sender: capturingSender(),
+    invites: capturingInvitationSender(),
+    secret: "unused-here",
+    baseURL: base,
+  };
+  const deps = { availability, auth: () => using };
+  const shown = await handleKabinetConfirm(new Request(link), deps);
+  if (shown.status !== 200) throw new Error(`confirm page answered ${shown.status}`);
+  const token = new URL(link).searchParams.get("token") ?? "";
+  return handleKabinetConfirm(
+    new Request(link, {
+      method: "POST",
+      headers: { origin: base },
+      body: new URLSearchParams({ token }),
+    }),
+    deps,
+  );
+}
+
 /** Ask for a link, follow it, return the session cookie. */
 async function signIn(email: string): Promise<string> {
   const before = sender.sent.length;
   await route(post("/api/auth/sign-in/magic-link", { email }));
   const link = sender.sent[before]?.url;
   if (link === undefined) throw new Error(`no link sent to ${email}`);
-  const verified = await route(new Request(link));
+  const verified = await confirm(link);
   const cookie = verified.headers
     .getSetCookie()
     .find((c) => c.startsWith("kabinet.session_token="));
@@ -225,9 +252,9 @@ describe("magic-link sign-in", () => {
     const ctx = await auth.$context;
     await ctx.internalAdapter.updateUser(user.id, { email: "renamed@example.org" });
 
-    const verified = await route(new Request(link));
+    const verified = await confirm(link);
     expect(verified.headers.getSetCookie().some((c) => c.includes("session_token"))).toBe(false);
-    expect(verified.headers.get("location")).toContain("new_user_signup_disabled");
+    expect(verified.status).toBe(400);
     expect(await ctx.internalAdapter.findUserByEmail("olena@example.org")).toBeNull();
   });
 });
@@ -349,7 +376,7 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
     await Promise.all(pending);
     const link = sender.sent[0]?.url;
     if (link === undefined) throw new Error("no link");
-    const verified = await secureAuth.handler(new Request(link));
+    const verified = await confirm(link, secureAuth, https);
     const cookie = verified.headers.getSetCookie().find((c) => c.includes("session_token="));
     expect(cookie).toMatch(/^__Host-kabinet\.session_token=/);
     expect(cookie).toMatch(/; Secure/);
@@ -486,10 +513,9 @@ describe("the sign-in limits (HS-Q5)", () => {
 });
 
 describe("what the route lets through", () => {
-  it("forwards exactly four Better Auth paths", () => {
+  it("forwards exactly three Better Auth paths, never the GET that consumes a link (IN-Q11)", () => {
     expect([...FORWARDED_AUTH_PATHS].sort()).toEqual([
       "/api/auth/get-session",
-      "/api/auth/magic-link/verify",
       "/api/auth/sign-in/magic-link",
       "/api/auth/sign-out",
     ]);
