@@ -100,9 +100,31 @@ describe("proxy", () => {
       "/kabinet-old",
       "/tvaryny?next=/kabinet",
       "/prytulkam/kabinet",
+      // Encoded traversal and case (review of 7294f5e, finding 5). URL
+      // parsing resolves `%2e%2e` segments before proxy sees the path (as it
+      // does for the matcher's request), so these reach proxy as /prytulkam
+      // and /api/rpc/gallery.list; and paths are case-sensitive, so
+      // /API/auth is not the exempt /api/auth. A change that decoded or
+      // lowercased the path itself would turn these red.
+      "/kabinet/%2e%2e/prytulkam",
+      "/api/auth/%2e%2e/rpc/gallery.list",
+      "/API/auth/x",
     ])("still gates %s, which only looks like a kabinet route", async (path) => {
       const { proxy } = await import("./proxy");
       expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
+    });
+
+    /**
+     * Review of 7294f5e, finding 6: on an exempt path the gate isn't
+     * evaluated at all, so `?gate=` mints no cookie there. Harmless: the
+     * kabinet's routes never need it, and the cookie is still minted on any
+     * gated page that carries the parameter.
+     */
+    it("mints no gate cookie on an exempt path, even with the gate parameter", async () => {
+      const { proxy } = await import("./proxy");
+      const response = await proxy(request(`https://opika.example/kabinet/vkhid?gate=${SECRET}`));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("set-cookie")).toBeNull();
     });
 
     it("denies a request to a route outside /tvaryny just the same — the gate covers the whole site", async () => {

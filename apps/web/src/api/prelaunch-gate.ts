@@ -4,7 +4,10 @@ import { requireEnv } from "./env";
 /**
  * Pre-launch bot shutter — NOT a security boundary. While
  * `SITE_IS_PUBLICLY_DISCOVERABLE` is false, every request 403s unless it
- * carries the one shared secret below. Say what it actually does, not more:
+ * carries the one shared secret below, except the kabinet's own routes
+ * (`/api/auth/*`, `/api/kabinet/*`, `/kabinet/*`), which `proxy.ts`'s
+ * `isGateExemptPath` lets through so a magic link opened in a fresh browser
+ * can complete sign-in (IN-Q1, Oleksii). Say what it actually does, not more:
  * it closes off automated traffic that ignores `X-Robots-Tag` and a
  * noindexed `robots.txt`, over a deploy that today holds nothing but a
  * fabricated corpus. It is not access control on anything valuable, it does
