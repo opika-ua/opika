@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { drizzleKitArgs } from "./migrate-args";
-import { assertProductionWriteAllowed } from "./prod-guard";
+import { assertProductionWriteAllowed, databaseTargetLine } from "./prod-guard";
 
 /**
  * `pnpm db:migrate`: the production-write guard, then `drizzle-kit migrate`,
@@ -16,6 +16,9 @@ if (!databaseUrl) {
   process.exit(1);
 }
 assertProductionWriteAllowed(databaseUrl, process.argv);
+// After the guard (a refused target gets nothing but the refusal), before
+// drizzle-kit: its output says what ran, this line says where (Oleksii, 2026-10-13).
+console.log(databaseTargetLine(databaseUrl));
 
 const result = spawnSync("drizzle-kit", drizzleKitArgs(process.argv.slice(2)), {
   stdio: "inherit",

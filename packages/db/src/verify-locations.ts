@@ -10,7 +10,7 @@ import {
 } from "@opika/domain";
 import { createDatabase, type Database } from "./client";
 import { productionLocationPolicy } from "./location-policy";
-import { assertProductionWriteAllowed } from "./prod-guard";
+import { assertProductionWriteAllowed, databaseTargetLine } from "./prod-guard";
 import { shelters } from "./schema/shelters";
 import { isSeedShelterId, SEED_LOCATION_POLICY_KEY } from "./seed-ids";
 
@@ -124,7 +124,7 @@ async function main(): Promise<void> {
   // It writes nothing, but it reads every shelter's exact address, so it
   // takes the same explicit --prod as the scripts that write (Oleksii).
   assertProductionWriteAllowed(databaseUrl, process.argv, process.env, "read");
-  console.log(`Target host: ${new URL(databaseUrl).hostname}`);
+  console.log(databaseTargetLine(databaseUrl));
 
   if (process.env.NODE_ENV === "production") {
     console.error(

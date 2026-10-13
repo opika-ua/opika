@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { createDatabase, type Database } from "./client";
-import { assertProductionWriteAllowed } from "./prod-guard";
+import { assertProductionWriteAllowed, databaseTargetLine } from "./prod-guard";
 import { kabinetInvitedUsersRepo } from "./repos/kabinet-invited-users-repo";
 import { superAdminRepo } from "./repos/super-admin-repo";
 
@@ -173,7 +173,7 @@ async function main(): Promise<void> {
   // it takes --prod against production like the rest.
   const writes = command !== "sweep-invites" || args.includes("--apply");
   assertProductionWriteAllowed(databaseUrl, process.argv, process.env, writes ? "write" : "read");
-  console.log(`Target host: ${new URL(databaseUrl).hostname}`);
+  console.log(databaseTargetLine(databaseUrl));
 
   const readline = createInterface({ input: process.stdin, output: process.stdout });
   const code = await runAdmin(command as AdminCommand, args, {

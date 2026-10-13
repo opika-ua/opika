@@ -60,6 +60,70 @@ const parseOrNull = (url: string): URL | null => {
 const computeOf = (hostOrId: string): string =>
   (hostOrId.toLowerCase().split(".")[0] ?? "").replace(/-pooler$/, "");
 
+/**
+ * Which database a script is about to touch, reduced to what can be printed.
+ *
+ * Why it exists (Oleksii, 2026-10-13): `db:check-hashes` and `db:migrate`
+ * printed their results with nothing saying where they came from, so a pasted
+ * "every hash matches" proved nothing about which branch it was run against.
+ * The line printed first is that proof.
+ *
+ * Built from named fields of the parsed URL, never by redacting the string:
+ * a redaction regex has to anticipate every place a secret can sit (password,
+ * user, `?password=`, `?options=`), whereas a field that is never copied
+ * can't leak. No user, no password, no query string, in any variant.
+ */
+export type DatabaseTarget =
+  | { kind: "neon"; endpoint: string; host: string }
+  | { kind: "local"; host: string; port: string; database: string }
+  | { kind: "remote"; host: string }
+  | { kind: "unparseable" };
+
+/** Same test as `client.ts`'s `isNeonHost`, which picks the driver: the label must name the database the driver will actually reach. */
+const isNeonHostname = (hostname: string): boolean => hostname.endsWith(".neon.tech");
+
+export function databaseTargetOf(url: string): DatabaseTarget {
+  const parsed = parseOrNull(url);
+  if (parsed === null) return { kind: "unparseable" };
+  // `postgres:` isn't a WHATWG special scheme, so `URL` keeps the host's case;
+  // the trailing dot is the same host written fully qualified.
+  const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+  if (LOCAL_HOSTS.has(host.replace(/^\[|\]$/g, ""))) {
+    return {
+      kind: "local",
+      host,
+      // Postgres' own default, which is what an omitted port connects to.
+      port: parsed.port || "5432",
+      database: parsed.pathname.replace(/^\//, ""),
+    };
+  }
+  // The endpoint id is the compute, which is what the production guard compares,
+  // so the pooled and direct hostnames of one database print the same id.
+  const endpoint = computeOf(host);
+  if (isNeonHostname(host) && ENDPOINT_ID.test(endpoint)) return { kind: "neon", endpoint, host };
+  return { kind: "remote", host };
+}
+
+/** The line a script prints before its results. */
+export function databaseTargetLine(url: string): string {
+  const target = databaseTargetOf(url);
+  switch (target.kind) {
+    case "neon":
+      return `Target: Neon endpoint ${target.endpoint} (${target.host})`;
+    case "local":
+      return `Target: local (${target.host}:${target.port}/${target.database || "<default database>"})`;
+    case "remote":
+      return `Target: remote host ${target.host} (not a Neon endpoint)`;
+    case "unparseable":
+      return "Target: DATABASE_URL could not be parsed (not printing it).";
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
+    default: {
+      const unreachable: never = target;
+      throw new Error(`Unhandled target ${JSON.stringify(unreachable)}`);
+    }
+  }
+}
+
 export function checkProductionWrite(
   targetUrl: string,
   argv: readonly string[],

@@ -8,6 +8,8 @@ import { drizzleKitArgs } from "../src/migrate-args";
 import {
   assertProductionWriteAllowed,
   checkProductionWrite,
+  databaseTargetLine,
+  databaseTargetOf,
   productionEndpoint,
 } from "../src/prod-guard";
 
@@ -115,6 +117,88 @@ describe("checkProductionWrite edge cases", () => {
       kind: "refused",
       reason: "misconfigured",
     });
+  });
+});
+
+/**
+ * Oleksii, 2026-10-13: db:check-hashes and db:migrate print which database
+ * they ran against. Expected lines are written out literally, not rebuilt
+ * from the helper's own pieces.
+ */
+describe("databaseTargetLine", () => {
+  it("names a Neon target by its endpoint id, the same for the pooled and direct hostnames", () => {
+    expect(databaseTargetLine(PROD)).toBe(
+      "Target: Neon endpoint ep-quiet-lake-a1b2c3 (ep-quiet-lake-a1b2c3-pooler.eu-central-1.aws.neon.tech)",
+    );
+    expect(databaseTargetLine(PROD_DIRECT)).toBe(
+      "Target: Neon endpoint ep-quiet-lake-a1b2c3 (ep-quiet-lake-a1b2c3.eu-central-1.aws.neon.tech)",
+    );
+    expect(databaseTargetOf(PROD)).toMatchObject({
+      kind: "neon",
+      endpoint: "ep-quiet-lake-a1b2c3",
+    });
+    expect(databaseTargetOf(PROD_DIRECT)).toMatchObject({
+      kind: "neon",
+      endpoint: "ep-quiet-lake-a1b2c3",
+    });
+  });
+
+  it("normalises case and a trailing dot to the hostname the driver connects to", () => {
+    expect(
+      databaseTargetLine(
+        "postgresql://u:secret@EP-QUIET-LAKE-A1B2C3-POOLER.EU-CENTRAL-1.AWS.NEON.TECH./neondb",
+      ),
+    ).toBe(
+      "Target: Neon endpoint ep-quiet-lake-a1b2c3 (ep-quiet-lake-a1b2c3-pooler.eu-central-1.aws.neon.tech)",
+    );
+  });
+
+  it("names a local target by host, port and database", () => {
+    expect(databaseTargetLine(LOCAL)).toBe("Target: local (localhost:5433/opika)");
+    expect(databaseTargetLine("postgres://opika:opika@127.0.0.1/opika_test")).toBe(
+      "Target: local (127.0.0.1:5432/opika_test)",
+    );
+    expect(databaseTargetLine("postgres://opika:opika@[::1]:5433")).toBe(
+      "Target: local ([::1]:5433/<default database>)",
+    );
+  });
+
+  it("calls a non-Neon remote host neither Neon nor local", () => {
+    expect(databaseTargetLine("postgres://u:secret@db.example.org:6543/app")).toBe(
+      "Target: remote host db.example.org (not a Neon endpoint)",
+    );
+    // Merely containing "localhost" or "neon" doesn't make it either.
+    expect(databaseTargetLine("postgres://localhost:secret@ep-x.neon.example.org/localhost")).toBe(
+      "Target: remote host ep-x.neon.example.org (not a Neon endpoint)",
+    );
+  });
+
+  it("refuses a URL that won't parse without echoing it", () => {
+    expect(databaseTargetLine("postgresql://u:SECRETPW@[not-a-host")).toBe(
+      "Target: DATABASE_URL could not be parsed (not printing it).",
+    );
+    expect(databaseTargetOf("not a url")).toEqual({ kind: "unparseable" });
+  });
+
+  /** No user, no password, no query string, in any variant. */
+  it.each([
+    [
+      "neon pooled",
+      "postgresql://alice:secret@ep-quiet-lake-a1b2c3-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&password=secret&options=secret",
+    ],
+    [
+      "neon direct",
+      "postgresql://alice:secret@ep-quiet-lake-a1b2c3.eu-central-1.aws.neon.tech:5432/neondb?sslmode=require",
+    ],
+    ["local", "postgres://alice:secret@localhost:5433/opika?password=secret"],
+    ["remote", "postgres://alice:secret@db.example.org/app?options=secret"],
+    ["unparseable", "postgresql://alice:secret@[bad?password=secret"],
+  ])("never prints credentials or the query string (%s)", (_name, url) => {
+    const line = databaseTargetLine(url);
+    expect(line).not.toContain("secret");
+    expect(line).not.toContain("alice");
+    expect(line).not.toContain("?");
+    expect(line).not.toContain("sslmode");
   });
 });
 
@@ -245,6 +329,69 @@ describe("every writing CLI runs the guard first", () => {
     expect(result.status, result.stderr).not.toBe(0);
     expect(result.stderr).toContain("The test database must be local");
     expect(result.stderr).not.toContain("secret");
+  });
+
+  /**
+   * Oleksii, 2026-10-13: the target is the first line, before any result or
+   * failure. A fake Neon URL must never reach Neon, so the driver's one
+   * transport is disabled in the child (test/no-network.mjs) and the run fails
+   * right after printing it.
+   */
+  it("db:check-hashes prints the target first, before it fails to connect", () => {
+    const result = spawnSync(
+      "npx",
+      ["tsx", "--import", "./test/no-network.mjs", "src/check-migration-hashes.ts"],
+      {
+        cwd: PKG,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+        env: { ...process.env, DATABASE_URL: PROD, PROD_GUARD_ENV_FILE: NO_ENV_FILE },
+        timeout: 60_000,
+      },
+    );
+    expect(result.status, result.stderr).not.toBe(0);
+    expect(result.stdout.split(/\r?\n/)[0]).toBe(
+      "Target: Neon endpoint ep-quiet-lake-a1b2c3 (ep-quiet-lake-a1b2c3-pooler.eu-central-1.aws.neon.tech)",
+    );
+    // It failed on the disabled network, not somewhere before reaching it.
+    expect(result.stderr).toContain("network disabled by test/no-network.mjs");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
+  });
+
+  it("db:check-hashes refuses an unparseable URL after saying so, without printing it", () => {
+    const result = spawnSync("npx", ["tsx", "src/check-migration-hashes.ts"], {
+      cwd: PKG,
+      encoding: "utf8",
+      shell: process.platform === "win32",
+      env: { ...process.env, DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host" },
+      timeout: 60_000,
+    });
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stdout.split(/\r?\n/)[0]).toBe(
+      "Target: DATABASE_URL could not be parsed (not printing it).",
+    );
+    expect(`${result.stdout}${result.stderr}`).not.toContain("SECRETPW");
+  });
+
+  /**
+   * After the guard (a local target passes without a flag), before drizzle-kit.
+   * The missing config makes drizzle-kit stop before it connects to anything.
+   */
+  it("db:migrate prints the target before drizzle-kit starts", () => {
+    const result = spawnSync("npx", ["tsx", "src/migrate.ts", "--config=does-not-exist.ts"], {
+      cwd: PKG,
+      encoding: "utf8",
+      shell: process.platform === "win32",
+      env: {
+        ...process.env,
+        DATABASE_URL: "postgres://opika:secret@localhost:1/opika_print_target",
+        PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+      },
+      timeout: 60_000,
+    });
+    expect(result.stdout.split(/\r?\n/)[0]).toBe("Target: local (localhost:1/opika_print_target)");
+    expect(result.status, result.stderr).not.toBe(0);
+    expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
   });
 
   it.each([

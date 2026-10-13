@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
 import { createDatabase } from "./client";
+import { databaseTargetLine, databaseTargetOf } from "./prod-guard";
 
 /**
  * `pnpm db:check-hashes`: read-only. For every migration in the committed
@@ -84,6 +85,10 @@ async function main(): Promise<void> {
     console.error("ERROR: DATABASE_URL is not set.");
     process.exit(1);
   }
+  // First, before connecting: a pasted report proves which database it came
+  // from only if the target is part of it (Oleksii, 2026-10-13).
+  console.log(databaseTargetLine(url));
+  if (databaseTargetOf(url).kind === "unparseable") process.exit(1);
   const db = createDatabase(url);
   const result = await db.execute(sql`SELECT hash, created_at FROM drizzle.__drizzle_migrations`);
   // postgres-js returns an array, neon-http `{ rows }` (standing constraints, R1).
