@@ -1,0 +1,9 @@
+| ID | Date | Row | Question | Options | Default taken | Oleksii's answer | Status |
+|---|---|---|---|---|---|---|---|
+| RG-Q1 | 2026-10-13 | H2 registry PR, `docs/h2-registry-phase0.md` Q1 | API only, or the S1–S5 screens too | A: API only, screens in their own PR · B: both | **None: Tier 1** (recommended A) | | open |
+| RG-Q2 | 2026-10-13 | same, Q2 | Sign-up is off, so nothing can create the first production user; the rollout order's "I sign in → admin:grant" can't run | A: `admin:create-user` script behind the prod guard · B: `admin:grant --create` · C: sign-up on for everyone | **None: Tier 1** (recommended A) | | open |
+| RG-Q3 | 2026-10-13 | same, Q3 | Who creates an invited admin's user, so they can sign in to accept | A: the invitation write creates the roleless user · B: a sign-up hook allowing only invited addresses | **None: Tier 1** (recommended A) | | open |
+| RG-Q4 | 2026-10-13 | same, Q4 | Where support-mode (S5) state lives | A: `support_sessions` table + its own `__Host-` session cookie, 30-min idle · B: a field on Better Auth's session | **None: Tier 1** (recommended A) | | open |
+| RG-Q5 | 2026-10-13 | same, Q5 | Evidence `documentKey` before the private bucket exists (H2-6) | A: refuse with INVALID_EVIDENCE `document_not_supported_yet` · B: build the bucket here | **None: Tier 1** (recommended A) | | open |
+| RG-Q6 | 2026-10-13 | same, Q6 | Removing an admin: sessions, last admin | revoke sessions immediately, allow removing the last admin · refuse the last | **None: Tier 1** (recommended: revoke immediately, allow) | | open |
+| RG-Q7 | 2026-10-13 | same, Q7 | `animals.version` changes `update`'s input to `expectedVersion` and adds `version` to KabinetAnimalView; listing moves don't bump it | as described · other | **None: Tier 1, confirmation** (recommended: as described) | | open |
