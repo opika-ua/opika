@@ -12,7 +12,9 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  *
  * **The pre-launch gate**, added 2026-09-13 — a bot shutter, NOT a security
  * boundary. While `SITE_IS_PUBLICLY_DISCOVERABLE` is false (`./seo-flags.ts`),
- * every request 403s unless it carries the shared secret below. Full
+ * every request 403s unless it carries the shared secret below, except the
+ * kabinet's own routes (`isGateExemptPath`, IN-Q1), which have their own
+ * authentication and must work from a magic link in a fresh browser. Full
  * reasoning for what this does and does not protect, why there's no
  * user-agent carve-out, and why the `?gate=` secret appearing in logs and
  * browser history is accepted rather than fixed: `./api/prelaunch-gate.ts`'s
@@ -51,7 +53,7 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  * so neither half of the story is missed reading this file in isolation.
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  if (!SITE_IS_PUBLICLY_DISCOVERABLE) {
+  if (!SITE_IS_PUBLICLY_DISCOVERABLE && !isGateExemptPath(request.nextUrl.pathname)) {
     const decision = evaluatePrelaunchGate(
       request.headers.get("cookie"),
       request.nextUrl.searchParams.get(PRELAUNCH_GATE_QUERY_PARAM),
@@ -79,6 +81,23 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
   return NextResponse.next();
 }
 
+/**
+ * The kabinet's own routes skip the pre-launch gate (IN-Q1, Oleksii: "exempt
+ * exactly /api/auth/*, /api/kabinet/*, /kabinet/*"). A magic link opened in a
+ * fresh browser carries no gate cookie, so without this a shelter could
+ * never complete sign-in. These routes have their own authentication; the
+ * gate is a bot shutter, not that. Matched by whole path segment, so
+ * `/api/authx`, `/api/kabinetx` and `/kabinetx` stay gated like everything
+ * else.
+ */
+const GATE_EXEMPT_PREFIXES = ["/api/auth", "/api/kabinet", "/kabinet"] as const;
+
+export function isGateExemptPath(pathname: string): boolean {
+  return GATE_EXEMPT_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 function isDiscoveryPagePath(pathname: string): boolean {
   return pathname === "/tvaryny" || pathname.startsWith("/tvaryny/");
 }
@@ -90,7 +109,8 @@ function isDiscoveryPagePath(pathname: string): boolean {
  * them isn't a gate weakness — they reveal nothing about the site's content
  * and a browser that already holds the gate cookie needs them to render any
  * page at all. Everything else this matcher sees, including `/api/rpc/*`
- * and every app page, is in scope: "every request" per the decision this
+ * and every app page, is in scope (the kabinet's routes are exempted inside
+ * `proxy`, by path, not here): "every request" per the decision this
  * gate implements, not only the specific routes a crawler happened to hit
  * this time.
  *

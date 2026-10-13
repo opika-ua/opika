@@ -70,6 +70,41 @@ describe("proxy", () => {
       expect(response.headers.get("set-cookie")).toContain(`${cookieName()}=${SECRET}`);
     });
 
+    /**
+     * IN-Q1 (Oleksii, verbatim: "Test both directions: exempt paths pass;
+     * every other /api/* path (incl. /api/authx, /api/registry) still
+     * 403s."): no gate cookie, no gate parameter, as a fresh browser opening
+     * a magic link arrives.
+     */
+    it.each([
+      "/api/auth",
+      "/api/auth/sign-in/magic-link",
+      "/api/auth/magic-link/verify",
+      "/api/kabinet",
+      "/api/kabinet/registry/shelters/list",
+      "/kabinet",
+      "/kabinet/vkhid",
+    ])("lets %s through without the gate (the kabinet's own routes)", async (path) => {
+      const { proxy } = await import("./proxy");
+      expect((await proxy(request(`https://opika.example${path}`))).status).toBe(200);
+    });
+
+    it.each([
+      "/api/authx",
+      "/api/auth-old",
+      "/api/registry",
+      "/api/kabinetx",
+      "/api/rpc/feed.list",
+      "/api",
+      "/kabinetx",
+      "/kabinet-old",
+      "/tvaryny?next=/kabinet",
+      "/prytulkam/kabinet",
+    ])("still gates %s, which only looks like a kabinet route", async (path) => {
+      const { proxy } = await import("./proxy");
+      expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
+    });
+
     it("denies a request to a route outside /tvaryny just the same — the gate covers the whole site", async () => {
       const { proxy } = await import("./proxy");
       const response = await proxy(request("https://opika.example/prytulkam"));
