@@ -62,7 +62,7 @@ describe("runDeliveryTest", () => {
       'href="http://localhost:3000/kabinet/vkhid/pidtverdzhennia?token=TEST-r1"',
     );
     expect(invite.textContent).toContain(
-      "http://localhost:3000/kabinet/zaproshennia?token=TEST-r2",
+      "http://localhost:3000/kabinet/vkhid?zaproshennia=TEST-r2",
     );
     // Placeholder copy, not invented Ukrainian, and long enough to resemble a real message.
     for (const body of [signIn, invite]) {

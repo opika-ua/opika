@@ -19,12 +19,14 @@ import { emailProviderConfigOf, fetchEmailSender, type SentEmail } from "./email
 export const DELIVERY_KEY_NAME = "BREVO_API_KEY";
 
 /**
- * Where the two links land. They must match the confirm pages the
- * invite/screens work builds (a GET shows one button; only its POST consumes
- * anything); change them here if those routes move.
+ * Where the two links land, matching docs/h2-invite-confirm-shapes.md
+ * (feat/h2-invite-confirm); change them here if those routes move. The
+ * sign-in confirm page's GET shows one button and only its POST consumes the
+ * token; the invite page's GET sends a fresh magic link to the invited
+ * address, and is not itself a sign-in.
  */
-export const SIGN_IN_CONFIRM_PATH = "/kabinet/vkhid/pidtverdzhennia";
-export const INVITE_CONFIRM_PATH = "/kabinet/zaproshennia";
+export const SIGN_IN_LINK = { path: "/kabinet/vkhid/pidtverdzhennia", param: "token" } as const;
+export const INVITE_LINK = { path: "/kabinet/vkhid", param: "zaproshennia" } as const;
 
 /** The verified sender's local part; the domain is mail.<production host>, enforced by emailProviderConfigOf. */
 const FROM_LOCAL_PART = "noreply";
@@ -99,23 +101,28 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
   }
   const sender = fetchEmailSender(config.config, input.fetchImpl);
   const base = input.base.replace(/\/+$/, "");
-  const sends: { label: string; subject: string; path: string; lead: string }[] = [
+  const sends: {
+    label: string;
+    subject: string;
+    target: { path: string; param: string };
+    lead: string;
+  }[] = [
     {
       label: "magic link",
       subject: "[COPY PENDING] Your sign-in link",
-      path: SIGN_IN_CONFIRM_PATH,
+      target: SIGN_IN_LINK,
       lead: "Open this link and press the button to sign in. The link works once and expires soon.",
     },
     {
       label: "invite",
       subject: "[COPY PENDING] You've been invited to a shelter's cabinet",
-      path: INVITE_CONFIRM_PATH,
+      target: INVITE_LINK,
       lead: "You've been invited to manage a shelter's listings. Open this link to accept; the page will send you a sign-in link.",
     },
   ];
   let failed = false;
   for (const send of sends) {
-    const link = `${base}${send.path}?token=TEST-${input.random()}`;
+    const link = `${base}${send.target.path}?${send.target.param}=TEST-${input.random()}`;
     const { text, html } = placeholder(send.lead, link);
     try {
       const sent: SentEmail = await sender.send({
