@@ -24,8 +24,13 @@ ADDRESS_HAS_A_ROLE: {
 },
 ```
 
-Declared on `registry.admins.invite` and `registry.shelters.create` (both currently declare
-`ALREADY_A_MEMBER`). The repo side:
+Declared on `registry.admins.invite`, `registry.shelters.create`, and (added 2026-10-13, review
+of ee847a2 finding 1, accepted by Oleksii) `registry.admins.resendInvite`: a resend revives an
+expired invitation, so it is refused the same way. Oleksii, verbatim: "Resend refusal: it must
+cover every path that makes an invitation live again (create, resend, and anything that resets
+expiry), with one test per path." The check therefore runs at each write in
+`kabinetInvitationRepo`: `createInvitation` (reached by `invite` and `shelters.create`) and
+`resend` (the only expiry reset), each returning `{ kind: "address_has_a_role"; reason }`. The repo side:
 - `kabinetInvitationRepo.invite` returns
   `{ kind: "address_has_a_role"; reason: "shelter_admin" | "operator" | "invited_elsewhere" }`
   instead of `{ kind: "already_a_member" }`;

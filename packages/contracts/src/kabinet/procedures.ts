@@ -413,7 +413,16 @@ export const registryAdminsContract = {
     .input(z.strictObject({ shelterId: ShelterIdSchema, name: humanName, email: z.email() }))
     .output(ShelterAdminViewSchema)
     .errors({ ...registryErrors, ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE }),
-  resendInvite: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
+  /**
+   * A resend can revive an expired invitation, so it is checked like a new
+   * one (review of ee847a2, finding 1): an address that meanwhile holds a
+   * role elsewhere is refused, never handed a second live invitation.
+   */
+  resendInvite: kabinet
+    .$meta(registry)
+    .input(adminRef)
+    .output(emptyOutput)
+    .errors({ ...registryErrors, ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE }),
   remove: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
 };
 

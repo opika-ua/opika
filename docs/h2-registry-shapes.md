@@ -76,11 +76,9 @@ errors UNAUTHENTICATED, FORBIDDEN, INVALID_CURSOR
 This makes `shelterKabinetContract` 17 procedures. The cross-tenant suite gains a case: a smuggled
 `shelterId` is BAD_REQUEST, and B's history doesn't appear.
 
-## 4. New error: `ALREADY_A_MEMBER` (409)
+## 4. ~~New error: `ALREADY_A_MEMBER` (409)~~ Superseded
 
-RG-Q3: inviting an address whose user already belongs to a shelter is a typed refusal, never the
-database's unique-index error. It is declared on `registry.admins.invite` and `registry.shelters.create`
-(whose first admin may already be a member elsewhere).
+Replaced by `ADDRESS_HAS_A_ROLE` in the invite PR: see `docs/h2-invite-shapes.md` §1 (IN-Q7, RG-T10).
 
 `INVALID_EVIDENCE.data.reason` gains `document_not_supported_yet` (RG-Q5).
 

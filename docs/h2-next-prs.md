@@ -90,6 +90,10 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [ ] **`LOCATION_HMAC_SECRET` joins the required production env schema** (RG-Q10) in
       `apps/web/src/api/env.ts`, only after the step above. The same change rewrites the comments
       that say it is never in Vercel (`env.ts`, `onboard-shelter.ts`'s R2 note), which become false.
+- [ ] **The one-membership unique violation is a typed error, never a 500** (IN-Q8, IN-T1): in the
+      PR that first writes `auth_member` (auto-accept on first sign-in), `auth_member_user_id_unique`
+      maps to `ADDRESS_HAS_A_ROLE` (`shelter_admin`), with a test that accepts two invitations for one
+      address and asserts the typed refusal.
 - [ ] **`registry.admins.invite` refuses an operator's address** (RG-T10; Oleksii, verbatim: "RG-T10:
       accepted as an invite-PR item. It must land before admin:bootstrap."), so inviting an operator can
       never end in `conflicting_roles`. Lands before the rollout's `admin:bootstrap` step.

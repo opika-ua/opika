@@ -595,6 +595,7 @@ describe("an invitation, written server-side and accepted through Better Auth (H
         },
       },
     });
+    if (invitation.kind !== "created") throw new Error("unreachable");
 
     const cookie = await signIn("olena@example.org");
     const accepted = await auth.handler(
@@ -644,6 +645,7 @@ describe("an invitation, written server-side and accepted through Better Auth (H
         },
       },
     });
+    if (invitation.kind !== "created") throw new Error("unreachable");
     const cookie = await signIn("someone-else@example.org");
     const accepted = await auth.handler(
       post("/api/auth/organization/accept-invitation", { invitationId: invitation.id }, { cookie }),

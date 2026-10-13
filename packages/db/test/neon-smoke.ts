@@ -298,8 +298,8 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   });
   check(
     "resend (+ history)",
-    resent !== null && (await history()).length === 7,
-    `${resent === null ? "not resent" : "resent"}, ${(await history()).length} history row(s)`,
+    resent.kind === "resent" && (await history()).length === 7,
+    `${resent.kind}, ${(await history()).length} history row(s)`,
   );
 
   // 8. removeMember: membership + every session of theirs + history; another user's session survives.
