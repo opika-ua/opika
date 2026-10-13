@@ -192,6 +192,9 @@ export interface EmailSender {
 export function fetchEmailSender(
   config: EmailProviderConfig,
   fetchImpl: typeof fetch = fetch,
+  // Injectable only so a test can prove the abort really fires (review pass
+  // 2, finding 1) without waiting ten seconds; production uses the default.
+  timeoutMs: number = EMAIL_SEND_TIMEOUT_MS,
 ): EmailSender {
   return {
     async send(email) {
@@ -200,7 +203,7 @@ export function fetchEmailSender(
       try {
         response = await fetchImpl(url, {
           ...init,
-          signal: AbortSignal.timeout(EMAIL_SEND_TIMEOUT_MS),
+          signal: AbortSignal.timeout(timeoutMs),
         });
       } catch {
         throw new Error(`Email provider ${config.provider} did not answer the send.`);

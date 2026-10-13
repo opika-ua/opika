@@ -201,8 +201,11 @@ export function kabinetInvitationRepo(db: Database) {
         now: input.now,
         history: { ...input.history, shelterId: input.shelterId },
       });
-      // Re-checked at the write itself: a role taken between the check above
-      // and this insert is refused, never a second live invitation.
+      // Re-checked at the write itself, which narrows the window between the
+      // check above and this insert. It does not close it: with no transaction
+      // and no unique index on one pending invitation per address, two
+      // concurrent invites to different shelters can still both pass until
+      // such an index exists (a follow-up, 0012; recorded with IN-T1).
       if (invitation.kind === "address_has_a_role") return invitation;
       const { expiresAt } = invitation;
       if (existing !== undefined) {
