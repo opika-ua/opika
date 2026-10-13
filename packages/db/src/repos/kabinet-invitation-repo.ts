@@ -8,6 +8,7 @@ import {
   authSession,
   authUser,
   invitationCreatedUsers,
+  superAdmins,
 } from "../schema/auth";
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
@@ -21,10 +22,19 @@ const historyValues = (row: HistoryRow) => historyRowSelect(row, sql`${row.shelt
 /** Proposal §4 / KABINET: an invite is good for 72 hours, then needs a resend. */
 export const INVITATION_TTL_MS = 72 * 60 * 60 * 1000;
 
-/** An invitation the registry made, or why it didn't (RG-Q3). */
+/**
+ * Why an address can't be invited (RG-T10, IN-Q7, IN-Q8): one person holds
+ * one role. It administers a shelter; it is an operator (an active grant;
+ * never read from the user record, HS-T2); or it holds a live invitation to
+ * another shelter, whose acceptance would collide with this one on the
+ * one-membership index.
+ */
+export type AddressRole = "shelter_admin" | "operator" | "invited_elsewhere";
+
+/** An invitation the registry made, or why it didn't (RG-Q3, RG-T10). */
 export type InviteResult =
   | { kind: "invited"; invitationId: string; userId: string; expiresAt: Date; createdUser: boolean }
-  | { kind: "already_a_member" };
+  | { kind: "address_has_a_role"; reason: AddressRole };
 
 /**
  * **The only module that writes `auth_invitation`** (HS-Q7, Oleksii), and the
@@ -157,14 +167,8 @@ export function kabinetInvitationRepo(db: Database) {
         .from(authUser)
         .where(eq(authUser.email, email))
         .limit(1);
-      if (existing !== undefined) {
-        const [membership] = await db
-          .select({ id: authMember.id })
-          .from(authMember)
-          .where(eq(authMember.userId, existing.id))
-          .limit(1);
-        if (membership !== undefined) return { kind: "already_a_member" };
-      }
+      const role = await repo.roleOfAddress({ email, shelterId: input.shelterId, now: input.now });
+      if (role !== null) return { kind: "address_has_a_role", reason: role };
       const organizationId = await repo.ensureOrganization(
         input.shelterId,
         { organizationId: input.ids.organizationId },
@@ -213,6 +217,65 @@ export function kabinetInvitationRepo(db: Database) {
         expiresAt,
         createdUser: true,
       };
+    },
+
+    /**
+     * The role an address already holds, as far as inviting it to
+     * `shelterId` is concerned, or null when it can be invited. A live
+     * invitation to this same shelter is not a conflict (a re-invite is how
+     * an expired or lost one is replaced). Read by `invite` and by
+     * `registry.shelters.create`'s check before it creates anything.
+     */
+    async roleOfAddress(input: {
+      email: string;
+      shelterId: ShelterId | null;
+      now: Date;
+    }): Promise<AddressRole | null> {
+      const email = input.email.trim().toLowerCase();
+      const [user] = await db
+        .select({ id: authUser.id })
+        .from(authUser)
+        .where(eq(authUser.email, email))
+        .limit(1);
+      if (user !== undefined) {
+        const [membership] = await db
+          .select({ id: authMember.id })
+          .from(authMember)
+          .where(eq(authMember.userId, user.id))
+          .limit(1);
+        if (membership !== undefined) return "shelter_admin";
+        const [grant] = await db
+          .select({ id: superAdmins.id })
+          .from(superAdmins)
+          .where(and(eq(superAdmins.userId, user.id), isNull(superAdmins.revokedAt)))
+          .limit(1);
+        if (grant !== undefined) return "operator";
+      }
+      const thisOrganization =
+        input.shelterId === null
+          ? null
+          : ((
+              await db
+                .select({ organizationId: shelters.organizationId })
+                .from(shelters)
+                .where(eq(shelters.id, input.shelterId))
+                .limit(1)
+            )[0]?.organizationId ?? null);
+      const [elsewhere] = await db
+        .select({ id: authInvitation.id })
+        .from(authInvitation)
+        .where(
+          and(
+            eq(authInvitation.email, email),
+            eq(authInvitation.status, "pending"),
+            sql`${authInvitation.expiresAt} > ${input.now.toISOString()}::timestamptz`,
+            thisOrganization === null
+              ? undefined
+              : sql`${authInvitation.organizationId} <> ${thisOrganization}`,
+          ),
+        )
+        .limit(1);
+      return elsewhere !== undefined ? "invited_elsewhere" : null;
     },
 
     /** A pending invitation's link, valid again for the full window (`registry.admins.resendInvite`). */

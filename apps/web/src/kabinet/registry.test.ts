@@ -6,6 +6,7 @@ import {
   authMember,
   authSession,
   authUser,
+  superAdmins,
   supportSessions,
 } from "@opika/db/schema";
 import { makeAnimal, makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
@@ -352,8 +353,9 @@ describe("registry.shelters.create (S2)", () => {
       role: "admin",
       createdAt: NOW,
     });
-    const second = await call("registry.shelters.create", createInput());
+    const second = await call<{ data: unknown }>("registry.shelters.create", createInput());
     expect(second.status).toBe(409);
+    expect(second.body.data).toEqual({ reason: "shelter_admin" });
     const all = await call<{ items: { id: string }[] }>("registry.shelters.list", {
       search: null,
       status: null,
@@ -361,6 +363,33 @@ describe("registry.shelters.create (S2)", () => {
       limit: 10,
     });
     expect(all.body.items.map((row) => row.id)).toEqual([first.body.id]);
+  });
+
+  /** RG-T10 (Oleksii: "It must land before admin:bootstrap."): an operator is never a shelter's admin. */
+  it("refuses an operator's address as the first admin, creating nothing", async () => {
+    await db
+      .insert(superAdmins)
+      .values({ id: crypto.randomUUID(), userId: OPERATOR, grantedAt: NOW });
+    const input = { ...createInput(), firstAdmin: { name: "Оператор", email: "op@example.org" } };
+    const refused = await call<{ data: unknown }>("registry.shelters.create", input);
+    expect(refused.status).toBe(409);
+    expect(refused.body.data).toEqual({ reason: "operator" });
+    const all = await call<{ items: unknown[] }>("registry.shelters.list", {
+      search: null,
+      status: null,
+      cursor: null,
+      limit: 10,
+    });
+    expect(all.body.items).toEqual([]);
+  });
+
+  /** IN-Q8: an address with a live invitation to one shelter is refused as another's first admin. */
+  it("refuses a first admin who holds a live invitation to another shelter", async () => {
+    const first = await call<RegistryShelterView>("registry.shelters.create", createInput());
+    expect(first.status).toBe(200);
+    const second = await call<{ data: unknown }>("registry.shelters.create", createInput());
+    expect(second.status).toBe(409);
+    expect(second.body.data).toEqual({ reason: "invited_elsewhere" });
   });
 
   it("answers an unknown city as a bad request, not a crash", async () => {
@@ -688,15 +717,32 @@ describe("registry.admins.*", () => {
     });
     await acceptedAdmin(s.id, "member@example.org");
     const other = await shelter();
-    expect(
-      (
-        await call("registry.admins.invite", {
-          shelterId: other.id,
-          name: "М",
-          email: "member@example.org",
-        })
-      ).status,
-    ).toBe(409);
+    const asMember = await call<{ data: unknown }>("registry.admins.invite", {
+      shelterId: other.id,
+      name: "М",
+      email: "member@example.org",
+    });
+    expect(asMember.status).toBe(409);
+    expect(asMember.body.data).toEqual({ reason: "shelter_admin" });
+    // Olena's invitation to the first shelter is live, so a second shelter can't invite her (IN-Q8).
+    const elsewhere = await call<{ data: unknown }>("registry.admins.invite", {
+      shelterId: other.id,
+      name: "Олена",
+      email: "olena@example.org",
+    });
+    expect(elsewhere.status).toBe(409);
+    expect(elsewhere.body.data).toEqual({ reason: "invited_elsewhere" });
+    // An operator is never invited (RG-T10).
+    await db
+      .insert(superAdmins)
+      .values({ id: crypto.randomUUID(), userId: OPERATOR, grantedAt: NOW });
+    const operator = await call<{ data: unknown }>("registry.admins.invite", {
+      shelterId: other.id,
+      name: "Оператор",
+      email: "op@example.org",
+    });
+    expect(operator.status).toBe(409);
+    expect(operator.body.data).toEqual({ reason: "operator" });
   });
 
   it("resends a pending invitation for the full window, and NOT_FOUND for a member", async () => {

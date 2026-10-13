@@ -168,7 +168,7 @@ describe("kabinet error statuses", () => {
       UNDO_EXPIRED: apiErrors.UNDO_EXPIRED.status,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE.status,
       REGISTRY_CONFIRMED: apiErrors.REGISTRY_CONFIRMED.status,
-      ALREADY_A_MEMBER: apiErrors.ALREADY_A_MEMBER.status,
+      ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE.status,
     }).toEqual({
       FORBIDDEN: 403,
       CONFLICT: 409,
@@ -178,7 +178,7 @@ describe("kabinet error statuses", () => {
       UNDO_EXPIRED: 409,
       INVALID_EVIDENCE: 422,
       REGISTRY_CONFIRMED: 409,
-      ALREADY_A_MEMBER: 409,
+      ADDRESS_HAS_A_ROLE: 409,
     });
   });
 });

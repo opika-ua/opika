@@ -312,8 +312,8 @@ export const registrySheltersContract = {
       UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
       FORBIDDEN: apiErrors.FORBIDDEN,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE,
-      // Its first admin may already administer another shelter (RG-Q3).
-      ALREADY_A_MEMBER: apiErrors.ALREADY_A_MEMBER,
+      // Its first admin may already have a role: a shelter, an operator grant, or a live invitation elsewhere (RG-T10).
+      ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE,
     }),
   /** The locked fields: legal entity or premises address, one per call, each audited. */
   updateVerifiedData: registryShelter
@@ -412,7 +412,7 @@ export const registryAdminsContract = {
     .$meta(registry)
     .input(z.strictObject({ shelterId: ShelterIdSchema, name: humanName, email: z.email() }))
     .output(ShelterAdminViewSchema)
-    .errors({ ...registryErrors, ALREADY_A_MEMBER: apiErrors.ALREADY_A_MEMBER }),
+    .errors({ ...registryErrors, ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE }),
   resendInvite: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
   remove: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
 };
