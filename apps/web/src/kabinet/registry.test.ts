@@ -22,7 +22,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import type { KabinetPrincipal } from "./actor";
-import { donationDecisionPlan } from "./handlers/registry-writes";
 import { handleKabinetRpc } from "./rpc-route";
 
 /**
@@ -569,13 +568,14 @@ describe("registry.donation.approve / reject (N20)", () => {
   const pending = () => ({
     link: { url, provider: donationProviderOf(url) },
     proposedAt: NOW,
-    proposedBy: "admin-1" as ShelterAdminId,
+    proposedBy: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
   });
 
   it("approves the proposal into the live link and records it", async () => {
     const s = await shelter({ pendingDonation: pending() });
     const approved = await call<RegistryShelterView>("registry.donation.approve", {
       shelterId: s.id,
+      expectedVersion: 0,
     });
     expect(approved.body.donation).toEqual(pending().link);
     expect(approved.body.pendingDonation).toBeNull();
@@ -592,6 +592,7 @@ describe("registry.donation.approve / reject (N20)", () => {
     const s = await shelter({ pendingDonation: pending() });
     const rejected = await call<RegistryShelterView>("registry.donation.reject", {
       shelterId: s.id,
+      expectedVersion: 0,
     });
     expect(rejected.body.donation).toBeNull();
     expect(rejected.body.pendingDonation).toBeNull();
@@ -599,27 +600,50 @@ describe("registry.donation.approve / reject (N20)", () => {
   });
 
   /**
-   * Between its own retries the plan never switches links: a proposal that
-   * lands after the handler's first read is not decided by a retry. (What
-   * the operator saw before tapping is not known to the handler; RG-Q12.)
+   * RG-Q12 (Oleksii): the operator reads link A at version v; the shelter
+   * re-proposes (version moves); the operator's decision, carrying v, is
+   * CONFLICT and decides nothing, for approve and reject alike: a stale
+   * reject would discard a link the operator never saw.
    */
-  it("never switches to a link proposed after the handler's first read", async () => {
-    const s = await shelter({ pendingDonation: pending() });
-    const other = "https://send.monobank.ua/jar/zzz";
-    const plan = donationDecisionPlan(OPERATOR as ModeratorId, "approved", NOW);
-    expect(plan(s).entries).toHaveLength(1);
-    const reproposed = {
-      ...s,
-      pendingDonation: { ...pending(), link: { url: other, provider: donationProviderOf(other) } },
-    };
-    expect(plan(reproposed)).toEqual({ changes: [], entries: [] });
-    // The same link on a retry is still the operator's decision.
-    expect(plan(s).entries).toHaveLength(1);
-  });
+  it.each(["approve", "reject"] as const)(
+    "refuses a stale %s with CONFLICT, deciding nothing",
+    async (decision) => {
+      const s = await shelter({ pendingDonation: pending() });
+      const asAdmin: KabinetPrincipal = {
+        kind: "shelter_admin",
+        shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
+        shelterId: s.id,
+      };
+      const read = await call<RegistryShelterView>("registry.shelters.byId", { shelterId: s.id });
+      const other = "https://send.monobank.ua/jar/zzz";
+      expect(
+        (await call("shelter.profile.proposeDonation", { url: other }, { principal: asAdmin }))
+          .status,
+      ).toBe(200);
+      const stale = await call(`registry.donation.${decision}`, {
+        shelterId: s.id,
+        expectedVersion: read.body.version,
+      });
+      expect(stale.status).toBe(409);
+      const after = await reload(s.id);
+      expect(after.donation).toBeNull();
+      expect(after.pendingDonation?.link.url).toBe(other);
+      expect((await history(s.id)).map((entry) => entry.kind)).toEqual(["donation_proposed"]);
+      // Reading again and deciding on what is now there works.
+      const fresh = await call<RegistryShelterView>(`registry.donation.${decision}`, {
+        shelterId: s.id,
+        expectedVersion: after.version,
+      });
+      expect(fresh.status).toBe(200);
+      expect(fresh.body.pendingDonation).toBeNull();
+    },
+  );
 
   it("decides nothing when nothing is pending", async () => {
     const s = await shelter();
-    expect((await call("registry.donation.approve", { shelterId: s.id })).status).toBe(200);
+    expect(
+      (await call("registry.donation.approve", { shelterId: s.id, expectedVersion: 0 })).status,
+    ).toBe(200);
     expect(await history(s.id)).toEqual([]);
   });
 });

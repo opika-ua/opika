@@ -121,6 +121,24 @@ describe("access is declared on every procedure (deny-by-default)", () => {
   });
 });
 
+/**
+ * RG-Q12 (Oleksii): the operator's donation decision carries the version it
+ * read, and a stale one is CONFLICT. Pinned at the contract, so neither the
+ * field nor the error can quietly drop off one of the two.
+ */
+describe("registry.donation.* compare-and-set on the version (RG-Q12)", () => {
+  it.each(["registry.donation.approve", "registry.donation.reject"])(
+    "%s requires expectedVersion and declares CONFLICT 409",
+    (path) => {
+      const shelterId = "51000000-0000-4000-8000-000000000001";
+      const input = internals(path).inputSchema;
+      expect(input?.safeParse({ shelterId, expectedVersion: 3 }).success).toBe(true);
+      expect(input?.safeParse({ shelterId }).success).toBe(false);
+      expect(internals(path).errorMap.CONFLICT?.status).toBe(409);
+    },
+  );
+});
+
 describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
   /**
    * S3-Q2: shelter A's member acting on shelter B's animal or shelter is

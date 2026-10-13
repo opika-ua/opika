@@ -133,7 +133,7 @@ so a client can send back what it read.
 | `registry.verification.reject` | `{ shelterId, reason: { code: RejectionCode, note: string.min(1) } }` (H2-4: note required here) | same |
 | `registry.verification.suspend` | `{ shelterId, reason: { code: SuspensionCode, note: string.min(1) } }` | same |
 | `registry.verification.resubmit` | `{ shelterId, evidence: EvidenceItemInput[] }` | same |
-| `registry.donation.approve` / `.reject` | `{ shelterId }` | same |
+| `registry.donation.approve` / `.reject` | `{ shelterId, expectedVersion }` (RG-Q12, 2026-10-13; was `{ shelterId }`) | same, plus CONFLICT |
 | `registry.admins.invite` | `{ shelterId, name, email }` | `ShelterAdminView` |
 | `registry.admins.resendInvite` / `.remove` | `{ shelterId, adminId }` | `{}` |
 | `registry.history.list` | `{ shelterId, cursor, limit }` | `{ items: HistoryEntryView[], nextCursor }` |

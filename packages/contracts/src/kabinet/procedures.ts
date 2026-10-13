@@ -388,9 +388,21 @@ export const registryVerificationContract = {
     }),
 };
 
+/**
+ * The operator decides on the proposal they read (RG-Q12, Oleksii): the
+ * version they read travels with the decision, and anything newer (a
+ * re-proposal, a cancellation, any other write) is CONFLICT, the same rule
+ * every S4 form follows.
+ */
+const donationDecision = z.strictObject({ shelterId: ShelterIdSchema, expectedVersion });
+
 export const registryDonationContract = {
-  approve: registryShelter.input(shelterRef).errors(registryErrors),
-  reject: registryShelter.input(shelterRef).errors(registryErrors),
+  approve: registryShelter
+    .input(donationDecision)
+    .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
+  reject: registryShelter
+    .input(donationDecision)
+    .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
 };
 
 const adminRef = z.strictObject({ shelterId: ShelterIdSchema, adminId: ShelterAdminIdSchema });

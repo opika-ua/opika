@@ -82,8 +82,7 @@ async function editFromForm(
 const MAX_ATTEMPTS = 3;
 
 /**
- * A single tap with no version in its input (a verification move, a donation
- * decision). A lost race re-reads and re-plans on what's there now, so a
+ * A single tap with no version in its input (a verification move). A lost race re-reads and re-plans on what's there now, so a
  * move that became illegal in the meantime is refused, never applied to a
  * state the operator didn't see. Bounded, like the shelter side's.
  */
@@ -414,27 +413,18 @@ export function registryResubmit(
 // ─── donation ───────────────────────────────────────────────────────────────
 
 /**
- * Approve or reject the proposed link (N20). The plan decides on the link
- * the handler first read, and refuses to switch links between its own
- * retries. **It cannot know which link the operator saw**: the input is only
- * `{ shelterId }`, so a proposal that lands between the operator's read (S4)
- * and the tap is the one decided (review of the registry handlers,
- * finding 1; RG-Q12 asks for the contract to carry what the operator saw).
- * Harmless while no shelter can sign in to propose. With nothing pending
- * there is nothing to decide; that is answered with the current view, since
- * the contract declares no error for it.
+ * Approve or reject the proposed link (N20) the operator read: the version
+ * they read comes with the decision (RG-Q12, Oleksii), and anything newer is
+ * CONFLICT, never retried. A re-proposal or cancellation in between moves
+ * the version (pinned by the shelter side's tests), so a decision can only
+ * land on the proposal the operator saw. With nothing pending at that
+ * version there is nothing to decide; that is answered with the current view.
  */
-export function donationDecisionPlan(
-  moderatorId: ModeratorId,
-  decision: "approved" | "rejected",
-  now: Date,
-): (shelter: Shelter) => Planned {
-  let decidedUrl: string | null = null;
-  return (shelter) => {
+const donationDecisionPlan =
+  (moderatorId: ModeratorId, decision: "approved" | "rejected", now: Date) =>
+  (shelter: Shelter): Planned => {
     const pending = shelter.pendingDonation;
     if (pending === null) return { changes: [], entries: [] };
-    if (decidedUrl !== null && decidedUrl !== pending.link.url) return { changes: [], entries: [] };
-    decidedUrl = pending.link.url;
     return {
       changes: [
         decision === "approved"
@@ -453,33 +443,22 @@ export function donationDecisionPlan(
       ],
     };
   };
-}
 
-function decideDonation(
-  deps: RegistryDeps,
-  moderatorId: ModeratorId,
-  shelterId: ShelterId,
-  decision: "approved" | "rejected",
-  errors: E<never>,
-): Promise<RegistryShelterView> {
-  return tapWithRetry(
-    deps,
-    shelterId,
-    donationDecisionPlan(moderatorId, decision, deps.now),
-    errors,
-  );
-}
+const donationDecision =
+  (decision: "approved" | "rejected") =>
+  (
+    deps: RegistryDeps,
+    moderatorId: ModeratorId,
+    input: { shelterId: ShelterId; expectedVersion: number },
+    errors: E<"CONFLICT">,
+  ) =>
+    editFromForm(
+      deps,
+      input.shelterId,
+      input.expectedVersion,
+      donationDecisionPlan(moderatorId, decision, deps.now),
+      errors,
+    );
 
-export const registryDonationApprove = (
-  deps: RegistryDeps,
-  moderatorId: ModeratorId,
-  input: { shelterId: ShelterId },
-  errors: E<never>,
-) => decideDonation(deps, moderatorId, input.shelterId, "approved", errors);
-
-export const registryDonationReject = (
-  deps: RegistryDeps,
-  moderatorId: ModeratorId,
-  input: { shelterId: ShelterId },
-  errors: E<never>,
-) => decideDonation(deps, moderatorId, input.shelterId, "rejected", errors);
+export const registryDonationApprove = donationDecision("approved");
+export const registryDonationReject = donationDecision("rejected");

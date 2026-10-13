@@ -209,6 +209,23 @@ describe("shelter.profile", () => {
     expect(kinds.sort()).toEqual(["donation_proposal_cancelled", "donation_proposed"]);
   });
 
+  /**
+   * RG-Q12 (Oleksii): the operator's donation decision compares-and-sets on
+   * `version`, so every proposal and cancellation must move it, a
+   * re-proposal of the very same link included; otherwise a decision made on
+   * a stale read would pass the check.
+   */
+  it("every proposal and cancellation bumps the version, a same-link re-proposal too", async () => {
+    const url = "https://send.monobank.ua/jar/abc";
+    const versionAfter = async (path: string, input: unknown) =>
+      (await call<KabinetShelterView>(path, input)).body.version;
+    expect(await versionAfter("shelter.profile.proposeDonation", { url })).toBe(1);
+    expect(await versionAfter("shelter.profile.proposeDonation", { url })).toBe(2);
+    expect(await versionAfter("shelter.profile.cancelDonationProposal", {})).toBe(3);
+    // Nothing pending: nothing changes, so nothing to bump.
+    expect(await versionAfter("shelter.profile.cancelDonationProposal", {})).toBe(3);
+  });
+
   it("pause then resume, each a verification history entry", async () => {
     const paused = await call<KabinetShelterView>("shelter.profile.pause", {
       reason: { code: "relocation", note: null },
