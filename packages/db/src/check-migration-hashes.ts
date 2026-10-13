@@ -20,10 +20,22 @@ const MIGRATIONS_DIR = resolve(fileURLToPath(import.meta.url), "../../drizzle");
 
 type JournalEntry = { tag: string; when: number };
 
+/**
+ * One line of the report. `unknown` and `skipped` are failures as much as a
+ * mismatch: a regenerated migration gets a new journal `when`, so a branch
+ * that ran the old file shows its row as `unknown` and the new file as not
+ * applied; and a migration missing while a later one ran means the branch's
+ * history isn't the committed one (review of f842808, finding 1).
+ */
 export type HashCheck =
   | { tag: string; status: "match" }
   | { tag: string; status: "mismatch"; recorded: string; committed: string }
-  | { tag: string; status: "not_applied" };
+  | { tag: string; status: "not_applied" }
+  | { tag: string; status: "skipped" }
+  | { tag: null; status: "unknown"; recorded: string; createdAt: number };
+
+export const isFailure = (check: HashCheck): boolean =>
+  check.status === "mismatch" || check.status === "unknown" || check.status === "skipped";
 
 export function committedHashes(
   dir = MIGRATIONS_DIR,
@@ -45,13 +57,25 @@ export function compareHashes(
   recorded: { hash: string; created_at: number | string }[],
 ): HashCheck[] {
   const byWhen = new Map(recorded.map((row) => [Number(row.created_at), row.hash]));
-  return committed.map(({ tag, when, hash }) => {
+  const lastApplied = committed.reduce(
+    (last, entry, index) => (byWhen.has(entry.when) ? index : last),
+    -1,
+  );
+  const checks: HashCheck[] = committed.map(({ tag, when, hash }, index) => {
     const found = byWhen.get(when);
-    if (found === undefined) return { tag, status: "not_applied" };
+    if (found === undefined)
+      return { tag, status: index < lastApplied ? "skipped" : "not_applied" };
     return found === hash
       ? { tag, status: "match" }
       : { tag, status: "mismatch", recorded: found, committed: hash };
   });
+  const known = new Set(committed.map((entry) => entry.when));
+  for (const row of recorded) {
+    const createdAt = Number(row.created_at);
+    if (!known.has(createdAt))
+      checks.push({ tag: null, status: "unknown", recorded: row.hash, createdAt });
+  }
+  return checks;
 }
 
 async function main(): Promise<void> {
@@ -69,13 +93,29 @@ async function main(): Promise<void> {
   }[];
   const checks = compareHashes(committedHashes(), rows);
   for (const check of checks) {
-    console.log(
-      check.status === "mismatch"
-        ? `MISMATCH  ${check.tag}  recorded ${check.recorded.slice(0, 12)}… committed ${check.committed.slice(0, 12)}…`
-        : `${check.status === "match" ? "match    " : "not run  "} ${check.tag}`,
-    );
+    switch (check.status) {
+      case "match":
+        console.log(`match     ${check.tag}`);
+        break;
+      case "not_applied":
+        console.log(`not run   ${check.tag}`);
+        break;
+      case "skipped":
+        console.log(`SKIPPED   ${check.tag}  (a later migration ran, this one didn't)`);
+        break;
+      case "mismatch":
+        console.log(
+          `MISMATCH  ${check.tag}  recorded ${check.recorded.slice(0, 12)}… committed ${check.committed.slice(0, 12)}…`,
+        );
+        break;
+      case "unknown":
+        console.log(
+          `UNKNOWN   recorded ${check.recorded.slice(0, 12)}… at ${check.createdAt}: matches no committed migration (regenerated after it ran?)`,
+        );
+        break;
+    }
   }
-  process.exit(checks.some((check) => check.status === "mismatch") ? 1 : 0);
+  process.exit(checks.some(isFailure) ? 1 : 0);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
