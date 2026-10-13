@@ -11,3 +11,10 @@ export {
   uuid,
 } from "./fixtures";
 export { setupTestDatabase, type TestContext, truncateAll } from "./setup";
+export {
+  assertDisposableTestDatabase,
+  dropTestDatabase,
+  ensureTestDatabase,
+  testDatabaseName,
+  testDatabaseUrl,
+} from "./test-database";

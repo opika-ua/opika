@@ -44,7 +44,8 @@ afterAll(async () => {
   // the migration files directly, bypassing drizzle-kit's own bookkeeping).
   // Most other test files' `setupTestDatabase()` calls do restore it, so
   // this only matters when this file happens to be the last to touch the
-  // shared `opika_test` database — confirmed reachable, not theoretical:
+  // test database (one shared `opika_test`, harness included, until
+  // 2026-10-13; now derived per checkout) — confirmed reachable, not theoretical:
   // `city-slug-backfill.test.ts` (the same technique, for migration 0005)
   // hit exactly this, breaking the harness's own `drizzle-kit migrate` step
   // with a "relation already exists" conflict from replaying migration 0000

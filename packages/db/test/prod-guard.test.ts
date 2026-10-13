@@ -224,7 +224,7 @@ describe("every writing CLI runs the guard first", () => {
       timeout: 60_000,
     });
     expect(result.status, result.stderr).not.toBe(0);
-    expect(result.stderr).toContain("TEST_DATABASE_URL is not a local database");
+    expect(result.stderr).toContain("The test database must be local");
     expect(result.stderr).not.toContain("secret");
   });
 

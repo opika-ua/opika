@@ -33,8 +33,9 @@ afterAll(async () => {
   // migration-tracking schema in `resetToPreSlugState` below and never
   // repopulates it via the real migrator — most other test files' own
   // `setupTestDatabase()` calls do, so this only surfaces when one of these
-  // two hand-migrated files happens to be the last to touch the shared
-  // `opika_test` database. Confirmed reachable, not theoretical: without
+  // two hand-migrated files happens to be the last to touch the test
+  // database (one shared `opika_test` until 2026-10-13, when the harness
+  // also used it; each checkout and the harness now derive their own). Confirmed reachable, not theoretical: without
   // this, the harness's own `drizzle-kit migrate` step failed outright
   // (tried to replay `CREATE TABLE cities` from migration 0000 against a
   // table that already existed, fully migrated, with an empty tracking
