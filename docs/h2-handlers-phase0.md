@@ -1,7 +1,7 @@
 # H2 handlers slice: Phase 0 questions
 
-**Status:** questions for Oleksii, 2026-10-13. No code until they're answered (Tier 1: auth,
-sessions, a migration with production data, and the `/prytulkam` commitments).
+**Status:** answered 2026-10-13 (decisions below, verbatim in the inbox) and built on PR #85. The
+questions are kept as asked; where a later answer changed one, its decision bullet says so.
 
 **Why this slice, and why on #85:** S3-Q3 → B. PR #85 merges only once the 16 cross-tenant
 tests are real tests over real handlers, with the ownership-filter breakage in the mutation list.
@@ -127,7 +127,7 @@ Answers verbatim in the inbox (HS-Q1–HS-Q6). Their effect on the slice:
 - **Q3 → A.** The gate is the first PR where a real shelter can sign in. The "no membership outside
   tests" test names the `/prytulkam` keys it protects (A1–A3, B1, §7/§9/§10) in its title and
   message.
-- **Q4 → A, plus:** `admin:grant` prints the host and the target email and asks for confirmation.
+- **Q4 → A, plus** (and the role moved off the user record into its own `super_admins` table, HS-T2; see the follow-up section below): `admin:grant` prints the host and the target email and asks for confirmation.
   It refuses unless the user already exists. `admin:revoke` ships alongside it.
 - **Q5 → as proposed.** The email is trimmed and lowercased before it keys the limiter.
 - **Q6 → one 0009, including `shelter_history`.**
