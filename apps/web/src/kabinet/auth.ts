@@ -11,12 +11,49 @@ import {
 } from "@opika/db/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { createAuthMiddleware } from "better-auth/api";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 import type { MagicLinkSender } from "./magic-link-sender";
 
 /** KABINET N1: a link is good for 15 minutes. */
 export const MAGIC_LINK_TTL_SECONDS = 15 * 60;
+
+const DAY_SECONDS = 24 * 60 * 60;
+
+/**
+ * The kabinet session, mirroring decision #13's adopter session (HS-Q8,
+ * Oleksii: "mirror decision #13"): a `__Host-` cookie, 30 days absolute, 7
+ * days idle.
+ *
+ * - **Idle** is Better Auth's sliding expiry: a session expires `idleSeconds`
+ *   after its last refresh, and a request refreshes it once it's older than
+ *   `refreshSeconds`. So a session lapses between 6 and 7 days after its last
+ *   use, never later.
+ * - **Absolute** is not something Better Auth enforces (a sliding session
+ *   used daily never expires), so a `hooks.before` on every Better Auth
+ *   request deletes a session older than `absoluteMs` before the request
+ *   sees it: `get-session` then reports no session, and nothing Better Auth
+ *   serves (sign-out, later accept-invitation) can act on it. `principalOf`
+ *   checks the same cap again as a second line (reviewer, HS-Q8, finding 1).
+ */
+export const KABINET_SESSION = {
+  absoluteMs: 30 * DAY_SECONDS * 1000,
+  idleSeconds: 7 * DAY_SECONDS,
+  refreshSeconds: DAY_SECONDS,
+} as const;
+
+/**
+ * `__Host-` in production, as decision #13 does for adopters: it forbids a
+ * `Domain` attribute and requires `Secure` and `Path=/`, so no subdomain can
+ * set or overwrite it. Over plain HTTP (local dev) browsers refuse `__Host-`,
+ * so dev gets the bare name, exactly as the adopter cookie falls back to
+ * `session`. Better Auth's own `__Secure-` prefixing is switched off so the
+ * two prefixes never stack.
+ */
+export function kabinetCookieName(base: "session_token" | "dont_remember", secure: boolean) {
+  return `${secure ? "__Host-" : ""}kabinet.${base}`;
+}
 
 export type KabinetAuthDeps = {
   db: Database;
@@ -32,6 +69,8 @@ export type KabinetAuthDeps = {
   baseURL: string;
   secret: string;
   secureCookies: boolean;
+  /** The clock for the absolute session cap; injectable so tests can move it. */
+  now?: () => Date;
 };
 
 /**
@@ -80,10 +119,37 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       },
     }),
     user: { modelName: "auth_user" },
-    session: { modelName: "auth_session" },
+    session: {
+      modelName: "auth_session",
+      expiresIn: KABINET_SESSION.idleSeconds,
+      updateAge: KABINET_SESSION.refreshSeconds,
+      // No cookie cache: every request reads the session row, so a revoked
+      // or expired session stops working at once, not after the cache's TTL.
+      cookieCache: { enabled: false },
+    },
     account: { modelName: "auth_account" },
     verification: { modelName: "auth_verification" },
     emailAndPassword: { enabled: false },
+    hooks: {
+      // Runs before any plugin's own before-hooks. A plugin that rewrites the
+      // `cookie` header (a bearer plugin, say) would inject the session after
+      // this check, leaving the 30-day cap to `principalOf` alone: adding one
+      // means moving this cap into a plugin hook that runs last (reviewer,
+      // HS-Q8 pass 2).
+      before: createAuthMiddleware(async (ctx) => {
+        const token = await ctx.getSignedCookie(
+          ctx.context.authCookies.sessionToken.name,
+          ctx.context.secret,
+        );
+        if (!token) return;
+        const found = await ctx.context.internalAdapter.findSession(token);
+        if (found === null) return;
+        const age =
+          (deps.now ?? (() => new Date()))().getTime() - found.session.createdAt.getTime();
+        if (age > KABINET_SESSION.absoluteMs)
+          await ctx.context.internalAdapter.deleteSession(token);
+      }),
+    },
     telemetry: { enabled: false },
     advanced: {
       database: { generateId: () => crypto.randomUUID() },
@@ -92,8 +158,16 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       // here would mean every test ran a less safe product than production
       // (reviewer, row 3, finding 2).
       disableOriginCheck: false,
+      // Prefixes are ours (`kabinetCookieName`), not Better Auth's. The
+      // `kabinet` prefix still names any cookie not listed below, so nothing
+      // falls back to a shared `better-auth.*` name on this origin.
       cookiePrefix: "kabinet",
-      useSecureCookies: deps.secureCookies,
+      useSecureCookies: false,
+      defaultCookieAttributes: { secure: deps.secureCookies, sameSite: "lax", path: "/" },
+      cookies: {
+        session_token: { name: kabinetCookieName("session_token", deps.secureCookies) },
+        dont_remember: { name: kabinetCookieName("dont_remember", deps.secureCookies) },
+      },
     },
     plugins: [
       magicLink({

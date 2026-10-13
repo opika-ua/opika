@@ -1,9 +1,15 @@
 import { cityRepo, kabinetActorRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
-import { superAdmins } from "@opika/db/schema";
+import { authSession, superAdmins } from "@opika/db/schema";
 import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
-import { createKabinetAuth, FORWARDED_AUTH_PATHS, type KabinetAuth } from "./auth";
+import {
+  createKabinetAuth,
+  FORWARDED_AUTH_PATHS,
+  KABINET_SESSION,
+  type KabinetAuth,
+  kabinetCookieName,
+} from "./auth";
 import {
   handleKabinetAuth,
   type KabinetAuthAvailability,
@@ -182,13 +188,15 @@ describe("origin and callback checks (on in tests too)", () => {
 describe("principalOf", () => {
   it("is anonymous without a kabinet session, even with an adopter's cookie", async () => {
     const headers = new Headers({ cookie: "session=adopter-token" });
-    expect(await principalOf(auth, db, headers)).toEqual({ kind: "anonymous" });
+    expect(await principalOf(auth, db, headers, new Date())).toEqual({ kind: "anonymous" });
   });
 
   it("is no_role for a signed-in user who is neither super_admin nor member", async () => {
     await createUser("olena@example.org");
     const cookie = await signIn("olena@example.org");
-    expect(await principalOf(auth, db, new Headers({ cookie }))).toEqual({ kind: "no_role" });
+    expect(await principalOf(auth, db, new Headers({ cookie }), new Date())).toEqual({
+      kind: "no_role",
+    });
   });
 
   it("is a super_admin only through an active super_admins grant", async () => {
@@ -197,9 +205,147 @@ describe("principalOf", () => {
     await db
       .insert(superAdmins)
       .values({ id: crypto.randomUUID(), userId: user.id, grantedAt: new Date() });
-    expect(await principalOf(auth, db, new Headers({ cookie }))).toEqual({
+    expect(await principalOf(auth, db, new Headers({ cookie }), new Date())).toEqual({
       kind: "super_admin",
       moderatorId: user.id,
+    });
+  });
+});
+
+describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
+  it("pins 30 days absolute, 7 days idle, refreshed at most daily", () => {
+    expect(KABINET_SESSION).toEqual({
+      absoluteMs: 30 * 24 * 60 * 60 * 1000,
+      idleSeconds: 7 * 24 * 60 * 60,
+      refreshSeconds: 24 * 60 * 60,
+    });
+  });
+
+  it("names the cookie __Host- over HTTPS and bare over HTTP, never both prefixes", () => {
+    expect(kabinetCookieName("session_token", true)).toBe("__Host-kabinet.session_token");
+    expect(kabinetCookieName("session_token", false)).toBe("kabinet.session_token");
+  });
+
+  it("over HTTPS sets a __Host- cookie: Secure, Path=/, no Domain, HttpOnly, 7-day Max-Age", async () => {
+    const https = "https://kabinet.example";
+    const secureAuth = createKabinetAuth({
+      db,
+      sender,
+      schedule: (work) => {
+        pending.push(work());
+      },
+      baseURL: https,
+      secret: "test-only-secret-that-is-long-enough-0123456789",
+      secureCookies: true,
+    });
+    const ctx = await secureAuth.$context;
+    await ctx.internalAdapter.createUser({
+      email: "olena@example.org",
+      name: "О",
+      emailVerified: true,
+    });
+    await secureAuth.handler(
+      new Request(`${https}/api/auth/sign-in/magic-link`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: https },
+        body: JSON.stringify({ email: "olena@example.org" }),
+      }),
+    );
+    await Promise.all(pending);
+    const link = sender.sent[0]?.url;
+    if (link === undefined) throw new Error("no link");
+    const verified = await secureAuth.handler(new Request(link));
+    const cookie = verified.headers.getSetCookie().find((c) => c.includes("session_token="));
+    expect(cookie).toMatch(/^__Host-kabinet\.session_token=/);
+    expect(cookie).toMatch(/; Secure/);
+    expect(cookie).toMatch(/; Path=\//);
+    expect(cookie).toMatch(/; HttpOnly/);
+    expect(cookie).toMatch(/; Max-Age=604800/);
+    expect(cookie).not.toMatch(/Domain=/i);
+    expect(cookie).not.toMatch(/__Secure-/);
+
+    // …and Better Auth reads that name back, and clears it on sign-out with
+    // matching attributes (what a better-auth upgrade could silently break).
+    const pair = cookie?.split(";")[0] ?? "";
+    const session = await secureAuth.handler(
+      new Request(`${https}/api/auth/get-session`, { headers: { cookie: pair, origin: https } }),
+    );
+    expect(((await session.json()) as { user?: { email: string } } | null)?.user?.email).toBe(
+      "olena@example.org",
+    );
+    const signedOut = await secureAuth.handler(
+      new Request(`${https}/api/auth/sign-out`, {
+        method: "POST",
+        headers: { cookie: pair, origin: https, "content-type": "application/json" },
+        body: "{}",
+      }),
+    );
+    const cleared = signedOut.headers.getSetCookie().find((c) => c.includes("session_token="));
+    expect(cleared).toMatch(/^__Host-kabinet\.session_token=;/);
+    expect(cleared).toMatch(/Max-Age=0/);
+    expect(cleared).toMatch(/; Path=\//);
+    expect(cleared).toMatch(/; Secure/);
+    expect(signedOut.headers.getSetCookie().some((c) => c.startsWith("better-auth."))).toBe(false);
+  });
+
+  /** Better Auth itself (the before-hook) forgets a session older than 30 days. */
+  it("get-session reports no session past 30 days, and the row is gone", async () => {
+    await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    const day = 24 * 60 * 60 * 1000;
+    const ageSessionTo = (ms: number) =>
+      db.update(authSession).set({ createdAt: new Date(Date.now() - ms) });
+    const getSession = async () =>
+      (
+        await route(
+          new Request(`${BASE}/api/auth/get-session`, { headers: { cookie, origin: BASE } }),
+        )
+      ).json();
+
+    await ageSessionTo(30 * day - 60_000);
+    expect(await getSession()).not.toBeNull();
+
+    await ageSessionTo(30 * day + 60_000);
+    expect(await getSession()).toBeNull();
+    expect(await db.select().from(authSession)).toEqual([]);
+  });
+
+  /**
+   * The second line, on its own: an auth instance whose clock says the
+   * session is still young (so the hook keeps it), and a principalOf asked at
+   * a moment past 30 days. principalOf alone must refuse.
+   */
+  it("principalOf refuses past 30 days even when Better Auth's clock keeps the session", async () => {
+    const day = 24 * 60 * 60 * 1000;
+    const lenient = createKabinetAuth({
+      db,
+      sender,
+      schedule: (work) => {
+        pending.push(work());
+      },
+      baseURL: BASE,
+      secret: "test-only-secret-that-is-long-enough-0123456789",
+      secureCookies: false,
+      now: () => new Date(Date.now() - 365 * day),
+    });
+    auth = lenient;
+    await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    const later = new Date(Date.now() + 30 * day + 60_000);
+    expect(await principalOf(lenient, db, new Headers({ cookie }), later)).toEqual({
+      kind: "anonymous",
+    });
+    expect(await principalOf(lenient, db, new Headers({ cookie }), new Date())).toEqual({
+      kind: "no_role",
+    });
+  });
+
+  it("an idle-expired session is anonymous", async () => {
+    await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    await db.update(authSession).set({ expiresAt: new Date(Date.now() - 1000) });
+    expect(await principalOf(auth, db, new Headers({ cookie }), new Date())).toEqual({
+      kind: "anonymous",
     });
   });
 });
