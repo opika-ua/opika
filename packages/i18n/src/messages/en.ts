@@ -386,6 +386,8 @@ export const en = {
       intro: "What adopters see about you on every card.",
       role: "shelter administrator",
       signOut: "Sign out",
+      signOutFailed:
+        "Sign-out didn't go through, so you are still signed in. Check the connection and try again.",
       contactsTitle: "Contacts",
       contactsNote:
         "Adopters see these contacts when they tap «Write to the shelter», and write to you themselves. Messages do not go through the registry, and we cannot see who wrote to you.",

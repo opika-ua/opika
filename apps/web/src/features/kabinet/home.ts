@@ -49,3 +49,13 @@ export async function kabinetHomeOf(
     viewer: access.scope.kind === "support_view" ? "support" : "admin",
   };
 }
+
+/**
+ * Whether `/kabinet/vkhid` sends this visitor straight to `/kabinet`: exactly
+ * when the home page would show them a shelter, so a live session never sits
+ * on a sign-in form that looks signed out (review of #93, finding 1). Anyone
+ * else sees the form; sending a roleless account to `/kabinet` would only
+ * land it on a 404.
+ */
+export const leavesSignIn = (principal: KabinetPrincipal): boolean =>
+  principal.kind === "shelter_admin" || principal.kind === "support_view";

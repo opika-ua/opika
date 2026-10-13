@@ -17,7 +17,7 @@ describe("SignOutButton", () => {
     expect(navigate).toHaveBeenCalledWith(SIGNED_OUT_DESTINATION);
   });
 
-  it("still goes to the sign-in page when the request fails: that page re-checks the session", async () => {
+  it("stays put and says so when sign-out fails, never landing on sign-in with the session live", async () => {
     const navigate = vi.fn();
     render(
       <SignOutButton
@@ -28,7 +28,8 @@ describe("SignOutButton", () => {
       />,
     );
     await userEvent.click(screen.getByRole("button", { name: uk.kabinet.profile.signOut }));
-    expect(navigate).toHaveBeenCalledWith(SIGNED_OUT_DESTINATION);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(uk.kabinet.profile.signOutFailed);
   });
 });
 

@@ -859,6 +859,7 @@ export const uk = {
       intro: `${COPY_PENDING} "What adopters see about you on every card."`,
       role: `${COPY_PENDING} "shelter administrator" (header, after the shelter name)`,
       signOut: `${COPY_PENDING} "Sign out"`,
+      signOutFailed: `${COPY_PENDING} "Sign-out didn't go through, so you are still signed in. Check the connection and try again."`,
       contactsTitle: `${COPY_PENDING} "Contacts"`,
       contactsNote: `${COPY_PENDING} "Adopters see these contacts when they tap «Write to the shelter», and write to you themselves. Messages do not go through the registry, and we cannot see who wrote to you."`,
       donationTitle: `${COPY_PENDING} "Fundraising"`,

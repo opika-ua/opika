@@ -158,6 +158,7 @@ describe("kabinet copy status", () => {
       "registrationStatus",
       "role",
       "signOut",
+      "signOutFailed",
       "statusSince",
       "title",
       "voiceLabel",

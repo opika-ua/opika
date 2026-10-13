@@ -2,7 +2,7 @@ import { cityRepo, shelterRepo } from "@opika/db/repos";
 import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
 import type { ModeratorId, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { kabinetHomeOf } from "../features/kabinet/home";
+import { kabinetHomeOf, leavesSignIn } from "../features/kabinet/home";
 import type { KabinetPrincipal } from "./actor";
 
 /**
@@ -99,5 +99,49 @@ describe("kabinetHomeOf", () => {
       "verification",
       "version",
     ]);
+  });
+});
+
+describe("leavesSignIn (/kabinet/vkhid with a live session)", () => {
+  // The same principals, so the sign-in page and the home page can't disagree
+  // about who has somewhere to go.
+  it.each([
+    [
+      "a shelter admin",
+      {
+        kind: "shelter_admin",
+        shelterAdminId: "33333333-3333-4333-8333-333333333333",
+        shelterId: "s",
+      },
+      true,
+    ],
+    ["a support view", { kind: "support_view", moderatorId: OPERATOR, shelterId: "s" }, true],
+    ["an anonymous visitor", { kind: "anonymous" }, false],
+    ["an account with no role", { kind: "no_role" }, false],
+    ["conflicting roles", { kind: "conflicting_roles" }, false],
+    ["a super_admin outside support mode", { kind: "super_admin", moderatorId: OPERATOR }, false],
+  ] as [string, KabinetPrincipal, boolean][])(
+    "%s: whether sign-in sends them on to /kabinet",
+    (_who, principal, leaves) => {
+      expect(leavesSignIn(principal)).toBe(leaves);
+    },
+  );
+
+  it("leaves exactly when the home page would show a shelter", async () => {
+    for (const principal of [
+      {
+        kind: "shelter_admin",
+        shelterAdminId: "33333333-3333-4333-8333-333333333333",
+        shelterId: mine.id,
+      },
+      { kind: "support_view", moderatorId: OPERATOR, shelterId: theirs.id },
+      { kind: "anonymous" },
+      { kind: "no_role" },
+      { kind: "conflicting_roles" },
+      { kind: "super_admin", moderatorId: OPERATOR },
+    ] as KabinetPrincipal[]) {
+      const home = await kabinetHomeOf(principal, deps());
+      expect(leavesSignIn(principal), principal.kind).toBe(home.kind === "shelter");
+    }
   });
 });
