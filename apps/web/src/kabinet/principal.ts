@@ -14,16 +14,26 @@ import { KABINET_SESSION, type KabinetAuth } from "./auth";
  * if Better Auth's sliding expiry would keep it alive (HS-Q8: 30 days
  * absolute, as decision #13). Better Auth has no absolute cap of its own.
  */
-export async function principalOf(
+export type KabinetIdentity = {
+  principal: KabinetPrincipal;
+  /**
+   * The signed-in Better Auth user, whatever their role (null when the
+   * principal is `anonymous`). Keys the per-user rate limit (HS-Q10), which
+   * applies to every authenticated caller, `no_role` included.
+   */
+  userId: string | null;
+};
+
+export async function kabinetIdentityOf(
   auth: KabinetAuth,
   db: Database,
   headers: Headers,
   now: Date,
-): Promise<KabinetPrincipal> {
+): Promise<KabinetIdentity> {
   const session = await auth.api.getSession({ headers });
-  if (session === null) return { kind: "anonymous" };
+  if (session === null) return { principal: { kind: "anonymous" }, userId: null };
   if (now.getTime() - session.session.createdAt.getTime() > KABINET_SESSION.absoluteMs) {
-    return { kind: "anonymous" };
+    return { principal: { kind: "anonymous" }, userId: null };
   }
-  return kabinetActorRepo(db).roleOf(session.user.id);
+  return { principal: await kabinetActorRepo(db).roleOf(session.user.id), userId: session.user.id };
 }

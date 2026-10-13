@@ -139,6 +139,16 @@ export const apiErrors = {
     status: 409,
     message: "That fact is confirmed by the registry and can't be changed here.",
   },
+  /**
+   * Deleting a draft that has been public before (HS-Q9, Oleksii): its URL,
+   * and possibly adopters' swipes and reveals, still point at it, so it is
+   * withdrawn, never deleted. Also the answer when the database refuses the
+   * delete because a swipe or reveal references the row.
+   */
+  WAS_PUBLISHED: {
+    status: 409,
+    message: "This listing has been public, so it can be withdrawn but not deleted.",
+  },
   /** An undo past its window, or after a newer write (H2-16). */
   UNDO_EXPIRED: {
     status: 409,

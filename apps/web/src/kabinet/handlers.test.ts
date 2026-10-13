@@ -1,11 +1,29 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { KabinetAnimalView, KabinetShelterView } from "@opika/contracts";
-import { animalRepo, cityRepo, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
-import { makeAnimal, makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
+import {
+  adopterRepo,
+  animalRepo,
+  cityRepo,
+  kabinetShelterRepo,
+  shelterRepo,
+  swipeRepo,
+} from "@opika/db/repos";
+import {
+  makeAdopter,
+  makeAnimal,
+  makeCity,
+  makeShelter,
+  makeSwipe,
+  setupTestDatabase,
+  truncateAll,
+} from "@opika/db/test";
 import { type Animal, type Shelter, type ShelterAdminId, UNDO_WINDOW_MS } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import type { KabinetPrincipal } from "./actor";
-import { handleKabinetRpc } from "./rpc-route";
+import { handleKabinetRpc, KABINET_RATE_LIMITS, type KabinetLimiters } from "./rpc-route";
 
 /**
  * What each shelter procedure does for its own shelter, through the served
@@ -35,10 +53,22 @@ beforeEach(async () => {
   asAdmin = { kind: "shelter_admin", shelterAdminId: ADMIN, shelterId: shelter.id };
 });
 
+const generousLimiters = {
+  perUser: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
+  perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
+};
+
 async function call<T = Record<string, unknown>>(
   path: string,
   input: unknown,
-  opts: { now?: Date; principal?: KabinetPrincipal; cursorSecret?: string } = {},
+  opts: {
+    now?: Date;
+    principal?: KabinetPrincipal;
+    userId?: string | null;
+    cursorSecret?: string;
+    limiters?: KabinetLimiters;
+    ip?: string;
+  } = {},
 ): Promise<{ status: number; body: T }> {
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
@@ -52,8 +82,11 @@ async function call<T = Record<string, unknown>>(
       secret: "x",
       baseURL: "http://localhost",
     },
+    limiters: opts.limiters ?? generousLimiters,
+    ip: opts.ip ?? "203.0.113.1",
     resolve: async () => ({
       principal: opts.principal ?? asAdmin,
+      userId: opts.userId === undefined ? "user-admin" : opts.userId,
       db,
       cursorSecret: opts.cursorSecret ?? "test-cursor-secret",
     }),
@@ -61,7 +94,17 @@ async function call<T = Record<string, unknown>>(
     newId: () => crypto.randomUUID(),
   });
   const text = await response.text();
-  return { status: response.status, body: (text ? fromRpcBody(JSON.parse(text)) : null) as T };
+  return { status: response.status, body: parsed(text) as T };
+}
+
+/** RPC bodies are JSON; a limiter's 429 or a 503 is plain text. */
+function parsed(text: string): unknown {
+  if (!text) return null;
+  try {
+    return fromRpcBody(JSON.parse(text));
+  } catch {
+    return text;
+  }
 }
 
 async function animal(overrides: Partial<Animal> = {}): Promise<Animal> {
@@ -444,5 +487,115 @@ describe("shelter.animals", () => {
       { cursorSecret: "a-different-secret" },
     );
     expect(forged.status).toBe(400);
+  });
+});
+
+describe("deleting a draft (HS-Q9: only one that has never been public)", () => {
+  /** Oleksii's test: publish → withdraw → back to draft → delete refused. */
+  it("refuses a draft that was once published, with WAS_PUBLISHED, and keeps it", async () => {
+    const a = await animal({
+      listing: { kind: "draft" },
+      photos: [{ storageKey: "a/1.jpg", width: 1200, height: 900, alt: null }],
+    });
+    expect(
+      (await call("shelter.animals.transition", { animalId: a.id, event: { type: "publish" } }))
+        .status,
+    ).toBe(200);
+    expect(
+      (
+        await call("shelter.animals.transition", {
+          animalId: a.id,
+          event: { type: "withdraw", reason: { code: "listing_error", note: null } },
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await call("shelter.animals.transition", {
+          animalId: a.id,
+          event: { type: "restore_to_draft" },
+        })
+      ).status,
+    ).toBe(200);
+    expect((await reload(a.id)).listing.kind).toBe("draft");
+
+    const refused = await call<{ code: string }>("shelter.animals.deleteDraft", { animalId: a.id });
+    expect(refused.status).toBe(409);
+    expect(refused.body.code).toBe("WAS_PUBLISHED");
+    expect(await animalRepo(db).findById(a.id)).not.toBeNull();
+  });
+
+  it("deletes a draft that has never been public", async () => {
+    const a = await animal({ listing: { kind: "draft" } });
+    expect((await call("shelter.animals.deleteDraft", { animalId: a.id })).status).toBe(200);
+    expect(await animalRepo(db).findById(a.id)).toBeNull();
+  });
+
+  /**
+   * HS-Q9: "map the FK violation (swipe/reveal reference) to a typed error
+   * regardless, so no path returns an untyped 500." A never-published draft
+   * can't normally have a swipe; this plants one to reach the database's own
+   * refusal and proves it comes back typed.
+   */
+  it("answers WAS_PUBLISHED, not a 500, when a swipe still references the draft", async () => {
+    const a = await animal({ listing: { kind: "draft" } });
+    const adopter = makeAdopter();
+    await adopterRepo(db).insert(adopter);
+    await swipeRepo(db).record(makeSwipe({ adopterId: adopter.id, animalId: a.id }));
+    const result = await call<{ code: string }>("shelter.animals.deleteDraft", { animalId: a.id });
+    expect(result.status).toBe(409);
+    expect(result.body.code).toBe("WAS_PUBLISHED");
+    expect(await animalRepo(db).findById(a.id)).not.toBeNull();
+  });
+});
+
+describe("the kabinet's own rate limits (HS-Q10)", () => {
+  const tight = (perUser: number, perIp: number): KabinetLimiters => ({
+    perUser: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: perUser }),
+    perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: perIp }),
+  });
+
+  it("pins Oleksii's numbers: 100 a minute per user, 300 a minute per IP", () => {
+    expect(KABINET_RATE_LIMITS).toEqual({
+      perUser: { windowMs: 60_000, maxRequests: 100 },
+      perIp: { windowMs: 60_000, maxRequests: 300 },
+    });
+  });
+
+  it("limits per signed-in user, whatever the IP", async () => {
+    const limiters = tight(2, 1000);
+    const as = (ip: string) => call("shelter.profile.get", {}, { limiters, ip, userId: "u1" });
+    expect((await as("198.51.100.1")).status).toBe(200);
+    expect((await as("198.51.100.2")).status).toBe(200);
+    expect((await as("198.51.100.3")).status).toBe(429);
+    // Another user is a separate budget.
+    expect((await call("shelter.profile.get", {}, { limiters, userId: "u2" })).status).toBe(200);
+  });
+
+  it("backstops per IP for everyone, signed in or not", async () => {
+    const limiters = tight(1000, 2);
+    const ip = "198.51.100.9";
+    expect((await call("shelter.profile.get", {}, { limiters, ip, userId: "u1" })).status).toBe(
+      200,
+    );
+    expect((await call("shelter.profile.get", {}, { limiters, ip, userId: "u2" })).status).toBe(
+      200,
+    );
+    expect(
+      (
+        await call(
+          "shelter.profile.get",
+          {},
+          { limiters, ip, userId: null, principal: { kind: "anonymous" } },
+        )
+      ).status,
+    ).toBe(429);
+  });
+
+  /** Carrier NAT puts shelters and adopters behind one IP: the two budgets must never be one. */
+  it("the kabinet route never uses the adopter limiter", () => {
+    const route = readFileSync(join(__dirname, "../app/api/kabinet/[...rpc]/route.ts"), "utf8");
+    expect(route).not.toContain("apiRateLimiter");
+    expect(route).toContain("kabinetLimiters");
   });
 });

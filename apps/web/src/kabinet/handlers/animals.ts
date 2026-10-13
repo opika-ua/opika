@@ -96,7 +96,7 @@ async function owned(
   scope: ShelterReadScope,
   animalId: AnimalId,
   errors: OwnErrors,
-): Promise<{ animal: Animal; cityId: CityId }> {
+): Promise<{ animal: Animal; cityId: CityId; firstPublishedAt: Date | null }> {
   const found = await kabinetAnimalRepo(deps.db).findWithCity(animalId);
   if (found === null) throw errors.NOT_FOUND();
   if (found.animal.shelterId !== scope.shelterId) throw errors.FORBIDDEN();
@@ -372,25 +372,29 @@ export async function animalsUndoConfirm(
 }
 
 /**
- * Only a draft can be deleted; anything that was ever public is withdrawn
- * instead. Compare-and-set like every write: an edit that lands in between
- * means re-reading and deciding again, not refusing a draft as "not a draft".
+ * Only a draft that has never been public can be deleted (HS-Q9, Oleksii);
+ * anything that ever was is withdrawn instead, because its URL and possibly
+ * adopters' swipes and reveals still point at it. Compare-and-set like every
+ * write: an edit landing in between means re-reading and deciding again.
  */
 export async function animalsDeleteDraft(
   deps: AnimalDeps,
   scope: ShelterWriteScope,
   input: { animalId: AnimalId },
-  errors: MoveErrors,
+  errors: MoveErrors & ORPCErrorConstructorMap<{ WAS_PUBLISHED: typeof apiErrors.WAS_PUBLISHED }>,
 ): Promise<Record<string, never>> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    const { animal } = await owned(deps, scope, input.animalId, errors);
+    const { animal, firstPublishedAt } = await owned(deps, scope, input.animalId, errors);
     if (animal.listing.kind !== "draft") {
       throw errors.ILLEGAL_TRANSITION({
         data: { machine: "listing", from: animal.listing.kind, event: "delete_draft" },
       });
     }
+    if (firstPublishedAt !== null) throw errors.WAS_PUBLISHED();
     const result = await kabinetAnimalRepo(deps.db).deleteDraftIf(animal.id, animal.lastUpdatedAt);
     if (result.kind === "ok") return {};
+    // A swipe or reveal references it: it has public history after all.
+    if (result.kind === "referenced") throw errors.WAS_PUBLISHED();
   }
   throw new Error(`Animal ${input.animalId}: lost ${MAX_ATTEMPTS} races in a row`);
 }

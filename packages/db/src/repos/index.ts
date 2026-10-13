@@ -6,6 +6,7 @@ export { type GalleryPage, type GalleryRelaxationCounts, galleryRepo } from "./g
 export { kabinetActorRepo, type UserRole } from "./kabinet-actor-repo";
 export {
   type ConditionalWrite,
+  type DraftDelete,
   type KabinetAnimalPosition,
   kabinetAnimalRepo,
 } from "./kabinet-animal-repo";

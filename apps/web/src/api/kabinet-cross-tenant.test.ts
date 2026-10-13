@@ -5,6 +5,7 @@ import type { Animal, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { KabinetPrincipal } from "../kabinet/actor";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
+import { inMemoryRateLimiter } from "./rate-limit";
 import { fromRpcBody, toRpcBody } from "./test-harness";
 
 /**
@@ -70,6 +71,11 @@ beforeEach(async () => {
   };
 });
 
+const generousLimiters = {
+  perUser: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
+  perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
+};
+
 async function call(path: string, input: unknown): Promise<{ status: number; body: unknown }> {
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
@@ -83,7 +89,14 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
       secret: "x",
       baseURL: "http://localhost",
     },
-    resolve: async () => ({ principal: asA, db, cursorSecret: "test-cursor-secret" }),
+    resolve: async () => ({
+      principal: asA,
+      userId: "user-a",
+      db,
+      cursorSecret: "test-cursor-secret",
+    }),
+    limiters: generousLimiters,
+    ip: "203.0.113.1",
     now: new Date(),
     newId: () => crypto.randomUUID(),
   });

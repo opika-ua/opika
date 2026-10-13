@@ -11,7 +11,13 @@ import type {
   Swipe,
   TextProvenance,
 } from "@opika/domain";
-import { ageAnchorOf, CitySlugSchema, confirmationAnchorOf, waitAnchorOf } from "@opika/domain";
+import {
+  type AnimalListingState,
+  ageAnchorOf,
+  CitySlugSchema,
+  confirmationAnchorOf,
+  waitAnchorOf,
+} from "@opika/domain";
 import type { adopters } from "../schema/adopters";
 import type { animals } from "../schema/animals";
 import type { cities } from "../schema/cities";
@@ -174,6 +180,7 @@ export function animalToRowWithCity(animal: Animal, cityId: CityId): AnimalInser
     listingKind: animal.listing.kind,
     waitAnchorAt: waitAnchorOf(animal.listing),
     lastConfirmedAt: confirmationAnchorOf(animal.listing),
+    firstPublishedAt: firstPublishedAnchorOf(animal.listing),
     publicLocation: animal.publicLocation,
     cityId,
     createdAt: animal.createdAt,
@@ -290,4 +297,33 @@ export function rowToReveal(row: RevealRow): ContactReveal {
     shelterSnapshot: row.shelterSnapshot,
     animalSnapshot: row.animalSnapshot,
   };
+}
+
+/**
+ * The first-published marker an animal gets when it is *inserted* in a given
+ * state, matching migration 0010's backfill: a published or reserved listing
+ * carries its `publishedAt`; an adopted or withdrawn one can only have got
+ * there by being public, but no longer carries when, so its own instant
+ * stands in as "public no later than", not the real first publication
+ * (HS-Q11, Oleksii: A). A delete guard only, never shown. A draft has never
+ * been public. Writes after insert never clear it: `animalRepo.update`
+ * coalesces, and listing moves only ever fill it in.
+ */
+export function firstPublishedAnchorOf(listing: AnimalListingState): Date | null {
+  switch (listing.kind) {
+    case "draft":
+      return null;
+    case "published":
+    case "reserved":
+      return listing.publishedAt;
+    case "adopted":
+      return listing.adoptedAt;
+    case "withdrawn":
+      return listing.withdrawnAt;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = listing;
+      return unreachable;
+    }
+  }
 }

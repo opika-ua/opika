@@ -3,6 +3,7 @@ import { getDb } from "../api/db";
 import { sharedRateLimiter } from "../api/rate-limit";
 import { createKabinetAuth, type KabinetAuth } from "./auth";
 import { kabinetAuthAvailability } from "./auth-route";
+import { KABINET_RATE_LIMITS } from "./rpc-route";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
 
 /**
@@ -31,4 +32,10 @@ export function kabinetAuth(): KabinetAuth {
 export const signInLimiters = {
   perAddress: sharedRateLimiter({ name: "kabinet-sign-in-address", ...SIGN_IN_LIMITS.perAddress }),
   perIp: sharedRateLimiter({ name: "kabinet-sign-in-ip", ...SIGN_IN_LIMITS.perIp }),
+};
+
+/** HS-Q10: never the adopter `apiRateLimiter`. */
+export const kabinetLimiters = {
+  perUser: sharedRateLimiter({ name: "kabinet-user", ...KABINET_RATE_LIMITS.perUser }),
+  perIp: sharedRateLimiter({ name: "kabinet-ip", ...KABINET_RATE_LIMITS.perIp }),
 };

@@ -71,6 +71,13 @@
       "when": 1791845120114,
       "tag": "0009_next_red_wolf",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791874767488,
+      "tag": "0010_clear_bastion",
+      "breakpoints": true
     }
   ]
 }

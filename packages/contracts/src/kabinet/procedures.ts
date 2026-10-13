@@ -234,11 +234,12 @@ export const shelterAnimalsContract = {
   undoConfirm: animalWrite
     .input(animalRef)
     .errors({ ...animalMoveErrors, UNDO_EXPIRED: apiErrors.UNDO_EXPIRED }),
+  /** Only a never-published draft (HS-Q9); anything once public is withdrawn instead. */
   deleteDraft: kabinet
     .$meta(shelterWrite)
     .input(animalRef)
     .output(emptyOutput)
-    .errors(animalMoveErrors),
+    .errors({ ...animalMoveErrors, WAS_PUBLISHED: apiErrors.WAS_PUBLISHED }),
 };
 
 // ─── registry (operator only) ───────────────────────────────────────────────

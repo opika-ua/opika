@@ -34,7 +34,7 @@ const DAY_SECONDS = 24 * 60 * 60;
  *   used daily never expires), so a `hooks.before` on every Better Auth
  *   request deletes a session older than `absoluteMs` before the request
  *   sees it: `get-session` then reports no session, and nothing Better Auth
- *   serves (sign-out, later accept-invitation) can act on it. `principalOf`
+ *   serves (sign-out, later accept-invitation) can act on it. `kabinetIdentityOf`
  *   checks the same cap again as a second line (reviewer, HS-Q8, finding 1).
  */
 export const KABINET_SESSION = {
@@ -133,7 +133,7 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
     hooks: {
       // Runs before any plugin's own before-hooks. A plugin that rewrites the
       // `cookie` header (a bearer plugin, say) would inject the session after
-      // this check, leaving the 30-day cap to `principalOf` alone: adding one
+      // this check, leaving the 30-day cap to `kabinetIdentityOf` alone: adding one
       // means moving this cap into a plugin hook that runs last (reviewer,
       // HS-Q8 pass 2).
       before: createAuthMiddleware(async (ctx) => {

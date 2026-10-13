@@ -105,3 +105,37 @@ describe("kabinetAnimalRepo.writeEditIf", () => {
     ).toEqual({ kind: "conflict" });
   });
 });
+
+describe("first_published_at is never cleared (HS-Q9)", () => {
+  const firstPublishedOf = async (id: string) => {
+    const [row] = await db.query.animals.findMany({ where: (t, { eq }) => eq(t.id, id as never) });
+    return row?.firstPublishedAt ?? null;
+  };
+
+  it("is set on insert of a published listing, and survives a listing move back to draft", async () => {
+    const { animal } = await seeded();
+    const published = animal.listing.kind === "published" ? animal.listing.publishedAt : null;
+    expect(await firstPublishedOf(animal.id)).toEqual(published);
+    await kabinetAnimalRepo(db).writeListingIf(animal.id, { kind: "draft" }, animal.listing);
+    expect(await firstPublishedOf(animal.id)).toEqual(published);
+  });
+
+  it("survives a full-row update to a draft through animalRepo.update", async () => {
+    const { animal, cityId } = await seeded();
+    const published = animal.listing.kind === "published" ? animal.listing.publishedAt : null;
+    await animalRepo(db).update({ ...animal, listing: { kind: "draft" } }, cityId as never);
+    expect(await firstPublishedOf(animal.id)).toEqual(published);
+  });
+});
+
+describe("kabinetAnimalRepo.deleteDraftIf (HS-Q9)", () => {
+  /** The repo's own guard, independent of the handler's earlier check. */
+  it("won't delete a draft whose first_published_at is set", async () => {
+    const { animal } = await seeded();
+    await kabinetAnimalRepo(db).writeListingIf(animal.id, { kind: "draft" }, animal.listing);
+    expect(await kabinetAnimalRepo(db).deleteDraftIf(animal.id, animal.lastUpdatedAt)).toEqual({
+      kind: "not_deleted",
+    });
+    expect(await animalRepo(db).findById(animal.id)).not.toBeNull();
+  });
+});

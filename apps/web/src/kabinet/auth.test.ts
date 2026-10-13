@@ -16,8 +16,13 @@ import {
   kabinetAuthAvailability,
 } from "./auth-route";
 import { capturingSender } from "./magic-link-sender";
-import { principalOf } from "./principal";
+import { kabinetIdentityOf } from "./principal";
+
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
+
+/** The principal the route acts on: `kabinetIdentityOf`, the function the route calls. */
+const principalOf = async (...args: Parameters<typeof kabinetIdentityOf>) =>
+  (await kabinetIdentityOf(...args)).principal;
 
 /**
  * Better Auth for real: a real instance, its real Drizzle adapter, real

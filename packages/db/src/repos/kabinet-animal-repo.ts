@@ -9,7 +9,7 @@ import {
   type ShelterId,
   waitAnchorOf,
 } from "@opika/domain";
-import { and, desc, eq, inArray, lt, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
 import { animalToRowWithCity, rowToAnimal } from "./mappers";
@@ -17,6 +17,31 @@ import { animalToRowWithCity, rowToAnimal } from "./mappers";
 export type KabinetAnimalPosition = { at: Date; id: string };
 
 export type ConditionalWrite = { kind: "ok" } | { kind: "conflict" };
+
+/**
+ * Why a draft delete wrote nothing. `referenced` is the database refusing
+ * because a swipe or reveal still points at the row (the FK has no cascade):
+ * caught here and returned as a value, on either driver, so it reaches the
+ * caller as a typed answer and never as an untyped 500 (HS-Q9, Oleksii).
+ */
+export type DraftDelete = { kind: "ok" } | { kind: "not_deleted" } | { kind: "referenced" };
+
+const FOREIGN_KEY_VIOLATION = "23503";
+
+/**
+ * postgres-js throws a `PostgresError` and neon-http a `NeonDbError`; Drizzle
+ * wraps either as `cause`. Both carry the SQLSTATE as `code`.
+ */
+function isForeignKeyViolation(error: unknown): boolean {
+  for (
+    let e: unknown = error;
+    e !== null && typeof e === "object";
+    e = (e as { cause?: unknown }).cause
+  ) {
+    if ((e as { code?: unknown }).code === FOREIGN_KEY_VIOLATION) return true;
+  }
+  return false;
+}
 
 /**
  * The kabinet's animal reads and writes. Ownership is the handler's check (it
@@ -34,9 +59,17 @@ export type ConditionalWrite = { kind: "ok" } | { kind: "conflict" };
  */
 export function kabinetAnimalRepo(db: Database) {
   return {
-    async findWithCity(id: AnimalId): Promise<{ animal: Animal; cityId: CityId } | null> {
+    async findWithCity(
+      id: AnimalId,
+    ): Promise<{ animal: Animal; cityId: CityId; firstPublishedAt: Date | null } | null> {
       const [row] = await db.select().from(animals).where(eq(animals.id, id)).limit(1);
-      return row ? { animal: rowToAnimal(row), cityId: row.cityId as CityId } : null;
+      return row
+        ? {
+            animal: rowToAnimal(row),
+            cityId: row.cityId as CityId,
+            firstPublishedAt: row.firstPublishedAt,
+          }
+        : null;
     },
 
     async insert(animal: Animal, cityId: CityId): Promise<void> {
@@ -97,6 +130,12 @@ export function kabinetAnimalRepo(db: Database) {
           listingKind: next.kind,
           waitAnchorAt: waitAnchorOf(next),
           lastConfirmedAt: confirmationAnchorOf(next),
+          // Filled in on the first publish, never cleared by any later move.
+          firstPublishedAt: sql`COALESCE(${animals.firstPublishedAt}, ${
+            next.kind === "published" || next.kind === "reserved"
+              ? next.publishedAt.toISOString()
+              : null
+          }::timestamptz)`,
         })
         .where(
           and(
@@ -109,19 +148,30 @@ export function kabinetAnimalRepo(db: Database) {
       return updated.length === 1 ? { kind: "ok" } : { kind: "conflict" };
     },
 
-    /** Deletes only while it is still a draft; anything published is withdrawn, never deleted. */
-    async deleteDraftIf(id: AnimalId, expectedLastUpdatedAt: Date): Promise<ConditionalWrite> {
-      const deleted = await db
-        .delete(animals)
-        .where(
-          and(
-            eq(animals.id, id),
-            eq(animals.listingKind, "draft"),
-            eq(animals.lastUpdatedAt, expectedLastUpdatedAt),
-          ),
-        )
-        .returning({ id: animals.id });
-      return deleted.length === 1 ? { kind: "ok" } : { kind: "conflict" };
+    /**
+     * Deletes a draft that has **never** been public (`first_published_at`
+     * null, HS-Q9) and that nobody has written since the request read it. A
+     * once-public listing is withdrawn, never deleted. `not_deleted` says only
+     * that one of those conditions failed; the caller re-reads to say which.
+     */
+    async deleteDraftIf(id: AnimalId, expectedLastUpdatedAt: Date): Promise<DraftDelete> {
+      try {
+        const deleted = await db
+          .delete(animals)
+          .where(
+            and(
+              eq(animals.id, id),
+              eq(animals.listingKind, "draft"),
+              isNull(animals.firstPublishedAt),
+              eq(animals.lastUpdatedAt, expectedLastUpdatedAt),
+            ),
+          )
+          .returning({ id: animals.id });
+        return deleted.length === 1 ? { kind: "ok" } : { kind: "not_deleted" };
+      } catch (error) {
+        if (isForeignKeyViolation(error)) return { kind: "referenced" };
+        throw error;
+      }
     },
 
     /**

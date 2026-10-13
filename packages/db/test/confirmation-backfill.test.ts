@@ -2,11 +2,12 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AnimalId } from "@opika/domain";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { animals } from "../src/schema/animals";
 import * as schema from "../src/schema/index";
 import { makeCity, makeShelter, setupTestDatabase } from "../src/test-utils/index";
 import { TEST_DATABASE_URL } from "../src/test-utils/setup";
@@ -347,8 +348,14 @@ describe("0006 last_confirmed_at backfill", () => {
     await seed([PUBLISHED[0] as LegacyAnimal]);
     await applyMigration(BACKFILL_TAG);
 
-    const animal = await animalRepo(db).findById((PUBLISHED[0] as LegacyAnimal).id as AnimalId);
-    const listing = animal?.listing;
+    // Only the listing column, read through the same typed-jsonb reviver
+    // `rowToAnimal` uses: the full-row select names columns later migrations
+    // add (0010's first_published_at), which don't exist at 0006.
+    const [row] = await db
+      .select({ listing: animals.listing })
+      .from(animals)
+      .where(eq(animals.id, (PUBLISHED[0] as LegacyAnimal).id as AnimalId));
+    const listing = row?.listing;
     expect(listing?.kind).toBe("published");
     const confirmedAt = listing?.kind === "published" ? listing.confirmedAt : undefined;
     expect(confirmedAt).toBeInstanceOf(Date);
