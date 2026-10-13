@@ -126,6 +126,24 @@ leftovers. **RS-Q1** asks when expiry clean-up runs.
 
 ---
 
+## 8. The location key (RG-Q10)
+
+The registry recomputes a shelter's public location (`publicLocationOf`, 1 km fuzz keyed on the
+shelter id) on create and on any address change, with `LOCATION_HMAC_SECRET`. Without it the
+registry answers 503 while the kabinet is unavailable; the invite PR makes it a required
+production variable, after `location:verify` has shown the app's key reproduces every non-demo
+stored location (demo rows are the seed's, on its test-only key, RG-Q11).
+
+**Rotating this key is a data migration, not a config change.** Oleksii, verbatim (RG-Q10):
+"rotating this key means recomputing every shelter's public location in one migration; it is not
+a config-only change."
+
+Our reasoning and procedure, not his words: every stored public location was computed with the
+old key, so a new key alone leaves them stale, and the next address edit would move that one
+shelter's pin to a new offset, handing anyone with both samples two draws of the fuzz (decision
+#11). So the migration ships together with the new key, and `location:verify` against the new
+key must report 0 mismatches afterwards.
+
 ## Questions
 
 **RS-Q1: when does expiry clean-up run?** There is no scheduler in this stack.

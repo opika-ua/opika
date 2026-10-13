@@ -65,6 +65,7 @@ import { animalRepo } from "./repos/animal-repo";
 import { cityRepo } from "./repos/city-repo";
 import { shelterRepo } from "./repos/shelter-repo";
 import * as schema from "./schema/index";
+import { SEED_LOCATION_POLICY_KEY, SEED_SHELTER_ID_PREFIX } from "./seed-ids";
 
 // ---------------------------------------------------------------------------
 // Safety gate
@@ -208,7 +209,7 @@ export function parseSeedProfile(argv: readonly string[]): SeedProfile {
 }
 
 const DAY_MS = 86_400_000;
-const policy = testOnlyLocationPolicy("seed");
+const policy = testOnlyLocationPolicy(SEED_LOCATION_POLICY_KEY);
 
 /** Deterministic UUID v4 from a numeric index, for reproducible seeds. */
 function seededUuid(prefix: string, index: number): string {
@@ -221,7 +222,7 @@ function cityId(i: number): CityId {
   return seededUuid("c1000000", i) as CityId;
 }
 function shelterId(i: number): ShelterId {
-  return seededUuid("51000000", i) as ShelterId;
+  return seededUuid(SEED_SHELTER_ID_PREFIX, i) as ShelterId;
 }
 function animalId(i: number): AnimalId {
   return seededUuid("a0000000", i) as AnimalId;

@@ -3,9 +3,13 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { drizzleKitArgs } from "../src/migrate-args";
-import { checkProductionWrite, productionEndpoint } from "../src/prod-guard";
+import {
+  assertProductionWriteAllowed,
+  checkProductionWrite,
+  productionEndpoint,
+} from "../src/prod-guard";
 
 /** Fake endpoints only. Nothing here resolves, and nothing should try. */
 const PROD_ENDPOINT = "ep-quiet-lake-a1b2c3";
@@ -111,6 +115,21 @@ describe("checkProductionWrite edge cases", () => {
       kind: "refused",
       reason: "misconfigured",
     });
+  });
+});
+
+/** A read-only script given --prod must not announce a write (review of RG-Q10, finding 3). */
+describe("assertProductionWriteAllowed's warning", () => {
+  afterEach(() => vi.restoreAllMocks());
+  const env = { PROD_NEON_ENDPOINT: PROD_ENDPOINT };
+
+  it.each([
+    ["write", "WARNING: writing to PRODUCTION (--prod given)."],
+    ["read", "WARNING: reading PRODUCTION (--prod given)."],
+  ] as const)("names a %s as what it is", (access, message) => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    assertProductionWriteAllowed(PROD, ["node", "x", "--prod"], env, access);
+    expect(error.mock.calls).toEqual([[message]]);
   });
 });
 
@@ -232,6 +251,8 @@ describe("every writing CLI runs the guard first", () => {
     ["db:migrate", "src/migrate.ts", []],
     ["db:seed", "src/seed.ts", ["--profile=demo", "--force", "--db-name=neondb"]],
     ["onboard:shelter", "src/onboard-shelter.ts", ["does-not-matter.json"]],
+    // Read-only, but it reads every exact address, so it takes --prod too (RG-Q10).
+    ["location:verify", "src/verify-locations.ts", []],
   ] as const)("%s refuses production without --prod", (_name, script, args) => {
     const result = run(script, args);
     expect(result.status, result.stderr).toBe(1);
