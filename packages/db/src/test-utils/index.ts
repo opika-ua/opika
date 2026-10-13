@@ -15,6 +15,7 @@ export {
   assertDisposableTestDatabase,
   dropTestDatabase,
   ensureTestDatabase,
+  harnessPort,
   testDatabaseName,
   testDatabaseUrl,
 } from "./test-database";

@@ -15,7 +15,8 @@
     "build:web": "pnpm --filter @opika/web build",
     "test:harness": "pnpm --filter @opika/web test:harness",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run build:web && pnpm run test:harness",
-    "test:coverage": "pnpm -r --if-present run test:coverage"
+    "test:coverage": "pnpm -r --if-present run test:coverage",
+    "worktree:remove": "pnpm --filter @opika/db run worktree:remove"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",

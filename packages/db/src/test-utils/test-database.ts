@@ -30,6 +30,18 @@ export function testDatabaseName(kind: "test" | "harness", checkoutPath: string)
   return `opika_${kind}_${hash}`;
 }
 
+/**
+ * This checkout's harness port, 3100–3599, derived from its path like the
+ * database name: two checkouts' harness runs can then go in parallel instead
+ * of the second failing with "port already used" (the follow-up #88 left).
+ * A collision between two paths is possible but rare, and loud when it
+ * happens (Playwright refuses a used port; it never reuses a server).
+ */
+export function harnessPort(checkoutPath: string = CHECKOUT_ROOT): number {
+  const hash = createHash("sha256").update(resolve(checkoutPath)).digest("hex");
+  return 3100 + (Number.parseInt(hash.slice(0, 6), 16) % 500);
+}
+
 export const testDatabaseUrl = (kind: "test" | "harness", checkoutPath = CHECKOUT_ROOT): string =>
   `${LOCAL_SERVER}/${testDatabaseName(kind, checkoutPath)}`;
 

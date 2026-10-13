@@ -1,4 +1,4 @@
-import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
+import { assertDisposableTestDatabase, harnessPort, testDatabaseUrl } from "@opika/db/test";
 import { defineConfig } from "@playwright/test";
 import {
   HARNESS_PRELAUNCH_GATE_SECRET,
@@ -13,7 +13,8 @@ import {
  * run and catch nothing the phone layout is currently getting wrong.
  */
 
-const PORT = 3100;
+/** This checkout's own port (`harnessPort`), so two checkouts' harness runs never collide. */
+const PORT = harnessPort();
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 /**
@@ -119,7 +120,7 @@ export default defineConfig({
     // redirect hop to confirm the server is actually serving pages.
     url: `${ORIGIN}/tvaryny`,
     // Not `!process.env.CI`, which is the usual idiom. Reusing a server that
-    // an aborted run left behind on :3100 would grade the build that server
+    // an aborted run left behind on its port would grade the build that server
     // started with — the same stale-artefact false green the comment above
     // rejects, just arriving locally instead of in CI. A loud "port in use"
     // costs seconds; a green run against code that no longer exists is what
