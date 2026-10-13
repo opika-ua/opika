@@ -1,3 +1,4 @@
+import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { defineConfig } from "@playwright/test";
 import {
   HARNESS_PRELAUNCH_GATE_SECRET,
@@ -16,20 +17,15 @@ const PORT = 3100;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 /**
- * Reused, not a dedicated harness database. `opika_test` is the only
- * database CI's Postgres service (.github/workflows/ci.yml) provisions, and
- * `pnpm check`'s own order — test -> build:web -> test:harness — means
- * vitest's own DROP SCHEMA CASCADE (packages/db/src/test-utils/setup.ts)
- * and this harness's migrate+seed never run at the same time in CI. Locally
- * the same holds unless a `test --watch` is left running in another
- * terminal while the harness starts, which is on the developer, not
- * something this config can prevent without a second provisioned database.
- *
- * Not `apps/web`'s own `getDb()` default (`DATABASE_URL` unset in dev) —
- * this always points at the same place vitest's DB tests already assume
- * exists, so both tools agree on where "the local Postgres" is.
+ * This checkout's own harness database, `opika_harness_<hash of the checkout
+ * path>` (`@opika/db/test`'s `testDatabaseUrl`): never shared with vitest's
+ * database or with another checkout's, so a test run elsewhere can't wipe
+ * the rows this harness seeded mid-run (it did, 2026-10-13, with one fixed
+ * `opika_test`). Created ahead of migrate and seed (`test-db:ensure`),
+ * dropped by `globalTeardown`. Refuses the dev database and any non-local
+ * host (`assertDisposableTestDatabase`).
  */
-const HARNESS_DATABASE_URL = "postgres://opika:opika@127.0.0.1:5433/opika_test";
+const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
 /** Same literal apps/web/src/api/test-harness.ts uses — recognizable as the test secret, not a real one. */
 const CURSOR_HMAC_SECRET = "test-hmac-secret-for-cursor-signing";
@@ -65,6 +61,7 @@ export default defineConfig({
 
   reporter: process.env.CI ? [["github"], ["list"]] : [["list"]],
   outputDir: "./test-results",
+  globalTeardown: "./test/harness-teardown.ts",
 
   use: {
     baseURL: ORIGIN,
@@ -112,6 +109,7 @@ export default defineConfig({
     // Playwright resolves it from.
     command: [
       "pnpm run build",
+      "pnpm --filter @opika/db run test-db:ensure",
       "pnpm --filter @opika/db run db:migrate",
       "pnpm --filter @opika/db run db:seed",
       `pnpm exec next start --port ${PORT} --hostname 127.0.0.1`,

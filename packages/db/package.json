@@ -17,7 +17,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/migrate.ts",
     "db:seed": "tsx src/seed.ts",
-    "onboard:shelter": "tsx src/onboard-shelter.ts"
+    "onboard:shelter": "tsx src/onboard-shelter.ts",
+    "test-db:ensure": "tsx src/test-utils/ensure-test-database.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",

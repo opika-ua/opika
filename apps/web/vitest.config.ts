@@ -58,8 +58,8 @@ export default defineConfig({
           setupFiles: ["./test/setup-dom.ts"],
           // Most files here are pure component tests with no DB. A growing
           // minority (src/app/page.test.tsx, src/app/tvaryny/page.test.tsx)
-          // call createTestHarness() against the real shared opika_test
-          // Postgres, the same DROP SCHEMA CASCADE + migrate cycle
+          // call createTestHarness() against this checkout's real test
+          // database (opika_test_<hash>, packages/db/src/test-utils/test-database.ts), the same DROP SCHEMA CASCADE + migrate cycle
           // src/api's files do — which is exactly why *that* project sets
           // this flag. `dom` didn't need it back when it had zero DB-backed
           // files; now that it has two, they raced: one file's setup
