@@ -82,6 +82,28 @@ describe("checkProductionWrite", () => {
 });
 
 describe("checkProductionWrite edge cases", () => {
+  /**
+   * Review of 9ce9bc1, finding 1: postgres-js fails over through a comma host
+   * list, so production second in line was reached without --prod; and an
+   * empty host goes wherever PGHOST points. Both are refused, never guessed.
+   */
+  it("refuses a host list with production anywhere in it, and an empty host", () => {
+    for (const url of [
+      `postgresql://u:secret@ep-other-hill-d4e5f6.eu-central-1.aws.neon.tech,${PROD_ENDPOINT}-pooler.eu-central-1.aws.neon.tech/neondb`,
+      "postgresql://u:secret@localhost,ep-other-hill-d4e5f6.eu-central-1.aws.neon.tech/neondb",
+      "postgres:///opika",
+    ]) {
+      expect(checkProductionWrite(url, [], PROD_ENDPOINT)).toEqual({
+        kind: "refused",
+        reason: "unparseable",
+      });
+      expect(checkProductionWrite(url, ["--prod"], PROD_ENDPOINT)).toEqual({
+        kind: "refused",
+        reason: "unparseable",
+      });
+    }
+  });
+
   it.each([
     [
       "uppercase hostname",

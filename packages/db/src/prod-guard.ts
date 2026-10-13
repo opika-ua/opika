@@ -142,6 +142,14 @@ export function checkProductionWrite(
   // dump prints the input, password included.
   const target = parseOrNull(targetUrl);
   if (target === null) return { kind: "refused", reason: "unparseable" };
+  // Only one host can be checked against production. A comma lists several
+  // (postgres-js fails over through them, so a production host second in
+  // line would be reached without --prod), and an empty host falls back to
+  // PGHOST or localhost: neither can be shown not to be production
+  // (review of 9ce9bc1, finding 1). Same rule as `databaseTargetOf`.
+  if (target.hostname === "" || target.hostname.includes(",")) {
+    return { kind: "refused", reason: "unparseable" };
+  }
   // Exact hostname match, never a substring test: a URL merely *containing*
   // "localhost" (in a password, a query string) must not pass as local.
   if (LOCAL_HOSTS.has(target.hostname.toLowerCase().replace(/^\[|\]$/g, ""))) {
