@@ -137,6 +137,63 @@ describe("kabinet copy status", () => {
     ]);
   });
 
+  it("the read-only profile (KS-Q1): every string pending, by name; «Не записано» written", () => {
+    expect(pendingCopyKeys(uk.kabinet.profile)).toEqual([
+      "address",
+      "addressNote",
+      "contactPerson",
+      "contactsNote",
+      "contactsTitle",
+      "donationLink",
+      "donationNote",
+      "donationPending",
+      "donationTitle",
+      "edrpou",
+      "intro",
+      "legalName",
+      "lockedNote",
+      "lockedTitle",
+      "pageTitle",
+      "phoneTitle",
+      "registrationStatus",
+      "role",
+      "signOut",
+      "statusSince",
+      "title",
+      "voiceLabel",
+      "voiceNote",
+      "voiceTitle",
+    ]);
+    expect(pendingCopyKeys(uk.kabinet.profileStatus)).toEqual([
+      "paused",
+      "pending",
+      "rejected",
+      "suspended",
+      "under_review",
+      "verified",
+    ]);
+    expect(pendingCopyKeys(uk.kabinet.profileChannel)).toEqual([
+      "email",
+      "phone",
+      "telegram",
+      "viber",
+      "website",
+    ]);
+    // The standing constraints fix this wording for an unknown field.
+    expect(uk.kabinet.profileNotRecorded).toBe("Не записано");
+  });
+
+  it("support mode (S5): every string pending, by name", () => {
+    expect(pendingCopyKeys(uk.kabinet.support)).toEqual([
+      "body",
+      "exit",
+      "exitFailed",
+      "signOutDisabled",
+      "title",
+      "viewingAs",
+    ]);
+  });
+
   it("the shell label is pending; the operator fallback name is Oleksii's and written", () => {
     expect(pendingCopyKeys(uk.kabinet.shell)).toEqual(["label"]);
     expect(pendingCopyKeys(uk.kabinet)).toEqual([]);
