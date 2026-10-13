@@ -76,6 +76,22 @@ export const animals = pgTable(
      * and jump to the top of both orderings.
      */
     lastConfirmedAt: timestamp("last_confirmed_at", { withTimezone: true }),
+    /**
+     * When the listing was first made public, set once and **never cleared**
+     * (HS-Q9, Oleksii). `restore_to_draft` drops the listing's own
+     * `publishedAt`, so without this a draft that used to be public would look
+     * never-published, and `deleteDraft` would erase a listing whose public
+     * URL and adopter swipes and reveals still point at it. Null means it has
+     * never been public, which is the only case a draft may be deleted.
+     *
+     * **A delete guard only** (HS-Q11, Oleksii). It never appears in any view
+     * or API output, and nothing orders or filters on it. For rows that were
+     * adopted or withdrawn when migration 0010 ran, it holds their adopted or
+     * withdrawn date: "public no later than", **not** the real first
+     * publication, which those rows no longer record. Reading it as a
+     * publication date would be wrong for exactly those rows.
+     */
+    firstPublishedAt: timestamp("first_published_at", { withTimezone: true }),
 
     descriptionUk: text("description_uk").notNull(),
     descriptionEnText: text("description_en_text"),

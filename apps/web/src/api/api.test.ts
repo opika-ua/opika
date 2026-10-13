@@ -918,19 +918,34 @@ describe("gallery.list", () => {
       shelterId: shelter.id,
       name: "Старожил",
       lastUpdatedAt: daysBefore(1),
-      listing: { kind: "published", publishedAt: daysBefore(200), confirmedAt: daysBefore(1) },
+      listing: {
+        kind: "published",
+        publishedAt: daysBefore(200),
+        confirmedAt: daysBefore(1),
+        undoable: null,
+      },
     });
     const middling = makeAnimal({
       shelterId: shelter.id,
       name: "Середній",
       lastUpdatedAt: daysBefore(40),
-      listing: { kind: "published", publishedAt: daysBefore(60), confirmedAt: daysBefore(40) },
+      listing: {
+        kind: "published",
+        publishedAt: daysBefore(60),
+        confirmedAt: daysBefore(40),
+        undoable: null,
+      },
     });
     const newcomer = makeAnimal({
       shelterId: shelter.id,
       name: "Новенький",
       lastUpdatedAt: daysBefore(2),
-      listing: { kind: "published", publishedAt: daysBefore(3), confirmedAt: daysBefore(2) },
+      listing: {
+        kind: "published",
+        publishedAt: daysBefore(3),
+        confirmedAt: daysBefore(2),
+        undoable: null,
+      },
     });
     for (const animal of [oldTimer, middling, newcomer]) {
       await animalRepo(h.db).insert(animal, city.id);

@@ -43,5 +43,13 @@ export const ShelterSchema = z.object({
   verification: ShelterVerificationSchema,
   createdAt: z.date(),
   lastUpdatedAt: z.date(),
+  /**
+   * Bumped on every audited write (H2 S3). The kabinet's writes are
+   * compare-and-set on it, so two people editing the same shelter can't
+   * silently overwrite each other, and a history entry's `previous` is never
+   * stale. An integer rather than `lastUpdatedAt`: a timestamp guard breaks
+   * the first time anything writes it at a precision JS can't round-trip.
+   */
+  version: z.int().nonnegative(),
 });
 export type Shelter = z.infer<typeof ShelterSchema>;

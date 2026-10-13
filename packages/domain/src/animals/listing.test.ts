@@ -14,8 +14,8 @@ const LONG_AGO = new Date("2026-04-05T00:00:00.000Z");
 
 const states: readonly AnimalListingState[] = [
   { kind: "draft" },
-  { kind: "published", publishedAt: AT, confirmedAt: AT },
-  { kind: "reserved", since: AT, publishedAt: LONG_AGO, confirmedAt: LONG_AGO },
+  { kind: "published", publishedAt: AT, confirmedAt: AT, undoable: null },
+  { kind: "reserved", since: AT, publishedAt: LONG_AGO, confirmedAt: LONG_AGO, undoable: null },
   { kind: "adopted", adoptedAt: AT },
   { kind: "withdrawn", withdrawnAt: AT, reason: { code: "deceased", note: null } },
 ];
@@ -30,7 +30,13 @@ describe("isDiscoverable", () => {
     // A reservation can fall through, and hiding it immediately would empty the
     // feed faster than shelters can refill it.
     expect(
-      isDiscoverable({ kind: "reserved", since: AT, publishedAt: LONG_AGO, confirmedAt: LONG_AGO }),
+      isDiscoverable({
+        kind: "reserved",
+        since: AT,
+        publishedAt: LONG_AGO,
+        confirmedAt: LONG_AGO,
+        undoable: null,
+      }),
     ).toBe(true);
   });
 
@@ -50,7 +56,12 @@ describe("isDiscoverable", () => {
 describe("waitAnchorOf", () => {
   it("is the publication instant for a published listing", () => {
     expect(
-      waitAnchorOf({ kind: "published", publishedAt: LONG_AGO, confirmedAt: LONG_AGO }),
+      waitAnchorOf({
+        kind: "published",
+        publishedAt: LONG_AGO,
+        confirmedAt: LONG_AGO,
+        undoable: null,
+      }),
     ).toEqual(LONG_AGO);
   });
 
@@ -61,12 +72,14 @@ describe("waitAnchorOf", () => {
       kind: "published",
       publishedAt: LONG_AGO,
       confirmedAt: LONG_AGO,
+      undoable: null,
     };
     const reserved: AnimalListingState = {
       kind: "reserved",
       since: AT,
       publishedAt: LONG_AGO,
       confirmedAt: LONG_AGO,
+      undoable: null,
     };
 
     expect(waitAnchorOf(reserved)).toEqual(waitAnchorOf(published));
@@ -76,7 +89,13 @@ describe("waitAnchorOf", () => {
     // A mutant returning `since` would satisfy "not null for reserved" and be
     // wrong in exactly the way that is invisible until the sort is inspected.
     expect(
-      waitAnchorOf({ kind: "reserved", since: AT, publishedAt: LONG_AGO, confirmedAt: LONG_AGO }),
+      waitAnchorOf({
+        kind: "reserved",
+        since: AT,
+        publishedAt: LONG_AGO,
+        confirmedAt: LONG_AGO,
+        undoable: null,
+      }),
     ).not.toEqual(AT);
   });
 
@@ -122,7 +141,12 @@ describe("confirmationAnchorOf", () => {
 
   it("is the confirmation on the two states an adopter can see", () => {
     expect(
-      confirmationAnchorOf({ kind: "published", publishedAt: LONG_AGO, confirmedAt: CONFIRMED }),
+      confirmationAnchorOf({
+        kind: "published",
+        publishedAt: LONG_AGO,
+        confirmedAt: CONFIRMED,
+        undoable: null,
+      }),
     ).toEqual(CONFIRMED);
     expect(
       confirmationAnchorOf({
@@ -130,6 +154,7 @@ describe("confirmationAnchorOf", () => {
         since: AT,
         publishedAt: LONG_AGO,
         confirmedAt: CONFIRMED,
+        undoable: null,
       }),
     ).toEqual(CONFIRMED);
   });
@@ -141,6 +166,7 @@ describe("confirmationAnchorOf", () => {
       since: AT,
       publishedAt: LONG_AGO,
       confirmedAt: CONFIRMED,
+      undoable: null,
     } as const;
     expect(confirmationAnchorOf(reserved)).not.toEqual(reserved.since);
     expect(confirmationAnchorOf(reserved)).not.toEqual(reserved.publishedAt);

@@ -42,7 +42,9 @@ export default defineConfig({
            * own comment explains why), so `node` is also the accurate
            * environment to test it under, not merely the one that works.
            */
-          include: ["src/api/**/*.test.ts", "src/proxy.test.ts"],
+          // `src/kabinet` too: it handles real `Request`s through Better Auth,
+          // the same happy-dom `Headers` problem `proxy.test.ts` hit.
+          include: ["src/api/**/*.test.ts", "src/kabinet/**/*.test.ts", "src/proxy.test.ts"],
           testTimeout: 15_000,
           fileParallelism: false,
         },
@@ -52,7 +54,7 @@ export default defineConfig({
           name: "dom",
           environment: "happy-dom",
           include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
-          exclude: [...configDefaults.exclude, "src/api/**", "src/proxy.test.ts"],
+          exclude: [...configDefaults.exclude, "src/api/**", "src/kabinet/**", "src/proxy.test.ts"],
           setupFiles: ["./test/setup-dom.ts"],
           // Most files here are pure component tests with no DB. A growing
           // minority (src/app/page.test.tsx, src/app/tvaryny/page.test.tsx)

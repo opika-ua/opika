@@ -65,6 +65,15 @@ async function applyMigration(tag: string): Promise<void> {
 /** Drop everything and migrate to the state immediately before this migration. */
 async function resetToPreSlugState(): Promise<void> {
   await client.unsafe(`
+    DROP TABLE IF EXISTS shelter_history CASCADE;
+    DROP TABLE IF EXISTS super_admins CASCADE;
+    DROP TABLE IF EXISTS auth_invitation CASCADE;
+    DROP TABLE IF EXISTS auth_member CASCADE;
+    DROP TABLE IF EXISTS auth_session CASCADE;
+    DROP TABLE IF EXISTS auth_account CASCADE;
+    DROP TABLE IF EXISTS auth_verification CASCADE;
+    DROP TABLE IF EXISTS auth_organization CASCADE;
+    DROP TABLE IF EXISTS auth_user CASCADE;
     DROP TABLE IF EXISTS sessions CASCADE;
     DROP TABLE IF EXISTS reveals CASCADE;
     DROP TABLE IF EXISTS swipes CASCADE;

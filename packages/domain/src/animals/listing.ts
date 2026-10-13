@@ -29,6 +29,19 @@ export const WithdrawalReasonSchema = z.object({
 export type WithdrawalReason = z.infer<typeof WithdrawalReasonSchema>;
 
 /**
+ * What «Ще шукає»'s 8-second «Скасувати» needs to put back (H2-16 → B,
+ * S3-Q1 → A). Oleksii, verbatim: "The undo restores the previous
+ * last_confirmed_at exactly (store it, don't recompute)." `confirm` writes it
+ * and every other event clears it. `confirmedAt` here is the confirmation it
+ * belongs to, so a later write can be told apart from the one being undone.
+ */
+export const UndoableConfirmationSchema = z.object({
+  previousConfirmedAt: z.date(),
+  confirmedAt: z.date(),
+});
+export type UndoableConfirmation = z.infer<typeof UndoableConfirmationSchema>;
+
+/**
  * Each state carries the instant it was entered, so "how long has this been
  * reserved" is answerable without a separate event log.
  *
@@ -50,12 +63,18 @@ export type WithdrawalReason = z.infer<typeof WithdrawalReasonSchema>;
  */
 export const AnimalListingStateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("draft") }),
-  z.object({ kind: z.literal("published"), publishedAt: z.date(), confirmedAt: z.date() }),
+  z.object({
+    kind: z.literal("published"),
+    publishedAt: z.date(),
+    confirmedAt: z.date(),
+    undoable: UndoableConfirmationSchema.nullable(),
+  }),
   z.object({
     kind: z.literal("reserved"),
     since: z.date(),
     publishedAt: z.date(),
     confirmedAt: z.date(),
+    undoable: UndoableConfirmationSchema.nullable(),
   }),
   z.object({ kind: z.literal("adopted"), adoptedAt: z.date() }),
   z.object({

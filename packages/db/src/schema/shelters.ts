@@ -9,7 +9,8 @@ import type {
   ShelterVerification,
   VerificationStatus,
 } from "@opika/domain";
-import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { authOrganization } from "./auth";
 import { cities } from "./cities";
 import { jsonb } from "./helpers";
 
@@ -56,6 +57,17 @@ export const shelters = pgTable(
     lastUpdatedAt: timestamp("last_updated_at", {
       withTimezone: true,
     }).notNull(),
+    /** Compare-and-set guard for audited writes (H2 S3, `Shelter.version`). */
+    version: integer("version").notNull().default(0),
+    /**
+     * The Better Auth organization whose members administer this shelter.
+     * Null until the shelter's first admin is invited (the registry PR).
+     * Unique: one organization is one shelter, so a membership resolves to
+     * exactly one `shelterId`.
+     */
+    organizationId: text("organization_id")
+      .unique()
+      .references(() => authOrganization.id),
   },
   (t) => [
     index("shelters_city_id_idx").on(t.cityId),

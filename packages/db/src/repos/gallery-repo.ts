@@ -236,6 +236,7 @@ function getAnimalColumns() {
     ageAnchorAt: animals.ageAnchorAt,
     waitAnchorAt: animals.waitAnchorAt,
     lastConfirmedAt: animals.lastConfirmedAt,
+    firstPublishedAt: animals.firstPublishedAt,
     descriptionUk: animals.descriptionUk,
     descriptionEnText: animals.descriptionEnText,
     descriptionEnProvenance: animals.descriptionEnProvenance,

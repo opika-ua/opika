@@ -768,6 +768,7 @@ export function buildShelters(cities: City[]): Shelter[] {
           ? { url: def.donationUrl, provider: def.donationProvider }
           : null,
       pendingDonation: null,
+      version: 0,
       freshnessSentence: def.freshnessSentenceUk ? { uk: def.freshnessSentenceUk, en: null } : null,
       verification: buildVerification(def),
       createdAt: daysAgo(120),
@@ -1245,7 +1246,7 @@ export function buildAnimals(
       // H2-14): a fresh seed and a migrated database show the same freshness.
       if (roll < 14) {
         const at = daysAgo(lastUpdatedDaysAgo(i, count));
-        return { kind: "published" as const, publishedAt: at, confirmedAt: at };
+        return { kind: "published" as const, publishedAt: at, confirmedAt: at, undoable: null };
       }
       if (roll < 16)
         return {
@@ -1259,6 +1260,7 @@ export function buildAnimals(
           // the rows would still sort.
           publishedAt: daysAgo(lastUpdatedDaysAgo(i, count) + 7),
           confirmedAt: daysAgo(lastUpdatedDaysAgo(i, count)),
+          undoable: null,
         };
       if (roll < 18) return { kind: "draft" as const };
       if (roll < 19) return { kind: "adopted" as const, adoptedAt: daysAgo(7) };
@@ -1414,7 +1416,12 @@ async function main(profile: SeedProfile) {
   const client = postgres(DATABASE_URL, { max: 1 });
   const db = drizzle(client, { schema });
 
-  // Truncate all tables
+  // Truncate all tables. CASCADE also empties every table that references
+  // `shelters`, which since 0009 includes `shelter_history`: a reseed erases
+  // the operator's audit trail along with the shelters it describes. The
+  // `auth_*` tables are not touched (shelters point at organizations, not the
+  // other way round), so kabinet users and organizations survive a reseed,
+  // unlinked from any shelter, and resolve to no role.
   console.log("  Truncating existing data...");
   await db.execute(sql`TRUNCATE reveals, swipes, animals, adopters, shelters, cities CASCADE`);
 

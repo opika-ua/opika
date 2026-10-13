@@ -19,7 +19,7 @@ const ORPC_DATE_TYPE = 1;
  * annotations for values JSON cannot represent natively (Date, BigInt, etc).
  * We only need Date support for the test harness.
  */
-function toRpcBody(data: unknown): unknown {
+export function toRpcBody(data: unknown): unknown {
   const meta: unknown[][] = [];
 
   function walk(value: unknown, path: (string | number)[]): unknown {
@@ -47,7 +47,7 @@ function toRpcBody(data: unknown): unknown {
 /**
  * Deserialize oRPC's standard RPC wire format back to plain JS.
  */
-function fromRpcBody(raw: unknown): unknown {
+export function fromRpcBody(raw: unknown): unknown {
   if (raw === null || typeof raw !== "object") return raw;
   const obj = raw as Record<string, unknown>;
   if (!("json" in obj)) return raw;

@@ -290,6 +290,7 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
     contact: input.contact,
     donation: input.donation,
     pendingDonation: null,
+    version: 0,
     freshnessSentence: { uk: input.freshnessSentenceUk, en: null },
     verification: {
       status: "verified",
@@ -338,7 +339,7 @@ export function buildAnimal(
     documentReadiness: UNKNOWN_DOCUMENT_READINESS,
     // Publishing is the first confirmation: a shelter handing over a live
     // animal is saying it is looking for a home today.
-    listing: { kind: "published", publishedAt: now, confirmedAt: now },
+    listing: { kind: "published", publishedAt: now, confirmedAt: now, undoable: null },
     // null: inherits the shelter's own publicLocation, computed above.
     // Only a fostered animal (not supported by this script) would need its
     // own city-precision location — see animal.ts's own comment on the field.

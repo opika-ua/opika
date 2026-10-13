@@ -91,6 +91,7 @@ export function makeShelter(overrides: Partial<Shelter> = {}): Shelter {
     contact: defaultContact,
     donation: null,
     pendingDonation: null,
+    version: 0,
     freshnessSentence: null,
     verification: defaultVerification,
     createdAt: now,
@@ -109,6 +110,7 @@ const defaultListing: AnimalListingState = {
   kind: "published",
   publishedAt: now,
   confirmedAt: now,
+  undoable: null,
 };
 
 export function makeAnimal(overrides: Partial<Animal> = {}): Animal {

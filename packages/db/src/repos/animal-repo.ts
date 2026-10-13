@@ -1,8 +1,8 @@
 import type { Animal, AnimalId, CityId, ShelterId } from "@opika/domain";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
-import { animalToRowWithCity, rowToAnimal } from "./mappers";
+import { animalToRowWithCity, firstPublishedAnchorOf, rowToAnimal } from "./mappers";
 
 export function animalRepo(db: Database) {
   return {
@@ -34,7 +34,11 @@ export function animalRepo(db: Database) {
     async update(animal: Animal, cityId: CityId): Promise<void> {
       await db
         .update(animals)
-        .set(animalToRowWithCity(animal, cityId))
+        .set({
+          ...animalToRowWithCity(animal, cityId),
+          // Never cleared (HS-Q9): a row that was ever public stays marked.
+          firstPublishedAt: sql`COALESCE(${animals.firstPublishedAt}, ${firstPublishedAnchorOf(animal.listing)?.toISOString() ?? null}::timestamptz)`,
+        })
         .where(eq(animals.id, animal.id));
     },
   };

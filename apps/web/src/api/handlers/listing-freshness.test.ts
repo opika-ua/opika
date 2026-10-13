@@ -13,12 +13,14 @@ const PUBLISHED: AnimalListingState = {
   kind: "published",
   publishedAt: daysBefore(90),
   confirmedAt: daysBefore(2),
+  undoable: null,
 };
 const RESERVED: AnimalListingState = {
   kind: "reserved",
   since: daysBefore(1),
   publishedAt: daysBefore(90),
   confirmedAt: daysBefore(12),
+  undoable: null,
 };
 
 describe("listingFreshness", () => {

@@ -85,3 +85,14 @@ export const isConfirmed = (attestation: MedicalAttestation): boolean =>
 /** Whether the claim rests on an independent record rather than on the shelter's word. */
 export const isIndependentlyVerified = (attestation: MedicalAttestation): boolean =>
   attestation.source === "registry";
+
+/**
+ * What K3's three-option medical control sends (proposal §1.7): just the
+ * state. The server builds the `shelter_declared` attestation and moves
+ * `declaredAt` only when the state actually changes, so re-saving an unchanged
+ * form doesn't make an old declaration look new. A `registry` vaccination is
+ * never edited through this. The handler refuses rather than overwrites,
+ * which is what makes K3's read-only rendering hold on the server too.
+ */
+export const MedicalDeclarationInputSchema = z.object({ state: MedicalStateSchema });
+export type MedicalDeclarationInput = z.infer<typeof MedicalDeclarationInputSchema>;
