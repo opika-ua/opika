@@ -69,6 +69,9 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       `registry.shelters.create` write the invitation and the invitee's user but send nothing
       (no provider yet). This PR decides how the invitee hears of it (an invite email through the
       provider, or the operator telling them and them signing in by magic link) and tests it.
+- [ ] **`/kabinet` page loads are rate limited** (inbox KS-Q3, Tier 1, open): the pages call the
+      router in-process and bypass `rpc-route.ts`'s HS-Q10 limits. Settled and built before the
+      production 503 lifts.
 - [ ] **Real-Neon run before the production 503 lifts** (HS-T4, HS-T4b, HS-Q12): sign-in,
       verify, getSession, accept-invitation, the audited-write CTE, the listing jsonb
       compare-and-set, the deleteDraft 23503 catch, and the `last_updated_at` round-trip
