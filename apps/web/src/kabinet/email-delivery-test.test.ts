@@ -2,12 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  INVITE_CONFIRM_PATH,
-  readSingleKey,
-  runDeliveryTest,
-  SIGN_IN_CONFIRM_PATH,
-} from "./email-delivery-test";
+import { readSingleKey, runDeliveryTest } from "./email-delivery-test";
 
 const KEY = "test-key-not-real-0123456789";
 
@@ -61,10 +56,10 @@ describe("runDeliveryTest", () => {
     }
     const [signIn, invite] = h.calls.map(bodyOf);
     expect(signIn.textContent).toContain(
-      "http://localhost:3000/kabinet/vkhid/pidtverdyty?token=TEST-r1",
+      "http://localhost:3000/kabinet/vkhid/pidtverdzhennia?token=TEST-r1",
     );
     expect(signIn.htmlContent).toContain(
-      'href="http://localhost:3000/kabinet/vkhid/pidtverdyty?token=TEST-r1"',
+      'href="http://localhost:3000/kabinet/vkhid/pidtverdzhennia?token=TEST-r1"',
     );
     expect(invite.textContent).toContain(
       "http://localhost:3000/kabinet/zaproshennia?token=TEST-r2",
@@ -75,11 +70,6 @@ describe("runDeliveryTest", () => {
       expect(body.textContent.length).toBeGreaterThan(500);
       expect(body.textContent).not.toMatch(/[Ѐ-ӿ]/);
     }
-  });
-
-  it("names the confirm routes the screens work builds", () => {
-    expect(SIGN_IN_CONFIRM_PATH).toBe("/kabinet/vkhid/pidtverdyty");
-    expect(INVITE_CONFIRM_PATH).toBe("/kabinet/zaproshennia");
   });
 
   it("prints the status and message id of each send, and nothing of the key or the request", async () => {
@@ -109,6 +99,17 @@ describe("runDeliveryTest", () => {
     expect(await runDeliveryTest({ ...h.input, to: undefined })).toBe(1);
     expect(h.calls).toHaveLength(0);
     expect(h.lines).toEqual(["Usage: --to <address> is required."]);
+  });
+
+  it("refuses without a From name, sending nothing", async () => {
+    for (const fromName of [undefined, "", "   "]) {
+      const h = harness();
+      expect(await runDeliveryTest({ ...h.input, fromName })).toBe(1);
+      expect(h.calls).toHaveLength(0);
+      expect(h.lines).toEqual([
+        "No From name: pass --from-name or set EMAIL_FROM_NAME. Nothing sent.",
+      ]);
+    }
   });
 
   it("refuses without the key, sending nothing", async () => {

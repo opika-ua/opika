@@ -23,7 +23,7 @@ export const DELIVERY_KEY_NAME = "BREVO_API_KEY";
  * invite/screens work builds (a GET shows one button; only its POST consumes
  * anything); change them here if those routes move.
  */
-export const SIGN_IN_CONFIRM_PATH = "/kabinet/vkhid/pidtverdyty";
+export const SIGN_IN_CONFIRM_PATH = "/kabinet/vkhid/pidtverdzhennia";
 export const INVITE_CONFIRM_PATH = "/kabinet/zaproshennia";
 
 /** The verified sender's local part; the domain is mail.<production host>, enforced by emailProviderConfigOf. */
@@ -66,6 +66,12 @@ const placeholder = (lead: string, link: string) => {
 export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> {
   if (!input.to?.includes("@")) {
     input.log("Usage: --to <address> is required.");
+    return 1;
+  }
+  // The handoff fixes the sender as a named one; a bare address reads as
+  // anonymous and would make the test unrepresentative (review of 747a011).
+  if (!input.fromName?.trim()) {
+    input.log("No From name: pass --from-name or set EMAIL_FROM_NAME. Nothing sent.");
     return 1;
   }
   if (!input.apiKey) {
