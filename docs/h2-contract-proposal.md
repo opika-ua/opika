@@ -1,7 +1,7 @@
 # H2 — kabinet contract & domain shapes: proposal for review
 
 **Status:** answered by Oleksii, 2026-10-07. His answers, quoted verbatim, are in
-`docs/decisions-inbox/docs-h2-contract-proposal.md`; §10 below lists what they change in this
+`docs/decisions-inbox.md`; §10 below lists what they change in this
 document. Implementation follows §8's PR sequence. Originally a proposal, also 2026-10-07. Tier 1 — `packages/domain` and
 `packages/contracts` shapes reviewed by Oleksii before any code (`CLAUDE.md`, "Contract-first").
 Inputs: `docs/h2-contract-handoff.md` (the delta list), `docs/kabinet-contract-decisions.md`
