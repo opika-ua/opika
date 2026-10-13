@@ -146,6 +146,7 @@ describe("kabinet error statuses", () => {
       PUBLISH_REQUIREMENTS_UNMET: apiErrors.PUBLISH_REQUIREMENTS_UNMET.status,
       UNDO_EXPIRED: apiErrors.UNDO_EXPIRED.status,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE.status,
+      REGISTRY_CONFIRMED: apiErrors.REGISTRY_CONFIRMED.status,
     }).toEqual({
       FORBIDDEN: 403,
       CONFLICT: 409,
@@ -154,6 +155,7 @@ describe("kabinet error statuses", () => {
       PUBLISH_REQUIREMENTS_UNMET: 422,
       UNDO_EXPIRED: 409,
       INVALID_EVIDENCE: 422,
+      REGISTRY_CONFIRMED: 409,
     });
   });
 });
@@ -352,19 +354,47 @@ describe("shelter inputs", () => {
     expect(KabinetListingEventInputSchema.safeParse({ type: "publish" }).success).toBe(true);
     expect(KabinetListingEventInputSchema.safeParse({ type: "confirm" }).success).toBe(false);
     expect(KabinetListingEventInputSchema.safeParse({ type: "undo_confirm" }).success).toBe(false);
-    const withAt = KabinetListingEventInputSchema.parse({ type: "publish", at: new Date(0) });
-    expect(withAt).not.toHaveProperty("at");
+    // Strict (HS-T5): a client-sent instant is refused, not quietly dropped.
+    expect(
+      KabinetListingEventInputSchema.safeParse({ type: "publish", at: new Date(0) }).success,
+    ).toBe(false);
   });
 
-  it("an animal patch refuses nothing-at-all and never carries documents, photos or listing", () => {
+  it("an animal patch refuses nothing-at-all, and refuses documents, photos or listing", () => {
     expect(AnimalPatchSchema.safeParse({}).success).toBe(false);
-    const parsed = AnimalPatchSchema.parse({
-      name: "Барсик",
-      documentReadiness: { kind: "unknown" },
-      photos: [],
-      listing: { kind: "draft" },
-    });
-    expect(Object.keys(parsed)).toEqual(["name"]);
+    expect(AnimalPatchSchema.safeParse({ name: "Барсик" }).success).toBe(true);
+    for (const extra of [
+      { documentReadiness: { kind: "unknown" } },
+      { photos: [] },
+      { listing: { kind: "draft" } },
+    ]) {
+      expect(
+        AnimalPatchSchema.safeParse({ name: "Барсик", ...extra }).success,
+        JSON.stringify(extra),
+      ).toBe(false);
+    }
+  });
+
+  /**
+   * HS-T5 (Oleksii): kabinet inputs are strict, so a smuggled key is
+   * BAD_REQUEST. Checked on every procedure by the issue Zod reports for the
+   * key itself, so this can't pass merely because required fields were
+   * missing too.
+   */
+  it.each(all.map(([path]) => path))("%s: an unknown input key is refused", (path) => {
+    const schema = byPath.get(path)?.["~orpc"].inputSchema as unknown as {
+      safeParse: (v: unknown) => {
+        success: boolean;
+        error?: { issues: { code: string; keys?: string[] }[] };
+      };
+    };
+    const unrecognized = (input: object) =>
+      schema.safeParse(input).error?.issues.find((issue) => issue.code === "unrecognized_keys")
+        ?.keys;
+    expect(unrecognized({ smuggled: true })).toEqual(["smuggled"]);
+    // A shelter.* input has no shelterId of its own, so one is a smuggled key too.
+    if (path.startsWith("shelter."))
+      expect(unrecognized({ shelterId: "x" })).toEqual(["shelterId"]);
   });
 
   it("a shelter.* input has no shelterId field to point at another shelter", () => {

@@ -37,6 +37,11 @@ import {
 } from "./views";
 
 /**
+ * Every input object here is strict (HS-T5, Oleksii): an unknown key is
+ * BAD_REQUEST, not silently stripped. So a `shelterId` smuggled into a
+ * `shelter.*` call is refused outright rather than ignored, and a client
+ * can't send a field it believes does something that the server then drops.
+ *
  * The kabinet's procedures (H2 S3 addendum §4). Declarations only: handlers,
  * Better Auth and the access middleware arrive in the next slice.
  *
@@ -81,9 +86,11 @@ const registryErrors = {
   NOT_FOUND: apiErrors.NOT_FOUND,
 } as const;
 
-const empty = z.object({});
+const empty = z.strictObject({});
+/** Outputs stay non-strict: stripping undeclared fields is what keeps a view a view. */
+const emptyOutput = z.object({});
 const expectedVersion = z.int().nonnegative();
-const animalRef = z.object({ animalId: AnimalIdSchema });
+const animalRef = z.strictObject({ animalId: AnimalIdSchema });
 const humanName = z.string().trim().min(1);
 
 // ─── shelter.profile ────────────────────────────────────────────────────────
@@ -94,18 +101,18 @@ const shelterProfileWrite = kabinet.$meta(shelterWrite).output(KabinetShelterVie
 export const shelterProfileContract = {
   get: shelterProfileRead.input(empty).errors(shelterScopedErrors),
   updateContact: shelterProfileWrite
-    .input(z.object({ contact: ShelterContactSchema, expectedVersion }))
+    .input(z.strictObject({ contact: ShelterContactSchema, expectedVersion }))
     .errors(shelterCasErrors),
   updateFreshnessSentence: shelterProfileWrite
-    .input(z.object({ freshnessSentence: FreshnessSentenceSchema, expectedVersion }))
+    .input(z.strictObject({ freshnessSentence: FreshnessSentenceSchema, expectedVersion }))
     .errors(shelterCasErrors),
   /** The provider is derived from the URL on the server (`donationProviderOf`), never sent. */
   proposeDonation: shelterProfileWrite
-    .input(DonationLinkSchema.pick({ url: true }))
+    .input(DonationLinkSchema.pick({ url: true }).strict())
     .errors(shelterScopedErrors),
   cancelDonationProposal: shelterProfileWrite.input(empty).errors(shelterScopedErrors),
   pause: shelterProfileWrite
-    .input(z.object({ reason: PauseReasonSchema }))
+    .input(z.strictObject({ reason: PauseReasonSchema }))
     .errors({ ...shelterScopedErrors, ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION }),
   resume: shelterProfileWrite
     .input(empty)
@@ -129,7 +136,7 @@ export const shelterVerificationContract = {
  * path through `animalPublicLocationOf`.
  */
 export const AnimalPatchSchema = z
-  .object({
+  .strictObject({
     name: humanName,
     species: AnimalSpeciesSchema,
     sex: AnimalSexSchema,
@@ -148,12 +155,12 @@ export const AnimalPatchSchema = z
  * `undo_confirm` have their own procedures because they carry the undo window.
  */
 export const KabinetListingEventInputSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("publish") }),
-  z.object({ type: z.literal("reserve") }),
-  z.object({ type: z.literal("release") }),
-  z.object({ type: z.literal("adopt") }),
-  z.object({ type: z.literal("withdraw"), reason: WithdrawalReasonSchema }),
-  z.object({ type: z.literal("restore_to_draft") }),
+  z.strictObject({ type: z.literal("publish") }),
+  z.strictObject({ type: z.literal("reserve") }),
+  z.strictObject({ type: z.literal("release") }),
+  z.strictObject({ type: z.literal("adopt") }),
+  z.strictObject({ type: z.literal("withdraw"), reason: WithdrawalReasonSchema }),
+  z.strictObject({ type: z.literal("restore_to_draft") }),
 ]);
 
 const animalRead = kabinet.$meta(shelterRead).output(KabinetAnimalViewSchema);
@@ -168,7 +175,7 @@ export const shelterAnimalsContract = {
   list: kabinet
     .$meta(shelterRead)
     .input(
-      z.object({
+      z.strictObject({
         listing: ListingKindSchema.nullable(),
         cursor: KabinetCursorSchema.nullable(),
         limit: kabinetPageSizeSchema,
@@ -188,7 +195,7 @@ export const shelterAnimalsContract = {
     .errors({ ...shelterScopedErrors, NOT_FOUND: apiErrors.NOT_FOUND }),
   createDraft: animalWrite
     .input(
-      z.object({
+      z.strictObject({
         name: humanName,
         species: AnimalSpeciesSchema,
         sex: AnimalSexSchema,
@@ -201,15 +208,19 @@ export const shelterAnimalsContract = {
   /** Bumps `lastUpdatedAt` only, never `confirmedAt` (commitment #7). */
   update: animalWrite
     .input(
-      z.object({
+      z.strictObject({
         animalId: AnimalIdSchema,
         expectedLastUpdatedAt: z.date(),
         patch: AnimalPatchSchema,
       }),
     )
-    .errors({ ...shelterCasErrors, NOT_FOUND: apiErrors.NOT_FOUND }),
+    .errors({
+      ...shelterCasErrors,
+      NOT_FOUND: apiErrors.NOT_FOUND,
+      REGISTRY_CONFIRMED: apiErrors.REGISTRY_CONFIRMED,
+    }),
   transition: animalWrite
-    .input(z.object({ animalId: AnimalIdSchema, event: KabinetListingEventInputSchema }))
+    .input(z.strictObject({ animalId: AnimalIdSchema, event: KabinetListingEventInputSchema }))
     .errors({
       ...animalMoveErrors,
       PUBLISH_REQUIREMENTS_UNMET: apiErrors.PUBLISH_REQUIREMENTS_UNMET,
@@ -223,12 +234,16 @@ export const shelterAnimalsContract = {
   undoConfirm: animalWrite
     .input(animalRef)
     .errors({ ...animalMoveErrors, UNDO_EXPIRED: apiErrors.UNDO_EXPIRED }),
-  deleteDraft: kabinet.$meta(shelterWrite).input(animalRef).output(empty).errors(animalMoveErrors),
+  deleteDraft: kabinet
+    .$meta(shelterWrite)
+    .input(animalRef)
+    .output(emptyOutput)
+    .errors(animalMoveErrors),
 };
 
 // ─── registry (operator only) ───────────────────────────────────────────────
 
-const shelterRef = z.object({ shelterId: ShelterIdSchema });
+const shelterRef = z.strictObject({ shelterId: ShelterIdSchema });
 const registryShelter = kabinet.$meta(registry).output(RegistryShelterViewSchema);
 const verificationMove = registryShelter
   .input(shelterRef)
@@ -238,7 +253,7 @@ export const registrySheltersContract = {
   list: kabinet
     .$meta(registry)
     .input(
-      z.object({
+      z.strictObject({
         search: z.string().trim().min(1).max(200).nullable(),
         status: VerificationStatusSchema.nullable(),
         cursor: KabinetCursorSchema.nullable(),
@@ -261,7 +276,7 @@ export const registrySheltersContract = {
   /** S2 collects S4's sections in one form (H2-1); the shelter starts `pending`. */
   create: registryShelter
     .input(
-      z.object({
+      z.strictObject({
         displayName: humanName,
         description: LocalizedTextSchema,
         legalEntity: ShelterLegalEntitySchema,
@@ -269,7 +284,7 @@ export const registrySheltersContract = {
         contact: ShelterContactSchema,
         freshnessSentence: FreshnessSentenceSchema,
         evidence: z.array(EvidenceItemInputSchema).readonly(),
-        firstAdmin: z.object({ name: humanName, email: z.email() }),
+        firstAdmin: z.strictObject({ name: humanName, email: z.email() }),
       }),
     )
     .errors({
@@ -280,12 +295,12 @@ export const registrySheltersContract = {
   /** The locked fields: legal entity or premises address, one per call, each audited. */
   updateVerifiedData: registryShelter
     .input(
-      z.object({
+      z.strictObject({
         shelterId: ShelterIdSchema,
         expectedVersion,
         change: z.discriminatedUnion("field", [
-          z.object({ field: z.literal("legal_entity"), next: ShelterLegalEntitySchema }),
-          z.object({ field: z.literal("exact_address"), next: ExactAddressSchema }),
+          z.strictObject({ field: z.literal("legal_entity"), next: ShelterLegalEntitySchema }),
+          z.strictObject({ field: z.literal("exact_address"), next: ExactAddressSchema }),
         ]),
       }),
     )
@@ -293,7 +308,7 @@ export const registrySheltersContract = {
   updateProfile: registryShelter
     .input(
       z
-        .object({
+        .strictObject({
           shelterId: ShelterIdSchema,
           expectedVersion,
           contact: ShelterContactSchema.optional(),
@@ -322,23 +337,23 @@ export const registryVerificationContract = {
   /** The note is required here (H2-4) and shown to the shelter verbatim (K5). */
   reject: registryShelter
     .input(
-      z.object({
+      z.strictObject({
         shelterId: ShelterIdSchema,
-        reason: z.object({ code: RejectionCodeSchema, note: OperatorNoteSchema }),
+        reason: z.strictObject({ code: RejectionCodeSchema, note: OperatorNoteSchema }),
       }),
     )
     .errors({ ...registryErrors, ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION }),
   suspend: registryShelter
     .input(
-      z.object({
+      z.strictObject({
         shelterId: ShelterIdSchema,
-        reason: z.object({ code: SuspensionCodeSchema, note: OperatorNoteSchema }),
+        reason: z.strictObject({ code: SuspensionCodeSchema, note: OperatorNoteSchema }),
       }),
     )
     .errors({ ...registryErrors, ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION }),
   resubmit: registryShelter
     .input(
-      z.object({
+      z.strictObject({
         shelterId: ShelterIdSchema,
         evidence: z.array(EvidenceItemInputSchema).readonly(),
       }),
@@ -355,23 +370,23 @@ export const registryDonationContract = {
   reject: registryShelter.input(shelterRef).errors(registryErrors),
 };
 
-const adminRef = z.object({ shelterId: ShelterIdSchema, adminId: ShelterAdminIdSchema });
+const adminRef = z.strictObject({ shelterId: ShelterIdSchema, adminId: ShelterAdminIdSchema });
 
 export const registryAdminsContract = {
   invite: kabinet
     .$meta(registry)
-    .input(z.object({ shelterId: ShelterIdSchema, name: humanName, email: z.email() }))
+    .input(z.strictObject({ shelterId: ShelterIdSchema, name: humanName, email: z.email() }))
     .output(ShelterAdminViewSchema)
     .errors(registryErrors),
-  resendInvite: kabinet.$meta(registry).input(adminRef).output(empty).errors(registryErrors),
-  remove: kabinet.$meta(registry).input(adminRef).output(empty).errors(registryErrors),
+  resendInvite: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
+  remove: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
 };
 
 export const registryHistoryContract = {
   list: kabinet
     .$meta(registry)
     .input(
-      z.object({
+      z.strictObject({
         shelterId: ShelterIdSchema,
         cursor: KabinetCursorSchema.nullable(),
         limit: kabinetPageSizeSchema,
@@ -388,13 +403,13 @@ export const registryHistoryContract = {
 
 export const registrySupportContract = {
   /** A read-only view of one shelter's kabinet; every write inside it is FORBIDDEN. */
-  enter: kabinet.$meta(registry).input(shelterRef).output(empty).errors(registryErrors),
+  enter: kabinet.$meta(registry).input(shelterRef).output(emptyOutput).errors(registryErrors),
 };
 
 export const kabinetSessionContract = {
   exitSupport: kabinet
     .$meta(supportExit)
     .input(empty)
-    .output(empty)
+    .output(emptyOutput)
     .errors({ UNAUTHENTICATED: apiErrors.UNAUTHENTICATED, FORBIDDEN: apiErrors.FORBIDDEN }),
 };

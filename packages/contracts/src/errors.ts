@@ -18,7 +18,10 @@ export const IllegalTransitionDataSchema = z.discriminatedUnion("machine", [
   z.object({
     machine: z.literal("listing"),
     from: z.enum(LISTING_KINDS),
-    event: z.enum(LISTING_EVENT_TYPES),
+    // `delete_draft` isn't a listing event (a deleted draft has no next
+    // state), but deleting a non-draft is refused for the same reason a
+    // transition is: the current state doesn't allow it.
+    event: z.enum([...LISTING_EVENT_TYPES, "delete_draft"]),
   }),
   z.object({
     machine: z.literal("verification"),
@@ -125,6 +128,16 @@ export const apiErrors = {
     status: 422,
     message: "The listing isn't ready to publish.",
     data: z.object({ gaps: z.array(PublishGapSchema).min(1).readonly() }),
+  },
+  /**
+   * A shelter's declaration would overwrite a fact the registry confirmed
+   * (proposal §1.7). Its own code, not FORBIDDEN (HS-T6, Oleksii): 403 is
+   * reserved for access and tenant violations, so the cross-tenant suite
+   * can't pass on a 403 that meant something else.
+   */
+  REGISTRY_CONFIRMED: {
+    status: 409,
+    message: "That fact is confirmed by the registry and can't be changed here.",
   },
   /** An undo past its window, or after a newer write (H2-16). */
   UNDO_EXPIRED: {

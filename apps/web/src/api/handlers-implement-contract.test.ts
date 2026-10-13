@@ -1,9 +1,10 @@
-import { contract } from "@opika/contracts";
+import { contract, shelterKabinetContract } from "@opika/contracts";
 import { isContractProcedure } from "@orpc/contract";
 import { type AnyRouter, implement, isLazy, isProcedure, os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { shelterKabinetRouter } from "../kabinet/router";
 import { router } from "./router";
 
 /**
@@ -148,6 +149,37 @@ describe("every served procedure goes through implement(contract)", () => {
           `wired back to the contract, and both mean the stripping this test exists to ` +
           `guarantee does not happen.`,
       ).toBe(contractSchema);
+    },
+  );
+});
+
+/**
+ * The same lock on the kabinet's shelter router (H2 handlers slice). Its
+ * views are what keep engagement data (commitment #2) and the operator's
+ * verification record off a shelter's screen, and those views only hold if
+ * the served output schema is the contract's own instance.
+ */
+describe("every served kabinet procedure goes through implement(shelterKabinetContract)", () => {
+  const contractLeaves = collectLeaves(shelterKabinetContract);
+  const routerLeaves = collectLeaves(shelterKabinetRouter);
+
+  it("finds all sixteen shelter procedures (not vacuous)", () => {
+    expect(contractLeaves).toHaveLength(16);
+  });
+
+  it("serves exactly the contracted paths", () => {
+    expect(routerLeaves.map((l) => l.path).sort()).toEqual(
+      contractLeaves.map((l) => l.path).sort(),
+    );
+  });
+
+  it.each(contractLeaves.map((l) => l.path))(
+    "%s: the served output schema is the contract's own schema instance",
+    (path) => {
+      const contractSchema = outputSchemaOf(contractLeaves.find((l) => l.path === path)?.node);
+      const routerSchema = outputSchemaOf(routerLeaves.find((l) => l.path === path)?.node);
+      expect(contractSchema).toBeDefined();
+      expect(routerSchema).toBe(contractSchema);
     },
   );
 });

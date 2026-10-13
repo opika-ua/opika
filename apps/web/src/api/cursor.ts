@@ -24,7 +24,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * - Reusing a cursor after changing filters (fingerprint mismatch)
  */
 type CursorPayload = {
-  kind: "feed" | "reveal";
+  kind: "feed" | "reveal" | "kabinet_animals";
   filtersFingerprint: string;
   at: string;
   id: string;
@@ -150,4 +150,30 @@ export function decodeRevealCursor(
   secret: string,
 ): { data: CursorPosition } | null {
   return decodeCursor(cursor, "reveal", null, secret);
+}
+
+/**
+ * The kabinet's animal list (K2). Bound to the shelter *and* the filter, so a
+ * cursor from one shelter's list can't page through another's (the query is
+ * scoped by the actor anyway; this keeps a mismatch from silently returning a
+ * wrong page instead of INVALID_CURSOR) and a cursor from "drafts" can't be
+ * replayed against "published".
+ */
+export const kabinetAnimalsFingerprint = (shelterId: string, listing: string | null): string =>
+  `${shelterId}|${listing ?? "all"}`;
+
+export function encodeKabinetAnimalsCursor(
+  data: CursorPosition,
+  fingerprint: string,
+  secret: string,
+): string {
+  return encodeCursorWithFingerprint("kabinet_animals", data, fingerprint, secret);
+}
+
+export function decodeKabinetAnimalsCursor(
+  cursor: string,
+  expectedFingerprint: string,
+  secret: string,
+): { data: CursorPosition } | null {
+  return decodeCursor(cursor, "kabinet_animals", expectedFingerprint, secret);
 }
