@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { boolean, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 /**
@@ -108,9 +109,17 @@ export const authMember = pgTable(
   (t) => [
     index("auth_member_organization_id_idx").on(t.organizationId),
     /**
-     * A shelter admin belongs to exactly one shelter (proposal §2). Unique on
-     * the user, not on (org, user), so the database refuses a second
+     * A shelter admin belongs to exactly one shelter (proposal §2, HS-Q7).
+     * Unique on the user, not on (org, user), so the database refuses a second
      * membership instead of the actor resolver having to guess between two.
+     *
+     * Known limitation, accepted (HS-Q7, Oleksii): one person can't administer
+     * two shelters. Relaxing it is a migration (drop this index) plus an
+     * actor that can carry more than one shelter, not a code change alone.
+     * It also means the operator is never a member of a shelter's
+     * organization, so invitations are written server-side by
+     * `kabinetInvitationRepo` (the only writer of `auth_invitation`), not
+     * through the organization plugin's invite endpoint.
      */
     uniqueIndex("auth_member_user_id_unique").on(t.userId),
   ],
@@ -139,16 +148,31 @@ export const authInvitation = pgTable(
 );
 
 /**
- * Who is a super_admin. Its own table rather than a column on `auth_user`,
- * deliberately: Better Auth's user-update endpoints write `auth_user` fields,
- * and a role living there is one misconfigured `additionalFields` away from
- * being self-assignable. Nothing in Better Auth knows this table exists. The
- * only writers are `admin:grant` and `admin:revoke` (HS-Q4), both behind the
- * production guard.
+ * Who is a super_admin. Its own table rather than a column on `auth_user`
+ * (HS-T2, Oleksii): Better Auth's user-update endpoints write `auth_user`
+ * fields, and a role living there is one misconfigured `additionalFields`
+ * away from being self-assignable. Authorisation reads this table only, never
+ * an `auth_user` field, and Better Auth's `admin` plugin (which keeps its own
+ * `role` on the user) stays disabled, with a test that fails if it's enabled.
+ *
+ * One row per grant, never deleted (HS-T2): `admin:revoke` sets `revoked_at`,
+ * so who held the role, and when, survives the revocation. A grant is active
+ * while `revoked_at` is null, and a user has at most one active grant at a
+ * time (the partial unique index), so a re-grant after a revoke is a new row.
+ * The only writers are `admin:grant` and `admin:revoke` (HS-Q4), both behind
+ * the production guard.
  */
-export const superAdmins = pgTable("super_admins", {
-  userId: text("user_id")
-    .primaryKey()
-    .references(() => authUser.id, { onDelete: "cascade" }),
-  grantedAt: at("granted_at"),
-});
+export const superAdmins = pgTable(
+  "super_admins",
+  {
+    id: text().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUser.id),
+    grantedAt: at("granted_at"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("super_admins_active_user_unique").on(t.userId).where(sql`${t.revokedAt} IS NULL`),
+  ],
+);

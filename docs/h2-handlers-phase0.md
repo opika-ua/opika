@@ -137,3 +137,18 @@ Answers verbatim in the inbox (HS-Q1–HS-Q6). Their effect on the slice:
     data, ever.
   - Order: 0008 rehearsal → 0008 production (done, 2026-10-13) → 0009 rehearsal on a fresh child
     branch.
+
+### HS-T2 / HS-Q7 follow-up (answered 2026-10-13, verbatim in the inbox)
+
+- `super_admins` keeps one row per grant (`id`, `user_id`, `granted_at`, `revoked_at`). A grant
+  is active while `revoked_at` is null, and a partial unique index allows at most one active
+  grant per user. `admin:revoke` sets `revoked_at` and never deletes; the FK to `auth_user` has no
+  cascade, so a user with grant history can't be deleted out from under it. Authorisation reads
+  `super_admins` only. Better Auth's `admin` plugin is off, and a test fails if it's added.
+- Invitations: `kabinetInvitationRepo` is the only writer of `auth_invitation` and the only
+  creator of a shelter's organization (a source-scan test pins both). The operator's own user is
+  the inviter. Acceptance goes through Better Auth's real `accept-invitation` endpoint, tested end
+  to end on the real adapter. `better-auth` is pinned exactly, and upgrades must pass that test.
+- **Known limitation, accepted:** one person can't administer two shelters
+  (`auth_member_user_id_unique`). Relaxing it is a migration (drop the index) plus an actor that
+  can carry more than one shelter. It is not a code change alone.

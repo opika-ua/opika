@@ -332,3 +332,27 @@ export const apiRateLimiter: RateLimiter =
         windowMs: 60_000,
         maxRequests: 100,
       });
+
+/**
+ * Another limiter on the same backing store as `apiRateLimiter`: Upstash when
+ * it's configured, in-memory otherwise. `name` becomes part of the key prefix,
+ * so each limiter keeps its own budget in the one shared database.
+ */
+export function sharedRateLimiter(opts: {
+  name: string;
+  windowMs: number;
+  maxRequests: number;
+}): RateLimiter {
+  return RESOLVED_REDIS_URL && RESOLVED_REDIS_TOKEN
+    ? upstashRateLimiter({
+        redis: new Redis({
+          url: RESOLVED_REDIS_URL,
+          token: RESOLVED_REDIS_TOKEN,
+          retry: { retries: 0 },
+        }),
+        windowMs: opts.windowMs,
+        maxRequests: opts.maxRequests,
+        prefix: `opika-${opts.name}-ratelimit-${VERCEL_ENV}`,
+      })
+    : inMemoryRateLimiter({ windowMs: opts.windowMs, maxRequests: opts.maxRequests });
+}

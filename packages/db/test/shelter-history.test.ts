@@ -56,12 +56,36 @@ describe("shelter_history", () => {
 });
 
 describe("super_admins", () => {
-  /** Kept this narrow on purpose: the role is a fact about a user, nothing else. */
-  it("has exactly a user and when it was granted", async () => {
+  /** Kept this narrow on purpose: a grant is a fact about a user and a time span, nothing else. */
+  it("has exactly an id, a user, and when the grant started and ended", async () => {
     expect(await columnsOf("super_admins")).toEqual([
       "granted_at timestamp with time zone not null",
+      "id text not null",
+      "revoked_at timestamp with time zone null",
       "user_id text not null",
     ]);
+  });
+
+  /** HS-T2: at most one active grant per user; a re-grant after a revoke is a new row. */
+  it("refuses a second active grant, and allows a re-grant once revoked", async () => {
+    const at = new Date("2026-10-13T00:00:00.000Z");
+    await client`INSERT INTO auth_user (id, name, email, email_verified, created_at, updated_at)
+      VALUES ('su', 'S', 's@example.org', true, ${at}, ${at})`;
+    await client`INSERT INTO super_admins (id, user_id, granted_at) VALUES ('g1', 'su', ${at})`;
+    await expect(
+      client`INSERT INTO super_admins (id, user_id, granted_at) VALUES ('g2', 'su', ${at})`,
+    ).rejects.toThrow(/super_admins_active_user_unique/);
+    await client`UPDATE super_admins SET revoked_at = ${at} WHERE id = 'g1'`;
+    await client`INSERT INTO super_admins (id, user_id, granted_at) VALUES ('g3', 'su', ${at})`;
+    const rows = await client`SELECT id FROM super_admins WHERE user_id = 'su' ORDER BY id`;
+    expect(rows.map((r) => r.id)).toEqual(["g1", "g3"]);
+  });
+
+  /** HS-T2: "never deletes". A user with grant history can't be deleted out from under it. */
+  it("keeps a grant's user: deleting the user is refused", async () => {
+    await expect(client`DELETE FROM auth_user WHERE id = 'su'`).rejects.toThrow(
+      /super_admins_user_id_auth_user_id_fk/,
+    );
   });
 });
 

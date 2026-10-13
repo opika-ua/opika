@@ -44,6 +44,11 @@ catalog:
   # because this is the first slice with an authenticated surface. Kabinet only:
   # adopters keep the hand-rolled anonymous session (decision #13). 1.6.33 is
   # the newest 1.6.x and published 2026-09-14, well clear of the 24h quarantine.
+  # Pinned exactly (HS-Q7, Oleksii). An upgrade must pass the end-to-end
+  # invitation test in apps/web/src/kabinet/auth.test.ts ("an invitation,
+  # written server-side and accepted through Better Auth"): invitations are
+  # written by our own repo and accepted by Better Auth's endpoint, so a change
+  # in what that endpoint checks or writes breaks the invite flow silently.
   better-auth: 1.6.33
   drizzle-kit: 0.31.10
   # O-9, 2026-09-06 reprioritisation ("2.1"): production's DB-backed pages

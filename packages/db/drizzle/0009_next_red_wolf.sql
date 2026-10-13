@@ -2,8 +2,9 @@
 -- column, so there is nothing to backfill and no existing row changes.
 --   * Better Auth's tables, all prefixed auth_ (HS-Q6, HS-T1), kabinet only;
 --     adopters keep the `sessions` table (decision #13).
---   * super_admins: the only place the platform role lives (admin:grant /
---     admin:revoke write it; Better Auth never sees it).
+--   * super_admins: the only place the platform role lives (HS-T2). One row
+--     per grant, never deleted: admin:revoke sets revoked_at, and at most one
+--     active grant per user (partial unique index). Better Auth never sees it.
 --   * shelter_history: append-only, five pinned columns, no adopter/reveal/
 --     swipe data ever (exact-field test in test/shelter-history.test.ts).
 --   * shelters.organization_id: null until a shelter's first admin is invited.
@@ -94,8 +95,10 @@ CREATE TABLE "shelter_history" (
 );
 --> statement-breakpoint
 CREATE TABLE "super_admins" (
-	"user_id" text PRIMARY KEY NOT NULL,
-	"granted_at" timestamp with time zone NOT NULL
+	"id" text PRIMARY KEY NOT NULL,
+	"user_id" text NOT NULL,
+	"granted_at" timestamp with time zone NOT NULL,
+	"revoked_at" timestamp with time zone
 );
 --> statement-breakpoint
 ALTER TABLE "shelters" ADD COLUMN "organization_id" text;--> statement-breakpoint
@@ -106,7 +109,7 @@ ALTER TABLE "auth_member" ADD CONSTRAINT "auth_member_organization_id_auth_organ
 ALTER TABLE "auth_member" ADD CONSTRAINT "auth_member_user_id_auth_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."auth_user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_session" ADD CONSTRAINT "auth_session_user_id_auth_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."auth_user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shelter_history" ADD CONSTRAINT "shelter_history_shelter_id_shelters_id_fk" FOREIGN KEY ("shelter_id") REFERENCES "public"."shelters"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "super_admins" ADD CONSTRAINT "super_admins_user_id_auth_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."auth_user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "super_admins" ADD CONSTRAINT "super_admins_user_id_auth_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."auth_user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "auth_account_user_id_idx" ON "auth_account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "auth_invitation_organization_id_idx" ON "auth_invitation" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "auth_invitation_email_idx" ON "auth_invitation" USING btree ("email");--> statement-breakpoint
@@ -115,5 +118,6 @@ CREATE UNIQUE INDEX "auth_member_user_id_unique" ON "auth_member" USING btree ("
 CREATE INDEX "auth_session_user_id_idx" ON "auth_session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "auth_verification_identifier_idx" ON "auth_verification" USING btree ("identifier");--> statement-breakpoint
 CREATE INDEX "shelter_history_shelter_at_idx" ON "shelter_history" USING btree ("shelter_id","at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
+CREATE UNIQUE INDEX "super_admins_active_user_unique" ON "super_admins" USING btree ("user_id") WHERE "super_admins"."revoked_at" IS NULL;--> statement-breakpoint
 ALTER TABLE "shelters" ADD CONSTRAINT "shelters_organization_id_auth_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."auth_organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shelters" ADD CONSTRAINT "shelters_organization_id_unique" UNIQUE("organization_id");
