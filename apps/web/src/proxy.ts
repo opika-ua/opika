@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { clientIp } from "./api/client-ip";
 import { evaluatePrelaunchGate, PRELAUNCH_GATE_QUERY_PARAM } from "./api/prelaunch-gate";
 import { apiRateLimiter } from "./api/rate-limit";
+import { kabinetLimiters } from "./kabinet/limiters";
+import { isKabinetPagePath, kabinetPageLoadAllowed } from "./kabinet/page-limit";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
 
 /**
@@ -29,7 +31,9 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  * that route applies. A page URL is a more natural scrape target than the
  * raw RPC endpoint the HTTP path still protects, so this closes that gap
  * for the pages it covers (`isDiscoveryPagePath` below) — narrower than the
- * gate above, which covers the whole site.
+ * gate above, which covers the whole site. The `/kabinet` pages have the
+ * same gap and are limited here too, on the kabinet's own limiters
+ * (`kabinet/page-limit.ts`, KH-Q8).
  *
  * `proxy.ts`, not `middleware.ts` — Next.js 16 renamed the convention (file
  * and exported function both) and defaults this file to the Node.js runtime
@@ -51,7 +55,7 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  * so neither half of the story is missed reading this file in isolation.
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  if (!SITE_IS_PUBLICLY_DISCOVERABLE) {
+  if (!SITE_IS_PUBLICLY_DISCOVERABLE && !isCronPath(request.nextUrl.pathname)) {
     const decision = evaluatePrelaunchGate(
       request.headers.get("cookie"),
       request.nextUrl.searchParams.get(PRELAUNCH_GATE_QUERY_PARAM),
@@ -70,13 +74,56 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 async function respectingRateLimit(request: NextRequest): Promise<NextResponse> {
+  const now = new Date();
   if (
     isDiscoveryPagePath(request.nextUrl.pathname) &&
-    !(await apiRateLimiter.check(clientIp(request), new Date()))
+    !(await apiRateLimiter.check(clientIp(request), now))
+  ) {
+    return new NextResponse("Too Many Requests", { status: 429 });
+  }
+  // KH-Q8: `/kabinet` pages draw on the kabinet API's own budgets (never the
+  // adopter one, HS-Q10). Here rather than in the pages because a page
+  // render can't answer 429; this is the one place that can, before the
+  // page runs any query.
+  //
+  // `kabinet/runtime` (Better Auth, its Drizzle adapter, the database
+  // client) is imported here, lazily, and only once the IP is within its
+  // budget, not at the top of this file: the proxy runs on every route, and a
+  // static import put Better Auth into every cold start, `/tvaryny`
+  // included (review of the hardening, finding 3; measured in the inbox,
+  // KH-T4). The limiters themselves come from `kabinet/limiters`, which is
+  // as light as the adopter limiter above.
+  if (
+    isKabinetPagePath(request.nextUrl.pathname) &&
+    !(await kabinetPageLoadAllowed(
+      kabinetLimiters,
+      {
+        ip: clientIp(request),
+        userId: async () =>
+          (await import("./kabinet/runtime")).kabinetPageUserId(request.headers, now),
+      },
+      now,
+    ))
   ) {
     return new NextResponse("Too Many Requests", { status: 429 });
   }
   return NextResponse.next();
+}
+
+/**
+ * Vercel's cron calls skip the pre-launch gate (inbox KH-T5): Vercel sends no
+ * gate cookie, so a gated cron path would answer 403 every day and never
+ * run, and the provisional /pro promise that expired sign-in records go
+ * within two days (KH-C1) would be false from the first night. Each cron route
+ * authenticates itself with `CRON_SECRET` and fails closed without it
+ * (`kabinet/auth-cleanup.ts`); the gate is a bot shutter, not that. Exact
+ * paths, not a prefix, so a route added under `/api/cron/` later is gated
+ * until someone lists it here on purpose.
+ */
+const CRON_PATHS: readonly string[] = ["/api/cron/auth-cleanup"];
+
+export function isCronPath(pathname: string): boolean {
+  return CRON_PATHS.includes(pathname);
 }
 
 function isDiscoveryPagePath(pathname: string): boolean {

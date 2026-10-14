@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { assertBuildEnv } from "./src/api/build-env";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./src/seo-flags";
 
 /**
@@ -25,14 +26,14 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./src/seo-flags";
  * fail-open and unverified against Vercel's actual behaviour, not
  * "unlikely," which standing-constraints.md treats as a real gap, not a
  * closed one.
+ *
+ * `CRON_SECRET` (KH-T6) joined the same check: a production build
+ * (`VERCEL_ENV=production`) refuses to build without one of 32+ characters,
+ * in addition to `validateEnv`'s boot check. Both rules live in
+ * `src/api/build-env.ts`, a pure function, so they are tested without
+ * running a build.
  */
-if ((process.env.VERCEL || process.env.VERCEL_ENV) && !process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL) {
-  throw new Error(
-    "Missing required environment variable: NEXT_PUBLIC_R2_PUBLIC_BASE_URL — " +
-      "set it in Vercel's Production and Preview environments before building. " +
-      "See docs/h1-decisions.md.",
-  );
-}
+assertBuildEnv(process.env);
 
 const nextConfig: NextConfig = {
   // Transpile workspace packages so Next.js can resolve .ts source files

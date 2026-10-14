@@ -1,7 +1,12 @@
 import type { KabinetAccess } from "@opika/contracts";
 import { ModeratorIdSchema, ShelterAdminIdSchema, ShelterIdSchema } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import { decideAccess } from "./access";
+import {
+  assertShelterWritePolicyPermitted,
+  decideAccess,
+  SHELTER_WRITE_POLICY,
+  type ShelterWritePolicy,
+} from "./access";
 import type { KabinetPrincipal } from "./actor";
 
 const SHELTER = ShelterIdSchema.parse("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
@@ -28,11 +33,14 @@ const ACCESS: Record<string, KabinetAccess | null> = {
 /**
  * The matrix, transcribed by hand from addendum §1 (and proposal §6's
  * anon/adopter columns: an adopter cookie is not a kabinet session, so it
- * arrives here as `anonymous`). Not derived from `decideAccess` or from the
+ * arrives here as `anonymous`), with KH-Q1's write refusal in the shelter_admin
+ * row. Not derived from `decideAccess` or from the
  * contract's meta: a table read back from the code would agree with any bug.
  */
 const U = "UNAUTHENTICATED";
 const F = "FORBIDDEN";
+/** KH-Q1: a shelter admin's writes, refused with their own code until K2/K3. */
+const NOT_YET = "SHELTER_WRITES_NOT_YET_AVAILABLE";
 const EXPECTED: Record<string, Record<string, string>> = {
   //                 undeclared  shelter_read          shelter_write          registry          support_exit
   anonymous: { undeclared: U, shelter_read: U, shelter_write: U, registry: U, support_exit: U },
@@ -47,7 +55,7 @@ const EXPECTED: Record<string, Record<string, string>> = {
   shelter_admin: {
     undeclared: F,
     shelter_read: "allow_shelter_read",
-    shelter_write: "allow_shelter_write",
+    shelter_write: NOT_YET,
     registry: F,
     support_exit: F,
   },
@@ -67,12 +75,45 @@ const EXPECTED: Record<string, Record<string, string>> = {
   },
 };
 
-const outcome = (access: KabinetAccess | null, principal: KabinetPrincipal) => {
-  const decision = decideAccess(access, principal);
+/**
+ * With writes opened (what the K2/K3 PR flips `SHELTER_WRITE_POLICY` to),
+ * exactly one cell changes. Written as that one cell, by hand, so opening
+ * writes can't widen anything else.
+ */
+const OPEN_DELTA: Record<string, Record<string, string>> = {
+  shelter_admin: { shelter_write: "allow_shelter_write" },
+};
+
+const OPEN: ShelterWritePolicy = { kind: "open_for_tests_only" };
+
+const outcome = (
+  access: KabinetAccess | null,
+  principal: KabinetPrincipal,
+  policy: ShelterWritePolicy = SHELTER_WRITE_POLICY,
+) => {
+  const decision = decideAccess(access, principal, policy);
   return decision.kind === "deny" ? decision.code : decision.kind;
 };
 
-describe("the kabinet access matrix", () => {
+describe("the served write policy (KH-Q1)", () => {
+  it("refuses shelter writes until K2/K3 ship", () => {
+    expect(SHELTER_WRITE_POLICY).toEqual({ kind: "refused_until_edit_screens" });
+  });
+});
+
+describe("the kabinet access matrix, with writes opened (K2/K3)", () => {
+  for (const [principalName, principal] of Object.entries(PRINCIPALS)) {
+    for (const [accessName, access] of Object.entries(ACCESS)) {
+      const expected =
+        OPEN_DELTA[principalName]?.[accessName] ?? EXPECTED[principalName]?.[accessName];
+      it(`${principalName} × ${accessName} → ${expected}`, () => {
+        expect(outcome(access, principal, OPEN)).toBe(expected);
+      });
+    }
+  }
+});
+
+describe("the kabinet access matrix, as served (shelter writes refused, KH-Q1)", () => {
   it("has a row per principal and a column per access level", () => {
     expect(Object.keys(EXPECTED).sort()).toEqual(Object.keys(PRINCIPALS).sort());
     for (const row of Object.values(EXPECTED)) {
@@ -92,16 +133,57 @@ describe("the kabinet access matrix", () => {
 describe("the scope an allowed shelter call gets", () => {
   it("takes the shelter from the actor, for an admin and for a support view", () => {
     expect(
-      decideAccess(ACCESS.shelter_write ?? null, PRINCIPALS.shelter_admin ?? { kind: "anonymous" }),
+      decideAccess(
+        ACCESS.shelter_write ?? null,
+        PRINCIPALS.shelter_admin ?? { kind: "anonymous" },
+        OPEN,
+      ),
     ).toEqual({
       kind: "allow_shelter_write",
       scope: { kind: "shelter_admin", shelterId: SHELTER, shelterAdminId: ADMIN },
     });
     expect(
-      decideAccess(ACCESS.shelter_read ?? null, PRINCIPALS.support_view ?? { kind: "anonymous" }),
+      decideAccess(
+        ACCESS.shelter_read ?? null,
+        PRINCIPALS.support_view ?? { kind: "anonymous" },
+        SHELTER_WRITE_POLICY,
+      ),
     ).toEqual({
       kind: "allow_shelter_read",
       scope: { kind: "support_view", shelterId: SHELTER, moderatorId: MOD },
     });
+  });
+});
+
+/**
+ * KH-T1, Oleksii's condition: the test-only switch must fail on a deployed
+ * instance. The router applies this on every procedure
+ * (`shelter-writes-refused.test.ts` drives it through the served route).
+ */
+describe("the test-only open policy is refused on a deployed instance (KH-T1)", () => {
+  it.each([
+    ["NODE_ENV=production", { NODE_ENV: "production" }],
+    ["VERCEL_ENV=production", { NODE_ENV: "test", VERCEL_ENV: "production" }],
+    ["VERCEL_ENV=preview", { NODE_ENV: "development", VERCEL_ENV: "preview" }],
+    ["VERCEL_ENV=development", { VERCEL_ENV: "development" }],
+  ])("throws under %s", (_label, env) => {
+    expect(() => assertShelterWritePolicyPermitted(OPEN, env)).toThrow(/test-only/);
+  });
+
+  it.each([
+    ["NODE_ENV=test", { NODE_ENV: "test" }],
+    ["NODE_ENV=development, VERCEL_ENV blank", { NODE_ENV: "development", VERCEL_ENV: "" }],
+    ["nothing set", {}],
+  ])("allows it under %s (the handler suites)", (_label, env) => {
+    expect(() => assertShelterWritePolicyPermitted(OPEN, env)).not.toThrow();
+  });
+
+  it("never refuses the served policy, deployed or not", () => {
+    expect(() =>
+      assertShelterWritePolicyPermitted(SHELTER_WRITE_POLICY, {
+        NODE_ENV: "production",
+        VERCEL_ENV: "production",
+      }),
+    ).not.toThrow();
   });
 });

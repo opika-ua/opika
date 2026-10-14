@@ -42,7 +42,7 @@ const base = implement(registryContract).$context<KabinetContext>();
 
 /** The same access matrix as the shelter router, applied once per procedure. */
 const guarded = base.use(async ({ context, procedure, next }) =>
-  next({ context: { access: accessOrThrow(procedure, context.principal) } }),
+  next({ context: { access: accessOrThrow(procedure, context) } }),
 );
 
 /** The operator a registry handler acts as. Anything else reaching one is a wiring fault. */

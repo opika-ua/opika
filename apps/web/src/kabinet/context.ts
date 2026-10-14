@@ -1,5 +1,6 @@
 import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
+import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 
 /**
@@ -28,4 +29,6 @@ export type KabinetContext = {
   cookieHeader: string | null;
   /** `__Host-` cookies and Secure only in production. */
   production: boolean;
+  /** `SHELTER_WRITE_POLICY` everywhere outside the K2/K3 handler tests (KH-Q1). */
+  shelterWrites: ShelterWritePolicy;
 };
