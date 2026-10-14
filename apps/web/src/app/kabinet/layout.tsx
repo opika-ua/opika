@@ -10,8 +10,10 @@ import { kabinetAuthAvailability } from "../../kabinet/auth-route";
  * without `BETTER_AUTH_*`), `/api/auth/*` and `/api/kabinet/*` answer 503, and
  * these pages answer 404: a page that says "not available" would need
  * Ukrainian copy for a state no shelter is ever sent to, and a 404 claims
- * nothing about a feature that isn't live. Decided here once, for the whole
- * segment, so no page can forget it.
+ * nothing about a feature that isn't live. The layout's 404 covers pages
+ * that touch nothing, but it renders concurrently with its page and cannot
+ * stop one: a page that touches auth or the database calls
+ * `kabinetAuthOrNotFound()` itself, and joins `available-auth.test.ts`.
  *
  * Never indexed, whatever `SITE_IS_PUBLICLY_DISCOVERABLE` says: the cabinet is
  * not content.
