@@ -465,5 +465,9 @@ export const en = {
       invalid: `${COPY_PENDING} This link has already been used or has expired.`,
       requestNew: `${COPY_PENDING} Request a new link`,
     },
+    /** History lines (IN-Q14); see the Ukrainian catalogue. */
+    history: {
+      adminJoined: `${COPY_PENDING} {email} now has access to the cabinet`,
+    },
   },
 } as const;

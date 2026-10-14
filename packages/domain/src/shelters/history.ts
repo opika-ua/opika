@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ModeratorIdSchema } from "../primitives/ids";
+import { InvitationIdSchema, ModeratorIdSchema, ShelterAdminIdSchema } from "../primitives/ids";
 import { LocalizedTextSchema } from "../primitives/localized-text";
 import { ShelterActorSchema } from "./actor";
 import { ShelterContactSchema } from "./contact";
@@ -27,8 +27,9 @@ import { VerificationStatusSchema } from "./verification/state";
  * then finds every renderer.
  *
  * Who sees it: the operator, all of it. The shelter sees it too since RG-Q8,
- * through `shelterFacingHistoryOf`: no evidence, no moderator ids. K5 shows a
- * rejection from the current verification state, not from here.
+ * through `shelterFacingHistoryOf`: no evidence and no ids (moderator, admin
+ * or invitation). K5 shows a rejection from the current verification state,
+ * not from here.
  *
  * Only the shape lives here. Its table ships with its first writer (the
  * kabinet's registry procedures), not ahead of it.
@@ -129,6 +130,21 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     email: z.email(),
   }),
   /**
+   * An invited person accepted and became the shelter's admin (IN-Q14).
+   * Written only by the accept's own atomic statement (IN-Q12/IN-Q13), never
+   * after it. The joining user is the actor, so one id, not two. The email is
+   * the invitation's at join time, stored like its siblings' because history
+   * records what happened: resolving it at read time would show a changed
+   * address, or nothing, and so rewrite the record.
+   */
+  z.object({
+    kind: z.literal("admin_joined"),
+    at: z.date(),
+    shelterAdminId: ShelterAdminIdSchema,
+    invitationId: InvitationIdSchema,
+    email: z.email(),
+  }),
+  /**
    * An admin removed, or a pending invitation withdrawn (RG-Q6, RG-Q3).
    * Removing the last admin is allowed, and recorded like any other.
    */
@@ -169,6 +185,7 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "shelter_created":
     case "admin_invited":
     case "admin_invitation_resent":
+    case "admin_joined":
     case "admin_removed":
     case "animals_imported":
       return entry.at;

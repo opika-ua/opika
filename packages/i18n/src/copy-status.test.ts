@@ -257,3 +257,19 @@ describe("kabinet confirm page copy status (IN-Q11)", () => {
     ]);
   });
 });
+
+/**
+ * IN-Q14's `admin_joined` history line: Oleksii gave a draft, not final copy
+ * (`docs/h2-invite-copy-sheet.md` H), so it ships pending with the draft
+ * quoted inside the placeholder, as `confirm.submit` carries its working label.
+ */
+describe("kabinet history copy status (IN-Q14)", () => {
+  it("is all [COPY PENDING], every key", () => {
+    expect(pendingCopyKeys(uk.kabinet.history)).toEqual(["adminJoined"]);
+  });
+
+  it("keeps Oleksii's draft and its alternative inside the placeholder", () => {
+    expect(uk.kabinet.history.adminJoined).toContain("«{email} отримує доступ до кабінету»");
+    expect(uk.kabinet.history.adminJoined).toContain("«Новий адміністратор: {email}»");
+  });
+});
