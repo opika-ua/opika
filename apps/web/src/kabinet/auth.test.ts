@@ -17,6 +17,7 @@ import {
   KABINET_SESSION,
   type KabinetAuth,
   kabinetCookieName,
+  LIMITED_AUTH_PATHS,
 } from "./auth";
 import {
   handleKabinetAuth,
@@ -526,6 +527,19 @@ describe("what the route lets through", () => {
       "/api/auth/sign-in/magic-link",
       "/api/auth/sign-out",
     ]);
+  });
+
+  /**
+   * Review pass 2, finding 2: Better Auth's own limiter is off
+   * (`disableIpTracking`), so a forwarded path missing from
+   * `LIMITED_AUTH_PATHS` would have no limit at all. The sign-in request is
+   * the one exception: the route charges it against `signInLimiters`.
+   */
+  it("puts every forwarded path but the sign-in request behind the kabinet limiters", () => {
+    const unlimited = FORWARDED_AUTH_PATHS.map((path) => path.replace(/^\/api\/auth/, "")).filter(
+      (path) => path !== "/sign-in/magic-link" && !LIMITED_AUTH_PATHS.includes(path),
+    );
+    expect(unlimited).toEqual([]);
   });
 
   it.each([

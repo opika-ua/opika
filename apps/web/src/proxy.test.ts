@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NextRequest } from "next/server";
@@ -204,22 +205,174 @@ describe("proxy", () => {
 });
 
 /**
- * Review of the hardening, finding 3: the proxy runs on every route, so a
- * static import that reaches Better Auth loads it into every cold start,
- * `/tvaryny` included (measured in the inbox, KH-T4). Walks the proxy's
- * static relative imports (a dynamic `import()` is the sanctioned way in)
- * and fails if any file in that closure imports `better-auth` or the
- * database client.
+ * Review of the hardening, finding 3: the proxy runs on every route, so an
+ * import that reaches Better Auth or the database loads it into every cold
+ * start, `/tvaryny` included (measured in the inbox, KH-T4). Walks every
+ * import that runs when a module loads, follows the relative ones, and fails
+ * if anything reached imports Better Auth or the database.
+ *
+ * "Runs when a module loads" (review pass 2, finding 1) is wider than
+ * `import … from`: a side-effect `import "./x"`, an `export … from`, and an
+ * `import()` outside any function (a top-level `await import()`, or one in
+ * an object literal) all load their target with the module. An `import()`
+ * inside a function body or an arrow's body loads only when that runs,
+ * which is the sanctioned way in (`proxy.ts` reaches `kabinet/runtime` that
+ * way, on a `/kabinet` page load only).
+ *
+ * Telling the two apart needs scope, which a regex can't see. The repo's
+ * TypeScript (7) has no JS parser API, so this strips the types with Node's
+ * own `stripTypeScriptTypes` (positions kept, `import type` erased, since it
+ * loads nothing) and runs a small scanner over the JavaScript that tracks
+ * strings, comments, templates, regex literals and which braces open a
+ * function body. Its first test pins each of those cases.
  */
-describe("proxy.ts loads neither Better Auth nor the database statically", () => {
+describe("proxy.ts loads neither Better Auth nor the database at module load", () => {
   const SRC = dirname(fileURLToPath(import.meta.url));
-  const STATIC_IMPORT = /^\s*(?:import|export)\s[^;]*?from\s+"([^"]+)"/gm;
+
+  /** A `{` after `)` opens a function body unless the parenthesis belonged to one of these. */
+  const CONTROL_KEYWORDS = new Set(["if", "for", "while", "switch", "catch", "with", "await"]);
+  /** After these tokens a `/` starts a regex literal; after anything else it divides. */
+  const REGEX_FOLLOWS = new Set([
+    ..."(,=:[!&|?{};+-*%<>~^",
+    "",
+    "=>",
+    "return",
+    "typeof",
+    "case",
+    "do",
+    "else",
+    "in",
+    "of",
+    "void",
+    "await",
+    "yield",
+    "delete",
+    "new",
+    "throw",
+  ]);
+  /** An `import()` whose argument isn't a string literal: what it loads can't be checked. */
+  const COMPUTED = "<computed import()>";
+
+  /** Every module specifier `source` loads when it is itself loaded. */
+  function moduleLoadImports(source: string): string[] {
+    const code = stripTypeScriptTypes(source);
+    const found: string[] = [];
+    const braces: ("function" | "block" | "template")[] = [];
+    const parenKeywords: string[] = [];
+    const recent: string[] = [];
+    let closedParenKeyword = "";
+    let inTemplate = false;
+    let i = 0;
+    const prev = () => recent.at(-1) ?? "";
+    const push = (token: string) => {
+      recent.push(token);
+      if (recent.length > 4) recent.shift();
+    };
+    const inArrowBody = () =>
+      recent.filter((token) => token !== "await" && token !== "(").at(-1) === "=>";
+    const skipTo = (needle: string, from: number) => {
+      const at = code.indexOf(needle, from);
+      return at === -1 ? code.length : at + needle.length;
+    };
+
+    while (i < code.length) {
+      const ch = code[i] ?? "";
+      const next = code[i + 1] ?? "";
+      if (inTemplate) {
+        if (ch === "\\") i += 2;
+        else if (ch === "`") {
+          inTemplate = false;
+          push("`");
+          i++;
+        } else if (ch === "$" && next === "{") {
+          braces.push("template");
+          inTemplate = false;
+          push("{");
+          i += 2;
+        } else i++;
+      } else if (/\s/.test(ch)) {
+        i++;
+      } else if (ch === "/" && next === "/") {
+        i = skipTo("\n", i);
+      } else if (ch === "/" && next === "*") {
+        i = skipTo("*/", i + 2);
+      } else if (ch === '"' || ch === "'") {
+        i++;
+        while (i < code.length && code[i] !== ch) i += code[i] === "\\" ? 2 : 1;
+        i++;
+        push("string");
+      } else if (ch === "`") {
+        inTemplate = true;
+        i++;
+      } else if (ch === "/" && REGEX_FOLLOWS.has(prev())) {
+        let inClass = false;
+        i++;
+        while (i < code.length && (inClass || code[i] !== "/")) {
+          if (code[i] === "\\") i++;
+          else if (code[i] === "[") inClass = true;
+          else if (code[i] === "]") inClass = false;
+          i++;
+        }
+        i++;
+        while (/[a-z]/i.test(code[i] ?? "")) i++;
+        push("regex");
+      } else if (/[A-Za-z_$]/.test(ch)) {
+        const rest = code.slice(i);
+        const word = /^[\w$]+/.exec(rest)?.[0] ?? ch;
+        const isKeyword = prev() !== ".";
+        if (word === "import" && isKeyword) {
+          const dynamic = /^import\s*\(\s*(?:(["'])([^"']+)\1\s*[,)])?/.exec(rest);
+          if (dynamic !== null) {
+            if (!braces.includes("function") && !inArrowBody()) {
+              found.push(dynamic[2] ?? COMPUTED);
+            }
+          } else if (!/^import\s*\.\s*meta\b/.test(rest)) {
+            const statement = /^import\s+(?:[^"';]*?\s*from\s*)?(["'])([^"']+)\1/.exec(rest);
+            if (statement?.[2] !== undefined) found.push(statement[2]);
+          }
+        } else if (word === "export" && isKeyword) {
+          const reexport = /^export\s+[^"';]*?\bfrom\s*(["'])([^"']+)\1/.exec(rest);
+          if (reexport?.[2] !== undefined) found.push(reexport[2]);
+        }
+        push(word);
+        i += word.length;
+      } else if (ch === "(") {
+        parenKeywords.push(/^[\w$]+$/.test(prev()) ? prev() : "");
+        push("(");
+        i++;
+      } else if (ch === ")") {
+        closedParenKeyword = parenKeywords.pop() ?? "";
+        push(")");
+        i++;
+      } else if (ch === "{") {
+        const opensFunction =
+          prev() === "=>" || (prev() === ")" && !CONTROL_KEYWORDS.has(closedParenKeyword));
+        braces.push(opensFunction ? "function" : "block");
+        push("{");
+        i++;
+      } else if (ch === "}") {
+        if (braces.pop() === "template") inTemplate = true;
+        push("}");
+        i++;
+      } else if (ch === "=" && next === ">") {
+        push("=>");
+        i += 2;
+      } else {
+        push(ch);
+        i++;
+      }
+    }
+    return found;
+  }
 
   function closure(file: string, seen = new Set<string>()): Set<string> {
     if (seen.has(file)) return seen;
+    if (file.endsWith(".tsx")) {
+      // stripTypeScriptTypes rejects JSX: fail loudly rather than skip the file.
+      throw new Error(`${file}: the scanner reads .ts only, and a .tsx is now in the walk`);
+    }
     seen.add(file);
-    for (const match of readFileSync(file, "utf8").matchAll(STATIC_IMPORT)) {
-      const specifier = match[1] ?? "";
+    for (const specifier of moduleLoadImports(readFileSync(file, "utf8"))) {
       if (!specifier.startsWith(".")) continue;
       const base = resolve(dirname(file), specifier);
       const target = [`${base}.ts`, `${base}.tsx`, join(base, "index.ts")].find(existsSync);
@@ -228,24 +381,88 @@ describe("proxy.ts loads neither Better Auth nor the database statically", () =>
     return seen;
   }
 
+  const HEAVY = new RegExp(
+    [
+      String.raw`^better-auth(\/|$)`,
+      String.raw`^@better-auth\/`,
+      String.raw`^@opika\/db(\/|$)`,
+      String.raw`^postgres(\/|$)`,
+      String.raw`^drizzle-orm(\/|$)`,
+      String.raw`^@neondatabase\/`,
+      String.raw`\/api\/db$`,
+      String.raw`^\.\.?\/db$`,
+    ].join("|"),
+  );
+
   const heavyImports = (files: Set<string>) =>
     [...files].flatMap((file) =>
-      [...readFileSync(file, "utf8").matchAll(STATIC_IMPORT)]
-        .map((match) => match[1] ?? "")
-        .filter((specifier) => /^better-auth|\/api\/db$|^\.\.?\/db$/.test(specifier))
+      moduleLoadImports(readFileSync(file, "utf8"))
+        .filter((specifier) => specifier === COMPUTED || HEAVY.test(specifier))
         .map((specifier) => `${relative(SRC, file).replaceAll("\\", "/")}: ${specifier}`),
     );
 
-  it("sanity: the walk reaches the kabinet limiters and the page limit", () => {
+  it("the scanner counts what loads with the module, and nothing a function defers", () => {
+    const source = [
+      'import "./side-effect";',
+      'import type { Shape } from "./types-only";',
+      'import { a, type B } from "./named";',
+      'export { c } from "./reexport";',
+      'export * from "./star";',
+      'const lazy = await import("./top-level-await");',
+      'const table = { load: import("./object-literal") };',
+      "const computed = await import(name);",
+      'if (flag) { await import("./top-level-block"); }',
+      '// import "./commented-out";',
+      'const text = "import \\"./in-a-string\\"";',
+      "const re = /[{]/;",
+      "const url = import.meta.url;",
+      'export async function load(): Promise<void> { await import("./in-function"); }',
+      'const arrow = () => import("./arrow-expression");',
+      'const arrowBlock = async () => { await import("./arrow-block"); };',
+      'class K { method() { return import("./method"); } }',
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: source text for the scanner, holding a template on purpose
+      'const later = `${x}`; import("./after-template");',
+    ].join("\n");
+    expect(moduleLoadImports(source)).toEqual([
+      "./side-effect",
+      "./named",
+      "./reexport",
+      "./star",
+      "./top-level-await",
+      "./object-literal",
+      COMPUTED,
+      "./top-level-block",
+      "./after-template",
+    ]);
+  });
+
+  it.each([
+    "better-auth",
+    "better-auth/plugins",
+    "@better-auth/core",
+    "@opika/db",
+    "@opika/db/client",
+    "postgres",
+    "drizzle-orm/neon-http",
+    "@neondatabase/serverless",
+    "../api/db",
+    "./db",
+  ])("counts %s as heavy", (specifier) => {
+    expect(HEAVY.test(specifier)).toBe(true);
+  });
+
+  it("sanity: the walk reaches the kabinet limiters and the page limit, not the runtime", () => {
     const files = [...closure(join(SRC, "proxy.ts"))].map((f) =>
       relative(SRC, f).replaceAll("\\", "/"),
     );
     expect(files).toEqual(
       expect.arrayContaining(["kabinet/limiters.ts", "kabinet/page-limit.ts", "api/rate-limit.ts"]),
     );
+    // proxy.ts's own `import("./kabinet/runtime")` sits in a function body.
+    expect(files).not.toContain("kabinet/runtime.ts");
   });
 
-  it("finds no static import of better-auth or the database client", () => {
+  it("finds nothing reachable at module load that imports Better Auth or the database", () => {
     expect(heavyImports(closure(join(SRC, "proxy.ts")))).toEqual([]);
   });
 
