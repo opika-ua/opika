@@ -222,10 +222,11 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       // HS-Q8 pass 2).
       //
       // In the API's order (`handleKabinetRpc`): per IP first, before any
-      // query, then per user once the cookie names a live session. For a
-      // verify that is a browser already signed in; a verify from a fresh
-      // browser has no user until it succeeds, and its per-address cap is
-      // the 5 links an hour `signInLimiters` lets anyone be sent.
+      // query, then per user once the cookie names a live session. The verify
+      // reaches here only through the confirm page's server-side call, which
+      // forwards no cookie, so for it the per-user check never runs: it is
+      // charged per IP only, and its per-address cap is the 5 links an hour
+      // `signInLimiters` lets anyone be sent.
       before: createAuthMiddleware(async (ctx) => {
         const now = (deps.now ?? (() => new Date()))();
         const limited = ctx.request !== undefined && LIMITED_AUTH_PATHS.includes(ctx.path);

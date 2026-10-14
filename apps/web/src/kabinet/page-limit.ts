@@ -15,7 +15,9 @@ export const isKabinetPagePath = (pathname: string): boolean =>
  * except the sign-in confirm page's POST: that POST runs Better Auth's
  * verify server-side, through `auth.handler` with a request, and `auth.ts`'s
  * `hooks.before` already charges that call against these same limiters, per
- * IP and then per user (`LIMITED_AUTH_PATHS`). Charging the POST here too
+ * IP only: `forwardedClientHeaders` passes no cookie, so the inner request
+ * never names a session and the per-user check can't run for it
+ * (`LIMITED_AUTH_PATHS`; review of the #95 merge, finding 1). Charging the POST here too
  * would bill one sign-in twice on one budget (merge of #95 into the invite
  * PR). A POST the confirm route refuses before the verify (wrong Origin, no
  * token-shaped value) is charged nowhere; it reads no database and builds no
