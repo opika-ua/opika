@@ -185,15 +185,18 @@ describe("ShelterProfile (K4, read-only)", () => {
     expect(rowValue(t.registrationStatus)).toContain("14 березня 2025");
   });
 
+  /** The banner's title, filled the way `SupportBanner` fills it (EM-Q2). */
+  const bannerTitle = uk.kabinet.support.title.replaceAll("{shelter}", "Притулок «Домівка»");
+
   it("an admin gets sign-out and no support banner", () => {
     renderProfile();
     expect(screen.getByRole("button", { name: t.signOut })).toBeDefined();
-    expect(screen.queryByRole("region", { name: uk.kabinet.support.title })).toBeNull();
+    expect(screen.queryByRole("region", { name: bannerTitle })).toBeNull();
   });
 
   it("a support view gets the banner and the frame, sign-out disabled, and no sign-out button", () => {
     const { container } = renderProfile({}, "support");
-    const banner = screen.getByRole("region", { name: uk.kabinet.support.title });
+    const banner = screen.getByRole("region", { name: bannerTitle });
     expect(within(banner).getByRole("button", { name: uk.kabinet.support.exit })).toBeDefined();
     expect(
       within(banner).getByText(

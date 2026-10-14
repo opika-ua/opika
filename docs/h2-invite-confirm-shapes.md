@@ -13,6 +13,10 @@ signs in and accepts a pending invitation for that address. No «Прийнят�
 No fork or monkey-patch of Better Auth; prefer a thin route of our own that calls Better Auth's
 verification server-side on POST.
 
+**Superseded for the invite page (EM-Q3, Oleksii 2026-10-14):** its GET now shows one button and
+sends nothing; only that button's POST sends the magic link (`kabinet/invite-landing.ts`,
+`docs/decisions-inbox/feat-h2-invite-email.md` EM-Q3, EM-T9). The confirm page below is unchanged.
+
 ## 1. Routes
 
 | Path | Method | Does | Writes |

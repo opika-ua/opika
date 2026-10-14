@@ -4,7 +4,9 @@ import { uk } from "@opika/i18n";
  * `/kabinet` for a signed-in person whose invitation couldn't be accepted
  * this time (IN-Q12: "sees a clear message … and gets a retry"). The retry is
  * a plain link back to `/kabinet`, whose load runs the accept again. No mock
- * exists for this state: it reuses K1's card and type scale, nothing new.
+ * exists for this state: it reuses K1's card and type scale, nothing new
+ * (Oleksii, IN-T12 item 7: "reuse K1's card (approved), with its own heading
+ * key kabinet.confirm.joinFailedTitle").
  */
 const FOCUS =
   "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
@@ -21,7 +23,7 @@ export function JoinFailedCard() {
     >
       <div className="flex flex-col gap-2">
         <h1 id="join-failed-title" className={TITLE}>
-          {uk.kabinet.confirm.title}
+          {uk.kabinet.confirm.joinFailedTitle}
         </h1>
         <p role="alert" className={BODY}>
           {uk.kabinet.confirm.joinFailed}

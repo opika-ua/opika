@@ -161,7 +161,10 @@ describe(`a shelter membership is created by the automatic accept only — ${COP
 /**
  * HS-Q7 named one writer of `auth_invitation`. IN-Q13 (Oleksii, verbatim:
  * "This supersedes HS-Q7 for the automatic accept only") adds the accept,
- * which marks the invitation accepted inside its own statement; nothing else.
+ * which marks the invitation accepted inside its own statement, and IN-T12
+ * (Oleksii, 2026-10-14: "accept the newest and mark the older ones
+ * status=canceled in the same statement") lets that statement also cancel
+ * the address's other pending invitations to the shelter; nothing else.
  */
 const AUTH_INVITATION_WRITE =
   /\.(insert|update|delete)\(\s*(?:\w+\.)*authInvitation\b|(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:"?auth_invitation\b|\$\{\s*(?:\w+\.)*authInvitation\s*\})/gi;
@@ -186,7 +189,26 @@ describe("Better Auth's invitation table has exactly two writers (HS-Q7, IN-Q13)
     expect(writes.length, `${ACCEPT_MODULE} no longer writes auth_invitation`).toBeGreaterThan(0);
     expect(
       [...new Set(writes)],
-      `${ACCEPT_MODULE} may only mark invitations accepted (IN-Q13). ${COPY_GATE}`,
+      `${ACCEPT_MODULE} may only update invitations (IN-Q13, IN-T12). ${COPY_GATE}`,
     ).toEqual([".update(authInvitation"]);
+  });
+
+  /**
+   * The updates may set exactly two statuses: `accepted` for the one
+   * accepted (IN-Q13) and `canceled` for the duplicates it supersedes
+   * (IN-T12). A third (`rejected`, or `pending` written back) would be a new
+   * decision.
+   */
+  it("the accept sets only `accepted` and `canceled`", () => {
+    const source = readFileSync(join(REPO, ACCEPT_MODULE), "utf8");
+    const statuses = [...source.matchAll(/\.set\(\s*\{\s*status:\s*"([^"]*)"\s*\}\s*\)/g)].map(
+      (match) => match[1],
+    );
+    const sets = [...source.matchAll(/\.set\(/g)].length;
+    expect(sets, "every .set( in the accept is a plain status write").toBe(statuses.length);
+    expect([...new Set(statuses)].sort(), `${ACCEPT_MODULE}'s status writes`).toEqual([
+      "accepted",
+      "canceled",
+    ]);
   });
 });

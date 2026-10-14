@@ -37,7 +37,10 @@ sentence) stays true.
 > Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет,
 > якого не існує.
 
-**Now in `uk.ts`, provisional (Oleksii's own Ukrainian, 2026-10-14, answer 3, verbatim:
+**Oleksii's replacement, provisional, slated for the wiring commit; not in `uk.ts`** (EM-Q1,
+2026-10-14, verbatim: "(b). A2 keeps the current text; the new paragraph ships in the commit that
+turns production sign-in on." The live text stays the "Current" above until then;
+`docs/h2-next-prs.md` carries it.) **His paragraph (answer 3, verbatim:
 "A2: «Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду —
 змінити чи прибрати щось у ньому поки не можна.» (replacing A2's third paragraph)" and "Copy: put
 my A2 paragraph and the /pro sentence in as provisional. I'll give the final yes before #94
@@ -45,8 +48,8 @@ merges."):**
 > Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду —
 > змінити чи прибрати щось у ньому поки не можна.
 
-It describes the read-only kabinet this PR ships, not the K2 editing below; when K2 ships, the
-paragraph changes again.
+It describes the read-only kabinet, not the K2 editing below; when K2 ships, the paragraph changes
+again.
 
 **True after H2 (K2, later):**
 - The cabinet has a «Уже вдома» action per animal (K2). It takes the animal out of the gallery

@@ -596,6 +596,76 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     conflict.kind === "membership_conflict" && racedRow?.status === "pending",
     `${conflict.kind}, invitation ${racedRow?.status}`,
   );
+
+  // 17. IN-T12 (Oleksii, 2026-10-14): two pending invitations to the same shelter for one
+  // address; the accept takes the newest and cancels the older in the same statement, so none
+  // stays pending. The older is the registry's own invite; the newer is written straight in,
+  // as a re-invite racing the registry's one-pending rule would leave it.
+  const dupShelter = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} F` });
+  await insertShelterFromScript(
+    db,
+    {
+      ...dupShelter,
+      exactAddress: { ...dupShelter.exactAddress, cityId: city.id },
+      publicLocation: publicLocationOf(
+        dupShelter.id,
+        { ...dupShelter.exactAddress, cityId: city.id },
+        policy,
+      ),
+    },
+    by,
+  );
+  const dupEmail = `smoke-dup-${tag}@example.invalid`;
+  const olderInvite = await invitations.invite({
+    shelterId: dupShelter.id,
+    email: dupEmail,
+    name: "Smoke duplicate",
+    inviterUserId: operator,
+    ids: { invitationId: randomUUID(), userId: randomUUID(), organizationId: randomUUID() },
+    now: NOW,
+    history: { id: randomUUID(), entry: inviteEntry(dupEmail) },
+  });
+  if (olderInvite.kind !== "invited") {
+    check("accept: duplicates", false, `invite: ${olderInvite.kind}`);
+    return out;
+  }
+  const dupOrganization = await invitations.ensureOrganization(
+    dupShelter.id,
+    { organizationId: randomUUID() },
+    NOW,
+  );
+  const newerId = randomUUID();
+  await db.insert(authInvitation).values({
+    id: newerId,
+    organizationId: dupOrganization,
+    email: dupEmail,
+    role: "admin",
+    status: "pending",
+    expiresAt: later(3_600_000),
+    createdAt: later(1_000),
+    inviterId: operator,
+  });
+  await db.update(authUser).set({ emailVerified: true }).where(eq(authUser.id, olderInvite.userId));
+  const dupAccepted = await acceptRepo.accept({
+    userId: olderInvite.userId,
+    now: later(2_000),
+    ids: acceptIds(),
+  });
+  const dupRows = await db
+    .select({ id: authInvitation.id, status: authInvitation.status })
+    .from(authInvitation)
+    .where(eq(authInvitation.organizationId, dupOrganization));
+  const statusOf = (id: string) => dupRows.find((row) => row.id === id)?.status;
+  const stillPending = dupRows.filter((row) => row.status === "pending").length;
+  check(
+    "accept: duplicate invitations (newest accepted, older canceled, none pending)",
+    dupAccepted.kind === "accepted" &&
+      dupAccepted.invitationId === newerId &&
+      statusOf(newerId) === "accepted" &&
+      statusOf(olderInvite.invitationId) === "canceled" &&
+      stillPending === 0,
+    `${dupAccepted.kind}; newest ${statusOf(newerId)}, older ${statusOf(olderInvite.invitationId)}, ${stillPending} pending`,
+  );
   return out;
 }
 

@@ -109,6 +109,16 @@ is no Send button. `kabinet.inviteLanding.send` goes, and `body` + `sent` merge 
 When Better Auth refuses the send, the card reuses K1's `kabinet.signIn.sendFailed` rather than a
 new key.
 
+**Changed again by EM-Q3** (Oleksii, 2026-10-14, verbatim: "(b). The invite landing shows one
+«Надіслати посилання» button; only its POST sends. A GET sends nothing."): the page opens on one
+button, and the states above are what the button's press answers. The opening state looks nothing
+up, so it can't name the shelter; two keys added, both `[COPY PENDING]`:
+
+| Key | Where | English sense |
+|---|---|---|
+| `kabinet.inviteLanding.ready` | Under `pageTitle`, before anything is sent | Press the button and we will email a sign-in link to the address this invitation went to. (Not from Oleksii: added so the button isn't alone on the card; drop it if a bare heading and button read better.) |
+| `kabinet.inviteLanding.send` | The one button | Send the link. **Oleksii's draft (EM-Q3):** «Надіслати посилання». In code with the draft quoted inside. |
+
 ## P. The confirm page (IN-Q11)
 
 The page every emailed sign-in link opens. Its GET only shows the button; pressing it signs in
@@ -125,7 +135,8 @@ now as `[COPY PENDING]`, pinned in `copy-status.test.ts`.
 | `kabinet.confirm.requestNew` | Link under it, to K1 | Request a new link. |
 | `kabinet.confirm.invitationFor` | Under the heading, when a pending invitation exists (after IN-Q12) | You're joining «shelter name» (filled in). Not in code yet. |
 | `kabinet.confirm.joinFailed` | After «Увійти», and on `/kabinet`: signed in, but the invitation's accept failed (IN-Q12) | Couldn't join the shelter; try again. You are signed in; nothing was half-done. **Oleksii's draft (IN-Q12, not final):** «не вдалося приєднатися до притулку, спробуйте ще раз». In code as `[COPY PENDING]` with the draft quoted inside, pinned in `copy-status.test.ts`. |
-| `kabinet.confirm.joinRetry` | The link under `joinFailed` | Try again (reloads `/kabinet`, which runs the accept again). Not from Oleksii: added so the retry has a label. In code as `[COPY PENDING]`. |
+| `kabinet.confirm.joinFailedTitle` | Heading of the failed-accept answer, on the «Увійти» response and on `/kabinet`'s card (IN-T12 item 7) | You are signed in, but adding you to the shelter didn't work. **Oleksii's draft (2026-10-14, not final):** «Ви увійшли, але приєднати вас до притулку не вдалося». In code as `[COPY PENDING]` with the draft quoted inside. |
+| `kabinet.confirm.joinRetry` | The button under `joinFailed` | Try again (reloads `/kabinet`, which runs the accept again). **Oleksii's draft (2026-10-14, not final):** «Спробувати ще раз». In code as `[COPY PENDING]` with the draft quoted inside. |
 
 ## S. The support banner's title, renamed (Oleksii, 2026-10-14, answer 3)
 
@@ -134,10 +145,13 @@ Instead of changing the `/prytulkam` A3 sentence, the kabinet's support banner i
 
 | Key | Where | English sense | Oleksii's draft (verbatim, "copy sheet, draft") |
 |---|---|---|---|
-| `kabinet.support.title` | S5 banner, the first line | The operator is looking at your cabinet: view only, nothing changes. | «Олексій переглядає ваш кабінет — лише перегляд, нічого не змінюється» |
+| `kabinet.support.title` | S5 banner, the first line (the operator's own screen) | You are viewing the cabinet of «{shelter}»: view only, nothing can be changed. | «Ви переглядаєте кабінет притулку «{shelter}» — лише перегляд, змінити нічого не можна.» |
 
-The draft names the operator; the display name exists as config (`KABINET_OPERATOR_DISPLAY_NAME`,
-RS-Q2), so the final string may want `{operator}` instead of the literal name. Your call.
+**EM-Q2 (Oleksii, 2026-10-14, verbatim):** "the banner addresses the operator; no name
+hard-coded." The draft above replaces his first one («Олексій переглядає ваш кабінет — лише
+перегляд, нічого не змінюється»), which named him and spoke to the shelter. `{shelter}` is filled by
+`SupportBanner`. The banner's second line (`kabinet.support.body`) names the shelter too; whether
+both should is a copy question for the final pass.
 
 ## H. The shelter's history: an admin joined (IN-Q14)
 

@@ -321,6 +321,9 @@ describe("after sign-in, the invitation accept (IN-Q12)", () => {
     const html = await response.text();
     expect(html).toContain(`<p role="alert">${html_(uk.kabinet.confirm.joinFailed)}</p>`);
     expect(html).toContain(`<a href="/kabinet">${html_(uk.kabinet.confirm.joinRetry)}</a>`);
+    // Its own heading (IN-T12 item 7), not the sign-in one: they are signed in.
+    expect(html).toContain(`<h1>${html_(uk.kabinet.confirm.joinFailedTitle)}</h1>`);
+    expect(html).not.toContain(`<h1>${html_(uk.kabinet.confirm.title)}</h1>`);
     expect(html).not.toContain("<form");
     const session = await handleKabinetAuth(
       new Request(`${BASE}/api/auth/get-session`, {

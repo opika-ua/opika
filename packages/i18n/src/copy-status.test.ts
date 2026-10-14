@@ -252,6 +252,7 @@ describe("kabinet confirm page copy status (IN-Q11)", () => {
       "intro",
       "invalid",
       "joinFailed",
+      "joinFailedTitle",
       "joinRetry",
       "requestNew",
       "submit",
@@ -268,6 +269,19 @@ describe("kabinet confirm page copy status (IN-Q11)", () => {
     expect(uk.kabinet.confirm.joinFailed).toContain(
       "«не вдалося приєднатися до притулку, спробуйте ще раз»",
     );
+  });
+
+  /**
+   * IN-T12 item 7 (Oleksii, 2026-10-14, verbatim: "Failed-accept: reuse K1's
+   * card (approved), with its own heading key kabinet.confirm.joinFailedTitle.
+   * Drafts: title «Ви увійшли, але приєднати вас до притулку не вдалося»,
+   * button «Спробувати ще раз»."): drafts, so pending with the draft inside.
+   */
+  it("keeps Oleksii's failed-accept heading and button drafts inside the placeholders", () => {
+    expect(uk.kabinet.confirm.joinFailedTitle).toContain(
+      "«Ви увійшли, але приєднати вас до притулку не вдалося»",
+    );
+    expect(uk.kabinet.confirm.joinRetry).toContain("«Спробувати ще раз»");
   });
 });
 
@@ -319,6 +333,8 @@ describe("kabinet invite landing and reminder copy status (IN-T10, IN-E13)", () 
       "expired",
       "pageTitle",
       "rateLimited",
+      "ready",
+      "send",
       "sent",
       "signIn",
       "title",
@@ -334,29 +350,47 @@ describe("kabinet invite landing and reminder copy status (IN-T10, IN-E13)", () 
     expect(uk.kabinet.registry.inviteSent.tellPersonally).toContain("{sender}");
   });
 
-  it("the support banner's title carries Oleksii's rename as a draft, still pending", () => {
+  /**
+   * EM-Q2 (Oleksii, 2026-10-14, verbatim: "the banner addresses the operator;
+   * no name hard-coded. Draft: «Ви переглядаєте кабінет притулку «{shelter}» —
+   * лише перегляд, змінити нічого не можна.»"). His earlier draft named him
+   * and spoke to the shelter; it is gone.
+   */
+  it("the support banner's title carries Oleksii's operator-facing draft, still pending", () => {
     expect(pendingCopyKeys(uk.kabinet.support)).toContain("title");
     expect(uk.kabinet.support.title).toContain(
-      "«Олексій переглядає ваш кабінет — лише перегляд, нічого не змінюється»",
+      "«Ви переглядаєте кабінет притулку «{shelter}» — лише перегляд, змінити нічого не можна.»",
     );
+    expect(uk.kabinet.support.title).not.toContain("Олексій");
+  });
+
+  /**
+   * EM-Q3 (Oleksii, 2026-10-14, verbatim: "(b). The invite landing shows one
+   * «Надіслати посилання» button; only its POST sends."): his label is the
+   * draft inside the placeholder.
+   */
+  it("the landing's one button carries Oleksii's label as a draft, still pending", () => {
+    expect(uk.kabinet.inviteLanding.send).toContain("«Надіслати посилання»");
   });
 });
 
 /**
- * /prytulkam A2 (Oleksii, 2026-10-14, answer 3, provisional until his final
- * yes before #94 merges): the third paragraph is his, verbatim, and the
- * sentence a read-only kabinet made false is gone. The first two paragraphs
- * are pinned too, since only the third was to change.
+ * /prytulkam A2 (EM-Q1, Oleksii, 2026-10-14, verbatim: "(b). A2 keeps the
+ * current text; the new paragraph ships in the commit that turns production
+ * sign-in on."): PR #94 leaves the live text as it was, all three
+ * paragraphs. His replacement third paragraph («Кабінет притулку вже є…») is
+ * not in the catalogue until that wiring commit, which changes this pin in
+ * the same change (`docs/h2-next-prs.md`).
  */
 describe("/prytulkam A2 (forShelters.whenAnimalFindsHome)", () => {
   const paragraphs = uk.forShelters.whenAnimalFindsHome.split("\n\n");
 
-  it("has three paragraphs, the third Oleksii's provisional text", () => {
+  it("has three paragraphs, the third still the current text until production sign-in", () => {
     expect(paragraphs).toHaveLength(3);
     expect(paragraphs[2]).toBe(
-      "Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду — змінити чи прибрати щось у ньому поки не можна.",
+      "Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет, якого не існує.",
     );
-    expect(uk.forShelters.whenAnimalFindsHome).not.toContain("кабінет, якого не існує");
+    expect(uk.forShelters.whenAnimalFindsHome).not.toContain("Кабінет притулку вже є");
   });
 
   it("keeps the first two paragraphs as they were", () => {

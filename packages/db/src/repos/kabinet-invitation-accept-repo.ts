@@ -81,9 +81,10 @@ const membershipConflict = (error: unknown): boolean => {
  * failure writes `pending` back; a crash between the two strands "accepted,
  * no member", which no retry can recover, since only `pending` is accepted.
  *
- * Here the three facts (invitation accepted, membership, `admin_joined`
- * history) are **one statement**: a data-modifying CTE, so either all three
- * land or none does, with no transaction (neon-http has none). The session is
+ * Here the facts (invitation accepted, the address's other pending
+ * invitations to the same shelter canceled, membership, `admin_joined`
+ * history) are **one statement**: a data-modifying CTE, so either all land or
+ * none does, with no transaction (neon-http has none). The session is
  * not part of it: Better Auth creates that on sign-in, unchanged, and this
  * code never writes Better Auth's session row (Oleksii, IN-Q12). That is also
  * why the session's `active_organization_id`, which Better Auth's accept sets,
@@ -99,6 +100,17 @@ const membershipConflict = (error: unknown): boolean => {
  * and the user is not an operator. The one-membership rule is left to the
  * database's unique index, the only check two concurrent accepts can't both
  * pass, and its violation is mapped to `address_has_a_role`.
+ *
+ * The cancel is ours, not Better Auth's (IN-T12, Oleksii 2026-10-14,
+ * verbatim: "Duplicate pending invitations to the same shelter: accept the
+ * newest and mark the older ones status=canceled in the same statement."):
+ * a re-invite leaves the earlier invitation pending, and once the address
+ * has joined, a pending one left behind would only ever read as an
+ * outstanding invite. It writes `canceled`, Better Auth's own literal for a
+ * withdrawn invitation (`InvitationStatus`, and what `kabinetInvitationRepo`
+ * writes on withdraw), and touches only `status`, as Better Auth's own
+ * cancel does. No history line: superseding a duplicate is not removing a
+ * pending admin.
  *
  * Columns written are exactly the ones Better Auth's accept writes to the
  * invitation (`status`) and the member (`id`, `organization_id`, `user_id`,
@@ -165,10 +177,12 @@ export function kabinetInvitationAcceptRepo(db: Database) {
     },
 
     /**
-     * The one statement: invitation pending → accepted, the membership, and
-     * the `admin_joined` line, all or nothing. `written: false` means a rule
+     * The one statement: invitation pending → accepted, every other pending
+     * invitation for the same address and shelter → canceled, the membership,
+     * and the `admin_joined` line, all or nothing. `not_written` means a rule
      * no longer held when the statement ran (another tab accepted first, the
-     * invitation expired or was withdrawn): nothing was written.
+     * invitation expired or was withdrawn): nothing was written, the others
+     * included.
      */
     async write(input: {
       userId: string;
@@ -199,7 +213,32 @@ export function kabinetInvitationAcceptRepo(db: Database) {
               sql`NOT EXISTS (SELECT 1 FROM ${superAdmins} WHERE ${superAdmins.userId} = ${userId} AND ${superAdmins.revokedAt} IS NULL)`,
             ),
           )
-          .returning({ organizationId: authInvitation.organizationId, role: authInvitation.role }),
+          .returning({
+            organizationId: authInvitation.organizationId,
+            role: authInvitation.role,
+            email: authInvitation.email,
+          }),
+      );
+      // Runs only when "accepted" returned a row, so a refused accept cancels
+      // nothing. Every other pending one, not only older ones: the plan picked
+      // the newest, so they are older, unless a re-invite landed between the
+      // read and this statement; that one is canceled too, since the address
+      // has now joined and none may stay pending (IN-T12). Expired-but-pending
+      // rows included, for the same reason. Postgres runs a data-modifying
+      // CTE whether or not the outer statement reads it.
+      const superseded = db.$with("superseded").as(
+        db
+          .update(authInvitation)
+          .set({ status: "canceled" })
+          .where(
+            and(
+              eq(authInvitation.status, "pending"),
+              sql`${authInvitation.id} <> ${invitation.id}`,
+              // Tied to the row "accepted" actually wrote, not to the input.
+              sql`EXISTS (SELECT 1 FROM "accepted" WHERE "accepted"."organization_id" = ${authInvitation.organizationId} AND lower("accepted"."email") = lower(${authInvitation.email}))`,
+            ),
+          )
+          .returning({ id: authInvitation.id }),
       );
       const joined = db
         .$with("joined")
@@ -213,7 +252,7 @@ export function kabinetInvitationAcceptRepo(db: Database) {
         );
       try {
         const recorded = await db
-          .with(accepted, joined)
+          .with(accepted, superseded, joined)
           .insert(shelterHistory)
           .select(
             sql`SELECT ${historyRowSelect({ id: input.ids.historyId, entry }, sql`"s"."id"`)} FROM "joined" JOIN ${shelters} AS "s" ON "s"."organization_id" = "joined"."organization_id"`,

@@ -32,11 +32,23 @@ import type { AcceptInvitation, InvitationAcceptOutcome } from "./invitation-acc
  * `same-origin`: that sends the full URL, token included, as the Referer of
  * our own POST and into our own request logs.
  */
+export const CREDENTIAL_PAGE_REFERRER_POLICY = "strict-origin";
+
 export const CONFIRM_HEADERS = {
   "cache-control": "no-store",
   "x-robots-tag": "noindex, nofollow",
-  "referrer-policy": "strict-origin",
+  "referrer-policy": CREDENTIAL_PAGE_REFERRER_POLICY,
 } as const;
+
+/**
+ * Login CSRF's guard (IN-T7), shared with the invite landing's POST (EM-Q3):
+ * a form POST counts only when its `Origin` is exactly the site's own.
+ * Browsers send Origin on every form POST; a request without one, or with
+ * `Origin: null` (what `no-referrer` makes a browser send, IN-T8), is refused.
+ */
+export function isSameOriginPost(origin: string | null, baseURL: string): boolean {
+  return origin !== null && origin === new URL(baseURL).origin;
+}
 
 const VERIFY_PATH = "/api/auth/magic-link/verify";
 const SIGNED_IN_PATH = "/kabinet";
@@ -63,6 +75,9 @@ type PageState =
 
 function page(state: PageState, status: number): Response {
   const copy = uk.kabinet.confirm;
+  // The failed accept has its own heading (IN-T12 item 7): the person is
+  // signed in, so «sign in» would read as if they weren't.
+  const heading = state.kind === "join_failed" ? copy.joinFailedTitle : copy.title;
   const body = (() => {
     switch (state.kind) {
       case "confirm":
@@ -92,7 +107,7 @@ function page(state: PageState, status: number): Response {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>${escapeHtml(copy.title)}</title>
+<title>${escapeHtml(heading)}</title>
 <style>
 body{margin:0;font-family:system-ui,sans-serif;background:#faf7f2;color:#2b2622}
 main{max-width:400px;margin:0 auto;padding:48px 16px}
@@ -100,7 +115,7 @@ button{min-height:48px;width:100%;font:inherit;border:0;border-radius:8px;backgr
 button:focus-visible,a:focus-visible{outline:3px solid #2b2622;outline-offset:3px}
 </style>
 </head>
-<body><main><h1>${escapeHtml(copy.title)}</h1>
+<body><main><h1>${escapeHtml(heading)}</h1>
 ${body}
 </main></body>
 </html>`;
@@ -144,8 +159,9 @@ export async function handleKabinetConfirm(
   // A real Origin arrives only because the page's Referrer-Policy is not
   // `no-referrer` (CONFIRM_HEADERS, IN-T8): `test/harness/kabinet-confirm.harness.ts`
   // drives a real browser through it.
-  const origin = new URL(deps.availability.baseURL).origin;
-  if (request.headers.get("origin") !== origin) return plain("Forbidden", 403);
+  if (!isSameOriginPost(request.headers.get("origin"), deps.availability.baseURL)) {
+    return plain("Forbidden", 403);
+  }
 
   let token: unknown;
   try {

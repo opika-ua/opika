@@ -14,6 +14,7 @@ import {
 } from "@opika/db/schema";
 import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
 import type { ModeratorId, ShelterId } from "@opika/domain";
+import type { InvitationStatus } from "better-auth/plugins/organization";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { createKabinetAuth, type KabinetAuth } from "./auth";
@@ -403,6 +404,36 @@ describe("contract: our accept writes what Better Auth's accept writes (IN-Q13)"
       ORGANIZATION,
       null,
     ]);
+  });
+
+  /**
+   * IN-T12's cancel (Oleksii, 2026-10-14: "accept the newest and mark the
+   * older ones status=canceled"). Better Auth's accept cancels nothing, so
+   * there is no row of its to compare against; what must match is the
+   * literal, which has to be Better Auth's own for a canceled invitation
+   * (its exported `InvitationStatus` type; the runtime schema isn't
+   * exported), or its reads would see a status it doesn't know. `satisfies`
+   * makes a Better Auth upgrade that renames it a typecheck failure.
+   */
+  it("the older duplicate is canceled with Better Auth's own literal for it", async () => {
+    const older = "0ec0ec0e-0000-4000-8000-000000000006";
+    await db.insert(authInvitation).values({
+      id: older,
+      organizationId: ORGANIZATION,
+      email: EMAIL,
+      role: "admin",
+      status: "pending",
+      expiresAt: new Date(NOW.getTime() + 3_600_000),
+      createdAt: new Date(NOW.getTime() - 1000),
+      inviterId: OPERATOR,
+    });
+    await signIn();
+    const statuses = Object.fromEntries(
+      (await db.select().from(authInvitation)).map((row) => [row.id, row.status]),
+    );
+    const accepted = "accepted" satisfies InvitationStatus;
+    const canceled = "canceled" satisfies InvitationStatus;
+    expect(statuses).toEqual({ [INVITATION]: accepted, [older]: canceled });
   });
 
   it("Better Auth's own reads see our membership: the full organization and the members list", async () => {

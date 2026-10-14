@@ -1,3 +1,4 @@
+import { COPY_PENDING, uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 import { kabinetAuthAvailability } from "./auth-route";
 import { kabinetPendingCopy, productionSignInOf as withLiveCopy } from "./production-sign-in";
@@ -118,6 +119,42 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     expect(pending).toContain("kabinet.email.invite.subject");
     expect(pending).toContain("kabinet.signIn.title");
     expect(withLiveCopy(full)).toEqual({ kind: "off", reason: "copy_pending", pending });
+  });
+
+  /**
+   * Oleksii, 2026-10-14, item 5, verbatim: "Copy gate: full scope, every
+   * kabinet.* string, including ones without a visible screen yet." So the
+   * gate is the whole `uk.kabinet` subtree, walked here independently of
+   * `pendingCopyPaths`: every leaf string is either in the gate's list or one
+   * of the two written strings pinned by name, and the screenless ones are
+   * named explicitly so a narrower walk can't pass by rendering fewer.
+   */
+  it("covers every kabinet.* string, the ones with no screen yet included (item 5)", () => {
+    const leaves: string[] = [];
+    const written: string[] = [];
+    const walk = (node: unknown, path: string) => {
+      if (typeof node === "string") {
+        (node.startsWith(COPY_PENDING) ? leaves : written).push(path);
+      } else {
+        for (const [key, value] of Object.entries(node as object)) walk(value, `${path}.${key}`);
+      }
+    };
+    walk(uk.kabinet, "kabinet");
+    expect(written.sort(), "kabinet strings already written (not gated)").toEqual([
+      "kabinet.operatorFallbackName",
+      "kabinet.profileNotRecorded",
+    ]);
+    expect(kabinetPendingCopy()).toEqual(leaves.sort());
+    for (const screenless of [
+      "kabinet.history.adminJoined",
+      "kabinet.support.title",
+      "kabinet.registry.inviteSent.tellPersonally",
+      "kabinet.inviteLanding.send",
+      "kabinet.confirm.joinFailedTitle",
+      "kabinet.email.invite.what",
+    ]) {
+      expect(kabinetPendingCopy(), screenless).toContain(screenless);
+    }
   });
 
   it("one pending string anywhere under kabinet.* is enough, an email template's included", () => {

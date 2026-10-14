@@ -8,6 +8,7 @@ import { kabinetShelterRepo } from "../src/repos/kabinet-shelter-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { authInvitation, authMember, authUser, superAdmins } from "../src/schema/auth";
 import { shelterHistory } from "../src/schema/shelter-history";
+import { shelters } from "../src/schema/shelters";
 import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "../src/test-utils/index";
 
 /**
@@ -96,6 +97,21 @@ async function invitation(
 
 const statusOf = async (id: string) =>
   (await db.select().from(authInvitation).where(eq(authInvitation.id, id)))[0]?.status;
+/** The address's invitations to a shelter still `pending`, by id. */
+const pendingFor = async (email: string, shelterId: ShelterId) => {
+  const [shelter] = await db
+    .select({ organizationId: shelters.organizationId })
+    .from(shelters)
+    .where(eq(shelters.id, shelterId));
+  return (await db.select().from(authInvitation))
+    .filter(
+      (row) =>
+        row.organizationId === shelter?.organizationId &&
+        row.email.toLowerCase() === email.toLowerCase() &&
+        row.status === "pending",
+    )
+    .map((row) => row.id);
+};
 const joinedIn = async (shelterId: ShelterId) =>
   (await kabinetShelterRepo(db).historyOf(shelterId)).filter((e) => e.kind === "admin_joined");
 
@@ -146,20 +162,74 @@ describe("kabinetInvitationAcceptRepo.accept", () => {
     expect(await db.select().from(authMember)).toEqual([]);
   });
 
-  it("picks the newest of two pending invitations to the same shelter, then has nothing left to do", async () => {
-    const older = await invitation(shelterA, { createdAt: new Date(NOW.getTime() - 1000) });
-    const newer = await invitation(shelterA);
+  /**
+   * IN-T12 (Oleksii, 2026-10-14, verbatim: "Duplicate pending invitations to
+   * the same shelter: accept the newest and mark the older ones
+   * status=canceled in the same statement. Unit test: after accept, no
+   * pending invitation for that address and shelter remains.").
+   */
+  it("accepts the newest of the address's pending invitations to a shelter and cancels the older ones", async () => {
+    const oldest = await invitation(shelterA, { createdAt: new Date(NOW.getTime() - 2000) });
+    // Expired but still `pending` in the table: canceled too, none may stay pending.
+    const expired = await invitation(shelterA, {
+      createdAt: new Date(NOW.getTime() - 1000),
+      expiresAt: new Date(NOW.getTime() - 1),
+    });
+    const newest = await invitation(shelterA);
+    // Same shelter, another address; and the same address at another shelter.
+    const otherAddress = await invitation(shelterA, { email: "taras@example.org" });
+    const otherShelter = await invitation(shelterB, { createdAt: new Date(NOW.getTime() - 3000) });
+
     expect(await accepts().accept({ userId: user, now: NOW, ids: ids() })).toMatchObject({
       kind: "accepted",
-      invitationId: newer,
+      invitationId: newest,
     });
-    // The older one stays pending; the membership already exists, so: nothing.
+    expect(await statusOf(newest)).toBe("accepted");
+    expect([await statusOf(oldest), await statusOf(expired)]).toEqual(["canceled", "canceled"]);
+    expect(await pendingFor(EMAIL, shelterA)).toEqual([]);
+    // Untouched: another address at the same shelter, and this address elsewhere.
+    expect([await statusOf(otherAddress), await statusOf(otherShelter)]).toEqual([
+      "pending",
+      "pending",
+    ]);
+    expect(await db.select().from(authMember)).toHaveLength(1);
+    expect(await joinedIn(shelterA)).toHaveLength(1);
+  });
+
+  it("matches the address case-insensitively when canceling, as when accepting", async () => {
+    const older = await invitation(shelterA, {
+      email: "Olena@Example.org",
+      createdAt: new Date(NOW.getTime() - 1000),
+    });
+    await invitation(shelterA);
+    expect((await accepts().accept({ userId: user, now: NOW, ids: ids() })).kind).toBe("accepted");
+    expect(await statusOf(older)).toBe("canceled");
+  });
+
+  it("a re-run after the accept changes nothing", async () => {
+    const older = await invitation(shelterA, { createdAt: new Date(NOW.getTime() - 1000) });
+    const newer = await invitation(shelterA);
+    await accepts().accept({ userId: user, now: NOW, ids: ids() });
+    const before = await db.select().from(authInvitation);
     expect(await accepts().accept({ userId: user, now: NOW, ids: ids() })).toEqual({
       kind: "nothing_to_accept",
     });
-    expect(await statusOf(older)).toBe("pending");
+    expect(await db.select().from(authInvitation)).toEqual(before);
+    expect([await statusOf(newer), await statusOf(older)]).toEqual(["accepted", "canceled"]);
     expect(await db.select().from(authMember)).toHaveLength(1);
     expect(await joinedIn(shelterA)).toHaveLength(1);
+  });
+
+  it("a refused accept cancels nothing: an operator's duplicates all stay pending", async () => {
+    const older = await invitation(shelterA, { createdAt: new Date(NOW.getTime() - 1000) });
+    const newer = await invitation(shelterA);
+    await db
+      .insert(superAdmins)
+      .values({ id: crypto.randomUUID(), userId: user, grantedAt: NOW, revokedAt: null });
+    expect((await accepts().accept({ userId: user, now: NOW, ids: ids() })).kind).toBe(
+      "address_has_a_role",
+    );
+    expect([await statusOf(newer), await statusOf(older)]).toEqual(["pending", "pending"]);
   });
 
   /**
@@ -223,7 +293,8 @@ describe("kabinetInvitationAcceptRepo.write: the one statement", () => {
     expect(await db.select().from(authMember)).toHaveLength(1);
   });
 
-  it("an id collision on the last write undoes the first two: invitation pending, no member", async () => {
+  it("an id collision on the last write undoes the rest: invitations pending, none canceled, no member", async () => {
+    const older = await invitation(shelterA, { createdAt: new Date(NOW.getTime() - 1000) });
     const id = await invitation(shelterA);
     const plan = await accepts().plan(user, NOW);
     if (plan.kind !== "accept") throw new Error(`plan: ${plan.kind}`);
@@ -245,11 +316,13 @@ describe("kabinetInvitationAcceptRepo.write: the one statement", () => {
       }),
     ).rejects.toThrow();
     expect(await statusOf(id)).toBe("pending");
+    expect(await statusOf(older)).toBe("pending");
     expect(await db.select().from(authMember)).toEqual([]);
     expect(await joinedIn(shelterA)).toEqual([]);
   });
 
   it("writes nothing when the invitation stopped being pending between the read and the write", async () => {
+    const older = await invitation(shelterA, { createdAt: new Date(NOW.getTime() - 1000) });
     const id = await invitation(shelterA);
     const plan = await accepts().plan(user, NOW);
     if (plan.kind !== "accept") throw new Error(`plan: ${plan.kind}`);
@@ -257,6 +330,8 @@ describe("kabinetInvitationAcceptRepo.write: the one statement", () => {
     expect(
       await accepts().write({ userId: user, invitation: plan.invitation, now: NOW, ids: ids() }),
     ).toEqual({ kind: "not_written" });
+    // Nothing accepted, so nothing superseded.
+    expect(await statusOf(older)).toBe("pending");
     expect(await db.select().from(authMember)).toEqual([]);
     expect(await joinedIn(shelterA)).toEqual([]);
   });

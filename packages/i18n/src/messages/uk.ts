@@ -787,23 +787,14 @@ export const uk = {
       "«дзвоніть, ми скажемо точно», «влітку рідше».\n\n" +
       "Саме це робить решту карток вартими довіри. Коли видно, що ви оновлюєте інформацію " +
       "щосуботи, ваше «ця тварина ще шукає дім» означає рівно те, що написано.",
-    /**
-     * §9 — honest that the mechanism is a message handled by hand. Commitment 6.
-     *
-     * The third paragraph is Oleksii's own Ukrainian (2026-10-14, answer 3,
-     * relayed by the coordinating session), **provisional**: verbatim
-     * "Copy: put my A2 paragraph and the /pro sentence in as provisional.
-     * I'll give the final yes before #94 merges." It replaces «Окремої кнопки
-     * ще немає — не хочу обіцяти кабінет, якого не існує», which a read-only
-     * kabinet makes false. Paragraphs one and two are unchanged.
-     */
+    /** §9 — honest that the mechanism is a message handled by hand. Commitment 6. */
     whenAnimalFindsHome:
       "Найважливіше, що ви можете мені сказати, — що тварина знайшла дім. Важливіше, ніж додати нову.\n\n" +
       "Тварина, яка вже вдома, але досі в списку, — це єдине, що робить усі інші картки " +
       "недостовірними: людина дзвонить, чує «її забрали три місяці тому», і далі не вірить жодній " +
       "картці — ні вашій, ні чужій.\n\n" +
-      "Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду — " +
-      "змінити чи прибрати щось у ньому поки не можна.",
+      "Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет, " +
+      "якого не існує.",
     /**
      * §9b — how to leave. The largest unspoken objection on the page: the
      * first question anyone asks before handing their data to a stranger with
@@ -919,10 +910,14 @@ export const uk = {
     support: {
       /**
        * Renamed per Oleksii's answer 3 (2026-10-14), in place of changing the
-       * /prytulkam A3 sentence; his draft, verbatim and not final, is quoted
-       * inside the placeholder (`docs/h2-invite-copy-sheet.md` S).
+       * /prytulkam A3 sentence. EM-Q2 (Oleksii, 2026-10-14, verbatim: "the
+       * banner addresses the operator; no name hard-coded"): the banner is on
+       * the operator's own screen, so it speaks to them. His draft, verbatim
+       * and not final, is quoted inside the placeholder
+       * (`docs/h2-invite-copy-sheet.md` S). `{shelter}` is the shelter's name,
+       * filled by `SupportBanner`.
        */
-      title: `${COPY_PENDING} "The operator is looking at your cabinet: view only, nothing changes" (S5 banner title; Oleksii's draft «Олексій переглядає ваш кабінет — лише перегляд, нічого не змінюється»)`,
+      title: `${COPY_PENDING} "You are viewing the cabinet of «{shelter}»: view only, nothing can be changed" (S5 banner title, addressed to the operator; Oleksii's draft «Ви переглядаєте кабінет притулку «{shelter}» — лише перегляд, змінити нічого не можна.»)`,
       /** `{shelter}` is the shelter's name. */
       body: `${COPY_PENDING} "You are seeing «{shelter}»'s cabinet as its administrator sees it. Nothing can be changed here."`,
       exit: `${COPY_PENDING} "Leave support mode"`,
@@ -967,8 +962,9 @@ export const uk = {
     },
     /**
      * The invite landing (`/kabinet/vkhid?zaproshennia=<id>`, IN-Q11 and
-     * KS-Q2 A): opening it sends a sign-in link to the invited address, so
-     * there is no button and no address field. `{shelter}` and `{email}` (the
+     * KS-Q2 A, EM-Q3): opening it shows one button, and only that button's
+     * POST sends a sign-in link to the invited address; there is no address
+     * field. `{shelter}` and `{email}` (the
      * address masked, o•••@gmail.com) are filled by the page; `{minutes}` is
      * the magic link's lifetime. Keys and English sense:
      * `docs/h2-invite-copy-sheet.md` L.
@@ -983,6 +979,10 @@ export const uk = {
       alreadyAccepted: `${COPY_PENDING} "This invitation was already accepted; sign in as usual."`,
       rateLimited: `${COPY_PENDING} "Too many links were requested for this invitation; try again later."`,
       signIn: `${COPY_PENDING} "Go to sign-in" (link to the sign-in page)`,
+      /** What the page says before anything is sent: the GET looks nothing up (EM-Q3). */
+      ready: `${COPY_PENDING} "Press the button and we will email a sign-in link to the address this invitation went to." (above the one button, before anything is sent)`,
+      /** The one button; only its POST sends (EM-Q3). */
+      send: `${COPY_PENDING} "Send the link" (the one button; Oleksii's draft «Надіслати посилання», EM-Q3)`,
     },
     /**
      * What the operator's side shows after an invite (IN-E13). The sending
@@ -1011,7 +1011,14 @@ export const uk = {
        * «Увійти» response and on `/kabinet`; the person stays signed in.
        */
       joinFailed: `${COPY_PENDING} "Couldn't join the shelter. Try again." (signed in, the invitation not yet accepted; Oleksii's draft «не вдалося приєднатися до притулку, спробуйте ще раз», IN-Q12)`,
-      joinRetry: `${COPY_PENDING} "Try again" (link under joinFailed; reloads /kabinet, which retries the accept)`,
+      /**
+       * The failure answer's heading, on the «Увійти» response and on
+       * `/kabinet`'s `JoinFailedCard` (IN-T12 item 7, Oleksii 2026-10-14:
+       * "reuse K1's card (approved), with its own heading key"). His draft,
+       * verbatim, inside the placeholder.
+       */
+      joinFailedTitle: `${COPY_PENDING} "You are signed in, but adding you to the shelter didn't work" (heading of the failed-accept answer; Oleksii's draft «Ви увійшли, але приєднати вас до притулку не вдалося»)`,
+      joinRetry: `${COPY_PENDING} "Try again" (button under joinFailed; reloads /kabinet, which retries the accept; Oleksii's draft «Спробувати ще раз»)`,
     },
     /**
      * History lines (IN-Q14). Only `admin_joined` has a key so far; no

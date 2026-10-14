@@ -15,7 +15,10 @@ describe("JoinFailedCard", () => {
     expect(screen.getByRole("alert").textContent).toBe(uk.kabinet.confirm.joinFailed);
     const retry = screen.getByRole("link", { name: uk.kabinet.confirm.joinRetry });
     expect(retry.getAttribute("href")).toBe("/kabinet");
-    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
+    // Its own heading key (IN-T12 item 7), not the sign-in page's.
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      uk.kabinet.confirm.joinFailedTitle,
+    );
   });
 
   it("the retry carries focus-visible styling and a 56px target", () => {

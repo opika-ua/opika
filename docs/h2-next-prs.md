@@ -63,7 +63,10 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 
 - [ ] **The `/prytulkam` A1–A3 and B1 copy is live in this PR** (HS-Q3, commitments #6 and #7,
       `docs/h2-copy-sheet.md`). A false commitment sentence must never be live.
-      `no-self-serve-yet.test.ts` is changed here, which is the signal.
+      `no-self-serve-yet.test.ts` is changed here, which is the signal. **A2 is the exception**
+      (EM-Q1, Oleksii 2026-10-14, verbatim: "(b). A2 keeps the current text; the new paragraph ships
+      in the commit that turns production sign-in on."): #94 leaves it unchanged; see the wiring
+      commit's item below.
 - [x] **Magic-link provider:** Brevo (IN-E2, 2026-10-13), Resend the documented fallback, not set
       up. Gmail delivery test by `email:delivery-test` (IN-E5); ukr.net/i.ua postponed with a trigger
       (IN-E4); apex DMARC `p=reject` is a follow-up (IN-E3).
@@ -78,6 +81,16 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       verify, getSession, accept-invitation, the audited-write CTE, the listing jsonb
       compare-and-set, the deleteDraft 23503 catch, and the `last_updated_at` round-trip
       (S3-T6).
+- [x] **#94's statements on real Neon** (IN-Q9), Oleksii's run of 2026-10-14 as relayed by the
+      coordinating session: `db:neon-smoke` on `smoke-invite` (`ep-calm-math-b1ffs8rq`, a fresh
+      child of the production branch), run from the invite worktree: **16 passed, 0 failed**. Step 15
+      (the accept): accepted, then `nothing_to_accept` on re-run; 1 membership, 1 `admin_joined`
+      (idempotent on real Neon). Step 16 (the one-membership conflict on the neon-http driver):
+      typed `membership_conflict`, the invitation stays pending.
+- [ ] **Step 17, the duplicate-invitation cancel (IN-T12), on real Neon:** added after that run
+      (two pending invitations to one shelter → accept → newest accepted, older canceled, none
+      pending); passes locally on postgres-js only. Oleksii reruns it on `smoke-invite` (it lives
+      until 2026-10-21); 17/17 closes this item.
 - [ ] **The location key reaches the app, verified first** (RG-Q10; Oleksii, verbatim: "Invite PR
       rollout checklist, before the env schema change: I set the secret in Vercel (same value as
       the onboarding script's), then run location:verify against prod with that value → must
@@ -108,12 +121,18 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       (Oleksii, answer 7). That commit wires the provider-backed invitation sender with
       `cachedBlockList(config)` built once per process, so `registry.admins.blockedAddresses` reads
       Brevo instead of answering `unknown` (`unsupported_provider`).
+- [ ] **A2's new third paragraph ships here (EM-Q1)**, in the wiring commit itself (Oleksii,
+      verbatim: "(b). A2 keeps the current text; the new paragraph ships in the commit that turns
+      production sign-in on."). His provisional text is on `docs/h2-copy-sheet.md` A2; it still needs
+      his final yes. The same commit updates `copy-status.test.ts`'s A2 pin, commitments row 6 in
+      `docs/standing-constraints.md` and the `docs/marketing/brand-voice.md` note.
 - [ ] **The runtime boot check stays as the second guard** (IN-R2, Decision 1): production refuses
       to boot without them from the same commit, tested.
-- [ ] **The one-membership unique violation is a typed error, never a 500** (IN-Q8, IN-T1): in the
+- [x] **The one-membership unique violation is a typed error, never a 500** (IN-Q8, IN-T1): in the
       PR that first writes `auth_member` (auto-accept on first sign-in), `auth_member_user_id_unique`
       maps to `ADDRESS_HAS_A_ROLE` (`shelter_admin`), with a test that accepts two invitations for one
-      address and asserts the typed refusal.
+      address and asserts the typed refusal. Built in #94 (`kabinetInvitationAcceptRepo`), tested on
+      postgres-js, and verified on neon-http by the real-Neon smoke's step 16 above.
 - [ ] **`registry.admins.invite` refuses an operator's address** (RG-T10; Oleksii, verbatim: "RG-T10:
       accepted as an invite-PR item. It must land before admin:bootstrap."), so inviting an operator can
       never end in `conflicting_roles`. Lands before the rollout's `admin:bootstrap` step.

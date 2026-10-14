@@ -36,7 +36,8 @@ describe("the invite landing card (IN-T10, KS-Q2 A)", () => {
       text.startsWith(lead(uk.kabinet.signInCard.notArrived, "{contact}")),
     );
     expect(fallback.textContent).toContain("help@example.net");
-    // No field and no button: opening the page already sent the link (IN-Q11).
+    // No field and no button: the answer card follows the one button's POST,
+    // which already sent the link (EM-Q3); a second button would send again.
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
   });

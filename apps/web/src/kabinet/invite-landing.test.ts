@@ -14,6 +14,7 @@ import {
   inviteLandingOf,
   MAGIC_LINK_REQUEST_PATH,
   sendMagicLinkThroughAuth,
+  submitInviteLanding,
 } from "./invite-landing";
 import { capturingSender } from "./magic-link-sender";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
@@ -22,9 +23,11 @@ import { SIGN_IN_LIMITS } from "./sign-in-limit";
  * IN-T10: the invite landing (`/kabinet/vkhid?zaproshennia=<id>`). Real
  * Postgres, real Better Auth, its real magic-link endpoint reached through
  * `auth.handler`; only the email provider is a capture (IN-Q9: no real
- * sends). The page that renders this is a thin shell over `inviteLandingOf`
- * plus the card (`InviteLandingCard.test.tsx`), and answers 404 while
- * sign-in is unavailable through `kabinetAvailabilityOrNotFound`, as K1 does.
+ * sends). Since EM-Q3 only the button's POST runs any of this
+ * (`submitInviteLanding`, called by the `sendInviteLink` server action); the
+ * page's GET renders the button and nothing else
+ * (`app/kabinet/vkhid/invite-landing-get.test.ts`, and the harness drives it
+ * in a browser). Both answer 404 while sign-in is unavailable, as K1 does.
  */
 
 const BASE = "http://localhost:3000";
@@ -129,7 +132,7 @@ async function open(invitationId: string, d = deps()) {
   return landing;
 }
 
-describe("the invite landing's GET sends a fresh magic link to the invited address (IN-Q11)", () => {
+describe("the invite landing's POST sends a fresh magic link to the invited address (IN-Q11, EM-Q3)", () => {
   it("sends exactly one link, to the invitation's address, and says so with the address masked", async () => {
     const { invitationId } = await invitation("Olena@Example.org");
     const landing = await open(invitationId);
@@ -224,7 +227,7 @@ describe("rate limits: the existing sign-in budgets (IN-Q11, HS-Q5)", () => {
     expect(sender.sent).toEqual([]);
   });
 
-  it("charges the per-IP budget on every open, before the lookup, and reads the same for a guessed id", async () => {
+  it("charges the per-IP budget on every POST, before the lookup, and reads the same for a guessed id", async () => {
     const { invitationId } = await invitation();
     const shared = limiters(1000, 2);
     expect((await open(crypto.randomUUID(), deps({ limiters: shared }))).kind).toBe("unusable");
@@ -274,5 +277,52 @@ describe("Better Auth's own limit counts each visitor, not the instance (email-t
     }
     expect(results).toEqual(["sent", "sent", "sent", "sent", "sent", "send_failed"]);
     expect(sender.sent).toHaveLength(5);
+  });
+});
+
+/**
+ * EM-Q3 (Oleksii, 2026-10-14, verbatim: "(b). The invite landing shows one
+ * «Надіслати посилання» button; only its POST sends. A GET sends nothing."):
+ * the POST's own guard. The confirm page's same-origin rule (IN-T7), reused
+ * rather than copied, so a cross-site post can neither send nor spend.
+ */
+describe("submitInviteLanding: the button's POST (EM-Q3)", () => {
+  const submit = (origin: string | null, invitationId: unknown, d = deps()) =>
+    submitInviteLanding({ origin, invitationId }, { ...d, baseURL: BASE }).then(async (r) => {
+      await Promise.all(pending);
+      return r;
+    });
+
+  it("a same-origin POST sends exactly one link and answers as the landing does", async () => {
+    const { invitationId } = await invitation();
+    expect(await submit(BASE, invitationId)).toEqual({
+      kind: "sent",
+      shelterName: "Лапа допомоги",
+      maskedEmail: "o•••@example.org",
+    });
+    expect(sender.sent.map((m) => m.email)).toEqual(["olena@example.org"]);
+  });
+
+  it("a cross-site, origin-less or `null`-origin POST is forbidden: nothing sent, no budget spent", async () => {
+    const { invitationId } = await invitation();
+    const shared = limiters(1, 1);
+    for (const origin of ["https://attacker.example", null, "null", "http://localhost:3001"]) {
+      expect(
+        await submit(origin, invitationId, deps({ limiters: shared })),
+        String(origin),
+      ).toEqual({ kind: "forbidden" });
+    }
+    expect(sender.sent).toEqual([]);
+    // Both budgets (one each) are untouched: the real POST still sends.
+    expect((await submit(BASE, invitationId, deps({ limiters: shared }))).kind).toBe("sent");
+  });
+
+  it("a missing or non-text id reads as unusable and still costs the per-IP budget", async () => {
+    const shared = limiters(1000, 1);
+    expect(await submit(BASE, null, deps({ limiters: shared }))).toEqual({ kind: "unusable" });
+    expect(await submit(BASE, crypto.randomUUID(), deps({ limiters: shared }))).toEqual({
+      kind: "rate_limited",
+    });
+    expect(sender.sent).toEqual([]);
   });
 });

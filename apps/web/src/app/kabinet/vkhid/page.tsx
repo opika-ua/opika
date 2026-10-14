@@ -1,21 +1,19 @@
-import { kabinetInviteLandingRepo } from "@opika/db/repos";
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { clientIp } from "../../../api/client-ip";
 import { getDb } from "../../../api/db";
 import { leavesSignIn } from "../../../features/kabinet/home";
-import { InviteLandingCard } from "../../../features/kabinet/InviteLandingCard";
+import { InviteLandingForm } from "../../../features/kabinet/InviteLandingForm";
 import { KabinetBrand } from "../../../features/kabinet/KabinetBrand";
 import { SignInCard } from "../../../features/kabinet/SignInCard";
 import { MAGIC_LINK_TTL_SECONDS } from "../../../kabinet/auth";
+import { CREDENTIAL_PAGE_REFERRER_POLICY } from "../../../kabinet/confirm-route";
 import { INVITE_LINK } from "../../../kabinet/email-links";
 import { replyToAddressOf } from "../../../kabinet/email-provider";
-import { inviteLandingOf, sendMagicLinkThroughAuth } from "../../../kabinet/invite-landing";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
-import { signInLimiters } from "../../../kabinet/runtime";
-import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "../available-auth";
+import { kabinetAuthOrNotFound } from "../available-auth";
+import { sendInviteLink } from "./send-invite-link";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -31,12 +29,15 @@ export async function generateMetadata({
 }: {
   searchParams: Promise<SearchParams>;
 }): Promise<Metadata> {
-  return {
-    title:
-      invitationIdOf(await searchParams) === null
-        ? uk.kabinet.signIn.pageTitle
-        : uk.kabinet.inviteLanding.pageTitle,
-  };
+  return invitationIdOf(await searchParams) === null
+    ? { title: uk.kabinet.signIn.pageTitle }
+    : {
+        title: uk.kabinet.inviteLanding.pageTitle,
+        // The URL carries the invitation id: the button's POST then sends a
+        // real Origin (checked) and a Referer of the bare origin, never the
+        // id, as on the confirm page (IN-T8).
+        referrer: CREDENTIAL_PAGE_REFERRER_POLICY,
+      };
 }
 
 /**
@@ -46,9 +47,12 @@ export async function generateMetadata({
  * `20 16 24`.
  *
  * With `?zaproshennia=<id>` it is the invite landing instead (IN-T10,
- * `kabinet/invite-landing.ts`): opening it sends the invited address a
- * magic link, and the card says so. Same frame, same 404 while sign-in is
- * unavailable, same redirect home for a live session (which sends nothing).
+ * EM-Q3, `kabinet/invite-landing.ts`): one button, whose POST
+ * (`sendInviteLink`) sends the invited address a magic link. This GET looks
+ * nothing up, charges no budget and sends nothing, and it imports nothing
+ * that could (`invite-landing-get.test.ts` pins the imports). Same frame,
+ * same 404 while sign-in is unavailable, same redirect home for a live
+ * session.
  */
 export default async function SignInPage({
   searchParams,
@@ -58,7 +62,6 @@ export default async function SignInPage({
   // A live session goes home instead of sitting on a form that looks signed
   // out (review of #93, finding 1). While sign-in is unavailable this page
   // answers its own 404 before touching auth or the database.
-  const availability = kabinetAvailabilityOrNotFound();
   const auth = kabinetAuthOrNotFound();
   const requestHeaders = new Headers(await headers());
   const now = new Date();
@@ -76,17 +79,9 @@ export default async function SignInPage({
     invitationId === null ? (
       <SignInCard contact={contact} />
     ) : (
-      <InviteLandingCard
-        landing={
-          await inviteLandingOf(invitationId, {
-            lookup: (id) => kabinetInviteLandingRepo(getDb()).invitationOf(id),
-            limiters: signInLimiters,
-            ip: clientIp(new Request(availability.baseURL, { headers: requestHeaders })),
-            now,
-            sendMagicLink: (email) =>
-              sendMagicLinkThroughAuth(auth, availability.baseURL, email, requestHeaders),
-          })
-        }
+      <InviteLandingForm
+        invitationId={invitationId}
+        action={sendInviteLink}
         minutes={MAGIC_LINK_TTL_SECONDS / 60}
         contact={contact}
       />

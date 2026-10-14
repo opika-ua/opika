@@ -429,7 +429,7 @@ export const en = {
     },
     profileNotRecorded: "Not recorded",
     support: {
-      title: "The operator is looking at your cabinet: view only, nothing changes",
+      title: "You are viewing the cabinet of «{shelter}»: view only, nothing can be changed",
       body: "You are seeing «{shelter}»'s cabinet as its administrator sees it. Nothing can be changed here.",
       exit: "Leave support mode",
       exitFailed: "Could not leave support mode. Try again.",
@@ -467,6 +467,8 @@ export const en = {
       alreadyAccepted: `${COPY_PENDING} This invitation was already accepted; sign in as usual.`,
       rateLimited: `${COPY_PENDING} Too many links were requested for this invitation; try again later.`,
       signIn: `${COPY_PENDING} Go to sign-in`,
+      ready: `${COPY_PENDING} Press the button and we will email a sign-in link to the address this invitation went to.`,
+      send: `${COPY_PENDING} Send the link`,
     },
     /** The operator's reminder after an invite (IN-E13); see the Ukrainian catalogue. */
     registry: {
@@ -482,6 +484,7 @@ export const en = {
       invalid: `${COPY_PENDING} This link has already been used or has expired.`,
       requestNew: `${COPY_PENDING} Request a new link`,
       joinFailed: `${COPY_PENDING} Couldn't join the shelter. Try again.`,
+      joinFailedTitle: `${COPY_PENDING} You are signed in, but adding you to the shelter didn't work`,
       joinRetry: `${COPY_PENDING} Try again`,
     },
     /** History lines (IN-Q14); see the Ukrainian catalogue. */

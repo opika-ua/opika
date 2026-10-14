@@ -1,25 +1,39 @@
 import type { InviteLandingRow } from "@opika/db/repos";
 import type { KabinetAuth } from "./auth";
+import { isSameOriginPost } from "./confirm-route";
 import { maskAddress } from "./email-senders";
 import { forwardedClientHeaders } from "./forwarded-client-headers";
 import { normalizeEmail, type SignInLimiters } from "./sign-in-limit";
 
 /**
- * The invite landing, `/kabinet/vkhid?zaproshennia=<id>` (IN-Q11, Oleksii,
- * verbatim: "The invite email links to the invite page. Opening it sends a
- * fresh magic link to the invited address only, and changes nothing else.
- * It's GET-safe, because the only side effect is an email to the address
- * already on the invitation. Rate-limit it with the existing per-address
- * limits."). Its look is KS-Q2 A: K1's card, about the invitation, the
- * address fixed rather than a field, then «check your email».
+ * The invite landing, `/kabinet/vkhid?zaproshennia=<id>`. Its look is KS-Q2
+ * A: K1's card, about the invitation, the address fixed rather than a field.
  *
- * What it tells whom. Holding a live invitation id means having received the
- * invite email, so the page may name the shelter and the address (masked) to
- * whoever opens it (copy sheet L). Everything else reads alike:
+ * **Only a POST sends (EM-Q3, Oleksii 2026-10-14, verbatim: "(b). The invite
+ * landing shows one «Надіслати посилання» button; only its POST sends. A GET
+ * sends nothing. Test: a GET doesn't consume the per-address send budget.").**
+ * This replaces IN-Q11's "opening it sends" for the landing: mail scanners
+ * open every link (Brevo rewrites them all), and each scanner GET used to
+ * send an email and spend one of the address's five an hour, so the
+ * volunteer's own open could read `rate_limited`. The GET now renders one
+ * button and touches nothing: no lookup, no budget, no send
+ * (`app/kabinet/vkhid/page.tsx`, whose imports a test pins). Everything below
+ * runs on the button's POST, behind the confirm page's same-origin check
+ * (`isSameOriginPost`), the page carrying the same `strict-origin` Referrer-
+ * Policy so the browser sends a real Origin and never the id in a Referer.
+ *
+ * Why the GET doesn't look the invitation up: a lookup on GET would tell
+ * anyone holding an id (a scanner, a forwarded email, a guess) whether it is
+ * live, and naming the shelter on GET would need it. It costs one thing:
+ * an expired or accepted invitation is only said so after the tap.
+ *
+ * What the POST tells whom. Holding a live invitation id means having
+ * received the invite email, so the answer may name the shelter and the
+ * address (masked) (copy sheet L). Everything else reads alike:
  *
  * - an id nobody issued, a malformed one, an expired, withdrawn or rejected
- *   invitation: one `unusable` state, so the page never says which;
- * - the per-IP sign-in budget is charged before the lookup, on every open,
+ *   invitation: one `unusable` state, so the answer never says which;
+ * - the per-IP sign-in budget is charged before the lookup, on every POST,
  *   valid id or not, and running it out reads the same either way: guessing
  *   ids costs the guesser the same budget a sign-in attempt does, and learns
  *   nothing from the answer;
@@ -80,6 +94,21 @@ export async function inviteLandingOf(
   return accepted
     ? { kind: "sent", shelterName: row.shelterName, maskedEmail: maskAddress(email) }
     : { kind: "send_failed", shelterName: row.shelterName };
+}
+
+/**
+ * The button's POST (EM-Q3). A cross-site post is `forbidden` before
+ * anything is read or charged; the rest is `inviteLandingOf`. A missing or
+ * repeated id field is read as an unusable id, so it still costs the per-IP
+ * budget like any other guess.
+ */
+export async function submitInviteLanding(
+  submitted: { origin: string | null; invitationId: unknown },
+  deps: InviteLandingDeps & { baseURL: string },
+): Promise<InviteLanding | { kind: "forbidden" }> {
+  if (!isSameOriginPost(submitted.origin, deps.baseURL)) return { kind: "forbidden" };
+  const invitationId = typeof submitted.invitationId === "string" ? submitted.invitationId : "";
+  return inviteLandingOf(invitationId, deps);
 }
 
 /**
