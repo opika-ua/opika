@@ -31,7 +31,16 @@ export type KabinetHome =
       viewer: "admin" | "support";
     };
 
-export type KabinetHomeDeps = Pick<KabinetContext, "db" | "now" | "newId">;
+/**
+ * `invites` and `linkBaseURL` are the route's real values, not inert ones:
+ * `shelter.profile.get` reads neither today, but they are what the kabinet
+ * RPC route would give the same procedure, so a later change that starts
+ * reading them can't silently get a sender that claims a send it never made.
+ */
+export type KabinetHomeDeps = Pick<
+  KabinetContext,
+  "db" | "now" | "newId" | "invites" | "linkBaseURL"
+>;
 
 /**
  * Only `shelter.profile.get`, picked, never the whole router: a page render

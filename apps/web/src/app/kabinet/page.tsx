@@ -7,7 +7,7 @@ import { kabinetHomeOf } from "../../features/kabinet/home";
 import { ShelterProfile } from "../../features/kabinet/ShelterProfile";
 import { operatorDisplayName } from "../../kabinet/operator";
 import { kabinetIdentityOf } from "../../kabinet/principal";
-import { kabinetAuthOrNotFound } from "./available-auth";
+import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "./available-auth";
 
 export const metadata: Metadata = {
   title: uk.kabinet.profile.pageTitle,
@@ -21,6 +21,7 @@ export const metadata: Metadata = {
  */
 export default async function KabinetHomePage() {
   const auth = kabinetAuthOrNotFound();
+  const { invites, baseURL } = kabinetAvailabilityOrNotFound();
   const now = new Date();
   const production = process.env.NODE_ENV === "production";
   const db = getDb();
@@ -29,6 +30,8 @@ export default async function KabinetHomePage() {
     db,
     now,
     newId: () => crypto.randomUUID(),
+    invites,
+    linkBaseURL: baseURL,
   });
   switch (home.kind) {
     case "sign_in":

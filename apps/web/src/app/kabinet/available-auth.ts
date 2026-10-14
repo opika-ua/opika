@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { KabinetAuth } from "../../kabinet/auth";
-import { kabinetAuthAvailability } from "../../kabinet/auth-route";
+import { type KabinetAuthAvailability, kabinetAuthAvailability } from "../../kabinet/auth-route";
 import { kabinetAuth } from "../../kabinet/runtime";
 
 /**
@@ -12,6 +12,16 @@ import { kabinetAuth } from "../../kabinet/runtime";
  * 404 (review of #93, 2146c34 note 1).
  */
 export function kabinetAuthOrNotFound(): KabinetAuth {
-  if (kabinetAuthAvailability(process.env).kind === "unavailable") notFound();
+  kabinetAvailabilityOrNotFound();
   return kabinetAuth();
+}
+
+/** This environment's sign-in configuration (sender, invitation sender, base URL), or the page's own 404. */
+export function kabinetAvailabilityOrNotFound(): Extract<
+  KabinetAuthAvailability,
+  { kind: "available" }
+> {
+  const availability = kabinetAuthAvailability(process.env);
+  if (availability.kind === "unavailable") notFound();
+  return availability;
 }
