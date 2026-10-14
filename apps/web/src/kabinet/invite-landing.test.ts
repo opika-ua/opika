@@ -6,7 +6,7 @@ import {
 } from "@opika/db/repos";
 import { authInvitation, authUser, authVerification } from "@opika/db/schema";
 import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { createKabinetAuth, FORWARDED_AUTH_PATHS, type KabinetAuth } from "./auth";
 import {
@@ -109,13 +109,16 @@ async function setStatus(invitationId: string, status: string) {
     .values(rows.map((row) => (row.id === invitationId ? { ...row, status } : row)));
 }
 
+/** The landing's dependencies; `ip` is both the page's own per-IP key and the browser's forwarded header. */
 function deps(overrides: Partial<InviteLandingDeps> = {}): InviteLandingDeps {
+  const ip = overrides.ip ?? "203.0.113.7";
   return {
     lookup: (id) => kabinetInviteLandingRepo(db).invitationOf(id),
     limiters: limiters(),
-    ip: "203.0.113.7",
+    ip,
     now: new Date(),
-    sendMagicLink: (email) => sendMagicLinkThroughAuth(auth, BASE, email),
+    sendMagicLink: (email) =>
+      sendMagicLinkThroughAuth(auth, BASE, email, new Headers({ "x-forwarded-for": ip })),
     ...overrides,
   };
 }
@@ -232,5 +235,44 @@ describe("rate limits: the existing sign-in budgets (IN-Q11, HS-Q5)", () => {
       kind: "rate_limited",
     });
     expect(sender.sent).toEqual([]);
+  });
+});
+
+/**
+ * Better Auth's own limit on its magic-link path (5 per 60 s per client IP)
+ * is on in production (`rateLimit.enabled ?? isProduction`) and off under a
+ * test runner, so it is switched on here. The landing's request is built on
+ * the server: without the visitor's forwarded IP, Better Auth would count
+ * every landing open in the instance against one bucket (email-track review,
+ * finding 2; its probe: six invitees from six IPs gave five sent and one
+ * send_failed).
+ */
+describe("Better Auth's own limit counts each visitor, not the instance (email-track review, finding 2)", () => {
+  beforeEach(async () => {
+    (await auth.$context).rateLimit.enabled = true;
+  });
+  // Off again for anything after this block: it shares the auth instance (merge-fixes review, finding 2).
+  afterEach(async () => {
+    (await auth.$context).rateLimit.enabled = false;
+  });
+
+  it("six invitees opening from six IPs all get their link", async () => {
+    const results = [];
+    for (let i = 1; i <= 6; i++) {
+      const { invitationId } = await invitation(`invitee${i}@example.org`);
+      results.push((await open(invitationId, deps({ ip: `198.51.100.${i}` }))).kind);
+    }
+    expect(results).toEqual(["sent", "sent", "sent", "sent", "sent", "sent"]);
+    expect(sender.sent).toHaveLength(6);
+  });
+
+  it("six opens from one IP: Better Auth refuses the sixth, so it is limited per visitor", async () => {
+    const results = [];
+    for (let i = 1; i <= 6; i++) {
+      const { invitationId } = await invitation(`same-ip${i}@example.org`);
+      results.push((await open(invitationId, deps({ ip: "192.0.2.44" }))).kind);
+    }
+    expect(results).toEqual(["sent", "sent", "sent", "sent", "sent", "send_failed"]);
+    expect(sender.sent).toHaveLength(5);
   });
 });

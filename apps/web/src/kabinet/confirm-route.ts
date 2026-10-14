@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { KabinetAuth } from "./auth";
 import { CONFIRM_PATH } from "./auth";
 import type { KabinetAuthAvailability } from "./auth-route";
+import { forwardedClientHeaders } from "./forwarded-client-headers";
 import type { AcceptInvitation, InvitationAcceptOutcome } from "./invitation-accept";
 
 /**
@@ -156,11 +157,7 @@ export async function handleKabinetConfirm(
 
   const verifyUrl = new URL(VERIFY_PATH, deps.availability.baseURL);
   verifyUrl.searchParams.set("token", token);
-  const headers = new Headers();
-  for (const name of ["user-agent", "x-forwarded-for", "x-real-ip"]) {
-    const value = request.headers.get(name);
-    if (value !== null) headers.set(name, value);
-  }
+  const headers = forwardedClientHeaders(request.headers);
   // No callbackURL: Better Auth then answers 200 on success and redirects
   // only on failure. Its 200 body carries the session token, so it's never
   // passed on; only the cookie is.

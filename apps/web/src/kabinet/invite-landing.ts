@@ -1,6 +1,7 @@
 import type { InviteLandingRow } from "@opika/db/repos";
 import type { KabinetAuth } from "./auth";
 import { maskAddress } from "./email-senders";
+import { forwardedClientHeaders } from "./forwarded-client-headers";
 import { normalizeEmail, type SignInLimiters } from "./sign-in-limit";
 
 /**
@@ -85,20 +86,23 @@ export async function inviteLandingOf(
  * Better Auth's magic-link request for `email`, made server-side. `Origin` is
  * the site's own (Better Auth checks it on a POST); no `callbackURL`, since
  * the emailed link is the confirm page and sign-in always lands on
- * `/kabinet` (`docs/h2-invite-confirm-shapes.md` §1).
+ * `/kabinet` (`docs/h2-invite-confirm-shapes.md` §1). The visitor's client-IP
+ * headers come along (`forwardedClientHeaders`), so Better Auth's own limit
+ * on this path counts each visitor, not every landing open in the instance
+ * as one.
  */
 export async function sendMagicLinkThroughAuth(
   auth: Pick<KabinetAuth, "handler">,
   baseURL: string,
   email: string,
+  requestHeaders: Headers,
 ): Promise<boolean> {
   const url = new URL(MAGIC_LINK_REQUEST_PATH, baseURL);
+  const headers = forwardedClientHeaders(requestHeaders);
+  headers.set("content-type", "application/json");
+  headers.set("origin", url.origin);
   const response = await auth.handler(
-    new Request(url, {
-      method: "POST",
-      headers: { "content-type": "application/json", origin: url.origin },
-      body: JSON.stringify({ email }),
-    }),
+    new Request(url, { method: "POST", headers, body: JSON.stringify({ email }) }),
   );
   return response.ok;
 }

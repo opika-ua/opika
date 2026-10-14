@@ -236,3 +236,8 @@ Run every new string, caption, post or tagline through this:
   on its «ми»)
 - «Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет,
   якого не існує.» — the clearest single example of the voice refusing to over-promise.
+  *(Historical once PR #94 merges: a read-only kabinet makes its second sentence false, and #94
+  replaces it with A2's provisional third paragraph, «Поки що це просто: напишіть, і я приберу.
+  Кабінет притулку вже є, але лише для перегляду — змінити чи прибрати щось у ньому поки не
+  можна.», which awaits Oleksii's final yes (`docs/decisions-inbox/feat-h2-invite-email.md`,
+  EM-Q1). Kept here as an example of the voice, not as live copy.)*

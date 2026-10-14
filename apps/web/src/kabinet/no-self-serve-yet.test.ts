@@ -84,7 +84,7 @@ describe(`a shelter membership is created by the automatic accept only — ${COP
   it("exactly the accept module writes auth_member", () => {
     expect(
       filesMatching(
-        /\.(insert|update)\(\s*(?:\w+\.)*authMember\b|(INSERT\s+INTO|UPDATE)\s+"?auth_member\b/i,
+        /\.(insert|update)\(\s*(?:\w+\.)*authMember\b|(INSERT\s+INTO|UPDATE)\s+(?:"?auth_member\b|\$\{\s*(?:\w+\.)*authMember\s*\})/i,
       ),
       `Only ${ACCEPT_MODULE} may write auth_member (IN-Q12/IN-Q13). ${COPY_GATE}`,
     ).toEqual([ACCEPT_MODULE]);
@@ -163,12 +163,30 @@ describe(`a shelter membership is created by the automatic accept only — ${COP
  * "This supersedes HS-Q7 for the automatic accept only") adds the accept,
  * which marks the invitation accepted inside its own statement; nothing else.
  */
+const AUTH_INVITATION_WRITE =
+  /\.(insert|update|delete)\(\s*(?:\w+\.)*authInvitation\b|(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:"?auth_invitation\b|\$\{\s*(?:\w+\.)*authInvitation\s*\})/gi;
+
 describe("Better Auth's invitation table has exactly two writers (HS-Q7, IN-Q13)", () => {
   it("is kabinetInvitationRepo, and the automatic accept", () => {
+    expect(filesMatching(new RegExp(AUTH_INVITATION_WRITE.source, "i"))).toEqual([
+      ACCEPT_MODULE,
+      "packages/db/src/repos/kabinet-invitation-repo.ts",
+    ]);
+  });
+
+  /**
+   * IN-Q13 lets the accept mark an invitation accepted and nothing more; the
+   * file allowlist above would stay green if it later inserted or deleted
+   * invitations too (accept review, finding 3).
+   */
+  it("the accept's only write to it is .update(authInvitation)", () => {
+    const writes = [
+      ...readFileSync(join(REPO, ACCEPT_MODULE), "utf8").matchAll(AUTH_INVITATION_WRITE),
+    ].map((match) => match[0].replace(/\s+/g, ""));
+    expect(writes.length, `${ACCEPT_MODULE} no longer writes auth_invitation`).toBeGreaterThan(0);
     expect(
-      filesMatching(
-        /\.(insert|update|delete)\(\s*(?:\w+\.)*authInvitation\b|(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+"?auth_invitation\b/i,
-      ),
-    ).toEqual([ACCEPT_MODULE, "packages/db/src/repos/kabinet-invitation-repo.ts"]);
+      [...new Set(writes)],
+      `${ACCEPT_MODULE} may only mark invitations accepted (IN-Q13). ${COPY_GATE}`,
+    ).toEqual([".update(authInvitation"]);
   });
 });

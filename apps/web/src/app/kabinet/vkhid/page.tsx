@@ -83,7 +83,8 @@ export default async function SignInPage({
             limiters: signInLimiters,
             ip: clientIp(new Request(availability.baseURL, { headers: requestHeaders })),
             now,
-            sendMagicLink: (email) => sendMagicLinkThroughAuth(auth, availability.baseURL, email),
+            sendMagicLink: (email) =>
+              sendMagicLinkThroughAuth(auth, availability.baseURL, email, requestHeaders),
           })
         }
         minutes={MAGIC_LINK_TTL_SECONDS / 60}
