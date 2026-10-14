@@ -9,3 +9,20 @@ export const HARNESS_PRELAUNCH_GATE_SECRET = "test-prelaunch-gate-secret-for-har
 
 /** Gitignored (`test-results/`) — a per-run artifact, not checked in. */
 export const PRELAUNCH_GATE_STORAGE_STATE_PATH = "./test-results/prelaunch-gate-storage-state.json";
+
+/** Same literal apps/web/src/api/test-harness.ts uses — recognizable as the test secret, not a real one. */
+export const CURSOR_HMAC_SECRET = "test-hmac-secret-for-cursor-signing";
+
+/**
+ * H1: `validateEnv()` now requires this (`apps/web/src/api/env.ts`), and
+ * `next start` (`playwright.config.ts`) runs in production mode, so the webServer refuses to
+ * boot without it — found by actually running the harness after adding the
+ * requirement, not anticipated in advance. The seeded corpus only ever uses
+ * `seed-photos/*.jpg` placeholder keys (`packages/db/src/seed.ts`), which
+ * never route through this value at all (`isRealPhotoKey`,
+ * `apps/web/src/image-loader.ts`) — so the actual string here is
+ * unreachable by any harness assertion, same reasoning as
+ * `CURSOR_HMAC_SECRET` above being a recognizable placeholder, not a real
+ * secret.
+ */
+export const R2_PUBLIC_BASE_URL = "https://cdn.test.invalid";

@@ -1,8 +1,10 @@
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { defineConfig } from "@playwright/test";
 import {
+  CURSOR_HMAC_SECRET,
   HARNESS_PRELAUNCH_GATE_SECRET,
   PRELAUNCH_GATE_STORAGE_STATE_PATH,
+  R2_PUBLIC_BASE_URL,
 } from "./test/harness-env";
 
 /**
@@ -26,23 +28,6 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
  * host (`assertDisposableTestDatabase`).
  */
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
-
-/** Same literal apps/web/src/api/test-harness.ts uses — recognizable as the test secret, not a real one. */
-const CURSOR_HMAC_SECRET = "test-hmac-secret-for-cursor-signing";
-
-/**
- * H1: `validateEnv()` now requires this (`apps/web/src/api/env.ts`), and
- * `next start` below runs in production mode, so the webServer refuses to
- * boot without it — found by actually running the harness after adding the
- * requirement, not anticipated in advance. The seeded corpus only ever uses
- * `seed-photos/*.jpg` placeholder keys (`packages/db/src/seed.ts`), which
- * never route through this value at all (`isRealPhotoKey`,
- * `apps/web/src/image-loader.ts`) — so the actual string here is
- * unreachable by any harness assertion, same reasoning as
- * `CURSOR_HMAC_SECRET` above being a recognizable placeholder, not a real
- * secret.
- */
-const R2_PUBLIC_BASE_URL = "https://cdn.test.invalid";
 
 export default defineConfig({
   testDir: "./test/harness",

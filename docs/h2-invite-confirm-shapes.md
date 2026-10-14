@@ -38,11 +38,22 @@ ignores Better Auth's `url`. A `callbackURL` a caller passed to `sign-in/magic-l
 origin-checked by Better Auth (403 cross-origin, as today), and is then dropped: after sign-in
 the destination is always `/kabinet`.
 
-## 2. Headers, on every confirm response (GET, POST, 303, 400, 403)
+## 2. Headers, on every confirm response (GET, POST, 303, 400, 403, 404, 405)
 
 - `Cache-Control: no-store`
 - `X-Robots-Tag: noindex, nofollow`
-- `Referrer-Policy: no-referrer` (the GET's URL holds the token; nothing may carry it on)
+- `Referrer-Policy: strict-origin` (the GET's URL holds the token, so no Referer may carry its
+  path or query; IN-T8)
+
+**Revised 2026-10-14 (IN-T8, Oleksii's answer to the 9bd1411 review STOP).** This section
+originally said `no-referrer`, which contradicted C4: under `no-referrer` a browser sends
+`Origin: null` on the «Увійти» form POST (seen in Chromium by the review; in Firefox and
+Playwright's WebKit by `test/harness/kabinet-confirm.harness.ts`'s mutation run), so the Origin
+check refused every real sign-in. `strict-origin` sends only the origin, to every site
+including our own, so the POST carries a real `Origin` and C4's check stays exactly as is. Not
+`same-origin`: it sends the full URL, token included, as the Referer of our own POST and into
+our own request logs. Not `Sec-Fetch-Site`: Safari before 16.4 (iPhone 7 and older, stuck on
+iOS 15) couldn't sign in. Not a double-submit cookie: no new cookie.
 
 ## 3. Token lifecycle
 
@@ -114,7 +125,12 @@ which no retry can recover (it only accepts `pending`). That departure from HS-Q
 1. GET leaves the token valid: GET the emailed URL (twice), then POST succeeds.
 2. POST consumes it: 303 to `/kabinet`, session cookie set, `get-session` returns the user.
 3. A second POST fails as already used: 400, no cookie.
-4. Headers: the three, on the GET, the 303, the 400 and the 403.
+4. Headers: the three, on the GET, the 303, the 400, the 403, the 404 and the 405.
+
+`test/harness/kabinet-confirm.harness.ts` (added with IN-T8), real Chromium against the built
+app: open the emailed link, reload it, press «Увійти»; the POST carries our real `Origin` and
+a bare-origin Referer, answers 303 to `/kabinet`, sets the session cookie and `get-session`
+returns the user; no request's Referer contains `token=` or the confirm path.
 5. The emailed URL is the confirm page, on `BETTER_AUTH_URL`'s origin; Better Auth's verify URL
    appears nowhere in it.
 6. `GET /api/auth/magic-link/verify?token=<valid>` is 404 and the token still works after it.
@@ -131,7 +147,7 @@ lists three.
 | C1 | How the POST verifies | `auth.handler` with a built GET (no guard change) · `auth.api.magicLinkVerify` (guard allowlist change) · our own consume (fork-like) | **`auth.handler`**, default-taken (IN-T4) |
 | C2 | Token in the query vs the fragment | query (works without JS; in platform request logs, as before) · `#token` (never reaches a server log; needs JS to fill the form) | **query**, default-taken (IN-T5); a fragment is a small follow-up if you want it |
 | C3 | Page form | route handler, self-contained HTML (headers verified) · `page.tsx` in K1's card (headers asserted only; screens PR not on this branch) | **route handler**, default-taken (IN-T6); restyle once the screens PR lands |
-| C4 | Login CSRF on the POST | require `Origin` = our origin · none | **require it**, default-taken (IN-T7) |
+| C4 | Login CSRF on the POST | require `Origin` = our origin · none | **require it**, default-taken (IN-T7); works in a browser only with §2's `strict-origin` (IN-T8) |
 | D1 | Acceptance mechanism | §5 A · B · C | **A** — yours (Tier 1: membership writes; not built) |
 | D2 | Departing from HS-Q7 for the automatic accept | our one-statement CTE · Better Auth's `accept-invitation` via `auth.handler` (non-atomic on neon-http, see §5) | **the CTE** — yours |
 | D3 | A history entry for "joined" | new `admin_joined` kind in the domain union (Tier 1 domain change) · none | **add it** — yours |
