@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import { capturingInvitationSender } from "./email-senders";
+import { SHELTER_WRITE_POLICY } from "./access";
 import { handleKabinetRpc } from "./rpc-route";
 
 /**
@@ -61,6 +62,7 @@ async function asShelterAdmin(shelterId: string, path: string, input: unknown) {
     operatorDisplayName: "Олексій",
     locationPolicy: null,
     production: false,
+    shelterWrites: SHELTER_WRITE_POLICY,
   });
   return fromRpcBody(JSON.parse(await response.text())) as { items: unknown[] };
 }

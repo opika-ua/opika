@@ -1,5 +1,6 @@
 import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
+import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import type { InvitationSender } from "./email-senders";
 
@@ -33,4 +34,6 @@ export type KabinetContext = {
   invites: InvitationSender;
   /** The origin emailed links point at (`BETTER_AUTH_URL`), the same one the magic link uses. */
   linkBaseURL: string;
+  /** `SHELTER_WRITE_POLICY` everywhere outside the K2/K3 handler tests (KH-Q1). */
+  shelterWrites: ShelterWritePolicy;
 };

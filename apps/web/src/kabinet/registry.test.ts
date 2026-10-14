@@ -22,6 +22,7 @@ import {
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
+import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import {
   BLOCKED_MAX_PAGES,
@@ -92,6 +93,7 @@ async function call<T = Record<string, unknown>>(
     now?: Date;
     cookie?: string;
     locationPolicy?: typeof policy | null;
+    shelterWrites?: ShelterWritePolicy;
   } = {},
 ): Promise<Result<T>> {
   const headers: Record<string, string> = { "content-type": "application/json" };
@@ -122,6 +124,7 @@ async function call<T = Record<string, unknown>>(
     operatorDisplayName: "Олексій",
     locationPolicy: opts.locationPolicy === undefined ? policy : opts.locationPolicy,
     production: false,
+    shelterWrites: opts.shelterWrites ?? SHELTER_WRITE_POLICY,
   });
   const text = await response.text();
   let body: unknown = null;
@@ -659,8 +662,14 @@ describe("registry.donation.approve / reject (N20)", () => {
       const read = await call<RegistryShelterView>("registry.shelters.byId", { shelterId: s.id });
       const other = "https://send.monobank.ua/jar/zzz";
       expect(
-        (await call("shelter.profile.proposeDonation", { url: other }, { principal: asAdmin }))
-          .status,
+        // A K2-era proposal, so writes are opened for it (KH-Q1).
+        (
+          await call(
+            "shelter.profile.proposeDonation",
+            { url: other },
+            { principal: asAdmin, shelterWrites: { kind: "open_for_tests_only" } },
+          )
+        ).status,
       ).toBe(200);
       const stale = await call(`registry.donation.${decision}`, {
         shelterId: s.id,

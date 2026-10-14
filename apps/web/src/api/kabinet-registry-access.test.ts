@@ -4,6 +4,7 @@ import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db
 import type { ModeratorId, Shelter, ShelterAdminId } from "@opika/domain";
 import { testOnlyLocationPolicy } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { SHELTER_WRITE_POLICY } from "../kabinet/access";
 import type { KabinetPrincipal } from "../kabinet/actor";
 import { capturingInvitationSender } from "../kabinet/email-senders";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
@@ -71,6 +72,7 @@ async function call(path: string, input: unknown, principal: KabinetPrincipal) {
     operatorDisplayName: "Олексій",
     locationPolicy: testOnlyLocationPolicy("access-test"),
     production: false,
+    shelterWrites: SHELTER_WRITE_POLICY,
   });
   const text = await response.text();
   return { status: response.status, body: text ? fromRpcBody(JSON.parse(text)) : null };

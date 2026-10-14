@@ -12,6 +12,7 @@ import { eq, inArray } from "drizzle-orm";
 import { createDatabase, type Database } from "../src/client";
 import { productionEndpoint } from "../src/prod-guard";
 import { animalRepo } from "../src/repos/animal-repo";
+import { authExpiryRepo } from "../src/repos/auth-expiry-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { kabinetInvitationAcceptRepo } from "../src/repos/kabinet-invitation-accept-repo";
 import { kabinetInvitationRepo } from "../src/repos/kabinet-invitation-repo";
@@ -27,13 +28,16 @@ import {
   authMember,
   authSession,
   authUser,
+  authVerification,
   supportSessions,
 } from "../src/schema/auth";
 import { insertShelterFromScript, recordAnimalsImported } from "../src/script-history";
 import { makeAnimal, makeCity, makeShelter } from "../src/test-utils/fixtures";
 
 /**
- * `pnpm --filter @opika/db db:neon-smoke --expect ep-…`: runs every
+ * `pnpm --filter @opika/db db:neon-smoke --expect ep-…` (from a worktree:
+ * `PROD_NEON_ENDPOINT=ep-… pnpm --filter @opika/db db:neon-smoke --expect ep-…`,
+ * see below): runs every
  * multi-step statement the registry PR added, once, against a real Neon
  * branch through the production driver (neon-http), and reports a count per
  * statement. Oleksii, 2026-10-13: "Run 0011 there with --expect <that
@@ -53,6 +57,13 @@ import { makeAnimal, makeCity, makeShelter } from "../src/test-utils/fixtures";
  * production outright (no `--prod` here, ever): the production endpoint must
  * be known (`PROD_NEON_ENDPOINT`) and differ from the target. Prints the host
  * and counts only. Rows it writes stay on the branch, which is thrown away.
+ *
+ * Where `PROD_NEON_ENDPOINT` comes from: the shell first, else the repo-root
+ * `.env.local` **of the checkout the script runs from** (`productionEndpoint`,
+ * `src/prod-guard.ts`). A git worktree has no `.env.local` of its own, so run
+ * from a worktree, set it in the shell for the run (the endpoint id only,
+ * `ep-…`, never a URL); without it the script refuses, as it should. Seen on
+ * the real run of 2026-10-14 from a worktree: refused until it was set.
  */
 
 type Outcome = { name: string; ok: boolean; detail: string };
@@ -85,7 +96,9 @@ export function smokeTarget(
   if (!prodEndpoint) {
     return {
       kind: "refused",
-      reason: "PROD_NEON_ENDPOINT is unknown, so the target can't be shown not to be production",
+      reason:
+        "PROD_NEON_ENDPOINT is unknown, so the target can't be shown not to be production " +
+        "(a worktree has no .env.local: set it in the shell, the ep-… id only)",
     };
   }
   // Compared only once it is provably an endpoint id: a URL or a quoted value
@@ -665,6 +678,59 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       statusOf(olderInvite.invitationId) === "canceled" &&
       stillPending === 0,
     `${dupAccepted.kind}; newest ${statusOf(newerId)}, older ${statusOf(olderInvite.invitationId)}, ${stillPending} pending`,
+  );
+
+  // 18. the daily auth clean-up's one statement (KH-Q9): two data-modifying
+  // CTEs and their counts, through neon-http. Only rows already dead to
+  // Better Auth go; on a disposable branch that may include rows copied from
+  // production, so the counts are "at least" and this run's own rows are
+  // checked by id.
+  const expired = { session: randomUUID(), verification: randomUUID() };
+  const live = { session: randomUUID(), verification: randomUUID() };
+  await db.insert(authSession).values([
+    { ...session(operator), id: expired.session, expiresAt: later(-1000) },
+    { ...session(operator), id: live.session, expiresAt: later(86_400_000) },
+  ]);
+  const verification = (id: string, expiresAt: Date) => ({
+    id,
+    identifier: `smoke-${tag}-${id}`,
+    value: "{}",
+    expiresAt,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  await db
+    .insert(authVerification)
+    .values([
+      verification(expired.verification, later(-1000)),
+      verification(live.verification, later(900_000)),
+    ]);
+  const counts = await authExpiryRepo(db).deleteExpired(NOW);
+  const left = new Set([
+    ...(
+      await db
+        .select({ id: authSession.id })
+        .from(authSession)
+        .where(inArray(authSession.id, [expired.session, live.session]))
+    ).map((r) => r.id),
+    ...(
+      await db
+        .select({ id: authVerification.id })
+        .from(authVerification)
+        .where(inArray(authVerification.id, [expired.verification, live.verification]))
+    ).map((r) => r.id),
+  ]);
+  check(
+    "auth clean-up (expired verification + session, one statement)",
+    typeof counts.sessions === "number" &&
+      typeof counts.verifications === "number" &&
+      counts.sessions >= 1 &&
+      counts.verifications >= 1 &&
+      !left.has(expired.session) &&
+      !left.has(expired.verification) &&
+      left.has(live.session) &&
+      left.has(live.verification),
+    `deleted ${counts.verifications} verification(s), ${counts.sessions} session(s); this run's live rows kept ${left.has(live.session) && left.has(live.verification)}, expired gone ${!left.has(expired.session) && !left.has(expired.verification)}`,
   );
   return out;
 }

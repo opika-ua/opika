@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cronSecretProblem } from "./build-env";
 
 /**
  * Read a required environment variable, throwing at call time if missing.
@@ -222,5 +223,27 @@ export function validateEnv(): void {
         "UPSTASH_REDIS_REST_TOKEN (Upstash's own naming) must both be set on a real Vercel " +
         "deployment — set them in Production and Preview before the next deploy.",
     );
+  }
+
+  /**
+   * `CRON_SECRET` (KH-Q9/KH-T6, 2026-10-14): a production deployment refuses
+   * to boot without one of 32+ characters, the same "fail at boot, not on
+   * the first request" rule as every secret above. The rule itself
+   * (production only, the floor, the message) is `cronSecretProblem` in
+   * `build-env.ts`, shared with the build-time check in `next.config.ts`:
+   * the build checks the build's environment, this checks the server's,
+   * and either can differ from the other.
+   *
+   * `VERCEL_ENV === "production"` only, not `VERCEL`/any `VERCEL_ENV` like
+   * the Upstash check: Vercel runs crons on production deployments only, so
+   * a Preview has no caller for it, and the harness's `next start` sets
+   * neither.
+   *
+   * ⚠ Deploy-order note: set `CRON_SECRET` in Vercel's Production
+   * environment before this deploys, or the production build fails.
+   */
+  const cron = cronSecretProblem(process.env);
+  if (cron !== null) {
+    throw new Error(`Invalid or missing required environment variable(s): ${cron}.`);
   }
 }

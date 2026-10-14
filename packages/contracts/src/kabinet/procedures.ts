@@ -85,6 +85,16 @@ const shelterScopedErrors = {
 /** Shelter writes that compare-and-set on `version`. */
 const shelterCasErrors = { ...shelterScopedErrors, CONFLICT: apiErrors.CONFLICT } as const;
 
+/**
+ * Every shelter write starts here, so each one declares the refusal it gets
+ * while K2/K3 haven't shipped (`SHELTER_WRITES_NOT_YET_AVAILABLE`, inbox
+ * KH-Q1) and a typed client can handle it. Declared on the builder rather
+ * than per procedure, so a new write can't be added without it.
+ */
+const shelterWriteProcedure = kabinet.$meta(shelterWrite).errors({
+  SHELTER_WRITES_NOT_YET_AVAILABLE: apiErrors.SHELTER_WRITES_NOT_YET_AVAILABLE,
+});
+
 const registryErrors = {
   UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
   FORBIDDEN: apiErrors.FORBIDDEN,
@@ -101,7 +111,7 @@ const humanName = z.string().trim().min(1);
 // ─── shelter.profile ────────────────────────────────────────────────────────
 
 const shelterProfileRead = kabinet.$meta(shelterRead).output(KabinetShelterViewSchema);
-const shelterProfileWrite = kabinet.$meta(shelterWrite).output(KabinetShelterViewSchema);
+const shelterProfileWrite = shelterWriteProcedure.output(KabinetShelterViewSchema);
 
 export const shelterProfileContract = {
   get: shelterProfileRead.input(empty).errors(shelterScopedErrors),
@@ -188,7 +198,7 @@ export const KabinetListingEventInputSchema = z.discriminatedUnion("type", [
 ]);
 
 const animalRead = kabinet.$meta(shelterRead).output(KabinetAnimalViewSchema);
-const animalWrite = kabinet.$meta(shelterWrite).output(KabinetAnimalViewSchema);
+const animalWrite = shelterWriteProcedure.output(KabinetAnimalViewSchema);
 const animalMoveErrors = {
   ...shelterScopedErrors,
   NOT_FOUND: apiErrors.NOT_FOUND,
@@ -250,8 +260,7 @@ export const shelterAnimalsContract = {
       PUBLISH_REQUIREMENTS_UNMET: apiErrors.PUBLISH_REQUIREMENTS_UNMET,
     }),
   /** «Ще шукає»: one animal per call, never bulk (commitment #7). */
-  confirm: kabinet
-    .$meta(shelterWrite)
+  confirm: shelterWriteProcedure
     .input(animalRef)
     .output(z.object({ animal: KabinetAnimalViewSchema, undoUntil: z.date() }))
     .errors(animalMoveErrors),
@@ -259,8 +268,7 @@ export const shelterAnimalsContract = {
     .input(animalRef)
     .errors({ ...animalMoveErrors, UNDO_EXPIRED: apiErrors.UNDO_EXPIRED }),
   /** Only a never-published draft (HS-Q9); anything once public is withdrawn instead. */
-  deleteDraft: kabinet
-    .$meta(shelterWrite)
+  deleteDraft: shelterWriteProcedure
     .input(animalRef)
     .output(emptyOutput)
     .errors({ ...animalMoveErrors, WAS_PUBLISHED: apiErrors.WAS_PUBLISHED }),

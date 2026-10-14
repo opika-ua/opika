@@ -266,3 +266,42 @@ a real key resolves over HTTP are all unverified until this runs once for
 real. Treat the first real onboarding run as that verification, not as a
 formality — watch the upload log lines closely and check the resulting
 photo actually loads on the live detail page before trusting the rest.
+
+## Rotating `BETTER_AUTH_SECRET` (kabinet sign-in)
+
+Better Auth stores kabinet session tokens in plain text in `auth_session`
+(there is no supported hashing in 1.6.33; better-auth#11442 is open, recheck
+at the next Better Auth upgrade), so what keeps a leaked table row from being
+a working sign-in is the cookie's signature, made with `BETTER_AUTH_SECRET`.
+That value lives only in Vercel's environment: never in the database, the
+repo, a log or a local file. Rotate it on any suspected exposure (of the
+secret itself, or of the `auth_session` table together with anything that
+might have held the secret): generate a new value with `openssl rand -hex 32`,
+replace it in Vercel's Production environment, and redeploy. Every cookie
+signed with the old value stops verifying at once, so **every shelter admin
+and the operator are signed out** and sign in again with a fresh link. The
+old rows become unusable at once and are deleted by the daily auth clean-up
+once their 7-day expiry passes (inbox KH-Q9, KH-Q10).
+
+What rotation leaves alone, exactly. `CURSOR_HMAC_SECRET` and
+`LOCATION_HMAC_SECRET` sign with their own keys, the pre-launch gate checks
+its own `PRELAUNCH_GATE_SECRET`, and an adopter's anonymous device session is
+a random token stored as its hash, with no key at all. None of them read
+`BETTER_AUTH_SECRET`, so feed cursors, fuzzed locations, the gate cookie and
+adopters' sessions all keep working.
+
+What it also leaves alone, and this one matters: **a sign-in link sent in the
+last 15 minutes still works after the rotation.** Links are stored in
+`auth_verification` as a plain SHA-256 of the token, with no key, so the new
+secret doesn't invalidate them, and following one creates a fresh session
+signed with the new secret. If the exposure could include a link itself (a
+mailbox, a log line carrying the verify URL), finish with one more step after
+the redeploy: in Neon's SQL editor, on the production branch, run
+
+```sql
+DELETE FROM auth_verification;
+```
+
+The kabinet signs in by magic link only, so that table holds nothing but
+links not yet used (a used link's row is deleted when it's followed). The
+worst it does is make someone whose link was in flight ask for a new one.

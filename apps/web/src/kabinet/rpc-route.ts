@@ -1,9 +1,10 @@
 import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
 import { RPCHandler } from "@orpc/server/fetch";
-import type { RateLimiter } from "../api/rate-limit";
+import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import type { KabinetAuthAvailability } from "./auth-route";
+import { type KabinetLimiters, kabinetIpKey, kabinetUserKey } from "./rate-limits";
 import { registryRouter } from "./registry-router";
 import { shelterKabinetRouter } from "./router";
 
@@ -17,19 +18,6 @@ export const kabinetRouter = { ...shelterKabinetRouter, ...registryRouter };
 const handler = new RPCHandler(kabinetRouter);
 
 export const KABINET_RPC_PREFIX = "/api/kabinet";
-
-/**
- * HS-Q10 (Oleksii): the kabinet's own limits, on the shared Upstash store but
- * never the adopter budget (carrier NAT puts unrelated shelters and adopters
- * behind one IP). 100 a minute per signed-in user; 300 a minute per IP as a
- * backstop for everything under `/api/kabinet/*`, signed in or not.
- */
-export const KABINET_RATE_LIMITS = {
-  perUser: { windowMs: 60_000, maxRequests: 100 },
-  perIp: { windowMs: 60_000, maxRequests: 300 },
-} as const;
-
-export type KabinetLimiters = { perUser: RateLimiter; perIp: RateLimiter };
 
 const tooMany = () => new Response("Too Many Requests", { status: 429 });
 
@@ -60,9 +48,11 @@ export async function handleKabinetRpc(
     operatorDisplayName: string;
     locationPolicy: LocationPrivacyPolicy | null;
     production: boolean;
+    /** The served route passes `SHELTER_WRITE_POLICY` (KH-Q1). */
+    shelterWrites: ShelterWritePolicy;
   },
 ): Promise<Response> {
-  if (!(await deps.limiters.perIp.check(`ip:${deps.ip}`, deps.now))) return tooMany();
+  if (!(await deps.limiters.perIp.check(kabinetIpKey(deps.ip), deps.now))) return tooMany();
   if (deps.availability.kind === "unavailable") {
     return new Response("Kabinet is not available", { status: 503 });
   }
@@ -73,7 +63,7 @@ export async function handleKabinetRpc(
     return new Response("Registry is not available", { status: 503 });
   }
   const { principal, userId, db, cursorSecret } = await deps.resolve();
-  if (userId !== null && !(await deps.limiters.perUser.check(`user:${userId}`, deps.now))) {
+  if (userId !== null && !(await deps.limiters.perUser.check(kabinetUserKey(userId), deps.now))) {
     return tooMany();
   }
   const setCookies: string[] = [];
@@ -92,6 +82,7 @@ export async function handleKabinetRpc(
       production: deps.production,
       invites: deps.availability.invites,
       linkBaseURL: deps.availability.baseURL,
+      shelterWrites: deps.shelterWrites,
     },
   });
   if (!result.matched) return new Response("Not Found", { status: 404 });
