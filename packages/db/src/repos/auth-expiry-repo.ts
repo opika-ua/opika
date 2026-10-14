@@ -10,7 +10,7 @@ export type AuthExpiryCounts = { verifications: number; sessions: number };
  * auth_verification rows past expiry, and auth_session rows past expires_at."
  * and "Only rows Better Auth itself treats as dead."). The daily cron
  * (`apps/web/src/kabinet/auth-cleanup.ts`) is what the provisional /pro
- * sentence (KH-Q9: expired sign-in records deleted within a day) relies on:
+ * sentence (KH-C1: expired sign-in records deleted within two days) relies on:
  * Better Auth on its own deletes an expired session only when that session's
  * cookie comes back, which may be never.
  *

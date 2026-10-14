@@ -33,7 +33,9 @@ import { insertShelterFromScript, recordAnimalsImported } from "../src/script-hi
 import { makeAnimal, makeCity, makeShelter } from "../src/test-utils/fixtures";
 
 /**
- * `pnpm --filter @opika/db db:neon-smoke --expect ep-…`: runs every
+ * `pnpm --filter @opika/db db:neon-smoke --expect ep-…` (from a worktree:
+ * `PROD_NEON_ENDPOINT=ep-… pnpm --filter @opika/db db:neon-smoke --expect ep-…`,
+ * see below): runs every
  * multi-step statement the registry PR added, once, against a real Neon
  * branch through the production driver (neon-http), and reports a count per
  * statement. Oleksii, 2026-10-13: "Run 0011 there with --expect <that
@@ -53,6 +55,13 @@ import { makeAnimal, makeCity, makeShelter } from "../src/test-utils/fixtures";
  * production outright (no `--prod` here, ever): the production endpoint must
  * be known (`PROD_NEON_ENDPOINT`) and differ from the target. Prints the host
  * and counts only. Rows it writes stay on the branch, which is thrown away.
+ *
+ * Where `PROD_NEON_ENDPOINT` comes from: the shell first, else the repo-root
+ * `.env.local` **of the checkout the script runs from** (`productionEndpoint`,
+ * `src/prod-guard.ts`). A git worktree has no `.env.local` of its own, so run
+ * from a worktree, set it in the shell for the run (the endpoint id only,
+ * `ep-…`, never a URL); without it the script refuses, as it should. Seen on
+ * the real run of 2026-10-14 from a worktree: refused until it was set.
  */
 
 type Outcome = { name: string; ok: boolean; detail: string };
@@ -85,7 +94,9 @@ export function smokeTarget(
   if (!prodEndpoint) {
     return {
       kind: "refused",
-      reason: "PROD_NEON_ENDPOINT is unknown, so the target can't be shown not to be production",
+      reason:
+        "PROD_NEON_ENDPOINT is unknown, so the target can't be shown not to be production " +
+        "(a worktree has no .env.local: set it in the shell, the ep-… id only)",
     };
   }
   // Compared only once it is provably an endpoint id: a URL or a quoted value

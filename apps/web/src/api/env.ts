@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cronSecretProblem } from "./build-env";
 
 /**
  * Read a required environment variable, throwing at call time if missing.
@@ -225,29 +226,24 @@ export function validateEnv(): void {
   }
 
   /**
-   * `CRON_SECRET` (KH-Q9, 2026-10-14): the bearer Vercel sends to the daily
-   * auth clean-up (`kabinet/auth-cleanup.ts`), which refuses every call
-   * without it. Missing, the cron would fail closed every night, silently
-   * as far as the site goes, and the provisional /pro promise that expired
-   * sign-in records go within a day would be false with nothing red. So a
-   * production deployment refuses to boot without it, the same "fail at
-   * boot, not on the first request" rule as every secret above.
+   * `CRON_SECRET` (KH-Q9/KH-T6, 2026-10-14): a production deployment refuses
+   * to boot without one of 32+ characters, the same "fail at boot, not on
+   * the first request" rule as every secret above. The rule itself
+   * (production only, the floor, the message) is `cronSecretProblem` in
+   * `build-env.ts`, shared with the build-time check in `next.config.ts`:
+   * the build checks the build's environment, this checks the server's,
+   * and either can differ from the other.
    *
    * `VERCEL_ENV === "production"` only, not `VERCEL`/any `VERCEL_ENV` like
    * the Upstash check: Vercel runs crons on production deployments only, so
    * a Preview has no caller for it, and the harness's `next start` sets
-   * neither. 32 characters, generated like the others
-   * (`openssl rand -hex 32`).
+   * neither.
    *
    * ⚠ Deploy-order note: set `CRON_SECRET` in Vercel's Production
-   * environment before this deploys, or production stops booting.
+   * environment before this deploys, or the production build fails.
    */
-  if (process.env.VERCEL_ENV === "production" && (process.env.CRON_SECRET ?? "").length < 32) {
-    throw new Error(
-      "Invalid or missing required environment variable(s): CRON_SECRET must be at least 32 " +
-        "characters on a production deployment (the daily auth clean-up refuses every call " +
-        "without it) — generate with: openssl rand -hex 32, and set it in Vercel's Production " +
-        "environment.",
-    );
+  const cron = cronSecretProblem(process.env);
+  if (cron !== null) {
+    throw new Error(`Invalid or missing required environment variable(s): ${cron}.`);
   }
 }

@@ -86,14 +86,42 @@ describe("proxy", () => {
       expect(response.status).toBe(200);
     });
 
+    /**
+     * Oleksii, 2026-10-14 (KH-T5): "only /api/cron/auth-cleanup. Test that
+     * other /api/cron/* paths stay gated." Siblings, prefix extensions, child
+     * paths, a trailing slash, case and percent-encoded spellings: none of
+     * them is the exact pathname, so all stay behind the gate. (`%61` is "a",
+     * `%2D` is "-", `%2F` is "/"; the URL parser keeps them encoded in
+     * `pathname`, so they can only ever miss the exemption, never widen it.)
+     */
     it.each([
       "/api/cron",
+      "/api/cron/",
       "/api/cron/other",
       "/api/cron/auth-cleanupx",
+      "/api/cron/auth-cleanup-x",
+      "/api/cron/auth-cleanup.json",
       "/api/cron/auth-cleanup/x",
+      "/api/cron/auth-cleanup/extra",
+      "/api/cron/auth-cleanup/",
+      "/api/cron//auth-cleanup",
+      "/api/cron/other/auth-cleanup",
+      "/API/CRON/AUTH-CLEANUP",
+      "/api/cron/Auth-Cleanup",
+      "/api/cron/%61uth-cleanup",
+      "/api/cron/auth%2Dcleanup",
+      "/api/cron/auth-cleanup%2F",
+      "/api/cron/auth-cleanup%2Fextra",
+      "/api/cron%2Fauth-cleanup",
     ])("still gates %s: the exemption is that one exact path", async (path) => {
       const { proxy } = await import("./proxy");
       expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
+    });
+
+    it("exempts the path whatever its query string, since the route is the same", async () => {
+      const { proxy } = await import("./proxy");
+      const response = await proxy(request("https://opika.example/api/cron/auth-cleanup?x=1"));
+      expect(response.status).toBe(200);
     });
 
     it("denies the RPC endpoint just the same as a page route", async () => {
@@ -208,8 +236,9 @@ describe("proxy", () => {
  * Review of the hardening, finding 3: the proxy runs on every route, so an
  * import that reaches Better Auth or the database loads it into every cold
  * start, `/tvaryny` included (measured in the inbox, KH-T4). Walks every
- * import that runs when a module loads, follows the relative ones, and fails
- * if anything reached imports Better Auth or the database.
+ * import that runs when a module loads, follows the relative and `@/` ones
+ * (an unresolvable one throws), and fails if anything reached imports Better
+ * Auth or the database.
  *
  * "Runs when a module loads" (review pass 2, finding 1) is wider than
  * `import … from`: a side-effect `import "./x"`, an `export … from`, and an
@@ -217,7 +246,9 @@ describe("proxy", () => {
  * an object literal) all load their target with the module. An `import()`
  * inside a function body or an arrow's body loads only when that runs,
  * which is the sanctioned way in (`proxy.ts` reaches `kabinet/runtime` that
- * way, on a `/kabinet` page load only).
+ * way, on a `/kabinet` page load only), unless the function is invoked where
+ * it is defined: an IIFE's body runs with the module (review pass 3, finding
+ * 1). See `moduleLoadImports` for what the syntactic walk can't see.
  *
  * Telling the two apart needs scope, which a regex can't see. The repo's
  * TypeScript (7) has no JS parser API, so this strips the types with Node's
@@ -253,12 +284,46 @@ describe("proxy.ts loads neither Better Auth nor the database at module load", (
   /** An `import()` whose argument isn't a string literal: what it loads can't be checked. */
   const COMPUTED = "<computed import()>";
 
-  /** Every module specifier `source` loads when it is itself loaded. */
-  function moduleLoadImports(source: string): string[] {
-    const code = stripTypeScriptTypes(source);
+  /** Where the first pass found IIFEs, for the second to treat their bodies as module-load code. */
+  type ScanHints = {
+    /** Index of each `{` opening a function body that is invoked where it is defined. */
+    iifeBodies: ReadonlySet<number>;
+    /** Index of each grouping `(` whose `)` is immediately followed by a call `(`. */
+    invokedGroups: ReadonlySet<number>;
+  };
+  type ScanResult = {
+    found: string[];
+    /** Function body `{` index → its `}` index. */
+    functionBodies: Map<number, number>;
+    /** Grouping `(` index (an expression in parentheses, not a call's arguments) → its `)` index. */
+    groups: Map<number, number>;
+  };
+
+  /** The index of the next character that isn't whitespace or inside a comment. */
+  function nextSignificant(code: string, from: number): number {
+    let i = from;
+    while (i < code.length) {
+      if (/\s/.test(code[i] ?? "")) {
+        i++;
+      } else if (code.startsWith("//", i)) {
+        const end = code.indexOf("\n", i);
+        i = end === -1 ? code.length : end;
+      } else if (code.startsWith("/*", i)) {
+        const end = code.indexOf("*/", i + 2);
+        i = end === -1 ? code.length : end + 2;
+      } else {
+        return i;
+      }
+    }
+    return i;
+  }
+
+  function scan(code: string, hints: ScanHints): ScanResult {
     const found: string[] = [];
-    const braces: ("function" | "block" | "template")[] = [];
-    const parenKeywords: string[] = [];
+    const functionBodies = new Map<number, number>();
+    const groups = new Map<number, number>();
+    const braces: { kind: "function" | "block" | "template"; at: number; body: boolean }[] = [];
+    const parens: { keyword: string; at: number; group: boolean }[] = [];
     const recent: string[] = [];
     let closedParenKeyword = "";
     let inTemplate = false;
@@ -270,6 +335,20 @@ describe("proxy.ts loads neither Better Auth nor the database at module load", (
     };
     const inArrowBody = () =>
       recent.filter((token) => token !== "await" && token !== "(").at(-1) === "=>";
+    /**
+     * An arrow's expression body runs when the arrow does: `(() => import(…))()`
+     * runs it now. The arrow sits in the parenthesis that was innermost at its
+     * `=>`, which is the one below any `(` opened since.
+     */
+    const arrowInvokedNow = () => {
+      const opened = recent
+        .slice(recent.lastIndexOf("=>") + 1)
+        .filter((token) => token === "(").length;
+      const enclosing = parens.at(-1 - opened);
+      return enclosing !== undefined && hints.invokedGroups.has(enclosing.at);
+    };
+    const deferred = () =>
+      braces.some((brace) => brace.kind === "function") || (inArrowBody() && !arrowInvokedNow());
     const skipTo = (needle: string, from: number) => {
       const at = code.indexOf(needle, from);
       return at === -1 ? code.length : at + needle.length;
@@ -285,7 +364,7 @@ describe("proxy.ts loads neither Better Auth nor the database at module load", (
           push("`");
           i++;
         } else if (ch === "$" && next === "{") {
-          braces.push("template");
+          braces.push({ kind: "template", at: i, body: false });
           inTemplate = false;
           push("{");
           i += 2;
@@ -323,9 +402,7 @@ describe("proxy.ts loads neither Better Auth nor the database at module load", (
         if (word === "import" && isKeyword) {
           const dynamic = /^import\s*\(\s*(?:(["'])([^"']+)\1\s*[,)])?/.exec(rest);
           if (dynamic !== null) {
-            if (!braces.includes("function") && !inArrowBody()) {
-              found.push(dynamic[2] ?? COMPUTED);
-            }
+            if (!deferred()) found.push(dynamic[2] ?? COMPUTED);
           } else if (!/^import\s*\.\s*meta\b/.test(rest)) {
             const statement = /^import\s+(?:[^"';]*?\s*from\s*)?(["'])([^"']+)\1/.exec(rest);
             if (statement?.[2] !== undefined) found.push(statement[2]);
@@ -337,21 +414,33 @@ describe("proxy.ts loads neither Better Auth nor the database at module load", (
         push(word);
         i += word.length;
       } else if (ch === "(") {
-        parenKeywords.push(/^[\w$]+$/.test(prev()) ? prev() : "");
+        // After an operator, a keyword like `void`, or nothing, `(` groups an
+        // expression; after a name or `)` it holds a call's arguments.
+        parens.push({
+          keyword: /^[\w$]+$/.test(prev()) ? prev() : "",
+          at: i,
+          group: REGEX_FOLLOWS.has(prev()),
+        });
         push("(");
         i++;
       } else if (ch === ")") {
-        closedParenKeyword = parenKeywords.pop() ?? "";
+        const paren = parens.pop();
+        closedParenKeyword = paren?.keyword ?? "";
+        if (paren?.group) groups.set(paren.at, i);
         push(")");
         i++;
       } else if (ch === "{") {
-        const opensFunction =
+        const body =
           prev() === "=>" || (prev() === ")" && !CONTROL_KEYWORDS.has(closedParenKeyword));
-        braces.push(opensFunction ? "function" : "block");
+        // An IIFE's body runs now, so it scans as a plain block.
+        const kind = body && !hints.iifeBodies.has(i) ? "function" : "block";
+        braces.push({ kind, at: i, body });
         push("{");
         i++;
       } else if (ch === "}") {
-        if (braces.pop() === "template") inTemplate = true;
+        const brace = braces.pop();
+        if (brace?.kind === "template") inTemplate = true;
+        if (brace?.body) functionBodies.set(brace.at, i);
         push("}");
         i++;
       } else if (ch === "=" && next === ">") {
@@ -362,7 +451,102 @@ describe("proxy.ts loads neither Better Auth nor the database at module load", (
         i++;
       }
     }
-    return found;
+    return { found, functionBodies, groups };
+  }
+
+  /**
+   * Every module specifier `source` loads when it is itself loaded.
+   *
+   * Two passes over the same code. The first finds every function body and
+   * every parenthesised expression; between them, the IIFEs are worked out
+   * from what follows each closing `}` or `)`: `function () {…}()`,
+   * `(function () {…})()`, `(async () => {…})()`, `void (async () => {…})()`
+   * and `(() => import(…))()` all run their body as the module loads (review
+   * pass 3, finding 1). The second pass scans those bodies as plain blocks.
+   *
+   * The walk is syntactic. It cannot know that a function *passed* somewhere
+   * runs at once (`run(() => import(…))`, `new Promise((r) => …)`,
+   * `[x].forEach(…)`, `fn.call(…)`), so those read as deferred: a known blind
+   * spot, kept small by `proxy.ts` having no such call at module scope. Where
+   * it guesses the other way (`function f() {…}` followed by a statement that
+   * starts with `(`, a curried `g(() => {…})(x)`), it over-counts, which can
+   * only turn the check red, never green.
+   */
+  function moduleLoadImports(source: string): string[] {
+    const code = stripTypeScriptTypes(source);
+    const first = scan(code, { iifeBodies: new Set(), invokedGroups: new Set() });
+    const invokedGroups = new Set(
+      [...first.groups]
+        .filter(([, close]) => code[nextSignificant(code, close + 1)] === "(")
+        .map(([open]) => open),
+    );
+    const groupClosingAt = new Map([...first.groups].map(([open, close]) => [close, open]));
+    const iifeBodies = new Set(
+      [...first.functionBodies]
+        .filter(([, close]) => {
+          const after = nextSignificant(code, close + 1);
+          if (code[after] === "(") return true; // function () {…}()
+          const group = groupClosingAt.get(after); // (function () {…})(), (() => {…})()
+          return group !== undefined && invokedGroups.has(group);
+        })
+        .map(([open]) => open),
+    );
+    return scan(code, { iifeBodies, invokedGroups }).found;
+  }
+
+  /**
+   * `tsconfig.json`'s `paths`, as prefix → directory (`@/` → `src/`), so the
+   * walk follows an aliased import instead of passing it by as a package
+   * (review pass 3, finding 3: before, `import "@/kabinet/runtime"` went red
+   * only because vitest couldn't resolve the alias). Only the `prefix/*` →
+   * `[dir/*]` shape is understood; anything else throws rather than being
+   * ignored. The file has comments, but only whole-line ones.
+   */
+  function tsconfigAliases(): Map<string, string> {
+    const appRoot = resolve(SRC, "..");
+    const raw = readFileSync(join(appRoot, "tsconfig.json"), "utf8");
+    const config = JSON.parse(raw.replace(/^\s*\/\/.*$/gm, "")) as {
+      compilerOptions?: { paths?: Record<string, string[]> };
+    };
+    const aliases = new Map<string, string>();
+    for (const [key, targets] of Object.entries(config.compilerOptions?.paths ?? {})) {
+      const target = targets.length === 1 ? targets[0] : undefined;
+      if (!key.endsWith("/*") || target === undefined || !target.endsWith("/*")) {
+        throw new Error(`tsconfig paths entry ${key}: only "prefix/*": ["dir/*"] is understood`);
+      }
+      aliases.set(key.slice(0, -1), resolve(appRoot, target.slice(0, -1)));
+    }
+    return aliases;
+  }
+  const ALIASES = tsconfigAliases();
+
+  /**
+   * The file a specifier names, or `undefined` for a package (checked by
+   * `HEAVY` instead). A relative or aliased specifier that names no file
+   * throws (review pass 3, finding 2): skipping it would leave whatever it
+   * really loads unchecked.
+   */
+  function resolveLocal(specifier: string, fromFile: string): string | undefined {
+    const alias = [...ALIASES.keys()].find((prefix) => specifier.startsWith(prefix));
+    let base: string;
+    if (alias !== undefined) {
+      base = join(ALIASES.get(alias) ?? "", specifier.slice(alias.length));
+    } else if (specifier.startsWith(".")) {
+      base = resolve(dirname(fromFile), specifier);
+    } else {
+      return undefined;
+    }
+    const candidates = [
+      `${base}.ts`,
+      `${base}.tsx`,
+      join(base, "index.ts"),
+      join(base, "index.tsx"),
+    ];
+    const target = candidates.find(existsSync);
+    if (target === undefined) {
+      throw new Error(`${fromFile}: "${specifier}" resolves to none of ${candidates.join(", ")}`);
+    }
+    return target;
   }
 
   function closure(file: string, seen = new Set<string>()): Set<string> {
@@ -373,9 +557,7 @@ describe("proxy.ts loads neither Better Auth nor the database at module load", (
     }
     seen.add(file);
     for (const specifier of moduleLoadImports(readFileSync(file, "utf8"))) {
-      if (!specifier.startsWith(".")) continue;
-      const base = resolve(dirname(file), specifier);
-      const target = [`${base}.ts`, `${base}.tsx`, join(base, "index.ts")].find(existsSync);
+      const target = resolveLocal(specifier, file);
       if (target !== undefined) closure(target, seen);
     }
     return seen;
@@ -450,6 +632,61 @@ describe("proxy.ts loads neither Better Auth nor the database at module load", (
   ])("counts %s as heavy", (specifier) => {
     expect(HEAVY.test(specifier)).toBe(true);
   });
+
+  it("counts an IIFE's body as module-load code, and a function only passed or stored as deferred", () => {
+    const source = [
+      '(async () => { await import("./iife-arrow"); })();',
+      'void (async () => { await import("./iife-void"); })();',
+      '(function () { import("./iife-function"); })();',
+      '(function () { import("./iife-call-inside"); }());',
+      '!function () { import("./iife-bang"); }();',
+      '(() => import("./iife-expression"))();',
+      '(async () => (await import("./iife-expression-nested")).x)();',
+      '(async () => { /* gap */ await import("./iife-commented"); }) /* gap */ ();',
+      'run(() => { import("./callback-block"); });',
+      'run(() => import("./callback-expression"));',
+      'const stored = (async () => { await import("./wrapped-not-called"); });',
+      'promise.then(() => { import("./then"); }).catch(() => {});',
+      'export function outer() { (async () => { await import("./iife-in-function"); })(); }',
+      'const lazyIife = () => { (() => import("./iife-in-arrow"))(); };',
+    ].join("\n");
+    expect(moduleLoadImports(source)).toEqual([
+      "./iife-arrow",
+      "./iife-void",
+      "./iife-function",
+      "./iife-call-inside",
+      "./iife-bang",
+      "./iife-expression",
+      "./iife-expression-nested",
+      "./iife-commented",
+    ]);
+  });
+
+  it("sees the review's own false green: an IIFE appended to proxy.ts loads kabinet/runtime", () => {
+    const source = `${readFileSync(join(SRC, "proxy.ts"), "utf8")}
+void (async () => { await import("./kabinet/runtime"); })();
+`;
+    expect(moduleLoadImports(source)).toContain("./kabinet/runtime");
+    expect(moduleLoadImports(readFileSync(join(SRC, "proxy.ts"), "utf8"))).not.toContain(
+      "./kabinet/runtime",
+    );
+  });
+
+  it("follows the @/ alias from tsconfig.json to src/, and leaves packages to HEAVY", () => {
+    expect([...ALIASES]).toEqual([["@/", SRC]]);
+    const proxyFile = join(SRC, "proxy.ts");
+    expect(resolveLocal("@/kabinet/runtime", proxyFile)).toBe(join(SRC, "kabinet", "runtime.ts"));
+    expect(resolveLocal("./kabinet/limiters", proxyFile)).toBe(join(SRC, "kabinet", "limiters.ts"));
+    expect(resolveLocal("next/server", proxyFile)).toBeUndefined();
+    expect(resolveLocal("better-auth", proxyFile)).toBeUndefined();
+  });
+
+  it.each(["./kabinet/does-not-exist", "../nowhere", "@/kabinet/does-not-exist"])(
+    "throws on %s, which resolves to no file, rather than skipping it",
+    (specifier) => {
+      expect(() => resolveLocal(specifier, join(SRC, "proxy.ts"))).toThrow(/resolves to none of/);
+    },
+  );
 
   it("sanity: the walk reaches the kabinet limiters and the page limit, not the runtime", () => {
     const files = [...closure(join(SRC, "proxy.ts"))].map((f) =>
