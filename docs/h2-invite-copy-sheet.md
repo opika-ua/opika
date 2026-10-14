@@ -43,6 +43,22 @@ landing, which sends a fresh magic link to the invited address only.
 | `kabinet.email.invite.expiry` | Under the link | The invitation stays valid for 72 hours; the operator can send it again (`INVITATION_TTL_MS`, filled in). |
 | `kabinet.email.invite.notYou` | Last line | If this isn't expected, ignore it: nobody gets access without signing in from this address. |
 
+**How the invite email is written (IN-E14; Oleksii, verbatim, relayed by the coordinating
+session):** "it's written as a short personal note from me; it names the shelter; plain
+sentences, no campaign verbs (запрошуємо / приєднуйтесь / керуйте)." Why (IN-E6): the
+delivery test's invite landed in Gmail's Promotions tab with the same authentication headers as
+the magic link, which reached the Inbox, so the wording is what Gmail classified as marketing.
+The English senses above describe facts, not tone; this note governs the tone.
+
+## R. After an invite is sent: the operator's reminder (planned, not built)
+
+Planned for the next email track (IN-E13), not in `uk.ts` yet. Shown in the procedure result
+and, later, in the operator UI, after a successful invite send.
+
+| Key | Where | English sense |
+|---|---|---|
+| `kabinet.registry.inviteSent.tellPersonally` | Operator's screen, after a successful invite send | A reminder to tell the shelter personally that the invitation was sent, from which address, and that it may be in the Promotions tab. The sender address should be filled from config, never typed into the string (the name is not final). **Oleksii's draft (IN-E13, verbatim, relayed):** «Надіслав вам запрошення з noreply@mail.opika.org.ua — якщо не бачите, гляньте у вкладці "Промоакції"» |
+
 ## C. The sign-in card's fallback line (screens PR)
 
 The "check your email" card is the same for every address (anti-enumeration), so it can't say

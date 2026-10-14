@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BLOCKED_MAX_PAGES,
   BLOCKED_PAGE_SIZE,
@@ -302,7 +302,7 @@ describe("blockedStatusOf (IN-E7): Brevo's transactional block list, asked befor
     expect(calls).toHaveLength(BLOCKED_MAX_PAGES);
   });
 
-  it("answers unknown on a refusal, a throw, a body of the wrong shape, or a timeout", async () => {
+  it("answers unknown on a refusal, a throw, or a body of the wrong shape", async () => {
     const bad = [
       () => new Response("{}", { status: 401 }),
       () => {
@@ -318,13 +318,89 @@ describe("blockedStatusOf (IN-E7): Brevo's transactional block list, asked befor
         why: "provider_error",
       });
     }
-    const hang = ((_url: string, init: RequestInit) =>
-      new Promise((_, reject) =>
-        init.signal?.addEventListener("abort", () => reject(init.signal?.reason)),
-      )) as unknown as typeof fetch;
-    expect(await blockedStatusOf(config("brevo"), "a@example.org", hang, 20)).toEqual({
-      kind: "unknown",
-      why: "provider_error",
+  });
+
+  describe("one deadline for the whole lookup (review of 5f9e7c4, finding 2)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** A fetch that answers after `delayMs` (fake time) and, like the real one, rejects when its signal aborts. */
+    const slow = (delayMs: number, respond: (call: number) => Response) => {
+      const signals: (AbortSignal | null | undefined)[] = [];
+      const fetchImpl = ((_url: string, init: RequestInit) => {
+        signals.push(init.signal);
+        const call = signals.length - 1;
+        return new Promise<Response>((resolve, reject) => {
+          const timer = Number.isFinite(delayMs)
+            ? setTimeout(() => resolve(respond(call)), delayMs)
+            : undefined;
+          init.signal?.addEventListener("abort", () => {
+            clearTimeout(timer);
+            reject(new DOMException("aborted", "AbortError"));
+          });
+        });
+      }) as unknown as typeof fetch;
+      return { signals, fetchImpl };
+    };
+    const fullPage = (call: number) =>
+      page(
+        others(BLOCKED_PAGE_SIZE, call * BLOCKED_PAGE_SIZE),
+        BLOCKED_PAGE_SIZE * (BLOCKED_MAX_PAGES + 1),
+      );
+
+    // The literal 5s, not the constant: a deadline quietly raised to a minute must turn this red.
+    it("a lookup that hangs is unknown (timed_out) at five seconds, not before", async () => {
+      vi.useFakeTimers();
+      const { fetchImpl } = slow(Number.POSITIVE_INFINITY, fullPage);
+      let settled: unknown = "pending";
+      void blockedStatusOf(config("brevo"), "a@example.org", fetchImpl).then((status) => {
+        settled = status;
+      });
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(settled).toBe("pending");
+      await vi.advanceTimersByTimeAsync(1);
+      expect(settled).toEqual({ kind: "unknown", why: "timed_out" });
+    });
+
+    it("pages that are each fast enough still stop at the shared deadline", async () => {
+      // 2s per page: under any per-page timeout, so only a deadline over the
+      // whole lookup stops this at page 3 instead of reading all five.
+      vi.useFakeTimers();
+      const { signals, fetchImpl } = slow(2_000, fullPage);
+      const result = blockedStatusOf(config("brevo"), "olena@example.org", fetchImpl);
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(await result).toEqual({ kind: "unknown", why: "timed_out" });
+      expect(signals).toHaveLength(3);
+      expect(new Set(signals).size).toBe(1);
+    });
+
+    it("a body still arriving when the deadline fires is timed_out, not a provider error", async () => {
+      vi.useFakeTimers();
+      // Headers at 1s; the body only finishes reading when the shared signal aborts it.
+      const fetchImpl = (async (_url: string, init: RequestInit) => {
+        const signal = init.signal as AbortSignal;
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+        return {
+          ok: true,
+          json: () =>
+            new Promise((_resolve, reject) => {
+              signal.addEventListener("abort", () => reject(new Error("aborted")));
+            }),
+        } as unknown as Response;
+      }) as unknown as typeof fetch;
+      const result = blockedStatusOf(config("brevo"), "a@example.org", fetchImpl);
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(await result).toEqual({ kind: "unknown", why: "timed_out" });
+    });
+
+    it("an answer inside the deadline is kept, and leaves no timer behind", async () => {
+      vi.useFakeTimers();
+      const { fetchImpl } = slow(1_000, () => page([blocked("olena@example.org", "hardBounce")]));
+      const result = blockedStatusOf(config("brevo"), "olena@example.org", fetchImpl);
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(await result).toEqual({ kind: "blocked", reason: "hard_bounce" });
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 

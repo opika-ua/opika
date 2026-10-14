@@ -306,9 +306,24 @@ describe("kabinet views carry exactly their listed keys", () => {
     );
   });
 
-  it("EmailSendOutcome: sent, blocked with a reason, or failed with a reason; no address, no provider detail", () => {
+  it("EmailSendOutcome: sent with its block check, blocked with a reason, or failed with a reason; no address, no provider detail", () => {
     const variants = EmailSendOutcomeSchema.options.map((option) => keys(option));
-    expect(variants).toEqual([["kind"], ["kind", "reason"], ["kind", "reason"]]);
+    expect(variants).toEqual([
+      ["blockCheck", "kind"],
+      ["kind", "reason"],
+      ["kind", "reason"],
+    ]);
+    for (const blockCheck of ["clear", "unknown"]) {
+      expect(
+        EmailSendOutcomeSchema.safeParse({ kind: "sent", blockCheck }).success,
+        blockCheck,
+      ).toBe(true);
+    }
+    // A `sent` that doesn't say whether the block list was read is not a valid outcome (review of 5f9e7c4, finding 1).
+    expect(EmailSendOutcomeSchema.safeParse({ kind: "sent" }).success).toBe(false);
+    expect(EmailSendOutcomeSchema.safeParse({ kind: "sent", blockCheck: "skipped" }).success).toBe(
+      false,
+    );
     expect(
       EmailSendOutcomeSchema.safeParse({ kind: "blocked", reason: "unsubscribed" }).success,
     ).toBe(true);

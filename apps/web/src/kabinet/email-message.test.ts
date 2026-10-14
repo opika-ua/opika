@@ -32,7 +32,7 @@ const builders = {
 };
 
 describe("looksLikeUrl", () => {
-  it("catches a scheme, www., or a bare domain; lets a sentence through", () => {
+  it("catches a scheme, www., or a bare domain anywhere in the label; lets a sentence with punctuation through", () => {
     for (const url of [
       "https://example.org/x",
       "  http://a.b ",
@@ -40,6 +40,14 @@ describe("looksLikeUrl", () => {
       "example.org",
       "opika.org.ua/kabinet",
       "mailto://x",
+      // Anywhere in the label, not only at its start (review of 5f9e7c4, finding 3).
+      "Перейти на opika.org.ua",
+      "Відкрийте www.приклад",
+      "Open https://example.org now",
+      "Написати: mailto:hello@example.org",
+      "See example.org/x.",
+      "Сторінка (opika.org.ua)",
+      "Перейти на приклад.укр",
     ]) {
       expect(looksLikeUrl(url), url).toBe(true);
     }
@@ -48,6 +56,12 @@ describe("looksLikeUrl", () => {
       uk.kabinet.email.signIn.action,
       uk.kabinet.email.invite.action,
       "Open the page.",
+      "Відкрити сторінку входу.",
+      "Прийняти запрошення (72 год.)",
+      "Увійти — це просто! Далі...",
+      "Sign in, then continue… Done.",
+      "Відкрити: сторінка входу; e.g. так",
+      "Version 1.2 — open it",
     ]) {
       expect(looksLikeUrl(label), label).toBe(false);
     }

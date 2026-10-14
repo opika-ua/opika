@@ -21,9 +21,6 @@ import { emailProviderConfigOf, fetchEmailSender, type SentEmail } from "./email
 /** The only key this reads. Oleksii keeps it in .env.local; it is never committed or logged. */
 export const DELIVERY_KEY_NAME = "BREVO_API_KEY";
 
-/** Where the links land: `email-links.ts`, shared with the real emails. */
-export { INVITE_LINK, SIGN_IN_LINK };
-
 /** The verified sender's local part; the domain is mail.<production host>, enforced by emailProviderConfigOf. */
 const FROM_LOCAL_PART = "noreply";
 

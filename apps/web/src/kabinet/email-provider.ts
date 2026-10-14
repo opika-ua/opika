@@ -251,8 +251,15 @@ export type BlockReason = (typeof EMAIL_BLOCK_REASONS)[number];
 export type BlockedStatus =
   | { kind: "not_blocked" }
   | { kind: "blocked"; reason: BlockReason }
-  /** Not knowable: say so, never guess "not blocked" into "delivered". */
-  | { kind: "unknown"; why: "unsupported_provider" | "provider_error" | "list_too_long" };
+  /**
+   * Not knowable. The email is still sent (IN-E11), and the caller reports
+   * `sent` with `blockCheck: "unknown"` (`EmailSendOutcome`), never a bare
+   * `sent` that would read as "checked and clear".
+   */
+  | {
+      kind: "unknown";
+      why: "unsupported_provider" | "provider_error" | "list_too_long" | "timed_out";
+    };
 
 /**
  * Brevo's documented reason codes (`GET /v3/smtp/blockedContacts`,
@@ -277,6 +284,16 @@ export const BLOCKED_PAGE_SIZE = 100;
  * list that long is itself a finding (IN-E7).
  */
 export const BLOCKED_MAX_PAGES = 5;
+/**
+ * One deadline for the whole lookup, every page included (review of 5f9e7c4,
+ * finding 2). A per-page timeout let five slow pages plus the send take about
+ * a minute, inside the operator's request or, for sign-in, inside `after()`,
+ * which counts against the function's duration. Brevo answers a page in well
+ * under a second when healthy, so five seconds covers all five pages with
+ * room; past it the answer is `unknown` (`timed_out`) and the email still goes,
+ * reported as unchecked. Worst case per send: this plus EMAIL_SEND_TIMEOUT_MS.
+ */
+export const BLOCKED_LOOKUP_DEADLINE_MS = 5_000;
 
 /** The exact request for one page of Brevo's block list. Pure, like `providerRequest`. */
 export function brevoBlockedContactsRequest(
@@ -306,28 +323,47 @@ type BrevoBlockedPage = {
  * Whether the provider will refuse to deliver to `address`. Brevo only; any
  * other provider answers `unknown`. Every failure (timeout, non-2xx, a body
  * that isn't the documented shape) is `unknown`, and never names the key or
- * the address.
+ * the address. All pages share one deadline, BLOCKED_LOOKUP_DEADLINE_MS from
+ * the first request: a `setTimeout`, not `AbortSignal.timeout`, so a test can
+ * cross it with fake timers instead of waiting five seconds.
  */
 export async function blockedStatusOf(
   config: EmailProviderConfig,
   address: string,
   fetchImpl: typeof fetch = fetch,
-  timeoutMs: number = EMAIL_SEND_TIMEOUT_MS,
+  deadlineMs: number = BLOCKED_LOOKUP_DEADLINE_MS,
 ): Promise<BlockedStatus> {
   if (config.provider !== "brevo") return { kind: "unknown", why: "unsupported_provider" };
-  const wanted = address.trim().toLowerCase();
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(), deadlineMs);
+  try {
+    return await pageThroughBrevo(config, address.trim().toLowerCase(), fetchImpl, deadline.signal);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function pageThroughBrevo(
+  config: EmailProviderConfig,
+  wanted: string,
+  fetchImpl: typeof fetch,
+  deadline: AbortSignal,
+): Promise<BlockedStatus> {
+  const timedOut: BlockedStatus = { kind: "unknown", why: "timed_out" };
   for (let page = 0; page < BLOCKED_MAX_PAGES; page++) {
+    if (deadline.aborted) return timedOut;
     const { url, init } = brevoBlockedContactsRequest(config, page * BLOCKED_PAGE_SIZE);
     let body: BrevoBlockedPage | null;
     try {
-      const response = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+      const response = await fetchImpl(url, { ...init, signal: deadline });
       if (!response.ok) return { kind: "unknown", why: "provider_error" };
       body = (await response.json().catch(() => null)) as BrevoBlockedPage | null;
     } catch {
-      return { kind: "unknown", why: "provider_error" };
+      return deadline.aborted ? timedOut : { kind: "unknown", why: "provider_error" };
     }
     if (body === null || !Array.isArray(body.contacts)) {
-      return { kind: "unknown", why: "provider_error" };
+      // A body cut off by the deadline is a timeout, not a provider fault.
+      return deadline.aborted ? timedOut : { kind: "unknown", why: "provider_error" };
     }
     const hit = body.contacts.find(
       (contact) => typeof contact.email === "string" && contact.email.toLowerCase() === wanted,

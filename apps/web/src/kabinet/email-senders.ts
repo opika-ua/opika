@@ -53,11 +53,15 @@ export async function sendChecked(
   } catch {
     status = { kind: "unknown", why: "provider_error" };
   }
-  // Unknown is sent anyway: a lookup failing must not stop a deliverable email.
   if (status.kind === "blocked") return { kind: "blocked", reason: status.reason };
+  // Unknown is sent anyway (IN-E11): a lookup failing must not stop a
+  // deliverable email. But the outcome says the check wasn't done, because a
+  // blocked address is accepted and dropped (IN-E7): a bare `sent` here would
+  // be the guess `BlockedStatus` forbids.
+  const blockCheck = status.kind === "not_blocked" ? "clear" : "unknown";
   try {
     await mail.sender.send(email);
-    return { kind: "sent" };
+    return { kind: "sent", blockCheck };
   } catch {
     return { kind: "failed", reason: "provider_error" };
   }
@@ -84,6 +88,11 @@ export function providerMagicLinkSender(
       if (outcome.kind !== "sent") {
         options.log(
           `[kabinet] sign-in email to ${maskAddress(email)} not sent: ${describeOutcome(outcome)}`,
+        );
+      } else if (outcome.blockCheck === "unknown") {
+        // Sent, but unchecked: if she was blocked it was dropped, and this line is the only trace.
+        options.log(
+          `[kabinet] sign-in email to ${maskAddress(email)} sent without a block-list check`,
         );
       }
     },
@@ -120,17 +129,21 @@ export function providerInvitationSender(mail: ProviderMail): InvitationSender {
   };
 }
 
-/** Development: prints the invite landing's link. It isn't a credential (the landing sends its own magic link). */
+/**
+ * Development: prints the invite landing's link. It isn't a credential (the
+ * landing sends its own magic link). No block list is read, so the check is
+ * `unknown`, never a claimed `clear`.
+ */
 export const consoleInvitationSender: InvitationSender = {
   async send({ email, url }) {
     console.info(`[kabinet] invitation for ${email}: ${url}`);
-    return { kind: "sent" };
+    return { kind: "sent", blockCheck: "unknown" };
   },
 };
 
 /** Tests: records each message and answers with the outcome given. */
 export function capturingInvitationSender(
-  outcome: EmailSendOutcome = { kind: "sent" },
+  outcome: EmailSendOutcome = { kind: "sent", blockCheck: "clear" },
 ): InvitationSender & {
   readonly sent: InvitationMessage[];
 } {

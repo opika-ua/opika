@@ -24,13 +24,22 @@ export type EmailParts = {
   after: readonly string[];
 };
 
-/** A label that names a location instead of an action: a scheme, `www.`, or a bare domain-like token. */
+/**
+ * A label that names a location instead of an action, anywhere in it: a
+ * scheme (`https://`, `mailto:`), `www.`, or a dotted hostname ending in a
+ * TLD-like run of letters (`opika.org.ua`, `приклад.укр`). Anywhere, not only
+ * at the start (review of 5f9e7c4, finding 3): «Перейти на opika.org.ua»
+ * shows a domain the tracked href doesn't match, exactly what IN-E8 forbids.
+ * Sentence punctuation passes, since a period followed by a space or the end
+ * isn't a hostname. It errs toward refusing (`Node.js`, `м.Київ`): a refused
+ * label fails loudly at build time, a passed one ships a phishing signal.
+ */
 export function looksLikeUrl(label: string): boolean {
-  const text = label.trim();
   return (
-    /[a-z][a-z0-9+.-]*:\/\//i.test(text) ||
-    /^www\./i.test(text) ||
-    /^[^\s]+\.[a-z]{2,}(\/|$)/i.test(text)
+    /[a-z][a-z0-9+.-]*:\/\//i.test(label) ||
+    /(^|[^\p{L}\p{N}])mailto:/iu.test(label) ||
+    /(^|[^\p{L}\p{N}])www\./iu.test(label) ||
+    /[\p{L}\p{N}-]\.\p{L}{2,}(?![\p{L}\p{N}])/u.test(label)
   );
 }
 

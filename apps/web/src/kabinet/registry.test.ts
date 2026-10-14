@@ -973,7 +973,7 @@ describe("invitation emails: every write that makes an invitation live sends one
       email: "olena@example.org",
     });
     expect(invited.status).toBe(200);
-    expect(invited.body.invitationEmail).toEqual({ kind: "sent" });
+    expect(invited.body.invitationEmail).toEqual({ kind: "sent", blockCheck: "clear" });
     expect(invites.sent).toEqual([
       {
         email: "olena@example.org",
@@ -998,6 +998,18 @@ describe("invitation emails: every write that makes an invitation live sends one
     expect(invited.body.invitationEmail).toEqual({ kind: "blocked", reason: "unsubscribed" });
     expect(invited.body.invite).toMatchObject({ status: "pending" });
     expect(await pendingInvitationIds()).toHaveLength(1);
+  });
+
+  it("invite: an unchecked send reaches the operator as `sent` with `blockCheck: unknown`, through the contract's output (review of 5f9e7c4, finding 1)", async () => {
+    invites = capturingInvitationSender({ kind: "sent", blockCheck: "unknown" });
+    const s = await shelter();
+    const invited = await call<{ invitationEmail: unknown }>("registry.admins.invite", {
+      shelterId: s.id,
+      name: "Олена",
+      email: "olena@example.org",
+    });
+    expect(invited.status).toBe(200);
+    expect(invited.body.invitationEmail).toEqual({ kind: "sent", blockCheck: "unknown" });
   });
 
   it("invite: a sender that throws is `failed: provider_error`, never a 500, and the invitation stands", async () => {

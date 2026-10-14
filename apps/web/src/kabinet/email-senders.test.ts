@@ -1,6 +1,12 @@
 import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
-import type { BlockedStatus, OutgoingEmail } from "./email-provider";
+import {
+  BLOCKED_MAX_PAGES,
+  BLOCKED_PAGE_SIZE,
+  type BlockedStatus,
+  blockedStatusOf,
+  type OutgoingEmail,
+} from "./email-provider";
 import {
   maskAddress,
   type ProviderMail,
@@ -40,7 +46,7 @@ function mail(
 describe("sendChecked", () => {
   it("sends to an address that isn't blocked: sent", async () => {
     const m = mail({ kind: "not_blocked" });
-    expect(await sendChecked(m.provider, email)).toEqual({ kind: "sent" });
+    expect(await sendChecked(m.provider, email)).toEqual({ kind: "sent", blockCheck: "clear" });
     expect(m.asked).toEqual(["olena@example.org"]);
     expect(m.sent).toEqual([email]);
   });
@@ -54,14 +60,59 @@ describe("sendChecked", () => {
     expect(m.sent).toEqual([]);
   });
 
-  it("still sends when the block list can't be read (unknown, or a lookup that throws)", async () => {
-    const unknown = mail({ kind: "unknown", why: "provider_error" });
-    expect(await sendChecked(unknown.provider, email)).toEqual({ kind: "sent" });
+  it("still sends when the block list can't be read, and says the check wasn't done (review of 5f9e7c4, finding 1)", async () => {
+    for (const why of [
+      "provider_error",
+      "list_too_long",
+      "timed_out",
+      "unsupported_provider",
+    ] as const) {
+      const unknown = mail({ kind: "unknown", why });
+      expect(await sendChecked(unknown.provider, email), why).toEqual({
+        kind: "sent",
+        blockCheck: "unknown",
+      });
+      expect(unknown.sent, why).toEqual([email]);
+    }
     const throwing = mail(() => {
       throw new Error("lookup down");
     });
-    expect(await sendChecked(throwing.provider, email)).toEqual({ kind: "sent" });
+    expect(await sendChecked(throwing.provider, email)).toEqual({
+      kind: "sent",
+      blockCheck: "unknown",
+    });
     expect(throwing.sent).toHaveLength(1);
+  });
+
+  it("the reviewer's case end to end: the invitee is past the 500th blocked contact, so sent but unchecked", async () => {
+    const total = BLOCKED_PAGE_SIZE * BLOCKED_MAX_PAGES + 1;
+    const fetchImpl = (async (url: string) => {
+      const offset = Number(new URL(url).searchParams.get("offset"));
+      const contacts = Array.from({ length: BLOCKED_PAGE_SIZE }, (_, i) => ({
+        email: `other${offset + i}@example.org`,
+        reason: { code: "hardBounce" },
+      }));
+      return new Response(JSON.stringify({ count: total, contacts }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const brevo = {
+      provider: "brevo",
+      apiKey: "k",
+      fromAddress: "a@mail.example.org",
+      fromName: null,
+    } as const;
+    const sent: OutgoingEmail[] = [];
+    const provider: ProviderMail = {
+      sender: {
+        async send(message) {
+          sent.push(message);
+          return { status: 201, messageId: "m" };
+        },
+      },
+      blockedStatus: (address) => blockedStatusOf(brevo, address, fetchImpl),
+      refuseCopyPending: false,
+    };
+    expect(await sendChecked(provider, email)).toEqual({ kind: "sent", blockCheck: "unknown" });
+    expect(sent).toEqual([email]);
   });
 
   it("a refused send is failed: provider_error, never a throw", async () => {
@@ -86,7 +137,7 @@ describe("sendChecked", () => {
     const outside = mail({ kind: "not_blocked" });
     expect(
       await sendChecked(outside.provider, { ...email, text: uk.kabinet.email.signIn.action }),
-    ).toEqual({ kind: "sent" });
+    ).toEqual({ kind: "sent", blockCheck: "clear" });
   });
 });
 
@@ -119,7 +170,20 @@ describe("providerMagicLinkSender", () => {
     }
   });
 
-  it("logs nothing for a sent email, and sends the magic-link email itself", async () => {
+  it("logs a send whose block check couldn't be done, masked, never the link", async () => {
+    const m = mail({ kind: "unknown", why: "timed_out" });
+    const lines: string[] = [];
+    await providerMagicLinkSender(m.provider, { ttlMinutes: 15, log: (l) => lines.push(l) }).send({
+      email: "olena@example.org",
+      url: URL_WITH_TOKEN,
+    });
+    expect(lines).toEqual([
+      "[kabinet] sign-in email to o•••@example.org sent without a block-list check",
+    ]);
+    expect(m.sent).toHaveLength(1);
+  });
+
+  it("logs nothing for a checked, sent email, and sends the magic-link email itself", async () => {
     const m = mail({ kind: "not_blocked" });
     const lines: string[] = [];
     await providerMagicLinkSender(m.provider, { ttlMinutes: 15, log: (l) => lines.push(l) }).send({
@@ -142,7 +206,7 @@ describe("providerInvitationSender", () => {
       url: "https://example.org/kabinet/vkhid?zaproshennia=1",
       validForHours: 72,
     });
-    expect(outcome).toEqual({ kind: "sent" });
+    expect(outcome).toEqual({ kind: "sent", blockCheck: "clear" });
     expect(m.sent[0]).toMatchObject({
       to: "olena@example.org",
       subject: uk.kabinet.email.invite.subject,

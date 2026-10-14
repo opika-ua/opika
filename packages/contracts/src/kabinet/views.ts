@@ -118,14 +118,20 @@ export const EMAIL_BLOCK_REASONS = [
  * operator typed the address, so reporting it leaks nothing.
  *
  * `sent` means the provider accepted it, not that it reached an inbox: no
- * provider can say that synchronously. `blocked` means the provider holds the
+ * provider can say that synchronously. Its `blockCheck` says whether the
+ * block list was actually read first: `clear` means the address was looked
+ * up and isn't on it; `unknown` means the lookup failed, timed out, or the
+ * list was too long to read, and the email went anyway (IN-E11). A provider
+ * accepts a send to a blocked address and then drops it (IN-E7), so `unknown`
+ * is exactly the case where `sent` may not arrive, and the operator is told
+ * so rather than shown a plain `sent`. `blocked` means the provider holds the
  * address on its block list, so nothing was sent; `failed` means the provider
  * refused or didn't answer (`provider_error`), or the text was still a
  * placeholder in production (`copy_pending`, IN-Q5). The invitation itself is
  * written either way; a resend retries the email.
  */
 export const EmailSendOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("sent") }),
+  z.object({ kind: z.literal("sent"), blockCheck: z.enum(["clear", "unknown"]) }),
   z.object({ kind: z.literal("blocked"), reason: z.enum(EMAIL_BLOCK_REASONS) }),
   z.object({ kind: z.literal("failed"), reason: z.enum(["provider_error", "copy_pending"]) }),
 ]);
