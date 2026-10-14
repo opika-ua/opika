@@ -7,7 +7,7 @@ import { kabinetHomeOf } from "../../features/kabinet/home";
 import { ShelterProfile } from "../../features/kabinet/ShelterProfile";
 import { operatorDisplayName } from "../../kabinet/operator";
 import { kabinetIdentityOf } from "../../kabinet/principal";
-import { kabinetAuth } from "../../kabinet/runtime";
+import { kabinetAuthOrNotFound } from "./available-auth";
 
 export const metadata: Metadata = {
   title: uk.kabinet.profile.pageTitle,
@@ -15,21 +15,16 @@ export const metadata: Metadata = {
 
 /**
  * The cabinet's home, where the magic link lands (KS-T2): the read-only
- * "your shelter" page (KS-Q1). Reached only while sign-in is available (the
- * segment's layout answers 404 otherwise). Who sees what is
+ * "your shelter" page (KS-Q1). While sign-in is unavailable it answers its
+ * own 404 before touching auth or the database. Who sees what is
  * `kabinetHomeOf`'s decision, the API's own access matrix.
  */
 export default async function KabinetHomePage() {
+  const auth = kabinetAuthOrNotFound();
   const now = new Date();
   const production = process.env.NODE_ENV === "production";
   const db = getDb();
-  const identity = await kabinetIdentityOf(
-    kabinetAuth(),
-    db,
-    new Headers(await headers()),
-    now,
-    production,
-  );
+  const identity = await kabinetIdentityOf(auth, db, new Headers(await headers()), now, production);
   const home = await kabinetHomeOf(identity.principal, {
     db,
     now,

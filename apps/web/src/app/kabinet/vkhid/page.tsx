@@ -7,7 +7,7 @@ import { leavesSignIn } from "../../../features/kabinet/home";
 import { KabinetBrand } from "../../../features/kabinet/KabinetBrand";
 import { SignInCard } from "../../../features/kabinet/SignInCard";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
-import { kabinetAuth } from "../../../kabinet/runtime";
+import { kabinetAuthOrNotFound } from "../available-auth";
 
 /** K1's route (`docs/design/KABINET.md`, "Actors and routes"). */
 export const metadata: Metadata = {
@@ -22,10 +22,10 @@ export const metadata: Metadata = {
  */
 export default async function SignInPage() {
   // A live session goes home instead of sitting on a form that looks signed
-  // out (review of #93, finding 1). Reached only while sign-in is available:
-  // the segment's layout answers 404 otherwise, so the auth instance exists.
+  // out (review of #93, finding 1). While sign-in is unavailable this page
+  // answers its own 404 before touching auth or the database.
   const identity = await kabinetIdentityOf(
-    kabinetAuth(),
+    kabinetAuthOrNotFound(),
     getDb(),
     new Headers(await headers()),
     new Date(),
