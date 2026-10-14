@@ -13,11 +13,21 @@ import type { KabinetAuthAvailability } from "./auth-route";
  * `getSession` is called (`no-self-serve-yet.test.ts`).
  */
 
-/** On every response: the URL carries a credential. */
+/**
+ * On every response: the URL carries a credential.
+ *
+ * `strict-origin`, not `no-referrer` (IN-T8, Oleksii 2026-10-14). Under
+ * `no-referrer` a browser sends `Origin: null` on the «Увійти» form POST, so
+ * the Origin check below refused every real sign-in. `strict-origin` sends
+ * only the origin, never the path or query (so never the token), to every
+ * site including our own, and the POST then carries a real Origin. Not
+ * `same-origin`: that sends the full URL, token included, as the Referer of
+ * our own POST and into our own request logs.
+ */
 export const CONFIRM_HEADERS = {
   "cache-control": "no-store",
   "x-robots-tag": "noindex, nofollow",
-  "referrer-policy": "no-referrer",
+  "referrer-policy": "strict-origin",
 } as const;
 
 const VERIFY_PATH = "/api/auth/magic-link/verify";
@@ -101,7 +111,10 @@ export async function handleKabinetConfirm(
 
   // Login CSRF (IN-T7): another site could post its own token here and sign
   // the visitor into the attacker's account. Browsers send Origin on every
-  // form POST; a request without one is refused too.
+  // form POST; a request without one, or with `Origin: null`, is refused too.
+  // A real Origin arrives only because the page's Referrer-Policy is not
+  // `no-referrer` (CONFIRM_HEADERS, IN-T8): `test/harness/kabinet-confirm.harness.ts`
+  // drives a real browser through it.
   const origin = new URL(deps.availability.baseURL).origin;
   if (request.headers.get("origin") !== origin) return plain("Forbidden", 403);
 

@@ -109,7 +109,7 @@ function expectConfirmHeaders(response: Response) {
   }).toEqual({
     cacheControl: "no-store",
     robots: "noindex, nofollow",
-    referrer: "no-referrer",
+    referrer: "strict-origin",
   });
 }
 
@@ -205,6 +205,8 @@ describe("login CSRF (IN-T7)", () => {
   it.each([
     ["another origin", "https://evil.example"],
     ["no Origin", null],
+    // What a browser sends under `Referrer-Policy: no-referrer` (IN-T8).
+    ["Origin: null", "null"],
   ])("refuses a POST from %s with 403, and the token still works", async (_, origin) => {
     const link = await emailedLink();
     const refused = await confirmPost(tokenOf(link), origin);
@@ -215,7 +217,7 @@ describe("login CSRF (IN-T7)", () => {
 });
 
 describe("headers on every response", () => {
-  it("no-store, noindex and no-referrer on the GET, the 303, the 400, the 403, the 404 and the 405", async () => {
+  it("no-store, noindex and strict-origin on the GET, the 303, the 400, the 403, the 404 and the 405", async () => {
     const link = await emailedLink();
     const responses = [
       await handleKabinetConfirm(new Request(link), deps()),
