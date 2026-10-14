@@ -26,3 +26,12 @@ export const CURSOR_HMAC_SECRET = "test-hmac-secret-for-cursor-signing";
  * secret.
  */
 export const R2_PUBLIC_BASE_URL = "https://cdn.test.invalid";
+
+/**
+ * Better Auth's secret for the harness, a recognizable test value. The main
+ * (production-mode) server gets it too, with `BETTER_AUTH_URL`, so its
+ * `/kabinet` 404 can only come from the production branch of
+ * `kabinetAuthAvailability`, not from missing config (review of f86c7cd,
+ * finding 1).
+ */
+export const HARNESS_BETTER_AUTH_SECRET = "test-better-auth-secret-for-harness-only-0123456789";
