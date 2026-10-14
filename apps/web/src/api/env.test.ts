@@ -195,4 +195,38 @@ describe("validateEnv", () => {
 
     expect(() => validateEnv()).toThrow();
   });
+
+  describe("CRON_SECRET (KH-Q9)", () => {
+    function productionWithUpstash(): void {
+      setBaseRequiredEnv();
+      vi.stubEnv("KV_REST_API_URL", "https://example-upstash.example.com");
+      vi.stubEnv("KV_REST_API_TOKEN", "a-real-looking-token");
+    }
+
+    it("is required on a production deployment (VERCEL_ENV=production)", () => {
+      productionWithUpstash();
+      vi.stubEnv("VERCEL_ENV", "production");
+      vi.stubEnv("CRON_SECRET", "");
+      expect(() => validateEnv()).toThrow(/CRON_SECRET must be at least 32 characters/);
+    });
+
+    it("rejects one under 32 characters, and accepts exactly 32", () => {
+      productionWithUpstash();
+      vi.stubEnv("VERCEL_ENV", "production");
+      vi.stubEnv("CRON_SECRET", "a".repeat(31));
+      expect(() => validateEnv()).toThrow(/CRON_SECRET/);
+      vi.stubEnv("CRON_SECRET", "a".repeat(32));
+      expect(() => validateEnv()).not.toThrow();
+    });
+
+    it("is not required on a Preview (no cron runs there) or under the harness's next start", () => {
+      productionWithUpstash();
+      vi.stubEnv("CRON_SECRET", "");
+      vi.stubEnv("VERCEL_ENV", "preview");
+      expect(() => validateEnv()).not.toThrow();
+      vi.stubEnv("VERCEL_ENV", "");
+      vi.stubEnv("VERCEL", "");
+      expect(() => validateEnv()).not.toThrow();
+    });
+  });
 });

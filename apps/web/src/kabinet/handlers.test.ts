@@ -23,7 +23,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import type { KabinetPrincipal } from "./actor";
-import { handleKabinetRpc, KABINET_RATE_LIMITS, type KabinetLimiters } from "./rpc-route";
+import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
+import { handleKabinetRpc } from "./rpc-route";
 
 /**
  * What each shelter procedure does for its own shelter, through the served
@@ -98,7 +99,7 @@ async function call<T = Record<string, unknown>>(
     // The K2/K3 handlers, exercised with writes opened explicitly (KH-Q1): the
     // served route refuses them (`SHELTER_WRITE_POLICY`), which
     // shelter-writes-refused.test.ts pins.
-    shelterWrites: { kind: "open" },
+    shelterWrites: { kind: "open_for_tests_only" },
   });
   const text = await response.text();
   return { status: response.status, body: parsed(text) as T };

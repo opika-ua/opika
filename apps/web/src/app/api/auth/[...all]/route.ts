@@ -1,5 +1,6 @@
 import { handleKabinetAuth, kabinetAuthAvailability } from "../../../../kabinet/auth-route";
-import { kabinetAuth, signInLimiters } from "../../../../kabinet/runtime";
+import { signInLimiters } from "../../../../kabinet/limiters";
+import { kabinetAuth } from "../../../../kabinet/runtime";
 
 async function handle(request: Request): Promise<Response> {
   return handleKabinetAuth(request, {

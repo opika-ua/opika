@@ -625,7 +625,7 @@ describe("registry.donation.approve / reject (N20)", () => {
           await call(
             "shelter.profile.proposeDonation",
             { url: other },
-            { principal: asAdmin, shelterWrites: { kind: "open" } },
+            { principal: asAdmin, shelterWrites: { kind: "open_for_tests_only" } },
           )
         ).status,
       ).toBe(200);

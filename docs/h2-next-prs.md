@@ -75,6 +75,14 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [ ] **Shelter writes stay refused** (KH-Q1): `SHELTER_WRITE_POLICY` stays
       `refused_until_edit_screens` in this PR. Production sign-in turning on does not open them;
       only the K2/K3 PR does, together with the A1/A2/B1 replacement copy.
+- [ ] **`CRON_SECRET` is set before the hardening branch deploys** (KH-T6): Oleksii sets it
+      (`openssl rand -hex 32`) in Vercel's Production environment first; production refuses to
+      boot without it. Then the daily auth clean-up (KH-Q9) runs at 03:00 UTC.
+- [ ] **The /pro `about.data` sentence lands in #94, after Oleksii's final yes** (KH-C1,
+      provisional draft in the hardening inbox), with the cron already shipped. Not in `uk.ts`
+      before then.
+- [ ] **Real-Neon run of the auth clean-up statement** (KH-Q9): `db:neon-smoke` step 15 on a
+      disposable branch, before the /pro sentence is called true.
 - [ ] **Real-Neon run before the production 503 lifts** (HS-T4, HS-T4b, HS-Q12): sign-in,
       verify, getSession, accept-invitation, the audited-write CTE, the listing jsonb
       compare-and-set, the deleteDraft 23503 catch, and the `last_updated_at` round-trip

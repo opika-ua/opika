@@ -12,6 +12,7 @@ import { eq, inArray } from "drizzle-orm";
 import { createDatabase, type Database } from "../src/client";
 import { productionEndpoint } from "../src/prod-guard";
 import { animalRepo } from "../src/repos/animal-repo";
+import { authExpiryRepo } from "../src/repos/auth-expiry-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { kabinetInvitationRepo } from "../src/repos/kabinet-invitation-repo";
 import { kabinetInvitedUsersRepo } from "../src/repos/kabinet-invited-users-repo";
@@ -21,7 +22,13 @@ import { kabinetSupportRepo, SUPPORT_IDLE_MS } from "../src/repos/kabinet-suppor
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { superAdminRepo } from "../src/repos/super-admin-repo";
 import { animals } from "../src/schema/animals";
-import { authMember, authSession, authUser, supportSessions } from "../src/schema/auth";
+import {
+  authMember,
+  authSession,
+  authUser,
+  authVerification,
+  supportSessions,
+} from "../src/schema/auth";
 import { insertShelterFromScript, recordAnimalsImported } from "../src/script-history";
 import { makeAnimal, makeCity, makeShelter } from "../src/test-utils/fixtures";
 
@@ -496,6 +503,59 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     "bootstrap statement",
     before === 0 ? boot.kind === "bootstrapped" : boot.kind === "refused",
     `${before} active operator(s) before, ${boot.kind}`,
+  );
+
+  // 15. the daily auth clean-up's one statement (KH-Q9): two data-modifying
+  // CTEs and their counts, through neon-http. Only rows already dead to
+  // Better Auth go; on a disposable branch that may include rows copied from
+  // production, so the counts are "at least" and this run's own rows are
+  // checked by id.
+  const expired = { session: randomUUID(), verification: randomUUID() };
+  const live = { session: randomUUID(), verification: randomUUID() };
+  await db.insert(authSession).values([
+    { ...session(operator), id: expired.session, expiresAt: later(-1000) },
+    { ...session(operator), id: live.session, expiresAt: later(86_400_000) },
+  ]);
+  const verification = (id: string, expiresAt: Date) => ({
+    id,
+    identifier: `smoke-${tag}-${id}`,
+    value: "{}",
+    expiresAt,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  await db
+    .insert(authVerification)
+    .values([
+      verification(expired.verification, later(-1000)),
+      verification(live.verification, later(900_000)),
+    ]);
+  const counts = await authExpiryRepo(db).deleteExpired(NOW);
+  const left = new Set([
+    ...(
+      await db
+        .select({ id: authSession.id })
+        .from(authSession)
+        .where(inArray(authSession.id, [expired.session, live.session]))
+    ).map((r) => r.id),
+    ...(
+      await db
+        .select({ id: authVerification.id })
+        .from(authVerification)
+        .where(inArray(authVerification.id, [expired.verification, live.verification]))
+    ).map((r) => r.id),
+  ]);
+  check(
+    "auth clean-up (expired verification + session, one statement)",
+    typeof counts.sessions === "number" &&
+      typeof counts.verifications === "number" &&
+      counts.sessions >= 1 &&
+      counts.verifications >= 1 &&
+      !left.has(expired.session) &&
+      !left.has(expired.verification) &&
+      left.has(live.session) &&
+      left.has(live.verification),
+    `deleted ${counts.verifications} verification(s), ${counts.sessions} session(s); this run's live rows kept ${left.has(live.session) && left.has(live.verification)}, expired gone ${!left.has(expired.session) && !left.has(expired.verification)}`,
   );
   return out;
 }

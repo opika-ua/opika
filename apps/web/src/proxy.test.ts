@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cookieName } from "./api/prelaunch-gate";
@@ -74,6 +77,22 @@ describe("proxy", () => {
       const { proxy } = await import("./proxy");
       const response = await proxy(request("https://opika.example/prytulkam"));
       expect(response.status).toBe(403);
+    });
+
+    it("lets Vercel's cron reach /api/cron/auth-cleanup without the gate cookie (KH-T5)", async () => {
+      const { proxy } = await import("./proxy");
+      const response = await proxy(request("https://opika.example/api/cron/auth-cleanup"));
+      expect(response.status).toBe(200);
+    });
+
+    it.each([
+      "/api/cron",
+      "/api/cron/other",
+      "/api/cron/auth-cleanupx",
+      "/api/cron/auth-cleanup/x",
+    ])("still gates %s: the exemption is that one exact path", async (path) => {
+      const { proxy } = await import("./proxy");
+      expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
     });
 
     it("denies the RPC endpoint just the same as a page route", async () => {
@@ -181,5 +200,58 @@ describe("proxy", () => {
       }
       expect(last.status).toBe(200);
     });
+  });
+});
+
+/**
+ * Review of the hardening, finding 3: the proxy runs on every route, so a
+ * static import that reaches Better Auth loads it into every cold start,
+ * `/tvaryny` included (measured in the inbox, KH-T4). Walks the proxy's
+ * static relative imports (a dynamic `import()` is the sanctioned way in)
+ * and fails if any file in that closure imports `better-auth` or the
+ * database client.
+ */
+describe("proxy.ts loads neither Better Auth nor the database statically", () => {
+  const SRC = dirname(fileURLToPath(import.meta.url));
+  const STATIC_IMPORT = /^\s*(?:import|export)\s[^;]*?from\s+"([^"]+)"/gm;
+
+  function closure(file: string, seen = new Set<string>()): Set<string> {
+    if (seen.has(file)) return seen;
+    seen.add(file);
+    for (const match of readFileSync(file, "utf8").matchAll(STATIC_IMPORT)) {
+      const specifier = match[1] ?? "";
+      if (!specifier.startsWith(".")) continue;
+      const base = resolve(dirname(file), specifier);
+      const target = [`${base}.ts`, `${base}.tsx`, join(base, "index.ts")].find(existsSync);
+      if (target !== undefined) closure(target, seen);
+    }
+    return seen;
+  }
+
+  const heavyImports = (files: Set<string>) =>
+    [...files].flatMap((file) =>
+      [...readFileSync(file, "utf8").matchAll(STATIC_IMPORT)]
+        .map((match) => match[1] ?? "")
+        .filter((specifier) => /^better-auth|\/api\/db$|^\.\.?\/db$/.test(specifier))
+        .map((specifier) => `${relative(SRC, file).replaceAll("\\", "/")}: ${specifier}`),
+    );
+
+  it("sanity: the walk reaches the kabinet limiters and the page limit", () => {
+    const files = [...closure(join(SRC, "proxy.ts"))].map((f) =>
+      relative(SRC, f).replaceAll("\\", "/"),
+    );
+    expect(files).toEqual(
+      expect.arrayContaining(["kabinet/limiters.ts", "kabinet/page-limit.ts", "api/rate-limit.ts"]),
+    );
+  });
+
+  it("finds no static import of better-auth or the database client", () => {
+    expect(heavyImports(closure(join(SRC, "proxy.ts")))).toEqual([]);
+  });
+
+  it("the check itself sees one: kabinet/runtime.ts does import both", () => {
+    expect(heavyImports(closure(join(SRC, "kabinet/runtime.ts")))).toEqual(
+      expect.arrayContaining(["kabinet/runtime.ts: ../api/db", "kabinet/auth.ts: better-auth"]),
+    );
   });
 });

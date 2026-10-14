@@ -1,7 +1,12 @@
 import type { KabinetAccess } from "@opika/contracts";
 import { ModeratorIdSchema, ShelterAdminIdSchema, ShelterIdSchema } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import { decideAccess, SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
+import {
+  assertShelterWritePolicyPermitted,
+  decideAccess,
+  SHELTER_WRITE_POLICY,
+  type ShelterWritePolicy,
+} from "./access";
 import type { KabinetPrincipal } from "./actor";
 
 const SHELTER = ShelterIdSchema.parse("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
@@ -79,7 +84,7 @@ const OPEN_DELTA: Record<string, Record<string, string>> = {
   shelter_admin: { shelter_write: "allow_shelter_write" },
 };
 
-const OPEN: ShelterWritePolicy = { kind: "open" };
+const OPEN: ShelterWritePolicy = { kind: "open_for_tests_only" };
 
 const outcome = (
   access: KabinetAccess | null,
@@ -147,5 +152,38 @@ describe("the scope an allowed shelter call gets", () => {
       kind: "allow_shelter_read",
       scope: { kind: "support_view", shelterId: SHELTER, moderatorId: MOD },
     });
+  });
+});
+
+/**
+ * KH-T1, Oleksii's condition: the test-only switch must fail on a deployed
+ * instance. The router applies this on every procedure
+ * (`shelter-writes-refused.test.ts` drives it through the served route).
+ */
+describe("the test-only open policy is refused on a deployed instance (KH-T1)", () => {
+  it.each([
+    ["NODE_ENV=production", { NODE_ENV: "production" }],
+    ["VERCEL_ENV=production", { NODE_ENV: "test", VERCEL_ENV: "production" }],
+    ["VERCEL_ENV=preview", { NODE_ENV: "development", VERCEL_ENV: "preview" }],
+    ["VERCEL_ENV=development", { VERCEL_ENV: "development" }],
+  ])("throws under %s", (_label, env) => {
+    expect(() => assertShelterWritePolicyPermitted(OPEN, env)).toThrow(/test-only/);
+  });
+
+  it.each([
+    ["NODE_ENV=test", { NODE_ENV: "test" }],
+    ["NODE_ENV=development, VERCEL_ENV blank", { NODE_ENV: "development", VERCEL_ENV: "" }],
+    ["nothing set", {}],
+  ])("allows it under %s (the handler suites)", (_label, env) => {
+    expect(() => assertShelterWritePolicyPermitted(OPEN, env)).not.toThrow();
+  });
+
+  it("never refuses the served policy, deployed or not", () => {
+    expect(() =>
+      assertShelterWritePolicyPermitted(SHELTER_WRITE_POLICY, {
+        NODE_ENV: "production",
+        VERCEL_ENV: "production",
+      }),
+    ).not.toThrow();
   });
 });

@@ -1,11 +1,9 @@
 import { after } from "next/server";
 import { getDb } from "../api/db";
-import { sharedRateLimiter } from "../api/rate-limit";
 import { createKabinetAuth, type KabinetAuth } from "./auth";
 import { kabinetAuthAvailability } from "./auth-route";
+import { kabinetLimiters } from "./limiters";
 import { kabinetSessionUserIdOf } from "./principal";
-import { KABINET_RATE_LIMITS } from "./rate-limits";
-import { SIGN_IN_LIMITS } from "./sign-in-limit";
 
 /**
  * The one Better Auth instance per server process, shared by the sign-in
@@ -26,20 +24,10 @@ export function kabinetAuth(): KabinetAuth {
     baseURL: availability.baseURL,
     secret: availability.secret,
     secureCookies: availability.baseURL.startsWith("https://"),
+    limiters: kabinetLimiters,
   });
   return cachedAuth;
 }
-
-export const signInLimiters = {
-  perAddress: sharedRateLimiter({ name: "kabinet-sign-in-address", ...SIGN_IN_LIMITS.perAddress }),
-  perIp: sharedRateLimiter({ name: "kabinet-sign-in-ip", ...SIGN_IN_LIMITS.perIp }),
-};
-
-/** HS-Q10: never the adopter `apiRateLimiter`. */
-export const kabinetLimiters = {
-  perUser: sharedRateLimiter({ name: "kabinet-user", ...KABINET_RATE_LIMITS.perUser }),
-  perIp: sharedRateLimiter({ name: "kabinet-ip", ...KABINET_RATE_LIMITS.perIp }),
-};
 
 /**
  * The signed-in user a `/kabinet` page load is charged to (KH-Q8), or null.

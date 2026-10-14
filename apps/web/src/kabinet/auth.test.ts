@@ -10,6 +10,7 @@ import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db
 import type { ModeratorId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
+import { SHELTER_WRITE_POLICY } from "./access";
 import {
   createKabinetAuth,
   FORWARDED_AUTH_PATHS,
@@ -24,6 +25,8 @@ import {
 } from "./auth-route";
 import { capturingSender } from "./magic-link-sender";
 import { kabinetIdentityOf, kabinetSessionUserIdOf } from "./principal";
+import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
+import { handleKabinetRpc } from "./rpc-route";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
 import { enterSupport } from "./support";
 
@@ -72,8 +75,17 @@ beforeEach(async () => {
     baseURL: BASE,
     secret: "test-only-secret-that-is-long-enough-0123456789",
     secureCookies: false,
+    limiters: unlimitedKabinet(),
   });
 });
+
+/** Out of the way for every suite but the one that tests these limits. */
+function unlimitedKabinet(): KabinetLimiters {
+  return {
+    perUser: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 }),
+    perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 }),
+  };
+}
 
 const available: KabinetAuthAvailability = {
   kind: "available",
@@ -278,6 +290,7 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
       baseURL: https,
       secret: "test-only-secret-that-is-long-enough-0123456789",
       secureCookies: true,
+      limiters: unlimitedKabinet(),
     });
     const ctx = await secureAuth.$context;
     await ctx.internalAdapter.createUser({
@@ -441,6 +454,7 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
       secret: "test-only-secret-that-is-long-enough-0123456789",
       secureCookies: false,
       now: () => new Date(Date.now() - 365 * day),
+      limiters: unlimitedKabinet(),
     });
     auth = lenient;
     await createUser("olena@example.org");
@@ -722,5 +736,163 @@ describe("an invitation, written server-side and accepted through Better Auth (H
       post("/api/auth/organization/accept-invitation", { invitationId: invitation.id }, { cookie }),
     );
     expect(accepted.status).toBe(403);
+  });
+});
+/**
+ * KH-Q6 follow-up (Oleksii, 2026-10-14: "magic-link/verify, get-session and
+ * sign-out go behind the existing kabinet limiters, in this PR. Test a 429 on
+ * verify."). Real in-memory limiters at HS-Q10's numbers, real Better Auth,
+ * real requests: nothing here is a stub of the limiter.
+ */
+describe("verify, get-session and sign-out on the kabinet limiters", () => {
+  let kabinet: KabinetLimiters;
+
+  beforeEach(() => {
+    kabinet = {
+      perUser: inMemoryRateLimiter(KABINET_RATE_LIMITS.perUser),
+      perIp: inMemoryRateLimiter(KABINET_RATE_LIMITS.perIp),
+    };
+    auth = createKabinetAuth({
+      db,
+      sender,
+      schedule: (work) => {
+        pending.push(work());
+      },
+      baseURL: BASE,
+      secret: "test-only-secret-that-is-long-enough-0123456789",
+      secureCookies: false,
+      limiters: kabinet,
+    });
+  });
+
+  const PER_IP = KABINET_RATE_LIMITS.perIp.maxRequests;
+  const PER_USER = KABINET_RATE_LIMITS.perUser.maxRequests;
+  const from = (ip: string, extra: Record<string, string> = {}) => ({
+    "x-forwarded-for": ip,
+    origin: BASE,
+    ...extra,
+  });
+  const verifyWith = (token: string, ip: string) =>
+    new Request(`${BASE}/api/auth/magic-link/verify?token=${token}`, { headers: from(ip) });
+  const getSession = (ip: string, cookie?: string) =>
+    new Request(`${BASE}/api/auth/get-session`, {
+      headers: from(ip, cookie ? { cookie } : {}),
+    });
+
+  /** Uses up an address's per-IP budget with bad-token verifies, none of them refused. */
+  async function exhaustIp(ip: string) {
+    for (let i = 0; i < PER_IP; i++) {
+      const response = await route(verifyWith(`bad${i}`.padEnd(32, "x"), ip));
+      expect(response.status, `verify ${i + 1} of ${PER_IP}`).not.toBe(429);
+    }
+  }
+
+  it("verify: the 301st call from one IP in a minute answers 429, and a real link is then refused unspent", async () => {
+    await createUser("olena@example.org");
+    await route(post("/api/auth/sign-in/magic-link", { email: "olena@example.org" }));
+    const link = sender.sent[0]?.url;
+    if (link === undefined) throw new Error("no link sent");
+    const token = new URL(link).searchParams.get("token") ?? "";
+
+    await exhaustIp("203.0.113.9");
+    const refused = await route(verifyWith(token, "203.0.113.9"));
+    expect(refused.status).toBe(429);
+    expect(refused.headers.getSetCookie().some((c) => c.includes("session_token"))).toBe(false);
+
+    // Refused before Better Auth read the token, so the link still works
+    // from an address within its budget.
+    const verified = await route(verifyWith(token, "198.51.100.4"));
+    expect(verified.headers.getSetCookie().some((c) => c.includes("session_token="))).toBe(true);
+  });
+
+  it("verify: limited on auth.handler too, the path a server-side confirm page takes", async () => {
+    await exhaustIp("203.0.113.10");
+    const direct = await auth.handler(verifyWith("y".repeat(32), "203.0.113.10"));
+    expect(direct.status).toBe(429);
+  });
+
+  it("get-session and sign-out draw on the same per-IP budget", async () => {
+    await exhaustIp("203.0.113.11");
+    expect((await route(getSession("203.0.113.11"))).status).toBe(429);
+    const signOut = await route(
+      post("/api/auth/sign-out", {}, { "x-forwarded-for": "203.0.113.11" }),
+    );
+    expect(signOut.status).toBe(429);
+    expect((await route(getSession("203.0.113.12"))).status).toBe(200);
+  });
+
+  it("get-session: a signed-in user's 101st call in a minute answers 429, whatever the IP", async () => {
+    await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    // signIn's verify carried no session cookie, so it charged no user.
+    for (let i = 0; i < PER_USER; i++) {
+      const response = await route(getSession(`198.51.100.${i % 200}`, cookie));
+      expect(response.status, `get-session ${i + 1} of ${PER_USER}`).toBe(200);
+    }
+    expect((await route(getSession("192.0.2.1", cookie))).status).toBe(429);
+    // Another user, from the same address, is unaffected.
+    await createUser("ivan@example.org");
+    const other = await signIn("ivan@example.org");
+    expect((await route(getSession("192.0.2.1", other))).status).toBe(200);
+  });
+
+  it("sign-out: a signed-in user over the per-user budget is refused (429), session kept", async () => {
+    await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    for (let i = 0; i < PER_USER; i++) await route(getSession(`198.51.100.${i % 200}`, cookie));
+    const signOut = await route(
+      post("/api/auth/sign-out", {}, { cookie, "x-forwarded-for": "192.0.2.2" }),
+    );
+    expect(signOut.status).toBe(429);
+    expect(await db.select().from(authSession)).toHaveLength(1);
+  });
+
+  /**
+   * The double-charge question: every `/kabinet` page load and API call runs
+   * `auth.api.getSession` server-side, and those are charged where they
+   * arrive (proxy, `handleKabinetRpc`). The hook charges HTTP calls only.
+   */
+  it("server-side auth.api.getSession is never charged", async () => {
+    await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    const headers = new Headers({ cookie, "x-forwarded-for": "203.0.113.13" });
+    for (let i = 0; i < PER_IP + 5; i++) {
+      expect(await auth.api.getSession({ headers })).not.toBeNull();
+    }
+    expect((await route(getSession("203.0.113.13", cookie))).status).toBe(200);
+  });
+
+  it("magic-link requests are not charged here (signInLimiters own them)", async () => {
+    await exhaustIp("203.0.113.14");
+    const asked = await route(
+      post(
+        "/api/auth/sign-in/magic-link",
+        { email: "olena@example.org" },
+        { "x-forwarded-for": "203.0.113.14" },
+      ),
+    );
+    expect(asked.status).toBe(200);
+  });
+
+  it("shares the per-IP allowance with /api/kabinet/* (one key)", async () => {
+    await exhaustIp("203.0.113.15");
+    const rpc = await handleKabinetRpc(
+      new Request(`${BASE}/api/kabinet/shelter/profile/get`, { method: "POST" }),
+      {
+        availability: available,
+        resolve: async () => {
+          throw new Error("must be refused before resolving");
+        },
+        limiters: kabinet,
+        ip: "203.0.113.15",
+        now: new Date(),
+        newId: () => crypto.randomUUID(),
+        operatorDisplayName: "Олексій",
+        locationPolicy: null,
+        production: false,
+        shelterWrites: SHELTER_WRITE_POLICY,
+      },
+    );
+    expect(rpc.status).toBe(429);
   });
 });

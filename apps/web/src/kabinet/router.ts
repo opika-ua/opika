@@ -14,6 +14,7 @@ import {
 } from "../api/cursor";
 import {
   type AccessDecision,
+  assertShelterWritePolicyPermitted,
   decideAccess,
   type ShelterReadScope,
   type ShelterWriteScope,
@@ -49,11 +50,21 @@ const base = implement(shelterKabinetContract).$context<KabinetContext>();
  * none is refused) and asks `decideAccess`. A handler never decides who may
  * call it; it receives the scope this hands it, with the `shelterId` taken
  * from the actor, never from input.
+ *
+ * Before anything else, the test-only write policy is refused on a deployed
+ * instance (KH-T1): read from `process.env` here, at the one place every
+ * kabinet procedure on both routers passes, rather than taken from the
+ * caller, so a mistaken production path fails closed (500) on every
+ * procedure, reads included, instead of opening writes.
  */
 export function accessOrThrow(
   procedure: { "~orpc": { meta: unknown } },
   context: Pick<KabinetContext, "principal" | "shelterWrites">,
 ): Exclude<AccessDecision, { kind: "deny" }> {
+  assertShelterWritePolicyPermitted(context.shelterWrites, {
+    NODE_ENV: process.env.NODE_ENV,
+    VERCEL_ENV: process.env.VERCEL_ENV,
+  });
   const meta = procedure["~orpc"].meta as { access?: KabinetAccess | null };
   const decision = decideAccess(meta.access ?? null, context.principal, context.shelterWrites);
   if (decision.kind === "deny") {

@@ -19,8 +19,6 @@ const handler = new RPCHandler(kabinetRouter);
 
 export const KABINET_RPC_PREFIX = "/api/kabinet";
 
-export { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
-
 const tooMany = () => new Response("Too Many Requests", { status: 429 });
 
 /**

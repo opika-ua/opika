@@ -266,3 +266,19 @@ a real key resolves over HTTP are all unverified until this runs once for
 real. Treat the first real onboarding run as that verification, not as a
 formality — watch the upload log lines closely and check the resulting
 photo actually loads on the live detail page before trusting the rest.
+
+## Rotating `BETTER_AUTH_SECRET` (kabinet sign-in)
+
+Better Auth stores kabinet session tokens in plain text in `auth_session`
+(there is no supported hashing in 1.6.33; better-auth#11442 is open, recheck
+at the next Better Auth upgrade), so what keeps a leaked table row from being
+a working sign-in is the cookie's signature, made with `BETTER_AUTH_SECRET`.
+That value lives only in Vercel's environment: never in the database, the
+repo, a log or a local file. Rotate it on any suspected exposure (of the
+secret itself, or of the `auth_session` table together with anything that
+might have held the secret): generate a new value with `openssl rand -hex 32`,
+replace it in Vercel's Production environment, and redeploy. Every cookie
+signed with the old value stops verifying at once, so **every shelter admin
+and the operator are signed out** and sign in again with a fresh link; nothing
+else changes. The old rows become unusable at once and are deleted by the
+daily auth clean-up once their 7-day expiry passes (inbox KH-Q9, KH-Q10).

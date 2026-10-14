@@ -105,7 +105,7 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
     // The K2/K3 handlers, exercised with writes opened explicitly (KH-Q1): the
     // served route refuses them (`SHELTER_WRITE_POLICY`), which
     // shelter-writes-refused.test.ts pins.
-    shelterWrites: { kind: "open" },
+    shelterWrites: { kind: "open_for_tests_only" },
   });
   const text = await response.text();
   return { status: response.status, body: text ? fromRpcBody(JSON.parse(text)) : null };

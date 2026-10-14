@@ -40,17 +40,56 @@ const FORBIDDEN = { kind: "deny", code: "FORBIDDEN" } as const;
  *
  * **What lifts it:** the K2/K3 PR that ships the editing and confirming
  * screens *and* the replacement copy for A1/A2/B1 (docs/h2-copy-sheet.md)
- * changes `SHELTER_WRITE_POLICY` to `open`, in the same change.
+ * adds a production `open` variant, points `SHELTER_WRITE_POLICY` at it, and
+ * deletes `open_for_tests_only`, its production guard and its source scan,
+ * all in the same change.
  *
- * `open` exists today for one reason: the K2/K3 handler suites
- * (`handlers.test.ts`, `api/kabinet-cross-tenant.test.ts`) exercise those
- * handlers through the served router and pass it explicitly. Every non-test
- * caller passes `SHELTER_WRITE_POLICY`; `shelter-writes-refused.test.ts`
- * pins both that and the constant's value.
+ * `open_for_tests_only` exists today for one reason: the K2/K3 handler
+ * suites (`handlers.test.ts`, `registry.test.ts`,
+ * `api/kabinet-cross-tenant.test.ts`) exercise those handlers through the
+ * served router and pass it explicitly. It is a value on the request
+ * context, never an environment variable (KH-T1, Oleksii: "the test-only
+ * switch must not be an environment variable readable in production"). Its
+ * name is unique in the codebase on purpose: `shelter-writes-refused.test.ts`
+ * fails if the literal appears in any non-test file but this one, however it
+ * is spelled at the use site (shorthand property, spread, computed key), and
+ * pins the constant's value. `assertShelterWritePolicyPermitted` makes a
+ * deployed instance refuse it outright, so even a path the scan missed fails
+ * closed.
  */
-export type ShelterWritePolicy = { kind: "refused_until_edit_screens" } | { kind: "open" };
+export type ShelterWritePolicy =
+  | { readonly kind: "refused_until_edit_screens" }
+  | { readonly kind: "open_for_tests_only" };
 
-export const SHELTER_WRITE_POLICY: ShelterWritePolicy = { kind: "refused_until_edit_screens" };
+/**
+ * Frozen and readonly (review of the hardening, finding 2): a mutable object
+ * typed as the union would let `SHELTER_WRITE_POLICY.kind = ...` type-check
+ * anywhere, and silently open every served write for the life of the process.
+ */
+export const SHELTER_WRITE_POLICY: ShelterWritePolicy = Object.freeze({
+  kind: "refused_until_edit_screens",
+} as const);
+
+/**
+ * Throws when the test-only open policy reaches a deployed instance (KH-T1,
+ * Oleksii's condition: "make it fail if NODE_ENV=production or VERCEL_ENV is
+ * set"). `NODE_ENV=production` covers `next start` anywhere, the harness
+ * included, and `VERCEL_ENV` covers every Vercel deployment whatever its
+ * `NODE_ENV`. The env is a parameter so this stays pure; the router reads
+ * `process.env` itself and passes it (`accessOrThrow`), so no caller can
+ * hand it a friendlier one.
+ */
+export function assertShelterWritePolicyPermitted(
+  policy: ShelterWritePolicy,
+  env: { NODE_ENV?: string | undefined; VERCEL_ENV?: string | undefined },
+): void {
+  if (policy.kind !== "open_for_tests_only") return;
+  if (env.NODE_ENV === "production" || (env.VERCEL_ENV !== undefined && env.VERCEL_ENV !== "")) {
+    throw new Error(
+      "The test-only shelter write policy reached a deployed instance; refusing the request",
+    );
+  }
+}
 
 /**
  * The access matrix (addendum §1), as one pure function. The middleware only
@@ -83,7 +122,7 @@ export function decideAccess(
         } as const;
         if (access.mode === "read") return { kind: "allow_shelter_read", scope };
         // KH-Q1: the right actor, refused with its own code until K2/K3 ship.
-        return shelterWrites.kind === "open"
+        return shelterWrites.kind === "open_for_tests_only"
           ? { kind: "allow_shelter_write", scope }
           : { kind: "deny", code: "SHELTER_WRITES_NOT_YET_AVAILABLE" };
       }

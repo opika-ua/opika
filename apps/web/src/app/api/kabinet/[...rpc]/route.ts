@@ -5,10 +5,11 @@ import { getDb } from "../../../../api/db";
 import { requireEnv } from "../../../../api/env";
 import { SHELTER_WRITE_POLICY } from "../../../../kabinet/access";
 import { kabinetAuthAvailability } from "../../../../kabinet/auth-route";
+import { kabinetLimiters } from "../../../../kabinet/limiters";
 import { operatorDisplayName } from "../../../../kabinet/operator";
 import { kabinetIdentityOf } from "../../../../kabinet/principal";
 import { handleKabinetRpc } from "../../../../kabinet/rpc-route";
-import { kabinetAuth, kabinetLimiters } from "../../../../kabinet/runtime";
+import { kabinetAuth } from "../../../../kabinet/runtime";
 
 /**
  * RG-Q10: the registry needs `LOCATION_HMAC_SECRET` and answers 503 without
