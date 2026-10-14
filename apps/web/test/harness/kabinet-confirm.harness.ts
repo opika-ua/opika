@@ -10,7 +10,9 @@
  *
  * **Why a second server.** The harness's main server runs `next start` in
  * production mode, where kabinet sign-in is unavailable and the confirm page
- * is a 404 (`kabinetAuthAvailability`): the first test below pins that. Sign-in
+ * is a 404 (`kabinetAuthAvailability`): the first test below pins that, and
+ * the main server carries full `BETTER_AUTH_*` config, so only the production
+ * branch can produce that 404. Sign-in
  * runs only outside `NODE_ENV=production`, with the development console
  * sender. So this file starts the same build a second time, on its own port,
  * with `NODE_ENV=test` and `BETTER_AUTH_*` set, and reads the link from the
@@ -19,7 +21,9 @@
  * gate is untouched (and asserted).
  *
  * The link is never printed: it is a credential, even a test one, and nothing
- * here logs it or includes it in a failure message.
+ * here logs it or includes it in a failure message. Tracing is off in this
+ * file, since a retained trace would record the link and CI uploads them
+ * (review of f86c7cd, finding 2).
  */
 
 import { type ChildProcess, spawn } from "node:child_process";
@@ -32,6 +36,7 @@ import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { expect, test } from "@playwright/test";
 import {
   CURSOR_HMAC_SECRET,
+  HARNESS_BETTER_AUTH_SECRET,
   HARNESS_PRELAUNCH_GATE_SECRET,
   R2_PUBLIC_BASE_URL,
 } from "../harness-env";
@@ -40,8 +45,6 @@ import {
 const CONFIRM_PATH = "/kabinet/vkhid/pidtverdzhennia";
 /** Over plain HTTP the cookie has no `__Host-` prefix (`kabinetCookieName`). */
 const SESSION_COOKIE = "kabinet.session_token";
-/** Recognizable as a test value, never a real secret. */
-const BETTER_AUTH_SECRET = "test-better-auth-secret-for-harness-only-0123456789";
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
@@ -60,6 +63,8 @@ async function freePort(): Promise<number> {
 let server: ChildProcess | undefined;
 let origin = "";
 let stdout = "";
+
+test.use({ trace: "off" });
 
 test.describe("kabinet confirm page, in a real browser", () => {
   test("the production-mode server answers 404: sign-in stays dark there", async ({ request }) => {
@@ -84,7 +89,7 @@ test.describe("kabinet confirm page, in a real browser", () => {
             CURSOR_HMAC_SECRET,
             NEXT_PUBLIC_R2_PUBLIC_BASE_URL: R2_PUBLIC_BASE_URL,
             PRELAUNCH_GATE_SECRET: HARNESS_PRELAUNCH_GATE_SECRET,
-            BETTER_AUTH_SECRET,
+            BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
             BETTER_AUTH_URL: origin,
           },
           stdio: ["ignore", "pipe", "pipe"],
@@ -131,9 +136,9 @@ test.describe("kabinet confirm page, in a real browser", () => {
         createdAt: now,
         updatedAt: now,
       });
-      // The connection is left to the worker's exit (apps/web has no direct
-      // `postgres` dependency to close it with); teardown drops the database
-      // WITH (FORCE) regardless.
+      // Not closed here: `Database` doesn't expose its client, and a cast to
+      // reach it isn't worth it for one test connection. The worker's exit ends
+      // it; teardown drops the database WITH (FORCE) regardless.
 
       const requested = await fetch(`${origin}/api/auth/sign-in/magic-link`, {
         method: "POST",

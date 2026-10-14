@@ -2,6 +2,7 @@ import { assertDisposableTestDatabase, harnessPort, testDatabaseUrl } from "@opi
 import { defineConfig } from "@playwright/test";
 import {
   CURSOR_HMAC_SECRET,
+  HARNESS_BETTER_AUTH_SECRET,
   HARNESS_PRELAUNCH_GATE_SECRET,
   PRELAUNCH_GATE_STORAGE_STATE_PATH,
   R2_PUBLIC_BASE_URL,
@@ -120,6 +121,9 @@ export default defineConfig({
       CURSOR_HMAC_SECRET,
       NEXT_PUBLIC_R2_PUBLIC_BASE_URL: R2_PUBLIC_BASE_URL,
       PRELAUNCH_GATE_SECRET: HARNESS_PRELAUNCH_GATE_SECRET,
+      // Fully configured, so production mode is the only reason sign-in is off.
+      BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
+      BETTER_AUTH_URL: ORIGIN,
     },
     stdout: "pipe",
     stderr: "pipe",
