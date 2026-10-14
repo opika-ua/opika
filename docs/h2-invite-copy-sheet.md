@@ -116,7 +116,7 @@ up, so it can't name the shelter; two keys added, both `[COPY PENDING]`:
 
 | Key | Where | English sense |
 |---|---|---|
-| `kabinet.inviteLanding.ready` | Under `pageTitle`, before anything is sent | Press the button and we will email a sign-in link to the address this invitation went to. (Not from Oleksii: added so the button isn't alone on the card; drop it if a bare heading and button read better.) |
+| `kabinet.inviteLanding.ready` | Under `pageTitle`, before anything is sent | Says where the link will go, without showing the address (EM-Q4: kept). Oleksii's draft: «Посилання для входу прийде на адресу, на яку ви отримали це запрошення.» |
 | `kabinet.inviteLanding.send` | The one button | Send the link. **Oleksii's draft (EM-Q3):** «Надіслати посилання». In code with the draft quoted inside. |
 
 ## P. The confirm page (IN-Q11)
