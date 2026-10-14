@@ -24,7 +24,7 @@ address its link (IN-Q3). The only email whose link signs someone in.
 |---|---|---|
 | `kabinet.email.signIn.subject` | Subject line | A sign-in link for the shelters' cabinet. |
 | `kabinet.email.signIn.intro` | First line of the body | Someone asked to sign in with this address. |
-| `kabinet.email.signIn.action` | The link's label | Sign in. |
+| `kabinet.email.signIn.action` | The link's label in the HTML part: a label, never the URL (IN-E8); the plain-text part shows the raw URL | Open the sign-in page. **Oleksii's draft (IN-E8, given as "e.g.", not final):** «Відкрити сторінку входу» |
 | `kabinet.email.signIn.expiry` | Under the link | The link works once and expires in 15 minutes (`MAGIC_LINK_TTL_SECONDS`; the value is filled in, never typed into the string). |
 | `kabinet.email.signIn.notYou` | Last line | If you didn't ask for this, ignore the email: nothing happens without the link. |
 
@@ -39,9 +39,18 @@ landing, which sends a fresh magic link to the invited address only.
 | `kabinet.email.invite.subject` | Subject line | You're invited to manage a shelter's listings in the registry. |
 | `kabinet.email.invite.intro` | Body | The operator (by display name, from config) invited this address to administer «shelter name» (filled in). |
 | `kabinet.email.invite.what` | Body | What the cabinet lets them do (the read-only "your shelter" view in the first screens PR; editing comes later). State only what exists when this ships. |
-| `kabinet.email.invite.action` | The link's label | Open the invitation. |
+| `kabinet.email.invite.action` | The link's label in the HTML part: a label, never the URL (IN-E8); the plain-text part shows the raw URL | Open the invitation. |
 | `kabinet.email.invite.expiry` | Under the link | The invitation stays valid for 72 hours; the operator can send it again (`INVITATION_TTL_MS`, filled in). |
 | `kabinet.email.invite.notYou` | Last line | If this isn't expected, ignore it: nobody gets access without signing in from this address. |
+
+## C. The sign-in card's fallback line (screens PR)
+
+The "check your email" card is the same for every address (anti-enumeration), so it can't say
+a send failed or was blocked. This line gives the person a human to write to instead (IN-E7).
+
+| Key | Where | English sense |
+|---|---|---|
+| `kabinet.signInCard.notArrived` | Under «check your email», in the «я» voice | If the email hasn't arrived in a few minutes, write to me at {contact} (the address is filled from config, never typed into the string). **Oleksii's draft (IN-E7, "draft; final copy via the copy sheet"):** «Якщо лист не прийшов за кілька хвилин, напишіть мені на hello@opika.org.ua» |
 
 ## L. The invite landing (screens PR)
 

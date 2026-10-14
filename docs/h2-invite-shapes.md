@@ -93,6 +93,15 @@ Resend is the documented fallback, not set up.
 
 ## 3. The invitation email (Q3 A)
 
+**As built (2026-10-14, IN-E7, IN-E11), superseding the sketch below where they differ:**
+`InvitationSender` lives in `apps/web/src/kabinet/email-senders.ts` and returns the contract's
+`EmailSendOutcome` (`sent` / `blocked` with a reason / `failed` with `provider_error` or
+`copy_pending`), after a block-list check. The outcome is returned by the call, not stored:
+`registry.admins.invite` returns `InvitedAdminView`, `resendInvite` returns `{ invitationEmail }`,
+`shelters.create` returns `CreatedShelterView`. `ShelterAdminView` is unchanged, so the stored
+`lastSend` below (and its 0012 storage question) is not built. The link paths moved to
+`apps/web/src/kabinet/email-links.ts`.
+
 `apps/web/src/kabinet/invitation-sender.ts`, beside `magic-link-sender.ts`:
 
 ```ts
