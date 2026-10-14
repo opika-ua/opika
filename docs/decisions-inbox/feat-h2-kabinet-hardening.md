@@ -27,6 +27,8 @@ verbatim; the context after each quote is the coordinating session's framing, pa
 | KH-F1 | 2026-10-14 | Follow-up: read-only role for production checks (his item 6a) | Replace `NEON_CHECK_DATABASE_URL` (a URL carrying the owner's password) with `NEON_PROD_READONLY_URL`, backed by a read-only role | The SQL Oleksii runs is the one text in the section "KH-F1 runbook step" below (the coordinator's proposal from chat, 2026-10-14, as amended by his answer). | — | Oleksii, verbatim: "6a read-only role: approved with changes, I'll run it: Password: hex, not base64 (base64 '/', '+', '=' break the connection URL). I'll delete the CREATE ROLE entry from the Neon SQL editor's History afterwards, since it stores the password. REVOKE also auth_account: REVOKE SELECT ON auth_session, auth_verification, auth_account FROM opika_readonly; The verification query also checks auth_verification and auth_account SELECT → false. I'll put NEON_PROD_READONLY_URL in .env.local myself and tell you when. Then switch the scripts over and remove NEON_CHECK_DATABASE_URL." (relayed by the coordinating session) | approved; waiting on Oleksii's run, then the script switch |
 | KH-F2 | 2026-10-14 | Follow-up: nobody handles raw branch connection strings (his item 6b) | Branch URLs carry the production branch's role passwords (KH-S1) | — | — | First, verbatim (relayed, 2026-10-14): "b) Nobody should handle raw branch connection strings. Propose a flow using a branch-only role or a URL derived from the Neon API, so a branch URL never carries [the production branch's] password." · Then, verbatim (relayed): "6b db:neon-branch wrapper: approved, scheduled after #94 and #95. Conditions: The project-scoped Neon API key lives only in .env.local. The wrapper deletes only the branch id it created in this run, never the default branch. Tests (against a mocked API): delete refused for any other id; delete refused for the default branch; branch deleted on failure; the URI is never printed or written to disk." | **approved; open, scheduled after #94 and #95.** A `db:neon-branch` wrapper, built to his conditions: the API key from `.env.local` only; deletes only the branch id it created in the same run, never the default branch; mocked-API tests for (1) delete refused for any other id, (2) delete refused for the default branch, (3) branch deleted on failure, (4) the URI never printed or written to disk |
 | KH-F3 | 2026-10-14 | Follow-up: the ADR says Vercel Pro; the project is on Hobby | `docs/stack-decision.md` and CLAUDE.md's stack table say "Vercel Pro at MVP" | — | — | Verbatim (relayed, 2026-10-14): "Note for the ADR: hosting is Hobby, not Pro. Hobby is non-commercial use only; revisit before any Phase 2 ads. Record as a follow-up." | **open, recorded only** (the ADR is not edited on this branch). Hosting is Vercel Hobby, which is for non-commercial use only, so it must be revisited **before any Phase 2 ads** (rewarded video, `docs/stack-decision.md`). Hobby also limits crons to once a day (KH-Q12) |
+| KH-S2 | 2026-10-14 | Addendum to KH-S1: Neon branches after a password reset | (incident record) | — | — | Verbatim (relayed by the coordinating session): "Deleted smoke-auth-cleanup, rehearsal-0010 and rehearsal-0011. They held prod data and the leaked password, since branches don't pick up password resets on main." · "upd: deleted pre-demo-reseed for security" · Rule, verbatim: "after any password reset on main, every existing branch must be deleted or have its own role password reset." | recorded |
+| KH-R1 | 2026-10-14 | The rotation runbook's manual `DELETE FROM auth_verification;` step (review pass 3, STOP reason 3) | Keep or remove | keep · remove | — | Verbatim (relayed): "Keep the manual DELETE FROM auth_verification runbook step." | answered |
 
 ## KH-F1 runbook step (operator, the production branch, Neon SQL editor)
 
@@ -44,7 +46,6 @@ ALTER ROLE opika_readonly SET default_transaction_read_only = on;
 GRANT CONNECT ON DATABASE neondb TO opika_readonly;
 GRANT USAGE ON SCHEMA public TO opika_readonly;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO opika_readonly;
-ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner IN SCHEMA public GRANT SELECT ON TABLES TO opika_readonly;
 GRANT USAGE ON SCHEMA drizzle TO opika_readonly;
 GRANT SELECT ON drizzle.__drizzle_migrations TO opika_readonly;
 REVOKE SELECT ON auth_session, auth_verification, auth_account FROM opika_readonly;
@@ -65,11 +66,9 @@ SELECT rolsuper, rolcreaterole, rolcreatedb, rolreplication, rolbypassrls
 FROM pg_roles WHERE rolname = 'opika_readonly';
 ```
 
-Open for Oleksii (not a default taken):
-- **`ALTER DEFAULT PRIVILEGES`** (in the proposal he approved) makes every table a future
-  migration creates readable automatically, including one as sensitive as the three revoked
-  here. Without it, a new table stays unreadable until granted by hand, and the checks that
-  read it fail loudly. Keep it, or drop that one line.
-- `sessions` (adopter device sessions: SHA-256 token hashes and adopter ids) stays readable.
-  Hashes only; add it to the REVOKE if he prefers.
-- Child branches created afterwards inherit `opika_readonly` and its password, like any role.
+Decided (Oleksii, 2026-10-14, verbatim, relayed by the coordinating session): "KH-F1: drop
+ALTER DEFAULT PRIVILEGES; new tables stay unreadable until granted by hand. Adopter sessions
+table (hashes only) stays readable: fine." The SQL above no longer has that line: a table a
+later migration adds is unreadable to this role until granted by hand, so a check reading it
+fails loudly rather than silently gaining access. Child branches created afterwards inherit
+`opika_readonly` and its password, like any role (see KH-S1's addendum).
