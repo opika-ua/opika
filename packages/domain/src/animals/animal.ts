@@ -50,9 +50,10 @@ export const AnimalSchema = z.object({
    * `fuzzed_address`-precision public location.
    *
    * No exact foster address is ever stored — a foster home is a private
-   * residence. The city centroid is available via `CityView.centroid` and
-   * is honestly labelled as such, rather than posing as the animal's
-   * position. Built via `animalPublicLocationOf(cityId, district)`.
+   * residence. The city centroid is `City.centroid`, honestly labelled as
+   * such, rather than posing as the animal's position (not served to
+   * adopters since 2026-10-14: EM-Q10 sends the city only). Built via
+   * `animalPublicLocationOf(cityId, district)`.
    */
   publicLocation: PublicLocationSchema.nullable(),
   createdAt: z.date(),

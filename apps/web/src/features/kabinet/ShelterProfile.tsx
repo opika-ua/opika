@@ -241,6 +241,7 @@ export function ShelterProfile({ view, cityName, viewer, operatorName }: Shelter
                   </Row>
                   <Row label={t.address}>{address === "" ? notRecorded : address}</Row>
                 </dl>
+                <p className={`${CAPTION} tablet:col-span-2`}>{t.addressNote}</p>
               </section>
             </div>
           </div>

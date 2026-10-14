@@ -3,6 +3,7 @@ import { shelterRepo } from "@opika/db/repos";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
+import { cityOnlyLocationOf } from "./public-location";
 
 type SheltersInput = z.infer<typeof SheltersByIdInputSchema>;
 
@@ -30,7 +31,7 @@ export async function sheltersById(
     id: shelter.id,
     displayName: shelter.displayName,
     description: shelter.description,
-    publicLocation: shelter.publicLocation,
+    publicLocation: cityOnlyLocationOf(shelter.publicLocation),
     donation: shelter.donation,
     createdAt: shelter.createdAt,
     verification: "verified",

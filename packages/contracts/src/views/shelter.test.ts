@@ -1,6 +1,5 @@
 import {
   CityIdSchema,
-  DEFAULT_FUZZ_RADIUS_METRES,
   EdrpouSchema,
   type ExactAddress,
   type LocationPrivacyPolicy,
@@ -85,18 +84,12 @@ describe("public shelter projections withhold the private fields", () => {
     expect(projected.verification).toBe("verified");
   });
 
-  it("still carries the approximate location, which is what a map needs", () => {
-    expect(projected.publicLocation.precision).toBe("fuzzed_address");
-    if (projected.publicLocation.precision !== "fuzzed_address") throw new Error("unreachable");
-    expect(projected.publicLocation.approximate.precisionMetres).toBe(DEFAULT_FUZZ_RADIUS_METRES);
-  });
-
-  it("publishes a location that is not the shelter's real one", () => {
-    // The assertion that was missing: precisionMetres alone is an unenforced
-    // claim, and a view carrying the true coordinates with a 1 km label
-    // attached is worse than one carrying no location at all.
-    if (projected.publicLocation.precision !== "fuzzed_address") throw new Error("unreachable");
-    expect(projected.publicLocation.approximate.center).not.toEqual(exactAddress.coordinates);
+  it("carries the city only: no district, no fuzzed point (EM-Q10)", () => {
+    // The domain location still holds the fuzzed point (built server-side by
+    // publicLocationOf above); the public view no longer serializes it.
+    expect(publicLocation.precision).toBe("fuzzed_address");
+    expect(projected.publicLocation).toEqual({ cityId: CITY_ID });
+    expect(JSON.stringify(projected)).not.toContain(String(exactAddress.coordinates.lat));
   });
 
   it("withholds the same fields from the card summary", () => {

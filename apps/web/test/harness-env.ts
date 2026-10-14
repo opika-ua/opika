@@ -35,3 +35,11 @@ export const R2_PUBLIC_BASE_URL = "https://cdn.test.invalid";
  * finding 1).
  */
 export const HARNESS_BETTER_AUTH_SECRET = "test-better-auth-secret-for-harness-only-0123456789";
+
+/**
+ * EM-Q11: the key every rate limiter's IP bucket is an HMAC under. The harness
+ * sets one so its server keys limiters the way production does (a configured
+ * secret) rather than through `rate-limit-key.ts`'s per-process fallback. A
+ * recognizable test value, never a real one.
+ */
+export const HARNESS_RATE_LIMIT_KEY_SECRET = "test-rate-limit-key-secret-for-harness-only-0123";

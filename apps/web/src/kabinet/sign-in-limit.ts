@@ -1,4 +1,5 @@
 import type { RateLimiter } from "../api/rate-limit";
+import { ipRateLimitKey } from "../api/rate-limit-key";
 
 /**
  * HS-Q5 (Oleksii): per address 5 links an hour, per IP 20 sign-in requests an
@@ -33,7 +34,7 @@ export async function signInAllowed(
 ): Promise<boolean> {
   const [address, ip] = await Promise.all([
     limiters.perAddress.check(`address:${normalizeEmail(request.email)}`, now),
-    limiters.perIp.check(`ip:${request.ip}`, now),
+    limiters.perIp.check(ipRateLimitKey(request.ip), now),
   ]);
   return address && ip;
 }

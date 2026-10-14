@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { clientIp } from "./api/client-ip";
 import { evaluatePrelaunchGate, PRELAUNCH_GATE_QUERY_PARAM } from "./api/prelaunch-gate";
 import { apiRateLimiter } from "./api/rate-limit";
+import { ipRateLimitKey } from "./api/rate-limit-key";
 import { kabinetLimiters } from "./kabinet/limiters";
 import { isChargedKabinetPageLoad, kabinetPageLoadAllowed } from "./kabinet/page-limit";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
@@ -84,7 +85,7 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
   const now = new Date();
   if (
     isDiscoveryPagePath(request.nextUrl.pathname) &&
-    !(await apiRateLimiter.check(clientIp(request), now))
+    !(await apiRateLimiter.check(ipRateLimitKey(clientIp(request)), now))
   ) {
     return new NextResponse("Too Many Requests", { status: 429 });
   }

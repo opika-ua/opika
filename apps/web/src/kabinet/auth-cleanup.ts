@@ -11,8 +11,10 @@ import { authExpiryRepo } from "@opika/db/repos";
  * runs once a day at an inexact time within the hour, KH-Q12) rests on this
  * route running, not on Better Auth's lazy deletes.
  *
- * - **What goes:** exactly what `authExpiryRepo.deleteExpired` deletes,
- *   rows Better Auth itself treats as dead, in one statement.
+ * - **What goes:** exactly what `authExpiryRepo.deleteExpired` deletes, in
+ *   one statement: rows past their expiry (KH-Q9), and sessions past the
+ *   kabinet's 30-day absolute cap even while their idle expiry is still
+ *   ahead (EM-Q11, 2026-10-14).
  * - **Who may call it:** Vercel's cron, which sends
  *   `Authorization: Bearer <CRON_SECRET>`. Compared in constant time over
  *   SHA-256 digests (fixed length, so neither the value nor its length

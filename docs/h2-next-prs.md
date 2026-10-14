@@ -70,18 +70,37 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [x] **Magic-link provider:** Brevo (IN-E2, 2026-10-13), Resend the documented fallback, not set
       up. Gmail delivery test by `email:delivery-test` (IN-E5); ukr.net/i.ua postponed with a trigger
       (IN-E4); apex DMARC `p=reject` is a follow-up (IN-E3).
-- [ ] **The /pro `about.data` addition is live in this PR** (KH-C1; moved back from the wiring
+- [x] **The /pro `about.data` addition is live in this PR** (KH-C1; moved back from the wiring
       commit by Oleksii's handoff of 2026-10-14, verbatim: "Row 90 ships with the #94 merge (all it
       describes is live via #95, and #94 starts storing admin emails at invite)."): his final text,
       appended to `about.data`, pinned in `copy-status.test.ts` and `/pro`'s `page.test.tsx`. Claims
-      checked against the code in inbox EM-T17; **two findings open (EM-Q11)**: this box stays
-      unticked until he answers them.
+      checked against the code in inbox EM-T17. EM-Q11's two findings answered (a) (his words: "With
+      these, the /pro sentence ships exactly as written, with the #94 merge.") and built (EM-T20,
+      EM-T21); rechecked in EM-T17: every claim true of the registry's own storage. Vercel's request
+      logs are recorded as an infrastructure limit, not a copy change (EM-L1).
+- [x] **`RATE_LIMIT_KEY_SECRET` set in Vercel Production** (EM-Q11; Oleksii, 2026-10-14, verbatim:
+      "RATE_LIMIT_KEY_SECRET ... already set"; the "..." is the relay's elision). Every rate limiter
+      keys a client IP as `ip:` + HMAC-SHA256 under it (EM-T20); a production build fails, and a
+      production instance refuses to boot, without one of 32+ characters.
+- [x] **Before a reveal, adopters receive the city only** (EM-Q10, answered (a); EM-T19): no
+      `district` and no coordinates in any pre-reveal response (`feed.list`, `gallery.list`,
+      `animals.byId`, `shelters.byId`, `cities.list`), held by a schema walk and a served-response
+      test; the reveal keeps the exact address (decision #2). Row 57 (`kabinet.profile.addressNote`)
+      is live again with his text.
+- [x] **The daily auth clean-up also deletes sessions past the 30-day absolute cap** (EM-Q11 (2);
+      EM-T21), in the same statement, tested locally with the cap passed and the idle expiry ahead.
+- [ ] **Real-Neon rerun of step 18 with the 30-day cap condition** (EM-T21): Oleksii reruns
+      `neon-smoke.ts`; step 18 now also checks a session past the cap (idle expiry ahead) goes and
+      one just under it stays. The ticked real-Neon item below covered the statement before this
+      condition.
 - [x] **`KABINET_OPERATOR_DISPLAY_NAME` set in Vercel Production** (Oleksii, 2026-10-14, verbatim:
       "KABINET_OPERATOR_DISPLAY_NAME=Олексій Колотенко is set in Vercel Production (nominative). Tick
       it on the #94 merge checklist"). It signs both emails (`— {operator}`) and labels the
       operator's history lines.
 - [ ] **Delivery test 3** (Oleksii's, by hand; his action c, 2026-10-14): both emails to the same
       Gmail with the operator name set, `--operator-name "Олексій Колотенко"`. He reports the tabs.
+      Run 2026-10-14 14:24 UTC: both emails held at Brevo ("Sent" only, no delivered, deferred or
+      blocked event); open, inbox EM-R2. His instruction: "Don't resend."
       Trigger recorded (EM-R1): if the reworked sign-in email still lands in Promotions, sign-in sends
       are proposed for Resend; invites stay on Brevo while they land in Primary.
 - [ ] **An invitation reaches the invitee.** The registry PR's `registry.admins.invite` and
@@ -99,7 +118,8 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       boot without it. Then the daily auth clean-up (KH-Q9) runs at 03:00 UTC.
 - [x] **Real-Neon run of the auth clean-up statement** (KH-Q9): done twice: #95's run (step 15
       there) and #94's final run (step 18 after the merge renumbering, below): 1 verification + 1
-      session deleted, live rows kept.
+      session deleted, live rows kept. Covers the statement before EM-Q11's 30-day condition; the
+      rerun with it is the unticked item above.
 - [ ] **Real-Neon run before the production 503 lifts** (HS-T4, HS-T4b, HS-Q12): sign-in,
       verify, getSession, accept-invitation, the audited-write CTE, the listing jsonb
       compare-and-set, the deleteDraft 23503 catch, and the `last_updated_at` round-trip

@@ -37,12 +37,7 @@ function makeAnimal(overrides: Partial<AnimalDetailView> = {}): AnimalDetailView
     shelter: {
       id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as AnimalDetailView["shelter"]["id"],
       displayName: "Тестовий притулок",
-      publicLocation: {
-        precision: "fuzzed_address",
-        cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never,
-        district: null,
-        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
-      },
+      publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
       freshnessSentence: null,
       verification: "verified",
     },
@@ -55,12 +50,7 @@ function makeShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterV
     id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as PublicShelterView["id"],
     displayName: "Тестовий притулок",
     description: { uk: "Опис притулку", en: null },
-    publicLocation: {
-      precision: "fuzzed_address",
-      cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never,
-      district: null,
-      approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
-    },
+    publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
     donation: null,
     createdAt: new Date("2023-01-01T00:00:00.000Z"),
     verification: "verified",

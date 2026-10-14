@@ -12,7 +12,7 @@ import { eq, inArray } from "drizzle-orm";
 import { createDatabase, type Database } from "../src/client";
 import { productionEndpoint } from "../src/prod-guard";
 import { animalRepo } from "../src/repos/animal-repo";
-import { authExpiryRepo } from "../src/repos/auth-expiry-repo";
+import { authExpiryRepo, KABINET_SESSION_ABSOLUTE_MS } from "../src/repos/auth-expiry-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { kabinetInvitationAcceptRepo } from "../src/repos/kabinet-invitation-accept-repo";
 import { kabinetInvitationRepo } from "../src/repos/kabinet-invitation-repo";
@@ -680,16 +680,32 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `${dupAccepted.kind}; newest ${statusOf(newerId)}, older ${statusOf(olderInvite.invitationId)}, ${stillPending} pending`,
   );
 
-  // 18. the daily auth clean-up's one statement (KH-Q9): two data-modifying
-  // CTEs and their counts, through neon-http. Only rows already dead to
-  // Better Auth go; on a disposable branch that may include rows copied from
-  // production, so the counts are "at least" and this run's own rows are
-  // checked by id.
+  // 18. the daily auth clean-up's one statement (KH-Q9, plus EM-Q11's 30-day
+  // cap): two data-modifying CTEs and their counts, through neon-http. Rows
+  // past expiry go, and a session past the absolute cap goes even with its
+  // idle expiry still ahead (EM-Q11: "Test the case where the cap is passed
+  // but the idle expiry is in the future"); one just under the cap stays. On a
+  // disposable branch the counts may include rows copied from production, so
+  // they are "at least" and this run's own rows are checked by id.
   const expired = { session: randomUUID(), verification: randomUUID() };
   const live = { session: randomUUID(), verification: randomUUID() };
+  const pastCap = randomUUID();
+  const underCap = randomUUID();
   await db.insert(authSession).values([
     { ...session(operator), id: expired.session, expiresAt: later(-1000) },
     { ...session(operator), id: live.session, expiresAt: later(86_400_000) },
+    {
+      ...session(operator),
+      id: pastCap,
+      createdAt: later(-KABINET_SESSION_ABSOLUTE_MS - 60_000),
+      expiresAt: later(5 * 86_400_000),
+    },
+    {
+      ...session(operator),
+      id: underCap,
+      createdAt: later(-KABINET_SESSION_ABSOLUTE_MS + 60_000),
+      expiresAt: later(5 * 86_400_000),
+    },
   ]);
   const verification = (id: string, expiresAt: Date) => ({
     id,
@@ -711,7 +727,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       await db
         .select({ id: authSession.id })
         .from(authSession)
-        .where(inArray(authSession.id, [expired.session, live.session]))
+        .where(inArray(authSession.id, [expired.session, live.session, pastCap, underCap]))
     ).map((r) => r.id),
     ...(
       await db
@@ -721,16 +737,18 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     ).map((r) => r.id),
   ]);
   check(
-    "auth clean-up (expired verification + session, one statement)",
+    "auth clean-up (expired verification + session, session past the 30-day cap, one statement)",
     typeof counts.sessions === "number" &&
       typeof counts.verifications === "number" &&
-      counts.sessions >= 1 &&
+      counts.sessions >= 2 &&
       counts.verifications >= 1 &&
       !left.has(expired.session) &&
       !left.has(expired.verification) &&
+      !left.has(pastCap) &&
+      left.has(underCap) &&
       left.has(live.session) &&
       left.has(live.verification),
-    `deleted ${counts.verifications} verification(s), ${counts.sessions} session(s); this run's live rows kept ${left.has(live.session) && left.has(live.verification)}, expired gone ${!left.has(expired.session) && !left.has(expired.verification)}`,
+    `deleted ${counts.verifications} verification(s), ${counts.sessions} session(s); this run's live rows kept ${left.has(live.session) && left.has(live.verification)}, expired gone ${!left.has(expired.session) && !left.has(expired.verification)}, past-cap gone ${!left.has(pastCap)}, under-cap kept ${left.has(underCap)}`,
   );
   return out;
 }

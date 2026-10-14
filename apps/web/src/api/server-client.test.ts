@@ -34,7 +34,6 @@ describe("anonymousRouterClient", () => {
       id: city.id,
       slug: city.slug,
       name: city.name,
-      centroid: city.centroid,
     });
   });
 

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { authExpiryRepo } from "../src/repos/auth-expiry-repo";
+import { authExpiryRepo, KABINET_SESSION_ABSOLUTE_MS } from "../src/repos/auth-expiry-repo";
 import { authSession, authUser, authVerification } from "../src/schema/auth";
 import { setupTestDatabase, truncateAll } from "../src/test-utils/index";
 
@@ -94,6 +94,64 @@ describe("authExpiryRepo.deleteExpired (KH-Q9)", () => {
 
   it("leaves the user row alone", async () => {
     await authExpiryRepo(db).deleteExpired(at(10 * 86_400_000));
+    expect(await db.select({ id: authUser.id }).from(authUser)).toEqual([{ id: USER }]);
+  });
+});
+
+/**
+ * EM-Q11 (Oleksii, 2026-10-14, verbatim): "The cleanup also deletes sessions
+ * older than the 30-day absolute cap. Same statement plus one condition. Test
+ * the case where the cap is passed but the idle expiry is in the future."
+ */
+describe("authExpiryRepo.deleteExpired: the 30-day absolute cap (EM-Q11)", () => {
+  const DAY = 86_400_000;
+  // The cap, written out rather than read from the constant under test.
+  const CAP = 30 * DAY;
+  const FUTURE = at(5 * DAY);
+  const created = (id: string, createdAt: Date, expiresAt: Date) => ({
+    ...session(id, expiresAt),
+    createdAt,
+    updatedAt: at(-DAY),
+  });
+
+  beforeEach(async () => {
+    await user();
+    await db
+      .insert(authSession)
+      .values([
+        created("s-past-cap", at(-CAP - 1), FUTURE),
+        created("s-at-cap", at(-CAP), FUTURE),
+        created("s-under-cap", at(-CAP + 1), FUTURE),
+        created("s-young", at(-DAY), FUTURE),
+      ]);
+    await db.insert(authVerification).values([verification("v-live", at(15 * 60_000))]);
+  });
+
+  it("is the 30 days the kabinet's own cap uses", () => {
+    expect(KABINET_SESSION_ABSOLUTE_MS).toBe(CAP);
+  });
+
+  it("deletes a session past the cap whose idle expiry is still in the future", async () => {
+    expect(await authExpiryRepo(db).deleteExpired(NOW)).toEqual({ verifications: 0, sessions: 1 });
+    expect(await ids()).toEqual({
+      sessions: ["s-at-cap", "s-under-cap", "s-young"],
+      verifications: ["v-live"],
+    });
+  });
+
+  it("keeps one exactly at the cap (the hook's `>` too), and takes it a millisecond later", async () => {
+    await authExpiryRepo(db).deleteExpired(NOW);
+    expect((await ids()).sessions).toContain("s-at-cap");
+    expect(await authExpiryRepo(db).deleteExpired(at(1))).toEqual({
+      verifications: 0,
+      sessions: 1,
+    });
+    expect((await ids()).sessions).toEqual(["s-under-cap", "s-young"]);
+  });
+
+  it("leaves verification rows to their own expiry, and the user alone", async () => {
+    await authExpiryRepo(db).deleteExpired(at(10 * 60_000));
+    expect((await ids()).verifications).toEqual(["v-live"]);
     expect(await db.select({ id: authUser.id }).from(authUser)).toEqual([{ id: USER }]);
   });
 });

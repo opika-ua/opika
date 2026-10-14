@@ -91,9 +91,9 @@ export function AnimalDetailScreen({
 
   /**
    * `animal.publicLocation` is `null` for an animal still at its own
-   * shelter — it inherits the shelter's `fuzzed_address` location (`CLAUDE
-   * .md` decision #17). Non-null means fostered: `city`-precision only, no
-   * coordinates at all, per that field's own doc comment on `Animal`.
+   * shelter — it inherits the shelter's location (`CLAUDE.md` decision
+   * #17). Non-null means fostered. Either way this view holds the city only
+   * (Oleksii, 2026-10-14, EM-Q10), so nullness is the one signal.
    */
   const isFostered = animal.publicLocation !== null;
   const locationLine = (isFostered ? uk.location.lineFostered : uk.location.lineAtShelter).replace(

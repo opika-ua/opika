@@ -111,6 +111,11 @@ describe("ShelterProfile (K4, read-only)", () => {
     // (inbox EM-T13).
     expect(rowValue(t.registrationStatus)).toBe("Перевірено · з 14 березня 2025 р.");
     expect(rowValue(t.address)).toBe("Бровари, вул. Київська, 300");
+    // Row 57, his replacement (2026-10-14), transcribed: the caption under the
+    // address, inside the same block.
+    expect(
+      within(block).getByText("Ті, хто шукає тварину, не бачать точної адреси — лише місто."),
+    ).toBeTruthy();
     // Only the verification block is dashed: contacts are not "not yours to edit".
     expect(screen.getByRole("region", { name: t.contactsTitle }).className).not.toContain(
       "border-dashed",

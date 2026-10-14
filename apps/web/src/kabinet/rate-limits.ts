@@ -27,8 +27,9 @@ export const KABINET_RATE_LIMITS = {
 export type KabinetLimiters = { perUser: RateLimiter; perIp: RateLimiter };
 
 /**
- * The limiter keys, shared by the API and the page loads, so a page load and
- * an API call draw on the same allowance.
+ * The per-user key, shared by the API and the page loads, so a page load and
+ * an API call draw on the same allowance. The per-IP key is
+ * `ipRateLimitKey` (`api/rate-limit-key.ts`), the one every limiter uses:
+ * an HMAC of the address, never the address (EM-Q11).
  */
-export const kabinetIpKey = (ip: string) => `ip:${ip}`;
 export const kabinetUserKey = (userId: string) => `user:${userId}`;

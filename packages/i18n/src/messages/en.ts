@@ -410,6 +410,7 @@ export const en = {
       registrationStatus: "Registration status",
       statusSince: "{status} · since {date}",
       address: "Premises address",
+      addressNote: "People looking for an animal don't see the exact address, only the city.",
     },
     profileStatus: {
       pending: "Waiting",

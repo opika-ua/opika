@@ -161,9 +161,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
       }
     };
     walk(uk.kabinet, "kabinet");
-    // 88 rows of the copy export plus operatorFallbackName and profileNotRecorded,
-    // less profile.addressNote (row 57), deleted as a false claim (review of the final copy).
-    expect(pending.length + written.length).toBe(89);
+    // 88 rows of the copy export plus operatorFallbackName and profileNotRecorded.
+    // profile.addressNote (row 57) was deleted as a false claim and is back with
+    // his replacement text (2026-10-14, EM-Q10).
+    expect(pending.length + written.length).toBe(90);
     expect(kabinetPendingCopy()).toEqual(pending.sort());
     for (const screenless of [
       "kabinet.history.adminJoined",

@@ -1,4 +1,5 @@
 import type { InviteLandingRow } from "@opika/db/repos";
+import { ipRateLimitKey } from "../api/rate-limit-key";
 import type { KabinetAuth } from "./auth";
 import { isSameOriginPost } from "./confirm-route";
 import { maskAddress } from "./email-senders";
@@ -73,7 +74,7 @@ export async function inviteLandingOf(
   invitationId: string,
   deps: InviteLandingDeps,
 ): Promise<InviteLanding> {
-  if (!(await deps.limiters.perIp.check(`ip:${deps.ip}`, deps.now))) {
+  if (!(await deps.limiters.perIp.check(ipRateLimitKey(deps.ip), deps.now))) {
     return { kind: "rate_limited" };
   }
   if (!INVITATION_ID.test(invitationId)) return { kind: "unusable" };

@@ -1,5 +1,9 @@
 import type { Database } from "@opika/db";
-import { kabinetActorRepo, kabinetInvitedUsersRepo } from "@opika/db/repos";
+import {
+  KABINET_SESSION_ABSOLUTE_MS,
+  kabinetActorRepo,
+  kabinetInvitedUsersRepo,
+} from "@opika/db/repos";
 import {
   authAccount,
   authInvitation,
@@ -15,8 +19,9 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 import { clientIp } from "../api/client-ip";
+import { ipRateLimitKey } from "../api/rate-limit-key";
 import { MAGIC_LINK_TTL_SECONDS, type MagicLinkSender } from "./magic-link-sender";
-import { type KabinetLimiters, kabinetIpKey, kabinetUserKey } from "./rate-limits";
+import { type KabinetLimiters, kabinetUserKey } from "./rate-limits";
 
 /** KABINET N1: a link is good for 15 minutes. Defined beside the sender, re-exported here. */
 export { MAGIC_LINK_TTL_SECONDS } from "./magic-link-sender";
@@ -54,7 +59,11 @@ const DAY_SECONDS = 24 * 60 * 60;
  *   checks the same cap again as a second line (reviewer, HS-Q8, finding 1).
  */
 export const KABINET_SESSION = {
-  absoluteMs: 30 * DAY_SECONDS * 1000,
+  /**
+   * One number with the daily clean-up's (`KABINET_SESSION_ABSOLUTE_MS`,
+   * `@opika/db`), which deletes a session past this cap (EM-Q11).
+   */
+  absoluteMs: KABINET_SESSION_ABSOLUTE_MS,
   idleSeconds: 7 * DAY_SECONDS,
   refreshSeconds: DAY_SECONDS,
 } as const;
@@ -233,7 +242,7 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
         if (
           limited &&
           ctx.request !== undefined &&
-          !(await deps.limiters.perIp.check(kabinetIpKey(clientIp(ctx.request)), now))
+          !(await deps.limiters.perIp.check(ipRateLimitKey(clientIp(ctx.request)), now))
         ) {
           throw new APIError("TOO_MANY_REQUESTS");
         }

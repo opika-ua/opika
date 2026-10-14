@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { cronSecretProblem } from "./build-env";
+import { cronSecretProblem, rateLimitKeySecretProblem } from "./build-env";
 
 /**
  * Read a required environment variable, throwing at call time if missing.
@@ -242,8 +242,20 @@ export function validateEnv(): void {
    * ⚠ Deploy-order note: set `CRON_SECRET` in Vercel's Production
    * environment before this deploys, or the production build fails.
    */
-  const cron = cronSecretProblem(process.env);
-  if (cron !== null) {
-    throw new Error(`Invalid or missing required environment variable(s): ${cron}.`);
+  /**
+   * `RATE_LIMIT_KEY_SECRET` (EM-Q11, 2026-10-14) follows `CRON_SECRET`
+   * exactly, through the same shared rule (`rateLimitKeySecretProblem`,
+   * `build-env.ts`). Without it every limiter call on a production instance
+   * throws (`rate-limit-key.ts` fails closed there), so refusing to boot is
+   * the same outcome, found before the first visitor rather than by them.
+   *
+   * ⚠ Deploy-order note: set it in Vercel's Production environment before
+   * this deploys (Oleksii, 2026-10-14: "already set").
+   */
+  const problems = [cronSecretProblem(process.env), rateLimitKeySecretProblem(process.env)].filter(
+    (problem): problem is string => problem !== null,
+  );
+  if (problems.length > 0) {
+    throw new Error(`Invalid or missing required environment variable(s): ${problems.join("; ")}.`);
   }
 }

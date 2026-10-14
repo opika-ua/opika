@@ -4,6 +4,7 @@ import {
   CURSOR_HMAC_SECRET,
   HARNESS_BETTER_AUTH_SECRET,
   HARNESS_PRELAUNCH_GATE_SECRET,
+  HARNESS_RATE_LIMIT_KEY_SECRET,
   PRELAUNCH_GATE_STORAGE_STATE_PATH,
   R2_PUBLIC_BASE_URL,
 } from "./test/harness-env";
@@ -124,6 +125,7 @@ export default defineConfig({
       // Fully configured, so production mode is the only reason sign-in is off.
       BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
       BETTER_AUTH_URL: ORIGIN,
+      RATE_LIMIT_KEY_SECRET: HARNESS_RATE_LIMIT_KEY_SECRET,
     },
     stdout: "pipe",
     stderr: "pipe",

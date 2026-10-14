@@ -1,6 +1,10 @@
 export { adopterRepo } from "./adopter-repo";
 export { animalRepo } from "./animal-repo";
-export { type AuthExpiryCounts, authExpiryRepo } from "./auth-expiry-repo";
+export {
+  type AuthExpiryCounts,
+  authExpiryRepo,
+  KABINET_SESSION_ABSOLUTE_MS,
+} from "./auth-expiry-repo";
 export { cityRepo } from "./city-repo";
 export { type FeedCursorData, type FeedPage, feedRepo } from "./feed-repo";
 export { type GalleryPage, type GalleryRelaxationCounts, galleryRepo } from "./gallery-repo";

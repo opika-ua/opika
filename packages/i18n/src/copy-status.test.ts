@@ -183,7 +183,10 @@ describe("kabinet copy status (final, 2026-10-14)", () => {
         "title",
         "unusableTitle",
       ],
-      profile: 24, // addressNote deleted: it claimed a map adopters never see (review of the final copy)
+      // 25 with addressNote back (row 57, his replacement, 2026-10-14): deleted as
+      // a false claim (a map no adopter sees), restored once adopters receive
+      // the city only (EM-Q10).
+      profile: 25,
       profileStatus: ["paused", "pending", "rejected", "suspended", "under_review", "verified"],
       profileChannel: ["email", "phone", "telegram", "viber", "website"],
       support: ["body", "exit", "exitFailed", "signOutDisabled", "title", "viewingAs"],
@@ -260,6 +263,8 @@ describe("kabinet copy status (final, 2026-10-14)", () => {
     // row 41
     "profile.contactsNote":
       "Ці контакти бачить людина, коли натискає «Написати притулку», — і пише вам сама. Листування йде напряму, не через реєстр.",
+    // row 57, his replacement (2026-10-14), live once pre-reveal responses carry the city only
+    "profile.addressNote": "Ті, хто шукає тварину, не бачать точної адреси — лише місто.",
     // row 44
     "profile.donationNote":
       "Лише https. Реєстр не приймає і не передає гроші — це зовнішнє посилання.",

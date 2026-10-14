@@ -6,6 +6,7 @@ import {
   FreshnessSchema,
 } from "@opika/domain";
 import { z } from "zod";
+import { PublicCityLocationViewSchema } from "./location";
 import { ShelterSummaryViewSchema } from "./shelter";
 
 /**
@@ -20,6 +21,15 @@ import { ShelterSummaryViewSchema } from "./shelter";
 const derivedAnimalFacts = {
   ageBucket: AgeBucketSchema,
   freshness: FreshnessSchema,
+};
+
+/**
+ * Null for an animal at its own shelter (the card names the shelter's city);
+ * the foster city when fostered. City only, as the shelter's (`./location.ts`,
+ * Oleksii 2026-10-14, EM-Q10): the domain value's district is not sent.
+ */
+const animalLocation = {
+  publicLocation: PublicCityLocationViewSchema.nullable(),
 };
 
 /**
@@ -44,8 +54,8 @@ export const FeedCardViewSchema = AnimalSchema.pick({
   species: true,
   sex: true,
   size: true,
-  publicLocation: true,
 })
+  .extend(animalLocation)
   .extend(derivedAnimalFacts)
   .extend({
     primaryPhoto: AnimalPhotoSchema.nullable(),
@@ -60,13 +70,13 @@ export const AnimalDetailViewSchema = AnimalSchema.pick({
   species: true,
   sex: true,
   size: true,
-  publicLocation: true,
   description: true,
   photos: true,
   vaccination: true,
   spayNeuter: true,
   documentReadiness: true,
 })
+  .extend(animalLocation)
   .extend(derivedAnimalFacts)
   .extend({
     shelter: ShelterSummaryViewSchema,

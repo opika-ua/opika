@@ -1,5 +1,6 @@
+import { ipRateLimitKey } from "../api/rate-limit-key";
 import { SIGN_IN_LINK } from "./email-links";
-import { type KabinetLimiters, kabinetIpKey, kabinetUserKey } from "./rate-limits";
+import { type KabinetLimiters, kabinetUserKey } from "./rate-limits";
 
 /**
  * Every `/kabinet` page: `/kabinet`, `/kabinet/vkhid` and any page added
@@ -51,7 +52,7 @@ export async function kabinetPageLoadAllowed(
   request: { ip: string; userId: () => Promise<string | null> },
   now: Date,
 ): Promise<boolean> {
-  if (!(await limiters.perIp.check(kabinetIpKey(request.ip), now))) return false;
+  if (!(await limiters.perIp.check(ipRateLimitKey(request.ip), now))) return false;
   const userId = await request.userId();
   if (userId === null) return true;
   return limiters.perUser.check(kabinetUserKey(userId), now);

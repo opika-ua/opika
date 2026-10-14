@@ -15,6 +15,7 @@ import { decodeFeedCursor, encodeFeedCursor } from "../cursor";
 import { requireEnv } from "../env";
 import { discoverableListingKind } from "./discoverable-listing-kind";
 import { listingFreshness } from "./listing-freshness";
+import { cityOnlyLocationOf } from "./public-location";
 
 type FeedInput = z.infer<typeof FeedListInputSchema>;
 type FeedOutput = z.infer<typeof FeedListOutputSchema>;
@@ -103,7 +104,7 @@ export async function feedList(
         species: animal.species,
         sex: animal.sex,
         size: animal.size,
-        publicLocation: animal.publicLocation,
+        publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
         ageBucket: ageBucketOf(animal.age, context.now),
         freshness,
         primaryPhoto: primaryPhoto(animal),
@@ -111,7 +112,7 @@ export async function feedList(
         shelter: {
           id: shelter.id,
           displayName: shelter.displayName,
-          publicLocation: shelter.publicLocation,
+          publicLocation: cityOnlyLocationOf(shelter.publicLocation),
           freshnessSentence: shelter.freshnessSentence,
           verification:
             shelter.verification.status === "verified"

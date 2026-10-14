@@ -134,14 +134,25 @@ describe("animal views expose exactly their intended fields", () => {
   });
 });
 
-describe("public location precision", () => {
-  it("a fostered animal's city-precision location carries no coordinates", () => {
+/**
+ * Oleksii, 2026-10-14 (EM-Q10): before a reveal an adopter receives the city
+ * only. The inputs carry a real district and a fuzzed point, so these can't
+ * pass merely because the fields were null.
+ */
+describe("public location is the city only (EM-Q10)", () => {
+  const district = { uk: "Шевченківський", en: null };
+  const fuzzedShelterSummary = {
+    ...shelterSummary,
+    publicLocation: { ...shelterSummary.publicLocation, district },
+  };
+
+  it("a fostered animal's location parses down to its city", () => {
     const fosteredAnimal: Animal = {
       ...animal,
       publicLocation: {
         precision: "city",
-        cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never,
-        district: null,
+        cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never,
+        district,
       },
     };
 
@@ -150,24 +161,35 @@ describe("public location precision", () => {
         ...fosteredAnimal,
         ...derived,
         primaryPhoto: null,
-        shelter: shelterSummary,
+        shelter: fuzzedShelterSummary,
       }),
-      AnimalDetailViewSchema.parse({ ...fosteredAnimal, ...derived, shelter: shelterSummary }),
+      AnimalDetailViewSchema.parse({
+        ...fosteredAnimal,
+        ...derived,
+        shelter: fuzzedShelterSummary,
+      }),
     ]) {
-      expect(parsed.publicLocation?.precision).toBe("city");
-      expect(JSON.stringify(parsed.publicLocation)).not.toContain("approximate");
-      expect(JSON.stringify(parsed.publicLocation)).not.toContain("center");
+      expect(parsed.publicLocation).toEqual({ cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" });
+      expect(parsed.shelter.publicLocation).toEqual({
+        cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      });
+      const json = JSON.stringify(parsed);
+      expect(json).not.toContain("Шевченківський");
+      expect(json).not.toContain("49.99");
+      expect(json).not.toContain("precision");
     }
   });
 
-  it("a shelter's fuzzed-address location still carries coordinates", () => {
-    expect(shelterSummary.publicLocation.precision).toBe("fuzzed_address");
-    const summary = ShelterSummaryViewSchema.parse({ ...shelterSummary });
-    expect(summary.publicLocation.precision).toBe("fuzzed_address");
-    if (summary.publicLocation.precision === "fuzzed_address") {
-      expect(summary.publicLocation.approximate.center).toBeDefined();
-      expect(summary.publicLocation.approximate.precisionMetres).toBe(1000);
-    }
+  it("a shelter's fuzzed-address location parses down to its city, point and district gone", () => {
+    const summary = ShelterSummaryViewSchema.parse(fuzzedShelterSummary);
+    expect(summary.publicLocation).toEqual({ cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
+    const shelter = PublicShelterViewSchema.parse({
+      ...fuzzedShelterSummary,
+      description: { uk: "Опис", en: null },
+      donation: null,
+      createdAt: AT,
+    });
+    expect(shelter.publicLocation).toEqual({ cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
   });
 });
 

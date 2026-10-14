@@ -3,6 +3,7 @@ import { setupTestDatabase, truncateAll } from "@opika/db/test";
 import { uk } from "@opika/i18n";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
+import { ipRateLimitKey } from "../api/rate-limit-key";
 import { CONFIRM_PATH, createKabinetAuth, type KabinetAuth } from "./auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "./auth-route";
 import { handleKabinetConfirm } from "./confirm-route";
@@ -255,8 +256,12 @@ describe("the kabinet limiters on the verify (#95's hooks.before)", () => {
       deps(),
     );
     expect(confirmed.status).toBe(303);
-    // A fresh browser has no session yet, so no per-user charge.
-    expect(charged).toEqual([`perIp ip:${ip}`]);
+    // A fresh browser has no session yet, so no per-user charge. The bucket is
+    // this visitor's (the key `ipRateLimitKey` gives their address, not the
+    // other header's), and the address itself is never in it (EM-Q11).
+    expect(charged).toEqual([`perIp ${ipRateLimitKey(ip)}`]);
+    expect(charged[0]).not.toContain(ip);
+    expect(charged[0]).not.toBe(`perIp ${ipRateLimitKey("10.0.0.1")}`);
   });
 
   it("charges nothing for a POST refused before the verify", async () => {

@@ -628,8 +628,12 @@ export const uk = {
      * PR #94 copy export, Oleksii's final yes 2026-10-14; ships with #94 per
      * his handoff of 2026-10-14). Each describes code: the invite's
      * `auth_user` row (name, email), Better Auth's `user_agent` with
-     * `disableIpTracking`, and the daily `auth-cleanup` cron (Hobby: one run a
-     * day, so «протягом двох діб»; on Pro it would be «протягом доби»).
+     * `disableIpTracking` plus HMAC-only rate-limiter keys
+     * (`apps/web/src/api/rate-limit-key.ts`, EM-Q11), and the daily
+     * `auth-cleanup` cron, which also takes sessions past the 30-day cap
+     * (EM-Q11; Hobby: one run a day, so «протягом двох діб»; on Pro it would
+     * be «протягом доби»). Vercel's own request logs are outside the
+     * sentence, by his scoping (EM-L1).
      * `copy-status.test.ts` pins it; `docs/decisions-inbox/feat-h2-invite-email.md`
      * EM-T17 records the check of each claim.
      */
@@ -898,6 +902,13 @@ export const uk = {
       /** `{status}` is the chip's label, `{date}` the date it took effect. */
       statusSince: "{status} · з {date}",
       address: "Адреса приміщення",
+      /**
+       * Row 57, Oleksii's replacement (2026-10-14), applied once adopters
+       * receive the city only before a reveal (EM-Q10, answer (a)). True of
+       * the pages and of the data: no pre-reveal response carries the
+       * district or coordinates (`pre-reveal-location.test.ts`, twice).
+       */
+      addressNote: "Ті, хто шукає тварину, не бачать точної адреси — лише місто.",
     },
     /** N12's verification chip labels, as KABINET.md drafts them. */
     profileStatus: {
