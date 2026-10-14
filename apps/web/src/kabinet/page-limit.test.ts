@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
-import { isKabinetPagePath, kabinetPageLoadAllowed } from "./page-limit";
+import { capturingInvitationSender } from "./email-senders";
+import { isChargedKabinetPageLoad, isKabinetPagePath, kabinetPageLoadAllowed } from "./page-limit";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
 
@@ -41,6 +42,17 @@ describe("which paths are kabinet pages", () => {
     expect(isKabinetPagePath("/kabinet/anything-added-later")).toBe(true);
     expect(isKabinetPagePath("/api/kabinet/shelter/profile/get")).toBe(false);
     expect(isKabinetPagePath("/kabinetx")).toBe(false);
+  });
+});
+
+describe("which kabinet requests the proxy charges as page loads", () => {
+  it("every page load, but not the confirm POST, which Better Auth's hooks.before charges", () => {
+    expect(isChargedKabinetPageLoad("GET", "/kabinet")).toBe(true);
+    expect(isChargedKabinetPageLoad("GET", "/kabinet/vkhid/pidtverdzhennia")).toBe(true);
+    // The invite landing's server action posts to its page: charged here (and on signInLimiters).
+    expect(isChargedKabinetPageLoad("POST", "/kabinet/vkhid")).toBe(true);
+    expect(isChargedKabinetPageLoad("POST", "/kabinet/vkhid/pidtverdzhennia")).toBe(false);
+    expect(isChargedKabinetPageLoad("POST", "/api/kabinet/shelter/profile/get")).toBe(false);
   });
 });
 
@@ -101,6 +113,7 @@ describe("a page load and an API call share one allowance", () => {
         availability: {
           kind: "available",
           sender: { send: async () => {} },
+          invites: capturingInvitationSender(),
           secret: "x",
           baseURL: "http://localhost",
         },

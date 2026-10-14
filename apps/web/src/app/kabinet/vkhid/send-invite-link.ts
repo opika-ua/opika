@@ -12,8 +12,8 @@ import {
   sendMagicLinkThroughAuth,
   submitInviteLanding,
 } from "../../../kabinet/invite-landing";
+import { signInLimiters } from "../../../kabinet/limiters";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
-import { signInLimiters } from "../../../kabinet/runtime";
 import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "../available-auth";
 
 /**

@@ -57,6 +57,11 @@ beforeEach(async () => {
     baseURL: BASE,
     secret: "test-only-secret-that-is-long-enough-0123456789",
     secureCookies: false,
+    // #95's kabinet limiters on verify/get-session/sign-out; out of the way here.
+    limiters: {
+      perUser: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 }),
+      perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 }),
+    },
   });
   await db.insert(authUser).values({
     id: OPERATOR,
@@ -242,15 +247,20 @@ describe("rate limits: the existing sign-in budgets (IN-Q11, HS-Q5)", () => {
 });
 
 /**
- * Better Auth's own limit on its magic-link path (5 per 60 s per client IP)
- * is on in production (`rateLimit.enabled ?? isProduction`) and off under a
- * test runner, so it is switched on here. The landing's request is built on
- * the server: without the visitor's forwarded IP, Better Auth would count
- * every landing open in the instance against one bucket (email-track review,
- * finding 2; its probe: six invitees from six IPs gave five sent and one
- * send_failed).
+ * Until #95 this block switched Better Auth's own limit on (5 per 60 s per
+ * client IP; on in production, off under a test runner) and showed the
+ * landing's server-built request kept it per visitor rather than one bucket
+ * per instance (email-track review, finding 2; its probe: six invitees from
+ * six IPs gave five sent and one send_failed). #95 set `disableIpTracking`
+ * (KH-Q6), which turns Better Auth's limiter off together with the IP: with
+ * no IP, `resolveRateLimitConfig` returns null even when `rateLimit.enabled`
+ * is forced on. So the per-visitor limit that holds is ours alone,
+ * `signInLimiters.perIp`, charged by `inviteLandingOf` before anything else.
+ * The first test pins that Better Auth no longer limits (if a Better Auth
+ * upgrade brought its limiter back, keyed on nothing, it would turn red);
+ * the other two pin that ours is per visitor, on one shared budget.
  */
-describe("Better Auth's own limit counts each visitor, not the instance (email-track review, finding 2)", () => {
+describe("the landing's per-visitor limit is ours, not Better Auth's (#95, KH-Q6)", () => {
   beforeEach(async () => {
     (await auth.$context).rateLimit.enabled = true;
   });
@@ -259,23 +269,37 @@ describe("Better Auth's own limit counts each visitor, not the instance (email-t
     (await auth.$context).rateLimit.enabled = false;
   });
 
-  it("six invitees opening from six IPs all get their link", async () => {
-    const results = [];
-    for (let i = 1; i <= 6; i++) {
-      const { invitationId } = await invitation(`invitee${i}@example.org`);
-      results.push((await open(invitationId, deps({ ip: `198.51.100.${i}` }))).kind);
-    }
-    expect(results).toEqual(["sent", "sent", "sent", "sent", "sent", "sent"]);
-    expect(sender.sent).toHaveLength(6);
-  });
-
-  it("six opens from one IP: Better Auth refuses the sixth, so it is limited per visitor", async () => {
+  it("Better Auth runs no limit of its own, even switched on: six opens from one IP all send", async () => {
     const results = [];
     for (let i = 1; i <= 6; i++) {
       const { invitationId } = await invitation(`same-ip${i}@example.org`);
       results.push((await open(invitationId, deps({ ip: "192.0.2.44" }))).kind);
     }
-    expect(results).toEqual(["sent", "sent", "sent", "sent", "sent", "send_failed"]);
+    expect(results).toEqual(["sent", "sent", "sent", "sent", "sent", "sent"]);
+    expect(sender.sent).toHaveLength(6);
+  });
+
+  it("six invitees opening from six IPs all get their link on one shared per-IP budget of five", async () => {
+    const shared = limiters(1000, 5);
+    const results = [];
+    for (let i = 1; i <= 6; i++) {
+      const { invitationId } = await invitation(`invitee${i}@example.org`);
+      results.push(
+        (await open(invitationId, deps({ ip: `198.51.100.${i}`, limiters: shared }))).kind,
+      );
+    }
+    expect(results).toEqual(["sent", "sent", "sent", "sent", "sent", "sent"]);
+    expect(sender.sent).toHaveLength(6);
+  });
+
+  it("six opens from one IP on the same budget: the sixth is rate_limited and sends nothing", async () => {
+    const shared = limiters(1000, 5);
+    const results = [];
+    for (let i = 1; i <= 6; i++) {
+      const { invitationId } = await invitation(`one-ip${i}@example.org`);
+      results.push((await open(invitationId, deps({ ip: "192.0.2.45", limiters: shared }))).kind);
+    }
+    expect(results).toEqual(["sent", "sent", "sent", "sent", "sent", "rate_limited"]);
     expect(sender.sent).toHaveLength(5);
   });
 });

@@ -2,17 +2,18 @@
  * The headers a server-built request into `auth.handler` carries over from
  * the browser's own request.
  *
- * Better Auth keys its rate limits by the client IP it reads from
- * `x-forwarded-for` (its default `ipAddressHeaders`). A request built on the
- * server without it has no IP, and in production Better Auth then puts it in
- * one shared `no-trusted-ip` bucket per path: every visitor's request counts
- * against the same limit (email-track review, finding 2). With IP tracking
- * disabled (`advanced.ipAddress.disableIpTracking`) Better Auth reads none of
- * these and runs no limit of its own, and forwarding them changes nothing.
- * `x-real-ip` comes along for an environment that sets only that;
- * `user-agent`, so a session Better Auth creates records the real browser.
+ * Better Auth itself reads no IP header: `advanced.ipAddress.disableIpTracking`
+ * (KH-Q6) turns off both the IP on its session row and its own rate limiter.
+ * The client-IP headers still matter, for our limiter: `auth.ts`'s
+ * `hooks.before` charges the kabinet budgets on `/magic-link/verify`, keyed
+ * on `clientIp(ctx.request)`, and the confirm page's verify is exactly such a
+ * server-built request. Without them every sign-in would land in one shared
+ * `ip:unknown` bucket. All three of `clientIp`'s headers come along, in its
+ * order of preference, so the inner request's key is the outer request's (the
+ * proxy's) for the same visitor. `user-agent`, so a session Better Auth
+ * creates records the real browser (KH-Q6 keeps it).
  */
-const FORWARDED = ["user-agent", "x-forwarded-for", "x-real-ip"] as const;
+const FORWARDED = ["user-agent", "x-vercel-forwarded-for", "x-forwarded-for", "x-real-ip"] as const;
 
 export function forwardedClientHeaders(source: Headers): Headers {
   const headers = new Headers();

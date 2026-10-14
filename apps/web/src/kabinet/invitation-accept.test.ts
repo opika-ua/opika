@@ -73,6 +73,11 @@ beforeEach(async () => {
     baseURL: BASE,
     secret: "test-only-secret-that-is-long-enough-0123456789",
     secureCookies: false,
+    // #95's kabinet limiters on verify/get-session/sign-out; out of the way here.
+    limiters: {
+      perUser: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 }),
+      perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 }),
+    },
   });
   await fixture();
 });

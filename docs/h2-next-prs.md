@@ -101,7 +101,8 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [ ] **Step 17, the duplicate-invitation cancel (IN-T12), on real Neon:** added after that run
       (two pending invitations to one shelter → accept → newest accepted, older canceled, none
       pending); passes locally on postgres-js only. Oleksii reruns it on `smoke-invite` (it lives
-      until 2026-10-21); 17/17 closes this item.
+      until 2026-10-21). Since the default branch (#95) merged in, the smoke also runs #95's auth
+      clean-up as step 18, so the rerun reads 18/18; steps 17 and 18 passing closes this item.
 - [ ] **The location key reaches the app, verified first** (RG-Q10; Oleksii, verbatim: "Invite PR
       rollout checklist, before the env schema change: I set the secret in Vercel (same value as
       the onboarding script's), then run location:verify against prod with that value → must

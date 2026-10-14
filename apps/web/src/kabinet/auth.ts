@@ -128,7 +128,10 @@ export type KabinetAuthDeps = {
  * charged where they arrive (`proxy.ts` per page load, `handleKabinetRpc`
  * per API call). Charging them here as well would bill one page load two or
  * three times. A browser's own `/api/auth/get-session` is an HTTP call and is
- * charged, once: the proxy doesn't charge `/api/auth/*`.
+ * charged, once: the proxy doesn't charge `/api/auth/*`. The verify, which
+ * the route no longer forwards (IN-Q11), is charged once too: here, on the
+ * confirm page's server-built request, while the proxy leaves that POST
+ * uncharged (`isChargedKabinetPageLoad`).
  */
 export const LIMITED_AUTH_PATHS: readonly string[] = [
   "/magic-link/verify",

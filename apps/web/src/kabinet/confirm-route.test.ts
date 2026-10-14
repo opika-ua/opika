@@ -3,9 +3,10 @@ import { setupTestDatabase, truncateAll } from "@opika/db/test";
 import { uk } from "@opika/i18n";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
-import { createKabinetAuth, type KabinetAuth } from "./auth";
+import { CONFIRM_PATH, createKabinetAuth, type KabinetAuth } from "./auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "./auth-route";
 import { handleKabinetConfirm } from "./confirm-route";
+import { SIGN_IN_LINK } from "./email-links";
 import { capturingInvitationSender } from "./email-senders";
 import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
 import { capturingSender } from "./magic-link-sender";
@@ -23,6 +24,14 @@ let cleanup: () => Promise<void>;
 let sender: ReturnType<typeof capturingSender>;
 let pending: Promise<void>[];
 let auth: KabinetAuth;
+/** Every charge on the kabinet limiters Better Auth's `hooks.before` makes, as "<limiter> <key>". */
+let charged: string[];
+const recording = (name: string) => ({
+  check: async (key: string) => {
+    charged.push(`${name} ${key}`);
+    return true;
+  },
+});
 
 beforeAll(async () => {
   ({ db, cleanup } = await setupTestDatabase());
@@ -33,6 +42,7 @@ beforeEach(async () => {
   await truncateAll(db);
   sender = capturingSender();
   pending = [];
+  charged = [];
   auth = createKabinetAuth({
     db,
     sender,
@@ -42,6 +52,9 @@ beforeEach(async () => {
     baseURL: BASE,
     secret: "test-only-secret-that-is-long-enough-0123456789",
     secureCookies: false,
+    // #95's kabinet limiters on verify/get-session/sign-out: never refusing,
+    // only recorded, for the charge-once test below.
+    limiters: { perUser: recording("perUser"), perIp: recording("perIp") },
   });
 });
 
@@ -209,6 +222,49 @@ describe("POST consumes it, once", () => {
     const forged = await confirmPost("A".repeat(32));
     expect(forged.status).toBe(400);
     expect(sessionCookieOf(forged)).toBeUndefined();
+  });
+});
+
+/**
+ * The merge of #95 into the invite PR: the verify this route runs through
+ * `auth.handler` passes `auth.ts`'s `hooks.before`, which charges the kabinet
+ * limiters on `/magic-link/verify`. One POST must cost one charge, keyed on
+ * the visitor's own IP (the inner request's IP comes only from
+ * `forwardedClientHeaders`; without it every sign-in would share an
+ * `ip:unknown` bucket), and the proxy leaves this POST uncharged
+ * (`isChargedKabinetPageLoad`) so the two don't add up to two.
+ */
+describe("the kabinet limiters on the verify (#95's hooks.before)", () => {
+  it("is the path the emailed link names", () => {
+    expect(SIGN_IN_LINK.path).toBe(CONFIRM_PATH);
+  });
+
+  it.each([
+    [{ "x-forwarded-for": "203.0.113.9" }, "203.0.113.9"],
+    // The header `clientIp` prefers, so the key matches the proxy's own for the same request.
+    [{ "x-vercel-forwarded-for": "198.51.100.4", "x-forwarded-for": "10.0.0.1" }, "198.51.100.4"],
+  ])("charges one POST once, per IP, on the visitor's address (%o)", async (ipHeaders, ip) => {
+    const link = await emailedLink();
+    charged = [];
+    const confirmed = await handleKabinetConfirm(
+      new Request(CONFIRM, {
+        method: "POST",
+        headers: { origin: BASE, ...ipHeaders },
+        body: new URLSearchParams({ token: tokenOf(link) }),
+      }),
+      deps(),
+    );
+    expect(confirmed.status).toBe(303);
+    // A fresh browser has no session yet, so no per-user charge.
+    expect(charged).toEqual([`perIp ip:${ip}`]);
+  });
+
+  it("charges nothing for a POST refused before the verify", async () => {
+    const link = await emailedLink();
+    charged = [];
+    expect((await confirmPost(tokenOf(link), "https://evil.example")).status).toBe(403);
+    expect((await confirmPost("bad token")).status).toBe(400);
+    expect(charged).toEqual([]);
   });
 });
 

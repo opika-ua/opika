@@ -11,6 +11,7 @@ import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
+import { capturingInvitationSender } from "./email-senders";
 import { handleKabinetRpc, kabinetRouter } from "./rpc-route";
 
 /**
@@ -92,6 +93,7 @@ async function call(
     availability: {
       kind: "available",
       sender: { send: async () => {} },
+      invites: capturingInvitationSender(),
       secret: "x",
       baseURL: "http://localhost",
     },

@@ -262,6 +262,30 @@ describe("proxy", () => {
       expect(await refused.text()).toBe("Too Many Requests");
     });
 
+    /**
+     * The merge of #95 into the invite PR: the confirm page's POST runs the
+     * verify, which `auth.ts`'s `hooks.before` charges on these same budgets,
+     * so the proxy leaves the POST alone. Its GET is still a page load.
+     */
+    it("leaves the sign-in confirm POST to Better Auth's hook, and still charges its GET", async () => {
+      const { proxy } = await import("./proxy");
+      const { KABINET_RATE_LIMITS } = await import("./kabinet/rate-limits");
+      const confirm = (method: string) =>
+        proxy(
+          new NextRequest("https://opika.example/kabinet/vkhid/pidtverdzhennia", {
+            method,
+            headers: { "x-forwarded-for": "5.5.5.5" },
+          }),
+        );
+      for (let i = 0; i <= KABINET_RATE_LIMITS.perIp.maxRequests; i++) {
+        expect((await confirm("POST")).status).toBe(200);
+      }
+      for (let i = 0; i < KABINET_RATE_LIMITS.perIp.maxRequests; i++) {
+        expect((await confirm("GET")).status).toBe(200);
+      }
+      expect((await confirm("GET")).status).toBe(429);
+    });
+
     it("leaves /api/kabinet to its route's own limiter, never charging it twice", async () => {
       const { proxy } = await import("./proxy");
       let last = await proxy(

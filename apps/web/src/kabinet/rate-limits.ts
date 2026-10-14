@@ -7,9 +7,10 @@ import type { RateLimiter } from "../api/rate-limit";
  * backstop for everything under `/api/kabinet/*`, signed in or not, and,
  * since KH-Q8, every `/kabinet` page load too (`page-limit.ts`).
  *
- * Since the hardening review, also every `/api/auth/*` call to
- * `magic-link/verify`, `get-session` and `sign-out` (KH-Q6 follow-up,
- * `auth.ts`'s `hooks.before`).
+ * Since the hardening review, also every HTTP call into Better Auth for
+ * `magic-link/verify` (since IN-Q11 reached only through the confirm page's
+ * POST), `get-session` and `sign-out` (KH-Q6 follow-up, `auth.ts`'s
+ * `hooks.before`).
  *
  * Numbers and keys only, in their own module: `kabinet/limiters.ts` builds
  * the instances from them, and neither imports the router or Better Auth,

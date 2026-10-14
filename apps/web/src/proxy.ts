@@ -4,7 +4,7 @@ import { clientIp } from "./api/client-ip";
 import { evaluatePrelaunchGate, PRELAUNCH_GATE_QUERY_PARAM } from "./api/prelaunch-gate";
 import { apiRateLimiter } from "./api/rate-limit";
 import { kabinetLimiters } from "./kabinet/limiters";
-import { isKabinetPagePath, kabinetPageLoadAllowed } from "./kabinet/page-limit";
+import { isChargedKabinetPageLoad, kabinetPageLoadAllowed } from "./kabinet/page-limit";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
 
 /**
@@ -101,7 +101,7 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
   // KH-T4). The limiters themselves come from `kabinet/limiters`, which is
   // as light as the adopter limiter above.
   if (
-    isKabinetPagePath(request.nextUrl.pathname) &&
+    isChargedKabinetPageLoad(request.method, request.nextUrl.pathname) &&
     !(await kabinetPageLoadAllowed(
       kabinetLimiters,
       {

@@ -142,6 +142,8 @@ async function confirm(
   using = auth,
   base = BASE,
   acceptInvitation: AcceptInvitation = invitationAccepter(db, () => new Date()),
+  /** The browser's own headers on the button's POST (client IP, user agent). */
+  browserHeaders: Record<string, string> = {},
 ): Promise<Response> {
   const availability: KabinetAuthAvailability = {
     kind: "available",
@@ -157,7 +159,7 @@ async function confirm(
   return handleKabinetConfirm(
     new Request(link, {
       method: "POST",
-      headers: { origin: base },
+      headers: { ...browserHeaders, origin: base },
       body: new URLSearchParams({ token }),
     }),
     deps,
@@ -247,6 +249,7 @@ describe("magic-link sign-in", () => {
       baseURL: BASE,
       secret: "test-only-secret-that-is-long-enough-0123456789",
       secureCookies: false,
+      limiters: unlimitedKabinet(),
     });
     await createUser("known@example.org");
     await createUser("blocked@example.org");
@@ -450,15 +453,13 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
     if (link === undefined) throw new Error("no link");
     const userAgent = "Mozilla/5.0 (Linux; Android 14; TestPhone) KH-Q6";
     const before = new Date();
-    const verified = await route(
-      new Request(link, {
-        headers: {
-          "x-forwarded-for": "203.0.113.77",
-          "x-real-ip": "203.0.113.78",
-          "user-agent": userAgent,
-        },
-      }),
-    );
+    // Through the confirm page's POST, the one way a link signs in since
+    // IN-Q11: its server-built verify carries these over (`forwardedClientHeaders`).
+    const verified = await confirm(link, auth, BASE, undefined, {
+      "x-forwarded-for": "203.0.113.77",
+      "x-real-ip": "203.0.113.78",
+      "user-agent": userAgent,
+    });
     expect(verified.headers.getSetCookie().some((c) => c.includes("session_token="))).toBe(true);
 
     const rows = await db.select().from(authSession);
@@ -891,10 +892,15 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
       headers: from(ip, cookie ? { cookie } : {}),
     });
 
-  /** Uses up an address's per-IP budget with bad-token verifies, none of them refused. */
+  /**
+   * Uses up an address's per-IP budget with bad-token verifies, none of them
+   * refused. Through `auth.handler`, not the auth route: the route no longer
+   * forwards the verify (IN-Q11), and `auth.handler` is the entry the
+   * confirm page's POST uses.
+   */
   async function exhaustIp(ip: string) {
     for (let i = 0; i < PER_IP; i++) {
-      const response = await route(verifyWith(`bad${i}`.padEnd(32, "x"), ip));
+      const response = await auth.handler(verifyWith(`bad${i}`.padEnd(32, "x"), ip));
       expect(response.status, `verify ${i + 1} of ${PER_IP}`).not.toBe(429);
     }
   }
@@ -904,16 +910,22 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
     await route(post("/api/auth/sign-in/magic-link", { email: "olena@example.org" }));
     const link = sender.sent[0]?.url;
     if (link === undefined) throw new Error("no link sent");
-    const token = new URL(link).searchParams.get("token") ?? "";
 
     await exhaustIp("203.0.113.9");
-    const refused = await route(verifyWith(token, "203.0.113.9"));
+    // The confirm page's POST, as a browser at that address sends it.
+    const refused = await confirm(link, auth, BASE, undefined, {
+      "x-forwarded-for": "203.0.113.9",
+    });
     expect(refused.status).toBe(429);
+    expect(await refused.text()).toBe("Too Many Requests");
     expect(refused.headers.getSetCookie().some((c) => c.includes("session_token"))).toBe(false);
 
     // Refused before Better Auth read the token, so the link still works
     // from an address within its budget.
-    const verified = await route(verifyWith(token, "198.51.100.4"));
+    const verified = await confirm(link, auth, BASE, undefined, {
+      "x-forwarded-for": "198.51.100.4",
+    });
+    expect(verified.status).toBe(303);
     expect(verified.headers.getSetCookie().some((c) => c.includes("session_token="))).toBe(true);
   });
 

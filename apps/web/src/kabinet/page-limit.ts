@@ -1,3 +1,4 @@
+import { SIGN_IN_LINK } from "./email-links";
 import { type KabinetLimiters, kabinetIpKey, kabinetUserKey } from "./rate-limits";
 
 /**
@@ -8,6 +9,21 @@ import { type KabinetLimiters, kabinetIpKey, kabinetUserKey } from "./rate-limit
  */
 export const isKabinetPagePath = (pathname: string): boolean =>
   pathname === "/kabinet" || pathname.startsWith("/kabinet/");
+
+/**
+ * A `/kabinet` request the proxy charges as a page load. Every one of them
+ * except the sign-in confirm page's POST: that POST runs Better Auth's
+ * verify server-side, through `auth.handler` with a request, and `auth.ts`'s
+ * `hooks.before` already charges that call against these same limiters, per
+ * IP and then per user (`LIMITED_AUTH_PATHS`). Charging the POST here too
+ * would bill one sign-in twice on one budget (merge of #95 into the invite
+ * PR). A POST the confirm route refuses before the verify (wrong Origin, no
+ * token-shaped value) is charged nowhere; it reads no database and builds no
+ * Better Auth call. The confirm page's GET renders a button only and stays
+ * charged here like any other page load.
+ */
+export const isChargedKabinetPageLoad = (method: string, pathname: string): boolean =>
+  isKabinetPagePath(pathname) && !(method === "POST" && pathname === SIGN_IN_LINK.path);
 
 /**
  * Whether a `/kabinet` page load may go through (KS-Q3, answered as KH-Q8:

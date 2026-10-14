@@ -178,6 +178,12 @@ export async function handleKabinetConfirm(
   // only on failure. Its 200 body carries the session token, so it's never
   // passed on; only the cookie is.
   const verified = await deps.auth().handler(new Request(verifyUrl, { method: "GET", headers }));
+  // `auth.ts`'s `hooks.before` charges this verify on the kabinet limiters
+  // (#95) and refuses it before Better Auth reads the token. The link is
+  // still good, so «посилання недійсне» would send the person off to request
+  // another for nothing: answered as the proxy answers a `/kabinet` page over
+  // the same budget, with no new copy.
+  if (verified.status === 429) return plain("Too Many Requests", 429);
   const cookies = verified.headers.getSetCookie();
   if (verified.status !== 200 || cookies.length === 0) return page({ kind: "invalid" }, 400);
 

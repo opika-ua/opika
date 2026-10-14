@@ -115,10 +115,12 @@ export async function submitInviteLanding(
  * Better Auth's magic-link request for `email`, made server-side. `Origin` is
  * the site's own (Better Auth checks it on a POST); no `callbackURL`, since
  * the emailed link is the confirm page and sign-in always lands on
- * `/kabinet` (`docs/h2-invite-confirm-shapes.md` §1). The visitor's client-IP
- * headers come along (`forwardedClientHeaders`), so Better Auth's own limit
- * on this path counts each visitor, not every landing open in the instance
- * as one.
+ * `/kabinet` (`docs/h2-invite-confirm-shapes.md` §1). The visitor's headers
+ * come along (`forwardedClientHeaders`, the confirm page's helper), though
+ * nothing on this path reads them today: Better Auth runs no limit of its
+ * own (`disableIpTracking`, KH-Q6), `hooks.before` doesn't charge
+ * `sign-in/magic-link`, and the request writes a verification row, no
+ * session. The landing's limits are `inviteLandingOf`'s, on `signInLimiters`.
  */
 export async function sendMagicLinkThroughAuth(
   auth: Pick<KabinetAuth, "handler">,
