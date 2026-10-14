@@ -14,6 +14,11 @@ import { type FormEvent, useEffect, useId, useRef, useState } from "react";
  * - Resend is locked for 60s, the countdown in the label. The disabled button
  *   stays focusable (`aria-disabled`, never `disabled`) and the reason is
  *   written next to it, not in a tooltip (KABINET "Buttons").
+ * - «check your email» ends with a person to write to (IN-E7, IN-T9): the
+ *   card can't say a send failed or was blocked without telling a stranger
+ *   which addresses exist, so the fallback is a human, not an error. The
+ *   address is config (`EMAIL_REPLY_TO`, the same inbox every email's
+ *   Reply-To names), passed in by the page, never typed into the copy.
  */
 
 export const RESEND_LOCKOUT_SECONDS = 60;
@@ -41,9 +46,17 @@ type State =
 
 export function SignInCard({
   send = defaultSend,
+  contact,
 }: {
   /** Injected so tests drive the real component without a network. */
   send?: (email: string) => Promise<boolean>;
+  /**
+   * Where to write if no email arrives (`kabinet.signInCard.notArrived`'s
+   * `{contact}`). Null only where it isn't configured, which production
+   * sign-in can't be (`emailProviderConfigOf` requires it); the line is then
+   * left out rather than shown with a hole in it.
+   */
+  contact: string | null;
 }) {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<State>({ kind: "entering", failed: false });
@@ -181,6 +194,11 @@ export function SignInCard({
           </p>
           <div className="h-2" />
           <p className={CAPTION}>{uk.kabinet.signIn.spamNote}</p>
+          {contact !== null ? (
+            <p className={CAPTION}>
+              {uk.kabinet.signInCard.notArrived.replaceAll("{contact}", contact)}
+            </p>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"

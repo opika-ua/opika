@@ -100,6 +100,14 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       `PRODUCTION_ORIGIN`, which they are checked against), in the wiring commit, with a test.
       Whether `PRODUCTION_ORIGIN` itself joins the build-time check (a sixth variable, beyond
       Decision 1's five) is decided in the wiring commit's Phase 0 (review pass 2, finding 4).
+      **`EMAIL_REPLY_TO` is now required by `emailProviderConfigOf`** (Oleksii, 2026-10-14, answer 5:
+      "Reply-To: hello@opika.org.ua on all emails"), so sign-in stays off without it; whether it
+      joins the build-time list too is the same Phase 0 question as `PRODUCTION_ORIGIN`.
+- [ ] **The wiring commit turns production sign-in on through `productionSignInOf`**, which now also
+      stays off while any `kabinet.*` string (email templates included) is `[COPY PENDING]`
+      (Oleksii, answer 7). That commit wires the provider-backed invitation sender with
+      `cachedBlockList(config)` built once per process, so `registry.admins.blockedAddresses` reads
+      Brevo instead of answering `unknown` (`unsupported_provider`).
 - [ ] **The runtime boot check stays as the second guard** (IN-R2, Decision 1): production refuses
       to boot without them from the same commit, tested.
 - [ ] **The one-membership unique violation is a typed error, never a 500** (IN-Q8, IN-T1): in the

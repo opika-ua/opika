@@ -43,6 +43,8 @@ export type DeliveryTestInput = {
   base: string;
   /** From the app config (EMAIL_FROM_NAME), never a literal. */
   fromName: string | undefined;
+  /** From the app config (EMAIL_REPLY_TO), never a literal: every email carries a Reply-To (Oleksii, 2026-10-14, answer 5). */
+  replyTo: string | undefined;
   fetchImpl?: typeof fetch;
   /** A fresh random string per link: test tokens, never real ones. */
   random: () => string;
@@ -93,6 +95,7 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
     EMAIL_PROVIDER_API_KEY: input.apiKey,
     EMAIL_FROM_ADDRESS: `${FROM_LOCAL_PART}@mail.${originHost}`,
     EMAIL_FROM_NAME: input.fromName,
+    EMAIL_REPLY_TO: input.replyTo,
     PRODUCTION_ORIGIN: input.origin,
   });
   if (config.kind !== "configured") {

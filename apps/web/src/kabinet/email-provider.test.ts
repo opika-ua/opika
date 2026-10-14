@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  BLOCK_LIST_CACHE_MS,
   BLOCKED_MAX_PAGES,
   BLOCKED_PAGE_SIZE,
   blockedStatusOf,
+  cachedBlockList,
   type EmailProviderConfig,
   emailProviderConfigOf,
   fetchEmailSender,
@@ -18,7 +20,13 @@ import {
 
 const email = { to: "olena@example.org", subject: "S", html: "<p>H</p>", text: "T" };
 const config = (provider: EmailProviderConfig["provider"], fromName: string | null = "Реєстр") =>
-  ({ provider, apiKey: "key-123", fromAddress: "kabinet@mail.example.org", fromName }) as const;
+  ({
+    provider,
+    apiKey: "key-123",
+    fromAddress: "kabinet@mail.example.org",
+    fromName,
+    replyTo: "hello@example.org",
+  }) as const;
 
 describe("providerRequest", () => {
   it("builds Resend's request", () => {
@@ -32,6 +40,7 @@ describe("providerRequest", () => {
     expect(JSON.parse(init.body as string)).toEqual({
       from: "Реєстр <kabinet@mail.example.org>",
       to: ["olena@example.org"],
+      reply_to: "hello@example.org",
       subject: "S",
       html: "<p>H</p>",
       text: "T",
@@ -45,6 +54,7 @@ describe("providerRequest", () => {
     expect(JSON.parse(init.body as string)).toEqual({
       From: "Реєстр <kabinet@mail.example.org>",
       To: "olena@example.org",
+      ReplyTo: "hello@example.org",
       Subject: "S",
       HtmlBody: "<p>H</p>",
       TextBody: "T",
@@ -59,6 +69,7 @@ describe("providerRequest", () => {
     expect(JSON.parse(named.init.body as string)).toEqual({
       sender: { email: "kabinet@mail.example.org", name: "Реєстр" },
       to: [{ email: "olena@example.org" }],
+      replyTo: { email: "hello@example.org" },
       subject: "S",
       htmlContent: "<p>H</p>",
       textContent: "T",
@@ -145,10 +156,11 @@ describe("emailProviderConfigOf", () => {
     EMAIL_PROVIDER: "resend",
     EMAIL_PROVIDER_API_KEY: "key",
     EMAIL_FROM_ADDRESS: "kabinet@mail.example.org",
+    EMAIL_REPLY_TO: "hello@example.org",
     PRODUCTION_ORIGIN: "https://example.org",
   };
 
-  it("is configured from the four variables, the display name optional", () => {
+  it("is configured from the five variables, the display name optional", () => {
     expect(emailProviderConfigOf(base)).toEqual({
       kind: "configured",
       config: {
@@ -156,8 +168,39 @@ describe("emailProviderConfigOf", () => {
         apiKey: "key",
         fromAddress: "kabinet@mail.example.org",
         fromName: null,
+        replyTo: "hello@example.org",
       },
     });
+  });
+
+  /**
+   * Oleksii, 2026-10-14, verbatim: "5. Yes: Reply-To: hello@opika.org.ua on
+   * all emails." Required, so production can't send mail nobody can answer;
+   * on the production origin's own host, so a reply never leaves for another
+   * domain. The address itself is config, never a literal in the code.
+   */
+  it("requires EMAIL_REPLY_TO, an address on PRODUCTION_ORIGIN's own host", () => {
+    for (const missing of [undefined, "", "   "]) {
+      expect(emailProviderConfigOf({ ...base, EMAIL_REPLY_TO: missing }), String(missing)).toEqual({
+        kind: "missing",
+        missing: ["EMAIL_REPLY_TO"],
+      });
+    }
+    for (const wrong of [
+      "hello@attacker.example",
+      "hello@mail.example.org",
+      "hello@example.org.attacker.example",
+      "not an address",
+      "hello@",
+      "a b@example.org",
+    ]) {
+      expect(emailProviderConfigOf({ ...base, EMAIL_REPLY_TO: wrong }), wrong).toEqual({
+        kind: "invalid",
+        reason: "EMAIL_REPLY_TO must be an address on PRODUCTION_ORIGIN's host",
+      });
+    }
+    const trimmed = emailProviderConfigOf({ ...base, EMAIL_REPLY_TO: " hello@Example.org " });
+    expect(trimmed.kind === "configured" && trimmed.config.replyTo).toBe("hello@Example.org");
   });
 
   it("reports what is missing, and refuses an unknown provider or a From address off the mail. subdomain", () => {
@@ -414,4 +457,138 @@ describe("blockedStatusOf (IN-E7): Brevo's transactional block list, asked befor
     }
     expect(calls).toHaveLength(0);
   });
+});
+
+/**
+ * Oleksii, 2026-10-14, answer 4, verbatim: "Cache the Brevo blocked list for a
+ * few minutes. Cap the pages read; on hitting the cap, return a typed
+ * "incomplete" result, not a partial "none blocked". If Brevo is unreachable
+ * or errors, return a typed "unknown", never an empty list. Tests: Brevo error
+ * → unknown; cap hit → incomplete."
+ */
+describe("cachedBlockList: the registry's read of the whole block list (answer 4)", () => {
+  const T0 = new Date("2026-10-14T10:00:00.000Z");
+  const at = (ms: number) => new Date(T0.getTime() + ms);
+  const contact = (email: string, code = "unsubscribedViaEmail") => ({ email, reason: { code } });
+  const page = (contacts: unknown[], count = contacts.length) =>
+    new Response(JSON.stringify({ count, contacts }), { status: 200 });
+  const filler = (n: number, from = 0) =>
+    Array.from({ length: n }, (_, i) => contact(`other${from + i}@example.org`, "hardBounce"));
+  /** A fetch that answers each call with the next responder, and counts the calls. */
+  const brevo = (respond: (call: number) => Response | Promise<Response>) => {
+    let calls = 0;
+    const fetchImpl = (async () => respond(calls++)) as unknown as typeof fetch;
+    return { fetchImpl, calls: () => calls };
+  };
+
+  it("Brevo error → unknown, never an empty list", async () => {
+    for (const respond of [
+      () => new Response("{}", { status: 500 }),
+      () => new Response("{}", { status: 401 }),
+      () => {
+        throw new TypeError("unreachable");
+      },
+      () => new Response("not json", { status: 200 }),
+    ]) {
+      const { fetchImpl } = brevo(respond);
+      const read = await cachedBlockList(config("brevo"), { fetchImpl }).read(T0);
+      expect(read).toEqual({ kind: "unknown", why: "provider_error" });
+      expect(read).not.toHaveProperty("entries");
+    }
+  });
+
+  it("cap hit → incomplete, carrying what the read pages showed, after exactly the capped pages", async () => {
+    const total = BLOCKED_PAGE_SIZE * (BLOCKED_MAX_PAGES + 2);
+    const { fetchImpl, calls } = brevo((n) =>
+      n === 0
+        ? page([contact("Olena@Example.org"), ...filler(BLOCKED_PAGE_SIZE - 1)], total)
+        : page(filler(BLOCKED_PAGE_SIZE, n * BLOCKED_PAGE_SIZE), total),
+    );
+    const read = await cachedBlockList(config("brevo"), { fetchImpl }).read(T0);
+    expect(read.kind).toBe("incomplete");
+    if (read.kind !== "incomplete") return;
+    expect(read.pagesRead).toBe(BLOCKED_MAX_PAGES);
+    expect(read.readAt).toEqual(T0);
+    expect(read.entries.get("olena@example.org")).toBe("unsubscribed");
+    expect(read.entries.size).toBe(BLOCKED_PAGE_SIZE * BLOCKED_MAX_PAGES);
+    expect(calls()).toBe(BLOCKED_MAX_PAGES);
+  });
+
+  it("a list that ends inside the cap is complete, every address keyed lowercased", async () => {
+    const { fetchImpl } = brevo(() => page([contact("A@Example.org", "contactFlaggedAsSpam")]));
+    const read = await cachedBlockList(config("brevo"), { fetchImpl }).read(T0);
+    expect(read).toEqual({
+      kind: "complete",
+      readAt: T0,
+      entries: new Map([["a@example.org", "spam_complaint"]]),
+    });
+  });
+
+  // The literal three minutes, not the constant: a cache quietly raised to an hour must turn this red.
+  it("reuses a read for three minutes by the caller's clock, then reads again", async () => {
+    expect(BLOCK_LIST_CACHE_MS).toBe(3 * 60_000);
+    const { fetchImpl, calls } = brevo(() => page([]));
+    const list = cachedBlockList(config("brevo"), { fetchImpl });
+    await list.read(T0);
+    expect((await list.read(at(3 * 60_000 - 1))).kind).toBe("complete");
+    expect(calls()).toBe(1);
+    const again = await list.read(at(3 * 60_000));
+    expect(calls()).toBe(2);
+    expect(again.kind === "complete" && again.readAt).toEqual(at(3 * 60_000));
+  });
+
+  it("never caches an unknown: the next load asks again", async () => {
+    const { fetchImpl, calls } = brevo((n) =>
+      n === 0 ? new Response("{}", { status: 503 }) : page([contact("a@example.org")]),
+    );
+    const list = cachedBlockList(config("brevo"), { fetchImpl });
+    expect((await list.read(T0)).kind).toBe("unknown");
+    expect((await list.read(at(1))).kind).toBe("complete");
+    expect(calls()).toBe(2);
+  });
+
+  it("does not trust a read stamped after `now` (a clock that moved back)", async () => {
+    const { fetchImpl, calls } = brevo(() => page([]));
+    const list = cachedBlockList(config("brevo"), { fetchImpl });
+    await list.read(T0);
+    await list.read(at(-1));
+    expect(calls()).toBe(2);
+  });
+
+  it("shares one read between requests that arrive while it is in flight", async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { fetchImpl, calls } = brevo(async () => {
+      await gate;
+      return page([]);
+    });
+    const list = cachedBlockList(config("brevo"), { fetchImpl });
+    const both = Promise.all([list.read(T0), list.read(T0)]);
+    release();
+    const [a, b] = await both;
+    expect(a).toBe(b);
+    expect(calls()).toBe(1);
+  });
+
+  it("is unknown without calling anyone for a provider whose list this doesn't read", async () => {
+    const { fetchImpl, calls } = brevo(() => page([]));
+    for (const provider of ["resend", "postmark"] as const) {
+      expect(await cachedBlockList(config(provider), { fetchImpl }).read(T0)).toEqual({
+        kind: "unknown",
+        why: "unsupported_provider",
+      });
+    }
+    expect(calls()).toBe(0);
+  });
+
+  it("a read past the deadline is unknown (timed_out), not an empty list", async () => {
+    const fetchImpl = ((_url: string, init: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(new DOMException("a", "AbortError")));
+      })) as unknown as typeof fetch;
+    const read = await cachedBlockList(config("brevo"), { fetchImpl, deadlineMs: 20 }).read(T0);
+    expect(read).toEqual({ kind: "unknown", why: "timed_out" });
+  }, 2_000);
 });

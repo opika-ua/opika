@@ -27,9 +27,11 @@ import { apiErrors } from "../errors";
 import { MAX_PAGE_SIZE } from "../procedures/pagination";
 import { kabinet, registry, shelterRead, shelterWrite, supportExit } from "./access";
 import {
+  BlockedAddressesViewSchema,
   CreatedShelterViewSchema,
   EmailSendOutcomeSchema,
   HistoryEntryViewSchema,
+  InvitationReminderSchema,
   InvitedAdminViewSchema,
   KabinetAnimalRowViewSchema,
   KabinetAnimalViewSchema,
@@ -430,9 +432,24 @@ export const registryAdminsContract = {
   resendInvite: kabinet
     .$meta(registry)
     .input(adminRef)
-    .output(z.object({ invitationEmail: EmailSendOutcomeSchema }))
+    .output(
+      z.object({
+        invitationEmail: EmailSendOutcomeSchema,
+        invitationReminder: InvitationReminderSchema,
+      }),
+    )
     .errors({ ...registryErrors, ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE }),
   remove: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
+  /**
+   * Which of the shelter's admin and invited addresses the email provider
+   * has blocked (Oleksii, 2026-10-14, answer 4), read when S4 loads. A read:
+   * it changes nothing, and unblocking stays manual in the provider (IN-E7).
+   */
+  blockedAddresses: kabinet
+    .$meta(registry)
+    .input(shelterRef)
+    .output(BlockedAddressesViewSchema)
+    .errors(registryErrors),
 };
 
 export const registryHistoryContract = {

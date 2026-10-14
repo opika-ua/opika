@@ -787,14 +787,23 @@ export const uk = {
       "«дзвоніть, ми скажемо точно», «влітку рідше».\n\n" +
       "Саме це робить решту карток вартими довіри. Коли видно, що ви оновлюєте інформацію " +
       "щосуботи, ваше «ця тварина ще шукає дім» означає рівно те, що написано.",
-    /** §9 — honest that the mechanism is a message handled by hand. Commitment 6. */
+    /**
+     * §9 — honest that the mechanism is a message handled by hand. Commitment 6.
+     *
+     * The third paragraph is Oleksii's own Ukrainian (2026-10-14, answer 3,
+     * relayed by the coordinating session), **provisional**: verbatim
+     * "Copy: put my A2 paragraph and the /pro sentence in as provisional.
+     * I'll give the final yes before #94 merges." It replaces «Окремої кнопки
+     * ще немає — не хочу обіцяти кабінет, якого не існує», which a read-only
+     * kabinet makes false. Paragraphs one and two are unchanged.
+     */
     whenAnimalFindsHome:
       "Найважливіше, що ви можете мені сказати, — що тварина знайшла дім. Важливіше, ніж додати нову.\n\n" +
       "Тварина, яка вже вдома, але досі в списку, — це єдине, що робить усі інші картки " +
       "недостовірними: людина дзвонить, чує «її забрали три місяці тому», і далі не вірить жодній " +
       "картці — ні вашій, ні чужій.\n\n" +
-      "Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет, " +
-      "якого не існує.",
+      "Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду — " +
+      "змінити чи прибрати щось у ньому поки не можна.",
     /**
      * §9b — how to leave. The largest unspoken objection on the page: the
      * first question anyone asks before handing their data to a stranger with
@@ -908,7 +917,12 @@ export const uk = {
     profileNotRecorded: "Не записано",
     /** S5 · support mode (N16): the operator's read-only view of this page. */
     support: {
-      title: `${COPY_PENDING} "Support mode · view only"`,
+      /**
+       * Renamed per Oleksii's answer 3 (2026-10-14), in place of changing the
+       * /prytulkam A3 sentence; his draft, verbatim and not final, is quoted
+       * inside the placeholder (`docs/h2-invite-copy-sheet.md` S).
+       */
+      title: `${COPY_PENDING} "The operator is looking at your cabinet: view only, nothing changes" (S5 banner title; Oleksii's draft «Олексій переглядає ваш кабінет — лише перегляд, нічого не змінюється»)`,
       /** `{shelter}` is the shelter's name. */
       body: `${COPY_PENDING} "You are seeing «{shelter}»'s cabinet as its administrator sees it. Nothing can be changed here."`,
       exit: `${COPY_PENDING} "Leave support mode"`,
@@ -950,6 +964,36 @@ export const uk = {
      */
     signInCard: {
       notArrived: `${COPY_PENDING} If the email hasn't arrived in a few minutes, write to me at {contact}.`,
+    },
+    /**
+     * The invite landing (`/kabinet/vkhid?zaproshennia=<id>`, IN-Q11 and
+     * KS-Q2 A): opening it sends a sign-in link to the invited address, so
+     * there is no button and no address field. `{shelter}` and `{email}` (the
+     * address masked, o•••@gmail.com) are filled by the page; `{minutes}` is
+     * the magic link's lifetime. Keys and English sense:
+     * `docs/h2-invite-copy-sheet.md` L.
+     */
+    inviteLanding: {
+      pageTitle: `${COPY_PENDING} "Invitation to the cabinet" (browser tab title; also the heading when the invitation was already accepted or too many links were asked for)`,
+      title: `${COPY_PENDING} "An invitation to administer «{shelter}»" (heading)`,
+      sent: `${COPY_PENDING} "We've sent a sign-in link to {email}. It works once and expires in {minutes} minutes; signing in with it accepts the invitation."`,
+      /** Heading of every state that can't name the shelter. */
+      unusableTitle: `${COPY_PENDING} "This invitation can't be used" (heading)`,
+      expired: `${COPY_PENDING} "This invitation is no longer valid; ask the operator to send a new one." (an unknown link reads the same)`,
+      alreadyAccepted: `${COPY_PENDING} "This invitation was already accepted; sign in as usual."`,
+      rateLimited: `${COPY_PENDING} "Too many links were requested for this invitation; try again later."`,
+      signIn: `${COPY_PENDING} "Go to sign-in" (link to the sign-in page)`,
+    },
+    /**
+     * What the operator's side shows after an invite (IN-E13). The sending
+     * address is `{sender}`, filled from config (the From address), never
+     * typed here: the name is not final. Oleksii's draft, verbatim, is quoted
+     * inside the placeholder (`docs/h2-invite-copy-sheet.md` R).
+     */
+    registry: {
+      inviteSent: {
+        tellPersonally: `${COPY_PENDING} "Tell the shelter yourself that the invitation went from {sender}, and to look in the Promotions tab if they can't see it" (operator, after an invite is sent; Oleksii's draft «Надіслав вам запрошення з noreply@mail.opika.org.ua — якщо не бачите, гляньте у вкладці "Промоакції"», the address becoming {sender})`,
+      },
     },
     /**
      * The page an emailed sign-in link opens (IN-Q11): one button, and only

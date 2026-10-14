@@ -17,9 +17,18 @@ const digestOf = (error: unknown) =>
     ? String((error as { digest?: unknown }).digest)
     : String(error);
 
+const signIn = (search: Record<string, string>) => () =>
+  SignInPage({ searchParams: Promise.resolve(search) });
+
+/**
+ * The invite landing (IN-T10) shares K1's route, so its 404 is the same
+ * page's: listed separately, because its GET is the one that would send an
+ * email if it ever ran while sign-in is unavailable.
+ */
 describe.each([
-  ["/kabinet", KabinetHomePage],
-  ["/kabinet/vkhid", SignInPage],
+  ["/kabinet", () => KabinetHomePage()],
+  ["/kabinet/vkhid", signIn({})],
+  ["/kabinet/vkhid?zaproshennia=<id>", signIn({ zaproshennia: crypto.randomUUID() })],
 ])("%s while sign-in is unavailable", (_route, page) => {
   it("answers 404 itself, never reaching the auth instance", async () => {
     vi.stubEnv("BETTER_AUTH_SECRET", "");

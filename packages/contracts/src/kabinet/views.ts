@@ -137,11 +137,70 @@ export const EmailSendOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type EmailSendOutcome = z.infer<typeof EmailSendOutcomeSchema>;
 
-/** `registry.admins.invite`: the admin, plus what became of this call's email. */
+/**
+ * After an invitation email is handed to the provider, the operator is
+ * reminded to tell the shelter personally (IN-E6/IN-E13): the delivery test's
+ * invite landed in Gmail's Promotions tab, so a volunteer may never see it
+ * unless someone says where to look. `text` is the app's catalogue string
+ * with the sending address filled in, so the operator can paste it as is.
+ *
+ * Present on every `sent`, `blockCheck: "unknown"` included: the email did
+ * go, and an unchecked send is the case most in need of a personal word.
+ * Null when nothing was sent (`blocked`, `failed`): there is nothing to point
+ * the shelter at.
+ */
+export const InvitationReminderSchema = z
+  .object({ kind: z.literal("tell_personally"), text: z.string().min(1) })
+  .nullable();
+export type InvitationReminder = z.infer<typeof InvitationReminderSchema>;
+
+/** `registry.admins.invite`: the admin, plus what became of this call's email and the reminder that follows a send. */
 export const InvitedAdminViewSchema = ShelterAdminViewSchema.extend({
   invitationEmail: EmailSendOutcomeSchema,
+  invitationReminder: InvitationReminderSchema,
 });
 export type InvitedAdminView = z.infer<typeof InvitedAdminViewSchema>;
+
+/**
+ * `registry.admins.blockedAddresses` (Oleksii, 2026-10-14, answer 4: "The
+ * registry screen shows Brevo-blocked addresses by querying Brevo's
+ * blocked-contacts API when the screen loads."): which of one shelter's
+ * admin and invited addresses the provider holds on its block list, so the
+ * operator sees a volunteer who can no longer receive sign-in emails before
+ * she has to write in.
+ *
+ * Three answers, and an empty list belongs to only one of them:
+ * - `checked`: the whole list was read; `blocked` is every match, and an
+ *   empty one really means none of these addresses is blocked.
+ * - `incomplete`: the list is longer than the pages read (Oleksii: "on
+ *   hitting the cap, return a typed "incomplete" result, not a partial "none
+ *   blocked""). `blockedSoFar` is what the read pages showed; anyone else may
+ *   still be blocked.
+ * - `unknown`: the list couldn't be read (Oleksii: "If Brevo is unreachable or
+ *   errors, return a typed "unknown", never an empty list."), or the
+ *   configured provider has no list to read.
+ *
+ * `asOf` is when the list was read: it is cached for a few minutes, so a
+ * just-unblocked address may still show until then.
+ */
+const BlockedAddressSchema = z.object({ email: z.email(), reason: z.enum(EMAIL_BLOCK_REASONS) });
+export const BlockedAddressesViewSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("checked"),
+    asOf: z.date(),
+    blocked: z.array(BlockedAddressSchema).readonly(),
+  }),
+  z.object({
+    kind: z.literal("incomplete"),
+    asOf: z.date(),
+    blockedSoFar: z.array(BlockedAddressSchema).readonly(),
+  }),
+  z.object({
+    kind: z.literal("unknown"),
+    why: z.enum(["provider_error", "timed_out", "unsupported_provider"]),
+  }),
+]);
+export type BlockedAddressesView = z.infer<typeof BlockedAddressesViewSchema>;
 
 /** S3/S4: operator-only, the full record including evidence and moderator ids. */
 export const RegistryShelterViewSchema = ShelterSchema.pick({
@@ -170,6 +229,8 @@ export type RegistryShelterView = z.infer<typeof RegistryShelterViewSchema>;
  */
 export const CreatedShelterViewSchema = RegistryShelterViewSchema.extend({
   firstAdminInvitationEmail: EmailSendOutcomeSchema.nullable(),
+  /** Null with the outcome above, and whenever that outcome isn't `sent`. */
+  firstAdminInvitationReminder: InvitationReminderSchema,
 });
 export type CreatedShelterView = z.infer<typeof CreatedShelterViewSchema>;
 

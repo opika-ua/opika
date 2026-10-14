@@ -108,7 +108,13 @@ describe.each(Object.entries(builders))("the %s email", (name, build) => {
       return new Response(JSON.stringify({ messageId: "m" }), { status: 201 });
     }) as unknown as typeof fetch;
     await fetchEmailSender(
-      { provider: "brevo", apiKey: "k", fromAddress: "noreply@mail.example.org", fromName: "N" },
+      {
+        provider: "brevo",
+        apiKey: "k",
+        fromAddress: "noreply@mail.example.org",
+        fromName: "N",
+        replyTo: "hello@example.org",
+      },
       capture,
     ).send(email);
     const sent = body as unknown as { textContent: string; htmlContent: string };

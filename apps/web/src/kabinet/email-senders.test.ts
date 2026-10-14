@@ -6,6 +6,7 @@ import {
   type BlockedStatus,
   blockedStatusOf,
   type OutgoingEmail,
+  unsupportedBlockList,
 } from "./email-provider";
 import {
   maskAddress,
@@ -99,6 +100,7 @@ describe("sendChecked", () => {
       apiKey: "k",
       fromAddress: "a@mail.example.org",
       fromName: null,
+      replyTo: "hello@example.org",
     } as const;
     const sent: OutgoingEmail[] = [];
     const provider: ProviderMail = {
@@ -196,10 +198,18 @@ describe("providerMagicLinkSender", () => {
   });
 });
 
+const CHANNEL = { fromAddress: "noreply@mail.example.org", blockList: unsupportedBlockList };
+
 describe("providerInvitationSender", () => {
+  it("exposes the configured From address and block list for the operator's side (IN-E13, answer 4)", () => {
+    const sender = providerInvitationSender(mail({ kind: "not_blocked" }).provider, CHANNEL);
+    expect(sender.fromAddress).toBe("noreply@mail.example.org");
+    expect(sender.blockList).toBe(unsupportedBlockList);
+  });
+
   it("sends the invitation email and returns the checked outcome", async () => {
     const m = mail({ kind: "not_blocked" });
-    const outcome = await providerInvitationSender(m.provider).send({
+    const outcome = await providerInvitationSender(m.provider, CHANNEL).send({
       email: "olena@example.org",
       shelterName: "Лапа",
       operatorName: "Олексій",
@@ -213,7 +223,7 @@ describe("providerInvitationSender", () => {
     });
     const blocked = mail({ kind: "blocked", reason: "hard_bounce" });
     expect(
-      await providerInvitationSender(blocked.provider).send({
+      await providerInvitationSender(blocked.provider, CHANNEL).send({
         email: "olena@example.org",
         shelterName: "Лапа",
         operatorName: "Олексій",
