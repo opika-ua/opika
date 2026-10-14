@@ -9,14 +9,20 @@ import type { EMAIL_BLOCK_REASONS } from "@opika/contracts";
  * (2026-10-13):
  *
  * - Resend: `POST https://api.resend.com/emails`, `Authorization: Bearer`,
- *   `{ from, to, subject, html, text }`, 200 `{ id }`.
+ *   `{ from, to, reply_to, subject, html, text }`, 200 `{ id }`.
  * - Postmark: `POST https://api.postmarkapp.com/email`,
- *   `X-Postmark-Server-Token`, `{ From, To, Subject, HtmlBody, TextBody,
- *   MessageStream }`. Errors may come back as a 2xx with a non-zero
+ *   `X-Postmark-Server-Token`, `{ From, To, ReplyTo, Subject, HtmlBody,
+ *   TextBody, MessageStream }`. Errors may come back as a 2xx with a non-zero
  *   `ErrorCode`, so the body is checked, not only the status.
  * - Brevo: `POST https://api.brevo.com/v3/smtp/email`, `api-key`,
- *   `{ sender: { email, name }, to: [{ email }], subject, htmlContent,
- *   textContent }`, 201 `{ messageId }`.
+ *   `{ sender: { email, name }, to: [{ email }], replyTo: { email }, subject,
+ *   htmlContent, textContent }`, 201 `{ messageId }`.
+ *
+ * Every email carries a Reply-To (Oleksii, 2026-10-14, verbatim: "5. Yes:
+ * Reply-To: hello@opika.org.ua on all emails."): the From address is a
+ * no-reply on the sending subdomain, and a volunteer who answers a sign-in or
+ * invite email must reach a person. The address is config (`EMAIL_REPLY_TO`),
+ * never a literal here.
  *
  * Nothing here knows the product's name or domain: the From address comes
  * from env, and its domain must be `mail.` + the host of PRODUCTION_ORIGIN
@@ -40,6 +46,8 @@ export type EmailProviderConfig = {
   fromAddress: string;
   /** Display name; from config, never a literal (the name is not final). */
   fromName: string | null;
+  /** Where a reply goes (`EMAIL_REPLY_TO`): a person's inbox on PRODUCTION_ORIGIN's host, never the no-reply sender. */
+  replyTo: string;
 };
 
 export type OutgoingEmail = { to: string; subject: string; html: string; text: string };
@@ -51,10 +59,13 @@ export type EmailConfigResult =
 
 /**
  * Reads `EMAIL_PROVIDER`, `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM_ADDRESS`,
- * `PRODUCTION_ORIGIN` and the optional `EMAIL_FROM_NAME`. The From
- * address's domain must be exactly `mail.` + PRODUCTION_ORIGIN's host
- * (review of 3bc08a0, finding 4: a bare "starts with mail." accepted
- * `a@mail.attacker.example`).
+ * `EMAIL_REPLY_TO`, `PRODUCTION_ORIGIN` and the optional `EMAIL_FROM_NAME`.
+ * The From address's domain must be exactly `mail.` + PRODUCTION_ORIGIN's
+ * host (review of 3bc08a0, finding 4: a bare "starts with mail." accepted
+ * `a@mail.attacker.example`). The Reply-To must be on PRODUCTION_ORIGIN's own
+ * host: a reply leaving for another domain is a phishing pattern, and the
+ * address Oleksii named (hello@ on the apex) is exactly that host. Required,
+ * not optional, so sign-in can't go live sending mail nobody can answer.
  */
 export function emailProviderConfigOf(
   env: Readonly<Record<string, string | undefined>>,
@@ -63,8 +74,9 @@ export function emailProviderConfigOf(
     "EMAIL_PROVIDER",
     "EMAIL_PROVIDER_API_KEY",
     "EMAIL_FROM_ADDRESS",
+    "EMAIL_REPLY_TO",
     "PRODUCTION_ORIGIN",
-  ].filter((name) => !env[name]);
+  ].filter((name) => !env[name]?.trim());
   if (missing.length > 0) return { kind: "missing", missing };
   const provider = env.EMAIL_PROVIDER as string;
   if (!(EMAIL_PROVIDERS as readonly string[]).includes(provider)) {
@@ -85,6 +97,13 @@ export function emailProviderConfigOf(
       reason: "EMAIL_FROM_ADDRESS must be an address on mail.<PRODUCTION_ORIGIN's host>",
     };
   }
+  const replyTo = replyToAddressOf(env.EMAIL_REPLY_TO, origin.host);
+  if (replyTo === null) {
+    return {
+      kind: "invalid",
+      reason: "EMAIL_REPLY_TO must be an address on PRODUCTION_ORIGIN's host",
+    };
+  }
   return {
     kind: "configured",
     config: {
@@ -92,8 +111,23 @@ export function emailProviderConfigOf(
       apiKey: env.EMAIL_PROVIDER_API_KEY as string,
       fromAddress,
       fromName: env.EMAIL_FROM_NAME?.trim() || null,
+      replyTo,
     },
   };
+}
+
+/**
+ * `EMAIL_REPLY_TO` as an address, or null: one `@`, no whitespace, and (when
+ * `host` is given) a domain that is exactly that host. The sign-in card's
+ * fallback line names the same address (IN-T9), so the person who can't find
+ * an email and the person who replies to one reach the same inbox.
+ */
+export function replyToAddressOf(value: string | undefined, host?: string): string | null {
+  const address = value?.trim() ?? "";
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) return null;
+  const domain = (address.split("@")[1] ?? "").toLowerCase();
+  if (host !== undefined && domain !== host) return null;
+  return address;
 }
 
 /**
@@ -136,7 +170,14 @@ export function providerRequest(
         url: "https://api.resend.com/emails",
         init: json(
           { Authorization: `Bearer ${config.apiKey}` },
-          { from, to: [email.to], subject: email.subject, html: email.html, text: email.text },
+          {
+            from,
+            to: [email.to],
+            reply_to: config.replyTo,
+            subject: email.subject,
+            html: email.html,
+            text: email.text,
+          },
         ),
       };
     case "postmark":
@@ -147,6 +188,7 @@ export function providerRequest(
           {
             From: from,
             To: email.to,
+            ReplyTo: config.replyTo,
             Subject: email.subject,
             HtmlBody: email.html,
             TextBody: email.text,
@@ -165,6 +207,7 @@ export function providerRequest(
                 ? { email: config.fromAddress }
                 : { email: config.fromAddress, name: config.fromName },
             to: [{ email: email.to }],
+            replyTo: { email: config.replyTo },
             subject: email.subject,
             htmlContent: email.html,
             textContent: email.text,
@@ -320,36 +363,34 @@ type BrevoBlockedPage = {
 };
 
 /**
- * Whether the provider will refuse to deliver to `address`. Brevo only; any
- * other provider answers `unknown`. Every failure (timeout, non-2xx, a body
- * that isn't the documented shape) is `unknown`, and never names the key or
- * the address. All pages share one deadline, BLOCKED_LOOKUP_DEADLINE_MS from
- * the first request: a `setTimeout`, not `AbortSignal.timeout`, so a test can
- * cross it with fake timers instead of waiting five seconds.
+ * What one read of Brevo's block list found, up to the page cap. Shared by
+ * the per-send check (`blockedStatusOf`) and the registry's list
+ * (`cachedBlockList`), so both read the list the same way.
+ *
+ * - `complete`: the whole list was read (or the read stopped early because
+ *   the caller found what it was looking for); `entries` is everything seen.
+ * - `incomplete`: the cap was reached with more of the list unread. `entries`
+ *   holds what was seen, and is never to be read as "nobody else is blocked".
+ * - `unknown`: the list couldn't be read at all.
  */
-export async function blockedStatusOf(
-  config: EmailProviderConfig,
-  address: string,
-  fetchImpl: typeof fetch = fetch,
-  deadlineMs: number = BLOCKED_LOOKUP_DEADLINE_MS,
-): Promise<BlockedStatus> {
-  if (config.provider !== "brevo") return { kind: "unknown", why: "unsupported_provider" };
-  const deadline = new AbortController();
-  const timer = setTimeout(() => deadline.abort(), deadlineMs);
-  try {
-    return await pageThroughBrevo(config, address.trim().toLowerCase(), fetchImpl, deadline.signal);
-  } finally {
-    clearTimeout(timer);
-  }
-}
+export type BlockListScan =
+  | { kind: "complete"; entries: ReadonlyMap<string, BlockReason> }
+  | { kind: "incomplete"; entries: ReadonlyMap<string, BlockReason>; pagesRead: number }
+  | { kind: "unknown"; why: "provider_error" | "timed_out" };
 
-async function pageThroughBrevo(
+/**
+ * Pages through Brevo's block list under one deadline, at most
+ * BLOCKED_MAX_PAGES pages. Addresses are keyed lowercased. `stopWhen` lets a
+ * caller looking for one address stop at the page that holds it.
+ */
+async function scanBrevoBlockList(
   config: EmailProviderConfig,
-  wanted: string,
   fetchImpl: typeof fetch,
   deadline: AbortSignal,
-): Promise<BlockedStatus> {
-  const timedOut: BlockedStatus = { kind: "unknown", why: "timed_out" };
+  stopWhen: (entries: ReadonlyMap<string, BlockReason>) => boolean = () => false,
+): Promise<BlockListScan> {
+  const timedOut: BlockListScan = { kind: "unknown", why: "timed_out" };
+  const entries = new Map<string, BlockReason>();
   for (let page = 0; page < BLOCKED_MAX_PAGES; page++) {
     if (deadline.aborted) return timedOut;
     const { url, init } = brevoBlockedContactsRequest(config, page * BLOCKED_PAGE_SIZE);
@@ -365,16 +406,147 @@ async function pageThroughBrevo(
       // A body cut off by the deadline is a timeout, not a provider fault.
       return deadline.aborted ? timedOut : { kind: "unknown", why: "provider_error" };
     }
-    const hit = body.contacts.find(
-      (contact) => typeof contact.email === "string" && contact.email.toLowerCase() === wanted,
-    );
-    if (hit !== undefined) {
-      const code = typeof hit.reason?.code === "string" ? hit.reason.code : "";
-      return { kind: "blocked", reason: BREVO_REASONS[code] ?? "admin_blocked" };
+    for (const contact of body.contacts) {
+      if (typeof contact.email !== "string") continue;
+      const key = contact.email.toLowerCase();
+      if (entries.has(key)) continue;
+      const code = typeof contact.reason?.code === "string" ? contact.reason.code : "";
+      entries.set(key, BREVO_REASONS[code] ?? "admin_blocked");
     }
+    if (stopWhen(entries)) return { kind: "complete", entries };
     const seen = page * BLOCKED_PAGE_SIZE + body.contacts.length;
     const total = typeof body.count === "number" ? body.count : seen;
-    if (body.contacts.length < BLOCKED_PAGE_SIZE || seen >= total) return { kind: "not_blocked" };
+    if (body.contacts.length < BLOCKED_PAGE_SIZE || seen >= total) {
+      return { kind: "complete", entries };
+    }
   }
-  return { kind: "unknown", why: "list_too_long" };
+  return { kind: "incomplete", entries, pagesRead: BLOCKED_MAX_PAGES };
+}
+
+/** Runs `scan` under one deadline of `deadlineMs`, cleared however it ends. */
+async function withDeadline<T>(
+  deadlineMs: number,
+  scan: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(), deadlineMs);
+  try {
+    return await scan(deadline.signal);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Whether the provider will refuse to deliver to `address`. Brevo only; any
+ * other provider answers `unknown`. Every failure (timeout, non-2xx, a body
+ * that isn't the documented shape) is `unknown`, and never names the key or
+ * the address. All pages share one deadline, BLOCKED_LOOKUP_DEADLINE_MS from
+ * the first request: a `setTimeout`, not `AbortSignal.timeout`, so a test can
+ * cross it with fake timers instead of waiting five seconds.
+ */
+export async function blockedStatusOf(
+  config: EmailProviderConfig,
+  address: string,
+  fetchImpl: typeof fetch = fetch,
+  deadlineMs: number = BLOCKED_LOOKUP_DEADLINE_MS,
+): Promise<BlockedStatus> {
+  if (config.provider !== "brevo") return { kind: "unknown", why: "unsupported_provider" };
+  const wanted = address.trim().toLowerCase();
+  const scan = await withDeadline(deadlineMs, (signal) =>
+    scanBrevoBlockList(config, fetchImpl, signal, (entries) => entries.has(wanted)),
+  );
+  if (scan.kind === "unknown") return scan;
+  const reason = scan.entries.get(wanted);
+  if (reason !== undefined) return { kind: "blocked", reason };
+  return scan.kind === "complete"
+    ? { kind: "not_blocked" }
+    : { kind: "unknown", why: "list_too_long" };
+}
+
+// ─── The registry's view of the block list (Oleksii, 2026-10-14, answer 4) ──
+
+/**
+ * How long one read of the whole block list is reused. Oleksii, verbatim:
+ * "Cache the Brevo blocked list for a few minutes." Three: long enough that
+ * an operator reloading S4 or moving between shelters doesn't page through
+ * Brevo each time, short enough that an address unblocked by hand in Brevo
+ * reads as clear a few minutes later. Only readable answers are kept; an
+ * `unknown` is never cached, so the next load asks again.
+ */
+export const BLOCK_LIST_CACHE_MS = 3 * 60_000;
+
+/** One read of the list as the registry sees it: when it was read, and what it found. */
+export type BlockListSnapshot =
+  | { kind: "complete"; readAt: Date; entries: ReadonlyMap<string, BlockReason> }
+  | {
+      kind: "incomplete";
+      readAt: Date;
+      entries: ReadonlyMap<string, BlockReason>;
+      pagesRead: number;
+    }
+  | { kind: "unknown"; why: "provider_error" | "timed_out" | "unsupported_provider" };
+
+export interface BlockListReader {
+  /** The list as read at most `ttlMs` before `now`, or a fresh read. Never throws. */
+  read(now: Date): Promise<BlockListSnapshot>;
+}
+
+/** A reader with nothing to read (development's console sender): always `unknown`, never "none blocked". */
+export const unsupportedBlockList: BlockListReader = {
+  read: async () => ({ kind: "unknown", why: "unsupported_provider" }),
+};
+
+/**
+ * The whole block list, read once per BLOCK_LIST_CACHE_MS and shared by
+ * every registry request in this process. Its rules are Oleksii's (verbatim:
+ * "Cap the pages read; on hitting the cap, return a typed "incomplete"
+ * result, not a partial "none blocked". If Brevo is unreachable or errors,
+ * return a typed "unknown", never an empty list."):
+ *
+ * - the cap is BLOCKED_MAX_PAGES, the same as the per-send check;
+ * - reaching it is `incomplete`, carrying what was seen;
+ * - an error, a timeout or a non-Brevo provider is `unknown`, with no list.
+ *
+ * The clock is the caller's `now`, so the expiry is tested without waiting. A
+ * cached read stamped in the future (a clock that moved back) is not trusted.
+ * Reads that arrive while one is in flight share it rather than each paging
+ * through Brevo.
+ */
+export function cachedBlockList(
+  config: EmailProviderConfig,
+  options: { fetchImpl?: typeof fetch; ttlMs?: number; deadlineMs?: number } = {},
+): BlockListReader {
+  if (config.provider !== "brevo") return unsupportedBlockList;
+  const ttlMs = options.ttlMs ?? BLOCK_LIST_CACHE_MS;
+  const fetchImpl = options.fetchImpl ?? fetch;
+  let cached: Exclude<BlockListSnapshot, { kind: "unknown" }> | null = null;
+  let inFlight: Promise<BlockListSnapshot> | null = null;
+  const fresh = (now: Date) => {
+    if (cached === null) return null;
+    const age = now.getTime() - cached.readAt.getTime();
+    return age >= 0 && age < ttlMs ? cached : null;
+  };
+  return {
+    async read(now) {
+      const hit = fresh(now);
+      if (hit !== null) return hit;
+      inFlight ??= (async (): Promise<BlockListSnapshot> => {
+        try {
+          const scan = await withDeadline(
+            options.deadlineMs ?? BLOCKED_LOOKUP_DEADLINE_MS,
+            (signal) => scanBrevoBlockList(config, fetchImpl, signal),
+          );
+          if (scan.kind === "unknown") return scan;
+          cached = { ...scan, readAt: now };
+          return cached;
+        } catch {
+          return { kind: "unknown", why: "provider_error" };
+        } finally {
+          inFlight = null;
+        }
+      })();
+      return inFlight;
+    },
+  };
 }

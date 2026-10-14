@@ -429,7 +429,7 @@ export const en = {
     },
     profileNotRecorded: "Not recorded",
     support: {
-      title: "Support mode · view only",
+      title: "The operator is looking at your cabinet: view only, nothing changes",
       body: "You are seeing «{shelter}»'s cabinet as its administrator sees it. Nothing can be changed here.",
       exit: "Leave support mode",
       exitFailed: "Could not leave support mode. Try again.",
@@ -456,6 +456,23 @@ export const en = {
     },
     signInCard: {
       notArrived: `${COPY_PENDING} If the email hasn't arrived in a few minutes, write to me at {contact}.`,
+    },
+    /** The invite landing (IN-Q11, KS-Q2 A); see the Ukrainian catalogue. */
+    inviteLanding: {
+      pageTitle: `${COPY_PENDING} Invitation to the cabinet`,
+      title: `${COPY_PENDING} An invitation to administer «{shelter}»`,
+      sent: `${COPY_PENDING} We've sent a sign-in link to {email}. It works once and expires in {minutes} minutes; signing in with it accepts the invitation.`,
+      unusableTitle: `${COPY_PENDING} This invitation can't be used`,
+      expired: `${COPY_PENDING} This invitation is no longer valid; ask the operator to send a new one.`,
+      alreadyAccepted: `${COPY_PENDING} This invitation was already accepted; sign in as usual.`,
+      rateLimited: `${COPY_PENDING} Too many links were requested for this invitation; try again later.`,
+      signIn: `${COPY_PENDING} Go to sign-in`,
+    },
+    /** The operator's reminder after an invite (IN-E13); see the Ukrainian catalogue. */
+    registry: {
+      inviteSent: {
+        tellPersonally: `${COPY_PENDING} Tell the shelter yourself that the invitation went from {sender}, and to look in the Promotions tab if they can't see it.`,
+      },
     },
     /** The confirm page an emailed sign-in link opens (IN-Q11). */
     confirm: {

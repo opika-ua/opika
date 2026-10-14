@@ -1,3 +1,4 @@
+import { pendingCopyPaths, uk } from "@opika/i18n";
 import {
   type EmailProviderConfig,
   emailProviderConfigOf,
@@ -21,7 +22,16 @@ import {
  *   BETTER_AUTH_URL are set;
  * - only when BETTER_AUTH_URL is PRODUCTION_ORIGIN, the pinned apex. Magic
  *   links are built from BETTER_AUTH_URL, so a wrong one would email links
- *   to a host that isn't the site.
+ *   to a host that isn't the site;
+ * - only when no `kabinet.*` string, the email templates included, is still
+ *   `[COPY PENDING]` (Oleksii, 2026-10-14, answer 7, verbatim: "Yes.
+ *   Production sign-in stays off while any kabinet.* or email-template string
+ *   is [COPY PENDING]. Test it."). The email templates live under
+ *   `kabinet.email`, so one walk of `uk.kabinet` covers both. Checked after
+ *   the environment is identified, so it only ever turns production off:
+ *   development and tests never reach this function's "on" (they take
+ *   `kabinetAuthAvailability`'s development branch), and a Preview or an
+ *   unidentified environment is already off for its own reason.
  *
  * **Not wired into `kabinetAuthAvailability` yet.** Wiring it is what turns
  * production sign-in on. That is the condition `no-self-serve-yet.test.ts`
@@ -40,13 +50,21 @@ export type ProductionSignIn =
         | "provider_invalid"
         | "auth_config_missing"
         | "auth_url_not_production_origin";
-    };
+    }
+  | { kind: "off"; reason: "copy_pending"; pending: readonly string[] };
+
+/** Every `kabinet.*` string still `[COPY PENDING]`, by full path; empty once the copy has landed. */
+export const kabinetPendingCopy = (): string[] => pendingCopyPaths(uk.kabinet, "kabinet");
 
 export function productionSignInOf(
   env: Readonly<Record<string, string | undefined>>,
+  // Injectable so the other conditions are testable without waiting for the
+  // copy; production always takes the default, the live catalogue.
+  pendingCopy: readonly string[] = kabinetPendingCopy(),
 ): ProductionSignIn {
   if (env.VERCEL_ENV === "preview") return { kind: "off", reason: "preview_never_sends" };
   if (env.VERCEL_ENV !== "production") return { kind: "off", reason: "environment_unidentified" };
+  if (pendingCopy.length > 0) return { kind: "off", reason: "copy_pending", pending: pendingCopy };
   const email = emailProviderConfigOf(env);
   if (email.kind === "missing") return { kind: "off", reason: "provider_not_configured" };
   if (email.kind === "invalid") return { kind: "off", reason: "provider_invalid" };

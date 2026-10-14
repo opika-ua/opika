@@ -25,6 +25,7 @@ const harness = (respond: (n: number) => Response = () => okResponse()) => {
       origin: "https://example.org",
       base: "http://localhost:3000/",
       fromName: "Config Name",
+      replyTo: "hello@example.org",
       fetchImpl,
       random: () => `r${++n}`,
       log: (line: string) => lines.push(line),
@@ -52,6 +53,8 @@ describe("runDeliveryTest", () => {
       expect((call.init.headers as Record<string, string>)["api-key"]).toBe(KEY);
       const body = bodyOf(call);
       expect(body.sender).toEqual({ email: "noreply@mail.example.org", name: "Config Name" });
+      // Every email carries the configured Reply-To (Oleksii, 2026-10-14, answer 5).
+      expect(body.replyTo).toEqual({ email: "hello@example.org" });
       expect(body.to).toEqual([{ email: "someone@example.com" }]);
     }
     const [signIn, invite] = h.calls.map(bodyOf);
@@ -128,6 +131,15 @@ describe("runDeliveryTest", () => {
     expect(h.lines).toEqual([
       "BREVO_API_KEY is not set in the repo-root .env.local. Nothing sent.",
     ]);
+  });
+
+  it("refuses without a Reply-To, or one off the production host, sending nothing", async () => {
+    for (const replyTo of [undefined, "", "hello@attacker.example"]) {
+      const h = harness();
+      expect(await runDeliveryTest({ ...h.input, replyTo }), String(replyTo)).toBe(1);
+      expect(h.calls).toHaveLength(0);
+      expect(h.lines[0]).toMatch(/^Not configured: .*EMAIL_REPLY_TO.*Nothing sent\.$/);
+    }
   });
 
   it("refuses a production origin that isn't https, sending nothing", async () => {

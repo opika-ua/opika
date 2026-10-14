@@ -1,7 +1,13 @@
 import type { EmailSendOutcome } from "@opika/contracts";
 import { COPY_PENDING } from "@opika/i18n";
 import { invitationEmail, magicLinkEmail } from "./email-message";
-import type { BlockedStatus, EmailSender, OutgoingEmail } from "./email-provider";
+import {
+  type BlockedStatus,
+  type BlockListReader,
+  type EmailSender,
+  type OutgoingEmail,
+  unsupportedBlockList,
+} from "./email-provider";
 import type { MagicLinkSender } from "./magic-link-sender";
 
 /**
@@ -108,13 +114,28 @@ export type InvitationMessage = {
   validForHours: number;
 };
 
-/** How an invitee hears of an invitation (IN-Q3); the outcome goes back to the operator (IN-E7). */
+/**
+ * How an invitee hears of an invitation (IN-Q3); the outcome goes back to the
+ * operator (IN-E7). The channel also answers the two things the operator's
+ * side asks of it: which address the email came from (for the reminder to
+ * tell the shelter personally, IN-E13), and which addresses the provider
+ * won't deliver to (the registry's blocked list, Oleksii's answer 4).
+ */
 export interface InvitationSender {
   send(message: InvitationMessage): Promise<EmailSendOutcome>;
+  /** The configured From address; null where nothing is really sent (development). */
+  readonly fromAddress: string | null;
+  /** The provider's block list, cached (`cachedBlockList`). */
+  readonly blockList: BlockListReader;
 }
 
-export function providerInvitationSender(mail: ProviderMail): InvitationSender {
+export function providerInvitationSender(
+  mail: ProviderMail,
+  channel: { fromAddress: string; blockList: BlockListReader },
+): InvitationSender {
   return {
+    fromAddress: channel.fromAddress,
+    blockList: channel.blockList,
     send: (message) =>
       sendChecked(
         mail,
@@ -135,6 +156,8 @@ export function providerInvitationSender(mail: ProviderMail): InvitationSender {
  * `unknown`, never a claimed `clear`.
  */
 export const consoleInvitationSender: InvitationSender = {
+  fromAddress: null,
+  blockList: unsupportedBlockList,
   async send({ email, url }) {
     console.info(`[kabinet] invitation for ${email}: ${url}`);
     return { kind: "sent", blockCheck: "unknown" };
@@ -144,12 +167,16 @@ export const consoleInvitationSender: InvitationSender = {
 /** Tests: records each message and answers with the outcome given. */
 export function capturingInvitationSender(
   outcome: EmailSendOutcome = { kind: "sent", blockCheck: "clear" },
+  channel: { fromAddress?: string | null; blockList?: BlockListReader } = {},
 ): InvitationSender & {
   readonly sent: InvitationMessage[];
 } {
   const sent: InvitationMessage[] = [];
   return {
     sent,
+    fromAddress:
+      channel.fromAddress === undefined ? "noreply@mail.example.org" : channel.fromAddress,
+    blockList: channel.blockList ?? unsupportedBlockList,
     async send(message) {
       sent.push(message);
       return outcome;

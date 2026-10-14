@@ -50,25 +50,30 @@ delivery test's invite landed in Gmail's Promotions tab with the same authentica
 the magic link, which reached the Inbox, so the wording is what Gmail classified as marketing.
 The English senses above describe facts, not tone; this note governs the tone.
 
-## R. After an invite is sent: the operator's reminder (planned, not built)
+## R. After an invite is sent: the operator's reminder (built, IN-E13)
 
-Planned for the next email track (IN-E13), not in `uk.ts` yet. Shown in the procedure result
-and, later, in the operator UI, after a successful invite send.
+In `uk.ts` as `[COPY PENDING]` with Oleksii's draft quoted inside, pinned in
+`copy-status.test.ts`. Returned by `registry.shelters.create` (`firstAdminInvitationReminder`),
+`registry.admins.invite` and `resendInvite` (`invitationReminder`) on every `sent` outcome,
+`blockCheck: "unknown"` included (default taken, `docs/decisions-inbox/feat-h2-invite-email.md`
+EM-T5); null on `blocked` and `failed`. `{sender}` is filled from the configured From address.
 
 | Key | Where | English sense |
 |---|---|---|
 | `kabinet.registry.inviteSent.tellPersonally` | Operator's screen, after a successful invite send | A reminder to tell the shelter personally that the invitation was sent, from which address, and that it may be in the Promotions tab. The sender address should be filled from config, never typed into the string (the name is not final). **Oleksii's draft (IN-E13, verbatim, relayed):** «Надіслав вам запрошення з noreply@mail.opika.org.ua — якщо не бачите, гляньте у вкладці "Промоакції"» |
 
-## C. The sign-in card's fallback line (rendered in this PR, IN-T9)
+## C. The sign-in card's fallback line (rendered, IN-T9)
 
 The "check your email" card is the same for every address (anti-enumeration), so it can't say
-a send failed or was blocked. This line gives the person a human to write to instead (IN-E7).
+a send failed or was blocked. This line gives the person a human to write to instead (IN-E7). Rendered under
+K1's «check your email» and under the invite landing's «sent» state; `{contact}` is
+`EMAIL_REPLY_TO`, the same inbox every email's Reply-To names.
 
 | Key | Where | English sense |
 |---|---|---|
 | `kabinet.signInCard.notArrived` | Under «check your email», in the «я» voice | If the email hasn't arrived in a few minutes, write to me at {contact} (the address is filled from config, never typed into the string). **Oleksii's draft (IN-E7, "draft; final copy via the copy sheet"):** «Якщо лист не прийшов за кілька хвилин, напишіть мені на hello@opika.org.ua» |
 
-## L. The invite landing (built in this PR, IN-T10)
+## L. The invite landing (built, IN-T10)
 
 The page the invite email links to. It sends a magic link to the invited address only, never
 to an address typed on the page. The invitation is accepted automatically on that address's
@@ -86,8 +91,23 @@ first sign-in, so there is no accept screen (IN-Q3).
 
 **Changed by IN-Q11** (Oleksii, 2026-10-13): opening the invite page *sends* the link, so there
 is no Send button. `kabinet.inviteLanding.send` goes, and `body` + `sent` merge into one
-"we've sent a sign-in link to o•••@gmail.com" message. Not built yet; the keys above don't
-exist in code.
+"we've sent a sign-in link to o•••@gmail.com" message.
+
+**As built (IN-T10), the keys in `uk.ts`, all `[COPY PENDING]`:**
+
+| Key | Where | English sense |
+|---|---|---|
+| `kabinet.inviteLanding.pageTitle` | Tab title; also the heading of the already-accepted and too-many-links states | Invitation to the cabinet. |
+| `kabinet.inviteLanding.title` | Heading, when the invitation is live | An invitation to administer «{shelter}». |
+| `kabinet.inviteLanding.sent` | Under it | We've sent a sign-in link to {email} (masked); it works once and expires in {minutes} minutes; signing in with it accepts the invitation. Followed by K1's `spamNote` and C's `notArrived`. |
+| `kabinet.inviteLanding.unusableTitle` | Heading of the unusable state | This invitation can't be used. (New: the sheet had no heading for it.) |
+| `kabinet.inviteLanding.expired` | Under it | No longer valid; ask the operator for a new one. An unknown or malformed link reads exactly the same, on purpose. |
+| `kabinet.inviteLanding.alreadyAccepted` | Already accepted | Already accepted; sign in as usual. |
+| `kabinet.inviteLanding.rateLimited` | Too many links asked for | Too many links; try again later (K1's limits). |
+| `kabinet.inviteLanding.signIn` | Link under `alreadyAccepted`, to K1 | Go to sign-in. |
+
+When Better Auth refuses the send, the card reuses K1's `kabinet.signIn.sendFailed` rather than a
+new key.
 
 ## P. The confirm page (IN-Q11)
 
@@ -106,6 +126,18 @@ now as `[COPY PENDING]`, pinned in `copy-status.test.ts`.
 | `kabinet.confirm.invitationFor` | Under the heading, when a pending invitation exists (after IN-Q12) | You're joining «shelter name» (filled in). Not in code yet. |
 | `kabinet.confirm.joinFailed` | After «Увійти», and on `/kabinet`: signed in, but the invitation's accept failed (IN-Q12) | Couldn't join the shelter; try again. You are signed in; nothing was half-done. **Oleksii's draft (IN-Q12, not final):** «не вдалося приєднатися до притулку, спробуйте ще раз». In code as `[COPY PENDING]` with the draft quoted inside, pinned in `copy-status.test.ts`. |
 | `kabinet.confirm.joinRetry` | The link under `joinFailed` | Try again (reloads `/kabinet`, which runs the accept again). Not from Oleksii: added so the retry has a label. In code as `[COPY PENDING]`. |
+
+## S. The support banner's title, renamed (Oleksii, 2026-10-14, answer 3)
+
+Instead of changing the `/prytulkam` A3 sentence, the kabinet's support banner is renamed. In
+`uk.ts` as `kabinet.support.title`, still `[COPY PENDING]`, with the draft quoted inside.
+
+| Key | Where | English sense | Oleksii's draft (verbatim, "copy sheet, draft") |
+|---|---|---|---|
+| `kabinet.support.title` | S5 banner, the first line | The operator is looking at your cabinet: view only, nothing changes. | «Олексій переглядає ваш кабінет — лише перегляд, нічого не змінюється» |
+
+The draft names the operator; the display name exists as config (`KABINET_OPERATOR_DISPLAY_NAME`,
+RS-Q2), so the final string may want `{operator}` instead of the literal name. Your call.
 
 ## H. The shelter's history: an admin joined (IN-Q14)
 

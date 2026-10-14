@@ -23,6 +23,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import type { KabinetPrincipal } from "./actor";
+import {
+  BLOCKED_MAX_PAGES,
+  BLOCKED_PAGE_SIZE,
+  type BlockListReader,
+  type BlockListSnapshot,
+  cachedBlockList,
+} from "./email-provider";
 import { capturingInvitationSender, type InvitationSender } from "./email-senders";
 import { handleKabinetRpc } from "./rpc-route";
 
@@ -185,7 +192,7 @@ const createInput = () => {
 describe("without LOCATION_HMAC_SECRET", () => {
   it("answers 503 to every registry call, and leaves the shelter surface alone", async () => {
     const s = await shelter();
-    // Every one of the eighteen, by path: the route refuses before the input is read.
+    // Every one of the nineteen, by path: the route refuses before the input is read.
     const paths = [
       "registry.shelters.list",
       "registry.shelters.byId",
@@ -203,6 +210,7 @@ describe("without LOCATION_HMAC_SECRET", () => {
       "registry.admins.invite",
       "registry.admins.resendInvite",
       "registry.admins.remove",
+      "registry.admins.blockedAddresses",
       "registry.history.list",
       "registry.support.enter",
     ];
@@ -1043,7 +1051,10 @@ describe("invitation emails: every write that makes an invitation live sends one
       adminId: invited.body.id,
     });
     expect(resent.status).toBe(200);
-    expect(resent.body).toEqual({ invitationEmail: { kind: "failed", reason: "provider_error" } });
+    expect(resent.body).toEqual({
+      invitationEmail: { kind: "failed", reason: "provider_error" },
+      invitationReminder: null,
+    });
     const [id] = await pendingInvitationIds();
     expect(invites.sent.map((m) => m.url)).toEqual([
       `http://localhost/kabinet/vkhid?zaproshennia=${id}`,
@@ -1085,5 +1096,229 @@ describe("invitation emails: every write that makes an invitation live sends one
     });
     expect(refused.status).toBe(409);
     expect(invites.sent).toHaveLength(1);
+  });
+});
+// ─── the reminder after a send (IN-E13) ─────────────────────────────────────
+
+describe("after an invitation email is sent, the operator is reminded to tell the shelter personally (IN-E13)", () => {
+  type Reminder = { kind: string; text: string } | null;
+  /** Oleksii's draft, transcribed from the inbox, as the placeholder quotes it. */
+  const DRAFT_OPENING = "«Надіслав вам запрошення з";
+
+  const expectReminderFrom = (reminder: Reminder, sender: string) => {
+    expect(reminder?.kind).toBe("tell_personally");
+    expect(reminder?.text).toContain(sender);
+    expect(reminder?.text).toContain(DRAFT_OPENING);
+    expect(reminder?.text).not.toContain("{sender}");
+  };
+
+  it("invite: a send checked clear carries the reminder, naming the configured From address", async () => {
+    invites = capturingInvitationSender(undefined, { fromAddress: "noreply@mail.example.org" });
+    const s = await shelter();
+    const invited = await call<{ invitationReminder: Reminder }>("registry.admins.invite", {
+      shelterId: s.id,
+      name: "Олена",
+      email: "olena@example.org",
+    });
+    expect(invited.status).toBe(200);
+    expectReminderFrom(invited.body.invitationReminder, "noreply@mail.example.org");
+  });
+
+  it("invite: an unchecked send (blockCheck unknown) carries it too (default taken, IN-E13)", async () => {
+    invites = capturingInvitationSender({ kind: "sent", blockCheck: "unknown" });
+    const s = await shelter();
+    const invited = await call<{ invitationReminder: Reminder }>("registry.admins.invite", {
+      shelterId: s.id,
+      name: "Олена",
+      email: "olena@example.org",
+    });
+    expectReminderFrom(invited.body.invitationReminder, "noreply@mail.example.org");
+  });
+
+  it.each([
+    { kind: "blocked", reason: "unsubscribed" },
+    { kind: "failed", reason: "provider_error" },
+    { kind: "failed", reason: "copy_pending" },
+  ] as const)("invite: nothing sent ($kind, $reason), no reminder", async (outcome) => {
+    invites = capturingInvitationSender(outcome);
+    const s = await shelter();
+    const invited = await call<{ invitationReminder: Reminder; invitationEmail: unknown }>(
+      "registry.admins.invite",
+      { shelterId: s.id, name: "Олена", email: "olena@example.org" },
+    );
+    expect(invited.status).toBe(200);
+    expect(invited.body.invitationEmail).toEqual(outcome);
+    expect(invited.body.invitationReminder).toBeNull();
+  });
+
+  it("resendInvite and create carry it beside their outcome", async () => {
+    const s = await shelter();
+    const invited = await call<{ id: string }>("registry.admins.invite", {
+      shelterId: s.id,
+      name: "Олена",
+      email: "olena@example.org",
+    });
+    const resent = await call<{ invitationReminder: Reminder }>("registry.admins.resendInvite", {
+      shelterId: s.id,
+      adminId: invited.body.id,
+    });
+    expect(resent.status).toBe(200);
+    expectReminderFrom(resent.body.invitationReminder, "noreply@mail.example.org");
+
+    const created = await call<{ firstAdminInvitationReminder: Reminder }>(
+      "registry.shelters.create",
+      { ...createInput(), firstAdmin: { name: "Ірина", email: "iryna@example.org" } },
+    );
+    expect(created.status).toBe(200);
+    expectReminderFrom(created.body.firstAdminInvitationReminder, "noreply@mail.example.org");
+  });
+});
+
+// ─── blocked addresses (Oleksii, 2026-10-14, answer 4) ──────────────────────
+
+describe("registry.admins.blockedAddresses: which of a shelter's addresses the provider has blocked (answer 4)", () => {
+  /** A reader that answers `snapshot` and counts its reads. */
+  const reader = (snapshot: BlockListSnapshot) => {
+    let reads = 0;
+    const blockList: BlockListReader = {
+      read: async () => {
+        reads++;
+        return snapshot;
+      },
+    };
+    return { blockList, reads: () => reads };
+  };
+  const READ_AT = new Date("2026-10-13T09:58:00.000Z");
+
+  /** A shelter with two pending invitations. */
+  async function shelterWithTwoInvited() {
+    const s = await shelter();
+    for (const [name, email] of [
+      ["Олена", "olena@example.org"],
+      ["Ірина", "iryna@example.org"],
+    ] as const) {
+      const invited = await call("registry.admins.invite", { shelterId: s.id, name, email });
+      expect(invited.status).toBe(200);
+    }
+    return s;
+  }
+
+  it("checked: names only this shelter's blocked addresses, with the reason and when the list was read", async () => {
+    const s = await shelterWithTwoInvited();
+    const r = reader({
+      kind: "complete",
+      readAt: READ_AT,
+      entries: new Map([
+        ["olena@example.org", "unsubscribed"],
+        ["stranger@example.org", "hard_bounce"],
+      ]),
+    });
+    invites = capturingInvitationSender(undefined, { blockList: r.blockList });
+    const result = await call("registry.admins.blockedAddresses", { shelterId: s.id });
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({
+      kind: "checked",
+      asOf: READ_AT,
+      blocked: [{ email: "olena@example.org", reason: "unsubscribed" }],
+    });
+    expect(r.reads()).toBe(1);
+  });
+
+  it("checked and empty only when the whole list was read and nobody here is on it", async () => {
+    const s = await shelterWithTwoInvited();
+    invites = capturingInvitationSender(undefined, {
+      blockList: reader({ kind: "complete", readAt: READ_AT, entries: new Map() }).blockList,
+    });
+    const result = await call("registry.admins.blockedAddresses", { shelterId: s.id });
+    expect(result.body).toEqual({ kind: "checked", asOf: READ_AT, blocked: [] });
+  });
+
+  it("incomplete: the page cap was hit; what was seen is `blockedSoFar`, never a plain list", async () => {
+    const s = await shelterWithTwoInvited();
+    invites = capturingInvitationSender(undefined, {
+      blockList: reader({
+        kind: "incomplete",
+        readAt: READ_AT,
+        pagesRead: 5,
+        entries: new Map([["iryna@example.org", "spam_complaint"]]),
+      }).blockList,
+    });
+    const result = await call("registry.admins.blockedAddresses", { shelterId: s.id });
+    expect(result.body).toEqual({
+      kind: "incomplete",
+      asOf: READ_AT,
+      blockedSoFar: [{ email: "iryna@example.org", reason: "spam_complaint" }],
+    });
+  });
+
+  it("unknown: the provider couldn't be read, so no list at all", async () => {
+    const s = await shelterWithTwoInvited();
+    for (const why of ["provider_error", "timed_out", "unsupported_provider"] as const) {
+      invites = capturingInvitationSender(undefined, {
+        blockList: reader({ kind: "unknown", why }).blockList,
+      });
+      const result = await call("registry.admins.blockedAddresses", { shelterId: s.id });
+      expect(result.body, why).toEqual({ kind: "unknown", why });
+    }
+  });
+
+  /** End to end through the real cached reader, Brevo faked at fetch: the two cases Oleksii named. */
+  describe("through the real cached reader (Brevo faked at fetch)", () => {
+    const brevoConfig = {
+      provider: "brevo",
+      apiKey: "k",
+      fromAddress: "noreply@mail.example.org",
+      fromName: null,
+      replyTo: "hello@example.org",
+    } as const;
+
+    it("Brevo error → unknown", async () => {
+      const s = await shelterWithTwoInvited();
+      const fetchImpl = (async () =>
+        new Response("{}", { status: 502 })) as unknown as typeof fetch;
+      invites = capturingInvitationSender(undefined, {
+        blockList: cachedBlockList(brevoConfig, { fetchImpl }),
+      });
+      const result = await call("registry.admins.blockedAddresses", { shelterId: s.id });
+      expect(result.body).toEqual({ kind: "unknown", why: "provider_error" });
+    });
+
+    it("cap hit → incomplete", async () => {
+      const s = await shelterWithTwoInvited();
+      const total = BLOCKED_PAGE_SIZE * (BLOCKED_MAX_PAGES + 1);
+      const fetchImpl = (async (url: string) => {
+        const offset = Number(new URL(url).searchParams.get("offset"));
+        const contacts = Array.from({ length: BLOCKED_PAGE_SIZE }, (_, i) => ({
+          email: offset === 0 && i === 0 ? "olena@example.org" : `other${offset + i}@example.org`,
+          reason: { code: "unsubscribedViaEmail" },
+        }));
+        return new Response(JSON.stringify({ count: total, contacts }), { status: 200 });
+      }) as unknown as typeof fetch;
+      invites = capturingInvitationSender(undefined, {
+        blockList: cachedBlockList(brevoConfig, { fetchImpl }),
+      });
+      const result = await call("registry.admins.blockedAddresses", { shelterId: s.id });
+      expect(result.body).toEqual({
+        kind: "incomplete",
+        asOf: NOW,
+        blockedSoFar: [{ email: "olena@example.org", reason: "unsubscribed" }],
+      });
+    });
+  });
+
+  it("a shelter with no addresses is an honest empty `checked`, without asking the provider", async () => {
+    const s = await shelter();
+    const r = reader({ kind: "unknown", why: "provider_error" });
+    invites = capturingInvitationSender(undefined, { blockList: r.blockList });
+    const result = await call("registry.admins.blockedAddresses", { shelterId: s.id });
+    expect(result.body).toEqual({ kind: "checked", asOf: NOW, blocked: [] });
+    expect(r.reads()).toBe(0);
+  });
+
+  it("an unknown shelter is NOT_FOUND", async () => {
+    const result = await call("registry.admins.blockedAddresses", {
+      shelterId: "51000000-0000-4000-8000-00000000dead",
+    });
+    expect(result.status).toBe(404);
   });
 });

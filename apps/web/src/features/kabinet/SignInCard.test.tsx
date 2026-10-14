@@ -18,10 +18,13 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const setup = (send: (email: string) => Promise<boolean> = async () => true) => {
+const setup = (
+  send: (email: string) => Promise<boolean> = async () => true,
+  contact: string | null = "hello@example.org",
+) => {
   const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
   const spy = vi.fn(send);
-  render(<SignInCard send={spy} />);
+  render(<SignInCard send={spy} contact={contact} />);
   return { user, send: spy };
 };
 
@@ -132,6 +135,43 @@ describe("K1 · check your email", () => {
     expect(document.activeElement).toBe(emailField());
     // A type="email" field holds its value sanitised (trimmed), as browsers do.
     expect((emailField() as HTMLInputElement).value).toBe("Olena@Example.org");
+  });
+});
+
+/**
+ * IN-T9 (IN-E7's resolution): under «check your email», a person to write to,
+ * the address from config. The same card for every address, so the line
+ * shows whatever happened to the send.
+ */
+describe("K1 · «check your email» names a person to write to (IN-T9)", () => {
+  /** The line's text before the address: the part of the placeholder the page doesn't fill. */
+  const lead = uk.kabinet.signInCard.notArrived.split("{contact}")[0] as string;
+  const notArrived = () => screen.queryByText((text) => text.startsWith(lead));
+
+  it("shows the fallback line with the configured address filled in, never the placeholder", async () => {
+    const { user } = setup(async () => true, "help@example.net");
+    expect(notArrived()).toBeNull();
+    await signIn(user);
+    const line = notArrived();
+    expect(line).not.toBeNull();
+    expect(line?.textContent).toContain("help@example.net");
+    expect(line?.textContent).not.toContain("{contact}");
+  });
+
+  it("is on the «check your email» state only, not on the form", async () => {
+    const { user } = setup();
+    expect(screen.queryByText(/hello@example\.org/)).toBeNull();
+    await signIn(user);
+    expect(screen.getByText(/hello@example\.org/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: uk.kabinet.signIn.otherAddress }));
+    expect(screen.queryByText(/hello@example\.org/)).toBeNull();
+  });
+
+  it("is left out, not shown with a hole, where no contact is configured", async () => {
+    const { user } = setup(async () => true, null);
+    await signIn(user);
+    expect(notArrived()).toBeNull();
+    expect(screen.queryByText(/\{contact\}/)).toBeNull();
   });
 });
 

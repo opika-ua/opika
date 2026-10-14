@@ -20,3 +20,27 @@ export function pendingCopyKeys(group: Readonly<Record<string, unknown>>): strin
     .map(([key]) => key)
     .sort();
 }
+
+/**
+ * Every placeholder in a nested catalogue group, as dotted paths from
+ * `prefix` (`kabinet.email.signIn.subject`), sorted. The recursive companion
+ * to `pendingCopyKeys`, for gates that must see a whole subtree at once:
+ * production sign-in stays off while any `kabinet.*` string, the email
+ * templates included, is still pending (Oleksii, 2026-10-14, answer 7).
+ * Full paths, so a failure names exactly where to look.
+ */
+export function pendingCopyPaths(
+  group: Readonly<Record<string, unknown>>,
+  prefix: string,
+): string[] {
+  const found: string[] = [];
+  const walk = (node: unknown, path: string) => {
+    if (typeof node === "string") {
+      if (node.startsWith(COPY_PENDING)) found.push(path);
+    } else if (typeof node === "object" && node !== null) {
+      for (const [key, value] of Object.entries(node)) walk(value, `${path}.${key}`);
+    }
+  };
+  walk(group, prefix);
+  return found.sort();
+}

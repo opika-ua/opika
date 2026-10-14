@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pendingCopyKeys } from "./copy-status";
+import { pendingCopyKeys, pendingCopyPaths } from "./copy-status";
 import { COPY_PENDING, uk } from "./messages/uk";
 
 describe("pendingCopyKeys", () => {
@@ -284,5 +284,87 @@ describe("kabinet history copy status (IN-Q14)", () => {
   it("keeps Oleksii's draft and its alternative inside the placeholder", () => {
     expect(uk.kabinet.history.adminJoined).toContain("«{email} отримує доступ до кабінету»");
     expect(uk.kabinet.history.adminJoined).toContain("«Новий адміністратор: {email}»");
+  });
+});
+
+describe("pendingCopyPaths", () => {
+  it("walks nested groups and names each placeholder by its full path, sorted", () => {
+    const group = {
+      written: "Текст",
+      email: { subject: `${COPY_PENDING} s`, body: "Текст" },
+      deep: { deeper: { line: `${COPY_PENDING} l` } },
+    };
+    expect(pendingCopyPaths(group, "kabinet")).toEqual([
+      "kabinet.deep.deeper.line",
+      "kabinet.email.subject",
+    ]);
+  });
+
+  it("is empty once nothing is pending, and matches the sentinel as a prefix only", () => {
+    expect(pendingCopyPaths({ a: { b: "Текст" } }, "x")).toEqual([]);
+    expect(pendingCopyPaths({ a: `see ${COPY_PENDING}` }, "x")).toEqual([]);
+  });
+});
+
+/**
+ * The invite landing (IN-T10) and the operator's reminder (IN-E13): pending
+ * until Oleksii's Ukrainian lands on `docs/h2-invite-copy-sheet.md` L and R.
+ * The reminder carries his draft inside the placeholder, as the history line
+ * does, with the sending address left to config as `{sender}`.
+ */
+describe("kabinet invite landing and reminder copy status (IN-T10, IN-E13)", () => {
+  it("every invite-landing string is pending, by name", () => {
+    expect(pendingCopyKeys(uk.kabinet.inviteLanding)).toEqual([
+      "alreadyAccepted",
+      "expired",
+      "pageTitle",
+      "rateLimited",
+      "sent",
+      "signIn",
+      "title",
+      "unusableTitle",
+    ]);
+  });
+
+  it("the reminder is pending, keeps Oleksii's draft, and leaves the address to config", () => {
+    expect(pendingCopyKeys(uk.kabinet.registry.inviteSent)).toEqual(["tellPersonally"]);
+    expect(uk.kabinet.registry.inviteSent.tellPersonally).toContain(
+      '«Надіслав вам запрошення з noreply@mail.opika.org.ua — якщо не бачите, гляньте у вкладці "Промоакції"»',
+    );
+    expect(uk.kabinet.registry.inviteSent.tellPersonally).toContain("{sender}");
+  });
+
+  it("the support banner's title carries Oleksii's rename as a draft, still pending", () => {
+    expect(pendingCopyKeys(uk.kabinet.support)).toContain("title");
+    expect(uk.kabinet.support.title).toContain(
+      "«Олексій переглядає ваш кабінет — лише перегляд, нічого не змінюється»",
+    );
+  });
+});
+
+/**
+ * /prytulkam A2 (Oleksii, 2026-10-14, answer 3, provisional until his final
+ * yes before #94 merges): the third paragraph is his, verbatim, and the
+ * sentence a read-only kabinet made false is gone. The first two paragraphs
+ * are pinned too, since only the third was to change.
+ */
+describe("/prytulkam A2 (forShelters.whenAnimalFindsHome)", () => {
+  const paragraphs = uk.forShelters.whenAnimalFindsHome.split("\n\n");
+
+  it("has three paragraphs, the third Oleksii's provisional text", () => {
+    expect(paragraphs).toHaveLength(3);
+    expect(paragraphs[2]).toBe(
+      "Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду — змінити чи прибрати щось у ньому поки не можна.",
+    );
+    expect(uk.forShelters.whenAnimalFindsHome).not.toContain("кабінет, якого не існує");
+  });
+
+  it("keeps the first two paragraphs as they were", () => {
+    expect(paragraphs[0]).toBe(
+      "Найважливіше, що ви можете мені сказати, — що тварина знайшла дім. Важливіше, ніж додати нову.",
+    );
+    expect(paragraphs[1]).toBe(
+      "Тварина, яка вже вдома, але досі в списку, — це єдине, що робить усі інші картки недостовірними: людина дзвонить, чує «її забрали три місяці тому», і далі не вірить жодній картці — ні вашій, ні чужій.",
+    );
   });
 });

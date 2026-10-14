@@ -11,6 +11,7 @@ import {
 } from "../api/cursor";
 import type { AccessDecision } from "./access";
 import type { KabinetContext } from "./context";
+import { registryAdminsBlockedAddresses } from "./handlers/registry-email-status";
 import {
   registryAdminsInvite,
   registryAdminsRemove,
@@ -154,6 +155,12 @@ export const registryRouter = guarded.router({
       ),
       remove: guarded.registry.admins.remove.handler(({ context, input, errors }) =>
         registryAdminsRemove(context, operator(context.access), input, errors),
+      ),
+      blockedAddresses: guarded.registry.admins.blockedAddresses.handler(
+        ({ context, input, errors }) => {
+          operator(context.access);
+          return registryAdminsBlockedAddresses(context, input, errors);
+        },
       ),
     },
     history: {

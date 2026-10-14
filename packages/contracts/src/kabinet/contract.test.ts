@@ -11,8 +11,10 @@ import {
   registryVerificationContract,
 } from "./procedures";
 import {
+  BlockedAddressesViewSchema,
   CreatedShelterViewSchema,
   EmailSendOutcomeSchema,
+  InvitationReminderSchema,
   InvitedAdminViewSchema,
   KabinetAnimalRowViewSchema,
   KabinetAnimalViewSchema,
@@ -95,6 +97,7 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "registry.admins.invite": REGISTRY,
   "registry.admins.resendInvite": REGISTRY,
   "registry.admins.remove": REGISTRY,
+  "registry.admins.blockedAddresses": REGISTRY,
   "registry.history.list": REGISTRY,
   "registry.support.enter": REGISTRY,
   "session.exitSupport": { surface: "support_exit" },
@@ -295,16 +298,62 @@ describe("kabinet views carry exactly their listed keys", () => {
     expect(keys(ShelterAdminViewSchema)).toEqual(["id", "name", "email", "invite"].sort());
   });
 
-  it("InvitedAdminView: the admin plus this call's email outcome, nothing else (IN-E7)", () => {
+  it("InvitedAdminView: the admin plus this call's email outcome and reminder, nothing else (IN-E7, IN-E13)", () => {
     expect(keys(InvitedAdminViewSchema)).toEqual(
-      ["id", "name", "email", "invite", "invitationEmail"].sort(),
+      ["id", "name", "email", "invite", "invitationEmail", "invitationReminder"].sort(),
     );
   });
 
-  it("CreatedShelterView: the record plus the first admin's email outcome (IN-E7)", () => {
+  it("CreatedShelterView: the record plus the first admin's email outcome and reminder (IN-E7, IN-E13)", () => {
     expect(keys(CreatedShelterViewSchema)).toEqual(
-      [...keys(RegistryShelterViewSchema), "firstAdminInvitationEmail"].sort(),
+      [
+        ...keys(RegistryShelterViewSchema),
+        "firstAdminInvitationEmail",
+        "firstAdminInvitationReminder",
+      ].sort(),
     );
+  });
+
+  it("InvitationReminder: tell_personally with its text, or null; nothing empty (IN-E13)", () => {
+    expect(InvitationReminderSchema.safeParse(null).success).toBe(true);
+    expect(InvitationReminderSchema.safeParse({ kind: "tell_personally", text: "x" }).success).toBe(
+      true,
+    );
+    expect(InvitationReminderSchema.safeParse({ kind: "tell_personally", text: "" }).success).toBe(
+      false,
+    );
+    expect(InvitationReminderSchema.safeParse({ kind: "tell_personally" }).success).toBe(false);
+  });
+
+  /**
+   * Oleksii's answer 4 (2026-10-14): a failed read is `unknown`, never an
+   * empty list; a capped read is `incomplete`, never a partial "none
+   * blocked". So only `checked` may carry a plain `blocked` list, and
+   * `unknown` carries no list at all.
+   */
+  it("BlockedAddressesView: checked, incomplete or unknown; only `checked` says who is blocked", () => {
+    const variants = Object.fromEntries(
+      BlockedAddressesViewSchema.options.map((option) => [option.shape.kind.value, keys(option)]),
+    );
+    expect(variants).toEqual({
+      checked: ["asOf", "blocked", "kind"],
+      incomplete: ["asOf", "blockedSoFar", "kind"],
+      unknown: ["kind", "why"],
+    });
+    const asOf = new Date("2026-10-14T10:00:00Z");
+    expect(BlockedAddressesViewSchema.safeParse({ kind: "unknown", blocked: [] }).success).toBe(
+      false,
+    );
+    expect(
+      BlockedAddressesViewSchema.safeParse({ kind: "incomplete", asOf, blocked: [] }).success,
+    ).toBe(false);
+    expect(
+      BlockedAddressesViewSchema.safeParse({
+        kind: "checked",
+        asOf,
+        blocked: [{ email: "a@example.org", reason: "unsubscribed" }],
+      }).success,
+    ).toBe(true);
   });
 
   it("EmailSendOutcome: sent with its block check, blocked with a reason, or failed with a reason; no address, no provider detail", () => {

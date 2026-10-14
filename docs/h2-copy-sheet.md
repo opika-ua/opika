@@ -27,12 +27,28 @@ to translate.
 The rest of §7 (photos, a few sentences per animal, a contact, a donation link, the update
 sentence) stays true.
 
+**Optional line, recorded as a draft only (Oleksii, 2026-10-14, answer 3, verbatim: "A1
+(optional, not blocking): add «Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені
+вкажете.»"):** «Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.» Not in
+`uk.ts`: it is optional and doesn't block, so it waits for his word on where in §7 it goes.
+
 ### A2. `forShelters.whenAnimalFindsHome` (§9)
 **Current (last paragraph goes false):**
 > Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет,
 > якого не існує.
 
-**True after H2:**
+**Now in `uk.ts`, provisional (Oleksii's own Ukrainian, 2026-10-14, answer 3, verbatim:
+"A2: «Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду —
+змінити чи прибрати щось у ньому поки не можна.» (replacing A2's third paragraph)" and "Copy: put
+my A2 paragraph and the /pro sentence in as provisional. I'll give the final yes before #94
+merges."):**
+> Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду —
+> змінити чи прибрати щось у ньому поки не можна.
+
+It describes the read-only kabinet this PR ships, not the K2 editing below; when K2 ships, the
+paragraph changes again.
+
+**True after H2 (K2, later):**
 - The cabinet has a «Уже вдома» action per animal (K2). It takes the animal out of the gallery
   and keeps the record.
 - Writing to you still works, too.
@@ -46,6 +62,9 @@ The first two paragraphs (why a homed animal left listed poisons every card) sta
 
 **After H2:** as far as I can see, **still true** (one operator, answering personally).
 Commitment #6 lists it, so it's here for you to confirm rather than for me to judge.
+
+**Oleksii, 2026-10-14, answer 3, verbatim: "A3: keep as is."** The kabinet's support banner is
+renamed instead (`docs/h2-invite-copy-sheet.md` S).
 
 ### A4. `forShelters.howToLeave`: not in commitment #6, listed because it's next door
 > …напишіть, і я приберу все: тварин, фотографії, ваш запис.

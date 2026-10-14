@@ -2,6 +2,7 @@ import type {
   apiErrors,
   CreatedShelterView,
   EmailSendOutcome,
+  InvitationReminder,
   InvitedAdminView,
   ShelterAdminView,
 } from "@opika/contracts";
@@ -32,6 +33,7 @@ import {
 } from "@opika/domain";
 import { ORPCError, type ORPCErrorConstructorMap } from "@orpc/server";
 import { INVITE_LINK, linkTo } from "../email-links";
+import { invitationReminderOf } from "../invitation-reminder";
 import { loadShelterOr404, type RegistryDeps, registryShelterView } from "./registry-reads";
 import { acceptEvidence } from "./registry-writes";
 
@@ -48,7 +50,8 @@ import { acceptEvidence } from "./registry-writes";
  * resend) emails the invitee a link to the invite landing (IN-Q3), after the
  * write and never deciding it, and returns what became of the email so the
  * operator sees it directly (IN-E7, Oleksii, 2026-10-14). A failed or blocked
- * email leaves the invitation in place; a resend retries the email.
+ * email leaves the invitation in place; a resend retries the email. A sent
+ * one comes back with the reminder to tell the shelter personally (IN-E13).
  */
 
 type E<K extends keyof typeof apiErrors> = ORPCErrorConstructorMap<Pick<typeof apiErrors, K>>;
@@ -218,6 +221,10 @@ export async function registrySheltersCreate(
   return {
     ...(await registryShelterView(deps, created)),
     firstAdminInvitationEmail: invited.kind === "invited" ? invited.email : null,
+    firstAdminInvitationReminder:
+      invited.kind === "invited"
+        ? invitationReminderOf(invited.email, deps.invites.fromAddress)
+        : null,
   };
 }
 
@@ -236,7 +243,11 @@ export async function registryAdminsInvite(
   if (invited.kind === "address_has_a_role") {
     throw errors.ADDRESS_HAS_A_ROLE({ data: { reason: invited.reason } });
   }
-  return { ...invited.view, invitationEmail: invited.email };
+  return {
+    ...invited.view,
+    invitationEmail: invited.email,
+    invitationReminder: invitationReminderOf(invited.email, deps.invites.fromAddress),
+  };
 }
 
 /** Who `adminId` is on this shelter: a member, a pending invitation, or nobody here. */
@@ -254,7 +265,7 @@ export async function registryAdminsResendInvite(
   moderatorId: ModeratorId,
   input: { shelterId: ShelterId; adminId: ShelterAdminId },
   errors: E<"NOT_FOUND" | "ADDRESS_HAS_A_ROLE">,
-): Promise<{ invitationEmail: EmailSendOutcome }> {
+): Promise<{ invitationEmail: EmailSendOutcome; invitationReminder: InvitationReminder }> {
   const shelter = await loadShelterOr404(deps, input.shelterId, errors);
   const organizationId = await organizationOf(deps, input.shelterId);
   if (organizationId === null) throw errors.NOT_FOUND();
@@ -275,12 +286,14 @@ export async function registryAdminsResendInvite(
   if (resent.kind === "address_has_a_role") {
     throw errors.ADDRESS_HAS_A_ROLE({ data: { reason: resent.reason } });
   }
+  const invitationEmail = await emailInvitation(deps, {
+    email: admin.email,
+    shelterName: shelter.displayName,
+    invitationId: latest.id,
+  });
   return {
-    invitationEmail: await emailInvitation(deps, {
-      email: admin.email,
-      shelterName: shelter.displayName,
-      invitationId: latest.id,
-    }),
+    invitationEmail,
+    invitationReminder: invitationReminderOf(invitationEmail, deps.invites.fromAddress),
   };
 }
 
