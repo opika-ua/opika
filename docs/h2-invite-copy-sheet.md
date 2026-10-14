@@ -59,7 +59,7 @@ and, later, in the operator UI, after a successful invite send.
 |---|---|---|
 | `kabinet.registry.inviteSent.tellPersonally` | Operator's screen, after a successful invite send | A reminder to tell the shelter personally that the invitation was sent, from which address, and that it may be in the Promotions tab. The sender address should be filled from config, never typed into the string (the name is not final). **Oleksii's draft (IN-E13, verbatim, relayed):** «Надіслав вам запрошення з noreply@mail.opika.org.ua — якщо не бачите, гляньте у вкладці "Промоакції"» |
 
-## C. The sign-in card's fallback line (screens PR)
+## C. The sign-in card's fallback line (rendered in this PR, IN-T9)
 
 The "check your email" card is the same for every address (anti-enumeration), so it can't say
 a send failed or was blocked. This line gives the person a human to write to instead (IN-E7).
@@ -68,7 +68,7 @@ a send failed or was blocked. This line gives the person a human to write to ins
 |---|---|---|
 | `kabinet.signInCard.notArrived` | Under «check your email», in the «я» voice | If the email hasn't arrived in a few minutes, write to me at {contact} (the address is filled from config, never typed into the string). **Oleksii's draft (IN-E7, "draft; final copy via the copy sheet"):** «Якщо лист не прийшов за кілька хвилин, напишіть мені на hello@opika.org.ua» |
 
-## L. The invite landing (screens PR)
+## L. The invite landing (built in this PR, IN-T10)
 
 The page the invite email links to. It sends a magic link to the invited address only, never
 to an address typed on the page. The invitation is accepted automatically on that address's
@@ -89,7 +89,7 @@ is no Send button. `kabinet.inviteLanding.send` goes, and `body` + `sent` merge 
 "we've sent a sign-in link to o•••@gmail.com" message. Not built yet; the keys above don't
 exist in code.
 
-## C. The confirm page (IN-Q11)
+## P. The confirm page (IN-Q11)
 
 The page every emailed sign-in link opens. Its GET only shows the button; pressing it signs in
 (a mail scanner opening the link changes nothing). Once acceptance is built (IN-Q12), the same

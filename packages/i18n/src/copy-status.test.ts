@@ -243,7 +243,7 @@ describe("kabinet email copy status (IN-Q5)", () => {
 
 /**
  * IN-Q11's confirm page: every string still waits for Oleksii's Ukrainian
- * (`docs/h2-invite-copy-sheet.md` C). Pinned as pending so a key added
+ * (`docs/h2-invite-copy-sheet.md` P). Pinned as pending so a key added
  * without copy, or one written without the sheet, shows up here.
  */
 describe("kabinet confirm page copy status (IN-Q11)", () => {

@@ -945,7 +945,8 @@ export const uk = {
      * Under the sign-in card's «check your email» (IN-E7's resolution): the
      * same card for every address, so the fallback names a person to write
      * to instead of saying which addresses failed. `{contact}` is filled by
-     * the page from config, never typed here. Rendered by the screens PR.
+     * the page from config, never typed here. Rendered on the K1 card in this
+     * PR (IN-T9).
      */
     signInCard: {
       notArrived: `${COPY_PENDING} If the email hasn't arrived in a few minutes, write to me at {contact}.`,
@@ -953,7 +954,7 @@ export const uk = {
     /**
      * The page an emailed sign-in link opens (IN-Q11): one button, and only
      * its POST signs in, so a mail scanner opening the link burns nothing.
-     * Keys and English sense: `docs/h2-invite-copy-sheet.md` C.
+     * Keys and English sense: `docs/h2-invite-copy-sheet.md` P.
      */
     confirm: {
       title: `${COPY_PENDING} "Sign in to the shelters' cabinet" (heading)`,
