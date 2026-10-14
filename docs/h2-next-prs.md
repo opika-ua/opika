@@ -86,8 +86,9 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [ ] **The /pro `about.data` sentence lands in #94, after Oleksii's final yes** (KH-C1,
       provisional draft in the hardening inbox), with the cron already shipped. Not in `uk.ts`
       before then.
-- [ ] **Real-Neon run of the auth clean-up statement** (KH-Q9): `db:neon-smoke` step 15 on a
-      disposable branch, before the /pro sentence is called true.
+- [x] **Real-Neon run of the auth clean-up statement** (KH-Q9): done twice: #95's run (step 15
+      there) and #94's final run (step 18 after the merge renumbering, below): 1 verification + 1
+      session deleted, live rows kept.
 - [ ] **Real-Neon run before the production 503 lifts** (HS-T4, HS-T4b, HS-Q12): sign-in,
       verify, getSession, accept-invitation, the audited-write CTE, the listing jsonb
       compare-and-set, the deleteDraft 23503 catch, and the `last_updated_at` round-trip
@@ -98,11 +99,12 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       (the accept): accepted, then `nothing_to_accept` on re-run; 1 membership, 1 `admin_joined`
       (idempotent on real Neon). Step 16 (the one-membership conflict on the neon-http driver):
       typed `membership_conflict`, the invitation stays pending.
-- [ ] **Step 17, the duplicate-invitation cancel (IN-T12), on real Neon:** added after that run
-      (two pending invitations to one shelter → accept → newest accepted, older canceled, none
-      pending); passes locally on postgres-js only. Oleksii reruns it on `smoke-invite` (it lives
-      until 2026-10-21). Since the default branch (#95) merged in, the smoke also runs #95's auth
-      clean-up as step 18, so the rerun reads 18/18; steps 17 and 18 passing closes this item.
+- [x] **#94's final real-Neon verification** (IN-T16), Oleksii's rerun of 2026-10-14 as relayed by
+      the coordinating session, on `smoke-invite` (`ep-calm-math-b1ffs8rq`) from the invite
+      worktree: **18 passed, 0 failed**. Step 17 (duplicate invitations): newest accepted, older
+      canceled, 0 pending. Step 18 (#95's auth clean-up, post-merge numbering): 1 verification + 1
+      session deleted, live rows kept. Step 14 (bootstrap) refused: an operator from the previous
+      run on this branch, expected.
 - [ ] **The location key reaches the app, verified first** (RG-Q10; Oleksii, verbatim: "Invite PR
       rollout checklist, before the env schema change: I set the secret in Vercel (same value as
       the onboarding script's), then run location:verify against prod with that value → must
@@ -133,6 +135,10 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       (Oleksii, answer 7). That commit wires the provider-backed invitation sender with
       `cachedBlockList(config)` built once per process, so `registry.admins.blockedAddresses` reads
       Brevo instead of answering `unknown` (`unsupported_provider`).
+- [ ] **The confirm page's over-limit card ships before production sign-in is turned on**
+      (IN-T15, Oleksii: "A plain 429 is fine for now. Add a gate item: the over-limit card ships
+      before production sign-in is turned on."). Today a rate-limited «Увійти» POST answers a plain
+      429.
 - [ ] **A2's new third paragraph ships here (EM-Q1)**, in the wiring commit itself (Oleksii,
       verbatim: "(b). A2 keeps the current text; the new paragraph ships in the commit that turns
       production sign-in on."). His provisional text is on `docs/h2-copy-sheet.md` A2; it still needs

@@ -980,7 +980,7 @@ export const uk = {
       rateLimited: `${COPY_PENDING} "Too many links were requested for this invitation; try again later."`,
       signIn: `${COPY_PENDING} "Go to sign-in" (link to the sign-in page)`,
       /** What the page says before anything is sent: the GET looks nothing up (EM-Q3). */
-      ready: `${COPY_PENDING} "Press the button and we will email a sign-in link to the address this invitation went to." (above the one button, before anything is sent)`,
+      ready: `${COPY_PENDING} "Says where the link will go, without showing the address" (above the one button, before anything is sent; Oleksii's draft «Посилання для входу прийде на адресу, на яку ви отримали це запрошення.», EM-Q4)`,
       /** The one button; only its POST sends (EM-Q3). */
       send: `${COPY_PENDING} "Send the link" (the one button; Oleksii's draft «Надіслати посилання», EM-Q3)`,
     },
