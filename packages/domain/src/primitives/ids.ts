@@ -62,3 +62,12 @@ export type CountryCode = z.infer<typeof CountryCodeSchema>;
  */
 export const ShelterAdminIdSchema = brandedId<"ShelterAdminId">();
 export type ShelterAdminId = z.infer<typeof ShelterAdminIdSchema>;
+
+/**
+ * An invitation for one address to administer one shelter (H2, IN-Q14).
+ * Branded because it travels next to a `ShelterAdminId` in the same history
+ * entry (`admin_joined`): both are uuids, and swapping the invitation for the
+ * person who accepted it would typecheck as plain strings.
+ */
+export const InvitationIdSchema = brandedId<"InvitationId">();
+export type InvitationId = z.infer<typeof InvitationIdSchema>;

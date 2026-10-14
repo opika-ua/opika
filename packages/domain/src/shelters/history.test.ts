@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ModeratorIdSchema, ShelterAdminIdSchema } from "../primitives/ids";
+import { InvitationIdSchema, ModeratorIdSchema, ShelterAdminIdSchema } from "../primitives/ids";
 import {
   historyEntryAt,
   type ShelterHistoryEntry,
@@ -104,6 +104,13 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     moderatorId: MOD,
     count: 3,
   },
+  admin_joined: {
+    kind: "admin_joined",
+    at: new Date("2026-10-14T00:00:00.000Z"),
+    shelterAdminId: ADMIN.shelterAdminId,
+    invitationId: InvitationIdSchema.parse("44444444-4444-4444-8444-444444444444"),
+    email: "olena@example.org",
+  },
 };
 
 describe("ShelterHistoryEntrySchema", () => {
@@ -126,6 +133,27 @@ describe("ShelterHistoryEntrySchema", () => {
   });
 });
 
+describe("admin_joined", () => {
+  /** IN-Q14: the email is stored at join time, so an entry without one is refused, not resolved later. */
+  it("refuses an entry without the email, or without either id", () => {
+    const { email: _e, ...noEmail } = ENTRIES.admin_joined as Extract<
+      ShelterHistoryEntry,
+      { kind: "admin_joined" }
+    >;
+    const { invitationId: _i, ...noInvitation } = ENTRIES.admin_joined as Extract<
+      ShelterHistoryEntry,
+      { kind: "admin_joined" }
+    >;
+    const { shelterAdminId: _a, ...noAdmin } = ENTRIES.admin_joined as Extract<
+      ShelterHistoryEntry,
+      { kind: "admin_joined" }
+    >;
+    expect(ShelterHistoryEntrySchema.safeParse(noEmail).success).toBe(false);
+    expect(ShelterHistoryEntrySchema.safeParse(noInvitation).success).toBe(false);
+    expect(ShelterHistoryEntrySchema.safeParse(noAdmin).success).toBe(false);
+  });
+});
+
 describe("historyEntryAt", () => {
   it("dates each entry by its own instant, a verification entry by its event's", () => {
     expect(Object.values(ENTRIES).map((e) => historyEntryAt(e).toISOString().slice(0, 10))).toEqual(
@@ -143,6 +171,7 @@ describe("historyEntryAt", () => {
         "2026-10-11",
         "2026-10-12",
         "2026-10-13",
+        "2026-10-14",
       ],
     );
   });

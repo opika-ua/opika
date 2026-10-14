@@ -29,10 +29,10 @@ const base = { at: z.date(), actor: HistoryActorViewSchema };
 /**
  * One line of a shelter's own history, as the shelter sees it (RG-Q8,
  * `docs/h2-registry-shapes.md` §2). Every variant is built field by field
- * from its entry: **no evidence and no moderator ids**, at any depth. A
- * verification entry keeps its states, the event's type and its reason (which
- * the shelter already sees verbatim, S3-Q2); a resubmission's evidence list
- * and every reviewer/moderator id are dropped.
+ * from its entry: **no evidence and no ids** (moderator, admin, invitation),
+ * at any depth. A verification entry keeps its states, the event's type and
+ * its reason (which the shelter already sees verbatim, S3-Q2); a
+ * resubmission's evidence list and every reviewer/moderator id are dropped.
  */
 export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
   z.object({
@@ -98,6 +98,8 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("shelter_created"), ...base }),
   z.object({ kind: z.literal("admin_invited"), ...base, email: z.email() }),
   z.object({ kind: z.literal("admin_invitation_resent"), ...base, email: z.email() }),
+  /** The email stored at join time (IN-Q14); the admin's and the invitation's ids stay operator-only. */
+  z.object({ kind: z.literal("admin_joined"), ...base, email: z.email() }),
   z.object({
     kind: z.literal("admin_removed"),
     ...base,
@@ -196,6 +198,8 @@ export function shelterFacingHistoryOf(
       return { kind: "admin_invited", at: entry.at, actor: operator, email: entry.email };
     case "admin_invitation_resent":
       return { kind: "admin_invitation_resent", at: entry.at, actor: operator, email: entry.email };
+    case "admin_joined":
+      return { kind: "admin_joined", at: entry.at, actor: { kind: "shelter" }, email: entry.email };
     case "admin_removed":
       return {
         kind: "admin_removed",

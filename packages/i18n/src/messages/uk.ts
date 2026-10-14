@@ -830,5 +830,14 @@ export const uk = {
       invalid: `${COPY_PENDING} "This link has already been used or has expired." (after a failed POST, or a malformed link)`,
       requestNew: `${COPY_PENDING} "Request a new link" (link back to sign-in)`,
     },
+    /**
+     * History lines (IN-Q14). Only `admin_joined` has a key so far; no
+     * history renderer exists yet. Ukrainian past tense is gendered, so the
+     * draft avoids «приєднався/приєдналася». Keys and drafts:
+     * `docs/h2-invite-copy-sheet.md` H.
+     */
+    history: {
+      adminJoined: `${COPY_PENDING} "{email} now has access to the cabinet" (history line; Oleksii's draft «{email} отримує доступ до кабінету», alternative «Новий адміністратор: {email}», IN-Q14)`,
+    },
   },
 } as const;

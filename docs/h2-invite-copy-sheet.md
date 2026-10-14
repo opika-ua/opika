@@ -81,6 +81,20 @@ now as `[COPY PENDING]`, pinned in `copy-status.test.ts`.
 | `kabinet.confirm.invitationFor` | Under the heading, when a pending invitation exists (after IN-Q12) | You're joining «shelter name» (filled in). Not in code yet. |
 | `kabinet.confirm.joinFailed` | `/kabinet`, signed in but the invitation couldn't be completed (after IN-Q12) | Joining didn't finish; reload, or ask the operator. Not in code yet. |
 
+## H. The shelter's history: an admin joined (IN-Q14)
+
+One line in the shelter's history (operator S3/S4 and the shelter's own view) when an invited
+person signs in and the invitation is accepted. The email is the one stored at join time, never
+looked up again. In code now as `[COPY PENDING]` with both drafts quoted inside it, pinned in
+`copy-status.test.ts`. No history renderer exists yet, so nothing shows it.
+
+| Key | Where | English sense | Oleksii's draft (IN-Q14, not final) |
+|---|---|---|---|
+| `kabinet.history.adminJoined` | One history line; `{email}` filled in | This address now has access to the shelter's cabinet. | «{email} отримує доступ до кабінету» · alternative: «Новий адміністратор: {email}» |
+
+Ukrainian past tense is gendered, so neither draft uses «приєднався/приєдналася» (Oleksii,
+IN-Q14).
+
 ---
 
 The sending domain (`mail.opika.org.ua`, IN-Q2a) is config, never part of a string: the name is not final.

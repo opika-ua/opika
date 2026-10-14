@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ModeratorIdSchema, ShelterAdminIdSchema } from "../primitives/ids";
+import { InvitationIdSchema, ModeratorIdSchema, ShelterAdminIdSchema } from "../primitives/ids";
 import type { ShelterHistoryEntry, ShelterHistoryKind } from "./history";
 import { ShelterHistoryEntrySchema } from "./history";
 import { ShelterFacingHistoryItemSchema, shelterFacingHistoryOf } from "./history-shelter-facing";
@@ -7,6 +7,7 @@ import { ShelterFacingHistoryItemSchema, shelterFacingHistoryOf } from "./histor
 const MOD = ModeratorIdSchema.parse("11111111-1111-4111-8111-111111111111");
 const ADMIN_ID = ShelterAdminIdSchema.parse("33333333-3333-4333-8333-333333333333");
 const ADMIN = { kind: "shelter_admin", shelterAdminId: ADMIN_ID } as const;
+const INVITATION_ID = InvitationIdSchema.parse("44444444-4444-4444-8444-444444444444");
 const AT = new Date("2026-10-13T00:00:00.000Z");
 const LINK = { url: "https://send.monobank.ua/jar/x", provider: "monobank_jar" } as const;
 const CONTACT = { primary: { kind: "phone", e164: "+380501234567" }, additional: [] } as const;
@@ -93,8 +94,21 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     email: "olena@example.org",
     wasPending: true,
   },
+  admin_joined: {
+    kind: "admin_joined",
+    at: AT,
+    shelterAdminId: ADMIN_ID,
+    invitationId: INVITATION_ID,
+    email: "olena@example.org",
+  },
   animals_imported: { kind: "animals_imported", at: AT, moderatorId: MOD, count: 4 },
 };
+
+/** Every key name at any depth of a value, so a nested id can't hide from the check. */
+const keysAtAnyDepth = (value: unknown): string[] =>
+  value === null || typeof value !== "object"
+    ? []
+    : Object.entries(value).flatMap(([key, child]) => [key, ...keysAtAnyDepth(child)]);
 
 describe("shelterFacingHistoryOf", () => {
   it("covers every kind the history union defines", () => {
@@ -102,17 +116,36 @@ describe("shelterFacingHistoryOf", () => {
   });
 
   for (const [kind, entry] of Object.entries(ENTRIES)) {
-    it(`${kind}: parses as a shelter-facing item and carries no moderator id or evidence`, () => {
+    it(`${kind}: parses as a shelter-facing item and carries no id or evidence`, () => {
       const item = shelterFacingHistoryOf(entry, OPERATOR);
       expect(ShelterFacingHistoryItemSchema.parse(item)).toEqual(item);
       const json = JSON.stringify(item);
       expect(json).not.toContain(MOD);
       expect(json).not.toContain(ADMIN_ID);
+      expect(json).not.toContain(INVITATION_ID);
+      expect(
+        keysAtAnyDepth(item).filter((key) =>
+          ["moderatorId", "shelterAdminId", "invitationId"].includes(key),
+        ),
+      ).toEqual([]);
       expect(json).not.toContain("evidence");
       expect(json).not.toContain("Візит");
       expect(item.kind).toBe(kind);
     });
   }
+
+  /**
+   * IN-Q14: the shelter is shown the email stored at join time and nothing
+   * else, with its own admin as the actor. The ids stay operator-only.
+   */
+  it("admin_joined: the stored email, the shelter as actor, and no id", () => {
+    expect(shelterFacingHistoryOf(ENTRIES.admin_joined, OPERATOR)).toEqual({
+      kind: "admin_joined",
+      at: AT,
+      actor: { kind: "shelter" },
+      email: "olena@example.org",
+    });
+  });
 
   it("shows the operator by the display name it was given, never by id", () => {
     expect(shelterFacingHistoryOf(ENTRIES.admin_invited, OPERATOR).actor).toEqual({

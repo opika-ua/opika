@@ -1,10 +1,12 @@
 import {
   type Animal,
   donationProviderOf,
+  type InvitationId,
   type ModeratorId,
   publicLocationOf,
   type ShelterAdminId,
   type ShelterHistoryEntry,
+  ShelterHistoryEntrySchema,
   testOnlyLocationPolicy,
 } from "@opika/domain";
 import { eq } from "drizzle-orm";
@@ -251,5 +253,27 @@ describe("legal entity and donation approval columns", () => {
     const after = await shelterRepo(db).findById(s.id);
     expect(after?.donation).toEqual(link);
     expect(after?.pendingDonation).toBeNull();
+  });
+});
+
+/**
+ * IN-Q14: `admin_joined` needs no migration (the kind column is text, the
+ * entry jsonb). This is the proof: the row goes in and comes back whole,
+ * dates revived and both ids intact, and it still parses as the domain union.
+ */
+describe("an admin_joined history line", () => {
+  it("round-trips through shelter_history unchanged", async () => {
+    const s = await shelter();
+    const entry: ShelterHistoryEntry = {
+      kind: "admin_joined",
+      at: NOW,
+      shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
+      invitationId: "44444444-4444-4444-8444-444444444444" as InvitationId,
+      email: "olena@example.org",
+    };
+    await repo().appendHistory({ id: "h-joined", shelterId: s.id, entry });
+    const page = await repo().historyPage({ shelterId: s.id, after: null, limit: 10 });
+    expect(page.items).toEqual([entry]);
+    expect(ShelterHistoryEntrySchema.parse(page.items[0])).toEqual(entry);
   });
 });

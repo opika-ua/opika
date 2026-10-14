@@ -7,6 +7,7 @@ import { registryContract, shelterKabinetContract } from "./contract";
 import {
   AnimalPatchSchema,
   KabinetListingEventInputSchema,
+  registryHistoryContract,
   registryVerificationContract,
 } from "./procedures";
 import {
@@ -366,6 +367,7 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     shelter_created: ["kind", "at", "actor"],
     admin_invited: ["kind", "at", "actor", "email"],
     admin_invitation_resent: ["kind", "at", "actor", "email"],
+    admin_joined: ["kind", "at", "actor", "email"],
     admin_removed: ["kind", "at", "actor", "email", "wasPending"],
     animals_imported: ["kind", "at", "actor", "count"],
   };
@@ -441,6 +443,31 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     expect(
       HistoryActorViewSchema.options.map((option) => Object.keys(option.shape).sort()),
     ).toEqual([["displayName", "kind"], ["kind"]]);
+  });
+});
+
+/**
+ * IN-Q14: the operator reads the full entry (`HistoryEntryViewSchema` is the
+ * domain union itself), so an `admin_joined` line keeps which invitation was
+ * accepted and by whom; the shelter-facing variant above has only the email.
+ * Parsed through the procedure's own output schema, which is what oRPC strips
+ * against, so a narrowed operator view turns this red.
+ */
+describe("the operator's history keeps admin_joined's ids", () => {
+  it("registry.history.list returns the invitation id and the admin id", () => {
+    const entry = {
+      kind: "admin_joined",
+      at: new Date("2026-10-14T00:00:00.000Z"),
+      shelterAdminId: "33333333-3333-4333-8333-333333333333",
+      invitationId: "44444444-4444-4444-8444-444444444444",
+      email: "olena@example.org",
+    };
+    const output = (
+      registryHistoryContract.list as unknown as {
+        "~orpc": { outputSchema: { parse: (v: unknown) => { items: unknown[] } } };
+      }
+    )["~orpc"].outputSchema.parse({ items: [entry], nextCursor: null });
+    expect(output.items).toEqual([entry]);
   });
 });
 
