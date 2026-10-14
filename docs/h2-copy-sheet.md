@@ -27,17 +27,24 @@ to translate.
 The rest of §7 (photos, a few sentences per animal, a contact, a donation link, the update
 sentence) stays true.
 
-**Optional line, recorded as a draft only (Oleksii, 2026-10-14, answer 3, verbatim: "A1
-(optional, not blocking): add «Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені
-вкажете.»"):** «Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.» Not in
-`uk.ts`: it is optional and doesn't block, so it waits for his word on where in §7 it goes.
+**Added line.** **Final (Oleksii, 2026-10-14); ships in the commit that turns production sign-in on; A1 goes directly before §7's last paragraph.** Not in `uk.ts` until that commit. His answer (row 91 of the PR #94 copy
+export, 2026-10-14, relayed by the coordinating session), verbatim: "Yes, include it: «Доступ до
+кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.» Place it directly before the
+current last paragraph of §7, and ship it in the same commit as row 89."
+> Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.
+
+(Earlier: answer 3 offered it as optional, not blocking, with its position open.)
 
 ### A2. `forShelters.whenAnimalFindsHome` (§9)
 **Current (last paragraph goes false):**
 > Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет,
 > якого не існує.
 
-**Oleksii's replacement, provisional, slated for the wiring commit; not in `uk.ts`** (EM-Q1,
+**Oleksii's replacement.** **Final (Oleksii, 2026-10-14); ships in the commit that turns production sign-in on; A1 goes directly before §7's last paragraph.** Not in `uk.ts` until that commit. His answer (row 89 of the
+PR #94 copy export, 2026-10-14, relayed by the coordinating session), verbatim: "FINAL YES as
+drafted: «Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду —
+змінити чи прибрати щось у ньому поки не можна.» Ships in the commit that turns production sign-in
+on (EM-Q1 b)." History: provisional, slated for the wiring commit (EM-Q1,
 2026-10-14, verbatim: "(b). A2 keeps the current text; the new paragraph ships in the commit that
 turns production sign-in on." The live text stays the "Current" above until then;
 `docs/h2-next-prs.md` carries it.) **His paragraph (answer 3, verbatim:
@@ -57,6 +64,20 @@ again.
 - Writing to you still works, too.
 
 The first two paragraphs (why a homed animal left listed poisons every card) stay true.
+
+### /pro `about.data`: the addition (KH-C1)
+**Final (Oleksii, 2026-10-14); ships in the commit that turns production sign-in on; A1 goes directly before §7's last paragraph.** Not in `uk.ts` until that commit (the coordinating session's instruction for #94: rows
+89/90/91 ship together in it). Appended to `about.data`. His answer (row 90 of the PR #94 copy
+export, 2026-10-14, relayed by the coordinating session), verbatim: "FINAL YES as drafted
+(«…видаляються протягом двох діб.»). The ~50h worst case with one skipped run is accepted:
+«протягом двох діб» describes the normal cycle. Ships with the cron." The text as drafted (KH-C1,
+Hobby):
+> Для притулків із доступом до кабінету реєстр зберігає ім'я та адресу пошти адміністратора — щоб
+> надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано
+> вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили
+> силу, видаляються протягом двох діб.
+
+On Vercel Pro the last clause would revert to «протягом доби» (KH-C1).
 
 ### A3. `forShelters.whoIsBehindThis` (§10)
 **Current:**

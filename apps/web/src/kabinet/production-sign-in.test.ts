@@ -1,4 +1,4 @@
-import { COPY_PENDING, uk } from "@opika/i18n";
+import { COPY_PENDING, pendingCopyPaths, uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 import { kabinetAuthAvailability } from "./auth-route";
 import { kabinetPendingCopy, productionSignInOf as withLiveCopy } from "./production-sign-in";
@@ -111,50 +111,67 @@ describe("productionSignInOf", () => {
  * while any kabinet.* or email-template string is [COPY PENDING]. Test it."
  */
 describe("production sign-in stays off while kabinet copy is pending (answer 7)", () => {
-  it("is off today, against the live catalogue, naming the pending strings", () => {
-    const pending = kabinetPendingCopy();
-    // Not vacuous: the catalogue really does hold pending kabinet strings
-    // today, the email templates among them.
-    expect(pending).toContain("kabinet.email.signIn.subject");
-    expect(pending).toContain("kabinet.email.invite.subject");
-    expect(pending).toContain("kabinet.signIn.title");
-    expect(withLiveCopy(full)).toEqual({ kind: "off", reason: "copy_pending", pending });
+  /**
+   * Oleksii's final Ukrainian landed on 2026-10-14 (the PR #94 copy export),
+   * every kabinet.* string of it. Against the live catalogue the gate sees
+   * nothing pending and is no longer a reason production is off; the
+   * synthetic catalogue below proves the gate itself still bites.
+   */
+  it("against the live catalogue, sees no pending kabinet string and lets production on", () => {
+    expect(kabinetPendingCopy()).toEqual([]);
+    expect(withLiveCopy(full).kind).toBe("on");
   });
 
   /**
    * Oleksii, 2026-10-14, item 5, verbatim: "Copy gate: full scope, every
    * kabinet.* string, including ones without a visible screen yet." So the
    * gate is the whole `uk.kabinet` subtree, walked here independently of
-   * `pendingCopyPaths`: every leaf string is either in the gate's list or one
-   * of the two written strings pinned by name, and the screenless ones are
-   * named explicitly so a narrower walk can't pass by rendering fewer.
+   * `pendingCopyPaths`: every leaf is either in the gate's list or written,
+   * and the count of leaves is pinned so a narrower walk can't pass by
+   * seeing fewer.
    */
   it("covers every kabinet.* string, the ones with no screen yet included (item 5)", () => {
-    const leaves: string[] = [];
+    const pending: string[] = [];
     const written: string[] = [];
     const walk = (node: unknown, path: string) => {
       if (typeof node === "string") {
-        (node.startsWith(COPY_PENDING) ? leaves : written).push(path);
+        (node.startsWith(COPY_PENDING) ? pending : written).push(path);
       } else {
         for (const [key, value] of Object.entries(node as object)) walk(value, `${path}.${key}`);
       }
     };
     walk(uk.kabinet, "kabinet");
-    expect(written.sort(), "kabinet strings already written (not gated)").toEqual([
-      "kabinet.operatorFallbackName",
-      "kabinet.profileNotRecorded",
-    ]);
-    expect(kabinetPendingCopy()).toEqual(leaves.sort());
+    // 88 rows of the copy export plus operatorFallbackName and profileNotRecorded,
+    // less profile.addressNote (row 57), deleted as a false claim (review of the final copy).
+    expect(pending.length + written.length).toBe(89);
+    expect(kabinetPendingCopy()).toEqual(pending.sort());
     for (const screenless of [
       "kabinet.history.adminJoined",
-      "kabinet.support.title",
       "kabinet.registry.inviteSent.tellPersonally",
-      "kabinet.inviteLanding.send",
-      "kabinet.confirm.joinFailedTitle",
       "kabinet.email.invite.what",
     ]) {
-      expect(kabinetPendingCopy(), screenless).toContain(screenless);
+      expect(written, screenless).toContain(screenless);
     }
+  });
+
+  /**
+   * The gate still works now that almost nothing is pending: a catalogue
+   * with placeholders put back (an email template, a screenless history
+   * line, a nested group) is read by the same walk the gate uses and turns
+   * production off, naming each.
+   */
+  it("turns production off for a synthetic catalogue with pending strings, naming each", () => {
+    const synthetic = structuredClone(uk.kabinet) as unknown as {
+      email: { invite: Record<string, string> };
+      history: Record<string, string>;
+      support: Record<string, string>;
+    };
+    synthetic.email.invite.notYou = `${COPY_PENDING} sign-off`;
+    synthetic.history.adminJoined = `${COPY_PENDING} history`;
+    synthetic.support.body = "Written.";
+    const pending = pendingCopyPaths(synthetic, "kabinet");
+    expect(pending).toEqual(["kabinet.email.invite.notYou", "kabinet.history.adminJoined"]);
+    expect(withLiveCopy(full, pending)).toEqual({ kind: "off", reason: "copy_pending", pending });
   });
 
   it("one pending string anywhere under kabinet.* is enough, an email template's included", () => {
@@ -177,9 +194,12 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     });
   });
 
-  /** "Make sure it can't break local/test": development sign-in doesn't consult the copy at all. */
-  it("leaves development sign-in available with the copy still pending", () => {
-    expect(kabinetPendingCopy().length).toBeGreaterThan(0);
+  /**
+   * "Make sure it can't break local/test": development sign-in takes no copy
+   * input at all (`kabinetAuthAvailability` reads only the environment), so it
+   * stays available whatever the catalogue holds.
+   */
+  it("leaves development sign-in available whatever the copy holds", () => {
     expect(
       kabinetAuthAvailability({
         NODE_ENV: "development",

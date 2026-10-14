@@ -55,9 +55,7 @@ export function SupportBanner({
     >
       <div className="flex flex-1 flex-col gap-0.5">
         <span className="text-[15px] leading-[22px] font-medium">{title}</span>
-        <span className="text-[13px] leading-[18px] text-white">
-          {t.body.replaceAll("{shelter}", shelterName)}
-        </span>
+        <span className="text-[13px] leading-[18px] text-white">{t.body}</span>
         {state === "failed" ? (
           <span role="alert" className="text-[13px] leading-[18px] text-white">
             {t.exitFailed}

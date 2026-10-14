@@ -8,6 +8,14 @@
  * - Production has no sender in this slice, and the sign-in route answers 503
  *   rather than pretending to send (`kabinetAuthAvailability`).
  */
+/**
+ * KABINET N1: a link is good for 15 minutes. Here, not in `auth.ts`, so the
+ * hand-run delivery test can build the real email without loading Better
+ * Auth; `auth.ts` re-exports it. The copy types the noun for 15
+ * («хвилин»), pinned by `copy-plural-pins.test.ts`.
+ */
+export const MAGIC_LINK_TTL_SECONDS = 15 * 60;
+
 export interface MagicLinkSender {
   send(message: { email: string; url: string }): Promise<void>;
 }

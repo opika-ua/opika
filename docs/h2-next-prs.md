@@ -83,9 +83,6 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [ ] **`CRON_SECRET` is set before the hardening branch deploys** (KH-T6): Oleksii sets it
       (`openssl rand -hex 32`) in Vercel's Production environment first; production refuses to
       boot without it. Then the daily auth clean-up (KH-Q9) runs at 03:00 UTC.
-- [ ] **The /pro `about.data` sentence lands in #94, after Oleksii's final yes** (KH-C1,
-      provisional draft in the hardening inbox), with the cron already shipped. Not in `uk.ts`
-      before then.
 - [x] **Real-Neon run of the auth clean-up statement** (KH-Q9): done twice: #95's run (step 15
       there) and #94's final run (step 18 after the merge renumbering, below): 1 verification + 1
       session deleted, live rows kept.
@@ -141,9 +138,18 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       429.
 - [ ] **A2's new third paragraph ships here (EM-Q1)**, in the wiring commit itself (Oleksii,
       verbatim: "(b). A2 keeps the current text; the new paragraph ships in the commit that turns
-      production sign-in on."). His provisional text is on `docs/h2-copy-sheet.md` A2; it still needs
-      his final yes. The same commit updates `copy-status.test.ts`'s A2 pin, commitments row 6 in
+      production sign-in on."). **Final yes given** (2026-10-14, row 89 of the PR #94 copy export,
+      verbatim: "FINAL YES as drafted"); the text is on `docs/h2-copy-sheet.md` A2. The same commit
+      updates `copy-status.test.ts`'s A2 pin, commitments row 6 in
       `docs/standing-constraints.md` and the `docs/marketing/brand-voice.md` note.
+- [ ] **A1's added line ships in the same commit** (row 91, final, 2026-10-14, verbatim: "Place it
+      directly before the current last paragraph of §7, and ship it in the same commit as row 89."):
+      «Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.»
+      (`docs/h2-copy-sheet.md` A1), with a `copy-status.test.ts` pin on its position.
+- [ ] **The /pro `about.data` addition ships in the same commit** (KH-C1; moved here from #94's
+      own list): final yes given (row 90, 2026-10-14, verbatim: "FINAL YES as drafted («…видаляються
+      протягом двох діб.»)"), text on `docs/h2-copy-sheet.md` (/pro `about.data`). The cron it
+      describes already shipped (#95). Not in `uk.ts` before that commit.
 - [ ] **The runtime boot check stays as the second guard** (IN-R2, Decision 1): production refuses
       to boot without them from the same commit, tested.
 - [x] **The one-membership unique violation is a typed error, never a 500** (IN-Q8, IN-T1): in the

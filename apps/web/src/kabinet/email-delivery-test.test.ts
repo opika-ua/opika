@@ -26,6 +26,7 @@ const harness = (respond: (n: number) => Response = () => okResponse()) => {
       base: "http://localhost:3000/",
       fromName: "Config Name",
       replyTo: "hello@example.org",
+      operatorName: "Олексій" as string | undefined,
       fetchImpl,
       random: () => `r${++n}`,
       log: (line: string) => lines.push(line),
@@ -67,21 +68,61 @@ describe("runDeliveryTest", () => {
     expect(invite.textContent).toContain(
       "http://localhost:3000/kabinet/vkhid?zaproshennia=TEST-r2",
     );
-    // IN-E8: the HTML link's text is the copy sheet's label, never the URL;
-    // the plain-text part keeps the raw URL on its own line.
+    // IN-E8: the HTML link's text is the label, never the URL; the
+    // plain-text part keeps the raw URL on its own line.
     const anchors = (html: string) =>
       [...html.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => match[1]);
-    expect(anchors(signIn.htmlContent)).toEqual(["[COPY PENDING] Open the sign-in page"]);
-    expect(anchors(invite.htmlContent)).toEqual(["[COPY PENDING] Open the invitation"]);
-    expect(signIn.textContent.split("\n")).toContain(
-      "http://localhost:3000/kabinet/vkhid/pidtverdzhennia?token=TEST-r1",
+    expect(anchors(signIn.htmlContent)).toEqual(["Відкрити сторінку входу"]);
+    expect(anchors(invite.htmlContent)).toEqual(["Відкрити запрошення"]);
+    // IN-E15: the final Ukrainian through the real templates, transcribed from
+    // Oleksii's answer sheet (2026-10-14), with the real TTLs, the fictional
+    // shelter and the configured operator name filled in.
+    expect(signIn.subject).toBe("Посилання для входу до кабінету притулку");
+    expect(signIn.textContent).toBe(
+      [
+        "На цю адресу запитали посилання для входу до кабінету притулку.",
+        "http://localhost:3000/kabinet/vkhid/pidtverdzhennia?token=TEST-r1",
+        "Посилання спрацює один раз і діє 15 хвилин.",
+        "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.",
+      ].join("\n\n"),
     );
-    // Placeholder copy, not invented Ukrainian, and long enough to resemble a real message.
-    for (const body of [signIn, invite]) {
-      expect(body.subject).toMatch(/^\[COPY PENDING\]/);
-      expect(body.textContent.length).toBeGreaterThan(500);
-      expect(body.textContent).not.toMatch(/[Ѐ-ӿ]/);
+    expect(invite.subject).toBe("Ваш доступ до кабінету притулку");
+    expect(invite.textContent).toBe(
+      [
+        "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «Тестовий» у реєстрі.",
+        "Поки що в кабінеті можна переглянути профіль притулку таким, яким його бачать люди. Змінювати дані там ще не можна — для цього напишіть мені.",
+        "http://localhost:3000/kabinet/vkhid?zaproshennia=TEST-r2",
+        "Запрошення діє 72 години. Якщо не встигнете — я надішлю нове.",
+        "Якщо ви не чекали цього листа, просто проігноруйте його: без входу з цієї адреси доступу ніхто не отримає.\n— Олексій",
+      ].join("\n\n"),
+    );
+    expect(invite.htmlContent).toContain("<br>— Олексій</p>");
+  });
+
+  it("signs the invite with the catalogue fallback when no operator name is configured", async () => {
+    for (const operatorName of [undefined, "", "  "]) {
+      const h = harness();
+      expect(await runDeliveryTest({ ...h.input, operatorName })).toBe(0);
+      const invite = bodyOf(h.calls[1] as Call);
+      expect(invite.textContent.endsWith("\n— Оператор реєстру"), String(operatorName)).toBe(true);
     }
+  });
+
+  it("refuses while any email-template string is still pending, sending nothing", async () => {
+    const h = harness();
+    expect(
+      await runDeliveryTest({ ...h.input, pendingTemplateCopy: ["kabinet.email.invite.notYou"] }),
+    ).toBe(1);
+    expect(h.calls).toHaveLength(0);
+    expect(h.lines).toEqual([
+      "Email copy still pending (kabinet.email.invite.notYou). Nothing sent.",
+    ]);
+  });
+
+  it("against the live catalogue, finds no pending template string and sends both", async () => {
+    const h = harness();
+    expect(await runDeliveryTest(h.input)).toBe(0);
+    expect(h.calls).toHaveLength(2);
   });
 
   it("prints the status and message id of each send, and nothing of the key or the request", async () => {

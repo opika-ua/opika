@@ -819,86 +819,91 @@ export const uk = {
      */
     operatorFallbackName: "Оператор реєстру",
     /**
-     * The kabinet's own UI strings ship `[COPY PENDING]` with their screens
-     * (`docs/h2-copy-sheet.md` §F): the designer's draft text in
-     * `docs/design/KABINET.md` is a draft, not approved Ukrainian. Each key's
-     * English sense and the mock's draft are recorded for Oleksii in
-     * `docs/decisions-inbox/feat-h2-kabinet-screens.md`.
+     * Every kabinet string below is Oleksii's final Ukrainian (2026-10-14,
+     * answering the 91-row copy export for PR #94), applied verbatim. The designer's
+     * drafts in `docs/design/KABINET.md` were drafts only. `copy-status.test.ts`
+     * pins the load-bearing strings against his text, transcribed.
      */
     shell: {
       /** Next to the wordmark in the header (K1, N2). */
-      label: `${COPY_PENDING} "cabinet" (label next to the wordmark)`,
+      label: "кабінет",
     },
     /** K1 · sign-in (N1), both states. */
     signIn: {
-      pageTitle: `${COPY_PENDING} "Sign in to the cabinet" (browser tab title)`,
-      title: `${COPY_PENDING} "Sign in to the cabinet"`,
-      intro: `${COPY_PENDING} "For shelters and the registry operator. There is no password: we email you a link."`,
-      emailLabel: `${COPY_PENDING} "Email address"`,
-      send: `${COPY_PENDING} "Send the link"`,
-      addressNote: `${COPY_PENDING} "The operator adds your address when inviting your shelter. If it is not on the list no email arrives, and we do not say so, so that the form never reveals who is registered."`,
-      sendFailed: `${COPY_PENDING} "The link could not be sent. Check your connection and try again."`,
-      sentTitle: `${COPY_PENDING} "Check your email"`,
+      pageTitle: "Вхід до кабінету",
+      title: "Вхід до кабінету",
+      intro:
+        "Для притулків і оператора реєстру. Пароля немає: посилання для входу приходить на пошту.",
+      emailLabel: "Електронна пошта",
+      send: "Надіслати посилання",
+      addressNote:
+        "Адресу додає оператор реєстру, коли запрошує притулок. Якщо адреси немає в списку, лист не прийде — і ця сторінка про це не повідомляє, щоб не розкривати, хто зареєстрований.",
+      sendFailed: "Не вдалося надіслати посилання. Перевірте з'єднання і спробуйте ще раз.",
+      sentTitle: "Перевірте пошту",
       /** `{email}` is the address, shown in 500 weight. */
-      sentBody: `${COPY_PENDING} "We sent a link to {email}. It works for 15 minutes and opens the cabinet on this device."`,
-      spamNote: `${COPY_PENDING} "No email? Check «Spam», or send it again: you can after 60 seconds."`,
-      resend: `${COPY_PENDING} "Send again"`,
+      sentBody:
+        "Якщо ця адреса є в списку, на {email} прийде посилання для входу. Воно діє 15 хвилин і відкривається на будь-якому пристрої.",
+      spamNote: "Листа немає? Перевірте «Спам». Надіслати ще раз можна через 60 секунд.",
+      resend: "Надіслати ще раз",
       /** `{time}` is the countdown, m:ss. Shown while the 60s resend lockout runs. */
-      resendIn: `${COPY_PENDING} "Send again · {time}"`,
-      otherAddress: `${COPY_PENDING} "A different address"`,
+      resendIn: "Надіслати ще раз · {time}",
+      otherAddress: "Інша адреса",
     },
     /**
      * KS-Q1 (Oleksii: "A"): the read-only "your shelter" page at `/kabinet`,
      * K4's sections with every value as a label-value row (N10's pattern).
      */
     profile: {
-      pageTitle: `${COPY_PENDING} "Shelter profile" (browser tab title)`,
-      title: `${COPY_PENDING} "Shelter profile"`,
+      pageTitle: "Профіль притулку",
+      title: "Профіль притулку",
       /** The phone header's short page name (K4 360: «Профіль»). */
-      phoneTitle: `${COPY_PENDING} "Profile" (phone header)`,
-      intro: `${COPY_PENDING} "What adopters see about you on every card."`,
-      role: `${COPY_PENDING} "shelter administrator" (header, after the shelter name)`,
-      signOut: `${COPY_PENDING} "Sign out"`,
-      signOutFailed: `${COPY_PENDING} "Sign-out didn't go through, so you are still signed in. Check the connection and try again."`,
-      contactsTitle: `${COPY_PENDING} "Contacts"`,
-      contactsNote: `${COPY_PENDING} "Adopters see these contacts when they tap «Write to the shelter», and write to you themselves. Messages do not go through the registry, and we cannot see who wrote to you."`,
-      donationTitle: `${COPY_PENDING} "Fundraising"`,
-      donationLink: `${COPY_PENDING} "Fundraising link"`,
-      donationNote: `${COPY_PENDING} "https only. The registry never takes or passes on money: this is an external link."`,
+      phoneTitle: "Профіль",
+      intro: "Те, що бачать про вас на кожній картці ті, хто шукає тварину.",
+      role: "адміністратор притулку",
+      signOut: "Вийти",
+      signOutFailed:
+        "Вийти не вдалося — ви досі в кабінеті. Перевірте з'єднання і спробуйте ще раз.",
+      contactsTitle: "Контакти",
+      contactsNote:
+        "Ці контакти бачить людина, коли натискає «Написати притулку», — і пише вам сама. Листування йде напряму, не через реєстр.",
+      donationTitle: "Збір коштів",
+      donationLink: "Посилання на збір",
+      donationNote: "Лише https. Реєстр не приймає і не передає гроші — це зовнішнє посилання.",
       /** A proposed link the operator hasn't approved yet (N20). No mock frame. */
-      donationPending: `${COPY_PENDING} "Proposed link, waiting for the operator's approval"`,
-      voiceTitle: `${COPY_PENDING} "The shelter's voice"`,
-      voiceLabel: `${COPY_PENDING} "Your words on the cards"`,
-      voiceNote: `${COPY_PENDING} "One sentence in the first person, written by you. We fill in {date} and {name}, nothing else."`,
-      lockedTitle: `${COPY_PENDING} "Set during verification"`,
+      donationPending: "Запропоноване посилання — чекає на підтвердження оператора.",
+      voiceTitle: "Голос притулку",
+      voiceLabel: "Ваші слова на картках",
+      voiceNote:
+        "Одне речення від першої особи, написане вами. Реєстр підставляє лише {date} (дату оновлення) і {name} (ім'я тварини) — більше нічого не змінюється.",
+      lockedTitle: "Встановлено під час перевірки",
       /** `{operator}` is the operator's display name (RS-Q2). */
-      lockedNote: `${COPY_PENDING} "These details were entered by {operator}, the registry operator, when the shelter was verified, and are shown here to read only."`,
-      legalName: `${COPY_PENDING} "Legal entity"`,
-      edrpou: `${COPY_PENDING} "EDRPOU code"`,
+      lockedNote:
+        "Ці дані встановлює {operator} під час перевірки притулку. Тут вони лише для перегляду.",
+      legalName: "Юридична особа",
+      edrpou: "Код ЄДРПОУ",
       /** An unregistered initiative has a contact person, not a legal name. No mock frame. */
-      contactPerson: `${COPY_PENDING} "Contact person"`,
-      registrationStatus: `${COPY_PENDING} "Registration status"`,
+      contactPerson: "Контактна особа",
+      registrationStatus: "Статус реєстрації",
       /** `{status}` is the chip's label, `{date}` the date it took effect. */
-      statusSince: `${COPY_PENDING} "{status} {date}"`,
-      address: `${COPY_PENDING} "Premises address"`,
-      addressNote: `${COPY_PENDING} "Adopters see the address only as an approximate circle on the map, shifted by about a kilometre."`,
+      statusSince: "{status} · з {date}",
+      address: "Адреса приміщення",
     },
     /** N12's verification chip labels, as KABINET.md drafts them. */
     profileStatus: {
-      pending: `${COPY_PENDING} "Waiting" (verification chip)`,
-      under_review: `${COPY_PENDING} "Under review" (verification chip)`,
-      verified: `${COPY_PENDING} "Verified" (verification chip)`,
-      rejected: `${COPY_PENDING} "Rejected" (verification chip)`,
-      paused: `${COPY_PENDING} "Paused" (verification chip)`,
-      suspended: `${COPY_PENDING} "Suspended" (verification chip)`,
+      pending: "Очікує",
+      under_review: "На розгляді",
+      verified: "Перевірено",
+      rejected: "Відхилено",
+      paused: "На паузі",
+      suspended: "Призупинено",
     },
     /** Contact channel row labels on the profile. */
     profileChannel: {
-      phone: `${COPY_PENDING} "Phone"`,
-      telegram: `${COPY_PENDING} "Telegram"`,
-      viber: `${COPY_PENDING} "Viber"`,
-      email: `${COPY_PENDING} "Email"`,
-      website: `${COPY_PENDING} "Website"`,
+      phone: "Телефон",
+      telegram: "Telegram",
+      viber: "Viber",
+      email: "Ел. пошта",
+      website: "Сайт",
     },
     /**
      * Shown for any value the record doesn't hold. The standing constraints
@@ -912,42 +917,54 @@ export const uk = {
        * Renamed per Oleksii's answer 3 (2026-10-14), in place of changing the
        * /prytulkam A3 sentence. EM-Q2 (Oleksii, 2026-10-14, verbatim: "the
        * banner addresses the operator; no name hard-coded"): the banner is on
-       * the operator's own screen, so it speaks to them. His draft, verbatim
-       * and not final, is quoted inside the placeholder
-       * (`docs/h2-invite-copy-sheet.md` S). `{shelter}` is the shelter's name,
-       * filled by `SupportBanner`.
+       * the operator's own screen, so it speaks to them. Final as his draft
+       * stood (2026-10-14). `{shelter}` is the shelter's name, filled by
+       * `SupportBanner`.
        */
-      title: `${COPY_PENDING} "You are viewing the cabinet of «{shelter}»: view only, nothing can be changed" (S5 banner title, addressed to the operator; Oleksii's draft «Ви переглядаєте кабінет притулку «{shelter}» — лише перегляд, змінити нічого не можна.»)`,
-      /** `{shelter}` is the shelter's name. */
-      body: `${COPY_PENDING} "You are seeing «{shelter}»'s cabinet as its administrator sees it. Nothing can be changed here."`,
-      exit: `${COPY_PENDING} "Leave support mode"`,
-      exitFailed: `${COPY_PENDING} "Could not leave support mode. Try again."`,
-      viewingAs: `${COPY_PENDING} "as the shelter administrator" (header, in place of the role)`,
-      signOutDisabled: `${COPY_PENDING} "Sign-out disabled" (header, in support mode)`,
+      title:
+        "Ви переглядаєте кабінет притулку «{shelter}» — лише перегляд, змінити нічого не можна.",
+      /**
+       * Row 70, final (2026-10-14). It deliberately leaves out `{shelter}`: the
+       * title already names the shelter and says read-only. Oleksii's note,
+       * verbatim: "70: deliberately short. Row 69 already names the shelter
+       * and says read-only; no person's name."
+       */
+      body: "Так кабінет бачить адміністратор притулку.",
+      exit: "Вийти з режиму перегляду",
+      exitFailed: "Не вдалося вийти з режиму перегляду. Спробуйте ще раз.",
+      viewingAs: "як адміністратор притулку",
+      signOutDisabled: "Вихід вимкнено",
     },
     /**
-     * The two kabinet emails (`docs/h2-invite-copy-sheet.md` E1/E2). Every
-     * string is a placeholder until Oleksii's Ukrainian lands on the sheet
-     * (IN-Q5), and `copy-status.test.ts` pins each one as pending. `action`
+     * The two kabinet emails (`docs/h2-invite-copy-sheet.md` E1/E2), Oleksii's
+     * final Ukrainian (2026-10-14). The invite email is a personal note in his
+     * «я» voice (IN-E14), signed `— {operator}` on its last line (`notYou`):
+     * the display name, nominative, from the same config as the history
+     * actor. The plural nouns in `signIn.expiry` («хвилин», 15) and
+     * `invite.expiry` («години», 72) are typed for those exact values;
+     * `copy-plural-pins.test.ts` fails if a TTL changes under them. `action`
      * is the link's label in the HTML part: a label, never the URL itself
      * (IN-E8: link text naming one domain over an href naming another is a
      * phishing signal). Values in `{braces}` are filled by the builder.
      */
     email: {
       signIn: {
-        subject: `${COPY_PENDING} A sign-in link for the shelters' cabinet.`,
-        intro: `${COPY_PENDING} Someone asked to sign in with this address.`,
-        action: `${COPY_PENDING} Open the sign-in page`,
-        expiry: `${COPY_PENDING} The link works once and expires in {minutes} minutes.`,
-        notYou: `${COPY_PENDING} If you didn't ask for this, ignore the email: nothing happens without the link.`,
+        subject: "Посилання для входу до кабінету притулку",
+        intro: "На цю адресу запитали посилання для входу до кабінету притулку.",
+        action: "Відкрити сторінку входу",
+        expiry: "Посилання спрацює один раз і діє {minutes} хвилин.",
+        notYou:
+          "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.",
       },
       invite: {
-        subject: `${COPY_PENDING} You're invited to manage a shelter's listings in the registry.`,
-        intro: `${COPY_PENDING} {operator} invited this address to administer {shelter}.`,
-        what: `${COPY_PENDING} What the cabinet lets you do.`,
-        action: `${COPY_PENDING} Open the invitation`,
-        expiry: `${COPY_PENDING} The invitation stays valid for {hours} hours; the operator can send it again.`,
-        notYou: `${COPY_PENDING} If this isn't expected, ignore it: nobody gets access without signing in from this address.`,
+        subject: "Ваш доступ до кабінету притулку",
+        intro:
+          "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» у реєстрі.",
+        what: "Поки що в кабінеті можна переглянути профіль притулку таким, яким його бачать люди. Змінювати дані там ще не можна — для цього напишіть мені.",
+        action: "Відкрити запрошення",
+        expiry: "Запрошення діє {hours} години. Якщо не встигнете — я надішлю нове.",
+        notYou:
+          "Якщо ви не чекали цього листа, просто проігноруйте його: без входу з цієї адреси доступу ніхто не отримає.\n— {operator}",
       },
     },
     /**
@@ -958,7 +975,7 @@ export const uk = {
      * PR (IN-T9).
      */
     signInCard: {
-      notArrived: `${COPY_PENDING} If the email hasn't arrived in a few minutes, write to me at {contact}.`,
+      notArrived: "Якщо лист не прийшов за кілька хвилин, напишіть мені на {contact}.",
     },
     /**
      * The invite landing (`/kabinet/vkhid?zaproshennia=<id>`, IN-Q11 and
@@ -970,29 +987,30 @@ export const uk = {
      * `docs/h2-invite-copy-sheet.md` L.
      */
     inviteLanding: {
-      pageTitle: `${COPY_PENDING} "Invitation to the cabinet" (browser tab title; also the heading when the invitation was already accepted or too many links were asked for)`,
-      title: `${COPY_PENDING} "An invitation to administer «{shelter}»" (heading)`,
-      sent: `${COPY_PENDING} "We've sent a sign-in link to {email}. It works once and expires in {minutes} minutes; signing in with it accepts the invitation."`,
+      pageTitle: "Запрошення до кабінету",
+      title: "Запрошення до кабінету притулку «{shelter}»",
+      sent: "Посилання для входу надіслано на {email}. Воно спрацює один раз і діє {minutes} хвилин. Вхід за ним приймає запрошення.",
       /** Heading of every state that can't name the shelter. */
-      unusableTitle: `${COPY_PENDING} "This invitation can't be used" (heading)`,
-      expired: `${COPY_PENDING} "This invitation is no longer valid; ask the operator to send a new one." (an unknown link reads the same)`,
-      alreadyAccepted: `${COPY_PENDING} "This invitation was already accepted; sign in as usual."`,
-      rateLimited: `${COPY_PENDING} "Too many links were requested for this invitation; try again later."`,
-      signIn: `${COPY_PENDING} "Go to sign-in" (link to the sign-in page)`,
+      unusableTitle: "Цим запрошенням не можна скористатися",
+      expired: "Запрошення більше не дійсне. Попросіть оператора реєстру надіслати нове.",
+      alreadyAccepted: "Це запрошення вже прийнято. Увійдіть як зазвичай.",
+      rateLimited: "Для цього запрошення запитано забагато посилань. Спробуйте пізніше.",
+      signIn: "Перейти до входу",
       /** What the page says before anything is sent: the GET looks nothing up (EM-Q3). */
-      ready: `${COPY_PENDING} "Says where the link will go, without showing the address" (above the one button, before anything is sent; Oleksii's draft «Посилання для входу прийде на адресу, на яку ви отримали це запрошення.», EM-Q4)`,
+      ready: "Посилання для входу прийде на адресу, на яку ви отримали це запрошення.",
       /** The one button; only its POST sends (EM-Q3). */
-      send: `${COPY_PENDING} "Send the link" (the one button; Oleksii's draft «Надіслати посилання», EM-Q3)`,
+      send: "Надіслати посилання",
     },
     /**
      * What the operator's side shows after an invite (IN-E13). The sending
      * address is `{sender}`, filled from config (the From address), never
-     * typed here: the name is not final. Oleksii's draft, verbatim, is quoted
-     * inside the placeholder (`docs/h2-invite-copy-sheet.md` R).
+     * typed here: the name is not final. Oleksii's final text (2026-10-14) is
+     * a reminder to the operator, impersonal, with no gendered past.
      */
     registry: {
       inviteSent: {
-        tellPersonally: `${COPY_PENDING} "Tell the shelter yourself that the invitation went from {sender}, and to look in the Promotions tab if they can't see it" (operator, after an invite is sent; Oleksii's draft «Надіслав вам запрошення з noreply@mail.opika.org.ua — якщо не бачите, гляньте у вкладці "Промоакції"», the address becoming {sender})`,
+        tellPersonally:
+          "Повідомте притулок особисто: запрошення надіслано з {sender}. Якщо листа не видно — хай перевірить вкладку «Промоакції».",
       },
     },
     /**
@@ -1001,33 +1019,34 @@ export const uk = {
      * Keys and English sense: `docs/h2-invite-copy-sheet.md` P.
      */
     confirm: {
-      title: `${COPY_PENDING} "Sign in to the shelters' cabinet" (heading)`,
-      intro: `${COPY_PENDING} "Press the button to finish signing in." (under the heading)`,
-      submit: `${COPY_PENDING} "Sign in" (the one button; Oleksii's working label «Увійти», IN-Q11)`,
-      invalid: `${COPY_PENDING} "This link has already been used or has expired." (after a failed POST, or a malformed link)`,
-      requestNew: `${COPY_PENDING} "Request a new link" (link back to sign-in)`,
+      title: "Вхід до кабінету притулку",
+      intro: "Натисніть кнопку, щоб завершити вхід.",
+      submit: "Увійти",
+      invalid: "Це посилання вже використане або втратило силу.",
+      requestNew: "Отримати нове посилання",
       /**
        * IN-Q12: signed in, but the invitation's accept failed. Shown on the
        * «Увійти» response and on `/kabinet`; the person stays signed in.
        */
-      joinFailed: `${COPY_PENDING} "Couldn't join the shelter. Try again." (signed in, the invitation not yet accepted; Oleksii's draft «не вдалося приєднатися до притулку, спробуйте ще раз», IN-Q12)`,
+      joinFailed:
+        "Нічого не збережено наполовину. Спробуйте ще раз — а якщо не вийде, спроба повториться автоматично під час наступного входу.",
       /**
        * The failure answer's heading, on the «Увійти» response and on
        * `/kabinet`'s `JoinFailedCard` (IN-T12 item 7, Oleksii 2026-10-14:
-       * "reuse K1's card (approved), with its own heading key"). His draft,
-       * verbatim, inside the placeholder.
+       * "reuse K1's card (approved), with its own heading key"). Final as his
+       * draft stood (2026-10-14).
        */
-      joinFailedTitle: `${COPY_PENDING} "You are signed in, but adding you to the shelter didn't work" (heading of the failed-accept answer; Oleksii's draft «Ви увійшли, але приєднати вас до притулку не вдалося»)`,
-      joinRetry: `${COPY_PENDING} "Try again" (button under joinFailed; reloads /kabinet, which retries the accept; Oleksii's draft «Спробувати ще раз»)`,
+      joinFailedTitle: "Ви увійшли, але приєднати вас до притулку не вдалося",
+      joinRetry: "Спробувати ще раз",
     },
     /**
      * History lines (IN-Q14). Only `admin_joined` has a key so far; no
      * history renderer exists yet. Ukrainian past tense is gendered, so the
-     * draft avoids «приєднався/приєдналася». Keys and drafts:
+     * line avoids «приєднався/приєдналася» (final, 2026-10-14). Keys:
      * `docs/h2-invite-copy-sheet.md` H.
      */
     history: {
-      adminJoined: `${COPY_PENDING} "{email} now has access to the cabinet" (history line; Oleksii's draft «{email} отримує доступ до кабінету», alternative «Новий адміністратор: {email}», IN-Q14)`,
+      adminJoined: "{email} отримує доступ до кабінету",
     },
   },
 } as const;

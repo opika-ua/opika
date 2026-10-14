@@ -2,6 +2,7 @@ import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 import { emailBody, invitationEmail, looksLikeUrl, magicLinkEmail } from "./email-message";
 import { fetchEmailSender } from "./email-provider";
+import { operatorDisplayName } from "./operator";
 
 /**
  * IN-E8 (Oleksii, 2026-10-14): in HTML the link text is a label, never a
@@ -125,21 +126,54 @@ describe.each(Object.entries(builders))("the %s email", (name, build) => {
   });
 });
 
-describe("the builders fill their copy", () => {
-  it("magic link: the sign-in label and the TTL", () => {
+/**
+ * Oleksii's final Ukrainian (2026-10-14, rows 78–88 of the PR #94 copy
+ * export), transcribed here from his answer sheet, never read back from
+ * `uk.ts`: a test comparing the email against the catalogue constant would
+ * pass for any text at all.
+ */
+describe("the builders fill his final copy", () => {
+  it("magic link: subject, intro, label, the 15-minute expiry and the last line, in order", () => {
     const email = builders["magic link"]();
-    expect(email.subject).toBe(uk.kabinet.email.signIn.subject);
-    expect(anchorTexts(email.html)).toEqual([uk.kabinet.email.signIn.action]);
-    expect(email.text).toContain("15 minutes");
-    expect(email.text).not.toContain("{minutes}");
+    expect(email.subject).toBe("Посилання для входу до кабінету притулку");
+    expect(anchorTexts(email.html)).toEqual(["Відкрити сторінку входу"]);
+    expect(email.text).toBe(
+      [
+        "На цю адресу запитали посилання для входу до кабінету притулку.",
+        SIGN_IN_URL,
+        "Посилання спрацює один раз і діє 15 хвилин.",
+        "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.",
+      ].join("\n\n"),
+    );
   });
 
-  it("invitation: the invite label, the shelter, the operator and the hours", () => {
+  it("invitation: the shelter in the intro, the 72-hour expiry, and the operator signing the last line (row 88)", () => {
     const email = builders.invitation();
-    expect(anchorTexts(email.html)).toEqual([uk.kabinet.email.invite.action]);
-    expect(email.text).toContain("Притулок «Лапа»");
-    expect(email.text).toContain("Олексій");
-    expect(email.text).toContain("72 hours");
+    expect(email.subject).toBe("Ваш доступ до кабінету притулку");
+    expect(anchorTexts(email.html)).toEqual(["Відкрити запрошення"]);
+    expect(email.text).toBe(
+      [
+        "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «Притулок «Лапа»» у реєстрі.",
+        "Поки що в кабінеті можна переглянути профіль притулку таким, яким його бачать люди. Змінювати дані там ще не можна — для цього напишіть мені.",
+        INVITE_URL,
+        "Запрошення діє 72 години. Якщо не встигнете — я надішлю нове.",
+        "Якщо ви не чекали цього листа, просто проігноруйте його: без входу з цієї адреси доступу ніхто не отримає.\n— Олексій",
+      ].join("\n\n"),
+    );
+    // The signature is a line break under the last sentence in HTML too, not a collapsed space.
+    expect(email.html).toContain("доступу ніхто не отримає.<br>— Олексій</p>");
     expect(email.text).not.toMatch(/\{\w+\}/);
+  });
+
+  it("invitation: with no display name configured, the signature is the catalogue's fallback, never a blank or a raw {operator}", () => {
+    const email = invitationEmail({
+      to: "a@example.org",
+      url: INVITE_URL,
+      shelterName: "Лапа",
+      operatorName: operatorDisplayName({}),
+      ttlHours: 72,
+    });
+    expect(email.text.endsWith("\n— Оператор реєстру")).toBe(true);
+    expect(email.html).toContain("<br>— Оператор реєстру</p>");
   });
 });

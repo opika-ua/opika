@@ -111,193 +111,170 @@ describe("deck not-a-judgement notice copy status", () => {
 });
 
 /**
- * The kabinet screens PR: every UI string ships `[COPY PENDING]`
- * (`docs/h2-copy-sheet.md` §F), Oleksii writes the Ukrainian. Pinned as the
- * exact list, so a string that lands (or a new placeholder) shows up here as a
- * diff someone has to accept, and `operatorFallbackName` (his own wording,
- * RS-Q2) is pinned as written. Keys and English sense:
- * `docs/decisions-inbox/feat-h2-kabinet-screens.md`.
+ * The kabinet's Ukrainian is final: Oleksii's answer of 2026-10-14 to the
+ * 91-row copy export for PR #94 (relayed by the coordinating session), applied
+ * to `uk.ts` verbatim. Everything under `kabinet.*` is written. Row 70
+ * (`support.body`) leaves out `{shelter}` on purpose (his note: "70:
+ * deliberately short. Row 69 already names the shelter and says read-only; no
+ * person's name.").
+ *
+ * The production copy gate (`productionSignInOf`, answer 7) reads the same
+ * catalogue, so an empty list here is what lets that gate stop being a reason
+ * production sign-in is off.
  */
-describe("kabinet copy status", () => {
-  it("K1 sign-in: every string is still pending, by name", () => {
-    expect(pendingCopyKeys(uk.kabinet.signIn)).toEqual([
-      "addressNote",
-      "emailLabel",
-      "intro",
-      "otherAddress",
-      "pageTitle",
-      "resend",
-      "resendIn",
-      "send",
-      "sendFailed",
-      "sentBody",
-      "sentTitle",
-      "spamNote",
-      "title",
-    ]);
+describe("kabinet copy status (final, 2026-10-14)", () => {
+  it("nothing under kabinet.* is pending", () => {
+    expect(pendingCopyPaths(uk.kabinet, "kabinet")).toEqual([]);
   });
 
-  it("the read-only profile (KS-Q1): every string pending, by name; «Не записано» written", () => {
-    expect(pendingCopyKeys(uk.kabinet.profile)).toEqual([
-      "address",
-      "addressNote",
-      "contactPerson",
-      "contactsNote",
-      "contactsTitle",
-      "donationLink",
-      "donationNote",
-      "donationPending",
-      "donationTitle",
-      "edrpou",
-      "intro",
-      "legalName",
-      "lockedNote",
-      "lockedTitle",
-      "pageTitle",
-      "phoneTitle",
-      "registrationStatus",
-      "role",
-      "signOut",
-      "signOutFailed",
-      "statusSince",
-      "title",
-      "voiceLabel",
-      "voiceNote",
-      "voiceTitle",
-    ]);
-    expect(pendingCopyKeys(uk.kabinet.profileStatus)).toEqual([
-      "paused",
-      "pending",
-      "rejected",
-      "suspended",
-      "under_review",
-      "verified",
-    ]);
-    expect(pendingCopyKeys(uk.kabinet.profileChannel)).toEqual([
-      "email",
-      "phone",
-      "telegram",
-      "viber",
-      "website",
-    ]);
-    // The standing constraints fix this wording for an unknown field.
-    expect(uk.kabinet.profileNotRecorded).toBe("Не записано");
+  it("every group keeps exactly its keys, so an emptied group can't pass the line above", () => {
+    const keysOf = (group: object) => Object.keys(group).sort();
+    expect({
+      shell: keysOf(uk.kabinet.shell),
+      signIn: keysOf(uk.kabinet.signIn),
+      signInCard: keysOf(uk.kabinet.signInCard),
+      confirm: keysOf(uk.kabinet.confirm),
+      inviteLanding: keysOf(uk.kabinet.inviteLanding),
+      profile: keysOf(uk.kabinet.profile).length,
+      profileStatus: keysOf(uk.kabinet.profileStatus),
+      profileChannel: keysOf(uk.kabinet.profileChannel),
+      support: keysOf(uk.kabinet.support),
+      emailSignIn: keysOf(uk.kabinet.email.signIn),
+      emailInvite: keysOf(uk.kabinet.email.invite),
+      registry: keysOf(uk.kabinet.registry.inviteSent),
+      history: keysOf(uk.kabinet.history),
+    }).toEqual({
+      shell: ["label"],
+      signIn: [
+        "addressNote",
+        "emailLabel",
+        "intro",
+        "otherAddress",
+        "pageTitle",
+        "resend",
+        "resendIn",
+        "send",
+        "sendFailed",
+        "sentBody",
+        "sentTitle",
+        "spamNote",
+        "title",
+      ],
+      signInCard: ["notArrived"],
+      confirm: [
+        "intro",
+        "invalid",
+        "joinFailed",
+        "joinFailedTitle",
+        "joinRetry",
+        "requestNew",
+        "submit",
+        "title",
+      ],
+      inviteLanding: [
+        "alreadyAccepted",
+        "expired",
+        "pageTitle",
+        "rateLimited",
+        "ready",
+        "send",
+        "sent",
+        "signIn",
+        "title",
+        "unusableTitle",
+      ],
+      profile: 24, // addressNote deleted: it claimed a map adopters never see (review of the final copy)
+      profileStatus: ["paused", "pending", "rejected", "suspended", "under_review", "verified"],
+      profileChannel: ["email", "phone", "telegram", "viber", "website"],
+      support: ["body", "exit", "exitFailed", "signOutDisabled", "title", "viewingAs"],
+      emailSignIn: ["action", "expiry", "intro", "notYou", "subject"],
+      emailInvite: ["action", "expiry", "intro", "notYou", "subject", "what"],
+      registry: ["tellPersonally"],
+      history: ["adminJoined"],
+    });
   });
 
-  it("support mode (S5): every string pending, by name", () => {
-    expect(pendingCopyKeys(uk.kabinet.support)).toEqual([
-      "body",
-      "exit",
-      "exitFailed",
-      "signOutDisabled",
-      "title",
-      "viewingAs",
-    ]);
-  });
-
-  it("the shell label is pending; the operator fallback name is Oleksii's and written", () => {
-    expect(pendingCopyKeys(uk.kabinet.shell)).toEqual(["label"]);
-    expect(pendingCopyKeys(uk.kabinet)).toEqual([]);
-    expect(uk.kabinet.operatorFallbackName).toBe("Оператор реєстру");
-  });
-});
-
-/**
- * The kabinet emails and the sign-in card's fallback line (IN-Q5, IN-E7,
- * IN-E8): every key ships as a placeholder until Oleksii's Ukrainian lands
- * on `docs/h2-invite-copy-sheet.md`, and none is ever drafted here. Pinned
- * by name both ways: a string that gains real text without passing through
- * the sheet changes this list (so the test is updated in the same commit
- * that lands it), and a key deleted rather than written fails the
- * key-list half. Oleksii's own drafts (e.g. «Відкрити сторінку входу» for
- * `signIn.action`) are recorded on the sheet as drafts, not shipped.
- */
-describe("kabinet email copy status (IN-Q5)", () => {
-  const groups = {
-    "email.signIn": uk.kabinet.email.signIn,
-    "email.invite": uk.kabinet.email.invite,
-    signInCard: uk.kabinet.signInCard,
+  /**
+   * The strings a commitment, a privacy rule or a send depends on, as he
+   * wrote them, transcribed from his answer sheet rather than read from
+   * `uk.ts` (a test may not compare output with the constant the code
+   * renders). The email templates (rows 78–88), the sign-in card's fallback
+   * (11), the anti-enumeration pair (6, 9), the failed accept (20, 21), the
+   * invite landing's ready line and button (24, 25), the support banner (69),
+   * commitments #2 and #5 on the profile (41, 44) and the operator's reminder (77).
+   */
+  const FINAL: Record<string, string> = {
+    // row 78
+    "email.signIn.subject": "Посилання для входу до кабінету притулку",
+    // row 79
+    "email.signIn.intro": "На цю адресу запитали посилання для входу до кабінету притулку.",
+    // row 80
+    "email.signIn.action": "Відкрити сторінку входу",
+    // row 81
+    "email.signIn.expiry": "Посилання спрацює один раз і діє {minutes} хвилин.",
+    // row 82
+    "email.signIn.notYou":
+      "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.",
+    // row 83
+    "email.invite.subject": "Ваш доступ до кабінету притулку",
+    // row 84
+    "email.invite.intro":
+      "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» у реєстрі.",
+    // row 85
+    "email.invite.what":
+      "Поки що в кабінеті можна переглянути профіль притулку таким, яким його бачать люди. Змінювати дані там ще не можна — для цього напишіть мені.",
+    // row 86
+    "email.invite.action": "Відкрити запрошення",
+    // row 87
+    "email.invite.expiry": "Запрошення діє {hours} години. Якщо не встигнете — я надішлю нове.",
+    // row 88
+    "email.invite.notYou":
+      "Якщо ви не чекали цього листа, просто проігноруйте його: без входу з цієї адреси доступу ніхто не отримає.\n— {operator}",
+    // row 11
+    "signInCard.notArrived": "Якщо лист не прийшов за кілька хвилин, напишіть мені на {contact}.",
+    // row 6
+    "signIn.addressNote":
+      "Адресу додає оператор реєстру, коли запрошує притулок. Якщо адреси немає в списку, лист не прийде — і ця сторінка про це не повідомляє, щоб не розкривати, хто зареєстрований.",
+    // row 9
+    "signIn.sentBody":
+      "Якщо ця адреса є в списку, на {email} прийде посилання для входу. Воно діє 15 хвилин і відкривається на будь-якому пристрої.",
+    // row 20
+    "confirm.joinFailedTitle": "Ви увійшли, але приєднати вас до притулку не вдалося",
+    // row 21
+    "confirm.joinFailed":
+      "Нічого не збережено наполовину. Спробуйте ще раз — а якщо не вийде, спроба повториться автоматично під час наступного входу.",
+    // row 24
+    "inviteLanding.ready":
+      "Посилання для входу прийде на адресу, на яку ви отримали це запрошення.",
+    // row 25
+    "inviteLanding.send": "Надіслати посилання",
+    // row 70: no {shelter}, deliberately
+    "support.body": "Так кабінет бачить адміністратор притулку.",
+    // row 69
+    "support.title":
+      "Ви переглядаєте кабінет притулку «{shelter}» — лише перегляд, змінити нічого не можна.",
+    // row 41
+    "profile.contactsNote":
+      "Ці контакти бачить людина, коли натискає «Написати притулку», — і пише вам сама. Листування йде напряму, не через реєстр.",
+    // row 44
+    "profile.donationNote":
+      "Лише https. Реєстр не приймає і не передає гроші — це зовнішнє посилання.",
+    // row 77
+    "registry.inviteSent.tellPersonally":
+      "Повідомте притулок особисто: запрошення надіслано з {sender}. Якщо листа не видно — хай перевірить вкладку «Промоакції».",
   };
 
-  it("every key is still a placeholder", () => {
-    expect(
-      Object.fromEntries(Object.entries(groups).map(([n, g]) => [n, pendingCopyKeys(g)])),
-    ).toEqual({
-      "email.signIn": ["action", "expiry", "intro", "notYou", "subject"],
-      "email.invite": ["action", "expiry", "intro", "notYou", "subject", "what"],
-      signInCard: ["notArrived"],
-    });
+  it.each(Object.entries(FINAL))("%s is his final text", (path, text) => {
+    const value = path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown>)[key], uk.kabinet);
+    expect(value).toBe(text);
   });
 
-  it("each group has exactly the keys the copy sheet lists", () => {
-    // Guards the guard: an emptied group would leave pendingCopyKeys empty too.
-    expect(
-      Object.fromEntries(Object.entries(groups).map(([n, g]) => [n, Object.keys(g).sort()])),
-    ).toEqual({
-      "email.signIn": ["action", "expiry", "intro", "notYou", "subject"],
-      "email.invite": ["action", "expiry", "intro", "notYou", "subject", "what"],
-      signInCard: ["notArrived"],
-    });
-  });
-});
-
-/**
- * IN-Q11's confirm page: every string still waits for Oleksii's Ukrainian
- * (`docs/h2-invite-copy-sheet.md` P). Pinned as pending so a key added
- * without copy, or one written without the sheet, shows up here.
- */
-describe("kabinet confirm page copy status (IN-Q11)", () => {
-  it("is all [COPY PENDING], every key", () => {
-    expect(pendingCopyKeys(uk.kabinet.confirm)).toEqual([
-      "intro",
-      "invalid",
-      "joinFailed",
-      "joinFailedTitle",
-      "joinRetry",
-      "requestNew",
-      "submit",
-      "title",
-    ]);
-  });
-
-  /**
-   * IN-Q12: Oleksii gave the accept-failure message as a draft for the copy
-   * sheet (`docs/h2-invite-copy-sheet.md` P), so it ships pending with the
-   * draft quoted inside, as `submit` carries «Увійти».
-   */
-  it("keeps Oleksii's accept-failure draft inside the placeholder", () => {
-    expect(uk.kabinet.confirm.joinFailed).toContain(
-      "«не вдалося приєднатися до притулку, спробуйте ще раз»",
-    );
-  });
-
-  /**
-   * IN-T12 item 7 (Oleksii, 2026-10-14, verbatim: "Failed-accept: reuse K1's
-   * card (approved), with its own heading key kabinet.confirm.joinFailedTitle.
-   * Drafts: title «Ви увійшли, але приєднати вас до притулку не вдалося»,
-   * button «Спробувати ще раз»."): drafts, so pending with the draft inside.
-   */
-  it("keeps Oleksii's failed-accept heading and button drafts inside the placeholders", () => {
-    expect(uk.kabinet.confirm.joinFailedTitle).toContain(
-      "«Ви увійшли, але приєднати вас до притулку не вдалося»",
-    );
-    expect(uk.kabinet.confirm.joinRetry).toContain("«Спробувати ще раз»");
-  });
-});
-
-/**
- * IN-Q14's `admin_joined` history line: Oleksii gave a draft, not final copy
- * (`docs/h2-invite-copy-sheet.md` H), so it ships pending with the draft
- * quoted inside the placeholder, as `confirm.submit` carries its working label.
- */
-describe("kabinet history copy status (IN-Q14)", () => {
-  it("is all [COPY PENDING], every key", () => {
-    expect(pendingCopyKeys(uk.kabinet.history)).toEqual(["adminJoined"]);
-  });
-
-  it("keeps Oleksii's draft and its alternative inside the placeholder", () => {
-    expect(uk.kabinet.history.adminJoined).toContain("«{email} отримує доступ до кабінету»");
-    expect(uk.kabinet.history.adminJoined).toContain("«Новий адміністратор: {email}»");
+  it("keeps the written strings that predate this answer", () => {
+    expect(uk.kabinet.operatorFallbackName).toBe("Оператор реєстру");
+    // The standing constraints fix this wording for an unknown field.
+    expect(uk.kabinet.profileNotRecorded).toBe("Не записано");
   });
 });
 
@@ -317,60 +294,6 @@ describe("pendingCopyPaths", () => {
   it("is empty once nothing is pending, and matches the sentinel as a prefix only", () => {
     expect(pendingCopyPaths({ a: { b: "Текст" } }, "x")).toEqual([]);
     expect(pendingCopyPaths({ a: `see ${COPY_PENDING}` }, "x")).toEqual([]);
-  });
-});
-
-/**
- * The invite landing (IN-T10) and the operator's reminder (IN-E13): pending
- * until Oleksii's Ukrainian lands on `docs/h2-invite-copy-sheet.md` L and R.
- * The reminder carries his draft inside the placeholder, as the history line
- * does, with the sending address left to config as `{sender}`.
- */
-describe("kabinet invite landing and reminder copy status (IN-T10, IN-E13)", () => {
-  it("every invite-landing string is pending, by name", () => {
-    expect(pendingCopyKeys(uk.kabinet.inviteLanding)).toEqual([
-      "alreadyAccepted",
-      "expired",
-      "pageTitle",
-      "rateLimited",
-      "ready",
-      "send",
-      "sent",
-      "signIn",
-      "title",
-      "unusableTitle",
-    ]);
-  });
-
-  it("the reminder is pending, keeps Oleksii's draft, and leaves the address to config", () => {
-    expect(pendingCopyKeys(uk.kabinet.registry.inviteSent)).toEqual(["tellPersonally"]);
-    expect(uk.kabinet.registry.inviteSent.tellPersonally).toContain(
-      '«Надіслав вам запрошення з noreply@mail.opika.org.ua — якщо не бачите, гляньте у вкладці "Промоакції"»',
-    );
-    expect(uk.kabinet.registry.inviteSent.tellPersonally).toContain("{sender}");
-  });
-
-  /**
-   * EM-Q2 (Oleksii, 2026-10-14, verbatim: "the banner addresses the operator;
-   * no name hard-coded. Draft: «Ви переглядаєте кабінет притулку «{shelter}» —
-   * лише перегляд, змінити нічого не можна.»"). His earlier draft named him
-   * and spoke to the shelter; it is gone.
-   */
-  it("the support banner's title carries Oleksii's operator-facing draft, still pending", () => {
-    expect(pendingCopyKeys(uk.kabinet.support)).toContain("title");
-    expect(uk.kabinet.support.title).toContain(
-      "«Ви переглядаєте кабінет притулку «{shelter}» — лише перегляд, змінити нічого не можна.»",
-    );
-    expect(uk.kabinet.support.title).not.toContain("Олексій");
-  });
-
-  /**
-   * EM-Q3 (Oleksii, 2026-10-14, verbatim: "(b). The invite landing shows one
-   * «Надіслати посилання» button; only its POST sends."): his label is the
-   * draft inside the placeholder.
-   */
-  it("the landing's one button carries Oleksii's label as a draft, still pending", () => {
-    expect(uk.kabinet.inviteLanding.send).toContain("«Надіслати посилання»");
   });
 });
 
@@ -400,5 +323,28 @@ describe("/prytulkam A2 (forShelters.whenAnimalFindsHome)", () => {
     expect(paragraphs[1]).toBe(
       "Тварина, яка вже вдома, але досі в списку, — це єдине, що робить усі інші картки недостовірними: людина дзвонить, чує «її забрали три місяці тому», і далі не вірить жодній картці — ні вашій, ні чужій.",
     );
+  });
+});
+
+/**
+ * Rows 89–91 of the PR #94 copy export are final (Oleksii, 2026-10-14) but
+ * ship together in the commit that turns production sign-in on, A1 directly
+ * before §7's last paragraph (`docs/h2-copy-sheet.md` A1, A2 and /pro). Until
+ * then neither A1's line nor the /pro addition is live; that commit changes
+ * these pins with the A2 one above.
+ */
+describe("A1 and the /pro addition wait for the wiring commit", () => {
+  it("§7 does not yet carry A1's line, and still ends on the current last paragraph", () => {
+    expect(uk.forShelters.whatToPrepare).not.toContain("Доступ до кабінету я надсилаю сам");
+    expect(
+      uk.forShelters.whatToPrepare.endsWith(
+        "Заповнювати анкету не треба: ви розкажете, а я внесу все сам.",
+      ),
+    ).toBe(true);
+  });
+
+  it("/pro's about.data does not yet carry the kabinet addition", () => {
+    expect(uk.about.data).not.toContain("IP-адреси не зберігаються");
+    expect(uk.about.data).not.toContain("протягом двох діб");
   });
 });

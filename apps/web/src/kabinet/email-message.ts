@@ -55,7 +55,9 @@ export function emailBody(to: string, parts: EmailParts): OutgoingEmail {
   if (looksLikeUrl(parts.link.label)) {
     throw new Error("An email link's text must be a label, never a URL (IN-E8).");
   }
-  const paragraph = (text: string) => `<p>${escapeHtml(text)}</p>`;
+  // A line break inside one paragraph (the invite's `— {operator}` signature
+  // under its last sentence) stays a line break in HTML, not a collapsed space.
+  const paragraph = (text: string) => `<p>${escapeHtml(text).replaceAll("\n", "<br>")}</p>`;
   const html = [
     ...parts.before.map(paragraph),
     `<p><a href="${escapeHtml(parts.link.url)}">${escapeHtml(parts.link.label)}</a></p>`,
@@ -84,7 +86,12 @@ export function magicLinkEmail(input: {
   });
 }
 
-/** E2: the invite email. Not a sign-in link (IN-Q3): it opens the invite landing. */
+/**
+ * E2: the invite email. Not a sign-in link (IN-Q3): it opens the invite
+ * landing. Oleksii's final copy (2026-10-14) is a personal note: the intro has
+ * no `{operator}`, and the name signs the last line instead (`— {operator}`,
+ * nominative, `operatorDisplayName`'s value).
+ */
 export function invitationEmail(input: {
   to: string;
   url: string;
@@ -100,6 +107,9 @@ export function invitationEmail(input: {
       copy.what,
     ],
     link: { label: copy.action, url: input.url },
-    after: [fill(copy.expiry, { hours: String(input.ttlHours) }), copy.notYou],
+    after: [
+      fill(copy.expiry, { hours: String(input.ttlHours) }),
+      fill(copy.notYou, { operator: input.operatorName }),
+    ],
   });
 }

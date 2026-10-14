@@ -15,11 +15,11 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 import { clientIp } from "../api/client-ip";
-import type { MagicLinkSender } from "./magic-link-sender";
+import { MAGIC_LINK_TTL_SECONDS, type MagicLinkSender } from "./magic-link-sender";
 import { type KabinetLimiters, kabinetIpKey, kabinetUserKey } from "./rate-limits";
 
-/** KABINET N1: a link is good for 15 minutes. */
-export const MAGIC_LINK_TTL_SECONDS = 15 * 60;
+/** KABINET N1: a link is good for 15 minutes. Defined beside the sender, re-exported here. */
+export { MAGIC_LINK_TTL_SECONDS } from "./magic-link-sender";
 
 /**
  * Where an emailed magic link lands (IN-Q11): a page whose GET only shows a

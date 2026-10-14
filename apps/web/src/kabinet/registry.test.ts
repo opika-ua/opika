@@ -1111,14 +1111,12 @@ describe("invitation emails: every write that makes an invitation live sends one
 
 describe("after an invitation email is sent, the operator is reminded to tell the shelter personally (IN-E13)", () => {
   type Reminder = { kind: string; text: string } | null;
-  /** Oleksii's draft, transcribed from the inbox, as the placeholder quotes it. */
-  const DRAFT_OPENING = "«Надіслав вам запрошення з";
-
+  /** Oleksii's final text (2026-10-14, row 77), transcribed, with {sender} filled. */
   const expectReminderFrom = (reminder: Reminder, sender: string) => {
     expect(reminder?.kind).toBe("tell_personally");
-    expect(reminder?.text).toContain(sender);
-    expect(reminder?.text).toContain(DRAFT_OPENING);
-    expect(reminder?.text).not.toContain("{sender}");
+    expect(reminder?.text).toBe(
+      `Повідомте притулок особисто: запрошення надіслано з ${sender}. Якщо листа не видно — хай перевірить вкладку «Промоакції».`,
+    );
   };
 
   it("invite: a send checked clear carries the reminder, naming the configured From address", async () => {

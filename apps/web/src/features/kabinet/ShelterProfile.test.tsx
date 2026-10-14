@@ -6,7 +6,7 @@ import { ShelterProfile } from "./ShelterProfile";
 
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"). Its strings are
- * `[COPY PENDING]`, so elements are found by catalogue key and what's
+ * Oleksii's final Ukrainian (2026-10-14); elements are found by catalogue key and what's
  * asserted is structure and data: every value a label–value row, nothing
  * editable, the verification block apart, the support mode signals.
  */
@@ -106,6 +106,10 @@ describe("ShelterProfile (K4, read-only)", () => {
     expect(rowValue(t.edrpou)).toBe("43 218 765");
     expect(rowValue(t.registrationStatus)).toContain("14 березня 2025");
     expect(rowValue(t.registrationStatus)).toContain(uk.kabinet.profileStatus.verified);
+    // His «{status} · з {date}» (row 55), filled: transcribed, not read from the catalogue.
+    // Native Intl uk-UA (long date) appends «р.», which his example «14 березня 2025» omits
+    // (inbox EM-T13).
+    expect(rowValue(t.registrationStatus)).toBe("Перевірено · з 14 березня 2025 р.");
     expect(rowValue(t.address)).toBe("Бровари, вул. Київська, 300");
     // Only the verification block is dashed: contacts are not "not yours to edit".
     expect(screen.getByRole("region", { name: t.contactsTitle }).className).not.toContain(

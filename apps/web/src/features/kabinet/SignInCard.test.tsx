@@ -5,10 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RESEND_LOCKOUT_SECONDS, SignInCard } from "./SignInCard";
 
 /**
- * K1 (KABINET N1). The strings are `[COPY PENDING]`, so these tests assert
- * behaviour and structure, never the copy's wording: elements are found by the
- * catalogue keys, and what's asserted is what happens to them. The literal
- * format checked is the mock's own countdown, «· 0:42».
+ * K1 (KABINET N1). Elements are found by the catalogue keys, and what's
+ * asserted is what happens to them. The strings are Oleksii's final Ukrainian (2026-10-14); where
+ * one carries a rule (the fallback line), its rendered text is also checked
+ * against his wording, transcribed. The countdown format checked is the mock's
+ * own, «· 0:42».
  */
 
 beforeEach(() => {
@@ -154,8 +155,9 @@ describe("K1 · «check your email» names a person to write to (IN-T9)", () => 
     await signIn(user);
     const line = notArrived();
     expect(line).not.toBeNull();
-    expect(line?.textContent).toContain("help@example.net");
-    expect(line?.textContent).not.toContain("{contact}");
+    expect(line?.textContent).toBe(
+      "Якщо лист не прийшов за кілька хвилин, напишіть мені на help@example.net.",
+    );
   });
 
   it("is on the «check your email» state only, not on the form", async () => {

@@ -1,4 +1,4 @@
-import { uk } from "@opika/i18n";
+import { COPY_PENDING, uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 import {
   BLOCKED_MAX_PAGES,
@@ -128,7 +128,8 @@ describe("sendChecked", () => {
   it("in production, refuses [COPY PENDING] text in any part, before asking the provider anything (IN-Q5)", async () => {
     for (const part of ["subject", "html", "text"] as const) {
       const m = mail({ kind: "not_blocked" }, { refuseCopyPending: true });
-      const pendingEmail = { ...email, [part]: `x ${uk.kabinet.email.signIn.action}` };
+      // A placeholder put back by hand: the live catalogue's email copy is final (2026-10-14).
+      const pendingEmail = { ...email, [part]: `x ${COPY_PENDING} Open the sign-in page` };
       expect(await sendChecked(m.provider, pendingEmail), part).toEqual({
         kind: "failed",
         reason: "copy_pending",
@@ -138,7 +139,10 @@ describe("sendChecked", () => {
     }
     const outside = mail({ kind: "not_blocked" });
     expect(
-      await sendChecked(outside.provider, { ...email, text: uk.kabinet.email.signIn.action }),
+      await sendChecked(outside.provider, {
+        ...email,
+        text: `${COPY_PENDING} Open the sign-in page`,
+      }),
     ).toEqual({ kind: "sent", blockCheck: "clear" });
   });
 });

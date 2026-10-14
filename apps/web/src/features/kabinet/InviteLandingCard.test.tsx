@@ -5,9 +5,10 @@ import { InviteLandingCard, SIGN_IN_PAGE } from "./InviteLandingCard";
 
 /**
  * IN-T10's card, one rendered test per state the landing can be in
- * (`kabinet/invite-landing.ts`). The strings are `[COPY PENDING]`, so these
- * assert what is filled in and what is shown or withheld, found by the
- * catalogue keys, never the wording.
+ * (`kabinet/invite-landing.ts`). Found by the catalogue keys, asserting what
+ * is filled in and what is shown or withheld; the strings are Oleksii's final
+ * Ukrainian (2026-10-14), and the sent body is also checked against his
+ * wording, filled.
  */
 
 const lead = (template: string, token: string) => template.split(token)[0] as string;
@@ -30,8 +31,10 @@ describe("the invite landing card (IN-T10, KS-Q2 A)", () => {
     expect(heading.textContent).not.toContain("{shelter}");
     expect(screen.getByText("o•••@example.org").tagName).toBe("STRONG");
     const body = screen.getByText(paragraphStarting(lead(t.sent, "{email}")));
-    expect(body.textContent).toContain("15");
-    expect(body.textContent).not.toMatch(/\{(email|minutes)\}/);
+    // Oleksii's final text (2026-10-14, row 27), transcribed, filled.
+    expect(body.textContent).toBe(
+      "Посилання для входу надіслано на o•••@example.org. Воно спрацює один раз і діє 15 хвилин. Вхід за ним приймає запрошення.",
+    );
     const fallback = screen.getByText((text) =>
       text.startsWith(lead(uk.kabinet.signInCard.notArrived, "{contact}")),
     );

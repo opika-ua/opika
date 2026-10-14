@@ -8,8 +8,9 @@ import { InviteLandingForm } from "./InviteLandingForm";
 /**
  * EM-Q3 (Oleksii, verbatim: "The invite landing shows one «Надіслати
  * посилання» button; only its POST sends."): the form before and after its
- * button, with the server action replaced by a counting stand-in. Strings are
- * `[COPY PENDING]`, so elements are found by catalogue key.
+ * button, with the server action replaced by a counting stand-in. Elements
+ * are found by catalogue key; the button and the ready line are also checked
+ * against Oleksii's final Ukrainian (2026-10-14), transcribed.
  */
 
 const ID = "0ec0ec0e-0000-4000-8000-000000000003";
@@ -29,6 +30,10 @@ describe("the invite landing form (EM-Q3)", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(t.pageTitle);
     expect(screen.getByText(t.ready)).toBeDefined();
+    expect(screen.getByRole("button", { name: "Надіслати посилання" })).toBeDefined();
+    expect(
+      screen.getByText("Посилання для входу прийде на адресу, на яку ви отримали це запрошення."),
+    ).toBeDefined();
     expect(action).not.toHaveBeenCalled();
   });
 

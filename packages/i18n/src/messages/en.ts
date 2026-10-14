@@ -365,15 +365,16 @@ export const en = {
     signIn: {
       pageTitle: "Sign in to the cabinet",
       title: "Sign in to the cabinet",
-      intro: "For shelters and the registry operator. There is no password: we email you a link.",
+      intro:
+        "For shelters and the registry operator. There is no password: a sign-in link arrives by email.",
       emailLabel: "Email address",
       send: "Send the link",
       addressNote:
-        "The operator adds your address when inviting your shelter. If it is not on the list no email arrives, and we do not say so, so that the form never reveals who is registered.",
+        "The operator adds your address when inviting your shelter. If the address is not on the list no email arrives, and this page does not say so, so that it never reveals who is registered.",
       sendFailed: "The link could not be sent. Check your connection and try again.",
       sentTitle: "Check your email",
       sentBody:
-        "We sent a link to {email}. It works for 15 minutes and opens the cabinet on this device.",
+        "If this address is on the list, a sign-in link will arrive at {email}. It works for 15 minutes and opens on any device.",
       spamNote: "No email? Check your spam folder, or send it again after 60 seconds.",
       resend: "Send again",
       resendIn: "Send again · {time}",
@@ -383,14 +384,14 @@ export const en = {
       pageTitle: "Shelter profile",
       title: "Shelter profile",
       phoneTitle: "Profile",
-      intro: "What adopters see about you on every card.",
+      intro: "What people looking for an animal see about you on every card.",
       role: "shelter administrator",
       signOut: "Sign out",
       signOutFailed:
         "Sign-out didn't go through, so you are still signed in. Check the connection and try again.",
       contactsTitle: "Contacts",
       contactsNote:
-        "Adopters see these contacts when they tap «Write to the shelter», and write to you themselves. Messages do not go through the registry, and we cannot see who wrote to you.",
+        "A person sees these contacts when they tap «Write to the shelter», and writes to you themselves. Messages go directly, not through the registry.",
       donationTitle: "Fundraising",
       donationLink: "Fundraising link",
       donationNote:
@@ -399,18 +400,16 @@ export const en = {
       voiceTitle: "The shelter's voice",
       voiceLabel: "Your words on the cards",
       voiceNote:
-        "One sentence in the first person, written by you. We fill in {date} and {name}, nothing else.",
+        "One sentence in the first person, written by you. The registry fills in only {date} (the update date) and {name} (the animal's name); nothing else changes.",
       lockedTitle: "Set during verification",
       lockedNote:
-        "These details were entered by {operator}, the registry operator, when the shelter was verified, and are shown here to read only.",
+        "{operator} sets these details while verifying the shelter. Here they are read-only.",
       legalName: "Legal entity",
       edrpou: "EDRPOU code",
       contactPerson: "Contact person",
       registrationStatus: "Registration status",
-      statusSince: "{status} {date}",
+      statusSince: "{status} · since {date}",
       address: "Premises address",
-      addressNote:
-        "Adopters see the address only as an approximate circle on the map, shifted by about a kilometre.",
     },
     profileStatus: {
       pending: "Waiting",
@@ -430,66 +429,66 @@ export const en = {
     profileNotRecorded: "Not recorded",
     support: {
       title: "You are viewing the cabinet of «{shelter}»: view only, nothing can be changed",
-      body: "You are seeing «{shelter}»'s cabinet as its administrator sees it. Nothing can be changed here.",
+      body: "This is how the shelter's administrator sees the cabinet.",
       exit: "Leave support mode",
       exitFailed: "Could not leave support mode. Try again.",
       viewingAs: "as the shelter administrator",
       signOutDisabled: "Sign-out disabled",
     },
-    /** Mirrors uk.ts: placeholders until the Ukrainian lands (IN-Q5). */
+    /** The English sense of uk.ts's final Ukrainian (2026-10-14); the invite email is signed `— {operator}`. */
     email: {
       signIn: {
-        subject: `${COPY_PENDING} A sign-in link for the shelters' cabinet.`,
-        intro: `${COPY_PENDING} Someone asked to sign in with this address.`,
-        action: `${COPY_PENDING} Open the sign-in page`,
-        expiry: `${COPY_PENDING} The link works once and expires in {minutes} minutes.`,
-        notYou: `${COPY_PENDING} If you didn't ask for this, ignore the email: nothing happens without the link.`,
+        subject: `A sign-in link for the shelter's cabinet`,
+        intro: `A sign-in link for the shelter's cabinet was requested for this address.`,
+        action: `Open the sign-in page`,
+        expiry: `The link works once and expires in {minutes} minutes.`,
+        notYou: `If you didn't ask for this, ignore the email: nothing happens without the link.`,
       },
       invite: {
-        subject: `${COPY_PENDING} You're invited to manage a shelter's listings in the registry.`,
-        intro: `${COPY_PENDING} {operator} invited this address to administer {shelter}.`,
-        what: `${COPY_PENDING} What the cabinet lets you do.`,
-        action: `${COPY_PENDING} Open the invitation`,
-        expiry: `${COPY_PENDING} The invitation stays valid for {hours} hours; the operator can send it again.`,
-        notYou: `${COPY_PENDING} If this isn't expected, ignore it: nobody gets access without signing in from this address.`,
+        subject: `Your access to the shelter's cabinet`,
+        intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» in the registry for this address.`,
+        what: `For now the cabinet shows the shelter's profile as people see it. The details can't be changed there yet: write to me for that.`,
+        action: `Open the invitation`,
+        expiry: `The invitation is valid for {hours} hours. If you miss it, I will send a new one.`,
+        notYou: `If you weren't expecting this email, just ignore it: nobody gets access without signing in from this address.\n— {operator}`,
       },
     },
     signInCard: {
-      notArrived: `${COPY_PENDING} If the email hasn't arrived in a few minutes, write to me at {contact}.`,
+      notArrived: `If the email hasn't arrived in a few minutes, write to me at {contact}.`,
     },
     /** The invite landing (IN-Q11, KS-Q2 A); see the Ukrainian catalogue. */
     inviteLanding: {
-      pageTitle: `${COPY_PENDING} Invitation to the cabinet`,
-      title: `${COPY_PENDING} An invitation to administer «{shelter}»`,
-      sent: `${COPY_PENDING} We've sent a sign-in link to {email}. It works once and expires in {minutes} minutes; signing in with it accepts the invitation.`,
-      unusableTitle: `${COPY_PENDING} This invitation can't be used`,
-      expired: `${COPY_PENDING} This invitation is no longer valid; ask the operator to send a new one.`,
-      alreadyAccepted: `${COPY_PENDING} This invitation was already accepted; sign in as usual.`,
-      rateLimited: `${COPY_PENDING} Too many links were requested for this invitation; try again later.`,
-      signIn: `${COPY_PENDING} Go to sign-in`,
-      ready: `${COPY_PENDING} Press the button and we will email a sign-in link to the address this invitation went to.`,
-      send: `${COPY_PENDING} Send the link`,
+      pageTitle: `Invitation to the cabinet`,
+      title: `An invitation to administer «{shelter}»`,
+      sent: `We've sent a sign-in link to {email}. It works once and expires in {minutes} minutes; signing in with it accepts the invitation.`,
+      unusableTitle: `This invitation can't be used`,
+      expired: `This invitation is no longer valid; ask the operator to send a new one.`,
+      alreadyAccepted: `This invitation was already accepted; sign in as usual.`,
+      rateLimited: `Too many links were requested for this invitation; try again later.`,
+      signIn: `Go to sign-in`,
+      ready: `The sign-in link will go to the address this invitation reached you at.`,
+      send: `Send the link`,
     },
     /** The operator's reminder after an invite (IN-E13); see the Ukrainian catalogue. */
     registry: {
       inviteSent: {
-        tellPersonally: `${COPY_PENDING} Tell the shelter yourself that the invitation went from {sender}, and to look in the Promotions tab if they can't see it.`,
+        tellPersonally: `Tell the shelter personally: the invitation was sent from {sender}. If they can't see it, they should check the Promotions tab.`,
       },
     },
     /** The confirm page an emailed sign-in link opens (IN-Q11). */
     confirm: {
-      title: `${COPY_PENDING} Sign in to the shelters' cabinet`,
-      intro: `${COPY_PENDING} Press the button to finish signing in.`,
-      submit: `${COPY_PENDING} Sign in`,
-      invalid: `${COPY_PENDING} This link has already been used or has expired.`,
-      requestNew: `${COPY_PENDING} Request a new link`,
-      joinFailed: `${COPY_PENDING} Couldn't join the shelter. Try again.`,
-      joinFailedTitle: `${COPY_PENDING} You are signed in, but adding you to the shelter didn't work`,
-      joinRetry: `${COPY_PENDING} Try again`,
+      title: `Sign in to the shelters' cabinet`,
+      intro: `Press the button to finish signing in.`,
+      submit: `Sign in`,
+      invalid: `This link has already been used or has expired.`,
+      requestNew: `Request a new link`,
+      joinFailed: `Nothing was half-saved. Try again; if it still fails, it retries itself on your next sign-in.`,
+      joinFailedTitle: `You are signed in, but adding you to the shelter didn't work`,
+      joinRetry: `Try again`,
     },
     /** History lines (IN-Q14); see the Ukrainian catalogue. */
     history: {
-      adminJoined: `${COPY_PENDING} {email} now has access to the cabinet`,
+      adminJoined: `{email} now has access to the cabinet`,
     },
   },
 } as const;

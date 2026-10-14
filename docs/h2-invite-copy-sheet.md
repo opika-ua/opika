@@ -10,6 +10,13 @@ refuses to send in production while any of its text is still `[COPY PENDING]` (I
 recommendation, accepted). For each string you get the key, where it shows, and the English
 sense of what is true. The English describes the facts. It is not a draft to translate.
 
+**Status, 2026-10-14: written.** Oleksii answered the 91-row copy export for PR #94 (relayed by
+the coordinating session); his final Ukrainian for every `kabinet.*` key on this sheet and on
+`docs/h2-copy-sheet.md` §F is in `uk.ts` verbatim, and `uk.ts` is now the record of the text.
+The drafts below are history. Row 70 (`kabinet.support.body`) leaves out `{shelter}` on purpose
+(his note; EM-Q5). The invite email is signed `— {operator}` on its last
+line (row 88), filled from `KABINET_OPERATOR_DISPLAY_NAME` like the history actor.
+
 The product name is not final ("the name is not final" in CLAUDE.md), so no string here may
 name it. A sender name, where one is needed, comes from app config, never from a key.
 
