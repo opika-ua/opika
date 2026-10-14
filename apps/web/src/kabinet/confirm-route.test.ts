@@ -1,11 +1,13 @@
 import { authSession, authVerification } from "@opika/db/schema";
 import { setupTestDatabase, truncateAll } from "@opika/db/test";
+import { uk } from "@opika/i18n";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { createKabinetAuth, type KabinetAuth } from "./auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "./auth-route";
 import { handleKabinetConfirm } from "./confirm-route";
 import { capturingInvitationSender } from "./email-senders";
+import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
 import { capturingSender } from "./magic-link-sender";
 
 /**
@@ -50,7 +52,12 @@ const available: KabinetAuthAvailability = {
   secret: "unused-here",
   baseURL: BASE,
 };
-const deps = () => ({ availability: available, auth: () => auth });
+const realAccept = (): AcceptInvitation => invitationAccepter(db, () => new Date());
+const deps = (acceptInvitation: AcceptInvitation = realAccept()) => ({
+  availability: available,
+  auth: () => auth,
+  acceptInvitation,
+});
 
 /** A known user asks to sign in; returns the emailed link. */
 async function emailedLink(): Promise<string> {
@@ -84,14 +91,18 @@ async function emailedLink(): Promise<string> {
 
 const tokenOf = (link: string) => new URL(link).searchParams.get("token") ?? "";
 
-const confirmPost = (token: string, origin: string | null = BASE) =>
+const confirmPost = (
+  token: string,
+  origin: string | null = BASE,
+  acceptInvitation: AcceptInvitation = realAccept(),
+) =>
   handleKabinetConfirm(
     new Request(CONFIRM, {
       method: "POST",
       headers: origin === null ? {} : { origin },
       body: new URLSearchParams({ token }),
     }),
-    deps(),
+    deps(acceptInvitation),
   );
 
 const sessionCookieOf = (response: Response) =>
@@ -229,6 +240,7 @@ describe("headers on every response", () => {
       await handleKabinetConfirm(new Request(link), {
         availability: { kind: "unavailable", reason: "no_sender_in_production" },
         auth: () => auth,
+        acceptInvitation: realAccept(),
       }),
     ];
     expect(responses.map((r) => r.status)).toEqual([200, 400, 403, 303, 400, 405, 404]);
@@ -253,6 +265,7 @@ describe("the page itself", () => {
     const off = {
       availability: { kind: "unavailable", reason: "no_sender_in_production" } as const,
       auth: () => auth,
+      acceptInvitation: realAccept(),
     };
     expect((await handleKabinetConfirm(new Request(link), off)).status).toBe(404);
     const posted = await handleKabinetConfirm(
@@ -265,5 +278,98 @@ describe("the page itself", () => {
     );
     expect(posted.status).toBe(404);
     expect((await confirmPost(tokenOf(link))).status).toBe(303);
+  });
+});
+
+/**
+ * IN-Q12: the accept runs after Better Auth's sign-in, as its own step. What
+ * it answers decides the page, never whether the person is signed in. The
+ * accept itself is driven against real rows in `invitation-accept.test.ts`;
+ * here its outcome is fixed, to pin what the route does with each.
+ */
+/** Copy as it appears in the page's HTML (the five characters it escapes). */
+const html_ = (text: string) =>
+  text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+describe("after sign-in, the invitation accept (IN-Q12)", () => {
+  it("is given Better Auth's own user for the consumed token", async () => {
+    const link = await emailedLink();
+    const seen: string[] = [];
+    const response = await confirmPost(tokenOf(link), BASE, async (userId) => {
+      seen.push(userId);
+      return { kind: "nothing_to_accept" };
+    });
+    expect(response.status).toBe(303);
+    const ctx = await auth.$context;
+    const user = await ctx.internalAdapter.findUserByEmail("olena@example.org");
+    expect(user).not.toBeNull();
+    expect(seen).toEqual([user?.user.id]);
+  });
+
+  it("a failed accept: still signed in, told so with a retry to /kabinet, never a 500", async () => {
+    const link = await emailedLink();
+    const response = await confirmPost(tokenOf(link), BASE, async () => ({ kind: "failed" }));
+    expect(response.status).toBe(200);
+    expectConfirmHeaders(response);
+    const cookie = sessionCookieOf(response);
+    expect(cookie).toBeDefined();
+    const html = await response.text();
+    expect(html).toContain(`<p role="alert">${html_(uk.kabinet.confirm.joinFailed)}</p>`);
+    expect(html).toContain(`<a href="/kabinet">${html_(uk.kabinet.confirm.joinRetry)}</a>`);
+    expect(html).not.toContain("<form");
+    const session = await handleKabinetAuth(
+      new Request(`${BASE}/api/auth/get-session`, {
+        headers: { cookie: cookie?.split(";")[0] ?? "", origin: BASE },
+      }),
+      {
+        availability: available,
+        auth: () => auth,
+        limiters: {
+          perAddress: inMemoryRateLimiter({ windowMs: 3_600_000, maxRequests: 1000 }),
+          perIp: inMemoryRateLimiter({ windowMs: 3_600_000, maxRequests: 1000 }),
+        },
+        now: new Date(),
+      },
+    );
+    expect(((await session.json()) as { user: { email: string } }).user.email).toBe(
+      "olena@example.org",
+    );
+  });
+
+  it("an accept that throws is a failed accept, not a 500", async () => {
+    const link = await emailedLink();
+    const response = await confirmPost(tokenOf(link), BASE, async () => {
+      throw new Error("connection reset");
+    });
+    expect(response.status).toBe(200);
+    expect(sessionCookieOf(response)).toBeDefined();
+    expect(await response.text()).toContain(html_(uk.kabinet.confirm.joinFailed));
+  });
+
+  it("a conflict (the address holds a role) doesn't block sign-in: 303 to /kabinet with the cookie", async () => {
+    const link = await emailedLink();
+    const response = await confirmPost(tokenOf(link), BASE, async () => ({
+      kind: "address_has_a_role",
+      reason: "shelter_admin",
+    }));
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/kabinet");
+    expect(sessionCookieOf(response)).toBeDefined();
+  });
+
+  it("a refused sign-in never reaches the accept", async () => {
+    const link = await emailedLink();
+    await confirmPost(tokenOf(link));
+    let called = false;
+    const again = await confirmPost(tokenOf(link), BASE, async () => {
+      called = true;
+      return { kind: "nothing_to_accept" };
+    });
+    expect([again.status, called]).toEqual([400, false]);
   });
 });

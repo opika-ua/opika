@@ -25,6 +25,7 @@ import {
 import { handleKabinetConfirm } from "./confirm-route";
 import type { OutgoingEmail } from "./email-provider";
 import { capturingInvitationSender, providerMagicLinkSender } from "./email-senders";
+import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
 import { capturingSender } from "./magic-link-sender";
 import { kabinetIdentityOf } from "./principal";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
@@ -123,7 +124,12 @@ async function createUser(email: string) {
  * Opens an emailed link as a person does (IN-Q11): the GET shows the button,
  * the button's form POST signs in.
  */
-async function confirm(link: string, using = auth, base = BASE): Promise<Response> {
+async function confirm(
+  link: string,
+  using = auth,
+  base = BASE,
+  acceptInvitation: AcceptInvitation = invitationAccepter(db, () => new Date()),
+): Promise<Response> {
   const availability: KabinetAuthAvailability = {
     kind: "available",
     sender: capturingSender(),
@@ -131,7 +137,7 @@ async function confirm(link: string, using = auth, base = BASE): Promise<Respons
     secret: "unused-here",
     baseURL: base,
   };
-  const deps = { availability, auth: () => using };
+  const deps = { availability, auth: () => using, acceptInvitation };
   const shown = await handleKabinetConfirm(new Request(link), deps);
   if (shown.status !== 200) throw new Error(`confirm page answered ${shown.status}`);
   const token = new URL(link).searchParams.get("token") ?? "";
@@ -145,13 +151,20 @@ async function confirm(link: string, using = auth, base = BASE): Promise<Respons
   );
 }
 
+/**
+ * Not accepting anything: for the tests that drive Better Auth's own
+ * accept-invitation, which the automatic accept (IN-Q12) would otherwise
+ * have done first.
+ */
+const noAccept: AcceptInvitation = async () => ({ kind: "nothing_to_accept" });
+
 /** Ask for a link, follow it, return the session cookie. */
-async function signIn(email: string): Promise<string> {
+async function signIn(email: string, acceptInvitation?: AcceptInvitation): Promise<string> {
   const before = sender.sent.length;
   await route(post("/api/auth/sign-in/magic-link", { email }));
   const link = sender.sent[before]?.url;
   if (link === undefined) throw new Error(`no link sent to ${email}`);
-  const verified = await confirm(link);
+  const verified = await confirm(link, auth, BASE, acceptInvitation);
   const cookie = verified.headers
     .getSetCookie()
     .find((c) => c.startsWith("kabinet.session_token="));
@@ -638,8 +651,11 @@ describe("an invitation, written server-side and accepted through Better Auth (H
    * member) invites; the invitee signs in by magic link; Better Auth's own
    * accept-invitation endpoint makes them a member; the actor resolver then
    * sees a shelter admin of exactly that shelter. Called on `auth.handler`
-   * directly because the route doesn't forward the plugin's paths until the
-   * registry PR.
+   * directly: the route forwards none of the plugin's paths. The product no
+   * longer uses this endpoint (IN-Q13: the automatic accept is our own
+   * statement); these two tests keep Better Auth's behaviour pinned as the
+   * reference `invitation-accept.test.ts` compares against, and sign in
+   * without the automatic accept so the endpoint has something to accept.
    */
   it("makes the invitee a shelter admin of that shelter", async () => {
     const city = makeCity();
@@ -677,7 +693,7 @@ describe("an invitation, written server-side and accepted through Better Auth (H
     });
     if (invitation.kind !== "created") throw new Error("unreachable");
 
-    const cookie = await signIn("olena@example.org");
+    const cookie = await signIn("olena@example.org", noAccept);
     const accepted = await auth.handler(
       post("/api/auth/organization/accept-invitation", { invitationId: invitation.id }, { cookie }),
     );
@@ -726,7 +742,7 @@ describe("an invitation, written server-side and accepted through Better Auth (H
       },
     });
     if (invitation.kind !== "created") throw new Error("unreachable");
-    const cookie = await signIn("someone-else@example.org");
+    const cookie = await signIn("someone-else@example.org", noAccept);
     const accepted = await auth.handler(
       post("/api/auth/organization/accept-invitation", { invitationId: invitation.id }, { cookie }),
     );

@@ -104,7 +104,8 @@ now as `[COPY PENDING]`, pinned in `copy-status.test.ts`.
 | `kabinet.confirm.invalid` | After a failed press, or a malformed link | This link has already been used or has expired. |
 | `kabinet.confirm.requestNew` | Link under it, to K1 | Request a new link. |
 | `kabinet.confirm.invitationFor` | Under the heading, when a pending invitation exists (after IN-Q12) | You're joining «shelter name» (filled in). Not in code yet. |
-| `kabinet.confirm.joinFailed` | `/kabinet`, signed in but the invitation couldn't be completed (after IN-Q12) | Joining didn't finish; reload, or ask the operator. Not in code yet. |
+| `kabinet.confirm.joinFailed` | After «Увійти», and on `/kabinet`: signed in, but the invitation's accept failed (IN-Q12) | Couldn't join the shelter; try again. You are signed in; nothing was half-done. **Oleksii's draft (IN-Q12, not final):** «не вдалося приєднатися до притулку, спробуйте ще раз». In code as `[COPY PENDING]` with the draft quoted inside, pinned in `copy-status.test.ts`. |
+| `kabinet.confirm.joinRetry` | The link under `joinFailed` | Try again (reloads `/kabinet`, which runs the accept again). Not from Oleksii: added so the retry has a label. In code as `[COPY PENDING]`. |
 
 ## H. The shelter's history: an admin joined (IN-Q14)
 

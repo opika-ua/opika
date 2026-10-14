@@ -1,7 +1,9 @@
 import { uk } from "@opika/i18n";
+import { z } from "zod";
 import type { KabinetAuth } from "./auth";
 import { CONFIRM_PATH } from "./auth";
 import type { KabinetAuthAvailability } from "./auth-route";
+import type { AcceptInvitation, InvitationAcceptOutcome } from "./invitation-accept";
 
 /**
  * The page an emailed sign-in link opens (IN-Q11,
@@ -11,6 +13,11 @@ import type { KabinetAuthAvailability } from "./auth-route";
  * runs the verify, server-side, through `auth.handler`: the same entry the
  * `/api/auth` route forwards to, so no Better Auth server API beyond
  * `getSession` is called (`no-self-serve-yet.test.ts`).
+ *
+ * Once Better Auth has signed the person in, the same POST accepts a pending
+ * invitation for their address (IN-Q12): a separate step, after the session
+ * exists, so a failed accept never undoes the sign-in. It is told apart from
+ * success and retried, never a 500 and never silent.
  */
 
 /**
@@ -47,19 +54,35 @@ const escapeHtml = (text: string) =>
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c,
   );
 
-type PageState = { kind: "confirm"; token: string } | { kind: "invalid" };
+type PageState =
+  | { kind: "confirm"; token: string }
+  | { kind: "invalid" }
+  /** Signed in, but the invitation's accept failed (IN-Q12): the retry is `/kabinet`, which runs it again. */
+  | { kind: "join_failed" };
 
 function page(state: PageState, status: number): Response {
   const copy = uk.kabinet.confirm;
-  const body =
-    state.kind === "confirm"
-      ? `<p>${escapeHtml(copy.intro)}</p>
+  const body = (() => {
+    switch (state.kind) {
+      case "confirm":
+        return `<p>${escapeHtml(copy.intro)}</p>
 <form method="post" action="${CONFIRM_PATH}">
 <input type="hidden" name="token" value="${escapeHtml(state.token)}">
 <button type="submit">${escapeHtml(copy.submit)}</button>
-</form>`
-      : `<p role="alert">${escapeHtml(copy.invalid)}</p>
+</form>`;
+      case "invalid":
+        return `<p role="alert">${escapeHtml(copy.invalid)}</p>
 <p><a href="${SIGN_IN_PATH}">${escapeHtml(copy.requestNew)}</a></p>`;
+      case "join_failed":
+        return `<p role="alert">${escapeHtml(copy.joinFailed)}</p>
+<p><a href="${SIGNED_IN_PATH}">${escapeHtml(copy.joinRetry)}</a></p>`;
+      /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
+      default: {
+        const unreachable: never = state;
+        return unreachable;
+      }
+    }
+  })();
   // Self-contained on purpose: nothing loaded from anywhere, so nothing
   // else ever sees this URL (IN-T6; restyled to K1's card with the screens PR).
   const html = `<!doctype html>
@@ -91,7 +114,12 @@ const plain = (text: string, status: number) =>
 
 export async function handleKabinetConfirm(
   request: Request,
-  deps: { availability: KabinetAuthAvailability; auth: () => KabinetAuth },
+  deps: {
+    availability: KabinetAuthAvailability;
+    auth: () => KabinetAuth;
+    /** Required, so no wiring of this route can sign in without accepting (IN-Q12). */
+    acceptInvitation: AcceptInvitation;
+  },
 ): Promise<Response> {
   // KS-T1: the kabinet's pages are 404 wherever sign-in is unavailable.
   if (deps.availability.kind === "unavailable") return plain("Not Found", 404);
@@ -140,10 +168,30 @@ export async function handleKabinetConfirm(
   const cookies = verified.headers.getSetCookie();
   if (verified.status !== 200 || cookies.length === 0) return page({ kind: "invalid" }, 400);
 
-  const response = new Response(null, {
-    status: 303,
-    headers: { ...CONFIRM_HEADERS, location: SIGNED_IN_PATH },
-  });
-  for (const cookie of cookies) response.headers.append("set-cookie", cookie);
-  return response;
+  // Signed in from here on: every answer below carries the session cookie.
+  const signedIn = (response: Response) => {
+    for (const cookie of cookies) response.headers.append("set-cookie", cookie);
+    return response;
+  };
+  // The user is Better Auth's own answer for the token just consumed, read
+  // server-side, never anything the client sent. Its body is read and dropped
+  // (it carries the session token). If it can't be read, `/kabinet` runs the
+  // accept itself on arrival (`selfHealingIdentity`).
+  const user = SignedInUserSchema.safeParse(await verified.json().catch(() => null));
+  const accepted = user.success
+    ? await deps
+        .acceptInvitation(user.data.user.id)
+        .catch((): InvitationAcceptOutcome => ({ kind: "failed" }))
+    : null;
+  // A conflict (the address already holds a role) never blocks sign-in
+  // (IN-Q13): `/kabinet` shows whatever role they do hold.
+  if (accepted?.kind === "failed") return signedIn(page({ kind: "join_failed" }, 200));
+  return signedIn(
+    new Response(null, {
+      status: 303,
+      headers: { ...CONFIRM_HEADERS, location: SIGNED_IN_PATH },
+    }),
+  );
 }
+
+const SignedInUserSchema = z.object({ user: z.object({ id: z.string().min(1) }) });

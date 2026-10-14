@@ -48,7 +48,7 @@ const DAY_SECONDS = 24 * 60 * 60;
  *   used daily never expires), so a `hooks.before` on every Better Auth
  *   request deletes a session older than `absoluteMs` before the request
  *   sees it: `get-session` then reports no session, and nothing Better Auth
- *   serves (sign-out, later accept-invitation) can act on it. `kabinetIdentityOf`
+ *   serves (sign-out) can act on it. `kabinetIdentityOf`
  *   checks the same cap again as a second line (reviewer, HS-Q8, finding 1).
  */
 export const KABINET_SESSION = {
@@ -101,11 +101,12 @@ export type KabinetAuthDeps = {
  *   have. A function makes Better Auth fill it in, as every other id in this
  *   repo is filled in by the app.
  * - **Organization plugin, with nobody able to create an organization or
- *   invite through it.** Only its `accept-invitation` endpoint is meant to
- *   run (HS-Q7); invitations and organizations are written server-side by
- *   `kabinetInvitationRepo`. The route forwards none of the plugin's paths in
- *   this slice (`FORWARDED_AUTH_PATHS`), so even acceptance is reachable only
- *   from tests until the registry PR.
+ *   invite through it.** Invitations and organizations are written
+ *   server-side by `kabinetInvitationRepo`, and acceptance is our own
+ *   statement (`kabinetInvitationAcceptRepo`, IN-Q13, superseding HS-Q7's
+ *   use of the plugin's `accept-invitation` for this step). The plugin stays
+ *   for its schema and its reads; the route forwards none of its paths
+ *   (`FORWARDED_AUTH_PATHS`).
  * - **No `admin` plugin** (HS-T2): it keeps a `role` on the user, and the
  *   super_admin role lives in `super_admins` only. A test fails if it's added.
  * - **Origin checks always on**, in tests too (`disableOriginCheck: false`).

@@ -464,6 +464,8 @@ export const en = {
       submit: `${COPY_PENDING} Sign in`,
       invalid: `${COPY_PENDING} This link has already been used or has expired.`,
       requestNew: `${COPY_PENDING} Request a new link`,
+      joinFailed: `${COPY_PENDING} Couldn't join the shelter. Try again.`,
+      joinRetry: `${COPY_PENDING} Try again`,
     },
     /** History lines (IN-Q14); see the Ukrainian catalogue. */
     history: {

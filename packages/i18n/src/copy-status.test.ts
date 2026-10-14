@@ -251,10 +251,23 @@ describe("kabinet confirm page copy status (IN-Q11)", () => {
     expect(pendingCopyKeys(uk.kabinet.confirm)).toEqual([
       "intro",
       "invalid",
+      "joinFailed",
+      "joinRetry",
       "requestNew",
       "submit",
       "title",
     ]);
+  });
+
+  /**
+   * IN-Q12: Oleksii gave the accept-failure message as a draft for the copy
+   * sheet (`docs/h2-invite-copy-sheet.md` P), so it ships pending with the
+   * draft quoted inside, as `submit` carries «Увійти».
+   */
+  it("keeps Oleksii's accept-failure draft inside the placeholder", () => {
+    expect(uk.kabinet.confirm.joinFailed).toContain(
+      "«не вдалося приєднатися до притулку, спробуйте ще раз»",
+    );
   });
 });
 

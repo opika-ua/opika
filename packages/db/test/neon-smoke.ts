@@ -13,6 +13,7 @@ import { createDatabase, type Database } from "../src/client";
 import { productionEndpoint } from "../src/prod-guard";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { kabinetInvitationAcceptRepo } from "../src/repos/kabinet-invitation-accept-repo";
 import { kabinetInvitationRepo } from "../src/repos/kabinet-invitation-repo";
 import { kabinetInvitedUsersRepo } from "../src/repos/kabinet-invited-users-repo";
 import { kabinetRegistryRepo } from "../src/repos/kabinet-registry-repo";
@@ -21,7 +22,13 @@ import { kabinetSupportRepo, SUPPORT_IDLE_MS } from "../src/repos/kabinet-suppor
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { superAdminRepo } from "../src/repos/super-admin-repo";
 import { animals } from "../src/schema/animals";
-import { authMember, authSession, authUser, supportSessions } from "../src/schema/auth";
+import {
+  authInvitation,
+  authMember,
+  authSession,
+  authUser,
+  supportSessions,
+} from "../src/schema/auth";
 import { insertShelterFromScript, recordAnimalsImported } from "../src/script-history";
 import { makeAnimal, makeCity, makeShelter } from "../src/test-utils/fixtures";
 
@@ -496,6 +503,98 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     "bootstrap statement",
     before === 0 ? boot.kind === "bootstrapped" : boot.kind === "refused",
     `${before} active operator(s) before, ${boot.kind}`,
+  );
+
+  // 15. the automatic accept (IN-Q12/IN-Q13): invitation + membership + admin_joined in one
+  // statement, then the one-membership index's violation read off neon-http's error shape.
+  const joinShelter = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} D` });
+  const otherShelter = makeShelter({
+    id: randomUUID() as ShelterId,
+    displayName: `Smoke ${tag} E`,
+  });
+  for (const s of [joinShelter, otherShelter]) {
+    await insertShelterFromScript(
+      db,
+      {
+        ...s,
+        exactAddress: { ...s.exactAddress, cityId: city.id },
+        publicLocation: publicLocationOf(s.id, { ...s.exactAddress, cityId: city.id }, policy),
+      },
+      by,
+    );
+  }
+  const joinEmail = `smoke-join-${tag}@example.invalid`;
+  const toJoin = await invitations.invite({
+    shelterId: joinShelter.id,
+    email: joinEmail,
+    name: "Smoke join",
+    inviterUserId: operator,
+    ids: { invitationId: randomUUID(), userId: randomUUID(), organizationId: randomUUID() },
+    now: NOW,
+    history: { id: randomUUID(), entry: inviteEntry(joinEmail) },
+  });
+  if (toJoin.kind !== "invited") {
+    check("accept", false, `invite: ${toJoin.kind}`);
+    return out;
+  }
+  // Magic-link verify sets this on sign-in; the accept requires it.
+  await db.update(authUser).set({ emailVerified: true }).where(eq(authUser.id, toJoin.userId));
+  const acceptRepo = kabinetInvitationAcceptRepo(db);
+  const acceptIds = () => ({ memberId: randomUUID(), historyId: randomUUID() });
+  const joined = await acceptRepo.accept({ userId: toJoin.userId, now: NOW, ids: acceptIds() });
+  const again = await acceptRepo.accept({ userId: toJoin.userId, now: NOW, ids: acceptIds() });
+  const joinedLines = (await shelters.historyOf(joinShelter.id)).filter(
+    (e) => e.kind === "admin_joined",
+  ).length;
+  const memberships = await db
+    .select({ id: authMember.id })
+    .from(authMember)
+    .where(eq(authMember.userId, toJoin.userId));
+  check(
+    "accept (invitation + membership + admin_joined), then idempotent",
+    joined.kind === "accepted" &&
+      again.kind === "nothing_to_accept" &&
+      joinedLines === 1 &&
+      memberships.length === 1,
+    `${joined.kind}, then ${again.kind}; ${memberships.length} membership(s), ${joinedLines} admin_joined`,
+  );
+  // IN-T1's race: a second shelter's invitation for the same address, written straight past
+  // the registry's refusal, then driven at the statement directly so only the index refuses.
+  const otherOrganization = await invitations.ensureOrganization(
+    otherShelter.id,
+    { organizationId: randomUUID() },
+    NOW,
+  );
+  const racedId = randomUUID();
+  await db.insert(authInvitation).values({
+    id: racedId,
+    organizationId: otherOrganization,
+    email: joinEmail,
+    role: "admin",
+    status: "pending",
+    expiresAt: later(3_600_000),
+    createdAt: NOW,
+    inviterId: operator,
+  });
+  const conflict = await acceptRepo.write({
+    userId: toJoin.userId,
+    invitation: {
+      id: racedId as never,
+      organizationId: otherOrganization,
+      shelterId: otherShelter.id,
+      email: joinEmail,
+    },
+    now: NOW,
+    ids: acceptIds(),
+  });
+  const [racedRow] = await db
+    .select({ status: authInvitation.status })
+    .from(authInvitation)
+    .where(eq(authInvitation.id, racedId));
+  check(
+    "accept: one-membership conflict (driver error shape)",
+    conflict.kind === "membership_conflict" && racedRow?.status === "pending",
+    `${conflict.kind}, invitation ${racedRow?.status}`,
   );
   return out;
 }

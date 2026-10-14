@@ -37,18 +37,21 @@ export type InviteResult =
   | { kind: "address_has_a_role"; reason: AddressRole };
 
 /**
- * **The only module that writes `auth_invitation`** (HS-Q7, Oleksii), and the
- * only one that creates a shelter's organization or an invitee's user. A test
- * scans the source tree and fails if anything else writes `auth_invitation`.
+ * **The module that writes `auth_invitation`** (HS-Q7, Oleksii), and the
+ * only one that creates a shelter's organization or an invitee's user. The
+ * one other writer is the automatic accept, which only marks an invitation
+ * accepted (`kabinetInvitationAcceptRepo`, IN-Q13). A test scans the source
+ * tree and fails if anything else writes `auth_invitation`.
  *
  * Why server-side, not the organization plugin's endpoints: the database
  * allows one membership per user (`auth_member_user_id_unique`), so the
  * operator is never a member of a shelter's organization, while the plugin's
  * invite endpoint requires the inviter to be one, and its create-organization
  * endpoint makes the caller the owner. So the operator's side is written here,
- * with the operator's own user as `inviter_id`, and only the *acceptance*
- * goes through Better Auth's real `accept-invitation` endpoint, which checks
- * the recipient, status and expiry itself.
+ * with the operator's own user as `inviter_id`. The *acceptance* is not
+ * Better Auth's `accept-invitation` either (IN-Q13: it isn't atomic on
+ * neon-http): it is `kabinetInvitationAcceptRepo`'s one statement, which
+ * enforces the same recipient, status and expiry rules.
  */
 export function kabinetInvitationRepo(db: Database) {
   const repo = {

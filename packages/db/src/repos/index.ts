@@ -11,6 +11,12 @@ export {
   kabinetAnimalRepo,
 } from "./kabinet-animal-repo";
 export {
+  type AcceptableInvitation,
+  type AcceptPlan,
+  type InvitationAcceptResult,
+  kabinetInvitationAcceptRepo,
+} from "./kabinet-invitation-accept-repo";
+export {
   type AddressRole,
   INVITATION_TTL_MS,
   type InviteResult,

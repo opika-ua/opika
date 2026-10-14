@@ -962,6 +962,12 @@ export const uk = {
       submit: `${COPY_PENDING} "Sign in" (the one button; Oleksii's working label «Увійти», IN-Q11)`,
       invalid: `${COPY_PENDING} "This link has already been used or has expired." (after a failed POST, or a malformed link)`,
       requestNew: `${COPY_PENDING} "Request a new link" (link back to sign-in)`,
+      /**
+       * IN-Q12: signed in, but the invitation's accept failed. Shown on the
+       * «Увійти» response and on `/kabinet`; the person stays signed in.
+       */
+      joinFailed: `${COPY_PENDING} "Couldn't join the shelter. Try again." (signed in, the invitation not yet accepted; Oleksii's draft «не вдалося приєднатися до притулку, спробуйте ще раз», IN-Q12)`,
+      joinRetry: `${COPY_PENDING} "Try again" (link under joinFailed; reloads /kabinet, which retries the accept)`,
     },
     /**
      * History lines (IN-Q14). Only `admin_joined` has a key so far; no

@@ -86,7 +86,7 @@ not `auth.api.*`. So **the sign-in part needs no change to `no-self-serve-yet.te
 **Acceptance does.** "Accepts it" writes `auth_member` from source, which is exactly what the
 guard's "no source file writes auth_member" forbids until A1–A3/B1 are live (HS-Q3), and which
 IN-Q4's successor guard replaces in the same commit as that copy. So acceptance is designed
-below and **not built in this slice**.
+below and **not built in this slice**. *(Built 2026-10-14 per IN-Q12/IN-Q13/IN-Q14, option A below; the guard now allows exactly the accept module to write `auth_member`: inbox IN-T12.)*
 
 ## 5. Acceptance: the honest version of "in the same transaction"
 
