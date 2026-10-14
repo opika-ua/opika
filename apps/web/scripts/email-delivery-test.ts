@@ -17,9 +17,9 @@ import {
  * The key is BREVO_API_KEY in the repo-root .env.local, and nothing else is
  * read from that file. The From name is app config (--from-name, else
  * EMAIL_FROM_NAME), never a literal here, and so is the Reply-To (--reply-to,
- * else EMAIL_REPLY_TO): without one, nothing is sent. The invite email is
+ * else EMAIL_REPLY_TO): without one, nothing is sent. Both emails are
  * signed with --operator-name, else KABINET_OPERATOR_DISPLAY_NAME, else the
- * catalogue fallback, as in the app.
+ * catalogue fallback, as in the app (the sign-in email since 2026-10-14).
  */
 const { values } = parseArgs({
   options: {

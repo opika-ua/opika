@@ -70,6 +70,17 @@ describe("K1 · enter email", () => {
     expect(screen.getByText("Olena@Example.org").tagName).toBe("STRONG");
   });
 
+  it("the sent state names both Gmail folders a link can land in (row 10, Oleksii 2026-10-14)", async () => {
+    const { user } = setup();
+    await signIn(user);
+    // Transcribed from his handoff: the sign-in email reached Promotions in delivery test 2.
+    expect(
+      screen.getByText(
+        "Листа немає? Перевірте «Спам» і «Промоакції». Надіслати ще раз можна через 60 секунд.",
+      ).tagName,
+    ).toBe("P");
+  });
+
   it("says when the request itself failed, on the field, and stays on the form", async () => {
     const { user } = setup(async () => false);
     await signIn(user);

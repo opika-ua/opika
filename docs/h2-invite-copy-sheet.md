@@ -30,10 +30,10 @@ address its link (IN-Q3). The only email whose link signs someone in.
 | Key | Where | English sense |
 |---|---|---|
 | `kabinet.email.signIn.subject` | Subject line | A sign-in link for the shelters' cabinet. |
-| `kabinet.email.signIn.intro` | First line of the body | Someone asked to sign in with this address. |
+| `kabinet.email.signIn.intro` | First line of the body | Someone asked to sign in with this address. Since 2026-10-14 it opens with a greeting, the invite's personal shape (Oleksii, after delivery test 2: the invite landed in Gmail's Primary tab, the sign-in email in Promotions). |
 | `kabinet.email.signIn.action` | The link's label in the HTML part: a label, never the URL (IN-E8); the plain-text part shows the raw URL | Open the sign-in page. **Oleksii's draft (IN-E8, given as "e.g.", not final):** «Відкрити сторінку входу» |
 | `kabinet.email.signIn.expiry` | Under the link | The link works once and expires in 15 minutes (`MAGIC_LINK_TTL_SECONDS`; the value is filled in, never typed into the string). |
-| `kabinet.email.signIn.notYou` | Last line | If you didn't ask for this, ignore the email: nothing happens without the link. |
+| `kabinet.email.signIn.notYou` | Last line | If you didn't ask for this, ignore the email: nothing happens without the link. Signed `— {operator}` on its own last line since 2026-10-14, filled as the invite's (`KABINET_OPERATOR_DISPLAY_NAME`, fallback «Оператор реєстру»). |
 
 ## E2. The invite email
 

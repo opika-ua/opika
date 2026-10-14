@@ -80,31 +80,43 @@ describe("runDeliveryTest", () => {
     expect(signIn.subject).toBe("Посилання для входу до кабінету притулку");
     expect(signIn.textContent).toBe(
       [
-        "На цю адресу запитали посилання для входу до кабінету притулку.",
+        "Добрий день. На цю адресу запитали посилання для входу до кабінету притулку.",
         "http://localhost:3000/kabinet/vkhid/pidtverdzhennia?token=TEST-r1",
         "Посилання спрацює один раз і діє 15 хвилин.",
-        "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.",
+        "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n— Олексій",
       ].join("\n\n"),
     );
     expect(invite.subject).toBe("Ваш доступ до кабінету притулку");
     expect(invite.textContent).toBe(
       [
         "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «Тестовий» у реєстрі.",
-        "Поки що в кабінеті можна переглянути профіль притулку таким, яким його бачать люди. Змінювати дані там ще не можна — для цього напишіть мені.",
+        "Поки що в кабінеті можна переглянути дані притулку — і те, що бачать люди, і дані з перевірки. Змінювати їх там ще не можна — для цього напишіть мені.",
         "http://localhost:3000/kabinet/vkhid?zaproshennia=TEST-r2",
         "Запрошення діє 72 години. Якщо не встигнете — я надішлю нове.",
         "Якщо ви не чекали цього листа, просто проігноруйте його: без входу з цієї адреси доступу ніхто не отримає.\n— Олексій",
       ].join("\n\n"),
     );
     expect(invite.htmlContent).toContain("<br>— Олексій</p>");
+    expect(signIn.htmlContent).toContain("<br>— Олексій</p>");
   });
 
-  it("signs the invite with the catalogue fallback when no operator name is configured", async () => {
+  it("signs both emails with the catalogue fallback when no operator name is configured", async () => {
     for (const operatorName of [undefined, "", "  "]) {
       const h = harness();
       expect(await runDeliveryTest({ ...h.input, operatorName })).toBe(0);
-      const invite = bodyOf(h.calls[1] as Call);
+      const [signIn, invite] = h.calls.map(bodyOf);
+      expect(signIn.textContent.endsWith("\n— Оператор реєстру"), String(operatorName)).toBe(true);
       expect(invite.textContent.endsWith("\n— Оператор реєстру"), String(operatorName)).toBe(true);
+    }
+  });
+
+  /** The rerun Oleksii asked for (2026-10-14, action c): both emails signed with the name set. */
+  it("signs both emails with the name given, as --operator-name passes it", async () => {
+    const h = harness();
+    expect(await runDeliveryTest({ ...h.input, operatorName: "Олексій Колотенко" })).toBe(0);
+    for (const body of h.calls.map(bodyOf)) {
+      expect(body.textContent.endsWith("\n— Олексій Колотенко")).toBe(true);
+      expect(body.htmlContent).toContain("<br>— Олексій Колотенко</p>");
     }
   });
 

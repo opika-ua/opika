@@ -71,18 +71,29 @@ export function emailBody(to: string, parts: EmailParts): OutgoingEmail {
 const fill = (template: string, values: Record<string, string>) =>
   template.replace(/\{(\w+)\}/g, (whole, name: string) => values[name] ?? whole);
 
-/** E1: the magic-link email. Its link is the sign-in confirm page (IN-E1: a GET never consumes the token). */
+/**
+ * E1: the magic-link email. Its link is the sign-in confirm page (IN-E1: a GET
+ * never consumes the token). Since Oleksii's delivery test 2 (2026-10-14:
+ * the personal invite reached Gmail's Primary tab, the short impersonal
+ * sign-in email Promotions) it has the invite's personal shape: a greeting,
+ * and the last line signed `— {operator}`, filled the way the invite's is.
+ */
 export function magicLinkEmail(input: {
   to: string;
   url: string;
   ttlMinutes: number;
+  /** Nominative display name (`operatorDisplayName`), the same value that signs the invite. */
+  operatorName: string;
 }): OutgoingEmail {
   const copy = uk.kabinet.email.signIn;
   return emailBody(input.to, {
     subject: copy.subject,
     before: [copy.intro],
     link: { label: copy.action, url: input.url },
-    after: [fill(copy.expiry, { minutes: String(input.ttlMinutes) }), copy.notYou],
+    after: [
+      fill(copy.expiry, { minutes: String(input.ttlMinutes) }),
+      fill(copy.notYou, { operator: input.operatorName }),
+    ],
   });
 }
 

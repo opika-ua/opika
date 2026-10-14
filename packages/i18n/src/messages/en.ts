@@ -305,7 +305,7 @@ export const en = {
     free: 'The registry is free for shelters today and will stay free. No paid tiers, no "free for the first three months." If that were ever to change, every shelter would know well in advance, not after the fact.',
     money:
       'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) — the registry only shows the link; the money goes directly, and you can see exactly where.',
-    data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: an adopter only ever sees an approximate location. A shelter can ask to have its listing removed at any time.",
+    data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: an adopter only ever sees an approximate location. A shelter can ask to have its listing removed at any time. For shelters with cabinet access, the registry keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. IP addresses are not stored. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within two days.",
     analytics:
       "The registry collects basic visit statistics — how many people visit and how fast the pages load — with no advertising.",
     /** Template: "Get in touch: {contact}" */
@@ -375,7 +375,7 @@ export const en = {
       sentTitle: "Check your email",
       sentBody:
         "If this address is on the list, a sign-in link will arrive at {email}. It works for 15 minutes and opens on any device.",
-      spamNote: "No email? Check your spam folder, or send it again after 60 seconds.",
+      spamNote: "No email? Check «Spam» and «Promotions». You can send it again after 60 seconds.",
       resend: "Send again",
       resendIn: "Send again · {time}",
       otherAddress: "A different address",
@@ -435,19 +435,19 @@ export const en = {
       viewingAs: "as the shelter administrator",
       signOutDisabled: "Sign-out disabled",
     },
-    /** The English sense of uk.ts's final Ukrainian (2026-10-14); the invite email is signed `— {operator}`. */
+    /** The English sense of uk.ts's final Ukrainian (2026-10-14); both emails are signed `— {operator}`. */
     email: {
       signIn: {
         subject: `A sign-in link for the shelter's cabinet`,
-        intro: `A sign-in link for the shelter's cabinet was requested for this address.`,
+        intro: `Hello. A sign-in link for the shelter's cabinet was requested for this address.`,
         action: `Open the sign-in page`,
         expiry: `The link works once and expires in {minutes} minutes.`,
-        notYou: `If you didn't ask for this, ignore the email: nothing happens without the link.`,
+        notYou: `If you didn't ask for this, just ignore the email: nothing happens without the link.\n— {operator}`,
       },
       invite: {
         subject: `Your access to the shelter's cabinet`,
         intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» in the registry for this address.`,
-        what: `For now the cabinet shows the shelter's profile as people see it. The details can't be changed there yet: write to me for that.`,
+        what: `For now the cabinet shows the shelter's details: both what people see and the verification details. They can't be changed there yet: write to me for that.`,
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours} hours. If you miss it, I will send a new one.`,
         notYou: `If you weren't expecting this email, just ignore it: nobody gets access without signing in from this address.\n— {operator}`,

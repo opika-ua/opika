@@ -39,6 +39,26 @@ describe("productionSignInOf", () => {
     );
   });
 
+  /**
+   * Oleksii, 2026-10-14 (delivery test 2): the sign-in email is signed
+   * `— {operator}` like the invite. Production's config carries the name
+   * the wiring hands to `providerMagicLinkSender`; a missing or blank one is
+   * the catalogue's fallback, never a reason to stay off (RS-Q2).
+   */
+  it("carries the configured operator name to sign both emails, else «Оператор реєстру»", () => {
+    const on = productionSignInOf({
+      ...full,
+      KABINET_OPERATOR_DISPLAY_NAME: " Олексій Колотенко ",
+    });
+    expect(on.kind === "on" && on.operatorName).toBe("Олексій Колотенко");
+    for (const unset of [undefined, "", "   "]) {
+      const fallback = productionSignInOf({ ...full, KABINET_OPERATOR_DISPLAY_NAME: unset });
+      expect(fallback.kind === "on" && fallback.operatorName, String(unset)).toBe(
+        "Оператор реєстру",
+      );
+    }
+  });
+
   it("is off with any of the variables missing", () => {
     expect(productionSignInOf({ ...full, EMAIL_PROVIDER_API_KEY: undefined })).toEqual({
       kind: "off",

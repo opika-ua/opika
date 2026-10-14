@@ -21,7 +21,13 @@ const INVITE_URL =
 const TRACKER = /sendibt\d*\.com|sender-sib|\/tr\/(cl|op)\//i;
 
 const builders = {
-  "magic link": () => magicLinkEmail({ to: "a@example.org", url: SIGN_IN_URL, ttlMinutes: 15 }),
+  "magic link": () =>
+    magicLinkEmail({
+      to: "a@example.org",
+      url: SIGN_IN_URL,
+      ttlMinutes: 15,
+      operatorName: "Олексій",
+    }),
   invitation: () =>
     invitationEmail({
       to: "a@example.org",
@@ -133,18 +139,32 @@ describe.each(Object.entries(builders))("the %s email", (name, build) => {
  * pass for any text at all.
  */
 describe("the builders fill his final copy", () => {
-  it("magic link: subject, intro, label, the 15-minute expiry and the last line, in order", () => {
+  it("magic link: subject, greeting intro (row 79), label, the 15-minute expiry and the signed last line (row 82), in order", () => {
     const email = builders["magic link"]();
     expect(email.subject).toBe("Посилання для входу до кабінету притулку");
     expect(anchorTexts(email.html)).toEqual(["Відкрити сторінку входу"]);
     expect(email.text).toBe(
       [
-        "На цю адресу запитали посилання для входу до кабінету притулку.",
+        "Добрий день. На цю адресу запитали посилання для входу до кабінету притулку.",
         SIGN_IN_URL,
         "Посилання спрацює один раз і діє 15 хвилин.",
-        "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.",
+        "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n— Олексій",
       ].join("\n\n"),
     );
+    // Delivery test 2 (2026-10-14): signed like the invite, a line break in HTML too.
+    expect(email.html).toContain("нічого не відбудеться.<br>— Олексій</p>");
+    expect(email.text).not.toMatch(/\{\w+\}/);
+  });
+
+  it("magic link: with no display name configured, the signature is the catalogue's fallback, never a blank or a raw {operator}", () => {
+    const email = magicLinkEmail({
+      to: "a@example.org",
+      url: SIGN_IN_URL,
+      ttlMinutes: 15,
+      operatorName: operatorDisplayName({}),
+    });
+    expect(email.text.endsWith("нічого не відбудеться.\n— Оператор реєстру")).toBe(true);
+    expect(email.html).toContain("<br>— Оператор реєстру</p>");
   });
 
   it("invitation: the shelter in the intro, the 72-hour expiry, and the operator signing the last line (row 88)", () => {
@@ -154,7 +174,7 @@ describe("the builders fill his final copy", () => {
     expect(email.text).toBe(
       [
         "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «Притулок «Лапа»» у реєстрі.",
-        "Поки що в кабінеті можна переглянути профіль притулку таким, яким його бачать люди. Змінювати дані там ще не можна — для цього напишіть мені.",
+        "Поки що в кабінеті можна переглянути дані притулку — і те, що бачать люди, і дані з перевірки. Змінювати їх там ще не можна — для цього напишіть мені.",
         INVITE_URL,
         "Запрошення діє 72 години. Якщо не встигнете — я надішлю нове.",
         "Якщо ви не чекали цього листа, просто проігноруйте його: без входу з цієї адреси доступу ніхто не отримає.\n— Олексій",

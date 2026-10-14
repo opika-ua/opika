@@ -199,30 +199,31 @@ describe("kabinet copy status (final, 2026-10-14)", () => {
    * wrote them, transcribed from his answer sheet rather than read from
    * `uk.ts` (a test may not compare output with the constant the code
    * renders). The email templates (rows 78–88), the sign-in card's fallback
-   * (11), the anti-enumeration pair (6, 9), the failed accept (20, 21), the
+   * (11) and spam note (10), the anti-enumeration pair (6, 9), the failed accept (20, 21), the
    * invite landing's ready line and button (24, 25), the support banner (69),
    * commitments #2 and #5 on the profile (41, 44) and the operator's reminder (77).
    */
   const FINAL: Record<string, string> = {
     // row 78
     "email.signIn.subject": "Посилання для входу до кабінету притулку",
-    // row 79
-    "email.signIn.intro": "На цю адресу запитали посилання для входу до кабінету притулку.",
+    // row 79 (reworded 2026-10-14 after delivery test 2: the invite's personal shape)
+    "email.signIn.intro":
+      "Добрий день. На цю адресу запитали посилання для входу до кабінету притулку.",
     // row 80
     "email.signIn.action": "Відкрити сторінку входу",
     // row 81
     "email.signIn.expiry": "Посилання спрацює один раз і діє {minutes} хвилин.",
-    // row 82
+    // row 82, signed like row 88 (2026-10-14)
     "email.signIn.notYou":
-      "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.",
+      "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n— {operator}",
     // row 83
     "email.invite.subject": "Ваш доступ до кабінету притулку",
     // row 84
     "email.invite.intro":
       "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» у реєстрі.",
-    // row 85
+    // row 85 (reworded 2026-10-14, EM-Q8: the kabinet also shows the verification data)
     "email.invite.what":
-      "Поки що в кабінеті можна переглянути профіль притулку таким, яким його бачать люди. Змінювати дані там ще не можна — для цього напишіть мені.",
+      "Поки що в кабінеті можна переглянути дані притулку — і те, що бачать люди, і дані з перевірки. Змінювати їх там ще не можна — для цього напишіть мені.",
     // row 86
     "email.invite.action": "Відкрити запрошення",
     // row 87
@@ -230,6 +231,9 @@ describe("kabinet copy status (final, 2026-10-14)", () => {
     // row 88
     "email.invite.notYou":
       "Якщо ви не чекали цього листа, просто проігноруйте його: без входу з цієї адреси доступу ніхто не отримає.\n— {operator}",
+    // row 10 (2026-10-14: the sign-in email reached Gmail's Promotions tab)
+    "signIn.spamNote":
+      "Листа немає? Перевірте «Спам» і «Промоакції». Надіслати ще раз можна через 60 секунд.",
     // row 11
     "signInCard.notArrived": "Якщо лист не прийшов за кілька хвилин, напишіть мені на {contact}.",
     // row 6
@@ -327,13 +331,14 @@ describe("/prytulkam A2 (forShelters.whenAnimalFindsHome)", () => {
 });
 
 /**
- * Rows 89–91 of the PR #94 copy export are final (Oleksii, 2026-10-14) but
- * ship together in the commit that turns production sign-in on, A1 directly
- * before §7's last paragraph (`docs/h2-copy-sheet.md` A1, A2 and /pro). Until
- * then neither A1's line nor the /pro addition is live; that commit changes
- * these pins with the A2 one above.
+ * Rows 89 and 91 of the PR #94 copy export are final (Oleksii, 2026-10-14)
+ * but ship in the commit that turns production sign-in on, A1 directly
+ * before §7's last paragraph (`docs/h2-copy-sheet.md` A1, A2). Until then
+ * A1's line is not live; that commit changes this pin with the A2 one above.
+ * Row 90 (/pro) ships with #94 itself (his handoff of 2026-10-14, verbatim:
+ * "Row 90 ships with the #94 merge"), pinned in the next block.
  */
-describe("A1 and the /pro addition wait for the wiring commit", () => {
+describe("A1 waits for the wiring commit", () => {
   it("§7 does not yet carry A1's line, and still ends on the current last paragraph", () => {
     expect(uk.forShelters.whatToPrepare).not.toContain("Доступ до кабінету я надсилаю сам");
     expect(
@@ -342,9 +347,21 @@ describe("A1 and the /pro addition wait for the wiring commit", () => {
       ),
     ).toBe(true);
   });
+});
 
-  it("/pro's about.data does not yet carry the kabinet addition", () => {
-    expect(uk.about.data).not.toContain("IP-адреси не зберігаються");
-    expect(uk.about.data).not.toContain("протягом двох діб");
+/**
+ * /pro `about.data`, row 90 (KH-C1), his text transcribed: the original
+ * paragraph unchanged, then the kabinet addition appended to it. Every claim
+ * in it was checked against the code (inbox EM-T17); on Vercel Pro the last
+ * clause would revert to «протягом доби» (KH-C1).
+ */
+describe("/pro about.data carries the kabinet addition (row 90)", () => {
+  it("is the original paragraph followed by his addition, byte for byte", () => {
+    expect(uk.about.data).toBe(
+      [
+        "Дані, які вносить притулок — адреса, контакти, картки тварин — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише наближену локацію. Притулок може попросити видалити свій запис у будь-який момент.",
+        "Для притулків із доступом до кабінету реєстр зберігає ім'я та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб.",
+      ].join(" "),
+    );
   });
 });

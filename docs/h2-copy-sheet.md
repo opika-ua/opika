@@ -66,8 +66,13 @@ again.
 The first two paragraphs (why a homed animal left listed poisons every card) stay true.
 
 ### /pro `about.data`: the addition (KH-C1)
-**Final (Oleksii, 2026-10-14); ships in the commit that turns production sign-in on; A1 goes directly before §7's last paragraph.** Not in `uk.ts` until that commit (the coordinating session's instruction for #94: rows
-89/90/91 ship together in it). Appended to `about.data`. His answer (row 90 of the PR #94 copy
+**Final (Oleksii, 2026-10-14); live in `uk.ts` with #94** (his handoff of 2026-10-14, relayed by the
+coordinating session, verbatim: "Row 90 ships with the #94 merge (all it describes is live via #95,
+and #94 starts storing admin emails at invite). Rows 89 and 91 ship with the production sign-in
+switch."), superseding the earlier instruction that rows 89/90/91 ship together in the wiring
+commit. Appended to `about.data`, after its last sentence, in the same paragraph; pinned in
+`copy-status.test.ts` and rendered on `/pro` (`page.test.tsx`). The check of each claim against the
+code is inbox EM-T17 (`docs/decisions-inbox/feat-h2-invite-email.md`), with two findings (EM-Q11). His answer (row 90 of the PR #94 copy
 export, 2026-10-14, relayed by the coordinating session), verbatim: "FINAL YES as drafted
 («…видаляються протягом двох діб.»). The ~50h worst case with one skipped run is accepted:
 «протягом двох діб» describes the normal cycle. Ships with the cron." The text as drafted (KH-C1,

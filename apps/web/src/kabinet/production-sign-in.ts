@@ -4,6 +4,7 @@ import {
   emailProviderConfigOf,
   productionOriginOf,
 } from "./email-provider";
+import { operatorDisplayName } from "./operator";
 
 /**
  * When production sign-in may be on (IN-Q6, Oleksii: "Q6: accepted, plus:
@@ -40,7 +41,20 @@ import {
  * (IN-R2, Decision 1) land with that wiring commit too.
  */
 export type ProductionSignIn =
-  | { kind: "on"; email: EmailProviderConfig; secret: string; baseURL: string }
+  | {
+      kind: "on";
+      email: EmailProviderConfig;
+      secret: string;
+      baseURL: string;
+      /**
+       * Signs both emails (`— {operator}`): `operatorDisplayName(env)`, so
+       * `KABINET_OPERATOR_DISPLAY_NAME` (nominative) or the catalogue's
+       * fallback. Never a reason to stay off (RS-Q2). The wiring commit hands
+       * it to `providerMagicLinkSender`; the invite takes the same value from
+       * the RPC route's `operatorDisplayName`.
+       */
+      operatorName: string;
+    }
   | {
       kind: "off";
       reason:
@@ -76,5 +90,11 @@ export function productionSignInOf(
   if (production === null || configured === null || configured.origin !== production.origin) {
     return { kind: "off", reason: "auth_url_not_production_origin" };
   }
-  return { kind: "on", email: email.config, secret, baseURL };
+  return {
+    kind: "on",
+    email: email.config,
+    secret,
+    baseURL,
+    operatorName: operatorDisplayName(env),
+  };
 }

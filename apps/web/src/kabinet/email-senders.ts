@@ -83,13 +83,27 @@ const describeOutcome = (outcome: Exclude<EmailSendOutcome, { kind: "sent" }>) =
  */
 export function providerMagicLinkSender(
   mail: ProviderMail,
-  options: { ttlMinutes: number; log: (line: string) => void },
+  options: {
+    ttlMinutes: number;
+    /**
+     * Signs the email (`— {operator}`). Required, so the wiring can't build
+     * this sender without it: production passes `ProductionSignIn.operatorName`,
+     * i.e. `operatorDisplayName(env)`, the value that signs the invite.
+     */
+    operatorName: string;
+    log: (line: string) => void;
+  },
 ): MagicLinkSender {
   return {
     async send({ email, url }) {
       const outcome = await sendChecked(
         mail,
-        magicLinkEmail({ to: email, url, ttlMinutes: options.ttlMinutes }),
+        magicLinkEmail({
+          to: email,
+          url,
+          ttlMinutes: options.ttlMinutes,
+          operatorName: options.operatorName,
+        }),
       );
       if (outcome.kind !== "sent") {
         options.log(

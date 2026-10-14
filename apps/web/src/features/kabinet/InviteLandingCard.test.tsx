@@ -39,6 +39,12 @@ describe("the invite landing card (IN-T10, KS-Q2 A)", () => {
       text.startsWith(lead(uk.kabinet.signInCard.notArrived, "{contact}")),
     );
     expect(fallback.textContent).toContain("help@example.net");
+    // Row 10 (Oleksii, 2026-10-14), transcribed: both Gmail folders.
+    expect(
+      screen.getByText(
+        "Листа немає? Перевірте «Спам» і «Промоакції». Надіслати ще раз можна через 60 секунд.",
+      ),
+    ).toBeTruthy();
     // No field and no button: the answer card follows the one button's POST,
     // which already sent the link (EM-Q3); a second button would send again.
     expect(screen.queryByRole("textbox")).toBeNull();

@@ -241,7 +241,7 @@ describe("magic-link sign-in", () => {
               : { kind: "not_blocked" },
           refuseCopyPending: false,
         },
-        { ttlMinutes: 15, log: (line) => logged.push(line) },
+        { ttlMinutes: 15, operatorName: "Олексій", log: (line) => logged.push(line) },
       ),
       schedule: (work) => {
         pending.push(work());

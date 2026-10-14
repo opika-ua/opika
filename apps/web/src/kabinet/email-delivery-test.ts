@@ -19,7 +19,7 @@ import { operatorDisplayName } from "./operator";
  * email, real-length placeholder text"). Its second run (IN-E15) sends the
  * final Ukrainian through the real templates: `magicLinkEmail` and
  * `invitationEmail`, the builders production uses, with the real TTLs, a
- * fictional shelter, the operator name from the app config
+ * fictional shelter, the operator name signing both emails, from the app config
  * (`--operator-name`, else `KABINET_OPERATOR_DISPLAY_NAME`, else the
  * catalogue fallback) and links on `--base` carrying TEST tokens that mean
  * nothing, so a click proves the redirect reaches the page and nothing more.
@@ -59,7 +59,7 @@ export type DeliveryTestInput = {
   fromName: string | undefined;
   /** From the app config (EMAIL_REPLY_TO), never a literal: every email carries a Reply-To (Oleksii, 2026-10-14, answer 5). */
   replyTo: string | undefined;
-  /** The invite email signs with this (`— {operator}`): app config, never a literal; unset, the catalogue fallback. */
+  /** Both emails sign with this (`— {operator}`): app config, never a literal; unset, the catalogue fallback. */
   operatorName: string | undefined;
   /** Injectable so the refusal is testable now the live copy is final; the script takes the default, the live catalogue. */
   pendingTemplateCopy?: readonly string[];
@@ -130,6 +130,7 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
         to: input.to,
         url: testLink(SIGN_IN_LINK),
         ttlMinutes: MAGIC_LINK_TTL_SECONDS / 60,
+        operatorName,
       }),
     },
     {

@@ -164,12 +164,14 @@ describe("providerMagicLinkSender", () => {
       [mail({ kind: "not_blocked" }, { sendFails: true }), "failed (provider_error)"],
     ] as const) {
       const lines: string[] = [];
-      await providerMagicLinkSender(m.provider, { ttlMinutes: 15, log: (l) => lines.push(l) }).send(
-        {
-          email: "olena@example.org",
-          url: URL_WITH_TOKEN,
-        },
-      );
+      await providerMagicLinkSender(m.provider, {
+        ttlMinutes: 15,
+        operatorName: "Олексій",
+        log: (l) => lines.push(l),
+      }).send({
+        email: "olena@example.org",
+        url: URL_WITH_TOKEN,
+      });
       expect(lines).toEqual([`[kabinet] sign-in email to o•••@example.org not sent: ${expected}`]);
       expect(lines.join("")).not.toContain("SECRET-TOKEN");
       expect(lines.join("")).not.toContain("olena@");
@@ -179,7 +181,11 @@ describe("providerMagicLinkSender", () => {
   it("logs a send whose block check couldn't be done, masked, never the link", async () => {
     const m = mail({ kind: "unknown", why: "timed_out" });
     const lines: string[] = [];
-    await providerMagicLinkSender(m.provider, { ttlMinutes: 15, log: (l) => lines.push(l) }).send({
+    await providerMagicLinkSender(m.provider, {
+      ttlMinutes: 15,
+      operatorName: "Олексій",
+      log: (l) => lines.push(l),
+    }).send({
       email: "olena@example.org",
       url: URL_WITH_TOKEN,
     });
@@ -192,13 +198,33 @@ describe("providerMagicLinkSender", () => {
   it("logs nothing for a checked, sent email, and sends the magic-link email itself", async () => {
     const m = mail({ kind: "not_blocked" });
     const lines: string[] = [];
-    await providerMagicLinkSender(m.provider, { ttlMinutes: 15, log: (l) => lines.push(l) }).send({
+    await providerMagicLinkSender(m.provider, {
+      ttlMinutes: 15,
+      operatorName: "Олексій",
+      log: (l) => lines.push(l),
+    }).send({
       email: "olena@example.org",
       url: URL_WITH_TOKEN,
     });
     expect(lines).toEqual([]);
     expect(m.sent[0]?.subject).toBe(uk.kabinet.email.signIn.subject);
     expect(m.sent[0]?.text.split("\n")).toContain(URL_WITH_TOKEN);
+  });
+
+  /**
+   * Oleksii, 2026-10-14: the sign-in email signs `— {operator}` as the invite
+   * does. The sender is where production's configured name reaches the
+   * builder, so the signature is asserted on what it actually sent.
+   */
+  it("signs the sent email with the operator name it was built with", async () => {
+    const m = mail({ kind: "not_blocked" });
+    await providerMagicLinkSender(m.provider, {
+      ttlMinutes: 15,
+      operatorName: "Олексій Колотенко",
+      log: () => {},
+    }).send({ email: "olena@example.org", url: URL_WITH_TOKEN });
+    expect(m.sent[0]?.text.endsWith("нічого не відбудеться.\n— Олексій Колотенко")).toBe(true);
+    expect(m.sent[0]?.html).toContain("нічого не відбудеться.<br>— Олексій Колотенко</p>");
   });
 });
 

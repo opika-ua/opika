@@ -623,7 +623,17 @@ export const uk = {
     free: "Реєстр безкоштовний для притулків сьогодні і лишиться безкоштовним. Жодних платних тарифів, жодного «спробуйте безкоштовно перші три місяці» — якщо це колись зміниться, кожен притулок дізнається про це заздалегідь, а не постфактум.",
     money:
       "Opika ніколи не бере участі в грошах: немає прийому платежів, немає комісії, немає збору донатів через платформу. Кнопка «Підтримати притулок» веде на власну сторінку притулку в іншому сервісі (наприклад, monobank) — реєстр лише показує посилання, гроші йдуть напряму, і видно, куди саме.",
-    data: "Дані, які вносить притулок — адреса, контакти, картки тварин — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише наближену локацію. Притулок може попросити видалити свій запис у будь-який момент.",
+    /**
+     * The last three sentences are the kabinet addition (KH-C1, row 90 of the
+     * PR #94 copy export, Oleksii's final yes 2026-10-14; ships with #94 per
+     * his handoff of 2026-10-14). Each describes code: the invite's
+     * `auth_user` row (name, email), Better Auth's `user_agent` with
+     * `disableIpTracking`, and the daily `auth-cleanup` cron (Hobby: one run a
+     * day, so «протягом двох діб»; on Pro it would be «протягом доби»).
+     * `copy-status.test.ts` pins it; `docs/decisions-inbox/feat-h2-invite-email.md`
+     * EM-T17 records the check of each claim.
+     */
+    data: "Дані, які вносить притулок — адреса, контакти, картки тварин — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише наближену локацію. Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до кабінету реєстр зберігає ім'я та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб.",
     analytics:
       "Реєстр збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко працюють сторінки — без реклами.",
     contact: "Зв'язатися з розробником: {contact}",
@@ -843,7 +853,8 @@ export const uk = {
       /** `{email}` is the address, shown in 500 weight. */
       sentBody:
         "Якщо ця адреса є в списку, на {email} прийде посилання для входу. Воно діє 15 хвилин і відкривається на будь-якому пристрої.",
-      spamNote: "Листа немає? Перевірте «Спам». Надіслати ще раз можна через 60 секунд.",
+      spamNote:
+        "Листа немає? Перевірте «Спам» і «Промоакції». Надіслати ще раз можна через 60 секунд.",
       resend: "Надіслати ще раз",
       /** `{time}` is the countdown, m:ss. Shown while the 60s resend lockout runs. */
       resendIn: "Надіслати ще раз · {time}",
@@ -940,7 +951,10 @@ export const uk = {
      * final Ukrainian (2026-10-14). The invite email is a personal note in his
      * «я» voice (IN-E14), signed `— {operator}` on its last line (`notYou`):
      * the display name, nominative, from the same config as the history
-     * actor. The plural nouns in `signIn.expiry` («хвилин», 15) and
+     * actor. The sign-in email took the same personal shape on 2026-10-14
+     * (his delivery test 2: the invite reached Gmail's Primary tab, the short
+     * impersonal sign-in email Promotions): «Добрий день.» opens it and the
+     * same `— {operator}` signs its `notYou`. The plural nouns in `signIn.expiry` («хвилин», 15) and
      * `invite.expiry` («години», 72) are typed for those exact values;
      * `copy-plural-pins.test.ts` fails if a TTL changes under them. `action`
      * is the link's label in the HTML part: a label, never the URL itself
@@ -950,17 +964,17 @@ export const uk = {
     email: {
       signIn: {
         subject: "Посилання для входу до кабінету притулку",
-        intro: "На цю адресу запитали посилання для входу до кабінету притулку.",
+        intro: "Добрий день. На цю адресу запитали посилання для входу до кабінету притулку.",
         action: "Відкрити сторінку входу",
         expiry: "Посилання спрацює один раз і діє {minutes} хвилин.",
         notYou:
-          "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.",
+          "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n— {operator}",
       },
       invite: {
         subject: "Ваш доступ до кабінету притулку",
         intro:
           "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» у реєстрі.",
-        what: "Поки що в кабінеті можна переглянути профіль притулку таким, яким його бачать люди. Змінювати дані там ще не можна — для цього напишіть мені.",
+        what: "Поки що в кабінеті можна переглянути дані притулку — і те, що бачать люди, і дані з перевірки. Змінювати їх там ще не можна — для цього напишіть мені.",
         action: "Відкрити запрошення",
         expiry: "Запрошення діє {hours} години. Якщо не встигнете — я надішлю нове.",
         notYou:

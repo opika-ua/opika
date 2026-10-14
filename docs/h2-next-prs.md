@@ -70,6 +70,20 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [x] **Magic-link provider:** Brevo (IN-E2, 2026-10-13), Resend the documented fallback, not set
       up. Gmail delivery test by `email:delivery-test` (IN-E5); ukr.net/i.ua postponed with a trigger
       (IN-E4); apex DMARC `p=reject` is a follow-up (IN-E3).
+- [ ] **The /pro `about.data` addition is live in this PR** (KH-C1; moved back from the wiring
+      commit by Oleksii's handoff of 2026-10-14, verbatim: "Row 90 ships with the #94 merge (all it
+      describes is live via #95, and #94 starts storing admin emails at invite)."): his final text,
+      appended to `about.data`, pinned in `copy-status.test.ts` and `/pro`'s `page.test.tsx`. Claims
+      checked against the code in inbox EM-T17; **two findings open (EM-Q11)**: this box stays
+      unticked until he answers them.
+- [x] **`KABINET_OPERATOR_DISPLAY_NAME` set in Vercel Production** (Oleksii, 2026-10-14, verbatim:
+      "KABINET_OPERATOR_DISPLAY_NAME=Олексій Колотенко is set in Vercel Production (nominative). Tick
+      it on the #94 merge checklist"). It signs both emails (`— {operator}`) and labels the
+      operator's history lines.
+- [ ] **Delivery test 3** (Oleksii's, by hand; his action c, 2026-10-14): both emails to the same
+      Gmail with the operator name set, `--operator-name "Олексій Колотенко"`. He reports the tabs.
+      Trigger recorded (EM-R1): if the reworked sign-in email still lands in Promotions, sign-in sends
+      are proposed for Resend; invites stay on Brevo while they land in Primary.
 - [ ] **An invitation reaches the invitee.** The registry PR's `registry.admins.invite` and
       `registry.shelters.create` write the invitation and the invitee's user but send nothing
       (no provider yet). This PR decides how the invitee hears of it (an invite email through the
@@ -129,7 +143,10 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       joins the build-time list too is the same Phase 0 question as `PRODUCTION_ORIGIN`.
 - [ ] **The wiring commit turns production sign-in on through `productionSignInOf`**, which now also
       stays off while any `kabinet.*` string (email templates included) is `[COPY PENDING]`
-      (Oleksii, answer 7). That commit wires the provider-backed invitation sender with
+      (Oleksii, answer 7). It builds `providerMagicLinkSender` with `operatorName` from the `on`
+      result (`ProductionSignIn.operatorName`, i.e. `operatorDisplayName(env)`), so the sign-in email
+      is signed with the same name as the invite (the option is required; a test on the wiring
+      asserts the configured name reaches the sent email). That commit wires the provider-backed invitation sender with
       `cachedBlockList(config)` built once per process, so `registry.admins.blockedAddresses` reads
       Brevo instead of answering `unknown` (`unsupported_provider`).
 - [ ] **The confirm page's over-limit card ships before production sign-in is turned on**
@@ -146,10 +163,6 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       directly before the current last paragraph of §7, and ship it in the same commit as row 89."):
       «Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.»
       (`docs/h2-copy-sheet.md` A1), with a `copy-status.test.ts` pin on its position.
-- [ ] **The /pro `about.data` addition ships in the same commit** (KH-C1; moved here from #94's
-      own list): final yes given (row 90, 2026-10-14, verbatim: "FINAL YES as drafted («…видаляються
-      протягом двох діб.»)"), text on `docs/h2-copy-sheet.md` (/pro `about.data`). The cron it
-      describes already shipped (#95). Not in `uk.ts` before that commit.
 - [ ] **The runtime boot check stays as the second guard** (IN-R2, Decision 1): production refuses
       to boot without them from the same commit, tested.
 - [x] **The one-membership unique violation is a typed error, never a 500** (IN-Q8, IN-T1): in the
