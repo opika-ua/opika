@@ -90,6 +90,8 @@ export async function handleKabinetRpc(
       setCookies,
       cookieHeader: request.headers.get("cookie"),
       production: deps.production,
+      invites: deps.availability.invites,
+      linkBaseURL: deps.availability.baseURL,
     },
   });
   if (!result.matched) return new Response("Not Found", { status: 404 });

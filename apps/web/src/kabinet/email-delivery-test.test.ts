@@ -64,6 +64,15 @@ describe("runDeliveryTest", () => {
     expect(invite.textContent).toContain(
       "http://localhost:3000/kabinet/vkhid?zaproshennia=TEST-r2",
     );
+    // IN-E8: the HTML link's text is the copy sheet's label, never the URL;
+    // the plain-text part keeps the raw URL on its own line.
+    const anchors = (html: string) =>
+      [...html.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => match[1]);
+    expect(anchors(signIn.htmlContent)).toEqual(["[COPY PENDING] Open the sign-in page"]);
+    expect(anchors(invite.htmlContent)).toEqual(["[COPY PENDING] Open the invitation"]);
+    expect(signIn.textContent.split("\n")).toContain(
+      "http://localhost:3000/kabinet/vkhid/pidtverdzhennia?token=TEST-r1",
+    );
     // Placeholder copy, not invented Ukrainian, and long enough to resemble a real message.
     for (const body of [signIn, invite]) {
       expect(body.subject).toMatch(/^\[COPY PENDING\]/);

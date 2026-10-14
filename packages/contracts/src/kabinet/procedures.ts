@@ -27,13 +27,15 @@ import { apiErrors } from "../errors";
 import { MAX_PAGE_SIZE } from "../procedures/pagination";
 import { kabinet, registry, shelterRead, shelterWrite, supportExit } from "./access";
 import {
+  CreatedShelterViewSchema,
+  EmailSendOutcomeSchema,
   HistoryEntryViewSchema,
+  InvitedAdminViewSchema,
   KabinetAnimalRowViewSchema,
   KabinetAnimalViewSchema,
   KabinetShelterViewSchema,
   RegistryShelterRowViewSchema,
   RegistryShelterViewSchema,
-  ShelterAdminViewSchema,
   ShelterHistoryItemViewSchema,
 } from "./views";
 
@@ -294,8 +296,14 @@ export const registrySheltersContract = {
       INVALID_CURSOR: apiErrors.INVALID_CURSOR,
     }),
   byId: registryShelter.input(shelterRef).errors(registryErrors),
-  /** S2 collects S4's sections in one form (H2-1); the shelter starts `pending`. */
-  create: registryShelter
+  /**
+   * S2 collects S4's sections in one form (H2-1); the shelter starts
+   * `pending`. The output adds what became of the first admin's invitation
+   * email, so S2 can show it (IN-E7).
+   */
+  create: kabinet
+    .$meta(registry)
+    .output(CreatedShelterViewSchema)
     .input(
       z.strictObject({
         displayName: humanName,
@@ -411,7 +419,8 @@ export const registryAdminsContract = {
   invite: kabinet
     .$meta(registry)
     .input(z.strictObject({ shelterId: ShelterIdSchema, name: humanName, email: z.email() }))
-    .output(ShelterAdminViewSchema)
+    // The admin plus this call's email outcome, which S4 shows directly (IN-E7).
+    .output(InvitedAdminViewSchema)
     .errors({ ...registryErrors, ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE }),
   /**
    * A resend can revive an expired invitation, so it is checked like a new
@@ -421,7 +430,7 @@ export const registryAdminsContract = {
   resendInvite: kabinet
     .$meta(registry)
     .input(adminRef)
-    .output(emptyOutput)
+    .output(z.object({ invitationEmail: EmailSendOutcomeSchema }))
     .errors({ ...registryErrors, ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE }),
   remove: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
 };

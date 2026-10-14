@@ -1,5 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
+import { uk } from "@opika/i18n";
+import { INVITE_LINK, linkTo, SIGN_IN_LINK } from "./email-links";
+import { emailBody } from "./email-message";
 import { emailProviderConfigOf, fetchEmailSender, type SentEmail } from "./email-provider";
 
 /**
@@ -18,15 +21,8 @@ import { emailProviderConfigOf, fetchEmailSender, type SentEmail } from "./email
 /** The only key this reads. Oleksii keeps it in .env.local; it is never committed or logged. */
 export const DELIVERY_KEY_NAME = "BREVO_API_KEY";
 
-/**
- * Where the two links land, matching docs/h2-invite-confirm-shapes.md
- * (feat/h2-invite-confirm); change them here if those routes move. The
- * sign-in confirm page's GET shows one button and only its POST consumes the
- * token; the invite page's GET sends a fresh magic link to the invited
- * address, and is not itself a sign-in.
- */
-export const SIGN_IN_LINK = { path: "/kabinet/vkhid/pidtverdzhennia", param: "token" } as const;
-export const INVITE_LINK = { path: "/kabinet/vkhid", param: "zaproshennia" } as const;
+/** Where the links land: `email-links.ts`, shared with the real emails. */
+export { INVITE_LINK, SIGN_IN_LINK };
 
 /** The verified sender's local part; the domain is mail.<production host>, enforced by emailProviderConfigOf. */
 const FROM_LOCAL_PART = "noreply";
@@ -56,13 +52,21 @@ export type DeliveryTestInput = {
   log: (line: string) => void;
 };
 
-/** Long enough to look like a real email to a spam filter; marked pending, since the Ukrainian is Oleksii's. */
-const placeholder = (lead: string, link: string) => {
+/**
+ * Long enough to look like a real email to a spam filter; marked pending,
+ * since the Ukrainian is Oleksii's. Built by the same `emailBody` as the real
+ * emails, so the HTML link's text is the copy sheet's label key, never the
+ * URL (IN-E8), and the plain-text part carries the raw URL.
+ */
+const placeholder = (to: string, subject: string, lead: string, label: string, link: string) => {
   const filler =
     "This paragraph stands in for the final text, which is still being written. It runs to a realistic length so that the provider, the mail scanners and the spam filter see something shaped like the real message rather than a one-line test. ";
-  const text = `[COPY PENDING] ${lead}\n\n${link}\n\n${filler.repeat(3)}\n\nIf you didn't ask for this, you can ignore it.`;
-  const html = `<p>[COPY PENDING] ${lead}</p><p><a href="${link}">${link}</a></p><p>${filler.repeat(3)}</p><p>If you didn't ask for this, you can ignore it.</p>`;
-  return { text, html };
+  return emailBody(to, {
+    subject,
+    before: [`[COPY PENDING] ${lead}`],
+    link: { label, url: link },
+    after: [filler.repeat(3).trim(), "If you didn't ask for this, you can ignore it."],
+  });
 };
 
 export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> {
@@ -100,37 +104,35 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
     return 1;
   }
   const sender = fetchEmailSender(config.config, input.fetchImpl);
-  const base = input.base.replace(/\/+$/, "");
   const sends: {
     label: string;
     subject: string;
     target: { path: string; param: string };
     lead: string;
+    linkLabel: string;
   }[] = [
     {
       label: "magic link",
       subject: "[COPY PENDING] Your sign-in link",
       target: SIGN_IN_LINK,
       lead: "Open this link and press the button to sign in. The link works once and expires soon.",
+      linkLabel: uk.kabinet.email.signIn.action,
     },
     {
       label: "invite",
       subject: "[COPY PENDING] You've been invited to a shelter's cabinet",
       target: INVITE_LINK,
       lead: "You've been invited to manage a shelter's listings. Open this link to accept; the page will send you a sign-in link.",
+      linkLabel: uk.kabinet.email.invite.action,
     },
   ];
   let failed = false;
   for (const send of sends) {
-    const link = `${base}${send.target.path}?${send.target.param}=TEST-${input.random()}`;
-    const { text, html } = placeholder(send.lead, link);
+    const link = linkTo(input.base, send.target, `TEST-${input.random()}`);
     try {
-      const sent: SentEmail = await sender.send({
-        to: input.to,
-        subject: send.subject,
-        text,
-        html,
-      });
+      const sent: SentEmail = await sender.send(
+        placeholder(input.to, send.subject, send.lead, send.linkLabel, link),
+      );
       input.log(
         `${send.label}: status ${sent.status}, message id ${sent.messageId ?? "(none given)"}`,
       );

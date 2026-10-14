@@ -201,3 +201,42 @@ describe("kabinet copy status", () => {
     expect(uk.kabinet.operatorFallbackName).toBe("Оператор реєстру");
   });
 });
+
+/**
+ * The kabinet emails and the sign-in card's fallback line (IN-Q5, IN-E7,
+ * IN-E8): every key ships as a placeholder until Oleksii's Ukrainian lands
+ * on `docs/h2-invite-copy-sheet.md`, and none is ever drafted here. Pinned
+ * by name both ways: a string that gains real text without passing through
+ * the sheet changes this list (so the test is updated in the same commit
+ * that lands it), and a key deleted rather than written fails the
+ * key-list half. Oleksii's own drafts (e.g. «Відкрити сторінку входу» for
+ * `signIn.action`) are recorded on the sheet as drafts, not shipped.
+ */
+describe("kabinet email copy status (IN-Q5)", () => {
+  const groups = {
+    "email.signIn": uk.kabinet.email.signIn,
+    "email.invite": uk.kabinet.email.invite,
+    signInCard: uk.kabinet.signInCard,
+  };
+
+  it("every key is still a placeholder", () => {
+    expect(
+      Object.fromEntries(Object.entries(groups).map(([n, g]) => [n, pendingCopyKeys(g)])),
+    ).toEqual({
+      "email.signIn": ["action", "expiry", "intro", "notYou", "subject"],
+      "email.invite": ["action", "expiry", "intro", "notYou", "subject", "what"],
+      signInCard: ["notArrived"],
+    });
+  });
+
+  it("each group has exactly the keys the copy sheet lists", () => {
+    // Guards the guard: an emptied group would leave pendingCopyKeys empty too.
+    expect(
+      Object.fromEntries(Object.entries(groups).map(([n, g]) => [n, Object.keys(g).sort()])),
+    ).toEqual({
+      "email.signIn": ["action", "expiry", "intro", "notYou", "subject"],
+      "email.invite": ["action", "expiry", "intro", "notYou", "subject", "what"],
+      signInCard: ["notArrived"],
+    });
+  });
+});

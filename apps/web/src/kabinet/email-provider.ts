@@ -1,3 +1,5 @@
+import type { EMAIL_BLOCK_REASONS } from "@opika/contracts";
+
 /**
  * The one module that sends email (IN-Q2, Oleksii: "Call the provider HTTP
  * API with fetch, no SDK, behind one module."). Production uses Brevo;
@@ -232,4 +234,111 @@ export function fetchEmailSender(
       return { status: response.status, messageId: messageIdOf(body) };
     },
   };
+}
+
+// ─── Blocked status (IN-E7) ─────────────────────────────────────────────────
+
+/**
+ * Why a provider will not deliver to an address, in the provider's own
+ * terms mapped onto ours. A recipient who taps Gmail's "Unsubscribe" on a
+ * sign-in email lands on Brevo's transactional block list (IN-E7), and Brevo
+ * cannot drop that header for us; a send to that address is then accepted
+ * and silently not delivered (inferred, see IN-E7), so the only way to know
+ * is to ask before sending.
+ */
+export type BlockReason = (typeof EMAIL_BLOCK_REASONS)[number];
+
+export type BlockedStatus =
+  | { kind: "not_blocked" }
+  | { kind: "blocked"; reason: BlockReason }
+  /** Not knowable: say so, never guess "not blocked" into "delivered". */
+  | { kind: "unknown"; why: "unsupported_provider" | "provider_error" | "list_too_long" };
+
+/**
+ * Brevo's documented reason codes (`GET /v3/smtp/blockedContacts`,
+ * developers.brevo.com/reference/get-transac-blocked-contacts). An unlisted
+ * code still means blocked; it is reported as `admin_blocked`, the reason
+ * that claims least about the recipient.
+ */
+const BREVO_REASONS: Readonly<Record<string, BlockReason>> = {
+  unsubscribedViaEmail: "unsubscribed",
+  unsubscribedViaApi: "unsubscribed",
+  unsubscribedViaMA: "unsubscribed",
+  hardBounce: "hard_bounce",
+  contactFlaggedAsSpam: "spam_complaint",
+  adminBlocked: "admin_blocked",
+};
+
+/** Brevo's maximum page size for this endpoint. */
+export const BLOCKED_PAGE_SIZE = 100;
+/**
+ * The list has no filter by recipient, so it is paged through. Past this
+ * many pages the answer is `unknown`, not a guess: at this registry's scale a
+ * list that long is itself a finding (IN-E7).
+ */
+export const BLOCKED_MAX_PAGES = 5;
+
+/** The exact request for one page of Brevo's block list. Pure, like `providerRequest`. */
+export function brevoBlockedContactsRequest(
+  config: EmailProviderConfig,
+  offset: number,
+): { url: string; init: RequestInit } {
+  const query = new URLSearchParams({
+    limit: String(BLOCKED_PAGE_SIZE),
+    offset: String(offset),
+    sort: "desc",
+  });
+  return {
+    url: `https://api.brevo.com/v3/smtp/blockedContacts?${query}`,
+    init: {
+      method: "GET",
+      headers: { Accept: "application/json", "User-Agent": USER_AGENT, "api-key": config.apiKey },
+    },
+  };
+}
+
+type BrevoBlockedPage = {
+  count?: unknown;
+  contacts?: { email?: unknown; reason?: { code?: unknown } }[];
+};
+
+/**
+ * Whether the provider will refuse to deliver to `address`. Brevo only; any
+ * other provider answers `unknown`. Every failure (timeout, non-2xx, a body
+ * that isn't the documented shape) is `unknown`, and never names the key or
+ * the address.
+ */
+export async function blockedStatusOf(
+  config: EmailProviderConfig,
+  address: string,
+  fetchImpl: typeof fetch = fetch,
+  timeoutMs: number = EMAIL_SEND_TIMEOUT_MS,
+): Promise<BlockedStatus> {
+  if (config.provider !== "brevo") return { kind: "unknown", why: "unsupported_provider" };
+  const wanted = address.trim().toLowerCase();
+  for (let page = 0; page < BLOCKED_MAX_PAGES; page++) {
+    const { url, init } = brevoBlockedContactsRequest(config, page * BLOCKED_PAGE_SIZE);
+    let body: BrevoBlockedPage | null;
+    try {
+      const response = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+      if (!response.ok) return { kind: "unknown", why: "provider_error" };
+      body = (await response.json().catch(() => null)) as BrevoBlockedPage | null;
+    } catch {
+      return { kind: "unknown", why: "provider_error" };
+    }
+    if (body === null || !Array.isArray(body.contacts)) {
+      return { kind: "unknown", why: "provider_error" };
+    }
+    const hit = body.contacts.find(
+      (contact) => typeof contact.email === "string" && contact.email.toLowerCase() === wanted,
+    );
+    if (hit !== undefined) {
+      const code = typeof hit.reason?.code === "string" ? hit.reason.code : "";
+      return { kind: "blocked", reason: BREVO_REASONS[code] ?? "admin_blocked" };
+    }
+    const seen = page * BLOCKED_PAGE_SIZE + body.contacts.length;
+    const total = typeof body.count === "number" ? body.count : seen;
+    if (body.contacts.length < BLOCKED_PAGE_SIZE || seen >= total) return { kind: "not_blocked" };
+  }
+  return { kind: "unknown", why: "list_too_long" };
 }

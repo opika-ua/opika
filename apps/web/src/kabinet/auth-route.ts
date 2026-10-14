@@ -1,5 +1,6 @@
 import { clientIp } from "../api/client-ip";
 import { FORWARDED_AUTH_PATHS, type KabinetAuth } from "./auth";
+import { consoleInvitationSender, type InvitationSender } from "./email-senders";
 import { consoleSender, type MagicLinkSender } from "./magic-link-sender";
 import { normalizeEmail, type SignInLimiters, signInAllowed } from "./sign-in-limit";
 
@@ -14,7 +15,14 @@ import { normalizeEmail, type SignInLimiters, signInAllowed } from "./sign-in-li
  * hard-coded default secret.
  */
 export type KabinetAuthAvailability =
-  | { kind: "available"; sender: MagicLinkSender; secret: string; baseURL: string }
+  | {
+      kind: "available";
+      sender: MagicLinkSender;
+      /** The operator's invitation emails (IN-Q3); the console in development, like `sender`. */
+      invites: InvitationSender;
+      secret: string;
+      baseURL: string;
+    }
   | { kind: "unavailable"; reason: "no_sender_in_production" | "missing_config" };
 
 export function kabinetAuthAvailability(env: {
@@ -30,6 +38,7 @@ export function kabinetAuthAvailability(env: {
   return {
     kind: "available",
     sender: consoleSender,
+    invites: consoleInvitationSender,
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
   };

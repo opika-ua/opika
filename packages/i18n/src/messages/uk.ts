@@ -916,5 +916,39 @@ export const uk = {
       viewingAs: `${COPY_PENDING} "as the shelter administrator" (header, in place of the role)`,
       signOutDisabled: `${COPY_PENDING} "Sign-out disabled" (header, in support mode)`,
     },
+    /**
+     * The two kabinet emails (`docs/h2-invite-copy-sheet.md` E1/E2). Every
+     * string is a placeholder until Oleksii's Ukrainian lands on the sheet
+     * (IN-Q5), and `copy-status.test.ts` pins each one as pending. `action`
+     * is the link's label in the HTML part: a label, never the URL itself
+     * (IN-E8: link text naming one domain over an href naming another is a
+     * phishing signal). Values in `{braces}` are filled by the builder.
+     */
+    email: {
+      signIn: {
+        subject: `${COPY_PENDING} A sign-in link for the shelters' cabinet.`,
+        intro: `${COPY_PENDING} Someone asked to sign in with this address.`,
+        action: `${COPY_PENDING} Open the sign-in page`,
+        expiry: `${COPY_PENDING} The link works once and expires in {minutes} minutes.`,
+        notYou: `${COPY_PENDING} If you didn't ask for this, ignore the email: nothing happens without the link.`,
+      },
+      invite: {
+        subject: `${COPY_PENDING} You're invited to manage a shelter's listings in the registry.`,
+        intro: `${COPY_PENDING} {operator} invited this address to administer {shelter}.`,
+        what: `${COPY_PENDING} What the cabinet lets you do.`,
+        action: `${COPY_PENDING} Open the invitation`,
+        expiry: `${COPY_PENDING} The invitation stays valid for {hours} hours; the operator can send it again.`,
+        notYou: `${COPY_PENDING} If this isn't expected, ignore it: nobody gets access without signing in from this address.`,
+      },
+    },
+    /**
+     * Under the sign-in card's «check your email» (IN-E7's resolution): the
+     * same card for every address, so the fallback names a person to write
+     * to instead of saying which addresses failed. `{contact}` is filled by
+     * the page from config, never typed here. Rendered by the screens PR.
+     */
+    signInCard: {
+      notArrived: `${COPY_PENDING} If the email hasn't arrived in a few minutes, write to me at {contact}.`,
+    },
   },
 } as const;

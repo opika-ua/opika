@@ -1,0 +1,161 @@
+import { uk } from "@opika/i18n";
+import { describe, expect, it } from "vitest";
+import type { BlockedStatus, OutgoingEmail } from "./email-provider";
+import {
+  maskAddress,
+  type ProviderMail,
+  providerInvitationSender,
+  providerMagicLinkSender,
+  sendChecked,
+} from "./email-senders";
+
+/** IN-E7: check the block list before sending; every way a send goes wrong is an outcome, never a throw. */
+
+const email: OutgoingEmail = { to: "olena@example.org", subject: "S", html: "<p>H</p>", text: "T" };
+
+function mail(
+  status: BlockedStatus | (() => never),
+  options: { refuseCopyPending?: boolean; sendFails?: boolean } = {},
+) {
+  const sent: OutgoingEmail[] = [];
+  const asked: string[] = [];
+  const provider: ProviderMail = {
+    sender: {
+      async send(message) {
+        if (options.sendFails)
+          throw new Error("Email provider brevo refused the send (status 500).");
+        sent.push(message);
+        return { status: 201, messageId: "m" };
+      },
+    },
+    async blockedStatus(address) {
+      asked.push(address);
+      return typeof status === "function" ? status() : status;
+    },
+    refuseCopyPending: options.refuseCopyPending ?? false,
+  };
+  return { provider, sent, asked };
+}
+
+describe("sendChecked", () => {
+  it("sends to an address that isn't blocked: sent", async () => {
+    const m = mail({ kind: "not_blocked" });
+    expect(await sendChecked(m.provider, email)).toEqual({ kind: "sent" });
+    expect(m.asked).toEqual(["olena@example.org"]);
+    expect(m.sent).toEqual([email]);
+  });
+
+  it("sends nothing to a blocked address, and says why", async () => {
+    const m = mail({ kind: "blocked", reason: "spam_complaint" });
+    expect(await sendChecked(m.provider, email)).toEqual({
+      kind: "blocked",
+      reason: "spam_complaint",
+    });
+    expect(m.sent).toEqual([]);
+  });
+
+  it("still sends when the block list can't be read (unknown, or a lookup that throws)", async () => {
+    const unknown = mail({ kind: "unknown", why: "provider_error" });
+    expect(await sendChecked(unknown.provider, email)).toEqual({ kind: "sent" });
+    const throwing = mail(() => {
+      throw new Error("lookup down");
+    });
+    expect(await sendChecked(throwing.provider, email)).toEqual({ kind: "sent" });
+    expect(throwing.sent).toHaveLength(1);
+  });
+
+  it("a refused send is failed: provider_error, never a throw", async () => {
+    const m = mail({ kind: "not_blocked" }, { sendFails: true });
+    expect(await sendChecked(m.provider, email)).toEqual({
+      kind: "failed",
+      reason: "provider_error",
+    });
+  });
+
+  it("in production, refuses [COPY PENDING] text in any part, before asking the provider anything (IN-Q5)", async () => {
+    for (const part of ["subject", "html", "text"] as const) {
+      const m = mail({ kind: "not_blocked" }, { refuseCopyPending: true });
+      const pendingEmail = { ...email, [part]: `x ${uk.kabinet.email.signIn.action}` };
+      expect(await sendChecked(m.provider, pendingEmail), part).toEqual({
+        kind: "failed",
+        reason: "copy_pending",
+      });
+      expect(m.asked).toEqual([]);
+      expect(m.sent).toEqual([]);
+    }
+    const outside = mail({ kind: "not_blocked" });
+    expect(
+      await sendChecked(outside.provider, { ...email, text: uk.kabinet.email.signIn.action }),
+    ).toEqual({ kind: "sent" });
+  });
+});
+
+describe("maskAddress", () => {
+  it("keeps the first character and the domain", () => {
+    expect(maskAddress("olena@gmail.com")).toBe("o•••@gmail.com");
+    expect(maskAddress("not-an-address")).toBe("•••");
+    expect(maskAddress("@x.org")).toBe("•••");
+  });
+});
+
+describe("providerMagicLinkSender", () => {
+  const URL_WITH_TOKEN = "https://example.org/kabinet/vkhid/pidtverdzhennia?token=SECRET-TOKEN";
+
+  it("logs a blocked or failed send with the address masked, never the link or the full address", async () => {
+    for (const [m, expected] of [
+      [mail({ kind: "blocked", reason: "unsubscribed" }), "blocked (unsubscribed)"],
+      [mail({ kind: "not_blocked" }, { sendFails: true }), "failed (provider_error)"],
+    ] as const) {
+      const lines: string[] = [];
+      await providerMagicLinkSender(m.provider, { ttlMinutes: 15, log: (l) => lines.push(l) }).send(
+        {
+          email: "olena@example.org",
+          url: URL_WITH_TOKEN,
+        },
+      );
+      expect(lines).toEqual([`[kabinet] sign-in email to o•••@example.org not sent: ${expected}`]);
+      expect(lines.join("")).not.toContain("SECRET-TOKEN");
+      expect(lines.join("")).not.toContain("olena@");
+    }
+  });
+
+  it("logs nothing for a sent email, and sends the magic-link email itself", async () => {
+    const m = mail({ kind: "not_blocked" });
+    const lines: string[] = [];
+    await providerMagicLinkSender(m.provider, { ttlMinutes: 15, log: (l) => lines.push(l) }).send({
+      email: "olena@example.org",
+      url: URL_WITH_TOKEN,
+    });
+    expect(lines).toEqual([]);
+    expect(m.sent[0]?.subject).toBe(uk.kabinet.email.signIn.subject);
+    expect(m.sent[0]?.text.split("\n")).toContain(URL_WITH_TOKEN);
+  });
+});
+
+describe("providerInvitationSender", () => {
+  it("sends the invitation email and returns the checked outcome", async () => {
+    const m = mail({ kind: "not_blocked" });
+    const outcome = await providerInvitationSender(m.provider).send({
+      email: "olena@example.org",
+      shelterName: "Лапа",
+      operatorName: "Олексій",
+      url: "https://example.org/kabinet/vkhid?zaproshennia=1",
+      validForHours: 72,
+    });
+    expect(outcome).toEqual({ kind: "sent" });
+    expect(m.sent[0]).toMatchObject({
+      to: "olena@example.org",
+      subject: uk.kabinet.email.invite.subject,
+    });
+    const blocked = mail({ kind: "blocked", reason: "hard_bounce" });
+    expect(
+      await providerInvitationSender(blocked.provider).send({
+        email: "olena@example.org",
+        shelterName: "Лапа",
+        operatorName: "Олексій",
+        url: "https://example.org/kabinet/vkhid?zaproshennia=1",
+        validForHours: 72,
+      }),
+    ).toEqual({ kind: "blocked", reason: "hard_bounce" });
+  });
+});

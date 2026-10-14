@@ -5,6 +5,7 @@ import type { ModeratorId, Shelter, ShelterAdminId } from "@opika/domain";
 import { testOnlyLocationPolicy } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { KabinetPrincipal } from "../kabinet/actor";
+import { capturingInvitationSender } from "../kabinet/email-senders";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
 import { inMemoryRateLimiter } from "./rate-limit";
 import { fromRpcBody, toRpcBody } from "./test-harness";
@@ -53,6 +54,7 @@ async function call(path: string, input: unknown, principal: KabinetPrincipal) {
     availability: {
       kind: "available",
       sender: { send: async () => {} },
+      invites: capturingInvitationSender(),
       secret: "x",
       baseURL: "http://localhost",
     },

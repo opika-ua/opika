@@ -101,6 +101,42 @@ export const ShelterAdminViewSchema = z.object({
 });
 export type ShelterAdminView = z.infer<typeof ShelterAdminViewSchema>;
 
+/**
+ * Why an email was not handed to the provider for delivery. Provider-neutral
+ * names: the provider's own codes are mapped in the app's email module.
+ */
+export const EMAIL_BLOCK_REASONS = [
+  "unsubscribed",
+  "hard_bounce",
+  "spam_complaint",
+  "admin_blocked",
+] as const;
+
+/**
+ * What became of one operator-triggered invitation email (IN-E7, Oleksii,
+ * 2026-10-14: "the operator UI shows the send result directly"). The
+ * operator typed the address, so reporting it leaks nothing.
+ *
+ * `sent` means the provider accepted it, not that it reached an inbox: no
+ * provider can say that synchronously. `blocked` means the provider holds the
+ * address on its block list, so nothing was sent; `failed` means the provider
+ * refused or didn't answer (`provider_error`), or the text was still a
+ * placeholder in production (`copy_pending`, IN-Q5). The invitation itself is
+ * written either way; a resend retries the email.
+ */
+export const EmailSendOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("sent") }),
+  z.object({ kind: z.literal("blocked"), reason: z.enum(EMAIL_BLOCK_REASONS) }),
+  z.object({ kind: z.literal("failed"), reason: z.enum(["provider_error", "copy_pending"]) }),
+]);
+export type EmailSendOutcome = z.infer<typeof EmailSendOutcomeSchema>;
+
+/** `registry.admins.invite`: the admin, plus what became of this call's email. */
+export const InvitedAdminViewSchema = ShelterAdminViewSchema.extend({
+  invitationEmail: EmailSendOutcomeSchema,
+});
+export type InvitedAdminView = z.infer<typeof InvitedAdminViewSchema>;
+
 /** S3/S4: operator-only, the full record including evidence and moderator ids. */
 export const RegistryShelterViewSchema = ShelterSchema.pick({
   id: true,
@@ -119,6 +155,17 @@ export const RegistryShelterViewSchema = ShelterSchema.pick({
   version: true,
 }).extend({ admins: z.array(ShelterAdminViewSchema).readonly() });
 export type RegistryShelterView = z.infer<typeof RegistryShelterViewSchema>;
+
+/**
+ * `registry.shelters.create`: the record, plus what became of the first
+ * admin's invitation email. Null when no invitation was written (the
+ * first admin's address was taken by a race after the pre-check), which the
+ * empty `admins` list already shows.
+ */
+export const CreatedShelterViewSchema = RegistryShelterViewSchema.extend({
+  firstAdminInvitationEmail: EmailSendOutcomeSchema.nullable(),
+});
+export type CreatedShelterView = z.infer<typeof CreatedShelterViewSchema>;
 
 /** Operator-only. Already shape-only in S2b; the history table ships with its writers. */
 export const HistoryEntryViewSchema = ShelterHistoryEntrySchema;

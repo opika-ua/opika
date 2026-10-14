@@ -1,6 +1,7 @@
 import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
 import type { KabinetPrincipal } from "./actor";
+import type { InvitationSender } from "./email-senders";
 
 /**
  * What every kabinet request starts with, before access is decided. `now`
@@ -28,4 +29,8 @@ export type KabinetContext = {
   cookieHeader: string | null;
   /** `__Host-` cookies and Secure only in production. */
   production: boolean;
+  /** How an invitee hears of an invitation (IN-Q3); its outcome goes back to the operator (IN-E7). */
+  invites: InvitationSender;
+  /** The origin emailed links point at (`BETTER_AUTH_URL`), the same one the magic link uses. */
+  linkBaseURL: string;
 };

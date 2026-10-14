@@ -23,6 +23,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import type { KabinetPrincipal } from "./actor";
+import { capturingInvitationSender, type InvitationSender } from "./email-senders";
 import { handleKabinetRpc } from "./rpc-route";
 
 /**
@@ -47,9 +48,12 @@ const asOperator: KabinetPrincipal = { kind: "super_admin", moderatorId: OPERATO
 const policy = testOnlyLocationPolicy("registry-test");
 let cityId: string;
 let otherCityId: string;
+/** What the invitation emails do in this test; reset to "sent" before each. */
+let invites: InvitationSender & { readonly sent: { email: string; url: string }[] };
 
 beforeEach(async () => {
   await truncateAll(db);
+  invites = capturingInvitationSender();
   const city = makeCity();
   const other = makeCity();
   await cityRepo(db).insert(city);
@@ -94,6 +98,7 @@ async function call<T = Record<string, unknown>>(
     availability: {
       kind: "available",
       sender: { send: async () => {} },
+      invites,
       secret: "x",
       baseURL: "http://localhost",
     },
@@ -947,5 +952,126 @@ describe("registry.support.enter / session.exitSupport", () => {
     expect(
       (await call("registry.shelters.byId", { shelterId: a.id }, { principal: asSupport })).status,
     ).toBe(403);
+  });
+});
+
+// ─── invitation emails (IN-Q3, IN-E7) ───────────────────────────────────────
+
+describe("invitation emails: every write that makes an invitation live sends one, and the operator sees the outcome (IN-E7)", () => {
+  const INVITE_URL = /^http:\/\/localhost\/kabinet\/vkhid\?zaproshennia=([0-9a-f-]{36})$/;
+
+  const pendingInvitationIds = async () =>
+    (await db.select().from(authInvitation))
+      .filter((row) => row.status === "pending")
+      .map((row) => row.id);
+
+  it("invite: emails a link to the invite landing for exactly that invitation, and returns `sent`", async () => {
+    const s = await shelter();
+    const invited = await call<{ invitationEmail: unknown }>("registry.admins.invite", {
+      shelterId: s.id,
+      name: "Олена",
+      email: "olena@example.org",
+    });
+    expect(invited.status).toBe(200);
+    expect(invited.body.invitationEmail).toEqual({ kind: "sent" });
+    expect(invites.sent).toEqual([
+      {
+        email: "olena@example.org",
+        shelterName: s.displayName,
+        operatorName: "Олексій",
+        url: expect.stringMatching(INVITE_URL),
+        validForHours: 72,
+      },
+    ]);
+    const id = INVITE_URL.exec(invites.sent[0]?.url ?? "")?.[1];
+    expect(await pendingInvitationIds()).toEqual([id]);
+  });
+
+  it("invite: a blocked address is reported as blocked, with the reason, and the invitation still stands", async () => {
+    invites = capturingInvitationSender({ kind: "blocked", reason: "unsubscribed" });
+    const s = await shelter();
+    const invited = await call<{ invitationEmail: unknown; invite: unknown }>(
+      "registry.admins.invite",
+      { shelterId: s.id, name: "Олена", email: "olena@example.org" },
+    );
+    expect(invited.status).toBe(200);
+    expect(invited.body.invitationEmail).toEqual({ kind: "blocked", reason: "unsubscribed" });
+    expect(invited.body.invite).toMatchObject({ status: "pending" });
+    expect(await pendingInvitationIds()).toHaveLength(1);
+  });
+
+  it("invite: a sender that throws is `failed: provider_error`, never a 500, and the invitation stands", async () => {
+    const throwing = capturingInvitationSender();
+    invites = Object.assign(throwing, {
+      send: async () => {
+        throw new Error("provider down");
+      },
+    });
+    const s = await shelter();
+    const invited = await call<{ invitationEmail: unknown }>("registry.admins.invite", {
+      shelterId: s.id,
+      name: "Олена",
+      email: "olena@example.org",
+    });
+    expect(invited.status).toBe(200);
+    expect(invited.body.invitationEmail).toEqual({ kind: "failed", reason: "provider_error" });
+    expect(await pendingInvitationIds()).toHaveLength(1);
+  });
+
+  it("resendInvite: emails the same invitation again and returns the outcome", async () => {
+    const s = await shelter();
+    const invited = await call<{ id: string }>("registry.admins.invite", {
+      shelterId: s.id,
+      name: "Олена",
+      email: "olena@example.org",
+    });
+    invites = capturingInvitationSender({ kind: "failed", reason: "provider_error" });
+    const resent = await call<{ invitationEmail: unknown }>("registry.admins.resendInvite", {
+      shelterId: s.id,
+      adminId: invited.body.id,
+    });
+    expect(resent.status).toBe(200);
+    expect(resent.body).toEqual({ invitationEmail: { kind: "failed", reason: "provider_error" } });
+    const [id] = await pendingInvitationIds();
+    expect(invites.sent.map((m) => m.url)).toEqual([
+      `http://localhost/kabinet/vkhid?zaproshennia=${id}`,
+    ]);
+  });
+
+  it("create: emails the first admin and returns the outcome beside the record", async () => {
+    invites = capturingInvitationSender({ kind: "blocked", reason: "hard_bounce" });
+    const input = createInput();
+    const created = await call<{ firstAdminInvitationEmail: unknown; displayName: string }>(
+      "registry.shelters.create",
+      input,
+    );
+    expect(created.status).toBe(200);
+    expect(created.body.firstAdminInvitationEmail).toEqual({
+      kind: "blocked",
+      reason: "hard_bounce",
+    });
+    expect(invites.sent).toEqual([
+      expect.objectContaining({
+        email: "olena@example.org",
+        shelterName: created.body.displayName,
+      }),
+    ]);
+  });
+
+  it("a refused invite sends nothing", async () => {
+    const a = await shelter();
+    const b = await shelter();
+    await call("registry.admins.invite", {
+      shelterId: a.id,
+      name: "О",
+      email: "olena@example.org",
+    });
+    const refused = await call("registry.admins.invite", {
+      shelterId: b.id,
+      name: "О",
+      email: "olena@example.org",
+    });
+    expect(refused.status).toBe(409);
+    expect(invites.sent).toHaveLength(1);
   });
 });

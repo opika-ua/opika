@@ -22,6 +22,8 @@ import {
   type KabinetAuthAvailability,
   kabinetAuthAvailability,
 } from "./auth-route";
+import type { OutgoingEmail } from "./email-provider";
+import { capturingInvitationSender, providerMagicLinkSender } from "./email-senders";
 import { capturingSender } from "./magic-link-sender";
 import { kabinetIdentityOf } from "./principal";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
@@ -78,6 +80,7 @@ beforeEach(async () => {
 const available: KabinetAuthAvailability = {
   kind: "available",
   sender: capturingSender(),
+  invites: capturingInvitationSender(),
   secret: "unused-here",
   baseURL: BASE,
 };
@@ -155,6 +158,57 @@ describe("magic-link sign-in", () => {
     );
     expect([unknown.status, await unknown.text()]).toEqual([known.status, await known.text()]);
     expect(sender.sent.map((m) => m.email)).toEqual(["known@example.org"]);
+  });
+
+  /**
+   * IN-E7 (Oleksii, 2026-10-14): "the sign-in card response is identical for
+   * an existing, a non-existent and a blocked address". The production
+   * sender is used here for real, over a fake provider whose block list holds
+   * one address: the blocked address is sent nothing, a masked line is
+   * logged, and the response can't tell any of the three apart.
+   */
+  it("answers an existing, a non-existent and a blocked address identically; the blocked one is logged masked and sent nothing", async () => {
+    const delivered: OutgoingEmail[] = [];
+    const logged: string[] = [];
+    auth = createKabinetAuth({
+      db,
+      sender: providerMagicLinkSender(
+        {
+          sender: {
+            send: async (email) => {
+              delivered.push(email);
+              return { status: 201, messageId: null };
+            },
+          },
+          blockedStatus: async (address) =>
+            address === "blocked@example.org"
+              ? { kind: "blocked", reason: "unsubscribed" }
+              : { kind: "not_blocked" },
+          refuseCopyPending: false,
+        },
+        { ttlMinutes: 15, log: (line) => logged.push(line) },
+      ),
+      schedule: (work) => {
+        pending.push(work());
+      },
+      baseURL: BASE,
+      secret: "test-only-secret-that-is-long-enough-0123456789",
+      secureCookies: false,
+    });
+    await createUser("known@example.org");
+    await createUser("blocked@example.org");
+    const answers = [];
+    for (const email of ["known@example.org", "nobody@example.org", "blocked@example.org"]) {
+      const response = await route(post("/api/auth/sign-in/magic-link", { email }));
+      answers.push([response.status, await response.text()]);
+    }
+    expect(answers[0]?.[0]).toBe(200);
+    expect(answers[1]).toEqual(answers[0]);
+    expect(answers[2]).toEqual(answers[0]);
+    expect(delivered.map((email) => email.to)).toEqual(["known@example.org"]);
+    expect(logged).toEqual([
+      "[kabinet] sign-in email to b•••@example.org not sent: blocked (unsubscribed)",
+    ]);
   });
 
   /**

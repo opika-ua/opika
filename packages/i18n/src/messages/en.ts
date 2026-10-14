@@ -436,5 +436,26 @@ export const en = {
       viewingAs: "as the shelter administrator",
       signOutDisabled: "Sign-out disabled",
     },
+    /** Mirrors uk.ts: placeholders until the Ukrainian lands (IN-Q5). */
+    email: {
+      signIn: {
+        subject: `${COPY_PENDING} A sign-in link for the shelters' cabinet.`,
+        intro: `${COPY_PENDING} Someone asked to sign in with this address.`,
+        action: `${COPY_PENDING} Open the sign-in page`,
+        expiry: `${COPY_PENDING} The link works once and expires in {minutes} minutes.`,
+        notYou: `${COPY_PENDING} If you didn't ask for this, ignore the email: nothing happens without the link.`,
+      },
+      invite: {
+        subject: `${COPY_PENDING} You're invited to manage a shelter's listings in the registry.`,
+        intro: `${COPY_PENDING} {operator} invited this address to administer {shelter}.`,
+        what: `${COPY_PENDING} What the cabinet lets you do.`,
+        action: `${COPY_PENDING} Open the invitation`,
+        expiry: `${COPY_PENDING} The invitation stays valid for {hours} hours; the operator can send it again.`,
+        notYou: `${COPY_PENDING} If this isn't expected, ignore it: nobody gets access without signing in from this address.`,
+      },
+    },
+    signInCard: {
+      notArrived: `${COPY_PENDING} If the email hasn't arrived in a few minutes, write to me at {contact}.`,
+    },
   },
 } as const;

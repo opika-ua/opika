@@ -1,7 +1,14 @@
-import type { apiErrors, RegistryShelterView, ShelterAdminView } from "@opika/contracts";
+import type {
+  apiErrors,
+  CreatedShelterView,
+  EmailSendOutcome,
+  InvitedAdminView,
+  ShelterAdminView,
+} from "@opika/contracts";
 import {
   type AddressRole,
   cityRepo,
+  INVITATION_TTL_MS,
   kabinetInvitationRepo,
   kabinetInvitedUsersRepo,
   kabinetRegistryRepo,
@@ -24,6 +31,7 @@ import {
   type ShelterLegalEntity,
 } from "@opika/domain";
 import { ORPCError, type ORPCErrorConstructorMap } from "@orpc/server";
+import { INVITE_LINK, linkTo } from "../email-links";
 import { loadShelterOr404, type RegistryDeps, registryShelterView } from "./registry-reads";
 import { acceptEvidence } from "./registry-writes";
 
@@ -36,8 +44,11 @@ import { acceptEvidence } from "./registry-writes";
  * condition flipping, because that is the day a shelter can sign in and the
  * /prytulkam copy (A1–A3, B1) has to be live.
  *
- * Nothing here sends an email. The invitation exists in the database; how
- * the invitee hears of it arrives with the provider in the invite PR.
+ * Each write that makes an invitation live (create's first admin, invite,
+ * resend) emails the invitee a link to the invite landing (IN-Q3), after the
+ * write and never deciding it, and returns what became of the email so the
+ * operator sees it directly (IN-E7, Oleksii, 2026-10-14). A failed or blocked
+ * email leaves the invitation in place; a resend retries the email.
  */
 
 type E<K extends keyof typeof apiErrors> = ORPCErrorConstructorMap<Pick<typeof apiErrors, K>>;
@@ -57,19 +68,39 @@ async function cleanUpInvitedUsers(deps: RegistryDeps, organizationId: string): 
 const organizationOf = (deps: RegistryDeps, shelterId: ShelterId): Promise<string | null> =>
   kabinetRegistryRepo(deps.db).organizationIdOf(shelterId);
 
+/** The invite email for one live invitation. Never throws: a sender that does is `provider_error`. */
+async function emailInvitation(
+  deps: RegistryDeps,
+  input: { email: string; shelterName: string; invitationId: string },
+): Promise<EmailSendOutcome> {
+  try {
+    return await deps.invites.send({
+      email: input.email,
+      shelterName: input.shelterName,
+      operatorName: deps.operatorDisplayName,
+      url: linkTo(deps.linkBaseURL, INVITE_LINK, input.invitationId),
+      validForHours: Math.round(INVITATION_TTL_MS / 3_600_000),
+    });
+  } catch {
+    return { kind: "failed", reason: "provider_error" };
+  }
+}
+
 async function invite(
   deps: RegistryDeps,
   moderatorId: ModeratorId,
-  input: { shelterId: ShelterId; name: string; email: string },
+  input: { shelterId: ShelterId; shelterName: string; name: string; email: string },
 ): Promise<
-  { kind: "invited"; view: ShelterAdminView } | { kind: "address_has_a_role"; reason: AddressRole }
+  | { kind: "invited"; view: ShelterAdminView; email: EmailSendOutcome }
+  | { kind: "address_has_a_role"; reason: AddressRole }
 > {
+  const invitationId = deps.newId();
   const result = await kabinetInvitationRepo(deps.db).invite({
     shelterId: input.shelterId,
     email: input.email,
     name: input.name,
     inviterUserId: moderatorId,
-    ids: { invitationId: deps.newId(), userId: deps.newId(), organizationId: deps.newId() },
+    ids: { invitationId, userId: deps.newId(), organizationId: deps.newId() },
     now: deps.now,
     // Written in the invitation's own statement: no invitation without its line.
     history: {
@@ -86,8 +117,14 @@ async function invite(
   const admins = await kabinetRegistryRepo(deps.db).adminsOf(input.shelterId);
   const row = admins.find((admin) => admin.userId === result.userId);
   if (row === undefined) throw new Error(`Invited user ${result.userId} missing from admins`);
+  const email = await emailInvitation(deps, {
+    email: row.email,
+    shelterName: input.shelterName,
+    invitationId,
+  });
   return {
     kind: "invited",
+    email,
     view: {
       id: row.userId as ShelterAdminId,
       name: row.name,
@@ -125,7 +162,7 @@ export async function registrySheltersCreate(
     firstAdmin: { name: string; email: string };
   },
   errors: E<"INVALID_EVIDENCE" | "ADDRESS_HAS_A_ROLE">,
-): Promise<RegistryShelterView> {
+): Promise<CreatedShelterView> {
   const accepted = acceptEvidence(input.evidence, { moderatorId, now: deps.now });
   if (accepted.kind === "refused") {
     throw errors.INVALID_EVIDENCE({ data: { reason: accepted.reason } });
@@ -167,14 +204,21 @@ export async function registrySheltersCreate(
     id: deps.newId(),
     entry: { kind: "shelter_created", at: deps.now, moderatorId, via: "registry" },
   });
-  await invite(deps, moderatorId, { shelterId: id, ...input.firstAdmin });
+  const invited = await invite(deps, moderatorId, {
+    shelterId: id,
+    shelterName: input.displayName,
+    ...input.firstAdmin,
+  });
   // Lost the race on the first admin's address after the check above: the
   // shelter exists now, so answering ADDRESS_HAS_A_ROLE would invite a retry
   // that creates a second one (review, finding 3). The view it returns shows
   // no admin, which is the truth, and S4's invite completes it.
   const created = await shelterRepo(deps.db).findById(id);
   if (created === null) throw new Error(`Shelter ${id} vanished right after creation`);
-  return registryShelterView(deps, created);
+  return {
+    ...(await registryShelterView(deps, created)),
+    firstAdminInvitationEmail: invited.kind === "invited" ? invited.email : null,
+  };
 }
 
 // ─── admins ─────────────────────────────────────────────────────────────────
@@ -184,15 +228,15 @@ export async function registryAdminsInvite(
   moderatorId: ModeratorId,
   input: { shelterId: ShelterId; name: string; email: string },
   errors: E<"ADDRESS_HAS_A_ROLE" | "NOT_FOUND">,
-): Promise<ShelterAdminView> {
-  await loadShelterOr404(deps, input.shelterId, errors);
+): Promise<InvitedAdminView> {
+  const shelter = await loadShelterOr404(deps, input.shelterId, errors);
   const organizationId = await organizationOf(deps, input.shelterId);
   if (organizationId !== null) await cleanUpInvitedUsers(deps, organizationId);
-  const invited = await invite(deps, moderatorId, input);
+  const invited = await invite(deps, moderatorId, { ...input, shelterName: shelter.displayName });
   if (invited.kind === "address_has_a_role") {
     throw errors.ADDRESS_HAS_A_ROLE({ data: { reason: invited.reason } });
   }
-  return invited.view;
+  return { ...invited.view, invitationEmail: invited.email };
 }
 
 /** Who `adminId` is on this shelter: a member, a pending invitation, or nobody here. */
@@ -201,14 +245,17 @@ async function adminOn(deps: RegistryDeps, shelterId: ShelterId, adminId: Shelte
   return admins.find((admin) => admin.userId === adminId) ?? null;
 }
 
-/** A pending admin's link, valid again for the full 72 hours. A member has nothing to resend: NOT_FOUND. */
+/**
+ * A pending admin's link, valid again for the full 72 hours, emailed again.
+ * A member has nothing to resend: NOT_FOUND.
+ */
 export async function registryAdminsResendInvite(
   deps: RegistryDeps,
   moderatorId: ModeratorId,
   input: { shelterId: ShelterId; adminId: ShelterAdminId },
   errors: E<"NOT_FOUND" | "ADDRESS_HAS_A_ROLE">,
-): Promise<Record<string, never>> {
-  await loadShelterOr404(deps, input.shelterId, errors);
+): Promise<{ invitationEmail: EmailSendOutcome }> {
+  const shelter = await loadShelterOr404(deps, input.shelterId, errors);
   const organizationId = await organizationOf(deps, input.shelterId);
   if (organizationId === null) throw errors.NOT_FOUND();
   await cleanUpInvitedUsers(deps, organizationId);
@@ -216,21 +263,25 @@ export async function registryAdminsResendInvite(
   if (admin === null || admin.invite.status !== "pending") throw errors.NOT_FOUND();
   const invitations = kabinetInvitationRepo(deps.db);
   const latest = await invitations.latestPending(organizationId, admin.email);
-  const resent =
-    latest === null
-      ? null
-      : await invitations.resend(latest.id, deps.now, {
-          id: deps.newId(),
-          shelterId: input.shelterId,
-          entry: { kind: "admin_invitation_resent", at: deps.now, moderatorId, email: admin.email },
-        });
+  if (latest === null) throw errors.NOT_FOUND();
+  const resent = await invitations.resend(latest.id, deps.now, {
+    id: deps.newId(),
+    shelterId: input.shelterId,
+    entry: { kind: "admin_invitation_resent", at: deps.now, moderatorId, email: admin.email },
+  });
   // The role check lives in the repo's resend, at the write (every path
   // that makes an invitation live again checks it, Oleksii 2026-10-13).
-  if (resent === null || resent.kind === "not_pending") throw errors.NOT_FOUND();
+  if (resent.kind === "not_pending") throw errors.NOT_FOUND();
   if (resent.kind === "address_has_a_role") {
     throw errors.ADDRESS_HAS_A_ROLE({ data: { reason: resent.reason } });
   }
-  return {};
+  return {
+    invitationEmail: await emailInvitation(deps, {
+      email: admin.email,
+      shelterName: shelter.displayName,
+      invitationId: latest.id,
+    }),
+  };
 }
 
 /**

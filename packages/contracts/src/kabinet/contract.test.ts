@@ -10,6 +10,9 @@ import {
   registryVerificationContract,
 } from "./procedures";
 import {
+  CreatedShelterViewSchema,
+  EmailSendOutcomeSchema,
+  InvitedAdminViewSchema,
   KabinetAnimalRowViewSchema,
   KabinetAnimalViewSchema,
   KabinetShelterViewSchema,
@@ -289,6 +292,28 @@ describe("kabinet views carry exactly their listed keys", () => {
 
   it("ShelterAdminView", () => {
     expect(keys(ShelterAdminViewSchema)).toEqual(["id", "name", "email", "invite"].sort());
+  });
+
+  it("InvitedAdminView: the admin plus this call's email outcome, nothing else (IN-E7)", () => {
+    expect(keys(InvitedAdminViewSchema)).toEqual(
+      ["id", "name", "email", "invite", "invitationEmail"].sort(),
+    );
+  });
+
+  it("CreatedShelterView: the record plus the first admin's email outcome (IN-E7)", () => {
+    expect(keys(CreatedShelterViewSchema)).toEqual(
+      [...keys(RegistryShelterViewSchema), "firstAdminInvitationEmail"].sort(),
+    );
+  });
+
+  it("EmailSendOutcome: sent, blocked with a reason, or failed with a reason; no address, no provider detail", () => {
+    const variants = EmailSendOutcomeSchema.options.map((option) => keys(option));
+    expect(variants).toEqual([["kind"], ["kind", "reason"], ["kind", "reason"]]);
+    expect(
+      EmailSendOutcomeSchema.safeParse({ kind: "blocked", reason: "unsubscribed" }).success,
+    ).toBe(true);
+    expect(EmailSendOutcomeSchema.safeParse({ kind: "blocked" }).success).toBe(false);
+    expect(EmailSendOutcomeSchema.safeParse({ kind: "delivered" }).success).toBe(false);
   });
 });
 

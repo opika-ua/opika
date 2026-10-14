@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  BLOCKED_MAX_PAGES,
+  BLOCKED_PAGE_SIZE,
+  blockedStatusOf,
   type EmailProviderConfig,
   emailProviderConfigOf,
   fetchEmailSender,
@@ -199,5 +202,140 @@ describe("emailProviderConfigOf", () => {
         "invalid",
       );
     }
+  });
+});
+
+describe("blockedStatusOf (IN-E7): Brevo's transactional block list, asked before a send", () => {
+  type Contact = { email: string; reason: { code: string } };
+  const page = (contacts: Contact[], count = contacts.length) =>
+    new Response(JSON.stringify({ count, contacts }), { status: 200 });
+  const blocked = (email: string, code = "unsubscribedViaEmail"): Contact => ({
+    email,
+    reason: { code },
+  });
+  const others = (n: number, from = 0) =>
+    Array.from({ length: n }, (_, i) => blocked(`other${from + i}@example.org`, "hardBounce"));
+  const pages = (...responses: (() => Response)[]) => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const fetchImpl = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      const next = responses[calls.length - 1];
+      if (next === undefined) throw new Error("no more pages");
+      return next();
+    }) as unknown as typeof fetch;
+    return { calls, fetchImpl };
+  };
+
+  it("asks Brevo's documented endpoint with the key, a GET, and never the address", async () => {
+    const { calls, fetchImpl } = pages(() => page([]));
+    await blockedStatusOf(config("brevo"), "olena@example.org", fetchImpl);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toBe(
+      "https://api.brevo.com/v3/smtp/blockedContacts?limit=100&offset=0&sort=desc",
+    );
+    expect(calls[0]?.init.method).toBe("GET");
+    expect(calls[0]?.init.headers).toMatchObject({ "api-key": "key-123" });
+    expect(calls[0]?.url).not.toContain("olena");
+  });
+
+  it("finds the address case-insensitively and maps each documented reason", async () => {
+    const cases = {
+      unsubscribedViaEmail: "unsubscribed",
+      unsubscribedViaApi: "unsubscribed",
+      unsubscribedViaMA: "unsubscribed",
+      hardBounce: "hard_bounce",
+      contactFlaggedAsSpam: "spam_complaint",
+      adminBlocked: "admin_blocked",
+      somethingNew: "admin_blocked",
+    } as const;
+    for (const [code, reason] of Object.entries(cases)) {
+      const { fetchImpl } = pages(() => page([blocked("Olena@Example.org", code)]));
+      expect(
+        await blockedStatusOf(config("brevo"), " olena@example.org ", fetchImpl),
+        code,
+      ).toEqual({
+        kind: "blocked",
+        reason,
+      });
+    }
+  });
+
+  it("is not_blocked when a short page ends the list without the address", async () => {
+    const { calls, fetchImpl } = pages(() => page(others(3)));
+    expect(await blockedStatusOf(config("brevo"), "olena@example.org", fetchImpl)).toEqual({
+      kind: "not_blocked",
+    });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("pages on to find the address past the first page", async () => {
+    const { calls, fetchImpl } = pages(
+      () => page(others(BLOCKED_PAGE_SIZE), 101),
+      () => page([blocked("olena@example.org")], 101),
+    );
+    expect(await blockedStatusOf(config("brevo"), "olena@example.org", fetchImpl)).toEqual({
+      kind: "blocked",
+      reason: "unsubscribed",
+    });
+    expect(calls[1]?.url).toContain("offset=100");
+  });
+
+  it("stops at the count when the last page is exactly full", async () => {
+    const { calls, fetchImpl } = pages(() => page(others(BLOCKED_PAGE_SIZE), BLOCKED_PAGE_SIZE));
+    expect((await blockedStatusOf(config("brevo"), "olena@example.org", fetchImpl)).kind).toBe(
+      "not_blocked",
+    );
+    expect(calls).toHaveLength(1);
+  });
+
+  it("answers unknown, never not_blocked, past the page limit", async () => {
+    const total = BLOCKED_PAGE_SIZE * (BLOCKED_MAX_PAGES + 1);
+    const full = Array.from(
+      { length: BLOCKED_MAX_PAGES },
+      (_, n) => () => page(others(BLOCKED_PAGE_SIZE, n * BLOCKED_PAGE_SIZE), total),
+    );
+    const { calls, fetchImpl } = pages(...full);
+    expect(await blockedStatusOf(config("brevo"), "olena@example.org", fetchImpl)).toEqual({
+      kind: "unknown",
+      why: "list_too_long",
+    });
+    expect(calls).toHaveLength(BLOCKED_MAX_PAGES);
+  });
+
+  it("answers unknown on a refusal, a throw, a body of the wrong shape, or a timeout", async () => {
+    const bad = [
+      () => new Response("{}", { status: 401 }),
+      () => {
+        throw new TypeError("network");
+      },
+      () => new Response("not json", { status: 200 }),
+      () => new Response(JSON.stringify({ count: 1 }), { status: 200 }),
+    ];
+    for (const respond of bad) {
+      const { fetchImpl } = pages(respond);
+      expect(await blockedStatusOf(config("brevo"), "a@example.org", fetchImpl)).toEqual({
+        kind: "unknown",
+        why: "provider_error",
+      });
+    }
+    const hang = ((_url: string, init: RequestInit) =>
+      new Promise((_, reject) =>
+        init.signal?.addEventListener("abort", () => reject(init.signal?.reason)),
+      )) as unknown as typeof fetch;
+    expect(await blockedStatusOf(config("brevo"), "a@example.org", hang, 20)).toEqual({
+      kind: "unknown",
+      why: "provider_error",
+    });
+  });
+
+  it("answers unknown for a provider whose list this doesn't read, without calling it", async () => {
+    const { calls, fetchImpl } = pages();
+    for (const provider of ["resend", "postmark"] as const) {
+      expect(await blockedStatusOf(config(provider), "a@example.org", fetchImpl)).toEqual({
+        kind: "unknown",
+        why: "unsupported_provider",
+      });
+    }
+    expect(calls).toHaveLength(0);
   });
 });
