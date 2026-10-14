@@ -3,7 +3,7 @@
  * this as `PRELAUNCH_GATE_SECRET`) and `test/harness/prelaunch-gate.setup.ts`
  * (which opens the gate with it) — one literal, not two copies that could
  * drift apart. Recognizable as a test value, not a real secret, same
- * reasoning as `playwright.config.ts`'s own `CURSOR_HMAC_SECRET`.
+ * reasoning as `CURSOR_HMAC_SECRET` below.
  */
 export const HARNESS_PRELAUNCH_GATE_SECRET = "test-prelaunch-gate-secret-for-harness";
 

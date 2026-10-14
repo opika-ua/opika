@@ -31,7 +31,8 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import { createDatabase } from "@opika/db";
-import { authUser } from "@opika/db/schema";
+import { kabinetInvitationRepo } from "@opika/db/repos";
+import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { expect, test } from "@playwright/test";
 import {
@@ -116,8 +117,14 @@ test.describe("kabinet confirm page, in a real browser", () => {
         .toBe(400);
     });
 
-    test.afterAll(() => {
-      server?.kill();
+    // Waits for the exit rather than only signalling it, so the run never
+    // ends with this server still shutting down. `next start` serves in this
+    // one process (no child), so killing it ends the whole server.
+    test.afterAll(async () => {
+      if (server === undefined || server.exitCode !== null || server.signalCode !== null) return;
+      const exited = new Promise<void>((resolve) => server?.once("exit", () => resolve()));
+      server.kill();
+      await exited;
     });
 
     test("«Увійти» signs in; the GET leaves the token valid; no Referer ever carries it", async ({
@@ -126,16 +133,33 @@ test.describe("kabinet confirm page, in a real browser", () => {
       const email = `harness-confirm-${randomUUID()}@example.test`;
       const db = createDatabase(HARNESS_DATABASE_URL);
       const now = new Date();
+      const userId = randomUUID();
       // The console sender only sends to an existing user (`auth.ts`); the
       // operator's invitation is what creates one in real use.
       await db.insert(authUser).values({
-        id: randomUUID(),
+        id: userId,
         name: "Harness",
         email,
         emailVerified: true,
         createdAt: now,
         updatedAt: now,
       });
+      // A shelter admin of one seeded (fictional) shelter, so the redirect's
+      // target, /kabinet, has a shelter to show rather than the 404 a roleless
+      // account gets (`kabinetHomeOf`). Accepting an invitation, the real way
+      // to become one, isn't built yet (IN-Q12-Q14).
+      const shelter = (
+        await db.select({ id: shelters.id, organizationId: shelters.organizationId }).from(shelters)
+      ).find((row) => row.organizationId === null);
+      if (shelter === undefined) throw new Error("no seeded shelter without an organization");
+      const organizationId = await kabinetInvitationRepo(db).ensureOrganization(
+        shelter.id,
+        { organizationId: randomUUID() },
+        now,
+      );
+      await db
+        .insert(authMember)
+        .values({ id: randomUUID(), organizationId, userId, role: "admin", createdAt: now });
       // Not closed here: `Database` doesn't expose its client, and a cast to
       // reach it isn't worth it for one test connection. The worker's exit ends
       // it; teardown drops the database WITH (FORCE) regardless.
@@ -179,8 +203,13 @@ test.describe("kabinet confirm page, in a real browser", () => {
           response.request().method() === "POST" &&
           new URL(response.url()).pathname === CONFIRM_PATH,
       );
+      const landingResponse = page.waitForResponse(
+        (response) =>
+          response.request().method() === "GET" && new URL(response.url()).pathname === "/kabinet",
+      );
       await page.getByRole("button").click();
       const posted = await postResponse;
+      const landing = await landingResponse;
       const postHeaders = await posted.request().allHeaders();
 
       expect(
@@ -199,14 +228,17 @@ test.describe("kabinet confirm page, in a real browser", () => {
       expect(session, "session cookie set in the browser").toBeDefined();
       expect(session?.httpOnly).toBe(true);
 
+      // The redirect lands on the signed-in shelter's own page, not a 404.
+      expect(landing.status(), "/kabinet after sign-in").toBe(200);
+
       // The session is real, not just a cookie: Better Auth resolves it.
       const me = await page.request.get(`${origin}/api/auth/get-session`);
       expect(((await me.json()) as { user?: { email?: string } } | null)?.user?.email).toBe(email);
 
       await Promise.all(pending);
       // Every request of the run: the two page loads, the POST, the redirect
-      // and the 404 page's own assets (whose Referer is `/kabinet`, under
-      // Next's default policy, which is fine: no token there).
+      // and /kabinet's own assets (whose Referer is `/kabinet`, under Next's
+      // default policy, which is fine: no token there).
       expect(referers.length, "the POST, at least, carried a Referer").toBeGreaterThan(0);
       // A count, not the list: a failing list would print the token.
       expect(
