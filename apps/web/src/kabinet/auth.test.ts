@@ -23,7 +23,7 @@ import {
   kabinetAuthAvailability,
 } from "./auth-route";
 import { capturingSender } from "./magic-link-sender";
-import { kabinetIdentityOf } from "./principal";
+import { kabinetIdentityOf, kabinetSessionUserIdOf } from "./principal";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
 import { enterSupport } from "./support";
 
@@ -327,6 +327,79 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
     expect(cleared).toMatch(/; Path=\//);
     expect(cleared).toMatch(/; Secure/);
     expect(signedOut.headers.getSetCookie().some((c) => c.startsWith("better-auth."))).toBe(false);
+  });
+
+  /**
+   * KH-Q6: IP tracking off. A sign-in whose verify request carries a client
+   * IP and a user agent, read back from the row itself: every column of
+   * `auth_session`, pinned, so a column Better Auth starts filling (or the
+   * IP coming back) shows up here.
+   */
+  it("stores no client IP on the session row; the user agent is stored as sent (no option for it)", async () => {
+    const user = await createUser("olena@example.org");
+    await route(post("/api/auth/sign-in/magic-link", { email: "olena@example.org" }));
+    const link = sender.sent[0]?.url;
+    if (link === undefined) throw new Error("no link");
+    const userAgent = "Mozilla/5.0 (Linux; Android 14; TestPhone) KH-Q6";
+    const before = new Date();
+    const verified = await route(
+      new Request(link, {
+        headers: {
+          "x-forwarded-for": "203.0.113.77",
+          "x-real-ip": "203.0.113.78",
+          "user-agent": userAgent,
+        },
+      }),
+    );
+    expect(verified.headers.getSetCookie().some((c) => c.includes("session_token="))).toBe(true);
+
+    const rows = await db.select().from(authSession);
+    expect(rows).toHaveLength(1);
+    const row = rows[0];
+    if (row === undefined) throw new Error("no session row");
+    expect(Object.keys(row).sort()).toEqual(
+      [
+        "activeOrganizationId",
+        "createdAt",
+        "expiresAt",
+        "id",
+        "ipAddress",
+        "token",
+        "updatedAt",
+        "userAgent",
+        "userId",
+      ].sort(),
+    );
+    // Better Auth writes `getIp(...) || ""`: an empty string, never an address.
+    expect(row.ipAddress).toBe("");
+    expect(JSON.stringify(row)).not.toContain("203.0.113.");
+    expect(row.userAgent).toBe(userAgent);
+    expect(row.id).toMatch(UUID);
+    expect(row.userId).toBe(user.id);
+    expect(row.token).toMatch(/^[A-Za-z0-9]{32}$/);
+    expect(row.activeOrganizationId).toBeNull();
+    expect(row.createdAt.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
+    expect(row.updatedAt.getTime()).toBe(row.createdAt.getTime());
+    expect(row.expiresAt.getTime() - row.createdAt.getTime()).toBeCloseTo(
+      KABINET_SESSION.idleSeconds * 1000,
+      -4,
+    );
+    const cookie = verified.headers.getSetCookie().find((c) => c.includes("session_token="));
+    // The row holds the cookie's token itself (signed in the cookie, not
+    // hashed in the table), unlike decision #13's adopter session. Recorded,
+    // not changed here (KH-Q6).
+    expect(decodeURIComponent(cookie?.split(";")[0]?.split("=")[1] ?? "")).toMatch(
+      new RegExp(`^${row.token}\\.`),
+    );
+    // The session read that keys the per-user rate limit (KH-Q8) finds it.
+    expect(
+      await kabinetSessionUserIdOf(
+        auth,
+        new Headers({ cookie: cookie?.split(";")[0] ?? "" }),
+        new Date(),
+      ),
+    ).toBe(user.id);
+    expect(await kabinetSessionUserIdOf(auth, new Headers(), new Date())).toBeNull();
   });
 
   /** Better Auth itself (the before-hook) forgets a session older than 30 days. */

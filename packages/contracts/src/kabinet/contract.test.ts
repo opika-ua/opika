@@ -157,6 +157,33 @@ describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
   });
 });
 
+/**
+ * KH-Q1: shelter writes are refused until K2/K3 with their own code. Every
+ * procedure the hand-written matrix above calls a shelter write declares it
+ * (so a typed client can handle it), and nothing else does (a read or a
+ * registry call answering "not yet" would be a different, wrong claim).
+ */
+describe("SHELTER_WRITES_NOT_YET_AVAILABLE is declared on exactly the shelter writes", () => {
+  const writes = Object.entries(EXPECTED_ACCESS)
+    .filter(([, access]) => access.surface === "shelter" && access.mode === "write")
+    .map(([path]) => path);
+
+  it("sanity: the matrix names the shelter writes", () => {
+    expect(writes).toHaveLength(13);
+  });
+
+  it.each(writes)("%s declares it with status 403", (path) => {
+    expect(internals(path).errorMap.SHELTER_WRITES_NOT_YET_AVAILABLE?.status).toBe(403);
+  });
+
+  it.each(all.map(([path]) => path).filter((path) => !writes.includes(path)))(
+    "%s does not declare it",
+    (path) => {
+      expect(internals(path).errorMap.SHELTER_WRITES_NOT_YET_AVAILABLE).toBeUndefined();
+    },
+  );
+});
+
 describe("kabinet error statuses", () => {
   it("pins each new code's HTTP status literally", () => {
     expect({
@@ -169,6 +196,7 @@ describe("kabinet error statuses", () => {
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE.status,
       REGISTRY_CONFIRMED: apiErrors.REGISTRY_CONFIRMED.status,
       ALREADY_A_MEMBER: apiErrors.ALREADY_A_MEMBER.status,
+      SHELTER_WRITES_NOT_YET_AVAILABLE: apiErrors.SHELTER_WRITES_NOT_YET_AVAILABLE.status,
     }).toEqual({
       FORBIDDEN: 403,
       CONFLICT: 409,
@@ -179,6 +207,7 @@ describe("kabinet error statuses", () => {
       INVALID_EVIDENCE: 422,
       REGISTRY_CONFIRMED: 409,
       ALREADY_A_MEMBER: 409,
+      SHELTER_WRITES_NOT_YET_AVAILABLE: 403,
     });
   });
 });

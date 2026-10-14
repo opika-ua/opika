@@ -2,6 +2,7 @@ import type { KabinetShelterView } from "@opika/contracts";
 import { cityRepo } from "@opika/db/repos";
 import type { CityId } from "@opika/domain";
 import { createRouterClient, ORPCError } from "@orpc/server";
+import { SHELTER_WRITE_POLICY } from "../../kabinet/access";
 import type { KabinetPrincipal } from "../../kabinet/actor";
 import type { KabinetContext } from "../../kabinet/context";
 import { shelterKabinetRouter } from "../../kabinet/router";
@@ -56,6 +57,7 @@ export async function kabinetHomeOf(
       setCookies: [],
       cookieHeader: null,
       production: false,
+      shelterWrites: SHELTER_WRITE_POLICY,
     }),
   });
   let view: KabinetShelterView;

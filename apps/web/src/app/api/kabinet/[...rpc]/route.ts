@@ -3,6 +3,7 @@ import type { LocationPrivacyPolicy } from "@opika/domain";
 import { clientIp } from "../../../../api/client-ip";
 import { getDb } from "../../../../api/db";
 import { requireEnv } from "../../../../api/env";
+import { SHELTER_WRITE_POLICY } from "../../../../kabinet/access";
 import { kabinetAuthAvailability } from "../../../../kabinet/auth-route";
 import { operatorDisplayName } from "../../../../kabinet/operator";
 import { kabinetIdentityOf } from "../../../../kabinet/principal";
@@ -41,6 +42,7 @@ async function handle(request: Request): Promise<Response> {
     }),
     locationPolicy: locationPolicy(),
     production,
+    shelterWrites: SHELTER_WRITE_POLICY,
   });
 }
 

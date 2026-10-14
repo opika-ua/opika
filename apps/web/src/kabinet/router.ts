@@ -18,7 +18,6 @@ import {
   type ShelterReadScope,
   type ShelterWriteScope,
 } from "./access";
-import type { KabinetPrincipal } from "./actor";
 import type { KabinetContext } from "./context";
 import {
   animalsById,
@@ -53,10 +52,10 @@ const base = implement(shelterKabinetContract).$context<KabinetContext>();
  */
 export function accessOrThrow(
   procedure: { "~orpc": { meta: unknown } },
-  principal: KabinetPrincipal,
+  context: Pick<KabinetContext, "principal" | "shelterWrites">,
 ): Exclude<AccessDecision, { kind: "deny" }> {
   const meta = procedure["~orpc"].meta as { access?: KabinetAccess | null };
-  const decision = decideAccess(meta.access ?? null, principal);
+  const decision = decideAccess(meta.access ?? null, context.principal, context.shelterWrites);
   if (decision.kind === "deny") {
     throw new ORPCError(decision.code, {
       status: apiErrors[decision.code].status,
@@ -67,7 +66,7 @@ export function accessOrThrow(
 }
 
 const guarded = base.use(async ({ context, procedure, next }) =>
-  next({ context: { access: accessOrThrow(procedure, context.principal) } }),
+  next({ context: { access: accessOrThrow(procedure, context) } }),
 );
 
 /**

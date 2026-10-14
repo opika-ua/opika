@@ -138,6 +138,37 @@ describe("proxy", () => {
       expect(last.status).toBe(429);
     });
 
+    it("429s a /kabinet page load past the kabinet's per-IP limit (KH-Q8)", async () => {
+      const { proxy } = await import("./proxy");
+      const { KABINET_RATE_LIMITS } = await import("./kabinet/rate-limits");
+      const load = (path: string) =>
+        proxy(request(`https://opika.example${path}`, { "x-forwarded-for": "7.7.7.7" }));
+      // Both pages draw on one budget: 300 loads across them, then refused.
+      for (let i = 0; i < KABINET_RATE_LIMITS.perIp.maxRequests; i++) {
+        expect((await load(i % 2 === 0 ? "/kabinet" : "/kabinet/vkhid")).status).toBe(200);
+      }
+      const refused = await load("/kabinet/vkhid");
+      expect(refused.status).toBe(429);
+      expect(await refused.text()).toBe("Too Many Requests");
+    });
+
+    it("leaves /api/kabinet to its route's own limiter, never charging it twice", async () => {
+      const { proxy } = await import("./proxy");
+      let last = await proxy(
+        request("https://opika.example/api/kabinet/shelter/profile/get", {
+          "x-forwarded-for": "6.6.6.6",
+        }),
+      );
+      for (let i = 0; i < 350; i++) {
+        last = await proxy(
+          request("https://opika.example/api/kabinet/shelter/profile/get", {
+            "x-forwarded-for": "6.6.6.6",
+          }),
+        );
+      }
+      expect(last.status).toBe(200);
+    });
+
     it("does not rate-limit a route outside /tvaryny", async () => {
       const { proxy } = await import("./proxy");
       let last = await proxy(

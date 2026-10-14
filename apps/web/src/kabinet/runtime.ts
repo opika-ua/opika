@@ -3,7 +3,8 @@ import { getDb } from "../api/db";
 import { sharedRateLimiter } from "../api/rate-limit";
 import { createKabinetAuth, type KabinetAuth } from "./auth";
 import { kabinetAuthAvailability } from "./auth-route";
-import { KABINET_RATE_LIMITS } from "./rpc-route";
+import { kabinetSessionUserIdOf } from "./principal";
+import { KABINET_RATE_LIMITS } from "./rate-limits";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
 
 /**
@@ -39,3 +40,13 @@ export const kabinetLimiters = {
   perUser: sharedRateLimiter({ name: "kabinet-user", ...KABINET_RATE_LIMITS.perUser }),
   perIp: sharedRateLimiter({ name: "kabinet-ip", ...KABINET_RATE_LIMITS.perIp }),
 };
+
+/**
+ * The signed-in user a `/kabinet` page load is charged to (KH-Q8), or null.
+ * While sign-in is unavailable there is no session to read, and
+ * `kabinetAuth()` would throw: the pages answer 404 then, charged per IP only.
+ */
+export async function kabinetPageUserId(headers: Headers, now: Date): Promise<string | null> {
+  if (kabinetAuthAvailability(process.env).kind === "unavailable") return null;
+  return kabinetSessionUserIdOf(kabinetAuth(), headers, now);
+}

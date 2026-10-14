@@ -175,6 +175,17 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       // here would mean every test ran a less safe product than production
       // (reviewer, row 3, finding 2).
       disableOriginCheck: false,
+      // KH-Q6: no client IP on the session row. Better Auth 1.6.33 then
+      // writes `ip_address = ''` (its `getIp(...) || ""`), never an address.
+      // The same switch turns off Better Auth's own built-in rate limiter
+      // (`resolveRateLimitConfig` returns null without an IP; it only ever
+      // ran in production, which answers 503 today). The sign-in limits that
+      // matter are ours (`signInLimiters`, HS-Q5), keyed on the request's IP
+      // in the limiter store, never in this table. Better Auth has no option
+      // for the user agent: `createSession` copies the `user-agent` header
+      // as is, and our code doesn't rewrite Better Auth's session row (KH-Q6).
+      // `auth.test.ts` asserts what the row holds after a sign-in.
+      ipAddress: { disableIpTracking: true },
       // Prefixes are ours (`kabinetCookieName`), not Better Auth's. The
       // `kabinet` prefix still names any cookie not listed below, so nothing
       // falls back to a shared `better-auth.*` name on this origin.

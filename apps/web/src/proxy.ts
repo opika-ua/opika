@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { clientIp } from "./api/client-ip";
 import { evaluatePrelaunchGate, PRELAUNCH_GATE_QUERY_PARAM } from "./api/prelaunch-gate";
 import { apiRateLimiter } from "./api/rate-limit";
+import { isKabinetPagePath, kabinetPageLoadAllowed } from "./kabinet/page-limit";
+import { kabinetLimiters, kabinetPageUserId } from "./kabinet/runtime";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
 
 /**
@@ -29,7 +31,9 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  * that route applies. A page URL is a more natural scrape target than the
  * raw RPC endpoint the HTTP path still protects, so this closes that gap
  * for the pages it covers (`isDiscoveryPagePath` below) — narrower than the
- * gate above, which covers the whole site.
+ * gate above, which covers the whole site. The `/kabinet` pages have the
+ * same gap and are limited here too, on the kabinet's own limiters
+ * (`kabinet/page-limit.ts`, KH-Q8).
  *
  * `proxy.ts`, not `middleware.ts` — Next.js 16 renamed the convention (file
  * and exported function both) and defaults this file to the Node.js runtime
@@ -70,9 +74,24 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 async function respectingRateLimit(request: NextRequest): Promise<NextResponse> {
+  const now = new Date();
   if (
     isDiscoveryPagePath(request.nextUrl.pathname) &&
-    !(await apiRateLimiter.check(clientIp(request), new Date()))
+    !(await apiRateLimiter.check(clientIp(request), now))
+  ) {
+    return new NextResponse("Too Many Requests", { status: 429 });
+  }
+  // KH-Q8: `/kabinet` pages draw on the kabinet API's own budgets (never the
+  // adopter one, HS-Q10). Here rather than in the pages because a page
+  // render can't answer 429; this is the one place that can, before the
+  // page runs any query.
+  if (
+    isKabinetPagePath(request.nextUrl.pathname) &&
+    !(await kabinetPageLoadAllowed(
+      kabinetLimiters,
+      { ip: clientIp(request), userId: () => kabinetPageUserId(request.headers, now) },
+      now,
+    ))
   ) {
     return new NextResponse("Too Many Requests", { status: 429 });
   }
