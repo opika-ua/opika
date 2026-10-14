@@ -359,5 +359,82 @@ export const en = {
      * (RS-Q2): the English sense of the Ukrainian. Nominative, used only where the nominative fits.
      */
     operatorFallbackName: "Registry operator",
+    shell: {
+      label: "cabinet",
+    },
+    signIn: {
+      pageTitle: "Sign in to the cabinet",
+      title: "Sign in to the cabinet",
+      intro: "For shelters and the registry operator. There is no password: we email you a link.",
+      emailLabel: "Email address",
+      send: "Send the link",
+      addressNote:
+        "The operator adds your address when inviting your shelter. If it is not on the list no email arrives, and we do not say so, so that the form never reveals who is registered.",
+      sendFailed: "The link could not be sent. Check your connection and try again.",
+      sentTitle: "Check your email",
+      sentBody:
+        "We sent a link to {email}. It works for 15 minutes and opens the cabinet on this device.",
+      spamNote: "No email? Check your spam folder, or send it again after 60 seconds.",
+      resend: "Send again",
+      resendIn: "Send again · {time}",
+      otherAddress: "A different address",
+    },
+    profile: {
+      pageTitle: "Shelter profile",
+      title: "Shelter profile",
+      phoneTitle: "Profile",
+      intro: "What adopters see about you on every card.",
+      role: "shelter administrator",
+      signOut: "Sign out",
+      signOutFailed:
+        "Sign-out didn't go through, so you are still signed in. Check the connection and try again.",
+      contactsTitle: "Contacts",
+      contactsNote:
+        "Adopters see these contacts when they tap «Write to the shelter», and write to you themselves. Messages do not go through the registry, and we cannot see who wrote to you.",
+      donationTitle: "Fundraising",
+      donationLink: "Fundraising link",
+      donationNote:
+        "https only. The registry never takes or passes on money: this is an external link.",
+      donationPending: "Proposed link, waiting for the operator's approval",
+      voiceTitle: "The shelter's voice",
+      voiceLabel: "Your words on the cards",
+      voiceNote:
+        "One sentence in the first person, written by you. We fill in {date} and {name}, nothing else.",
+      lockedTitle: "Set during verification",
+      lockedNote:
+        "These details were entered by {operator}, the registry operator, when the shelter was verified, and are shown here to read only.",
+      legalName: "Legal entity",
+      edrpou: "EDRPOU code",
+      contactPerson: "Contact person",
+      registrationStatus: "Registration status",
+      statusSince: "{status} {date}",
+      address: "Premises address",
+      addressNote:
+        "Adopters see the address only as an approximate circle on the map, shifted by about a kilometre.",
+    },
+    profileStatus: {
+      pending: "Waiting",
+      under_review: "Under review",
+      verified: "Verified",
+      rejected: "Rejected",
+      paused: "Paused",
+      suspended: "Suspended",
+    },
+    profileChannel: {
+      phone: "Phone",
+      telegram: "Telegram",
+      viber: "Viber",
+      email: "Email",
+      website: "Website",
+    },
+    profileNotRecorded: "Not recorded",
+    support: {
+      title: "Support mode · view only",
+      body: "You are seeing «{shelter}»'s cabinet as its administrator sees it. Nothing can be changed here.",
+      exit: "Leave support mode",
+      exitFailed: "Could not leave support mode. Try again.",
+      viewingAs: "as the shelter administrator",
+      signOutDisabled: "Sign-out disabled",
+    },
   },
 } as const;

@@ -1,0 +1,69 @@
+import { uk } from "@opika/i18n";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { SIGNED_OUT_DESTINATION, SignOutButton } from "./SignOutButton";
+import { AFTER_SUPPORT_DESTINATION, SupportBanner } from "./SupportBanner";
+
+/** The two session controls on `/kabinet`: sign-out (admin) and leaving support mode (S5). */
+
+describe("SignOutButton", () => {
+  it("signs out, then goes to the sign-in page", async () => {
+    const signOut = vi.fn(async () => {});
+    const navigate = vi.fn();
+    render(<SignOutButton signOut={signOut} navigate={navigate} />);
+    await userEvent.click(screen.getByRole("button", { name: uk.kabinet.profile.signOut }));
+    expect(signOut).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith(SIGNED_OUT_DESTINATION);
+  });
+
+  it("stays put and says so when sign-out fails, never landing on sign-in with the session live", async () => {
+    const navigate = vi.fn();
+    render(
+      <SignOutButton
+        signOut={async () => {
+          throw new Error("offline");
+        }}
+        navigate={navigate}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: uk.kabinet.profile.signOut }));
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(uk.kabinet.profile.signOutFailed);
+  });
+});
+
+describe("SupportBanner", () => {
+  const exitButton = () => screen.getByRole("button", { name: uk.kabinet.support.exit });
+
+  it("leaves support mode, then goes to the front door", async () => {
+    const navigate = vi.fn();
+    render(<SupportBanner shelterName="Домівка" exit={async () => true} navigate={navigate} />);
+    await userEvent.click(exitButton());
+    expect(navigate).toHaveBeenCalledWith(AFTER_SUPPORT_DESTINATION);
+  });
+
+  it("stays put and says so when leaving fails, never pretending it left", async () => {
+    const navigate = vi.fn();
+    render(<SupportBanner shelterName="Домівка" exit={async () => false} navigate={navigate} />);
+    await userEvent.click(exitButton());
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(uk.kabinet.support.exitFailed);
+  });
+
+  it("treats a thrown request as a failure too", async () => {
+    const navigate = vi.fn();
+    render(
+      <SupportBanner
+        shelterName="Домівка"
+        exit={async () => {
+          throw new Error("offline");
+        }}
+        navigate={navigate}
+      />,
+    );
+    await userEvent.click(exitButton());
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toBeDefined();
+  });
+});

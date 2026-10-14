@@ -818,5 +818,103 @@ export const uk = {
      * (RS-Q2): Oleksii's own wording. Nominative, used only where the nominative fits.
      */
     operatorFallbackName: "Оператор реєстру",
+    /**
+     * The kabinet's own UI strings ship `[COPY PENDING]` with their screens
+     * (`docs/h2-copy-sheet.md` §F): the designer's draft text in
+     * `docs/design/KABINET.md` is a draft, not approved Ukrainian. Each key's
+     * English sense and the mock's draft are recorded for Oleksii in
+     * `docs/decisions-inbox/feat-h2-kabinet-screens.md`.
+     */
+    shell: {
+      /** Next to the wordmark in the header (K1, N2). */
+      label: `${COPY_PENDING} "cabinet" (label next to the wordmark)`,
+    },
+    /** K1 · sign-in (N1), both states. */
+    signIn: {
+      pageTitle: `${COPY_PENDING} "Sign in to the cabinet" (browser tab title)`,
+      title: `${COPY_PENDING} "Sign in to the cabinet"`,
+      intro: `${COPY_PENDING} "For shelters and the registry operator. There is no password: we email you a link."`,
+      emailLabel: `${COPY_PENDING} "Email address"`,
+      send: `${COPY_PENDING} "Send the link"`,
+      addressNote: `${COPY_PENDING} "The operator adds your address when inviting your shelter. If it is not on the list no email arrives, and we do not say so, so that the form never reveals who is registered."`,
+      sendFailed: `${COPY_PENDING} "The link could not be sent. Check your connection and try again."`,
+      sentTitle: `${COPY_PENDING} "Check your email"`,
+      /** `{email}` is the address, shown in 500 weight. */
+      sentBody: `${COPY_PENDING} "We sent a link to {email}. It works for 15 minutes and opens the cabinet on this device."`,
+      spamNote: `${COPY_PENDING} "No email? Check «Spam», or send it again: you can after 60 seconds."`,
+      resend: `${COPY_PENDING} "Send again"`,
+      /** `{time}` is the countdown, m:ss. Shown while the 60s resend lockout runs. */
+      resendIn: `${COPY_PENDING} "Send again · {time}"`,
+      otherAddress: `${COPY_PENDING} "A different address"`,
+    },
+    /**
+     * KS-Q1 (Oleksii: "A"): the read-only "your shelter" page at `/kabinet`,
+     * K4's sections with every value as a label-value row (N10's pattern).
+     */
+    profile: {
+      pageTitle: `${COPY_PENDING} "Shelter profile" (browser tab title)`,
+      title: `${COPY_PENDING} "Shelter profile"`,
+      /** The phone header's short page name (K4 360: «Профіль»). */
+      phoneTitle: `${COPY_PENDING} "Profile" (phone header)`,
+      intro: `${COPY_PENDING} "What adopters see about you on every card."`,
+      role: `${COPY_PENDING} "shelter administrator" (header, after the shelter name)`,
+      signOut: `${COPY_PENDING} "Sign out"`,
+      signOutFailed: `${COPY_PENDING} "Sign-out didn't go through, so you are still signed in. Check the connection and try again."`,
+      contactsTitle: `${COPY_PENDING} "Contacts"`,
+      contactsNote: `${COPY_PENDING} "Adopters see these contacts when they tap «Write to the shelter», and write to you themselves. Messages do not go through the registry, and we cannot see who wrote to you."`,
+      donationTitle: `${COPY_PENDING} "Fundraising"`,
+      donationLink: `${COPY_PENDING} "Fundraising link"`,
+      donationNote: `${COPY_PENDING} "https only. The registry never takes or passes on money: this is an external link."`,
+      /** A proposed link the operator hasn't approved yet (N20). No mock frame. */
+      donationPending: `${COPY_PENDING} "Proposed link, waiting for the operator's approval"`,
+      voiceTitle: `${COPY_PENDING} "The shelter's voice"`,
+      voiceLabel: `${COPY_PENDING} "Your words on the cards"`,
+      voiceNote: `${COPY_PENDING} "One sentence in the first person, written by you. We fill in {date} and {name}, nothing else."`,
+      lockedTitle: `${COPY_PENDING} "Set during verification"`,
+      /** `{operator}` is the operator's display name (RS-Q2). */
+      lockedNote: `${COPY_PENDING} "These details were entered by {operator}, the registry operator, when the shelter was verified, and are shown here to read only."`,
+      legalName: `${COPY_PENDING} "Legal entity"`,
+      edrpou: `${COPY_PENDING} "EDRPOU code"`,
+      /** An unregistered initiative has a contact person, not a legal name. No mock frame. */
+      contactPerson: `${COPY_PENDING} "Contact person"`,
+      registrationStatus: `${COPY_PENDING} "Registration status"`,
+      /** `{status}` is the chip's label, `{date}` the date it took effect. */
+      statusSince: `${COPY_PENDING} "{status} {date}"`,
+      address: `${COPY_PENDING} "Premises address"`,
+      addressNote: `${COPY_PENDING} "Adopters see the address only as an approximate circle on the map, shifted by about a kilometre."`,
+    },
+    /** N12's verification chip labels, as KABINET.md drafts them. */
+    profileStatus: {
+      pending: `${COPY_PENDING} "Waiting" (verification chip)`,
+      under_review: `${COPY_PENDING} "Under review" (verification chip)`,
+      verified: `${COPY_PENDING} "Verified" (verification chip)`,
+      rejected: `${COPY_PENDING} "Rejected" (verification chip)`,
+      paused: `${COPY_PENDING} "Paused" (verification chip)`,
+      suspended: `${COPY_PENDING} "Suspended" (verification chip)`,
+    },
+    /** Contact channel row labels on the profile. */
+    profileChannel: {
+      phone: `${COPY_PENDING} "Phone"`,
+      telegram: `${COPY_PENDING} "Telegram"`,
+      viber: `${COPY_PENDING} "Viber"`,
+      email: `${COPY_PENDING} "Email"`,
+      website: `${COPY_PENDING} "Website"`,
+    },
+    /**
+     * Shown for any value the record doesn't hold. The standing constraints
+     * fix this wording for an unknown field («Не записано», "never as 'no'"),
+     * so it is not pending.
+     */
+    profileNotRecorded: "Не записано",
+    /** S5 · support mode (N16): the operator's read-only view of this page. */
+    support: {
+      title: `${COPY_PENDING} "Support mode · view only"`,
+      /** `{shelter}` is the shelter's name. */
+      body: `${COPY_PENDING} "You are seeing «{shelter}»'s cabinet as its administrator sees it. Nothing can be changed here."`,
+      exit: `${COPY_PENDING} "Leave support mode"`,
+      exitFailed: `${COPY_PENDING} "Could not leave support mode. Try again."`,
+      viewingAs: `${COPY_PENDING} "as the shelter administrator" (header, in place of the role)`,
+      signOutDisabled: `${COPY_PENDING} "Sign-out disabled" (header, in support mode)`,
+    },
   },
 } as const;
