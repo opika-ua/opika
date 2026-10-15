@@ -9,6 +9,7 @@ import {
   emailRoutesOf,
   fetchEmailSender,
   type OutgoingEmail,
+  PROVIDER_KEY_NAMES,
   type SentEmail,
 } from "./email-provider";
 import { MAGIC_LINK_TTL_SECONDS } from "./magic-link-sender";
@@ -26,56 +27,41 @@ import { operatorDisplayName } from "./operator";
  * nothing, so a click proves the redirect reaches the page and nothing more.
  * It refuses while any template string is still `[COPY PENDING]`. Two sends
  * through the one provider module, from the verified sender on
- * mail.<production host>: each email through Brevo by default, the sign-in
- * email through Resend with `--sign-in-provider resend` (delivery test 4,
- * EM-B6), and both through Resend with `--invite-provider resend` as well
- * (delivery test 5, EM-B9: "Run delivery test 5 with both emails via Resend
- * and report the invite's tab."). Production's routes (`emailRoutesOf`) are
- * built the same way, so only a pairing production can route is sent.
+ * mail.<production host>: both through Resend by default, as production
+ * sends them since delivery test 5 (Oleksii, 2026-10-15, EM-B10, verbatim:
+ * "Decision: invites move to Resend; retire Brevo."). Either email can still
+ * go through Brevo (`--sign-in-provider brevo`, `--invite-provider brevo`)
+ * for comparison during Brevo's 30-day grace period; that choice goes when
+ * Brevo's code does (a retirement step, with his OK). Production's routes
+ * (`emailRoutesOf`) are built from the same variables, each provider on its
+ * own key, so every pairing is one production could be configured for.
  *
  * Keys are read from the repo-root .env.local, one named key at a time (the
  * way prod-guard.ts reads PROD_NEON_ENDPOINT) and only the ones the sends
- * need (`deliveryKeysOf`): BREVO_API_KEY while either email goes through
- * Brevo, RESEND_API_KEY (once, shared) while either goes through Resend.
- * Never printed: the output is, per send, the provider, the HTTP status and
- * the provider's message id.
+ * need (`deliveryKeysOf`): RESEND_API_KEY (once, shared) while either email
+ * goes through Resend, BREVO_API_KEY only while one is asked to go through
+ * Brevo. Never printed: the output is, per send, the provider, the HTTP
+ * status and the provider's message id.
  */
 
-/** The Brevo key's name. Oleksii keeps it in .env.local; it is never committed or logged. */
-export const DELIVERY_KEY_NAME = "BREVO_API_KEY";
+/** The Brevo key's name, production's (`PROVIDER_KEY_NAMES`); never committed or logged. */
+export const DELIVERY_KEY_NAME = PROVIDER_KEY_NAMES.brevo;
 
-/**
- * The Resend key's name, read only when `--sign-in-provider` or
- * `--invite-provider` is `resend`; never committed or logged. The same name
- * production reads (EM-B7).
- */
-export const RESEND_DELIVERY_KEY_NAME = "RESEND_API_KEY";
+/** The Resend key's name, production's (`PROVIDER_KEY_NAMES`, EM-B7); never committed or logged. */
+export const RESEND_DELIVERY_KEY_NAME = PROVIDER_KEY_NAMES.resend;
 
-/** Where either email may go in this test: production's two candidates (EM-B6, EM-B9). */
-export const DELIVERY_PROVIDERS = ["brevo", "resend"] as const;
+/** Where either email may go in this test: Resend, production's, and Brevo while its grace period lasts (EM-B10). */
+export const DELIVERY_PROVIDERS = ["resend", "brevo"] as const;
 export type DeliveryProvider = (typeof DELIVERY_PROVIDERS)[number];
 
 /** Which provider each email goes through in one run. */
 export type DeliveryRouting = { signIn: DeliveryProvider; invite: DeliveryProvider };
 
-/** `--sign-in-provider` / `--invite-provider` as given, or null for anything that isn't one of the two. Unset is Brevo. */
+/** `--sign-in-provider` / `--invite-provider` as given, or null for anything that isn't one of the two. Unset is Resend. */
 export function deliveryProviderOf(value: string | undefined): DeliveryProvider | null {
-  if (value === undefined) return "brevo";
+  if (value === undefined) return "resend";
   return (DELIVERY_PROVIDERS as readonly string[]).includes(value)
     ? (value as DeliveryProvider)
-    : null;
-}
-
-/**
- * Why production could not route this pairing, or null when it can. The
- * invite is production's default route and only Resend has a key name of its
- * own (`PROVIDER_KEY_NAMES`), so sign-in through Brevo beside invites through
- * Resend has no configuration; sending it would test a routing that cannot
- * ship.
- */
-export function unroutableDeliveryOf(routing: DeliveryRouting): string | null {
-  return routing.invite === "resend" && routing.signIn === "brevo"
-    ? "--invite-provider resend needs --sign-in-provider resend (production cannot send sign-in through Brevo while invites go through Resend)"
     : null;
 }
 
@@ -94,10 +80,10 @@ export function deliveryKeysNeeded(routing: DeliveryRouting): { brevo: boolean; 
 export function deliveryKeysOf(
   routing: DeliveryRouting,
   readKey: (name: string) => string | undefined,
-): { apiKey: string | undefined; resendApiKey: string | undefined } {
+): { brevoApiKey: string | undefined; resendApiKey: string | undefined } {
   const needed = deliveryKeysNeeded(routing);
   return {
-    apiKey: needed.brevo ? readKey(DELIVERY_KEY_NAME) : undefined,
+    brevoApiKey: needed.brevo ? readKey(DELIVERY_KEY_NAME) : undefined,
     resendApiKey: needed.resend ? readKey(RESEND_DELIVERY_KEY_NAME) : undefined,
   };
 }
@@ -118,10 +104,10 @@ export function readSingleKey(file: string, key: string): string | undefined {
 export type DeliveryTestInput = {
   to: string | undefined;
   /** BREVO_API_KEY, read by the script only while either email goes through Brevo. */
-  apiKey: string | undefined;
-  /** Where the sign-in email goes (`--sign-in-provider`); unset is Brevo. */
+  brevoApiKey?: string | undefined;
+  /** Where the sign-in email goes (`--sign-in-provider`); unset is Resend. */
   signInProvider?: DeliveryProvider;
-  /** Where the invite goes (`--invite-provider`); unset is Brevo. */
+  /** Where the invite goes (`--invite-provider`); unset is Resend. */
   inviteProvider?: DeliveryProvider;
   /** RESEND_API_KEY, read by the script only while either email goes through Resend. */
   resendApiKey?: string | undefined;
@@ -168,16 +154,11 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
     return 1;
   }
   const routing: DeliveryRouting = {
-    signIn: input.signInProvider ?? "brevo",
-    invite: input.inviteProvider ?? "brevo",
+    signIn: input.signInProvider ?? "resend",
+    invite: input.inviteProvider ?? "resend",
   };
-  const unroutable = unroutableDeliveryOf(routing);
-  if (unroutable !== null) {
-    input.log(`${unroutable}. Nothing sent.`);
-    return 1;
-  }
   const needed = deliveryKeysNeeded(routing);
-  if (needed.brevo && !input.apiKey) {
+  if (needed.brevo && !input.brevoApiKey) {
     input.log(`${DELIVERY_KEY_NAME} is not set in the repo-root .env.local. Nothing sent.`);
     return 1;
   }
@@ -192,16 +173,17 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
       return "";
     }
   })();
-  // Production's own routing (`emailRoutesOf`), so the test sends the way
-  // the app will: one From, From name and Reply-To for both emails. The
-  // invite is the default route; with it on Resend, sign-in on Resend IS the
-  // default route (same provider, same key), as production reads it.
+  // Production's own routing (`emailRoutesOf`), from the variables
+  // production reads, so the test sends the way the app will: one From, From
+  // name and Reply-To for both emails, each provider on its own key. The
+  // invite is the default route; sign-in names its provider only when it
+  // differs, as production leaves EMAIL_SIGN_IN_PROVIDER unset for one
+  // provider. A key the run doesn't need was never read, so it is undefined.
   const routes = emailRoutesOf({
     EMAIL_PROVIDER: routing.invite,
-    EMAIL_PROVIDER_API_KEY: routing.invite === "resend" ? input.resendApiKey : input.apiKey,
-    ...(routing.signIn === "resend"
-      ? { EMAIL_SIGN_IN_PROVIDER: "resend", RESEND_API_KEY: input.resendApiKey }
-      : {}),
+    ...(routing.signIn === routing.invite ? {} : { EMAIL_SIGN_IN_PROVIDER: routing.signIn }),
+    [PROVIDER_KEY_NAMES.resend]: input.resendApiKey,
+    [PROVIDER_KEY_NAMES.brevo]: input.brevoApiKey,
     EMAIL_FROM_ADDRESS: `${FROM_LOCAL_PART}@mail.${originHost}`,
     EMAIL_FROM_NAME: input.fromName,
     EMAIL_REPLY_TO: input.replyTo,

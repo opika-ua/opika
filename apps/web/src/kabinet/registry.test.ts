@@ -1260,7 +1260,12 @@ describe("registry.admins.blockedAddresses: which of a shelter's addresses the p
 
   it("unknown: the provider couldn't be read, so no list at all", async () => {
     const s = await shelterWithTwoInvited();
-    for (const why of ["provider_error", "timed_out", "unsupported_provider"] as const) {
+    for (const why of [
+      "provider_error",
+      "timed_out",
+      "unsupported_provider",
+      "provider_suppresses",
+    ] as const) {
       invites = capturingInvitationSender(undefined, {
         blockList: reader({ kind: "unknown", why }).blockList,
       });
@@ -1311,6 +1316,36 @@ describe("registry.admins.blockedAddresses: which of a shelter's addresses the p
         blockedSoFar: [{ email: "olena@example.org", reason: "unsubscribed" }],
       });
     });
+  });
+
+  /**
+   * The invite route moves to Resend (Oleksii, 2026-10-15, EM-B10, verbatim:
+   * "Decision: invites move to Resend; retire Brevo."). Resend's suppression
+   * list isn't read (EM-F1), so the view says so in the same words a
+   * Resend-routed send's block check uses, never an empty `checked`.
+   */
+  it("the invite route on Resend: unknown (provider_suppresses), and nobody is called", async () => {
+    const s = await shelterWithTwoInvited();
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls++;
+      return new Response(JSON.stringify({ count: 0, contacts: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    invites = capturingInvitationSender(undefined, {
+      blockList: cachedBlockList(
+        {
+          provider: "resend",
+          apiKey: "k",
+          fromAddress: "noreply@mail.example.org",
+          fromName: null,
+          replyTo: "hello@example.org",
+        },
+        { fetchImpl },
+      ),
+    });
+    const result = await call("registry.admins.blockedAddresses", { shelterId: s.id });
+    expect(result.body).toEqual({ kind: "unknown", why: "provider_suppresses" });
+    expect(calls).toBe(0);
   });
 
   it("a shelter with no addresses is an honest empty `checked`, without asking the provider", async () => {

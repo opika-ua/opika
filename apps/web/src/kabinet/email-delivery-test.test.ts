@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  type DeliveryProvider,
   type DeliveryRouting,
   deliveryKeysOf,
   deliveryProviderOf,
@@ -26,9 +27,14 @@ const harness = (respond: (n: number) => Response = () => okResponse()) => {
   return {
     calls,
     lines,
+    // Both through Brevo unless a test says otherwise: the comparison run the
+    // grace period keeps (EM-B10). The default, both via Resend, is its own
+    // block below, with neither provider named.
     input: {
       to: "someone@example.com",
-      apiKey: KEY,
+      signInProvider: "brevo" as DeliveryProvider,
+      inviteProvider: "brevo" as DeliveryProvider,
+      brevoApiKey: KEY as string | undefined,
       origin: "https://example.org",
       base: "http://localhost:3000/",
       fromName: "Config Name",
@@ -49,7 +55,7 @@ const okResponse = (id = "<m@brevo>") =>
 
 const bodyOf = (call: Call) => JSON.parse(call.init.body as string);
 
-describe("runDeliveryTest", () => {
+describe("runDeliveryTest, both via Brevo (comparison during the grace period)", () => {
   it("sends the magic-link email, then the invite email, to Brevo from noreply@mail.<origin host>", async () => {
     const h = harness();
     expect(await runDeliveryTest(h.input)).toBe(0);
@@ -186,7 +192,7 @@ describe("runDeliveryTest", () => {
 
   it("refuses without the key, sending nothing", async () => {
     const h = harness();
-    expect(await runDeliveryTest({ ...h.input, apiKey: undefined })).toBe(1);
+    expect(await runDeliveryTest({ ...h.input, brevoApiKey: undefined })).toBe(1);
     expect(h.calls).toHaveLength(0);
     expect(h.lines).toEqual([
       "BREVO_API_KEY is not set in the repo-root .env.local. Nothing sent.",
@@ -308,10 +314,12 @@ describe("runDeliveryTest --sign-in-provider resend", () => {
 
 /**
  * Delivery test 5 (Oleksii, 2026-10-15, inbox EM-B9, verbatim: "Run delivery
- * test 5 with both emails via Resend and report the invite's tab."): both
- * emails through Resend, the invite as production's default route.
+ * test 5 with both emails via Resend and report the invite's tab.") and his
+ * decision on it (EM-B10, verbatim: "Decision: invites move to Resend; retire
+ * Brevo."): both emails through Resend, the invite as production's default
+ * route, and that is now the run with neither provider named.
  */
-describe("runDeliveryTest --invite-provider resend", () => {
+describe("runDeliveryTest by default: both via Resend", () => {
   const resendOk = (id: string) =>
     new Response(JSON.stringify({ id }), {
       status: 200,
@@ -319,16 +327,9 @@ describe("runDeliveryTest --invite-provider resend", () => {
     });
   const bothResend = () => {
     const h = harness((n) => resendOk(`re-msg-${n}`));
-    return {
-      ...h,
-      input: {
-        ...h.input,
-        apiKey: undefined,
-        signInProvider: "resend" as const,
-        inviteProvider: "resend" as const,
-        resendApiKey: RESEND_KEY,
-      },
-    };
+    // Neither provider named and no Brevo key: the default, as the script runs it.
+    const { signInProvider: _s, inviteProvider: _i, brevoApiKey: _b, ...unnamed } = h.input;
+    return { ...h, input: { ...unnamed, resendApiKey: RESEND_KEY } };
   };
 
   it("sends both emails to Resend with RESEND_API_KEY, needing no Brevo key", async () => {
@@ -391,12 +392,44 @@ describe("runDeliveryTest --invite-provider resend", () => {
     ]);
   });
 
-  it("refuses invites via Resend beside sign-in via Brevo, which production cannot route, sending nothing", async () => {
+  /**
+   * Was refused while the default route read one generic key (EM-T25). Each
+   * provider now has its own key (EM-B10), so production can be configured
+   * for it (EMAIL_PROVIDER=resend, EMAIL_SIGN_IN_PROVIDER=brevo) and the test
+   * sends it, each email on its own provider's key.
+   */
+  it("invites via Resend beside sign-in via Brevo: each email on its own provider's key", async () => {
+    const h = harness((n) => (n === 1 ? okResponse("<id-1@brevo>") : resendOk("re-msg-2")));
+    expect(
+      await runDeliveryTest({
+        ...h.input,
+        signInProvider: "brevo",
+        inviteProvider: "resend",
+        resendApiKey: RESEND_KEY,
+      }),
+    ).toBe(0);
+    expect(h.calls.map((c) => c.url)).toEqual([
+      "https://api.brevo.com/v3/smtp/email",
+      "https://api.resend.com/emails",
+    ]);
+    const [signIn, invite] = h.calls as [Call, Call];
+    const headers = (call: Call) => call.init.headers as Record<string, string>;
+    expect(headers(signIn)["api-key"]).toBe(KEY);
+    expect(JSON.stringify(headers(signIn))).not.toContain(RESEND_KEY);
+    expect(headers(invite).Authorization).toBe(`Bearer ${RESEND_KEY}`);
+    expect(JSON.stringify(headers(invite))).not.toContain(KEY);
+    expect(h.lines).toEqual([
+      "magic link: brevo, status 201, message id <id-1@brevo>",
+      "invite: resend, status 200, message id re-msg-2",
+    ]);
+  });
+
+  it("asking for Brevo without BREVO_API_KEY is refused, sending nothing", async () => {
     const h = bothResend();
-    expect(await runDeliveryTest({ ...h.input, signInProvider: "brevo", apiKey: KEY })).toBe(1);
+    expect(await runDeliveryTest({ ...h.input, inviteProvider: "brevo" })).toBe(1);
     expect(h.calls).toHaveLength(0);
     expect(h.lines).toEqual([
-      "--invite-provider resend needs --sign-in-provider resend (production cannot send sign-in through Brevo while invites go through Resend). Nothing sent.",
+      "BREVO_API_KEY is not set in the repo-root .env.local. Nothing sent.",
     ]);
   });
 });
@@ -414,14 +447,23 @@ describe("deliveryKeysOf: the script reads only the keys the sends need", () => 
   it("both via Brevo: BREVO_API_KEY only", () => {
     const { asked, keys } = reads({ signIn: "brevo", invite: "brevo" });
     expect(asked).toEqual(["BREVO_API_KEY"]);
-    expect(keys).toEqual({ apiKey: "value-of-BREVO_API_KEY", resendApiKey: undefined });
+    expect(keys).toEqual({ brevoApiKey: "value-of-BREVO_API_KEY", resendApiKey: undefined });
   });
 
   it("sign-in via Resend, invite via Brevo: each key once", () => {
     const { asked, keys } = reads({ signIn: "resend", invite: "brevo" });
     expect(asked).toEqual(["BREVO_API_KEY", "RESEND_API_KEY"]);
     expect(keys).toEqual({
-      apiKey: "value-of-BREVO_API_KEY",
+      brevoApiKey: "value-of-BREVO_API_KEY",
+      resendApiKey: "value-of-RESEND_API_KEY",
+    });
+  });
+
+  it("invite via Resend, sign-in via Brevo: each key once", () => {
+    const { asked, keys } = reads({ signIn: "brevo", invite: "resend" });
+    expect(asked).toEqual(["BREVO_API_KEY", "RESEND_API_KEY"]);
+    expect(keys).toEqual({
+      brevoApiKey: "value-of-BREVO_API_KEY",
       resendApiKey: "value-of-RESEND_API_KEY",
     });
   });
@@ -429,13 +471,13 @@ describe("deliveryKeysOf: the script reads only the keys the sends need", () => 
   it("both via Resend: RESEND_API_KEY once, shared, and never Brevo's", () => {
     const { asked, keys } = reads({ signIn: "resend", invite: "resend" });
     expect(asked).toEqual(["RESEND_API_KEY"]);
-    expect(keys).toEqual({ apiKey: undefined, resendApiKey: "value-of-RESEND_API_KEY" });
+    expect(keys).toEqual({ brevoApiKey: undefined, resendApiKey: "value-of-RESEND_API_KEY" });
   });
 });
 
 describe("deliveryProviderOf (--sign-in-provider, --invite-provider)", () => {
-  it("is brevo when unset, the provider named when it is one of the two, else null", () => {
-    expect(deliveryProviderOf(undefined)).toBe("brevo");
+  it("is resend when unset (EM-B10), the provider named when it is one of the two, else null", () => {
+    expect(deliveryProviderOf(undefined)).toBe("resend");
     expect(deliveryProviderOf("brevo")).toBe("brevo");
     expect(deliveryProviderOf("resend")).toBe("resend");
     for (const other of ["postmark", "Resend", "", "re_abc"]) {

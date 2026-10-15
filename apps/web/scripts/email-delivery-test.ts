@@ -7,24 +7,23 @@ import {
   deliveryProviderOf,
   readSingleKey,
   runDeliveryTest,
-  unroutableDeliveryOf,
 } from "../src/kabinet/email-delivery-test";
 
 /**
  * Sends the magic-link and invite emails once to one address (email setup
  * handoff, 2026-10-13), built by the real templates with the final Ukrainian
- * (IN-E15). Each goes through Brevo unless its flag says Resend:
- * `--sign-in-provider resend` (delivery test 4, EM-B6), plus
- * `--invite-provider resend` for both via Resend (delivery test 5, EM-B9).
- * Invites via Resend with sign-in via Brevo is refused: production cannot
- * route it. Run by Oleksii, not by CI:
+ * (IN-E15). Both go through Resend, as production sends them since delivery
+ * test 5 (EM-B10); `--sign-in-provider brevo` or `--invite-provider brevo`
+ * puts one through Brevo instead, for comparison during Brevo's grace period.
+ * Run by Oleksii, not by CI:
  *
- *   pnpm --filter @opika/web email:delivery-test --to <address> [--sign-in-provider brevo|resend] [--invite-provider brevo|resend] [--base <origin>] [--from-name <name>] [--reply-to <address>] [--operator-name <name>]
+ *   pnpm --filter @opika/web email:delivery-test --to <address> [--sign-in-provider resend|brevo] [--invite-provider resend|brevo] [--base <origin>] [--from-name <name>] [--reply-to <address>] [--operator-name <name>]
  *
  * Keys come from the repo-root .env.local, one named key at a time and
  * nothing else from that file, and only those the sends need
- * (`deliveryKeysOf`): BREVO_API_KEY while either email goes through Brevo,
- * RESEND_API_KEY (read once) while either goes through Resend. The From name is app config (--from-name, else
+ * (`deliveryKeysOf`): RESEND_API_KEY (read once) while either email goes
+ * through Resend, BREVO_API_KEY only while one is asked to go through Brevo.
+ * The From name is app config (--from-name, else
  * EMAIL_FROM_NAME), never a literal here, and so is the Reply-To (--reply-to,
  * else EMAIL_REPLY_TO): without one, nothing is sent. Both emails are
  * signed with --operator-name, else KABINET_OPERATOR_DISPLAY_NAME, else the
@@ -54,20 +53,16 @@ if (signInProvider === null || inviteProvider === null) {
   process.exit(1);
 }
 const routing = { signIn: signInProvider, invite: inviteProvider };
-// Refused before any key is read: a pairing production can't route sends nothing.
-const unroutable = unroutableDeliveryOf(routing);
-if (unroutable !== null) {
-  console.log(`${unroutable}. Nothing sent.`);
-  process.exit(1);
-}
 
-// Only the keys the sends need, each read once: a Brevo-only run never
-// touches the Resend key, and a Resend-only run never touches Brevo's.
-const { apiKey, resendApiKey } = deliveryKeysOf(routing, (name) => readSingleKey(envFile, name));
+// Only the keys the sends need, each read once: a Resend-only run (the
+// default) never touches Brevo's key, and a Brevo-only run never Resend's.
+const { brevoApiKey, resendApiKey } = deliveryKeysOf(routing, (name) =>
+  readSingleKey(envFile, name),
+);
 
 process.exitCode = await runDeliveryTest({
   to: values.to,
-  apiKey,
+  brevoApiKey,
   signInProvider,
   inviteProvider,
   resendApiKey,

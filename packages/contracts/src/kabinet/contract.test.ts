@@ -383,6 +383,25 @@ describe("kabinet views carry exactly their listed keys", () => {
         blocked: [{ email: "a@example.org", reason: "unsubscribed" }],
       }).success,
     ).toBe(true);
+    // Why a list is unknown: `provider_suppresses` (EM-B10, the invite route on
+    // Resend) says the provider filters on a list that isn't read, which is not
+    // the same claim as a provider with no list (`unsupported_provider`).
+    for (const why of [
+      "provider_error",
+      "timed_out",
+      "unsupported_provider",
+      "provider_suppresses",
+    ]) {
+      expect(BlockedAddressesViewSchema.safeParse({ kind: "unknown", why }).success, why).toBe(
+        true,
+      );
+    }
+    // The per-send reasons that aren't the list's stay out of it.
+    for (const why of ["list_too_long", "clear", ""]) {
+      expect(BlockedAddressesViewSchema.safeParse({ kind: "unknown", why }).success, why).toBe(
+        false,
+      );
+    }
   });
 
   it("EmailSendOutcome: sent with its block check, blocked with a reason, or failed with a reason; no address, no provider detail", () => {

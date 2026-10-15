@@ -71,6 +71,8 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       up. Gmail delivery test by `email:delivery-test` (IN-E5); ukr.net/i.ua postponed with a trigger
       (IN-E4); apex DMARC `p=reject` is a follow-up (IN-E3). **Superseded for sign-in on 2026-10-15**
       (EM-R1 fired, EM-B6 item 2: "Resend for SIGN-IN sends: GO"): see the Resend items below.
+      **Superseded for invites on 2026-10-15** (EM-B10, after delivery test 5: "Decision: invites
+      move to Resend; retire Brevo."): one provider, Resend, for all email.
 - [x] **Resend set up for sign-in** (Oleksii, 2026-10-15, inbox EM-R3/EM-B8: "RESEND: done and
       Verified."): EU account (`eu-west-1`), domain `mail.opika.org.ua` Verified, tracking off. DNS in
       Cloudflare, all DNS only: TXT `resend._domainkey.mail` (DKIM), CNAME `rsend.mail` →
@@ -88,15 +90,45 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       pixel and the link rewritten through Brevo's click tracker. **Sign-in in Promotions is accepted**
       (his decision, EM-B9: "accept Promotions for sign-in (copy row 10 already points people there),
       no more email-version experiments for now").
-- [ ] **Delivery test 5 (both via Resend)** (Oleksii's, by hand; EM-B9 item 1, EM-F2):
-      `email:delivery-test --sign-in-provider resend --invite-provider resend` to his Gmail, with test
-      4's other flags (`--to`, `--base https://opika.org.ua`, From name, Reply-To, operator name); only
-      `RESEND_API_KEY` is read from `.env.local`, once (`BREVO_API_KEY` is not touched). He reports
-      the invite's tab and, for both, DKIM pass `d=mail.opika.org.ua`, SPF pass for
-      `rsend.mail.opika.org.ua`, DMARC pass, no List-Unsubscribe, no open pixel, the link straight to
-      `https://opika.org.ua/kabinet/vkhid…` (no click-tracker redirect), Reply-To `hello@`. Moving
-      invites is his decision on that result, whichever tab; Brevo's retirement is planned in EM-P1 and
-      starts only once he accepts test 5.
+- [x] **Delivery test 5 (both via Resend)** (Oleksii's, by hand, 2026-10-15; inbox EM-B10): invite
+      via Resend in **Primary** (~1 s), sign-in via Resend also Primary this time (Promotions in test
+      4; one inbox, not conclusive, copy row 10's Промоакції hint stays); both DKIM pass
+      `d=mail.opika.org.ua s=resend` (+ amazonses), SPF pass `rsend.mail.opika.org.ua`, DMARC pass,
+      no List-Unsubscribe, no pixel, links straight to `https://opika.org.ua/kabinet/vkhid…`,
+      Reply-To `hello@opika.org.ua`. **His decision: invites move to Resend; retire Brevo** (EM-B10;
+      order: code, then the Production switch-on, then a 30-day grace, then removals each with his
+      OK).
+- [ ] **Code: every route reads its provider's own key** (EM-B10 step 1, his words: "the invite path
+      reads RESEND_API_KEY via the provider switch, same as sign-in. No sends with a mismatched
+      provider/key pair at any point."): `PROVIDER_KEY_NAMES` covers every provider
+      (`RESEND_API_KEY`, `BREVO_API_KEY`, `POSTMARK_API_KEY`), `EMAIL_PROVIDER_API_KEY` is gone, a
+      provider named without its key is `invalid` (sign-in off). The registry's blocked-addresses
+      view and the per-invite check answer `unknown` (`provider_suppresses`) on Resend (EM-T26);
+      EM-F1 stays a follow-up. Built on this branch (EM-T26), ticks at Tier 1 review PASS.
+- [ ] **Production switch-on (EM-B10 step 2; Oleksii sets the variables himself), after the code
+      above is deployed.** Vercel, **Production environment only**, never Preview:
+      - **ADD** `EMAIL_PROVIDER` = `resend`
+      - **ADD** `EMAIL_FROM_ADDRESS` = `noreply@mail.opika.org.ua`
+      - **ADD** `EMAIL_FROM_NAME` = `Opika` (optional in code; without it the From is the bare
+        address, which the delivery tests never sent)
+      - **ADD** `EMAIL_REPLY_TO` = `hello@opika.org.ua` (required: no Reply-To, sign-in stays off)
+      - **ADD** `PRODUCTION_ORIGIN` = `https://opika.org.ua`
+      - **ADD** `BETTER_AUTH_SECRET` (`openssl rand -hex 32`, Sensitive) and `BETTER_AUTH_URL` =
+        `https://opika.org.ua` (must equal `PRODUCTION_ORIGIN`)
+      - **KEEP** `RESEND_API_KEY` (set, EM-B8), `KABINET_OPERATOR_DISPLAY_NAME`, `CRON_SECRET`,
+        `RATE_LIMIT_KEY_SECRET` (set)
+      - **DON'T ADD** `EMAIL_SIGN_IN_PROVIDER` (unset means sign-in uses `EMAIL_PROVIDER`; setting it to
+        `resend` changes nothing) or `BREVO_API_KEY` (only a rollback to Brevo would need it)
+      - **REMOVE** nothing yet. `EMAIL_PROVIDER_API_KEY`, if it was ever set in Vercel, is read by no
+        code from this commit on; as the Brevo key's Vercel variable its removal is a retirement step
+        below, with his OK.
+
+      **None of this turns anything on.** Until the wiring commit, production answers 503 on
+      `/api/auth` and `/api/kabinet` whatever is set (`kabinetAuthAvailability`), nothing reads the
+      `EMAIL_*` variables in production, and nothing sends. They are read by `productionSignInOf`,
+      which the wiring commit connects. Then sign-in and invites go out through Resend on
+      `RESEND_API_KEY`.
+      Also required before the wiring commit, as its own earlier step (rollout order Q10): `LOCATION_HMAC_SECRET` in Vercel Production, the same value the onboarding script uses, then `location:verify --prod` reports 0 mismatches; without it every `/registry/` call answers 503 (review of the step-1 code, finding 1).
 - [x] **The /pro `about.data` addition is live in this PR** (KH-C1; moved back from the wiring
       commit by Oleksii's handoff of 2026-10-14, verbatim: "Row 90 ships with the #94 merge (all it
       describes is live via #95, and #94 starts storing admin emails at invite)."): his final text,
@@ -190,8 +222,9 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [ ] **A production build fails without the five sign-in variables** (IN-R2, Decision 1;
       Oleksii, verbatim: "From the commit that turns sign-in on: A production build fails if any of
       the five variables is missing, so a bad deploy never goes live. Keep the runtime boot check as
-      a second guard. Until that commit, nothing changes."): `EMAIL_PROVIDER`,
-      `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM_ADDRESS`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (plus
+      a second guard. Until that commit, nothing changes."): `EMAIL_PROVIDER`, the selected
+      provider's own key (`RESEND_API_KEY` for `resend`; `EMAIL_PROVIDER_API_KEY` is gone, EM-B10),
+      `EMAIL_FROM_ADDRESS`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (plus
       `PRODUCTION_ORIGIN`, which they are checked against), in the wiring commit, with a test.
       Whether `PRODUCTION_ORIGIN` itself joins the build-time check (a sixth variable, beyond
       Decision 1's five) is decided in the wiring commit's Phase 0 (review pass 2, finding 4).
@@ -204,15 +237,16 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       result (`ProductionSignIn.operatorName`, i.e. `operatorDisplayName(env)`), so the sign-in email
       is signed with the same name as the invite (the option is required; a test on the wiring
       asserts the configured name reaches the sent email). That commit wires the provider-backed invitation sender with
-      `cachedBlockList(config)` built once per process, so `registry.admins.blockedAddresses` reads
-      Brevo instead of answering `unknown` (`unsupported_provider`). **Routes (EM-T22):** the `on`
-      result's `email` is `emailRoutesOf(env)`'s `{ invite, signIn }`; pass `routes.signIn` to
-      `providerMagicLinkSender` (its `ProviderMail` built on that route, so a Resend route's block
-      check is `unknown`/`provider_suppresses`) and `routes.invite` to the invitation sender and to
-      `cachedBlockList`, with a test that each sender reaches its own provider. **Vercel Production
-      variables for the sign-in route at that commit:** `EMAIL_SIGN_IN_PROVIDER=resend` (new, Oleksii
-      sets it) plus the already-set `RESEND_API_KEY` (EM-B7). Without `EMAIL_SIGN_IN_PROVIDER`, sign-in
-      goes through the default (Brevo) route; with it and no `RESEND_API_KEY`, sign-in stays off.
+      `cachedBlockList(config)` built once per process; on Resend it answers `unknown`
+      (`provider_suppresses`, EM-T26) until EM-F1 reads Resend's suppression list. **Routes
+      (EM-T22):** the `on` result's `email` is `emailRoutesOf(env)`'s `{ invite, signIn }`; pass
+      `routes.signIn` to `providerMagicLinkSender` (its `ProviderMail` built on that route, so a
+      Resend route's block check is `unknown`/`provider_suppresses`) and `routes.invite` to the
+      invitation sender and to `cachedBlockList`, with a test that each sender reaches its own
+      provider. **Vercel Production variables:** the switch-on list above (EM-B10); with
+      `EMAIL_PROVIDER=resend` and `EMAIL_SIGN_IN_PROVIDER` unset, both routes are Resend on
+      `RESEND_API_KEY`. (This item said `EMAIL_SIGN_IN_PROVIDER=resend` before test 5; not needed
+      now.)
 - [ ] **The confirm page's over-limit card ships before production sign-in is turned on**
       (IN-T15, Oleksii: "A plain 429 is fine for now. Add a gate item: the over-limit card ships
       before production sign-in is turned on."). Today a rate-limited «Увійти» POST answers a plain
@@ -253,10 +287,46 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 
   Full order as restated 2026-10-13 (IN-E1, verbatim): "LOCATION_HMAC_SECRET + location:verify →
   provider, DNS and auth env → Neon run → merge → admin:bootstrap → sign-in → first invite → demo
-  corpus removed." Status of "provider, DNS and auth env": **provider and DNS done for Brevo**
-  (`mail.opika.org.ua` authenticated, DKIM and DMARC `p=none` in place, sender verified); **auth
-  env still pending** (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `EMAIL_*`, `PRODUCTION_ORIGIN` in
-  Vercel).
+  corpus removed." Status of "provider, DNS and auth env": **provider and DNS done for Resend**
+  (EM-R3: `mail.opika.org.ua` Verified, DKIM `resend._domainkey.mail`, return path / SPF via
+  `rsend.mail.opika.org.ua`, DMARC `p=none`; Brevo's records stay until its retirement below);
+  **auth env still pending**: the switch-on list above (EM-B10).
 
   HS-Q13's earlier order ("… → I sign in → admin:grant on my own user → …") couldn't run: sign-up is
   off, so no production user exists to sign in or to grant (RG-Q2).
+
+## Brevo retirement (after the switch-on; EM-B10)
+
+Oleksii's order, verbatim (EM-B10): "3. Brevo's dashboard confirms no sends after the switch.
+30-day grace period for Brevo's delayed retries. 4. After the grace period, with my explicit OK at
+each step: delete the Brevo API key in Brevo; remove its Vercel env var; remove the DNS records
+brevo1._domainkey.mail, brevo2._domainkey.mail and the mail TXT brevo-code; close or downgrade the
+Brevo account. Nothing gets removed without my say-so." Not merge blockers for #94: each happens
+after it. **Every removal below needs Oleksii's explicit OK at that step.**
+
+**Runbook, one provider (Resend) for all email.** DNS in Cloudflare, all DNS only: TXT
+`resend._domainkey.mail` (DKIM, `s=resend`), CNAME `send.mail` → `send.forge.rmta.net`, CNAME
+`rsend.mail` → `rsend-euw1.forge.rmta.net`. **The SPF / bounce (return-path) domain is
+`rsend.mail.opika.org.ua`**, relaxed-aligned with the From domain `mail.opika.org.ua`; `send.mail`
+is not the SPF domain (EM-R3, EM-B9). DMARC `_dmarc` and `_dmarc.mail`, `p=none`, unchanged.
+**To remove after the grace period, with his OK:** CNAMEs `brevo1._domainkey.mail` and
+`brevo2._domainkey.mail`, TXT `mail` `brevo-code`. The Brevo support note about test 3's hold
+(EM-R2) is no longer needed.
+
+- [ ] **No Brevo sends after the switch** (step 3): Brevo's dashboard shows no send after the
+      switch-on deploy. Starts the grace period.
+- [ ] **30-day grace period** for Brevo's delayed retries, counted from the last Brevo send. Brevo's
+      code path (request shape, block-list read) and `BREVO_API_KEY`'s name stay in the code as the
+      rollback until it ends.
+- [ ] **Delete the Brevo API key in Brevo.** Needs Oleksii's explicit OK.
+- [ ] **Remove its Vercel env var** (`EMAIL_PROVIDER_API_KEY` if it was set there with the Brevo key,
+      or `BREVO_API_KEY` if that was ever added for a rollback). Needs Oleksii's explicit OK.
+- [ ] **Remove the DNS records** `brevo1._domainkey.mail`, `brevo2._domainkey.mail` and the `mail` TXT
+      `brevo-code` (first: DMARC aggregate reports for `mail.opika.org.ua` show only Resend passing).
+      Needs Oleksii's explicit OK.
+- [ ] **Close or downgrade the Brevo account.** Needs Oleksii's explicit OK.
+- [ ] **Remove Brevo's code path** (EM-P1 step 1's dead-code list: the Brevo branch of
+      `providerRequest`, the Brevo block-list read, `brevo` in `EMAIL_PROVIDERS` and the delivery
+      test's flags, the Brevo tests) and `BREVO_API_KEY` from `.env.example`. A Tier 1 commit. Needs
+      Oleksii's explicit OK.
+- [ ] *Then, separately:* IN-E3's apex DMARC `p=reject`, once the reports are clean for Resend alone.

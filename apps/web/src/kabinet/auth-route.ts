@@ -10,7 +10,7 @@ import { normalizeEmail, type SignInLimiters, signInAllowed } from "./sign-in-li
  * Production has **no** sender in this slice (HS-Q2), so it is always
  * unavailable there and every auth request answers 503: nobody can be sent a
  * link, so nobody can sign in, and saying so beats pretending to send. The
- * invite PR adds the provider. Development uses the console sender, and still
+ * production-sign-in wiring commit adds the provider. Development uses the console sender, and still
  * needs a secret and a URL: without them it's unavailable too, never a
  * hard-coded default secret.
  */

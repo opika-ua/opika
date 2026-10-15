@@ -178,7 +178,10 @@ export type InvitedAdminView = z.infer<typeof InvitedAdminViewSchema>;
  *   still be blocked.
  * - `unknown`: the list couldn't be read (Oleksii: "If Brevo is unreachable or
  *   errors, return a typed "unknown", never an empty list."), or the
- *   configured provider has no list to read.
+ *   configured provider has no list to read (`unsupported_provider`), or
+ *   it filters on a list of its own that isn't read (`provider_suppresses`:
+ *   the provider drops mail to suppressed addresses, so "unknown" here does
+ *   not mean "unfiltered").
  *
  * `asOf` is when the list was read: it is cached for a few minutes, so a
  * just-unblocked address may still show until then.
@@ -197,7 +200,7 @@ export const BlockedAddressesViewSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("unknown"),
-    why: z.enum(["provider_error", "timed_out", "unsupported_provider"]),
+    why: z.enum(["provider_error", "timed_out", "unsupported_provider", "provider_suppresses"]),
   }),
 ]);
 export type BlockedAddressesView = z.infer<typeof BlockedAddressesViewSchema>;

@@ -15,9 +15,10 @@ import { operatorDisplayName } from "./operator";
  *   `production`). A Preview is refused outright, and so is any environment
  *   that can't be identified (unset or unknown `VERCEL_ENV`, as off Vercel):
  *   fail closed, never skipped;
- * - only when both email routes are configured (`emailRoutesOf`: a sign-in
- *   provider set without its key, or the reverse, is `provider_invalid`) and
- *   BETTER_AUTH_SECRET and BETTER_AUTH_URL are set;
+ * - only when both email routes are configured (`emailRoutesOf`: each route
+ *   reads its provider's own key, and a provider named without that key is
+ *   `provider_invalid`, so no route ever pairs a provider with another's key)
+ *   and BETTER_AUTH_SECRET and BETTER_AUTH_URL are set;
  * - only when BETTER_AUTH_URL is PRODUCTION_ORIGIN, the pinned apex. Magic
  *   links are built from BETTER_AUTH_URL, so a wrong one would email links
  *   to a host that isn't the site;

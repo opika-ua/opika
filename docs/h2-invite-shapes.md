@@ -46,8 +46,8 @@ If Q7 goes B instead: keep the code `ALREADY_A_MEMBER`, add the same `data`. If 
 **As decided (IN-R2, 2026-10-13), superseding the sketch below where they differ.**
 `productionSignInOf` (`apps/web/src/kabinet/production-sign-in.ts`, not wired yet) is on only
 when `VERCEL_ENV` is `production` (a Preview is refused outright; an unset or unknown `VERCEL_ENV`
-fails closed), the provider is configured (`EMAIL_PROVIDER`, `EMAIL_PROVIDER_API_KEY`,
-`EMAIL_FROM_ADDRESS` on `mail.` + PRODUCTION_ORIGIN's host, `PRODUCTION_ORIGIN`),
+fails closed), the provider is configured (`EMAIL_PROVIDER`, that provider's own key, e.g.
+`RESEND_API_KEY` (since EM-B10; `EMAIL_PROVIDER_API_KEY` until then), `EMAIL_FROM_ADDRESS` on `mail.` + PRODUCTION_ORIGIN's host, `PRODUCTION_ORIGIN`),
 `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` are set, and `BETTER_AUTH_URL` equals
 `PRODUCTION_ORIGIN` (pinned: `https://opika.org.ua`). Decision 1: from the wiring commit on, a
 production build fails if any variable is missing, and the runtime boot check stays as a second
@@ -89,7 +89,10 @@ The provider-specific name (e.g. `RESEND_API_KEY`) replaces `KABINET_EMAIL_API_K
 one. The from-name is config, never a literal (the name is not final). **As built:** the names
 stayed generic (`EMAIL_PROVIDER_API_KEY`), and Q2 picked Brevo (IN-E2, 2026-10-13):
 `EMAIL_PROVIDER=brevo`, From `noreply@mail.opika.org.ua`, the From name from `EMAIL_FROM_NAME`;
-Resend is the documented fallback, not set up.
+Resend is the documented fallback, not set up. **Superseded 2026-10-15** (inbox EM-B10, after
+delivery test 5): every email goes through Resend (`EMAIL_PROVIDER=resend`), and each provider
+reads its own key variable (`RESEND_API_KEY`, `BREVO_API_KEY`, `POSTMARK_API_KEY`); the generic
+`EMAIL_PROVIDER_API_KEY` is gone.
 
 ## 3. The invitation email (Q3 A)
 

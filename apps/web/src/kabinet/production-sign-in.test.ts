@@ -20,9 +20,10 @@ import { kabinetPendingCopy, productionSignInOf as withLiveCopy } from "./produc
 const productionSignInOf = (env: Readonly<Record<string, string | undefined>>) =>
   withLiveCopy(env, []);
 
+/** Production's shape after the switch-on (EM-B10): every email on Resend, on RESEND_API_KEY. */
 const full = {
-  EMAIL_PROVIDER: "postmark",
-  EMAIL_PROVIDER_API_KEY: "key",
+  EMAIL_PROVIDER: "resend",
+  RESEND_API_KEY: "resend-key",
   EMAIL_FROM_ADDRESS: "kabinet@mail.example.org",
   EMAIL_REPLY_TO: "hello@example.org",
   PRODUCTION_ORIGIN: "https://example.org",
@@ -59,41 +60,60 @@ describe("productionSignInOf", () => {
     }
   });
 
-  /** EM-B6: the routes the wiring commit hands to the two senders. */
-  it("carries both email routes: sign-in on Resend when its pair is set, invite on the default", () => {
-    const on = productionSignInOf({
-      ...full,
-      EMAIL_PROVIDER: "brevo",
-      EMAIL_SIGN_IN_PROVIDER: "resend",
-      RESEND_API_KEY: "resend-key",
-    });
+  /**
+   * EM-B6 and EM-B10: the routes the wiring commit hands to the two senders.
+   * After the switch-on both are Resend, on one key; a split still works and
+   * each route reads its own provider's key.
+   */
+  it("carries both email routes: both on Resend's key after the switch-on, split when sign-in names another provider", () => {
+    const on = productionSignInOf(full);
     expect(on.kind).toBe("on");
     if (on.kind !== "on") return;
-    expect(on.email.signIn).toMatchObject({ provider: "resend", apiKey: "resend-key" });
-    expect(on.email.invite).toMatchObject({ provider: "brevo", apiKey: "key" });
-    // RESEND_API_KEY alone (as in Vercel Production before the wiring) moves nothing.
-    const keyOnly = productionSignInOf({ ...full, RESEND_API_KEY: "resend-key" });
-    expect(keyOnly.kind === "on" && keyOnly.email.signIn.provider).toBe("postmark");
-    const unsplit = productionSignInOf(full);
-    expect(unsplit.kind).toBe("on");
-    if (unsplit.kind !== "on") return;
-    expect(unsplit.email.signIn).toEqual(unsplit.email.invite);
+    expect(on.email.invite).toMatchObject({ provider: "resend", apiKey: "resend-key" });
+    expect(on.email.signIn).toEqual(on.email.invite);
+    // A Brevo key left in the environment moves nothing: no route names Brevo.
+    const leftover = productionSignInOf({ ...full, BREVO_API_KEY: "brevo-key" });
+    expect(leftover.kind === "on" && leftover.email).toEqual(on.email);
+    const split = productionSignInOf({
+      ...full,
+      EMAIL_PROVIDER: "brevo",
+      BREVO_API_KEY: "brevo-key",
+      EMAIL_SIGN_IN_PROVIDER: "resend",
+    });
+    expect(split.kind).toBe("on");
+    if (split.kind !== "on") return;
+    expect(split.email.signIn).toMatchObject({ provider: "resend", apiKey: "resend-key" });
+    expect(split.email.invite).toMatchObject({ provider: "brevo", apiKey: "brevo-key" });
   });
 
-  it("is off (provider_invalid) with a half-configured sign-in route, failing closed", () => {
+  /**
+   * EM-B10, verbatim: "No sends with a mismatched provider/key pair at any
+   * point." A provider whose own key is missing is off, whichever route names
+   * it, and another provider's key never stands in.
+   */
+  it("is off (provider_invalid) when a route's provider has no key of its own, failing closed", () => {
     for (const half of [
-      { EMAIL_SIGN_IN_PROVIDER: "resend" },
-      { EMAIL_SIGN_IN_PROVIDER: "resend", RESEND_API_KEY: " " },
-      { EMAIL_SIGN_IN_PROVIDER: "sendgrid", RESEND_API_KEY: "resend-key" },
+      { RESEND_API_KEY: undefined },
+      { RESEND_API_KEY: " " },
+      {
+        RESEND_API_KEY: undefined,
+        EMAIL_PROVIDER_API_KEY: "resend-key",
+        BREVO_API_KEY: "brevo-key",
+      },
+      { EMAIL_PROVIDER: "brevo" },
+      { EMAIL_SIGN_IN_PROVIDER: "brevo" },
+      { EMAIL_SIGN_IN_PROVIDER: "brevo", BREVO_API_KEY: " " },
+      { EMAIL_SIGN_IN_PROVIDER: "sendgrid" },
     ]) {
       const off = productionSignInOf({ ...full, ...half });
       expect(off, JSON.stringify(half)).toEqual({ kind: "off", reason: "provider_invalid" });
       expect(JSON.stringify(off)).not.toContain("resend-key");
+      expect(JSON.stringify(off)).not.toContain("brevo-key");
     }
   });
 
   it("is off with any of the variables missing", () => {
-    expect(productionSignInOf({ ...full, EMAIL_PROVIDER_API_KEY: undefined })).toEqual({
+    expect(productionSignInOf({ ...full, EMAIL_PROVIDER: undefined })).toEqual({
       kind: "off",
       reason: "provider_not_configured",
     });
@@ -117,7 +137,7 @@ describe("productionSignInOf", () => {
       reason: "preview_never_sends",
     });
     expect(
-      productionSignInOf({ ...full, VERCEL_ENV: "preview", EMAIL_PROVIDER_API_KEY: undefined }),
+      productionSignInOf({ ...full, VERCEL_ENV: "preview", RESEND_API_KEY: undefined }),
     ).toEqual({ kind: "off", reason: "preview_never_sends" });
   });
 
@@ -232,8 +252,8 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
   it("reports copy_pending before a half-configured sign-in route, and with a split one", () => {
     const pending = ["kabinet.email.signIn.expiry"];
     for (const routing of [
-      { EMAIL_SIGN_IN_PROVIDER: "resend" },
-      { EMAIL_SIGN_IN_PROVIDER: "resend", RESEND_API_KEY: "resend-key" },
+      { EMAIL_SIGN_IN_PROVIDER: "brevo" },
+      { EMAIL_SIGN_IN_PROVIDER: "brevo", BREVO_API_KEY: "brevo-key" },
     ]) {
       expect(withLiveCopy({ ...full, ...routing }, pending)).toEqual({
         kind: "off",
