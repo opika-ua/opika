@@ -2,7 +2,13 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { deliverySignInProviderOf, readSingleKey, runDeliveryTest } from "./email-delivery-test";
+import {
+  type DeliveryRouting,
+  deliveryKeysOf,
+  deliveryProviderOf,
+  readSingleKey,
+  runDeliveryTest,
+} from "./email-delivery-test";
 
 const KEY = "test-key-not-real-0123456789";
 const RESEND_KEY = "re_test-key-not-real-9876543210";
@@ -300,13 +306,140 @@ describe("runDeliveryTest --sign-in-provider resend", () => {
   });
 });
 
-describe("deliverySignInProviderOf (--sign-in-provider)", () => {
+/**
+ * Delivery test 5 (Oleksii, 2026-10-15, inbox EM-B9, verbatim: "Run delivery
+ * test 5 with both emails via Resend and report the invite's tab."): both
+ * emails through Resend, the invite as production's default route.
+ */
+describe("runDeliveryTest --invite-provider resend", () => {
+  const resendOk = (id: string) =>
+    new Response(JSON.stringify({ id }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  const bothResend = () => {
+    const h = harness((n) => resendOk(`re-msg-${n}`));
+    return {
+      ...h,
+      input: {
+        ...h.input,
+        apiKey: undefined,
+        signInProvider: "resend" as const,
+        inviteProvider: "resend" as const,
+        resendApiKey: RESEND_KEY,
+      },
+    };
+  };
+
+  it("sends both emails to Resend with RESEND_API_KEY, needing no Brevo key", async () => {
+    const h = bothResend();
+    expect(await runDeliveryTest(h.input)).toBe(0);
+    expect(h.calls.map((c) => c.url)).toEqual([
+      "https://api.resend.com/emails",
+      "https://api.resend.com/emails",
+    ]);
+    for (const call of h.calls) {
+      const headers = call.init.headers as Record<string, string>;
+      expect(headers.Authorization).toBe(`Bearer ${RESEND_KEY}`);
+      expect(headers["api-key"]).toBeUndefined();
+      const body = bodyOf(call);
+      expect(body.from).toBe("Config Name <noreply@mail.example.org>");
+      expect(body.reply_to).toBe("hello@example.org");
+      expect(body.to).toEqual(["someone@example.com"]);
+    }
+    const [signIn, invite] = h.calls.map(bodyOf);
+    expect(signIn.subject).toBe("Посилання для входу до кабінету притулку");
+    expect(signIn.text).toContain(
+      "http://localhost:3000/kabinet/vkhid/pidtverdzhennia?token=TEST-r1",
+    );
+    expect(invite.subject).toBe("Ваш доступ до кабінету притулку");
+    expect(invite.text).toContain("http://localhost:3000/kabinet/vkhid?zaproshennia=TEST-r2");
+    expect(invite.html).toContain(
+      'href="http://localhost:3000/kabinet/vkhid?zaproshennia=TEST-r2"',
+    );
+  });
+
+  it("sends the invite with no headers, tags or List-Unsubscribe, on the bytes that went out", async () => {
+    const h = bothResend();
+    await runDeliveryTest(h.input);
+    const invite = h.calls[1] as Call;
+    expect(Object.keys(bodyOf(invite)).sort()).toEqual(
+      ["from", "html", "reply_to", "subject", "text", "to"].sort(),
+    );
+    expect(`${JSON.stringify(invite.init.headers)}${invite.init.body}`).not.toMatch(
+      /List-Unsubscribe|"headers"|"tags"|"topic_id"/,
+    );
+  });
+
+  it("prints resend, the status and the id per send, and never the key", async () => {
+    const h = bothResend();
+    await runDeliveryTest(h.input);
+    expect(h.lines).toEqual([
+      "magic link: resend, status 200, message id re-msg-1",
+      "invite: resend, status 200, message id re-msg-2",
+    ]);
+    expect(h.lines.join("\n")).not.toContain(RESEND_KEY);
+    expect(h.lines.join("\n")).not.toContain("TEST-");
+  });
+
+  it("refuses without RESEND_API_KEY, sending nothing", async () => {
+    const h = bothResend();
+    expect(await runDeliveryTest({ ...h.input, resendApiKey: undefined })).toBe(1);
+    expect(h.calls).toHaveLength(0);
+    expect(h.lines).toEqual([
+      "RESEND_API_KEY is not set in the repo-root .env.local. Nothing sent.",
+    ]);
+  });
+
+  it("refuses invites via Resend beside sign-in via Brevo, which production cannot route, sending nothing", async () => {
+    const h = bothResend();
+    expect(await runDeliveryTest({ ...h.input, signInProvider: "brevo", apiKey: KEY })).toBe(1);
+    expect(h.calls).toHaveLength(0);
+    expect(h.lines).toEqual([
+      "--invite-provider resend needs --sign-in-provider resend (production cannot send sign-in through Brevo while invites go through Resend). Nothing sent.",
+    ]);
+  });
+});
+
+describe("deliveryKeysOf: the script reads only the keys the sends need", () => {
+  const reads = (routing: DeliveryRouting) => {
+    const asked: string[] = [];
+    const keys = deliveryKeysOf(routing, (name) => {
+      asked.push(name);
+      return `value-of-${name}`;
+    });
+    return { asked, keys };
+  };
+
+  it("both via Brevo: BREVO_API_KEY only", () => {
+    const { asked, keys } = reads({ signIn: "brevo", invite: "brevo" });
+    expect(asked).toEqual(["BREVO_API_KEY"]);
+    expect(keys).toEqual({ apiKey: "value-of-BREVO_API_KEY", resendApiKey: undefined });
+  });
+
+  it("sign-in via Resend, invite via Brevo: each key once", () => {
+    const { asked, keys } = reads({ signIn: "resend", invite: "brevo" });
+    expect(asked).toEqual(["BREVO_API_KEY", "RESEND_API_KEY"]);
+    expect(keys).toEqual({
+      apiKey: "value-of-BREVO_API_KEY",
+      resendApiKey: "value-of-RESEND_API_KEY",
+    });
+  });
+
+  it("both via Resend: RESEND_API_KEY once, shared, and never Brevo's", () => {
+    const { asked, keys } = reads({ signIn: "resend", invite: "resend" });
+    expect(asked).toEqual(["RESEND_API_KEY"]);
+    expect(keys).toEqual({ apiKey: undefined, resendApiKey: "value-of-RESEND_API_KEY" });
+  });
+});
+
+describe("deliveryProviderOf (--sign-in-provider, --invite-provider)", () => {
   it("is brevo when unset, the provider named when it is one of the two, else null", () => {
-    expect(deliverySignInProviderOf(undefined)).toBe("brevo");
-    expect(deliverySignInProviderOf("brevo")).toBe("brevo");
-    expect(deliverySignInProviderOf("resend")).toBe("resend");
+    expect(deliveryProviderOf(undefined)).toBe("brevo");
+    expect(deliveryProviderOf("brevo")).toBe("brevo");
+    expect(deliveryProviderOf("resend")).toBe("resend");
     for (const other of ["postmark", "Resend", "", "re_abc"]) {
-      expect(deliverySignInProviderOf(other), other).toBeNull();
+      expect(deliveryProviderOf(other), other).toBeNull();
     }
   });
 });

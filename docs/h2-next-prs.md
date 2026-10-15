@@ -73,17 +73,30 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       (EM-R1 fired, EM-B6 item 2: "Resend for SIGN-IN sends: GO"): see the Resend items below.
 - [x] **Resend set up for sign-in** (Oleksii, 2026-10-15, inbox EM-R3/EM-B8: "RESEND: done and
       Verified."): EU account (`eu-west-1`), domain `mail.opika.org.ua` Verified, tracking off. DNS in
-      Cloudflare, all DNS only: TXT `resend._domainkey.mail` (DKIM), CNAME `send.mail` →
-      `send.forge.rmta.net` (return path, so SPF), CNAME `rsend.mail` → `rsend-euw1.forge.rmta.net`;
-      Brevo's records and DMARC unchanged.
+      Cloudflare, all DNS only: TXT `resend._domainkey.mail` (DKIM), CNAME `rsend.mail` →
+      `rsend-euw1.forge.rmta.net` (the bounce / return-path domain, so SPF: delivery test 4 showed SPF
+      passing for `rsend.mail.opika.org.ua`, relaxed-aligned with the From domain), CNAME `send.mail` →
+      `send.forge.rmta.net` (the other CNAME Resend requires; not the SPF domain, corrected per test 4,
+      EM-B9); Brevo's records and DMARC unchanged.
 - [x] **`RESEND_API_KEY` in Vercel Production and in `.env.local`** (EM-B8; key name EM-B7): a
       sending-only key restricted to `mail.opika.org.ua`. Read by the app only once
       `EMAIL_SIGN_IN_PROVIDER=resend` is set (the wiring commit, below).
-- [ ] **Delivery test 4 (sign-in via Resend)** (Oleksii's, by hand): `email:delivery-test
-      --sign-in-provider resend`, sign-in via Resend and invite via Brevo to his Gmail. He reports the
-      sign-in email's tab and headers (no List-Unsubscribe, DKIM pass with `d=mail.opika.org.ua`,
-      SPF pass for the `send.mail` return path, DMARC pass, Reply-To `hello@`), and the invite still
-      in Primary. Then the proposal on moving invites and retiring Brevo (EM-F2).
+- [x] **Delivery test 4 (sign-in via Resend)** (Oleksii's, by hand, 2026-10-15; inbox EM-B9):
+      sign-in via Resend landed in **Promotions** (~1 s), DKIM pass `d=mail.opika.org.ua` (plus
+      amazonses.com), SPF pass for `rsend.mail.opika.org.ua`, DMARC pass, no List-Unsubscribe, no
+      pixel, direct links; invite via Brevo in Primary (~2 s), still with List-Unsubscribe, an open
+      pixel and the link rewritten through Brevo's click tracker. **Sign-in in Promotions is accepted**
+      (his decision, EM-B9: "accept Promotions for sign-in (copy row 10 already points people there),
+      no more email-version experiments for now").
+- [ ] **Delivery test 5 (both via Resend)** (Oleksii's, by hand; EM-B9 item 1, EM-F2):
+      `email:delivery-test --sign-in-provider resend --invite-provider resend` to his Gmail, with test
+      4's other flags (`--to`, `--base https://opika.org.ua`, From name, Reply-To, operator name); only
+      `RESEND_API_KEY` is read from `.env.local`, once (`BREVO_API_KEY` is not touched). He reports
+      the invite's tab and, for both, DKIM pass `d=mail.opika.org.ua`, SPF pass for
+      `rsend.mail.opika.org.ua`, DMARC pass, no List-Unsubscribe, no open pixel, the link straight to
+      `https://opika.org.ua/kabinet/vkhid…` (no click-tracker redirect), Reply-To `hello@`. Moving
+      invites is his decision on that result, whichever tab; Brevo's retirement is planned in EM-P1 and
+      starts only once he accepts test 5.
 - [x] **The /pro `about.data` addition is live in this PR** (KH-C1; moved back from the wiring
       commit by Oleksii's handoff of 2026-10-14, verbatim: "Row 90 ships with the #94 merge (all it
       describes is live via #95, and #94 starts storing admin emails at invite)."): his final text,
