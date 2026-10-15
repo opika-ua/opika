@@ -1,31 +1,61 @@
-import { Commissioner, Literata } from "next/font/google";
+import { Commissioner } from "next/font/google";
 import localFont from "next/font/local";
 
 /**
  * Two of the three type families from docs/design/README.md
  * ("Typography"): Literata (serif — animal names, screen titles, shelter
- * speech) and Commissioner (sans — all UI). `cyrillic` first because
- * Ukrainian is the only shipped locale (see CLAUDE.md's i18n row); `latin`
- * stays for the Latin punctuation and digits that appear inside Ukrainian
- * copy and for the eventual `en` locale next-intl already carries space
- * for.
+ * speech) and Commissioner (sans — all UI). Commissioner's subsets list
+ * `cyrillic` first because Ukrainian is the only shipped locale (see
+ * CLAUDE.md's i18n row); `latin` stays for the Latin punctuation and
+ * digits that appear inside Ukrainian copy and for the eventual `en`
+ * locale next-intl already carries space for.
  *
  * The third family, IBM Plex Mono, is deliberately not loaded — see the
  * note at the bottom of this file for the measured reason.
  *
- * Weight sets are the current codebase's actual usage
- * (`grep -rn "font-medium\|font-normal" apps/web/src/features/discovery`),
- * not the design doc's full range (Literata 400/500/600, Commissioner
- * 300/400/500/600) — M5 renders only 400/500 of either. Loading 600 and
- * 300 now, for screens M6+ hasn't built yet, is exactly the premature
+ * Weight sets are the current codebase's actual usage, not the design
+ * doc's full range (Literata 400/500/600, Commissioner 300/400/500/600).
+ * Loading weights for screens nobody has built is exactly the premature
  * scaffolding CLAUDE.md's milestone-discipline section warns against;
- * widening a `weight` array later is a one-line change with no
- * architectural cost.
+ * adding one later is one more `src` entry or `weight` item.
+ *
+ * Literata is self-hosted via `next/font/local`, not `next/font/google`:
+ * the Google loader fetches from Google at build time, and that fetch
+ * failed CI's build intermittently (Turbopack: "Can't resolve
+ * '@vercel/turbopack-next/internal/font/google/font'"). Either way the
+ * browser only ever downloads it from our own domain — `next/font/google`
+ * already self-hosted the files it fetched — so this removes a build-time
+ * dependency, not a runtime one. `./fonts/literata/README.md` has the
+ * source, version and licence (SIL OFL 1.1, `OFL.txt` beside the file).
+ *
+ * Only Medium (500, upright) ships, because it is the only Literata face
+ * anything renders: `font-serif` appears on one element in the app,
+ * `ExhaustedState`'s heading in `SwipeDeck.tsx`, with `font-medium`
+ * (`grep -rn "font-serif" apps/web/src`). The Google loader requested
+ * 400 as well, but it served one variable file for both weights, so
+ * nothing ever rendered 400 distinctly. If a 400 surface is built, add
+ * upstream's `Literata-Regular.woff2` as a second `src` entry.
+ *
+ * `adjustFontFallback: "Times New Roman"` because the Google loader picked
+ * that fallback for a serif (`next/font/local` defaults to Arial), and the
+ * metric-adjusted fallback is what keeps first paint from reflowing.
+ *
+ * Not subset, unlike Google's per-script slices: upstream's file carries
+ * its full character set (≈104 KB) where Google served Cyrillic and Latin
+ * slices of ≈21 KB and ≈38 KB. Same reasoning, and the same open item, as
+ * `eUkraine` below — subsetting picks a glyph set that H3 can still
+ * change; `docs/build-plan.md`'s H3.5.
+ *
+ * `preload: false`: Literata renders in exactly one place, the deck's
+ * "no more animals" heading, so no route preloads it any more; the file
+ * loads only when that heading appears, briefly showing the metric-matched
+ * fallback the first time (review of the self-hosting change, LIT-T4).
  */
-export const literata = Literata({
-  subsets: ["cyrillic", "latin"],
+export const literata = localFont({
+  src: [{ path: "./fonts/literata/Literata-Medium.woff2", weight: "500" }],
   display: "swap",
-  weight: ["400", "500"],
+  preload: false,
+  adjustFontFallback: "Times New Roman",
   variable: "--font-literata",
 });
 
@@ -54,7 +84,8 @@ export const commissioner = Commissioner({
  * phase. A two-font-system app for one phase, on purpose.
  *
  * Not yet subset to Cyrillic + Latin basic + punctuation, unlike
- * `literata`/`commissioner` above (Google's own subsetting) — the three
+ * `commissioner` above (Google's own subsetting; `literata` is in the
+ * same unsubset position as this family, for the same reason) — the three
  * files as vendored are the mirror's full character set, ≈95 KB total
  * against the design's own "≈84 KB" subset estimate. Deliberately not
  * done here: subsetting picks a glyph set, and this one isn't final
