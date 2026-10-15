@@ -209,12 +209,33 @@ describe(`a shelter membership is created by the automatic accept only — ${COP
 const AUTH_INVITATION_WRITE =
   /\.(insert|update|delete)\(\s*(?:\w+\.)*authInvitation\b|(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:"?auth_invitation\b|\$\{\s*(?:\w+\.)*authInvitation\s*\})/gi;
 
-describe("Better Auth's invitation table has exactly two writers (HS-Q7, IN-Q13)", () => {
-  it("is kabinetInvitationRepo, and the automatic accept", () => {
+/**
+ * `demo:remove` deletes the demo shelters' invitations with their
+ * organizations (inbox DR-B1, Oleksii's answer 1: "Scope: yes, exactly as
+ * listed", the list naming each demo shelter's organization "with its
+ * memberships and invitations"). It is an operator script, never a request
+ * path, and it may only delete.
+ */
+const DEMO_REMOVE_MODULE = "packages/db/src/demo-remove.ts";
+
+describe("Better Auth's invitation table has exactly three writers (HS-Q7, IN-Q13, DR-B1)", () => {
+  it("is kabinetInvitationRepo, the automatic accept, and demo:remove", () => {
     expect(filesMatching(new RegExp(AUTH_INVITATION_WRITE.source, "i"))).toEqual([
+      DEMO_REMOVE_MODULE,
       ACCEPT_MODULE,
       "packages/db/src/repos/kabinet-invitation-repo.ts",
     ]);
+  });
+
+  it("demo:remove's only write to it is .delete(authInvitation)", () => {
+    const writes = [
+      ...readFileSync(join(REPO, DEMO_REMOVE_MODULE), "utf8").matchAll(AUTH_INVITATION_WRITE),
+    ].map((match) => match[0].replace(/\s+/g, ""));
+    expect(writes.length, `${DEMO_REMOVE_MODULE} no longer deletes invitations`).toBeGreaterThan(0);
+    expect(
+      [...new Set(writes)],
+      `${DEMO_REMOVE_MODULE} may only delete invitations (DR-B1)`,
+    ).toEqual([".delete(authInvitation"]);
   });
 
   /**

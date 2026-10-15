@@ -431,6 +431,22 @@ describe("swipes", () => {
     });
     expectError(res, "UNAUTHENTICATED");
   });
+
+  /**
+   * A deck already loaded in a browser can swipe an animal deleted since
+   * (`demo:remove`, inbox DR-B1 answer 1). That is a 404 the deck ignores
+   * (it has already advanced, `use-feed-deck.ts`), never a 500 from the
+   * swipe row's foreign key.
+   */
+  it("answers NOT_FOUND, at 404, for an animal that no longer exists", async () => {
+    const cookie = await bootstrap();
+    const res = await h.call(
+      "swipes.record",
+      { animalId: crypto.randomUUID(), direction: "pass", at: new Date("2026-08-01T12:00:00Z") },
+      { cookie },
+    );
+    expectError(res, "NOT_FOUND", 404);
+  });
 });
 
 // ---------------------------------------------------------------------------
