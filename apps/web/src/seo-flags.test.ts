@@ -14,15 +14,12 @@ const LANDED_ANALYTICS_COPY = `${INCOMPLETE_ANALYTICS_COPY} ${PENDING_R4_2_ANALY
 /**
  * D-3's and D-2's tests both import `./app/layout` (for `metadata.robots`
  * and `metadata.description` respectively), and that module's top-level
- * `fonts.ts` import calls `next/font/google`/`local` — calls Next's own
- * build step transforms away, which Vitest never runs. Without this, the
- * call itself throws (`Commissioner is not a function`) before any test body
- * runs; the shape returned only needs to satisfy `RootLayout`'s JSX
- * (`.variable`), which these tests never render anyway.
+ * `fonts.ts` import calls `next/font/local` — a call Next's own build step
+ * transforms away, which Vitest never runs. Without this, the call itself
+ * throws before any test body runs; the shape returned only needs to satisfy
+ * `RootLayout`'s JSX (`.variable`), which these tests never render anyway.
+ * Every family is self-hosted now, so `next/font/google` needs no mock.
  */
-vi.mock("next/font/google", () => ({
-  Commissioner: () => ({ variable: "--font-commissioner" }),
-}));
 vi.mock("next/font/local", () => ({
   default: () => ({ variable: "--font-e-ukraine" }),
 }));

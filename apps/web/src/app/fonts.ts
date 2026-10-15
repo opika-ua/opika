@@ -1,14 +1,11 @@
-import { Commissioner } from "next/font/google";
 import localFont from "next/font/local";
 
 /**
  * Two of the three type families from docs/design/README.md
  * ("Typography"): Literata (serif — animal names, screen titles, shelter
- * speech) and Commissioner (sans — all UI). Commissioner's subsets list
- * `cyrillic` first because Ukrainian is the only shipped locale (see
- * CLAUDE.md's i18n row); `latin` stays for the Latin punctuation and
- * digits that appear inside Ukrainian copy and for the eventual `en`
- * locale next-intl already carries space for.
+ * speech) and Commissioner (sans — all UI). Every family in this file is
+ * self-hosted through `next/font/local`; nothing here loads from Google,
+ * at build time or at runtime.
  *
  * The third family, IBM Plex Mono, is deliberately not loaded — see the
  * note at the bottom of this file for the measured reason.
@@ -25,7 +22,8 @@ import localFont from "next/font/local";
  * '@vercel/turbopack-next/internal/font/google/font'"). Either way the
  * browser only ever downloads it from our own domain — `next/font/google`
  * already self-hosted the files it fetched — so this removes a build-time
- * dependency, not a runtime one. `./fonts/literata/README.md` has the
+ * dependency, not a runtime one. Commissioner below followed in its own PR
+ * for the same reason. `./fonts/literata/README.md` has the
  * source, version and licence (SIL OFL 1.1, `OFL.txt` beside the file).
  *
  * Only Medium (500, upright) ships, because it is the only Literata face
@@ -59,10 +57,48 @@ export const literata = localFont({
   variable: "--font-literata",
 });
 
-export const commissioner = Commissioner({
-  subsets: ["cyrillic", "latin"],
+/**
+ * Commissioner, self-hosted the same way as Literata above and for the same
+ * reason: the `next/font/google` loader was the build's last fetch from
+ * Google. `./fonts/commissioner/README.md` has the source, version and
+ * licence (SIL OFL 1.1, `OFL.txt` beside the files).
+ *
+ * The files are upstream's static Regular and Medium from the commit Google
+ * Fonts itself packaged (`Version 1.001` in both). Google served one
+ * variable file per script slice for both weights; these two static
+ * instances are the same design at the same two weights (glyph advances
+ * match, bar one non-Ukrainian Cyrillic letter off by 1/2000 em at 500).
+ *
+ * Only 400 and 500, the two weights the Google loader requested, and both
+ * are used: 400 is the deck's running text (`DeckScreen`'s `font-sans`
+ * wrapper, the exhausted state's body), 500 is `font-medium` on surfaces
+ * without `font-rg` (the kabinet's buttons and emphasis). The kabinet's
+ * `font-bold` headings also resolve to Commissioner; with no 700 face they
+ * get the browser's synthetic bold of the Medium face, as they did under
+ * Google. Adding a Bold file would change how those headings render, so it
+ * is not added here.
+ *
+ * `adjustFontFallback: "Arial"` is `next/font/local`'s default, written out
+ * because it is the fallback the Google loader chose for a sans.
+ *
+ * Not preloaded (COM-T2, below): the full files are 132,220 bytes where
+ * Google's Cyrillic + Latin slices were 62,960, and most routes render no
+ * Commissioner text at all (they are `font-rg`). Not subset: upstream's files
+ * carry the full character set. Subsetting waits for H3.5, as for Literata
+ * and e-Ukraine.
+ */
+// `preload: false` (COM-T2, as Literata's LIT-T4): it draws only the deck's
+// 13px notice, the exhausted state and, for now, the kabinet (COM-F1), so a
+// one-line swap onto the metric-matched fallback beats doubling every route's
+// font bytes.
+export const commissioner = localFont({
+  src: [
+    { path: "./fonts/commissioner/Commissioner-Regular.woff2", weight: "400" },
+    { path: "./fonts/commissioner/Commissioner-Medium.woff2", weight: "500" },
+  ],
   display: "swap",
-  weight: ["400", "500"],
+  adjustFontFallback: "Arial",
+  preload: false,
   variable: "--font-commissioner",
 });
 
@@ -83,9 +119,9 @@ export const commissioner = Commissioner({
  * deliberately, per the standing "skin, not skeleton" rule for this
  * phase. A two-font-system app for one phase, on purpose.
  *
- * Not yet subset to Cyrillic + Latin basic + punctuation, unlike
- * `commissioner` above (Google's own subsetting; `literata` is in the
- * same unsubset position as this family, for the same reason) — the three
+ * Not yet subset to Cyrillic + Latin basic + punctuation (`literata` and
+ * `commissioner` above are in the same unsubset position, for the same
+ * reason) — the three
  * files as vendored are the mirror's full character set, ≈95 KB total
  * against the design's own "≈84 KB" subset estimate. Deliberately not
  * done here: subsetting picks a glyph set, and this one isn't final
@@ -136,7 +172,9 @@ export const eUkraine = localFont({
  * of the three families in the handoff summary, and calls for it by name on
  * screen 04 — the donate row's "dobro.ua ↗". None of those surfaces exist
  * yet. When M6 builds the profile and reveal screens, re-add the loader
- * here (one call, `weight: ["500"]`, subsets cyrillic+latin), add
+ * here (one `localFont` call for upstream's Medium file with its OFL beside
+ * it, like the families above; the byte figure was measured on Google's
+ * Cyrillic + Latin slices and needs re-measuring), add
  * `--font-mono` to globals.css's `@theme`, and put `font-mono` back on the
  * ErrorState eyebrow: at that point the 15,560 bytes buy three surfaces
  * rather than one, and this note's arithmetic no longer applies. Loading it
