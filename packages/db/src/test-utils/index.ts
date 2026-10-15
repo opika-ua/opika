@@ -13,6 +13,7 @@ export {
 export { setupTestDatabase, type TestContext, truncateAll } from "./setup";
 export {
   assertDisposableTestDatabase,
+  disposeTestDatabaseAfterRun,
   dropTestDatabase,
   ensureTestDatabase,
   harnessPort,

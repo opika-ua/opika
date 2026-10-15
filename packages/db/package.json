@@ -8,6 +8,7 @@
     "./schema": "./src/schema/index.ts",
     "./repos": "./src/repos/index.ts",
     "./test": "./src/test-utils/index.ts",
+    "./test/vitest-global-setup": "./src/test-utils/vitest-global-setup.ts",
     "./image-pipeline": "./src/image-pipeline/index.ts"
   },
   "scripts": {
@@ -26,7 +27,8 @@
     "admin:revoke": "tsx src/admin.ts revoke",
     "admin:sweep-invites": "tsx src/admin.ts sweep-invites",
     "db:neon-smoke": "tsx test/neon-smoke.ts",
-    "worktree:remove": "tsx src/tools/worktree-remove.ts"
+    "worktree:remove": "tsx src/tools/worktree-remove.ts",
+    "db:prune-test-dbs": "tsx src/tools/prune-test-dbs.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",

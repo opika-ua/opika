@@ -162,7 +162,8 @@ test.describe("kabinet confirm page, in a real browser", () => {
         .values({ id: randomUUID(), organizationId, userId, role: "admin", createdAt: now });
       // Not closed here: `Database` doesn't expose its client, and a cast to
       // reach it isn't worth it for one test connection. The worker's exit ends
-      // it; teardown drops the database WITH (FORCE) regardless.
+      // it, and Playwright stops its workers before the reporter's (non-forced)
+      // drop runs.
 
       const requested = await fetch(`${origin}/api/auth/sign-in/magic-link`, {
         method: "POST",

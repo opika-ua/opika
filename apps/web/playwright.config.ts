@@ -27,8 +27,9 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
  * database or with another checkout's, so a test run elsewhere can't wipe
  * the rows this harness seeded mid-run (it did, 2026-10-13, with one fixed
  * `opika_test`). Created ahead of migrate and seed (`test-db:ensure`),
- * dropped by `globalTeardown`. Refuses the dev database and any non-local
- * host (`assertDisposableTestDatabase`).
+ * dropped when the run ends (`test/harness-database-reporter.ts`, which keeps
+ * it after a failed run with KEEP_TEST_DB_ON_FAILURE=1). Refuses the dev
+ * database and any non-local host (`assertDisposableTestDatabase`).
  */
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
@@ -47,9 +48,12 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   timeout: 30_000,
 
-  reporter: process.env.CI ? [["github"], ["list"]] : [["list"]],
+  reporter: [
+    ...(process.env.CI ? [["github"] as const] : []),
+    ["list"],
+    ["./test/harness-database-reporter.ts"],
+  ],
   outputDir: "./test-results",
-  globalTeardown: "./test/harness-teardown.ts",
 
   use: {
     baseURL: ORIGIN,
