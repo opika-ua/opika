@@ -284,6 +284,27 @@ dashboard for that address: **Logs** (was the invite sent, delivered, bounced?),
 from the registry, and tell the shelter personally (IN-E13). Oleksii's condition on EM-T26,
 2026-10-15.
 
+## Debugging sign-in: share a name and an email, never the response
+
+`/api/auth/get-session` answers with the signed-in user **and the session itself, token
+included**, in its JSON body. The app needs that; a person reading it while debugging doesn't. When
+you report what a sign-in shows (to a helper, in a chat, in an issue), copy the user's **name and
+email only**, never the whole response.
+
+If a token does get out: sign out in the browser that holds that session. Signing out deletes its
+`auth_session` row, so the token matches nothing from then on; then confirm `get-session` answers
+`null` and sign in again. A bare token was never a working sign-in on its own, since the cookie
+also carries a signature made with `BETTER_AUTH_SECRET` (next section), so no rotation is needed
+for a token alone. This happened once, on 2026-10-15, with the operator's own session, and was
+closed exactly this way (inbox RO-E1).
+
+## The operator's own `/kabinet` answers 404
+
+Signed in as the operator (super_admin) and outside support mode, `/kabinet` answers 404. That is
+intended for now (inbox RO-D1): the kabinet shows one shelter's profile, and the operator account
+belongs to no shelter. The operator works through the registry API instead. A minimal operator
+landing (one line plus «Вийти») is a low-priority follow-up (RO-F1).
+
 ## Rotating `BETTER_AUTH_SECRET` (kabinet sign-in)
 
 Better Auth stores kabinet session tokens in plain text in `auth_session`
