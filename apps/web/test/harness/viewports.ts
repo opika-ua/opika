@@ -164,8 +164,8 @@ export const GALLERY_DESKTOP_1920: Viewport = {
  * platform served — different fonts, different metrics, on a Windows dev
  * machine versus a Linux CI runner, entirely outside this harness's control.
  * As of the font-loading commit, both are loaded through `next/font`
- * (apps/web/src/app/fonts.ts; Literata is self-hosted via `next/font/local`,
- * Commissioner still via `next/font/google`): the same two WOFF2 files render everywhere
+ * (apps/web/src/app/fonts.ts; both now self-hosted via `next/font/local`):
+ * the same WOFF2 files render everywhere
  * Chromium runs, so a Windows machine and a Linux CI runner now measure the
  * same glyphs, not merely similar-looking substitutes.
  *
