@@ -74,7 +74,7 @@ async function call<T = Record<string, unknown>>(
 ): Promise<{ status: number; body: T }> {
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: "http://localhost" },
     body: JSON.stringify(toRpcBody(input)),
   });
   const response = await handleKabinetRpc(request, {
@@ -191,6 +191,87 @@ describe("shelter.profile", () => {
       (await call("shelter.profile.updateContact", { contact: next, expectedVersion: 3 })).status,
     ).toBe(409);
     expect((await shelterRepo(db).findById(shelter.id))?.contact).toEqual(shelter.contact);
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
+  });
+
+  it("updateFreshnessSentence writes, bumps the version and records previous and next", async () => {
+    const next = { uk: "Оновлюємо картки щосуботи.", en: null };
+    const result = await call<KabinetShelterView>("shelter.profile.updateFreshnessSentence", {
+      freshnessSentence: next,
+      expectedVersion: 0,
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.version).toBe(1);
+    expect(result.body.freshnessSentence).toEqual(next);
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toMatchObject([
+      {
+        kind: "freshness_sentence_changed",
+        previous: shelter.freshnessSentence,
+        next,
+        actor: { kind: "shelter_admin", shelterAdminId: ADMIN },
+      },
+    ]);
+  });
+
+  it("updateFreshnessSentence from a stale form is CONFLICT and writes nothing", async () => {
+    const result = await call("shelter.profile.updateFreshnessSentence", {
+      freshnessSentence: { uk: "Інше речення.", en: null },
+      expectedVersion: 5,
+    });
+    expect(result.status).toBe(409);
+    expect((await shelterRepo(db).findById(shelter.id))?.freshnessSentence).toEqual(
+      shelter.freshnessSentence,
+    );
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
+  });
+
+  it("requestReview sends a rejected shelter back to pending, keeping its evidence", async () => {
+    await truncateAll(db);
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const evidence = {
+      items: [
+        {
+          kind: "site_visit" as const,
+          visitedAt: new Date("2026-08-30T00:00:00Z"),
+          visitedBy: "0ec0ec0e-0000-4000-8000-0000000000aa" as never,
+          notes: "Дзвінок із волонтеркою.",
+        },
+      ],
+      submittedAt: new Date("2026-09-01T00:00:00Z"),
+    };
+    shelter = makeShelter({
+      id: shelter.id,
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
+      verification: {
+        status: "rejected",
+        rejectedAt: new Date("2026-09-10T00:00:00Z"),
+        rejectedBy: "0ec0ec0e-0000-4000-8000-0000000000aa" as never,
+        reason: { code: "insufficient_evidence", note: null },
+        evidence,
+      },
+    });
+    await shelterRepo(db).insert(shelter);
+
+    const result = await call<KabinetShelterView>("shelter.verification.requestReview", {});
+    expect(result.status).toBe(200);
+    expect(result.body.verification.status).toBe("pending");
+    const stored = await shelterRepo(db).findById(shelter.id);
+    expect(stored?.verification.evidence.items).toEqual(evidence.items);
+    const entries = await kabinetShelterRepo(db).historyOf(shelter.id);
+    expect(entries.map((e) => (e.kind === "verification" ? `${e.from}->${e.to}` : e.kind))).toEqual(
+      ["rejected->pending"],
+    );
+  });
+
+  it("requestReview on a verified shelter is ILLEGAL_TRANSITION and writes nothing", async () => {
+    const result = await call("shelter.verification.requestReview", {});
+    expect(result.status).toBe(409);
+    expect(result.body.data).toEqual({
+      machine: "verification",
+      from: "verified",
+      event: "resubmit",
+    });
     expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
   });
 

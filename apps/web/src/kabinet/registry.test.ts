@@ -98,6 +98,7 @@ async function call<T = Record<string, unknown>>(
 ): Promise<Result<T>> {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (opts.cookie !== undefined) headers.cookie = opts.cookie;
+  headers.origin ??= "http://localhost";
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
     headers,

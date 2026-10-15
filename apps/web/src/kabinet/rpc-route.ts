@@ -5,6 +5,7 @@ import { ipRateLimitKey } from "../api/rate-limit-key";
 import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import type { KabinetAuthAvailability } from "./auth-route";
+import { isSameOriginPost } from "./confirm-route";
 import { type KabinetLimiters, kabinetUserKey } from "./rate-limits";
 import { registryRouter } from "./registry-router";
 import { shelterKabinetRouter } from "./router";
@@ -56,6 +57,15 @@ export async function handleKabinetRpc(
   if (!(await deps.limiters.perIp.check(ipRateLimitKey(deps.ip), deps.now))) return tooMany();
   if (deps.availability.kind === "unavailable") {
     return new Response("Kabinet is not available", { status: 503 });
+  }
+  // K-Q8 (Oleksii, 2026-10-15): every call must come from the site's own
+  // pages. SameSite=Lax cookies and oRPC's refusal of GET already keep a
+  // cross-site form or link from acting as a signed-in admin; this is the
+  // explicit check, the same one the confirm page and invite landing make
+  // (`isSameOriginPost`), before any session is resolved. Browsers send
+  // Origin on every POST, fetch included; a request without one is refused.
+  if (!isSameOriginPost(request.headers.get("origin"), deps.availability.baseURL)) {
+    return new Response("Forbidden", { status: 403 });
   }
   // RG-Q10: without the location key the registry can't create a shelter or
   // move one honestly, so all of it is unavailable rather than half of it.
