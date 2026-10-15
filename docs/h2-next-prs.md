@@ -333,15 +333,16 @@ relay's elision.)
       `EMAIL_PROVIDER=resend` and `EMAIL_SIGN_IN_PROVIDER` unset, both routes are Resend on
       `RESEND_API_KEY`. (This item said `EMAIL_SIGN_IN_PROVIDER=resend` before test 5; not needed
       now.)
-- [ ] **The confirm page's over-limit card ships before production sign-in is turned on**
+- [x] **The confirm page's over-limit card ships before production sign-in is turned on**
       (IN-T15, Oleksii: "A plain 429 is fine for now. Add a gate item: the over-limit card ships
       before production sign-in is turned on."). Today a rate-limited «Увійти» POST answers a plain
       429. **Card built in the wiring commit** (`confirm-route.ts`, `rate_limited`: still a 429, the
-      notice as an alert, the same token back behind «Увійти»), **copy pending**: no final string
-      existed, so `kabinet.confirm.rateLimited` ships `[COPY PENDING]` with its English sense, and
-      the copy gate keeps production sign-in off until his text lands (inbox WI-Q3). **Blocks the
-      wiring PR's merge**: merged without it, `/prytulkam` would say the kabinet exists while no
-      shelter can open it.
+      notice as an alert, the same token back behind «Увійти»). **Copy landed** (Oleksii,
+      2026-10-15, inbox WI-Q3): «Забагато спроб входу за короткий час. Посилання ще дійсне —
+      зачекайте хвилину й знову натисніть „Увійти“.», after both of its claims were checked first,
+      as he asked: the per-IP window is 60 s, so the wait is at most a minute, and a refused press
+      never reaches the token (`auth.test.ts`). The copy gate is now clear, so merging the wiring PR
+      turns production sign-in on.
 - [x] **A2's new third paragraph ships here (EM-Q1)**, in the wiring commit itself (Oleksii,
       verbatim: "(b). A2 keeps the current text; the new paragraph ships in the commit that turns
       production sign-in on."). **Final yes given** (2026-10-14, row 89 of the PR #94 copy export,

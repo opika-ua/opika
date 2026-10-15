@@ -1,3 +1,4 @@
+import { envValueOf, paddedValueMessage } from "../api/env-value";
 import {
   EMAIL_PROVIDERS,
   type EmailProvider,
@@ -28,6 +29,8 @@ export type SignInConfig =
   | { kind: "provider_not_configured"; missing: readonly string[] }
   | { kind: "provider_invalid"; reason: string }
   | { kind: "auth_config_missing"; missing: readonly string[] }
+  /** A space or a line break around a value (`envValueOf`): refused, never trimmed. */
+  | { kind: "value_padded"; names: readonly string[] }
   | { kind: "auth_secret_too_short" }
   | { kind: "auth_url_not_production_origin" };
 
@@ -35,27 +38,77 @@ export type SignInConfig =
  * `BETTER_AUTH_SECRET`'s floor (IN-Q6, accepted: "`BETTER_AUTH_SECRET` has a
  * 32-character floor, generated with `openssl rand -hex 32`"). The same 32 as
  * every other production secret (`build-env.ts`), written here rather than
- * imported so this module stays a leaf.
+ * imported from there, since `build-env.ts` imports this module.
  */
 export const BETTER_AUTH_SECRET_MIN_LENGTH = 32;
 
 /**
- * In the order `productionSignInOf` has always checked them: the email routes
- * first, then the auth secret and URL, then the URL against the pinned
+ * Every variable production sign-in reads, for this environment. Required:
+ * the provider setting and its key, the From and Reply-To addresses, the
+ * origin, and Better Auth's secret and URL. Optional: the sign-in route's
+ * override and its key, when one is named. A provider name that isn't one
+ * names no key (there is no variable for it). The From name is display text
+ * with a fallback, not part of whether sign-in can work, and is not here.
+ */
+function signInVariablesOf(env: Readonly<Record<string, string | undefined>>): {
+  required: string[];
+  optional: string[];
+} {
+  const keyOf = (name: string): string[] => {
+    const value = env[name]?.trim() ?? "";
+    return (EMAIL_PROVIDERS as readonly string[]).includes(value)
+      ? [PROVIDER_KEY_NAMES[value as EmailProvider]]
+      : [];
+  };
+  const required = [
+    "EMAIL_PROVIDER",
+    ...keyOf("EMAIL_PROVIDER"),
+    "EMAIL_FROM_ADDRESS",
+    "EMAIL_REPLY_TO",
+    "PRODUCTION_ORIGIN",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+  ];
+  const optional =
+    envValueOf(env, "EMAIL_SIGN_IN_PROVIDER").kind === "missing"
+      ? []
+      : ["EMAIL_SIGN_IN_PROVIDER", ...keyOf("EMAIL_SIGN_IN_PROVIDER")].filter(
+          (name) => !required.includes(name),
+        );
+  return { required, optional };
+}
+
+/**
+ * In the order `productionSignInOf` has always checked them, after one new
+ * first step: no variable it reads may carry a space or a line break around
+ * its value (`envValueOf`, WI-Q1's whitespace note). The build and boot checks
+ * read the same rule through `signInEnvProblems`, so a padded value is refused
+ * by all three rather than trimmed by one and used as is by another. Then the
+ * email routes, then the auth secret and URL, then the URL against the pinned
  * origin.
  */
 export function signInConfigOf(env: Readonly<Record<string, string | undefined>>): SignInConfig {
+  const { required, optional } = signInVariablesOf(env);
+  const padded = [...required, ...optional].filter(
+    (name) => envValueOf(env, name).kind === "padded",
+  );
+  if (padded.length > 0) return { kind: "value_padded", names: padded };
   const email = emailRoutesOf(env);
   if (email.kind === "missing") return { kind: "provider_not_configured", missing: email.missing };
   if (email.kind === "invalid") return { kind: "provider_invalid", reason: email.reason };
-  const secret = env.BETTER_AUTH_SECRET;
-  const baseURL = env.BETTER_AUTH_URL;
-  if (!secret || !baseURL) {
+  const secretValue = envValueOf(env, "BETTER_AUTH_SECRET");
+  const urlValue = envValueOf(env, "BETTER_AUTH_URL");
+  if (secretValue.kind !== "set" || urlValue.kind !== "set") {
     return {
       kind: "auth_config_missing",
-      missing: [...(secret ? [] : ["BETTER_AUTH_SECRET"]), ...(baseURL ? [] : ["BETTER_AUTH_URL"])],
+      missing: [
+        ...(secretValue.kind === "set" ? [] : ["BETTER_AUTH_SECRET"]),
+        ...(urlValue.kind === "set" ? [] : ["BETTER_AUTH_URL"]),
+      ],
     };
   }
+  const secret = secretValue.value;
+  const baseURL = urlValue.value;
   if (secret.length < BETTER_AUTH_SECRET_MIN_LENGTH) return { kind: "auth_secret_too_short" };
   const production = productionOriginOf(env.PRODUCTION_ORIGIN ?? "");
   const configured = productionOriginOf(baseURL);
@@ -91,20 +144,8 @@ export function signInConfigOf(env: Readonly<Record<string, string | undefined>>
  */
 export function signInEnvProblems(env: Readonly<Record<string, string | undefined>>): string[] {
   if (env.VERCEL_ENV !== "production") return [];
-  const provider = env.EMAIL_PROVIDER?.trim() ?? "";
-  const providerKey = (EMAIL_PROVIDERS as readonly string[]).includes(provider)
-    ? PROVIDER_KEY_NAMES[provider as EmailProvider]
-    : null;
-  const required = [
-    "EMAIL_PROVIDER",
-    ...(providerKey === null ? [] : [providerKey]),
-    "EMAIL_FROM_ADDRESS",
-    "EMAIL_REPLY_TO",
-    "PRODUCTION_ORIGIN",
-    "BETTER_AUTH_SECRET",
-    "BETTER_AUTH_URL",
-  ];
-  const missing = required.filter((name) => !env[name]?.trim());
+  const { required } = signInVariablesOf(env);
+  const missing = required.filter((name) => envValueOf(env, name).kind === "missing");
   if (missing.length > 0) {
     return [
       `Missing required environment variable(s) for production sign-in: ${missing.join(", ")} — ` +
@@ -115,6 +156,8 @@ export function signInEnvProblems(env: Readonly<Record<string, string | undefine
   switch (config.kind) {
     case "configured":
       return [];
+    case "value_padded":
+      return [`Production sign-in is misconfigured: ${paddedValueMessage(config.names)}`];
     case "provider_invalid":
       return [`Production sign-in is misconfigured: ${config.reason}`];
     case "auth_secret_too_short":

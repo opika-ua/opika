@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { productionSignInOf } from "../kabinet/production-sign-in";
+import { assertBuildEnv } from "./build-env";
 import { validateEnv } from "./env";
 
 /**
@@ -397,5 +399,92 @@ describe("validateEnv", () => {
       vi.stubEnv("VERCEL", "");
       expect(() => validateEnv()).not.toThrow();
     });
+  });
+});
+
+/**
+ * WI-Q1's whitespace note (Oleksii, 2026-10-15, verbatim: "make the build and
+ * startup checks share one rule so a value can't pass one and fail the
+ * other"): every variable the build checks, set blank or padded, is refused by
+ * the build (`assertBuildEnv`), by the boot (`validateEnv`) and, for sign-in's,
+ * by production sign-in itself (`productionSignInOf`), each naming the
+ * variable and never its value. One deployment's environment, handed to all
+ * three.
+ */
+describe("build, boot and production sign-in read each value by one rule (WI-Q1)", () => {
+  const deployment: Record<string, string> = {
+    NODE_ENV: "production",
+    VERCEL: "1",
+    VERCEL_ENV: "production",
+    DATABASE_URL: "postgres://user:pass@host/db",
+    CURSOR_HMAC_SECRET: "a".repeat(32),
+    PRELAUNCH_GATE_SECRET: "p".repeat(32),
+    NEXT_PUBLIC_R2_PUBLIC_BASE_URL: "https://cdn.opika.org.ua",
+    KV_REST_API_URL: "https://example-upstash.example.com",
+    KV_REST_API_TOKEN: "a-real-looking-token",
+    CRON_SECRET: "c".repeat(32),
+    RATE_LIMIT_KEY_SECRET: "r".repeat(32),
+    LOCATION_HMAC_SECRET: "l".repeat(32),
+    ...SIGN_IN,
+  };
+  const SIGN_IN_NAMES = Object.keys(SIGN_IN).filter((name) => name !== "EMAIL_FROM_NAME");
+  const CHECKED = [
+    "CRON_SECRET",
+    "RATE_LIMIT_KEY_SECRET",
+    "LOCATION_HMAC_SECRET",
+    "NEXT_PUBLIC_R2_PUBLIC_BASE_URL",
+    ...SIGN_IN_NAMES,
+  ];
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const buildMessage = (env: Record<string, string>) => {
+    try {
+      assertBuildEnv(env);
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return "";
+  };
+  const bootMessage = (env: Record<string, string>) => {
+    for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
+    vi.stubEnv("EMAIL_SIGN_IN_PROVIDER", "");
+    try {
+      validateEnv();
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return "";
+  };
+
+  it("the deployment itself passes all three", () => {
+    expect(buildMessage(deployment)).toBe("");
+    expect(bootMessage(deployment)).toBe("");
+    expect(productionSignInOf(deployment, []).kind).toBe("on");
+  });
+
+  it.each(
+    CHECKED.flatMap((name) => [
+      [name, "whitespace only", " ".repeat(40)],
+      [name, "a leading space", ` ${deployment[name]}`],
+      [name, "a trailing line break", `${deployment[name]}\n`],
+    ]),
+  )("%s with %s: refused by build and boot alike, naming it", (name, _label, value) => {
+    const env = { ...deployment, [name]: value };
+    const build = buildMessage(env);
+    const boot = bootMessage(env);
+    for (const [path, message] of [
+      ["build", build],
+      ["boot", boot],
+    ]) {
+      expect(message, path).toContain(name);
+      // The value never reaches the message (blank values carry nothing to leak).
+      if (value.trim() !== "") expect(message, path).not.toContain(value.trim());
+    }
+    if (SIGN_IN_NAMES.includes(name)) {
+      expect(productionSignInOf(env, []).kind, "productionSignInOf").toBe("off");
+    }
   });
 });

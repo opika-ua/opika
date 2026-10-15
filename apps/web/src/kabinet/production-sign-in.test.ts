@@ -195,20 +195,36 @@ describe("productionSignInOf", () => {
 describe("production sign-in stays off while kabinet copy is pending (answer 7)", () => {
   /**
    * Oleksii's final Ukrainian landed on 2026-10-14 (the PR #94 copy export),
-   * every kabinet.* string of it. The wiring commit adds one key with no
-   * final text yet, the over-limit card's notice (`kabinet.confirm.rateLimited`,
-   * IN-T15's gate item; inbox WI-Q3), so against the live catalogue the gate
-   * keeps production off, naming exactly it: the wiring PR can't turn sign-in
-   * on until his text lands. When it does, this goes back to `[]` and "on".
+   * every kabinet.* string of it. The wiring PR added one key, the over-limit
+   * card's notice (`kabinet.confirm.rateLimited`, IN-T15's gate item), and his
+   * text for it landed 2026-10-15 (inbox WI-Q3). So against the live catalogue
+   * nothing is pending, and with the configuration he reported for Production
+   * (WI-B1: the apex origin with no trailing slash, From on `mail.`, Reply-To
+   * on the apex, From name as given; example key and secret, never real ones)
+   * production sign-in is on. This is what merging the wiring PR turns on.
    */
-  it("against the live catalogue, keeps production off for exactly the over-limit card's notice", () => {
-    expect(kabinetPendingCopy()).toEqual(["kabinet.confirm.rateLimited"]);
-    expect(withLiveCopy(full)).toEqual({
+  it("against the live catalogue, nothing is pending and the reported Production configuration is on", () => {
+    const reported = {
+      VERCEL_ENV: "production",
+      EMAIL_PROVIDER: "resend",
+      RESEND_API_KEY: "resend-key-example",
+      EMAIL_FROM_ADDRESS: "noreply@mail.opika.org.ua",
+      EMAIL_FROM_NAME: "Opika",
+      EMAIL_REPLY_TO: "hello@opika.org.ua",
+      PRODUCTION_ORIGIN: "https://opika.org.ua",
+      BETTER_AUTH_SECRET: "s".repeat(64),
+      BETTER_AUTH_URL: "https://opika.org.ua",
+      KABINET_OPERATOR_DISPLAY_NAME: "Оператор",
+    };
+    expect(kabinetPendingCopy()).toEqual([]);
+    const live = withLiveCopy(reported);
+    expect(live.kind).toBe("on");
+    // The gate still reads the catalogue: one pending path turns the same configuration off.
+    expect(withLiveCopy(reported, ["kabinet.confirm.rateLimited"])).toEqual({
       kind: "off",
       reason: "copy_pending",
       pending: ["kabinet.confirm.rateLimited"],
     });
-    expect(withLiveCopy(full, []).kind).toBe("on");
   });
 
   /**
@@ -233,9 +249,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 88 rows of the copy export plus operatorFallbackName and profileNotRecorded.
     // profile.addressNote (row 57) was deleted as a false claim and is back with
     // his replacement text (2026-10-14, EM-Q10). 91 with confirm.rateLimited,
-    // the over-limit card's notice (the wiring commit, pending).
+    // the over-limit card's notice (the wiring PR; his text, 2026-10-15).
     expect(pending.length + written.length).toBe(91);
-    expect(pending).toEqual(["kabinet.confirm.rateLimited"]);
+    expect(pending).toEqual([]);
+    expect(written).toContain("kabinet.confirm.rateLimited");
     expect(kabinetPendingCopy()).toEqual(pending.sort());
     for (const screenless of [
       "kabinet.history.adminJoined",
@@ -247,7 +264,7 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
   });
 
   /**
-   * The gate still works now that almost nothing is pending: a catalogue
+   * The gate still works now that nothing is pending: a catalogue
    * with placeholders put back (an email template, a screenless history
    * line, a nested group) is read by the same walk the gate uses and turns
    * production off, naming each.
@@ -262,13 +279,7 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     synthetic.history.adminJoined = `${COPY_PENDING} history`;
     synthetic.support.body = "Written.";
     const pending = pendingCopyPaths(synthetic, "kabinet");
-    // The live catalogue's own pending key (the over-limit card's notice) is
-    // in the clone too, so it is named alongside the two put back here.
-    expect(pending).toEqual([
-      "kabinet.confirm.rateLimited",
-      "kabinet.email.invite.notYou",
-      "kabinet.history.adminJoined",
-    ]);
+    expect(pending).toEqual(["kabinet.email.invite.notYou", "kabinet.history.adminJoined"]);
     expect(withLiveCopy(full, pending)).toEqual({ kind: "off", reason: "copy_pending", pending });
   });
 

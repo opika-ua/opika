@@ -66,12 +66,14 @@ describe("kabinetAuthAvailability in production", () => {
     expect(second.invites.blockList).toBe(first.invites.blockList);
   });
 
-  it("against the live catalogue, stays off while kabinet copy is pending (answer 7)", () => {
-    expect(kabinetAuthAvailability(production)).toEqual({
-      kind: "unavailable",
-      reason: "production_sign_in_off",
-      off: { kind: "off", reason: "copy_pending", pending: ["kabinet.confirm.rateLimited"] },
-    });
+  /**
+   * Against the live catalogue, with no copy override: nothing under kabinet.*
+   * is pending since WI-Q3's text landed (2026-10-15), so production sign-in
+   * is available. This is the state merging the wiring PR deploys.
+   */
+  it("against the live catalogue, is available: no kabinet copy is pending (answer 7, WI-Q3)", () => {
+    const availability = kabinetAuthAvailability(production);
+    expect(availability.kind).toBe("available");
   });
 
   it.each([

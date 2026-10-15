@@ -153,4 +153,31 @@ test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
     expect(outline).not.toBe("none");
     await page.close();
   });
+
+  /**
+   * Pressing «Вийти» really signs out (review of the wiring commit, finding
+   * 5): the server forgets the session, not only the page moving on. Last in
+   * this block on purpose, since it ends the session the others share (the
+   * harness runs one worker, not fully parallel, so a file's tests run in order).
+   */
+  test("«Вийти» signs out: get-session answers null and /kabinet goes to the sign-in page", async () => {
+    const page = await signedInPage();
+    expect((await page.goto("/kabinet"))?.status()).toBe(200);
+    // `page.request` carries this context's cookies, so it asks as the browser does.
+    const before = await page.request.get("/api/auth/get-session");
+    expect(before.status()).toBe(200);
+    expect(await before.json(), "signed in before the press").not.toBeNull();
+
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === "/kabinet/vkhid"),
+      page.getByRole("button", { name: "Вийти" }).click(),
+    ]);
+
+    const after = await page.request.get("/api/auth/get-session");
+    expect(after.status()).toBe(200);
+    expect(await after.json(), "the server's answer after the press").toBeNull();
+    await page.goto("/kabinet");
+    expect(new URL(page.url()).pathname).toBe("/kabinet/vkhid");
+    await page.close();
+  });
 });

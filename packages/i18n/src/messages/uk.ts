@@ -1077,11 +1077,15 @@ export const uk = {
        * before production sign-in is turned on"): «Увійти» refused by the
        * kabinet's per-IP limit (300 a minute, `hooks.before`) before Better
        * Auth read the token, so the link is still good and the card offers
-       * the same button again. Pending, so the copy gate keeps production
-       * sign-in off until his text lands (inbox WI-Q3). English sense only;
-       * no Ukrainian draft is invented here.
+       * the same button again. Oleksii's text, 2026-10-15 (inbox WI-Q3),
+       * shipped after both of its claims were checked: the per-IP window is
+       * 60 s, so «хвилину» holds, and a refused press never reaches the
+       * token, so «Посилання ще дійсне» holds until the 15-minute expiry
+       * (`auth.test.ts`, "a press refused at t goes through … 60 s later").
+       * A longer window would make «хвилину» false: then it reads «трохи».
        */
-      rateLimited: `${COPY_PENDING} "Too many sign-in attempts from this connection just now. Your link still works: wait a minute and press «Увійти» again."`,
+      rateLimited:
+        "Забагато спроб входу за короткий час. Посилання ще дійсне — зачекайте хвилину й знову натисніть „Увійти“.",
     },
     /**
      * History lines (IN-Q14). Only `admin_joined` has a key so far; no

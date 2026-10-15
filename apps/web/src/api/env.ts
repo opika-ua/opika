@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { signInEnvProblems } from "../kabinet/sign-in-env";
-import { cronSecretProblem, locationSecretProblem, rateLimitKeySecretProblem } from "./build-env";
+import {
+  cronSecretProblem,
+  locationSecretProblem,
+  r2PublicBaseUrlProblem,
+  rateLimitKeySecretProblem,
+} from "./build-env";
 
 /**
  * Read a required environment variable, throwing at call time if missing.
@@ -51,10 +56,11 @@ export function requireEnv(name: string): string {
  * (RG-Q10).
  *
  * It is checked by `locationSecretProblem` (`build-env.ts`) in `validateEnv`
- * below, not by this schema: this schema applies to every `NODE_ENV=production`
- * instance, Previews included, and a Preview never signs in (IN-R2), so it
- * never reaches the registry and holds no copy of the key (Oleksii set it in
- * Production only). `VERCEL_ENV === "production"` only, like `CRON_SECRET`.
+ * below and in the production build (WI-T2), not by this schema: this schema
+ * applies to every `NODE_ENV=production` instance, Previews included, and a
+ * Preview never signs in (IN-R2), so it never reaches the registry and holds
+ * no copy of the key (Oleksii set it in Production only).
+ * `VERCEL_ENV === "production"` only, like `CRON_SECRET`.
  *
  * `PRELAUNCH_GATE_SECRET` (2026-09-13) follows `CURSOR_HMAC_SECRET`'s pattern:
  * `proxy.ts` reads it on every single request
@@ -90,7 +96,10 @@ export function requireEnv(name: string): string {
  * and covers the case where Preview later gets its own Neon branch and
  * starts serving real pages.
  *
- * `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` (H1) is genuinely required by this app's
+ * `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` (H1) is checked beside this schema, not in
+ * it, through `r2PublicBaseUrlProblem` (`build-env.ts`), the rule the build
+ * applies too (WI-Q1's whitespace note), on every production instance as
+ * before. It is genuinely required by this app's
  * own runtime, not just by the operator's onboarding script. Every real animal photo routes
  * through `apps/web/src/image-loader.ts`, which throws without it the
  * moment a real (non-seed-placeholder) `storageKey` needs a URL — see that
@@ -99,17 +108,17 @@ export function requireEnv(name: string): string {
  * opposite case — they belong to `onboard-shelter.ts`'s own operator-local
  * run, never to Vercel: no request path of this app writes to R2.
  *
- * ⚠ Listing it here is a real check, but not the one that actually protects
+ * ⚠ Checking it at boot is a real check, but not the one that actually protects
  * the client — found by inspecting a built client bundle, not assumed.
  * `NEXT_PUBLIC_*` values are inlined into the client bundle at *build*
- * time; this schema's check runs against the *server's* live
+ * time; the boot check runs against the *server's* live
  * `process.env` at *boot*. Those can disagree: a promoted or rolled-back
  * build, or any build job that doesn't forward this var (`next.config.ts`
  * carries the actual load-bearing check, gated on `process.env.VERCEL`,
  * for exactly this reason), ships a client bundle that throws on hydration
  * for any real photo, on a server instance whose own `validateEnv()` still
  * passes cleanly — the server-side env is fine, the frozen bundle isn't.
- * This entry still earns its place: it's what turns "some request 500s"
+ * The boot check still earns its place: it's what turns "some request 500s"
  * into "every request 500s, from boot," for the server-rendered half of
  * every page, which is real signal even though it can't see the client
  * bundle's own baked-in value. Deploy-order note: this one needed
@@ -129,7 +138,6 @@ export function requireEnv(name: string): string {
 const RequiredProductionEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   CURSOR_HMAC_SECRET: z.string().min(1, "CURSOR_HMAC_SECRET is required"),
-  NEXT_PUBLIC_R2_PUBLIC_BASE_URL: z.string().min(1, "NEXT_PUBLIC_R2_PUBLIC_BASE_URL is required"),
   PRELAUNCH_GATE_SECRET: z
     .string()
     .min(
@@ -159,7 +167,8 @@ const RequiredProductionEnvSchema = z.object({
 export function validateEnv(): void {
   if (process.env.NODE_ENV !== "production") return;
   const result = RequiredProductionEnvSchema.safeParse(process.env);
-  if (!result.success) {
+  const r2 = r2PublicBaseUrlProblem(process.env);
+  if (!result.success || r2 !== null) {
     /**
      * Each schema entry's own message, not `issue.path` alone — every
      * message in `RequiredProductionEnvSchema` already names its own
@@ -173,7 +182,10 @@ export function validateEnv(): void {
      * refused it. Found by a reviewer's own mutation, not read from the
      * type signature.
      */
-    const messages = result.error.issues.map((issue) => issue.message).join("; ");
+    const messages = [
+      ...(result.success ? [] : result.error.issues.map((issue) => issue.message)),
+      ...(r2 === null ? [] : [r2]),
+    ].join("; ");
     throw new Error(`Invalid or missing required environment variable(s): ${messages}`);
   }
 

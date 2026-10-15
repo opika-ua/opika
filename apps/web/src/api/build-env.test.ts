@@ -4,6 +4,7 @@ import {
   assertBuildEnv,
   CRON_SECRET_MIN_LENGTH,
   cronSecretProblem,
+  locationSecretProblem,
   rateLimitKeySecretProblem,
 } from "./build-env";
 
@@ -15,6 +16,8 @@ import {
 const R2 = { NEXT_PUBLIC_R2_PUBLIC_BASE_URL: "https://cdn.example.test" };
 /** The other build-checked secret, valid, so a CRON_SECRET case tests only CRON_SECRET. */
 const RATE_KEY = { RATE_LIMIT_KEY_SECRET: "r".repeat(32) };
+/** Production-only since WI-T2, valid, so a case for another variable tests only that one. */
+const LOCATION = { LOCATION_HMAC_SECRET: "l".repeat(32) };
 // A recognisable value, so a test can show it never reaches the message.
 const SHORT_SECRET = "short-secret-value-0123456789ab"; // 31 characters
 /**
@@ -72,6 +75,7 @@ describe("assertBuildEnv: CRON_SECRET on a production build", () => {
         VERCEL_ENV: "production",
         CRON_SECRET: `${SHORT_SECRET}c`,
         ...RATE_KEY,
+        ...LOCATION,
         ...R2,
         ...SIGN_IN,
       }),
@@ -117,7 +121,14 @@ describe("assertBuildEnv: NEXT_PUBLIC_R2_PUBLIC_BASE_URL (moved here from next.c
  */
 describe("assertBuildEnv: RATE_LIMIT_KEY_SECRET on a Vercel build", () => {
   const CRON = { CRON_SECRET: "c".repeat(32) };
-  const production = { VERCEL: "1", VERCEL_ENV: "production", ...R2, ...CRON, ...SIGN_IN };
+  const production = {
+    VERCEL: "1",
+    VERCEL_ENV: "production",
+    ...R2,
+    ...CRON,
+    ...LOCATION,
+    ...SIGN_IN,
+  };
 
   it("fails a production build without it, naming the variable", () => {
     expect(() => assertBuildEnv(production)).toThrow(
@@ -212,6 +223,7 @@ describe("assertBuildEnv: production sign-in's variables (IN-R2, Decision 1)", (
     VERCEL_ENV: "production",
     CRON_SECRET: "c".repeat(32),
     ...RATE_KEY,
+    ...LOCATION,
     ...R2,
     ...SIGN_IN,
   };
@@ -321,5 +333,62 @@ describe("assertBuildEnv: production sign-in's variables (IN-R2, Decision 1)", (
   ])("leaves %s alone without any sign-in variable", (_label, env) => {
     const bare = Object.fromEntries(Object.entries(env).filter(([name]) => !(name in SIGN_IN)));
     expect(signInEnvProblems(bare)).toEqual([]);
+  });
+});
+
+/**
+ * WI-T2 (Oleksii, 2026-10-15, verbatim: "yes, check LOCATION_HMAC_SECRET at
+ * the production build too"): the same function the boot check calls, so the
+ * same cases, production builds only.
+ */
+describe("assertBuildEnv: LOCATION_HMAC_SECRET on a production build (WI-T2)", () => {
+  const production = {
+    VERCEL: "1",
+    VERCEL_ENV: "production",
+    CRON_SECRET: "c".repeat(32),
+    ...RATE_KEY,
+    ...R2,
+    ...SIGN_IN,
+  };
+  const messageOf = (env: Record<string, string | undefined>) => {
+    try {
+      assertBuildEnv(env);
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return "";
+  };
+
+  it.each([
+    ["unset", undefined],
+    ["empty", ""],
+    ["31 characters", SHORT_SECRET],
+    ["32 spaces", " ".repeat(32)],
+  ])("fails a production build with it %s, naming it and never a new key", (_label, value) => {
+    const message = messageOf({ ...production, LOCATION_HMAC_SECRET: value });
+    expect(message).toMatch(/LOCATION_HMAC_SECRET must be at least 32 characters/);
+    expect(message).toMatch(/same value the onboarding script uses, never a new one/);
+    expect(message).not.toContain(SHORT_SECRET.slice(0, 8));
+  });
+
+  it("fails one with a padded value, naming it and never the value", () => {
+    const padded = `${"l".repeat(40)}\n`;
+    const message = messageOf({ ...production, LOCATION_HMAC_SECRET: padded });
+    expect(message).toMatch(/LOCATION_HMAC_SECRET has a space or a line break/);
+    expect(message).not.toContain("l".repeat(8));
+  });
+
+  it("builds with exactly 32 characters", () => {
+    expect(messageOf({ ...production, LOCATION_HMAC_SECRET: "l".repeat(32) })).toBe("");
+  });
+
+  it.each([
+    ["a Preview build", { ...production, VERCEL_ENV: "preview" }],
+    ["a development build on Vercel", { ...production, VERCEL_ENV: "development" }],
+    ["a local or CI build (no VERCEL_ENV)", {}],
+    ["NODE_ENV=production alone", { NODE_ENV: "production" }],
+  ])("leaves %s alone without it", (_label, env) => {
+    expect(locationSecretProblem(env)).toBeNull();
+    expect(messageOf(env)).not.toMatch(/LOCATION_HMAC_SECRET/);
   });
 });

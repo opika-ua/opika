@@ -122,21 +122,14 @@ describe("deck not-a-judgement notice copy status", () => {
  * catalogue, so an empty list here is what lets that gate stop being a reason
  * production sign-in is off.
  *
- * One key is pending again since the wiring commit: `confirm.rateLimited`, the
- * over-limit card's notice (IN-T15's gate item; inbox WI-Q3). No final string
- * existed, and while it is pending the copy gate keeps production sign-in off:
- * that is why it blocks the wiring PR's merge. When his text lands, it joins
- * FINAL below and the list here goes back to empty.
+ * One key was pending for a while in the wiring PR: `confirm.rateLimited`, the
+ * over-limit card's notice (IN-T15's gate item; inbox WI-Q3). His text landed
+ * 2026-10-15 and is pinned in FINAL below, so nothing under `kabinet.*` is
+ * pending and the copy gate no longer keeps production sign-in off.
  */
-describe("kabinet copy status (final, 2026-10-14; one key pending since the wiring commit)", () => {
-  it("exactly the over-limit card's notice is pending under kabinet.*", () => {
-    expect(pendingCopyPaths(uk.kabinet, "kabinet")).toEqual(["kabinet.confirm.rateLimited"]);
-  });
-
-  it("the pending notice carries its English sense until his Ukrainian replaces it (WI-Q3)", () => {
-    expect(uk.kabinet.confirm.rateLimited).toBe(
-      `${COPY_PENDING} "Too many sign-in attempts from this connection just now. Your link still works: wait a minute and press «Увійти» again."`,
-    );
+describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-15)", () => {
+  it("nothing under kabinet.* is pending", () => {
+    expect(pendingCopyPaths(uk.kabinet, "kabinet")).toEqual([]);
   });
 
   it("every group keeps exactly its keys, so an emptied group can't pass the line above", () => {
@@ -258,6 +251,9 @@ describe("kabinet copy status (final, 2026-10-14; one key pending since the wiri
     // row 9
     "signIn.sentBody":
       "Якщо ця адреса є в списку, на {email} прийде посилання для входу. Воно діє 15 хвилин і відкривається на будь-якому пристрої.",
+    // WI-Q3, Oleksii 2026-10-15, verbatim (outer «» his quoting, inner „“ his nested quotes)
+    "confirm.rateLimited":
+      "Забагато спроб входу за короткий час. Посилання ще дійсне — зачекайте хвилину й знову натисніть „Увійти“.",
     // row 20
     "confirm.joinFailedTitle": "Ви увійшли, але приєднати вас до притулку не вдалося",
     // row 21

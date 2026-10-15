@@ -71,7 +71,8 @@ export type ProductionSignIn =
         | "provider_invalid"
         | "auth_config_missing"
         | "auth_secret_too_short"
-        | "auth_url_not_production_origin";
+        | "auth_url_not_production_origin"
+        | "value_padded";
     }
   | { kind: "off"; reason: "copy_pending"; pending: readonly string[] };
 

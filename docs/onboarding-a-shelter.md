@@ -248,7 +248,8 @@ shelter, or a shelter onboarded with a different secret would get a public
 location fuzzed against a key nothing else remembers. Since the commit that
 turns production sign-in on, Vercel Production holds the same value (the
 registry fuzzes a shelter's location with it on create and on an address
-change), and a production instance refuses to boot without it (RG-Q10).
+change), and a production build fails and a production instance refuses to
+boot without it (RG-Q10, WI-T2).
 Never generate a new one for Vercel: `location:verify --prod` would then
 report every shelter as a mismatch.
 
