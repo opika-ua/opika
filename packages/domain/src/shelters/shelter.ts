@@ -16,9 +16,13 @@ import { ShelterVerificationSchema } from "./verification/state";
 /**
  * A shelter's own sentence describing how current its information is.
  *
- * Written once during verification, in the shelter's own words.
- * The platform substitutes only `{date}` (last confirmed date) and
- * `{name}` (animal name). Nothing else is generated or paraphrased.
+ * Written once during verification, in the shelter's own words, and
+ * rendered verbatim: nothing is substituted, generated or paraphrased.
+ * K2 adds one slot, `{name}`, filled with the animal's name in its base
+ * form: names can't be declined, so it only fits where the nominative does
+ * (VH-Q1, Oleksii, 2026-10-15). There is no `{date}`: the day count above the
+ * quote already says how current it is. Until K2, nothing is filled in, and
+ * a sentence containing either token would show the braces.
  * A shelter with no sentence falls back to the marker + day count alone.
  */
 export const FreshnessSentenceSchema = LocalizedTextSchema.nullable();

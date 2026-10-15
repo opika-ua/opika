@@ -91,7 +91,7 @@ export const en = {
   freshness: {
     /** Rendered by Intl.RelativeTimeFormat('en'), not this string. */
     updatedAgo: "Updated {days}",
-    attribution: "The shelter's own words · date filled in automatically",
+    attribution: "The shelter's own words",
   },
 
   // --- Medical ---
@@ -399,8 +399,7 @@ export const en = {
       donationPending: "Proposed link, waiting for the operator's approval",
       voiceTitle: "The shelter's voice",
       voiceLabel: "Your words on the cards",
-      voiceNote:
-        "One sentence in the first person, written by you. The registry fills in only {date} (the update date) and {name} (the animal's name); nothing else changes.",
+      voiceNote: "One sentence in the first person, written by you.",
       lockedTitle: "Set during verification",
       lockedNote:
         "{operator} sets these details while verifying the shelter. Here they are read-only.",

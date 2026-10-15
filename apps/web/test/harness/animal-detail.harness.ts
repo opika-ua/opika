@@ -390,7 +390,7 @@ test.describe("/tvaryny/[animalId] contact reveal — before, after, and close",
  * This is a regression guard for a real bug, and one that shipped precisely
  * because nothing asserted which field the block reads. It rendered
  * `shelter.description` — «Один з найбільших притулків Києва, працює з 2015
- * року…» — under the attribution «Слова притулку · дата автоматична», inside a
+ * року…» — under the attribution «Слова притулку · дата автоматична» (as it then read), inside a
  * block about how current the listings are. Both fields are the shelter's own
  * words, both are prose, and the wrong one looks entirely plausible on screen.
  *
@@ -451,7 +451,8 @@ test.describe("the detail page's freshness block quotes the right field", () => 
 
     // The attribution is what makes the quote a claim about freshness rather
     // than just a nice sentence from the shelter.
-    await expect(page.getByText("Слова притулку · дата автоматична")).toBeVisible();
+    // Exact text: «· дата автоматична» was deleted as false (VH-Q2) and must not return.
+    await expect(page.getByTestId("shelter-freshness-attribution")).toHaveText("Слова притулку");
   });
 });
 

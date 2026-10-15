@@ -212,7 +212,7 @@ export function AnimalDetailScreen({
               `freshnessSentence`, NOT `description` — this block quoted the
               shelter's general description («Один з найбільших притулків
               Києва, працює з 2015 року…») under an attribution that reads
-              «Слова притулку · дата автоматична», inside a freshness block.
+              «Слова притулку · дата автоматична» (as it then read), inside a freshness block.
               Wrong field, and wrong against the design: README's freshness
               section specifies a sentence "written once by the shelter at
               verification, in their own words" about how current their
@@ -239,17 +239,26 @@ export function AnimalDetailScreen({
               Nullable by design: a shelter with no sentence falls back to the
               pips and day count alone (`FreshnessSentenceSchema`'s own note),
               which is why this stays conditional rather than gaining a
-              placeholder.
+              placeholder. The attribution goes with it: under the day count
+              alone, «Слова притулку» would credit the shelter with words it
+              never wrote (VH-Q2).
             */}
             {animal.shelter.freshnessSentence && (
-              <span
-                data-testid="shelter-freshness-sentence"
-                className="text-[17px]/[26px] text-rg-ink"
-              >
-                “{textIn(animal.shelter.freshnessSentence, "uk")}”
-              </span>
+              <>
+                <span
+                  data-testid="shelter-freshness-sentence"
+                  className="text-[17px]/[26px] text-rg-ink"
+                >
+                  “{textIn(animal.shelter.freshnessSentence, "uk")}”
+                </span>
+                <span
+                  data-testid="shelter-freshness-attribution"
+                  className="text-[13px]/[18px] text-rg-ink-3"
+                >
+                  {uk.freshness.attribution}
+                </span>
+              </>
             )}
-            <span className="text-[13px]/[18px] text-rg-ink-3">{uk.freshness.attribution}</span>
           </div>
 
           <div className="flex gap-2">
