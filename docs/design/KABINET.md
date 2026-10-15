@@ -236,7 +236,9 @@ entry visible to the operator (S1/S4's history, same entry shape as the verifica
 - **Voice (N11):** textarea 120 with one `{імʼя}` token. Names stay in their base form (the registry
   can't decline them), so the live preview below fills the token with a real animal's name, and a hint
   says the name stays as is (hint copy: Oleksii's, when K2 is built). The preview is the real freshness
-  block with «Слова притулку». No `{дата}` token (VH-Q1, 2026-10-15).
+  block with «Слова притулку». No `{дата}` token (VH-Q1, 2026-10-15). **The mock's voice frame
+  (`Opika Kabinet.dc.html`) predates this:** its `{дата}` token, sample sentence, caption and
+  «· дата автоматична» attribution are superseded, and this prose wins over the mock here.
 - **Pause / resume (N21).** A secondary 48 button, «Призупинити прийом тварин» (verified, not paused) or
   «Відновити прийом тварин» (paused). Self-service — `packages/domain`'s own `pause`/`resume` FSM events
   are explicitly shelter-initiated, distinct from the operator's `suspend`/`reinstate`. Pausing opens a
