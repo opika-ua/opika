@@ -61,7 +61,7 @@ describe("productionSignInOf", () => {
   });
 
   /**
-   * EM-B6 and EM-B10: the routes the wiring commit hands to the two senders.
+   * EM-B6 and EM-B10: the routes `production-mail.ts` hands to the two senders.
    * After the switch-on both are Resend, on one key; a split still works and
    * each route reads its own provider's key.
    */
@@ -131,6 +131,15 @@ describe("productionSignInOf", () => {
     });
   });
 
+  /** IN-Q6 (accepted): "`BETTER_AUTH_SECRET` has a 32-character floor". 31 is off, 32 is on. */
+  it("is off with a BETTER_AUTH_SECRET under 32 characters", () => {
+    expect(productionSignInOf({ ...full, BETTER_AUTH_SECRET: "s".repeat(31) })).toEqual({
+      kind: "off",
+      reason: "auth_secret_too_short",
+    });
+    expect(productionSignInOf({ ...full, BETTER_AUTH_SECRET: "s".repeat(32) }).kind).toBe("on");
+  });
+
   it("refuses a Preview outright, provider key set there or not", () => {
     expect(productionSignInOf({ ...full, VERCEL_ENV: "preview" })).toEqual({
       kind: "off",
@@ -186,13 +195,20 @@ describe("productionSignInOf", () => {
 describe("production sign-in stays off while kabinet copy is pending (answer 7)", () => {
   /**
    * Oleksii's final Ukrainian landed on 2026-10-14 (the PR #94 copy export),
-   * every kabinet.* string of it. Against the live catalogue the gate sees
-   * nothing pending and is no longer a reason production is off; the
-   * synthetic catalogue below proves the gate itself still bites.
+   * every kabinet.* string of it. The wiring commit adds one key with no
+   * final text yet, the over-limit card's notice (`kabinet.confirm.rateLimited`,
+   * IN-T15's gate item; inbox WI-Q3), so against the live catalogue the gate
+   * keeps production off, naming exactly it: the wiring PR can't turn sign-in
+   * on until his text lands. When it does, this goes back to `[]` and "on".
    */
-  it("against the live catalogue, sees no pending kabinet string and lets production on", () => {
-    expect(kabinetPendingCopy()).toEqual([]);
-    expect(withLiveCopy(full).kind).toBe("on");
+  it("against the live catalogue, keeps production off for exactly the over-limit card's notice", () => {
+    expect(kabinetPendingCopy()).toEqual(["kabinet.confirm.rateLimited"]);
+    expect(withLiveCopy(full)).toEqual({
+      kind: "off",
+      reason: "copy_pending",
+      pending: ["kabinet.confirm.rateLimited"],
+    });
+    expect(withLiveCopy(full, []).kind).toBe("on");
   });
 
   /**
@@ -216,8 +232,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     walk(uk.kabinet, "kabinet");
     // 88 rows of the copy export plus operatorFallbackName and profileNotRecorded.
     // profile.addressNote (row 57) was deleted as a false claim and is back with
-    // his replacement text (2026-10-14, EM-Q10).
-    expect(pending.length + written.length).toBe(90);
+    // his replacement text (2026-10-14, EM-Q10). 91 with confirm.rateLimited,
+    // the over-limit card's notice (the wiring commit, pending).
+    expect(pending.length + written.length).toBe(91);
+    expect(pending).toEqual(["kabinet.confirm.rateLimited"]);
     expect(kabinetPendingCopy()).toEqual(pending.sort());
     for (const screenless of [
       "kabinet.history.adminJoined",
@@ -244,7 +262,13 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     synthetic.history.adminJoined = `${COPY_PENDING} history`;
     synthetic.support.body = "Written.";
     const pending = pendingCopyPaths(synthetic, "kabinet");
-    expect(pending).toEqual(["kabinet.email.invite.notYou", "kabinet.history.adminJoined"]);
+    // The live catalogue's own pending key (the over-limit card's notice) is
+    // in the clone too, so it is named alongside the two put back here.
+    expect(pending).toEqual([
+      "kabinet.confirm.rateLimited",
+      "kabinet.email.invite.notYou",
+      "kabinet.history.adminJoined",
+    ]);
     expect(withLiveCopy(full, pending)).toEqual({ kind: "off", reason: "copy_pending", pending });
   });
 

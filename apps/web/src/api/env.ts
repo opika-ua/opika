@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { cronSecretProblem, rateLimitKeySecretProblem } from "./build-env";
+import { signInEnvProblems } from "../kabinet/sign-in-env";
+import { cronSecretProblem, locationSecretProblem, rateLimitKeySecretProblem } from "./build-env";
 
 /**
  * Read a required environment variable, throwing at call time if missing.
@@ -32,23 +33,31 @@ export function requireEnv(name: string): string {
  * the instance accepts its first request, all missing names at once, not
  * one 500 per handler as each is separately discovered.
  *
- * `LOCATION_HMAC_SECRET` is still deliberately NOT listed here, even now
- * that `packages/db/src/onboard-shelter.ts` is a real, live caller of
- * `productionLocationPolicy`. That script is not part of this app: it runs
- * from an operator's own machine against Neon's direct connection string,
- * the same way migrations do — never through a Vercel-deployed instance of
- * `apps/web`. Requiring it here would mean the deployed site refuses to
- * boot over a variable it never reads, which is a real, avoidable outage
- * risk (a missing Vercel env var taking the live site down) for no safety
- * benefit `onboard-shelter.ts`'s own check doesn't already provide.
- * `LOCATION_HMAC_SECRET` belongs in the operator's local shell when running
- * that script, not in Vercel — see `docs/onboarding-a-shelter.md`. If a
- * real in-app handler (a future admin surface) ever calls
- * `productionLocationPolicy` directly from a request path, add it here in
- * that same change — not before.
+ * `LOCATION_HMAC_SECRET` joined the required production environment with the commit that turns
+ * production sign-in on (RG-Q10, Oleksii, verbatim: "the invite PR adds it to
+ * the required prod env schema"). Until then it was deliberately kept out:
+ * the onboarding script (`packages/db/src/onboard-shelter.ts`) runs from an
+ * operator's own machine, and no request path of this app read the key.
+ * Since the registry PR one does: `registry.shelters.create` and address
+ * changes recompute a shelter's public location with it, and the registry
+ * answers 503 without it (`app/api/kabinet/[...rpc]/route.ts`). With sign-in
+ * live the operator can reach those procedures, so a production instance
+ * without the key now refuses to boot rather than serving a registry that
+ * 503s. Rollout order (RG-Q10): Oleksii set it in Vercel Production (the same
+ * value as the onboarding script's) and `location:verify --prod` reported 0
+ * mismatches (2026-10-15) before this entry landed. 32 characters, the floor
+ * `productionLocationPolicy` itself enforces. Rotating it is not a config
+ * change: every shelter's public location is recomputed in one migration
+ * (RG-Q10).
  *
- * `PRELAUNCH_GATE_SECRET` (2026-09-13) follows `CURSOR_HMAC_SECRET`'s pattern,
- * not `LOCATION_HMAC_SECRET`'s: `proxy.ts` reads it on every single request
+ * It is checked by `locationSecretProblem` (`build-env.ts`) in `validateEnv`
+ * below, not by this schema: this schema applies to every `NODE_ENV=production`
+ * instance, Previews included, and a Preview never signs in (IN-R2), so it
+ * never reaches the registry and holds no copy of the key (Oleksii set it in
+ * Production only). `VERCEL_ENV === "production"` only, like `CRON_SECRET`.
+ *
+ * `PRELAUNCH_GATE_SECRET` (2026-09-13) follows `CURSOR_HMAC_SECRET`'s pattern:
+ * `proxy.ts` reads it on every single request
  * while `SITE_IS_PUBLICLY_DISCOVERABLE` is false, which today is every
  * request this app serves — an instance that booted without it would 500
  * or, worse, silently deny every visitor with no way to open the gate at
@@ -81,15 +90,14 @@ export function requireEnv(name: string): string {
  * and covers the case where Preview later gets its own Neon branch and
  * starts serving real pages.
  *
- * `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` (H1) is the opposite case from
- * `LOCATION_HMAC_SECRET`: genuinely required by this app's own runtime, not
- * just by the operator's onboarding script. Every real animal photo routes
+ * `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` (H1) is genuinely required by this app's
+ * own runtime, not just by the operator's onboarding script. Every real animal photo routes
  * through `apps/web/src/image-loader.ts`, which throws without it the
  * moment a real (non-seed-placeholder) `storageKey` needs a URL — see that
  * file's own comment. The R2 *write* credentials (`R2_ACCOUNT_ID`,
- * `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) follow
- * `LOCATION_HMAC_SECRET`'s pattern instead — they belong to
- * `onboard-shelter.ts`'s own operator-local run, never to Vercel.
+ * `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) are the
+ * opposite case — they belong to `onboard-shelter.ts`'s own operator-local
+ * run, never to Vercel: no request path of this app writes to R2.
  *
  * ⚠ Listing it here is a real check, but not the one that actually protects
  * the client — found by inspecting a built client bundle, not assumed.
@@ -104,10 +112,8 @@ export function requireEnv(name: string): string {
  * This entry still earns its place: it's what turns "some request 500s"
  * into "every request 500s, from boot," for the server-rendered half of
  * every page, which is real signal even though it can't see the client
- * bundle's own baked-in value. Deploy-order note: unlike
- * `LOCATION_HMAC_SECRET` (kept out specifically so a missing var could
- * never take the site down), this one needed `NEXT_PUBLIC_R2_PUBLIC_BASE_
- * URL` set in Vercel (Production and Preview) *before* the first build
+ * bundle's own baked-in value. Deploy-order note: this one needed
+ * `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` set in Vercel (Production and Preview) *before* the first build
  * after this entry landed, not after. See `docs/h1-decisions.md`.
  *
  * The Upstash rate-limiter credentials (Phase 3, block 4,
@@ -255,9 +261,20 @@ export function validateEnv(): void {
    * 2026-10-14: "already set") and in Preview, a separate value, before this
    * deploys, or a Preview build fails.
    */
-  const problems = [cronSecretProblem(process.env), rateLimitKeySecretProblem(process.env)].filter(
-    (problem): problem is string => problem !== null,
-  );
+  /**
+   * The sign-in variables (IN-R2, Decision 1, verbatim: "Keep the runtime boot
+   * check as a second guard."): the same rule the build applies
+   * (`signInEnvProblems`, `kabinet/sign-in-env.ts`), against the server's own
+   * environment, production only. A production instance whose variables
+   * would leave sign-in off refuses to boot, rather than serving a 503 nobody
+   * sees until a shelter writes.
+   */
+  const problems = [
+    cronSecretProblem(process.env),
+    rateLimitKeySecretProblem(process.env),
+    locationSecretProblem(process.env),
+    ...signInEnvProblems(process.env),
+  ].filter((problem): problem is string => problem !== null);
   if (problems.length > 0) {
     throw new Error(`Invalid or missing required environment variable(s): ${problems.join("; ")}.`);
   }

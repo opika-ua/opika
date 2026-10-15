@@ -778,6 +778,9 @@ export const uk = {
       "посилання на донати, якщо воно у вас є;\n" +
       "і одне речення про те, як часто ви оновлюєте інформацію — про нього нижче.\n\n" +
       "Фотографії використовуються тільки для сторінок ваших тварин.\n\n" +
+      // A1 (row 91, final, Oleksii 2026-10-14): directly before the last
+      // paragraph, shipped with the commit that turns production sign-in on.
+      "Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.\n\n" +
       "Заповнювати анкету не треба: ви розкажете, а я внесу все сам.",
     /**
      * §8 — the section needing the most care. Says what the date IS, never
@@ -801,14 +804,20 @@ export const uk = {
       "«дзвоніть, ми скажемо точно», «влітку рідше».\n\n" +
       "Саме це робить решту карток вартими довіри. Коли видно, що ви оновлюєте інформацію " +
       "щосуботи, ваше «ця тварина ще шукає дім» означає рівно те, що написано.",
-    /** §9 — honest that the mechanism is a message handled by hand. Commitment 6. */
+    /**
+     * §9 — honest that the mechanism is a message handled by hand. Commitment 6.
+     * The third paragraph is A2 (row 89, final, Oleksii 2026-10-14), shipped
+     * with the commit that turns production sign-in on (EM-Q1 b): the kabinet
+     * exists and a shelter can open it, but read-only, so «напишіть, і я
+     * приберу» is still the way. When K2 ships «Уже вдома», it changes again.
+     */
     whenAnimalFindsHome:
       "Найважливіше, що ви можете мені сказати, — що тварина знайшла дім. Важливіше, ніж додати нову.\n\n" +
       "Тварина, яка вже вдома, але досі в списку, — це єдине, що робить усі інші картки " +
       "недостовірними: людина дзвонить, чує «її забрали три місяці тому», і далі не вірить жодній " +
       "картці — ні вашій, ні чужій.\n\n" +
-      "Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет, " +
-      "якого не існує.",
+      "Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду — " +
+      "змінити чи прибрати щось у ньому поки не можна.",
     /**
      * §9b — how to leave. The largest unspoken objection on the page: the
      * first question anyone asks before handing their data to a stranger with
@@ -1063,6 +1072,16 @@ export const uk = {
        */
       joinFailedTitle: "Ви увійшли, але приєднати вас до притулку не вдалося",
       joinRetry: "Спробувати ще раз",
+      /**
+       * The over-limit card (IN-T15, Oleksii: "the over-limit card ships
+       * before production sign-in is turned on"): «Увійти» refused by the
+       * kabinet's per-IP limit (300 a minute, `hooks.before`) before Better
+       * Auth read the token, so the link is still good and the card offers
+       * the same button again. Pending, so the copy gate keeps production
+       * sign-in off until his text lands (inbox WI-Q3). English sense only;
+       * no Ukrainian draft is invented here.
+       */
+      rateLimited: `${COPY_PENDING} "Too many sign-in attempts from this connection just now. Your link still works: wait a minute and press «Увійти» again."`,
     },
     /**
      * History lines (IN-Q14). Only `admin_joined` has a key so far; no

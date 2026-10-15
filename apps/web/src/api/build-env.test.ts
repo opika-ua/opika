@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { signInEnvProblems } from "../kabinet/sign-in-env";
 import {
   assertBuildEnv,
   CRON_SECRET_MIN_LENGTH,
@@ -16,6 +17,23 @@ const R2 = { NEXT_PUBLIC_R2_PUBLIC_BASE_URL: "https://cdn.example.test" };
 const RATE_KEY = { RATE_LIMIT_KEY_SECRET: "r".repeat(32) };
 // A recognisable value, so a test can show it never reaches the message.
 const SHORT_SECRET = "short-secret-value-0123456789ab"; // 31 characters
+/**
+ * Production sign-in's variables in the shape Oleksii reported setting in
+ * Vercel Production (2026-10-15: apex URLs with no trailing slash, the From
+ * address on mail., the Reply-To on the apex, the From name), with example
+ * secrets. Valid, so a production case for another variable tests only that
+ * one.
+ */
+const SIGN_IN = {
+  EMAIL_PROVIDER: "resend",
+  RESEND_API_KEY: "re_example_key_not_real",
+  EMAIL_FROM_ADDRESS: "noreply@mail.opika.org.ua",
+  EMAIL_FROM_NAME: "Opika",
+  EMAIL_REPLY_TO: "hello@opika.org.ua",
+  PRODUCTION_ORIGIN: "https://opika.org.ua",
+  BETTER_AUTH_SECRET: "b".repeat(64),
+  BETTER_AUTH_URL: "https://opika.org.ua",
+} as const;
 
 describe("assertBuildEnv: CRON_SECRET on a production build", () => {
   it("the fixture is one under the floor, and the floor is 32", () => {
@@ -55,6 +73,7 @@ describe("assertBuildEnv: CRON_SECRET on a production build", () => {
         CRON_SECRET: `${SHORT_SECRET}c`,
         ...RATE_KEY,
         ...R2,
+        ...SIGN_IN,
       }),
     ).not.toThrow();
   });
@@ -98,7 +117,7 @@ describe("assertBuildEnv: NEXT_PUBLIC_R2_PUBLIC_BASE_URL (moved here from next.c
  */
 describe("assertBuildEnv: RATE_LIMIT_KEY_SECRET on a Vercel build", () => {
   const CRON = { CRON_SECRET: "c".repeat(32) };
-  const production = { VERCEL: "1", VERCEL_ENV: "production", ...R2, ...CRON };
+  const production = { VERCEL: "1", VERCEL_ENV: "production", ...R2, ...CRON, ...SIGN_IN };
 
   it("fails a production build without it, naming the variable", () => {
     expect(() => assertBuildEnv(production)).toThrow(
@@ -177,5 +196,130 @@ describe("assertBuildEnv: RATE_LIMIT_KEY_SECRET on a Vercel build", () => {
   ])("leaves %s alone without it", (_label, env) => {
     expect(() => assertBuildEnv(env)).not.toThrow();
     expect(rateLimitKeySecretProblem(env)).toBeNull();
+  });
+});
+
+/**
+ * IN-R2, Decision 1 (Oleksii, verbatim: "From the commit that turns sign-in
+ * on: A production build fails if any of the five variables is missing, so a
+ * bad deploy never goes live."). Decision 1's five plus PRODUCTION_ORIGIN and
+ * EMAIL_REPLY_TO (inbox WI-Q1, built as recommended), and once all are
+ * present, a configuration production sign-in can actually turn on.
+ */
+describe("assertBuildEnv: production sign-in's variables (IN-R2, Decision 1)", () => {
+  const production = {
+    VERCEL: "1",
+    VERCEL_ENV: "production",
+    CRON_SECRET: "c".repeat(32),
+    ...RATE_KEY,
+    ...R2,
+    ...SIGN_IN,
+  };
+
+  const messageOf = (env: Record<string, string | undefined>) => {
+    try {
+      assertBuildEnv(env);
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return "";
+  };
+
+  it("builds with exactly the values Oleksii reported (apex URLs, no trailing slash)", () => {
+    expect(signInEnvProblems(production)).toEqual([]);
+    expect(() => assertBuildEnv(production)).not.toThrow();
+  });
+
+  it.each([
+    "EMAIL_PROVIDER",
+    "RESEND_API_KEY",
+    "EMAIL_FROM_ADDRESS",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "PRODUCTION_ORIGIN",
+    "EMAIL_REPLY_TO",
+  ])("fails a production build without %s (unset or blank), naming it", (name) => {
+    for (const value of [undefined, "", "  "]) {
+      expect(messageOf({ ...production, [name]: value }), `${name}=${String(value)}`).toMatch(
+        new RegExp(
+          `Missing required environment variable\\(s\\) for production sign-in: .*${name}`,
+        ),
+      );
+    }
+  });
+
+  it("names every missing one at once, and the provider's own key only once it knows the provider", () => {
+    const message = messageOf({
+      ...production,
+      RESEND_API_KEY: undefined,
+      BETTER_AUTH_SECRET: undefined,
+      EMAIL_REPLY_TO: undefined,
+    });
+    expect(message).toMatch(/RESEND_API_KEY, EMAIL_REPLY_TO, BETTER_AUTH_SECRET/);
+    // An unknown provider names no key (there is no variable for it) but is still refused.
+    expect(messageOf({ ...production, EMAIL_PROVIDER: "sendgrid" })).toMatch(
+      /EMAIL_PROVIDER must be one of resend, postmark, brevo/,
+    );
+  });
+
+  it.each([
+    [
+      "a BETTER_AUTH_URL that is www",
+      { BETTER_AUTH_URL: "https://www.opika.org.ua" },
+      /BETTER_AUTH_URL must be PRODUCTION_ORIGIN/,
+    ],
+    [
+      "a BETTER_AUTH_URL over http",
+      { BETTER_AUTH_URL: "http://opika.org.ua" },
+      /BETTER_AUTH_URL must be PRODUCTION_ORIGIN/,
+    ],
+    [
+      "a PRODUCTION_ORIGIN with a path",
+      { PRODUCTION_ORIGIN: "https://opika.org.ua/kabinet" },
+      /PRODUCTION_ORIGIN must be an https origin/,
+    ],
+    [
+      "a 31-character BETTER_AUTH_SECRET",
+      { BETTER_AUTH_SECRET: SHORT_SECRET },
+      /BETTER_AUTH_SECRET must be at least 32 characters/,
+    ],
+    [
+      "a From address off mail.",
+      { EMAIL_FROM_ADDRESS: "noreply@opika.org.ua" },
+      /EMAIL_FROM_ADDRESS must be an address on mail\./,
+    ],
+    [
+      "a Reply-To on another host",
+      { EMAIL_REPLY_TO: "hello@example.org" },
+      /EMAIL_REPLY_TO must be an address on PRODUCTION_ORIGIN's host/,
+    ],
+    [
+      "a sign-in route naming Brevo with no Brevo key",
+      { EMAIL_SIGN_IN_PROVIDER: "brevo" },
+      /EMAIL_SIGN_IN_PROVIDER=brevo needs BREVO_API_KEY/,
+    ],
+  ])(
+    "fails a production build with %s, naming the problem and never a value",
+    (_label, change, problem) => {
+      const message = messageOf({ ...production, ...change });
+      expect(message).toMatch(problem);
+      expect(message).not.toContain(SIGN_IN.RESEND_API_KEY);
+      expect(message).not.toContain(SHORT_SECRET.slice(0, 8));
+    },
+  );
+
+  it("accepts a trailing slash on the origin, as productionSignInOf does", () => {
+    expect(
+      signInEnvProblems({ ...production, PRODUCTION_ORIGIN: "https://opika.org.ua/" }),
+    ).toEqual([]);
+  });
+
+  it.each([
+    ["a Preview build", { ...production, VERCEL_ENV: "preview" }],
+    ["a local or CI build (no VERCEL_ENV)", { ...R2 }],
+    ["NODE_ENV=production alone (every next build sets it)", { NODE_ENV: "production" }],
+  ])("leaves %s alone without any sign-in variable", (_label, env) => {
+    const bare = Object.fromEntries(Object.entries(env).filter(([name]) => !(name in SIGN_IN)));
+    expect(signInEnvProblems(bare)).toEqual([]);
   });
 });

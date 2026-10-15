@@ -1,11 +1,12 @@
 /**
- * How a magic link reaches a person (HS-Q2, Oleksii): an interface now, a
- * provider in the invite PR. That PR picks it with a real delivery test to
- * Gmail, ukr.net and i.ua.
+ * How a magic link reaches a person (HS-Q2, Oleksii): an interface, so the
+ * route doesn't know which.
  *
  * - Tests capture what would have been sent (`capturingSender`).
  * - Local dev prints the link to the server console (`consoleSender`).
- * - Production has no sender in this slice, and the sign-in route answers 503
+ * - Production sends through the provider (`providerMagicLinkSender`, built
+ *   once per process in `production-mail.ts`), and only while
+ *   `productionSignInOf` is on; otherwise the sign-in route answers 503
  *   rather than pretending to send (`kabinetAuthAvailability`).
  */
 /**

@@ -8,17 +8,16 @@
  * sets `Origin` by hand, passed (review of 9bd1411). Only a real browser
  * pressing the real button can tell the two apart.
  *
- * **Why a second server.** The harness's main server runs `next start` in
- * production mode, where kabinet sign-in is unavailable and the confirm page
- * is a 404 (`kabinetAuthAvailability`): the first test below pins that, and
- * the main server carries full `BETTER_AUTH_*` config, so only the production
- * branch can produce that 404. Sign-in
- * runs only outside `NODE_ENV=production`, with the development console
- * sender. So this file starts the same build a second time, on its own port,
- * with `NODE_ENV=test` and `BETTER_AUTH_*` set, and reads the link from the
- * console sender's line on that server's stdout, exactly the channel local
- * development uses. Nothing in the app is patched or bypassed; the production
- * gate is untouched (and asserted).
+ * **Why a second server** (`sign-in-server.ts`). The harness's main server
+ * runs `next start` in production mode with no `VERCEL_ENV`, where production
+ * sign-in can't identify the deployment and stays off, so the confirm page is
+ * a 404 (`kabinetAuthAvailability`): the first test below pins that, and the
+ * main server carries full `BETTER_AUTH_*` config, so only the production
+ * branch can produce that 404. This file starts the same build a second
+ * time, on its own port, with `NODE_ENV=test` and `BETTER_AUTH_*` set, and
+ * reads the link from the console sender's line on that server's stdout,
+ * exactly the channel local development uses. Nothing in the app is patched
+ * or bypassed; the production gate is untouched (and asserted).
  *
  * The link is never printed: it is a credential, even a test one, and nothing
  * here logs it or includes it in a failure message. Tracing is off in this
@@ -26,44 +25,23 @@
  * (review of f86c7cd, finding 2).
  */
 
-import { type ChildProcess, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { createRequire } from "node:module";
-import { createServer } from "node:net";
 import { createDatabase } from "@opika/db";
 import { kabinetInvitationRepo } from "@opika/db/repos";
 import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { expect, test } from "@playwright/test";
-import {
-  CURSOR_HMAC_SECRET,
-  HARNESS_BETTER_AUTH_SECRET,
-  HARNESS_PRELAUNCH_GATE_SECRET,
-  R2_PUBLIC_BASE_URL,
-} from "../harness-env";
+import { CONFIRM_PATH, type SignInServer, startSignInServer } from "./sign-in-server";
 
-/** Transcribed from `src/kabinet/auth.ts` (`CONFIRM_PATH`), not imported. */
-const CONFIRM_PATH = "/kabinet/vkhid/pidtverdzhennia";
 /** Over plain HTTP the cookie has no `__Host-` prefix (`kabinetCookieName`). */
 const SESSION_COOKIE = "kabinet.session_token";
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
-async function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address !== null ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-  });
-}
-
-let server: ChildProcess | undefined;
+let server: SignInServer | undefined;
 let origin = "";
-let stdout = "";
+/** This server's stdout so far: where the console sender prints the link. */
+const log = () => server?.stdout() ?? "";
 
 test.use({ trace: "off" });
 
@@ -76,55 +54,12 @@ test.describe("kabinet confirm page, in a real browser", () => {
   test.describe("with sign-in available (NODE_ENV=test)", () => {
     test.beforeAll(async () => {
       test.setTimeout(90_000);
-      const port = await freePort();
-      origin = `http://127.0.0.1:${port}`;
-      const nextBin = createRequire(import.meta.url).resolve("next/dist/bin/next");
-      server = spawn(
-        process.execPath,
-        [nextBin, "start", "--port", String(port), "--hostname", "127.0.0.1"],
-        {
-          env: {
-            ...process.env,
-            NODE_ENV: "test",
-            DATABASE_URL: HARNESS_DATABASE_URL,
-            CURSOR_HMAC_SECRET,
-            NEXT_PUBLIC_R2_PUBLIC_BASE_URL: R2_PUBLIC_BASE_URL,
-            PRELAUNCH_GATE_SECRET: HARNESS_PRELAUNCH_GATE_SECRET,
-            BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
-            BETTER_AUTH_URL: origin,
-          },
-          stdio: ["ignore", "pipe", "pipe"],
-        },
-      );
-      server.stdout?.on("data", (chunk: Buffer) => {
-        stdout += chunk.toString("utf8");
-      });
-      server.stderr?.resume();
-
-      await expect
-        .poll(
-          async () => {
-            try {
-              return (await fetch(`${origin}${CONFIRM_PATH}`)).status;
-            } catch {
-              return 0;
-            }
-          },
-          { timeout: 60_000, intervals: [250] },
-        )
-        // A missing token renders the "link not valid" state: 400, not the 404
-        // the production-mode server gives. So sign-in is really on here.
-        .toBe(400);
+      server = await startSignInServer(HARNESS_DATABASE_URL);
+      origin = server.origin;
     });
 
-    // Waits for the exit rather than only signalling it, so the run never
-    // ends with this server still shutting down. `next start` serves in this
-    // one process (no child), so killing it ends the whole server.
     test.afterAll(async () => {
-      if (server === undefined || server.exitCode !== null || server.signalCode !== null) return;
-      const exited = new Promise<void>((resolve) => server?.once("exit", () => resolve()));
-      server.kill();
-      await exited;
+      await server?.stop();
     });
 
     test("«Увійти» signs in; the GET leaves the token valid; no Referer ever carries it", async ({
@@ -172,8 +107,11 @@ test.describe("kabinet confirm page, in a real browser", () => {
       expect(requested.status).toBe(200);
 
       const marker = `[kabinet] magic link for ${email}: `;
-      await expect.poll(() => stdout.includes(marker), { timeout: 10_000 }).toBe(true);
-      const link = stdout.slice(stdout.indexOf(marker) + marker.length).split(/\s/, 1)[0] ?? "";
+      await expect.poll(() => log().includes(marker), { timeout: 10_000 }).toBe(true);
+      const link =
+        log()
+          .slice(log().indexOf(marker) + marker.length)
+          .split(/\s/, 1)[0] ?? "";
       expect(link.startsWith(`${origin}${CONFIRM_PATH}?token=`), "link is the confirm page").toBe(
         true,
       );
@@ -296,7 +234,7 @@ test.describe("kabinet confirm page, in a real browser", () => {
 
       const landingPath = `/kabinet/vkhid?zaproshennia=${invitationId}`;
       const marker = `[kabinet] magic link for ${email}: `;
-      const sentCount = () => stdout.split(marker).length - 1;
+      const sentCount = () => log().split(marker).length - 1;
 
       for (let i = 0; i < 6; i++) {
         expect((await fetch(`${origin}${landingPath}`)).status, `GET ${i + 1}`).toBe(200);
@@ -326,7 +264,10 @@ test.describe("kabinet confirm page, in a real browser", () => {
       // The answer card names the masked address (`maskAddress`: first letter, •••, the domain).
       await expect(page.getByText("h•••@example.test")).toBeVisible();
       await expect.poll(sentCount, { timeout: 10_000 }).toBe(1);
-      const link = stdout.slice(stdout.indexOf(marker) + marker.length).split(/\s/, 1)[0] ?? "";
+      const link =
+        log()
+          .slice(log().indexOf(marker) + marker.length)
+          .split(/\s/, 1)[0] ?? "";
       expect(link.startsWith(`${origin}${CONFIRM_PATH}?token=`), "link is the confirm page").toBe(
         true,
       );

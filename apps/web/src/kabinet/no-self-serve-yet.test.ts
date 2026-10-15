@@ -1,9 +1,11 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 import { FORWARDED_AUTH_PATHS } from "./auth";
 import { kabinetAuthAvailability } from "./auth-route";
+import { productionSignInOf } from "./production-sign-in";
 
 /**
  * HS-Q3 (Oleksii): "self-serve shipped" is the first PR in which a real
@@ -25,8 +27,8 @@ import { kabinetAuthAvailability } from "./auth-route";
  * invitation accept (IN-Q12/IN-Q13; Oleksii, verbatim: "Order and the guard
  * replacement: approved as described"), named by its full path, and only the
  * app's accept wrapper may call it. Everything else is still refused. The
- * accept runs only after a sign-in, which production refuses (503) until the
- * wiring commit. These scans match the shapes code actually takes (direct and
+ * accept runs only after a sign-in, which production allows since the wiring
+ * commit (when `productionSignInOf` is on). These scans match the shapes code actually takes (direct and
  * namespaced table writes, raw SQL, Better Auth's server API); they guard
  * against accident, not against someone deliberately aliasing a table to
  * slip past them. **If you are deleting or changing an assertion here, you
@@ -129,32 +131,70 @@ describe(`a shelter membership is created by the automatic accept only — ${COP
 
   /**
    * RG-Q9 (Oleksii): exactly one module may call the invitation writer, named
-   * by its full path (no glob, so moving or splitting it fails here), and
-   * only while nobody can act on an invitation: production sign-in answers
-   * 503 (no email provider) **and** accept-invitation isn't forwarded. The
-   * automatic accept (IN-Q12) runs only after a sign-in, so the first
-   * condition covers it too. If either flips, the allowlisted import fails on
-   * its own, independently of the assertions above: that is the self-serve
-   * day, and the copy below has to be live first.
+   * by its full path (no glob, so moving or splitting it fails here). Its
+   * first form also required that nobody could act on an invitation
+   * (production sign-in 503, accept-invitation not forwarded), and failed on
+   * its own the day either flipped: the self-serve day.
+   *
+   * The wiring commit is that day: production sign-in turns on when
+   * `productionSignInOf` is on. IN-Q4 (Oleksii, verbatim: "Q4: accepted.")
+   * replaces the conditional allowlist with its successor in the same commit
+   * as the copy: the allowlist stays exactly one module, and the /prytulkam
+   * copy self-serve made false is live (A1 and A2, final 2026-10-14; A3 kept
+   * as is, his answer 3; B1 at the edit-screens gate). Accept-invitation is
+   * still not forwarded: the automatic accept (IN-Q13) replaced it, so the
+   * successor keeps "no organization path forwarded" (above) rather than
+   * Q4's "exactly one".
    */
-  it("only the registry's invitation module calls the invitation writer, and only while no one can accept", () => {
-    const productionSignIn = kabinetAuthAvailability({
-      NODE_ENV: "production",
-      BETTER_AUTH_SECRET: "s".repeat(32),
-      BETTER_AUTH_URL: "https://example.org",
-    });
-    const acceptForwarded = FORWARDED_AUTH_PATHS.some((path) => path.includes("accept-invitation"));
-    const nobodyCanAccept = productionSignIn.kind === "unavailable" && !acceptForwarded;
+  it("only the registry's invitation module calls the invitation writer", () => {
     const importers = filesMatching(
       // An import of it, not a mention: comments may name it.
       /import\s*\{[^}]*kabinetInvitationRepo[^}]*\}\s*from|from\s+["'][^"']*kabinet-invitation-repo["']/,
     ).filter((file) => file !== "packages/db/src/repos/index.ts");
     expect(
       importers,
-      nobodyCanAccept
-        ? `Only ${INVITATION_MODULE} may call the invitation writer (RG-Q9). ${COPY_GATE}`
-        : `Production sign-in or accept-invitation is now live, so even ${INVITATION_MODULE} may not call the invitation writer until the copy ships. ${COPY_GATE}`,
-    ).toEqual(nobodyCanAccept ? [INVITATION_MODULE] : []);
+      `Only ${INVITATION_MODULE} may call the invitation writer (RG-Q9). ${COPY_GATE}`,
+    ).toEqual([INVITATION_MODULE]);
+  });
+
+  /**
+   * The successor's own condition (IN-Q4): production sign-in can be on, so
+   * the copy that said a shelter can't open a kabinet must be gone and his
+   * replacements live. Transcribed from his answers, not read from `uk.ts`.
+   */
+  it("production sign-in can be on, and the /prytulkam copy that had to land with it is live", () => {
+    const production = {
+      NODE_ENV: "production",
+      VERCEL_ENV: "production",
+      EMAIL_PROVIDER: "resend",
+      RESEND_API_KEY: "example",
+      EMAIL_FROM_ADDRESS: "noreply@mail.example.org",
+      EMAIL_REPLY_TO: "hello@example.org",
+      PRODUCTION_ORIGIN: "https://example.org",
+      BETTER_AUTH_SECRET: "s".repeat(32),
+      BETTER_AUTH_URL: "https://example.org",
+    };
+    // Wired: with the copy gate clear, production is available. (The live
+    // catalogue's gate is `production-sign-in.test.ts`'s to pin.)
+    expect(
+      kabinetAuthAvailability(production, { signIn: (env) => productionSignInOf(env, []) }).kind,
+    ).toBe("available");
+    // A2 (row 89): the third paragraph of §9 is his; the sentence that said
+    // there is no kabinet is gone.
+    expect(uk.forShelters.whenAnimalFindsHome, COPY_GATE).toContain(
+      "Кабінет притулку вже є, але лише для перегляду — змінити чи прибрати щось у ньому поки не можна.",
+    );
+    expect(uk.forShelters.whenAnimalFindsHome, COPY_GATE).not.toContain(
+      "не хочу обіцяти кабінет, якого не існує",
+    );
+    // A1 (row 91): his line, in §7.
+    expect(uk.forShelters.whatToPrepare, COPY_GATE).toContain(
+      "Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.",
+    );
+    // A3: kept as is (answer 3), and still true: one person answers.
+    expect(uk.forShelters.whoIsBehindThis, COPY_GATE).toContain(
+      "коли ви пишете на цю адресу, відповідаю я.",
+    );
   });
 });
 

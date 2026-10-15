@@ -1,9 +1,10 @@
 import { pendingCopyPaths, uk } from "@opika/i18n";
-import { type EmailRoutes, emailRoutesOf, productionOriginOf } from "./email-provider";
+import type { EmailRoutes } from "./email-provider";
 import { operatorDisplayName } from "./operator";
+import { signInConfigOf } from "./sign-in-env";
 
 /**
- * When production sign-in may be on (IN-Q6, Oleksii: "Q6: accepted, plus:
+ * When production sign-in is on (IN-Q6, Oleksii: "Q6: accepted, plus:
  * previews never send real email (provider key unset in Preview → auth
  * off). Test that BETTER_AUTH_URL equals the production origin."; and IN-R2,
  * Decision 2: "PRODUCTION_ORIGIN=https://opika.org.ua (apex), pinned
@@ -15,13 +16,6 @@ import { operatorDisplayName } from "./operator";
  *   `production`). A Preview is refused outright, and so is any environment
  *   that can't be identified (unset or unknown `VERCEL_ENV`, as off Vercel):
  *   fail closed, never skipped;
- * - only when both email routes are configured (`emailRoutesOf`: each route
- *   reads its provider's own key, and a provider named without that key is
- *   `provider_invalid`, so no route ever pairs a provider with another's key)
- *   and BETTER_AUTH_SECRET and BETTER_AUTH_URL are set;
- * - only when BETTER_AUTH_URL is PRODUCTION_ORIGIN, the pinned apex. Magic
- *   links are built from BETTER_AUTH_URL, so a wrong one would email links
- *   to a host that isn't the site;
  * - only when no `kabinet.*` string, the email templates included, is still
  *   `[COPY PENDING]` (Oleksii, 2026-10-14, answer 7, verbatim: "Yes.
  *   Production sign-in stays off while any kabinet.* or email-template string
@@ -30,21 +24,31 @@ import { operatorDisplayName } from "./operator";
  *   the environment is identified, so it only ever turns production off:
  *   development and tests never reach this function's "on" (they take
  *   `kabinetAuthAvailability`'s development branch), and a Preview or an
- *   unidentified environment is already off for its own reason.
+ *   unidentified environment is already off for its own reason;
+ * - only when the variables make a working configuration (`signInConfigOf`,
+ *   `sign-in-env.ts`): both email routes configured (each reads its
+ *   provider's own key, so no route ever pairs a provider with another's
+ *   key), BETTER_AUTH_SECRET of at least 32 characters (IN-Q6) and
+ *   BETTER_AUTH_URL equal to PRODUCTION_ORIGIN, the pinned apex. Magic links
+ *   are built from BETTER_AUTH_URL, so a wrong one would email links to a
+ *   host that isn't the site. The build and boot checks (IN-R2, Decision 1)
+ *   read the same predicate, so a production deploy whose variables would
+ *   leave this off never builds.
  *
- * **Not wired into `kabinetAuthAvailability` yet.** Wiring it is what turns
- * production sign-in on. That is the condition `no-self-serve-yet.test.ts`
- * (RG-Q9) watches, and the /prytulkam A1–A3 and B1 copy must be live first.
- * The build-time and boot-time checks that the five variables are present
- * (IN-R2, Decision 1) land with that wiring commit too.
+ * **Wired** into `kabinetAuthAvailability`'s production branch
+ * (`auth-route.ts`) by the commit that turns production sign-in on: "on"
+ * there means `/api/auth`, `/api/kabinet` and `/kabinet` serve, and the
+ * provider-backed senders (`production-mail.ts`) send. `no-self-serve-yet.test.ts`
+ * (RG-Q9's successor, IN-Q4) pins the /prytulkam copy that had to land with it.
  */
 export type ProductionSignIn =
   | {
       kind: "on";
       /**
-       * One provider config per template (`emailRoutesOf`, EM-B6): the
-       * wiring commit passes `email.signIn` to `providerMagicLinkSender` and
-       * `email.invite` to the invitation sender and `cachedBlockList`.
+       * One provider config per template (`emailRoutesOf`, EM-B6):
+       * `production-mail.ts` passes `email.signIn` to `providerMagicLinkSender`
+       * and `email.invite` to the invitation sender and `cachedBlockList`
+       * (EM-T22).
        */
       email: EmailRoutes;
       secret: string;
@@ -52,9 +56,9 @@ export type ProductionSignIn =
       /**
        * Signs both emails (`— {operator}`): `operatorDisplayName(env)`, so
        * `KABINET_OPERATOR_DISPLAY_NAME` (nominative) or the catalogue's
-       * fallback. Never a reason to stay off (RS-Q2). The wiring commit hands
-       * it to `providerMagicLinkSender`; the invite takes the same value from
-       * the RPC route's `operatorDisplayName`.
+       * fallback. Never a reason to stay off (RS-Q2). `production-mail.ts`
+       * hands it to `providerMagicLinkSender` (EM-T18); the invite takes the
+       * same value from the RPC route's `operatorDisplayName`.
        */
       operatorName: string;
     }
@@ -66,6 +70,7 @@ export type ProductionSignIn =
         | "provider_not_configured"
         | "provider_invalid"
         | "auth_config_missing"
+        | "auth_secret_too_short"
         | "auth_url_not_production_origin";
     }
   | { kind: "off"; reason: "copy_pending"; pending: readonly string[] };
@@ -82,22 +87,13 @@ export function productionSignInOf(
   if (env.VERCEL_ENV === "preview") return { kind: "off", reason: "preview_never_sends" };
   if (env.VERCEL_ENV !== "production") return { kind: "off", reason: "environment_unidentified" };
   if (pendingCopy.length > 0) return { kind: "off", reason: "copy_pending", pending: pendingCopy };
-  const email = emailRoutesOf(env);
-  if (email.kind === "missing") return { kind: "off", reason: "provider_not_configured" };
-  if (email.kind === "invalid") return { kind: "off", reason: "provider_invalid" };
-  const secret = env.BETTER_AUTH_SECRET;
-  const baseURL = env.BETTER_AUTH_URL;
-  if (!secret || !baseURL) return { kind: "off", reason: "auth_config_missing" };
-  const production = productionOriginOf(env.PRODUCTION_ORIGIN ?? "");
-  const configured = productionOriginOf(baseURL);
-  if (production === null || configured === null || configured.origin !== production.origin) {
-    return { kind: "off", reason: "auth_url_not_production_origin" };
-  }
+  const config = signInConfigOf(env);
+  if (config.kind !== "configured") return { kind: "off", reason: config.kind };
   return {
     kind: "on",
-    email: email.routes,
-    secret,
-    baseURL,
+    email: config.email,
+    secret: config.secret,
+    baseURL: config.baseURL,
     operatorName: operatorDisplayName(env),
   };
 }

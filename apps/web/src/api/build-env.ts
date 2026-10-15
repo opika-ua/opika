@@ -1,3 +1,5 @@
+import { signInEnvProblems } from "../kabinet/sign-in-env";
+
 /**
  * What `next build` itself refuses to build without. `next.config.ts` calls
  * `assertBuildEnv(process.env)` at load, which is the moment a Vercel build
@@ -62,6 +64,32 @@ export const cronSecretProblem = (env: Readonly<Record<string, string | undefine
   );
 
 /**
+ * `LOCATION_HMAC_SECRET` (RG-Q10, Oleksii, verbatim: "the invite PR adds it to
+ * the required prod env schema"): the key the registry fuzzes a shelter's
+ * public location with on create and on an address change. Joined with the
+ * commit that turns production sign-in on, after Oleksii set it in Vercel
+ * Production and `location:verify --prod` reported 0 mismatches (2026-10-15).
+ * Production only: a Preview never signs in, so it never reaches the
+ * registry. Checked at boot (`validateEnv`), not at build: RG-Q10 named the
+ * runtime schema, and the build never reads it. Without it the registry
+ * answers 503 (`app/api/kabinet/[...rpc]/route.ts`); with sign-in live that is
+ * the operator's own screen failing, so the instance refuses to boot instead.
+ */
+export const locationSecretProblem = (
+  env: Readonly<Record<string, string | undefined>>,
+): string | null => {
+  if (env.VERCEL_ENV !== "production") return null;
+  if ((env.LOCATION_HMAC_SECRET ?? "").length >= PRODUCTION_SECRET_MIN_LENGTH) return null;
+  // Never "generate one": a new key would mismatch every location already
+  // fuzzed with the operator's (RG-Q10; `location:verify` checks it).
+  return (
+    `LOCATION_HMAC_SECRET must be at least ${PRODUCTION_SECRET_MIN_LENGTH} characters on a ` +
+    "production deployment (the registry fuzzes shelter locations with it) — set it in Vercel's " +
+    "Production environment to the same value the onboarding script uses, never a new one"
+  );
+};
+
+/**
  * Whether this environment is a Vercel deployment (Production, Preview, or
  * any environment Vercel names other than `development`). `vercel env pull`
  * writes `VERCEL=1` and `VERCEL_ENV=development` into a developer's
@@ -113,6 +141,13 @@ export const rateLimitKeySecretProblem = (
  * no later check can repair a bundle built without it. `next.config.ts`'s
  * comment above the call has the full account. `CRON_SECRET` is
  * production-only and `RATE_LIMIT_KEY_SECRET` every Vercel deployment, above.
+ *
+ * The sign-in variables (IN-R2, Decision 1, Oleksii, verbatim: "From the
+ * commit that turns sign-in on: A production build fails if any of the five
+ * variables is missing, so a bad deploy never goes live.") are
+ * `signInEnvProblems` (`kabinet/sign-in-env.ts`), production only, shared with
+ * the boot check (`validateEnv`) so the two can't drift; which variables and
+ * why are on that function.
  */
 export function assertBuildEnv(env: Readonly<Record<string, string | undefined>>): void {
   const problems: string[] = [];
@@ -128,5 +163,6 @@ export function assertBuildEnv(env: Readonly<Record<string, string | undefined>>
       problems.push(`Invalid or missing required environment variable: ${problem}`);
     }
   }
+  problems.push(...signInEnvProblems(env));
   if (problems.length > 0) throw new Error(problems.join("\n"));
 }

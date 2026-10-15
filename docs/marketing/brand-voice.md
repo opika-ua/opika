@@ -236,9 +236,9 @@ Run every new string, caption, post or tagline through this:
   on its «ми»)
 - «Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет,
   якого не існує.» — the clearest single example of the voice refusing to over-promise.
-  *(Historical from the commit that turns production sign-in on: a kabinet shelters can open makes
-  its second sentence false, and that commit replaces it with A2's new third paragraph, «Поки що це
-  просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду — змінити чи прибрати
-  щось у ньому поки не можна.», provisional until Oleksii's final yes
-  (`docs/decisions-inbox/feat-h2-invite-email.md`, EM-Q1). Live until then; kept here as an example
-  of the voice either way.)*
+  *(Historical since the commit that turns production sign-in on: a kabinet shelters can open made
+  its second sentence false, and that commit replaced it with A2's new third paragraph (final,
+  row 89, 2026-10-14), «Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише
+  для перегляду — змінити чи прибрати щось у ньому поки не можна.» Kept here as an example of the
+  voice; the live line is the new one, which refuses to over-promise in the same way: the kabinet
+  exists, and it says exactly what it can't do yet.)*

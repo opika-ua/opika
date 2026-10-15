@@ -486,6 +486,7 @@ export const en = {
       joinFailed: `Nothing was half-saved. Try again; if it still fails, it retries itself on your next sign-in.`,
       joinFailedTitle: `You are signed in, but adding you to the shelter didn't work`,
       joinRetry: `Try again`,
+      rateLimited: `Too many sign-in attempts from this connection just now. Your link still works: wait a minute and press «Sign in» again.`,
     },
     /** History lines (IN-Q14); see the Ukrainian catalogue. */
     history: {

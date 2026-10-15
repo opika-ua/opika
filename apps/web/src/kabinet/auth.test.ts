@@ -646,14 +646,23 @@ describe("what the route lets through", () => {
     expect((await route(post(path, {}))).status).toBe(404);
   });
 
-  /** HS-Q2: production has no sender in this slice, so sign-in says so rather than pretending. */
-  it("answers 503 in production, whatever else is configured", async () => {
+  /**
+   * HS-Q2, then the wiring commit: production signs in only when
+   * `productionSignInOf` is on. Off a Vercel production deployment (here: no
+   * `VERCEL_ENV`, as the harness's `next start`) it is unavailable whatever
+   * else is configured, and the route says so rather than pretending.
+   */
+  it("answers 503 in production when production sign-in is off, whatever else is configured", async () => {
     const availability = kabinetAuthAvailability({
       NODE_ENV: "production",
       BETTER_AUTH_SECRET: "x".repeat(40),
       BETTER_AUTH_URL: "https://example.org",
     });
-    expect(availability).toEqual({ kind: "unavailable", reason: "no_sender_in_production" });
+    expect(availability).toEqual({
+      kind: "unavailable",
+      reason: "production_sign_in_off",
+      off: { kind: "off", reason: "environment_unidentified" },
+    });
     const response = await handleKabinetAuth(
       post("/api/auth/sign-in/magic-link", { email: "a@b.c" }),
       {
@@ -917,8 +926,19 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
       "x-forwarded-for": "203.0.113.9",
     });
     expect(refused.status).toBe(429);
-    expect(await refused.text()).toBe("Too Many Requests");
     expect(refused.headers.getSetCookie().some((c) => c.includes("session_token"))).toBe(false);
+    // The over-limit card (IN-T15's gate item), not a bare 429 and not «link
+    // not valid»: the same token back in the same form, behind «Увійти»
+    // (transcribed), with the notice as an alert. Its text is still
+    // `[COPY PENDING]` (inbox WI-Q3); `copy-status.test.ts` pins the key.
+    const card = await refused.text();
+    expect(refused.headers.get("cache-control")).toBe("no-store");
+    expect(refused.headers.get("referrer-policy")).toBe("strict-origin");
+    expect(card).toContain('<p role="alert">');
+    const token = new URL(link).searchParams.get("token") ?? "";
+    expect(card).toContain(`<input type="hidden" name="token" value="${token}">`);
+    expect(card).toContain('<button type="submit">Увійти</button>');
+    expect(card).not.toContain("Це посилання вже використане або втратило силу.");
 
     // Refused before Better Auth read the token, so the link still works
     // from an address within its budget.

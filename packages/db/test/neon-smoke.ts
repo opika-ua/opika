@@ -11,9 +11,11 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import { createDatabase, type Database } from "../src/client";
 import { productionEndpoint } from "../src/prod-guard";
+import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { authExpiryRepo, KABINET_SESSION_ABSOLUTE_MS } from "../src/repos/auth-expiry-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { kabinetAnimalRepo } from "../src/repos/kabinet-animal-repo";
 import { kabinetInvitationAcceptRepo } from "../src/repos/kabinet-invitation-accept-repo";
 import { kabinetInvitationRepo } from "../src/repos/kabinet-invitation-repo";
 import { kabinetInvitedUsersRepo } from "../src/repos/kabinet-invited-users-repo";
@@ -22,6 +24,7 @@ import { kabinetShelterRepo } from "../src/repos/kabinet-shelter-repo";
 import { kabinetSupportRepo, SUPPORT_IDLE_MS } from "../src/repos/kabinet-support-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { superAdminRepo } from "../src/repos/super-admin-repo";
+import { swipeRepo } from "../src/repos/swipe-repo";
 import { animals } from "../src/schema/animals";
 import {
   authInvitation,
@@ -32,7 +35,14 @@ import {
   supportSessions,
 } from "../src/schema/auth";
 import { insertShelterFromScript, recordAnimalsImported } from "../src/script-history";
-import { makeAnimal, makeCity, makeShelter } from "../src/test-utils/fixtures";
+import {
+  makeAdopter,
+  makeAnimal,
+  makeCity,
+  makeShelter,
+  makeSwipe,
+} from "../src/test-utils/fixtures";
+import { type SmokeTarget, smokeTarget } from "../src/test-utils/smoke-target";
 
 /**
  * `pnpm --filter @opika/db db:neon-smoke --expect ep-…` (from a worktree:
@@ -68,57 +78,7 @@ import { makeAnimal, makeCity, makeShelter } from "../src/test-utils/fixtures";
 
 type Outcome = { name: string; ok: boolean; detail: string };
 
-const computeOf = (host: string) =>
-  (host.toLowerCase().split(".")[0] ?? "").replace(/-pooler$/, "");
-
-export type SmokeTarget = { kind: "ok"; host: string } | { kind: "refused"; reason: string };
-
-/** Pure, so it is tested without a network: the endpoint must match `--expect` and not be production. */
-export function smokeTarget(
-  url: string,
-  expect: string | undefined,
-  prodEndpoint: string | undefined,
-): SmokeTarget {
-  let host: string;
-  try {
-    host = new URL(url).hostname;
-  } catch {
-    return { kind: "refused", reason: "DATABASE_URL does not parse (not printing it)" };
-  }
-  if (!host.toLowerCase().endsWith(".neon.tech"))
-    return { kind: "refused", reason: "not a Neon host" };
-  if (expect === undefined || !/^ep-[a-z0-9-]+$/.test(expect)) {
-    return { kind: "refused", reason: "pass --expect ep-… (the rehearsal branch's endpoint id)" };
-  }
-  if (computeOf(host) !== expect) {
-    return { kind: "refused", reason: `endpoint is ${computeOf(host)}, expected ${expect}` };
-  }
-  if (!prodEndpoint) {
-    return {
-      kind: "refused",
-      reason:
-        "PROD_NEON_ENDPOINT is unknown, so the target can't be shown not to be production " +
-        "(a worktree has no .env.local: set it in the shell, the ep-… id only)",
-    };
-  }
-  // Compared only once it is provably an endpoint id: a URL or a quoted value
-  // here would never equal `expect` and let production through (review of
-  // the scripts row, finding 1). Same rule as the production guard.
-  const prod = computeOf(prodEndpoint.trim());
-  if (!/^ep-[a-z0-9-]+$/.test(prod)) {
-    return {
-      kind: "refused",
-      reason: "PROD_NEON_ENDPOINT is not an endpoint id (ep-…); not comparing",
-    };
-  }
-  if (prod === expect) {
-    return {
-      kind: "refused",
-      reason: "that is the production endpoint; this script never runs there",
-    };
-  }
-  return { kind: "ok", host };
-}
+export { type SmokeTarget, smokeTarget };
 
 const NOW = new Date();
 const later = (ms: number) => new Date(NOW.getTime() + ms);
@@ -749,6 +709,107 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       left.has(live.session) &&
       left.has(live.verification),
     `deleted ${counts.verifications} verification(s), ${counts.sessions} session(s); this run's live rows kept ${left.has(live.session) && left.has(live.verification)}, expired gone ${!left.has(expired.session) && !left.has(expired.verification)}, past-cap gone ${!left.has(pastCap)}, under-cap kept ${left.has(underCap)}`,
+  );
+
+  // 19–21: the K2/K3 animal writes HS-T4b names (the listing jsonb
+  // compare-and-set, the deleteDraft 23503 catch) and S3-T6's guard, which is
+  // the integer `version` since Oleksii's override (S3-T6: "integer version for
+  // animals too"), so the `last_updated_at` equality round-trip it once
+  // needed no longer exists. Shelter writes stay refused in production until
+  // K2/K3 (KH-Q1); HS-T4b still asks for these on real Neon before the 503
+  // lifts, so they run here, through the kabinet's own repo.
+  const kabinetAnimals = kabinetAnimalRepo(db);
+
+  // 19. an edit compare-and-sets on `version`: the read version writes and
+  // bumps, the same version again (a stale form) writes nothing.
+  const edited = await kabinetAnimals.findWithCity(atShelter.id);
+  const editVersion = edited?.animal.version ?? -1;
+  const firstEdit = edited
+    ? await kabinetAnimals.writeEditIf(
+        { ...edited.animal, name: `Smoke ${tag}`, lastUpdatedAt: later(1000) },
+        edited.cityId,
+        editVersion,
+      )
+    : { kind: "conflict" as const };
+  const staleEdit = edited
+    ? await kabinetAnimals.writeEditIf(
+        { ...edited.animal, name: `Smoke ${tag} stale` },
+        edited.cityId,
+        editVersion,
+      )
+    : { kind: "ok" as const };
+  const afterEdit = await kabinetAnimals.findWithCity(atShelter.id);
+  check(
+    "animal edit compare-and-set on version (S3-T6)",
+    firstEdit.kind === "ok" &&
+      staleEdit.kind === "conflict" &&
+      afterEdit?.animal.version === editVersion + 1 &&
+      afterEdit.animal.name === `Smoke ${tag}`,
+    `first ${firstEdit.kind}, stale ${staleEdit.kind}, version ${editVersion} → ${afterEdit?.animal.version}`,
+  );
+
+  // 20. a listing move compare-and-sets on the listing as read back through
+  // this driver (jsonb equality on the value the request read): the read
+  // listing moves, the same stale read moves nothing, and `last_updated_at`
+  // stays put (HS-T8).
+  const readListing = afterEdit?.animal.listing;
+  const listingMoved =
+    readListing && readListing.kind === "published"
+      ? await kabinetAnimals.writeListingIf(
+          atShelter.id,
+          { ...readListing, confirmedAt: later(2000), undoable: null },
+          readListing,
+        )
+      : { kind: "conflict" as const };
+  const staleMove =
+    readListing && readListing.kind === "published"
+      ? await kabinetAnimals.writeListingIf(
+          atShelter.id,
+          { ...readListing, confirmedAt: later(3000), undoable: null },
+          readListing,
+        )
+      : { kind: "ok" as const };
+  const afterMove = await kabinetAnimals.findWithCity(atShelter.id);
+  check(
+    "listing jsonb compare-and-set (HS-T4b)",
+    readListing?.kind === "published" &&
+      listingMoved.kind === "ok" &&
+      staleMove.kind === "conflict" &&
+      afterMove?.animal.listing.kind === "published" &&
+      afterMove.animal.listing.confirmedAt.getTime() === later(2000).getTime() &&
+      afterMove.animal.lastUpdatedAt.getTime() === afterEdit?.animal.lastUpdatedAt.getTime(),
+    `read ${readListing?.kind}, move ${listingMoved.kind}, stale ${staleMove.kind}`,
+  );
+
+  // 21. deleteDraft on a never-published draft a swipe points at: the FK
+  // refuses, and the SQLSTATE 23503 read off neon-http's error becomes the
+  // typed `referenced`, never a 500 (HS-Q9); an unreferenced draft deletes.
+  const referencedDraft = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: shelter.id,
+    listing: { kind: "draft" },
+  });
+  const freeDraft = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: shelter.id,
+    listing: { kind: "draft" },
+  });
+  await animalRepo(db).insert(referencedDraft, city.id);
+  await animalRepo(db).insert(freeDraft, city.id);
+  const adopter = makeAdopter({ id: randomUUID() as never });
+  await adopterRepo(db).insert(adopter);
+  await swipeRepo(db).record(
+    makeSwipe({ adopterId: adopter.id, animalId: referencedDraft.id, at: NOW }),
+  );
+  const refused = await kabinetAnimals.deleteDraftIf(referencedDraft.id, 0);
+  const freed = await kabinetAnimals.deleteDraftIf(freeDraft.id, 0);
+  check(
+    "deleteDraft 23503 catch (HS-T4b)",
+    refused.kind === "referenced" &&
+      freed.kind === "ok" &&
+      (await kabinetAnimals.findWithCity(referencedDraft.id)) !== null &&
+      (await kabinetAnimals.findWithCity(freeDraft.id)) === null,
+    `referenced draft: ${refused.kind}; free draft: ${freed.kind}`,
   );
   return out;
 }

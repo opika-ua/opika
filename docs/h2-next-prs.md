@@ -263,11 +263,14 @@ relay's elision.)
 - [ ] *Not a blocker, a note:* the `demo` line goes to 0 when the demo corpus is removed at the
       first real shelter (RG-Q11). From then on, any `demo` count means seeded rows survived that
       removal, which is a finding in its own right.
-- [ ] **Names-only check before the wiring commit** (EM-B11 item 3e): Oleksii runs
+- [x] **Names-only check before the wiring commit** (EM-B11 item 3e): Oleksii runs
       `vercel env ls production` (names only, never values) and compares it against the expected
       list, which the wiring commit's Phase 0 restates: the seven ADDs below, the KEEPs below,
-      `LOCATION_HMAC_SECRET`, and none of the DON'T ADDs.
-- [ ] **Production switch-on (EM-B10 step 2; Oleksii sets the variables himself), after the code
+      `LOCATION_HMAC_SECRET`, and none of the DON'T ADDs. **Done 2026-10-15**: his names-only
+      report matches the expected list exactly (inbox WI-B1, his words verbatim; the comparison is
+      WI-T1). Only `CURSOR_HMAC_SECRET` is marked Sensitive; the rest is a low-priority follow-up,
+      his call (KH-F4).
+- [x] **Production switch-on (EM-B10 step 2; Oleksii sets the variables himself), after the code
       above is deployed.** Vercel, **Production environment only**, never Preview:
       - **ADD** `EMAIL_PROVIDER` = `resend`
       - **ADD** `EMAIL_FROM_ADDRESS` = `noreply@mail.opika.org.ua`
@@ -291,10 +294,13 @@ relay's elision.)
       which the wiring commit connects. Then sign-in and invites go out through Resend on
       `RESEND_API_KEY`.
       Also required before the wiring commit, as its own earlier step (rollout order Q10): `LOCATION_HMAC_SECRET` in Vercel Production, the same value the onboarding script uses, then `location:verify --prod` reports 0 mismatches; without it every `/registry/` call answers 503 (review of the step-1 code, finding 1).
-- [ ] **`LOCATION_HMAC_SECRET` joins the required production env schema** (RG-Q10) in
+- [x] **`LOCATION_HMAC_SECRET` joins the required production env schema** (RG-Q10) in
       `apps/web/src/api/env.ts`, only after the step above. The same change rewrites the comments
       that say it is never in Vercel (`env.ts`, `onboard-shelter.ts`'s R2 note), which become false.
-- [ ] **A production build fails without the five sign-in variables** (IN-R2, Decision 1;
+      **Built** as a production-only boot check (`locationSecretProblem`, `build-env.ts`, run by
+      `validateEnv`), not in the zod schema, which also applies to every Preview: a Preview never
+      signs in and holds no copy of the key (default taken, inbox WI-T2, Tier 1). Comments rewritten.
+- [x] **A production build fails without the five sign-in variables** (IN-R2, Decision 1;
       Oleksii, verbatim: "From the commit that turns sign-in on: A production build fails if any of
       the five variables is missing, so a bad deploy never goes live. Keep the runtime boot check as
       a second guard. Until that commit, nothing changes."): `EMAIL_PROVIDER`, the selected
@@ -306,7 +312,12 @@ relay's elision.)
       **`EMAIL_REPLY_TO` is now required by `emailProviderConfigOf`** (Oleksii, 2026-10-14, answer 5:
       "Reply-To: hello@opika.org.ua on all emails"), so sign-in stays off without it; whether it
       joins the build-time list too is the same Phase 0 question as `PRODUCTION_ORIGIN`.
-- [ ] **The wiring commit turns production sign-in on through `productionSignInOf`**, which now also
+      **Built** (`kabinet/sign-in-env.ts`, `signInEnvProblems`, in `assertBuildEnv` and `validateEnv`):
+      the five, plus `PRODUCTION_ORIGIN` and `EMAIL_REPLY_TO`, and once all are present the whole
+      configuration must be one production sign-in turns on (a short secret, a wrong URL or From
+      address fails the build too). That is this commit's Phase 0 recommendation, **asked as inbox
+      WI-Q1 (Tier 1, blocks the merge, not the branch)**. Passes with the values he reported.
+- [x] **The wiring commit turns production sign-in on through `productionSignInOf`**, which now also
       stays off while any `kabinet.*` string (email templates included) is `[COPY PENDING]`
       (Oleksii, answer 7). It builds `providerMagicLinkSender` with `operatorName` from the `on`
       result (`ProductionSignIn.operatorName`, i.e. `operatorDisplayName(env)`), so the sign-in email
@@ -325,27 +336,49 @@ relay's elision.)
 - [ ] **The confirm page's over-limit card ships before production sign-in is turned on**
       (IN-T15, Oleksii: "A plain 429 is fine for now. Add a gate item: the over-limit card ships
       before production sign-in is turned on."). Today a rate-limited «Увійти» POST answers a plain
-      429.
-- [ ] **A2's new third paragraph ships here (EM-Q1)**, in the wiring commit itself (Oleksii,
+      429. **Card built in the wiring commit** (`confirm-route.ts`, `rate_limited`: still a 429, the
+      notice as an alert, the same token back behind «Увійти»), **copy pending**: no final string
+      existed, so `kabinet.confirm.rateLimited` ships `[COPY PENDING]` with its English sense, and
+      the copy gate keeps production sign-in off until his text lands (inbox WI-Q3). **Blocks the
+      wiring PR's merge**: merged without it, `/prytulkam` would say the kabinet exists while no
+      shelter can open it.
+- [x] **A2's new third paragraph ships here (EM-Q1)**, in the wiring commit itself (Oleksii,
       verbatim: "(b). A2 keeps the current text; the new paragraph ships in the commit that turns
       production sign-in on."). **Final yes given** (2026-10-14, row 89 of the PR #94 copy export,
       verbatim: "FINAL YES as drafted"); the text is on `docs/h2-copy-sheet.md` A2. The same commit
       updates `copy-status.test.ts`'s A2 pin, commitments row 6 in
       `docs/standing-constraints.md` and the `docs/marketing/brand-voice.md` note.
-- [ ] **A1's added line ships in the same commit** (row 91, final, 2026-10-14, verbatim: "Place it
+- [x] **A1's added line ships in the same commit** (row 91, final, 2026-10-14, verbatim: "Place it
       directly before the current last paragraph of §7, and ship it in the same commit as row 89."):
       «Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.»
       (`docs/h2-copy-sheet.md` A1), with a `copy-status.test.ts` pin on its position.
-- [ ] **The runtime boot check stays as the second guard** (IN-R2, Decision 1): production refuses
-      to boot without them from the same commit, tested.
-- [ ] **Two stale comments rewritten in the wiring commit** (review invites-resend.md, finding 2):
+- [x] **The runtime boot check stays as the second guard** (IN-R2, Decision 1): production refuses
+      to boot without them from the same commit, tested. (`validateEnv` runs `signInEnvProblems`,
+      the build's own rule, against the server's environment; `env.test.ts`.)
+- [x] **Two stale comments rewritten in the wiring commit** (review invites-resend.md, finding 2):
       `apps/web/src/kabinet/auth-route.ts:12` ("The invite PR adds the provider") and
       `apps/web/src/app/kabinet/layout.tsx:9` ("until the invite PR adds an email provider"). #94
-      does not wire the provider; the wiring commit does.
+      does not wire the provider; the wiring commit does. (#94 had already reworded both to name the
+      wiring commit; the wiring commit rewrites both to describe the wired state, and the other
+      comments that said production has no sender: `magic-link-sender.ts`, `email-provider.ts`,
+      `.env.example`, the kabinet harness specs.)
 - [ ] **Real-Neon run before the production 503 lifts** (HS-T4, HS-T4b, HS-Q12): sign-in,
       verify, getSession, accept-invitation, the audited-write CTE, the listing jsonb
       compare-and-set, the deleteDraft 23503 catch, and the `last_updated_at` round-trip
-      (S3-T6).
+      (S3-T6). **Oleksii's run, a pre-merge item of the wiring PR** (inbox WI-T5): on a fresh child
+      branch of production (its own endpoint id, never production's; IN-Q9: nothing is sent), from
+      the wiring worktree, with `PROD_NEON_ENDPOINT=ep-dawn-pond-b1dz515g` in the shell:
+      1. `pnpm --filter @opika/db db:neon-smoke --expect ep-…` → expect **21 passed, 0 failed**:
+         steps 1–18 as before (the audited-write CTE is step 3, the accept 15–17), plus 19 (an edit
+         compare-and-set on `animals.version`, which replaced the `last_updated_at` guard, so S3-T6's
+         round-trip is superseded), 20 (the listing jsonb compare-and-set), 21 (the deleteDraft
+         23503 catch).
+      2. `pnpm --filter @opika/web kabinet:neon-auth-smoke --expect ep-…` → expect **5 passed, 0
+         failed**: Better Auth's sign-in request, verify (through the confirm page's POST), the
+         automatic accept on that sign-in (which replaced Better Auth's accept-invitation, IN-Q13),
+         getSession (and the kabinet's principal), sign-out, all on neon-http.
+      Both print the host and one line per step only, and refuse production and any endpoint but
+      `--expect`. Report the two counts.
 - [ ] **Production rollout order** (RG-Q2, superseding HS-Q13's; Oleksii, verbatim: "Rollout order
       becomes: invite merged → admin:bootstrap → I sign in → first shelter invite."), after the
       registry PR has merged:
