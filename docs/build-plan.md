@@ -1031,13 +1031,12 @@ weeks.
 verbatim: "remove all test shelters (demo + mine) before the first real shelter"). Two kinds:
 
 - [ ] **The seeded demo corpus** (`51000000-…`): `demo:remove` (#103). A support session on a
-  demo shelter is a refusal (DR-Q1). **When, relative to onboarding, is open (DR-Q2):** DR-B2
-  says before the first real shelter; DR-B1's step 5 order (a)–(f) onboards the real shelter
-  first and removes the demo corpus before its invite. The tool allows either while one of his
-  own test shelters exists (it counts as the "other shelter" its guard requires).
+  demo shelter is a refusal (DR-Q1). **When:** after the first real shelter is onboarded, before
+  its invite, so the site is never empty (DR-Q2, Oleksii, verbatim: "remove test/demo shelters
+  AFTER the first real shelter is onboarded; the site is never empty").
 - [ ] **Oleksii's own test shelters** (onboarded on production with the real key, e.g. the
-  `rehearsal-` input): `demo:remove` doesn't cover them. A removal path of their own is
-  follow-up DR-F2, needed before this box can be ticked.
+  `rehearsal-` input), at the same moment: `demo:remove` extended (or a sibling) to take
+  explicit shelter ids, with the same guards (DR-F2, Oleksii: "before launch").
 
 This is the sharp one. It is not "before launch" — shelter onboarding can happen the moment
 someone says yes to an outreach email, independent of whatever else is or isn't ready.
