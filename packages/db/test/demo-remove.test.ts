@@ -210,10 +210,11 @@ async function productionAfterStep4() {
   await recordAnimalsImported(db, demoB.id, 1, ACTOR);
   await recordAnimalsImported(db, real.id, 1, ACTOR);
 
+  // The operator viewed the real shelter in support mode: kept, and no obstacle.
   await db.insert(supportSessions).values({
     id: uuid(),
     operatorUserId: operator,
-    shelterId: demoA.id,
+    shelterId: real.id,
     tokenHash: uuid(),
     startedAt: NOW,
     lastSeenAt: NOW,
@@ -289,13 +290,13 @@ describe("demo:remove, the plan (dry run)", () => {
       reveals: 1,
       animals: 3,
       shelter_history: 2,
-      support_sessions: 1,
       shelters: 2,
       auth_invitation: 3,
       auth_organization: 1,
       auth_user: 1,
     });
     expect(plan.demoMembers).toBe(0);
+    expect(plan.demoSupportSessions).toBe(0);
     // The test user's and the moved-on user's invitation rows; the test user's session and account.
     expect(plan.cascades).toEqual({
       invitation_created_users: 2,
@@ -305,6 +306,9 @@ describe("demo:remove, the plan (dry run)", () => {
     const printed = formatPlan(plan, "Would delete").join("\n");
     expect(printed).toContain(`${seedId(1)}  Демо А`);
     expect(printed).toContain("Other shelters: 1 (they stay)");
+    expect(printed).toContain(
+      "Support sessions on demo shelters: 0 (never deleted; any is a refusal)",
+    );
     expect(printed).toContain("Removed with them by cascade:");
     expect(printed).toMatch(/^ {2}auth_session +1$/m);
     expect(printed).toMatch(/^ {2}auth_account +1$/m);
@@ -367,7 +371,8 @@ describe("demo:remove, the commit", () => {
     expect(
       (await db.select({ id: shelterHistory.shelterId }).from(shelterHistory)).map((h) => h.id),
     ).toEqual([f.real.id]);
-    expect(await rows(db.select().from(supportSessions))).toBe(0);
+    // RS-Q0: support sessions are never deleted; the real shelter's is still there.
+    expect(await rows(db.select().from(supportSessions))).toBe(1);
     expect(
       (await db.select({ id: authOrganization.id }).from(authOrganization)).map((o) => o.id),
     ).toEqual([f.realOrg]);
@@ -456,6 +461,26 @@ describe("demo:remove refuses, and deletes nothing", () => {
     await member(await organizationFor(demo.id), await insertUser("Ще тут"));
     const result = await removeDemoCorpus(db, testKey);
     expect(result.plan.refusals).toEqual([{ kind: "demo_shelter_has_members", members: 1 }]);
+    await nothingDeleted();
+  });
+
+  it("when a demo shelter has a support session (RS-Q0: never deleted; DR-Q1)", async () => {
+    const demo = await insertShelter({ id: seedId(1), onTestKey: true });
+    await insertAnimal(demo.id);
+    await insertShelter();
+    await db.insert(supportSessions).values({
+      id: uuid(),
+      operatorUserId: await insertUser("Оператор"),
+      shelterId: demo.id,
+      tokenHash: uuid(),
+      startedAt: NOW,
+      lastSeenAt: NOW,
+    });
+    const result = await removeDemoCorpus(db, testKey);
+    expect(result.plan.refusals).toEqual([
+      { kind: "demo_shelter_has_support_sessions", sessions: 1 },
+    ]);
+    expect(await rows(db.select().from(supportSessions))).toBe(1);
     await nothingDeleted();
   });
 

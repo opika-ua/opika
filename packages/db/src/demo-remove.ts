@@ -4,11 +4,11 @@
  * shelter"). `db:seed` can't do this: it only truncates every table and
  * reseeds, which would take a real shelter with it.
  *
- * What it deletes is Oleksii's Phase 0 answer (inbox DR-B1, 2026-10-15): the
+ * What it deletes is Oleksii's Phase 0 answer (inbox DR-B1, 2026-10-15),
+ * narrowed by his DR-Q1 (b) to leave support sessions alone: the
  * shelters in the seed's reserved id range and everything attached to them
- * (their animals, swipes and reveals on those animals, shelter history,
- * support sessions, each shelter's organization with its memberships and
- * invitations; a member is a refusal, so that is invitations only), plus
+ * (their animals, swipes and reveals on those animals, shelter history, each
+ * shelter's organization with its invitations; a member is a refusal), plus
  * users whose only link was an invitation to one of those shelters and who are
  * not super_admin (step 4's `+test` user). Cities stay:
  * a real shelter needs one. Demo photos are repo files, not R2 objects.
@@ -25,6 +25,12 @@
  *     empty (DR-B1, guard 3a);
  *   - a demo shelter still has a member: removing someone's access is
  *     `registry/admins/remove`'s job, recorded in that shelter's history;
+ *   - a demo shelter has a support session: RS-Q0 keeps those rows forever
+ *     ("Rows never deleted"), and their foreign key doesn't cascade, so such a
+ *     shelter can't go. Oleksii, DR-Q1 (b): "Never delete support sessions;
+ *     demo:remove refuses while any demo shelter has one. If the count on
+ *     production isn't 0 when I run it, I decide again with the number in
+ *     front of me.";
  *   - a shelter outside the seed range sits on the seed's test-only location
  *     key (RG-Q11's privacy bug, the same rule as `location:verify`);
  *   - a reveal links a demo animal to a non-demo shelter or the reverse, which
@@ -68,7 +74,6 @@ export const DEMO_REMOVAL_TABLES = [
   "reveals",
   "animals",
   "shelter_history",
-  "support_sessions",
   "shelters",
   "auth_invitation",
   "auth_organization",
@@ -80,6 +85,7 @@ export type DemoRemovalCounts = Record<DemoRemovalTable, number>;
 export type DemoRemovalRefusal =
   | { kind: "no_real_shelter" }
   | { kind: "demo_shelter_has_members"; members: number }
+  | { kind: "demo_shelter_has_support_sessions"; sessions: number }
   | { kind: "test_key_on_real_shelter"; shelters: number }
   | { kind: "reveal_crosses_the_corpus"; reveals: number };
 
@@ -104,6 +110,8 @@ export type DemoRemovalPlan = {
   cascades: DemoRemovalCascades;
   /** Members of a demo shelter's organization: any at all is a refusal, so none is ever deleted. */
   demoMembers: number;
+  /** Support sessions on a demo shelter: any at all is a refusal (RS-Q0, DR-Q1), so none is ever deleted. */
+  demoSupportSessions: number;
   refusals: readonly DemoRemovalRefusal[];
 };
 
@@ -159,10 +167,6 @@ const TARGETS: Record<DemoRemovalTable, { table: PgTable; where: SQL }> = {
     table: shelterHistory,
     where: sql`${shelterHistory.shelterId} LIKE ${DEMO_ID_PATTERN}`,
   },
-  support_sessions: {
-    table: supportSessions,
-    where: sql`${supportSessions.shelterId} LIKE ${DEMO_ID_PATTERN}`,
-  },
   shelters: { table: shelters, where: sql`${shelters.id} LIKE ${DEMO_ID_PATTERN}` },
   auth_invitation: {
     table: authInvitation,
@@ -203,6 +207,10 @@ export async function planDemoRemoval(
   for (const table of DEMO_REMOVAL_TABLES) counts[table] = await countWhere(db, table);
   const countOf = async (table: PgTable, where: SQL) =>
     (await db.select({ n: count() }).from(table).where(where))[0]?.n ?? 0;
+  const demoSupportSessions = await countOf(
+    supportSessions,
+    sql`${supportSessions.shelterId} LIKE ${DEMO_ID_PATTERN}`,
+  );
   const demoMembers = await countOf(
     authMember,
     sql`${authMember.organizationId} IN ${demoOrganizationIds}`,
@@ -227,6 +235,9 @@ export async function planDemoRemoval(
   const refusals: DemoRemovalRefusal[] = [];
   if (demoShelters.length > 0 && others.length === 0) refusals.push({ kind: "no_real_shelter" });
   if (demoMembers > 0) refusals.push({ kind: "demo_shelter_has_members", members: demoMembers });
+  if (demoSupportSessions > 0) {
+    refusals.push({ kind: "demo_shelter_has_support_sessions", sessions: demoSupportSessions });
+  }
   if (testKeyShelters > 0) {
     refusals.push({ kind: "test_key_on_real_shelter", shelters: testKeyShelters });
   }
@@ -240,6 +251,7 @@ export async function planDemoRemoval(
     counts,
     cascades,
     demoMembers,
+    demoSupportSessions,
     refusals,
   };
 }
@@ -308,12 +320,6 @@ export async function removeDemoCorpus(
         .where(TARGETS.shelter_history.where)
         .returning({ id: shelterHistory.id }),
     );
-    await del("support_sessions", () =>
-      tx
-        .delete(supportSessions)
-        .where(TARGETS.support_sessions.where)
-        .returning({ id: supportSessions.id }),
-    );
     await del("shelters", () =>
       tx.delete(shelters).where(TARGETS.shelters.where).returning({ id: shelters.id }),
     );
@@ -371,6 +377,10 @@ export function formatPlan(plan: DemoRemovalPlan, heading: "Would delete" | "Del
   const lines = [`Demo shelters (${plan.demoShelters.length}):`];
   for (const s of plan.demoShelters) lines.push(`  ${s.id}  ${s.displayName}`);
   lines.push(`Other shelters: ${plan.otherShelters} (they stay)`);
+  // Printed even at 0: DR-Q1 (b) is decided "with the number in front of me".
+  lines.push(
+    `Support sessions on demo shelters: ${plan.demoSupportSessions} (never deleted; any is a refusal)`,
+  );
   lines.push(`${heading}:`);
   for (const table of DEMO_REMOVAL_TABLES) lines.push(`  ${pad(table)}${plan.counts[table]}`);
   lines.push("Removed with them by cascade:");
@@ -386,6 +396,8 @@ export function formatRefusal(refusal: DemoRemovalRefusal): string {
       return `REFUSED: ${refusal.members} member(s) still belong to a demo shelter; remove them with registry/admins/remove first.`;
     case "test_key_on_real_shelter":
       return `REFUSED: ${refusal.shelters} shelter(s) outside the demo range use the seed's test-only location key (privacy bug, RG-Q11); fix that first.`;
+    case "demo_shelter_has_support_sessions":
+      return `REFUSED: ${refusal.sessions} support session(s) exist on demo shelters. They are never deleted (RS-Q0), so those shelters can't go; this count is Oleksii's to decide on (DR-Q1).`;
     case "reveal_crosses_the_corpus":
       return `REFUSED: ${refusal.reveals} reveal(s) link a demo animal to a non-demo shelter or the reverse; deleting them would touch rows outside the corpus.`;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */

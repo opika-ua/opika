@@ -245,7 +245,7 @@ not by re-running this script.
 The seeded demo shelters (ids `51000000-…`) go when the first real shelter is in
 (RG-Q11). `db:seed` can't do it: it truncates every table. `demo:remove` deletes
 only the demo shelters and what hangs off them (inbox DR-B1): their animals,
-swipes and reveals on those animals, shelter history, support sessions, each
+swipes and reveals on those animals, shelter history, each
 demo shelter's organization with its invitations (a member is a refusal), and users
 whose only link was an invitation to a demo shelter (not super_admin). Cities
 and every other shelter stay.
@@ -262,7 +262,9 @@ DATABASE_URL=<neon-direct-url> \
 the demo shelters by id and name, how many other shelters stay (never their
 names), and one count per table. It refuses, deleting nothing, when no other
 shelter exists (the site would be empty), when a demo shelter still has a member
-(remove them with `registry/admins/remove` first), when a non-demo shelter is on
+(remove them with `registry/admins/remove` first), when a demo shelter has a
+support session (those are never deleted, RS-Q0; with a non-zero count Oleksii
+decides again, DR-Q1), when a non-demo shelter is on
 the seed's test-only location key, when a reveal links a demo animal to a
 non-demo shelter or a demo shelter to a non-demo animal, or under
 `NODE_ENV=production`. The dry run also shows what goes by cascade

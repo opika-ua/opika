@@ -1027,6 +1027,18 @@ weeks.
 
 ### Before the first real shelter or animal record is inserted
 
+**Remove every test shelter before the first real shelter** (Oleksii, 2026-10-15, inbox DR-B2,
+verbatim: "remove all test shelters (demo + mine) before the first real shelter"). Two kinds:
+
+- [ ] **The seeded demo corpus** (`51000000-…`): `demo:remove` (#103). A support session on a
+  demo shelter is a refusal (DR-Q1). **When, relative to onboarding, is open (DR-Q2):** DR-B2
+  says before the first real shelter; DR-B1's step 5 order (a)–(f) onboards the real shelter
+  first and removes the demo corpus before its invite. The tool allows either while one of his
+  own test shelters exists (it counts as the "other shelter" its guard requires).
+- [ ] **Oleksii's own test shelters** (onboarded on production with the real key, e.g. the
+  `rehearsal-` input): `demo:remove` doesn't cover them. A removal path of their own is
+  follow-up DR-F2, needed before this box can be ticked.
+
 This is the sharp one. It is not "before launch" — shelter onboarding can happen the moment
 someone says yes to an outreach email, independent of whatever else is or isn't ready.
 
