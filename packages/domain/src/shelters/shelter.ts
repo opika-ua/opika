@@ -16,9 +16,10 @@ import { ShelterVerificationSchema } from "./verification/state";
 /**
  * A shelter's own sentence describing how current its information is.
  *
- * Written once during verification, in the shelter's own words.
- * The platform substitutes only `{date}` (last confirmed date) and
- * `{name}` (animal name). Nothing else is generated or paraphrased.
+ * Written once during verification, in the shelter's own words, and
+ * rendered verbatim: nothing is substituted, generated or paraphrased.
+ * (An earlier note promised `{date}` and `{name}` substitution, which was
+ * never built; a sentence containing them would show the braces.)
  * A shelter with no sentence falls back to the marker + day count alone.
  */
 export const FreshnessSentenceSchema = LocalizedTextSchema.nullable();

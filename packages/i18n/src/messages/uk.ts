@@ -897,8 +897,13 @@ export const uk = {
       donationPending: "Запропоноване посилання — чекає на підтвердження оператора.",
       voiceTitle: "Голос притулку",
       voiceLabel: "Ваші слова на картках",
-      voiceNote:
-        "Одне речення від першої особи, написане вами. Реєстр підставляє лише {date} (дату оновлення) і {name} (ім'я тварини) — більше нічого не змінюється.",
+      /**
+       * The second sentence (that the registry fills in {date} and {name})
+       * was deleted 2026-10-15 as false: nothing substitutes anything, the
+       * sentence renders verbatim (`textIn`). A fuller replacement, if K2
+       * ever builds substitution, is new copy and goes through the gate.
+       */
+      voiceNote: "Одне речення від першої особи, написане вами.",
       lockedTitle: "Встановлено під час перевірки",
       /** `{operator}` is the operator's display name (RS-Q2). */
       lockedNote:
