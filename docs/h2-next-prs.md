@@ -384,10 +384,17 @@ relay's elision.)
 - [ ] **Production rollout order** (RG-Q2, superseding HS-Q13's; Oleksii, verbatim: "Rollout order
       becomes: invite merged → admin:bootstrap → I sign in → first shelter invite."), after the
       registry PR has merged:
-  1. invite PR merged
-  2. `admin:bootstrap <email>` on production (creates Oleksii's user and grants super_admin, once)
-  3. Oleksii signs in on production
-  4. first shelter invite
+  1. invite PR merged. **Done** (#94, then the wiring PR #99 turned sign-in on).
+  2. `admin:bootstrap <email>` on production (creates Oleksii's user and grants super_admin, once).
+     **Done 2026-10-15**; the stored name is right (RO-B2).
+  3. Oleksii signs in on production. **Done 2026-10-15.** The operator's own `/kabinet` answers 404,
+     intended for now (RO-D1; operator landing is follow-up RO-F1).
+  4. first shelter invite. **Done 2026-10-15 as a test** on the demo shelter «Вірний друг» to a
+     `+test` address: the full loop passed, automatic accept included, and the test membership was
+     removed with `registry/admins/remove` (RO-B1).
+  5. **Next: the first real shelter.** `onboard:shelter` dry run, then `--commit`, then
+     `location:verify --prod` (expect `match 1`), the demo corpus removed (RG-Q11; its tool
+     doesn't exist yet, Tier 1, Phase 0 RO-Q1), then the real invite.
 
   Full order as restated 2026-10-13 (IN-E1, verbatim): "LOCATION_HMAC_SECRET + location:verify →
   provider, DNS and auth env → Neon run → merge → admin:bootstrap → sign-in → first invite → demo
