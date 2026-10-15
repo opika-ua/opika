@@ -364,7 +364,7 @@ relay's elision.)
       wiring commit; the wiring commit rewrites both to describe the wired state, and the other
       comments that said production has no sender: `magic-link-sender.ts`, `email-provider.ts`,
       `.env.example`, the kabinet harness specs.)
-- [ ] **Real-Neon run before the production 503 lifts** (HS-T4, HS-T4b, HS-Q12): sign-in,
+- [x] **Real-Neon run before the production 503 lifts** (HS-T4, HS-T4b, HS-Q12; done on smoke-invite, which counts: Oleksii, WI-T5): sign-in,
       verify, getSession, accept-invitation, the audited-write CTE, the listing jsonb
       compare-and-set, the deleteDraft 23503 catch, and the `last_updated_at` round-trip
       (S3-T6). **Oleksii's run, a pre-merge item of the wiring PR** (inbox WI-T5): on a fresh child
