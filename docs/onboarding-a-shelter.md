@@ -16,6 +16,10 @@ public location before anything touches the live database.
   never touches money).
 - **A freshness sentence, in their own words** — one or two sentences about
   how current their listings are. Required; don't onboard without it.
+  It is shown **word for word**: nothing fills in a date or an animal's name
+  (inbox VH-Q1). So keep a specific date and any animal's name out of it: a
+  typed date goes stale while it still reads as current, and `{date}` or
+  `{name}` would appear with their braces.
 - **Real verification evidence** — see below. Not their name for the record;
   actual evidence the domain's own verification policy requires, or the
   script refuses to write a `verified` shelter at all.

@@ -83,6 +83,17 @@ describe("ShelterProfile (K4, read-only)", () => {
     expect(rowValue(t.voiceLabel)).toBe("Не записано");
   });
 
+  // The caption once promised that the registry fills {date} and {name} into the
+  // sentence. Nothing does (the sentence renders verbatim, as the next test shows),
+  // so a placeholder in the caption is a claim about a feature that doesn't exist.
+  it("the voice caption names no placeholder: nothing is substituted into the sentence", () => {
+    renderProfile();
+    const voice = screen.getByRole("region", { name: t.voiceTitle });
+    const caption = voice.querySelector("p");
+    if (caption === null) throw new Error("the voice card has no caption");
+    expect(caption.textContent).not.toMatch(/[{}]/);
+  });
+
   it("shows the live link, the proposal waiting for approval, and the shelter's sentence when set", () => {
     renderProfile({
       donation: { url: "https://dobro.ua/fund/domivka", provider: "dobro_ua" as never },
