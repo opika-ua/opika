@@ -80,20 +80,29 @@ export async function startSignInServer(databaseUrl: string): Promise<SignInServ
   });
   server.stderr?.resume();
 
-  await expect
-    .poll(
-      async () => {
-        try {
-          return (await fetch(`${origin}${CONFIRM_PATH}`)).status;
-        } catch {
-          return 0;
-        }
-      },
-      { timeout: 60_000, intervals: [250] },
-    )
-    // A missing token renders the "link not valid" state: 400, not the 404
-    // the production-mode server gives. So sign-in is really on here.
-    .toBe(400);
+  // If the server never becomes ready, kill it before rethrowing: the caller
+  // has no handle yet, so its stop() can't, and a server left on this random
+  // port is invisible to the post-run orphan check (review of the #99 merge,
+  // finding 2; follow-up WI-F4).
+  try {
+    await expect
+      .poll(
+        async () => {
+          try {
+            return (await fetch(`${origin}${CONFIRM_PATH}`)).status;
+          } catch {
+            return 0;
+          }
+        },
+        { timeout: 60_000, intervals: [250] },
+      )
+      // A missing token renders the "link not valid" state: 400, not the 404
+      // the production-mode server gives. So sign-in is really on here.
+      .toBe(400);
+  } catch (error) {
+    server.kill();
+    throw error;
+  }
 
   return {
     origin,
