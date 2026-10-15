@@ -172,9 +172,9 @@ export function emailProviderConfigOf(
 
 /**
  * The two routes production mail takes: one provider config per template.
- * `invite` is also the registry's block-list view (`cachedBlockList`); the
- * wiring commit hands `signIn` to `providerMagicLinkSender` and `invite` to
- * the invitation sender and `cachedBlockList` (`docs/h2-next-prs.md`). The
+ * `invite` is also the registry's block-list view (`cachedBlockList`);
+ * `production-mail.ts` hands `signIn` to `providerMagicLinkSender` and
+ * `invite` to the invitation sender and `cachedBlockList` (EM-T22). The
  * From address, From name and Reply-To are one set, validated once, so the
  * two emails can never come from different senders.
  */

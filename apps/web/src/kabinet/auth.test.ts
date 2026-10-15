@@ -27,6 +27,7 @@ import {
 import { handleKabinetConfirm } from "./confirm-route";
 import type { OutgoingEmail } from "./email-provider";
 import { capturingInvitationSender, providerMagicLinkSender } from "./email-senders";
+import { forwardedClientHeaders } from "./forwarded-client-headers";
 import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
 import { capturingSender } from "./magic-link-sender";
 import { kabinetIdentityOf, kabinetSessionUserIdOf } from "./principal";
@@ -646,14 +647,23 @@ describe("what the route lets through", () => {
     expect((await route(post(path, {}))).status).toBe(404);
   });
 
-  /** HS-Q2: production has no sender in this slice, so sign-in says so rather than pretending. */
-  it("answers 503 in production, whatever else is configured", async () => {
+  /**
+   * HS-Q2, then the wiring commit: production signs in only when
+   * `productionSignInOf` is on. Off a Vercel production deployment (here: no
+   * `VERCEL_ENV`, as the harness's `next start`) it is unavailable whatever
+   * else is configured, and the route says so rather than pretending.
+   */
+  it("answers 503 in production when production sign-in is off, whatever else is configured", async () => {
     const availability = kabinetAuthAvailability({
       NODE_ENV: "production",
       BETTER_AUTH_SECRET: "x".repeat(40),
       BETTER_AUTH_URL: "https://example.org",
     });
-    expect(availability).toEqual({ kind: "unavailable", reason: "no_sender_in_production" });
+    expect(availability).toEqual({
+      kind: "unavailable",
+      reason: "production_sign_in_off",
+      off: { kind: "off", reason: "environment_unidentified" },
+    });
     const response = await handleKabinetAuth(
       post("/api/auth/sign-in/magic-link", { email: "a@b.c" }),
       {
@@ -917,8 +927,21 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
       "x-forwarded-for": "203.0.113.9",
     });
     expect(refused.status).toBe(429);
-    expect(await refused.text()).toBe("Too Many Requests");
     expect(refused.headers.getSetCookie().some((c) => c.includes("session_token"))).toBe(false);
+    // The over-limit card (IN-T15's gate item), not a bare 429 and not «link
+    // not valid»: the same token back in the same form, behind «Увійти»
+    // (transcribed), with the notice as an alert: Oleksii's text (inbox WI-Q3),
+    // transcribed here, not read from the catalogue.
+    const card = await refused.text();
+    expect(refused.headers.get("cache-control")).toBe("no-store");
+    expect(refused.headers.get("referrer-policy")).toBe("strict-origin");
+    expect(card).toContain(
+      '<p role="alert">Забагато спроб входу за короткий час. Посилання ще дійсне — зачекайте хвилину й знову натисніть „Увійти“.</p>',
+    );
+    const token = new URL(link).searchParams.get("token") ?? "";
+    expect(card).toContain(`<input type="hidden" name="token" value="${token}">`);
+    expect(card).toContain('<button type="submit">Увійти</button>');
+    expect(card).not.toContain("Це посилання вже використане або втратило силу.");
 
     // Refused before Better Auth read the token, so the link still works
     // from an address within its budget.
@@ -927,6 +950,87 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
     });
     expect(verified.status).toBe(303);
     expect(verified.headers.getSetCookie().some((c) => c.includes("session_token="))).toBe(true);
+  });
+
+  /**
+   * WI-Q3 (Oleksii, 2026-10-15): the card says «зачекайте хвилину» and «Посилання
+   * ще дійсне», and he asked for both to be confirmed before shipping. Here: the
+   * SAME visitor, refused, waits and presses the same button again, and the
+   * same token signs them in. Real limiter at HS-Q10's numbers, the auth's own
+   * injectable clock moved by hand, so the window is measured, not assumed.
+   *
+   * In-memory, the window is an exact 60,000 ms sliding log: a press refused at
+   * t goes through at t + 60 s at the latest (sooner when the oldest charge is
+   * older than t). Production's Upstash `slidingWindow` (60 s buckets, the
+   * previous one weighted down) refuses no longer than the end of the current
+   * bucket, so also within 60 s; `rate-limit.ts` records that from the
+   * library's source. Neither counts a refused call, so pressing again while
+   * refused never extends the wait. The per-user budget never applies: the
+   * press forwards no cookie (`forwardedClientHeaders`), asserted below.
+   */
+  it("verify: a press refused at t goes through for the same visitor 60 s later, with the same, unspent token", async () => {
+    const t0 = new Date("2026-10-15T10:00:00.000Z");
+    let clock = t0;
+    auth = createKabinetAuth({
+      db,
+      sender,
+      schedule: (work) => {
+        pending.push(work());
+      },
+      baseURL: BASE,
+      secret: "test-only-secret-that-is-long-enough-0123456789",
+      secureCookies: false,
+      limiters: kabinet,
+      now: () => clock,
+    });
+    await createUser("olena@example.org");
+    await route(post("/api/auth/sign-in/magic-link", { email: "olena@example.org" }));
+    const link = sender.sent[0]?.url;
+    if (link === undefined) throw new Error("no link sent");
+    const visitor = { "x-forwarded-for": "203.0.113.20", cookie: "kabinet.session_token=stale" };
+
+    // The whole minute's budget spent at t0.
+    await exhaustIp("203.0.113.20");
+
+    // Refused just before the window passes, and refused again: a refusal is
+    // not charged, so the second press doesn't push the reset further out.
+    for (const ms of [30_000, 59_999]) {
+      clock = new Date(t0.getTime() + ms);
+      const refused = await confirm(link, auth, BASE, undefined, visitor);
+      expect(refused.status, `press at t0 + ${ms} ms`).toBe(429);
+      expect(refused.headers.getSetCookie().some((c) => c.includes("session_token"))).toBe(false);
+    }
+    // A full budget's worth of refused calls in between: if refusals were
+    // charged, these alone would keep the visitor out past t0 + 60 s.
+    clock = new Date(t0.getTime() + 45_000);
+    for (let i = 0; i < PER_IP; i++) {
+      const response = await auth.handler(verifyWith(`late${i}`.padEnd(32, "x"), "203.0.113.20"));
+      expect(response.status, `refused call ${i + 1}`).toBe(429);
+    }
+
+    // One minute after the budget was spent: the same visitor, the same link.
+    clock = new Date(t0.getTime() + KABINET_RATE_LIMITS.perIp.windowMs);
+    const verified = await confirm(link, auth, BASE, undefined, visitor);
+    expect(verified.status).toBe(303);
+    expect(verified.headers.get("location")).toBe("/kabinet");
+    expect(verified.headers.getSetCookie().some((c) => c.includes("session_token="))).toBe(true);
+  });
+
+  it("the press forwards no cookie, so only the per-IP budget can refuse it", () => {
+    const forwarded = forwardedClientHeaders(
+      new Headers({ cookie: "kabinet.session_token=x", "x-forwarded-for": "203.0.113.21" }),
+    );
+    expect(forwarded.get("cookie")).toBeNull();
+    expect(forwarded.get("x-forwarded-for")).toBe("203.0.113.21");
+  });
+
+  /**
+   * The copy promises a minute. A longer window makes «хвилину» false (WI-Q3:
+   * then it reads «трохи»), so the number is pinned to the literal the copy was
+   * approved against, not to the constant.
+   */
+  it("the per-IP window the over-limit card's «хвилину» rests on is one minute", () => {
+    expect(KABINET_RATE_LIMITS.perIp.windowMs).toBe(60_000);
   });
 
   it("verify: limited on auth.handler too, the path a server-side confirm page takes", async () => {

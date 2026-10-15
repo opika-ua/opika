@@ -71,21 +71,31 @@ type PageState =
   | { kind: "confirm"; token: string }
   | { kind: "invalid" }
   /** Signed in, but the invitation's accept failed (IN-Q12): the retry is `/kabinet`, which runs it again. */
-  | { kind: "join_failed" };
+  | { kind: "join_failed" }
+  /**
+   * «Увійти» refused by the kabinet's per-IP limit before Better Auth read the
+   * token (IN-T15's over-limit card): the link is still good, so the card
+   * says so and offers the same button again, never «посилання недійсне».
+   */
+  | { kind: "rate_limited"; token: string };
 
 function page(state: PageState, status: number): Response {
   const copy = uk.kabinet.confirm;
   // The failed accept has its own heading (IN-T12 item 7): the person is
   // signed in, so «sign in» would read as if they weren't.
   const heading = state.kind === "join_failed" ? copy.joinFailedTitle : copy.title;
+  const form = (token: string) => `<form method="post" action="${CONFIRM_PATH}">
+<input type="hidden" name="token" value="${escapeHtml(token)}">
+<button type="submit">${escapeHtml(copy.submit)}</button>
+</form>`;
   const body = (() => {
     switch (state.kind) {
       case "confirm":
         return `<p>${escapeHtml(copy.intro)}</p>
-<form method="post" action="${CONFIRM_PATH}">
-<input type="hidden" name="token" value="${escapeHtml(state.token)}">
-<button type="submit">${escapeHtml(copy.submit)}</button>
-</form>`;
+${form(state.token)}`;
+      case "rate_limited":
+        return `<p role="alert">${escapeHtml(copy.rateLimited)}</p>
+${form(state.token)}`;
       case "invalid":
         return `<p role="alert">${escapeHtml(copy.invalid)}</p>
 <p><a href="${SIGN_IN_PATH}">${escapeHtml(copy.requestNew)}</a></p>`;
@@ -181,9 +191,11 @@ export async function handleKabinetConfirm(
   // `auth.ts`'s `hooks.before` charges this verify on the kabinet limiters
   // (#95) and refuses it before Better Auth reads the token. The link is
   // still good, so «посилання недійсне» would send the person off to request
-  // another for nothing: answered as the proxy answers a `/kabinet` page over
-  // the same budget, with no new copy.
-  if (verified.status === 429) return plain("Too Many Requests", 429);
+  // another for nothing: the over-limit card (IN-T15's gate item) says the
+  // link still works and offers «Увійти» again, still a 429. The token was
+  // already checked against TOKEN_SHAPE above, so it is safe to put back in
+  // the form.
+  if (verified.status === 429) return page({ kind: "rate_limited", token }, 429);
   const cookies = verified.headers.getSetCookie();
   if (verified.status !== 200 || cookies.length === 0) return page({ kind: "invalid" }, 400);
 

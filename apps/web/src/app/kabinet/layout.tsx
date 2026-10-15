@@ -5,9 +5,10 @@ import { kabinetAuthAvailability } from "../../kabinet/auth-route";
 
 /**
  * Every `/kabinet` page, behind the same condition as its API (Oleksii, Q0:
- * "screens PR first, behind the 503"). When sign-in is unavailable (always in
- * production until the wiring commit connects the email provider, and in development
- * without `BETTER_AUTH_*`), `/api/auth/*` and `/api/kabinet/*` answer 503, and
+ * "screens PR first, behind the 503"). When sign-in is unavailable (in
+ * production whenever `productionSignInOf` is off: a Preview, an unidentified
+ * environment, pending kabinet copy or incomplete sign-in variables; in
+ * development without `BETTER_AUTH_*`), `/api/auth/*` and `/api/kabinet/*` answer 503, and
  * these pages answer 404: a page that says "not available" would need
  * Ukrainian copy for a state no shelter is ever sent to, and a 404 claims
  * nothing about a feature that isn't live. The layout's 404 covers pages

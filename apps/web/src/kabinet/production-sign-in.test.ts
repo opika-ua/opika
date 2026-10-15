@@ -61,7 +61,7 @@ describe("productionSignInOf", () => {
   });
 
   /**
-   * EM-B6 and EM-B10: the routes the wiring commit hands to the two senders.
+   * EM-B6 and EM-B10: the routes `production-mail.ts` hands to the two senders.
    * After the switch-on both are Resend, on one key; a split still works and
    * each route reads its own provider's key.
    */
@@ -131,6 +131,15 @@ describe("productionSignInOf", () => {
     });
   });
 
+  /** IN-Q6 (accepted): "`BETTER_AUTH_SECRET` has a 32-character floor". 31 is off, 32 is on. */
+  it("is off with a BETTER_AUTH_SECRET under 32 characters", () => {
+    expect(productionSignInOf({ ...full, BETTER_AUTH_SECRET: "s".repeat(31) })).toEqual({
+      kind: "off",
+      reason: "auth_secret_too_short",
+    });
+    expect(productionSignInOf({ ...full, BETTER_AUTH_SECRET: "s".repeat(32) }).kind).toBe("on");
+  });
+
   it("refuses a Preview outright, provider key set there or not", () => {
     expect(productionSignInOf({ ...full, VERCEL_ENV: "preview" })).toEqual({
       kind: "off",
@@ -186,13 +195,36 @@ describe("productionSignInOf", () => {
 describe("production sign-in stays off while kabinet copy is pending (answer 7)", () => {
   /**
    * Oleksii's final Ukrainian landed on 2026-10-14 (the PR #94 copy export),
-   * every kabinet.* string of it. Against the live catalogue the gate sees
-   * nothing pending and is no longer a reason production is off; the
-   * synthetic catalogue below proves the gate itself still bites.
+   * every kabinet.* string of it. The wiring PR added one key, the over-limit
+   * card's notice (`kabinet.confirm.rateLimited`, IN-T15's gate item), and his
+   * text for it landed 2026-10-15 (inbox WI-Q3). So against the live catalogue
+   * nothing is pending, and with the configuration he reported for Production
+   * (WI-B1: the apex origin with no trailing slash, From on `mail.`, Reply-To
+   * on the apex, From name as given; example key and secret, never real ones)
+   * production sign-in is on. This is what merging the wiring PR turns on.
    */
-  it("against the live catalogue, sees no pending kabinet string and lets production on", () => {
+  it("against the live catalogue, nothing is pending and the reported Production configuration is on", () => {
+    const reported = {
+      VERCEL_ENV: "production",
+      EMAIL_PROVIDER: "resend",
+      RESEND_API_KEY: "resend-key-example",
+      EMAIL_FROM_ADDRESS: "noreply@mail.opika.org.ua",
+      EMAIL_FROM_NAME: "Opika",
+      EMAIL_REPLY_TO: "hello@opika.org.ua",
+      PRODUCTION_ORIGIN: "https://opika.org.ua",
+      BETTER_AUTH_SECRET: "s".repeat(64),
+      BETTER_AUTH_URL: "https://opika.org.ua",
+      KABINET_OPERATOR_DISPLAY_NAME: "Оператор",
+    };
     expect(kabinetPendingCopy()).toEqual([]);
-    expect(withLiveCopy(full).kind).toBe("on");
+    const live = withLiveCopy(reported);
+    expect(live.kind).toBe("on");
+    // The gate still reads the catalogue: one pending path turns the same configuration off.
+    expect(withLiveCopy(reported, ["kabinet.confirm.rateLimited"])).toEqual({
+      kind: "off",
+      reason: "copy_pending",
+      pending: ["kabinet.confirm.rateLimited"],
+    });
   });
 
   /**
@@ -216,8 +248,11 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     walk(uk.kabinet, "kabinet");
     // 88 rows of the copy export plus operatorFallbackName and profileNotRecorded.
     // profile.addressNote (row 57) was deleted as a false claim and is back with
-    // his replacement text (2026-10-14, EM-Q10).
-    expect(pending.length + written.length).toBe(90);
+    // his replacement text (2026-10-14, EM-Q10). 91 with confirm.rateLimited,
+    // the over-limit card's notice (the wiring PR; his text, 2026-10-15).
+    expect(pending.length + written.length).toBe(91);
+    expect(pending).toEqual([]);
+    expect(written).toContain("kabinet.confirm.rateLimited");
     expect(kabinetPendingCopy()).toEqual(pending.sort());
     for (const screenless of [
       "kabinet.history.adminJoined",
@@ -229,7 +264,7 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
   });
 
   /**
-   * The gate still works now that almost nothing is pending: a catalogue
+   * The gate still works now that nothing is pending: a catalogue
    * with placeholders put back (an email template, a screenless history
    * line, a nested group) is read by the same walk the gate uses and turns
    * production off, naming each.

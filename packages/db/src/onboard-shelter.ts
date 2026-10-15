@@ -526,10 +526,13 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // R2 write credentials — operator-only, never in Vercel (same split as
-  // LOCATION_HMAC_SECRET, same reason: this script runs from an operator's
-  // own machine, never through the deployed apps/web instance). Checked
-  // only here, past the dry-run branch, so a dry run never needs them.
+  // R2 write credentials — operator-only, never in Vercel: this script runs
+  // from an operator's own machine, never through the deployed apps/web
+  // instance, and no request path of the app writes to R2. (LOCATION_HMAC_SECRET
+  // is no longer the same split: since the commit that turns production
+  // sign-in on, it is also in Vercel Production, the same value as here,
+  // because the registry fuzzes locations with it, RG-Q10.) Checked only
+  // here, past the dry-run branch, so a dry run never needs them.
   const r2AccountId = process.env.R2_ACCOUNT_ID;
   if (!r2AccountId) {
     console.error("ERROR: R2_ACCOUNT_ID is not set.");

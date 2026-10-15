@@ -121,8 +121,13 @@ describe("deck not-a-judgement notice copy status", () => {
  * The production copy gate (`productionSignInOf`, answer 7) reads the same
  * catalogue, so an empty list here is what lets that gate stop being a reason
  * production sign-in is off.
+ *
+ * One key was pending for a while in the wiring PR: `confirm.rateLimited`, the
+ * over-limit card's notice (IN-T15's gate item; inbox WI-Q3). His text landed
+ * 2026-10-15 and is pinned in FINAL below, so nothing under `kabinet.*` is
+ * pending and the copy gate no longer keeps production sign-in off.
  */
-describe("kabinet copy status (final, 2026-10-14)", () => {
+describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-15)", () => {
   it("nothing under kabinet.* is pending", () => {
     expect(pendingCopyPaths(uk.kabinet, "kabinet")).toEqual([]);
   });
@@ -167,6 +172,7 @@ describe("kabinet copy status (final, 2026-10-14)", () => {
         "joinFailed",
         "joinFailedTitle",
         "joinRetry",
+        "rateLimited",
         "requestNew",
         "submit",
         "title",
@@ -245,6 +251,9 @@ describe("kabinet copy status (final, 2026-10-14)", () => {
     // row 9
     "signIn.sentBody":
       "Якщо ця адреса є в списку, на {email} прийде посилання для входу. Воно діє 15 хвилин і відкривається на будь-якому пристрої.",
+    // WI-Q3, Oleksii 2026-10-15, verbatim (outer «» his quoting, inner „“ his nested quotes)
+    "confirm.rateLimited":
+      "Забагато спроб входу за короткий час. Посилання ще дійсне — зачекайте хвилину й знову натисніть „Увійти“.",
     // row 20
     "confirm.joinFailedTitle": "Ви увійшли, але приєднати вас до притулку не вдалося",
     // row 21
@@ -309,20 +318,22 @@ describe("pendingCopyPaths", () => {
 /**
  * /prytulkam A2 (EM-Q1, Oleksii, 2026-10-14, verbatim: "(b). A2 keeps the
  * current text; the new paragraph ships in the commit that turns production
- * sign-in on."): PR #94 leaves the live text as it was, all three
- * paragraphs. His replacement third paragraph («Кабінет притулку вже є…») is
- * not in the catalogue until that wiring commit, which changes this pin in
- * the same change (`docs/h2-next-prs.md`).
+ * sign-in on."; row 89, verbatim: "FINAL YES as drafted"). Shipped by that
+ * wiring commit: the third paragraph is his, transcribed from his answer, and
+ * the sentence it replaces («Окремої кнопки ще немає — не хочу обіцяти
+ * кабінет, якого не існує»), false once a shelter can open the kabinet, is
+ * gone. Commitment #6 (`docs/standing-constraints.md`) says the same.
  */
 describe("/prytulkam A2 (forShelters.whenAnimalFindsHome)", () => {
   const paragraphs = uk.forShelters.whenAnimalFindsHome.split("\n\n");
 
-  it("has three paragraphs, the third still the current text until production sign-in", () => {
+  it("has three paragraphs, the third his row 89 text since production sign-in", () => {
     expect(paragraphs).toHaveLength(3);
     expect(paragraphs[2]).toBe(
-      "Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет, якого не існує.",
+      "Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду — змінити чи прибрати щось у ньому поки не можна.",
     );
-    expect(uk.forShelters.whenAnimalFindsHome).not.toContain("Кабінет притулку вже є");
+    expect(uk.forShelters.whenAnimalFindsHome).not.toContain("Окремої кнопки ще немає");
+    expect(uk.forShelters.whenAnimalFindsHome).not.toContain("якого не існує");
   });
 
   it("keeps the first two paragraphs as they were", () => {
@@ -336,21 +347,25 @@ describe("/prytulkam A2 (forShelters.whenAnimalFindsHome)", () => {
 });
 
 /**
- * Rows 89 and 91 of the PR #94 copy export are final (Oleksii, 2026-10-14)
- * but ship in the commit that turns production sign-in on, A1 directly
- * before §7's last paragraph (`docs/h2-copy-sheet.md` A1, A2). Until then
- * A1's line is not live; that commit changes this pin with the A2 one above.
- * Row 90 (/pro) ships with #94 itself (his handoff of 2026-10-14, verbatim:
- * "Row 90 ships with the #94 merge"), pinned in the next block.
+ * A1, row 91 (Oleksii, 2026-10-14, verbatim: "Yes, include it: «Доступ до
+ * кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.» Place it
+ * directly before the current last paragraph of §7, and ship it in the same
+ * commit as row 89."). Its own paragraph, second to last, transcribed; the
+ * last paragraph is unchanged.
  */
-describe("A1 waits for the wiring commit", () => {
-  it("§7 does not yet carry A1's line, and still ends on the current last paragraph", () => {
-    expect(uk.forShelters.whatToPrepare).not.toContain("Доступ до кабінету я надсилаю сам");
+describe("/prytulkam A1 (forShelters.whatToPrepare)", () => {
+  const paragraphs = uk.forShelters.whatToPrepare.split("\n\n");
+
+  it("carries his line directly before §7's last paragraph, which is unchanged", () => {
+    expect(paragraphs.at(-2)).toBe(
+      "Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.",
+    );
+    expect(paragraphs.at(-1)).toBe("Заповнювати анкету не треба: ви розкажете, а я внесу все сам.");
+    expect(paragraphs.at(-3)).toBe("Фотографії використовуються тільки для сторінок ваших тварин.");
     expect(
-      uk.forShelters.whatToPrepare.endsWith(
-        "Заповнювати анкету не треба: ви розкажете, а я внесу все сам.",
-      ),
-    ).toBe(true);
+      paragraphs.filter((paragraph) => paragraph.includes("Доступ до кабінету")),
+      "once",
+    ).toHaveLength(1);
   });
 });
 

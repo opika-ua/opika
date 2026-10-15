@@ -113,6 +113,20 @@ export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: numbe
  * means "Upstash's own approximation of 100/min," not an exact count the
  * way the in-memory implementation's own 100/min is.
  *
+ * **How long a refusal lasts (WI-Q3, read from `@upstash/ratelimit` 2.2.0's
+ * `slidingWindow` and its Lua script).** The buckets are fixed, `windowMs`
+ * long, aligned to the epoch; the estimate is `floor((1 − f) × previous) +
+ * current`, `f` being how far into the current bucket `now` is. A refused
+ * call returns before `INCRBY`, so it is never counted, and the library's
+ * ephemeral cache blocks the key only until the current bucket ends. With no
+ * further allowed calls from that key, `current` can't grow, `previous` is at
+ * most `maxRequests`, and from the first millisecond of the next bucket the
+ * estimate is under the limit. So a call refused at `t` goes through by
+ * `t + windowMs` at the latest (plus the boundary millisecond), the same bound
+ * as `inMemoryRateLimiter`. The confirm page's over-limit card says «зачекайте
+ * хвилину» on the strength of this (kabinet per-IP, 60 s): raising that
+ * window makes the sentence false (`auth.test.ts` pins it).
+ *
  * `prefix` namespaces keys in the shared Redis store so this limiter's
  * counters can never collide with a *different* limiter's keys that happen
  * to reuse the same client (e.g. a future second rate-limited surface
