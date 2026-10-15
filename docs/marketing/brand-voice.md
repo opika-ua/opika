@@ -240,5 +240,5 @@ Run every new string, caption, post or tagline through this:
   its second sentence false, and that commit replaces it with A2's new third paragraph, «Поки що це
   просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду — змінити чи прибрати
   щось у ньому поки не можна.», provisional until Oleksii's final yes
-  (`docs/decisions-inbox/feat-h2-invite-email.md`, EM-Q1). Live until then; kept here as an example
+  (`docs/decisions-inbox.md`, EM-Q1). Live until then; kept here as an example
   of the voice either way.)*

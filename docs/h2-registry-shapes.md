@@ -2,7 +2,7 @@
 
 **Status:** proposal for Oleksii, 2026-10-13. `CLAUDE.md` requires `packages/domain` and
 `packages/contracts` shapes to be reviewed before implementation. The Phase 0 answers are recorded
-verbatim in `docs/decisions-inbox/feat-h2-registry.md` (RG-Q1 to RG-Q8). This document is the
+verbatim in `docs/decisions-inbox.md` (RG-Q1 to RG-Q8). This document is the
 shapes those answers need. Two points need a choice: **RS-Q1** and **RS-Q2**, at the end.
 
 Built meanwhile, because they need no new shape:
