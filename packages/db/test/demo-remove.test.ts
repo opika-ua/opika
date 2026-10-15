@@ -26,6 +26,7 @@ import { shelterRepo } from "../src/repos/shelter-repo";
 import { swipeRepo } from "../src/repos/swipe-repo";
 import { animals } from "../src/schema/animals";
 import {
+  authAccount,
   authInvitation,
   authMember,
   authOrganization,
@@ -231,6 +232,14 @@ async function productionAfterStep4() {
     createdAt: NOW,
     updatedAt: NOW,
   });
+  await db.insert(authAccount).values({
+    id: uuid(),
+    accountId: testUser,
+    providerId: "email",
+    userId: testUser,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
   await invitation(demoOrg, operator, "pending");
 
   // A user created by a demo invitation who has since joined the real shelter: kept.
@@ -287,15 +296,18 @@ describe("demo:remove, the plan (dry run)", () => {
       auth_user: 1,
     });
     expect(plan.demoMembers).toBe(0);
-    // The test user's and the moved-on user's invitation rows; the test user's session.
+    // The test user's and the moved-on user's invitation rows; the test user's session and account.
     expect(plan.cascades).toEqual({
       invitation_created_users: 2,
       auth_session: 1,
-      auth_account: 0,
+      auth_account: 1,
     });
     const printed = formatPlan(plan, "Would delete").join("\n");
     expect(printed).toContain(`${seedId(1)}  Демо А`);
     expect(printed).toContain("Other shelters: 1 (they stay)");
+    expect(printed).toContain("Removed with them by cascade:");
+    expect(printed).toMatch(/^ {2}auth_session +1$/m);
+    expect(printed).toMatch(/^ {2}auth_account +1$/m);
     // The real shelter is counted, never named.
     expect(printed).not.toContain(f.real.displayName);
   });

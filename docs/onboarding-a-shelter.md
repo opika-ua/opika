@@ -246,7 +246,7 @@ The seeded demo shelters (ids `51000000-…`) go when the first real shelter is 
 (RG-Q11). `db:seed` can't do it: it truncates every table. `demo:remove` deletes
 only the demo shelters and what hangs off them (inbox DR-B1): their animals,
 swipes and reveals on those animals, shelter history, support sessions, each
-demo shelter's organization with its memberships and invitations, and users
+demo shelter's organization with its invitations (a member is a refusal), and users
 whose only link was an invitation to a demo shelter (not super_admin). Cities
 and every other shelter stay.
 
