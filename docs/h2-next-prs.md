@@ -245,7 +245,7 @@ commit, give me a names-only check (e.g. vercel env ls production) and the exact
 you expect, so a typo is caught before switch-on. Never ask for values." (The "(...)" is the
 relay's elision.)
 
-- [ ] **The location key reaches the app, verified first** (RG-Q10; Oleksii, verbatim: "Invite PR
+- [x] **The location key reaches the app, verified first** (RG-Q10; Oleksii, verbatim: "Invite PR
       rollout checklist, before the env schema change: I set the secret in Vercel (same value as
       the onboarding script's), then run location:verify against prod with that value → must
       report 0 mismatches."), in this order, **before** the env schema change below:
@@ -256,6 +256,10 @@ relay's elision.)
      words: "never existed before today").
   2. Oleksii runs `location:verify --prod` against production with that value: **0 mismatches**
      and no `PRIVACY` line. A `demo` count is expected while the seeded corpus is on production.
+     **Done 2026-10-15** (EM-B12, his report verbatim: "Target: Neon endpoint ep-dawn-pond-b1dz515g
+     (production, matches RG-R4) match 0 / demo 2 (seeded fictional shelters on the test-only key) /
+     MISMATCH 0, no PRIVACY line."). With no real-key rows yet this proves nothing about the key
+     itself (RG-T1): the first `onboard:shelter --commit` is the real test (expect `match 1`).
 - [ ] *Not a blocker, a note:* the `demo` line goes to 0 when the demo corpus is removed at the
       first real shelter (RG-Q11). From then on, any `demo` count means seeded rows survived that
       removal, which is a finding in its own right.

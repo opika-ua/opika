@@ -267,6 +267,16 @@ real. Treat the first real onboarding run as that verification, not as a
 formality — watch the upload log lines closely and check the resulting
 photo actually loads on the live detail page before trusting the rest.
 
+## A shelter says the invitation never arrived
+
+All kabinet email goes through Resend (EM-B10). While Resend is the provider, the registry's
+blocked-addresses view answers "not checked" (EM-T26; a scan of Resend's suppression list is
+follow-up EM-F1), so it can't tell you whether an address is blocked. The first step is Resend's
+dashboard for that address: **Logs** (was the invite sent, delivered, bounced?), then
+**Suppressions** (is the address on the suppression list, and why?). Only then resend the invite
+from the registry, and tell the shelter personally (IN-E13). Oleksii's condition on EM-T26,
+2026-10-15.
+
 ## Rotating `BETTER_AUTH_SECRET` (kabinet sign-in)
 
 Better Auth stores kabinet session tokens in plain text in `auth_session`
