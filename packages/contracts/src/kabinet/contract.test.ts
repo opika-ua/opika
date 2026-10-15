@@ -7,9 +7,15 @@ import { registryContract, shelterKabinetContract } from "./contract";
 import {
   AnimalPatchSchema,
   KabinetListingEventInputSchema,
+  registryHistoryContract,
   registryVerificationContract,
 } from "./procedures";
 import {
+  BlockedAddressesViewSchema,
+  CreatedShelterViewSchema,
+  EmailSendOutcomeSchema,
+  InvitationReminderSchema,
+  InvitedAdminViewSchema,
   KabinetAnimalRowViewSchema,
   KabinetAnimalViewSchema,
   KabinetShelterViewSchema,
@@ -91,6 +97,7 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "registry.admins.invite": REGISTRY,
   "registry.admins.resendInvite": REGISTRY,
   "registry.admins.remove": REGISTRY,
+  "registry.admins.blockedAddresses": REGISTRY,
   "registry.history.list": REGISTRY,
   "registry.support.enter": REGISTRY,
   "session.exitSupport": { surface: "support_exit" },
@@ -195,7 +202,7 @@ describe("kabinet error statuses", () => {
       UNDO_EXPIRED: apiErrors.UNDO_EXPIRED.status,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE.status,
       REGISTRY_CONFIRMED: apiErrors.REGISTRY_CONFIRMED.status,
-      ALREADY_A_MEMBER: apiErrors.ALREADY_A_MEMBER.status,
+      ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE.status,
       SHELTER_WRITES_NOT_YET_AVAILABLE: apiErrors.SHELTER_WRITES_NOT_YET_AVAILABLE.status,
     }).toEqual({
       FORBIDDEN: 403,
@@ -206,7 +213,7 @@ describe("kabinet error statuses", () => {
       UNDO_EXPIRED: 409,
       INVALID_EVIDENCE: 422,
       REGISTRY_CONFIRMED: 409,
-      ALREADY_A_MEMBER: 409,
+      ADDRESS_HAS_A_ROLE: 409,
       SHELTER_WRITES_NOT_YET_AVAILABLE: 403,
     });
   });
@@ -319,6 +326,108 @@ describe("kabinet views carry exactly their listed keys", () => {
   it("ShelterAdminView", () => {
     expect(keys(ShelterAdminViewSchema)).toEqual(["id", "name", "email", "invite"].sort());
   });
+
+  it("InvitedAdminView: the admin plus this call's email outcome and reminder, nothing else (IN-E7, IN-E13)", () => {
+    expect(keys(InvitedAdminViewSchema)).toEqual(
+      ["id", "name", "email", "invite", "invitationEmail", "invitationReminder"].sort(),
+    );
+  });
+
+  it("CreatedShelterView: the record plus the first admin's email outcome and reminder (IN-E7, IN-E13)", () => {
+    expect(keys(CreatedShelterViewSchema)).toEqual(
+      [
+        ...keys(RegistryShelterViewSchema),
+        "firstAdminInvitationEmail",
+        "firstAdminInvitationReminder",
+      ].sort(),
+    );
+  });
+
+  it("InvitationReminder: tell_personally with its text, or null; nothing empty (IN-E13)", () => {
+    expect(InvitationReminderSchema.safeParse(null).success).toBe(true);
+    expect(InvitationReminderSchema.safeParse({ kind: "tell_personally", text: "x" }).success).toBe(
+      true,
+    );
+    expect(InvitationReminderSchema.safeParse({ kind: "tell_personally", text: "" }).success).toBe(
+      false,
+    );
+    expect(InvitationReminderSchema.safeParse({ kind: "tell_personally" }).success).toBe(false);
+  });
+
+  /**
+   * Oleksii's answer 4 (2026-10-14): a failed read is `unknown`, never an
+   * empty list; a capped read is `incomplete`, never a partial "none
+   * blocked". So only `checked` may carry a plain `blocked` list, and
+   * `unknown` carries no list at all.
+   */
+  it("BlockedAddressesView: checked, incomplete or unknown; only `checked` says who is blocked", () => {
+    const variants = Object.fromEntries(
+      BlockedAddressesViewSchema.options.map((option) => [option.shape.kind.value, keys(option)]),
+    );
+    expect(variants).toEqual({
+      checked: ["asOf", "blocked", "kind"],
+      incomplete: ["asOf", "blockedSoFar", "kind"],
+      unknown: ["kind", "why"],
+    });
+    const asOf = new Date("2026-10-14T10:00:00Z");
+    expect(BlockedAddressesViewSchema.safeParse({ kind: "unknown", blocked: [] }).success).toBe(
+      false,
+    );
+    expect(
+      BlockedAddressesViewSchema.safeParse({ kind: "incomplete", asOf, blocked: [] }).success,
+    ).toBe(false);
+    expect(
+      BlockedAddressesViewSchema.safeParse({
+        kind: "checked",
+        asOf,
+        blocked: [{ email: "a@example.org", reason: "unsubscribed" }],
+      }).success,
+    ).toBe(true);
+    // Why a list is unknown: `provider_suppresses` (EM-B10, the invite route on
+    // Resend) says the provider filters on a list that isn't read, which is not
+    // the same claim as a provider with no list (`unsupported_provider`).
+    for (const why of [
+      "provider_error",
+      "timed_out",
+      "unsupported_provider",
+      "provider_suppresses",
+    ]) {
+      expect(BlockedAddressesViewSchema.safeParse({ kind: "unknown", why }).success, why).toBe(
+        true,
+      );
+    }
+    // The per-send reasons that aren't the list's stay out of it.
+    for (const why of ["list_too_long", "clear", ""]) {
+      expect(BlockedAddressesViewSchema.safeParse({ kind: "unknown", why }).success, why).toBe(
+        false,
+      );
+    }
+  });
+
+  it("EmailSendOutcome: sent with its block check, blocked with a reason, or failed with a reason; no address, no provider detail", () => {
+    const variants = EmailSendOutcomeSchema.options.map((option) => keys(option));
+    expect(variants).toEqual([
+      ["blockCheck", "kind"],
+      ["kind", "reason"],
+      ["kind", "reason"],
+    ]);
+    for (const blockCheck of ["clear", "unknown"]) {
+      expect(
+        EmailSendOutcomeSchema.safeParse({ kind: "sent", blockCheck }).success,
+        blockCheck,
+      ).toBe(true);
+    }
+    // A `sent` that doesn't say whether the block list was read is not a valid outcome (review of 5f9e7c4, finding 1).
+    expect(EmailSendOutcomeSchema.safeParse({ kind: "sent" }).success).toBe(false);
+    expect(EmailSendOutcomeSchema.safeParse({ kind: "sent", blockCheck: "skipped" }).success).toBe(
+      false,
+    );
+    expect(
+      EmailSendOutcomeSchema.safeParse({ kind: "blocked", reason: "unsubscribed" }).success,
+    ).toBe(true);
+    expect(EmailSendOutcomeSchema.safeParse({ kind: "blocked" }).success).toBe(false);
+    expect(EmailSendOutcomeSchema.safeParse({ kind: "delivered" }).success).toBe(false);
+  });
 });
 
 describe("every shelter-facing output carries exactly its listed keys", () => {
@@ -395,6 +504,7 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     shelter_created: ["kind", "at", "actor"],
     admin_invited: ["kind", "at", "actor", "email"],
     admin_invitation_resent: ["kind", "at", "actor", "email"],
+    admin_joined: ["kind", "at", "actor", "email"],
     admin_removed: ["kind", "at", "actor", "email", "wasPending"],
     animals_imported: ["kind", "at", "actor", "count"],
   };
@@ -470,6 +580,31 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     expect(
       HistoryActorViewSchema.options.map((option) => Object.keys(option.shape).sort()),
     ).toEqual([["displayName", "kind"], ["kind"]]);
+  });
+});
+
+/**
+ * IN-Q14: the operator reads the full entry (`HistoryEntryViewSchema` is the
+ * domain union itself), so an `admin_joined` line keeps which invitation was
+ * accepted and by whom; the shelter-facing variant above has only the email.
+ * Parsed through the procedure's own output schema, which is what oRPC strips
+ * against, so a narrowed operator view turns this red.
+ */
+describe("the operator's history keeps admin_joined's ids", () => {
+  it("registry.history.list returns the invitation id and the admin id", () => {
+    const entry = {
+      kind: "admin_joined",
+      at: new Date("2026-10-14T00:00:00.000Z"),
+      shelterAdminId: "33333333-3333-4333-8333-333333333333",
+      invitationId: "44444444-4444-4444-8444-444444444444",
+      email: "olena@example.org",
+    };
+    const output = (
+      registryHistoryContract.list as unknown as {
+        "~orpc": { outputSchema: { parse: (v: unknown) => { items: unknown[] } } };
+      }
+    )["~orpc"].outputSchema.parse({ items: [entry], nextCursor: null });
+    expect(output.items).toEqual([entry]);
   });
 });
 

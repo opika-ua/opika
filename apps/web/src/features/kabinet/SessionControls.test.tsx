@@ -51,6 +51,33 @@ describe("SupportBanner", () => {
     expect(screen.getByRole("alert").textContent).toBe(uk.kabinet.support.exitFailed);
   });
 
+  /**
+   * EM-Q2 (Oleksii, verbatim: "the banner addresses the operator; no name
+   * hard-coded"): the title names the shelter being viewed, filled in, and
+   * neither the placeholder nor an operator's name is left in it.
+   */
+  it("names the shelter in its title, filled, with no operator name typed in", () => {
+    render(<SupportBanner shelterName="Домівка" exit={async () => true} navigate={vi.fn()} />);
+    const banner = screen.getByRole("region");
+    const title = banner.getAttribute("aria-label") ?? "";
+    expect(title).toContain("«Домівка»");
+    expect(title).not.toContain("{shelter}");
+    expect(banner.textContent).toContain(title);
+    expect(uk.kabinet.support.title).not.toContain("Олексій");
+    // Oleksii's final title (2026-10-14, row 69), transcribed, filled.
+    expect(title).toBe(
+      "Ви переглядаєте кабінет притулку «Домівка» — лише перегляд, змінити нічого не можна.",
+    );
+  });
+
+  /** Row 70 (2026-10-14): no {shelter} on purpose; nothing of a placeholder may be left in the line. */
+  it("renders the second line as his exact text, no placeholder left behind", () => {
+    render(<SupportBanner shelterName="Домівка" exit={async () => true} navigate={vi.fn()} />);
+    const banner = screen.getByRole("region");
+    expect(screen.getByText("Так кабінет бачить адміністратор притулку.")).toBeDefined();
+    expect(banner.textContent).not.toMatch(/[{}]/);
+  });
+
   it("treats a thrown request as a failure too", async () => {
     const navigate = vi.fn();
     render(

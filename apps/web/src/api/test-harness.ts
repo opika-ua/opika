@@ -94,7 +94,7 @@ export async function createTestHarness() {
     path: string,
     body: unknown,
     opts: { cookie?: string; now?: Date } = {},
-  ): Promise<{ status: number; body: unknown; headers: Headers }> {
+  ): Promise<{ status: number; body: unknown; headers: Headers; raw: string }> {
     const now = opts.now ?? new Date("2026-08-01T12:00:00Z");
 
     // Validate session from cookie, same as the real route handler
@@ -126,7 +126,7 @@ export async function createTestHarness() {
     });
 
     if (!result.matched) {
-      return { status: 404, body: null, headers: new Headers() };
+      return { status: 404, body: null, headers: new Headers(), raw: "" };
     }
 
     for (const cookie of setCookies) {
@@ -144,6 +144,9 @@ export async function createTestHarness() {
       status: result.response.status,
       body: responseBody,
       headers: result.response.headers,
+      // The response body exactly as the wire carried it, for tests about
+      // what a browser receives rather than what the client decodes.
+      raw: text,
     };
   }
 

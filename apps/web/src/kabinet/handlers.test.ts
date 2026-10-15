@@ -23,6 +23,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import type { KabinetPrincipal } from "./actor";
+import { capturingInvitationSender } from "./email-senders";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
 
@@ -80,6 +81,7 @@ async function call<T = Record<string, unknown>>(
     availability: {
       kind: "available",
       sender: { send: async () => {} },
+      invites: capturingInvitationSender(),
       secret: "x",
       baseURL: "http://localhost",
     },

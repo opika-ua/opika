@@ -3,6 +3,7 @@ import { clientIp } from "../../../../api/client-ip";
 import type { AppContext } from "../../../../api/context";
 import { getDb } from "../../../../api/db";
 import { apiRateLimiter } from "../../../../api/rate-limit";
+import { ipRateLimitKey } from "../../../../api/rate-limit-key";
 import { router } from "../../../../api/router";
 import { validateSession } from "../../../../api/session/index";
 
@@ -13,10 +14,8 @@ async function handleRequest(request: Request): Promise<Response> {
   const now = new Date();
 
   // Per-IP rate limit — Upstash-backed in production, in-memory otherwise
-  // (see rate-limit.ts)
-  const ip = clientIp(request);
-
-  if (!(await apiRateLimiter.check(ip, now))) {
+  // (see rate-limit.ts). Keyed on an HMAC of the IP, never the IP (EM-Q11).
+  if (!(await apiRateLimiter.check(ipRateLimitKey(clientIp(request)), now))) {
     return new Response("Too Many Requests", { status: 429 });
   }
 

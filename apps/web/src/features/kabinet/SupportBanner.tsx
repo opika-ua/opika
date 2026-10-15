@@ -45,16 +45,17 @@ export function SupportBanner({
 }) {
   const [state, setState] = useState<"idle" | "leaving" | "failed">("idle");
   const t = uk.kabinet.support;
+  // The title names the shelter too (EM-Q2): it speaks to the operator about
+  // whose cabinet this is, with no operator name typed into the copy.
+  const title = t.title.replaceAll("{shelter}", shelterName);
   return (
     <section
-      aria-label={t.title}
+      aria-label={title}
       className="sticky top-0 z-10 flex min-h-16 flex-col items-start gap-3 bg-rg-ink px-4 py-3 text-white tablet:flex-row tablet:items-center tablet:px-8"
     >
       <div className="flex flex-1 flex-col gap-0.5">
-        <span className="text-[15px] leading-[22px] font-medium">{t.title}</span>
-        <span className="text-[13px] leading-[18px] text-white">
-          {t.body.replaceAll("{shelter}", shelterName)}
-        </span>
+        <span className="text-[15px] leading-[22px] font-medium">{title}</span>
+        <span className="text-[13px] leading-[18px] text-white">{t.body}</span>
         {state === "failed" ? (
           <span role="alert" className="text-[13px] leading-[18px] text-white">
             {t.exitFailed}

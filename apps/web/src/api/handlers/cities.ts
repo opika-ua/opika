@@ -12,6 +12,5 @@ export async function citiesList(
     id: c.id,
     slug: c.slug,
     name: c.name,
-    centroid: c.centroid,
   }));
 }

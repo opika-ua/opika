@@ -15,37 +15,53 @@ import { type LocalizedText, LocalizedTextSchema } from "../primitives/localized
  * discouraged, and forces the UI to switch on `precision` and decide what to
  * render.
  *
- * `fuzzed_address`: the shelter has an exact address; the public sees the city,
+ * `fuzzed_address`: the shelter has an exact address; this holds the city,
  * district, and fuzzed coordinates. Shelters always produce this variant.
  *
  * `city`: we know only the city (and optionally the district). No coordinates
- * at all — the city centroid is available via `CityView.centroid` and is
- * honestly labelled as such, rather than posing as the animal's position.
+ * at all — the city centroid is `City.centroid`, honestly labelled as such,
+ * rather than posing as the animal's position.
  * Fostered animals with no known address produce this variant.
  *
  * District is nullable in both variants because smaller towns are not
  * subdivided, and null survives a JSON round trip in a way an absent property
  * does not.
+ *
+ * "Public" names where this came from (the value a public view was built
+ * from), not what an adopter receives. Since 2026-10-14 (Oleksii, inbox
+ * EM-Q10, answer (a)) no adopter-facing response before a reveal serializes
+ * the district or the fuzzed coordinates: the public views carry the city
+ * only (`PublicCityLocationViewSchema` in `@opika/contracts`). This value is
+ * still built here, server-side, and still stored whole inside a reveal's
+ * `shelterSnapshot`, but since 2026-10-15 (EM-D1, decision #2 revised) the
+ * reveal's view sends the city only too. The two variants are named so a
+ * view can `pick` from one rather than restate its fields.
  */
+export const FuzzedAddressLocationSchema = z.object({
+  precision: z.literal("fuzzed_address"),
+  cityId: CityIdSchema,
+  district: LocalizedTextSchema.nullable(),
+  approximate: FuzzedCoordinatesSchema,
+});
+
+export const CityPrecisionLocationSchema = z.object({
+  precision: z.literal("city"),
+  cityId: CityIdSchema,
+  district: LocalizedTextSchema.nullable(),
+});
+
 export const PublicLocationSchema = z.discriminatedUnion("precision", [
-  z.object({
-    precision: z.literal("fuzzed_address"),
-    cityId: CityIdSchema,
-    district: LocalizedTextSchema.nullable(),
-    approximate: FuzzedCoordinatesSchema,
-  }),
-  z.object({
-    precision: z.literal("city"),
-    cityId: CityIdSchema,
-    district: LocalizedTextSchema.nullable(),
-  }),
+  FuzzedAddressLocationSchema,
+  CityPrecisionLocationSchema,
 ]);
 export type PublicLocation = z.infer<typeof PublicLocationSchema>;
 
 /**
- * Present on the domain object and absent from every public view. It reaches an
- * adopter only inside a ContactReveal snapshot, after they have committed to
- * the reveal — the same gate the contact details sit behind.
+ * Present on the domain object and absent from every adopter-facing view,
+ * before and after a reveal (Oleksii, 2026-10-15, inbox EM-B6 answer 5,
+ * decision EM-D1: "the exact address never leaves the server for adopters;
+ * the meeting place is agreed with the shelter"). A ContactReveal snapshot
+ * stores it as the operator's record; the reveal's view leaves it out.
  */
 export const ExactAddressSchema = z.object({
   line1: z.string().min(1),
@@ -81,8 +97,8 @@ export const publicLocationOf = (
  * Public location for an animal fostered away from its shelter.
  *
  * Produces a `city`-precision location — no coordinates at all. The city
- * centroid is available to the UI via `CityView.centroid` and is honestly
- * labelled as a centroid rather than posing as the animal's position.
+ * centroid is `City.centroid`, honestly labelled as a centroid rather than
+ * posing as the animal's position.
  * Generating fuzzed coordinates from the centroid would be manufactured
  * precision: a random point within 1 km of city centre reads as "we know
  * roughly where this animal is" when in fact we only know the city.

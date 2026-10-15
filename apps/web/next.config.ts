@@ -27,9 +27,10 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./src/seo-flags";
  * "unlikely," which standing-constraints.md treats as a real gap, not a
  * closed one.
  *
- * `CRON_SECRET` (KH-T6) joined the same check: a production build
- * (`VERCEL_ENV=production`) refuses to build without one of 32+ characters,
- * in addition to `validateEnv`'s boot check. Both rules live in
+ * `CRON_SECRET` (KH-T6) joined the same check, and `RATE_LIMIT_KEY_SECRET`
+ * (EM-Q11) after it: a production build (`VERCEL_ENV=production`) refuses to
+ * build without either at 32+ characters, in addition to `validateEnv`'s
+ * boot check. The rules live in
  * `src/api/build-env.ts`, a pure function, so they are tested without
  * running a build.
  */

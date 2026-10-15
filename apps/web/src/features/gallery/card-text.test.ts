@@ -25,12 +25,7 @@ function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
     shelter: {
       id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as FeedCardView["shelter"]["id"],
       displayName: "Тестовий притулок",
-      publicLocation: {
-        precision: "fuzzed_address",
-        cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never,
-        district: null,
-        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
-      },
+      publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
       freshnessSentence: null,
       verification: "verified",
     },
@@ -53,11 +48,7 @@ describe("housingCityLabel", () => {
 
   it("reads the fostered sentence for an animal with its own city-precision location", () => {
     const card = makeCard({
-      publicLocation: {
-        precision: "city",
-        cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never,
-        district: null,
-      },
+      publicLocation: { cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never },
     });
     expect(housingCityLabel(card, "Ірпінь")).toBe("живе у волонтерки, м. Ірпінь");
   });

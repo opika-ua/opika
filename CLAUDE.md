@@ -149,13 +149,13 @@ half-wired code in a solo 10h/week project.
    definition in `packages/contracts` as a thin declarative object so a
    future 1.x→2.0 migration stays a one-package job. tRPC v11 remains the
    documented fallback if oRPC 1.x causes real friction.
-2. **Shelter location: approximate until reveal.** `Shelter.publicLocation`
-   (city/district/fuzzed lat-lng) is what the feed and profile expose;
-   `Shelter.exactAddress` exists on the domain object but is never part
-   of the public-facing contract type (`PublicShelterSchema` omits it).
-   The exact address only reaches an adopter inside
-   `ContactReveal.shelterSnapshot`, after they've committed to a reveal.
-   Same gating pattern as contact info — not a special case.
+2. **Shelter location: the city only, before and after a reveal.** Public
+   views carry the city and nothing finer (no district, no coordinates).
+   `Shelter.exactAddress` exists on the domain object but never leaves the
+   server for adopters: not in `PublicShelterSchema`, not in the
+   `ContactReveal` views. A reveal discloses contact channels only; the
+   meeting place is agreed with the shelter in correspondence.
+   **Revised 2026-10-15 (Oleksii, inbox EM-D1).**
 3. **Size buckets: 3-tier** — `small` / `medium` / `large`. Weight is
    **never stored**, only the bucket. `SIZE_BUCKET_WEIGHT_HINTS_KG`
    (<10kg / 10–25kg / 25kg+) exists purely as guidance for whoever fills in
@@ -305,10 +305,11 @@ live in a checklist rather than in a schema:
   `animalPublicLocationOf` (for fostered animals, always `city`
   precision) are the only sanctioned paths. `PublicLocation` is a
   discriminated union on `precision`: `fuzzed_address` carries
-  `FuzzedCoordinates`, `city` carries no coordinates at all — the city
-  centroid is available via `CityView.centroid` and is honestly labelled
-  as such. The `LocationPrivacyPolicy.digest` must be an HMAC over a
-  server-held key; `insecureUnkeyedDigest` is for tests and seed data.
+  `FuzzedCoordinates`, `city` carries no coordinates at all. Both stay
+  server-side: public responses, the reveal's included, carry the city
+  only (`PublicCityLocationViewSchema`). The `LocationPrivacyPolicy.digest`
+  must be an HMAC over a server-held key; `insecureUnkeyedDigest` is for
+  tests and seed data.
 - **Keep evidence documents out of the public image bucket.** Animal
   photo keys are public; `documentKey` on verification evidence is the
   same kind of value pointing at shelter registration paperwork.

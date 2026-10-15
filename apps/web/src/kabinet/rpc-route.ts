@@ -1,10 +1,11 @@
 import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
 import { RPCHandler } from "@orpc/server/fetch";
+import { ipRateLimitKey } from "../api/rate-limit-key";
 import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import type { KabinetAuthAvailability } from "./auth-route";
-import { type KabinetLimiters, kabinetIpKey, kabinetUserKey } from "./rate-limits";
+import { type KabinetLimiters, kabinetUserKey } from "./rate-limits";
 import { registryRouter } from "./registry-router";
 import { shelterKabinetRouter } from "./router";
 
@@ -52,7 +53,7 @@ export async function handleKabinetRpc(
     shelterWrites: ShelterWritePolicy;
   },
 ): Promise<Response> {
-  if (!(await deps.limiters.perIp.check(kabinetIpKey(deps.ip), deps.now))) return tooMany();
+  if (!(await deps.limiters.perIp.check(ipRateLimitKey(deps.ip), deps.now))) return tooMany();
   if (deps.availability.kind === "unavailable") {
     return new Response("Kabinet is not available", { status: 503 });
   }
@@ -80,6 +81,8 @@ export async function handleKabinetRpc(
       setCookies,
       cookieHeader: request.headers.get("cookie"),
       production: deps.production,
+      invites: deps.availability.invites,
+      linkBaseURL: deps.availability.baseURL,
       shelterWrites: deps.shelterWrites,
     },
   });

@@ -4,6 +4,7 @@ import { makeAnimal, makeCity, makeShelter, setupTestDatabase, truncateAll } fro
 import type { Animal, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { KabinetPrincipal } from "../kabinet/actor";
+import { capturingInvitationSender } from "../kabinet/email-senders";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
 import { inMemoryRateLimiter } from "./rate-limit";
 import { fromRpcBody, toRpcBody } from "./test-harness";
@@ -86,6 +87,7 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
     availability: {
       kind: "available",
       sender: { send: async () => {} },
+      invites: capturingInvitationSender(),
       secret: "x",
       baseURL: "http://localhost",
     },

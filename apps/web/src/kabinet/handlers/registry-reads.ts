@@ -17,7 +17,10 @@ import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { KabinetContext } from "../context";
 
-export type RegistryDeps = Pick<KabinetContext, "db" | "now" | "newId" | "operatorDisplayName">;
+export type RegistryDeps = Pick<
+  KabinetContext,
+  "db" | "now" | "newId" | "operatorDisplayName" | "invites" | "linkBaseURL"
+>;
 
 type NotFound = ORPCErrorConstructorMap<{ NOT_FOUND: typeof apiErrors.NOT_FOUND }>;
 

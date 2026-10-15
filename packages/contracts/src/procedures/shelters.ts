@@ -9,8 +9,9 @@ export const SheltersByIdInputSchema = z.object({
 });
 
 /**
- * Returns the public projection, which carries an approximate location and no
- * contact details. An adopter reaches the real address through a reveal.
+ * Returns the public projection, which carries the shelter's city only (no
+ * district, no coordinates: Oleksii, 2026-10-14, EM-Q10) and no contact
+ * details. An adopter reaches the real address through a reveal.
  *
  * A shelter that exists but is not verified answers NOT_FOUND, the same as one
  * that does not exist. Distinguishing them would leak moderation state: ids are

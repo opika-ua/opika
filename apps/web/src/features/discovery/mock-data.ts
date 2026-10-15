@@ -3,7 +3,7 @@
  * Not used in production — the real feed comes from the oRPC client.
  */
 import type { FeedCardView, ShelterSummaryView } from "@opika/contracts";
-import type { AnimalId, Freshness, FreshnessKind, FuzzedCoordinates } from "@opika/domain";
+import type { AnimalId, Freshness, FreshnessKind } from "@opika/domain";
 
 function mockId(n: number): AnimalId {
   const hex = n.toString(16).padStart(8, "0");
@@ -13,15 +13,7 @@ function mockId(n: number): AnimalId {
 const mockShelter: ShelterSummaryView = {
   id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as never,
   displayName: "Тестовий притулок",
-  publicLocation: {
-    precision: "fuzzed_address",
-    cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never,
-    district: null,
-    approximate: {
-      center: { lat: 49.99, lng: 36.23 },
-      precisionMetres: 1000,
-    } as FuzzedCoordinates,
-  },
+  publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
   freshnessSentence: {
     uk: "Ми оновлювали цю картку 25 червня. Напишіть — скажемо, чи тварина ще з нами.",
     en: null,

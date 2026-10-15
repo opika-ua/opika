@@ -340,7 +340,7 @@ describe("feed filters", () => {
 // ---------------------------------------------------------------------------
 
 describe("reveal", () => {
-  it("returns a shelter snapshot with exact address", async () => {
+  it("returns a shelter snapshot with the contact and never the exact address (EM-D1)", async () => {
     const cookie = await bootstrap();
     const { animal } = await seedFeedAnimal();
 
@@ -350,7 +350,7 @@ describe("reveal", () => {
     expect(body).toHaveProperty("animalId", animal.id);
     expect(body).toHaveProperty("shelterSnapshot");
     const snapshot = body.shelterSnapshot as Record<string, unknown>;
-    expect(snapshot).toHaveProperty("exactAddress");
+    expect(snapshot).not.toHaveProperty("exactAddress");
     expect(snapshot).toHaveProperty("contact");
   });
 

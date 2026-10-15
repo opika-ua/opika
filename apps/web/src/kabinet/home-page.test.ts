@@ -4,6 +4,7 @@ import type { ModeratorId, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { kabinetHomeOf, leavesSignIn } from "../features/kabinet/home";
 import type { KabinetPrincipal } from "./actor";
+import { capturingInvitationSender } from "./email-senders";
 
 /**
  * Who sees what at `/kabinet` (KS-Q1): decided by the served procedure's own
@@ -35,7 +36,13 @@ beforeEach(async () => {
   await shelterRepo(db).insert(theirs);
 });
 
-const deps = () => ({ db, now: new Date(), newId: () => crypto.randomUUID() });
+const deps = () => ({
+  db,
+  now: new Date(),
+  newId: () => crypto.randomUUID(),
+  invites: capturingInvitationSender(),
+  linkBaseURL: "http://localhost",
+});
 
 describe("kabinetHomeOf", () => {
   it("sends an anonymous visitor to sign in", async () => {

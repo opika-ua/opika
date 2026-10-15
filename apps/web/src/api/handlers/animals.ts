@@ -5,6 +5,7 @@ import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 import { listingFreshness } from "./listing-freshness";
+import { cityOnlyLocationOf } from "./public-location";
 
 type AnimalsInput = z.infer<typeof AnimalsByIdInputSchema>;
 
@@ -45,7 +46,7 @@ export async function animalsById(
     species: animal.species,
     sex: animal.sex,
     size: animal.size,
-    publicLocation: animal.publicLocation,
+    publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
     description: animal.description,
     photos: animal.photos,
     vaccination: animal.vaccination,
@@ -56,7 +57,7 @@ export async function animalsById(
     shelter: {
       id: shelter.id,
       displayName: shelter.displayName,
-      publicLocation: shelter.publicLocation,
+      publicLocation: cityOnlyLocationOf(shelter.publicLocation),
       freshnessSentence: shelter.freshnessSentence,
       verification: "verified",
     },

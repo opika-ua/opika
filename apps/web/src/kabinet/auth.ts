@@ -1,5 +1,9 @@
 import type { Database } from "@opika/db";
-import { kabinetActorRepo, kabinetInvitedUsersRepo } from "@opika/db/repos";
+import {
+  KABINET_SESSION_ABSOLUTE_MS,
+  kabinetActorRepo,
+  kabinetInvitedUsersRepo,
+} from "@opika/db/repos";
 import {
   authAccount,
   authInvitation,
@@ -15,11 +19,26 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 import { clientIp } from "../api/client-ip";
-import type { MagicLinkSender } from "./magic-link-sender";
-import { type KabinetLimiters, kabinetIpKey, kabinetUserKey } from "./rate-limits";
+import { ipRateLimitKey } from "../api/rate-limit-key";
+import { MAGIC_LINK_TTL_SECONDS, type MagicLinkSender } from "./magic-link-sender";
+import { type KabinetLimiters, kabinetUserKey } from "./rate-limits";
 
-/** KABINET N1: a link is good for 15 minutes. */
-export const MAGIC_LINK_TTL_SECONDS = 15 * 60;
+/** KABINET N1: a link is good for 15 minutes. Defined beside the sender, re-exported here. */
+export { MAGIC_LINK_TTL_SECONDS } from "./magic-link-sender";
+
+/**
+ * Where an emailed magic link lands (IN-Q11): a page whose GET only shows a
+ * button, so a mail scanner following the link consumes nothing. Better
+ * Auth's own verify URL consumes on GET, which is why it's never emailed and
+ * no longer forwarded (`docs/h2-invite-confirm-shapes.md`).
+ */
+export const CONFIRM_PATH = "/kabinet/vkhid/pidtverdzhennia";
+
+export const confirmUrlOf = (baseURL: string, token: string): string => {
+  const url = new URL(CONFIRM_PATH, baseURL);
+  url.searchParams.set("token", token);
+  return url.toString();
+};
 
 const DAY_SECONDS = 24 * 60 * 60;
 
@@ -36,11 +55,15 @@ const DAY_SECONDS = 24 * 60 * 60;
  *   used daily never expires), so a `hooks.before` on every Better Auth
  *   request deletes a session older than `absoluteMs` before the request
  *   sees it: `get-session` then reports no session, and nothing Better Auth
- *   serves (sign-out, later accept-invitation) can act on it. `kabinetIdentityOf`
+ *   serves (sign-out) can act on it. `kabinetIdentityOf`
  *   checks the same cap again as a second line (reviewer, HS-Q8, finding 1).
  */
 export const KABINET_SESSION = {
-  absoluteMs: 30 * DAY_SECONDS * 1000,
+  /**
+   * One number with the daily clean-up's (`KABINET_SESSION_ABSOLUTE_MS`,
+   * `@opika/db`), which deletes a session past this cap (EM-Q11).
+   */
+  absoluteMs: KABINET_SESSION_ABSOLUTE_MS,
   idleSeconds: 7 * DAY_SECONDS,
   refreshSeconds: DAY_SECONDS,
 } as const;
@@ -114,7 +137,10 @@ export type KabinetAuthDeps = {
  * charged where they arrive (`proxy.ts` per page load, `handleKabinetRpc`
  * per API call). Charging them here as well would bill one page load two or
  * three times. A browser's own `/api/auth/get-session` is an HTTP call and is
- * charged, once: the proxy doesn't charge `/api/auth/*`.
+ * charged, once: the proxy doesn't charge `/api/auth/*`. The verify, which
+ * the route no longer forwards (IN-Q11), is charged once too: here, on the
+ * confirm page's server-built request, while the proxy leaves that POST
+ * uncharged (`isChargedKabinetPageLoad`).
  */
 export const LIMITED_AUTH_PATHS: readonly string[] = [
   "/magic-link/verify",
@@ -136,11 +162,12 @@ export const LIMITED_AUTH_PATHS: readonly string[] = [
  *   have. A function makes Better Auth fill it in, as every other id in this
  *   repo is filled in by the app.
  * - **Organization plugin, with nobody able to create an organization or
- *   invite through it.** Only its `accept-invitation` endpoint is meant to
- *   run (HS-Q7); invitations and organizations are written server-side by
- *   `kabinetInvitationRepo`. The route forwards none of the plugin's paths in
- *   this slice (`FORWARDED_AUTH_PATHS`), so even acceptance is reachable only
- *   from tests until the registry PR.
+ *   invite through it.** Invitations and organizations are written
+ *   server-side by `kabinetInvitationRepo`, and acceptance is our own
+ *   statement (`kabinetInvitationAcceptRepo`, IN-Q13, superseding HS-Q7's
+ *   use of the plugin's `accept-invitation` for this step). The plugin stays
+ *   for its schema and its reads; the route forwards none of its paths
+ *   (`FORWARDED_AUTH_PATHS`).
  * - **No `admin` plugin** (HS-T2): it keeps a `role` on the user, and the
  *   super_admin role lives in `super_admins` only. A test fails if it's added.
  * - **Origin checks always on**, in tests too (`disableOriginCheck: false`).
@@ -204,17 +231,18 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       // HS-Q8 pass 2).
       //
       // In the API's order (`handleKabinetRpc`): per IP first, before any
-      // query, then per user once the cookie names a live session. For a
-      // verify that is a browser already signed in; a verify from a fresh
-      // browser has no user until it succeeds, and its per-address cap is
-      // the 5 links an hour `signInLimiters` lets anyone be sent.
+      // query, then per user once the cookie names a live session. The verify
+      // reaches here only through the confirm page's server-side call, which
+      // forwards no cookie, so for it the per-user check never runs: it is
+      // charged per IP only, and its per-address cap is the 5 links an hour
+      // `signInLimiters` lets anyone be sent.
       before: createAuthMiddleware(async (ctx) => {
         const now = (deps.now ?? (() => new Date()))();
         const limited = ctx.request !== undefined && LIMITED_AUTH_PATHS.includes(ctx.path);
         if (
           limited &&
           ctx.request !== undefined &&
-          !(await deps.limiters.perIp.check(kabinetIpKey(clientIp(ctx.request)), now))
+          !(await deps.limiters.perIp.check(ipRateLimitKey(clientIp(ctx.request)), now))
         ) {
           throw new APIError("TOO_MANY_REQUESTS");
         }
@@ -276,7 +304,10 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
         disableSignUp: true,
         // The link is a credential; the database keeps only its hash.
         storeToken: "hashed",
-        sendMagicLink: async ({ email, url }) => {
+        // Better Auth's `url` is its consuming verify endpoint; the email
+        // carries the confirm page instead (IN-Q11).
+        sendMagicLink: async ({ email, token }) => {
+          const url = confirmUrlOf(deps.baseURL, token);
           deps.schedule(async () => {
             if (await actors.hasUserWithEmail(email)) await deps.sender.send({ email, url });
           });
@@ -304,7 +335,9 @@ export type KabinetAuth = ReturnType<typeof createKabinetAuth>;
  */
 export const FORWARDED_AUTH_PATHS = [
   "/api/auth/sign-in/magic-link",
-  "/api/auth/magic-link/verify",
+  // Not "/api/auth/magic-link/verify": it consumes the token on a GET, so a
+  // mail scanner would burn the link. The confirm page's POST reaches it
+  // server-side instead (`confirm-route.ts`, IN-Q11).
   "/api/auth/get-session",
   "/api/auth/sign-out",
 ] as const;

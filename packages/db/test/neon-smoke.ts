@@ -12,8 +12,9 @@ import { eq, inArray } from "drizzle-orm";
 import { createDatabase, type Database } from "../src/client";
 import { productionEndpoint } from "../src/prod-guard";
 import { animalRepo } from "../src/repos/animal-repo";
-import { authExpiryRepo } from "../src/repos/auth-expiry-repo";
+import { authExpiryRepo, KABINET_SESSION_ABSOLUTE_MS } from "../src/repos/auth-expiry-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { kabinetInvitationAcceptRepo } from "../src/repos/kabinet-invitation-accept-repo";
 import { kabinetInvitationRepo } from "../src/repos/kabinet-invitation-repo";
 import { kabinetInvitedUsersRepo } from "../src/repos/kabinet-invited-users-repo";
 import { kabinetRegistryRepo } from "../src/repos/kabinet-registry-repo";
@@ -23,6 +24,7 @@ import { shelterRepo } from "../src/repos/shelter-repo";
 import { superAdminRepo } from "../src/repos/super-admin-repo";
 import { animals } from "../src/schema/animals";
 import {
+  authInvitation,
   authMember,
   authSession,
   authUser,
@@ -316,8 +318,8 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   });
   check(
     "resend (+ history)",
-    resent !== null && (await history()).length === 7,
-    `${resent === null ? "not resent" : "resent"}, ${(await history()).length} history row(s)`,
+    resent.kind === "resent" && (await history()).length === 7,
+    `${resent.kind}, ${(await history()).length} history row(s)`,
   );
 
   // 8. removeMember: membership + every session of theirs + history; another user's session survives.
@@ -516,16 +518,194 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `${before} active operator(s) before, ${boot.kind}`,
   );
 
-  // 15. the daily auth clean-up's one statement (KH-Q9): two data-modifying
-  // CTEs and their counts, through neon-http. Only rows already dead to
-  // Better Auth go; on a disposable branch that may include rows copied from
-  // production, so the counts are "at least" and this run's own rows are
-  // checked by id.
+  // 15. the automatic accept (IN-Q12/IN-Q13): invitation + membership + admin_joined in one
+  // statement, then the one-membership index's violation read off neon-http's error shape.
+  const joinShelter = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} D` });
+  const otherShelter = makeShelter({
+    id: randomUUID() as ShelterId,
+    displayName: `Smoke ${tag} E`,
+  });
+  for (const s of [joinShelter, otherShelter]) {
+    await insertShelterFromScript(
+      db,
+      {
+        ...s,
+        exactAddress: { ...s.exactAddress, cityId: city.id },
+        publicLocation: publicLocationOf(s.id, { ...s.exactAddress, cityId: city.id }, policy),
+      },
+      by,
+    );
+  }
+  const joinEmail = `smoke-join-${tag}@example.invalid`;
+  const toJoin = await invitations.invite({
+    shelterId: joinShelter.id,
+    email: joinEmail,
+    name: "Smoke join",
+    inviterUserId: operator,
+    ids: { invitationId: randomUUID(), userId: randomUUID(), organizationId: randomUUID() },
+    now: NOW,
+    history: { id: randomUUID(), entry: inviteEntry(joinEmail) },
+  });
+  if (toJoin.kind !== "invited") {
+    check("accept", false, `invite: ${toJoin.kind}`);
+    return out;
+  }
+  // Magic-link verify sets this on sign-in; the accept requires it.
+  await db.update(authUser).set({ emailVerified: true }).where(eq(authUser.id, toJoin.userId));
+  const acceptRepo = kabinetInvitationAcceptRepo(db);
+  const acceptIds = () => ({ memberId: randomUUID(), historyId: randomUUID() });
+  const joined = await acceptRepo.accept({ userId: toJoin.userId, now: NOW, ids: acceptIds() });
+  const again = await acceptRepo.accept({ userId: toJoin.userId, now: NOW, ids: acceptIds() });
+  const joinedLines = (await shelters.historyOf(joinShelter.id)).filter(
+    (e) => e.kind === "admin_joined",
+  ).length;
+  const memberships = await db
+    .select({ id: authMember.id })
+    .from(authMember)
+    .where(eq(authMember.userId, toJoin.userId));
+  check(
+    "accept (invitation + membership + admin_joined), then idempotent",
+    joined.kind === "accepted" &&
+      again.kind === "nothing_to_accept" &&
+      joinedLines === 1 &&
+      memberships.length === 1,
+    `${joined.kind}, then ${again.kind}; ${memberships.length} membership(s), ${joinedLines} admin_joined`,
+  );
+  // IN-T1's race: a second shelter's invitation for the same address, written straight past
+  // the registry's refusal, then driven at the statement directly so only the index refuses.
+  const otherOrganization = await invitations.ensureOrganization(
+    otherShelter.id,
+    { organizationId: randomUUID() },
+    NOW,
+  );
+  const racedId = randomUUID();
+  await db.insert(authInvitation).values({
+    id: racedId,
+    organizationId: otherOrganization,
+    email: joinEmail,
+    role: "admin",
+    status: "pending",
+    expiresAt: later(3_600_000),
+    createdAt: NOW,
+    inviterId: operator,
+  });
+  const conflict = await acceptRepo.write({
+    userId: toJoin.userId,
+    invitation: {
+      id: racedId as never,
+      organizationId: otherOrganization,
+      shelterId: otherShelter.id,
+      email: joinEmail,
+    },
+    now: NOW,
+    ids: acceptIds(),
+  });
+  const [racedRow] = await db
+    .select({ status: authInvitation.status })
+    .from(authInvitation)
+    .where(eq(authInvitation.id, racedId));
+  check(
+    "accept: one-membership conflict (driver error shape)",
+    conflict.kind === "membership_conflict" && racedRow?.status === "pending",
+    `${conflict.kind}, invitation ${racedRow?.status}`,
+  );
+
+  // 17. IN-T12 (Oleksii, 2026-10-14): two pending invitations to the same shelter for one
+  // address; the accept takes the newest and cancels the older in the same statement, so none
+  // stays pending. The older is the registry's own invite; the newer is written straight in,
+  // as a re-invite racing the registry's one-pending rule would leave it.
+  const dupShelter = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} F` });
+  await insertShelterFromScript(
+    db,
+    {
+      ...dupShelter,
+      exactAddress: { ...dupShelter.exactAddress, cityId: city.id },
+      publicLocation: publicLocationOf(
+        dupShelter.id,
+        { ...dupShelter.exactAddress, cityId: city.id },
+        policy,
+      ),
+    },
+    by,
+  );
+  const dupEmail = `smoke-dup-${tag}@example.invalid`;
+  const olderInvite = await invitations.invite({
+    shelterId: dupShelter.id,
+    email: dupEmail,
+    name: "Smoke duplicate",
+    inviterUserId: operator,
+    ids: { invitationId: randomUUID(), userId: randomUUID(), organizationId: randomUUID() },
+    now: NOW,
+    history: { id: randomUUID(), entry: inviteEntry(dupEmail) },
+  });
+  if (olderInvite.kind !== "invited") {
+    check("accept: duplicates", false, `invite: ${olderInvite.kind}`);
+    return out;
+  }
+  const dupOrganization = await invitations.ensureOrganization(
+    dupShelter.id,
+    { organizationId: randomUUID() },
+    NOW,
+  );
+  const newerId = randomUUID();
+  await db.insert(authInvitation).values({
+    id: newerId,
+    organizationId: dupOrganization,
+    email: dupEmail,
+    role: "admin",
+    status: "pending",
+    expiresAt: later(3_600_000),
+    createdAt: later(1_000),
+    inviterId: operator,
+  });
+  await db.update(authUser).set({ emailVerified: true }).where(eq(authUser.id, olderInvite.userId));
+  const dupAccepted = await acceptRepo.accept({
+    userId: olderInvite.userId,
+    now: later(2_000),
+    ids: acceptIds(),
+  });
+  const dupRows = await db
+    .select({ id: authInvitation.id, status: authInvitation.status })
+    .from(authInvitation)
+    .where(eq(authInvitation.organizationId, dupOrganization));
+  const statusOf = (id: string) => dupRows.find((row) => row.id === id)?.status;
+  const stillPending = dupRows.filter((row) => row.status === "pending").length;
+  check(
+    "accept: duplicate invitations (newest accepted, older canceled, none pending)",
+    dupAccepted.kind === "accepted" &&
+      dupAccepted.invitationId === newerId &&
+      statusOf(newerId) === "accepted" &&
+      statusOf(olderInvite.invitationId) === "canceled" &&
+      stillPending === 0,
+    `${dupAccepted.kind}; newest ${statusOf(newerId)}, older ${statusOf(olderInvite.invitationId)}, ${stillPending} pending`,
+  );
+
+  // 18. the daily auth clean-up's one statement (KH-Q9, plus EM-Q11's 30-day
+  // cap): two data-modifying CTEs and their counts, through neon-http. Rows
+  // past expiry go, and a session past the absolute cap goes even with its
+  // idle expiry still ahead (EM-Q11: "Test the case where the cap is passed
+  // but the idle expiry is in the future"); one just under the cap stays. On a
+  // disposable branch the counts may include rows copied from production, so
+  // they are "at least" and this run's own rows are checked by id.
   const expired = { session: randomUUID(), verification: randomUUID() };
   const live = { session: randomUUID(), verification: randomUUID() };
+  const pastCap = randomUUID();
+  const underCap = randomUUID();
   await db.insert(authSession).values([
     { ...session(operator), id: expired.session, expiresAt: later(-1000) },
     { ...session(operator), id: live.session, expiresAt: later(86_400_000) },
+    {
+      ...session(operator),
+      id: pastCap,
+      createdAt: later(-KABINET_SESSION_ABSOLUTE_MS - 60_000),
+      expiresAt: later(5 * 86_400_000),
+    },
+    {
+      ...session(operator),
+      id: underCap,
+      createdAt: later(-KABINET_SESSION_ABSOLUTE_MS + 60_000),
+      expiresAt: later(5 * 86_400_000),
+    },
   ]);
   const verification = (id: string, expiresAt: Date) => ({
     id,
@@ -547,7 +727,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       await db
         .select({ id: authSession.id })
         .from(authSession)
-        .where(inArray(authSession.id, [expired.session, live.session]))
+        .where(inArray(authSession.id, [expired.session, live.session, pastCap, underCap]))
     ).map((r) => r.id),
     ...(
       await db
@@ -557,16 +737,18 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     ).map((r) => r.id),
   ]);
   check(
-    "auth clean-up (expired verification + session, one statement)",
+    "auth clean-up (expired verification + session, session past the 30-day cap, one statement)",
     typeof counts.sessions === "number" &&
       typeof counts.verifications === "number" &&
-      counts.sessions >= 1 &&
+      counts.sessions >= 2 &&
       counts.verifications >= 1 &&
       !left.has(expired.session) &&
       !left.has(expired.verification) &&
+      !left.has(pastCap) &&
+      left.has(underCap) &&
       left.has(live.session) &&
       left.has(live.verification),
-    `deleted ${counts.verifications} verification(s), ${counts.sessions} session(s); this run's live rows kept ${left.has(live.session) && left.has(live.verification)}, expired gone ${!left.has(expired.session) && !left.has(expired.verification)}`,
+    `deleted ${counts.verifications} verification(s), ${counts.sessions} session(s); this run's live rows kept ${left.has(live.session) && left.has(live.verification)}, expired gone ${!left.has(expired.session) && !left.has(expired.verification)}, past-cap gone ${!left.has(pastCap)}, under-cap kept ${left.has(underCap)}`,
   );
   return out;
 }

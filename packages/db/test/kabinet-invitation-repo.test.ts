@@ -1,3 +1,4 @@
+import type { ShelterId } from "@opika/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { cityRepo } from "../src/repos/city-repo";
@@ -111,8 +112,175 @@ describe("kabinetInvitationRepo.invite (RG-Q3)", () => {
       createdAt: NOW,
     });
     const invitationsBefore = (await db.select().from(authInvitation)).length;
-    expect(await invite("OLENA@example.org")).toEqual({ kind: "already_a_member" });
+    expect(await invite("OLENA@example.org")).toEqual({
+      kind: "address_has_a_role",
+      reason: "shelter_admin",
+    });
     expect(await db.select().from(authInvitation)).toHaveLength(invitationsBefore);
+  });
+});
+
+/**
+ * RG-T10 / IN-Q7 / IN-Q8 (Oleksii: "Q7: accepted." "Q8: accepted"): one
+ * person holds one role, so an operator's address and an address invited to
+ * another shelter are refused with the reason, writing nothing.
+ */
+describe("kabinetInvitationRepo.invite refuses an address with a role (RG-T10)", () => {
+  async function secondShelter(): Promise<string> {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const other = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
+    });
+    await shelterRepo(db).insert(other);
+    return other.id;
+  }
+  const grant = (userId: string, revokedAt: Date | null = null) =>
+    db.insert(superAdmins).values({ id: crypto.randomUUID(), userId, grantedAt: NOW, revokedAt });
+
+  it("refuses an active operator's address, and invites once the grant is revoked", async () => {
+    await grant(OPERATOR);
+    const invitationsBefore = (await db.select().from(authInvitation)).length;
+    expect(await invite("op@example.org")).toEqual({
+      kind: "address_has_a_role",
+      reason: "operator",
+    });
+    expect(await db.select().from(authInvitation)).toHaveLength(invitationsBefore);
+    await db.delete(superAdmins);
+    await grant(OPERATOR, NOW);
+    expect((await invite("op@example.org")).kind).toBe("invited");
+  });
+
+  it("refuses an address with a live invitation to another shelter, and allows it once that expires", async () => {
+    const other = await secondShelter();
+    expect((await invite("olena@example.org", NOW, other)).kind).toBe("invited");
+    expect(await invite("olena@example.org")).toEqual({
+      kind: "address_has_a_role",
+      reason: "invited_elsewhere",
+    });
+    const afterExpiry = new Date(NOW.getTime() + INVITATION_TTL_MS + 1);
+    expect((await invite("olena@example.org", afterExpiry)).kind).toBe("invited");
+  });
+
+  it("never treats a re-invite to the same shelter as elsewhere", async () => {
+    expect((await invite("olena@example.org")).kind).toBe("invited");
+    expect((await invite("olena@example.org", new Date(NOW.getTime() + 1000))).kind).toBe(
+      "invited",
+    );
+  });
+
+  it("counts any live invitation as elsewhere when there is no shelter yet (create's pre-check)", async () => {
+    await invite("olena@example.org");
+    expect(
+      await kabinetInvitationRepo(db).roleOfAddress({
+        email: " Olena@Example.org ",
+        shelterId: null,
+        now: NOW,
+      }),
+    ).toBe("invited_elsewhere");
+    expect(
+      await kabinetInvitationRepo(db).roleOfAddress({
+        email: "nobody@example.org",
+        shelterId: null,
+        now: NOW,
+      }),
+    ).toBeNull();
+  });
+});
+
+/**
+ * Oleksii, 2026-10-13: the refusal "must cover every path that makes an
+ * invitation live again (create, resend, and anything that resets expiry),
+ * with one test per path". The writes are `createInvitation` (reached by
+ * `invite` and `shelters.create`, whose own tests are above and in
+ * apps/web) and `resend`, the only expiry reset; the other two updates only
+ * cancel. Each is checked at the write, here.
+ */
+describe("every write that makes an invitation live checks the address's role", () => {
+  const afterExpiry = new Date(NOW.getTime() + INVITATION_TTL_MS + 1);
+  async function otherShelter(): Promise<ShelterId> {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const other = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
+    });
+    await shelterRepo(db).insert(other);
+    return other.id;
+  }
+
+  it("createInvitation refuses an address invited elsewhere, writing nothing", async () => {
+    const other = await otherShelter();
+    expect((await invite("olena@example.org", NOW, other)).kind).toBe("invited");
+    const repo = kabinetInvitationRepo(db);
+    const organizationId = await repo.ensureOrganization(
+      shelterId as ShelterId,
+      { organizationId: "org-direct" },
+      NOW,
+    );
+    const before = (await db.select().from(authInvitation)).length;
+    expect(
+      await repo.createInvitation({
+        id: "inv-direct",
+        organizationId,
+        email: "olena@example.org",
+        inviterUserId: OPERATOR,
+        now: NOW,
+        history: {
+          id: crypto.randomUUID(),
+          shelterId: shelterId as ShelterId,
+          entry: {
+            kind: "admin_invited",
+            at: NOW,
+            moderatorId: OPERATOR as never,
+            email: "olena@example.org",
+          },
+        },
+      }),
+    ).toEqual({ kind: "address_has_a_role", reason: "invited_elsewhere" });
+    expect(await db.select().from(authInvitation)).toHaveLength(before);
+  });
+
+  it("resend refuses to revive an invitation whose address was invited elsewhere since, leaving it expired", async () => {
+    const first = await invite("olena@example.org");
+    if (first.kind !== "invited") throw new Error("unreachable");
+    const other = await otherShelter();
+    expect((await invite("olena@example.org", afterExpiry, other)).kind).toBe("invited");
+    expect(
+      await kabinetInvitationRepo(db).resend(first.invitationId, afterExpiry, {
+        id: crypto.randomUUID(),
+        shelterId: shelterId as ShelterId,
+        entry: {
+          kind: "admin_invitation_resent",
+          at: afterExpiry,
+          moderatorId: OPERATOR as never,
+          email: "olena@example.org",
+        },
+      }),
+    ).toEqual({ kind: "address_has_a_role", reason: "invited_elsewhere" });
+    const live = (await db.select().from(authInvitation)).filter(
+      (row) => row.status === "pending" && row.expiresAt > afterExpiry,
+    );
+    expect(live).toHaveLength(1);
+  });
+
+  it("resend refuses an address made an operator since", async () => {
+    const first = await invite("olena@example.org");
+    if (first.kind !== "invited") throw new Error("unreachable");
+    await db
+      .insert(superAdmins)
+      .values({ id: crypto.randomUUID(), userId: first.userId, grantedAt: NOW });
+    expect(
+      await kabinetInvitationRepo(db).resend(first.invitationId, NOW, {
+        id: crypto.randomUUID(),
+        shelterId: shelterId as ShelterId,
+        entry: {
+          kind: "admin_invitation_resent",
+          at: NOW,
+          moderatorId: OPERATOR as never,
+          email: "olena@example.org",
+        },
+      }),
+    ).toEqual({ kind: "address_has_a_role", reason: "operator" });
   });
 });
 
@@ -215,11 +383,14 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
       },
     });
     expect(await repo().resend(r.invitationId, later, resent("olena@example.org"))).toEqual({
+      kind: "resent",
       expiresAt: new Date(later.getTime() + INVITATION_TTL_MS),
     });
     expect(await users().cleanupCandidates({ organizationId: null, now: later })).toEqual([]);
     await repo().revoke(r.invitationId);
-    expect(await repo().resend(r.invitationId, later, resent("olena@example.org"))).toBeNull();
+    expect(await repo().resend(r.invitationId, later, resent("olena@example.org"))).toEqual({
+      kind: "not_pending",
+    });
   });
 
   /** Finding 1: expired, then re-invited. The live invitation keeps the user. */

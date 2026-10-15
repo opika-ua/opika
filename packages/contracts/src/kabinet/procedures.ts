@@ -27,13 +27,17 @@ import { apiErrors } from "../errors";
 import { MAX_PAGE_SIZE } from "../procedures/pagination";
 import { kabinet, registry, shelterRead, shelterWrite, supportExit } from "./access";
 import {
+  BlockedAddressesViewSchema,
+  CreatedShelterViewSchema,
+  EmailSendOutcomeSchema,
   HistoryEntryViewSchema,
+  InvitationReminderSchema,
+  InvitedAdminViewSchema,
   KabinetAnimalRowViewSchema,
   KabinetAnimalViewSchema,
   KabinetShelterViewSchema,
   RegistryShelterRowViewSchema,
   RegistryShelterViewSchema,
-  ShelterAdminViewSchema,
   ShelterHistoryItemViewSchema,
 } from "./views";
 
@@ -302,8 +306,14 @@ export const registrySheltersContract = {
       INVALID_CURSOR: apiErrors.INVALID_CURSOR,
     }),
   byId: registryShelter.input(shelterRef).errors(registryErrors),
-  /** S2 collects S4's sections in one form (H2-1); the shelter starts `pending`. */
-  create: registryShelter
+  /**
+   * S2 collects S4's sections in one form (H2-1); the shelter starts
+   * `pending`. The output adds what became of the first admin's invitation
+   * email, so S2 can show it (IN-E7).
+   */
+  create: kabinet
+    .$meta(registry)
+    .output(CreatedShelterViewSchema)
     .input(
       z.strictObject({
         displayName: humanName,
@@ -320,8 +330,8 @@ export const registrySheltersContract = {
       UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
       FORBIDDEN: apiErrors.FORBIDDEN,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE,
-      // Its first admin may already administer another shelter (RG-Q3).
-      ALREADY_A_MEMBER: apiErrors.ALREADY_A_MEMBER,
+      // Its first admin may already have a role: a shelter, an operator grant, or a live invitation elsewhere (RG-T10).
+      ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE,
     }),
   /** The locked fields: legal entity or premises address, one per call, each audited. */
   updateVerifiedData: registryShelter
@@ -419,10 +429,35 @@ export const registryAdminsContract = {
   invite: kabinet
     .$meta(registry)
     .input(z.strictObject({ shelterId: ShelterIdSchema, name: humanName, email: z.email() }))
-    .output(ShelterAdminViewSchema)
-    .errors({ ...registryErrors, ALREADY_A_MEMBER: apiErrors.ALREADY_A_MEMBER }),
-  resendInvite: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
+    // The admin plus this call's email outcome, which S4 shows directly (IN-E7).
+    .output(InvitedAdminViewSchema)
+    .errors({ ...registryErrors, ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE }),
+  /**
+   * A resend can revive an expired invitation, so it is checked like a new
+   * one (review of ee847a2, finding 1): an address that meanwhile holds a
+   * role elsewhere is refused, never handed a second live invitation.
+   */
+  resendInvite: kabinet
+    .$meta(registry)
+    .input(adminRef)
+    .output(
+      z.object({
+        invitationEmail: EmailSendOutcomeSchema,
+        invitationReminder: InvitationReminderSchema,
+      }),
+    )
+    .errors({ ...registryErrors, ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE }),
   remove: kabinet.$meta(registry).input(adminRef).output(emptyOutput).errors(registryErrors),
+  /**
+   * Which of the shelter's admin and invited addresses the email provider
+   * has blocked (Oleksii, 2026-10-14, answer 4), read when S4 loads. A read:
+   * it changes nothing, and unblocking stays manual in the provider (IN-E7).
+   */
+  blockedAddresses: kabinet
+    .$meta(registry)
+    .input(shelterRef)
+    .output(BlockedAddressesViewSchema)
+    .errors(registryErrors),
 };
 
 export const registryHistoryContract = {

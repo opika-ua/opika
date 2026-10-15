@@ -34,7 +34,6 @@ describe("anonymousRouterClient", () => {
       id: city.id,
       slug: city.slug,
       name: city.name,
-      centroid: city.centroid,
     });
   });
 
@@ -49,7 +48,7 @@ describe("anonymousRouterClient", () => {
     expect(viaInProcess).toEqual(viaHttp.body);
   });
 
-  it("withholds the exact address and contact details a reveal would carry", async () => {
+  it("withholds the exact address (never served, EM-D1) and the contact details a reveal would carry", async () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({

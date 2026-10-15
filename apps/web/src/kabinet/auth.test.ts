@@ -24,6 +24,10 @@ import {
   type KabinetAuthAvailability,
   kabinetAuthAvailability,
 } from "./auth-route";
+import { handleKabinetConfirm } from "./confirm-route";
+import type { OutgoingEmail } from "./email-provider";
+import { capturingInvitationSender, providerMagicLinkSender } from "./email-senders";
+import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
 import { capturingSender } from "./magic-link-sender";
 import { kabinetIdentityOf, kabinetSessionUserIdOf } from "./principal";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
@@ -91,6 +95,7 @@ function unlimitedKabinet(): KabinetLimiters {
 const available: KabinetAuthAvailability = {
   kind: "available",
   sender: capturingSender(),
+  invites: capturingInvitationSender(),
   secret: "unused-here",
   baseURL: BASE,
 };
@@ -128,13 +133,53 @@ async function createUser(email: string) {
   return user;
 }
 
+/**
+ * Opens an emailed link as a person does (IN-Q11): the GET shows the button,
+ * the button's form POST signs in.
+ */
+async function confirm(
+  link: string,
+  using = auth,
+  base = BASE,
+  acceptInvitation: AcceptInvitation = invitationAccepter(db, () => new Date()),
+  /** The browser's own headers on the button's POST (client IP, user agent). */
+  browserHeaders: Record<string, string> = {},
+): Promise<Response> {
+  const availability: KabinetAuthAvailability = {
+    kind: "available",
+    sender: capturingSender(),
+    invites: capturingInvitationSender(),
+    secret: "unused-here",
+    baseURL: base,
+  };
+  const deps = { availability, auth: () => using, acceptInvitation };
+  const shown = await handleKabinetConfirm(new Request(link), deps);
+  if (shown.status !== 200) throw new Error(`confirm page answered ${shown.status}`);
+  const token = new URL(link).searchParams.get("token") ?? "";
+  return handleKabinetConfirm(
+    new Request(link, {
+      method: "POST",
+      headers: { ...browserHeaders, origin: base },
+      body: new URLSearchParams({ token }),
+    }),
+    deps,
+  );
+}
+
+/**
+ * Not accepting anything: for the tests that drive Better Auth's own
+ * accept-invitation, which the automatic accept (IN-Q12) would otherwise
+ * have done first.
+ */
+const noAccept: AcceptInvitation = async () => ({ kind: "nothing_to_accept" });
+
 /** Ask for a link, follow it, return the session cookie. */
-async function signIn(email: string): Promise<string> {
+async function signIn(email: string, acceptInvitation?: AcceptInvitation): Promise<string> {
   const before = sender.sent.length;
   await route(post("/api/auth/sign-in/magic-link", { email }));
   const link = sender.sent[before]?.url;
   if (link === undefined) throw new Error(`no link sent to ${email}`);
-  const verified = await route(new Request(link));
+  const verified = await confirm(link, auth, BASE, acceptInvitation);
   const cookie = verified.headers
     .getSetCookie()
     .find((c) => c.startsWith("kabinet.session_token="));
@@ -171,6 +216,58 @@ describe("magic-link sign-in", () => {
   });
 
   /**
+   * IN-E7 (Oleksii, 2026-10-14): "the sign-in card response is identical for
+   * an existing, a non-existent and a blocked address". The production
+   * sender is used here for real, over a fake provider whose block list holds
+   * one address: the blocked address is sent nothing, a masked line is
+   * logged, and the response can't tell any of the three apart.
+   */
+  it("answers an existing, a non-existent and a blocked address identically; the blocked one is logged masked and sent nothing", async () => {
+    const delivered: OutgoingEmail[] = [];
+    const logged: string[] = [];
+    auth = createKabinetAuth({
+      db,
+      sender: providerMagicLinkSender(
+        {
+          sender: {
+            send: async (email) => {
+              delivered.push(email);
+              return { status: 201, messageId: null };
+            },
+          },
+          blockedStatus: async (address) =>
+            address === "blocked@example.org"
+              ? { kind: "blocked", reason: "unsubscribed" }
+              : { kind: "not_blocked" },
+          refuseCopyPending: false,
+        },
+        { ttlMinutes: 15, operatorName: "Олексій", log: (line) => logged.push(line) },
+      ),
+      schedule: (work) => {
+        pending.push(work());
+      },
+      baseURL: BASE,
+      secret: "test-only-secret-that-is-long-enough-0123456789",
+      secureCookies: false,
+      limiters: unlimitedKabinet(),
+    });
+    await createUser("known@example.org");
+    await createUser("blocked@example.org");
+    const answers = [];
+    for (const email of ["known@example.org", "nobody@example.org", "blocked@example.org"]) {
+      const response = await route(post("/api/auth/sign-in/magic-link", { email }));
+      answers.push([response.status, await response.text()]);
+    }
+    expect(answers[0]?.[0]).toBe(200);
+    expect(answers[1]).toEqual(answers[0]);
+    expect(answers[2]).toEqual(answers[0]);
+    expect(delivered.map((email) => email.to)).toEqual(["known@example.org"]);
+    expect(logged).toEqual([
+      "[kabinet] sign-in email to b•••@example.org not sent: blocked (unsubscribed)",
+    ]);
+  });
+
+  /**
    * `disableSignUp` is read only inside verify, so this follows a real link:
    * one issued while the address had a user, verified after it no longer
    * does. Verify must refuse rather than create a user (reviewer, row 3,
@@ -184,9 +281,9 @@ describe("magic-link sign-in", () => {
     const ctx = await auth.$context;
     await ctx.internalAdapter.updateUser(user.id, { email: "renamed@example.org" });
 
-    const verified = await route(new Request(link));
+    const verified = await confirm(link);
     expect(verified.headers.getSetCookie().some((c) => c.includes("session_token"))).toBe(false);
-    expect(verified.headers.get("location")).toContain("new_user_signup_disabled");
+    expect(verified.status).toBe(400);
     expect(await ctx.internalAdapter.findUserByEmail("olena@example.org")).toBeNull();
   });
 });
@@ -309,7 +406,7 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
     await Promise.all(pending);
     const link = sender.sent[0]?.url;
     if (link === undefined) throw new Error("no link");
-    const verified = await secureAuth.handler(new Request(link));
+    const verified = await confirm(link, secureAuth, https);
     const cookie = verified.headers.getSetCookie().find((c) => c.includes("session_token="));
     expect(cookie).toMatch(/^__Host-kabinet\.session_token=/);
     expect(cookie).toMatch(/; Secure/);
@@ -356,15 +453,13 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
     if (link === undefined) throw new Error("no link");
     const userAgent = "Mozilla/5.0 (Linux; Android 14; TestPhone) KH-Q6";
     const before = new Date();
-    const verified = await route(
-      new Request(link, {
-        headers: {
-          "x-forwarded-for": "203.0.113.77",
-          "x-real-ip": "203.0.113.78",
-          "user-agent": userAgent,
-        },
-      }),
-    );
+    // Through the confirm page's POST, the one way a link signs in since
+    // IN-Q11: its server-built verify carries these over (`forwardedClientHeaders`).
+    const verified = await confirm(link, auth, BASE, undefined, {
+      "x-forwarded-for": "203.0.113.77",
+      "x-real-ip": "203.0.113.78",
+      "user-agent": userAgent,
+    });
     expect(verified.headers.getSetCookie().some((c) => c.includes("session_token="))).toBe(true);
 
     const rows = await db.select().from(authSession);
@@ -520,10 +615,9 @@ describe("the sign-in limits (HS-Q5)", () => {
 });
 
 describe("what the route lets through", () => {
-  it("forwards exactly four Better Auth paths", () => {
+  it("forwards exactly three Better Auth paths, never the GET that consumes a link (IN-Q11)", () => {
     expect([...FORWARDED_AUTH_PATHS].sort()).toEqual([
       "/api/auth/get-session",
-      "/api/auth/magic-link/verify",
       "/api/auth/sign-in/magic-link",
       "/api/auth/sign-out",
     ]);
@@ -659,8 +753,11 @@ describe("an invitation, written server-side and accepted through Better Auth (H
    * member) invites; the invitee signs in by magic link; Better Auth's own
    * accept-invitation endpoint makes them a member; the actor resolver then
    * sees a shelter admin of exactly that shelter. Called on `auth.handler`
-   * directly because the route doesn't forward the plugin's paths until the
-   * registry PR.
+   * directly: the route forwards none of the plugin's paths. The product no
+   * longer uses this endpoint (IN-Q13: the automatic accept is our own
+   * statement); these two tests keep Better Auth's behaviour pinned as the
+   * reference `invitation-accept.test.ts` compares against, and sign in
+   * without the automatic accept so the endpoint has something to accept.
    */
   it("makes the invitee a shelter admin of that shelter", async () => {
     const city = makeCity();
@@ -696,8 +793,9 @@ describe("an invitation, written server-side and accepted through Better Auth (H
         },
       },
     });
+    if (invitation.kind !== "created") throw new Error("unreachable");
 
-    const cookie = await signIn("olena@example.org");
+    const cookie = await signIn("olena@example.org", noAccept);
     const accepted = await auth.handler(
       post("/api/auth/organization/accept-invitation", { invitationId: invitation.id }, { cookie }),
     );
@@ -745,7 +843,8 @@ describe("an invitation, written server-side and accepted through Better Auth (H
         },
       },
     });
-    const cookie = await signIn("someone-else@example.org");
+    if (invitation.kind !== "created") throw new Error("unreachable");
+    const cookie = await signIn("someone-else@example.org", noAccept);
     const accepted = await auth.handler(
       post("/api/auth/organization/accept-invitation", { invitationId: invitation.id }, { cookie }),
     );
@@ -793,10 +892,15 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
       headers: from(ip, cookie ? { cookie } : {}),
     });
 
-  /** Uses up an address's per-IP budget with bad-token verifies, none of them refused. */
+  /**
+   * Uses up an address's per-IP budget with bad-token verifies, none of them
+   * refused. Through `auth.handler`, not the auth route: the route no longer
+   * forwards the verify (IN-Q11), and `auth.handler` is the entry the
+   * confirm page's POST uses.
+   */
   async function exhaustIp(ip: string) {
     for (let i = 0; i < PER_IP; i++) {
-      const response = await route(verifyWith(`bad${i}`.padEnd(32, "x"), ip));
+      const response = await auth.handler(verifyWith(`bad${i}`.padEnd(32, "x"), ip));
       expect(response.status, `verify ${i + 1} of ${PER_IP}`).not.toBe(429);
     }
   }
@@ -806,16 +910,22 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
     await route(post("/api/auth/sign-in/magic-link", { email: "olena@example.org" }));
     const link = sender.sent[0]?.url;
     if (link === undefined) throw new Error("no link sent");
-    const token = new URL(link).searchParams.get("token") ?? "";
 
     await exhaustIp("203.0.113.9");
-    const refused = await route(verifyWith(token, "203.0.113.9"));
+    // The confirm page's POST, as a browser at that address sends it.
+    const refused = await confirm(link, auth, BASE, undefined, {
+      "x-forwarded-for": "203.0.113.9",
+    });
     expect(refused.status).toBe(429);
+    expect(await refused.text()).toBe("Too Many Requests");
     expect(refused.headers.getSetCookie().some((c) => c.includes("session_token"))).toBe(false);
 
     // Refused before Better Auth read the token, so the link still works
     // from an address within its budget.
-    const verified = await route(verifyWith(token, "198.51.100.4"));
+    const verified = await confirm(link, auth, BASE, undefined, {
+      "x-forwarded-for": "198.51.100.4",
+    });
+    expect(verified.status).toBe(303);
     expect(verified.headers.getSetCookie().some((c) => c.includes("session_token="))).toBe(true);
   });
 

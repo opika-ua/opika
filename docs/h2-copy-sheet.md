@@ -27,17 +27,62 @@ to translate.
 The rest of §7 (photos, a few sentences per animal, a contact, a donation link, the update
 sentence) stays true.
 
+**Added line.** **Final (Oleksii, 2026-10-14); ships in the commit that turns production sign-in on; A1 goes directly before §7's last paragraph.** Not in `uk.ts` until that commit. His answer (row 91 of the PR #94 copy
+export, 2026-10-14, relayed by the coordinating session), verbatim: "Yes, include it: «Доступ до
+кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.» Place it directly before the
+current last paragraph of §7, and ship it in the same commit as row 89."
+> Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.
+
+(Earlier: answer 3 offered it as optional, not blocking, with its position open.)
+
 ### A2. `forShelters.whenAnimalFindsHome` (§9)
 **Current (last paragraph goes false):**
 > Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет,
 > якого не існує.
 
-**True after H2:**
+**Oleksii's replacement.** **Final (Oleksii, 2026-10-14); ships in the commit that turns production sign-in on; A1 goes directly before §7's last paragraph.** Not in `uk.ts` until that commit. His answer (row 89 of the
+PR #94 copy export, 2026-10-14, relayed by the coordinating session), verbatim: "FINAL YES as
+drafted: «Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду —
+змінити чи прибрати щось у ньому поки не можна.» Ships in the commit that turns production sign-in
+on (EM-Q1 b)." History: provisional, slated for the wiring commit (EM-Q1,
+2026-10-14, verbatim: "(b). A2 keeps the current text; the new paragraph ships in the commit that
+turns production sign-in on." The live text stays the "Current" above until then;
+`docs/h2-next-prs.md` carries it.) **His paragraph (answer 3, verbatim:
+"A2: «Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду —
+змінити чи прибрати щось у ньому поки не можна.» (replacing A2's third paragraph)" and "Copy: put
+my A2 paragraph and the /pro sentence in as provisional. I'll give the final yes before #94
+merges."):**
+> Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду —
+> змінити чи прибрати щось у ньому поки не можна.
+
+It describes the read-only kabinet, not the K2 editing below; when K2 ships, the paragraph changes
+again.
+
+**True after H2 (K2, later):**
 - The cabinet has a «Уже вдома» action per animal (K2). It takes the animal out of the gallery
   and keeps the record.
 - Writing to you still works, too.
 
 The first two paragraphs (why a homed animal left listed poisons every card) stay true.
+
+### /pro `about.data`: the addition (KH-C1)
+**Final (Oleksii, 2026-10-14); live in `uk.ts` with #94** (his handoff of 2026-10-14, relayed by the
+coordinating session, verbatim: "Row 90 ships with the #94 merge (all it describes is live via #95,
+and #94 starts storing admin emails at invite). Rows 89 and 91 ship with the production sign-in
+switch."), superseding the earlier instruction that rows 89/90/91 ship together in the wiring
+commit. Appended to `about.data`, after its last sentence, in the same paragraph; pinned in
+`copy-status.test.ts` and rendered on `/pro` (`page.test.tsx`). The check of each claim against the
+code is inbox EM-T17 (`docs/decisions-inbox/feat-h2-invite-email.md`), with two findings (EM-Q11). His answer (row 90 of the PR #94 copy
+export, 2026-10-14, relayed by the coordinating session), verbatim: "FINAL YES as drafted
+(«…видаляються протягом двох діб.»). The ~50h worst case with one skipped run is accepted:
+«протягом двох діб» describes the normal cycle. Ships with the cron." The text as drafted (KH-C1,
+Hobby):
+> Для притулків із доступом до кабінету реєстр зберігає ім'я та адресу пошти адміністратора — щоб
+> надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано
+> вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили
+> силу, видаляються протягом двох діб.
+
+On Vercel Pro the last clause would revert to «протягом доби» (KH-C1).
 
 ### A3. `forShelters.whoIsBehindThis` (§10)
 **Current:**
@@ -46,6 +91,9 @@ The first two paragraphs (why a homed animal left listed poisons every card) sta
 
 **After H2:** as far as I can see, **still true** (one operator, answering personally).
 Commitment #6 lists it, so it's here for you to confirm rather than for me to judge.
+
+**Oleksii, 2026-10-14, answer 3, verbatim: "A3: keep as is."** The kabinet's support banner is
+renamed instead (`docs/h2-invite-copy-sheet.md` S).
 
 ### A4. `forShelters.howToLeave`: not in commitment #6, listed because it's next door
 > …напишіть, і я приберу все: тварин, фотографії, ваш запис.

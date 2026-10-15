@@ -5,10 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RESEND_LOCKOUT_SECONDS, SignInCard } from "./SignInCard";
 
 /**
- * K1 (KABINET N1). The strings are `[COPY PENDING]`, so these tests assert
- * behaviour and structure, never the copy's wording: elements are found by the
- * catalogue keys, and what's asserted is what happens to them. The literal
- * format checked is the mock's own countdown, «· 0:42».
+ * K1 (KABINET N1). Elements are found by the catalogue keys, and what's
+ * asserted is what happens to them. The strings are Oleksii's final Ukrainian (2026-10-14); where
+ * one carries a rule (the fallback line), its rendered text is also checked
+ * against his wording, transcribed. The countdown format checked is the mock's
+ * own, «· 0:42».
  */
 
 beforeEach(() => {
@@ -18,10 +19,13 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const setup = (send: (email: string) => Promise<boolean> = async () => true) => {
+const setup = (
+  send: (email: string) => Promise<boolean> = async () => true,
+  contact: string | null = "hello@example.org",
+) => {
   const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
   const spy = vi.fn(send);
-  render(<SignInCard send={spy} />);
+  render(<SignInCard send={spy} contact={contact} />);
   return { user, send: spy };
 };
 
@@ -64,6 +68,17 @@ describe("K1 · enter email", () => {
     await act(async () => {});
     expect(document.activeElement).toBe(heading);
     expect(screen.getByText("Olena@Example.org").tagName).toBe("STRONG");
+  });
+
+  it("the sent state names both Gmail folders a link can land in (row 10, Oleksii 2026-10-14)", async () => {
+    const { user } = setup();
+    await signIn(user);
+    // Transcribed from his handoff: the sign-in email reached Promotions in delivery test 2.
+    expect(
+      screen.getByText(
+        "Листа немає? Перевірте «Спам» і «Промоакції». Надіслати ще раз можна через 60 секунд.",
+      ).tagName,
+    ).toBe("P");
   });
 
   it("says when the request itself failed, on the field, and stays on the form", async () => {
@@ -132,6 +147,44 @@ describe("K1 · check your email", () => {
     expect(document.activeElement).toBe(emailField());
     // A type="email" field holds its value sanitised (trimmed), as browsers do.
     expect((emailField() as HTMLInputElement).value).toBe("Olena@Example.org");
+  });
+});
+
+/**
+ * IN-T9 (IN-E7's resolution): under «check your email», a person to write to,
+ * the address from config. The same card for every address, so the line
+ * shows whatever happened to the send.
+ */
+describe("K1 · «check your email» names a person to write to (IN-T9)", () => {
+  /** The line's text before the address: the part of the placeholder the page doesn't fill. */
+  const lead = uk.kabinet.signInCard.notArrived.split("{contact}")[0] as string;
+  const notArrived = () => screen.queryByText((text) => text.startsWith(lead));
+
+  it("shows the fallback line with the configured address filled in, never the placeholder", async () => {
+    const { user } = setup(async () => true, "help@example.net");
+    expect(notArrived()).toBeNull();
+    await signIn(user);
+    const line = notArrived();
+    expect(line).not.toBeNull();
+    expect(line?.textContent).toBe(
+      "Якщо лист не прийшов за кілька хвилин, напишіть мені на help@example.net.",
+    );
+  });
+
+  it("is on the «check your email» state only, not on the form", async () => {
+    const { user } = setup();
+    expect(screen.queryByText(/hello@example\.org/)).toBeNull();
+    await signIn(user);
+    expect(screen.getByText(/hello@example\.org/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: uk.kabinet.signIn.otherAddress }));
+    expect(screen.queryByText(/hello@example\.org/)).toBeNull();
+  });
+
+  it("is left out, not shown with a hole, where no contact is configured", async () => {
+    const { user } = setup(async () => true, null);
+    await signIn(user);
+    expect(notArrived()).toBeNull();
+    expect(screen.queryByText(/\{contact\}/)).toBeNull();
   });
 });
 

@@ -9,6 +9,7 @@ import type { z } from "zod";
 import type { AppContext } from "../context";
 import { decodeRevealCursor, encodeRevealCursor } from "../cursor";
 import { requireEnv } from "../env";
+import { toView } from "./reveal";
 
 type Input = z.infer<typeof RevealsListMineInputSchema>;
 type Output = z.infer<typeof RevealsListMineOutputSchema>;
@@ -53,13 +54,8 @@ export async function revealsListMine(
     : null;
 
   return {
-    items: pageItems.map((r) => ({
-      id: r.id,
-      animalId: r.animalId,
-      revealedAt: r.revealedAt,
-      shelterSnapshot: r.shelterSnapshot,
-      animalSnapshot: r.animalSnapshot,
-    })),
+    // The same projection as the reveal itself: no exact address (EM-D1).
+    items: pageItems.map(toView),
     nextCursor,
   };
 }

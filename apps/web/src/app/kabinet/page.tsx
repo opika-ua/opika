@@ -4,10 +4,13 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "../../api/db";
 import { kabinetHomeOf } from "../../features/kabinet/home";
+import { JoinFailedCard } from "../../features/kabinet/JoinFailedCard";
+import { KabinetBrand } from "../../features/kabinet/KabinetBrand";
 import { ShelterProfile } from "../../features/kabinet/ShelterProfile";
+import { invitationAccepter, selfHealingIdentity } from "../../kabinet/invitation-accept";
 import { operatorDisplayName } from "../../kabinet/operator";
 import { kabinetIdentityOf } from "../../kabinet/principal";
-import { kabinetAuthOrNotFound } from "./available-auth";
+import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "./available-auth";
 
 export const metadata: Metadata = {
   title: uk.kabinet.profile.pageTitle,
@@ -18,17 +21,40 @@ export const metadata: Metadata = {
  * "your shelter" page (KS-Q1). While sign-in is unavailable it answers its
  * own 404 before touching auth or the database. Who sees what is
  * `kabinetHomeOf`'s decision, the API's own access matrix.
+ *
+ * A signed-in user with no role first gets the automatic invitation accept
+ * again (IN-Q12): if it failed on «Увійти», this load is the retry.
  */
 export default async function KabinetHomePage() {
   const auth = kabinetAuthOrNotFound();
+  const { invites, baseURL } = kabinetAvailabilityOrNotFound();
   const now = new Date();
   const production = process.env.NODE_ENV === "production";
   const db = getDb();
-  const identity = await kabinetIdentityOf(auth, db, new Headers(await headers()), now, production);
-  const home = await kabinetHomeOf(identity.principal, {
+  const requestHeaders = new Headers(await headers());
+  const resolve = () => kabinetIdentityOf(auth, db, requestHeaders, now, production);
+  const healed = await selfHealingIdentity(await resolve(), {
+    accept: invitationAccepter(db, () => now),
+    resolve,
+  });
+  if (healed.kind === "join_failed") {
+    return (
+      <div className="flex min-h-dvh flex-col">
+        <header className="flex min-h-16 items-center bg-rg-surface px-4 tablet:min-h-0 tablet:bg-transparent tablet:p-8">
+          <KabinetBrand />
+        </header>
+        <main className="flex flex-1 flex-col px-4 pt-5 pb-6 tablet:items-center tablet:justify-center tablet:px-8 tablet:pt-8 tablet:pb-24">
+          <JoinFailedCard />
+        </main>
+      </div>
+    );
+  }
+  const home = await kabinetHomeOf(healed.identity.principal, {
     db,
     now,
     newId: () => crypto.randomUUID(),
+    invites,
+    linkBaseURL: baseURL,
   });
   switch (home.kind) {
     case "sign_in":

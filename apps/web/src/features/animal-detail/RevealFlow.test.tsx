@@ -59,18 +59,9 @@ function revealFor(contact: ShelterContact): ContactRevealView {
       shelterId: SHELTER_ID,
       displayName: "Притулок «Домівка»",
       contact,
-      exactAddress: {
-        line1: "вул. Незалежності, 12",
-        line2: null,
-        postalCode: null,
-        cityId: CITY_ID,
-        district: null,
-        coordinates: { lat: 50.5111, lng: 30.7903 },
-      },
-      // `city` precision rather than `fuzzed_address`: the dialog never
-      // renders coordinates, and this variant needs no branded
-      // `FuzzedCoordinates`, which only `fuzzCoordinates` may construct.
-      publicLocation: { precision: "city", cityId: CITY_ID, district: null },
+      // City only, as the served reveal carries it (EM-D1): no exact
+      // address, district or point ever reaches the client.
+      publicLocation: { cityId: CITY_ID },
       verificationStatusAtReveal: "verified",
       donation: null,
     },
@@ -186,6 +177,46 @@ describe("RevealFlow's contact rows", () => {
     expect(write.getAttribute("href")).toBe("https://t.me/domivka_brovary");
     // Transcribed from the mock's R1 frame, not read back from `uk.reveal`.
     expect(write.textContent).toBe("Написати в Telegram");
+  });
+});
+
+/**
+ * EM-D1 (Oleksii, 2026-10-15, verbatim: "the exact address never leaves the
+ * server for adopters; the meeting place is agreed with the shelter (matches
+ * the live copy)"). The served view can no longer carry it
+ * (`pre-reveal-location.test.ts`, both halves); this pins the other side: even
+ * handed an over-wide snapshot (a regressed server), the dialog reads no
+ * address field, and says the meeting place is agreed in correspondence.
+ */
+describe("RevealFlow's location line (EM-D1)", () => {
+  it("shows the city and «місце узгодите в листуванні», never an address it was handed", async () => {
+    const overWide = revealFor({
+      primary: { kind: "phone", e164: "+380671234567" },
+      additional: [],
+    });
+    revealCall.mockResolvedValue({
+      ...overWide,
+      shelterSnapshot: {
+        ...overWide.shelterSnapshot,
+        exactAddress: {
+          line1: "вул. Незалежності, 12",
+          line2: "кв. 3",
+          postalCode: "07400",
+          cityId: CITY_ID,
+          district: { uk: "Броварський район", en: null },
+          coordinates: { lat: 50.5111, lng: 30.7903 },
+        },
+      },
+    });
+    renderFlow();
+    fireEvent.click(screen.getByTestId("reveal-trigger"));
+    const dialog = await screen.findByTestId("reveal-dialog");
+
+    const text = dialog.textContent ?? "";
+    expect(text).toContain("м. Бровари · місце узгодите в листуванні");
+    for (const leaked of ["Незалежності", "кв. 3", "07400", "Броварський", "50.5111", "30.7903"]) {
+      expect(text, leaked).not.toContain(leaked);
+    }
   });
 });
 

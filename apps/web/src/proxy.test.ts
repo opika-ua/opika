@@ -74,6 +74,68 @@ describe("proxy", () => {
       expect(response.headers.get("set-cookie")).toContain(`${cookieName()}=${SECRET}`);
     });
 
+    /**
+     * IN-Q1 (Oleksii, verbatim: "Test both directions: exempt paths pass;
+     * every other /api/* path (incl. /api/authx, /api/registry) still
+     * 403s."): no gate cookie, no gate parameter, as a fresh browser opening
+     * a magic link arrives.
+     */
+    it.each([
+      "/api/auth",
+      "/api/auth/sign-in/magic-link",
+      "/api/auth/magic-link/verify",
+      "/api/kabinet",
+      "/api/kabinet/registry/shelters/list",
+      "/kabinet",
+      "/kabinet/vkhid",
+    ])("lets %s through without the gate (the kabinet's own routes)", async (path) => {
+      const { proxy } = await import("./proxy");
+      expect((await proxy(request(`https://opika.example${path}`))).status).toBe(200);
+    });
+
+    it.each([
+      "/api/authx",
+      "/api/auth-old",
+      "/api/registry",
+      "/api/kabinetx",
+      "/api/rpc/feed.list",
+      "/api",
+      "/kabinetx",
+      "/kabinet-old",
+      "/tvaryny?next=/kabinet",
+      "/prytulkam/kabinet",
+      // Encoded traversal and case (review of 7294f5e, finding 5). URL
+      // parsing resolves `%2e%2e` segments before proxy sees the path, so the
+      // first two reach proxy as /prytulkam and /api/rpc/gallery.list: they
+      // pin the parser's normalisation, not proxy's own handling. Paths are
+      // case-sensitive, so /API/auth is not the exempt /api/auth, and a
+      // change that lowercased the path would turn it red.
+      "/kabinet/%2e%2e/prytulkam",
+      "/api/auth/%2e%2e/rpc/gallery.list",
+      "/API/auth/x",
+      // An encoded slash survives parsing as one segment, so this reaches
+      // proxy undecoded and gated. If proxy ever decoded the path before
+      // matching, it would read "/kabinet/../prytulkam" and exempt it: this
+      // is the case that turns red (review pass 2, finding 2).
+      "/kabinet%2f..%2fprytulkam",
+    ])("still gates %s, which only looks like a kabinet route", async (path) => {
+      const { proxy } = await import("./proxy");
+      expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
+    });
+
+    /**
+     * Review of 7294f5e, finding 6: on an exempt path the gate isn't
+     * evaluated at all, so `?gate=` mints no cookie there. Harmless: the
+     * kabinet's routes never need it, and the cookie is still minted on any
+     * gated page that carries the parameter.
+     */
+    it("mints no gate cookie on an exempt path, even with the gate parameter", async () => {
+      const { proxy } = await import("./proxy");
+      const response = await proxy(request(`https://opika.example/kabinet/vkhid?gate=${SECRET}`));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("set-cookie")).toBeNull();
+    });
+
     it("denies a request to a route outside /tvaryny just the same — the gate covers the whole site", async () => {
       const { proxy } = await import("./proxy");
       const response = await proxy(request("https://opika.example/prytulkam"));
@@ -198,6 +260,30 @@ describe("proxy", () => {
       const refused = await load("/kabinet/vkhid");
       expect(refused.status).toBe(429);
       expect(await refused.text()).toBe("Too Many Requests");
+    });
+
+    /**
+     * The merge of #95 into the invite PR: the confirm page's POST runs the
+     * verify, which `auth.ts`'s `hooks.before` charges on these same budgets,
+     * so the proxy leaves the POST alone. Its GET is still a page load.
+     */
+    it("leaves the sign-in confirm POST to Better Auth's hook, and still charges its GET", async () => {
+      const { proxy } = await import("./proxy");
+      const { KABINET_RATE_LIMITS } = await import("./kabinet/rate-limits");
+      const confirm = (method: string) =>
+        proxy(
+          new NextRequest("https://opika.example/kabinet/vkhid/pidtverdzhennia", {
+            method,
+            headers: { "x-forwarded-for": "5.5.5.5" },
+          }),
+        );
+      for (let i = 0; i <= KABINET_RATE_LIMITS.perIp.maxRequests; i++) {
+        expect((await confirm("POST")).status).toBe(200);
+      }
+      for (let i = 0; i < KABINET_RATE_LIMITS.perIp.maxRequests; i++) {
+        expect((await confirm("GET")).status).toBe(200);
+      }
+      expect((await confirm("GET")).status).toBe(429);
     });
 
     it("leaves /api/kabinet to its route's own limiter, never charging it twice", async () => {

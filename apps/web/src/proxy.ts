@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 import { clientIp } from "./api/client-ip";
 import { evaluatePrelaunchGate, PRELAUNCH_GATE_QUERY_PARAM } from "./api/prelaunch-gate";
 import { apiRateLimiter } from "./api/rate-limit";
+import { ipRateLimitKey } from "./api/rate-limit-key";
 import { kabinetLimiters } from "./kabinet/limiters";
-import { isKabinetPagePath, kabinetPageLoadAllowed } from "./kabinet/page-limit";
+import { isChargedKabinetPageLoad, kabinetPageLoadAllowed } from "./kabinet/page-limit";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
 
 /**
@@ -14,7 +15,10 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  *
  * **The pre-launch gate**, added 2026-09-13 — a bot shutter, NOT a security
  * boundary. While `SITE_IS_PUBLICLY_DISCOVERABLE` is false (`./seo-flags.ts`),
- * every request 403s unless it carries the shared secret below. Full
+ * every request 403s unless it carries the shared secret below, except the
+ * kabinet's own routes (`isGateExemptPath`, IN-Q1), which have their own
+ * authentication and must work from a magic link in a fresh browser, and
+ * Vercel's cron calls (`isCronPath`, KH-T5), which carry `CRON_SECRET`. Full
  * reasoning for what this does and does not protect, why there's no
  * user-agent carve-out, and why the `?gate=` secret appearing in logs and
  * browser history is accepted rather than fixed: `./api/prelaunch-gate.ts`'s
@@ -55,7 +59,11 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  * so neither half of the story is missed reading this file in isolation.
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  if (!SITE_IS_PUBLICLY_DISCOVERABLE && !isCronPath(request.nextUrl.pathname)) {
+  if (
+    !SITE_IS_PUBLICLY_DISCOVERABLE &&
+    !isGateExemptPath(request.nextUrl.pathname) &&
+    !isCronPath(request.nextUrl.pathname)
+  ) {
     const decision = evaluatePrelaunchGate(
       request.headers.get("cookie"),
       request.nextUrl.searchParams.get(PRELAUNCH_GATE_QUERY_PARAM),
@@ -77,7 +85,7 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
   const now = new Date();
   if (
     isDiscoveryPagePath(request.nextUrl.pathname) &&
-    !(await apiRateLimiter.check(clientIp(request), now))
+    !(await apiRateLimiter.check(ipRateLimitKey(clientIp(request)), now))
   ) {
     return new NextResponse("Too Many Requests", { status: 429 });
   }
@@ -94,7 +102,7 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
   // KH-T4). The limiters themselves come from `kabinet/limiters`, which is
   // as light as the adopter limiter above.
   if (
-    isKabinetPagePath(request.nextUrl.pathname) &&
+    isChargedKabinetPageLoad(request.method, request.nextUrl.pathname) &&
     !(await kabinetPageLoadAllowed(
       kabinetLimiters,
       {
@@ -108,6 +116,23 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
     return new NextResponse("Too Many Requests", { status: 429 });
   }
   return NextResponse.next();
+}
+
+/**
+ * The kabinet's own routes skip the pre-launch gate (IN-Q1, Oleksii: "exempt
+ * exactly /api/auth/*, /api/kabinet/*, /kabinet/*"). A magic link opened in a
+ * fresh browser carries no gate cookie, so without this a shelter could
+ * never complete sign-in. These routes have their own authentication; the
+ * gate is a bot shutter, not that. Matched by whole path segment, so
+ * `/api/authx`, `/api/kabinetx` and `/kabinetx` stay gated like everything
+ * else.
+ */
+const GATE_EXEMPT_PREFIXES = ["/api/auth", "/api/kabinet", "/kabinet"] as const;
+
+export function isGateExemptPath(pathname: string): boolean {
+  return GATE_EXEMPT_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
 /**
@@ -137,7 +162,8 @@ function isDiscoveryPagePath(pathname: string): boolean {
  * them isn't a gate weakness — they reveal nothing about the site's content
  * and a browser that already holds the gate cookie needs them to render any
  * page at all. Everything else this matcher sees, including `/api/rpc/*`
- * and every app page, is in scope: "every request" per the decision this
+ * and every app page, is in scope (the kabinet's routes and the cron path are
+ * exempted inside `proxy`, by path, not here): "every request" per the decision this
  * gate implements, not only the specific routes a crawler happened to hit
  * this time.
  *

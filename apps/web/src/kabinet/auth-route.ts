@@ -1,5 +1,6 @@
 import { clientIp } from "../api/client-ip";
 import { FORWARDED_AUTH_PATHS, type KabinetAuth } from "./auth";
+import { consoleInvitationSender, type InvitationSender } from "./email-senders";
 import { consoleSender, type MagicLinkSender } from "./magic-link-sender";
 import { normalizeEmail, type SignInLimiters, signInAllowed } from "./sign-in-limit";
 
@@ -9,12 +10,19 @@ import { normalizeEmail, type SignInLimiters, signInAllowed } from "./sign-in-li
  * Production has **no** sender in this slice (HS-Q2), so it is always
  * unavailable there and every auth request answers 503: nobody can be sent a
  * link, so nobody can sign in, and saying so beats pretending to send. The
- * invite PR adds the provider. Development uses the console sender, and still
+ * production-sign-in wiring commit adds the provider. Development uses the console sender, and still
  * needs a secret and a URL: without them it's unavailable too, never a
  * hard-coded default secret.
  */
 export type KabinetAuthAvailability =
-  | { kind: "available"; sender: MagicLinkSender; secret: string; baseURL: string }
+  | {
+      kind: "available";
+      sender: MagicLinkSender;
+      /** The operator's invitation emails (IN-Q3); the console in development, like `sender`. */
+      invites: InvitationSender;
+      secret: string;
+      baseURL: string;
+    }
   | { kind: "unavailable"; reason: "no_sender_in_production" | "missing_config" };
 
 export function kabinetAuthAvailability(env: {
@@ -30,6 +38,7 @@ export function kabinetAuthAvailability(env: {
   return {
     kind: "available",
     sender: consoleSender,
+    invites: consoleInvitationSender,
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
   };

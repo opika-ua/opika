@@ -19,6 +19,22 @@ describe("AboutPage", () => {
     expect(screen.getByText("Зв'язатися з розробником: hello@opika.org.ua")).toBeTruthy();
   });
 
+  /**
+   * KH-C1 (row 90, Oleksii's final yes 2026-10-14; ships with #94): the
+   * kabinet addition closes the data paragraph, in the same paragraph.
+   * Transcribed from his text, never read from `uk.ts`.
+   */
+  it("the data paragraph ends with the kabinet addition", () => {
+    render(<AboutPage />);
+    const data = screen.getByText(/Дані, які вносить притулок/);
+    expect(data.tagName).toBe("P");
+    expect(
+      data.textContent?.endsWith(
+        "Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до кабінету реєстр зберігає ім'я та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб.",
+      ),
+    ).toBe(true);
+  });
+
   it("the header wordmark links back to the gallery and shows a real focus-visible outline", () => {
     render(<AboutPage />);
 

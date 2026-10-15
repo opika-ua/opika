@@ -10,6 +10,7 @@ import type { z } from "zod";
 import type { AppContext } from "../context";
 import { discoverableListingKind } from "./discoverable-listing-kind";
 import { listingFreshness } from "./listing-freshness";
+import { cityOnlyLocationOf } from "./public-location";
 
 type GalleryListInput = z.infer<typeof GalleryListInputSchema>;
 type GalleryListOutput = z.infer<typeof GalleryListOutputSchema>;
@@ -64,7 +65,7 @@ export async function galleryList(
         species: animal.species,
         sex: animal.sex,
         size: animal.size,
-        publicLocation: animal.publicLocation,
+        publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
         ageBucket: ageBucketOf(animal.age, context.now),
         freshness: listingFreshness(animal.listing, context.now),
         primaryPhoto: primaryPhoto(animal),
@@ -72,7 +73,7 @@ export async function galleryList(
         shelter: {
           id: shelter.id,
           displayName: shelter.displayName,
-          publicLocation: shelter.publicLocation,
+          publicLocation: cityOnlyLocationOf(shelter.publicLocation),
           freshnessSentence: shelter.freshnessSentence,
           verification:
             shelter.verification.status === "verified"
