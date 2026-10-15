@@ -2,6 +2,7 @@ import postgres from "postgres";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   assertDisposableTestDatabase,
+  disposeTestDatabaseAfterRun,
   dropTestDatabase,
   ensureTestDatabase,
   testDatabaseName,
@@ -75,27 +76,66 @@ describe("ensureTestDatabase / dropTestDatabase", () => {
     (await server`SELECT 1 FROM pg_database WHERE datname = ${name}`).length === 1;
 
   afterAll(async () => {
-    await dropTestDatabase(url);
+    await dropTestDatabase(url, "force");
     await server.end();
   });
 
-  it("creates the database once, tolerates a second ensure, and drops it with a connection open", async () => {
+  it("creates the database once, tolerates a second ensure, and a forced drop closes an open connection", async () => {
     await ensureTestDatabase(url);
     await ensureTestDatabase(url);
     expect(await exists()).toBe(true);
     const open = postgres(url, { max: 1 });
     await open`SELECT 1`;
-    await dropTestDatabase(url);
+    expect(await dropTestDatabase(url, "force")).toEqual({ kind: "dropped" });
     expect(await exists()).toBe(false);
     await open.end({ timeout: 0 }).catch(() => {});
+  });
+
+  // The after-run teardown's mode. A second run in the same checkout holding
+  // the database open must keep it, or that run's tests fail mid-run.
+  it("keeps a database another session holds open when not forced, and drops it once none does", async () => {
+    await ensureTestDatabase(url);
+    const open = postgres(url, { max: 1 });
+    try {
+      await open`SELECT 1`;
+      expect(await dropTestDatabase(url, "unless_in_use")).toEqual({ kind: "in_use" });
+      expect(await exists()).toBe(true);
+      await open`SELECT 1`;
+    } finally {
+      await open.end();
+    }
+    expect(await dropTestDatabase(url, "unless_in_use")).toEqual({ kind: "dropped" });
+    expect(await exists()).toBe(false);
+    expect(await dropTestDatabase(url, "unless_in_use")).toEqual({ kind: "dropped" });
+  });
+
+  it("the after-run teardown, as both runners call it, keeps a database in use and drops an idle one", async () => {
+    await ensureTestDatabase(url);
+    const lines: string[] = [];
+    const open = postgres(url, { max: 1 });
+    try {
+      await open`SELECT 1`;
+      expect(await disposeTestDatabaseAfterRun(url, "passed", {}, (l) => lines.push(l))).toEqual({
+        kind: "keep",
+        reason: "in_use_by_another_session",
+      });
+      expect(await exists()).toBe(true);
+    } finally {
+      await open.end();
+    }
+    expect(lines).toEqual([`Kept test database ${name}: another session is still using it.`]);
+    expect(await disposeTestDatabaseAfterRun(url, "passed", {}, () => {})).toEqual({
+      kind: "drop",
+    });
+    expect(await exists()).toBe(false);
   });
 
   it("refuses to create or drop the dev database", async () => {
     await expect(ensureTestDatabase("postgres://opika:opika@localhost:5433/opika")).rejects.toThrow(
       /Refusing/,
     );
-    await expect(dropTestDatabase("postgres://opika:opika@localhost:5433/opika")).rejects.toThrow(
-      /Refusing/,
-    );
+    await expect(
+      dropTestDatabase("postgres://opika:opika@localhost:5433/opika", "force"),
+    ).rejects.toThrow(/Refusing/);
   });
 });

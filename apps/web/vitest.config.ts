@@ -1,6 +1,14 @@
 import { configDefaults, defineConfig } from "vitest/config";
 
 /**
+ * Drops this checkout's test database when the run ends (kept on a failed
+ * run only with KEEP_TEST_DB_ON_FAILURE=1). On both projects: each has
+ * DB-backed files, and `--project dom` alone must still clean up. Two
+ * teardowns in one run are harmless; the second drop finds nothing.
+ */
+const TEST_DATABASE_TEARDOWN = "./test/vitest-global-setup.ts";
+
+/**
  * Two projects, because this package has two genuinely different kinds of test
  * and one environment cannot serve both.
  *
@@ -47,6 +55,7 @@ export default defineConfig({
           include: ["src/api/**/*.test.ts", "src/kabinet/**/*.test.ts", "src/proxy.test.ts"],
           testTimeout: 15_000,
           fileParallelism: false,
+          globalSetup: [TEST_DATABASE_TEARDOWN],
         },
       },
       {
@@ -70,6 +79,7 @@ export default defineConfig({
           // project, and this suite is fast enough that the cost is real
           // but small.
           fileParallelism: false,
+          globalSetup: [TEST_DATABASE_TEARDOWN],
         },
       },
     ],
