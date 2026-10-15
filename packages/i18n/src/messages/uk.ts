@@ -249,7 +249,11 @@ export const uk = {
   freshness: {
     /** Rendered by Intl.RelativeTimeFormat('uk'), not this string. */
     updatedAgo: "Оновлено {days}",
-    attribution: "Слова притулку · дата автоматична",
+    /**
+     * «· дата автоматична» deleted 2026-10-15 (VH-Q2, Oleksii): nothing fills a
+     * date into the shelter's sentence, and the design drops `{date}` (VH-Q1).
+     */
+    attribution: "Слова притулку",
   },
 
   // --- Medical ---

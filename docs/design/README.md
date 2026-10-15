@@ -282,11 +282,17 @@ and `aria-label` repeats the sentence while the pips are `aria-hidden`.
 ### The shelter's sentence
 Below the marker, body-l 17/26, in «…»:
 
-> «Ми оновлювали цю картку 25 червня. З того часу не заходили — напишіть, і ми скажемо, чи Ластівка ще з нами.»
+> «…Напишіть, і ми скажемо, чи Ластівка ще з нами.»
 
 Written **once by the shelter at verification, in their own words**, stored per shelter. Opika
-substitutes only the date and the animal's name. The attribution line below reads
-**«Слова притулку · дата автоматична»** so the quote can never be mistaken for a message sent today.
+substitutes only the animal's name (`{імʼя}`, K2), and only in its base form: the registry can't
+decline Ukrainian names, so the slot fits only where the nominative does («чи Ластівка ще з нами»,
+not «чекаємо на {імʼя}»). There is **no date slot**: the automatic day count above the quote already
+says how current the card is, and a date inside a sentence has the same case problem. The
+attribution line below reads **«Слова притулку»**, and appears only under a quote. *(Amended
+2026-10-15, inbox VH-Q1 and VH-Q2: the earlier example carried a typed date and the attribution
+read «· дата автоматична»; neither was ever true of the built product. Until K2 nothing is
+substituted, so a shelter's sentence carries no date and no animal name.)*
 Do not write, paraphrase or generate these sentences. A shelter with none on file falls back to the
 marker plus day count alone.
 

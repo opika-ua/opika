@@ -18,10 +18,11 @@ import { ShelterVerificationSchema } from "./verification/state";
  *
  * Written once during verification, in the shelter's own words, and
  * rendered verbatim: nothing is substituted, generated or paraphrased.
- * The design (`docs/design/README.md`, the voice editor in KABINET.md)
- * specifies `{date}` and `{name}` substitution; it was never built, so a
- * sentence containing them would show the braces. Build it or amend the
- * design: inbox VH-Q1.
+ * K2 adds one slot, `{name}`, filled with the animal's name in its base
+ * form: names can't be declined, so it only fits where the nominative does
+ * (VH-Q1, Oleksii, 2026-10-15). There is no `{date}`: the day count above the
+ * quote already says how current it is. Until K2, nothing is filled in, and
+ * a sentence containing either token would show the braces.
  * A shelter with no sentence falls back to the marker + day count alone.
  */
 export const FreshnessSentenceSchema = LocalizedTextSchema.nullable();

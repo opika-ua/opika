@@ -60,7 +60,7 @@ Route slugs are suggestions in the same transliteration style as `/tvaryny`; adj
 7. **Fostered animals never get a map, pin or address**, only a city name.
 8. **Unknown = «Не записано»**, never a dash, never "no", never an error.
 9. **The shelter speaks in the first person.** The freshness sentence is the shelter's own words. Opika
-   substitutes only `{дата}` and `{імʼя}`.
+   substitutes only `{імʼя}`, in its base form (no `{дата}`: the day count covers it; VH-Q1, 2026-10-15).
 
 ---
 
@@ -233,8 +233,10 @@ entry visible to the operator (S1/S4's history, same entry shape as the verifica
   below: «Очікує підтвердження оператора» + the proposed domain + «Скасувати пропозицію» (text button);
   **the operator's own approve/reject actions live on S4**, not here — K4 only ever proposes or cancels
   its own proposal, never approves it.
-- **Voice (N11):** textarea 120 with `{дата}` and `{імʼя}` tokens. Below it, a live preview of the real
-  freshness block with «Слова притулку · дата автоматична».
+- **Voice (N11):** textarea 120 with one `{імʼя}` token. Names stay in their base form (the registry
+  can't decline them), so the live preview below fills the token with a real animal's name, and a hint
+  says the name stays as is (hint copy: Oleksii's, when K2 is built). The preview is the real freshness
+  block with «Слова притулку». No `{дата}` token (VH-Q1, 2026-10-15).
 - **Pause / resume (N21).** A secondary 48 button, «Призупинити прийом тварин» (verified, not paused) or
   «Відновити прийом тварин» (paused). Self-service — `packages/domain`'s own `pause`/`resume` FSM events
   are explicitly shelter-initiated, distinct from the operator's `suspend`/`reinstate`. Pausing opens a
@@ -381,7 +383,7 @@ the server, not only in the UI.
 | N8 | Toggle | 52×32 r999. Off: 2px `#63676B` outline track, 20px `#63676B` knob (5.9:1). On: ink track, 24px white knob. **No light-fill off state** (same 1.4.11 reasoning as the outlined pip) |
 | N9 | Photo tile | 4:5 r16; add = dashed 2px `#63676B`; uploading = `#DCDCD9` + 6px bar; failed = `#F2F2F0` + inset 2px ink + words; cover pill white 28 |
 | N10 | Locked block | dashed 2px `#63676B` border, r24, no fill (5.4:1 on page); label–value rows; reason in words; no lock icon. In this system dashed means "not yours / not yet real" |
-| N11 | Voice editor | textarea 120, `{дата}` `{імʼя}` tokens, live freshness-block preview |
+| N11 | Voice editor | textarea 120, `{імʼя}` token (base form; no `{дата}`, VH-Q1), live freshness-block preview with a real animal's name |
 | N12 | Verification chip | N3 geometry. Очікує: dashed · На розгляді: ink outline · Перевірено: ink fill · Відхилено: `#DCDCD9` · На паузі: `#F2F2F0` ink-2 · Призупинено: `#DCDCD9` + 2px ink outline |
 | N13 | Evidence card + doc row | see S3, corrected 2026-10-07 — EDRPOU gains registered name, bank account loses bank/IBAN, see that table |
 | N14 | Decision panel + history | sticky 340 r24; reinstate button names the prior state |

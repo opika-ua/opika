@@ -91,7 +91,7 @@ export const en = {
   freshness: {
     /** Rendered by Intl.RelativeTimeFormat('en'), not this string. */
     updatedAgo: "Updated {days}",
-    attribution: "The shelter's own words · date filled in automatically",
+    attribution: "The shelter's own words",
   },
 
   // --- Medical ---

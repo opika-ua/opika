@@ -16,8 +16,9 @@ public location before anything touches the live database.
   never touches money).
 - **A freshness sentence, in their own words** — one or two sentences about
   how current their listings are. Required; don't onboard without it.
-  It is shown **word for word**: nothing fills in a date or an animal's name
-  (inbox VH-Q1). So keep a specific date and any animal's name out of it: a
+  It is shown **word for word**: until K2, nothing fills in an animal's name,
+  and nothing will ever fill in a date (inbox VH-Q1). So keep a specific date
+  and any animal's name out of it: a
   typed date goes stale while it still reads as current, and `{date}` or
   `{name}` would appear with their braces.
 - **Real verification evidence** — see below. Not their name for the record;
