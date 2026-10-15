@@ -195,12 +195,14 @@
 
   /*
    * ---- Typography — font families ----
-   * `next/font/google` (apps/web/src/app/fonts.ts) generates these two CSS
-   * custom properties and applies them on <html> in layout.tsx. The
+   * `next/font` (apps/web/src/app/fonts.ts — `next/font/local` for Literata,
+   * `next/font/google` for Commissioner) generates these two CSS custom
+   * properties and applies them on <html> in layout.tsx. The
    * metric-matched fallback is already inside each generated variable, not
    * written here: next/font emits
-   * `--font-literata: "Literata", "Literata Fallback"` (verified in the
-   * built stylesheet), where the "Fallback" face is a font-metrics-adjusted local
+   * `--font-literata: "literata", "literata Fallback"` for the local Literata
+   * (the family name comes from the variable; CSS family names ignore case)
+   * and the same shape for Commissioner, where the "Fallback" face is a font-metrics-adjusted local
    * face Next computes at build time so the *fallback itself* is sized like
    * the web font — which is what keeps first paint from visibly reflowing
    * when the real font arrives (`display: swap`'s usual cost). So there is

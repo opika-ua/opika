@@ -15,6 +15,7 @@ export { setupTestDatabase, type TestContext, truncateAll } from "./setup";
 export { type SmokeTarget, smokeTarget } from "./smoke-target";
 export {
   assertDisposableTestDatabase,
+  disposeTestDatabaseAfterRun,
   dropTestDatabase,
   ensureTestDatabase,
   harnessPort,

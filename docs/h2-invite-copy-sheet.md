@@ -62,7 +62,7 @@ The English senses above describe facts, not tone; this note governs the tone.
 In `uk.ts` as `[COPY PENDING]` with Oleksii's draft quoted inside, pinned in
 `copy-status.test.ts`. Returned by `registry.shelters.create` (`firstAdminInvitationReminder`),
 `registry.admins.invite` and `resendInvite` (`invitationReminder`) on every `sent` outcome,
-`blockCheck: "unknown"` included (default taken, `docs/decisions-inbox/feat-h2-invite-email.md`
+`blockCheck: "unknown"` included (default taken, `docs/decisions-inbox.md`
 EM-T5); null on `blocked` and `failed`. `{sender}` is filled from the configured From address.
 
 | Key | Where | English sense |

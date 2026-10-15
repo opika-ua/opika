@@ -442,6 +442,14 @@ pnpm --filter @opika/web test:harness:install   # downloads Chromium
 
 docker compose up -d      # local Postgres+PostGIS (postgis/postgis:17-3.5)
 docker compose down       # stop it; add -v to also drop the volume
+
+# Each checkout's test databases (opika_test_<hash>, opika_harness_<hash>) are dropped
+# when its vitest/harness run ends; KEEP_TEST_DB_ON_FAILURE=1 keeps a failed run's.
+# Also kept: after a Ctrl-C'd vitest run (its teardown never runs), after a harness run
+# given a CLI --reporter (it replaces the dropping reporter), and while another session
+# still uses it (the drop is never forced). The next run reuses it; the prune clears it.
+pnpm db:prune-test-dbs        # local only, dry run: lists them, says which checkouts are gone
+pnpm db:prune-test-dbs --yes  # drops only those whose recorded checkout no longer exists
 ```
 
 `pnpm i && pnpm check` must pass on a clean clone (no `node_modules`,

@@ -72,7 +72,7 @@ and #94 starts storing admin emails at invite). Rows 89 and 91 ship with the pro
 switch."), superseding the earlier instruction that rows 89/90/91 ship together in the wiring
 commit. Appended to `about.data`, after its last sentence, in the same paragraph; pinned in
 `copy-status.test.ts` and rendered on `/pro` (`page.test.tsx`). The check of each claim against the
-code is inbox EM-T17 (`docs/decisions-inbox/feat-h2-invite-email.md`), with two findings (EM-Q11). His answer (row 90 of the PR #94 copy
+code is inbox EM-T17 (`docs/decisions-inbox.md`), with two findings (EM-Q11). His answer (row 90 of the PR #94 copy
 export, 2026-10-14, relayed by the coordinating session), verbatim: "FINAL YES as drafted
 («…видаляються протягом двох діб.»). The ~50h worst case with one skipped run is accepted:
 «протягом двох діб» describes the normal cycle. Ships with the cron." The text as drafted (KH-C1,
