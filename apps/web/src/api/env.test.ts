@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { productionSignInOf } from "../kabinet/production-sign-in";
+import { assertBuildEnv } from "./build-env";
 import { validateEnv } from "./env";
 
 /**
@@ -9,6 +11,18 @@ import { validateEnv } from "./env";
  * restores the real environment after every test, the same guarantee
  * `test-harness.ts` gives by hand for `CURSOR_HMAC_SECRET`.
  */
+/** Production sign-in's variables in the shape Oleksii reported setting (2026-10-15), example secrets. */
+const SIGN_IN = {
+  EMAIL_PROVIDER: "resend",
+  RESEND_API_KEY: "re_example_key",
+  EMAIL_FROM_ADDRESS: "noreply@mail.opika.org.ua",
+  EMAIL_FROM_NAME: "Opika",
+  EMAIL_REPLY_TO: "hello@opika.org.ua",
+  PRODUCTION_ORIGIN: "https://opika.org.ua",
+  BETTER_AUTH_SECRET: "b".repeat(64),
+  BETTER_AUTH_URL: "https://opika.org.ua",
+} as const;
+
 describe("validateEnv", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -117,6 +131,12 @@ describe("validateEnv", () => {
     // Valid by default (every Vercel deployment needs it, EM-B6); the
     // RATE_LIMIT_KEY_SECRET cases below clear it to test it alone.
     vi.stubEnv("RATE_LIMIT_KEY_SECRET", "r".repeat(32));
+    // Valid by default too (read on a production deployment only): the
+    // location key (RG-Q10) and production sign-in's variables (IN-R2,
+    // Decision 1), each cleared by its own cases below.
+    vi.stubEnv("LOCATION_HMAC_SECRET", "l".repeat(32));
+    for (const [name, value] of Object.entries(SIGN_IN)) vi.stubEnv(name, value);
+    vi.stubEnv("EMAIL_SIGN_IN_PROVIDER", "");
     vi.stubEnv("KV_REST_API_URL", "");
     vi.stubEnv("KV_REST_API_TOKEN", "");
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
@@ -280,5 +300,191 @@ describe("validateEnv", () => {
       vi.stubEnv("VERCEL", "");
       expect(() => validateEnv()).not.toThrow();
     });
+  });
+
+  /**
+   * IN-R2, Decision 1 (Oleksii, verbatim: "Keep the runtime boot check as a
+   * second guard."): the build's rule (`signInEnvProblems`) against the
+   * server's own environment, production deployments only.
+   */
+  describe("production sign-in's variables (IN-R2, Decision 1)", () => {
+    function production(): void {
+      setBaseRequiredEnv();
+      vi.stubEnv("KV_REST_API_URL", "https://example-upstash.example.com");
+      vi.stubEnv("KV_REST_API_TOKEN", "a-real-looking-token");
+      vi.stubEnv("CRON_SECRET", "a".repeat(32));
+      vi.stubEnv("VERCEL", "1");
+      vi.stubEnv("VERCEL_ENV", "production");
+    }
+
+    it("boots with the values Oleksii reported (apex URLs, no trailing slash)", () => {
+      production();
+      expect(() => validateEnv()).not.toThrow();
+    });
+
+    it.each([
+      "EMAIL_PROVIDER",
+      "RESEND_API_KEY",
+      "EMAIL_FROM_ADDRESS",
+      "EMAIL_REPLY_TO",
+      "PRODUCTION_ORIGIN",
+      "BETTER_AUTH_SECRET",
+      "BETTER_AUTH_URL",
+    ])("refuses to boot a production deployment without %s, naming it", (name) => {
+      production();
+      vi.stubEnv(name, "");
+      expect(() => validateEnv()).toThrow(new RegExp(`production sign-in: .*${name}`));
+    });
+
+    it("refuses a present but wrong value, naming the problem and never the value", () => {
+      production();
+      vi.stubEnv("BETTER_AUTH_URL", "https://www.opika.org.ua");
+      expect(() => validateEnv()).toThrow(/BETTER_AUTH_URL must be PRODUCTION_ORIGIN/);
+      vi.stubEnv("BETTER_AUTH_URL", SIGN_IN.BETTER_AUTH_URL);
+      vi.stubEnv("BETTER_AUTH_SECRET", "b".repeat(31));
+      expect(() => validateEnv()).toThrow(/BETTER_AUTH_SECRET must be at least 32 characters/);
+      vi.stubEnv("BETTER_AUTH_SECRET", SIGN_IN.BETTER_AUTH_SECRET);
+      vi.stubEnv("EMAIL_SIGN_IN_PROVIDER", "brevo");
+      let message = "";
+      try {
+        validateEnv();
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toMatch(/EMAIL_SIGN_IN_PROVIDER=brevo needs BREVO_API_KEY/);
+      expect(message).not.toContain(SIGN_IN.RESEND_API_KEY);
+    });
+
+    it("is not required on a Preview or under the harness's next start", () => {
+      production();
+      for (const name of Object.keys(SIGN_IN)) vi.stubEnv(name, "");
+      vi.stubEnv("VERCEL_ENV", "preview");
+      expect(() => validateEnv()).not.toThrow();
+      vi.stubEnv("VERCEL_ENV", "");
+      vi.stubEnv("VERCEL", "");
+      expect(() => validateEnv()).not.toThrow();
+    });
+  });
+
+  /** RG-Q10 (Oleksii, verbatim: "the invite PR adds it to the required prod env schema"). */
+  describe("LOCATION_HMAC_SECRET (RG-Q10)", () => {
+    function production(): void {
+      setBaseRequiredEnv();
+      vi.stubEnv("KV_REST_API_URL", "https://example-upstash.example.com");
+      vi.stubEnv("KV_REST_API_TOKEN", "a-real-looking-token");
+      vi.stubEnv("CRON_SECRET", "a".repeat(32));
+      vi.stubEnv("VERCEL", "1");
+      vi.stubEnv("VERCEL_ENV", "production");
+    }
+
+    it("is required on a production deployment, at 32 characters or more, and never says to generate a new one", () => {
+      production();
+      vi.stubEnv("LOCATION_HMAC_SECRET", "");
+      expect(() => validateEnv()).toThrow(/LOCATION_HMAC_SECRET must be at least 32 characters/);
+      expect(() => validateEnv()).toThrow(/same value the onboarding script uses/);
+      expect(() => validateEnv()).not.toThrow(/LOCATION_HMAC_SECRET[^;]*generate/);
+      vi.stubEnv("LOCATION_HMAC_SECRET", "l".repeat(31));
+      expect(() => validateEnv()).toThrow(/LOCATION_HMAC_SECRET/);
+      vi.stubEnv("LOCATION_HMAC_SECRET", "l".repeat(32));
+      expect(() => validateEnv()).not.toThrow();
+    });
+
+    /** A Preview never signs in, so never reaches the registry, and holds no copy of the key. */
+    it("is not required on a Preview or under the harness's next start", () => {
+      production();
+      vi.stubEnv("LOCATION_HMAC_SECRET", "");
+      vi.stubEnv("VERCEL_ENV", "preview");
+      expect(() => validateEnv()).not.toThrow();
+      vi.stubEnv("VERCEL_ENV", "");
+      vi.stubEnv("VERCEL", "");
+      expect(() => validateEnv()).not.toThrow();
+    });
+  });
+});
+
+/**
+ * WI-Q1's whitespace note (Oleksii, 2026-10-15, verbatim: "make the build and
+ * startup checks share one rule so a value can't pass one and fail the
+ * other"): every variable the build checks, set blank or padded, is refused by
+ * the build (`assertBuildEnv`), by the boot (`validateEnv`) and, for sign-in's,
+ * by production sign-in itself (`productionSignInOf`), each naming the
+ * variable and never its value. One deployment's environment, handed to all
+ * three.
+ */
+describe("build, boot and production sign-in read each value by one rule (WI-Q1)", () => {
+  const deployment: Record<string, string> = {
+    NODE_ENV: "production",
+    VERCEL: "1",
+    VERCEL_ENV: "production",
+    DATABASE_URL: "postgres://user:pass@host/db",
+    CURSOR_HMAC_SECRET: "a".repeat(32),
+    PRELAUNCH_GATE_SECRET: "p".repeat(32),
+    NEXT_PUBLIC_R2_PUBLIC_BASE_URL: "https://cdn.opika.org.ua",
+    KV_REST_API_URL: "https://example-upstash.example.com",
+    KV_REST_API_TOKEN: "a-real-looking-token",
+    CRON_SECRET: "c".repeat(32),
+    RATE_LIMIT_KEY_SECRET: "r".repeat(32),
+    LOCATION_HMAC_SECRET: "l".repeat(32),
+    ...SIGN_IN,
+  };
+  const SIGN_IN_NAMES = Object.keys(SIGN_IN).filter((name) => name !== "EMAIL_FROM_NAME");
+  const CHECKED = [
+    "CRON_SECRET",
+    "RATE_LIMIT_KEY_SECRET",
+    "LOCATION_HMAC_SECRET",
+    "NEXT_PUBLIC_R2_PUBLIC_BASE_URL",
+    ...SIGN_IN_NAMES,
+  ];
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const buildMessage = (env: Record<string, string>) => {
+    try {
+      assertBuildEnv(env);
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return "";
+  };
+  const bootMessage = (env: Record<string, string>) => {
+    for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
+    vi.stubEnv("EMAIL_SIGN_IN_PROVIDER", "");
+    try {
+      validateEnv();
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return "";
+  };
+
+  it("the deployment itself passes all three", () => {
+    expect(buildMessage(deployment)).toBe("");
+    expect(bootMessage(deployment)).toBe("");
+    expect(productionSignInOf(deployment, []).kind).toBe("on");
+  });
+
+  it.each(
+    CHECKED.flatMap((name) => [
+      [name, "whitespace only", " ".repeat(40)],
+      [name, "a leading space", ` ${deployment[name]}`],
+      [name, "a trailing line break", `${deployment[name]}\n`],
+    ]),
+  )("%s with %s: refused by build and boot alike, naming it", (name, _label, value) => {
+    const env = { ...deployment, [name]: value };
+    const build = buildMessage(env);
+    const boot = bootMessage(env);
+    for (const [path, message] of [
+      ["build", build],
+      ["boot", boot],
+    ]) {
+      expect(message, path).toContain(name);
+      // The value never reaches the message (blank values carry nothing to leak).
+      if (value.trim() !== "") expect(message, path).not.toContain(value.trim());
+    }
+    if (SIGN_IN_NAMES.includes(name)) {
+      expect(productionSignInOf(env, []).kind, "productionSignInOf").toBe("off");
+    }
   });
 });

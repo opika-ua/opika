@@ -288,6 +288,13 @@ describe("login CSRF (IN-T7)", () => {
   });
 });
 
+/** Production with sign-in off: the harness's own case (`next start` off Vercel). */
+const OFF_IN_PRODUCTION = {
+  kind: "unavailable",
+  reason: "production_sign_in_off",
+  off: { kind: "off", reason: "environment_unidentified" },
+} as const;
+
 describe("headers on every response", () => {
   it("no-store, noindex and strict-origin on the GET, the 303, the 400, the 403, the 404 and the 405", async () => {
     const link = await emailedLink();
@@ -299,7 +306,7 @@ describe("headers on every response", () => {
       await confirmPost(tokenOf(link)),
       await handleKabinetConfirm(new Request(link, { method: "PUT" }), deps()),
       await handleKabinetConfirm(new Request(link), {
-        availability: { kind: "unavailable", reason: "no_sender_in_production" },
+        availability: OFF_IN_PRODUCTION,
         auth: () => auth,
         acceptInvitation: realAccept(),
       }),
@@ -324,7 +331,7 @@ describe("the page itself", () => {
   it("answers 404 to both methods while kabinet sign-in is unavailable, consuming nothing", async () => {
     const link = await emailedLink();
     const off = {
-      availability: { kind: "unavailable", reason: "no_sender_in_production" } as const,
+      availability: OFF_IN_PRODUCTION,
       auth: () => auth,
       acceptInvitation: realAccept(),
     };

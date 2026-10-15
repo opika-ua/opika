@@ -1,68 +1,183 @@
 /**
- * The kabinet's pages behind the 503 (Oleksii, Q0: "screens PR first, behind
- * the 503"). This harness serves a production build, where kabinet sign-in is
- * always unavailable until the invite PR adds an email sender
- * (`kabinetAuthAvailability`), so every `/kabinet` page must answer 404 here,
- * the same condition under which `/api/kabinet/*` answers 503.
+ * The kabinet's pages, both sides of the production gate.
  *
- * The K1 layout, 360px and focus checks can't run against this server yet:
- * the page has no available state in production. They land with the invite
- * PR, when production sign-in turns on. Until then, K1's behaviour is pinned
- * by `src/features/kabinet/SignInCard.test.tsx` (component level, which
- * measures no geometry).
+ * **On the main server** (production mode, no `VERCEL_ENV`): production
+ * sign-in can't identify the deployment, so `productionSignInOf` is off and
+ * every `/kabinet` page answers 404, the same condition under which
+ * `/api/kabinet/*` answers 503 (fail closed, IN-R2). A Preview gets the same
+ * answer for its own reason.
+ *
+ * **Signed in** (KS-T3's specs, `test.fixme` until the wiring commit): the
+ * read-only profile at `/kabinet` (KS-Q1) at 360 and 1440, and its sign-out
+ * target. Production sign-in needs a real email provider, which the harness
+ * must never reach, so these run on a second server on the same build with
+ * sign-in available through the development console sender
+ * (`sign-in-server.ts`, the confirm spec's pattern). The admin signs in the
+ * real way: the magic-link request, the link read off that server's stdout,
+ * the confirm page's «Увійти» pressed in the browser. K1 itself stays pinned
+ * at component level (`src/features/kabinet/SignInCard.test.tsx`).
  *
  * Own `x-forwarded-for` (TEST-NET-2 .34), so proxy.ts's shared limiter budget
- * isn't drawn from another harness file's.
+ * isn't drawn from another harness file's. Tracing off: the link is a
+ * credential, even a test one, and a retained trace would record it.
  */
 
-import { expect, test } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { createDatabase } from "@opika/db";
+import { kabinetInvitationRepo } from "@opika/db/repos";
+import { authMember, authUser, shelters } from "@opika/db/schema";
+import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
+import { type BrowserContext, expect, test } from "@playwright/test";
+import { type SignInServer, startSignInServer } from "./sign-in-server";
 
-test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.34" } });
+const FORWARDED_FOR = "198.51.100.34";
+test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" });
+
+const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
 for (const path of ["/kabinet", "/kabinet/vkhid"]) {
-  test(`${path} answers 404 while kabinet sign-in is unavailable`, async ({ page }) => {
+  test(`${path} answers 404 while production sign-in is off`, async ({ page }) => {
     const response = await page.goto(path);
     expect(response?.status()).toBe(404);
   });
 }
 
-/**
- * The read-only profile at `/kabinet` (KS-Q1). Its geometry needs a signed-in
- * shelter admin on a production build, which can't exist until the invite PR
- * turns production sign-in on (KS-T3). Written now so the checks exist, and
- * marked `fixme` (never silently skipped): the invite PR turns them on,
- * signing a seeded admin in through the real magic-link route.
- */
-test.describe("/kabinet read-only profile (needs production sign-in, invite PR)", () => {
+test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
+  let server: SignInServer | undefined;
+  let context: BrowserContext | undefined;
+
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(120_000);
+    server = await startSignInServer(HARNESS_DATABASE_URL);
+    const { origin } = server;
+
+    // A shelter admin of one seeded (fictional) shelter: the user, then the
+    // membership, as the confirm spec sets one up.
+    const email = `harness-kabinet-${randomUUID()}@example.test`;
+    const db = createDatabase(HARNESS_DATABASE_URL);
+    const now = new Date();
+    const userId = randomUUID();
+    await db.insert(authUser).values({
+      id: userId,
+      name: "Harness",
+      email,
+      emailVerified: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const shelter = (
+      await db.select({ id: shelters.id, organizationId: shelters.organizationId }).from(shelters)
+    ).find((row) => row.organizationId === null);
+    if (shelter === undefined) throw new Error("no seeded shelter without an organization");
+    const organizationId = await kabinetInvitationRepo(db).ensureOrganization(
+      shelter.id,
+      { organizationId: randomUUID() },
+      now,
+    );
+    await db
+      .insert(authMember)
+      .values({ id: randomUUID(), organizationId, userId, role: "admin", createdAt: now });
+
+    const requested = await fetch(`${origin}/api/auth/sign-in/magic-link`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin,
+        "x-forwarded-for": FORWARDED_FOR,
+      },
+      body: JSON.stringify({ email }),
+    });
+    expect(requested.status).toBe(200);
+    const link = await server.linkFor(email);
+
+    context = await browser.newContext({
+      baseURL: origin,
+      extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR },
+    });
+    const page = await context.newPage();
+    expect((await page.goto(link))?.status()).toBe(200);
+    const landing = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" && new URL(response.url()).pathname === "/kabinet",
+    );
+    await page.getByRole("button").click();
+    expect((await landing).status(), "/kabinet after sign-in").toBe(200);
+    await page.close();
+  });
+
+  test.afterAll(async () => {
+    await context?.close();
+    await server?.stop();
+  });
+
+  const signedInPage = async () => {
+    if (context === undefined) throw new Error("not signed in");
+    return context.newPage();
+  };
+
   for (const viewport of [
     { width: 360, height: 800 },
     { width: 1440, height: 900 },
   ]) {
-    test.fixme(`at ${viewport.width}px: no horizontal scroll, every row's value fits its card`, async ({
-      page,
-    }) => {
+    test(`at ${viewport.width}px: no horizontal scroll, every row's value fits its card`, async () => {
+      const page = await signedInPage();
       await page.setViewportSize(viewport);
-      await page.goto("/kabinet");
+      const response = await page.goto("/kabinet");
+      expect(response?.status()).toBe(200);
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - window.innerWidth,
       );
       expect(overflow).toBeLessThanOrEqual(0);
-      for (const value of await page.locator("dd").all()) {
+      const values = await page.locator("dd").all();
+      // The profile has rows to measure; an empty page must not pass the loop below.
+      expect(values.length).toBeGreaterThan(3);
+      for (const value of values) {
         const box = await value.boundingBox();
         expect(box?.width ?? 0).toBeGreaterThan(0);
         expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewport.width);
       }
+      await page.close();
     });
   }
 
-  test.fixme("sign-out is a 48px target with a visible focus ring", async ({ page }) => {
+  test("sign-out is a 48px target with a visible focus ring", async () => {
+    const page = await signedInPage();
     await page.goto("/kabinet");
-    const signOut = page.getByRole("button").first();
+    // Transcribed: K4's «Вийти» (`kabinet.profile.signOut`).
+    const signOut = page.getByRole("button", { name: "Вийти" });
     const box = await signOut.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(48);
     await page.keyboard.press("Tab");
     await expect(signOut).toBeFocused();
     const outline = await signOut.evaluate((el) => getComputedStyle(el).outlineStyle);
     expect(outline).not.toBe("none");
+    await page.close();
+  });
+
+  /**
+   * Pressing «Вийти» really signs out (review of the wiring commit, finding
+   * 5): the server forgets the session, not only the page moving on. Last in
+   * this block on purpose, since it ends the session the others share (the
+   * harness runs one worker, not fully parallel, so a file's tests run in order).
+   */
+  test("«Вийти» signs out: get-session answers null and /kabinet goes to the sign-in page", async () => {
+    const page = await signedInPage();
+    expect((await page.goto("/kabinet"))?.status()).toBe(200);
+    // `page.request` carries this context's cookies, so it asks as the browser does.
+    const before = await page.request.get("/api/auth/get-session");
+    expect(before.status()).toBe(200);
+    expect(await before.json(), "signed in before the press").not.toBeNull();
+
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === "/kabinet/vkhid"),
+      page.getByRole("button", { name: "Вийти" }).click(),
+    ]);
+
+    const after = await page.request.get("/api/auth/get-session");
+    expect(after.status()).toBe(200);
+    expect(await after.json(), "the server's answer after the press").toBeNull();
+    await page.goto("/kabinet");
+    expect(new URL(page.url()).pathname).toBe("/kabinet/vkhid");
+    await page.close();
   });
 });

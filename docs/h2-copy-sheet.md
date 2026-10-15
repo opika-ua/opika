@@ -27,7 +27,7 @@ to translate.
 The rest of §7 (photos, a few sentences per animal, a contact, a donation link, the update
 sentence) stays true.
 
-**Added line.** **Final (Oleksii, 2026-10-14); ships in the commit that turns production sign-in on; A1 goes directly before §7's last paragraph.** Not in `uk.ts` until that commit. His answer (row 91 of the PR #94 copy
+**Added line.** **Final (Oleksii, 2026-10-14); in `uk.ts` since the commit that turns production sign-in on (the wiring commit), directly before §7's last paragraph**, pinned in `copy-status.test.ts`. His answer (row 91 of the PR #94 copy
 export, 2026-10-14, relayed by the coordinating session), verbatim: "Yes, include it: «Доступ до
 кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.» Place it directly before the
 current last paragraph of §7, and ship it in the same commit as row 89."
@@ -40,7 +40,7 @@ current last paragraph of §7, and ship it in the same commit as row 89."
 > Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет,
 > якого не існує.
 
-**Oleksii's replacement.** **Final (Oleksii, 2026-10-14); ships in the commit that turns production sign-in on; A1 goes directly before §7's last paragraph.** Not in `uk.ts` until that commit. His answer (row 89 of the
+**Oleksii's replacement.** **Final (Oleksii, 2026-10-14); in `uk.ts` since the commit that turns production sign-in on (the wiring commit)**, replacing the third paragraph, pinned in `copy-status.test.ts`. His answer (row 89 of the
 PR #94 copy export, 2026-10-14, relayed by the coordinating session), verbatim: "FINAL YES as
 drafted: «Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду —
 змінити чи прибрати щось у ньому поки не можна.» Ships in the commit that turns production sign-in

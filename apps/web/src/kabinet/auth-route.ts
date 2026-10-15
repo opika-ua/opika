@@ -2,17 +2,26 @@ import { clientIp } from "../api/client-ip";
 import { FORWARDED_AUTH_PATHS, type KabinetAuth } from "./auth";
 import { consoleInvitationSender, type InvitationSender } from "./email-senders";
 import { consoleSender, type MagicLinkSender } from "./magic-link-sender";
+import { type ProductionMail, productionMailFor } from "./production-mail";
+import { type ProductionSignIn, productionSignInOf } from "./production-sign-in";
 import { normalizeEmail, type SignInLimiters, signInAllowed } from "./sign-in-limit";
 
 /**
- * Whether kabinet sign-in can run at all in this environment.
+ * Whether kabinet sign-in can run at all in this environment, and with which
+ * senders.
  *
- * Production has **no** sender in this slice (HS-Q2), so it is always
- * unavailable there and every auth request answers 503: nobody can be sent a
- * link, so nobody can sign in, and saying so beats pretending to send. The
- * production-sign-in wiring commit adds the provider. Development uses the console sender, and still
- * needs a secret and a URL: without them it's unavailable too, never a
- * hard-coded default secret.
+ * - **Production** (`NODE_ENV=production`): exactly when `productionSignInOf`
+ *   is "on" (a production Vercel deployment, every `kabinet.*` string final,
+ *   the email routes and `BETTER_AUTH_*` configured, BETTER_AUTH_URL the
+ *   pinned origin). The senders are the provider-backed ones, built once per
+ *   process (`productionMailFor`). Otherwise unavailable with
+ *   `productionSignInOf`'s own typed reason, and every auth request answers
+ *   503 and every `/kabinet` page 404: fail closed. A Preview is always
+ *   refused (IN-R2), and so is `next start` off Vercel (the harness), which
+ *   can't say it is production.
+ * - **Development and tests**: the console senders, and still a secret and a
+ *   URL: without them it's unavailable too, never a hard-coded default
+ *   secret. No copy gate here: a development link reaches only the console.
  */
 export type KabinetAuthAvailability =
   | {
@@ -23,15 +32,47 @@ export type KabinetAuthAvailability =
       secret: string;
       baseURL: string;
     }
-  | { kind: "unavailable"; reason: "no_sender_in_production" | "missing_config" };
+  | { kind: "unavailable"; reason: "missing_config" }
+  | {
+      kind: "unavailable";
+      reason: "production_sign_in_off";
+      /** Why, as `productionSignInOf` says it: a variable's state or the pending copy's paths, never a value. */
+      off: Extract<ProductionSignIn, { kind: "off" }>;
+    };
 
-export function kabinetAuthAvailability(env: {
-  NODE_ENV?: string | undefined;
-  BETTER_AUTH_SECRET?: string | undefined;
-  BETTER_AUTH_URL?: string | undefined;
-}): KabinetAuthAvailability {
-  if (env.NODE_ENV === "production")
-    return { kind: "unavailable", reason: "no_sender_in_production" };
+/** Each production "off" reason is logged once per process, so a 503 on a production deployment says why somewhere. */
+const reportedOff = new Set<string>();
+
+export function kabinetAuthAvailability(
+  env: Readonly<Record<string, string | undefined>>,
+  // Injectable so tests reach production's branch without a live catalogue
+  // or a network; production always takes the defaults.
+  production: {
+    signIn?: (env: Readonly<Record<string, string | undefined>>) => ProductionSignIn;
+    mail?: (on: Extract<ProductionSignIn, { kind: "on" }>) => ProductionMail;
+  } = {},
+): KabinetAuthAvailability {
+  if (env.NODE_ENV === "production") {
+    const signIn = (production.signIn ?? productionSignInOf)(env);
+    if (signIn.kind === "off") {
+      if (!reportedOff.has(signIn.reason)) {
+        reportedOff.add(signIn.reason);
+        console.warn(
+          `[kabinet] production sign-in is off: ${signIn.reason}` +
+            (signIn.reason === "copy_pending" ? ` (${signIn.pending.join(", ")})` : ""),
+        );
+      }
+      return { kind: "unavailable", reason: "production_sign_in_off", off: signIn };
+    }
+    const mail = (production.mail ?? productionMailFor)(signIn);
+    return {
+      kind: "available",
+      sender: mail.sender,
+      invites: mail.invites,
+      secret: signIn.secret,
+      baseURL: signIn.baseURL,
+    };
+  }
   if (!env.BETTER_AUTH_SECRET || !env.BETTER_AUTH_URL) {
     return { kind: "unavailable", reason: "missing_config" };
   }

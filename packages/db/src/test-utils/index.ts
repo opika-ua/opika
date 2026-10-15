@@ -1,3 +1,4 @@
+export { productionEndpoint } from "../prod-guard";
 export {
   ageAnchorOf,
   makeAdopter,
@@ -11,6 +12,7 @@ export {
   uuid,
 } from "./fixtures";
 export { setupTestDatabase, type TestContext, truncateAll } from "./setup";
+export { type SmokeTarget, smokeTarget } from "./smoke-target";
 export {
   assertDisposableTestDatabase,
   disposeTestDatabaseAfterRun,

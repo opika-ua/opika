@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:harness": "node ./test/run-harness.mjs",
     "test:harness:install": "playwright install --with-deps chromium",
-    "email:delivery-test": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/email-delivery-test.ts"
+    "email:delivery-test": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/email-delivery-test.ts",
+    "kabinet:neon-auth-smoke": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/neon-auth-smoke.ts"
   },
   "dependencies": {
     "@opika/contracts": "workspace:*",

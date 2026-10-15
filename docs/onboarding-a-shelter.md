@@ -177,9 +177,10 @@ uploads each to R2; see "R2 credentials" below for what that step needs.
 ## Run it: dry run, then commit
 
 ```bash
-# From the repo root. LOCATION_HMAC_SECRET is never sent to Vercel for this
-# — it only needs to exist in your own shell, the same as DATABASE_URL does
-# for migrations (docs/build-plan.md Part 5 explains why).
+# From the repo root. This run reads LOCATION_HMAC_SECRET from your own
+# shell, the same as DATABASE_URL for migrations. (Vercel Production holds
+# the same value since production sign-in, for the registry, RG-Q10; this
+# script never reads Vercel's.)
 
 LOCATION_HMAC_SECRET=<your secret> \
 DATABASE_URL=<neon-direct-url> \
@@ -244,15 +245,21 @@ not by re-running this script.
 Generate one once with `openssl rand -hex 32`. Keep it somewhere you can
 find it again — the same value must be used every time you onboard a
 shelter, or a shelter onboarded with a different secret would get a public
-location fuzzed against a key nothing else remembers.
+location fuzzed against a key nothing else remembers. Since the commit that
+turns production sign-in on, Vercel Production holds the same value (the
+registry fuzzes a shelter's location with it on create and on an address
+change), and a production build fails and a production instance refuses to
+boot without it (RG-Q10, WI-T2).
+Never generate a new one for Vercel: `location:verify --prod` would then
+report every shelter as a mismatch.
 
 ## R2 credentials
 
 Four values, from Cloudflare's dashboard (R2 → your bucket → **Manage API
 tokens**): `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
-`R2_BUCKET_NAME`. **Local shell only, never in Vercel** — same reasoning as
-`LOCATION_HMAC_SECRET`: this script runs from your own machine, never
-through the deployed site. The deployed app needs a fifth, different value
+`R2_BUCKET_NAME`. **Local shell only, never in Vercel**: this script runs
+from your own machine, and no request path of the deployed site writes to
+R2. The deployed app needs a fifth, different value
 instead — `NEXT_PUBLIC_R2_PUBLIC_BASE_URL`, the bucket's *public* read URL
 — set once in Vercel (Production and Preview), not per onboarding run; see
 `docs/h1-decisions.md` for why that one's required at boot and what it
