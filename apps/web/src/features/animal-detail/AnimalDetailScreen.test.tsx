@@ -159,3 +159,40 @@ describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
     expect(screen.queryByTestId("detail-demo-banner")).toBeNull();
   });
 });
+
+describe("AnimalDetailScreen — the shelter's sentence and its attribution (VH-Q2)", () => {
+  const renderWith = async (
+    freshnessSentence: AnimalDetailView["shelter"]["freshnessSentence"],
+  ) => {
+    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    const base = makeAnimal();
+    render(
+      <AnimalDetailScreen
+        animal={{ ...base, shelter: { ...base.shelter, freshnessSentence } }}
+        shelter={makeShelter()}
+        now={NOW}
+        cityName="Бровари"
+        backToGalleryHref="/tvaryny?misto=brovary"
+      />,
+    );
+  };
+
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("attributes a sentence to the shelter, and claims nothing about a date", async () => {
+    await renderWith({ uk: "Оновлюємо картки щосуботи.", en: null });
+    expect(screen.getByTestId("shelter-freshness-sentence").textContent).toBe(
+      "“Оновлюємо картки щосуботи.”",
+    );
+    expect(screen.getByTestId("shelter-freshness-attribution").textContent).toBe("Слова притулку");
+  });
+
+  it("shows no attribution without a sentence: the day count isn't the shelter's words", async () => {
+    await renderWith(null);
+    expect(screen.queryByTestId("shelter-freshness-sentence")).toBeNull();
+    expect(screen.queryByTestId("shelter-freshness-attribution")).toBeNull();
+  });
+});
