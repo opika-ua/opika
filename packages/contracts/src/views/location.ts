@@ -2,8 +2,8 @@ import { CityPrecisionLocationSchema } from "@opika/domain";
 import type { z } from "zod";
 
 /**
- * Where an animal or a shelter is, as an adopter receives it before a reveal:
- * the city, and nothing finer.
+ * Where an animal or a shelter is, as an adopter receives it, before a reveal
+ * and (since 2026-10-15, EM-D1) after one: the city, and nothing finer.
  *
  * Oleksii, 2026-10-14 (inbox EM-Q10, answer (a)), verbatim: "Stop sending
  * district and fuzzed coordinates in public responses before a reveal (exact
@@ -23,7 +23,8 @@ import type { z } from "zod";
  * `fuzzed_address` tag on a value with no address-derived content would
  * describe something the response no longer contains.
  *
- * `pre-reveal-location.test.ts` walks every pre-reveal output schema for the
+ * `pre-reveal-location.test.ts` walks every adopter-facing output schema (the
+ * reveal's included, `ContactRevealViewSchema` uses this view too) for the
  * forbidden keys; the served-response test in `apps/web` checks the JSON.
  */
 export const PublicCityLocationViewSchema = CityPrecisionLocationSchema.pick({

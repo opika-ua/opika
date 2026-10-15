@@ -2,9 +2,10 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { readSingleKey, runDeliveryTest } from "./email-delivery-test";
+import { deliverySignInProviderOf, readSingleKey, runDeliveryTest } from "./email-delivery-test";
 
 const KEY = "test-key-not-real-0123456789";
+const RESEND_KEY = "re_test-key-not-real-9876543210";
 
 type Call = { url: string; init: RequestInit };
 
@@ -141,8 +142,8 @@ describe("runDeliveryTest", () => {
     const h = harness((n) => okResponse(`<id-${n}@brevo>`));
     await runDeliveryTest(h.input);
     expect(h.lines).toEqual([
-      "magic link: status 201, message id <id-1@brevo>",
-      "invite: status 201, message id <id-2@brevo>",
+      "magic link: brevo, status 201, message id <id-1@brevo>",
+      "invite: brevo, status 201, message id <id-2@brevo>",
     ]);
     const output = h.lines.join("\n");
     expect(output).not.toContain(KEY);
@@ -155,7 +156,7 @@ describe("runDeliveryTest", () => {
     );
     expect(await runDeliveryTest(h.input)).toBe(1);
     expect(h.calls).toHaveLength(2);
-    expect(h.lines[0]).toMatch(/^magic link: FAILED/);
+    expect(h.lines[0]).toMatch(/^magic link: brevo, FAILED/);
     expect(h.lines.join("\n")).not.toContain(KEY);
   });
 
@@ -199,6 +200,114 @@ describe("runDeliveryTest", () => {
     const h = harness();
     expect(await runDeliveryTest({ ...h.input, origin: "http://example.org" })).toBe(1);
     expect(h.calls).toHaveLength(0);
+  });
+});
+
+/**
+ * Delivery test 4 (EM-B6, Oleksii, 2026-10-15: "After a Resend delivery test
+ * (sign-in to my Gmail, check the tab), propose whether to move invites too
+ * and retire Brevo."): the sign-in email through Resend, the invite through
+ * Brevo, as production will route them. A fake fetch stands in for both.
+ */
+describe("runDeliveryTest --sign-in-provider resend", () => {
+  const resendOk = (id: string) =>
+    new Response(JSON.stringify({ id }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  const routed = () =>
+    harness((n) => (n === 1 ? resendOk("re-msg-1") : okResponse("<id-2@brevo>")));
+
+  it("sends the magic link to Resend with its key and the invite to Brevo with its own", async () => {
+    const h = routed();
+    expect(
+      await runDeliveryTest({ ...h.input, signInProvider: "resend", resendApiKey: RESEND_KEY }),
+    ).toBe(0);
+    expect(h.calls.map((c) => c.url)).toEqual([
+      "https://api.resend.com/emails",
+      "https://api.brevo.com/v3/smtp/email",
+    ]);
+    const [signIn, invite] = h.calls as [Call, Call];
+    const headers = (call: Call) => call.init.headers as Record<string, string>;
+    expect(headers(signIn).Authorization).toBe(`Bearer ${RESEND_KEY}`);
+    expect(headers(signIn)["api-key"]).toBeUndefined();
+    expect(headers(invite)["api-key"]).toBe(KEY);
+    expect(JSON.stringify(headers(invite))).not.toContain(RESEND_KEY);
+    // One sender for both: the same From, display name and Reply-To.
+    const resendBody = bodyOf(signIn);
+    expect(resendBody.from).toBe("Config Name <noreply@mail.example.org>");
+    expect(resendBody.reply_to).toBe("hello@example.org");
+    expect(bodyOf(invite).sender).toEqual({
+      email: "noreply@mail.example.org",
+      name: "Config Name",
+    });
+    expect(resendBody.subject).toBe("Посилання для входу до кабінету притулку");
+    // Nothing that makes it bulk mail, on the bytes that went out.
+    expect(Object.keys(resendBody).sort()).toEqual(
+      ["from", "html", "reply_to", "subject", "text", "to"].sort(),
+    );
+    expect(`${JSON.stringify(signIn.init.headers)}${signIn.init.body}`).not.toMatch(
+      /List-Unsubscribe|"headers"|"tags"|"topic_id"/,
+    );
+  });
+
+  it("prints the provider, status and id per send, and neither key", async () => {
+    const h = routed();
+    await runDeliveryTest({ ...h.input, signInProvider: "resend", resendApiKey: RESEND_KEY });
+    expect(h.lines).toEqual([
+      "magic link: resend, status 200, message id re-msg-1",
+      "invite: brevo, status 201, message id <id-2@brevo>",
+    ]);
+    const output = h.lines.join("\n");
+    expect(output).not.toContain(KEY);
+    expect(output).not.toContain(RESEND_KEY);
+    expect(output).not.toContain("TEST-");
+  });
+
+  it("refuses without RESEND_API_KEY when Resend is asked for, sending nothing", async () => {
+    for (const resendApiKey of [undefined, ""]) {
+      const h = routed();
+      expect(await runDeliveryTest({ ...h.input, signInProvider: "resend", resendApiKey })).toBe(1);
+      expect(h.calls).toHaveLength(0);
+      expect(h.lines).toEqual([
+        "RESEND_API_KEY is not set in the repo-root .env.local. Nothing sent.",
+      ]);
+    }
+  });
+
+  it("a Brevo run never needs or sends the Resend key", async () => {
+    const h = harness();
+    expect(await runDeliveryTest({ ...h.input, signInProvider: "brevo" })).toBe(0);
+    expect(h.calls.map((c) => c.url)).toEqual([
+      "https://api.brevo.com/v3/smtp/email",
+      "https://api.brevo.com/v3/smtp/email",
+    ]);
+  });
+
+  it("a Resend failure is reported with the provider and status, never the key", async () => {
+    const h = harness((n) =>
+      n === 1
+        ? new Response(JSON.stringify({ message: RESEND_KEY }), { status: 403 })
+        : okResponse(),
+    );
+    expect(
+      await runDeliveryTest({ ...h.input, signInProvider: "resend", resendApiKey: RESEND_KEY }),
+    ).toBe(1);
+    expect(h.lines[0]).toBe(
+      "magic link: resend, FAILED (Email provider resend refused the send (status 403).)",
+    );
+    expect(h.lines.join("\n")).not.toContain(RESEND_KEY);
+  });
+});
+
+describe("deliverySignInProviderOf (--sign-in-provider)", () => {
+  it("is brevo when unset, the provider named when it is one of the two, else null", () => {
+    expect(deliverySignInProviderOf(undefined)).toBe("brevo");
+    expect(deliverySignInProviderOf("brevo")).toBe("brevo");
+    expect(deliverySignInProviderOf("resend")).toBe("resend");
+    for (const other of ["postmark", "Resend", "", "re_abc"]) {
+      expect(deliverySignInProviderOf(other), other).toBeNull();
+    }
   });
 });
 

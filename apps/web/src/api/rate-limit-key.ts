@@ -26,22 +26,23 @@ export const ipKeyWith = (secret: string, ip: string): string =>
   `ip:${createHmac("sha256", secret).update(ip, "utf8").digest("base64url")}`;
 
 /**
- * Outside production with no secret set (local dev, CI, unit tests, a
- * Preview): a random key made once per process, never a value written in
- * this repository. A fixed published key would make the Redis keys
+ * Off Vercel with no secret set (local dev, CI, unit tests, the harness's
+ * `next start` when it sets none): a random key made once per process, never
+ * a value written in this repository. Every Vercel deployment, Preview
+ * included, must set one (EM-B6, `rateLimitKeySecretProblem`). A fixed published key would make the Redis keys
  * reversible by anyone who reads the repo, and a developer's machine with
  * the Upstash credentials in `.env.local` writes to the same store. The cost
  * is that buckets don't survive a restart and aren't shared between
  * instances there, which for a minute- or hour-long window is only a looser
- * limit outside production. The harness and the tests that compare keys set
+ * limit on a machine that serves nobody else. The harness and the tests that compare keys set
  * a value of their own.
  */
 let processKey: string | undefined;
 
 function secretFrom(env: Readonly<Record<string, string | undefined>>): string {
   const problem = rateLimitKeySecretProblem(env);
-  // Production with no usable secret: refuse rather than key on anything
-  // weaker. The build and boot checks stop this earlier; this is the floor
+  // A Vercel deployment with no usable secret: refuse rather than key on
+  // anything weaker. The build and boot checks stop this earlier; this is the floor
   // under them if a variable changes after both ran.
   if (problem !== null)
     throw new Error(`Invalid or missing required environment variable: ${problem}`);

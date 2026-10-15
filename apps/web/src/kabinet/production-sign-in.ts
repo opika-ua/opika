@@ -1,9 +1,5 @@
 import { pendingCopyPaths, uk } from "@opika/i18n";
-import {
-  type EmailProviderConfig,
-  emailProviderConfigOf,
-  productionOriginOf,
-} from "./email-provider";
+import { type EmailRoutes, emailRoutesOf, productionOriginOf } from "./email-provider";
 import { operatorDisplayName } from "./operator";
 
 /**
@@ -19,8 +15,9 @@ import { operatorDisplayName } from "./operator";
  *   `production`). A Preview is refused outright, and so is any environment
  *   that can't be identified (unset or unknown `VERCEL_ENV`, as off Vercel):
  *   fail closed, never skipped;
- * - only when the email provider is configured and BETTER_AUTH_SECRET and
- *   BETTER_AUTH_URL are set;
+ * - only when both email routes are configured (`emailRoutesOf`: a sign-in
+ *   provider set without its key, or the reverse, is `provider_invalid`) and
+ *   BETTER_AUTH_SECRET and BETTER_AUTH_URL are set;
  * - only when BETTER_AUTH_URL is PRODUCTION_ORIGIN, the pinned apex. Magic
  *   links are built from BETTER_AUTH_URL, so a wrong one would email links
  *   to a host that isn't the site;
@@ -43,7 +40,12 @@ import { operatorDisplayName } from "./operator";
 export type ProductionSignIn =
   | {
       kind: "on";
-      email: EmailProviderConfig;
+      /**
+       * One provider config per template (`emailRoutesOf`, EM-B6): the
+       * wiring commit passes `email.signIn` to `providerMagicLinkSender` and
+       * `email.invite` to the invitation sender and `cachedBlockList`.
+       */
+      email: EmailRoutes;
       secret: string;
       baseURL: string;
       /**
@@ -79,7 +81,7 @@ export function productionSignInOf(
   if (env.VERCEL_ENV === "preview") return { kind: "off", reason: "preview_never_sends" };
   if (env.VERCEL_ENV !== "production") return { kind: "off", reason: "environment_unidentified" };
   if (pendingCopy.length > 0) return { kind: "off", reason: "copy_pending", pending: pendingCopy };
-  const email = emailProviderConfigOf(env);
+  const email = emailRoutesOf(env);
   if (email.kind === "missing") return { kind: "off", reason: "provider_not_configured" };
   if (email.kind === "invalid") return { kind: "off", reason: "provider_invalid" };
   const secret = env.BETTER_AUTH_SECRET;
@@ -92,7 +94,7 @@ export function productionSignInOf(
   }
   return {
     kind: "on",
-    email: email.config,
+    email: email.routes,
     secret,
     baseURL,
     operatorName: operatorDisplayName(env),

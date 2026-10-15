@@ -11,7 +11,9 @@ import { SessionBootstrapViewSchema } from "../views/session";
  * client-supplied `deviceSessionId: z.string().min(1)`, which was the only
  * identity input in the entire surface — meaning a caller could send "1", land
  * on whichever adopter first claimed it, and read their whole reveal history
- * through `reveals.listMine`, including every exact address they had unlocked.
+ * through `reveals.listMine`, including every shelter contact they had
+ * unlocked (and, then, every exact address: reveals stopped sending it with
+ * EM-D1, 2026-10-15).
  *
  * That draft also had no way to return the identifier it promised to issue, so
  * a first-time visitor received nothing to persist and every launch created a

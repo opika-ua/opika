@@ -11,6 +11,7 @@ import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 import { checkRevealRateLimit } from "../reveal-rate-limit";
+import { cityOnlyLocationOf } from "./public-location";
 
 type RevealInput = z.infer<typeof AnimalsRevealInputSchema>;
 
@@ -26,12 +27,13 @@ export type AnimalsRevealErrors = ORPCErrorConstructorMap<{
 /**
  * Reveal an animal's shelter contact details.
  *
- * This is the only endpoint that discloses contact details and exact
- * addresses. It:
+ * This is the only endpoint that discloses contact details. It never
+ * discloses the exact address (EM-D1): that stays in the stored snapshot. It:
  * - Requires an authenticated session
  * - Checks the animal is discoverable and its shelter is verified
  * - Is idempotent: a second reveal for the same animal returns the existing one
  * - Writes an immutable audit record with a denormalised shelter snapshot
+ *   (exact address included, for the operator; `toView` leaves it out)
  * - Rate-limits per adopter via a Postgres counter (survives across instances)
  */
 export async function animalsReveal(
@@ -99,12 +101,31 @@ export async function animalsReveal(
   return toView(reveal);
 }
 
-function toView(reveal: ContactReveal): ContactRevealView {
+/**
+ * The stored reveal, cut down to what the adopter receives (EM-D1, Oleksii,
+ * 2026-10-15: "the exact address never leaves the server for adopters"): the
+ * snapshot's name, contact channels, donation link and status, and its city.
+ * The exact address, district and point stay in the stored snapshot, the
+ * operator's record. Shared by `animals.reveal` and `reveals.listMine`.
+ *
+ * Projected field by field here, not left to oRPC's output stripping alone:
+ * handing the whole snapshot to the narrower view typechecks either way, so
+ * this is what says, at the call site, that the address stays behind.
+ */
+export function toView(reveal: ContactReveal): ContactRevealView {
+  const snapshot = reveal.shelterSnapshot;
   return {
     id: reveal.id,
     animalId: reveal.animalId,
     revealedAt: reveal.revealedAt,
-    shelterSnapshot: reveal.shelterSnapshot,
+    shelterSnapshot: {
+      shelterId: snapshot.shelterId,
+      displayName: snapshot.displayName,
+      contact: snapshot.contact,
+      verificationStatusAtReveal: snapshot.verificationStatusAtReveal,
+      donation: snapshot.donation,
+      publicLocation: cityOnlyLocationOf(snapshot.publicLocation),
+    },
     animalSnapshot: reveal.animalSnapshot,
   };
 }

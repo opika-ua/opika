@@ -12,7 +12,7 @@ import {
  * stand in for the build's environment; nothing here reads `process.env`.
  */
 const R2 = { NEXT_PUBLIC_R2_PUBLIC_BASE_URL: "https://cdn.example.test" };
-/** The other production-only secret, valid, so a CRON_SECRET case tests only CRON_SECRET. */
+/** The other build-checked secret, valid, so a CRON_SECRET case tests only CRON_SECRET. */
 const RATE_KEY = { RATE_LIMIT_KEY_SECRET: "r".repeat(32) };
 // A recognisable value, so a test can show it never reaches the message.
 const SHORT_SECRET = "short-secret-value-0123456789ab"; // 31 characters
@@ -66,7 +66,7 @@ describe("assertBuildEnv: CRON_SECRET on a production build", () => {
   });
 
   it.each([
-    ["a Preview build", { VERCEL: "1", VERCEL_ENV: "preview", ...R2 }],
+    ["a Preview build", { VERCEL: "1", VERCEL_ENV: "preview", ...R2, ...RATE_KEY }],
     ["a development build on Vercel", { VERCEL: "1", VERCEL_ENV: "development", ...R2 }],
     ["a local or CI build (no VERCEL_ENV)", {}],
     ["NODE_ENV=production alone (every next build sets it)", { NODE_ENV: "production" }],
@@ -96,7 +96,7 @@ describe("assertBuildEnv: NEXT_PUBLIC_R2_PUBLIC_BASE_URL (moved here from next.c
  * build-time check, like CRON_SECRET." The same shared rule, so the same
  * cases, with `CRON_SECRET` valid throughout so each case tests only this one.
  */
-describe("assertBuildEnv: RATE_LIMIT_KEY_SECRET on a production build", () => {
+describe("assertBuildEnv: RATE_LIMIT_KEY_SECRET on a Vercel build", () => {
   const CRON = { CRON_SECRET: "c".repeat(32) };
   const production = { VERCEL: "1", VERCEL_ENV: "production", ...R2, ...CRON };
 
@@ -129,10 +129,51 @@ describe("assertBuildEnv: RATE_LIMIT_KEY_SECRET on a production build", () => {
     );
   });
 
+  /** EM-B6 (Oleksii, 2026-10-15, verbatim): "Build-time check covers both." */
+  describe("on a Preview build (EM-B6)", () => {
+    const preview = { VERCEL: "1", VERCEL_ENV: "preview", ...R2 };
+
+    it("fails without it, or with 31 characters, naming the variable and not the value", () => {
+      for (const env of [preview, { ...preview, RATE_LIMIT_KEY_SECRET: SHORT_SECRET }]) {
+        let message = "";
+        try {
+          assertBuildEnv(env);
+        } catch (error) {
+          message = (error as Error).message;
+        }
+        expect(message).toMatch(/RATE_LIMIT_KEY_SECRET must be at least 32 characters/);
+        expect(message).toMatch(/Preview/);
+        expect(message).not.toContain(SHORT_SECRET.slice(0, 8));
+        // CRON_SECRET stays production-only: only one problem is named.
+        expect(message).not.toMatch(/CRON_SECRET/);
+      }
+    });
+
+    it("builds with exactly 32 characters, and with no CRON_SECRET", () => {
+      expect(() =>
+        assertBuildEnv({ ...preview, RATE_LIMIT_KEY_SECRET: `${SHORT_SECRET}c` }),
+      ).not.toThrow();
+    });
+
+    it("fails closed on a Vercel environment it doesn't recognise, or VERCEL_ENV alone", () => {
+      for (const env of [
+        { VERCEL: "1", VERCEL_ENV: "staging", ...R2 },
+        { VERCEL_ENV: "preview", ...R2 },
+      ]) {
+        expect(rateLimitKeySecretProblem(env) ?? "no problem reported").toMatch(
+          /RATE_LIMIT_KEY_SECRET/,
+        );
+      }
+    });
+  });
+
   it.each([
-    ["a Preview build", { VERCEL: "1", VERCEL_ENV: "preview", ...R2 }],
     ["a local or CI build (no VERCEL_ENV)", {}],
     ["NODE_ENV=production alone (every next build sets it)", { NODE_ENV: "production" }],
+    [
+      "a developer's pulled Vercel env (VERCEL=1, VERCEL_ENV=development)",
+      { VERCEL: "1", VERCEL_ENV: "development", ...R2 },
+    ],
   ])("leaves %s alone without it", (_label, env) => {
     expect(() => assertBuildEnv(env)).not.toThrow();
     expect(rateLimitKeySecretProblem(env)).toBeNull();

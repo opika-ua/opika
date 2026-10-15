@@ -69,7 +69,21 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       commit's item below.
 - [x] **Magic-link provider:** Brevo (IN-E2, 2026-10-13), Resend the documented fallback, not set
       up. Gmail delivery test by `email:delivery-test` (IN-E5); ukr.net/i.ua postponed with a trigger
-      (IN-E4); apex DMARC `p=reject` is a follow-up (IN-E3).
+      (IN-E4); apex DMARC `p=reject` is a follow-up (IN-E3). **Superseded for sign-in on 2026-10-15**
+      (EM-R1 fired, EM-B6 item 2: "Resend for SIGN-IN sends: GO"): see the Resend items below.
+- [x] **Resend set up for sign-in** (Oleksii, 2026-10-15, inbox EM-R3/EM-B8: "RESEND: done and
+      Verified."): EU account (`eu-west-1`), domain `mail.opika.org.ua` Verified, tracking off. DNS in
+      Cloudflare, all DNS only: TXT `resend._domainkey.mail` (DKIM), CNAME `send.mail` →
+      `send.forge.rmta.net` (return path, so SPF), CNAME `rsend.mail` → `rsend-euw1.forge.rmta.net`;
+      Brevo's records and DMARC unchanged.
+- [x] **`RESEND_API_KEY` in Vercel Production and in `.env.local`** (EM-B8; key name EM-B7): a
+      sending-only key restricted to `mail.opika.org.ua`. Read by the app only once
+      `EMAIL_SIGN_IN_PROVIDER=resend` is set (the wiring commit, below).
+- [ ] **Delivery test 4 (sign-in via Resend)** (Oleksii's, by hand): `email:delivery-test
+      --sign-in-provider resend`, sign-in via Resend and invite via Brevo to his Gmail. He reports the
+      sign-in email's tab and headers (no List-Unsubscribe, DKIM pass with `d=mail.opika.org.ua`,
+      SPF pass for the `send.mail` return path, DMARC pass, Reply-To `hello@`), and the invite still
+      in Primary. Then the proposal on moving invites and retiring Brevo (EM-F2).
 - [x] **The /pro `about.data` addition is live in this PR** (KH-C1; moved back from the wiring
       commit by Oleksii's handoff of 2026-10-14, verbatim: "Row 90 ships with the #94 merge (all it
       describes is live via #95, and #94 starts storing admin emails at invite)."): his final text,
@@ -82,11 +96,19 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       "RATE_LIMIT_KEY_SECRET ... already set"; the "..." is the relay's elision). Every rate limiter
       keys a client IP as `ip:` + HMAC-SHA256 under it (EM-T20); a production build fails, and a
       production instance refuses to boot, without one of 32+ characters.
+- [x] **`RATE_LIMIT_KEY_SECRET` set in Vercel Preview (separate value)** (Oleksii, 2026-10-15, EM-B6
+      item 4, verbatim: "RATE_LIMIT_KEY_SECRET required on every Vercel deployment, including Preview
+      (separate Preview value). Build-time check covers both."; EM-T23). From this PR a Preview build
+      fails, and a Preview instance refuses to boot, without one of 32+ characters. **Done**
+      (EM-B8: "Set in Vercel Preview as Sensitive, with its own value, separate from Production.")
 - [x] **Before a reveal, adopters receive the city only** (EM-Q10, answered (a); EM-T19): no
       `district` and no coordinates in any pre-reveal response (`feed.list`, `gallery.list`,
       `animals.byId`, `shelters.byId`, `cities.list`), held by a schema walk and a served-response
-      test; the reveal keeps the exact address (decision #2). Row 57 (`kabinet.profile.addressNote`)
-      is live again with his text.
+      test. Row 57 (`kabinet.profile.addressNote`) is live again with his text. **Since 2026-10-15
+      the reveal sends no exact address, district or coordinates either** (EM-D1, decision #2
+      revised): `animals.reveal` and `reveals.listMine` carry contacts and the city only; the
+      contract walk now covers every adopter-facing output with no exemption, plus a served-JSON
+      test.
 - [x] **The daily auth clean-up also deletes sessions past the 30-day absolute cap** (EM-Q11 (2);
       EM-T21), in the same statement, tested locally with the cap passed and the idle expiry ahead.
 - [ ] **Real-Neon rerun of step 18 with the 30-day cap condition** (EM-T21): Oleksii reruns
@@ -103,6 +125,8 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       blocked event); open, inbox EM-R2. His instruction: "Don't resend."
       Trigger recorded (EM-R1): if the reworked sign-in email still lands in Promotions, sign-in sends
       are proposed for Resend; invites stay on Brevo while they land in Primary.
+      **Reported 2026-10-15** (EM-B6 item 1): both delivered at 15:11 UTC, 47 min late; sign-in →
+      Promotions (second time), invite → Primary. EM-R1 fired; sign-in moves to Resend (EM-T22).
 - [ ] **An invitation reaches the invitee.** The registry PR's `registry.admins.invite` and
       `registry.shelters.create` write the invitation and the invitee's user but send nothing
       (no provider yet). This PR decides how the invitee hears of it (an invite email through the
@@ -113,7 +137,7 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [ ] **Shelter writes stay refused** (KH-Q1): `SHELTER_WRITE_POLICY` stays
       `refused_until_edit_screens` in this PR. Production sign-in turning on does not open them;
       only the K2/K3 PR does, together with the A1/A2/B1 replacement copy.
-- [ ] **`CRON_SECRET` is set before the hardening branch deploys** (KH-T6): Oleksii sets it
+- [x] **`CRON_SECRET` is set before the hardening branch deploys** (KH-T6; done, EM-B8): Oleksii sets it
       (`openssl rand -hex 32`) in Vercel's Production environment first; production refuses to
       boot without it. Then the daily auth clean-up (KH-Q9) runs at 03:00 UTC.
 - [x] **Real-Neon run of the auth clean-up statement** (KH-Q9): done twice: #95's run (step 15
@@ -168,7 +192,14 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
       is signed with the same name as the invite (the option is required; a test on the wiring
       asserts the configured name reaches the sent email). That commit wires the provider-backed invitation sender with
       `cachedBlockList(config)` built once per process, so `registry.admins.blockedAddresses` reads
-      Brevo instead of answering `unknown` (`unsupported_provider`).
+      Brevo instead of answering `unknown` (`unsupported_provider`). **Routes (EM-T22):** the `on`
+      result's `email` is `emailRoutesOf(env)`'s `{ invite, signIn }`; pass `routes.signIn` to
+      `providerMagicLinkSender` (its `ProviderMail` built on that route, so a Resend route's block
+      check is `unknown`/`provider_suppresses`) and `routes.invite` to the invitation sender and to
+      `cachedBlockList`, with a test that each sender reaches its own provider. **Vercel Production
+      variables for the sign-in route at that commit:** `EMAIL_SIGN_IN_PROVIDER=resend` (new, Oleksii
+      sets it) plus the already-set `RESEND_API_KEY` (EM-B7). Without `EMAIL_SIGN_IN_PROVIDER`, sign-in
+      goes through the default (Brevo) route; with it and no `RESEND_API_KEY`, sign-in stays off.
 - [ ] **The confirm page's over-limit card ships before production sign-in is turned on**
       (IN-T15, Oleksii: "A plain 429 is fine for now. Add a gate item: the over-limit card ships
       before production sign-in is turned on."). Today a rate-limited «Увійти» POST answers a plain
@@ -193,8 +224,12 @@ The first PR in which a real shelter can sign in (HS-Q3). Tier 1.
 - [ ] **`registry.admins.invite` refuses an operator's address** (RG-T10; Oleksii, verbatim: "RG-T10:
       accepted as an invite-PR item. It must land before admin:bootstrap."), so inviting an operator can
       never end in `conflicting_roles`. Lands before the rollout's `admin:bootstrap` step.
-- [ ] **`www.opika.org.ua` redirects 308 to the apex** (IN-R2, Decision 2): a Vercel domain setting,
+- [x] **`www.opika.org.ua` redirects 308 to the apex** (IN-R2, Decision 2): a Vercel domain setting,
       Oleksii's action before sign-in goes live; `PRODUCTION_ORIGIN` is `https://opika.org.ua`.
+      Done (EM-B8; Oleksii, verbatim: "www.opika.org.ua is added in Vercel as a 308 redirect to
+      opika.org.ua, with a DNS-only CNAME in Cloudflare. Vercel shows it Valid."). Checked by the
+      Resend-route review: `www.opika.org.ua/kabinet?x=1` → `308`,
+      `Location: https://opika.org.ua/kabinet?x=1`.
 - [ ] **Production rollout order** (RG-Q2, superseding HS-Q13's; Oleksii, verbatim: "Rollout order
       becomes: invite merged → admin:bootstrap → I sign in → first shelter invite."), after the
       registry PR has merged:

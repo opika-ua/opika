@@ -5,7 +5,8 @@ import { COPY_PENDING, pendingCopyPaths, uk } from "@opika/i18n";
 import { INVITE_LINK, linkTo, SIGN_IN_LINK } from "./email-links";
 import { invitationEmail, magicLinkEmail } from "./email-message";
 import {
-  emailProviderConfigOf,
+  type EmailProviderConfig,
+  emailRoutesOf,
   fetchEmailSender,
   type OutgoingEmail,
   type SentEmail,
@@ -24,16 +25,38 @@ import { operatorDisplayName } from "./operator";
  * catalogue fallback) and links on `--base` carrying TEST tokens that mean
  * nothing, so a click proves the redirect reaches the page and nothing more.
  * It refuses while any template string is still `[COPY PENDING]`. Two sends
- * through the one provider module, Brevo, from the verified sender on
- * mail.<production host>.
+ * through the one provider module, from the verified sender on
+ * mail.<production host>: the invite through Brevo, the sign-in email through
+ * Brevo or, with `--sign-in-provider resend`, through Resend (delivery test 4,
+ * EM-B6: production's routes, `emailRoutesOf`, built the same way).
  *
- * The key is read from the repo-root .env.local, that one key only (the way
- * prod-guard.ts reads PROD_NEON_ENDPOINT), and never printed: the output is
- * the HTTP status and the provider's message id per send.
+ * Keys are read from the repo-root .env.local, one named key at a time (the
+ * way prod-guard.ts reads PROD_NEON_ENDPOINT): BREVO_API_KEY always, and
+ * RESEND_API_KEY only when the sign-in route asks for Resend. Never printed:
+ * the output is, per send, the provider, the HTTP status and the provider's
+ * message id.
  */
 
-/** The only key this reads. Oleksii keeps it in .env.local; it is never committed or logged. */
+/** The Brevo key's name. Oleksii keeps it in .env.local; it is never committed or logged. */
 export const DELIVERY_KEY_NAME = "BREVO_API_KEY";
+
+/**
+ * The Resend key's name, read only for `--sign-in-provider resend`; never
+ * committed or logged. The same name production reads (EM-B7).
+ */
+export const RESEND_DELIVERY_KEY_NAME = "RESEND_API_KEY";
+
+/** Where the sign-in email may go in this test: production's two candidates (EM-B6). */
+export const DELIVERY_SIGN_IN_PROVIDERS = ["brevo", "resend"] as const;
+export type DeliverySignInProvider = (typeof DELIVERY_SIGN_IN_PROVIDERS)[number];
+
+/** `--sign-in-provider` as given, or null for anything that isn't one of the two. Unset is Brevo. */
+export function deliverySignInProviderOf(value: string | undefined): DeliverySignInProvider | null {
+  if (value === undefined) return "brevo";
+  return (DELIVERY_SIGN_IN_PROVIDERS as readonly string[]).includes(value)
+    ? (value as DeliverySignInProvider)
+    : null;
+}
 
 /** The verified sender's local part; the domain is mail.<production host>, enforced by emailProviderConfigOf. */
 const FROM_LOCAL_PART = "noreply";
@@ -50,7 +73,12 @@ export function readSingleKey(file: string, key: string): string | undefined {
 
 export type DeliveryTestInput = {
   to: string | undefined;
+  /** BREVO_API_KEY: the invite always, and the sign-in email unless it goes through Resend. */
   apiKey: string | undefined;
+  /** Where the sign-in email goes (`--sign-in-provider`); unset is Brevo. */
+  signInProvider?: DeliverySignInProvider;
+  /** RESEND_API_KEY, read by the script only when `signInProvider` is `resend`. */
+  resendApiKey?: string | undefined;
   /** The production origin; the From domain is mail. + its host. */
   origin: string;
   /** Where the links point (the local dev server by default). */
@@ -97,6 +125,11 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
     input.log(`${DELIVERY_KEY_NAME} is not set in the repo-root .env.local. Nothing sent.`);
     return 1;
   }
+  const signInProvider = input.signInProvider ?? "brevo";
+  if (signInProvider === "resend" && !input.resendApiKey) {
+    input.log(`${RESEND_DELIVERY_KEY_NAME} is not set in the repo-root .env.local. Nothing sent.`);
+    return 1;
+  }
   const originHost = (() => {
     try {
       return new URL(input.origin).host;
@@ -104,28 +137,33 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
       return "";
     }
   })();
-  const config = emailProviderConfigOf({
+  // Production's own routing (`emailRoutesOf`), so the test sends the way
+  // the app will: one From, From name and Reply-To for both emails.
+  const routes = emailRoutesOf({
     EMAIL_PROVIDER: "brevo",
     EMAIL_PROVIDER_API_KEY: input.apiKey,
+    ...(signInProvider === "resend"
+      ? { EMAIL_SIGN_IN_PROVIDER: "resend", RESEND_API_KEY: input.resendApiKey }
+      : {}),
     EMAIL_FROM_ADDRESS: `${FROM_LOCAL_PART}@mail.${originHost}`,
     EMAIL_FROM_NAME: input.fromName,
     EMAIL_REPLY_TO: input.replyTo,
     PRODUCTION_ORIGIN: input.origin,
   });
-  if (config.kind !== "configured") {
-    const why = config.kind === "missing" ? `missing ${config.missing.join(", ")}` : config.reason;
+  if (routes.kind !== "configured") {
+    const why = routes.kind === "missing" ? `missing ${routes.missing.join(", ")}` : routes.reason;
     input.log(`Not configured: ${why}. Nothing sent.`);
     return 1;
   }
-  const sender = fetchEmailSender(config.config, input.fetchImpl);
   const operatorName = operatorDisplayName({ KABINET_OPERATOR_DISPLAY_NAME: input.operatorName });
   const testLink = (target: { path: string; param: string }) =>
     linkTo(input.base, target, `TEST-${input.random()}`);
   // The real builders and the real TTLs: what a shelter would receive, with
   // test links and a fictional shelter in place of real ones.
-  const sends: { label: string; email: OutgoingEmail }[] = [
+  const sends: { label: string; route: EmailProviderConfig; email: OutgoingEmail }[] = [
     {
       label: "magic link",
+      route: routes.routes.signIn,
       email: magicLinkEmail({
         to: input.to,
         url: testLink(SIGN_IN_LINK),
@@ -135,6 +173,7 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
     },
     {
       label: "invite",
+      route: routes.routes.invite,
       email: invitationEmail({
         to: input.to,
         url: testLink(INVITE_LINK),
@@ -155,14 +194,15 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
   }
   let failed = false;
   for (const send of sends) {
+    const provider = send.route.provider;
     try {
-      const sent: SentEmail = await sender.send(send.email);
+      const sent: SentEmail = await fetchEmailSender(send.route, input.fetchImpl).send(send.email);
       input.log(
-        `${send.label}: status ${sent.status}, message id ${sent.messageId ?? "(none given)"}`,
+        `${send.label}: ${provider}, status ${sent.status}, message id ${sent.messageId ?? "(none given)"}`,
       );
     } catch (error) {
       // The module's own error names the provider and status only.
-      input.log(`${send.label}: FAILED (${(error as Error).message})`);
+      input.log(`${send.label}: ${provider}, FAILED (${(error as Error).message})`);
       failed = true;
     }
   }

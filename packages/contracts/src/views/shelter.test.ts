@@ -124,8 +124,14 @@ describe("public shelter projections withhold the private fields", () => {
   });
 });
 
-describe("the reveal is the one sanctioned path to the private fields", () => {
-  it("carries the exact address and contact inside the snapshot", () => {
+describe("the reveal is the one sanctioned path to the contact details, and never to the address", () => {
+  /**
+   * EM-D1 (Oleksii, 2026-10-15, verbatim: "the exact address never leaves the
+   * server for adopters"): the view strips the exact address and the
+   * district and point of the public location even when handed them, and
+   * keeps the contact channels and the city.
+   */
+  it("carries the contact and the city, and strips the exact address, district and point", () => {
     const view = ContactRevealViewSchema.parse({
       id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
       animalId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
@@ -142,7 +148,12 @@ describe("the reveal is the one sanctioned path to the private fields", () => {
       animalSnapshot: { name: "Мурчик", primaryPhoto: null },
     });
 
-    expect(view.shelterSnapshot.exactAddress.line1).toBe("вул. Прикладна, 1");
+    expect(view.shelterSnapshot).not.toHaveProperty("exactAddress");
+    expect(view.shelterSnapshot.publicLocation).toEqual({ cityId: CITY_ID });
+    const json = JSON.stringify(view);
+    for (const leaked of ["вул. Прикладна", "61000", '"district"', '"coordinates"', '"lat"']) {
+      expect(json, leaked).not.toContain(leaked);
+    }
     expect(view.shelterSnapshot.contact.primary).toEqual(contact.primary);
   });
 

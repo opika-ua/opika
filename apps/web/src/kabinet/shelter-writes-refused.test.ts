@@ -231,6 +231,10 @@ describe("the test-only policy fails closed on a deployed instance (KH-T1)", () 
     ["VERCEL_ENV=preview", "VERCEL_ENV", "preview"],
   ])("%s: a write answers 500 and writes nothing", async (_label, name, value) => {
     vi.stubEnv(name, value);
+    // A real Preview has its own limiter secret (EM-B6: required on every
+    // Vercel deployment); without one the limiter refuses first and this case
+    // would never reach the write policy it is about.
+    vi.stubEnv("RATE_LIMIT_KEY_SECRET", "test-rate-limit-key-secret-0123456789abcdef");
     const before = await snapshot();
     const result = await call("shelter.animals.deleteDraft", { animalId: draft.id }, asAdmin, {
       kind: "open_for_tests_only",

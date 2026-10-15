@@ -1,3 +1,4 @@
+import { ContactRevealSchema } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { contract } from "./contract";
 
@@ -8,11 +9,17 @@ import { contract } from "./contract";
  * pre-reveal schema contains no district and no coordinates. Re-adding them
  * needs an explicit decision."
  *
+ * And after a reveal too, since 2026-10-15 (inbox EM-B6, answer 5, recorded
+ * as decision EM-D1), verbatim: "Exact address in the reveal response: (b).
+ * Stop sending it, along with district and coordinates. Decision #2 changes:
+ * the exact address never leaves the server for adopters; the meeting place
+ * is agreed with the shelter (matches the live copy). Record it as my
+ * decision; contract test that no reveal or public response contains it."
+ *
  * This walks every output schema of the adopter contract, at every depth,
- * through every wrapper Zod has. The two reveal outputs are the only
- * exemptions, by name: they are where decision #2 sends the exact address.
- * Every other procedure is checked, including ones added later, because the
- * list below is of exemptions, not of checked procedures.
+ * through every wrapper Zod has, with no exemptions: `animals.reveal` and
+ * `reveals.listMine` are checked like every other procedure, and so is any
+ * procedure added later, because nothing here lists which ones to check.
  */
 const FORBIDDEN_KEYS = [
   "district",
@@ -28,14 +35,20 @@ const FORBIDDEN_KEYS = [
   "centroid",
   "precisionMetres",
   "exactAddress",
+  // The exact address's own lines, so it can't come back flattened into the
+  // snapshot under its field names. Not a bare `address`: that is the email
+  // contact channel's key (`{ kind: "email", address }`), which a reveal
+  // legitimately carries.
+  "line1",
+  "line2",
+  "postalCode",
+  "street",
 ] as const;
 
-/** After a reveal (decision #2): the snapshot carries the exact address on purpose. */
-const POST_REVEAL = new Set(["animals.reveal", "reveals.listMine"]);
-
 const DECISION =
-  "re-adding a district or coordinates to a pre-reveal response needs an explicit decision " +
-  "(Oleksii, 2026-10-14, inbox EM-Q10)";
+  "re-adding a district, coordinates or the exact address to any adopter-facing response, " +
+  "before or after a reveal, needs an explicit decision (Oleksii, 2026-10-14, inbox EM-Q10; " +
+  "2026-10-15, inbox EM-B6 / EM-D1)";
 
 type Def = { type: string } & Record<string, unknown>;
 type ZodLike = { _zod: { def: Def } };
@@ -137,19 +150,23 @@ const procedures = (node: object, prefix = ""): readonly [string, Procedure][] =
       : [[path, value as Procedure] as const];
   });
 
-describe("pre-reveal responses carry the city only (EM-Q10)", () => {
+describe("adopter-facing responses carry the city only, before and after a reveal (EM-Q10, EM-D1)", () => {
   const all = procedures(contract);
-  const preReveal = all.filter(([path]) => !POST_REVEAL.has(path));
 
-  it("checks the four location-bearing procedures, and exempts only the two reveal outputs", () => {
-    const paths = all.map(([path]) => path);
-    for (const exempt of POST_REVEAL) expect(paths, exempt).toContain(exempt);
-    expect(preReveal.map(([path]) => path)).toEqual(
-      expect.arrayContaining(["feed.list", "gallery.list", "animals.byId", "shelters.byId"]),
+  it("checks every location-bearing procedure, the two reveal outputs included, with no exemption", () => {
+    expect(all.map(([path]) => path)).toEqual(
+      expect.arrayContaining([
+        "feed.list",
+        "gallery.list",
+        "animals.byId",
+        "shelters.byId",
+        "animals.reveal",
+        "reveals.listMine",
+      ]),
     );
   });
 
-  it.each(preReveal.map(([path, procedure]) => [path, procedure] as const))(
+  it.each(all.map(([path, procedure]) => [path, procedure] as const))(
     "%s: no district, coordinates or address key at any depth",
     (_path, procedure) => {
       const keys = reachableKeys(procedure["~orpc"].outputSchema);
@@ -169,16 +186,40 @@ describe("pre-reveal responses carry the city only (EM-Q10)", () => {
     );
   });
 
-  it("the walker finds the keys where they do exist: the reveal snapshot", () => {
-    const reveal = all.find(([path]) => path === "animals.reveal")?.[1];
-    if (reveal === undefined) throw new Error("animals.reveal missing from the contract");
-    const found = forbiddenIn(reachableKeys(reveal["~orpc"].outputSchema));
+  it("the reveal's own snapshot is reached by the walk: contact channels and the city", () => {
+    for (const [path, prefix] of [
+      ["animals.reveal", "$.shelterSnapshot"],
+      ["reveals.listMine", "$.items[].shelterSnapshot"],
+    ] as const) {
+      const procedure = all.find(([candidate]) => candidate === path)?.[1];
+      if (procedure === undefined) throw new Error(`${path} missing from the contract`);
+      expect(reachableKeys(procedure["~orpc"].outputSchema), path).toEqual(
+        expect.arrayContaining([
+          `${prefix}.contact.primary|1.address`,
+          `${prefix}.publicLocation.cityId`,
+        ]),
+      );
+    }
+  });
+
+  /**
+   * The stored snapshot still holds the exact address (the operator's record),
+   * so the walker is proved on it: every forbidden name it should catch there,
+   * it does. An empty result above therefore means the view left them out.
+   */
+  it("the walker finds the keys where they do exist: the stored (domain) reveal snapshot", () => {
+    const found = forbiddenIn(reachableKeys(ContactRevealSchema));
     expect(found).toEqual(
       expect.arrayContaining([
-        expect.stringMatching(/\.exactAddress$/),
-        expect.stringMatching(/\.district$/),
-        expect.stringMatching(/\.coordinates$/),
+        "$.shelterSnapshot.exactAddress",
+        "$.shelterSnapshot.exactAddress.line1",
+        "$.shelterSnapshot.exactAddress.line2",
+        "$.shelterSnapshot.exactAddress.postalCode",
+        "$.shelterSnapshot.exactAddress.district",
+        "$.shelterSnapshot.exactAddress.coordinates",
         expect.stringMatching(/\.lat$/),
+        expect.stringMatching(/\.lng$/),
+        expect.stringMatching(/^\$\.shelterSnapshot\.publicLocation\|\d\.district$/),
       ]),
     );
   });

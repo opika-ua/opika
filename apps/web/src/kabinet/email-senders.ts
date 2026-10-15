@@ -42,16 +42,36 @@ export function maskAddress(address: string): string {
   return `${address[0]}•••${address.slice(at)}`;
 }
 
+/** Why a send went out unchecked, when it did: the sign-in log line names it. */
+type UncheckedWhy = Extract<BlockedStatus, { kind: "unknown" }>["why"];
+
 /** One checked send. Never throws: every way it can go wrong is an outcome. */
 export async function sendChecked(
   mail: ProviderMail,
   email: OutgoingEmail,
 ): Promise<EmailSendOutcome> {
+  return (await sendCheckedWithReason(mail, email)).outcome;
+}
+
+/**
+ * `sendChecked`, plus why the block check wasn't done when the outcome is
+ * `sent` with `blockCheck: "unknown"`. The outcome the operator sees stays
+ * the contract's; the reason only feeds the sign-in log line, so a Resend
+ * send reads `provider_suppresses` there, not like a failed lookup.
+ */
+async function sendCheckedWithReason(
+  mail: ProviderMail,
+  email: OutgoingEmail,
+): Promise<{ outcome: EmailSendOutcome; uncheckedWhy: UncheckedWhy | null }> {
+  const result = (outcome: EmailSendOutcome, uncheckedWhy: UncheckedWhy | null = null) => ({
+    outcome,
+    uncheckedWhy,
+  });
   if (
     mail.refuseCopyPending &&
     [email.subject, email.html, email.text].some((part) => part.includes(COPY_PENDING))
   ) {
-    return { kind: "failed", reason: "copy_pending" };
+    return result({ kind: "failed", reason: "copy_pending" });
   }
   let status: BlockedStatus;
   try {
@@ -59,18 +79,19 @@ export async function sendChecked(
   } catch {
     status = { kind: "unknown", why: "provider_error" };
   }
-  if (status.kind === "blocked") return { kind: "blocked", reason: status.reason };
+  if (status.kind === "blocked") return result({ kind: "blocked", reason: status.reason });
   // Unknown is sent anyway (IN-E11): a lookup failing must not stop a
   // deliverable email. But the outcome says the check wasn't done, because a
   // blocked address is accepted and dropped (IN-E7): a bare `sent` here would
   // be the guess `BlockedStatus` forbids.
-  const blockCheck = status.kind === "not_blocked" ? "clear" : "unknown";
   try {
     await mail.sender.send(email);
-    return { kind: "sent", blockCheck };
   } catch {
-    return { kind: "failed", reason: "provider_error" };
+    return result({ kind: "failed", reason: "provider_error" });
   }
+  return status.kind === "not_blocked"
+    ? result({ kind: "sent", blockCheck: "clear" })
+    : result({ kind: "sent", blockCheck: "unknown" }, status.why);
 }
 
 const describeOutcome = (outcome: Exclude<EmailSendOutcome, { kind: "sent" }>) =>
@@ -96,7 +117,7 @@ export function providerMagicLinkSender(
 ): MagicLinkSender {
   return {
     async send({ email, url }) {
-      const outcome = await sendChecked(
+      const { outcome, uncheckedWhy } = await sendCheckedWithReason(
         mail,
         magicLinkEmail({
           to: email,
@@ -110,9 +131,12 @@ export function providerMagicLinkSender(
           `[kabinet] sign-in email to ${maskAddress(email)} not sent: ${describeOutcome(outcome)}`,
         );
       } else if (outcome.blockCheck === "unknown") {
-        // Sent, but unchecked: if she was blocked it was dropped, and this line is the only trace.
+        // Sent, but unchecked: if she was blocked it was dropped, and this
+        // line is the only trace. Its reason says which: a lookup that
+        // failed, or a provider filtering on a list we don't read
+        // (`provider_suppresses`, Resend).
         options.log(
-          `[kabinet] sign-in email to ${maskAddress(email)} sent without a block-list check`,
+          `[kabinet] sign-in email to ${maskAddress(email)} sent without a block-list check (${uncheckedWhy})`,
         );
       }
     },

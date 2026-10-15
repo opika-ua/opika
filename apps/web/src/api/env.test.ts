@@ -114,6 +114,9 @@ describe("validateEnv", () => {
     vi.stubEnv("CURSOR_HMAC_SECRET", "a".repeat(32));
     vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", "https://cdn.opika.org.ua");
     vi.stubEnv("PRELAUNCH_GATE_SECRET", "a".repeat(32));
+    // Valid by default (every Vercel deployment needs it, EM-B6); the
+    // RATE_LIMIT_KEY_SECRET cases below clear it to test it alone.
+    vi.stubEnv("RATE_LIMIT_KEY_SECRET", "r".repeat(32));
     vi.stubEnv("KV_REST_API_URL", "");
     vi.stubEnv("KV_REST_API_TOKEN", "");
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
@@ -257,11 +260,22 @@ describe("validateEnv", () => {
       expect(() => validateEnv()).toThrow(/CRON_SECRET[\s\S]*RATE_LIMIT_KEY_SECRET/);
     });
 
-    it("is not required on a Preview or under the harness's next start", () => {
+    /** EM-B6 (Oleksii, 2026-10-15): "required on every Vercel deployment, including Preview". */
+    it("is required on a Preview too, naming the variable, and accepts 32 characters there", () => {
+      productionWithUpstashAndCron();
+      vi.stubEnv("VERCEL", "1");
+      vi.stubEnv("VERCEL_ENV", "preview");
+      vi.stubEnv("RATE_LIMIT_KEY_SECRET", "");
+      expect(() => validateEnv()).toThrow(/RATE_LIMIT_KEY_SECRET must be at least 32 characters/);
+      vi.stubEnv("RATE_LIMIT_KEY_SECRET", "r".repeat(31));
+      expect(() => validateEnv()).toThrow(/RATE_LIMIT_KEY_SECRET/);
+      vi.stubEnv("RATE_LIMIT_KEY_SECRET", "r".repeat(32));
+      expect(() => validateEnv()).not.toThrow();
+    });
+
+    it("is not required under the harness's next start (no VERCEL, no VERCEL_ENV)", () => {
       productionWithUpstashAndCron();
       vi.stubEnv("RATE_LIMIT_KEY_SECRET", "");
-      vi.stubEnv("VERCEL_ENV", "preview");
-      expect(() => validateEnv()).not.toThrow();
       vi.stubEnv("VERCEL_ENV", "");
       vi.stubEnv("VERCEL", "");
       expect(() => validateEnv()).not.toThrow();

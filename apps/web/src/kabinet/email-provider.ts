@@ -2,10 +2,12 @@ import type { EMAIL_BLOCK_REASONS } from "@opika/contracts";
 
 /**
  * The one module that sends email (IN-Q2, Oleksii: "Call the provider HTTP
- * API with fetch, no SDK, behind one module."). Production uses Brevo;
- * Resend is the documented fallback, not set up (IN-E2, 2026-10-13). All
- * three stay behind one interface and config chooses, so a swap is an env
- * change. Their request shapes follow each provider's public API reference
+ * API with fetch, no SDK, behind one module."). Production sends invites
+ * through Brevo (IN-E2, 2026-10-13) and sign-in emails through Resend
+ * (Oleksii, 2026-10-15, inbox EM-B6, verbatim: "EM-R1 has fired: move sign-in
+ * sends to Resend (see item 2). Invites stay on Brevo while they land in
+ * Primary."), each a route (`emailRoutesOf`). All three providers stay behind
+ * one interface and config chooses, so a swap is an env change. Their request shapes follow each provider's public API reference
  * (2026-10-13):
  *
  * - Resend: `POST https://api.resend.com/emails`, `Authorization: Bearer`,
@@ -114,6 +116,101 @@ export function emailProviderConfigOf(
       replyTo,
     },
   };
+}
+
+/**
+ * The two routes production mail takes: one provider config per template.
+ * `invite` is also the registry's block-list view (`cachedBlockList`); the
+ * wiring commit hands `signIn` to `providerMagicLinkSender` and `invite` to
+ * the invitation sender and `cachedBlockList` (`docs/h2-next-prs.md`). The
+ * From address, From name and Reply-To are one set, validated once, so the
+ * two emails can never come from different senders.
+ */
+export type EmailRoutes = { invite: EmailProviderConfig; signIn: EmailProviderConfig };
+
+export type EmailRoutesResult =
+  | { kind: "configured"; routes: EmailRoutes }
+  | { kind: "missing"; missing: readonly string[] }
+  | { kind: "invalid"; reason: string };
+
+/**
+ * Where a route that names its provider reads that provider's key: a key name
+ * per provider (Oleksii, 2026-10-15, inbox EM-B7, verbatim: "Variable name:
+ * go with RESEND_API_KEY. ... provider-specific key names match the Brevo
+ * key's convention; a key only works with its own provider; provider
+ * selection stays in its own setting. If invites move to Resend later, they
+ * use the same RESEND_API_KEY."). Only Resend has one so far; the default
+ * route still reads the generic `EMAIL_PROVIDER_API_KEY` (the asymmetry is
+ * follow-up EM-F4, not renamed here).
+ */
+export const PROVIDER_KEY_NAMES: Readonly<Partial<Record<EmailProvider, string>>> = {
+  resend: "RESEND_API_KEY",
+};
+
+/**
+ * The default route (`emailProviderConfigOf`) plus an optional sign-in route
+ * chosen by `EMAIL_SIGN_IN_PROVIDER` (EM-B6; the design is EM-T22, the key
+ * name EM-B7). Per template rather than one switch, because one switch would
+ * also move invites, which land in Primary on Brevo (EM-B4).
+ *
+ * - Unset: sign-in takes the default route. A provider key set on its own
+ *   (`RESEND_API_KEY` is in Vercel Production before the wiring commit) moves
+ *   nothing: selection is `EMAIL_SIGN_IN_PROVIDER`'s alone.
+ * - The default route's own provider: the default route, the same provider
+ *   and the same key (`EMAIL_PROVIDER_API_KEY`); its own key name, if set, is
+ *   not read.
+ * - Another provider: its own key (`PROVIDER_KEY_NAMES`, e.g.
+ *   `RESEND_API_KEY`), with the default route's From, From name and Reply-To.
+ *   That key missing, a provider with no key name of its own, or a value that
+ *   isn't one of EMAIL_PROVIDERS: `invalid`, so production sign-in stays off
+ *   (`provider_invalid`). Never a silent fall back to the default route: a
+ *   half-done switch would keep sending sign-in through the route Oleksii
+ *   moved it off, and nobody would see it.
+ *
+ * Checked before the default route, so a half-done switch is named as such
+ * even when the default route is missing too. No reason ever carries a value
+ * from the environment: a key pasted into the provider variable must not
+ * reach a log.
+ */
+export function emailRoutesOf(
+  env: Readonly<Record<string, string | undefined>>,
+): EmailRoutesResult {
+  const chosen = env.EMAIL_SIGN_IN_PROVIDER?.trim() ?? "";
+  if (chosen !== "" && !(EMAIL_PROVIDERS as readonly string[]).includes(chosen)) {
+    return {
+      kind: "invalid",
+      reason: `EMAIL_SIGN_IN_PROVIDER must be one of ${EMAIL_PROVIDERS.join(", ")}`,
+    };
+  }
+  const signInProvider = chosen === "" ? null : (chosen as EmailProvider);
+  // Naming the default route's own provider IS the default route: same
+  // provider, same key. Only a different provider reads a key of its own,
+  // otherwise resend+resend would need RESEND_API_KEY and then send invite and
+  // sign-in on two different keys (review of the Resend route, finding 1).
+  const ownsRoute = signInProvider !== null && signInProvider !== env.EMAIL_PROVIDER?.trim();
+  const keyName = ownsRoute ? PROVIDER_KEY_NAMES[signInProvider] : undefined;
+  if (ownsRoute && keyName === undefined) {
+    return {
+      kind: "invalid",
+      reason:
+        "EMAIL_SIGN_IN_PROVIDER names a provider with no key variable of its own " +
+        `(only ${Object.values(PROVIDER_KEY_NAMES).join(", ")} exist)`,
+    };
+  }
+  const signInKey = keyName === undefined ? "" : (env[keyName]?.trim() ?? "");
+  if (keyName !== undefined && signInKey === "") {
+    return {
+      kind: "invalid",
+      reason: `EMAIL_SIGN_IN_PROVIDER=${signInProvider} needs ${keyName}`,
+    };
+  }
+  const base = emailProviderConfigOf(env);
+  if (base.kind !== "configured") return base;
+  const signIn: EmailProviderConfig =
+    !ownsRoute || keyName === undefined
+      ? base.config
+      : { ...base.config, provider: signInProvider, apiKey: signInKey };
+  return { kind: "configured", routes: { invite: base.config, signIn } };
 }
 
 /**
@@ -298,10 +395,25 @@ export type BlockedStatus =
    * Not knowable. The email is still sent (IN-E11), and the caller reports
    * `sent` with `blockCheck: "unknown"` (`EmailSendOutcome`), never a bare
    * `sent` that would read as "checked and clear".
+   *
+   * `provider_suppresses`: Resend. It keeps an account-level suppression list
+   * (hard bounces, complaints, manual) and does not deliver to an address on
+   * it (resend.com/docs/dashboard/emails/email-suppressions), but this module
+   * doesn't read that list yet: its API pages the whole list with no lookup
+   * by address, and may need a full-access key, a bigger secret than the
+   * sending-only one (Oleksii, 2026-10-15, verbatim: "Resend sends show the
+   * block-list check as "not checked" for now; scanning Resend's suppression
+   * list is a follow-up."). Its own reason, so the log line says what is
+   * true: the provider filters, and we didn't look.
    */
   | {
       kind: "unknown";
-      why: "unsupported_provider" | "provider_error" | "list_too_long" | "timed_out";
+      why:
+        | "unsupported_provider"
+        | "provider_suppresses"
+        | "provider_error"
+        | "list_too_long"
+        | "timed_out";
     };
 
 /**
@@ -439,7 +551,7 @@ async function withDeadline<T>(
 
 /**
  * Whether the provider will refuse to deliver to `address`. Brevo only; any
- * other provider answers `unknown`. Every failure (timeout, non-2xx, a body
+ * other provider answers `unknown` (Resend as `provider_suppresses`, above). Every failure (timeout, non-2xx, a body
  * that isn't the documented shape) is `unknown`, and never names the key or
  * the address. All pages share one deadline, BLOCKED_LOOKUP_DEADLINE_MS from
  * the first request: a `setTimeout`, not `AbortSignal.timeout`, so a test can
@@ -451,6 +563,7 @@ export async function blockedStatusOf(
   fetchImpl: typeof fetch = fetch,
   deadlineMs: number = BLOCKED_LOOKUP_DEADLINE_MS,
 ): Promise<BlockedStatus> {
+  if (config.provider === "resend") return { kind: "unknown", why: "provider_suppresses" };
   if (config.provider !== "brevo") return { kind: "unknown", why: "unsupported_provider" };
   const wanted = address.trim().toLowerCase();
   const scan = await withDeadline(deadlineMs, (signal) =>

@@ -5,24 +5,34 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestHarness, type TestHarness } from "./test-harness";
 
 /**
- * What a browser actually receives before a reveal, through the served router
- * (`implement(contract)`, oRPC's output stripping, the real handlers):
- * Oleksii, 2026-10-14 (inbox EM-Q10, answer (a)), verbatim: "Stop sending
- * district and fuzzed coordinates in public responses before a reveal (exact
- * address after a reveal stays, per decision #2)."
+ * What a browser actually receives, before and after a reveal, through the
+ * served router (`implement(contract)`, oRPC's output stripping, the real
+ * handlers): Oleksii, 2026-10-14 (inbox EM-Q10, answer (a)), verbatim: "Stop
+ * sending district and fuzzed coordinates in public responses before a
+ * reveal (exact address after a reveal stays, per decision #2)."; and
+ * 2026-10-15 (inbox EM-B6, answer 5, decision EM-D1), verbatim: "Exact address
+ * in the reveal response: (b). Stop sending it, along with district and
+ * coordinates. Decision #2 changes: the exact address never leaves the server
+ * for adopters; the meeting place is agreed with the shelter (matches the
+ * live copy). Record it as my decision; contract test that no reveal or
+ * public response contains it."
  *
  * The contract-side walk (`packages/contracts/src/pre-reveal-location.test.ts`)
  * proves the schemas can't carry them; this proves the JSON doesn't, which
  * also catches a handler or a serializer adding something the schema walk
- * can't see. The fixtures carry a real district on the shelter and on a
- * fostered animal, so a pass can't come from the fields merely being null.
+ * can't see. The fixtures carry a real street address, postcode and district
+ * on the shelter and a district on a fostered animal, so a pass can't come
+ * from the fields merely being null.
  */
 const DECISION =
-  "re-adding a district or coordinates to a pre-reveal response needs an explicit decision " +
-  "(Oleksii, 2026-10-14, inbox EM-Q10)";
+  "re-adding a district, coordinates or the exact address to any adopter-facing response, " +
+  "before or after a reveal, needs an explicit decision (inbox EM-Q10; EM-B6 / EM-D1)";
 
 const FORBIDDEN_KEY =
-  /"(district|coordinates|lat|lng|latitude|longitude|approximate|center|centroid|precisionMetres|exactAddress)"\s*:/g;
+  /"(district|coordinates|lat|lng|latitude|longitude|approximate|center|centroid|precisionMetres|exactAddress|line1|line2|postalCode|street)"\s*:/g;
+
+const STREET = "вул. Тестова 1";
+const POSTCODE = "01001";
 
 const SHELTER_DISTRICT = "Голосіївський";
 const FOSTER_DISTRICT = "Оболонський";
@@ -45,9 +55,9 @@ async function seed() {
   await cityRepo(h.db).insert(city);
   const shelter = makeShelter({
     exactAddress: {
-      line1: "вул. Тестова 1",
+      line1: STREET,
       line2: null,
-      postalCode: "01001",
+      postalCode: POSTCODE,
       cityId: city.id,
       district: { uk: SHELTER_DISTRICT, en: null },
       coordinates: EXACT,
@@ -70,7 +80,14 @@ function expectCityOnly(name: string, res: { status: number; raw: string }) {
     [...res.raw.matchAll(FORBIDDEN_KEY)].map((m) => m[1]),
     `${name}: ${DECISION}`,
   ).toEqual([]);
-  for (const leaked of [SHELTER_DISTRICT, FOSTER_DISTRICT, String(EXACT.lat), "50.40"]) {
+  for (const leaked of [
+    SHELTER_DISTRICT,
+    FOSTER_DISTRICT,
+    String(EXACT.lat),
+    "50.40",
+    STREET,
+    POSTCODE,
+  ]) {
     expect(res.raw, `${name} carries "${leaked}": ${DECISION}`).not.toContain(leaked);
   }
 }
@@ -98,15 +115,55 @@ describe("served pre-reveal responses carry the city only (EM-Q10)", () => {
     expect(feed.raw).toContain(`"publicLocation":{"cityId":"${city.id}"}`);
   });
 
-  it("the scan sees the keys where they belong: a reveal still carries the exact address", async () => {
-    const { atShelter } = await seed();
+  it("the scan sees the keys where they exist: the shelter's own record, as stored", async () => {
+    const { shelter } = await seed();
+    const stored = JSON.stringify(shelter);
+    const keys = [...stored.matchAll(FORBIDDEN_KEY)].map((m) => m[1]);
+    expect(keys).toEqual(
+      expect.arrayContaining(["exactAddress", "line1", "postalCode", "district", "coordinates"]),
+    );
+    for (const value of [STREET, POSTCODE, SHELTER_DISTRICT]) expect(stored).toContain(value);
+  });
+});
+
+describe("served reveal responses carry contacts and the city, never the address (EM-D1)", () => {
+  it("animals.reveal, its idempotent repeat, and reveals.listMine", async () => {
+    const { city, shelter, atShelter, fostered } = await seed();
     const boot = await h.call("session.bootstrap", {});
     const cookie = h.extractSessionCookie(boot.headers);
     if (cookie === null) throw new Error("no session cookie");
-    const reveal = await h.call("animals.reveal", { animalId: atShelter.id }, { cookie });
-    expect(reveal.status).toBe(200);
-    const keys = [...reveal.raw.matchAll(FORBIDDEN_KEY)].map((m) => m[1]);
-    expect(keys).toEqual(expect.arrayContaining(["exactAddress", "district", "coordinates"]));
-    expect(reveal.raw).toContain(SHELTER_DISTRICT);
+
+    for (const animal of [atShelter, fostered]) {
+      const reveal = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
+      expectCityOnly("animals.reveal", reveal);
+      // The second call returns the stored reveal (the idempotent path).
+      expectCityOnly(
+        "animals.reveal (repeat)",
+        await h.call("animals.reveal", { animalId: animal.id }, { cookie }),
+      );
+      // What a reveal is for still arrives: the shelter's name, its channels, its city.
+      const snapshot = (reveal.body as { shelterSnapshot: Record<string, unknown> })
+        .shelterSnapshot;
+      expect(snapshot.displayName).toBe(shelter.displayName);
+      expect(snapshot.contact).toEqual(JSON.parse(JSON.stringify(shelter.contact)));
+      expect(snapshot.publicLocation).toEqual({ cityId: city.id });
+    }
+
+    const mine = await h.call("reveals.listMine", { cursor: null, limit: 20 }, { cookie });
+    expectCityOnly("reveals.listMine", mine);
+    const items = (mine.body as { items: { shelterSnapshot: Record<string, unknown> }[] }).items;
+    expect(items).toHaveLength(2);
+    for (const item of items) {
+      expect(Object.keys(item.shelterSnapshot).sort()).toEqual(
+        [
+          "contact",
+          "displayName",
+          "donation",
+          "publicLocation",
+          "shelterId",
+          "verificationStatusAtReveal",
+        ].sort(),
+      );
+    }
   });
 });

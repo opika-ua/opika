@@ -67,6 +67,7 @@ describe("sendChecked", () => {
       "list_too_long",
       "timed_out",
       "unsupported_provider",
+      "provider_suppresses",
     ] as const) {
       const unknown = mail({ kind: "unknown", why });
       expect(await sendChecked(unknown.provider, email), why).toEqual({
@@ -190,9 +191,90 @@ describe("providerMagicLinkSender", () => {
       url: URL_WITH_TOKEN,
     });
     expect(lines).toEqual([
-      "[kabinet] sign-in email to o•••@example.org sent without a block-list check",
+      "[kabinet] sign-in email to o•••@example.org sent without a block-list check (timed_out)",
     ]);
     expect(m.sent).toHaveLength(1);
+  });
+
+  /**
+   * EM-B6: a sign-in routed to Resend is sent with the check reported as not
+   * done, and the log says why in its own words (`provider_suppresses`), not
+   * as a failed lookup. Driven through the real `blockedStatusOf`, so the
+   * route decides, not a stub.
+   */
+  it("a Resend-routed magic link: sent unchecked, logged masked as provider_suppresses", async () => {
+    const resend = {
+      provider: "resend",
+      apiKey: "resend-key",
+      fromAddress: "noreply@mail.example.org",
+      fromName: null,
+      replyTo: "hello@example.org",
+    } as const;
+    const sent: OutgoingEmail[] = [];
+    let lookups = 0;
+    const lookupFetch = (async () => {
+      lookups++;
+      throw new Error("must not be called");
+    }) as unknown as typeof fetch;
+    const lines: string[] = [];
+    await providerMagicLinkSender(
+      {
+        sender: {
+          send: async (e) => {
+            sent.push(e);
+            return { status: 200, messageId: "r-1" };
+          },
+        },
+        blockedStatus: (address) => blockedStatusOf(resend, address, lookupFetch),
+        refuseCopyPending: true,
+      },
+      { ttlMinutes: 15, operatorName: "Олексій", log: (l) => lines.push(l) },
+    ).send({ email: "olena@example.org", url: URL_WITH_TOKEN });
+    expect(sent).toHaveLength(1);
+    expect(lookups).toBe(0);
+    expect(lines).toEqual([
+      "[kabinet] sign-in email to o•••@example.org sent without a block-list check (provider_suppresses)",
+    ]);
+    expect(lines.join("")).not.toContain("SECRET-TOKEN");
+    expect(lines.join("")).not.toContain("olena@");
+  });
+
+  it("an invite through Brevo still reads Brevo's block list, and a listed address is not sent", async () => {
+    const brevo = {
+      provider: "brevo",
+      apiKey: "brevo-key",
+      fromAddress: "noreply@mail.example.org",
+      fromName: null,
+      replyTo: "hello@example.org",
+    } as const;
+    const asked: string[] = [];
+    const listFetch = (async (url: string) => {
+      asked.push(url);
+      return new Response(
+        JSON.stringify({
+          count: 1,
+          contacts: [{ email: "olena@example.org", reason: { code: "hardBounce" } }],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+    const sent: OutgoingEmail[] = [];
+    const outcome = await sendChecked(
+      {
+        sender: {
+          send: async (e) => {
+            sent.push(e);
+            return { status: 201, messageId: "b-1" };
+          },
+        },
+        blockedStatus: (address) => blockedStatusOf(brevo, address, listFetch),
+        refuseCopyPending: false,
+      },
+      email,
+    );
+    expect(outcome).toEqual({ kind: "blocked", reason: "hard_bounce" });
+    expect(asked[0]).toMatch(/^https:\/\/api\.brevo\.com\/v3\/smtp\/blockedContacts\?/);
+    expect(sent).toEqual([]);
   });
 
   it("logs nothing for a checked, sent email, and sends the magic-link email itself", async () => {

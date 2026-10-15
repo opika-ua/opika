@@ -7,6 +7,7 @@ import {
   cachedBlockList,
   type EmailProviderConfig,
   emailProviderConfigOf,
+  emailRoutesOf,
   fetchEmailSender,
   providerRequest,
 } from "./email-provider";
@@ -45,6 +46,28 @@ describe("providerRequest", () => {
       html: "<p>H</p>",
       text: "T",
     });
+  });
+
+  /**
+   * EM-B6 (sign-in through Resend): the request carries exactly the six
+   * fields and the two headers that matter, and nothing that could turn a
+   * sign-in email into a bulk one. No `headers` (so no List-Unsubscribe, the
+   * header behind IN-E7), no `tags`, no `topic_id`. Asserted on the bytes
+   * that go out, not on the object before serialisation.
+   */
+  it("sends Resend exactly six fields, with no headers, tags, topic or List-Unsubscribe anywhere", () => {
+    const { init } = providerRequest(config("resend"), email);
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(Object.keys(body).sort()).toEqual(
+      ["from", "html", "reply_to", "subject", "text", "to"].sort(),
+    );
+    expect(Object.keys(init.headers as Record<string, string>).sort()).toEqual(
+      ["Accept", "Authorization", "Content-Type", "User-Agent"].sort(),
+    );
+    const serialised = `${JSON.stringify(init.headers)}\n${init.body as string}`;
+    for (const banned of ['"headers"', '"tags"', '"topic_id"', "List-Unsubscribe"]) {
+      expect(serialised, banned).not.toContain(banned);
+    }
   });
 
   it("builds Postmark's request", () => {
@@ -245,6 +268,119 @@ describe("emailProviderConfigOf", () => {
         "invalid",
       );
     }
+  });
+});
+
+/**
+ * EM-B6 (Oleksii, 2026-10-15, verbatim: "Resend for SIGN-IN sends: GO. a.
+ * Same domain mail.opika.org.ua"): one optional pair moves sign-in only.
+ */
+describe("emailRoutesOf: the sign-in route beside the default one", () => {
+  const base = {
+    EMAIL_PROVIDER: "brevo",
+    EMAIL_PROVIDER_API_KEY: "brevo-key-0123",
+    EMAIL_FROM_ADDRESS: "noreply@mail.example.org",
+    EMAIL_FROM_NAME: "Реєстр",
+    EMAIL_REPLY_TO: "hello@example.org",
+    PRODUCTION_ORIGIN: "https://example.org",
+  };
+  const RESEND_KEY = "resend-key-SECRET-4567";
+  /** EM-B7: the provider in its own setting, the key under the provider's own name. */
+  const both = { ...base, EMAIL_SIGN_IN_PROVIDER: "resend", RESEND_API_KEY: RESEND_KEY };
+
+  it("EMAIL_SIGN_IN_PROVIDER unset: both routes are the default route, even with RESEND_API_KEY set", () => {
+    for (const unset of [{}, { EMAIL_SIGN_IN_PROVIDER: " " }, { RESEND_API_KEY: RESEND_KEY }]) {
+      const result = emailRoutesOf({ ...base, ...unset });
+      expect(result.kind, JSON.stringify(Object.keys(unset))).toBe("configured");
+      if (result.kind !== "configured") return;
+      expect(result.routes.signIn).toEqual(result.routes.invite);
+      expect(result.routes.invite).toMatchObject({ provider: "brevo", apiKey: "brevo-key-0123" });
+    }
+  });
+
+  it("EMAIL_SIGN_IN_PROVIDER naming the default route's own provider (brevo + brevo): the default route", () => {
+    const result = emailRoutesOf({ ...base, EMAIL_SIGN_IN_PROVIDER: "brevo" });
+    expect(result.kind).toBe("configured");
+    if (result.kind !== "configured") return;
+    expect(result.routes.signIn).toEqual(result.routes.invite);
+    expect(result.routes.signIn).toMatchObject({ provider: "brevo", apiKey: "brevo-key-0123" });
+  });
+
+  it("resend + resend: sign-in IS the default route (its key, not RESEND_API_KEY), with or without RESEND_API_KEY", () => {
+    for (const resendKey of [{}, { RESEND_API_KEY: RESEND_KEY }]) {
+      const result = emailRoutesOf({
+        ...base,
+        EMAIL_PROVIDER: "resend",
+        EMAIL_PROVIDER_API_KEY: "generic-resend-key-89",
+        EMAIL_SIGN_IN_PROVIDER: "resend",
+        ...resendKey,
+      });
+      expect(result.kind, JSON.stringify(Object.keys(resendKey))).toBe("configured");
+      if (result.kind !== "configured") return;
+      expect(result.routes.signIn).toEqual(result.routes.invite);
+      expect(result.routes.signIn).toMatchObject({
+        provider: "resend",
+        apiKey: "generic-resend-key-89",
+      });
+    }
+  });
+
+  it("resend + RESEND_API_KEY: sign-in is Resend with that key, invite stays Brevo, one From, name and Reply-To", () => {
+    const result = emailRoutesOf(both);
+    expect(result.kind).toBe("configured");
+    if (result.kind !== "configured") return;
+    const { invite, signIn } = result.routes;
+    expect(signIn).toMatchObject({ provider: "resend", apiKey: RESEND_KEY });
+    expect(invite).toMatchObject({ provider: "brevo", apiKey: "brevo-key-0123" });
+    const sender = (c: EmailProviderConfig) => [c.fromAddress, c.fromName, c.replyTo];
+    expect(sender(signIn)).toEqual(sender(invite));
+    expect(sender(signIn)).toEqual(["noreply@mail.example.org", "Реєстр", "hello@example.org"]);
+  });
+
+  it("resend without RESEND_API_KEY: invalid, naming the variable and no value", () => {
+    for (const missingKey of [{}, { RESEND_API_KEY: "" }, { RESEND_API_KEY: "  " }]) {
+      const result = emailRoutesOf({ ...base, EMAIL_SIGN_IN_PROVIDER: "resend", ...missingKey });
+      expect(result).toEqual({
+        kind: "invalid",
+        reason: "EMAIL_SIGN_IN_PROVIDER=resend needs RESEND_API_KEY",
+      });
+    }
+  });
+
+  it("the generic key is not the Resend key: EMAIL_PROVIDER_API_KEY never stands in for RESEND_API_KEY", () => {
+    const result = emailRoutesOf({ ...base, EMAIL_SIGN_IN_PROVIDER: "resend" });
+    expect(result.kind).toBe("invalid");
+  });
+
+  it("another provider with no key variable of its own is invalid, not a silent default", () => {
+    const result = emailRoutesOf({ ...base, EMAIL_SIGN_IN_PROVIDER: "postmark" });
+    expect(result).toEqual({
+      kind: "invalid",
+      reason:
+        "EMAIL_SIGN_IN_PROVIDER names a provider with no key variable of its own (only RESEND_API_KEY exist)",
+    });
+  });
+
+  it("an unknown sign-in provider is invalid, without echoing what was set (it may be a key)", () => {
+    const result = emailRoutesOf({ ...both, EMAIL_SIGN_IN_PROVIDER: RESEND_KEY });
+    expect(result).toEqual({
+      kind: "invalid",
+      reason: "EMAIL_SIGN_IN_PROVIDER must be one of resend, postmark, brevo",
+    });
+  });
+
+  it("a half-done switch is named even when the default route is missing too", () => {
+    expect(emailRoutesOf({ EMAIL_SIGN_IN_PROVIDER: "resend" }).kind).toBe("invalid");
+  });
+
+  it("the shared checks still apply to the sign-in route: the default route's problems come through", () => {
+    expect(emailRoutesOf({ ...both, EMAIL_PROVIDER_API_KEY: undefined })).toEqual({
+      kind: "missing",
+      missing: ["EMAIL_PROVIDER_API_KEY"],
+    });
+    const offHost = emailRoutesOf({ ...both, EMAIL_FROM_ADDRESS: "noreply@mail.attacker.example" });
+    expect(offHost.kind).toBe("invalid");
+    expect(JSON.stringify(offHost)).not.toContain(RESEND_KEY);
   });
 });
 
@@ -449,12 +585,24 @@ describe("blockedStatusOf (IN-E7): Brevo's transactional block list, asked befor
 
   it("answers unknown for a provider whose list this doesn't read, without calling it", async () => {
     const { calls, fetchImpl } = pages();
-    for (const provider of ["resend", "postmark"] as const) {
-      expect(await blockedStatusOf(config(provider), "a@example.org", fetchImpl)).toEqual({
-        kind: "unknown",
-        why: "unsupported_provider",
-      });
-    }
+    expect(await blockedStatusOf(config("postmark"), "a@example.org", fetchImpl)).toEqual({
+      kind: "unknown",
+      why: "unsupported_provider",
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  /**
+   * Oleksii, 2026-10-15, verbatim: "Resend sends show the block-list check
+   * as "not checked" for now; scanning Resend's suppression list is a
+   * follow-up." Its own reason: Resend does filter, on a list we don't read.
+   */
+  it("answers unknown (provider_suppresses) for Resend, without calling anyone", async () => {
+    const { calls, fetchImpl } = pages();
+    expect(await blockedStatusOf(config("resend"), "a@example.org", fetchImpl)).toEqual({
+      kind: "unknown",
+      why: "provider_suppresses",
+    });
     expect(calls).toHaveLength(0);
   });
 });

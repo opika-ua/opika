@@ -21,11 +21,11 @@ export const CRON_SECRET_MIN_LENGTH = 32;
 export const PRODUCTION_SECRET_MIN_LENGTH = CRON_SECRET_MIN_LENGTH;
 
 /**
- * The one rule both production-only secrets follow, so the build check and
- * the boot check (`validateEnv`, `env.ts`) can't drift apart on it, and the
- * two secrets can't drift apart from each other: `VERCEL_ENV ===
+ * The rule a production-only secret follows, so the build check and the boot
+ * check (`validateEnv`, `env.ts`) can't drift apart on it: `VERCEL_ENV ===
  * "production"` only, at least 32 characters, a message naming the variable
- * and what breaks without it, never its value.
+ * and what breaks without it, never its value. `RATE_LIMIT_KEY_SECRET` has
+ * its own, wider gate below (every Vercel deployment).
  */
 function productionSecretProblem(
   env: Readonly<Record<string, string | undefined>>,
@@ -62,22 +62,48 @@ export const cronSecretProblem = (env: Readonly<Record<string, string | undefine
   );
 
 /**
+ * Whether this environment is a Vercel deployment (Production, Preview, or
+ * any environment Vercel names other than `development`). `vercel env pull`
+ * writes `VERCEL=1` and `VERCEL_ENV=development` into a developer's
+ * `.env.local`, and `next dev` then reads them, so `development` is the one
+ * value treated as local. Anything else Vercel sets, an unrecognised value
+ * included, counts as a deployment: fail closed, the same posture as
+ * `productionSignInOf`'s unidentified environment.
+ */
+export const isVercelDeployment = (env: Readonly<Record<string, string | undefined>>): boolean =>
+  Boolean(env.VERCEL || env.VERCEL_ENV) && env.VERCEL_ENV !== "development";
+
+/**
  * `RATE_LIMIT_KEY_SECRET` (Oleksii, 2026-10-14, inbox EM-Q11, verbatim:
  * "Rate-limit keys become HMAC(IP) with a dedicated secret
  * RATE_LIMIT_KEY_SECRET (not LOCATION_HMAC_SECRET), on all limiters including
  * the adopter side. Required in production with a build-time check, like
  * CRON_SECRET."): the key every rate limiter's IP bucket is an HMAC under
  * (`rate-limit-key.ts`), which is what lets /pro say «IP-адреси не
- * зберігаються» of the limiter store as well as the database. Production
- * only, as he set it: outside production `rate-limit-key.ts` falls back to a
- * per-process random key, never to a value in the repository.
+ * зберігаються» of the limiter store as well as the database.
+ *
+ * Widened 2026-10-15 from production to every Vercel deployment (Oleksii,
+ * inbox EM-B6, verbatim: "4. RATE_LIMIT_KEY_SECRET required on every Vercel
+ * deployment, including Preview (separate Preview value). Build-time check
+ * covers both."). Without it a Preview fell back to a random key per process,
+ * so its buckets were per instance and the proxy and the route handlers hashed
+ * with different keys: the bootstrap per-IP limit CLAUDE.md requires was
+ * multiplied there (review truth.md, finding 1). Off Vercel (local dev, CI,
+ * unit tests, the harness's `next start`) `rate-limit-key.ts` still falls back
+ * to a per-process random key, never to a value in the repository.
  */
-export const rateLimitKeySecretProblem = (env: Readonly<Record<string, string | undefined>>) =>
-  productionSecretProblem(
-    env,
-    "RATE_LIMIT_KEY_SECRET",
-    "every rate limiter keys a client IP as an HMAC under it, so no IP is ever stored",
+export const rateLimitKeySecretProblem = (
+  env: Readonly<Record<string, string | undefined>>,
+): string | null => {
+  if (!isVercelDeployment(env)) return null;
+  if ((env.RATE_LIMIT_KEY_SECRET ?? "").length >= PRODUCTION_SECRET_MIN_LENGTH) return null;
+  return (
+    `RATE_LIMIT_KEY_SECRET must be at least ${PRODUCTION_SECRET_MIN_LENGTH} characters on every ` +
+    "Vercel deployment, Preview included (every rate limiter keys a client IP as an HMAC under " +
+    "it, so no IP is ever stored) — generate with: openssl rand -hex 32, and set it in Vercel's " +
+    "Production and Preview environments, a separate value on each"
   );
+};
 
 /**
  * Throws, naming every problem at once, if this build must not go ahead.
@@ -85,8 +111,8 @@ export const rateLimitKeySecretProblem = (env: Readonly<Record<string, string | 
  * `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` (H1) is gated on `VERCEL`/`VERCEL_ENV`,
  * any Vercel build: it is inlined into the client bundle at build time, so
  * no later check can repair a bundle built without it. `next.config.ts`'s
- * comment above the call has the full account. `CRON_SECRET` and
- * `RATE_LIMIT_KEY_SECRET` are production-only, above.
+ * comment above the call has the full account. `CRON_SECRET` is
+ * production-only and `RATE_LIMIT_KEY_SECRET` every Vercel deployment, above.
  */
 export function assertBuildEnv(env: Readonly<Record<string, string | undefined>>): void {
   const problems: string[] = [];

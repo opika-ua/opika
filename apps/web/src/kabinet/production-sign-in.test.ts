@@ -59,6 +59,39 @@ describe("productionSignInOf", () => {
     }
   });
 
+  /** EM-B6: the routes the wiring commit hands to the two senders. */
+  it("carries both email routes: sign-in on Resend when its pair is set, invite on the default", () => {
+    const on = productionSignInOf({
+      ...full,
+      EMAIL_PROVIDER: "brevo",
+      EMAIL_SIGN_IN_PROVIDER: "resend",
+      RESEND_API_KEY: "resend-key",
+    });
+    expect(on.kind).toBe("on");
+    if (on.kind !== "on") return;
+    expect(on.email.signIn).toMatchObject({ provider: "resend", apiKey: "resend-key" });
+    expect(on.email.invite).toMatchObject({ provider: "brevo", apiKey: "key" });
+    // RESEND_API_KEY alone (as in Vercel Production before the wiring) moves nothing.
+    const keyOnly = productionSignInOf({ ...full, RESEND_API_KEY: "resend-key" });
+    expect(keyOnly.kind === "on" && keyOnly.email.signIn.provider).toBe("postmark");
+    const unsplit = productionSignInOf(full);
+    expect(unsplit.kind).toBe("on");
+    if (unsplit.kind !== "on") return;
+    expect(unsplit.email.signIn).toEqual(unsplit.email.invite);
+  });
+
+  it("is off (provider_invalid) with a half-configured sign-in route, failing closed", () => {
+    for (const half of [
+      { EMAIL_SIGN_IN_PROVIDER: "resend" },
+      { EMAIL_SIGN_IN_PROVIDER: "resend", RESEND_API_KEY: " " },
+      { EMAIL_SIGN_IN_PROVIDER: "sendgrid", RESEND_API_KEY: "resend-key" },
+    ]) {
+      const off = productionSignInOf({ ...full, ...half });
+      expect(off, JSON.stringify(half)).toEqual({ kind: "off", reason: "provider_invalid" });
+      expect(JSON.stringify(off)).not.toContain("resend-key");
+    }
+  });
+
   it("is off with any of the variables missing", () => {
     expect(productionSignInOf({ ...full, EMAIL_PROVIDER_API_KEY: undefined })).toEqual({
       kind: "off",
@@ -193,6 +226,21 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     const pending = pendingCopyPaths(synthetic, "kabinet");
     expect(pending).toEqual(["kabinet.email.invite.notYou", "kabinet.history.adminJoined"]);
     expect(withLiveCopy(full, pending)).toEqual({ kind: "off", reason: "copy_pending", pending });
+  });
+
+  /** The copy gate comes first, whatever the email routes say (EM-B6 changes routing, not the gate). */
+  it("reports copy_pending before a half-configured sign-in route, and with a split one", () => {
+    const pending = ["kabinet.email.signIn.expiry"];
+    for (const routing of [
+      { EMAIL_SIGN_IN_PROVIDER: "resend" },
+      { EMAIL_SIGN_IN_PROVIDER: "resend", RESEND_API_KEY: "resend-key" },
+    ]) {
+      expect(withLiveCopy({ ...full, ...routing }, pending)).toEqual({
+        kind: "off",
+        reason: "copy_pending",
+        pending,
+      });
+    }
   });
 
   it("one pending string anywhere under kabinet.* is enough, an email template's included", () => {

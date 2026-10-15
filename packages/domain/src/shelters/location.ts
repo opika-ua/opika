@@ -32,9 +32,10 @@ import { type LocalizedText, LocalizedTextSchema } from "../primitives/localized
  * EM-Q10, answer (a)) no adopter-facing response before a reveal serializes
  * the district or the fuzzed coordinates: the public views carry the city
  * only (`PublicCityLocationViewSchema` in `@opika/contracts`). This value is
- * still built here, server-side, and still travels whole inside a reveal's
- * `shelterSnapshot` (decision #2). The two variants are named so a view can
- * `pick` from one rather than restate its fields.
+ * still built here, server-side, and still stored whole inside a reveal's
+ * `shelterSnapshot`, but since 2026-10-15 (EM-D1, decision #2 revised) the
+ * reveal's view sends the city only too. The two variants are named so a
+ * view can `pick` from one rather than restate its fields.
  */
 export const FuzzedAddressLocationSchema = z.object({
   precision: z.literal("fuzzed_address"),
@@ -56,9 +57,11 @@ export const PublicLocationSchema = z.discriminatedUnion("precision", [
 export type PublicLocation = z.infer<typeof PublicLocationSchema>;
 
 /**
- * Present on the domain object and absent from every public view. It reaches an
- * adopter only inside a ContactReveal snapshot, after they have committed to
- * the reveal — the same gate the contact details sit behind.
+ * Present on the domain object and absent from every adopter-facing view,
+ * before and after a reveal (Oleksii, 2026-10-15, inbox EM-B6 answer 5,
+ * decision EM-D1: "the exact address never leaves the server for adopters;
+ * the meeting place is agreed with the shelter"). A ContactReveal snapshot
+ * stores it as the operator's record; the reveal's view leaves it out.
  */
 export const ExactAddressSchema = z.object({
   line1: z.string().min(1),

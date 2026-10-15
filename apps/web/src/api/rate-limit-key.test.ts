@@ -71,21 +71,29 @@ describe("ipRateLimitKey: where the secret comes from", () => {
     );
   });
 
-  it("refuses on production without it, or with one under 32 characters, naming the variable", () => {
-    for (const env of [
-      { VERCEL_ENV: "production" },
-      { VERCEL_ENV: "production", RATE_LIMIT_KEY_SECRET: "x".repeat(31) },
-    ]) {
-      expect(() => ipRateLimitKey(IPV4, env)).toThrow(/RATE_LIMIT_KEY_SECRET must be at least 32/);
+  it("refuses on any Vercel deployment without it, or with one under 32 characters, naming the variable", () => {
+    for (const vercelEnv of ["production", "preview"]) {
+      for (const env of [
+        { VERCEL: "1", VERCEL_ENV: vercelEnv },
+        { VERCEL: "1", VERCEL_ENV: vercelEnv, RATE_LIMIT_KEY_SECRET: "x".repeat(31) },
+      ]) {
+        expect(() => ipRateLimitKey(IPV4, env), vercelEnv).toThrow(
+          /RATE_LIMIT_KEY_SECRET must be at least 32/,
+        );
+      }
+      expect(
+        ipRateLimitKey(IPV4, {
+          VERCEL: "1",
+          VERCEL_ENV: vercelEnv,
+          RATE_LIMIT_KEY_SECRET: SECRET_A,
+        }),
+      ).toBe(ipKeyWith(SECRET_A, IPV4));
     }
-    expect(
-      ipRateLimitKey(IPV4, { VERCEL_ENV: "production", RATE_LIMIT_KEY_SECRET: SECRET_A }),
-    ).toBe(ipKeyWith(SECRET_A, IPV4));
   });
 
-  it("outside production without it: a per-process random key, stable, never a published one", () => {
+  it("off Vercel without it: a per-process random key, stable, never a published one", () => {
     const first = ipRateLimitKey(IPV4, {});
-    expect(ipRateLimitKey(IPV4, { VERCEL_ENV: "preview" })).toBe(first);
+    expect(ipRateLimitKey(IPV4, { VERCEL: "1", VERCEL_ENV: "development" })).toBe(first);
     expect(first).not.toBe(ipKeyWith("", IPV4));
     expect(first).not.toBe(ipKeyWith(SECRET_A, IPV4));
     expectNoIpIn([first], IPV4);

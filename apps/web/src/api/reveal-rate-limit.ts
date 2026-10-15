@@ -43,8 +43,8 @@ type RevealRateLimitErrors = ORPCErrorConstructorMap<{
  * costs nothing. It does **not**
  * make every accidental drag free — an accidental drag on a shelter never
  * revealed before still spends a unit and still irreversibly discloses the
- * shelter's exact address and contact, same as an accidental button tap
- * always did.
+ * shelter's contact details, same as an accidental button tap always did
+ * (never its exact address, which no reveal sends since EM-D1, 2026-10-15).
  */
 const REVEAL_RATE_LIMIT = {
   maxReveals: 30,
