@@ -66,7 +66,8 @@ ticked with its evidence or marked superseded with the decision that moved it; C
 on 85bc73e. One Tier 1 default wants Oleksii's word before the merge: EM-T26 (b), below. Everything
 under "Wiring commit and production rollout" happens after the merge and blocks only that step.
 The branch inbox files fold into `docs/decisions-inbox.md` in a separate docs PR after the merge,
-as #87 did.
+as #87 did. Done on `chore/inbox-fold` (2026-10-15): all six files (#89, #93, #95, #94) are rows in
+`docs/decisions-inbox.md` and the branch files are deleted.
 
 ### #94's merge
 
