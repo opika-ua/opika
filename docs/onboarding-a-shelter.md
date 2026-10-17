@@ -4,6 +4,23 @@ Follow this while on the phone with a volunteer, in order. Don't improvise
 the sequence — the dry run exists specifically so you see the computed
 public location before anything touches the live database.
 
+## PowerShell 5.1: reading a secret
+
+Windows PowerShell 5.1 has no `Read-Host -MaskInput`. Every connection string in this runbook is
+read with this helper, pasted once per shell (Oleksii, 2026-10-18, verbatim helper):
+
+```powershell
+function Read-Secret($p){ $s = Read-Host $p -AsSecureString; [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)) }
+```
+
+A Neon endpoint id (`ep-…`, never a URL) is derived from the URL in the shell rather than typed:
+
+```powershell
+$ep = ([uri]$env:DATABASE_URL).Host.Split('.')[0] -replace '-pooler$',''
+```
+
+Never paste a connection string into a command line, a file or a chat.
+
 ## What to ask the shelter for
 
 - **Legal shape**: registered NGO (legal name + EDRPOU), sole proprietor
@@ -336,7 +353,8 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
    prints the count. With a non-zero count, you decide again with the number in front of you.
 3. **Dry run, then commit**, from the main checkout (its root `.env.local` provides
    `PROD_NEON_ENDPOINT`), with the production direct URL in your shell
-   (`$env:DATABASE_URL = Read-Host "Production direct URL"`):
+   (`$env:DATABASE_URL = Read-Secret "Production direct URL"`, with the helper from "PowerShell 5.1:
+   reading a secret"):
    ```powershell
    pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter c00c73ac-b27f-535e-b629-ac8cd2c69123
    pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter c00c73ac-b27f-535e-b629-ac8cd2c69123 --commit
