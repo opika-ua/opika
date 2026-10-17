@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { drizzleKitArgs } from "../src/migrate-args";
+import { drizzleKitArgs, migrateTargetCheck, parseMigrateArgs } from "../src/migrate-args";
 import {
   assertProductionWriteAllowed,
   checkProductionWrite,
@@ -285,10 +285,82 @@ describe("productionEndpoint", () => {
 });
 
 describe("drizzleKitArgs", () => {
-  /** `--prod` is this package's flag; drizzle-kit doesn't know it. */
-  it("passes everything through except --prod", () => {
+  /** `--prod` and `--expect <ep>` are this package's flags; drizzle-kit doesn't know them. */
+  it("passes everything through except --prod and --expect <ep>", () => {
     expect(drizzleKitArgs(["--prod", "--verbose"])).toEqual(["migrate", "--verbose"]);
+    expect(drizzleKitArgs(["--expect", "ep-other-hill-d4e5f6", "--prod", "--verbose"])).toEqual([
+      "migrate",
+      "--verbose",
+    ]);
     expect(drizzleKitArgs([])).toEqual(["migrate"]);
+  });
+});
+
+/** AW-F1 (Oleksii: "a real --expect on db:migrate … tests for wrong and missing endpoints"). */
+describe("parseMigrateArgs", () => {
+  it("reads --expect's value and keeps it out of drizzle-kit's arguments", () => {
+    expect(parseMigrateArgs(["--prod", "--expect", "ep-other-hill-d4e5f6"])).toEqual({
+      kind: "ok",
+      expect: "ep-other-hill-d4e5f6",
+      drizzleArgs: ["migrate"],
+    });
+    expect(parseMigrateArgs([])).toEqual({
+      kind: "ok",
+      expect: undefined,
+      drizzleArgs: ["migrate"],
+    });
+  });
+
+  it.each([
+    ["--expect with nothing after it", ["--expect"]],
+    ["--expect followed by another flag", ["--expect", "--prod"]],
+  ])("refuses a missing endpoint: %s", (_case, argv) => {
+    expect(parseMigrateArgs(argv)).toEqual({
+      kind: "refused",
+      reason: "--expect needs an endpoint id (ep-…) after it",
+    });
+  });
+
+  it("refuses --expect given twice", () => {
+    expect(parseMigrateArgs(["--expect", "ep-a1", "--expect", "ep-b2"])).toEqual({
+      kind: "refused",
+      reason: "--expect is given twice",
+    });
+  });
+});
+
+describe("migrateTargetCheck", () => {
+  it("a local database needs no --expect", () => {
+    expect(migrateTargetCheck(LOCAL, undefined)).toEqual({ kind: "ok" });
+  });
+
+  it("a local database takes no --expect: it names a Neon endpoint", () => {
+    expect(migrateTargetCheck(LOCAL, "ep-other-hill-d4e5f6").kind).toBe("refused");
+  });
+
+  it("a Neon target without --expect is refused (the missing endpoint)", () => {
+    expect(migrateTargetCheck(CHILD_BRANCH, undefined)).toEqual({
+      kind: "refused",
+      reason: "pass --expect ep-… (the target's Neon endpoint id)",
+    });
+  });
+
+  it("a Neon target whose compute isn't --expect is refused (the wrong endpoint)", () => {
+    expect(migrateTargetCheck(PROD_DIRECT, "ep-other-hill-d4e5f6")).toEqual({
+      kind: "refused",
+      reason: "the target's Neon endpoint is not --expect",
+    });
+  });
+
+  it("the matching compute passes, pooled or direct, with or without -pooler on --expect", () => {
+    expect(migrateTargetCheck(CHILD_BRANCH, "ep-other-hill-d4e5f6")).toEqual({ kind: "ok" });
+    expect(migrateTargetCheck(PROD_DIRECT, "ep-quiet-lake-a1b2c3-pooler")).toEqual({ kind: "ok" });
+  });
+
+  it("a non-Neon remote host is refused", () => {
+    expect(
+      migrateTargetCheck("postgres://u:secret@db.example.org:5432/x", "ep-other-hill-d4e5f6").kind,
+    ).toBe("refused");
   });
 });
 
@@ -424,6 +496,58 @@ describe("every writing CLI runs the guard first", () => {
       timeout: 60_000,
     });
     expect(result.stdout.split(/\r?\n/)[0]).toBe("Target: local (localhost:1/opika_print_target)");
+    expect(result.status, result.stderr).not.toBe(0);
+    expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
+  });
+
+  /** AW-F1 through the real CLI: the endpoint check runs after the guard and before anything else. */
+  const migrateWith = (url: string, args: readonly string[]) =>
+    spawnSync("npx", ["tsx", "src/migrate.ts", ...args], {
+      cwd: PKG,
+      encoding: "utf8",
+      shell: process.platform === "win32",
+      env: {
+        ...process.env,
+        DATABASE_URL: url,
+        PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+        PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+      },
+      timeout: 60_000,
+    });
+
+  it("db:migrate refuses a non-production Neon target with no --expect (missing endpoint)", () => {
+    const result = migrateWith(CHILD_BRANCH, []);
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("pass --expect ep-…");
+    expect(result.stdout).not.toContain("Target:");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
+  });
+
+  it("db:migrate refuses production with --prod but the wrong --expect (wrong endpoint)", () => {
+    const result = migrateWith(PROD_DIRECT, ["--prod", "--expect", "ep-other-hill-d4e5f6"]);
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("the target's Neon endpoint is not --expect");
+    expect(result.stdout).not.toContain("Target:");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
+  });
+
+  it("db:migrate refuses --expect with no endpoint after it, before the guard", () => {
+    const result = migrateWith(CHILD_BRANCH, ["--expect"]);
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("--expect needs an endpoint id");
+    expect(result.stdout).not.toContain("Target:");
+  });
+
+  /** The matching compute gets through both guards; the missing config stops drizzle-kit before it connects. */
+  it("db:migrate with the matching --expect prints the target, then hands over to drizzle-kit", () => {
+    const result = migrateWith(CHILD_BRANCH, [
+      "--expect",
+      "ep-other-hill-d4e5f6",
+      "--config=does-not-exist.ts",
+    ]);
+    expect(result.stdout.split(/\r?\n/)[0]).toBe(
+      "Target: Neon endpoint ep-other-hill-d4e5f6 (ep-other-hill-d4e5f6-pooler.eu-central-1.aws.neon.tech)",
+    );
     expect(result.status, result.stderr).not.toBe(0);
     expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
   });
