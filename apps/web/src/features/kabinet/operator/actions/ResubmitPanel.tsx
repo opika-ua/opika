@@ -1,89 +1,77 @@
 "use client";
 
-import type { EvidenceItemInput } from "@opika/domain";
+import { kyivCalendarDateOf } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { type ReactNode, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "../../../controls/controls";
+import { EvidenceEditor } from "../evidence-editor/EvidenceEditor";
+import {
+  type EvidenceRow,
+  type EvidenceRowErrors,
+  evidenceOfRows,
+} from "../evidence-editor/evidence-rows";
 import { DECISION_OWNER, type DecisionOutcome } from "./decision-outcome";
 import { useOperatorActions } from "./operator-actions";
 import { resubmitPrefillOf } from "./resubmit-evidence";
-import { BODY, CAPTION, NOTICE } from "./styles";
+import { NOTICE, SUBTITLE } from "./styles";
 
-/**
- * Where the evidence editor goes: given the items and told of every change.
- * rebase: R-UI 2's four-kind evidence editor is passed here, prefilled with
- * `items`; until then the default lists what will be sent, unchanged.
- */
-export type EvidenceEditorSlot = (editor: {
-  items: readonly EvidenceItemInput[];
-  onChange: (items: EvidenceItemInput[]) => void;
-}) => ReactNode;
-
-const summaryOf = (item: EvidenceItemInput): string => {
-  switch (item.kind) {
-    case "edrpou_registration":
-      return `${item.edrpou} · ${item.registeredName}`;
-    case "bank_account_holder":
-      return item.holderName;
-    case "reference_contact":
-      return item.name;
-    case "site_visit":
-      return item.visitedOn;
-    case "supporting_document":
-      return item.labelUk;
-    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
-    default: {
-      const unreachable: never = item;
-      return unreachable;
-    }
-  }
-};
-
-const ReadOnlyEvidence: EvidenceEditorSlot = ({ items }) =>
-  items.length === 0 ? (
-    <p className={CAPTION}>{uk.kabinet.operator.evidence.empty}</p>
-  ) : (
-    <ul className="flex flex-col gap-1">
-      {items.map((item, index) => (
-        <li key={`${item.kind}-${index}`} className={BODY}>
-          {uk.kabinet.operator.evidence.kind[item.kind]} · {summaryOf(item)}
-        </li>
-      ))}
-    </ul>
-  );
+const NO_ROW_ERRORS: Readonly<Record<string, EvidenceRowErrors>> = {};
 
 /**
  * «Повернути на перевірку» (S3/S4, `rejected` only): the operator sends the
  * evidence back for review, amended or not, and the shelter is `pending`
- * again. The editor starts from the evidence on file (`resubmitPrefillOf`),
- * so with no edits the same items go back (pinned by its test).
+ * again. The editor is R-UI 2's (`EvidenceEditor`, the four document-free
+ * kinds), started from the evidence on file (`resubmitPrefillOf`), so with no
+ * edits the same items go back (pinned by its test). The cards are checked
+ * by the editor's own `evidenceOfRows` before anything is sent, as on S2;
+ * the server checks them again.
  *
  * What can't be sent again (a script-onboarded `supporting_document`, RG-Q5)
- * is left out of the prefill. Saying so on the screen needs a sentence that
- * has no copy yet (NEEDS OLEKSII in the R-UI 3 report), so this cut computes
- * it (`leftOut`) and doesn't show it; no screen can create such an item.
+ * is left out of the prefill, and is gone from the record once the resubmit
+ * lands (`resubmit-evidence.ts` says why). Saying so on the screen needs a
+ * sentence that has no copy yet (NEEDS OLEKSII in the R-UI 3 report); no
+ * screen can create such an item.
+ *
+ * `now` is the clock for "today" (Kyiv's calendar, the server's own rule for
+ * a site visit), injectable so a test can stand at Kyiv's midnight.
  */
 export function ResubmitPanel({
-  renderEditor = ReadOnlyEvidence,
   onDone,
+  now = () => new Date(),
 }: {
-  renderEditor?: EvidenceEditorSlot | undefined;
   onDone: (outcome: DecisionOutcome) => void;
+  now?: () => Date;
 }) {
   const { view, phase, run } = useOperatorActions();
   const t = uk.kabinet.operator;
-  const [items, setItems] = useState<EvidenceItemInput[]>(
-    () => resubmitPrefillOf(view.verification.evidence).items,
+  const id = useId();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [rows, setRows] = useState<readonly EvidenceRow[]>(
+    () => resubmitPrefillOf(view.verification.evidence).rows,
   );
+  const [rowErrors, setRowErrors] = useState(NO_ROW_ERRORS);
+  const [focusFirstError, setFocusFirstError] = useState(0);
   const [error, setError] = useState<"none" | "failed" | "site_visit_in_future">("none");
   const busy = phase.kind !== "idle";
   const mine = busy && phase.owner === DECISION_OWNER;
 
+  useEffect(() => {
+    if (focusFirstError === 0) return;
+    containerRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [focusFirstError]);
+
   const onResubmit = async () => {
     if (busy) return;
     setError("none");
+    const checked = evidenceOfRows(rows, now());
+    if (checked.kind === "invalid") {
+      setRowErrors(checked.errors);
+      setFocusFirstError((n) => n + 1);
+      return;
+    }
+    setRowErrors(NO_ROW_ERRORS);
     const shelterId = view.id;
-    const evidence = items;
+    const evidence = checked.items;
     const settled = await run({
       owner: DECISION_OWNER,
       call: (client) => client.registry.verification.resubmit({ shelterId, evidence }),
@@ -121,8 +109,19 @@ export function ResubmitPanel({
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      {renderEditor({ items, onChange: setItems })}
+    <div ref={containerRef} className="flex min-w-0 flex-col gap-3">
+      <section aria-labelledby={`${id}-resubmit-title`} className="flex min-w-0 flex-col gap-3">
+        <h3 id={`${id}-resubmit-title`} className={SUBTITLE}>
+          {t.evidence.title}
+        </h3>
+        <EvidenceEditor
+          idPrefix={`${id}-resubmit`}
+          rows={rows}
+          update={setRows}
+          errors={rowErrors}
+          today={kyivCalendarDateOf(now())}
+        />
+      </section>
       {error === "failed" ? (
         <p role="alert" className={NOTICE}>
           {t.errors.failed}

@@ -1,4 +1,6 @@
-import type { EvidenceItem, EvidenceItemInput, VerificationEvidence } from "@opika/domain";
+import { type EvidenceItem, kyivCalendarDateOf, type VerificationEvidence } from "@opika/domain";
+import { channelText } from "../../profile-edit/fields";
+import type { EvidenceRow } from "../evidence-editor/evidence-rows";
 
 /**
  * What resubmit can't send again, and why it is left out rather than sent:
@@ -8,46 +10,58 @@ import type { EvidenceItem, EvidenceItemInput, VerificationEvidence } from "@opi
  * keeps its facts and loses only its key (no screen ever set one, and the
  * onboarding script refuses them, so this is a guard, not a case anyone has).
  *
- * Resubmit replaces the evidence list whole (`transition`, `resubmit`), and
- * the shelter's history keeps the evidence each move sent, not the list it
- * replaced: what is left out here is gone from the record (the document
- * itself stays in storage; no code path deletes an object).
+ * The consequence: resubmit replaces the evidence list whole (`transition`,
+ * `resubmit`), and no history entry holds the list it replaces (a `resubmit`
+ * entry holds what it sends; `shelter_created` holds no evidence). So what is
+ * left out here is gone from the shelter's record once the resubmit lands.
+ * The document itself stays in storage: no code path deletes an object. S4
+ * can't say so yet, because the sentence has no copy (NEEDS OLEKSII in the
+ * R-UI 3 report), so `leftOut` is computed and pinned, and not shown.
  */
 export type LeftOut =
   | { kind: "supporting_document"; label: string }
   | { kind: "document_key"; of: "edrpou_registration" | "bank_account_holder" };
 
 export type ResubmitPrefill = {
-  /** The current items as the evidence editor and `registry.verification.resubmit` take them. */
-  items: EvidenceItemInput[];
+  /**
+   * The evidence on file as R-UI 2's editor holds it, one card per item, in
+   * order. Sent back unedited (`evidenceOfRows`), they rebuild the same items
+   * (`resubmit-evidence.test.ts`).
+   */
+  rows: EvidenceRow[];
   leftOut: LeftOut[];
 };
 
-/** A stored day as the calendar date it was entered as: the domain stores a visit's day as its UTC midnight. */
-const calendarDateOf = (instant: Date): string => instant.toISOString().slice(0, 10);
+/** A stable React key per item on file, never sent; the editor names its own new cards `added-N`. */
+const rowId = (index: number): string => `on-file-${index}`;
 
-const inputOf = (item: EvidenceItem): EvidenceItemInput | null => {
+const rowOf = (item: EvidenceItem, id: string): EvidenceRow | null => {
   switch (item.kind) {
     case "edrpou_registration":
-      return {
-        kind: item.kind,
-        edrpou: item.edrpou,
-        registeredName: item.registeredName,
-        documentKey: null,
-      };
+      return { id, kind: item.kind, edrpou: item.edrpou, registeredName: item.registeredName };
     case "bank_account_holder":
-      return { kind: item.kind, holderName: item.holderName, documentKey: null };
+      return { id, kind: item.kind, holderName: item.holderName };
     case "reference_contact":
+      // The channel as the shelter's own contact fields show it (K4's
+      // `channelText`), which `parseChannel` reads back to the same channel.
       return {
+        id,
         kind: item.kind,
         name: item.name,
-        channel: item.channel,
+        channelKind: item.channel.kind,
+        channelValue: channelText(item.channel),
         relationship: item.relationship,
       };
     case "site_visit":
-      // `visitedBy` isn't an input: the server attributes the visit to the
-      // operator who sends it (`toEvidenceItem`), as on create.
-      return { kind: item.kind, visitedOn: calendarDateOf(item.visitedAt), notes: item.notes };
+      // `visitedBy` has no field: the server attributes the visit to the
+      // operator who sends it (`toEvidenceItem`), as on create. The day is
+      // stored as its UTC midnight, whose Kyiv date is that same day.
+      return {
+        id,
+        kind: item.kind,
+        visitedOn: kyivCalendarDateOf(item.visitedAt),
+        notes: item.notes,
+      };
     case "supporting_document":
       return null;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
@@ -72,17 +86,16 @@ const leftOutOf = (item: EvidenceItem): LeftOut | null => {
 
 /**
  * The evidence editor's starting point for resubmit: every item on file that
- * can be sent again, as it stands, in its order, plus what can't. With no
- * edits, resubmit sends exactly `items` (`ResubmitPanel.test.tsx`).
+ * can be sent again, as it stands, in its order, plus what can't.
  */
 export function resubmitPrefillOf(evidence: VerificationEvidence): ResubmitPrefill {
-  const items: EvidenceItemInput[] = [];
+  const rows: EvidenceRow[] = [];
   const leftOut: LeftOut[] = [];
-  for (const item of evidence.items) {
-    const input = inputOf(item);
-    if (input !== null) items.push(input);
+  evidence.items.forEach((item, index) => {
+    const row = rowOf(item, rowId(index));
+    if (row !== null) rows.push(row);
     const dropped = leftOutOf(item);
     if (dropped !== null) leftOut.push(dropped);
-  }
-  return { items, leftOut };
+  });
+  return { rows, leftOut };
 }

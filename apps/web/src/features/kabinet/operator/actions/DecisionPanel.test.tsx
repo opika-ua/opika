@@ -99,10 +99,14 @@ const rejected = withVerification(pending, {
 });
 
 const panel = () => within(screen.getByRole("region", { name: "Рішення" }));
-const buttonNames = () =>
-  panel()
+/** The panel's moves: its buttons, less the evidence editor's own (resubmit's cards, R-UI 2). */
+const buttonNames = () => {
+  const editor = panel().queryByRole("region", { name: "Докази для перевірки" });
+  return panel()
     .getAllByRole("button")
+    .filter((button) => editor === null || !editor.contains(button))
     .map((button) => button.textContent);
+};
 
 describe("the panel offers the status's moves, and only those", () => {
   it("says what the shelter will see, under «Рішення»", () => {

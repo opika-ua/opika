@@ -10,7 +10,7 @@ import { DECISION_OWNER, type DecisionOutcome } from "./decision-outcome";
 import { type OfferedAction, offeredActionsOf } from "./offered-actions";
 import { useOperatorActions } from "./operator-actions";
 import { ReasonDialog, type ReasonKind } from "./ReasonDialog";
-import { type EvidenceEditorSlot, ResubmitPanel } from "./ResubmitPanel";
+import { ResubmitPanel } from "./ResubmitPanel";
 import {
   ACTIONS,
   CAPTION,
@@ -79,11 +79,7 @@ const landedFor = (action: "start_review" | "approve" | "reinstate", view: Regis
  * Mounted at the head of S4's second column, beside the evidence
  * (`ShelterActionsScreen`).
  */
-export function DecisionPanel({
-  renderEvidenceEditor,
-}: {
-  renderEvidenceEditor?: EvidenceEditorSlot;
-}) {
+export function DecisionPanel() {
   const { view, phase, run } = useOperatorActions();
   const t = uk.kabinet.operator.verification;
   const errors = uk.kabinet.operator.errors;
@@ -212,7 +208,7 @@ export function DecisionPanel({
           />
         );
       case "resubmit":
-        return <ResubmitPanel key="resubmit" renderEditor={renderEvidenceEditor} onDone={report} />;
+        return <ResubmitPanel key="resubmit" onDone={report} />;
       /* v8 ignore next 4 -- exists so the compiler rejects an unhandled move; unreachable at runtime */
       default: {
         const unreachable: never = action;

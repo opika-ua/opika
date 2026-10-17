@@ -15,9 +15,6 @@ import { SupportEntry } from "./SupportEntry";
  * server through its own guard. The read-only sections keep rendering from
  * the record the page read; the controls show a write's answer at once and
  * the rest catches up with the re-read.
- *
- * rebase: R-UI 2's evidence editor goes to `DecisionPanel`'s
- * `renderEvidenceEditor`, for resubmit.
  */
 export function ShelterActionsScreen({
   view,
