@@ -1,4 +1,9 @@
-import { type EvidenceItem, ModeratorIdSchema, type VerificationEvidence } from "@opika/domain";
+import {
+  EdrpouSchema,
+  type EvidenceItem,
+  ModeratorIdSchema,
+  type VerificationEvidence,
+} from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { withEvidenceOnFile } from "./evidence-on-file";
 
@@ -45,7 +50,7 @@ describe("withEvidenceOnFile (resubmit)", () => {
     const scriptVisit = visit(RECORDER, "Був на місці\n");
     const scriptEdrpou: EvidenceItem = {
       kind: "edrpou_registration",
-      edrpou: "12345678",
+      edrpou: EdrpouSchema.parse("12345678"),
       registeredName: "ГО «Лапа» ",
       documentKey: "evidence/edrpou.pdf",
     };
@@ -54,7 +59,7 @@ describe("withEvidenceOnFile (resubmit)", () => {
         onFile(scriptVisit, scriptEdrpou),
         sent(visit(RESUBMITTER, "Був на місці"), {
           kind: "edrpou_registration",
-          edrpou: "12345678",
+          edrpou: EdrpouSchema.parse("12345678"),
           registeredName: "ГО «Лапа»",
           documentKey: null,
         }),
