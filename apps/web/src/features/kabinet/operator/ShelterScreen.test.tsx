@@ -343,9 +343,10 @@ describe("S4 blocked addresses, every answer", () => {
     ["provider_error", "Поштовий сервіс відповів помилкою."],
     ["timed_out", "Поштовий сервіс не відповів вчасно."],
     ["unsupported_provider", "Цей поштовий сервіс не дає перевірити блокування."],
+    // His round-2 wording (answer 5).
     [
       "provider_suppresses",
-      "Поштовий сервіс має власний список заблокованих адрес і не доставляє на них листи, але сайт цей список не перевіряє.",
+      "Поштовий сервіс має власний список заблокованих адрес; сайт його не перевіряє.",
     ],
   ] as const)("unknown (%s): says why, and never «none blocked»", (why, text) => {
     renderBlocked({ kind: "unknown", why });

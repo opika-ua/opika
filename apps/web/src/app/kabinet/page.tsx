@@ -11,7 +11,11 @@ import { OPERATOR_HOME } from "../../features/kabinet/routes";
 import { ShelterProfile } from "../../features/kabinet/ShelterProfile";
 import { shelterWritePolicyOf } from "../../kabinet/access";
 import { invitationAccepter, selfHealingIdentity } from "../../kabinet/invitation-accept";
-import { operatorDisplayName } from "../../kabinet/operator";
+import {
+  inSentenceOperatorName,
+  operatorNameOf,
+  standaloneOperatorName,
+} from "../../kabinet/operator";
 import { kabinetIdentityOf } from "../../kabinet/principal";
 import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "./available-auth";
 
@@ -52,7 +56,7 @@ export default async function KabinetHomePage() {
       </div>
     );
   }
-  const operatorName = operatorDisplayName({
+  const operator = operatorNameOf({
     KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,
   });
   const home = await kabinetHomeOf(healed.identity.principal, {
@@ -65,7 +69,7 @@ export default async function KabinetHomePage() {
     // the API would accept its writes.
     shelterWrites: shelterWritePolicyOf(process.env),
     cursorSecret: requireEnv("CURSOR_HMAC_SECRET"),
-    operatorDisplayName: operatorName,
+    operatorDisplayName: standaloneOperatorName(operator),
   });
   switch (home.kind) {
     case "sign_in":
@@ -84,7 +88,8 @@ export default async function KabinetHomePage() {
           view={home.view}
           cityName={home.cityName}
           viewer={home.viewer}
-          operatorName={operatorName}
+          // The locked note puts the name mid-sentence.
+          operatorName={inSentenceOperatorName(operator)}
           editing={home.editing}
         />
       );

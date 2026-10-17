@@ -55,7 +55,7 @@ describe("productionSignInOf", () => {
    * the wiring hands to `providerMagicLinkSender`; a missing or blank one is
    * the catalogue's fallback, never a reason to stay off (RS-Q2).
    */
-  it("carries the configured operator name to sign both emails, else «адміністратор сайту»", () => {
+  it("carries the configured operator name to sign both emails, else «Адміністратор сайту»", () => {
     const on = productionSignInOf({
       ...full,
       KABINET_OPERATOR_DISPLAY_NAME: " Олексій Колотенко ",
@@ -64,7 +64,7 @@ describe("productionSignInOf", () => {
     for (const unset of [undefined, "", "   "]) {
       const fallback = productionSignInOf({ ...full, KABINET_OPERATOR_DISPLAY_NAME: unset });
       expect(fallback.kind === "on" && fallback.operatorName, String(unset)).toBe(
-        "адміністратор сайту",
+        "Адміністратор сайту",
       );
     }
   });
@@ -264,7 +264,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 385 with R-UI's 220 `operator.*` and `verificationDecision.*` strings
     // (his text, 2026-10-17, all three R-UI PRs; pinned in copy-status.test.ts).
     // 397 with the 12 `animalHistoryLabels.*` words (his K3 words, R-UI 1).
-    expect(pending.length + written.length).toBe(397);
+    // 398 with operatorFallbackNameInSentence, the fallback's lower case for the
+    // locked note once round 2's answer 6 capitalised the standalone one.
+    expect(pending.length + written.length).toBe(398);
     expect(written).toContain("kabinet.profileEdit.state.saved");
     expect(pending).toEqual([]);
     expect(written).toContain("kabinet.confirm.rateLimited");

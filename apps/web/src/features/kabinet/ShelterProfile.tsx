@@ -35,7 +35,11 @@ export type ShelterProfileProps = {
   view: KabinetShelterView;
   cityName: string | null;
   viewer: "admin" | "support";
-  /** The operator's display name (RS-Q2), for the verification block's note. */
+  /**
+   * The operator's display name (RS-Q2) for the verification block's note,
+   * which puts it mid-sentence: `inSentenceOperatorName`, so an unset name
+   * reads in lower case there.
+   */
   operatorName: string;
   /** K4: `read_only` unless the page's access decision opened writes. */
   editing?: ProfileEditing;

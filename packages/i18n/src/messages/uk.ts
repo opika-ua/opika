@@ -847,14 +847,19 @@ export const uk = {
   kabinet: {
     /**
      * The operator's name when `KABINET_OPERATOR_DISPLAY_NAME` is unset
-     * (RS-Q2). Nominative, used only where the nominative fits: the history
-     * actor, `profile.lockedNote`'s «встановлює {operator}», and both emails'
-     * «— {operator}» signature. Oleksii's R-UI answer 9, verbatim: "Role label
-     * «адміністратор сайту» (also replaces the «Оператор реєстру» fallback)."
-     * Lower case as he wrote it: it reads mid-sentence in the locked note; as
-     * the emails' signature line it follows an em dash.
+     * (RS-Q2), nominative, in two forms (`kabinet/operator.ts` picks). Oleksii's
+     * R-UI answer 9, verbatim: "Role label «адміністратор сайту» (also replaces
+     * the «Оператор реєстру» fallback)." Then round 2, answer 6, verbatim:
+     * "Email signature fallback: capitalise it → «— Адміністратор сайту»."
+     *
+     * `operatorFallbackName` stands alone, so it is capitalised: both emails'
+     * «— {operator}» signature, the shelter-facing history actor, the
+     * operator's header. `operatorFallbackNameInSentence` sits mid-sentence
+     * (`profile.lockedNote`'s «встановлює {operator}»), in lower case as he
+     * wrote the role, where a capital would read as a proper name.
      */
-    operatorFallbackName: "адміністратор сайту",
+    operatorFallbackName: "Адміністратор сайту",
+    operatorFallbackNameInSentence: "адміністратор сайту",
     /**
      * Every kabinet string below is Oleksii's final Ukrainian (2026-10-14,
      * answering the 91-row copy export for PR #94), applied verbatim. The designer's
@@ -1301,8 +1306,9 @@ export const uk = {
      *
      * Two strings were checked against the code at his request ("verify
      * blocked.unknown.provider_suppresses and create.descriptionHint against
-     * code; if my wording is wrong, use the true wording and log it") and
-     * differ from his file; each says why at its key. Reused, no key here:
+     * code; if my wording is wrong, use the true wording and log it"), found
+     * untrue as drafted, and replaced by his round-2 answer 5; each says why
+     * at its key. Reused, no key here:
      * `profile.donationTitle`, `profile.addressNote`, `profile.legalName`,
      * `profile.edrpou`, `profile.contactPerson`, `profileEdit.state.retry`.
      */
@@ -1416,16 +1422,15 @@ export const uk = {
           timed_out: "Поштовий сервіс не відповів вчасно.",
           unsupported_provider: "Цей поштовий сервіс не дає перевірити блокування.",
           /**
-           * Checked against the code at his request; his draft («Поштовий сервіс
-           * не показує список заблокованих адрес.») said the provider shows no
-           * list. What the code means (`email-provider.ts`, `BlockedStatus`):
-           * Resend keeps its own suppression list and does not deliver to an
-           * address on it, but this site doesn't read that list (follow-up
-           * EM-F1). So the true sense, in his register: the provider filters,
-           * and the site didn't look.
+           * His round-2 replacement (answer 5), verbatim. His first draft
+           * («Поштовий сервіс не показує список заблокованих адрес.») said the
+           * provider shows no list. What the code means (`email-provider.ts`,
+           * `BlockedStatus`): Resend keeps its own suppression list, and this
+           * site doesn't read it (follow-up EM-F1). This wording says exactly
+           * that.
            */
           provider_suppresses:
-            "Поштовий сервіс має власний список заблокованих адрес і не доставляє на них листи, але сайт цей список не перевіряє.",
+            "Поштовий сервіс має власний список заблокованих адрес; сайт його не перевіряє.",
         },
         asOf: "Станом на {time}",
         manualUnblock: "Розблокувати адресу можна лише в кабінеті поштового сервісу, не тут.",
@@ -1483,18 +1488,16 @@ export const uk = {
           "Як притулок називає себе. Після створення назву поки змінити не можна — перевірте написання.",
         description: "Опис притулку",
         /**
-         * Checked against the code at his request («adjust the place, not the
-         * tone»); his draft said people looking for an animal see it on the
-         * shelter's animal pages. No page an adopter reaches renders
-         * `Shelter.description`: the animal page reads the shelter's
-         * `freshnessSentence` instead (`AnimalDetailScreen.tsx`); only the
-         * operator's own S4 shows it. It is public all the same: the public
-         * `shelters.byId` returns it for a verified shelter, and only then.
-         * So the sentence names who doesn't see it, his own «ті, хто шукає
-         * тварину», rather than claiming no page at all shows it.
+         * His round-2 replacement (answer 5), verbatim. His first draft said
+         * people looking for an animal see it on the shelter's animal pages,
+         * which no page does: the animal page reads the shelter's
+         * `freshnessSentence` instead (`AnimalDetailScreen.tsx`), and only the
+         * operator's own S4 renders the description. It can be public all the
+         * same: the public `shelters.byId` returns it for a verified shelter.
+         * «Може бути публічним» claims exactly that much.
          */
         descriptionHint:
-          "Зараз ті, хто шукає тварину, не бачать його на жодній сторінці сайту, але в перевіреного притулку він публічний.",
+          "Короткий опис притулку. Він може бути публічним, тож не пишіть тут нічого приватного.",
         city: "Місто",
         address: {
           line1: "Вулиця, будинок",

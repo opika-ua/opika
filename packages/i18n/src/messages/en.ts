@@ -356,9 +356,11 @@ export const en = {
   kabinet: {
     /**
      * The operator's name when `KABINET_OPERATOR_DISPLAY_NAME` is unset
-     * (RS-Q2): the English sense of the Ukrainian. Nominative, used only where the nominative fits.
+     * (RS-Q2): the English sense of the Ukrainian, standing alone (a signature
+     * line, a header) and mid-sentence (the locked note).
      */
-    operatorFallbackName: "site administrator",
+    operatorFallbackName: "Site administrator",
+    operatorFallbackNameInSentence: "site administrator",
     shell: {
       label: "cabinet",
     },
@@ -706,7 +708,7 @@ export const en = {
           timed_out: "The email provider didn't answer in time.",
           unsupported_provider: "This email provider doesn't allow checking blocks.",
           provider_suppresses:
-            "The email provider keeps its own list of blocked addresses and doesn't deliver to them, but the site doesn't check that list.",
+            "The email provider keeps its own list of blocked addresses; the site doesn't check it.",
         },
         asOf: "As of {time}",
         manualUnblock:
@@ -764,7 +766,7 @@ export const en = {
           "What the shelter calls itself. The name can't be changed after creation yet: check the spelling.",
         description: "Shelter description",
         descriptionHint:
-          "Right now people looking for an animal don't see it on any page of the site, but for a verified shelter it is public.",
+          "A short description of the shelter. It may be public, so don't write anything private here.",
         city: "City",
         address: {
           line1: "Street, building",

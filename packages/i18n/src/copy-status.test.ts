@@ -329,8 +329,12 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
 
   it("keeps the written strings that predate this answer", () => {
     // R-UI answer 9 (2026-10-17), verbatim: "Role label «адміністратор сайту»
-    // (also replaces the «Оператор реєстру» fallback)."
-    expect(uk.kabinet.operatorFallbackName).toBe("адміністратор сайту");
+    // (also replaces the «Оператор реєстру» fallback)." Round 2, answer 6,
+    // verbatim: "Email signature fallback: capitalise it → «— Адміністратор
+    // сайту»." Standing alone it is capitalised; mid-sentence (the locked
+    // note) it stays as he wrote the role.
+    expect(uk.kabinet.operatorFallbackName).toBe("Адміністратор сайту");
+    expect(uk.kabinet.operatorFallbackNameInSentence).toBe("адміністратор сайту");
     // The standing constraints fix this wording for an unknown field.
     expect(uk.kabinet.profileNotRecorded).toBe("Не записано");
   });
@@ -592,8 +596,9 @@ describe("CB-B1: the replaced strings name no «реєстр»", () => {
  * Two keys he asked to have checked against the code (answers file, verbatim:
  * "verify blocked.unknown.provider_suppresses and create.descriptionHint
  * against code; if my wording is wrong, use the true wording and log it")
- * carry the true wording instead; they are pinned apart, with his draft
- * named, so neither can drift back unnoticed.
+ * were untrue as drafted, and carry his round-2 replacement (answer 5)
+ * instead; they are pinned apart, with his first draft named, so neither can
+ * drift back unnoticed.
  */
 describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   const RUI_FINAL: Record<string, string> = {
@@ -851,15 +856,18 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
       "Тварин притулку не буде в галереї, доки перевірку не пройдено.",
   };
 
-  /** His drafts, and the wording that is true against the code (see `uk.ts` at each key). */
+  /**
+   * His first drafts (untrue against the code, see `uk.ts` at each key), and
+   * his round-2 replacements, verbatim from his answer 5.
+   */
   const CHECKED_AGAINST_CODE: Record<string, { his: string; used: string }> = {
     "operator.blocked.unknown.provider_suppresses": {
       his: "Поштовий сервіс не показує список заблокованих адрес.",
-      used: "Поштовий сервіс має власний список заблокованих адрес і не доставляє на них листи, але сайт цей список не перевіряє.",
+      used: "Поштовий сервіс має власний список заблокованих адрес; сайт його не перевіряє.",
     },
     "operator.create.descriptionHint": {
       his: "Його бачать ті, хто шукає тварину, на сторінках тварин цього притулку.",
-      used: "Зараз ті, хто шукає тварину, не бачать його на жодній сторінці сайту, але в перевіреного притулку він публічний.",
+      used: "Короткий опис притулку. Він може бути публічним, тож не пишіть тут нічого приватного.",
     },
   };
 
@@ -883,7 +891,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     ).toEqual([...Object.keys(RUI_FINAL), ...Object.keys(CHECKED_AGAINST_CODE)].sort());
   });
 
-  it("sanity: his file's 220 strings, 218 as written and 2 checked against the code", () => {
+  it("sanity: his file's 220 strings, 218 as written and 2 replaced in round 2", () => {
     expect(Object.keys(RUI_FINAL).length).toBe(218);
     expect(Object.keys(CHECKED_AGAINST_CODE).length).toBe(2);
   });
@@ -893,7 +901,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   });
 
   it.each(Object.entries(CHECKED_AGAINST_CODE))(
-    "%s carries the wording true against the code, not his draft",
+    "%s carries his round-2 wording, true against the code, not his first draft",
     (path, { his, used }) => {
       expect(valueAt(path)).toBe(used);
       expect(valueAt(path)).not.toBe(his);
