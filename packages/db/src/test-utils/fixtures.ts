@@ -10,8 +10,11 @@ import {
   CitySlugSchema,
   type ContactReveal,
   type CountryCode,
+  type DraftAnimal,
   type Edrpou,
   type ExactAddress,
+  type ListedAnimal,
+  type NonDraftListing,
   publicLocationOf,
   type Shelter,
   type ShelterContact,
@@ -106,32 +109,69 @@ const defaultAge: AgeEstimate = {
   precision: "day",
 };
 
-const defaultListing: AnimalListingState = {
+const defaultListing: NonDraftListing = {
   kind: "published",
   publishedAt: now,
   confirmedAt: now,
   undoable: null,
 };
 
-export function makeAnimal(overrides: Partial<Animal> = {}): Animal {
+/** Every field but the listing, complete: what a listed animal (or a restored draft) carries. */
+type CompleteAnimalFields = Omit<ListedAnimal, "listing">;
+
+const completeAnimalFields = (): CompleteAnimalFields => ({
+  id: uuid(),
+  shelterId: uuid(),
+  name: "Бровко",
+  species: "dog",
+  sex: "male",
+  size: "medium",
+  age: defaultAge,
+  description: { uk: "Дуже гарний песик", en: null },
+  photos: [],
+  vaccination: { source: "shelter_declared", state: "unknown", declaredAt: now },
+  spayNeuter: { source: "shelter_declared", state: "unknown", declaredAt: now },
+  documentReadiness: UNKNOWN_DOCUMENT_READINESS,
+  publicLocation: null,
+  createdAt: now,
+  lastUpdatedAt: now,
+  version: 0,
+});
+
+/**
+ * An animal with every listing fact set. Published unless `listing` says
+ * otherwise; a `{ kind: "draft" }` listing gives a complete draft (the
+ * restored-to-draft shape). An incomplete draft is `makeDraftAnimal`'s.
+ * Overloaded rather than split, so the many call sites that only override a
+ * field or two keep reading as they did before the animal union (F-B1).
+ */
+export function makeAnimal(
+  overrides?: Partial<CompleteAnimalFields> & { listing?: NonDraftListing },
+): ListedAnimal;
+export function makeAnimal(
+  overrides: Partial<CompleteAnimalFields> & { listing: AnimalListingState },
+): Animal;
+export function makeAnimal(
+  overrides: Partial<CompleteAnimalFields> & { listing?: AnimalListingState } = {},
+): Animal {
+  const { listing = defaultListing, ...fields } = overrides;
+  const base = { ...completeAnimalFields(), ...fields };
+  return listing.kind === "draft" ? { ...base, listing } : { ...base, listing };
+}
+
+/**
+ * A draft as `shelter.animals.createDraft` makes it (K-Q5, D2): a name and a
+ * species, sex «Не записано», no size, age, description or photo.
+ */
+export function makeDraftAnimal(overrides: Partial<DraftAnimal> = {}): DraftAnimal {
   return {
-    id: uuid(),
-    shelterId: uuid(),
-    name: "Бровко",
-    species: "dog",
-    sex: "male",
-    size: "medium",
-    age: defaultAge,
-    description: { uk: "Дуже гарний песик", en: null },
-    photos: [],
-    vaccination: { source: "shelter_declared", state: "unknown", declaredAt: now },
-    spayNeuter: { source: "shelter_declared", state: "unknown", declaredAt: now },
-    documentReadiness: UNKNOWN_DOCUMENT_READINESS,
-    listing: defaultListing,
-    publicLocation: null,
-    createdAt: now,
-    lastUpdatedAt: now,
-    version: 0,
+    ...completeAnimalFields(),
+    name: "Чернетка",
+    sex: "unknown",
+    size: null,
+    age: null,
+    description: null,
+    listing: { kind: "draft" },
     ...overrides,
   };
 }
