@@ -40,6 +40,10 @@ actually set.
 and decisions run in parallel with building rather than ahead of it, per `CLAUDE.md`'s
 working loop. This governs *when* a check happens, never *whether* it happens, and it
 changes nothing about how product options are weighed.
+*Narrowed 2026-10-17 (CLAUDE.md, working-mode amendment, inbox WM-B1):* outside Tier 1, a fix
+for a non-blocking review note is committed without a second review. That is the one place a
+check no longer happens. Tier 1 keeps every check, and product options are still weighed on
+quality.
 
 ## How work is verified
 

@@ -105,6 +105,10 @@ Scope
 
 ## What you refuse to pass — STOP conditions
 
+*Working mode, 2026-10-17 (CLAUDE.md):* outside Tier 1 you review once. Name blockers clearly,
+since only a blocker earns a second review. Everything else is a note the builder may fix
+without coming back.
+
 These are not yours or the main agent's to decide. Return **STOP**, name the decision, and say
 what you would need from Oleksii to proceed. Do not pick a reasonable default.
 
@@ -126,9 +130,12 @@ what you would need from Oleksii to proceed. Do not pick a reasonable default.
 5. Secrets, cookie attributes, HMAC keys, rate limits, cursor signing, env validation.
 6. Asset licensing and provenance. If a licence cannot be established from the source page
    itself, it is not established.
-7. A design decision where no mock exists and the prose is ambiguous. Underspecified is a
-   finding, not an invitation.
-8. Anything that widens a schema, contract or database field to serve a temporary mode.
+7. *(Narrowed 2026-10-17, working mode in CLAUDE.md.)* A design decision where no mock exists
+   and the prose is ambiguous is a finding, not a STOP: the builder decides it and lists it
+   under "Decisions taken". It is a STOP only if it touches a public claim, security or brand
+   voice.
+8. Anything that widens a **database field** or a **public contract** to serve a temporary mode.
+   A reversible internal type or policy choice is a finding, listed under "Decisions taken".
 
 ## How to review efficiently
 
