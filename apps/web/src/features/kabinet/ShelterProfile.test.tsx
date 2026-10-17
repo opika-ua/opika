@@ -459,7 +459,7 @@ describe("the way into K3 until K2's list", () => {
         view={view()}
         cityName="Бровари"
         viewer={viewer}
-        operatorName="Олексій"
+        operator={{ kind: "configured", name: "Олексій" }}
         editing={editing}
       />,
     );

@@ -296,22 +296,24 @@ status.
 4. **Smoke on the child**, from the PR 4 branch, with `PROD_NEON_ENDPOINT` set:
    `pnpm --filter @opika/db db:neon-smoke --expect <child ep>`. `smokeTarget` refuses the
    production endpoint outright and any endpoint other than `--expect`. New steps after PR 3's
-   25:
-   - **26.** A name-and-species draft goes in through the insert CTE with null size, age,
+   25 and R-UI 1's 26 (the S1 row's admin counts and donationPending, which reaches the default
+   branch first; PR 4 was rebased onto the R-UI stack, so its steps moved from 26–30 to 27–31):
+   - **27.** A name-and-species draft goes in through the insert CTE with null size, age,
      anchor and description. It reads back through neon-http with those nulls, and the mapper
      gives a `DraftAnimal`.
-   - **27.** The listing-facts CHECK refuses publishing that row. `writeListingIf` throws, and
+   - **28.** The listing-facts CHECK refuses publishing that row. `writeListingIf` throws, and
      SQLSTATE `23514` is found in the error's `cause` chain on neon-http. This is the
      `isForeignKeyViolation` pattern (`kabinet-animal-repo.ts:52-67`), extended.
-   - **28.** A save that writes a null (clearing a description) applies only while
+   - **29.** A save that writes a null (clearing a description) applies only while
      `listing_kind = 'draft'`. Against a published row it writes nothing.
-   - **29.** Publishing compare-and-sets on listing, `version` and a non-empty photo list. A
+   - **30.** Publishing compare-and-sets on listing, `version` and a non-empty photo list. A
      stale version writes nothing (§7.5).
-   - **30.** RH-B7 (D4, option (i)): `writePhotosIf` on a published row moves `photos`,
+   - **31.** RH-B7 (D4, option (i)): `writePhotosIf` on a published row moves `photos`,
      `listing.confirmedAt` and `last_confirmed_at` together under the photo and listing
      compare-and-set. A stale listing writes nothing. On a draft, `last_confirmed_at` stays null.
 
-   Expected: **30 passed, 0 failed**.
+   Expected: **31 passed, 0 failed** (30 before the rebase onto the R-UI stack added R-UI 1's
+   step 26 beneath PR 4's five).
 5. **Delete the child branch.** Its smoke rows go with it.
 
 ---
@@ -617,7 +619,7 @@ async writePhotosIf(
   - Draft, adopted, withdrawn: identical object back.
   - `at` earlier than `confirmedAt`: date kept.
   - `transitionListing(after, undo_confirm)` → `undo_expired`.
-- **Repository** (local and step 30 on Neon).
+- **Repository** (local and step 31 on Neon).
   - Published: `last_confirmed_at` and `listing->>'confirmedAt'` both equal now.
   - Draft: `last_confirmed_at` null.
   - A listing changed since the read: nothing written, no history line.
@@ -741,7 +743,7 @@ A CHECK that a visible row has at least one photo was considered and not propose
 - `packages/db/src/test-utils/fixtures.ts:116-137` — `makeAnimal(Partial<Animal>)` becomes
   `makeListedAnimal` and `makeDraftAnimal` (a `Partial` of a union is unusable as an override
   type).
-- `packages/db/test/neon-smoke.ts` (steps 26-30); `seed-corpus.test.ts:51` and
+- `packages/db/test/neon-smoke.ts` (steps 27-31); `seed-corpus.test.ts:51` and
   `seed-profiles.test.ts:154` keep `AnimalSchema.parse` (now the union).
 
 **apps/web**
@@ -795,7 +797,7 @@ They test logic, not looks (CLAUDE.md). Each new guard gets its mutation in the 
   draft with nulls, and refuses a published animal with one.
 - D3 (if taken): an `asOf` after today or before the floor fails.
 
-**Database** (local; Neon steps 26-30)
+**Database** (local; Neon steps 27-31)
 - Each CHECK refuses its row with `23514`:
   - a published row with a null size;
   - an age without an anchor;
