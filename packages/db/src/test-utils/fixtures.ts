@@ -145,15 +145,18 @@ const completeAnimalFields = (): CompleteAnimalFields => ({
  * Overloaded rather than split, so the many call sites that only override a
  * field or two keep reading as they did before the animal union (F-B1).
  */
+export type AnimalFixtureOverrides = Partial<CompleteAnimalFields> & {
+  listing?: AnimalListingState;
+};
+
 export function makeAnimal(
   overrides?: Partial<CompleteAnimalFields> & { listing?: NonDraftListing },
 ): ListedAnimal;
 export function makeAnimal(
-  overrides: Partial<CompleteAnimalFields> & { listing: AnimalListingState },
-): Animal;
-export function makeAnimal(
-  overrides: Partial<CompleteAnimalFields> & { listing?: AnimalListingState } = {},
-): Animal {
+  overrides: Partial<CompleteAnimalFields> & { listing: { kind: "draft" } },
+): DraftAnimal;
+export function makeAnimal(overrides?: AnimalFixtureOverrides): Animal;
+export function makeAnimal(overrides: AnimalFixtureOverrides = {}): Animal {
   const { listing = defaultListing, ...fields } = overrides;
   const base = { ...completeAnimalFields(), ...fields };
   return listing.kind === "draft" ? { ...base, listing } : { ...base, listing };
