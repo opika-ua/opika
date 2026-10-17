@@ -287,6 +287,12 @@ describe("contacts (answer 3, answer 4)", () => {
         "Нові контакти побачать одразу після збереження — коли натиснуть «Написати притулку».",
       ),
     ).toBeTruthy();
+    // CB-B1, item 1
+    expect(
+      within(contacts()).getByText(
+        "Ці контакти бачить людина, коли натискає «Написати притулку», — і пише вам сама. Листування йде напряму, без посередників.",
+      ),
+    ).toBeTruthy();
   });
 });
 
@@ -370,8 +376,9 @@ describe("the voice sentence (N11)", () => {
     renderEditor();
     const preview = within(within(voice()).getByTestId("voice-preview"));
     expect(preview.getByText("Так це виглядає на сторінці тварини: Ластівка")).toBeTruthy();
+    // In «…», as on the animal page it previews (CB-B1, item 4).
     expect(preview.getByTestId("shelter-freshness-sentence").textContent).toBe(
-      "“Ластівка досі шукає дім.”",
+      "«Ластівка досі шукає дім.»",
     );
     await userEvent.clear(textarea());
     expect(preview.queryByTestId("shelter-freshness-sentence")).toBeNull();
@@ -423,6 +430,12 @@ describe("the voice sentence (N11)", () => {
     expect(
       v.getByText("Якщо залишити порожнім, на картках буде лише „Оновлено … тому“."),
     ).toBeTruthy();
+    // CB-B1, item 3: `{імʼя}` shows literally, never filled
+    expect(
+      v.getByText(
+        "Одне речення від першої особи, вашими словами. На картці підставляється лише імʼя тварини — там, де ви напишете {імʼя}. Більше нічого не змінюється.",
+      ),
+    ).toBeTruthy();
   });
 });
 
@@ -439,6 +452,15 @@ describe("the donation link (N20)", () => {
     expect(d.getByText("Так це побачать люди:")).toBeTruthy();
     expect(d.getByText("send.monobank.ua ↗")).toBeTruthy();
     expect(d.getByRole("button", { name: "Надіслати на перевірку" })).toBeTruthy();
+  });
+
+  it("shows his donation note under the field (CB-B1, item 2)", () => {
+    renderEditor();
+    expect(
+      within(donation()).getByText(
+        "Лише https. Через сайт гроші не проходять — це зовнішнє посилання.",
+      ),
+    ).toBeTruthy();
   });
 
   it("refuses http and not-a-link with his messages", async () => {

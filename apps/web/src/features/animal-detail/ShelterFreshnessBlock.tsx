@@ -12,6 +12,10 @@ import { freshnessLabel, freshnessPips } from "@opika/ui";
  * `sentence` arrives already filled (`fillAnimalName`); null renders the pips
  * and day count alone, with no attribution: under the day count alone,
  * «Слова притулку» would credit the shelter with words it never wrote (VH-Q2).
+ *
+ * The sentence sits in «…», as `docs/design/README.md` ("The shelter's
+ * sentence") specifies; it shipped in English “…” until CB-B1 (Oleksii,
+ * 2026-10-17).
  */
 export function ShelterFreshnessBlock({
   freshness,
@@ -40,7 +44,7 @@ export function ShelterFreshnessBlock({
       {sentence !== null && (
         <>
           <span data-testid="shelter-freshness-sentence" className="text-[17px]/[26px] text-rg-ink">
-            “{sentence}”
+            «{sentence}»
           </span>
           <span
             data-testid="shelter-freshness-attribution"
