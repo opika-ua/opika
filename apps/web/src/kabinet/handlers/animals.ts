@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import type {
   AnimalPatchSchema,
   apiErrors,
@@ -6,18 +7,28 @@ import type {
   KabinetCursor,
   KabinetListingEventInputSchema,
 } from "@opika/contracts";
-import { type ConditionalWrite, kabinetAnimalRepo, shelterRepo } from "@opika/db/repos";
+import {
+  type ConditionalWrite,
+  kabinetAnimalRepo,
+  type ListingMoveHistory,
+  shelterRepo,
+} from "@opika/db/repos";
 import {
   type AgeEstimate,
+  ANIMAL_EDITED_FIELDS,
   type Animal,
+  type AnimalEditedField,
   type AnimalId,
+  ageBucketOf,
   type CityId,
   DEFAULT_FRESHNESS_POLICY,
   freshnessOf,
   type ListingEvent,
   type ListingKind,
+  listingHistoryEventOf,
   type MedicalDeclarationInput,
   publishGaps,
+  type ShelterActor,
   type ShelterId,
   type SpayNeuterStatus,
   transitionListing,
@@ -129,7 +140,54 @@ function declared<T extends VaccinationStatus | SpayNeuterStatus>(
 const stampedAge = (age: AgeEstimate, now: Date): AgeEstimate =>
   age.kind === "declared_bucket" ? { ...age, declaredAt: now } : age;
 
+/**
+ * An edit's age. Re-sending the bucket the card shows today keeps its original
+ * anchor, the way `declared` keeps a medical fact's `declaredAt`: otherwise
+ * every save of a form that sends the age would restart the clock (a «young»
+ * declared two years ago would stay young) and record an age change nobody
+ * made.
+ */
+function editedAge(current: AgeEstimate, input: AgeEstimate | undefined, now: Date): AgeEstimate {
+  if (input === undefined) return current;
+  // Compared with the bucket the card shows today, not the one stored: a
+  // declared bucket rolls forward with time, so a shelter re-entering «young»
+  // for an animal now shown as adult is a correction, and must restamp (review
+  // of the part 2 fixes, finding 1; the note above `isAgeEstimateUncertain`).
+  if (
+    input.kind === "declared_bucket" &&
+    current.kind === "declared_bucket" &&
+    input.bucket === ageBucketOf(current, now)
+  ) {
+    return current;
+  }
+  return stampedAge(input, now);
+}
+
 const MAX_ATTEMPTS = 3;
+
+/** Who a shelter's own write is recorded as: its admin, from the write scope (K-Q7). */
+const actorOf = (scope: ShelterWriteScope): ShelterActor => ({
+  kind: "shelter_admin",
+  shelterAdminId: scope.shelterAdminId,
+});
+
+/**
+ * The fields an edit names in history: those whose stored value actually
+ * changed, never the values themselves (K-Q7, Oleksii: "edits record field
+ * names only"). Compared on the domain values after the patch is applied,
+ * not on which keys the form sent: a form that sends every field would
+ * otherwise tell the shelter all eight changed on every save (review
+ * finding 4, inbox K-T6). Typed off `ANIMAL_EDITED_FIELDS`, so a history
+ * literal the animal lacks fails to compile.
+ */
+const changedFields = (before: Animal, after: Animal): AnimalEditedField[] =>
+  ANIMAL_EDITED_FIELDS.filter((field) => !isDeepStrictEqual(before[field], after[field]));
+
+/** S1 (Oleksii: "no history for «Ще шукає» / undo"): the confirmation date is the record. */
+const CONFIRMATION_NOT_RECORDED: ListingMoveHistory = {
+  kind: "not_recorded",
+  because: "confirmation",
+};
 
 /**
  * A single tap (publish, reserve, «Ще шукає», undo): planned on what's there
@@ -143,6 +201,7 @@ async function tap(
   animalId: AnimalId,
   errors: OwnErrors,
   plan: (animal: Animal) => Animal,
+  history: ListingMoveHistory | ((animal: Animal, next: Animal) => ListingMoveHistory),
 ): Promise<Animal> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const { animal } = await owned(deps, scope, animalId, errors);
@@ -151,6 +210,7 @@ async function tap(
       animal.id,
       next.listing,
       animal.listing,
+      typeof history === "function" ? history(animal, next) : history,
     );
     if (result.kind === "ok") return next;
   }
@@ -266,7 +326,16 @@ export async function animalsCreateDraft(
     version: 0,
   };
   // An animal at its shelter is discoverable in the shelter's city.
-  await kabinetAnimalRepo(deps.db).insert(animal, shelter.publicLocation.cityId);
+  await kabinetAnimalRepo(deps.db).insert(animal, shelter.publicLocation.cityId, {
+    id: deps.newId(),
+    entry: {
+      kind: "animal_created",
+      at: deps.now,
+      actor: actorOf(scope),
+      animalId: animal.id,
+      animalName: animal.name,
+    },
+  });
   return kabinetAnimalViewOf(animal);
 }
 
@@ -276,6 +345,9 @@ export async function animalsCreateDraft(
  * only, never the listing, so a «Ще шукає» made while the form was open
  * neither conflicts nor gets undone. Moves `lastUpdatedAt`, never
  * `confirmedAt` (commitment #7).
+ *
+ * A save that changes nothing writes nothing: no version bump, no
+ * `lastUpdatedAt`, no history line. It answers with the animal as stored.
  */
 export async function animalsUpdate(
   deps: AnimalDeps,
@@ -297,20 +369,31 @@ export async function animalsUpdate(
   const vaccination = declared(animal.vaccination, patch.vaccination, deps.now);
   const spayNeuter = declared(animal.spayNeuter, patch.spayNeuter, deps.now);
   if (vaccination === "refused" || spayNeuter === "refused") throw errors.REGISTRY_CONFIRMED();
-  const next: Animal = {
+  const edited: Animal = {
     ...animal,
     name: patch.name ?? animal.name,
     species: patch.species ?? animal.species,
     sex: patch.sex ?? animal.sex,
     size: patch.size ?? animal.size,
-    age: patch.age === undefined ? animal.age : stampedAge(patch.age, deps.now),
+    age: editedAge(animal.age, patch.age, deps.now),
     description: patch.description ?? animal.description,
     vaccination,
     spayNeuter,
-    lastUpdatedAt: deps.now,
-    version: animal.version + 1,
   };
-  const result = await kabinetAnimalRepo(deps.db).writeEditIf(next, cityId, animal.version);
+  const [first, ...rest] = changedFields(animal, edited);
+  if (first === undefined) return kabinetAnimalViewOf(animal);
+  const next: Animal = { ...edited, lastUpdatedAt: deps.now, version: animal.version + 1 };
+  const result = await kabinetAnimalRepo(deps.db).writeEditIf(next, cityId, animal.version, {
+    id: deps.newId(),
+    entry: {
+      kind: "animal_edited",
+      at: deps.now,
+      actor: actorOf(scope),
+      animalId: animal.id,
+      animalName: next.name,
+      fields: [first, ...rest],
+    },
+  });
   if (result.kind === "conflict") throw errors.CONFLICT();
   return kabinetAnimalViewOf(next);
 }
@@ -326,17 +409,41 @@ export async function animalsTransition(
     }>,
 ): Promise<KabinetAnimalView> {
   const event = { ...input.event, at: deps.now } as ListingEvent;
-  const next = await tap(deps, scope, input.animalId, errors, (animal) => {
-    if (event.type === "publish") {
-      const gaps = publishGaps(animal);
-      if (gaps.length > 0 && animal.listing.kind === "draft") {
-        throw errors.PUBLISH_REQUIREMENTS_UNMET({
-          data: { gaps: [...gaps] as [never, ...never[]] },
-        });
+  const next = await tap(
+    deps,
+    scope,
+    input.animalId,
+    errors,
+    (animal) => {
+      if (event.type === "publish") {
+        const gaps = publishGaps(animal);
+        if (gaps.length > 0 && animal.listing.kind === "draft") {
+          throw errors.PUBLISH_REQUIREMENTS_UNMET({
+            data: { gaps: [...gaps] as [never, ...never[]] },
+          });
+        }
       }
-    }
-    return moved(animal, event, errors);
-  });
+      return moved(animal, event, errors);
+    },
+    // Every one of these moves is recorded (K-Q7), a withdrawal with its
+    // reason code and never its note (K-Q18).
+    (animal, after) => ({
+      kind: "recorded",
+      row: {
+        id: deps.newId(),
+        entry: {
+          kind: "animal_listing_changed",
+          at: deps.now,
+          actor: actorOf(scope),
+          animalId: animal.id,
+          animalName: animal.name,
+          event: listingHistoryEventOf(input.event),
+          from: animal.listing.kind,
+          to: after.listing.kind,
+        },
+      },
+    }),
+  );
   return kabinetAnimalViewOf(next);
 }
 
@@ -351,8 +458,13 @@ export async function animalsConfirm(
   input: { animalId: AnimalId },
   errors: MoveErrors,
 ): Promise<{ animal: KabinetAnimalView; undoUntil: Date }> {
-  const next = await tap(deps, scope, input.animalId, errors, (animal) =>
-    moved(animal, { type: "confirm", at: deps.now }, errors),
+  const next = await tap(
+    deps,
+    scope,
+    input.animalId,
+    errors,
+    (animal) => moved(animal, { type: "confirm", at: deps.now }, errors),
+    CONFIRMATION_NOT_RECORDED,
   );
   return {
     animal: kabinetAnimalViewOf(next),
@@ -366,8 +478,14 @@ export async function animalsUndoConfirm(
   input: { animalId: AnimalId },
   errors: MoveErrors & UndoErrors,
 ): Promise<KabinetAnimalView> {
-  const next = await tap(deps, scope, input.animalId, errors, (animal) =>
-    moved(animal, { type: "undo_confirm", at: deps.now }, errors, () => errors.UNDO_EXPIRED()),
+  const next = await tap(
+    deps,
+    scope,
+    input.animalId,
+    errors,
+    (animal) =>
+      moved(animal, { type: "undo_confirm", at: deps.now }, errors, () => errors.UNDO_EXPIRED()),
+    CONFIRMATION_NOT_RECORDED,
   );
   return kabinetAnimalViewOf(next);
 }
@@ -377,6 +495,13 @@ export async function animalsUndoConfirm(
  * anything that ever was is withdrawn instead, because its URL and possibly
  * adopters' swipes and reveals still point at it. Compare-and-set like every
  * write: an edit landing in between means re-reading and deciding again.
+ *
+ * Both refusals are one answer, with nothing to tell them apart (K-Q9,
+ * Oleksii: "one refusal for both cases"). A separate "has activity" answer
+ * would tell the shelter that an adopter swiped or revealed the animal,
+ * which commitment #2 says it is never told. One answer is also truthful:
+ * activity implies the animal was public, since swipes and reveals refuse a
+ * non-discoverable animal (DR-F1).
  */
 export async function animalsDeleteDraft(
   deps: AnimalDeps,
@@ -391,14 +516,19 @@ export async function animalsDeleteDraft(
         data: { machine: "listing", from: animal.listing.kind, event: "delete_draft" },
       });
     }
-    if (firstPublishedAt !== null)
-      throw errors.WAS_PUBLISHED({ data: { reason: "was_published" } });
-    const result = await kabinetAnimalRepo(deps.db).deleteDraftIf(animal.id, animal.version);
+    if (firstPublishedAt !== null) throw errors.WAS_PUBLISHED();
+    const result = await kabinetAnimalRepo(deps.db).deleteDraftIf(animal.id, animal.version, {
+      id: deps.newId(),
+      entry: {
+        kind: "animal_deleted",
+        at: deps.now,
+        actor: actorOf(scope),
+        animalId: animal.id,
+        animalName: animal.name,
+      },
+    });
     if (result.kind === "ok") return {};
-    // A swipe or reveal references it. Activity, not proof it was published
-    // (HS-T10): a draft id can be swiped without the draft ever being public.
-    if (result.kind === "referenced")
-      throw errors.WAS_PUBLISHED({ data: { reason: "has_activity" } });
+    if (result.kind === "referenced") throw errors.WAS_PUBLISHED();
   }
   throw new Error(`Animal ${input.animalId}: lost ${MAX_ATTEMPTS} races in a row`);
 }

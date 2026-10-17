@@ -6,17 +6,22 @@ import {
   type Animal,
   type AnimalId,
   AnimalIdSchema,
+  AnimalNameInputSchema,
   type AnimalPhoto,
   AnimalSexSchema,
   AnimalSpeciesSchema,
+  animalDescriptionProblem,
+  animalDescriptionProblemMessage,
   type Coordinates,
   DEFAULT_VERIFICATION_POLICY,
   DonationLinkSchema,
   EvidenceItemInputSchema,
   ExactAddressSchema,
+  freshnessSentenceProblemMessage,
   type ModeratorId,
   ModeratorIdSchema,
   meetsEvidenceRequirements,
+  normalizeFreshnessSentenceText,
   publicLocationOf,
   type Shelter,
   ShelterContactSchema,
@@ -164,14 +169,47 @@ const OnboardPhotoSchema = z.object({
   localPath: z.string().min(1),
 });
 
+/**
+ * The operator's sentences get the same validation as the kabinet's (K-Q6):
+ * the token's spellings normalised to `{імʼя}`, other braces refused, 280
+ * characters. Unlike the kabinet, blank is refused rather than cleared,
+ * because this field is required (see `freshnessSentenceUk` below).
+ */
+const OnboardFreshnessSentenceUkSchema = z.string().transform((raw, ctx) => {
+  const normalized = normalizeFreshnessSentenceText(raw);
+  switch (normalized.kind) {
+    case "ok":
+      return normalized.text;
+    case "empty":
+      ctx.addIssue({ code: "custom", message: "Freshness sentence is empty" });
+      return z.NEVER;
+    case "invalid":
+      ctx.addIssue({
+        code: "custom",
+        message: freshnessSentenceProblemMessage(normalized.problem),
+      });
+      return z.NEVER;
+  }
+});
+
 const OnboardAnimalSchema = z.object({
   idSeed: z.string().min(1),
-  name: z.string().min(1),
+  // The kabinet's rule: a name is substituted into the sentence, so no braces.
+  name: AnimalNameInputSchema,
   species: AnimalSpeciesSchema,
   sex: AnimalSexSchema,
   size: SizeBucketSchema,
   ageBucket: z.enum(["baby", "young", "adult", "senior"]),
-  descriptionUk: z.string().min(1),
+  // K3's cap: an onboarded description over it couldn't be saved again in K3.
+  descriptionUk: z
+    .string()
+    .min(1)
+    .superRefine((text, ctx) => {
+      const problem = animalDescriptionProblem(text);
+      if (problem !== null) {
+        ctx.addIssue({ code: "custom", message: animalDescriptionProblemMessage(problem) });
+      }
+    }),
   photos: z.array(OnboardPhotoSchema).min(1),
 });
 
@@ -181,7 +219,7 @@ const OnboardAnimalSchema = z.object({
  * script supplies the attribution itself — `FOUNDER_MODERATOR_ID` and `now` —
  * because no operator login reaches it.
  */
-const OnboardInputSchema = z.object({
+export const OnboardInputSchema = z.object({
   shelter: z.object({
     idSeed: z.string().min(1),
     displayName: z.string().min(1),
@@ -195,7 +233,7 @@ const OnboardInputSchema = z.object({
      * its own words, and a required field is what stops onboarding a
      * shelter nobody actually asked for one.
      */
-    freshnessSentenceUk: z.string().min(1),
+    freshnessSentenceUk: OnboardFreshnessSentenceUkSchema,
     /**
      * What you actually have, not a name this script used to turn into a
      * fabricated `reference_contact` pointing at the shelter's own phone

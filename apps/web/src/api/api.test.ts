@@ -432,20 +432,67 @@ describe("swipes", () => {
     expectError(res, "UNAUTHENTICATED");
   });
 
-  /**
-   * A deck already loaded in a browser can swipe an animal deleted since
-   * (`demo:remove`, inbox DR-B1 answer 1). That is a 404 the deck ignores
-   * (it has already advanced, `use-feed-deck.ts`), never a 500 from the
-   * swipe row's foreign key.
-   */
-  it("answers NOT_FOUND, at 404, for an animal that no longer exists", async () => {
-    const cookie = await bootstrap();
-    const res = await h.call(
+  const swipe = (animalId: string, cookie: string) =>
+    h.call(
       "swipes.record",
-      { animalId: crypto.randomUUID(), direction: "pass", at: new Date("2026-08-01T12:00:00Z") },
+      { animalId, direction: "pass", at: new Date("2026-08-01T12:00:00Z") },
       { cookie },
     );
-    expectError(res, "NOT_FOUND", 404);
+
+  it("records a swipe on an animal an adopter can be shown", async () => {
+    const cookie = await bootstrap();
+    const { animal } = await seedFeedAnimal();
+    expect((await swipe(animal.id, cookie)).status).toBe(200);
+  });
+
+  /**
+   * DR-F1: a swipe is recorded only on an animal an adopter could have been
+   * shown, the rule `animals.byId` and the feed apply. Anything else is the
+   * same NOT_FOUND as a missing id (K-Q9 relies on it: a never-published
+   * draft can't collect a swipe).
+   */
+  it("answers NOT_FOUND, at 404, for a draft", async () => {
+    const cookie = await bootstrap();
+    const { animal } = await seedFeedAnimal({
+      listing: { kind: "draft" },
+    });
+    expectError(await swipe(animal.id, cookie), "NOT_FOUND", 404);
+  });
+
+  it("answers NOT_FOUND, at 404, for an animal of a shelter that isn't verified", async () => {
+    const cookie = await bootstrap();
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      verification: {
+        status: "pending",
+        submittedAt: new Date("2026-08-01T00:00:00Z"),
+        evidence: { items: [], submittedAt: new Date("2026-08-01T00:00:00Z") },
+      },
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    const animal = makeAnimal({ shelterId: shelter.id });
+    await animalRepo(h.db).insert(animal, city.id);
+    expectError(await swipe(animal.id, cookie), "NOT_FOUND", 404);
+  });
+
+  /**
+   * Also the case of a deck already loaded in a browser swiping an animal
+   * deleted since (`demo:remove`, inbox DR-B1 answer 1): a 404 the deck
+   * ignores (it has already advanced, `use-feed-deck.ts`), never a 500 from
+   * the swipe row's foreign key.
+   */
+  it("answers NOT_FOUND, at 404, for an animal that doesn't exist", async () => {
+    const cookie = await bootstrap();
+    expectError(await swipe(crypto.randomUUID(), cookie), "NOT_FOUND", 404);
   });
 });
 

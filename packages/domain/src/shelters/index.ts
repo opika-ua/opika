@@ -1,6 +1,7 @@
 export * from "./actor";
 export * from "./contact";
 export * from "./donation";
+export * from "./freshness-sentence";
 export * from "./history";
 export * from "./history-shelter-facing";
 export * from "./legal-entity";

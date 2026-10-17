@@ -9,6 +9,7 @@ import {
   shelterRepo,
   swipeRepo,
 } from "@opika/db/repos";
+import { shelterHistory } from "@opika/db/schema";
 import {
   makeAdopter,
   makeAnimal,
@@ -74,7 +75,7 @@ async function call<T = Record<string, unknown>>(
 ): Promise<{ status: number; body: T }> {
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: "http://localhost" },
     body: JSON.stringify(toRpcBody(input)),
   });
   const response = await handleKabinetRpc(request, {
@@ -191,6 +192,87 @@ describe("shelter.profile", () => {
       (await call("shelter.profile.updateContact", { contact: next, expectedVersion: 3 })).status,
     ).toBe(409);
     expect((await shelterRepo(db).findById(shelter.id))?.contact).toEqual(shelter.contact);
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
+  });
+
+  it("updateFreshnessSentence writes, bumps the version and records previous and next", async () => {
+    const next = { uk: "Оновлюємо картки щосуботи.", en: null };
+    const result = await call<KabinetShelterView>("shelter.profile.updateFreshnessSentence", {
+      freshnessSentence: next,
+      expectedVersion: 0,
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.version).toBe(1);
+    expect(result.body.freshnessSentence).toEqual(next);
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toMatchObject([
+      {
+        kind: "freshness_sentence_changed",
+        previous: shelter.freshnessSentence,
+        next,
+        actor: { kind: "shelter_admin", shelterAdminId: ADMIN },
+      },
+    ]);
+  });
+
+  it("updateFreshnessSentence from a stale form is CONFLICT and writes nothing", async () => {
+    const result = await call("shelter.profile.updateFreshnessSentence", {
+      freshnessSentence: { uk: "Інше речення.", en: null },
+      expectedVersion: 5,
+    });
+    expect(result.status).toBe(409);
+    expect((await shelterRepo(db).findById(shelter.id))?.freshnessSentence).toEqual(
+      shelter.freshnessSentence,
+    );
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
+  });
+
+  it("requestReview sends a rejected shelter back to pending, keeping its evidence", async () => {
+    await truncateAll(db);
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const evidence = {
+      items: [
+        {
+          kind: "site_visit" as const,
+          visitedAt: new Date("2026-08-30T00:00:00Z"),
+          visitedBy: "0ec0ec0e-0000-4000-8000-0000000000aa" as never,
+          notes: "Дзвінок із волонтеркою.",
+        },
+      ],
+      submittedAt: new Date("2026-09-01T00:00:00Z"),
+    };
+    shelter = makeShelter({
+      id: shelter.id,
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
+      verification: {
+        status: "rejected",
+        rejectedAt: new Date("2026-09-10T00:00:00Z"),
+        rejectedBy: "0ec0ec0e-0000-4000-8000-0000000000aa" as never,
+        reason: { code: "insufficient_evidence", note: null },
+        evidence,
+      },
+    });
+    await shelterRepo(db).insert(shelter);
+
+    const result = await call<KabinetShelterView>("shelter.verification.requestReview", {});
+    expect(result.status).toBe(200);
+    expect(result.body.verification.status).toBe("pending");
+    const stored = await shelterRepo(db).findById(shelter.id);
+    expect(stored?.verification.evidence.items).toEqual(evidence.items);
+    const entries = await kabinetShelterRepo(db).historyOf(shelter.id);
+    expect(entries.map((e) => (e.kind === "verification" ? `${e.from}->${e.to}` : e.kind))).toEqual(
+      ["rejected->pending"],
+    );
+  });
+
+  it("requestReview on a verified shelter is ILLEGAL_TRANSITION and writes nothing", async () => {
+    const result = await call("shelter.verification.requestReview", {});
+    expect(result.status).toBe(409);
+    expect(result.body.data).toEqual({
+      machine: "verification",
+      from: "verified",
+      event: "resubmit",
+    });
     expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
   });
 
@@ -571,7 +653,7 @@ describe("deleting a draft (HS-Q9: only one that has never been public)", () => 
     });
     expect(refused.status).toBe(409);
     expect(refused.body.code).toBe("WAS_PUBLISHED");
-    expect(refused.body.data).toEqual({ reason: "was_published" });
+    expect(refused.body.data).toBeUndefined();
     expect(await animalRepo(db).findById(a.id)).not.toBeNull();
   });
 
@@ -587,7 +669,7 @@ describe("deleting a draft (HS-Q9: only one that has never been public)", () => 
    * can't normally have a swipe; this plants one to reach the database's own
    * refusal and proves it comes back typed.
    */
-  it("answers WAS_PUBLISHED with reason has_activity, not a 500, when a swipe still references the draft", async () => {
+  it("answers WAS_PUBLISHED, not a 500, when a swipe still references the draft", async () => {
     const a = await animal({ listing: { kind: "draft" } });
     const adopter = makeAdopter();
     await adopterRepo(db).insert(adopter);
@@ -597,9 +679,380 @@ describe("deleting a draft (HS-Q9: only one that has never been public)", () => 
     });
     expect(result.status).toBe(409);
     expect(result.body.code).toBe("WAS_PUBLISHED");
-    // Activity, not "was published" (HS-T10).
-    expect(result.body.data).toEqual({ reason: "has_activity" });
     expect(await animalRepo(db).findById(a.id)).not.toBeNull();
+  });
+
+  /**
+   * K-Q9 (Oleksii: "one refusal for both cases"): a once-public draft and a
+   * draft with activity get byte-identical answers, so the refusal can't tell
+   * a shelter that an adopter acted on its animal (commitment #2).
+   */
+  it("refuses a once-public draft and a referenced draft with the same answer", async () => {
+    const wasPublished = await animal({
+      listing: { kind: "draft" },
+      photos: [{ storageKey: "a/1.jpg", width: 1200, height: 900, alt: null }],
+    });
+    await call("shelter.animals.transition", {
+      animalId: wasPublished.id,
+      event: { type: "publish" },
+    });
+    await call("shelter.animals.transition", {
+      animalId: wasPublished.id,
+      event: { type: "withdraw", reason: { code: "listing_error", note: null } },
+    });
+    await call("shelter.animals.transition", {
+      animalId: wasPublished.id,
+      event: { type: "restore_to_draft" },
+    });
+    const withActivity = await animal({ listing: { kind: "draft" } });
+    const adopter = makeAdopter();
+    await adopterRepo(db).insert(adopter);
+    await swipeRepo(db).record(makeSwipe({ adopterId: adopter.id, animalId: withActivity.id }));
+
+    const first = await call("shelter.animals.deleteDraft", { animalId: wasPublished.id });
+    const second = await call("shelter.animals.deleteDraft", { animalId: withActivity.id });
+    expect(first.status).toBe(409);
+    expect(first.body.code).toBe("WAS_PUBLISHED");
+    expect(second).toEqual(first);
+    expect(JSON.stringify(second.body)).not.toMatch(/activity|reason/i);
+  });
+});
+
+/**
+ * K-Q7 (Oleksii: "creation, deletion, every listing move; edits record field
+ * names only; never adopter data"). Each write's line is read back from the
+ * table, the way the operator's history will show it.
+ */
+describe("a shelter's animal writes are history (K-Q7)", () => {
+  const animalLines = async () =>
+    (await kabinetShelterRepo(db).historyOf(shelter.id)).filter((entry) =>
+      entry.kind.startsWith("animal_"),
+    );
+  const ACTOR = { kind: "shelter_admin", shelterAdminId: ADMIN };
+  const PHOTO = { storageKey: "a/1.jpg", width: 1200, height: 900, alt: null };
+
+  it("createDraft records animal_created, by the shelter's admin", async () => {
+    const now = new Date("2026-10-16T10:00:00.000Z");
+    const created = await call<KabinetAnimalView>(
+      "shelter.animals.createDraft",
+      {
+        name: "Мурчик",
+        species: "cat",
+        sex: "male",
+        size: "small",
+        age: { kind: "declared_bucket", bucket: "young", declaredAt: now },
+        description: { uk: "Опис", en: null },
+      },
+      { now },
+    );
+    expect(created.status).toBe(200);
+    expect(await animalLines()).toEqual([
+      {
+        kind: "animal_created",
+        at: now,
+        actor: ACTOR,
+        animalId: created.body.id,
+        animalName: "Мурчик",
+      },
+    ]);
+  });
+
+  it("update records the changed field names and none of their values", async () => {
+    const a = await animal({ size: "small" });
+    const now = new Date("2026-10-16T11:00:00.000Z");
+    const SECRET = "Опис, якого в історії бути не може";
+    const result = await call(
+      "shelter.animals.update",
+      {
+        animalId: a.id,
+        expectedVersion: a.version,
+        patch: { size: "large", description: { uk: SECRET, en: null } },
+      },
+      { now },
+    );
+    expect(result.status).toBe(200);
+    const lines = await animalLines();
+    expect(lines).toEqual([
+      {
+        kind: "animal_edited",
+        at: now,
+        actor: ACTOR,
+        animalId: a.id,
+        animalName: a.name,
+        fields: ["size", "description"],
+      },
+    ]);
+    const stored = JSON.stringify(lines);
+    expect(stored).not.toContain(SECRET);
+    expect(stored).not.toContain('"large"');
+    expect(stored).not.toContain('"small"');
+  });
+
+  /** Review finding 4: a form that sends every field names only the one that changed. */
+  it("update names only the fields whose value changed, not every key the form sent", async () => {
+    const a = await animal({ size: "small" });
+    const now = new Date("2026-10-16T11:30:00.000Z");
+    const result = await call(
+      "shelter.animals.update",
+      {
+        animalId: a.id,
+        expectedVersion: a.version,
+        patch: {
+          name: a.name,
+          species: a.species,
+          sex: a.sex,
+          size: "large",
+          age: a.age,
+          description: a.description,
+          vaccination: { state: a.vaccination.state },
+          spayNeuter: { state: a.spayNeuter.state },
+        },
+      },
+      { now },
+    );
+    expect(result.status).toBe(200);
+    expect(await animalLines()).toEqual([
+      {
+        kind: "animal_edited",
+        at: now,
+        actor: ACTOR,
+        animalId: a.id,
+        animalName: a.name,
+        fields: ["size"],
+      },
+    ]);
+  });
+
+  it("a save that changes nothing writes nothing: same version, same edit time, no line", async () => {
+    const a = await animal();
+    const result = await call<KabinetAnimalView>(
+      "shelter.animals.update",
+      {
+        animalId: a.id,
+        expectedVersion: a.version,
+        patch: { name: a.name, size: a.size, description: a.description },
+      },
+      { now: new Date(a.lastUpdatedAt.getTime() + 60_000) },
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.version).toBe(a.version);
+    expect(result.body.lastUpdatedAt).toEqual(a.lastUpdatedAt);
+    const after = await reload(a.id);
+    expect(after.version).toBe(a.version);
+    expect(after.lastUpdatedAt).toEqual(a.lastUpdatedAt);
+    expect(await animalLines()).toEqual([]);
+  });
+
+  it("re-sending the declared age bucket keeps its anchor and records no change", async () => {
+    const declaredAt = new Date(Date.now() - 24 * 3600 * 1000);
+    const a = await animal({ age: { kind: "declared_bucket", bucket: "young", declaredAt } });
+    const result = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date() } },
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.version).toBe(a.version);
+    expect((await reload(a.id)).age).toEqual({
+      kind: "declared_bucket",
+      bucket: "young",
+      declaredAt,
+    });
+    expect(await animalLines()).toEqual([]);
+  });
+
+  it("re-entering a bucket the animal has since grown out of is a correction: restamped, recorded", async () => {
+    // Declared «young» years ago: the card shows an older bucket today.
+    const declaredAt = new Date("2019-01-01T00:00:00.000Z");
+    const a = await animal({ age: { kind: "declared_bucket", bucket: "young", declaredAt } });
+    const now = new Date();
+    const result = await call<KabinetAnimalView>(
+      "shelter.animals.update",
+      {
+        animalId: a.id,
+        expectedVersion: a.version,
+        patch: { age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date(0) } },
+      },
+      { now },
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.version).toBe(a.version + 1);
+    expect((await reload(a.id)).age).toEqual({
+      kind: "declared_bucket",
+      bucket: "young",
+      declaredAt: now,
+    });
+    expect(
+      (await animalLines()).map((l) => (l.kind === "animal_edited" ? l.fields : l.kind)),
+    ).toEqual([["age"]]);
+  });
+
+  it("each of the six moves records animal_listing_changed with from and to", async () => {
+    /** K-Q18 (review finding 5): a note can name an adopter, and history can't be erased. */
+    const NOTE = "Забрала пані Олена";
+    const base = Date.now();
+    const at = (i: number) => new Date(base + i * 1000);
+    const a = await animal({ listing: { kind: "draft" }, photos: [PHOTO] });
+    const moves = [
+      { event: { type: "publish" }, from: "draft", to: "published" },
+      { event: { type: "reserve" }, from: "published", to: "reserved" },
+      { event: { type: "release" }, from: "reserved", to: "published" },
+      {
+        event: { type: "withdraw", reason: { code: "transferred", note: NOTE } },
+        recorded: { type: "withdraw", reason: { code: "transferred" } },
+        from: "published",
+        to: "withdrawn",
+      },
+      { event: { type: "restore_to_draft" }, from: "withdrawn", to: "draft" },
+    ] as const;
+    for (const [i, move] of moves.entries()) {
+      const moved = await call(
+        "shelter.animals.transition",
+        { animalId: a.id, event: move.event },
+        { now: at(i) },
+      );
+      expect(moved.status, move.event.type).toBe(200);
+    }
+    const b = await animal();
+    expect(
+      (
+        await call(
+          "shelter.animals.transition",
+          { animalId: b.id, event: { type: "adopt" } },
+          { now: at(moves.length) },
+        )
+      ).status,
+    ).toBe(200);
+
+    const expected = [
+      ...moves.map(({ event, from, to, ...move }, i) => ({
+        kind: "animal_listing_changed",
+        at: at(i),
+        actor: ACTOR,
+        animalId: a.id,
+        animalName: a.name,
+        event: "recorded" in move ? move.recorded : event,
+        from,
+        to,
+      })),
+      {
+        kind: "animal_listing_changed",
+        at: at(moves.length),
+        actor: ACTOR,
+        animalId: b.id,
+        animalName: b.name,
+        event: { type: "adopt" },
+        from: "published",
+        to: "adopted",
+      },
+    ];
+    // historyOf is newest first.
+    expect((await animalLines()).reverse()).toEqual(expected);
+    // The stored history jsonb holds no trace of the note.
+    const stored = JSON.stringify(
+      await db.select({ entry: shelterHistory.entry }).from(shelterHistory),
+    );
+    expect(stored).toContain('"transferred"');
+    expect(stored).not.toContain(NOTE);
+    expect(stored).not.toContain('"note"');
+  });
+
+  it("a withdrawal keeps its note on the listing, not in history (K-Q18)", async () => {
+    const NOTE = "Забрала пані Олена";
+    const a = await animal();
+    const moved = await call("shelter.animals.transition", {
+      animalId: a.id,
+      event: { type: "withdraw", reason: { code: "other", note: NOTE } },
+    });
+    expect(moved.status).toBe(200);
+    const after = await reload(a.id);
+    expect(after.listing).toMatchObject({
+      kind: "withdrawn",
+      reason: { code: "other", note: NOTE },
+    });
+    const stored = JSON.stringify(
+      await db.select({ entry: shelterHistory.entry }).from(shelterHistory),
+    );
+    expect(stored).toContain('"other"');
+    expect(stored).not.toContain(NOTE);
+  });
+
+  /** S1 (Oleksii: "no history for «Ще шукає» / undo"). */
+  it("confirm and undo record nothing", async () => {
+    const a = await animal();
+    const t = new Date();
+    expect((await call("shelter.animals.confirm", { animalId: a.id }, { now: t })).status).toBe(
+      200,
+    );
+    expect(
+      (
+        await call(
+          "shelter.animals.undoConfirm",
+          { animalId: a.id },
+          { now: new Date(t.getTime() + 1000) },
+        )
+      ).status,
+    ).toBe(200);
+    expect(await animalLines()).toEqual([]);
+  });
+
+  it("deleteDraft records animal_deleted with the name it had", async () => {
+    const draft = await animal({ listing: { kind: "draft" }, name: "Пиріжок" });
+    const now = new Date("2026-10-16T12:00:00.000Z");
+    expect(
+      (await call("shelter.animals.deleteDraft", { animalId: draft.id }, { now })).status,
+    ).toBe(200);
+    expect(await animalLines()).toEqual([
+      { kind: "animal_deleted", at: now, actor: ACTOR, animalId: draft.id, animalName: "Пиріжок" },
+    ]);
+  });
+
+  it("a refused write records nothing: a stale edit, an illegal move, a refused delete", async () => {
+    const a = await animal();
+    expect(
+      (
+        await call("shelter.animals.update", {
+          animalId: a.id,
+          expectedVersion: a.version + 1,
+          patch: { name: "x" },
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await call("shelter.animals.transition", {
+          animalId: a.id,
+          event: { type: "restore_to_draft" },
+        })
+      ).status,
+    ).toBe(409);
+    const referenced = await animal({ listing: { kind: "draft" } });
+    const adopter = makeAdopter();
+    await adopterRepo(db).insert(adopter);
+    await swipeRepo(db).record(makeSwipe({ adopterId: adopter.id, animalId: referenced.id }));
+    expect((await call("shelter.animals.deleteDraft", { animalId: referenced.id })).status).toBe(
+      409,
+    );
+    expect(await animalLines()).toEqual([]);
+  });
+
+  /** The shelter's own history view returns them by name, with no ids (RG-Q8). */
+  it("shelter.history.list returns the lines by animal name, without the animal id", async () => {
+    const draft = await animal({ listing: { kind: "draft" }, name: "Пиріжок" });
+    await call("shelter.animals.deleteDraft", { animalId: draft.id });
+    const listed = await call<{ items: unknown[] }>("shelter.history.list", {
+      cursor: null,
+      limit: 10,
+    });
+    expect(listed.status).toBe(200);
+    expect(listed.body.items).toEqual([
+      expect.objectContaining({
+        kind: "animal_deleted",
+        actor: { kind: "shelter" },
+        animalName: "Пиріжок",
+      }),
+    ]);
+    expect(JSON.stringify(listed.body)).not.toContain(draft.id);
   });
 });
 

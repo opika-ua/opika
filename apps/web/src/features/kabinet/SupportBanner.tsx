@@ -47,7 +47,7 @@ export function SupportBanner({
   const t = uk.kabinet.support;
   // The title names the shelter too (EM-Q2): it speaks to the operator about
   // whose cabinet this is, with no operator name typed into the copy.
-  const title = t.title.replaceAll("{shelter}", shelterName);
+  const title = t.title.replaceAll("{shelter}", () => shelterName);
   return (
     <section
       aria-label={title}

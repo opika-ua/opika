@@ -106,7 +106,7 @@ describe("a page load and an API call share one allowance", () => {
     const response = await handleKabinetRpc(
       new Request("http://localhost/api/kabinet/shelter/profile/get", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", origin: "http://localhost" },
         body: JSON.stringify({ json: {} }),
       }),
       {

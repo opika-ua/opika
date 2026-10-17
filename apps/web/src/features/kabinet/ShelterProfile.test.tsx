@@ -84,9 +84,11 @@ describe("ShelterProfile (K4, read-only)", () => {
   });
 
   // The caption once promised that the registry fills {date} and {name} into the
-  // sentence. Nothing does (the sentence renders verbatim, as the next test shows),
-  // so the caption is pinned to its whole literal text: a substitution claim
-  // can't come back, with braces or without (review of a4fe384, note 1).
+  // sentence. Nothing filled either. Since K-Q6 the deck and the animal page fill
+  // {імʼя}, but this screen shows the sentence as written (the tests below), and
+  // the caption is pinned to its whole literal text: any claim about substitution
+  // is new copy for the copy gate, not something to slip in here (review of
+  // a4fe384, note 1).
   it("the voice caption claims no substitution: exactly the first-person sentence", () => {
     renderProfile();
     const voice = screen.getByRole("region", { name: t.voiceTitle });
@@ -108,6 +110,15 @@ describe("ShelterProfile (K4, read-only)", () => {
     expect(rowValue(t.donationLink)).toBe("https://dobro.ua/fund/domivka");
     expect(rowValue(t.donationPending)).toBe("https://send.monobank.ua/jar/abc");
     expect(rowValue(t.voiceLabel)).toBe("Ми оновлювали цю картку {дата}.");
+  });
+
+  // K-Q6: only the deck and the animal page fill the token. Here the shelter
+  // reads its sentence exactly as it wrote it, token included.
+  it("shows {імʼя} as written: the kabinet never fills in an animal's name", () => {
+    renderProfile({
+      freshnessSentence: { uk: "Напишіть, і ми скажемо, чи {імʼя} ще з нами.", en: null },
+    });
+    expect(rowValue(t.voiceLabel)).toBe("Напишіть, і ми скажемо, чи {імʼя} ще з нами.");
   });
 
   it("keeps the verified details in the dashed block: legal name, grouped EDRPOU, status with its date, address", () => {
@@ -141,6 +152,22 @@ describe("ShelterProfile (K4, read-only)", () => {
     // KS-T10: no operator address is configured, so the note may not tell the
     // shelter to write to anyone (review of #93, finding 6).
     expect(note.textContent).not.toMatch(/write to|напишіть/i);
+  });
+
+  it("prints an operator name carrying $& and $1 literally (review finding 2)", () => {
+    render(
+      <ShelterProfile
+        view={view()}
+        cityName="Бровари"
+        viewer="admin"
+        operatorName="Олексій $& $1"
+      />,
+    );
+    expect(
+      screen.getByText(
+        "Ці дані встановлює Олексій $& $1 під час перевірки притулку. Тут вони лише для перегляду.",
+      ),
+    ).toBeTruthy();
   });
 
   it("puts the status chip after the note, in K4 360's order", () => {
