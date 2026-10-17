@@ -764,7 +764,7 @@ export const en = {
           "What the shelter calls itself. The name can't be changed after creation yet: check the spelling.",
         description: "Shelter description",
         descriptionHint:
-          "No page of the site shows it right now, but for a verified shelter it is public.",
+          "Right now people looking for an animal don't see it on any page of the site, but for a verified shelter it is public.",
         city: "City",
         address: {
           line1: "Street, building",

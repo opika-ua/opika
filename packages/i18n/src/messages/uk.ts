@@ -1485,13 +1485,16 @@ export const uk = {
         /**
          * Checked against the code at his request («adjust the place, not the
          * tone»); his draft said people looking for an animal see it on the
-         * shelter's animal pages. No page renders `Shelter.description`: the
-         * animal page reads the shelter's `freshnessSentence` instead
-         * (`AnimalDetailScreen.tsx`). It is public all the same: the public
+         * shelter's animal pages. No page an adopter reaches renders
+         * `Shelter.description`: the animal page reads the shelter's
+         * `freshnessSentence` instead (`AnimalDetailScreen.tsx`); only the
+         * operator's own S4 shows it. It is public all the same: the public
          * `shelters.byId` returns it for a verified shelter, and only then.
+         * So the sentence names who doesn't see it, his own «ті, хто шукає
+         * тварину», rather than claiming no page at all shows it.
          */
         descriptionHint:
-          "Зараз його не показує жодна сторінка сайту, але в перевіреного притулку він публічний.",
+          "Зараз ті, хто шукає тварину, не бачать його на жодній сторінці сайту, але в перевіреного притулку він публічний.",
         city: "Місто",
         address: {
           line1: "Вулиця, будинок",
