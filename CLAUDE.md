@@ -467,17 +467,56 @@ purpose, and neither is redundant:
   "Module resolution"). It fails in seconds with a compiler error.
 - **`test:harness`** catches what a green build cannot: an app that
   compiles perfectly and lays out wrongly. It measures real geometry and
-  drives real pointer events.
+  drives real pointer events. (Until the brand lands, its geometry checks
+  are frozen and new specs test flows only: see "Test logic, not looks".)
 
 The harness builds the app too, which makes `build:web` look duplicated.
 Keep both — `build:web` is the fast, specific failure, and it keeps
 working if the harness is ever broken or quarantined.
 
-One assertion in the harness is marked `test.fail()`: the deck
+(Frozen with the other visual checks, until the brand lands.) One assertion in the harness is
+marked `test.fail()`: the deck
 (`/tvaryny/gortaty`, migrated from `/discovery` in E5) is a 390px phone
 column and does not adapt at 1280x800. That gap is recorded, not hidden.
 When the responsive pass lands, Playwright will report an unexpected
 pass — that is the signal to delete the marker.
+
+## Test logic, not looks (standing convention until the brand lands)
+
+Oleksii, 2026-10-17 (inbox V-B1), verbatim: "Standing rule from now (until the designer's brand
+lands): the visual design, fonts included, will change. Test logic, not looks.
+- Stop: screenshot/pixel-diff checks, markup snapshots, assertions on CSS classes/colours/sizes/line-wrapping, mock-faithful styling work.
+- Keep: domain, contract, handler and repository tests; Neon smokes; history checks; copy-gate; a few Playwright flow tests that query by role/label/text only; accessibility basics (labels, keyboard, aria-live).
+- K2/K3/K4 screens: functional first, styled only through shared design tokens (colour, type, spacing) so the rebrand is a token swap. No one-off styles in components.
+- Existing visual tests: don't extend them; remove any that start failing because of a visual change rather than fixing them."
+
+His clarification (V-B2), verbatim: "both count as accessibility basics, not looks. - Visible
+focus: keep one presence test (focused element shows an indicator when tabbing), never its
+appearance. - 48px touch target: a shared min-height token on the shared button/control
+primitives, plus ONE test on those primitives that the computed min-height is ≥ 48px. No
+per-component or per-screen size checks."
+
+In practice:
+- **New tests assert behaviour:** states, flows, errors, what a control does. A Playwright test
+  finds elements by role, label or text, never by class or position, and measures nothing.
+- **New components use theme tokens only** (`apps/web/src/app/globals.css`, `@theme`): no
+  arbitrary values (`text-[13px]`, `#hex`, `px-[7px]`) and no per-component font, colour or
+  spacing. A rebrand edits the tokens, not the screens.
+- **Accessibility basics stay tested:**
+  - labels, keyboard operation and aria-live, per component, as behaviour;
+  - focus visibility: one presence test;
+  - the 48px floor: one test on the shared primitives.
+
+  The constraints the brand itself must keep are in `docs/design/brand-constraints.md`.
+- **Existing visual tests** (geometry, sizes, contrast, wrapping, `sizes` attributes, class
+  assertions) are frozen, not extended. One that fails because of a visual change is **deleted,
+  not fixed**, and the deletion is listed for Oleksii in the PR body.
+- **A mock still decides structure and content** (which fields, which states, which copy), not
+  pixels. So "when a mock exists, open the mock" (`docs/standing-constraints.md`) still holds for
+  what a screen contains.
+- **`test:harness` (above) still runs in `check`.** Its job narrows to flows and behaviour in a
+  real browser. Its geometry assertions are the frozen visual tests just described.
+- Rules in `docs/standing-constraints.md` that this narrows carry a pointer back here.
 
 ## Supply-chain note (why a version pin looks slightly stale)
 
@@ -592,6 +631,48 @@ Tier 1 is unchanged: synchronous, blocking, Phase 0 questions to Oleksii before 
 on a Tier 2 row still blocks the **PR**, never the commit (the 2026-09-06 amendment above
 stands for both tiers).
 
+### Amendment, 2026-10-17 — working mode (supersedes the rules above and below where they conflict)
+
+Oleksii, 2026-10-17 (inbox WM-B1), verbatim:
+
+"New working mode, to ship faster without losing security:
+1. Tiered process.
+   - Tier 1 = auth/access, data deletion, prod writes, secrets, R2, anything a public page or email claims. Keep the current process: review before commit, real-Neon when SQL changes, my explicit decisions, full inbox records.
+   - Everything else: one review. A second only if the first finds a blocker. No review-of-the-fix loops.
+2. Decisions.
+   - Decide reversible things yourself and list them under "Decisions taken" in the PR description; I can overturn them at merge.
+   - Ask me only for irreversible, security, public-claim or brand-voice questions. One batch per PR, at its start, with a recommendation each.
+3. Copy gate scope.
+   - Allow [COPY PENDING] strings on kabinet screens reachable only by the allowlisted test shelter. Keep the strict gate for public pages, emails, sign-in and anything a real shelter can reach.
+   - PR 6 (opening writes to everyone) must refuse while any pending string remains.
+   - This is a Tier 1 change: propose the exact mechanism and test before building.
+4. Records. Non-Tier-1: one line per decision in the inbox. Tier 1: as now.
+5. Parallelism. At most two open feature PRs at a time, touching different areas, to avoid #99-style conflicts.
+Unchanged: prod guards, --expect, no secrets in chat, no R2 deletes, real-Neon for SQL, copy truth on public surfaces, I merge everything."
+
+What that changes, concretely:
+- **Two tiers, not three.**
+  - **Tier 1:** auth and access, data deletion, production writes, secrets, R2, and anything a
+    public page or an email claims. The full process stays: review before commit (in a
+    worktree), real-Neon when SQL changes, his explicit decisions asked up front, full inbox
+    records.
+  - **Everything else** (the old Tiers 2 and 3) gets **one** review, run asynchronously as the
+    2026-10-04 amendment describes. A second review happens only when the first finds a
+    blocker. A fix for a non-blocking note is committed without another review: no
+    review-of-the-fix loops.
+- **Reversible decisions are taken, not asked.** Anything the builder can undo later (layout,
+  naming, test shape, an ambiguous design point with no mock) is decided and listed under
+  **"Decisions taken"** in the PR description, where he can overturn it at merge, and recorded
+  as one inbox line. These are the builder's decisions and are recorded as such, never as his
+  approval (standing constraints: only his own words are approval).
+- **He is asked only** about irreversible, security, public-claim or brand-voice questions
+  (Ukrainian copy is brand voice). One batch per PR, at its start, each with a recommendation.
+- **Copy gate scope** (item 3) is a Tier 1 change, proposed to him before it is built. Until
+  he approves a mechanism, the gate is unchanged: no `[COPY PENDING]` under `kabinet.*`.
+- **At most two open feature PRs,** touching different areas. Docs-only PRs don't count.
+- **Unchanged:** production guards, `--expect`, no secrets in chat, no R2 deletes, real-Neon
+  for SQL, copy truth on public surfaces, and he merges everything.
+
 ## Decisions stop blocking
 
 (`docs/handoff-2026-10-04.md` §4.4.) `docs/decisions-inbox.md` — one table, on `main` only,
@@ -600,7 +681,8 @@ append-only, columns `ID | Date | Row | Question | Options | Default taken | Ole
 copies for new decisions.
 
 - A **Tier 2 decision never blocks the builder.** Take the recommended default, write the
-  inbox row, continue. Oleksii answers in bulk when he reviews the PR; an override becomes a
+  inbox row, continue. (Since 2026-10-17: any reversible decision, recorded as one inbox line and
+  listed under "Decisions taken" in the PR; see the working-mode amendment.) Oleksii answers in bulk when he reviews the PR; an override becomes a
   small follow-up commit. **This does not touch the STOP list below** ("Stop and ask,
   regardless of what the reviewer said") — an ambiguous design with no mock, a new or changed
   user-facing claim, and the rest of that list are never "a Tier 2 decision" no matter which
@@ -628,7 +710,10 @@ Continue without asking:
 - sweeps the reviewer identified as the same defect class
 - anything already decided in this conversation or recorded in `docs/`
 
-Stop and ask, regardless of what the reviewer said:
+Stop and ask, regardless of what the reviewer said (narrowed 2026-10-17: ask only for
+irreversible, security, public-claim or brand-voice questions, batched at a PR's start; an
+ambiguous design point with no mock, or a reversible schema choice, is now decided and listed
+under "Decisions taken"; see the working-mode amendment):
 
 - the reviewer's STOP list (production, deletion, Ukrainian copy, user-facing claims, secrets,
   asset licensing, ambiguous design with no mock, widening a schema for a temporary mode)
@@ -672,10 +757,12 @@ they get skipped:
   the better product wins. "Faster" never appears in a decision record.
 - A claim verified against shape is not verified. Run it.
 - The mutation for a floor is crossing it, not perturbing the measurement.
-- A documented limit with no test exercising it is not a limit.
+- A documented limit with no test exercising it is not a limit. (For visual limits, until the
+  brand lands: see "Test logic, not looks".)
 - An assertion inside a conditional is not an assertion.
 - A test may not compare output against the same constant the code renders.
 - Where a mock exists, open the mock. Where none exists, the prose is the specification.
+  (For structure and content; not pixels, until the brand lands.)
 - Anything demo mode suppresses needs harness coverage of its non-demo state.
 - Local Postgres and Neon are not the same database. A driver-, connection-, or dialect-touching
   change needs a check against real Neon before it's called verified — a green local suite
@@ -684,6 +771,11 @@ they get skipped:
 ## Process tiers
 
 Not every change earns the same scrutiny. Classify before starting; say which tier and why.
+
+**Superseded in part, 2026-10-17** (the working-mode amendment under "The loop"): Tier 1 is now
+auth/access, data deletion, production writes, secrets, R2, and anything a public page or email
+claims. Tiers 2 and 3 below merge into "everything else: one review". Read the definitions below
+with that override.
 
 TIER 1 — full gate. Phase 0 questions answered and sent to Oleksii before code. Reviewer
 required. Mutation required. Applies to: production data, seed/truncate/migration paths,

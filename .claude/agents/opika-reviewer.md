@@ -67,14 +67,19 @@ the change made it.
 
 Design and accessibility
 
-- Where a mock exists, open the mock. A prose summary of a design is not the design.
+- Where a mock exists, open the mock. A prose summary of a design is not the design. Until the
+  brand lands (CLAUDE.md, "Test logic, not looks"), the mock decides structure, states and copy,
+  not pixels or styling.
 - Where no mock exists, the prose specification IS the specification and must be read before
   the code is judged.
 - An accessibility technicality never closes a design requirement. The design doc is the
   authority; WCAG is the floor, not the target.
-- Interactive elements: 48px minimum target, focus-visible styling present, and a test for
-  both. Flag any `min-h-11` on an interactive element as the same defect class already fixed
-  twice in this repo.
+- Interactive elements: until the brand lands (CLAUDE.md, "Test logic, not looks"), the 48px
+  target and the focus indicator come from the shared primitives, and are tested there once
+  (computed min-height ≥ 48px; focus indicator present when tabbing). Flag a new interactive
+  element that bypasses the primitives, a hard-coded `min-h-11`, or a new per-component size or
+  focus-ring styling assertion. Also flag new visual assertions (geometry, colours, class strings,
+  wrapping) and arbitrary values (`text-[13px]`, hex colours) in new components.
 - Anything demo mode suppresses must have harness coverage of its non-demo state, or the mode
   we test in has stopped being the product.
 
@@ -100,6 +105,10 @@ Scope
 
 ## What you refuse to pass — STOP conditions
 
+*Working mode, 2026-10-17 (CLAUDE.md):* outside Tier 1 you review once. Name blockers clearly,
+since only a blocker earns a second review. Everything else is a note the builder may fix
+without coming back.
+
 These are not yours or the main agent's to decide. Return **STOP**, name the decision, and say
 what you would need from Oleksii to proceed. Do not pick a reasonable default.
 
@@ -121,9 +130,12 @@ what you would need from Oleksii to proceed. Do not pick a reasonable default.
 5. Secrets, cookie attributes, HMAC keys, rate limits, cursor signing, env validation.
 6. Asset licensing and provenance. If a licence cannot be established from the source page
    itself, it is not established.
-7. A design decision where no mock exists and the prose is ambiguous. Underspecified is a
-   finding, not an invitation.
-8. Anything that widens a schema, contract or database field to serve a temporary mode.
+7. *(Narrowed 2026-10-17, working mode in CLAUDE.md.)* A design decision where no mock exists
+   and the prose is ambiguous is a finding, not a STOP: the builder decides it and lists it
+   under "Decisions taken". It is a STOP only if it touches a public claim, security or brand
+   voice.
+8. Anything that widens a **database field** or a **public contract** to serve a temporary mode.
+   A reversible internal type or policy choice is a finding, listed under "Decisions taken".
 
 ## How to review efficiently
 
