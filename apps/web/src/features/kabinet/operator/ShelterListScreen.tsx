@@ -2,6 +2,7 @@ import { VERIFICATION_STATUSES, type VerificationStatus } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { buttonClass, FOCUS_RING, TextField } from "../../controls/controls";
 import { BODY, CAPTION, ERROR_TEXT } from "../profile-edit/styles";
+import { NEW_SHELTER_PATH } from "../routes";
 import {
   isFiltered,
   LIST_PARAMS,
@@ -29,10 +30,11 @@ export type ShelterListContent =
  * filter is a row of links with the counts the procedure returns, which
  * follow the search but not the filter (`statusCounts`).
  *
+ * «Новий притулок» (`list.create`, R-UI 2) opens S2 from the heading.
+ *
  * The states: the list; no match for a search or filter (`list.noMatch`); no
- * shelters at all, which shows the zero total and nothing else until R-UI 2
- * adds «Новий притулок» (`list.empty` names that button, so it waits for it);
- * the list failing to load, with a retry.
+ * shelters at all (`list.empty`, which names that button, with a link to S2
+ * of its own); the list failing to load, with a retry.
  */
 export function ShelterListScreen({
   filters,
@@ -46,12 +48,17 @@ export function ShelterListScreen({
     counts === null ? null : VERIFICATION_STATUSES.reduce((sum, status) => sum + counts[status], 0);
   return (
     <>
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold tracking-tight text-rg-ink">{t.title}</h1>
-        {total !== null ? (
-          <p className={BODY}>{fillTemplate(t.total, { count: String(total) })}</p>
-        ) : null}
-        <p className={CAPTION}>{t.orderNote}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold tracking-tight text-rg-ink">{t.title}</h1>
+          {total !== null ? (
+            <p className={BODY}>{fillTemplate(t.total, { count: String(total) })}</p>
+          ) : null}
+          <p className={CAPTION}>{t.orderNote}</p>
+        </div>
+        <a href={NEW_SHELTER_PATH} className={buttonClass("primary")}>
+          {t.create}
+        </a>
       </div>
 
       <search>
@@ -82,7 +89,14 @@ export function ShelterListScreen({
       ) : content.page.items.length === 0 ? (
         isFiltered(filters) ? (
           <p className={BODY}>{t.noMatch}</p>
-        ) : null
+        ) : (
+          <div className="flex flex-col items-start gap-2">
+            <p className={BODY}>{t.empty}</p>
+            <a href={NEW_SHELTER_PATH} className={buttonClass("secondary")}>
+              {t.create}
+            </a>
+          </div>
+        )
       ) : (
         <ShelterRows
           // A new filter is a new list: never carry one list's pages into another.

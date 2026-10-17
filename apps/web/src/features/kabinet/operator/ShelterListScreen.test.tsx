@@ -131,9 +131,11 @@ describe("S1 states", () => {
     renderList([], { search: "Нема", status: null });
     expect(screen.getByText("Нічого не знайдено. Змініть пошук або фільтр.")).toBeTruthy();
     expect(screen.queryByRole("list", { name: "Притулки" })).toBeNull();
+    // A search that finds nothing is not an empty registry.
+    expect(screen.queryByText(/^Притулків ще немає/)).toBeNull();
   });
 
-  it("empty: no shelters at all shows the zero total, no rows, and no «Новий притулок» yet", () => {
+  it("empty: no shelters at all shows the zero total, no rows, and the empty state's link to S2", () => {
     render(
       <ShelterListScreen
         filters={{ search: null, status: null }}
@@ -151,8 +153,20 @@ describe("S1 states", () => {
     expect(screen.getByText("Усього: 0")).toBeTruthy();
     expect(screen.queryByText(/Нічого не знайдено/)).toBeNull();
     expect(screen.queryByRole("list", { name: "Притулки" })).toBeNull();
-    // R-UI 2 adds the create route; until then nothing names a button that isn't there.
-    expect(screen.queryByText(/Новий притулок/)).toBeNull();
+    const empty = screen.getByText(
+      "Притулків ще немає. Перший можна додати через «Новий притулок».",
+    ).parentElement as HTMLElement;
+    expect(within(empty).getByRole("link", { name: "Новий притулок" }).getAttribute("href")).toBe(
+      "/kabinet/prytulky/novyi",
+    );
+  });
+
+  it("offers «Новий притулок», to S2, above the rows, with no empty state over them", () => {
+    renderList([row()]);
+    expect(
+      screen.getAllByRole("link", { name: "Новий притулок" }).map((l) => l.getAttribute("href")),
+    ).toEqual(["/kabinet/prytulky/novyi"]);
+    expect(screen.queryByText(/^Притулків ще немає/)).toBeNull();
   });
 
   it("load failed: says so and retries the same URL", () => {

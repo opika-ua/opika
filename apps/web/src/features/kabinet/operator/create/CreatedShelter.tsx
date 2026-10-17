@@ -6,11 +6,9 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button, buttonClass } from "../../../controls/controls";
 import { BODY, CARD, CARD_TITLE, ERROR_TEXT } from "../../profile-edit/styles";
+import { shelterPath } from "../list-params";
 import { createRefusalOf, emailOutcomeMessage, kyivDateAndTime } from "./create-outcome";
 import type { RegistryCreateClient } from "./registry-create-client";
-
-/** S4, one shelter. R-UI 1 serves it. */
-export const shelterPagePath = (shelterId: string): string => `/kabinet/prytulky/${shelterId}`;
 
 /**
  * The invitation as the screen shows it. `validUntil` is the link's expiry
@@ -138,7 +136,7 @@ export function CreatedShelter({
             {t.resend}
           </Button>
         ) : null}
-        <Link href={shelterPagePath(view.id)} className={buttonClass("primary")}>
+        <Link href={shelterPath(view.id)} className={buttonClass("primary")}>
           {t.openShelter}
         </Link>
       </div>

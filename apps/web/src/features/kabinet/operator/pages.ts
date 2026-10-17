@@ -90,7 +90,7 @@ export type OperatorRefusal = { kind: "sign_in" } | { kind: "not_found" };
  * sign-in; FORBIDDEN (signed in, not the operator) and NOT_FOUND (no such
  * shelter) are one and the same 404, so the page never says which.
  */
-function refusalOf(error: unknown): OperatorRefusal | null {
+export function refusalOf(error: unknown): OperatorRefusal | null {
   if (!(error instanceof ORPCError)) return null;
   if (error.code === "UNAUTHENTICATED") return { kind: "sign_in" };
   if (error.code === "FORBIDDEN" || error.code === "NOT_FOUND") return { kind: "not_found" };

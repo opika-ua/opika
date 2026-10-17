@@ -2,8 +2,11 @@ import { uk } from "@opika/i18n";
 import type { ReactNode } from "react";
 import { FOCUS_RING } from "../../controls/controls";
 import { KabinetBrand } from "../KabinetBrand";
+import { NEW_SHELTER_PATH } from "../routes";
 import { SignOutButton } from "../SignOutButton";
 import { SHELTERS_PATH } from "./list-params";
+
+const NAV_ITEM = `flex min-h-target items-center rounded-rg-button px-4 text-base font-medium text-rg-ink aria-[current=page]:bg-rg-surface ${FOCUS_RING}`;
 
 /**
  * The operator's frame (R-UI 1, mock «S1 Притулки»): the kabinet's brand row,
@@ -11,9 +14,7 @@ import { SHELTERS_PATH } from "./list-params";
  * `operatorDisplayName` helper, its fallback «адміністратор сайту»), the role
  * label, «Вийти», and the nav.
  *
- * The nav holds «Притулки» only. «Новий притулок» (`shell.nav.newShelter`)
- * joins it with R-UI 2, which adds its route: a link to a page that isn't
- * there would be a dead end, as on the shelter's own page.
+ * The nav: «Притулки» (S1) and «Новий притулок» (S2, R-UI 2).
  *
  * Styled through the shared tokens only (test logic, not looks).
  */
@@ -24,7 +25,7 @@ export function OperatorShell({
 }: {
   operatorName: string;
   /** Which nav item is this page, for `aria-current`. */
-  current: "shelters" | null;
+  current: "shelters" | "new_shelter" | null;
   children: ReactNode;
 }) {
   const t = uk.kabinet.operator.shell;
@@ -45,9 +46,16 @@ export function OperatorShell({
           <a
             href={SHELTERS_PATH}
             aria-current={current === "shelters" ? "page" : undefined}
-            className={`flex min-h-target items-center rounded-rg-button px-4 text-base font-medium text-rg-ink aria-[current=page]:bg-rg-surface ${FOCUS_RING}`}
+            className={NAV_ITEM}
           >
             {t.nav.shelters}
+          </a>
+          <a
+            href={NEW_SHELTER_PATH}
+            aria-current={current === "new_shelter" ? "page" : undefined}
+            className={NAV_ITEM}
+          >
+            {t.nav.newShelter}
           </a>
         </nav>
         <main className="flex min-w-0 flex-1 flex-col gap-4">{children}</main>
