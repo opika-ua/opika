@@ -1070,9 +1070,13 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   // member (whose own invitation is still pending), a re-invited address and
   // an expired invitation counts 1 joined and 2 invited, as `adminsOf` lists
   // them; one that never invited anyone counts 0 and 0, with no link waiting.
+  // Names of their own (R, S: no other step uses them), and each search must
+  // find exactly its one shelter, so the step never leans on the list's order.
+  const countedName = `Smoke ${tag} R`;
+  const uncountedName = `Smoke ${tag} S`;
   const countedBase = makeShelter({
     id: randomUUID() as ShelterId,
-    displayName: `Smoke ${tag} F`,
+    displayName: countedName,
     pendingDonation: {
       link: { url: "https://send.monobank.ua/jar/smoke", provider: "monobank_jar" },
       proposedAt: NOW,
@@ -1081,7 +1085,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   });
   const uncountedBase = makeShelter({
     id: randomUUID() as ShelterId,
-    displayName: `Smoke ${tag} G`,
+    displayName: uncountedName,
     pendingDonation: null,
   });
   for (const s of [countedBase, uncountedBase]) {
@@ -1119,12 +1123,17 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       createdAt: NOW,
     });
   }
-  const rowNamed = async (name: string) =>
-    (await registry.listPage({ search: name, status: null, after: null, limit: 5 })).items.find(
-      (item) => item.displayName === name,
-    );
-  const counted = await rowNamed(`Smoke ${tag} F`);
-  const uncounted = await rowNamed(`Smoke ${tag} G`);
+  const onlyRow = async (name: string, id: ShelterId) => {
+    const { items } = await registry.listPage({
+      search: name,
+      status: null,
+      after: null,
+      limit: 5,
+    });
+    return items.length === 1 && items[0]?.id === id ? items[0] : undefined;
+  };
+  const counted = await onlyRow(countedName, countedBase.id);
+  const uncounted = await onlyRow(uncountedName, uncountedBase.id);
   const countedListed = await registry.adminsOf(countedBase.id);
   const listedJoined = countedListed.filter((a) => a.invite.status === "accepted").length;
   const listedInvited = countedListed.filter((a) => a.invite.status === "pending").length;
@@ -1138,7 +1147,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       uncounted?.admins.joined === 0 &&
       uncounted.admins.invited === 0 &&
       uncounted.donationPending === false,
-    `F: joined ${counted?.admins.joined}, invited ${counted?.admins.invited} (adminsOf ${listedJoined}/${listedInvited}), donationPending ${counted?.donationPending}; G: joined ${uncounted?.admins.joined}, invited ${uncounted?.admins.invited}, donationPending ${uncounted?.donationPending}`,
+    `R: ${counted === undefined ? "not the one row found" : `joined ${counted.admins.joined}, invited ${counted.admins.invited} (adminsOf ${listedJoined}/${listedInvited}), donationPending ${counted.donationPending}`}; S: ${uncounted === undefined ? "not the one row found" : `joined ${uncounted.admins.joined}, invited ${uncounted.admins.invited}, donationPending ${uncounted.donationPending}`}`,
   );
   return out;
 }
