@@ -1,5 +1,10 @@
 # K2 copy sheet: the animal list (`/kabinet/tvaryny`)
 
+> **Staleness note (2026-10-17, review of #118):** since this sheet was drafted, R-UI 3 (#121) ships
+> `kabinet.verificationDecision.*` and a shared `controls/ModalDialog.tsx` (K2's dialogs should reuse
+> it), and PR 4 (#116) ships his final `publishedNotShown` / `lastPhotoKeptNotShown` and RH-B7. Re-read
+> §1, §9 and Q5 against those branches at PR 5's start.
+
 Every user-facing string K2 (PR 5 of the K milestone) needs. One sheet per PR, sent at its start
 (K-Q13). The English says what is true in code at `1b2b3d3` (main), or will be once PR 4 and PR 5
 build what `docs/k3-draft-shapes.md` and this sheet describe. "Mock" means a designer's draft, not
@@ -106,7 +111,7 @@ register: «державний реєстр тварин»."
 | `kabinet.profileEdit.pause.cancel` / `.close` (uk:1121-1122) | «Скасувати» / «Закрити» | every K2 dialog's secondary button and ✕ |
 | `kabinet.profileEdit.state.retry` (uk:1021) | «Спробувати ще раз» | after a failed list load or action |
 | `kabinet.profileEdit.errors.notAvailable` (uk:1031) | «Змінювати дані в кабінеті поки не можна — для цього напишіть мені.» | `SHELTER_WRITES_NOT_YET_AVAILABLE` if the policy changes while K2 is open (until PR 6; its fate is pr6-copy-sheet Q8) |
-| `kabinet.verificationDecision.suspendedEffect` / `.rejectedEffect` (R-UI 3, RUI §3.4; only if R-UI 3 merges first) | «Поки притулок призупинено, його тварин немає в галереї.» / «Тварин притулку не буде в галереї, доки перевірку не пройдено.» | the not-visible line (§9, Q5) |
+| `kabinet.verificationDecision.suspendedEffect` / `.rejectedEffect` (R-UI 3, RUI §3.4; #121 merges before PR 5 in his order) | «Поки притулок призупинено, його тварин немає в галереї.» / «Тварин притулку не буде в галереї, доки перевірку не пройдено.» | the not-visible line (§9, Q5) |
 
 `profileEdit.*` keys reused here live under K4's namespace. A shared `kabinet.form.*` home is tidier
 once K2 and K3 both reuse them: a rename, no new copy.
