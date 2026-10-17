@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   type CalendarDate,
   calendarDateYearsBefore,
+  instantOfCalendarDate,
   kyivCalendarDateOf,
 } from "../primitives/calendar-date";
 
@@ -185,4 +186,19 @@ export const ageDateProblem = (date: CalendarDate, now: Date): AgeDateProblem | 
     return { kind: "too_old", maxYearsBack: AGE_DATE_MAX_YEARS_BACK };
   }
   return null;
+};
+
+/**
+ * The instant a bucket declared «станом на» `asOf` is anchored at: the date's
+ * stored instant (`instantOfCalendarDate`, UTC midnight), but never later than
+ * `now`. For the first two or three hours of a Kyiv day, UTC midnight of that
+ * day is still ahead of the clock, and `ageAnchorOf` subtracts the bucket's
+ * minimum from the anchor, so a bucket declared "today" in that window read
+ * one tier young («малюк» for «Молодий») on the form and on the card until
+ * 03:00. A date in the past is unaffected; its Kyiv date is unchanged either
+ * way, so `kyivCalendarDateOf` gives `asOf` back.
+ */
+export const declaredAtOfCalendarDate = (asOf: CalendarDate, now: Date): Date => {
+  const instant = instantOfCalendarDate(asOf);
+  return instant.getTime() > now.getTime() ? now : instant;
 };

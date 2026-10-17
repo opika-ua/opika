@@ -26,6 +26,7 @@ import {
   type CityId,
   DEFAULT_FRESHNESS_POLICY,
   type DraftAnimal,
+  declaredAtOfCalendarDate,
   freshnessOf,
   instantOfCalendarDate,
   isDraftAnimal,
@@ -168,13 +169,13 @@ function declared<T extends VaccinationStatus | SpayNeuterStatus>(
  * The date is the shelter's knowledge, not the save time: «Коли ви це
  * оцінили. Зазвичай — день, коли тварина потрапила до притулку.»
  */
-const ageOfInput = (input: AgeEstimateInput): AgeEstimate =>
+const ageOfInput = (input: AgeEstimateInput, now: Date): AgeEstimate =>
   input.kind === "birth_date"
     ? { kind: "birth_date", date: instantOfCalendarDate(input.date), precision: "day" }
     : {
         kind: "declared_bucket",
         bucket: input.bucket,
-        declaredAt: instantOfCalendarDate(input.asOf),
+        declaredAt: declaredAtOfCalendarDate(input.asOf, now),
       };
 
 /**
@@ -215,7 +216,7 @@ function editedAge(
   if (current !== null && sameAge(current, input)) return current;
   const problem = ageDateProblem(input.kind === "birth_date" ? input.date : input.asOf, now);
   if (problem !== null) throw errors.AGE_DATE_OUT_OF_RANGE({ data: { problem: problem.kind } });
-  return ageOfInput(input);
+  return ageOfInput(input, now);
 }
 
 /**

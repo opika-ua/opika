@@ -10,6 +10,7 @@ import {
   type AnimalSpecies,
   ageBucketOf,
   characterCount,
+  declaredAtOfCalendarDate,
   instantOfCalendarDate,
   isAgeEstimateUncertain,
   type MedicalState,
@@ -203,7 +204,7 @@ export function AgeSection({
               : {
                   kind: "declared_bucket",
                   bucket: input.bucket,
-                  declaredAt: instantOfCalendarDate(input.asOf),
+                  declaredAt: declaredAtOfCalendarDate(input.asOf, now),
                 },
             now,
           ),
