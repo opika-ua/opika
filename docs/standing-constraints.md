@@ -40,12 +40,18 @@ actually set.
 and decisions run in parallel with building rather than ahead of it, per `CLAUDE.md`'s
 working loop. This governs *when* a check happens, never *whether* it happens, and it
 changes nothing about how product options are weighed.
+*Narrowed 2026-10-17 (CLAUDE.md, working-mode amendment, inbox WM-B1):* outside Tier 1, a fix
+for a non-blocking review note is committed without a second review. That is the one place a
+check no longer happens. Tier 1 keeps every check, and product options are still weighed on
+quality.
 
 ## How work is verified
 
 **A user-interface item may not be marked done on the basis of inspecting markup.** It
 requires a rendered assertion — a component test or a harness run — or a documented manual
 device test with a screenshot. Text appearing in HTML is not evidence that anything works.
+*Until the brand lands (CLAUDE.md, "Test logic, not looks"): the rendered assertion is about behaviour (a
+component test, or a harness flow found by role, label or text), not geometry or a screenshot.*
 
 *Why:* `/discovery` was reported as rendering because its HTML contained the expected card
 text. An action row was sitting on top of the card and the swipe gesture was completely
@@ -67,6 +73,9 @@ that repeated the same number without repeating the scope is what set off the al
 **A documented limit with no test exercising it is not a limit.** A constant, a floor, a
 threshold or a viewport that appears in the source but in no assertion is documentation, and
 it decays silently at exactly the rate the thing it describes changes.
+*Until the brand lands (CLAUDE.md, "Test logic, not looks"), this holds for behavioural and data limits. Visual
+limits (pixel floors, margins, viewports measured for layout) get no new tests; the one size
+floor kept is the 48px target, tested once on the shared primitives.*
 
 *Why:* the third variant of one failure. First conditional assertions (a test skipping its
 own checks when the element was absent — which is the broken state). Then self-comparing
@@ -82,6 +91,8 @@ precisely because it carries slack under the value it guards; a floor that fails
 change is a change-detector wearing a floor's name, and it will be re-based on every
 legitimate layout change until it means nothing. To prove a floor works, move the real
 measurement *past* it and check the failure names the value, the limit and the case.
+*Until the brand lands (CLAUDE.md, "Test logic, not looks"), new floors are behavioural or data floors; existing
+pixel floors are frozen, not extended.*
 
 *Why:* the instruction given for `MIN_SHELTER_MARGIN_PX` was "shrinking the margin by 1px
 must turn it red." It could not, by construction — the floor was 8 against a measured 12 —
@@ -117,6 +128,8 @@ behaviour, independent of ARIA role, and had been sitting unread the whole time.
 **When a mock exists, open the mock.** A prose summary of a design is not the design. If a
 surface has a mock file, build from that file — a README's description of it is a lossy
 secondary source.
+*Until the brand lands (CLAUDE.md, "Test logic, not looks"), the mock decides structure and content (which fields,
+states and copy), not pixels or styling.*
 
 *Why:* E3's pagination was built from the design doc's prose summary rather than the mock.
 It shipped bare chevrons with a conflicting aria-label (WCAG 2.5.3 failure), no «з N»
@@ -138,6 +151,9 @@ variable equals itself passes against any value.
 
 **An interactive element ships with its focus-visible styling and a test.** Focus is not
 polish applied later; a keyboard user has no other way to know where they are.
+*Until the brand lands (CLAUDE.md, "Test logic, not looks", V-B2): focus visibility comes from the shared
+primitives, and is tested once for presence (a focused control shows an indicator when
+tabbing), never for its appearance.*
 
 *Why:* V2 shipped five components — filter chips, reset, sort links, pagination controls,
 no-match buttons — with no focus indication at all. The reviewer caught it; nothing in the
