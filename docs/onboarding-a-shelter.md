@@ -361,10 +361,14 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
 The launch gate after PR 6 and the operator screens (RU-B4). **UI only:** no console rpc, no
 scripts, no `KABINET_WRITE_ALLOWLIST`. The pre-launch gate cookie is the only non-UI piece
 (RU-B1). Three people, three browsers: Oleksii as the operator in his own screens, a test shelter
-as the client, and a third browser as the adopter. His script, verbatim (RU-B5):
+as the client, and a third browser as the adopter. His script, verbatim (RU-B5) except step 2,
+which he reworded on 2026-10-17 (RU-Q6, verbatim: "Reword rehearsal step 2 to "resend, or invite
+a second address""), because creating a shelter already invites its first admin:
 
-1. He creates «Притулок «Генеральна»» in his screens and verifies it.
-2. He invites `oleksii.kolotenko+shelter2@gmail.com` from the shelter page.
+1. He creates «Притулок «Генеральна»» in his screens and verifies it. (The create form requires
+   the first admin, so this is where `oleksii.kolotenko+shelter2@gmail.com` is entered and
+   invited.)
+2. From the shelter page: resend, or invite a second address.
 3. The shelter admin signs in on a phone, fills the profile, adds 2–3 animals with photos taken
    on the phone, and publishes.
 4. The adopter (a separate browser plus the gate cookie) finds them in the deck and the gallery,
