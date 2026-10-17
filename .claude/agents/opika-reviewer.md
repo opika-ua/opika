@@ -67,14 +67,19 @@ the change made it.
 
 Design and accessibility
 
-- Where a mock exists, open the mock. A prose summary of a design is not the design.
+- Where a mock exists, open the mock. A prose summary of a design is not the design. Until the
+  brand lands (CLAUDE.md, "Test logic, not looks"), the mock decides structure, states and copy,
+  not pixels or styling.
 - Where no mock exists, the prose specification IS the specification and must be read before
   the code is judged.
 - An accessibility technicality never closes a design requirement. The design doc is the
   authority; WCAG is the floor, not the target.
-- Interactive elements: 48px minimum target, focus-visible styling present, and a test for
-  both. Flag any `min-h-11` on an interactive element as the same defect class already fixed
-  twice in this repo.
+- Interactive elements: until the brand lands (CLAUDE.md, "Test logic, not looks"), the 48px
+  target and the focus indicator come from the shared primitives, and are tested there once
+  (computed min-height ≥ 48px; focus indicator present when tabbing). Flag a new interactive
+  element that bypasses the primitives, a hard-coded `min-h-11`, or a new per-component size or
+  focus-ring styling assertion. Also flag new visual assertions (geometry, colours, class strings,
+  wrapping) and arbitrary values (`text-[13px]`, hex colours) in new components.
 - Anything demo mode suppresses must have harness coverage of its non-demo state, or the mode
   we test in has stopped being the product.
 
