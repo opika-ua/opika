@@ -1,4 +1,4 @@
-import type { KabinetCursor, KabinetShelterView } from "@opika/contracts";
+import type { KabinetAccess, KabinetCursor, KabinetShelterView } from "@opika/contracts";
 import { cityRepo } from "@opika/db/repos";
 import { type CityId, DEFAULT_FRESHNESS_POLICY, type Freshness, freshnessOf } from "@opika/domain";
 import { createRouterClient, ORPCError, type RouterClient } from "@orpc/server";
@@ -16,16 +16,19 @@ import { latestDonationOutcomeOf } from "./profile-edit/donation-outcome";
  * finding 2): the page can never show more than `shelter.profile.get` returns.
  *
  * - no session: the sign-in page;
+ * - the operator (a super_admin outside support mode, the access matrix's
+ *   `allow_registry`): their own screens, `/kabinet/prytulky` (R-UI, RU-T1).
+ *   Decided before the profile is read, so the operator never reaches a
+ *   shelter screen from here; a super_admin sees a shelter's cabinet only by
+ *   entering support, which is what makes the viewing visible and time-boxed;
  * - a shelter admin: their own shelter;
  * - a support view: the shelter it entered, read-only, with the S5 banner;
- * - anyone else (no role, conflicting roles, a super_admin outside support
- *   mode): not found. The operator's own screens are API only (RG-Q1); a
- *   super_admin sees a shelter's cabinet only by entering support, which is
- *   what makes the viewing visible and time-boxed.
+ * - anyone else (no role, conflicting roles): not found.
  */
 export type KabinetHome =
   | { kind: "sign_in" }
   | { kind: "not_found" }
+  | { kind: "operator" }
   | {
       kind: "shelter";
       view: KabinetShelterView;
@@ -145,10 +148,19 @@ async function donationDeclinedOf(client: HomeClient): Promise<boolean> {
   return false;
 }
 
+/** The registry surface as the contract declares it on every `registry.*` procedure. */
+const REGISTRY_ACCESS: KabinetAccess = { surface: "registry" };
+
 export async function kabinetHomeOf(
   principal: KabinetPrincipal,
   deps: KabinetHomeDeps,
 ): Promise<KabinetHome> {
+  // The same matrix the registry router applies (`decideAccess`), never a
+  // `principal.kind` check of this page's own: whoever the API would let
+  // read the registry goes to the operator's screens.
+  if (decideAccess(REGISTRY_ACCESS, principal, deps.shelterWrites).kind === "allow_registry") {
+    return { kind: "operator" };
+  }
   const client = createRouterClient(homeRouter, {
     context: (): KabinetContext => ({
       ...deps,
@@ -193,10 +205,13 @@ export async function kabinetHomeOf(
 
 /**
  * Whether `/kabinet/vkhid` sends this visitor straight to `/kabinet`: exactly
- * when the home page would show them a shelter, so a live session never sits
- * on a sign-in form that looks signed out (review of #93, finding 1). Anyone
- * else sees the form; sending a roleless account to `/kabinet` would only
- * land it on a 404.
+ * when the home page would show them something, a shelter or (for the
+ * operator) a redirect to their list, so a live session never sits on a
+ * sign-in form that looks signed out (review of #93, finding 1). Anyone else
+ * sees the form; sending a roleless account to `/kabinet` would only land it
+ * on a 404.
  */
 export const leavesSignIn = (principal: KabinetPrincipal): boolean =>
-  principal.kind === "shelter_admin" || principal.kind === "support_view";
+  principal.kind === "shelter_admin" ||
+  principal.kind === "support_view" ||
+  principal.kind === "super_admin";

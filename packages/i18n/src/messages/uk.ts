@@ -1653,5 +1653,36 @@ export const uk = {
       suspendedEffect: "Поки притулок призупинено, його тварин немає в галереї.",
       rejectedEffect: "Тварин притулку не буде в галереї, доки перевірку не пройдено.",
     },
+    /**
+     * The words `operator.history.animal_listing_changed` («{name}: «{from}» →
+     * «{to}»») and `animal_edited` («Змінено картку {name}: {fields}») fill in.
+     * His R-UI file gives those lines but not the words, so these are his own
+     * K3 words, verbatim from his K3 answers (`k3-copy-uk.md`, 2026-10-17):
+     * `kabinet.listingStatus.*` for a listing's state, and the K3 form's field
+     * labels (`who.nameLabel`, `who.speciesLabel`, `who.sexLabel`,
+     * `who.sizeLabel`, `age.title`, `description.title`, `photos.title`). The
+     * two medical fields reuse `medical.vaccination` and `medical.spayNeuter`,
+     * which his K3 answer 6 makes the form's own labels too. Held here, not
+     * under the K3 keys, because PR 4 adds those keys itself; once both have
+     * merged, one copy of each word is enough (follow-up).
+     */
+    animalHistoryLabels: {
+      listing: {
+        draft: "Чернетка",
+        published: "Опубліковано",
+        reserved: "Домовляються",
+        adopted: "Удома",
+        withdrawn: "Знято з показу",
+      },
+      field: {
+        name: "Імʼя",
+        species: "Вид",
+        sex: "Стать",
+        size: "Розмір",
+        age: "Вік",
+        description: "Опис",
+        photos: "Фото",
+      },
+    },
   },
 } as const;

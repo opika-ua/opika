@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import KabinetHomePage from "./page";
+import OperatorShelterPage from "./prytulky/[id]/page";
+import OperatorSheltersPage from "./prytulky/page";
 import SignInPage from "./vkhid/page";
 
 /**
@@ -20,6 +22,11 @@ const digestOf = (error: unknown) =>
 const signIn = (search: Record<string, string>) => () =>
   SignInPage({ searchParams: Promise.resolve(search) });
 
+/** The operator's pages (R-UI 1). */
+const operatorList = () => OperatorSheltersPage({ searchParams: Promise.resolve({}) });
+const operatorShelter = () =>
+  OperatorShelterPage({ params: Promise.resolve({ id: crypto.randomUUID() }) });
+
 /**
  * The invite landing (IN-T10) shares K1's route, so its 404 is the same
  * page's: listed separately, because its GET is the one that would send an
@@ -29,6 +36,8 @@ describe.each([
   ["/kabinet", () => KabinetHomePage()],
   ["/kabinet/vkhid", signIn({})],
   ["/kabinet/vkhid?zaproshennia=<id>", signIn({ zaproshennia: crypto.randomUUID() })],
+  ["/kabinet/prytulky", operatorList],
+  ["/kabinet/prytulky/<id>", operatorShelter],
 ])("%s while sign-in is unavailable", (_route, page) => {
   it("answers 404 itself, never reaching the auth instance", async () => {
     vi.stubEnv("BETTER_AUTH_SECRET", "");
@@ -49,5 +58,35 @@ describe.each([
       (error: unknown) => error,
     );
     expect(digestOf(thrown)).toContain("404");
+  });
+});
+
+/**
+ * RU-T5: without `LOCATION_HMAC_SECRET` the registry API answers 503 to every
+ * call (RG-Q10), so the operator's pages answer 404 rather than half-work,
+ * checked before auth or the database. Sign-in is available here (dev config),
+ * so the key is the only reason; with the key set the same page goes on past
+ * the guard (and fails outside a request, which is not a 404).
+ */
+describe.each([
+  ["/kabinet/prytulky", operatorList],
+  ["/kabinet/prytulky/<id>", operatorShelter],
+])("%s without the location key", (_route, page) => {
+  const thrownWith = async (locationKey: string) => {
+    vi.stubEnv("BETTER_AUTH_SECRET", "s".repeat(32));
+    vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
+    vi.stubEnv("LOCATION_HMAC_SECRET", locationKey);
+    return page().then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+  };
+
+  it("answers 404 itself while sign-in is otherwise available", async () => {
+    expect(digestOf(await thrownWith(""))).toContain("404");
+  });
+
+  it("goes past the guard once the key is set (control)", async () => {
+    expect(digestOf(await thrownWith("l".repeat(32)))).not.toContain("404");
   });
 });

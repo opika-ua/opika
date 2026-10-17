@@ -25,3 +25,20 @@ export function kabinetAvailabilityOrNotFound(): Extract<
   if (availability.kind === "unavailable") notFound();
   return availability;
 }
+
+/**
+ * An operator page's prerequisites (`/kabinet/prytulky/**`, R-UI), or its
+ * own 404, checked before auth or the database is touched: sign-in available,
+ * as for every kabinet page, and `LOCATION_HMAC_SECRET` set. Without the key
+ * the registry API answers 503 to every call (RG-Q10), so its pages answer
+ * 404 rather than half-work (RU-T5), read with the route's own test (set and
+ * not blank, `app/api/kabinet/[...rpc]/route.ts`).
+ */
+export function operatorPagesOrNotFound(): {
+  auth: KabinetAuth;
+  availability: Extract<KabinetAuthAvailability, { kind: "available" }>;
+} {
+  const availability = kabinetAvailabilityOrNotFound();
+  if (!process.env.LOCATION_HMAC_SECRET) notFound();
+  return { auth: kabinetAuth(), availability };
+}
