@@ -10,11 +10,17 @@ import {
 import { eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  closingLine,
+  DEMO_RANGE,
   DEMO_REMOVAL_TABLES,
   type DemoRemovalCounts,
+  EmptyRemovalTarget,
   expectedTargetOf,
   formatPlan,
+  formatRefusal,
+  parseRemovalTarget,
   planDemoRemoval,
+  type RemovalTarget,
   removeDemoCorpus,
 } from "../src/demo-remove";
 import { adopterRepo } from "../src/repos/adopter-repo";
@@ -576,5 +582,425 @@ describe("demo:remove rolls back on any count that differs from its plan", () =>
     expect(await rows(db.select().from(animals))).toBe(4);
     expect(await rows(db.select().from(shelters))).toBe(3);
     expect(await rows(db.select().from(authOrganization))).toBe(2);
+  });
+});
+/**
+ * `--shelter <id>` (DR-F2; Oleksii's answers in DR-B3): the same removal,
+ * pointed at exactly the listed shelters (his own test shelters, outside the
+ * seed range, on the real key) and at nothing else. Every expected value here
+ * is written out, not derived from the code under test.
+ */
+describe("demo:remove --shelter: exactly these shelters", () => {
+  const shelterTarget = (...ids: string[]): RemovalTarget => ({ kind: "shelters", ids });
+  const realPhoto = (key: string) => ({ storageKey: key, width: 1024, height: 768, alt: null });
+  const byId = <T extends { id: string }>(list: readonly T[]) =>
+    [...list].sort((a, b) => a.id.localeCompare(b.id));
+
+  async function insertAnimalWithPhotos(shelterId: ShelterId, keys: readonly string[]) {
+    const animal = makeAnimal({
+      shelterId,
+      photos: keys.map(realPhoto),
+      listing: { kind: "published", publishedAt: NOW, confirmedAt: NOW, undoable: null },
+    });
+    await animalRepo(db).insert(animal, cityId);
+    return animal;
+  }
+
+  /**
+   * Production after step 4 plus two of Oleksii's test shelters: the first
+   * with an organization, an accepted invitation whose user has since lost
+   * the membership, an animal with two real R2 photos and a seed photo, a
+   * swipe, a reveal and history; the second bare. A user created by a test
+   * invitation and since invited (by address) to a demo shelter must stay:
+   * a demo shelter is "elsewhere" when it isn't targeted.
+   */
+  async function withTestShelters() {
+    const f = await productionAfterStep4();
+    const testA = await insertShelter({ displayName: "Мій перший тест" });
+    const testB = await insertShelter({ displayName: "Мій другий тест" });
+    const photoAnimal = await insertAnimalWithPhotos(testA.id, [
+      "animals/photo-animal/0",
+      "seed-photos/dog-1.jpg",
+      "animals/photo-animal/1",
+    ]);
+    const bareAnimal = await insertAnimal(testB.id);
+    await swipeRepo(db).record({
+      adopterId: f.visitor.id,
+      animalId: photoAnimal.id,
+      direction: "interested",
+      at: NOW,
+    });
+    await revealRepo(db).insert(
+      makeReveal({ adopterId: f.visitor.id, animalId: photoAnimal.id, shelterId: testA.id }),
+    );
+    await recordAnimalsImported(db, testA.id, 1, ACTOR);
+
+    const testOrg = await organizationFor(testA.id);
+    const testOnlyUser = await insertUser("Тест А");
+    await createdBy(testOnlyUser, await invitation(testOrg, f.operator, "accepted"));
+    const invitedToDemo = await insertUser("Запрошена до демо");
+    await createdBy(invitedToDemo, await invitation(testOrg, f.operator, "accepted"));
+    const [user] = await db
+      .select({ email: authUser.email })
+      .from(authUser)
+      .where(eq(authUser.id, invitedToDemo));
+    if (user === undefined) throw new Error("no user");
+    await db.insert(authInvitation).values({
+      id: uuid(),
+      organizationId: f.demoOrg,
+      email: user.email,
+      role: "admin",
+      status: "pending",
+      expiresAt: new Date(NOW.getTime() + 3_600_000),
+      createdAt: NOW,
+      inviterId: f.operator,
+    });
+    return { ...f, testA, testB, photoAnimal, bareAnimal, testOrg, testOnlyUser, invitedToDemo };
+  }
+
+  it("plans exactly the given shelters, names them, and counts the rest without naming them", async () => {
+    const f = await withTestShelters();
+    const plan = await planDemoRemoval(db, testKey, shelterTarget(f.testA.id, f.testB.id));
+    expect(plan.refusals).toEqual([]);
+    expect(byId(plan.demoShelters)).toEqual(
+      byId([
+        { id: f.testA.id, displayName: "Мій перший тест" },
+        { id: f.testB.id, displayName: "Мій другий тест" },
+      ]),
+    );
+    // Демо А, Демо Б and the real shelter stay.
+    expect(plan.otherShelters).toBe(3);
+    expect(plan.counts).toEqual({
+      swipes: 1,
+      reveals: 1,
+      animals: 2,
+      shelter_history: 1,
+      shelters: 2,
+      auth_invitation: 2,
+      auth_organization: 1,
+      auth_user: 1,
+    });
+    const printed = formatPlan(plan, "Would delete").join("\n");
+    expect(printed).toContain("Target shelters (2):");
+    expect(printed).toContain(`${f.testA.id}  Мій перший тест`);
+    expect(printed).toContain(`${f.testB.id}  Мій другий тест`);
+    expect(printed).toContain("Other shelters: 3 (they stay)");
+    expect(printed).toContain(
+      "Support sessions on target shelters: 0 (never deleted; any is a refusal)",
+    );
+    expect(printed).not.toContain("Демо А");
+    expect(printed).not.toContain(f.real.displayName);
+    expect(printed).not.toContain(f.real.id);
+  });
+
+  it("lists the R2 keys of every variant of the target animals' real photos, never a seed photo", async () => {
+    const f = await withTestShelters();
+    const plan = await planDemoRemoval(db, testKey, shelterTarget(f.testA.id, f.testB.id));
+    expect(plan.photoObjectKeys).toEqual([
+      "animals/photo-animal/0/thumb.webp",
+      "animals/photo-animal/0/card.webp",
+      "animals/photo-animal/0/detail.webp",
+      "animals/photo-animal/1/thumb.webp",
+      "animals/photo-animal/1/card.webp",
+      "animals/photo-animal/1/detail.webp",
+    ]);
+    const printed = formatPlan(plan, "Would delete");
+    expect(printed).toContain(
+      "R2 photo objects of these animals: 6 (left in R2, unlinked; delete by hand in Cloudflare if wanted)",
+    );
+    expect(printed).toContain("  animals/photo-animal/1/detail.webp");
+    expect(printed.join("\n")).not.toContain("seed-photos");
+
+    // A target with no real photo still says so; a seed-range run prints no photo section at all.
+    const bare = await planDemoRemoval(db, testKey, shelterTarget(f.testB.id));
+    expect(formatPlan(bare, "Would delete")).toContain(
+      "R2 photo objects of these animals: 0 (left in R2, unlinked; delete by hand in Cloudflare if wanted)",
+    );
+    const demo = await planDemoRemoval(db, testKey, DEMO_RANGE);
+    expect(formatPlan(demo, "Would delete").join("\n")).not.toContain("R2 photo objects");
+  });
+
+  it("deletes the targets and what hangs off them, and leaves the demo corpus and the real shelter alone", async () => {
+    const f = await withTestShelters();
+    const result = await removeDemoCorpus(db, testKey, shelterTarget(f.testA.id, f.testB.id));
+    if (result.kind !== "removed") throw new Error(`expected removed, got ${result.kind}`);
+    expect(result.deleted).toEqual(result.plan.counts);
+
+    const shelterIds = (await db.select({ id: shelters.id }).from(shelters)).map((s) => s.id);
+    expect(shelterIds.sort()).toEqual([f.demoA.id, f.demoB.id, f.real.id].sort());
+    const animalIds = (await db.select({ id: animals.id }).from(animals)).map((a) => a.id);
+    expect(animalIds.sort()).toEqual([...f.demoAnimals.map((a) => a.id), f.realAnimal.id].sort());
+    // #103's fixture: 4 swipes, 2 reveals, 3 history rows; the test shelter's are gone.
+    expect(await rows(db.select().from(swipes))).toBe(4);
+    expect(await rows(db.select().from(reveals))).toBe(2);
+    expect(await rows(db.select().from(shelterHistory))).toBe(3);
+    const orgs = (await db.select({ id: authOrganization.id }).from(authOrganization)).map(
+      (o) => o.id,
+    );
+    expect(orgs.sort()).toEqual([f.demoOrg, f.realOrg].sort());
+    // The demo invitations (3 from #103's fixture, plus the one to invitedToDemo) stay.
+    expect(
+      await rows(
+        db.select().from(authInvitation).where(eq(authInvitation.organizationId, f.demoOrg)),
+      ),
+    ).toBe(4);
+    // Only the user whose only link was the test invitation goes; the demo step-4 user isn't targeted.
+    const users = (await db.select({ id: authUser.id }).from(authUser)).map((u) => u.id).sort();
+    expect(users).toEqual([f.operator, f.testUser, f.movedOn, f.realAdmin, f.invitedToDemo].sort());
+    expect(await rows(db.select().from(supportSessions))).toBe(1);
+    expect(await rows(db.select().from(cities))).toBe(1);
+  });
+
+  it("a second run with the same ids deletes nothing: every count 0, and the ids are reported gone", async () => {
+    const f = await withTestShelters();
+    const target = shelterTarget(f.testA.id, f.testB.id);
+    expect((await removeDemoCorpus(db, testKey, target)).kind).toBe("removed");
+    const again = await planDemoRemoval(db, testKey, target);
+    expect(again.demoShelters).toEqual([]);
+    expect(again.counts).toEqual(ZERO);
+    expect(again.photoObjectKeys).toEqual([]);
+    expect(again.refusals).toEqual([{ kind: "target_not_found", ids: [f.testA.id, f.testB.id] }]);
+    expect((await removeDemoCorpus(db, testKey, target)).kind).toBe("refused");
+  });
+
+  describe("refuses, and deletes nothing", () => {
+    const stillThere = async (...ids: string[]) => {
+      expect(
+        await rows(
+          db
+            .select()
+            .from(shelters)
+            .where(inArray(shelters.id, ids as ShelterId[])),
+        ),
+      ).toBe(ids.length);
+    };
+    const firstRefusalText = (plan: Awaited<ReturnType<typeof planDemoRemoval>>) => {
+      const [refusal] = plan.refusals;
+      if (refusal === undefined) throw new Error("expected a refusal");
+      return formatRefusal(refusal, plan.target);
+    };
+
+    it("an id inside the demo range", async () => {
+      const f = await withTestShelters();
+      const result = await removeDemoCorpus(db, testKey, shelterTarget(f.testA.id, f.demoA.id));
+      expect(result.kind).toBe("refused");
+      expect(result.plan.refusals).toEqual([{ kind: "target_in_demo_range", ids: [f.demoA.id] }]);
+      expect(firstRefusalText(result.plan)).toBe(
+        `REFUSED: ${f.demoA.id} lie(s) in the demo range; run without --shelter to remove the demo corpus.`,
+      );
+      await stillThere(f.testA.id, f.demoA.id);
+    });
+
+    it("an id that names no shelter", async () => {
+      const f = await withTestShelters();
+      const ghost = "0f0f0f0f-0000-4000-8000-000000000000";
+      const result = await removeDemoCorpus(db, testKey, shelterTarget(f.testA.id, ghost));
+      expect(result.plan.refusals).toEqual([{ kind: "target_not_found", ids: [ghost] }]);
+      await stillThere(f.testA.id);
+    });
+
+    it("when no shelter at all would remain", async () => {
+      const only = await insertShelter({ displayName: "Єдиний тестовий" });
+      await insertAnimal(only.id);
+      const result = await removeDemoCorpus(db, testKey, shelterTarget(only.id));
+      expect(result.plan.refusals).toEqual([{ kind: "no_shelter_would_remain" }]);
+      expect(result.plan.otherShelters).toBe(0);
+      await stillThere(only.id);
+    });
+
+    it("but not when only demo shelters would remain: they are shelters that stay", async () => {
+      await insertShelter({ id: seedId(1), onTestKey: true });
+      const test = await insertShelter();
+      const plan = await planDemoRemoval(db, testKey, shelterTarget(test.id));
+      expect(plan.refusals).toEqual([]);
+      expect(plan.otherShelters).toBe(1);
+    });
+
+    it("when a target shelter still has a member (remove admins first)", async () => {
+      const f = await withTestShelters();
+      await member(f.testOrg, await insertUser("Ще адмін"));
+      const result = await removeDemoCorpus(db, testKey, shelterTarget(f.testA.id));
+      expect(result.plan.refusals).toEqual([{ kind: "demo_shelter_has_members", members: 1 }]);
+      expect(firstRefusalText(result.plan)).toBe(
+        "REFUSED: 1 member(s) still belong to a target shelter; remove them with registry/admins/remove first.",
+      );
+      await stillThere(f.testA.id);
+    });
+
+    it("when a target shelter has a support session (RS-Q0)", async () => {
+      const f = await withTestShelters();
+      await db.insert(supportSessions).values({
+        id: uuid(),
+        operatorUserId: f.operator,
+        shelterId: f.testB.id,
+        tokenHash: uuid(),
+        startedAt: NOW,
+        lastSeenAt: NOW,
+      });
+      const result = await removeDemoCorpus(db, testKey, shelterTarget(f.testA.id, f.testB.id));
+      expect(result.plan.refusals).toEqual([
+        { kind: "demo_shelter_has_support_sessions", sessions: 1 },
+      ]);
+      expect(await rows(db.select().from(supportSessions))).toBe(2);
+      await stillThere(f.testA.id, f.testB.id);
+    });
+
+    it("when a reveal links a target animal to a shelter not targeted", async () => {
+      const f = await withTestShelters();
+      await revealRepo(db).insert(
+        makeReveal({ adopterId: f.visitor.id, animalId: f.bareAnimal.id, shelterId: f.real.id }),
+      );
+      const result = await removeDemoCorpus(db, testKey, shelterTarget(f.testB.id));
+      expect(result.plan.refusals).toEqual([{ kind: "reveal_crosses_the_corpus", reveals: 1 }]);
+      await stillThere(f.testB.id);
+    });
+
+    it("when a shelter outside the demo range is on the test-only key (the check is unchanged)", async () => {
+      const f = await withTestShelters();
+      await insertShelter({ onTestKey: true });
+      const result = await removeDemoCorpus(db, testKey, shelterTarget(f.testB.id));
+      expect(result.plan.refusals).toEqual([{ kind: "test_key_on_real_shelter", shelters: 1 }]);
+      await stillThere(f.testB.id);
+    });
+  });
+
+  it("rolls back whole when a count differs from its plan, as for the seed range", async () => {
+    const f = await withTestShelters();
+    await db.execute(
+      sql.raw(`
+        CREATE OR REPLACE FUNCTION demo_remove_test_skip() RETURNS trigger AS $$
+        BEGIN RETURN NULL; END $$ LANGUAGE plpgsql;
+        CREATE TRIGGER demo_remove_test_skip BEFORE DELETE ON auth_user
+          FOR EACH ROW EXECUTE FUNCTION demo_remove_test_skip();
+      `),
+    );
+    try {
+      await expect(
+        removeDemoCorpus(db, testKey, shelterTarget(f.testA.id, f.testB.id)),
+      ).rejects.toThrow("auth_user deleted 0 row(s), planned 1; rolled back, nothing deleted");
+    } finally {
+      await db.execute(
+        sql.raw(
+          "DROP TRIGGER demo_remove_test_skip ON auth_user; DROP FUNCTION demo_remove_test_skip();",
+        ),
+      );
+    }
+    expect(await rows(db.select().from(shelters))).toBe(5);
+    expect(await rows(db.select().from(animals))).toBe(6);
+  });
+
+  it("an empty id list from a direct caller throws before any SQL, never an IN () syntax error", async () => {
+    await withTestShelters();
+    await expect(planDemoRemoval(db, testKey, shelterTarget())).rejects.toBeInstanceOf(
+      EmptyRemovalTarget,
+    );
+    await expect(removeDemoCorpus(db, testKey, shelterTarget())).rejects.toThrow(
+      "demo:remove: a shelters target needs at least one id; nothing was run",
+    );
+    expect(await rows(db.select().from(shelters))).toBe(5);
+    expect(await rows(db.select().from(animals))).toBe(6);
+  });
+});
+
+describe("demo:remove, the closing line of a committed run", () => {
+  it("for the seed range is unchanged", () => {
+    expect(closingLine(DEMO_RANGE)).toBe("Done. Run the dry run again: every count should be 0.");
+  });
+
+  it("for --shelter says the next dry run refuses each removed id as not found, and that this confirms it", () => {
+    const A = "0a0a0a0a-0000-4000-8000-00000000000a";
+    const B = "0b0b0b0b-0000-4000-8000-00000000000b";
+    expect(closingLine({ kind: "shelters", ids: [A, B] })).toBe(
+      `Done. Run the dry run again with the same --shelter ids: every count should be 0, and it refuses with "REFUSED: no shelter has id ${A}, ${B}." That refusal is the confirmation that they are gone.`,
+    );
+  });
+});
+
+describe("demo:remove argv: --shelter", () => {
+  const A = "0a0a0a0a-0000-4000-8000-00000000000a";
+  const B = "0b0b0b0b-0000-4000-8000-00000000000b";
+  const argv = (...args: string[]) => ["node", "demo-remove.ts", "--expect", "ep-x", ...args];
+  const refusedWith = (args: string[], reason: string) =>
+    expect(parseRemovalTarget(argv(...args))).toEqual({ kind: "refused", reason });
+
+  it("without --shelter targets the seed range, as before", () => {
+    expect(parseRemovalTarget(argv("--commit", "--prod"))).toEqual({ kind: "demo_range" });
+  });
+
+  it("is repeatable, and reads ids in the case they are minted in", () => {
+    expect(
+      parseRemovalTarget(argv("--shelter", A, "--commit", "--shelter", B.toUpperCase())),
+    ).toEqual({ kind: "shelters", ids: [A, B] });
+  });
+
+  it("refuses --shelter with no value, at the end or before another flag", () => {
+    refusedWith(["--shelter"], "--shelter needs a shelter id after it");
+    refusedWith(["--shelter", "--commit"], "--shelter needs a shelter id after it");
+    refusedWith(["--shelter", A, "--shelter"], "--shelter needs a shelter id after it");
+  });
+
+  it("refuses --shelter=<id> rather than ignoring it and falling back to the seed range", () => {
+    refusedWith([`--shelter=${A}`], "write --shelter <id>, not --shelter=<id>");
+  });
+
+  it("refuses an id that isn't a UUID", () => {
+    refusedWith(
+      ["--shelter", "rehearsal-shelter"],
+      "--shelter rehearsal-shelter is not a shelter id (a UUID)",
+    );
+  });
+
+  it("refuses a pasted connection string as the id without printing it", () => {
+    const pasted = "postgres://u:hunter2@ep-x.neon.tech/db";
+    const result = parseRemovalTarget(["node", "demo-remove.ts", "--shelter", pasted]);
+    if (result.kind !== "refused") throw new Error(`expected a refusal, got ${result.kind}`);
+    expect(result.reason).toBe("--shelter (argument 2) is not a shelter id (a UUID)");
+    expect(result.reason).not.toContain("hunter2");
+  });
+
+  it("refuses an id given twice, whatever its case", () => {
+    refusedWith(["--shelter", A, "--shelter", A.toUpperCase()], `--shelter ${A} is given twice`);
+  });
+
+  it("takes the runbook's full command line", () => {
+    expect(parseRemovalTarget(argv("--prod", "--shelter", A, "--commit"))).toEqual({
+      kind: "shelters",
+      ids: [A],
+    });
+  });
+
+  it("refuses a mistyped --shelter rather than falling back to the seed range", () => {
+    const takes = "it takes --expect <ep>, --commit, --prod and --shelter <id>";
+    refusedWith(
+      ["--shelters", A, "--commit"],
+      `--shelters is not an argument this script takes; ${takes}`,
+    );
+    refusedWith(["--Shelter", A], `--Shelter is not an argument this script takes; ${takes}`);
+    refusedWith(["--shelter-id", A], `--shelter-id is not an argument this script takes; ${takes}`);
+    refusedWith(["-shelter", A], `-shelter is not an argument this script takes; ${takes}`);
+    refusedWith(["--commt"], `--commt is not an argument this script takes; ${takes}`);
+  });
+
+  it("refuses a stray positional argument, without echoing it (it may be a pasted URL)", () => {
+    const takes = "it takes --expect <ep>, --commit, --prod and --shelter <id>";
+    refusedWith(["--commit", A], `argument 4 is not one this script takes; ${takes}`);
+    const pasted = parseRemovalTarget(argv("postgres://u:hunter2@ep-x.neon.tech/db"));
+    expect(pasted).toEqual({
+      kind: "refused",
+      reason: `argument 3 is not one this script takes; ${takes}`,
+    });
+    expect(JSON.stringify(pasted)).not.toContain("hunter2");
+  });
+
+  it("refuses --expect with no value, or given twice", () => {
+    expect(parseRemovalTarget(["node", "demo-remove.ts", "--expect"])).toEqual({
+      kind: "refused",
+      reason: "--expect needs an endpoint id after it",
+    });
+    expect(parseRemovalTarget(["node", "demo-remove.ts", "--expect", "--commit"])).toEqual({
+      kind: "refused",
+      reason: "--expect needs an endpoint id after it",
+    });
+    refusedWith(["--expect", "ep-y"], "--expect is given twice");
   });
 });

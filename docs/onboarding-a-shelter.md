@@ -279,6 +279,43 @@ differs from its plan; a visitor swiping a demo card during the run can cause
 that, and then the same command simply runs again. **Run the dry run again afterwards: every
 count must be 0.** Then `location:verify --prod` reports `demo 0`.
 
+### Removing your own test shelters (`--shelter`)
+
+Test shelters you onboarded yourself (real location key, ids outside `51000000-…`)
+go the same way, by id (inbox DR-F2, answered in DR-B3). Same moment as the demo
+corpus: after the first real shelter is onboarded, before its invite (DR-Q2).
+
+**First remove each test shelter's admins with `registry/admins/remove`**, so the
+loss of access is recorded in that shelter's history. A shelter that still has a
+member is refused.
+
+```bash
+DATABASE_URL=<neon-direct-url> \
+  pnpm --filter @opika/db demo:remove --expect ep-… --prod \
+    --shelter <id> --shelter <id>                                      # dry run
+DATABASE_URL=<neon-direct-url> \
+  pnpm --filter @opika/db demo:remove --expect ep-… --prod \
+    --shelter <id> --shelter <id> --commit                             # deletes
+```
+
+`--shelter` is repeatable; a run with it removes exactly those shelters and never
+touches the demo corpus (run the two separately). The dry run prints each target's
+id and name (check them before `--commit`), how many other shelters stay (demo
+shelters included, never named), the same per-table and cascade counts as above,
+and the R2 keys of the target animals' photos (every variant, `animals/…/thumb.webp`
+and so on). **Photos stay in R2, unlinked**: the script never deletes R2 objects
+(K-Q2); delete those keys by hand in Cloudflare if you want them gone (a dedicated
+script is follow-up DR-F3). `--commit` prints the keys again.
+
+Besides every refusal above (member, support session, test-only key, crossing
+reveal, `NODE_ENV=production`, `--expect`, `--prod`), it refuses an id that isn't a
+UUID, an id given twice, an id in the demo range, an id no shelter has, `--shelter`
+with no id after it, `--shelter=<id>` (write it with a space), any argument it doesn't
+take (a typo such as `--shelters` is refused, never read as "no `--shelter`", which
+would target the demo corpus), and any removal that would leave no shelter at all. **Afterwards run the same dry run again: every count
+is 0 and it refuses with "no shelter has id …" for each id**, which is the
+confirmation they are gone.
+
 ## Where `LOCATION_HMAC_SECRET` comes from
 
 Generate one once with `openssl rand -hex 32`. Keep it somewhere you can
