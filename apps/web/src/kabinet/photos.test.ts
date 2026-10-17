@@ -722,7 +722,7 @@ describe("a photo change on a visible card moves the confirmation date (RH-B7)",
   const listRow = async (id: string) => {
     const list = await call<{ items: { id: string; freshness: unknown }[] }>(
       "shelter.animals.list",
-      { listing: null, cursor: null, limit: 50 },
+      { filter: { kind: "all" }, cursor: null, limit: 50 },
       { uploads: uploadsOn().uploads, now },
     );
     return list.body.items.find((item) => item.id === id);

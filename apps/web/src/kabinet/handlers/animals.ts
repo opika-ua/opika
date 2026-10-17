@@ -3,6 +3,7 @@ import type {
   AgeEstimateInput,
   AnimalPatchSchema,
   apiErrors,
+  KabinetAnimalListFilter,
   KabinetAnimalRowView,
   KabinetAnimalView,
   KabinetCursor,
@@ -10,6 +11,7 @@ import type {
 } from "@opika/contracts";
 import {
   type ConditionalWrite,
+  type KabinetAnimalFilter,
   kabinetAnimalRepo,
   type ListingMoveHistory,
   type ListingWriteGuard,
@@ -107,7 +109,11 @@ export function kabinetAnimalViewOf(animal: Animal): KabinetAnimalView {
       };
 }
 
-/** K2 row: inventory only, never engagement (commitment #2). */
+/**
+ * K2 row: inventory only, never engagement (commitment #2). Built from the
+ * row alone, with no further read: the gaps come from the animal's own facts
+ * (`publishGaps`), so a page of fifty is one query, not fifty-one.
+ */
 export function kabinetAnimalRowOf(animal: Animal, now: Date): KabinetAnimalRowView {
   const confirmedAt = visibleConfirmation(animal);
   const core = {
@@ -122,8 +128,8 @@ export function kabinetAnimalRowOf(animal: Animal, now: Date): KabinetAnimalRowV
     publishGaps: publishGaps(animal),
   };
   return isDraftAnimal(animal)
-    ? { ...core, size: animal.size, listing: animal.listing }
-    : { ...core, size: animal.size, listing: animal.listing };
+    ? { ...core, size: animal.size, age: animal.age, listing: animal.listing }
+    : { ...core, size: animal.size, age: animal.age, listing: animal.listing };
 }
 
 /**
@@ -377,15 +383,33 @@ export type KabinetAnimalListResult = {
 export const staleBefore = (now: Date): Date =>
   new Date(now.getTime() - (DEFAULT_FRESHNESS_POLICY.agingMaxDays + 1) * 24 * 60 * 60 * 1000);
 
+/** The repository's filter for a K2 one: «Показати ці N» is the strip's own cut-off, taken now. */
+const repoFilterOf = (filter: KabinetAnimalListFilter, now: Date): KabinetAnimalFilter =>
+  filter.kind === "stale" ? { kind: "stale", staleBefore: staleBefore(now) } : filter;
+
+/**
+ * K2's page plus the chip counts and the strip's count: three statements
+ * whatever the page size (no per-row read). The counts ignore the filter, as
+ * the chips show the whole inventory while one of them is active.
+ */
 export async function animalsList(
   deps: AnimalDeps,
   scope: ShelterReadScope,
-  input: { listing: ListingKind | null; after: { at: Date; id: string } | null; limit: number },
+  input: {
+    filter: KabinetAnimalListFilter;
+    after: { at: Date; id: string } | null;
+    limit: number;
+  },
   encodeCursor: (position: { at: Date; id: string }) => KabinetCursor,
 ): Promise<KabinetAnimalListResult> {
   const repo = kabinetAnimalRepo(deps.db);
   const [page, counts, staleCount] = await Promise.all([
-    repo.listPage({ shelterId: scope.shelterId, ...input }),
+    repo.listPage({
+      shelterId: scope.shelterId,
+      filter: repoFilterOf(input.filter, deps.now),
+      after: input.after,
+      limit: input.limit,
+    }),
     repo.countsByKind(scope.shelterId),
     repo.staleCount(scope.shelterId, staleBefore(deps.now)),
   ]);

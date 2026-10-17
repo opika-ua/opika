@@ -571,7 +571,11 @@ describe("shelter.animals", () => {
     const newer = await animal({ lastUpdatedAt: new Date("2026-08-02T00:00:00.000Z") });
     const order = async () =>
       (
-        await call<ListBody>("shelter.animals.list", { listing: null, cursor: null, limit: 10 })
+        await call<ListBody>("shelter.animals.list", {
+          filter: { kind: "all" },
+          cursor: null,
+          limit: 10,
+        })
       ).body.items.map((item) => item.id);
     const before = await order();
     expect(before).toEqual([newer.id, older.id]);
@@ -680,7 +684,7 @@ describe("shelter.animals", () => {
 
     const first = await call<ListBody>(
       "shelter.animals.list",
-      { listing: null, cursor: null, limit: 2 },
+      { filter: { kind: "all" }, cursor: null, limit: 2 },
       { now },
     );
     expect(first.status).toBe(200);
@@ -697,7 +701,7 @@ describe("shelter.animals", () => {
 
     const second = await call<ListBody>(
       "shelter.animals.list",
-      { listing: null, cursor: first.body.nextCursor, limit: 2 },
+      { filter: { kind: "all" }, cursor: first.body.nextCursor, limit: 2 },
       { now },
     );
     expect(second.body.items).toHaveLength(1);
@@ -711,19 +715,19 @@ describe("shelter.animals", () => {
     await animal();
     await animal();
     const first = await call<ListBody>("shelter.animals.list", {
-      listing: null,
+      filter: { kind: "all" },
       cursor: null,
       limit: 1,
     });
     const otherFilter = await call("shelter.animals.list", {
-      listing: "published",
+      filter: { kind: "listing", listing: "published" },
       cursor: first.body.nextCursor,
       limit: 1,
     });
     expect(otherFilter.status).toBe(400);
     const forged = await call(
       "shelter.animals.list",
-      { listing: null, cursor: first.body.nextCursor, limit: 1 },
+      { filter: { kind: "all" }, cursor: first.body.nextCursor, limit: 1 },
       { cursorSecret: "a-different-secret" },
     );
     expect(forged.status).toBe(400);

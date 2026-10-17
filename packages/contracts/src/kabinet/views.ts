@@ -30,13 +30,20 @@ import { z } from "zod";
  * can't `pick` from a union, hence one list applied to each half.
  */
 
-/** K2 row: inventory only. `freshness` is null for listings an adopter can't see. */
+/**
+ * K2 row: inventory only. `freshness` is null for listings an adopter can't
+ * see. `age` is there so the row's meta line can print the card's age word
+ * (K2 copy sheet P3); a draft's is null until the shelter gives one, and
+ * `publishGaps` then names it. No `first_published_at`, not even as a flag:
+ * that column is a delete guard and never leaves the server (HS-Q11).
+ */
 const ANIMAL_ROW_FIELDS = {
   id: true,
   name: true,
   species: true,
   sex: true,
   size: true,
+  age: true,
   listing: true,
   lastUpdatedAt: true,
 } as const;

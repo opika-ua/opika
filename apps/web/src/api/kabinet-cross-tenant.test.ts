@@ -235,7 +235,7 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
     ["shelter.profile.pause", () => smuggle({ reason: { code: "relocation", note: null } })],
     ["shelter.profile.resume", () => smuggle({})],
     ["shelter.verification.requestReview", () => smuggle({})],
-    ["shelter.animals.list", () => smuggle({ listing: null, cursor: null, limit: 50 })],
+    ["shelter.animals.list", () => smuggle({ filter: { kind: "all" }, cursor: null, limit: 50 })],
     ["shelter.history.list", () => smuggle({ cursor: null, limit: 50 })],
     ["shelter.animals.createDraft", () => smuggle({ name: "Новий", species: "dog" })],
   ];
@@ -256,7 +256,11 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
 
   /** Without the smuggled key, the same calls act on A: A's list, A's new draft. */
   it("A's list is A's animals, and createDraft lands in A", async () => {
-    const list = await call("shelter.animals.list", { listing: null, cursor: null, limit: 50 });
+    const list = await call("shelter.animals.list", {
+      filter: { kind: "all" },
+      cursor: null,
+      limit: 50,
+    });
     const items = (list.body as { items: { id: string }[] }).items;
     expect(items.map((item) => item.id)).toEqual([aPublished.id]);
 

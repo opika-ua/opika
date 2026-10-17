@@ -5,6 +5,7 @@ import {
   type AnimalPhoto,
   type CityId,
   confirmationAnchorOf,
+  DISCOVERABLE_LISTING_KINDS,
   LISTING_KINDS,
   type ListingKind,
   type ShelterHistoryEntry,
@@ -38,6 +39,45 @@ export type ListingMoveHistory =
 type WriteCte = Parameters<Database["with"]>[number];
 
 export type KabinetAnimalPosition = { at: Date; id: string };
+
+/**
+ * Which of a shelter's animals a K2 page holds. `stale` carries its cut-off
+ * instant, derived by the caller from the freshness policy, so this
+ * repository knows nothing about what "stale" means beyond the one predicate
+ * it shares with `staleCount`.
+ */
+export type KabinetAnimalFilter =
+  | { kind: "all" }
+  | { kind: "listing"; listing: ListingKind }
+  | { kind: "stale"; staleBefore: Date };
+
+/**
+ * Visible listings last confirmed at or before `staleBefore`: the one
+ * predicate behind both N5's count and its «Показати ці N» filter, so the
+ * strip's number and the list it opens can't disagree. The kinds come from
+ * the domain's own list, not a hand-written `IN`.
+ */
+const staleWhere = (staleBefore: Date) =>
+  and(
+    inArray(animals.listingKind, [...DISCOVERABLE_LISTING_KINDS]),
+    lte(animals.lastConfirmedAt, staleBefore),
+  );
+
+const filterWhere = (filter: KabinetAnimalFilter) => {
+  switch (filter.kind) {
+    case "all":
+      return undefined;
+    case "listing":
+      return eq(animals.listingKind, filter.listing);
+    case "stale":
+      return staleWhere(filter.staleBefore);
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = filter;
+      return unreachable;
+    }
+  }
+};
 
 export type ConditionalWrite = { kind: "ok" } | { kind: "conflict" };
 
@@ -372,17 +412,20 @@ export function kabinetAnimalRepo(db: Database) {
 
     /**
      * One page of a shelter's animals, most recently edited first (keyset on
-     * `(last_updated_at DESC, id DESC)`, never OFFSET). Fetches one extra row
-     * to know whether another page exists.
+     * `(last_updated_at DESC, id DESC)`, never OFFSET), in one statement:
+     * each row carries everything its K2 view needs, so nothing is read per
+     * row. Fetches one extra row to know whether another page exists. The
+     * stale filter keeps the same order, so its cursor is the same shape.
      */
     async listPage(input: {
       shelterId: ShelterId;
-      listing: ListingKind | null;
+      filter: KabinetAnimalFilter;
       after: KabinetAnimalPosition | null;
       limit: number;
     }): Promise<{ items: Animal[]; next: KabinetAnimalPosition | null }> {
       const conditions = [eq(animals.shelterId, input.shelterId)];
-      if (input.listing !== null) conditions.push(eq(animals.listingKind, input.listing));
+      const filtered = filterWhere(input.filter);
+      if (filtered) conditions.push(filtered);
       if (input.after !== null) {
         const keyset = or(
           lt(animals.lastUpdatedAt, input.after.at),
@@ -425,19 +468,14 @@ export function kabinetAnimalRepo(db: Database) {
     /**
      * Visible listings last confirmed at or before `staleBefore` (N5's strip).
      * The caller derives `staleBefore` from the freshness policy, so the strip
-     * and the pips can't disagree about what "stale" means.
+     * and the pips can't disagree about what "stale" means; `listPage`'s stale
+     * filter uses the same predicate.
      */
     async staleCount(shelterId: ShelterId, staleBefore: Date): Promise<number> {
       const [row] = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(animals)
-        .where(
-          and(
-            eq(animals.shelterId, shelterId),
-            inArray(animals.listingKind, ["published", "reserved"]),
-            lte(animals.lastConfirmedAt, staleBefore),
-          ),
-        );
+        .where(and(eq(animals.shelterId, shelterId), staleWhere(staleBefore)));
       return Number(row?.count ?? 0);
     },
   };
