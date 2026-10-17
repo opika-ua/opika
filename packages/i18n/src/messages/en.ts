@@ -432,8 +432,6 @@ export const en = {
       animalForm: {
         dateUnchanged:
           "Editing the text doesn't change the «Updated» date. Your confirmation in the animal list does, and so does any photo change.",
-        lastPhotoKeptNotShown: `${COPY_PENDING} "This card is published, so it keeps at least one photo." (instead of photos.lastPhotoKept while the shelter's cards are hidden)`,
-        publishedNotShown: `${COPY_PENDING} "Published. Nobody looking for an animal sees the card yet: this shelter's cards are hidden right now." (instead of publish.done while the shelter's cards are hidden)`,
       },
     },
     profileEdit: {
@@ -632,6 +630,8 @@ export const en = {
         remove: "Remove photo {n}",
         capReached: "That's the maximum: {max} photos.",
         lastPhotoKept: "People can see this card, so one photo has to stay.",
+        lastPhotoKeptNotShown:
+          "The card is published, so one photo has to stay, even while nobody can see it yet.",
         added: "Photo added.",
         removed: "Photo removed.",
         reordered: "Order changed.",
@@ -673,6 +673,8 @@ export const en = {
           photo: "a photo",
         },
         done: "Published. People looking for an animal can see the card now.",
+        publishedNotShown:
+          "Published. People looking for an animal will see the card as soon as the shelter passes verification.",
         viewPublic: "Open the animal's page",
         stateChanged:
           "The card changed in another window. Reload the page to see the current version.",

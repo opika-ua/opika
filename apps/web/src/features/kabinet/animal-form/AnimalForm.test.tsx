@@ -210,6 +210,11 @@ const formStatus = () => {
 const SAVE_DRAFT = "Зберегти чернетку";
 const MISSING_ALL = "Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.";
 const PUBLISH_DONE = "Опубліковано. Тепер картку бачать ті, хто шукає тварину.";
+// His final text for a shelter whose cards are hidden (round 2b, answer 3).
+const PUBLISHED_NOT_SHOWN =
+  "Опубліковано. Ті, хто шукає тварину, побачать картку, щойно притулок пройде перевірку.";
+const LAST_PHOTO_KEPT_NOT_SHOWN =
+  "Картка опублікована, тож одне фото має лишитися — навіть поки її ще не бачать.";
 
 beforeEach(() => {
   window.history.replaceState(null, "", "/kabinet/tvaryny/nova");
@@ -800,31 +805,44 @@ describe("publishing", () => {
     );
   });
 
-  it("for a hidden shelter, the allowlisted admin gets the pending stand-in, never «бачать»", async () => {
-    const user = userEvent.setup();
-    renderForm(draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>), {
-      shelterVisible: false,
-    });
-    await user.click(screen.getByRole("button", { name: "Опублікувати" }));
-    expect(
-      await screen.findByText(/^\[COPY PENDING\] "Published\. Nobody looking for an animal/),
-    ).toBeTruthy();
-    expect(screen.queryByText(/Тепер картку бачать/)).toBeNull();
-    expect(screen.queryByRole("link", { name: "Відкрити сторінку тварини" })).toBeNull();
-    expect(screen.getByText("Цю картку зараз ніхто не бачить.")).toBeTruthy();
-  });
+  it.each([
+    ["the allowlist", { kind: "open", grantedBy: "allowlist" }],
+    ["an open policy", { kind: "open", grantedBy: "open_policy" }],
+  ] as [string, AnimalFormEditing][])(
+    "for a hidden shelter (writes open by %s), publishing says when people will see it, never «бачать» now",
+    async (_grant, editing) => {
+      const user = userEvent.setup();
+      renderForm(draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>), {
+        shelterVisible: false,
+        editing,
+      });
+      await user.click(screen.getByRole("button", { name: "Опублікувати" }));
+      await screen.findByText("Цю картку зараз ніхто не бачить.");
+      expect(formStatus().textContent).toBe(PUBLISHED_NOT_SHOWN);
+      expect(screen.queryByText(/Тепер картку бачать/)).toBeNull();
+      expect(screen.queryByRole("link", { name: "Відкрити сторінку тварини" })).toBeNull();
+    },
+  );
 
-  it("for a hidden shelter under a wider grant, the status word alone, and no pending copy", async () => {
+  /**
+   * Review finding 4: the save before the publish went through, so K4's
+   * «Не збереглося — на картках нічого не змінилося…» would be false. The
+   * card is still a draft, which his `draft.notVisible` says.
+   */
+  it("a publish call that fails after the save says the card is still a draft, not that nothing saved", async () => {
     const user = userEvent.setup();
-    renderForm(draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>), {
-      shelterVisible: false,
-      editing: { kind: "open", grantedBy: "open_policy" },
-    });
+    const ready = draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>);
+    const client = fakeClient(ready);
+    client.calls.transition.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    renderForm(ready, { client });
+    fireEvent.change(screen.getByLabelText("Імʼя"), { target: { value: "Ластівочка" } });
     await user.click(screen.getByRole("button", { name: "Опублікувати" }));
-    await screen.findByText("Цю картку зараз ніхто не бачить.");
-    expect(formStatus().textContent).toBe("Опубліковано");
-    expect(screen.queryByText(/COPY PENDING/)).toBeNull();
-    expect(screen.queryByText(/Тепер картку бачать/)).toBeNull();
+    expect(client.calls.update).toHaveBeenCalledTimes(1);
+    expect(client.calls.transition).toHaveBeenCalledTimes(1);
+    await screen.findByText(/^Чернетку збережено о /);
+    expect(formStatus().textContent).toBe("Ті, хто шукає тварину, цю чернетку не бачать.");
+    expect(screen.queryByText(/Не збереглося/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Опублікувати" })).toBeTruthy();
   });
 
   it("clicking the disabled «Опублікувати» says what is missing and publishes nothing", async () => {
@@ -949,8 +967,8 @@ describe("who may change what", () => {
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
   });
 
-  /** CG-Q1: the pending-copy folder mounts only on an allowlist grant to the shelter's own admin. */
-  it("mounts the test-shelter lines only for the allowlisted shelter's own admin", () => {
+  /** CG-Q1: the testShelterOnly folder mounts only on an allowlist grant to the shelter's own admin. */
+  it("mounts the test-shelter line only for the allowlisted shelter's own admin", () => {
     const line =
       "Правки тексту не змінюють дату «Оновлено». Її змінює ваше підтвердження в списку тварин і будь-яка зміна фото.";
     const { unmount } = render(
@@ -988,13 +1006,18 @@ describe("who may change what", () => {
     }
   });
 
-  it("while the shelter's cards are hidden, the last-photo note is the allowlisted stand-in, not «бачать люди»", () => {
-    renderForm(published(), { shelterVisible: false });
-    expect(screen.queryByText("Цю картку бачать люди, тож одне фото має лишитися.")).toBeNull();
-    expect(
-      screen.getByText(
-        /^\[COPY PENDING\] "This card is published, so it keeps at least one photo\."/,
-      ),
-    ).toBeTruthy();
-  });
+  it.each([
+    ["the allowlist", { kind: "open", grantedBy: "allowlist" }],
+    ["an open policy", { kind: "open", grantedBy: "open_policy" }],
+  ] as [string, AnimalFormEditing][])(
+    "while the shelter's cards are hidden (writes open by %s), the last-photo note doesn't say people see the card",
+    (_grant, editing) => {
+      renderForm(published(), { shelterVisible: false, editing });
+      expect(screen.queryByText("Цю картку бачать люди, тож одне фото має лишитися.")).toBeNull();
+      const note = screen.getByText(LAST_PHOTO_KEPT_NOT_SHOWN);
+      expect(
+        screen.getByRole("button", { name: "Прибрати фото 1" }).getAttribute("aria-describedby"),
+      ).toBe(note.id);
+    },
+  );
 });

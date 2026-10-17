@@ -997,6 +997,8 @@ export const uk = {
       /**
        * K3 lines only his allowlisted test shelter sees (CG-Q1), mounted by
        * `features/kabinet/test-shelter-only/AnimalFormTestShelterLines.tsx`.
+       * One line, final, since his copy for the two hidden-shelter lines
+       * (round 2b, answer 3) moved them to `animalForm.*`.
        */
       animalForm: {
         /**
@@ -1008,24 +1010,6 @@ export const uk = {
          */
         dateUnchanged:
           "Правки тексту не змінюють дату «Оновлено». Її змінює ваше підтвердження в списку тварин і будь-яка зміна фото.",
-        /**
-         * In place of `photos.lastPhotoKept` («Цю картку бачать люди, тож одне
-         * фото має лишитися.») when the shelter isn't publicly visible (paused,
-         * or not verified): its cards are on no public surface then
-         * (`FEED_VISIBLE_VERIFICATION_STATUSES`), so «бачать люди» would be
-         * false. The rule itself still holds: the server keeps the last photo
-         * of any published or reserved card (P-Q8). English sense, for his
-         * Ukrainian.
-         */
-        lastPhotoKeptNotShown: `${COPY_PENDING} "This card is published, so it keeps at least one photo." (instead of photos.lastPhotoKept while the shelter's cards are hidden)`,
-        /**
-         * In place of `publish.done` («Опубліковано. Тепер картку бачать ті,
-         * хто шукає тварину.») when the shelter isn't publicly visible (paused,
-         * or not verified): the card is then on no public surface (the feed
-         * and gallery predicate, and `animals.byId`'s verified-shelter check),
-         * so «бачать» would be false. English sense, for his Ukrainian.
-         */
-        publishedNotShown: `${COPY_PENDING} "Published. Nobody looking for an animal sees the card yet: this shelter's cards are hidden right now." (instead of publish.done while the shelter's cards are hidden)`,
       },
     },
     /**
@@ -1288,8 +1272,22 @@ export const uk = {
         moveLater: "Перемістити назад",
         remove: "Прибрати фото {n}",
         capReached: "Це максимум — {max} фото.",
-        /** Also `PHOTOS_REQUIRED_WHILE_VISIBLE`'s message (his answer: "same key/text"). */
+        /**
+         * Also `PHOTOS_REQUIRED_WHILE_VISIBLE`'s message (his answer: "same
+         * key/text"). Only while the shelter's cards are shown (verified, not
+         * paused); otherwise `lastPhotoKeptNotShown`.
+         */
         lastPhotoKept: "Цю картку бачать люди, тож одне фото має лишитися.",
+        /**
+         * In place of `lastPhotoKept` while the shelter's cards are on no
+         * public surface (paused or not verified,
+         * `FEED_VISIBLE_VERIFICATION_STATUSES`), where «бачать люди» would be
+         * false. The rule holds either way: the server keeps the last photo of
+         * any published or reserved card (P-Q8). His final text (round 2b,
+         * answer 3).
+         */
+        lastPhotoKeptNotShown:
+          "Картка опублікована, тож одне фото має лишитися — навіть поки її ще не бачать.",
         added: "Фото додано.",
         removed: "Фото прибрано.",
         reordered: "Порядок змінено.",
@@ -1332,12 +1330,19 @@ export const uk = {
           photo: "фото",
         },
         /**
-         * Shown only while the shelter is publicly visible (verified): a
-         * paused or unverified shelter's cards are on no public surface, and
-         * «Тепер картку бачать…» would be false; there the announcement is the
-         * status chip's own «Опубліковано» (`listingStatus.published`).
+         * Shown only while the shelter is publicly visible (verified, not
+         * paused): a paused or unverified shelter's cards are on no public
+         * surface, and «Тепер картку бачать…» would be false; there the
+         * announcement is `publishedNotShown`.
          */
         done: "Опубліковано. Тепер картку бачать ті, хто шукає тварину.",
+        /**
+         * In place of `done` while the shelter's cards are on no public
+         * surface (the feed and gallery predicate, and `animals.byId`'s
+         * verified-shelter check). His final text (round 2b, answer 3).
+         */
+        publishedNotShown:
+          "Опубліковано. Ті, хто шукає тварину, побачать картку, щойно притулок пройде перевірку.",
         viewPublic: "Відкрити сторінку тварини",
         stateChanged:
           "Картка змінилася в іншому вікні. Оновіть сторінку, щоб побачити поточну версію.",

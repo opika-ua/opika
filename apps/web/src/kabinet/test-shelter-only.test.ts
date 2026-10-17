@@ -107,9 +107,10 @@ describe("only test-shelter-only/ reads kabinet.testShelterOnly (CG-Q1)", () => 
  * server allows the signed-in shelter to write through the allowlist"):
  *
  * - `ShelterProfile.tsx` (K4, PR 2);
- * - `animal-form/AnimalForm.tsx` (K3, PR 4), the form his K3 lines belong
- *   to, with its mount condition tested in `AnimalForm.test.tsx` ("mounts
- *   the test-shelter lines only for the allowlisted shelter's own admin").
+ * - `animal-form/AnimalForm.tsx` (K3, PR 4), the form his parked K3 line
+ *   belongs to, with its mount condition tested in `AnimalForm.test.tsx`
+ *   ("mounts the test-shelter line only for the allowlisted shelter's own
+ *   admin").
  *
  * A new importer is a change to this list, which a reviewer sees, with its
  * own mount test.
@@ -125,8 +126,7 @@ const MOUNTED_BY = [
 ];
 const INTO_FOLDER =
   /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|\bimport\s+)["'`][^"'`]*test-shelter-only\/?[^"'`]*["'`]/;
-const ENTRY =
-  /\b(AllowlistedShelterArea|DateUnchangedLine|LastPhotoKeptHiddenText|PublishedNotShownText)\b/;
+const ENTRY = /\b(AllowlistedShelterArea|DateUnchangedLine)\b/;
 
 const withoutComments = (text: string) =>
   text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
