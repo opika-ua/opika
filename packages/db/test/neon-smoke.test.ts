@@ -62,6 +62,6 @@ describe("runSmoke against the local database", () => {
   it("passes every statement", async () => {
     const outcomes = await runSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes.length).toBe(21);
+    expect(outcomes.length).toBe(23);
   });
 });

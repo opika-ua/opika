@@ -48,7 +48,7 @@ function isFostered(card: FeedCardView): boolean {
 export function housingCityLabel(card: FeedCardView, cityName: string | null): string | null {
   if (!cityName) return null;
   const template = isFostered(card) ? uk.cardMeta.fosteredHousing : uk.cardMeta.atShelter;
-  return template.replace("{city}", cityName);
+  return template.replace("{city}", () => cityName);
 }
 
 /** "молодий · мала · живе у волонтерки, м. Бровари" — the card's full meta line. */

@@ -325,7 +325,7 @@ function RevealContent({
       <div className="flex items-start gap-4">
         <div className="flex-1 flex flex-col gap-2">
           <span className="text-[15px]/[22px] text-rg-ink-3">
-            {uk.reveal.youAskedAbout.replace("{name}", animalName)}
+            {uk.reveal.youAskedAbout.replace("{name}", () => animalName)}
           </span>
           <h2
             ref={headingRef}
@@ -362,7 +362,7 @@ function RevealContent({
           ))}
           <span className="flex items-center min-h-14 px-4 text-[15px]/[22px] text-rg-ink-2">
             {cityName
-              ? `${uk.location.lineAtShelter.replace("{city}", cityName)} · ${uk.reveal.meetingPlace}`
+              ? `${uk.location.lineAtShelter.replace("{city}", () => cityName)} · ${uk.reveal.meetingPlace}`
               : uk.reveal.meetingPlace}
           </span>
           <span className="text-[13px]/[18px] text-rg-ink-3">

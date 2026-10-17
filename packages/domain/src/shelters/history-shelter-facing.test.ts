@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { InvitationIdSchema, ModeratorIdSchema, ShelterAdminIdSchema } from "../primitives/ids";
+import {
+  AnimalIdSchema,
+  InvitationIdSchema,
+  ModeratorIdSchema,
+  ShelterAdminIdSchema,
+} from "../primitives/ids";
 import type { ShelterHistoryEntry, ShelterHistoryKind } from "./history";
 import { ShelterHistoryEntrySchema } from "./history";
 import { ShelterFacingHistoryItemSchema, shelterFacingHistoryOf } from "./history-shelter-facing";
@@ -8,6 +13,7 @@ const MOD = ModeratorIdSchema.parse("11111111-1111-4111-8111-111111111111");
 const ADMIN_ID = ShelterAdminIdSchema.parse("33333333-3333-4333-8333-333333333333");
 const ADMIN = { kind: "shelter_admin", shelterAdminId: ADMIN_ID } as const;
 const INVITATION_ID = InvitationIdSchema.parse("44444444-4444-4444-8444-444444444444");
+const ANIMAL_ID = AnimalIdSchema.parse("55555555-5555-4555-8555-555555555555");
 const AT = new Date("2026-10-13T00:00:00.000Z");
 const LINK = { url: "https://send.monobank.ua/jar/x", provider: "monobank_jar" } as const;
 const CONTACT = { primary: { kind: "phone", e164: "+380501234567" }, additional: [] } as const;
@@ -102,6 +108,38 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     email: "olena@example.org",
   },
   animals_imported: { kind: "animals_imported", at: AT, moderatorId: MOD, count: 4 },
+  animal_created: {
+    kind: "animal_created",
+    at: new Date("2026-10-14T00:00:00.000Z"),
+    actor: ADMIN,
+    animalId: ANIMAL_ID,
+    animalName: "Барсик",
+  },
+  animal_edited: {
+    kind: "animal_edited",
+    at: new Date("2026-10-15T00:00:00.000Z"),
+    actor: ADMIN,
+    animalId: ANIMAL_ID,
+    animalName: "Барсик",
+    fields: ["name", "age"],
+  },
+  animal_listing_changed: {
+    kind: "animal_listing_changed",
+    at: new Date("2026-10-16T00:00:00.000Z"),
+    actor: ADMIN,
+    animalId: ANIMAL_ID,
+    animalName: "Барсик",
+    event: { type: "withdraw", reason: { code: "other" } },
+    from: "reserved",
+    to: "withdrawn",
+  },
+  animal_deleted: {
+    kind: "animal_deleted",
+    at: new Date("2026-10-17T00:00:00.000Z"),
+    actor: ADMIN,
+    animalId: ANIMAL_ID,
+    animalName: "Барсик",
+  },
 };
 
 /** Every key name at any depth of a value, so a nested id can't hide from the check. */
@@ -123,9 +161,10 @@ describe("shelterFacingHistoryOf", () => {
       expect(json).not.toContain(MOD);
       expect(json).not.toContain(ADMIN_ID);
       expect(json).not.toContain(INVITATION_ID);
+      expect(json).not.toContain(ANIMAL_ID);
       expect(
         keysAtAnyDepth(item).filter((key) =>
-          ["moderatorId", "shelterAdminId", "invitationId"].includes(key),
+          ["moderatorId", "shelterAdminId", "invitationId", "animalId"].includes(key),
         ),
       ).toEqual([]);
       expect(json).not.toContain("evidence");
@@ -144,6 +183,61 @@ describe("shelterFacingHistoryOf", () => {
       at: AT,
       actor: { kind: "shelter" },
       email: "olena@example.org",
+    });
+  });
+
+  /** K-Q7: the animal by name, its own instant, and a withdrawal's reason code (never its note, K-Q18). */
+  it("animal_listing_changed: name, instant, move and reason, flattened", () => {
+    expect(shelterFacingHistoryOf(ENTRIES.animal_listing_changed, OPERATOR)).toEqual({
+      kind: "animal_listing_changed",
+      at: new Date("2026-10-16T00:00:00.000Z"),
+      actor: { kind: "shelter" },
+      animalName: "Барсик",
+      event: "withdraw",
+      reason: { code: "other" },
+      from: "reserved",
+      to: "withdrawn",
+    });
+    expect(
+      shelterFacingHistoryOf(
+        {
+          ...ENTRIES.animal_listing_changed,
+          event: { type: "publish" },
+          from: "draft",
+          to: "published",
+        } as ShelterHistoryEntry,
+        OPERATOR,
+      ),
+    ).toMatchObject({ event: "publish", reason: null });
+  });
+
+  it("animal_listing_changed: a note on an unparsed entry still never reaches the view (K-Q18)", () => {
+    // A row written before K-Q18, or built in memory: the type no longer allows a note.
+    const unparsed = {
+      ...ENTRIES.animal_listing_changed,
+      event: { type: "withdraw", reason: { code: "other", note: "Забрала пані Олена" } },
+    } as unknown as ShelterHistoryEntry;
+    const view = shelterFacingHistoryOf(unparsed, OPERATOR);
+    expect(view).toMatchObject({ reason: { code: "other" } });
+    expect(JSON.stringify(view)).not.toContain("Олена");
+  });
+
+  it("animal_edited and animal_created/deleted keep their own instant and the field names", () => {
+    expect(shelterFacingHistoryOf(ENTRIES.animal_edited, OPERATOR)).toEqual({
+      kind: "animal_edited",
+      at: new Date("2026-10-15T00:00:00.000Z"),
+      actor: { kind: "shelter" },
+      animalName: "Барсик",
+      fields: ["name", "age"],
+    });
+    expect(shelterFacingHistoryOf(ENTRIES.animal_created, OPERATOR).at).toEqual(
+      new Date("2026-10-14T00:00:00.000Z"),
+    );
+    expect(shelterFacingHistoryOf(ENTRIES.animal_deleted, OPERATOR)).toEqual({
+      kind: "animal_deleted",
+      at: new Date("2026-10-17T00:00:00.000Z"),
+      actor: { kind: "shelter" },
+      animalName: "Барсик",
     });
   });
 

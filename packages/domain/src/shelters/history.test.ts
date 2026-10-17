@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { InvitationIdSchema, ModeratorIdSchema, ShelterAdminIdSchema } from "../primitives/ids";
+import {
+  AnimalIdSchema,
+  InvitationIdSchema,
+  ModeratorIdSchema,
+  ShelterAdminIdSchema,
+} from "../primitives/ids";
 import {
   historyEntryAt,
+  listingHistoryEventOf,
   type ShelterHistoryEntry,
   ShelterHistoryEntrySchema,
   type ShelterHistoryKind,
@@ -12,6 +18,7 @@ const ADMIN = {
   kind: "shelter_admin",
   shelterAdminId: ShelterAdminIdSchema.parse("33333333-3333-4333-8333-333333333333"),
 } as const;
+const ANIMAL = AnimalIdSchema.parse("55555555-5555-4555-8555-555555555555");
 const LINK = { url: "https://send.monobank.ua/jar/x", provider: "monobank_jar" } as const;
 const CONTACT = { primary: { kind: "phone", e164: "+380501234567" }, additional: [] } as const;
 
@@ -111,6 +118,38 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     invitationId: InvitationIdSchema.parse("44444444-4444-4444-8444-444444444444"),
     email: "olena@example.org",
   },
+  animal_created: {
+    kind: "animal_created",
+    at: new Date("2026-10-15T00:00:00.000Z"),
+    actor: ADMIN,
+    animalId: ANIMAL,
+    animalName: "Барсик",
+  },
+  animal_edited: {
+    kind: "animal_edited",
+    at: new Date("2026-10-16T00:00:00.000Z"),
+    actor: ADMIN,
+    animalId: ANIMAL,
+    animalName: "Барсик",
+    fields: ["name", "description"],
+  },
+  animal_listing_changed: {
+    kind: "animal_listing_changed",
+    at: new Date("2026-10-17T00:00:00.000Z"),
+    actor: ADMIN,
+    animalId: ANIMAL,
+    animalName: "Барсик",
+    event: { type: "withdraw", reason: { code: "transferred" } },
+    from: "published",
+    to: "withdrawn",
+  },
+  animal_deleted: {
+    kind: "animal_deleted",
+    at: new Date("2026-10-18T00:00:00.000Z"),
+    actor: ADMIN,
+    animalId: ANIMAL,
+    animalName: "Барсик",
+  },
 };
 
 describe("ShelterHistoryEntrySchema", () => {
@@ -154,6 +193,64 @@ describe("admin_joined", () => {
   });
 });
 
+describe("a shelter's own animal writes (K-Q7)", () => {
+  /** Field names only, never values: an edit entry carrying a value is refused, not stored. */
+  it("refuses an edit entry with no fields, an unknown field, or a value alongside", () => {
+    const edited = ENTRIES.animal_edited;
+    expect(ShelterHistoryEntrySchema.safeParse({ ...edited, fields: [] }).success).toBe(false);
+    expect(ShelterHistoryEntrySchema.safeParse({ ...edited, fields: ["weight"] }).success).toBe(
+      false,
+    );
+    const parsed = ShelterHistoryEntrySchema.parse({ ...edited, next: { name: "Мурчик" } });
+    expect(parsed).not.toHaveProperty("next");
+  });
+
+  /** S1: «Ще шукає» and its undo are never history, so the entry's event list has no slot for them. */
+  it("refuses a confirmation as a listing move", () => {
+    for (const type of ["confirm", "undo_confirm"]) {
+      expect(
+        ShelterHistoryEntrySchema.safeParse({ ...ENTRIES.animal_listing_changed, event: { type } })
+          .success,
+      ).toBe(false);
+    }
+  });
+
+  it("refuses a withdrawal without its reason", () => {
+    expect(
+      ShelterHistoryEntrySchema.safeParse({
+        ...ENTRIES.animal_listing_changed,
+        event: { type: "withdraw" },
+      }).success,
+    ).toBe(false);
+  });
+
+  /** Review finding 5, K-Q18: a note can name an adopter, and history can't be erased. */
+  it("drops a withdrawal's note when reading a stored entry", () => {
+    const parsed = ShelterHistoryEntrySchema.parse({
+      ...ENTRIES.animal_listing_changed,
+      event: { type: "withdraw", reason: { code: "other", note: "Забрала пані Олена" } },
+    });
+    expect(JSON.stringify(parsed)).not.toContain("Олена");
+  });
+});
+
+describe("listingHistoryEventOf", () => {
+  it("keeps a withdrawal's code and never its note", () => {
+    const recorded = listingHistoryEventOf({
+      type: "withdraw",
+      reason: { code: "other", note: "Забрала пані Олена" },
+    });
+    expect(recorded).toEqual({ type: "withdraw", reason: { code: "other" } });
+    expect(JSON.stringify(recorded)).not.toContain("Олена");
+  });
+
+  it("keeps every other move as its type alone", () => {
+    for (const type of ["publish", "reserve", "release", "adopt", "restore_to_draft"] as const) {
+      expect(listingHistoryEventOf({ type })).toEqual({ type });
+    }
+  });
+});
+
 describe("historyEntryAt", () => {
   it("dates each entry by its own instant, a verification entry by its event's", () => {
     expect(Object.values(ENTRIES).map((e) => historyEntryAt(e).toISOString().slice(0, 10))).toEqual(
@@ -172,6 +269,10 @@ describe("historyEntryAt", () => {
         "2026-10-12",
         "2026-10-13",
         "2026-10-14",
+        "2026-10-15",
+        "2026-10-16",
+        "2026-10-17",
+        "2026-10-18",
       ],
     );
   });

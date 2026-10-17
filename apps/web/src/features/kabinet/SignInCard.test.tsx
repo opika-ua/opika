@@ -171,6 +171,14 @@ describe("K1 · «check your email» names a person to write to (IN-T9)", () => 
     );
   });
 
+  it("prints a contact carrying $& and $1 literally (review finding 2)", async () => {
+    const { user } = setup(async () => true, "a$&$1@example.net");
+    await signIn(user);
+    expect(notArrived()?.textContent).toBe(
+      "Якщо лист не прийшов за кілька хвилин, напишіть мені на a$&$1@example.net.",
+    );
+  });
+
   it("is on the «check your email» state only, not on the form", async () => {
     const { user } = setup();
     expect(screen.queryByText(/hello@example\.org/)).toBeNull();

@@ -1,5 +1,11 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
-import { donationHost, hasAnyDocumentEvidence, pluralizeUk, textIn } from "@opika/domain";
+import {
+  donationHost,
+  fillAnimalName,
+  hasAnyDocumentEvidence,
+  pluralizeUk,
+  textIn,
+} from "@opika/domain";
 import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips } from "@opika/ui";
 import Link from "next/link";
@@ -98,7 +104,7 @@ export function AnimalDetailScreen({
   const isFostered = animal.publicLocation !== null;
   const locationLine = (isFostered ? uk.location.lineFostered : uk.location.lineAtShelter).replace(
     "{city}",
-    cityName ?? "",
+    () => cityName ?? "",
   );
 
   return (
@@ -157,7 +163,7 @@ export function AnimalDetailScreen({
           data-testid="back-to-list-desktop"
           className="hidden desktop:inline-flex min-h-12 items-center text-[15px] text-rg-ink-2 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
-          {uk.detail.backToListIn.replace("{city}", cityName ?? "")}
+          {uk.detail.backToListIn.replace("{city}", () => cityName ?? "")}
         </Link>
       </div>
 
@@ -236,6 +242,9 @@ export function AnimalDetailScreen({
               every field on that view is a deliberate decision, and this one
               needs no new decision.
 
+              `{імʼя}` is filled with this page's animal (K-Q6), here and on the
+              deck only; the kabinet shows the shelter its sentence as written.
+
               Nullable by design: a shelter with no sentence falls back to the
               pips and day count alone (`FreshnessSentenceSchema`'s own note),
               which is why this stays conditional rather than gaining a
@@ -249,7 +258,7 @@ export function AnimalDetailScreen({
                   data-testid="shelter-freshness-sentence"
                   className="text-[17px]/[26px] text-rg-ink"
                 >
-                  “{textIn(animal.shelter.freshnessSentence, "uk")}”
+                  “{fillAnimalName(textIn(animal.shelter.freshnessSentence, "uk"), animal.name)}”
                 </span>
                 <span
                   data-testid="shelter-freshness-attribution"

@@ -152,6 +152,13 @@ describe("AnimalCard resolved variant", () => {
     expect(screen.getByText("Притулок каже: Бім уже вдома.")).toBeTruthy();
   });
 
+  it("prints a name carrying replacement patterns ($&, $1, $$) literally", () => {
+    // A name is shelter-typed from K2, and a string second argument to
+    // .replace() would read "$&" as "the matched {name}" (review finding 2).
+    render(<AnimalCard card={makeCard({ name: "Пес $& $1 $$" })} cityName="Бровари" resolved />);
+    expect(screen.getByText("Притулок каже: Пес $& $1 $$ уже вдома.")).toBeTruthy();
+  });
+
   it("never shows the reserved badge, even if the underlying listingKind is reserved", () => {
     render(<AnimalCard card={makeCard({ listingKind: "reserved" })} cityName="Бровари" resolved />);
     expect(screen.queryByTestId("reserved-badge")).toBeNull();

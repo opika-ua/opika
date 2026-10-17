@@ -302,6 +302,42 @@ describe("registry.shelters.list / byId / history.list", () => {
       ).status,
     ).toBe(404);
   });
+
+  /** K-Q7: a shelter's own animal write reaches the operator whole, animal id and admin id included. */
+  it("shows the operator a shelter's animal line with its ids", async () => {
+    const s = await shelter();
+    const admin = crypto.randomUUID();
+    const created = await call<{ id: string }>(
+      "shelter.animals.createDraft",
+      {
+        name: "Мурчик",
+        species: "cat",
+        sex: "male",
+        size: "small",
+        age: { kind: "birth_date", date: new Date("2025-01-01"), precision: "month" },
+        description: { uk: "Опис", en: null },
+      },
+      {
+        principal: { kind: "shelter_admin", shelterAdminId: admin as never, shelterId: s.id },
+        shelterWrites: { kind: "open_for_tests_only" },
+      },
+    );
+    expect(created.status).toBe(200);
+    const page = await call<{ items: unknown[] }>("registry.history.list", {
+      shelterId: s.id,
+      cursor: null,
+      limit: 10,
+    });
+    expect(page.body.items).toEqual([
+      {
+        kind: "animal_created",
+        at: NOW,
+        actor: { kind: "shelter_admin", shelterAdminId: admin },
+        animalId: created.body.id,
+        animalName: "Мурчик",
+      },
+    ]);
+  });
 });
 
 // ─── create ─────────────────────────────────────────────────────────────────

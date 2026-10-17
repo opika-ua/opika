@@ -6,6 +6,7 @@ import {
   buildAnimal,
   buildShelter,
   deterministicId,
+  OnboardInputSchema,
   refuseIfInsideRepo,
 } from "../src/onboard-shelter";
 
@@ -194,6 +195,76 @@ describe("buildShelter and buildAnimal ids", () => {
       now,
     );
     expect(animal.id).not.toBe(shelter.id);
+  });
+});
+
+/**
+ * K-Q6: "operator sentences get the same validation." The script parses its
+ * input file with this schema before anything is built or written, so a
+ * refusal here is a refusal before the dry-run printout.
+ */
+describe("OnboardInputSchema's text rules", () => {
+  const ANIMAL_INPUT = {
+    idSeed: "test-animal",
+    name: "Ластівка",
+    species: "dog",
+    sex: "female",
+    size: "medium",
+    ageBucket: "adult",
+    descriptionUk: "Опис.",
+    photos: [{ localPath: "dog-1.jpg" }],
+  };
+  const parse = (shelter: object, animal: object = {}) =>
+    OnboardInputSchema.safeParse({
+      shelter: { ...SHELTER_INPUT, ...shelter },
+      animals: [{ ...ANIMAL_INPUT, ...animal }],
+    });
+
+  it("normalises the token's spellings in the freshness sentence to {імʼя}", () => {
+    const parsed = parse({ freshnessSentenceUk: " Чи {Ім'я} ще з нами? " });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.shelter.freshnessSentenceUk).toBe("Чи {імʼя} ще з нами?");
+  });
+
+  it.each([
+    ["an unknown token", "Оновлено {дата}."],
+    ["a stray brace", "Оновлено }."],
+    ["281 characters", "я".repeat(281)],
+    ["a blank sentence (it is required here)", "   "],
+  ])("refuses a freshness sentence with %s", (_label, freshnessSentenceUk) => {
+    expect(parse({ freshnessSentenceUk }).success).toBe(false);
+  });
+
+  it("accepts a 280-character freshness sentence", () => {
+    expect(parse({ freshnessSentenceUk: "я".repeat(280) }).success).toBe(true);
+  });
+
+  it.each([
+    ["the token", "{імʼя}"],
+    ["a brace", "Ласт}івка"],
+    ["61 characters", "я".repeat(61)],
+  ])("refuses an animal name with %s", (_label, name) => {
+    expect(parse({}, { name }).success).toBe(false);
+  });
+
+  it("trims and accepts a 60-character animal name", () => {
+    const parsed = parse({}, { name: ` ${"я".repeat(60)} ` });
+    expect(parsed.data?.animals[0]?.name).toBe("я".repeat(60));
+  });
+
+  /** Review finding 6: K3's 1,500-character cap, so an onboarded description stays editable there. */
+  it("accepts a 1,500-character animal description and refuses 1,501", () => {
+    expect(parse({}, { descriptionUk: "я".repeat(1500) }).success).toBe(true);
+    const over = parse({}, { descriptionUk: "я".repeat(1501) });
+    expect(over.success).toBe(false);
+    expect(over.error?.issues.map((issue) => issue.message)).toEqual([
+      "Description is 1501 characters; the maximum is 1500",
+    ]);
+  });
+
+  it("counts the description in characters, not UTF-16 units", () => {
+    // 1,500 paw prints are 3,000 UTF-16 units.
+    expect(parse({}, { descriptionUk: "🐾".repeat(1500) }).success).toBe(true);
   });
 });
 
