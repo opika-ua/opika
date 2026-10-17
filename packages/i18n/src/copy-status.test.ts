@@ -673,7 +673,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.blocked.manualUnblock":
       "Розблокувати адресу можна лише в кабінеті поштового сервісу, не тут.",
     "operator.history.title": "Історія",
-    "operator.history.note": "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» тут не записуються.",
+    "operator.history.note":
+      "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» тут не записуються.",
     "operator.history.empty": "Записів ще немає.",
     "operator.history.more": "Показати ще",
     "operator.history.actor.you": "ви",
