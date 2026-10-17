@@ -346,13 +346,15 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
    deletes R2 objects; DR-F3's operator-run script, or the Cloudflare dashboard by hand, does
    it later. Run the dry run again afterwards: every count is 0, and it refuses with «no
    shelter has id …», which confirms the shelter is gone.
-4. **`KABINET_WRITE_ALLOWLIST`.** PR 6 opens writes for every shelter and deletes the
-   allowlist from the code, so after PR 6 nothing reads this variable: delete it from Vercel
-   Production. If the rehearsal is retired before PR 6, unset it instead (unset means every
-   shelter is read-only). Either way, **redeploy**, since environment changes apply only to
-   new deployments.
-5. `location:verify --prod`: `match` counts the real shelters only. `demo` stays as it is until
-   the demo corpus goes in the next launch step.
+4. **`KABINET_WRITE_ALLOWLIST`**, then **redeploy**, since environment changes apply only to
+   new deployments (RH-B6):
+   - **before PR 6:** switch it from the rehearsal id to **the real shelter's id**. Unsetting it
+     would close writes for the first real shelter too.
+   - **after PR 6:** PR 6 opens writes for every shelter and deletes the allowlist from the code,
+     so **delete the variable**.
+5. **`location:verify --prod`**, expected after the retirement: `match` = the number of real
+   shelters (1 at launch), `MISMATCH 0`, no `PRIVACY` line, and `demo` = **2** if the demo corpus
+   is still there or **0** once `demo:remove` has run (the next launch step).
 
 ## Where `LOCATION_HMAC_SECRET` comes from
 
