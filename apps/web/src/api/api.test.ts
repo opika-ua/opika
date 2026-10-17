@@ -484,6 +484,12 @@ describe("swipes", () => {
     expectError(await swipe(animal.id, cookie), "NOT_FOUND", 404);
   });
 
+  /**
+   * Also the case of a deck already loaded in a browser swiping an animal
+   * deleted since (`demo:remove`, inbox DR-B1 answer 1): a 404 the deck
+   * ignores (it has already advanced, `use-feed-deck.ts`), never a 500 from
+   * the swipe row's foreign key.
+   */
   it("answers NOT_FOUND, at 404, for an animal that doesn't exist", async () => {
     const cookie = await bootstrap();
     expectError(await swipe(crypto.randomUUID(), cookie), "NOT_FOUND", 404);

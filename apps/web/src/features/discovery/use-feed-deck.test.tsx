@@ -340,20 +340,28 @@ describe("useFeedDeck", () => {
    * confirming a rejection in that chain has no visible effect at all,
    * not even a thrown/unhandled rejection.
    */
-  it("a swipes.record failure does not block or roll back the deck's own advance", async () => {
-    const [first, second] = generateMockCards(2);
-    if (!first || !second) throw new Error("generateMockCards(2) must return two cards");
-    list.mockResolvedValueOnce({ items: [first, second], nextCursor: null });
-    record.mockRejectedValueOnce(new Error("network down"));
+  // NOT_FOUND: a card whose animal was deleted since the page loaded
+  // (`demo:remove`, inbox DR-B1 answer 1). The deck keeps the next card.
+  it.each([
+    ["a network failure", new Error("network down")],
+    ["NOT_FOUND", new ORPCError("NOT_FOUND", { defined: true })],
+  ])(
+    "a swipes.record failure (%s) does not block or roll back the deck's own advance",
+    async (_label, failure) => {
+      const [first, second] = generateMockCards(2);
+      if (!first || !second) throw new Error("generateMockCards(2) must return two cards");
+      list.mockResolvedValueOnce({ items: [first, second], nextCursor: null });
+      record.mockRejectedValueOnce(failure);
 
-    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
-    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+      const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+      await waitFor(() => expect(result.current.state.kind).toBe("ready"));
 
-    act(() => result.current.onSwipe(first.id, "left"));
+      act(() => result.current.onSwipe(first.id, "left"));
 
-    expect(result.current.state).toEqual({ kind: "ready", cards: [second] });
-    await waitFor(() => expect(record).toHaveBeenCalledTimes(1));
-  });
+      expect(result.current.state).toEqual({ kind: "ready", cards: [second] });
+      await waitFor(() => expect(record).toHaveBeenCalledTimes(1));
+    },
+  );
 
   it("a network failure (no oRPC response at all) maps to the offline reason", async () => {
     list.mockRejectedValueOnce(new TypeError("Failed to fetch"));

@@ -55,18 +55,31 @@ const canonical = (value: unknown): string =>
       : v,
   );
 
+export type StoredLocationRow = {
+  id: string;
+  exactAddress: ExactAddress;
+  publicLocation: PublicLocation;
+};
+
+/**
+ * Whether the row's stored public location is what `policy` computes for it.
+ * `demo:remove` uses it with the seed's policy to refuse while a shelter
+ * outside the seed range sits on the test-only key (RG-Q11's privacy bug).
+ */
+export const storedWith = (row: StoredLocationRow, policy: LocationPrivacyPolicy): boolean =>
+  canonical(publicLocationOf(row.id as ShelterId, row.exactAddress, policy)) ===
+  canonical(row.publicLocation);
+
 export function compareLocations(
-  rows: readonly { id: string; exactAddress: ExactAddress; publicLocation: PublicLocation }[],
+  rows: readonly StoredLocationRow[],
   policy: LocationPrivacyPolicy,
   testPolicy: LocationPrivacyPolicy,
 ): LocationReport {
   const report: LocationReport = { match: 0, demo: 0, testKeyOnRealShelter: 0, mismatch: 0 };
   for (const row of rows) {
-    const stored = canonical(row.publicLocation);
-    const id = row.id as ShelterId;
-    if (canonical(publicLocationOf(id, row.exactAddress, policy)) === stored) {
+    if (storedWith(row, policy)) {
       report.match += 1;
-    } else if (canonical(publicLocationOf(id, row.exactAddress, testPolicy)) === stored) {
+    } else if (storedWith(row, testPolicy)) {
       if (isSeedShelterId(row.id)) report.demo += 1;
       else report.testKeyOnRealShelter += 1;
     } else {
