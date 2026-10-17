@@ -106,8 +106,9 @@ time beside PR 4 → 5 → 6, never more than two open feature PRs (RU-B4, WM-B1
 - **Resubmit replaces the evidence list wholesale.** The form prefills it. A script-onboarded
   `supporting_document` can't be re-sent (RG-Q5), so it's left out with the consequence stated (the
   old list survives in the history entry).
-- **Site-visit dates are checked in UTC.** A visit entered as "today" in Kyiv between midnight and
-  02:00–03:00 is refused as in the future; the message has to say so.
+- ~~Site-visit dates are checked in UTC.~~ Fixed in R-UI 2 (RU-B6, his code change): the "not in
+  the future" check uses the Kyiv calendar date (`isSiteVisitInFuture`), so a visit entered as
+  "today" just after Kyiv midnight is accepted.
 
 ## 7. Questions for Oleksii
 
