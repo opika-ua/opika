@@ -103,9 +103,11 @@ time beside PR 4 → 5 → 6, never more than two open feature PRs (RU-B4, WM-B1
   first extracts it; R-UI 3 ideally follows PR 5.
 - **`uk.ts` and `copy-status.test.ts` conflicts** with #115 and PR 4–6: R-UI keeps its keys and pins
   in their own blocks.
-- **Resubmit replaces the evidence list wholesale.** The form prefills it. A script-onboarded
-  `supporting_document` can't be re-sent (RG-Q5), so it's left out with the consequence stated (the
-  old list survives in the history entry).
+- **Resubmit replaces the evidence list wholesale.** The form prefills it. ~~The old list survives in
+  the history entry~~: false (R-UI 3 review): `shelter_created` stores no evidence and `resubmit`
+  stored only what it sent. Fixed per his answer (N6, option (a)): the server carries existing
+  `supporting_document` items over on resubmit, and an unchanged site visit keeps its original
+  `visitedBy` (AW-R3-11).
 - ~~Site-visit dates are checked in UTC.~~ Fixed in R-UI 2 (RU-B6, his code change): the "not in
   the future" check uses the Kyiv calendar date (`isSiteVisitInFuture`), so a visit entered as
   "today" just after Kyiv midnight is accepted.
