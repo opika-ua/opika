@@ -1,6 +1,7 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { OperatorName } from "../../kabinet/operator";
 import { ShelterProfile } from "./ShelterProfile";
 
 vi.mock("./test-shelter-only/AllowlistedShelterArea", () => ({
@@ -9,10 +10,12 @@ vi.mock("./test-shelter-only/AllowlistedShelterArea", () => ({
 
 /**
  * The shelter's side of a rejection or suspension on `/kabinet` (RU-Q7,
- * answer 7), rendered as the page renders it. Every string is Oleksii's,
- * transcribed from `rui-copy-uk.md` §3.4 and §3.2 (the code labels), never
- * read from `uk.ts`. The section's whole text is pinned, so nothing else
- * (no count, no adopter, commitment #2) can ride along in it.
+ * answer 7, and round-2 answer 2: "«Пояснення:», then my note verbatim, then
+ * a signature line «— {operator}» (nominative, as in the emails)"), rendered
+ * as the page renders it. Every string is Oleksii's, transcribed from
+ * `rui-copy-uk.md` §3.4 and §3.2 (the code labels) and his round-2 answers 2
+ * and 6, never read from `uk.ts`. The section's whole text is pinned, so
+ * nothing else (no count, no adopter, commitment #2) can ride along in it.
  */
 
 const view = (verification: KabinetShelterView["verification"]): KabinetShelterView => ({
@@ -38,24 +41,25 @@ const view = (verification: KabinetShelterView["verification"]): KabinetShelterV
 
 const AT = new Date("2026-10-15T09:00:00Z");
 const NOTE = "Надішліть, будь ласка, виписку саме на «Ірпінський хвіст».\nДякую.";
+const OLEKSII: OperatorName = { kind: "configured", name: "Олексій Колотенко" };
 
 const renderAs = (
   verification: KabinetShelterView["verification"],
   viewer: "admin" | "support" = "admin",
-  operatorName = "Олексій",
+  operator: OperatorName = OLEKSII,
 ) =>
   render(
     <ShelterProfile
       view={view(verification)}
       cityName="Бровари"
       viewer={viewer}
-      operatorName={operatorName}
+      operator={operator}
     />,
   );
 
 describe("a rejected shelter reads the decision", () => {
   it.each(["admin", "support"] as const)(
-    "%s: title, effect, the code, the operator's note verbatim, and the contact line",
+    "%s: title, effect, the code, «Пояснення:», the note verbatim, the signature, the contact line",
     (viewer) => {
       renderAs({ status: "rejected", at: AT, reason: { code: "spam", note: NOTE } }, viewer);
       const section = screen.getByRole("region", { name: "Перевірку не пройдено" });
@@ -66,16 +70,19 @@ describe("a rejected shelter reads the decision", () => {
           "Причина: Спам.",
           "Пояснення:",
           NOTE,
+          "— Олексій Колотенко",
           "Якщо маєте питання, напишіть мені.",
         ].join(""),
       );
-      // Verbatim means the line break too, in a quotation.
+      // Verbatim means the line break too, in a quotation of its own, the signature outside it.
       const quote = section.querySelector("blockquote");
       expect(quote?.textContent).toBe(NOTE);
+      expect(section.querySelector("figcaption")?.textContent).toBe("Пояснення:");
+      expect(screen.getByText("— Олексій Колотенко").closest("blockquote")).toBeNull();
     },
   );
 
-  it("a reason stored without a note shows the code, and no empty quotation", () => {
+  it("a reason stored without a note shows the code: no label, no empty quotation, no signature", () => {
     renderAs({ status: "rejected", at: AT, reason: { code: "insufficient_evidence", note: null } });
     const section = screen.getByRole("region", { name: "Перевірку не пройдено" });
     expect(section.textContent).toBe(
@@ -89,27 +96,17 @@ describe("a rejected shelter reads the decision", () => {
     expect(section.querySelector("blockquote")).toBeNull();
   });
 
-  /**
-   * AW-R3-1: «від {operator}» needs the genitive, which the configured name
-   * doesn't have, so the label is his string without it, and no operator
-   * name, configured or fallback, appears in the section at all.
-   */
-  it("labels the note «Пояснення:», with no operator name in the section", () => {
-    renderAs(
-      { status: "rejected", at: AT, reason: { code: "spam", note: "Ні" } },
-      "admin",
-      "Олексій Колотенко",
-    );
-    const section = screen.getByRole("region", { name: "Перевірку не пройдено" });
-    expect(section.querySelector("figcaption")?.textContent).toBe("Пояснення:");
-    expect(section.textContent).not.toContain("Олексій");
-    expect(section.textContent).not.toContain("адміністратор сайту");
-    expect(section.textContent).not.toMatch(/[{}]/);
+  it("prints a name carrying $& and $1 literally in the signature", () => {
+    renderAs({ status: "rejected", at: AT, reason: { code: "spam", note: "Ні" } }, "admin", {
+      kind: "configured",
+      name: "Олексій $& $1",
+    });
+    expect(screen.getByText("— Олексій $& $1")).toBeTruthy();
   });
 });
 
 describe("a suspended shelter reads the decision", () => {
-  it.each(["admin", "support"] as const)("%s: its own title and effect", (viewer) => {
+  it.each(["admin", "support"] as const)("%s: its own title and effect, signed", (viewer) => {
     renderAs(
       {
         status: "suspended",
@@ -126,9 +123,33 @@ describe("a suspended shelter reads the decision", () => {
         "Причина: Скарга підтвердилася.",
         "Пояснення:",
         "Скарга від ветклініки. Чекаю на ваші фото.",
+        "— Олексій Колотенко",
         "Якщо маєте питання, напишіть мені.",
       ].join(""),
     );
+  });
+});
+
+/**
+ * No name configured: the signature stands alone, so it takes the capitalised
+ * fallback, as both emails sign (round-2 answer 6: "capitalise it → «—
+ * Адміністратор сайту»"), while the locked note on the same page keeps the
+ * lower case mid-sentence. One page, two forms: each place gets its own.
+ */
+describe("with no operator name configured", () => {
+  it("signs «— Адміністратор сайту», and the locked note keeps «адміністратор сайту»", () => {
+    renderAs(
+      { status: "suspended", at: AT, reason: { code: "other", note: "Чекаю на ваші фото." } },
+      "admin",
+      { kind: "fallback" },
+    );
+    const section = screen.getByRole("region", { name: "Притулок тимчасово призупинено" });
+    expect(section.textContent).toContain("Чекаю на ваші фото.— Адміністратор сайту");
+    expect(
+      screen.getByText(
+        "Ці дані встановлює адміністратор сайту під час перевірки притулку. Тут вони лише для перегляду.",
+      ),
+    ).toBeTruthy();
   });
 });
 
@@ -147,10 +168,13 @@ describe("every other status sees none of it", () => {
       "Перевірку не пройдено",
       "Притулок тимчасово призупинено",
       "Якщо маєте питання, напишіть мені.",
+      "Пояснення:",
+      "— Олексій Колотенко",
     ]) {
       expect(screen.queryByText(text)).toBeNull();
     }
     expect(screen.queryByText(/^Причина: /)).toBeNull();
     expect(screen.queryByText(/^Пояснення/)).toBeNull();
+    expect(screen.queryByText(/^— /)).toBeNull();
   });
 });

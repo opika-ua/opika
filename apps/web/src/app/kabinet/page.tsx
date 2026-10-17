@@ -11,11 +11,7 @@ import { OPERATOR_HOME } from "../../features/kabinet/routes";
 import { ShelterProfile } from "../../features/kabinet/ShelterProfile";
 import { shelterWritePolicyOf } from "../../kabinet/access";
 import { invitationAccepter, selfHealingIdentity } from "../../kabinet/invitation-accept";
-import {
-  inSentenceOperatorName,
-  operatorNameOf,
-  standaloneOperatorName,
-} from "../../kabinet/operator";
+import { operatorNameOf, standaloneOperatorName } from "../../kabinet/operator";
 import { kabinetIdentityOf } from "../../kabinet/principal";
 import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "./available-auth";
 
@@ -88,8 +84,8 @@ export default async function KabinetHomePage() {
           view={home.view}
           cityName={home.cityName}
           viewer={home.viewer}
-          // The locked note puts the name mid-sentence.
-          operatorName={inSentenceOperatorName(operator)}
+          // The locked note puts the name mid-sentence; the decision's signature stands alone.
+          operator={operator}
           editing={home.editing}
         />
       );

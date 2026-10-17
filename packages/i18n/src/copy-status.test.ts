@@ -848,7 +848,6 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "verificationDecision.rejectedTitle": "Перевірку не пройдено",
     "verificationDecision.suspendedTitle": "Притулок тимчасово призупинено",
     "verificationDecision.reason": "Причина: {code}.",
-    "verificationDecision.noteLabel": "Пояснення від {operator}:",
     "verificationDecision.contact": "Якщо маєте питання, напишіть мені.",
     "verificationDecision.suspendedEffect":
       "Поки притулок призупинено, його тварин немає в галереї.",
@@ -871,6 +870,18 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     },
   };
 
+  /**
+   * His round-2 answer 2, verbatim: "Reason view on the shelter side:
+   * «Пояснення:», then my note verbatim, then a signature line «— {operator}»
+   * (nominative, as in the emails). No new env var." The label replaces his
+   * §3.4 text, named here so it can't drift back; the signature is a key his
+   * file didn't have.
+   */
+  const ROUND_2_REASON_VIEW: Record<string, { his: string | null; used: string }> = {
+    "verificationDecision.noteLabel": { his: "Пояснення від {operator}:", used: "Пояснення:" },
+    "verificationDecision.signature": { his: null, used: "— {operator}" },
+  };
+
   const leafPaths = (node: unknown, prefix: string): string[] =>
     typeof node === "string"
       ? [prefix]
@@ -888,12 +899,20 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...leafPaths(uk.kabinet.operator, "operator"),
         ...leafPaths(uk.kabinet.verificationDecision, "verificationDecision"),
       ].sort(),
-    ).toEqual([...Object.keys(RUI_FINAL), ...Object.keys(CHECKED_AGAINST_CODE)].sort());
+    ).toEqual(
+      [
+        ...Object.keys(RUI_FINAL),
+        ...Object.keys(CHECKED_AGAINST_CODE),
+        ...Object.keys(ROUND_2_REASON_VIEW),
+      ].sort(),
+    );
   });
 
-  it("sanity: his file's 220 strings, 218 as written and 2 replaced in round 2", () => {
-    expect(Object.keys(RUI_FINAL).length).toBe(218);
+  it("sanity: his file's 220 strings (217 as written, 3 replaced in round 2) and 1 round-2 key", () => {
+    expect(Object.keys(RUI_FINAL).length).toBe(217);
     expect(Object.keys(CHECKED_AGAINST_CODE).length).toBe(2);
+    expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his !== null)).toHaveLength(1);
+    expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his === null)).toHaveLength(1);
   });
 
   it.each(Object.entries(RUI_FINAL))("%s is his final text", (path, text) => {
@@ -908,6 +927,14 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     },
   );
 
+  it.each(Object.entries(ROUND_2_REASON_VIEW))(
+    "%s carries his round-2 answer 2",
+    (path, { his, used }) => {
+      expect(valueAt(path)).toBe(used);
+      if (his !== null) expect(valueAt(path)).not.toBe(his);
+    },
+  );
+
   it("nothing under operator or verificationDecision is pending", () => {
     expect(pendingCopyPaths(uk.kabinet.operator, "kabinet.operator")).toEqual([]);
     expect(
@@ -918,7 +945,11 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   it("uses U+02BC only: no U+0027 and no U+2019 in any of them", () => {
     const ASCII_APOSTROPHE = String.fromCodePoint(0x27);
     const TYPOGRAPHIC_APOSTROPHE = String.fromCodePoint(0x2019);
-    const offending = [...Object.keys(RUI_FINAL), ...Object.keys(CHECKED_AGAINST_CODE)].filter(
+    const offending = [
+      ...Object.keys(RUI_FINAL),
+      ...Object.keys(CHECKED_AGAINST_CODE),
+      ...Object.keys(ROUND_2_REASON_VIEW),
+    ].filter(
       (path) => {
         const text = valueAt(path) as string;
         return text.includes(ASCII_APOSTROPHE) || text.includes(TYPOGRAPHIC_APOSTROPHE);

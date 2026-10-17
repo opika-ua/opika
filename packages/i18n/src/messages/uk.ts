@@ -1642,19 +1642,27 @@ export const uk = {
      * R-UI 3 · the shelter's side of a rejection or suspension (RU-Q7, his
      * answer 7, verbatim: "Yes: a minimal shelter-side view in R-UI 3 showing
      * the code and my note verbatim (keys in rui-copy-uk.md §3.4)."), his
-     * final Ukrainian. The note follows `noteLabel` verbatim, as a quote.
+     * final Ukrainian. The note follows `noteLabel` verbatim, as a quote,
+     * then `signature`.
      */
     verificationDecision: {
       rejectedTitle: "Перевірку не пройдено",
       suspendedTitle: "Притулок тимчасово призупинено",
       reason: "Причина: {code}.",
       /**
-       * ⚠ `{operator}` sits after «від», which takes the genitive, while the
-       * operator's display name is configured in the nominative only (RS-Q2,
-       * `kabinet/operator.ts`): «від Олексій Колотенко», «від адміністратор
-       * сайту». Flagged for R-UI 3, which renders it; no screen reads it yet.
+       * His round-2 answer 2, verbatim: "Reason view on the shelter side:
+       * «Пояснення:», then my note verbatim, then a signature line «— {operator}»
+       * (nominative, as in the emails). No new env var." It replaces his §3.4
+       * «Пояснення від {operator}:», whose «від» needed a genitive name that
+       * isn't configured (RS-Q2 holds the nominative only).
        */
-      noteLabel: "Пояснення від {operator}:",
+      noteLabel: "Пояснення:",
+      /**
+       * The line under the note (round-2 answer 2, above). `{operator}` is the
+       * name standing alone, as both emails sign: `standaloneOperatorName`, the
+       * configured name, else «Адміністратор сайту».
+       */
+      signature: "— {operator}",
       contact: "Якщо маєте питання, напишіть мені.",
       suspendedEffect: "Поки притулок призупинено, його тварин немає в галереї.",
       rejectedEffect: "Тварин притулку не буде в галереї, доки перевірку не пройдено.",

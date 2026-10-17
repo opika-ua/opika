@@ -58,7 +58,7 @@ const renderProfile = (
       view={view(overrides)}
       cityName="Бровари"
       viewer={viewer}
-      operatorName="Олексій"
+      operator={{ kind: "configured", name: "Олексій" }}
     />,
   );
 
@@ -183,7 +183,7 @@ describe("ShelterProfile (K4, read-only)", () => {
         view={view()}
         cityName="Бровари"
         viewer="admin"
-        operatorName="Олексій $& $1"
+        operator={{ kind: "configured", name: "Олексій $& $1" }}
       />,
     );
     expect(
@@ -310,7 +310,7 @@ describe("ShelterProfile with K4 editing", () => {
         view={view()}
         cityName="Бровари"
         viewer="admin"
-        operatorName="Олексій"
+        operator={{ kind: "configured", name: "Олексій" }}
         editing={open}
       />,
     );
@@ -324,7 +324,7 @@ describe("ShelterProfile with K4 editing", () => {
         view={view()}
         cityName="Бровари"
         viewer="support"
-        operatorName="Олексій"
+        operator={{ kind: "configured", name: "Олексій" }}
         editing={open}
       />,
     );
@@ -337,7 +337,7 @@ describe("ShelterProfile with K4 editing", () => {
         view={view()}
         cityName="Бровари"
         viewer="admin"
-        operatorName="Олексій"
+        operator={{ kind: "configured", name: "Олексій" }}
         editing={{ kind: "read_only" }}
       />,
     );
@@ -361,7 +361,7 @@ describe("the test-shelter-only area mounts for the allowlisted admin only (CG-Q
         view={view()}
         cityName="Бровари"
         viewer={viewer}
-        operatorName="Олексій"
+        operator={{ kind: "configured", name: "Олексій" }}
         editing={editing}
       />,
     );
@@ -408,7 +408,12 @@ describe("the pause note on the read-only page (K4-B4)", () => {
     "%s: the paused line, then «Коментар» and the note",
     (viewer) => {
       render(
-        <ShelterProfile view={paused} cityName="Бровари" viewer={viewer} operatorName="Олексій" />,
+        <ShelterProfile
+          view={paused}
+          cityName="Бровари"
+          viewer={viewer}
+          operator={{ kind: "configured", name: "Олексій" }}
+        />,
       );
       expect(
         screen.getByText(/^Прийом на паузі з \d+ жовтня 2026 р?\.? ?· Немає місця$/),
@@ -430,7 +435,7 @@ describe("the pause note on the read-only page (K4-B4)", () => {
         })}
         cityName="Бровари"
         viewer="admin"
-        operatorName="Олексій"
+        operator={{ kind: "configured", name: "Олексій" }}
       />,
     );
     expect(screen.getByText(/· Переїзд$/)).toBeTruthy();
