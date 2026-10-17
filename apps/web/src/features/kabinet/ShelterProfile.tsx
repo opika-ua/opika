@@ -8,6 +8,7 @@ import { ProfileEditor } from "./profile-edit/ProfileEditor";
 import { SignOutButton } from "./SignOutButton";
 import { SupportBanner } from "./SupportBanner";
 import { AllowlistedShelterArea } from "./test-shelter-only/AllowlistedShelterArea";
+import { VerificationDecision } from "./VerificationDecision";
 
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"; mock
@@ -118,6 +119,9 @@ export function ShelterProfile({
             </h1>
             <p className={`hidden desktop:block ${CAPTION}`}>{t.intro}</p>
           </div>
+
+          {/* K5 (RU-Q7): a rejected or suspended shelter reads why, for its admins and the support view alike. */}
+          <VerificationDecision verification={view.verification} />
 
           {editing.kind === "open" && !support ? (
             <ProfileEditor
