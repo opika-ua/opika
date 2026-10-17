@@ -10,7 +10,7 @@ export const CARD = "flex min-w-0 flex-col gap-4 rounded-rg-card bg-rg-surface p
 export const CARD_TITLE = "text-xl font-bold tracking-tight text-rg-ink";
 /** A page's one heading (the operator's list and shelter pages). */
 export const PAGE_TITLE = "text-3xl font-bold tracking-tight break-words text-rg-ink";
-/** A status as a filled chip, not a control (S4's verification status). */
+/** A status as a filled chip, not a control (the verification status on S4 and on S2's success state). */
 export const STATUS_CHIP =
   "inline-flex min-h-8 items-center rounded-rg-chip bg-rg-ink px-3 text-sm font-medium text-rg-surface";
 /** Small text that carries weight: the operator's name in the header. */

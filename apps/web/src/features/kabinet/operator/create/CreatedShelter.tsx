@@ -5,7 +5,7 @@ import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button, buttonClass } from "../../../controls/controls";
-import { BODY, CARD, CARD_TITLE, ERROR_TEXT } from "../../profile-edit/styles";
+import { BODY, CARD, CARD_TITLE, ERROR_TEXT, STATUS_CHIP } from "../../profile-edit/styles";
 import { shelterPath } from "../list-params";
 import {
   createRefusalOf,
@@ -109,7 +109,7 @@ export function CreatedShelter({
 
   return (
     <section aria-labelledby="created-shelter-fact" className={`${CARD} self-start`}>
-      <span className="inline-flex min-h-8 items-center self-start rounded-rg-chip border-2 border-dashed border-rg-ink-3 px-3 text-sm font-medium text-rg-ink-2">
+      <span className={`${STATUS_CHIP} self-start`}>
         {uk.kabinet.profileStatus[view.verification.status]}
       </span>
       <h1 id="created-shelter-fact" ref={factRef} tabIndex={-1} className={CARD_TITLE}>
