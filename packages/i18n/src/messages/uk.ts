@@ -333,7 +333,12 @@ export const uk = {
     title: "Ось як зв'язатися з притулком.",
     subtitle:
       "Притулок не знає про цей запит, поки ви не напишете самі. Нічого не сталося автоматично.",
-    /** Template: "Контакти збережено такими, якими вони є сьогодні · {date}" */
+    /**
+     * Template: "Контакти збережено такими, якими вони є сьогодні · {date}"
+     * ({date} is the first reveal's). Shown only under the first-reveal
+     * record's contacts, never under the shelter's current ones (K4-B5,
+     * `contactsFootnoteOf` in `ContactRevealDialog.tsx`; inbox K4-Q11).
+     */
     contactsFootnote: "Контакти збережено такими, якими вони є сьогодні · {date}",
     meetingPlace: "місце узгодите в листуванні",
     reflectionHeading: "Перед тим як писати — три речі, про які варто подумати спокійно:",
@@ -897,8 +902,11 @@ export const uk = {
       donationTitle: "Збір коштів",
       donationLink: "Посилання на збір",
       donationNote: "Лише https. Реєстр не приймає і не передає гроші — це зовнішнє посилання.",
-      /** A proposed link the operator hasn't approved yet (N20). No mock frame. */
-      donationPending: "Запропоноване посилання — чекає на підтвердження оператора.",
+      /**
+       * A proposed link the operator hasn't approved yet (N20). Rewritten in the
+       * operator's «я» (K4 sheet, answer 8, Oleksii, 2026-10-17).
+       */
+      donationPending: "Запропоноване посилання чекає, поки я його перевірю.",
       voiceTitle: "Голос притулку",
       voiceLabel: "Ваші слова на картках",
       /**
@@ -951,6 +959,171 @@ export const uk = {
      * so it is not pending.
      */
     profileNotRecorded: "Не записано",
+    /**
+     * CG-Q1 (Oleksii, verbatim: "Pending strings only under
+     * uk.kabinet.testShelterOnly.*"): the one place a `[COPY PENDING]` string
+     * may sit without switching production sign-in off, and only while the
+     * write policy is the refusal or the K-Q17 allowlist
+     * (`testShelterCopyExemptUnder`, `apps/web/src/kabinet/production-sign-in.ts`).
+     * Only `apps/web/src/features/kabinet/test-shelter-only/` may read it
+     * (source scan), and that folder mounts only for a shelter the allowlist
+     * lets write, which until PR 6 is his test shelter alone. Empty in PR 2:
+     * every K4 string is final. Every other `kabinet.*` key, the emails and
+     * sign-in included, stays strict. Under an open policy (PR 6) anything
+     * pending here turns sign-in off again.
+     */
+    testShelterOnly: {},
+    /**
+     * K4 · editing the shelter profile (`docs/k4-copy-sheet.md`). Oleksii's
+     * final Ukrainian (`k4-copy-uk.md`, 2026-10-17) with his later fixes
+     * (2026-10-17, "K4 copy fixes": `actions.liveOnSave` split per section,
+     * `state.saved`, `pause.noteHint`, `voice.emptyMeans`/`previewEmpty`),
+     * applied verbatim, with U+02BC as the apostrophe in every one of them
+     * (K4-B4, answer 3, verbatim: "ʼ (U+02BC) in all my strings, incl.
+     * contacts.atLeastOne «звʼязку». User input keeps accepting ' and [U+2019]
+     * (token normalisation unchanged)."), his second apostrophe written as
+     * [U+2019] because this file may not contain that character
+     * (`apostrophes.test.ts`). Older catalogue strings keep U+0027. `errors.phoneRequired` is not here:
+     * his answer 3 needs no required phone.
+     *
+     * **Literal braces.** `{імʼя}` and `{дата}` below are text the shelter
+     * types, not slots. Slots are filled by `fillTemplate` (`../template.ts`),
+     * whose slot names are ASCII letters only (`{time}`, `{max}`, `{token}`…),
+     * so a Cyrillic name in braces can never match one, and a filled value is
+     * never scanned again (a `{token}` value of «{max}» stays as typed).
+     */
+    profileEdit: {
+      actions: {
+        save: "Зберегти",
+        cancel: "Скасувати зміни",
+        /** Per section (answer 1). */
+        liveOnSave: {
+          /**
+           * True since K4-B4, answer 1: reveal views and «Мої запити» carry the
+           * shelter's current contacts while it is visible (`shelterContact`,
+           * `source: "current"`, K4-B5, chosen in
+           * `apps/web/src/api/handlers/reveal.ts`), so a person who asked
+           * before the change gets the new ones too.
+           */
+          contacts:
+            "Нові контакти побачать одразу після збереження — коли натиснуть «Написати притулку».",
+          voice: "Нове речення зʼявиться в стрічці та на сторінках тварин одразу після збереження.",
+        },
+        unsavedLeave: "Зміни не збережено. Все одно вийти?",
+      },
+      state: {
+        saving: "Збереження…",
+        saved: "Збережено.",
+        /** `{time}` is HH:mm, Kyiv. */
+        savedAt: "Збережено о {time}",
+        failed:
+          "Не збереглося — на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
+        retry: "Спробувати ще раз",
+      },
+      errors: {
+        conflict:
+          "Профіль змінили після того, як ви його відкрили. Ваші зміни не збережено. Ось поточна версія — внесіть зміни ще раз.",
+        conflictReload: "Показати поточну версію",
+        illegalTransitionPause:
+          "Зараз не вийде поставити прийом на паузу: статус притулку змінився. Оновіть сторінку.",
+        illegalTransitionResume:
+          "Звідси прийом зараз не відновити: статус притулку змінився. Напишіть мені.",
+        notAvailable: "Змінювати дані в кабінеті поки не можна — для цього напишіть мені.",
+        phoneFormat: "Вкажіть номер із кодом країни, наприклад +380 67 123 45 67.",
+        telegramFormat:
+          "Імʼя користувача в Telegram: 5–32 латинські літери, цифри або підкреслення. @ можна не писати.",
+        viberFormat: "Вкажіть номер Viber із кодом країни, наприклад +380 67 123 45 67.",
+        emailFormat: "Схоже, це не адреса пошти.",
+        httpsOnly: "Лише посилання, що починаються з https://.",
+        notAUrl: "Це не схоже на посилання.",
+        /** `{max}` is 280. */
+        sentenceTooLong: "Речення довше за {max} символів.",
+        /** `{token}` is the braced text the shelter typed. `{імʼя}` is literal. */
+        unknownToken:
+          "Підставляється лише {імʼя}. Приберіть «{token}» або напишіть без фігурних дужок.",
+        /** Answer 5. `{дата}` is literal. */
+        dateTokenGone: "Дата й так показується над вашим реченням, тому {дата} писати не потрібно.",
+        strayBrace: "Є дужка без пари. Фігурні дужки потрібні лише для {імʼя}.",
+      },
+      contacts: {
+        otherLabel: "Інший спосіб звʼязку",
+        otherKind: "Тип",
+        phonePlaceholder: "+380 …",
+        telegramPlaceholder: "@username",
+        removeOther: "Прибрати",
+        /** Answer 3. */
+        addOther: "Додати ще один спосіб звʼязку",
+        /** Answer 3: no required phone, at least one channel. */
+        atLeastOne: "Залиште хоча б один спосіб звʼязку.",
+      },
+      voice: {
+        hint: "Одне речення від першої особи, вашими словами. Реєстр підставляє лише імʼя тварини — там, де ви напишете {імʼя}. Більше нічого не змінюється.",
+        nameStaysHint:
+          "Імʼя стоїть як є: Рекс, Мурка. Його не відмінюють, тож пишіть так, щоб воно звучало природно, — наприклад, «{імʼя} досі шукає дім».",
+        /** Answer 7: inserts the token at the cursor. */
+        insertName: "Вставити {імʼя}",
+        counter: "{count} / {max}",
+        counterOver: "Зайвих символів: {over}",
+        emptyMeans: "Якщо залишити порожнім, на картках буде лише „Оновлено … тому“.",
+        /** `{name}` is the preview animal's name (nominative, by his note). */
+        previewLabel: "Так це виглядає на сторінці тварини: {name}",
+        previewNoAnimals:
+          "Попередній перегляд зʼявиться, щойно у вас буде тварина: тут буде видно, як речення виглядатиме на її сторінці.",
+        previewEmpty: "Речення немає — на картці буде лише „Оновлено … тому“.",
+      },
+      donation: {
+        optional: "· необовʼязково",
+        previewLabel: "Так це побачать люди:",
+        previewHost: "{host} ↗",
+        propose: "Надіслати на перевірку",
+        proposeNote:
+          "Нове посилання зʼявиться на картках після того, як я його перевірю. До того люди бачать поточне.",
+        /** Answer 8. */
+        pendingTitle: "Чекає на перевірку",
+        pendingHost: "Запропоновано: {host}",
+        pendingSince: "Надіслано {date}",
+        cancelProposal: "Скасувати пропозицію",
+        proposed: "Надіслано. Я перевірю посилання.",
+        cancelled: "Пропозицію скасовано. Поточне посилання лишається.",
+        replaceNote: "Якщо надіслати інше посилання, воно замінить те, що чекає на перевірку.",
+        failed: "Не надіслано. Перевірте зʼєднання і спробуйте ще раз.",
+        /** Answer 12: shown while the newest donation line is the operator declining. */
+        declined:
+          "Останнє запропоноване посилання не підтверджено. Якщо незрозуміло чому — напишіть мені.",
+      },
+      pause: {
+        button: "Призупинити прийом тварин",
+        resumeButton: "Відновити прийом тварин",
+        /** `{date}` the pause's date, `{reason}` the code's label only, never the note (fix 5). */
+        pausedLine: "Прийом на паузі з {date} · {reason}",
+        dialogTitle: "Призупинити прийом тварин?",
+        dialogBody:
+          "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає. Відновити можна тут будь-коли.",
+        reasonLabel: "Причина",
+        reasonPlaceholder: "Оберіть причину",
+        reason: {
+          seasonal_closure: "Сезонна перерва",
+          relocation: "Переїзд",
+          capacity_reached: "Немає місця",
+          staff_shortage: "Брак людей",
+          other: "Інше",
+        },
+        noteLabel: "Коментар",
+        /**
+         * Fix 2. True since K4-B4, answer 2: the note shows under the paused
+         * line, labelled «Коментар», on the shelter's kabinet page, which only
+         * its admins and the operator's support view reach; no public view
+         * carries it.
+         */
+        noteHint:
+          "Коментар бачите ви, інші адміністратори притулку і я. Людям, які шукають тварину, він не показується.",
+        confirm: "Призупинити прийом",
+        cancel: "Скасувати",
+        close: "Закрити",
+        paused: "Прийом на паузі.",
+        resumed: "Прийом відновлено. Ваших тварин знову видно.",
+      },
+    },
     /** S5 · support mode (N16): the operator's read-only view of this page. */
     support: {
       /**

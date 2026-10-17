@@ -55,10 +55,10 @@ function revealFor(contact: ShelterContact): ContactRevealView {
     id: REVEAL_ID,
     animalId: ANIMAL_ID,
     revealedAt: new Date("2026-08-08T10:00:00Z"),
-    shelterSnapshot: {
+    shelterContact: { source: "current", contact },
+    shelterAtFirstReveal: {
       shelterId: SHELTER_ID,
       displayName: "Притулок «Домівка»",
-      contact,
       // City only, as the served reveal carries it (EM-D1): no exact
       // address, district or point ever reaches the client.
       publicLocation: { cityId: CITY_ID },
@@ -196,8 +196,8 @@ describe("RevealFlow's location line (EM-D1)", () => {
     });
     revealCall.mockResolvedValue({
       ...overWide,
-      shelterSnapshot: {
-        ...overWide.shelterSnapshot,
+      shelterAtFirstReveal: {
+        ...overWide.shelterAtFirstReveal,
         exactAddress: {
           line1: "вул. Незалежності, 12",
           line2: "кв. 3",

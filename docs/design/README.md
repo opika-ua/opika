@@ -737,7 +737,7 @@ radius 24, padding 24, `gap: 24`, the one shadow, backdrop `#B9B9B5`; ✕ 48×48
 Sequence: caption «Ви запитали про Ластівку.» (ink-3) → display-m «Ось як зв'язатися з
 притулком.» → body-l reassurance «Притулок не знає про цей запит, поки ви не напишете самі.
 Нічого не сталося автоматично.» (load-bearing, do not cut). Contacts card (`#F2F2F0` radius 16;
-phone and Telegram rows white fill, 56, 17px; snapshot footnote 13/18) beside the three-things
+phone and Telegram rows white fill, 56, 17px; snapshot footnote 13/18 *(since K4-B4/K4-B5, 2026-10-17: the dialog shows the shelter's current contacts, so the footnote shows only with a first-reveal record; whether a line for current contacts is wanted is inbox K4-Q11)*) beside the three-things
 card. Footer: «Написати в Telegram» primary `flex: 1` + «Повернутися до галереї» underlined
 text button. Enter by opacity 220ms, focus trapped, Esc closes, page behind does not scroll.
 Mobile: full screen, cards stacked, actions in the bottom bar.

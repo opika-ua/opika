@@ -392,3 +392,54 @@ describe("assertBuildEnv: LOCATION_HMAC_SECRET on a production build (WI-T2)", (
     expect(messageOf(env)).not.toMatch(/LOCATION_HMAC_SECRET/);
   });
 });
+
+/**
+ * K-Q17: `KABINET_WRITE_ALLOWLIST` is optional on every build, and a value
+ * that is set must be valid (exactly one lowercase shelter UUID, no padding:
+ * "one open path for that id"). Its message names the variable, never the
+ * value.
+ */
+describe("assertBuildEnv: KABINET_WRITE_ALLOWLIST (K-Q17)", () => {
+  const ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const production = {
+    VERCEL: "1",
+    VERCEL_ENV: "production",
+    CRON_SECRET: "c".repeat(32),
+    ...RATE_KEY,
+    ...R2,
+    ...LOCATION,
+    ...SIGN_IN,
+  };
+  const messageOf = (env: Record<string, string | undefined>) => {
+    try {
+      assertBuildEnv(env);
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return "";
+  };
+
+  it("builds without it, and with one valid id", () => {
+    expect(messageOf(production)).toBe("");
+    expect(messageOf({ ...production, KABINET_WRITE_ALLOWLIST: ID })).toBe("");
+  });
+
+  const ONE_ID = /KABINET_WRITE_ALLOWLIST holds \d+ comma-separated items; it takes exactly one/;
+  const ONE_UUID = /KABINET_WRITE_ALLOWLIST must be one lowercase shelter UUID/;
+  it.each([
+    ["padded", `${ID}\n`, /KABINET_WRITE_ALLOWLIST has a space or a line break/],
+    ["two ids", `${ID},${ID.replaceAll("d", "e")}`, ONE_ID],
+    ["a space after a comma", `${ID}, ${ID.replaceAll("d", "e")}`, ONE_ID],
+    ["a trailing comma", `${ID},`, ONE_ID],
+    ["three ids", [ID, ID.replaceAll("d", "e"), ID.replaceAll("d", "f")].join(","), ONE_ID],
+    ["a repeat", `${ID},${ID}`, ONE_ID],
+    ["uppercase", ID.toUpperCase(), ONE_UUID],
+    ["not a UUID", "test-shelter", ONE_UUID],
+  ])("fails any build with it %s, naming it and never the value", (_label, value, reason) => {
+    for (const env of [production, {}]) {
+      const message = messageOf({ ...env, KABINET_WRITE_ALLOWLIST: value });
+      expect(message).toMatch(reason);
+      expect(message).not.toContain("dddddddd");
+    }
+  });
+});

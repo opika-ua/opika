@@ -1,8 +1,9 @@
-import { cityRepo, shelterRepo } from "@opika/db/repos";
-import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
-import type { ModeratorId, Shelter, ShelterAdminId } from "@opika/domain";
+import { animalRepo, cityRepo, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
+import { makeAnimal, makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
+import type { CityId, ModeratorId, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { kabinetHomeOf, leavesSignIn } from "../features/kabinet/home";
+import { SHELTER_WRITE_POLICY, type ShelterWritePolicy, shelterWritePolicyOf } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 
@@ -22,11 +23,13 @@ afterAll(async () => cleanup?.());
 const OPERATOR = "0ec0ec0e-0000-4000-8000-000000000001" as ModeratorId;
 let mine: Shelter;
 let theirs: Shelter;
+let cityId: CityId;
 
 beforeEach(async () => {
   await truncateAll(db);
   const city = makeCity({ name: { uk: "Бровари", en: { text: "Brovary", provenance: "human" } } });
   await cityRepo(db).insert(city);
+  cityId = city.id;
   mine = makeShelter({ publicLocation: { ...makeShelter().publicLocation, cityId: city.id } });
   theirs = makeShelter({
     displayName: "Інший притулок",
@@ -36,12 +39,22 @@ beforeEach(async () => {
   await shelterRepo(db).insert(theirs);
 });
 
-const deps = () => ({
+const deps = (shelterWrites: ShelterWritePolicy = SHELTER_WRITE_POLICY) => ({
   db,
   now: new Date(),
   newId: () => crypto.randomUUID(),
   invites: capturingInvitationSender(),
   linkBaseURL: "http://localhost",
+  shelterWrites,
+  cursorSecret: "test-cursor-secret",
+  operatorDisplayName: "Олексій",
+});
+
+const ADMIN = "33333333-3333-4333-8333-333333333333" as ShelterAdminId;
+const adminOf = (shelter: Shelter): KabinetPrincipal => ({
+  kind: "shelter_admin",
+  shelterAdminId: ADMIN,
+  shelterId: shelter.id,
 });
 
 describe("kabinetHomeOf", () => {
@@ -92,7 +105,7 @@ describe("kabinetHomeOf", () => {
       deps(),
     );
     if (home.kind !== "shelter") throw new Error("unreachable");
-    expect(Object.keys(home).sort()).toEqual(["cityName", "kind", "view", "viewer"]);
+    expect(Object.keys(home).sort()).toEqual(["cityName", "editing", "kind", "view", "viewer"]);
     expect(Object.keys(home.view).sort()).toEqual([
       "contact",
       "description",
@@ -128,6 +141,142 @@ describe("kabinetHomeOf", () => {
     if (home.kind !== "shelter") throw new Error("unreachable");
     expect(home.view.contact).toEqual(mine.contact);
     expect(JSON.stringify(home)).not.toContain("operator-only");
+  });
+});
+
+/**
+ * K4: whether the page offers the editor, decided with the router's own
+ * `decideAccess` and the served policy (K-Q17), and what the editor needs:
+ * an animal for the preview (N11) and whether the last proposal was declined
+ * (answer 12).
+ */
+describe("kabinetHomeOf: K4 editing", () => {
+  const allowlistMine = () => shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: mine.id });
+
+  it("read-only for a shelter admin while writes are refused (the served default)", async () => {
+    const home = await kabinetHomeOf(adminOf(mine), deps());
+    expect(home).toMatchObject({ kind: "shelter", editing: { kind: "read_only" } });
+  });
+
+  it("open for the allowlisted shelter's admin, read-only for every other shelter", async () => {
+    expect(await kabinetHomeOf(adminOf(mine), deps(allowlistMine()))).toMatchObject({
+      editing: { kind: "open" },
+    });
+    expect(await kabinetHomeOf(adminOf(theirs), deps(allowlistMine()))).toMatchObject({
+      editing: { kind: "read_only" },
+    });
+  });
+
+  it("read-only for a support view, even of the allowlisted shelter", async () => {
+    const home = await kabinetHomeOf(
+      { kind: "support_view", moderatorId: OPERATOR, shelterId: mine.id },
+      deps(allowlistMine()),
+    );
+    expect(home).toMatchObject({ viewer: "support", editing: { kind: "read_only" } });
+  });
+
+  it("no animal: no preview animal", async () => {
+    const home = await kabinetHomeOf(adminOf(mine), deps(allowlistMine()));
+    expect(home).toMatchObject({ editing: { kind: "open", previewAnimal: null } });
+  });
+
+  it("previews with an animal adopters can see, and its real day count", async () => {
+    const confirmedAt = new Date(Date.now() - 12 * 86_400_000);
+    await animalRepo(db).insert(
+      makeAnimal({ shelterId: mine.id, name: "Чернетка", listing: { kind: "draft" } }),
+      cityId,
+    );
+    await animalRepo(db).insert(
+      makeAnimal({
+        shelterId: mine.id,
+        name: "Ластівка",
+        listing: { kind: "published", publishedAt: confirmedAt, confirmedAt, undoable: null },
+      }),
+      cityId,
+    );
+    const home = await kabinetHomeOf(adminOf(mine), deps(allowlistMine()));
+    if (home.kind !== "shelter" || home.editing.kind !== "open") throw new Error("not open");
+    expect(home.editing.previewAnimal?.name).toBe("Ластівка");
+    expect(home.editing.previewAnimal?.freshness).toMatchObject({ ageDays: 12, kind: "aging" });
+  });
+
+  it("with drafts only, previews with a draft as it would read on the day it is published", async () => {
+    await animalRepo(db).insert(
+      makeAnimal({ shelterId: mine.id, name: "Чернетка", listing: { kind: "draft" } }),
+      cityId,
+    );
+    const home = await kabinetHomeOf(adminOf(mine), deps(allowlistMine()));
+    if (home.kind !== "shelter" || home.editing.kind !== "open") throw new Error("not open");
+    expect(home.editing.previewAnimal).toMatchObject({
+      name: "Чернетка",
+      freshness: { ageDays: 0, kind: "fresh" },
+    });
+  });
+
+  describe("the declined proposal (answer 12)", () => {
+    const link = { url: "https://dobro.ua/fund/x", provider: "other" as const };
+    const append = async (
+      entry: Parameters<ReturnType<typeof kabinetShelterRepo>["appendHistory"]>[0]["entry"],
+    ) =>
+      kabinetShelterRepo(db).appendHistory({ id: crypto.randomUUID(), shelterId: mine.id, entry });
+    const proposed = (at: Date) => ({
+      kind: "donation_proposed" as const,
+      at,
+      actor: { kind: "shelter_admin" as const, shelterAdminId: ADMIN },
+      link,
+    });
+    const rejected = (at: Date) => ({
+      kind: "donation_decided" as const,
+      at,
+      moderatorId: OPERATOR,
+      decision: "rejected" as const,
+      link,
+      previousLive: null,
+    });
+    const declinedOf = async () => {
+      const home = await kabinetHomeOf(adminOf(mine), deps(allowlistMine()));
+      if (home.kind !== "shelter" || home.editing.kind !== "open") throw new Error("not open");
+      return home.editing.donationDeclined;
+    };
+
+    it("is false with no donation history", async () => {
+      expect(await declinedOf()).toBe(false);
+    });
+
+    it("is true when the newest donation line is a rejection, other lines above it or not", async () => {
+      await append(proposed(new Date("2026-10-01T10:00:00Z")));
+      await append(rejected(new Date("2026-10-02T10:00:00Z")));
+      await append({
+        kind: "animal_created",
+        at: new Date("2026-10-03T10:00:00Z"),
+        actor: { kind: "shelter_admin", shelterAdminId: ADMIN },
+        animalId: crypto.randomUUID() as never,
+        animalName: "Рекс",
+      });
+      expect(await declinedOf()).toBe(true);
+    });
+
+    it("is false again once a newer proposal is on top", async () => {
+      await append(proposed(new Date("2026-10-01T10:00:00Z")));
+      await append(rejected(new Date("2026-10-02T10:00:00Z")));
+      await append(proposed(new Date("2026-10-04T10:00:00Z")));
+      expect(await declinedOf()).toBe(false);
+    });
+
+    it("finds a rejection more than one history page down", async () => {
+      await append(proposed(new Date("2026-09-01T10:00:00Z")));
+      await append(rejected(new Date("2026-09-02T10:00:00Z")));
+      for (let i = 0; i < 60; i += 1) {
+        await append({
+          kind: "animal_created",
+          at: new Date(Date.UTC(2026, 9, 1, 0, i)),
+          actor: { kind: "shelter_admin", shelterAdminId: ADMIN },
+          animalId: crypto.randomUUID() as never,
+          animalName: `Тварина ${i}`,
+        });
+      }
+      expect(await declinedOf()).toBe(true);
+    });
   });
 });
 

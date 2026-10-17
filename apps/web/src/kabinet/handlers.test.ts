@@ -214,6 +214,69 @@ describe("shelter.profile", () => {
     ]);
   });
 
+  /**
+   * K4 sheet, answer 13 (Oleksii, verbatim: "Clear `en` when `uk` changes; a
+   * stale translation would be a false claim."). The shelter starts with a
+   * Ukrainian sentence and its English translation; the requests below send
+   * that same English back, as the K4 editor does.
+   */
+  describe("the English translation (answer 13)", () => {
+    const stored = {
+      uk: "Оновлюємо картки щосуботи.",
+      en: { text: "We update the cards every Saturday.", provenance: "human" as const },
+    };
+
+    const reseed = async (freshnessSentence: Shelter["freshnessSentence"]) => {
+      await truncateAll(db);
+      const city = makeCity();
+      await cityRepo(db).insert(city);
+      cityId = city.id;
+      shelter = makeShelter({
+        id: shelter.id,
+        publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
+        freshnessSentence,
+      });
+      await shelterRepo(db).insert(shelter);
+    };
+
+    it("is cleared when the Ukrainian changes, even if the request carries the old English", async () => {
+      await reseed(stored);
+      const changed = { uk: "Пишіть нам у будь-який день.", en: null };
+      const result = await call<KabinetShelterView>("shelter.profile.updateFreshnessSentence", {
+        freshnessSentence: { uk: changed.uk, en: stored.en },
+        expectedVersion: 0,
+      });
+      expect(result.status).toBe(200);
+      expect(result.body.freshnessSentence).toEqual(changed);
+      expect((await shelterRepo(db).findById(shelter.id))?.freshnessSentence).toEqual(changed);
+      // History records what was stored, not what was sent.
+      expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toMatchObject([
+        { kind: "freshness_sentence_changed", previous: stored, next: changed },
+      ]);
+    });
+
+    it("is kept when the Ukrainian is unchanged", async () => {
+      await reseed(stored);
+      const result = await call<KabinetShelterView>("shelter.profile.updateFreshnessSentence", {
+        freshnessSentence: stored,
+        expectedVersion: 0,
+      });
+      expect(result.status).toBe(200);
+      expect(result.body.freshnessSentence).toEqual(stored);
+    });
+
+    it("compares the normalised Ukrainian: another spelling of {імʼя} is not a change", async () => {
+      const withToken = { uk: "{імʼя} досі шукає дім.", en: stored.en };
+      await reseed(withToken);
+      const result = await call<KabinetShelterView>("shelter.profile.updateFreshnessSentence", {
+        freshnessSentence: { uk: "{ім'я} досі шукає дім.", en: stored.en },
+        expectedVersion: 0,
+      });
+      expect(result.status).toBe(200);
+      expect(result.body.freshnessSentence).toEqual(withToken);
+    });
+  });
+
   it("updateFreshnessSentence from a stale form is CONFLICT and writes nothing", async () => {
     const result = await call("shelter.profile.updateFreshnessSentence", {
       freshnessSentence: { uk: "Інше речення.", en: null },
@@ -326,6 +389,39 @@ describe("shelter.profile", () => {
     expect(
       entries.map((e) => (e.kind === "verification" ? `${e.from}->${e.to}` : e.kind)).sort(),
     ).toEqual(["paused->verified", "verified->paused"]);
+  });
+
+  /**
+   * K4-T15 (Oleksii: "fine") and K4-B4, answer 2: the note is trimmed, blank
+   * means none, at most 2,000 characters, and the shelter's own view carries
+   * it back (the kabinet shows it under the paused line).
+   */
+  it("pause: the note is trimmed, kept, and shown back to the shelter; blank is none", async () => {
+    const paused = await call<KabinetShelterView>("shelter.profile.pause", {
+      reason: { code: "relocation", note: "  Переїжджаємо до Бучі  " },
+    });
+    expect(paused.status).toBe(200);
+    expect(paused.body.verification).toMatchObject({
+      status: "paused",
+      reason: { code: "relocation", note: "Переїжджаємо до Бучі" },
+    });
+    expect(
+      (await call<KabinetShelterView>("shelter.profile.get", {})).body.verification,
+    ).toMatchObject({ reason: { note: "Переїжджаємо до Бучі" } });
+    await call("shelter.profile.resume", {});
+    const blank = await call<KabinetShelterView>("shelter.profile.pause", {
+      reason: { code: "other", note: "   " },
+    });
+    expect(blank.body.verification).toMatchObject({ reason: { code: "other", note: null } });
+  });
+
+  it("pause: a note over 2,000 characters is BAD_REQUEST and writes nothing", async () => {
+    const result = await call("shelter.profile.pause", {
+      reason: { code: "other", note: "а".repeat(2001) },
+    });
+    expect(result.status).toBe(400);
+    expect((await shelterRepo(db).findById(shelter.id))?.verification.status).toBe("verified");
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
   });
 
   it("resume on a shelter that isn't paused is ILLEGAL_TRANSITION, naming the machine", async () => {

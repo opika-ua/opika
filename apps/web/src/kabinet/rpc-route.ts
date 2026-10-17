@@ -50,7 +50,7 @@ export async function handleKabinetRpc(
     operatorDisplayName: string;
     locationPolicy: LocationPrivacyPolicy | null;
     production: boolean;
-    /** The served route passes `SHELTER_WRITE_POLICY` (KH-Q1). */
+    /** The served route passes `shelterWritePolicyOf(process.env)` (KH-Q1, K-Q17). */
     shelterWrites: ShelterWritePolicy;
   },
 ): Promise<Response> {

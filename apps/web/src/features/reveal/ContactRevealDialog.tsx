@@ -85,6 +85,39 @@ function contactChannelText(channel: ContactChannel): string {
   }
 }
 
+/**
+ * «Контакти збережено такими, якими вони є сьогодні · {date}», only where it
+ * is true: under the first-reveal record's contacts, dated by that first
+ * reveal (`revealedAt` is the stored reveal's, unchanged by a repeat).
+ *
+ * Never under the shelter's current contacts (`source: "current"`, K4-B4),
+ * which is every `animals.reveal` answer: there the date would be the first
+ * reveal's while the channels are today's, so a number changed since would
+ * be captioned as saved on a day it didn't exist (Tier 1 review, finding 1).
+ * Deleted rather than reworded there (standing constraints, "Removing a
+ * false claim is not the same gate as adding one"); whether a line for the
+ * current-contacts case is wanted is his question (inbox K4-Q11).
+ */
+function contactsFootnoteOf(reveal: ContactRevealView): string | null {
+  switch (reveal.shelterContact.source) {
+    case "current":
+      return null;
+    case "first_reveal": {
+      const date = new Intl.DateTimeFormat("uk-UA", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(reveal.revealedAt);
+      return uk.reveal.contactsFootnote.replace("{date}", () => date);
+    }
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled source; unreachable at runtime */
+    default: {
+      const unreachable: never = reveal.shelterContact;
+      return unreachable;
+    }
+  }
+}
+
 type DialogState = Extract<RevealState, { kind: "error" }> | Extract<RevealState, { kind: "open" }>;
 
 interface ContactRevealDialogProps {
@@ -312,13 +345,10 @@ function RevealContent({
   onClose: () => void;
   secondaryAction?: { label: string; onClick: () => void } | undefined;
 }) {
-  const shelter = reveal.shelterSnapshot;
-  const dateLabel = new Intl.DateTimeFormat("uk-UA", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(reveal.revealedAt);
-  const primaryAction = primaryContactAction(shelter.contact.primary);
+  const shelter = reveal.shelterAtFirstReveal;
+  const { contact } = reveal.shelterContact;
+  const footnote = contactsFootnoteOf(reveal);
+  const primaryAction = primaryContactAction(contact.primary);
 
   return (
     <>
@@ -351,7 +381,7 @@ function RevealContent({
       <div className="flex flex-col desktop:flex-row gap-4">
         <div className="flex-1 min-w-0 bg-rg-fill rounded-rg-button p-4 flex flex-col gap-2">
           <span className="text-[15px]/[22px] font-medium text-rg-ink">{shelter.displayName}</span>
-          {allChannels(shelter.contact).map((channel) => (
+          {allChannels(contact).map((channel) => (
             <span
               key={`${channel.kind}:${contactChannelText(channel)}`}
               data-testid="reveal-contact-row"
@@ -365,9 +395,9 @@ function RevealContent({
               ? `${uk.location.lineAtShelter.replace("{city}", () => cityName)} · ${uk.reveal.meetingPlace}`
               : uk.reveal.meetingPlace}
           </span>
-          <span className="text-[13px]/[18px] text-rg-ink-3">
-            {uk.reveal.contactsFootnote.replace("{date}", dateLabel)}
-          </span>
+          {footnote !== null && (
+            <span className="text-[13px]/[18px] text-rg-ink-3">{footnote}</span>
+          )}
         </div>
 
         <div className="flex-1 min-w-0 bg-rg-fill rounded-rg-button p-4 flex flex-col gap-3">

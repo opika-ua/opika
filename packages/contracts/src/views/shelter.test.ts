@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import {
   CityIdSchema,
   EdrpouSchema,
@@ -125,6 +126,26 @@ describe("public shelter projections withhold the private fields", () => {
 });
 
 describe("the reveal is the one sanctioned path to the contact details, and never to the address", () => {
+  /** The stored first-reveal record, whole: what a regressed handler might hand the view. */
+  const record = {
+    shelterId: SHELTER_ID,
+    displayName: shelter.displayName,
+    contact,
+    exactAddress,
+    publicLocation: shelter.publicLocation,
+    verificationStatusAtReveal: "verified",
+    donation: null,
+  } as const;
+  const revealOf = (extra: Record<string, unknown> = {}) => ({
+    id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    animalId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    revealedAt: AT,
+    shelterContact: { source: "current", contact },
+    shelterAtFirstReveal: record,
+    animalSnapshot: { name: "Мурчик", primaryPhoto: null },
+    ...extra,
+  });
+
   /**
    * EM-D1 (Oleksii, 2026-10-15, verbatim: "the exact address never leaves the
    * server for adopters"): the view strips the exact address and the
@@ -132,50 +153,151 @@ describe("the reveal is the one sanctioned path to the contact details, and neve
    * keeps the contact channels and the city.
    */
   it("carries the contact and the city, and strips the exact address, district and point", () => {
-    const view = ContactRevealViewSchema.parse({
-      id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
-      animalId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
-      revealedAt: AT,
-      shelterSnapshot: {
-        shelterId: SHELTER_ID,
-        displayName: shelter.displayName,
-        contact,
-        exactAddress,
-        publicLocation: shelter.publicLocation,
-        verificationStatusAtReveal: "verified",
-        donation: null,
-      },
-      animalSnapshot: { name: "Мурчик", primaryPhoto: null },
-    });
+    const view = ContactRevealViewSchema.parse(
+      revealOf({ shelterContact: { source: "current", contact, exactAddress } }),
+    );
 
-    expect(view.shelterSnapshot).not.toHaveProperty("exactAddress");
-    expect(view.shelterSnapshot.publicLocation).toEqual({ cityId: CITY_ID });
+    expect(view.shelterAtFirstReveal).not.toHaveProperty("exactAddress");
+    expect(view.shelterContact).not.toHaveProperty("exactAddress");
+    expect(view.shelterAtFirstReveal.publicLocation).toEqual({ cityId: CITY_ID });
     const json = JSON.stringify(view);
     for (const leaked of ["вул. Прикладна", "61000", '"district"', '"coordinates"', '"lat"']) {
       expect(json, leaked).not.toContain(leaked);
     }
-    expect(view.shelterSnapshot.contact.primary).toEqual(contact.primary);
+    expect(view.shelterContact.contact.primary).toEqual(contact.primary);
   });
 
   it("records the verification status as it stood at reveal time", () => {
     // A shelter suspended next month was verified when this adopter was sent
     // to it, and both facts matter when a complaint is investigated.
-    const parsed = ContactRevealViewSchema.parse({
-      id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
-      animalId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
-      revealedAt: AT,
-      shelterSnapshot: {
-        shelterId: SHELTER_ID,
-        displayName: shelter.displayName,
-        contact,
-        exactAddress,
-        publicLocation: shelter.publicLocation,
-        verificationStatusAtReveal: "verified",
-        donation: null,
-      },
-      animalSnapshot: { name: "Мурчик", primaryPhoto: null },
-    });
+    const parsed = ContactRevealViewSchema.parse(revealOf());
+    expect(parsed.shelterAtFirstReveal.verificationStatusAtReveal).toBe("verified");
+  });
+});
 
-    expect(parsed.shelterSnapshot.verificationStatusAtReveal).toBe("verified");
+/**
+ * K4-B5 (Oleksii, verbatim: "rename shelterSnapshot.contact. While the shelter
+ * is visible it holds CURRENT contacts, and "snapshot" will mislead whoever
+ * reads it next. The API has no outside consumers, so rename it now (e.g.
+ * shelterContact, with the stored first-reveal snapshot clearly named as the
+ * record)."). The contacts say where they came from, and the view's fields
+ * stay exactly these at every level: a field added to the stored record or
+ * the reveal reaches adopters only through an edit here, and the exact
+ * address stays out (decision #2, EM-D1).
+ */
+describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
+  const over = {
+    id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    animalId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    adopterId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    shelterId: SHELTER_ID,
+    revealedAt: AT,
+    // The old name, handed alongside: it must not come back through.
+    shelterSnapshot: { contact },
+    shelterAtFirstReveal: {
+      shelterId: SHELTER_ID,
+      displayName: shelter.displayName,
+      contact,
+      exactAddress,
+      publicLocation: shelter.publicLocation,
+      verificationStatusAtReveal: "verified",
+      donation: null,
+      pauseNote: "internal",
+    },
+    animalSnapshot: { name: "Мурчик", primaryPhoto: null },
+  };
+
+  it.each(["current", "first_reveal"] as const)(
+    "%s: these keys and no others, even when handed more",
+    (source) => {
+      const view = ContactRevealViewSchema.parse({
+        ...over,
+        shelterContact: { source, contact, exactAddress, displayName: "x" },
+      });
+      expect(Object.keys(view).sort()).toEqual([
+        "animalId",
+        "animalSnapshot",
+        "id",
+        "revealedAt",
+        "shelterAtFirstReveal",
+        "shelterContact",
+      ]);
+      expect(Object.keys(view.shelterContact).sort()).toEqual(["contact", "source"]);
+      expect(view.shelterContact.source).toBe(source);
+      // The first-reveal object carries no contacts: they are `shelterContact`'s alone.
+      expect(Object.keys(view.shelterAtFirstReveal).sort()).toEqual([
+        "displayName",
+        "donation",
+        "publicLocation",
+        "shelterId",
+        "verificationStatusAtReveal",
+      ]);
+    },
+  );
+
+  it("refuses contacts that don't say where they came from", () => {
+    for (const shelterContact of [{ contact }, { source: "snapshot", contact }]) {
+      expect(() => ContactRevealViewSchema.parse({ ...over, shelterContact })).toThrow();
+    }
+  });
+
+  /**
+   * `pick`, never `omit` (standing constraints, Code): the key tests above
+   * can't tell them apart today, since both give the same set until a field is
+   * added to the stored record, and then only `omit` lets it through.
+   */
+  it("is built with pick, never omit", () => {
+    const source = readFileSync(new URL("./reveal.ts", import.meta.url), "utf8");
+    expect(source).not.toMatch(/\.omit\(/);
+    expect(source.match(/ShelterContactSnapshotSchema\.pick\(/g)).toHaveLength(3);
+    expect(source).toMatch(/ContactRevealSchema\.pick\(/);
+  });
+});
+
+/**
+ * K4-B4, answer 2 (Oleksii, verbatim: "show the pause note under the paused
+ * line, labelled «Коментар», visible only to that shelter's admins (and
+ * operator/support)."): no public view can carry it. A public view holds
+ * verification as a badge word only, so a paused state with its reason and
+ * note can't even be passed through, and the views' keys are exactly these.
+ */
+describe("the pause note reaches no public view (K4-B4)", () => {
+  const paused = {
+    ...shelter,
+    verification: {
+      status: "paused",
+      verifiedAt: AT,
+      verifiedBy: MODERATOR,
+      pausedAt: AT,
+      reason: { code: "relocation", note: "Переїжджаємо до Бучі, телефон зміниться" },
+      evidence: { items: [], submittedAt: AT },
+    },
+  };
+
+  it("public views hold verification as a badge word, so the paused state with its note is refused", () => {
+    expect(PublicShelterViewSchema.safeParse(paused).success).toBe(false);
+    expect(ShelterSummaryViewSchema.safeParse(paused).success).toBe(false);
+  });
+
+  it("their keys are exactly these", () => {
+    const publicView = PublicShelterViewSchema.parse({ ...paused, verification: "unverified" });
+    expect(Object.keys(publicView).sort()).toEqual([
+      "createdAt",
+      "description",
+      "displayName",
+      "donation",
+      "id",
+      "publicLocation",
+      "verification",
+    ]);
+    const summary = ShelterSummaryViewSchema.parse({ ...paused, verification: "unverified" });
+    expect(Object.keys(summary).sort()).toEqual([
+      "displayName",
+      "freshnessSentence",
+      "id",
+      "publicLocation",
+      "verification",
+    ]);
+    expect(JSON.stringify([publicView, summary])).not.toContain("Переїжджаємо");
   });
 });

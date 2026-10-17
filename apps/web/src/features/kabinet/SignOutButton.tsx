@@ -2,6 +2,7 @@
 
 import { uk } from "@opika/i18n";
 import { useState } from "react";
+import { confirmLeave as defaultConfirmLeave } from "./profile-edit/unsaved-changes";
 
 /** Better Auth's sign-out, one of the four forwarded auth paths (`FORWARDED_AUTH_PATHS`). */
 export const SIGN_OUT_PATH = "/api/auth/sign-out";
@@ -28,13 +29,18 @@ async function defaultSignOut(): Promise<void> {
  * stays here and says so: on a shared computer, landing on a sign-in form
  * with the session still live would tell the next person nothing while
  * leaving them inside this shelter's cabinet (review of #93, finding 1).
+ *
+ * With unsaved K4 edits on the page it asks first (`actions.unsavedLeave`,
+ * answer 1); without any, nothing is asked.
  */
 export function SignOutButton({
   signOut = defaultSignOut,
   navigate = (to: string) => window.location.assign(to),
+  confirmLeave = defaultConfirmLeave,
 }: {
   signOut?: () => Promise<void>;
   navigate?: (to: string) => void;
+  confirmLeave?: () => boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -45,6 +51,7 @@ export function SignOutButton({
         aria-busy={busy}
         onClick={async () => {
           if (busy) return;
+          if (!confirmLeave()) return;
           setBusy(true);
           setFailed(false);
           try {

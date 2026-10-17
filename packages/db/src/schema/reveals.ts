@@ -29,6 +29,12 @@ export const reveals = pgTable(
       .references(() => shelters.id)
       .$type<ShelterId>(),
     revealedAt: timestamp("revealed_at", { withTimezone: true }).notNull(),
+    /**
+     * The first-reveal record: the shelter as it stood when this adopter first
+     * revealed the animal, written once and never updated. Not what the
+     * adopter is shown as contacts while the shelter is visible: reveal views
+     * carry its current channels then (`shelterContact`, K4-B4, K4-B5).
+     */
     shelterSnapshot: jsonb<ShelterContactSnapshot>("shelter_snapshot").notNull(),
     animalSnapshot: jsonb<AnimalRevealSnapshot>("animal_snapshot").notNull(),
   },

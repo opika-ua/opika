@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "../../api/db";
+import { requireEnv } from "../../api/env";
 import { kabinetHomeOf } from "../../features/kabinet/home";
 import { JoinFailedCard } from "../../features/kabinet/JoinFailedCard";
 import { KabinetBrand } from "../../features/kabinet/KabinetBrand";
 import { ShelterProfile } from "../../features/kabinet/ShelterProfile";
+import { shelterWritePolicyOf } from "../../kabinet/access";
 import { invitationAccepter, selfHealingIdentity } from "../../kabinet/invitation-accept";
 import { operatorDisplayName } from "../../kabinet/operator";
 import { kabinetIdentityOf } from "../../kabinet/principal";
@@ -49,12 +51,20 @@ export default async function KabinetHomePage() {
       </div>
     );
   }
+  const operatorName = operatorDisplayName({
+    KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,
+  });
   const home = await kabinetHomeOf(healed.identity.principal, {
     db,
     now,
     newId: () => crypto.randomUUID(),
     invites,
     linkBaseURL: baseURL,
+    // K-Q17: the served route's own policy, so the editor shows exactly when
+    // the API would accept its writes.
+    shelterWrites: shelterWritePolicyOf(process.env),
+    cursorSecret: requireEnv("CURSOR_HMAC_SECRET"),
+    operatorDisplayName: operatorName,
   });
   switch (home.kind) {
     case "sign_in":
@@ -69,9 +79,8 @@ export default async function KabinetHomePage() {
           view={home.view}
           cityName={home.cityName}
           viewer={home.viewer}
-          operatorName={operatorDisplayName({
-            KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,
-          })}
+          operatorName={operatorName}
+          editing={home.editing}
         />
       );
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */

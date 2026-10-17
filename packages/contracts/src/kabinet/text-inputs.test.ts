@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   AnimalPatchSchema,
   FreshnessSentenceInputSchema,
+  PAUSE_NOTE_MAX_CHARACTERS,
+  PauseReasonInputSchema,
   registrySheltersContract,
   shelterAnimalsContract,
   shelterProfileContract,
@@ -176,5 +178,39 @@ describe.each(animalFields)("%s", (_path, name, desc) => {
 describe("AnimalPatchSchema", () => {
   it("refuses a patch whose name carries the token", () => {
     expect(AnimalPatchSchema.safeParse({ name: TOKEN }).success).toBe(false);
+  });
+});
+
+/** K4-T15 (Oleksii: "fine"): the pause note's cap, counted in characters. */
+describe("PauseReasonInputSchema", () => {
+  it("trims the note, and a blank note means none", () => {
+    expect(
+      PauseReasonInputSchema.parse({ code: "relocation", note: "  Переїзд до Бучі  " }),
+    ).toEqual({ code: "relocation", note: "Переїзд до Бучі" });
+    expect(PauseReasonInputSchema.parse({ code: "other", note: "   " })).toEqual({
+      code: "other",
+      note: null,
+    });
+    expect(PauseReasonInputSchema.parse({ code: "other", note: null })).toEqual({
+      code: "other",
+      note: null,
+    });
+  });
+
+  it("takes 2,000 characters and refuses 2,001, emoji counted as one each", () => {
+    expect(PAUSE_NOTE_MAX_CHARACTERS).toBe(2000);
+    expect(
+      PauseReasonInputSchema.safeParse({ code: "other", note: "🐾".repeat(2000) }).success,
+    ).toBe(true);
+    expect(
+      PauseReasonInputSchema.safeParse({ code: "other", note: "а".repeat(2001) }).success,
+    ).toBe(false);
+  });
+
+  it("refuses an unknown code and an extra key", () => {
+    expect(PauseReasonInputSchema.safeParse({ code: "holiday", note: null }).success).toBe(false);
+    expect(
+      PauseReasonInputSchema.safeParse({ code: "other", note: null, public: true }).success,
+    ).toBe(false);
   });
 });

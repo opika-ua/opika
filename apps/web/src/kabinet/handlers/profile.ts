@@ -153,6 +153,25 @@ export const profileUpdateContact = (
     errors,
   );
 
+/**
+ * The sentence a shelter's edit stores (K4 sheet, answer 13, Oleksii,
+ * verbatim: "Clear `en` when `uk` changes; a stale translation would be a
+ * false claim."). The English translates one particular Ukrainian sentence;
+ * once the Ukrainian is different, keeping it would show English readers
+ * words the shelter no longer says. So a changed `uk` stores no `en`,
+ * whatever the request carried, and an unchanged `uk` keeps the `en` sent
+ * with it (the K4 editor sends the stored one back). Contacts have no
+ * localised field, so `updateContact` has nothing to clear.
+ */
+export function freshnessSentenceAfterEdit(
+  stored: FreshnessSentence,
+  edited: FreshnessSentence,
+): FreshnessSentence {
+  if (edited === null) return null;
+  if (stored !== null && stored.uk === edited.uk) return edited;
+  return { uk: edited.uk, en: null };
+}
+
 export const profileUpdateFreshnessSentence = (
   deps: ProfileDeps,
   scope: ShelterWriteScope,
@@ -163,17 +182,20 @@ export const profileUpdateFreshnessSentence = (
     deps,
     scope,
     input.expectedVersion,
-    (shelter) => ({
-      kind: "write",
-      change: { kind: "freshness_sentence", freshnessSentence: input.freshnessSentence },
-      entry: {
-        kind: "freshness_sentence_changed",
-        at: deps.now,
-        actor: actorOf(scope),
-        previous: shelter.freshnessSentence,
-        next: input.freshnessSentence,
-      },
-    }),
+    (shelter) => {
+      const next = freshnessSentenceAfterEdit(shelter.freshnessSentence, input.freshnessSentence);
+      return {
+        kind: "write",
+        change: { kind: "freshness_sentence", freshnessSentence: next },
+        entry: {
+          kind: "freshness_sentence_changed",
+          at: deps.now,
+          actor: actorOf(scope),
+          previous: shelter.freshnessSentence,
+          next,
+        },
+      };
+    },
     errors,
   );
 

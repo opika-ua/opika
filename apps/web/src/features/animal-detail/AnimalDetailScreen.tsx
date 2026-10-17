@@ -7,7 +7,6 @@ import {
   textIn,
 } from "@opika/domain";
 import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
-import { freshnessLabel, freshnessPips } from "@opika/ui";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { Footer } from "../chrome/Footer";
@@ -15,6 +14,7 @@ import { SiteHeader } from "../chrome/SiteHeader";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
+import { ShelterFreshnessBlock } from "./ShelterFreshnessBlock";
 
 /**
  * "Перевірений вручну · {years} на Opika" — years is whole, floored, never
@@ -83,7 +83,6 @@ export function AnimalDetailScreen({
   cityName,
   backToGalleryHref,
 }: AnimalDetailScreenProps) {
-  const fills = freshnessPips(animal.freshness.kind);
   const showDocuments =
     animal.documentReadiness.kind === "tracked" && hasAnyDocumentEvidence(animal.documentReadiness);
   const years = yearsOnOpika(shelter.createdAt, now);
@@ -197,78 +196,53 @@ export function AnimalDetailScreen({
             for what the mock actually puts there. See O-22,
             `docs/observations.md`, for the full account.
           */}
-          <div
-            data-testid="freshness-block"
-            className="bg-rg-fill rounded-rg-button p-4 flex flex-col gap-2"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="flex gap-1.5" aria-hidden="true">
-                {fills.map((fill, i) => (
-                  <div
-                    key={i}
-                    className={`size-2.5 rounded-full ${fill === "empty" ? "bg-transparent border-[1.5px] border-rg-ink-3" : fill}`}
-                  />
-                ))}
-              </div>
-              <span className="text-[15px]/[22px] text-rg-ink">
-                {freshnessLabel(animal.freshness)}
-              </span>
-            </div>
-            {/*
-              `freshnessSentence`, NOT `description` — this block quoted the
-              shelter's general description («Один з найбільших притулків
-              Києва, працює з 2015 року…») under an attribution that reads
-              «Слова притулку · дата автоматична» (as it then read), inside a freshness block.
-              Wrong field, and wrong against the design: README's freshness
-              section specifies a sentence "written once by the shelter at
-              verification, in their own words" about how current their
-              listings are, which is what `freshnessSentence` holds and what
-              `SwipeCard` already renders. The contract exposes it
-              (`ShelterSummaryViewSchema`) and the handler already passes it;
-              only this surface read the wrong one.
+          {/*
+            `freshnessSentence`, NOT `description` — this block quoted the
+            shelter's general description («Один з найбільших притулків
+            Києва, працює з 2015 року…») under an attribution that reads
+            «Слова притулку · дата автоматична» (as it then read), inside a freshness block.
+            Wrong field, and wrong against the design: README's freshness
+            section specifies a sentence "written once by the shelter at
+            verification, in their own words" about how current their
+            listings are, which is what `freshnessSentence` holds and what
+            `SwipeCard` already renders. The contract exposes it
+            (`ShelterSummaryViewSchema`) and the handler already passes it;
+            only this surface read the wrong one.
 
-              Found by verifying a claim in `/prytulkam`'s own copy — §8 tells
-              shelters their sentence appears on the animal's page, which was
-              false here. A copy claim that could not be checked against the
-              screen is how the page would have shipped describing a product
-              that did not exist.
+            Found by verifying a claim in `/prytulkam`'s own copy — §8 tells
+            shelters their sentence appears on the animal's page, which was
+            false here. A copy claim that could not be checked against the
+            screen is how the page would have shipped describing a product
+            that did not exist.
 
-              Read from `animal.shelter`, not the `shelter` prop:
-              `PublicShelterViewSchema` does not `pick` `freshnessSentence`
-              (which is why this reached for `description` in the first place),
-              but `AnimalDetailView`'s own nested `ShelterSummaryView` does and
-              the handler already populates it. Using the data already on the
-              page beats widening a public view — `pick`, never `omit`, means
-              every field on that view is a deliberate decision, and this one
-              needs no new decision.
+            Read from `animal.shelter`, not the `shelter` prop:
+            `PublicShelterViewSchema` does not `pick` `freshnessSentence`
+            (which is why this reached for `description` in the first place),
+            but `AnimalDetailView`'s own nested `ShelterSummaryView` does and
+            the handler already populates it. Using the data already on the
+            page beats widening a public view — `pick`, never `omit`, means
+            every field on that view is a deliberate decision, and this one
+            needs no new decision.
 
-              `{імʼя}` is filled with this page's animal (K-Q6), here and on the
-              deck only; the kabinet shows the shelter its sentence as written.
+            `{імʼя}` is filled with this page's animal (K-Q6), here and on the
+            deck only; the kabinet shows the shelter its sentence as written,
+            except K4's voice preview (N11), which fills it in this same block.
 
-              Nullable by design: a shelter with no sentence falls back to the
-              pips and day count alone (`FreshnessSentenceSchema`'s own note),
-              which is why this stays conditional rather than gaining a
-              placeholder. The attribution goes with it: under the day count
-              alone, «Слова притулку» would credit the shelter with words it
-              never wrote (VH-Q2).
-            */}
-            {animal.shelter.freshnessSentence && (
-              <>
-                <span
-                  data-testid="shelter-freshness-sentence"
-                  className="text-[17px]/[26px] text-rg-ink"
-                >
-                  “{fillAnimalName(textIn(animal.shelter.freshnessSentence, "uk"), animal.name)}”
-                </span>
-                <span
-                  data-testid="shelter-freshness-attribution"
-                  className="text-[13px]/[18px] text-rg-ink-3"
-                >
-                  {uk.freshness.attribution}
-                </span>
-              </>
-            )}
-          </div>
+            Nullable by design: a shelter with no sentence falls back to the
+            pips and day count alone (`FreshnessSentenceSchema`'s own note),
+            which is why this stays conditional rather than gaining a
+            placeholder. The attribution goes with it: under the day count
+            alone, «Слова притулку» would credit the shelter with words it
+            never wrote (VH-Q2).
+          */}
+          <ShelterFreshnessBlock
+            freshness={animal.freshness}
+            sentence={
+              animal.shelter.freshnessSentence
+                ? fillAnimalName(textIn(animal.shelter.freshnessSentence, "uk"), animal.name)
+                : null
+            }
+          />
 
           <div className="flex gap-2">
             {/*
