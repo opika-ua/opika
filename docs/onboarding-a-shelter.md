@@ -245,6 +245,40 @@ treat an onboarded animal's photos as fixed once inserted. If you need to
 correct a photo (not just add one), that has to be done by hand for now,
 not by re-running this script.
 
+## Removing the demo corpus (once, after the first real shelter)
+
+The seeded demo shelters (ids `51000000-…`) go when the first real shelter is in
+(RG-Q11). `db:seed` can't do it: it truncates every table. `demo:remove` deletes
+only the demo shelters and what hangs off them (inbox DR-B1): their animals,
+swipes and reveals on those animals, shelter history, each
+demo shelter's organization with its invitations (a member is a refusal), and users
+whose only link was an invitation to a demo shelter (not super_admin). Cities
+and every other shelter stay.
+
+```bash
+# --expect is the target's Neon endpoint id (ep-…), as for the smoke scripts.
+DATABASE_URL=<neon-direct-url> \
+  pnpm --filter @opika/db demo:remove --expect ep-… --prod             # dry run
+DATABASE_URL=<neon-direct-url> \
+  pnpm --filter @opika/db demo:remove --expect ep-… --prod --commit    # deletes
+```
+
+`--prod` only when the target is production. The dry run prints the target line,
+the demo shelters by id and name, how many other shelters stay (never their
+names), and one count per table. It refuses, deleting nothing, when no other
+shelter exists (the site would be empty), when a demo shelter still has a member
+(remove them with `registry/admins/remove` first), when a demo shelter has a
+support session (those are never deleted, RS-Q0; with a non-zero count Oleksii
+decides again, DR-Q1), when a non-demo shelter is on
+the seed's test-only location key, when a reveal links a demo animal to a
+non-demo shelter or a demo shelter to a non-demo animal, or under
+`NODE_ENV=production`. The dry run also shows what goes by cascade
+(`invitation_created_users`, and the deleted users' sessions and accounts).
+`--commit` deletes in one transaction and rolls back if any table's count
+differs from its plan; a visitor swiping a demo card during the run can cause
+that, and then the same command simply runs again. **Run the dry run again afterwards: every
+count must be 0.** Then `location:verify --prod` reports `demo 0`.
+
 ## Where `LOCATION_HMAC_SECRET` comes from
 
 Generate one once with `openssl rand -hex 32`. Keep it somewhere you can
