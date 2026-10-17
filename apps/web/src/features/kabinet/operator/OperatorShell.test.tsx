@@ -6,8 +6,9 @@ import { OperatorShell } from "./OperatorShell";
 
 /**
  * The operator's frame as behaviour (review note 5): who is signed in, said
- * once; «Вийти» is the kabinet's own sign-out; the nav marks the page it is
- * on; the page's content sits in the main landmark. Expected text is typed
+ * once; «Вийти» is the kabinet's own sign-out; the nav leads to the list and
+ * to the create page («Новий притулок» joins it with S2, R-UI 2) and marks the
+ * page it is on; the page's content sits in the main landmark. Expected text is typed
  * from his Ukrainian (answer 9: the role «адміністратор сайту»; round 2,
  * answer 6: standing alone, «Адміністратор сайту»), never read from the
  * catalogue.
@@ -18,7 +19,7 @@ const UNSET: OperatorName = { kind: "fallback" };
 
 const renderShell = (
   operator: OperatorName,
-  current: "shelters" | null = "shelters",
+  current: "shelters" | "new_shelter" | null = "shelters",
 ): ReturnType<typeof render> =>
   render(
     <OperatorShell operator={operator} current={current}>
@@ -73,18 +74,31 @@ describe("OperatorShell: «Вийти»", () => {
 });
 
 describe("OperatorShell: the nav and the page", () => {
-  const sheltersLink = () =>
-    within(screen.getByRole("navigation")).getByRole("link", { name: "Притулки" });
+  const navLinks = () => within(screen.getByRole("navigation")).getAllByRole("link");
 
-  it("«Притулки» leads to the list, marked as the current page on it", () => {
-    renderShell(OLEKSII, "shelters");
-    expect(sheltersLink().getAttribute("href")).toBe("/kabinet/prytulky");
-    expect(sheltersLink().getAttribute("aria-current")).toBe("page");
+  it("leads to the list and to the create page", () => {
+    renderShell(OLEKSII, null);
+    expect(navLinks().map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["Притулки", "/kabinet/prytulky"],
+      ["Новий притулок", "/kabinet/prytulky/novyi"],
+    ]);
   });
 
-  it("is not marked current on a page outside the nav (a shelter's page)", () => {
+  it.each([
+    ["shelters", "Притулки"],
+    ["new_shelter", "Новий притулок"],
+  ] as const)("marks %s as the current page, and only it", (current, label) => {
+    renderShell(OLEKSII, current);
+    expect(
+      navLinks()
+        .filter((link) => link.getAttribute("aria-current") === "page")
+        .map((link) => link.textContent),
+    ).toEqual([label]);
+  });
+
+  it("marks nothing on a page outside the nav (a shelter's page)", () => {
     renderShell(OLEKSII, null);
-    expect(sheltersLink().getAttribute("aria-current")).toBeNull();
+    expect(navLinks().filter((link) => link.hasAttribute("aria-current"))).toEqual([]);
   });
 
   it("puts the page's content in the main landmark", () => {

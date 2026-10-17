@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import KabinetHomePage from "./page";
 import OperatorShelterPage from "./prytulky/[id]/page";
+import NewShelterPage from "./prytulky/novyi/page";
 import OperatorSheltersPage from "./prytulky/page";
 import SignInPage from "./vkhid/page";
 
@@ -22,7 +23,7 @@ const digestOf = (error: unknown) =>
 const signIn = (search: Record<string, string>) => () =>
   SignInPage({ searchParams: Promise.resolve(search) });
 
-/** The operator's pages (R-UI 1). */
+/** The operator's pages (R-UI 1, and S2 from R-UI 2). */
 const operatorList = () => OperatorSheltersPage({ searchParams: Promise.resolve({}) });
 const operatorShelter = () =>
   OperatorShelterPage({ params: Promise.resolve({ id: crypto.randomUUID() }) });
@@ -38,6 +39,7 @@ describe.each([
   ["/kabinet/vkhid?zaproshennia=<id>", signIn({ zaproshennia: crypto.randomUUID() })],
   ["/kabinet/prytulky", operatorList],
   ["/kabinet/prytulky/<id>", operatorShelter],
+  ["/kabinet/prytulky/novyi", () => NewShelterPage()],
 ])("%s while sign-in is unavailable", (_route, page) => {
   it("answers 404 itself, never reaching the auth instance", async () => {
     vi.stubEnv("BETTER_AUTH_SECRET", "");
@@ -71,6 +73,7 @@ describe.each([
 describe.each([
   ["/kabinet/prytulky", operatorList],
   ["/kabinet/prytulky/<id>", operatorShelter],
+  ["/kabinet/prytulky/novyi", () => NewShelterPage()],
 ])("%s without the location key", (_route, page) => {
   const thrownWith = async (locationKey: string) => {
     vi.stubEnv("BETTER_AUTH_SECRET", "s".repeat(32));

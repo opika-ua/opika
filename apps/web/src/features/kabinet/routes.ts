@@ -5,3 +5,6 @@
  * one literal.
  */
 export const OPERATOR_HOME = "/kabinet/prytulky";
+
+/** S2, «Новий притулок» (R-UI 2): the shell's nav, S1's button and its empty state link here. */
+export const NEW_SHELTER_PATH = `${OPERATOR_HOME}/novyi`;

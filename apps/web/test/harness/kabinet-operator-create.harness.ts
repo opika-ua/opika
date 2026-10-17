@@ -11,28 +11,25 @@
  * in that server's stdout, which this spec reads, and the outcome it reports
  * is a send whose block list wasn't checked.
  *
- * R-UI 1 rebase: the flow then presses «Відкрити притулок» and expects S4 to
- * show «Очікує». Until R-UI 1 serves S4 it ends at the success state, with
- * the stored status read from the database instead.
+ * The flow starts on S1 («Новий притулок»), and ends on S4 (R-UI 1's page),
+ * reached through «Відкрити притулок», showing the new shelter as «Очікує».
  *
- * Own `x-forwarded-for` (TEST-NET-2 .40, clear of the .21-.35 already
- * claimed and of the next few). Tracing off: the magic link is a credential,
- * even a test one.
+ * Own `x-forwarded-for` (TEST-NET-2 .41; .40 is R-UI 1's operator spec).
+ * Tracing off: the magic link is a credential, even a test one.
  */
 
 import { randomUUID } from "node:crypto";
 import { createDatabase } from "@opika/db";
-import { authUser, cities, shelters, superAdmins } from "@opika/db/schema";
+import { authUser, cities, superAdmins } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { type BrowserContext, expect, test } from "@playwright/test";
+import { HARNESS_LOCATION_HMAC_SECRET } from "../harness-env";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
-const FORWARDED_FOR = "198.51.100.40";
+const FORWARDED_FOR = "198.51.100.41";
 test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" });
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
-/** A recognisable test value, at least the 32 characters `productionLocationPolicy` requires. */
-const HARNESS_LOCATION_HMAC_SECRET = "test-location-hmac-secret-for-harness-only-0123456789";
 
 /** Kyiv's calendar date `days` before now: the visit's date, clear of any midnight. */
 const kyivDateDaysAgo = (days: number): string =>
@@ -86,13 +83,11 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
     });
     const page = await context.newPage();
     expect((await page.goto(link))?.status()).toBe(200);
-    // Signing in lands on /kabinet; what it shows an operator is R-UI 1's.
-    const landed = page.waitForResponse(
-      (response) =>
-        response.request().method() === "GET" && new URL(response.url()).pathname === "/kabinet",
-    );
-    await page.getByRole("button").click();
-    await landed;
+    // Signing in lands on /kabinet, which sends the operator on to S1 (RU-T1).
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === "/kabinet/prytulky"),
+      page.getByRole("button").click(),
+    ]);
     await page.close();
   });
 
@@ -101,7 +96,7 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
     await server?.stop();
   });
 
-  test("creates an unregistered initiative with a site visit and two references, and sees the outcome", async () => {
+  test("from the list, creates an unregistered initiative (a site visit, two references), sees the outcome, and opens it as «Очікує»", async () => {
     if (context === undefined || server === undefined) throw new Error("not signed in");
     const [city] = await db.select({ name: cities.nameUk }).from(cities).limit(1);
     if (city === undefined) throw new Error("no seeded city");
@@ -109,8 +104,16 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
     const adminEmail = `harness-admin-${randomUUID()}@example.test`;
 
     const page = await context.newPage();
-    expect((await page.goto("/kabinet/prytulky/novyi"))?.status()).toBe(200);
+    expect((await page.goto("/kabinet/prytulky"))?.status()).toBe(200);
+    // S1's own button (the nav carries a link of the same name to the same page).
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === "/kabinet/prytulky/novyi"),
+      page.getByRole("main").getByRole("link", { name: "Новий притулок" }).click(),
+    ]);
     await expect(page.getByRole("heading", { name: "Новий притулок", level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole("navigation").getByRole("link", { name: "Новий притулок" }),
+    ).toHaveAttribute("aria-current", "page");
 
     await page.getByLabel("Назва притулку").fill(displayName);
     await page.getByLabel("Опис притулку").fill("Волонтери, 18 собак і 6 котів.");
@@ -155,18 +158,15 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
     await expect(page.getByText(/^Посилання діє до .+, \d\d:\d\d\.$/)).toBeVisible();
     await expect(page.getByText(/^Повідомте притулок особисто: /)).toBeVisible();
     await expect(page.getByRole("button", { name: "Надіслати ще раз" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Відкрити притулок" })).toBeVisible();
-
     // The console sender's line: the invitation went to the address typed.
     expect(server.stdout()).toContain(`[kabinet] invitation for ${adminEmail}: `);
-    // R-UI 1 rebase: replace with «Відкрити притулок» → S4 showing «Очікує».
-    // (This package doesn't depend on drizzle-orm, so the rows are filtered here.)
-    const stored = (
-      await db
-        .select({ name: shelters.displayName, status: shelters.verificationStatus })
-        .from(shelters)
-    ).filter((row) => row.name === displayName);
-    expect(stored).toEqual([{ name: displayName, status: "pending" }]);
+
+    await Promise.all([
+      page.waitForURL((url) => /^\/kabinet\/prytulky\/[0-9a-f-]{36}$/.test(url.pathname)),
+      page.getByRole("link", { name: "Відкрити притулок" }).click(),
+    ]);
+    await expect(page.getByRole("heading", { level: 1, name: displayName })).toBeVisible();
+    await expect(page.getByText("Очікує", { exact: true })).toBeVisible();
     await page.close();
   });
 });

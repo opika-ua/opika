@@ -4,7 +4,7 @@ import { type OperatorName, standaloneOperatorName } from "../../../kabinet/oper
 import { linkClass } from "../../controls/controls";
 import { KabinetBrand } from "../KabinetBrand";
 import { CAPTION, CAPTION_STRONG } from "../profile-edit/styles";
-import { OPERATOR_HOME } from "../routes";
+import { NEW_SHELTER_PATH, OPERATOR_HOME } from "../routes";
 import { SignOutButton } from "../SignOutButton";
 
 /**
@@ -16,9 +16,7 @@ import { SignOutButton } from "../SignOutButton";
  * itself (answer 9), so the header shows it once, capitalised as it stands
  * alone (round 2, answer 6), rather than the role twice.
  *
- * The nav holds «Притулки» only. «Новий притулок» (`shell.nav.newShelter`)
- * joins it with R-UI 2, which adds its route: a link to a page that isn't
- * there would be a dead end, as on the shelter's own page.
+ * The nav: «Притулки» (S1) and «Новий притулок» (S2, R-UI 2).
  *
  * Styled through the shared tokens only (test logic, not looks).
  */
@@ -29,7 +27,7 @@ export function OperatorShell({
 }: {
   operator: OperatorName;
   /** Which nav item is this page, for `aria-current`. */
-  current: "shelters" | null;
+  current: "shelters" | "new_shelter" | null;
   children: ReactNode;
 }) {
   const t = uk.kabinet.operator.shell;
@@ -53,6 +51,13 @@ export function OperatorShell({
             className={linkClass("nav")}
           >
             {t.nav.shelters}
+          </a>
+          <a
+            href={NEW_SHELTER_PATH}
+            aria-current={current === "new_shelter" ? "page" : undefined}
+            className={linkClass("nav")}
+          >
+            {t.nav.newShelter}
           </a>
         </nav>
         <main className="flex min-w-0 flex-1 flex-col gap-4">{children}</main>

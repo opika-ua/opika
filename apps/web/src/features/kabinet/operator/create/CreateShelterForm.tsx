@@ -22,6 +22,7 @@ import {
   ERROR_TEXT,
   STRONG,
 } from "../../profile-edit/styles";
+import { OPERATOR_HOME } from "../../routes";
 import { EvidenceEditor } from "../evidence-editor/EvidenceEditor";
 import { CreatedShelter } from "./CreatedShelter";
 import {
@@ -45,9 +46,6 @@ type Phase =
   | { kind: "editing"; refusal: CreateRefusal | null }
   | { kind: "submitting" }
   | { kind: "created"; view: CreatedShelterView };
-
-/** S1, the list «Скасувати» returns to and `create.errors.lostAnswer` sends the operator to. R-UI 1 serves it. */
-export const SHELTERS_LIST_PATH = "/kabinet/prytulky";
 
 const fieldMessage = (error: CreateFieldError | undefined): string | null => {
   if (error === undefined) return null;
@@ -380,7 +378,7 @@ export function CreateShelterForm({
           <Button type="submit" variant="primary" aria-busy={submitting || undefined}>
             {t.submit}
           </Button>
-          <Link href={SHELTERS_LIST_PATH} className={buttonClass("text")}>
+          <Link href={OPERATOR_HOME} className={buttonClass("text")}>
             {t.cancel}
           </Link>
         </div>
