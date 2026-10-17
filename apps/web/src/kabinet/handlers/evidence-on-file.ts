@@ -42,15 +42,16 @@ export function withEvidenceOnFile(
   const items = sent.items.map((item): EvidenceItem => {
     switch (item.kind) {
       case "site_visit": {
+        // An unchanged visit stays exactly as on file: its recorder, and its
+        // notes as stored (the script stores them untrimmed; the editor trims).
         const pair = pairOf(item);
-        return pair?.kind === "site_visit" ? { ...item, visitedBy: pair.visitedBy } : item;
+        return pair?.kind === "site_visit" ? pair : item;
       }
       case "edrpou_registration":
       case "bank_account_holder": {
+        // Same facts: the item on file, as stored, with its key if it holds one.
         const pair = pairOf(item);
-        return pair !== undefined && pair.kind === item.kind && pair.documentKey !== null
-          ? { ...item, documentKey: pair.documentKey }
-          : item;
+        return pair !== undefined && pair.kind === item.kind ? pair : item;
       }
       default:
         return item;
@@ -63,7 +64,10 @@ export function withEvidenceOnFile(
  * Whether two items say the same thing in everything the operator types,
  * leaving out what only the server holds (a document key, who made a
  * visit). Field by field rather than serialised: the record comes back from
- * JSONB with its keys reordered. Only the kinds the server holds something
+ * JSONB with its keys reordered. Typed text compares trimmed: the editor
+ * trims what it sends, and the onboarding script stores text as written, so
+ * a trailing newline on file must not make an untouched item read as edited
+ * (R-UI 3 delta review, finding 2). Only the kinds the server holds something
  * for are paired; the rest go back exactly as sent.
  */
 function sameTypedFacts(onFile: EvidenceItem, sent: EvidenceItem): boolean {
@@ -72,16 +76,16 @@ function sameTypedFacts(onFile: EvidenceItem, sent: EvidenceItem): boolean {
       return (
         sent.kind === "site_visit" &&
         sent.visitedAt.getTime() === onFile.visitedAt.getTime() &&
-        sent.notes === onFile.notes
+        sameText(sent.notes, onFile.notes)
       );
     case "edrpou_registration":
       return (
         sent.kind === "edrpou_registration" &&
         sent.edrpou === onFile.edrpou &&
-        sent.registeredName === onFile.registeredName
+        sameText(sent.registeredName, onFile.registeredName)
       );
     case "bank_account_holder":
-      return sent.kind === "bank_account_holder" && sent.holderName === onFile.holderName;
+      return sent.kind === "bank_account_holder" && sameText(sent.holderName, onFile.holderName);
     case "reference_contact":
     case "supporting_document":
       return false;
@@ -92,6 +96,8 @@ function sameTypedFacts(onFile: EvidenceItem, sent: EvidenceItem): boolean {
     }
   }
 }
+
+const sameText = (a: string, b: string): boolean => a.trim() === b.trim();
 
 /** Whether an item points at a document the input can't send back. */
 function holdsDocument(item: EvidenceItem): boolean {

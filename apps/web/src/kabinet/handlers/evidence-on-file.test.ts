@@ -40,6 +40,28 @@ const onFile = (...items: EvidenceItem[]): VerificationEvidence => ({
 const sent = (...items: EvidenceItem[]): VerificationEvidence => ({ items, submittedAt: SENT_AT });
 
 describe("withEvidenceOnFile (resubmit)", () => {
+  it("text typed back trimmed still matches what the script stored untrimmed (delta review, finding 2)", () => {
+    // The onboarding script stores notes and names as written; the editor trims what it sends.
+    const scriptVisit = visit(RECORDER, "Був на місці\n");
+    const scriptEdrpou: EvidenceItem = {
+      kind: "edrpou_registration",
+      edrpou: "12345678",
+      registeredName: "ГО «Лапа» ",
+      documentKey: "evidence/edrpou.pdf",
+    };
+    expect(
+      withEvidenceOnFile(
+        onFile(scriptVisit, scriptEdrpou),
+        sent(visit(RESUBMITTER, "Був на місці"), {
+          kind: "edrpou_registration",
+          edrpou: "12345678",
+          registeredName: "ГО «Лапа»",
+          documentKey: null,
+        }),
+      ),
+    ).toEqual({ items: [scriptVisit, scriptEdrpou], submittedAt: SENT_AT });
+  });
+
   it("no edits: the document stays with its key, and the visit keeps who recorded it", () => {
     expect(
       withEvidenceOnFile(
