@@ -186,17 +186,19 @@ describe("adopter-facing responses carry the city only, before and after a revea
     );
   });
 
-  it("the reveal's own snapshot is reached by the walk: contact channels and the city", () => {
+  it("the reveal's own fields are reached by the walk: both contact sources and the city", () => {
     for (const [path, prefix] of [
-      ["animals.reveal", "$.shelterSnapshot"],
-      ["reveals.listMine", "$.items[].shelterSnapshot"],
+      ["animals.reveal", "$"],
+      ["reveals.listMine", "$.items[]"],
     ] as const) {
       const procedure = all.find(([candidate]) => candidate === path)?.[1];
       if (procedure === undefined) throw new Error(`${path} missing from the contract`);
       expect(reachableKeys(procedure["~orpc"].outputSchema), path).toEqual(
         expect.arrayContaining([
-          `${prefix}.contact.primary|1.address`,
-          `${prefix}.publicLocation.cityId`,
+          // `shelterContact` is a union on `source` (current | first_reveal, K4-B5).
+          `${prefix}.shelterContact|0.contact.primary|1.address`,
+          `${prefix}.shelterContact|1.contact.primary|1.address`,
+          `${prefix}.shelterAtFirstReveal.publicLocation.cityId`,
         ]),
       );
     }

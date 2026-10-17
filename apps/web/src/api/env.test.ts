@@ -459,6 +459,34 @@ describe("build, boot and production sign-in read each value by one rule (WI-Q1)
     return "";
   };
 
+  /**
+   * K-Q17: `KABINET_WRITE_ALLOWLIST` is optional, so blank means unset and
+   * passes both; a padded or malformed value, or a second id, is refused by
+   * both, by name.
+   */
+  it("KABINET_WRITE_ALLOWLIST: one id or blank passes build and boot, padded, malformed or two ids fails both", () => {
+    const id = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+    for (const ok of [id, " ".repeat(4)]) {
+      const env = { ...deployment, KABINET_WRITE_ALLOWLIST: ok };
+      expect(buildMessage(env)).toBe("");
+      expect(bootMessage(env)).toBe("");
+    }
+    for (const bad of [
+      `${id}
+`,
+      ` ${id}`,
+      `${id},${id.replaceAll("d", "e")}`,
+      `${id}, ${id.replaceAll("d", "e")}`,
+      id.toUpperCase(),
+    ]) {
+      const env = { ...deployment, KABINET_WRITE_ALLOWLIST: bad };
+      for (const message of [buildMessage(env), bootMessage(env)]) {
+        expect(message).toContain("KABINET_WRITE_ALLOWLIST");
+        expect(message.toLowerCase()).not.toContain("dddddddd");
+      }
+    }
+  });
+
   it("the deployment itself passes all three", () => {
     expect(buildMessage(deployment)).toBe("");
     expect(bootMessage(deployment)).toBe("");

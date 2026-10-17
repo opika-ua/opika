@@ -9,15 +9,16 @@ import { isLazy, isProcedure } from "@orpc/server";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
-import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
+import { SHELTER_WRITE_POLICY, type ShelterWritePolicy, shelterWritePolicyOf } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 import { handleKabinetRpc, kabinetRouter } from "./rpc-route";
 
 /**
- * KH-Q1: until K2/K3 ship, every `shelter.*` write refuses a shelter admin
- * with `SHELTER_WRITES_NOT_YET_AVAILABLE`, through the served router with the
- * served policy. The procedures are found by walking the router actually
+ * KH-Q1: until PR 6 of the K milestone, every `shelter.*` write refuses a
+ * shelter admin with `SHELTER_WRITES_NOT_YET_AVAILABLE`, through the served
+ * router with the served policy, for every shelter outside the K-Q17
+ * allowlist (`KABINET_WRITE_ALLOWLIST`, unset here, which is the refusal). The procedures are found by walking the router actually
  * mounted on `/api/kabinet/*` and reading the access each one declares, not
  * from a list written here, so a write added later is refused by the same
  * assertions automatically. The count is pinned too (`toHaveLength(13)`), as
@@ -81,7 +82,8 @@ async function call(
   path: string,
   input: unknown,
   principal: KabinetPrincipal,
-  // What the served route passes (pinned by the source scan below).
+  // What the served route passes with KABINET_WRITE_ALLOWLIST unset (pinned
+  // by the source scan below).
   policy: ShelterWritePolicy = SHELTER_WRITE_POLICY,
 ) {
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
@@ -208,6 +210,100 @@ describe("a support view is refused writes exactly as before", () => {
 });
 
 /**
+ * K-Q17 (Oleksii, verbatim: "one open path for that id"): the allowlist opens
+ * the listed shelter's writes and nobody else's. Built the way the served
+ * route builds it (`shelterWritePolicyOf` over the environment), and
+ * production-legal: the same answers with NODE_ENV and VERCEL_ENV set to
+ * production, where the test-only policy would 500.
+ */
+describe("the allowlist opens one shelter's writes, and only that one's (K-Q17)", () => {
+  let other: Shelter;
+  let otherDraft: Animal;
+  let asOtherAdmin: KabinetPrincipal;
+
+  beforeEach(async () => {
+    const city = (await cityRepo(db).findById(shelter.publicLocation.cityId)) ?? makeCity();
+    other = makeShelter({ publicLocation: { ...makeShelter().publicLocation, cityId: city.id } });
+    await shelterRepo(db).insert(other);
+    otherDraft = makeAnimal({ shelterId: other.id, listing: { kind: "draft" } });
+    await animalRepo(db).insert(otherDraft, city.id);
+    asOtherAdmin = {
+      kind: "shelter_admin",
+      shelterAdminId: "44444444-4444-4444-8444-444444444444" as ShelterAdminId,
+      shelterId: other.id,
+    };
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const allowlisted = () => shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: shelter.id });
+  const otherSnapshot = async () => ({
+    shelter: await shelterRepo(db).findById(other.id),
+    history: await kabinetShelterRepo(db).historyOf(other.id),
+    animals: (await animalRepo(db).findByShelterId(other.id)).map((a) => JSON.stringify(a)),
+  });
+
+  for (const deployed of [false, true]) {
+    const where = deployed ? "on a production deployment" : "locally";
+    it(`${where}: the listed shelter's admin writes (a real write, 200)`, async () => {
+      if (deployed) {
+        vi.stubEnv("NODE_ENV", "production");
+        vi.stubEnv("VERCEL_ENV", "production");
+        vi.stubEnv("RATE_LIMIT_KEY_SECRET", "test-rate-limit-key-secret-0123456789abcdef");
+      }
+      const result = await call(
+        "shelter.profile.proposeDonation",
+        { url: "https://example.org/give" },
+        asAdmin,
+        allowlisted(),
+      );
+      expect(result.status).toBe(200);
+      expect((await shelterRepo(db).findById(shelter.id))?.pendingDonation?.link.url).toBe(
+        "https://example.org/give",
+      );
+    });
+
+    it.each(shelterWrites)(
+      `${where}: %s refuses a shelter outside the list, nothing written`,
+      async (path) => {
+        if (deployed) {
+          vi.stubEnv("NODE_ENV", "production");
+          vi.stubEnv("VERCEL_ENV", "production");
+          vi.stubEnv("RATE_LIMIT_KEY_SECRET", "test-rate-limit-key-secret-0123456789abcdef");
+        }
+        const before = await otherSnapshot();
+        const result = await call(path, { animalId: otherDraft.id }, asOtherAdmin, allowlisted());
+        expect(result.status).toBe(403);
+        expect(result.body).toMatchObject({ code: "SHELTER_WRITES_NOT_YET_AVAILABLE" });
+        expect(await otherSnapshot()).toEqual(before);
+      },
+    );
+  }
+
+  it.each(shelterWrites)(
+    "%s passes access for the listed shelter (no not-yet refusal)",
+    async (path) => {
+      const result = await call(path, { animalId: draft.id }, asAdmin, allowlisted());
+      expect(result.body).not.toMatchObject({ code: "SHELTER_WRITES_NOT_YET_AVAILABLE" });
+      expect(result.status).not.toBe(403);
+    },
+  );
+
+  it.each(shelterWrites)("%s still refuses a support view of the listed shelter", async (path) => {
+    const support: KabinetPrincipal = {
+      kind: "support_view",
+      moderatorId: "11111111-1111-4111-8111-111111111111" as never,
+      shelterId: shelter.id,
+    };
+    const result = await call(path, { animalId: draft.id }, support, allowlisted());
+    expect(result.status).toBe(403);
+    expect(result.body).toMatchObject({ code: "FORBIDDEN" });
+  });
+});
+
+/**
  * KH-T1: even if a deployed instance were handed the test-only policy, the
  * served router refuses the request outright (500, nothing written) rather
  * than open writes. `accessOrThrow` reads `process.env` itself, so the stub
@@ -316,6 +412,10 @@ describe("outside tests, only access.ts names the open policy", () => {
       ]),
     ).toEqual(["apps/web/src/kabinet/shorthand.ts", "apps/web/src/kabinet/literal.ts"]);
   });
+
+  // K-Q17's scans (the route and the page build their policy with
+  // `shelterWritePolicyOf(process.env)`, and only access.ts names the
+  // allowlist variant) live in no-self-serve-yet.test.ts, the test K-Q17 names.
 
   it("the served constant is the refusal, and frozen", () => {
     expect(SHELTER_WRITE_POLICY).toEqual({ kind: "refused_until_edit_screens" });

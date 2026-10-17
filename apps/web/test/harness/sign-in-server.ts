@@ -53,7 +53,15 @@ async function freePort(): Promise<number> {
   });
 }
 
-export async function startSignInServer(databaseUrl: string): Promise<SignInServer> {
+/**
+ * `extraEnv` adds variables for this server only, never the main one: the
+ * K4 profile spec passes `KABINET_WRITE_ALLOWLIST` (K-Q17) so its shelter can
+ * write through the same production-legal path production uses.
+ */
+export async function startSignInServer(
+  databaseUrl: string,
+  extraEnv: Readonly<Record<string, string>> = {},
+): Promise<SignInServer> {
   const port = await freePort();
   const origin = `http://127.0.0.1:${port}`;
   const nextBin = createRequire(import.meta.url).resolve("next/dist/bin/next");
@@ -71,6 +79,7 @@ export async function startSignInServer(databaseUrl: string): Promise<SignInServ
         PRELAUNCH_GATE_SECRET: HARNESS_PRELAUNCH_GATE_SECRET,
         BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
         BETTER_AUTH_URL: origin,
+        ...extraEnv,
       },
       stdio: ["ignore", "pipe", "pipe"],
     },

@@ -1,7 +1,16 @@
 import { COPY_PENDING, pendingCopyPaths, uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
+import {
+  type ShelterWritePolicy,
+  shelterWritePolicyOf,
+  testShelterCopyExemptUnder,
+} from "./access";
 import { kabinetAuthAvailability } from "./auth-route";
-import { kabinetPendingCopy, productionSignInOf as withLiveCopy } from "./production-sign-in";
+import {
+  kabinetPendingCopy,
+  signInBlockingCopy,
+  productionSignInOf as withLiveCopy,
+} from "./production-sign-in";
 
 /**
  * IN-Q6 and IN-R2 (Oleksii, Decision 2: "PRODUCTION_ORIGIN=https://opika.org.ua
@@ -250,7 +259,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // profile.addressNote (row 57) was deleted as a false claim and is back with
     // his replacement text (2026-10-14, EM-Q10). 91 with confirm.rateLimited,
     // the over-limit card's notice (the wiring PR; his text, 2026-10-15).
-    expect(pending.length + written.length).toBe(91);
+    // 165 with K4's 74 `profileEdit.*` strings (PR 2 of the K milestone, his
+    // text, 2026-10-17; the key set is pinned in copy-status.test.ts).
+    expect(pending.length + written.length).toBe(165);
+    expect(written).toContain("kabinet.profileEdit.state.saved");
     expect(pending).toEqual([]);
     expect(written).toContain("kabinet.confirm.rateLimited");
     expect(kabinetPendingCopy()).toEqual(pending.sort());
@@ -331,5 +343,67 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
         BETTER_AUTH_URL: "http://localhost:3000",
       }).kind,
     ).toBe("available");
+  });
+});
+
+/**
+ * CG-Q1 (Oleksii, verbatim: "At runtime, sign-in ignores those strings only
+ * while the write policy is allowlist or refused. Under the open policy, any
+ * pending string turns sign-in off."). The pending lists are injected through
+ * the checker's own input; the catalogue ships nothing pending.
+ */
+describe("the testShelterOnly exemption (CG-Q1)", () => {
+  const ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const refused = shelterWritePolicyOf({});
+  const allowlist = shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: ID });
+  // The only open policy that exists before PR 6; it can never reach a
+  // deployment (KH-T1), but it is the shape PR 6's production one will have.
+  const open: ShelterWritePolicy = { kind: "open_for_tests_only" };
+  const inNamespace = ["kabinet.testShelterOnly.k3.photoHint"];
+
+  it("allowlist + pending in the namespace → on", () => {
+    expect(withLiveCopy(full, inNamespace, allowlist).kind).toBe("on");
+  });
+
+  it("refused + pending in the namespace → on", () => {
+    expect(withLiveCopy(full, inNamespace, refused).kind).toBe("on");
+  });
+
+  it("open + the same → off, naming the string", () => {
+    expect(withLiveCopy(full, inNamespace, open)).toEqual({
+      kind: "off",
+      reason: "copy_pending",
+      pending: inNamespace,
+    });
+  });
+
+  it.each([
+    ["kabinet.email.signIn.subject"],
+    ["kabinet.signIn.title"],
+    ["kabinet.profileEdit.state.saved"],
+    // A sibling that merely starts with the same letters is not the namespace.
+    ["kabinet.testShelterOnlyExtra.line"],
+  ])("pending %s → off under every policy", (path) => {
+    for (const policy of [refused, allowlist, open]) {
+      expect(withLiveCopy(full, [...inNamespace, path], policy), policy.kind).toEqual({
+        kind: "off",
+        reason: "copy_pending",
+        pending: testShelterCopyExemptUnder(policy) ? [path] : [...inNamespace, path],
+      });
+    }
+  });
+
+  it("takes the policy from the same builder as the served route by default", () => {
+    // Unset allowlist: the refusal, so the namespace is exempt.
+    expect(withLiveCopy(full, inNamespace).kind).toBe("on");
+    expect(withLiveCopy({ ...full, KABINET_WRITE_ALLOWLIST: ID }, inNamespace).kind).toBe("on");
+  });
+
+  it("the exemption is decided per policy kind, as he set it", () => {
+    expect(testShelterCopyExemptUnder(refused)).toBe(true);
+    expect(testShelterCopyExemptUnder(allowlist)).toBe(true);
+    expect(testShelterCopyExemptUnder(open)).toBe(false);
+    expect(signInBlockingCopy(inNamespace, allowlist)).toEqual([]);
+    expect(signInBlockingCopy(inNamespace, open)).toEqual(inNamespace);
   });
 });

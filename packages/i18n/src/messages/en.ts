@@ -396,7 +396,7 @@ export const en = {
       donationLink: "Fundraising link",
       donationNote:
         "https only. The registry never takes or passes on money: this is an external link.",
-      donationPending: "Proposed link, waiting for the operator's approval",
+      donationPending: "The proposed link is waiting for me to check it.",
       voiceTitle: "The shelter's voice",
       voiceLabel: "Your words on the cards",
       voiceNote: "One sentence in the first person, written by you.",
@@ -427,6 +427,112 @@ export const en = {
       website: "Website",
     },
     profileNotRecorded: "Not recorded",
+    testShelterOnly: {},
+    profileEdit: {
+      actions: {
+        save: "Save",
+        cancel: "Discard changes",
+        liveOnSave: {
+          contacts:
+            "People see the new contacts as soon as you save, when they tap «Write to the shelter».",
+          voice:
+            "The new sentence appears in the deck and on the animals' pages as soon as you save.",
+        },
+        unsavedLeave: "Your changes aren't saved. Leave anyway?",
+      },
+      state: {
+        saving: "Saving…",
+        saved: "Saved.",
+        savedAt: "Saved at {time}",
+        failed: "Didn't save, so nothing changed on the cards. Check the connection and try again.",
+        retry: "Try again",
+      },
+      errors: {
+        conflict:
+          "Someone changed the profile after you opened it. Your changes aren't saved. Here is the current version: make your changes again.",
+        conflictReload: "Show the current version",
+        illegalTransitionPause:
+          "Intake can't be paused right now: the shelter's status has changed. Reload the page.",
+        illegalTransitionResume:
+          "Intake can't be resumed from here right now: the shelter's status has changed. Write to me.",
+        notAvailable: "Changes from the cabinet aren't available yet. Write to me to make one.",
+        phoneFormat: "Enter the number with the country code, for example +380 67 123 45 67.",
+        telegramFormat:
+          "A Telegram username: 5–32 Latin letters, digits or underscores. The @ is optional.",
+        viberFormat: "Enter the Viber number with the country code, for example +380 67 123 45 67.",
+        emailFormat: "That doesn't look like an email address.",
+        httpsOnly: "Only links that start with https://.",
+        notAUrl: "That doesn't look like a link.",
+        sentenceTooLong: "The sentence is longer than {max} characters.",
+        unknownToken: "Only {імʼя} is filled in. Remove «{token}», or write it without braces.",
+        dateTokenGone: "The date is already shown above your sentence, so {дата} isn't needed.",
+        strayBrace: "A brace without its pair. Braces are only for {імʼя}.",
+      },
+      contacts: {
+        otherLabel: "Another way to reach you",
+        otherKind: "Kind",
+        phonePlaceholder: "+380 …",
+        telegramPlaceholder: "@username",
+        removeOther: "Remove",
+        addOther: "Add another way to reach you",
+        atLeastOne: "Keep at least one way to reach you.",
+      },
+      voice: {
+        hint: "One sentence in the first person, in your own words. The registry fills in only the animal's name, where you write {імʼя}. Nothing else changes.",
+        nameStaysHint:
+          "The name goes in as it is: Rex, Murka. It isn't declined, so write the sentence so it reads naturally, for example «{імʼя} is still looking for a home».",
+        insertName: "Insert {імʼя}",
+        counter: "{count} / {max}",
+        counterOver: "Characters over: {over}",
+        emptyMeans: "Leave it empty and the cards show only “Updated … ago”.",
+        previewLabel: "This is how it looks on the animal's page: {name}",
+        previewNoAnimals:
+          "The preview appears once you have an animal: it shows how the sentence will look on its page.",
+        previewEmpty: "No sentence: the card shows only “Updated … ago”.",
+      },
+      donation: {
+        optional: "· optional",
+        previewLabel: "This is how people will see it:",
+        previewHost: "{host} ↗",
+        propose: "Send for checking",
+        proposeNote:
+          "The new link appears on the cards after I check it. Until then people see the current one.",
+        pendingTitle: "Waiting to be checked",
+        pendingHost: "Proposed: {host}",
+        pendingSince: "Sent {date}",
+        cancelProposal: "Withdraw the proposal",
+        proposed: "Sent. I'll check the link.",
+        cancelled: "Proposal withdrawn. The current link stays.",
+        replaceNote: "Sending another link replaces the one waiting to be checked.",
+        failed: "Not sent. Check the connection and try again.",
+        declined: "The last proposed link wasn't approved. If it isn't clear why, write to me.",
+      },
+      pause: {
+        button: "Pause taking animals",
+        resumeButton: "Resume taking animals",
+        pausedLine: "Intake paused since {date} · {reason}",
+        dialogTitle: "Pause taking animals?",
+        dialogBody:
+          "While intake is paused, people looking don't see your animals. You can resume here at any time.",
+        reasonLabel: "Reason",
+        reasonPlaceholder: "Choose a reason",
+        reason: {
+          seasonal_closure: "Seasonal break",
+          relocation: "Moving",
+          capacity_reached: "No room",
+          staff_shortage: "Not enough people",
+          other: "Other",
+        },
+        noteLabel: "Note",
+        noteHint:
+          "You, the shelter's other administrators and I see the note. People looking for an animal don't.",
+        confirm: "Pause intake",
+        cancel: "Cancel",
+        close: "Close",
+        paused: "Intake paused.",
+        resumed: "Intake resumed. Your animals are shown again.",
+      },
+    },
     support: {
       title: "You are viewing the cabinet of «{shelter}»: view only, nothing can be changed",
       body: "This is how the shelter's administrator sees the cabinet.",

@@ -1,8 +1,16 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { ProfileEditing } from "./home";
 import { ShelterProfile } from "./ShelterProfile";
+
+// The CG-Q1 area renders nothing while its namespace is empty, so it is
+// replaced by a marker here to see where it mounts (its own render is
+// AllowlistedShelterArea.test.tsx's).
+vi.mock("./test-shelter-only/AllowlistedShelterArea", () => ({
+  AllowlistedShelterArea: () => <div data-testid="allowlisted-shelter-area-mounted" />,
+}));
 
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"). Its strings are
@@ -266,5 +274,151 @@ describe("ShelterProfile (K4, read-only)", () => {
     const signOut = screen.getByRole("button", { name: t.signOut });
     expect(signOut.className).toContain("focus-visible:outline");
     expect(signOut.className).toContain("min-h-12");
+  });
+});
+
+/**
+ * K4: the page shows the editor exactly when `kabinetHomeOf` opened editing
+ * for this viewer, and is the read-only page otherwise.
+ */
+describe("ShelterProfile with K4 editing", () => {
+  const open = {
+    kind: "open",
+    grantedBy: "allowlist",
+    previewAnimal: null,
+    donationDeclined: false,
+  } as const;
+
+  it("open for the admin: the editor's fields are there", () => {
+    render(
+      <ShelterProfile
+        view={view()}
+        cityName="Бровари"
+        viewer="admin"
+        operatorName="Олексій"
+        editing={open}
+      />,
+    );
+    expect(screen.getByLabelText(/^Телефон/)).toBeTruthy();
+    expect(screen.getByLabelText("Ваші слова на картках")).toBeTruthy();
+  });
+
+  it("a support view stays read-only even if editing were open", () => {
+    const { container } = render(
+      <ShelterProfile
+        view={view()}
+        cityName="Бровари"
+        viewer="support"
+        operatorName="Олексій"
+        editing={open}
+      />,
+    );
+    expect(container.querySelectorAll("input, textarea, select")).toHaveLength(0);
+  });
+
+  it("read-only editing: no field at all", () => {
+    const { container } = render(
+      <ShelterProfile
+        view={view()}
+        cityName="Бровари"
+        viewer="admin"
+        operatorName="Олексій"
+        editing={{ kind: "read_only" }}
+      />,
+    );
+    expect(container.querySelectorAll("input, textarea, select")).toHaveLength(0);
+  });
+});
+
+/**
+ * CG-Q1 (Oleksii, verbatim: "Render tests prove a non-allowlisted shelter
+ * admin, the support view and the operator never get it."). The operator
+ * outside support never reaches this page at all (`kabinetHomeOf` answers
+ * not_found, `home-page.test.ts`); inside support it is the support view.
+ */
+describe("the test-shelter-only area mounts for the allowlisted admin only (CG-Q1)", () => {
+  const editingWith = (grantedBy: "allowlist" | "open_policy") =>
+    ({ kind: "open", grantedBy, previewAnimal: null, donationDeclined: false }) as const;
+  const mounted = () => screen.queryByTestId("allowlisted-shelter-area-mounted") !== null;
+  const renderWith = (viewer: "admin" | "support", editing: ProfileEditing) =>
+    render(
+      <ShelterProfile
+        view={view()}
+        cityName="Бровари"
+        viewer={viewer}
+        operatorName="Олексій"
+        editing={editing}
+      />,
+    );
+
+  it("the allowlisted shelter's admin: mounted", () => {
+    renderWith("admin", editingWith("allowlist"));
+    expect(mounted()).toBe(true);
+  });
+
+  it("a shelter admin outside the allowlist (read-only): never", () => {
+    renderWith("admin", { kind: "read_only" });
+    expect(mounted()).toBe(false);
+  });
+
+  it("an admin whose writes a wider policy opened: never", () => {
+    renderWith("admin", editingWith("open_policy"));
+    expect(mounted()).toBe(false);
+  });
+
+  it("the support view (the operator), even of the allowlisted shelter: never", () => {
+    renderWith("support", editingWith("allowlist"));
+    expect(mounted()).toBe(false);
+    renderWith("support", { kind: "read_only" });
+    expect(mounted()).toBe(false);
+  });
+});
+
+/**
+ * K4-B4, answer 2 (Oleksii, verbatim: "show the pause note under the paused
+ * line, labelled «Коментар», visible only to that shelter's admins (and
+ * operator/support)."): the read-only page shows it too, so the support view
+ * and an admin outside the allowlist see what the shelter wrote.
+ */
+describe("the pause note on the read-only page (K4-B4)", () => {
+  const paused = view({
+    verification: {
+      status: "paused",
+      since: new Date("2026-10-10T09:00:00Z"),
+      reason: { code: "capacity_reached", note: "Повні вольєри" },
+    },
+  });
+
+  it.each(["support", "admin"] as const)(
+    "%s: the paused line, then «Коментар» and the note",
+    (viewer) => {
+      render(
+        <ShelterProfile view={paused} cityName="Бровари" viewer={viewer} operatorName="Олексій" />,
+      );
+      expect(
+        screen.getByText(/^Прийом на паузі з \d+ жовтня 2026 р?\.? ?· Немає місця$/),
+      ).toBeTruthy();
+      const note = screen.getByText("Повні вольєри");
+      expect(note.previousElementSibling?.textContent).toBe("Коментар");
+    },
+  );
+
+  it("no note: the paused line alone", () => {
+    render(
+      <ShelterProfile
+        view={view({
+          verification: {
+            status: "paused",
+            since: new Date("2026-10-10T09:00:00Z"),
+            reason: { code: "relocation", note: null },
+          },
+        })}
+        cityName="Бровари"
+        viewer="admin"
+        operatorName="Олексій"
+      />,
+    );
+    expect(screen.getByText(/· Переїзд$/)).toBeTruthy();
+    expect(screen.queryByText("Коментар")).toBeNull();
   });
 });

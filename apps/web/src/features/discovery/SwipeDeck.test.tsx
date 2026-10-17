@@ -99,10 +99,10 @@ function revealFor(animalId: AnimalId, contact: ShelterContact): ContactRevealVi
     id: REVEAL_ID,
     animalId,
     revealedAt: new Date("2026-08-08T10:00:00Z"),
-    shelterSnapshot: {
+    shelterContact: { source: "current", contact },
+    shelterAtFirstReveal: {
       shelterId: SHELTER_ID,
       displayName: "Притулок «Домівка»",
-      contact,
       publicLocation: { cityId: CITY_ID },
       verificationStatusAtReveal: "verified",
       donation: null,

@@ -101,3 +101,35 @@ describe("SupportBanner", () => {
     expect(screen.getByRole("alert")).toBeDefined();
   });
 });
+
+describe("SignOutButton with unsaved K4 edits (answer 1)", () => {
+  it("asks his question first, and stays when the answer is no", async () => {
+    const signOut = vi.fn(async () => {});
+    const confirm = vi.fn(() => false);
+    render(<SignOutButton signOut={signOut} navigate={vi.fn()} confirmLeave={confirm} />);
+    await userEvent.click(screen.getByRole("button", { name: uk.kabinet.profile.signOut }));
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(signOut).not.toHaveBeenCalled();
+  });
+});
+
+describe("confirmLeave", () => {
+  it("asks nothing with no section dirty, and his question with one dirty", async () => {
+    const { confirmLeave, useUnsavedChanges } = await import("./profile-edit/unsaved-changes");
+    const ask = vi.fn(() => true);
+    expect(confirmLeave(ask)).toBe(true);
+    expect(ask).not.toHaveBeenCalled();
+    function Dirty() {
+      useUnsavedChanges("test", true);
+      return null;
+    }
+    const { unmount } = render(<Dirty />);
+    confirmLeave(ask);
+    // Transcribed from his K4 file: actions.unsavedLeave.
+    expect(ask).toHaveBeenCalledWith("Зміни не збережено. Все одно вийти?");
+    unmount();
+    ask.mockClear();
+    expect(confirmLeave(ask)).toBe(true);
+    expect(ask).not.toHaveBeenCalled();
+  });
+});

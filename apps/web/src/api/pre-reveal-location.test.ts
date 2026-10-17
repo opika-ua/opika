@@ -142,21 +142,23 @@ describe("served reveal responses carry contacts and the city, never the address
         await h.call("animals.reveal", { animalId: animal.id }, { cookie }),
       );
       // What a reveal is for still arrives: the shelter's name, its channels, its city.
-      const snapshot = (reveal.body as { shelterSnapshot: Record<string, unknown> })
-        .shelterSnapshot;
-      expect(snapshot.displayName).toBe(shelter.displayName);
-      expect(snapshot.contact).toEqual(JSON.parse(JSON.stringify(shelter.contact)));
-      expect(snapshot.publicLocation).toEqual({ cityId: city.id });
+      const body = reveal.body as Record<string, Record<string, unknown>>;
+      expect(body.shelterAtFirstReveal?.displayName).toBe(shelter.displayName);
+      expect(body.shelterContact).toEqual({
+        source: "current",
+        contact: JSON.parse(JSON.stringify(shelter.contact)),
+      });
+      expect(body.shelterAtFirstReveal?.publicLocation).toEqual({ cityId: city.id });
     }
 
     const mine = await h.call("reveals.listMine", { cursor: null, limit: 20 }, { cookie });
     expectCityOnly("reveals.listMine", mine);
-    const items = (mine.body as { items: { shelterSnapshot: Record<string, unknown> }[] }).items;
+    const items = (mine.body as { items: Record<string, object>[] }).items;
     expect(items).toHaveLength(2);
     for (const item of items) {
-      expect(Object.keys(item.shelterSnapshot).sort()).toEqual(
+      expect(Object.keys(item.shelterContact ?? {}).sort()).toEqual(["contact", "source"]);
+      expect(Object.keys(item.shelterAtFirstReveal ?? {}).sort()).toEqual(
         [
-          "contact",
           "displayName",
           "donation",
           "publicLocation",

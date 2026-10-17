@@ -194,6 +194,19 @@
   --spacing-screen: 40px;
 
   /*
+   * ---- Touch target (K4, 2026-10-17) ----
+   * The minimum height of every shared control (`features/controls`:
+   * buttons, text fields, selects), as `min-h-target`. 48px: WCAG 2.2 AA's
+   * target size is 24px, and KABINET.md asks for 48 because the people using
+   * these screens include volunteers over 50 on budget Android phones, where a
+   * 24px target is a miss as often as a hit. Oleksii, 2026-10-17: "a shared
+   * min-height token on the shared button/control primitives, plus ONE test
+   * on those primitives that the computed min-height is ≥ 48px" (the
+   * harness's kabinet profile spec measures it in a real browser).
+   */
+  --spacing-target: 48px;
+
+  /*
    * ---- Typography — font families ----
    * `next/font/local` (apps/web/src/app/fonts.ts, both families self-hosted)
    * generates these two CSS custom
