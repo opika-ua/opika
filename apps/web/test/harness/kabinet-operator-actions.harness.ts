@@ -1,10 +1,11 @@
 /**
  * R-UI 3 in a real browser, along Oleksii's rehearsal step 5 (RU-B5): the
- * operator takes a pending shelter under review, approves it, suspends it with
- * a reason, the shelter's admin reads that reason on `/kabinet` while it is
- * suspended, the operator reinstates it, and S4's history shows each move.
- * Flows only, by role, label and text (Oleksii, 2026-10-17: "Test logic, not
- * looks").
+ * operator takes a pending shelter under review, approves it, approves the
+ * donation link it proposed, suspends it with a reason, the shelter's admin
+ * reads that reason on `/kabinet` while it is suspended («Пояснення:», the
+ * note, «— {operator}», round-2 answer 2), the operator reinstates it, and
+ * S4's history shows each move. Flows only, by role, label and text
+ * (Oleksii, 2026-10-17: "Test logic, not looks").
  *
  * S4 (`/kabinet/prytulky/[id]`) and its history are R-UI 1's; the actions
  * are mounted on it by `ShelterActionsScreen`. The history is read without a
@@ -14,8 +15,10 @@
  * (the magic link off its stdout), the operator by a `super_admins` grant in
  * this run's own database, the shelter's admin by a membership. The shelter
  * is created here, fictional, with the evidence an unregistered initiative
- * needs (a site visit and two references), so approve is open. The registry
- * needs `LOCATION_HMAC_SECRET` (RG-Q10), given to that server only.
+ * needs (a site visit and two references), so approve is open, and a
+ * proposed donation link. The registry needs `LOCATION_HMAC_SECRET` (RG-Q10),
+ * given to that server only, with a fictional `KABINET_OPERATOR_DISPLAY_NAME`
+ * so the signature the shelter reads is this run's, not a developer's.
  *
  * Own `x-forwarded-for` (TEST-NET-2 .36). Tracing off: the links are
  * credentials, even test ones.
@@ -26,7 +29,13 @@ import { createDatabase, productionLocationPolicy } from "@opika/db";
 import { kabinetInvitationRepo, kabinetShelterRepo } from "@opika/db/repos";
 import { authMember, authUser, cities, superAdmins } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
-import { type ModeratorId, publicLocationOf, type Shelter, type ShelterId } from "@opika/domain";
+import {
+  type ModeratorId,
+  publicLocationOf,
+  type Shelter,
+  type ShelterAdminId,
+  type ShelterId,
+} from "@opika/domain";
 import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { HARNESS_LOCATION_HMAC_SECRET } from "../harness-env";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
@@ -37,6 +46,8 @@ test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
 const NOTE = "Скарга від ветклініки на умови утримання. Напишу після повторного візиту.";
+/** Fictional; the signature under the note is «— {operator}» with this name (round-2 answer 2). */
+const OPERATOR_NAME = "Ярина Перевіркова";
 
 async function signedInContext(
   browser: Browser,
@@ -81,6 +92,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
     const now = new Date();
     server = await startSignInServer(HARNESS_DATABASE_URL, {
       LOCATION_HMAC_SECRET: HARNESS_LOCATION_HMAC_SECRET,
+      KABINET_OPERATOR_DISPLAY_NAME: OPERATOR_NAME,
     });
 
     // The operator: a user and an active grant, nothing else.
@@ -121,7 +133,12 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
       exactAddress,
       contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
       donation: null,
-      pendingDonation: null,
+      // Rehearsal step 5: "I approve a donation link".
+      pendingDonation: {
+        link: { url: "https://send.monobank.ua/jar/harness-rui3", provider: "monobank_jar" },
+        proposedAt: now,
+        proposedBy: randomUUID() as ShelterAdminId,
+      },
       version: 0,
       freshnessSentence: null,
       verification: {
@@ -206,12 +223,17 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
     return page;
   };
 
-  test("start review → approve → suspend with a reason → the shelter reads it → reinstate → history", async () => {
+  test("start review → approve → donation → suspend with a reason → the shelter reads it → reinstate → history", async () => {
     const page = await shelterPage();
     const decision = page.getByRole("region", { name: "Рішення" });
 
     await decision.getByRole("button", { name: "Взяти на розгляд" }).click();
     await decision.getByRole("button", { name: "Схвалити → «Перевірено»" }).click();
+
+    const donation = page.getByRole("region", { name: "Збір коштів" });
+    await donation.getByRole("button", { name: "Схвалити" }).click();
+    await expect(donation.getByText("Посилання схвалено.")).toBeVisible();
+
     await decision.getByRole("button", { name: "Призупинити…" }).click();
 
     const dialog = page.getByRole("dialog", { name: /^Призупинити «/ });
@@ -225,13 +247,17 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
     await expect(dialog).toBeHidden();
     await expect(decision.getByRole("button", { name: "Відновити → «Перевірено»" })).toBeVisible();
 
-    // While suspended, the shelter's admin reads the code and the note on /kabinet (answer 7).
+    // While suspended, the shelter's admin reads the code, «Пояснення:», the
+    // note verbatim and the operator's signature on /kabinet (answer 7, and
+    // round-2 answer 2).
     if (shelterAdmin === undefined) throw new Error("not set up");
     const kabinet = await shelterAdmin.newPage();
     expect((await kabinet.goto("/kabinet"))?.status()).toBe(200);
     const notice = kabinet.getByRole("region", { name: "Притулок тимчасово призупинено" });
     await expect(notice.getByText("Причина: Скарга підтвердилася.")).toBeVisible();
+    await expect(notice.getByText("Пояснення:", { exact: true })).toBeVisible();
     await expect(notice.getByText(NOTE, { exact: true })).toBeVisible();
+    await expect(notice.getByText(`— ${OPERATOR_NAME}`, { exact: true })).toBeVisible();
     await kabinet.close();
 
     await decision.getByRole("button", { name: "Відновити → «Перевірено»" }).click();
@@ -242,6 +268,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
     const history = page.getByRole("region", { name: "Історія" });
     await expect(history.getByText(/^Взято на розгляд/)).toBeVisible();
     await expect(history.getByText(/^Схвалено → «Перевірено»/)).toBeVisible();
+    await expect(history.getByText(/^Посилання на збір схвалено/)).toBeVisible();
     await expect(
       history.getByText(`Призупинено: Скарга підтвердилася. ${NOTE}`, { exact: false }),
     ).toBeVisible();
