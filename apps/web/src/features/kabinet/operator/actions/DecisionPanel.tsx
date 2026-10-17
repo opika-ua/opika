@@ -5,7 +5,7 @@ import type { EvidenceGap, InterruptedState } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useId, useRef, useState } from "react";
 import { Button } from "../../../controls/controls";
-import { formatDate } from "../../ProfileParts";
+import { formatDate } from "../format";
 import { DECISION_OWNER, type DecisionOutcome } from "./decision-outcome";
 import { type OfferedAction, offeredActionsOf } from "./offered-actions";
 import { useOperatorActions } from "./operator-actions";
@@ -76,7 +76,8 @@ const landedFor = (action: "start_review" | "approve" | "reinstate", view: Regis
  * itself (the new status's moves), so there is no success line to read; the
  * focus goes to the panel's heading, since the pressed button may be gone.
  *
- * rebase: mount on S4, beside the evidence (r-ui-plan §1, S4 row).
+ * Mounted at the head of S4's second column, beside the evidence
+ * (`ShelterActionsScreen`).
  */
 export function DecisionPanel({
   renderEvidenceEditor,

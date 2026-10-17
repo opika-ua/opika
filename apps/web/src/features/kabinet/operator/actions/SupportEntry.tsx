@@ -29,7 +29,7 @@ export const SUPPORT_VIEW_PATH = "/kabinet";
  * open it shows the support view; without one the operator lands on the list
  * (`/kabinet` redirects a super_admin there), and nothing claims either.
  *
- * rebase: mount on S4, in the header (KABINET S4: "Header actions").
+ * Mounted in S4's heading (KABINET S4: "Header actions"; `ShelterActionsScreen`).
  */
 export function SupportEntry() {
   const { view, phase, run, navigate } = useOperatorActions();

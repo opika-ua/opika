@@ -3,9 +3,9 @@ import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
+import { ShelterActionsScreen } from "../../../../features/kabinet/operator/actions/ShelterActionsScreen";
 import { OperatorShell } from "../../../../features/kabinet/operator/OperatorShell";
 import { operatorShelterOf } from "../../../../features/kabinet/operator/pages";
-import { ShelterScreen } from "../../../../features/kabinet/operator/ShelterScreen";
 import { operatorRequest } from "../operator-request";
 
 type Params = Promise<{ id: string }>;
@@ -35,10 +35,12 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 /**
- * S4 · one shelter, read-only (R-UI 1). Guards itself like S1: 404 while
- * sign-in is unavailable or without the location key (RU-T5), then the
- * registry router decides on the record's read: no session goes to sign-in;
- * not the operator, or no such shelter, is the same 404 (plan §4).
+ * S4 · one shelter (R-UI 1), with the operator's actions on it (R-UI 3).
+ * Guards itself like S1: 404 while sign-in is unavailable or without the
+ * location key (RU-T5), then the registry router decides on the record's
+ * read: no session goes to sign-in; not the operator, or no such shelter, is
+ * the same 404 (plan §4). The actions write from the browser through
+ * `/api/kabinet`, and re-read by rendering this page again.
  */
 export default async function OperatorShelterPage({ params }: { params: Params }) {
   const { request, shelter } = await loadShelter((await params).id);
@@ -52,7 +54,7 @@ export default async function OperatorShelterPage({ params }: { params: Params }
     case "shelter":
       return (
         <OperatorShell operatorName={request.operatorName} current={null}>
-          <ShelterScreen
+          <ShelterActionsScreen
             view={shelter.view}
             cityName={shelter.cityName}
             history={shelter.history}

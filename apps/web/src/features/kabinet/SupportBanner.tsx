@@ -2,6 +2,7 @@
 
 import { uk } from "@opika/i18n";
 import { useState } from "react";
+import { OPERATOR_HOME } from "./routes";
 
 /** `session.exitSupport`, the one write a support view may make (access matrix). */
 export const EXIT_SUPPORT_PATH = "/api/kabinet/session/exitSupport";
@@ -12,7 +13,7 @@ export const EXIT_SUPPORT_PATH = "/api/kabinet/session/exitSupport";
  * super_admin, so the destination is the list whatever `/kabinet` does. This
  * supersedes KS-T11's front door, chosen while the registry had no screens.
  */
-export const AFTER_SUPPORT_DESTINATION = "/kabinet/prytulky";
+export const AFTER_SUPPORT_DESTINATION = OPERATOR_HOME;
 
 const FOCUS =
   "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-white focus-visible:outline-offset-[3px]";

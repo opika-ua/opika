@@ -6,7 +6,7 @@ import { type FormEvent, useId, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, TextField } from "../../../controls/controls";
 import { ModalDialog } from "../../../controls/ModalDialog";
-import { formatDate } from "../../ProfileParts";
+import { formatDate } from "../format";
 import { type ActionRefusal, emailOutcomeText } from "./action-result";
 import { useOperatorActions } from "./operator-actions";
 import { ACTIONS, BODY, CAPTION, NOTICE, STRONG } from "./styles";
@@ -51,10 +51,9 @@ const statusLine = (admin: ShelterAdminView, now: Date): string => {
  * (IN-E7), and the reminder to tell the shelter personally when one was sent
  * (IN-E13). An address that has a role elsewhere is refused with which role.
  *
- * rebase: mount on S4 in the admins section, in place of R-UI 1's read-only
- * rows (reuse its row component if it is presentational); the section keeps
- * its heading. `now` is the page's request time, for "valid until" vs
- * "expired".
+ * Mounted in S4's admins section in place of R-UI 1's read-only rows
+ * (`ShelterActionsScreen`); the section keeps its heading. `now` is the
+ * page's request time, for "valid until" vs "expired".
  */
 export function AdminsManager({ now }: { now: Date }) {
   const { view, phase, run } = useOperatorActions();
