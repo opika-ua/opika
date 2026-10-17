@@ -53,7 +53,8 @@ describe("vaccinationRow", () => {
       verifiedAt: new Date(),
     });
     expect(row.label).toBe("Сказ");
-    expect(row.statusText).toBe("Реєстр тварин");
+    // Q5 of the K3 sheet (Oleksii, verbatim): "`medical.registry` → «Державний реєстр тварин»".
+    expect(row.statusText).toBe("Державний реєстр тварин");
     expect(row.barClassName).toBe("bg-rg-registry");
   });
 });
@@ -99,7 +100,7 @@ describe("literal strings match uk.ts", () => {
     expect(uk.medical.rabies).toBe("Сказ");
     expect(uk.medical.vaccination).toBe("Комплексне щеплення");
     expect(uk.medical.spayNeuter).toBe("Стерилізація");
-    expect(uk.medical.registry).toBe("Реєстр тварин");
+    expect(uk.medical.registry).toBe("Державний реєстр тварин");
     expect(uk.medical.shelterDeclared).toBe("Слова притулку");
   });
 });

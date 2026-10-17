@@ -427,7 +427,13 @@ export const en = {
       website: "Website",
     },
     profileNotRecorded: "Not recorded",
-    testShelterOnly: {},
+    testShelterOnly: {
+      animalForm: {
+        dateUnchanged:
+          "Editing the text doesn't change the «Updated» date. Your confirmation in the animal list does, and so does any photo change.",
+        lastPhotoKeptNotShown: `${COPY_PENDING} "This card is published, so it keeps at least one photo." (instead of photos.lastPhotoKept while the shelter's cards are hidden)`,
+      },
+    },
     profileEdit: {
       actions: {
         save: "Save",
@@ -531,6 +537,162 @@ export const en = {
         close: "Close",
         paused: "Intake paused.",
         resumed: "Intake resumed. Your animals are shown again.",
+      },
+    },
+    listingStatus: {
+      draft: "Draft",
+      published: "Published",
+      reserved: "Being arranged",
+      adopted: "Home",
+      withdrawn: "Taken down",
+    },
+    animalForm: {
+      pageTitleNew: "New animal",
+      pageTitleEdit: "{name}",
+      titleNew: "New animal",
+      backToList: "← Animals",
+      header: {
+        createdNotPublished: "Created {when} · not in the gallery yet",
+      },
+      who: {
+        title: "Who this is",
+        nameLabel: "Name",
+        nameHint:
+          "What the animal is called at the shelter. Just the name; explanations belong in the description.",
+        namePlaceholder: "For example, Lastivka",
+        speciesLabel: "Species",
+        sexLabel: "Sex",
+        sexMale: "Boy",
+        sexFemale: "Girl",
+        sizeLabel: "Size",
+        sizeNote:
+          "There is no weight on purpose: a size judged by eye is more accurate than last year's number.",
+        sizeHintUpTo: "up to {max} kg",
+        sizeHintRange: "{min}–{max} kg",
+        sizeHintFrom: "from {min} kg",
+      },
+      age: {
+        title: "Age",
+        modeLabel: "What is known about the age",
+        modeBirthDate: "The birth date is known",
+        modeBucket: "The age on a given date is known",
+        modeBirthDateShort: "Birth date",
+        modeBucketShort: "Age on a date",
+        modeNote:
+          "Both ways are equally good. The site keeps exactly what you entered and works the age out from there.",
+        birthDateLabel: "Birth date",
+        bucketLabel: "Age on that date",
+        bucketRangeUnder: "under {max}",
+        bucketRange: "{min}–{max}",
+        bucketRangeFrom: "{min}+",
+        asOfLabel: "As of",
+        asOfHint: "When you made this estimate. Usually the day the animal came to the shelter.",
+        adopterSees: "People looking for an animal will see: «{label}».",
+        uncertain:
+          "The age was given as of {when}. The card now says «{label}». If the animal is older than that, update the age.",
+      },
+      description: {
+        title: "Description",
+        prompt: "What you would tell someone standing by the enclosure.",
+        label: "About the animal",
+        hint: "Plain text, no formatting.",
+        counter: "{count} of {max} characters",
+        counterOver: "Characters over the limit: {over}",
+      },
+      health: {
+        title: "Medical",
+        confirm: "Done",
+        unknownNote:
+          "«Not recorded» is an honest answer. People looking for an animal will see «Not recorded», not «no».",
+        registryReadOnly:
+          "Confirmed by the state animal registry. This line can't be changed here.",
+      },
+      photos: {
+        title: "Photos",
+        ratioNote: "4:5 format; the first photo is the cover.",
+        add: "+ Photo",
+        addHint: "Any photo this phone or browser can open.",
+        howItWorks:
+          "The first photo is the cover; drag a photo to change the order. At least one is needed to publish. Large photos are shrunk on the device to {px} pixels before sending, which saves mobile data.",
+        privacyNote: "Location data and other hidden data are removed from photos.",
+        preparing: "Preparing the photo…",
+        uploading: "Uploading the photo…",
+        uploadingProgress: "Uploading · {percent} · {sent} of {total} MB",
+        done: "Done",
+        cover: "Cover",
+        failed: "Didn't upload",
+        dismissFailed: "Remove",
+        dismissFailedName: "Remove the photo that didn't upload",
+        tileLabel: "Photo {n} of {total}",
+        makeCover: "Make it the cover",
+        moveEarlier: "Move earlier",
+        moveLater: "Move later",
+        remove: "Remove photo {n}",
+        capReached: "That's the maximum: {max} photos.",
+        lastPhotoKept: "People can see this card, so one photo has to stay.",
+        added: "Photo added.",
+        removed: "Photo removed.",
+        reordered: "Order changed.",
+        conflict: "The photos changed in another window. Here is the current set; try again.",
+        removedStillReachable:
+          "The photo is gone from the card. The file itself isn't deleted right away; if it needs to go completely, write to me.",
+        dateMoves: "On a card people can see, any photo change updates the «Updated» date.",
+      },
+      photoErrors: {
+        heicUnsupported:
+          "This phone or browser can't open HEIC photos. Please choose a JPG or PNG.",
+        unreadable: "This file couldn't be opened as a photo.",
+        tooLarge: "Even after shrinking, this photo is too large. Try another one.",
+        rejected: "The site can't use this file as a photo.",
+        limitReached: "This animal already has {max} photos.",
+        rateLimited: "Too many photos in a short time. Try again a little later.",
+        uploadsUnavailable: "Photos can't be uploaded on this version of the site.",
+      },
+      draft: {
+        savedAt: "Draft saved at {time}",
+        notVisible: "People looking for an animal don't see this draft.",
+        notSavedYet: "A name and a species are needed to save a draft.",
+        saveFailed:
+          "The draft wasn't saved. Check the connection; everything you typed stays here.",
+        save: "Save draft",
+        saveShort: "Save",
+      },
+      listed: {
+        liveOnSave: "Changes appear on the card as soon as you save.",
+        notShownNow: "Nobody can see this card right now.",
+      },
+      publish: {
+        button: "Publish",
+        missing: "To publish, this still needs: {list}.",
+        gap: {
+          size: "size",
+          age: "age",
+          description: "description",
+          photo: "a photo",
+        },
+        done: "Published. People looking for an animal can see the card now.",
+        viewPublic: "Open the animal's page",
+        stateChanged:
+          "The card changed in another window. Reload the page to see the current version.",
+      },
+      errors: {
+        conflict:
+          "Someone changed this card after you opened it. Your latest changes weren't saved. Here is the current version; make them again.",
+        registryConfirmed:
+          "This is confirmed by the state animal registry and can't be changed here.",
+        requiredOnceListed: "This card has been published, so its description can't be empty.",
+        notFound: "This animal isn't in your list: the card was deleted, or the link is wrong.",
+        loadFailed: "The card didn't load. Check the connection and try again.",
+      },
+      validation: {
+        nameRequired: "A name is needed to save the draft.",
+        speciesRequired: "Choose dog or cat to save the draft.",
+        nameBrace: "A name can't contain curly braces.",
+        nameTooLong: "The name is longer than {max} characters.",
+        descriptionTooLong: "The description is longer than {max} characters.",
+        birthDateFuture: "The birth date can't be in the future.",
+        asOfFuture: "The «As of» date can't be in the future.",
+        dateTooOld: "That date is too far back: more than {years} years ago.",
       },
     },
     support: {
