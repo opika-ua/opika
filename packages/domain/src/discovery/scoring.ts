@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { type FeedFilters, matchesSelection } from "../adopters/feed-filters";
 import { ageBucketOf } from "../animals/age";
-import type { Animal } from "../animals/animal";
+import type { DiscoverableAnimal } from "../animals/animal";
 import type { Freshness } from "./freshness";
 
 const nonNegative = z.number().min(0);
@@ -54,7 +54,7 @@ export const DEFAULT_SCORING_POLICY: ScoringPolicy = {
   minDescriptionChars: 40,
 };
 
-const completenessOf = (animal: Animal, policy: ScoringPolicy): number => {
+const completenessOf = (animal: DiscoverableAnimal, policy: ScoringPolicy): number => {
   const { hasPhotos, hasDescription, vaccinationKnown } = policy.completenessScore;
   const total = hasPhotos + hasDescription + vaccinationKnown;
   if (total === 0) return 0;
@@ -75,7 +75,7 @@ const completenessOf = (animal: Animal, policy: ScoringPolicy): number => {
  * City is absent deliberately: it lives on the shelter, not the animal, and is
  * applied as a hard constraint in the query rather than as a ranking signal.
  */
-const preferenceOf = (animal: Animal, filters: FeedFilters, now: Date): number => {
+const preferenceOf = (animal: DiscoverableAnimal, filters: FeedFilters, now: Date): number => {
   // null marks a dimension the adopter left open, which is excluded from the
   // ratio entirely rather than counted as a free match.
   const checks: readonly (boolean | null)[] = [
@@ -108,7 +108,7 @@ const preferenceOf = (animal: Animal, filters: FeedFilters, now: Date): number =
  * Do not remove it as dead code.
  */
 export const scoreAnimal = (
-  animal: Animal,
+  animal: DiscoverableAnimal,
   filters: FeedFilters,
   freshness: Freshness,
   now: Date,
