@@ -163,8 +163,8 @@ describe("the builders fill his final copy", () => {
       ttlMinutes: 15,
       operatorName: operatorDisplayName({}),
     });
-    expect(email.text.endsWith("нічого не відбудеться.\n— Оператор реєстру")).toBe(true);
-    expect(email.html).toContain("<br>— Оператор реєстру</p>");
+    expect(email.text.endsWith("нічого не відбудеться.\n— адміністратор сайту")).toBe(true);
+    expect(email.html).toContain("<br>— адміністратор сайту</p>");
   });
 
   it("invitation: the shelter in the intro, the 72-hour expiry, and the operator signing the last line (row 88)", () => {
@@ -193,7 +193,7 @@ describe("the builders fill his final copy", () => {
       operatorName: operatorDisplayName({}),
       ttlHours: 72,
     });
-    expect(email.text.endsWith("\n— Оператор реєстру")).toBe(true);
-    expect(email.html).toContain("<br>— Оператор реєстру</p>");
+    expect(email.text.endsWith("\n— адміністратор сайту")).toBe(true);
+    expect(email.html).toContain("<br>— адміністратор сайту</p>");
   });
 });
