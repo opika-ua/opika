@@ -89,6 +89,24 @@ describe("S4 with its actions", () => {
     expect(section("Історія").getByText(/^Притулок створено/)).toBeTruthy();
   });
 
+  it("a shelter with no admin: the admins section says so and offers «Запросити ще одного»", () => {
+    render(
+      <ShelterActionsScreen
+        view={{ ...view, admins: [] }}
+        cityName="Бровари"
+        history={{ items: [created], nextCursor: null }}
+        blocked={CHECKED_NONE}
+        me={MODERATOR as ModeratorId}
+        now={NOW}
+      />,
+    );
+    const admins = section("Адміністратори");
+    expect(admins.getByText("Адміністраторів немає")).toBeTruthy();
+    expect(admins.getByLabelText("Імʼя")).toBeTruthy();
+    expect(admins.getByLabelText("Електронна пошта")).toBeTruthy();
+    expect(admins.getByRole("button", { name: "Запросити ще одного" })).toBeTruthy();
+  });
+
   it("a decision goes through the page's browser client, and the page re-reads itself", async () => {
     server.approveDonation.mockImplementation(async () => ({
       ...view,

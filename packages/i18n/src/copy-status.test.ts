@@ -949,12 +949,10 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
       ...Object.keys(RUI_FINAL),
       ...Object.keys(CHECKED_AGAINST_CODE),
       ...Object.keys(ROUND_2_REASON_VIEW),
-    ].filter(
-      (path) => {
-        const text = valueAt(path) as string;
-        return text.includes(ASCII_APOSTROPHE) || text.includes(TYPOGRAPHIC_APOSTROPHE);
-      },
-    );
+    ].filter((path) => {
+      const text = valueAt(path) as string;
+      return text.includes(ASCII_APOSTROPHE) || text.includes(TYPOGRAPHIC_APOSTROPHE);
+    });
     expect(offending).toEqual([]);
     // Sanity: the letter-apostrophe is really there.
     expect(uk.kabinet.operator.evidence.field.channel).toContain(String.fromCodePoint(0x2bc));

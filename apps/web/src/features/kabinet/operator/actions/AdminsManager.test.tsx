@@ -57,9 +57,34 @@ describe("the list", () => {
     expect(row("Ірина").getByRole("button", { name: "Надіслати ще раз" })).toBeTruthy();
   });
 
-  it("no admin and no invitation: says so", () => {
-    renderWithActions(<AdminsManager now={NOW} />, { view: withAdmins([]) });
+  /**
+   * A shelter can have no admin (create's race, or the last one removed), and
+   * R-UI 2's S2 sends the operator here for exactly that: «Інших
+   * адміністраторів можна запросити зі сторінки притулку.» and «Притулок
+   * створено, але без адміністратора. Запросіть його зі сторінки притулку.»
+   */
+  it("no admin and no invitation: says so, and still offers «Запросити ще одного»", async () => {
+    const invite = vi.fn(async () => ({
+      id: "a1000000-0000-4000-8000-000000000009",
+      name: "Марія",
+      email: "maria@example.org",
+      invite: { status: "pending", expiresAt: new Date("2026-10-20T12:00:00Z") },
+      invitationEmail: { kind: "sent", blockCheck: "clear" },
+      invitationReminder: null,
+    }));
+    renderWithActions(<AdminsManager now={NOW} />, {
+      view: withAdmins([]),
+      client: { admins: { invite } },
+    });
     expect(screen.getByText("Адміністраторів немає")).toBeTruthy();
+    await userEvent.type(screen.getByLabelText("Імʼя"), "Марія");
+    await userEvent.type(screen.getByLabelText("Електронна пошта"), "maria@example.org");
+    await userEvent.click(screen.getByRole("button", { name: "Запросити ще одного" }));
+    expect(invite).toHaveBeenCalledExactlyOnceWith({
+      shelterId: SHELTER_ID,
+      name: "Марія",
+      email: "maria@example.org",
+    });
   });
 
   it("each row's buttons are described by that admin's name", () => {
@@ -97,6 +122,23 @@ describe("remove asks first", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByText("Олена", { selector: "span" })).toBeNull();
     await waitFor(() => expect(document.activeElement?.tagName).toBe("UL"));
+  });
+
+  it("removing the last admin: the list says none, and focus goes to the invite's first field", async () => {
+    const remove = vi.fn(async () => ({}));
+    renderWithActions(<AdminsManager now={NOW} />, {
+      view: withAdmins([OLENA]),
+      client: { admins: { remove } },
+      reread: async () => withAdmins([]),
+    });
+    await userEvent.click(row("Олена").getByRole("button", { name: "Прибрати" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Прибрати" }),
+    );
+    expect(remove).toHaveBeenCalledOnce();
+    expect(screen.getByText("Адміністраторів немає")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Запросити ще одного" })).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Імʼя")));
   });
 
   it("Escape and ✕ close the question too", async () => {
