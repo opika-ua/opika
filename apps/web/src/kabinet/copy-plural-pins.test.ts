@@ -11,12 +11,12 @@ import { MAGIC_LINK_TTL_SECONDS } from "./auth";
  * would ship broken grammar with every test still green. His note on row 27:
  * "pin 15 in a test or move to Intl plural rules." These pins are that test.
  * `signIn.sentBody` types the number itself («15 хвилин»), so it is pinned
- * the same way.
+ * the same way, as is R-UI's `operator.create.whatHappens.step2` («72 години»).
  */
 
 const MINUTE_KEYS =
   "kabinet.email.signIn.expiry, kabinet.inviteLanding.sent and kabinet.signIn.sentBody";
-const HOUR_KEYS = "kabinet.email.invite.expiry";
+const HOUR_KEYS = "kabinet.email.invite.expiry and kabinet.operator.create.whatHappens.step2";
 
 describe("the TTLs the copy's plural nouns were written for", () => {
   it("the magic link lives 15 minutes («хвилин»)", () => {
@@ -39,6 +39,7 @@ describe("the TTLs the copy's plural nouns were written for", () => {
     expect(uk.kabinet.inviteLanding.sent).toContain("{minutes} хвилин.");
     expect(uk.kabinet.signIn.sentBody).toContain("15 хвилин");
     expect(uk.kabinet.email.invite.expiry).toContain("{hours} години.");
+    expect(uk.kabinet.operator.create.whatHappens.step2).toContain("72 години");
   });
 
   /** Why those forms: Ukrainian's plural categories, as `Intl` reports them. */

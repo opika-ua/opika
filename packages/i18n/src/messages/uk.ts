@@ -846,10 +846,15 @@ export const uk = {
   },
   kabinet: {
     /**
-     * The history actor label when `KABINET_OPERATOR_DISPLAY_NAME` is unset
-     * (RS-Q2): Oleksii's own wording. Nominative, used only where the nominative fits.
+     * The operator's name when `KABINET_OPERATOR_DISPLAY_NAME` is unset
+     * (RS-Q2). Nominative, used only where the nominative fits: the history
+     * actor, `profile.lockedNote`'s «встановлює {operator}», and both emails'
+     * «— {operator}» signature. Oleksii's R-UI answer 9, verbatim: "Role label
+     * «адміністратор сайту» (also replaces the «Оператор реєстру» fallback)."
+     * Lower case as he wrote it: it reads mid-sentence in the locked note; as
+     * the emails' signature line it follows an em dash.
      */
-    operatorFallbackName: "Оператор реєстру",
+    operatorFallbackName: "адміністратор сайту",
     /**
      * Every kabinet string below is Oleksii's final Ukrainian (2026-10-14,
      * answering the 91-row copy export for PR #94), applied verbatim. The designer's
@@ -1277,6 +1282,370 @@ export const uk = {
      */
     history: {
       adminJoined: "{email} отримує доступ до кабінету",
+    },
+    /**
+     * R-UI · the operator's own screens (`docs/r-ui-copy-sheet.md`, keys and
+     * English sense; `docs/r-ui-plan.md`, the screens). Every string is
+     * Oleksii's final Ukrainian (`rui-copy-uk.md`, 2026-10-17), applied
+     * verbatim for all three R-UI PRs at once, U+02BC as the apostrophe. His
+     * answer 1, verbatim: "Copy gate: no exemption. Copy for all three PRs is
+     * final in D:\opika-worktrees\rui-copy-uk.md." These screens address the
+     * operator as «ви»; history lines are impersonal, the actor shown apart
+     * («{line} · {actor}»).
+     *
+     * Two strings were checked against the code at his request ("verify
+     * blocked.unknown.provider_suppresses and create.descriptionHint against
+     * code; if my wording is wrong, use the true wording and log it") and
+     * differ from his file; each says why at its key. Reused, no key here:
+     * `profile.donationTitle`, `profile.addressNote`, `profile.legalName`,
+     * `profile.edrpou`, `profile.contactPerson`, `profileEdit.state.retry`.
+     */
+    operator: {
+      shell: {
+        role: "адміністратор сайту",
+        nav: {
+          shelters: "Притулки",
+          newShelter: "Новий притулок",
+        },
+        pageTitle: {
+          list: "Притулки",
+          create: "Новий притулок",
+          shelter: "{name}",
+        },
+      },
+      list: {
+        title: "Притулки",
+        total: "Усього: {count}",
+        create: "Новий притулок",
+        createShort: "Новий",
+        search: "Пошук за назвою",
+        orderNote: "Спочатку ті, що чекають на ваше рішення.",
+        filterAll: "Усі · {count}",
+        filterStatus: "{status} · {count}",
+        admins: "Адміністраторів: {count}",
+        adminsInvited: "Запрошено: {count}",
+        noAdmins: "Немає ні адміністраторів, ні запрошень",
+        donationPending: "Посилання на збір чекає на рішення",
+        open: "Відкрити",
+        empty: "Притулків ще немає. Перший можна додати через «Новий притулок».",
+        noMatch: "Нічого не знайдено. Змініть пошук або фільтр.",
+        loadMore: "Показати ще",
+        loadFailed: "Список не завантажився.",
+      },
+      shelter: {
+        back: "← Притулки",
+        meta: "{city} · {admins}",
+        /** `{date}`, the day the current status began (Kyiv), not a day count: no plural, no drift. */
+        timeInState: "з {date}",
+        legalNote:
+          "Ці поля притулок бачить лише для читання. Зміна юридичної особи чи ЄДРПОУ не змінює статус автоматично — рішення за вами.",
+        descriptionTitle: "Опис притулку",
+      },
+      donation: {
+        live: "Чинне посилання",
+        none: "Посилання немає",
+        proposed: "Притулок запропонував {host} {date}. Чекає на ваше рішення.",
+        approve: "Схвалити",
+        reject: "Відхилити",
+        approved: "Посилання схвалено.",
+        rejected: "Посилання відхилено.",
+        conflict: "Пропозиція змінилася, поки сторінка була відкрита. Тут — поточна.",
+      },
+      admins: {
+        title: "Адміністратори",
+        joined: "Має доступ",
+        invitedUntil: "Запрошено · посилання діє до {date}",
+        invitedExpired: "Запрошено · посилання вже не діє",
+        none: "Адміністраторів немає",
+        remove: "Прибрати",
+        removeConfirm: {
+          title: "Прибрати {name}?",
+          body: "Доступ до кабінету закриється одразу, усі сеанси завершаться.",
+        },
+        inviteAnother: "Запросити ще одного",
+        resend: "Надіслати ще раз",
+        gone: "Цей доступ уже закрито.",
+      },
+      evidence: {
+        title: "Докази для перевірки",
+        empty: "Доказів поки немає.",
+        kind: {
+          edrpou_registration: "Реєстрація · ЄДРПОУ",
+          bank_account_holder: "Власник банківського рахунку",
+          reference_contact: "Рекомендація",
+          site_visit: "Візит на місце",
+          supporting_document: "Документ",
+        },
+        added: "додано {date}",
+        field: {
+          registeredName: "Назва в ЄДР",
+          holderName: "Власник рахунку",
+          who: "Хто",
+          channel: "Як звʼязатися",
+          relationship: "Ким доводиться притулку",
+          visitedOn: "Дата візиту",
+          notes: "Нотатка",
+          label: "Підпис",
+        },
+        relationship: {
+          veterinary_clinic: "Ветклініка",
+          local_authority: "Місцева влада",
+          partner_organisation: "Партнерська організація",
+          other: "Інше",
+        },
+        noDocument: "Документ не додано — для цього типу доказу це дозволено.",
+        gaps: "Для схвалення бракує: {kind} — {provided} з {minimum}.",
+        add: "+ Додати доказ",
+        remove: "Прибрати",
+        typePicker: "Тип доказу",
+        siteVisitDateHint: "Дата візиту не може бути в майбутньому.",
+      },
+      blocked: {
+        title: "Адреси, на які поштовий сервіс не доставляє листи",
+        none: "Перевірено: жодна адреса цього притулку не заблокована.",
+        line: "{email} — {reason}",
+        incomplete: "Вдалося перевірити лише частину адрес.",
+        unknown: {
+          provider_error: "Поштовий сервіс відповів помилкою.",
+          timed_out: "Поштовий сервіс не відповів вчасно.",
+          unsupported_provider: "Цей поштовий сервіс не дає перевірити блокування.",
+          /**
+           * Checked against the code at his request; his draft («Поштовий сервіс
+           * не показує список заблокованих адрес.») said the provider shows no
+           * list. What the code means (`email-provider.ts`, `BlockedStatus`):
+           * Resend keeps its own suppression list and does not deliver to an
+           * address on it, but this site doesn't read that list (follow-up
+           * EM-F1). So the true sense, in his register: the provider filters,
+           * and the site didn't look.
+           */
+          provider_suppresses:
+            "Поштовий сервіс має власний список заблокованих адрес і не доставляє на них листи, але сайт цей список не перевіряє.",
+        },
+        asOf: "Станом на {time}",
+        manualUnblock: "Розблокувати адресу можна лише в кабінеті поштового сервісу, не тут.",
+      },
+      history: {
+        title: "Історія",
+        note: "Усі зміни статусу, даних, адміністраторів, збору коштів і тварин.",
+        empty: "Записів ще немає.",
+        more: "Показати ще",
+        actor: {
+          you: "ви",
+          formerAdmin: "колишній адміністратор",
+          operator: "адміністратор сайту",
+        },
+        shelter_created: "Притулок створено",
+        shelter_created_script: "Притулок додано з файлу",
+        verification: {
+          start_review: "Взято на розгляд",
+          approve: "Схвалено → «Перевірено»",
+          reject: "Відхилено: {code}. {note}",
+          suspend: "Призупинено: {code}. {note}",
+          reinstate: "Відновлено → «{status}»",
+          resubmit: "Повернуто на перевірку",
+          pause: "Прийом тварин призупинено",
+          resume: "Паузу знято",
+        },
+        admin_invited: "Надіслано запрошення: {name}, {email}",
+        admin_invitation_resent: "Запрошення надіслано ще раз: {name}",
+        admin_removed: "Доступ закрито: {name}",
+        admin_removed_pending: "Запрошення скасовано: {name}",
+        contact_changed: "Змінено контакти",
+        freshness_sentence_changed: "Змінено речення на картках",
+        description_changed: "Змінено опис притулку",
+        donation_proposed: "Запропоновано посилання на збір: {host}",
+        donation_proposal_cancelled: "Пропозицію посилання скасовано",
+        donation_approved: "Посилання на збір схвалено",
+        donation_rejected: "Посилання на збір відхилено",
+        verified_data_changed: {
+          legal_entity: "Змінено юридичні дані",
+          exact_address: "Змінено адресу приміщення",
+        },
+        animals_imported: "Додано тварин з файлу: {count}",
+        animal_created: "Створено картку: {name}",
+        animal_edited: "Змінено картку {name}: {fields}",
+        animal_listing_changed: "{name}: «{from}» → «{to}»",
+        animal_deleted: "Видалено чернетку: {name}",
+      },
+      create: {
+        title: "Новий притулок",
+        intro:
+          "Тут ви вносите все про притулок: назву, адресу, юридичні дані й докази. Перший адміністратор отримає запрошення на пошту.",
+        name: "Назва притулку",
+        /** His note: update when the rename PR (R-UI 4) ships. */
+        nameHint:
+          "Як притулок називає себе. Після створення назву поки змінити не можна — перевірте написання.",
+        description: "Опис притулку",
+        /**
+         * Checked against the code at his request («adjust the place, not the
+         * tone»); his draft said people looking for an animal see it on the
+         * shelter's animal pages. No page renders `Shelter.description`: the
+         * animal page reads the shelter's `freshnessSentence` instead
+         * (`AnimalDetailScreen.tsx`). It is public all the same: the public
+         * `shelters.byId` returns it for a verified shelter, and only then.
+         */
+        descriptionHint:
+          "Зараз його не показує жодна сторінка сайту, але в перевіреного притулку він публічний.",
+        city: "Місто",
+        address: {
+          line1: "Вулиця, будинок",
+          line2: "Корпус, приміщення · необовʼязково",
+          postalCode: "Індекс · необовʼязково",
+        },
+        coordinates: "Координати",
+        coordinatesHint:
+          "Скопіюйте з карти у форматі «широта, довгота». Ніде не показуються: люди бачать лише місто.",
+        legalTitle: "Юридичні дані",
+        legalKind: {
+          registered_ngo: "Громадська організація чи фонд",
+          sole_proprietor: "ФОП",
+          unregistered_initiative: "Ініціатива без реєстрації",
+        },
+        registeredAt: "Дата реєстрації",
+        firstAdminTitle: "Перший адміністратор",
+        firstAdminHint:
+          "Отримає лист із посиланням для входу. Інших адміністраторів можна запросити зі сторінки притулку.",
+        adminName: "Імʼя",
+        submit: "Створити й надіслати запрошення",
+        submitShort: "Створити",
+        cancel: "Скасувати",
+        whatHappens: {
+          title: "Що буде далі",
+          step1: "Притулок зʼявиться у списку зі статусом «Очікує».",
+          /** «72 години» is typed for INVITATION_TTL_MS; `copy-plural-pins.test.ts` pins it. */
+          step2:
+            "{name} отримає лист для входу. Посилання діє 72 години, його можна надіслати ще раз.",
+          step3: "Тварин притулку не буде в галереї, доки ви не схвалите перевірку.",
+        },
+        created: "Притулок створено.",
+        createdNoInvite:
+          "Притулок створено, але без адміністратора. Запросіть його зі сторінки притулку.",
+        inviteValidUntil: "Посилання діє до {date}, {time}.",
+        resend: "Надіслати ще раз",
+        openShelter: "Відкрити притулок",
+        errors: {
+          addressHasARole: {
+            shelter_admin: "Ця адреса вже має доступ до іншого притулку.",
+            operator: "Це адреса адміністратора сайту. Для притулку потрібна інша.",
+            invited_elsewhere: "На цю адресу вже надіслано чинне запрошення до іншого притулку.",
+          },
+          siteVisitInFuture: "Дата візиту не може бути в майбутньому.",
+          unknownCity: "Такого міста немає у списку.",
+          lostAnswer:
+            "Відповідь не надійшла. Притулок міг створитися — перевірте список, перш ніж пробувати знову.",
+          failed: "Не вдалося створити притулок. Спробуйте ще раз.",
+          required: "Це поле потрібне.",
+          edrpouFormat: "Код ЄДРПОУ — 8 цифр.",
+          coordinatesFormat:
+            "Вкажіть координати як «широта, довгота», наприклад «50.4501, 30.5234».",
+        },
+      },
+      email: {
+        sent: "Запрошення надіслано на {email}.",
+        sentUnchecked: "Запрошення надіслано. Перевірити, чи адреса не заблокована, не вдалося.",
+        blocked: {
+          unsubscribed: "Запрошення не надіслано: людина з цієї адреси відписалася від листів.",
+          hard_bounce: "Запрошення не надіслано: адреса не існує або не приймає пошту.",
+          spam_complaint:
+            "Запрошення не надіслано: на попередній лист з цієї адреси поскаржилися як на спам.",
+          admin_blocked: "Запрошення не надіслано: адресу заблоковано вручну в поштовому сервісі.",
+        },
+        failed: {
+          provider_error:
+            "Запрошення не надіслано: поштовий сервіс відповів помилкою. Спробуйте надіслати ще раз.",
+          copy_pending: "Запрошення не надіслано: текст листа ще не готовий.",
+        },
+      },
+      verification: {
+        decisionTitle: "Рішення",
+        /** His note: true once Q7's shelter-side view (`verificationDecision`) ships, in R-UI 3. */
+        decisionCaption: "Притулок побачить рішення і пояснення дослівно у своєму кабінеті.",
+        startReview: "Взяти на розгляд",
+        approve: "Схвалити → «Перевірено»",
+        approveShort: "Схвалити",
+        approveNote:
+          "Після схвалення тварини притулку одразу зʼявляються в галереї. Для відхилення потрібне пояснення.",
+        approveBlocked: "Схвалити поки не можна — бракує доказів:",
+        reject: "Відхилити…",
+        suspend: "Призупинити…",
+        reinstate: "Відновити → «{status}»",
+        resubmit: "Повернути на перевірку",
+        suspended: {
+          title: "Притулок призупинено",
+          reasonLabel: "Пояснення, яке бачить притулок",
+          priorLabel: "До призупинення статус був",
+          priorPausedSince: "з {date} притулок сам поставив паузу",
+          reinstateExplainPaused:
+            "Кнопка «Відновити» поверне притулок на паузу, а не в «Перевірено». Тварини лишаться прихованими, доки притулок сам не зніме паузу.",
+          reinstateExplainVerified:
+            "Кнопка «Відновити» поверне статус «Перевірено», і тварини знову зʼявляться в галереї.",
+        },
+        noConfirm: "Підтвердження не потрібне: ця дія нічого не приховує.",
+        rejected: {
+          title: "Відхилено",
+          reason: "{code}. {note}",
+        },
+      },
+      reasonDialog: {
+        rejectTitle: "Відхилити «{shelter}»?",
+        suspendTitle: "Призупинити «{shelter}»?",
+        rejectBody:
+          "Притулок побачить це пояснення дослівно у своєму кабінеті. Його тварин не буде в галереї.",
+        suspendBody:
+          "Тварини притулку одразу зникнуть із галереї. Притулок побачить це пояснення у своєму кабінеті. Відновити можна будь-коли.",
+        codeLabel: "Причина",
+        reasonLabel: "Пояснення",
+        reasonHint: "Обовʼязково. Пишіть так, щоб людина знала, що робити далі.",
+        confirmReject: "Відхилити",
+        confirmSuspend: "Призупинити",
+      },
+      codes: {
+        rejection: {
+          insufficient_evidence: "Недостатньо доказів",
+          identity_unverifiable: "Не вдалося підтвердити, хто стоїть за притулком",
+          duplicate_submission: "Повторна заявка",
+          out_of_service_area: "Поза областю, де працює сайт",
+          spam: "Спам",
+          other: "Інше",
+        },
+        suspension: {
+          unresponsive: "Немає звʼязку з притулком",
+          complaint_upheld: "Скарга підтвердилася",
+          listing_quality: "Картки не відповідають дійсності",
+          suspected_fraud: "Підозра на шахрайство",
+          other: "Інше",
+        },
+      },
+      errors: {
+        illegalTransition: "З поточного статусу так не можна. Сторінку оновлено.",
+        conflictReload: "Дані змінилися, поки сторінка була відкрита. Сторінку оновлено.",
+        failed: "Не вдалося. Спробуйте ще раз.",
+        lostAnswer: "Відповідь не надійшла. Сторінка перевіряє, чи дію виконано.",
+      },
+      support: {
+        enter: "Переглянути як притулок · лише читання",
+      },
+    },
+    /**
+     * R-UI 3 · the shelter's side of a rejection or suspension (RU-Q7, his
+     * answer 7, verbatim: "Yes: a minimal shelter-side view in R-UI 3 showing
+     * the code and my note verbatim (keys in rui-copy-uk.md §3.4)."), his
+     * final Ukrainian. The note follows `noteLabel` verbatim, as a quote.
+     */
+    verificationDecision: {
+      rejectedTitle: "Перевірку не пройдено",
+      suspendedTitle: "Притулок тимчасово призупинено",
+      reason: "Причина: {code}.",
+      /**
+       * ⚠ `{operator}` sits after «від», which takes the genitive, while the
+       * operator's display name is configured in the nominative only (RS-Q2,
+       * `kabinet/operator.ts`): «від Олексій Колотенко», «від адміністратор
+       * сайту». Flagged for R-UI 3, which renders it; no screen reads it yet.
+       */
+      noteLabel: "Пояснення від {operator}:",
+      contact: "Якщо маєте питання, напишіть мені.",
+      suspendedEffect: "Поки притулок призупинено, його тварин немає в галереї.",
+      rejectedEffect: "Тварин притулку не буде в галереї, доки перевірку не пройдено.",
     },
   },
 } as const;

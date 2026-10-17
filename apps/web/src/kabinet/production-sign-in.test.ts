@@ -55,7 +55,7 @@ describe("productionSignInOf", () => {
    * the wiring hands to `providerMagicLinkSender`; a missing or blank one is
    * the catalogue's fallback, never a reason to stay off (RS-Q2).
    */
-  it("carries the configured operator name to sign both emails, else «Оператор реєстру»", () => {
+  it("carries the configured operator name to sign both emails, else «адміністратор сайту»", () => {
     const on = productionSignInOf({
       ...full,
       KABINET_OPERATOR_DISPLAY_NAME: " Олексій Колотенко ",
@@ -64,7 +64,7 @@ describe("productionSignInOf", () => {
     for (const unset of [undefined, "", "   "]) {
       const fallback = productionSignInOf({ ...full, KABINET_OPERATOR_DISPLAY_NAME: unset });
       expect(fallback.kind === "on" && fallback.operatorName, String(unset)).toBe(
-        "Оператор реєстру",
+        "адміністратор сайту",
       );
     }
   });
@@ -261,7 +261,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // the over-limit card's notice (the wiring PR; his text, 2026-10-15).
     // 165 with K4's 74 `profileEdit.*` strings (PR 2 of the K milestone, his
     // text, 2026-10-17; the key set is pinned in copy-status.test.ts).
-    expect(pending.length + written.length).toBe(165);
+    // 385 with R-UI's 220 `operator.*` and `verificationDecision.*` strings
+    // (his text, 2026-10-17, all three R-UI PRs; pinned in copy-status.test.ts).
+    expect(pending.length + written.length).toBe(385);
     expect(written).toContain("kabinet.profileEdit.state.saved");
     expect(pending).toEqual([]);
     expect(written).toContain("kabinet.confirm.rateLimited");

@@ -7,7 +7,7 @@ import { uk } from "@opika/i18n";
  * sentence that needs another case («Написати Олексію») is a catalogue key of
  * its own, never this value declined.
  *
- * Missing or blank, it falls back to the catalogue's «Оператор реєстру». The
+ * Missing or blank, it falls back to the catalogue's «адміністратор сайту». The
  * kabinet never fails to boot over a display name (RS-Q2, Oleksii).
  */
 export function operatorDisplayName(env: {

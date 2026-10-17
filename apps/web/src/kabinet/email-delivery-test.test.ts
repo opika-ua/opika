@@ -118,8 +118,12 @@ describe("runDeliveryTest, both via Brevo (comparison during the grace period)",
       const h = harness();
       expect(await runDeliveryTest({ ...h.input, operatorName })).toBe(0);
       const [signIn, invite] = h.calls.map(bodyOf);
-      expect(signIn.textContent.endsWith("\n— Оператор реєстру"), String(operatorName)).toBe(true);
-      expect(invite.textContent.endsWith("\n— Оператор реєстру"), String(operatorName)).toBe(true);
+      expect(signIn.textContent.endsWith("\n— адміністратор сайту"), String(operatorName)).toBe(
+        true,
+      );
+      expect(invite.textContent.endsWith("\n— адміністратор сайту"), String(operatorName)).toBe(
+        true,
+      );
     }
   });
 
