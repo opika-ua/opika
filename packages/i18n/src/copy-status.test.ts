@@ -154,25 +154,18 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
   });
 
   /**
-   * Empty in PR 2. Since K3 (PR 4) it holds the animal form's three lines his
-   * test shelter alone sees: `dateUnchanged` (his final text, parked until
-   * K2 ships the confirmation it names) and two `[COPY PENDING]` stand-ins
-   * for his lines that say people see the card, used while the shelter's
-   * cards are hidden (`lastPhotoKeptNotShown`, `publishedNotShown`). Pinned
-   * exactly, so nothing else drifts in.
+   * Empty in PR 2. Since K3 (PR 4) it holds one line his test shelter alone
+   * sees: `animalForm.dateUnchanged`, his final text, parked until K2 ships
+   * the confirmation it names (PR 5). The two hidden-shelter stand-ins that
+   * sat here pending have his final text now (round 2b, answer 3) and live
+   * under `animalForm.*`, pinned in "kabinet K3 copy" below. Pinned exactly,
+   * so nothing else drifts in.
    */
-  it("the testShelterOnly namespace holds exactly K3's three lines, two of them pending", () => {
+  it("the testShelterOnly namespace holds exactly one line, dateUnchanged, and nothing pending", () => {
     expect(typeof uk.kabinet.testShelterOnly).toBe("object");
     expect(Object.keys(uk.kabinet.testShelterOnly)).toEqual(["animalForm"]);
-    expect(Object.keys(uk.kabinet.testShelterOnly.animalForm).sort()).toEqual([
-      "dateUnchanged",
-      "lastPhotoKeptNotShown",
-      "publishedNotShown",
-    ]);
-    expect(pendingCopyPaths(uk.kabinet.testShelterOnly, "kabinet.testShelterOnly")).toEqual([
-      "kabinet.testShelterOnly.animalForm.lastPhotoKeptNotShown",
-      "kabinet.testShelterOnly.animalForm.publishedNotShown",
-    ]);
+    expect(Object.keys(uk.kabinet.testShelterOnly.animalForm)).toEqual(["dateUnchanged"]);
+    expect(pendingCopyPaths(uk.kabinet.testShelterOnly, "kabinet.testShelterOnly")).toEqual([]);
   });
 
   it("the filter exempts that namespace only, not a sibling sharing its letters", () => {
@@ -1184,6 +1177,9 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
  * quotes «…», nested „…“." `listed.dateUnchanged` lives under
  * `testShelterOnly` by his own note until K2 (PR 5); `dismissFailedName` is
  * the accessible name his `dismissFailed` answer gives in brackets.
+ * `photos.lastPhotoKeptNotShown` and `publish.publishedNotShown` are his
+ * final text from a later answer (round 2b, answer 3, 2026-10-17),
+ * transcribed the same way.
  */
 describe("kabinet K3 copy (final, 2026-10-17)", () => {
   const K3_FINAL: Record<string, string> = {
@@ -1265,6 +1261,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.photos.remove": "Прибрати фото {n}",
     "kabinet.animalForm.photos.capReached": "Це максимум — {max} фото.",
     "kabinet.animalForm.photos.lastPhotoKept": "Цю картку бачать люди, тож одне фото має лишитися.",
+    "kabinet.animalForm.photos.lastPhotoKeptNotShown":
+      "Картка опублікована, тож одне фото має лишитися — навіть поки її ще не бачать.",
     "kabinet.animalForm.photos.added": "Фото додано.",
     "kabinet.animalForm.photos.removed": "Фото прибрано.",
     "kabinet.animalForm.photos.reordered": "Порядок змінено.",
@@ -1303,6 +1301,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.publish.gap.description": "опис",
     "kabinet.animalForm.publish.gap.photo": "фото",
     "kabinet.animalForm.publish.done": "Опубліковано. Тепер картку бачать ті, хто шукає тварину.",
+    "kabinet.animalForm.publish.publishedNotShown":
+      "Опубліковано. Ті, хто шукає тварину, побачать картку, щойно притулок пройде перевірку.",
     "kabinet.animalForm.publish.viewPublic": "Відкрити сторінку тварини",
     "kabinet.animalForm.publish.stateChanged":
       "Картка змінилася в іншому вікні. Оновіть сторінку, щоб побачити поточну версію.",

@@ -13,11 +13,7 @@ import { Button, buttonClass } from "../../controls/controls";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { CAPTION, ERROR_TEXT } from "../profile-edit/styles";
 import { confirmLeave, useUnsavedChanges } from "../profile-edit/unsaved-changes";
-import {
-  DateUnchangedLine,
-  LastPhotoKeptHiddenText,
-  PublishedNotShownText,
-} from "../test-shelter-only/AnimalFormTestShelterLines";
+import { DateUnchangedLine } from "../test-shelter-only/AnimalFormTestShelterLines";
 import { AgeSection, DescriptionSection, HealthSection, WhoSection } from "./FormSections";
 import {
   type AnimalPatch,
@@ -29,7 +25,7 @@ import {
   problemsOf,
   valuesOf,
 } from "./form-values";
-import { createdWhen, LISTING_STATUS_LABEL, missingSentence, timeOf } from "./labels";
+import { createdWhen, missingSentence, timeOf } from "./labels";
 import { PhotoSection } from "./PhotoSection";
 
 /**
@@ -116,7 +112,7 @@ export function AnimalForm({
   compress?: (file: File) => Promise<CompressedPhoto>;
 }) {
   const editable = editing.kind === "open" && viewer === "admin";
-  // CG-Q1: copy that may still be pending, for the allowlisted shelter's own admin only.
+  // CG-Q1: the parked test-shelter line, for the allowlisted shelter's own admin only.
   const allowlistLinesShown =
     editing.kind === "open" && editing.grantedBy === "allowlist" && viewer === "admin";
 
@@ -130,7 +126,7 @@ export function AnimalForm({
   const [attempted, setAttempted] = useState(false);
   const [serverProblems, setServerProblems] = useState<FieldProblem[]>([]);
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
-  const [announcement, setAnnouncement] = useState<ReactNode>("");
+  const [announcement, setAnnouncement] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
   const inFlight = useRef<Promise<SaveOutcome> | null>(null);
@@ -301,17 +297,9 @@ export function AnimalForm({
   // are on the public surfaces (verified, not paused). Both halves, because
   // the feed, the gallery and `animals.byId` each check both.
   const visibleListing = view !== null && isDiscoverable(view.listing) && shelterVisible;
-  // «Тепер картку бачать…» is true only where the card is shown. A hidden
-  // shelter's admin gets the allowlist's pending stand-in (CG-Q1); any other
-  // grant (none until PR 6) gets the status chip's own word, which claims no
-  // audience, and the footer then says nobody sees the card.
-  const publishedAnnouncement: ReactNode = shelterVisible ? (
-    t.publish.done
-  ) : allowlistLinesShown ? (
-    <PublishedNotShownText />
-  ) : (
-    uk.kabinet.listingStatus.published
-  );
+  // «Тепер картку бачать…» is true only where the card is shown; a hidden
+  // shelter's admin is told the card shows once the shelter is verified.
+  const publishedAnnouncement = shelterVisible ? t.publish.done : t.publish.publishedNotShown;
 
   const publish = async () => {
     if (!editable || publishing) return;
@@ -344,7 +332,11 @@ export function AnimalForm({
           setAnnouncement(uk.kabinet.profileEdit.errors.notAvailable);
           break;
         default:
-          setAnnouncement(uk.kabinet.profileEdit.state.failed);
+          // The save before it went through (a failed save returns above),
+          // so K4's «Не збереглося…» would misdescribe it. What is known is
+          // that the card is still a draft, in his words; the footer already
+          // says when it was saved, and «Опублікувати» stays to try again.
+          setAnnouncement(t.draft.notVisible);
       }
     } finally {
       setPublishing(false);
@@ -372,7 +364,7 @@ export function AnimalForm({
           <h1 className="text-3xl font-bold tracking-tight text-rg-ink">{heading}</h1>
           {view !== null ? (
             <span className="rounded-rg-chip bg-rg-fill px-3 py-1 text-sm font-medium text-rg-ink-2">
-              {LISTING_STATUS_LABEL[view.listing.kind]}
+              {uk.kabinet.listingStatus[view.listing.kind]}
             </span>
           ) : null}
         </div>
@@ -422,7 +414,6 @@ export function AnimalForm({
               client={client}
               onView={onPhotoView}
               reload={reload}
-              lastPhotoHiddenText={allowlistLinesShown ? <LastPhotoKeptHiddenText /> : null}
               {...(compress === undefined ? {} : { compress })}
             />
           ) : null}

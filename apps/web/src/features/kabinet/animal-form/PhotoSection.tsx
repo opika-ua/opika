@@ -9,7 +9,7 @@ import {
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import Image from "next/image";
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
 import { Button } from "../../controls/controls";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
@@ -94,7 +94,6 @@ export function PhotoSection({
   client,
   onView,
   reload,
-  lastPhotoHiddenText,
   compress = compressPhoto,
 }: {
   animal: KabinetAnimalView;
@@ -104,18 +103,12 @@ export function PhotoSection({
   client: KabinetAnimalClient;
   onView: (view: KabinetAnimalView) => void;
   reload: () => Promise<void>;
-  /**
-   * What says why the last photo stays while the shelter's cards are hidden
-   * (paused or not verified), where `lastPhotoKept`'s «бачать люди» would be
-   * false: the allowlisted shelter's pending stand-in, or null (nothing).
-   */
-  lastPhotoHiddenText: ReactNode | null;
   compress?: (file: File) => Promise<CompressedPhoto>;
 }) {
   const photos = animal.photos;
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [writing, setWriting] = useState(false);
-  const [status, setStatus] = useState<ReactNode>("");
+  const [status, setStatus] = useState("");
   const [removedOnce, setRemovedOnce] = useState(false);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -125,7 +118,8 @@ export function PhotoSection({
 
   const visibleListing = isDiscoverable(animal.listing);
   const lastPhotoLocked = visibleListing && photos.length === 1;
-  const lastPhotoText = shelterVisible ? t.photos.lastPhotoKept : lastPhotoHiddenText;
+  // «бачать люди» is true only while the shelter's cards are shown.
+  const lastPhotoText = shelterVisible ? t.photos.lastPhotoKept : t.photos.lastPhotoKeptNotShown;
   const room =
     MAX_ANIMAL_PHOTOS - photos.length - uploads.filter((u) => u.state.kind !== "failed").length;
 
@@ -354,9 +348,7 @@ export function PhotoSection({
                   <Button
                     variant="text"
                     aria-disabled={lastPhotoLocked || undefined}
-                    aria-describedby={
-                      lastPhotoLocked && lastPhotoText !== null ? lastPhotoNoteId : undefined
-                    }
+                    aria-describedby={lastPhotoLocked ? lastPhotoNoteId : undefined}
                     onClick={() => {
                       if (!lastPhotoLocked) void remove(photo);
                     }}
@@ -448,7 +440,7 @@ export function PhotoSection({
           </li>
         ) : null}
       </ul>
-      {editable && lastPhotoLocked && lastPhotoText !== null ? (
+      {editable && lastPhotoLocked ? (
         <p id={lastPhotoNoteId} className={CAPTION}>
           {lastPhotoText}
         </p>

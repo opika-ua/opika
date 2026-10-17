@@ -4,7 +4,6 @@ import {
   type AgeBucket,
   KYIV_TIME_ZONE,
   kyivCalendarDateOf,
-  type ListingKind,
   type PublishGap,
   SIZE_BUCKET_WEIGHT_HINTS_KG,
   type SizeBucket,
@@ -19,26 +18,11 @@ import { fillTemplate, uk } from "@opika/i18n";
 
 const t = uk.kabinet.animalForm;
 
-export const LISTING_STATUS_LABEL: Record<ListingKind, string> = {
-  draft: uk.kabinet.listingStatus.draft,
-  published: uk.kabinet.listingStatus.published,
-  reserved: uk.kabinet.listingStatus.reserved,
-  adopted: uk.kabinet.listingStatus.adopted,
-  withdrawn: uk.kabinet.listingStatus.withdrawn,
-};
-
-const GAP_LABEL: Record<PublishGap["kind"], string> = {
-  size: t.publish.gap.size,
-  age: t.publish.gap.age,
-  description: t.publish.gap.description,
-  photo: t.publish.gap.photo,
-};
-
 /** «Щоб опублікувати, ще потрібно: розмір, вік і фото.», the gaps in form order. */
 export const missingSentence = (gaps: readonly PublishGap[]): string =>
   fillTemplate(t.publish.missing, {
     list: new Intl.ListFormat("uk", { type: "conjunction" }).format(
-      gaps.map((gap) => GAP_LABEL[gap.kind]),
+      gaps.map((gap) => t.publish.gap[gap.kind]),
     ),
   });
 
