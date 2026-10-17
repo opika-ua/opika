@@ -346,12 +346,12 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
    deletes R2 objects; DR-F3's operator-run script, or the Cloudflare dashboard by hand, does
    it later. Run the dry run again afterwards: every count is 0, and it refuses with «no
    shelter has id …», which confirms the shelter is gone.
-4. **`KABINET_WRITE_ALLOWLIST`**, then **redeploy**, since environment changes apply only to
-   new deployments (RH-B6):
-   - **before PR 6:** switch it from the rehearsal id to **the real shelter's id**. Unsetting it
-     would close writes for the first real shelter too.
-   - **after PR 6:** PR 6 opens writes for every shelter and deletes the allowlist from the code,
-     so **delete the variable**.
+4. **`KABINET_WRITE_ALLOWLIST`**: PR 6 has merged by then: delete `KABINET_WRITE_ALLOWLIST`,
+   then redeploy (environment changes apply only to new deployments). Oleksii, 2026-10-17,
+   verbatim: "Runbook step 4: reword to "PR 6 has merged by then: delete KABINET_WRITE_ALLOWLIST,
+   then redeploy."" It replaces RH-B6's "before PR 6" branch, which commitment #6 rules out (a
+   real shelter's id in the allowlist falsifies it) and which can't arise, since PR 6 merges
+   before the first real shelter is onboarded (RU-B4).
 5. **`location:verify --prod`**, expected after the retirement: `match` = the number of real
    shelters (1 at launch), `MISMATCH 0`, no `PRIVACY` line, and `demo` = **2** if the demo corpus
    is still there or **0** once `demo:remove` has run (the next launch step).
