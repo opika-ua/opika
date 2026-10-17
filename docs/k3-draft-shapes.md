@@ -269,14 +269,34 @@ So after the first incomplete draft, the remedy for a defect is to roll forward.
 
 ### 2.7 Real-Neon verification (required: the change touches SQL and the driver path)
 
-No child-branch rehearsal: production holds only test data until launch and is the test
-environment (Oleksii, 2026-10-15: "No more Neon rehearsal branches or test buckets for this"). The
-guards stay (`--prod`, `--expect`).
+The migration is not rehearsed on a branch: production holds only test data until launch and is
+the test environment (Oleksii, 2026-10-15: "No more Neon rehearsal branches or test buckets for
+this"). The smoke run is different. It writes rows of its own, and its script refuses production
+by design, so it runs on a temporary child branch of migrated production, deleted afterwards. His
+round 2 answer 1, verbatim: "Smoke runs: yes, on a temporary child branch of migrated production,
+guard untouched. Delete the branch afterwards. "No rehearsal branches" meant practising
+migrations, not smoke runs." The guards stay as they are. Steps 1–5 are his, before PR 4 merges;
+the migration (with the §2.4 queries) and the smoke are both merge gates, as P-B5's were for
+PR 3. The exact command list, with every connection string typed into `Read-Host`, is in the PR's
+status.
 
-1. **Migrate production**, his run, before PR 4 merges:
-   `pnpm --filter @opika/db db:migrate --prod --expect <prod ep>`, then the queries in §2.4.
-2. **Smoke on production**, from the PR 4 branch: `db:neon-smoke --expect <prod ep>`, with new
-   steps after PR 3's 25:
+1. **Prove the target**, read-only, against production `main`:
+   `pnpm --filter @opika/db db:check-hashes`. Its first line names the target
+   (`Target: Neon endpoint <prod ep> (…)`), then `match` for 0000–0011 and
+   `not run 0012_glorious_warpath`. Stop if the endpoint differs. Run the §2.4 queries.
+2. **Migrate production**: `pnpm --filter @opika/db db:migrate --prod`, against the same target.
+   `db:migrate` takes no `--expect`: `migrate.ts` passes every argument but `--prod` through to
+   `drizzle-kit migrate`, which refuses an unknown option and migrates nothing. Step 1's target
+   line is the endpoint check (his round 2b answer 2, verbatim: "N1: accepted. The gate list is
+   db:check-hashes (read-only, prints the target) → db:migrate --prod. Follow-up, not now: a
+   real --expect on db:migrate (Tier 1, its own small PR later)."; follow-up AW-F1). Then
+   `db:check-hashes` again (13/13 `match`) and the §2.4 queries again.
+3. **Branch**: a temporary child branch of migrated production `main` (from its head, with a
+   read-write compute). Note the child's endpoint id, `<child ep>`.
+4. **Smoke on the child**, from the PR 4 branch, with `PROD_NEON_ENDPOINT` set:
+   `pnpm --filter @opika/db db:neon-smoke --expect <child ep>`. `smokeTarget` refuses the
+   production endpoint outright and any endpoint other than `--expect`. New steps after PR 3's
+   25:
    - **26.** A name-and-species draft goes in through the insert CTE with null size, age,
      anchor and description. It reads back through neon-http with those nulls, and the mapper
      gives a `DraftAnimal`.
@@ -287,12 +307,12 @@ guards stay (`--prod`, `--expect`).
      `listing_kind = 'draft'`. Against a published row it writes nothing.
    - **29.** Publishing compare-and-sets on listing, `version` and a non-empty photo list. A
      stale version writes nothing (§7.5).
-   - **30.** RH-B7, if confirmed: `writePhotosIf` on a published row moves `photos`,
+   - **30.** RH-B7 (D4, option (i)): `writePhotosIf` on a published row moves `photos`,
      `listing.confirmedAt` and `last_confirmed_at` together under the photo and listing
      compare-and-set. A stale listing writes nothing. On a draft, `last_confirmed_at` stays null.
 
-   Expected: **30 passed, 0 failed** (29 without RH-B7). Both runs are merge gates, as P-B5's
-   were for PR 3.
+   Expected: **30 passed, 0 failed**.
+5. **Delete the child branch.** Its smoke rows go with it.
 
 ---
 
@@ -819,7 +839,8 @@ They test logic, not looks (CLAUDE.md). Each new guard gets its mutation in the 
 **D1. Storage for the draft type.**
 - Recommend **A**: four nullable columns plus three CHECKs, one production migration (§2.3).
 - You run it on production (the test environment until launch), then the smoke run from the
-  PR 4 branch, both **before** PR 4 merges.
+  PR 4 branch against a temporary child branch of migrated production (§2.7), both **before**
+  PR 4 merges.
 - Rollback is clean only until the first name-and-species draft exists; after that, roll forward
   (§2.5).
 - Sentinels (B) record invented facts. A separate table (C) is much more machinery for the same
