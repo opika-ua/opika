@@ -467,17 +467,56 @@ purpose, and neither is redundant:
   "Module resolution"). It fails in seconds with a compiler error.
 - **`test:harness`** catches what a green build cannot: an app that
   compiles perfectly and lays out wrongly. It measures real geometry and
-  drives real pointer events.
+  drives real pointer events. (Until the brand lands, its geometry checks
+  are frozen and new specs test flows only: see "Test logic, not looks".)
 
 The harness builds the app too, which makes `build:web` look duplicated.
 Keep both — `build:web` is the fast, specific failure, and it keeps
 working if the harness is ever broken or quarantined.
 
-One assertion in the harness is marked `test.fail()`: the deck
+(Frozen with the other visual checks, until the brand lands.) One assertion in the harness is
+marked `test.fail()`: the deck
 (`/tvaryny/gortaty`, migrated from `/discovery` in E5) is a 390px phone
 column and does not adapt at 1280x800. That gap is recorded, not hidden.
 When the responsive pass lands, Playwright will report an unexpected
 pass — that is the signal to delete the marker.
+
+## Test logic, not looks (standing convention until the brand lands)
+
+Oleksii, 2026-10-17 (inbox V-B1), verbatim: "Standing rule from now (until the designer's brand
+lands): the visual design, fonts included, will change. Test logic, not looks.
+- Stop: screenshot/pixel-diff checks, markup snapshots, assertions on CSS classes/colours/sizes/line-wrapping, mock-faithful styling work.
+- Keep: domain, contract, handler and repository tests; Neon smokes; history checks; copy-gate; a few Playwright flow tests that query by role/label/text only; accessibility basics (labels, keyboard, aria-live).
+- K2/K3/K4 screens: functional first, styled only through shared design tokens (colour, type, spacing) so the rebrand is a token swap. No one-off styles in components.
+- Existing visual tests: don't extend them; remove any that start failing because of a visual change rather than fixing them."
+
+His clarification (V-B2), verbatim: "both count as accessibility basics, not looks. - Visible
+focus: keep one presence test (focused element shows an indicator when tabbing), never its
+appearance. - 48px touch target: a shared min-height token on the shared button/control
+primitives, plus ONE test on those primitives that the computed min-height is ≥ 48px. No
+per-component or per-screen size checks."
+
+In practice:
+- **New tests assert behaviour:** states, flows, errors, what a control does. A Playwright test
+  finds elements by role, label or text, never by class or position, and measures nothing.
+- **New components use theme tokens only** (`apps/web/src/app/globals.css`, `@theme`): no
+  arbitrary values (`text-[13px]`, `#hex`, `px-[7px]`) and no per-component font, colour or
+  spacing. A rebrand edits the tokens, not the screens.
+- **Accessibility basics stay tested:**
+  - labels, keyboard operation and aria-live, per component, as behaviour;
+  - focus visibility: one presence test;
+  - the 48px floor: one test on the shared primitives.
+
+  The constraints the brand itself must keep are in `docs/design/brand-constraints.md`.
+- **Existing visual tests** (geometry, sizes, contrast, wrapping, `sizes` attributes, class
+  assertions) are frozen, not extended. One that fails because of a visual change is **deleted,
+  not fixed**, and the deletion is listed for Oleksii in the PR body.
+- **A mock still decides structure and content** (which fields, which states, which copy), not
+  pixels. So "when a mock exists, open the mock" (`docs/standing-constraints.md`) still holds for
+  what a screen contains.
+- **`test:harness` (above) still runs in `check`.** Its job narrows to flows and behaviour in a
+  real browser. Its geometry assertions are the frozen visual tests just described.
+- Rules in `docs/standing-constraints.md` that this narrows carry a pointer back here.
 
 ## Supply-chain note (why a version pin looks slightly stale)
 
@@ -672,10 +711,12 @@ they get skipped:
   the better product wins. "Faster" never appears in a decision record.
 - A claim verified against shape is not verified. Run it.
 - The mutation for a floor is crossing it, not perturbing the measurement.
-- A documented limit with no test exercising it is not a limit.
+- A documented limit with no test exercising it is not a limit. (For visual limits, until the
+  brand lands: see "Test logic, not looks".)
 - An assertion inside a conditional is not an assertion.
 - A test may not compare output against the same constant the code renders.
 - Where a mock exists, open the mock. Where none exists, the prose is the specification.
+  (For structure and content; not pixels, until the brand lands.)
 - Anything demo mode suppresses needs harness coverage of its non-demo state.
 - Local Postgres and Neon are not the same database. A driver-, connection-, or dialect-touching
   change needs a check against real Neon before it's called verified — a green local suite
