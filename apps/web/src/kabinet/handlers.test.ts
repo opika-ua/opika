@@ -73,6 +73,8 @@ async function call<T = Record<string, unknown>>(
     cursorSecret?: string;
     limiters?: KabinetLimiters;
     ip?: string;
+    /** A wrapped database (statement counting); the suite's own by default. */
+    database?: typeof db;
   } = {},
 ): Promise<{ status: number; body: T }> {
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
@@ -93,7 +95,7 @@ async function call<T = Record<string, unknown>>(
     resolve: async () => ({
       principal: opts.principal ?? asAdmin,
       userId: opts.userId === undefined ? "user-admin" : opts.userId,
-      db,
+      db: opts.database ?? db,
       cursorSecret: opts.cursorSecret ?? "test-cursor-secret",
     }),
     now: opts.now ?? new Date(),
@@ -1600,5 +1602,205 @@ describe("K3: drafts, readiness and the description", () => {
     });
     expect(changed.status).toBe(200);
     expect((await reload(listed.id)).description).toEqual({ uk: "Спокійна й лагідна.", en: null });
+  });
+});
+/**
+ * K2 (PR 5) through the served router: N5's stale filter (K2 sheet P7), the
+ * row's age and gaps (P3), one page as a fixed number of statements, and the
+ * withdrawal reason as the kabinet takes it (P6, question 10).
+ */
+describe("K2: the animal list", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const NOW = new Date("2026-10-18T12:00:00.000Z");
+  const PHOTO = { storageKey: "animals/k2/1", width: 800, height: 1000, alt: null };
+  /** A visible listing last confirmed `days` days (and a minute) before NOW. */
+  const confirmedDaysAgo = (kind: "published" | "reserved", days: number) => {
+    const confirmedAt = new Date(NOW.getTime() - days * DAY - 60_000);
+    return kind === "published"
+      ? ({ kind, publishedAt: confirmedAt, confirmedAt, undoable: null } as const)
+      : ({
+          kind,
+          since: confirmedAt,
+          publishedAt: confirmedAt,
+          confirmedAt,
+          undoable: null,
+        } as const);
+  };
+  type Row = { id: string; age: unknown; publishGaps: { kind: string }[] };
+  type Page = {
+    items: Row[];
+    nextCursor: string | null;
+    counts: Record<string, number>;
+    staleCount: number;
+  };
+  const list = (filter: unknown, cursor: string | null = null, limit = 50) =>
+    call<Page>("shelter.animals.list", { filter, cursor, limit }, { now: NOW });
+
+  /**
+   * Literal ages, as in the strip's own test: "понад 30 днів", so 31 days
+   * unconfirmed is stale and 30 days is not, published or reserved alike.
+   */
+  it("the stale filter pages exactly the cards the strip counts, past the first page", async () => {
+    const stale = [
+      await animal({ listing: confirmedDaysAgo("published", 31) }),
+      await animal({ listing: confirmedDaysAgo("published", 90) }),
+      await animal({ listing: confirmedDaysAgo("reserved", 31) }),
+    ];
+    await animal({ listing: confirmedDaysAgo("published", 30) });
+    await animal({ listing: confirmedDaysAgo("reserved", 30) });
+    await animal({ listing: { kind: "draft" } });
+
+    const first = await list({ kind: "stale" }, null, 2);
+    expect(first.status).toBe(200);
+    expect(first.body.items).toHaveLength(2);
+    expect(first.body.nextCursor).not.toBeNull();
+    const second = await list({ kind: "stale" }, first.body.nextCursor, 2);
+    expect(second.status).toBe(200);
+    expect(second.body.nextCursor).toBeNull();
+    const listed = [...first.body.items, ...second.body.items].map((row) => row.id);
+    expect(listed.sort()).toEqual(stale.map((a) => a.id).sort());
+    expect(first.body.staleCount).toBe(3);
+    // The chips show the whole inventory whatever the filter.
+    expect(first.body.counts).toEqual({
+      draft: 1,
+      published: 3,
+      reserved: 2,
+      adopted: 0,
+      withdrawn: 0,
+    });
+  });
+
+  it("a stale page's cursor can't page the whole list or a kind, nor theirs the stale list", async () => {
+    for (let i = 0; i < 3; i += 1) await animal({ listing: confirmedDaysAgo("published", 40) });
+    const stalePage = await list({ kind: "stale" }, null, 1);
+    const allPage = await list({ kind: "all" }, null, 1);
+    expect(stalePage.body.nextCursor).not.toBeNull();
+    expect(allPage.body.nextCursor).not.toBeNull();
+    for (const [filter, cursor] of [
+      [{ kind: "all" }, stalePage.body.nextCursor],
+      [{ kind: "listing", listing: "published" }, stalePage.body.nextCursor],
+      [{ kind: "stale" }, allPage.body.nextCursor],
+    ] as const) {
+      const result = await list(filter, cursor, 1);
+      expect(result.status, JSON.stringify(filter)).toBe(400);
+      expect((result.body as unknown as { code: string }).code).toBe("INVALID_CURSOR");
+    }
+  });
+
+  it("each row carries its age and its own publish gaps, in form order", async () => {
+    const bare = makeDraftAnimal({ shelterId: shelter.id });
+    await animalRepo(db).insert(bare, cityId as never);
+    const partial = makeDraftAnimal({
+      shelterId: shelter.id,
+      size: "small",
+      age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date("2026-09-01") },
+    });
+    await animalRepo(db).insert(partial, cityId as never);
+    const shownWithout = await animal({ photos: [] });
+    const shownWith = await animal({ photos: [PHOTO] });
+
+    const rows = new Map((await list({ kind: "all" })).body.items.map((row) => [row.id, row]));
+    expect(rows.get(bare.id)).toMatchObject({
+      age: null,
+      publishGaps: [{ kind: "size" }, { kind: "age" }, { kind: "description" }, { kind: "photo" }],
+    });
+    expect(rows.get(partial.id)).toMatchObject({
+      age: partial.age,
+      publishGaps: [{ kind: "description" }, { kind: "photo" }],
+    });
+    expect(rows.get(shownWithout.id)).toMatchObject({
+      age: shownWithout.age,
+      publishGaps: [{ kind: "photo" }],
+    });
+    expect(rows.get(shownWith.id)).toMatchObject({ age: shownWith.age, publishGaps: [] });
+  });
+
+  /**
+   * No N+1: every statement a list call starts is counted at the database
+   * handle, and a page of thirteen costs what a page of one does.
+   */
+  it("a page costs the same three statements whatever its size", async () => {
+    const counting = () => {
+      let statements = 0;
+      const STARTS = new Set(["select", "insert", "update", "delete", "with", "execute"]);
+      const wrapped = new Proxy(db, {
+        get(target, property) {
+          const value = Reflect.get(target, property, target);
+          if (typeof value !== "function") return value;
+          return (...args: unknown[]) => {
+            if (typeof property === "string" && STARTS.has(property)) statements += 1;
+            return value.apply(target, args);
+          };
+        },
+      });
+      return { wrapped, statements: () => statements };
+    };
+    const statementsFor = async () => {
+      const { wrapped, statements } = counting();
+      const result = await call<Page>(
+        "shelter.animals.list",
+        { filter: { kind: "all" }, cursor: null, limit: 50 },
+        { now: NOW, database: wrapped },
+      );
+      expect(result.status).toBe(200);
+      return { rows: result.body.items.length, statements: statements() };
+    };
+    await animal({ photos: [PHOTO] });
+    const one = await statementsFor();
+    for (let i = 0; i < 11; i += 1) {
+      await animal({ photos: [PHOTO] });
+    }
+    await animal({ listing: { kind: "draft" } });
+    const many = await statementsFor();
+    expect(one.rows).toBe(1);
+    expect(many.rows).toBe(13);
+    expect(many.statements).toBe(one.statements);
+    expect(one.statements).toBe(3);
+  });
+
+  it("withdrawing stores the note trimmed, and a blank note as none", async () => {
+    const trimmed = await animal();
+    const withdrawn = await call("shelter.animals.transition", {
+      animalId: trimmed.id,
+      event: {
+        type: "withdraw",
+        reason: { code: "transferred", note: "  До притулку в Бучі  " },
+      },
+    });
+    expect(withdrawn.status).toBe(200);
+    expect((await reload(trimmed.id)).listing).toMatchObject({
+      kind: "withdrawn",
+      reason: { code: "transferred", note: "До притулку в Бучі" },
+    });
+
+    const blank = await animal();
+    const blankWithdrawn = await call("shelter.animals.transition", {
+      animalId: blank.id,
+      event: { type: "withdraw", reason: { code: "other", note: "   " } },
+    });
+    expect(blankWithdrawn.status).toBe(200);
+    expect((await reload(blank.id)).listing).toMatchObject({
+      kind: "withdrawn",
+      reason: { code: "other", note: null },
+    });
+  });
+
+  it.each([
+    ["a note over 2,000 characters", { code: "other", note: "а".repeat(2001) }],
+    ["adopted_elsewhere, which «Уже вдома» covers", { code: "adopted_elsewhere", note: null }],
+  ])("a withdrawal with %s is BAD_REQUEST and writes nothing", async (_what, reason) => {
+    const a = await animal();
+    const result = await call("shelter.animals.transition", {
+      animalId: a.id,
+      event: { type: "withdraw", reason },
+    });
+    expect(result.status).toBe(400);
+    expect(result.body.code).toBe("BAD_REQUEST");
+    expect((await reload(a.id)).listing).toEqual(a.listing);
+    expect(
+      (await kabinetShelterRepo(db).historyOf(shelter.id)).filter((entry) =>
+        entry.kind.startsWith("animal_"),
+      ),
+    ).toEqual([]);
   });
 });

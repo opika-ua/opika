@@ -809,26 +809,71 @@ describe("a photo change on a visible card moves the confirmation date (RH-B7)",
     expect((await reload(target.id)).listing).toEqual(listing);
   });
 
-  it("a photo change inside a «Ще шукає» window makes its undo UNDO_EXPIRED", async () => {
-    const target = await animal({ photos: [photo(1)] });
-    const confirmed = await call(
-      "shelter.animals.confirm",
-      { animalId: target.id },
-      { uploads: uploadsOn().uploads, now },
-    );
-    expect(confirmed.status).toBe(200);
-    const added = await call(
-      "shelter.photos.add",
-      { animalId: target.id, file: await jpeg() },
-      { uploads: uploadsOn().uploads, now: new Date(now.getTime() + 1000) },
-    );
-    expect(added.status).toBe(200);
-    const undo = await call(
-      "shelter.animals.undoConfirm",
-      { animalId: target.id },
-      { uploads: uploadsOn().uploads, now: new Date(now.getTime() + 2000) },
-    );
-    expect(undo.status).toBe(409);
-    expect(errorOf(undo.body).code).toBe("UNDO_EXPIRED");
-  });
+  /**
+   * K2's undo (shapes §7.3): a photo change inside the 8 seconds is a newer
+   * write, so the undo answers UNDO_EXPIRED, and the date stays the photo
+   * change's: the undo never rolls it back to before the «Ще шукає».
+   */
+  const changedAt = new Date(now.getTime() + 1000);
+  it.each([
+    [
+      "an add",
+      async (id: string) =>
+        call(
+          "shelter.photos.add",
+          { animalId: id, file: await jpeg() },
+          { uploads: uploadsOn().uploads, now: changedAt },
+        ),
+    ],
+    [
+      "a reorder",
+      (id: string) =>
+        call(
+          "shelter.photos.reorder",
+          {
+            animalId: id,
+            expectedPhotoKeys: [photo(1).storageKey, photo(2).storageKey],
+            nextPhotoKeys: [photo(2).storageKey, photo(1).storageKey],
+          },
+          { uploads: uploadsOn().uploads, now: changedAt },
+        ),
+    ],
+    [
+      "a removal",
+      (id: string) =>
+        call(
+          "shelter.photos.remove",
+          {
+            animalId: id,
+            expectedPhotoKeys: [photo(1).storageKey, photo(2).storageKey],
+            storageKey: photo(2).storageKey,
+          },
+          { uploads: uploadsOn().uploads, now: changedAt },
+        ),
+    ],
+  ] as const)(
+    "%s inside a «Ще шукає» window makes its undo UNDO_EXPIRED, keeping the photo change's date",
+    async (_change, run) => {
+      const target = await animal({ photos: [photo(1), photo(2)] });
+      const confirmed = await call(
+        "shelter.animals.confirm",
+        { animalId: target.id },
+        { uploads: uploadsOn().uploads, now },
+      );
+      expect(confirmed.status).toBe(200);
+      expect((await run(target.id)).status).toBe(200);
+      const undo = await call(
+        "shelter.animals.undoConfirm",
+        { animalId: target.id },
+        { uploads: uploadsOn().uploads, now: new Date(now.getTime() + 2000) },
+      );
+      expect(undo.status).toBe(409);
+      expect(errorOf(undo.body).code).toBe("UNDO_EXPIRED");
+      expect((await reload(target.id)).listing).toMatchObject({
+        kind: "published",
+        confirmedAt: changedAt,
+        undoable: null,
+      });
+    },
+  );
 });
