@@ -680,6 +680,122 @@ describe("registry.verification.*", () => {
   });
 });
 
+/**
+ * Resubmit replaces the evidence list whole, and its input can't carry a
+ * document (RG-Q5) or who made a visit. Both come back from the record on
+ * file (his round-2b answer 1, verbatim: "The server carries existing
+ * supporting-document items over on resubmit. No data loss, no new copy. Add
+ * a test."; AW-R3-11 for the visit). The rule itself is unit-tested in
+ * `handlers/evidence-on-file.test.ts`.
+ */
+describe("registry.verification.resubmit keeps what its input can't carry", () => {
+  /** Who made the visit: another operator, never OPERATOR, who resubmits. */
+  const RECORDER = "0ec0ec0e-0000-4000-8000-000000000099" as ModeratorId;
+  const REFERENCE = {
+    kind: "reference_contact",
+    name: "Ветклініка «Айболить»",
+    channel: { kind: "phone", e164: "+380505552108" },
+    relationship: "veterinary_clinic",
+  } as const;
+  const VISIT = {
+    kind: "site_visit",
+    visitedAt: new Date("2026-10-05T00:00:00.000Z"),
+    visitedBy: RECORDER,
+    notes: "Був на місці",
+  } as const;
+  const DOCUMENT = {
+    kind: "supporting_document",
+    label: { uk: "Статут", en: null },
+    documentKey: "evidence/abc-statut.pdf",
+  } as const;
+
+  /**
+   * Rejected, as a script-onboarded shelter would be: the record holds the
+   * document, and no history entry does (inserted with none, as
+   * `shelter_created` holds no evidence).
+   */
+  const rejectedWithDocument = () =>
+    shelter({
+      verification: {
+        status: "rejected",
+        rejectedAt: NOW,
+        rejectedBy: OPERATOR as ModeratorId,
+        reason: { code: "spam", note: "Немає документів" },
+        evidence: { items: [REFERENCE, DOCUMENT, VISIT], submittedAt: new Date("2026-10-04") },
+      },
+    });
+
+  /** What S4's resubmit sends with no edits: every card the prefill made, the document has none. */
+  const UNEDITED = [
+    {
+      kind: "reference_contact",
+      name: "Ветклініка «Айболить»",
+      channel: { kind: "phone", e164: "+380505552108" },
+      relationship: "veterinary_clinic",
+    },
+    { kind: "site_visit", visitedOn: "2026-10-05", notes: "Був на місці" },
+  ];
+
+  it("with no edits, keeps the document with its key, and the visit with who made it", async () => {
+    const s = await rejectedWithDocument();
+    const resubmitted = await call<RegistryShelterView>("registry.verification.resubmit", {
+      shelterId: s.id,
+      evidence: UNEDITED,
+    });
+    expect(resubmitted.status).toBe(200);
+    const kept = [
+      REFERENCE,
+      { ...VISIT, visitedBy: "0ec0ec0e-0000-4000-8000-000000000099" },
+      {
+        kind: "supporting_document",
+        label: { uk: "Статут", en: null },
+        documentKey: "evidence/abc-statut.pdf",
+      },
+    ];
+    expect(resubmitted.body.verification).toEqual({
+      status: "pending",
+      submittedAt: NOW,
+      evidence: { items: kept, submittedAt: NOW },
+    });
+    expect((await reload(s.id)).verification.evidence.items).toEqual(kept);
+  });
+
+  it("with edits, applies them, and keeps the document; a changed visit is the resubmitter's", async () => {
+    const s = await rejectedWithDocument();
+    const resubmitted = await call<RegistryShelterView>("registry.verification.resubmit", {
+      shelterId: s.id,
+      evidence: [
+        { ...UNEDITED[0], name: "Ветклініка «Айболить», д-р Шевчук" },
+        { kind: "site_visit", visitedOn: "2026-10-05", notes: "Був на місці, 18 собак" },
+      ],
+    });
+    expect(resubmitted.status).toBe(200);
+    expect((await reload(s.id)).verification.evidence.items).toEqual([
+      { ...REFERENCE, name: "Ветклініка «Айболить», д-р Шевчук" },
+      { ...VISIT, visitedBy: OPERATOR, notes: "Був на місці, 18 собак" },
+      DOCUMENT,
+    ]);
+  });
+
+  it("records the whole resulting list in the history entry, carried items included", async () => {
+    const s = await rejectedWithDocument();
+    await call("registry.verification.resubmit", { shelterId: s.id, evidence: UNEDITED });
+    expect(await history(s.id)).toEqual([
+      {
+        kind: "verification",
+        event: {
+          type: "resubmit",
+          at: NOW,
+          actor: { kind: "moderator", moderatorId: OPERATOR },
+          evidence: { items: [REFERENCE, VISIT, DOCUMENT], submittedAt: NOW },
+        },
+        from: "rejected",
+        to: "pending",
+      },
+    ]);
+  });
+});
+
 // ─── donation ───────────────────────────────────────────────────────────────
 
 describe("registry.donation.approve / reject (N20)", () => {
