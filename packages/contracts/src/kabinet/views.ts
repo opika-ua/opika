@@ -1,8 +1,9 @@
 import {
   AnimalPhotoSchema,
-  AnimalSchema,
   CityIdSchema,
+  DraftAnimalSchema,
   FreshnessSchema,
+  ListedAnimalSchema,
   PublishGapSchema,
   ShelterAdminIdSchema,
   ShelterFacingHistoryItemSchema,
@@ -21,8 +22,16 @@ import { z } from "zod";
  * each view's exact key list.
  */
 
+/*
+ * The animal views are a union of two `pick`s with one field list (F-B1,
+ * decision taken T2): a draft's view may carry a null size, age or
+ * description, and a listed animal's may not, so the K3 form receives the
+ * same typed union the domain has, and `pick` stays the only builder. Zod
+ * can't `pick` from a union, hence one list applied to each half.
+ */
+
 /** K2 row: inventory only. `freshness` is null for listings an adopter can't see. */
-export const KabinetAnimalRowViewSchema = AnimalSchema.pick({
+const ANIMAL_ROW_FIELDS = {
   id: true,
   name: true,
   species: true,
@@ -30,15 +39,20 @@ export const KabinetAnimalRowViewSchema = AnimalSchema.pick({
   size: true,
   listing: true,
   lastUpdatedAt: true,
-}).extend({
+} as const;
+const animalRowExtras = {
   coverPhoto: AnimalPhotoSchema.nullable(),
   freshness: FreshnessSchema.nullable(),
   publishGaps: z.array(PublishGapSchema).readonly(),
-});
+};
+export const KabinetAnimalRowViewSchema = z.union([
+  DraftAnimalSchema.pick(ANIMAL_ROW_FIELDS).extend(animalRowExtras),
+  ListedAnimalSchema.pick(ANIMAL_ROW_FIELDS).extend(animalRowExtras),
+]);
 export type KabinetAnimalRowView = z.infer<typeof KabinetAnimalRowViewSchema>;
 
 /** K3: every field the edit form shows, listed explicitly. */
-export const KabinetAnimalViewSchema = AnimalSchema.pick({
+const ANIMAL_VIEW_FIELDS = {
   id: true,
   name: true,
   species: true,
@@ -55,8 +69,16 @@ export const KabinetAnimalViewSchema = AnimalSchema.pick({
   createdAt: true,
   lastUpdatedAt: true,
   version: true,
-});
-export type KabinetAnimalView = z.infer<typeof KabinetAnimalViewSchema>;
+} as const;
+export const KabinetDraftAnimalViewSchema = DraftAnimalSchema.pick(ANIMAL_VIEW_FIELDS);
+export const KabinetListedAnimalViewSchema = ListedAnimalSchema.pick(ANIMAL_VIEW_FIELDS);
+export const KabinetAnimalViewSchema = z.union([
+  KabinetDraftAnimalViewSchema,
+  KabinetListedAnimalViewSchema,
+]);
+export type KabinetDraftAnimalView = z.infer<typeof KabinetDraftAnimalViewSchema>;
+export type KabinetListedAnimalView = z.infer<typeof KabinetListedAnimalViewSchema>;
+export type KabinetAnimalView = KabinetDraftAnimalView | KabinetListedAnimalView;
 
 /**
  * K4: what a shelter sees of itself. Legal entity and premises address appear

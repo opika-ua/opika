@@ -127,20 +127,13 @@ const description = (uk: string, en: string | null = null) => ({
   en: en === null ? null : { text: en, provenance: "machine" },
 });
 
-const animalFields: readonly [string, Parser, Parser][] = [
-  [
-    "shelter.animals.createDraft",
-    fieldOf(shelterAnimalsContract.createDraft, "name"),
-    fieldOf(shelterAnimalsContract.createDraft, "description"),
-  ],
-  [
-    "AnimalPatchSchema (shelter.animals.update)",
-    AnimalPatchSchema.shape.name.unwrap(),
-    AnimalPatchSchema.shape.description.unwrap(),
-  ],
+/** createDraft takes a name and a species only (K-Q5), so the description cases run on the patch. */
+const nameFields: readonly [string, Parser][] = [
+  ["shelter.animals.createDraft", fieldOf(shelterAnimalsContract.createDraft, "name")],
+  ["AnimalPatchSchema (shelter.animals.update)", AnimalPatchSchema.shape.name.unwrap()],
 ];
 
-describe.each(animalFields)("%s", (_path, name, desc) => {
+describe.each(nameFields)("%s", (_path, name) => {
   it("trims the name", () => {
     expect(name.safeParse("  Мурчик ")).toMatchObject({ success: true, data: "Мурчик" });
   });
@@ -157,6 +150,10 @@ describe.each(animalFields)("%s", (_path, name, desc) => {
   it("accepts a 60-character name", () => {
     expect(name.safeParse("я".repeat(60)).success).toBe(true);
   });
+});
+
+describe("AnimalPatchSchema's description (shelter.animals.update)", () => {
+  const desc: Parser = AnimalPatchSchema.shape.description.unwrap();
 
   it("accepts a 1,500-character description and refuses 1,501", () => {
     expect(desc.safeParse(description("я".repeat(1500))).success).toBe(true);

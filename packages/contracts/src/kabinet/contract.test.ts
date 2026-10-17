@@ -52,7 +52,18 @@ const internals = (path: string) => {
   return procedure["~orpc"];
 };
 
-const keysOf = (schema: { shape: object }) => Object.keys(schema.shape).sort();
+/**
+ * A view's keys. The animal views are a union of two `pick`s (F-B1, T2);
+ * both halves must carry exactly the same keys, or a draft and a listed
+ * animal would reach the form with different fields, so a union whose halves
+ * disagree fails here rather than reporting either half's list.
+ */
+const keysOf = (schema: { shape: object } | { options: readonly { shape: object }[] }) => {
+  if ("shape" in schema) return Object.keys(schema.shape).sort();
+  const [first, ...rest] = schema.options.map((option) => Object.keys(option.shape).sort());
+  for (const other of rest) expect(other).toEqual(first);
+  return first ?? [];
+};
 
 const READ = { surface: "shelter", mode: "read" } as const;
 const WRITE = { surface: "shelter", mode: "write" } as const;
@@ -211,6 +222,8 @@ describe("kabinet error statuses", () => {
       PHOTO_REJECTED: apiErrors.PHOTO_REJECTED.status,
       PHOTO_LIMIT_REACHED: apiErrors.PHOTO_LIMIT_REACHED.status,
       PHOTOS_REQUIRED_WHILE_VISIBLE: apiErrors.PHOTOS_REQUIRED_WHILE_VISIBLE.status,
+      LISTING_FACT_REQUIRED: apiErrors.LISTING_FACT_REQUIRED.status,
+      AGE_DATE_OUT_OF_RANGE: apiErrors.AGE_DATE_OUT_OF_RANGE.status,
     }).toEqual({
       FORBIDDEN: 403,
       CONFLICT: 409,
@@ -226,6 +239,8 @@ describe("kabinet error statuses", () => {
       PHOTO_REJECTED: 422,
       PHOTO_LIMIT_REACHED: 409,
       PHOTOS_REQUIRED_WHILE_VISIBLE: 409,
+      LISTING_FACT_REQUIRED: 422,
+      AGE_DATE_OUT_OF_RANGE: 422,
     });
   });
 });
@@ -483,7 +498,7 @@ describe("every shelter-facing output carries exactly its listed keys", () => {
   });
 
   it.each(Object.keys(EXPECTED_OUTPUT_KEYS))("%s", (path) => {
-    const output = internals(path).outputSchema as unknown as { shape: object };
+    const output = internals(path).outputSchema as unknown as Parameters<typeof keysOf>[0];
     expect(keysOf(output)).toEqual([...(EXPECTED_OUTPUT_KEYS[path] ?? [])].sort());
   });
 
