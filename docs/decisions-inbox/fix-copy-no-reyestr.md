@@ -1,0 +1,16 @@
+# Decisions inbox: fix/copy-no-reyestr
+
+Rows for the shared table (`docs/decisions-inbox.md`), appended at merge.
+
+Oleksii's words below were sent to the coordinating session directly (2026-10-17), not relayed
+through another agent. Quotations are verbatim; anything outside quotation marks is paraphrase.
+
+| ID | Date | Row | Question | Options | Default taken | Oleksii's answer | Status |
+|---|---|---|---|---|---|---|---|
+| CB-B1 | 2026-10-17 | Copy batch: no «реєстр» in user-facing copy | — | — | — | Verbatim: "Copy batch (fix in PR 4, or a small copy PR if quicker; brand rule: no «реєстр» in user-facing copy, as it implies a state service): 1. Contacts note: «…Листування йде напряму, не через реєстр.» → «…Листування йде напряму, без посередників.» 2. Donation note: «Лише https. Реєстр не приймає і не передає гроші — це зовнішнє посилання.» → «Лише https. Через сайт гроші не проходять — це зовнішнє посилання.» 3. Voice hint: «Реєстр підставляє лише імʼя тварини…» → «На картці підставляється лише імʼя тварини — там, де ви напишете {імʼя}. Більше нічого не змінюється.» 4. Voice preview: the sentence is wrapped in “English quotes”. Use «…» as everywhere else." | applied verbatim: `kabinet.profile.contactsNote`, `kabinet.profile.donationNote`, `kabinet.profileEdit.voice.hint`; the shared `ShelterFreshnessBlock` wraps the sentence in «…» |
+| CB-B2 | 2026-10-17 | The default wording rule for the remaining «реєстр» hits | — | — | — | Verbatim: "Default rule while I write the exact wording: - user-facing copy (adopter or shelter) never says «реєстр»; - where it means the website, use «сайт» or rephrase to «через сайт» / «на сайті»; - where it means the person checking shelters, use «я» (operator voice: no «ми», no gendered past tense); - where it means the verification itself, use «перевірка». Don't apply these to the remaining hits until I've confirmed the wording. Your four fixes in the copy PR go ahead as written." | recorded; the remaining hits wait for his confirmed wording |
+| CB-T1 | 2026-10-17 | Reach of fix 4 | — | — | — | — | Decision taken: the «…» change is in the shared freshness block, so the public animal page and the K4 preview both show «…» (the deck card renders the sentence without quote marks, unchanged) |
+| CB-T2 | 2026-10-17 | Guard test scope | — | — | — | — | Decision taken: the no-«реєстр» test covers the three replaced keys only; the catalogue-wide sweep waits for his wording (CB-B2) |
+| CB-T3 | 2026-10-17 | English mirrors | — | — | — | — | Decision taken: `en.ts` gets plain-English equivalents of the three strings, with no "registry" wording (not live until next-intl) |
+| CB-Q1 | 2026-10-17 | Review note 1: other quote marks | His fix 4 said «…» "as everywhere else", but three of his strings use „…“: `kabinet.profileEdit.voice.emptyMeans` and `voice.previewEmpty` (in the same voice section as the preview), and the sign-in over-limit text. Change them to «…» too? | change all three to «…» · keep „…“ | none: his copy | | open |
+| CB-F1 | 2026-10-17 | Follow-up (review note 2) | Once next-intl is wired (H3), ICU would try to fill the literal `{імʼя}` in this hint and two other strings as a placeholder; today `fillTemplate` leaves Cyrillic braces alone. H3 must escape them | — | — | | open, for H3 |
