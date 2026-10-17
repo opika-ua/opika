@@ -11,9 +11,11 @@ import {
 } from "@opika/db/repos";
 import { shelterHistory } from "@opika/db/schema";
 import {
+  type AnimalFixtureOverrides,
   makeAdopter,
   makeAnimal,
   makeCity,
+  makeDraftAnimal,
   makeShelter,
   makeSwipe,
   setupTestDatabase,
@@ -118,7 +120,7 @@ function parsed(text: string): unknown {
   }
 }
 
-async function animal(overrides: Partial<Animal> = {}): Promise<Animal> {
+async function animal(overrides: AnimalFixtureOverrides = {}): Promise<Animal> {
   const a = makeAnimal({ shelterId: shelter.id, ...overrides });
   await animalRepo(db).insert(a, cityId as never);
   return a;
@@ -436,24 +438,37 @@ describe("shelter.profile", () => {
 });
 
 describe("shelter.animals", () => {
-  it("createDraft makes a draft in this shelter, with unknown medical facts", async () => {
+  /** K-Q5: a name and a species make a draft; D2: its sex starts «Не записано». */
+  it("createDraft makes a draft in this shelter from a name and a species, nothing invented", async () => {
     const result = await call<KabinetAnimalView>("shelter.animals.createDraft", {
       name: "  Мурчик ",
       species: "cat",
-      sex: "male",
-      size: "small",
-      age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date("2020-01-01") },
-      description: { uk: "Опис", en: null },
     });
     expect(result.status).toBe(200);
-    expect(result.body.name).toBe("Мурчик");
-    expect(result.body.listing).toEqual({ kind: "draft" });
+    expect(result.body).toMatchObject({
+      name: "Мурчик",
+      species: "cat",
+      sex: "unknown",
+      size: null,
+      age: null,
+      description: null,
+      photos: [],
+      listing: { kind: "draft" },
+    });
     expect(result.body.vaccination.state).toBe("unknown");
-    // The server stamps a declared age bucket; the client's date is ignored.
-    expect((result.body.age as { declaredAt: Date }).declaredAt.getFullYear()).toBeGreaterThan(
-      2020,
-    );
-    expect((await reload(result.body.id)).shelterId).toBe(shelter.id);
+    expect(result.body.spayNeuter.state).toBe("unknown");
+    const stored = await reload(result.body.id);
+    expect(stored.shelterId).toBe(shelter.id);
+    expect(stored).toMatchObject({ size: null, age: null, description: null, sex: "unknown" });
+  });
+
+  it("createDraft refuses anything beyond a name and a species (strict)", async () => {
+    const result = await call("shelter.animals.createDraft", {
+      name: "Мурчик",
+      species: "cat",
+      sex: "male",
+    });
+    expect(result.status).toBe(400);
   });
 
   /** S3-T6: an edit bumps version by exactly one, and a second save from the same read is CONFLICT. */
@@ -831,14 +846,7 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
     const now = new Date("2026-10-16T10:00:00.000Z");
     const created = await call<KabinetAnimalView>(
       "shelter.animals.createDraft",
-      {
-        name: "Мурчик",
-        species: "cat",
-        sex: "male",
-        size: "small",
-        age: { kind: "declared_bucket", bucket: "young", declaredAt: now },
-        description: { uk: "Опис", en: null },
-      },
+      { name: "Мурчик", species: "cat" },
       { now },
     );
     expect(created.status).toBe(200);
@@ -898,7 +906,8 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
           species: a.species,
           sex: a.sex,
           size: "large",
-          age: a.age,
+          // The fixture's birth date, as the form sends it back.
+          age: { kind: "birth_date", date: "2024-01-15" },
           description: a.description,
           vaccination: { state: a.vaccination.state },
           spayNeuter: { state: a.spayNeuter.state },
@@ -939,14 +948,23 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
     expect(await animalLines()).toEqual([]);
   });
 
-  it("re-sending the declared age bucket keeps its anchor and records no change", async () => {
-    const declaredAt = new Date(Date.now() - 24 * 3600 * 1000);
+  /**
+   * D3 (Oleksii: "keep the chosen «Станом на» date"): the form shows the
+   * stored bucket and its date, so re-sending them is "no change", even for a
+   * bucket stamped at save time before D3 (compared as Kyiv calendar dates).
+   */
+  it("re-sending the stored bucket and «as of» date keeps the stored age and records no change", async () => {
+    const declaredAt = new Date("2026-10-15T21:30:00.000Z"); // 00:30 on the 16th in Kyiv
     const a = await animal({ age: { kind: "declared_bucket", bucket: "young", declaredAt } });
-    const result = await call<KabinetAnimalView>("shelter.animals.update", {
-      animalId: a.id,
-      expectedVersion: a.version,
-      patch: { age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date() } },
-    });
+    const result = await call<KabinetAnimalView>(
+      "shelter.animals.update",
+      {
+        animalId: a.id,
+        expectedVersion: a.version,
+        patch: { age: { kind: "declared_bucket", bucket: "young", asOf: "2026-10-16" } },
+      },
+      { now: new Date("2026-10-17T09:00:00.000Z") },
+    );
     expect(result.status).toBe(200);
     expect(result.body.version).toBe(a.version);
     expect((await reload(a.id)).age).toEqual({
@@ -957,30 +975,89 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
     expect(await animalLines()).toEqual([]);
   });
 
-  it("re-entering a bucket the animal has since grown out of is a correction: restamped, recorded", async () => {
-    // Declared «young» years ago: the card shows an older bucket today.
-    const declaredAt = new Date("2019-01-01T00:00:00.000Z");
-    const a = await animal({ age: { kind: "declared_bucket", bucket: "young", declaredAt } });
-    const now = new Date();
+  it("a bucket is stored as of the date the shelter chose, not the save time (D3), and recorded", async () => {
+    const a = await animal({
+      age: {
+        kind: "declared_bucket",
+        bucket: "young",
+        declaredAt: new Date("2019-01-01T00:00:00.000Z"),
+      },
+    });
     const result = await call<KabinetAnimalView>(
       "shelter.animals.update",
       {
         animalId: a.id,
         expectedVersion: a.version,
-        patch: { age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date(0) } },
+        patch: { age: { kind: "declared_bucket", bucket: "adult", asOf: "2026-03-02" } },
       },
-      { now },
+      { now: new Date("2026-10-17T09:00:00.000Z") },
     );
     expect(result.status).toBe(200);
     expect(result.body.version).toBe(a.version + 1);
     expect((await reload(a.id)).age).toEqual({
       kind: "declared_bucket",
-      bucket: "young",
-      declaredAt: now,
+      bucket: "adult",
+      declaredAt: new Date("2026-03-02T00:00:00.000Z"),
     });
     expect(
       (await animalLines()).map((l) => (l.kind === "animal_edited" ? l.fields : l.kind)),
     ).toEqual([["age"]]);
+  });
+
+  it("a birth date is stored at day precision", async () => {
+    const a = await animal();
+    const result = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { age: { kind: "birth_date", date: "2025-05-20" } },
+    });
+    expect(result.status).toBe(200);
+    expect((await reload(a.id)).age).toEqual({
+      kind: "birth_date",
+      date: new Date("2025-05-20T00:00:00.000Z"),
+      precision: "day",
+    });
+  });
+
+  /** D3: "Refuse a date in the future (Kyiv) or older than 30 years." */
+  describe("the age date is refused outside Kyiv's today and thirty years back", () => {
+    // 01:30 on 17 October in Kyiv, while UTC's date is still the 16th.
+    const now = new Date("2026-10-16T22:30:00.000Z");
+    const update = async (age: unknown) => {
+      const a = await animal();
+      const result = await call<{ data?: unknown }>(
+        "shelter.animals.update",
+        { animalId: a.id, expectedVersion: a.version, patch: { age } },
+        { now },
+      );
+      return { result, stored: await reload(a.id), before: a };
+    };
+
+    it.each([
+      [
+        "Kyiv's today as an «as of»",
+        { kind: "declared_bucket", bucket: "baby", asOf: "2026-10-17" },
+      ],
+      ["exactly thirty years ago as a birth date", { kind: "birth_date", date: "1996-10-17" }],
+    ])("accepts %s", async (_label, age) => {
+      expect((await update(age)).result.status).toBe(200);
+    });
+
+    it.each([
+      [
+        "Kyiv's tomorrow as an «as of»",
+        { kind: "declared_bucket", bucket: "baby", asOf: "2026-10-18" },
+        "future",
+      ],
+      ["Kyiv's tomorrow as a birth date", { kind: "birth_date", date: "2026-10-18" }, "future"],
+      ["thirty years and a day back", { kind: "birth_date", date: "1996-10-16" }, "too_old"],
+    ])("refuses %s with AGE_DATE_OUT_OF_RANGE, writing nothing", async (_label, age, problem) => {
+      const { result, stored, before } = await update(age);
+      expect(result.status).toBe(422);
+      expect(result.body).toMatchObject({ code: "AGE_DATE_OUT_OF_RANGE", data: { problem } });
+      expect(stored.age).toEqual(before.age);
+      expect(stored.version).toBe(before.version);
+    });
   });
 
   it("each of the six moves records animal_listing_changed with from and to", async () => {
@@ -1236,7 +1313,7 @@ describe("no listing move touches last_updated_at (HS-T9)", () => {
   // [move, starting state, procedure, input, what the stored listing must show afterwards]
   const cases: [
     string,
-    Partial<Animal>,
+    AnimalFixtureOverrides,
     string,
     (id: string) => unknown,
     (after: Animal) => void,
@@ -1390,5 +1467,134 @@ describe("shelter.history.list (RG-Q8)", () => {
     const json = JSON.stringify([first.body, second.body]);
     expect(json).not.toContain(MOD);
     expect(json).not.toContain(ADMIN);
+  });
+});
+
+/**
+ * K3 (PR 4) through the served router: a name-and-species draft filled in
+ * and published (K-Q5, F-B1), clearing the description (T4), and the English
+ * cleared when the Ukrainian changes (T5).
+ */
+describe("K3: drafts, readiness and the description", () => {
+  const PHOTO = { storageKey: "animals/k3/1", width: 800, height: 1000, alt: null };
+  const DESCRIPTION = { uk: "Спокійна, любить гуляти.", en: null };
+  const AGE = {
+    kind: "declared_bucket",
+    bucket: "young",
+    declaredAt: new Date("2026-09-01"),
+  } as const;
+  const lines = async () =>
+    (await kabinetShelterRepo(db).historyOf(shelter.id)).filter((entry) =>
+      entry.kind.startsWith("animal_"),
+    );
+
+  async function bareDraft(overrides: Parameters<typeof makeDraftAnimal>[0] = {}) {
+    const draft = makeDraftAnimal({ shelterId: shelter.id, ...overrides });
+    await animalRepo(db).insert(draft, cityId as never);
+    return draft;
+  }
+
+  const publish = (animalId: string) =>
+    call<{ code?: string; data?: { gaps: { kind: string }[] } }>("shelter.animals.transition", {
+      animalId,
+      event: { type: "publish" },
+    });
+
+  it("publishing a name-and-species draft answers every gap, in form order", async () => {
+    const draft = await bareDraft();
+    const result = await publish(draft.id);
+    expect(result.status).toBe(422);
+    expect(result.body).toMatchObject({
+      code: "PUBLISH_REQUIREMENTS_UNMET",
+      data: {
+        gaps: [{ kind: "size" }, { kind: "age" }, { kind: "description" }, { kind: "photo" }],
+      },
+    });
+    expect((await reload(draft.id)).listing.kind).toBe("draft");
+    expect(await lines()).toEqual([]);
+  });
+
+  it.each([
+    ["size", { age: AGE, description: DESCRIPTION, photos: [PHOTO] }],
+    ["age", { size: "small", description: DESCRIPTION, photos: [PHOTO] }],
+    ["description", { size: "small", age: AGE, photos: [PHOTO] }],
+    ["photo", { size: "small", age: AGE, description: DESCRIPTION }],
+  ] as const)("a draft missing only its %s answers exactly that gap", async (kind, filled) => {
+    const draft = await bareDraft(filled);
+    const result = await publish(draft.id);
+    expect(result.status).toBe(422);
+    expect(result.body.data?.gaps).toEqual([{ kind }]);
+  });
+
+  it("a draft filled in through update then publishes, with its facts on the listed animal", async () => {
+    const draft = await bareDraft({ photos: [PHOTO] });
+    const filled = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: draft.id,
+      expectedVersion: draft.version,
+      patch: {
+        size: "small",
+        age: { kind: "declared_bucket", bucket: "young", asOf: "2026-09-01" },
+        description: DESCRIPTION,
+      },
+    });
+    expect(filled.status).toBe(200);
+    expect(filled.body.listing.kind).toBe("draft");
+    const published = await publish(draft.id);
+    expect(published.status).toBe(200);
+    const stored = await reload(draft.id);
+    expect(stored).toMatchObject({ size: "small", description: DESCRIPTION });
+    expect(stored.listing.kind).toBe("published");
+  });
+
+  it("clearing a draft's description stores null and records one description edit", async () => {
+    const draft = await bareDraft({ description: DESCRIPTION });
+    const result = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: draft.id,
+      expectedVersion: draft.version,
+      patch: { description: null },
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.description).toBeNull();
+    expect((await reload(draft.id)).description).toBeNull();
+    expect((await lines()).map((l) => (l.kind === "animal_edited" ? l.fields : l.kind))).toEqual([
+      ["description"],
+    ]);
+  });
+
+  it("clearing a published animal's description is LISTING_FACT_REQUIRED, writing nothing", async () => {
+    const listed = await animal();
+    const result = await call<{ code?: string; data?: unknown }>("shelter.animals.update", {
+      animalId: listed.id,
+      expectedVersion: listed.version,
+      patch: { description: null },
+    });
+    expect(result.status).toBe(422);
+    expect(result.body).toMatchObject({
+      code: "LISTING_FACT_REQUIRED",
+      data: { field: "description" },
+    });
+    const stored = await reload(listed.id);
+    expect(stored.description).toEqual(listed.description);
+    expect(stored.version).toBe(listed.version);
+    expect(await lines()).toEqual([]);
+  });
+
+  it("a changed Ukrainian description drops the English; an unchanged one keeps it (T5)", async () => {
+    const english = { text: "Calm, likes walks.", provenance: "human" } as const;
+    const listed = await animal({ description: { uk: "Спокійна.", en: english } });
+    const same = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: listed.id,
+      expectedVersion: listed.version,
+      patch: { description: { uk: "Спокійна.", en: english }, name: "Інше імʼя" },
+    });
+    expect(same.status).toBe(200);
+    expect((await reload(listed.id)).description).toEqual({ uk: "Спокійна.", en: english });
+    const changed = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: listed.id,
+      expectedVersion: listed.version + 1,
+      patch: { description: { uk: "Спокійна й лагідна.", en: english } },
+    });
+    expect(changed.status).toBe(200);
+    expect((await reload(listed.id)).description).toEqual({ uk: "Спокійна й лагідна.", en: null });
   });
 });

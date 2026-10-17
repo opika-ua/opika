@@ -346,14 +346,7 @@ describe("registry.shelters.list / byId / history.list", () => {
     const admin = crypto.randomUUID();
     const created = await call<{ id: string }>(
       "shelter.animals.createDraft",
-      {
-        name: "Мурчик",
-        species: "cat",
-        sex: "male",
-        size: "small",
-        age: { kind: "birth_date", date: new Date("2025-01-01"), precision: "month" },
-        description: { uk: "Опис", en: null },
-      },
+      { name: "Мурчик", species: "cat" },
       {
         principal: { kind: "shelter_admin", shelterAdminId: admin as never, shelterId: s.id },
         shelterWrites: { kind: "open_for_tests_only" },
