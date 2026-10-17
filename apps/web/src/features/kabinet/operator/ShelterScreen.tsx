@@ -244,43 +244,6 @@ function DonationCard({ view, decision }: { view: RegistryShelterView; decision:
   );
 }
 
-function AdminsCard({
-  view,
-  now,
-  manager,
-}: {
-  view: RegistryShelterView;
-  now: Date;
-  manager: ReactNode;
-}) {
-  const a = t.admins;
-  return (
-    <Section id="operator-admins" title={a.title}>
-      {manager !== undefined ? (
-        manager
-      ) : view.admins.length === 0 ? (
-        <p className={BODY}>{a.none}</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {view.admins.map((admin) => (
-            <li key={admin.id} className="flex flex-col gap-1">
-              <p className={STRONG}>{admin.name}</p>
-              <p className={`${BODY} break-words`}>{admin.email}</p>
-              <p className={CAPTION}>
-                {admin.invite.status === "accepted"
-                  ? a.joined
-                  : admin.invite.expiresAt.getTime() > now.getTime()
-                    ? fillTemplate(a.invitedUntil, { date: formatDate(admin.invite.expiresAt) })
-                    : a.invitedExpired}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Section>
-  );
-}
-
 /**
  * Which of the shelter's addresses the provider won't deliver to (answer 4),
  * in each of its three answers: checked (none, or who), incomplete (who so
@@ -342,8 +305,7 @@ const historyKeyOf = (page: HistoryPage): string => {
  * R-UI 3's controls, each mounted where it acts: support mode in the header,
  * the decision panel at the head of the second column (beside the evidence,
  * as S3's panel sits), the donation decision under the proposal, and the
- * admins list with its actions in place of the read-only one. The page
- * composes them (`actions/ShelterActionsScreen.tsx`); this screen only places
+ * admins list with its actions as the admins card. The page composes them (`actions/ShelterActionsScreen.tsx`); this screen only places
  * them, so it holds no client state of its own.
  */
 export type ShelterScreenActions = {
@@ -357,8 +319,9 @@ export type ShelterScreenActions = {
  * S4 · one shelter (R-UI 1; S3 folded in, RU-T2): its status and since when,
  * the evidence, the legal data, the premises address, contacts, description,
  * the donation link (live and proposed), admins, blocked addresses and the
- * history. With `actions` (R-UI 3, which the page always passes) it carries
- * the operator's moves on it; without, it reads only.
+ * history, with the operator's moves on it (`actions`, R-UI 3). The admins
+ * card is the actions' list (`AdminsManager`), which shows each admin's
+ * access itself.
  */
 export function ShelterScreen({
   view,
@@ -366,7 +329,6 @@ export function ShelterScreen({
   history,
   blocked,
   me,
-  now,
   actions,
 }: {
   view: RegistryShelterView;
@@ -374,8 +336,7 @@ export function ShelterScreen({
   history: HistoryPage;
   blocked: BlockedAddressesView;
   me: ModeratorId;
-  now: Date;
-  actions?: ShelterScreenActions | undefined;
+  actions: ShelterScreenActions;
 }) {
   const joined = view.admins.filter((admin) => admin.invite.status === "accepted").length;
   return (
@@ -399,7 +360,7 @@ export function ShelterScreen({
             })}
           </span>
         </p>
-        {actions?.supportEntry}
+        {actions.supportEntry}
       </div>
       <div className="grid grid-cols-1 items-start gap-4 desktop:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-4">
@@ -412,9 +373,11 @@ export function ShelterScreen({
           </Section>
         </div>
         <div className="flex min-w-0 flex-col gap-4">
-          {actions?.decision}
-          <DonationCard view={view} decision={actions?.donationDecision} />
-          <AdminsCard view={view} now={now} manager={actions?.admins} />
+          {actions.decision}
+          <DonationCard view={view} decision={actions.donationDecision} />
+          <Section id="operator-admins" title={t.admins.title}>
+            {actions.admins}
+          </Section>
           <BlockedCard blocked={blocked} />
           <HistoryList
             key={historyKeyOf(history)}

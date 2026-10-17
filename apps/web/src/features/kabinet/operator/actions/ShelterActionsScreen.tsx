@@ -39,7 +39,6 @@ export function ShelterActionsScreen({
         history={history}
         blocked={blocked}
         me={me}
-        now={now}
         actions={{
           supportEntry: <SupportEntry />,
           decision: <DecisionPanel />,
