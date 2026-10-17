@@ -909,13 +909,10 @@ under H6; the name and `noindex` timing are inbox decisions (MK-9, MK-10), not r
 
 ### R-UI — Operator screens (planned 2026-10-17, RU-B2)
 
-Status: planned; the screen list, copy sheet, PR split and API gaps go to Oleksii before any UI
-(contract-first). Tier 1 (auth/access, production writes). Runs alongside PR 4–6 as the second
-parallel PR, and must merge before the dress rehearsal (RU-B4). Scope (his, verbatim in the
-inbox): the operator landing with the shelter list (replaces the 404, retires RO-F1); create
-shelter over `registry.shelters.create`; the shelter page with verification actions, admins,
-donation decisions and read-only history. Support mode only if nearly free. No new API unless a
-gap is real. Test logic, not looks. The PR split follows with the plan.
+Status: planned; waiting on Oleksii's answers (RU-Q1..RU-Q9) and the copy (`docs/r-ui-copy-sheet.md`)
+before any UI. Plan: `docs/r-ui-plan.md`. Three Tier 1 PRs, one open at a time beside PR 4–6:
+R-UI 1 (operator entry, list, shelter page read-only, history; one contract gap, the admins count),
+R-UI 2 (create shelter), R-UI 3 (verification, donation and admin actions). Merges before the dress rehearsal (RU-B4).
 
 ## Part 3 — Timeline
 
