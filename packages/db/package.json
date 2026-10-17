@@ -22,6 +22,7 @@
     "test-db:ensure": "tsx src/test-utils/ensure-test-database.ts",
     "db:check-hashes": "tsx src/check-migration-hashes.ts",
     "location:verify": "tsx src/verify-locations.ts",
+    "demo:remove": "tsx src/demo-remove.ts",
     "admin:bootstrap": "tsx src/admin.ts bootstrap",
     "admin:grant": "tsx src/admin.ts grant",
     "admin:revoke": "tsx src/admin.ts revoke",

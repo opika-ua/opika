@@ -393,8 +393,10 @@ relay's elision.)
      `+test` address: the full loop passed, automatic accept included, and the test membership was
      removed with `registry/admins/remove` (RO-B1).
   5. **Next: the first real shelter.** `onboard:shelter` dry run, then `--commit`, then
-     `location:verify --prod` (expect `match 1`), the demo corpus removed (RG-Q11; its tool
-     doesn't exist yet, Tier 1, Phase 0 RO-Q1), then the real invite.
+     `location:verify --prod` (expect `match 1 / demo 2`), `demo:remove` dry run and `--commit`
+     (RG-Q11, DR-B1), `location:verify --prod` (expect `match 1 / demo 0`), `/tvaryny` shows only
+     the real shelter's animals, then the real invite. **After a rehearsal on a Neon branch first**
+     (DR-B1, his point 4).
 
   Full order as restated 2026-10-13 (IN-E1, verbatim): "LOCATION_HMAC_SECRET + location:verify →
   provider, DNS and auth env → Neon run → merge → admin:bootstrap → sign-in → first invite → demo
