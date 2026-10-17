@@ -1,4 +1,5 @@
 import { setupTestDatabase, truncateAll } from "@opika/db/test";
+import { StandardRPCJsonSerializer, StandardRPCSerializer } from "@orpc/client/standard";
 import { RPCHandler } from "@orpc/server/fetch";
 import type { AppContext } from "./context";
 import { router } from "./router";
@@ -72,6 +73,21 @@ export function fromRpcBody(raw: unknown): unknown {
   }
 
   return (data as unknown) ?? data;
+}
+
+/**
+ * A request body exactly as oRPC's own client encodes `input`: JSON, or
+ * multipart form data when it holds a `File` (an upload). Uses the client's
+ * serializer rather than `toRpcBody`'s hand-rolled JSON, so a test of
+ * `shelter.photos.add` sends what a browser would.
+ */
+export function rpcRequestInit(input: unknown): {
+  body: BodyInit;
+  headers: Record<string, string>;
+} {
+  const serialized = new StandardRPCSerializer(new StandardRPCJsonSerializer()).serialize(input);
+  if (serialized instanceof FormData) return { body: serialized, headers: {} };
+  return { body: JSON.stringify(serialized), headers: { "content-type": "application/json" } };
 }
 
 /**

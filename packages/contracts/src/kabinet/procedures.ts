@@ -13,6 +13,7 @@ import {
   freshnessSentenceProblemMessage,
   LISTING_KINDS,
   LocalizedTextSchema,
+  MAX_ANIMAL_PHOTOS,
   MedicalDeclarationInputSchema,
   normalizeFreshnessSentenceText,
   PauseReasonSchema,
@@ -244,9 +245,9 @@ export const shelterHistoryContract = {
 /**
  * What K3 can change. Medical facts arrive as a bare state; the server builds
  * the shelter-declared attestation and refuses to overwrite a registry one.
- * `documentReadiness` is in no kabinet input (proposal §1.7). Photos get their
- * own procedures with the upload slice; a foster location waits for a write
- * path through `animalPublicLocationOf`.
+ * `documentReadiness` is in no kabinet input (proposal §1.7). Photos have
+ * their own procedures (`shelter.photos.*`, below); a foster location waits
+ * for a write path through `animalPublicLocationOf`.
  */
 export const AnimalPatchSchema = z
   .strictObject({
@@ -351,6 +352,113 @@ export const shelterAnimalsContract = {
     .input(animalRef)
     .output(emptyOutput)
     .errors({ ...animalMoveErrors, WAS_PUBLISHED: apiErrors.WAS_PUBLISHED }),
+};
+
+// ─── shelter.photos ─────────────────────────────────────────────────────────
+
+/**
+ * The largest request `/api/kabinet/*` reads, an upload included (P-Q7): 4 MiB.
+ * The route refuses a larger declared `Content-Length` with 413 before any
+ * session is looked up, and stops reading a body without one (chunked) at the
+ * same point; oRPC's `BodyLimitPlugin` holds the same line inside the handler.
+ * It sits below Next's proxy buffer (`proxyClientMaxBodySize`, 10 MB by
+ * default, which truncates rather than refuses), so the proxy never hands the
+ * route a cut-off body that would pass, and below the 4.5 MB request limit
+ * Vercel documented for Functions (whether Hobby now allows more is on the
+ * production probe list, K-T2). A device-compressed 2000 px JPEG is far
+ * smaller; the ceiling exists for the request that skipped compression.
+ */
+export const KABINET_MAX_BODY_BYTES = 4 * 1024 * 1024;
+
+/**
+ * The file itself: the body ceiling less headroom for the multipart framing
+ * and the JSON part around the file, so a file this size always fits.
+ */
+export const PHOTO_UPLOAD_MAX_FILE_BYTES = KABINET_MAX_BODY_BYTES - 64 * 1024;
+
+const photoStorageKey = z.string().min(1).max(200);
+
+/** A photo list as the kabinet last read it: its storage keys, in order, no repeats. */
+const photoKeyList = z
+  .array(photoStorageKey)
+  .min(1)
+  .max(MAX_ANIMAL_PHOTOS)
+  .readonly()
+  .refine((keys) => new Set(keys).size === keys.length, { message: "Repeated photo key" });
+
+const sameKeys = (a: readonly string[], b: readonly string[]) => {
+  const sortedB = [...b].sort();
+  return a.length === b.length && [...a].sort().every((key, i) => key === sortedB[i]);
+};
+
+/**
+ * Photos have their own procedures (P-Q1..P-Q3), outside `update`'s patch:
+ * an upload is a file, not a form field, and reorder and remove compare-and-set
+ * on the photo list the screen shows (`expectedPhotoKeys`, P-Q3) rather than
+ * on `version`, so a K3 form open in another tab neither blocks nor is blocked
+ * by them. Each records `animal_edited` with `fields: ["photos"]` and moves
+ * `lastUpdatedAt`, never `confirmedAt` (commitment #7). The cover is
+ * `photos[0]`: "make cover" is a reorder (P-Q9).
+ */
+export const shelterPhotosContract = {
+  /**
+   * One step (P-Q2): checked by its bytes, re-encoded without any metadata,
+   * stored under a fresh random key, appended. Charged to the shelter's upload
+   * limits before the file is read (P-Q12).
+   */
+  add: animalWrite
+    .input(
+      z.strictObject({
+        animalId: AnimalIdSchema,
+        file: z.file().max(PHOTO_UPLOAD_MAX_FILE_BYTES),
+      }),
+    )
+    .errors({
+      ...shelterScopedErrors,
+      NOT_FOUND: apiErrors.NOT_FOUND,
+      RATE_LIMITED: apiErrors.RATE_LIMITED,
+      PHOTO_UPLOADS_UNAVAILABLE: apiErrors.PHOTO_UPLOADS_UNAVAILABLE,
+      PHOTO_REJECTED: apiErrors.PHOTO_REJECTED,
+      PHOTO_LIMIT_REACHED: apiErrors.PHOTO_LIMIT_REACHED,
+    }),
+  /** A new order of exactly the photos the screen shows; anything else changed meanwhile is CONFLICT. */
+  reorder: animalWrite
+    .input(
+      z
+        .strictObject({
+          animalId: AnimalIdSchema,
+          expectedPhotoKeys: photoKeyList,
+          nextPhotoKeys: photoKeyList,
+        })
+        .refine((input) => sameKeys(input.expectedPhotoKeys, input.nextPhotoKeys), {
+          message: "A reorder names exactly the photos it read",
+          path: ["nextPhotoKeys"],
+        }),
+    )
+    .errors({ ...shelterCasErrors, NOT_FOUND: apiErrors.NOT_FOUND }),
+  /**
+   * Takes the photo off the animal. The stored files stay where they are
+   * (no code path deletes an object, K-Q2); a takedown is a manual step
+   * (P-Q14, `docs/onboarding-a-shelter.md`).
+   */
+  remove: animalWrite
+    .input(
+      z
+        .strictObject({
+          animalId: AnimalIdSchema,
+          expectedPhotoKeys: photoKeyList,
+          storageKey: photoStorageKey,
+        })
+        .refine((input) => input.expectedPhotoKeys.includes(input.storageKey), {
+          message: "The photo to remove must be one the screen shows",
+          path: ["storageKey"],
+        }),
+    )
+    .errors({
+      ...shelterCasErrors,
+      NOT_FOUND: apiErrors.NOT_FOUND,
+      PHOTOS_REQUIRED_WHILE_VISIBLE: apiErrors.PHOTOS_REQUIRED_WHILE_VISIBLE,
+    }),
 };
 
 // ─── registry (operator only) ───────────────────────────────────────────────

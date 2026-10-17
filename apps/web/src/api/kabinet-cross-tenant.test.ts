@@ -1,13 +1,20 @@
 import { shelterKabinetContract } from "@opika/contracts";
 import { animalRepo, cityRepo, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
-import { makeAnimal, makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
+import {
+  makeAnimal,
+  makeCity,
+  makeShelter,
+  setupTestDatabase,
+  testJpeg,
+  truncateAll,
+} from "@opika/db/test";
 import type { Animal, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { KabinetPrincipal } from "../kabinet/actor";
 import { capturingInvitationSender } from "../kabinet/email-senders";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
 import { inMemoryRateLimiter } from "./rate-limit";
-import { fromRpcBody, toRpcBody } from "./test-harness";
+import { fromRpcBody, rpcRequestInit } from "./test-harness";
 
 /**
  * S3-Q2 (Oleksii): shelter A's member acting on shelter B's animal or shelter
@@ -19,8 +26,9 @@ import { fromRpcBody, toRpcBody } from "./test-harness";
  * tests (src/kabinet/auth.test.ts).
  *
  * Two kinds of procedure, because their inputs differ:
- * - **The six that take an `animalId`** can name B's animal. That is
- *   FORBIDDEN, and B's animal is left exactly as it was.
+ * - **The nine that take an `animalId`** (six animal procedures, three photo
+ *   ones) can name B's animal. That is FORBIDDEN, and B's animal is left
+ *   exactly as it was; an upload to it stores nothing.
  * - **The ten that take no id** (profile, verification, list, createDraft)
  *   can't name B at all: `shelterId` is in no `shelter.*` input and comes
  *   from the actor. FORBIDDEN is impossible there by construction. Inputs
@@ -77,11 +85,16 @@ const generousLimiters = {
   perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
 };
 
+/** Every put an upload made, so a refused cross-tenant upload can be shown to store nothing. */
+const stored: string[] = [];
+
 async function call(path: string, input: unknown): Promise<{ status: number; body: unknown }> {
+  // Encoded as oRPC's client encodes it: multipart for the upload's file.
+  const { body, headers } = rpcRequestInit(input);
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
-    headers: { "content-type": "application/json", origin: "http://localhost" },
-    body: JSON.stringify(toRpcBody(input)),
+    headers: { ...headers, origin: "http://localhost" },
+    body,
   });
   const response = await handleKabinetRpc(request, {
     availability: {
@@ -108,6 +121,17 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
     // served route refuses them (`SHELTER_WRITE_POLICY`), which
     // shelter-writes-refused.test.ts pins.
     shelterWrites: { kind: "open_for_tests_only" },
+    // On, so an upload reaches the ownership check rather than stopping at
+    // "uploads unavailable" (which would pass this suite for the wrong reason).
+    photoUploads: {
+      kind: "on",
+      storage: {
+        async put(key) {
+          stored.push(key);
+        },
+      },
+      limiters: { perHour: generousLimiters.perUser, perDay: generousLimiters.perUser },
+    },
   });
   const text = await response.text();
   return { status: response.status, body: text ? fromRpcBody(JSON.parse(text)) : null };
@@ -141,15 +165,40 @@ describe("cross-tenant: an animalId from another shelter is FORBIDDEN", () => {
     ["shelter.animals.confirm", () => ({ animalId: bPublished.id })],
     ["shelter.animals.undoConfirm", () => ({ animalId: bPublished.id })],
     ["shelter.animals.deleteDraft", () => ({ animalId: bDraft.id })],
+    [
+      "shelter.photos.add",
+      async () => ({
+        animalId: bPublished.id,
+        file: new File([new Uint8Array(await testJpeg())], "b.jpg", { type: "image/jpeg" }),
+      }),
+    ],
+    [
+      "shelter.photos.reorder",
+      () => ({
+        animalId: bPublished.id,
+        expectedPhotoKeys: ["animals/b/one"],
+        nextPhotoKeys: ["animals/b/one"],
+      }),
+    ],
+    [
+      "shelter.photos.remove",
+      () => ({
+        animalId: bPublished.id,
+        expectedPhotoKeys: ["animals/b/one"],
+        storageKey: "animals/b/one",
+      }),
+    ],
   ];
 
   for (const [procedure, input] of cases) {
     it(`cross-tenant: ${procedure}`, async () => {
       const before = await snapshotOfB();
-      const result = await call(procedure, input());
+      stored.length = 0;
+      const result = await call(procedure, await input());
       expect(result.status).toBe(403);
       expect(errorCode(result.body)).toBe("FORBIDDEN");
       expect(await snapshotOfB()).toEqual(before);
+      expect(stored).toEqual([]);
     });
   }
 
@@ -280,6 +329,9 @@ describe("coverage", () => {
       "shelter.animals.confirm",
       "shelter.animals.undoConfirm",
       "shelter.animals.deleteDraft",
+      "shelter.photos.add",
+      "shelter.photos.reorder",
+      "shelter.photos.remove",
       "shelter.profile.get",
       "shelter.profile.updateContact",
       "shelter.profile.updateFreshnessSentence",
@@ -292,7 +344,7 @@ describe("coverage", () => {
       "shelter.animals.createDraft",
       "shelter.history.list",
     ];
-    expect(new Set(covered).size).toBe(17);
+    expect(new Set(covered).size).toBe(20);
     expect([...covered].sort()).toEqual(pathsOf(shelterKabinetContract.shelter, "shelter").sort());
   });
 });

@@ -239,6 +239,13 @@ describe("OnboardInputSchema's text rules", () => {
     expect(parse({ freshnessSentenceUk: "я".repeat(280) }).success).toBe(true);
   });
 
+  // K-Q11: the same ten-photo cap as the kabinet, so an onboarded animal is one K3 can edit.
+  it("accepts ten photos for an animal and refuses eleven", () => {
+    const photos = (n: number) => Array.from({ length: n }, (_, i) => ({ localPath: `p${i}.jpg` }));
+    expect(parse({}, { photos: photos(10) }).success).toBe(true);
+    expect(parse({}, { photos: photos(11) }).success).toBe(false);
+  });
+
   it.each([
     ["the token", "{імʼя}"],
     ["a brace", "Ласт}івка"],

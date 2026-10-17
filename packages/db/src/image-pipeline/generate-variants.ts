@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import sharp, { type SharpOptions } from "sharp";
 import { IMAGE_VARIANT_NAMES, IMAGE_VARIANTS, type ImageVariantName } from "./variants";
 
 /**
@@ -15,12 +15,23 @@ import { IMAGE_VARIANT_NAMES, IMAGE_VARIANTS, type ImageVariantName } from "./va
  * saliency heuristic is a reasonable default, not something this codebase
  * measured; if a real upload crops badly, this is the line to revisit
  * first.
+ *
+ * No `withMetadata`/`keepMetadata`/`keepExif` here, on purpose: sharp writes
+ * none of the source's metadata unless asked, which is what strips EXIF
+ * (GPS included), XMP and IPTC from every stored variant (K-Q2). The
+ * metadata test in `prepare-uploaded-photo.test.ts` and the source scan in
+ * `apps/web/src/kabinet/photo-pipeline-scan.test.ts` hold that line.
+ *
+ * `input` passes decoder limits through (`limitInputPixels` for uploads).
  */
-export async function generateVariants(source: Buffer): Promise<Record<ImageVariantName, Buffer>> {
+export async function generateVariants(
+  source: Buffer,
+  input: Pick<SharpOptions, "limitInputPixels"> = {},
+): Promise<Record<ImageVariantName, Buffer>> {
   const entries = await Promise.all(
     IMAGE_VARIANT_NAMES.map(async (name) => {
       const { width, height } = IMAGE_VARIANTS[name];
-      const buffer = await sharp(source)
+      const buffer = await sharp(source, input)
         // `.rotate()` with no argument applies the file's own EXIF
         // Orientation tag and strips it — sharp does NOT do this
         // automatically. Round-1 review found this missing: a phone photo

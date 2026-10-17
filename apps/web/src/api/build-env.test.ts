@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { photoUploadConfigOf, photoUploadEnvProblem } from "../kabinet/photo-upload-env";
 import { signInEnvProblems } from "../kabinet/sign-in-env";
 import {
   assertBuildEnv,
@@ -18,6 +19,16 @@ const R2 = { NEXT_PUBLIC_R2_PUBLIC_BASE_URL: "https://cdn.example.test" };
 const RATE_KEY = { RATE_LIMIT_KEY_SECRET: "r".repeat(32) };
 /** Production-only since WI-T2, valid, so a case for another variable tests only that one. */
 const LOCATION = { LOCATION_HMAC_SECRET: "l".repeat(32) };
+/**
+ * The photo upload variables (P-Q10), production only, valid, so a case for
+ * another variable tests only that one. Example values, not credentials.
+ */
+const UPLOAD = {
+  R2_ACCOUNT_ID: "example-account-id",
+  R2_BUCKET_NAME: "example-photo-bucket",
+  R2_UPLOAD_ACCESS_KEY_ID: "example-upload-key-id",
+  R2_UPLOAD_SECRET_ACCESS_KEY: "example-upload-secret-value",
+} as const;
 // A recognisable value, so a test can show it never reaches the message.
 const SHORT_SECRET = "short-secret-value-0123456789ab"; // 31 characters
 /**
@@ -78,6 +89,7 @@ describe("assertBuildEnv: CRON_SECRET on a production build", () => {
         ...LOCATION,
         ...R2,
         ...SIGN_IN,
+        ...UPLOAD,
       }),
     ).not.toThrow();
   });
@@ -128,6 +140,7 @@ describe("assertBuildEnv: RATE_LIMIT_KEY_SECRET on a Vercel build", () => {
     ...CRON,
     ...LOCATION,
     ...SIGN_IN,
+    ...UPLOAD,
   };
 
   it("fails a production build without it, naming the variable", () => {
@@ -226,6 +239,7 @@ describe("assertBuildEnv: production sign-in's variables (IN-R2, Decision 1)", (
     ...LOCATION,
     ...R2,
     ...SIGN_IN,
+    ...UPLOAD,
   };
 
   const messageOf = (env: Record<string, string | undefined>) => {
@@ -349,6 +363,7 @@ describe("assertBuildEnv: LOCATION_HMAC_SECRET on a production build (WI-T2)", (
     ...RATE_KEY,
     ...R2,
     ...SIGN_IN,
+    ...UPLOAD,
   };
   const messageOf = (env: Record<string, string | undefined>) => {
     try {
@@ -390,5 +405,100 @@ describe("assertBuildEnv: LOCATION_HMAC_SECRET on a production build (WI-T2)", (
   ])("leaves %s alone without it", (_label, env) => {
     expect(locationSecretProblem(env)).toBeNull();
     expect(messageOf(env)).not.toMatch(/LOCATION_HMAC_SECRET/);
+  });
+});
+
+/**
+ * P-Q10 (Oleksii, verbatim amendment: "R2_UPLOAD_* in Production only;
+ * Preview has no upload token, so uploads are off in Preview"): a production
+ * build fails without all four upload variables; nothing else asks for them.
+ */
+describe("the photo upload variables (P-Q10)", () => {
+  const production = {
+    VERCEL: "1",
+    VERCEL_ENV: "production",
+    CRON_SECRET: "c".repeat(32),
+    ...RATE_KEY,
+    ...LOCATION,
+    ...R2,
+    ...SIGN_IN,
+    ...UPLOAD,
+  };
+  const messageOf = (env: Record<string, string | undefined>) => {
+    try {
+      assertBuildEnv(env);
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return "";
+  };
+
+  it("builds with all four", () => {
+    expect(messageOf(production)).toBe("");
+  });
+
+  it.each(Object.keys(UPLOAD))(
+    "fails a production build without %s, naming it and never a value",
+    (name) => {
+      const message = messageOf({ ...production, [name]: undefined });
+      expect(message).toContain(name);
+      expect(message).toMatch(/Production environment only, never Preview/);
+      for (const value of Object.values(UPLOAD)) expect(message).not.toContain(value);
+    },
+  );
+
+  it("fails one with a padded value, naming it and never the value", () => {
+    const message = messageOf({ ...production, R2_UPLOAD_SECRET_ACCESS_KEY: " padded-secret " });
+    expect(message).toMatch(/R2_UPLOAD_SECRET_ACCESS_KEY has a space or a line break/);
+    expect(message).not.toContain("padded-secret");
+  });
+
+  it.each([
+    ["a Preview build", { ...production, ...{ VERCEL_ENV: "preview" } }],
+    ["a local or CI build", {}],
+    ["NODE_ENV=production alone", { NODE_ENV: "production" }],
+  ])("leaves %s alone without them", (_label, env) => {
+    const bare = Object.fromEntries(Object.entries(env).filter(([name]) => !(name in UPLOAD)));
+    expect(photoUploadEnvProblem(bare)).toBeNull();
+  });
+
+  describe("photoUploadConfigOf, read per request by the route", () => {
+    it("is on with all four, carrying exactly them", () => {
+      expect(photoUploadConfigOf({ VERCEL_ENV: "production", ...UPLOAD })).toEqual({
+        kind: "on",
+        r2: {
+          accountId: UPLOAD.R2_ACCOUNT_ID,
+          bucketName: UPLOAD.R2_BUCKET_NAME,
+          accessKeyId: UPLOAD.R2_UPLOAD_ACCESS_KEY_ID,
+          secretAccessKey: UPLOAD.R2_UPLOAD_SECRET_ACCESS_KEY,
+        },
+      });
+    });
+
+    it("is off in Preview even with all four set (Preview never uploads)", () => {
+      expect(photoUploadConfigOf({ VERCEL_ENV: "preview", ...UPLOAD })).toEqual({
+        kind: "off",
+        because: "preview",
+      });
+    });
+
+    it("is off locally unless all four are set", () => {
+      expect(photoUploadConfigOf({})).toEqual({ kind: "off", because: "not_configured" });
+      expect(photoUploadConfigOf({ ...UPLOAD, R2_UPLOAD_ACCESS_KEY_ID: "" })).toEqual({
+        kind: "off",
+        because: "not_configured",
+      });
+      expect(photoUploadConfigOf({ ...UPLOAD }).kind).toBe("on");
+    });
+
+    it("never takes the onboarding script's own token", () => {
+      const onboardingOnly = {
+        R2_ACCOUNT_ID: UPLOAD.R2_ACCOUNT_ID,
+        R2_BUCKET_NAME: UPLOAD.R2_BUCKET_NAME,
+        R2_ACCESS_KEY_ID: "operator-key",
+        R2_SECRET_ACCESS_KEY: "operator-secret",
+      };
+      expect(photoUploadConfigOf(onboardingOnly).kind).toBe("off");
+    });
   });
 });

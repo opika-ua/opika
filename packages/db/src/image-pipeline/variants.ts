@@ -52,16 +52,27 @@ export function nearestVariant(requestedWidth: number): ImageVariantName {
   );
 }
 
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
 /**
  * `AnimalPhoto.storageKey` (`packages/domain/src/animals/photo.ts`) is
  * documented as deliberately not a URL and not variant-specific — this is
- * the one function that's allowed to know the actual scheme.
- * `Animal.photos` is an ordered array with no per-photo id (`photos[0]` is
- * primary, per `primaryPhoto()`), so the array index is the natural,
- * already-available key component.
+ * the one function that's allowed to know the actual scheme:
+ * `animals/{animalId}/{photoId}`, `photoId` a fresh random UUID per photo
+ * (P-Q4, P-Q13).
+ *
+ * A random id, never the photo's position: a key derived from the index
+ * named the same object for a different photo once photos could be removed
+ * or reordered, and storing under it would overwrite the old file, which
+ * K-Q2 forbids ("a new random key per photo; no code path that overwrites
+ * or deletes an existing object"). Refusing anything but a v4 UUID keeps an
+ * index, or any other reusable value, from being passed in by mistake.
  */
-export function animalPhotoStorageKey(animalId: AnimalId, photoIndex: number): string {
-  return `animals/${animalId}/${photoIndex}`;
+export function animalPhotoStorageKeyFor(animalId: AnimalId, photoId: string): string {
+  if (!UUID_V4.test(photoId)) {
+    throw new Error("A photo's storage key needs a fresh random (v4 UUID) photo id");
+  }
+  return `animals/${animalId}/${photoId}`;
 }
 
 /** The real R2 object key for one variant of one photo — never stored, always derived. */
@@ -74,7 +85,7 @@ export function variantObjectKey(storageKey: string, variant: ImageVariantName):
  * `storageKey: "seed-photos/dog-1.jpg"` (no leading slash), so "does this
  * start with `/`" cannot tell a seed key apart from a real one; neither has
  * one. Real photos always start with `animals/`, per
- * `animalPhotoStorageKey` above, and that's the only namespace this module
+ * `animalPhotoStorageKeyFor` above, and that's the only namespace this module
  * ever writes into — so it's the one string that's actually safe to key
  * off of. Everything else (seed keys, and any other root-relative
  * `next/image` src the app already produces — static assets, `public/`

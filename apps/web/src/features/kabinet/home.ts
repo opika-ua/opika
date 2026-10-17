@@ -5,6 +5,7 @@ import { createRouterClient, ORPCError } from "@orpc/server";
 import { SHELTER_WRITE_POLICY } from "../../kabinet/access";
 import type { KabinetPrincipal } from "../../kabinet/actor";
 import type { KabinetContext } from "../../kabinet/context";
+import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../kabinet/photo-uploads";
 import { shelterKabinetRouter } from "../../kabinet/router";
 
 /**
@@ -67,6 +68,7 @@ export async function kabinetHomeOf(
       cookieHeader: null,
       production: false,
       shelterWrites: SHELTER_WRITE_POLICY,
+      photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
     }),
   });
   let view: KabinetShelterView;

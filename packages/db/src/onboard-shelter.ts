@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -18,6 +18,7 @@ import {
   EvidenceItemInputSchema,
   ExactAddressSchema,
   freshnessSentenceProblemMessage,
+  MAX_ANIMAL_PHOTOS,
   type ModeratorId,
   ModeratorIdSchema,
   meetsEvidenceRequirements,
@@ -162,8 +163,8 @@ const FOUNDER_MODERATOR_ID = ModeratorIdSchema.parse(
  * input file), not R2 object keys or hand-measured pixel dimensions. Both
  * are computed by this script now: `resolveLocalPhotoPath` +
  * `validateLocalPhoto` read the real file for its real dimensions (H1 —
- * see `docs/h1-decisions.md`), and `uploadAnimalPhoto` derives the storage
- * key from the animal id and the photo's position in this array.
+ * see `docs/h1-decisions.md`), and `uploadAnimalPhoto` stores it under a
+ * fresh random key per photo (P-Q13), the scheme the kabinet's uploads use.
  */
 const OnboardPhotoSchema = z.object({
   localPath: z.string().min(1),
@@ -210,7 +211,8 @@ const OnboardAnimalSchema = z.object({
         ctx.addIssue({ code: "custom", message: animalDescriptionProblemMessage(problem) });
       }
     }),
-  photos: z.array(OnboardPhotoSchema).min(1),
+  // K-Q11: the cap every write path shares (`MAX_ANIMAL_PHOTOS`, domain).
+  photos: z.array(OnboardPhotoSchema).min(1).max(MAX_ANIMAL_PHOTOS),
 });
 
 /**
@@ -344,8 +346,8 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
 
 /**
  * Split out of `buildAnimal` so the animal id is computable before the
- * photo-upload step, which needs it (`animalPhotoStorageKey(animalId,
- * index)`) before the rest of the animal record exists.
+ * photo-upload step, which needs it (`animalPhotoStorageKeyFor(animalId,
+ * photoId)`) before the rest of the animal record exists.
  */
 export function animalIdFor(idSeed: string): AnimalId {
   return AnimalIdSchema.parse(deterministicId(`animal:${idSeed}`)) as AnimalId;
@@ -414,6 +416,14 @@ async function validateAnimalPhotos(
  * `NOT VERIFIED against a real bucket` — this is `--commit`-only, and the
  * one place in this script that calls `uploadAnimalPhoto`, which is itself
  * the one place that calls the R2 client. See `docs/h1-decisions.md`.
+ *
+ * Photo ids are random, unlike the animal and shelter ids above (P-Q13): a
+ * storage key is never reused, so no upload can overwrite an object (every
+ * put also refuses an existing key, `r2-client.ts`). The cost: a run that
+ * fails after uploading but before inserting the animal leaves those files
+ * unreferenced, and the re-run uploads fresh ones. Unreferenced files are
+ * harmless (nothing links to them) and are not cleaned up by code, which
+ * never deletes an object (K-Q2).
  */
 async function uploadAnimalPhotos(
   r2: ImageStorageClient,
@@ -421,8 +431,8 @@ async function uploadAnimalPhotos(
   validated: Array<{ resolvedPath: string; dimensions: { width: number; height: number } }>,
 ): Promise<AnimalPhoto[]> {
   const photos: AnimalPhoto[] = [];
-  for (const [index, { resolvedPath, dimensions }] of validated.entries()) {
-    photos.push(await uploadAnimalPhoto(r2, resolvedPath, animalId, index, dimensions));
+  for (const { resolvedPath, dimensions } of validated) {
+    photos.push(await uploadAnimalPhoto(r2, resolvedPath, animalId, randomUUID(), dimensions));
   }
   return photos;
 }
@@ -564,9 +574,11 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // R2 write credentials — operator-only, never in Vercel: this script runs
-  // from an operator's own machine, never through the deployed apps/web
-  // instance, and no request path of the app writes to R2. (LOCATION_HMAC_SECRET
+  // R2 write credentials — this script's own token, operator-only, never in
+  // Vercel: this script runs from an operator's own machine, never through the
+  // deployed apps/web instance. The app's kabinet uploads (K-Q2) write with a
+  // different token of its own (`R2_UPLOAD_*`, P-Q10), so this one never
+  // needs to leave the operator's shell. (LOCATION_HMAC_SECRET
   // is no longer the same split: since the commit that turns production
   // sign-in on, it is also in Vercel Production, the same value as here,
   // because the registry fuzzes locations with it, RG-Q10.) Checked only

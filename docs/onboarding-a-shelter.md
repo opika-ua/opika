@@ -333,13 +333,23 @@ report every shelter as a mismatch.
 
 Four values, from Cloudflare's dashboard (R2 → your bucket → **Manage API
 tokens**): `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
-`R2_BUCKET_NAME`. **Local shell only, never in Vercel**: this script runs
-from your own machine, and no request path of the deployed site writes to
-R2. The deployed app needs a fifth, different value
-instead — `NEXT_PUBLIC_R2_PUBLIC_BASE_URL`, the bucket's *public* read URL
-— set once in Vercel (Production and Preview), not per onboarding run; see
+`R2_BUCKET_NAME`. **This token stays in your local shell, never in Vercel**:
+this script runs from your own machine. Since K milestone PR 3 the deployed
+site writes to R2 too (shelters upload photos from the kabinet, K-Q2), but
+through a *different* token: `R2_UPLOAD_ACCESS_KEY_ID` /
+`R2_UPLOAD_SECRET_ACCESS_KEY`, scoped to the photo bucket with the narrowest
+permission that can write objects, set in Vercel **Production only** together with `R2_ACCOUNT_ID` and
+`R2_BUCKET_NAME` (never Preview: uploads are off there, P-Q10). A production
+build fails without all four. The deployed app also needs
+`NEXT_PUBLIC_R2_PUBLIC_BASE_URL`, the bucket's *public* read URL — set once
+in Vercel (Production and Preview), not per onboarding run; see
 `docs/h1-decisions.md` for why that one's required at boot and what it
 means if it's ever missing there.
+
+Photos are stored under a fresh random key each (`animals/{animalId}/{uuid}`),
+so re-running after a failed upload stores the photos again under new keys
+rather than overwriting anything; the earlier files stay unreferenced and
+harmless (see "Taking a photo down" below if one must go).
 
 ⚠ **Not yet run against a real bucket.** The upload path (`packages/db/src/
 image-pipeline`) is fully unit-tested against real image fixtures and a
@@ -349,6 +359,73 @@ a real key resolves over HTTP are all unverified until this runs once for
 real. Treat the first real onboarding run as that verification, not as a
 formality — watch the upload log lines closely and check the resulting
 photo actually loads on the live detail page before trusting the rest.
+
+## Taking a photo down (P-Q14)
+
+Removing a photo in the kabinet (`shelter.photos.remove`) only takes it off
+the animal: its three files stay in the bucket and stay reachable by their URL
+(no code path deletes an object, K-Q2). Nothing links to them any more, but
+anyone who saved the URL can still open it. When a photo must actually go (a
+shelter asks, or it shows something it shouldn't), delete it by hand in
+Cloudflare's dashboard.
+
+**Where the key comes from: the bucket, not the database.** A removed photo's
+key has already left `animals.photos`, and the animal's history records only
+which fields changed (`fields: ["photos"]`, K-Q7), never a key. So list the
+animal's prefix in the bucket: R2 → the photo bucket → Objects → prefix
+`animals/{animalId}/` (the animal's id is still in the database and the
+kabinet). Each photo is one folder, `animals/{animalId}/{uuid}/`, holding
+`thumb.webp`, `card.webp` and `detail.webp`. The folders whose key is still in
+the animal's `photos` are on the card; any other folder is a removed or orphaned
+photo. Open its `card.webp` to confirm it is the one, then delete all three
+files and purge those three URLs from the CDN cache.
+
+A takedown script (DR-F3) will replace this; until then it is a manual, logged
+step. The same applies to a file logged as `{event:"photo_orphaned",
+storageKey}` (an upload stored but never attached): harmless, delete it the
+same way if it matters; that log line is the one place a key outside the
+bucket listing is recorded.
+
+## One-off check: R2 refuses to overwrite (P-Q11)
+
+Every put carries `IfNoneMatch: "*"`, so R2 should refuse (HTTP 412) to write
+to a key that already holds an object. That is asserted in code, not yet
+observed against R2.
+
+**When: before uploads open to any shelter**, the allowlisted test shelter
+included (`KABINET_WRITE_ALLOWLIST`, K-Q4/K-Q17). Until it has passed, no
+shelter's kabinet may store a photo.
+
+**Who and with what:** the operator, by hand, from his own shell, with the
+**onboarding token** (`R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`, the one in
+his local environment), never Vercel's upload token. A kabinet upload cannot
+run this check: every upload gets a fresh random key, so it never puts to a key
+that already exists (and production refuses shelter writes anyway). The
+behaviour under test belongs to the bucket, not the token, so the onboarding
+token answers it.
+
+The two puts write one object to the production bucket: Oleksii's OK first.
+
+1. Pick one fixed key for the whole check: `_probe/<uuid>`, with a fresh UUID
+   (e.g. `node -e "console.log(crypto.randomUUID())"`), so it cannot collide
+   with a photo (`animals/…`) or with an earlier probe.
+2. Put a small file there with the precondition. The aws CLI reads its own
+   variable names and needs a region, so pass the onboarding token through them:
+   `AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
+   AWS_DEFAULT_REGION=auto aws s3api put-object --endpoint-url
+   https://<account>.r2.cloudflarestorage.com --bucket <bucket> --key _probe/<uuid>
+   --body probe.txt --if-none-match '*'`. Expected: success, with an ETag.
+3. Repeat the exact same put, same key. Expected: refused, `412 Precondition
+   Failed`, and the object's ETag and Last-Modified unchanged
+   (`aws s3api head-object … --key _probe/<uuid>`).
+4. Record the result in the PR or the inbox.
+5. No cleanup: the few bytes under `_probe/` stay. They harm nothing, and
+   leaving them avoids any R2 deletion ("no R2 deletes", working mode WM-B1).
+
+If the second put succeeds, R2 ignored the header: report it, and do not open
+uploads to any shelter. No permanent bucket lock replaces this (Oleksii: it
+would also block the DR-F3 takedown script; if one is ever added, a short
+retention only).
 
 ## A shelter says the invitation never arrived
 

@@ -2,6 +2,7 @@ import {
   type Animal,
   type AnimalId,
   type AnimalListingState,
+  type AnimalPhoto,
   type CityId,
   confirmationAnchorOf,
   LISTING_KINDS,
@@ -78,6 +79,8 @@ function isForeignKeyViolation(error: unknown): boolean {
  * - **Listing moves** (`writeListingIf`) compare-and-set on the listing itself
  *   (jsonb equality with the value the request read) and never touch
  *   `last_updated_at`.
+ * - **Photo changes** (`writePhotosIf`) compare-and-set on the photo list
+ *   itself (P-Q3) and move `last_updated_at`, never `version`.
  */
 export function kabinetAnimalRepo(db: Database) {
   /**
@@ -217,6 +220,39 @@ export function kabinetAnimalRepo(db: Database) {
         return updated.length === 1 ? { kind: "ok" } : { kind: "conflict" };
       }
       return writeWithHistory(db.$with("upd").as(update), "upd", history.row);
+    },
+
+    /**
+     * A photo change (add, reorder, remove, P-Q3): `photos` and
+     * `last_updated_at`, nothing else, compare-and-set on the photo list as the
+     * request read it (jsonb equality, the listing's pattern), with its
+     * `animal_edited` line (`fields: ["photos"]`) in the same statement, so a
+     * lost race writes and records nothing.
+     *
+     * Not `version`: that is the K3 form's token, and a photo added while the
+     * form is open must neither make the form's save a conflict nor be undone
+     * by it (the form never writes `photos`). Not the listing either, so a
+     * «Ще шукає» and a photo change never collide.
+     */
+    async writePhotosIf(
+      animalId: AnimalId,
+      next: readonly AnimalPhoto[],
+      expected: readonly AnimalPhoto[],
+      lastUpdatedAt: Date,
+      history: AnimalHistoryRow<"animal_edited">,
+    ): Promise<ConditionalWrite> {
+      const update = db
+        .update(animals)
+        .set({ photos: next, lastUpdatedAt })
+        .where(
+          and(
+            eq(animals.id, animalId),
+            // Text then jsonb: postgres.js would otherwise encode it twice.
+            sql`${animals.photos} = ${JSON.stringify(expected)}::text::jsonb`,
+          ),
+        )
+        .returning({ shelterId: animals.shelterId });
+      return writeWithHistory(db.$with("upd").as(update), "upd", history);
     },
 
     /**

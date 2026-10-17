@@ -2,6 +2,7 @@ import {
   EvidenceGapSchema,
   LISTING_EVENT_TYPES,
   LISTING_KINDS,
+  PHOTO_REJECTION_REASONS,
   PublishGapSchema,
   VERIFICATION_EVENT_TYPES,
   VerificationStatusSchema,
@@ -196,6 +197,38 @@ export const apiErrors = {
     status: 422,
     message: "The evidence couldn't be accepted.",
     data: z.object({ reason: z.enum(["site_visit_in_future", "document_not_supported_yet"]) }),
+  },
+  /**
+   * Photo uploads are switched off on this deployment (P-Q10): only
+   * Production holds the upload token, so a Preview, or a local run without
+   * one, refuses every `shelter.photos.add` with this rather than failing
+   * somewhere inside the storage call. 503: the request was fine, the
+   * deployment can't serve it.
+   */
+  PHOTO_UPLOADS_UNAVAILABLE: {
+    status: 503,
+    message: "Photo uploads are not available on this deployment.",
+  },
+  /** The uploaded file isn't a photo the registry stores (`data.reason`, decided by its bytes). */
+  PHOTO_REJECTED: {
+    status: 422,
+    message: "That file can't be used as a photo.",
+    data: z.object({ reason: z.enum(PHOTO_REJECTION_REASONS) }),
+  },
+  /** The animal already has the most photos it can have (K-Q11; `data.max`). */
+  PHOTO_LIMIT_REACHED: {
+    status: 409,
+    message: "This animal already has the most photos it can have.",
+    data: z.object({ max: z.int().positive() }),
+  },
+  /**
+   * Removing the last photo of a published or reserved animal (P-Q8): a card
+   * adopters can see must keep a photo, the same rule that refuses to publish
+   * a draft without one. Withdraw it first, or add another photo.
+   */
+  PHOTOS_REQUIRED_WHILE_VISIBLE: {
+    status: 409,
+    message: "A listing adopters can see must keep at least one photo.",
   },
 } as const;
 

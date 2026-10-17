@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { photoUploadEnvProblem } from "../kabinet/photo-upload-env";
 import { signInEnvProblems } from "../kabinet/sign-in-env";
 import {
   cronSecretProblem,
@@ -103,10 +104,17 @@ export function requireEnv(name: string): string {
  * own runtime, not just by the operator's onboarding script. Every real animal photo routes
  * through `apps/web/src/image-loader.ts`, which throws without it the
  * moment a real (non-seed-placeholder) `storageKey` needs a URL — see that
- * file's own comment. The R2 *write* credentials (`R2_ACCOUNT_ID`,
- * `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) are the
- * opposite case — they belong to `onboard-shelter.ts`'s own operator-local
- * run, never to Vercel: no request path of this app writes to R2.
+ * file's own comment. The onboarding script's R2 *write* credentials
+ * (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) still belong to
+ * `onboard-shelter.ts`'s own operator-local run, never to Vercel. Since PR 3
+ * one request path does write to R2: `shelter.photos.add` (K-Q2, Oleksii's
+ * explicit decision overriding the earlier "no R2 write credentials in the
+ * deployed app" rule), with its own token
+ * (`R2_UPLOAD_ACCESS_KEY_ID`, `R2_UPLOAD_SECRET_ACCESS_KEY`, plus
+ * `R2_ACCOUNT_ID` and `R2_BUCKET_NAME`), in Vercel Production only (P-Q10).
+ * Those are checked by `photoUploadEnvProblem` below and in the production
+ * build, `VERCEL_ENV === "production"` only, like `CRON_SECRET`: a Preview
+ * never holds the token and refuses every upload with a typed error.
  *
  * ⚠ Checking it at boot is a real check, but not the one that actually protects
  * the client — found by inspecting a built client bundle, not assumed.
@@ -285,6 +293,7 @@ export function validateEnv(): void {
     cronSecretProblem(process.env),
     rateLimitKeySecretProblem(process.env),
     locationSecretProblem(process.env),
+    photoUploadEnvProblem(process.env),
     ...signInEnvProblems(process.env),
   ].filter((problem): problem is string => problem !== null);
   if (problems.length > 0) {

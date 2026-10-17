@@ -9,7 +9,8 @@
     "./repos": "./src/repos/index.ts",
     "./test": "./src/test-utils/index.ts",
     "./test/vitest-global-setup": "./src/test-utils/vitest-global-setup.ts",
-    "./image-pipeline": "./src/image-pipeline/index.ts"
+    "./image-pipeline": "./src/image-pipeline/index.ts",
+    "./image-pipeline/server": "./src/image-pipeline/server.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

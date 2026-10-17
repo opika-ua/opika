@@ -20,7 +20,7 @@ import type { ImageLoaderProps } from "next/image";
  * `AnimalPhoto.storageKey` (`packages/domain/src/animals/photo.ts`) is an
  * object key, not a URL. H1 makes that real for actual uploaded photos:
  * `isRealPhotoKey` (`packages/db/src/image-pipeline`) recognises the
- * `animals/` namespace `animalPhotoStorageKey` writes into, and only those
+ * `animals/` namespace `animalPhotoStorageKeyFor` writes into, and only those
  * keys get routed through R2's CDN URL construction. Everything else falls
  * through to the same root-relative normalization this file always did —
  * `packages/db/src/seed.ts`'s fictional corpus still stores literal
