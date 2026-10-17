@@ -4,7 +4,11 @@ Oleksii's brand rule (CB-B1): no «реєстр» in user-facing copy, as it imp
 default wording rule while he writes the exact text (CB-B2): «сайт» / «через сайт» / «на сайті»
 for the website; «я» for the person checking shelters (operator voice: no «ми», no gendered past
 tense); «перевірка» for the verification itself. **Nothing below is changed until he confirms the
-wording.** Generated from `packages/i18n/src/messages/uk.ts` (excluding «зареєстрована»,
+wording.** *Update 2026-10-17:* rows 5–18 and 21 are drafted under CB-B2 in the draft PR
+`copy/reyestr-drafts`, for his review (his answer 7: "draft them with the CB-B2 default rule in a
+separate draft PR, with each before/after in the PR body. I review it tomorrow; don't mark it
+ready."). Row 4 is reworded in R-UI 1 (#119), rows 19–20 in PR 4 (#116, his Q5 exception
+«державний реєстр тварин»). Generated from `packages/i18n/src/messages/uk.ts` (excluding «зареєстрована»,
 «незареєстрована», «реєстрації», which are legal terms).
 
 | # | Key | Current text (excerpt) | Where it shows | Who sees it | Sense |

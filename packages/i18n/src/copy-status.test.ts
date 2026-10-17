@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { pendingCopyKeys, pendingCopyPaths } from "./copy-status";
 import { en } from "./messages/en";
-import { COPY_PENDING, uk } from "./messages/uk";
+import { COPY_PENDING, PENDING_R4_2_ANALYTICS_SENTENCE, uk } from "./messages/uk";
 
 describe("pendingCopyKeys", () => {
   it("names the keys still holding a placeholder, sorted", () => {
@@ -278,7 +278,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     "email.invite.subject": "Ваш доступ до кабінету притулку",
     // row 84
     "email.invite.intro":
-      "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» у реєстрі.",
+      "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті.",
     // row 85 (reworded 2026-10-14, EM-Q8: the kabinet also shows the verification data)
     "email.invite.what":
       "Поки що в кабінеті можна переглянути дані притулку — і те, що бачать люди, і дані з перевірки. Змінювати їх там ще не можна — для цього напишіть мені.",
@@ -296,7 +296,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     "signInCard.notArrived": "Якщо лист не прийшов за кілька хвилин, напишіть мені на {contact}.",
     // row 6
     "signIn.addressNote":
-      "Адресу додає оператор реєстру, коли запрошує притулок. Якщо адреси немає в списку, лист не прийде — і ця сторінка про це не повідомляє, щоб не розкривати, хто зареєстрований.",
+      "Адресу додаю я, коли запрошую притулок. Якщо адреси немає в списку, лист не прийде — і ця сторінка про це не повідомляє, щоб не розкривати, хто зареєстрований.",
     // row 9
     "signIn.sentBody":
       "Якщо ця адреса є в списку, на {email} прийде посилання для входу. Воно діє 15 хвилин і відкривається на будь-якому пристрої.",
@@ -568,11 +568,13 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
 
 /**
  * CB-B1 (Oleksii, 2026-10-17), verbatim: "brand rule: no «реєстр» in
- * user-facing copy, as it implies a state service". Scoped to the three strings
- * his copy batch replaced: the catalogue's other «реєстр» strings are his
- * separate call, so this is deliberately not a sweep. Their English mirrors
- * follow the same sense, so they are held to "registry". A plain substring
- * match, case-insensitive: «Реєстр» opened the old donation note.
+ * user-facing copy, as it implies a state service". Scoped to the strings that
+ * have been reworded: his three (CB-B1) and the draft rewordings of the hits
+ * table's rows 5–18 and 21 under his default rule CB-B2 (his answer 7 asked for
+ * them as drafts for his review). Rows 4, 19 and 20 are reworded elsewhere
+ * (#119; #116, where «державний реєстр тварин» is his explicit exception). The
+ * English mirrors follow the same sense, so they are held to "registry". A
+ * plain substring match, case-insensitive: «Реєстр» opened several of them.
  */
 describe("CB-B1: the replaced strings name no «реєстр»", () => {
   const replaced: Record<string, readonly [uk: string, en: string]> = {
@@ -588,10 +590,30 @@ describe("CB-B1: the replaced strings name no «реєстр»", () => {
       uk.kabinet.profileEdit.voice.hint,
       en.kabinet.profileEdit.voice.hint,
     ],
+    "kabinet.signIn.intro": [uk.kabinet.signIn.intro, en.kabinet.signIn.intro],
+    "kabinet.signIn.addressNote": [uk.kabinet.signIn.addressNote, en.kabinet.signIn.addressNote],
+    "kabinet.email.invite.intro": [uk.kabinet.email.invite.intro, en.kabinet.email.invite.intro],
+    "kabinet.inviteLanding.expired": [
+      uk.kabinet.inviteLanding.expired,
+      en.kabinet.inviteLanding.expired,
+    ],
+    "about.intro": [uk.about.intro, en.about.intro],
+    "about.free": [uk.about.free, en.about.free],
+    "about.money": [uk.about.money, en.about.money],
+    "about.data": [uk.about.data, en.about.data],
+    "about.analytics": [uk.about.analytics, en.about.analytics],
+    "forShelters.whatThisIs": [uk.forShelters.whatThisIs, en.forShelters.whatThisIs],
+    "forShelters.money": [uk.forShelters.money, en.forShelters.money],
+    "forShelters.howToStart": [uk.forShelters.howToStart, en.forShelters.howToStart],
+    "demo.bannerNotice": [uk.demo.bannerNotice, en.demo.bannerNotice],
+    "detail.notFound.body": [uk.detail.notFound.body, en.detail.notFound.body],
+    PENDING_R4_2_ANALYTICS_SENTENCE: [PENDING_R4_2_ANALYTICS_SENTENCE, ""],
   };
 
+  // «зареєстрований» / «незареєстрована» are legal terms (a registered
+  // organisation), not the brand word, so the match skips a preceding «за».
   it.each(Object.entries(replaced))("%s", (_key, [ukText, enText]) => {
-    expect(ukText).not.toMatch(/реєстр/iu);
+    expect(ukText).not.toMatch(/(?<!за)реєстр/iu);
     expect(enText).not.toMatch(/registry/i);
   });
 });
@@ -1128,7 +1150,7 @@ describe("/pro about.data carries the kabinet addition (row 90)", () => {
     expect(uk.about.data).toBe(
       [
         "Дані, які вносить притулок — адреса, контакти, картки тварин — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише наближену локацію. Притулок може попросити видалити свій запис у будь-який момент.",
-        "Для притулків із доступом до кабінету реєстр зберігає ім'я та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб.",
+        "Для притулків із доступом до кабінету сайт зберігає ім'я та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб.",
       ].join(" "),
     );
   });

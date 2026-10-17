@@ -7,7 +7,7 @@ import {
 } from "./seo-flags";
 
 const INCOMPLETE_ANALYTICS_COPY =
-  "Реєстр збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко " +
+  "Сайт збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко " +
   "працюють сторінки — без реклами.";
 const LANDED_ANALYTICS_COPY = `${INCOMPLETE_ANALYTICS_COPY} ${PENDING_R4_2_ANALYTICS_SENTENCE}`;
 
@@ -222,7 +222,7 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
   });
 
   it("does not match on a reworded or partial version of R4-2's sentence", () => {
-    const reworded = `${INCOMPLETE_ANALYTICS_COPY} Реєстр ставить кукі після дії.`;
+    const reworded = `${INCOMPLETE_ANALYTICS_COPY} Сайт ставить кукі після дії.`;
     expect(() => assertAnalyticsCopyMatchesGateState(reworded, true)).toThrowError(
       /SITE_IS_PUBLICLY_DISCOVERABLE.*uk\.about\.analytics/s,
     );
@@ -319,7 +319,7 @@ describe("/tvaryny/gortaty noindex — independent of both seo-flags constants",
  * one.
  */
 const DEMO_BANNER_NOTICE =
-  "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.";
+  "На сайті поки немає справжніх притулків — усі картки тут демонстраційні.";
 const REAL_PROMISE =
   "Тварини з перевірених притулків Київщини. Перегляньте список і подивіться, кого шукає дім.";
 
@@ -407,7 +407,7 @@ describe("/prytulkam — description is its own opening sentence, never the demo
       const { metadata } = await import("./app/prytulkam/page");
 
       const whatThisIs =
-        "Opika — реєстр тварин із перевірених притулків Київщини, де кожен ваш підопічний отримує власну сторінку.";
+        "Opika — сайт про тварин із перевірених притулків Київщини, де кожен ваш підопічний отримує власну сторінку.";
       expect(metadata.description).toBe(whatThisIs);
       expect(metadata.openGraph?.description).toBe(whatThisIs);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
@@ -434,7 +434,7 @@ describe("/pro — description is its own opening sentence, never the demo swap"
       const { metadata } = await import("./app/pro/page");
 
       const intro =
-        "Opika — реєстр тварин притулків Київщини, який я роблю сам, поза роботою. Немає команди, немає інвестора — є одна людина, яка вважає, що знайти дім для тварини не повинно залежати від того, чи вміє притулок вести застарілий Excel-файл.";
+        "Opika — сайт про тварин притулків Київщини, який я роблю сам, поза роботою. Немає команди, немає інвестора — є одна людина, яка вважає, що знайти дім для тварини не повинно залежати від того, чи вміє притулок вести застарілий Excel-файл.";
       expect(metadata.description).toBe(intro);
       expect(metadata.openGraph?.description).toBe(intro);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
