@@ -267,3 +267,20 @@ export function decideAccess(
     }
   }
 }
+
+/** The registry surface as the contract declares it on every `registry.*` procedure. */
+const REGISTRY_ACCESS: KabinetAccess = { surface: "registry" };
+
+/**
+ * The operator the registry would let in, or null for anyone else: the
+ * matrix's own `registry` cell, for a page that has to know who that is
+ * (`/kabinet` sending the operator to their list, S4's history reading «ви»)
+ * without a `principal.kind` check of its own.
+ */
+export function registryOperatorOf(
+  principal: KabinetPrincipal,
+  shelterWrites: ShelterWritePolicy,
+): ModeratorId | null {
+  const decision = decideAccess(REGISTRY_ACCESS, principal, shelterWrites);
+  return decision.kind === "allow_registry" ? decision.moderatorId : null;
+}

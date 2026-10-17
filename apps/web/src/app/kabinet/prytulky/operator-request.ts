@@ -5,15 +5,19 @@ import { requireEnv } from "../../../api/env";
 import type { OperatorPageDeps } from "../../../features/kabinet/operator/pages";
 import { shelterWritePolicyOf } from "../../../kabinet/access";
 import type { KabinetPrincipal } from "../../../kabinet/actor";
-import { operatorDisplayName } from "../../../kabinet/operator";
+import {
+  type OperatorName,
+  operatorNameOf,
+  standaloneOperatorName,
+} from "../../../kabinet/operator";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
 import { operatorPagesOrNotFound } from "../available-auth";
 
 export type OperatorRequest = {
   principal: KabinetPrincipal;
   deps: OperatorPageDeps;
-  /** `KABINET_OPERATOR_DISPLAY_NAME`, or the catalogue's fallback (RS-Q2). */
-  operatorName: string;
+  /** `KABINET_OPERATOR_DISPLAY_NAME`, or none configured (RS-Q2): the header's name. */
+  operator: OperatorName;
 };
 
 /**
@@ -34,12 +38,12 @@ export const operatorRequest = cache(async (): Promise<OperatorRequest> => {
   const production = process.env.NODE_ENV === "production";
   const db = getDb();
   const identity = await kabinetIdentityOf(auth, db, new Headers(await headers()), now, production);
-  const operatorName = operatorDisplayName({
+  const operator = operatorNameOf({
     KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,
   });
   return {
     principal: identity.principal,
-    operatorName,
+    operator,
     deps: {
       db,
       now,
@@ -50,7 +54,7 @@ export const operatorRequest = cache(async (): Promise<OperatorRequest> => {
       // one on a deployed instance before any read. The registry ignores it.
       shelterWrites: shelterWritePolicyOf(process.env),
       cursorSecret: requireEnv("CURSOR_HMAC_SECRET"),
-      operatorDisplayName: operatorName,
+      operatorDisplayName: standaloneOperatorName(operator),
       production,
     },
   };

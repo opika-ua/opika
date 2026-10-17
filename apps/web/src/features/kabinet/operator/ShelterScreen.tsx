@@ -13,12 +13,21 @@ import {
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import type { ReactNode } from "react";
-import { FOCUS_RING } from "../../controls/controls";
+import { linkClass } from "../../controls/controls";
 import { channelValue, groupEdrpou } from "../ProfileParts";
-import { BODY, CAPTION, CARD, CARD_TITLE, INNER, STRONG } from "../profile-edit/styles";
+import {
+  BODY,
+  CAPTION,
+  CARD,
+  CARD_TITLE,
+  INNER,
+  PAGE_TITLE,
+  STATUS_CHIP,
+  STRONG,
+} from "../profile-edit/styles";
+import { OPERATOR_HOME } from "../routes";
 import { formatDate, formatTime } from "./format";
 import { HistoryList } from "./HistoryList";
-import { SHELTERS_PATH } from "./list-params";
 import type { HistoryPage } from "./pages";
 
 const t = uk.kabinet.operator;
@@ -330,16 +339,11 @@ export function ShelterScreen({
   const joined = view.admins.filter((admin) => admin.invite.status === "accepted").length;
   return (
     <>
-      <a
-        href={SHELTERS_PATH}
-        className={`inline-flex min-h-target items-center self-start text-base text-rg-ink underline ${FOCUS_RING}`}
-      >
+      <a href={OPERATOR_HOME} className={`${linkClass("text")} self-start`}>
         {t.shelter.back}
       </a>
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight break-words text-rg-ink">
-          {view.displayName}
-        </h1>
+        <h1 className={PAGE_TITLE}>{view.displayName}</h1>
         <p className={BODY}>
           {fillTemplate(t.shelter.meta, {
             city: cityName ?? notRecorded,
@@ -347,9 +351,7 @@ export function ShelterScreen({
           })}
         </p>
         <p className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex min-h-8 items-center rounded-rg-chip bg-rg-ink px-3 text-sm font-medium text-rg-surface">
-            {uk.kabinet.profileStatus[view.verification.status]}
-          </span>
+          <span className={STATUS_CHIP}>{uk.kabinet.profileStatus[view.verification.status]}</span>
           <span className={BODY}>
             {fillTemplate(t.shelter.timeInState, {
               date: formatDate(enteredAt(view.verification)),

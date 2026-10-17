@@ -1,6 +1,5 @@
 import type {
   BlockedAddressesView,
-  KabinetAccess,
   KabinetCursor,
   RegistryShelterRowView,
   RegistryShelterView,
@@ -14,7 +13,7 @@ import type {
   VerificationStatus,
 } from "@opika/domain";
 import { createRouterClient, ORPCError, type RouterClient } from "@orpc/server";
-import { decideAccess } from "../../../kabinet/access";
+import { registryOperatorOf } from "../../../kabinet/access";
 import type { KabinetPrincipal } from "../../../kabinet/actor";
 import type { KabinetContext } from "../../../kabinet/context";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../../kabinet/photo-uploads";
@@ -95,14 +94,6 @@ function refusalOf(error: unknown): OperatorRefusal | null {
   if (error.code === "UNAUTHENTICATED") return { kind: "sign_in" };
   if (error.code === "FORBIDDEN" || error.code === "NOT_FOUND") return { kind: "not_found" };
   return null;
-}
-
-const REGISTRY_ACCESS: KabinetAccess = { surface: "registry" };
-
-/** The operator reading, for «ви» in history: the same decision the middleware just made. */
-function readerOf(principal: KabinetPrincipal, deps: OperatorPageDeps): ModeratorId | null {
-  const decision = decideAccess(REGISTRY_ACCESS, principal, deps.shelterWrites);
-  return decision.kind === "allow_registry" ? decision.moderatorId : null;
 }
 
 /** City names by id, public data the rows name by id only. */
@@ -187,7 +178,8 @@ export async function operatorShelterOf(
       client.registry.admins.blockedAddresses({ shelterId }),
       cityRepo(deps.db).findById(view.exactAddress.cityId as CityId),
     ]);
-    const me = readerOf(principal, deps);
+    // The operator reading, for «ви» in history: the decision the middleware just made.
+    const me = registryOperatorOf(principal, deps.shelterWrites);
     if (me === null) return { kind: "not_found" };
     return { kind: "shelter", view, cityName: city?.name.uk ?? null, history, blocked, me };
   } catch (error) {

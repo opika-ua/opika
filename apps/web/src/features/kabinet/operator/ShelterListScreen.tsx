@@ -1,14 +1,9 @@
 import { VERIFICATION_STATUSES, type VerificationStatus } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import { buttonClass, FOCUS_RING, TextField } from "../../controls/controls";
-import { BODY, CAPTION, ERROR_TEXT } from "../profile-edit/styles";
-import {
-  isFiltered,
-  LIST_PARAMS,
-  listHrefOf,
-  SHELTERS_PATH,
-  type ShelterListFilters,
-} from "./list-params";
+import { buttonClass, linkClass, TextField } from "../../controls/controls";
+import { BODY, CAPTION, ERROR_TEXT, PAGE_TITLE } from "../profile-edit/styles";
+import { OPERATOR_HOME } from "../routes";
+import { isFiltered, LIST_PARAMS, listHrefOf, type ShelterListFilters } from "./list-params";
 import type { ShelterListPage } from "./pages";
 import { ShelterRows } from "./ShelterRows";
 
@@ -47,7 +42,7 @@ export function ShelterListScreen({
   return (
     <>
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold tracking-tight text-rg-ink">{t.title}</h1>
+        <h1 className={PAGE_TITLE}>{t.title}</h1>
         {total !== null ? (
           <p className={BODY}>{fillTemplate(t.total, { count: String(total) })}</p>
         ) : null}
@@ -55,7 +50,7 @@ export function ShelterListScreen({
       </div>
 
       <search>
-        <form method="get" action={SHELTERS_PATH} className="flex flex-col gap-2">
+        <form method="get" action={OPERATOR_HOME} className="flex flex-col gap-2">
           <TextField
             id="operator-shelter-search"
             name={LIST_PARAMS.search}
@@ -122,7 +117,7 @@ function StatusFilter({
           <a
             href={listHrefOf({ search: filters.search, status: option.status })}
             aria-current={option.status === filters.status ? "page" : undefined}
-            className={`inline-flex min-h-target items-center rounded-rg-chip bg-rg-fill px-4 text-base text-rg-ink aria-[current=page]:bg-rg-ink aria-[current=page]:text-rg-surface ${FOCUS_RING}`}
+            className={linkClass("chip")}
           >
             {option.label}
           </a>

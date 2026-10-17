@@ -25,7 +25,7 @@ export default async function OperatorSheltersPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const { principal, deps, operatorName } = await operatorRequest();
+  const { principal, deps, operator } = await operatorRequest();
   const filters = listFiltersOf(await searchParams);
   const list = await operatorShelterListOf(principal, deps, filters);
   switch (list.kind) {
@@ -38,7 +38,7 @@ export default async function OperatorSheltersPage({
     case "load_failed":
     case "list":
       return (
-        <OperatorShell operatorName={operatorName} current="shelters">
+        <OperatorShell operator={operator} current="shelters">
           <ShelterListScreen
             filters={filters}
             content={

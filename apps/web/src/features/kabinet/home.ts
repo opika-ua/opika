@@ -1,8 +1,8 @@
-import type { KabinetAccess, KabinetCursor, KabinetShelterView } from "@opika/contracts";
+import type { KabinetCursor, KabinetShelterView } from "@opika/contracts";
 import { cityRepo } from "@opika/db/repos";
 import { type CityId, DEFAULT_FRESHNESS_POLICY, type Freshness, freshnessOf } from "@opika/domain";
 import { createRouterClient, ORPCError, type RouterClient } from "@orpc/server";
-import { decideAccess, type WriteGrant } from "../../kabinet/access";
+import { decideAccess, registryOperatorOf, type WriteGrant } from "../../kabinet/access";
 import type { KabinetPrincipal } from "../../kabinet/actor";
 import type { KabinetContext } from "../../kabinet/context";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../kabinet/photo-uploads";
@@ -148,9 +148,6 @@ async function donationDeclinedOf(client: HomeClient): Promise<boolean> {
   return false;
 }
 
-/** The registry surface as the contract declares it on every `registry.*` procedure. */
-const REGISTRY_ACCESS: KabinetAccess = { surface: "registry" };
-
 export async function kabinetHomeOf(
   principal: KabinetPrincipal,
   deps: KabinetHomeDeps,
@@ -158,7 +155,7 @@ export async function kabinetHomeOf(
   // The same matrix the registry router applies (`decideAccess`), never a
   // `principal.kind` check of this page's own: whoever the API would let
   // read the registry goes to the operator's screens.
-  if (decideAccess(REGISTRY_ACCESS, principal, deps.shelterWrites).kind === "allow_registry") {
+  if (registryOperatorOf(principal, deps.shelterWrites) !== null) {
     return { kind: "operator" };
   }
   const client = createRouterClient(homeRouter, {

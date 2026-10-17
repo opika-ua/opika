@@ -1,9 +1,6 @@
 import { VERIFICATION_STATUSES, type VerificationStatus } from "@opika/domain";
 import { OPERATOR_HOME } from "../routes";
 
-/** The operator's list (S1), and where `/kabinet` sends the operator (RU-T1). */
-export const SHELTERS_PATH = OPERATOR_HOME;
-
 /**
  * Page sizes, the same for the server's first page and the browser's next
  * ones: the list at the contract's ceiling (50), history in pages of 20.
@@ -12,7 +9,7 @@ export const SHELTERS_PAGE = 50;
 export const HISTORY_PAGE = 20;
 
 /** One shelter's page (S4). */
-export const shelterPath = (shelterId: string): string => `${SHELTERS_PATH}/${shelterId}`;
+export const shelterPath = (shelterId: string): string => `${OPERATOR_HOME}/${shelterId}`;
 
 /**
  * S1's search and status filter live in the URL (RU-T4), so a filtered list
@@ -57,7 +54,7 @@ export function listHrefOf(filters: ShelterListFilters): string {
   if (filters.search !== null) query.set(LIST_PARAMS.search, filters.search);
   if (filters.status !== null) query.set(LIST_PARAMS.status, filters.status);
   const encoded = query.toString();
-  return encoded === "" ? SHELTERS_PATH : `${SHELTERS_PATH}?${encoded}`;
+  return encoded === "" ? OPERATOR_HOME : `${OPERATOR_HOME}?${encoded}`;
 }
 
 export const isFiltered = (filters: ShelterListFilters): boolean =>
