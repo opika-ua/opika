@@ -4,10 +4,11 @@ import type { KabinetShelterView } from "@opika/contracts";
 import { PAUSE_NOTE_MAX_CHARACTERS } from "@opika/contracts";
 import { type PauseCode, PauseCodeSchema, type PauseReason } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Button, SelectField, TextAreaField } from "../../controls/controls";
+import { ModalDialog } from "../../controls/ModalDialog";
 import { PausedStatus } from "./PausedStatus";
-import { BACKDROP, BODY, CARD, DIALOG, DIALOG_TITLE, ERROR_TEXT, OPTIONAL } from "./styles";
+import { BODY, CARD, ERROR_TEXT, OPTIONAL } from "./styles";
 import type { WriteResult } from "./write-result";
 
 type Notice =
@@ -131,10 +132,9 @@ type DialogError =
 
 /**
  * N15's reason-dialog template: modal over the page, the five pause codes as
- * a select (a reason is required), an optional note, black primary. Focus
- * moves to the title on open; Tab cycles inside while it is open; Esc,
- * «Скасувати» and ✕ all close it (the reveal dialog's own pattern,
- * `ContactRevealDialog`).
+ * a select (a reason is required), an optional note, black primary. The
+ * frame (focus to the title on open, Tab cycling inside, Esc and ✕ closing)
+ * is the shared `ModalDialog`; «Скасувати» closes it too.
  *
  * The note hint (`pause.noteHint`, fix 2) is true since the note shows
  * under the paused line for the shelter's admins and the operator (K4-B4).
@@ -154,46 +154,10 @@ function PauseDialog({
 }) {
   const t = uk.kabinet.profileEdit.pause;
   const id = useId();
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  const titleRef = useRef<HTMLHeadingElement | null>(null);
   const [code, setCode] = useState<PauseCode | "">("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<DialogError>({ kind: "none" });
-
-  useEffect(() => {
-    titleRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-        return;
-      }
-      if (event.key !== "Tab" || !dialogRef.current) return;
-      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-        'button, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (!first || !last) return;
-      const active = document.activeElement;
-      const index =
-        active instanceof HTMLElement ? Array.prototype.indexOf.call(focusable, active) : -1;
-      if (event.shiftKey ? index <= 0 : index === -1 || index === focusable.length - 1) {
-        event.preventDefault();
-        (event.shiftKey ? last : first).focus();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [onClose]);
 
   const reasonId = `${id}-reason`;
 
@@ -222,85 +186,65 @@ function PauseDialog({
   };
 
   return (
-    <div className={BACKDROP}>
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={`${id}-title`}
-        aria-describedby={`${id}-body`}
-        className={DIALOG}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <h2 id={`${id}-title`} ref={titleRef} tabIndex={-1} className={DIALOG_TITLE}>
-            {t.dialogTitle}
-          </h2>
-          <Button variant="icon" aria-label={t.close} onClick={onClose}>
-            <span aria-hidden="true">✕</span>
-          </Button>
-        </div>
-        <p id={`${id}-body`} className={BODY}>
-          {t.dialogBody}
-        </p>
-        {/* No message key exists for a missing reason: the select is marked
+    <ModalDialog title={t.dialogTitle} body={t.dialogBody} closeLabel={t.close} onClose={onClose}>
+      {/* No message key exists for a missing reason: the select is marked
             invalid and focused, and its placeholder already says «Оберіть причину». */}
-        <SelectField
-          id={reasonId}
-          label={t.reasonLabel}
-          value={code}
-          required
-          aria-invalid={error.kind === "reason" || undefined}
-          onChange={(event) => {
-            setCode(event.target.value as PauseCode | "");
-            if (error.kind === "reason") setError({ kind: "none" });
-          }}
-        >
-          <option value="" disabled>
-            {t.reasonPlaceholder}
+      <SelectField
+        id={reasonId}
+        label={t.reasonLabel}
+        value={code}
+        required
+        aria-invalid={error.kind === "reason" || undefined}
+        onChange={(event) => {
+          setCode(event.target.value as PauseCode | "");
+          if (error.kind === "reason") setError({ kind: "none" });
+        }}
+      >
+        <option value="" disabled>
+          {t.reasonPlaceholder}
+        </option>
+        {PauseCodeSchema.options.map((option) => (
+          <option key={option} value={option}>
+            {t.reason[option]}
           </option>
-          {PauseCodeSchema.options.map((option) => (
-            <option key={option} value={option}>
-              {t.reason[option]}
-            </option>
-          ))}
-        </SelectField>
-        <TextAreaField
-          id={`${id}-note`}
-          label={
-            <>
-              {t.noteLabel}{" "}
-              <span className={OPTIONAL}>{uk.kabinet.profileEdit.donation.optional}</span>
-            </>
-          }
-          value={note}
-          maxLength={PAUSE_NOTE_MAX_CHARACTERS}
-          onChange={(event) => setNote(event.target.value)}
-          hint={<p>{t.noteHint}</p>}
-        />
-        {error.kind === "illegal" ? (
-          <p role="alert" className={ERROR_TEXT}>
-            {uk.kabinet.profileEdit.errors.illegalTransitionPause}
-          </p>
-        ) : null}
-        {error.kind === "failed" ? (
-          <p role="alert" className={ERROR_TEXT}>
-            {uk.kabinet.profileEdit.state.failed}
-          </p>
-        ) : null}
-        {error.kind === "not_available" ? (
-          <p role="alert" className={ERROR_TEXT}>
-            {uk.kabinet.profileEdit.errors.notAvailable}
-          </p>
-        ) : null}
-        <div className="flex flex-col-reverse gap-2 tablet:flex-row tablet:justify-end">
-          <Button variant="secondary" onClick={onClose}>
-            {t.cancel}
-          </Button>
-          <Button variant="primary" aria-busy={busy || undefined} onClick={onConfirm}>
-            {t.confirm}
-          </Button>
-        </div>
+        ))}
+      </SelectField>
+      <TextAreaField
+        id={`${id}-note`}
+        label={
+          <>
+            {t.noteLabel}{" "}
+            <span className={OPTIONAL}>{uk.kabinet.profileEdit.donation.optional}</span>
+          </>
+        }
+        value={note}
+        maxLength={PAUSE_NOTE_MAX_CHARACTERS}
+        onChange={(event) => setNote(event.target.value)}
+        hint={<p>{t.noteHint}</p>}
+      />
+      {error.kind === "illegal" ? (
+        <p role="alert" className={ERROR_TEXT}>
+          {uk.kabinet.profileEdit.errors.illegalTransitionPause}
+        </p>
+      ) : null}
+      {error.kind === "failed" ? (
+        <p role="alert" className={ERROR_TEXT}>
+          {uk.kabinet.profileEdit.state.failed}
+        </p>
+      ) : null}
+      {error.kind === "not_available" ? (
+        <p role="alert" className={ERROR_TEXT}>
+          {uk.kabinet.profileEdit.errors.notAvailable}
+        </p>
+      ) : null}
+      <div className="flex flex-col-reverse gap-2 tablet:flex-row tablet:justify-end">
+        <Button variant="secondary" onClick={onClose}>
+          {t.cancel}
+        </Button>
+        <Button variant="primary" aria-busy={busy || undefined} onClick={onConfirm}>
+          {t.confirm}
+        </Button>
       </div>
-    </div>
+    </ModalDialog>
   );
 }
