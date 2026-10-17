@@ -102,19 +102,31 @@ describe("only test-shelter-only/ reads kabinet.testShelterOnly (CG-Q1)", () => 
  * public page could import `AllowlistedShelterArea` without naming the
  * namespace, and the only tests to notice were the live-catalogue ones, which
  * the first PR to use the namespace has to loosen. So the folder has exactly
- * one importer outside itself, `ShelterProfile.tsx`, which mounts it only on an
- * allowlist write grant (CG-Q1: "it mounts only when the server allows the
- * signed-in shelter to write through the allowlist").
+ * the importers listed here, each of which mounts it only on an allowlist
+ * write grant to the shelter's own admin (CG-Q1: "it mounts only when the
+ * server allows the signed-in shelter to write through the allowlist"):
+ *
+ * - `ShelterProfile.tsx` (K4, PR 2);
+ * - `animal-form/AnimalForm.tsx` (K3, PR 4), the form his K3 lines belong
+ *   to, with its mount condition tested in `AnimalForm.test.tsx` ("mounts
+ *   the test-shelter lines only for the allowlisted shelter's own admin").
+ *
+ * A new importer is a change to this list, which a reviewer sees, with its
+ * own mount test.
  *
  * Any module specifier that reaches into the folder counts (a static import, a
  * re-export, a dynamic `import()`, a `require`), and so does the entry's name
  * in code, so a barrel re-exporting it is caught too. Comments are dropped
  * first: a doc line pointing at the folder is not an import.
  */
-const MOUNTED_BY = "apps/web/src/features/kabinet/ShelterProfile.tsx";
+const MOUNTED_BY = [
+  "apps/web/src/features/kabinet/ShelterProfile.tsx",
+  "apps/web/src/features/kabinet/animal-form/AnimalForm.tsx",
+];
 const INTO_FOLDER =
   /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|\bimport\s+)["'`][^"'`]*test-shelter-only\/?[^"'`]*["'`]/;
-const ENTRY = /\bAllowlistedShelterArea\b/;
+const ENTRY =
+  /\b(AllowlistedShelterArea|DateUnchangedLine|LastPhotoKeptHiddenText|PublishedNotShownText)\b/;
 
 const withoutComments = (text: string) =>
   text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
@@ -128,11 +140,11 @@ const importersOutsideFolder = (files: readonly Source[]) =>
     })
     .map((file) => file.path);
 
-describe("only ShelterProfile.tsx imports test-shelter-only/ (CG-Q1, review finding 3)", () => {
+describe("only the listed screens import test-shelter-only/ (CG-Q1, review finding 3)", () => {
   const files = sources();
 
-  it("the folder's one importer outside itself is the profile page", () => {
-    expect(importersOutsideFolder(files)).toEqual([MOUNTED_BY]);
+  it("the folder's importers outside itself are the profile page and the animal form", () => {
+    expect(importersOutsideFolder(files).sort()).toEqual([...MOUNTED_BY].sort());
   });
 
   it("catches a static import, a re-export, a dynamic import, a require and the entry's name", () => {

@@ -433,6 +433,7 @@ export const en = {
         dateUnchanged:
           "Editing the text doesn't change the «Updated» date. Your confirmation in the animal list does, and so does any photo change.",
         lastPhotoKeptNotShown: `${COPY_PENDING} "This card is published, so it keeps at least one photo." (instead of photos.lastPhotoKept while the shelter's cards are hidden)`,
+        publishedNotShown: `${COPY_PENDING} "Published. Nobody looking for an animal sees the card yet: this shelter's cards are hidden right now." (instead of publish.done while the shelter's cards are hidden)`,
       },
     },
     profileEdit: {
