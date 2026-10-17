@@ -1280,11 +1280,12 @@ export const uk = {
         lastPhotoKept: "Цю картку бачать люди, тож одне фото має лишитися.",
         /**
          * In place of `lastPhotoKept` while the shelter's cards are on no
-         * public surface (paused or not verified,
+         * public surface (paused, suspended or not verified,
          * `FEED_VISIBLE_VERIFICATION_STATUSES`), where «бачать люди» would be
-         * false. The rule holds either way: the server keeps the last photo of
-         * any published or reserved card (P-Q8). His final text (round 2b,
-         * answer 3).
+         * false. One line for every hidden cause: «поки її ще не бачать»
+         * claims nothing about verification. The rule holds either way: the
+         * server keeps the last photo of any published or reserved card
+         * (P-Q8). His final text (round 2b, answer 3).
          */
         lastPhotoKeptNotShown:
           "Картка опублікована, тож одне фото має лишитися — навіть поки її ще не бачать.",
@@ -1332,14 +1333,18 @@ export const uk = {
         /**
          * Shown only while the shelter is publicly visible (verified, not
          * paused): a paused or unverified shelter's cards are on no public
-         * surface, and «Тепер картку бачать…» would be false; there the
-         * announcement is `publishedNotShown`.
+         * surface, and «Тепер картку бачать…» would be false. Which line
+         * replaces it depends on why (`publishedAnnouncementOf` in the
+         * form's `labels.ts`).
          */
         done: "Опубліковано. Тепер картку бачать ті, хто шукає тварину.",
         /**
-         * In place of `done` while the shelter's cards are on no public
-         * surface (the feed and gallery predicate, and `animals.byId`'s
-         * verified-shelter check). His final text (round 2b, answer 3).
+         * In place of `done` while the shelter has not passed verification
+         * (pending, under review, or rejected and free to resubmit), the one
+         * state where «щойно притулок пройде перевірку» is true. Never for a
+         * paused or suspended shelter, which has passed: that one gets
+         * `listingStatus.published` and `listed.notShownNow`, composed
+         * (K3-T15). His final text (round 2b, answer 3).
          */
         publishedNotShown:
           "Опубліковано. Ті, хто шукає тварину, побачать картку, щойно притулок пройде перевірку.",

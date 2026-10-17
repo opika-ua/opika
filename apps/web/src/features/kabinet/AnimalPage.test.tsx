@@ -40,7 +40,7 @@ describe("AnimalPage", () => {
           view: null,
           viewer: "support",
           editing: { kind: "read_only" },
-          shelterVisible: true,
+          shelterVisibility: "visible",
         }}
       />,
     );

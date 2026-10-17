@@ -13,10 +13,46 @@ import { fillTemplate, uk } from "@opika/i18n";
 /**
  * The form's words that depend on a value: every number through `Intl`
  * (Ukrainian prints «1,2», not «1.2»), every list through `Intl.ListFormat`,
- * every date on Kyiv's calendar. Pure; the copy is his (`kabinet.animalForm`).
+ * every date on Kyiv's calendar. Pure; the copy is his (`kabinet.animalForm`,
+ * and `kabinet.listingStatus` for the status word).
  */
 
 const t = uk.kabinet.animalForm;
+
+/**
+ * Where the shelter's cards stand with the public, in the three ways the form
+ * must word differently (`shelterVisibilityOf` in `animal-page.ts` decides it).
+ * Not a boolean: "not shown" has two causes, and they make different sentences
+ * true. `awaiting_verification`: not verified yet, or rejected and free to
+ * resubmit, so «щойно притулок пройде перевірку» is true. `hidden`: the
+ * shelter already passed verification and is hidden for another reason (a
+ * pause, a suspension), so that sentence would be false and only «зараз ніхто
+ * не бачить» is true.
+ */
+export type ShelterVisibility = "visible" | "awaiting_verification" | "hidden";
+
+/**
+ * What publishing announces, each line true only in its own state: «Тепер
+ * картку бачать…» only where the cards are shown; «…щойно притулок пройде
+ * перевірку» only before a pass. A paused or suspended shelter gets the status
+ * word and the listed footer's own sentence, both his, composed rather than a
+ * new key (K3-T15).
+ */
+export const publishedAnnouncementOf = (visibility: ShelterVisibility): string => {
+  switch (visibility) {
+    case "visible":
+      return t.publish.done;
+    case "awaiting_verification":
+      return t.publish.publishedNotShown;
+    case "hidden":
+      return `${uk.kabinet.listingStatus.published}. ${t.listed.notShownNow}`;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled state; unreachable at runtime */
+    default: {
+      const unreachable: never = visibility;
+      return unreachable;
+    }
+  }
+};
 
 /** «Щоб опублікувати, ще потрібно: розмір, вік і фото.», the gaps in form order. */
 export const missingSentence = (gaps: readonly PublishGap[]): string =>

@@ -1,5 +1,9 @@
 import type { KabinetAnimalView, KabinetShelterView } from "@opika/contracts";
-import { AnimalIdSchema, FEED_VISIBLE_VERIFICATION_STATUSES } from "@opika/domain";
+import {
+  AnimalIdSchema,
+  FEED_VISIBLE_VERIFICATION_STATUSES,
+  type VerificationStatus,
+} from "@opika/domain";
 import { createRouterClient, ORPCError } from "@orpc/server";
 import { decideAccess } from "../../kabinet/access";
 import type { KabinetPrincipal } from "../../kabinet/actor";
@@ -7,6 +11,7 @@ import type { KabinetContext } from "../../kabinet/context";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../kabinet/photo-uploads";
 import { shelterKabinetRouter } from "../../kabinet/router";
 import type { AnimalFormEditing } from "./animal-form/AnimalForm";
+import type { ShelterVisibility } from "./animal-form/labels";
 import type { KabinetHomeDeps } from "./home";
 
 /**
@@ -38,9 +43,40 @@ export type KabinetAnimalPage =
       view: KabinetAnimalView | null;
       viewer: "admin" | "support";
       editing: AnimalFormEditing;
-      /** Whether the shelter's cards are on the public surfaces now: verified, not paused. */
-      shelterVisible: boolean;
+      /** Where the shelter's cards stand with the public: `shelterVisibilityOf`. */
+      shelterVisibility: ShelterVisibility;
     };
+
+/**
+ * `visible` is the public surfaces' own rule (`FEED_VISIBLE_VERIFICATION_STATUSES`
+ * in the feed and gallery predicate, `verified` in `animals.byId`), not a
+ * second copy of it: a paused, suspended or not-yet-verified shelter's cards
+ * are shown nowhere. The switch then sorts every status those surfaces don't
+ * show by why, because the form's sentences differ: before a pass (pending,
+ * under review, or rejected, which may resubmit) the cards show «щойно
+ * притулок пройде перевірку»; after one (paused, suspended) that sentence
+ * would be false. `verified` sits with those: it reaches the switch only if
+ * the surfaces ever stop showing a verified shelter, and such a shelter has
+ * passed. Exhaustive, so a new status fails to compile until it is placed.
+ */
+export const shelterVisibilityOf = (status: VerificationStatus): ShelterVisibility => {
+  if ((FEED_VISIBLE_VERIFICATION_STATUSES as readonly string[]).includes(status)) return "visible";
+  switch (status) {
+    case "pending":
+    case "under_review":
+    case "rejected":
+      return "awaiting_verification";
+    case "verified":
+    case "paused":
+    case "suspended":
+      return "hidden";
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled status; unreachable at runtime */
+    default: {
+      const unreachable: never = status;
+      return unreachable;
+    }
+  }
+};
 
 export type AnimalPageTarget = { kind: "new" } | { kind: "existing"; animalId: string };
 
@@ -90,23 +126,18 @@ export async function kabinetAnimalPageOf(
     write.kind === "allow_shelter_write"
       ? { kind: "open", grantedBy: write.grantedBy }
       : { kind: "read_only" };
-  // The same rule every public surface applies (`FEED_VISIBLE_VERIFICATION_STATUSES`
-  // in the feed and gallery predicate, `verified` in `animals.byId`): a
-  // paused, suspended or not-yet-verified shelter's cards are shown nowhere.
-  const shelterVisible = (FEED_VISIBLE_VERIFICATION_STATUSES as readonly string[]).includes(
-    shelter.verification.status,
-  );
+  const shelterVisibility = shelterVisibilityOf(shelter.verification.status);
 
   if (target.kind === "new") {
     if (editing.kind === "read_only") return { kind: "not_found" };
-    return { kind: "form", shelter, view: null, viewer, editing, shelterVisible };
+    return { kind: "form", shelter, view: null, viewer, editing, shelterVisibility };
   }
   // Not an id at all: the same answer as an id that names nothing here.
   const animalId = AnimalIdSchema.safeParse(target.animalId);
   if (!animalId.success) return { kind: "missing", shelter, viewer };
   try {
     const view = await client.shelter.animals.byId({ animalId: animalId.data });
-    return { kind: "form", shelter, view, viewer, editing, shelterVisible };
+    return { kind: "form", shelter, view, viewer, editing, shelterVisibility };
   } catch (error) {
     if (isCode(error, "NOT_FOUND", "FORBIDDEN")) return { kind: "missing", shelter, viewer };
     throw error;
