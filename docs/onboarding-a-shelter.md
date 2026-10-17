@@ -351,7 +351,8 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
    verbatim: "Runbook step 4: reword to "PR 6 has merged by then: delete KABINET_WRITE_ALLOWLIST,
    then redeploy."" It replaces RH-B6's "before PR 6" branch, which commitment #6 rules out (a
    real shelter's id in the allowlist falsifies it) and which can't arise, since PR 6 merges
-   before the first real shelter is onboarded (RU-B4).
+   before the first real shelter's invite (F-B6, verbatim: "F6: PR 6 merges BEFORE the first real
+   shelter's invite.").
 5. **`location:verify --prod`**, expected after the retirement: `match` = the number of real
    shelters (1 at launch), `MISMATCH 0`, no `PRIVACY` line, and `demo` = **2** if the demo corpus
    is still there or **0** once `demo:remove` has run (the next launch step).

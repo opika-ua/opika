@@ -106,8 +106,9 @@ time beside PR 4 → 5 → 6, never more than two open feature PRs (RU-B4, WM-B1
 - **Resubmit replaces the evidence list wholesale.** The form prefills it. ~~The old list survives in
   the history entry~~: false (R-UI 3 review): `shelter_created` stores no evidence and `resubmit`
   stored only what it sent. Fixed per his answer (N6, option (a)): the server carries existing
-  `supporting_document` items over on resubmit, and an unchanged site visit keeps its original
-  `visitedBy` (AW-R3-11).
+  `supporting_document` items over on resubmit. Separately, by the builder's decision AW-R3-11
+  (same "no data loss" principle, not his words), an unchanged site visit keeps its original
+  `visitedBy`.
 - ~~Site-visit dates are checked in UTC.~~ Fixed in R-UI 2 (RU-B6, his code change): the "not in
   the future" check uses the Kyiv calendar date (`isSiteVisitInFuture`), so a visit entered as
   "today" just after Kyiv midnight is accepted.
