@@ -1,10 +1,13 @@
 import type { KabinetShelterView } from "@opika/contracts";
-import type { ShelterFacingVerification } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import type { ReactNode } from "react";
+import type { ProfileEditing } from "./home";
 import { KabinetBrand, KabinetMark } from "./KabinetBrand";
+import { CAPTION, CARD, CARD_TITLE, LockedBlock, Row } from "./ProfileParts";
+import { PausedStatus } from "./profile-edit/PausedStatus";
+import { ProfileEditor } from "./profile-edit/ProfileEditor";
 import { SignOutButton } from "./SignOutButton";
 import { SupportBanner } from "./SupportBanner";
+import { AllowlistedShelterArea } from "./test-shelter-only/AllowlistedShelterArea";
 
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"; mock
@@ -19,46 +22,14 @@ import { SupportBanner } from "./SupportBanner";
  * means "not yours to edit" (K4's note), which is true of the verified
  * details but not of contacts, which the shelter will edit once editing
  * ships. In support mode (S5) the same page sits under the support banner.
+ *
+ * **K4 editing** (PR 2 of the K milestone): when `editing` is `open`, which
+ * `kabinetHomeOf` decides with the router's own `decideAccess` and write
+ * policy, the sections become K4's editor (`ProfileEditor`). Otherwise, for a
+ * support view and for every shelter outside the K-Q17 allowlist until PR 6,
+ * this stays the read-only page, unchanged, so it never offers a change the
+ * API would refuse.
  */
-
-const ROW_LABEL =
-  "text-[13px] leading-[18px] text-rg-ink-3 tablet:text-[15px] tablet:leading-[22px] tablet:text-rg-ink-2";
-const ROW_VALUE = "text-[15px] leading-[22px] font-medium text-rg-ink break-words";
-const CARD = "flex flex-col gap-4 rounded-rg-card bg-rg-surface p-4 tablet:p-6";
-const CARD_TITLE = "text-[19px] leading-6 font-bold tracking-[-0.02em] text-rg-ink";
-const CAPTION = "text-[13px] leading-[18px] text-rg-ink-3";
-
-/** One fact: label above value on the phone (K4 360), a 200px label column from tablet up (K4 1440). */
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5 py-0 tablet:grid tablet:grid-cols-[200px_minmax(0,1fr)] tablet:gap-4 tablet:py-3">
-      <dt className={ROW_LABEL}>{label}</dt>
-      <dd className={ROW_VALUE}>{children}</dd>
-    </div>
-  );
-}
-
-const fill = (template: string, values: Record<string, string>): string =>
-  Object.entries(values).reduce(
-    (text, [key, value]) => text.replaceAll(`{${key}}`, () => value),
-    template,
-  );
-
-/**
- * Native `Intl`, never a hand-rolled month list (standing rule), as the reveal
- * dialog formats its date. Kyiv time: a date is the day it was in Ukraine,
- * whatever zone the server renders in.
- */
-const formatDate = (date: Date): string =>
-  new Intl.DateTimeFormat("uk-UA", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/Kyiv",
-  }).format(date);
-
-const statusDate = (verification: ShelterFacingVerification): Date =>
-  "since" in verification ? verification.since : verification.at;
 
 type Channel = KabinetShelterView["contact"]["primary"];
 
@@ -81,26 +52,26 @@ const channelValue = (channel: Channel): string => {
   }
 };
 
-/** An EDRPOU code grouped 2·3·3, as the mock writes it («43 218 765»). */
-const groupEdrpou = (code: string): string =>
-  code.length === 8 ? `${code.slice(0, 2)} ${code.slice(2, 5)} ${code.slice(5)}` : code;
-
 export type ShelterProfileProps = {
   view: KabinetShelterView;
   cityName: string | null;
   viewer: "admin" | "support";
   /** The operator's display name (RS-Q2), for the verification block's note. */
   operatorName: string;
+  /** K4: `read_only` unless the page's access decision opened writes. */
+  editing?: ProfileEditing;
 };
 
-export function ShelterProfile({ view, cityName, viewer, operatorName }: ShelterProfileProps) {
+export function ShelterProfile({
+  view,
+  cityName,
+  viewer,
+  operatorName,
+  editing = { kind: "read_only" },
+}: ShelterProfileProps) {
   const t = uk.kabinet.profile;
   const notRecorded = uk.kabinet.profileNotRecorded;
   const support = viewer === "support";
-  const legal = view.legalEntity;
-  const address = [cityName, view.exactAddress.line1, view.exactAddress.line2]
-    .filter((part): part is string => part !== null && part !== "")
-    .join(", ");
 
   return (
     <div
@@ -165,86 +136,76 @@ export function ShelterProfile({ view, cityName, viewer, operatorName }: Shelter
             <p className={`hidden desktop:block ${CAPTION}`}>{t.intro}</p>
           </div>
 
-          <div className="grid grid-cols-1 items-start gap-3 desktop:grid-cols-2 desktop:gap-4">
-            <div className="flex flex-col gap-3 desktop:gap-4">
-              <section aria-labelledby="kabinet-contacts" className={CARD}>
-                <h2 id="kabinet-contacts" className={CARD_TITLE}>
-                  {t.contactsTitle}
-                </h2>
-                <dl className="flex flex-col gap-3 tablet:gap-0">
-                  {[view.contact.primary, ...view.contact.additional].map((channel, index) => (
-                    <Row
-                      key={`${channel.kind}-${index}`}
-                      label={uk.kabinet.profileChannel[channel.kind]}
-                    >
-                      {channelValue(channel)}
-                    </Row>
-                  ))}
-                </dl>
-                <p className={CAPTION}>{t.contactsNote}</p>
-              </section>
+          {editing.kind === "open" && !support ? (
+            <ProfileEditor
+              initialView={view}
+              cityName={cityName}
+              operatorName={operatorName}
+              previewAnimal={editing.previewAnimal}
+              donationDeclined={editing.donationDeclined}
+            />
+          ) : (
+            <div className="grid grid-cols-1 items-start gap-3 desktop:grid-cols-2 desktop:gap-4">
+              <div className="flex flex-col gap-3 desktop:gap-4">
+                <section aria-labelledby="kabinet-contacts" className={CARD}>
+                  <h2 id="kabinet-contacts" className={CARD_TITLE}>
+                    {t.contactsTitle}
+                  </h2>
+                  <dl className="flex flex-col gap-3 tablet:gap-0">
+                    {[view.contact.primary, ...view.contact.additional].map((channel, index) => (
+                      <Row
+                        key={`${channel.kind}-${index}`}
+                        label={uk.kabinet.profileChannel[channel.kind]}
+                      >
+                        {channelValue(channel)}
+                      </Row>
+                    ))}
+                  </dl>
+                  <p className={CAPTION}>{t.contactsNote}</p>
+                </section>
 
-              <section aria-labelledby="kabinet-donation" className={CARD}>
-                <h2 id="kabinet-donation" className={CARD_TITLE}>
-                  {t.donationTitle}
-                </h2>
-                <dl className="flex flex-col gap-3 tablet:gap-0">
-                  <Row label={t.donationLink}>{view.donation?.url ?? notRecorded}</Row>
-                  {view.pendingDonation !== null ? (
-                    <Row label={t.donationPending}>{view.pendingDonation.link.url}</Row>
-                  ) : null}
-                </dl>
-                <p className={CAPTION}>{t.donationNote}</p>
-              </section>
+                <section aria-labelledby="kabinet-donation" className={CARD}>
+                  <h2 id="kabinet-donation" className={CARD_TITLE}>
+                    {t.donationTitle}
+                  </h2>
+                  <dl className="flex flex-col gap-3 tablet:gap-0">
+                    <Row label={t.donationLink}>{view.donation?.url ?? notRecorded}</Row>
+                    {view.pendingDonation !== null ? (
+                      <Row label={t.donationPending}>{view.pendingDonation.link.url}</Row>
+                    ) : null}
+                  </dl>
+                  <p className={CAPTION}>{t.donationNote}</p>
+                </section>
+              </div>
+
+              <div className="flex flex-col gap-3 desktop:gap-4">
+                <section aria-labelledby="kabinet-voice" className={CARD}>
+                  <h2 id="kabinet-voice" className={CARD_TITLE}>
+                    {t.voiceTitle}
+                  </h2>
+                  <dl className="flex flex-col gap-3 tablet:gap-0">
+                    <Row label={t.voiceLabel}>{view.freshnessSentence?.uk ?? notRecorded}</Row>
+                  </dl>
+                  <p className={CAPTION}>{t.voiceNote}</p>
+                </section>
+
+                <LockedBlock view={view} cityName={cityName} operatorName={operatorName} />
+                {/* K4-B4, answer 2: the pause note, for this shelter's admins and the support view. */}
+                {view.verification.status === "paused" ? (
+                  <section aria-label={uk.kabinet.profileStatus.paused} className={CARD}>
+                    <PausedStatus
+                      since={view.verification.since}
+                      reason={view.verification.reason}
+                    />
+                  </section>
+                ) : null}
+              </div>
             </div>
-
-            <div className="flex flex-col gap-3 desktop:gap-4">
-              <section aria-labelledby="kabinet-voice" className={CARD}>
-                <h2 id="kabinet-voice" className={CARD_TITLE}>
-                  {t.voiceTitle}
-                </h2>
-                <dl className="flex flex-col gap-3 tablet:gap-0">
-                  <Row label={t.voiceLabel}>{view.freshnessSentence?.uk ?? notRecorded}</Row>
-                </dl>
-                <p className={CAPTION}>{t.voiceNote}</p>
-              </section>
-
-              <section
-                aria-labelledby="kabinet-locked"
-                className="flex flex-col gap-3 rounded-rg-card border-2 border-dashed border-rg-ink-3 p-4 tablet:grid tablet:grid-cols-[1fr_auto] tablet:p-6"
-              >
-                {/* Source order is K4 360's (title, note, chip); from tablet up
-                    the grid lifts the chip beside the title, as K4 1440 draws it. */}
-                <h2 id="kabinet-locked" className={`${CARD_TITLE} tablet:self-center`}>
-                  {t.lockedTitle}
-                </h2>
-                <p className={`${CAPTION} tablet:col-span-2`}>
-                  {fill(t.lockedNote, { operator: operatorName })}
-                </p>
-                <span className="inline-flex min-h-8 items-center self-start rounded-rg-chip bg-rg-ink px-3 text-[13px] leading-[18px] font-medium whitespace-nowrap text-white tablet:col-start-2 tablet:row-start-1 tablet:self-center">
-                  {uk.kabinet.profileStatus[view.verification.status]}
-                </span>
-                <dl className="flex flex-col gap-3 tablet:col-span-2 tablet:gap-0">
-                  {legal.kind === "unregistered_initiative" ? (
-                    <Row label={t.contactPerson}>{legal.contactPersonName}</Row>
-                  ) : (
-                    <>
-                      <Row label={t.legalName}>{legal.legalName}</Row>
-                      <Row label={t.edrpou}>{groupEdrpou(legal.edrpou)}</Row>
-                    </>
-                  )}
-                  <Row label={t.registrationStatus}>
-                    {fill(t.statusSince, {
-                      status: uk.kabinet.profileStatus[view.verification.status],
-                      date: formatDate(statusDate(view.verification)),
-                    })}
-                  </Row>
-                  <Row label={t.address}>{address === "" ? notRecorded : address}</Row>
-                </dl>
-                <p className={`${CAPTION} tablet:col-span-2`}>{t.addressNote}</p>
-              </section>
-            </div>
-          </div>
+          )}
+          {/* CG-Q1: copy that may still be pending, for the allowlisted shelter's own admin only. */}
+          {editing.kind === "open" && editing.grantedBy === "allowlist" && !support ? (
+            <AllowlistedShelterArea />
+          ) : null}
         </main>
       </div>
     </div>

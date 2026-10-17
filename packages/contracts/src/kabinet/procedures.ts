@@ -6,6 +6,7 @@ import {
   AnimalSpeciesSchema,
   animalDescriptionProblem,
   animalDescriptionProblemMessage,
+  characterCount,
   DonationLinkSchema,
   EvidenceItemInputSchema,
   ExactAddressSchema,
@@ -16,7 +17,8 @@ import {
   MAX_ANIMAL_PHOTOS,
   MedicalDeclarationInputSchema,
   normalizeFreshnessSentenceText,
-  PauseReasonSchema,
+  PauseCodeSchema,
+  type PauseReason,
   RejectionCodeSchema,
   ShelterAdminIdSchema,
   ShelterContactSchema,
@@ -82,6 +84,39 @@ const countsBy = <const T extends readonly [string, ...string[]]>(keys: T) =>
  * this input, not of every reason.
  */
 export const OperatorNoteSchema = z.string().trim().min(1).max(2000);
+
+/**
+ * The pause note's cap (inbox K4-T15, Oleksii, 2026-10-17: "Your decisions
+ * (pause note length cap; re-read after a lost save response): fine."), the
+ * same 2,000 as the operator's note, counted in characters as a reader sees
+ * them (`characterCount`, as K-B2 asked of the sentence).
+ */
+export const PAUSE_NOTE_MAX_CHARACTERS = 2000;
+
+/**
+ * A shelter's pause reason as `shelter.profile.pause` accepts it: one of the
+ * five codes, and a note trimmed, blank meaning none, at most 2,000
+ * characters. The note is shown to the shelter's admins and the operator in
+ * the kabinet (K4-B4, answer 2) and in no public view. Its output is the
+ * stored `PauseReason`.
+ */
+export const PauseReasonInputSchema = z
+  .strictObject({
+    code: PauseCodeSchema,
+    note: z
+      .string()
+      .trim()
+      .refine((note) => characterCount(note) <= PAUSE_NOTE_MAX_CHARACTERS, {
+        message: `Pause note is longer than ${PAUSE_NOTE_MAX_CHARACTERS} characters`,
+      })
+      .nullable(),
+  })
+  .transform(
+    (reason): PauseReason => ({
+      code: reason.code,
+      note: reason.note === null || reason.note === "" ? null : reason.note,
+    }),
+  );
 
 /** What any shelter-scoped procedure can raise just by being called. */
 const shelterScopedErrors = {
@@ -207,7 +242,7 @@ export const shelterProfileContract = {
     .errors(shelterScopedErrors),
   cancelDonationProposal: shelterProfileWrite.input(empty).errors(shelterScopedErrors),
   pause: shelterProfileWrite
-    .input(z.strictObject({ reason: PauseReasonSchema }))
+    .input(z.strictObject({ reason: PauseReasonInputSchema }))
     .errors({ ...shelterScopedErrors, ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION }),
   resume: shelterProfileWrite
     .input(empty)

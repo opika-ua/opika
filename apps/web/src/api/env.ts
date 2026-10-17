@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { photoUploadEnvProblem } from "../kabinet/photo-upload-env";
 import { signInEnvProblems } from "../kabinet/sign-in-env";
+import { kabinetWriteAllowlistProblem } from "../kabinet/write-allowlist";
 import {
   cronSecretProblem,
   locationSecretProblem,
@@ -288,6 +289,10 @@ export function validateEnv(): void {
    * environment, production only. A production instance whose variables
    * would leave sign-in off refuses to boot, rather than serving a 503 nobody
    * sees until a shelter writes.
+   *
+   * `KABINET_WRITE_ALLOWLIST` (K-Q17): optional, but a set value must be
+   * valid (`kabinetWriteAllowlistProblem`, the rule the build applies too).
+   * The route already fails closed on a bad one, so this only makes it loud.
    */
   const problems = [
     cronSecretProblem(process.env),
@@ -295,6 +300,7 @@ export function validateEnv(): void {
     locationSecretProblem(process.env),
     photoUploadEnvProblem(process.env),
     ...signInEnvProblems(process.env),
+    kabinetWriteAllowlistProblem(process.env),
   ].filter((problem): problem is string => problem !== null);
   if (problems.length > 0) {
     throw new Error(`Invalid or missing required environment variable(s): ${problems.join("; ")}.`);

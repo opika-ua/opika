@@ -1,5 +1,6 @@
 import { photoUploadEnvProblem } from "../kabinet/photo-upload-env";
 import { signInEnvProblems } from "../kabinet/sign-in-env";
+import { kabinetWriteAllowlistProblem } from "../kabinet/write-allowlist";
 import { envValueOf, paddedValueMessage } from "./env-value";
 
 /**
@@ -218,5 +219,8 @@ export function assertBuildEnv(env: Readonly<Record<string, string | undefined>>
     }
   }
   problems.push(...signInEnvProblems(env));
+  // K-Q17: optional on every build, but a value that is set must be valid.
+  const allowlist = kabinetWriteAllowlistProblem(env);
+  if (allowlist !== null) problems.push(`Invalid environment variable: ${allowlist}`);
   if (problems.length > 0) throw new Error(problems.join("\n"));
 }

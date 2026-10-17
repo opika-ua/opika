@@ -35,7 +35,10 @@ export type KabinetContext = {
   invites: InvitationSender;
   /** The origin emailed links point at (`BETTER_AUTH_URL`), the same one the magic link uses. */
   linkBaseURL: string;
-  /** `SHELTER_WRITE_POLICY` everywhere outside the K2/K3 handler tests (KH-Q1). */
+  /**
+   * `shelterWritePolicyOf(process.env)` on the served route and the `/kabinet`
+   * page (KH-Q1, K-Q17); the test-only open policy only in the handler tests.
+   */
   shelterWrites: ShelterWritePolicy;
   /** Where `shelter.photos.add` stores, or why it can't on this deployment (P-Q10). */
   photoUploads: PhotoUploads;

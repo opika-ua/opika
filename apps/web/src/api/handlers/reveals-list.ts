@@ -3,13 +3,13 @@ import type {
   RevealsListMineInputSchema,
   RevealsListMineOutputSchema,
 } from "@opika/contracts";
-import { revealRepo } from "@opika/db/repos";
+import { revealRepo, shelterRepo } from "@opika/db/repos";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 import { decodeRevealCursor, encodeRevealCursor } from "../cursor";
 import { requireEnv } from "../env";
-import { toView } from "./reveal";
+import { shelterContactOf, toView } from "./reveal";
 
 type Input = z.infer<typeof RevealsListMineInputSchema>;
 type Output = z.infer<typeof RevealsListMineOutputSchema>;
@@ -53,9 +53,17 @@ export async function revealsListMine(
     ? (encodeRevealCursor({ at: last.revealedAt, id: last.id }, secret) as Output["nextCursor"])
     : null;
 
+  // One query for the page's shelters, not one per reveal (N+1).
+  const shelterIds = [...new Set(pageItems.map((item) => item.shelterId))];
+  const byId = new Map(
+    (await shelterRepo(context.db).findByIds(shelterIds)).map((shelter) => [shelter.id, shelter]),
+  );
+
   return {
-    // The same projection as the reveal itself: no exact address (EM-D1).
-    items: pageItems.map(toView),
+    // The same projection as the reveal itself: no exact address (EM-D1), and
+    // the shelter's current contacts while it is visible, else the first-reveal
+    // record's, labelled as such (K4-B4, K4-B5).
+    items: pageItems.map((item) => toView(item, shelterContactOf(item, byId.get(item.shelterId)))),
     nextCursor,
   };
 }

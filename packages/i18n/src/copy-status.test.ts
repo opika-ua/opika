@@ -128,8 +128,46 @@ describe("deck not-a-judgement notice copy status", () => {
  * pending and the copy gate no longer keeps production sign-in off.
  */
 describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-15)", () => {
-  it("nothing under kabinet.* is pending", () => {
-    expect(pendingCopyPaths(uk.kabinet, "kabinet")).toEqual([]);
+  /**
+   * CG-Q1 (Oleksii, verbatim: "Pending strings only under
+   * uk.kabinet.testShelterOnly.*" and "Public pages, emails, sign-in and every
+   * other kabinet.* key stay strict."). The one exception is the namespace
+   * only his allowlisted test shelter can see; the sign-in gate exempts it
+   * only while the write policy is the refusal or the allowlist
+   * (`production-sign-in.test.ts`, `test-shelter-copy-gate.test.ts`).
+   */
+  it("nothing under kabinet.* outside testShelterOnly is pending", () => {
+    expect(
+      pendingCopyPaths(uk.kabinet, "kabinet").filter(
+        (path) => !path.startsWith("kabinet.testShelterOnly."),
+      ),
+    ).toEqual([]);
+  });
+
+  it("the emails and sign-in stay strict, with no exception", () => {
+    expect(pendingCopyPaths(uk.kabinet.email, "kabinet.email")).toEqual([]);
+    expect(pendingCopyPaths(uk.kabinet.signIn, "kabinet.signIn")).toEqual([]);
+    expect(pendingCopyPaths(uk.kabinet.signInCard, "kabinet.signInCard")).toEqual([]);
+    expect(pendingCopyPaths(uk.kabinet.confirm, "kabinet.confirm")).toEqual([]);
+    expect(pendingCopyPaths(uk.kabinet.inviteLanding, "kabinet.inviteLanding")).toEqual([]);
+  });
+
+  it("the testShelterOnly namespace exists, as an object (empty in PR 2)", () => {
+    expect(typeof uk.kabinet.testShelterOnly).toBe("object");
+    expect(Object.keys(uk.kabinet.testShelterOnly)).toEqual([]);
+  });
+
+  it("the filter exempts that namespace only, not a sibling sharing its letters", () => {
+    const fixture = {
+      testShelterOnly: { hint: "[COPY PENDING] hint" },
+      testShelterOnlyExtra: { hint: "[COPY PENDING] hint" },
+      email: { subject: "[COPY PENDING] subject" },
+    };
+    expect(
+      pendingCopyPaths(fixture, "kabinet").filter(
+        (path) => !path.startsWith("kabinet.testShelterOnly."),
+      ),
+    ).toEqual(["kabinet.email.subject", "kabinet.testShelterOnlyExtra.hint"]);
   });
 
   it("every group keeps exactly its keys, so an emptied group can't pass the line above", () => {
@@ -296,6 +334,221 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
   });
 });
 
+/**
+ * K4 · profile editing (PR 2 of the K milestone). Every `kabinet.profileEdit.*`
+ * string, and the `profile.donationPending` rewrite, as Oleksii wrote them:
+ * his final Ukrainian (`k4-copy-uk.md`, 2026-10-17) and his later "K4 copy
+ * fixes" (2026-10-17), transcribed from those files, not read from `uk.ts`.
+ * The key set is pinned exactly, so a key added without his text, or one of
+ * his dropped, fails here. Nothing under `kabinet.*` may be pending: that
+ * would switch production sign-in off (`productionSignInOf`).
+ */
+describe("kabinet K4 copy (final, 2026-10-17)", () => {
+  const K4_FINAL: Record<string, string> = {
+    // k4-copy-uk.md
+    "profileEdit.actions.save": "Зберегти",
+    // k4-copy-uk.md
+    "profileEdit.actions.cancel": "Скасувати зміни",
+    // k4-copy-uk.md
+    "profileEdit.actions.unsavedLeave": "Зміни не збережено. Все одно вийти?",
+    // k4-copy-uk.md
+    "profileEdit.state.saving": "Збереження…",
+    // k4-copy-uk.md
+    "profileEdit.state.savedAt": "Збережено о {time}",
+    // k4-copy-uk.md
+    "profileEdit.state.failed":
+      "Не збереглося — на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
+    // k4-copy-uk.md
+    "profileEdit.state.retry": "Спробувати ще раз",
+    // k4-copy-uk.md
+    "profileEdit.errors.conflict":
+      "Профіль змінили після того, як ви його відкрили. Ваші зміни не збережено. Ось поточна версія — внесіть зміни ще раз.",
+    // k4-copy-uk.md
+    "profileEdit.errors.conflictReload": "Показати поточну версію",
+    // k4-copy-uk.md
+    "profileEdit.errors.illegalTransitionPause":
+      "Зараз не вийде поставити прийом на паузу: статус притулку змінився. Оновіть сторінку.",
+    // k4-copy-uk.md
+    "profileEdit.errors.illegalTransitionResume":
+      "Звідси прийом зараз не відновити: статус притулку змінився. Напишіть мені.",
+    // k4-copy-uk.md
+    "profileEdit.errors.notAvailable":
+      "Змінювати дані в кабінеті поки не можна — для цього напишіть мені.",
+    // k4-copy-uk.md
+    "profileEdit.errors.phoneFormat": "Вкажіть номер із кодом країни, наприклад +380 67 123 45 67.",
+    // k4-copy-uk.md
+    "profileEdit.errors.telegramFormat":
+      "Імʼя користувача в Telegram: 5–32 латинські літери, цифри або підкреслення. @ можна не писати.",
+    // k4-copy-uk.md
+    "profileEdit.errors.viberFormat":
+      "Вкажіть номер Viber із кодом країни, наприклад +380 67 123 45 67.",
+    // k4-copy-uk.md
+    "profileEdit.errors.emailFormat": "Схоже, це не адреса пошти.",
+    // k4-copy-uk.md
+    "profileEdit.errors.httpsOnly": "Лише посилання, що починаються з https://.",
+    // k4-copy-uk.md
+    "profileEdit.errors.notAUrl": "Це не схоже на посилання.",
+    // k4-copy-uk.md
+    "profileEdit.errors.sentenceTooLong": "Речення довше за {max} символів.",
+    // k4-copy-uk.md
+    "profileEdit.errors.unknownToken":
+      "Підставляється лише {імʼя}. Приберіть «{token}» або напишіть без фігурних дужок.",
+    // k4-copy-uk.md
+    "profileEdit.errors.dateTokenGone":
+      "Дата й так показується над вашим реченням, тому {дата} писати не потрібно.",
+    // k4-copy-uk.md
+    "profileEdit.errors.strayBrace": "Є дужка без пари. Фігурні дужки потрібні лише для {імʼя}.",
+    // k4-copy-uk.md
+    // K4-B4, answer 3: U+02BC, as in every one of his K4 strings
+    "profileEdit.contacts.atLeastOne": "Залиште хоча б один спосіб звʼязку.",
+    // k4-copy-uk.md
+    "profileEdit.voice.hint":
+      "Одне речення від першої особи, вашими словами. Реєстр підставляє лише імʼя тварини — там, де ви напишете {імʼя}. Більше нічого не змінюється.",
+    // k4-copy-uk.md
+    "profileEdit.voice.nameStaysHint":
+      "Імʼя стоїть як є: Рекс, Мурка. Його не відмінюють, тож пишіть так, щоб воно звучало природно, — наприклад, «{імʼя} досі шукає дім».",
+    // k4-copy-uk.md
+    "profileEdit.voice.insertName": "Вставити {імʼя}",
+    // k4-copy-uk.md
+    "profileEdit.voice.counter": "{count} / {max}",
+    // k4-copy-uk.md
+    "profileEdit.voice.counterOver": "Зайвих символів: {over}",
+    // k4-copy-uk.md
+    "profileEdit.voice.previewLabel": "Так це виглядає на сторінці тварини: {name}",
+    // k4-copy-uk.md
+    "profileEdit.voice.previewNoAnimals":
+      "Попередній перегляд зʼявиться, щойно у вас буде тварина: тут буде видно, як речення виглядатиме на її сторінці.",
+    // k4-copy-uk.md
+    "profileEdit.donation.optional": "· необовʼязково",
+    // k4-copy-uk.md
+    "profileEdit.donation.previewLabel": "Так це побачать люди:",
+    // k4-copy-uk.md
+    "profileEdit.donation.previewHost": "{host} ↗",
+    // k4-copy-uk.md
+    "profileEdit.donation.propose": "Надіслати на перевірку",
+    // k4-copy-uk.md
+    "profileEdit.donation.proposeNote":
+      "Нове посилання зʼявиться на картках після того, як я його перевірю. До того люди бачать поточне.",
+    // k4-copy-uk.md
+    "profileEdit.donation.pendingTitle": "Чекає на перевірку",
+    // k4-copy-uk.md
+    "profileEdit.donation.pendingHost": "Запропоновано: {host}",
+    // k4-copy-uk.md
+    "profileEdit.donation.pendingSince": "Надіслано {date}",
+    // k4-copy-uk.md
+    "profileEdit.donation.cancelProposal": "Скасувати пропозицію",
+    // k4-copy-uk.md
+    "profileEdit.donation.proposed": "Надіслано. Я перевірю посилання.",
+    // k4-copy-uk.md
+    "profileEdit.donation.cancelled": "Пропозицію скасовано. Поточне посилання лишається.",
+    // k4-copy-uk.md
+    "profileEdit.donation.replaceNote":
+      "Якщо надіслати інше посилання, воно замінить те, що чекає на перевірку.",
+    // k4-copy-uk.md
+    "profileEdit.donation.failed": "Не надіслано. Перевірте зʼєднання і спробуйте ще раз.",
+    // k4-copy-uk.md
+    "profileEdit.donation.declined":
+      "Останнє запропоноване посилання не підтверджено. Якщо незрозуміло чому — напишіть мені.",
+    // answer 8, rewrite
+    "profile.donationPending": "Запропоноване посилання чекає, поки я його перевірю.",
+    // k4-copy-uk.md
+    "profileEdit.contacts.otherLabel": "Інший спосіб звʼязку",
+    // k4-copy-uk.md
+    "profileEdit.contacts.otherKind": "Тип",
+    // k4-copy-uk.md
+    "profileEdit.contacts.phonePlaceholder": "+380 …",
+    // k4-copy-uk.md
+    "profileEdit.contacts.telegramPlaceholder": "@username",
+    // k4-copy-uk.md
+    "profileEdit.contacts.removeOther": "Прибрати",
+    // k4-copy-uk.md
+    "profileEdit.contacts.addOther": "Додати ще один спосіб звʼязку",
+    // k4-copy-uk.md
+    "profileEdit.pause.button": "Призупинити прийом тварин",
+    // k4-copy-uk.md
+    "profileEdit.pause.resumeButton": "Відновити прийом тварин",
+    // k4-copy-uk.md
+    "profileEdit.pause.pausedLine": "Прийом на паузі з {date} · {reason}",
+    // k4-copy-uk.md
+    "profileEdit.pause.dialogTitle": "Призупинити прийом тварин?",
+    // k4-copy-uk.md
+    "profileEdit.pause.dialogBody":
+      "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає. Відновити можна тут будь-коли.",
+    // k4-copy-uk.md
+    "profileEdit.pause.reasonLabel": "Причина",
+    // k4-copy-uk.md
+    "profileEdit.pause.reasonPlaceholder": "Оберіть причину",
+    // k4-copy-uk.md
+    "profileEdit.pause.reason.seasonal_closure": "Сезонна перерва",
+    // k4-copy-uk.md
+    "profileEdit.pause.reason.relocation": "Переїзд",
+    // k4-copy-uk.md
+    "profileEdit.pause.reason.capacity_reached": "Немає місця",
+    // k4-copy-uk.md
+    "profileEdit.pause.reason.staff_shortage": "Брак людей",
+    // k4-copy-uk.md
+    "profileEdit.pause.reason.other": "Інше",
+    // k4-copy-uk.md
+    "profileEdit.pause.noteLabel": "Коментар",
+    // k4-copy-uk.md
+    "profileEdit.pause.confirm": "Призупинити прийом",
+    // k4-copy-uk.md
+    "profileEdit.pause.cancel": "Скасувати",
+    // k4-copy-uk.md
+    "profileEdit.pause.close": "Закрити",
+    // k4-copy-uk.md
+    "profileEdit.pause.paused": "Прийом на паузі.",
+    // k4-copy-uk.md
+    "profileEdit.pause.resumed": "Прийом відновлено. Ваших тварин знову видно.",
+    // K4 copy fixes
+    "profileEdit.actions.liveOnSave.contacts":
+      "Нові контакти побачать одразу після збереження — коли натиснуть «Написати притулку».",
+    // K4 copy fixes
+    "profileEdit.actions.liveOnSave.voice":
+      "Нове речення зʼявиться в стрічці та на сторінках тварин одразу після збереження.",
+    // K4 copy fixes
+    "profileEdit.state.saved": "Збережено.",
+    // K4 copy fixes
+    "profileEdit.pause.noteHint":
+      "Коментар бачите ви, інші адміністратори притулку і я. Людям, які шукають тварину, він не показується.",
+    // K4 copy fixes
+    "profileEdit.voice.emptyMeans":
+      "Якщо залишити порожнім, на картках буде лише „Оновлено … тому“.",
+    // K4 copy fixes
+    "profileEdit.voice.previewEmpty": "Речення немає — на картці буде лише „Оновлено … тому“.",
+  };
+
+  const leafPaths = (node: unknown, prefix: string): string[] =>
+    typeof node === "string"
+      ? [prefix]
+      : Object.entries(node as Record<string, unknown>).flatMap(([key, child]) =>
+          leafPaths(child, `${prefix}.${key}`),
+        );
+
+  it("profileEdit holds exactly his keys, no more and no fewer", () => {
+    expect(leafPaths(uk.kabinet.profileEdit, "profileEdit").sort()).toEqual(
+      Object.keys(K4_FINAL)
+        .filter((path) => path.startsWith("profileEdit."))
+        .sort(),
+    );
+  });
+
+  it("has no placeholder under profileEdit", () => {
+    expect(pendingCopyPaths(uk.kabinet.profileEdit, "kabinet.profileEdit")).toEqual([]);
+  });
+
+  it.each(Object.entries(K4_FINAL))("%s is his final text", (path, text) => {
+    const value = path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown>)[key], uk.kabinet);
+    expect(value).toBe(text);
+  });
+
+  it("no longer carries the shipped donationPending wording", () => {
+    expect(uk.kabinet.profile.donationPending).not.toContain("оператора");
+  });
+});
+
 describe("pendingCopyPaths", () => {
   it("walks nested groups and names each placeholder by its full path, sorted", () => {
     const group = {
@@ -383,5 +636,41 @@ describe("/pro about.data carries the kabinet addition (row 90)", () => {
         "Для притулків із доступом до кабінету реєстр зберігає ім'я та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб.",
       ].join(" "),
     );
+  });
+});
+
+/**
+ * K4-B4, answer 3 (Oleksii, verbatim: "ʼ (U+02BC) in all my strings, incl.
+ * contacts.atLeastOne «звʼязку»."): his K4 strings use the letter-apostrophe
+ * only. Scoped to PR 2's keys; older catalogue strings keep U+0027
+ * (`apostrophes.test.ts`), and a catalogue-wide change is his to make.
+ */
+describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
+  const leaves = (node: unknown, path: string): [string, string][] =>
+    typeof node === "string"
+      ? [[path, node]]
+      : Object.entries(node as Record<string, unknown>).flatMap(([key, child]) =>
+          leaves(child, `${path}.${key}`),
+        );
+  const k4 = [
+    ...leaves(uk.kabinet.profileEdit, "kabinet.profileEdit"),
+    ["kabinet.profile.donationPending", uk.kabinet.profile.donationPending] as [string, string],
+  ];
+  const ASCII_APOSTROPHE = String.fromCodePoint(0x27);
+  const TYPOGRAPHIC_APOSTROPHE = String.fromCodePoint(0x2019);
+
+  it("no U+0027 and no U+2019 in any of them", () => {
+    expect(
+      k4
+        .filter(
+          ([, text]) => text.includes(ASCII_APOSTROPHE) || text.includes(TYPOGRAPHIC_APOSTROPHE),
+        )
+        .map(([path]) => path),
+    ).toEqual([]);
+  });
+
+  it("sanity: the walk reaches his strings, and the letter-apostrophe is in them", () => {
+    expect(k4.length).toBe(75);
+    expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });

@@ -1,12 +1,13 @@
-import type { KabinetShelterView } from "@opika/contracts";
+import type { KabinetCursor, KabinetShelterView } from "@opika/contracts";
 import { cityRepo } from "@opika/db/repos";
-import type { CityId } from "@opika/domain";
-import { createRouterClient, ORPCError } from "@orpc/server";
-import { SHELTER_WRITE_POLICY } from "../../kabinet/access";
+import { type CityId, DEFAULT_FRESHNESS_POLICY, type Freshness, freshnessOf } from "@opika/domain";
+import { createRouterClient, ORPCError, type RouterClient } from "@orpc/server";
+import { decideAccess, type WriteGrant } from "../../kabinet/access";
 import type { KabinetPrincipal } from "../../kabinet/actor";
 import type { KabinetContext } from "../../kabinet/context";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../kabinet/photo-uploads";
 import { shelterKabinetRouter } from "../../kabinet/router";
+import { latestDonationOutcomeOf } from "./profile-edit/donation-outcome";
 
 /**
  * What `/kabinet` shows to whom (KS-Q1, Oleksii: "A"). The page calls the
@@ -31,6 +32,38 @@ export type KabinetHome =
       /** The premises' city, for the address row; null if the id resolves to nothing. */
       cityName: string | null;
       viewer: "admin" | "support";
+      editing: ProfileEditing;
+    };
+
+/**
+ * The animal the voice editor's preview fills `{імʼя}` with (N11), and the
+ * day count the real freshness block would show on its page.
+ */
+export type PreviewAnimal = { name: string; freshness: Freshness };
+
+/**
+ * Whether this viewer may change the profile (K4), decided by the same
+ * `decideAccess` the router applies to every shelter write, with the same
+ * policy: a page that offered an editor the API then refused would be
+ * pretending. `read_only` for a support view and, until PR 6, for every
+ * shelter outside the K-Q17 allowlist, which then sees exactly the page it
+ * saw before K4.
+ */
+export type ProfileEditing =
+  | { kind: "read_only" }
+  | {
+      kind: "open";
+      /**
+       * Which policy opened writes. `allowlist` (K-Q17) is the only grant that
+       * mounts `test-shelter-only/`, whose copy may still be pending (CG-Q1);
+       * `open_policy` is any wider grant (today only the handler tests' one,
+       * from PR 6 the production one), where nothing pending may show.
+       */
+      grantedBy: WriteGrant;
+      /** Null when the shelter has no animal at all (`voice.previewNoAnimals`). */
+      previewAnimal: PreviewAnimal | null;
+      /** The newest donation line is the operator declining the last proposal (answer 12). */
+      donationDeclined: boolean;
     };
 
 /**
@@ -38,20 +71,79 @@ export type KabinetHome =
  * `shelter.profile.get` reads neither today, but they are what the kabinet
  * RPC route would give the same procedure, so a later change that starts
  * reading them can't silently get a sender that claims a send it never made.
+ * `shelterWrites` is `shelterWritePolicyOf(process.env)`, the served route's
+ * own policy (K-Q17); `cursorSecret` and `operatorDisplayName` are the
+ * route's too, since the history read pages and names the operator.
  */
 export type KabinetHomeDeps = Pick<
   KabinetContext,
-  "db" | "now" | "newId" | "invites" | "linkBaseURL"
+  | "db"
+  | "now"
+  | "newId"
+  | "invites"
+  | "linkBaseURL"
+  | "shelterWrites"
+  | "cursorSecret"
+  | "operatorDisplayName"
 >;
 
 /**
- * Only `shelter.profile.get`, picked, never the whole router: a page render
- * can't write a cookie, so a procedure that queues one (support entry or
- * exit) must not be reachable from here, the same rule as
- * `api/server-client.ts`. That procedure reads none of the context fields
- * given inert values below.
+ * Three reads, picked, never the whole router: a page render can't write a
+ * cookie, so a procedure that queues one (support entry or exit) must not be
+ * reachable from here, the same rule as `api/server-client.ts`. No write is
+ * here either: the editor writes from the browser, through the API. These
+ * procedures read none of the context fields given inert values below.
  */
-const homeRouter = { shelter: { profile: { get: shelterKabinetRouter.shelter.profile.get } } };
+const homeRouter = {
+  shelter: {
+    profile: { get: shelterKabinetRouter.shelter.profile.get },
+    animals: { list: shelterKabinetRouter.shelter.animals.list },
+    history: { list: shelterKabinetRouter.shelter.history.list },
+  },
+};
+
+/**
+ * How far back the page looks for the newest donation line (answer 12): ten
+ * pages of 50. A decline older than 500 history lines with no donation line
+ * since is not shown (inbox K4-T3); the reads are keyset, so a page is cheap.
+ */
+const DONATION_HISTORY_PAGES = 10;
+const HISTORY_PAGE = 50;
+
+/** The first animals page is enough to find one to preview with. */
+const PREVIEW_ANIMALS_PAGE = 50;
+
+type HomeClient = RouterClient<typeof homeRouter>;
+
+/**
+ * The animal the preview uses: one adopters can see, with its real day count;
+ * failing that any animal, read as it would be on the day it is published
+ * (inbox K4-T4); none, when the shelter has no animal.
+ */
+async function previewAnimalOf(client: HomeClient, now: Date): Promise<PreviewAnimal | null> {
+  const page = await client.shelter.animals.list({
+    listing: null,
+    cursor: null,
+    limit: PREVIEW_ANIMALS_PAGE,
+  });
+  const visible = page.items.find((item) => item.freshness !== null);
+  if (visible?.freshness) return { name: visible.name, freshness: visible.freshness };
+  const any = page.items[0];
+  if (any === undefined) return null;
+  return { name: any.name, freshness: freshnessOf(now, now, DEFAULT_FRESHNESS_POLICY) };
+}
+
+async function donationDeclinedOf(client: HomeClient): Promise<boolean> {
+  let cursor: KabinetCursor | null = null;
+  for (let page = 0; page < DONATION_HISTORY_PAGES; page += 1) {
+    const result = await client.shelter.history.list({ cursor, limit: HISTORY_PAGE });
+    const outcome = latestDonationOutcomeOf(result.items);
+    if (outcome !== null) return outcome.kind === "declined";
+    if (result.nextCursor === null) return false;
+    cursor = result.nextCursor;
+  }
+  return false;
+}
 
 export async function kabinetHomeOf(
   principal: KabinetPrincipal,
@@ -61,13 +153,11 @@ export async function kabinetHomeOf(
     context: (): KabinetContext => ({
       ...deps,
       principal,
-      cursorSecret: "",
-      operatorDisplayName: "",
       locationPolicy: null,
       setCookies: [],
       cookieHeader: null,
       production: false,
-      shelterWrites: SHELTER_WRITE_POLICY,
+      // The home page only reads; the served route carries the real upload config.
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
     }),
   });
@@ -82,11 +172,22 @@ export async function kabinetHomeOf(
   // A city is public data (it names the card's location), not something the
   // shelter view withholds; the view carries only its id.
   const city = await cityRepo(deps.db).findById(view.exactAddress.cityId as CityId);
+  const write = decideAccess({ surface: "shelter", mode: "write" }, principal, deps.shelterWrites);
+  const editing: ProfileEditing =
+    write.kind === "allow_shelter_write"
+      ? {
+          kind: "open",
+          grantedBy: write.grantedBy,
+          previewAnimal: await previewAnimalOf(client, deps.now),
+          donationDeclined: view.pendingDonation === null && (await donationDeclinedOf(client)),
+        }
+      : { kind: "read_only" };
   return {
     kind: "shelter",
     view,
     cityName: city?.name.uk ?? null,
     viewer: principal.kind === "support_view" ? "support" : "admin",
+    editing,
   };
 }
 
