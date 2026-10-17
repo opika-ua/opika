@@ -1371,10 +1371,12 @@ export const uk = {
         none: "Адміністраторів немає",
         remove: "Прибрати",
         removeConfirm: {
-          title: "Прибрати {name}?",
+          title: "Закрити доступ? {name} більше не зможе входити в кабінет.",
           body: "Доступ до кабінету закриється одразу, усі сеанси завершаться.",
         },
         inviteAnother: "Запросити ще одного",
+        /** The invite button while the shelter has no admin and no invitation (N7). */
+        inviteFirst: "Запросити адміністратора",
         resend: "Надіслати ще раз",
         gone: "Цей доступ уже закрито.",
       },

@@ -398,7 +398,8 @@ function InviteAdminForm({
         aria-disabled={busy || undefined}
         aria-busy={mine || undefined}
       >
-        {t.admins.inviteAnother}
+        {/* N7 (Oleksii): with no admin and no invitation there is no "another" to invite. */}
+        {view.admins.length === 0 ? t.admins.inviteFirst : t.admins.inviteAnother}
       </Button>
     </form>
   );

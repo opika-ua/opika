@@ -89,7 +89,7 @@ describe("S4 with its actions", () => {
     expect(section("Історія").getByText(/^Притулок створено/)).toBeTruthy();
   });
 
-  it("a shelter with no admin: the admins section says so and offers «Запросити ще одного»", () => {
+  it("a shelter with no admin: the admins section says so and offers «Запросити адміністратора» (N7)", () => {
     render(
       <ShelterActionsScreen
         view={{ ...view, admins: [] }}
@@ -104,7 +104,7 @@ describe("S4 with its actions", () => {
     expect(admins.getByText("Адміністраторів немає")).toBeTruthy();
     expect(admins.getByLabelText("Імʼя")).toBeTruthy();
     expect(admins.getByLabelText("Електронна пошта")).toBeTruthy();
-    expect(admins.getByRole("button", { name: "Запросити ще одного" })).toBeTruthy();
+    expect(admins.getByRole("button", { name: "Запросити адміністратора" })).toBeTruthy();
   });
 
   it("a decision goes through the page's browser client, and the page re-reads itself", async () => {

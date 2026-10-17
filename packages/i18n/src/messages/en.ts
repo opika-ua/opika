@@ -657,10 +657,11 @@ export const en = {
         none: "No administrators",
         remove: "Remove",
         removeConfirm: {
-          title: "Remove {name}?",
+          title: "Close access? {name} will no longer be able to sign in to the cabinet.",
           body: "Access to the cabinet closes at once, and every session ends.",
         },
         inviteAnother: "Invite another",
+        inviteFirst: "Invite an administrator",
         resend: "Send again",
         gone: "This access is already closed.",
       },

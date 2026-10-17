@@ -63,7 +63,7 @@ describe("the list", () => {
    * адміністраторів можна запросити зі сторінки притулку.» and «Притулок
    * створено, але без адміністратора. Запросіть його зі сторінки притулку.»
    */
-  it("no admin and no invitation: says so, and still offers «Запросити ще одного»", async () => {
+  it("no admin and no invitation: says so, and offers «Запросити адміністратора» (N7)", async () => {
     const invite = vi.fn(async () => ({
       id: "a1000000-0000-4000-8000-000000000009",
       name: "Марія",
@@ -79,7 +79,8 @@ describe("the list", () => {
     expect(screen.getByText("Адміністраторів немає")).toBeTruthy();
     await userEvent.type(screen.getByLabelText("Імʼя"), "Марія");
     await userEvent.type(screen.getByLabelText("Електронна пошта"), "maria@example.org");
-    await userEvent.click(screen.getByRole("button", { name: "Запросити ще одного" }));
+    expect(screen.queryByRole("button", { name: "Запросити ще одного" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Запросити адміністратора" }));
     expect(invite).toHaveBeenCalledExactlyOnceWith({
       shelterId: SHELTER_ID,
       name: "Марія",
@@ -105,7 +106,11 @@ describe("remove asks first", () => {
       reread: async () => withAdmins([ANDRII]),
     });
     await userEvent.click(row("Олена").getByRole("button", { name: "Прибрати" }));
-    const dialog = within(screen.getByRole("dialog", { name: "Прибрати Олена?" }));
+    const dialog = within(
+      screen.getByRole("dialog", {
+        name: "Закрити доступ? Олена більше не зможе входити в кабінет.",
+      }),
+    );
     expect(
       dialog.getByText("Доступ до кабінету закриється одразу, усі сеанси завершаться."),
     ).toBeTruthy();
@@ -137,7 +142,8 @@ describe("remove asks first", () => {
     );
     expect(remove).toHaveBeenCalledOnce();
     expect(screen.getByText("Адміністраторів немає")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Запросити ще одного" })).toBeTruthy();
+    // The last admin removed: nobody is left to be "another" to (N7).
+    expect(screen.getByRole("button", { name: "Запросити адміністратора" })).toBeTruthy();
     await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Імʼя")));
   });
 
@@ -258,10 +264,10 @@ describe("resend shows what became of the email", () => {
   });
 });
 
-describe("invite another", () => {
+describe("invite (a shelter with no admin yet, so the button reads «Запросити адміністратора»)", () => {
   const nameField = () => screen.getByLabelText("Імʼя");
   const emailField = () => screen.getByLabelText("Електронна пошта");
-  const submit = () => screen.getByRole("button", { name: "Запросити ще одного" });
+  const submit = () => screen.getByRole("button", { name: "Запросити адміністратора" });
 
   it("both fields are required, and the address must look like one; nothing is sent until they are", async () => {
     const invite = vi.fn();
