@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  calendarDateYearsBefore,
+  instantOfCalendarDate,
+  kyivCalendarDateOf,
+} from "../primitives/calendar-date";
+import {
+  AGE_DATE_MAX_YEARS_BACK,
   type AgeEstimate,
   ageAnchorOf,
   ageAnchorRange,
   ageBucketOf,
+  ageDateProblem,
   isAgeEstimateUncertain,
 } from "./age";
 
@@ -194,5 +201,63 @@ describe("ageAnchorRange — the filter predicate", () => {
 
   it("leaves senior unbounded below, since it is open-ended", () => {
     expect(ageAnchorRange("senior", NOW).afterExclusive).toBeNull();
+  });
+});
+
+/**
+ * D3 (Oleksii, verbatim: "Refuse a date in the future (Kyiv) or older than 30
+ * years."). Boundaries on Kyiv's calendar, at the instants where it differs
+ * from UTC's, and on the floor's own day.
+ */
+describe("ageDateProblem", () => {
+  // 2026-10-16T22:30Z is 01:30 on the 17th in Kyiv (UTC+3 until 25 October).
+  const kyivJustAfterMidnight = new Date("2026-10-16T22:30:00.000Z");
+
+  it("allows Kyiv's today even while UTC's date is still yesterday", () => {
+    expect(ageDateProblem("2026-10-17", kyivJustAfterMidnight)).toBeNull();
+  });
+
+  it("refuses Kyiv's tomorrow as the future", () => {
+    expect(ageDateProblem("2026-10-18", kyivJustAfterMidnight)).toEqual({ kind: "future" });
+  });
+
+  it("uses winter time after the clocks change (UTC+2)", () => {
+    // 2026-12-31T22:30Z is 00:30 on 1 January 2027 in Kyiv.
+    const newYearInKyiv = new Date("2026-12-31T22:30:00.000Z");
+    expect(ageDateProblem("2027-01-01", newYearInKyiv)).toBeNull();
+    expect(ageDateProblem("2027-01-02", newYearInKyiv)).toEqual({ kind: "future" });
+    // 21:30Z is 23:30 in Kyiv: still the 31st, so the 1st is tomorrow.
+    expect(ageDateProblem("2027-01-01", new Date("2026-12-31T21:30:00.000Z"))).toEqual({
+      kind: "future",
+    });
+  });
+
+  it("allows exactly thirty years ago and refuses the day before", () => {
+    expect(ageDateProblem("1996-10-17", kyivJustAfterMidnight)).toBeNull();
+    expect(ageDateProblem("1996-10-16", kyivJustAfterMidnight)).toEqual({
+      kind: "too_old",
+      maxYearsBack: 30,
+    });
+    // The literal thirty, transcribed from his answer, not the constant read back.
+    expect(AGE_DATE_MAX_YEARS_BACK).toBe(30);
+  });
+
+  it("bounds a 29 February with no counterpart thirty years earlier", () => {
+    const leapDay = new Date("2028-02-29T09:00:00.000Z");
+    expect(ageDateProblem("1998-03-01", leapDay)).toBeNull();
+    expect(ageDateProblem("1998-02-28", leapDay)).toEqual({ kind: "too_old", maxYearsBack: 30 });
+  });
+});
+
+describe("calendar dates", () => {
+  it("stores a date as UTC midnight and reads the same date back on Kyiv's calendar", () => {
+    for (const date of ["2026-01-15", "2026-07-15", "1996-10-17"]) {
+      expect(instantOfCalendarDate(date).toISOString()).toBe(`${date}T00:00:00.000Z`);
+      expect(kyivCalendarDateOf(instantOfCalendarDate(date))).toBe(date);
+    }
+  });
+
+  it("subtracts whole years on the calendar", () => {
+    expect(calendarDateYearsBefore("2026-10-17", 30)).toBe("1996-10-17");
   });
 });

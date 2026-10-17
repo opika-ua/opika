@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Animal } from "./animal";
+import { type Animal, type DraftAnimal, isDraftAnimal, type ListingFacts } from "./animal";
 import { type AnimalListingState, WithdrawalReasonSchema } from "./listing";
 
 /**
@@ -233,22 +233,109 @@ export const transitionListing = (
   return { kind: "ok", next };
 };
 
+/**
+ * What can keep a draft from being published (K-Q5: "everything else and ≥1
+ * photo to publish"), in form order, so a list of gaps reads in the order the
+ * shelter fills them in. No `sex`: it starts «Не записано» and that is a
+ * complete answer (D2).
+ */
+export const PUBLISH_GAP_KINDS = ["size", "age", "description", "photo"] as const;
+
 /** One thing that keeps a draft from being published. */
-export const PublishGapSchema = z.object({ kind: z.literal("photo") });
+export const PublishGapSchema = z.object({ kind: z.enum(PUBLISH_GAP_KINDS) });
 export type PublishGap = z.infer<typeof PublishGapSchema>;
 
 /**
- * Returns what is missing rather than a bare boolean, so K2 can write the
- * reason in the row instead of a disabled button with no explanation
- * (KABINET: «Опублікувати», disabled until there is at least one photo).
- *
- * Separate from `transitionListing` for the same reason `evidenceGaps` is
- * separate from the verification FSM: the table says which moves exist, the
- * gaps say whether this particular animal is ready for one. A publish
- * handler calls both.
+ * A draft is either ready, carrying exactly the facts a listing needs, or
+ * lacks at least one thing. The non-empty tuple keeps "gaps" from ever being
+ * an empty list that reads as ready.
  */
-export const publishGaps = (animal: Pick<Animal, "photos">): readonly PublishGap[] =>
-  animal.photos.length === 0 ? [{ kind: "photo" }] : [];
+export type PublishReadiness =
+  | { kind: "ready"; facts: ListingFacts }
+  | { kind: "gaps"; gaps: readonly [PublishGap, ...PublishGap[]] };
+
+/**
+ * The only way a draft's facts become a listing's (F-B1): a publish handler
+ * spreads `facts` onto the draft, which is what makes the result type-check
+ * as a `ListedAnimal`, so no publish path can skip a field. Separate from
+ * `transitionListing` for the same reason `evidenceGaps` is separate from the
+ * verification FSM: the table says which moves exist, readiness says whether
+ * this particular animal can make one.
+ */
+export const publishReadinessOf = (draft: DraftAnimal): PublishReadiness => {
+  const { size, age, description } = draft;
+  if (size !== null && age !== null && description !== null && draft.photos.length > 0) {
+    return { kind: "ready", facts: { size, age, description } };
+  }
+  const missing: Record<PublishGap["kind"], boolean> = {
+    size: size === null,
+    age: age === null,
+    description: description === null,
+    photo: draft.photos.length === 0,
+  };
+  const [first, ...rest] = PUBLISH_GAP_KINDS.filter((kind) => missing[kind]).map((kind) => ({
+    kind,
+  }));
+  /* v8 ignore next 3 -- the ready check above failed, so at least one kind is missing */
+  if (first === undefined) {
+    throw new Error("publishReadinessOf: not ready, yet nothing is missing");
+  }
+  return {
+    kind: "gaps",
+    gaps: [first, ...rest],
+  };
+};
+
+/**
+ * Returns what is missing rather than a bare boolean, so K2's row and K3's
+ * footer can write the reason next to a disabled «Опублікувати» instead of
+ * leaving it unexplained (KABINET N3, KAB:93). A listed animal is complete
+ * by type, so it can lack only a photo: a card published without one (the
+ * seed's `ZERO_PHOTO_PUBLISHED_INDEX`) still reports it.
+ */
+export const publishGaps = (animal: Animal): readonly PublishGap[] => {
+  if (isDraftAnimal(animal)) {
+    const readiness = publishReadinessOf(animal);
+    return readiness.kind === "gaps" ? readiness.gaps : [];
+  }
+  return animal.photos.length === 0 ? [{ kind: "photo" }] : [];
+};
+
+/**
+ * RH-B7 (Oleksii, verbatim: "Yes, a photo add, reorder or remove moves
+ * «Оновлено» (lastUpdatedAt), as it already does on prod", with D4: "approved,
+ * option (i)"): on a card people can see, a photo change counts as the shelter
+ * confirming it, so the confirmation date «Оновлено» counts from moves to `at`.
+ *
+ * Not a listing event: no state change, no listing history line (S1:
+ * confirmations aren't recorded), nothing to undo, and a pending «Ще шукає»
+ * undo expires, as after any newer write. Never moves the date backwards.
+ * Draft, adopted and withdrawn listings carry no confirmation and come back
+ * unchanged (the same object).
+ */
+export const listingAfterPhotoChange = (
+  listing: AnimalListingState,
+  at: Date,
+): AnimalListingState => {
+  switch (listing.kind) {
+    case "published":
+    case "reserved":
+      return {
+        ...listing,
+        confirmedAt: at.getTime() > listing.confirmedAt.getTime() ? at : listing.confirmedAt,
+        undoable: null,
+      };
+    case "draft":
+    case "adopted":
+    case "withdrawn":
+      return listing;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = listing;
+      return unreachable;
+    }
+  }
+};
 
 /**
  * Restores the confirmation a `confirm` replaced, exactly as stored (H2-16).
