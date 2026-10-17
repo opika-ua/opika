@@ -154,20 +154,24 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
   });
 
   /**
-   * Empty in PR 2. Since K3 (PR 4) it holds the animal form's two lines his
+   * Empty in PR 2. Since K3 (PR 4) it holds the animal form's three lines his
    * test shelter alone sees: `dateUnchanged` (his final text, parked until
-   * K2 ships the confirmation it names) and one `[COPY PENDING]` stand-in
-   * (`lastPhotoKeptNotShown`). Pinned exactly, so nothing else drifts in.
+   * K2 ships the confirmation it names) and two `[COPY PENDING]` stand-ins
+   * for his lines that say people see the card, used while the shelter's
+   * cards are hidden (`lastPhotoKeptNotShown`, `publishedNotShown`). Pinned
+   * exactly, so nothing else drifts in.
    */
-  it("the testShelterOnly namespace holds exactly K3's two lines, one of them pending", () => {
+  it("the testShelterOnly namespace holds exactly K3's three lines, two of them pending", () => {
     expect(typeof uk.kabinet.testShelterOnly).toBe("object");
     expect(Object.keys(uk.kabinet.testShelterOnly)).toEqual(["animalForm"]);
     expect(Object.keys(uk.kabinet.testShelterOnly.animalForm).sort()).toEqual([
       "dateUnchanged",
       "lastPhotoKeptNotShown",
+      "publishedNotShown",
     ]);
     expect(pendingCopyPaths(uk.kabinet.testShelterOnly, "kabinet.testShelterOnly")).toEqual([
       "kabinet.testShelterOnly.animalForm.lastPhotoKeptNotShown",
+      "kabinet.testShelterOnly.animalForm.publishedNotShown",
     ]);
   });
 

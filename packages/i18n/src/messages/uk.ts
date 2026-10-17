@@ -1018,6 +1018,14 @@ export const uk = {
          * Ukrainian.
          */
         lastPhotoKeptNotShown: `${COPY_PENDING} "This card is published, so it keeps at least one photo." (instead of photos.lastPhotoKept while the shelter's cards are hidden)`,
+        /**
+         * In place of `publish.done` («Опубліковано. Тепер картку бачать ті,
+         * хто шукає тварину.») when the shelter isn't publicly visible (paused,
+         * or not verified): the card is then on no public surface (the feed
+         * and gallery predicate, and `animals.byId`'s verified-shelter check),
+         * so «бачать» would be false. English sense, for his Ukrainian.
+         */
+        publishedNotShown: `${COPY_PENDING} "Published. Nobody looking for an animal sees the card yet: this shelter's cards are hidden right now." (instead of publish.done while the shelter's cards are hidden)`,
       },
     },
     /**

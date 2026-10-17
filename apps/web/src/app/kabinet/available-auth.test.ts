@@ -3,6 +3,8 @@ import KabinetHomePage from "./page";
 import OperatorShelterPage from "./prytulky/[id]/page";
 import NewShelterPage from "./prytulky/novyi/page";
 import OperatorSheltersPage from "./prytulky/page";
+import AnimalEditPage, { generateMetadata as animalEditMetadata } from "./tvaryny/[id]/page";
+import NewAnimalPage from "./tvaryny/nova/page";
 import SignInPage from "./vkhid/page";
 
 /**
@@ -28,6 +30,9 @@ const operatorList = () => OperatorSheltersPage({ searchParams: Promise.resolve(
 const operatorShelter = () =>
   OperatorShelterPage({ params: Promise.resolve({ id: crypto.randomUUID() }) });
 
+/** K3's animal pages (PR 4). */
+const animalParams = () => ({ params: Promise.resolve({ id: crypto.randomUUID() }) });
+
 /**
  * The invite landing (IN-T10) shares K1's route, so its 404 is the same
  * page's: listed separately, because its GET is the one that would send an
@@ -40,6 +45,10 @@ describe.each([
   ["/kabinet/prytulky", operatorList],
   ["/kabinet/prytulky/<id>", operatorShelter],
   ["/kabinet/prytulky/novyi", () => NewShelterPage()],
+  // K3's two pages, and the edit page's title, which reads the same animal.
+  ["/kabinet/tvaryny/nova", () => NewAnimalPage()],
+  ["/kabinet/tvaryny/<id>", () => AnimalEditPage(animalParams())],
+  ["/kabinet/tvaryny/<id> (its <title>)", () => animalEditMetadata(animalParams())],
 ])("%s while sign-in is unavailable", (_route, page) => {
   it("answers 404 itself, never reaching the auth instance", async () => {
     vi.stubEnv("BETTER_AUTH_SECRET", "");

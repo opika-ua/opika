@@ -213,7 +213,7 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
    * on the apex, From name as given; example key and secret, never real ones)
    * production sign-in is on. This is what merging the wiring PR turns on.
    *
-   * Since K3 (PR 4) the catalogue holds one pending string, inside
+   * Since K3 (PR 4) the catalogue holds two pending strings, inside
    * `kabinet.testShelterOnly` (CG-Q1, Oleksii, verbatim: "Pending strings
    * only under uk.kabinet.testShelterOnly.*" and "At runtime, sign-in ignores
    * those strings only while the write policy is allowlist or refused. Under
@@ -236,14 +236,17 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     };
     const pendingNow = kabinetPendingCopy();
     expect(pendingNow.filter((path) => !path.startsWith(TEST_SHELTER_ONLY_PREFIX))).toEqual([]);
-    expect(pendingNow).toEqual(["kabinet.testShelterOnly.animalForm.lastPhotoKeptNotShown"]);
+    expect(pendingNow).toEqual([
+      "kabinet.testShelterOnly.animalForm.lastPhotoKeptNotShown",
+      "kabinet.testShelterOnly.animalForm.publishedNotShown",
+    ]);
     // The served policy (allowlist unset: the refusal), then the K-Q17 allowlist.
     expect(withLiveCopy(reported).kind).toBe("on");
     expect(
       withLiveCopy({ ...reported, KABINET_WRITE_ALLOWLIST: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" })
         .kind,
     ).toBe("on");
-    // An open policy (PR 6's shape): the live catalogue's one pending string turns it off.
+    // An open policy (PR 6's shape): the live catalogue's pending strings turn it off.
     expect(withLiveCopy(reported, pendingNow, { kind: "open_for_tests_only" })).toEqual({
       kind: "off",
       reason: "copy_pending",
@@ -289,13 +292,16 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // locked note once round 2's answer 6 capitalised the standalone one.
     // 399 with verificationDecision.signature (round 2's answer 2, R-UI 3).
     // 400 with operator.admins.inviteFirst (his N7, round 3).
-    // 515 with K3 (PR 4): 108 `animalForm.*` and 5 `listingStatus.*` strings
-    // (his text, 2026-10-17, pinned in copy-status.test.ts) and the two
-    // `testShelterOnly.animalForm.*` lines, one of them pending (CG-Q1).
-    expect(pending.length + written.length).toBe(515);
+    // 516 with K3 (PR 4): 108 `animalForm.*` and 5 `listingStatus.*` strings
+    // (his text, 2026-10-17, pinned in copy-status.test.ts) and the three
+    // `testShelterOnly.animalForm.*` lines, two of them pending (CG-Q1).
+    expect(pending.length + written.length).toBe(516);
     expect(written).toContain("kabinet.profileEdit.state.saved");
     expect(written).toContain("kabinet.animalForm.draft.notVisible");
-    expect(pending).toEqual(["kabinet.testShelterOnly.animalForm.lastPhotoKeptNotShown"]);
+    expect(pending).toEqual([
+      "kabinet.testShelterOnly.animalForm.lastPhotoKeptNotShown",
+      "kabinet.testShelterOnly.animalForm.publishedNotShown",
+    ]);
     expect(pending.every((path) => path.startsWith(TEST_SHELTER_ONLY_PREFIX))).toBe(true);
     expect(written).toContain("kabinet.confirm.rateLimited");
     expect(kabinetPendingCopy()).toEqual(pending.sort());
@@ -328,6 +334,7 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
       "kabinet.email.invite.notYou",
       "kabinet.history.adminJoined",
       "kabinet.testShelterOnly.animalForm.lastPhotoKeptNotShown",
+      "kabinet.testShelterOnly.animalForm.publishedNotShown",
     ]);
     // The served policy exempts the namespace (CG-Q1); the other two still turn it off.
     expect(withLiveCopy(full, pending)).toEqual({

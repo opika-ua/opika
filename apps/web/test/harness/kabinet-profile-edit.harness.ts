@@ -160,12 +160,18 @@ test.describe("/kabinet K4 profile editing (allowlisted shelter)", () => {
    * The touch-target token (Oleksii, verbatim: "a shared min-height token on
    * the shared button/control primitives, plus ONE test on those primitives
    * that the computed min-height is ≥ 48px"). A real browser computes the
-   * Tailwind class; happy-dom can't. One control of each primitive on this page.
+   * Tailwind class; happy-dom can't. One control of each primitive, on this
+   * page and, for K3's `SegmentedControl` (PR 4), on the animal form, which
+   * this shelter's allowlisted writes open too. A segment's radio is visually
+   * hidden inside it, so the target measured is the segment (its label).
    * A failure names the control by its accessible name (its label, else its
    * aria-label or text), so it says which one fell short.
    */
   test("the shared controls compute a min-height of at least 48px", async () => {
     const page = await profilePage();
+    if (context === undefined) throw new Error("not signed in");
+    const form = await context.newPage();
+    expect((await form.goto("/kabinet/tvaryny/nova"))?.status()).toBe(200);
     const controls = [
       ["TextField", page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/)],
       [
@@ -174,21 +180,24 @@ test.describe("/kabinet K4 profile editing (allowlisted shelter)", () => {
       ],
       ["Button, secondary", page.getByRole("button", { name: "Вставити {імʼя}" })],
       ["Button, secondary", page.getByRole("button", { name: "Призупинити прийом тварин" })],
+      ["SegmentedControl", form.getByRole("radio", { name: "Собака" })],
     ] as const;
     for (const [primitive, control] of controls) {
       const { name, minHeight } = await control.evaluate((el) => {
-        const label = (el as HTMLInputElement).labels?.[0]?.textContent;
+        const label = (el as HTMLInputElement).labels?.[0];
+        const target = (el as HTMLInputElement).type === "radio" && label ? label : el;
         return {
-          name: (label ?? el.getAttribute("aria-label") ?? el.textContent ?? "")
+          name: (label?.textContent ?? el.getAttribute("aria-label") ?? el.textContent ?? "")
             .replace(/\s+/g, " ")
             .trim(),
-          minHeight: Number.parseFloat(getComputedStyle(el).minHeight),
+          minHeight: Number.parseFloat(getComputedStyle(target).minHeight),
         };
       });
       expect(minHeight, `computed min-height of «${name}» (${primitive})`).toBeGreaterThanOrEqual(
         48,
       );
     }
+    await form.close();
     await page.close();
   });
 
