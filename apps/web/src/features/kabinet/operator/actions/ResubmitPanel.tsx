@@ -12,7 +12,7 @@ import {
 } from "../evidence-editor/evidence-rows";
 import { DECISION_OWNER, type DecisionOutcome } from "./decision-outcome";
 import { useOperatorActions } from "./operator-actions";
-import { resubmitPrefillOf } from "./resubmit-evidence";
+import { resubmitRowsOf } from "./resubmit-evidence";
 import { NOTICE, SUBTITLE } from "./styles";
 
 const NO_ROW_ERRORS: Readonly<Record<string, EvidenceRowErrors>> = {};
@@ -21,16 +21,14 @@ const NO_ROW_ERRORS: Readonly<Record<string, EvidenceRowErrors>> = {};
  * «Повернути на перевірку» (S3/S4, `rejected` only): the operator sends the
  * evidence back for review, amended or not, and the shelter is `pending`
  * again. The editor is R-UI 2's (`EvidenceEditor`, the four document-free
- * kinds), started from the evidence on file (`resubmitPrefillOf`), so with no
+ * kinds), started from the evidence on file (`resubmitRowsOf`), so with no
  * edits the same items go back (pinned by its test). The cards are checked
  * by the editor's own `evidenceOfRows` before anything is sent, as on S2;
  * the server checks them again.
  *
- * What can't be sent again (a script-onboarded `supporting_document`, RG-Q5)
- * is left out of the prefill, and is gone from the record once the resubmit
- * lands (`resubmit-evidence.ts` says why). Saying so on the screen needs a
- * sentence that has no copy yet (NEEDS OLEKSII in the R-UI 3 report); no
- * screen can create such an item.
+ * What the editor can't hold (a script-onboarded `supporting_document`,
+ * RG-Q5) has no card and stays on file: the server carries it over
+ * (`resubmit-evidence.ts` says how).
  *
  * `now` is the clock for "today" (Kyiv's calendar, the server's own rule for
  * a site visit), injectable so a test can stand at Kyiv's midnight.
@@ -46,8 +44,8 @@ export function ResubmitPanel({
   const t = uk.kabinet.operator;
   const id = useId();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [rows, setRows] = useState<readonly EvidenceRow[]>(
-    () => resubmitPrefillOf(view.verification.evidence).rows,
+  const [rows, setRows] = useState<readonly EvidenceRow[]>(() =>
+    resubmitRowsOf(view.verification.evidence),
   );
   const [rowErrors, setRowErrors] = useState(NO_ROW_ERRORS);
   const [focusFirstError, setFocusFirstError] = useState(0);

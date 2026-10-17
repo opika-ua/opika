@@ -48,7 +48,8 @@ export const REFERENCE_RELATIONSHIPS = [
 /**
  * One card as typed. `id` is a stable React key, never sent. A site visit
  * has no visitor field: whoever records the evidence is the visitor
- * (decisions §4), so the server fills it in.
+ * (decisions §4), so the server fills it in (on resubmit, a visit sent back
+ * unchanged keeps whoever made it: `withEvidenceOnFile`).
  */
 export type EvidenceRow =
   | { id: string; kind: "edrpou_registration"; edrpou: string; registeredName: string }
