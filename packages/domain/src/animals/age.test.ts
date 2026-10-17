@@ -11,6 +11,7 @@ import {
   ageAnchorRange,
   ageBucketOf,
   ageDateProblem,
+  declaredAtOfCalendarDate,
   isAgeEstimateUncertain,
 } from "./age";
 
@@ -259,5 +260,29 @@ describe("calendar dates", () => {
 
   it("subtracts whole years on the calendar", () => {
     expect(calendarDateYearsBefore("2026-10-17", 30)).toBe("1996-10-17");
+  });
+});
+
+describe("declaredAtOfCalendarDate (a bucket declared «станом на» today, in Kyiv's first hours)", () => {
+  // 00:35 Kyiv on 18 October = 21:35 UTC on the 17th: UTC midnight of the 18th is still ahead.
+  const kyivJustAfterMidnight = new Date("2026-10-17T21:35:00.000Z");
+
+  it("anchors a date that is today in Kyiv at now, not at the future UTC midnight", () => {
+    expect(declaredAtOfCalendarDate("2026-10-18", kyivJustAfterMidnight)).toEqual(
+      kyivJustAfterMidnight,
+    );
+  });
+
+  it("so «Молодий» declared today reads «молодий», not one tier young", () => {
+    const declaredAt = declaredAtOfCalendarDate("2026-10-18", kyivJustAfterMidnight);
+    expect(
+      ageBucketOf({ kind: "declared_bucket", bucket: "young", declaredAt }, kyivJustAfterMidnight),
+    ).toBe("young");
+  });
+
+  it("leaves a past date at its UTC midnight, the stored convention", () => {
+    expect(declaredAtOfCalendarDate("2026-10-01", kyivJustAfterMidnight)).toEqual(
+      new Date("2026-10-01T00:00:00.000Z"),
+    );
   });
 });
