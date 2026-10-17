@@ -383,7 +383,7 @@ describe("the voice sentence (N11)", () => {
     await userEvent.clear(textarea());
     expect(preview.queryByTestId("shelter-freshness-sentence")).toBeNull();
     expect(
-      preview.getByText("Речення немає — на картці буде лише „Оновлено … тому“."),
+      preview.getByText("Речення немає — на картці буде лише «Оновлено … тому»."),
     ).toBeTruthy();
   });
 
@@ -428,7 +428,7 @@ describe("the voice sentence (N11)", () => {
       ),
     ).toBeTruthy();
     expect(
-      v.getByText("Якщо залишити порожнім, на картках буде лише „Оновлено … тому“."),
+      v.getByText("Якщо залишити порожнім, на картках буде лише «Оновлено … тому»."),
     ).toBeTruthy();
     // CB-B1, item 3: `{імʼя}` shows literally, never filled
     expect(
