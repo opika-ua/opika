@@ -325,6 +325,20 @@ describe("S4 blocked addresses, every answer", () => {
     expect(within(blocked).queryByText(/жодна адреса/)).toBeNull();
   });
 
+  /**
+   * Oleksii's answer 4: "on hitting the cap, return a typed "incomplete"
+   * result, not a partial "none blocked"". An incomplete read that found
+   * nobody so far is the case most tempting to show as «none»: it must not.
+   */
+  it("incomplete with nobody found so far: still only «part checked», never «none blocked»", () => {
+    renderBlocked({ kind: "incomplete", asOf: NOW, blockedSoFar: [] });
+    const blocked = blockedSection();
+    expect(within(blocked).getByText("Вдалося перевірити лише частину адрес.")).toBeTruthy();
+    expect(within(blocked).queryByText(/жодна адреса/)).toBeNull();
+    expect(within(blocked).queryByRole("listitem")).toBeNull();
+    expect(within(blocked).queryByText(/Розблокувати/)).toBeNull();
+  });
+
   it.each([
     ["provider_error", "Поштовий сервіс відповів помилкою."],
     ["timed_out", "Поштовий сервіс не відповів вчасно."],

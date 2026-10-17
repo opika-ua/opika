@@ -1,5 +1,5 @@
 import type { KabinetCursor, RegistryShelterRowView } from "@opika/contracts";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { RegistryReadClient } from "./registry-browser-client";
@@ -227,6 +227,29 @@ describe("S1 «Показати ще»", () => {
     expect(list).toHaveBeenCalledTimes(2);
     expect(list.mock.calls[1]?.[0]).toMatchObject({ cursor: "next-page-cursor" });
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("a second press while a page is loading sends nothing more, so no page is appended twice", async () => {
+    let answer: (page: unknown) => void = () => {};
+    const list = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    renderRows(list);
+    const more = screen.getByRole("button", { name: "Показати ще" });
+    await userEvent.click(more);
+    await userEvent.click(more);
+    expect(list).toHaveBeenCalledOnce();
+    await act(async () => {
+      answer({
+        items: [row({ id: "52000000-0000-4000-8000-000000000002" as never, displayName: "Лапа" })],
+        nextCursor: null,
+        counts: COUNTS,
+      });
+    });
+    expect(within(rows()).getAllByRole("listitem")).toHaveLength(2);
   });
 
   it("a stale cursor restarts the list at its first page instead of failing", async () => {
