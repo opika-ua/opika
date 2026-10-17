@@ -1265,7 +1265,8 @@ export const uk = {
        * before production sign-in is turned on"): «Увійти» refused by the
        * kabinet's per-IP limit (300 a minute, `hooks.before`) before Better
        * Auth read the token, so the link is still good and the card offers
-       * the same button again. Oleksii's text, 2026-10-15 (inbox WI-Q3),
+       * the same button again. Oleksii's text, 2026-10-15 (inbox WI-Q3), with
+       * «Увійти» in «» since CB-Q1 (2026-10-17),
        * shipped after both of its claims were checked: the per-IP window is
        * 60 s, so «хвилину» holds, and a refused press never reaches the
        * token, so «Посилання ще дійсне» holds until the 15-minute expiry
