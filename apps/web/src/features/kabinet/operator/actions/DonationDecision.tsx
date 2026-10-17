@@ -24,7 +24,7 @@ type Notice =
  * verification move, so no reason dialog and no confirmation (KABINET N20).
  *
  * The proposal itself (`donation.proposed`, the live link beside it) is the
- * read-only donation section's. rebase: mount on S4, inside that section.
+ * read-only donation section's; this sits under it (`ShelterActionsScreen`).
  */
 export function DonationDecision() {
   const { view, phase, run } = useOperatorActions();
