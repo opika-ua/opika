@@ -261,12 +261,18 @@ export const uk = {
     heading: "Медичний стан",
     unknown: "Не записано",
     inProgress: "У процесі",
-    registryConfirmed: "Підтверджено реєстром тварин",
+    /**
+     * Q5 of the K3 sheet (Oleksii, 2026-10-17, verbatim: "«реєстр» is allowed
+     * ONLY as the explicit name of the state register: «державний реєстр
+     * тварин». Update the public keys too"). Both name the state animal
+     * registry, which really is a state service.
+     */
+    registryConfirmed: "Підтверджено державним реєстром тварин",
     shelterDeclared: "Слова притулку",
     rabies: "Сказ",
     vaccination: "Комплексне щеплення",
     spayNeuter: "Стерилізація",
-    registry: "Реєстр тварин",
+    registry: "Державний реєстр тварин",
   },
 
   // --- Location ---
@@ -977,7 +983,33 @@ export const uk = {
      * sign-in included, stays strict. Under an open policy (PR 6) anything
      * pending here turns sign-in off again.
      */
-    testShelterOnly: {},
+    testShelterOnly: {
+      /**
+       * K3 lines only his allowlisted test shelter sees (CG-Q1), mounted by
+       * `features/kabinet/test-shelter-only/AnimalFormTestShelterLines.tsx`.
+       */
+      animalForm: {
+        /**
+         * His final text (k3-copy-uk.md §10), parked here by his own note:
+         * "If K2's confirmation buttons aren't shipped yet when PR 4 merges,
+         * this line waits under testShelterOnly until PR 5." Its second
+         * sentence points at «Ще шукає» in the animal list, which is K2's.
+         * Published and reserved cards only.
+         */
+        dateUnchanged:
+          "Правки тексту не змінюють дату «Оновлено». Її змінює ваше підтвердження в списку тварин і будь-яка зміна фото.",
+        /**
+         * In place of `photos.lastPhotoKept` («Цю картку бачать люди, тож одне
+         * фото має лишитися.») when the shelter isn't publicly visible (paused,
+         * or not verified): its cards are on no public surface then
+         * (`FEED_VISIBLE_VERIFICATION_STATUSES`), so «бачать люди» would be
+         * false. The rule itself still holds: the server keeps the last photo
+         * of any published or reserved card (P-Q8). English sense, for his
+         * Ukrainian.
+         */
+        lastPhotoKeptNotShown: `${COPY_PENDING} "This card is published, so it keeps at least one photo." (instead of photos.lastPhotoKept while the shelter's cards are hidden)`,
+      },
+    },
     /**
      * K4 · editing the shelter profile (`docs/k4-copy-sheet.md`). Oleksii's
      * final Ukrainian (`k4-copy-uk.md`, 2026-10-17) with his later fixes
@@ -1128,6 +1160,190 @@ export const uk = {
         close: "Закрити",
         paused: "Прийом на паузі.",
         resumed: "Прийом відновлено. Ваших тварин знову видно.",
+      },
+    },
+    /**
+     * The five listing states as K3's header chip and K2's rows name them
+     * (N3). Oleksii's final Ukrainian (k3-copy-uk.md §2; answer 15, verbatim:
+     * "Yes, all five below.").
+     */
+    listingStatus: {
+      draft: "Чернетка",
+      published: "Опубліковано",
+      reserved: "Домовляються",
+      adopted: "Удома",
+      withdrawn: "Знято з показу",
+    },
+    /**
+     * K3 · the animal form (`docs/k3-copy-sheet.md`): Oleksii's final
+     * Ukrainian (`k3-copy-uk.md`, 2026-10-17), verbatim, U+02BC as the
+     * apostrophe. His rules for it, verbatim: "Pronoun-free wording
+     * everywhere. No sex-keyed variants."; "«ті, хто шукає тварину» (or
+     * «люди» where shorter). Never «адоптери»."; "the site is the subject
+     * («сайт»), or impersonal / passive forms". Keys his answers reuse from
+     * elsewhere (sex «Не записано», «Комплексне щеплення», «Спробувати ще
+     * раз», «Зберегти») are read from their own homes, not copied here.
+     */
+    animalForm: {
+      pageTitleNew: "Нова тварина",
+      pageTitleEdit: "{name}",
+      titleNew: "Нова тварина",
+      backToList: "← Тварини",
+      header: {
+        createdNotPublished: "Створено {when} · ще не в галереї",
+      },
+      who: {
+        title: "Хто це",
+        nameLabel: "Імʼя",
+        nameHint: "Як тварину кличуть у притулку. Лише імʼя — пояснення краще написати в описі.",
+        namePlaceholder: "Наприклад, Ластівка",
+        speciesLabel: "Вид",
+        sexLabel: "Стать",
+        sexMale: "Хлопчик",
+        sexFemale: "Дівчинка",
+        sizeLabel: "Розмір",
+        sizeNote: "Ваги немає навмисно: розмір на око точніший, ніж торішня цифра.",
+        sizeHintUpTo: "до {max} кг",
+        sizeHintRange: "{min}–{max} кг",
+        sizeHintFrom: "від {min} кг",
+      },
+      age: {
+        title: "Вік",
+        modeLabel: "Що відомо про вік",
+        modeBirthDate: "Відома дата народження",
+        modeBucket: "Відомий вік на певну дату",
+        modeBirthDateShort: "Дата народження",
+        modeBucketShort: "Вік на дату",
+        modeNote:
+          "Обидва способи рівноцінні. Сайт зберігає саме те, що ви вказали, і далі рахує вік сам.",
+        birthDateLabel: "Дата народження",
+        bucketLabel: "Вік на ту дату",
+        bucketRangeUnder: "до {max}",
+        bucketRange: "{min}–{max}",
+        bucketRangeFrom: "{min}+",
+        asOfLabel: "Станом на",
+        /** True with D3 (Oleksii: "keep the chosen «Станом на» date"): the server stores it. */
+        asOfHint: "Коли ви це оцінили. Зазвичай — день, коли тварина потрапила до притулку.",
+        /** `{label}` is the card's own word (`ageBucketLabel`); his answer 9: quoted as it is. */
+        adopterSees: "Ті, хто шукає тварину, побачать: «{label}».",
+        uncertain:
+          "Вік указано станом на {when}. Тепер на картці — «{label}». Якщо тварина вже старша, оновіть вік.",
+      },
+      description: {
+        title: "Опис",
+        prompt: "Що б ви сказали людині біля вольєра.",
+        label: "Про тварину",
+        hint: "Простий текст, без форматування.",
+        /** «символів» is the form for 1,500 (pinned in `copy-plural-pins.test.ts`). */
+        counter: "{count} з {max} символів",
+        counterOver: "Зайвих символів: {over}",
+      },
+      health: {
+        title: "Медичний стан",
+        confirm: "Зроблено",
+        unknownNote:
+          "«Не записано» — чесна відповідь. Ті, хто шукає тварину, так і побачать «Не записано», а не «ні».",
+        registryReadOnly: "Підтверджено державним реєстром тварин. Тут цей рядок змінити не можна.",
+      },
+      photos: {
+        title: "Фото",
+        ratioNote: "Формат 4:5, перше фото — обкладинка.",
+        add: "+ Фото",
+        addHint: "Будь-яке фото, яке відкриває цей телефон чи браузер.",
+        /** `{px}` is `PHOTO_MAX_EDGE_PX`; true because `compressPhoto` scales every photo to it on the device. */
+        howItWorks:
+          "Перше фото — обкладинка; щоб змінити порядок, перетягніть фото. Для публікації потрібне хоча б одне. Великі фото зменшуються на пристрої до {px} пікселів перед відправкою — так менше мобільного трафіку.",
+        /** Answer 11 ("Both are true"): the device re-encodes every photo, and the server strips all metadata. */
+        privacyNote: "З фото прибираються дані про місце зйомки та інші приховані дані.",
+        preparing: "Фото готується…",
+        uploading: "Фото завантажується…",
+        uploadingProgress: "Завантаження · {percent} · {sent} з {total} МБ",
+        done: "Готово",
+        cover: "Обкладинка",
+        failed: "Не завантажилось",
+        dismissFailed: "Прибрати",
+        /** The accessible name for `dismissFailed`, his answer: «Прибрати фото, яке не завантажилось». */
+        dismissFailedName: "Прибрати фото, яке не завантажилось",
+        tileLabel: "Фото {n} з {total}",
+        makeCover: "Зробити обкладинкою",
+        moveEarlier: "Перемістити вперед",
+        moveLater: "Перемістити назад",
+        remove: "Прибрати фото {n}",
+        capReached: "Це максимум — {max} фото.",
+        /** Also `PHOTOS_REQUIRED_WHILE_VISIBLE`'s message (his answer: "same key/text"). */
+        lastPhotoKept: "Цю картку бачать люди, тож одне фото має лишитися.",
+        added: "Фото додано.",
+        removed: "Фото прибрано.",
+        reordered: "Порядок змінено.",
+        conflict: "Фото змінилися в іншому вікні. Тут — поточний набір, спробуйте ще раз.",
+        removedStillReachable:
+          "Фото зникло з картки. Сам файл не видаляється одразу — якщо його треба прибрати зовсім, напишіть мені.",
+        /** True with RH-B7 (D4 option (i)), which ships in this PR. Published and reserved only. */
+        dateMoves: "На картці, яку бачать люди, будь-яка зміна фото оновлює дату «Оновлено».",
+      },
+      photoErrors: {
+        heicUnsupported:
+          "Цей телефон чи браузер не відкриває фото у форматі HEIC. Виберіть, будь ласка, JPG або PNG.",
+        unreadable: "Цей файл не вдалося відкрити як фото.",
+        tooLarge: "Навіть після зменшення це фото завелике. Спробуйте інше.",
+        rejected: "Сайт не може використати цей файл як фото.",
+        limitReached: "У цієї тварини вже {max} фото.",
+        rateLimited: "Забагато фото за короткий час. Спробуйте трохи пізніше.",
+        uploadsUnavailable: "На цій версії сайту фото завантажити не можна.",
+      },
+      draft: {
+        savedAt: "Чернетку збережено о {time}",
+        /** F-B2, his, verbatim; backed by `incomplete-draft-invisible.test.ts`. */
+        notVisible: "Ті, хто шукає тварину, цю чернетку не бачать.",
+        notSavedYet: "Щоб зберегти чернетку, потрібні імʼя та вид.",
+        saveFailed: "Чернетку не збережено. Перевірте зʼєднання — усе, що ви ввели, лишається тут.",
+        save: "Зберегти чернетку",
+        saveShort: "Зберегти",
+      },
+      listed: {
+        liveOnSave: "Зміни зʼявляться на картці одразу після збереження.",
+        notShownNow: "Цю картку зараз ніхто не бачить.",
+      },
+      publish: {
+        button: "Опублікувати",
+        missing: "Щоб опублікувати, ще потрібно: {list}.",
+        gap: {
+          size: "розмір",
+          age: "вік",
+          description: "опис",
+          photo: "фото",
+        },
+        /**
+         * Shown only while the shelter is publicly visible (verified): a
+         * paused or unverified shelter's cards are on no public surface, and
+         * «Тепер картку бачать…» would be false; there the announcement is the
+         * status chip's own «Опубліковано» (`listingStatus.published`).
+         */
+        done: "Опубліковано. Тепер картку бачать ті, хто шукає тварину.",
+        viewPublic: "Відкрити сторінку тварини",
+        stateChanged:
+          "Картка змінилася в іншому вікні. Оновіть сторінку, щоб побачити поточну версію.",
+      },
+      errors: {
+        conflict:
+          "Хтось змінив цю картку після того, як ви її відкрили. Ваші останні зміни не збережено. Ось поточна версія — внесіть їх ще раз.",
+        registryConfirmed: "Це підтверджено державним реєстром тварин, тут змінити не можна.",
+        requiredOnceListed: "Картку вже публікували, тож опис не може бути порожнім.",
+        notFound: "Цієї тварини немає у вашому списку: картку видалено або посилання неправильне.",
+        loadFailed: "Картка не завантажилась. Перевірте зʼєднання і спробуйте ще раз.",
+      },
+      validation: {
+        nameRequired: "Щоб зберегти чернетку, потрібне імʼя.",
+        speciesRequired: "Виберіть, собака це чи кіт, щоб зберегти чернетку.",
+        nameBrace: "В імені не може бути фігурних дужок.",
+        /** «символів» is the form for 60 (pinned). */
+        nameTooLong: "Імʼя довше за {max} символів.",
+        /** «символів» is the form for 1,500 (pinned). */
+        descriptionTooLong: "Опис довший за {max} символів.",
+        birthDateFuture: "Дата народження не може бути в майбутньому.",
+        asOfFuture: "Дата «Станом на» не може бути в майбутньому.",
+        /** «років» is the form for 30, `AGE_DATE_MAX_YEARS_BACK` (his note: "pin the plural for 30"). */
+        dateTooOld: "Ця дата надто давня — понад {years} років тому.",
       },
     },
     /** S5 · support mode (N16): the operator's read-only view of this page. */

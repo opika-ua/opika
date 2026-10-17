@@ -3,7 +3,6 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
-  type Animal,
   type AnimalId,
   AnimalIdSchema,
   AnimalNameInputSchema,
@@ -18,6 +17,7 @@ import {
   EvidenceItemInputSchema,
   ExactAddressSchema,
   freshnessSentenceProblemMessage,
+  type ListedAnimal,
   MAX_ANIMAL_PHOTOS,
   type ModeratorId,
   ModeratorIdSchema,
@@ -364,7 +364,7 @@ export function buildAnimal(
   photos: readonly AnimalPhoto[],
   shelterId: Shelter["id"],
   now: Date,
-): Animal {
+): ListedAnimal {
   return {
     id: animalIdFor(input.idSeed),
     shelterId,

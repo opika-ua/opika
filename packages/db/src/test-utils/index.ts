@@ -1,9 +1,11 @@
 export { productionEndpoint } from "../prod-guard";
 export {
+  type AnimalFixtureOverrides,
   ageAnchorOf,
   makeAdopter,
   makeAnimal,
   makeCity,
+  makeDraftAnimal,
   makeReveal,
   makeShelter,
   makeSwipe,

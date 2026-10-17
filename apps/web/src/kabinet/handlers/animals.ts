@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import type {
+  AgeEstimateInput,
   AnimalPatchSchema,
   apiErrors,
   KabinetAnimalRowView,
@@ -11,6 +12,7 @@ import {
   type ConditionalWrite,
   kabinetAnimalRepo,
   type ListingMoveHistory,
+  type ListingWriteGuard,
   shelterRepo,
 } from "@opika/db/repos";
 import {
@@ -19,15 +21,24 @@ import {
   type Animal,
   type AnimalEditedField,
   type AnimalId,
-  ageBucketOf,
+  type AnimalListingState,
+  ageDateProblem,
   type CityId,
   DEFAULT_FRESHNESS_POLICY,
+  type DraftAnimal,
   freshnessOf,
+  instantOfCalendarDate,
+  isDraftAnimal,
+  isListedAnimal,
+  kyivCalendarDateOf,
   type ListingEvent,
   type ListingKind,
+  type LocalizedText,
   listingHistoryEventOf,
   type MedicalDeclarationInput,
+  type PublishGap,
   publishGaps,
+  publishReadinessOf,
   type ShelterActor,
   type ShelterId,
   type SpayNeuterStatus,
@@ -56,44 +67,62 @@ const visibleConfirmation = (animal: Animal): Date | null =>
     ? animal.listing.confirmedAt
     : null;
 
-/** K3: every field the edit form shows, listed explicitly (the view is `pick`ed the same way). */
+/**
+ * K3: every field the edit form shows, listed explicitly (the view is
+ * `pick`ed the same way). The two branches read alike on purpose: the facts
+ * and the listing have to be taken from a narrowed half of the union for the
+ * result to type-check as that half's view (F-B1), so a draft's nulls can
+ * only ever reach the draft view.
+ */
 export function kabinetAnimalViewOf(animal: Animal): KabinetAnimalView {
-  return {
+  const core = {
     id: animal.id,
     name: animal.name,
     species: animal.species,
     sex: animal.sex,
-    size: animal.size,
-    age: animal.age,
-    description: animal.description,
     photos: animal.photos,
     vaccination: animal.vaccination,
     spayNeuter: animal.spayNeuter,
     documentReadiness: animal.documentReadiness,
-    listing: animal.listing,
     publicLocation: animal.publicLocation,
     createdAt: animal.createdAt,
     lastUpdatedAt: animal.lastUpdatedAt,
     version: animal.version,
   };
+  return isDraftAnimal(animal)
+    ? {
+        ...core,
+        size: animal.size,
+        age: animal.age,
+        description: animal.description,
+        listing: animal.listing,
+      }
+    : {
+        ...core,
+        size: animal.size,
+        age: animal.age,
+        description: animal.description,
+        listing: animal.listing,
+      };
 }
 
 /** K2 row: inventory only, never engagement (commitment #2). */
 export function kabinetAnimalRowOf(animal: Animal, now: Date): KabinetAnimalRowView {
   const confirmedAt = visibleConfirmation(animal);
-  return {
+  const core = {
     id: animal.id,
     name: animal.name,
     species: animal.species,
     sex: animal.sex,
-    size: animal.size,
-    listing: animal.listing,
     lastUpdatedAt: animal.lastUpdatedAt,
     coverPhoto: animal.photos[0] ?? null,
     freshness:
       confirmedAt === null ? null : freshnessOf(confirmedAt, now, DEFAULT_FRESHNESS_POLICY),
     publishGaps: publishGaps(animal),
   };
+  return isDraftAnimal(animal)
+    ? { ...core, size: animal.size, listing: animal.listing }
+    : { ...core, size: animal.size, listing: animal.listing };
 }
 
 /**
@@ -133,34 +162,75 @@ function declared<T extends VaccinationStatus | SpayNeuterStatus>(
 }
 
 /**
- * A declared age bucket is anchored to when it was declared, and the server
- * is the one who knows when that is: a client clock could otherwise backdate
- * the anchor and make a young animal read older (or the reverse).
+ * The age a form input stands for (D3, Oleksii, verbatim: "keep the chosen
+ * «Станом на» date"): a birth date at day precision, or a bucket declared as
+ * of the date the shelter chose, which `ageAnchorOf` then carries forward.
+ * The date is the shelter's knowledge, not the save time: «Коли ви це
+ * оцінили. Зазвичай — день, коли тварина потрапила до притулку.»
  */
-const stampedAge = (age: AgeEstimate, now: Date): AgeEstimate =>
-  age.kind === "declared_bucket" ? { ...age, declaredAt: now } : age;
+const ageOfInput = (input: AgeEstimateInput): AgeEstimate =>
+  input.kind === "birth_date"
+    ? { kind: "birth_date", date: instantOfCalendarDate(input.date), precision: "day" }
+    : {
+        kind: "declared_bucket",
+        bucket: input.bucket,
+        declaredAt: instantOfCalendarDate(input.asOf),
+      };
 
 /**
- * An edit's age. Re-sending the bucket the card shows today keeps its original
- * anchor, the way `declared` keeps a medical fact's `declaredAt`: otherwise
- * every save of a form that sends the age would restart the clock (a «young»
- * declared two years ago would stay young) and record an age change nobody
- * made.
+ * Whether the input names exactly the stored age, compared as the form shows
+ * it: the same kind, the same bucket and the same calendar date (Kyiv), the
+ * way `declared` keeps a medical fact's `declaredAt`. A form that re-sends an
+ * unchanged age must not restamp it: a legacy bucket stamped at save time, or
+ * a birth date stored at month precision, would otherwise be rewritten by a
+ * save that changed nothing, and record an age change nobody made.
  */
-function editedAge(current: AgeEstimate, input: AgeEstimate | undefined, now: Date): AgeEstimate {
-  if (input === undefined) return current;
-  // Compared with the bucket the card shows today, not the one stored: a
-  // declared bucket rolls forward with time, so a shelter re-entering «young»
-  // for an animal now shown as adult is a correction, and must restamp (review
-  // of the part 2 fixes, finding 1; the note above `isAgeEstimateUncertain`).
-  if (
-    input.kind === "declared_bucket" &&
-    current.kind === "declared_bucket" &&
-    input.bucket === ageBucketOf(current, now)
-  ) {
-    return current;
+const sameAge = (current: AgeEstimate, input: AgeEstimateInput): boolean => {
+  if (current.kind === "birth_date" && input.kind === "birth_date") {
+    return kyivCalendarDateOf(current.date) === input.date;
   }
-  return stampedAge(input, now);
+  if (current.kind === "declared_bucket" && input.kind === "declared_bucket") {
+    return current.bucket === input.bucket && kyivCalendarDateOf(current.declaredAt) === input.asOf;
+  }
+  return false;
+};
+
+type AgeDateErrors = ORPCErrorConstructorMap<{
+  AGE_DATE_OUT_OF_RANGE: typeof apiErrors.AGE_DATE_OUT_OF_RANGE;
+}>;
+
+/**
+ * An edit's age: unchanged when the input is absent or names the stored age,
+ * otherwise the input's age, refused when its date is after today in Kyiv or
+ * more than thirty years back (D3). The check runs on the server's clock,
+ * the one that decides; the form runs the same rule first.
+ */
+function editedAge(
+  current: AgeEstimate | null,
+  input: AgeEstimateInput | undefined,
+  now: Date,
+  errors: AgeDateErrors,
+): AgeEstimate | null {
+  if (input === undefined) return current;
+  if (current !== null && sameAge(current, input)) return current;
+  const problem = ageDateProblem(input.kind === "birth_date" ? input.date : input.asOf, now);
+  if (problem !== null) throw errors.AGE_DATE_OUT_OF_RANGE({ data: { problem: problem.kind } });
+  return ageOfInput(input);
+}
+
+/**
+ * The description an edit stores (decision taken T5, by analogy with
+ * Oleksii's K4-B1 answer 13 for the shelter's sentence, verbatim: "Clear
+ * `en` when `uk` changes; a stale translation would be a false claim."). A
+ * changed Ukrainian text stores no English, whatever the request carried; an
+ * unchanged one keeps the English sent with it.
+ */
+export function descriptionAfterEdit(
+  stored: LocalizedText | null,
+  edited: LocalizedText,
+): LocalizedText {
+  if (stored !== null && stored.uk === edited.uk) return edited;
+  return { uk: edited.uk, en: null };
 }
 
 const MAX_ATTEMPTS = 3;
@@ -206,11 +276,20 @@ async function tap(
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const { animal } = await owned(deps, scope, animalId, errors);
     const next = plan(animal);
+    // A publish was planned on this read's facts and photos (K3-T7): it
+    // writes only if neither changed since, so a lost race re-plans here and
+    // answers PUBLISH_REQUIREMENTS_UNMET rather than publishing a card that
+    // fails the check just made.
+    const guard: ListingWriteGuard =
+      isDraftAnimal(animal) && isListedAnimal(next)
+        ? { kind: "publish", expectedVersion: animal.version }
+        : { kind: "listing_only" };
     const result: ConditionalWrite = await kabinetAnimalRepo(deps.db).writeListingIf(
       animal.id,
       next.listing,
       animal.listing,
       typeof history === "function" ? history(animal, next) : history,
+      guard,
     );
     if (result.kind === "ok") return next;
   }
@@ -218,21 +297,48 @@ async function tap(
 }
 
 /**
+ * The animal with a new listing. Leaving a draft goes through
+ * `publishReadinessOf` (F-B1): the facts it returns are what make the result
+ * a `ListedAnimal`, so no publish can skip a field, and a draft that isn't
+ * ready answers `unready` with every gap. Restoring to a draft keeps every
+ * fact (a set value is a valid value of a nullable field).
+ */
+function withListing(
+  animal: Animal,
+  listing: AnimalListingState,
+  unready: (gaps: readonly [PublishGap, ...PublishGap[]]) => Error,
+): Animal {
+  if (listing.kind === "draft") return { ...animal, listing };
+  if (isDraftAnimal(animal)) {
+    const readiness = publishReadinessOf(animal);
+    if (readiness.kind === "gaps") throw unready(readiness.gaps);
+    return { ...animal, ...readiness.facts, listing };
+  }
+  return { ...animal, listing };
+}
+
+/** Only a publish leaves a draft, and only `animalsTransition` publishes. */
+const unreachableUnready = () => new Error("Only a publish leaves a draft");
+
+/**
  * Applies a listing event, stamped now. It changes the listing only: never
  * `lastUpdatedAt`, which is edit time (HS-T8, Oleksii: "«Ще шукає» must NOT
- * touch last_updated_at"), and only publish and confirm move `confirmedAt`
- * (commitment #7). The write's compare-and-set token is the listing as read.
+ * touch last_updated_at"), and of the listing events only publish and
+ * confirm move `confirmedAt` (commitment #7; a photo change on a visible card
+ * does too, RH-B7, but that is `photos.ts`). The write's compare-and-set
+ * token is the listing as read, plus the version and photos for a publish.
  */
 function moved(
   animal: Animal,
   event: ListingEvent,
   errors: MoveErrors,
   onUndoExpired: () => Error = () => new Error("undo_expired outside undoConfirm"),
+  unready: (gaps: readonly [PublishGap, ...PublishGap[]]) => Error = unreachableUnready,
 ): Animal {
   const result = transitionListing(animal.listing, event);
   switch (result.kind) {
     case "ok":
-      return { ...animal, listing: result.next };
+      return withListing(animal, result.next, unready);
     case "illegal":
       throw errors.ILLEGAL_TRANSITION({
         data: { machine: "listing", from: result.from, event: result.event },
@@ -299,22 +405,28 @@ export async function animalsById(
   return kabinetAnimalViewOf((await owned(deps, scope, input.animalId, errors)).animal);
 }
 
+/**
+ * A new draft from a name and a species (K-Q5, Oleksii: "name + species to
+ * create"). Sex starts «Не записано» (D2, verbatim: "sex defaults to
+ * "unknown""), the medical facts unknown, no size, age, description or
+ * photo: what the shelter hasn't told yet stays unanswered, never invented.
+ */
 export async function animalsCreateDraft(
   deps: AnimalDeps,
   scope: ShelterWriteScope,
-  input: Pick<Animal, "name" | "species" | "sex" | "size" | "age" | "description">,
+  input: Pick<DraftAnimal, "name" | "species">,
 ): Promise<KabinetAnimalView> {
   const shelter = await shelterRepo(deps.db).findById(scope.shelterId as ShelterId);
   if (shelter === null) throw new Error(`Scope names missing shelter ${scope.shelterId}`);
-  const animal: Animal = {
+  const animal: DraftAnimal = {
     id: deps.newId() as AnimalId,
     shelterId: scope.shelterId,
     name: input.name,
     species: input.species,
-    sex: input.sex,
-    size: input.size,
-    age: stampedAge(input.age, deps.now),
-    description: input.description,
+    sex: "unknown",
+    size: null,
+    age: null,
+    description: null,
     photos: [],
     vaccination: UNKNOWN_ATTESTATION(deps.now),
     spayNeuter: UNKNOWN_ATTESTATION(deps.now),
@@ -342,9 +454,14 @@ export async function animalsCreateDraft(
 /**
  * A K3 form save. Compare-and-set on the `version` the form read (S3-T6), so a
  * save never silently overwrites a newer edit. It writes the edited fields
- * only, never the listing, so a «Ще шукає» made while the form was open
- * neither conflicts nor gets undone. Moves `lastUpdatedAt`, never
- * `confirmedAt` (commitment #7).
+ * only, never the listing or the photos, so a «Ще шукає» or a photo change
+ * made while the form was open neither conflicts nor gets undone (HS-T8,
+ * RH-B3). Moves `lastUpdatedAt`, never `confirmedAt` (commitment #7).
+ *
+ * Clearing the description (null) is for a draft only (F-B1): a listed
+ * animal answers `LISTING_FACT_REQUIRED`, and a draft published between the
+ * read and the write makes the write a conflict (the repository's draft-only
+ * condition), never an incomplete public card.
  *
  * A save that changes nothing writes nothing: no version bump, no
  * `lastUpdatedAt`, no history line. It answers with the animal as stored.
@@ -358,9 +475,11 @@ export async function animalsUpdate(
     patch: z.infer<typeof AnimalPatchSchema>;
   },
   errors: OwnErrors &
+    AgeDateErrors &
     ORPCErrorConstructorMap<{
       CONFLICT: typeof apiErrors.CONFLICT;
       REGISTRY_CONFIRMED: typeof apiErrors.REGISTRY_CONFIRMED;
+      LISTING_FACT_REQUIRED: typeof apiErrors.LISTING_FACT_REQUIRED;
     }>,
 ): Promise<KabinetAnimalView> {
   const { animal, cityId } = await owned(deps, scope, input.animalId, errors);
@@ -369,20 +488,41 @@ export async function animalsUpdate(
   const vaccination = declared(animal.vaccination, patch.vaccination, deps.now);
   const spayNeuter = declared(animal.spayNeuter, patch.spayNeuter, deps.now);
   if (vaccination === "refused" || spayNeuter === "refused") throw errors.REGISTRY_CONFIRMED();
-  const edited: Animal = {
-    ...animal,
+  const common = {
     name: patch.name ?? animal.name,
     species: patch.species ?? animal.species,
     sex: patch.sex ?? animal.sex,
-    size: patch.size ?? animal.size,
-    age: editedAge(animal.age, patch.age, deps.now),
-    description: patch.description ?? animal.description,
     vaccination,
     spayNeuter,
   };
+  const description = (stored: LocalizedText | null): LocalizedText | null =>
+    patch.description === undefined
+      ? stored
+      : patch.description === null
+        ? null
+        : descriptionAfterEdit(stored, patch.description);
+  let edited: Animal;
+  if (isDraftAnimal(animal)) {
+    edited = {
+      ...animal,
+      ...common,
+      size: patch.size ?? animal.size,
+      age: editedAge(animal.age, patch.age, deps.now, errors),
+      description: description(animal.description),
+    };
+  } else {
+    // Spreading a null onto a listed animal doesn't type-check, which is what
+    // forces this refusal (shapes doc §5.2).
+    const kept = description(animal.description);
+    if (kept === null) throw errors.LISTING_FACT_REQUIRED({ data: { field: "description" } });
+    const age = editedAge(animal.age, patch.age, deps.now, errors);
+    /* v8 ignore next -- the patch can't clear an age (`age: null` is BAD_REQUEST) */
+    if (age === null) throw errors.LISTING_FACT_REQUIRED({ data: { field: "age" } });
+    edited = { ...animal, ...common, size: patch.size ?? animal.size, age, description: kept };
+  }
   const [first, ...rest] = changedFields(animal, edited);
   if (first === undefined) return kabinetAnimalViewOf(animal);
-  const next: Animal = { ...edited, lastUpdatedAt: deps.now, version: animal.version + 1 };
+  const next = { ...edited, lastUpdatedAt: deps.now, version: animal.version + 1 };
   const result = await kabinetAnimalRepo(deps.db).writeEditIf(next, cityId, animal.version, {
     id: deps.newId(),
     entry: {
@@ -414,17 +554,13 @@ export async function animalsTransition(
     scope,
     input.animalId,
     errors,
-    (animal) => {
-      if (event.type === "publish") {
-        const gaps = publishGaps(animal);
-        if (gaps.length > 0 && animal.listing.kind === "draft") {
-          throw errors.PUBLISH_REQUIREMENTS_UNMET({
-            data: { gaps: [...gaps] as [never, ...never[]] },
-          });
-        }
-      }
-      return moved(animal, event, errors);
-    },
+    // A publish from a draft goes through readiness (`withListing`): every
+    // gap at once, in form order (K-Q5). On anything but a draft, publish is
+    // ILLEGAL_TRANSITION, decided by the table before readiness is asked.
+    (animal) =>
+      moved(animal, event, errors, undefined, (gaps) =>
+        errors.PUBLISH_REQUIREMENTS_UNMET({ data: { gaps } }),
+      ),
     // Every one of these moves is recorded (K-Q7), a withdrawal with its
     // reason code and never its note (K-Q18).
     (animal, after) => ({

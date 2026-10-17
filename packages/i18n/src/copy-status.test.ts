@@ -153,9 +153,22 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     expect(pendingCopyPaths(uk.kabinet.inviteLanding, "kabinet.inviteLanding")).toEqual([]);
   });
 
-  it("the testShelterOnly namespace exists, as an object (empty in PR 2)", () => {
+  /**
+   * Empty in PR 2. Since K3 (PR 4) it holds the animal form's two lines his
+   * test shelter alone sees: `dateUnchanged` (his final text, parked until
+   * K2 ships the confirmation it names) and one `[COPY PENDING]` stand-in
+   * (`lastPhotoKeptNotShown`). Pinned exactly, so nothing else drifts in.
+   */
+  it("the testShelterOnly namespace holds exactly K3's two lines, one of them pending", () => {
     expect(typeof uk.kabinet.testShelterOnly).toBe("object");
-    expect(Object.keys(uk.kabinet.testShelterOnly)).toEqual([]);
+    expect(Object.keys(uk.kabinet.testShelterOnly)).toEqual(["animalForm"]);
+    expect(Object.keys(uk.kabinet.testShelterOnly.animalForm).sort()).toEqual([
+      "dateUnchanged",
+      "lastPhotoKeptNotShown",
+    ]);
+    expect(pendingCopyPaths(uk.kabinet.testShelterOnly, "kabinet.testShelterOnly")).toEqual([
+      "kabinet.testShelterOnly.animalForm.lastPhotoKeptNotShown",
+    ]);
   });
 
   it("the filter exempts that namespace only, not a sibling sharing its letters", () => {
@@ -702,5 +715,238 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
   it("sanity: the walk reaches his strings, and the letter-apostrophe is in them", () => {
     expect(k4.length).toBe(75);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
+  });
+});
+
+/**
+ * K3 (PR 4): Oleksii's final Ukrainian for the animal form, transcribed
+ * literally from his answer file (`k3-copy-uk.md`, 2026-10-17) by script,
+ * never retyped, and compared with the catalogue key by key. His note
+ * there, verbatim: "Final unless marked. Apostrophe ʼ (U+02BC). Top-level
+ * quotes «…», nested „…“." `listed.dateUnchanged` lives under
+ * `testShelterOnly` by his own note until K2 (PR 5); `dismissFailedName` is
+ * the accessible name his `dismissFailed` answer gives in brackets.
+ */
+describe("kabinet K3 copy (final, 2026-10-17)", () => {
+  const K3_FINAL: Record<string, string> = {
+    "kabinet.animalForm.pageTitleNew": "Нова тварина",
+    "kabinet.animalForm.pageTitleEdit": "{name}",
+    "kabinet.animalForm.titleNew": "Нова тварина",
+    "kabinet.animalForm.backToList": "← Тварини",
+    "kabinet.animalForm.header.createdNotPublished": "Створено {when} · ще не в галереї",
+    "kabinet.listingStatus.draft": "Чернетка",
+    "kabinet.listingStatus.published": "Опубліковано",
+    "kabinet.listingStatus.reserved": "Домовляються",
+    "kabinet.listingStatus.adopted": "Удома",
+    "kabinet.listingStatus.withdrawn": "Знято з показу",
+    "kabinet.animalForm.who.title": "Хто це",
+    "kabinet.animalForm.who.nameLabel": "Імʼя",
+    "kabinet.animalForm.who.nameHint":
+      "Як тварину кличуть у притулку. Лише імʼя — пояснення краще написати в описі.",
+    "kabinet.animalForm.who.namePlaceholder": "Наприклад, Ластівка",
+    "kabinet.animalForm.who.speciesLabel": "Вид",
+    "kabinet.animalForm.who.sexLabel": "Стать",
+    "kabinet.animalForm.who.sexMale": "Хлопчик",
+    "kabinet.animalForm.who.sexFemale": "Дівчинка",
+    "kabinet.animalForm.who.sizeLabel": "Розмір",
+    "kabinet.animalForm.who.sizeNote":
+      "Ваги немає навмисно: розмір на око точніший, ніж торішня цифра.",
+    "kabinet.animalForm.who.sizeHintUpTo": "до {max} кг",
+    "kabinet.animalForm.who.sizeHintRange": "{min}–{max} кг",
+    "kabinet.animalForm.who.sizeHintFrom": "від {min} кг",
+    "kabinet.animalForm.age.title": "Вік",
+    "kabinet.animalForm.age.modeLabel": "Що відомо про вік",
+    "kabinet.animalForm.age.modeBirthDate": "Відома дата народження",
+    "kabinet.animalForm.age.modeBucket": "Відомий вік на певну дату",
+    "kabinet.animalForm.age.modeBirthDateShort": "Дата народження",
+    "kabinet.animalForm.age.modeBucketShort": "Вік на дату",
+    "kabinet.animalForm.age.modeNote":
+      "Обидва способи рівноцінні. Сайт зберігає саме те, що ви вказали, і далі рахує вік сам.",
+    "kabinet.animalForm.age.birthDateLabel": "Дата народження",
+    "kabinet.animalForm.age.bucketLabel": "Вік на ту дату",
+    "kabinet.animalForm.age.bucketRangeUnder": "до {max}",
+    "kabinet.animalForm.age.bucketRange": "{min}–{max}",
+    "kabinet.animalForm.age.bucketRangeFrom": "{min}+",
+    "kabinet.animalForm.age.asOfLabel": "Станом на",
+    "kabinet.animalForm.age.asOfHint":
+      "Коли ви це оцінили. Зазвичай — день, коли тварина потрапила до притулку.",
+    "kabinet.animalForm.age.adopterSees": "Ті, хто шукає тварину, побачать: «{label}».",
+    "kabinet.animalForm.age.uncertain":
+      "Вік указано станом на {when}. Тепер на картці — «{label}». Якщо тварина вже старша, оновіть вік.",
+    "kabinet.animalForm.description.title": "Опис",
+    "kabinet.animalForm.description.prompt": "Що б ви сказали людині біля вольєра.",
+    "kabinet.animalForm.description.label": "Про тварину",
+    "kabinet.animalForm.description.hint": "Простий текст, без форматування.",
+    "kabinet.animalForm.description.counter": "{count} з {max} символів",
+    "kabinet.animalForm.description.counterOver": "Зайвих символів: {over}",
+    "kabinet.animalForm.health.title": "Медичний стан",
+    "kabinet.animalForm.health.confirm": "Зроблено",
+    "kabinet.animalForm.health.unknownNote":
+      "«Не записано» — чесна відповідь. Ті, хто шукає тварину, так і побачать «Не записано», а не «ні».",
+    "kabinet.animalForm.health.registryReadOnly":
+      "Підтверджено державним реєстром тварин. Тут цей рядок змінити не можна.",
+    "kabinet.animalForm.photos.title": "Фото",
+    "kabinet.animalForm.photos.ratioNote": "Формат 4:5, перше фото — обкладинка.",
+    "kabinet.animalForm.photos.add": "+ Фото",
+    "kabinet.animalForm.photos.addHint": "Будь-яке фото, яке відкриває цей телефон чи браузер.",
+    "kabinet.animalForm.photos.howItWorks":
+      "Перше фото — обкладинка; щоб змінити порядок, перетягніть фото. Для публікації потрібне хоча б одне. Великі фото зменшуються на пристрої до {px} пікселів перед відправкою — так менше мобільного трафіку.",
+    "kabinet.animalForm.photos.privacyNote":
+      "З фото прибираються дані про місце зйомки та інші приховані дані.",
+    "kabinet.animalForm.photos.preparing": "Фото готується…",
+    "kabinet.animalForm.photos.uploading": "Фото завантажується…",
+    "kabinet.animalForm.photos.uploadingProgress": "Завантаження · {percent} · {sent} з {total} МБ",
+    "kabinet.animalForm.photos.done": "Готово",
+    "kabinet.animalForm.photos.cover": "Обкладинка",
+    "kabinet.animalForm.photos.failed": "Не завантажилось",
+    "kabinet.animalForm.photos.dismissFailed": "Прибрати",
+    "kabinet.animalForm.photos.tileLabel": "Фото {n} з {total}",
+    "kabinet.animalForm.photos.makeCover": "Зробити обкладинкою",
+    "kabinet.animalForm.photos.moveEarlier": "Перемістити вперед",
+    "kabinet.animalForm.photos.moveLater": "Перемістити назад",
+    "kabinet.animalForm.photos.remove": "Прибрати фото {n}",
+    "kabinet.animalForm.photos.capReached": "Це максимум — {max} фото.",
+    "kabinet.animalForm.photos.lastPhotoKept": "Цю картку бачать люди, тож одне фото має лишитися.",
+    "kabinet.animalForm.photos.added": "Фото додано.",
+    "kabinet.animalForm.photos.removed": "Фото прибрано.",
+    "kabinet.animalForm.photos.reordered": "Порядок змінено.",
+    "kabinet.animalForm.photos.conflict":
+      "Фото змінилися в іншому вікні. Тут — поточний набір, спробуйте ще раз.",
+    "kabinet.animalForm.photos.removedStillReachable":
+      "Фото зникло з картки. Сам файл не видаляється одразу — якщо його треба прибрати зовсім, напишіть мені.",
+    "kabinet.animalForm.photos.dateMoves":
+      "На картці, яку бачать люди, будь-яка зміна фото оновлює дату «Оновлено».",
+    "kabinet.animalForm.photoErrors.heicUnsupported":
+      "Цей телефон чи браузер не відкриває фото у форматі HEIC. Виберіть, будь ласка, JPG або PNG.",
+    "kabinet.animalForm.photoErrors.unreadable": "Цей файл не вдалося відкрити як фото.",
+    "kabinet.animalForm.photoErrors.tooLarge":
+      "Навіть після зменшення це фото завелике. Спробуйте інше.",
+    "kabinet.animalForm.photoErrors.rejected": "Сайт не може використати цей файл як фото.",
+    "kabinet.animalForm.photoErrors.limitReached": "У цієї тварини вже {max} фото.",
+    "kabinet.animalForm.photoErrors.rateLimited":
+      "Забагато фото за короткий час. Спробуйте трохи пізніше.",
+    "kabinet.animalForm.photoErrors.uploadsUnavailable":
+      "На цій версії сайту фото завантажити не можна.",
+    "kabinet.animalForm.draft.savedAt": "Чернетку збережено о {time}",
+    "kabinet.animalForm.draft.notVisible": "Ті, хто шукає тварину, цю чернетку не бачать.",
+    "kabinet.animalForm.draft.notSavedYet": "Щоб зберегти чернетку, потрібні імʼя та вид.",
+    "kabinet.animalForm.draft.saveFailed":
+      "Чернетку не збережено. Перевірте зʼєднання — усе, що ви ввели, лишається тут.",
+    "kabinet.animalForm.draft.save": "Зберегти чернетку",
+    "kabinet.animalForm.draft.saveShort": "Зберегти",
+    "kabinet.animalForm.listed.liveOnSave": "Зміни зʼявляться на картці одразу після збереження.",
+    "kabinet.animalForm.listed.notShownNow": "Цю картку зараз ніхто не бачить.",
+    "kabinet.testShelterOnly.animalForm.dateUnchanged":
+      "Правки тексту не змінюють дату «Оновлено». Її змінює ваше підтвердження в списку тварин і будь-яка зміна фото.",
+    "kabinet.animalForm.publish.button": "Опублікувати",
+    "kabinet.animalForm.publish.missing": "Щоб опублікувати, ще потрібно: {list}.",
+    "kabinet.animalForm.publish.gap.size": "розмір",
+    "kabinet.animalForm.publish.gap.age": "вік",
+    "kabinet.animalForm.publish.gap.description": "опис",
+    "kabinet.animalForm.publish.gap.photo": "фото",
+    "kabinet.animalForm.publish.done": "Опубліковано. Тепер картку бачать ті, хто шукає тварину.",
+    "kabinet.animalForm.publish.viewPublic": "Відкрити сторінку тварини",
+    "kabinet.animalForm.publish.stateChanged":
+      "Картка змінилася в іншому вікні. Оновіть сторінку, щоб побачити поточну версію.",
+    "kabinet.animalForm.errors.conflict":
+      "Хтось змінив цю картку після того, як ви її відкрили. Ваші останні зміни не збережено. Ось поточна версія — внесіть їх ще раз.",
+    "kabinet.animalForm.errors.registryConfirmed":
+      "Це підтверджено державним реєстром тварин, тут змінити не можна.",
+    "kabinet.animalForm.errors.requiredOnceListed":
+      "Картку вже публікували, тож опис не може бути порожнім.",
+    "kabinet.animalForm.errors.notFound":
+      "Цієї тварини немає у вашому списку: картку видалено або посилання неправильне.",
+    "kabinet.animalForm.errors.loadFailed":
+      "Картка не завантажилась. Перевірте зʼєднання і спробуйте ще раз.",
+    "kabinet.animalForm.validation.nameRequired": "Щоб зберегти чернетку, потрібне імʼя.",
+    "kabinet.animalForm.validation.speciesRequired":
+      "Виберіть, собака це чи кіт, щоб зберегти чернетку.",
+    "kabinet.animalForm.validation.nameBrace": "В імені не може бути фігурних дужок.",
+    "kabinet.animalForm.validation.nameTooLong": "Імʼя довше за {max} символів.",
+    "kabinet.animalForm.validation.descriptionTooLong": "Опис довший за {max} символів.",
+    "kabinet.animalForm.validation.birthDateFuture": "Дата народження не може бути в майбутньому.",
+    "kabinet.animalForm.validation.asOfFuture": "Дата «Станом на» не може бути в майбутньому.",
+    "kabinet.animalForm.validation.dateTooOld": "Ця дата надто давня — понад {years} років тому.",
+    "kabinet.animalForm.photos.dismissFailedName": "Прибрати фото, яке не завантажилось",
+  };
+
+  const at = (path: string): unknown =>
+    path
+      .split(".")
+      .slice(1)
+      .reduce<unknown>(
+        (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+        uk.kabinet,
+      );
+
+  it.each(Object.entries(K3_FINAL))("%s is his text, exactly", (path, text) => {
+    expect(at(path)).toBe(text);
+  });
+
+  it("every K3 key the form reads is one of his (no string of ours under animalForm)", () => {
+    const leaves = (node: unknown, path: string): string[] =>
+      typeof node === "string"
+        ? [path]
+        : Object.entries(node as Record<string, unknown>).flatMap(([key, child]) =>
+            leaves(child, `${path}.${key}`),
+          );
+    expect(leaves(uk.kabinet.animalForm, "kabinet.animalForm").sort()).toEqual(
+      Object.keys(K3_FINAL)
+        .filter((path) => path.startsWith("kabinet.animalForm."))
+        .sort(),
+    );
+    expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
+      "adopted",
+      "draft",
+      "published",
+      "reserved",
+      "withdrawn",
+    ]);
+  });
+
+  it("nothing under animalForm or listingStatus is pending", () => {
+    expect(pendingCopyPaths(uk.kabinet.animalForm, "kabinet.animalForm")).toEqual([]);
+    expect(pendingCopyPaths(uk.kabinet.listingStatus, "kabinet.listingStatus")).toEqual([]);
+  });
+
+  /**
+   * His Q5 answer, verbatim: "«реєстр» is allowed ONLY as the explicit name
+   * of the state register: «державний реєстр тварин». Update the public keys
+   * too: `medical.registry` → «Державний реєстр тварин»,
+   * `medical.registryConfirmed` → «Підтверджено державним реєстром тварин».
+   * Never «реєстр» alone."
+   */
+  it("the public registry keys name the state register (Q5)", () => {
+    expect(uk.medical.registry).toBe("Державний реєстр тварин");
+    expect(uk.medical.registryConfirmed).toBe("Підтверджено державним реєстром тварин");
+  });
+
+  it("«реєстр» appears in K3's strings only inside «державн… реєстр… тварин» (Q5)", () => {
+    const k3 = Object.values(K3_FINAL).join("\n");
+    const bare = k3.replace(/державн\S* реєстр\S* тварин/giu, "");
+    expect(/реєстр/iu.test(bare)).toBe(false);
+    // The walk sees the strings that do name it.
+    expect(k3).toContain("державним реєстром тварин");
+  });
+
+  it("no U+0027 or U+2019 apostrophe in any K3 string (his U+02BC only)", () => {
+    const offenders = Object.entries(K3_FINAL)
+      .filter(
+        ([, text]) =>
+          text.includes(String.fromCodePoint(0x27)) || text.includes(String.fromCodePoint(0x2019)),
+      )
+      .map(([path]) => path);
+    expect(offenders).toEqual([]);
+    expect(uk.kabinet.animalForm.who.nameLabel).toContain(String.fromCodePoint(0x2bc));
+  });
+
+  /**
+   * His answers 3 and 4: never «адоптери», no «ми» voice. (Answer 2, no
+   * pronoun for the animal, isn't checkable by a word list: «її» and «його»
+   * do occur, for the card, the date and the file.)
+   */
+  it("no «ми» voice and no «адоптер» (his answers 3 and 4)", () => {
+    const k3 = Object.values(K3_FINAL).join(" ");
+    expect(/(^|[^\p{L}])(ми|адоптер\p{L}*)([^\p{L}]|$)/iu.test(k3)).toBe(false);
   });
 });

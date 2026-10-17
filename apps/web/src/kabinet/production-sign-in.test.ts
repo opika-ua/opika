@@ -9,6 +9,7 @@ import { kabinetAuthAvailability } from "./auth-route";
 import {
   kabinetPendingCopy,
   signInBlockingCopy,
+  TEST_SHELTER_ONLY_PREFIX,
   productionSignInOf as withLiveCopy,
 } from "./production-sign-in";
 
@@ -211,8 +212,16 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
    * (WI-B1: the apex origin with no trailing slash, From on `mail.`, Reply-To
    * on the apex, From name as given; example key and secret, never real ones)
    * production sign-in is on. This is what merging the wiring PR turns on.
+   *
+   * Since K3 (PR 4) the catalogue holds one pending string, inside
+   * `kabinet.testShelterOnly` (CG-Q1, Oleksii, verbatim: "Pending strings
+   * only under uk.kabinet.testShelterOnly.*" and "At runtime, sign-in ignores
+   * those strings only while the write policy is allowlist or refused. Under
+   * the open policy, any pending string turns sign-in off."). So the same
+   * configuration is on under the refusal and the allowlist, and off under an
+   * open policy, which is how PR 6 can't ship with it left.
    */
-  it("against the live catalogue, nothing is pending and the reported Production configuration is on", () => {
+  it("against the live catalogue, nothing outside testShelterOnly is pending and the reported Production configuration is on", () => {
     const reported = {
       VERCEL_ENV: "production",
       EMAIL_PROVIDER: "resend",
@@ -225,10 +234,22 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
       BETTER_AUTH_URL: "https://opika.org.ua",
       KABINET_OPERATOR_DISPLAY_NAME: "Оператор",
     };
-    expect(kabinetPendingCopy()).toEqual([]);
-    const live = withLiveCopy(reported);
-    expect(live.kind).toBe("on");
-    // The gate still reads the catalogue: one pending path turns the same configuration off.
+    const pendingNow = kabinetPendingCopy();
+    expect(pendingNow.filter((path) => !path.startsWith(TEST_SHELTER_ONLY_PREFIX))).toEqual([]);
+    expect(pendingNow).toEqual(["kabinet.testShelterOnly.animalForm.lastPhotoKeptNotShown"]);
+    // The served policy (allowlist unset: the refusal), then the K-Q17 allowlist.
+    expect(withLiveCopy(reported).kind).toBe("on");
+    expect(
+      withLiveCopy({ ...reported, KABINET_WRITE_ALLOWLIST: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" })
+        .kind,
+    ).toBe("on");
+    // An open policy (PR 6's shape): the live catalogue's one pending string turns it off.
+    expect(withLiveCopy(reported, pendingNow, { kind: "open_for_tests_only" })).toEqual({
+      kind: "off",
+      reason: "copy_pending",
+      pending: pendingNow,
+    });
+    // The gate still reads the catalogue: one pending path outside the namespace turns it off.
     expect(withLiveCopy(reported, ["kabinet.confirm.rateLimited"])).toEqual({
       kind: "off",
       reason: "copy_pending",
@@ -261,9 +282,14 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // the over-limit card's notice (the wiring PR; his text, 2026-10-15).
     // 165 with K4's 74 `profileEdit.*` strings (PR 2 of the K milestone, his
     // text, 2026-10-17; the key set is pinned in copy-status.test.ts).
-    expect(pending.length + written.length).toBe(165);
+    // 280 with K3 (PR 4): 108 `animalForm.*` and 5 `listingStatus.*` strings
+    // (his text, 2026-10-17, pinned in copy-status.test.ts) and the two
+    // `testShelterOnly.animalForm.*` lines, one of them pending (CG-Q1).
+    expect(pending.length + written.length).toBe(280);
     expect(written).toContain("kabinet.profileEdit.state.saved");
-    expect(pending).toEqual([]);
+    expect(written).toContain("kabinet.animalForm.draft.notVisible");
+    expect(pending).toEqual(["kabinet.testShelterOnly.animalForm.lastPhotoKeptNotShown"]);
+    expect(pending.every((path) => path.startsWith(TEST_SHELTER_ONLY_PREFIX))).toBe(true);
     expect(written).toContain("kabinet.confirm.rateLimited");
     expect(kabinetPendingCopy()).toEqual(pending.sort());
     for (const screenless of [
@@ -291,8 +317,17 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     synthetic.history.adminJoined = `${COPY_PENDING} history`;
     synthetic.support.body = "Written.";
     const pending = pendingCopyPaths(synthetic, "kabinet");
-    expect(pending).toEqual(["kabinet.email.invite.notYou", "kabinet.history.adminJoined"]);
-    expect(withLiveCopy(full, pending)).toEqual({ kind: "off", reason: "copy_pending", pending });
+    expect(pending).toEqual([
+      "kabinet.email.invite.notYou",
+      "kabinet.history.adminJoined",
+      "kabinet.testShelterOnly.animalForm.lastPhotoKeptNotShown",
+    ]);
+    // The served policy exempts the namespace (CG-Q1); the other two still turn it off.
+    expect(withLiveCopy(full, pending)).toEqual({
+      kind: "off",
+      reason: "copy_pending",
+      pending: ["kabinet.email.invite.notYou", "kabinet.history.adminJoined"],
+    });
   });
 
   /** The copy gate comes first, whatever the email routes say (EM-B6 changes routing, not the gate). */

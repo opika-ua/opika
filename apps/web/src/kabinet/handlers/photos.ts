@@ -5,6 +5,8 @@ import {
   type AnimalId,
   type AnimalPhoto,
   isDiscoverable,
+  isDraftAnimal,
+  listingAfterPhotoChange,
   MAX_ANIMAL_PHOTOS,
 } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
@@ -46,12 +48,35 @@ const photosLine = (
   },
 });
 
-/** The animal as the photo write left it: photos and edit time, nothing else. */
-const withPhotos = (animal: Animal, photos: readonly AnimalPhoto[], now: Date): Animal => ({
-  ...animal,
-  photos,
-  lastUpdatedAt: now,
-});
+/**
+ * The animal as a photo write leaves it: the photos, the edit time and, on a
+ * published or reserved card, the confirmation date moved to now (RH-B7,
+ * Oleksii: "a photo add, reorder or remove moves «Оновлено»", D4 option (i)).
+ * A draft, adopted or withdrawn card carries no such date and keeps its
+ * listing as it was.
+ */
+const afterPhotoChange = (animal: Animal, photos: readonly AnimalPhoto[], now: Date): Animal => {
+  if (isDraftAnimal(animal)) return { ...animal, photos, lastUpdatedAt: now };
+  const listing = listingAfterPhotoChange(animal.listing, now);
+  /* v8 ignore next -- `listingAfterPhotoChange` never changes the kind */
+  if (listing.kind === "draft") throw new Error("A photo change made a listed animal a draft");
+  return { ...animal, photos, lastUpdatedAt: now, listing };
+};
+
+/**
+ * One compare-and-set photo write: the photo list and the listing as read
+ * are both the token (P-Q3, K3-T7), so a publish, a «Ще шукає» or another
+ * photo change landing in between makes this write nothing, and the caller
+ * re-reads and re-plans. The listing written is `afterPhotoChange`'s.
+ */
+const writePhotos = (deps: PhotoDeps, scope: ShelterWriteScope, read: Animal, next: Animal) =>
+  kabinetAnimalRepo(deps.db).writePhotosIf(
+    read.id,
+    { next: next.photos, expected: read.photos },
+    { next: next.listing, expected: read.listing },
+    deps.now,
+    photosLine(deps, scope, read),
+  );
 
 /**
  * A file stored that no animal points at: logged so it can be found and
@@ -121,15 +146,9 @@ export async function photosAdd(
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       const current = attempt === 1 ? animal : (await owned(deps, scope, animal.id, errors)).animal;
       if (current.photos.length >= MAX_ANIMAL_PHOTOS) throw limitReached();
-      const next = [...current.photos, photo];
-      const result = await kabinetAnimalRepo(deps.db).writePhotosIf(
-        current.id,
-        next,
-        current.photos,
-        deps.now,
-        photosLine(deps, scope, current),
-      );
-      if (result.kind === "ok") return kabinetAnimalViewOf(withPhotos(current, next, deps.now));
+      const next = afterPhotoChange(current, [...current.photos, photo], deps.now);
+      const result = await writePhotos(deps, scope, current, next);
+      if (result.kind === "ok") return kabinetAnimalViewOf(next);
     }
     throw new Error(`Animal ${animal.id}: lost ${MAX_ATTEMPTS} photo races in a row`);
   } catch (error) {
@@ -142,8 +161,11 @@ export async function photosAdd(
  * Reads the animal, checks the screen's photo list is still the stored one
  * (`expectedPhotoKeys`, P-Q3: CONFLICT otherwise, so a reorder or removal
  * planned on an old list never applies to a new one), and writes `plan`'s
- * result compare-and-set. A lost race re-reads, and then answers CONFLICT
- * unless the list somehow came back the same.
+ * result compare-and-set on the photo list and the listing. A lost race
+ * re-reads: a changed photo list answers CONFLICT; a changed listing alone (a
+ * publish, a «Ще шукає») is re-planned on the new listing, so a last-photo
+ * removal planned on a draft that has since been published answers
+ * PHOTOS_REQUIRED_WHILE_VISIBLE instead of emptying a public card (K3-T7).
  */
 async function rewritePhotos(
   deps: PhotoDeps,
@@ -156,18 +178,13 @@ async function rewritePhotos(
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const { animal } = await owned(deps, scope, animalId, errors);
     if (!sameOrder(keysOf(animal.photos), expectedPhotoKeys)) throw errors.CONFLICT();
-    const next = plan(animal);
+    const photos = plan(animal);
     // Nothing changed (a reorder into the same order): nothing written, no
-    // edit time, no history line, the rule a form save follows.
-    if (sameOrder(keysOf(next), keysOf(animal.photos))) return kabinetAnimalViewOf(animal);
-    const result = await kabinetAnimalRepo(deps.db).writePhotosIf(
-      animal.id,
-      next,
-      animal.photos,
-      deps.now,
-      photosLine(deps, scope, animal),
-    );
-    if (result.kind === "ok") return kabinetAnimalViewOf(withPhotos(animal, next, deps.now));
+    // edit time, no date, no history line, the rule a form save follows.
+    if (sameOrder(keysOf(photos), keysOf(animal.photos))) return kabinetAnimalViewOf(animal);
+    const next = afterPhotoChange(animal, photos, deps.now);
+    const result = await writePhotos(deps, scope, animal, next);
+    if (result.kind === "ok") return kabinetAnimalViewOf(next);
   }
   throw new Error(`Animal ${animalId}: lost ${MAX_ATTEMPTS} photo races in a row`);
 }

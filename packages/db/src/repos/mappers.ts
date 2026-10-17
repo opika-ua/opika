@@ -16,6 +16,8 @@ import {
   ageAnchorOf,
   CitySlugSchema,
   confirmationAnchorOf,
+  type DiscoverableAnimal,
+  isDiscoverableAnimal,
   waitAnchorOf,
 } from "@opika/domain";
 import type { adopters } from "../schema/adopters";
@@ -158,8 +160,14 @@ export function rowToShelter(row: ShelterRow): Shelter {
 
 // --- Animal ---
 
+/**
+ * A draft's missing facts become NULL columns (F-B1): a null age gives a null
+ * `age_anchor_at` too, and a null description nulls all three description
+ * columns. The CHECKs in `schema/animals.ts` keep both pairings, and refuse
+ * the nulls on any listing kind but a draft.
+ */
 export function animalToRowWithCity(animal: Animal, cityId: CityId): AnimalInsert {
-  const desc = localizedTextToColumns(animal.description);
+  const desc = animal.description === null ? null : localizedTextToColumns(animal.description);
   return {
     id: animal.id,
     shelterId: animal.shelterId,
@@ -168,10 +176,10 @@ export function animalToRowWithCity(animal: Animal, cityId: CityId): AnimalInser
     sex: animal.sex,
     size: animal.size,
     age: animal.age,
-    ageAnchorAt: ageAnchorOf(animal.age),
-    descriptionUk: desc.uk,
-    descriptionEnText: desc.enText,
-    descriptionEnProvenance: desc.enProvenance,
+    ageAnchorAt: animal.age === null ? null : ageAnchorOf(animal.age),
+    descriptionUk: desc?.uk ?? null,
+    descriptionEnText: desc?.enText ?? null,
+    descriptionEnProvenance: desc?.enProvenance ?? null,
     photos: animal.photos,
     vaccination: animal.vaccination,
     spayNeuter: animal.spayNeuter,
@@ -189,30 +197,63 @@ export function animalToRowWithCity(animal: Animal, cityId: CityId): AnimalInser
   };
 }
 
+/**
+ * The row as the animal union (F-B1). A draft keeps its nulls; any other
+ * listing must carry every listing fact, and a row that doesn't throws rather
+ * than reaching a view typed as complete. `animals_listing_facts_check` makes
+ * that row impossible to write, so the throw is the second line, not the
+ * first.
+ */
 export function rowToAnimal(row: AnimalRow): Animal {
-  return {
+  const core = {
     id: row.id,
     shelterId: row.shelterId,
     name: row.name,
     species: row.species,
     sex: row.sex,
-    size: row.size,
-    age: row.age,
-    description: columnsToLocalizedText(
-      row.descriptionUk,
-      row.descriptionEnText,
-      row.descriptionEnProvenance,
-    ),
     photos: row.photos,
     vaccination: row.vaccination,
     spayNeuter: row.spayNeuter,
     documentReadiness: row.documentReadiness,
-    listing: row.listing,
     publicLocation: row.publicLocation ?? null,
     createdAt: row.createdAt,
     lastUpdatedAt: row.lastUpdatedAt,
     version: row.version,
   };
+  const size = row.size ?? null;
+  const age = row.age ?? null;
+  const description =
+    row.descriptionUk === null
+      ? null
+      : columnsToLocalizedText(
+          row.descriptionUk,
+          row.descriptionEnText,
+          row.descriptionEnProvenance,
+        );
+  const { listing } = row;
+  if (listing.kind === "draft") return { ...core, size, age, description, listing };
+  if (size === null || age === null || description === null) {
+    throw new Error(
+      `Animal ${row.id} is ${listing.kind} but lacks a listing fact; only a draft may (F-B1)`,
+    );
+  }
+  return { ...core, size, age, description, listing };
+}
+
+/**
+ * The public surfaces' mapper: the feed and the gallery select only
+ * discoverable rows (`buildDiscoverabilityPredicate`), and this says so in the
+ * type, throwing if the predicate ever handed it anything else. A draft can't
+ * reach a public view through these repositories even by a query mistake.
+ */
+export function rowToDiscoverableAnimal(row: AnimalRow): DiscoverableAnimal {
+  const animal = rowToAnimal(row);
+  if (!isDiscoverableAnimal(animal)) {
+    throw new Error(
+      `Animal ${row.id} is ${animal.listing.kind}; a public query returned a non-discoverable row`,
+    );
+  }
+  return animal;
 }
 
 // --- Adopter ---

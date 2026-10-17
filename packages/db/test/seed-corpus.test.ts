@@ -99,7 +99,7 @@ describe("seed corpus — D-4 hostile cases", () => {
     });
 
     it("has at least one animal with a minimal, non-pool description", () => {
-      const match = animals.find((a) => a.description.uk === "Опис відсутній.");
+      const match = animals.find((a) => a.description?.uk === "Опис відсутній.");
       expect(match).toBeDefined();
     });
 
