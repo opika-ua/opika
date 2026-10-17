@@ -233,3 +233,13 @@ export const apiErrors = {
 } as const;
 
 export type ApiErrorCode = keyof typeof apiErrors;
+
+/**
+ * The message of the registry's one undeclared refusal: a `cityId` that
+ * resolves to no city, answered BAD_REQUEST 400 by `registry.shelters.create`
+ * and by an address change, never the foreign key's 500 (RG-T5: the form
+ * offers known cities only, so it is a client fault, not a typed refusal).
+ * S2 tells it apart from oRPC's own input-validation 400 by this message,
+ * shared here so the handler and the screen can't drift apart.
+ */
+export const UNKNOWN_CITY_MESSAGE = "Unknown city";
