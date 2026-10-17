@@ -120,8 +120,11 @@ export type EvidenceCheck =
 /** Spaces typed while copying a grouped code («43 218 765») go; the 8 digits stay. */
 export const normalizeEdrpou = (raw: string): string => raw.replace(/\s/g, "");
 
-/** Required text: trimmed, and an error when nothing is left. */
-const text = (raw: string): string | null => {
+/**
+ * Trimmed, or null when nothing is left: a required field's missing value,
+ * and an optional one's "none" as the contract wants it. S2's form shares it.
+ */
+export const trimmedOrNull = (raw: string): string | null => {
   const value = raw.trim();
   return value === "" ? null : value;
 };
@@ -140,7 +143,7 @@ function rowResult(row: EvidenceRow, now: Date): RowResult {
   switch (row.kind) {
     case "edrpou_registration": {
       const edrpou = normalizeEdrpou(row.edrpou);
-      const registeredName = text(row.registeredName);
+      const registeredName = trimmedOrNull(row.registeredName);
       if (edrpou === "") errors.edrpou = "required";
       else if (!EdrpouSchema.safeParse(edrpou).success) errors.edrpou = "edrpouFormat";
       if (registeredName === null) errors.registeredName = "required";
@@ -149,12 +152,12 @@ function rowResult(row: EvidenceRow, now: Date): RowResult {
       return { kind: "ok", item: { kind: row.kind, edrpou, registeredName } };
     }
     case "bank_account_holder": {
-      const holderName = text(row.holderName);
+      const holderName = trimmedOrNull(row.holderName);
       if (holderName === null) return { kind: "invalid", errors: { holderName: "required" } };
       return { kind: "ok", item: { kind: row.kind, holderName } };
     }
     case "reference_contact": {
-      const name = text(row.name);
+      const name = trimmedOrNull(row.name);
       if (name === null) errors.name = "required";
       let channel: ContactChannel | null = null;
       if (row.channelValue.trim() === "") errors.channelValue = "required";
@@ -173,7 +176,7 @@ function rowResult(row: EvidenceRow, now: Date): RowResult {
       };
     }
     case "site_visit": {
-      const notes = text(row.notes);
+      const notes = trimmedOrNull(row.notes);
       const visitedOn = CalendarDateSchema.safeParse(row.visitedOn);
       if (!visitedOn.success) errors.visitedOn = "required";
       else if (isSiteVisitInFuture(visitedOn.data, now)) errors.visitedOn = "siteVisitInFuture";

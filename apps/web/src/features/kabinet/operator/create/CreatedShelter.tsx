@@ -7,7 +7,12 @@ import { useEffect, useRef, useState } from "react";
 import { Button, buttonClass } from "../../../controls/controls";
 import { BODY, CARD, CARD_TITLE, ERROR_TEXT } from "../../profile-edit/styles";
 import { shelterPath } from "../list-params";
-import { createRefusalOf, emailOutcomeMessage, kyivDateAndTime } from "./create-outcome";
+import {
+  createRefusalOf,
+  emailOutcomeMessage,
+  kyivDateAndTime,
+  refusalMessage,
+} from "./create-outcome";
 import type { RegistryCreateClient } from "./registry-create-client";
 
 /**
@@ -91,7 +96,7 @@ export function CreatedShelter({
         kind: "failed",
         message:
           refusal.kind === "address_has_a_role"
-            ? t.errors.addressHasARole[refusal.reason]
+            ? refusalMessage(refusal)
             : uk.kabinet.operator.errors.failed,
       });
     } finally {

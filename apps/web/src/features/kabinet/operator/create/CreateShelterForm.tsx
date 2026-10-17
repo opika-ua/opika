@@ -8,6 +8,7 @@ import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import {
   Button,
   buttonClass,
+  RadioOption,
   SelectField,
   TextAreaField,
   TextField,
@@ -20,7 +21,6 @@ import {
   CARD_TITLE,
   DIALOG_TITLE,
   ERROR_TEXT,
-  STRONG,
 } from "../../profile-edit/styles";
 import { OPERATOR_HOME } from "../../routes";
 import { EvidenceEditor } from "../evidence-editor/EvidenceEditor";
@@ -238,20 +238,15 @@ export function CreateShelterForm({
           <legend className={`${CARD_TITLE} mb-4`}>{t.legalTitle}</legend>
           <div className="flex min-w-0 flex-col gap-2">
             {LEGAL_KINDS.map((kind) => (
-              <label
+              <RadioOption
                 key={kind}
-                className="flex min-h-target items-center gap-3 rounded-rg-button bg-rg-fill px-4"
-              >
-                <input
-                  type="radio"
-                  name={`${id}-legal-kind`}
-                  value={kind}
-                  checked={legal.kind === kind}
-                  onChange={() => setLegal({ kind })}
-                  aria-invalid={legalKindError !== null ? true : undefined}
-                />
-                <span className={STRONG}>{t.legalKind[kind]}</span>
-              </label>
+                label={t.legalKind[kind]}
+                name={`${id}-legal-kind`}
+                value={kind}
+                checked={legal.kind === kind}
+                onChange={() => setLegal({ kind })}
+                aria-invalid={legalKindError !== null ? true : undefined}
+              />
             ))}
           </div>
           {legalKindError !== null ? (
@@ -376,7 +371,8 @@ export function CreateShelterForm({
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
           <Button type="submit" variant="primary" aria-busy={submitting || undefined}>
-            {t.submit}
+            {/* K4's word for a write in flight, so the press shows on screen, not only to a screen reader. */}
+            {submitting ? uk.kabinet.profileEdit.state.saving : t.submit}
           </Button>
           <Link href={OPERATOR_HOME} className={buttonClass("text")}>
             {t.cancel}
@@ -390,12 +386,11 @@ export function CreateShelterForm({
         </h2>
         <ol className={`flex list-decimal flex-col gap-2 pl-5 ${BODY}`}>
           <li>{t.whatHappens.step1}</li>
-          <li>
-            {fillTemplate(t.whatHappens.step2, {
-              // Before a name is typed, the sentence names the role instead.
-              name: adminName === "" ? t.firstAdminTitle : adminName,
-            })}
-          </li>
+          {/* His sentence starts with the first admin's name, and there is no wording for
+              before one is typed, so the step joins the list once there is a name to put in it. */}
+          {adminName !== "" ? (
+            <li>{fillTemplate(t.whatHappens.step2, { name: adminName })}</li>
+          ) : null}
           <li>{t.whatHappens.step3}</li>
         </ol>
       </aside>

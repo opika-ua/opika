@@ -14,6 +14,7 @@ import {
   type EvidenceRowErrors,
   evidenceOfRows,
   normalizeEdrpou,
+  trimmedOrNull,
 } from "../evidence-editor/evidence-rows";
 import type { RegistryCreateInput } from "./registry-create-client";
 
@@ -120,15 +121,6 @@ export function coordinatesOf(raw: string): Coordinates | null {
   return parsed.success ? parsed.data : null;
 }
 
-/** Trimmed, or null when nothing is left. */
-const text = (raw: string): string | null => {
-  const value = raw.trim();
-  return value === "" ? null : value;
-};
-
-/** Blank optional text is null, as the contract wants it. */
-const optionalText = (raw: string): string | null => text(raw);
-
 const EmailSchema = z.email();
 
 type LegalResult =
@@ -144,14 +136,14 @@ function legalEntityOf(
     return { kind: "invalid" };
   }
   if (legal.kind === "unregistered_initiative") {
-    const contactPersonName = text(legal.contactPersonName);
+    const contactPersonName = trimmedOrNull(legal.contactPersonName);
     if (contactPersonName === null) {
       errors.contactPersonName = "required";
       return { kind: "invalid" };
     }
     return { kind: "ok", legalEntity: { kind: legal.kind, contactPersonName } };
   }
-  const legalName = text(legal.legalName);
+  const legalName = trimmedOrNull(legal.legalName);
   if (legalName === null) errors.legalName = "required";
   const edrpou = normalizeEdrpou(legal.edrpou);
   if (edrpou === "") errors.edrpou = "required";
@@ -190,12 +182,12 @@ function legalEntityOf(
 export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCheck {
   const fields: Partial<Record<CreateField, CreateFieldError>> = {};
 
-  const displayName = text(form.displayName);
+  const displayName = trimmedOrNull(form.displayName);
   if (displayName === null) fields.displayName = "required";
-  const description = text(form.description);
+  const description = trimmedOrNull(form.description);
   if (description === null) fields.description = "required";
   if (form.cityId === "") fields.cityId = "required";
-  const line1 = text(form.line1);
+  const line1 = trimmedOrNull(form.line1);
   if (line1 === null) fields.line1 = "required";
   let coordinates: Coordinates | null = null;
   if (form.coordinates.trim() === "") fields.coordinates = "required";
@@ -206,7 +198,7 @@ export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCh
   const legal = legalEntityOf(form.legal, fields);
   const contacts = contactOfForm(form.contacts);
   const evidence = evidenceOfRows(form.evidence, now);
-  const adminName = text(form.adminName);
+  const adminName = trimmedOrNull(form.adminName);
   if (adminName === null) fields.adminName = "required";
   const adminEmail = form.adminEmail.trim();
   if (adminEmail === "") fields.adminEmail = "required";
@@ -242,8 +234,8 @@ export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCh
       legalEntity: legal.legalEntity,
       exactAddress: {
         line1,
-        line2: optionalText(form.line2),
-        postalCode: optionalText(form.postalCode),
+        line2: trimmedOrNull(form.line2),
+        postalCode: trimmedOrNull(form.postalCode),
         cityId: form.cityId,
         district: null,
         coordinates,

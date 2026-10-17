@@ -9,6 +9,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
+import { CreatedShelter } from "./CreatedShelter";
 import { CreateShelterForm } from "./CreateShelterForm";
 import type { RegistryCreateClient } from "./registry-create-client";
 
@@ -251,6 +252,26 @@ describe("creating a shelter", () => {
     expect(screen.getByText(TELL)).toBeDefined();
   });
 
+  it("after a resend the expiry line goes: the resend's answer carries no new expiry, so none is guessed (RU2-T7)", async () => {
+    const { fns, client } = fakeClient(async () => createdView(null));
+    fns.resendInvite.mockResolvedValueOnce({
+      invitationEmail: { kind: "sent", blockCheck: "unknown" },
+      invitationReminder: { kind: "tell_personally", text: TELL },
+    });
+    render(
+      <CreatedShelter view={createdView({ kind: "sent", blockCheck: "clear" })} client={client} />,
+    );
+    expect(screen.getByText("Посилання діє до 16 жовтня, 11:04.")).toBeDefined();
+    await user().click(screen.getByRole("button", { name: "Надіслати ще раз" }));
+    // Still a send, so only the missing expiry can keep the line away.
+    expect(
+      await screen.findByText(
+        "Запрошення надіслано. Перевірити, чи адреса не заблокована, не вдалося.",
+      ),
+    ).toBeDefined();
+    expect(screen.queryByText(/^Посилання діє до /)).toBeNull();
+  });
+
   it("a resend refused because the address meanwhile has a role elsewhere says so", async () => {
     const fns = renderForm(async () => createdView({ kind: "sent", blockCheck: "clear" }));
     fns.resendInvite.mockRejectedValueOnce(
@@ -270,7 +291,7 @@ describe("creating a shelter", () => {
 });
 
 describe("one request only", () => {
-  it("a second press while the first is in flight sends nothing, and the button says it is busy", async () => {
+  it("a second press while the first is in flight sends nothing, and the button says «Збереження…»", async () => {
     let finish: (view: CreatedShelterView) => void = () => {};
     const fns = renderForm(
       () =>
@@ -280,13 +301,51 @@ describe("one request only", () => {
     );
     const u = await fillInitiative();
     await u.click(submit());
-    expect(submit().getAttribute("aria-busy")).toBe("true");
-    await u.click(submit());
-    fireEvent.submit(submit().closest("form") as HTMLFormElement);
+    // K4's word for a write in flight (`kabinet.profileEdit.state.saving`, K4 copy sheet).
+    const busy = screen.getByRole("button", { name: "Збереження…" });
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+    expect(screen.queryByRole("button", { name: "Створити й надіслати запрошення" })).toBeNull();
+    await u.click(busy);
+    fireEvent.submit(busy.closest("form") as HTMLFormElement);
     expect(fns.create).toHaveBeenCalledTimes(1);
     await act(async () => finish(createdView({ kind: "sent", blockCheck: "clear" })));
     expect(await screen.findByRole("heading", { name: "Притулок створено." })).toBeDefined();
     expect(fns.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("a second press of «Надіслати ще раз» while the first resend is in flight sends nothing", async () => {
+    const { fns, client } = fakeClient(async () => createdView(null));
+    let finish: (value: Awaited<ReturnType<typeof fns.resendInvite>>) => void = () => {};
+    fns.resendInvite.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    render(
+      <CreatedShelter
+        view={createdView({ kind: "failed", reason: "provider_error" })}
+        client={client}
+      />,
+    );
+    const resend = screen.getByRole("button", { name: "Надіслати ще раз" });
+    // Two presses before React re-renders, then a third after: only the ref can stop the second.
+    fireEvent.click(resend);
+    fireEvent.click(resend);
+    await user().click(resend);
+    expect(fns.resendInvite).toHaveBeenCalledTimes(1);
+    expect(resend.getAttribute("aria-busy")).toBe("true");
+    await act(async () =>
+      finish({
+        invitationEmail: { kind: "sent", blockCheck: "clear" },
+        invitationReminder: { kind: "tell_personally", text: TELL },
+      }),
+    );
+    expect(screen.getByRole("status").textContent).toBe(
+      "Запрошення надіслано на iryna@example.org.",
+    );
+    expect(resend.getAttribute("aria-busy")).toBeNull();
+    expect(fns.resendInvite).toHaveBeenCalledTimes(1);
   });
 
   it("a lost answer is never retried: one request, and the list first", async () => {
@@ -411,6 +470,27 @@ describe("checked before anything is sent", () => {
     expect(
       screen.getByText("Вкажіть координати як «широта, довгота», наприклад «50.4501, 30.5234»."),
     ).toBeDefined();
+  });
+});
+
+describe("what happens next", () => {
+  const steps = () =>
+    within(screen.getByRole("complementary", { name: "Що буде далі" }))
+      .getAllByRole("listitem")
+      .map((item) => item.textContent);
+
+  it("names the first admin in step 2, and leaves the step out until a name is typed", async () => {
+    renderForm(async () => createdView(null));
+    expect(steps()).toEqual([
+      "Притулок зʼявиться у списку зі статусом «Очікує».",
+      "Тварин притулку не буде в галереї, доки ви не схвалите перевірку.",
+    ]);
+    await user().type(screen.getByLabelText("Імʼя"), "Ірина");
+    expect(steps()).toEqual([
+      "Притулок зʼявиться у списку зі статусом «Очікує».",
+      "Ірина отримає лист для входу. Посилання діє 72 години, його можна надіслати ще раз.",
+      "Тварин притулку не буде в галереї, доки ви не схвалите перевірку.",
+    ]);
   });
 });
 

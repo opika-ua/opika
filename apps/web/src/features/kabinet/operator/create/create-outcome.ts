@@ -1,5 +1,15 @@
-import { type EmailSendOutcome, UNKNOWN_CITY_MESSAGE } from "@opika/contracts";
+import { apiErrors, type EmailSendOutcome, UNKNOWN_CITY_MESSAGE } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
+import type { z } from "zod";
+import { formatDayMonth, formatTime } from "../format";
+
+/**
+ * The reasons the contract declares on the two refusals S2 reads, taken from
+ * its own schemas rather than copied: a reason added there must be handled
+ * here before anything compiles (`ADDRESS_ROLE_MESSAGES`, `EVIDENCE_REFUSALS`).
+ */
+type AddressRoleReason = z.infer<typeof apiErrors.ADDRESS_HAS_A_ROLE.data>["reason"];
+type EvidenceRefusalReason = z.infer<typeof apiErrors.INVALID_EVIDENCE.data>["reason"];
 
 /**
  * What S2's submit came back as, in the terms the screen speaks (Oleksii's
@@ -15,16 +25,21 @@ import { fillTemplate, uk } from "@opika/i18n";
  * - `unknown_city`: the undeclared 400 for a city id that resolves to nothing
  *   (RG-T5), told apart from oRPC's input-validation 400 by its message.
  * - `lost_answer`: no answer reached the page (the request threw before any
- *   response), or the server failed (5xx) and may have stopped after the
- *   shelter was written (RG-T6: shelter, then invitation, no transaction).
- *   Either way the shelter may exist, and create is not idempotent, so the
- *   page never retries and says to check the list first (RU-T9).
+ *   response), or any 5xx. A 500, or a gateway's 502 or 504, can come after
+ *   the shelter was written (RG-T6: shelter, then invitation, no
+ *   transaction), and create is not idempotent, so the page never retries and
+ *   says to check the list first (RU-T9). Every 5xx reads this way, the
+ *   registry's 503 without LOCATION_HMAC_SECRET (RG-Q10) included, although
+ *   that one comes before anything is written: the page itself answers 404
+ *   without the key (RU-T5), so the form meets that 503 only if the key goes
+ *   between loading the page and pressing, and a look at the list costs
+ *   nothing then.
  * - `failed`: any other refusal, each one answered before anything was
- *   written (access, rate limit, the 503 without the location key, input
- *   validation, a document the form never sends).
+ *   written (access, the rate limit, input validation, a document the form
+ *   never sends).
  */
 export type CreateRefusal =
-  | { kind: "address_has_a_role"; reason: "shelter_admin" | "operator" | "invited_elsewhere" }
+  | { kind: "address_has_a_role"; reason: AddressRoleReason }
   | { kind: "site_visit_in_future" }
   | { kind: "unknown_city" }
   | { kind: "lost_answer" }
@@ -44,12 +59,13 @@ const shapeOf = (error: unknown): ErrorShape | null => {
   };
 };
 
-const reasonOf = (data: unknown): unknown =>
-  typeof data === "object" && data !== null ? (data as { reason?: unknown }).reason : undefined;
-
-const ADDRESS_ROLES = ["shelter_admin", "operator", "invited_elsewhere"] as const;
-const isAddressRole = (value: unknown): value is (typeof ADDRESS_ROLES)[number] =>
-  (ADDRESS_ROLES as readonly unknown[]).includes(value);
+/** Each evidence refusal the contract declares, as S2 reads it. */
+const EVIDENCE_REFUSALS: Record<EvidenceRefusalReason, CreateRefusal> = {
+  site_visit_in_future: { kind: "site_visit_in_future" },
+  // The form never sends a document (RU-Q3), so this one is a fault it can't
+  // cause: the plain failure, not a message about something the operator did.
+  document_not_supported_yet: { kind: "failed" },
+};
 
 export function createRefusalOf(error: unknown): CreateRefusal {
   const shape = shapeOf(error);
@@ -58,13 +74,15 @@ export function createRefusalOf(error: unknown): CreateRefusal {
   if (shape.status !== null && shape.status >= 500) return { kind: "lost_answer" };
   switch (shape.code) {
     case "ADDRESS_HAS_A_ROLE": {
-      const reason = reasonOf(shape.data);
-      return isAddressRole(reason) ? { kind: "address_has_a_role", reason } : { kind: "failed" };
-    }
-    case "INVALID_EVIDENCE":
-      return reasonOf(shape.data) === "site_visit_in_future"
-        ? { kind: "site_visit_in_future" }
+      const data = apiErrors.ADDRESS_HAS_A_ROLE.data.safeParse(shape.data);
+      return data.success
+        ? { kind: "address_has_a_role", reason: data.data.reason }
         : { kind: "failed" };
+    }
+    case "INVALID_EVIDENCE": {
+      const data = apiErrors.INVALID_EVIDENCE.data.safeParse(shape.data);
+      return data.success ? EVIDENCE_REFUSALS[data.data.reason] : { kind: "failed" };
+    }
     case "BAD_REQUEST":
       return shape.message === UNKNOWN_CITY_MESSAGE ? { kind: "unknown_city" } : { kind: "failed" };
     default:
@@ -72,12 +90,16 @@ export function createRefusalOf(error: unknown): CreateRefusal {
   }
 }
 
+/** His sentence for each address reason; typed by the contract's reasons, so none can go without one. */
+const ADDRESS_ROLE_MESSAGES: Record<AddressRoleReason, string> =
+  uk.kabinet.operator.create.errors.addressHasARole;
+
 /** Oleksii's sentence for a refusal. */
 export function refusalMessage(refusal: CreateRefusal): string {
   const t = uk.kabinet.operator.create.errors;
   switch (refusal.kind) {
     case "address_has_a_role":
-      return t.addressHasARole[refusal.reason];
+      return ADDRESS_ROLE_MESSAGES[refusal.reason];
     case "site_visit_in_future":
       return t.siteVisitInFuture;
     case "unknown_city":
@@ -118,15 +140,5 @@ export function emailOutcomeMessage(outcome: EmailSendOutcome, email: string): s
 
 /** «20 жовтня» and «11:04», Kyiv's: the operator's own clock, whatever the browser's zone. */
 export function kyivDateAndTime(instant: Date): { date: string; time: string } {
-  const date = new Intl.DateTimeFormat("uk-UA", {
-    day: "numeric",
-    month: "long",
-    timeZone: "Europe/Kyiv",
-  }).format(instant);
-  const time = new Intl.DateTimeFormat("uk-UA", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Kyiv",
-  }).format(instant);
-  return { date, time };
+  return { date: formatDayMonth(instant), time: formatTime(instant) };
 }
