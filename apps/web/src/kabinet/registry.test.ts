@@ -266,6 +266,43 @@ describe("registry.shelters.list / byId / history.list", () => {
     expect(replayed.status).toBe(400);
   });
 
+  /**
+   * R-UI answer 2 through the served router: the row's admin counts and
+   * donation flag survive the output parse (a field the contract didn't
+   * declare would be stripped here, silently), and count as S4 lists them.
+   */
+  it("carries each row's admin counts and whether a donation link is waiting", async () => {
+    const waiting = await shelter({
+      displayName: "А",
+      verification: STATES.verified,
+      pendingDonation: {
+        link: { url: "https://send.monobank.ua/jar/x", provider: "monobank_jar" },
+        proposedAt: NOW,
+        proposedBy: crypto.randomUUID() as ShelterAdminId,
+      },
+    });
+    const plain = await shelter({ displayName: "Б", verification: STATES.verified });
+    const invited = await call<{ invite: { status: string } }>("registry.admins.invite", {
+      shelterId: waiting.id,
+      name: "Олена",
+      email: "olena@example.org",
+    });
+    expect(invited.status).toBe(200);
+    const listed = await call<{
+      items: {
+        id: string;
+        admins: { joined: number; invited: number };
+        donationPending: boolean;
+      }[];
+    }>("registry.shelters.list", { search: null, status: null, cursor: null, limit: 10 });
+    expect(
+      listed.body.items.map(({ id, admins, donationPending }) => ({ id, admins, donationPending })),
+    ).toEqual([
+      { id: waiting.id, admins: { joined: 0, invited: 1 }, donationPending: true },
+      { id: plain.id, admins: { joined: 0, invited: 0 }, donationPending: false },
+    ]);
+  });
+
   it("returns the full record with admins, and NOT_FOUND for an unknown id", async () => {
     const s = await shelter();
     const view = await call<RegistryShelterView>("registry.shelters.byId", { shelterId: s.id });

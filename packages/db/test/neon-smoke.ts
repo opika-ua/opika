@@ -1061,6 +1061,85 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       nonEmptyPhotoLines === 3,
     `reorder ${reorderWrite.kind}, remove ${removeWrite.kind}, stale ${staleReorderWrite.kind}, ${afterRemove?.animal.photos.length} photo(s), version ${photoRead?.animal.version} → ${afterRemove?.animal.version}, ${nonEmptyPhotoLines} photos line(s)`,
   );
+
+  // 26. R-UI answer 2 (Oleksii, verbatim: "add the admins count (signed in /
+  // invited) and the donationPending flag to the list row, in one query (no
+  // N+1)"): the S1 row's counts come from one grouped subquery over a UNION
+  // of members and pending invitees, with a NOT EXISTS, a FILTER'd count and
+  // a jsonb_typeof flag, all read back through neon-http. A shelter with a
+  // member (whose own invitation is still pending), a re-invited address and
+  // an expired invitation counts 1 joined and 2 invited, as `adminsOf` lists
+  // them; one that never invited anyone counts 0 and 0, with no link waiting.
+  const countedBase = makeShelter({
+    id: randomUUID() as ShelterId,
+    displayName: `Smoke ${tag} F`,
+    pendingDonation: {
+      link: { url: "https://send.monobank.ua/jar/smoke", provider: "monobank_jar" },
+      proposedAt: NOW,
+      proposedBy: randomUUID() as ShelterAdminId,
+    },
+  });
+  const uncountedBase = makeShelter({
+    id: randomUUID() as ShelterId,
+    displayName: `Smoke ${tag} G`,
+    pendingDonation: null,
+  });
+  for (const s of [countedBase, uncountedBase]) {
+    await insertShelterFromScript(
+      db,
+      {
+        ...s,
+        exactAddress: { ...s.exactAddress, cityId: city.id },
+        publicLocation: publicLocationOf(s.id, { ...s.exactAddress, cityId: city.id }, policy),
+      },
+      by,
+    );
+  }
+  const inviteTo = (email: string, at: Date) =>
+    invitations.invite({
+      shelterId: countedBase.id,
+      email,
+      name: "Smoke counted",
+      inviterUserId: operator,
+      ids: { invitationId: randomUUID(), userId: randomUUID(), organizationId: randomUUID() },
+      now: at,
+      history: { id: randomUUID(), entry: inviteEntry(email) },
+    });
+  const countedMember = await inviteTo(`smoke-counted-member-${tag}@example.invalid`, NOW);
+  await inviteTo(`smoke-counted-again-${tag}@example.invalid`, NOW);
+  await inviteTo(`smoke-counted-again-${tag}@example.invalid`, later(1000));
+  await inviteTo(`smoke-counted-expired-${tag}@example.invalid`, later(-10 * 86_400_000));
+  const countedOrganization = await kabinetRegistryRepo(db).organizationIdOf(countedBase.id);
+  if (countedMember.kind === "invited" && countedOrganization !== null) {
+    await db.insert(authMember).values({
+      id: randomUUID(),
+      organizationId: countedOrganization,
+      userId: countedMember.userId,
+      role: "admin",
+      createdAt: NOW,
+    });
+  }
+  const rowNamed = async (name: string) =>
+    (await registry.listPage({ search: name, status: null, after: null, limit: 5 })).items.find(
+      (item) => item.displayName === name,
+    );
+  const counted = await rowNamed(`Smoke ${tag} F`);
+  const uncounted = await rowNamed(`Smoke ${tag} G`);
+  const countedListed = await registry.adminsOf(countedBase.id);
+  const listedJoined = countedListed.filter((a) => a.invite.status === "accepted").length;
+  const listedInvited = countedListed.filter((a) => a.invite.status === "pending").length;
+  check(
+    "S1 row: admin counts and donationPending (one grouped subquery, R-UI answer 2)",
+    counted?.admins.joined === 1 &&
+      counted.admins.invited === 2 &&
+      counted.admins.joined === listedJoined &&
+      counted.admins.invited === listedInvited &&
+      counted.donationPending === true &&
+      uncounted?.admins.joined === 0 &&
+      uncounted.admins.invited === 0 &&
+      uncounted.donationPending === false,
+    `F: joined ${counted?.admins.joined}, invited ${counted?.admins.invited} (adminsOf ${listedJoined}/${listedInvited}), donationPending ${counted?.donationPending}; G: joined ${uncounted?.admins.joined}, invited ${uncounted?.admins.invited}, donationPending ${uncounted?.donationPending}`,
+  );
   return out;
 }
 

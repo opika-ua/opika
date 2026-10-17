@@ -78,7 +78,18 @@ export const KabinetShelterViewSchema = ShelterSchema.pick({
 }).extend({ verification: ShelterFacingVerificationSchema });
 export type KabinetShelterView = z.infer<typeof KabinetShelterViewSchema>;
 
-/** S1 row. `animalCount` is inventory, which is allowed; it is not engagement. */
+/**
+ * S1 row. `animalCount` is inventory, which is allowed; it is not engagement.
+ *
+ * `admins` and `donationPending` (Oleksii, R-UI answer 2, verbatim: "Yes: add
+ * the admins count (signed in / invited) and the donationPending flag to the
+ * list row, in one query (no N+1)."). `admins` counts as S4's admin list
+ * does: `joined` is the members, `invited` every address with a pending
+ * invitation and no membership, expired invitations included (S4 offers a
+ * resend for those), each address once. `donationPending` says why a verified
+ * shelter can sort first: a proposed link is waiting for the operator's
+ * decision (the list's rank already counts it).
+ */
 export const RegistryShelterRowViewSchema = ShelterSchema.pick({
   id: true,
   displayName: true,
@@ -87,6 +98,8 @@ export const RegistryShelterRowViewSchema = ShelterSchema.pick({
   status: VerificationStatusSchema,
   cityId: CityIdSchema,
   animalCount: z.int().nonnegative(),
+  admins: z.object({ joined: z.int().nonnegative(), invited: z.int().nonnegative() }),
+  donationPending: z.boolean(),
 });
 export type RegistryShelterRowView = z.infer<typeof RegistryShelterRowViewSchema>;
 
