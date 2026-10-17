@@ -475,6 +475,10 @@ pattern the wide bracket's own 1920px case already set.
 
 ## O-19 — The 48px touch-target floor is enforced by reviewer attention, not by a test mechanism · tooling · partially resolved 2026-09-12
 
+*2026-10-17, superseded in approach (CLAUDE.md, "Test logic, not looks", V-B2): the 48px floor
+becomes one min-height token on shared button/control primitives, tested once on those
+primitives. No page-wide or per-component size sweep; the "still wants" below is withdrawn.*
+
 Filed by Oleksii, 2026-09-10, after PR #57's `Footer.tsx` shipped both its links at 18px against
 `docs/design/README.md:200`'s 48px minimum — caught by the `opika-reviewer` subagent, not by any
 test, on a project whose own standing constraints say a defect a reviewer catches instead of a

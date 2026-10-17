@@ -16,7 +16,8 @@ that did not run the tests is an opinion.
 ## 1. Test every claim in the body
 
 For each definition-of-done item marked done: **find the thing that would fail if it were
-false.** A test, a harness assertion, a documented device test with a screenshot.
+false.** A test, a harness assertion, a documented device test with a screenshot. (Until the
+brand lands, a behavioural one: CLAUDE.md, "Test logic, not looks".)
 
 If nothing would fail, the item is **asserted**, not verified — regardless of what the
 body says. Say so plainly.
@@ -52,7 +53,9 @@ compiling is not evidence.**
 Where the pull request touches UI, compare against `docs/design/README.md`. The design
 specifies exact values — colours, spacing, motion timings, thresholds, pip geometry. A
 deviation is a finding whether or not it looks fine, because the next surface built will
-inherit the drift.
+inherit the drift. *Until the brand lands (CLAUDE.md, "Test logic, not looks"): check structure,
+states, copy and behaviour against the design, and that styling uses theme tokens only; visual
+values are not findings.*
 
 Two rules override everything: freshness is never signalled with red, amber or opacity;
 and a fostered animal never gets a map pin.
