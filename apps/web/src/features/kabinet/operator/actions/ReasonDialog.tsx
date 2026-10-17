@@ -41,10 +41,12 @@ const holdsReason = (
  * the note verbatim on its own page (answer 7, `VerificationDecision`), which
  * is what the body sentence promises.
  *
- * Esc and ✕ close it, as «Скасувати» does (`ModalDialog`). A refusal that
- * keeps the move possible (`failed`, or a lost answer that didn't land) keeps
- * the dialog open with the note as typed, so nothing written is lost; a move
- * that happened, or became impossible, closes it and the panel says which.
+ * Esc and ✕ close it, as «Скасувати» does (`ModalDialog`), except while its
+ * request is in flight: closed then, the dialog would be gone when the answer
+ * came, and a failure would be shown nowhere. A refusal that keeps the move
+ * possible (`failed`, or a lost answer that didn't land) keeps the dialog open
+ * with the note as typed, so nothing written is lost; a move that happened,
+ * or became impossible, closes it and the panel says which.
  */
 export function ReasonDialog({
   kind,
@@ -64,6 +66,9 @@ export function ReasonDialog({
   const [failed, setFailed] = useState(false);
 
   const mine = phase.kind !== "idle" && phase.owner === DECISION_OWNER;
+  const close = () => {
+    if (!mine) onClose();
+  };
   const ready = code !== "" && note.trim() !== "";
   const codes = kind === "reject" ? RejectionCodeSchema.options : SuspensionCodeSchema.options;
   const codeLabel = (option: string): string =>
@@ -123,7 +128,7 @@ export function ReasonDialog({
       })}
       body={kind === "reject" ? t.rejectBody : t.suspendBody}
       closeLabel={pause.close}
-      onClose={onClose}
+      onClose={close}
     >
       <SelectField
         id={`${id}-code`}
@@ -159,7 +164,7 @@ export function ReasonDialog({
         </p>
       ) : null}
       <div className="flex flex-col-reverse gap-2 tablet:flex-row tablet:justify-end">
-        <Button variant="secondary" onClick={onClose}>
+        <Button variant="secondary" onClick={close}>
           {pause.cancel}
         </Button>
         <Button

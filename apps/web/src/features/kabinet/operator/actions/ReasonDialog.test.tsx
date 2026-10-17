@@ -255,6 +255,36 @@ describe("outcomes inside the dialog", () => {
     );
   });
 
+  it("while its request is in flight, Escape, ✕ and «Скасувати» don't close it, so a failure is still shown", async () => {
+    let answer: (error: unknown) => void = () => {};
+    renderWithActions(<DecisionPanel />, {
+      view: underReview,
+      client: {
+        verification: {
+          reject: vi.fn(
+            () =>
+              new Promise<RegistryShelterView>((_resolve, fail) => {
+                answer = fail;
+              }),
+          ),
+        },
+      },
+    });
+    const dialog = await fillAndSend();
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(dialog.getByRole("button", { name: "Закрити" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Скасувати" }));
+    expect(screen.getByRole("dialog", { name: "Відхилити «Домівка»?" })).toBeTruthy();
+
+    answer(apiError("INTERNAL_SERVER_ERROR"));
+    await waitFor(() =>
+      expect(dialog.getByRole("alert").textContent).toBe("Не вдалося. Спробуйте ще раз."),
+    );
+    // Answered, it closes again as before.
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("a lost answer the re-read shows done (same code, same note): closes as done", async () => {
     const { reread } = renderWithActions(<DecisionPanel />, {
       view: underReview,

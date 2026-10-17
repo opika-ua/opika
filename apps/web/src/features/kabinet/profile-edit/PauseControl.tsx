@@ -134,7 +134,10 @@ type DialogError =
  * N15's reason-dialog template: modal over the page, the five pause codes as
  * a select (a reason is required), an optional note, black primary. The
  * frame (focus to the title on open, Tab cycling inside, Esc and ✕ closing)
- * is the shared `ModalDialog`; «Скасувати» closes it too.
+ * is the shared `ModalDialog`; «Скасувати» closes it too. None of the three
+ * closes it while the pause is in flight: closed then, a refusal would land
+ * on a dialog that is gone and be shown nowhere (the same rule as the
+ * operator's `ReasonDialog`).
  *
  * The note hint (`pause.noteHint`, fix 2) is true since the note shows
  * under the paused line for the shelter's admins and the operator (K4-B4).
@@ -160,6 +163,9 @@ function PauseDialog({
   const [error, setError] = useState<DialogError>({ kind: "none" });
 
   const reasonId = `${id}-reason`;
+  const close = () => {
+    if (!busy) onClose();
+  };
 
   const onConfirm = async () => {
     if (busy) return;
@@ -186,7 +192,7 @@ function PauseDialog({
   };
 
   return (
-    <ModalDialog title={t.dialogTitle} body={t.dialogBody} closeLabel={t.close} onClose={onClose}>
+    <ModalDialog title={t.dialogTitle} body={t.dialogBody} closeLabel={t.close} onClose={close}>
       {/* No message key exists for a missing reason: the select is marked
             invalid and focused, and its placeholder already says «Оберіть причину». */}
       <SelectField
@@ -238,7 +244,7 @@ function PauseDialog({
         </p>
       ) : null}
       <div className="flex flex-col-reverse gap-2 tablet:flex-row tablet:justify-end">
-        <Button variant="secondary" onClick={onClose}>
+        <Button variant="secondary" onClick={close}>
           {t.cancel}
         </Button>
         <Button variant="primary" aria-busy={busy || undefined} onClick={onConfirm}>
