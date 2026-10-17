@@ -943,6 +943,124 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       moveLines === 1,
     `move ${recordedMove.kind}, conflicting ${conflictingMove.kind}, now ${afterRecorded?.animal.listing.kind}, ${moveLines} animal_listing_changed line(s)`,
   );
+
+  // 24. a photo change compare-and-sets on the photo list as read back
+  // through this driver (jsonb equality, P-Q3): the read list writes,
+  // `last_updated_at` moves, `version` stays, one `animal_edited` line naming
+  // photos; the same stale read again writes and records nothing.
+  const photoRead = await kabinetAnimals.findWithCity(createdDraft.id);
+  const smokePhoto = (n: number) => ({
+    storageKey: `animals/${createdDraft.id}/${randomUUID()}`,
+    width: 800 + n,
+    height: 1000,
+    alt: null,
+  });
+  const nextPhotos = [smokePhoto(1), smokePhoto(2)];
+  const photosLine = (): AnimalHistoryRow<"animal_edited"> => ({
+    id: randomUUID(),
+    entry: {
+      kind: "animal_edited",
+      at: later(7000),
+      actor: smokeActor,
+      animalId: createdDraft.id,
+      animalName: createdDraft.name,
+      fields: ["photos"],
+    },
+  });
+  const photoWrite = photoRead
+    ? await kabinetAnimals.writePhotosIf(
+        createdDraft.id,
+        nextPhotos,
+        photoRead.animal.photos,
+        later(7000),
+        photosLine(),
+      )
+    : { kind: "conflict" as const };
+  const stalePhotoWrite = photoRead
+    ? await kabinetAnimals.writePhotosIf(
+        createdDraft.id,
+        [smokePhoto(3)],
+        photoRead.animal.photos,
+        later(8000),
+        photosLine(),
+      )
+    : { kind: "ok" as const };
+  const afterPhotos = await kabinetAnimals.findWithCity(createdDraft.id);
+  const photoLines = (await history()).filter(
+    (entry) =>
+      entry.kind === "animal_edited" &&
+      entry.animalId === createdDraft.id &&
+      entry.fields.includes("photos"),
+  ).length;
+  check(
+    "photo list jsonb compare-and-set with its animal_edited line (P-Q3)",
+    photoWrite.kind === "ok" &&
+      stalePhotoWrite.kind === "conflict" &&
+      afterPhotos?.animal.photos.length === 2 &&
+      afterPhotos.animal.photos[0]?.storageKey === nextPhotos[0]?.storageKey &&
+      afterPhotos.animal.lastUpdatedAt.getTime() === later(7000).getTime() &&
+      afterPhotos.animal.version === photoRead?.animal.version &&
+      photoLines === 1,
+    `write ${photoWrite.kind}, stale ${stalePhotoWrite.kind}, ${afterPhotos?.animal.photos.length} photo(s), version ${photoRead?.animal.version} → ${afterPhotos?.animal.version}, ${photoLines} photos line(s)`,
+  );
+
+  // 25. the compare-and-set every reorder, remove and add-to-non-empty makes:
+  // the expected value is a non-empty list of photo objects (`alt: null`) as
+  // neon-http reads it back, not step 24's `[]`. If that read-back did not
+  // compare equal as jsonb, every such write would conflict in production.
+  // Reorder against the list as read, then remove against the reorder as
+  // read; the pre-reorder list, now stale, writes and records nothing.
+  const heldPhotos = afterPhotos?.animal.photos ?? [];
+  const reorderWrite =
+    heldPhotos.length === 2
+      ? await kabinetAnimals.writePhotosIf(
+          createdDraft.id,
+          [...heldPhotos].reverse(),
+          heldPhotos,
+          later(9000),
+          photosLine(),
+        )
+      : { kind: "conflict" as const };
+  const afterReorder = await kabinetAnimals.findWithCity(createdDraft.id);
+  const reorderedPhotos = afterReorder?.animal.photos ?? [];
+  const removeWrite =
+    reorderedPhotos.length === 2
+      ? await kabinetAnimals.writePhotosIf(
+          createdDraft.id,
+          reorderedPhotos.slice(0, 1),
+          reorderedPhotos,
+          later(10000),
+          photosLine(),
+        )
+      : { kind: "conflict" as const };
+  const staleReorderWrite = await kabinetAnimals.writePhotosIf(
+    createdDraft.id,
+    [...heldPhotos].reverse(),
+    heldPhotos,
+    later(11000),
+    photosLine(),
+  );
+  const afterRemove = await kabinetAnimals.findWithCity(createdDraft.id);
+  const nonEmptyPhotoLines = (await history()).filter(
+    (entry) =>
+      entry.kind === "animal_edited" &&
+      entry.animalId === createdDraft.id &&
+      entry.fields.includes("photos"),
+  ).length;
+  check(
+    "photo list compare-and-set against a non-empty read-back list: reorder, remove, stale (P-Q3)",
+    reorderWrite.kind === "ok" &&
+      reorderedPhotos[0]?.storageKey === nextPhotos[1]?.storageKey &&
+      reorderedPhotos[1]?.storageKey === nextPhotos[0]?.storageKey &&
+      removeWrite.kind === "ok" &&
+      staleReorderWrite.kind === "conflict" &&
+      afterRemove?.animal.photos.length === 1 &&
+      afterRemove.animal.photos[0]?.storageKey === nextPhotos[1]?.storageKey &&
+      afterRemove.animal.lastUpdatedAt.getTime() === later(10000).getTime() &&
+      afterRemove.animal.version === photoRead?.animal.version &&
+      nonEmptyPhotoLines === 3,
+    `reorder ${reorderWrite.kind}, remove ${removeWrite.kind}, stale ${staleReorderWrite.kind}, ${afterRemove?.animal.photos.length} photo(s), version ${photoRead?.animal.version} → ${afterRemove?.animal.version}, ${nonEmptyPhotoLines} photos line(s)`,
+  );
   return out;
 }
 

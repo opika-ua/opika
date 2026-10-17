@@ -1,7 +1,7 @@
 import { AnimalIdSchema } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
-  animalPhotoStorageKey,
+  animalPhotoStorageKeyFor,
   IMAGE_VARIANTS,
   isRealPhotoKey,
   nearestVariant,
@@ -34,14 +34,20 @@ describe("nearestVariant", () => {
   });
 });
 
-describe("animalPhotoStorageKey", () => {
-  it("derives a stable key from animal id and photo index", () => {
-    expect(animalPhotoStorageKey(ANIMAL_ID, 0)).toBe(
-      "animals/a0000000-0000-4000-8000-000000000000/0",
+describe("animalPhotoStorageKeyFor", () => {
+  it("is animals/{animalId}/{photoId} for a v4 UUID photo id (P-Q4)", () => {
+    expect(animalPhotoStorageKeyFor(ANIMAL_ID, "b1000000-0000-4000-8000-000000000001")).toBe(
+      "animals/a0000000-0000-4000-8000-000000000000/b1000000-0000-4000-8000-000000000001",
     );
-    expect(animalPhotoStorageKey(ANIMAL_ID, 2)).toBe(
-      "animals/a0000000-0000-4000-8000-000000000000/2",
-    );
+  });
+
+  it.each([
+    ["an array index", "0"],
+    ["a non-v4 UUID", "b1000000-0000-1000-8000-000000000001"],
+    ["a path segment", "../other"],
+    ["empty", ""],
+  ])("refuses %s, so no key can be reused (P-Q13)", (_label, photoId) => {
+    expect(() => animalPhotoStorageKeyFor(ANIMAL_ID, photoId)).toThrow(/fresh random/);
   });
 });
 

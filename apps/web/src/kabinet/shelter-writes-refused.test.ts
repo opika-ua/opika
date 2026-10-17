@@ -21,7 +21,7 @@ import { handleKabinetRpc, kabinetRouter } from "./rpc-route";
  * allowlist (`KABINET_WRITE_ALLOWLIST`, unset here, which is the refusal). The procedures are found by walking the router actually
  * mounted on `/api/kabinet/*` and reading the access each one declares, not
  * from a list written here, so a write added later is refused by the same
- * assertions automatically. The count is pinned too (`toHaveLength(13)`), as
+ * assertions automatically. The count is pinned too (`toHaveLength(16)`), as
  * a tripwire: a new write fails it, and the edit that bumps it is where
  * someone confirms the new write belongs behind the refusal.
  */
@@ -134,12 +134,15 @@ async function snapshot() {
 }
 
 describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
-  it("finds the thirteen shelter writes, confirm and update among them", () => {
-    expect(shelterWrites).toHaveLength(13);
+  it("finds the sixteen shelter writes, confirm, update and the photo writes among them", () => {
+    expect(shelterWrites).toHaveLength(16);
     expect(shelterWrites).toEqual(
       expect.arrayContaining([
         "shelter.animals.confirm",
         "shelter.animals.update",
+        "shelter.photos.add",
+        "shelter.photos.reorder",
+        "shelter.photos.remove",
         "shelter.profile.updateContact",
         "shelter.verification.requestReview",
       ]),

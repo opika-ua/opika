@@ -11,6 +11,7 @@ export {
   policy,
   uuid,
 } from "./fixtures";
+export { imageFactsOf, testJpeg } from "./photo-fixtures";
 export { setupTestDatabase, type TestContext, truncateAll } from "./setup";
 export { type SmokeTarget, smokeTarget } from "./smoke-target";
 export {

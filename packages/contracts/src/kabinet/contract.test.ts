@@ -80,6 +80,9 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "shelter.animals.confirm": WRITE,
   "shelter.animals.undoConfirm": WRITE,
   "shelter.animals.deleteDraft": WRITE,
+  "shelter.photos.add": WRITE,
+  "shelter.photos.reorder": WRITE,
+  "shelter.photos.remove": WRITE,
   "shelter.history.list": READ,
   "registry.shelters.list": REGISTRY,
   "registry.shelters.byId": REGISTRY,
@@ -176,7 +179,7 @@ describe("SHELTER_WRITES_NOT_YET_AVAILABLE is declared on exactly the shelter wr
     .map(([path]) => path);
 
   it("sanity: the matrix names the shelter writes", () => {
-    expect(writes).toHaveLength(13);
+    expect(writes).toHaveLength(16);
   });
 
   it.each(writes)("%s declares it with status 403", (path) => {
@@ -204,6 +207,10 @@ describe("kabinet error statuses", () => {
       REGISTRY_CONFIRMED: apiErrors.REGISTRY_CONFIRMED.status,
       ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE.status,
       SHELTER_WRITES_NOT_YET_AVAILABLE: apiErrors.SHELTER_WRITES_NOT_YET_AVAILABLE.status,
+      PHOTO_UPLOADS_UNAVAILABLE: apiErrors.PHOTO_UPLOADS_UNAVAILABLE.status,
+      PHOTO_REJECTED: apiErrors.PHOTO_REJECTED.status,
+      PHOTO_LIMIT_REACHED: apiErrors.PHOTO_LIMIT_REACHED.status,
+      PHOTOS_REQUIRED_WHILE_VISIBLE: apiErrors.PHOTOS_REQUIRED_WHILE_VISIBLE.status,
     }).toEqual({
       FORBIDDEN: 403,
       CONFLICT: 409,
@@ -215,6 +222,10 @@ describe("kabinet error statuses", () => {
       REGISTRY_CONFIRMED: 409,
       ADDRESS_HAS_A_ROLE: 409,
       SHELTER_WRITES_NOT_YET_AVAILABLE: 403,
+      PHOTO_UPLOADS_UNAVAILABLE: 503,
+      PHOTO_REJECTED: 422,
+      PHOTO_LIMIT_REACHED: 409,
+      PHOTOS_REQUIRED_WHILE_VISIBLE: 409,
     });
   });
 });
@@ -456,6 +467,9 @@ describe("every shelter-facing output carries exactly its listed keys", () => {
     "shelter.animals.confirm": ["animal", "undoUntil"],
     "shelter.animals.undoConfirm": ANIMAL_VIEW_KEYS,
     "shelter.animals.deleteDraft": [],
+    "shelter.photos.add": ANIMAL_VIEW_KEYS,
+    "shelter.photos.reorder": ANIMAL_VIEW_KEYS,
+    "shelter.photos.remove": ANIMAL_VIEW_KEYS,
     "shelter.history.list": ["items", "nextCursor"],
   };
 
@@ -672,12 +686,16 @@ describe("shelter inputs", () => {
   });
 
   /**
-   * K-Q7: an `animal_edited` entry names the patch's keys, so the two lists
-   * are one list. A patch key with no history literal would make an edit
-   * unrecordable; a literal with no patch key names a field nothing edits.
+   * K-Q7: an `animal_edited` entry names the patch's keys, plus `photos`,
+   * which the photo procedures record (P-Q3) and which is no patch key. A
+   * patch key with no history literal would make an edit unrecordable; a
+   * literal with neither a patch key nor its own procedure names a field
+   * nothing edits.
    */
-  it("an animal patch's keys are exactly the fields an edit entry can name", () => {
-    expect(Object.keys(AnimalPatchSchema.shape).sort()).toEqual([...ANIMAL_EDITED_FIELDS].sort());
+  it("the fields an edit entry can name are the patch's keys plus photos", () => {
+    expect([...Object.keys(AnimalPatchSchema.shape), "photos"].sort()).toEqual(
+      [...ANIMAL_EDITED_FIELDS].sort(),
+    );
   });
 
   it("an animal patch refuses nothing-at-all, and refuses documents, photos or listing", () => {

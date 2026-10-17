@@ -33,3 +33,21 @@ export type KabinetLimiters = { perUser: RateLimiter; perIp: RateLimiter };
  * an HMAC of the address, never the address (EM-Q11).
  */
 export const kabinetUserKey = (userId: string) => `user:${userId}`;
+
+/**
+ * P-Q12 (K-Q2: "per-shelter upload rate limit"): 60 uploads an hour and 300 a
+ * day per shelter, on the shared store in production like every kabinet
+ * limit. Keyed by the shelter, not the user, so two admins of one shelter
+ * share one allowance, and charged on every `shelter.photos.add` that passed
+ * the write policy, before ownership (P-T4) and before the file is sniffed or
+ * decoded: a refused file still cost the server the work of reading it, and a
+ * call naming another shelter's animal spends a unit too.
+ */
+export const PHOTO_UPLOAD_RATE_LIMITS = {
+  perHour: { windowMs: 60 * 60_000, maxRequests: 60 },
+  perDay: { windowMs: 24 * 60 * 60_000, maxRequests: 300 },
+} as const;
+
+export type PhotoUploadLimiters = { perHour: RateLimiter; perDay: RateLimiter };
+
+export const shelterUploadKey = (shelterId: string) => `shelter:${shelterId}`;

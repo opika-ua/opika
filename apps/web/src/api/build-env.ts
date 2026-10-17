@@ -1,3 +1,4 @@
+import { photoUploadEnvProblem } from "../kabinet/photo-upload-env";
 import { signInEnvProblems } from "../kabinet/sign-in-env";
 import { kabinetWriteAllowlistProblem } from "../kabinet/write-allowlist";
 import { envValueOf, paddedValueMessage } from "./env-value";
@@ -198,6 +199,10 @@ export const r2PublicBaseUrlProblem = (
  * `signInEnvProblems` (`kabinet/sign-in-env.ts`), production only, shared with
  * the boot check (`validateEnv`) so the two can't drift; which variables and
  * why are on that function.
+ *
+ * The photo upload variables (P-Q10, production only) are
+ * `photoUploadEnvProblem` (`kabinet/photo-upload-env.ts`), shared with the boot
+ * check the same way.
  */
 export function assertBuildEnv(env: Readonly<Record<string, string | undefined>>): void {
   const problems: string[] = [];
@@ -207,6 +212,7 @@ export function assertBuildEnv(env: Readonly<Record<string, string | undefined>>
     cronSecretProblem(env),
     rateLimitKeySecretProblem(env),
     locationSecretProblem(env),
+    photoUploadEnvProblem(env),
   ]) {
     if (problem !== null) {
       problems.push(`Invalid or missing required environment variable: ${problem}`);

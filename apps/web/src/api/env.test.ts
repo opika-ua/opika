@@ -22,6 +22,13 @@ const SIGN_IN = {
   BETTER_AUTH_SECRET: "b".repeat(64),
   BETTER_AUTH_URL: "https://opika.org.ua",
 } as const;
+/** The photo upload variables (P-Q10), production only; example values, not credentials. */
+const UPLOAD = {
+  R2_ACCOUNT_ID: "example-account-id",
+  R2_BUCKET_NAME: "example-photo-bucket",
+  R2_UPLOAD_ACCESS_KEY_ID: "example-upload-key-id",
+  R2_UPLOAD_SECRET_ACCESS_KEY: "example-upload-secret-value",
+} as const;
 
 describe("validateEnv", () => {
   afterEach(() => {
@@ -136,6 +143,7 @@ describe("validateEnv", () => {
     // Decision 1), each cleared by its own cases below.
     vi.stubEnv("LOCATION_HMAC_SECRET", "l".repeat(32));
     for (const [name, value] of Object.entries(SIGN_IN)) vi.stubEnv(name, value);
+    for (const [name, value] of Object.entries(UPLOAD)) vi.stubEnv(name, value);
     vi.stubEnv("EMAIL_SIGN_IN_PROVIDER", "");
     vi.stubEnv("KV_REST_API_URL", "");
     vi.stubEnv("KV_REST_API_TOKEN", "");
@@ -367,6 +375,30 @@ describe("validateEnv", () => {
   });
 
   /** RG-Q10 (Oleksii, verbatim: "the invite PR adds it to the required prod env schema"). */
+  describe("the photo upload variables (P-Q10)", () => {
+    it("a production deployment refuses to boot without one of them, naming it", () => {
+      setBaseRequiredEnv();
+      vi.stubEnv("VERCEL", "1");
+      vi.stubEnv("VERCEL_ENV", "production");
+      vi.stubEnv("KV_REST_API_URL", "https://example-upstash.example.com");
+      vi.stubEnv("KV_REST_API_TOKEN", "a-real-looking-token");
+      vi.stubEnv("CRON_SECRET", "c".repeat(32));
+      expect(() => validateEnv()).not.toThrow();
+      vi.stubEnv("R2_UPLOAD_SECRET_ACCESS_KEY", "");
+      expect(() => validateEnv()).toThrow(/R2_UPLOAD_SECRET_ACCESS_KEY must be set/);
+    });
+
+    it("a Preview boots without any of them (uploads are off there)", () => {
+      setBaseRequiredEnv();
+      vi.stubEnv("VERCEL", "1");
+      vi.stubEnv("VERCEL_ENV", "preview");
+      vi.stubEnv("KV_REST_API_URL", "https://example-upstash.example.com");
+      vi.stubEnv("KV_REST_API_TOKEN", "a-real-looking-token");
+      for (const name of Object.keys(UPLOAD)) vi.stubEnv(name, "");
+      expect(() => validateEnv()).not.toThrow();
+    });
+  });
+
   describe("LOCATION_HMAC_SECRET (RG-Q10)", () => {
     function production(): void {
       setBaseRequiredEnv();
@@ -426,6 +458,7 @@ describe("build, boot and production sign-in read each value by one rule (WI-Q1)
     RATE_LIMIT_KEY_SECRET: "r".repeat(32),
     LOCATION_HMAC_SECRET: "l".repeat(32),
     ...SIGN_IN,
+    ...UPLOAD,
   };
   const SIGN_IN_NAMES = Object.keys(SIGN_IN).filter((name) => name !== "EMAIL_FROM_NAME");
   const CHECKED = [
@@ -434,6 +467,7 @@ describe("build, boot and production sign-in read each value by one rule (WI-Q1)
     "LOCATION_HMAC_SECRET",
     "NEXT_PUBLIC_R2_PUBLIC_BASE_URL",
     ...SIGN_IN_NAMES,
+    ...Object.keys(UPLOAD),
   ];
 
   afterEach(() => {

@@ -5,6 +5,7 @@ import { createRouterClient, ORPCError, type RouterClient } from "@orpc/server";
 import { decideAccess, type WriteGrant } from "../../kabinet/access";
 import type { KabinetPrincipal } from "../../kabinet/actor";
 import type { KabinetContext } from "../../kabinet/context";
+import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../kabinet/photo-uploads";
 import { shelterKabinetRouter } from "../../kabinet/router";
 import { latestDonationOutcomeOf } from "./profile-edit/donation-outcome";
 
@@ -156,6 +157,8 @@ export async function kabinetHomeOf(
       setCookies: [],
       cookieHeader: null,
       production: false,
+      // The home page only reads; the served route carries the real upload config.
+      photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
     }),
   });
   let view: KabinetShelterView;

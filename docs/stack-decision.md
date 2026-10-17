@@ -20,7 +20,7 @@
 | **Images** | **Cloudflare R2** + variants pre-generated with `sharp` at upload, served through Cloudflare CDN | Zero egress cost. ~$6/mo at 300k MAU vs ~$530/mo for Supabase transforms, ~$700/mo for Cloudinary |
 | **Auth** | **Better Auth 1.6.x**, self-hosted, `organization` plugin for shelters | $0 at any scale. Clerk at 300k MAU = **$4,625/mo** — more than a year of every other line item combined |
 | **i18n** | **next-intl 4.13.x** + native `Intl` for all dates/numbers/plurals | Paraglide's own docs tell you to use next-intl on Next.js; `Intl` handles Ukrainian's 4 plural forms and month declension correctly for free |
-| **Hosting** | **Vercel Pro ($20/mo)** at MVP, images off-platform, spend cap on day one. Exit ramp: OpenNext → Cloudflare Workers | Ops time is your scarcest resource; the $30/mo you'd save self-hosting is noise against a $25–50k grant |
+| **Hosting** | **Vercel Pro ($20/mo)** at MVP, images off-platform, spend cap on day one. Exit ramp: OpenNext → Cloudflare Workers. *2026-10-17 (P-Q7): the project is on Vercel Hobby, not Pro; Hobby is non-commercial, so the ads/partners phase requires moving to Pro first (`docs/build-plan.md` Part 4).* | Ops time is your scarcest resource; the $30/mo you'd save self-hosting is noise against a $25–50k grant |
 | **Repo** | **pnpm 11 workspaces + catalogs**. Add Turborepo the day CI exceeds ~3 min | Turborepo has nothing to cache until you have real build steps between packages |
 | **Testing** | Vitest 4 + RTL 16 + MSW 2 + **4–6** Playwright specs; plain Docker PostGIS | Test the matcher, the verification FSM, and Ukrainian plural boundaries. Skip the rest |
 | **CI** | GitHub Actions on a **public repo** ($0, unlimited) | Also unlocks free Crowdin OSS and free Blacksmith runners |
@@ -310,6 +310,8 @@ A discriminated union here means the feed ranking, the badge colour, and the "pl
 ## 6. Hosting and infrastructure
 
 **Recommendation: Vercel Pro ($20/mo) at MVP with images off-platform and a spend cap. Exit ramp to Cloudflare Workers via OpenNext, pre-validated but not taken.**
+
+> 2026-10-17 (P-Q7): the project is on Vercel Hobby, not Pro; Hobby is non-commercial, so the ads/partners phase requires moving to Pro first (`docs/build-plan.md` Part 4). This section is left as written.
 
 ### Realistic monthly cost
 

@@ -1,5 +1,5 @@
 import { sharedRateLimiter } from "../api/rate-limit";
-import { KABINET_RATE_LIMITS } from "./rate-limits";
+import { KABINET_RATE_LIMITS, PHOTO_UPLOAD_RATE_LIMITS } from "./rate-limits";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
 
 /**
@@ -19,4 +19,10 @@ export const signInLimiters = {
 export const kabinetLimiters = {
   perUser: sharedRateLimiter({ name: "kabinet-user", ...KABINET_RATE_LIMITS.perUser }),
   perIp: sharedRateLimiter({ name: "kabinet-ip", ...KABINET_RATE_LIMITS.perIp }),
+};
+
+/** P-Q12: per shelter, an hour and a day. */
+export const photoUploadLimiters = {
+  perHour: sharedRateLimiter({ name: "kabinet-photo-hour", ...PHOTO_UPLOAD_RATE_LIMITS.perHour }),
+  perDay: sharedRateLimiter({ name: "kabinet-photo-day", ...PHOTO_UPLOAD_RATE_LIMITS.perDay }),
 };

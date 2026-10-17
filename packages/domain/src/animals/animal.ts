@@ -6,7 +6,7 @@ import { AgeEstimateSchema } from "./age";
 import { SpayNeuterStatusSchema, VaccinationStatusSchema } from "./attestation";
 import { DocumentReadinessSchema } from "./document-readiness";
 import { AnimalListingStateSchema } from "./listing";
-import { type AnimalPhoto, AnimalPhotoSchema } from "./photo";
+import { type AnimalPhoto, AnimalPhotoSchema, MAX_ANIMAL_PHOTOS } from "./photo";
 import { SizeBucketSchema } from "./size";
 
 /**
@@ -38,7 +38,7 @@ export const AnimalSchema = z.object({
   size: SizeBucketSchema,
   age: AgeEstimateSchema,
   description: LocalizedTextSchema,
-  photos: z.array(AnimalPhotoSchema).readonly(),
+  photos: z.array(AnimalPhotoSchema).max(MAX_ANIMAL_PHOTOS).readonly(),
   vaccination: VaccinationStatusSchema,
   spayNeuter: SpayNeuterStatusSchema,
   documentReadiness: DocumentReadinessSchema,

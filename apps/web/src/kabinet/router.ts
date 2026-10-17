@@ -31,6 +31,7 @@ import {
   animalsUpdate,
 } from "./handlers/animals";
 import { historyList } from "./handlers/history";
+import { photosAdd, photosRemove, photosReorder } from "./handlers/photos";
 import {
   profileCancelDonationProposal,
   profileGet,
@@ -201,6 +202,17 @@ export const shelterKabinetRouter = guarded.router({
       ),
       deleteDraft: guarded.shelter.animals.deleteDraft.handler(({ context, input, errors }) =>
         animalsDeleteDraft(context, writeScope(context.access), input, errors),
+      ),
+    },
+    photos: {
+      add: guarded.shelter.photos.add.handler(({ context, input, errors }) =>
+        photosAdd(context, writeScope(context.access), input, errors),
+      ),
+      reorder: guarded.shelter.photos.reorder.handler(({ context, input, errors }) =>
+        photosReorder(context, writeScope(context.access), input, errors),
+      ),
+      remove: guarded.shelter.photos.remove.handler(({ context, input, errors }) =>
+        photosRemove(context, writeScope(context.access), input, errors),
       ),
     },
   },

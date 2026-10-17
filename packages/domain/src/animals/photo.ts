@@ -11,7 +11,9 @@ import { LocalizedTextSchema } from "../primitives/localized-text";
  * is not a discovery worth postponing until there is a deck to discover it in.
  *
  * H1: `width`/`height` are the ORIGINAL uploaded photo's real dimensions
- * (`packages/db/src/image-pipeline/resolve-local-photo.ts`, EXIF-orientation
+ * (`packages/db/src/image-pipeline/resolve-local-photo.ts` for the onboarding
+ * script, `prepare-uploaded-photo.ts` for a kabinet upload, which is the
+ * device-compressed file of at most `PHOTO_MAX_EDGE_PX`; both EXIF-orientation
  * corrected), retained for provenance — not the dimensions of what the
  * browser actually receives. Every real `<Image>` in the app uses
  * `object-fit: cover` inside a fixed-ratio box (`AnimalCard`/
@@ -27,5 +29,43 @@ export const AnimalPhotoSchema = z.object({
   alt: LocalizedTextSchema.nullable(),
 });
 export type AnimalPhoto = z.infer<typeof AnimalPhotoSchema>;
+
+/**
+ * At most ten photos per animal (K-Q11, Oleksii: "a cap of 10 photos per
+ * animal"). Enforced on the stored type so every write path (the kabinet's
+ * upload, the onboarding script) meets the same ceiling, and the kabinet's
+ * screens can lay out a fixed grid.
+ */
+export const MAX_ANIMAL_PHOTOS = 10;
+
+/**
+ * The longest edge a stored source photo may have, in pixels (K-Q2: "browser-side
+ * compression to 2000 px is mandatory"). The device scales to this before
+ * uploading, and the server refuses anything larger rather than scaling it
+ * itself, so an oversized upload is a client fault that shows up, not a cost
+ * the server silently absorbs. The largest variant served (`detail`,
+ * 1120×1400) needs no more than this.
+ */
+export const PHOTO_MAX_EDGE_PX = 2000;
+
+/**
+ * Why the server refused an uploaded file as a photo. The server decides by
+ * the file's own bytes, never by its name or the type the browser declared:
+ * - `unsupported_type`: its magic bytes are not JPEG, PNG or WebP (GIF, SVG,
+ *   HEIC, PDF, text…). HEIC is converted on the device where the browser can
+ *   decode it (P-Q6), so one arriving here is a client that skipped that step;
+ * - `format_mismatch`: the decoder reads a different format than the bytes
+ *   claim, which only a crafted file does;
+ * - `dimensions_exceeded`: a side longer than `PHOTO_MAX_EDGE_PX`, refused from
+ *   the header alone, before any pixel is decoded;
+ * - `unreadable`: the header or the pixels fail to decode.
+ */
+export const PHOTO_REJECTION_REASONS = [
+  "unsupported_type",
+  "format_mismatch",
+  "dimensions_exceeded",
+  "unreadable",
+] as const;
+export type PhotoRejectionReason = (typeof PHOTO_REJECTION_REASONS)[number];
 
 export const aspectRatio = (photo: AnimalPhoto): number => photo.width / photo.height;

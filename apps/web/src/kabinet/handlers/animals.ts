@@ -43,7 +43,7 @@ import type { KabinetContext } from "../context";
 
 export type AnimalDeps = Pick<KabinetContext, "db" | "now" | "newId">;
 
-type OwnErrors = ORPCErrorConstructorMap<{
+export type OwnErrors = ORPCErrorConstructorMap<{
   NOT_FOUND: typeof apiErrors.NOT_FOUND;
   FORBIDDEN: typeof apiErrors.FORBIDDEN;
 }>;
@@ -103,7 +103,7 @@ export function kabinetAnimalRowOf(animal: Animal, now: Date): KabinetAnimalRowV
  * elsewhere, but animal ids are public on every feed card and draft ids are
  * unguessable UUIDs.
  */
-async function owned(
+export async function owned(
   deps: AnimalDeps,
   scope: ShelterReadScope,
   animalId: AnimalId,
@@ -166,7 +166,7 @@ function editedAge(current: AgeEstimate, input: AgeEstimate | undefined, now: Da
 const MAX_ATTEMPTS = 3;
 
 /** Who a shelter's own write is recorded as: its admin, from the write scope (K-Q7). */
-const actorOf = (scope: ShelterWriteScope): ShelterActor => ({
+export const actorOf = (scope: ShelterWriteScope): ShelterActor => ({
   kind: "shelter_admin",
   shelterAdminId: scope.shelterAdminId,
 });

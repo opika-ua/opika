@@ -189,6 +189,94 @@ describe("kabinetAnimalRepo.writeEditIf", () => {
   });
 });
 
+describe("kabinetAnimalRepo.writePhotosIf (P-Q3)", () => {
+  const photo = (id: string) => ({
+    storageKey: `animals/x/${id}`,
+    width: 800,
+    height: 1000,
+    alt: null,
+  });
+  const photosLine = (animal: Animal): AnimalHistoryRow<"animal_edited"> => ({
+    id: randomUUID(),
+    entry: {
+      kind: "animal_edited",
+      at: AT,
+      actor: ACTOR,
+      animalId: animal.id,
+      animalName: animal.name,
+      fields: ["photos"],
+    },
+  });
+
+  async function withPhotos(): Promise<Animal> {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
+    });
+    await shelterRepo(db).insert(shelter);
+    const animal = makeAnimal({ shelterId: shelter.id, photos: [photo("a"), photo("b")] });
+    await animalRepo(db).insert(animal, city.id);
+    return animal;
+  }
+
+  it("writes photos and last_updated_at, never version or the listing, with one photos line", async () => {
+    const animal = await withPhotos();
+    const read = await animalRepo(db).findById(animal.id);
+    if (read === null) throw new Error("seeded animal missing");
+    const historyBefore = (await historyOf(animal)).length;
+
+    const result = await kabinetAnimalRepo(db).writePhotosIf(
+      animal.id,
+      [photo("b"), photo("a")],
+      read.photos,
+      AT,
+      photosLine(animal),
+    );
+
+    expect(result).toEqual({ kind: "ok" });
+    const after = await animalRepo(db).findById(animal.id);
+    expect(after?.photos.map((p) => p.storageKey)).toEqual(["animals/x/b", "animals/x/a"]);
+    expect(after?.lastUpdatedAt).toEqual(AT);
+    expect(after?.version).toBe(read.version);
+    expect(after?.listing).toEqual(read.listing);
+    const lines = (await historyOf(animal)).slice(historyBefore);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ kind: "animal_edited", fields: ["photos"] });
+  });
+
+  it("a stale photo list writes nothing and records nothing", async () => {
+    const animal = await withPhotos();
+    const historyBefore = (await historyOf(animal)).length;
+
+    const result = await kabinetAnimalRepo(db).writePhotosIf(
+      animal.id,
+      [photo("a")],
+      [photo("a"), photo("c")],
+      AT,
+      photosLine(animal),
+    );
+
+    expect(result).toEqual({ kind: "conflict" });
+    const after = await animalRepo(db).findById(animal.id);
+    expect(after?.photos.map((p) => p.storageKey)).toEqual(["animals/x/a", "animals/x/b"]);
+    expect((await historyOf(animal)).length).toBe(historyBefore);
+  });
+
+  it("the order is part of the token: the same photos in another order conflict", async () => {
+    const animal = await withPhotos();
+    expect(
+      await kabinetAnimalRepo(db).writePhotosIf(
+        animal.id,
+        [],
+        [photo("b"), photo("a")],
+        AT,
+        photosLine(animal),
+      ),
+    ).toEqual({ kind: "conflict" });
+  });
+});
+
 describe("first_published_at is never cleared (HS-Q9)", () => {
   const firstPublishedOf = async (id: string) => {
     const [row] = await db.query.animals.findMany({ where: (t, { eq }) => eq(t.id, id as never) });

@@ -31,12 +31,17 @@ If this turns out wrong once real photos exist (e.g. `card` reads soft on some d
 
 **DECISION**: `storageKey = animals/{animalId}/{photoIndex}` — e.g. `animals/a0000000-.../0`. The actual R2 objects are derived from it, never stored: `{storageKey}/{variant}.webp` → `animals/a0000000-.../0/card.webp`. The loader is the only place that knows variants exist; the domain type stays exactly as documented.
 
+**Superseded 2026-10-17 (K milestone PR 3, P-Q4/P-Q13):** `storageKey = animals/{animalId}/{photoId}`, `photoId` a fresh random UUID per photo (`animalPhotoStorageKeyFor`). Once shelters can remove and reorder photos, an index names the same object for a different photo, and storing under it would overwrite a file, which K-Q2 forbids. The onboarding script and the kabinet's upload both use the random key; every put also carries `IfNoneMatch: "*"` (P-Q11). Variant naming is unchanged.
+
 ## Env vars — and the one that can break the next deploy if missed
 
-Per your instruction, the web app requires only the public read side; write credentials never reach Vercel — same shape as `LOCATION_HMAC_SECRET`'s split, for the same reason (the onboarding script runs from an operator's machine, never through the deployed instance):
+Per your instruction at H1, the web app required only the public read side and write credentials never reached Vercel. **Changed 2026-10-17 (K-Q2, Oleksii's explicit decision, overriding that rule; K milestone PR 3):** shelters upload photos from the kabinet, so the deployed app writes to R2 through its own token (Object Read & Write, scoped to the photo bucket; whether it can delete is unverified, P-T15), in Production only (P-Q10). The split is now:
 
-- **Operator-only, local shell, never in Vercel**: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`
+- **Operator-only, local shell, never in Vercel**: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (the onboarding script's token), plus `R2_ACCOUNT_ID`, `R2_BUCKET_NAME` for its runs
+- **Deployed app, Vercel Production only** (checked at the production build and boot, `photoUploadEnvProblem`): `R2_UPLOAD_ACCESS_KEY_ID`, `R2_UPLOAD_SECRET_ACCESS_KEY` (a token scoped to the photo bucket, with the narrowest permission that can write objects), `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`. Never Preview: a Preview refuses every upload (`PHOTO_UPLOADS_UNAVAILABLE`)
 - **Deployed app, `validateEnv()`'s required schema**: `NEXT_PUBLIC_R2_PUBLIC_BASE_URL`
+
+No code path deletes, copies over or overwrites an object (a source scan in `apps/web/src/kabinet/photo-pipeline-scan.test.ts`); the upload re-encodes every file and stores only the three WebP variants, never the original, with every piece of metadata stripped (`prepareUploadedPhoto`).
 
 **This is a real risk, not a formality — flagging it loudly rather than burying it in a diff.** Unlike `LOCATION_HMAC_SECRET` (deliberately kept *out* of the required schema to avoid exactly this), `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` going into `validateEnv()`'s required list means **the next production deploy refuses to boot if it isn't set in Vercel first** — `validateEnv()` runs at `instrumentation.ts`'s `register()`, before the instance accepts its first request, same as `DATABASE_URL`/`CURSOR_HMAC_SECRET` today. Today's live site has zero real R2-hosted photos (every animal is still a seed placeholder, which never touches R2 at all), so this env var currently does nothing for the live site — until this code merges, at which point it becomes load-bearing immediately. **Action item, blocking, before this branch merges to `main`: set `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` in Vercel (Production and Preview).** I can't do this myself — same reason I couldn't generate `LOCATION_HMAC_SECRET`'s value for you, except this one actually breaks the site if skipped, that one didn't.
 

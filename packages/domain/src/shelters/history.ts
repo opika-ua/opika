@@ -18,9 +18,10 @@ import { VerificationEventSchema } from "./verification/events";
 import { VerificationStatusSchema } from "./verification/state";
 
 /**
- * The fields an `animal_edited` entry can name: exactly the kabinet's
- * `AnimalPatchSchema` keys (a contracts test pins the two together). Photos
- * join when their procedures do (PR 3), as one more literal.
+ * The fields an `animal_edited` entry can name: the kabinet's
+ * `AnimalPatchSchema` keys plus `photos` (a contracts test pins the two
+ * together). Photos aren't a patch key: they change through their own
+ * procedures (`shelter.photos.*`, P-Q3), which record `fields: ["photos"]`.
  */
 export const ANIMAL_EDITED_FIELDS = [
   "name",
@@ -31,6 +32,7 @@ export const ANIMAL_EDITED_FIELDS = [
   "description",
   "vaccination",
   "spayNeuter",
+  "photos",
 ] as const;
 export type AnimalEditedField = (typeof ANIMAL_EDITED_FIELDS)[number];
 

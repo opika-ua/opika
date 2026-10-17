@@ -2,13 +2,21 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { r2EndpointUrl } from "./variants";
 
 /**
- * Deliberately thin — `put`, nothing else. Every decision that isn't "make
- * an authenticated HTTP call to R2" (which variants to generate, what key
- * to use, what URL the browser fetches) lives in `variants.ts` and
- * `generate-variants.ts`, both pure and fully tested. This file is the one
- * piece that can't be exercised without a real bucket, so it stays small on
- * purpose — see `docs/h1-decisions.md`, "what stays unverified until a real
- * bucket exists."
+ * Deliberately thin — `put`, nothing else, and that `put` only ever creates.
+ * Every decision that isn't "make an authenticated HTTP call to R2" (which
+ * variants to generate, what key to use, what URL the browser fetches) lives
+ * in `variants.ts`, `generate-variants.ts` and `prepare-uploaded-photo.ts`,
+ * all pure and fully tested. This file is the one piece that can't be
+ * exercised without a real bucket, so it stays small on purpose — see
+ * `docs/h1-decisions.md`, "what stays unverified until a real bucket exists."
+ *
+ * No delete, copy or lifecycle call exists here or anywhere else (K-Q2: "no
+ * code path that overwrites or deletes an existing object"; a source scan in
+ * `apps/web/src/kabinet/photo-pipeline-scan.test.ts` keeps it that way, and
+ * keeps this the one file that imports the S3 client). Two callers since PR 3:
+ * the onboarding script, from an operator's machine, and the kabinet's upload
+ * (`shelter.photos.add`), from the deployed app, with its own
+ * token (P-Q10).
  *
  * `@aws-sdk/client-s3`: R2 is S3-API-compatible by design (Cloudflare's own
  * docs recommend this exact client), and there's no lighter-weight official
@@ -30,6 +38,16 @@ export interface R2Config {
  * the credential shape R2 actually expects, and whether `PutObjectCommand`
  * succeeds against Cloudflare's S3-compatible surface are all asserted, not
  * tested. See `docs/h1-decisions.md`'s explicit list.
+ *
+ * `IfNoneMatch: "*"` on every put (P-Q11): the store refuses (412) a key that
+ * already holds an object, so even a reused key could never overwrite a
+ * photo. Keys are fresh random UUIDs (`animalPhotoStorageKeyFor`), so this
+ * never fires in normal use; it is the second lock behind that one, enforced
+ * by the store rather than by this code. Whether R2 honours the header is on
+ * the production probe list (a one-off overwrite attempt, see
+ * `docs/onboarding-a-shelter.md`), not verified here. No bucket lock instead
+ * (Oleksii's P-Q11 amendment): it would also block the future takedown script
+ * (DR-F3).
  */
 export function createR2Client(config: R2Config): ImageStorageClient {
   const client = new S3Client({
@@ -49,6 +67,7 @@ export function createR2Client(config: R2Config): ImageStorageClient {
           Key: key,
           Body: body,
           ContentType: contentType,
+          IfNoneMatch: "*",
         }),
       );
     },

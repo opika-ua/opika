@@ -3,6 +3,7 @@ import type { LocationPrivacyPolicy } from "@opika/domain";
 import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import type { InvitationSender } from "./email-senders";
+import type { PhotoUploads } from "./photo-uploads";
 
 /**
  * What every kabinet request starts with, before access is decided. `now`
@@ -39,4 +40,6 @@ export type KabinetContext = {
    * page (KH-Q1, K-Q17); the test-only open policy only in the handler tests.
    */
   shelterWrites: ShelterWritePolicy;
+  /** Where `shelter.photos.add` stores, or why it can't on this deployment (P-Q10). */
+  photoUploads: PhotoUploads;
 };
