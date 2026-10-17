@@ -356,6 +356,31 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
    shelters (1 at launch), `MISMATCH 0`, no `PRIVACY` line, and `demo` = **2** if the demo corpus
    is still there or **0** once `demo:remove` has run (the next launch step).
 
+## Dress rehearsal (UI only), before any public posting
+
+The launch gate after PR 6 and the operator screens (RU-B4). **UI only:** no console rpc, no
+scripts, no `KABINET_WRITE_ALLOWLIST`. The pre-launch gate cookie is the only non-UI piece
+(RU-B1). Three people, three browsers: Oleksii as the operator in his own screens, a test shelter
+as the client, and a third browser as the adopter. His script, verbatim (RU-B5) except step 2,
+which he reworded on 2026-10-17 (RU-Q6, verbatim: "Reword rehearsal step 2 to "resend, or invite
+a second address""), because creating a shelter already invites its first admin:
+
+1. He creates «Притулок «Генеральна»» in his screens and verifies it. (The create form requires
+   the first admin, so this is where `oleksii.kolotenko+shelter2@gmail.com` is entered and
+   invited.)
+2. From the shelter page: resend, or invite a second address.
+3. The shelter admin signs in on a phone, fills the profile, adds 2–3 animals with photos taken
+   on the phone, and publishes.
+4. The adopter (a separate browser plus the gate cookie) finds them in the deck and the gallery,
+   reveals contacts, and messages the shelter.
+5. The shelter marks one adopted and hides one. He approves a donation link, then suspends and
+   reinstates the shelter, and checks that the history shows all of it.
+6. Both test shelters are retired afterwards: the existing rehearsal shelter first, per
+   "Retiring the rehearsal shelter" above, then «Генеральна» the same way.
+
+Until then the current rehearsal shelter (`c00c73ac-…`) stays as the dev test bed, and
+`KABINET_WRITE_ALLOWLIST` serves only that interim; it goes away with PR 6.
+
 ## Where `LOCATION_HMAC_SECRET` comes from
 
 Generate one once with `openssl rand -hex 32`. Keep it somewhere you can
