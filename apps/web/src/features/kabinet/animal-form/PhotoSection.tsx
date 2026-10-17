@@ -14,7 +14,7 @@ import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
 import { Button } from "../../controls/controls";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
 import { CAPTION, CARD, CARD_TITLE, ERROR_TEXT } from "../profile-edit/styles";
-import { uploadProgressText } from "./labels";
+import { type ShelterVisibility, uploadProgressText } from "./labels";
 
 /**
  * K3's «Фото» section (N9): the photos as tiles in their order (the first is
@@ -90,7 +90,7 @@ const uploadFailure = (error: unknown): { message: string; retryable: boolean } 
 export function PhotoSection({
   animal,
   editable,
-  shelterVisible,
+  shelterVisibility,
   client,
   onView,
   reload,
@@ -98,8 +98,8 @@ export function PhotoSection({
 }: {
   animal: KabinetAnimalView;
   editable: boolean;
-  /** Whether the shelter's cards are on the public surfaces now (verified, not paused). */
-  shelterVisible: boolean;
+  /** Where the shelter's cards stand with the public (`shelterVisibilityOf`). */
+  shelterVisibility: ShelterVisibility;
   client: KabinetAnimalClient;
   onView: (view: KabinetAnimalView) => void;
   reload: () => Promise<void>;
@@ -118,8 +118,11 @@ export function PhotoSection({
 
   const visibleListing = isDiscoverable(animal.listing);
   const lastPhotoLocked = visibleListing && photos.length === 1;
-  // «бачать люди» is true only while the shelter's cards are shown.
-  const lastPhotoText = shelterVisible ? t.photos.lastPhotoKept : t.photos.lastPhotoKeptNotShown;
+  // «бачать люди» is true only while the shelter's cards are shown. His other
+  // line serves both hidden kinds: «поки її ще не бачать» ("while they still
+  // don't see it") makes no claim about verification.
+  const lastPhotoText =
+    shelterVisibility === "visible" ? t.photos.lastPhotoKept : t.photos.lastPhotoKeptNotShown;
   const room =
     MAX_ANIMAL_PHOTOS - photos.length - uploads.filter((u) => u.state.kind !== "failed").length;
 

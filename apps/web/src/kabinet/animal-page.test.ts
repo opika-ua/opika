@@ -7,9 +7,26 @@ import {
   setupTestDatabase,
   truncateAll,
 } from "@opika/db/test";
-import type { CityId, ModeratorId, Shelter, ShelterAdminId } from "@opika/domain";
+import {
+  type CityId,
+  FEED_VISIBLE_VERIFICATION_STATUSES,
+  type ModeratorId,
+  type Shelter,
+  type ShelterAdminId,
+  type ShelterVerification,
+  VERIFICATION_STATUSES,
+  type VerificationStatus,
+} from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { type AnimalPageTarget, kabinetAnimalPageOf } from "../features/kabinet/animal-page";
+import {
+  publishedAnnouncementOf,
+  type ShelterVisibility,
+} from "../features/kabinet/animal-form/labels";
+import {
+  type AnimalPageTarget,
+  kabinetAnimalPageOf,
+  shelterVisibilityOf,
+} from "../features/kabinet/animal-page";
 import { SHELTER_WRITE_POLICY, type ShelterWritePolicy, shelterWritePolicyOf } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
@@ -170,30 +187,116 @@ describe("kabinetAnimalPageOf: /[id] (edit)", () => {
     }
   });
 
-  it("says whether the shelter's cards are shown: verified yes, paused no", async () => {
-    const verified = mine.verification;
-    if (verified.status !== "verified") throw new Error("the fixture shelter is verified");
-    const paused = makeShelter({
-      publicLocation: mine.publicLocation,
-      verification: {
-        status: "paused",
-        verifiedAt: verified.verifiedAt,
-        verifiedBy: verified.verifiedBy,
-        evidence: verified.evidence,
-        pausedAt: new Date(),
-        pausedBy: { kind: "shelter_admin", shelterAdminId: ADMIN },
-        reason: { code: "relocation", note: null },
-      },
-    });
-    await shelterRepo(db).insert(paused);
-    const visibility = async (shelter: Shelter) => {
+  it("says where the shelter's cards stand, read from the stored verification, for every status", async () => {
+    const seen: Partial<Record<VerificationStatus, ShelterVisibility>> = {};
+    for (const status of VERIFICATION_STATUSES) {
+      const shelter = makeShelter({
+        publicLocation: mine.publicLocation,
+        verification: VERIFICATION_IN[status],
+      });
+      await shelterRepo(db).insert(shelter);
       const animal = makeAnimal({ shelterId: shelter.id });
       await animalRepo(db).insert(animal, cityId);
       const page = await kabinetAnimalPageOf(adminOf(shelter), existing(animal.id), deps());
-      if (page.kind !== "form") throw new Error(`expected the form, got ${page.kind}`);
-      return page.shelterVisible;
-    };
-    expect(await visibility(mine)).toBe(true);
-    expect(await visibility(paused)).toBe(false);
+      if (page.kind !== "form") throw new Error(`${status}: expected the form, got ${page.kind}`);
+      seen[status] = page.shelterVisibility;
+    }
+    expect(seen).toEqual(EXPECTED_VISIBILITY);
+  });
+});
+
+/**
+ * One stored verification per status, each a valid state of its kind, so the
+ * page reads the status through the repository and the profile procedure
+ * rather than being handed it.
+ */
+const AT = new Date("2026-10-01T10:00:00.000Z");
+const EVIDENCE = { items: [], submittedAt: AT };
+const VERIFIED_FACTS = { verifiedAt: AT, verifiedBy: OPERATOR };
+const VERIFICATION_IN: { [S in VerificationStatus]: Extract<ShelterVerification, { status: S }> } =
+  {
+    pending: { status: "pending", submittedAt: AT, evidence: EVIDENCE },
+    under_review: {
+      status: "under_review",
+      startedAt: AT,
+      reviewerId: OPERATOR,
+      evidence: EVIDENCE,
+    },
+    verified: { status: "verified", ...VERIFIED_FACTS, evidence: EVIDENCE },
+    rejected: {
+      status: "rejected",
+      rejectedAt: AT,
+      rejectedBy: OPERATOR,
+      reason: { code: "insufficient_evidence", note: null },
+      evidence: EVIDENCE,
+    },
+    paused: {
+      status: "paused",
+      ...VERIFIED_FACTS,
+      pausedAt: AT,
+      pausedBy: { kind: "shelter_admin", shelterAdminId: ADMIN },
+      reason: { code: "relocation", note: null },
+      evidence: EVIDENCE,
+    },
+    suspended: {
+      status: "suspended",
+      suspendedAt: AT,
+      suspendedBy: OPERATOR,
+      reason: { code: "unresponsive", note: null },
+      priorState: { status: "verified", ...VERIFIED_FACTS },
+      evidence: EVIDENCE,
+    },
+  };
+
+/**
+ * Written out status by status, not derived from the feed's constant: before
+ * a pass (pending, under review, rejected and free to resubmit) the cards
+ * show «щойно притулок пройде перевірку»; after one (paused, suspended) that
+ * sentence is false (docs review of #116).
+ */
+const EXPECTED_VISIBILITY: Record<VerificationStatus, ShelterVisibility> = {
+  pending: "awaiting_verification",
+  under_review: "awaiting_verification",
+  verified: "visible",
+  rejected: "awaiting_verification",
+  paused: "hidden",
+  suspended: "hidden",
+};
+
+/** His lines, transcribed from his K3 file, never read from `uk.ts`. */
+const PUBLISH_DONE = "Опубліковано. Тепер картку бачать ті, хто шукає тварину.";
+const PUBLISHED_NOT_SHOWN =
+  "Опубліковано. Ті, хто шукає тварину, побачать картку, щойно притулок пройде перевірку.";
+const PUBLISHED_HIDDEN = "Опубліковано. Цю картку зараз ніхто не бачить.";
+const ANNOUNCED: Record<VerificationStatus, string> = {
+  pending: PUBLISHED_NOT_SHOWN,
+  under_review: PUBLISHED_NOT_SHOWN,
+  verified: PUBLISH_DONE,
+  rejected: PUBLISHED_NOT_SHOWN,
+  paused: PUBLISHED_HIDDEN,
+  suspended: PUBLISHED_HIDDEN,
+};
+
+describe("shelterVisibilityOf: every verification status, and what publishing then announces", () => {
+  it("the tables name every status there is", () => {
+    const statuses = [...VERIFICATION_STATUSES].sort();
+    expect(Object.keys(EXPECTED_VISIBILITY).sort()).toEqual(statuses);
+    expect(Object.keys(ANNOUNCED).sort()).toEqual(statuses);
+  });
+
+  it.each(VERIFICATION_STATUSES)("%s", (status) => {
+    const visibility = shelterVisibilityOf(status);
+    expect({ visibility, announced: publishedAnnouncementOf(visibility) }).toEqual({
+      visibility: EXPECTED_VISIBILITY[status],
+      announced: ANNOUNCED[status],
+    });
+  });
+
+  it("is visible exactly where the public surfaces show the shelter's cards", () => {
+    for (const status of VERIFICATION_STATUSES) {
+      expect(shelterVisibilityOf(status) === "visible", status).toBe(
+        (FEED_VISIBLE_VERIFICATION_STATUSES as readonly string[]).includes(status),
+      );
+    }
   });
 });

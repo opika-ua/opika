@@ -51,7 +51,7 @@ export function AnimalPage({
             initialView={page.view}
             editing={page.editing}
             viewer={page.viewer}
-            shelterVisible={page.shelterVisible}
+            shelterVisibility={page.shelterVisibility}
             back={BACK_TO_PROFILE}
           />
         ) : (

@@ -25,7 +25,13 @@ import {
   problemsOf,
   valuesOf,
 } from "./form-values";
-import { createdWhen, missingSentence, timeOf } from "./labels";
+import {
+  createdWhen,
+  missingSentence,
+  publishedAnnouncementOf,
+  type ShelterVisibility,
+  timeOf,
+} from "./labels";
 import { PhotoSection } from "./PhotoSection";
 
 /**
@@ -94,7 +100,7 @@ export function AnimalForm({
   initialView,
   editing,
   viewer,
-  shelterVisible,
+  shelterVisibility,
   back,
   client = kabinetAnimalBrowserClient,
   clock = () => new Date(),
@@ -104,8 +110,8 @@ export function AnimalForm({
   initialView: KabinetAnimalView | null;
   editing: AnimalFormEditing;
   viewer: "admin" | "support";
-  /** Whether the shelter's cards are on the public surfaces now (verified, not paused). */
-  shelterVisible: boolean;
+  /** Where the shelter's cards stand with the public (`shelterVisibilityOf`). */
+  shelterVisibility: ShelterVisibility;
   back: { href: string; label: string };
   client?: KabinetAnimalClient;
   clock?: () => Date;
@@ -293,13 +299,15 @@ export function AnimalForm({
   }, []);
 
   const heading = view === null ? t.titleNew : view.name;
+  const shelterShown = shelterVisibility === "visible";
   // Seen by people: a published or reserved card of a shelter whose cards
   // are on the public surfaces (verified, not paused). Both halves, because
   // the feed, the gallery and `animals.byId` each check both.
-  const visibleListing = view !== null && isDiscoverable(view.listing) && shelterVisible;
-  // «Тепер картку бачать…» is true only where the card is shown; a hidden
-  // shelter's admin is told the card shows once the shelter is verified.
-  const publishedAnnouncement = shelterVisible ? t.publish.done : t.publish.publishedNotShown;
+  const visibleListing = view !== null && isDiscoverable(view.listing) && shelterShown;
+  // «Тепер картку бачать…» only where the card is shown, «…щойно притулок
+  // пройде перевірку» only before a pass (never to a paused or suspended
+  // shelter, which has passed): `publishedAnnouncementOf`.
+  const publishedAnnouncement = publishedAnnouncementOf(shelterVisibility);
 
   const publish = async () => {
     if (!editable || publishing) return;
@@ -410,7 +418,7 @@ export function AnimalForm({
             <PhotoSection
               animal={view}
               editable={editable}
-              shelterVisible={shelterVisible}
+              shelterVisibility={shelterVisibility}
               client={client}
               onView={onPhotoView}
               reload={reload}
@@ -453,7 +461,7 @@ export function AnimalForm({
               }
             />
           )}
-          {published && shelterVisible && view !== null ? (
+          {published && shelterShown && view !== null ? (
             <a href={`/tvaryny/${view.id}`} className={`self-start ${buttonClass("text")}`}>
               {t.publish.viewPublic}
             </a>

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { AnimalForm, type AnimalFormEditing } from "./AnimalForm";
+import type { ShelterVisibility } from "./labels";
 
 /**
  * K3's form, behaviour only (Test logic, not looks). Every Ukrainian string
@@ -178,7 +179,7 @@ function renderForm(
   options: {
     editing?: AnimalFormEditing;
     viewer?: "admin" | "support";
-    shelterVisible?: boolean;
+    shelterVisibility?: ShelterVisibility;
     compress?: (file: File) => Promise<CompressedPhoto>;
     client?: FakeClient;
   } = {},
@@ -189,7 +190,7 @@ function renderForm(
       initialView={view}
       editing={options.editing ?? OPEN}
       viewer={options.viewer ?? "admin"}
-      shelterVisible={options.shelterVisible ?? true}
+      shelterVisibility={options.shelterVisibility ?? "visible"}
       back={{ href: "/kabinet", label: "← Профіль притулку" }}
       client={client}
       clock={() => NOW}
@@ -210,9 +211,22 @@ const formStatus = () => {
 const SAVE_DRAFT = "Зберегти чернетку";
 const MISSING_ALL = "Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.";
 const PUBLISH_DONE = "Опубліковано. Тепер картку бачать ті, хто шукає тварину.";
-// His final text for a shelter whose cards are hidden (round 2b, answer 3).
+// His final text for a shelter that hasn't passed verification (round 2b, answer 3).
 const PUBLISHED_NOT_SHOWN =
   "Опубліковано. Ті, хто шукає тварину, побачать картку, щойно притулок пройде перевірку.";
+// A paused or suspended shelter has passed verification, so the line above is
+// false there: his status word «Опубліковано» and his `listed.notShownNow`,
+// each transcribed from his K3 file (K3-T15).
+const PUBLISHED_HIDDEN = "Опубліковано. Цю картку зараз ніхто не бачить.";
+const NOT_SHOWN_NOW = "Цю картку зараз ніхто не бачить.";
+const NOT_VISIBLE_KINDS = [
+  ["not yet verified (pending, under review, rejected)", "awaiting_verification"],
+  ["paused or suspended", "hidden"],
+] as const satisfies readonly (readonly [string, ShelterVisibility])[];
+const WRITE_GRANTS = [
+  ["the allowlist", { kind: "open", grantedBy: "allowlist" }],
+  ["an open policy", { kind: "open", grantedBy: "open_policy" }],
+] as const satisfies readonly (readonly [string, AnimalFormEditing])[];
 const LAST_PHOTO_KEPT_NOT_SHOWN =
   "Картка опублікована, тож одне фото має лишитися — навіть поки її ще не бачать.";
 
@@ -805,22 +819,42 @@ describe("publishing", () => {
     );
   });
 
-  it.each([
-    ["the allowlist", { kind: "open", grantedBy: "allowlist" }],
-    ["an open policy", { kind: "open", grantedBy: "open_policy" }],
-  ] as [string, AnimalFormEditing][])(
-    "for a hidden shelter (writes open by %s), publishing says when people will see it, never «бачать» now",
-    async (_grant, editing) => {
+  /**
+   * Each announcement is true only in its own state (docs review of #116):
+   * «…щойно притулок пройде перевірку» is false for a paused or suspended
+   * shelter, which has passed. Which statuses make which kind is
+   * `animal-page.test.ts`'s, status by status.
+   */
+  const ANNOUNCED = [
+    ["shown (verified)", "visible", PUBLISH_DONE],
+    [NOT_VISIBLE_KINDS[0][0], NOT_VISIBLE_KINDS[0][1], PUBLISHED_NOT_SHOWN],
+    [NOT_VISIBLE_KINDS[1][0], NOT_VISIBLE_KINDS[1][1], PUBLISHED_HIDDEN],
+  ] as const;
+  it.each(
+    ANNOUNCED.flatMap(([who, visibility, announced]) =>
+      WRITE_GRANTS.map(([grant, editing]) => [who, grant, visibility, announced, editing] as const),
+    ),
+  )(
+    "a shelter %s (writes open by %s): publishing announces only what is true there",
+    async (_who, _grant, visibility, announced, editing) => {
       const user = userEvent.setup();
       renderForm(draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>), {
-        shelterVisible: false,
+        shelterVisibility: visibility,
         editing,
       });
       await user.click(screen.getByRole("button", { name: "Опублікувати" }));
-      await screen.findByText("Цю картку зараз ніхто не бачить.");
-      expect(formStatus().textContent).toBe(PUBLISHED_NOT_SHOWN);
-      expect(screen.queryByText(/Тепер картку бачать/)).toBeNull();
-      expect(screen.queryByRole("link", { name: "Відкрити сторінку тварини" })).toBeNull();
+      const shown = visibility === "visible";
+      await screen.findByText(shown ? PUBLISH_DONE : NOT_SHOWN_NOW);
+      expect(formStatus().textContent).toBe(announced);
+      // Only a shown shelter's admin is told people see the card, or sent to its public page.
+      expect(screen.queryAllByText(/Тепер картку бачать/)).toHaveLength(shown ? 1 : 0);
+      expect(screen.queryAllByRole("link", { name: "Відкрити сторінку тварини" })).toHaveLength(
+        shown ? 1 : 0,
+      );
+      // «щойно притулок пройде перевірку» only before a pass.
+      expect(screen.queryAllByText(/пройде перевірку/)).toHaveLength(
+        visibility === "awaiting_verification" ? 1 : 0,
+      );
     },
   );
 
@@ -935,11 +969,14 @@ describe("a listed animal saves only when asked (T8)", () => {
     ).toBe("true");
   });
 
-  it("a shelter whose cards are hidden is told nobody sees the card, not that changes go live", () => {
-    renderForm(published(), { shelterVisible: false });
-    expect(screen.getByText("Цю картку зараз ніхто не бачить.")).toBeTruthy();
-    expect(screen.queryByText(/Зміни зʼявляться на картці/)).toBeNull();
-  });
+  it.each(NOT_VISIBLE_KINDS)(
+    "a shelter %s is told nobody sees the card, not that changes go live",
+    (_who, visibility) => {
+      renderForm(published(), { shelterVisibility: visibility });
+      expect(screen.getByText(NOT_SHOWN_NOW)).toBeTruthy();
+      expect(screen.queryByText(/Зміни зʼявляться на картці/)).toBeNull();
+    },
+  );
 
   it("an adopted card is shown to nobody", () => {
     renderForm(
@@ -976,7 +1013,7 @@ describe("who may change what", () => {
         initialView={published()}
         editing={{ kind: "open", grantedBy: "allowlist" }}
         viewer="admin"
-        shelterVisible
+        shelterVisibility="visible"
         back={{ href: "/kabinet", label: "←" }}
         client={fakeClient(published())}
         clock={() => NOW}
@@ -994,7 +1031,7 @@ describe("who may change what", () => {
           initialView={published()}
           editing={editing}
           viewer={viewer}
-          shelterVisible={false}
+          shelterVisibility="hidden"
           back={{ href: "/kabinet", label: "←" }}
           client={fakeClient(published())}
           clock={() => NOW}
@@ -1006,13 +1043,15 @@ describe("who may change what", () => {
     }
   });
 
-  it.each([
-    ["the allowlist", { kind: "open", grantedBy: "allowlist" }],
-    ["an open policy", { kind: "open", grantedBy: "open_policy" }],
-  ] as [string, AnimalFormEditing][])(
-    "while the shelter's cards are hidden (writes open by %s), the last-photo note doesn't say people see the card",
-    (_grant, editing) => {
-      renderForm(published(), { shelterVisible: false, editing });
+  // One note for both hidden kinds: «поки її ще не бачать» claims nothing about verification.
+  it.each(
+    NOT_VISIBLE_KINDS.flatMap(([who, visibility]) =>
+      WRITE_GRANTS.map(([grant, editing]) => [who, grant, visibility, editing] as const),
+    ),
+  )(
+    "while a shelter %s has its cards hidden (writes open by %s), the last-photo note doesn't say people see the card",
+    (_who, _grant, visibility, editing) => {
+      renderForm(published(), { shelterVisibility: visibility, editing });
       expect(screen.queryByText("Цю картку бачать люди, тож одне фото має лишитися.")).toBeNull();
       const note = screen.getByText(LAST_PHOTO_KEPT_NOT_SHOWN);
       expect(
