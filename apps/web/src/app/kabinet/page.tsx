@@ -7,6 +7,7 @@ import { requireEnv } from "../../api/env";
 import { kabinetHomeOf } from "../../features/kabinet/home";
 import { JoinFailedCard } from "../../features/kabinet/JoinFailedCard";
 import { KabinetBrand } from "../../features/kabinet/KabinetBrand";
+import { OPERATOR_HOME } from "../../features/kabinet/routes";
 import { ShelterProfile } from "../../features/kabinet/ShelterProfile";
 import { shelterWritePolicyOf } from "../../kabinet/access";
 import { invitationAccepter, selfHealingIdentity } from "../../kabinet/invitation-accept";
@@ -72,6 +73,10 @@ export default async function KabinetHomePage() {
       break;
     case "not_found":
       notFound();
+      break;
+    case "operator":
+      // RU-T1: the operator's home is their list, which guards itself.
+      redirect(OPERATOR_HOME);
       break;
     case "shelter":
       return (

@@ -892,6 +892,55 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   });
 });
 
+/**
+ * The words the operator's animal history lines fill in (`{from}`/`{to}`,
+ * `{fields}`): his R-UI file gives the lines, not the words, so these are his
+ * K3 words (`k3-copy-uk.md`, 2026-10-17), transcribed from that file:
+ * `kabinet.listingStatus.*` and the K3 form's field labels. Exactly these
+ * keys, so a word added without his text fails here.
+ */
+describe("kabinet animal history labels (his K3 words, 2026-10-17)", () => {
+  const K3_WORDS: Record<string, string> = {
+    // kabinet.listingStatus.draft
+    "listing.draft": "Чернетка",
+    // kabinet.listingStatus.published
+    "listing.published": "Опубліковано",
+    // kabinet.listingStatus.reserved
+    "listing.reserved": "Домовляються",
+    // kabinet.listingStatus.adopted
+    "listing.adopted": "Удома",
+    // kabinet.listingStatus.withdrawn
+    "listing.withdrawn": "Знято з показу",
+    // who.nameLabel
+    "field.name": "Імʼя",
+    // who.speciesLabel
+    "field.species": "Вид",
+    // who.sexLabel
+    "field.sex": "Стать",
+    // who.sizeLabel
+    "field.size": "Розмір",
+    // age.title
+    "field.age": "Вік",
+    // description.title
+    "field.description": "Опис",
+    // photos.title
+    "field.photos": "Фото",
+  };
+
+  it("holds exactly these words, as he wrote them", () => {
+    const labels = uk.kabinet.animalHistoryLabels;
+    expect({
+      ...Object.fromEntries(Object.entries(labels.listing).map(([k, v]) => [`listing.${k}`, v])),
+      ...Object.fromEntries(Object.entries(labels.field).map(([k, v]) => [`field.${k}`, v])),
+    }).toEqual(K3_WORDS);
+  });
+
+  it("the medical fields are the public labels his K3 answer 6 reuses", () => {
+    expect(uk.medical.vaccination).toBe("Комплексне щеплення");
+    expect(uk.medical.spayNeuter).toBe("Стерилізація");
+  });
+});
+
 describe("pendingCopyPaths", () => {
   it("walks nested groups and names each placeholder by its full path, sorted", () => {
     const group = {

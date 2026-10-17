@@ -918,5 +918,24 @@ export const en = {
       suspendedEffect: "While the shelter is suspended, its animals aren't in the gallery.",
       rejectedEffect: "The shelter's animals won't be in the gallery until verification is passed.",
     },
+    /** The words the operator's animal history lines fill in; see the Ukrainian catalogue. */
+    animalHistoryLabels: {
+      listing: {
+        draft: "Draft",
+        published: "Published",
+        reserved: "Being arranged",
+        adopted: "Home",
+        withdrawn: "Withdrawn",
+      },
+      field: {
+        name: "Name",
+        species: "Species",
+        sex: "Sex",
+        size: "Size",
+        age: "Age",
+        description: "Description",
+        photos: "Photos",
+      },
+    },
   },
 } as const;

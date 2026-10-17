@@ -263,7 +263,8 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // text, 2026-10-17; the key set is pinned in copy-status.test.ts).
     // 385 with R-UI's 220 `operator.*` and `verificationDecision.*` strings
     // (his text, 2026-10-17, all three R-UI PRs; pinned in copy-status.test.ts).
-    expect(pending.length + written.length).toBe(385);
+    // 397 with the 12 `animalHistoryLabels.*` words (his K3 words, R-UI 1).
+    expect(pending.length + written.length).toBe(397);
     expect(written).toContain("kabinet.profileEdit.state.saved");
     expect(pending).toEqual([]);
     expect(written).toContain("kabinet.confirm.rateLimited");
