@@ -220,7 +220,7 @@ describe("kabinetAnimalRepo.writePhotosIf (P-Q3)", () => {
     return animal;
   }
 
-  it("writes photos and last_updated_at, never version or the listing, with one photos line", async () => {
+  it("writes photos, last_updated_at and the listing it is handed, never version, with one photos line", async () => {
     const animal = await withPhotos();
     const read = await animalRepo(db).findById(animal.id);
     if (read === null) throw new Error("seeded animal missing");
@@ -228,8 +228,8 @@ describe("kabinetAnimalRepo.writePhotosIf (P-Q3)", () => {
 
     const result = await kabinetAnimalRepo(db).writePhotosIf(
       animal.id,
-      [photo("b"), photo("a")],
-      read.photos,
+      { next: [photo("b"), photo("a")], expected: read.photos },
+      { next: read.listing, expected: read.listing },
       AT,
       photosLine(animal),
     );
@@ -251,8 +251,8 @@ describe("kabinetAnimalRepo.writePhotosIf (P-Q3)", () => {
 
     const result = await kabinetAnimalRepo(db).writePhotosIf(
       animal.id,
-      [photo("a")],
-      [photo("a"), photo("c")],
+      { next: [photo("a")], expected: [photo("a"), photo("c")] },
+      { next: animal.listing, expected: animal.listing },
       AT,
       photosLine(animal),
     );
@@ -268,8 +268,8 @@ describe("kabinetAnimalRepo.writePhotosIf (P-Q3)", () => {
     expect(
       await kabinetAnimalRepo(db).writePhotosIf(
         animal.id,
-        [],
-        [photo("b"), photo("a")],
+        { next: [], expected: [photo("b"), photo("a")] },
+        { next: animal.listing, expected: animal.listing },
         AT,
         photosLine(animal),
       ),
