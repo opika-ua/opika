@@ -1028,6 +1028,12 @@ weeks.
 
 ### Before the first real shelter or animal record is inserted
 
+**Launch order** (Oleksii, 2026-10-17, inbox RH-B5): onboard the first real shelter → retire
+the rehearsal shelter (`docs/onboarding-a-shelter.md`, "Retiring the rehearsal shelter") →
+`demo:remove` (the seeded demo corpus) → merge the prepared `REGISTRY_HAS_NO_REAL_SHELTERS`
+flip PR (F-B7) → invite the real shelter. PR 6 (writes open for everyone) has merged before
+the invite (F-B6).
+
 **Remove every test shelter before the first real shelter** (Oleksii, 2026-10-15, inbox DR-B2,
 verbatim: "remove all test shelters (demo + mine) before the first real shelter"). Two kinds:
 
