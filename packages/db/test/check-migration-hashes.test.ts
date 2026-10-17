@@ -61,19 +61,22 @@ describe("db:check-hashes", () => {
   });
 
   /**
-   * The drift RS-R1 exists to catch: a branch ran 0011, then 0011 was
-   * regenerated (new journal `when`, new content). The old row matches no
-   * committed migration and must fail the check, not read as "not run".
+   * The drift RS-R1 exists to catch: a branch ran the newest migration, then
+   * it was regenerated (new journal `when`, new content). The old row matches
+   * no committed migration and must fail the check, not read as "not run".
+   * Written for 0011 when it was the newest; it takes whichever migration is
+   * newest now (0012 since K3), because an older one regenerated under a newer
+   * applied one is the stricter `skipped` case, tested below.
    */
-  it("fails when the database ran a 0011 that has since been regenerated", async () => {
-    const regenerated = committedHashes().map((entry) =>
-      entry.tag.startsWith("0011_")
-        ? { ...entry, when: entry.when + 1, hash: "f".repeat(64) }
-        : entry,
+  it("fails when the database ran a newest migration that has since been regenerated", async () => {
+    const committed = committedHashes();
+    const newest = committed.at(-1)?.tag;
+    const regenerated = committed.map((entry) =>
+      entry.tag === newest ? { ...entry, when: entry.when + 1, hash: "f".repeat(64) } : entry,
     );
     const checks = compareHashes(regenerated, await recorded());
     expect(checks.filter(isFailure).map((check) => check.status)).toEqual(["unknown"]);
-    expect(checks.find((check) => check.tag?.startsWith("0011_"))?.status).toBe("not_applied");
+    expect(checks.find((check) => check.tag === newest)?.status).toBe("not_applied");
   });
 
   it("fails when a migration is missing while a later one ran", () => {

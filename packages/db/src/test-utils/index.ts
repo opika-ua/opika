@@ -4,6 +4,7 @@ export {
   makeAdopter,
   makeAnimal,
   makeCity,
+  makeDraftAnimal,
   makeReveal,
   makeShelter,
   makeSwipe,
