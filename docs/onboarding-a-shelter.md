@@ -316,6 +316,46 @@ would target the demo corpus), and any removal that would leave no shelter at al
 is 0 and it refuses with "no shelter has id …" for each id**, which is the
 confirmation they are gone.
 
+## Retiring the rehearsal shelter (at launch, before the first real invite)
+
+The rehearsal shelter «Притулок «Репетиція»» (`c00c73ac-b27f-535e-b629-ac8cd2c69123`, onboarded 2026-10-17
+for the K4/photo rehearsal) is a test shelter on the real location key. It goes in the launch
+order below, after the first real shelter is onboarded. Every step is Oleksii's to run.
+
+1. **Remove its admins first.** `demo:remove` refuses while a target shelter has a member, so
+   that access removal stays recorded in the shelter's history (DR-B3, answer 1). In DevTools
+   on opika.org.ua, signed in as `admin@`, with the `rpc` helper:
+   ```js
+   const s = await rpc("registry/shelters/byId", { shelterId: "c00c73ac-b27f-535e-b629-ac8cd2c69123" });
+   for (const a of s.admins) await rpc("registry/admins/remove", { shelterId: "c00c73ac-b27f-535e-b629-ac8cd2c69123", adminId: a.id }); // each 200 {}
+   ```
+   Removing an admin also ends that admin's sessions, in the same statement. Pending
+   invitations are withdrawn the same way.
+2. **Check for support sessions.** If you ever entered support mode on this shelter,
+   `demo:remove` refuses: support sessions are never deleted (RS-Q0, DR-Q1 (b)). The dry run
+   prints the count. With a non-zero count, you decide again with the number in front of you.
+3. **Dry run, then commit**, from the main checkout (its root `.env.local` provides
+   `PROD_NEON_ENDPOINT`), with the production direct URL in your shell
+   (`$env:DATABASE_URL = Read-Host "Production direct URL"`):
+   ```powershell
+   pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter c00c73ac-b27f-535e-b629-ac8cd2c69123
+   pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter c00c73ac-b27f-535e-b629-ac8cd2c69123 --commit
+   ```
+   The dry run names the shelter and prints the R2 keys of its animals' photos, including the
+   ones uploaded from the kabinet. **Add those keys to the DR-F3 takedown list.** Nothing
+   deletes R2 objects; DR-F3's operator-run script, or the Cloudflare dashboard by hand, does
+   it later. Run the dry run again afterwards: every count is 0, and it refuses with «no
+   shelter has id …», which confirms the shelter is gone.
+4. **`KABINET_WRITE_ALLOWLIST`**, then **redeploy**, since environment changes apply only to
+   new deployments (RH-B6):
+   - **before PR 6:** switch it from the rehearsal id to **the real shelter's id**. Unsetting it
+     would close writes for the first real shelter too.
+   - **after PR 6:** PR 6 opens writes for every shelter and deletes the allowlist from the code,
+     so **delete the variable**.
+5. **`location:verify --prod`**, expected after the retirement: `match` = the number of real
+   shelters (1 at launch), `MISMATCH 0`, no `PRIVACY` line, and `demo` = **2** if the demo corpus
+   is still there or **0** once `demo:remove` has run (the next launch step).
+
 ## Where `LOCATION_HMAC_SECRET` comes from
 
 Generate one once with `openssl rand -hex 32`. Keep it somewhere you can
