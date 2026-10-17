@@ -702,7 +702,7 @@ export const en = {
         title: "Addresses the email provider won't deliver to",
         none: "Checked: none of this shelter's addresses is blocked.",
         line: "{email}: {reason}",
-        incomplete: "Only part of the addresses could be checked.",
+        incomplete: "The list of blocked addresses could only be fetched in part.",
         unknown: {
           provider_error: "The email provider answered with an error.",
           timed_out: "The email provider didn't answer in time.",
@@ -716,7 +716,7 @@ export const en = {
       },
       history: {
         title: "History",
-        note: "Every change of status, data, administrators, fundraising and animals.",
+        note: "Changes of status, data, administrators, fundraising and animals. «Still looking» confirmations are not recorded here.",
         empty: "No entries yet.",
         more: "Show more",
         actor: {

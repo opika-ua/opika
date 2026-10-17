@@ -295,7 +295,7 @@ describe("S4 blocked addresses, every answer", () => {
       blockedSoFar: [{ email: "petro@example.org", reason: "unsubscribed" }],
     });
     const blocked = blockedSection();
-    expect(within(blocked).getByText("Вдалося перевірити лише частину адрес.")).toBeTruthy();
+    expect(within(blocked).getByText("Список заблокованих адрес вдалося отримати лише частково.")).toBeTruthy();
     expect(
       within(blocked).getByText("petro@example.org — людина з цієї адреси відписалася від листів."),
     ).toBeTruthy();
@@ -310,7 +310,7 @@ describe("S4 blocked addresses, every answer", () => {
   it("incomplete with nobody found so far: still only «part checked», never «none blocked»", () => {
     renderBlocked({ kind: "incomplete", asOf: NOW, blockedSoFar: [] });
     const blocked = blockedSection();
-    expect(within(blocked).getByText("Вдалося перевірити лише частину адрес.")).toBeTruthy();
+    expect(within(blocked).getByText("Список заблокованих адрес вдалося отримати лише частково.")).toBeTruthy();
     expect(within(blocked).queryByText(/жодна адреса/)).toBeNull();
     expect(within(blocked).queryByRole("listitem")).toBeNull();
     expect(within(blocked).queryByText(/Розблокувати/)).toBeNull();
@@ -363,7 +363,7 @@ describe("S4 history", () => {
     expect(within(section("Історія")).getByText("Записів ще немає.")).toBeTruthy();
     expect(
       within(section("Історія")).getByText(
-        "Усі зміни статусу, даних, адміністраторів, збору коштів і тварин.",
+        "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» тут не записуються.",
       ),
     ).toBeTruthy();
   });

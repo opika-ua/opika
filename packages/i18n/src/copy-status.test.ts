@@ -664,7 +664,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.blocked.title": "Адреси, на які поштовий сервіс не доставляє листи",
     "operator.blocked.none": "Перевірено: жодна адреса цього притулку не заблокована.",
     "operator.blocked.line": "{email} — {reason}",
-    "operator.blocked.incomplete": "Вдалося перевірити лише частину адрес.",
+    "operator.blocked.incomplete": "Список заблокованих адрес вдалося отримати лише частково.",
     "operator.blocked.unknown.provider_error": "Поштовий сервіс відповів помилкою.",
     "operator.blocked.unknown.timed_out": "Поштовий сервіс не відповів вчасно.",
     "operator.blocked.unknown.unsupported_provider":
@@ -673,7 +673,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.blocked.manualUnblock":
       "Розблокувати адресу можна лише в кабінеті поштового сервісу, не тут.",
     "operator.history.title": "Історія",
-    "operator.history.note": "Усі зміни статусу, даних, адміністраторів, збору коштів і тварин.",
+    "operator.history.note": "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» тут не записуються.",
     "operator.history.empty": "Записів ще немає.",
     "operator.history.more": "Показати ще",
     "operator.history.actor.you": "ви",
