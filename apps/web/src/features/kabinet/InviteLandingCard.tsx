@@ -40,7 +40,7 @@ export function InviteLandingCard({
   titleRef?: Ref<HTMLHeadingElement>;
 }) {
   const t = uk.kabinet.inviteLanding;
-  const titleFor = (shelterName: string) => t.title.replaceAll("{shelter}", shelterName);
+  const titleFor = (shelterName: string) => t.title.replaceAll("{shelter}", () => shelterName);
   return (
     <section className="flex w-full flex-col gap-4 rounded-rg-card bg-rg-surface p-5 tablet:w-[480px] tablet:p-8">
       {landing.kind === "sent" ? (
@@ -66,7 +66,7 @@ export function InviteLandingCard({
           <p className={CAPTION}>{uk.kabinet.signIn.spamNote}</p>
           {contact !== null ? (
             <p className={CAPTION}>
-              {uk.kabinet.signInCard.notArrived.replaceAll("{contact}", contact)}
+              {uk.kabinet.signInCard.notArrived.replaceAll("{contact}", () => contact)}
             </p>
           ) : null}
         </>

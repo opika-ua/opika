@@ -56,6 +56,13 @@ describe("SupportBanner", () => {
    * hard-coded"): the title names the shelter being viewed, filled in, and
    * neither the placeholder nor an operator's name is left in it.
    */
+  it("prints a shelter name carrying $& and $1 literally (review finding 2)", () => {
+    render(<SupportBanner shelterName="Лапа $& $1" exit={async () => true} navigate={vi.fn()} />);
+    expect(screen.getByRole("region").getAttribute("aria-label")).toBe(
+      "Ви переглядаєте кабінет притулку «Лапа $& $1» — лише перегляд, змінити нічого не можна.",
+    );
+  });
+
   it("names the shelter in its title, filled, with no operator name typed in", () => {
     render(<SupportBanner shelterName="Домівка" exit={async () => true} navigate={vi.fn()} />);
     const banner = screen.getByRole("region");

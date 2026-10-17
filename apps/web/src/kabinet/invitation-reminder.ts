@@ -25,6 +25,6 @@ export function invitationReminderOf(
   const template = uk.kabinet.registry.inviteSent.tellPersonally;
   return {
     kind: "tell_personally",
-    text: fromAddress === null ? template : template.replaceAll("{sender}", fromAddress),
+    text: fromAddress === null ? template : template.replaceAll("{sender}", () => fromAddress),
   };
 }

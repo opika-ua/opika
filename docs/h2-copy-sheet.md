@@ -209,20 +209,23 @@ so the helper text is what reminds whoever is writing it.
 
 ---
 
-## E3. Refusing to delete a draft: one message per reason (blocks K2/K3's delete only)
+## E3. Refusing to delete a draft: one message (blocks K2/K3's delete only)
 
-`shelter.animals.deleteDraft` answers `WAS_PUBLISHED` with `data.reason` (HS-T10, Oleksii). The
-kabinet picks the message by reason. **The `has_activity` message must not claim the animal was
-published**: a draft's id can be swiped without the draft ever being public.
+**Changed 2026-10-17 (K-Q9).** `shelter.animals.deleteDraft` now answers one refusal,
+`WAS_PUBLISHED` with no `data`, whether the draft was public before or a swipe or reveal still
+references it. Oleksii, verbatim: "K-Q9: yes, one refusal for both cases. Confirm "has activity"
+implies "was published"; if so, the copy can say the card was already published and can only be
+withdrawn." It does: `swipes.record` refuses a non-discoverable animal (DR-F1), and a reveal does
+too, so a draft that was never public collects neither. Telling the two causes apart would tell a
+shelter that an adopter acted on its animal (commitment #2), so no message may.
 
 **Key:** `kabinet.deleteDraft.refused.wasPublished` (new, `[COPY PENDING]`).
-**English sense:** this animal was public before, so it can't be deleted; withdraw it instead.
-That way its link and its record stay.
+**English sense:** this card was already published, so it can't be deleted, only withdrawn. That
+way its link and its record stay. Nothing about anyone having looked at, swiped or contacted it.
 
-**Key:** `kabinet.deleteDraft.refused.hasActivity` (new, `[COPY PENDING]`).
-**English sense:** this animal can't be deleted because people have already interacted with it on
-the site; withdraw it instead. It makes no claim about having been published.
-**Current:** none, for either.
+The `kabinet.deleteDraft.refused.hasActivity` key this entry used to list is gone: there is no
+second reason left to word.
+**Current:** none.
 
 ---
 

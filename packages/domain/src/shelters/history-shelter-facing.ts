@@ -1,8 +1,13 @@
 import { z } from "zod";
+import { LISTING_KINDS } from "../animals/listing-transition";
 import { LocalizedTextSchema } from "../primitives/localized-text";
 import { ShelterContactSchema } from "./contact";
 import { DonationLinkSchema } from "./donation";
-import type { ShelterHistoryEntry } from "./history";
+import {
+  ANIMAL_EDITED_FIELDS,
+  HistoryWithdrawalReasonSchema,
+  type ShelterHistoryEntry,
+} from "./history";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema } from "./location";
 import { FreshnessSentenceSchema } from "./shelter";
@@ -107,6 +112,25 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
     wasPending: z.boolean(),
   }),
   z.object({ kind: z.literal("animals_imported"), ...base, count: z.int().positive() }),
+  /** The animal by name only: no animal id reaches the shelter's own history either (no ids, RG-Q8). */
+  z.object({ kind: z.literal("animal_created"), ...base, animalName: z.string().min(1) }),
+  z.object({
+    kind: z.literal("animal_edited"),
+    ...base,
+    animalName: z.string().min(1),
+    fields: z.array(z.enum(ANIMAL_EDITED_FIELDS)).min(1),
+  }),
+  z.object({
+    kind: z.literal("animal_listing_changed"),
+    ...base,
+    animalName: z.string().min(1),
+    event: z.enum(["publish", "reserve", "release", "adopt", "withdraw", "restore_to_draft"]),
+    /** The code only: history never holds the shelter's note (K-Q18). */
+    reason: HistoryWithdrawalReasonSchema.nullable(),
+    from: z.enum(LISTING_KINDS),
+    to: z.enum(LISTING_KINDS),
+  }),
+  z.object({ kind: z.literal("animal_deleted"), ...base, animalName: z.string().min(1) }),
 ]);
 export type ShelterFacingHistoryItem = z.infer<typeof ShelterFacingHistoryItemSchema>;
 
@@ -210,6 +234,33 @@ export function shelterFacingHistoryOf(
       };
     case "animals_imported":
       return { kind: "animals_imported", at: entry.at, actor: operator, count: entry.count };
+    case "animal_created":
+    case "animal_deleted":
+      return {
+        kind: entry.kind,
+        at: entry.at,
+        actor: shelterActorView(entry.actor),
+        animalName: entry.animalName,
+      };
+    case "animal_edited":
+      return {
+        kind: "animal_edited",
+        at: entry.at,
+        actor: shelterActorView(entry.actor),
+        animalName: entry.animalName,
+        fields: entry.fields,
+      };
+    case "animal_listing_changed":
+      return {
+        kind: "animal_listing_changed",
+        at: entry.at,
+        actor: shelterActorView(entry.actor),
+        animalName: entry.animalName,
+        event: entry.event.type,
+        reason: entry.event.type === "withdraw" ? { code: entry.event.reason.code } : null,
+        from: entry.from,
+        to: entry.to,
+      };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = entry;

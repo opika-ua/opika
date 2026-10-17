@@ -6,13 +6,35 @@ import {
   confirmationAnchorOf,
   LISTING_KINDS,
   type ListingKind,
+  type ShelterHistoryEntry,
   type ShelterId,
   waitAnchorOf,
 } from "@opika/domain";
 import { and, desc, eq, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
+import { shelterHistory } from "../schema/shelter-history";
+import { historyRowSelect } from "./history-sql";
 import { animalToRowWithCity, rowToAnimal } from "./mappers";
+
+/** A history line of one kind, with the id it is stored under. */
+export type AnimalHistoryRow<K extends ShelterHistoryEntry["kind"]> = {
+  id: string;
+  entry: Extract<ShelterHistoryEntry, { kind: K }>;
+};
+
+/**
+ * What a listing move records. Every move a shelter makes is a history line
+ * (K-Q7), except «Ще шукає» and its undo (S1, Oleksii: "no history for «Ще
+ * шукає» / undo"): the confirmation date is itself that record. A variant
+ * rather than an optional row, so a caller can't drop a move's line by
+ * forgetting an argument.
+ */
+export type ListingMoveHistory =
+  | { kind: "recorded"; row: AnimalHistoryRow<"animal_listing_changed"> }
+  | { kind: "not_recorded"; because: "confirmation" };
+
+type WriteCte = Parameters<Database["with"]>[number];
 
 export type KabinetAnimalPosition = { at: Date; id: string };
 
@@ -58,6 +80,30 @@ function isForeignKeyViolation(error: unknown): boolean {
  *   `last_updated_at`.
  */
 export function kabinetAnimalRepo(db: Database) {
+  /**
+   * Inserts `history` for the shelter of the row the CTE `name` wrote, in the
+   * same statement as the write (the shelter repo's `applyAuditedMany`
+   * pattern). The line exists exactly when the write happened: a
+   * compare-and-set that matched nothing leaves no row to select from, so a
+   * conflict records nothing, and the history insert's row count is the
+   * write's outcome. Postgres runs a data-modifying CTE whether or not the
+   * outer statement reads it.
+   */
+  const writeWithHistory = async (
+    cte: WriteCte,
+    name: "created" | "upd" | "del",
+    history: { id: string; entry: ShelterHistoryEntry },
+  ): Promise<ConditionalWrite> => {
+    const inserted = await db
+      .with(cte)
+      .insert(shelterHistory)
+      .select(
+        sql`SELECT ${historyRowSelect(history, sql.raw(`"${name}"."shelter_id"`))} FROM ${sql.raw(`"${name}"`)}`,
+      )
+      .returning({ id: shelterHistory.id });
+    return inserted.length === 1 ? { kind: "ok" } : { kind: "conflict" };
+  };
+
   return {
     async findWithCity(
       id: AnimalId,
@@ -72,8 +118,21 @@ export function kabinetAnimalRepo(db: Database) {
         : null;
     },
 
-    async insert(animal: Animal, cityId: CityId): Promise<void> {
-      await db.insert(animals).values(animalToRowWithCity(animal, cityId));
+    /** A new draft and its `animal_created` line, as one statement (K-Q7). */
+    async insert(
+      animal: Animal,
+      cityId: CityId,
+      history: AnimalHistoryRow<"animal_created">,
+    ): Promise<void> {
+      const created = db
+        .$with("created")
+        .as(
+          db
+            .insert(animals)
+            .values(animalToRowWithCity(animal, cityId))
+            .returning({ shelterId: animals.shelterId }),
+        );
+      await writeWithHistory(created, "created", history);
     },
 
     /**
@@ -82,15 +141,17 @@ export function kabinetAnimalRepo(db: Database) {
      * (S3-T6, RG-Q7). It never writes
      * the listing, so a «Ще шукає» landing while the form is open is neither
      * overwritten nor a conflict (HS-T8, Oleksii: edits and confirmations are
-     * separate facts, written to disjoint fields).
+     * separate facts, written to disjoint fields). Its `animal_edited` line
+     * is written by the same statement, so a conflict records nothing.
      */
     async writeEditIf(
       animal: Animal,
       cityId: CityId,
       expectedVersion: number,
+      history: AnimalHistoryRow<"animal_edited">,
     ): Promise<ConditionalWrite> {
       const row = animalToRowWithCity(animal, cityId);
-      const updated = await db
+      const update = db
         .update(animals)
         .set({
           name: row.name,
@@ -108,8 +169,8 @@ export function kabinetAnimalRepo(db: Database) {
           version: sql`${animals.version} + 1`,
         })
         .where(and(eq(animals.id, animal.id), eq(animals.version, expectedVersion)))
-        .returning({ id: animals.id });
-      return updated.length === 1 ? { kind: "ok" } : { kind: "conflict" };
+        .returning({ shelterId: animals.shelterId });
+      return writeWithHistory(db.$with("upd").as(update), "upd", history);
     },
 
     /**
@@ -119,13 +180,17 @@ export function kabinetAnimalRepo(db: Database) {
      * itself as read: jsonb equality on the stored value, so a move planned on
      * a listing someone else has since changed writes nothing. No separate
      * version column is needed, and the edited time never moves.
+     *
+     * A recorded move writes its history line in the same statement; a
+     * confirmation writes none (`ListingMoveHistory`).
      */
     async writeListingIf(
       animalId: AnimalId,
       next: AnimalListingState,
       expected: AnimalListingState,
+      history: ListingMoveHistory,
     ): Promise<ConditionalWrite> {
-      const updated = await db
+      const update = db
         .update(animals)
         .set({
           listing: next,
@@ -146,8 +211,12 @@ export function kabinetAnimalRepo(db: Database) {
             sql`${animals.listing} = ${JSON.stringify(expected)}::text::jsonb`,
           ),
         )
-        .returning({ id: animals.id });
-      return updated.length === 1 ? { kind: "ok" } : { kind: "conflict" };
+        .returning({ shelterId: animals.shelterId });
+      if (history.kind === "not_recorded") {
+        const updated = await update;
+        return updated.length === 1 ? { kind: "ok" } : { kind: "conflict" };
+      }
+      return writeWithHistory(db.$with("upd").as(update), "upd", history.row);
     },
 
     /**
@@ -155,10 +224,19 @@ export function kabinetAnimalRepo(db: Database) {
      * null, HS-Q9) and that nobody has written since the request read it. A
      * once-public listing is withdrawn, never deleted. `not_deleted` says only
      * that one of those conditions failed; the caller re-reads to say which.
+     *
+     * The `animal_deleted` line is written by the same statement. A swipe or
+     * reveal still referencing the row fails the whole statement (the foreign
+     * key is checked at the statement's end, CTE or not), so a refused delete
+     * records nothing either.
      */
-    async deleteDraftIf(id: AnimalId, expectedVersion: number): Promise<DraftDelete> {
-      try {
-        const deleted = await db
+    async deleteDraftIf(
+      id: AnimalId,
+      expectedVersion: number,
+      history: AnimalHistoryRow<"animal_deleted">,
+    ): Promise<DraftDelete> {
+      const deleted = db.$with("del").as(
+        db
           .delete(animals)
           .where(
             and(
@@ -168,8 +246,11 @@ export function kabinetAnimalRepo(db: Database) {
               eq(animals.version, expectedVersion),
             ),
           )
-          .returning({ id: animals.id });
-        return deleted.length === 1 ? { kind: "ok" } : { kind: "not_deleted" };
+          .returning({ shelterId: animals.shelterId }),
+      );
+      try {
+        const written = await writeWithHistory(deleted, "del", history);
+        return written.kind === "ok" ? { kind: "ok" } : { kind: "not_deleted" };
       } catch (error) {
         if (isForeignKeyViolation(error)) return { kind: "referenced" };
         throw error;

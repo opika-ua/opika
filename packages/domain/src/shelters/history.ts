@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { InvitationIdSchema, ModeratorIdSchema, ShelterAdminIdSchema } from "../primitives/ids";
+import { type WithdrawalReason, WithdrawalReasonSchema } from "../animals/listing";
+import { LISTING_KINDS } from "../animals/listing-transition";
+import {
+  AnimalIdSchema,
+  InvitationIdSchema,
+  ModeratorIdSchema,
+  ShelterAdminIdSchema,
+} from "../primitives/ids";
 import { LocalizedTextSchema } from "../primitives/localized-text";
 import { ShelterActorSchema } from "./actor";
 import { ShelterContactSchema } from "./contact";
@@ -9,6 +16,57 @@ import { ExactAddressSchema } from "./location";
 import { FreshnessSentenceSchema } from "./shelter";
 import { VerificationEventSchema } from "./verification/events";
 import { VerificationStatusSchema } from "./verification/state";
+
+/**
+ * The fields an `animal_edited` entry can name: exactly the kabinet's
+ * `AnimalPatchSchema` keys (a contracts test pins the two together). Photos
+ * join when their procedures do (PR 3), as one more literal.
+ */
+export const ANIMAL_EDITED_FIELDS = [
+  "name",
+  "species",
+  "sex",
+  "size",
+  "age",
+  "description",
+  "vaccination",
+  "spayNeuter",
+] as const;
+export type AnimalEditedField = (typeof ANIMAL_EDITED_FIELDS)[number];
+
+/**
+ * A withdrawal's reason as history keeps it: the code, never the shelter's
+ * free-text note. History is append-only and can't be erased, and a note
+ * like «забрала пані Олена» names an adopter (K-Q7: "never adopter data";
+ * review finding 5, inbox K-Q18). The listing state still carries the note.
+ */
+export const HistoryWithdrawalReasonSchema = WithdrawalReasonSchema.pick({ code: true });
+
+/** A listing move as history records it: the event's type, and a withdrawal's code only. */
+export const AnimalListingHistoryEventSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("publish") }),
+  z.object({ type: z.literal("reserve") }),
+  z.object({ type: z.literal("release") }),
+  z.object({ type: z.literal("adopt") }),
+  z.object({ type: z.literal("withdraw"), reason: HistoryWithdrawalReasonSchema }),
+  z.object({ type: z.literal("restore_to_draft") }),
+]);
+export type AnimalListingHistoryEvent = z.infer<typeof AnimalListingHistoryEventSchema>;
+
+/**
+ * Builds the recorded event field by field. The write path stores the entry
+ * as JSON without parsing it, so passing the requested event through whole
+ * would carry its note into history; this is the one place that decides
+ * what's kept.
+ */
+export const listingHistoryEventOf = (
+  event:
+    | { readonly type: Exclude<AnimalListingHistoryEvent["type"], "withdraw"> }
+    | { readonly type: "withdraw"; readonly reason: WithdrawalReason },
+): AnimalListingHistoryEvent =>
+  event.type === "withdraw"
+    ? { type: "withdraw", reason: { code: event.reason.code } }
+    : { type: event.type };
 
 /**
  * One line of a shelter's history: what the operator reads on S3/S4
@@ -166,6 +224,46 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     moderatorId: ModeratorIdSchema,
     count: z.int().positive(),
   }),
+  /*
+   * A shelter's own animal writes (K-Q7, Oleksii: "creation, deletion, every
+   * listing move; edits record field names only; never adopter data"). Each
+   * carries the animal's name at the time, so the history still reads after
+   * the animal is renamed or deleted. «Ще шукає» and its undo are not
+   * recorded (S1): the confirmation date itself is that record.
+   */
+  z.object({
+    kind: z.literal("animal_created"),
+    at: z.date(),
+    actor: ShelterActorSchema,
+    animalId: AnimalIdSchema,
+    animalName: z.string().min(1),
+  }),
+  /** Which fields changed, never their values (K-Q7). */
+  z.object({
+    kind: z.literal("animal_edited"),
+    at: z.date(),
+    actor: ShelterActorSchema,
+    animalId: AnimalIdSchema,
+    animalName: z.string().min(1),
+    fields: z.array(z.enum(ANIMAL_EDITED_FIELDS)).min(1),
+  }),
+  z.object({
+    kind: z.literal("animal_listing_changed"),
+    at: z.date(),
+    actor: ShelterActorSchema,
+    animalId: AnimalIdSchema,
+    animalName: z.string().min(1),
+    event: AnimalListingHistoryEventSchema,
+    from: z.enum(LISTING_KINDS),
+    to: z.enum(LISTING_KINDS),
+  }),
+  z.object({
+    kind: z.literal("animal_deleted"),
+    at: z.date(),
+    actor: ShelterActorSchema,
+    animalId: AnimalIdSchema,
+    animalName: z.string().min(1),
+  }),
 ]);
 export type ShelterHistoryEntry = z.infer<typeof ShelterHistoryEntrySchema>;
 export type ShelterHistoryKind = ShelterHistoryEntry["kind"];
@@ -188,6 +286,10 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "admin_joined":
     case "admin_removed":
     case "animals_imported":
+    case "animal_created":
+    case "animal_edited":
+    case "animal_listing_changed":
+    case "animal_deleted":
       return entry.at;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {

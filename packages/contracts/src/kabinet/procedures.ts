@@ -1,15 +1,20 @@
 import {
   AgeEstimateSchema,
   AnimalIdSchema,
+  AnimalNameInputSchema,
   AnimalSexSchema,
   AnimalSpeciesSchema,
+  animalDescriptionProblem,
+  animalDescriptionProblemMessage,
   DonationLinkSchema,
   EvidenceItemInputSchema,
   ExactAddressSchema,
-  FreshnessSentenceSchema,
+  type FreshnessSentence,
+  freshnessSentenceProblemMessage,
   LISTING_KINDS,
   LocalizedTextSchema,
   MedicalDeclarationInputSchema,
+  normalizeFreshnessSentenceText,
   PauseReasonSchema,
   RejectionCodeSchema,
   ShelterAdminIdSchema,
@@ -18,6 +23,7 @@ import {
   ShelterLegalEntitySchema,
   SizeBucketSchema,
   SuspensionCodeSchema,
+  TextProvenanceSchema,
   VERIFICATION_STATUSES,
   VerificationStatusSchema,
   WithdrawalReasonSchema,
@@ -108,6 +114,79 @@ const expectedVersion = z.int().nonnegative();
 const animalRef = z.strictObject({ animalId: AnimalIdSchema });
 const humanName = z.string().trim().min(1);
 
+/**
+ * One language's freshness sentence, checked and normalised by the domain
+ * rule (K-Q6), so the handler only ever receives `{імʼя}` in its canonical
+ * spelling. Blank becomes null: the sentence is optional, and a shelter who
+ * clears the field means "no sentence", which a refusal would only make them
+ * retype as an explicit null.
+ */
+const freshnessSentenceText = z.string().transform((raw, ctx): string | null => {
+  const normalized = normalizeFreshnessSentenceText(raw);
+  switch (normalized.kind) {
+    case "ok":
+      return normalized.text;
+    case "empty":
+      return null;
+    case "invalid":
+      ctx.addIssue({
+        code: "custom",
+        message: freshnessSentenceProblemMessage(normalized.problem),
+      });
+      return z.NEVER;
+  }
+});
+
+/**
+ * What a write accepts for `freshnessSentence`; its output is the stored
+ * `FreshnessSentenceSchema` shape, which stays as it was. A blank English text
+ * drops the translation; a blank Ukrainian one clears the sentence, unless an
+ * English text was sent with it, which is refused rather than silently thrown
+ * away (English is never stored without the Ukrainian it translates).
+ */
+export const FreshnessSentenceInputSchema = z
+  .object({
+    uk: freshnessSentenceText,
+    en: z.object({ text: freshnessSentenceText, provenance: TextProvenanceSchema }).nullable(),
+  })
+  .nullable()
+  .transform((input, ctx): FreshnessSentence => {
+    if (input === null) return null;
+    const en =
+      input.en === null || input.en.text === null
+        ? null
+        : { text: input.en.text, provenance: input.en.provenance };
+    if (input.uk !== null) return { uk: input.uk, en };
+    if (en === null) return null;
+    ctx.addIssue({
+      code: "custom",
+      path: ["uk"],
+      message: "An English freshness sentence needs the Ukrainian it translates",
+    });
+    return z.NEVER;
+  });
+
+/** K3's cap (`ANIMAL_DESCRIPTION_MAX_CHARACTERS`, in domain so onboarding shares it). */
+const withinDescriptionLimit = (
+  text: string,
+  path: readonly PropertyKey[],
+  ctx: z.RefinementCtx,
+) => {
+  const problem = animalDescriptionProblem(text);
+  if (problem !== null) {
+    ctx.addIssue({
+      code: "custom",
+      path: [...path],
+      message: animalDescriptionProblemMessage(problem),
+    });
+  }
+};
+
+const AnimalDescriptionInputSchema = LocalizedTextSchema.superRefine((description, ctx) => {
+  withinDescriptionLimit(description.uk, ["uk"], ctx);
+  if (description.en !== null) withinDescriptionLimit(description.en.text, ["en", "text"], ctx);
+});
+
 // ─── shelter.profile ────────────────────────────────────────────────────────
 
 const shelterProfileRead = kabinet.$meta(shelterRead).output(KabinetShelterViewSchema);
@@ -119,7 +198,7 @@ export const shelterProfileContract = {
     .input(z.strictObject({ contact: ShelterContactSchema, expectedVersion }))
     .errors(shelterCasErrors),
   updateFreshnessSentence: shelterProfileWrite
-    .input(z.strictObject({ freshnessSentence: FreshnessSentenceSchema, expectedVersion }))
+    .input(z.strictObject({ freshnessSentence: FreshnessSentenceInputSchema, expectedVersion }))
     .errors(shelterCasErrors),
   /** The provider is derived from the URL on the server (`donationProviderOf`), never sent. */
   proposeDonation: shelterProfileWrite
@@ -171,12 +250,12 @@ export const shelterHistoryContract = {
  */
 export const AnimalPatchSchema = z
   .strictObject({
-    name: humanName,
+    name: AnimalNameInputSchema,
     species: AnimalSpeciesSchema,
     sex: AnimalSexSchema,
     size: SizeBucketSchema,
     age: AgeEstimateSchema,
-    description: LocalizedTextSchema,
+    description: AnimalDescriptionInputSchema,
     vaccination: MedicalDeclarationInputSchema,
     spayNeuter: MedicalDeclarationInputSchema,
   })
@@ -230,12 +309,12 @@ export const shelterAnimalsContract = {
   createDraft: animalWrite
     .input(
       z.strictObject({
-        name: humanName,
+        name: AnimalNameInputSchema,
         species: AnimalSpeciesSchema,
         sex: AnimalSexSchema,
         size: SizeBucketSchema,
         age: AgeEstimateSchema,
-        description: LocalizedTextSchema,
+        description: AnimalDescriptionInputSchema,
       }),
     )
     .errors(shelterScopedErrors),
@@ -321,7 +400,7 @@ export const registrySheltersContract = {
         legalEntity: ShelterLegalEntitySchema,
         exactAddress: ExactAddressSchema,
         contact: ShelterContactSchema,
-        freshnessSentence: FreshnessSentenceSchema,
+        freshnessSentence: FreshnessSentenceInputSchema,
         evidence: z.array(EvidenceItemInputSchema).readonly(),
         firstAdmin: z.strictObject({ name: humanName, email: z.email() }),
       }),
@@ -354,7 +433,7 @@ export const registrySheltersContract = {
           expectedVersion,
           contact: ShelterContactSchema.optional(),
           description: LocalizedTextSchema.optional(),
-          freshnessSentence: FreshnessSentenceSchema.optional(),
+          freshnessSentence: FreshnessSentenceInputSchema.optional(),
         })
         .refine(
           (input) =>

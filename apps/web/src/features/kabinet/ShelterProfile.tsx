@@ -40,7 +40,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 const fill = (template: string, values: Record<string, string>): string =>
   Object.entries(values).reduce(
-    (text, [key, value]) => text.replaceAll(`{${key}}`, value),
+    (text, [key, value]) => text.replaceAll(`{${key}}`, () => value),
     template,
   );
 

@@ -10,10 +10,12 @@ export { type FeedCursorData, type FeedPage, feedRepo } from "./feed-repo";
 export { type GalleryPage, type GalleryRelaxationCounts, galleryRepo } from "./gallery-repo";
 export { kabinetActorRepo, type UserRole } from "./kabinet-actor-repo";
 export {
+  type AnimalHistoryRow,
   type ConditionalWrite,
   type DraftDelete,
   type KabinetAnimalPosition,
   kabinetAnimalRepo,
+  type ListingMoveHistory,
 } from "./kabinet-animal-repo";
 export {
   type InvitationAcceptResult,

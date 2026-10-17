@@ -3,7 +3,8 @@ import type {
   SwipesRecordInputSchema,
   SwipesRecordOutputSchema,
 } from "@opika/contracts";
-import { animalRepo, swipeRepo } from "@opika/db/repos";
+import { animalRepo, shelterRepo, swipeRepo } from "@opika/db/repos";
+import { isDiscoverable } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
@@ -41,9 +42,19 @@ export async function swipesRecord(
     throw errors.UNAUTHENTICATED();
   }
 
+  // Only an animal an adopter can be shown: a discoverable listing at a
+  // verified shelter, the rule `animals.byId` and the feed apply. Anything else
+  // answers NOT_FOUND, exactly like a missing id, so nothing is recorded about
+  // a draft, a hidden shelter's animal or a removed one (DR-F1). This is also
+  // what lets K-Q9 say a draft with activity "was already published": reveals
+  // already refuse non-discoverable animals, and now swipes do too.
   const animals = animalRepo(context.db);
   const animal = await animals.findById(input.animalId);
-  if (!animal) {
+  if (!animal || !isDiscoverable(animal.listing)) {
+    throw errors.NOT_FOUND();
+  }
+  const shelter = await shelterRepo(context.db).findById(animal.shelterId);
+  if (shelter?.verification.status !== "verified") {
     throw errors.NOT_FOUND();
   }
 

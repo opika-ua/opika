@@ -1,6 +1,7 @@
 "use client";
 
 import type { FeedCardView } from "@opika/contracts";
+import { fillAnimalName } from "@opika/domain";
 import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips, type PipFill } from "@opika/ui";
 import Image from "next/image";
@@ -213,6 +214,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         <FreshnessBlock
           freshness={card.freshness}
           shelterSentence={card.shelter.freshnessSentence}
+          animalName={card.name}
         />
 
         {/*
@@ -279,9 +281,11 @@ function ShelterMonogram({ name }: { name: string }) {
 function FreshnessBlock({
   freshness,
   shelterSentence,
+  animalName,
 }: {
   freshness: FeedCardView["freshness"];
   shelterSentence: FeedCardView["shelter"]["freshnessSentence"];
+  animalName: string;
 }) {
   const label = freshnessLabel(freshness);
   const fills = freshnessPips(freshness.kind);
@@ -313,9 +317,14 @@ function FreshnessBlock({
         body-l 17/26: docs/design/README.md's "The shelter's sentence"
         states body-l for the full sentence, but the deck renders the
         "shortened sentence" (same section, "The deck"), and the B7 frame's
-        own literal value for it is 15/22 — `Opika Registry System.dc.html`. */}
+        own literal value for it is 15/22 — `Opika Registry System.dc.html`.
+        `{імʼя}` is filled with this card's animal (K-Q6): the deck and the
+        animal page are the only places it is, so the kabinet still shows
+        the shelter exactly what it wrote. */}
       {shelterSentence?.uk && (
-        <div className="text-[15px]/[22px] text-rg-ink-2 text-pretty">{shelterSentence.uk}</div>
+        <div className="text-[15px]/[22px] text-rg-ink-2 text-pretty">
+          {fillAnimalName(shelterSentence.uk, animalName)}
+        </div>
       )}
     </section>
   );

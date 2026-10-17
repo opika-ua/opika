@@ -56,6 +56,12 @@ describe("housingCityLabel", () => {
   it("degrades to null, not a broken template, when the city name hasn't resolved", () => {
     expect(housingCityLabel(makeCard(), null)).toBeNull();
   });
+
+  it("prints a city name carrying replacement patterns ($&, $1) literally", () => {
+    expect(housingCityLabel(makeCard({ publicLocation: null }), "Місто $& $1")).toBe(
+      "м. Місто $& $1",
+    );
+  });
 });
 
 describe("cardMetaLine", () => {

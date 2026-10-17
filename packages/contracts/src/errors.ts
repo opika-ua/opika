@@ -152,19 +152,19 @@ export const apiErrors = {
     message: "That fact is confirmed by the registry and can't be changed here.",
   },
   /**
-   * A draft that can't be deleted, only withdrawn (HS-Q9, Oleksii). `data.reason`
-   * says why, and the kabinet picks its message by it (HS-T10, Oleksii):
-   * - `was_published`: it has been public before (`first_published_at` set);
-   * - `has_activity`: a swipe or reveal still references it (the database's
-   *   own refusal). That is *not* a claim it was published: a draft id can
-   *   be swiped without the draft ever being public, so the message for this
-   *   reason must not say so.
-   * The fixed message below makes neither claim.
+   * A draft that can't be deleted, only withdrawn (HS-Q9, Oleksii). One
+   * refusal for both causes, with no data (K-Q9, Oleksii: "one refusal for
+   * both cases"): it has been public before (`first_published_at` set), or a
+   * swipe or reveal still references it (the database's own refusal). Telling
+   * the two apart would tell a shelter that an adopter acted on its animal
+   * (commitment #2). Merging them is truthful because activity implies
+   * publication: `swipes.record` refuses a non-discoverable animal (DR-F1),
+   * and a reveal needs a discoverable one too, so a never-published draft
+   * collects neither.
    */
   WAS_PUBLISHED: {
     status: 409,
     message: "This listing can be withdrawn but not deleted.",
-    data: z.object({ reason: z.enum(["was_published", "has_activity"]) }),
   },
   /**
    * The address already has a role, so it can't be invited (RG-T10, IN-Q7,

@@ -196,7 +196,7 @@ export function SignInCard({
           <p className={CAPTION}>{uk.kabinet.signIn.spamNote}</p>
           {contact !== null ? (
             <p className={CAPTION}>
-              {uk.kabinet.signInCard.notArrived.replaceAll("{contact}", contact)}
+              {uk.kabinet.signInCard.notArrived.replaceAll("{contact}", () => contact)}
             </p>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">

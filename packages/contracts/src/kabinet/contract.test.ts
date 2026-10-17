@@ -1,4 +1,4 @@
-import { HistoryActorViewSchema } from "@opika/domain";
+import { ANIMAL_EDITED_FIELDS, HistoryActorViewSchema } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { contract } from "../contract";
 import { apiErrors } from "../errors";
@@ -507,6 +507,10 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     admin_joined: ["kind", "at", "actor", "email"],
     admin_removed: ["kind", "at", "actor", "email", "wasPending"],
     animals_imported: ["kind", "at", "actor", "count"],
+    animal_created: ["kind", "at", "actor", "animalName"],
+    animal_edited: ["kind", "at", "actor", "animalName", "fields"],
+    animal_listing_changed: ["kind", "at", "actor", "animalName", "event", "reason", "from", "to"],
+    animal_deleted: ["kind", "at", "actor", "animalName"],
   };
   const variants = ShelterHistoryItemViewSchema.options.map(
     (option) => [option.shape.kind.value, Object.keys(option.shape).sort()] as const,
@@ -608,6 +612,28 @@ describe("the operator's history keeps admin_joined's ids", () => {
   });
 });
 
+/** K-Q7: the operator reads a shelter's animal writes with the animal's id; only the shelter's own view drops it. */
+describe("the operator's history keeps an animal write's id", () => {
+  it("registry.history.list returns animal_listing_changed whole", () => {
+    const entry = {
+      kind: "animal_listing_changed",
+      at: new Date("2026-10-16T00:00:00.000Z"),
+      actor: { kind: "shelter_admin", shelterAdminId: "33333333-3333-4333-8333-333333333333" },
+      animalId: "55555555-5555-4555-8555-555555555555",
+      animalName: "Барсик",
+      event: { type: "withdraw", reason: { code: "transferred" } },
+      from: "published",
+      to: "withdrawn",
+    };
+    const output = (
+      registryHistoryContract.list as unknown as {
+        "~orpc": { outputSchema: { parse: (v: unknown) => { items: unknown[] } } };
+      }
+    )["~orpc"].outputSchema.parse({ items: [entry], nextCursor: null });
+    expect(output.items).toEqual([entry]);
+  });
+});
+
 describe("the operator's reject/suspend note", () => {
   const SHELTER = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
   const parse = (procedure: "reject" | "suspend", code: string, note: unknown) =>
@@ -643,6 +669,15 @@ describe("shelter inputs", () => {
     expect(
       KabinetListingEventInputSchema.safeParse({ type: "publish", at: new Date(0) }).success,
     ).toBe(false);
+  });
+
+  /**
+   * K-Q7: an `animal_edited` entry names the patch's keys, so the two lists
+   * are one list. A patch key with no history literal would make an edit
+   * unrecordable; a literal with no patch key names a field nothing edits.
+   */
+  it("an animal patch's keys are exactly the fields an edit entry can name", () => {
+    expect(Object.keys(AnimalPatchSchema.shape).sort()).toEqual([...ANIMAL_EDITED_FIELDS].sort());
   });
 
   it("an animal patch refuses nothing-at-all, and refuses documents, photos or listing", () => {

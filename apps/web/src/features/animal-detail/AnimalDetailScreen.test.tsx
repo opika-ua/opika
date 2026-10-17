@@ -190,9 +190,38 @@ describe("AnimalDetailScreen — the shelter's sentence and its attribution (VH-
     expect(screen.getByTestId("shelter-freshness-attribution").textContent).toBe("Слова притулку");
   });
 
+  it("fills {імʼя} with this page's animal name (K-Q6)", async () => {
+    await renderWith({ uk: "Напишіть, і ми скажемо, чи {імʼя} ще з нами.", en: null });
+    expect(screen.getByTestId("shelter-freshness-sentence").textContent).toBe(
+      "“Напишіть, і ми скажемо, чи Мурчик ще з нами.”",
+    );
+  });
+
   it("shows no attribution without a sentence: the day count isn't the shelter's words", async () => {
     await renderWith(null);
     expect(screen.queryByTestId("shelter-freshness-sentence")).toBeNull();
     expect(screen.queryByTestId("shelter-freshness-attribution")).toBeNull();
+  });
+});
+
+describe("AnimalDetailScreen — a city name is printed literally (review finding 2)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("does not read $& or $1 in the city name as replacement patterns", async () => {
+    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter()}
+        now={NOW}
+        cityName="Місто $& $1"
+        backToGalleryHref="/tvaryny?misto=brovary"
+      />,
+    );
+    expect(screen.getByText("← Усі тварини у Місто $& $1")).toBeTruthy();
+    expect(screen.getByText("м. Місто $& $1")).toBeTruthy();
   });
 });

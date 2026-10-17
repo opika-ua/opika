@@ -130,6 +130,20 @@ describe("SwipeCard freshness marker", () => {
     expect(sentence).toBeTruthy();
     expect(screen.getByText(sentence as string)).toBeTruthy();
   });
+
+  it("fills {імʼя} with this card's animal name (K-Q6)", () => {
+    const card = makeCard({ name: "Мурчик" });
+    renderCard({
+      ...card,
+      shelter: {
+        ...card.shelter,
+        freshnessSentence: { uk: "Напишіть, і ми скажемо, чи {імʼя} ще з нами.", en: null },
+      },
+    });
+    const block = screen.getByTestId("freshness-block");
+    expect(block.textContent).toContain("Напишіть, і ми скажемо, чи Мурчик ще з нами.");
+    expect(block.textContent).not.toContain("{");
+  });
 });
 
 describe("SwipeCard name", () => {

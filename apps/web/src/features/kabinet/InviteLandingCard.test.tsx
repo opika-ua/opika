@@ -51,6 +51,24 @@ describe("the invite landing card (IN-T10, KS-Q2 A)", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
+  it("prints a shelter name and a contact carrying $& and $1 literally (review finding 2)", () => {
+    render(
+      <InviteLandingCard
+        landing={{ kind: "sent", shelterName: "Лапа $& $1", maskedEmail: "o•••@example.org" }}
+        minutes={15}
+        contact="a$&$1@example.net"
+      />,
+    );
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Запрошення до кабінету притулку «Лапа $& $1»",
+    );
+    expect(
+      screen.getByText(
+        "Якщо лист не прийшов за кілька хвилин, напишіть мені на a$&$1@example.net.",
+      ),
+    ).toBeTruthy();
+  });
+
   it("sent with no contact configured leaves the fallback line out", () => {
     render(
       <InviteLandingCard

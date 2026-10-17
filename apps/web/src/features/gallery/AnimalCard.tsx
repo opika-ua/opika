@@ -232,7 +232,7 @@ export function AnimalCard({
         */}
         {resolved ? (
           <span className="text-[15px]/[22px] text-rg-ink">
-            {uk.resolved.sentence.replace("{name}", card.name)}
+            {uk.resolved.sentence.replace("{name}", () => card.name)}
           </span>
         ) : (
           <div className="flex items-center gap-2.5">

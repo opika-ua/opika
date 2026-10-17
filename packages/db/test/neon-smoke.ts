@@ -4,9 +4,11 @@ import { fileURLToPath } from "node:url";
 import {
   type ModeratorId,
   publicLocationOf,
+  type ShelterAdminId,
   type ShelterHistoryEntry,
   type ShelterId,
   testOnlyLocationPolicy,
+  transitionListing,
 } from "@opika/domain";
 import { eq, inArray } from "drizzle-orm";
 import { createDatabase, type Database } from "../src/client";
@@ -15,7 +17,11 @@ import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { authExpiryRepo, KABINET_SESSION_ABSOLUTE_MS } from "../src/repos/auth-expiry-repo";
 import { cityRepo } from "../src/repos/city-repo";
-import { kabinetAnimalRepo } from "../src/repos/kabinet-animal-repo";
+import {
+  type AnimalHistoryRow,
+  kabinetAnimalRepo,
+  type ListingMoveHistory,
+} from "../src/repos/kabinet-animal-repo";
 import { kabinetInvitationAcceptRepo } from "../src/repos/kabinet-invitation-accept-repo";
 import { kabinetInvitationRepo } from "../src/repos/kabinet-invitation-repo";
 import { kabinetInvitedUsersRepo } from "../src/repos/kabinet-invited-users-repo";
@@ -719,16 +725,40 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   // K2/K3 (KH-Q1); HS-T4b still asks for these on real Neon before the 503
   // lifts, so they run here, through the kabinet's own repo.
   const kabinetAnimals = kabinetAnimalRepo(db);
+  // K-Q7: each write's history line lands in the write's own statement, so
+  // on this driver too a refused write must leave no line behind.
+  const smokeActor = {
+    kind: "shelter_admin",
+    shelterAdminId: randomUUID() as ShelterAdminId,
+  } as const;
+  const animalLines = async (kind: ShelterHistoryEntry["kind"], animalId: string) =>
+    (await history()).filter(
+      (entry) => entry.kind === kind && "animalId" in entry && entry.animalId === animalId,
+    ).length;
 
   // 19. an edit compare-and-sets on `version`: the read version writes and
   // bumps, the same version again (a stale form) writes nothing.
   const edited = await kabinetAnimals.findWithCity(atShelter.id);
   const editVersion = edited?.animal.version ?? -1;
+  function editedLine(animalName: string): AnimalHistoryRow<"animal_edited"> {
+    return {
+      id: randomUUID(),
+      entry: {
+        kind: "animal_edited",
+        at: later(1000),
+        actor: smokeActor,
+        animalId: atShelter.id,
+        animalName,
+        fields: ["name"],
+      },
+    };
+  }
   const firstEdit = edited
     ? await kabinetAnimals.writeEditIf(
         { ...edited.animal, name: `Smoke ${tag}`, lastUpdatedAt: later(1000) },
         edited.cityId,
         editVersion,
+        editedLine(`Smoke ${tag}`),
       )
     : { kind: "conflict" as const };
   const staleEdit = edited
@@ -736,16 +766,19 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
         { ...edited.animal, name: `Smoke ${tag} stale` },
         edited.cityId,
         editVersion,
+        editedLine(`Smoke ${tag} stale`),
       )
     : { kind: "ok" as const };
   const afterEdit = await kabinetAnimals.findWithCity(atShelter.id);
+  const editLines = await animalLines("animal_edited", atShelter.id);
   check(
-    "animal edit compare-and-set on version (S3-T6)",
+    "animal edit compare-and-set on version (S3-T6), one animal_edited line (K-Q7)",
     firstEdit.kind === "ok" &&
       staleEdit.kind === "conflict" &&
       afterEdit?.animal.version === editVersion + 1 &&
-      afterEdit.animal.name === `Smoke ${tag}`,
-    `first ${firstEdit.kind}, stale ${staleEdit.kind}, version ${editVersion} → ${afterEdit?.animal.version}`,
+      afterEdit.animal.name === `Smoke ${tag}` &&
+      editLines === 1,
+    `first ${firstEdit.kind}, stale ${staleEdit.kind}, version ${editVersion} → ${afterEdit?.animal.version}, ${editLines} animal_edited line(s)`,
   );
 
   // 20. a listing move compare-and-sets on the listing as read back through
@@ -759,6 +792,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           atShelter.id,
           { ...readListing, confirmedAt: later(2000), undoable: null },
           readListing,
+          { kind: "not_recorded", because: "confirmation" },
         )
       : { kind: "conflict" as const };
   const staleMove =
@@ -767,6 +801,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           atShelter.id,
           { ...readListing, confirmedAt: later(3000), undoable: null },
           readListing,
+          { kind: "not_recorded", because: "confirmation" },
         )
       : { kind: "ok" as const };
   const afterMove = await kabinetAnimals.findWithCity(atShelter.id);
@@ -801,15 +836,112 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   await swipeRepo(db).record(
     makeSwipe({ adopterId: adopter.id, animalId: referencedDraft.id, at: NOW }),
   );
-  const refused = await kabinetAnimals.deleteDraftIf(referencedDraft.id, 0);
-  const freed = await kabinetAnimals.deleteDraftIf(freeDraft.id, 0);
+  const deletedLine = (animal: { id: typeof freeDraft.id; name: string }) =>
+    ({
+      id: randomUUID(),
+      entry: {
+        kind: "animal_deleted",
+        at: later(4000),
+        actor: smokeActor,
+        animalId: animal.id,
+        animalName: animal.name,
+      },
+    }) as const;
+  const refused = await kabinetAnimals.deleteDraftIf(
+    referencedDraft.id,
+    0,
+    deletedLine(referencedDraft),
+  );
+  const freed = await kabinetAnimals.deleteDraftIf(freeDraft.id, 0, deletedLine(freeDraft));
+  const refusedLines = await animalLines("animal_deleted", referencedDraft.id);
+  const freedLines = await animalLines("animal_deleted", freeDraft.id);
   check(
-    "deleteDraft 23503 catch (HS-T4b)",
+    "deleteDraft 23503 catch (HS-T4b), its line only when it deleted (K-Q7)",
     refused.kind === "referenced" &&
       freed.kind === "ok" &&
       (await kabinetAnimals.findWithCity(referencedDraft.id)) !== null &&
-      (await kabinetAnimals.findWithCity(freeDraft.id)) === null,
-    `referenced draft: ${refused.kind}; free draft: ${freed.kind}`,
+      (await kabinetAnimals.findWithCity(freeDraft.id)) === null &&
+      refusedLines === 0 &&
+      freedLines === 1,
+    `referenced draft: ${refused.kind} (${refusedLines} line(s)); free draft: ${freed.kind} (${freedLines} line(s))`,
+  );
+
+  // 22. a new draft: the INSERT runs inside the CTE that writes its
+  // `animal_created` line (K-Q7), so on this driver too the two land together,
+  // exactly one line (review of PR 1 part 2, finding 1).
+  const createdDraft = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: shelter.id,
+    listing: { kind: "draft" },
+    version: 0,
+  });
+  await kabinetAnimals.insert(createdDraft, city.id, {
+    id: randomUUID(),
+    entry: {
+      kind: "animal_created",
+      at: later(5000),
+      actor: smokeActor,
+      animalId: createdDraft.id,
+      animalName: createdDraft.name,
+    },
+  });
+  const createdRead = await kabinetAnimals.findWithCity(createdDraft.id);
+  const createdLines = await animalLines("animal_created", createdDraft.id);
+  check(
+    "draft insert in a CTE with its animal_created line (K-Q7)",
+    createdRead?.animal.listing.kind === "draft" && createdLines === 1,
+    `draft ${createdRead === null ? "missing" : createdRead.animal.listing.kind}, ${createdLines} animal_created line(s)`,
+  );
+
+  // 23. a recorded listing move (publish): the listing compare-and-set and its
+  // `animal_listing_changed` line in one statement, one line; the same move
+  // again on the now-stale read conflicts and records nothing.
+  const draftListing = createdRead?.animal.listing ?? { kind: "draft" as const };
+  const published = transitionListing(draftListing, { type: "publish", at: later(6000) });
+  const listingLine = (): ListingMoveHistory => ({
+    kind: "recorded",
+    row: {
+      id: randomUUID(),
+      entry: {
+        kind: "animal_listing_changed",
+        at: later(6000),
+        actor: smokeActor,
+        animalId: createdDraft.id,
+        animalName: createdDraft.name,
+        event: { type: "publish" },
+        from: "draft",
+        to: "published",
+      },
+    },
+  });
+  const recordedMove =
+    published.kind === "ok"
+      ? await kabinetAnimals.writeListingIf(
+          createdDraft.id,
+          published.next,
+          draftListing,
+          listingLine(),
+        )
+      : { kind: "conflict" as const };
+  const conflictingMove =
+    published.kind === "ok"
+      ? await kabinetAnimals.writeListingIf(
+          createdDraft.id,
+          published.next,
+          draftListing,
+          listingLine(),
+        )
+      : { kind: "ok" as const };
+  const afterRecorded = await kabinetAnimals.findWithCity(createdDraft.id);
+  const moveLines = await animalLines("animal_listing_changed", createdDraft.id);
+  check(
+    "recorded listing move writes one animal_listing_changed line; a conflicting one none (K-Q7)",
+    published.kind === "ok" &&
+      recordedMove.kind === "ok" &&
+      conflictingMove.kind === "conflict" &&
+      afterRecorded?.animal.listing.kind === "published" &&
+      moveLines === 1,
+    `move ${recordedMove.kind}, conflicting ${conflictingMove.kind}, now ${afterRecorded?.animal.listing.kind}, ${moveLines} animal_listing_changed line(s)`,
   );
   return out;
 }
