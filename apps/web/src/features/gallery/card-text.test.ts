@@ -74,6 +74,21 @@ describe("cardMetaLine", () => {
     const card = makeCard({ ageBucket: "adult", size: "large" });
     expect(cardMetaLine(card, null)).toBe("дорослий · велика");
   });
+
+  /** Q9 (Oleksii, 2026-10-18): the age word agrees with the animal; «Не записано» keeps today's word. */
+  it.each([
+    ["female", "молода · мала"],
+    ["male", "молодий · мала"],
+    ["unknown", "молодий · мала"],
+  ] as const)("a %s animal's age word: «%s»", (sex, line) => {
+    expect(cardMetaLine(makeCard({ sex, ageBucket: "young", size: "small" }), null)).toBe(line);
+  });
+
+  it("the card link's accessible name carries the same agreeing word", () => {
+    expect(cardAccessibleName(makeCard({ sex: "female", ageBucket: "senior" }), null)).toContain(
+      "літня",
+    );
+  });
 });
 
 describe("cardAccessibleName", () => {

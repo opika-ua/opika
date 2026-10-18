@@ -1,5 +1,11 @@
-import type { AgeBucket, GrammaticalGender, SizeBucket } from "@opika/domain";
-import { COPY_PENDING, uk } from "./messages/uk";
+import {
+  type AgeBucket,
+  type AnimalSex,
+  type GrammaticalGender,
+  grammaticalGenderOf,
+  type SizeBucket,
+} from "@opika/domain";
+import { uk } from "./messages/uk";
 
 /**
  * Both maps are `Record`s over the domain's own bucket types, not a
@@ -29,21 +35,22 @@ export function sizeLabel(size: SizeBucket): string {
   return SIZE_LABELS[size];
 }
 
-/**
- * The feminine age words for the card's meta line (follow-up Q9, K3-F1; Oleksii, 2026-10-17:
- * "Follow-up, not PR 4: sex-aware age words on the card (Q9)"). Pending his Ukrainian, so they
- * live here rather than in `uk`, and nothing renders them yet: `animal-labels.test.ts` fails if
- * anything outside this package imports `ageBucketLabelFor` while one of them is still pending.
- * The English in each placeholder is the sense, not a draft.
- */
-export const PENDING_FEMININE_AGE_LABELS: Record<AgeBucket, string> = {
-  baby: `${COPY_PENDING} feminine counterpart of «${uk.cardMeta.ageBaby}» (a female baby animal)`,
-  young: `${COPY_PENDING} feminine counterpart of «${uk.cardMeta.ageYoung}»`,
-  adult: `${COPY_PENDING} feminine counterpart of «${uk.cardMeta.ageAdult}»`,
-  senior: `${COPY_PENDING} feminine counterpart of «${uk.cardMeta.ageSenior}»`,
+const FEMININE_AGE_BUCKET_LABELS: Record<AgeBucket, string> = {
+  baby: uk.cardMeta.ageBabyFemale,
+  young: uk.cardMeta.ageYoungFemale,
+  adult: uk.cardMeta.ageAdultFemale,
+  senior: uk.cardMeta.ageSeniorFemale,
 };
 
-/** The age word that agrees with the animal (Q9). The masculine set is today's card words. */
+/** The age word that agrees with the animal (Q9). The masculine set is the card's long-standing words. */
 export function ageBucketLabelFor(bucket: AgeBucket, gender: GrammaticalGender): string {
-  return gender === "feminine" ? PENDING_FEMININE_AGE_LABELS[bucket] : AGE_BUCKET_LABELS[bucket];
+  return gender === "feminine" ? FEMININE_AGE_BUCKET_LABELS[bucket] : AGE_BUCKET_LABELS[bucket];
+}
+
+/**
+ * The age word on one animal's card, meta line and page (Q9, Oleksii 2026-10-18): female →
+ * «молода»; male and «Не записано» → «молодий». Never for filter chips, which name categories.
+ */
+export function ageWordFor(bucket: AgeBucket, sex: AnimalSex): string {
+  return ageBucketLabelFor(bucket, grammaticalGenderOf(sex));
 }
