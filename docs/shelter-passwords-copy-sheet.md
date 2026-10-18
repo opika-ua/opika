@@ -1,6 +1,6 @@
 # Shelter passwords: copy sheet (for Oleksii's Ukrainian)
 
-**His Ukrainian for every row is in `docs/shelter-passwords-copy-uk.md`** (2026-10-19, verbatim, the source the build copies from). This sheet keeps the keys, the English sense and where each string appears.
+**His Ukrainian for every row not marked "yours" is in `docs/shelter-passwords-copy-uk.md`** (2026-10-19, verbatim, the source the build copies from). This sheet keeps the keys, the English sense and where each string appears.
 
 One row per new string for the passwords work (`docs/shelter-passwords.md`). The **Ukrainian**
 column is yours. Rows already filled hold your own words from the scope or the §9 answers, quoted
@@ -14,6 +14,7 @@ in your voice, no «реєстр».
 
 | Key | English sense / where | Ukrainian |
 |---|---|---|
+| `kabinet.signIn.intro` (**existing, becomes false**) | today «Для притулків і адміністратора сайту. Пароля немає: посилання для входу приходить на пошту.» The second sentence is false the day passwords ship. English sense of a replacement: "For shelters and the site administrator. Sign in with your email and password, or ask for a sign-in link by email." (the operator has no password, so it must stay true for him too) | **open: his Ukrainian** |
 | `kabinet.signIn.passwordLabel` | the password field's label | |
 | `kabinet.signIn.showPassword` / `hidePassword` | the eye toggle's accessible names | |
 | `kabinet.signIn.submitPassword` | the main button: sign in | |
@@ -38,6 +39,7 @@ in your voice, no «реєстр».
 | `kabinet.password.personal` | the refusal: contains the email's local part, the shelter's name, or "opika" (your §9 Q2) | |
 | `kabinet.password.mismatch` | the two fields differ | |
 | (reused) | an expired, used or unknown invitation: today's `inviteLanding` unusable and already-accepted states | — |
+| (replaced) | `inviteLanding.ready`, `inviteLanding.send`, `inviteLanding.sent`: the landing's magic-link flow, which «Створіть пароль» replaces. They are removed when PW-2 ships; nothing new is needed | — |
 
 ## C. Forgot password (`/kabinet/vkhid/zabuly`) — PW-1
 
@@ -108,5 +110,12 @@ in your voice, no «реєстр».
   included.
 - **Counting:** "10 characters" is counted as a reader counts (a flag emoji is one), the same rule
   as the shelter-name cap.
-- **Plurals:** `{minutes}` in A's delay message and F1's expiry, and `{count}` in B's hint, get
-  pins for each Ukrainian plural form a value can take, as your other numbered strings do.
+- **Plurals:** his wording avoids them by design (`хв.`; «Символів: {count} з {min}»; «Мінімум
+  символів: {min}»). `{minutes}` keeps its value pins anyway (A's delay message, C's `forgot.sent`,
+  F1's expiry), as he asked.
+- **Key names at build:** `reset.invalidLink.linkText` can't sit beside the string
+  `reset.invalidLink` in the nested catalogue, so the build gives it a sibling name
+  (e.g. `reset.invalidLinkText`). His wording is unchanged. `changePassword.newLabel` is his
+  separate label for the change form.
+- **"opika" in the personal check** comes from app config (the site's name), never as a literal
+  in `packages/domain`, per the no-brand-strings rule.
