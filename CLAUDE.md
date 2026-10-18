@@ -714,6 +714,20 @@ copies for new decisions.
   clocks, an injected delay, a `MutationObserver` hook, a forced scheduling order. Oleksii,
   2026-10-19, verbatim: "the no-artificial-load rule is right, keep it permanent (write it into
   CLAUDE.md's agent rules)."
+- **Merge only the commit that was reviewed.** Oleksii, 2026-10-19, verbatim: "enable
+  auto-merge only after the final push. The merge has to apply to the exact commit that was
+  reviewed: if new commits arrive, the review is stale and auto-merge turns off until the delta is
+  reviewed." In practice:
+  - a merge watcher takes the reviewed head SHA and merges with `gh pr merge --squash
+    --match-head-commit <sha>`, so GitHub refuses if the head moved;
+  - it never runs `update-branch` itself, which would create an unreviewed head;
+  - a rebase onto the default branch that leaves every commit patch-identical
+    (`git range-diff`: all `=`) moves only the base and doesn't stale the review;
+  - any other new commit (a fix, the owner's own copy, a merge commit carrying conflict
+    resolution) needs its delta reviewed before merge.
+  - Two kinds of PR always wait for him: one with a migration (he migrates production from the
+    PR branch first), and a Tier 1 PR until its full review has passed. Every PR states
+    `Migration: none | additive | destructive`.
 - **Full `pnpm check` runs are serialised:** at most two at once on the machine. In this session's
   scratchpad that's `check-slot.sh`; any equivalent lock will do. Targeted suites are free.
 
