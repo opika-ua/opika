@@ -907,6 +907,13 @@ under H6; the name and `noindex` timing are inbox decisions (MK-9, MK-10), not r
 
 ---
 
+### R-UI — Operator screens (planned 2026-10-17, RU-B2)
+
+Status: planned; waiting on Oleksii's answers (RU-Q1..RU-Q9) and the copy (`docs/r-ui-copy-sheet.md`)
+before any UI. Plan: `docs/r-ui-plan.md`. Three Tier 1 PRs, one open at a time beside PR 4–6:
+R-UI 1 (operator entry, list, shelter page read-only, history; one contract gap, the admins count),
+R-UI 2 (create shelter), R-UI 3 (verification, donation and admin actions). Merges before the dress rehearsal (RU-B4).
+
 ## Part 3 — Timeline
 
 The **Hours** column is a relative-complexity signal, not a schedule. These figures were estimated
@@ -1028,11 +1035,22 @@ weeks.
 
 ### Before the first real shelter or animal record is inserted
 
-**Launch order** (Oleksii, 2026-10-17, inbox RH-B5): onboard the first real shelter → retire
-the rehearsal shelter (`docs/onboarding-a-shelter.md`, "Retiring the rehearsal shelter") →
-`demo:remove` (the seeded demo corpus) → merge the prepared `REGISTRY_HAS_NO_REAL_SHELTERS`
-flip PR (F-B7) → invite the real shelter. PR 6 (writes open for everyone) has merged before
-the invite (F-B6).
+**Launch order** (Oleksii, 2026-10-17, inbox RH-B5, RU-B4):
+1. **Built and merged:** PR 4 (K3 form) → PR 5 (K2 list) → PR 6 (writes open for everyone, the
+   allowlist gone), with the operator screens (R-UI, below) merged alongside, as the second
+   parallel PR.
+2. **Dress rehearsal gate** (RU-B4, RU-B5): the UI-only dress rehearsal in
+   `docs/onboarding-a-shelter.md` passes, after PR 6 and the operator screens, **before any
+   public posting or marketing**. No console rpc, no scripts, no `KABINET_WRITE_ALLOWLIST`; the
+   pre-launch gate cookie is the only non-UI piece (RU-B1).
+3. **First real shelter:** onboard it → retire the rehearsal shelter
+   (`docs/onboarding-a-shelter.md`, "Retiring the rehearsal shelter") → `demo:remove` (the seeded
+   demo corpus) → merge the prepared `REGISTRY_HAS_NO_REAL_SHELTERS` flip PR (F-B7) → invite the
+   real shelter. PR 6 has merged before the invite (F-B6).
+
+New shelters reach the operator by message (email/Telegram from «Для притулків»), and he
+creates them in the operator screens (RU-B3, option A). No public application form for now
+(RU-F1). The onboarding script stays a back-up for bulk import, not the normal path (RU-B2).
 
 **Remove every test shelter before the first real shelter** (Oleksii, 2026-10-15, inbox DR-B2,
 verbatim: "remove all test shelters (demo + mine) before the first real shelter"). Two kinds:

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pendingCopyKeys, pendingCopyPaths } from "./copy-status";
+import { en } from "./messages/en";
 import { COPY_PENDING, uk } from "./messages/uk";
 
 describe("pendingCopyKeys", () => {
@@ -307,14 +308,13 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     // row 69
     "support.title":
       "Ви переглядаєте кабінет притулку «{shelter}» — лише перегляд, змінити нічого не можна.",
-    // row 41
+    // row 41; final sentence replaced by CB-B1 (2026-10-17)
     "profile.contactsNote":
-      "Ці контакти бачить людина, коли натискає «Написати притулку», — і пише вам сама. Листування йде напряму, не через реєстр.",
+      "Ці контакти бачить людина, коли натискає «Написати притулку», — і пише вам сама. Листування йде напряму, без посередників.",
     // row 57, his replacement (2026-10-14), live once pre-reveal responses carry the city only
     "profile.addressNote": "Ті, хто шукає тварину, не бачать точної адреси — лише місто.",
-    // row 44
-    "profile.donationNote":
-      "Лише https. Реєстр не приймає і не передає гроші — це зовнішнє посилання.",
+    // row 44; replaced by CB-B1 (2026-10-17)
+    "profile.donationNote": "Лише https. Через сайт гроші не проходять — це зовнішнє посилання.",
     // row 77
     "registry.inviteSent.tellPersonally":
       "Повідомте притулок особисто: запрошення надіслано з {sender}. Якщо листа не видно — хай перевірить вкладку «Промоакції».",
@@ -401,9 +401,9 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // k4-copy-uk.md
     // K4-B4, answer 3: U+02BC, as in every one of his K4 strings
     "profileEdit.contacts.atLeastOne": "Залиште хоча б один спосіб звʼязку.",
-    // k4-copy-uk.md
+    // k4-copy-uk.md; second sentence replaced by CB-B1 (2026-10-17)
     "profileEdit.voice.hint":
-      "Одне речення від першої особи, вашими словами. Реєстр підставляє лише імʼя тварини — там, де ви напишете {імʼя}. Більше нічого не змінюється.",
+      "Одне речення від першої особи, вашими словами. На картці підставляється лише імʼя тварини — там, де ви напишете {імʼя}. Більше нічого не змінюється.",
     // k4-copy-uk.md
     "profileEdit.voice.nameStaysHint":
       "Імʼя стоїть як є: Рекс, Мурка. Його не відмінюють, тож пишіть так, щоб воно звучало природно, — наприклад, «{імʼя} досі шукає дім».",
@@ -546,6 +546,36 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
 
   it("no longer carries the shipped donationPending wording", () => {
     expect(uk.kabinet.profile.donationPending).not.toContain("оператора");
+  });
+});
+
+/**
+ * CB-B1 (Oleksii, 2026-10-17), verbatim: "brand rule: no «реєстр» in
+ * user-facing copy, as it implies a state service". Scoped to the three strings
+ * his copy batch replaced: the catalogue's other «реєстр» strings are his
+ * separate call, so this is deliberately not a sweep. Their English mirrors
+ * follow the same sense, so they are held to "registry". A plain substring
+ * match, case-insensitive: «Реєстр» opened the old donation note.
+ */
+describe("CB-B1: the replaced strings name no «реєстр»", () => {
+  const replaced: Record<string, readonly [uk: string, en: string]> = {
+    "kabinet.profile.contactsNote": [
+      uk.kabinet.profile.contactsNote,
+      en.kabinet.profile.contactsNote,
+    ],
+    "kabinet.profile.donationNote": [
+      uk.kabinet.profile.donationNote,
+      en.kabinet.profile.donationNote,
+    ],
+    "kabinet.profileEdit.voice.hint": [
+      uk.kabinet.profileEdit.voice.hint,
+      en.kabinet.profileEdit.voice.hint,
+    ],
+  };
+
+  it.each(Object.entries(replaced))("%s", (_key, [ukText, enText]) => {
+    expect(ukText).not.toMatch(/реєстр/iu);
+    expect(enText).not.toMatch(/registry/i);
   });
 });
 

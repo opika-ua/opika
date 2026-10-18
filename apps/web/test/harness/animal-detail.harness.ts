@@ -431,7 +431,9 @@ test.describe("the detail page's freshness block quotes the right field", () => 
         "for: it previously quoted `shelter.description` under the «Слова притулку» attribution.",
     ).toHaveCount(1);
 
-    const text = ((await quoted.textContent()) ?? "").replace(/[“”]/g, "").trim();
+    // The block wraps the sentence in «…» (CB-B1); strip them so the
+    // startsWith check below reads the sentence's own first word.
+    const text = ((await quoted.textContent()) ?? "").replace(/[«»]/g, "").trim();
     expect(text.length, "the freshness quote rendered empty").toBeGreaterThan(0);
 
     /**

@@ -105,6 +105,21 @@ describe("ShelterProfile (K4, read-only)", () => {
     expect(caption.textContent).toBe("Одне речення від першої особи, написане вами.");
   });
 
+  // CB-B1, items 1 and 2: his replacements, transcribed (no «реєстр»).
+  it("captions contacts and fundraising with his text", () => {
+    renderProfile();
+    expect(
+      within(screen.getByRole("region", { name: t.contactsTitle })).getByText(
+        "Ці контакти бачить людина, коли натискає «Написати притулку», — і пише вам сама. Листування йде напряму, без посередників.",
+      ),
+    ).toBeTruthy();
+    expect(
+      within(screen.getByRole("region", { name: t.donationTitle })).getByText(
+        "Лише https. Через сайт гроші не проходять — це зовнішнє посилання.",
+      ),
+    ).toBeTruthy();
+  });
+
   it("shows the live link, the proposal waiting for approval, and the shelter's sentence when set", () => {
     renderProfile({
       donation: { url: "https://dobro.ua/fund/domivka", provider: "dobro_ua" as never },

@@ -184,8 +184,9 @@ describe("AnimalDetailScreen — the shelter's sentence and its attribution (VH-
 
   it("attributes a sentence to the shelter, and claims nothing about a date", async () => {
     await renderWith({ uk: "Оновлюємо картки щосуботи.", en: null });
+    // In «…», not English “…” (CB-B1, item 4).
     expect(screen.getByTestId("shelter-freshness-sentence").textContent).toBe(
-      "“Оновлюємо картки щосуботи.”",
+      "«Оновлюємо картки щосуботи.»",
     );
     expect(screen.getByTestId("shelter-freshness-attribution").textContent).toBe("Слова притулку");
   });
@@ -193,7 +194,7 @@ describe("AnimalDetailScreen — the shelter's sentence and its attribution (VH-
   it("fills {імʼя} with this page's animal name (K-Q6)", async () => {
     await renderWith({ uk: "Напишіть, і ми скажемо, чи {імʼя} ще з нами.", en: null });
     expect(screen.getByTestId("shelter-freshness-sentence").textContent).toBe(
-      "“Напишіть, і ми скажемо, чи Мурчик ще з нами.”",
+      "«Напишіть, і ми скажемо, чи Мурчик ще з нами.»",
     );
   });
 

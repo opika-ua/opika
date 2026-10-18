@@ -897,11 +897,16 @@ export const uk = {
       signOutFailed:
         "Вийти не вдалося — ви досі в кабінеті. Перевірте з'єднання і спробуйте ще раз.",
       contactsTitle: "Контакти",
+      /**
+       * CB-B1 (Oleksii, 2026-10-17): no «реєстр» in user-facing copy, since it
+       * implies a state service. Applies to this note, `donationNote` and
+       * `profileEdit.voice.hint`; the other strings are his separate call.
+       */
       contactsNote:
-        "Ці контакти бачить людина, коли натискає «Написати притулку», — і пише вам сама. Листування йде напряму, не через реєстр.",
+        "Ці контакти бачить людина, коли натискає «Написати притулку», — і пише вам сама. Листування йде напряму, без посередників.",
       donationTitle: "Збір коштів",
       donationLink: "Посилання на збір",
-      donationNote: "Лише https. Реєстр не приймає і не передає гроші — це зовнішнє посилання.",
+      donationNote: "Лише https. Через сайт гроші не проходять — це зовнішнє посилання.",
       /**
        * A proposed link the operator hasn't approved yet (N20). Rewritten in the
        * operator's «я» (K4 sheet, answer 8, Oleksii, 2026-10-17).
@@ -1057,7 +1062,8 @@ export const uk = {
         atLeastOne: "Залиште хоча б один спосіб звʼязку.",
       },
       voice: {
-        hint: "Одне речення від першої особи, вашими словами. Реєстр підставляє лише імʼя тварини — там, де ви напишете {імʼя}. Більше нічого не змінюється.",
+        /** CB-B1: the second sentence is his replacement; `{імʼя}` is literal. */
+        hint: "Одне речення від першої особи, вашими словами. На картці підставляється лише імʼя тварини — там, де ви напишете {імʼя}. Більше нічого не змінюється.",
         nameStaysHint:
           "Імʼя стоїть як є: Рекс, Мурка. Його не відмінюють, тож пишіть так, щоб воно звучало природно, — наприклад, «{імʼя} досі шукає дім».",
         /** Answer 7: inserts the token at the cursor. */

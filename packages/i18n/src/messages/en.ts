@@ -391,11 +391,10 @@ export const en = {
         "Sign-out didn't go through, so you are still signed in. Check the connection and try again.",
       contactsTitle: "Contacts",
       contactsNote:
-        "A person sees these contacts when they tap «Write to the shelter», and writes to you themselves. Messages go directly, not through the registry.",
+        "A person sees these contacts when they tap «Write to the shelter», and writes to you themselves. Messages go directly, with no one in between.",
       donationTitle: "Fundraising",
       donationLink: "Fundraising link",
-      donationNote:
-        "https only. The registry never takes or passes on money: this is an external link.",
+      donationNote: "https only. No money passes through the site: this is an external link.",
       donationPending: "The proposed link is waiting for me to check it.",
       voiceTitle: "The shelter's voice",
       voiceLabel: "Your words on the cards",
@@ -478,7 +477,7 @@ export const en = {
         atLeastOne: "Keep at least one way to reach you.",
       },
       voice: {
-        hint: "One sentence in the first person, in your own words. The registry fills in only the animal's name, where you write {імʼя}. Nothing else changes.",
+        hint: "One sentence in the first person, in your own words. On the card, only the animal's name is filled in, where you write {імʼя}. Nothing else changes.",
         nameStaysHint:
           "The name goes in as it is: Rex, Murka. It isn't declined, so write the sentence so it reads naturally, for example «{імʼя} is still looking for a home».",
         insertName: "Insert {імʼя}",
