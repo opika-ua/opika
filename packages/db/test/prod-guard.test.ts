@@ -1177,6 +1177,8 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     ["admin:grant", "src/admin.ts", ["grant", "oleksii@example.org"]],
     ["admin:revoke", "src/admin.ts", ["revoke", "oleksii@example.org"]],
     ["admin:sweep-invites", "src/admin.ts", ["sweep-invites"]],
+    // Deletes every kabinet sign-in (KH-Q12 rotation): the guard runs before --expect is checked.
+    ["auth:revoke-all", "src/auth-revoke-all.ts", ["--commit"]],
   ] as const;
 
   /**
