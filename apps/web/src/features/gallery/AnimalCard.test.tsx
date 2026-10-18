@@ -14,7 +14,7 @@ import { cardAccessibleName } from "./card-text";
 
 function makeFreshness(kind: FreshnessKind, ageDays: number): Freshness {
   const now = new Date("2026-08-06T12:00:00Z");
-  return { kind, ageDays, updatedAt: new Date(now.getTime() - ageDays * 86_400_000) };
+  return { kind, ageDays, confirmedAt: new Date(now.getTime() - ageDays * 86_400_000) };
 }
 
 function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {

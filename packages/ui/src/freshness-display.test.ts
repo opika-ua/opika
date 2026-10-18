@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { freshnessLabel, freshnessPips } from "./freshness-display";
 
 function makeFreshness(kind: Freshness["kind"], ageDays: number): Freshness {
-  return { kind, updatedAt: new Date("2026-08-01T00:00:00Z"), ageDays };
+  return { kind, confirmedAt: new Date("2026-08-01T00:00:00Z"), ageDays };
 }
 
 describe("freshnessPips", () => {

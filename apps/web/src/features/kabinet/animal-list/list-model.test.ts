@@ -47,7 +47,7 @@ const row = (overrides: Partial<AnimalRow> = {}): AnimalRow =>
     listing: { kind: "published", publishedAt: NOW, confirmedAt: NOW, undoable: null },
     lastUpdatedAt: NOW,
     coverPhoto: null,
-    freshness: { kind: "fresh", updatedAt: NOW, ageDays: 0 },
+    freshness: { kind: "fresh", confirmedAt: NOW, ageDays: 0 },
     publishGaps: [{ kind: "photo" }],
     ...overrides,
   }) as AnimalRow;
@@ -135,7 +135,7 @@ describe("the row's status line", () => {
 
   it("published and reserved: the public «Оновлено …», counted from the confirmation", () => {
     const confirmedAt = new Date(NOW.getTime() - 40 * DAY);
-    const freshness = { kind: "stale", updatedAt: confirmedAt, ageDays: 40 } as const;
+    const freshness = { kind: "stale", confirmedAt, ageDays: 40 } as const;
     expect(statusLineOf(row({ freshness }), NOW)).toBe("Оновлено 40 днів тому");
     expect(
       statusLineOf(
@@ -196,7 +196,7 @@ describe("the row after a move (commitment #7: the date moves only on a confirma
   const confirmedAt = new Date(NOW.getTime() - 40 * DAY);
   const published = row({
     listing: { kind: "published", publishedAt: confirmedAt, confirmedAt, undoable: null },
-    freshness: { kind: "stale", updatedAt: confirmedAt, ageDays: 40 },
+    freshness: { kind: "stale", confirmedAt, ageDays: 40 },
   });
   const view = (listing: KabinetAnimalView["listing"]) =>
     ({

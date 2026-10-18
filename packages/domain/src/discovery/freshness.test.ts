@@ -93,8 +93,8 @@ describe("freshnessOf classification", () => {
   });
 
   it("preserves the original timestamp so the badge need not recompute it", () => {
-    const updatedAt = daysAgo(5);
-    expect(freshnessOf(updatedAt, NOW, policy).updatedAt).toEqual(updatedAt);
+    const confirmedAt = daysAgo(5);
+    expect(freshnessOf(confirmedAt, NOW, policy).confirmedAt).toEqual(confirmedAt);
   });
 });
 

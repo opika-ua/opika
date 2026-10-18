@@ -43,7 +43,7 @@ const row = (n: number, overrides: Partial<AnimalRow>): AnimalRow =>
 const PUBLISHED = row(1, {
   name: "Рекс",
   listing: { kind: "published", publishedAt: OLD, confirmedAt: OLD, undoable: null },
-  freshness: { kind: "stale", updatedAt: OLD, ageDays: 40 },
+  freshness: { kind: "stale", confirmedAt: OLD, ageDays: 40 },
 });
 const RESERVED = row(2, {
   name: "Мурка",
@@ -57,7 +57,7 @@ const RESERVED = row(2, {
     confirmedAt: new Date(NOW.getTime() - 3 * DAY),
     undoable: null,
   },
-  freshness: { kind: "fresh", updatedAt: new Date(NOW.getTime() - 3 * DAY), ageDays: 3 },
+  freshness: { kind: "fresh", confirmedAt: new Date(NOW.getTime() - 3 * DAY), ageDays: 3 },
 });
 const READY_DRAFT = row(3, { name: "Ластівка" });
 const GAPPY_DRAFT = row(4, {

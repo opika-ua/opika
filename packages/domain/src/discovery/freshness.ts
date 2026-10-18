@@ -5,18 +5,21 @@ export const FreshnessKindSchema = z.enum(["fresh", "aging", "stale"]);
 export type FreshnessKind = z.infer<typeof FreshnessKindSchema>;
 
 /**
- * `updatedAt` is the instant freshness is measured from. Since H2-3 every
- * caller passes the listing's confirmation (`confirmationAnchorOf`), not its
- * edit time; the field keeps its wire name pending inbox H2-15.
+ * `confirmedAt` is the instant freshness is measured from: the listing's
+ * confirmation (`confirmationAnchorOf`, set on publish, by «Ще шукає» / «Ще
+ * домовляються» and by a photo change on a visible card), never its edit time.
+ * Named for that since PR 6 of the K milestone (H2-15, Oleksii, verbatim:
+ * "keep updatedAt on the wire until the «Оновлено» copy decision. Rename in
+ * the same PR as that copy."); the cards still say «Оновлено» (K-Q14 (a)).
  *
- * `ageDays` is carried even though it is derivable from `updatedAt`, because
+ * `ageDays` is carried even though it is derivable from `confirmedAt`, because
  * the point of modelling freshness as a value is that no display surface ever
  * touches the clock. If a badge had to recompute the delta it would need `now`,
  * and `Date.now()` would appear in a component within a week.
  */
 export const FreshnessSchema = z.object({
   kind: FreshnessKindSchema,
-  updatedAt: z.date(),
+  confirmedAt: z.date(),
   ageDays: z.int().nonnegative(),
 });
 export type Freshness = z.infer<typeof FreshnessSchema>;
@@ -57,14 +60,14 @@ const MS_PER_DAY = 86_400_000;
  * A negative delta is clamped to zero. A device with a fast clock should not be
  * able to make a listing look fresher than it is.
  */
-export const freshnessOf = (measuredFrom: Date, now: Date, policy: FreshnessPolicy): Freshness => {
-  const elapsedMs = Math.max(0, now.getTime() - measuredFrom.getTime());
+export const freshnessOf = (confirmedAt: Date, now: Date, policy: FreshnessPolicy): Freshness => {
+  const elapsedMs = Math.max(0, now.getTime() - confirmedAt.getTime());
   const ageDays = Math.floor(elapsedMs / MS_PER_DAY);
 
   const kind: FreshnessKind =
     ageDays <= policy.freshMaxDays ? "fresh" : ageDays <= policy.agingMaxDays ? "aging" : "stale";
 
-  return { kind, updatedAt: measuredFrom, ageDays };
+  return { kind, confirmedAt, ageDays };
 };
 
 /**

@@ -113,7 +113,7 @@ function renderEditor(
               name: animal.name,
               freshness: {
                 kind: "fresh",
-                updatedAt: new Date("2026-10-14T00:00:00Z"),
+                confirmedAt: new Date("2026-10-14T00:00:00Z"),
                 ageDays: animal.ageDays,
               },
             }
