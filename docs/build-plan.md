@@ -1024,7 +1024,7 @@ moment, not now):
 | Extract `apps/partner` from `apps/web` | When a shelter asks for dashboard access **and** ≥15 shelters | Route group inside `apps/web` |
 | Adopter accounts | When someone asks for reveal history across devices | Anonymous session, upgradeable (Better Auth deferred to shelter accounts) |
 | Redis for the seen-set | When the array-column query shows up in slow logs | Postgres array column |
-| Move Vercel from Hobby to Pro | **Before** the ads/partners phase (Phase 2) starts: Hobby is non-commercial, so ads or partner placements can't run on it (Oleksii, P-Q7, 2026-10-17; the ADR assumed Pro, the project is on Hobby) | Stay on Hobby while nothing on the site is commercial |
+| Move Vercel from Hobby to Pro | **Done 2026-10-18**: Oleksii upgraded to Pro, with a spend limit set. The ads/partners phase (Phase 2) is no longer blocked on the plan (it was, under Hobby's non-commercial rule: P-Q7, 2026-10-17) | — |
 
 **Never cut, regardless of schedule pressure:** the exhaustive FSM test, the freshness
 display, keyset pagination for the deck, seed-data volume, the verification gate

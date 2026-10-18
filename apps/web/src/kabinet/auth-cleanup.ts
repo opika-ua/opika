@@ -7,9 +7,12 @@ import { authExpiryRepo } from "@opika/db/repos";
  * 2026-10-14, relayed, verbatim: "(b), a daily Vercel cron. (a) alone is too
  * weak: rows survive until the next sign-in, which can be weeks away." The
  * provisional /pro sentence that expired sign-in records go within two days
- * (KH-C1; two, not one, because the project is on Vercel Hobby, whose cron
- * runs once a day at an inexact time within the hour, KH-Q12) rests on this
- * route running, not on Better Auth's lazy deletes.
+ * (KH-C1; two, not one, because KH-Q12 chose one run a day, the most Vercel
+ * Hobby allowed, and Hobby promised only the hour, not the minute) rests on
+ * this route running, not on Better Auth's lazy deletes. The project is on
+ * Pro since 2026-10-18, which allows more frequent runs; moving to every 6
+ * hours with «протягом доби» is his call (KH-Q12), not made, so the schedule
+ * and the sentence stay as they are.
  *
  * - **What goes:** exactly what `authExpiryRepo.deleteExpired` deletes, in
  *   one statement: rows past their expiry (KH-Q9), and sessions past the
