@@ -9,8 +9,7 @@ import {
 } from "../../../api/kabinet-browser-client";
 import { Button, buttonClass } from "../../controls/controls";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
-import { missingSentence } from "../animal-form/labels";
-import { shelterVisibilityOf } from "../animal-page";
+import { missingSentence, shelterVisibilityOf } from "../animal-form/labels";
 import { BODY, CAPTION, CARD, ERROR_TEXT, PAGE_TITLE, STRONG } from "../profile-edit/styles";
 import { NEW_ANIMAL_PATH } from "../routes";
 import { AnimalListRow, moreButtonId } from "./AnimalListRow";

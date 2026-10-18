@@ -1,9 +1,5 @@
 import type { KabinetAnimalView, KabinetShelterView } from "@opika/contracts";
-import {
-  AnimalIdSchema,
-  FEED_VISIBLE_VERIFICATION_STATUSES,
-  type VerificationStatus,
-} from "@opika/domain";
+import { AnimalIdSchema } from "@opika/domain";
 import { createRouterClient, ORPCError } from "@orpc/server";
 import { decideAccess } from "../../kabinet/access";
 import type { KabinetPrincipal } from "../../kabinet/actor";
@@ -11,7 +7,7 @@ import type { KabinetContext } from "../../kabinet/context";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../kabinet/photo-uploads";
 import { shelterKabinetRouter } from "../../kabinet/router";
 import type { AnimalFormEditing } from "./animal-form/AnimalForm";
-import type { ShelterVisibility } from "./animal-form/labels";
+import { type ShelterVisibility, shelterVisibilityOf } from "./animal-form/labels";
 import type { KabinetHomeDeps } from "./home";
 
 /**
@@ -54,35 +50,12 @@ export type KabinetAnimalPage =
     };
 
 /**
- * `visible` is the public surfaces' own rule (`FEED_VISIBLE_VERIFICATION_STATUSES`
- * in the feed and gallery predicate, `verified` in `animals.byId`), not a
- * second copy of it: a paused, suspended or not-yet-verified shelter's cards
- * are shown nowhere. The switch then sorts every status those surfaces don't
- * show by why, because the form's sentences differ: before a pass (pending,
- * under review, or rejected, which may resubmit) the cards show «щойно
- * притулок пройде перевірку»; after one (paused, suspended) that sentence
- * would be false. `verified` sits with those: it reaches the switch only if
- * the surfaces ever stop showing a verified shelter, and such a shelter has
- * passed. Exhaustive, so a new status fails to compile until it is placed.
+ * `shelterVisibilityOf` lives beside `ShelterVisibility` in the form's
+ * client-safe labels, so K2's client list can use it without pulling this
+ * module's server router into the browser bundle; re-exported here for the
+ * pages and tests that read it from where the pages decide.
  */
-export const shelterVisibilityOf = (status: VerificationStatus): ShelterVisibility => {
-  if ((FEED_VISIBLE_VERIFICATION_STATUSES as readonly string[]).includes(status)) return "visible";
-  switch (status) {
-    case "pending":
-    case "under_review":
-    case "rejected":
-      return "awaiting_verification";
-    case "verified":
-    case "paused":
-    case "suspended":
-      return "hidden";
-    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled status; unreachable at runtime */
-    default: {
-      const unreachable: never = status;
-      return unreachable;
-    }
-  }
-};
+export { shelterVisibilityOf } from "./animal-form/labels";
 
 export type AnimalPageTarget = { kind: "new" } | { kind: "existing"; animalId: string };
 

@@ -154,9 +154,15 @@ test.describe("/kabinet/tvaryny K3 animal form (allowlisted shelter)", () => {
 
   const publishButton = (page: Page) => page.getByRole("button", { name: "Опублікувати" });
 
-  test("from the profile, «Нова тварина»: a name and a species save a draft; publish stays disabled with every gap written", async () => {
+  // K2 (PR 5) is the form's entry point: the list's «Додати тварину», reached from the nav.
+  test("from the list, «Додати тварину»: a name and a species save a draft; publish stays disabled with every gap written", async () => {
     const page = await open("/kabinet");
-    await page.getByRole("link", { name: "Нова тварина" }).first().click();
+    await page
+      .getByRole("navigation", { name: "Розділи кабінету" })
+      .getByRole("link", { name: "Тварини" })
+      .click();
+    await expect(page).toHaveURL(/\/kabinet\/tvaryny$/);
+    await page.getByRole("link", { name: "Додати тварину" }).click();
     await expect(page).toHaveURL(/\/kabinet\/tvaryny\/nova$/);
     await expect(page.getByRole("heading", { level: 1, name: "Нова тварина" })).toBeVisible();
 
