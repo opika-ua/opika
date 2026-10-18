@@ -100,6 +100,13 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
       }),
     ]),
   }),
+  /** Both names: the shelter already shows its name on every card, so neither is news to it. */
+  z.object({
+    kind: z.literal("display_name_changed"),
+    ...base,
+    from: z.string().min(1),
+    to: z.string().min(1),
+  }),
   z.object({ kind: z.literal("shelter_created"), ...base }),
   z.object({ kind: z.literal("admin_invited"), ...base, email: z.email() }),
   z.object({ kind: z.literal("admin_invitation_resent"), ...base, email: z.email() }),
@@ -216,6 +223,14 @@ export function shelterFacingHistoryOf(
       };
     case "verified_data_changed":
       return { kind: "verified_data_changed", at: entry.at, actor: operator, change: entry.change };
+    case "display_name_changed":
+      return {
+        kind: "display_name_changed",
+        at: entry.at,
+        actor: operator,
+        from: entry.from,
+        to: entry.to,
+      };
     case "shelter_created":
       return { kind: "shelter_created", at: entry.at, actor: operator };
     case "admin_invited":

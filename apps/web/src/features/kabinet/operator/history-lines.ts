@@ -87,6 +87,17 @@ const fieldLabel = (field: AnimalEditedField): string => {
   }
 };
 
+/**
+ * A rename's line (R-UI 4), «Назва притулку: «{from}» → «{to}»», made only of
+ * his strings: the S2 field's label (`create.name`) put through his own
+ * «{name}: «{from}» → «{to}»» line for a value that moved
+ * (`animal_listing_changed`). Operator screens take no `[COPY PENDING]`
+ * string, and this needs no new one: it says what changed, from what, to
+ * what, as that line already does for a listing.
+ */
+const renameLine = (from: string, to: string): string =>
+  fillTemplate(t.animal_listing_changed, { name: uk.kabinet.operator.create.name, from, to });
+
 /** A reason's line: «{code}. {note}», the note left off when none was written. */
 const withNote = (template: string, code: string, note: string | null): string =>
   fillTemplate(template, { code, note: note ?? "" }).trimEnd();
@@ -201,6 +212,11 @@ function lineOf(
     case "verified_data_changed":
       return {
         text: t.verified_data_changed[entry.change.field],
+        actor: operatorActor(entry.moderatorId, people),
+      };
+    case "display_name_changed":
+      return {
+        text: renameLine(entry.from, entry.to),
         actor: operatorActor(entry.moderatorId, people),
       };
     case "animals_imported":
