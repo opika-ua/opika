@@ -284,7 +284,7 @@ test.describe("the demo banner is visible and does not push either page sideways
     // deck's own demo label (`discovery-layout.harness.ts`), which exists for
     // exactly this: confirmed by mutation that adding `truncate` here passes
     // both toBeVisible() and expectNoHorizontalOverflow() while leaving only
-    // "У реєстрі поки немає спр…" on screen.
+    // "На сайті поки немає спр…" on screen.
     const { scrollWidth, clientWidth } = await banner.evaluate((el) => ({
       scrollWidth: el.scrollWidth,
       clientWidth: el.clientWidth,

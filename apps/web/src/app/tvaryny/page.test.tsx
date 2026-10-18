@@ -171,7 +171,7 @@ describe("/tvaryny — demo disclosure banner (D-2 correction, 2026-09-10)", () 
     render(<WithMockRouter>{element}</WithMockRouter>);
 
     expect(screen.getByTestId("gallery-demo-banner").textContent).toBe(
-      "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.",
+      "На сайті поки немає справжніх притулків — усі картки тут демонстраційні.",
     );
   });
 
