@@ -781,6 +781,8 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
       handlers: {
         confirm: async () => ({ animal: confirmedNow(RESERVED), undoUntil: NOW }),
         undoConfirm: async () => Promise.reject(apiError("UNDO_EXPIRED")),
+        // What the server holds then: today's confirmation (the screen reads it before speaking).
+        byId: async () => confirmedNow(RESERVED),
       },
     });
     await userEvent.click(inRow("Мурка").getByRole("button", { name: "Ще домовляються" }));
@@ -820,6 +822,114 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     expect(statusText()).toBe("Підтверджено сьогодні");
     expect(inRow("Рекс").getByText("Оновлено сьогодні")).toBeTruthy();
     expect(inRow("Рекс").queryByRole("button", { name: /^Скасувати/ })).toBeNull();
+  });
+});
+
+/**
+ * Review of #129, note 1 (Oleksii, verbatim: "no claims after a lost
+ * answer"). When no answer came back and the re-read fails too, nothing is
+ * known about the card, so the screen says only that: his K3 «Картка не
+ * завантажилась…», never a line about what the date is or whether the move
+ * happened. An UNDO_EXPIRED is read again first, since an undo whose answer
+ * was lost may have landed.
+ */
+describe("after a lost answer, only what is known", () => {
+  const LOST = () => Promise.reject(new TypeError("Failed to fetch"));
+  const CARD_DIDNT_LOAD = "Картка не завантажилась. Перевірте зʼєднання і спробуйте ще раз.";
+  const confirmedToday = viewOf(PUBLISHED, {
+    kind: "published",
+    publishedAt: OLD,
+    confirmedAt: NOW,
+    undoable: { previousConfirmedAt: OLD, confirmedAt: NOW },
+  });
+
+  it("a confirmation whose answer and re-read are both lost: no «дата … не змінилася»", async () => {
+    renderList({ handlers: { confirm: LOST, byId: LOST } });
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
+    expect(alertText()).toContain(CARD_DIDNT_LOAD);
+    expect(alertText()).not.toContain("не змінилася");
+  });
+
+  it("an undo that landed with its answer lost, then retried: the previous date, not «сьогоднішня дата»", async () => {
+    let stored: KabinetAnimalView | null = null;
+    const calls = renderList({
+      handlers: {
+        confirm: async () => ({ animal: confirmedToday, undoUntil: NOW }),
+        // The first undo lands on the server; its answer and the re-read are lost.
+        undoConfirm: async () => {
+          if (stored === null) {
+            stored = viewOf(PUBLISHED, PUBLISHED.listing);
+            return LOST();
+          }
+          return Promise.reject(apiError("UNDO_EXPIRED"));
+        },
+        byId: async () => (calls.undoConfirm.mock.calls.length < 2 ? LOST() : stored),
+      },
+    });
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" }));
+    expect(alertText()).toContain(CARD_DIDNT_LOAD);
+    expect(alertText()).not.toContain("Не вдалося");
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: /^Скасувати · \d с$/ }));
+    expect(alertText()).not.toContain("сьогоднішня дата");
+    expect(statusText()).toBe("Скасовано: на картці знову попередня дата.");
+    expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy();
+  });
+
+  it("UNDO_EXPIRED and the re-read shows today's date: his «…На картці — сьогоднішня дата.»", async () => {
+    renderList({
+      handlers: {
+        confirm: async () => ({ animal: confirmedToday, undoUntil: NOW }),
+        undoConfirm: async () => Promise.reject(apiError("UNDO_EXPIRED")),
+        byId: async () => confirmedToday,
+      },
+    });
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" }));
+    expect(alertText()).toContain(
+      "Скасувати вже не можна: час минув або картку змінено. На картці — сьогоднішня дата.",
+    );
+  });
+
+  it("UNDO_EXPIRED and the re-read lost: nothing about the date", async () => {
+    renderList({
+      handlers: {
+        confirm: async () => ({ animal: confirmedToday, undoUntil: NOW }),
+        undoConfirm: async () => Promise.reject(apiError("UNDO_EXPIRED")),
+        byId: LOST,
+      },
+    });
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" }));
+    expect(alertText()).toContain(CARD_DIDNT_LOAD);
+    expect(alertText()).not.toContain("сьогоднішня дата");
+  });
+
+  it("a move whose answer and re-read are both lost: no «Не вдалося»", async () => {
+    renderList({ handlers: { transition: LOST, byId: LOST } });
+    await userEvent.click(inRow("Дуся").getByRole("button", { name: "Повернути в чернетки" }));
+    expect(alertText()).toContain(CARD_DIDNT_LOAD);
+    expect(alertText()).not.toContain("Не вдалося");
+  });
+
+  it("a move whose answer is lost and the card is gone: his not-found sentence", async () => {
+    renderList({
+      handlers: { transition: LOST, byId: async () => Promise.reject(apiError("NOT_FOUND")) },
+    });
+    await userEvent.click(inRow("Дуся").getByRole("button", { name: "Повернути в чернетки" }));
+    expect(alertText()).toContain(
+      "Цієї тварини немає у вашому списку: картку видалено або посилання неправильне.",
+    );
+  });
+
+  it("a delete whose answer and re-read are both lost: no «Не вдалося», the row kept", async () => {
+    renderList({ handlers: { deleteDraft: LOST, byId: LOST } });
+    await openMenu("Сірко");
+    await userEvent.click(inRow("Сірко").getByRole("button", { name: "Видалити чернетку" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Видалити" }));
+    expect(within(dialog).getByRole("alert").textContent).toBe(CARD_DIDNT_LOAD);
+    expect(rowOf("Сірко")).toBeTruthy();
   });
 });
 

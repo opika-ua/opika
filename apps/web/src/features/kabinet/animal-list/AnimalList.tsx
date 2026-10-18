@@ -68,6 +68,21 @@ const UNDO_SHOWN_MS = 8_000;
 type Move = Exclude<RowAction, "deleteDraft" | "edit">;
 type Load = { kind: "idle" } | { kind: "loading" } | { kind: "failed" };
 type Notice = { kind: "status" | "alert"; text: string } | null;
+/** What a re-read after a lost answer found (`reread`). */
+type Reread =
+  | { kind: "found"; view: Parameters<typeof rowAfterMove>[1] }
+  | { kind: "gone" }
+  | { kind: "unknown" };
+
+/**
+ * After a lost answer whose re-read failed too, the one true thing to say:
+ * the card didn't load. His K3 line (`animalForm.errors.loadFailed`), reused
+ * rather than a new string; it claims nothing about the date or the move.
+ */
+const CARD_DIDNT_LOAD = uk.kabinet.animalForm.errors.loadFailed;
+/** The re-read found no such card: his K3 not-found sentence, as for NOT_FOUND. */
+const NOT_FOUND = uk.kabinet.animalForm.errors.notFound;
+
 type Dialog =
   | { kind: "adopt"; row: AnimalRow }
   | { kind: "withdraw"; row: AnimalRow }
@@ -248,12 +263,20 @@ export function AnimalList({
     }
   };
 
-  /** The row as stored, after a call whose answer never arrived; null if that read failed too. */
-  const reread = async (animalId: string) => {
+  /**
+   * The card as stored, read again after a call whose answer never arrived
+   * (K4-T16's pattern): found, gone (NOT_FOUND), or unknown when that read
+   * fails too. Only what the read found may be said; with nothing found, the
+   * screen says the card didn't load (`CARD_DIDNT_LOAD`) and claims nothing
+   * about the date or the move (review of #129, note 1).
+   */
+  const reread = async (animalId: string): Promise<Reread> => {
     try {
-      return await client.shelter.animals.byId({ animalId: animalId as AnimalRow["id"] });
-    } catch {
-      return null;
+      const view = await client.shelter.animals.byId({ animalId: animalId as AnimalRow["id"] });
+      replaceRow(view);
+      return { kind: "found", view };
+    } catch (error) {
+      return actionFailureOf(error).kind === "not_found" ? { kind: "gone" } : { kind: "unknown" };
     }
   };
 
@@ -273,16 +296,15 @@ export function AnimalList({
       return null;
     } catch (error) {
       const failure = actionFailureOf(error);
-      if (failure.kind === "no_answer") {
-        const stored = await reread(row.id);
-        if (stored !== null) replaceRow(stored);
-        if (stored?.listing.kind === listingAfter[move]) {
-          setNotice({ kind: "status", text: movedAnnouncementOf(move, row.name, visibility) });
-          void refreshCounts();
-          return null;
-        }
-      }
-      return refusalOf(failure, t.errors.actionFailed);
+      if (failure.kind !== "no_answer") return refusalOf(failure, t.errors.actionFailed);
+      const stored = await reread(row.id);
+      if (stored.kind === "unknown") return CARD_DIDNT_LOAD;
+      if (stored.kind === "gone") return NOT_FOUND;
+      // Read back where it was: it didn't move, which «Не вдалося» says.
+      if (stored.view.listing.kind !== listingAfter[move]) return t.errors.actionFailed;
+      setNotice({ kind: "status", text: movedAnnouncementOf(move, row.name, visibility) });
+      void refreshCounts();
+      return null;
     } finally {
       setRowBusy(row.id, false);
     }
@@ -338,15 +360,11 @@ export function AnimalList({
       return deleted();
     } catch (error) {
       const failure = actionFailureOf(error);
-      if (failure.kind === "no_answer") {
-        try {
-          const stored = await client.shelter.animals.byId({ animalId: row.id });
-          replaceRow(stored);
-        } catch (reread) {
-          if (actionFailureOf(reread).kind === "not_found") return deleted();
-        }
-      }
-      return refusalOf(failure, t.errors.actionFailed);
+      if (failure.kind !== "no_answer") return refusalOf(failure, t.errors.actionFailed);
+      const stored = await reread(row.id);
+      if (stored.kind === "gone") return deleted();
+      // Still there: it wasn't deleted, which «Не вдалося» says.
+      return stored.kind === "found" ? t.errors.actionFailed : CARD_DIDNT_LOAD;
     } finally {
       setRowBusy(row.id, false);
     }
@@ -364,19 +382,25 @@ export function AnimalList({
       void refreshCounts();
     } catch (error) {
       const failure = actionFailureOf(error);
-      if (failure.kind === "no_answer") {
-        const stored = await reread(row.id);
-        if (stored !== null) replaceRow(stored);
-        const before = confirmedAtOf(row.listing)?.getTime();
-        const after = stored === null ? undefined : confirmedAtOf(stored.listing)?.getTime();
-        // It went through: the date moved. The undo's window isn't known, so none is offered.
-        if (after !== undefined && after !== before) {
-          setNotice({ kind: "status", text: t.confirm.done });
-          void refreshCounts();
-          return;
-        }
+      if (failure.kind !== "no_answer") {
+        setNotice({ kind: "alert", text: refusalOf(failure, t.confirm.failed) });
+        return;
       }
-      setNotice({ kind: "alert", text: refusalOf(failure, t.confirm.failed) });
+      const stored = await reread(row.id);
+      if (stored.kind !== "found") {
+        setNotice({ kind: "alert", text: stored.kind === "gone" ? NOT_FOUND : CARD_DIDNT_LOAD });
+        return;
+      }
+      const before = confirmedAtOf(row.listing)?.getTime();
+      const after = confirmedAtOf(stored.view.listing)?.getTime();
+      if (after !== undefined && after !== before) {
+        // It went through: the date moved. The undo's window isn't known, so none is offered.
+        setNotice({ kind: "status", text: t.confirm.done });
+        void refreshCounts();
+        return;
+      }
+      // Read back unchanged: «…дата на картці не змінилася» is what the read showed.
+      setNotice({ kind: "alert", text: t.confirm.failed });
     } finally {
       setRowBusy(row.id, false);
     }
@@ -394,21 +418,33 @@ export function AnimalList({
       void refreshCounts();
     } catch (error) {
       const failure = actionFailureOf(error);
-      if (failure.kind === "no_answer") {
-        const stored = await reread(row.id);
-        if (stored !== null) replaceRow(stored);
-        const shownAt = confirmedAtOf(row.listing)?.getTime();
-        const storedAt = stored === null ? undefined : confirmedAtOf(stored.listing)?.getTime();
-        if (shownAt !== undefined && storedAt !== undefined && storedAt < shownAt) {
-          forgetUndo(row.id);
-          setNotice({ kind: "status", text: t.confirm.undone });
-          void refreshCounts();
-          return;
-        }
-      } else if (failure.kind === "undo_expired" || failure.kind === "illegal_transition") {
-        forgetUndo(row.id);
+      // An expired undo may be this undo's own earlier attempt, landed with
+      // its answer lost: the card is read before anything is said about its date.
+      if (failure.kind !== "no_answer" && failure.kind !== "undo_expired") {
+        if (failure.kind === "illegal_transition") forgetUndo(row.id);
+        setNotice({ kind: "alert", text: refusalOf(failure, t.errors.actionFailed) });
+        return;
       }
-      setNotice({ kind: "alert", text: refusalOf(failure, t.errors.actionFailed) });
+      if (failure.kind === "undo_expired") forgetUndo(row.id);
+      const stored = await reread(row.id);
+      if (stored.kind !== "found") {
+        if (stored.kind === "gone") forgetUndo(row.id);
+        setNotice({ kind: "alert", text: stored.kind === "gone" ? NOT_FOUND : CARD_DIDNT_LOAD });
+        return;
+      }
+      const shownAt = confirmedAtOf(row.listing)?.getTime();
+      const storedAt = confirmedAtOf(stored.view.listing)?.getTime();
+      if (shownAt !== undefined && storedAt !== undefined && storedAt < shownAt) {
+        forgetUndo(row.id);
+        setNotice({ kind: "status", text: t.confirm.undone });
+        void refreshCounts();
+        return;
+      }
+      // Read back with today's date: an expired undo says so; a lost one simply didn't happen.
+      setNotice({
+        kind: "alert",
+        text: failure.kind === "undo_expired" ? t.confirm.undoExpired : t.errors.actionFailed,
+      });
     } finally {
       setRowBusy(row.id, false);
     }
