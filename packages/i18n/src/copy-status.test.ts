@@ -277,9 +277,9 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     // row 84
     "email.invite.intro":
       "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті.",
-    // row 85 (reworded 2026-10-14, EM-Q8: the kabinet also shows the verification data)
+    // his PR 6 text (pr6-copy-uk.md §1.4): what the shelter changes itself, once writes open
     "email.invite.what":
-      "Поки що в кабінеті можна переглянути дані притулку — і те, що бачать люди, і дані з перевірки. Змінювати їх там ще не можна — для цього напишіть мені.",
+      "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
     // row 86
     "email.invite.action": "Відкрити запрошення",
     // row 87
@@ -1141,22 +1141,38 @@ describe("pendingCopyPaths", () => {
  * кабінет, якого не існує»), false once a shelter can open the kabinet, is
  * gone. Commitment #6 (`docs/standing-constraints.md`) says the same.
  */
-describe("/prytulkam A2 (forShelters.whenAnimalFindsHome)", () => {
+/**
+ * §9 (commitment #6), his PR 6 text (pr6-copy-uk.md §1.2), transcribed: ¶1
+ * and ¶3 replace the read-only cabinet's «напишіть, і я приберу» (A2, row
+ * 89), since from PR 6 the shelter marks an animal home itself with K2's
+ * «Уже вдома». ¶2 is unchanged.
+ */
+describe("/prytulkam §9 (forShelters.whenAnimalFindsHome)", () => {
   const paragraphs = uk.forShelters.whenAnimalFindsHome.split("\n\n");
 
-  it("has three paragraphs, the third his row 89 text since production sign-in", () => {
+  it("has three paragraphs, the first and third his PR 6 text", () => {
     expect(paragraphs).toHaveLength(3);
-    expect(paragraphs[2]).toBe(
-      "Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду — змінити чи прибрати щось у ньому поки не можна.",
+    expect(paragraphs[0]).toBe(
+      "Найважливіше, що ви можете зробити, — позначити, що тварина знайшла дім.",
     );
-    expect(uk.forShelters.whenAnimalFindsHome).not.toContain("Окремої кнопки ще немає");
-    expect(uk.forShelters.whenAnimalFindsHome).not.toContain("якого не існує");
+    expect(paragraphs[2]).toBe(
+      "Кожна тварина в кабінеті має кнопку «Уже вдома». Після неї картка одразу зникає з галереї та стрічки, а у вашому списку лишається з позначкою «Удома».",
+    );
   });
 
-  it("keeps the first two paragraphs as they were", () => {
-    expect(paragraphs[0]).toBe(
-      "Найважливіше, що ви можете мені сказати, — що тварина знайшла дім. Важливіше, ніж додати нову.",
-    );
+  it("no longer says the operator removes it, or that the cabinet is read-only", () => {
+    for (const gone of [
+      "напишіть, і я приберу",
+      "лише для перегляду",
+      "що ви можете мені сказати",
+      "Окремої кнопки ще немає",
+      "якого не існує",
+    ]) {
+      expect(uk.forShelters.whenAnimalFindsHome, gone).not.toContain(gone);
+    }
+  });
+
+  it("keeps the second paragraph as it was", () => {
     expect(paragraphs[1]).toBe(
       "Тварина, яка вже вдома, але досі в списку, — це єдине, що робить усі інші картки недостовірними: людина дзвонить, чує «її забрали три місяці тому», і далі не вірить жодній картці — ні вашій, ні чужій.",
     );
@@ -1173,11 +1189,16 @@ describe("/prytulkam A2 (forShelters.whenAnimalFindsHome)", () => {
 describe("/prytulkam A1 (forShelters.whatToPrepare)", () => {
   const paragraphs = uk.forShelters.whatToPrepare.split("\n\n");
 
-  it("carries his line directly before §7's last paragraph, which is unchanged", () => {
+  it("carries his line directly before §7's last paragraph, which is his PR 6 text", () => {
     expect(paragraphs.at(-2)).toBe(
       "Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.",
     );
-    expect(paragraphs.at(-1)).toBe("Заповнювати анкету не треба: ви розкажете, а я внесу все сам.");
+    // pr6-copy-uk.md §1.1: the shelter keeps its animals and profile itself (commitment #6).
+    expect(paragraphs.at(-1)).toBe(
+      "Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте — і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам — надішліть список і фото.",
+    );
+    expect(uk.forShelters.whatToPrepare).not.toContain("я внесу все сам");
+    expect(uk.forShelters.whatToPrepare).not.toContain("Заповнювати анкету не треба");
     expect(paragraphs.at(-3)).toBe("Фотографії використовуються тільки для сторінок ваших тварин.");
     expect(
       paragraphs.filter((paragraph) => paragraph.includes("Доступ до кабінету")),
@@ -1187,18 +1208,61 @@ describe("/prytulkam A1 (forShelters.whatToPrepare)", () => {
 });
 
 /**
- * /pro `about.data`, row 90 (KH-C1), his text transcribed: the original
- * paragraph unchanged, then the kabinet addition appended to it. Every claim
- * in it was checked against the code (inbox EM-T17); on Vercel Pro the last
- * clause would revert to «протягом доби» (KH-C1).
+ * /pro `about.data`, his PR 6 text (pr6-copy-uk.md §1.5), transcribed byte for
+ * byte: the kabinet history and photo facts added (his Q6, Q7, Q5), «реєстр»
+ * gone (0.3d), «лише місто» since every adopter-facing view carries the city
+ * only (EM-D1). On Vercel Pro «протягом двох діб» would revert to «протягом
+ * доби» (KH-C1).
  */
-describe("/pro about.data carries the kabinet addition (row 90)", () => {
-  it("is the original paragraph followed by his addition, byte for byte", () => {
+describe("/pro about.data (his PR 6 text)", () => {
+  it("is his paragraph, byte for byte", () => {
     expect(uk.about.data).toBe(
-      [
-        "Дані, які вносить притулок — адреса, контакти, картки тварин — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише наближену локацію. Притулок може попросити видалити свій запис у будь-який момент.",
-        "Для притулків із доступом до кабінету реєстр зберігає ім'я та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб.",
-      ].join(" "),
+      "Дані, які вносить притулок — адреса, контакти, картки тварин, — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб. Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто — адміністратор притулку чи я. Для профілю зберігаються попереднє й нове значення, для карток тварин — лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку. Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
+    );
+    expect(uk.about.data).not.toContain("реєстр");
+    expect(uk.about.data).not.toContain("наближену");
+  });
+});
+
+/**
+ * §8 (commitment #7, B1), his PR 6 text (pr6-copy-uk.md §1.3), transcribed:
+ * what moves the date (publish, «Ще шукає» / «Ще домовляються», a photo
+ * change) and what doesn't (a text edit), and «один раз» gone (his K4 answer
+ * 10). `freshness.updatedAgo` stays «Оновлено {days}» (K-Q14 (a)).
+ */
+describe("/prytulkam §8 B1 (forShelters.whyThatSentence)", () => {
+  const paragraphs = uk.forShelters.whyThatSentence.split("\n\n");
+
+  it("is his three paragraphs", () => {
+    expect(paragraphs).toEqual([
+      "Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого — позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а на сторінці тварини — ваше речення про те, як часто ви це робите, вашими словами.",
+      "Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють — так вона показує саме те, що обіцяє. Речення пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».",
+      "Саме це робить решту карток вартими довіри. Коли видно, що ви підтверджуєте картки щосуботи, ваше «ця тварина ще шукає дім» означає рівно те, що написано.",
+    ]);
+  });
+
+  it("no longer claims an edit moves the date, or that the sentence is written once", () => {
+    for (const gone of ["коли інформацію востаннє оновлювали", "один раз", "Дата ставиться сама"]) {
+      expect(uk.forShelters.whyThatSentence, gone).not.toContain(gone);
+    }
+  });
+
+  it("K-Q14 (a): the cards keep «Оновлено {days}»", () => {
+    expect(uk.freshness.updatedAgo).toBe("Оновлено {days}");
+  });
+});
+
+/**
+ * §3 ¶4 (commitment #1), his PR 6 text (pr6-copy-uk.md §1.6), transcribed:
+ * the ordering inputs are unchanged, and «оновлено» reads as the cards'
+ * confirmation date (K-Q14 (a)).
+ */
+describe("/prytulkam §3 ¶4 (forShelters.whatHappensToAnimals)", () => {
+  it("is his ordering paragraph, still closing on «Це все, що впливає на порядок.»", () => {
+    const paragraphs = uk.forShelters.whatHappensToAnimals.split("\n\n");
+    expect(paragraphs).toHaveLength(5);
+    expect(paragraphs[3]).toBe(
+      "Порядок у списку — за датою: спочатку ті, чиї картки оновлено найновіше, або ті, хто чекає найдовше; людина обирає сама. У режимі «по одній» до дати додається повнота картки — та, де є фотографії, опис і відмітка про щеплення, показується раніше. Це все, що впливає на порядок.",
     );
   });
 });

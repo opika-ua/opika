@@ -179,17 +179,34 @@ describe(`a shelter membership is created by the automatic accept only — ${COP
     expect(
       kabinetAuthAvailability(production, { signIn: (env) => productionSignInOf(env, []) }).kind,
     ).toBe("available");
-    // A2 (row 89): the third paragraph of §9 is his; the sentence that said
-    // there is no kabinet is gone.
+    // §9 (A2's successor, pr6-copy-uk.md §1.2): the shelter marks an animal
+    // home itself; the read-only paragraph, and the one before it that said
+    // there is no kabinet, are gone.
     expect(uk.forShelters.whenAnimalFindsHome, COPY_GATE).toContain(
-      "Кабінет притулку вже є, але лише для перегляду — змінити чи прибрати щось у ньому поки не можна.",
+      "Кожна тварина в кабінеті має кнопку «Уже вдома». Після неї картка одразу зникає з галереї та стрічки, а у вашому списку лишається з позначкою «Удома».",
     );
-    expect(uk.forShelters.whenAnimalFindsHome, COPY_GATE).not.toContain(
+    for (const gone of [
+      "лише для перегляду",
+      "напишіть, і я приберу",
       "не хочу обіцяти кабінет, якого не існує",
-    );
-    // A1 (row 91): his line, in §7.
+    ]) {
+      expect(uk.forShelters.whenAnimalFindsHome, `${gone}. ${COPY_GATE}`).not.toContain(gone);
+    }
+    // A1 (row 91): his line, in §7, and §7's last paragraph his PR 6 text
+    // (pr6-copy-uk.md §1.1) in place of «ви розкажете, а я внесу все сам».
     expect(uk.forShelters.whatToPrepare, COPY_GATE).toContain(
       "Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.",
+    );
+    expect(uk.forShelters.whatToPrepare, COPY_GATE).toContain(
+      "Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте — і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам — надішліть список і фото.",
+    );
+    expect(uk.forShelters.whatToPrepare, COPY_GATE).not.toContain("я внесу все сам");
+    // B1 (pr6-copy-uk.md §1.3): what moves the date, named, and a text edit not among it.
+    expect(uk.forShelters.whyThatSentence, COPY_GATE).toContain(
+      "Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють — так вона показує саме те, що обіцяє. Речення пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».",
+    );
+    expect(uk.forShelters.whyThatSentence, COPY_GATE).not.toContain(
+      "коли інформацію востаннє оновлювали",
     );
     // A3: kept as is (answer 3), and still true: one person answers.
     expect(uk.forShelters.whoIsBehindThis, COPY_GATE).toContain(

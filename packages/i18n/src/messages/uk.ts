@@ -649,22 +649,30 @@ export const uk = {
     money:
       "Opika ніколи не бере участі в грошах: немає прийому платежів, немає комісії, немає збору донатів через платформу. Кнопка «Підтримати притулок» веде на власну сторінку притулку в іншому сервісі (наприклад, monobank) — сайт лише показує посилання, гроші йдуть напряму, і видно, куди саме.",
     /**
-     * The last three sentences are the kabinet addition (KH-C1, row 90 of the
-     * PR #94 copy export, Oleksii's final yes 2026-10-14; ships with #94 per
-     * his handoff of 2026-10-14). Each describes code: the invite's
-     * `auth_user` row (name, email), Better Auth's `user_agent` with
-     * `disableIpTracking` plus HMAC-only rate-limiter keys
-     * (`apps/web/src/api/rate-limit-key.ts`, EM-Q11), and the daily
-     * `auth-cleanup` cron, which also takes sessions past the 30-day cap
-     * (EM-Q11; one run a day, the most Vercel Hobby allowed, so «протягом
-     * двох діб». The project is on Pro since 2026-10-18, where a run every 6
-     * hours would allow «протягом доби»: his call, KH-Q12, not made). Vercel's
-     * own request logs are outside the
-     * sentence, by his scoping (EM-L1).
-     * `copy-status.test.ts` pins it; `docs/decisions-inbox.md`
-     * EM-T17 records the check of each claim.
+     * His PR 6 text (pr6-copy-uk.md §1.5), every claim checked against code:
+     * - «бачить лише місто»: every adopter-facing view carries the city only
+     *   (`PublicCityLocationViewSchema`, EM-Q10/EM-D1,
+     *   `pre-reveal-location.test.ts`);
+     * - the kabinet sentences (KH-C1, row 90): the invite's `auth_user` row
+     *   (name, email), Better Auth's `user_agent` with `disableIpTracking` plus
+     *   HMAC-only rate-limiter keys (`apps/web/src/api/rate-limit-key.ts`,
+     *   EM-Q11), and the daily `auth-cleanup` cron (one run a day, so «протягом
+     *   двох діб»; the project is on Pro since 2026-10-18, where a run every 6
+     *   hours would allow «протягом доби»: his VP-T1 answer, its own PR after
+     *   PR 6); Vercel's own request logs are outside the sentence, by his
+     *   scoping (EM-L1);
+     * - history (his Q6): every kabinet write appends a `ShelterHistoryEntry`
+     *   with its actor; profile entries keep previous and next, animal edits
+     *   field names only (K-Q7), never adopter data
+     *   (`history-no-engagement.test.ts`); deleted only with the shelter's
+     *   record (`demo:remove --shelter`). «Ще шукає» is not a change in his
+     *   history note's sense, and is not recorded (S1);
+     * - photos: kabinet uploads are re-encoded with no metadata (PR 3, the GPS
+     *   canary test) at random keys (K-Q2, his Q7); a removed photo stops
+     *   showing and its file is deleted by hand in Cloudflare (P8, his Q5).
+     * `copy-status.test.ts` pins it.
      */
-    data: "Дані, які вносить притулок — адреса, контакти, картки тварин — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише наближену локацію. Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до кабінету реєстр зберігає ім'я та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб.",
+    data: "Дані, які вносить притулок — адреса, контакти, картки тварин, — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб. Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто — адміністратор притулку чи я. Для профілю зберігаються попереднє й нове значення, для карток тварин — лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку. Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
     analytics:
       "Сайт збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко працюють сторінки — без реклами.",
     contact: "Зв'язатися з розробником: {contact}",
@@ -753,9 +761,9 @@ export const uk = {
       "натиснула «Не зараз» чи «Запитати», — це пам'ять лише її пристрою, і після «Не зараз» " +
       "тварина згодом з'являється знову. Від людини не ховається нічого, крім того, що вона " +
       "сховала сама.\n\n" +
-      "Порядок у списку — за датою: спочатку ті, кого оновлювали найновіше, або ті, хто чекає " +
-      "найдовше; людина обирає сама. У режимі «по одній» до дати додається повнота картки — та, де " +
-      "є фотографії, опис і відмітка про щеплення, показується раніше. Це все, що впливає на порядок.\n\n" +
+      // ¶4: his PR 6 text (pr6-copy-uk.md §1.6), «оновлено» meaning the
+      // confirmation date, as K-Q14 (a) keeps it on the cards.
+      "Порядок у списку — за датою: спочатку ті, чиї картки оновлено найновіше, або ті, хто чекає найдовше; людина обирає сама. У режимі «по одній» до дати додається повнота картки — та, де є фотографії, опис і відмітка про щеплення, показується раніше. Це все, що впливає на порядок.\n\n" +
       "Якщо тварину вже комусь пообіцяли, картка лишається на місці з позначкою: домовленості " +
       "зриваються, і тоді краще, щоб її було видно, ніж щоб вона зникла і повернулася.",
     /** §4 — the trust section. The actor is the system, so «Opika», never «я». */
@@ -796,7 +804,13 @@ export const uk = {
       "можу переказати, що почув, теж рахується. Рекомендація має бути від когось іншого, ніж ви: " +
       "сусідній притулок, ветклініка, з якою ви працюєте, будь-хто, хто може підтвердити, що ви " +
       "існуєте і робите те, що кажете. Ваш другий номер телефону — не рекомендація.",
-    /** §7 — practical, answerable in ten seconds. Not a form. Commitment 6. */
+    /**
+     * §7 — practical, answerable in ten seconds. Not a form. Commitment 6.
+     * The last paragraph is his PR 6 text (pr6-copy-uk.md §1.1): from PR 6 a
+     * shelter keeps its own animals and profile in the kabinet, and a card it
+     * publishes shows at once (K-Q3). The offer to enter the first cards is
+     * an `onboard:shelter` run, which adds new animals only (his Q3).
+     */
     whatToPrepare:
       "Щоб почати, потрібно небагато:\n\n" +
       "фотографії тварин — справжні файли, а не скріншоти;\n" +
@@ -808,43 +822,35 @@ export const uk = {
       // A1 (row 91, final, Oleksii 2026-10-14): directly before the last
       // paragraph, shipped with the commit that turns production sign-in on.
       "Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.\n\n" +
-      "Заповнювати анкету не треба: ви розкажете, а я внесу все сам.",
+      "Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте — і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам — надішліть список і фото.",
     /**
      * §8 — the section needing the most care. Says what the date IS, never
      * what the feature isn't: pre-empting the objection is what plants it.
      *
-     * ⚠ «коли інформацію востаннє оновлювали», NOT «коли ви востаннє
-     * підтверджували» — and this sentence is due to be replaced, not kept.
-     * Since H2-3 (2026-10-07) the date is `listing.confirmedAt`
-     * (`last_confirmed_at`): set when a listing is published, and — once the
-     * kabinet ships — by «Ще шукає». Today nothing but publishing sets it and
-     * nothing can edit a listing, so «оновлювали» is exactly as true as it
-     * was. It stops being true the day the kabinet lets a shelter edit or
-     * confirm, which is why its replacement (`docs/h2-copy-sheet.md` B1,
-     * Oleksii's Ukrainian) blocks the self-serve merge. See commitment 7.
+     * B1, his PR 6 text (pr6-copy-uk.md §1.3), live with the switch that
+     * opens shelter writes: the date is `listing.confirmedAt`
+     * (`last_confirmed_at`), set on publish, by «Ще шукає» / «Ще
+     * домовляються» (one animal per tap, no bulk) and by a photo change on a
+     * card people can see (RH-B7); a text edit never moves it. Each of those
+     * is named here, so the sentence can be read literally. See commitment 7.
      */
     whyThatSentence:
-      "Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого " +
-      "тижня, а про кого — позаторік. Тому на картці видно, коли інформацію востаннє оновлювали, " +
-      "а на сторінці тварини — ваше речення про те, як часто ви це робите, вашими словами.\n\n" +
-      "Дата ставиться сама. Речення пишете ви — один раз, як вам зручно: «оновлюємо щосуботи», " +
-      "«дзвоніть, ми скажемо точно», «влітку рідше».\n\n" +
-      "Саме це робить решту карток вартими довіри. Коли видно, що ви оновлюєте інформацію " +
-      "щосуботи, ваше «ця тварина ще шукає дім» означає рівно те, що написано.",
+      "Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого — позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а на сторінці тварини — ваше речення про те, як часто ви це робите, вашими словами.\n\n" +
+      "Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють — так вона показує саме те, що обіцяє. Речення пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».\n\n" +
+      "Саме це робить решту карток вартими довіри. Коли видно, що ви підтверджуєте картки щосуботи, ваше «ця тварина ще шукає дім» означає рівно те, що написано.",
     /**
-     * §9 — honest that the mechanism is a message handled by hand. Commitment 6.
-     * The third paragraph is A2 (row 89, final, Oleksii 2026-10-14), shipped
-     * with the commit that turns production sign-in on (EM-Q1 b): the kabinet
-     * exists and a shelter can open it, but read-only, so «напишіть, і я
-     * приберу» is still the way. When K2 ships «Уже вдома», it changes again.
+     * §9 — what a shelter does when an animal finds a home. Commitment 6.
+     * ¶1 and ¶3 are his PR 6 text (pr6-copy-uk.md §1.2): the shelter marks
+     * it itself with K2's «Уже вдома» (published and reserved cards), the
+     * card leaves the gallery and the deck at once, and the kabinet list
+     * keeps it as «Удома». ¶2 is unchanged.
      */
     whenAnimalFindsHome:
-      "Найважливіше, що ви можете мені сказати, — що тварина знайшла дім. Важливіше, ніж додати нову.\n\n" +
+      "Найважливіше, що ви можете зробити, — позначити, що тварина знайшла дім.\n\n" +
       "Тварина, яка вже вдома, але досі в списку, — це єдине, що робить усі інші картки " +
       "недостовірними: людина дзвонить, чує «її забрали три місяці тому», і далі не вірить жодній " +
       "картці — ні вашій, ні чужій.\n\n" +
-      "Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але лише для перегляду — " +
-      "змінити чи прибрати щось у ньому поки не можна.",
+      "Кожна тварина в кабінеті має кнопку «Уже вдома». Після неї картка одразу зникає з галереї та стрічки, а у вашому списку лишається з позначкою «Удома».",
     /**
      * §9b — how to leave. The largest unspoken objection on the page: the
      * first question anyone asks before handing their data to a stranger with
@@ -1572,6 +1578,10 @@ export const uk = {
      * is the link's label in the HTML part: a label, never the URL itself
      * (IN-E8: link text naming one domain over an href naming another is a
      * phishing signal). Values in `{braces}` are filled by the builder.
+     * `invite.what` is his PR 6 text (pr6-copy-uk.md §1.4): what a shelter
+     * changes itself once its writes are open, and what still goes through
+     * him. `invite.intro` keeps «у реєстрі» until he has reviewed #123's
+     * CB-B2 draft for it (his §1.4 note).
      */
     email: {
       signIn: {
@@ -1586,7 +1596,7 @@ export const uk = {
         subject: "Ваш доступ до кабінету притулку",
         intro:
           "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті.",
-        what: "Поки що в кабінеті можна переглянути дані притулку — і те, що бачать люди, і дані з перевірки. Змінювати їх там ще не можна — для цього напишіть мені.",
+        what: "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
         action: "Відкрити запрошення",
         expiry: "Запрошення діє {hours} години. Якщо не встигнете — я надішлю нове.",
         notYou:
