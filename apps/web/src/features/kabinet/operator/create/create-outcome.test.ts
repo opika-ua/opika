@@ -69,6 +69,23 @@ describe("create's refusals", () => {
     expect(message(error)).toBe("Не вдалося створити притулок. Спробуйте ще раз.");
   });
 
+  // RUI4-F2: his sentence transcribed from his answer, filled for 100; the issue message is the server's.
+  it("an input-validation 400 naming the display name's cap is the name's own refusal", () => {
+    const error = fromBody({
+      code: "BAD_REQUEST",
+      status: 400,
+      message: "Input validation failed",
+      data: {
+        issues: [
+          { path: ["contact"], message: "Invalid input" },
+          { path: ["displayName"], message: "Shelter display name is longer than 100 characters" },
+        ],
+      },
+    });
+    expect(createRefusalOf(error)).toEqual({ kind: "name_too_long" });
+    expect(message(error)).toBe("Назва довша за 100 символів.");
+  });
+
   it.each([
     ["no response at all (fetch threw)", new TypeError("Failed to fetch")],
     ["an error with no code", new Error("Cannot parse response body")],

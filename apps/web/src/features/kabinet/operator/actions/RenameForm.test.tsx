@@ -261,3 +261,94 @@ describe("the rename form on S4", () => {
     expect(await screen.findByText("Збережено.")).toBeTruthy();
   });
 });
+
+/**
+ * RUI4-F2: the display name's cap, 100 characters (his answer, verbatim: "RUI4-F2: 100-char cap
+ * approved."). His sentence is transcribed from that answer, filled for 100, never read from the
+ * catalogue. The issue message is the server's (`kabinet/registry.test.ts` checks the real one).
+ */
+describe("the rename form's cap on the name (RUI4-F2)", () => {
+  const TOO_LONG = "Назва довша за 100 символів.";
+  const SERVER_TOO_LONG = "Shelter display name is longer than 100 characters";
+  const fieldMessages = () =>
+    (field().getAttribute("aria-describedby")?.split(" ") ?? []).map(
+      (ref) => document.getElementById(ref)?.textContent,
+    );
+  const pasteName = async (name: string) => {
+    await userEvent.clear(field());
+    await userEvent.click(field());
+    await userEvent.paste(name);
+  };
+
+  it("101 characters: his sentence on the field, nothing sent, and the pasted name kept whole", async () => {
+    const updateProfile = vi.fn(async () => renamed);
+    renderWithActions(<RenameForm />, { view: before, client: { shelters: { updateProfile } } });
+    await pasteName("а".repeat(101));
+    // Nothing cut it short: the operator sees all of what they pasted.
+    expect(field().value).toBe("а".repeat(101));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(updateProfile).not.toHaveBeenCalled();
+    expect(field().getAttribute("aria-invalid")).toBe("true");
+    expect(fieldMessages()).toEqual([TOO_LONG]);
+    // Typing again clears it.
+    await userEvent.type(field(), "{Backspace}");
+    expect(field().getAttribute("aria-invalid")).toBeNull();
+  });
+
+  it("100 characters, spaces around them not counted, are sent as the 100", async () => {
+    const name = "а".repeat(100);
+    const saved = registryView({ displayName: name, version: 4 });
+    const updateProfile = vi.fn(async () => saved);
+    renderWithActions(<RenameForm />, {
+      view: before,
+      client: { shelters: { updateProfile } },
+      reread: async () => saved,
+    });
+    await pasteName(`  ${name} `);
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(updateProfile).toHaveBeenCalledExactlyOnceWith({
+      shelterId: SHELTER_ID,
+      expectedVersion: 3,
+      displayName: name,
+    });
+    expect(screen.getByRole("status").textContent).toBe("Збережено.");
+    expect(screen.queryByText(TOO_LONG)).toBeNull();
+  });
+
+  it("the server refusing the name for its length: his sentence on the field, not the plain failure", async () => {
+    const updateProfile = vi.fn(async () => {
+      throw apiError("BAD_REQUEST", {
+        issues: [{ path: ["displayName"], message: SERVER_TOO_LONG }],
+      });
+    });
+    renderWithActions(<RenameForm />, { view: before, client: { shelters: { updateProfile } } });
+    await typeName("Домівка для хвостатих");
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(updateProfile).toHaveBeenCalledOnce();
+    expect(await screen.findByText(TOO_LONG)).toBeTruthy();
+    expect(fieldMessages()).toEqual([TOO_LONG]);
+    expect(screen.queryByText("Не вдалося. Спробуйте ще раз.")).toBeNull();
+  });
+
+  it("any other refused input stays the plain failure", async () => {
+    const updateProfile = vi.fn(async () => {
+      throw apiError("BAD_REQUEST", { issues: [{ path: ["shelterId"], message: "Invalid UUID" }] });
+    });
+    renderWithActions(<RenameForm />, { view: before, client: { shelters: { updateProfile } } });
+    await typeName("Домівка для хвостатих");
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(await screen.findByText("Не вдалося. Спробуйте ще раз.")).toBeTruthy();
+    expect(screen.queryByText(TOO_LONG)).toBeNull();
+  });
+
+  it("an existing name over the cap is shown whole, and Enter on it unchanged sends nothing", async () => {
+    // Saved before the cap: reads never refuse it (his "reads must never fail").
+    const longer = registryView({ displayName: "а".repeat(150), version: 3 });
+    const updateProfile = vi.fn(async () => longer);
+    renderWithActions(<RenameForm />, { view: longer, client: { shelters: { updateProfile } } });
+    expect(field().value).toBe("а".repeat(150));
+    await userEvent.type(field(), "{Enter}");
+    expect(updateProfile).not.toHaveBeenCalled();
+    expect(screen.queryByText(TOO_LONG)).toBeNull();
+  });
+});

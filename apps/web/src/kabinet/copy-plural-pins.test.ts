@@ -7,6 +7,7 @@ import {
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
+import { nameTooLongMessage } from "../features/kabinet/operator/display-name";
 import { MAGIC_LINK_TTL_SECONDS } from "./auth";
 
 /**
@@ -119,5 +120,23 @@ describe("the stale cut-off K2's plural noun was written for", () => {
   it("the copy carries the noun form that value takes", () => {
     expect(uk.kabinet.animalList.stale.count).toContain("понад {days} днів.");
     expect(new Intl.PluralRules("uk").select(30)).toBe("many");
+  });
+});
+
+/**
+ * RUI4-F2 (Oleksii, 2026-10-18), verbatim: "Error copy: «Назва довша за {max} символів.» (plural
+ * pin for 100)." The sentence the operator's two name fields show, filled from the shared cap, is
+ * pinned whole against his literal for 100: «символів» is right for 100, not for every number.
+ */
+describe("the cap RUI4-F2's plural noun was written for", () => {
+  it("the shelter name's sentence reads «Назва довша за 100 символів.»", () => {
+    expect(
+      nameTooLongMessage(),
+      "SHELTER_DISPLAY_NAME_MAX_CHARACTERS changed: «символів» in kabinet.operator.create.errors.nameTooLong was written for 100 and must be rechecked before this pin moves",
+    ).toBe("Назва довша за 100 символів.");
+  });
+
+  it("100 falls in the plural category «символів» takes", () => {
+    expect(new Intl.PluralRules("uk").select(100)).toBe("many");
   });
 });

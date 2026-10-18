@@ -23,6 +23,20 @@ describe("actionFailureOf", () => {
       err("INVALID_EVIDENCE", { reason: "site_visit_in_future" }),
       { kind: "invalid_evidence", reason: "site_visit_in_future" },
     ],
+    // RUI4-F2: the input check's 400 for the display name's cap, and any other 400.
+    [
+      err("BAD_REQUEST", {
+        issues: [
+          { path: ["displayName"], message: "Shelter display name is longer than 100 characters" },
+        ],
+      }),
+      { kind: "name_too_long" },
+    ],
+    [
+      err("BAD_REQUEST", { issues: [{ path: ["displayName"], message: "Too small" }] }),
+      { kind: "failed" },
+    ],
+    [err("BAD_REQUEST"), { kind: "failed" }],
     [err("FORBIDDEN"), { kind: "failed" }],
     [err("INTERNAL_SERVER_ERROR"), { kind: "failed" }],
   ])("%j → %j", (error, expected) => {
@@ -58,6 +72,7 @@ describe("staleAfter: which refusals mean the page is out of date", () => {
     expect(staleAfter({ kind: "failed" })).toBe(false);
     expect(staleAfter({ kind: "address_has_a_role", reason: "operator" })).toBe(false);
     expect(staleAfter({ kind: "invalid_evidence", reason: "site_visit_in_future" })).toBe(false);
+    expect(staleAfter({ kind: "name_too_long" })).toBe(false);
   });
 });
 

@@ -961,6 +961,14 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.admins.inviteFirst": { his: null, used: "Запросити адміністратора" },
   };
 
+  /**
+   * RUI4-F2 (Oleksii, 2026-10-18), verbatim: "Error copy: «Назва довша за {max} символів.»
+   * (plural pin for 100)." A new key; the filled sentence is pinned in `copy-plural-pins.test.ts`.
+   */
+  const ROUND_4C_RUI4_F2: Record<string, string> = {
+    "operator.create.errors.nameTooLong": "Назва довша за {max} символів.",
+  };
+
   const leafPaths = (node: unknown, prefix: string): string[] =>
     typeof node === "string"
       ? [prefix]
@@ -984,13 +992,15 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(CHECKED_AGAINST_CODE),
         ...Object.keys(ROUND_2_REASON_VIEW),
         ...Object.keys(ROUND_3_N7),
+        ...Object.keys(ROUND_4C_RUI4_F2),
       ].sort(),
     );
   });
 
-  it("sanity: his file's 220 strings (216 as written, 3 replaced in round 2, 1 in round 3) and 2 later keys", () => {
+  it("sanity: his file's 220 strings (216 as written, 3 replaced in round 2, 1 in round 3) and 3 later keys", () => {
     expect(Object.keys(RUI_FINAL).length).toBe(216);
     expect(Object.keys(ROUND_3_N7)).toHaveLength(2);
+    expect(Object.keys(ROUND_4C_RUI4_F2)).toHaveLength(1);
     expect(Object.keys(CHECKED_AGAINST_CODE).length).toBe(2);
     expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his !== null)).toHaveLength(1);
     expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his === null)).toHaveLength(1);
@@ -1010,6 +1020,10 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
 
   it.each(Object.entries(ROUND_3_N7))("%s carries his N7 wording (round 3)", (path, { used }) => {
     expect(valueAt(path)).toBe(used);
+  });
+
+  it.each(Object.entries(ROUND_4C_RUI4_F2))("%s is his RUI4-F2 text", (path, text) => {
+    expect(valueAt(path)).toBe(text);
   });
 
   it.each(

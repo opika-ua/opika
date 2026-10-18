@@ -301,8 +301,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // under `animalList.*` (the two `{cards}` groups' six forms included), the
     // two `nav.*` and `deleteDraft.refused.wasPublished`, pinned in
     // copy-status.test.ts. `dateUnchanged` moved within the tree (P10), so it
-    // adds nothing.
-    expect(pending.length + written.length).toBe(594);
+    // adds nothing. 595 with operator.create.errors.nameTooLong (his RUI4-F2
+    // text, 2026-10-18).
+    expect(pending.length + written.length).toBe(595);
+    expect(written).toContain("kabinet.operator.create.errors.nameTooLong");
     expect(written).toContain("kabinet.profileEdit.state.saved");
     expect(written).toContain("kabinet.animalForm.draft.notVisible");
     expect(written).toContain("kabinet.animalForm.publish.publishedNotShown");

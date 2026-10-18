@@ -23,6 +23,7 @@ import {
   RejectionCodeSchema,
   ShelterAdminIdSchema,
   ShelterContactSchema,
+  ShelterDisplayNameInputSchema,
   ShelterIdSchema,
   ShelterLegalEntitySchema,
   SizeBucketSchema,
@@ -187,6 +188,7 @@ const empty = z.strictObject({});
 const emptyOutput = z.object({});
 const expectedVersion = z.int().nonnegative();
 const animalRef = z.strictObject({ animalId: AnimalIdSchema });
+/** A person's name (an admin's): trimmed, then required. A shelter's name has its own rule, with a cap. */
 const humanName = z.string().trim().min(1);
 
 /**
@@ -633,7 +635,8 @@ export const registrySheltersContract = {
     .output(CreatedShelterViewSchema)
     .input(
       z.strictObject({
-        displayName: humanName,
+        // RUI4-F2: the shared rule, trimmed, required, at most 100 characters.
+        displayName: ShelterDisplayNameInputSchema,
         description: LocalizedTextSchema,
         legalEntity: ShelterLegalEntitySchema,
         exactAddress: ExactAddressSchema,
@@ -669,9 +672,10 @@ export const registrySheltersContract = {
    * "`displayName` in `updateProfile` plus a `display_name_changed` history
    * kind", which Oleksii's answer 8 accepted, verbatim: "Yes: rename as
    * R-UI 4, with a history line."), checked by the same rule as create's
-   * (`humanName`: trimmed, then required), so a name S2 accepts is a name a
-   * rename accepts and the other way round. Only the operator renames: no
-   * `shelter.*` input carries a name.
+   * (`ShelterDisplayNameInputSchema`: trimmed, then required, at most 100
+   * characters, RUI4-F2), so a name S2 accepts is a name a rename accepts and
+   * the other way round. Only the operator renames: no `shelter.*` input
+   * carries a name.
    */
   updateProfile: registryShelter
     .input(
@@ -679,7 +683,7 @@ export const registrySheltersContract = {
         .strictObject({
           shelterId: ShelterIdSchema,
           expectedVersion,
-          displayName: humanName.optional(),
+          displayName: ShelterDisplayNameInputSchema.optional(),
           contact: ShelterContactSchema.optional(),
           description: LocalizedTextSchema.optional(),
           freshnessSentence: FreshnessSentenceInputSchema.optional(),

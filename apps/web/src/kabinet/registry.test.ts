@@ -25,6 +25,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { router as publicRouter } from "../api/router";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
+import { refusedForNameLength } from "../features/kabinet/operator/display-name";
 import { historyLineOf, historyLineText } from "../features/kabinet/operator/history-lines";
 import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
@@ -771,6 +772,95 @@ describe("registry.shelters.updateProfile: the rename (R-UI 4)", () => {
     expect(refused.status).toBe(403);
     expect((await reload(s.id)).displayName).toBe("Лапа");
     expect(await history(s.id)).toEqual([]);
+  });
+});
+
+// ─── the display name's cap (RUI4-F2) ───────────────────────────────────────
+
+/**
+ * His answer, verbatim: "RUI4-F2: 100-char cap approved. Input-side only (create + rename forms
+ * and their procedures); reads must never fail on an existing longer name."
+ */
+describe("the display name's 100-character cap: input only (RUI4-F2)", () => {
+  it("create and rename refuse 101 characters with the refusal the forms recognise, writing nothing", async () => {
+    const s = await shelter({ displayName: "Лапа" });
+    const over = "а".repeat(101);
+    const renamed = await call("registry.shelters.updateProfile", {
+      shelterId: s.id,
+      expectedVersion: 0,
+      displayName: over,
+    });
+    expect(renamed.status).toBe(400);
+    expect(refusedForNameLength(renamed.body)).toBe(true);
+    const created = await call("registry.shelters.create", { ...createInput(), displayName: over });
+    expect(created.status).toBe(400);
+    expect(refusedForNameLength(created.body)).toBe(true);
+    expect((await reload(s.id)).displayName).toBe("Лапа");
+    expect(await history(s.id)).toEqual([]);
+  });
+
+  it("100 characters, with spaces around them, are taken at create and at rename", async () => {
+    const s = await shelter({ displayName: "Лапа" });
+    const name = "а".repeat(100);
+    const renamed = await call<RegistryShelterView>("registry.shelters.updateProfile", {
+      shelterId: s.id,
+      expectedVersion: 0,
+      displayName: ` ${name}  `,
+    });
+    expect(renamed.status).toBe(200);
+    expect((await reload(s.id)).displayName).toBe(name);
+    const created = await call<{ displayName: string }>("registry.shelters.create", {
+      ...createInput(),
+      displayName: `  ${name} `,
+    });
+    expect(created.status).toBe(200);
+    expect(created.body.displayName).toBe(name);
+  });
+
+  it("another refused input is not read as the name's length", async () => {
+    const s = await shelter({ displayName: "Лапа" });
+    const blank = await call("registry.shelters.updateProfile", {
+      shelterId: s.id,
+      expectedVersion: 0,
+      displayName: "   ",
+    });
+    expect(blank.status).toBe(400);
+    expect(refusedForNameLength(blank.body)).toBe(false);
+  });
+
+  it("a name saved longer before the cap is still served everywhere, and the rest of the profile still saves", async () => {
+    const longer = "а".repeat(150);
+    const s = await shelter({ displayName: longer });
+    const animal = makeAnimal({ shelterId: s.id });
+    await animalRepo(db).insert(animal, cityId as never);
+
+    const record = await call<RegistryShelterView>("registry.shelters.byId", { shelterId: s.id });
+    expect(record.status).toBe(200);
+    expect(record.body.displayName).toBe(longer);
+    const list = await call<{ items: { displayName: string }[] }>("registry.shelters.list", {
+      search: null,
+      status: null,
+      cursor: null,
+      limit: 50,
+    });
+    expect(list.status).toBe(200);
+    expect(list.body.items.map((row) => row.displayName)).toContain(longer);
+    const page = await publicCall<{ displayName: string }>("shelters.byId", { shelterId: s.id });
+    expect(page.status).toBe(200);
+    expect(page.body.displayName).toBe(longer);
+    const card = await publicCall<{ shelter: { displayName: string } }>("animals.byId", {
+      animalId: animal.id,
+    });
+    expect(card.status).toBe(200);
+    expect(card.body.shelter.displayName).toBe(longer);
+
+    const described = await call<RegistryShelterView>("registry.shelters.updateProfile", {
+      shelterId: s.id,
+      expectedVersion: 0,
+      description: { uk: "Новий опис", en: null },
+    });
+    expect(described.status).toBe(200);
+    expect(described.body.displayName).toBe(longer);
   });
 });
 

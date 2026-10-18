@@ -1,29 +1,34 @@
 "use client";
 
+import { isShelterDisplayNameTooLong } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button, TextField } from "../../../controls/controls";
+import { nameTooLongMessage } from "../display-name";
 import { useOperatorActions } from "./operator-actions";
 import { ACTIONS, NOTICE } from "./styles";
 
 const OWNER = "rename";
 
 /**
- * What the form last said. `required` is the field's own message (nothing
- * was sent); the rest are what became of a request.
+ * What the form last said. `required` and `too_long` are the field's own
+ * messages (`too_long` also when the server's count refused it); the rest
+ * are what became of a request.
  */
 type Notice =
   | { kind: "none" }
   | { kind: "required" }
+  | { kind: "too_long" }
   | { kind: "saved" }
   | { kind: "conflict" }
   | { kind: "failed" };
 
 /**
  * The name as `registry.shelters.updateProfile` takes it: trimmed, then
- * required, the contract's own rule (create's `humanName`). Null when nothing
- * is left, which the form answers with create's «Це поле потрібне.» rather
- * than a round trip the server would refuse.
+ * required, the contract's own rule (create's `ShelterDisplayNameInputSchema`,
+ * whose cap `save` checks next). Null when nothing is left, which the form
+ * answers with create's «Це поле потрібне.» rather than a round trip the
+ * server would refuse.
  */
 export const renameInputOf = (typed: string): string | null => {
   const name = typed.trim();
@@ -83,6 +88,11 @@ export function RenameForm() {
       setDraft(null);
       return;
     }
+    // RUI4-F2: the contract's cap, said on the field before a round trip the server would refuse.
+    if (isShelterDisplayNameTooLong(displayName)) {
+      setNotice({ kind: "too_long" });
+      return;
+    }
     setNotice({ kind: "none" });
     const settled = await run({
       owner: OWNER,
@@ -113,7 +123,9 @@ export function RenameForm() {
         }
         return;
       case "refused":
-        if (settled.failure.kind === "conflict" && settled.reread === "done") {
+        if (settled.failure.kind === "name_too_long") {
+          setNotice({ kind: "too_long" });
+        } else if (settled.failure.kind === "conflict" && settled.reread === "done") {
           // The page now shows the record as it is; so does the field.
           setDraft(null);
           setNotice({ kind: "conflict" });
@@ -145,7 +157,13 @@ export function RenameForm() {
         label={t.create.name}
         value={text}
         autoComplete="off"
-        error={notice.kind === "required" ? t.create.errors.required : null}
+        error={
+          notice.kind === "required"
+            ? t.create.errors.required
+            : notice.kind === "too_long"
+              ? nameTooLongMessage()
+              : null
+        }
         onChange={(event) => {
           setDraft(event.target.value);
           setNotice({ kind: "none" });

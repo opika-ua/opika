@@ -417,6 +417,15 @@ describe("refusals", () => {
       "Такого міста немає у списку.",
     ],
     [
+      "the input refused for anything but the name's length",
+      new ORPCError("BAD_REQUEST", {
+        status: 400,
+        message: "Input validation failed",
+        data: { issues: [{ path: ["contact"], message: "Invalid input" }] },
+      }),
+      "Не вдалося створити притулок. Спробуйте ще раз.",
+    ],
+    [
       "anything else",
       new ORPCError("FORBIDDEN", { status: 403 }),
       "Не вдалося створити притулок. Спробуйте ще раз.",
@@ -430,6 +439,32 @@ describe("refusals", () => {
     expect((await screen.findByRole("alert")).textContent).toBe(sentence);
     expect(fns.create).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText("Назва притулку")).toHaveProperty("value", "Лапа Вишгорода");
+  });
+
+  // RUI4-F2: his sentence, transcribed from his answer and filled for 100; the issue message is the server's.
+  it("the server refusing the name for its length: his sentence on the name field, not the plain failure", async () => {
+    const fns = renderForm(async () => {
+      throw new ORPCError("BAD_REQUEST", {
+        status: 400,
+        message: "Input validation failed",
+        data: {
+          issues: [
+            {
+              path: ["displayName"],
+              message: "Shelter display name is longer than 100 characters",
+            },
+          ],
+        },
+      });
+    });
+    const u = await fillInitiative();
+    await u.click(submit());
+    expect(await screen.findByText("Назва довша за 100 символів.")).toBeDefined();
+    const name = screen.getByLabelText("Назва притулку");
+    expect(name.getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(name);
+    expect(screen.queryByText("Не вдалося створити притулок. Спробуйте ще раз.")).toBeNull();
+    expect(fns.create).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -458,6 +493,31 @@ describe("checked before anything is sent", () => {
     fireEvent.change(visit.getByLabelText("Дата візиту"), { target: { value: "2026-10-08" } });
     await u.click(submit());
     expect(fns.create).toHaveBeenCalledTimes(1);
+  });
+
+  // RUI4-F2: his sentence, transcribed from his answer ("«Назва довша за {max} символів.»"), for 100.
+  it("a name over 100 characters is refused on the field and kept whole; 100, spaces aside, goes", async () => {
+    const fns = renderForm(async () => createdView(null));
+    const u = await fillInitiative();
+    const name = screen.getByLabelText("Назва притулку") as HTMLInputElement;
+    await u.clear(name);
+    await u.click(name);
+    await u.paste("а".repeat(101));
+    // Nothing cut the pasted name short.
+    expect(name.value).toBe("а".repeat(101));
+    await u.click(submit());
+    expect(fns.create).not.toHaveBeenCalled();
+    expect(name.getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(name);
+    expect(screen.getByText("Назва довша за 100 символів.")).toBeDefined();
+
+    await u.clear(name);
+    await u.click(name);
+    await u.paste(`  ${"а".repeat(100)} `);
+    await u.click(submit());
+    expect(fns.create).toHaveBeenCalledTimes(1);
+    expect(fns.create.mock.calls[0]?.[0]).toMatchObject({ displayName: "а".repeat(100) });
+    expect(createInputSchema.safeParse(fns.create.mock.calls[0]?.[0]).success).toBe(true);
   });
 
   it("the coordinates in a shape it can't read get their own message", async () => {

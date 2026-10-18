@@ -4,6 +4,7 @@ import {
   CoordinatesSchema,
   EdrpouSchema,
   instantOfCalendarDate,
+  isShelterDisplayNameTooLong,
   type ShelterLegalEntity,
 } from "@opika/domain";
 import { z } from "zod";
@@ -80,7 +81,12 @@ export const emptyCreateForm = (): CreateShelterForm => ({
 });
 
 /** `create.errors.*` by name, plus K4's `emailFormat` for the first admin's address. */
-export type CreateFieldError = "required" | "edrpouFormat" | "coordinatesFormat" | "emailFormat";
+export type CreateFieldError =
+  | "required"
+  | "nameTooLong"
+  | "edrpouFormat"
+  | "coordinatesFormat"
+  | "emailFormat";
 
 export type CreateField =
   | "displayName"
@@ -184,6 +190,8 @@ export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCh
 
   const displayName = trimmedOrNull(form.displayName);
   if (displayName === null) fields.displayName = "required";
+  // RUI4-F2: the contract's cap, checked here so the field says so before a round trip.
+  else if (isShelterDisplayNameTooLong(displayName)) fields.displayName = "nameTooLong";
   const description = trimmedOrNull(form.description);
   if (description === null) fields.description = "required";
   if (form.cityId === "") fields.cityId = "required";

@@ -459,6 +459,64 @@ describe("a draft saves itself (T6)", () => {
     expect(screen.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeTruthy();
   });
 
+  // AW-F5. The age words are his Q9 copy (#125), transcribed from his answer,
+  // never from `uk.cardMeta`: female «малючка» / «молода»; male, and an
+  // unrecorded sex, «малюк» / «молодий».
+  it("the age line follows the form's sex, as the card does (Q9)", async () => {
+    const user = userEvent.setup();
+    renderForm(draft());
+    const sex = within(screen.getByRole("group", { name: "Стать" }));
+    await user.click(
+      within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText(/Молодий/),
+    );
+    // «Не записано», where the form starts: today's word.
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeTruthy();
+    await user.click(sex.getByLabelText("Дівчинка"));
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «молода».")).toBeTruthy();
+    expect(screen.queryByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeNull();
+    await user.click(sex.getByLabelText("Хлопчик"));
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeTruthy();
+    expect(screen.queryByText("Ті, хто шукає тварину, побачать: «молода».")).toBeNull();
+    // A birth date reaches the same words: under a year old, a girl.
+    await user.click(sex.getByLabelText("Дівчинка"));
+    await user.click(
+      within(screen.getByRole("group", { name: "Що відомо про вік" })).getByRole("radio", {
+        name: /Відома дата народження/,
+      }),
+    );
+    fireEvent.change(screen.getByLabelText("Дата народження"), {
+      target: { value: "2026-03-01" },
+    });
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «малючка».")).toBeTruthy();
+    await user.click(sex.getByLabelText("Не записано"));
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «малюк».")).toBeTruthy();
+  });
+
+  it("«Тепер на картці» names the saved card's word: the saved sex, until a change is saved", async () => {
+    const user = userEvent.setup();
+    const outgrown = published({
+      sex: "female",
+      age: {
+        kind: "declared_bucket",
+        bucket: "baby",
+        declaredAt: new Date("2024-09-01T00:00:00Z"),
+      },
+    } as Partial<KabinetAnimalView>);
+    renderForm(outgrown);
+    const onCard = (word: string) =>
+      `Вік указано станом на 1 вересня 2024 р. Тепер на картці — «${word}». Якщо тварина вже старша, оновіть вік.`;
+    expect(screen.getByText(onCard("молода"))).toBeTruthy();
+    await user.click(
+      within(screen.getByRole("group", { name: "Стать" })).getByLabelText("Хлопчик"),
+    );
+    // The form's line says what people will see once saved; the card hasn't changed yet.
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeTruthy();
+    expect(screen.getByText(onCard("молода"))).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(await screen.findByText(onCard("молодий"))).toBeTruthy();
+    expect(screen.queryByText(onCard("молода"))).toBeNull();
+  });
+
   it("an «as of» date after today in Kyiv is refused inline and not sent", async () => {
     const user = userEvent.setup();
     const client = renderForm(draft());

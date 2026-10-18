@@ -151,6 +151,34 @@ describe.each(displayNameFields)("%s displayName", (_path, field) => {
   ])("refuses %s", (_label, value) => {
     expect(field.safeParse(value).success).toBe(false);
   });
+
+  // RUI4-F2 (his answer: "100-char cap approved"), characters as a reader counts them.
+  it("takes 100 characters, an emoji counted as one", () => {
+    expect(field.safeParse("а".repeat(100))).toMatchObject({ success: true });
+    expect(field.safeParse("🐾".repeat(100))).toMatchObject({ success: true });
+  });
+
+  it("counts a multi-part character (a flag, a family) as one, not as its code points", () => {
+    expect(field.safeParse("🇺🇦".repeat(100))).toMatchObject({ success: true });
+    expect(field.safeParse("👨‍👩‍👧".repeat(100))).toMatchObject({ success: true });
+    expect(field.safeParse("🇺🇦".repeat(101)).success).toBe(false);
+  });
+
+  it("refuses 101, with the message the operator's forms recognise", () => {
+    const parsed = field.safeParse("а".repeat(101));
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues.map((issue) => issue.message)).toEqual([
+      "Shelter display name is longer than 100 characters",
+    ]);
+    expect(field.safeParse("🐾".repeat(101)).success).toBe(false);
+  });
+
+  it("doesn't count the spaces around the name, which are trimmed first", () => {
+    expect(field.safeParse(`  ${"а".repeat(100)}\t `)).toMatchObject({
+      success: true,
+      data: "а".repeat(100),
+    });
+  });
 });
 
 describe("registry.shelters.updateProfile's whole input", () => {

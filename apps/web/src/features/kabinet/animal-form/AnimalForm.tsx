@@ -399,7 +399,7 @@ export function AnimalForm({
             set={set}
             problems={shownProblems}
             disabled={!editable}
-            storedAge={view?.age ?? null}
+            stored={view}
             now={now}
           />
           <DescriptionSection

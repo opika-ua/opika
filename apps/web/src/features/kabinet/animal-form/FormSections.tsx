@@ -18,7 +18,7 @@ import {
   type SizeBucket,
   type VaccinationStatus,
 } from "@opika/domain";
-import { ageBucketLabel, fillTemplate, uk } from "@opika/i18n";
+import { ageWordFor, fillTemplate, uk } from "@opika/i18n";
 import { vaccinationRow } from "../../animal-detail/medical-labels";
 import { type Segment, SegmentedControl, TextAreaField, TextField } from "../../controls/controls";
 import { CAPTION, CARD, CARD_TITLE, INNER } from "../profile-edit/styles";
@@ -172,9 +172,10 @@ export function AgeSection({
   set,
   problems,
   disabled,
-  storedAge,
+  stored,
   now,
-}: SectionProps & { storedAge: KabinetAnimalView["age"]; now: Date }) {
+}: SectionProps & { stored: Pick<KabinetAnimalView, "age" | "sex"> | null; now: Date }) {
+  const storedAge = stored?.age ?? null;
   const modes: readonly Segment<AgeMode>[] = [
     {
       value: "birth_date",
@@ -189,11 +190,12 @@ export function AgeSection({
   const dateProblem =
     problems.find((p) => p.field === (values.ageMode === "birth_date" ? "birthDate" : "asOf")) !==
     undefined;
-  // The card's own word, from what the fields say now (his answer 9: quoted as it is).
+  // The card's own word, from what the fields say now, the sex included (his
+  // answer 9: quoted as it is; Q9: the card's word agrees with the sex).
   const label =
     input === null || dateProblem
       ? null
-      : ageBucketLabel(
+      : ageWordFor(
           ageBucketOf(
             input.kind === "birth_date"
               ? {
@@ -208,6 +210,7 @@ export function AgeSection({
                 },
             now,
           ),
+          values.sex,
         );
   const uncertain =
     storedAge !== null &&
@@ -265,11 +268,15 @@ export function AgeSection({
       {label !== null ? (
         <p className={CAPTION}>{fillTemplate(t.age.adopterSees, { label })}</p>
       ) : null}
-      {uncertain && storedAge !== null && storedAge.kind === "declared_bucket" ? (
+      {uncertain &&
+      stored !== null &&
+      storedAge !== null &&
+      storedAge.kind === "declared_bucket" ? (
         <p className={CAPTION}>
           {fillTemplate(t.age.uncertain, {
             when: dateEndingSentenceOf(storedAge.declaredAt),
-            label: ageBucketLabel(ageBucketOf(storedAge, now)),
+            // «Тепер на картці»: the saved card, so the saved sex, not the form's unsaved one.
+            label: ageWordFor(ageBucketOf(storedAge, now), stored.sex),
           })}
         </p>
       ) : null}
