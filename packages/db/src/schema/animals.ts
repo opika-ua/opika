@@ -15,7 +15,7 @@ import type {
   VaccinationStatus,
 } from "@opika/domain";
 import { sql } from "drizzle-orm";
-import { index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { check, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { cities } from "./cities";
 import { jsonb } from "./helpers";
 import { shelters } from "./shelters";
@@ -35,17 +35,23 @@ export const animals = pgTable(
     sex: text({ enum: ["male", "female", "unknown"] })
       .notNull()
       .$type<AnimalSex>(),
-    size: text({ enum: ["small", "medium", "large"] })
-      .notNull()
-      .$type<SizeBucket>(),
+    /**
+     * Size, age and the Ukrainian description are nullable for a draft only
+     * (F-B1, K-Q5: "name + species to create; everything else and ≥1 photo
+     * to publish"). `animals_listing_facts_check` below refuses a null in any
+     * of them on every other listing kind, so the database refuses what the
+     * domain union refuses.
+     */
+    size: text({ enum: ["small", "medium", "large"] }).$type<SizeBucket>(),
 
-    age: jsonb<AgeEstimate>("age").notNull(),
+    age: jsonb<AgeEstimate>("age"),
     /**
      * Derived from `ageAnchorOf(age)` at write time. The indexed column for
      * age-bucket filtering — one range predicate instead of a multi-branch OR
      * across two columns. See `packages/domain` age.ts for the derivation.
+     * Null exactly when `age` is (`animals_age_anchor_check`).
      */
-    ageAnchorAt: timestamp("age_anchor_at", { withTimezone: true }).notNull(),
+    ageAnchorAt: timestamp("age_anchor_at", { withTimezone: true }),
 
     /**
      * Derived from `waitAnchorOf(listing)` at write time — when the animal
@@ -93,7 +99,7 @@ export const animals = pgTable(
      */
     firstPublishedAt: timestamp("first_published_at", { withTimezone: true }),
 
-    descriptionUk: text("description_uk").notNull(),
+    descriptionUk: text("description_uk"),
     descriptionEnText: text("description_en_text"),
     descriptionEnProvenance: text("description_en_provenance", {
       enum: ["human", "machine"],
@@ -140,6 +146,25 @@ export const animals = pgTable(
   },
   (t) => [
     index("animals_shelter_id_idx").on(t.shelterId),
+
+    /**
+     * A listing that was ever published keeps its size, age and description
+     * (F-B1): only a draft may lack one. The same pattern as
+     * `adopters_identity_check`: the database refuses the row the type
+     * refuses, so a write path that forgot `publishReadinessOf` fails here
+     * with 23514 instead of publishing an incomplete card.
+     */
+    check(
+      "animals_listing_facts_check",
+      sql`${t.listingKind} = 'draft' OR (${t.size} IS NOT NULL AND ${t.age} IS NOT NULL AND ${t.descriptionUk} IS NOT NULL)`,
+    ),
+    /** The anchor is derived from the age, so one is null exactly when the other is. */
+    check("animals_age_anchor_check", sql`(${t.age} IS NULL) = (${t.ageAnchorAt} IS NULL)`),
+    /** English is never stored without the Ukrainian it translates (`LocalizedText`'s rule). */
+    check(
+      "animals_description_en_check",
+      sql`${t.descriptionUk} IS NOT NULL OR (${t.descriptionEnText} IS NULL AND ${t.descriptionEnProvenance} IS NULL)`,
+    ),
 
     /**
      * The feed index. Equality columns first (the ones feed filters match on),

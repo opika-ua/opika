@@ -50,21 +50,49 @@ export type ConditionalWrite = { kind: "ok" } | { kind: "conflict" };
 export type DraftDelete = { kind: "ok" } | { kind: "not_deleted" } | { kind: "referenced" };
 
 const FOREIGN_KEY_VIOLATION = "23503";
+const CHECK_VIOLATION = "23514";
 
 /**
  * postgres-js throws a `PostgresError` and neon-http a `NeonDbError`; Drizzle
  * wraps either as `cause`. Both carry the SQLSTATE as `code`.
  */
-function isForeignKeyViolation(error: unknown): boolean {
+function hasSqlState(error: unknown, sqlState: string): boolean {
   for (
     let e: unknown = error;
     e !== null && typeof e === "object";
     e = (e as { cause?: unknown }).cause
   ) {
-    if ((e as { code?: unknown }).code === FOREIGN_KEY_VIOLATION) return true;
+    if ((e as { code?: unknown }).code === sqlState) return true;
   }
   return false;
 }
+
+const isForeignKeyViolation = (error: unknown): boolean =>
+  hasSqlState(error, FOREIGN_KEY_VIOLATION);
+
+/**
+ * A CHECK constraint refused the row: on `animals`, a listed row missing a
+ * listing fact, an age without its anchor, or English without Ukrainian
+ * (F-B1). Every write path plans so this never fires (readiness before
+ * publish, the draft-only null guard on edits), so it stays a thrown error,
+ * a 500, rather than a typed answer: it means a planning bug, and the
+ * database is the backstop that kept an incomplete card off the site.
+ * Exported so the tests and the Neon smoke can tell it apart on both drivers.
+ */
+export const isCheckViolation = (error: unknown): boolean => hasSqlState(error, CHECK_VIOLATION);
+
+/**
+ * What a listing move compare-and-sets on beyond the listing itself. A
+ * publish (`draft` to `published`) also requires the `version` its readiness
+ * was planned on and a non-empty photo list (K3-T7, shapes doc §7.5):
+ * otherwise a description-clearing save or a last-photo removal landing
+ * between the read and the write would publish a card that fails the very
+ * check the handler made. Every other move compares the listing only, so an
+ * open form never conflicts with it (HS-T8).
+ */
+export type ListingWriteGuard =
+  | { kind: "listing_only" }
+  | { kind: "publish"; expectedVersion: number };
 
 /**
  * The kabinet's animal reads and writes. Ownership is the handler's check (it
@@ -78,9 +106,11 @@ function isForeignKeyViolation(error: unknown): boolean {
  *   vs Postgres µs).
  * - **Listing moves** (`writeListingIf`) compare-and-set on the listing itself
  *   (jsonb equality with the value the request read) and never touch
- *   `last_updated_at`.
- * - **Photo changes** (`writePhotosIf`) compare-and-set on the photo list
- *   itself (P-Q3) and move `last_updated_at`, never `version`.
+ *   `last_updated_at`; a publish also on `version` and a non-empty photo list
+ *   (K3-T7).
+ * - **Photo changes** (`writePhotosIf`) compare-and-set on the photo list and
+ *   the listing (P-Q3, K3-T7), move `last_updated_at` and, on a visible card,
+ *   the confirmation date (RH-B7); never `version`.
  */
 export function kabinetAnimalRepo(db: Database) {
   /**
@@ -141,11 +171,20 @@ export function kabinetAnimalRepo(db: Database) {
     /**
      * A K3 form save: the edited fields, `last_updated_at` and a bumped
      * `version`, nothing else, compare-and-set on the `version` the form read
-     * (S3-T6, RG-Q7). It never writes
-     * the listing, so a «Ще шукає» landing while the form is open is neither
-     * overwritten nor a conflict (HS-T8, Oleksii: edits and confirmations are
-     * separate facts, written to disjoint fields). Its `animal_edited` line
-     * is written by the same statement, so a conflict records nothing.
+     * (S3-T6, RG-Q7). It never writes the listing or `last_confirmed_at`
+     * (commitment #7), so a «Ще шукає» landing while the form is open is
+     * neither overwritten nor a conflict (HS-T8, Oleksii: edits and
+     * confirmations are separate facts, written to disjoint fields), and never
+     * `photos` (RH-B3, Oleksii: "the form's version compare-and-set save never
+     * writes the photos column"), so a photo changed meanwhile survives a save
+     * planned on the old list. Its `animal_edited` line is written by the same
+     * statement, so a conflict records nothing.
+     *
+     * A save that writes a null (a draft's cleared description, F-B1) also
+     * requires the row to still be a draft: a publish landing between the
+     * read and the write then makes it a conflict the caller re-reads, never a
+     * CHECK violation. A save writing no null keeps the `version`-only
+     * condition, so it never conflicts with a listing move.
      */
     async writeEditIf(
       animal: Animal,
@@ -154,6 +193,7 @@ export function kabinetAnimalRepo(db: Database) {
       history: AnimalHistoryRow<"animal_edited">,
     ): Promise<ConditionalWrite> {
       const row = animalToRowWithCity(animal, cityId);
+      const writesNull = row.size === null || row.age === null || row.descriptionUk === null;
       const update = db
         .update(animals)
         .set({
@@ -171,7 +211,13 @@ export function kabinetAnimalRepo(db: Database) {
           lastUpdatedAt: row.lastUpdatedAt,
           version: sql`${animals.version} + 1`,
         })
-        .where(and(eq(animals.id, animal.id), eq(animals.version, expectedVersion)))
+        .where(
+          and(
+            eq(animals.id, animal.id),
+            eq(animals.version, expectedVersion),
+            writesNull ? eq(animals.listingKind, "draft") : undefined,
+          ),
+        )
         .returning({ shelterId: animals.shelterId });
       return writeWithHistory(db.$with("upd").as(update), "upd", history);
     },
@@ -185,14 +231,21 @@ export function kabinetAnimalRepo(db: Database) {
      * version column is needed, and the edited time never moves.
      *
      * A recorded move writes its history line in the same statement; a
-     * confirmation writes none (`ListingMoveHistory`).
+     * confirmation writes none (`ListingMoveHistory`). A publish carries its
+     * extra guard (`ListingWriteGuard`), and one without it is refused here
+     * before anything is written.
      */
     async writeListingIf(
       animalId: AnimalId,
       next: AnimalListingState,
       expected: AnimalListingState,
       history: ListingMoveHistory,
+      guard: ListingWriteGuard = { kind: "listing_only" },
     ): Promise<ConditionalWrite> {
+      const publishes = expected.kind === "draft" && next.kind !== "draft";
+      if (publishes && guard.kind !== "publish") {
+        throw new Error(`Animal ${animalId}: a publish must compare-and-set on version and photos`);
+      }
       const update = db
         .update(animals)
         .set({
@@ -212,6 +265,12 @@ export function kabinetAnimalRepo(db: Database) {
             eq(animals.id, animalId),
             // Text then jsonb: postgres.js would otherwise encode it twice.
             sql`${animals.listing} = ${JSON.stringify(expected)}::text::jsonb`,
+            ...(guard.kind === "publish"
+              ? [
+                  eq(animals.version, guard.expectedVersion),
+                  sql`jsonb_array_length(${animals.photos}) > 0`,
+                ]
+              : []),
           ),
         )
         .returning({ shelterId: animals.shelterId });
@@ -223,32 +282,50 @@ export function kabinetAnimalRepo(db: Database) {
     },
 
     /**
-     * A photo change (add, reorder, remove, P-Q3): `photos` and
-     * `last_updated_at`, nothing else, compare-and-set on the photo list as the
-     * request read it (jsonb equality, the listing's pattern), with its
-     * `animal_edited` line (`fields: ["photos"]`) in the same statement, so a
-     * lost race writes and records nothing.
+     * A photo change (add, reorder, remove, P-Q3): `photos`,
+     * `last_updated_at` and the listing as `listingAfterPhotoChange` left it,
+     * compare-and-set on both the photo list and the listing as the request
+     * read them (jsonb equality), with its `animal_edited` line
+     * (`fields: ["photos"]`) in the same statement, so a lost race writes and
+     * records nothing.
+     *
+     * The listing is written because of RH-B7 (Oleksii, D4 option (i)): on a
+     * published or reserved card a photo change moves the confirmation date
+     * «Оновлено» counts from, so `listing.confirmedAt` and
+     * `last_confirmed_at` move together. Its kind never changes here, so
+     * `listing_kind`, `wait_anchor_at` and `first_published_at` stay as they
+     * are. Comparing on the listing also closes K3-T7's race (§7.5): a
+     * last-photo removal planned on a draft can't land after a publish.
      *
      * Not `version`: that is the K3 form's token, and a photo added while the
      * form is open must neither make the form's save a conflict nor be undone
-     * by it (the form never writes `photos`). Not the listing either, so a
-     * «Ще шукає» and a photo change never collide.
+     * by it (the form never writes `photos`, RH-B3; Oleksii: "Animals.version
+     * stays unchanged (P-Q3)").
      */
     async writePhotosIf(
       animalId: AnimalId,
-      next: readonly AnimalPhoto[],
-      expected: readonly AnimalPhoto[],
+      photos: { next: readonly AnimalPhoto[]; expected: readonly AnimalPhoto[] },
+      listing: { next: AnimalListingState; expected: AnimalListingState },
       lastUpdatedAt: Date,
       history: AnimalHistoryRow<"animal_edited">,
     ): Promise<ConditionalWrite> {
+      if (listing.next.kind !== listing.expected.kind) {
+        throw new Error(`Animal ${animalId}: a photo change never moves the listing's kind`);
+      }
       const update = db
         .update(animals)
-        .set({ photos: next, lastUpdatedAt })
+        .set({
+          photos: photos.next,
+          lastUpdatedAt,
+          listing: listing.next,
+          lastConfirmedAt: confirmationAnchorOf(listing.next),
+        })
         .where(
           and(
             eq(animals.id, animalId),
             // Text then jsonb: postgres.js would otherwise encode it twice.
-            sql`${animals.photos} = ${JSON.stringify(expected)}::text::jsonb`,
+            sql`${animals.photos} = ${JSON.stringify(photos.expected)}::text::jsonb`,
+            sql`${animals.listing} = ${JSON.stringify(listing.expected)}::text::jsonb`,
           ),
         )
         .returning({ shelterId: animals.shelterId });

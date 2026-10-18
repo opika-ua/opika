@@ -1,13 +1,23 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
+import {
+  inSentenceOperatorName,
+  type OperatorName,
+  standaloneOperatorName,
+} from "../../kabinet/operator";
+import { buttonClass } from "../controls/controls";
 import type { ProfileEditing } from "./home";
 import { KabinetBrand, KabinetMark } from "./KabinetBrand";
-import { CAPTION, CARD, CARD_TITLE, LockedBlock, Row } from "./ProfileParts";
+import { CAPTION, CARD, CARD_TITLE, channelValue, LockedBlock, Row } from "./ProfileParts";
 import { PausedStatus } from "./profile-edit/PausedStatus";
 import { ProfileEditor } from "./profile-edit/ProfileEditor";
 import { SignOutButton } from "./SignOutButton";
 import { SupportBanner } from "./SupportBanner";
 import { AllowlistedShelterArea } from "./test-shelter-only/AllowlistedShelterArea";
+import { VerificationDecision } from "./VerificationDecision";
+
+/** K3's create page (`app/kabinet/tvaryny/nova`). */
+export const NEW_ANIMAL_PATH = "/kabinet/tvaryny/nova";
 
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"; mock
@@ -31,33 +41,18 @@ import { AllowlistedShelterArea } from "./test-shelter-only/AllowlistedShelterAr
  * API would refuse.
  */
 
-type Channel = KabinetShelterView["contact"]["primary"];
-
-const channelValue = (channel: Channel): string => {
-  switch (channel.kind) {
-    case "phone":
-    case "viber":
-      return channel.e164;
-    case "email":
-      return channel.address;
-    case "telegram":
-      return `@${channel.handle}`;
-    case "website":
-      return channel.url;
-    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled channel; unreachable at runtime */
-    default: {
-      const unreachable: never = channel;
-      return unreachable;
-    }
-  }
-};
-
 export type ShelterProfileProps = {
   view: KabinetShelterView;
   cityName: string | null;
   viewer: "admin" | "support";
-  /** The operator's display name (RS-Q2), for the verification block's note. */
-  operatorName: string;
+  /**
+   * Who the operator is (RS-Q2), configured or not. Two places name them in
+   * two forms: the verification block's note puts the name mid-sentence
+   * (`inSentenceOperatorName`, so an unset name reads in lower case there),
+   * and the decision's signature stands alone (`standaloneOperatorName`, as
+   * both emails sign).
+   */
+  operator: OperatorName;
   /** K4: `read_only` unless the page's access decision opened writes. */
   editing?: ProfileEditing;
 };
@@ -66,12 +61,14 @@ export function ShelterProfile({
   view,
   cityName,
   viewer,
-  operatorName,
+  operator,
   editing = { kind: "read_only" },
 }: ShelterProfileProps) {
   const t = uk.kabinet.profile;
+  const operatorName = inSentenceOperatorName(operator);
   const notRecorded = uk.kabinet.profileNotRecorded;
   const support = viewer === "support";
+  const newAnimalLink = editing.kind === "open" && !support;
 
   return (
     <div
@@ -111,9 +108,12 @@ export function ShelterProfile({
 
       <div className="flex flex-col gap-3 px-4 pt-5 pb-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
         {/*
-          K4's side nav holds «Тварини» and «Профіль притулку». Only this page
-          exists (no animal screen in this PR), so only its item is shown:
-          a link to a screen that isn't there would be a dead end.
+          K4's side nav holds «Тварини» and «Профіль притулку». K2's list
+          («Тварини») doesn't exist until PR 5, so it isn't shown: a link to a
+          screen that isn't there would be a dead end. Until then the one way
+          into K3 is «Нова тварина», for a shelter whose writes are open (the
+          page's own access decision), the only one the form would accept
+          (decision taken, reversible).
         */}
         <nav
           aria-label={t.title}
@@ -125,6 +125,11 @@ export function ShelterProfile({
           >
             {t.title}
           </span>
+          {newAnimalLink ? (
+            <a href={NEW_ANIMAL_PATH} className={`justify-start ${buttonClass("text")}`}>
+              {uk.kabinet.animalForm.titleNew}
+            </a>
+          ) : null}
         </nav>
 
         <main className="flex min-w-0 max-w-[1080px] flex-1 flex-col gap-3 desktop:gap-6">
@@ -134,7 +139,21 @@ export function ShelterProfile({
               {t.title}
             </h1>
             <p className={`hidden desktop:block ${CAPTION}`}>{t.intro}</p>
+            {newAnimalLink ? (
+              <a
+                href={NEW_ANIMAL_PATH}
+                className={`self-start desktop:hidden ${buttonClass("secondary")}`}
+              >
+                {uk.kabinet.animalForm.titleNew}
+              </a>
+            ) : null}
           </div>
+
+          {/* K5 (RU-Q7): a rejected or suspended shelter reads why, for its admins and the support view alike. */}
+          <VerificationDecision
+            verification={view.verification}
+            operatorName={standaloneOperatorName(operator)}
+          />
 
           {editing.kind === "open" && !support ? (
             <ProfileEditor

@@ -1,5 +1,11 @@
 import { animalRepo, cityRepo, kabinetShelterRepo, revealRepo, shelterRepo } from "@opika/db/repos";
-import { makeAnimal, makeCity, makeReveal, makeShelter } from "@opika/db/test";
+import {
+  type AnimalFixtureOverrides,
+  makeAnimal,
+  makeCity,
+  makeReveal,
+  makeShelter,
+} from "@opika/db/test";
 import { type AdopterId, filtersFingerprint, NO_FILTERS, transition } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { encodeFeedCursor, encodeRevealCursor } from "./cursor";
@@ -69,7 +75,7 @@ async function bootstrap(): Promise<string> {
  * valid per the schema — and the denormalised city_id column is set
  * via the second arg to animalRepo.insert.
  */
-async function seedFeedAnimal(animalOverrides?: Partial<Parameters<typeof makeAnimal>[0]>) {
+async function seedFeedAnimal(animalOverrides?: AnimalFixtureOverrides) {
   const city = makeCity();
   await cityRepo(h.db).insert(city);
 

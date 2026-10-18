@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  type CalendarDate,
+  calendarDateYearsBefore,
+  instantOfCalendarDate,
+  kyivCalendarDateOf,
+} from "../primitives/calendar-date";
 
 export const AgeBucketSchema = z.enum(["baby", "young", "adult", "senior"]);
 export type AgeBucket = z.infer<typeof AgeBucketSchema>;
@@ -151,4 +157,48 @@ export const isAgeEstimateUncertain = (estimate: AgeEstimate, now: Date): boolea
   const oldestPossibleYears = maxYears - ONE_DAY_IN_YEARS + elapsedYears(estimate.declaredAt, now);
 
   return bucketForYears(oldestPossibleYears) !== ageBucketOf(estimate, now);
+};
+
+/**
+ * How far back K3's age dates may go (D3, Oleksii, verbatim: "keep the chosen
+ * «Станом на» date. Refuse a date in the future (Kyiv) or older than 30
+ * years."). Thirty years is past any dog's or cat's life, so an older date is
+ * a typo (a wrong century, a birth year for the year of intake), not an
+ * answer.
+ */
+export const AGE_DATE_MAX_YEARS_BACK = 30;
+
+export type AgeDateProblem =
+  | { readonly kind: "future" }
+  | { readonly kind: "too_old"; readonly maxYearsBack: number };
+
+/**
+ * Whether a birth date or an «as of» date can be stored: not after today on
+ * Kyiv's calendar, and not more than `AGE_DATE_MAX_YEARS_BACK` years before
+ * it (exactly thirty years ago is still allowed). The form and the server ask
+ * this same question, so the inline message and the server's refusal can't
+ * disagree, except where the device clock does.
+ */
+export const ageDateProblem = (date: CalendarDate, now: Date): AgeDateProblem | null => {
+  const today = kyivCalendarDateOf(now);
+  if (date > today) return { kind: "future" };
+  if (date < calendarDateYearsBefore(today, AGE_DATE_MAX_YEARS_BACK)) {
+    return { kind: "too_old", maxYearsBack: AGE_DATE_MAX_YEARS_BACK };
+  }
+  return null;
+};
+
+/**
+ * The instant a bucket declared «станом на» `asOf` is anchored at: the date's
+ * stored instant (`instantOfCalendarDate`, UTC midnight), but never later than
+ * `now`. For the first two or three hours of a Kyiv day, UTC midnight of that
+ * day is still ahead of the clock, and `ageAnchorOf` subtracts the bucket's
+ * minimum from the anchor, so a bucket declared "today" in that window read
+ * one tier young («малюк» for «Молодий») on the form and on the card until
+ * 03:00. A date in the past is unaffected; its Kyiv date is unchanged either
+ * way, so `kyivCalendarDateOf` gives `asOf` back.
+ */
+export const declaredAtOfCalendarDate = (asOf: CalendarDate, now: Date): Date => {
+  const instant = instantOfCalendarDate(asOf);
+  return instant.getTime() > now.getTime() ? now : instant;
 };

@@ -136,11 +136,38 @@ export const apiErrors = {
     message: "The evidence doesn't meet the verification policy yet.",
     data: z.object({ gaps: z.array(EvidenceGapSchema).min(1).readonly() }),
   },
-  /** Publish with something missing (`data.gaps`; today: no photo). */
+  /**
+   * Publish with something missing (`data.gaps`, in form order: size, age,
+   * description, photo; K-Q5). Widened from photo-only by K3 and still
+   * accepting every value it did, so an older client reading `photo` keeps
+   * working.
+   */
   PUBLISH_REQUIREMENTS_UNMET: {
     status: 422,
     message: "The listing isn't ready to publish.",
     data: z.object({ gaps: z.array(PublishGapSchema).min(1).readonly() }),
+  },
+  /**
+   * A save that would clear a listing fact on an animal that has been
+   * published (F-B1): only a draft may lack one. Today only the description
+   * can be cleared, so `field` is that in practice; the enum names every
+   * listing fact so the answer stays exact if another becomes clearable.
+   */
+  LISTING_FACT_REQUIRED: {
+    status: 422,
+    message: "A listing that was published must keep this field.",
+    data: z.object({ field: z.enum(["size", "age", "description"]) }),
+  },
+  /**
+   * A birth date or «as of» date the server refuses (D3, Oleksii: "Refuse a
+   * date in the future (Kyiv) or older than 30 years."). The form checks the
+   * same rule first (`ageDateProblem`), so this reaches a shelter only when
+   * the device's calendar disagrees with the server's.
+   */
+  AGE_DATE_OUT_OF_RANGE: {
+    status: 422,
+    message: "That date is in the future or too far back.",
+    data: z.object({ problem: z.enum(["future", "too_old"]) }),
   },
   /**
    * A shelter's declaration would overwrite a fact the registry confirmed
@@ -233,3 +260,13 @@ export const apiErrors = {
 } as const;
 
 export type ApiErrorCode = keyof typeof apiErrors;
+
+/**
+ * The message of the registry's one undeclared refusal: a `cityId` that
+ * resolves to no city, answered BAD_REQUEST 400 by `registry.shelters.create`
+ * and by an address change, never the foreign key's 500 (RG-T5: the form
+ * offers known cities only, so it is a client fault, not a typed refusal).
+ * S2 tells it apart from oRPC's own input-validation 400 by this message,
+ * shared here so the handler and the screen can't drift apart.
+ */
+export const UNKNOWN_CITY_MESSAGE = "Unknown city";

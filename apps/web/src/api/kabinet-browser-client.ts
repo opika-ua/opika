@@ -2,13 +2,15 @@ import { shelterKabinetContract } from "@opika/contracts";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import type { ContractRouterClient } from "@orpc/contract";
+import { type UploadProgress, xhrFetch } from "./xhr-fetch";
 
 /**
  * What K4's editor (`/kabinet`) may call from the browser: the profile
  * procedures, picked, never the whole shelter contract, for the reason
  * `browser-client.ts` gives (a procedure added later isn't callable from
- * client JavaScript by default). The animal and history procedures stay out
- * until a screen calls them from the browser.
+ * client JavaScript by default). K3's animal form has its own picked client
+ * below; the history procedures stay out until a screen calls them from the
+ * browser.
  *
  * Same origin, always: the URL is this page's own origin, so the browser
  * sends the site's Origin header and `/api/kabinet`'s Origin check (K-Q8)
@@ -41,3 +43,49 @@ const link = new RPCLink<Record<never, never>>({
 });
 
 export const kabinetProfileBrowserClient: KabinetProfileClient = createORPCClient(link);
+
+/**
+ * What K3's animal form (`/kabinet/tvaryny/*`) may call from the browser,
+ * picked for the same reason as the profile's: reading one animal, creating
+ * a draft, saving, publishing, and the three photo procedures. Nothing else
+ * of the shelter contract is callable from this client.
+ */
+const kabinetAnimalBrowserContract = {
+  shelter: {
+    animals: {
+      byId: shelterKabinetContract.shelter.animals.byId,
+      createDraft: shelterKabinetContract.shelter.animals.createDraft,
+      update: shelterKabinetContract.shelter.animals.update,
+      transition: shelterKabinetContract.shelter.animals.transition,
+    },
+    photos: {
+      add: shelterKabinetContract.shelter.photos.add,
+      reorder: shelterKabinetContract.shelter.photos.reorder,
+      remove: shelterKabinetContract.shelter.photos.remove,
+    },
+  },
+} as const;
+
+/**
+ * Per call: an upload passes `onUploadProgress` and travels over
+ * `XMLHttpRequest` (`xhrFetch`), which can report how much has been sent;
+ * every other call uses `fetch`, as the profile's client does.
+ */
+export type KabinetAnimalClientContext = {
+  onUploadProgress?: (progress: UploadProgress) => void;
+};
+
+export type KabinetAnimalClient = ContractRouterClient<
+  typeof kabinetAnimalBrowserContract,
+  KabinetAnimalClientContext
+>;
+
+const animalLink = new RPCLink<KabinetAnimalClientContext>({
+  url: () => `${window.location.origin}/api/kabinet`,
+  fetch: (request, init, options) => {
+    const onProgress = options.context.onUploadProgress;
+    return onProgress === undefined ? fetch(request, init) : xhrFetch(request, onProgress);
+  },
+});
+
+export const kabinetAnimalBrowserClient: KabinetAnimalClient = createORPCClient(animalLink);

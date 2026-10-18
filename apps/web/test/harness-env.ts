@@ -43,3 +43,11 @@ export const HARNESS_BETTER_AUTH_SECRET = "test-better-auth-secret-for-harness-o
  * recognizable test value, never a real one.
  */
 export const HARNESS_RATE_LIMIT_KEY_SECRET = "test-rate-limit-key-secret-for-harness-only-0123";
+
+/**
+ * R-UI 1: the operator's pages answer 404 without `LOCATION_HMAC_SECRET`, as
+ * the registry API answers 503 (RU-T5), so the operator spec's sign-in server
+ * sets one. At least 32 characters (`productionLocationPolicy`), a
+ * recognizable test value, never a real key; the main server gets none.
+ */
+export const HARNESS_LOCATION_HMAC_SECRET = "test-location-hmac-secret-for-harness-only-0123456789";

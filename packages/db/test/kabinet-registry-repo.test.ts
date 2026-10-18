@@ -198,30 +198,160 @@ describe("kabinetRegistryRepo.statusCounts (S1 chips)", () => {
   });
 });
 
-describe("kabinetRegistryRepo.adminsOf (S4)", () => {
-  const invite = (shelterId: ShelterId, email: string, at = NOW) =>
-    kabinetInvitationRepo(db).invite({
-      shelterId,
-      email,
-      name: `Ім'я ${email}`,
-      inviterUserId: "op",
-      ids: { invitationId: `inv-${++n}`, userId: `user-${n}`, organizationId: `org-${n}` },
-      now: at,
-      history: {
-        id: crypto.randomUUID(),
-        entry: { kind: "admin_invited", at: at, moderatorId: "op" as never, email: email },
-      },
-    });
+const invite = (shelterId: ShelterId, email: string, at = NOW) =>
+  kabinetInvitationRepo(db).invite({
+    shelterId,
+    email,
+    name: `Ім'я ${email}`,
+    inviterUserId: "op",
+    ids: { invitationId: `inv-${++n}`, userId: `user-${n}`, organizationId: `org-${n}` },
+    now: at,
+    history: {
+      id: crypto.randomUUID(),
+      entry: { kind: "admin_invited", at: at, moderatorId: "op" as never, email: email },
+    },
+  });
 
+const insertOperator = () =>
+  db.insert(authUser).values({
+    id: "op",
+    name: "Оператор",
+    email: "op@example.org",
+    emailVerified: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+
+/** The shelter's organization id, once its first invitation has made one. */
+async function organizationOf(shelterId: ShelterId): Promise<string> {
+  const id = await repo().organizationIdOf(shelterId);
+  if (id === null) throw new Error("no organization yet");
+  return id;
+}
+
+async function makeMember(shelterId: ShelterId, userId: string): Promise<void> {
+  await db.insert(authMember).values({
+    id: `m-${++n}`,
+    organizationId: await organizationOf(shelterId),
+    userId,
+    role: "admin",
+    createdAt: NOW,
+  });
+}
+
+const invitedUserId = (result: Awaited<ReturnType<typeof invite>>): string => {
+  if (result.kind !== "invited") throw new Error(`not invited: ${result.kind}`);
+  return result.userId;
+};
+
+/**
+ * R-UI answer 2 (Oleksii, verbatim: "Yes: add the admins count (signed in /
+ * invited) and the donationPending flag to the list row, in one query (no
+ * N+1)."). The counts must agree with S4's list (`adminsOf`), which is what
+ * the operator sees on opening the row.
+ */
+describe("kabinetRegistryRepo.listPage: admins and donationPending (R-UI answer 2)", () => {
   beforeEach(async () => {
-    await db.insert(authUser).values({
-      id: "op",
-      name: "Оператор",
-      email: "op@example.org",
-      emailVerified: true,
-      createdAt: NOW,
-      updatedAt: NOW,
+    await insertOperator();
+  });
+
+  const rowOf = async (shelterId: ShelterId) => {
+    const row = (await list()).items.find((item) => item.id === shelterId);
+    if (row === undefined) throw new Error("row not listed");
+    return row;
+  };
+
+  it("is 0 joined and 0 invited for a shelter that has never invited anyone", async () => {
+    const s = await shelter("А", "pending");
+    expect((await rowOf(s.id)).admins).toEqual({ joined: 0, invited: 0 });
+  });
+
+  it("counts members as joined and pending invitations as invited, expired ones included", async () => {
+    const s = await shelter("А", "pending");
+    await makeMember(s.id, invitedUserId(await invite(s.id, "member@example.org")));
+    await invite(s.id, "pending@example.org");
+    // Invited ten days ago: the 72-hour link has expired, the invitation is still pending.
+    await invite(s.id, "expired@example.org", new Date(NOW.getTime() - 10 * 86_400_000));
+    expect((await rowOf(s.id)).admins).toEqual({ joined: 1, invited: 2 });
+  });
+
+  it("counts a member whose old invitation is still pending once, as joined", async () => {
+    const s = await shelter("А", "pending");
+    const userId = invitedUserId(await invite(s.id, "member@example.org"));
+    await makeMember(s.id, userId);
+    // The invitation row stays `pending`: membership was written beside it.
+    expect((await rowOf(s.id)).admins).toEqual({ joined: 1, invited: 0 });
+  });
+
+  it("counts a re-invited address once, and a withdrawn invitation not at all", async () => {
+    const s = await shelter("А", "pending");
+    await invite(s.id, "again@example.org");
+    await invite(s.id, "again@example.org", new Date(NOW.getTime() + 1000));
+    const gone = await invite(s.id, "gone@example.org");
+    if (gone.kind !== "invited") throw new Error("unreachable");
+    await kabinetInvitationRepo(db).revoke(gone.invitationId);
+    expect((await rowOf(s.id)).admins).toEqual({ joined: 0, invited: 1 });
+  });
+
+  it("never counts another shelter's admins", async () => {
+    const mine = await shelter("А", "pending");
+    const theirs = await shelter("Б", "pending");
+    await invite(mine.id, "mine@example.org");
+    await makeMember(theirs.id, invitedUserId(await invite(theirs.id, "theirs@example.org")));
+    await invite(theirs.id, "theirs-2@example.org");
+    expect((await rowOf(mine.id)).admins).toEqual({ joined: 0, invited: 1 });
+    expect((await rowOf(theirs.id)).admins).toEqual({ joined: 1, invited: 1 });
+  });
+
+  it("agrees with adminsOf, the list S4 shows", async () => {
+    const s = await shelter("А", "pending");
+    await makeMember(s.id, invitedUserId(await invite(s.id, "a@example.org")));
+    await makeMember(s.id, invitedUserId(await invite(s.id, "b@example.org")));
+    await invite(s.id, "c@example.org");
+    await invite(s.id, "c@example.org", new Date(NOW.getTime() + 1000));
+    await invite(s.id, "d@example.org", new Date(NOW.getTime() - 10 * 86_400_000));
+    const listed = await repo().adminsOf(s.id);
+    expect((await rowOf(s.id)).admins).toEqual({
+      joined: listed.filter((admin) => admin.invite.status === "accepted").length,
+      invited: listed.filter((admin) => admin.invite.status === "pending").length,
     });
+    expect((await rowOf(s.id)).admins).toEqual({ joined: 2, invited: 2 });
+  });
+
+  it("flags a proposed donation link, and only that, as donationPending", async () => {
+    const waiting = await shelter("А", "verified", {
+      pendingDonation: pendingDonation("https://send.monobank.ua/jar/abc"),
+    });
+    const none = await shelter("Б", "verified");
+    const pendingStatus = await shelter("В", "pending");
+    expect((await rowOf(waiting.id)).donationPending).toBe(true);
+    expect((await rowOf(none.id)).donationPending).toBe(false);
+    // Waiting on the operator for its status, not for a link: rank 0, but no link pending.
+    expect(await rowOf(pendingStatus.id)).toMatchObject({ rank: 0, donationPending: false });
+  });
+
+  it("pages with the counts intact", async () => {
+    const a = await shelter("А", "verified");
+    const b = await shelter("Б", "verified");
+    await invite(a.id, "a@example.org");
+    await makeMember(b.id, invitedUserId(await invite(b.id, "b@example.org")));
+    const first = await repo().listPage({ search: null, status: null, after: null, limit: 1 });
+    const second = await repo().listPage({
+      search: null,
+      status: null,
+      after: first.next,
+      limit: 1,
+    });
+    expect([...first.items, ...second.items].map((row) => [row.displayName, row.admins])).toEqual([
+      ["А", { joined: 0, invited: 1 }],
+      ["Б", { joined: 1, invited: 0 }],
+    ]);
+  });
+});
+
+describe("kabinetRegistryRepo.adminsOf (S4)", () => {
+  beforeEach(async () => {
+    await insertOperator();
   });
 
   it("is empty for a shelter with no organization yet", async () => {

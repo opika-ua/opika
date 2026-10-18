@@ -1369,7 +1369,7 @@ export function buildAnimals(
     const updatedDaysAgo = lastUpdatedDaysAgo(i, count);
     const lastUpdatedAt = daysAgo(updatedDaysAgo);
 
-    const animal: Animal = {
+    const fields = {
       id,
       shelterId: shelter.id,
       name,
@@ -1382,12 +1382,15 @@ export function buildAnimals(
       vaccination,
       spayNeuter,
       documentReadiness,
-      listing,
       publicLocation,
       createdAt: daysAgo(updatedDaysAgo + 7), // created a week before last update
       lastUpdatedAt,
       version: 0,
     };
+    // Built per half of the union (F-B1): every seeded animal, drafts
+    // included, carries all its facts, so either half accepts it.
+    const animal: Animal =
+      listing.kind === "draft" ? { ...fields, listing } : { ...fields, listing };
 
     results.push({ animal, cityId: effectiveCityId });
   }

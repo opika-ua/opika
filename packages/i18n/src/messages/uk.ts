@@ -261,12 +261,18 @@ export const uk = {
     heading: "Медичний стан",
     unknown: "Не записано",
     inProgress: "У процесі",
-    registryConfirmed: "Підтверджено реєстром тварин",
+    /**
+     * Q5 of the K3 sheet (Oleksii, 2026-10-17, verbatim: "«реєстр» is allowed
+     * ONLY as the explicit name of the state register: «державний реєстр
+     * тварин». Update the public keys too"). Both name the state animal
+     * registry, which really is a state service.
+     */
+    registryConfirmed: "Підтверджено державним реєстром тварин",
     shelterDeclared: "Слова притулку",
     rabies: "Сказ",
     vaccination: "Комплексне щеплення",
     spayNeuter: "Стерилізація",
-    registry: "Реєстр тварин",
+    registry: "Державний реєстр тварин",
   },
 
   // --- Location ---
@@ -846,10 +852,20 @@ export const uk = {
   },
   kabinet: {
     /**
-     * The history actor label when `KABINET_OPERATOR_DISPLAY_NAME` is unset
-     * (RS-Q2): Oleksii's own wording. Nominative, used only where the nominative fits.
+     * The operator's name when `KABINET_OPERATOR_DISPLAY_NAME` is unset
+     * (RS-Q2), nominative, in two forms (`kabinet/operator.ts` picks). Oleksii's
+     * R-UI answer 9, verbatim: "Role label «адміністратор сайту» (also replaces
+     * the «Оператор реєстру» fallback)." Then round 2, answer 6, verbatim:
+     * "Email signature fallback: capitalise it → «— Адміністратор сайту»."
+     *
+     * `operatorFallbackName` stands alone, so it is capitalised: both emails'
+     * «— {operator}» signature, the shelter-facing history actor, the
+     * operator's header. `operatorFallbackNameInSentence` sits mid-sentence
+     * (`profile.lockedNote`'s «встановлює {operator}»), in lower case as he
+     * wrote the role, where a capital would read as a proper name.
      */
-    operatorFallbackName: "Оператор реєстру",
+    operatorFallbackName: "Адміністратор сайту",
+    operatorFallbackNameInSentence: "адміністратор сайту",
     /**
      * Every kabinet string below is Oleksii's final Ukrainian (2026-10-14,
      * answering the 91-row copy export for PR #94), applied verbatim. The designer's
@@ -977,7 +993,25 @@ export const uk = {
      * sign-in included, stays strict. Under an open policy (PR 6) anything
      * pending here turns sign-in off again.
      */
-    testShelterOnly: {},
+    testShelterOnly: {
+      /**
+       * K3 lines only his allowlisted test shelter sees (CG-Q1), mounted by
+       * `features/kabinet/test-shelter-only/AnimalFormTestShelterLines.tsx`.
+       * One line, final, since his copy for the two hidden-shelter lines
+       * (round 2b, answer 3) moved them to `animalForm.*`.
+       */
+      animalForm: {
+        /**
+         * His final text (k3-copy-uk.md §10), parked here by his own note:
+         * "If K2's confirmation buttons aren't shipped yet when PR 4 merges,
+         * this line waits under testShelterOnly until PR 5." Its second
+         * sentence points at «Ще шукає» in the animal list, which is K2's.
+         * Published and reserved cards only.
+         */
+        dateUnchanged:
+          "Правки тексту не змінюють дату «Оновлено». Її змінює ваше підтвердження в списку тварин і будь-яка зміна фото.",
+      },
+    },
     /**
      * K4 · editing the shelter profile (`docs/k4-copy-sheet.md`). Oleksii's
      * final Ukrainian (`k4-copy-uk.md`, 2026-10-17) with his later fixes
@@ -1128,6 +1162,216 @@ export const uk = {
         close: "Закрити",
         paused: "Прийом на паузі.",
         resumed: "Прийом відновлено. Ваших тварин знову видно.",
+      },
+    },
+    /**
+     * The five listing states as K3's header chip and K2's rows name them
+     * (N3). Oleksii's final Ukrainian (k3-copy-uk.md §2; answer 15, verbatim:
+     * "Yes, all five below.").
+     */
+    listingStatus: {
+      draft: "Чернетка",
+      published: "Опубліковано",
+      reserved: "Домовляються",
+      adopted: "Удома",
+      withdrawn: "Знято з показу",
+    },
+    /**
+     * K3 · the animal form (`docs/k3-copy-sheet.md`): Oleksii's final
+     * Ukrainian (`k3-copy-uk.md`, 2026-10-17), verbatim, U+02BC as the
+     * apostrophe. His rules for it, verbatim: "Pronoun-free wording
+     * everywhere. No sex-keyed variants."; "«ті, хто шукає тварину» (or
+     * «люди» where shorter). Never «адоптери»."; "the site is the subject
+     * («сайт»), or impersonal / passive forms". Keys his answers reuse from
+     * elsewhere (sex «Не записано», «Комплексне щеплення», «Спробувати ще
+     * раз», «Зберегти») are read from their own homes, not copied here.
+     */
+    animalForm: {
+      pageTitleNew: "Нова тварина",
+      pageTitleEdit: "{name}",
+      titleNew: "Нова тварина",
+      backToList: "← Тварини",
+      header: {
+        createdNotPublished: "Створено {when} · ще не в галереї",
+      },
+      who: {
+        title: "Хто це",
+        nameLabel: "Імʼя",
+        nameHint: "Як тварину кличуть у притулку. Лише імʼя — пояснення краще написати в описі.",
+        namePlaceholder: "Наприклад, Ластівка",
+        speciesLabel: "Вид",
+        sexLabel: "Стать",
+        sexMale: "Хлопчик",
+        sexFemale: "Дівчинка",
+        sizeLabel: "Розмір",
+        sizeNote: "Ваги немає навмисно: розмір на око точніший, ніж торішня цифра.",
+        sizeHintUpTo: "до {max} кг",
+        sizeHintRange: "{min}–{max} кг",
+        sizeHintFrom: "від {min} кг",
+      },
+      age: {
+        title: "Вік",
+        modeLabel: "Що відомо про вік",
+        modeBirthDate: "Відома дата народження",
+        modeBucket: "Відомий вік на певну дату",
+        modeBirthDateShort: "Дата народження",
+        modeBucketShort: "Вік на дату",
+        modeNote:
+          "Обидва способи рівноцінні. Сайт зберігає саме те, що ви вказали, і далі рахує вік сам.",
+        birthDateLabel: "Дата народження",
+        bucketLabel: "Вік на ту дату",
+        bucketRangeUnder: "до {max}",
+        bucketRange: "{min}–{max}",
+        bucketRangeFrom: "{min}+",
+        asOfLabel: "Станом на",
+        /** True with D3 (Oleksii: "keep the chosen «Станом на» date"): the server stores it. */
+        asOfHint: "Коли ви це оцінили. Зазвичай — день, коли тварина потрапила до притулку.",
+        /** `{label}` is the card's own word (`ageBucketLabel`); his answer 9: quoted as it is. */
+        adopterSees: "Ті, хто шукає тварину, побачать: «{label}».",
+        uncertain:
+          "Вік указано станом на {when}. Тепер на картці — «{label}». Якщо тварина вже старша, оновіть вік.",
+      },
+      description: {
+        title: "Опис",
+        prompt: "Що б ви сказали людині біля вольєра.",
+        label: "Про тварину",
+        hint: "Простий текст, без форматування.",
+        /** «символів» is the form for 1,500 (pinned in `copy-plural-pins.test.ts`). */
+        counter: "{count} з {max} символів",
+        counterOver: "Зайвих символів: {over}",
+      },
+      health: {
+        title: "Медичний стан",
+        confirm: "Зроблено",
+        unknownNote:
+          "«Не записано» — чесна відповідь. Ті, хто шукає тварину, так і побачать «Не записано», а не «ні».",
+        registryReadOnly: "Підтверджено державним реєстром тварин. Тут цей рядок змінити не можна.",
+      },
+      photos: {
+        title: "Фото",
+        ratioNote: "Формат 4:5, перше фото — обкладинка.",
+        add: "+ Фото",
+        addHint: "Будь-яке фото, яке відкриває цей телефон чи браузер.",
+        /** `{px}` is `PHOTO_MAX_EDGE_PX`; true because `compressPhoto` scales every photo to it on the device. */
+        howItWorks:
+          "Перше фото — обкладинка; щоб змінити порядок, перетягніть фото. Для публікації потрібне хоча б одне. Великі фото зменшуються на пристрої до {px} пікселів перед відправкою — так менше мобільного трафіку.",
+        /** Answer 11 ("Both are true"): the device re-encodes every photo, and the server strips all metadata. */
+        privacyNote: "З фото прибираються дані про місце зйомки та інші приховані дані.",
+        preparing: "Фото готується…",
+        uploading: "Фото завантажується…",
+        uploadingProgress: "Завантаження · {percent} · {sent} з {total} МБ",
+        done: "Готово",
+        cover: "Обкладинка",
+        failed: "Не завантажилось",
+        dismissFailed: "Прибрати",
+        /** The accessible name for `dismissFailed`, his answer: «Прибрати фото, яке не завантажилось». */
+        dismissFailedName: "Прибрати фото, яке не завантажилось",
+        tileLabel: "Фото {n} з {total}",
+        makeCover: "Зробити обкладинкою",
+        moveEarlier: "Перемістити вперед",
+        moveLater: "Перемістити назад",
+        remove: "Прибрати фото {n}",
+        capReached: "Це максимум — {max} фото.",
+        /**
+         * Also `PHOTOS_REQUIRED_WHILE_VISIBLE`'s message (his answer: "same
+         * key/text"). Only while the shelter's cards are shown (verified, not
+         * paused); otherwise `lastPhotoKeptNotShown`.
+         */
+        lastPhotoKept: "Цю картку бачать люди, тож одне фото має лишитися.",
+        /**
+         * In place of `lastPhotoKept` while the shelter's cards are on no
+         * public surface (paused, suspended or not verified,
+         * `FEED_VISIBLE_VERIFICATION_STATUSES`), where «бачать люди» would be
+         * false. One line for every hidden cause: «поки її ще не бачать»
+         * claims nothing about verification. The rule holds either way: the
+         * server keeps the last photo of any published or reserved card
+         * (P-Q8). His final text (round 2b, answer 3).
+         */
+        lastPhotoKeptNotShown:
+          "Картка опублікована, тож одне фото має лишитися — навіть поки її ще не бачать.",
+        added: "Фото додано.",
+        removed: "Фото прибрано.",
+        reordered: "Порядок змінено.",
+        conflict: "Фото змінилися в іншому вікні. Тут — поточний набір, спробуйте ще раз.",
+        removedStillReachable:
+          "Фото зникло з картки. Сам файл не видаляється одразу — якщо його треба прибрати зовсім, напишіть мені.",
+        /** True with RH-B7 (D4 option (i)), which ships in this PR. Published and reserved only. */
+        dateMoves: "На картці, яку бачать люди, будь-яка зміна фото оновлює дату «Оновлено».",
+      },
+      photoErrors: {
+        heicUnsupported:
+          "Цей телефон чи браузер не відкриває фото у форматі HEIC. Виберіть, будь ласка, JPG або PNG.",
+        unreadable: "Цей файл не вдалося відкрити як фото.",
+        tooLarge: "Навіть після зменшення це фото завелике. Спробуйте інше.",
+        rejected: "Сайт не може використати цей файл як фото.",
+        limitReached: "У цієї тварини вже {max} фото.",
+        rateLimited: "Забагато фото за короткий час. Спробуйте трохи пізніше.",
+        uploadsUnavailable: "На цій версії сайту фото завантажити не можна.",
+      },
+      draft: {
+        savedAt: "Чернетку збережено о {time}",
+        /** F-B2, his, verbatim; backed by `incomplete-draft-invisible.test.ts`. */
+        notVisible: "Ті, хто шукає тварину, цю чернетку не бачать.",
+        notSavedYet: "Щоб зберегти чернетку, потрібні імʼя та вид.",
+        saveFailed: "Чернетку не збережено. Перевірте зʼєднання — усе, що ви ввели, лишається тут.",
+        save: "Зберегти чернетку",
+        saveShort: "Зберегти",
+      },
+      listed: {
+        liveOnSave: "Зміни зʼявляться на картці одразу після збереження.",
+        notShownNow: "Цю картку зараз ніхто не бачить.",
+      },
+      publish: {
+        button: "Опублікувати",
+        missing: "Щоб опублікувати, ще потрібно: {list}.",
+        gap: {
+          size: "розмір",
+          age: "вік",
+          description: "опис",
+          photo: "фото",
+        },
+        /**
+         * Shown only while the shelter is publicly visible (verified, not
+         * paused): a paused or unverified shelter's cards are on no public
+         * surface, and «Тепер картку бачать…» would be false. Which line
+         * replaces it depends on why (`publishedAnnouncementOf` in the
+         * form's `labels.ts`).
+         */
+        done: "Опубліковано. Тепер картку бачать ті, хто шукає тварину.",
+        /**
+         * In place of `done` while the shelter has not passed verification
+         * (pending, under review, or rejected and free to resubmit), the one
+         * state where «щойно притулок пройде перевірку» is true. Never for a
+         * paused or suspended shelter, which has passed: that one gets
+         * `listingStatus.published` and `listed.notShownNow`, composed
+         * (K3-T15). His final text (round 2b, answer 3).
+         */
+        publishedNotShown:
+          "Опубліковано. Ті, хто шукає тварину, побачать картку, щойно притулок пройде перевірку.",
+        viewPublic: "Відкрити сторінку тварини",
+        stateChanged:
+          "Картка змінилася в іншому вікні. Оновіть сторінку, щоб побачити поточну версію.",
+      },
+      errors: {
+        conflict:
+          "Хтось змінив цю картку після того, як ви її відкрили. Ваші останні зміни не збережено. Ось поточна версія — внесіть їх ще раз.",
+        registryConfirmed: "Це підтверджено державним реєстром тварин, тут змінити не можна.",
+        requiredOnceListed: "Картку вже публікували, тож опис не може бути порожнім.",
+        notFound: "Цієї тварини немає у вашому списку: картку видалено або посилання неправильне.",
+        loadFailed: "Картка не завантажилась. Перевірте зʼєднання і спробуйте ще раз.",
+      },
+      validation: {
+        nameRequired: "Щоб зберегти чернетку, потрібне імʼя.",
+        speciesRequired: "Виберіть, собака це чи кіт, щоб зберегти чернетку.",
+        nameBrace: "В імені не може бути фігурних дужок.",
+        /** «символів» is the form for 60 (pinned). */
+        nameTooLong: "Імʼя довше за {max} символів.",
+        /** «символів» is the form for 1,500 (pinned). */
+        descriptionTooLong: "Опис довший за {max} символів.",
+        birthDateFuture: "Дата народження не може бути в майбутньому.",
+        asOfFuture: "Дата «Станом на» не може бути в майбутньому.",
+        /** «років» is the form for 30, `AGE_DATE_MAX_YEARS_BACK` (his note: "pin the plural for 30"). */
+        dateTooOld: "Ця дата надто давня — понад {years} років тому.",
       },
     },
     /** S5 · support mode (N16): the operator's read-only view of this page. */
@@ -1284,6 +1528,412 @@ export const uk = {
      */
     history: {
       adminJoined: "{email} отримує доступ до кабінету",
+    },
+    /**
+     * R-UI · the operator's own screens (`docs/r-ui-copy-sheet.md`, keys and
+     * English sense; `docs/r-ui-plan.md`, the screens). Every string is
+     * Oleksii's final Ukrainian (`rui-copy-uk.md`, 2026-10-17), applied
+     * verbatim for all three R-UI PRs at once, U+02BC as the apostrophe. His
+     * answer 1, verbatim: "Copy gate: no exemption. Copy for all three PRs is
+     * final in D:\opika-worktrees\rui-copy-uk.md." These screens address the
+     * operator as «ви»; history lines are impersonal, the actor shown apart
+     * («{line} · {actor}»).
+     *
+     * Two strings were checked against the code at his request ("verify
+     * blocked.unknown.provider_suppresses and create.descriptionHint against
+     * code; if my wording is wrong, use the true wording and log it"), found
+     * untrue as drafted, and replaced by his round-2 answer 5; each says why
+     * at its key. Reused, no key here:
+     * `profile.donationTitle`, `profile.addressNote`, `profile.legalName`,
+     * `profile.edrpou`, `profile.contactPerson`, `profileEdit.state.retry`.
+     */
+    operator: {
+      shell: {
+        role: "адміністратор сайту",
+        nav: {
+          shelters: "Притулки",
+          newShelter: "Новий притулок",
+        },
+        pageTitle: {
+          list: "Притулки",
+          create: "Новий притулок",
+          shelter: "{name}",
+        },
+      },
+      list: {
+        title: "Притулки",
+        total: "Усього: {count}",
+        create: "Новий притулок",
+        createShort: "Новий",
+        search: "Пошук за назвою",
+        orderNote: "Спочатку ті, що чекають на ваше рішення.",
+        filterAll: "Усі · {count}",
+        filterStatus: "{status} · {count}",
+        admins: "Адміністраторів: {count}",
+        adminsInvited: "Запрошено: {count}",
+        noAdmins: "Немає ні адміністраторів, ні запрошень",
+        donationPending: "Посилання на збір чекає на рішення",
+        open: "Відкрити",
+        empty: "Притулків ще немає. Перший можна додати через «Новий притулок».",
+        noMatch: "Нічого не знайдено. Змініть пошук або фільтр.",
+        loadMore: "Показати ще",
+        loadFailed: "Список не завантажився.",
+      },
+      shelter: {
+        back: "← Притулки",
+        meta: "{city} · {admins}",
+        /** `{date}`, the day the current status began (Kyiv), not a day count: no plural, no drift. */
+        timeInState: "з {date}",
+        legalNote:
+          "Ці поля притулок бачить лише для читання. Зміна юридичної особи чи ЄДРПОУ не змінює статус автоматично — рішення за вами.",
+        descriptionTitle: "Опис притулку",
+      },
+      donation: {
+        live: "Чинне посилання",
+        none: "Посилання немає",
+        proposed: "Притулок запропонував {host} {date}. Чекає на ваше рішення.",
+        approve: "Схвалити",
+        reject: "Відхилити",
+        approved: "Посилання схвалено.",
+        rejected: "Посилання відхилено.",
+        conflict: "Пропозиція змінилася, поки сторінка була відкрита. Тут — поточна.",
+      },
+      admins: {
+        title: "Адміністратори",
+        joined: "Має доступ",
+        invitedUntil: "Запрошено · посилання діє до {date}",
+        invitedExpired: "Запрошено · посилання вже не діє",
+        none: "Адміністраторів немає",
+        remove: "Прибрати",
+        removeConfirm: {
+          title: "Закрити доступ? {name} більше не зможе входити в кабінет.",
+          body: "Доступ до кабінету закриється одразу, усі сеанси завершаться.",
+        },
+        inviteAnother: "Запросити ще одного",
+        /** The invite button while the shelter has no admin and no invitation (N7). */
+        inviteFirst: "Запросити адміністратора",
+        resend: "Надіслати ще раз",
+        gone: "Цей доступ уже закрито.",
+      },
+      evidence: {
+        title: "Докази для перевірки",
+        empty: "Доказів поки немає.",
+        kind: {
+          edrpou_registration: "Реєстрація · ЄДРПОУ",
+          bank_account_holder: "Власник банківського рахунку",
+          reference_contact: "Рекомендація",
+          site_visit: "Візит на місце",
+          supporting_document: "Документ",
+        },
+        added: "додано {date}",
+        field: {
+          registeredName: "Назва в ЄДР",
+          holderName: "Власник рахунку",
+          who: "Хто",
+          channel: "Як звʼязатися",
+          relationship: "Ким доводиться притулку",
+          visitedOn: "Дата візиту",
+          notes: "Нотатка",
+          label: "Підпис",
+        },
+        relationship: {
+          veterinary_clinic: "Ветклініка",
+          local_authority: "Місцева влада",
+          partner_organisation: "Партнерська організація",
+          other: "Інше",
+        },
+        noDocument: "Документ не додано — для цього типу доказу це дозволено.",
+        gaps: "Для схвалення бракує: {kind} — {provided} з {minimum}.",
+        add: "+ Додати доказ",
+        remove: "Прибрати",
+        typePicker: "Тип доказу",
+        siteVisitDateHint: "Дата візиту не може бути в майбутньому.",
+      },
+      blocked: {
+        title: "Адреси, на які поштовий сервіс не доставляє листи",
+        none: "Перевірено: жодна адреса цього притулку не заблокована.",
+        line: "{email} — {reason}",
+        incomplete: "Список заблокованих адрес вдалося отримати лише частково.",
+        unknown: {
+          provider_error: "Поштовий сервіс відповів помилкою.",
+          timed_out: "Поштовий сервіс не відповів вчасно.",
+          unsupported_provider: "Цей поштовий сервіс не дає перевірити блокування.",
+          /**
+           * His round-2 replacement (answer 5), verbatim. His first draft
+           * («Поштовий сервіс не показує список заблокованих адрес.») said the
+           * provider shows no list. What the code means (`email-provider.ts`,
+           * `BlockedStatus`): Resend keeps its own suppression list, and this
+           * site doesn't read it (follow-up EM-F1). This wording says exactly
+           * that.
+           */
+          provider_suppresses:
+            "Поштовий сервіс має власний список заблокованих адрес; сайт його не перевіряє.",
+        },
+        asOf: "Станом на {time}",
+        manualUnblock: "Розблокувати адресу можна лише в кабінеті поштового сервісу, не тут.",
+      },
+      history: {
+        title: "Історія",
+        note: "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» тут не записуються.",
+        empty: "Записів ще немає.",
+        more: "Показати ще",
+        actor: {
+          you: "ви",
+          formerAdmin: "колишній адміністратор",
+          operator: "адміністратор сайту",
+        },
+        shelter_created: "Притулок створено",
+        shelter_created_script: "Притулок додано з файлу",
+        verification: {
+          start_review: "Взято на розгляд",
+          approve: "Схвалено → «Перевірено»",
+          reject: "Відхилено: {code}. {note}",
+          suspend: "Призупинено: {code}. {note}",
+          reinstate: "Відновлено → «{status}»",
+          resubmit: "Повернуто на перевірку",
+          pause: "Прийом тварин призупинено",
+          resume: "Паузу знято",
+        },
+        admin_invited: "Надіслано запрошення: {name}, {email}",
+        admin_invitation_resent: "Запрошення надіслано ще раз: {name}",
+        admin_removed: "Доступ закрито: {name}",
+        admin_removed_pending: "Запрошення скасовано: {name}",
+        contact_changed: "Змінено контакти",
+        freshness_sentence_changed: "Змінено речення на картках",
+        description_changed: "Змінено опис притулку",
+        donation_proposed: "Запропоновано посилання на збір: {host}",
+        donation_proposal_cancelled: "Пропозицію посилання скасовано",
+        donation_approved: "Посилання на збір схвалено",
+        donation_rejected: "Посилання на збір відхилено",
+        verified_data_changed: {
+          legal_entity: "Змінено юридичні дані",
+          exact_address: "Змінено адресу приміщення",
+        },
+        animals_imported: "Додано тварин з файлу: {count}",
+        animal_created: "Створено картку: {name}",
+        animal_edited: "Змінено картку {name}: {fields}",
+        animal_listing_changed: "{name}: «{from}» → «{to}»",
+        animal_deleted: "Видалено чернетку: {name}",
+      },
+      create: {
+        title: "Новий притулок",
+        intro:
+          "Тут ви вносите все про притулок: назву, адресу, юридичні дані й докази. Перший адміністратор отримає запрошення на пошту.",
+        name: "Назва притулку",
+        /** His note: update when the rename PR (R-UI 4) ships. */
+        nameHint:
+          "Як притулок називає себе. Після створення назву поки змінити не можна — перевірте написання.",
+        description: "Опис притулку",
+        /**
+         * His round-2 replacement (answer 5), verbatim. His first draft said
+         * people looking for an animal see it on the shelter's animal pages,
+         * which no page does: the animal page reads the shelter's
+         * `freshnessSentence` instead (`AnimalDetailScreen.tsx`), and only the
+         * operator's own S4 renders the description. It can be public all the
+         * same: the public `shelters.byId` returns it for a verified shelter.
+         * «Може бути публічним» claims exactly that much.
+         */
+        descriptionHint:
+          "Короткий опис притулку. Він може бути публічним, тож не пишіть тут нічого приватного.",
+        city: "Місто",
+        address: {
+          line1: "Вулиця, будинок",
+          line2: "Корпус, приміщення · необовʼязково",
+          postalCode: "Індекс · необовʼязково",
+        },
+        coordinates: "Координати",
+        coordinatesHint:
+          "Скопіюйте з карти у форматі «широта, довгота». Ніде не показуються: люди бачать лише місто.",
+        legalTitle: "Юридичні дані",
+        legalKind: {
+          registered_ngo: "Громадська організація чи фонд",
+          sole_proprietor: "ФОП",
+          unregistered_initiative: "Ініціатива без реєстрації",
+        },
+        registeredAt: "Дата реєстрації",
+        firstAdminTitle: "Перший адміністратор",
+        firstAdminHint:
+          "Отримає лист із посиланням для входу. Інших адміністраторів можна запросити зі сторінки притулку.",
+        adminName: "Імʼя",
+        submit: "Створити й надіслати запрошення",
+        submitShort: "Створити",
+        cancel: "Скасувати",
+        whatHappens: {
+          title: "Що буде далі",
+          step1: "Притулок зʼявиться у списку зі статусом «Очікує».",
+          /** «72 години» is typed for INVITATION_TTL_MS; `copy-plural-pins.test.ts` pins it. */
+          step2:
+            "{name} отримає лист для входу. Посилання діє 72 години, його можна надіслати ще раз.",
+          step3: "Тварин притулку не буде в галереї, доки ви не схвалите перевірку.",
+        },
+        created: "Притулок створено.",
+        createdNoInvite:
+          "Притулок створено, але без адміністратора. Запросіть його зі сторінки притулку.",
+        inviteValidUntil: "Посилання діє до {date}, {time}.",
+        resend: "Надіслати ще раз",
+        openShelter: "Відкрити притулок",
+        errors: {
+          addressHasARole: {
+            shelter_admin: "Ця адреса вже має доступ до іншого притулку.",
+            operator: "Це адреса адміністратора сайту. Для притулку потрібна інша.",
+            invited_elsewhere: "На цю адресу вже надіслано чинне запрошення до іншого притулку.",
+          },
+          siteVisitInFuture: "Дата візиту не може бути в майбутньому.",
+          unknownCity: "Такого міста немає у списку.",
+          lostAnswer:
+            "Відповідь не надійшла. Притулок міг створитися — перевірте список, перш ніж пробувати знову.",
+          failed: "Не вдалося створити притулок. Спробуйте ще раз.",
+          required: "Це поле потрібне.",
+          edrpouFormat: "Код ЄДРПОУ — 8 цифр.",
+          coordinatesFormat:
+            "Вкажіть координати як «широта, довгота», наприклад «50.4501, 30.5234».",
+        },
+      },
+      email: {
+        sent: "Запрошення надіслано на {email}.",
+        sentUnchecked: "Запрошення надіслано. Перевірити, чи адреса не заблокована, не вдалося.",
+        blocked: {
+          unsubscribed: "Запрошення не надіслано: людина з цієї адреси відписалася від листів.",
+          hard_bounce: "Запрошення не надіслано: адреса не існує або не приймає пошту.",
+          spam_complaint:
+            "Запрошення не надіслано: на попередній лист з цієї адреси поскаржилися як на спам.",
+          admin_blocked: "Запрошення не надіслано: адресу заблоковано вручну в поштовому сервісі.",
+        },
+        failed: {
+          provider_error:
+            "Запрошення не надіслано: поштовий сервіс відповів помилкою. Спробуйте надіслати ще раз.",
+          copy_pending: "Запрошення не надіслано: текст листа ще не готовий.",
+        },
+      },
+      verification: {
+        decisionTitle: "Рішення",
+        /** His note: true once Q7's shelter-side view (`verificationDecision`) ships, in R-UI 3. */
+        decisionCaption: "Притулок побачить рішення і пояснення дослівно у своєму кабінеті.",
+        startReview: "Взяти на розгляд",
+        approve: "Схвалити → «Перевірено»",
+        approveShort: "Схвалити",
+        approveNote:
+          "Після схвалення тварини притулку одразу зʼявляються в галереї. Для відхилення потрібне пояснення.",
+        approveBlocked: "Схвалити поки не можна — бракує доказів:",
+        reject: "Відхилити…",
+        suspend: "Призупинити…",
+        reinstate: "Відновити → «{status}»",
+        resubmit: "Повернути на перевірку",
+        suspended: {
+          title: "Притулок призупинено",
+          reasonLabel: "Пояснення, яке бачить притулок",
+          priorLabel: "До призупинення статус був",
+          priorPausedSince: "з {date} притулок сам поставив паузу",
+          reinstateExplainPaused:
+            "Кнопка «Відновити» поверне притулок на паузу, а не в «Перевірено». Тварини лишаться прихованими, доки притулок сам не зніме паузу.",
+          reinstateExplainVerified:
+            "Кнопка «Відновити» поверне статус «Перевірено», і тварини знову зʼявляться в галереї.",
+        },
+        noConfirm: "Підтвердження не потрібне: ця дія нічого не приховує.",
+        rejected: {
+          title: "Відхилено",
+          reason: "{code}. {note}",
+        },
+      },
+      reasonDialog: {
+        rejectTitle: "Відхилити «{shelter}»?",
+        suspendTitle: "Призупинити «{shelter}»?",
+        rejectBody:
+          "Притулок побачить це пояснення дослівно у своєму кабінеті. Його тварин не буде в галереї.",
+        suspendBody:
+          "Тварини притулку одразу зникнуть із галереї. Притулок побачить це пояснення у своєму кабінеті. Відновити можна будь-коли.",
+        codeLabel: "Причина",
+        reasonLabel: "Пояснення",
+        reasonHint: "Обовʼязково. Пишіть так, щоб людина знала, що робити далі.",
+        confirmReject: "Відхилити",
+        confirmSuspend: "Призупинити",
+      },
+      codes: {
+        rejection: {
+          insufficient_evidence: "Недостатньо доказів",
+          identity_unverifiable: "Не вдалося підтвердити, хто стоїть за притулком",
+          duplicate_submission: "Повторна заявка",
+          out_of_service_area: "Поза областю, де працює сайт",
+          spam: "Спам",
+          other: "Інше",
+        },
+        suspension: {
+          unresponsive: "Немає звʼязку з притулком",
+          complaint_upheld: "Скарга підтвердилася",
+          listing_quality: "Картки не відповідають дійсності",
+          suspected_fraud: "Підозра на шахрайство",
+          other: "Інше",
+        },
+      },
+      errors: {
+        illegalTransition: "З поточного статусу так не можна. Сторінку оновлено.",
+        conflictReload: "Дані змінилися, поки сторінка була відкрита. Сторінку оновлено.",
+        failed: "Не вдалося. Спробуйте ще раз.",
+        lostAnswer: "Відповідь не надійшла. Сторінка перевіряє, чи дію виконано.",
+      },
+      support: {
+        enter: "Переглянути як притулок · лише читання",
+      },
+    },
+    /**
+     * R-UI 3 · the shelter's side of a rejection or suspension (RU-Q7, his
+     * answer 7, verbatim: "Yes: a minimal shelter-side view in R-UI 3 showing
+     * the code and my note verbatim (keys in rui-copy-uk.md §3.4)."), his
+     * final Ukrainian. The note follows `noteLabel` verbatim, as a quote,
+     * then `signature`.
+     */
+    verificationDecision: {
+      rejectedTitle: "Перевірку не пройдено",
+      suspendedTitle: "Притулок тимчасово призупинено",
+      reason: "Причина: {code}.",
+      /**
+       * His round-2 answer 2, verbatim: "Reason view on the shelter side:
+       * «Пояснення:», then my note verbatim, then a signature line «— {operator}»
+       * (nominative, as in the emails). No new env var." It replaces his §3.4
+       * «Пояснення від {operator}:», whose «від» needed a genitive name that
+       * isn't configured (RS-Q2 holds the nominative only).
+       */
+      noteLabel: "Пояснення:",
+      /**
+       * The line under the note (round-2 answer 2, above). `{operator}` is the
+       * name standing alone, as both emails sign: `standaloneOperatorName`, the
+       * configured name, else «Адміністратор сайту».
+       */
+      signature: "— {operator}",
+      contact: "Якщо маєте питання, напишіть мені.",
+      suspendedEffect: "Поки притулок призупинено, його тварин немає в галереї.",
+      rejectedEffect: "Тварин притулку не буде в галереї, доки перевірку не пройдено.",
+    },
+    /**
+     * The words `operator.history.animal_listing_changed` («{name}: «{from}» →
+     * «{to}»») and `animal_edited` («Змінено картку {name}: {fields}») fill in.
+     * His R-UI file gives those lines but not the words, so these are his own
+     * K3 words, verbatim from his K3 answers (`k3-copy-uk.md`, 2026-10-17):
+     * `kabinet.listingStatus.*` for a listing's state, and the K3 form's field
+     * labels (`who.nameLabel`, `who.speciesLabel`, `who.sexLabel`,
+     * `who.sizeLabel`, `age.title`, `description.title`, `photos.title`). The
+     * two medical fields reuse `medical.vaccination` and `medical.spayNeuter`,
+     * which his K3 answer 6 makes the form's own labels too. Held here, not
+     * under the K3 keys, because PR 4 adds those keys itself; once both have
+     * merged, one copy of each word is enough (follow-up).
+     */
+    animalHistoryLabels: {
+      listing: {
+        draft: "Чернетка",
+        published: "Опубліковано",
+        reserved: "Домовляються",
+        adopted: "Удома",
+        withdrawn: "Знято з показу",
+      },
+      field: {
+        name: "Імʼя",
+        species: "Вид",
+        sex: "Стать",
+        size: "Розмір",
+        age: "Вік",
+        description: "Опис",
+        photos: "Фото",
+      },
     },
   },
 } as const;

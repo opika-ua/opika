@@ -1,11 +1,12 @@
 import {
-  AgeEstimateSchema,
+  AgeBucketSchema,
   AnimalIdSchema,
   AnimalNameInputSchema,
   AnimalSexSchema,
   AnimalSpeciesSchema,
   animalDescriptionProblem,
   animalDescriptionProblemMessage,
+  CalendarDateSchema,
   characterCount,
   DonationLinkSchema,
   EvidenceItemInputSchema,
@@ -278,11 +279,35 @@ export const shelterHistoryContract = {
 // ─── shelter.animals ────────────────────────────────────────────────────────
 
 /**
+ * An age as K3's form gives it (D3, Oleksii: "keep the chosen «Станом на»
+ * date"): calendar dates, no time of day, as a date input yields them. A
+ * birth date is stored at day precision; a bucket is stored with `asOf` as
+ * its `declaredAt`, the date the shelter made the estimate, not the save
+ * time. The handler refuses a date after today in Kyiv or more than thirty
+ * years back (`ageDateProblem`, `AGE_DATE_OUT_OF_RANGE`): that needs the
+ * server's clock, which a schema doesn't have.
+ */
+export const AgeEstimateInputSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("birth_date"), date: CalendarDateSchema }),
+  z.strictObject({
+    kind: z.literal("declared_bucket"),
+    bucket: AgeBucketSchema,
+    asOf: CalendarDateSchema,
+  }),
+]);
+export type AgeEstimateInput = z.infer<typeof AgeEstimateInputSchema>;
+
+/**
  * What K3 can change. Medical facts arrive as a bare state; the server builds
  * the shelter-declared attestation and refuses to overwrite a registry one.
  * `documentReadiness` is in no kabinet input (proposal §1.7). Photos have
  * their own procedures (`shelter.photos.*`, below); a foster location waits
  * for a write path through `animalPublicLocationOf`.
+ *
+ * Only the description can be cleared (null), and only on a draft (F-B1): a
+ * listed animal answers `LISTING_FACT_REQUIRED`. A size or an age bucket is a
+ * segmented choice with no "unselected" once made, so `size: null` and
+ * `age: null` stay BAD_REQUEST (decision taken T4).
  */
 export const AnimalPatchSchema = z
   .strictObject({
@@ -290,8 +315,8 @@ export const AnimalPatchSchema = z
     species: AnimalSpeciesSchema,
     sex: AnimalSexSchema,
     size: SizeBucketSchema,
-    age: AgeEstimateSchema,
-    description: AnimalDescriptionInputSchema,
+    age: AgeEstimateInputSchema,
+    description: AnimalDescriptionInputSchema.nullable(),
     vaccination: MedicalDeclarationInputSchema,
     spayNeuter: MedicalDeclarationInputSchema,
   })
@@ -342,19 +367,19 @@ export const shelterAnimalsContract = {
   byId: animalRead
     .input(animalRef)
     .errors({ ...shelterScopedErrors, NOT_FOUND: apiErrors.NOT_FOUND }),
+  /**
+   * A name and a species, nothing else (K-Q5, Oleksii: "name + species to
+   * create"; decision taken T3). The draft starts with sex «Не записано» (D2)
+   * and no size, age, description or photo; everything after goes through
+   * `update` and `shelter.photos.*`. Strict: a `sex` sent here is BAD_REQUEST.
+   */
   createDraft: animalWrite
-    .input(
-      z.strictObject({
-        name: AnimalNameInputSchema,
-        species: AnimalSpeciesSchema,
-        sex: AnimalSexSchema,
-        size: SizeBucketSchema,
-        age: AgeEstimateSchema,
-        description: AnimalDescriptionInputSchema,
-      }),
-    )
+    .input(z.strictObject({ name: AnimalNameInputSchema, species: AnimalSpeciesSchema }))
     .errors(shelterScopedErrors),
-  /** Compare-and-set on `version` (S3-T6); bumps `lastUpdatedAt` and `version`, never `confirmedAt` (commitment #7). */
+  /**
+   * Compare-and-set on `version` (S3-T6); bumps `lastUpdatedAt` and `version`,
+   * never `confirmedAt` (commitment #7) and never `photos` (RH-B3).
+   */
   update: animalWrite
     .input(
       z.strictObject({
@@ -367,7 +392,14 @@ export const shelterAnimalsContract = {
       ...shelterCasErrors,
       NOT_FOUND: apiErrors.NOT_FOUND,
       REGISTRY_CONFIRMED: apiErrors.REGISTRY_CONFIRMED,
+      LISTING_FACT_REQUIRED: apiErrors.LISTING_FACT_REQUIRED,
+      AGE_DATE_OUT_OF_RANGE: apiErrors.AGE_DATE_OUT_OF_RANGE,
     }),
+  /**
+   * A publish answers `PUBLISH_REQUIREMENTS_UNMET` with every gap
+   * (`publishReadinessOf`), and compare-and-sets on the version and photos
+   * its readiness was planned on (K3-T7).
+   */
   transition: animalWrite
     .input(z.strictObject({ animalId: AnimalIdSchema, event: KabinetListingEventInputSchema }))
     .errors({
@@ -432,8 +464,11 @@ const sameKeys = (a: readonly string[], b: readonly string[]) => {
  * on the photo list the screen shows (`expectedPhotoKeys`, P-Q3) rather than
  * on `version`, so a K3 form open in another tab neither blocks nor is blocked
  * by them. Each records `animal_edited` with `fields: ["photos"]` and moves
- * `lastUpdatedAt`, never `confirmedAt` (commitment #7). The cover is
- * `photos[0]`: "make cover" is a reorder (P-Q9).
+ * `lastUpdatedAt`. On a published or reserved card each also moves
+ * `confirmedAt`, the date «Оновлено» counts from (RH-B7, Oleksii: "a photo
+ * add, reorder or remove moves «Оновлено»", D4 option (i); commitment #7 as
+ * reworded); a draft, adopted or withdrawn card carries no such date. The
+ * cover is `photos[0]`: "make cover" is a reorder (P-Q9).
  */
 export const shelterPhotosContract = {
   /**

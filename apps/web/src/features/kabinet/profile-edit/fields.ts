@@ -117,7 +117,9 @@ export type FieldError =
   | "httpsOnly"
   | "notAUrl";
 
-type Parsed = { kind: "ok"; channel: ContactChannel } | { kind: "error"; error: FieldError };
+export type ParsedChannel =
+  | { kind: "ok"; channel: ContactChannel }
+  | { kind: "error"; error: FieldError };
 
 /** Spaces, dashes, dots and brackets go; the digits and the leading + stay. */
 const normalizePhone = (raw: string): string => raw.replace(/[\s\-.()]/g, "");
@@ -146,8 +148,13 @@ export function linkProblem(raw: string): "httpsOnly" | "notAUrl" | null {
   return DonationLinkSchema.shape.url.safeParse(value).success ? null : "notAUrl";
 }
 
-function parseChannel(kind: ChannelKind, raw: string): Parsed {
-  const checked = (candidate: ContactChannel, error: FieldError): Parsed =>
+/**
+ * One typed channel, normalised as above. Exported for the operator's
+ * evidence editor (R-UI 2), whose reference contact is one channel of any
+ * kind and should accept the same typing a shelter's own contacts do.
+ */
+export function parseChannel(kind: ChannelKind, raw: string): ParsedChannel {
+  const checked = (candidate: ContactChannel, error: FieldError): ParsedChannel =>
     ContactChannelSchema.safeParse(candidate).success
       ? { kind: "ok", channel: candidate }
       : { kind: "error", error };

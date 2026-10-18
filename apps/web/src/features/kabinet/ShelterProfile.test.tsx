@@ -58,7 +58,7 @@ const renderProfile = (
       view={view(overrides)}
       cityName="Бровари"
       viewer={viewer}
-      operatorName="Олексій"
+      operator={{ kind: "configured", name: "Олексій" }}
     />,
   );
 
@@ -183,7 +183,7 @@ describe("ShelterProfile (K4, read-only)", () => {
         view={view()}
         cityName="Бровари"
         viewer="admin"
-        operatorName="Олексій $& $1"
+        operator={{ kind: "configured", name: "Олексій $& $1" }}
       />,
     );
     expect(
@@ -310,7 +310,7 @@ describe("ShelterProfile with K4 editing", () => {
         view={view()}
         cityName="Бровари"
         viewer="admin"
-        operatorName="Олексій"
+        operator={{ kind: "configured", name: "Олексій" }}
         editing={open}
       />,
     );
@@ -324,7 +324,7 @@ describe("ShelterProfile with K4 editing", () => {
         view={view()}
         cityName="Бровари"
         viewer="support"
-        operatorName="Олексій"
+        operator={{ kind: "configured", name: "Олексій" }}
         editing={open}
       />,
     );
@@ -337,7 +337,7 @@ describe("ShelterProfile with K4 editing", () => {
         view={view()}
         cityName="Бровари"
         viewer="admin"
-        operatorName="Олексій"
+        operator={{ kind: "configured", name: "Олексій" }}
         editing={{ kind: "read_only" }}
       />,
     );
@@ -361,7 +361,7 @@ describe("the test-shelter-only area mounts for the allowlisted admin only (CG-Q
         view={view()}
         cityName="Бровари"
         viewer={viewer}
-        operatorName="Олексій"
+        operator={{ kind: "configured", name: "Олексій" }}
         editing={editing}
       />,
     );
@@ -408,7 +408,12 @@ describe("the pause note on the read-only page (K4-B4)", () => {
     "%s: the paused line, then «Коментар» and the note",
     (viewer) => {
       render(
-        <ShelterProfile view={paused} cityName="Бровари" viewer={viewer} operatorName="Олексій" />,
+        <ShelterProfile
+          view={paused}
+          cityName="Бровари"
+          viewer={viewer}
+          operator={{ kind: "configured", name: "Олексій" }}
+        />,
       );
       expect(
         screen.getByText(/^Прийом на паузі з \d+ жовтня 2026 р?\.? ?· Немає місця$/),
@@ -430,10 +435,46 @@ describe("the pause note on the read-only page (K4-B4)", () => {
         })}
         cityName="Бровари"
         viewer="admin"
-        operatorName="Олексій"
+        operator={{ kind: "configured", name: "Олексій" }}
       />,
     );
     expect(screen.getByText(/· Переїзд$/)).toBeTruthy();
     expect(screen.queryByText("Коментар")).toBeNull();
+  });
+});
+
+/**
+ * K3 (PR 4): until K2's animal list exists (PR 5), the way into the animal
+ * form is a «Нова тварина» link on this page, offered exactly when the form
+ * would accept a write: the shelter's own admin with writes open. Elsewhere
+ * `/kabinet/tvaryny/nova` is a 404 (`animal-page.test.ts`), so a link there
+ * would be a dead end.
+ */
+describe("the way into K3 until K2's list", () => {
+  const open = (grantedBy: "allowlist" | "open_policy") =>
+    ({ kind: "open", grantedBy, previewAnimal: null, donationDeclined: false }) as const;
+  const renderWith = (viewer: "admin" | "support", editing: ProfileEditing) =>
+    render(
+      <ShelterProfile
+        view={view()}
+        cityName="Бровари"
+        viewer={viewer}
+        operator={{ kind: "configured", name: "Олексій" }}
+        editing={editing}
+      />,
+    );
+
+  it("the admin with writes open gets «Нова тварина», pointing at the create page", () => {
+    renderWith("admin", open("allowlist"));
+    const links = screen.getAllByRole("link", { name: "Нова тварина" });
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) expect(link.getAttribute("href")).toBe("/kabinet/tvaryny/nova");
+  });
+
+  it("read-only editing, or the support view: no link", () => {
+    renderWith("admin", { kind: "read_only" });
+    expect(screen.queryByRole("link", { name: "Нова тварина" })).toBeNull();
+    renderWith("support", open("allowlist"));
+    expect(screen.queryByRole("link", { name: "Нова тварина" })).toBeNull();
   });
 });

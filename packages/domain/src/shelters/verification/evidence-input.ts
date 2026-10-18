@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  type CalendarDate,
+  instantOfCalendarDate,
+  kyivCalendarDateOf,
+} from "../../primitives/calendar-date";
 import { EdrpouSchema, type ModeratorId } from "../../primitives/ids";
 import { ContactChannelSchema } from "../contact";
 import {
@@ -72,9 +77,6 @@ export type EvidenceAttribution = {
   readonly recordedAt: Date;
 };
 
-/** A calendar date as the instant it starts, in UTC, which is how the domain stores days. */
-const startOfDay = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
-
 export const toEvidenceItem = (input: EvidenceItemInput, by: EvidenceAttribution): EvidenceItem => {
   switch (input.kind) {
     case "edrpou_registration":
@@ -100,7 +102,8 @@ export const toEvidenceItem = (input: EvidenceItemInput, by: EvidenceAttribution
     case "site_visit":
       return {
         kind: "site_visit",
-        visitedAt: startOfDay(input.visitedOn),
+        // Stored as UTC midnight of that date, how the domain stores days.
+        visitedAt: instantOfCalendarDate(input.visitedOn),
         // Whoever is recording the evidence is the operator who vouches for
         // the visit: never a typed field, never a picker (decisions §4).
         visitedBy: by.recordedBy,
@@ -125,24 +128,31 @@ export type EvidenceInputResult =
   | { kind: "site_visit_in_future"; visitedOn: string };
 
 /**
+ * Whether a visit dated `visitedOn` lies after the day `recordedAt` falls on
+ * in Kyiv. Kyiv's calendar, not UTC's (Oleksii, 2026-10-17, verbatim: "the
+ * site-visit "not in the future" check uses the Kyiv calendar date, not
+ * UTC"): the operator and every shelter are in Ukraine, so a visit made
+ * today and entered at 01:00 local time is today's, although UTC's date is
+ * still yesterday. Comparing ISO date strings compares the dates they name.
+ * Exported so S2's form warns on the same rule the server refuses on.
+ */
+export const isSiteVisitInFuture = (visitedOn: CalendarDate, recordedAt: Date): boolean =>
+  visitedOn > kyivCalendarDateOf(recordedAt);
+
+/**
  * The whole evidence bundle, stamped with when it was recorded.
  *
- * Refuses a site visit dated after the day it is recorded: that is a typo,
- * not a fact, and it would let a reviewer approve on a visit that hasn't
- * happened. Compared as UTC calendar days, matching how `visitedAt` is
- * stored. This package holds no time zone, so one consequence is accepted
- * and stated: an operator in Kyiv recording a same-day visit between local
- * midnight and 02:00–03:00 is refused until UTC catches up. The error only
- * ever refuses wrongly; it never accepts a future visit. A result rather than a throw, as in the verification FSM, so
- * every caller handles the refusal.
+ * Refuses a site visit dated after the day it is recorded
+ * (`isSiteVisitInFuture`): that is a typo, not a fact, and it would let a
+ * reviewer approve on a visit that hasn't happened. A result rather than a
+ * throw, as in the verification FSM, so every caller handles the refusal.
  */
 export const toVerificationEvidence = (
   inputs: readonly EvidenceItemInput[],
   by: EvidenceAttribution,
 ): EvidenceInputResult => {
-  const today = by.recordedAt.toISOString().slice(0, 10);
   for (const input of inputs) {
-    if (input.kind === "site_visit" && input.visitedOn > today) {
+    if (input.kind === "site_visit" && isSiteVisitInFuture(input.visitedOn, by.recordedAt)) {
       return { kind: "site_visit_in_future", visitedOn: input.visitedOn };
     }
   }
