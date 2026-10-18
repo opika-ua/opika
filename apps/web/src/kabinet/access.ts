@@ -15,26 +15,13 @@ export type ShelterWriteScope = Extract<ShelterReadScope, { kind: "shelter_admin
 
 export type AccessDecision =
   | { kind: "allow_shelter_read"; scope: ShelterReadScope }
-  | {
-      kind: "allow_shelter_write";
-      scope: ShelterWriteScope;
-      /**
-       * Which policy opened the write. Only an `allowlist` grant mounted
-       * `features/kabinet/test-shelter-only/`, whose copy could be pending
-       * (CG-Q1). PR 6 deleted the K-Q17 allowlist, so nothing grants
-       * `allowlist` any more; the member goes with that folder, later in the
-       * same PR. `open_policy` is any wider grant.
-       */
-      grantedBy: WriteGrant;
-    }
+  | { kind: "allow_shelter_write"; scope: ShelterWriteScope }
   | { kind: "allow_registry"; moderatorId: ModeratorId }
   | { kind: "allow_support_exit"; moderatorId: ModeratorId; shelterId: ShelterId }
   | {
       kind: "deny";
       code: "UNAUTHENTICATED" | "FORBIDDEN" | "SHELTER_WRITES_NOT_YET_AVAILABLE";
     };
-
-export type WriteGrant = "allowlist" | "open_policy";
 
 const FORBIDDEN = { kind: "deny", code: "FORBIDDEN" } as const;
 
@@ -85,45 +72,14 @@ export const SHELTER_WRITE_POLICY: ShelterWritePolicy = Object.freeze({
   kind: "refused_until_edit_screens",
 } as const);
 
-/**
- * Whether a shelter admin may write under `policy`, and by which grant: the
- * one place the answer is computed. Null means refused.
- */
-function writeGrantFor(policy: ShelterWritePolicy): WriteGrant | null {
+/** Whether a shelter admin may write under `policy`: the one place the answer is computed. */
+function writesOpenUnder(policy: ShelterWritePolicy): boolean {
   switch (policy.kind) {
     case "refused_until_edit_screens":
-      return null;
-    case "open_for_tests_only":
-      return "open_policy";
-    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled policy; unreachable at runtime */
-    default: {
-      const unreachable: never = policy;
-      return unreachable;
-    }
-  }
-}
-
-/**
- * Whether pending strings in the test-shelter-only copy namespace (CG-Q1)
- * may be ignored by production sign-in under `policy` (Oleksii, verbatim:
- * "At runtime, sign-in ignores those strings only while the write policy is
- * allowlist or refused. Under the open policy, any pending string turns
- * sign-in off."). The copy gate itself is `signInBlockingCopy`
- * (`production-sign-in.ts`); the classification lives here, beside the
- * policy kinds, so no other file names them. Under the refusal nobody can
- * reach `features/kabinet/test-shelter-only/`. Any policy that opens writes
- * is strict. The switch is exhaustive on purpose: PR 6's production `open`
- * variant cannot compile until it is classified here, and
- * `open-writes-copy-gate.test.ts` requires an open policy to find no pending
- * string anywhere.
- */
-export function testShelterCopyExemptUnder(policy: ShelterWritePolicy): boolean {
-  switch (policy.kind) {
-    case "refused_until_edit_screens":
-      return true;
-    case "open_for_tests_only":
       return false;
-    /* v8 ignore next 4 -- exists so the compiler rejects an unclassified policy; unreachable at runtime */
+    case "open_for_tests_only":
+      return true;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled policy; unreachable at runtime */
     default: {
       const unreachable: never = policy;
       return unreachable;
@@ -183,12 +139,9 @@ export function decideAccess(
         } as const;
         if (access.mode === "read") return { kind: "allow_shelter_read", scope };
         // KH-Q1: the right actor, refused with its own code until PR 6's switch.
-        {
-          const grantedBy = writeGrantFor(shelterWrites);
-          return grantedBy === null
-            ? { kind: "deny", code: "SHELTER_WRITES_NOT_YET_AVAILABLE" }
-            : { kind: "allow_shelter_write", scope, grantedBy };
-        }
+        return writesOpenUnder(shelterWrites)
+          ? { kind: "allow_shelter_write", scope }
+          : { kind: "deny", code: "SHELTER_WRITES_NOT_YET_AVAILABLE" };
       }
       // A support view reads the one shelter it entered, and writes nothing.
       // A super_admin outside support mode reads no shelter's cabinet at all:

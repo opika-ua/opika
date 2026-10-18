@@ -108,7 +108,7 @@ describe("kabinetAnimalListPageOf: who reaches /kabinet/tvaryny", () => {
     expect(page).toMatchObject({
       kind: "list",
       viewer: "admin",
-      editing: { kind: "open", grantedBy: "open_policy" },
+      editing: { kind: "open" },
       shelter: { id: mine.id },
     });
     if (page.kind !== "list") throw new Error("unreachable");

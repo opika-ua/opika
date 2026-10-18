@@ -166,7 +166,7 @@ function fakeClient(start: KabinetAnimalView | null): FakeClient {
   return client;
 }
 
-const OPEN: AnimalFormEditing = { kind: "open", grantedBy: "allowlist" };
+const OPEN: AnimalFormEditing = { kind: "open" };
 const okJpeg = async (): Promise<CompressedPhoto> => ({
   kind: "ok",
   file: new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: "image/jpeg" }),
@@ -223,10 +223,10 @@ const NOT_VISIBLE_KINDS = [
   ["not yet verified (pending, under review, rejected)", "awaiting_verification"],
   ["paused or suspended", "hidden"],
 ] as const satisfies readonly (readonly [string, ShelterVisibility])[];
-const WRITE_GRANTS = [
-  ["the allowlist", { kind: "open", grantedBy: "allowlist" }],
-  ["an open policy", { kind: "open", grantedBy: "open_policy" }],
-] as const satisfies readonly (readonly [string, AnimalFormEditing])[];
+const WRITE_GRANTS = [["open writes", { kind: "open" }]] as const satisfies readonly (readonly [
+  string,
+  AnimalFormEditing,
+])[];
 const LAST_PHOTO_KEPT_NOT_SHOWN =
   "Картка опублікована, тож одне фото має лишитися — навіть поки її ще не бачать.";
 
@@ -1056,7 +1056,7 @@ describe("who may change what", () => {
     expect(screen.queryByRole("button", { name: "+ Фото" })).toBeNull();
   });
 
-  it("a shelter outside the allowlist sees the same read-only page", () => {
+  it("a shelter whose writes are refused sees the same read-only page", () => {
     renderForm(published(), { editing: { kind: "read_only" } });
     expect((screen.getByLabelText("Про тварину") as HTMLTextAreaElement).disabled).toBe(true);
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
@@ -1064,48 +1064,47 @@ describe("who may change what", () => {
 
   /**
    * P10 (K2 sheet, accepted): his `listed.dateUnchanged` is true once K2's
-   * «Ще шукає» exists, so it left `testShelterOnly` and shows under every
-   * write grant, on the cards that carry the date (published, reserved), in
+   * «Ще шукає» exists, so it left `testShelterOnly` (since deleted, his
+   * 0.3a) and shows whenever writes are open, on the cards that carry the
+   * date (published, reserved), in
    * the footer only an editing admin gets. Never on a draft, which has no
    * date, and never in a read-only view, which has no footer.
    */
-  it("says text edits leave the date alone on a published or reserved card, under either write grant", () => {
+  it("says text edits leave the date alone on a published or reserved card, with writes open", () => {
     const line =
       "Правки тексту не змінюють дату «Оновлено». Її змінює ваше підтвердження в списку тварин і будь-яка зміна фото.";
     const reserved = published({
       listing: { kind: "reserved", since: NOW, publishedAt: NOW, confirmedAt: NOW, undoable: null },
     } as Partial<KabinetAnimalView>);
-    for (const grantedBy of ["allowlist", "open_policy"] as const) {
-      for (const view of [published(), reserved]) {
-        const rendered = render(
-          <AnimalForm
-            initialView={view}
-            editing={{ kind: "open", grantedBy }}
-            viewer="admin"
-            shelterVisibility="visible"
-            back={{ href: "/kabinet/tvaryny", label: "←" }}
-            client={fakeClient(view)}
-            clock={() => NOW}
-          />,
-        );
-        expect(screen.getByText(line), `${grantedBy} ${view.listing.kind}`).toBeTruthy();
-        rendered.unmount();
-      }
+    for (const view of [published(), reserved]) {
+      const rendered = render(
+        <AnimalForm
+          initialView={view}
+          editing={{ kind: "open" }}
+          viewer="admin"
+          shelterVisibility="visible"
+          back={{ href: "/kabinet/tvaryny", label: "←" }}
+          client={fakeClient(view)}
+          clock={() => NOW}
+        />,
+      );
+      expect(screen.getByText(line), view.listing.kind).toBeTruthy();
+      rendered.unmount();
     }
     const cases: [string, KabinetAnimalView, AnimalFormEditing, "admin" | "support"][] = [
       [
         "a draft",
         draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>),
-        { kind: "open", grantedBy: "allowlist" },
+        { kind: "open" },
         "admin",
       ],
-      ["a support view", published(), { kind: "open", grantedBy: "allowlist" }, "support"],
+      ["a support view", published(), { kind: "open" }, "support"],
       ["a read-only shelter", published(), { kind: "read_only" }, "admin"],
       // Published and reserved only: an adopted or withdrawn card shows no date to keep.
       [
         "an adopted card",
         published({ listing: { kind: "adopted", adoptedAt: NOW } } as Partial<KabinetAnimalView>),
-        { kind: "open", grantedBy: "allowlist" },
+        { kind: "open" },
         "admin",
       ],
       [
@@ -1113,7 +1112,7 @@ describe("who may change what", () => {
         published({
           listing: { kind: "withdrawn", withdrawnAt: NOW, reason: { code: "other", note: null } },
         } as Partial<KabinetAnimalView>),
-        { kind: "open", grantedBy: "allowlist" },
+        { kind: "open" },
         "admin",
       ],
     ];

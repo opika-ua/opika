@@ -1,16 +1,9 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { ProfileEditing } from "./home";
 import { ShelterProfile } from "./ShelterProfile";
-
-// The CG-Q1 area renders nothing while its namespace is empty, so it is
-// replaced by a marker here to see where it mounts (its own render is
-// AllowlistedShelterArea.test.tsx's).
-vi.mock("./test-shelter-only/AllowlistedShelterArea", () => ({
-  AllowlistedShelterArea: () => <div data-testid="allowlisted-shelter-area-mounted" />,
-}));
 
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"). Its strings are
@@ -299,7 +292,6 @@ describe("ShelterProfile (K4, read-only)", () => {
 describe("ShelterProfile with K4 editing", () => {
   const open = {
     kind: "open",
-    grantedBy: "allowlist",
     previewAnimal: null,
     donationDeclined: false,
   } as const;
@@ -346,54 +338,10 @@ describe("ShelterProfile with K4 editing", () => {
 });
 
 /**
- * CG-Q1 (Oleksii, verbatim: "Render tests prove a non-allowlisted shelter
- * admin, the support view and the operator never get it."). The operator
- * outside support never reaches this page at all (`kabinetHomeOf` answers
- * not_found, `home-page.test.ts`); inside support it is the support view.
- */
-describe("the test-shelter-only area mounts for the allowlisted admin only (CG-Q1)", () => {
-  const editingWith = (grantedBy: "allowlist" | "open_policy") =>
-    ({ kind: "open", grantedBy, previewAnimal: null, donationDeclined: false }) as const;
-  const mounted = () => screen.queryByTestId("allowlisted-shelter-area-mounted") !== null;
-  const renderWith = (viewer: "admin" | "support", editing: ProfileEditing) =>
-    render(
-      <ShelterProfile
-        view={view()}
-        cityName="Бровари"
-        viewer={viewer}
-        operator={{ kind: "configured", name: "Олексій" }}
-        editing={editing}
-      />,
-    );
-
-  it("the allowlisted shelter's admin: mounted", () => {
-    renderWith("admin", editingWith("allowlist"));
-    expect(mounted()).toBe(true);
-  });
-
-  it("a shelter admin outside the allowlist (read-only): never", () => {
-    renderWith("admin", { kind: "read_only" });
-    expect(mounted()).toBe(false);
-  });
-
-  it("an admin whose writes a wider policy opened: never", () => {
-    renderWith("admin", editingWith("open_policy"));
-    expect(mounted()).toBe(false);
-  });
-
-  it("the support view (the operator), even of the allowlisted shelter: never", () => {
-    renderWith("support", editingWith("allowlist"));
-    expect(mounted()).toBe(false);
-    renderWith("support", { kind: "read_only" });
-    expect(mounted()).toBe(false);
-  });
-});
-
-/**
  * K4-B4, answer 2 (Oleksii, verbatim: "show the pause note under the paused
  * line, labelled «Коментар», visible only to that shelter's admins (and
  * operator/support)."): the read-only page shows it too, so the support view
- * and an admin outside the allowlist see what the shelter wrote.
+ * and a read-only admin see what the shelter wrote.
  */
 describe("the pause note on the read-only page (K4-B4)", () => {
   const paused = view({
@@ -453,8 +401,7 @@ describe("the pause note on the read-only page (K4-B4)", () => {
  * gone; the list's «Додати тварину» is its successor.
  */
 describe("the section nav (K2)", () => {
-  const open = (grantedBy: "allowlist" | "open_policy") =>
-    ({ kind: "open", grantedBy, previewAnimal: null, donationDeclined: false }) as const;
+  const open = { kind: "open", previewAnimal: null, donationDeclined: false } as const;
   const renderWith = (viewer: "admin" | "support", editing: ProfileEditing) =>
     render(
       <ShelterProfile
@@ -468,8 +415,7 @@ describe("the section nav (K2)", () => {
   const nav = () => screen.getByRole("navigation", { name: "Розділи кабінету" });
 
   it.each([
-    ["the admin with writes open by the allowlist", "admin", open("allowlist")],
-    ["the admin with writes open by an open policy", "admin", open("open_policy")],
+    ["the admin with writes open", "admin", open],
     ["the support view", "support", { kind: "read_only" }],
   ] as const)(
     "%s gets «Тварини», pointing at the list, before the current profile",

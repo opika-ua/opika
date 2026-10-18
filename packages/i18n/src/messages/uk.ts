@@ -1001,25 +1001,6 @@ export const uk = {
      */
     profileNotRecorded: "Не записано",
     /**
-     * CG-Q1 (Oleksii, verbatim: "Pending strings only under
-     * uk.kabinet.testShelterOnly.*"): the one place a `[COPY PENDING]` string
-     * may sit without switching production sign-in off, and only while the
-     * write policy is the refusal or the K-Q17 allowlist
-     * (`testShelterCopyExemptUnder`, `apps/web/src/kabinet/production-sign-in.ts`).
-     * Only `apps/web/src/features/kabinet/test-shelter-only/` may read it
-     * (source scan), and that folder mounts only for a shelter the allowlist
-     * lets write, which until PR 6 is his test shelter alone. Empty in PR 2:
-     * every K4 string is final. Every other `kabinet.*` key, the emails and
-     * sign-in included, stays strict. Under an open policy (PR 6) anything
-     * pending here turns sign-in off again.
-     *
-     * Empty again since PR 5 (K2): its one line, K3's `dateUnchanged`, became
-     * true with K2's confirmation buttons and moved to
-     * `animalForm.listed.dateUnchanged` (K2 sheet P10, accepted in his K2
-     * answers, §13). The mechanism stays until PR 6 deletes it.
-     */
-    testShelterOnly: {},
-    /**
      * K4 · editing the shelter profile (`docs/k4-copy-sheet.md`). Oleksii's
      * final Ukrainian (`k4-copy-uk.md`, 2026-10-17) with his later fixes
      * (2026-10-17, "K4 copy fixes": `actions.liveOnSave` split per section,

@@ -14,7 +14,6 @@ import { ProfileEditor } from "./profile-edit/ProfileEditor";
 import { animalListShownTo } from "./routes";
 import { SignOutButton } from "./SignOutButton";
 import { SupportBanner } from "./SupportBanner";
-import { AllowlistedShelterArea } from "./test-shelter-only/AllowlistedShelterArea";
 import { VerificationDecision } from "./VerificationDecision";
 
 /**
@@ -194,10 +193,6 @@ export function ShelterProfile({
               </div>
             </div>
           )}
-          {/* CG-Q1: copy that may still be pending, for the allowlisted shelter's own admin only. */}
-          {editing.kind === "open" && editing.grantedBy === "allowlist" && !support ? (
-            <AllowlistedShelterArea />
-          ) : null}
         </main>
       </div>
     </div>

@@ -8,7 +8,6 @@ import {
   type KabinetAnimalClient,
   kabinetAnimalBrowserClient,
 } from "../../../api/kabinet-browser-client";
-import type { WriteGrant } from "../../../kabinet/access";
 import { Button, buttonClass } from "../../controls/controls";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { CAPTION, ERROR_TEXT } from "../profile-edit/styles";
@@ -62,7 +61,7 @@ import { PhotoSection } from "./PhotoSection";
 const t = uk.kabinet.animalForm;
 const AUTOSAVE_AFTER_MS = 10_000;
 
-export type AnimalFormEditing = { kind: "open"; grantedBy: WriteGrant } | { kind: "read_only" };
+export type AnimalFormEditing = { kind: "open" } | { kind: "read_only" };
 
 type SaveState =
   | { kind: "idle" }

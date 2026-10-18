@@ -58,9 +58,7 @@ export async function kabinetAnimalListPageOf(
   const viewer = principal.kind === "support_view" ? "support" : "admin";
   const write = decideAccess({ surface: "shelter", mode: "write" }, principal, deps.shelterWrites);
   const editing: AnimalFormEditing =
-    write.kind === "allow_shelter_write"
-      ? { kind: "open", grantedBy: write.grantedBy }
-      : { kind: "read_only" };
+    write.kind === "allow_shelter_write" ? { kind: "open" } : { kind: "read_only" };
   if (!animalListShownTo(viewer, editing)) return { kind: "not_found" };
 
   const client = createRouterClient(listPageRouter, {

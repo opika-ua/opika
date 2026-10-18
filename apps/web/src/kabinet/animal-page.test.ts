@@ -127,7 +127,7 @@ describe("kabinetAnimalPageOf: /nova (create)", () => {
         kind: "form",
         view: null,
         viewer: "admin",
-        editing: { kind: "open", grantedBy: "open_policy" },
+        editing: { kind: "open" },
       });
     }
   });

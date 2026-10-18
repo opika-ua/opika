@@ -142,7 +142,6 @@ describe("the scope an allowed shelter call gets", () => {
     ).toEqual({
       kind: "allow_shelter_write",
       scope: { kind: "shelter_admin", shelterId: SHELTER, shelterAdminId: ADMIN },
-      grantedBy: "open_policy",
     });
     expect(
       decideAccess(
@@ -187,23 +186,6 @@ describe("the test-only open policy is refused on a deployed instance (KH-T1)", 
         VERCEL_ENV: "production",
       }),
     ).not.toThrow();
-  });
-});
-
-/**
- * CG-Q1: the write decision says which grant opened it. Only an allowlist
- * grant mounted the test-shelter-only area, and PR 6 deleted the allowlist,
- * so no policy grants that any more.
- */
-describe("which grant opened a write (CG-Q1)", () => {
-  const admin = PRINCIPALS.shelter_admin as KabinetPrincipal;
-  const write = ACCESS.shelter_write ?? null;
-
-  it("a wider open policy grants as `open_policy`", () => {
-    expect(decideAccess(write, admin, OPEN)).toMatchObject({
-      kind: "allow_shelter_write",
-      grantedBy: "open_policy",
-    });
   });
 });
 

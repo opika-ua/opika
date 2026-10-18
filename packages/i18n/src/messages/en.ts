@@ -432,7 +432,6 @@ export const en = {
       website: "Website",
     },
     profileNotRecorded: "Not recorded",
-    testShelterOnly: {},
     profileEdit: {
       actions: {
         save: "Save",

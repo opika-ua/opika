@@ -669,8 +669,11 @@ What that changes, concretely:
   approval (standing constraints: only his own words are approval).
 - **He is asked only** about irreversible, security, public-claim or brand-voice questions
   (Ukrainian copy is brand voice). One batch per PR, at its start, each with a recommendation.
-- **Copy gate scope** (item 3) is a Tier 1 change, proposed to him before it is built. Until
-  he approves a mechanism, the gate is unchanged: no `[COPY PENDING]` under `kabinet.*`.
+- **Copy gate scope** (item 3): his mechanism (CG-Q1/CG-B1, built in PR 2 of the K milestone)
+  let `[COPY PENDING]` sit under `kabinet.testShelterOnly.*`, readable only by the allowlisted test
+  shelter. PR 6 deleted the allowlist and that namespace with it (his 0.3a), so the exemption has
+  ended: no `[COPY PENDING]` anywhere under `kabinet.*`, in CI (`copy-status.test.ts`,
+  `open-writes-copy-gate.test.ts`) and at run time (any pending string keeps production sign-in off).
 - **At most two open feature PRs,** touching different areas. Docs-only PRs don't count.
 - **Unchanged:** production guards, `--expect`, no secrets in chat, no R2 deletes, real-Neon
   for SQL, copy truth on public surfaces, and he merges everything.

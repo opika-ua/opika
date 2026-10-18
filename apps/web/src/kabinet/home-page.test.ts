@@ -183,7 +183,7 @@ describe("kabinetHomeOf: K4 editing", () => {
 
   it("open for each shelter's own admin under an open policy, every shelter alike", async () => {
     expect(await kabinetHomeOf(adminOf(mine), deps(OPEN))).toMatchObject({
-      editing: { kind: "open", grantedBy: "open_policy" },
+      editing: { kind: "open" },
     });
     const home = await kabinetHomeOf(adminOf(theirs), deps(OPEN));
     expect(home).toMatchObject({ editing: { kind: "open" } });

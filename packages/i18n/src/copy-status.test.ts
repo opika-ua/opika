@@ -130,19 +130,15 @@ describe("deck not-a-judgement notice copy status", () => {
  */
 describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-15)", () => {
   /**
-   * CG-Q1 (Oleksii, verbatim: "Pending strings only under
-   * uk.kabinet.testShelterOnly.*" and "Public pages, emails, sign-in and every
-   * other kabinet.* key stay strict."). The one exception is the namespace
-   * only his allowlisted test shelter can see; the sign-in gate exempts it
-   * only while the write policy is the refusal or the allowlist
-   * (`production-sign-in.test.ts`, `test-shelter-copy-gate.test.ts`).
+   * No exception (PR 6 of the K milestone). CG-Q1's one exempt namespace,
+   * `kabinet.testShelterOnly`, went with the allowlist it served (his 0.3a,
+   * verbatim: "0.3a: yes, delete the testShelterOnly mechanism."), and CG-B1
+   * holds: "A CI test fails when the policy is open and any pending string
+   * exists, so PR 6 can't merge with one left." This is that test, unfiltered.
    */
-  it("nothing under kabinet.* outside testShelterOnly is pending", () => {
-    expect(
-      pendingCopyPaths(uk.kabinet, "kabinet").filter(
-        (path) => !path.startsWith("kabinet.testShelterOnly."),
-      ),
-    ).toEqual([]);
+  it("nothing under kabinet.* is pending, and no namespace is exempt", () => {
+    expect(pendingCopyPaths(uk.kabinet, "kabinet")).toEqual([]);
+    expect(Object.keys(uk.kabinet)).not.toContain("testShelterOnly");
   });
 
   it("the emails and sign-in stay strict, with no exception", () => {
@@ -151,32 +147,6 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     expect(pendingCopyPaths(uk.kabinet.signInCard, "kabinet.signInCard")).toEqual([]);
     expect(pendingCopyPaths(uk.kabinet.confirm, "kabinet.confirm")).toEqual([]);
     expect(pendingCopyPaths(uk.kabinet.inviteLanding, "kabinet.inviteLanding")).toEqual([]);
-  });
-
-  /**
-   * Empty in PR 2. K3 (PR 4) parked one line here, `animalForm.dateUnchanged`,
-   * his final text, until K2 shipped the confirmation it names; K2 (PR 5)
-   * ships it, so the line lives at `animalForm.listed.dateUnchanged` (sheet
-   * P10) and the namespace is empty again. Pinned exactly, so nothing drifts
-   * in: the object itself stays (the mechanism is PR 6's to delete).
-   */
-  it("the testShelterOnly namespace is empty: its one line moved out with K2 (P10)", () => {
-    expect(typeof uk.kabinet.testShelterOnly).toBe("object");
-    expect(Object.keys(uk.kabinet.testShelterOnly)).toEqual([]);
-    expect(pendingCopyPaths(uk.kabinet.testShelterOnly, "kabinet.testShelterOnly")).toEqual([]);
-  });
-
-  it("the filter exempts that namespace only, not a sibling sharing its letters", () => {
-    const fixture = {
-      testShelterOnly: { hint: "[COPY PENDING] hint" },
-      testShelterOnlyExtra: { hint: "[COPY PENDING] hint" },
-      email: { subject: "[COPY PENDING] subject" },
-    };
-    expect(
-      pendingCopyPaths(fixture, "kabinet").filter(
-        (path) => !path.startsWith("kabinet.testShelterOnly."),
-      ),
-    ).toEqual(["kabinet.email.subject", "kabinet.testShelterOnlyExtra.hint"]);
   });
 
   it("every group keeps exactly its keys, so an emptied group can't pass the line above", () => {

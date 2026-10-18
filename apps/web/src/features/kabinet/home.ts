@@ -2,7 +2,7 @@ import type { KabinetCursor, KabinetShelterView } from "@opika/contracts";
 import { cityRepo } from "@opika/db/repos";
 import { type CityId, DEFAULT_FRESHNESS_POLICY, type Freshness, freshnessOf } from "@opika/domain";
 import { createRouterClient, ORPCError, type RouterClient } from "@orpc/server";
-import { decideAccess, registryOperatorOf, type WriteGrant } from "../../kabinet/access";
+import { decideAccess, registryOperatorOf } from "../../kabinet/access";
 import type { KabinetPrincipal } from "../../kabinet/actor";
 import type { KabinetContext } from "../../kabinet/context";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../kabinet/photo-uploads";
@@ -56,13 +56,6 @@ export type ProfileEditing =
   | { kind: "read_only" }
   | {
       kind: "open";
-      /**
-       * Which policy opened writes. `allowlist` (K-Q17) is the only grant that
-       * mounts `test-shelter-only/`, whose copy may still be pending (CG-Q1);
-       * `open_policy` is any wider grant (today only the handler tests' one,
-       * from PR 6 the production one), where nothing pending may show.
-       */
-      grantedBy: WriteGrant;
       /** Null when the shelter has no animal at all (`voice.previewNoAnimals`). */
       previewAnimal: PreviewAnimal | null;
       /** The newest donation line is the operator declining the last proposal (answer 12). */
@@ -186,7 +179,6 @@ export async function kabinetHomeOf(
     write.kind === "allow_shelter_write"
       ? {
           kind: "open",
-          grantedBy: write.grantedBy,
           previewAnimal: await previewAnimalOf(client, deps.now),
           donationDeclined: view.pendingDonation === null && (await donationDeclinedOf(client)),
         }

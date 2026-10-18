@@ -154,7 +154,7 @@ const shelterIn = (verification: KabinetShelterView["verification"]) =>
     verification,
   }) as unknown as KabinetShelterView;
 
-const OPEN: AnimalFormEditing = { kind: "open", grantedBy: "allowlist" };
+const OPEN: AnimalFormEditing = { kind: "open" };
 
 function renderList({
   first = FIRST,
