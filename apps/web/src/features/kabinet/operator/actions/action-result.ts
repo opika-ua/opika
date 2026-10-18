@@ -1,5 +1,6 @@
 import { apiErrors, type EmailSendOutcome } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
+import { refusedForNameLength } from "../display-name";
 
 /**
  * What an S4 action came back as, in the terms the screen speaks. Every
@@ -19,6 +20,8 @@ import { fillTemplate, uk } from "@opika/i18n";
  * - `address_has_a_role`: invite or resend refused for an address that has a
  *   role elsewhere (`create.errors.addressHasARole.*`).
  * - `invalid_evidence`: resubmit refused on the evidence sent.
+ * - `name_too_long`: the rename refused by the input check for the display
+ *   name's cap (RUI4-F2), which the rename form shows on its field.
  * - `no_answer`: nothing came back at all (the connection dropped, a
  *   timeout). The server may have done it anyway, so S4 re-reads before
  *   saying anything (inbox K4-T16's pattern).
@@ -30,6 +33,7 @@ export type ActionFailure =
   | { kind: "not_found" }
   | { kind: "address_has_a_role"; reason: AddressRoleReason }
   | { kind: "invalid_evidence"; reason: InvalidEvidenceReason }
+  | { kind: "name_too_long" }
   | { kind: "no_answer" }
   | { kind: "failed" };
 
@@ -69,6 +73,8 @@ export function actionFailureOf(error: unknown): ActionFailure {
         ? { kind: "invalid_evidence", reason: data.data.reason }
         : { kind: "failed" };
     }
+    case "BAD_REQUEST":
+      return refusedForNameLength(error) ? { kind: "name_too_long" } : { kind: "failed" };
     default:
       return { kind: "failed" };
   }

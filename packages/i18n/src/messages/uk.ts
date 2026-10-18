@@ -1950,6 +1950,13 @@ export const uk = {
             "Відповідь не надійшла. Притулок міг створитися — перевірте список, перш ніж пробувати знову.",
           failed: "Не вдалося створити притулок. Спробуйте ще раз.",
           required: "Це поле потрібне.",
+          /**
+           * RUI4-F2 (his answer, 2026-10-18, verbatim: "Error copy: «Назва довша
+           * за {max} символів.» (plural pin for 100)"). The display name, on S2
+           * and on S4's rename; `{max}` is `SHELTER_DISPLAY_NAME_MAX_CHARACTERS`,
+           * and «символів» is the form for 100 (`copy-plural-pins.test.ts`).
+           */
+          nameTooLong: "Назва довша за {max} символів.",
           edrpouFormat: "Код ЄДРПОУ — 8 цифр.",
           coordinatesFormat:
             "Вкажіть координати як «широта, довгота», наприклад «50.4501, 30.5234».",

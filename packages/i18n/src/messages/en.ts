@@ -1107,6 +1107,7 @@ export const en = {
             "No answer came back. The shelter may have been created: check the list before trying again.",
           failed: "The shelter couldn't be created. Try again.",
           required: "This field is required.",
+          nameTooLong: "The name is longer than {max} characters.",
           edrpouFormat: "An EDRPOU code is 8 digits.",
           coordinatesFormat:
             "Enter the coordinates as «latitude, longitude», for example «50.4501, 30.5234».",

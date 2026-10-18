@@ -23,6 +23,7 @@ import {
   ERROR_TEXT,
 } from "../../profile-edit/styles";
 import { OPERATOR_HOME } from "../../routes";
+import { nameTooLongMessage } from "../display-name";
 import { EvidenceEditor } from "../evidence-editor/EvidenceEditor";
 import { CreatedShelter } from "./CreatedShelter";
 import {
@@ -49,6 +50,7 @@ type Phase =
 
 const fieldMessage = (error: CreateFieldError | undefined): string | null => {
   if (error === undefined) return null;
+  if (error === "nameTooLong") return nameTooLongMessage();
   return error === "emailFormat"
     ? uk.kabinet.profileEdit.errors.emailFormat
     : uk.kabinet.operator.create.errors[error];
@@ -124,7 +126,15 @@ export function CreateShelterForm({
       const view = await client.registry.shelters.create(checked.input);
       setPhase({ kind: "created", view });
     } catch (error) {
-      setPhase({ kind: "editing", refusal: createRefusalOf(error) });
+      const refusal = createRefusalOf(error);
+      if (refusal.kind === "name_too_long") {
+        // The server's count of the name went over the cap: on the field, as the form's own check says it.
+        setErrors({ ...noCreateErrors(), fields: { displayName: "nameTooLong" } });
+        setPhase({ kind: "editing", refusal: null });
+        setFocusFirstError((n) => n + 1);
+      } else {
+        setPhase({ kind: "editing", refusal });
+      }
     } finally {
       inFlight.current = false;
     }
