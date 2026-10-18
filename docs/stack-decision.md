@@ -439,6 +439,10 @@ PR:    typecheck → lint → vitest → build → (Vercel preview deploy)
 main:  ↑ + drizzle-kit migrate (gated job) → deploy → playwright smoke against preview
 ```
 
+> 2026-10-18: PR branches create no Vercel deployment (`git.deploymentEnabled` in
+> `apps/web/vercel.json`; only the default branch deploys). CI's `build:web` and the Playwright
+> harness stand in for the preview. This sketch is left as written.
+
 **Migrations:** `drizzle-kit generate` locally, commit the SQL, `drizzle-kit migrate` in a **separate CI job that gates deploy**. Never `drizzle-kit push` against production — it's a diff-and-apply with no migration history. ⚠️ **Drizzle has no built-in advisory lock** (Prisma's `migrate deploy` does), so wrap the step in a GitHub Actions `concurrency: { group: migrate-prod, cancel-in-progress: false }` or take a `pg_advisory_lock` yourself. And never run migrations from the app's boot sequence — that's N serverless instances racing on the same schema.
 
 ### Observability from day one
