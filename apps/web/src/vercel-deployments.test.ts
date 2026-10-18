@@ -5,8 +5,9 @@ import { describe, expect, it } from "vitest";
 
 /**
  * Only the default branch deploys (Oleksii, 2026-10-18: "only main creates deployments (PR
- * branches create none, not even cancelled ones)"). Vercel Hobby caps deployments per day, and
- * every push to a PR branch was spending one, until production merges were rate limited.
+ * branches create none, not even cancelled ones)"). Added on Vercel Hobby, whose daily deployment
+ * cap every PR push was spending until production merges were rate limited; kept on Pro by his
+ * choice ("Keep the git.deploymentEnabled PR anyway (main-only deployments).").
  *
  * Vercel's rules (https://vercel.com/docs/project-configuration/git-configuration#git.deploymentenabled):
  * keys are minimatch patterns; a branch matching several rules deploys if any of them is `true`;
@@ -17,7 +18,7 @@ import { describe, expect, it } from "vitest";
  * cancelled one.
  *
  * Pinned exactly, because both failure modes are silent: dropping `"main": true` stops
- * production deploys; widening the off-switch back to `*` restores every preview.
+ * production deploys; narrowing the off-switch to `*` restores every preview.
  */
 describe("apps/web/vercel.json deploys the default branch and nothing else", () => {
   const WEB = resolve(fileURLToPath(import.meta.url), "../..");
