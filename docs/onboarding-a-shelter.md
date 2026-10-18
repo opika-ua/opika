@@ -659,10 +659,12 @@ repo, a log or a local file. Rotate it on any suspected exposure (of the
 secret itself, or of the `auth_session` table together with anything that
 might have held the secret): generate a new value with `openssl rand -hex 32`,
 replace it in Vercel's Production environment, redeploy, then run the
-**required** purge below. Every cookie signed with the old value stops
-verifying at once, so **every shelter admin and the operator are signed out**
-and sign in again with a fresh link, after the purge. The old rows become
-unusable at once, and the purge deletes them at once. Left to the auth
+**required** purge below. On the new deployment every cookie signed with the
+old value stops verifying at once; a tab already open can keep reaching the old
+deployment for up to 12 hours (skew protection), so it is the purge, not the
+redeploy, that signs **every shelter admin and the operator** out everywhere.
+They sign in again with a fresh link, after the purge, which deletes the old
+rows at once. Left to the auth
 clean-up (every 6 hours), they would stay until their 7-day expiry passed
 (inbox KH-Q9, KH-Q10, KH-Q12).
 
@@ -699,11 +701,15 @@ nothing is lost, and /pro's «…протягом доби» then holds in every
 Without the purge, the old session rows would wait for the clean-up's 7-day
 expiry, past the day /pro promises. The kabinet signs in by magic link only,
 so `auth_verification` holds nothing but links not yet used (a used link's row
-is deleted when it's followed). Strictly, two kinds of row are still live when
-the purge runs, and they go too: a link sent in the 15 minutes before it
-(links don't depend on the secret, above), and a session started after the
-redeploy. The worst either does is make that person ask for a new link. So
-sign in again yourself only after this block.
+is deleted when it's followed). Strictly, three kinds of row are still live when
+the purge runs, and they all go: a link sent in the 15 minutes before it (links
+don't depend on the secret, above); a session started after the redeploy; and a
+pre-rotation session in a kabinet tab that was already open. Skew protection
+(12 h, SK-B1) keeps that tab talking to the old deployment, which still holds
+the old secret, so for it the redeploy alone changes nothing: **the purge is
+what ends those sessions.** Run this block right after the redeploy, not later.
+The worst any of the three does is make that person ask for a new link. So sign
+in again yourself only after this block.
 
 Run it from the main checkout (its root `.env.local` provides
 `PROD_NEON_ENDPOINT`), up to date with the default branch, in Windows
@@ -727,8 +733,9 @@ Expected:
    `auth_verification`, and `Nothing was deleted. …`; exit 0. **Stop if the
    endpoint differs.**
 2. **`--commit`**: `WARNING: writing to PRODUCTION (--prod given).`, the same
-   `Target:` line, `COMMIT`, `Deleted, in one statement:` with both counts (the
-   dry run's, or more if someone signed in or asked for a link in between),
+   `Target:` line, `COMMIT`, `Deleted, in one statement:` with both counts (they
+   may differ from the dry run's: a sign-in, a link asked for or followed, or the
+   6-hourly clean-up can change them in between),
    and `Done. Run the dry run again: both counts should be 0.`; exit 0.
 3. **Dry run again**: as in 1, with `auth_session 0` and
    `auth_verification 0`.

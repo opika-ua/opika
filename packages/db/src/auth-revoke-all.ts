@@ -44,7 +44,7 @@ import { EXPECT_FLAG, migrateTargetCheck } from "./migrate-args";
 import { assertProductionWriteAllowed, databaseTargetLine, PROD_FLAG } from "./prod-guard";
 import { type AuthRevokeCounts, authRevokeRepo } from "./repos/auth-revoke-repo";
 
-export const COMMIT_FLAG = "--commit";
+const COMMIT_FLAG = "--commit";
 
 export type RevokeArgs =
   | { kind: "ok"; expect: string | undefined; commit: boolean }
@@ -96,7 +96,7 @@ const countLines = (counts: AuthRevokeCounts): string[] => [
 ];
 
 /** What a dry run prints after the target line. */
-export function dryRunLines(counts: AuthRevokeCounts): string[] {
+function dryRunLines(counts: AuthRevokeCounts): string[] {
   return [
     "DRY RUN (nothing is deleted)",
     "Rows now:",
@@ -106,7 +106,7 @@ export function dryRunLines(counts: AuthRevokeCounts): string[] {
 }
 
 /** What a committed run prints after the target line. */
-export function committedLines(deleted: AuthRevokeCounts): string[] {
+function committedLines(deleted: AuthRevokeCounts): string[] {
   return [
     "COMMIT",
     "Deleted, in one statement:",
@@ -121,7 +121,7 @@ export function committedLines(deleted: AuthRevokeCounts): string[] {
  * only, not the error objects, whose other properties this script hasn't
  * vetted for what they carry.
  */
-export function messagesOf(error: unknown): string[] {
+function messagesOf(error: unknown): string[] {
   const messages: string[] = [];
   let current: unknown = error;
   while (current instanceof Error && messages.length < 5) {
