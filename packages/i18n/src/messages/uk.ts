@@ -478,6 +478,16 @@ export const uk = {
     ageYoung: "молодий",
     ageAdult: "дорослий",
     ageSenior: "літній",
+    /**
+     * The age word for a female animal (Q9, Oleksii 2026-10-18, verbatim: "female: «малючка» /
+     * «молода» / «доросла» / «літня»"). A male animal and one whose sex is «Не записано» keep the
+     * words above. Filter chips (`filters.age*`) stay as they are: "they name categories, not one
+     * animal".
+     */
+    ageBabyFemale: "малючка",
+    ageYoungFemale: "молода",
+    ageAdultFemale: "доросла",
+    ageSeniorFemale: "літня",
     sizeSmall: "мала",
     sizeMedium: "середня",
     sizeLarge: "велика",

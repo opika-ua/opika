@@ -460,6 +460,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — /tvaryny/[animalId] link-preview des
   const fakeAnimal = {
     id: "a0000000-0000-4000-8000-000000000001",
     name: "Мурчик",
+    sex: "male",
     ageBucket: "adult",
     size: "medium",
     photos: [],
@@ -535,5 +536,26 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — /tvaryny/[animalId] link-preview des
 
     expect(metadata.description).toBe("дорослий · середня");
     expect(metadata.openGraph?.description).toBe("дорослий · середня");
+  });
+
+  /** Q9 (Oleksii, 2026-10-18): a female animal's age word, his «доросла». */
+  it("a female animal's description carries the agreeing age word", async () => {
+    vi.doMock("./api/server-client", () => ({
+      anonymousRouterClient: () => ({
+        animals: { byId: async () => ({ ...fakeAnimal, sex: "female" }) },
+      }),
+    }));
+    vi.doMock("./seo-flags", () => ({
+      SITE_IS_PUBLICLY_DISCOVERABLE: true,
+      REGISTRY_HAS_NO_REAL_SHELTERS: false,
+      assertDemoDiscoverabilityInvariant: vi.fn(),
+    }));
+
+    const { generateMetadata } = await import("./app/tvaryny/[animalId]/page");
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ animalId: fakeAnimal.id }),
+    });
+
+    expect(metadata.description).toBe("доросла · середня");
   });
 });

@@ -6,7 +6,7 @@ import {
   NO_FILTERS,
   textIn,
 } from "@opika/domain";
-import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
+import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
@@ -157,7 +157,7 @@ export async function generateMetadata({
 
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
     ? uk.demo.bannerNotice
-    : [ageBucketLabel(animal.ageBucket), sizeLabel(animal.size)].join(" · ");
+    : [ageWordFor(animal.ageBucket, animal.sex), sizeLabel(animal.size)].join(" · ");
   const photo = animal.photos[0];
   const publicBaseUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
 
