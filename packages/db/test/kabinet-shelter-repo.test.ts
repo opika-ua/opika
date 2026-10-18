@@ -121,6 +121,60 @@ describe("kabinetShelterRepo.applyAudited", () => {
     expect((await shelterRepo(db).findById(s.id))?.freshnessSentence).toEqual(sentence);
   });
 
+  describe("a rename (R-UI 4)", () => {
+    const MODERATOR = "0ec0ec0e-0000-4000-8000-000000000001" as never;
+    const renamed = (from: string, to: string): ShelterHistoryEntry => ({
+      kind: "display_name_changed",
+      at: NOW,
+      moderatorId: MODERATOR,
+      from,
+      to,
+    });
+    const rename = (shelterId: string, expectedVersion: number, from: string, to: string) =>
+      kabinetShelterRepo(db).applyAudited({
+        shelterId: shelterId as never,
+        expectedVersion,
+        change: { kind: "display_name", displayName: to },
+        entry: renamed(from, to),
+        historyId: crypto.randomUUID(),
+        now: NOW,
+      });
+
+    it("writes the new name with its line in one statement and bumps the version", async () => {
+      const s = await shelter();
+      expect(await rename(s.id, 0, s.displayName, "Притулок «Лапа допомоги»")).toEqual({
+        kind: "ok",
+      });
+      const after = await shelterRepo(db).findById(s.id);
+      expect(after?.displayName).toBe("Притулок «Лапа допомоги»");
+      expect(after?.version).toBe(1);
+      expect(after?.lastUpdatedAt).toEqual(NOW);
+      // Nothing else on the row moved with it.
+      expect({
+        ...after,
+        displayName: s.displayName,
+        version: s.version,
+        lastUpdatedAt: s.lastUpdatedAt,
+      }).toEqual(s);
+      expect(await kabinetShelterRepo(db).historyOf(s.id)).toEqual([
+        renamed(s.displayName, "Притулок «Лапа допомоги»"),
+      ]);
+    });
+
+    it("on a stale version writes nothing and records nothing", async () => {
+      const s = await shelter();
+      expect(await rename(s.id, 0, s.displayName, "Перша назва")).toEqual({ kind: "ok" });
+      // A second form read at version 0, sent after the first landed.
+      expect(await rename(s.id, 0, s.displayName, "Друга назва")).toEqual({ kind: "conflict" });
+      const after = await shelterRepo(db).findById(s.id);
+      expect(after?.displayName).toBe("Перша назва");
+      expect(after?.version).toBe(1);
+      expect(await kabinetShelterRepo(db).historyOf(s.id)).toEqual([
+        renamed(s.displayName, "Перша назва"),
+      ]);
+    });
+  });
+
   it("keeps verification_status in step with the verification it writes", async () => {
     const s = await shelter();
     const paused = {

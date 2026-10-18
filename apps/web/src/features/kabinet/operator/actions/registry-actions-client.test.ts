@@ -7,8 +7,9 @@ import { registryActionsBrowserContract } from "./registry-actions-client";
 
 /**
  * The access rows for S4's new callers. The browser client may reach exactly
- * the registry writes R-UI 3 needs (written out here by hand, never read back
- * from the client), each the contract's own procedure object, so each carries
+ * the registry writes R-UI 3 needs and R-UI 4's rename (written out here by
+ * hand, never read back from the client), each the contract's own procedure
+ * object, so each carries
  * the registry's access declaration. That declaration, through the kabinet's
  * own `decideAccess`, lets a super_admin outside support mode in and nobody
  * else, a support view of the very shelter included. The served route's
@@ -32,8 +33,9 @@ function leaves(node: unknown, path: readonly string[] = []): Leaf[] {
 
 const picked = leaves(registryActionsBrowserContract);
 
-/** What R-UI 3's controls call, by hand (the task's list). */
+/** What R-UI 3's controls and R-UI 4's rename form call, by hand (the tasks' lists). */
 const EXPECTED_PATHS = [
+  "registry.shelters.updateProfile",
   "registry.verification.startReview",
   "registry.verification.approve",
   "registry.verification.reject",
@@ -80,17 +82,16 @@ const PRINCIPALS: [string, KabinetPrincipal, string][] = [
 ];
 
 describe("the S4 actions browser client", () => {
-  it("reaches exactly the twelve registry writes R-UI 3 calls", () => {
+  it("reaches exactly the thirteen registry writes R-UI 3 and R-UI 4 call", () => {
     expect(picked.map((leaf) => leaf.path).sort()).toEqual([...EXPECTED_PATHS].sort());
   });
 
-  it("has no read, no create or edit, and nothing from another surface", () => {
+  it("has no read, no create, no locked-field edit, and nothing from another surface", () => {
     const paths = picked.map((leaf) => leaf.path);
     for (const absent of [
       "registry.shelters.byId",
       "registry.shelters.list",
       "registry.shelters.create",
-      "registry.shelters.updateProfile",
       "registry.shelters.updateVerifiedData",
       "registry.history.list",
       "registry.admins.blockedAddresses",

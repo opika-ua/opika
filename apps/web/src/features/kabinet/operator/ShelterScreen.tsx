@@ -303,13 +303,15 @@ const historyKeyOf = (page: HistoryPage): string => {
 
 /**
  * R-UI 3's controls, each mounted where it acts: support mode in the header,
- * the decision panel at the head of the second column (beside the evidence,
- * as S3's panel sits), the donation decision under the proposal, and the
+ * R-UI 4's rename form under it (beside the name it changes), the decision
+ * panel at the head of the second column (beside the evidence, as S3's panel
+ * sits), the donation decision under the proposal, and the
  * admins list with its actions as the admins card. The page composes them (`actions/ShelterActionsScreen.tsx`); this screen only places
  * them, so it holds no client state of its own.
  */
 export type ShelterScreenActions = {
   supportEntry: ReactNode;
+  rename: ReactNode;
   decision: ReactNode;
   donationDecision: ReactNode;
   admins: ReactNode;
@@ -361,6 +363,7 @@ export function ShelterScreen({
           </span>
         </p>
         {actions.supportEntry}
+        {actions.rename}
       </div>
       <div className="grid grid-cols-1 items-start gap-4 desktop:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-4">

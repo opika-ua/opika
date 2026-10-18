@@ -932,8 +932,7 @@ export const en = {
         intro:
           "Here you enter everything about the shelter: name, address, legal details and evidence. The first administrator gets an invitation by email.",
         name: "Shelter name",
-        nameHint:
-          "What the shelter calls itself. The name can't be changed after creation yet: check the spelling.",
+        nameHint: "What the shelter calls itself.",
         description: "Shelter description",
         descriptionHint:
           "A short description of the shelter. It may be public, so don't write anything private here.",

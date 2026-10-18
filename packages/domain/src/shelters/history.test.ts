@@ -150,6 +150,13 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     animalId: ANIMAL,
     animalName: "Барсик",
   },
+  display_name_changed: {
+    kind: "display_name_changed",
+    at: new Date("2026-10-19T00:00:00.000Z"),
+    moderatorId: MOD,
+    from: "Лапа",
+    to: "Лапа допомоги",
+  },
 };
 
 describe("ShelterHistoryEntrySchema", () => {
@@ -169,6 +176,32 @@ describe("ShelterHistoryEntrySchema", () => {
       ShelterHistoryEntrySchema.safeParse({ ...ENTRIES.donation_decided, moderatorId: ADMIN })
         .success,
     ).toBe(false);
+  });
+});
+
+describe("display_name_changed (R-UI 4)", () => {
+  const renamed = ENTRIES.display_name_changed;
+
+  /** Only the operator renames: a line naming a shelter admin is a shape history never holds. */
+  it("refuses an actor-shaped author: a rename is recorded with a moderator id only", () => {
+    expect(ShelterHistoryEntrySchema.safeParse({ ...renamed, moderatorId: ADMIN }).success).toBe(
+      false,
+    );
+  });
+
+  it("refuses a line missing either name, or with an empty one", () => {
+    const { from: _f, ...noFrom } = renamed as Extract<
+      ShelterHistoryEntry,
+      { kind: "display_name_changed" }
+    >;
+    const { to: _t, ...noTo } = renamed as Extract<
+      ShelterHistoryEntry,
+      { kind: "display_name_changed" }
+    >;
+    expect(ShelterHistoryEntrySchema.safeParse(noFrom).success).toBe(false);
+    expect(ShelterHistoryEntrySchema.safeParse(noTo).success).toBe(false);
+    expect(ShelterHistoryEntrySchema.safeParse({ ...renamed, to: "" }).success).toBe(false);
+    expect(ShelterHistoryEntrySchema.safeParse({ ...renamed, from: "" }).success).toBe(false);
   });
 });
 
@@ -273,6 +306,7 @@ describe("historyEntryAt", () => {
         "2026-10-16",
         "2026-10-17",
         "2026-10-18",
+        "2026-10-19",
       ],
     );
   });

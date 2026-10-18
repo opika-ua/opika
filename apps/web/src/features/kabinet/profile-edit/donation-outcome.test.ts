@@ -43,6 +43,18 @@ describe("latestDonationOutcomeOf (answer 12)", () => {
     });
   });
 
+  /** R-UI 4: the operator renaming the shelter is not an answer about its link. */
+  it("a rename on top leaves the declined message as it was", () => {
+    const renamed: ShelterHistoryItemView = {
+      kind: "display_name_changed",
+      at,
+      actor: operator,
+      from: "Лапа",
+      to: "Лапа допомоги",
+    };
+    expect(latestDonationOutcomeOf([renamed, decided("rejected")])).toEqual({ kind: "declined" });
+  });
+
   it("null when these lines hold no donation line (read further)", () => {
     expect(latestDonationOutcomeOf([other])).toBeNull();
     expect(latestDonationOutcomeOf([])).toBeNull();

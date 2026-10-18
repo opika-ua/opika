@@ -167,6 +167,22 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     ]),
   }),
   /**
+   * The operator renamed the shelter on S4 (R-UI 4; Oleksii, R-UI answer 8,
+   * verbatim: "Yes: rename as R-UI 4, with a history line."). The display
+   * name is public (every card names the shelter by it), so a change is
+   * recorded like the other operator edits. Operator only, hence
+   * `moderatorId` rather than an actor: no shelter-side procedure renames.
+   * Both names are kept, as the other changes keep both values: the line
+   * still says what the shelter was called after any later rename.
+   */
+  z.object({
+    kind: z.literal("display_name_changed"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    from: z.string().min(1),
+    to: z.string().min(1),
+  }),
+  /**
    * The shelter came into being, created by the operator through the
    * registry (S2) or entered by a script on the shelter's behalf (RG-Q8).
    */
@@ -282,6 +298,7 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "donation_proposal_cancelled":
     case "donation_decided":
     case "verified_data_changed":
+    case "display_name_changed":
     case "shelter_created":
     case "admin_invited":
     case "admin_invitation_resent":

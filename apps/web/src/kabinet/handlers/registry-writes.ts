@@ -173,9 +173,12 @@ export async function registryUpdateVerifiedData(
 }
 
 /**
- * The profile fields the shelter can also edit, written by the operator.
- * Each changed field is its own history line with the operator as actor,
- * which is what the shelter later reads in its own history (RG-Q8).
+ * The profile fields, written by the operator: the display name, which only
+ * the operator changes (R-UI 4), and the ones the shelter can also edit. Each
+ * changed field is its own history line with the operator as actor, which is
+ * what the shelter later reads in its own history (RG-Q8). An unchanged field
+ * records nothing; the contract has already trimmed the name, so a rename to
+ * the same name with spaces around it is unchanged too.
  */
 export const registryUpdateProfile = (
   deps: RegistryDeps,
@@ -183,6 +186,7 @@ export const registryUpdateProfile = (
   input: {
     shelterId: ShelterId;
     expectedVersion: number;
+    displayName?: string | undefined;
     contact?: ShelterContact | undefined;
     description?: LocalizedText | undefined;
     freshnessSentence?: FreshnessSentence | undefined;
@@ -196,6 +200,16 @@ export const registryUpdateProfile = (
     (shelter): Planned => {
       const actor = moderatorActor(moderatorId);
       const plan: Planned = { changes: [], entries: [] };
+      if (input.displayName !== undefined && input.displayName !== shelter.displayName) {
+        plan.changes.push({ kind: "display_name", displayName: input.displayName });
+        plan.entries.push({
+          kind: "display_name_changed",
+          at: deps.now,
+          moderatorId,
+          from: shelter.displayName,
+          to: input.displayName,
+        });
+      }
       if (input.contact !== undefined && !same(shelter.contact, input.contact)) {
         plan.changes.push({ kind: "contact", contact: input.contact });
         plan.entries.push({

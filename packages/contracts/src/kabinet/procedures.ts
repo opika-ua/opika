@@ -662,18 +662,30 @@ export const registrySheltersContract = {
       }),
     )
     .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
+  /**
+   * The public profile fields, each optional, each changed one its own
+   * history line. `displayName` is the rename (R-UI 4; RU-Q8's option A,
+   * "`displayName` in `updateProfile` plus a `display_name_changed` history
+   * kind", which Oleksii's answer 8 accepted, verbatim: "Yes: rename as
+   * R-UI 4, with a history line."), checked by the same rule as create's
+   * (`humanName`: trimmed, then required), so a name S2 accepts is a name a
+   * rename accepts and the other way round. Only the operator renames: no
+   * `shelter.*` input carries a name.
+   */
   updateProfile: registryShelter
     .input(
       z
         .strictObject({
           shelterId: ShelterIdSchema,
           expectedVersion,
+          displayName: humanName.optional(),
           contact: ShelterContactSchema.optional(),
           description: LocalizedTextSchema.optional(),
           freshnessSentence: FreshnessSentenceInputSchema.optional(),
         })
         .refine(
           (input) =>
+            input.displayName !== undefined ||
             input.contact !== undefined ||
             input.description !== undefined ||
             input.freshnessSentence !== undefined,

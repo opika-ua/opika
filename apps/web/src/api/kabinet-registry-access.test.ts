@@ -167,6 +167,33 @@ describe("registry.* refuses everyone but a super_admin", () => {
     });
   }
 
+  /**
+   * R-UI 4: the rename rides on updateProfile (RU-Q8's option A), so its
+   * input shape gets the same rows: a valid rename from anyone but the
+   * operator is refused, and the name and history stay as they were.
+   */
+  it("a rename through updateProfile: every non-operator is refused, nothing renamed or recorded", async () => {
+    const renameInput = { shelterId: target.id, expectedVersion: 0, displayName: "Інша назва" };
+    for (const [who, principal, status] of NOT_OPERATORS) {
+      const scoped =
+        principal.kind === "shelter_admin" || principal.kind === "support_view"
+          ? { ...principal, shelterId: target.id }
+          : principal;
+      expect((await call("registry.shelters.updateProfile", renameInput, scoped)).status, who).toBe(
+        status,
+      );
+    }
+    expect((await shelterRepo(db).findById(target.id))?.displayName).toBe(target.displayName);
+    expect(await kabinetShelterRepo(db).historyOf(target.id)).toEqual([]);
+    // The operator's same call goes through, so the refusals above are about who, not the input.
+    const allowed = await call("registry.shelters.updateProfile", renameInput, {
+      kind: "super_admin",
+      moderatorId: OPERATOR,
+    });
+    expect(allowed.status).toBe(200);
+    expect((await shelterRepo(db).findById(target.id))?.displayName).toBe("Інша назва");
+  });
+
   it("super_admin: none of them is refused for access", async () => {
     for (const [path, input] of REGISTRY_CALLS(target)) {
       const { status } = await call(path, input, { kind: "super_admin", moderatorId: OPERATOR });
