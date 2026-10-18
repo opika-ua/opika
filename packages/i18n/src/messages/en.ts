@@ -23,7 +23,7 @@ export const en = {
   },
 
   demo: {
-    bannerNotice: "The registry doesn't hold any real shelters yet — every card here is a demo.",
+    bannerNotice: "The site doesn't hold any real shelters yet — every card here is a demo.",
     deckLabel: "Demo",
   },
 
@@ -131,7 +131,7 @@ export const en = {
     notFound: {
       eyebrow: "NOT FOUND",
       title: "This listing is gone.",
-      body: "The animal has already been removed from the registry, or the link is out of date. This isn't an error — the listing is simply no longer here.",
+      body: "The animal is no longer on the site or the link is out of date. This isn't an error — the listing is simply no longer here.",
       action: "All animals",
     },
     photoGalleryLabel: `${COPY_PENDING} Photo gallery`,
@@ -305,13 +305,13 @@ export const en = {
   about: {
     title: "About this project",
     intro:
-      "Opika is a registry of shelter animals in the Kyiv region, built by one person, outside of a day job. There's no team, no investor — just someone who believes finding an animal a home shouldn't depend on whether a shelter knows how to run an outdated spreadsheet.",
-    free: 'The registry is free for shelters today and will stay free. No paid tiers, no "free for the first three months." If that were ever to change, every shelter would know well in advance, not after the fact.',
+      "Opika is a site where animals from shelters in the Kyiv region look for a home. I build it on my own, outside of a day job. There's no team, no investor — just someone who believes finding an animal a home shouldn't depend on whether a shelter knows how to run an outdated spreadsheet.",
+    free: 'The site is free for shelters today and will stay free. No paid tiers, no "free for the first three months." If that were ever to change, every shelter would know well in advance, not after the fact.',
     money:
-      'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) — the registry only shows the link; the money goes directly, and you can see exactly where.',
+      'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) — the site only shows the link; the money goes directly, and you can see exactly where.',
     data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: an adopter only ever sees an approximate location. A shelter can ask to have its listing removed at any time. For shelters with cabinet access, the registry keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. IP addresses are not stored. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within two days.",
     analytics:
-      "The registry collects basic visit statistics — how many people visit and how fast the pages load — with no advertising.",
+      "The site collects basic visit statistics — how many people visit and how fast the pages load — with no advertising.",
     /** Template: "Get in touch: {contact}" */
     contact: "Get in touch: {contact}",
   },
@@ -372,11 +372,11 @@ export const en = {
       pageTitle: "Sign in to the cabinet",
       title: "Sign in to the cabinet",
       intro:
-        "For shelters and the registry operator. There is no password: a sign-in link arrives by email.",
+        "For shelters and the site administrator. There is no password: a sign-in link arrives by email.",
       emailLabel: "Email address",
       send: "Send the link",
       addressNote:
-        "The operator adds your address when inviting your shelter. If the address is not on the list no email arrives, and this page does not say so, so that it never reveals who is registered.",
+        "I add your address when I invite your shelter. If the address is not on the list no email arrives, and this page does not say so, so that it never reveals who is registered.",
       sendFailed: "The link could not be sent. Check your connection and try again.",
       sentTitle: "Check your email",
       sentBody:
@@ -722,7 +722,7 @@ export const en = {
       },
       invite: {
         subject: `Your access to the shelter's cabinet`,
-        intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» in the registry for this address.`,
+        intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» on the site for this address.`,
         what: `For now the cabinet shows the shelter's details: both what people see and the verification details. They can't be changed there yet: write to me for that.`,
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours} hours. If you miss it, I will send a new one.`,
@@ -738,7 +738,7 @@ export const en = {
       title: `An invitation to administer «{shelter}»`,
       sent: `We've sent a sign-in link to {email}. It works once and expires in {minutes} minutes; signing in with it accepts the invitation.`,
       unusableTitle: `This invitation can't be used`,
-      expired: `This invitation is no longer valid; ask the operator to send a new one.`,
+      expired: `This invitation is no longer valid; write to me and I'll send a new one.`,
       alreadyAccepted: `This invitation was already accepted; sign in as usual.`,
       rateLimited: `Too many links were requested for this invitation; try again later.`,
       signIn: `Go to sign-in`,

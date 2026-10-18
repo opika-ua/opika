@@ -138,7 +138,7 @@ describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
     );
 
     expect(screen.getByTestId("detail-demo-banner").textContent).toBe(
-      "У реєстрі поки немає справжніх притулків — усі картки тут демонстраційні.",
+      "На сайті поки немає справжніх притулків — усі картки тут демонстраційні.",
     );
   });
 

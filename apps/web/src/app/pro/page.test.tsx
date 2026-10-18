@@ -7,13 +7,15 @@ describe("AboutPage", () => {
     render(<AboutPage />);
 
     expect(screen.getByRole("heading", { name: "Про проєкт" })).toBeTruthy();
-    expect(screen.getByText(/Opika — реєстр тварин притулків Київщини/)).toBeTruthy();
-    expect(screen.getByText(/Реєстр безкоштовний для притулків сьогодні/)).toBeTruthy();
+    expect(
+      screen.getByText(/Opika — сайт, де тварини з притулків Київщини шукають дім\./),
+    ).toBeTruthy();
+    expect(screen.getByText(/Сайт безкоштовний для притулків сьогодні/)).toBeTruthy();
     expect(screen.getByText(/Opika ніколи не бере участі в грошах/)).toBeTruthy();
     expect(screen.getByText(/Дані, які вносить притулок/)).toBeTruthy();
     expect(
       screen.getByText(
-        "Реєстр збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко працюють сторінки — без реклами.",
+        "Сайт збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко працюють сторінки — без реклами.",
       ),
     ).toBeTruthy();
     expect(screen.getByText("Зв'язатися з розробником: hello@opika.org.ua")).toBeTruthy();
