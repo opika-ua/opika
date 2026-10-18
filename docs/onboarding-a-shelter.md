@@ -19,6 +19,10 @@ A Neon endpoint id (`ep-…`, never a URL) is derived from the URL in the shell 
 $ep = ([uri]$env:DATABASE_URL).Host.Split('.')[0] -replace '-pooler$',''
 ```
 
+Smoke blocks keep deriving `$ep` from the child branch's URL; their protection is the smoke
+script's own refusal of production, not `--expect`. Don't "fix" it. A production migration
+types its endpoint id instead (see "Migrating production").
+
 Never paste a connection string into a command line, a file or a chat.
 
 ## What to ask the shelter for
@@ -267,12 +271,21 @@ not by re-running this script.
 ## Migrating production (the gate block for a PR with a migration)
 
 Every merge gate that applies a migration uses this block. Oleksii, 2026-10-18, verbatim: "From
-now on every gate block uses db:migrate --prod --expect <ep>; update the runbook." A migration is
-a gate *before* the merge: Vercel deploys the default branch as soon as it merges, so the schema
-has to be there first. Run it from the main checkout (its root `.env.local` provides
+now on every gate block uses db:migrate --prod --expect <ep>; update the runbook." An additive
+migration is a gate *before* the merge: Vercel deploys the default branch as soon as it merges, so
+the new schema has to be there first. A destructive one follows the rule below. Run it from the main checkout (its root `.env.local` provides
 `PROD_NEON_ENDPOINT`) switched to the PR's head, in Windows PowerShell 5.1 with `Read-Secret` from
-"PowerShell 5.1: reading a secret" pasted first. Replace `<pr branch>` and `<production ep- id>`
-before running:
+"PowerShell 5.1: reading a secret" pasted first.
+
+**Which kind of migration it is decides the order.** Oleksii, 2026-10-18, verbatim: "Additive
+changes (new columns, DROP NOT NULL, constraints existing rows pass) → migrate, then merge.
+Destructive changes (DROP/RENAME a column or table, tightening a constraint) → expand/contract:
+first merge code that no longer uses the old shape, then migrate in a later PR. If in doubt, it's
+destructive: ask me." **Every migration PR says in its body which kind it is.** The block below
+is the additive order: it runs before the merge.
+
+Replace `<pr branch>` before running. `ep-dawn-pond-b1dz515g` is production's endpoint id, the
+value to type for `--expect`:
 
 ```powershell
 cd D:\Startup\opika
@@ -281,7 +294,7 @@ git switch --detach origin/<pr branch>
 pnpm i --frozen-lockfile --prefer-offline
 $env:DATABASE_URL = Read-Secret "Production DIRECT connection string"
 pnpm --filter @opika/db db:check-hashes
-pnpm --filter @opika/db db:migrate --prod --expect <production ep- id>
+pnpm --filter @opika/db db:migrate --prod --expect ep-dawn-pond-b1dz515g
 pnpm --filter @opika/db db:check-hashes
 Remove-Item Env:DATABASE_URL
 git switch main
@@ -289,7 +302,7 @@ git switch main
 
 Expected:
 
-1. **`db:check-hashes`** (read-only): first line `Target: Neon endpoint <production ep- id> (…)`,
+1. **`db:check-hashes`** (read-only): first line `Target: Neon endpoint ep-dawn-pond-b1dz515g (…)`,
    then `match` for every migration already applied and `not run` for the PR's new one; exit 0.
    **Stop if the endpoint differs.**
 2. **`db:migrate`**: `WARNING: writing to PRODUCTION (--prod given).`, the same `Target:` line,
@@ -302,11 +315,11 @@ Expected:
 Then the PR's own before/after queries, if it lists any, and its Neon smoke on a temporary child
 branch, as its status gives them.
 
-**Type the endpoint id, don't derive it.** `$ep` in "PowerShell 5.1: reading a secret" is read
-out of `$env:DATABASE_URL`, so `--expect $ep` would always agree with the very URL it is there to
-check, and catch nothing. For production, `--expect` states the compute you mean to migrate,
-written independently of the shell: the value of `PROD_NEON_ENDPOINT`, the same
-`<production ep- id>` that `demo:remove` takes below.
+**Type the endpoint id, never derive it** (Oleksii, 2026-10-18: "Endpoint typed in, never
+derived."). `$ep` in "PowerShell 5.1: reading a secret" is read out of `$env:DATABASE_URL`, so
+`--expect $ep` would always agree with the very URL it is there to check, and catch nothing. For
+production, `--expect` states the compute you mean to migrate, written independently of the
+shell: `ep-dawn-pond-b1dz515g`, the value of `PROD_NEON_ENDPOINT`.
 
 ## Removing the demo corpus (once, after the first real shelter)
 
