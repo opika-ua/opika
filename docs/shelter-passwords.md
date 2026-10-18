@@ -28,7 +28,7 @@ key; any new string is given as its English sense, with the Ukrainian left to hi
 | `/reset-password` **creates** a credential account if the user has none | `password.mjs:162` | Without a guard, a reset would give the operator a password. That's the main hole (§4.6) |
 | Reset tokens are stored as `identifier = 'reset-password:<token>'`, in plain text by default | `password.mjs:77`, `db/internal-adapter.mjs:600` | His "stored hashed" needs `verification.storeIdentifier: { default: "plain", overrides: { "reset-password:": "hashed" } }` (SHA-256, built into 1.6.33, `verification-token-storage.mjs`) |
 | Sessions today: 7 days idle, 30 days absolute (HS-Q8); the absolute cap is enforced in our `hooks.before` and by the clean-up (`KABINET_SESSION_ABSOLUTE_MS`) | `auth.ts`, `auth-expiry-repo.ts` | F-B9's 30-day rolling / 90-day cap changes those two numbers (§4.5) |
-| Every link in our emails goes through Brevo's click tracker | `email-message.ts:9`, `confirm-route.ts:12` | A password-setting link passes through Brevo (§9, Q1) |
+| Auth email goes through **Resend** (EM-B10: production sets `EMAIL_PROVIDER=resend`, `EMAIL_SIGN_IN_PROVIDER` unset; Brevo's code stays only as a grace-period rollback). Resend has **no per-message tracking option**: click and open tracking are per-domain settings, active only with a verified tracking subdomain. Our payloads carry no tracking field or header | `email-provider.ts:296`; Resend's API reference (send email; update domain) | His rule, "no tracking on any auth email, ever", is enforced at the Resend domain plus a payload test (§4.4). The code comments about Brevo's click tracker describe the provider being retired |
 | Per-address limiter keys are plain (`address:<email>`); only IP keys are HMAC'd (EM-Q11) | `sign-in-limit.ts:36`, `invite-landing.ts:86` | "HMAC'd keys as now" is true for IPs, not for addresses (§9, Q7) |
 
 ## 3. Password policy (domain, pure)
@@ -147,6 +147,15 @@ to find accounts. Its message is the same for every address (§9, Q5).
   either way.
 - **The «пароль змінено» notice**, sent after a reset (and after a change, §9 Q4), with his
   «…якщо це не ви — напишіть мені» and the contact address.
+- **No tracking on any auth email, ever** (his rule, 2026-10-19). Resend can't express this per
+  message, so two locks:
+  1. **A test** pins every auth email's provider payload to exactly `{ from, to, reply_to, subject,
+     html, text }`. A `headers`, `tags` or tracking field fails it. The same test runs for each
+     provider the code can route to, while more than one exists.
+  2. **The domain check:** `email:delivery-test` reads the Resend domain (`GET /domains/{id}`) and
+     refuses to send unless `click_tracking` and `open_tracking` are both false. His dashboard
+     check stays the authority (Resend → Domains → the sending subdomain → tracking off, no
+     tracking subdomain).
 
 ### 4.5 Sessions (F-B9)
 
@@ -238,15 +247,15 @@ to find accounts. Its message is the same for every address (§9, Q5).
 
 1. **The invitation link becomes a bearer credential.** Today the invite link only asks for a magic
    link to the invited mailbox, so holding the link isn't enough. With «Створіть пароль» on the link,
-   whoever holds the URL in its 72 h sets the password: a mail scanner, a forwarded email, or Brevo's
-   click tracker, which rewrites every link.
-   - (a) As specified: a separate single-use token, stored hashed, 72 h; the GET shows only the form;
-     **Brevo click tracking turned off for auth emails** (a Brevo setting or per-message header;
-     your step); the reset link gets the same.
+   whoever holds the URL in its 72 h sets the password: a mail scanner or a forwarded email. A click
+   tracker would too, if one were on; with Resend and tracking off (§4.4) there is none.
+   - (a) As specified: a separate single-use token, stored hashed, 72 h; the GET shows only the form,
+     so a scanner that only opens links consumes nothing; Resend tracking off (§4.4); the reset link
+     gets the same.
    - (b) The «Створіть пароль» page first emails a 15-minute confirmation to the invited address.
      This proves the mailbox, at the cost of one more step.
-   - **Recommend (a)** with tracking off. It's the standard invite and reset model, and turning
-     tracking off protects the magic link too.
+   - **Recommend (a).** It's the standard invite and reset model; the GET-only form already
+     defends against scanners that open links.
 2. **The common-password list (asset licensing).**
    - Recommend SecLists' `10-million-password-list-top-100000.txt`, MIT licence (an attribution
      line in NOTICE), about 0.8 MB, bundled server-side only.
