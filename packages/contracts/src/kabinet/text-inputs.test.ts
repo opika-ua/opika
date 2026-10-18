@@ -122,6 +122,54 @@ describe("FreshnessSentenceInputSchema", () => {
   });
 });
 
+/**
+ * R-UI 4: a rename is checked by create's own rule for the display name, so
+ * the two can't drift apart (a name S2 refuses can't arrive by rename).
+ * Compared by behaviour: updateProfile wraps the rule in .optional().
+ */
+const displayNameFields: readonly [string, Parser][] = [
+  ["registry.shelters.create", fieldOf(registrySheltersContract.create, "displayName")],
+  [
+    "registry.shelters.updateProfile",
+    fieldOf(registrySheltersContract.updateProfile, "displayName"),
+  ],
+];
+
+describe.each(displayNameFields)("%s displayName", (_path, field) => {
+  it("trims the ends and keeps the inside as typed", () => {
+    expect(field.safeParse("  Притулок «Лапа  допомоги» ")).toMatchObject({
+      success: true,
+      data: "Притулок «Лапа  допомоги»",
+    });
+  });
+
+  it.each([
+    ["an empty name", ""],
+    ["a blank name", " \t\n "],
+    ["a number", 42],
+    ["null", null],
+  ])("refuses %s", (_label, value) => {
+    expect(field.safeParse(value).success).toBe(false);
+  });
+});
+
+describe("registry.shelters.updateProfile's whole input", () => {
+  const ref = { shelterId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", expectedVersion: 2 };
+
+  it("takes a rename on its own, handing the handler the trimmed name", () => {
+    expect(
+      inputOf(registrySheltersContract.updateProfile).safeParse({
+        ...ref,
+        displayName: " Лапа допомоги ",
+      }),
+    ).toMatchObject({ success: true, data: { ...ref, displayName: "Лапа допомоги" } });
+  });
+
+  it("still refuses a call that changes nothing", () => {
+    expect(inputOf(registrySheltersContract.updateProfile).safeParse(ref).success).toBe(false);
+  });
+});
+
 const description = (uk: string, en: string | null = null) => ({
   uk,
   en: en === null ? null : { text: en, provenance: "machine" },

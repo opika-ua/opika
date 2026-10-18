@@ -19,8 +19,10 @@ import {
   type ShelterVerification,
   testOnlyLocationPolicy,
 } from "@opika/domain";
+import { RPCHandler } from "@orpc/server/fetch";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
+import { router as publicRouter } from "../api/router";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
@@ -579,6 +581,177 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
         actor: { kind: "operator", displayName: "Олексій" },
       }),
     ]);
+  });
+});
+
+// ─── the rename (R-UI 4) ────────────────────────────────────────────────────
+
+/** A public procedure through the adopter API's own router, as a browser reaches it. */
+async function publicCall<T>(path: string, input: unknown): Promise<{ status: number; body: T }> {
+  const result = await new RPCHandler(publicRouter).handle(
+    new Request(`http://localhost/api/rpc/${path.replaceAll(".", "/")}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(toRpcBody(input)),
+    }),
+    {
+      prefix: "/api/rpc",
+      context: { db, adopterId: null, tokenHash: null, now: NOW, setCookies: [] },
+    },
+  );
+  if (!result.matched) throw new Error(`No public procedure at ${path}`);
+  return {
+    status: result.response.status,
+    body: fromRpcBody(JSON.parse(await result.response.text())) as T,
+  };
+}
+
+describe("registry.shelters.updateProfile: the rename (R-UI 4)", () => {
+  const rename = (shelterId: string, displayName: unknown, expectedVersion = 0) =>
+    call<RegistryShelterView>("registry.shelters.updateProfile", {
+      shelterId,
+      expectedVersion,
+      displayName,
+    });
+
+  it("renames, records one line with both names and the operator, and answers the renamed record", async () => {
+    const s = await shelter({ displayName: "Лапа" });
+    const result = await rename(s.id, "Притулок «Лапа допомоги»");
+    expect(result.status).toBe(200);
+    expect(result.body.displayName).toBe("Притулок «Лапа допомоги»");
+    expect(result.body.version).toBe(1);
+    expect((await reload(s.id)).displayName).toBe("Притулок «Лапа допомоги»");
+    expect(await history(s.id)).toEqual([
+      {
+        kind: "display_name_changed",
+        at: NOW,
+        moderatorId: OPERATOR,
+        from: "Лапа",
+        to: "Притулок «Лапа допомоги»",
+      },
+    ]);
+  });
+
+  it("stores and records the name trimmed", async () => {
+    const s = await shelter({ displayName: "Лапа" });
+    expect((await rename(s.id, "  Лапа допомоги \n")).status).toBe(200);
+    expect((await reload(s.id)).displayName).toBe("Лапа допомоги");
+    expect(await history(s.id)).toEqual([
+      expect.objectContaining({ kind: "display_name_changed", from: "Лапа", to: "Лапа допомоги" }),
+    ]);
+  });
+
+  it("a rename to the same name, with spaces around it or not, writes nothing and records nothing", async () => {
+    const s = await shelter({ displayName: "Лапа допомоги" });
+    for (const same of ["Лапа допомоги", "  Лапа допомоги  "]) {
+      const result = await rename(s.id, same);
+      expect(result.status, same).toBe(200);
+      expect(result.body.version, same).toBe(0);
+    }
+    const after = await reload(s.id);
+    expect(after.version).toBe(0);
+    expect(after.lastUpdatedAt).toEqual(s.lastUpdatedAt);
+    expect(await history(s.id)).toEqual([]);
+  });
+
+  it("refuses a blank, empty or non-text name by create's own rule, changing nothing", async () => {
+    const s = await shelter({ displayName: "Лапа" });
+    for (const bad of ["", "   ", "\t\n", 42, null]) {
+      expect((await rename(s.id, bad)).status, JSON.stringify(bad)).toBe(400);
+      // S2 refuses the same name: one rule for both.
+      expect(
+        (await call("registry.shelters.create", { ...createInput(), displayName: bad })).status,
+        `create ${JSON.stringify(bad)}`,
+      ).toBe(400);
+    }
+    expect((await reload(s.id)).displayName).toBe("Лапа");
+    expect(await history(s.id)).toEqual([]);
+  });
+
+  it("refuses a stale version with CONFLICT, renaming nothing", async () => {
+    const s = await shelter({ displayName: "Лапа" });
+    expect((await rename(s.id, "Перша", 0)).status).toBe(200);
+    // A second S4 tab, read before the first rename landed.
+    expect((await rename(s.id, "Друга", 0)).status).toBe(409);
+    expect((await reload(s.id)).displayName).toBe("Перша");
+    expect((await history(s.id)).map((entry) => entry.kind)).toEqual(["display_name_changed"]);
+  });
+
+  it("an unknown shelter is NOT_FOUND", async () => {
+    expect((await rename(crypto.randomUUID(), "Лапа")).status).toBe(404);
+  });
+
+  it("renames alongside another field as two lines, one version bump", async () => {
+    const s = await shelter({ displayName: "Лапа" });
+    const result = await call<RegistryShelterView>("registry.shelters.updateProfile", {
+      shelterId: s.id,
+      expectedVersion: 0,
+      displayName: "Лапа допомоги",
+      description: { uk: "Новий опис", en: null },
+    });
+    expect(result.body.version).toBe(1);
+    expect((await history(s.id)).map((entry) => entry.kind).sort()).toEqual([
+      "description_changed",
+      "display_name_changed",
+    ]);
+  });
+
+  it("the new name reaches the public views: the shelter's page and an animal's card", async () => {
+    const s = await shelter({ displayName: "Лапа" });
+    const animal = makeAnimal({ shelterId: s.id });
+    await animalRepo(db).insert(animal, cityId as never);
+    expect((await rename(s.id, "Лапа допомоги")).status).toBe(200);
+
+    const page = await publicCall<{ displayName: string }>("shelters.byId", { shelterId: s.id });
+    expect(page.status).toBe(200);
+    expect(page.body.displayName).toBe("Лапа допомоги");
+    const card = await publicCall<{ shelter: { displayName: string } }>("animals.byId", {
+      animalId: animal.id,
+    });
+    expect(card.status).toBe(200);
+    expect(card.body.shelter.displayName).toBe("Лапа допомоги");
+  });
+
+  /** RG-Q8: the shelter reads the rename in its own history, the operator by display name. */
+  it("shows the rename in the shelter's own history under the operator's name, with no id", async () => {
+    const s = await shelter({ displayName: "Лапа" });
+    await rename(s.id, "Лапа допомоги");
+    const asAdmin: KabinetPrincipal = {
+      kind: "shelter_admin",
+      shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
+      shelterId: s.id,
+    };
+    const seen = await call<{ items: unknown[] }>(
+      "shelter.history.list",
+      { cursor: null, limit: 10 },
+      { principal: asAdmin },
+    );
+    expect(seen.body.items).toEqual([
+      {
+        kind: "display_name_changed",
+        at: NOW,
+        actor: { kind: "operator", displayName: "Олексій" },
+        from: "Лапа",
+        to: "Лапа допомоги",
+      },
+    ]);
+  });
+
+  it("a shelter admin can't rename their own shelter (registry only)", async () => {
+    const s = await shelter({ displayName: "Лапа" });
+    const asAdmin: KabinetPrincipal = {
+      kind: "shelter_admin",
+      shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
+      shelterId: s.id,
+    };
+    const refused = await call(
+      "registry.shelters.updateProfile",
+      { shelterId: s.id, expectedVersion: 0, displayName: "Інша назва" },
+      { principal: asAdmin },
+    );
+    expect(refused.status).toBe(403);
+    expect((await reload(s.id)).displayName).toBe("Лапа");
+    expect(await history(s.id)).toEqual([]);
   });
 });
 
