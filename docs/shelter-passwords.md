@@ -243,7 +243,18 @@ to find accounts. Its message is the same for every address (§9, Q5).
 - Neon smoke (new SQL paths: credential create, reset-token consume): steps after the last one, his
   run.
 
-## 9. Questions for him (one batch; each has a recommendation)
+## 9. Questions for him: answered 2026-10-19
+
+**His answers, verbatim (2026-10-19):** "1. (a): separate single-use hashed 72h token; opening the link only shows the form; no tracking; reset links the same. 2. SecLists top-100k (MIT, NOTICE line), server-only; the live hint shows length; "too common" on submit. Also reject passwords containing the email's local part, the shelter's name, or "opika" (case-insensitive). 3. (a): the operator keeps 7 days idle / 30-day cap, enforced by role. The operator never has a password. 4. Yes: «пароль змінено» after a change too. 5. (a): generic wrong-credentials sentence, plus «Забагато спроб входу. Спробуйте ще раз через {minutes} хв.» shown identically for every address (plural pin for minutes). 6. Confirmed: 30-day rolling / 90-day cap for shelter admins ships with passwords. 7. Yes: every per-address limiter key becomes an HMAC of the address, like IP keys. Send the copy sheet, then build after PR 6 merges." Also: "Both #136 safeguards approved: the exact-payload test ({from,to,reply_to,subject,html,text} only) and delivery-test refusing if tracking is on."
+
+**What they change in this contract:**
+- §3's verdict gains one variant: `{ kind: "contains_personal" }`, for a password containing the email's local part, the shelter's name, or "opika", case-insensitive. The policy function therefore takes `{ email, shelterName }` alongside the password.
+- §4.3's delay message is his «Забагато спроб входу. Спробуйте ще раз через {minutes} хв.», pinned for several values of `{minutes}`.
+- §4.5: the operator keeps 7 days idle and a 30-day cap, enforced by role in `hooks.before`. Shelter admins get 30 days rolling and a 90-day cap.
+- §4.4: the notice goes out after a reset and after a change.
+- The questions below are kept as asked, for the record.
+
+### The questions as asked
 
 1. **The invitation link becomes a bearer credential.** Today the invite link only asks for a magic
    link to the invited mailbox, so holding the link isn't enough. With «Створіть пароль» on the link,
