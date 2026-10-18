@@ -6,6 +6,12 @@ goes live at once (K-Q3, verbatim: "K-Q3: live immediately. PR 6 rewrites commit
 merges before the first real shelter's invite (F-B6, verbatim: "F6: PR 6 merges BEFORE the first real
 shelter's invite.").
 
+**Status (PR 6, `feat/pr6-open-writes`, draft):** his answers and final Ukrainian are
+`D:\opika-worktrees\pr6-copy-uk.md`, applied verbatim (`docs/decisions-inbox/feat-pr6-open-writes.md`).
+Correction to this sheet: §1.3's English ("Fixing a typo or changing a photo doesn't move it") and
+§2's "Never set by: … a photo change" predate RH-B7. A photo change on a card people can see moves
+the date (PR 4), and his B1 says so (`docs/pr6-checklist.md` 6.3).
+
 **Read at** `origin/main` `baa629b` unless marked. `uk.ts` = `packages/i18n/src/messages/uk.ts`.
 `SC` = `docs/standing-constraints.md`. `H2CS` = `docs/h2-copy-sheet.md`. `K4CS` = `docs/k4-copy-sheet.md`.
 `K4UK` = `D:\opika-worktrees\k4-copy-uk.md`. It is outside the repo, headed «K4 copy — Ukrainian

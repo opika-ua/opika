@@ -36,6 +36,9 @@ current last paragraph of §7, and ship it in the same commit as row 89."
 (Earlier: answer 3 offered it as optional, not blocking, with its position open.)
 
 ### A2. `forShelters.whenAnimalFindsHome` (§9)
+**Superseded in PR 6 of the K milestone:** ¶1 and ¶3 are his PR 6 text
+(`D:\opika-worktrees\pr6-copy-uk.md` §1.2; «Уже вдома» is the shelter's own). What follows is history.
+
 **Current (last paragraph goes false):**
 > Поки що це просто: напишіть, і я приберу. Окремої кнопки ще немає — не хочу обіцяти кабінет,
 > якого не існує.
@@ -110,6 +113,9 @@ animal or taps «Ще шукає» / «Ще домовляються» (K2, one 
 move it.
 
 ### B1. `forShelters.whyThatSentence` (§8)
+**Done in PR 6 of the K milestone:** his text (`D:\opika-worktrees\pr6-copy-uk.md` §1.3), naming
+every trigger of the date, a photo change on a visible card included (RH-B7).
+
 **Current (the sentence that changes):**
 > …Тому на картці видно, коли інформацію востаннє оновлювали, а на сторінці тварини — ваше
 > речення про те, як часто ви це робите, вашими словами.
@@ -123,6 +129,9 @@ move it.
   stamped by the confirm tap.
 
 ### B2. `freshness.updatedAgo` («Оновлено {days}»), on every gallery card, the deck and the detail page
+**Decided (K-Q14, option (a), PR 6):** «Оновлено {days}» stays; his reason and the H2-15 rename are
+in `docs/decisions-inbox/feat-pr6-open-writes.md`.
+
 **After H2:** the number is the time since the last *confirmation*, not the last edit.
 - Whether «Оновлено» still reads honestly for that, or should become a "confirmed" wording,
   is your call.

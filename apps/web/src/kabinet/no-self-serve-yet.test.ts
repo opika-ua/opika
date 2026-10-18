@@ -8,32 +8,36 @@ import { kabinetAuthAvailability } from "./auth-route";
 import { productionSignInOf } from "./production-sign-in";
 
 /**
- * HS-Q3 (Oleksii): "self-serve shipped" is the first PR in which a real
- * shelter can sign in, and the /prytulkam copy that self-serve makes false
- * must land before that merge:
+ * What self-serve may and may not do, after PR 6 of the K milestone opened
+ * shelter writes for every shelter (commitment #6 in
+ * `docs/standing-constraints.md`). The name is its history (HS-Q3, Oleksii:
+ * "self-serve shipped" is the first PR in which a real shelter can sign in);
+ * it stays, because the register and the messages below cite it (PC-T2).
  *
- *   A1 `forShelters.whatToPrepare`        (§7  «ви розкажете, а я внесу все сам»)
- *   A2 `forShelters.whenAnimalFindsHome`  (§9  «напишіть, і я приберу»)
- *   A3 `forShelters.whoIsBehindThis`      (§10 «відповідаю я»)
- *   B1 `forShelters.whyThatSentence`      (commitment #7, «оновлювали»)
+ * The /prytulkam copy self-serve made false had to land with it, and all of
+ * it is live since PR 6, which is the edit-screens gate B1 moved to (Oleksii,
+ * 2026-10-14, verbatim: "Yes, B1 moves to the edit-screens merge gate"):
  *
- * B1 now gates a later merge (Oleksii, 2026-10-14, verbatim: "Yes, B1 moves
- * to the edit-screens merge gate"): «оновлювали» stays true until the kabinet
- * can edit or confirm a listing, and this PR ships neither. The messages
- * below still name it, so whoever trips one sees the whole HS-Q3 set.
+ *   §7  `forShelters.whatToPrepare`        A1, and his PR 6 last paragraph (the shelter keeps its own cards)
+ *   §9  `forShelters.whenAnimalFindsHome`  his PR 6 ¶1 and ¶3 («Уже вдома» is the shelter's own)
+ *   §10 `forShelters.whoIsBehindThis`      A3 («відповідаю я»), kept
+ *   §8  `forShelters.whyThatSentence`      B1, his PR 6 text (what moves the date)
  *
- * A shelter can sign in only once someone holds a membership, so this file
- * pins where one can come from: **exactly one module**, the automatic
- * invitation accept (IN-Q12/IN-Q13; Oleksii, verbatim: "Order and the guard
- * replacement: approved as described"), named by its full path, and only the
- * app's accept wrapper may call it. Everything else is still refused. The
- * accept runs only after a sign-in, which production allows since the wiring
- * commit (when `productionSignInOf` is on). These scans match the shapes code actually takes (direct and
- * namespaced table writes, raw SQL, Better Auth's server API); they guard
+ * What PR 6 did not open, and this file still pins: a shelter can sign in
+ * only once someone holds a membership, and the operator alone decides who
+ * does. So this file pins where one can come from: **exactly one module**,
+ * the automatic invitation accept (IN-Q12/IN-Q13; Oleksii, verbatim: "Order
+ * and the guard replacement: approved as described"), named by its full
+ * path, and only the app's accept wrapper may call it. Everything else is
+ * still refused. The accept runs only after a sign-in, which production
+ * allows since the wiring commit (when `productionSignInOf` is on). These
+ * scans match the shapes code actually takes (direct and namespaced table
+ * writes, raw SQL, Better Auth's server API); they guard
  * against accident, not against someone deliberately aliasing a table to
  * slip past them. **If you are deleting or changing an assertion here, you
- * are widening self-serve: A1–A3 in docs/h2-copy-sheet.md must already be
- * live in the same PR, and B1 before the edit screens merge.**
+ * are widening self-serve past what commitment #6 says** (only the operator
+ * creates a shelter and sends cabinet access): rewrite §7 and the register
+ * in the same PR.
  */
 
 const REPO = resolve(fileURLToPath(import.meta.url), "../../../../..");
@@ -74,8 +78,8 @@ const ACCEPT_MODULE = "packages/db/src/repos/kabinet-invitation-accept-repo.ts";
 const ACCEPT_CALLER = "apps/web/src/kabinet/invitation-accept.ts";
 
 const COPY_GATE =
-  "/prytulkam A1–A3 (§7 whatToPrepare, §9 whenAnimalFindsHome, §10 whoIsBehindThis) and B1 " +
-  "(whyThatSentence) must be live before this changes: see docs/h2-copy-sheet.md (HS-Q3)";
+  "/prytulkam §7 whatToPrepare, §9 whenAnimalFindsHome, §10 whoIsBehindThis and §8 " +
+  "whyThatSentence describe this: see docs/standing-constraints.md, commitments 6 and 7";
 
 describe(`a shelter membership is created by the automatic accept only — ${COPY_GATE}`, () => {
   it("sanity: the scan sees the source tree", () => {

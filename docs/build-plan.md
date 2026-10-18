@@ -1048,8 +1048,8 @@ weeks.
 
 **Launch order** (Oleksii, 2026-10-17, inbox RH-B5, RU-B4):
 1. **Built and merged:** PR 4 (K3 form) → PR 5 (K2 list) → PR 6 (writes open for everyone, the
-   allowlist gone), with the operator screens (R-UI, below) merged alongside, as the second
-   parallel PR.
+   allowlist gone; draft on `feat/pr6-open-writes`), with the operator screens (R-UI, below)
+   merged alongside, as the second parallel PR.
 2. **Dress rehearsal gate** (RU-B4, RU-B5): the UI-only dress rehearsal in
    `docs/onboarding-a-shelter.md` passes, after PR 6 and the operator screens, **before any
    public posting or marketing**. No console rpc, no scripts, no `KABINET_WRITE_ALLOWLIST`; the
