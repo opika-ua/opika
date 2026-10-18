@@ -6,14 +6,18 @@ import {
   animalRepo,
   cityRepo,
   kabinetShelterRepo,
+  revealRepo,
   shelterRepo,
   swipeRepo,
 } from "@opika/db/repos";
 import { shelterHistory } from "@opika/db/schema";
 import {
+  type AnimalFixtureOverrides,
   makeAdopter,
   makeAnimal,
   makeCity,
+  makeDraftAnimal,
+  makeReveal,
   makeShelter,
   makeSwipe,
   setupTestDatabase,
@@ -71,6 +75,8 @@ async function call<T = Record<string, unknown>>(
     cursorSecret?: string;
     limiters?: KabinetLimiters;
     ip?: string;
+    /** A wrapped database (statement counting); the suite's own by default. */
+    database?: typeof db;
   } = {},
 ): Promise<{ status: number; body: T }> {
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
@@ -91,7 +97,7 @@ async function call<T = Record<string, unknown>>(
     resolve: async () => ({
       principal: opts.principal ?? asAdmin,
       userId: opts.userId === undefined ? "user-admin" : opts.userId,
-      db,
+      db: opts.database ?? db,
       cursorSecret: opts.cursorSecret ?? "test-cursor-secret",
     }),
     now: opts.now ?? new Date(),
@@ -118,7 +124,7 @@ function parsed(text: string): unknown {
   }
 }
 
-async function animal(overrides: Partial<Animal> = {}): Promise<Animal> {
+async function animal(overrides: AnimalFixtureOverrides = {}): Promise<Animal> {
   const a = makeAnimal({ shelterId: shelter.id, ...overrides });
   await animalRepo(db).insert(a, cityId as never);
   return a;
@@ -436,24 +442,37 @@ describe("shelter.profile", () => {
 });
 
 describe("shelter.animals", () => {
-  it("createDraft makes a draft in this shelter, with unknown medical facts", async () => {
+  /** K-Q5: a name and a species make a draft; D2: its sex starts «Не записано». */
+  it("createDraft makes a draft in this shelter from a name and a species, nothing invented", async () => {
     const result = await call<KabinetAnimalView>("shelter.animals.createDraft", {
       name: "  Мурчик ",
       species: "cat",
-      sex: "male",
-      size: "small",
-      age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date("2020-01-01") },
-      description: { uk: "Опис", en: null },
     });
     expect(result.status).toBe(200);
-    expect(result.body.name).toBe("Мурчик");
-    expect(result.body.listing).toEqual({ kind: "draft" });
+    expect(result.body).toMatchObject({
+      name: "Мурчик",
+      species: "cat",
+      sex: "unknown",
+      size: null,
+      age: null,
+      description: null,
+      photos: [],
+      listing: { kind: "draft" },
+    });
     expect(result.body.vaccination.state).toBe("unknown");
-    // The server stamps a declared age bucket; the client's date is ignored.
-    expect((result.body.age as { declaredAt: Date }).declaredAt.getFullYear()).toBeGreaterThan(
-      2020,
-    );
-    expect((await reload(result.body.id)).shelterId).toBe(shelter.id);
+    expect(result.body.spayNeuter.state).toBe("unknown");
+    const stored = await reload(result.body.id);
+    expect(stored.shelterId).toBe(shelter.id);
+    expect(stored).toMatchObject({ size: null, age: null, description: null, sex: "unknown" });
+  });
+
+  it("createDraft refuses anything beyond a name and a species (strict)", async () => {
+    const result = await call("shelter.animals.createDraft", {
+      name: "Мурчик",
+      species: "cat",
+      sex: "male",
+    });
+    expect(result.status).toBe(400);
   });
 
   /** S3-T6: an edit bumps version by exactly one, and a second save from the same read is CONFLICT. */
@@ -556,7 +575,11 @@ describe("shelter.animals", () => {
     const newer = await animal({ lastUpdatedAt: new Date("2026-08-02T00:00:00.000Z") });
     const order = async () =>
       (
-        await call<ListBody>("shelter.animals.list", { listing: null, cursor: null, limit: 10 })
+        await call<ListBody>("shelter.animals.list", {
+          filter: { kind: "all" },
+          cursor: null,
+          limit: 10,
+        })
       ).body.items.map((item) => item.id);
     const before = await order();
     expect(before).toEqual([newer.id, older.id]);
@@ -665,7 +688,7 @@ describe("shelter.animals", () => {
 
     const first = await call<ListBody>(
       "shelter.animals.list",
-      { listing: null, cursor: null, limit: 2 },
+      { filter: { kind: "all" }, cursor: null, limit: 2 },
       { now },
     );
     expect(first.status).toBe(200);
@@ -682,7 +705,7 @@ describe("shelter.animals", () => {
 
     const second = await call<ListBody>(
       "shelter.animals.list",
-      { listing: null, cursor: first.body.nextCursor, limit: 2 },
+      { filter: { kind: "all" }, cursor: first.body.nextCursor, limit: 2 },
       { now },
     );
     expect(second.body.items).toHaveLength(1);
@@ -696,19 +719,19 @@ describe("shelter.animals", () => {
     await animal();
     await animal();
     const first = await call<ListBody>("shelter.animals.list", {
-      listing: null,
+      filter: { kind: "all" },
       cursor: null,
       limit: 1,
     });
     const otherFilter = await call("shelter.animals.list", {
-      listing: "published",
+      filter: { kind: "listing", listing: "published" },
       cursor: first.body.nextCursor,
       limit: 1,
     });
     expect(otherFilter.status).toBe(400);
     const forged = await call(
       "shelter.animals.list",
-      { listing: null, cursor: first.body.nextCursor, limit: 1 },
+      { filter: { kind: "all" }, cursor: first.body.nextCursor, limit: 1 },
       { cursorSecret: "a-different-secret" },
     );
     expect(forged.status).toBe(400);
@@ -831,14 +854,7 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
     const now = new Date("2026-10-16T10:00:00.000Z");
     const created = await call<KabinetAnimalView>(
       "shelter.animals.createDraft",
-      {
-        name: "Мурчик",
-        species: "cat",
-        sex: "male",
-        size: "small",
-        age: { kind: "declared_bucket", bucket: "young", declaredAt: now },
-        description: { uk: "Опис", en: null },
-      },
+      { name: "Мурчик", species: "cat" },
       { now },
     );
     expect(created.status).toBe(200);
@@ -898,7 +914,8 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
           species: a.species,
           sex: a.sex,
           size: "large",
-          age: a.age,
+          // The fixture's birth date, as the form sends it back.
+          age: { kind: "birth_date", date: "2024-01-15" },
           description: a.description,
           vaccination: { state: a.vaccination.state },
           spayNeuter: { state: a.spayNeuter.state },
@@ -939,14 +956,23 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
     expect(await animalLines()).toEqual([]);
   });
 
-  it("re-sending the declared age bucket keeps its anchor and records no change", async () => {
-    const declaredAt = new Date(Date.now() - 24 * 3600 * 1000);
+  /**
+   * D3 (Oleksii: "keep the chosen «Станом на» date"): the form shows the
+   * stored bucket and its date, so re-sending them is "no change", even for a
+   * bucket stamped at save time before D3 (compared as Kyiv calendar dates).
+   */
+  it("re-sending the stored bucket and «as of» date keeps the stored age and records no change", async () => {
+    const declaredAt = new Date("2026-10-15T21:30:00.000Z"); // 00:30 on the 16th in Kyiv
     const a = await animal({ age: { kind: "declared_bucket", bucket: "young", declaredAt } });
-    const result = await call<KabinetAnimalView>("shelter.animals.update", {
-      animalId: a.id,
-      expectedVersion: a.version,
-      patch: { age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date() } },
-    });
+    const result = await call<KabinetAnimalView>(
+      "shelter.animals.update",
+      {
+        animalId: a.id,
+        expectedVersion: a.version,
+        patch: { age: { kind: "declared_bucket", bucket: "young", asOf: "2026-10-16" } },
+      },
+      { now: new Date("2026-10-17T09:00:00.000Z") },
+    );
     expect(result.status).toBe(200);
     expect(result.body.version).toBe(a.version);
     expect((await reload(a.id)).age).toEqual({
@@ -957,30 +983,89 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
     expect(await animalLines()).toEqual([]);
   });
 
-  it("re-entering a bucket the animal has since grown out of is a correction: restamped, recorded", async () => {
-    // Declared «young» years ago: the card shows an older bucket today.
-    const declaredAt = new Date("2019-01-01T00:00:00.000Z");
-    const a = await animal({ age: { kind: "declared_bucket", bucket: "young", declaredAt } });
-    const now = new Date();
+  it("a bucket is stored as of the date the shelter chose, not the save time (D3), and recorded", async () => {
+    const a = await animal({
+      age: {
+        kind: "declared_bucket",
+        bucket: "young",
+        declaredAt: new Date("2019-01-01T00:00:00.000Z"),
+      },
+    });
     const result = await call<KabinetAnimalView>(
       "shelter.animals.update",
       {
         animalId: a.id,
         expectedVersion: a.version,
-        patch: { age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date(0) } },
+        patch: { age: { kind: "declared_bucket", bucket: "adult", asOf: "2026-03-02" } },
       },
-      { now },
+      { now: new Date("2026-10-17T09:00:00.000Z") },
     );
     expect(result.status).toBe(200);
     expect(result.body.version).toBe(a.version + 1);
     expect((await reload(a.id)).age).toEqual({
       kind: "declared_bucket",
-      bucket: "young",
-      declaredAt: now,
+      bucket: "adult",
+      declaredAt: new Date("2026-03-02T00:00:00.000Z"),
     });
     expect(
       (await animalLines()).map((l) => (l.kind === "animal_edited" ? l.fields : l.kind)),
     ).toEqual([["age"]]);
+  });
+
+  it("a birth date is stored at day precision", async () => {
+    const a = await animal();
+    const result = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { age: { kind: "birth_date", date: "2025-05-20" } },
+    });
+    expect(result.status).toBe(200);
+    expect((await reload(a.id)).age).toEqual({
+      kind: "birth_date",
+      date: new Date("2025-05-20T00:00:00.000Z"),
+      precision: "day",
+    });
+  });
+
+  /** D3: "Refuse a date in the future (Kyiv) or older than 30 years." */
+  describe("the age date is refused outside Kyiv's today and thirty years back", () => {
+    // 01:30 on 17 October in Kyiv, while UTC's date is still the 16th.
+    const now = new Date("2026-10-16T22:30:00.000Z");
+    const update = async (age: unknown) => {
+      const a = await animal();
+      const result = await call<{ data?: unknown }>(
+        "shelter.animals.update",
+        { animalId: a.id, expectedVersion: a.version, patch: { age } },
+        { now },
+      );
+      return { result, stored: await reload(a.id), before: a };
+    };
+
+    it.each([
+      [
+        "Kyiv's today as an «as of»",
+        { kind: "declared_bucket", bucket: "baby", asOf: "2026-10-17" },
+      ],
+      ["exactly thirty years ago as a birth date", { kind: "birth_date", date: "1996-10-17" }],
+    ])("accepts %s", async (_label, age) => {
+      expect((await update(age)).result.status).toBe(200);
+    });
+
+    it.each([
+      [
+        "Kyiv's tomorrow as an «as of»",
+        { kind: "declared_bucket", bucket: "baby", asOf: "2026-10-18" },
+        "future",
+      ],
+      ["Kyiv's tomorrow as a birth date", { kind: "birth_date", date: "2026-10-18" }, "future"],
+      ["thirty years and a day back", { kind: "birth_date", date: "1996-10-16" }, "too_old"],
+    ])("refuses %s with AGE_DATE_OUT_OF_RANGE, writing nothing", async (_label, age, problem) => {
+      const { result, stored, before } = await update(age);
+      expect(result.status).toBe(422);
+      expect(result.body).toMatchObject({ code: "AGE_DATE_OUT_OF_RANGE", data: { problem } });
+      expect(stored.age).toEqual(before.age);
+      expect(stored.version).toBe(before.version);
+    });
   });
 
   it("each of the six moves records animal_listing_changed with from and to", async () => {
@@ -1236,7 +1321,7 @@ describe("no listing move touches last_updated_at (HS-T9)", () => {
   // [move, starting state, procedure, input, what the stored listing must show afterwards]
   const cases: [
     string,
-    Partial<Animal>,
+    AnimalFixtureOverrides,
     string,
     (id: string) => unknown,
     (after: Animal) => void,
@@ -1390,5 +1475,379 @@ describe("shelter.history.list (RG-Q8)", () => {
     const json = JSON.stringify([first.body, second.body]);
     expect(json).not.toContain(MOD);
     expect(json).not.toContain(ADMIN);
+  });
+});
+
+/**
+ * K3 (PR 4) through the served router: a name-and-species draft filled in
+ * and published (K-Q5, F-B1), clearing the description (T4), and the English
+ * cleared when the Ukrainian changes (T5).
+ */
+describe("K3: drafts, readiness and the description", () => {
+  const PHOTO = { storageKey: "animals/k3/1", width: 800, height: 1000, alt: null };
+  const DESCRIPTION = { uk: "Спокійна, любить гуляти.", en: null };
+  const AGE = {
+    kind: "declared_bucket",
+    bucket: "young",
+    declaredAt: new Date("2026-09-01"),
+  } as const;
+  const lines = async () =>
+    (await kabinetShelterRepo(db).historyOf(shelter.id)).filter((entry) =>
+      entry.kind.startsWith("animal_"),
+    );
+
+  async function bareDraft(overrides: Parameters<typeof makeDraftAnimal>[0] = {}) {
+    const draft = makeDraftAnimal({ shelterId: shelter.id, ...overrides });
+    await animalRepo(db).insert(draft, cityId as never);
+    return draft;
+  }
+
+  const publish = (animalId: string) =>
+    call<{ code?: string; data?: { gaps: { kind: string }[] } }>("shelter.animals.transition", {
+      animalId,
+      event: { type: "publish" },
+    });
+
+  it("publishing a name-and-species draft answers every gap, in form order", async () => {
+    const draft = await bareDraft();
+    const result = await publish(draft.id);
+    expect(result.status).toBe(422);
+    expect(result.body).toMatchObject({
+      code: "PUBLISH_REQUIREMENTS_UNMET",
+      data: {
+        gaps: [{ kind: "size" }, { kind: "age" }, { kind: "description" }, { kind: "photo" }],
+      },
+    });
+    expect((await reload(draft.id)).listing.kind).toBe("draft");
+    expect(await lines()).toEqual([]);
+  });
+
+  it.each([
+    ["size", { age: AGE, description: DESCRIPTION, photos: [PHOTO] }],
+    ["age", { size: "small", description: DESCRIPTION, photos: [PHOTO] }],
+    ["description", { size: "small", age: AGE, photos: [PHOTO] }],
+    ["photo", { size: "small", age: AGE, description: DESCRIPTION }],
+  ] as const)("a draft missing only its %s answers exactly that gap", async (kind, filled) => {
+    const draft = await bareDraft(filled);
+    const result = await publish(draft.id);
+    expect(result.status).toBe(422);
+    expect(result.body.data?.gaps).toEqual([{ kind }]);
+  });
+
+  it("a draft filled in through update then publishes, with its facts on the listed animal", async () => {
+    const draft = await bareDraft({ photos: [PHOTO] });
+    const filled = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: draft.id,
+      expectedVersion: draft.version,
+      patch: {
+        size: "small",
+        age: { kind: "declared_bucket", bucket: "young", asOf: "2026-09-01" },
+        description: DESCRIPTION,
+      },
+    });
+    expect(filled.status).toBe(200);
+    expect(filled.body.listing.kind).toBe("draft");
+    const published = await publish(draft.id);
+    expect(published.status).toBe(200);
+    const stored = await reload(draft.id);
+    expect(stored).toMatchObject({ size: "small", description: DESCRIPTION });
+    expect(stored.listing.kind).toBe("published");
+  });
+
+  it("clearing a draft's description stores null and records one description edit", async () => {
+    const draft = await bareDraft({ description: DESCRIPTION });
+    const result = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: draft.id,
+      expectedVersion: draft.version,
+      patch: { description: null },
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.description).toBeNull();
+    expect((await reload(draft.id)).description).toBeNull();
+    expect((await lines()).map((l) => (l.kind === "animal_edited" ? l.fields : l.kind))).toEqual([
+      ["description"],
+    ]);
+  });
+
+  it("clearing a published animal's description is LISTING_FACT_REQUIRED, writing nothing", async () => {
+    const listed = await animal();
+    const result = await call<{ code?: string; data?: unknown }>("shelter.animals.update", {
+      animalId: listed.id,
+      expectedVersion: listed.version,
+      patch: { description: null },
+    });
+    expect(result.status).toBe(422);
+    expect(result.body).toMatchObject({
+      code: "LISTING_FACT_REQUIRED",
+      data: { field: "description" },
+    });
+    const stored = await reload(listed.id);
+    expect(stored.description).toEqual(listed.description);
+    expect(stored.version).toBe(listed.version);
+    expect(await lines()).toEqual([]);
+  });
+
+  it("a changed Ukrainian description drops the English; an unchanged one keeps it (T5)", async () => {
+    const english = { text: "Calm, likes walks.", provenance: "human" } as const;
+    const listed = await animal({ description: { uk: "Спокійна.", en: english } });
+    const same = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: listed.id,
+      expectedVersion: listed.version,
+      patch: { description: { uk: "Спокійна.", en: english }, name: "Інше імʼя" },
+    });
+    expect(same.status).toBe(200);
+    expect((await reload(listed.id)).description).toEqual({ uk: "Спокійна.", en: english });
+    const changed = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: listed.id,
+      expectedVersion: listed.version + 1,
+      patch: { description: { uk: "Спокійна й лагідна.", en: english } },
+    });
+    expect(changed.status).toBe(200);
+    expect((await reload(listed.id)).description).toEqual({ uk: "Спокійна й лагідна.", en: null });
+  });
+});
+/**
+ * K2 (PR 5) through the served router: N5's stale filter (K2 sheet P7), the
+ * row's age and gaps (P3), one page as a fixed number of statements, and the
+ * withdrawal reason as the kabinet takes it (P6, question 10).
+ */
+describe("K2: the animal list", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const NOW = new Date("2026-10-18T12:00:00.000Z");
+  const PHOTO = { storageKey: "animals/k2/1", width: 800, height: 1000, alt: null };
+  /** A visible listing last confirmed `days` days (and a minute) before NOW. */
+  const confirmedDaysAgo = (kind: "published" | "reserved", days: number) => {
+    const confirmedAt = new Date(NOW.getTime() - days * DAY - 60_000);
+    return kind === "published"
+      ? ({ kind, publishedAt: confirmedAt, confirmedAt, undoable: null } as const)
+      : ({
+          kind,
+          since: confirmedAt,
+          publishedAt: confirmedAt,
+          confirmedAt,
+          undoable: null,
+        } as const);
+  };
+  type Row = { id: string; age: unknown; publishGaps: { kind: string }[] };
+  type Page = {
+    items: Row[];
+    nextCursor: string | null;
+    counts: Record<string, number>;
+    staleCount: number;
+  };
+  const list = (filter: unknown, cursor: string | null = null, limit = 50) =>
+    call<Page>("shelter.animals.list", { filter, cursor, limit }, { now: NOW });
+
+  /**
+   * Literal ages, as in the strip's own test: "понад 30 днів", so 31 days
+   * unconfirmed is stale and 30 days is not, published or reserved alike.
+   */
+  it("the stale filter pages exactly the cards the strip counts, past the first page", async () => {
+    const stale = [
+      await animal({ listing: confirmedDaysAgo("published", 31) }),
+      await animal({ listing: confirmedDaysAgo("published", 90) }),
+      await animal({ listing: confirmedDaysAgo("reserved", 31) }),
+    ];
+    await animal({ listing: confirmedDaysAgo("published", 30) });
+    await animal({ listing: confirmedDaysAgo("reserved", 30) });
+    await animal({ listing: { kind: "draft" } });
+
+    const first = await list({ kind: "stale" }, null, 2);
+    expect(first.status).toBe(200);
+    expect(first.body.items).toHaveLength(2);
+    expect(first.body.nextCursor).not.toBeNull();
+    const second = await list({ kind: "stale" }, first.body.nextCursor, 2);
+    expect(second.status).toBe(200);
+    expect(second.body.nextCursor).toBeNull();
+    const listed = [...first.body.items, ...second.body.items].map((row) => row.id);
+    expect(listed.sort()).toEqual(stale.map((a) => a.id).sort());
+    expect(first.body.staleCount).toBe(3);
+    // The chips show the whole inventory whatever the filter.
+    expect(first.body.counts).toEqual({
+      draft: 1,
+      published: 3,
+      reserved: 2,
+      adopted: 0,
+      withdrawn: 0,
+    });
+  });
+
+  it("a stale page's cursor can't page the whole list or a kind, nor theirs the stale list", async () => {
+    for (let i = 0; i < 3; i += 1) await animal({ listing: confirmedDaysAgo("published", 40) });
+    const stalePage = await list({ kind: "stale" }, null, 1);
+    const allPage = await list({ kind: "all" }, null, 1);
+    expect(stalePage.body.nextCursor).not.toBeNull();
+    expect(allPage.body.nextCursor).not.toBeNull();
+    for (const [filter, cursor] of [
+      [{ kind: "all" }, stalePage.body.nextCursor],
+      [{ kind: "listing", listing: "published" }, stalePage.body.nextCursor],
+      [{ kind: "stale" }, allPage.body.nextCursor],
+    ] as const) {
+      const result = await list(filter, cursor, 1);
+      expect(result.status, JSON.stringify(filter)).toBe(400);
+      expect((result.body as unknown as { code: string }).code).toBe("INVALID_CURSOR");
+    }
+  });
+
+  /** Decision #15's filter binding, kind to kind (review of #126, finding 2). */
+  it("a draft page's cursor can't page the published list: the kind is part of the binding", async () => {
+    for (let i = 0; i < 3; i += 1) await animal({ listing: { kind: "draft" } });
+    for (let i = 0; i < 3; i += 1) await animal({ listing: confirmedDaysAgo("published", 1) });
+    const drafts = await list({ kind: "listing", listing: "draft" }, null, 1);
+    expect(drafts.body.nextCursor).not.toBeNull();
+    const replayed = await list(
+      { kind: "listing", listing: "published" },
+      drafts.body.nextCursor,
+      1,
+    );
+    expect(replayed.status).toBe(400);
+    expect((replayed.body as unknown as { code: string }).code).toBe("INVALID_CURSOR");
+  });
+
+  /**
+   * Commitment #2 (review of #126, finding 1): nothing the list answers may vary with what
+   * adopters did, the stale strip and its filter included.
+   */
+  it("an adopter's swipe and reveal change nothing the list answers", async () => {
+    const watched = await animal({ listing: confirmedDaysAgo("published", 40) });
+    await animal({ listing: confirmedDaysAgo("published", 2) });
+    await animal({ listing: { kind: "draft" } });
+    const read = async () => ({
+      all: (await list({ kind: "all" })).body,
+      stale: (await list({ kind: "stale" })).body,
+      published: (await list({ kind: "listing", listing: "published" })).body,
+    });
+    const before = await read();
+    const adopter = makeAdopter();
+    await adopterRepo(db).insert(adopter);
+    await swipeRepo(db).record(
+      makeSwipe({ adopterId: adopter.id, animalId: watched.id, direction: "interested", at: NOW }),
+    );
+    await revealRepo(db).insert(
+      makeReveal({
+        adopterId: adopter.id,
+        animalId: watched.id,
+        shelterId: shelter.id,
+        revealedAt: NOW,
+      }),
+    );
+    expect(await read()).toEqual(before);
+  });
+
+  it("each row carries its age and its own publish gaps, in form order", async () => {
+    const bare = makeDraftAnimal({ shelterId: shelter.id });
+    await animalRepo(db).insert(bare, cityId as never);
+    const partial = makeDraftAnimal({
+      shelterId: shelter.id,
+      size: "small",
+      age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date("2026-09-01") },
+    });
+    await animalRepo(db).insert(partial, cityId as never);
+    const shownWithout = await animal({ photos: [] });
+    const shownWith = await animal({ photos: [PHOTO] });
+
+    const rows = new Map((await list({ kind: "all" })).body.items.map((row) => [row.id, row]));
+    expect(rows.get(bare.id)).toMatchObject({
+      age: null,
+      publishGaps: [{ kind: "size" }, { kind: "age" }, { kind: "description" }, { kind: "photo" }],
+    });
+    expect(rows.get(partial.id)).toMatchObject({
+      age: partial.age,
+      publishGaps: [{ kind: "description" }, { kind: "photo" }],
+    });
+    expect(rows.get(shownWithout.id)).toMatchObject({
+      age: shownWithout.age,
+      publishGaps: [{ kind: "photo" }],
+    });
+    expect(rows.get(shownWith.id)).toMatchObject({ age: shownWith.age, publishGaps: [] });
+  });
+
+  /**
+   * No N+1: every statement a list call starts is counted at the database
+   * handle, and a page of thirteen costs what a page of one does.
+   */
+  it("a page costs the same three statements whatever its size", async () => {
+    const counting = () => {
+      let statements = 0;
+      const STARTS = new Set(["select", "insert", "update", "delete", "with", "execute"]);
+      const wrapped = new Proxy(db, {
+        get(target, property) {
+          const value = Reflect.get(target, property, target);
+          if (typeof value !== "function") return value;
+          return (...args: unknown[]) => {
+            if (typeof property === "string" && STARTS.has(property)) statements += 1;
+            return value.apply(target, args);
+          };
+        },
+      });
+      return { wrapped, statements: () => statements };
+    };
+    const statementsFor = async () => {
+      const { wrapped, statements } = counting();
+      const result = await call<Page>(
+        "shelter.animals.list",
+        { filter: { kind: "all" }, cursor: null, limit: 50 },
+        { now: NOW, database: wrapped },
+      );
+      expect(result.status).toBe(200);
+      return { rows: result.body.items.length, statements: statements() };
+    };
+    await animal({ photos: [PHOTO] });
+    const one = await statementsFor();
+    for (let i = 0; i < 11; i += 1) {
+      await animal({ photos: [PHOTO] });
+    }
+    await animal({ listing: { kind: "draft" } });
+    const many = await statementsFor();
+    expect(one.rows).toBe(1);
+    expect(many.rows).toBe(13);
+    expect(many.statements).toBe(one.statements);
+    expect(one.statements).toBe(3);
+  });
+
+  it("withdrawing stores the note trimmed, and a blank note as none", async () => {
+    const trimmed = await animal();
+    const withdrawn = await call("shelter.animals.transition", {
+      animalId: trimmed.id,
+      event: {
+        type: "withdraw",
+        reason: { code: "transferred", note: "  До притулку в Бучі  " },
+      },
+    });
+    expect(withdrawn.status).toBe(200);
+    expect((await reload(trimmed.id)).listing).toMatchObject({
+      kind: "withdrawn",
+      reason: { code: "transferred", note: "До притулку в Бучі" },
+    });
+
+    const blank = await animal();
+    const blankWithdrawn = await call("shelter.animals.transition", {
+      animalId: blank.id,
+      event: { type: "withdraw", reason: { code: "other", note: "   " } },
+    });
+    expect(blankWithdrawn.status).toBe(200);
+    expect((await reload(blank.id)).listing).toMatchObject({
+      kind: "withdrawn",
+      reason: { code: "other", note: null },
+    });
+  });
+
+  it.each([
+    ["a note over 2,000 characters", { code: "other", note: "а".repeat(2001) }],
+    ["adopted_elsewhere, which «Уже вдома» covers", { code: "adopted_elsewhere", note: null }],
+  ])("a withdrawal with %s is BAD_REQUEST and writes nothing", async (_what, reason) => {
+    const a = await animal();
+    const result = await call("shelter.animals.transition", {
+      animalId: a.id,
+      event: { type: "withdraw", reason },
+    });
+    expect(result.status).toBe(400);
+    expect(result.body.code).toBe("BAD_REQUEST");
+    expect((await reload(a.id)).listing).toEqual(a.listing);
+    expect(
+      (await kabinetShelterRepo(db).historyOf(shelter.id)).filter((entry) =>
+        entry.kind.startsWith("animal_"),
+      ),
+    ).toEqual([]);
   });
 });

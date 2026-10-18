@@ -220,7 +220,7 @@ describe("kabinetAnimalRepo.writePhotosIf (P-Q3)", () => {
     return animal;
   }
 
-  it("writes photos and last_updated_at, never version or the listing, with one photos line", async () => {
+  it("writes photos, last_updated_at and the listing it is handed, never version, with one photos line", async () => {
     const animal = await withPhotos();
     const read = await animalRepo(db).findById(animal.id);
     if (read === null) throw new Error("seeded animal missing");
@@ -228,8 +228,8 @@ describe("kabinetAnimalRepo.writePhotosIf (P-Q3)", () => {
 
     const result = await kabinetAnimalRepo(db).writePhotosIf(
       animal.id,
-      [photo("b"), photo("a")],
-      read.photos,
+      { next: [photo("b"), photo("a")], expected: read.photos },
+      { next: read.listing, expected: read.listing },
       AT,
       photosLine(animal),
     );
@@ -251,8 +251,8 @@ describe("kabinetAnimalRepo.writePhotosIf (P-Q3)", () => {
 
     const result = await kabinetAnimalRepo(db).writePhotosIf(
       animal.id,
-      [photo("a")],
-      [photo("a"), photo("c")],
+      { next: [photo("a")], expected: [photo("a"), photo("c")] },
+      { next: animal.listing, expected: animal.listing },
       AT,
       photosLine(animal),
     );
@@ -268,8 +268,8 @@ describe("kabinetAnimalRepo.writePhotosIf (P-Q3)", () => {
     expect(
       await kabinetAnimalRepo(db).writePhotosIf(
         animal.id,
-        [],
-        [photo("b"), photo("a")],
+        { next: [], expected: [photo("b"), photo("a")] },
+        { next: animal.listing, expected: animal.listing },
         AT,
         photosLine(animal),
       ),
@@ -450,5 +450,143 @@ describe("a shelter animal write and its history line are one statement (K-Q7)",
     ).toEqual({ kind: "referenced" });
     expect(await animalRepo(db).findById(draft.id)).not.toBeNull();
     expect(await kinds(draft)).toEqual([]);
+  });
+});
+
+/**
+ * K2's list (HS-T8: most recently edited first), its chip counts and N5's
+ * stale cut, read at the repository: one shelter's rows only, keyset never
+ * OFFSET, and the stale filter and count drawing on one predicate.
+ */
+describe("kabinetAnimalRepo.listPage, countsByKind and staleCount (K2)", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const NOW = new Date("2026-10-18T12:00:00.000Z");
+  const STALE_BEFORE = new Date(NOW.getTime() - 31 * DAY);
+  const edited = (minutes: number) => new Date(NOW.getTime() - minutes * 60_000);
+  const visible = (kind: "published" | "reserved", confirmedAt: Date): AnimalListingState =>
+    kind === "published"
+      ? { kind, publishedAt: confirmedAt, confirmedAt, undoable: null }
+      : { kind, since: confirmedAt, publishedAt: confirmedAt, confirmedAt, undoable: null };
+
+  /** One shelter's inventory, each kind present, with two rows tied on edit time. */
+  async function inventory() {
+    const { animal: first, cityId } = await seeded();
+    const shelterId = first.shelterId;
+    const add = async (overrides: Parameters<typeof makeAnimal>[0]) => {
+      const animal = makeAnimal({ shelterId, ...overrides });
+      await animalRepo(db).insert(animal, cityId as never);
+      return animal;
+    };
+    // `seeded`'s own animal is published, confirmed and edited at the fixture's
+    // date (2026-08-01): stale at this cut-off, and the oldest edit on the page.
+    const staleShown = await add({
+      lastUpdatedAt: edited(1),
+      listing: visible("published", new Date(STALE_BEFORE.getTime() - DAY)),
+    });
+    const staleReserved = await add({
+      lastUpdatedAt: edited(2),
+      listing: visible("reserved", STALE_BEFORE),
+    });
+    const freshShown = await add({
+      lastUpdatedAt: edited(2),
+      listing: visible("published", new Date(STALE_BEFORE.getTime() + 1)),
+    });
+    const draft = await add({ lastUpdatedAt: edited(3), listing: { kind: "draft" } });
+    const adopted = await add({
+      lastUpdatedAt: edited(4),
+      listing: { kind: "adopted", adoptedAt: new Date("2026-01-01T00:00:00.000Z") },
+    });
+    const withdrawn = await add({
+      lastUpdatedAt: edited(5),
+      listing: {
+        kind: "withdrawn",
+        withdrawnAt: new Date("2026-01-01T00:00:00.000Z"),
+        reason: { code: "other", note: null },
+      },
+    });
+    // Another shelter's stale card: never on this shelter's page, never in its counts.
+    const other = await seeded();
+    await animalRepo(db).insert(
+      makeAnimal({
+        shelterId: other.animal.shelterId,
+        listing: visible("published", new Date("2026-01-01T00:00:00.000Z")),
+      }),
+      other.cityId as never,
+    );
+    return { shelterId, first, staleShown, staleReserved, freshShown, draft, adopted, withdrawn };
+  }
+
+  type Filter = Parameters<ReturnType<typeof kabinetAnimalRepo>["listPage"]>[0]["filter"];
+  const pagedIds = async (shelterId: Animal["shelterId"], filter: Filter, limit: number) => {
+    const ids: string[] = [];
+    let after: Parameters<ReturnType<typeof kabinetAnimalRepo>["listPage"]>[0]["after"] = null;
+    for (let page = 0; page < 20; page += 1) {
+      const result = await kabinetAnimalRepo(db).listPage({ shelterId, filter, after, limit });
+      expect(result.items.length).toBeLessThanOrEqual(limit);
+      ids.push(...result.items.map((animal) => animal.id));
+      after = result.next;
+      if (after === null) return ids;
+    }
+    throw new Error("the keyset never ended");
+  };
+
+  /** Every row once, in (last_updated_at DESC, id DESC) order, the tie broken by id. */
+  const byEditThenId = (animals: Animal[]) =>
+    [...animals]
+      .sort(
+        (a, b) => b.lastUpdatedAt.getTime() - a.lastUpdatedAt.getTime() || (a.id < b.id ? 1 : -1),
+      )
+      .map((animal) => animal.id);
+
+  it("pages one shelter's animals by last edit, every row exactly once, ties broken by id", async () => {
+    const inv = await inventory();
+    const all = [
+      inv.first,
+      inv.staleShown,
+      inv.staleReserved,
+      inv.freshShown,
+      inv.draft,
+      inv.adopted,
+      inv.withdrawn,
+    ];
+    for (const limit of [1, 2, 3, 50]) {
+      expect(await pagedIds(inv.shelterId, { kind: "all" }, limit), `pages of ${limit}`).toEqual(
+        byEditThenId(all),
+      );
+    }
+  });
+
+  it("a listing filter pages that kind only", async () => {
+    const inv = await inventory();
+    expect(await pagedIds(inv.shelterId, { kind: "listing", listing: "published" }, 1)).toEqual(
+      byEditThenId([inv.first, inv.staleShown, inv.freshShown]),
+    );
+    expect(await pagedIds(inv.shelterId, { kind: "listing", listing: "draft" }, 1)).toEqual([
+      inv.draft.id,
+    ]);
+  });
+
+  /**
+   * N5: a visible card confirmed at or before the cut-off, published or
+   * reserved, and nothing else. The filter's rows and the strip's count are
+   * the same set.
+   */
+  it("the stale filter lists exactly what staleCount counts, at the same cut-off", async () => {
+    const inv = await inventory();
+    const filter = { kind: "stale", staleBefore: STALE_BEFORE } as const;
+    const stale = await pagedIds(inv.shelterId, filter, 1);
+    expect(stale).toEqual(byEditThenId([inv.first, inv.staleShown, inv.staleReserved]));
+    expect(await kabinetAnimalRepo(db).staleCount(inv.shelterId, STALE_BEFORE)).toBe(stale.length);
+  });
+
+  it("counts every kind for this shelter only, zero where absent", async () => {
+    const inv = await inventory();
+    expect(await kabinetAnimalRepo(db).countsByKind(inv.shelterId)).toEqual({
+      draft: 1,
+      published: 3,
+      reserved: 1,
+      adopted: 1,
+      withdrawn: 1,
+    });
   });
 });

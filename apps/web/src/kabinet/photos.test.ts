@@ -1,6 +1,7 @@
 import type { KabinetAnimalView } from "@opika/contracts";
 import { animalRepo, cityRepo, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
 import {
+  type AnimalFixtureOverrides,
   imageFactsOf,
   makeAnimal,
   makeCity,
@@ -152,7 +153,10 @@ const photo = (n: number): AnimalPhoto => ({
   alt: null,
 });
 
-async function animal(overrides: Partial<Animal> = {}, owner: Shelter = shelter): Promise<Animal> {
+async function animal(
+  overrides: AnimalFixtureOverrides = {},
+  owner: Shelter = shelter,
+): Promise<Animal> {
   const created = makeAnimal({ shelterId: owner.id, ...overrides });
   await animalRepo(db).insert(created, cityId as never);
   return created;
@@ -538,7 +542,8 @@ describe("shelter.photos.reorder (P-Q3, P-Q9)", () => {
     expect(stored.photos).toEqual([photo(3), photo(1), photo(2)]);
     expect(stored.lastUpdatedAt).toEqual(now);
     expect(stored.version).toBe(target.version);
-    expect(stored.listing).toEqual(target.listing);
+    // RH-B7: on a published card the reorder is also a confirmation.
+    expect(stored.listing).toEqual({ ...target.listing, confirmedAt: now, undoable: null });
     expect(await photoHistory()).toHaveLength(1);
   });
 
@@ -665,4 +670,210 @@ describe("shelter.photos.remove (P-Q3, P-Q8)", () => {
     expect(result.status).toBe(200);
     expect((await reload(target.id)).photos).toEqual([]);
   });
+});
+
+/**
+ * RH-B3 (Oleksii, verbatim: "the form's version compare-and-set save never
+ * writes the photos column. Add one test: a form save from a stale read after
+ * a photo change keeps the new photo list."), the scenario as he gave it.
+ */
+describe("a form save never writes the photos (RH-B3)", () => {
+  it("a save from a read taken before a photo was added keeps the new photo list and its date", async () => {
+    const target = await animal({ photos: [photo(1)] });
+    const read = await reload(target.id);
+    const photoAt = new Date("2026-10-17T10:00:00.000Z");
+    const added = await call(
+      "shelter.photos.add",
+      { animalId: target.id, file: await jpeg() },
+      { uploads: uploadsOn().uploads, now: photoAt },
+    );
+    expect(added.status).toBe(200);
+    const withB = (await reload(target.id)).photos;
+    expect(withB).toHaveLength(2);
+
+    const saved = await call(
+      "shelter.animals.update",
+      {
+        animalId: target.id,
+        expectedVersion: read.version,
+        patch: { description: { uk: "Новий опис після фото.", en: null } },
+      },
+      { uploads: uploadsOn().uploads, now: new Date("2026-10-17T10:05:00.000Z") },
+    );
+
+    expect(saved.status).toBe(200);
+    const stored = await reload(target.id);
+    expect(stored.photos).toEqual(withB);
+    expect(stored.description?.uk).toBe("Новий опис після фото.");
+    // RH-B7's date, set by the photo write, survives the form save (it writes no listing).
+    expect(stored.listing).toMatchObject({ kind: "published", confirmedAt: photoAt });
+  });
+});
+
+/**
+ * RH-B7 (Oleksii, verbatim: "a photo add, reorder or remove moves «Оновлено»";
+ * D4: "approved, option (i)"): on a published or reserved card a photo change
+ * is a confirmation; on a draft, adopted or withdrawn card there is no date.
+ */
+describe("a photo change on a visible card moves the confirmation date (RH-B7)", () => {
+  const now = new Date("2026-10-17T12:00:00.000Z");
+  const confirmedAtOf = (listing: Animal["listing"]) =>
+    listing.kind === "published" || listing.kind === "reserved" ? listing.confirmedAt : null;
+  const listRow = async (id: string) => {
+    const list = await call<{ items: { id: string; freshness: unknown }[] }>(
+      "shelter.animals.list",
+      { filter: { kind: "all" }, cursor: null, limit: 50 },
+      { uploads: uploadsOn().uploads, now },
+    );
+    return list.body.items.find((item) => item.id === id);
+  };
+
+  it.each([
+    [
+      "add",
+      async (id: string) =>
+        call(
+          "shelter.photos.add",
+          { animalId: id, file: await jpeg() },
+          { uploads: uploadsOn().uploads, now },
+        ),
+    ],
+    [
+      "reorder",
+      (id: string) =>
+        call(
+          "shelter.photos.reorder",
+          {
+            animalId: id,
+            expectedPhotoKeys: [photo(1).storageKey, photo(2).storageKey],
+            nextPhotoKeys: [photo(2).storageKey, photo(1).storageKey],
+          },
+          { uploads: uploadsOn().uploads, now },
+        ),
+    ],
+    [
+      "remove",
+      (id: string) =>
+        call(
+          "shelter.photos.remove",
+          {
+            animalId: id,
+            expectedPhotoKeys: [photo(1).storageKey, photo(2).storageKey],
+            storageKey: photo(2).storageKey,
+          },
+          { uploads: uploadsOn().uploads, now },
+        ),
+    ],
+  ] as const)("%s on a published card: «Оновлено» reads fresh, 0 days", async (_change, run) => {
+    const target = await animal({ photos: [photo(1), photo(2)] });
+    expect(confirmedAtOf(target.listing)).not.toEqual(now);
+    const result = await run(target.id);
+    expect(result.status).toBe(200);
+    expect(confirmedAtOf((result.body as KabinetAnimalView).listing)).toEqual(now);
+    expect(confirmedAtOf((await reload(target.id)).listing)).toEqual(now);
+    expect((await listRow(target.id))?.freshness).toMatchObject({ kind: "fresh", ageDays: 0 });
+  });
+
+  it("a reserved card's date moves too, keeping when it was reserved", async () => {
+    const since = new Date("2026-09-01T00:00:00.000Z");
+    const target = await animal({
+      photos: [photo(1)],
+      listing: { kind: "reserved", since, publishedAt: since, confirmedAt: since, undoable: null },
+    });
+    const result = await call(
+      "shelter.photos.add",
+      { animalId: target.id, file: await jpeg() },
+      { uploads: uploadsOn().uploads, now },
+    );
+    expect(result.status).toBe(200);
+    expect((await reload(target.id)).listing).toEqual({
+      kind: "reserved",
+      since,
+      publishedAt: since,
+      confirmedAt: now,
+      undoable: null,
+    });
+  });
+
+  it.each([
+    ["draft", { kind: "draft" }],
+    ["adopted", { kind: "adopted", adoptedAt: new Date("2026-09-01T00:00:00.000Z") }],
+  ] as const)("on a %s card the listing stays exactly as it was", async (_kind, listing) => {
+    const target = await animal({ photos: [photo(1)], listing });
+    const result = await call(
+      "shelter.photos.add",
+      { animalId: target.id, file: await jpeg() },
+      { uploads: uploadsOn().uploads, now },
+    );
+    expect(result.status).toBe(200);
+    expect((await reload(target.id)).listing).toEqual(listing);
+  });
+
+  /**
+   * K2's undo (shapes §7.3): a photo change inside the 8 seconds is a newer
+   * write, so the undo answers UNDO_EXPIRED, and the date stays the photo
+   * change's: the undo never rolls it back to before the «Ще шукає».
+   */
+  const changedAt = new Date(now.getTime() + 1000);
+  it.each([
+    [
+      "an add",
+      async (id: string) =>
+        call(
+          "shelter.photos.add",
+          { animalId: id, file: await jpeg() },
+          { uploads: uploadsOn().uploads, now: changedAt },
+        ),
+    ],
+    [
+      "a reorder",
+      (id: string) =>
+        call(
+          "shelter.photos.reorder",
+          {
+            animalId: id,
+            expectedPhotoKeys: [photo(1).storageKey, photo(2).storageKey],
+            nextPhotoKeys: [photo(2).storageKey, photo(1).storageKey],
+          },
+          { uploads: uploadsOn().uploads, now: changedAt },
+        ),
+    ],
+    [
+      "a removal",
+      (id: string) =>
+        call(
+          "shelter.photos.remove",
+          {
+            animalId: id,
+            expectedPhotoKeys: [photo(1).storageKey, photo(2).storageKey],
+            storageKey: photo(2).storageKey,
+          },
+          { uploads: uploadsOn().uploads, now: changedAt },
+        ),
+    ],
+  ] as const)(
+    "%s inside a «Ще шукає» window makes its undo UNDO_EXPIRED, keeping the photo change's date",
+    async (_change, run) => {
+      const target = await animal({ photos: [photo(1), photo(2)] });
+      const confirmed = await call(
+        "shelter.animals.confirm",
+        { animalId: target.id },
+        { uploads: uploadsOn().uploads, now },
+      );
+      expect(confirmed.status).toBe(200);
+      expect((await run(target.id)).status).toBe(200);
+      const undo = await call(
+        "shelter.animals.undoConfirm",
+        { animalId: target.id },
+        { uploads: uploadsOn().uploads, now: new Date(now.getTime() + 2000) },
+      );
+      expect(undo.status).toBe(409);
+      expect(errorOf(undo.body).code).toBe("UNDO_EXPIRED");
+      expect((await reload(target.id)).listing).toMatchObject({
+        kind: "published",
+        confirmedAt: changedAt,
+        undoable: null,
+      });
+    },
+  );
 });

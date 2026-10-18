@@ -65,9 +65,33 @@ describe("kabinetHomeOf", () => {
   it.each([
     ["no role", { kind: "no_role" }],
     ["conflicting roles", { kind: "conflicting_roles" }],
-    ["a super_admin outside support mode", { kind: "super_admin", moderatorId: OPERATOR }],
   ] as [string, KabinetPrincipal][])("shows %s nothing (not found)", async (_who, principal) => {
     expect(await kabinetHomeOf(principal, deps())).toEqual({ kind: "not_found" });
+  });
+
+  /**
+   * R-UI (RU-T1): the operator's home is their list, decided by the registry
+   * router's own matrix before any shelter is read, so a super_admin outside
+   * support mode never sees a shelter's profile from here. Whatever the
+   * shelter write policy says: the registry path never reads it.
+   */
+  it("sends the operator, a super_admin outside support mode, to their own screens", async () => {
+    const operator: KabinetPrincipal = { kind: "super_admin", moderatorId: OPERATOR };
+    expect(await kabinetHomeOf(operator, deps())).toEqual({ kind: "operator" });
+    expect(
+      await kabinetHomeOf(
+        operator,
+        deps(shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: mine.id })),
+      ),
+    ).toEqual({ kind: "operator" });
+  });
+
+  it("keeps a support view on the shelter it entered, not the operator's list", async () => {
+    const home = await kabinetHomeOf(
+      { kind: "support_view", moderatorId: OPERATOR, shelterId: theirs.id },
+      deps(),
+    );
+    expect(home.kind).toBe("shelter");
   });
 
   it("shows a shelter admin their own shelter, with its city, as an admin", async () => {
@@ -297,7 +321,8 @@ describe("leavesSignIn (/kabinet/vkhid with a live session)", () => {
     ["an anonymous visitor", { kind: "anonymous" }, false],
     ["an account with no role", { kind: "no_role" }, false],
     ["conflicting roles", { kind: "conflicting_roles" }, false],
-    ["a super_admin outside support mode", { kind: "super_admin", moderatorId: OPERATOR }, false],
+    // R-UI: `/kabinet` now has somewhere to send the operator (their list).
+    ["a super_admin outside support mode", { kind: "super_admin", moderatorId: OPERATOR }, true],
   ] as [string, KabinetPrincipal, boolean][])(
     "%s: whether sign-in sends them on to /kabinet",
     (_who, principal, leaves) => {
@@ -305,7 +330,7 @@ describe("leavesSignIn (/kabinet/vkhid with a live session)", () => {
     },
   );
 
-  it("leaves exactly when the home page would show a shelter", async () => {
+  it("leaves exactly when the home page would show a shelter or send the operator on", async () => {
     for (const principal of [
       {
         kind: "shelter_admin",
@@ -319,7 +344,9 @@ describe("leavesSignIn (/kabinet/vkhid with a live session)", () => {
       { kind: "super_admin", moderatorId: OPERATOR },
     ] as KabinetPrincipal[]) {
       const home = await kabinetHomeOf(principal, deps());
-      expect(leavesSignIn(principal), principal.kind).toBe(home.kind === "shelter");
+      expect(leavesSignIn(principal), principal.kind).toBe(
+        home.kind === "shelter" || home.kind === "operator",
+      );
     }
   });
 });

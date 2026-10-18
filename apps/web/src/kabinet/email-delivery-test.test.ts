@@ -118,8 +118,13 @@ describe("runDeliveryTest, both via Brevo (comparison during the grace period)",
       const h = harness();
       expect(await runDeliveryTest({ ...h.input, operatorName })).toBe(0);
       const [signIn, invite] = h.calls.map(bodyOf);
-      expect(signIn.textContent.endsWith("\n— Оператор реєстру"), String(operatorName)).toBe(true);
-      expect(invite.textContent.endsWith("\n— Оператор реєстру"), String(operatorName)).toBe(true);
+      // Round 2, answer 6, verbatim: "Email signature fallback: capitalise it → «— Адміністратор сайту»."
+      expect(signIn.textContent.endsWith("\n— Адміністратор сайту"), String(operatorName)).toBe(
+        true,
+      );
+      expect(invite.textContent.endsWith("\n— Адміністратор сайту"), String(operatorName)).toBe(
+        true,
+      );
     }
   });
 

@@ -40,11 +40,33 @@ export const formatDate = (date: Date): string =>
     timeZone: "Europe/Kyiv",
   }).format(date);
 
+type Channel = KabinetShelterView["contact"]["primary"];
+
+/** A contact channel's value as a person would type or dial it. */
+export const channelValue = (channel: Channel): string => {
+  switch (channel.kind) {
+    case "phone":
+    case "viber":
+      return channel.e164;
+    case "email":
+      return channel.address;
+    case "telegram":
+      return `@${channel.handle}`;
+    case "website":
+      return channel.url;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled channel; unreachable at runtime */
+    default: {
+      const unreachable: never = channel;
+      return unreachable;
+    }
+  }
+};
+
 const statusDate = (verification: ShelterFacingVerification): Date =>
   "since" in verification ? verification.since : verification.at;
 
 /** An EDRPOU code grouped 2·3·3, as the mock writes it («43 218 765»). */
-const groupEdrpou = (code: string): string =>
+export const groupEdrpou = (code: string): string =>
   code.length === 8 ? `${code.slice(0, 2)} ${code.slice(2, 5)} ${code.slice(5)}` : code;
 
 /**

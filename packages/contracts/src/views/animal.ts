@@ -1,9 +1,9 @@
 import {
   AgeBucketSchema,
   AnimalPhotoSchema,
-  AnimalSchema,
   DISCOVERABLE_LISTING_KINDS,
   FreshnessSchema,
+  ListedAnimalSchema,
 } from "@opika/domain";
 import { z } from "zod";
 import { PublicCityLocationViewSchema } from "./location";
@@ -47,8 +47,15 @@ const animalLocation = {
  */
 const FeedCardListingKindSchema = z.enum(DISCOVERABLE_LISTING_KINDS);
 
+/**
+ * Both public views pick from `ListedAnimalSchema`, never the animal union
+ * (F-B1): their `size` and `description` stay required, so a draft's missing
+ * fact can't type-check into one, and oRPC's output validation refuses a
+ * null on the way out (fail closed, a 500 that leaks nothing).
+ */
+
 /** Deliberately lean: the deck holds several of these in memory at once. */
-export const FeedCardViewSchema = AnimalSchema.pick({
+export const FeedCardViewSchema = ListedAnimalSchema.pick({
   id: true,
   name: true,
   species: true,
@@ -64,7 +71,7 @@ export const FeedCardViewSchema = AnimalSchema.pick({
   });
 export type FeedCardView = z.infer<typeof FeedCardViewSchema>;
 
-export const AnimalDetailViewSchema = AnimalSchema.pick({
+export const AnimalDetailViewSchema = ListedAnimalSchema.pick({
   id: true,
   name: true,
   species: true,

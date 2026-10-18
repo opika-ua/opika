@@ -2,7 +2,7 @@
 
 import type { FeedCardView } from "@opika/contracts";
 import { fillAnimalName } from "@opika/domain";
-import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
+import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips, type PipFill } from "@opika/ui";
 import Image from "next/image";
 import type { RefCallback } from "react";
@@ -258,7 +258,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
 
 function formatMeta(card: FeedCardView): string {
   const parts: string[] = [];
-  if (card.ageBucket) parts.push(ageBucketLabel(card.ageBucket));
+  if (card.ageBucket) parts.push(ageWordFor(card.ageBucket, card.sex));
   parts.push(sizeLabel(card.size));
   return parts.join(" · ");
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnimalSchema } from "./animal";
+import { DraftAnimalSchema, ListedAnimalSchema } from "./animal";
 import { MAX_ANIMAL_PHOTOS, PHOTO_MAX_EDGE_PX } from "./photo";
 
 const photo = (n: number) => ({
@@ -17,8 +17,10 @@ describe("the photo cap on the stored animal (K-Q11)", () => {
   });
 
   it("accepts ten photos and refuses eleven", () => {
-    const photos = AnimalSchema.shape.photos;
-    expect(photos.safeParse(Array.from({ length: 10 }, (_, i) => photo(i))).success).toBe(true);
-    expect(photos.safeParse(Array.from({ length: 11 }, (_, i) => photo(i))).success).toBe(false);
+    // Both halves of the animal union share the one photo field (`animalCoreShape`).
+    for (const photos of [DraftAnimalSchema.shape.photos, ListedAnimalSchema.shape.photos]) {
+      expect(photos.safeParse(Array.from({ length: 10 }, (_, i) => photo(i))).success).toBe(true);
+      expect(photos.safeParse(Array.from({ length: 11 }, (_, i) => photo(i))).success).toBe(false);
+    }
   });
 });

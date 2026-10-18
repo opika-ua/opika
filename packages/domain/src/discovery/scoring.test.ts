@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type FeedFilters, NO_FILTERS } from "../adopters/feed-filters";
-import type { Animal } from "../animals/animal";
+import type { DiscoverableAnimal } from "../animals/animal";
 import { AnimalIdSchema, ShelterIdSchema } from "../primitives/ids";
 import { DEFAULT_FRESHNESS_POLICY, freshnessOf } from "./freshness";
 import { DEFAULT_SCORING_POLICY, scoreAnimal } from "./scoring";
@@ -8,7 +8,7 @@ import { DEFAULT_SCORING_POLICY, scoreAnimal } from "./scoring";
 const NOW = new Date("2026-08-05T12:00:00.000Z");
 const daysAgo = (days: number): Date => new Date(NOW.getTime() - days * 86_400_000);
 
-const baseAnimal: Animal = {
+const baseAnimal: DiscoverableAnimal = {
   id: AnimalIdSchema.parse("cccccccc-cccc-4ccc-8ccc-cccccccccccc"),
   shelterId: ShelterIdSchema.parse("dddddddd-dddd-4ddd-8ddd-dddddddddddd"),
   name: "Мурчик",
@@ -28,9 +28,16 @@ const baseAnimal: Animal = {
   version: 0,
 };
 
-const animal = (overrides: Partial<Animal>): Animal => ({ ...baseAnimal, ...overrides });
+const animal = (overrides: Partial<DiscoverableAnimal>): DiscoverableAnimal => ({
+  ...baseAnimal,
+  ...overrides,
+});
 
-const scoreAt = (subject: Animal, days: number, filters: FeedFilters = NO_FILTERS): number =>
+const scoreAt = (
+  subject: DiscoverableAnimal,
+  days: number,
+  filters: FeedFilters = NO_FILTERS,
+): number =>
   scoreAnimal(
     subject,
     filters,

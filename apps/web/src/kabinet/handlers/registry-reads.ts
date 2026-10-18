@@ -101,6 +101,8 @@ export async function registrySheltersList(
       status: row.status,
       cityId: row.cityId as CityId,
       animalCount: row.animalCount,
+      admins: { joined: row.admins.joined, invited: row.admins.invited },
+      donationPending: row.donationPending,
     })),
     nextCursor: page.next === null ? null : encode(page.next),
     counts,

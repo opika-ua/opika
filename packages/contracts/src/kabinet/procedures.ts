@@ -1,11 +1,12 @@
 import {
-  AgeEstimateSchema,
+  AgeBucketSchema,
   AnimalIdSchema,
   AnimalNameInputSchema,
   AnimalSexSchema,
   AnimalSpeciesSchema,
   animalDescriptionProblem,
   animalDescriptionProblemMessage,
+  CalendarDateSchema,
   characterCount,
   DonationLinkSchema,
   EvidenceItemInputSchema,
@@ -29,7 +30,8 @@ import {
   TextProvenanceSchema,
   VERIFICATION_STATUSES,
   VerificationStatusSchema,
-  WithdrawalReasonSchema,
+  type WithdrawalCode,
+  type WithdrawalReason,
 } from "@opika/domain";
 import { z } from "zod";
 import { apiErrors } from "../errors";
@@ -94,6 +96,23 @@ export const OperatorNoteSchema = z.string().trim().min(1).max(2000);
 export const PAUSE_NOTE_MAX_CHARACTERS = 2000;
 
 /**
+ * A note a shelter writes beside one of its own decisions (a pause, a
+ * withdrawal): trimmed, blank meaning none, at most `max` characters as a
+ * reader counts them. Blank is none rather than a refusal because the field
+ * is optional, and a shelter who clears it means "no note". Bounded because
+ * it is rendered on the kabinet's screens and kept on the record.
+ */
+const shelterNoteInput = (max: number, what: string) =>
+  z
+    .string()
+    .trim()
+    .refine((note) => characterCount(note) <= max, {
+      message: `${what} is longer than ${max} characters`,
+    })
+    .nullable()
+    .transform((note): string | null => (note === null || note === "" ? null : note));
+
+/**
  * A shelter's pause reason as `shelter.profile.pause` accepts it: one of the
  * five codes, and a note trimmed, blank meaning none, at most 2,000
  * characters. The note is shown to the shelter's admins and the operator in
@@ -103,20 +122,40 @@ export const PAUSE_NOTE_MAX_CHARACTERS = 2000;
 export const PauseReasonInputSchema = z
   .strictObject({
     code: PauseCodeSchema,
-    note: z
-      .string()
-      .trim()
-      .refine((note) => characterCount(note) <= PAUSE_NOTE_MAX_CHARACTERS, {
-        message: `Pause note is longer than ${PAUSE_NOTE_MAX_CHARACTERS} characters`,
-      })
-      .nullable(),
+    note: shelterNoteInput(PAUSE_NOTE_MAX_CHARACTERS, "Pause note"),
   })
-  .transform(
-    (reason): PauseReason => ({
-      code: reason.code,
-      note: reason.note === null || reason.note === "" ? null : reason.note,
-    }),
-  );
+  .transform((reason): PauseReason => ({ code: reason.code, note: reason.note }));
+
+/**
+ * The withdrawal codes K2's dialog offers: four of the domain's five (K2
+ * copy sheet, question 10; its recommendation, taken while Oleksii is away
+ * and his to overturn). An animal that found a home is marked «Уже вдома»
+ * (`adopt`), so it counts as adopted rather than as a withdrawn listing;
+ * `adopted_elsewhere` stays in the domain for rows that already carry it,
+ * and the kabinet never writes it.
+ */
+export const KABINET_WITHDRAWAL_CODES = [
+  "transferred",
+  "deceased",
+  "listing_error",
+  "other",
+] as const satisfies readonly WithdrawalCode[];
+
+/**
+ * The withdrawal note's cap: the pause note's 2,000, by the same reasoning
+ * (K2 copy sheet P6). The note stays on the listing, never in history
+ * (K-Q18), and is shown to the shelter's admins and the operator only: no
+ * public view carries a withdrawn animal at all.
+ */
+export const WITHDRAWAL_NOTE_MAX_CHARACTERS = 2000;
+
+/** A withdrawal reason as `shelter.animals.transition` accepts it; its output is the stored `WithdrawalReason`. */
+export const WithdrawalReasonInputSchema = z
+  .strictObject({
+    code: z.enum(KABINET_WITHDRAWAL_CODES),
+    note: shelterNoteInput(WITHDRAWAL_NOTE_MAX_CHARACTERS, "Withdrawal note"),
+  })
+  .transform((reason): WithdrawalReason => ({ code: reason.code, note: reason.note }));
 
 /** What any shelter-scoped procedure can raise just by being called. */
 const shelterScopedErrors = {
@@ -278,11 +317,35 @@ export const shelterHistoryContract = {
 // ─── shelter.animals ────────────────────────────────────────────────────────
 
 /**
+ * An age as K3's form gives it (D3, Oleksii: "keep the chosen «Станом на»
+ * date"): calendar dates, no time of day, as a date input yields them. A
+ * birth date is stored at day precision; a bucket is stored with `asOf` as
+ * its `declaredAt`, the date the shelter made the estimate, not the save
+ * time. The handler refuses a date after today in Kyiv or more than thirty
+ * years back (`ageDateProblem`, `AGE_DATE_OUT_OF_RANGE`): that needs the
+ * server's clock, which a schema doesn't have.
+ */
+export const AgeEstimateInputSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("birth_date"), date: CalendarDateSchema }),
+  z.strictObject({
+    kind: z.literal("declared_bucket"),
+    bucket: AgeBucketSchema,
+    asOf: CalendarDateSchema,
+  }),
+]);
+export type AgeEstimateInput = z.infer<typeof AgeEstimateInputSchema>;
+
+/**
  * What K3 can change. Medical facts arrive as a bare state; the server builds
  * the shelter-declared attestation and refuses to overwrite a registry one.
  * `documentReadiness` is in no kabinet input (proposal §1.7). Photos have
  * their own procedures (`shelter.photos.*`, below); a foster location waits
  * for a write path through `animalPublicLocationOf`.
+ *
+ * Only the description can be cleared (null), and only on a draft (F-B1): a
+ * listed animal answers `LISTING_FACT_REQUIRED`. A size or an age bucket is a
+ * segmented choice with no "unselected" once made, so `size: null` and
+ * `age: null` stay BAD_REQUEST (decision taken T4).
  */
 export const AnimalPatchSchema = z
   .strictObject({
@@ -290,8 +353,8 @@ export const AnimalPatchSchema = z
     species: AnimalSpeciesSchema,
     sex: AnimalSexSchema,
     size: SizeBucketSchema,
-    age: AgeEstimateSchema,
-    description: AnimalDescriptionInputSchema,
+    age: AgeEstimateInputSchema,
+    description: AnimalDescriptionInputSchema.nullable(),
     vaccination: MedicalDeclarationInputSchema,
     spayNeuter: MedicalDeclarationInputSchema,
   })
@@ -308,9 +371,25 @@ export const KabinetListingEventInputSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("reserve") }),
   z.strictObject({ type: z.literal("release") }),
   z.strictObject({ type: z.literal("adopt") }),
-  z.strictObject({ type: z.literal("withdraw"), reason: WithdrawalReasonSchema }),
+  z.strictObject({ type: z.literal("withdraw"), reason: WithdrawalReasonInputSchema }),
   z.strictObject({ type: z.literal("restore_to_draft") }),
 ]);
+
+/**
+ * Which of its animals a shelter's K2 list shows: all of them, one listing
+ * kind (a filter chip), or the stale ones (N5's «Показати ці N»). One filter
+ * at a time, as the screen shows one active chip. Stale is a variant of its
+ * own rather than a flag beside the kind: only the two visible kinds carry a
+ * confirmation that can go stale, so "stale drafts" would be a filter that
+ * means nothing. It is the same cut `staleCount` counts, so the strip's
+ * number and the filtered list agree.
+ */
+export const KabinetAnimalListFilterSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("all") }),
+  z.strictObject({ kind: z.literal("listing"), listing: ListingKindSchema }),
+  z.strictObject({ kind: z.literal("stale") }),
+]);
+export type KabinetAnimalListFilter = z.infer<typeof KabinetAnimalListFilterSchema>;
 
 const animalRead = kabinet.$meta(shelterRead).output(KabinetAnimalViewSchema);
 const animalWrite = shelterWriteProcedure.output(KabinetAnimalViewSchema);
@@ -321,11 +400,16 @@ const animalMoveErrors = {
 } as const;
 
 export const shelterAnimalsContract = {
+  /**
+   * K2: one page, most recently edited first (keyset, HS-T8), with the
+   * per-kind inventory counts and the stale count for the strip, whatever
+   * the filter. Rows carry inventory only (commitment #2).
+   */
   list: kabinet
     .$meta(shelterRead)
     .input(
       z.strictObject({
-        listing: ListingKindSchema.nullable(),
+        filter: KabinetAnimalListFilterSchema,
         cursor: KabinetCursorSchema.nullable(),
         limit: kabinetPageSizeSchema,
       }),
@@ -342,19 +426,19 @@ export const shelterAnimalsContract = {
   byId: animalRead
     .input(animalRef)
     .errors({ ...shelterScopedErrors, NOT_FOUND: apiErrors.NOT_FOUND }),
+  /**
+   * A name and a species, nothing else (K-Q5, Oleksii: "name + species to
+   * create"; decision taken T3). The draft starts with sex «Не записано» (D2)
+   * and no size, age, description or photo; everything after goes through
+   * `update` and `shelter.photos.*`. Strict: a `sex` sent here is BAD_REQUEST.
+   */
   createDraft: animalWrite
-    .input(
-      z.strictObject({
-        name: AnimalNameInputSchema,
-        species: AnimalSpeciesSchema,
-        sex: AnimalSexSchema,
-        size: SizeBucketSchema,
-        age: AgeEstimateSchema,
-        description: AnimalDescriptionInputSchema,
-      }),
-    )
+    .input(z.strictObject({ name: AnimalNameInputSchema, species: AnimalSpeciesSchema }))
     .errors(shelterScopedErrors),
-  /** Compare-and-set on `version` (S3-T6); bumps `lastUpdatedAt` and `version`, never `confirmedAt` (commitment #7). */
+  /**
+   * Compare-and-set on `version` (S3-T6); bumps `lastUpdatedAt` and `version`,
+   * never `confirmedAt` (commitment #7) and never `photos` (RH-B3).
+   */
   update: animalWrite
     .input(
       z.strictObject({
@@ -367,7 +451,14 @@ export const shelterAnimalsContract = {
       ...shelterCasErrors,
       NOT_FOUND: apiErrors.NOT_FOUND,
       REGISTRY_CONFIRMED: apiErrors.REGISTRY_CONFIRMED,
+      LISTING_FACT_REQUIRED: apiErrors.LISTING_FACT_REQUIRED,
+      AGE_DATE_OUT_OF_RANGE: apiErrors.AGE_DATE_OUT_OF_RANGE,
     }),
+  /**
+   * A publish answers `PUBLISH_REQUIREMENTS_UNMET` with every gap
+   * (`publishReadinessOf`), and compare-and-sets on the version and photos
+   * its readiness was planned on (K3-T7).
+   */
   transition: animalWrite
     .input(z.strictObject({ animalId: AnimalIdSchema, event: KabinetListingEventInputSchema }))
     .errors({
@@ -432,8 +523,11 @@ const sameKeys = (a: readonly string[], b: readonly string[]) => {
  * on the photo list the screen shows (`expectedPhotoKeys`, P-Q3) rather than
  * on `version`, so a K3 form open in another tab neither blocks nor is blocked
  * by them. Each records `animal_edited` with `fields: ["photos"]` and moves
- * `lastUpdatedAt`, never `confirmedAt` (commitment #7). The cover is
- * `photos[0]`: "make cover" is a reorder (P-Q9).
+ * `lastUpdatedAt`. On a published or reserved card each also moves
+ * `confirmedAt`, the date «Оновлено» counts from (RH-B7, Oleksii: "a photo
+ * add, reorder or remove moves «Оновлено»", D4 option (i); commitment #7 as
+ * reworded); a draft, adopted or withdrawn card carries no such date. The
+ * cover is `photos[0]`: "make cover" is a reorder (P-Q9).
  */
 export const shelterPhotosContract = {
   /**

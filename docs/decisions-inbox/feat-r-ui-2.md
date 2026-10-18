@@ -1,0 +1,16 @@
+# Decisions inbox: feat/r-ui-2
+
+Rows for the shared table (`docs/decisions-inbox.md`), appended at merge.
+
+Oleksii's answers below are from his message of 2026-10-17 (evening), **relayed by the
+coordinating session**, not sent in this branch's own conversation. Each quotation is what that
+session gave as his words, verbatim. The questions are RU-Q3, RU-Q4 and RU-Q6 of
+`docs/decisions-inbox/docs-r-ui-scope.md` (summarised here, not quoted). Everything in the Status
+column is this branch's own account of how it applies the answer, not his words.
+
+| ID | Date | Row | Question | Options | Default taken | Oleksii's answer | Status |
+|---|---|---|---|---|---|---|---|
+| RU-Q3 | 2026-10-17 | R-UI 2, S2 evidence editor | Evidence documents: no upload exists and `acceptEvidence` refuses every `documentKey` (RG-Q5) | A: the four kinds that need no document · B: build document upload into R-UI | none (A recommended) | Verbatim (relayed): "3. Yes: the four document-free evidence types. Document upload is a later R2 block." | applied: the editor offers ЄДРПОУ registration, bank account holder, reference contact and site visit; its output type has no `documentKey` and no `supporting_document`, pinned by `create-input.test.ts` ("no documentKey, ever") |
+| RU-Q4 | 2026-10-17 | R-UI 2, create then verify | `create` always produces `pending` | A: create, then «Взяти на розгляд» → «Схвалити» on S4 · B: a create-and-verify shortcut | none (A recommended) | Verbatim (relayed): "4. Yes: Pending → «Взяти на розгляд» → «Схвалити», no shortcut." | applied: S2 only creates; the success state shows the status chip («Очікує») and offers «Відкрити притулок», where R-UI 3's moves live |
+| RU-Q6 | 2026-10-17 | R-UI 2, first admin | `create` requires the first admin and invites at once; RU-B5 step 2 invited from the shelter page | A: keep the contract; reword step 2 · B: make the first admin optional (contract change) | none (A recommended) | Verbatim (relayed): "6. Yes: the first admin is required at create. Reword rehearsal step 2 to "resend, or invite a second address"." | applied: name and address are required fields on S2; the runbook rewording is a docs change outside this branch |
+| RU-CC1 | 2026-10-17 | R-UI 2, site-visit date (code change the copy relies on) | `toVerificationEvidence` compared the visit date with the UTC date, so a visit entered as today between Kyiv midnight and 02:00-03:00 was refused; his hint `evidence.siteVisitDateHint` («Дата візиту не може бути в майбутньому.») assumes the fix | — | — | Verbatim (relayed message), under "Code changes the copy relies on": "the site-visit "not in the future" check uses the Kyiv calendar date, not UTC;". Also in his copy file (`rui-copy-uk.md` §2.2, at `evidence.siteVisitDateHint`), verbatim: "and fix the check to use the Kyiv calendar date instead of UTC; don't document the bug in copy." | applied in the commit «R-UI 2: site-visit "not in the future" on Kyiv's calendar, not UTC's» (named by its subject, which survives a rebase; a sha does not): `isSiteVisitInFuture` compares with `kyivCalendarDateOf(recordedAt)`; the registry (create, resubmit) and the onboarding script share it, and S2's form warns on the same rule. Tested at the boundary in the domain, through the served router and on the form |
