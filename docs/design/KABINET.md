@@ -129,6 +129,14 @@ Centred white card, 480 wide, radius 24, padding 32 (phone: full width, padding 
 - **The response is identical for known and unknown addresses** (no account enumeration).
 
 ### K2 · Animal list (N3, N4, N5, N18)
+> **Copy note (PR 5, 2026-10-18).** The Ukrainian in this section is the designer's draft. The shipped
+> strings are Oleksii's final K2 copy (`kabinet.animalList.*`, `docs/k2-copy-sheet.md` §15 answered),
+> and three drafts here are false as written, so don't build from them: rule 4's ordering sentence
+> (the gallery orders by date only; completeness affects the deck), the stale strip's caption
+> («Адоптери», one day count, «Ще шукає» only), and the empty state's caption (a name and a
+> species make a draft, not a name and a photo). The reserve button is «Почали домовлятися», not the
+> chip's «Домовляються»; the withdrawn chip is «Знято з показу».
+
 Header: title 44 «Тварини» + caption «Притулок «Домівка» · 14 тварин», primary «Додати тварину» on the right.
 Filter chips with **inventory counts** (these are not engagement numbers): Усі · Чернетки · Опубліковано ·
 Домовляються · Удома · Знято. Chips are 48 tall with padding `0 20`; the active chip is ink-filled.
