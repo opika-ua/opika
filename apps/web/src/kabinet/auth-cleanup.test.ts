@@ -7,6 +7,7 @@ import { uk } from "@opika/i18n";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { handleAuthCleanup } from "./auth-cleanup";
 import { MAGIC_LINK_TTL_SECONDS } from "./magic-link-sender";
+import { SIGN_IN_LIMITS } from "./sign-in-limit";
 
 /**
  * KH-Q9 (Oleksii, 2026-10-14, relayed, verbatim): "Test: an expired row is
@@ -183,6 +184,11 @@ describe("the auth clean-up is scheduled and reachable", () => {
  * - an address typed into the sign-in form lives in `auth_verification` for
  *   the link's lifetime (`MAGIC_LINK_TTL_SECONDS`), then is past expiry; a
  *   sign-in record is past expiry from the moment it loses force;
+ * - the same typed address is also a key in the shared rate limiter, as is
+ *   (`address:<email>`, the per-address limit, HS-Q5; only IP keys are
+ *   HMAC'd, EM-Q11). `@upstash/ratelimit`'s sliding window keeps a key for
+ *   2 × its window + 1 s, then Redis drops it; that has to fit within a day
+ *   too, and is checked below beside the schedule;
  * - a record past expiry goes at the first run after it expired, and since the
  *   delete is strict (`expires_at < now`), one expiring at the instant of a
  *   run waits for the next: at most one gap between runs, the day's largest
@@ -217,6 +223,12 @@ describe("/pro's deletion clause and the clean-up's schedule cannot drift (KH-Q1
     expect(
       worstCaseMs,
       `"${schedule}": worst case ${duration(worstCaseMs)} (link ${duration(linkMs)} + 2 × largest gap ${duration(gapMs)}) is past the ${duration(A_DAY_MS)} «протягом доби» allows`,
+    ).toBeLessThanOrEqual(A_DAY_MS);
+
+    const limiterKeyMs = 2 * SIGN_IN_LIMITS.perAddress.windowMs + 1000;
+    expect(
+      limiterKeyMs,
+      `the per-address limiter keeps a typed address for ${duration(limiterKeyMs)} (2 × its window + 1 s), past the ${duration(A_DAY_MS)} «протягом доби» allows`,
     ).toBeLessThanOrEqual(A_DAY_MS);
   });
 });
