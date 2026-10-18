@@ -1,0 +1,12 @@
+# Decisions inbox: docs/email-answers
+
+Rows for the shared table (`docs/decisions-inbox.md`), appended at merge. His words verbatim, 2026-10-19.
+
+| ID | Date | Row | Question | Options | Default taken | Oleksii's answer | Status |
+|---|---|---|---|---|---|---|---|
+| EA-B1 | 2026-10-19 | Which provider sends auth email | — | — | — | "Vercel: EMAIL_PROVIDER=resend, no EMAIL_SIGN_IN_PROVIDER." | recorded in `docs/stack-decision.md` |
+| EA-B2 | 2026-10-19 | Resend domain and tracking | — | — | — | "Resend domain mail.opika.org.ua: verified; DKIM + both sending CNAMEs verified, DNS only; receiving off (inbound stays on Cloudflare Email Routing). No tracking subdomain configured, so click and open tracking are off." | recorded in `docs/stack-decision.md` |
+| EA-B3 | 2026-10-19 | TLS | — | — | — | "I switched Resend TLS from Opportunistic to Enforced (auth emails carry bearer links). Record it in the stack notes; runbook \"email didn't arrive\" checklist: check Resend logs for a TLS bounce first." | done: stack notes; runbook step 1 |
+| EA-B4 | 2026-10-19 | No tracking on auth email, the two safeguards | — | — | — | "Both #136 safeguards approved: the exact-payload test ({from,to,reply_to,subject,html,text} only) and delivery-test refusing if tracking is on." | built with the passwords work (`docs/shelter-passwords.md` §4.4) |
+| EA-B5 | 2026-10-19 | Brevo retirement | — | — | — | "Brevo: keep the agreed plan. After my Brevo dashboard check around 2026-11-14, one removal PR (send branch, block-list lookup, registry-email-status, delivery-test brevo options, comments, BREVO_API_KEY) with my OK. Not before." | recorded; nothing built before his OK |
+| EA-B6 | 2026-10-19 | DMARC, launch gate | — | — | — | "Launch-gate checklist addition (before the first real shelter): review DMARC aggregate reports at dmarc@, then raise _dmarc.opika.org.ua from p=none to p=quarantine (later p=reject). My step in Cloudflare DNS; note the current record and the change in the runbook." | done: `docs/build-plan.md` Part 5; runbook "DMARC: raising the policy" (supersedes IN-E3's straight-to-reject) |

@@ -1074,6 +1074,12 @@ verbatim: "remove all test shelters (demo + mine) before the first real shelter"
 This is the sharp one. It is not "before launch" — shelter onboarding can happen the moment
 someone says yes to an outreach email, independent of whatever else is or isn't ready.
 
+- [ ] **DMARC to `p=quarantine`** (Oleksii, 2026-10-19, verbatim: "Launch-gate checklist
+  addition (before the first real shelter): review DMARC aggregate reports at dmarc@, then raise
+  _dmarc.opika.org.ua from p=none to p=quarantine (later p=reject). My step in Cloudflare DNS;
+  note the current record and the change in the runbook."). The runbook section is "DMARC:
+  raising the policy".
+
 **Location fuzzing.** `packages/db/src/seed.ts` computes every seeded `publicLocation` with
 `testOnlyLocationPolicy("seed")` — deterministic, unkeyed, and reversible by anyone reading
 the source. Correct for fictional seed data; would defeat the entire point of location
