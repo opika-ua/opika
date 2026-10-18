@@ -1,6 +1,6 @@
 import {
-  type Animal,
   clampGalleryPage,
+  type DiscoverableAnimal,
   FEED_FILTER_DIMENSIONS,
   type FeedFilterDimension,
   type FeedFilters,
@@ -18,10 +18,10 @@ import {
   buildFeedPredicate,
   buildFilterPredicate,
 } from "./feed-predicate";
-import { rowToAnimal } from "./mappers";
+import { rowToDiscoverableAnimal } from "./mappers";
 
 export type GalleryPage = {
-  readonly items: readonly Animal[];
+  readonly items: readonly DiscoverableAnimal[];
   /** Every match, not just this page, and uncapped — the count is honest even
    * where navigation is not. */
   readonly totalMatching: number;
@@ -131,7 +131,7 @@ export function galleryRepo(db: Database) {
         const totalPages = galleryPageCount(firstTotal, opts.pageSize);
         const [totalShelters] = await Promise.all([countShelters(db, where)]);
         return {
-          items: first.rows.map(rowToAnimal),
+          items: first.rows.map(rowToDiscoverableAnimal),
           totalMatching: firstTotal,
           totalShelters,
           totalPages,
@@ -158,7 +158,7 @@ export function galleryRepo(db: Database) {
 
       const clamped = await fetchPage(page);
       return {
-        items: clamped.rows.map(rowToAnimal),
+        items: clamped.rows.map(rowToDiscoverableAnimal),
         totalMatching,
         totalShelters,
         totalPages,

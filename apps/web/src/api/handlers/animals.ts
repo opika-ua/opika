@@ -1,6 +1,6 @@
 import type { AnimalDetailView, AnimalsByIdInputSchema, apiErrors } from "@opika/contracts";
 import { animalRepo, shelterRepo } from "@opika/db/repos";
-import { ageBucketOf, isDiscoverable } from "@opika/domain";
+import { ageBucketOf, isDiscoverableAnimal } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
@@ -29,7 +29,10 @@ export async function animalsById(
   const animals = animalRepo(context.db);
   const animal = await animals.findById(input.animalId);
 
-  if (!animal || !isDiscoverable(animal.listing)) {
+  // The guard narrows to a `DiscoverableAnimal` (F-B1): listed, so every
+  // listing fact below is non-null by type, and a draft is NOT_FOUND here
+  // before any of it is read.
+  if (!animal || !isDiscoverableAnimal(animal)) {
     throw errors.NOT_FOUND();
   }
 

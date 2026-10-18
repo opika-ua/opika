@@ -8,7 +8,6 @@ import {
   type ListingEventType,
   type ListingKind,
   type ListingTransitionResult,
-  publishGaps,
   transitionListing,
   UNDO_WINDOW_MS,
 } from "./listing-transition";
@@ -198,18 +197,6 @@ describe("ordering", () => {
       confirmedAt: ancient,
       undoable: null,
     });
-  });
-});
-
-describe("publishGaps", () => {
-  it("names the missing photo", () => {
-    expect(publishGaps({ photos: [] })).toEqual([{ kind: "photo" }]);
-  });
-
-  it("is empty once there is a photo", () => {
-    expect(
-      publishGaps({ photos: [{ storageKey: "k", width: 800, height: 1000, alt: null }] }),
-    ).toEqual([]);
   });
 });
 

@@ -1,0 +1,45 @@
+import { fillTemplate, uk } from "@opika/i18n";
+import type { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
+import { AnimalPage } from "../../../../features/kabinet/AnimalPage";
+import { loadKabinetAnimalPage } from "../load";
+
+type Params = { params: Promise<{ id: string }> };
+
+/** One read per request, shared by the title and the page. */
+const load = cache((animalId: string) => loadKabinetAnimalPage({ kind: "existing", animalId }));
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const page = await load((await params).id);
+  return page.kind === "form" && page.view !== null
+    ? { title: fillTemplate(uk.kabinet.animalForm.pageTitleEdit, { name: page.view.name }) }
+    : {};
+}
+
+/**
+ * K3 · one animal: the form, writable exactly when the served policy opens
+ * this shelter's writes, read-only for a support view and for a shelter
+ * outside the K-Q17 allowlist; `errors.notFound` for an id that isn't this
+ * shelter's animal; a 404 for anyone without a shelter (a super_admin outside
+ * support mode included).
+ */
+export default async function AnimalEditPage({ params }: Params) {
+  const page = await load((await params).id);
+  switch (page.kind) {
+    case "sign_in":
+      redirect("/kabinet/vkhid");
+      break;
+    case "not_found":
+      notFound();
+      break;
+    case "missing":
+    case "form":
+      return <AnimalPage page={page} />;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
+    default: {
+      const unreachable: never = page;
+      return unreachable;
+    }
+  }
+}

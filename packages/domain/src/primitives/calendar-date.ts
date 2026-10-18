@@ -18,11 +18,11 @@ export const KYIV_TIME_ZONE = "Europe/Kyiv";
 let kyivDateFormat: Intl.DateTimeFormat | undefined;
 
 /**
- * `en-CA` formats as `YYYY-MM-DD`, exactly the ISO calendar date. Built on
- * first use, not at module load, because this module ships in the kabinet's
- * client bundle: a browser whose time-zone data predates the 2022 rename
- * knows only `Europe/Kiev` and would throw while loading the module. The two
- * names are the same zone.
+ * Kyiv's year, month and day of an instant, read by `calendarDateFromParts`.
+ * Built on first use, not at module load, because this module ships in the
+ * kabinet's client bundle: a browser whose time-zone data predates the 2022
+ * rename knows only `Europe/Kiev` and would throw while loading the module.
+ * The two names are the same zone.
  */
 const kyivFormat = (): Intl.DateTimeFormat => {
   if (kyivDateFormat === undefined) {
@@ -36,14 +36,36 @@ const kyivFormat = (): Intl.DateTimeFormat => {
   return kyivDateFormat;
 };
 
+/**
+ * The ISO date (`YYYY-MM-DD`) a formatter's year, month and day parts name.
+ * Never `format()`'s string: that follows the locale's pattern, which ICU
+ * versions have changed (`en-CA` among them), and this runs in whatever
+ * browser opens the form.
+ */
+export const calendarDateFromParts = (
+  format: Pick<Intl.DateTimeFormat, "formatToParts">,
+  instant: Date,
+): CalendarDate => {
+  const parts = format.formatToParts(instant);
+  const part = (type: "year" | "month" | "day", length: number): string => {
+    const value = parts.find((candidate) => candidate.type === type)?.value;
+    if (value === undefined) throw new Error(`The formatted date has no ${type}`);
+    return value.padStart(length, "0");
+  };
+  return `${part("year", 4)}-${part("month", 2)}-${part("day", 2)}`;
+};
+
 /** The calendar date an instant falls on in Kyiv. */
-export const kyivCalendarDateOf = (instant: Date): CalendarDate => kyivFormat().format(instant);
+export const kyivCalendarDateOf = (instant: Date): CalendarDate =>
+  calendarDateFromParts(kyivFormat(), instant);
 
 /**
- * The instant a calendar date is stored as: UTC midnight of that date, the
- * convention every stored birth date already follows. Its Kyiv date is the
- * same date (Kyiv is ahead of UTC all year), so `kyivCalendarDateOf` gives
- * the date back unchanged.
+ * The instant a calendar date from the form is stored as: UTC midnight of
+ * that date. Not every stored instant is one (seeded birth dates carry a time
+ * of day), so a stored instant is read back as a date through
+ * `kyivCalendarDateOf`. UTC midnight's Kyiv date is the same date (Kyiv is
+ * ahead of UTC all year), so `kyivCalendarDateOf` gives this one back
+ * unchanged.
  */
 export const instantOfCalendarDate = (date: CalendarDate): Date =>
   new Date(`${date}T00:00:00.000Z`);
