@@ -300,9 +300,10 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     // row 9
     "signIn.sentBody":
       "Якщо ця адреса є в списку, на {email} прийде посилання для входу. Воно діє 15 хвилин і відкривається на будь-якому пристрої.",
-    // WI-Q3, Oleksii 2026-10-15, verbatim (outer «» his quoting, inner „“ his nested quotes)
+    // WI-Q3, Oleksii 2026-10-15; the inner quotes are «» per CB-Q1 (2026-10-17), which
+    // supersedes WI-B2's nested „“ for this string
     "confirm.rateLimited":
-      "Забагато спроб входу за короткий час. Посилання ще дійсне — зачекайте хвилину й знову натисніть „Увійти“.",
+      "Забагато спроб входу за короткий час. Посилання ще дійсне — зачекайте хвилину й знову натисніть «Увійти».",
     // row 20
     "confirm.joinFailedTitle": "Ви увійшли, але приєднати вас до притулку не вдалося",
     // row 21
@@ -527,11 +528,11 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // K4 copy fixes
     "profileEdit.pause.noteHint":
       "Коментар бачите ви, інші адміністратори притулку і я. Людям, які шукають тварину, він не показується.",
-    // K4 copy fixes
+    // K4 copy fixes; the quoted label is «» per CB-Q1 (2026-10-17)
     "profileEdit.voice.emptyMeans":
-      "Якщо залишити порожнім, на картках буде лише „Оновлено … тому“.",
-    // K4 copy fixes
-    "profileEdit.voice.previewEmpty": "Речення немає — на картці буде лише „Оновлено … тому“.",
+      "Якщо залишити порожнім, на картках буде лише «Оновлено … тому».",
+    // K4 copy fixes; the quoted label is «» per CB-Q1 (2026-10-17)
+    "profileEdit.voice.previewEmpty": "Речення немає — на картці буде лише «Оновлено … тому».",
   };
 
   const leafPaths = (node: unknown, prefix: string): string[] =>

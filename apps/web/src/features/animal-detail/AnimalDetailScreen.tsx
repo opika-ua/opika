@@ -6,7 +6,7 @@ import {
   pluralizeUk,
   textIn,
 } from "@opika/domain";
-import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
+import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { Footer } from "../chrome/Footer";
@@ -90,7 +90,7 @@ export function AnimalDetailScreen({
 
   const subtitle = [
     speciesLabel(animal.species),
-    ageBucketLabel(animal.ageBucket),
+    ageWordFor(animal.ageBucket, animal.sex),
     sizeLabel(animal.size),
   ].join(" · ");
 

@@ -1,6 +1,6 @@
 import type { FeedCardView } from "@opika/contracts";
 import type { CityId } from "@opika/domain";
-import { ageBucketLabel, sizeLabel, uk } from "@opika/i18n";
+import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 
 /**
@@ -53,7 +53,11 @@ export function housingCityLabel(card: FeedCardView, cityName: string | null): s
 
 /** "молодий · мала · живе у волонтерки, м. Бровари" — the card's full meta line. */
 export function cardMetaLine(card: FeedCardView, cityName: string | null): string {
-  return [ageBucketLabel(card.ageBucket), sizeLabel(card.size), housingCityLabel(card, cityName)]
+  return [
+    ageWordFor(card.ageBucket, card.sex),
+    sizeLabel(card.size),
+    housingCityLabel(card, cityName),
+  ]
     .filter((part): part is string => Boolean(part))
     .join(" · ");
 }
@@ -74,7 +78,7 @@ export function cardAccessibleName(card: FeedCardView, cityName: string | null):
   return [
     card.name,
     isReserved(card.listingKind) ? uk.reserved.badge : null,
-    ageBucketLabel(card.ageBucket),
+    ageWordFor(card.ageBucket, card.sex),
     cityName,
     freshnessLabel(card.freshness),
   ]

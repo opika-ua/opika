@@ -478,6 +478,16 @@ export const uk = {
     ageYoung: "молодий",
     ageAdult: "дорослий",
     ageSenior: "літній",
+    /**
+     * The age word for a female animal (Q9, Oleksii 2026-10-18, verbatim: "female: «малючка» /
+     * «молода» / «доросла» / «літня»"). A male animal and one whose sex is «Не записано» keep the
+     * words above. Filter chips (`filters.age*`) stay as they are: "they name categories, not one
+     * animal".
+     */
+    ageBabyFemale: "малючка",
+    ageYoungFemale: "молода",
+    ageAdultFemale: "доросла",
+    ageSeniorFemale: "літня",
     sizeSmall: "мала",
     sizeMedium: "середня",
     sizeLarge: "велика",
@@ -1104,12 +1114,12 @@ export const uk = {
         insertName: "Вставити {імʼя}",
         counter: "{count} / {max}",
         counterOver: "Зайвих символів: {over}",
-        emptyMeans: "Якщо залишити порожнім, на картках буде лише „Оновлено … тому“.",
+        emptyMeans: "Якщо залишити порожнім, на картках буде лише «Оновлено … тому».",
         /** `{name}` is the preview animal's name (nominative, by his note). */
         previewLabel: "Так це виглядає на сторінці тварини: {name}",
         previewNoAnimals:
           "Попередній перегляд зʼявиться, щойно у вас буде тварина: тут буде видно, як речення виглядатиме на її сторінці.",
-        previewEmpty: "Речення немає — на картці буде лише „Оновлено … тому“.",
+        previewEmpty: "Речення немає — на картці буде лише «Оновлено … тому».",
       },
       donation: {
         optional: "· необовʼязково",
@@ -1509,7 +1519,8 @@ export const uk = {
        * before production sign-in is turned on"): «Увійти» refused by the
        * kabinet's per-IP limit (300 a minute, `hooks.before`) before Better
        * Auth read the token, so the link is still good and the card offers
-       * the same button again. Oleksii's text, 2026-10-15 (inbox WI-Q3),
+       * the same button again. Oleksii's text, 2026-10-15 (inbox WI-Q3), with
+       * «Увійти» in «» since CB-Q1 (2026-10-17),
        * shipped after both of its claims were checked: the per-IP window is
        * 60 s, so «хвилину» holds, and a refused press never reaches the
        * token, so «Посилання ще дійсне» holds until the 15-minute expiry
@@ -1517,7 +1528,7 @@ export const uk = {
        * A longer window would make «хвилину» false: then it reads «трохи».
        */
       rateLimited:
-        "Забагато спроб входу за короткий час. Посилання ще дійсне — зачекайте хвилину й знову натисніть „Увійти“.",
+        "Забагато спроб входу за короткий час. Посилання ще дійсне — зачекайте хвилину й знову натисніть «Увійти».",
     },
     /**
      * History lines (IN-Q14). Only `admin_joined` has a key so far; no
