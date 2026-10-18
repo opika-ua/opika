@@ -17,8 +17,8 @@ import type { KabinetHomeDeps } from "./home";
  *
  * - no session: the sign-in page;
  * - a shelter admin, or a support view of the shelter it entered: the form,
- *   writable only if `decideAccess` with the served write policy says so (until
- *   PR 6, the K-Q17 allowlist's test shelter alone), read-only otherwise;
+ *   writable only if `decideAccess` with the served write policy says so,
+ *   read-only otherwise;
  * - anyone else (no role, conflicting roles, **a super_admin outside support
  *   mode**): not found, as at `/kabinet` (the operator sees a shelter's
  *   cabinet only by entering support);

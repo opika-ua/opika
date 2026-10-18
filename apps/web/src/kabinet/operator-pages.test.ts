@@ -8,7 +8,7 @@ import {
   operatorShelterListOf,
   operatorShelterOf,
 } from "../features/kabinet/operator/pages";
-import { SHELTER_WRITE_POLICY, shelterWritePolicyOf } from "./access";
+import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 
@@ -113,7 +113,7 @@ describe("S1 /kabinet/prytulky: who sees the list", () => {
   it("is the operator's whatever the shelter write policy says (the registry never reads it)", async () => {
     const list = await operatorShelterListOf(
       operator,
-      deps({ shelterWrites: shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: verified.id }) }),
+      deps({ shelterWrites: { kind: "open_for_tests_only" } }),
       noFilters,
     );
     expect(list.kind).toBe("list");

@@ -74,9 +74,9 @@ export type ProfileEditing =
  * `shelter.profile.get` reads neither today, but they are what the kabinet
  * RPC route would give the same procedure, so a later change that starts
  * reading them can't silently get a sender that claims a send it never made.
- * `shelterWrites` is `shelterWritePolicyOf(process.env)`, the served route's
- * own policy (K-Q17); `cursorSecret` and `operatorDisplayName` are the
- * route's too, since the history read pages and names the operator.
+ * `shelterWrites` is `SHELTER_WRITE_POLICY`, the served route's own policy;
+ * `cursorSecret` and `operatorDisplayName` are the route's too, since the
+ * history read pages and names the operator.
  */
 export type KabinetHomeDeps = Pick<
   KabinetContext,

@@ -2,12 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { ShelterAdminId, ShelterId } from "@opika/domain";
 import { pendingCopyPaths, uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
-import {
-  decideAccess,
-  SHELTER_WRITE_POLICY,
-  type ShelterWritePolicy,
-  shelterWritePolicyOf,
-} from "./access";
+import { decideAccess, SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
 import { kabinetPendingCopy, productionSignInOf } from "./production-sign-in";
 
 /**
@@ -42,16 +37,12 @@ import { kabinetPendingCopy, productionSignInOf } from "./production-sign-in";
 /** The prefix CG-Q1 exempts, written out here rather than imported, so the gate's own constant can't redefine it. */
 const NAMESPACE = "kabinet.testShelterOnly.";
 
-/** The policy the route and the page serve (`route.ts`, `kabinet/page.tsx`), with no allowlist in the environment. */
-const SERVED: ShelterWritePolicy = shelterWritePolicyOf({});
+/** The policy the route and the pages serve (`route.ts`, `kabinet/page.tsx`). */
+const SERVED: ShelterWritePolicy = SHELTER_WRITE_POLICY;
 
-/** Every policy the code can build: the served one, the K-Q17 allowlist, and the test-only open one. */
+/** Every policy the code can build: the served one and the test-only open one. */
 const POLICIES: readonly [string, ShelterWritePolicy][] = [
   ["served", SERVED],
-  [
-    "allowlist set",
-    shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" }),
-  ],
   ["test-only open", { kind: "open_for_tests_only" }],
 ];
 
@@ -149,9 +140,5 @@ describe("PR 6: open shelter writes ship with no [COPY PENDING] string (CG-B1)",
   it("the /prytulkam and /pro strings PR 6 rewrites are never pending, under any policy", () => {
     expect(pendingCopyPaths(uk.forShelters, "forShelters")).toEqual([]);
     expect(pendingCopyPaths(uk.about, "about")).toEqual([]);
-  });
-
-  it("sanity: the served policy is the frozen constant the route passes", () => {
-    expect(SERVED).toBe(SHELTER_WRITE_POLICY);
   });
 });

@@ -1,11 +1,8 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ShelterAdminId, ShelterId } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
-import { decideAccess, shelterWritePolicyOf } from "./access";
-import type { KabinetPrincipal } from "./actor";
 import { FORWARDED_AUTH_PATHS } from "./auth";
 import { kabinetAuthAvailability } from "./auth-route";
 import { productionSignInOf } from "./production-sign-in";
@@ -273,69 +270,6 @@ describe("Better Auth's invitation table has exactly three writers (HS-Q7, IN-Q1
     expect([...new Set(statuses)].sort(), `${ACCEPT_MODULE}'s status writes`).toEqual([
       "accepted",
       "canceled",
-    ]);
-  });
-});
-
-/**
- * K-Q17 (Oleksii, verbatim: "commitment #6 register entry +
- * no-self-serve-yet.test.ts made conditional on "no shelter outside the
- * allowlist""). Commitment #6 («ви розкажете, а я внесу все сам», «напишіть,
- * і я приберу») stays true for every shelter outside `KABINET_WRITE_ALLOWLIST`,
- * which until PR 6 holds only his own test shelter. These pin that a shelter
- * outside the list can change nothing: the served policy refuses it, the list
- * opens only the id it names, and holds exactly one ("one open path for that
- * id").
- */
-describe(`no shelter outside the allowlist can write (K-Q17) — ${COPY_GATE}`, () => {
-  const LISTED = "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as ShelterId;
-  const OUTSIDE = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" as ShelterId;
-  const write = { surface: "shelter", mode: "write" } as const;
-  const adminOf = (shelterId: ShelterId): KabinetPrincipal => ({
-    kind: "shelter_admin",
-    shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
-    shelterId,
-  });
-
-  it("with the variable unset, no shelter can write", () => {
-    const policy = shelterWritePolicyOf({});
-    for (const shelterId of [LISTED, OUTSIDE]) {
-      expect(decideAccess(write, adminOf(shelterId), policy), COPY_GATE).toEqual({
-        kind: "deny",
-        code: "SHELTER_WRITES_NOT_YET_AVAILABLE",
-      });
-    }
-  });
-
-  it("with it set, only the listed shelter can; a shelter outside it is refused", () => {
-    const policy = shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: LISTED });
-    expect(decideAccess(write, adminOf(LISTED), policy).kind).toBe("allow_shelter_write");
-    expect(decideAccess(write, adminOf(OUTSIDE), policy), COPY_GATE).toEqual({
-      kind: "deny",
-      code: "SHELTER_WRITES_NOT_YET_AVAILABLE",
-    });
-  });
-
-  it("holds exactly one id: a second makes it refuse everyone, the first included", () => {
-    const policy = shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: `${LISTED},${OUTSIDE}` });
-    for (const shelterId of [LISTED, OUTSIDE]) {
-      expect(decideAccess(write, adminOf(shelterId), policy).kind, COPY_GATE).toBe("deny");
-    }
-  });
-
-  it("the served route and the page build their policy from it and from nothing else", () => {
-    for (const file of [
-      "apps/web/src/app/api/kabinet/[...rpc]/route.ts",
-      "apps/web/src/app/kabinet/page.tsx",
-    ]) {
-      const text = readFileSync(join(REPO, file), "utf8");
-      expect(text, `${file}. ${COPY_GATE}`).toContain(
-        "shelterWrites: shelterWritePolicyOf(process.env)",
-      );
-    }
-    // Only access.ts builds an open policy for production.
-    expect(filesMatching(/open_for_allowlisted_shelter/), COPY_GATE).toEqual([
-      "apps/web/src/kabinet/access.ts",
     ]);
   });
 });

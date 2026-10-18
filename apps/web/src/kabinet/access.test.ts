@@ -7,7 +7,6 @@ import {
   registryOperatorOf,
   SHELTER_WRITE_POLICY,
   type ShelterWritePolicy,
-  shelterWritePolicyOf,
 } from "./access";
 import type { KabinetPrincipal } from "./actor";
 
@@ -192,124 +191,13 @@ describe("the test-only open policy is refused on a deployed instance (KH-T1)", 
 });
 
 /**
- * K-Q17 (Oleksii, verbatim: "K-Q17: (a). Allowlist from PR 2, with the three
- * updates done in PR 2 (validated KABINET_WRITE_ALLOWLIST, commitment #6
- * register entry + no-self-serve-yet.test.ts made conditional on "no shelter
- * outside the allowlist", one open path for that id). PR 6 deletes all of it.
- * Approved as a temporary mode with that fixed end.").
- */
-describe("the allowlist policy (K-Q17)", () => {
-  const OTHER_SHELTER = ShelterIdSchema.parse("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
-  const otherAdmin: KabinetPrincipal = {
-    kind: "shelter_admin",
-    shelterAdminId: ADMIN,
-    shelterId: OTHER_SHELTER,
-  };
-  const allowlisted = shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: SHELTER });
-
-  it("unset, blank or whitespace-only: the served refusal itself", () => {
-    expect(shelterWritePolicyOf({})).toBe(SHELTER_WRITE_POLICY);
-    expect(shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: "" })).toBe(SHELTER_WRITE_POLICY);
-    expect(shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: "  " })).toBe(SHELTER_WRITE_POLICY);
-  });
-
-  it("set: opens writes for the listed shelter's admin, and the policy is frozen", () => {
-    expect(allowlisted).toEqual({ kind: "open_for_allowlisted_shelter", shelterId: SHELTER });
-    expect(Object.isFrozen(allowlisted)).toBe(true);
-    expect(
-      outcome(
-        ACCESS.shelter_write ?? null,
-        PRINCIPALS.shelter_admin as KabinetPrincipal,
-        allowlisted,
-      ),
-    ).toBe("allow_shelter_write");
-  });
-
-  it("refuses every shelter outside the list with the not-yet code", () => {
-    expect(outcome(ACCESS.shelter_write ?? null, otherAdmin, allowlisted)).toBe(NOT_YET);
-  });
-
-  it("changes exactly the listed admin's write cell, nothing else in the matrix", () => {
-    for (const [principalName, principal] of Object.entries(PRINCIPALS)) {
-      for (const [accessName, access] of Object.entries(ACCESS)) {
-        const expected =
-          OPEN_DELTA[principalName]?.[accessName] ?? EXPECTED[principalName]?.[accessName];
-        expect(outcome(access, principal, allowlisted), `${principalName} × ${accessName}`).toBe(
-          expected,
-        );
-      }
-    }
-  });
-
-  it("a support view of the listed shelter still writes nothing", () => {
-    expect(
-      outcome(
-        ACCESS.shelter_write ?? null,
-        PRINCIPALS.support_view as KabinetPrincipal,
-        allowlisted,
-      ),
-    ).toBe(F);
-  });
-
-  /**
-   * Exactly one id (K-Q17, verbatim: "one open path for that id"): a second
-   * opens nobody, the first included, rather than either of them.
-   */
-  it("two ids open neither: refused for everyone", () => {
-    const two = shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: `${SHELTER},${OTHER_SHELTER}` });
-    expect(two).toBe(SHELTER_WRITE_POLICY);
-    for (const principal of [PRINCIPALS.shelter_admin as KabinetPrincipal, otherAdmin]) {
-      expect(outcome(ACCESS.shelter_write ?? null, principal, two)).toBe(NOT_YET);
-    }
-  });
-
-  /**
-   * Every malformed value fails closed: the served refusal, so no shelter at
-   * all can write. The build and boot checks are what make it loud
-   * (`build-env.test.ts`).
-   */
-  it.each([
-    ["padded before", ` ${SHELTER}`],
-    ["padded after (a pasted newline)", `${SHELTER}\n`],
-    ["a space after the comma", `${SHELTER}, ${OTHER_SHELTER}`],
-    ["an empty item", `${SHELTER},`],
-    ["uppercase", SHELTER.toUpperCase()],
-    ["not a UUID", "test-shelter"],
-    ["two ids", `${SHELTER},${OTHER_SHELTER}`],
-    ["three ids", `${SHELTER},${OTHER_SHELTER},ffffffff-ffff-4fff-8fff-ffffffffffff`],
-    ["the same id twice", `${SHELTER},${SHELTER}`],
-    ["braces", `{${SHELTER}}`],
-  ])("%s: refused for everyone", (_label, value) => {
-    const policy = shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: value });
-    expect(policy).toBe(SHELTER_WRITE_POLICY);
-    expect(
-      outcome(ACCESS.shelter_write ?? null, PRINCIPALS.shelter_admin as KabinetPrincipal, policy),
-    ).toBe(NOT_YET);
-  });
-
-  it("is production-legal: a deployed instance accepts it (unlike the test-only one)", () => {
-    expect(() =>
-      assertShelterWritePolicyPermitted(allowlisted, {
-        NODE_ENV: "production",
-        VERCEL_ENV: "production",
-      }),
-    ).not.toThrow();
-  });
-});
-
-/**
- * CG-Q1: the write decision says which grant opened it, so only an allowlist
- * grant can mount the test-shelter-only area.
+ * CG-Q1: the write decision says which grant opened it. Only an allowlist
+ * grant mounted the test-shelter-only area, and PR 6 deleted the allowlist,
+ * so no policy grants that any more.
  */
 describe("which grant opened a write (CG-Q1)", () => {
   const admin = PRINCIPALS.shelter_admin as KabinetPrincipal;
   const write = ACCESS.shelter_write ?? null;
-
-  it("the allowlist grants as `allowlist`", () => {
-    expect(
-      decideAccess(write, admin, shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: SHELTER })),
-    ).toMatchObject({ kind: "allow_shelter_write", grantedBy: "allowlist" });
-  });
 
   it("a wider open policy grants as `open_policy`", () => {
     expect(decideAccess(write, admin, OPEN)).toMatchObject({

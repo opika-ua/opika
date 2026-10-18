@@ -54,9 +54,8 @@ async function freePort(): Promise<number> {
 }
 
 /**
- * `extraEnv` adds variables for this server only, never the main one: the
- * K4 profile spec passes `KABINET_WRITE_ALLOWLIST` (K-Q17) so its shelter can
- * write through the same production-legal path production uses.
+ * `extraEnv` adds variables for this server only, never the main one (the
+ * operator specs use it).
  */
 export async function startSignInServer(
   databaseUrl: string,

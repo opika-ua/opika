@@ -3,7 +3,7 @@ import type { LocationPrivacyPolicy } from "@opika/domain";
 import { clientIp } from "../../../../api/client-ip";
 import { getDb } from "../../../../api/db";
 import { requireEnv } from "../../../../api/env";
-import { shelterWritePolicyOf } from "../../../../kabinet/access";
+import { SHELTER_WRITE_POLICY } from "../../../../kabinet/access";
 import { kabinetAuthAvailability } from "../../../../kabinet/auth-route";
 import { kabinetLimiters, photoUploadLimiters } from "../../../../kabinet/limiters";
 import { operatorDisplayName } from "../../../../kabinet/operator";
@@ -58,8 +58,8 @@ async function handle(request: Request): Promise<Response> {
     }),
     locationPolicy: locationPolicy(),
     production,
-    // K-Q17: refused for every shelter unless KABINET_WRITE_ALLOWLIST names it.
-    shelterWrites: shelterWritePolicyOf(process.env),
+    // The one served write policy, read from no environment variable.
+    shelterWrites: SHELTER_WRITE_POLICY,
     photoUploads: photoUploads(),
   });
 }

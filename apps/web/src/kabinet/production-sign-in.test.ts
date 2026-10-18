@@ -1,8 +1,8 @@
 import { COPY_PENDING, pendingCopyPaths, uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 import {
+  SHELTER_WRITE_POLICY,
   type ShelterWritePolicy,
-  shelterWritePolicyOf,
   testShelterCopyExemptUnder,
 } from "./access";
 import { kabinetAuthAvailability } from "./auth-route";
@@ -237,18 +237,12 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
       KABINET_OPERATOR_DISPLAY_NAME: "Оператор",
     };
     expect(kabinetPendingCopy()).toEqual([]);
-    const allowlisted = {
-      ...reported,
-      KABINET_WRITE_ALLOWLIST: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
-    };
-    // The served policy (allowlist unset: the refusal), then the K-Q17 allowlist.
+    // The served policy (the refusal, until PR 6's switch).
     expect(withLiveCopy(reported).kind).toBe("on");
-    expect(withLiveCopy(allowlisted).kind).toBe("on");
-    // A pending line inside the namespace: exempt under the refusal and the
-    // allowlist, and it turns an open policy (PR 6's shape) off.
+    // A pending line inside the namespace: exempt under the refusal, and it
+    // turns an open policy (PR 6's shape) off.
     const namespaceLine = [`${TEST_SHELTER_ONLY_PREFIX}animalList.parkedLine`];
     expect(withLiveCopy(reported, namespaceLine).kind).toBe("on");
-    expect(withLiveCopy(allowlisted, namespaceLine).kind).toBe("on");
     expect(withLiveCopy(reported, namespaceLine, { kind: "open_for_tests_only" })).toEqual({
       kind: "off",
       reason: "copy_pending",
@@ -409,20 +403,15 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
  * CG-Q1 (Oleksii, verbatim: "At runtime, sign-in ignores those strings only
  * while the write policy is allowlist or refused. Under the open policy, any
  * pending string turns sign-in off."). The pending lists are injected through
- * the checker's own input; the catalogue ships nothing pending.
+ * the checker's own input; the catalogue ships nothing pending. PR 6 deleted
+ * the allowlist, so the refusal is the one exempting policy left.
  */
 describe("the testShelterOnly exemption (CG-Q1)", () => {
-  const ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
-  const refused = shelterWritePolicyOf({});
-  const allowlist = shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: ID });
-  // The only open policy that exists before PR 6; it can never reach a
-  // deployment (KH-T1), but it is the shape PR 6's production one will have.
+  const refused = SHELTER_WRITE_POLICY;
+  // The only open policy that exists before PR 6's switch; it can never reach
+  // a deployment (KH-T1), but it is the shape PR 6's production one will have.
   const open: ShelterWritePolicy = { kind: "open_for_tests_only" };
   const inNamespace = ["kabinet.testShelterOnly.k3.photoHint"];
-
-  it("allowlist + pending in the namespace → on", () => {
-    expect(withLiveCopy(full, inNamespace, allowlist).kind).toBe("on");
-  });
 
   it("refused + pending in the namespace → on", () => {
     expect(withLiveCopy(full, inNamespace, refused).kind).toBe("on");
@@ -443,7 +432,7 @@ describe("the testShelterOnly exemption (CG-Q1)", () => {
     // A sibling that merely starts with the same letters is not the namespace.
     ["kabinet.testShelterOnlyExtra.line"],
   ])("pending %s → off under every policy", (path) => {
-    for (const policy of [refused, allowlist, open]) {
+    for (const policy of [refused, open]) {
       expect(withLiveCopy(full, [...inNamespace, path], policy), policy.kind).toEqual({
         kind: "off",
         reason: "copy_pending",
@@ -452,17 +441,15 @@ describe("the testShelterOnly exemption (CG-Q1)", () => {
     }
   });
 
-  it("takes the policy from the same builder as the served route by default", () => {
-    // Unset allowlist: the refusal, so the namespace is exempt.
+  it("takes the served policy by default, the constant the route passes", () => {
+    // The refusal, so the namespace is exempt.
     expect(withLiveCopy(full, inNamespace).kind).toBe("on");
-    expect(withLiveCopy({ ...full, KABINET_WRITE_ALLOWLIST: ID }, inNamespace).kind).toBe("on");
   });
 
   it("the exemption is decided per policy kind, as he set it", () => {
     expect(testShelterCopyExemptUnder(refused)).toBe(true);
-    expect(testShelterCopyExemptUnder(allowlist)).toBe(true);
     expect(testShelterCopyExemptUnder(open)).toBe(false);
-    expect(signInBlockingCopy(inNamespace, allowlist)).toEqual([]);
+    expect(signInBlockingCopy(inNamespace, refused)).toEqual([]);
     expect(signInBlockingCopy(inNamespace, open)).toEqual(inNamespace);
   });
 });

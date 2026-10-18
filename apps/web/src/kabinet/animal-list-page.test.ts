@@ -10,7 +10,7 @@ import {
 import type { CityId, ModeratorId, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { kabinetAnimalListPageOf } from "../features/kabinet/animal-list/animal-list-page";
-import { SHELTER_WRITE_POLICY, type ShelterWritePolicy, shelterWritePolicyOf } from "./access";
+import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 
@@ -70,8 +70,11 @@ const supportOf = (shelter: Shelter): KabinetPrincipal => ({
   moderatorId: OPERATOR,
   shelterId: shelter.id,
 });
-const allowlist = (shelter: Shelter) =>
-  shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: shelter.id });
+/**
+ * Opens every shelter's own writes: the handler suites' policy, which stands
+ * in for the production open one until PR 6's switch commit adds it.
+ */
+const OPEN: ShelterWritePolicy = { kind: "open_for_tests_only" };
 
 describe("kabinetAnimalListPageOf: who reaches /kabinet/tvaryny", () => {
   it("sends an anonymous visitor to sign in", async () => {
@@ -85,9 +88,9 @@ describe("kabinetAnimalListPageOf: who reaches /kabinet/tvaryny", () => {
     ["conflicting roles", { kind: "conflicting_roles" }],
     ["a super_admin outside support mode", { kind: "super_admin", moderatorId: OPERATOR }],
   ] as [string, KabinetPrincipal][])(
-    "shows %s nothing (404), under the refusal and under the allowlist",
+    "shows %s nothing (404), under the refusal and under an open policy",
     async (_who, principal) => {
-      for (const policy of [SHELTER_WRITE_POLICY, allowlist(mine)]) {
+      for (const policy of [SHELTER_WRITE_POLICY, OPEN]) {
         expect(await kabinetAnimalListPageOf(principal, deps(policy))).toEqual({
           kind: "not_found",
         });
@@ -95,17 +98,17 @@ describe("kabinetAnimalListPageOf: who reaches /kabinet/tvaryny", () => {
     },
   );
 
-  it("the allowlisted shelter's admin gets its own list, writes open by the allowlist", async () => {
+  it("a shelter's admin gets its own list under an open policy, and no other shelter's", async () => {
     const draft = makeDraftAnimal({ shelterId: mine.id, name: "Ластівка" });
     const listed = makeAnimal({ shelterId: mine.id, name: "Рекс" });
     const elsewhere = makeAnimal({ shelterId: theirs.id, name: "Чужий" });
     for (const animal of [draft, listed, elsewhere]) await animalRepo(db).insert(animal, cityId);
 
-    const page = await kabinetAnimalListPageOf(adminOf(mine), deps(allowlist(mine)));
+    const page = await kabinetAnimalListPageOf(adminOf(mine), deps(OPEN));
     expect(page).toMatchObject({
       kind: "list",
       viewer: "admin",
-      editing: { kind: "open", grantedBy: "allowlist" },
+      editing: { kind: "open", grantedBy: "open_policy" },
       shelter: { id: mine.id },
     });
     if (page.kind !== "list") throw new Error("unreachable");
@@ -120,17 +123,18 @@ describe("kabinetAnimalListPageOf: who reaches /kabinet/tvaryny", () => {
   });
 
   /** P1: a shelter whose writes are refused keeps the kabinet it had: no list. */
-  it("404 for a shelter whose writes are refused: no allowlist, or another shelter on it", async () => {
-    expect(await kabinetAnimalListPageOf(adminOf(mine), deps())).toEqual({ kind: "not_found" });
-    expect(await kabinetAnimalListPageOf(adminOf(theirs), deps(allowlist(mine)))).toEqual({
-      kind: "not_found",
-    });
+  it("404 for a shelter whose writes are refused", async () => {
+    for (const shelter of [mine, theirs]) {
+      expect(await kabinetAnimalListPageOf(adminOf(shelter), deps())).toEqual({
+        kind: "not_found",
+      });
+    }
   });
 
   it("the support view gets the shelter it entered, read-only, under either policy", async () => {
     await animalRepo(db).insert(makeAnimal({ shelterId: theirs.id, name: "Чужий" }), cityId);
     await animalRepo(db).insert(makeAnimal({ shelterId: mine.id, name: "Рекс" }), cityId);
-    for (const policy of [SHELTER_WRITE_POLICY, allowlist(theirs)]) {
+    for (const policy of [SHELTER_WRITE_POLICY, OPEN]) {
       const page = await kabinetAnimalListPageOf(supportOf(theirs), deps(policy));
       expect(page).toMatchObject({
         kind: "list",

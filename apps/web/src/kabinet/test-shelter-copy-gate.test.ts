@@ -5,7 +5,6 @@ import {
   decideAccess,
   SHELTER_WRITE_POLICY,
   type ShelterWritePolicy,
-  shelterWritePolicyOf,
   testShelterCopyExemptUnder,
 } from "./access";
 import { kabinetPendingCopy, TEST_SHELTER_ONLY_PREFIX } from "./production-sign-in";
@@ -14,14 +13,13 @@ import { kabinetPendingCopy, TEST_SHELTER_ONLY_PREFIX } from "./production-sign-
  * CG-Q1 (Oleksii, verbatim: "A CI test fails when the policy is open and any
  * pending string exists, so PR 6 can't merge with one left.").
  *
- * Every policy the served code can run with: what `shelterWritePolicyOf`
- * builds with the allowlist unset (the served refusal, `SHELTER_WRITE_POLICY`
- * itself) and set. Each is classified by an exhaustive switch over the policy
- * kinds, written here by hand rather than read from
- * `testShelterCopyExemptUnder`:
+ * Every policy the served code can run with: the served refusal,
+ * `SHELTER_WRITE_POLICY` (PR 6 deleted the K-Q17 allowlist, the other one).
+ * Each is classified by an exhaustive switch over the policy kinds, written
+ * here by hand rather than read from `testShelterCopyExemptUnder`:
  *
- * - the refusal and the allowlist may carry pending strings under
- *   `kabinet.testShelterOnly` only, never anywhere else;
+ * - the refusal may carry pending strings under `kabinet.testShelterOnly`
+ *   only, never anywhere else;
  * - an open policy may carry none at all.
  *
  * **How this bites in PR 6.** PR 6 adds the production `open` variant and
@@ -39,7 +37,6 @@ type Allowed = "namespace_only" | "strict";
 function allowedPendingUnder(policy: ShelterWritePolicy): Allowed {
   switch (policy.kind) {
     case "refused_until_edit_screens":
-    case "open_for_allowlisted_shelter":
       return "namespace_only";
     case "open_for_tests_only":
       return "strict";
@@ -50,14 +47,8 @@ function allowedPendingUnder(policy: ShelterWritePolicy): Allowed {
   }
 }
 
-const LISTED = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
-
 const SERVED: readonly [string, ShelterWritePolicy][] = [
-  ["shelterWritePolicyOf, allowlist unset (SHELTER_WRITE_POLICY)", shelterWritePolicyOf({})],
-  [
-    "shelterWritePolicyOf, allowlist set",
-    shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: LISTED }),
-  ],
+  ["the served policy (SHELTER_WRITE_POLICY)", SHELTER_WRITE_POLICY],
 ];
 
 /** Every kind, the test-only open one included (built by hand: no env builds it). */
@@ -118,7 +109,7 @@ describe("an open write policy leaves no pending string anywhere (CG-Q1)", () =>
       );
     }
     // The behavioural check sees both answers, so agreement isn't vacuous.
-    expect(EVERY_KIND.map(grantsAnUnlistedShelter)).toEqual([false, false, true]);
+    expect(EVERY_KIND.map(grantsAnUnlistedShelter)).toEqual([false, true]);
   });
 
   it("bites: under an open policy a pending namespace string is a violation", () => {

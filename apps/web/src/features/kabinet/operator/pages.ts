@@ -50,7 +50,7 @@ type ReadClient = RouterClient<typeof operatorReadRouter>;
  * (the block-list reader behind `blockedAddresses`), `cursorSecret` (both
  * lists page with signed cursors), `shelterWrites` (the middleware refuses
  * the test-only policy on a deployed instance before anything else, so the
- * page passes `shelterWritePolicyOf(process.env)`, as the route does).
+ * page passes `SHELTER_WRITE_POLICY`, as the route does).
  */
 export type OperatorPageDeps = Pick<
   KabinetContext,

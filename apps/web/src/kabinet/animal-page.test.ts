@@ -24,7 +24,7 @@ import {
   shelterVisibilityOf,
 } from "../features/kabinet/animal-form/labels";
 import { type AnimalPageTarget, kabinetAnimalPageOf } from "../features/kabinet/animal-page";
-import { SHELTER_WRITE_POLICY, type ShelterWritePolicy, shelterWritePolicyOf } from "./access";
+import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 
@@ -81,7 +81,11 @@ const supportOf = (shelter: Shelter): KabinetPrincipal => ({
   moderatorId: OPERATOR,
   shelterId: shelter.id,
 });
-const allowlistMine = () => shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: mine.id });
+/**
+ * Opens every shelter's own writes: the handler suites' policy, which stands
+ * in for the production open one until PR 6's switch commit adds it.
+ */
+const OPEN: ShelterWritePolicy = { kind: "open_for_tests_only" };
 const NEW: AnimalPageTarget = { kind: "new" };
 const existing = (animalId: string): AnimalPageTarget => ({ kind: "existing", animalId });
 
@@ -101,12 +105,12 @@ describe("kabinetAnimalPageOf: who reaches the K3 pages", () => {
     ["conflicting roles", { kind: "conflicting_roles" }],
     ["a super_admin outside support mode", { kind: "super_admin", moderatorId: OPERATOR }],
   ] as [string, KabinetPrincipal][])(
-    "shows %s nothing on either page (404), even under the allowlist",
+    "shows %s nothing on either page (404), even under an open policy",
     async (_who, principal) => {
       const draft = makeDraftAnimal({ shelterId: mine.id });
       await animalRepo(db).insert(draft, cityId);
       for (const target of [NEW, existing(draft.id)]) {
-        for (const policy of [SHELTER_WRITE_POLICY, allowlistMine()]) {
+        for (const policy of [SHELTER_WRITE_POLICY, OPEN]) {
           expect(await kabinetAnimalPageOf(principal, target, deps(policy))).toEqual({
             kind: "not_found",
           });
@@ -117,39 +121,37 @@ describe("kabinetAnimalPageOf: who reaches the K3 pages", () => {
 });
 
 describe("kabinetAnimalPageOf: /nova (create)", () => {
-  it("the allowlisted shelter's admin gets the empty form, writes open by the allowlist", async () => {
-    const page = await kabinetAnimalPageOf(adminOf(mine), NEW, deps(allowlistMine()));
-    expect(page).toMatchObject({
-      kind: "form",
-      view: null,
-      viewer: "admin",
-      editing: { kind: "open", grantedBy: "allowlist" },
-    });
+  it("each shelter's own admin gets the empty form under an open policy", async () => {
+    for (const shelter of [mine, theirs]) {
+      expect(await kabinetAnimalPageOf(adminOf(shelter), NEW, deps(OPEN))).toMatchObject({
+        kind: "form",
+        view: null,
+        viewer: "admin",
+        editing: { kind: "open", grantedBy: "open_policy" },
+      });
+    }
   });
 
   it("404 for a shelter whose writes are refused: nothing to show read-only on a create page", async () => {
-    expect(await kabinetAnimalPageOf(adminOf(mine), NEW, deps())).toEqual({ kind: "not_found" });
-    expect(await kabinetAnimalPageOf(adminOf(theirs), NEW, deps(allowlistMine()))).toEqual({
-      kind: "not_found",
-    });
+    for (const shelter of [mine, theirs]) {
+      expect(await kabinetAnimalPageOf(adminOf(shelter), NEW, deps())).toEqual({
+        kind: "not_found",
+      });
+    }
   });
 
-  it("404 for the support view, even of the allowlisted shelter (support never writes)", async () => {
-    expect(await kabinetAnimalPageOf(supportOf(mine), NEW, deps(allowlistMine()))).toEqual({
+  it("404 for the support view, even under an open policy (support never writes)", async () => {
+    expect(await kabinetAnimalPageOf(supportOf(mine), NEW, deps(OPEN))).toEqual({
       kind: "not_found",
     });
   });
 });
 
 describe("kabinetAnimalPageOf: /[id] (edit)", () => {
-  it("the allowlisted admin's own draft: the form, open, with the draft's unanswered facts null", async () => {
+  it("the admin's own draft under an open policy: the form, open, with the draft's unanswered facts null", async () => {
     const draft = makeDraftAnimal({ shelterId: mine.id, name: "Ластівка" });
     await animalRepo(db).insert(draft, cityId);
-    const page = await kabinetAnimalPageOf(
-      adminOf(mine),
-      existing(draft.id),
-      deps(allowlistMine()),
-    );
+    const page = await kabinetAnimalPageOf(adminOf(mine), existing(draft.id), deps(OPEN));
     expect(page).toMatchObject({ kind: "form", editing: { kind: "open" }, viewer: "admin" });
     if (page.kind !== "form" || page.view === null) throw new Error("unreachable");
     expect(page.view).toMatchObject({
@@ -162,14 +164,16 @@ describe("kabinetAnimalPageOf: /[id] (edit)", () => {
     });
   });
 
-  it("read-only for an admin outside the allowlist, and for the support view", async () => {
+  it("read-only for an admin while writes are refused, and for the support view under an open policy", async () => {
     const animal = makeAnimal({ shelterId: theirs.id });
     await animalRepo(db).insert(animal, cityId);
+    expect(await kabinetAnimalPageOf(adminOf(theirs), existing(animal.id), deps())).toMatchObject({
+      kind: "form",
+      editing: { kind: "read_only" },
+      viewer: "admin",
+    });
     expect(
-      await kabinetAnimalPageOf(adminOf(theirs), existing(animal.id), deps(allowlistMine())),
-    ).toMatchObject({ kind: "form", editing: { kind: "read_only" }, viewer: "admin" });
-    expect(
-      await kabinetAnimalPageOf(supportOf(theirs), existing(animal.id), deps(allowlistMine())),
+      await kabinetAnimalPageOf(supportOf(theirs), existing(animal.id), deps(OPEN)),
     ).toMatchObject({ kind: "form", editing: { kind: "read_only" }, viewer: "support" });
   });
 
@@ -178,7 +182,7 @@ describe("kabinetAnimalPageOf: /[id] (edit)", () => {
     await animalRepo(db).insert(other, cityId);
     for (const animalId of [other.id, crypto.randomUUID(), "not-an-id"]) {
       expect(
-        await kabinetAnimalPageOf(adminOf(mine), existing(animalId), deps(allowlistMine())),
+        await kabinetAnimalPageOf(adminOf(mine), existing(animalId), deps(OPEN)),
         animalId,
       ).toMatchObject({ kind: "missing", viewer: "admin" });
     }

@@ -1,7 +1,7 @@
 import { pendingCopyPaths, uk } from "@opika/i18n";
 import {
+  SHELTER_WRITE_POLICY,
   type ShelterWritePolicy,
-  shelterWritePolicyOf,
   testShelterCopyExemptUnder,
 } from "./access";
 import type { EmailRoutes } from "./email-provider";
@@ -23,7 +23,7 @@ import { signInConfigOf } from "./sign-in-env";
  *   fail closed, never skipped;
  * - only when no `kabinet.*` string, the email templates included, is still
  *   `[COPY PENDING]` (one exception since CG-Q1: `kabinet.testShelterOnly.*`,
- *   while the write policy is the refusal or the allowlist; see
+ *   while the write policy is the refusal; see
  *   `testShelterCopyExemptUnder`) (Oleksii, 2026-10-14, answer 7, verbatim: "Yes.
  *   Production sign-in stays off while any kabinet.* or email-template string
  *   is [COPY PENDING]. Test it."). The email templates live under
@@ -92,8 +92,8 @@ export const kabinetPendingCopy = (): string[] => pendingCopyPaths(uk.kabinet, "
  * uk.kabinet.testShelterOnly.*"). A path prefix with its trailing dot, so a
  * sibling key that merely starts with the same letters is not exempt. Only
  * `features/kabinet/test-shelter-only/` may render the namespace
- * (`test-shelter-only.test.ts` scans for it), and that folder mounts only
- * for a shelter the allowlist lets write.
+ * (`test-shelter-only.test.ts` scans for it), and that folder mounted only
+ * for a shelter the K-Q17 allowlist let write, which PR 6 deleted.
  */
 export const TEST_SHELTER_ONLY_PREFIX = "kabinet.testShelterOnly.";
 
@@ -111,10 +111,10 @@ export function productionSignInOf(
   // Injectable so the other conditions are testable without waiting for the
   // copy; production always takes the default, the live catalogue.
   pendingCopy: readonly string[] = kabinetPendingCopy(),
-  // The served write policy, built from the same environment by the same
-  // function the kabinet route and page use (K-Q17), so the copy gate and
-  // the routes can never disagree about who may write.
-  writePolicy: ShelterWritePolicy = shelterWritePolicyOf(env),
+  // The served write policy, the same constant the kabinet route and pages
+  // pass, so the copy gate and the routes can never disagree about who may
+  // write.
+  writePolicy: ShelterWritePolicy = SHELTER_WRITE_POLICY,
 ): ProductionSignIn {
   if (env.VERCEL_ENV === "preview") return { kind: "off", reason: "preview_never_sends" };
   if (env.VERCEL_ENV !== "production") return { kind: "off", reason: "environment_unidentified" };
