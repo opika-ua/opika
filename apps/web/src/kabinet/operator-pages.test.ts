@@ -113,7 +113,7 @@ describe("S1 /kabinet/prytulky: who sees the list", () => {
   it("is the operator's whatever the shelter write policy says (the registry never reads it)", async () => {
     const list = await operatorShelterListOf(
       operator,
-      deps({ shelterWrites: { kind: "open_for_tests_only" } }),
+      deps({ shelterWrites: SHELTER_WRITE_POLICY }),
       noFilters,
     );
     expect(list.kind).toBe("list");

@@ -252,7 +252,6 @@ describe("why a call didn't go through", () => {
     ["FORBIDDEN", { kind: "not_found" }],
     ["UNDO_EXPIRED", { kind: "undo_expired" }],
     ["WAS_PUBLISHED", { kind: "was_published" }],
-    ["SHELTER_WRITES_NOT_YET_AVAILABLE", { kind: "not_available" }],
     ["TOO_MANY_REQUESTS", { kind: "rate_limited" }],
     ["INTERNAL_SERVER_ERROR", { kind: "failed" }],
   ])("%s", (code, failure) => {

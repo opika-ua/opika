@@ -1,5 +1,8 @@
+import { randomUUID } from "node:crypto";
+import type { ShelterAdminId, ShelterId } from "@opika/domain";
 import { pendingCopyPaths, uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
+import { decideAccess, SHELTER_WRITE_POLICY } from "./access";
 import { kabinetPendingCopy, productionSignInOf } from "./production-sign-in";
 
 /**
@@ -18,6 +21,10 @@ import { kabinetPendingCopy, productionSignInOf } from "./production-sign-in";
  * - **Runtime:** `productionSignInOf` turns production sign-in off for any
  *   pending `kabinet.*` string, the former namespace's paths included, and is
  *   on with none, so the off is the copy's doing.
+ *
+ * And the policy those halves guard is the open one: the served policy lets
+ * the admin of any shelter, a fresh random id each run, write its own
+ * shelter. "Open" is read from behaviour, never from the policy's name.
  */
 
 /** A production deployment with a working configuration (example values only), so only the copy can turn it off. */
@@ -41,6 +48,22 @@ const SYNTHETIC: readonly (readonly string[])[] = [
 ];
 
 describe("PR 6: open shelter writes ship with no [COPY PENDING] string (CG-B1)", () => {
+  it("the served policy is open: any shelter's own admin may write", () => {
+    for (const shelterId of [randomUUID(), randomUUID(), randomUUID()]) {
+      expect(
+        decideAccess(
+          { surface: "shelter", mode: "write" },
+          {
+            kind: "shelter_admin",
+            shelterAdminId: randomUUID() as ShelterAdminId,
+            shelterId: shelterId as ShelterId,
+          },
+          SHELTER_WRITE_POLICY,
+        ),
+      ).toMatchObject({ kind: "allow_shelter_write", scope: { shelterId } });
+    }
+  });
+
   it("CI: the live kabinet catalogue has no pending string, and no namespace is exempt", () => {
     expect(kabinetPendingCopy()).toEqual([]);
   });

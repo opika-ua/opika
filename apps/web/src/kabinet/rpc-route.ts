@@ -100,7 +100,7 @@ export async function handleKabinetRpc(
     operatorDisplayName: string;
     locationPolicy: LocationPrivacyPolicy | null;
     production: boolean;
-    /** The served route passes `SHELTER_WRITE_POLICY` (KH-Q1). */
+    /** The served route passes `SHELTER_WRITE_POLICY`. */
     shelterWrites: ShelterWritePolicy;
     /**
      * The served route passes the deployment's setup (`photoUploadConfigOf`).

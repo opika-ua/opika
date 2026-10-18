@@ -661,22 +661,6 @@ describe("«Зняти з показу» with a reason (his answer 10)", () => {
       ),
     ).toBeTruthy();
   });
-
-  it("writes refused by the policy: his «Змінювати дані… поки не можна»", async () => {
-    renderList({
-      handlers: {
-        transition: async () => Promise.reject(apiError("SHELTER_WRITES_NOT_YET_AVAILABLE")),
-      },
-    });
-    await openMenu("Рекс");
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Зняти з показу" }));
-    const dialog = screen.getByRole("dialog");
-    await userEvent.selectOptions(within(dialog).getByLabelText("Причина"), "other");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Зняти з показу" }));
-    expect(within(dialog).getByRole("alert").textContent).toBe(
-      "Змінювати дані в кабінеті поки не можна — для цього напишіть мені.",
-    );
-  });
 });
 
 describe("«Видалити чернетку» (K2-T4, his answers 2 and 8b)", () => {

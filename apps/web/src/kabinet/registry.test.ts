@@ -41,7 +41,7 @@ import { router as publicRouter } from "../api/router";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import { refusedForNameLength } from "../features/kabinet/operator/display-name";
 import { historyLineOf, historyLineText } from "../features/kabinet/operator/history-lines";
-import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
+import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import {
   BLOCKED_MAX_PAGES,
@@ -116,7 +116,6 @@ async function call<T = Record<string, unknown>>(
     now?: Date;
     cookie?: string;
     locationPolicy?: typeof policy | null;
-    shelterWrites?: ShelterWritePolicy;
   } = {},
 ): Promise<Result<T>> {
   const headers: Record<string, string> = { "content-type": "application/json" };
@@ -148,7 +147,7 @@ async function call<T = Record<string, unknown>>(
     operatorDisplayName: "Олексій",
     locationPolicy: opts.locationPolicy === undefined ? policy : opts.locationPolicy,
     production: false,
-    shelterWrites: opts.shelterWrites ?? SHELTER_WRITE_POLICY,
+    shelterWrites: SHELTER_WRITE_POLICY,
   });
   const text = await response.text();
   let body: unknown = null;
@@ -372,7 +371,6 @@ describe("registry.shelters.list / byId / history.list", () => {
       { name: "Мурчик", species: "cat" },
       {
         principal: { kind: "shelter_admin", shelterAdminId: admin as never, shelterId: s.id },
-        shelterWrites: { kind: "open_for_tests_only" },
       },
     );
     expect(created.status).toBe(200);
@@ -1233,13 +1231,8 @@ describe("registry.donation.approve / reject (N20)", () => {
       const other = "https://send.monobank.ua/jar/zzz";
       expect(
         // A K2-era proposal, so writes are opened for it (KH-Q1).
-        (
-          await call(
-            "shelter.profile.proposeDonation",
-            { url: other },
-            { principal: asAdmin, shelterWrites: { kind: "open_for_tests_only" } },
-          )
-        ).status,
+        (await call("shelter.profile.proposeDonation", { url: other }, { principal: asAdmin }))
+          .status,
       ).toBe(200);
       const stale = await call(`registry.donation.${decision}`, {
         shelterId: s.id,

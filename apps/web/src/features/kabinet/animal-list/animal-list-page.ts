@@ -16,12 +16,12 @@ import { ANIMAL_LIST_PAGE, type AnimalListPageData } from "./list-model";
  * decides and the output schemas strip.
  *
  * - no session: the sign-in page;
- * - a shelter admin whose writes the served policy opens (until PR 6, the
- *   K-Q17 allowlist's test shelter alone): the list, with its moves;
+ * - a shelter admin whose writes the served policy opens (every shelter's
+ *   own admins, since PR 6): the list, with its moves;
  * - a support view of the shelter it entered: the same list, every action
  *   disabled (S5);
- * - a shelter admin whose writes are refused: not found (P1,
- *   `animalListShownTo`), the kabinet it had before K2;
+ * - a shelter admin whose writes were refused: not found (P1,
+ *   `animalListShownTo`); none since PR 6;
  * - anyone else (no role, conflicting roles, **a super_admin outside support
  *   mode**): not found, as at `/kabinet` and K3's pages.
  */

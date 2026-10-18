@@ -50,12 +50,6 @@ const deps = (shelterWrites: ShelterWritePolicy = SHELTER_WRITE_POLICY) => ({
   operatorDisplayName: "Олексій",
 });
 
-/**
- * Opens every shelter's own writes: the handler suites' policy, which stands
- * in for the production open one until PR 6's switch commit adds it.
- */
-const OPEN: ShelterWritePolicy = { kind: "open_for_tests_only" };
-
 const ADMIN = "33333333-3333-4333-8333-333333333333" as ShelterAdminId;
 const adminOf = (shelter: Shelter): KabinetPrincipal => ({
   kind: "shelter_admin",
@@ -84,7 +78,6 @@ describe("kabinetHomeOf", () => {
   it("sends the operator, a super_admin outside support mode, to their own screens", async () => {
     const operator: KabinetPrincipal = { kind: "super_admin", moderatorId: OPERATOR };
     expect(await kabinetHomeOf(operator, deps())).toEqual({ kind: "operator" });
-    expect(await kabinetHomeOf(operator, deps(OPEN))).toEqual({ kind: "operator" });
   });
 
   it("keeps a support view on the shelter it entered, not the operator's list", async () => {
@@ -176,31 +169,26 @@ describe("kabinetHomeOf", () => {
  * (answer 12).
  */
 describe("kabinetHomeOf: K4 editing", () => {
-  it("read-only for a shelter admin while writes are refused (the served default)", async () => {
-    const home = await kabinetHomeOf(adminOf(mine), deps());
-    expect(home).toMatchObject({ kind: "shelter", editing: { kind: "read_only" } });
-  });
-
-  it("open for each shelter's own admin under an open policy, every shelter alike", async () => {
-    expect(await kabinetHomeOf(adminOf(mine), deps(OPEN))).toMatchObject({
+  it("open for each shelter's own admin under the served policy, every shelter alike", async () => {
+    expect(await kabinetHomeOf(adminOf(mine), deps())).toMatchObject({
       editing: { kind: "open" },
     });
-    const home = await kabinetHomeOf(adminOf(theirs), deps(OPEN));
+    const home = await kabinetHomeOf(adminOf(theirs), deps());
     expect(home).toMatchObject({ editing: { kind: "open" } });
     if (home.kind !== "shelter") throw new Error("not a shelter page");
     expect(home.view.id).toBe(theirs.id);
   });
 
-  it("read-only for a support view, even under an open policy", async () => {
+  it("read-only for a support view, even with writes open", async () => {
     const home = await kabinetHomeOf(
       { kind: "support_view", moderatorId: OPERATOR, shelterId: mine.id },
-      deps(OPEN),
+      deps(),
     );
     expect(home).toMatchObject({ viewer: "support", editing: { kind: "read_only" } });
   });
 
   it("no animal: no preview animal", async () => {
-    const home = await kabinetHomeOf(adminOf(mine), deps(OPEN));
+    const home = await kabinetHomeOf(adminOf(mine), deps());
     expect(home).toMatchObject({ editing: { kind: "open", previewAnimal: null } });
   });
 
@@ -218,7 +206,7 @@ describe("kabinetHomeOf: K4 editing", () => {
       }),
       cityId,
     );
-    const home = await kabinetHomeOf(adminOf(mine), deps(OPEN));
+    const home = await kabinetHomeOf(adminOf(mine), deps());
     if (home.kind !== "shelter" || home.editing.kind !== "open") throw new Error("not open");
     expect(home.editing.previewAnimal?.name).toBe("Ластівка");
     expect(home.editing.previewAnimal?.freshness).toMatchObject({ ageDays: 12, kind: "aging" });
@@ -229,7 +217,7 @@ describe("kabinetHomeOf: K4 editing", () => {
       makeAnimal({ shelterId: mine.id, name: "Чернетка", listing: { kind: "draft" } }),
       cityId,
     );
-    const home = await kabinetHomeOf(adminOf(mine), deps(OPEN));
+    const home = await kabinetHomeOf(adminOf(mine), deps());
     if (home.kind !== "shelter" || home.editing.kind !== "open") throw new Error("not open");
     expect(home.editing.previewAnimal).toMatchObject({
       name: "Чернетка",
@@ -258,7 +246,7 @@ describe("kabinetHomeOf: K4 editing", () => {
       previousLive: null,
     });
     const declinedOf = async () => {
-      const home = await kabinetHomeOf(adminOf(mine), deps(OPEN));
+      const home = await kabinetHomeOf(adminOf(mine), deps());
       if (home.kind !== "shelter" || home.editing.kind !== "open") throw new Error("not open");
       return home.editing.donationDeclined;
     };

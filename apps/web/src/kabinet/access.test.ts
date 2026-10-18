@@ -1,13 +1,7 @@
 import type { KabinetAccess } from "@opika/contracts";
 import { ModeratorIdSchema, ShelterAdminIdSchema, ShelterIdSchema } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import {
-  assertShelterWritePolicyPermitted,
-  decideAccess,
-  registryOperatorOf,
-  SHELTER_WRITE_POLICY,
-  type ShelterWritePolicy,
-} from "./access";
+import { decideAccess, registryOperatorOf, SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 
 const SHELTER = ShelterIdSchema.parse("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
@@ -34,14 +28,13 @@ const ACCESS: Record<string, KabinetAccess | null> = {
 /**
  * The matrix, transcribed by hand from addendum §1 (and proposal §6's
  * anon/adopter columns: an adopter cookie is not a kabinet session, so it
- * arrives here as `anonymous`), with KH-Q1's write refusal in the shelter_admin
- * row. Not derived from `decideAccess` or from the
- * contract's meta: a table read back from the code would agree with any bug.
+ * arrives here as `anonymous`), with shelter writes open since PR 6 of the K
+ * milestone: a shelter admin writes its own shelter, and nobody else writes
+ * any. Not derived from `decideAccess` or from the contract's meta: a table
+ * read back from the code would agree with any bug.
  */
 const U = "UNAUTHENTICATED";
 const F = "FORBIDDEN";
-/** KH-Q1: a shelter admin's writes, refused with their own code until K2/K3. */
-const NOT_YET = "SHELTER_WRITES_NOT_YET_AVAILABLE";
 const EXPECTED: Record<string, Record<string, string>> = {
   //                 undeclared  shelter_read          shelter_write          registry          support_exit
   anonymous: { undeclared: U, shelter_read: U, shelter_write: U, registry: U, support_exit: U },
@@ -56,7 +49,7 @@ const EXPECTED: Record<string, Record<string, string>> = {
   shelter_admin: {
     undeclared: F,
     shelter_read: "allow_shelter_read",
-    shelter_write: NOT_YET,
+    shelter_write: "allow_shelter_write",
     registry: F,
     support_exit: F,
   },
@@ -76,45 +69,19 @@ const EXPECTED: Record<string, Record<string, string>> = {
   },
 };
 
-/**
- * With writes opened (what the K2/K3 PR flips `SHELTER_WRITE_POLICY` to),
- * exactly one cell changes. Written as that one cell, by hand, so opening
- * writes can't widen anything else.
- */
-const OPEN_DELTA: Record<string, Record<string, string>> = {
-  shelter_admin: { shelter_write: "allow_shelter_write" },
-};
-
-const OPEN: ShelterWritePolicy = { kind: "open_for_tests_only" };
-
-const outcome = (
-  access: KabinetAccess | null,
-  principal: KabinetPrincipal,
-  policy: ShelterWritePolicy = SHELTER_WRITE_POLICY,
-) => {
-  const decision = decideAccess(access, principal, policy);
+const outcome = (access: KabinetAccess | null, principal: KabinetPrincipal) => {
+  const decision = decideAccess(access, principal, SHELTER_WRITE_POLICY);
   return decision.kind === "deny" ? decision.code : decision.kind;
 };
 
-describe("the served write policy (KH-Q1)", () => {
-  it("refuses shelter writes until K2/K3 ship", () => {
-    expect(SHELTER_WRITE_POLICY).toEqual({ kind: "refused_until_edit_screens" });
+describe("the served write policy (PR 6)", () => {
+  it("is open, and frozen", () => {
+    expect(SHELTER_WRITE_POLICY).toEqual({ kind: "open" });
+    expect(Object.isFrozen(SHELTER_WRITE_POLICY)).toBe(true);
   });
 });
 
-describe("the kabinet access matrix, with writes opened (K2/K3)", () => {
-  for (const [principalName, principal] of Object.entries(PRINCIPALS)) {
-    for (const [accessName, access] of Object.entries(ACCESS)) {
-      const expected =
-        OPEN_DELTA[principalName]?.[accessName] ?? EXPECTED[principalName]?.[accessName];
-      it(`${principalName} × ${accessName} → ${expected}`, () => {
-        expect(outcome(access, principal, OPEN)).toBe(expected);
-      });
-    }
-  }
-});
-
-describe("the kabinet access matrix, as served (shelter writes refused, KH-Q1)", () => {
+describe("the kabinet access matrix, as served (shelter writes open, PR 6)", () => {
   it("has a row per principal and a column per access level", () => {
     expect(Object.keys(EXPECTED).sort()).toEqual(Object.keys(PRINCIPALS).sort());
     for (const row of Object.values(EXPECTED)) {
@@ -137,7 +104,7 @@ describe("the scope an allowed shelter call gets", () => {
       decideAccess(
         ACCESS.shelter_write ?? null,
         PRINCIPALS.shelter_admin ?? { kind: "anonymous" },
-        OPEN,
+        SHELTER_WRITE_POLICY,
       ),
     ).toEqual({
       kind: "allow_shelter_write",
@@ -153,39 +120,6 @@ describe("the scope an allowed shelter call gets", () => {
       kind: "allow_shelter_read",
       scope: { kind: "support_view", shelterId: SHELTER, moderatorId: MOD },
     });
-  });
-});
-
-/**
- * KH-T1, Oleksii's condition: the test-only switch must fail on a deployed
- * instance. The router applies this on every procedure
- * (`shelter-writes-refused.test.ts` drives it through the served route).
- */
-describe("the test-only open policy is refused on a deployed instance (KH-T1)", () => {
-  it.each([
-    ["NODE_ENV=production", { NODE_ENV: "production" }],
-    ["VERCEL_ENV=production", { NODE_ENV: "test", VERCEL_ENV: "production" }],
-    ["VERCEL_ENV=preview", { NODE_ENV: "development", VERCEL_ENV: "preview" }],
-    ["VERCEL_ENV=development", { VERCEL_ENV: "development" }],
-  ])("throws under %s", (_label, env) => {
-    expect(() => assertShelterWritePolicyPermitted(OPEN, env)).toThrow(/test-only/);
-  });
-
-  it.each([
-    ["NODE_ENV=test", { NODE_ENV: "test" }],
-    ["NODE_ENV=development, VERCEL_ENV blank", { NODE_ENV: "development", VERCEL_ENV: "" }],
-    ["nothing set", {}],
-  ])("allows it under %s (the handler suites)", (_label, env) => {
-    expect(() => assertShelterWritePolicyPermitted(OPEN, env)).not.toThrow();
-  });
-
-  it("never refuses the served policy, deployed or not", () => {
-    expect(() =>
-      assertShelterWritePolicyPermitted(SHELTER_WRITE_POLICY, {
-        NODE_ENV: "production",
-        VERCEL_ENV: "production",
-      }),
-    ).not.toThrow();
   });
 });
 
@@ -206,7 +140,7 @@ describe("registryOperatorOf", () => {
 
   it.each(Object.entries(PRINCIPALS))("%s", (name, principal) => {
     expect(Object.keys(EXPECTED_OPERATOR).sort()).toEqual(Object.keys(PRINCIPALS).sort());
-    for (const policy of [SHELTER_WRITE_POLICY, OPEN]) {
+    for (const policy of [SHELTER_WRITE_POLICY]) {
       expect(registryOperatorOf(principal, policy)).toBe(EXPECTED_OPERATOR[name]);
     }
   });

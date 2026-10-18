@@ -5,15 +5,9 @@
  * data limit: the photo the device sends is at most 2000 px (K-Q2, P-T14).
  *
  * Writes go through the served route and its own write policy, as in the K4
- * spec, which opens every shelter's writes to its own admins from PR 6's
- * switch commit on. Nothing in the app is patched, and no environment
- * variable opens anything. The second server is `sign-in-server.ts`'s, for
+ * spec, which opens every shelter's writes to its own admins (PR 6). Nothing
+ * in the app is patched, and no environment variable opens anything. The second server is `sign-in-server.ts`'s, for
  * the reason given there.
- *
- * **Skipped (`fixme`) between PR 6's allowlist deletion and its switch
- * commit.** The K-Q17 allowlist was this spec's only way to write before the
- * policy opened for everyone, and those commits refuse every shelter's
- * writes. The switch commit turns this back into `test.describe`.
  *
  * **Photos.** The harness never reaches R2 (no upload variables, so uploads
  * are off on this server, P-Q10). So the upload flow runs for real up to the
@@ -70,226 +64,225 @@ function jpegSize(bytes: Buffer): { width: number; height: number } | null {
   return null;
 }
 
-test.describe
-  .fixme("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
-    test.describe.configure({ mode: "serial" });
+test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
+  test.describe.configure({ mode: "serial" });
 
-    let server: SignInServer | undefined;
-    let context: BrowserContext | undefined;
-    let draftId: AnimalId | undefined;
-    const db = createDatabase(HARNESS_DATABASE_URL);
+  let server: SignInServer | undefined;
+  let context: BrowserContext | undefined;
+  let draftId: AnimalId | undefined;
+  const db = createDatabase(HARNESS_DATABASE_URL);
 
-    test.beforeAll(async ({ browser }) => {
-      test.setTimeout(120_000);
-      const shelter = (
-        await db
-          .select({
-            id: shelters.id,
-            organizationId: shelters.organizationId,
-            status: shelters.verificationStatus,
-          })
-          .from(shelters)
-      )
-        .filter((row) => row.organizationId === null && row.status === "verified")
-        .at(-1);
-      if (shelter === undefined)
-        throw new Error("no verified seeded shelter without an organization");
-
-      server = await startSignInServer(HARNESS_DATABASE_URL);
-      const { origin } = server;
-
-      const email = `harness-k3-${randomUUID()}@example.test`;
-      const now = new Date();
-      const userId = randomUUID();
-      await db.insert(authUser).values({
-        id: userId,
-        name: "Harness",
-        email,
-        emailVerified: true,
-        createdAt: now,
-        updatedAt: now,
-      });
-      const organizationId = await kabinetInvitationRepo(db).ensureOrganization(
-        shelter.id,
-        { organizationId: randomUUID() },
-        now,
-      );
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(120_000);
+    const shelter = (
       await db
-        .insert(authMember)
-        .values({ id: randomUUID(), organizationId, userId, role: "admin", createdAt: now });
+        .select({
+          id: shelters.id,
+          organizationId: shelters.organizationId,
+          status: shelters.verificationStatus,
+        })
+        .from(shelters)
+    )
+      .filter((row) => row.organizationId === null && row.status === "verified")
+      .at(-1);
+    if (shelter === undefined)
+      throw new Error("no verified seeded shelter without an organization");
 
-      const requested = await fetch(`${origin}/api/auth/sign-in/magic-link`, {
-        method: "POST",
-        headers: { "content-type": "application/json", origin, "x-forwarded-for": FORWARDED_FOR },
-        body: JSON.stringify({ email }),
-      });
-      expect(requested.status).toBe(200);
-      const link = await server.linkFor(email);
+    server = await startSignInServer(HARNESS_DATABASE_URL);
+    const { origin } = server;
 
-      context = await browser.newContext({
-        baseURL: origin,
-        extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR },
-      });
-      const page = await context.newPage();
-      expect((await page.goto(link))?.status()).toBe(200);
-      // «Увійти», then signed in once the page is the cabinet: waited on by the URL and the
-      // heading, not by the GET's response event, which CI has missed with /kabinet already
-      // rendered (the same fix as b598d93 for K4 and #120's for KS-T3; AW-H2). Each test's own
-      // `goto("/kabinet")` asserts 200.
-      await Promise.all([
-        page.waitForURL((url) => url.pathname === "/kabinet"),
-        page.getByRole("button").click(),
-      ]);
-      await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
-      await page.close();
+    const email = `harness-k3-${randomUUID()}@example.test`;
+    const now = new Date();
+    const userId = randomUUID();
+    await db.insert(authUser).values({
+      id: userId,
+      name: "Harness",
+      email,
+      emailVerified: true,
+      createdAt: now,
+      updatedAt: now,
     });
+    const organizationId = await kabinetInvitationRepo(db).ensureOrganization(
+      shelter.id,
+      { organizationId: randomUUID() },
+      now,
+    );
+    await db
+      .insert(authMember)
+      .values({ id: randomUUID(), organizationId, userId, role: "admin", createdAt: now });
 
-    test.afterAll(async () => {
-      await context?.close();
-      await server?.stop();
+    const requested = await fetch(`${origin}/api/auth/sign-in/magic-link`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin, "x-forwarded-for": FORWARDED_FOR },
+      body: JSON.stringify({ email }),
     });
+    expect(requested.status).toBe(200);
+    const link = await server.linkFor(email);
 
-    const open = async (path: string): Promise<Page> => {
-      if (context === undefined) throw new Error("not signed in");
-      const page = await context.newPage();
-      expect((await page.goto(path))?.status(), path).toBe(200);
-      return page;
-    };
-
-    const publishButton = (page: Page) => page.getByRole("button", { name: "Опублікувати" });
-
-    // K2 (PR 5) is the form's entry point: the list's «Додати тварину», reached from the nav.
-    test("from the list, «Додати тварину»: a name and a species save a draft; publish stays disabled with every gap written", async () => {
-      const page = await open("/kabinet");
-      await page
-        .getByRole("navigation", { name: "Розділи кабінету" })
-        .getByRole("link", { name: "Тварини" })
-        .click();
-      await expect(page).toHaveURL(/\/kabinet\/tvaryny$/);
-      await page.getByRole("link", { name: "Додати тварину" }).click();
-      await expect(page).toHaveURL(/\/kabinet\/tvaryny\/nova$/);
-      await expect(page.getByRole("heading", { level: 1, name: "Нова тварина" })).toBeVisible();
-
-      await page.getByLabel("Імʼя").fill("Харнес");
-      await page.getByRole("group", { name: "Вид" }).getByText("Собака").click();
-      await page.getByRole("button", { name: "Зберегти чернетку" }).click();
-
-      await expect(page).toHaveURL(/\/kabinet\/tvaryny\/[0-9a-f-]{36}$/);
-      draftId = page.url().split("/").at(-1) as AnimalId;
-      await expect(page.getByRole("heading", { level: 1, name: "Харнес" })).toBeVisible();
-      await expect(
-        page.getByText(
-          /^Чернетку збережено о \d\d:\d\d · Ті, хто шукає тварину, цю чернетку не бачать\.$/,
-        ),
-      ).toBeVisible();
-      await expect(publishButton(page)).toHaveAttribute("aria-disabled", "true");
-      const missing = page.getByText("Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.");
-      await expect(missing).toBeVisible();
-      await expect(publishButton(page)).toHaveAccessibleDescription(
-        "Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.",
-      );
-
-      // Stored: the draft's own address shows it after a reload, still a draft.
-      await page.reload();
-      await expect(page.getByRole("heading", { level: 1, name: "Харнес" })).toBeVisible();
-      await expect(page.getByText("Чернетка", { exact: true })).toBeVisible();
-      await page.close();
+    context = await browser.newContext({
+      baseURL: origin,
+      extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR },
     });
-
-    test("the facts filled in, the gap list shrinks to «фото»", async () => {
-      const page = await open(`/kabinet/tvaryny/${draftId}`);
-      await page.getByRole("group", { name: "Розмір" }).getByText("Середній").click();
-      await page
-        .getByRole("group", { name: "Вік на ту дату" })
-        .getByText(/^Молодий/)
-        .click();
-      await expect(page.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeVisible();
-      await page.getByLabel("Про тварину").fill("Спокійний, любить гуляти в парку.");
-      await page.getByRole("button", { name: "Зберегти чернетку" }).click();
-      await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
-      await expect(publishButton(page)).toHaveAttribute("aria-disabled", "true");
-
-      await page.reload();
-      await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
-      await page.close();
-    });
-
-    test("a 4000 px photo is shrunk on the device to 2000 px, sent, and this server's refusal is his message", async () => {
-      const page = await open(`/kabinet/tvaryny/${draftId}`);
-
-      // A phone-sized photo, drawn in this browser: 4000 × 3000.
-      const png = Buffer.from(
-        await page.evaluate(async () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = 4000;
-          canvas.height = 3000;
-          const context = canvas.getContext("2d");
-          if (context === null) throw new Error("no canvas");
-          context.fillStyle = "#8a6";
-          context.fillRect(0, 0, 4000, 3000);
-          context.fillStyle = "#246";
-          context.fillRect(1000, 750, 2000, 1500);
-          const blob = await new Promise<Blob | null>((resolve) =>
-            canvas.toBlob(resolve, "image/png"),
-          );
-          if (blob === null) throw new Error("no PNG");
-          const bytes = new Uint8Array(await blob.arrayBuffer());
-          let binary = "";
-          for (const byte of bytes) binary += String.fromCharCode(byte);
-          return btoa(binary);
-        }),
-        "base64",
-      );
-
-      let sent: Buffer | null = null;
-      await page.route("**/api/kabinet/shelter/photos/add", async (route) => {
-        sent = route.request().postDataBuffer();
-        await route.continue();
-      });
-
-      const chooser = page.waitForEvent("filechooser");
-      await page.getByRole("button", { name: "+ Фото" }).click();
-      await (await chooser).setFiles({ name: "IMG_4000.png", mimeType: "image/png", buffer: png });
-
-      await expect(page.getByText("На цій версії сайту фото завантажити не можна.")).toBeVisible({
-        timeout: 15_000,
-      });
-      expect(sent, "the upload reached the route").not.toBeNull();
-      const size = jpegSize(sent as unknown as Buffer);
-      expect(size, "the request carries a JPEG").not.toBeNull();
-      expect(
-        Math.max(size?.width ?? Number.POSITIVE_INFINITY, size?.height ?? Number.POSITIVE_INFINITY),
-        `longest side of the JPEG sent (${size?.width}×${size?.height})`,
-      ).toBeLessThanOrEqual(MAX_EDGE_PX);
-      // Shrunk, not cropped: the 4:3 shape is kept.
-      expect(size).toEqual({ width: 2000, height: 1500 });
-
-      await page.getByRole("button", { name: "Прибрати фото, яке не завантажилось" }).click();
-      await expect(page.getByText("На цій версії сайту фото завантажити не можна.")).toBeHidden();
-      await page.close();
-    });
-
-    test("with a photo stored, nothing is missing and «Опублікувати» is enabled", async () => {
-      if (draftId === undefined) throw new Error("no draft from the first test");
-      const id = draftId;
-      const draft = await animalRepo(db).findById(id);
-      const row = (await db.select({ id: animals.id, cityId: animals.cityId }).from(animals)).find(
-        (candidate) => candidate.id === id,
-      );
-      if (draft === null || row === undefined) throw new Error("the draft isn't stored");
-      await animalRepo(db).update(
-        {
-          ...draft,
-          photos: [{ storageKey: "seed-photos/dog-1.jpg", width: 1200, height: 1500, alt: null }],
-        },
-        row.cityId as CityId,
-      );
-
-      const page = await open(`/kabinet/tvaryny/${draftId}`);
-      await expect(page.getByRole("group", { name: "Фото 1 з 1" })).toBeVisible();
-      await expect(page.getByText("Обкладинка", { exact: true })).toBeVisible();
-      await expect(page.getByText(/^Щоб опублікувати, ще потрібно/)).toHaveCount(0);
-      await expect(publishButton(page)).not.toHaveAttribute("aria-disabled", "true");
-      await page.close();
-    });
+    const page = await context.newPage();
+    expect((await page.goto(link))?.status()).toBe(200);
+    // «Увійти», then signed in once the page is the cabinet: waited on by the URL and the
+    // heading, not by the GET's response event, which CI has missed with /kabinet already
+    // rendered (the same fix as b598d93 for K4 and #120's for KS-T3; AW-H2). Each test's own
+    // `goto("/kabinet")` asserts 200.
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.getByRole("button").click(),
+    ]);
+    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
+    await page.close();
   });
+
+  test.afterAll(async () => {
+    await context?.close();
+    await server?.stop();
+  });
+
+  const open = async (path: string): Promise<Page> => {
+    if (context === undefined) throw new Error("not signed in");
+    const page = await context.newPage();
+    expect((await page.goto(path))?.status(), path).toBe(200);
+    return page;
+  };
+
+  const publishButton = (page: Page) => page.getByRole("button", { name: "Опублікувати" });
+
+  // K2 (PR 5) is the form's entry point: the list's «Додати тварину», reached from the nav.
+  test("from the list, «Додати тварину»: a name and a species save a draft; publish stays disabled with every gap written", async () => {
+    const page = await open("/kabinet");
+    await page
+      .getByRole("navigation", { name: "Розділи кабінету" })
+      .getByRole("link", { name: "Тварини" })
+      .click();
+    await expect(page).toHaveURL(/\/kabinet\/tvaryny$/);
+    await page.getByRole("link", { name: "Додати тварину" }).click();
+    await expect(page).toHaveURL(/\/kabinet\/tvaryny\/nova$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Нова тварина" })).toBeVisible();
+
+    await page.getByLabel("Імʼя").fill("Харнес");
+    await page.getByRole("group", { name: "Вид" }).getByText("Собака").click();
+    await page.getByRole("button", { name: "Зберегти чернетку" }).click();
+
+    await expect(page).toHaveURL(/\/kabinet\/tvaryny\/[0-9a-f-]{36}$/);
+    draftId = page.url().split("/").at(-1) as AnimalId;
+    await expect(page.getByRole("heading", { level: 1, name: "Харнес" })).toBeVisible();
+    await expect(
+      page.getByText(
+        /^Чернетку збережено о \d\d:\d\d · Ті, хто шукає тварину, цю чернетку не бачать\.$/,
+      ),
+    ).toBeVisible();
+    await expect(publishButton(page)).toHaveAttribute("aria-disabled", "true");
+    const missing = page.getByText("Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.");
+    await expect(missing).toBeVisible();
+    await expect(publishButton(page)).toHaveAccessibleDescription(
+      "Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.",
+    );
+
+    // Stored: the draft's own address shows it after a reload, still a draft.
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1, name: "Харнес" })).toBeVisible();
+    await expect(page.getByText("Чернетка", { exact: true })).toBeVisible();
+    await page.close();
+  });
+
+  test("the facts filled in, the gap list shrinks to «фото»", async () => {
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+    await page.getByRole("group", { name: "Розмір" }).getByText("Середній").click();
+    await page
+      .getByRole("group", { name: "Вік на ту дату" })
+      .getByText(/^Молодий/)
+      .click();
+    await expect(page.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeVisible();
+    await page.getByLabel("Про тварину").fill("Спокійний, любить гуляти в парку.");
+    await page.getByRole("button", { name: "Зберегти чернетку" }).click();
+    await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
+    await expect(publishButton(page)).toHaveAttribute("aria-disabled", "true");
+
+    await page.reload();
+    await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
+    await page.close();
+  });
+
+  test("a 4000 px photo is shrunk on the device to 2000 px, sent, and this server's refusal is his message", async () => {
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+
+    // A phone-sized photo, drawn in this browser: 4000 × 3000.
+    const png = Buffer.from(
+      await page.evaluate(async () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 4000;
+        canvas.height = 3000;
+        const context = canvas.getContext("2d");
+        if (context === null) throw new Error("no canvas");
+        context.fillStyle = "#8a6";
+        context.fillRect(0, 0, 4000, 3000);
+        context.fillStyle = "#246";
+        context.fillRect(1000, 750, 2000, 1500);
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, "image/png"),
+        );
+        if (blob === null) throw new Error("no PNG");
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        let binary = "";
+        for (const byte of bytes) binary += String.fromCharCode(byte);
+        return btoa(binary);
+      }),
+      "base64",
+    );
+
+    let sent: Buffer | null = null;
+    await page.route("**/api/kabinet/shelter/photos/add", async (route) => {
+      sent = route.request().postDataBuffer();
+      await route.continue();
+    });
+
+    const chooser = page.waitForEvent("filechooser");
+    await page.getByRole("button", { name: "+ Фото" }).click();
+    await (await chooser).setFiles({ name: "IMG_4000.png", mimeType: "image/png", buffer: png });
+
+    await expect(page.getByText("На цій версії сайту фото завантажити не можна.")).toBeVisible({
+      timeout: 15_000,
+    });
+    expect(sent, "the upload reached the route").not.toBeNull();
+    const size = jpegSize(sent as unknown as Buffer);
+    expect(size, "the request carries a JPEG").not.toBeNull();
+    expect(
+      Math.max(size?.width ?? Number.POSITIVE_INFINITY, size?.height ?? Number.POSITIVE_INFINITY),
+      `longest side of the JPEG sent (${size?.width}×${size?.height})`,
+    ).toBeLessThanOrEqual(MAX_EDGE_PX);
+    // Shrunk, not cropped: the 4:3 shape is kept.
+    expect(size).toEqual({ width: 2000, height: 1500 });
+
+    await page.getByRole("button", { name: "Прибрати фото, яке не завантажилось" }).click();
+    await expect(page.getByText("На цій версії сайту фото завантажити не можна.")).toBeHidden();
+    await page.close();
+  });
+
+  test("with a photo stored, nothing is missing and «Опублікувати» is enabled", async () => {
+    if (draftId === undefined) throw new Error("no draft from the first test");
+    const id = draftId;
+    const draft = await animalRepo(db).findById(id);
+    const row = (await db.select({ id: animals.id, cityId: animals.cityId }).from(animals)).find(
+      (candidate) => candidate.id === id,
+    );
+    if (draft === null || row === undefined) throw new Error("the draft isn't stored");
+    await animalRepo(db).update(
+      {
+        ...draft,
+        photos: [{ storageKey: "seed-photos/dog-1.jpg", width: 1200, height: 1500, alt: null }],
+      },
+      row.cityId as CityId,
+    );
+
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+    await expect(page.getByRole("group", { name: "Фото 1 з 1" })).toBeVisible();
+    await expect(page.getByText("Обкладинка", { exact: true })).toBeVisible();
+    await expect(page.getByText(/^Щоб опублікувати, ще потрібно/)).toHaveCount(0);
+    await expect(publishButton(page)).not.toHaveAttribute("aria-disabled", "true");
+    await page.close();
+  });
+});

@@ -18,95 +18,40 @@ export type AccessDecision =
   | { kind: "allow_shelter_write"; scope: ShelterWriteScope }
   | { kind: "allow_registry"; moderatorId: ModeratorId }
   | { kind: "allow_support_exit"; moderatorId: ModeratorId; shelterId: ShelterId }
-  | {
-      kind: "deny";
-      code: "UNAUTHENTICATED" | "FORBIDDEN" | "SHELTER_WRITES_NOT_YET_AVAILABLE";
-    };
+  | { kind: "deny"; code: "UNAUTHENTICATED" | "FORBIDDEN" };
 
 const FORBIDDEN = { kind: "deny", code: "FORBIDDEN" } as const;
 
 /**
- * Whether a shelter admin's `shelter.*` writes are open (inbox KH-Q1).
+ * Whether a shelter admin's `shelter.*` writes are open: **open, for every
+ * shelter's own admins** since PR 6 of the K milestone (K-Q3, Oleksii,
+ * verbatim: "K-Q3: live immediately. PR 6 rewrites commitment #6."; K-Q4:
+ * the allowlist "removed in PR 6 when the policy opens for everyone").
  *
- * **Refused until PR 6's switch.** No screen calls any write yet, but once
- * production sign-in is on, a signed-in shelter admin could call every one of
- * them straight over `/api/kabinet/*`. Three things the /prytulkam page says
- * stay true only while they can't: A1 «ви розкажете, а я внесу все сам» and
- * A2 «напишіть, і я приберу» (the work is done by a person, commitment #6),
- * and B1 / commitment #7 (the freshness date moves only on a shelter's
- * explicit confirmation, through a screen that says so). An open
- * `animals.confirm` or `animals.update` with no screen and the old copy live
- * would falsify all three.
+ * Before PR 6 this refused every write (KH-Q1), because /prytulkam said a
+ * person entered and removed everything (A1, A2) and that the date moved
+ * only on a confirmation (B1); PR 6 ships those sentences' replacements in
+ * the same change (his Ukrainian, pinned in `copy-status.test.ts`), so the
+ * page describes this policy. The K-Q17 allowlist (one test shelter, read
+ * from an environment variable) and the test-only open policy are gone with
+ * the refusal: no environment variable and no request field decides who may
+ * write, and a support view, another shelter's admin and every other
+ * principal still can't (`decideAccess` below, `access.test.ts`,
+ * `shelter-writes-open.test.ts`).
  *
- * **What lifts it:** PR 6 of the K milestone, which ships the replacement
- * copy for A1/A2/B1 (docs/pr6-checklist.md), adds a production `open`
- * variant, points `SHELTER_WRITE_POLICY` at it, and deletes
- * `open_for_tests_only`, its production guard and its source scan, in its
- * final commit. PR 6's earlier commits already deleted the K-Q17 allowlist
- * (the environment variable that let his test shelter write): no
- * environment variable opens a write any more.
- *
- * `open_for_tests_only` exists today for one reason: the K2/K3 handler
- * suites (`handlers.test.ts`, `registry.test.ts`,
- * `api/kabinet-cross-tenant.test.ts`) exercise those handlers through the
- * served router and pass it explicitly. It is a value on the request
- * context, never an environment variable (KH-T1, Oleksii: "the test-only
- * switch must not be an environment variable readable in production"). Its
- * name is unique in the codebase on purpose: `shelter-writes-refused.test.ts`
- * fails if the literal appears in any non-test file but this one, however it
- * is spelled at the use site (shorthand property, spread, computed key), and
- * pins the constant's value. `assertShelterWritePolicyPermitted` makes a
- * deployed instance refuse it outright, so even a path the scan missed fails
- * closed.
+ * A union of one on purpose (PC-T4): `decideAccess` switches on it
+ * exhaustively, so a second variant (an off switch, if one is ever needed)
+ * can't compile until every caller is walked to.
  */
-export type ShelterWritePolicy =
-  | { readonly kind: "refused_until_edit_screens" }
-  | { readonly kind: "open_for_tests_only" };
+export type ShelterWritePolicy = { readonly kind: "open" };
 
 /**
  * Frozen and readonly (review of the hardening, finding 2): a mutable object
- * typed as the union would let `SHELTER_WRITE_POLICY.kind = ...` type-check
- * anywhere, and silently open every served write for the life of the process.
+ * typed as the policy would let `SHELTER_WRITE_POLICY.kind = ...` type-check
+ * anywhere. The route and every `/kabinet` page pass this constant by name
+ * (`allowlist-removed.test.ts`).
  */
-export const SHELTER_WRITE_POLICY: ShelterWritePolicy = Object.freeze({
-  kind: "refused_until_edit_screens",
-} as const);
-
-/** Whether a shelter admin may write under `policy`: the one place the answer is computed. */
-function writesOpenUnder(policy: ShelterWritePolicy): boolean {
-  switch (policy.kind) {
-    case "refused_until_edit_screens":
-      return false;
-    case "open_for_tests_only":
-      return true;
-    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled policy; unreachable at runtime */
-    default: {
-      const unreachable: never = policy;
-      return unreachable;
-    }
-  }
-}
-
-/**
- * Throws when the test-only open policy reaches a deployed instance (KH-T1,
- * Oleksii's condition: "make it fail if NODE_ENV=production or VERCEL_ENV is
- * set"). `NODE_ENV=production` covers `next start` anywhere, the harness
- * included, and `VERCEL_ENV` covers every Vercel deployment whatever its
- * `NODE_ENV`. The env is a parameter so this stays pure; the router reads
- * `process.env` itself and passes it (`accessOrThrow`), so no caller can
- * hand it a friendlier one.
- */
-export function assertShelterWritePolicyPermitted(
-  policy: ShelterWritePolicy,
-  env: { NODE_ENV?: string | undefined; VERCEL_ENV?: string | undefined },
-): void {
-  if (policy.kind !== "open_for_tests_only") return;
-  if (env.NODE_ENV === "production" || (env.VERCEL_ENV !== undefined && env.VERCEL_ENV !== "")) {
-    throw new Error(
-      "The test-only shelter write policy reached a deployed instance; refusing the request",
-    );
-  }
-}
+export const SHELTER_WRITE_POLICY: ShelterWritePolicy = Object.freeze({ kind: "open" } as const);
 
 /**
  * The access matrix (addendum §1), as one pure function. The middleware only
@@ -116,9 +61,9 @@ export function assertShelterWritePolicyPermitted(
  * Order matters: no session is UNAUTHENTICATED whatever the procedure, so an
  * anonymous caller learns nothing about which procedures exist or what they
  * need. A procedure with no declared access is refused for everyone
- * (deny-by-default), after that. The write refusal (KH-Q1) is decided here,
- * the one choke point every shelter write passes, so no handler can forget
- * it; `shelterWrites` is a required argument so no caller can either.
+ * (deny-by-default), after that. The write policy is applied here, the one
+ * choke point every shelter write passes, so no handler can skip it;
+ * `shelterWrites` is a required argument so no caller can either.
  */
 export function decideAccess(
   access: KabinetAccess | null,
@@ -138,10 +83,16 @@ export function decideAccess(
           shelterAdminId: principal.shelterAdminId,
         } as const;
         if (access.mode === "read") return { kind: "allow_shelter_read", scope };
-        // KH-Q1: the right actor, refused with its own code until PR 6's switch.
-        return writesOpenUnder(shelterWrites)
-          ? { kind: "allow_shelter_write", scope }
-          : { kind: "deny", code: "SHELTER_WRITES_NOT_YET_AVAILABLE" };
+        // Its own shelter only: the scope's shelter is the principal's, never input's.
+        switch (shelterWrites.kind) {
+          case "open":
+            return { kind: "allow_shelter_write", scope };
+          /* v8 ignore next 4 -- exists so the compiler rejects an unhandled policy; unreachable at runtime */
+          default: {
+            const unreachable: never = shelterWrites.kind;
+            return unreachable;
+          }
+        }
       }
       // A support view reads the one shelter it entered, and writes nothing.
       // A super_admin outside support mode reads no shelter's cabinet at all:

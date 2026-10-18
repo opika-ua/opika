@@ -27,6 +27,7 @@ import { type Animal, type Shelter, type ShelterAdminId, UNDO_WINDOW_MS } from "
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
+import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
@@ -105,10 +106,8 @@ async function call<T = Record<string, unknown>>(
     operatorDisplayName: "Олексій",
     locationPolicy: null,
     production: false,
-    // The K2/K3 handlers, exercised with writes opened explicitly (KH-Q1): the
-    // served route refuses them (`SHELTER_WRITE_POLICY`), which
-    // shelter-writes-refused.test.ts pins.
-    shelterWrites: { kind: "open_for_tests_only" },
+    // The served policy: every shelter's own admins write (PR 6).
+    shelterWrites: SHELTER_WRITE_POLICY,
   });
   const text = await response.text();
   return { status: response.status, body: parsed(text) as T };

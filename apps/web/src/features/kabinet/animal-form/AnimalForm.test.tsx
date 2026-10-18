@@ -426,18 +426,6 @@ describe("a draft saves itself (T6)", () => {
     ).toBeTruthy();
   });
 
-  it("writes closed while the form was open: the API's refusal is shown", async () => {
-    const user = userEvent.setup();
-    const client = fakeClient(draft());
-    client.calls.update.mockRejectedValueOnce(apiError("SHELTER_WRITES_NOT_YET_AVAILABLE"));
-    renderForm(draft(), { client });
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expect(
-      await screen.findByText("Змінювати дані в кабінеті поки не можна — для цього напишіть мені."),
-    ).toBeTruthy();
-  });
-
   it("a registry-confirmed fact refused by the server says it can't be changed here", async () => {
     const user = userEvent.setup();
     const client = fakeClient(draft());

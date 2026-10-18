@@ -70,12 +70,6 @@ const supportOf = (shelter: Shelter): KabinetPrincipal => ({
   moderatorId: OPERATOR,
   shelterId: shelter.id,
 });
-/**
- * Opens every shelter's own writes: the handler suites' policy, which stands
- * in for the production open one until PR 6's switch commit adds it.
- */
-const OPEN: ShelterWritePolicy = { kind: "open_for_tests_only" };
-
 describe("kabinetAnimalListPageOf: who reaches /kabinet/tvaryny", () => {
   it("sends an anonymous visitor to sign in", async () => {
     expect(await kabinetAnimalListPageOf({ kind: "anonymous" }, deps())).toEqual({
@@ -88,9 +82,9 @@ describe("kabinetAnimalListPageOf: who reaches /kabinet/tvaryny", () => {
     ["conflicting roles", { kind: "conflicting_roles" }],
     ["a super_admin outside support mode", { kind: "super_admin", moderatorId: OPERATOR }],
   ] as [string, KabinetPrincipal][])(
-    "shows %s nothing (404), under the refusal and under an open policy",
+    "shows %s nothing (404), with writes open",
     async (_who, principal) => {
-      for (const policy of [SHELTER_WRITE_POLICY, OPEN]) {
+      for (const policy of [SHELTER_WRITE_POLICY]) {
         expect(await kabinetAnimalListPageOf(principal, deps(policy))).toEqual({
           kind: "not_found",
         });
@@ -98,13 +92,13 @@ describe("kabinetAnimalListPageOf: who reaches /kabinet/tvaryny", () => {
     },
   );
 
-  it("a shelter's admin gets its own list under an open policy, and no other shelter's", async () => {
+  it("a shelter's admin gets its own list, and no other shelter's (the served policy)", async () => {
     const draft = makeDraftAnimal({ shelterId: mine.id, name: "Ластівка" });
     const listed = makeAnimal({ shelterId: mine.id, name: "Рекс" });
     const elsewhere = makeAnimal({ shelterId: theirs.id, name: "Чужий" });
     for (const animal of [draft, listed, elsewhere]) await animalRepo(db).insert(animal, cityId);
 
-    const page = await kabinetAnimalListPageOf(adminOf(mine), deps(OPEN));
+    const page = await kabinetAnimalListPageOf(adminOf(mine), deps());
     expect(page).toMatchObject({
       kind: "list",
       viewer: "admin",
@@ -122,19 +116,10 @@ describe("kabinetAnimalListPageOf: who reaches /kabinet/tvaryny", () => {
     });
   });
 
-  /** P1: a shelter whose writes are refused keeps the kabinet it had: no list. */
-  it("404 for a shelter whose writes are refused", async () => {
-    for (const shelter of [mine, theirs]) {
-      expect(await kabinetAnimalListPageOf(adminOf(shelter), deps())).toEqual({
-        kind: "not_found",
-      });
-    }
-  });
-
-  it("the support view gets the shelter it entered, read-only, under either policy", async () => {
+  it("the support view gets the shelter it entered, read-only", async () => {
     await animalRepo(db).insert(makeAnimal({ shelterId: theirs.id, name: "Чужий" }), cityId);
     await animalRepo(db).insert(makeAnimal({ shelterId: mine.id, name: "Рекс" }), cityId);
-    for (const policy of [SHELTER_WRITE_POLICY, OPEN]) {
+    for (const policy of [SHELTER_WRITE_POLICY]) {
       const page = await kabinetAnimalListPageOf(supportOf(theirs), deps(policy));
       expect(page).toMatchObject({
         kind: "list",

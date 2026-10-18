@@ -70,8 +70,8 @@ describe("S2 /kabinet/prytulky/novyi: who gets the create form", () => {
     expect(await operatorCreatePageOf(principal, deps())).toEqual({ kind: "not_found" });
   });
 
-  it("is the operator's whatever the shelter write policy says, and a shelter admin with open writes gets nothing", async () => {
-    const open = deps({ kind: "open_for_tests_only" });
+  it("is the operator's, and a shelter admin with open writes gets nothing", async () => {
+    const open = deps();
     expect(
       (await operatorCreatePageOf({ kind: "super_admin", moderatorId: OPERATOR }, open)).kind,
     ).toBe("create");

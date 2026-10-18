@@ -459,7 +459,6 @@ export const en = {
           "Intake can't be paused right now: the shelter's status has changed. Reload the page.",
         illegalTransitionResume:
           "Intake can't be resumed from here right now: the shelter's status has changed. Write to me.",
-        notAvailable: "Changes from the cabinet aren't available yet. Write to me to make one.",
         phoneFormat: "Enter the number with the country code, for example +380 67 123 45 67.",
         telegramFormat:
           "A Telegram username: 5–32 Latin letters, digits or underscores. The @ is optional.",

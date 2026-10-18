@@ -48,9 +48,8 @@ export type PreviewAnimal = { name: string; freshness: Freshness };
  * Whether this viewer may change the profile (K4), decided by the same
  * `decideAccess` the router applies to every shelter write, with the same
  * policy: a page that offered an editor the API then refused would be
- * pretending. `read_only` for a support view and, until PR 6, for every
- * shelter outside the K-Q17 allowlist, which then sees exactly the page it
- * saw before K4.
+ * pretending. `read_only` for a support view; open for every shelter's own
+ * admins since PR 6.
  */
 export type ProfileEditing =
   | { kind: "read_only" }

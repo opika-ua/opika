@@ -217,22 +217,6 @@ describe("contacts (answer 3, answer 4)", () => {
     expect((c.getByLabelText(/^Telegram/) as HTMLInputElement).value).toBe("");
   });
 
-  it("writes refused by the policy: notAvailable", async () => {
-    renderEditor({
-      overrides: {
-        updateContact: vi.fn(async () => {
-          throw apiError("SHELTER_WRITES_NOT_YET_AVAILABLE");
-        }),
-      },
-    });
-    const c = within(contacts());
-    await userEvent.type(c.getByLabelText(/^Телефон/), "8");
-    await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
-    expect(c.getByRole("alert").textContent).toBe(
-      "Змінювати дані в кабінеті поки не можна — для цього напишіть мені.",
-    );
-  });
-
   it("a lost connection: his failure text and a retry that sends again", async () => {
     const updateContact = vi
       .fn()

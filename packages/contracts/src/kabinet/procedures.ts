@@ -168,14 +168,13 @@ const shelterScopedErrors = {
 const shelterCasErrors = { ...shelterScopedErrors, CONFLICT: apiErrors.CONFLICT } as const;
 
 /**
- * Every shelter write starts here, so each one declares the refusal it gets
- * while K2/K3 haven't shipped (`SHELTER_WRITES_NOT_YET_AVAILABLE`, inbox
- * KH-Q1) and a typed client can handle it. Declared on the builder rather
- * than per procedure, so a new write can't be added without it.
+ * Every shelter write starts here, so each one carries the write access the
+ * middleware applies. Its "not yet" refusal (KH-Q1) went with PR 6 of the K
+ * milestone, which opened shelter writes for every shelter (P6-Q8, Oleksii,
+ * verbatim: "Q8 / 0.3b: delete `refused_until_edit_screens`,
+ * `SHELTER_WRITES_NOT_YET_AVAILABLE` and `profileEdit.errors.notAvailable`.").
  */
-const shelterWriteProcedure = kabinet.$meta(shelterWrite).errors({
-  SHELTER_WRITES_NOT_YET_AVAILABLE: apiErrors.SHELTER_WRITES_NOT_YET_AVAILABLE,
-});
+const shelterWriteProcedure = kabinet.$meta(shelterWrite);
 
 const registryErrors = {
   UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,

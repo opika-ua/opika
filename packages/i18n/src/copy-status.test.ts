@@ -368,9 +368,6 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     "profileEdit.errors.illegalTransitionResume":
       "Звідси прийом зараз не відновити: статус притулку змінився. Напишіть мені.",
     // k4-copy-uk.md
-    "profileEdit.errors.notAvailable":
-      "Змінювати дані в кабінеті поки не можна — для цього напишіть мені.",
-    // k4-copy-uk.md
     "profileEdit.errors.phoneFormat": "Вкажіть номер із кодом країни, наприклад +380 67 123 45 67.",
     // k4-copy-uk.md
     "profileEdit.errors.telegramFormat":
@@ -522,6 +519,9 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
         );
 
   it("profileEdit holds exactly his keys, no more and no fewer", () => {
+    // P6-Q8 (Oleksii, verbatim: "Q8 / 0.3b: delete `refused_until_edit_screens`,
+    // `SHELTER_WRITES_NOT_YET_AVAILABLE` and `profileEdit.errors.notAvailable`.").
+    expect(Object.keys(uk.kabinet.profileEdit.errors)).not.toContain("notAvailable");
     expect(leafPaths(uk.kabinet.profileEdit, "profileEdit").sort()).toEqual(
       Object.keys(K4_FINAL)
         .filter((path) => path.startsWith("profileEdit."))
@@ -1289,7 +1289,8 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
   });
 
   it("sanity: the walk reaches his strings, and the letter-apostrophe is in them", () => {
-    expect(k4.length).toBe(75);
+    // 74 since PR 6 deleted errors.notAvailable (P6-Q8).
+    expect(k4.length).toBe(74);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });

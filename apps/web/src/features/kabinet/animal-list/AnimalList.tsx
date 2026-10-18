@@ -102,8 +102,6 @@ const refusalOf = (failure: ActionFailure, otherwise: string): string => {
       return t.confirm.undoExpired;
     case "was_published":
       return uk.kabinet.deleteDraft.refused.wasPublished;
-    case "not_available":
-      return uk.kabinet.profileEdit.errors.notAvailable;
     case "rate_limited":
       return t.errors.rateLimited;
     case "no_answer":
@@ -465,9 +463,7 @@ export function AnimalList({
         text:
           failure.kind === "illegal_transition"
             ? uk.kabinet.profileEdit.errors.illegalTransitionResume
-            : failure.kind === "not_available"
-              ? uk.kabinet.profileEdit.errors.notAvailable
-              : uk.kabinet.profileEdit.state.failed,
+            : uk.kabinet.profileEdit.state.failed,
       });
     } finally {
       setResuming(false);

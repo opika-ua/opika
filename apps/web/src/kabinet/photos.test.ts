@@ -14,7 +14,7 @@ import type { Animal, AnimalPhoto, Shelter, ShelterAdminId } from "@opika/domain
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter, type RateLimiter } from "../api/rate-limit";
 import { fromRpcBody, rpcRequestInit } from "../api/test-harness";
-import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
+import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 import type { PhotoUploads } from "./photo-uploads";
@@ -98,7 +98,6 @@ async function call<T = KabinetAnimalView>(
   opts: {
     uploads: PhotoUploads;
     principal?: KabinetPrincipal;
-    policy?: ShelterWritePolicy;
     origin?: string | null;
     now?: Date;
   },
@@ -130,8 +129,7 @@ async function call<T = KabinetAnimalView>(
     operatorDisplayName: "Олексій",
     locationPolicy: null,
     production: false,
-    // The K2/K3 handlers, exercised with writes opened explicitly (KH-Q1).
-    shelterWrites: opts.policy ?? { kind: "open_for_tests_only" },
+    shelterWrites: SHELTER_WRITE_POLICY,
     photoUploads: opts.uploads,
   });
   const text = await response.text();
@@ -436,27 +434,6 @@ describe("who may upload", () => {
     );
     expect(result.status).toBe(403);
     expect(puts).toEqual([]);
-  });
-
-  it("the served write policy: 403 SHELTER_WRITES_NOT_YET_AVAILABLE, nothing stored, nothing charged", async () => {
-    const target = await animal({ photos: [] });
-    const keys: string[] = [];
-    const spying: RateLimiter = {
-      async check(key) {
-        keys.push(key);
-        return true;
-      },
-    };
-    const { uploads, puts } = uploadsOn(undefined, { perHour: spying, perDay: spying });
-    const result = await call(
-      "shelter.photos.add",
-      { animalId: target.id, file: await jpeg() },
-      { uploads, policy: SHELTER_WRITE_POLICY },
-    );
-    expect(result.status).toBe(403);
-    expect(errorOf(result.body).code).toBe("SHELTER_WRITES_NOT_YET_AVAILABLE");
-    expect(puts).toEqual([]);
-    expect(keys).toEqual([]);
   });
 
   it("a support view: 403 FORBIDDEN, nothing stored", async () => {

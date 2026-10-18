@@ -32,10 +32,9 @@ import { VerificationDecision } from "./VerificationDecision";
  *
  * **K4 editing** (PR 2 of the K milestone): when `editing` is `open`, which
  * `kabinetHomeOf` decides with the router's own `decideAccess` and write
- * policy, the sections become K4's editor (`ProfileEditor`). Otherwise, for a
- * support view and for every shelter outside the K-Q17 allowlist until PR 6,
- * this stays the read-only page, unchanged, so it never offers a change the
- * API would refuse.
+ * policy, the sections become K4's editor (`ProfileEditor`): for every
+ * shelter's own admins since PR 6. For a support view this stays the
+ * read-only page, so it never offers a change the API would refuse.
  */
 
 export type ShelterProfileProps = {
