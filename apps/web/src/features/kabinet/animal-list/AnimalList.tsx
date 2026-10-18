@@ -494,6 +494,15 @@ export function AnimalList({
   };
 
   const stale = filter.kind === "stale";
+  const staleButton = stale ? (
+    <Button variant="secondary" onClick={() => void loadFirst({ kind: "all" })}>
+      {t.stale.showAll}
+    </Button>
+  ) : (
+    <Button variant="secondary" onClick={() => void loadFirst({ kind: "stale" })}>
+      {fillTemplate(t.stale.show, { count: String(staleCount) })}
+    </Button>
+  );
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -548,19 +557,20 @@ export function AnimalList({
       ) : (
         <>
           {staleCount > 0 || stale ? (
-            <section aria-label={t.stale.showAll} className={`${CARD} items-start`}>
-              {staleCount > 0 ? <p className={STRONG}>{staleLineOf(staleCount)}</p> : null}
-              {staleCount > 0 && shown ? <p className={CAPTION}>{t.stale.caption}</p> : null}
-              {stale ? (
-                <Button variant="secondary" onClick={() => void loadFirst({ kind: "all" })}>
-                  {t.stale.showAll}
-                </Button>
-              ) : (
-                <Button variant="secondary" onClick={() => void loadFirst({ kind: "stale" })}>
-                  {fillTemplate(t.stale.show, { count: String(staleCount) })}
-                </Button>
-              )}
-            </section>
+            // The strip is a region named by its own sentence while there is
+            // anything stale; with nothing left to count, only the way back
+            // to every card remains, and a region would have no name to give.
+            staleCount > 0 ? (
+              <section aria-labelledby="animal-list-stale" className={`${CARD} items-start`}>
+                <p id="animal-list-stale" className={STRONG}>
+                  {staleLineOf(staleCount)}
+                </p>
+                {shown ? <p className={CAPTION}>{t.stale.caption}</p> : null}
+                {staleButton}
+              </section>
+            ) : (
+              <div className="flex">{staleButton}</div>
+            )
           ) : null}
 
           <fieldset className="flex flex-wrap items-center gap-2">

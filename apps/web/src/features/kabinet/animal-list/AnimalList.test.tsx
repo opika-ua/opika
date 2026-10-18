@@ -372,6 +372,16 @@ describe("the stale strip (N5)", () => {
     });
   });
 
+  /** Review of #129, note 6: the region is named by his sentence, not by a button's label. */
+  it("the strip is a region named by its own sentence", () => {
+    renderList();
+    const strip = screen.getByRole("region", {
+      name: "1 картку ви не підтверджували понад 30 днів.",
+    });
+    expect(within(strip).getByRole("button", { name: "Показати ці 1" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Показати всі" })).toBeNull();
+  });
+
   it("no stale cards, no strip", () => {
     renderList({ first: { ...FIRST, staleCount: 0 } });
     expect(screen.queryByText(/ви не підтверджували/)).toBeNull();
