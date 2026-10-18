@@ -914,6 +914,12 @@ before any UI. Plan: `docs/r-ui-plan.md`. Three Tier 1 PRs, one open at a time b
 R-UI 1 (operator entry, list, shelter page read-only, history; one contract gap, the admins count),
 R-UI 2 (create shelter), R-UI 3 (verification, donation and admin actions). Merges before the dress rehearsal (RU-B4).
 
+R-UI 4 (RU-Q8, his answer 8): the operator renames a shelter. Branch `feat/r-ui-4`, stacked on R-UI 3; Tier 1.
+Shipped there: `displayName` in `registry.shelters.updateProfile`, `display_name_changed` history, the S4 line and
+a thin form; `create.nameHint` narrowed. Verified: `pnpm check` at `60c25c6` (local Node 22: 3,964 workspace unit tests,
+240 harness), unit, served-router, access, form and harness tests; CI on Node 24 decides. Asserted
+only: real Neon (no new SQL shape, RUI4-T5). Follow-ups: RUI4-F1 (the reveal shows the first-reveal name), RUI4-F2.
+
 ## Part 3 — Timeline
 
 The **Hours** column is a relative-complexity signal, not a schedule. These figures were estimated

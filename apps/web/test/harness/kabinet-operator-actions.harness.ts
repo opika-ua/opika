@@ -296,4 +296,27 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Притулки" })).toBeVisible();
     await page.close();
   });
+
+  /**
+   * R-UI 4 (answer 8, verbatim: "Yes: rename as R-UI 4, with a history
+   * line."): the operator renames the shelter on S4. The heading and the
+   * history line come in through the page's own re-read, with no reload.
+   */
+  test("rename from S4: the heading and the history follow, with no reload (R-UI 4)", async () => {
+    if (shelterId === undefined) throw new Error("not set up");
+    const page = await shelterPage();
+    const field = page.getByRole("textbox", { name: "Назва притулку" });
+    const oldName = await field.inputValue();
+    const newName = `Притулок «Перейменований ${shelterId.slice(0, 4)}»`;
+    await field.fill(`  ${newName} `);
+    await page.getByRole("button", { name: "Зберегти" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Збережено." })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: newName })).toBeVisible();
+    await expect(field).toHaveValue(newName);
+    const history = page.getByRole("region", { name: "Історія" });
+    await expect(
+      history.getByText(`Назва притулку: «${oldName}» → «${newName}»`, { exact: false }),
+    ).toBeVisible();
+    await page.close();
+  });
 });

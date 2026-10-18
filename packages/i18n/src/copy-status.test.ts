@@ -723,8 +723,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.intro":
       "Тут ви вносите все про притулок: назву, адресу, юридичні дані й докази. Перший адміністратор отримає запрошення на пошту.",
     "operator.create.name": "Назва притулку",
-    "operator.create.nameHint":
-      "Як притулок називає себе. Після створення назву поки змінити не можна — перевірте написання.",
+    // Narrowed by R-UI 4: the rename made «Після створення назву поки змінити не можна» false.
+    "operator.create.nameHint": "Як притулок називає себе.",
     "operator.create.description": "Опис притулку",
     "operator.create.city": "Місто",
     "operator.create.address.line1": "Вулиця, будинок",

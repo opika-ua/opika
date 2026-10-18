@@ -3,13 +3,14 @@ import { fillTemplate, uk } from "@opika/i18n";
 
 /**
  * What an S4 action came back as, in the terms the screen speaks. Every
- * refusal the twelve procedures declare (`registry-actions-client.ts`) maps
+ * refusal the thirteen procedures declare (`registry-actions-client.ts`) maps
  * to one of these; anything else the server says is `failed`.
  *
  * - `illegal_transition`: the status moved since the page was read; S4
  *   re-reads and says so (`errors.illegalTransition`).
- * - `conflict`: the donation proposal changed since it was read (RG-Q12);
- *   S4 re-reads and shows the current one (`donation.conflict`).
+ * - `conflict`: the donation proposal changed since it was read (RG-Q12),
+ *   or the record did under the rename form (R-UI 4); S4 re-reads and shows
+ *   the current one (`donation.conflict`, `errors.conflictReload`).
  * - `evidence_insufficient`: approve refused on the evidence on file, which
  *   changed since the page was read (the button is gated on the same rule);
  *   the re-read panel shows the gaps.

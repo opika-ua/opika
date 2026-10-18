@@ -40,7 +40,9 @@ export type AuditedShelterChange =
    */
   | { kind: "exact_address"; exactAddress: ExactAddress; publicLocation: PublicLocation }
   /** The operator approved the proposed link: it goes live and the proposal clears (N20). */
-  | { kind: "donation_approved"; donation: DonationLink };
+  | { kind: "donation_approved"; donation: DonationLink }
+  /** The operator renamed the shelter (R-UI 4); recorded as `display_name_changed`. */
+  | { kind: "display_name"; displayName: string };
 
 export type AuditedWriteResult = { kind: "ok" } | { kind: "conflict" };
 
@@ -80,6 +82,8 @@ function columnsOf(change: AuditedShelterChange) {
       };
     case "donation_approved":
       return { donation: change.donation, pendingDonation: null };
+    case "display_name":
+      return { displayName: change.displayName };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = change;
