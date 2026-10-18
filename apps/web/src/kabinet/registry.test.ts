@@ -1,5 +1,11 @@
 import type { RegistryShelterView } from "@opika/contracts";
-import { animalRepo, cityRepo, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
+import {
+  adopterRepo,
+  animalRepo,
+  cityRepo,
+  kabinetShelterRepo,
+  shelterRepo,
+} from "@opika/db/repos";
 import {
   animals,
   authInvitation,
@@ -9,8 +15,16 @@ import {
   superAdmins,
   supportSessions,
 } from "@opika/db/schema";
-import { makeAnimal, makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
 import {
+  makeAdopter,
+  makeAnimal,
+  makeCity,
+  makeShelter,
+  setupTestDatabase,
+  truncateAll,
+} from "@opika/db/test";
+import {
+  type AdopterId,
   donationProviderOf,
   type ModeratorId,
   publicLocationOf,
@@ -21,7 +35,7 @@ import {
   testOnlyLocationPolicy,
 } from "@opika/domain";
 import { RPCHandler } from "@orpc/server/fetch";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { router as publicRouter } from "../api/router";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
@@ -589,8 +603,15 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
 
 // ─── the rename (R-UI 4) ────────────────────────────────────────────────────
 
-/** A public procedure through the adopter API's own router, as a browser reaches it. */
-async function publicCall<T>(path: string, input: unknown): Promise<{ status: number; body: T }> {
+/**
+ * A public procedure through the adopter API's own router, as a browser
+ * reaches it; `adopterId` stands for a session an adopter already holds.
+ */
+async function publicCall<T>(
+  path: string,
+  input: unknown,
+  opts: { adopterId?: AdopterId } = {},
+): Promise<{ status: number; body: T }> {
   const result = await new RPCHandler(publicRouter).handle(
     new Request(`http://localhost/api/rpc/${path.replaceAll(".", "/")}`, {
       method: "POST",
@@ -599,7 +620,7 @@ async function publicCall<T>(path: string, input: unknown): Promise<{ status: nu
     }),
     {
       prefix: "/api/rpc",
-      context: { db, adopterId: null, tokenHash: null, now: NOW, setCookies: [] },
+      context: { db, adopterId: opts.adopterId ?? null, tokenHash: null, now: NOW, setCookies: [] },
     },
   );
   if (!result.matched) throw new Error(`No public procedure at ${path}`);
@@ -713,6 +734,86 @@ describe("registry.shelters.updateProfile: the rename (R-UI 4)", () => {
     });
     expect(card.status).toBe(200);
     expect(card.body.shelter.displayName).toBe("Лапа допомоги");
+  });
+
+  /**
+   * RUI4-F1, through the operator's own rename: a repeat reveal names the
+   * shelter as it is now, beside its current contacts (K4-B4), where it used
+   * to show the first reveal's name. And the twin of commitment #2: nothing
+   * the shelter reads moves with an adopter's reveals, before the rename or
+   * after it (the reveal path reads the shelter, it never writes to it).
+   */
+  it("a repeat reveal names the shelter by its new name, and nothing the shelter reads varies with reveals", async () => {
+    vi.stubEnv("CURSOR_HMAC_SECRET", "registry-test-cursor-secret");
+    try {
+      const s = await shelter({ displayName: "Лапа" });
+      const animal = makeAnimal({ shelterId: s.id });
+      await animalRepo(db).insert(animal, cityId as never);
+      const adopter = makeAdopter();
+      await adopterRepo(db).insert(adopter);
+      const asAdopter = { adopterId: adopter.id };
+      const asAdmin: KabinetPrincipal = {
+        kind: "shelter_admin",
+        shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
+        shelterId: s.id,
+      };
+      const shelterReads = async () =>
+        Promise.all(
+          (
+            [
+              ["shelter.profile.get", {}],
+              ["shelter.history.list", { cursor: null, limit: 50 }],
+              ["shelter.animals.list", { filter: { kind: "all" }, cursor: null, limit: 50 }],
+              ["shelter.animals.byId", { animalId: animal.id }],
+            ] as const
+          ).map(async ([path, input]) => {
+            const read = await call(path, input, { principal: asAdmin });
+            expect(read.status, path).toBe(200);
+            return [path, read.body] as const;
+          }),
+        );
+
+      const beforeAnyReveal = await shelterReads();
+      const first = await publicCall<{ shelterContact: unknown }>(
+        "animals.reveal",
+        { animalId: animal.id },
+        asAdopter,
+      );
+      expect(first.status).toBe(200);
+      expect(first.body.shelterContact).toEqual({
+        source: "current",
+        displayName: "Лапа",
+        contact: s.contact,
+      });
+      expect(await shelterReads()).toEqual(beforeAnyReveal);
+
+      expect((await rename(s.id, "Лапа допомоги")).status).toBe(200);
+      const afterRename = await shelterReads();
+
+      const again = await publicCall<{ shelterContact: unknown }>(
+        "animals.reveal",
+        { animalId: animal.id },
+        asAdopter,
+      );
+      expect(again.status).toBe(200);
+      expect(again.body.shelterContact).toEqual({
+        source: "current",
+        displayName: "Лапа допомоги",
+        contact: s.contact,
+      });
+      const mine = await publicCall<{ items: { shelterContact: unknown }[] }>(
+        "reveals.listMine",
+        { cursor: null, limit: 20 },
+        asAdopter,
+      );
+      expect(mine.status).toBe(200);
+      expect(mine.body.items.map((item) => item.shelterContact)).toEqual([
+        { source: "current", displayName: "Лапа допомоги", contact: s.contact },
+      ]);
+      expect(await shelterReads()).toEqual(afterRename);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   /** RG-Q8: the shelter reads the rename in its own history, the operator by display name. */

@@ -143,9 +143,9 @@ describe("served reveal responses carry contacts and the city, never the address
       );
       // What a reveal is for still arrives: the shelter's name, its channels, its city.
       const body = reveal.body as Record<string, Record<string, unknown>>;
-      expect(body.shelterAtFirstReveal?.displayName).toBe(shelter.displayName);
       expect(body.shelterContact).toEqual({
         source: "current",
+        displayName: shelter.displayName,
         contact: JSON.parse(JSON.stringify(shelter.contact)),
       });
       expect(body.shelterAtFirstReveal?.publicLocation).toEqual({ cityId: city.id });
@@ -156,15 +156,13 @@ describe("served reveal responses carry contacts and the city, never the address
     const items = (mine.body as { items: Record<string, object>[] }).items;
     expect(items).toHaveLength(2);
     for (const item of items) {
-      expect(Object.keys(item.shelterContact ?? {}).sort()).toEqual(["contact", "source"]);
+      expect(Object.keys(item.shelterContact ?? {}).sort()).toEqual([
+        "contact",
+        "displayName",
+        "source",
+      ]);
       expect(Object.keys(item.shelterAtFirstReveal ?? {}).sort()).toEqual(
-        [
-          "displayName",
-          "donation",
-          "publicLocation",
-          "shelterId",
-          "verificationStatusAtReveal",
-        ].sort(),
+        ["donation", "publicLocation", "shelterId", "verificationStatusAtReveal"].sort(),
       );
     }
   });

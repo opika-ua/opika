@@ -61,8 +61,8 @@ export async function revealsListMine(
 
   return {
     // The same projection as the reveal itself: no exact address (EM-D1), and
-    // the shelter's current contacts while it is visible, else the first-reveal
-    // record's, labelled as such (K4-B4, K4-B5).
+    // the shelter's current name and contacts while it is visible, else the
+    // first-reveal record's, labelled as such (K4-B4, K4-B5, RUI4-F1).
     items: pageItems.map((item) => toView(item, shelterContactOf(item, byId.get(item.shelterId)))),
     nextCursor,
   };

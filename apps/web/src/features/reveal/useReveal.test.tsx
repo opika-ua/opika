@@ -28,11 +28,11 @@ function revealFor(animalId: typeof ANIMAL_A, name: string): ContactRevealView {
     revealedAt: new Date("2026-08-08T10:00:00Z"),
     shelterContact: {
       source: "current",
+      displayName: "Притулок «Домівка»",
       contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
     },
     shelterAtFirstReveal: {
       shelterId: SHELTER_ID,
-      displayName: "Притулок «Домівка»",
       publicLocation: { cityId: CITY_ID },
       verificationStatusAtReveal: "verified",
       donation: null,

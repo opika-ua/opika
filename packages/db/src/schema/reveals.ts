@@ -32,8 +32,9 @@ export const reveals = pgTable(
     /**
      * The first-reveal record: the shelter as it stood when this adopter first
      * revealed the animal, written once and never updated. Not what the
-     * adopter is shown as contacts while the shelter is visible: reveal views
-     * carry its current channels then (`shelterContact`, K4-B4, K4-B5).
+     * adopter is shown as the shelter's name and contacts while the shelter is
+     * visible: reveal views carry its current name and channels then
+     * (`shelterContact`, K4-B4, K4-B5, RUI4-F1).
      */
     shelterSnapshot: jsonb<ShelterContactSnapshot>("shelter_snapshot").notNull(),
     animalSnapshot: jsonb<AnimalRevealSnapshot>("animal_snapshot").notNull(),
