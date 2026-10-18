@@ -466,11 +466,23 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — /tvaryny/[animalId] link-preview des
     photos: [],
   };
 
+  /**
+   * The animal the mocked `animals.byId` answers, read when it is called. A
+   * test needing another animal reassigns this; it must never `vi.doMock`
+   * `./api/server-client` a second time. Vitest queues every `doMock` until
+   * the next import, resolves same-kind entries concurrently, and registers
+   * each one when its resolution settles, so a second `doMock` of the same
+   * path does not reliably replace this `beforeEach`'s: about one run in four
+   * served the male animal to the female test.
+   */
+  let servedAnimal: typeof fakeAnimal = fakeAnimal;
+
   beforeEach(() => {
+    servedAnimal = fakeAnimal;
     vi.resetModules();
     vi.doMock("./api/server-client", () => ({
       anonymousRouterClient: () => ({
-        animals: { byId: async () => fakeAnimal },
+        animals: { byId: async () => servedAnimal },
       }),
     }));
   });
@@ -540,11 +552,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — /tvaryny/[animalId] link-preview des
 
   /** Q9 (Oleksii, 2026-10-18): a female animal's age word, his «доросла». */
   it("a female animal's description carries the agreeing age word", async () => {
-    vi.doMock("./api/server-client", () => ({
-      anonymousRouterClient: () => ({
-        animals: { byId: async () => ({ ...fakeAnimal, sex: "female" }) },
-      }),
-    }));
+    servedAnimal = { ...fakeAnimal, sex: "female" };
     vi.doMock("./seo-flags", () => ({
       SITE_IS_PUBLICLY_DISCOVERABLE: true,
       REGISTRY_HAS_NO_REAL_SHELTERS: false,

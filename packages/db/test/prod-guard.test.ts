@@ -380,7 +380,16 @@ describe("migrateTargetCheck", () => {
  * must refuse before connecting to anything. A guard that exists but isn't
  * called by a script is decoration.
  */
-describe("every writing CLI runs the guard first", () => {
+/**
+ * Each child CLI gets up to a minute (an `npx tsx` cold start takes seconds on Windows, more under
+ * load), and the test around it gets that plus a margin. Under vitest's 15 s default the test
+ * was stopped while its child was still inside its own minute, so these failed only under load,
+ * as timeouts, never as assertions (19 s on a machine running two full checks at once).
+ */
+const SPAWN_TIMEOUT_MS = 60_000;
+const SPAWN_TEST_TIMEOUT_MS = SPAWN_TIMEOUT_MS + 30_000;
+
+describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT_MS }, () => {
   const PKG = resolve(fileURLToPath(import.meta.url), "../..");
   // The developer's real .env.local must never decide a test's outcome.
   const NO_ENV_FILE = resolve(tmpdir(), "opika-prod-guard-test-no-such-file.env");
@@ -396,7 +405,7 @@ describe("every writing CLI runs the guard first", () => {
         PROD_GUARD_ENV_FILE: NO_ENV_FILE,
         LOCATION_HMAC_SECRET: "x".repeat(64),
       },
-      timeout: 60_000,
+      timeout: SPAWN_TIMEOUT_MS,
     });
 
   /** Fail closed through the real CLI: with production unconfigured, a Neon target is refused. */
@@ -408,7 +417,7 @@ describe("every writing CLI runs the guard first", () => {
       encoding: "utf8",
       shell: process.platform === "win32",
       env,
-      timeout: 60_000,
+      timeout: SPAWN_TIMEOUT_MS,
     });
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("PROD_NEON_ENDPOINT is not set");
@@ -427,7 +436,7 @@ describe("every writing CLI runs the guard first", () => {
         PROD_NEON_ENDPOINT: PROD_ENDPOINT,
         PROD_GUARD_ENV_FILE: NO_ENV_FILE,
       },
-      timeout: 60_000,
+      timeout: SPAWN_TIMEOUT_MS,
     });
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("could not be parsed");
@@ -441,7 +450,7 @@ describe("every writing CLI runs the guard first", () => {
       encoding: "utf8",
       shell: process.platform === "win32",
       env: { ...process.env, TEST_DATABASE_URL: CHILD_BRANCH, PROD_GUARD_ENV_FILE: NO_ENV_FILE },
-      timeout: 60_000,
+      timeout: SPAWN_TIMEOUT_MS,
     });
     expect(result.status, result.stderr).not.toBe(0);
     expect(result.stderr).toContain("The test database must be local");
@@ -463,7 +472,7 @@ describe("every writing CLI runs the guard first", () => {
         encoding: "utf8",
         shell: process.platform === "win32",
         env: { ...process.env, DATABASE_URL: PROD, PROD_GUARD_ENV_FILE: NO_ENV_FILE },
-        timeout: 60_000,
+        timeout: SPAWN_TIMEOUT_MS,
       },
     );
     expect(result.status, result.stderr).not.toBe(0);
@@ -481,7 +490,7 @@ describe("every writing CLI runs the guard first", () => {
       encoding: "utf8",
       shell: process.platform === "win32",
       env: { ...process.env, DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host" },
-      timeout: 60_000,
+      timeout: SPAWN_TIMEOUT_MS,
     });
     expect(result.status, result.stderr).toBe(1);
     expect(result.stdout.split(/\r?\n/)[0]).toBe(
@@ -504,7 +513,7 @@ describe("every writing CLI runs the guard first", () => {
         DATABASE_URL: "postgres://opika:secret@localhost:1/opika_print_target",
         PROD_GUARD_ENV_FILE: NO_ENV_FILE,
       },
-      timeout: 60_000,
+      timeout: SPAWN_TIMEOUT_MS,
     });
     expect(result.stdout.split(/\r?\n/)[0]).toBe("Target: local (localhost:1/opika_print_target)");
     expect(result.status, result.stderr).not.toBe(0);
@@ -523,7 +532,7 @@ describe("every writing CLI runs the guard first", () => {
         PROD_NEON_ENDPOINT: PROD_ENDPOINT,
         PROD_GUARD_ENV_FILE: NO_ENV_FILE,
       },
-      timeout: 60_000,
+      timeout: SPAWN_TIMEOUT_MS,
     });
 
   it("db:migrate refuses a non-production Neon target with no --expect (missing endpoint)", () => {
