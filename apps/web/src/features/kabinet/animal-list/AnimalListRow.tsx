@@ -2,6 +2,7 @@
 
 import { fillTemplate, uk } from "@opika/i18n";
 import { freshnessPips } from "@opika/ui";
+import Image from "next/image";
 import { useId, useRef } from "react";
 import { Button, buttonClass } from "../../controls/controls";
 import { missingSentence } from "../animal-form/labels";
@@ -23,8 +24,10 @@ const t = uk.kabinet.animalList;
 export const moreButtonId = (animalId: string): string => `animal-more-${animalId}`;
 
 /**
- * One card in K2's list (KAB K2, the row; sheet §4): its name, the status
- * chip, species · sex · size · age, the line that says where it stands, and
+ * One card in K2's list (KAB K2, the row; sheet §4): its cover photo as the
+ * mock's 72px thumbnail (decorative, `alt=""`: the name beside it says whose
+ * it is; none when the card has no photo), its name, the status chip,
+ * species · sex · size · age, the line that says where it stands, and
  * its actions: «Ще шукає» / «Ще домовляються» under the date, one forward
  * action, and the rest under «Ще».
  *
@@ -82,6 +85,17 @@ export function AnimalListRow({
   return (
     <li aria-labelledby={nameId} className={CARD}>
       <div className="flex flex-wrap items-center gap-3">
+        {row.coverPhoto !== null ? (
+          <div className="relative size-18 flex-none overflow-hidden rounded-rg-photo bg-rg-fill">
+            <Image
+              src={row.coverPhoto.storageKey}
+              alt=""
+              fill
+              sizes="72px"
+              className="object-cover"
+            />
+          </div>
+        ) : null}
         <h2 id={nameId} className="text-xl font-bold tracking-tight break-words text-rg-ink">
           {row.name}
         </h2>
@@ -97,7 +111,6 @@ export function AnimalListRow({
             <span aria-hidden="true" className="flex gap-1">
               {freshnessPips(row.freshness.kind).map((fill, index) => (
                 <span
-                  // biome-ignore lint/suspicious/noArrayIndexKey: three fixed positions, never reordered
                   key={index}
                   className={`size-2.5 rounded-full ${fill === "empty" ? "border-2 border-rg-ink-3" : fill}`}
                 />

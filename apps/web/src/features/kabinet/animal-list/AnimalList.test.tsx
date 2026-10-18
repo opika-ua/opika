@@ -232,6 +232,21 @@ describe("the page: header, rows, order note", () => {
   });
 });
 
+/**
+ * Review of #129, note 5: the mock's 72px thumbnail, the card's cover photo
+ * (the row view's `coverPhoto`), decorative; no image for a card without one.
+ */
+describe("the row's thumbnail", () => {
+  it("a card with a photo shows its cover; one without shows no image", () => {
+    renderList();
+    const cover = rowOf("Ластівка").querySelector("img");
+    expect(cover).not.toBeNull();
+    expect(cover?.getAttribute("alt")).toBe("");
+    expect(decodeURIComponent(cover?.getAttribute("src") ?? "")).toContain("/photos/1.jpg");
+    expect(rowOf("Сірко").querySelector("img")).toBeNull();
+  });
+});
+
 describe("filters and counts (N3)", () => {
   it("one chip per kind with its inventory count, «Усі» pressed", () => {
     renderList();
