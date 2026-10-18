@@ -740,6 +740,27 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     expect(inRow("Рекс").getByRole("button", { name: "Ще шукає" })).toBeTruthy();
   });
 
+  /** One animal per tap (commitment #7): a second tap while the first is in flight sends nothing. */
+  it("a second tap while the confirmation is in flight sends nothing", async () => {
+    let answer: (value: unknown) => void = () => {};
+    const calls = renderList({
+      handlers: {
+        confirm: () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      },
+    });
+    const button = inRow("Рекс").getByRole("button", { name: "Ще шукає" });
+    await userEvent.click(button);
+    await userEvent.click(button);
+    expect(calls.confirm).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      answer({ animal: confirmedNow(PUBLISHED), undoUntil: NOW });
+    });
+    expect(inRow("Рекс").getByText("Підтверджено сьогодні")).toBeTruthy();
+  });
+
   it("undo inside the window: the request, his line, and the previous date back", async () => {
     const calls = renderList({
       handlers: {
