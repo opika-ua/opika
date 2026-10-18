@@ -16,6 +16,7 @@ import {
   publicLocationOf,
   type Shelter,
   type ShelterAdminId,
+  type ShelterHistoryEntry,
   type ShelterVerification,
   testOnlyLocationPolicy,
 } from "@opika/domain";
@@ -24,6 +25,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { router as publicRouter } from "../api/router";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
+import { historyLineOf, historyLineText } from "../features/kabinet/operator/history-lines";
 import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import {
@@ -735,6 +737,23 @@ describe("registry.shelters.updateProfile: the rename (R-UI 4)", () => {
         to: "Лапа допомоги",
       },
     ]);
+  });
+
+  /** What S4 reads back (`registry.history.list`) renders as his composed line, the operator as «ви». */
+  it("the line S4 reads back renders «Назва притулку: «{from}» → «{to}»»", async () => {
+    const s = await shelter({ displayName: "Лапа" });
+    await rename(s.id, "Лапа допомоги");
+    const read = await call<{ items: ShelterHistoryEntry[] }>("registry.history.list", {
+      shelterId: s.id,
+      cursor: null,
+      limit: 10,
+    });
+    expect(read.status).toBe(200);
+    expect(
+      read.body.items.map((entry) =>
+        historyLineText(historyLineOf(entry, { me: OPERATOR as ModeratorId, admins: [] })),
+      ),
+    ).toEqual(["Назва притулку: «Лапа» → «Лапа допомоги» · ви"]);
   });
 
   it("a shelter admin can't rename their own shelter (registry only)", async () => {
