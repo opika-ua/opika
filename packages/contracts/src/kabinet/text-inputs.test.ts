@@ -158,6 +158,12 @@ describe.each(displayNameFields)("%s displayName", (_path, field) => {
     expect(field.safeParse("🐾".repeat(100))).toMatchObject({ success: true });
   });
 
+  it("counts a multi-part character (a flag, a family) as one, not as its code points", () => {
+    expect(field.safeParse("🇺🇦".repeat(100))).toMatchObject({ success: true });
+    expect(field.safeParse("👨‍👩‍👧".repeat(100))).toMatchObject({ success: true });
+    expect(field.safeParse("🇺🇦".repeat(101)).success).toBe(false);
+  });
+
   it("refuses 101, with the message the operator's forms recognise", () => {
     const parsed = field.safeParse("а".repeat(101));
     expect(parsed.success).toBe(false);

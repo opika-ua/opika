@@ -13,8 +13,9 @@ import { characterCount } from "./freshness-sentence";
  * invitation email and the rename history line (which holds two of them).
  * A self-name that spells out a legal form, a quoted name and a council or
  * oblast runs to about 60–80 characters; 100 keeps such a name whole and
- * still bounds every one of those lines. It also stays under the S1
- * search's 200, so any name can be searched for in full.
+ * still bounds every one of those lines. A name written in letters also
+ * stays under the S1 search's 200 (UTF-16 units), so it can be searched for
+ * in full; one built from multi-part emoji (a family is 8 units) may not.
  *
  * Only input carries it: `ShelterSchema.displayName`, which every view picks
  * from, stays as it was, so a stored name over the cap is still served.
