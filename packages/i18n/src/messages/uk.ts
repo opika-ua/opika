@@ -1225,7 +1225,7 @@ export const uk = {
         asOfLabel: "Станом на",
         /** True with D3 (Oleksii: "keep the chosen «Станом на» date"): the server stores it. */
         asOfHint: "Коли ви це оцінили. Зазвичай — день, коли тварина потрапила до притулку.",
-        /** `{label}` is the card's own word (`ageBucketLabel`); his answer 9: quoted as it is. */
+        /** `{label}` is the card's own word (`ageWordFor`, the form's sex); his answer 9: quoted as it is. */
         adopterSees: "Ті, хто шукає тварину, побачать: «{label}».",
         uncertain:
           "Вік указано станом на {when}. Тепер на картці — «{label}». Якщо тварина вже старша, оновіть вік.",
