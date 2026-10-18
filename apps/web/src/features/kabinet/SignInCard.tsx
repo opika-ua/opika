@@ -1,7 +1,7 @@
 "use client";
 
 import { uk } from "@opika/i18n";
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import { type FormEvent, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 /**
  * K1 · sign-in (KABINET N1; mock `Opika Kabinet.dc.html`, frames «K1 Вхід»
@@ -71,8 +71,12 @@ export function SignInCard({
 
   // The heading changes under the user on «sent»: focus it, so a screen
   // reader announces the new state instead of a stale button. Back on the
-  // form, focus the address. After the commit, so the element exists.
-  useEffect(() => {
+  // form, focus the address. In the commit, so the element exists and each
+  // request is taken by the render it was made for. «sent» arrives after the
+  // network, so a passive effect would run a task later, after paint; a tap
+  // on «a different address» handled in between would have its request taken
+  // by that late effect, which finds no field yet, and both moves are lost.
+  useLayoutEffect(() => {
     if (pendingFocus.current === "title") titleRef.current?.focus();
     if (pendingFocus.current === "email") emailRef.current?.focus();
     pendingFocus.current = null;

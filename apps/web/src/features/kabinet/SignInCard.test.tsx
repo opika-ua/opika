@@ -1,5 +1,5 @@
 import { uk } from "@opika/i18n";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RESEND_LOCKOUT_SECONDS, SignInCard } from "./SignInCard";
@@ -147,6 +147,29 @@ describe("K1 · check your email", () => {
     expect(document.activeElement).toBe(emailField());
     // A type="email" field holds its value sanitised (trimmed), as browsers do.
     expect((emailField() as HTMLInputElement).value).toBe("Olena@Example.org");
+  });
+
+  it("«a different address» tapped before «check your email»'s effects run still lands in the field", async () => {
+    // «sent» arrives after the network, so React commits it in one task and
+    // runs that commit's passive effects in a later one, after paint. On a
+    // busy phone a tap queued behind a long task is handled in between.
+    // Observer records are delivered as a microtask right after the commit's
+    // task, so this taps exactly there, whatever the machine's load.
+    const { user } = setup();
+    let focusedAtFirstSight = "«check your email» was never observed";
+    const observer = new MutationObserver(() => {
+      const other = screen.queryByRole("button", { name: uk.kabinet.signIn.otherAddress });
+      if (other === null) return;
+      observer.disconnect();
+      focusedAtFirstSight = document.activeElement?.tagName ?? "nothing";
+      fireEvent.click(other);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    await signIn(user);
+    observer.disconnect();
+    await act(async () => {});
+    expect(focusedAtFirstSight).toBe("H1");
+    expect(document.activeElement).toBe(emailField());
   });
 });
 
