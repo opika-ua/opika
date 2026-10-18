@@ -1730,9 +1730,15 @@ export const uk = {
         intro:
           "Тут ви вносите все про притулок: назву, адресу, юридичні дані й докази. Перший адміністратор отримає запрошення на пошту.",
         name: "Назва притулку",
-        /** His note: update when the rename PR (R-UI 4) ships. */
-        nameHint:
-          "Як притулок називає себе. Після створення назву поки змінити не можна — перевірте написання.",
+        /**
+         * His sentence, narrowed. R-UI 4 lets the operator rename a shelter
+         * on S4, which made his second sentence («Після створення назву поки
+         * змінити не можна — перевірте написання.») false; his answer 8,
+         * verbatim: "Update create.nameHint when it ships." The false sentence
+         * is deleted and nothing is added (a deletion needs no new copy); a
+         * fuller hint, if he wants one, is his to write.
+         */
+        nameHint: "Як притулок називає себе.",
         description: "Опис притулку",
         /**
          * His round-2 replacement (answer 5), verbatim. His first draft said
