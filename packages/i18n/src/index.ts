@@ -1,6 +1,5 @@
 export {
   ageBucketLabel,
-  ageBucketLabelFor,
   ageWordFor,
   sizeLabel,
 } from "./animal-labels";

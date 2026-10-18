@@ -42,15 +42,11 @@ const FEMININE_AGE_BUCKET_LABELS: Record<AgeBucket, string> = {
   senior: uk.cardMeta.ageSeniorFemale,
 };
 
-/** The age word that agrees with the animal (Q9). The masculine set is the card's long-standing words. */
-export function ageBucketLabelFor(bucket: AgeBucket, gender: GrammaticalGender): string {
-  return gender === "feminine" ? FEMININE_AGE_BUCKET_LABELS[bucket] : AGE_BUCKET_LABELS[bucket];
-}
-
 /**
  * The age word on one animal's card, meta line and page (Q9, Oleksii 2026-10-18): female →
  * «молода»; male and «Не записано» → «молодий». Never for filter chips, which name categories.
  */
 export function ageWordFor(bucket: AgeBucket, sex: AnimalSex): string {
-  return ageBucketLabelFor(bucket, grammaticalGenderOf(sex));
+  const gender: GrammaticalGender = grammaticalGenderOf(sex);
+  return gender === "feminine" ? FEMININE_AGE_BUCKET_LABELS[bucket] : AGE_BUCKET_LABELS[bucket];
 }
