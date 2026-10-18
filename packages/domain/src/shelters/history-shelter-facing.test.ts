@@ -140,6 +140,13 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     animalId: ANIMAL_ID,
     animalName: "Барсик",
   },
+  display_name_changed: {
+    kind: "display_name_changed",
+    at: AT,
+    moderatorId: MOD,
+    from: "Лапа",
+    to: "Лапа допомоги",
+  },
 };
 
 /** Every key name at any depth of a value, so a nested id can't hide from the check. */
@@ -238,6 +245,17 @@ describe("shelterFacingHistoryOf", () => {
       at: new Date("2026-10-17T00:00:00.000Z"),
       actor: { kind: "shelter" },
       animalName: "Барсик",
+    });
+  });
+
+  /** R-UI 4: both names, the operator as the actor, and no moderator id. */
+  it("display_name_changed: both names, the operator by display name", () => {
+    expect(shelterFacingHistoryOf(ENTRIES.display_name_changed, OPERATOR)).toEqual({
+      kind: "display_name_changed",
+      at: AT,
+      actor: { kind: "operator", displayName: OPERATOR },
+      from: "Лапа",
+      to: "Лапа допомоги",
     });
   });
 

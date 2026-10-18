@@ -15,7 +15,6 @@ import {
   DEMO_REMOVAL_TABLES,
   type DemoRemovalCounts,
   EmptyRemovalTarget,
-  expectedTargetOf,
   formatPlan,
   formatRefusal,
   parseRemovalTarget,
@@ -23,6 +22,7 @@ import {
   type RemovalTarget,
   removeDemoCorpus,
 } from "../src/demo-remove";
+import { expectedTargetOf } from "../src/prod-guard";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";

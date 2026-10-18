@@ -550,6 +550,7 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     donation_proposal_cancelled: ["kind", "at", "actor"],
     donation_decided: ["kind", "at", "actor", "decision", "link", "previousLive"],
     verified_data_changed: ["kind", "at", "actor", "change"],
+    display_name_changed: ["kind", "at", "actor", "from", "to"],
     shelter_created: ["kind", "at", "actor"],
     admin_invited: ["kind", "at", "actor", "email"],
     admin_invitation_resent: ["kind", "at", "actor", "email"],

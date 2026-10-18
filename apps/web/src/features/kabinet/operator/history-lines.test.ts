@@ -241,6 +241,17 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     "Змінено адресу приміщення · ви",
   ],
   [
+    "display_name_changed (R-UI 4), both names",
+    {
+      kind: "display_name_changed",
+      at: AT,
+      moderatorId: ME,
+      from: "Лапа",
+      to: "Притулок «Лапа допомоги»",
+    },
+    "Назва притулку: «Лапа» → «Притулок «Лапа допомоги»» · ви",
+  ],
+  [
     "animals_imported",
     { kind: "animals_imported", at: AT, moderatorId: OTHER_OPERATOR, count: 12 },
     "Додано тварин з файлу: 12 · адміністратор сайту",

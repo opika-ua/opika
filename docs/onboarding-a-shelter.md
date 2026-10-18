@@ -216,7 +216,9 @@ target's Neon compute with `PROD_NEON_ENDPOINT` (an endpoint id like
 and refuses production without the flag, so you can't onboard into
 production by habit. With `PROD_NEON_ENDPOINT` unset it refuses *every*
 non-local target without `--prod`: it fails closed. The same rule applies to
-`db:migrate` and `db:seed`.
+`db:migrate` and `db:seed`. `db:migrate` also needs `--expect ep-…` naming the target's exact
+Neon compute for any non-local target (AW-F1), so a migration can't land on a database the shell
+happens to point at.
 
 This is a **dry run** — nothing is written. Read the printed output
 carefully: it shows the *computed* public location (the fuzzed

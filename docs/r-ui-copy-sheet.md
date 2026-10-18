@@ -156,7 +156,7 @@ shelter never submits evidence.
 |---|---|---|---|
 | `create.title` | Heading | «Новий притулок» | |
 | `create.intro` | One form: the operator enters everything, including the legal data and evidence | «Одна форма. Юридичні дані й докази притулок додає сам, після входу.» (M33) | [false]: a shelter never adds evidence |
-| `create.name` / `create.nameHint` | Display name: what the shelter calls itself. **It can't be changed after create** (question 8) | «Назва притулку» / «Як притулок називає себе. Юридичну назву додасте під час перевірки.» | hint [false]: the legal name is entered on this form |
+| `create.name` / `create.nameHint` | Display name: what the shelter calls itself. **It can't be changed after create** (question 8; no longer true since R-UI 4, which renames on S4 and cut the hint to «Як притулок називає себе.») | «Назва притулку» / «Як притулок називає себе. Юридичну назву додасте під час перевірки.» | hint [false]: the legal name is entered on this form |
 | `create.description` / `.descriptionHint` | Description, required; shown publicly on the shelter's cards | none | |
 | `create.city` | City (one of the eight) | «Місто» | |
 | `create.address.line1` / `.line2` / `.postalCode` | Street address; line 2 and postcode optional | none | |
