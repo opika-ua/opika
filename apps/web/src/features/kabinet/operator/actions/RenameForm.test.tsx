@@ -68,6 +68,22 @@ describe("the rename form on S4", () => {
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
   });
 
+  /** Review of #127, finding 2: the pressed button unmounts, so the keyboard focus returns to the field. */
+  it("after a save from the keyboard, the focus is back on the name field, not on the page", async () => {
+    const updateProfile = vi.fn(async () => renamed);
+    renderWithActions(<RenameForm />, {
+      view: before,
+      client: { shelters: { updateProfile } },
+      reread: async () => renamed,
+    });
+    await typeName("Домівка для хвостатих");
+    await userEvent.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Зберегти" }));
+    await userEvent.keyboard(" ");
+    expect(screen.getByRole("status").textContent).toBe("Збережено.");
+    expect(document.activeElement).toBe(field());
+  });
+
   it("Enter in the field submits like the button", async () => {
     const updateProfile = vi.fn(async () => renamed);
     renderWithActions(<RenameForm />, {

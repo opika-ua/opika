@@ -1,7 +1,7 @@
 "use client";
 
 import { uk } from "@opika/i18n";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button, TextField } from "../../../controls/controls";
 import { useOperatorActions } from "./operator-actions";
 import { ACTIONS, NOTICE } from "./styles";
@@ -58,9 +58,20 @@ export function RenameForm() {
   const mine = busy && phase.owner === OWNER;
   const text = draft ?? view.displayName;
   const dirty = draft !== null && draft.trim() !== view.displayName;
+  const formRef = useRef<HTMLFormElement>(null);
+  // When the button the operator pressed unmounts (saved, or the field reset by a re-read), the
+  // keyboard focus goes back to the field instead of falling to the page (review of #127, 2).
+  const [refocus, setRefocus] = useState(0);
+  useEffect(() => {
+    if (refocus > 0) document.getElementById(id)?.focus();
+  }, [refocus, id]);
 
   const save = async () => {
     if (busy) return;
+    const hadFocus = formRef.current?.contains(document.activeElement) ?? false;
+    const settleFocus = () => {
+      if (hadFocus) setRefocus((n) => n + 1);
+    };
     const displayName = renameInputOf(text);
     if (displayName === null) {
       setNotice({ kind: "required" });
@@ -90,11 +101,13 @@ export function RenameForm() {
       case "ok":
         setDraft(null);
         setNotice({ kind: "saved" });
+        settleFocus();
         return;
       case "lost":
         if (settled.landed) {
           setDraft(null);
           setNotice({ kind: "saved" });
+          settleFocus();
         } else {
           setNotice({ kind: "failed" });
         }
@@ -104,6 +117,7 @@ export function RenameForm() {
           // The page now shows the record as it is; so does the field.
           setDraft(null);
           setNotice({ kind: "conflict" });
+          settleFocus();
         } else {
           setNotice({ kind: "failed" });
         }
@@ -118,6 +132,7 @@ export function RenameForm() {
 
   return (
     <form
+      ref={formRef}
       noValidate
       className="flex flex-col gap-3"
       onSubmit={(event) => {

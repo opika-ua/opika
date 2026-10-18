@@ -183,7 +183,7 @@ describe("display_name_changed (R-UI 4)", () => {
   const renamed = ENTRIES.display_name_changed;
 
   /** Only the operator renames: a line naming a shelter admin is a shape history never holds. */
-  it("refuses a rename by a shelter admin", () => {
+  it("refuses an actor-shaped author: a rename is recorded with a moderator id only", () => {
     expect(ShelterHistoryEntrySchema.safeParse({ ...renamed, moderatorId: ADMIN }).success).toBe(
       false,
     );
