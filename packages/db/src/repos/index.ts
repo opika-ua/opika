@@ -14,6 +14,7 @@ export {
   type ConditionalWrite,
   type DraftDelete,
   isCheckViolation,
+  type KabinetAnimalFilter,
   type KabinetAnimalPosition,
   kabinetAnimalRepo,
   type ListingMoveHistory,

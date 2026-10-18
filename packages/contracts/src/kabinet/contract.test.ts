@@ -1,4 +1,10 @@
-import { ANIMAL_EDITED_FIELDS, HistoryActorViewSchema } from "@opika/domain";
+import {
+  ANIMAL_EDITED_FIELDS,
+  HistoryActorViewSchema,
+  LISTING_EVENT_TYPES,
+  LISTING_KINDS,
+  WithdrawalCodeSchema,
+} from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { contract } from "../contract";
 import { apiErrors } from "../errors";
@@ -6,9 +12,11 @@ import type { KabinetAccess } from "./access";
 import { registryContract, shelterKabinetContract } from "./contract";
 import {
   AnimalPatchSchema,
+  KABINET_WITHDRAWAL_CODES,
   KabinetListingEventInputSchema,
   registryHistoryContract,
   registryVerificationContract,
+  WITHDRAWAL_NOTE_MAX_CHARACTERS,
 } from "./procedures";
 import {
   BlockedAddressesViewSchema,
@@ -261,6 +269,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "species",
         "sex",
         "size",
+        "age",
         "listing",
         "lastUpdatedAt",
         "coverPhoto",
@@ -709,6 +718,84 @@ describe("shelter inputs", () => {
     // Strict (HS-T5): a client-sent instant is refused, not quietly dropped.
     expect(
       KabinetListingEventInputSchema.safeParse({ type: "publish", at: new Date(0) }).success,
+    ).toBe(false);
+  });
+
+  /**
+   * Every listing event the domain defines is reachable through exactly one
+   * kabinet path: the six moves of `transition`, plus `confirm` and
+   * `undoConfirm`, which have procedures of their own. A domain event added
+   * without a path, or a path for an event the domain lacks, fails here.
+   */
+  it("transition's events plus confirm and undo are exactly the domain's listing events", () => {
+    const moves = KabinetListingEventInputSchema.options.map((option) => option.shape.type.value);
+    expect([...moves, "confirm", "undo_confirm"].sort()).toEqual([...LISTING_EVENT_TYPES].sort());
+  });
+});
+
+/** K2 copy sheet P6 and question 10 (the recommendations, taken while Oleksii is away). */
+describe("a withdrawal's reason as the kabinet takes it", () => {
+  const withdraw = (reason: unknown) =>
+    KabinetListingEventInputSchema.safeParse({ type: "withdraw", reason });
+
+  it("trims the note, and a blank or null note means none", () => {
+    expect(withdraw({ code: "transferred", note: "  До притулку в Бучі  " }).data).toEqual({
+      type: "withdraw",
+      reason: { code: "transferred", note: "До притулку в Бучі" },
+    });
+    for (const note of ["   \n ", "", null]) {
+      expect(withdraw({ code: "other", note }).data, JSON.stringify(note)).toEqual({
+        type: "withdraw",
+        reason: { code: "other", note: null },
+      });
+    }
+  });
+
+  it("takes 2,000 characters and refuses 2,001, emoji counted as one each", () => {
+    expect(WITHDRAWAL_NOTE_MAX_CHARACTERS).toBe(2000);
+    expect(withdraw({ code: "other", note: "🐾".repeat(2000) }).success).toBe(true);
+    expect(withdraw({ code: "other", note: "а".repeat(2001) }).success).toBe(false);
+  });
+
+  /** A homed animal is marked «Уже вдома» (adopt), so it counts as adopted, not withdrawn. */
+  it("offers four of the domain's five codes: never adopted_elsewhere", () => {
+    expect([...KABINET_WITHDRAWAL_CODES].sort()).toEqual(
+      WithdrawalCodeSchema.options.filter((code) => code !== "adopted_elsewhere").sort(),
+    );
+    for (const code of KABINET_WITHDRAWAL_CODES) {
+      expect(withdraw({ code, note: null }).success, code).toBe(true);
+    }
+    expect(withdraw({ code: "adopted_elsewhere", note: null }).success).toBe(false);
+  });
+
+  it("is strict: an unknown key in the reason is refused", () => {
+    expect(withdraw({ code: "other", note: null, public: true }).success).toBe(false);
+  });
+});
+
+/** K2's chips and N5's «Показати ці N»: one filter at a time (K2 copy sheet P7). */
+describe("the K2 list's filter", () => {
+  const parse = (filter: unknown) =>
+    internals("shelter.animals.list").inputSchema?.safeParse({ filter, cursor: null, limit: 10 });
+
+  it("is all, one listing kind, or stale", () => {
+    expect(parse({ kind: "all" })?.success).toBe(true);
+    for (const listing of LISTING_KINDS) {
+      expect(parse({ kind: "listing", listing })?.success, listing).toBe(true);
+    }
+    expect(parse({ kind: "stale" })?.success).toBe(true);
+  });
+
+  it("refuses a kind with no listing, stale combined with a kind, and the old nullable field", () => {
+    expect(parse({ kind: "listing" })?.success).toBe(false);
+    expect(parse({ kind: "stale", listing: "draft" })?.success).toBe(false);
+    expect(parse(null)?.success).toBe(false);
+    expect(
+      internals("shelter.animals.list").inputSchema?.safeParse({
+        listing: null,
+        cursor: null,
+        limit: 10,
+      })?.success,
     ).toBe(false);
   });
 
