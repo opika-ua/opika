@@ -279,6 +279,32 @@ describe("filters and counts (N3)", () => {
     expect(screen.getByText("У цій групі поки немає карток.")).toBeTruthy();
   });
 
+  /** Two chips in quick succession: the later one's answer wins, whatever order they arrive in. */
+  it("a chip's late answer doesn't overwrite the chip chosen after it", async () => {
+    let draftsAnswer: (page: AnimalListPageData) => void = () => {};
+    renderList({
+      handlers: {
+        list: (input: { filter: { kind: string; listing?: string } }) =>
+          input.filter.kind === "listing" && input.filter.listing === "draft"
+            ? new Promise<AnimalListPageData>((resolve) => {
+                draftsAnswer = resolve;
+              })
+            : Promise.resolve({ ...FIRST, items: [PUBLISHED] }),
+      } as Handlers,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Чернетки · 2" }));
+    await userEvent.click(screen.getByRole("button", { name: "Опубліковано · 1" }));
+    expect(rowOf("Рекс")).toBeTruthy();
+    await act(async () => {
+      draftsAnswer({ ...FIRST, items: [READY_DRAFT, GAPPY_DRAFT] });
+    });
+    expect(rowOf("Рекс")).toBeTruthy();
+    expect(screen.queryByRole("listitem", { name: "Ластівка" })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Опубліковано · 1" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
   it("a list that fails to load says so, and «Спробувати ще раз» asks again", async () => {
     let fail = true;
     const calls = renderList({
@@ -759,6 +785,51 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
       answer({ animal: confirmedNow(PUBLISHED), undoUntil: NOW });
     });
     expect(inRow("Рекс").getByText("Підтверджено сьогодні")).toBeTruthy();
+  });
+
+  it("a second tap on «Скасувати» while the undo is in flight sends nothing", async () => {
+    let answer: (value: unknown) => void = () => {};
+    const calls = renderList({
+      handlers: {
+        confirm: async () => ({ animal: confirmedNow(PUBLISHED), undoUntil: NOW }),
+        undoConfirm: () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      },
+    });
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
+    const undo = inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" });
+    await userEvent.click(undo);
+    await userEvent.click(undo);
+    expect(calls.undoConfirm).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      answer(viewOf(PUBLISHED, PUBLISHED.listing));
+    });
+    expect(statusText()).toBe("Скасовано: на картці знову попередня дата.");
+  });
+
+  it("an undo with no answer: re-read; the previous date back is «Скасовано», today's date keeps the undo", async () => {
+    let stored = viewOf(PUBLISHED, PUBLISHED.listing);
+    renderList({
+      handlers: {
+        confirm: async () => ({ animal: confirmedNow(PUBLISHED), undoUntil: NOW }),
+        undoConfirm: async () => Promise.reject(new TypeError("Failed to fetch")),
+        byId: async () => stored,
+      },
+    });
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
+    // The re-read still shows today's date: the undo didn't happen, and it can be tried again.
+    stored = confirmedNow(PUBLISHED);
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" }));
+    expect(alertText()).toContain("Не вдалося. Перевірте зʼєднання і спробуйте ще раз.");
+    expect(inRow("Рекс").getByText("Оновлено сьогодні")).toBeTruthy();
+    // It did land: the re-read shows the date from before the confirmation.
+    stored = viewOf(PUBLISHED, PUBLISHED.listing);
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: /^Скасувати · \d с$/ }));
+    expect(statusText()).toBe("Скасовано: на картці знову попередня дата.");
+    expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy();
+    expect(inRow("Рекс").queryByRole("button", { name: /^Скасувати/ })).toBeNull();
   });
 
   it("undo inside the window: the request, his line, and the previous date back", async () => {

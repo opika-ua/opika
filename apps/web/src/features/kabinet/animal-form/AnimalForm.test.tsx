@@ -1043,6 +1043,21 @@ describe("who may change what", () => {
       ],
       ["a support view", published(), { kind: "open", grantedBy: "allowlist" }, "support"],
       ["a read-only shelter", published(), { kind: "read_only" }, "admin"],
+      // Published and reserved only: an adopted or withdrawn card shows no date to keep.
+      [
+        "an adopted card",
+        published({ listing: { kind: "adopted", adoptedAt: NOW } } as Partial<KabinetAnimalView>),
+        { kind: "open", grantedBy: "allowlist" },
+        "admin",
+      ],
+      [
+        "a withdrawn card",
+        published({
+          listing: { kind: "withdrawn", withdrawnAt: NOW, reason: { code: "other", note: null } },
+        } as Partial<KabinetAnimalView>),
+        { kind: "open", grantedBy: "allowlist" },
+        "admin",
+      ],
     ];
     for (const [who, view, editing, viewer] of cases) {
       const rendered = render(
