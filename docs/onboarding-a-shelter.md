@@ -607,17 +607,25 @@ goes through `p=quarantine` first.)
   - `_dmarc.mail.opika.org.ua` (the sending subdomain, the auth emails' From address, Resend):
     `v=DMARC1; p=none; rua=mailto:dmarc@opika.org.ua`
 
-  **The subdomain's own record decides the auth emails' policy, not the apex's.** Raising only
-  the apex leaves the sender that carries bearer links at `p=none`. Which records the launch-gate
-  step raises is his decision (open, inbox EA-Q1).
-- **Before changing anything:** the reports must show nothing legitimate failing for the record
-  being raised: everything sending as `@opika.org.ua` (e.g. `hello@`) for the apex, and Resend for
-  `mail.opika.org.ua`.
-- **The change:** set `p=quarantine` (keep the same `rua`), then watch the reports. Later,
-  `p=reject`.
-- **After each change:** if the subdomain's record changed, send a delivery test
-  (`email:delivery-test`) and confirm the invite and sign-in emails still arrive in the inbox.
-  The apex record doesn't govern them, so the delivery test can't prove an apex change.
+  **The subdomain's own record decides the auth emails' policy, not the apex's**, so the step
+  raises both together. Oleksii, 2026-10-19, verbatim (EA-Q1): "option (b). The launch-gate step
+  raises both _dmarc.opika.org.ua and _dmarc.mail.opika.org.ua together. They go to p=quarantine
+  first, then later to p=reject, and keep the same rua."
+- **Before changing anything:** the reports at `dmarc@` show nothing legitimate failing:
+  everything sending as `@opika.org.ua` (e.g. `hello@`), and Resend for `mail.opika.org.ua`.
+- **The step, in this order** (his order, verbatim in substance: "Write the order into the step"):
+  1. **Remove the Brevo DNS records** (the `brevo2` DKIM, and any Brevo SPF include or
+     verification TXT, e.g. `brevo1._domainkey.mail`, `brevo2._domainkey.mail` and the `mail`
+     TXT `brevo-code`), before raising or in the same step.
+  2. **Raise both records** to `p=quarantine`, keeping the same
+     `rua=mailto:dmarc@opika.org.ua`:
+     - `_dmarc.opika.org.ua`: `v=DMARC1; p=quarantine; rua=mailto:dmarc@opika.org.ua`
+     - `_dmarc.mail.opika.org.ua`: `v=DMARC1; p=quarantine; rua=mailto:dmarc@opika.org.ua`
+  3. **Run a delivery test** of a sign-in email and an invite (`email:delivery-test`) and confirm
+     both arrive in the inbox.
+  4. **Check the next DMARC reports** for anything failing **before** going to `p=reject` (both
+     records, the same `rua`).
+- **All DNS changes are his** ("I make all DNS changes myself").
 
 ## Debugging sign-in: share a name and an email, never the response
 
