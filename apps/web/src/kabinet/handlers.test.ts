@@ -6,6 +6,7 @@ import {
   animalRepo,
   cityRepo,
   kabinetShelterRepo,
+  revealRepo,
   shelterRepo,
   swipeRepo,
 } from "@opika/db/repos";
@@ -16,6 +17,7 @@ import {
   makeAnimal,
   makeCity,
   makeDraftAnimal,
+  makeReveal,
   makeShelter,
   makeSwipe,
   setupTestDatabase,
@@ -1685,6 +1687,51 @@ describe("K2: the animal list", () => {
       expect(result.status, JSON.stringify(filter)).toBe(400);
       expect((result.body as unknown as { code: string }).code).toBe("INVALID_CURSOR");
     }
+  });
+
+  /** Decision #15's filter binding, kind to kind (review of #126, finding 2). */
+  it("a draft page's cursor can't page the published list: the kind is part of the binding", async () => {
+    for (let i = 0; i < 3; i += 1) await animal({ listing: { kind: "draft" } });
+    for (let i = 0; i < 3; i += 1) await animal({ listing: confirmedDaysAgo("published", 1) });
+    const drafts = await list({ kind: "listing", listing: "draft" }, null, 1);
+    expect(drafts.body.nextCursor).not.toBeNull();
+    const replayed = await list(
+      { kind: "listing", listing: "published" },
+      drafts.body.nextCursor,
+      1,
+    );
+    expect(replayed.status).toBe(400);
+    expect((replayed.body as unknown as { code: string }).code).toBe("INVALID_CURSOR");
+  });
+
+  /**
+   * Commitment #2 (review of #126, finding 1): nothing the list answers may vary with what
+   * adopters did, the stale strip and its filter included.
+   */
+  it("an adopter's swipe and reveal change nothing the list answers", async () => {
+    const watched = await animal({ listing: confirmedDaysAgo("published", 40) });
+    await animal({ listing: confirmedDaysAgo("published", 2) });
+    await animal({ listing: { kind: "draft" } });
+    const read = async () => ({
+      all: (await list({ kind: "all" })).body,
+      stale: (await list({ kind: "stale" })).body,
+      published: (await list({ kind: "listing", listing: "published" })).body,
+    });
+    const before = await read();
+    const adopter = makeAdopter();
+    await adopterRepo(db).insert(adopter);
+    await swipeRepo(db).record(
+      makeSwipe({ adopterId: adopter.id, animalId: watched.id, direction: "interested", at: NOW }),
+    );
+    await revealRepo(db).insert(
+      makeReveal({
+        adopterId: adopter.id,
+        animalId: watched.id,
+        shelterId: shelter.id,
+        revealedAt: NOW,
+      }),
+    );
+    expect(await read()).toEqual(before);
   });
 
   it("each row carries its age and its own publish gaps, in form order", async () => {
