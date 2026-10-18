@@ -339,15 +339,17 @@ The rehearsal shelter «Притулок «Репетиція»» (`c00c73ac-b27
 for the K4/photo rehearsal) is a test shelter on the real location key. It goes in the launch
 order below, after the first real shelter is onboarded. Every step is Oleksii's to run.
 
-1. **Remove its admins first.** `demo:remove` refuses while a target shelter has a member, so
-   that access removal stays recorded in the shelter's history (DR-B3, answer 1). In DevTools
-   on opika.org.ua, signed in as `admin@`, with the `rpc` helper:
-   ```js
-   const s = await rpc("registry/shelters/byId", { shelterId: "c00c73ac-b27f-535e-b629-ac8cd2c69123" });
-   for (const a of s.admins) await rpc("registry/admins/remove", { shelterId: "c00c73ac-b27f-535e-b629-ac8cd2c69123", adminId: a.id }); // each 200 {}
-   ```
-   Removing an admin also ends that admin's sessions, in the same statement. Pending
-   invitations are withdrawn the same way.
+1. **In the operator screens (R-UI 3): remove every admin, then suspend.** Oleksii, 2026-10-18
+   (N8, verbatim): "option A. No new deletion code: remove every admin and suspend in the UI (R-UI
+   3), then demo:remove from my machine as before."
+   - On `/kabinet/prytulky`, open «Притулок «Репетиція»»; under «Адміністратори», «Прибрати» each
+     admin and each invitation, and confirm. Each removal ends that admin's sessions at once and
+     is recorded in the shelter's history (DR-B3, answer 1: `demo:remove` refuses while a member
+     remains).
+   - Then «Призупинити…» with a reason code and a note. Its animals leave the feed and the gallery
+     at once.
+   - The DevTools `rpc` path (`registry/admins/remove`) still works as a back-up if the screens
+     are unavailable.
 2. **Check for support sessions.** If you ever entered support mode on this shelter,
    `demo:remove` refuses: support sessions are never deleted (RS-Q0, DR-Q1 (b)). The dry run
    prints the count. With a non-zero count, you decide again with the number in front of you.
@@ -394,8 +396,10 @@ a second address""), because creating a shelter already invites its first admin:
    reveals contacts, and messages the shelter.
 5. The shelter marks one adopted and hides one. He approves a donation link, then suspends and
    reinstates the shelter, and checks that the history shows all of it.
-6. Both test shelters are retired afterwards: the existing rehearsal shelter first, per
-   "Retiring the rehearsal shelter" above, then «Генеральна» the same way.
+6. Both test shelters are retired afterwards, each the same way (N8, option A): in his screens,
+   remove every admin and suspend; then `demo:remove --shelter <id>` from his machine, per
+   "Retiring the rehearsal shelter" above. The existing rehearsal shelter first, then «Генеральна».
+   (This step reworded on 2026-10-18 per his N8 answer; the rest of the script is verbatim RU-B5.)
 
 Until then the current rehearsal shelter (`c00c73ac-…`) stays as the dev test bed, and
 `KABINET_WRITE_ALLOWLIST` serves only that interim; it goes away with PR 6.
