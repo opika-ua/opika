@@ -1,4 +1,4 @@
-import type { apiErrors, RegistryShelterView } from "@opika/contracts";
+import { type apiErrors, type RegistryShelterView, UNKNOWN_CITY_MESSAGE } from "@opika/contracts";
 import { type AuditedShelterChange, cityRepo, kabinetShelterRepo } from "@opika/db/repos";
 import {
   type CityId,
@@ -126,7 +126,7 @@ export async function registryUpdateVerifiedData(
     (await cityRepo(deps.db).findById(input.change.next.cityId as CityId)) === null
   ) {
     // As on create (RG-T5): a client fault, answered 400, never the FK's 500.
-    throw new ORPCError("BAD_REQUEST", { status: 400, message: "Unknown city" });
+    throw new ORPCError("BAD_REQUEST", { status: 400, message: UNKNOWN_CITY_MESSAGE });
   }
   return editFromForm(
     deps,

@@ -5,13 +5,14 @@ import {
   type EvidenceAttribution,
   type EvidenceItemInput,
   EvidenceItemInputSchema,
+  isSiteVisitInFuture,
   toEvidenceItem,
   toVerificationEvidence,
 } from "./evidence-input";
 
 const OPERATOR = ModeratorIdSchema.parse("11111111-1111-4111-8111-111111111111");
 const SCRIPT_FOUNDER = ModeratorIdSchema.parse("22222222-2222-4222-8222-222222222222");
-/** Late in the UTC day: a slip into a local date would move it on machines east of UTC (CI runs in UTC, so this guards only there). */
+/** Late in the UTC day, already the 8th in Kyiv (01:30 or 02:30): "today" is Kyiv's. */
 const RECORDED_AT = new Date("2026-10-07T23:30:00.000Z");
 const BY: EvidenceAttribution = { recordedBy: OPERATOR, recordedAt: RECORDED_AT };
 const EDRPOU = EdrpouSchema.parse("12345678");
@@ -164,9 +165,54 @@ describe("toVerificationEvidence", () => {
   it("refuses a site visit dated after the day it is recorded", () => {
     expect(
       toVerificationEvidence(
-        [{ kind: "site_visit", visitedOn: "2026-10-08", notes: "Завтра" }],
+        [{ kind: "site_visit", visitedOn: "2026-10-09", notes: "Завтра" }],
         BY,
       ),
-    ).toEqual({ kind: "site_visit_in_future", visitedOn: "2026-10-08" });
+    ).toEqual({ kind: "site_visit_in_future", visitedOn: "2026-10-09" });
+  });
+});
+
+/**
+ * Kyiv's calendar, not UTC's (Oleksii, 2026-10-17: "the site-visit "not in
+ * the future" check uses the Kyiv calendar date, not UTC"). Each instant is
+ * at least an hour from a Kyiv midnight under either offset (UTC+2 in
+ * winter, UTC+3 in summer), so the cases hold whatever the time-zone data
+ * says about daylight saving.
+ */
+describe("a site visit's date, on Kyiv's calendar", () => {
+  const visit = (visitedOn: string): EvidenceItemInput => ({
+    kind: "site_visit",
+    visitedOn,
+    notes: "Оглянув вольєри",
+  });
+  const at = (iso: string): EvidenceAttribution => ({
+    recordedBy: OPERATOR,
+    recordedAt: new Date(iso),
+  });
+
+  it.each([
+    ["October", "2026-10-07T22:30:00.000Z", "2026-10-08", "2026-10-09"],
+    ["December", "2026-12-01T22:30:00.000Z", "2026-12-02", "2026-12-03"],
+  ])(
+    "accepts Kyiv's today just after local midnight while UTC's date is still yesterday (%s), and refuses tomorrow",
+    (_month, recordedAt, kyivToday, kyivTomorrow) => {
+      expect(new Date(recordedAt).toISOString().slice(0, 10) < kyivToday).toBe(true);
+      expect(toVerificationEvidence([visit(kyivToday)], at(recordedAt)).kind).toBe("ok");
+      expect(isSiteVisitInFuture(kyivToday, new Date(recordedAt))).toBe(false);
+      expect(isSiteVisitInFuture(kyivTomorrow, new Date(recordedAt))).toBe(true);
+      expect(toVerificationEvidence([visit(kyivTomorrow)], at(recordedAt))).toEqual({
+        kind: "site_visit_in_future",
+        visitedOn: kyivTomorrow,
+      });
+    },
+  );
+
+  it("refuses tomorrow late in Kyiv's evening, when UTC is the same day", () => {
+    const evening = at("2026-10-08T19:30:00.000Z");
+    expect(toVerificationEvidence([visit("2026-10-08")], evening).kind).toBe("ok");
+    expect(toVerificationEvidence([visit("2026-10-09")], evening)).toEqual({
+      kind: "site_visit_in_future",
+      visitedOn: "2026-10-09",
+    });
   });
 });

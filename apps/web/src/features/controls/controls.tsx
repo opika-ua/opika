@@ -196,3 +196,25 @@ export function SelectField({
     </FieldFrame>
   );
 }
+
+/**
+ * One option of a radio group (S2's legal form first). The whole row is the
+ * label, so the touch target is the row, on the 48px token; the radio itself
+ * takes the shared focus ring, since it is what holds focus. The group's
+ * question is the surrounding `fieldset`'s `legend`, and its message is
+ * linked there, so this stays one option and nothing more.
+ */
+export function RadioOption({
+  label,
+  className = "",
+  ...props
+}: { label: ReactNode } & Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
+  return (
+    <label
+      className={`flex min-h-target items-center gap-3 rounded-rg-button bg-rg-fill px-4 ${className}`}
+    >
+      <input type="radio" className={FOCUS_RING} {...props} />
+      <span className={LABEL}>{label}</span>
+    </label>
+  );
+}

@@ -90,12 +90,16 @@ test.describe("/kabinet K4 profile editing (allowlisted shelter)", () => {
     });
     const page = await context.newPage();
     expect((await page.goto(link))?.status()).toBe(200);
-    const landing = page.waitForResponse(
-      (response) =>
-        response.request().method() === "GET" && new URL(response.url()).pathname === "/kabinet",
-    );
-    await page.getByRole("button").click();
-    expect((await landing).status(), "/kabinet after sign-in").toBe(200);
+    // «Увійти», then signed in once the page is the cabinet. Waited on by the
+    // URL and the heading, not by the GET's response event: CI once spent the
+    // hook's whole 120 s here with /kabinet already rendered (run
+    // 39065612577), the event never matched; a URL already reached still
+    // satisfies `waitForURL`. Each test's own `goto("/kabinet")` asserts 200.
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.getByRole("button").click(),
+    ]);
+    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
     await page.close();
   });
 
