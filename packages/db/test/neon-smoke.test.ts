@@ -63,7 +63,8 @@ describe("runSmoke against the local database", () => {
     const outcomes = await runSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
     // 25 through PR 3, R-UI 1's 26 (S1 row: admin counts and donationPending),
-    // then K3's 27–31 (F-B1, K3-T7, RH-B7).
-    expect(outcomes.length).toBe(31);
+    // K3's 27–31 (F-B1, K3-T7, RH-B7), then K2's 32–36 (the list's keyset,
+    // filters and counts; confirm/undo; the recorded moves).
+    expect(outcomes.length).toBe(36);
   });
 });

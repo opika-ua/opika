@@ -125,7 +125,7 @@ type HomeClient = RouterClient<typeof homeRouter>;
  */
 async function previewAnimalOf(client: HomeClient, now: Date): Promise<PreviewAnimal | null> {
   const page = await client.shelter.animals.list({
-    listing: null,
+    filter: { kind: "all" },
     cursor: null,
     limit: PREVIEW_ANIMALS_PAGE,
   });

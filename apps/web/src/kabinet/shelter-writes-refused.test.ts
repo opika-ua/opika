@@ -184,7 +184,7 @@ describe("reads stay open to a shelter admin", () => {
   const INPUTS: Record<string, () => unknown> = {
     "shelter.profile.get": () => ({}),
     "shelter.history.list": () => ({ cursor: null }),
-    "shelter.animals.list": () => ({ listing: null, cursor: null }),
+    "shelter.animals.list": () => ({ filter: { kind: "all" }, cursor: null }),
     "shelter.animals.byId": () => ({ animalId: draft.id }),
   };
 
