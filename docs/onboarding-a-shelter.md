@@ -4,6 +4,23 @@ Follow this while on the phone with a volunteer, in order. Don't improvise
 the sequence — the dry run exists specifically so you see the computed
 public location before anything touches the live database.
 
+## PowerShell 5.1: reading a secret
+
+Windows PowerShell 5.1 has no `Read-Host -MaskInput`. Every connection string in this runbook is
+read with this helper, pasted once per shell (Oleksii, 2026-10-18, verbatim helper):
+
+```powershell
+function Read-Secret($p){ $s = Read-Host $p -AsSecureString; [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)) }
+```
+
+A Neon endpoint id (`ep-…`, never a URL) is derived from the URL in the shell rather than typed:
+
+```powershell
+$ep = ([uri]$env:DATABASE_URL).Host.Split('.')[0] -replace '-pooler$',''
+```
+
+Never paste a connection string into a command line, a file or a chat.
+
 ## What to ask the shelter for
 
 - **Legal shape**: registered NGO (legal name + EDRPOU), sole proprietor
@@ -324,21 +341,24 @@ The rehearsal shelter «Притулок «Репетиція»» (`c00c73ac-b27
 for the K4/photo rehearsal) is a test shelter on the real location key. It goes in the launch
 order below, after the first real shelter is onboarded. Every step is Oleksii's to run.
 
-1. **Remove its admins first.** `demo:remove` refuses while a target shelter has a member, so
-   that access removal stays recorded in the shelter's history (DR-B3, answer 1). In DevTools
-   on opika.org.ua, signed in as `admin@`, with the `rpc` helper:
-   ```js
-   const s = await rpc("registry/shelters/byId", { shelterId: "c00c73ac-b27f-535e-b629-ac8cd2c69123" });
-   for (const a of s.admins) await rpc("registry/admins/remove", { shelterId: "c00c73ac-b27f-535e-b629-ac8cd2c69123", adminId: a.id }); // each 200 {}
-   ```
-   Removing an admin also ends that admin's sessions, in the same statement. Pending
-   invitations are withdrawn the same way.
+1. **In the operator screens (R-UI 3): remove every admin, then suspend.** Oleksii, 2026-10-18
+   (N8, verbatim): "option A. No new deletion code: remove every admin and suspend in the UI (R-UI
+   3), then demo:remove from my machine as before."
+   - On `/kabinet/prytulky`, open «Притулок «Репетиція»»; under «Адміністратори», «Прибрати» each
+     admin and each invitation, and confirm. Each removal ends that admin's sessions at once and
+     is recorded in the shelter's history (DR-B3, answer 1: `demo:remove` refuses while a member
+     remains).
+   - Then «Призупинити…» with a reason code and a note. Its animals leave the feed and the gallery
+     at once.
+   - The DevTools `rpc` path (`registry/admins/remove`) still works as a back-up if the screens
+     are unavailable.
 2. **Check for support sessions.** If you ever entered support mode on this shelter,
    `demo:remove` refuses: support sessions are never deleted (RS-Q0, DR-Q1 (b)). The dry run
    prints the count. With a non-zero count, you decide again with the number in front of you.
 3. **Dry run, then commit**, from the main checkout (its root `.env.local` provides
    `PROD_NEON_ENDPOINT`), with the production direct URL in your shell
-   (`$env:DATABASE_URL = Read-Host "Production direct URL"`):
+   (`$env:DATABASE_URL = Read-Secret "Production direct URL"`, with the helper from "PowerShell 5.1:
+   reading a secret"):
    ```powershell
    pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter c00c73ac-b27f-535e-b629-ac8cd2c69123
    pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter c00c73ac-b27f-535e-b629-ac8cd2c69123 --commit
@@ -348,12 +368,13 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
    deletes R2 objects; DR-F3's operator-run script, or the Cloudflare dashboard by hand, does
    it later. Run the dry run again afterwards: every count is 0, and it refuses with «no
    shelter has id …», which confirms the shelter is gone.
-4. **`KABINET_WRITE_ALLOWLIST`**, then **redeploy**, since environment changes apply only to
-   new deployments (RH-B6):
-   - **before PR 6:** switch it from the rehearsal id to **the real shelter's id**. Unsetting it
-     would close writes for the first real shelter too.
-   - **after PR 6:** PR 6 opens writes for every shelter and deletes the allowlist from the code,
-     so **delete the variable**.
+4. **`KABINET_WRITE_ALLOWLIST`**: PR 6 has merged by then: delete `KABINET_WRITE_ALLOWLIST`,
+   then redeploy (environment changes apply only to new deployments). Oleksii, 2026-10-17,
+   verbatim: "Runbook step 4: reword to "PR 6 has merged by then: delete KABINET_WRITE_ALLOWLIST,
+   then redeploy."" It replaces RH-B6's "before PR 6" branch, which commitment #6 rules out (a
+   real shelter's id in the allowlist falsifies it) and which can't arise, since PR 6 merges
+   before the first real shelter's invite (F-B6, verbatim: "F6: PR 6 merges BEFORE the first real
+   shelter's invite.").
 5. **`location:verify --prod`**, expected after the retirement: `match` = the number of real
    shelters (1 at launch), `MISMATCH 0`, no `PRIVACY` line, and `demo` = **2** if the demo corpus
    is still there or **0** once `demo:remove` has run (the next launch step).
@@ -377,8 +398,10 @@ a second address""), because creating a shelter already invites its first admin:
    reveals contacts, and messages the shelter.
 5. The shelter marks one adopted and hides one. He approves a donation link, then suspends and
    reinstates the shelter, and checks that the history shows all of it.
-6. Both test shelters are retired afterwards: the existing rehearsal shelter first, per
-   "Retiring the rehearsal shelter" above, then «Генеральна» the same way.
+6. Both test shelters are retired afterwards, each the same way (N8, option A): in his screens,
+   remove every admin and suspend; then `demo:remove --shelter <id>` from his machine, per
+   "Retiring the rehearsal shelter" above. The existing rehearsal shelter first, then «Генеральна».
+   (This step reworded on 2026-10-18 per his N8 answer; the rest of the script is verbatim RU-B5.)
 
 Until then the current rehearsal shelter (`c00c73ac-…`) stays as the dev test bed, and
 `KABINET_WRITE_ALLOWLIST` serves only that interim; it goes away with PR 6.

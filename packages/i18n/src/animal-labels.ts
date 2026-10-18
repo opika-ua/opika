@@ -1,4 +1,10 @@
-import type { AgeBucket, SizeBucket } from "@opika/domain";
+import {
+  type AgeBucket,
+  type AnimalSex,
+  type GrammaticalGender,
+  grammaticalGenderOf,
+  type SizeBucket,
+} from "@opika/domain";
 import { uk } from "./messages/uk";
 
 /**
@@ -27,4 +33,20 @@ export function ageBucketLabel(bucket: AgeBucket): string {
 /** The size word in a card's meta line, e.g. "мала" in "молодий · мала". */
 export function sizeLabel(size: SizeBucket): string {
   return SIZE_LABELS[size];
+}
+
+const FEMININE_AGE_BUCKET_LABELS: Record<AgeBucket, string> = {
+  baby: uk.cardMeta.ageBabyFemale,
+  young: uk.cardMeta.ageYoungFemale,
+  adult: uk.cardMeta.ageAdultFemale,
+  senior: uk.cardMeta.ageSeniorFemale,
+};
+
+/**
+ * The age word on one animal's card, meta line and page (Q9, Oleksii 2026-10-18): female →
+ * «молода»; male and «Не записано» → «молодий». Never for filter chips, which name categories.
+ */
+export function ageWordFor(bucket: AgeBucket, sex: AnimalSex): string {
+  const gender: GrammaticalGender = grammaticalGenderOf(sex);
+  return gender === "feminine" ? FEMININE_AGE_BUCKET_LABELS[bucket] : AGE_BUCKET_LABELS[bucket];
 }

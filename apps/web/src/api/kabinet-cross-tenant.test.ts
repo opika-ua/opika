@@ -235,20 +235,9 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
     ["shelter.profile.pause", () => smuggle({ reason: { code: "relocation", note: null } })],
     ["shelter.profile.resume", () => smuggle({})],
     ["shelter.verification.requestReview", () => smuggle({})],
-    ["shelter.animals.list", () => smuggle({ listing: null, cursor: null, limit: 50 })],
+    ["shelter.animals.list", () => smuggle({ filter: { kind: "all" }, cursor: null, limit: 50 })],
     ["shelter.history.list", () => smuggle({ cursor: null, limit: 50 })],
-    [
-      "shelter.animals.createDraft",
-      () =>
-        smuggle({
-          name: "Новий",
-          species: "dog",
-          sex: "male",
-          size: "small",
-          age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date() },
-          description: { uk: "Опис", en: null },
-        }),
-    ],
+    ["shelter.animals.createDraft", () => smuggle({ name: "Новий", species: "dog" })],
   ];
 
   for (const [procedure, input] of cases) {
@@ -267,18 +256,15 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
 
   /** Without the smuggled key, the same calls act on A: A's list, A's new draft. */
   it("A's list is A's animals, and createDraft lands in A", async () => {
-    const list = await call("shelter.animals.list", { listing: null, cursor: null, limit: 50 });
+    const list = await call("shelter.animals.list", {
+      filter: { kind: "all" },
+      cursor: null,
+      limit: 50,
+    });
     const items = (list.body as { items: { id: string }[] }).items;
     expect(items.map((item) => item.id)).toEqual([aPublished.id]);
 
-    await call("shelter.animals.createDraft", {
-      name: "Новий",
-      species: "cat",
-      sex: "female",
-      size: "small",
-      age: { kind: "declared_bucket", bucket: "baby", declaredAt: new Date() },
-      description: { uk: "Опис", en: null },
-    });
+    await call("shelter.animals.createDraft", { name: "Новий", species: "cat" });
     expect((await animalRepo(db).findByShelterId(shelterA.id)).map((a) => a.name)).toContain(
       "Новий",
     );

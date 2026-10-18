@@ -203,3 +203,15 @@ describe("SwipeCard shelter line", () => {
     expect(screen.getByTestId("shelter-line").textContent).not.toContain("перевірений");
   });
 });
+
+/** Q9 (Oleksii, 2026-10-18): the meta line's age word agrees with the animal. */
+describe("SwipeCard meta line, by sex", () => {
+  it.each([
+    ["female", "молода · середня"],
+    ["male", "молодий · середня"],
+    ["unknown", "молодий · середня"],
+  ] as const)("a %s animal: «%s»", (sex, line) => {
+    renderCard(makeCard({ sex, ageBucket: "young", size: "medium" }));
+    expect(screen.getByText(line)).toBeTruthy();
+  });
+});

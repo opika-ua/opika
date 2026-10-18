@@ -383,7 +383,7 @@ describe("the voice sentence (N11)", () => {
     await userEvent.clear(textarea());
     expect(preview.queryByTestId("shelter-freshness-sentence")).toBeNull();
     expect(
-      preview.getByText("Речення немає — на картці буде лише „Оновлено … тому“."),
+      preview.getByText("Речення немає — на картці буде лише «Оновлено … тому»."),
     ).toBeTruthy();
   });
 
@@ -428,7 +428,7 @@ describe("the voice sentence (N11)", () => {
       ),
     ).toBeTruthy();
     expect(
-      v.getByText("Якщо залишити порожнім, на картках буде лише „Оновлено … тому“."),
+      v.getByText("Якщо залишити порожнім, на картках буде лише «Оновлено … тому»."),
     ).toBeTruthy();
     // CB-B1, item 3: `{імʼя}` shows literally, never filled
     expect(
@@ -624,6 +624,36 @@ describe("pause and resume (N21)", () => {
     expect(dialog.getByRole("alert").textContent).toBe(
       "Зараз не вийде поставити прийом на паузу: статус притулку змінився. Оновіть сторінку.",
     );
+  });
+
+  it("while the pause is in flight, Escape, ✕ and «Скасувати» don't close the dialog, so a refusal is still shown", async () => {
+    let answer: (error: unknown) => void = () => {};
+    renderEditor({
+      overrides: {
+        pause: vi.fn(
+          () =>
+            new Promise((_resolve, fail) => {
+              answer = fail;
+            }),
+        ),
+      },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Призупинити прийом тварин?" }));
+    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Немає місця");
+    await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом" }));
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(dialog.getByRole("button", { name: "Закрити" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Скасувати" }));
+    expect(screen.getByRole("dialog", { name: "Призупинити прийом тварин?" })).toBeTruthy();
+
+    await act(async () => answer(apiError("ILLEGAL_TRANSITION")));
+    expect(dialog.getByRole("alert").textContent).toBe(
+      "Зараз не вийде поставити прийом на паузу: статус притулку змінився. Оновіть сторінку.",
+    );
+    // Answered, it closes again as before.
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   const paused = () =>

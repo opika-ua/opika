@@ -936,7 +936,7 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
     expect(refused.headers.get("cache-control")).toBe("no-store");
     expect(refused.headers.get("referrer-policy")).toBe("strict-origin");
     expect(card).toContain(
-      '<p role="alert">Забагато спроб входу за короткий час. Посилання ще дійсне — зачекайте хвилину й знову натисніть „Увійти“.</p>',
+      '<p role="alert">Забагато спроб входу за короткий час. Посилання ще дійсне — зачекайте хвилину й знову натисніть «Увійти».</p>',
     );
     const token = new URL(link).searchParams.get("token") ?? "";
     expect(card).toContain(`<input type="hidden" name="token" value="${token}">`);

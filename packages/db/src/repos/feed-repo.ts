@@ -1,10 +1,10 @@
-import type { AdopterId, Animal, FeedFilters, SeenSetPolicy } from "@opika/domain";
+import type { AdopterId, DiscoverableAnimal, FeedFilters, SeenSetPolicy } from "@opika/domain";
 import { and, desc, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
 import { swipes } from "../schema/swipes";
 import { buildFeedPredicate } from "./feed-predicate";
-import { rowToAnimal } from "./mappers";
+import { rowToDiscoverableAnimal } from "./mappers";
 
 export type FeedCursorData = {
   /** The row's `last_confirmed_at` — the keyset's ordering value. */
@@ -13,7 +13,7 @@ export type FeedCursorData = {
 };
 
 export type FeedPage = {
-  items: readonly Animal[];
+  items: readonly DiscoverableAnimal[];
   nextCursor: FeedCursorData | null;
 };
 
@@ -77,7 +77,7 @@ export function feedRepo(db: Database) {
 
       const hasMore = rows.length > opts.limit;
       const pageRows = hasMore ? rows.slice(0, opts.limit) : rows;
-      const items = pageRows.map(rowToAnimal);
+      const items = pageRows.map(rowToDiscoverableAnimal);
 
       let nextCursor: FeedCursorData | null = null;
       const last = hasMore ? pageRows[pageRows.length - 1] : undefined;

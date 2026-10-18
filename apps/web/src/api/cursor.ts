@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import type { KabinetAnimalListFilter } from "@opika/contracts";
 import type { RegistryListPosition } from "@opika/db/repos";
 import type { ShelterId } from "@opika/domain";
 
@@ -159,10 +160,15 @@ export function decodeRevealCursor(
  * cursor from one shelter's list can't page through another's (the query is
  * scoped by the actor anyway; this keeps a mismatch from silently returning a
  * wrong page instead of INVALID_CURSOR) and a cursor from "drafts" can't be
- * replayed against "published".
+ * replayed against "published", or a stale-only page against the whole list.
+ * A listing kind is prefixed, so no kind can ever collide with `all` or
+ * `stale`.
  */
-export const kabinetAnimalsFingerprint = (shelterId: string, listing: string | null): string =>
-  `${shelterId}|${listing ?? "all"}`;
+export const kabinetAnimalsFingerprint = (
+  shelterId: string,
+  filter: KabinetAnimalListFilter,
+): string =>
+  `${shelterId}|${filter.kind === "listing" ? `listing:${filter.listing}` : filter.kind}`;
 
 export function encodeKabinetAnimalsCursor(
   data: CursorPosition,

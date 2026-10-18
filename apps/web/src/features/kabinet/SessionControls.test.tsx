@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SIGNED_OUT_DESTINATION, SignOutButton } from "./SignOutButton";
-import { AFTER_SUPPORT_DESTINATION, SupportBanner } from "./SupportBanner";
+import { SupportBanner } from "./SupportBanner";
 
 /** The two session controls on `/kabinet`: sign-out (admin) and leaving support mode (S5). */
 
@@ -36,11 +36,13 @@ describe("SignOutButton", () => {
 describe("SupportBanner", () => {
   const exitButton = () => screen.getByRole("button", { name: uk.kabinet.support.exit });
 
-  it("leaves support mode, then goes to the front door", async () => {
+  // RU-Q5, answer 5: "Leaving it returns to the list." The route, transcribed
+  // (R-UI 1's S1), not read from the constant the banner navigates with.
+  it("leaves support mode, then goes back to the list of shelters", async () => {
     const navigate = vi.fn();
     render(<SupportBanner shelterName="Домівка" exit={async () => true} navigate={navigate} />);
     await userEvent.click(exitButton());
-    expect(navigate).toHaveBeenCalledWith(AFTER_SUPPORT_DESTINATION);
+    expect(navigate).toHaveBeenCalledExactlyOnceWith("/kabinet/prytulky");
   });
 
   it("stays put and says so when leaving fails, never pretending it left", async () => {

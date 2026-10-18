@@ -13,9 +13,12 @@ export {
   type AnimalHistoryRow,
   type ConditionalWrite,
   type DraftDelete,
+  isCheckViolation,
+  type KabinetAnimalFilter,
   type KabinetAnimalPosition,
   kabinetAnimalRepo,
   type ListingMoveHistory,
+  type ListingWriteGuard,
 } from "./kabinet-animal-repo";
 export {
   type InvitationAcceptResult,

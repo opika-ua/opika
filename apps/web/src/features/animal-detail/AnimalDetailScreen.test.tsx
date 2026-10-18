@@ -226,3 +226,23 @@ describe("AnimalDetailScreen — a city name is printed literally (review findin
     expect(screen.getByText("м. Місто $& $1")).toBeTruthy();
   });
 });
+
+/** Q9 (Oleksii, 2026-10-18): the subtitle's age word agrees with the animal. */
+describe("AnimalDetailScreen subtitle, by sex", () => {
+  it.each([
+    ["female", /· молода ·/],
+    ["male", /· молодий ·/],
+  ] as const)("a %s animal's subtitle", async (sex, word) => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal({ sex, ageBucket: "young" })}
+        shelter={makeShelter()}
+        now={NOW}
+        cityName="Бровари"
+        backToGalleryHref="/tvaryny"
+      />,
+    );
+    expect(screen.getByText(word)).toBeTruthy();
+  });
+});

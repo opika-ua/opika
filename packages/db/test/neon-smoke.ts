@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  type AnimalListingState,
+  isDraftAnimal,
+  listingAfterPhotoChange,
+  listingHistoryEventOf,
   type ModeratorId,
   publicLocationOf,
   type ShelterAdminId,
@@ -19,6 +23,7 @@ import { authExpiryRepo, KABINET_SESSION_ABSOLUTE_MS } from "../src/repos/auth-e
 import { cityRepo } from "../src/repos/city-repo";
 import {
   type AnimalHistoryRow,
+  isCheckViolation,
   kabinetAnimalRepo,
   type ListingMoveHistory,
 } from "../src/repos/kabinet-animal-repo";
@@ -45,6 +50,7 @@ import {
   makeAdopter,
   makeAnimal,
   makeCity,
+  makeDraftAnimal,
   makeShelter,
   makeSwipe,
 } from "../src/test-utils/fixtures";
@@ -895,10 +901,27 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
 
   // 23. a recorded listing move (publish): the listing compare-and-set and its
   // `animal_listing_changed` line in one statement, one line; the same move
-  // again on the now-stale read conflicts and records nothing.
-  const draftListing = createdRead?.animal.listing ?? { kind: "draft" as const };
+  // again on the now-stale read conflicts and records nothing. Since K3-T7 a
+  // publish also compare-and-sets on `version` and a non-empty photo list, so
+  // it publishes a complete draft of its own with one photo; `createdDraft`
+  // stays a photo-less draft for steps 24 and 25.
+  const publishable = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: shelter.id,
+    listing: { kind: "draft" },
+    photos: [
+      { storageKey: `animals/smoke-${tag}/${randomUUID()}`, width: 800, height: 1000, alt: null },
+    ],
+    version: 0,
+  });
+  await animalRepo(db).insert(publishable, city.id);
+  const publishableRead = await kabinetAnimals.findWithCity(publishable.id);
+  const draftListing = publishableRead?.animal.listing ?? { kind: "draft" as const };
   const published = transitionListing(draftListing, { type: "publish", at: later(6000) });
-  const listingLine = (): ListingMoveHistory => ({
+  const publishLine = (animal: {
+    id: typeof publishable.id;
+    name: string;
+  }): ListingMoveHistory => ({
     kind: "recorded",
     row: {
       id: randomUUID(),
@@ -906,34 +929,40 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
         kind: "animal_listing_changed",
         at: later(6000),
         actor: smokeActor,
-        animalId: createdDraft.id,
-        animalName: createdDraft.name,
+        animalId: animal.id,
+        animalName: animal.name,
         event: { type: "publish" },
         from: "draft",
         to: "published",
       },
     },
   });
+  const publishGuard = (version: number) => ({
+    kind: "publish" as const,
+    expectedVersion: version,
+  });
   const recordedMove =
-    published.kind === "ok"
+    published.kind === "ok" && publishableRead
       ? await kabinetAnimals.writeListingIf(
-          createdDraft.id,
+          publishable.id,
           published.next,
           draftListing,
-          listingLine(),
+          publishLine(publishable),
+          publishGuard(publishableRead.animal.version),
         )
       : { kind: "conflict" as const };
   const conflictingMove =
-    published.kind === "ok"
+    published.kind === "ok" && publishableRead
       ? await kabinetAnimals.writeListingIf(
-          createdDraft.id,
+          publishable.id,
           published.next,
           draftListing,
-          listingLine(),
+          publishLine(publishable),
+          publishGuard(publishableRead.animal.version),
         )
       : { kind: "ok" as const };
-  const afterRecorded = await kabinetAnimals.findWithCity(createdDraft.id);
-  const moveLines = await animalLines("animal_listing_changed", createdDraft.id);
+  const afterRecorded = await kabinetAnimals.findWithCity(publishable.id);
+  const moveLines = await animalLines("animal_listing_changed", publishable.id);
   check(
     "recorded listing move writes one animal_listing_changed line; a conflicting one none (K-Q7)",
     published.kind === "ok" &&
@@ -967,11 +996,13 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       fields: ["photos"],
     },
   });
+  const draftAsRead = photoRead?.animal.listing ?? { kind: "draft" as const };
+  const unchangedListing = { next: draftAsRead, expected: draftAsRead };
   const photoWrite = photoRead
     ? await kabinetAnimals.writePhotosIf(
         createdDraft.id,
-        nextPhotos,
-        photoRead.animal.photos,
+        { next: nextPhotos, expected: photoRead.animal.photos },
+        unchangedListing,
         later(7000),
         photosLine(),
       )
@@ -979,8 +1010,8 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const stalePhotoWrite = photoRead
     ? await kabinetAnimals.writePhotosIf(
         createdDraft.id,
-        [smokePhoto(3)],
-        photoRead.animal.photos,
+        { next: [smokePhoto(3)], expected: photoRead.animal.photos },
+        unchangedListing,
         later(8000),
         photosLine(),
       )
@@ -1015,8 +1046,8 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     heldPhotos.length === 2
       ? await kabinetAnimals.writePhotosIf(
           createdDraft.id,
-          [...heldPhotos].reverse(),
-          heldPhotos,
+          { next: [...heldPhotos].reverse(), expected: heldPhotos },
+          unchangedListing,
           later(9000),
           photosLine(),
         )
@@ -1027,16 +1058,16 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     reorderedPhotos.length === 2
       ? await kabinetAnimals.writePhotosIf(
           createdDraft.id,
-          reorderedPhotos.slice(0, 1),
-          reorderedPhotos,
+          { next: reorderedPhotos.slice(0, 1), expected: reorderedPhotos },
+          unchangedListing,
           later(10000),
           photosLine(),
         )
       : { kind: "conflict" as const };
   const staleReorderWrite = await kabinetAnimals.writePhotosIf(
     createdDraft.id,
-    [...heldPhotos].reverse(),
-    heldPhotos,
+    { next: [...heldPhotos].reverse(), expected: heldPhotos },
+    unchangedListing,
     later(11000),
     photosLine(),
   );
@@ -1060,6 +1091,667 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       afterRemove.animal.version === photoRead?.animal.version &&
       nonEmptyPhotoLines === 3,
     `reorder ${reorderWrite.kind}, remove ${removeWrite.kind}, stale ${staleReorderWrite.kind}, ${afterRemove?.animal.photos.length} photo(s), version ${photoRead?.animal.version} → ${afterRemove?.animal.version}, ${nonEmptyPhotoLines} photos line(s)`,
+  );
+
+  // 26. R-UI answer 2 (Oleksii, verbatim: "add the admins count (signed in /
+  // invited) and the donationPending flag to the list row, in one query (no
+  // N+1)"): the S1 row's counts come from one grouped subquery over a UNION
+  // of members and pending invitees, with a NOT EXISTS, a FILTER'd count and
+  // a jsonb_typeof flag, all read back through neon-http. A shelter with a
+  // member (whose own invitation is still pending), a re-invited address and
+  // an expired invitation counts 1 joined and 2 invited, as `adminsOf` lists
+  // them; one that never invited anyone counts 0 and 0, with no link waiting.
+  // Names of their own (R, S: no other step uses them), and each search must
+  // find exactly its one shelter, so the step never leans on the list's order.
+  const countedName = `Smoke ${tag} R`;
+  const uncountedName = `Smoke ${tag} S`;
+  const countedBase = makeShelter({
+    id: randomUUID() as ShelterId,
+    displayName: countedName,
+    pendingDonation: {
+      link: { url: "https://send.monobank.ua/jar/smoke", provider: "monobank_jar" },
+      proposedAt: NOW,
+      proposedBy: randomUUID() as ShelterAdminId,
+    },
+  });
+  const uncountedBase = makeShelter({
+    id: randomUUID() as ShelterId,
+    displayName: uncountedName,
+    pendingDonation: null,
+  });
+  for (const s of [countedBase, uncountedBase]) {
+    await insertShelterFromScript(
+      db,
+      {
+        ...s,
+        exactAddress: { ...s.exactAddress, cityId: city.id },
+        publicLocation: publicLocationOf(s.id, { ...s.exactAddress, cityId: city.id }, policy),
+      },
+      by,
+    );
+  }
+  const inviteTo = (email: string, at: Date) =>
+    invitations.invite({
+      shelterId: countedBase.id,
+      email,
+      name: "Smoke counted",
+      inviterUserId: operator,
+      ids: { invitationId: randomUUID(), userId: randomUUID(), organizationId: randomUUID() },
+      now: at,
+      history: { id: randomUUID(), entry: inviteEntry(email) },
+    });
+  const countedMember = await inviteTo(`smoke-counted-member-${tag}@example.invalid`, NOW);
+  await inviteTo(`smoke-counted-again-${tag}@example.invalid`, NOW);
+  await inviteTo(`smoke-counted-again-${tag}@example.invalid`, later(1000));
+  await inviteTo(`smoke-counted-expired-${tag}@example.invalid`, later(-10 * 86_400_000));
+  const countedOrganization = await kabinetRegistryRepo(db).organizationIdOf(countedBase.id);
+  if (countedMember.kind === "invited" && countedOrganization !== null) {
+    await db.insert(authMember).values({
+      id: randomUUID(),
+      organizationId: countedOrganization,
+      userId: countedMember.userId,
+      role: "admin",
+      createdAt: NOW,
+    });
+  }
+  const onlyRow = async (name: string, id: ShelterId) => {
+    const { items } = await registry.listPage({
+      search: name,
+      status: null,
+      after: null,
+      limit: 5,
+    });
+    return items.length === 1 && items[0]?.id === id ? items[0] : undefined;
+  };
+  const counted = await onlyRow(countedName, countedBase.id);
+  const uncounted = await onlyRow(uncountedName, uncountedBase.id);
+  const countedListed = await registry.adminsOf(countedBase.id);
+  const listedJoined = countedListed.filter((a) => a.invite.status === "accepted").length;
+  const listedInvited = countedListed.filter((a) => a.invite.status === "pending").length;
+  check(
+    "S1 row: admin counts and donationPending (one grouped subquery, R-UI answer 2)",
+    counted?.admins.joined === 1 &&
+      counted.admins.invited === 2 &&
+      counted.admins.joined === listedJoined &&
+      counted.admins.invited === listedInvited &&
+      counted.donationPending === true &&
+      uncounted?.admins.joined === 0 &&
+      uncounted.admins.invited === 0 &&
+      uncounted.donationPending === false,
+    `R: ${counted === undefined ? "not the one row found" : `joined ${counted.admins.joined}, invited ${counted.admins.invited} (adminsOf ${listedJoined}/${listedInvited}), donationPending ${counted.donationPending}`}; S: ${uncounted === undefined ? "not the one row found" : `joined ${uncounted.admins.joined}, invited ${uncounted.admins.invited}, donationPending ${uncounted.donationPending}`}`,
+  );
+
+  // 27–31: K3 (PR 4). F-B1's nullable facts and their CHECKs (migration
+  // 0012), the draft-only null guard on a form save, the publish
+  // compare-and-set (K3-T7) and RH-B7's photo write, each through neon-http.
+  const smokePhotoOf = (animalId: string) => ({
+    storageKey: `animals/${animalId}/${randomUUID()}`,
+    width: 800,
+    height: 1000,
+    alt: null,
+  });
+  const editLine = (
+    animal: { id: typeof publishable.id; name: string },
+    fields: AnimalHistoryRow<"animal_edited">["entry"]["fields"],
+    at: Date,
+  ): AnimalHistoryRow<"animal_edited"> => ({
+    id: randomUUID(),
+    entry: {
+      kind: "animal_edited",
+      at,
+      actor: smokeActor,
+      animalId: animal.id,
+      animalName: animal.name,
+      fields,
+    },
+  });
+  const rawRow = async (id: string) =>
+    (
+      await db
+        .select({
+          size: animals.size,
+          age: animals.age,
+          ageAnchorAt: animals.ageAnchorAt,
+          descriptionUk: animals.descriptionUk,
+          lastConfirmedAt: animals.lastConfirmedAt,
+          version: animals.version,
+        })
+        .from(animals)
+        .where(eq(animals.id, id as never))
+    )[0];
+
+  // 27. a name-and-species draft goes in through the insert CTE with a null
+  // size, age, anchor and description, and reads back through this driver
+  // with those nulls; the mapper gives a draft. (One photo, so step 28's
+  // publish passes its own compare-and-set and reaches the CHECK.)
+  const bareDraftId = randomUUID() as never;
+  const bareDraft = makeDraftAnimal({
+    id: bareDraftId,
+    shelterId: shelter.id,
+    name: `Smoke ${tag} bare`,
+    photos: [smokePhotoOf(bareDraftId)],
+  });
+  await kabinetAnimals.insert(bareDraft, city.id, {
+    id: randomUUID(),
+    entry: {
+      kind: "animal_created",
+      at: later(12000),
+      actor: smokeActor,
+      animalId: bareDraft.id,
+      animalName: bareDraft.name,
+    },
+  });
+  const bareRead = await kabinetAnimals.findWithCity(bareDraft.id);
+  const bareRaw = await rawRow(bareDraft.id);
+  check(
+    "a name-and-species draft stores null facts and reads back as a draft (F-B1, 0012)",
+    bareRead !== null &&
+      isDraftAnimal(bareRead.animal) &&
+      bareRead.animal.size === null &&
+      bareRead.animal.age === null &&
+      bareRead.animal.description === null &&
+      bareRaw?.size === null &&
+      bareRaw.age === null &&
+      bareRaw.ageAnchorAt === null &&
+      bareRaw.descriptionUk === null,
+    `read ${bareRead === null ? "missing" : bareRead.animal.listing.kind}, size ${bareRaw?.size}, age ${bareRaw?.age === null ? "null" : "set"}, anchor ${bareRaw?.ageAnchorAt === null ? "null" : "set"}, description ${bareRaw?.descriptionUk === null ? "null" : "set"}`,
+  );
+
+  // 28. animals_listing_facts_check refuses publishing that row: the guarded
+  // publish matches (draft, version, one photo), the CHECK throws, and SQLSTATE
+  // 23514 is found in neon-http's error chain; nothing is written or recorded.
+  const barePublish = transitionListing({ kind: "draft" }, { type: "publish", at: later(13000) });
+  let checkRefusal: "23514" | "other error" | "no error" = "no error";
+  if (barePublish.kind === "ok" && bareRead) {
+    try {
+      await kabinetAnimals.writeListingIf(
+        bareDraft.id,
+        barePublish.next,
+        bareRead.animal.listing,
+        publishLine(bareDraft),
+        publishGuard(bareRead.animal.version),
+      );
+    } catch (error) {
+      checkRefusal = isCheckViolation(error) ? "23514" : "other error";
+    }
+  }
+  const bareAfter = await kabinetAnimals.findWithCity(bareDraft.id);
+  const barePublishLines = await animalLines("animal_listing_changed", bareDraft.id);
+  check(
+    "the listing-facts CHECK refuses publishing an incomplete draft with 23514 (F-B1)",
+    checkRefusal === "23514" &&
+      bareAfter?.animal.listing.kind === "draft" &&
+      barePublishLines === 0,
+    `${checkRefusal}, now ${bareAfter?.animal.listing.kind}, ${barePublishLines} animal_listing_changed line(s)`,
+  );
+
+  // 29. a save that writes a null (a cleared description) applies only while
+  // the row is a draft: on a complete draft it lands; on the published row
+  // from step 23, at its current version, it writes nothing.
+  const clearableId = randomUUID() as never;
+  const clearable = makeAnimal({
+    id: clearableId,
+    shelterId: shelter.id,
+    listing: { kind: "draft" },
+  });
+  await animalRepo(db).insert(clearable, city.id);
+  const clearableRead = await kabinetAnimals.findWithCity(clearable.id);
+  const draftClear =
+    clearableRead && isDraftAnimal(clearableRead.animal)
+      ? await kabinetAnimals.writeEditIf(
+          { ...clearableRead.animal, description: null, lastUpdatedAt: later(14000) },
+          clearableRead.cityId,
+          clearableRead.animal.version,
+          editLine(clearable, ["description"], later(14000)),
+        )
+      : { kind: "conflict" as const };
+  const publishedRead = await kabinetAnimals.findWithCity(publishable.id);
+  const listedClear =
+    publishedRead && publishedRead.animal.listing.kind === "published"
+      ? await kabinetAnimals.writeEditIf(
+          // The repo is handed a null on a published row, as a handler that
+          // read a draft just before the publish would.
+          {
+            ...publishedRead.animal,
+            description: null,
+            listing: { kind: "draft" },
+            lastUpdatedAt: later(14000),
+          },
+          publishedRead.cityId,
+          publishedRead.animal.version,
+          editLine(publishable, ["description"], later(14000)),
+        )
+      : { kind: "ok" as const };
+  const clearedRaw = await rawRow(clearable.id);
+  const listedAfterClear = await kabinetAnimals.findWithCity(publishable.id);
+  check(
+    "a null-writing save lands on a draft and writes nothing on a published row (F-B1)",
+    draftClear.kind === "ok" &&
+      clearedRaw?.descriptionUk === null &&
+      listedClear.kind === "conflict" &&
+      listedAfterClear?.animal.listing.kind === "published" &&
+      listedAfterClear.animal.description !== null &&
+      listedAfterClear.animal.version === publishedRead?.animal.version,
+    `draft ${draftClear.kind} (description ${clearedRaw?.descriptionUk === null ? "null" : "kept"}), published ${listedClear.kind} (still ${listedAfterClear?.animal.listing.kind})`,
+  );
+
+  // 30. publishing compare-and-sets on the listing, `version` and a non-empty
+  // photo list (K3-T7): a stale version writes nothing, the current one
+  // publishes; a complete draft with no photo writes nothing.
+  const publishRaceId = randomUUID() as never;
+  const raced = makeAnimal({
+    id: publishRaceId,
+    shelterId: shelter.id,
+    listing: { kind: "draft" },
+    photos: [smokePhotoOf(publishRaceId)],
+  });
+  await animalRepo(db).insert(raced, city.id);
+  const racedRead = await kabinetAnimals.findWithCity(raced.id);
+  const racedEdit = racedRead
+    ? await kabinetAnimals.writeEditIf(
+        { ...racedRead.animal, name: `Smoke ${tag} raced`, lastUpdatedAt: later(15000) },
+        racedRead.cityId,
+        racedRead.animal.version,
+        editLine(raced, ["name"], later(15000)),
+      )
+    : { kind: "conflict" as const };
+  const racedPublish = transitionListing({ kind: "draft" }, { type: "publish", at: later(16000) });
+  const stalePublish =
+    racedPublish.kind === "ok" && racedRead
+      ? await kabinetAnimals.writeListingIf(
+          raced.id,
+          racedPublish.next,
+          racedRead.animal.listing,
+          publishLine(raced),
+          publishGuard(racedRead.animal.version),
+        )
+      : { kind: "ok" as const };
+  const freshPublish =
+    racedPublish.kind === "ok" && racedRead
+      ? await kabinetAnimals.writeListingIf(
+          raced.id,
+          racedPublish.next,
+          racedRead.animal.listing,
+          publishLine(raced),
+          publishGuard(racedRead.animal.version + 1),
+        )
+      : { kind: "conflict" as const };
+  const photolessId = randomUUID() as never;
+  const photoless = makeAnimal({
+    id: photolessId,
+    shelterId: shelter.id,
+    listing: { kind: "draft" },
+  });
+  await animalRepo(db).insert(photoless, city.id);
+  const photolessPublish =
+    racedPublish.kind === "ok"
+      ? await kabinetAnimals.writeListingIf(
+          photoless.id,
+          racedPublish.next,
+          { kind: "draft" },
+          publishLine(photoless),
+          publishGuard(0),
+        )
+      : { kind: "ok" as const };
+  const racedLines = await animalLines("animal_listing_changed", raced.id);
+  const photolessAfter = await kabinetAnimals.findWithCity(photoless.id);
+  check(
+    "publish compare-and-sets on version and a non-empty photo list (K3-T7)",
+    racedEdit.kind === "ok" &&
+      stalePublish.kind === "conflict" &&
+      freshPublish.kind === "ok" &&
+      racedLines === 1 &&
+      photolessPublish.kind === "conflict" &&
+      photolessAfter?.animal.listing.kind === "draft",
+    `edit ${racedEdit.kind}, stale version ${stalePublish.kind}, current version ${freshPublish.kind} (${racedLines} line(s)), no photo ${photolessPublish.kind}`,
+  );
+
+  // 31. RH-B7: a photo change on a published row moves `photos`,
+  // `listing.confirmedAt` and `last_confirmed_at` together under the photo
+  // and listing compare-and-set; a stale listing writes nothing; on a draft
+  // (steps 24–25's `createdDraft`) `last_confirmed_at` stays null.
+  const visibleRead = await kabinetAnimals.findWithCity(raced.id);
+  const photoAt = later(17000);
+  const visibleWrite = visibleRead
+    ? await kabinetAnimals.writePhotosIf(
+        raced.id,
+        {
+          next: [...visibleRead.animal.photos, smokePhotoOf(raced.id)],
+          expected: visibleRead.animal.photos,
+        },
+        {
+          next: listingAfterPhotoChange(visibleRead.animal.listing, photoAt),
+          expected: visibleRead.animal.listing,
+        },
+        photoAt,
+        editLine(raced, ["photos"], photoAt),
+      )
+    : { kind: "conflict" as const };
+  const staleListingWrite = visibleRead
+    ? await kabinetAnimals.writePhotosIf(
+        raced.id,
+        // The photo list as it now stands, but the listing as first read.
+        {
+          next: [smokePhotoOf(raced.id)],
+          expected: (await kabinetAnimals.findWithCity(raced.id))?.animal.photos ?? [],
+        },
+        {
+          next: listingAfterPhotoChange(visibleRead.animal.listing, later(18000)),
+          expected: visibleRead.animal.listing,
+        },
+        later(18000),
+        editLine(raced, ["photos"], later(18000)),
+      )
+    : { kind: "ok" as const };
+  const visibleAfter = await kabinetAnimals.findWithCity(raced.id);
+  const visibleRaw = await rawRow(raced.id);
+  const draftRaw = await rawRow(createdDraft.id);
+  const confirmedOn = (listing: AnimalListingState | undefined) =>
+    listing?.kind === "published" || listing?.kind === "reserved"
+      ? listing.confirmedAt.getTime()
+      : null;
+  check(
+    "a photo change on a published row moves the confirmation date with the photos; stale listing writes nothing (RH-B7)",
+    visibleWrite.kind === "ok" &&
+      staleListingWrite.kind === "conflict" &&
+      visibleAfter?.animal.photos.length === 2 &&
+      confirmedOn(visibleAfter.animal.listing) === photoAt.getTime() &&
+      visibleRaw?.lastConfirmedAt?.getTime() === photoAt.getTime() &&
+      visibleRaw.version === visibleRead?.animal.version &&
+      draftRaw?.lastConfirmedAt === null,
+    `write ${visibleWrite.kind}, stale listing ${staleListingWrite.kind}, ${visibleAfter?.animal.photos.length} photo(s), confirmed ${visibleRaw?.lastConfirmedAt?.toISOString()}, draft last_confirmed_at ${draftRaw?.lastConfirmedAt === null ? "null" : "set"}`,
+  );
+  // 32–36: K2 (PR 5). The list's keyset, filters and counts, and the listing
+  // moves K2's buttons make (confirm and its undo with a stored `undoable`;
+  // reserve, release, withdraw with a note, restore, adopt), each through
+  // neon-http against the listing as this driver reads it back. On a shelter
+  // of their own, so the inventory is exactly this run's.
+  const k2Base = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} K2` });
+  const k2Shelter = {
+    ...k2Base,
+    exactAddress: { ...k2Base.exactAddress, cityId: city.id },
+    publicLocation: publicLocationOf(
+      k2Base.id,
+      { ...k2Base.exactAddress, cityId: city.id },
+      policy,
+    ),
+  };
+  await insertShelterFromScript(db, k2Shelter, by);
+  const DAY = 24 * 60 * 60 * 1000;
+  const k2StaleBefore = later(-31 * DAY);
+  const visibleSince = (kind: "published" | "reserved", confirmedAt: Date): AnimalListingState =>
+    kind === "published"
+      ? { kind, publishedAt: confirmedAt, confirmedAt, undoable: null }
+      : { kind, since: confirmedAt, publishedAt: confirmedAt, confirmedAt, undoable: null };
+  const k2Animal = async (listing: AnimalListingState, lastUpdatedAt: Date) => {
+    const id = randomUUID() as never;
+    const animal = makeAnimal({
+      id,
+      shelterId: k2Shelter.id,
+      listing,
+      lastUpdatedAt,
+      photos: [smokePhotoOf(id)],
+    });
+    await animalRepo(db).insert(animal, city.id);
+    return animal;
+  };
+  const k2Stale = await k2Animal(visibleSince("published", later(-40 * DAY)), later(-1000));
+  // Two rows tied on edit time, so the page boundary falls inside the tie.
+  const k2StaleReserved = await k2Animal(visibleSince("reserved", k2StaleBefore), later(-2000));
+  const k2Fresh = await k2Animal(visibleSince("published", later(-DAY)), later(-2000));
+  const k2Draft = await k2Animal({ kind: "draft" }, later(-3000));
+  const k2Withdrawn = await k2Animal(
+    { kind: "withdrawn", withdrawnAt: later(-DAY), reason: { code: "other", note: null } },
+    later(-4000),
+  );
+  const k2Inventory = [k2Stale, k2StaleReserved, k2Fresh, k2Draft, k2Withdrawn];
+  type K2Filter = Parameters<typeof kabinetAnimals.listPage>[0]["filter"];
+  const k2Paged = async (filter: K2Filter) => {
+    const rows: { id: string; at: number }[] = [];
+    let k2After: Parameters<typeof kabinetAnimals.listPage>[0]["after"] = null;
+    for (let page = 0; page < 10; page += 1) {
+      const result = await kabinetAnimals.listPage({
+        shelterId: k2Shelter.id,
+        filter,
+        after: k2After,
+        limit: 2,
+      });
+      rows.push(...result.items.map((a) => ({ id: a.id, at: a.lastUpdatedAt.getTime() })));
+      k2After = result.next;
+      if (k2After === null) break;
+    }
+    return rows;
+  };
+  // Order is checked on the edit time, which this driver must page through
+  // exactly; the tie's order is the database collation's, so only its
+  // completeness is checked.
+  const newestFirst = (rows: { at: number }[]) =>
+    rows.every((row, i) => i === 0 || (rows[i - 1]?.at ?? Number.POSITIVE_INFINITY) >= row.at);
+  const sameIds = (rows: { id: string }[], animals: { id: string }[]) =>
+    rows.length === animals.length &&
+    new Set(rows.map((row) => row.id)).size === rows.length &&
+    animals.every((animal) => rows.some((row) => row.id === animal.id));
+
+  // 32. the K2 keyset `(last_updated_at DESC, id DESC)`, paged two at a time.
+  const k2All = await k2Paged({ kind: "all" });
+  check(
+    "K2 list keyset (last_updated_at, id): every row once, newest edit first, across a tie",
+    sameIds(k2All, k2Inventory) && newestFirst(k2All),
+    `${k2All.length} of ${k2Inventory.length} row(s) over pages of 2, ${newestFirst(k2All) ? "newest first" : "OUT OF ORDER"}`,
+  );
+
+  // 33. a kind filter, the stale cut (boundary row included) agreeing with
+  // staleCount, and the chip counts, all read through this driver.
+  const k2Published = await k2Paged({ kind: "listing", listing: "published" });
+  const k2StaleRows = await k2Paged({ kind: "stale", staleBefore: k2StaleBefore });
+  const k2StaleCount = await kabinetAnimals.staleCount(k2Shelter.id, k2StaleBefore);
+  const k2Counts = await kabinetAnimals.countsByKind(k2Shelter.id);
+  const k2CountsExpected = { draft: 1, published: 2, reserved: 1, adopted: 0, withdrawn: 1 };
+  check(
+    "K2 filters: a kind, the stale cut equal to staleCount, the chip counts",
+    sameIds(k2Published, [k2Stale, k2Fresh]) &&
+      sameIds(k2StaleRows, [k2Stale, k2StaleReserved]) &&
+      k2StaleCount === 2 &&
+      JSON.stringify(k2Counts) === JSON.stringify(k2CountsExpected),
+    `published ${k2Published.length}, stale ${k2StaleRows.length} listed / ${k2StaleCount} counted, counts ${JSON.stringify(k2Counts)}`,
+  );
+
+  // 34. «Ще шукає» then its undo: the confirm stores `undoable`; the undo is
+  // planned on the listing as read back through this driver (Dates inside
+  // jsonb included) and compare-and-sets against it, restoring the previous
+  // date exactly; the same undo again, on the now-stale read, writes nothing.
+  const notRecorded: ListingMoveHistory = { kind: "not_recorded", because: "confirmation" };
+  const k2Confirmed = await k2Animal(visibleSince("published", later(-10 * DAY)), later(-5000));
+  const beforeConfirm = await kabinetAnimals.findWithCity(k2Confirmed.id);
+  const confirmMove = beforeConfirm
+    ? transitionListing(beforeConfirm.animal.listing, { type: "confirm", at: later(20000) })
+    : null;
+  const confirmWrite =
+    beforeConfirm && confirmMove?.kind === "ok"
+      ? await kabinetAnimals.writeListingIf(
+          k2Confirmed.id,
+          confirmMove.next,
+          beforeConfirm.animal.listing,
+          notRecorded,
+        )
+      : { kind: "conflict" as const };
+  const confirmedRead = await kabinetAnimals.findWithCity(k2Confirmed.id);
+  const undoMove = confirmedRead
+    ? transitionListing(confirmedRead.animal.listing, { type: "undo_confirm", at: later(21000) })
+    : null;
+  const undoWrite =
+    confirmedRead && undoMove?.kind === "ok"
+      ? await kabinetAnimals.writeListingIf(
+          k2Confirmed.id,
+          undoMove.next,
+          confirmedRead.animal.listing,
+          notRecorded,
+        )
+      : { kind: "conflict" as const };
+  const staleUndo =
+    confirmedRead && undoMove?.kind === "ok"
+      ? await kabinetAnimals.writeListingIf(
+          k2Confirmed.id,
+          undoMove.next,
+          confirmedRead.animal.listing,
+          notRecorded,
+        )
+      : { kind: "ok" as const };
+  const undoneRead = await kabinetAnimals.findWithCity(k2Confirmed.id);
+  const undoneRaw = await rawRow(k2Confirmed.id);
+  const storedUndo =
+    confirmedRead?.animal.listing.kind === "published"
+      ? confirmedRead.animal.listing.undoable
+      : null;
+  check(
+    "confirm then undo against the read-back listing (stored undoable), restoring the date exactly",
+    confirmWrite.kind === "ok" &&
+      storedUndo?.previousConfirmedAt.getTime() === later(-10 * DAY).getTime() &&
+      undoWrite.kind === "ok" &&
+      staleUndo.kind === "conflict" &&
+      confirmedOn(undoneRead?.animal.listing) === later(-10 * DAY).getTime() &&
+      undoneRead?.animal.listing.kind === "published" &&
+      undoneRead.animal.listing.undoable === null &&
+      undoneRaw?.lastConfirmedAt?.getTime() === later(-10 * DAY).getTime(),
+    `confirm ${confirmWrite.kind} (undoable ${storedUndo === null ? "missing" : "stored"}), undo ${undoWrite.kind}, again ${staleUndo.kind}, date ${undoneRaw?.lastConfirmedAt?.toISOString()}`,
+  );
+
+  // 35. reserve → release → withdraw (a note with Cyrillic and quotes) →
+  // back to draft, each a recorded move planned on and compare-and-set
+  // against the listing as read back: one line each, and the draft keeps its
+  // first_published_at with no confirmation or wait anchor.
+  const k2Moving = await k2Animal(visibleSince("published", later(-5 * DAY)), later(-6000));
+  const k2Note = `Забрали «додому» — ${tag}`;
+  const k2Steps = [
+    { type: "reserve", at: later(22000) },
+    { type: "release", at: later(23000) },
+    { type: "withdraw", at: later(24000), reason: { code: "other", note: k2Note } },
+    { type: "restore_to_draft", at: later(25000) },
+  ] as const;
+  const k2MoveResults: string[] = [];
+  for (const step of k2Steps) {
+    const read = await kabinetAnimals.findWithCity(k2Moving.id);
+    const move = read ? transitionListing(read.animal.listing, step) : null;
+    if (!read || move?.kind !== "ok") {
+      k2MoveResults.push(`${step.type}: ${move?.kind ?? "missing"}`);
+      break;
+    }
+    const written = await kabinetAnimals.writeListingIf(
+      k2Moving.id,
+      move.next,
+      read.animal.listing,
+      {
+        kind: "recorded",
+        row: {
+          id: randomUUID(),
+          entry: {
+            kind: "animal_listing_changed",
+            at: step.at,
+            actor: smokeActor,
+            animalId: k2Moving.id,
+            animalName: k2Moving.name,
+            event: listingHistoryEventOf(step),
+            from: read.animal.listing.kind,
+            to: move.next.kind,
+          },
+        },
+      },
+    );
+    k2MoveResults.push(`${step.type}: ${written.kind}`);
+    // The withdrawal's note must come back byte for byte, or the restore's
+    // compare-and-set below would conflict in production.
+    if (step.type === "withdraw") {
+      const withdrawnRead = await kabinetAnimals.findWithCity(k2Moving.id);
+      const note =
+        withdrawnRead?.animal.listing.kind === "withdrawn"
+          ? withdrawnRead.animal.listing.reason.note
+          : null;
+      if (note !== k2Note) k2MoveResults.push("note changed in the round trip");
+    }
+  }
+  const k2MovedLines = await (async () =>
+    (await shelters.historyOf(k2Shelter.id)).filter(
+      (entry) => entry.kind === "animal_listing_changed" && entry.animalId === k2Moving.id,
+    ).length)();
+  const k2MovedRaw = (
+    await db
+      .select({
+        listingKind: animals.listingKind,
+        lastConfirmedAt: animals.lastConfirmedAt,
+        waitAnchorAt: animals.waitAnchorAt,
+        firstPublishedAt: animals.firstPublishedAt,
+      })
+      .from(animals)
+      .where(eq(animals.id, k2Moving.id))
+  )[0];
+  check(
+    "reserve, release, withdraw with a note, back to draft: recorded moves against read-back listings",
+    k2MoveResults.join(", ") === "reserve: ok, release: ok, withdraw: ok, restore_to_draft: ok" &&
+      k2MovedLines === 4 &&
+      k2MovedRaw?.listingKind === "draft" &&
+      k2MovedRaw.lastConfirmedAt === null &&
+      k2MovedRaw.waitAnchorAt === null &&
+      k2MovedRaw.firstPublishedAt !== null,
+    `${k2MoveResults.join(", ")}; ${k2MovedLines} line(s); now ${k2MovedRaw?.listingKind}, first_published_at ${k2MovedRaw?.firstPublishedAt === null ? "CLEARED" : "kept"}`,
+  );
+
+  // 36. «Уже вдома» from a reservation: recorded, and the adopted row drops
+  // out of every visible-only column (confirmation, wait anchor) and the
+  // stale count.
+  const k2Adopting = await k2Animal(visibleSince("reserved", later(-60 * DAY)), later(-7000));
+  const staleBeforeAdopt = await kabinetAnimals.staleCount(k2Shelter.id, k2StaleBefore);
+  const adoptRead = await kabinetAnimals.findWithCity(k2Adopting.id);
+  const adoptMove = adoptRead
+    ? transitionListing(adoptRead.animal.listing, { type: "adopt", at: later(26000) })
+    : null;
+  const adoptWrite =
+    adoptRead && adoptMove?.kind === "ok"
+      ? await kabinetAnimals.writeListingIf(
+          k2Adopting.id,
+          adoptMove.next,
+          adoptRead.animal.listing,
+          {
+            kind: "recorded",
+            row: {
+              id: randomUUID(),
+              entry: {
+                kind: "animal_listing_changed",
+                at: later(26000),
+                actor: smokeActor,
+                animalId: k2Adopting.id,
+                animalName: k2Adopting.name,
+                event: { type: "adopt" },
+                from: "reserved",
+                to: "adopted",
+              },
+            },
+          },
+        )
+      : { kind: "conflict" as const };
+  const adoptedRaw = (
+    await db
+      .select({
+        listingKind: animals.listingKind,
+        lastConfirmedAt: animals.lastConfirmedAt,
+        waitAnchorAt: animals.waitAnchorAt,
+      })
+      .from(animals)
+      .where(eq(animals.id, k2Adopting.id))
+  )[0];
+  const staleAfterAdopt = await kabinetAnimals.staleCount(k2Shelter.id, k2StaleBefore);
+  const adoptLines = (await shelters.historyOf(k2Shelter.id)).filter(
+    (entry) => entry.kind === "animal_listing_changed" && entry.animalId === k2Adopting.id,
+  ).length;
+  check(
+    "adopt from reserved: recorded, no confirmation or wait anchor, out of the stale count",
+    adoptWrite.kind === "ok" &&
+      adoptLines === 1 &&
+      adoptedRaw?.listingKind === "adopted" &&
+      adoptedRaw.lastConfirmedAt === null &&
+      adoptedRaw.waitAnchorAt === null &&
+      staleBeforeAdopt === 3 &&
+      staleAfterAdopt === 2,
+    `${adoptWrite.kind}, ${adoptLines} line(s), now ${adoptedRaw?.listingKind}, stale ${staleBeforeAdopt} → ${staleAfterAdopt}`,
   );
   return out;
 }

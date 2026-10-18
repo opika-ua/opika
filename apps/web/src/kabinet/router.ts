@@ -159,7 +159,7 @@ export const shelterKabinetRouter = guarded.router({
     animals: {
       list: guarded.shelter.animals.list.handler(({ context, input, errors }) => {
         const scope = readScope(context.access);
-        const fingerprint = kabinetAnimalsFingerprint(scope.shelterId, input.listing);
+        const fingerprint = kabinetAnimalsFingerprint(scope.shelterId, input.filter);
         let after: { at: Date; id: string } | null = null;
         if (input.cursor !== null) {
           const decoded = decodeKabinetAnimalsCursor(
@@ -173,7 +173,7 @@ export const shelterKabinetRouter = guarded.router({
         return animalsList(
           context,
           scope,
-          { listing: input.listing, after, limit: input.limit },
+          { filter: input.filter, after, limit: input.limit },
           (position) =>
             encodeKabinetAnimalsCursor(
               position,
