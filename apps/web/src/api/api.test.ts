@@ -1245,20 +1245,32 @@ describe("reveal views carry the shelter's current contacts, labelled (K4-B4, K4
     const { animal, shelter } = await seedFeedAnimal();
     const first = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
     expect(first.status).toBe(200);
-    expect(shelterContactOf(first.body)).toEqual({ source: "current", contact: shelter.contact });
+    expect(shelterContactOf(first.body)).toEqual({
+      source: "current",
+      displayName: shelter.displayName,
+      contact: shelter.contact,
+    });
     const revealId = (first.body as { id: string }).id;
 
     await changeContact(shelter);
 
     const again = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
     expect((again.body as { id: string }).id).toBe(revealId);
-    expect(shelterContactOf(again.body)).toEqual({ source: "current", contact: NEW_CONTACT });
+    expect(shelterContactOf(again.body)).toEqual({
+      source: "current",
+      displayName: shelter.displayName,
+      contact: NEW_CONTACT,
+    });
 
     const list = await h.call("reveals.listMine", { cursor: null, limit: 20 }, { cookie });
     expect(list.status).toBe(200);
     const items = (list.body as { items: unknown[] }).items;
     expect(items).toHaveLength(1);
-    expect(shelterContactOf(items[0])).toEqual({ source: "current", contact: NEW_CONTACT });
+    expect(shelterContactOf(items[0])).toEqual({
+      source: "current",
+      displayName: shelter.displayName,
+      contact: NEW_CONTACT,
+    });
 
     const stored = await revealRepo(h.db).findById(revealId as never);
     expect(stored?.shelterSnapshot.contact).toEqual(shelter.contact);
@@ -1280,6 +1292,7 @@ describe("reveal views carry the shelter's current contacts, labelled (K4-B4, K4
     expect(items).toHaveLength(1);
     expect(shelterContactOf(items[0])).toEqual({
       source: "first_reveal",
+      displayName: shelter.displayName,
       contact: shelter.contact,
     });
   });
@@ -1299,9 +1312,12 @@ describe("reveal views carry the shelter's current contacts, labelled (K4-B4, K4
         "shelterAtFirstReveal",
         "shelterContact",
       ]);
-      expect(Object.keys(view.shelterContact as object).sort()).toEqual(["contact", "source"]);
-      expect(Object.keys(view.shelterAtFirstReveal as object).sort()).toEqual([
+      expect(Object.keys(view.shelterContact as object).sort()).toEqual([
+        "contact",
         "displayName",
+        "source",
+      ]);
+      expect(Object.keys(view.shelterAtFirstReveal as object).sort()).toEqual([
         "donation",
         "publicLocation",
         "shelterId",
@@ -1309,4 +1325,197 @@ describe("reveal views carry the shelter's current contacts, labelled (K4-B4, K4
       ]);
     }
   });
+});
+/**
+ * RUI4-F1: the shelter's name in a reveal view follows its contacts' rule
+ * (K4-B4), in the same branch: the current name beside the current channels
+ * while the shelter is visible, the first reveal's name beside the first
+ * reveal's channels when it is not. Before, a repeat reveal after an operator
+ * rename (R-UI 4, `display_name_changed`) named the shelter by the first
+ * reveal's name over its current channels.
+ */
+describe("reveal views name the shelter from the same moment as its contacts (RUI4-F1)", () => {
+  const OPERATOR = "0ec0ec0e-0000-4000-8000-000000000001";
+  const ADMIN = "33333333-3333-4333-8333-333333333333";
+  const OLD_NAME = "Притулок «Лапа»";
+  const NEW_NAME = "Притулок «Лапа допомоги»";
+  const NEW_CONTACT = {
+    primary: { kind: "telegram" as const, handle: "lapa_new" },
+    additional: [],
+  };
+
+  const shelterContactOf = (body: unknown) => (body as Record<string, unknown>).shelterContact;
+
+  /** A verified shelter named OLD_NAME, with a published animal. */
+  async function seedNamed() {
+    const seeded = await seedFeedAnimal();
+    await rename(seeded.shelter.id, 0, seeded.shelter.displayName, OLD_NAME);
+    return { ...seeded, shelter: { ...seeded.shelter, displayName: OLD_NAME, version: 1 } };
+  }
+
+  /** The operator's rename, as `registry.shelters.updateProfile` writes it (R-UI 4). */
+  async function rename(shelterId: string, expectedVersion: number, from: string, to: string) {
+    const result = await kabinetShelterRepo(h.db).applyAudited({
+      shelterId: shelterId as never,
+      expectedVersion,
+      change: { kind: "display_name", displayName: to },
+      entry: {
+        kind: "display_name_changed",
+        at: new Date(),
+        moderatorId: OPERATOR as never,
+        from,
+        to,
+      },
+      historyId: crypto.randomUUID(),
+      now: new Date(),
+    });
+    expect(result.kind).toBe("ok");
+  }
+
+  async function changeContact(shelterId: string, expectedVersion: number, previous: unknown) {
+    const result = await kabinetShelterRepo(h.db).applyAudited({
+      shelterId: shelterId as never,
+      expectedVersion,
+      change: { kind: "contact", contact: NEW_CONTACT },
+      entry: {
+        kind: "contact_changed",
+        at: new Date(),
+        actor: { kind: "shelter_admin", shelterAdminId: ADMIN as never },
+        previous: previous as never,
+        next: NEW_CONTACT,
+      },
+      historyId: crypto.randomUUID(),
+      now: new Date(),
+    });
+    expect(result.kind).toBe("ok");
+  }
+
+  /** Moves a verified shelter out of the feed: paused by its admin, or suspended by the operator. */
+  async function hide(shelterId: string, expectedVersion: number, to: "paused" | "suspended") {
+    const at = new Date();
+    const stored = await shelterRepo(h.db).findById(shelterId as never);
+    if (stored === null) throw new Error("no shelter");
+    const event =
+      to === "paused"
+        ? {
+            type: "pause" as const,
+            at,
+            actor: { kind: "shelter_admin" as const, shelterAdminId: ADMIN as never },
+            reason: { code: "relocation" as const, note: null },
+          }
+        : {
+            type: "suspend" as const,
+            at,
+            moderatorId: OPERATOR as never,
+            reason: { code: "unresponsive" as const, note: null },
+          };
+    const moved = transition(stored.verification, event);
+    if (moved.kind !== "ok") throw new Error(moved.kind);
+    expect(moved.next.status).toBe(to);
+    const result = await kabinetShelterRepo(h.db).applyAudited({
+      shelterId: shelterId as never,
+      expectedVersion,
+      change: { kind: "verification", verification: moved.next },
+      entry: { kind: "verification", event, from: "verified", to },
+      historyId: crypto.randomUUID(),
+      now: at,
+    });
+    expect(result.kind).toBe("ok");
+  }
+
+  it("a first reveal names the shelter as it is, and stores that name in the record", async () => {
+    const cookie = await bootstrap();
+    const { animal, shelter } = await seedNamed();
+
+    const first = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
+    expect(first.status).toBe(200);
+    expect(shelterContactOf(first.body)).toEqual({
+      source: "current",
+      displayName: OLD_NAME,
+      contact: shelter.contact,
+    });
+    const stored = await revealRepo(h.db).findById((first.body as { id: string }).id as never);
+    expect(stored?.shelterSnapshot.displayName).toBe(OLD_NAME);
+    expect(stored?.shelterSnapshot.contact).toEqual(shelter.contact);
+  });
+
+  it("after a rename, a repeat reveal and «Мої запити» show the new name with the current contacts; the record keeps the first name", async () => {
+    const cookie = await bootstrap();
+    const { animal, shelter } = await seedNamed();
+    const first = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
+    const revealId = (first.body as { id: string }).id;
+
+    await rename(shelter.id, shelter.version, OLD_NAME, NEW_NAME);
+
+    const again = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
+    expect(again.status).toBe(200);
+    expect((again.body as { id: string }).id).toBe(revealId);
+    expect(shelterContactOf(again.body)).toEqual({
+      source: "current",
+      displayName: NEW_NAME,
+      contact: shelter.contact,
+    });
+    // The old name reaches the view nowhere, the first-reveal object included.
+    expect(JSON.stringify(again.body)).not.toContain(OLD_NAME);
+
+    const list = await h.call("reveals.listMine", { cursor: null, limit: 20 }, { cookie });
+    expect(list.status).toBe(200);
+    const items = (list.body as { items: unknown[] }).items;
+    expect(items).toHaveLength(1);
+    expect(shelterContactOf(items[0])).toEqual({
+      source: "current",
+      displayName: NEW_NAME,
+      contact: shelter.contact,
+    });
+    expect(JSON.stringify(items[0])).not.toContain(OLD_NAME);
+
+    const stored = await revealRepo(h.db).findById(revealId as never);
+    expect(stored?.shelterSnapshot.displayName).toBe(OLD_NAME);
+  });
+
+  it("renamed and with new contacts: the new name comes with the new contacts, never one without the other", async () => {
+    const cookie = await bootstrap();
+    const { animal, shelter } = await seedNamed();
+    expect((await h.call("animals.reveal", { animalId: animal.id }, { cookie })).status).toBe(200);
+
+    await rename(shelter.id, shelter.version, OLD_NAME, NEW_NAME);
+    await changeContact(shelter.id, shelter.version + 1, shelter.contact);
+
+    const again = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
+    const list = await h.call("reveals.listMine", { cursor: null, limit: 20 }, { cookie });
+    for (const view of [again.body, (list.body as { items: unknown[] }).items[0]]) {
+      expect(shelterContactOf(view)).toEqual({
+        source: "current",
+        displayName: NEW_NAME,
+        contact: NEW_CONTACT,
+      });
+    }
+  });
+
+  it.each(["paused", "suspended"] as const)(
+    "renamed, then %s: the reveal is refused, and «Мої запити» keeps the first reveal's name with the first reveal's contacts (K4-B4's rule)",
+    async (to) => {
+      const cookie = await bootstrap();
+      const { animal, shelter } = await seedNamed();
+      expect((await h.call("animals.reveal", { animalId: animal.id }, { cookie })).status).toBe(
+        200,
+      );
+      await rename(shelter.id, shelter.version, OLD_NAME, NEW_NAME);
+      await changeContact(shelter.id, shelter.version + 1, shelter.contact);
+      await hide(shelter.id, shelter.version + 2, to);
+
+      const again = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
+      expectError(again, "SHELTER_NOT_VISIBLE", 404);
+
+      const list = await h.call("reveals.listMine", { cursor: null, limit: 20 }, { cookie });
+      const items = (list.body as { items: unknown[] }).items;
+      expect(items).toHaveLength(1);
+      expect(shelterContactOf(items[0])).toEqual({
+        source: "first_reveal",
+        displayName: OLD_NAME,
+        contact: shelter.contact,
+      });
+      expect(JSON.stringify(items[0])).not.toContain(NEW_NAME);
+    },
+  );
 });
