@@ -131,7 +131,7 @@ export const en = {
     notFound: {
       eyebrow: "NOT FOUND",
       title: "This listing is gone.",
-      body: "The animal is no longer on the site, or the link is out of date. This isn't an error — the listing is simply no longer here.",
+      body: "The animal is no longer on the site or the link is out of date. This isn't an error — the listing is simply no longer here.",
       action: "All animals",
     },
     photoGalleryLabel: `${COPY_PENDING} Photo gallery`,
@@ -305,11 +305,11 @@ export const en = {
   about: {
     title: "About this project",
     intro:
-      "Opika is a site about shelter animals in the Kyiv region, built by one person, outside of a day job. There's no team, no investor — just someone who believes finding an animal a home shouldn't depend on whether a shelter knows how to run an outdated spreadsheet.",
+      "Opika is a site where animals from shelters in the Kyiv region look for a home. I build it on my own, outside of a day job. There's no team, no investor — just someone who believes finding an animal a home shouldn't depend on whether a shelter knows how to run an outdated spreadsheet.",
     free: 'The site is free for shelters today and will stay free. No paid tiers, no "free for the first three months." If that were ever to change, every shelter would know well in advance, not after the fact.',
     money:
       'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) — the site only shows the link; the money goes directly, and you can see exactly where.',
-    data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: an adopter only ever sees an approximate location. A shelter can ask to have its listing removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. IP addresses are not stored. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within two days.",
+    data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: an adopter only ever sees an approximate location. A shelter can ask to have its listing removed at any time. For shelters with cabinet access, the registry keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. IP addresses are not stored. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within two days.",
     analytics:
       "The site collects basic visit statistics — how many people visit and how fast the pages load — with no advertising.",
     /** Template: "Get in touch: {contact}" */

@@ -569,13 +569,49 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
 /**
  * CB-B1 (Oleksii, 2026-10-17), verbatim: "brand rule: no «реєстр» in
  * user-facing copy, as it implies a state service". Scoped to the strings that
- * have been reworded: his three (CB-B1) and the draft rewordings of the hits
- * table's rows 5–18 and 21 under his default rule CB-B2 (his answer 7 asked for
- * them as drafts for his review). Rows 4, 19 and 20 are reworded elsewhere
+ * have been reworded: his three (CB-B1) and the hits table's rows 5–11, 13–18
+ * and 21, drafted under his default rule CB-B2 and approved with four changes
+ * (CB-Q2, 2026-10-18). Row 12 (`about.data`) is deliberately absent: his
+ * answer kept today's paragraph until PR 6 replaces all of it with his text.
+ * Rows 4, 19 and 20 are reworded elsewhere
  * (#119; #116, where «державний реєстр тварин» is his explicit exception). The
  * English mirrors follow the same sense, so they are held to "registry". A
  * plain substring match, case-insensitive: «Реєстр» opened several of them.
  */
+/**
+ * CB-Q2 (Oleksii, 2026-10-18): the four strings he rewrote when approving the
+ * CB-B2 drafts, transcribed from his message, never read from `uk.ts`. For
+ * `about.intro` and `forShelters.money` he changed one sentence and kept the
+ * rest ("keep the rest from «Немає команди…» unchanged"), so those two pin
+ * the sentence he wrote and the start of the text he kept.
+ */
+describe("CB-Q2: his four rewrites of the CB-B2 drafts", () => {
+  it("about.intro opens with his two sentences, then the kept text", () => {
+    expect(
+      uk.about.intro.startsWith(
+        "Opika — сайт, де тварини з притулків Київщини шукають дім. Я роблю його сам, поза роботою. Немає команди, немає інвестора — ",
+      ),
+    ).toBe(true);
+  });
+  it("forShelters.whatThisIs is his sentence", () => {
+    expect(uk.forShelters.whatThisIs).toBe(
+      "Opika — сайт, де тварини з перевірених притулків Київщини шукають дім, а кожен ваш підопічний отримує власну сторінку.",
+    );
+  });
+  it("forShelters.money: no donations collected «через сайт»", () => {
+    expect(
+      uk.forShelters.money.startsWith(
+        "Сайт не бере і не переказує грошей: ні комісії, ні оплати, ні збору донатів через сайт. ",
+      ),
+    ).toBe(true);
+  });
+  it("detail.notFound.body opens with his sentence, no comma", () => {
+    expect(
+      uk.detail.notFound.body.startsWith("Тварини вже немає на сайті або посилання застаріле. "),
+    ).toBe(true);
+  });
+});
+
 describe("CB-B1: the replaced strings name no «реєстр»", () => {
   const replaced: Record<string, readonly [uk: string, en: string]> = {
     "kabinet.profile.contactsNote": [
@@ -600,7 +636,6 @@ describe("CB-B1: the replaced strings name no «реєстр»", () => {
     "about.intro": [uk.about.intro, en.about.intro],
     "about.free": [uk.about.free, en.about.free],
     "about.money": [uk.about.money, en.about.money],
-    "about.data": [uk.about.data, en.about.data],
     "about.analytics": [uk.about.analytics, en.about.analytics],
     "forShelters.whatThisIs": [uk.forShelters.whatThisIs, en.forShelters.whatThisIs],
     "forShelters.money": [uk.forShelters.money, en.forShelters.money],
@@ -1150,7 +1185,7 @@ describe("/pro about.data carries the kabinet addition (row 90)", () => {
     expect(uk.about.data).toBe(
       [
         "Дані, які вносить притулок — адреса, контакти, картки тварин — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише наближену локацію. Притулок може попросити видалити свій запис у будь-який момент.",
-        "Для притулків із доступом до кабінету сайт зберігає ім'я та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб.",
+        "Для притулків із доступом до кабінету реєстр зберігає ім'я та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб.",
       ].join(" "),
     );
   });

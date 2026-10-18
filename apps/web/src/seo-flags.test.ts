@@ -407,7 +407,7 @@ describe("/prytulkam — description is its own opening sentence, never the demo
       const { metadata } = await import("./app/prytulkam/page");
 
       const whatThisIs =
-        "Opika — сайт про тварин із перевірених притулків Київщини, де кожен ваш підопічний отримує власну сторінку.";
+        "Opika — сайт, де тварини з перевірених притулків Київщини шукають дім, а кожен ваш підопічний отримує власну сторінку.";
       expect(metadata.description).toBe(whatThisIs);
       expect(metadata.openGraph?.description).toBe(whatThisIs);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
@@ -434,7 +434,7 @@ describe("/pro — description is its own opening sentence, never the demo swap"
       const { metadata } = await import("./app/pro/page");
 
       const intro =
-        "Opika — сайт про тварин притулків Київщини, який я роблю сам, поза роботою. Немає команди, немає інвестора — є одна людина, яка вважає, що знайти дім для тварини не повинно залежати від того, чи вміє притулок вести застарілий Excel-файл.";
+        "Opika — сайт, де тварини з притулків Київщини шукають дім. Я роблю його сам, поза роботою. Немає команди, немає інвестора — є одна людина, яка вважає, що знайти дім для тварини не повинно залежати від того, чи вміє притулок вести застарілий Excel-файл.";
       expect(metadata.description).toBe(intro);
       expect(metadata.openGraph?.description).toBe(intro);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
