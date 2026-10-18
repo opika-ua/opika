@@ -703,6 +703,17 @@ copies for new decisions.
 - `docs/decisions-pending-review.md` is superseded and kept as read-only history as of
   2026-10-04 — don't add to it, don't migrate its already-resolved entries.
 
+## Agent rules (every agent, every session)
+
+- **Never generate artificial CPU or memory load.** No busy-loops, stress tools or piles of
+  parallel processes to "reproduce under load". On 2026-10-19 an agent ran 30 busy-loops on 24
+  cores and very likely crashed the PC. Reproduce timing bugs by deterministic forcing only: fake
+  clocks, an injected delay, a `MutationObserver` hook, a forced scheduling order. Oleksii,
+  2026-10-19, verbatim: "the no-artificial-load rule is right, keep it permanent (write it into
+  CLAUDE.md's agent rules)."
+- **Full `pnpm check` runs are serialised:** at most two at once on the machine. In this session's
+  scratchpad that's `check-slot.sh`; any equivalent lock will do. Targeted suites are free.
+
 ## What continues automatically, and what does not
 
 Continue without asking:
