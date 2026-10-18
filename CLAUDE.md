@@ -429,6 +429,8 @@ pnpm check                # typecheck -> lint -> test -> build:web -> test:harne
 # endpoint id only (PROD_NEON_ENDPOINT=ep-…, never a URL), read from the environment or,
 # for that one key, from the root .env.local. With it unset every non-local target is
 # refused (fail closed). Test database setup is local-only with no override.
+# db:migrate also takes --expect ep-… (AW-F1): any non-local target must be exactly that Neon
+# compute, or it refuses before printing or running anything; a local target takes none.
 pnpm typecheck
 pnpm lint                 # biome check .
 pnpm lint:fix              # biome check --write .

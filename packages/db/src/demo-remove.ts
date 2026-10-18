@@ -73,9 +73,10 @@ import { IMAGE_VARIANT_NAMES, isRealPhotoKey, variantObjectKey } from "./image-p
 import {
   assertProductionWriteAllowed,
   databaseTargetLine,
-  databaseTargetOf,
+  expectedTargetOf,
   PROD_FLAG,
 } from "./prod-guard";
+
 import { animals } from "./schema/animals";
 import {
   authAccount,
@@ -486,26 +487,6 @@ export async function removeDemoCorpus(
 
     return { kind: "removed", plan, deleted };
   });
-}
-
-/** The `--expect` check (DR-B1, guard 3b): the target must be exactly that Neon compute. */
-export type ExpectedTarget = { kind: "ok" } | { kind: "refused"; reason: string };
-
-export function expectedTargetOf(url: string, expect: string | undefined): ExpectedTarget {
-  if (expect === undefined || !/^ep-[a-z0-9-]+$/.test(expect.trim().toLowerCase())) {
-    return { kind: "refused", reason: "pass --expect ep-… (the target's Neon endpoint id)" };
-  }
-  const target = databaseTargetOf(url);
-  if (target.kind !== "neon") {
-    return { kind: "refused", reason: "the target is not a Neon endpoint" };
-  }
-  const expected = expect
-    .trim()
-    .toLowerCase()
-    .replace(/-pooler$/, "");
-  return target.endpoint === expected
-    ? { kind: "ok" }
-    : { kind: "refused", reason: "the target's Neon endpoint is not --expect" };
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

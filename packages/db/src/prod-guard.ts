@@ -119,6 +119,29 @@ export function databaseTargetOf(url: string): DatabaseTarget {
   return { kind: "remote", host };
 }
 
+/**
+ * The `--expect` check (DR-B1, guard 3b): the target must be exactly that Neon compute. Shared
+ * by `demo:remove` and `db:migrate` (AW-F1). Never echoes the URL or the endpoint.
+ */
+export type ExpectedTarget = { kind: "ok" } | { kind: "refused"; reason: string };
+
+export function expectedTargetOf(url: string, expect: string | undefined): ExpectedTarget {
+  if (expect === undefined || !/^ep-[a-z0-9-]+$/.test(expect.trim().toLowerCase())) {
+    return { kind: "refused", reason: "pass --expect ep-… (the target's Neon endpoint id)" };
+  }
+  const target = databaseTargetOf(url);
+  if (target.kind !== "neon") {
+    return { kind: "refused", reason: "the target is not a Neon endpoint" };
+  }
+  const expected = expect
+    .trim()
+    .toLowerCase()
+    .replace(/-pooler$/, "");
+  return target.endpoint === expected
+    ? { kind: "ok" }
+    : { kind: "refused", reason: "the target's Neon endpoint is not --expect" };
+}
+
 /** The line a script prints before its results. */
 export function databaseTargetLine(url: string): string {
   const target = databaseTargetOf(url);
