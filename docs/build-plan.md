@@ -916,7 +916,8 @@ R-UI 2 (create shelter), R-UI 3 (verification, donation and admin actions). Merg
 
 R-UI 4 (RU-Q8, his answer 8): the operator renames a shelter. Branch `feat/r-ui-4`, stacked on R-UI 3; Tier 1.
 Shipped there: `displayName` in `registry.shelters.updateProfile`, `display_name_changed` history, the S4 line and
-a thin form; `create.nameHint` narrowed. Verified: unit, served-router, access, form and harness tests. Asserted
+a thin form; `create.nameHint` narrowed. Verified: `pnpm check` at `60c25c6` (local Node 22: 3,964 workspace unit tests,
+240 harness), unit, served-router, access, form and harness tests; CI on Node 24 decides. Asserted
 only: real Neon (no new SQL shape, RUI4-T5). Follow-ups: RUI4-F1 (the reveal shows the first-reveal name), RUI4-F2.
 
 ## Part 3 — Timeline
