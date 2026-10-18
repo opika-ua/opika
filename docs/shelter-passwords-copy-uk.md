@@ -3,6 +3,8 @@
 Rows marked "yours" in the sheet stay verbatim. Plurals are avoided by design (`хв.`, `Символів: {count} з {min}`), so no plural pins are needed beyond the existing `{minutes}` ones; keep those tests anyway.
 
 ## A. Sign-in
+- kabinet.signIn.intro (replaces today's text in the passwords build, not before): Для притулків і адміністратора сайту. Увійти можна з паролем або за посиланням, що приходить на пошту.
+  (his, 2026-10-19, verbatim)
 - kabinet.signIn.passwordLabel: Пароль
 - kabinet.signIn.showPassword: Показати пароль
 - kabinet.signIn.hidePassword: Сховати пароль
@@ -18,7 +20,8 @@ Rows marked "yours" in the sheet stay verbatim. Plurals are avoided by design (`
 - kabinet.password.tooShort: Пароль закороткий. Мінімум символів: {min}.
 - kabinet.password.tooLong: Пароль задовгий. Максимум символів: {max}.
 - kabinet.password.common: Цей пароль надто легко вгадати. Оберіть інший.
-- kabinet.password.personal: Пароль не може містити адресу пошти, назву притулку чи назву сайту.
+- kabinet.password.personal: Пароль не може містити вашу адресу пошти (навіть частину до @), назву притулку чи назву сайту.
+  (changed by him 2026-10-19, verbatim; replaces «Пароль не може містити адресу пошти, назву притулку чи назву сайту.»)
 - kabinet.password.mismatch: Паролі не збігаються.
 
 ## C. Forgot

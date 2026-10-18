@@ -14,7 +14,7 @@ in your voice, no «реєстр».
 
 | Key | English sense / where | Ukrainian |
 |---|---|---|
-| `kabinet.signIn.intro` (**existing, becomes false**) | today «Для притулків і адміністратора сайту. Пароля немає: посилання для входу приходить на пошту.» The second sentence is false the day passwords ship. English sense of a replacement: "For shelters and the site administrator. Sign in with your email and password, or ask for a sign-in link by email." (the operator has no password, so it must stay true for him too) | **open: his Ukrainian** |
+| `kabinet.signIn.intro` (**existing, becomes false**) | today «Для притулків і адміністратора сайту. Пароля немає: посилання для входу приходить на пошту.» The second sentence is false the day passwords ship. English sense of a replacement: "For shelters and the site administrator. Sign in with your email and password, or ask for a sign-in link by email." (the operator has no password, so it must stay true for him too) | in `shelter-passwords-copy-uk.md` (his, 2026-10-19); replaces today's text in the passwords build, not before |
 | `kabinet.signIn.passwordLabel` | the password field's label | |
 | `kabinet.signIn.showPassword` / `hidePassword` | the eye toggle's accessible names | |
 | `kabinet.signIn.submitPassword` | the main button: sign in | |
