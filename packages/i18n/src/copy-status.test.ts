@@ -328,7 +328,13 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
   });
 
   it("keeps the written strings that predate this answer", () => {
-    expect(uk.kabinet.operatorFallbackName).toBe("Оператор реєстру");
+    // R-UI answer 9 (2026-10-17), verbatim: "Role label «адміністратор сайту»
+    // (also replaces the «Оператор реєстру» fallback)." Round 2, answer 6,
+    // verbatim: "Email signature fallback: capitalise it → «— Адміністратор
+    // сайту»." Standing alone it is capitalised; mid-sentence (the locked
+    // note) it stays as he wrote the role.
+    expect(uk.kabinet.operatorFallbackName).toBe("Адміністратор сайту");
+    expect(uk.kabinet.operatorFallbackNameInSentence).toBe("адміністратор сайту");
     // The standing constraints fix this wording for an unknown field.
     expect(uk.kabinet.profileNotRecorded).toBe("Не записано");
   });
@@ -576,6 +582,400 @@ describe("CB-B1: the replaced strings name no «реєстр»", () => {
   it.each(Object.entries(replaced))("%s", (_key, [ukText, enText]) => {
     expect(ukText).not.toMatch(/реєстр/iu);
     expect(enText).not.toMatch(/registry/i);
+  });
+});
+
+/**
+ * R-UI · the operator's screens, all three PRs at once (his answer 1,
+ * verbatim: "Copy gate: no exemption. Copy for all three PRs is final in
+ * D:\opika-worktrees\rui-copy-uk.md."). Every `kabinet.operator.*` and
+ * `kabinet.verificationDecision.*` string as he wrote it, transcribed from
+ * `rui-copy-uk.md`, not read from `uk.ts`. The key set is pinned exactly, so a
+ * key added without his text, or one of his dropped, fails here.
+ *
+ * Two keys he asked to have checked against the code (answers file, verbatim:
+ * "verify blocked.unknown.provider_suppresses and create.descriptionHint
+ * against code; if my wording is wrong, use the true wording and log it")
+ * were untrue as drafted, and carry his round-2 replacement (answer 5)
+ * instead; they are pinned apart, with his first draft named, so neither can
+ * drift back unnoticed.
+ */
+describe("kabinet R-UI copy (final, 2026-10-17)", () => {
+  const RUI_FINAL: Record<string, string> = {
+    "operator.shell.role": "адміністратор сайту",
+    "operator.shell.nav.shelters": "Притулки",
+    "operator.shell.nav.newShelter": "Новий притулок",
+    "operator.shell.pageTitle.list": "Притулки",
+    "operator.shell.pageTitle.create": "Новий притулок",
+    "operator.shell.pageTitle.shelter": "{name}",
+    "operator.list.title": "Притулки",
+    "operator.list.total": "Усього: {count}",
+    "operator.list.create": "Новий притулок",
+    "operator.list.createShort": "Новий",
+    "operator.list.search": "Пошук за назвою",
+    "operator.list.orderNote": "Спочатку ті, що чекають на ваше рішення.",
+    "operator.list.filterAll": "Усі · {count}",
+    "operator.list.filterStatus": "{status} · {count}",
+    "operator.list.admins": "Адміністраторів: {count}",
+    "operator.list.adminsInvited": "Запрошено: {count}",
+    "operator.list.noAdmins": "Немає ні адміністраторів, ні запрошень",
+    "operator.list.donationPending": "Посилання на збір чекає на рішення",
+    "operator.list.open": "Відкрити",
+    "operator.list.empty": "Притулків ще немає. Перший можна додати через «Новий притулок».",
+    "operator.list.noMatch": "Нічого не знайдено. Змініть пошук або фільтр.",
+    "operator.list.loadMore": "Показати ще",
+    "operator.list.loadFailed": "Список не завантажився.",
+    "operator.shelter.back": "← Притулки",
+    "operator.shelter.meta": "{city} · {admins}",
+    "operator.shelter.timeInState": "з {date}",
+    "operator.shelter.legalNote":
+      "Ці поля притулок бачить лише для читання. Зміна юридичної особи чи ЄДРПОУ не змінює статус автоматично — рішення за вами.",
+    "operator.shelter.descriptionTitle": "Опис притулку",
+    "operator.donation.live": "Чинне посилання",
+    "operator.donation.none": "Посилання немає",
+    "operator.donation.proposed": "Притулок запропонував {host} {date}. Чекає на ваше рішення.",
+    "operator.admins.title": "Адміністратори",
+    "operator.admins.joined": "Має доступ",
+    "operator.admins.invitedUntil": "Запрошено · посилання діє до {date}",
+    "operator.admins.invitedExpired": "Запрошено · посилання вже не діє",
+    "operator.admins.none": "Адміністраторів немає",
+    "operator.evidence.title": "Докази для перевірки",
+    "operator.evidence.empty": "Доказів поки немає.",
+    "operator.evidence.kind.edrpou_registration": "Реєстрація · ЄДРПОУ",
+    "operator.evidence.kind.bank_account_holder": "Власник банківського рахунку",
+    "operator.evidence.kind.reference_contact": "Рекомендація",
+    "operator.evidence.kind.site_visit": "Візит на місце",
+    "operator.evidence.kind.supporting_document": "Документ",
+    "operator.evidence.added": "додано {date}",
+    "operator.evidence.field.registeredName": "Назва в ЄДР",
+    "operator.evidence.field.holderName": "Власник рахунку",
+    "operator.evidence.field.who": "Хто",
+    "operator.evidence.field.channel": "Як звʼязатися",
+    "operator.evidence.field.relationship": "Ким доводиться притулку",
+    "operator.evidence.relationship.veterinary_clinic": "Ветклініка",
+    "operator.evidence.relationship.local_authority": "Місцева влада",
+    "operator.evidence.relationship.partner_organisation": "Партнерська організація",
+    "operator.evidence.relationship.other": "Інше",
+    "operator.evidence.field.visitedOn": "Дата візиту",
+    "operator.evidence.field.notes": "Нотатка",
+    "operator.evidence.field.label": "Підпис",
+    "operator.evidence.noDocument": "Документ не додано — для цього типу доказу це дозволено.",
+    "operator.evidence.gaps": "Для схвалення бракує: {kind} — {provided} з {minimum}.",
+    "operator.blocked.title": "Адреси, на які поштовий сервіс не доставляє листи",
+    "operator.blocked.none": "Перевірено: жодна адреса цього притулку не заблокована.",
+    "operator.blocked.line": "{email} — {reason}",
+    "operator.blocked.incomplete": "Вдалося перевірити лише частину адрес.",
+    "operator.blocked.unknown.provider_error": "Поштовий сервіс відповів помилкою.",
+    "operator.blocked.unknown.timed_out": "Поштовий сервіс не відповів вчасно.",
+    "operator.blocked.unknown.unsupported_provider":
+      "Цей поштовий сервіс не дає перевірити блокування.",
+    "operator.blocked.asOf": "Станом на {time}",
+    "operator.blocked.manualUnblock":
+      "Розблокувати адресу можна лише в кабінеті поштового сервісу, не тут.",
+    "operator.history.title": "Історія",
+    "operator.history.note": "Усі зміни статусу, даних, адміністраторів, збору коштів і тварин.",
+    "operator.history.empty": "Записів ще немає.",
+    "operator.history.more": "Показати ще",
+    "operator.history.actor.you": "ви",
+    "operator.history.actor.formerAdmin": "колишній адміністратор",
+    "operator.history.actor.operator": "адміністратор сайту",
+    "operator.history.shelter_created": "Притулок створено",
+    "operator.history.shelter_created_script": "Притулок додано з файлу",
+    "operator.history.verification.start_review": "Взято на розгляд",
+    "operator.history.verification.approve": "Схвалено → «Перевірено»",
+    "operator.history.verification.reject": "Відхилено: {code}. {note}",
+    "operator.history.verification.suspend": "Призупинено: {code}. {note}",
+    "operator.history.verification.reinstate": "Відновлено → «{status}»",
+    "operator.history.verification.resubmit": "Повернуто на перевірку",
+    "operator.history.verification.pause": "Прийом тварин призупинено",
+    "operator.history.verification.resume": "Паузу знято",
+    "operator.history.admin_invited": "Надіслано запрошення: {name}, {email}",
+    "operator.history.admin_invitation_resent": "Запрошення надіслано ще раз: {name}",
+    "operator.history.admin_removed": "Доступ закрито: {name}",
+    "operator.history.admin_removed_pending": "Запрошення скасовано: {name}",
+    "operator.history.contact_changed": "Змінено контакти",
+    "operator.history.freshness_sentence_changed": "Змінено речення на картках",
+    "operator.history.description_changed": "Змінено опис притулку",
+    "operator.history.donation_proposed": "Запропоновано посилання на збір: {host}",
+    "operator.history.donation_proposal_cancelled": "Пропозицію посилання скасовано",
+    "operator.history.donation_approved": "Посилання на збір схвалено",
+    "operator.history.donation_rejected": "Посилання на збір відхилено",
+    "operator.history.verified_data_changed.legal_entity": "Змінено юридичні дані",
+    "operator.history.verified_data_changed.exact_address": "Змінено адресу приміщення",
+    "operator.history.animals_imported": "Додано тварин з файлу: {count}",
+    "operator.history.animal_created": "Створено картку: {name}",
+    "operator.history.animal_edited": "Змінено картку {name}: {fields}",
+    "operator.history.animal_listing_changed": "{name}: «{from}» → «{to}»",
+    "operator.history.animal_deleted": "Видалено чернетку: {name}",
+    "operator.create.title": "Новий притулок",
+    "operator.create.intro":
+      "Тут ви вносите все про притулок: назву, адресу, юридичні дані й докази. Перший адміністратор отримає запрошення на пошту.",
+    "operator.create.name": "Назва притулку",
+    "operator.create.nameHint":
+      "Як притулок називає себе. Після створення назву поки змінити не можна — перевірте написання.",
+    "operator.create.description": "Опис притулку",
+    "operator.create.city": "Місто",
+    "operator.create.address.line1": "Вулиця, будинок",
+    "operator.create.address.line2": "Корпус, приміщення · необовʼязково",
+    "operator.create.address.postalCode": "Індекс · необовʼязково",
+    "operator.create.coordinates": "Координати",
+    "operator.create.coordinatesHint":
+      "Скопіюйте з карти у форматі «широта, довгота». Ніде не показуються: люди бачать лише місто.",
+    "operator.create.legalTitle": "Юридичні дані",
+    "operator.create.legalKind.registered_ngo": "Громадська організація чи фонд",
+    "operator.create.legalKind.sole_proprietor": "ФОП",
+    "operator.create.legalKind.unregistered_initiative": "Ініціатива без реєстрації",
+    "operator.create.registeredAt": "Дата реєстрації",
+    "operator.create.firstAdminTitle": "Перший адміністратор",
+    "operator.create.firstAdminHint":
+      "Отримає лист із посиланням для входу. Інших адміністраторів можна запросити зі сторінки притулку.",
+    "operator.create.adminName": "Імʼя",
+    "operator.create.submit": "Створити й надіслати запрошення",
+    "operator.create.submitShort": "Створити",
+    "operator.create.cancel": "Скасувати",
+    "operator.create.whatHappens.title": "Що буде далі",
+    "operator.create.whatHappens.step1": "Притулок зʼявиться у списку зі статусом «Очікує».",
+    "operator.create.whatHappens.step2":
+      "{name} отримає лист для входу. Посилання діє 72 години, його можна надіслати ще раз.",
+    "operator.create.whatHappens.step3":
+      "Тварин притулку не буде в галереї, доки ви не схвалите перевірку.",
+    "operator.evidence.add": "+ Додати доказ",
+    "operator.evidence.remove": "Прибрати",
+    "operator.evidence.typePicker": "Тип доказу",
+    "operator.evidence.siteVisitDateHint": "Дата візиту не може бути в майбутньому.",
+    "operator.create.created": "Притулок створено.",
+    "operator.email.sent": "Запрошення надіслано на {email}.",
+    "operator.email.sentUnchecked":
+      "Запрошення надіслано. Перевірити, чи адреса не заблокована, не вдалося.",
+    "operator.email.blocked.unsubscribed":
+      "Запрошення не надіслано: людина з цієї адреси відписалася від листів.",
+    "operator.email.blocked.hard_bounce":
+      "Запрошення не надіслано: адреса не існує або не приймає пошту.",
+    "operator.email.blocked.spam_complaint":
+      "Запрошення не надіслано: на попередній лист з цієї адреси поскаржилися як на спам.",
+    "operator.email.blocked.admin_blocked":
+      "Запрошення не надіслано: адресу заблоковано вручну в поштовому сервісі.",
+    "operator.email.failed.provider_error":
+      "Запрошення не надіслано: поштовий сервіс відповів помилкою. Спробуйте надіслати ще раз.",
+    "operator.email.failed.copy_pending": "Запрошення не надіслано: текст листа ще не готовий.",
+    "operator.create.createdNoInvite":
+      "Притулок створено, але без адміністратора. Запросіть його зі сторінки притулку.",
+    "operator.create.inviteValidUntil": "Посилання діє до {date}, {time}.",
+    "operator.create.resend": "Надіслати ще раз",
+    "operator.create.openShelter": "Відкрити притулок",
+    "operator.create.errors.addressHasARole.shelter_admin":
+      "Ця адреса вже має доступ до іншого притулку.",
+    "operator.create.errors.addressHasARole.operator":
+      "Це адреса адміністратора сайту. Для притулку потрібна інша.",
+    "operator.create.errors.addressHasARole.invited_elsewhere":
+      "На цю адресу вже надіслано чинне запрошення до іншого притулку.",
+    "operator.create.errors.siteVisitInFuture": "Дата візиту не може бути в майбутньому.",
+    "operator.create.errors.unknownCity": "Такого міста немає у списку.",
+    "operator.create.errors.lostAnswer":
+      "Відповідь не надійшла. Притулок міг створитися — перевірте список, перш ніж пробувати знову.",
+    "operator.create.errors.failed": "Не вдалося створити притулок. Спробуйте ще раз.",
+    "operator.create.errors.required": "Це поле потрібне.",
+    "operator.create.errors.edrpouFormat": "Код ЄДРПОУ — 8 цифр.",
+    "operator.create.errors.coordinatesFormat":
+      "Вкажіть координати як «широта, довгота», наприклад «50.4501, 30.5234».",
+    "operator.verification.decisionTitle": "Рішення",
+    "operator.verification.decisionCaption":
+      "Притулок побачить рішення і пояснення дослівно у своєму кабінеті.",
+    "operator.verification.startReview": "Взяти на розгляд",
+    "operator.verification.approve": "Схвалити → «Перевірено»",
+    "operator.verification.approveShort": "Схвалити",
+    "operator.verification.approveNote":
+      "Після схвалення тварини притулку одразу зʼявляються в галереї. Для відхилення потрібне пояснення.",
+    "operator.verification.approveBlocked": "Схвалити поки не можна — бракує доказів:",
+    "operator.verification.reject": "Відхилити…",
+    "operator.verification.suspend": "Призупинити…",
+    "operator.verification.reinstate": "Відновити → «{status}»",
+    "operator.verification.resubmit": "Повернути на перевірку",
+    "operator.verification.suspended.title": "Притулок призупинено",
+    "operator.verification.suspended.reasonLabel": "Пояснення, яке бачить притулок",
+    "operator.verification.suspended.priorLabel": "До призупинення статус був",
+    "operator.verification.suspended.priorPausedSince": "з {date} притулок сам поставив паузу",
+    "operator.verification.suspended.reinstateExplainPaused":
+      "Кнопка «Відновити» поверне притулок на паузу, а не в «Перевірено». Тварини лишаться прихованими, доки притулок сам не зніме паузу.",
+    "operator.verification.suspended.reinstateExplainVerified":
+      "Кнопка «Відновити» поверне статус «Перевірено», і тварини знову зʼявляться в галереї.",
+    "operator.verification.noConfirm": "Підтвердження не потрібне: ця дія нічого не приховує.",
+    "operator.verification.rejected.title": "Відхилено",
+    "operator.verification.rejected.reason": "{code}. {note}",
+    "operator.reasonDialog.rejectTitle": "Відхилити «{shelter}»?",
+    "operator.reasonDialog.suspendTitle": "Призупинити «{shelter}»?",
+    "operator.reasonDialog.rejectBody":
+      "Притулок побачить це пояснення дослівно у своєму кабінеті. Його тварин не буде в галереї.",
+    "operator.reasonDialog.suspendBody":
+      "Тварини притулку одразу зникнуть із галереї. Притулок побачить це пояснення у своєму кабінеті. Відновити можна будь-коли.",
+    "operator.reasonDialog.codeLabel": "Причина",
+    "operator.reasonDialog.reasonLabel": "Пояснення",
+    "operator.reasonDialog.reasonHint":
+      "Обовʼязково. Пишіть так, щоб людина знала, що робити далі.",
+    "operator.reasonDialog.confirmReject": "Відхилити",
+    "operator.reasonDialog.confirmSuspend": "Призупинити",
+    "operator.codes.rejection.insufficient_evidence": "Недостатньо доказів",
+    "operator.codes.rejection.identity_unverifiable":
+      "Не вдалося підтвердити, хто стоїть за притулком",
+    "operator.codes.rejection.duplicate_submission": "Повторна заявка",
+    "operator.codes.rejection.out_of_service_area": "Поза областю, де працює сайт",
+    "operator.codes.rejection.spam": "Спам",
+    "operator.codes.rejection.other": "Інше",
+    "operator.codes.suspension.unresponsive": "Немає звʼязку з притулком",
+    "operator.codes.suspension.complaint_upheld": "Скарга підтвердилася",
+    "operator.codes.suspension.listing_quality": "Картки не відповідають дійсності",
+    "operator.codes.suspension.suspected_fraud": "Підозра на шахрайство",
+    "operator.codes.suspension.other": "Інше",
+    "operator.donation.approve": "Схвалити",
+    "operator.donation.reject": "Відхилити",
+    "operator.donation.approved": "Посилання схвалено.",
+    "operator.donation.rejected": "Посилання відхилено.",
+    "operator.donation.conflict":
+      "Пропозиція змінилася, поки сторінка була відкрита. Тут — поточна.",
+    "operator.admins.remove": "Прибрати",
+    "operator.admins.removeConfirm.title": "Прибрати {name}?",
+    "operator.admins.removeConfirm.body":
+      "Доступ до кабінету закриється одразу, усі сеанси завершаться.",
+    "operator.admins.inviteAnother": "Запросити ще одного",
+    "operator.admins.resend": "Надіслати ще раз",
+    "operator.admins.gone": "Цей доступ уже закрито.",
+    "operator.errors.illegalTransition": "З поточного статусу так не можна. Сторінку оновлено.",
+    "operator.errors.conflictReload":
+      "Дані змінилися, поки сторінка була відкрита. Сторінку оновлено.",
+    "operator.errors.failed": "Не вдалося. Спробуйте ще раз.",
+    "operator.errors.lostAnswer": "Відповідь не надійшла. Сторінка перевіряє, чи дію виконано.",
+    "operator.support.enter": "Переглянути як притулок · лише читання",
+    "verificationDecision.rejectedTitle": "Перевірку не пройдено",
+    "verificationDecision.suspendedTitle": "Притулок тимчасово призупинено",
+    "verificationDecision.reason": "Причина: {code}.",
+    "verificationDecision.noteLabel": "Пояснення від {operator}:",
+    "verificationDecision.contact": "Якщо маєте питання, напишіть мені.",
+    "verificationDecision.suspendedEffect":
+      "Поки притулок призупинено, його тварин немає в галереї.",
+    "verificationDecision.rejectedEffect":
+      "Тварин притулку не буде в галереї, доки перевірку не пройдено.",
+  };
+
+  /**
+   * His first drafts (untrue against the code, see `uk.ts` at each key), and
+   * his round-2 replacements, verbatim from his answer 5.
+   */
+  const CHECKED_AGAINST_CODE: Record<string, { his: string; used: string }> = {
+    "operator.blocked.unknown.provider_suppresses": {
+      his: "Поштовий сервіс не показує список заблокованих адрес.",
+      used: "Поштовий сервіс має власний список заблокованих адрес; сайт його не перевіряє.",
+    },
+    "operator.create.descriptionHint": {
+      his: "Його бачать ті, хто шукає тварину, на сторінках тварин цього притулку.",
+      used: "Короткий опис притулку. Він може бути публічним, тож не пишіть тут нічого приватного.",
+    },
+  };
+
+  const leafPaths = (node: unknown, prefix: string): string[] =>
+    typeof node === "string"
+      ? [prefix]
+      : Object.entries(node as Record<string, unknown>).flatMap(([key, child]) =>
+          leafPaths(child, `${prefix}.${key}`),
+        );
+  const valueAt = (path: string) =>
+    path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown>)[key], uk.kabinet);
+
+  it("operator and verificationDecision hold exactly his keys, no more and no fewer", () => {
+    expect(
+      [
+        ...leafPaths(uk.kabinet.operator, "operator"),
+        ...leafPaths(uk.kabinet.verificationDecision, "verificationDecision"),
+      ].sort(),
+    ).toEqual([...Object.keys(RUI_FINAL), ...Object.keys(CHECKED_AGAINST_CODE)].sort());
+  });
+
+  it("sanity: his file's 220 strings, 218 as written and 2 replaced in round 2", () => {
+    expect(Object.keys(RUI_FINAL).length).toBe(218);
+    expect(Object.keys(CHECKED_AGAINST_CODE).length).toBe(2);
+  });
+
+  it.each(Object.entries(RUI_FINAL))("%s is his final text", (path, text) => {
+    expect(valueAt(path)).toBe(text);
+  });
+
+  it.each(Object.entries(CHECKED_AGAINST_CODE))(
+    "%s carries his round-2 wording, true against the code, not his first draft",
+    (path, { his, used }) => {
+      expect(valueAt(path)).toBe(used);
+      expect(valueAt(path)).not.toBe(his);
+    },
+  );
+
+  it("nothing under operator or verificationDecision is pending", () => {
+    expect(pendingCopyPaths(uk.kabinet.operator, "kabinet.operator")).toEqual([]);
+    expect(
+      pendingCopyPaths(uk.kabinet.verificationDecision, "kabinet.verificationDecision"),
+    ).toEqual([]);
+  });
+
+  it("uses U+02BC only: no U+0027 and no U+2019 in any of them", () => {
+    const ASCII_APOSTROPHE = String.fromCodePoint(0x27);
+    const TYPOGRAPHIC_APOSTROPHE = String.fromCodePoint(0x2019);
+    const offending = [...Object.keys(RUI_FINAL), ...Object.keys(CHECKED_AGAINST_CODE)].filter(
+      (path) => {
+        const text = valueAt(path) as string;
+        return text.includes(ASCII_APOSTROPHE) || text.includes(TYPOGRAPHIC_APOSTROPHE);
+      },
+    );
+    expect(offending).toEqual([]);
+    // Sanity: the letter-apostrophe is really there.
+    expect(uk.kabinet.operator.evidence.field.channel).toContain(String.fromCodePoint(0x2bc));
+  });
+});
+
+/**
+ * The words the operator's animal history lines fill in (`{from}`/`{to}`,
+ * `{fields}`): his R-UI file gives the lines, not the words, so these are his
+ * K3 words (`k3-copy-uk.md`, 2026-10-17), transcribed from that file:
+ * `kabinet.listingStatus.*` and the K3 form's field labels. Exactly these
+ * keys, so a word added without his text fails here.
+ */
+describe("kabinet animal history labels (his K3 words, 2026-10-17)", () => {
+  const K3_WORDS: Record<string, string> = {
+    // kabinet.listingStatus.draft
+    "listing.draft": "Чернетка",
+    // kabinet.listingStatus.published
+    "listing.published": "Опубліковано",
+    // kabinet.listingStatus.reserved
+    "listing.reserved": "Домовляються",
+    // kabinet.listingStatus.adopted
+    "listing.adopted": "Удома",
+    // kabinet.listingStatus.withdrawn
+    "listing.withdrawn": "Знято з показу",
+    // who.nameLabel
+    "field.name": "Імʼя",
+    // who.speciesLabel
+    "field.species": "Вид",
+    // who.sexLabel
+    "field.sex": "Стать",
+    // who.sizeLabel
+    "field.size": "Розмір",
+    // age.title
+    "field.age": "Вік",
+    // description.title
+    "field.description": "Опис",
+    // photos.title
+    "field.photos": "Фото",
+  };
+
+  it("holds exactly these words, as he wrote them", () => {
+    const labels = uk.kabinet.animalHistoryLabels;
+    expect({
+      ...Object.fromEntries(Object.entries(labels.listing).map(([k, v]) => [`listing.${k}`, v])),
+      ...Object.fromEntries(Object.entries(labels.field).map(([k, v]) => [`field.${k}`, v])),
+    }).toEqual(K3_WORDS);
+  });
+
+  it("the medical fields are the public labels his K3 answer 6 reuses", () => {
+    expect(uk.medical.vaccination).toBe("Комплексне щеплення");
+    expect(uk.medical.spayNeuter).toBe("Стерилізація");
   });
 });
 

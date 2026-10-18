@@ -355,10 +355,12 @@ export const en = {
   },
   kabinet: {
     /**
-     * The history actor label when `KABINET_OPERATOR_DISPLAY_NAME` is unset
-     * (RS-Q2): the English sense of the Ukrainian. Nominative, used only where the nominative fits.
+     * The operator's name when `KABINET_OPERATOR_DISPLAY_NAME` is unset
+     * (RS-Q2): the English sense of the Ukrainian, standing alone (a signature
+     * line, a header) and mid-sentence (the locked note).
      */
-    operatorFallbackName: "Registry operator",
+    operatorFallbackName: "Site administrator",
+    operatorFallbackNameInSentence: "site administrator",
     shell: {
       label: "cabinet",
     },
@@ -595,6 +597,346 @@ export const en = {
     /** History lines (IN-Q14); see the Ukrainian catalogue. */
     history: {
       adminJoined: `{email} now has access to the cabinet`,
+    },
+    /** R-UI, the operator's screens: the English sense of uk.ts's final Ukrainian (2026-10-17). */
+    operator: {
+      shell: {
+        role: "site administrator",
+        nav: {
+          shelters: "Shelters",
+          newShelter: "New shelter",
+        },
+        pageTitle: {
+          list: "Shelters",
+          create: "New shelter",
+          shelter: "{name}",
+        },
+      },
+      list: {
+        title: "Shelters",
+        total: "Total: {count}",
+        create: "New shelter",
+        createShort: "New",
+        search: "Search by name",
+        orderNote: "Those waiting on your decision come first.",
+        filterAll: "All · {count}",
+        filterStatus: "{status} · {count}",
+        admins: "Administrators: {count}",
+        adminsInvited: "Invited: {count}",
+        noAdmins: "No administrators and no invitations",
+        donationPending: "A fundraising link is waiting for a decision",
+        open: "Open",
+        empty: "No shelters yet. Add the first one with «New shelter».",
+        noMatch: "Nothing found. Change the search or the filter.",
+        loadMore: "Show more",
+        loadFailed: "The list didn't load.",
+      },
+      shelter: {
+        back: "← Shelters",
+        meta: "{city} · {admins}",
+        timeInState: "since {date}",
+        legalNote:
+          "The shelter sees these fields read-only. A change of legal entity or EDRPOU doesn't change the status by itself: the decision is yours.",
+        descriptionTitle: "Shelter description",
+      },
+      donation: {
+        live: "Live link",
+        none: "No link",
+        proposed: "The shelter proposed {host} on {date}. Waiting for your decision.",
+        approve: "Approve",
+        reject: "Reject",
+        approved: "Link approved.",
+        rejected: "Link rejected.",
+        conflict: "The proposal changed while the page was open. This is the current one.",
+      },
+      admins: {
+        title: "Administrators",
+        joined: "Has access",
+        invitedUntil: "Invited · the link is valid until {date}",
+        invitedExpired: "Invited · the link has expired",
+        none: "No administrators",
+        remove: "Remove",
+        removeConfirm: {
+          title: "Remove {name}?",
+          body: "Access to the cabinet closes at once, and every session ends.",
+        },
+        inviteAnother: "Invite another",
+        resend: "Send again",
+        gone: "This access is already closed.",
+      },
+      evidence: {
+        title: "Evidence for verification",
+        empty: "No evidence yet.",
+        kind: {
+          edrpou_registration: "Registration · EDRPOU",
+          bank_account_holder: "Bank account holder",
+          reference_contact: "Reference",
+          site_visit: "Site visit",
+          supporting_document: "Document",
+        },
+        added: "added {date}",
+        field: {
+          registeredName: "Name in the EDR",
+          holderName: "Account holder",
+          who: "Who",
+          channel: "How to reach them",
+          relationship: "Relation to the shelter",
+          visitedOn: "Visit date",
+          notes: "Note",
+          label: "Label",
+        },
+        relationship: {
+          veterinary_clinic: "Veterinary clinic",
+          local_authority: "Local authority",
+          partner_organisation: "Partner organisation",
+          other: "Other",
+        },
+        noDocument: "No document attached: allowed for this kind of evidence.",
+        gaps: "Missing for approval: {kind}, {provided} of {minimum}.",
+        add: "+ Add evidence",
+        remove: "Remove",
+        typePicker: "Kind of evidence",
+        siteVisitDateHint: "The visit date can't be in the future.",
+      },
+      blocked: {
+        title: "Addresses the email provider won't deliver to",
+        none: "Checked: none of this shelter's addresses is blocked.",
+        line: "{email}: {reason}",
+        incomplete: "Only part of the addresses could be checked.",
+        unknown: {
+          provider_error: "The email provider answered with an error.",
+          timed_out: "The email provider didn't answer in time.",
+          unsupported_provider: "This email provider doesn't allow checking blocks.",
+          provider_suppresses:
+            "The email provider keeps its own list of blocked addresses; the site doesn't check it.",
+        },
+        asOf: "As of {time}",
+        manualUnblock:
+          "An address can be unblocked only in the email provider's dashboard, not here.",
+      },
+      history: {
+        title: "History",
+        note: "Every change of status, data, administrators, fundraising and animals.",
+        empty: "No entries yet.",
+        more: "Show more",
+        actor: {
+          you: "you",
+          formerAdmin: "former administrator",
+          operator: "site administrator",
+        },
+        shelter_created: "Shelter created",
+        shelter_created_script: "Shelter added from a file",
+        verification: {
+          start_review: "Taken under review",
+          approve: "Approved → «Verified»",
+          reject: "Rejected: {code}. {note}",
+          suspend: "Suspended: {code}. {note}",
+          reinstate: "Reinstated → «{status}»",
+          resubmit: "Returned for verification",
+          pause: "Taking animals paused",
+          resume: "Pause lifted",
+        },
+        admin_invited: "Invitation sent: {name}, {email}",
+        admin_invitation_resent: "Invitation sent again: {name}",
+        admin_removed: "Access closed: {name}",
+        admin_removed_pending: "Invitation withdrawn: {name}",
+        contact_changed: "Contacts changed",
+        freshness_sentence_changed: "Card sentence changed",
+        description_changed: "Shelter description changed",
+        donation_proposed: "Fundraising link proposed: {host}",
+        donation_proposal_cancelled: "Link proposal withdrawn",
+        donation_approved: "Fundraising link approved",
+        donation_rejected: "Fundraising link rejected",
+        verified_data_changed: {
+          legal_entity: "Legal details changed",
+          exact_address: "Premises address changed",
+        },
+        animals_imported: "Animals added from a file: {count}",
+        animal_created: "Card created: {name}",
+        animal_edited: "Card {name} changed: {fields}",
+        animal_listing_changed: "{name}: «{from}» → «{to}»",
+        animal_deleted: "Draft deleted: {name}",
+      },
+      create: {
+        title: "New shelter",
+        intro:
+          "Here you enter everything about the shelter: name, address, legal details and evidence. The first administrator gets an invitation by email.",
+        name: "Shelter name",
+        nameHint:
+          "What the shelter calls itself. The name can't be changed after creation yet: check the spelling.",
+        description: "Shelter description",
+        descriptionHint:
+          "A short description of the shelter. It may be public, so don't write anything private here.",
+        city: "City",
+        address: {
+          line1: "Street, building",
+          line2: "Block, premises · optional",
+          postalCode: "Postcode · optional",
+        },
+        coordinates: "Coordinates",
+        coordinatesHint:
+          "Copy them from a map as «latitude, longitude». Never shown: people see the city only.",
+        legalTitle: "Legal details",
+        legalKind: {
+          registered_ngo: "NGO or foundation",
+          sole_proprietor: "Sole proprietor",
+          unregistered_initiative: "Unregistered initiative",
+        },
+        registeredAt: "Registration date",
+        firstAdminTitle: "First administrator",
+        firstAdminHint:
+          "Gets an email with a sign-in link. Other administrators can be invited from the shelter's page.",
+        adminName: "Name",
+        submit: "Create and send the invitation",
+        submitShort: "Create",
+        cancel: "Cancel",
+        whatHappens: {
+          title: "What happens next",
+          step1: "The shelter appears in the list with the status «Waiting».",
+          step2:
+            "{name} gets a sign-in email. The link is valid for 72 hours and can be sent again.",
+          step3:
+            "The shelter's animals won't be in the gallery until you approve the verification.",
+        },
+        created: "Shelter created.",
+        createdNoInvite:
+          "Shelter created, but without an administrator. Invite one from the shelter's page.",
+        inviteValidUntil: "The link is valid until {date}, {time}.",
+        resend: "Send again",
+        openShelter: "Open the shelter",
+        errors: {
+          addressHasARole: {
+            shelter_admin: "This address already has access to another shelter.",
+            operator: "This is the site administrator's address. The shelter needs another one.",
+            invited_elsewhere:
+              "A live invitation to another shelter was already sent to this address.",
+          },
+          siteVisitInFuture: "The visit date can't be in the future.",
+          unknownCity: "That city isn't in the list.",
+          lostAnswer:
+            "No answer came back. The shelter may have been created: check the list before trying again.",
+          failed: "The shelter couldn't be created. Try again.",
+          required: "This field is required.",
+          edrpouFormat: "An EDRPOU code is 8 digits.",
+          coordinatesFormat:
+            "Enter the coordinates as «latitude, longitude», for example «50.4501, 30.5234».",
+        },
+      },
+      email: {
+        sent: "Invitation sent to {email}.",
+        sentUnchecked: "Invitation sent. Whether the address is blocked couldn't be checked.",
+        blocked: {
+          unsubscribed: "Invitation not sent: the person at this address unsubscribed from emails.",
+          hard_bounce: "Invitation not sent: the address doesn't exist or doesn't accept mail.",
+          spam_complaint:
+            "Invitation not sent: an earlier email to this address was reported as spam.",
+          admin_blocked:
+            "Invitation not sent: the address was blocked by hand in the email provider.",
+        },
+        failed: {
+          provider_error:
+            "Invitation not sent: the email provider answered with an error. Try sending it again.",
+          copy_pending: "Invitation not sent: the email's text isn't ready yet.",
+        },
+      },
+      verification: {
+        decisionTitle: "Decision",
+        decisionCaption:
+          "The shelter will see the decision and the explanation verbatim in its cabinet.",
+        startReview: "Take under review",
+        approve: "Approve → «Verified»",
+        approveShort: "Approve",
+        approveNote:
+          "Once approved, the shelter's animals appear in the gallery at once. A rejection needs an explanation.",
+        approveBlocked: "Can't approve yet: evidence is missing:",
+        reject: "Reject…",
+        suspend: "Suspend…",
+        reinstate: "Reinstate → «{status}»",
+        resubmit: "Return for verification",
+        suspended: {
+          title: "Shelter suspended",
+          reasonLabel: "The explanation the shelter sees",
+          priorLabel: "Before the suspension the status was",
+          priorPausedSince: "the shelter paused itself on {date}",
+          reinstateExplainPaused:
+            "«Reinstate» returns the shelter to its pause, not to «Verified». The animals stay hidden until the shelter lifts the pause itself.",
+          reinstateExplainVerified:
+            "«Reinstate» returns the status «Verified», and the animals appear in the gallery again.",
+        },
+        noConfirm: "No confirmation needed: this action hides nothing.",
+        rejected: {
+          title: "Rejected",
+          reason: "{code}. {note}",
+        },
+      },
+      reasonDialog: {
+        rejectTitle: "Reject «{shelter}»?",
+        suspendTitle: "Suspend «{shelter}»?",
+        rejectBody:
+          "The shelter will see this explanation verbatim in its cabinet. Its animals won't be in the gallery.",
+        suspendBody:
+          "The shelter's animals leave the gallery at once. The shelter will see this explanation in its cabinet. It can be reinstated at any time.",
+        codeLabel: "Reason",
+        reasonLabel: "Explanation",
+        reasonHint: "Required. Write it so the person knows what to do next.",
+        confirmReject: "Reject",
+        confirmSuspend: "Suspend",
+      },
+      codes: {
+        rejection: {
+          insufficient_evidence: "Not enough evidence",
+          identity_unverifiable: "Who is behind the shelter couldn't be confirmed",
+          duplicate_submission: "Repeat application",
+          out_of_service_area: "Outside the area the site works in",
+          spam: "Spam",
+          other: "Other",
+        },
+        suspension: {
+          unresponsive: "No contact with the shelter",
+          complaint_upheld: "A complaint was upheld",
+          listing_quality: "The cards don't match reality",
+          suspected_fraud: "Suspected fraud",
+          other: "Other",
+        },
+      },
+      errors: {
+        illegalTransition: "That isn't possible from the current status. The page was refreshed.",
+        conflictReload: "The data changed while the page was open. The page was refreshed.",
+        failed: "That didn't work. Try again.",
+        lostAnswer: "No answer came back. The page is checking whether the action went through.",
+      },
+      support: {
+        enter: "View as the shelter · read-only",
+      },
+    },
+    /** R-UI 3, the shelter's side of a rejection or suspension; see the Ukrainian catalogue. */
+    verificationDecision: {
+      rejectedTitle: "Verification not passed",
+      suspendedTitle: "The shelter is temporarily suspended",
+      reason: "Reason: {code}.",
+      noteLabel: "Explanation from {operator}:",
+      contact: "If you have questions, write to me.",
+      suspendedEffect: "While the shelter is suspended, its animals aren't in the gallery.",
+      rejectedEffect: "The shelter's animals won't be in the gallery until verification is passed.",
+    },
+    /** The words the operator's animal history lines fill in; see the Ukrainian catalogue. */
+    animalHistoryLabels: {
+      listing: {
+        draft: "Draft",
+        published: "Published",
+        reserved: "Being arranged",
+        adopted: "Home",
+        withdrawn: "Withdrawn",
+      },
+      field: {
+        name: "Name",
+        species: "Species",
+        sex: "Sex",
+        size: "Size",
+        age: "Age",
+        description: "Description",
+        photos: "Photos",
+      },
     },
   },
 } as const;

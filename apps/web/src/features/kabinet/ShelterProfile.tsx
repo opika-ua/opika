@@ -2,7 +2,7 @@ import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import type { ProfileEditing } from "./home";
 import { KabinetBrand, KabinetMark } from "./KabinetBrand";
-import { CAPTION, CARD, CARD_TITLE, LockedBlock, Row } from "./ProfileParts";
+import { CAPTION, CARD, CARD_TITLE, channelValue, LockedBlock, Row } from "./ProfileParts";
 import { PausedStatus } from "./profile-edit/PausedStatus";
 import { ProfileEditor } from "./profile-edit/ProfileEditor";
 import { SignOutButton } from "./SignOutButton";
@@ -31,32 +31,15 @@ import { AllowlistedShelterArea } from "./test-shelter-only/AllowlistedShelterAr
  * API would refuse.
  */
 
-type Channel = KabinetShelterView["contact"]["primary"];
-
-const channelValue = (channel: Channel): string => {
-  switch (channel.kind) {
-    case "phone":
-    case "viber":
-      return channel.e164;
-    case "email":
-      return channel.address;
-    case "telegram":
-      return `@${channel.handle}`;
-    case "website":
-      return channel.url;
-    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled channel; unreachable at runtime */
-    default: {
-      const unreachable: never = channel;
-      return unreachable;
-    }
-  }
-};
-
 export type ShelterProfileProps = {
   view: KabinetShelterView;
   cityName: string | null;
   viewer: "admin" | "support";
-  /** The operator's display name (RS-Q2), for the verification block's note. */
+  /**
+   * The operator's display name (RS-Q2) for the verification block's note,
+   * which puts it mid-sentence: `inSentenceOperatorName`, so an unset name
+   * reads in lower case there.
+   */
   operatorName: string;
   /** K4: `read_only` unless the page's access decision opened writes. */
   editing?: ProfileEditing;

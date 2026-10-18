@@ -38,6 +38,30 @@ const BUTTON: Record<ButtonVariant, string> = {
 export const buttonClass = (variant: ButtonVariant): string =>
   `inline-flex min-h-target items-center justify-center ${BUTTON[variant]} ${FOCUS_RING}`;
 
+/**
+ * Links that go somewhere rather than act (R-UI's operator screens first), on
+ * the same 48px target and focus ring as the buttons. A link that looks like
+ * a button uses `buttonClass` instead.
+ *
+ * `nav` and `chip` say which one is the current page with
+ * `aria-current="page"`, and the current one is styled from that attribute,
+ * so the markup that tells a screen reader where it is also decides what a
+ * sighted person sees.
+ */
+export type LinkVariant = "text" | "nav" | "chip";
+
+const LINK: Record<LinkVariant, string> = {
+  /** An underlined link on its own line (S4's way back to the list). */
+  text: "text-base text-rg-ink underline",
+  /** An item of a page's nav. */
+  nav: "rounded-rg-button px-4 text-base font-medium text-rg-ink aria-[current=page]:bg-rg-surface",
+  /** One of a row of filter chips (S1's status filter). */
+  chip: "rounded-rg-chip bg-rg-fill px-4 text-base text-rg-ink aria-[current=page]:bg-rg-ink aria-[current=page]:text-rg-surface",
+};
+
+export const linkClass = (variant: LinkVariant): string =>
+  `inline-flex min-h-target items-center ${LINK[variant]} ${FOCUS_RING}`;
+
 export function Button({
   variant = "primary",
   className = "",

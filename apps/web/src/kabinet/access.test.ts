@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertShelterWritePolicyPermitted,
   decideAccess,
+  registryOperatorOf,
   SHELTER_WRITE_POLICY,
   type ShelterWritePolicy,
   shelterWritePolicyOf,
@@ -315,5 +316,28 @@ describe("which grant opened a write (CG-Q1)", () => {
       kind: "allow_shelter_write",
       grantedBy: "open_policy",
     });
+  });
+});
+
+/**
+ * The pages' one way to ask who the operator is (`/kabinet`'s redirect, S4's
+ * «ви»): the super_admin's own id, and nobody else, a support view included,
+ * whatever the write policy.
+ */
+describe("registryOperatorOf", () => {
+  const EXPECTED_OPERATOR: Record<string, string | null> = {
+    anonymous: null,
+    no_role: null,
+    conflicting_roles: null,
+    shelter_admin: null,
+    support_view: null,
+    super_admin: MOD,
+  };
+
+  it.each(Object.entries(PRINCIPALS))("%s", (name, principal) => {
+    expect(Object.keys(EXPECTED_OPERATOR).sort()).toEqual(Object.keys(PRINCIPALS).sort());
+    for (const policy of [SHELTER_WRITE_POLICY, OPEN]) {
+      expect(registryOperatorOf(principal, policy)).toBe(EXPECTED_OPERATOR[name]);
+    }
   });
 });

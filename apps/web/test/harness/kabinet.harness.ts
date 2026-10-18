@@ -35,7 +35,13 @@ test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" 
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
-for (const path of ["/kabinet", "/kabinet/vkhid"]) {
+// The operator's pages (R-UI 1) answer the same 404 while production sign-in is off.
+for (const path of [
+  "/kabinet",
+  "/kabinet/vkhid",
+  "/kabinet/prytulky",
+  "/kabinet/prytulky/00000000-0000-4000-8000-000000000000",
+]) {
   test(`${path} answers 404 while production sign-in is off`, async ({ page }) => {
     const response = await page.goto(path);
     expect(response?.status()).toBe(404);

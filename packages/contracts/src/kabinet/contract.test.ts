@@ -308,8 +308,19 @@ describe("kabinet views carry exactly their listed keys", () => {
 
   it("RegistryShelterRowView", () => {
     expect(keys(RegistryShelterRowViewSchema)).toEqual(
-      ["id", "displayName", "createdAt", "status", "cityId", "animalCount"].sort(),
+      [
+        "id",
+        "displayName",
+        "createdAt",
+        "status",
+        "cityId",
+        "animalCount",
+        "admins",
+        "donationPending",
+      ].sort(),
     );
+    // R-UI answer 2: two counts, signed in and invited; inventory, not engagement.
+    expect(keys(RegistryShelterRowViewSchema.shape.admins)).toEqual(["invited", "joined"]);
   });
 
   it("RegistryShelterView", () => {
