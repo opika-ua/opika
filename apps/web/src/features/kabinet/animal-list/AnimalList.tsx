@@ -1,6 +1,7 @@
 "use client";
 
 import type { KabinetAnimalListFilter, KabinetCursor, KabinetShelterView } from "@opika/contracts";
+import { UNDO_SHOWN_MS } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -63,7 +64,6 @@ import {
  */
 
 const t = uk.kabinet.animalList;
-const UNDO_SHOWN_MS = 8_000;
 
 type Move = Exclude<RowAction, "deleteDraft" | "edit">;
 type Load = { kind: "idle" } | { kind: "loading" } | { kind: "failed" };

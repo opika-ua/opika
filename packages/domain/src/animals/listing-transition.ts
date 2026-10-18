@@ -34,12 +34,20 @@ export const LISTING_EVENT_TYPES = [
 ] as const satisfies readonly ListingEventType[];
 
 /**
- * How long a confirmation stays undoable: K2's 8 seconds plus 5 seconds of
- * slack for a slow connection, so an undo tapped at 7.9 s still lands
- * (H2 S3 addendum §5). Measured on the server's clock from the confirmation
- * being undone.
+ * How long K2 shows «Скасувати · N с» after a «Ще шукає» (N4: 8 seconds),
+ * on the screen's own clock from the answer arriving.
  */
-export const UNDO_WINDOW_MS = 8_000 + 5_000;
+export const UNDO_SHOWN_MS = 8_000;
+
+/**
+ * How long a confirmation stays undoable: what the screen shows plus 5
+ * seconds of slack for a slow connection, so an undo tapped at 7.9 s still
+ * lands (H2 S3 addendum §5). Measured on the server's clock from the
+ * confirmation being undone. Derived from the shown time, so the screen can
+ * never offer an undo the server has already closed; a test pins that the
+ * shown time sits strictly inside this one.
+ */
+export const UNDO_WINDOW_MS = UNDO_SHOWN_MS + 5_000;
 
 export type ListingKind = AnimalListingState["kind"];
 

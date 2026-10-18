@@ -9,6 +9,7 @@ import {
   type ListingKind,
   type ListingTransitionResult,
   transitionListing,
+  UNDO_SHOWN_MS,
   UNDO_WINDOW_MS,
 } from "./listing-transition";
 
@@ -228,6 +229,20 @@ describe("undoing a confirmation", () => {
     const second = confirmAt(first, at(1_000));
     const undone = expectOk(transitionListing(second, { type: "undo_confirm", at: at(2_000) }));
     expect(undone.kind === "published" && undone.confirmedAt).toEqual(CONFIRMED_AT);
+  });
+
+  /**
+   * The screen's «Скасувати · N с» must close before the server's window
+   * does (review of #129, note 3): an undo tapped at the last shown second
+   * still lands, with slack for the round trip, never refused while offered.
+   */
+  it("the screen shows its undo strictly inside the server's window, with slack", () => {
+    expect(UNDO_SHOWN_MS).toBeGreaterThan(0);
+    expect(UNDO_WINDOW_MS).toBeGreaterThan(UNDO_SHOWN_MS);
+    const confirmedOnce = confirmAt(stateFor("published"), T1);
+    expect(
+      transitionListing(confirmedOnce, { type: "undo_confirm", at: at(UNDO_SHOWN_MS) }).kind,
+    ).toBe("ok");
   });
 
   it("accepts an undo at the last instant of the window and refuses one just after", () => {
