@@ -70,6 +70,7 @@ const CHECKED_NONE: BlockedAddressesView = { kind: "checked", asOf: NOW, blocked
  */
 const NO_ACTIONS: ShelterScreenActions = {
   supportEntry: null,
+  rename: null,
   decision: null,
   donationDecision: null,
   admins: null,

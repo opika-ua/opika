@@ -71,6 +71,7 @@ export const apiError = (code: string, data?: unknown) =>
 export const lostAnswer = () => new TypeError("Failed to fetch");
 
 type Fns = {
+  shelters: Record<keyof RegistryActionsClient["registry"]["shelters"], ReturnType<typeof vi.fn>>;
   verification: Record<
     keyof RegistryActionsClient["registry"]["verification"],
     ReturnType<typeof vi.fn>
@@ -91,6 +92,10 @@ const unexpected = (path: string) =>
 
 export function fakeClient(overrides: FakeOverrides = {}) {
   const fns: Fns = {
+    shelters: {
+      updateProfile: unexpected("shelters.updateProfile"),
+      ...overrides.shelters,
+    },
     verification: {
       startReview: unexpected("startReview"),
       approve: unexpected("approve"),
