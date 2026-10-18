@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { drizzleKitArgs, migrateTargetCheck, parseMigrateArgs } from "../src/migrate-args";
+import { migrateTargetCheck, parseMigrateArgs } from "../src/migrate-args";
 import {
   assertProductionWriteAllowed,
   checkProductionWrite,
@@ -284,20 +284,31 @@ describe("productionEndpoint", () => {
   });
 });
 
-describe("drizzleKitArgs", () => {
-  /** `--prod` and `--expect <ep>` are this package's flags; drizzle-kit doesn't know them. */
-  it("passes everything through except --prod and --expect <ep>", () => {
-    expect(drizzleKitArgs(["--prod", "--verbose"])).toEqual(["migrate", "--verbose"]);
-    expect(drizzleKitArgs(["--expect", "ep-other-hill-d4e5f6", "--prod", "--verbose"])).toEqual([
-      "migrate",
-      "--verbose",
-    ]);
-    expect(drizzleKitArgs([])).toEqual(["migrate"]);
-  });
-});
-
 /** AW-F1 (Oleksii: "a real --expect on db:migrate … tests for wrong and missing endpoints"). */
 describe("parseMigrateArgs", () => {
+  /** `--prod` and `--expect <ep>` are this package's flags; drizzle-kit gets everything else. */
+  it("passes everything through to drizzle-kit except --prod and --expect <ep>", () => {
+    expect(parseMigrateArgs(["--prod", "--verbose"])).toEqual({
+      kind: "ok",
+      expect: undefined,
+      drizzleArgs: ["migrate", "--verbose"],
+    });
+    expect(parseMigrateArgs(["--expect", "ep-other-hill-d4e5f6", "--prod", "--verbose"])).toEqual({
+      kind: "ok",
+      expect: "ep-other-hill-d4e5f6",
+      drizzleArgs: ["migrate", "--verbose"],
+    });
+  });
+
+  it("reads --expect=ep-… the same as --expect ep-… (review of #124, finding 3)", () => {
+    expect(parseMigrateArgs(["--expect=ep-other-hill-d4e5f6", "--prod"])).toEqual({
+      kind: "ok",
+      expect: "ep-other-hill-d4e5f6",
+      drizzleArgs: ["migrate"],
+    });
+    expect(parseMigrateArgs(["--expect="]).kind).toBe("refused");
+  });
+
   it("reads --expect's value and keeps it out of drizzle-kit's arguments", () => {
     expect(parseMigrateArgs(["--prod", "--expect", "ep-other-hill-d4e5f6"])).toEqual({
       kind: "ok",
@@ -516,7 +527,8 @@ describe("every writing CLI runs the guard first", () => {
     });
 
   it("db:migrate refuses a non-production Neon target with no --expect (missing endpoint)", () => {
-    const result = migrateWith(CHILD_BRANCH, []);
+    // The missing config stops drizzle-kit before it connects, should a regression ever reach it.
+    const result = migrateWith(CHILD_BRANCH, ["--config=does-not-exist.ts"]);
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("pass --expect ep-…");
     expect(result.stdout).not.toContain("Target:");
@@ -524,7 +536,12 @@ describe("every writing CLI runs the guard first", () => {
   });
 
   it("db:migrate refuses production with --prod but the wrong --expect (wrong endpoint)", () => {
-    const result = migrateWith(PROD_DIRECT, ["--prod", "--expect", "ep-other-hill-d4e5f6"]);
+    const result = migrateWith(PROD_DIRECT, [
+      "--prod",
+      "--expect",
+      "ep-other-hill-d4e5f6",
+      "--config=does-not-exist.ts",
+    ]);
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("the target's Neon endpoint is not --expect");
     expect(result.stdout).not.toContain("Target:");

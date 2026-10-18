@@ -77,10 +77,6 @@ import {
   PROD_FLAG,
 } from "./prod-guard";
 
-// The `--expect` check moved to prod-guard.ts (shared with db:migrate, AW-F1); re-exported so
-// this script's callers and tests keep their import.
-export { type ExpectedTarget, expectedTargetOf } from "./prod-guard";
-
 import { animals } from "./schema/animals";
 import {
   authAccount,

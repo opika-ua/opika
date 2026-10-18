@@ -17,27 +17,25 @@ export function parseMigrateArgs(argv: readonly string[]): MigrateArgs {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === PROD_FLAG) continue;
-    if (arg === EXPECT_FLAG) {
-      const value = argv[i + 1];
+    // `--expect ep-…` and `--expect=ep-…` read the same; anything else starting `--expect` is a typo.
+    const inline = arg?.startsWith(`${EXPECT_FLAG}=`)
+      ? arg.slice(EXPECT_FLAG.length + 1)
+      : undefined;
+    if (arg === EXPECT_FLAG || inline !== undefined) {
+      const value = inline ?? argv[i + 1];
       // A missing value, or another flag in its place, is a missing endpoint, never a guess.
-      if (value === undefined || value.startsWith("--")) {
+      if (value === undefined || value === "" || value.startsWith("--")) {
         return { kind: "refused", reason: `${EXPECT_FLAG} needs an endpoint id (ep-…) after it` };
       }
       if (expect !== undefined) return { kind: "refused", reason: `${EXPECT_FLAG} is given twice` };
       expect = value;
-      i++;
+      if (inline === undefined) i++;
       continue;
     }
     passThrough.push(arg as string);
   }
   return { kind: "ok", expect, drizzleArgs: ["migrate", ...passThrough] };
 }
-
-/** What `migrate.ts` hands to drizzle-kit (kept for callers that only need the arguments). */
-export const drizzleKitArgs = (argv: readonly string[]): string[] => {
-  const parsed = parseMigrateArgs(argv);
-  return parsed.kind === "ok" ? parsed.drizzleArgs : ["migrate"];
-};
 
 /**
  * Whether the target is the database the caller named. A local database (tests, a developer's
