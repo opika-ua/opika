@@ -656,8 +656,10 @@ export const uk = {
      * `disableIpTracking` plus HMAC-only rate-limiter keys
      * (`apps/web/src/api/rate-limit-key.ts`, EM-Q11), and the daily
      * `auth-cleanup` cron, which also takes sessions past the 30-day cap
-     * (EM-Q11; Hobby: one run a day, so «протягом двох діб»; on Pro it would
-     * be «протягом доби»). Vercel's own request logs are outside the
+     * (EM-Q11; one run a day, the most Vercel Hobby allowed, so «протягом
+     * двох діб». The project is on Pro since 2026-10-18, where a run every 6
+     * hours would allow «протягом доби»: his call, KH-Q12, not made). Vercel's
+     * own request logs are outside the
      * sentence, by his scoping (EM-L1).
      * `copy-status.test.ts` pins it; `docs/decisions-inbox.md`
      * EM-T17 records the check of each claim.

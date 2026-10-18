@@ -490,8 +490,9 @@ export const shelterAnimalsContract = {
  * It sits below Next's proxy buffer (`proxyClientMaxBodySize`, 10 MB by
  * default, which truncates rather than refuses), so the proxy never hands the
  * route a cut-off body that would pass, and below the 4.5 MB request limit
- * Vercel documented for Functions (whether Hobby now allows more is on the
- * production probe list, K-T2). A device-compressed 2000 px JPEG is far
+ * Vercel documented for Functions (its changelog has since raised it to
+ * 100 MB, K-T2; this ceiling is ours and doesn't depend on Vercel's plan).
+ * A device-compressed 2000 px JPEG is far
  * smaller; the ceiling exists for the request that skipped compression.
  */
 export const KABINET_MAX_BODY_BYTES = 4 * 1024 * 1024;

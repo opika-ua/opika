@@ -88,8 +88,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/*
           Cookieless, no-op without JS — aggregate page views (Analytics)
           and real Core Web Vitals from actual devices (Speed Insights),
-          which the harness cannot simulate. Both free on Vercel's Hobby
-          tier. «Про проєкт» discloses this to shelters and adopters.
+          which the harness cannot simulate. «Про проєкт» discloses this to
+          shelters and adopters.
         */}
         <Analytics />
         <SpeedInsights />
