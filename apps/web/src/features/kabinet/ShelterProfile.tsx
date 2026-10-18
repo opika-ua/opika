@@ -1,5 +1,10 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
+import {
+  inSentenceOperatorName,
+  type OperatorName,
+  standaloneOperatorName,
+} from "../../kabinet/operator";
 import type { ProfileEditing } from "./home";
 import { KabinetBrand, KabinetMark } from "./KabinetBrand";
 import { CAPTION, CARD, CARD_TITLE, channelValue, LockedBlock, Row } from "./ProfileParts";
@@ -8,6 +13,7 @@ import { ProfileEditor } from "./profile-edit/ProfileEditor";
 import { SignOutButton } from "./SignOutButton";
 import { SupportBanner } from "./SupportBanner";
 import { AllowlistedShelterArea } from "./test-shelter-only/AllowlistedShelterArea";
+import { VerificationDecision } from "./VerificationDecision";
 
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"; mock
@@ -36,11 +42,13 @@ export type ShelterProfileProps = {
   cityName: string | null;
   viewer: "admin" | "support";
   /**
-   * The operator's display name (RS-Q2) for the verification block's note,
-   * which puts it mid-sentence: `inSentenceOperatorName`, so an unset name
-   * reads in lower case there.
+   * Who the operator is (RS-Q2), configured or not. Two places name them in
+   * two forms: the verification block's note puts the name mid-sentence
+   * (`inSentenceOperatorName`, so an unset name reads in lower case there),
+   * and the decision's signature stands alone (`standaloneOperatorName`, as
+   * both emails sign).
    */
-  operatorName: string;
+  operator: OperatorName;
   /** K4: `read_only` unless the page's access decision opened writes. */
   editing?: ProfileEditing;
 };
@@ -49,10 +57,11 @@ export function ShelterProfile({
   view,
   cityName,
   viewer,
-  operatorName,
+  operator,
   editing = { kind: "read_only" },
 }: ShelterProfileProps) {
   const t = uk.kabinet.profile;
+  const operatorName = inSentenceOperatorName(operator);
   const notRecorded = uk.kabinet.profileNotRecorded;
   const support = viewer === "support";
 
@@ -118,6 +127,12 @@ export function ShelterProfile({
             </h1>
             <p className={`hidden desktop:block ${CAPTION}`}>{t.intro}</p>
           </div>
+
+          {/* K5 (RU-Q7): a rejected or suspended shelter reads why, for its admins and the support view alike. */}
+          <VerificationDecision
+            verification={view.verification}
+            operatorName={standaloneOperatorName(operator)}
+          />
 
           {editing.kind === "open" && !support ? (
             <ProfileEditor

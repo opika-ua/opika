@@ -664,7 +664,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.blocked.title": "Адреси, на які поштовий сервіс не доставляє листи",
     "operator.blocked.none": "Перевірено: жодна адреса цього притулку не заблокована.",
     "operator.blocked.line": "{email} — {reason}",
-    "operator.blocked.incomplete": "Вдалося перевірити лише частину адрес.",
+    "operator.blocked.incomplete": "Список заблокованих адрес вдалося отримати лише частково.",
     "operator.blocked.unknown.provider_error": "Поштовий сервіс відповів помилкою.",
     "operator.blocked.unknown.timed_out": "Поштовий сервіс не відповів вчасно.",
     "operator.blocked.unknown.unsupported_provider":
@@ -673,7 +673,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.blocked.manualUnblock":
       "Розблокувати адресу можна лише в кабінеті поштового сервісу, не тут.",
     "operator.history.title": "Історія",
-    "operator.history.note": "Усі зміни статусу, даних, адміністраторів, збору коштів і тварин.",
+    "operator.history.note":
+      "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» тут не записуються.",
     "operator.history.empty": "Записів ще немає.",
     "operator.history.more": "Показати ще",
     "operator.history.actor.you": "ви",
@@ -833,7 +834,6 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.donation.conflict":
       "Пропозиція змінилася, поки сторінка була відкрита. Тут — поточна.",
     "operator.admins.remove": "Прибрати",
-    "operator.admins.removeConfirm.title": "Прибрати {name}?",
     "operator.admins.removeConfirm.body":
       "Доступ до кабінету закриється одразу, усі сеанси завершаться.",
     "operator.admins.inviteAnother": "Запросити ще одного",
@@ -848,7 +848,6 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "verificationDecision.rejectedTitle": "Перевірку не пройдено",
     "verificationDecision.suspendedTitle": "Притулок тимчасово призупинено",
     "verificationDecision.reason": "Причина: {code}.",
-    "verificationDecision.noteLabel": "Пояснення від {operator}:",
     "verificationDecision.contact": "Якщо маєте питання, напишіть мені.",
     "verificationDecision.suspendedEffect":
       "Поки притулок призупинено, його тварин немає в галереї.",
@@ -871,6 +870,31 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     },
   };
 
+  /**
+   * His round-2 answer 2, verbatim: "Reason view on the shelter side:
+   * «Пояснення:», then my note verbatim, then a signature line «— {operator}»
+   * (nominative, as in the emails). No new env var." The label replaces his
+   * §3.4 text, named here so it can't drift back; the signature is a key his
+   * file didn't have.
+   */
+  const ROUND_2_REASON_VIEW: Record<string, { his: string | null; used: string }> = {
+    "verificationDecision.noteLabel": { his: "Пояснення від {operator}:", used: "Пояснення:" },
+    "verificationDecision.signature": { his: null, used: "— {operator}" },
+  };
+
+  /**
+   * N7 (Oleksii, 2026-10-18), verbatim: "admins.removeConfirm.title → «Закрити доступ? {name}
+   * більше не зможе входити в кабінет.» - invite button: 0 admins and 0 invitations → «Запросити
+   * адміністратора»; otherwise «Запросити ще одного»." `his` is the string it replaces (null: new).
+   */
+  const ROUND_3_N7: Record<string, { his: string | null; used: string }> = {
+    "operator.admins.removeConfirm.title": {
+      his: "Прибрати {name}?",
+      used: "Закрити доступ? {name} більше не зможе входити в кабінет.",
+    },
+    "operator.admins.inviteFirst": { his: null, used: "Запросити адміністратора" },
+  };
+
   const leafPaths = (node: unknown, prefix: string): string[] =>
     typeof node === "string"
       ? [prefix]
@@ -888,12 +912,22 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...leafPaths(uk.kabinet.operator, "operator"),
         ...leafPaths(uk.kabinet.verificationDecision, "verificationDecision"),
       ].sort(),
-    ).toEqual([...Object.keys(RUI_FINAL), ...Object.keys(CHECKED_AGAINST_CODE)].sort());
+    ).toEqual(
+      [
+        ...Object.keys(RUI_FINAL),
+        ...Object.keys(CHECKED_AGAINST_CODE),
+        ...Object.keys(ROUND_2_REASON_VIEW),
+        ...Object.keys(ROUND_3_N7),
+      ].sort(),
+    );
   });
 
-  it("sanity: his file's 220 strings, 218 as written and 2 replaced in round 2", () => {
-    expect(Object.keys(RUI_FINAL).length).toBe(218);
+  it("sanity: his file's 220 strings (216 as written, 3 replaced in round 2, 1 in round 3) and 2 later keys", () => {
+    expect(Object.keys(RUI_FINAL).length).toBe(216);
+    expect(Object.keys(ROUND_3_N7)).toHaveLength(2);
     expect(Object.keys(CHECKED_AGAINST_CODE).length).toBe(2);
+    expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his !== null)).toHaveLength(1);
+    expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his === null)).toHaveLength(1);
   });
 
   it.each(Object.entries(RUI_FINAL))("%s is his final text", (path, text) => {
@@ -908,6 +942,24 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     },
   );
 
+  it.each(Object.entries(ROUND_3_N7))("%s carries his N7 wording (round 3)", (path, { used }) => {
+    expect(valueAt(path)).toBe(used);
+  });
+
+  it.each(
+    Object.entries(ROUND_3_N7).flatMap(([path, { his }]) => (his === null ? [] : [[path, his]])),
+  )("%s no longer carries the string N7 replaced", (path, his) => {
+    expect(valueAt(path)).not.toBe(his);
+  });
+
+  it.each(Object.entries(ROUND_2_REASON_VIEW))(
+    "%s carries his round-2 answer 2",
+    (path, { his, used }) => {
+      expect(valueAt(path)).toBe(used);
+      if (his !== null) expect(valueAt(path)).not.toBe(his);
+    },
+  );
+
   it("nothing under operator or verificationDecision is pending", () => {
     expect(pendingCopyPaths(uk.kabinet.operator, "kabinet.operator")).toEqual([]);
     expect(
@@ -918,12 +970,14 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   it("uses U+02BC only: no U+0027 and no U+2019 in any of them", () => {
     const ASCII_APOSTROPHE = String.fromCodePoint(0x27);
     const TYPOGRAPHIC_APOSTROPHE = String.fromCodePoint(0x2019);
-    const offending = [...Object.keys(RUI_FINAL), ...Object.keys(CHECKED_AGAINST_CODE)].filter(
-      (path) => {
-        const text = valueAt(path) as string;
-        return text.includes(ASCII_APOSTROPHE) || text.includes(TYPOGRAPHIC_APOSTROPHE);
-      },
-    );
+    const offending = [
+      ...Object.keys(RUI_FINAL),
+      ...Object.keys(CHECKED_AGAINST_CODE),
+      ...Object.keys(ROUND_2_REASON_VIEW),
+    ].filter((path) => {
+      const text = valueAt(path) as string;
+      return text.includes(ASCII_APOSTROPHE) || text.includes(TYPOGRAPHIC_APOSTROPHE);
+    });
     expect(offending).toEqual([]);
     // Sanity: the letter-apostrophe is really there.
     expect(uk.kabinet.operator.evidence.field.channel).toContain(String.fromCodePoint(0x2bc));

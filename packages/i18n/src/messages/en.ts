@@ -657,10 +657,11 @@ export const en = {
         none: "No administrators",
         remove: "Remove",
         removeConfirm: {
-          title: "Remove {name}?",
+          title: "Close access? {name} will no longer be able to sign in to the cabinet.",
           body: "Access to the cabinet closes at once, and every session ends.",
         },
         inviteAnother: "Invite another",
+        inviteFirst: "Invite an administrator",
         resend: "Send again",
         gone: "This access is already closed.",
       },
@@ -702,7 +703,7 @@ export const en = {
         title: "Addresses the email provider won't deliver to",
         none: "Checked: none of this shelter's addresses is blocked.",
         line: "{email}: {reason}",
-        incomplete: "Only part of the addresses could be checked.",
+        incomplete: "The list of blocked addresses could only be fetched in part.",
         unknown: {
           provider_error: "The email provider answered with an error.",
           timed_out: "The email provider didn't answer in time.",
@@ -716,7 +717,7 @@ export const en = {
       },
       history: {
         title: "History",
-        note: "Every change of status, data, administrators, fundraising and animals.",
+        note: "Changes of status, data, administrators, fundraising and animals. «Still looking» confirmations are not recorded here.",
         empty: "No entries yet.",
         more: "Show more",
         actor: {
@@ -914,7 +915,8 @@ export const en = {
       rejectedTitle: "Verification not passed",
       suspendedTitle: "The shelter is temporarily suspended",
       reason: "Reason: {code}.",
-      noteLabel: "Explanation from {operator}:",
+      noteLabel: "Explanation:",
+      signature: "— {operator}",
       contact: "If you have questions, write to me.",
       suspendedEffect: "While the shelter is suspended, its animals aren't in the gallery.",
       rejectedEffect: "The shelter's animals won't be in the gallery until verification is passed.",

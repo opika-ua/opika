@@ -5,7 +5,12 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { HistoryList } from "./HistoryList";
 import type { RegistryReadClient } from "./registry-browser-client";
-import { BlockedCard, blockReasonOf, ShelterScreen } from "./ShelterScreen";
+import {
+  BlockedCard,
+  blockReasonOf,
+  ShelterScreen,
+  type ShelterScreenActions,
+} from "./ShelterScreen";
 
 /**
  * S4 · one shelter, read-only, as behaviour: what each section says in each
@@ -58,6 +63,17 @@ const view = (overrides: Partial<RegistryShelterView> = {}): RegistryShelterView
 });
 
 const CHECKED_NONE: BlockedAddressesView = { kind: "checked", asOf: NOW, blocked: [] };
+/**
+ * R-UI 3's controls left empty: what this file tests is the record S4 reads
+ * out. The controls, and the admins list they make the admins card, are
+ * tested where they live (`actions/*.test.tsx`, `ShelterActionsScreen.test.tsx`).
+ */
+const NO_ACTIONS: ShelterScreenActions = {
+  supportEntry: null,
+  decision: null,
+  donationDecision: null,
+  admins: null,
+};
 
 const renderScreen = (
   overrides: Partial<RegistryShelterView> = {},
@@ -70,7 +86,7 @@ const renderScreen = (
       history={{ items: [], nextCursor: null }}
       blocked={blocked}
       me={ME}
-      now={NOW}
+      actions={NO_ACTIONS}
     />,
   );
 
@@ -240,45 +256,6 @@ describe("S4 donation", () => {
   });
 });
 
-describe("S4 admins", () => {
-  it("says when there are none", () => {
-    renderScreen();
-    expect(within(section("Адміністратори")).getByText("Адміністраторів немає")).toBeTruthy();
-  });
-
-  it("signed in, invited with a live link, and invited with an expired one", () => {
-    renderScreen({
-      admins: [
-        {
-          id: "a1" as never,
-          name: "Олена",
-          email: "olena@example.org",
-          invite: { status: "accepted" },
-        },
-        {
-          id: "a2" as never,
-          name: "Петро",
-          email: "petro@example.org",
-          invite: { status: "pending", expiresAt: new Date("2026-10-19T10:00:00Z") },
-        },
-        {
-          id: "a3" as never,
-          name: "Іван",
-          email: "ivan@example.org",
-          invite: { status: "pending", expiresAt: new Date("2026-10-16T10:00:00Z") },
-        },
-      ],
-    });
-    const admins = section("Адміністратори");
-    const item = (name: string) => within(admins).getByText(name).closest("li") as HTMLElement;
-    expect(within(item("Олена")).getByText("Має доступ")).toBeTruthy();
-    expect(
-      within(item("Петро")).getByText("Запрошено · посилання діє до 19 жовтня 2026 р."),
-    ).toBeTruthy();
-    expect(within(item("Іван")).getByText("Запрошено · посилання вже не діє")).toBeTruthy();
-  });
-});
-
 describe("S4 blocked addresses, every answer", () => {
   const blockedSection = () => section("Адреси, на які поштовий сервіс не доставляє листи");
   const renderBlocked = (blocked: BlockedAddressesView) =>
@@ -318,7 +295,9 @@ describe("S4 blocked addresses, every answer", () => {
       blockedSoFar: [{ email: "petro@example.org", reason: "unsubscribed" }],
     });
     const blocked = blockedSection();
-    expect(within(blocked).getByText("Вдалося перевірити лише частину адрес.")).toBeTruthy();
+    expect(
+      within(blocked).getByText("Список заблокованих адрес вдалося отримати лише частково."),
+    ).toBeTruthy();
     expect(
       within(blocked).getByText("petro@example.org — людина з цієї адреси відписалася від листів."),
     ).toBeTruthy();
@@ -333,7 +312,9 @@ describe("S4 blocked addresses, every answer", () => {
   it("incomplete with nobody found so far: still only «part checked», never «none blocked»", () => {
     renderBlocked({ kind: "incomplete", asOf: NOW, blockedSoFar: [] });
     const blocked = blockedSection();
-    expect(within(blocked).getByText("Вдалося перевірити лише частину адрес.")).toBeTruthy();
+    expect(
+      within(blocked).getByText("Список заблокованих адрес вдалося отримати лише частково."),
+    ).toBeTruthy();
     expect(within(blocked).queryByText(/жодна адреса/)).toBeNull();
     expect(within(blocked).queryByRole("listitem")).toBeNull();
     expect(within(blocked).queryByText(/Розблокувати/)).toBeNull();
@@ -386,7 +367,7 @@ describe("S4 history", () => {
     expect(within(section("Історія")).getByText("Записів ще немає.")).toBeTruthy();
     expect(
       within(section("Історія")).getByText(
-        "Усі зміни статусу, даних, адміністраторів, збору коштів і тварин.",
+        "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» тут не записуються.",
       ),
     ).toBeTruthy();
   });

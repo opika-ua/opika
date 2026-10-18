@@ -266,7 +266,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 397 with the 12 `animalHistoryLabels.*` words (his K3 words, R-UI 1).
     // 398 with operatorFallbackNameInSentence, the fallback's lower case for the
     // locked note once round 2's answer 6 capitalised the standalone one.
-    expect(pending.length + written.length).toBe(398);
+    // 399 with verificationDecision.signature (round 2's answer 2, R-UI 3).
+    // 400 with operator.admins.inviteFirst (his N7, round 3).
+    expect(pending.length + written.length).toBe(400);
     expect(written).toContain("kabinet.profileEdit.state.saved");
     expect(pending).toEqual([]);
     expect(written).toContain("kabinet.confirm.rateLimited");

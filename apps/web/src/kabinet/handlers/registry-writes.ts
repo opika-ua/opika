@@ -25,6 +25,7 @@ import {
   type VerificationEvidence,
 } from "@opika/domain";
 import { ORPCError, type ORPCErrorConstructorMap } from "@orpc/server";
+import { withEvidenceOnFile } from "./evidence-on-file";
 import { loadShelterOr404, type RegistryDeps, registryShelterView } from "./registry-reads";
 
 type E<K extends keyof typeof apiErrors> = ORPCErrorConstructorMap<
@@ -242,7 +243,9 @@ export const registryUpdateProfile = (
  * Evidence the operator records (S2 create, S3 resubmit). A `documentKey`
  * points at nothing this system issued until the private bucket exists
  * (H2-6), so any item carrying one is refused (RG-Q5). A site visit is
- * attributed to the operator recording it, never typed.
+ * attributed to the operator recording it, never typed. On resubmit, what
+ * this refuses to take from input is put back from the record on file
+ * (`withEvidenceOnFile`): documents, and the recorder of an unchanged visit.
  */
 export function acceptEvidence(
   inputs: readonly EvidenceItemInput[],
@@ -387,7 +390,19 @@ export const registrySuspend = (
     errors,
   );
 
-/** The operator amends the evidence and sends it back for review (H2-2's operator side). */
+/**
+ * The operator amends the evidence and sends it back for review (H2-2's
+ * operator side). What the input can't carry (documents, who made a visit)
+ * comes from the record on file as it is read for this write
+ * (`withEvidenceOnFile`), so a resubmit never drops it.
+ *
+ * The history entry is the event itself, so it holds the whole list the
+ * shelter has from then on, carried items included: the same list the record
+ * holds, as the shelter's own request for another look records it
+ * (`verificationRequestReview`). It doesn't mark which items were typed and
+ * which carried; the entry before it holds the list it replaced, except after
+ * `shelter_created`, which holds none.
+ */
 export function registryResubmit(
   deps: RegistryDeps,
   moderatorId: ModeratorId,
@@ -400,11 +415,11 @@ export function registryResubmit(
   return verificationMove(
     deps,
     input.shelterId,
-    () => ({
+    (shelter) => ({
       type: "resubmit",
       at: deps.now,
       actor: moderatorActor(moderatorId),
-      evidence: accepted.evidence,
+      evidence: withEvidenceOnFile(shelter.verification.evidence, accepted.evidence),
     }),
     errors,
   );

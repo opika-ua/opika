@@ -35,8 +35,16 @@ const BUTTON: Record<ButtonVariant, string> = {
   icon: "w-target flex-none rounded-rg-button bg-rg-fill text-lg text-rg-ink",
 };
 
+/**
+ * KABINET's disabled button: fill and ink-3, `aria-disabled="true"` rather
+ * than `disabled`, so it stays focusable and the reason written next to it
+ * can be reached (the sign-in card's own pattern). Its handler is the one
+ * that ignores the press.
+ */
+const ARIA_DISABLED = "aria-disabled:bg-rg-fill aria-disabled:text-rg-ink-3";
+
 export const buttonClass = (variant: ButtonVariant): string =>
-  `inline-flex min-h-target items-center justify-center ${BUTTON[variant]} ${FOCUS_RING}`;
+  `inline-flex min-h-target items-center justify-center ${BUTTON[variant]} ${ARIA_DISABLED} ${FOCUS_RING}`;
 
 /**
  * Links that go somewhere rather than act (R-UI's operator screens first), on

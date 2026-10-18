@@ -216,7 +216,7 @@ function ContactsCard({ view }: { view: RegistryShelterView }) {
   );
 }
 
-function DonationCard({ view }: { view: RegistryShelterView }) {
+function DonationCard({ view, decision }: { view: RegistryShelterView; decision: ReactNode }) {
   const d = t.donation;
   return (
     <Section id="operator-donation" title={uk.kabinet.profile.donationTitle}>
@@ -239,33 +239,7 @@ function DonationCard({ view }: { view: RegistryShelterView }) {
           <p className={`${BODY} break-words`}>{view.pendingDonation.link.url}</p>
         </div>
       ) : null}
-    </Section>
-  );
-}
-
-function AdminsCard({ view, now }: { view: RegistryShelterView; now: Date }) {
-  const a = t.admins;
-  return (
-    <Section id="operator-admins" title={a.title}>
-      {view.admins.length === 0 ? (
-        <p className={BODY}>{a.none}</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {view.admins.map((admin) => (
-            <li key={admin.id} className="flex flex-col gap-1">
-              <p className={STRONG}>{admin.name}</p>
-              <p className={`${BODY} break-words`}>{admin.email}</p>
-              <p className={CAPTION}>
-                {admin.invite.status === "accepted"
-                  ? a.joined
-                  : admin.invite.expiresAt.getTime() > now.getTime()
-                    ? fillTemplate(a.invitedUntil, { date: formatDate(admin.invite.expiresAt) })
-                    : a.invitedExpired}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
+      {decision}
     </Section>
   );
 }
@@ -315,11 +289,39 @@ export function BlockedCard({ blocked }: { blocked: BlockedAddressesView }) {
 }
 
 /**
- * S4 · one shelter, read-only (R-UI 1; S3 folded in, RU-T2): its status and
- * since when, the evidence, the legal data, the premises address, contacts,
- * description, the donation link (live and proposed), admins, blocked
- * addresses and the history. The actions on it (the decision panel, the
- * donation decision, admin changes, support mode) are R-UI 3's.
+ * Which first page of the history the list was started from. `HistoryList`
+ * keeps the pages it has shown (`useMore`), so when the page re-renders after
+ * an R-UI 3 action with a newer first page, a new key starts the list from
+ * it; otherwise the line the action just wrote would only appear on a reload.
+ */
+const historyKeyOf = (page: HistoryPage): string => {
+  const newest = page.items[0];
+  if (newest === undefined) return "empty";
+  const at = "at" in newest ? newest.at : newest.event.at;
+  return `${at.toISOString()}:${page.items.length}`;
+};
+
+/**
+ * R-UI 3's controls, each mounted where it acts: support mode in the header,
+ * the decision panel at the head of the second column (beside the evidence,
+ * as S3's panel sits), the donation decision under the proposal, and the
+ * admins list with its actions as the admins card. The page composes them (`actions/ShelterActionsScreen.tsx`); this screen only places
+ * them, so it holds no client state of its own.
+ */
+export type ShelterScreenActions = {
+  supportEntry: ReactNode;
+  decision: ReactNode;
+  donationDecision: ReactNode;
+  admins: ReactNode;
+};
+
+/**
+ * S4 · one shelter (R-UI 1; S3 folded in, RU-T2): its status and since when,
+ * the evidence, the legal data, the premises address, contacts, description,
+ * the donation link (live and proposed), admins, blocked addresses and the
+ * history, with the operator's moves on it (`actions`, R-UI 3). The admins
+ * card is the actions' list (`AdminsManager`), which shows each admin's
+ * access itself.
  */
 export function ShelterScreen({
   view,
@@ -327,14 +329,14 @@ export function ShelterScreen({
   history,
   blocked,
   me,
-  now,
+  actions,
 }: {
   view: RegistryShelterView;
   cityName: string | null;
   history: HistoryPage;
   blocked: BlockedAddressesView;
   me: ModeratorId;
-  now: Date;
+  actions: ShelterScreenActions;
 }) {
   const joined = view.admins.filter((admin) => admin.invite.status === "accepted").length;
   return (
@@ -358,6 +360,7 @@ export function ShelterScreen({
             })}
           </span>
         </p>
+        {actions.supportEntry}
       </div>
       <div className="grid grid-cols-1 items-start gap-4 desktop:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-4">
@@ -370,10 +373,18 @@ export function ShelterScreen({
           </Section>
         </div>
         <div className="flex min-w-0 flex-col gap-4">
-          <DonationCard view={view} />
-          <AdminsCard view={view} now={now} />
+          {actions.decision}
+          <DonationCard view={view} decision={actions.donationDecision} />
+          <Section id="operator-admins" title={t.admins.title}>
+            {actions.admins}
+          </Section>
           <BlockedCard blocked={blocked} />
-          <HistoryList shelterId={view.id} first={history} people={{ me, admins: view.admins }} />
+          <HistoryList
+            key={historyKeyOf(history)}
+            shelterId={view.id}
+            first={history}
+            people={{ me, admins: view.admins }}
+          />
         </div>
       </div>
     </>

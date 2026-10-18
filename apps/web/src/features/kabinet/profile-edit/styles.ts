@@ -23,8 +23,3 @@ export const ERROR_TEXT = "text-base font-medium text-rg-ink";
 export const OPTIONAL = "font-normal text-rg-ink-3";
 /** An inner block on a card (the pending proposal, the preview row). */
 export const INNER = "rounded-rg-button bg-rg-fill p-4";
-
-export const BACKDROP =
-  "fixed inset-0 z-50 flex items-end justify-center bg-rg-fill-strong/90 tablet:items-center tablet:p-8";
-export const DIALOG =
-  "flex max-h-dvh w-full flex-col gap-5 overflow-y-auto rounded-t-rg-card bg-rg-surface p-5 shadow-rg-card tablet:max-w-xl tablet:rounded-rg-card tablet:p-8";
