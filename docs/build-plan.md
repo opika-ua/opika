@@ -1078,9 +1078,10 @@ someone says yes to an outreach email, independent of whatever else is or isn't 
   addition (before the first real shelter): review DMARC aggregate reports at dmarc@, then raise
   _dmarc.opika.org.ua from p=none to p=quarantine (later p=reject). My step in Cloudflare DNS;
   note the current record and the change in the runbook."). The runbook section is "DMARC:
-  raising the policy". Two records exist, the apex and `_dmarc.mail.opika.org.ua` (the auth
-  emails' From domain, whose own record decides their policy); which ones this step raises is
-  his decision (inbox EA-Q1).
+  raising the policy". **Both records, together** (his EA-Q1, option (b)): `_dmarc.opika.org.ua`
+  and `_dmarc.mail.opika.org.ua` to `p=quarantine`, then later `p=reject`, the same `rua`. In
+  order: remove the Brevo DNS records, raise both, delivery-test a sign-in email and an invite,
+  then check the next reports before `p=reject`.
 
 **Location fuzzing.** `packages/db/src/seed.ts` computes every seeded `publicLocation` with
 `testOnlyLocationPolicy("seed")` — deterministic, unkeyed, and reversible by anyone reading
