@@ -95,6 +95,9 @@ describe("K1 · check your email", () => {
   it("locks resend for 60s, the countdown in the label, focusable and inert", async () => {
     const { user, send } = setup();
     await signIn(user);
+    // «sent» runs its effects a task after it commits, the countdown's
+    // interval among them; advancing time before then advances nothing.
+    await act(async () => {});
     const button = resendButton();
     expect(button.getAttribute("aria-disabled")).toBe("true");
     expect(button.hasAttribute("disabled")).toBe(false);
@@ -112,6 +115,7 @@ describe("K1 · check your email", () => {
   it("unlocks after 60s, sends again to the same address, and locks again", async () => {
     const { user, send } = setup();
     await signIn(user);
+    await act(async () => {}); // the countdown starts in «sent»'s effects (above)
     await act(async () => {
       vi.advanceTimersByTime(RESEND_LOCKOUT_SECONDS * 1000);
     });
@@ -128,11 +132,13 @@ describe("K1 · check your email", () => {
     let ok = true;
     const { user, send } = setup(async () => ok);
     await signIn(user);
+    await act(async () => {}); // the countdown starts in «sent»'s effects (above)
     await act(async () => {
       vi.advanceTimersByTime(RESEND_LOCKOUT_SECONDS * 1000);
     });
     ok = false;
     await user.click(resendButton());
+    await act(async () => {}); // the resend's answer renders in a later task
     expect(send).toHaveBeenCalledTimes(2);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(uk.kabinet.signIn.sentTitle);
     expect(screen.getByRole("alert").textContent).toBe(uk.kabinet.signIn.sendFailed);
