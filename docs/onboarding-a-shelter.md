@@ -580,13 +580,14 @@ All kabinet email goes through Resend (EM-B10). While Resend is the provider, th
 blocked-addresses view answers "not checked" (EM-T26; a scan of Resend's suppression list is
 follow-up EM-F1), so it can't tell you whether an address is blocked. Check, in this order:
 
-1. **A TLS bounce first.** Since 2026-10-19 Resend sends with TLS **Enforced**: a receiving
-   server that can't take TLS gets a bounce, never a plaintext copy, because auth emails carry
-   bearer links. In Resend → **Logs**, filter on the address and look for a bounce whose reason
-   is TLS. If it is one, the shelter's mail host is refusing TLS: ask them for another address.
-   Don't turn TLS back to Opportunistic. Oleksii, 2026-10-19, verbatim: "I switched Resend TLS from Opportunistic to Enforced (auth emails carry bearer links). Record it in the stack notes; runbook "email didn't arrive" checklist: check Resend logs for a TLS bounce first."
-2. **Logs:** was the invite sent, delivered, or bounced for another reason?
-3. **Suppressions:** is the address on the suppression list, and why? Only then resend the invite
+1. **Logs, a TLS bounce first.** Since 2026-10-19 Resend sends with TLS **Enforced**: a
+   receiving server that can't take TLS gets a bounce, never a plaintext copy, because auth emails
+   carry bearer links. In Resend → **Logs**, filter on the address. Look first for a bounce whose
+   reason is TLS: if it is one, the shelter's mail host is refusing TLS, so ask them for another
+   address. (The builder's recommendation, not his rule: keep TLS Enforced rather than switching
+   back to Opportunistic for one host.) Then check whether the invite was sent, delivered, or
+   bounced for another reason. Oleksii, 2026-10-19, verbatim: "I switched Resend TLS from Opportunistic to Enforced (auth emails carry bearer links). Record it in the stack notes; runbook "email didn't arrive" checklist: check Resend logs for a TLS bounce first."
+2. **Suppressions:** is the address on the suppression list, and why? Only then resend the invite
 from the registry, and tell the shelter personally (IN-E13). Oleksii's condition on EM-T26,
 2026-10-15.
 
@@ -599,16 +600,24 @@ from p=none to p=quarantine (later p=reject). My step in Cloudflare DNS; note th
 and the change in the runbook." (The earlier plan, IN-E3, went straight to `p=reject`. This one
 goes through `p=quarantine` first.)
 
-- **The current record** (`_dmarc.opika.org.ua`, TXT): the policy is `p=none`, with aggregate
-  reports to `dmarc@`. Paste the exact TXT value here when you change it, so the history is in the
-  runbook rather than only in DNS.
-- **Before changing anything:** the reports must show nothing legitimate failing. Every sender
-  as `opika.org.ua` passes SPF or DKIM in alignment: Resend for `mail.opika.org.ua`, and anything
-  that sends as `hello@`.
+- **The current records** (public DNS, read 2026-10-19). There are two, and they cover
+  different senders:
+  - `_dmarc.opika.org.ua` (the apex: anything that sends as `@opika.org.ua`, e.g. `hello@`):
+    `v=DMARC1; p=none; rua=mailto:dmarc@opika.org.ua`
+  - `_dmarc.mail.opika.org.ua` (the sending subdomain, the auth emails' From address, Resend):
+    `v=DMARC1; p=none; rua=mailto:dmarc@opika.org.ua`
+
+  **The subdomain's own record decides the auth emails' policy, not the apex's.** Raising only
+  the apex leaves the sender that carries bearer links at `p=none`. Which records the launch-gate
+  step raises is his decision (open, inbox EA-Q1).
+- **Before changing anything:** the reports must show nothing legitimate failing for the record
+  being raised: everything sending as `@opika.org.ua` (e.g. `hello@`) for the apex, and Resend for
+  `mail.opika.org.ua`.
 - **The change:** set `p=quarantine` (keep the same `rua`), then watch the reports. Later,
   `p=reject`.
-- **After each change:** send a delivery test (`email:delivery-test`) and confirm the invite and
-  sign-in emails still arrive in the inbox.
+- **After each change:** if the subdomain's record changed, send a delivery test
+  (`email:delivery-test`) and confirm the invite and sign-in emails still arrive in the inbox.
+  The apex record doesn't govern them, so the delivery test can't prove an apex change.
 
 ## Debugging sign-in: share a name and an email, never the response
 
