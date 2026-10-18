@@ -345,8 +345,10 @@ function RevealContent({
   onClose: () => void;
   secondaryAction?: { label: string; onClick: () => void } | undefined;
 }) {
-  const shelter = reveal.shelterAtFirstReveal;
-  const { contact } = reveal.shelterContact;
+  // The name and the channels come from one object, so the name above a
+  // number is that number's: current for a visible shelter, both from the
+  // first reveal otherwise (RUI4-F1).
+  const { displayName, contact } = reveal.shelterContact;
   const footnote = contactsFootnoteOf(reveal);
   const primaryAction = primaryContactAction(contact.primary);
 
@@ -380,7 +382,7 @@ function RevealContent({
 
       <div className="flex flex-col desktop:flex-row gap-4">
         <div className="flex-1 min-w-0 bg-rg-fill rounded-rg-button p-4 flex flex-col gap-2">
-          <span className="text-[15px]/[22px] font-medium text-rg-ink">{shelter.displayName}</span>
+          <span className="text-[15px]/[22px] font-medium text-rg-ink">{displayName}</span>
           {allChannels(contact).map((channel) => (
             <span
               key={`${channel.kind}:${contactChannelText(channel)}`}

@@ -140,7 +140,7 @@ describe("the reveal is the one sanctioned path to the contact details, and neve
     id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
     animalId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     revealedAt: AT,
-    shelterContact: { source: "current", contact },
+    shelterContact: { source: "current", displayName: shelter.displayName, contact },
     shelterAtFirstReveal: record,
     animalSnapshot: { name: "Мурчик", primaryPhoto: null },
     ...extra,
@@ -154,7 +154,14 @@ describe("the reveal is the one sanctioned path to the contact details, and neve
    */
   it("carries the contact and the city, and strips the exact address, district and point", () => {
     const view = ContactRevealViewSchema.parse(
-      revealOf({ shelterContact: { source: "current", contact, exactAddress } }),
+      revealOf({
+        shelterContact: {
+          source: "current",
+          displayName: shelter.displayName,
+          contact,
+          exactAddress,
+        },
+      }),
     );
 
     expect(view.shelterAtFirstReveal).not.toHaveProperty("exactAddress");
@@ -212,7 +219,17 @@ describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
     (source) => {
       const view = ContactRevealViewSchema.parse({
         ...over,
-        shelterContact: { source, contact, exactAddress, displayName: "x" },
+        shelterContact: {
+          source,
+          displayName: "Лапа допомоги",
+          contact,
+          // The rest of the stored record, handed alongside: none of it comes back here.
+          shelterId: SHELTER_ID,
+          exactAddress,
+          publicLocation: shelter.publicLocation,
+          verificationStatusAtReveal: "verified",
+          donation: null,
+        },
       });
       expect(Object.keys(view).sort()).toEqual([
         "animalId",
@@ -222,11 +239,12 @@ describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
         "shelterAtFirstReveal",
         "shelterContact",
       ]);
-      expect(Object.keys(view.shelterContact).sort()).toEqual(["contact", "source"]);
+      expect(Object.keys(view.shelterContact).sort()).toEqual(["contact", "displayName", "source"]);
       expect(view.shelterContact.source).toBe(source);
-      // The first-reveal object carries no contacts: they are `shelterContact`'s alone.
+      expect(view.shelterContact.displayName).toBe("Лапа допомоги");
+      // The first-reveal object carries neither the name nor the contacts: they
+      // are `shelterContact`'s alone, so they come from one moment (RUI4-F1).
       expect(Object.keys(view.shelterAtFirstReveal).sort()).toEqual([
-        "displayName",
         "donation",
         "publicLocation",
         "shelterId",
@@ -236,10 +254,36 @@ describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
   );
 
   it("refuses contacts that don't say where they came from", () => {
-    for (const shelterContact of [{ contact }, { source: "snapshot", contact }]) {
+    for (const shelterContact of [
+      { displayName: "Лапа", contact },
+      { source: "snapshot", displayName: "Лапа", contact },
+    ]) {
       expect(() => ContactRevealViewSchema.parse({ ...over, shelterContact })).toThrow();
     }
   });
+
+  /**
+   * RUI4-F1: the name an adopter reads above the channels travels with them.
+   * Contacts with no name of their own are refused, so the view can't fall
+   * back to a name from some other moment.
+   */
+  it.each(["current", "first_reveal"] as const)(
+    "%s: refuses contacts without the shelter's name beside them",
+    (source) => {
+      for (const displayName of [undefined, ""]) {
+        expect(() =>
+          ContactRevealViewSchema.parse({
+            ...over,
+            shelterContact: {
+              source,
+              contact,
+              ...(displayName === undefined ? {} : { displayName }),
+            },
+          }),
+        ).toThrow();
+      }
+    },
+  );
 
   /**
    * `pick`, never `omit` (standing constraints, Code): the key tests above
