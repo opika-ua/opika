@@ -128,12 +128,15 @@ test.describe("/kabinet/tvaryny K3 animal form (allowlisted shelter)", () => {
     });
     const page = await context.newPage();
     expect((await page.goto(link))?.status()).toBe(200);
-    const landing = page.waitForResponse(
-      (response) =>
-        response.request().method() === "GET" && new URL(response.url()).pathname === "/kabinet",
-    );
-    await page.getByRole("button").click();
-    expect((await landing).status(), "/kabinet after sign-in").toBe(200);
+    // «Увійти», then signed in once the page is the cabinet: waited on by the URL and the
+    // heading, not by the GET's response event, which CI has missed with /kabinet already
+    // rendered (the same fix as b598d93 for K4 and #120's for KS-T3; AW-H2). Each test's own
+    // `goto("/kabinet")` asserts 200.
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.getByRole("button").click(),
+    ]);
+    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
     await page.close();
   });
 
