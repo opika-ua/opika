@@ -192,11 +192,19 @@ export function AnimalList({
     }
   }, [client]);
 
+  /**
+   * A filter's first page. Every read of the list takes a number from
+   * `loadRequest`, and a newer filter's takes a higher one, so an answer to
+   * anything older (a first page or a «Показати ще» of the filter just left)
+   * is dropped rather than shown under the new chip. Paging starts over with
+   * the filter: its cursor is gone until the new first page brings one.
+   */
   const loadFirst = async (next: KabinetAnimalListFilter) => {
     const request = ++loadRequest.current;
     setFilter(next);
     setOpenMenu(null);
     setLoad({ kind: "loading" });
+    setCursor(null);
     setMore({ kind: "idle" });
     try {
       const page = await client.shelter.animals.list({
@@ -218,15 +226,19 @@ export function AnimalList({
 
   const loadMore = async () => {
     if (cursor === null || more.kind === "loading") return;
+    // The filter this page belongs to: a chip changed meanwhile makes it stale (`loadFirst`).
+    const request = loadRequest.current;
     setMore({ kind: "loading" });
     try {
       const page = await client.shelter.animals.list({ filter, cursor, limit: ANIMAL_LIST_PAGE });
+      if (request !== loadRequest.current) return;
       setItems((rows) => [...rows, ...page.items]);
       setCursor(page.nextCursor);
       setCounts(page.counts);
       setStaleCount(page.staleCount);
       setMore({ kind: "idle" });
     } catch (error) {
+      if (request !== loadRequest.current) return;
       // A cursor the server no longer accepts can't be retried into working: start over.
       if ((error as { code?: unknown } | null)?.code === "INVALID_CURSOR") {
         await loadFirst(filter);

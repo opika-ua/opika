@@ -838,6 +838,44 @@ describe("keyset «Показати ще»", () => {
     expect(screen.queryByRole("button", { name: "Показати ще" })).toBeNull();
   });
 
+  /**
+   * Review of #129, note 2 (Oleksii, verbatim: "«Показати ще» must reset with
+   * the filter chip"): a chip changed while «Показати ще» is in flight starts
+   * the new filter at its first page, and the old filter's late page is
+   * dropped rather than appended under the new chip.
+   */
+  it("a chip changed while «Показати ще» is in flight: the new filter's first page, the old page dropped", async () => {
+    let lateMore: (page: AnimalListPageData) => void = () => {};
+    const calls = renderList({
+      first: { ...FIRST, items: [PUBLISHED], nextCursor: CURSOR },
+      handlers: {
+        list: (input: { filter: { kind: string }; cursor: KabinetCursor | null }) =>
+          input.cursor === CURSOR
+            ? new Promise<AnimalListPageData>((resolve) => {
+                lateMore = resolve;
+              })
+            : Promise.resolve({ ...FIRST, items: [READY_DRAFT, GAPPY_DRAFT], nextCursor: null }),
+      } as Handlers,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Показати ще" }));
+    await userEvent.click(screen.getByRole("button", { name: "Чернетки · 2" }));
+    expect(calls.list).toHaveBeenLastCalledWith({
+      filter: { kind: "listing", listing: "draft" },
+      cursor: null,
+      limit: 50,
+    });
+    expect(rowOf("Ластівка")).toBeTruthy();
+    await act(async () => {
+      lateMore({ ...FIRST, items: [ADOPTED, WITHDRAWN], nextCursor: "c2" as KabinetCursor });
+    });
+    expect(
+      within(screen.getByRole("region", { name: "Тварини" }))
+        .getAllByRole("heading", { level: 2 })
+        .map((heading) => heading.textContent),
+    ).toEqual(["Ластівка", "Сірко"]);
+    expect(screen.queryByRole("button", { name: "Показати ще" })).toBeNull();
+  });
+
   it("a cursor the server no longer accepts starts the list over", async () => {
     const answers = [
       () => Promise.reject(apiError("INVALID_CURSOR")),
