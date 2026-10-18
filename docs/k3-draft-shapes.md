@@ -291,6 +291,9 @@ status.
    db:check-hashes (read-only, prints the target) → db:migrate --prod. Follow-up, not now: a
    real --expect on db:migrate (Tier 1, its own small PR later)."; follow-up AW-F1). Then
    `db:check-hashes` again (13/13 `match`) and the §2.4 queries again.
+   *Since #124 (AW-F1), `db:migrate` takes `--expect`, and every later gate uses the block in
+   `docs/onboarding-a-shelter.md`, "Migrating production". This step is the record of how
+   0012 was applied, before that.*
 3. **Branch**: a temporary child branch of migrated production `main` (from its head, with a
    read-write compute). Note the child's endpoint id, `<child ep>`.
 4. **Smoke on the child**, from the PR 4 branch, with `PROD_NEON_ENDPOINT` set:
