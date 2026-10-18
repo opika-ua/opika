@@ -89,3 +89,30 @@ const animalLink = new RPCLink<KabinetAnimalClientContext>({
 });
 
 export const kabinetAnimalBrowserClient: KabinetAnimalClient = createORPCClient(animalLink);
+
+/**
+ * What K2's list (`/kabinet/tvaryny`) may call from the browser, picked like
+ * the others: the list itself (filters, «Показати ще», the counts after a
+ * move), one animal (the re-read after a lost answer, K4-T16's pattern), the
+ * listing moves, «Ще шукає» and its undo, deleting a draft, and resuming
+ * intake from the paused banner (N18). Nothing else of the shelter contract.
+ */
+const kabinetAnimalListBrowserContract = {
+  shelter: {
+    animals: {
+      list: shelterKabinetContract.shelter.animals.list,
+      byId: shelterKabinetContract.shelter.animals.byId,
+      transition: shelterKabinetContract.shelter.animals.transition,
+      confirm: shelterKabinetContract.shelter.animals.confirm,
+      undoConfirm: shelterKabinetContract.shelter.animals.undoConfirm,
+      deleteDraft: shelterKabinetContract.shelter.animals.deleteDraft,
+    },
+    profile: {
+      resume: shelterKabinetContract.shelter.profile.resume,
+    },
+  },
+} as const;
+
+export type KabinetAnimalListClient = ContractRouterClient<typeof kabinetAnimalListBrowserContract>;
+
+export const kabinetAnimalListBrowserClient: KabinetAnimalListClient = createORPCClient(link);

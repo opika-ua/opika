@@ -15,10 +15,10 @@ import { uk } from "@opika/i18n";
  * the source so nothing outside this folder names the namespace.
  *
  * The profile page's area: the namespace's top-level strings, which belong
- * to no other screen. A screen with lines of its own keeps them in a group
- * (K3's are `testShelterOnly.animalForm`, rendered by
- * `AnimalFormTestShelterLines` on the animal form), and groups are not shown
- * here. Empty since PR 2: every K4 string is final.
+ * to no other screen. A screen with lines of its own would keep them in a
+ * group, rendered on that screen, and groups are not shown here (K3's one
+ * group, `testShelterOnly.animalForm`, emptied when K2 moved its line out,
+ * P10). Empty: every K4, K3 and K2 string is final.
  */
 export function AllowlistedShelterArea({
   // The live namespace; a test passes its own to see the area render.

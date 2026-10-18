@@ -432,12 +432,7 @@ export const en = {
       website: "Website",
     },
     profileNotRecorded: "Not recorded",
-    testShelterOnly: {
-      animalForm: {
-        dateUnchanged:
-          "Editing the text doesn't change the «Updated» date. Your confirmation in the animal list does, and so does any photo change.",
-      },
-    },
+    testShelterOnly: {},
     profileEdit: {
       actions: {
         save: "Save",
@@ -666,6 +661,8 @@ export const en = {
       listed: {
         liveOnSave: "Changes appear on the card as soon as you save.",
         notShownNow: "Nobody can see this card right now.",
+        dateUnchanged:
+          "Editing the text doesn't change the «Updated» date. Your confirmation in the animal list does, and so does any photo change.",
       },
       publish: {
         button: "Publish",
@@ -701,6 +698,130 @@ export const en = {
         birthDateFuture: "The birth date can't be in the future.",
         asOfFuture: "The «As of» date can't be in the future.",
         dateTooOld: "That date is too far back: more than {years} years ago.",
+      },
+    },
+    animalList: {
+      pageTitle: "Animals",
+      title: "Animals",
+      caption: "{shelter} · {cards}",
+      captionCards: {
+        one: "{count} card",
+        few: "{count} cards",
+        many: "{count} cards",
+      },
+      add: "Add an animal",
+      addShort: "Add",
+      filter: {
+        label: "Show",
+        all: "All",
+        draft: "Drafts",
+        published: "Published",
+        reserved: "Arranging",
+        adopted: "Home",
+        withdrawn: "Withdrawn from display",
+        withCount: "{label} · {count}",
+      },
+      row: {
+        adoptedSince: "Home since {date}",
+        withdrawnOn: "Withdrawn from display {date} · {reason}",
+        more: "More",
+      },
+      actions: {
+        edit: "Edit",
+        reserve: "Started arranging",
+        release: "Didn't work out: looking again",
+        adopt: "Already home",
+        withdraw: "Withdraw from display",
+        restore: "Back to drafts",
+        deleteDraft: "Delete draft",
+      },
+      confirm: {
+        stillLooking: "Still looking",
+        stillArranging: "Still arranging",
+        done: "Confirmed today",
+        undo: "Undo · {seconds} s",
+        undone: "Undone: the card shows its previous date again.",
+        undoExpired:
+          "It can't be undone any more: the time ran out or the card changed. The card shows today's date.",
+        failed:
+          "Not confirmed: the card's date hasn't changed. Check the connection and try again.",
+      },
+      adoptDialog: {
+        title: "Is {name} already home?",
+        body: "The card leaves the gallery and the deck, and its page will say the animal is no longer there. In your list the card stays, marked «Home». This can't be undone: if the animal comes back, add it as a new card.",
+        confirm: "Yes, already home",
+      },
+      withdrawDialog: {
+        title: "Withdraw from display: {name}?",
+        body: "People looking for an animal won't see the card any more, and its page will say the animal is no longer there. The card stays in your list and can be moved back to drafts. If it is published again, the date and the waiting time start from that day.",
+        adoptedHint: "If the animal found a home, mark it «Already home» instead.",
+        confirm: "Withdraw from display",
+      },
+      withdrawReason: {
+        adopted_elsewhere: "found a home another way",
+        transferred: "moved to another shelter",
+        deceased: "the animal died",
+        listing_error: "added by mistake",
+        other: "another reason",
+      },
+      moved: {
+        reserved: "{name}: started arranging.",
+        released: "{name}: looking for a home again.",
+        adopted: "{name}: already home.",
+        withdrawn: "{name}: withdrawn from display.",
+        restored: "{name}: back in drafts.",
+      },
+      deleteDialog: {
+        title: "Delete the draft «{name}»?",
+        body: "It disappears from your list for good.",
+        photosStay:
+          "The photo files aren't deleted at once; if they must go completely, write to me.",
+        confirm: "Delete",
+      },
+      deleted: "Draft «{name}» deleted.",
+      stale: {
+        count: "You haven't confirmed {cards} for more than {days} days.",
+        countCards: {
+          one: "{count} card",
+          few: "{count} cards",
+          many: "{count} cards",
+        },
+        caption:
+          "People looking for an animal see an old date on them. If nothing has changed, a tap on «Still looking» or «Still arranging» is enough.",
+        show: "Show these {count}",
+        showAll: "Show all",
+      },
+      paused: {
+        hidden: "While intake is paused, people looking for an animal don't see your animals.",
+      },
+      notVisible: {
+        pending: "Your animals appear in the gallery as soon as the shelter passes verification.",
+      },
+      orderNote:
+        "Order in the gallery is by date: the person chooses the freshest cards first or those who have waited longest. Card completeness affects only the order in the deck. The order can't be changed here, and there is no promotion.",
+      empty: {
+        title: "No animals here yet.",
+        body: "Add the first one. People looking for an animal see the card once it is published.",
+        add: "Add the first animal",
+        caption: "A name and a species are enough to save a draft; the rest can be added later.",
+      },
+      loading: "Loading",
+      loadMore: "Show more",
+      filterEmpty: "No cards in this group yet.",
+      loadFailed: "The list didn't load. Check the connection and try again.",
+      errors: {
+        rateLimited: "Too many actions in a short time. Wait a minute and try again.",
+        actionFailed: "That didn't work. Check the connection and try again.",
+      },
+    },
+    nav: {
+      label: "Cabinet sections",
+      animals: "Animals",
+    },
+    deleteDraft: {
+      refused: {
+        wasPublished:
+          "This card has been published before, so it can't be deleted. It stays in your list as a draft, and people looking for an animal don't see it.",
       },
     },
     support: {

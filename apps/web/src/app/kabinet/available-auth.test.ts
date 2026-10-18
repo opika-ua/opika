@@ -5,6 +5,7 @@ import NewShelterPage from "./prytulky/novyi/page";
 import OperatorSheltersPage from "./prytulky/page";
 import AnimalEditPage, { generateMetadata as animalEditMetadata } from "./tvaryny/[id]/page";
 import NewAnimalPage from "./tvaryny/nova/page";
+import AnimalListPage from "./tvaryny/page";
 import SignInPage from "./vkhid/page";
 
 /**
@@ -45,6 +46,8 @@ describe.each([
   ["/kabinet/prytulky", operatorList],
   ["/kabinet/prytulky/<id>", operatorShelter],
   ["/kabinet/prytulky/novyi", () => NewShelterPage()],
+  // K2's list (PR 5).
+  ["/kabinet/tvaryny", () => AnimalListPage()],
   // K3's two pages, and the edit page's title, which reads the same animal.
   ["/kabinet/tvaryny/nova", () => NewAnimalPage()],
   ["/kabinet/tvaryny/<id>", () => AnimalEditPage(animalParams())],

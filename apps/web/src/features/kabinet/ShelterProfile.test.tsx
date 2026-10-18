@@ -444,13 +444,15 @@ describe("the pause note on the read-only page (K4-B4)", () => {
 });
 
 /**
- * K3 (PR 4): until K2's animal list exists (PR 5), the way into the animal
- * form is a «Нова тварина» link on this page, offered exactly when the form
- * would accept a write: the shelter's own admin with writes open. Elsewhere
- * `/kabinet/tvaryny/nova` is a 404 (`animal-page.test.ts`), so a link there
- * would be a dead end.
+ * K2 (PR 5): the section nav («Розділи кабінету») holds «Тварини», K2's list
+ * and the way into K3 now, wherever the list is shown to this viewer (P1):
+ * the shelter's own admin with writes open, and the support view, read-only.
+ * A shelter whose writes are refused gets a 404 at `/kabinet/tvaryny`
+ * (`animal-list-page.test.ts`), so its nav holds the profile alone, as
+ * before. The «Нова тварина» link that stood in for the list until PR 5 is
+ * gone; the list's «Додати тварину» is its successor.
  */
-describe("the way into K3 until K2's list", () => {
+describe("the section nav (K2)", () => {
   const open = (grantedBy: "allowlist" | "open_policy") =>
     ({ kind: "open", grantedBy, previewAnimal: null, donationDeclined: false }) as const;
   const renderWith = (viewer: "admin" | "support", editing: ProfileEditing) =>
@@ -463,18 +465,32 @@ describe("the way into K3 until K2's list", () => {
         editing={editing}
       />,
     );
+  const nav = () => screen.getByRole("navigation", { name: "Розділи кабінету" });
 
-  it("the admin with writes open gets «Нова тварина», pointing at the create page", () => {
-    renderWith("admin", open("allowlist"));
-    const links = screen.getAllByRole("link", { name: "Нова тварина" });
-    expect(links.length).toBeGreaterThan(0);
-    for (const link of links) expect(link.getAttribute("href")).toBe("/kabinet/tvaryny/nova");
-  });
+  it.each([
+    ["the admin with writes open by the allowlist", "admin", open("allowlist")],
+    ["the admin with writes open by an open policy", "admin", open("open_policy")],
+    ["the support view", "support", { kind: "read_only" }],
+  ] as const)(
+    "%s gets «Тварини», pointing at the list, before the current profile",
+    (_who, viewer, editing) => {
+      const { unmount } = renderWith(viewer, editing);
+      const links = within(nav()).getAllByRole("link");
+      expect(links.map((link) => link.textContent)).toEqual(["Тварини", "Профіль притулку"]);
+      expect(links[0]?.getAttribute("href")).toBe("/kabinet/tvaryny");
+      expect(links[1]?.getAttribute("aria-current")).toBe("page");
+      expect(screen.queryByRole("link", { name: "Нова тварина" })).toBeNull();
+      unmount();
+    },
+  );
 
-  it("read-only editing, or the support view: no link", () => {
+  it("a shelter whose writes are refused: the profile alone, no way to a list that 404s", () => {
     renderWith("admin", { kind: "read_only" });
-    expect(screen.queryByRole("link", { name: "Нова тварина" })).toBeNull();
-    renderWith("support", open("allowlist"));
-    expect(screen.queryByRole("link", { name: "Нова тварина" })).toBeNull();
+    expect(
+      within(nav())
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Профіль притулку"]);
+    expect(screen.queryByRole("link", { name: "Тварини" })).toBeNull();
   });
 });

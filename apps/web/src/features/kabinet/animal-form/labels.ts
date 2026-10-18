@@ -2,11 +2,13 @@ import {
   AGE_BUCKET_MAX_YEARS,
   AGE_BUCKET_MIN_YEARS,
   type AgeBucket,
+  FEED_VISIBLE_VERIFICATION_STATUSES,
   KYIV_TIME_ZONE,
   kyivCalendarDateOf,
   type PublishGap,
   SIZE_BUCKET_WEIGHT_HINTS_KG,
   type SizeBucket,
+  type VerificationStatus,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 
@@ -30,6 +32,37 @@ const t = uk.kabinet.animalForm;
  * не бачить» is true.
  */
 export type ShelterVisibility = "visible" | "awaiting_verification" | "hidden";
+
+/**
+ * `visible` is the public surfaces' own rule (`FEED_VISIBLE_VERIFICATION_STATUSES`
+ * in the feed and gallery predicate, `verified` in `animals.byId`), not a
+ * second copy of it: a paused, suspended or not-yet-verified shelter's cards
+ * are shown nowhere. The switch then sorts every status those surfaces don't
+ * show by why, because the form's sentences differ: before a pass (pending,
+ * under review, or rejected, which may resubmit) the cards show «щойно
+ * притулок пройде перевірку»; after one (paused, suspended) that sentence
+ * would be false. `verified` sits with those: it reaches the switch only if
+ * the surfaces ever stop showing a verified shelter, and such a shelter has
+ * passed. Exhaustive, so a new status fails to compile until it is placed.
+ */
+export const shelterVisibilityOf = (status: VerificationStatus): ShelterVisibility => {
+  if ((FEED_VISIBLE_VERIFICATION_STATUSES as readonly string[]).includes(status)) return "visible";
+  switch (status) {
+    case "pending":
+    case "under_review":
+    case "rejected":
+      return "awaiting_verification";
+    case "verified":
+    case "paused":
+    case "suspended":
+      return "hidden";
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled status; unreachable at runtime */
+    default: {
+      const unreachable: never = status;
+      return unreachable;
+    }
+  }
+};
 
 /**
  * What publishing announces, each line true only in its own state: «Тепер

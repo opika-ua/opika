@@ -1004,26 +1004,13 @@ export const uk = {
      * every K4 string is final. Every other `kabinet.*` key, the emails and
      * sign-in included, stays strict. Under an open policy (PR 6) anything
      * pending here turns sign-in off again.
+     *
+     * Empty again since PR 5 (K2): its one line, K3's `dateUnchanged`, became
+     * true with K2's confirmation buttons and moved to
+     * `animalForm.listed.dateUnchanged` (K2 sheet P10, accepted in his K2
+     * answers, §13). The mechanism stays until PR 6 deletes it.
      */
-    testShelterOnly: {
-      /**
-       * K3 lines only his allowlisted test shelter sees (CG-Q1), mounted by
-       * `features/kabinet/test-shelter-only/AnimalFormTestShelterLines.tsx`.
-       * One line, final, since his copy for the two hidden-shelter lines
-       * (round 2b, answer 3) moved them to `animalForm.*`.
-       */
-      animalForm: {
-        /**
-         * His final text (k3-copy-uk.md §10), parked here by his own note:
-         * "If K2's confirmation buttons aren't shipped yet when PR 4 merges,
-         * this line waits under testShelterOnly until PR 5." Its second
-         * sentence points at «Ще шукає» in the animal list, which is K2's.
-         * Published and reserved cards only.
-         */
-        dateUnchanged:
-          "Правки тексту не змінюють дату «Оновлено». Її змінює ваше підтвердження в списку тварин і будь-яка зміна фото.",
-      },
-    },
+    testShelterOnly: {},
     /**
      * K4 · editing the shelter profile (`docs/k4-copy-sheet.md`). Oleksii's
      * final Ukrainian (`k4-copy-uk.md`, 2026-10-17) with his later fixes
@@ -1332,6 +1319,16 @@ export const uk = {
       listed: {
         liveOnSave: "Зміни зʼявляться на картці одразу після збереження.",
         notShownNow: "Цю картку зараз ніхто не бачить.",
+        /**
+         * His final text (k3-copy-uk.md §10). It waited under
+         * `testShelterOnly` by his own note ("If K2's confirmation buttons
+         * aren't shipped yet when PR 4 merges, this line waits under
+         * testShelterOnly until PR 5.") and is true since K2 (PR 5): an edit
+         * never moves `confirmedAt`; «Ще шукає» / «Ще домовляються» in the
+         * list and a photo change (RH-B7) do. Published and reserved cards only.
+         */
+        dateUnchanged:
+          "Правки тексту не змінюють дату «Оновлено». Її змінює ваше підтвердження в списку тварин і будь-яка зміна фото.",
       },
       publish: {
         button: "Опублікувати",
@@ -1384,6 +1381,157 @@ export const uk = {
         asOfFuture: "Дата «Станом на» не може бути в майбутньому.",
         /** «років» is the form for 30, `AGE_DATE_MAX_YEARS_BACK` (his note: "pin the plural for 30"). */
         dateTooOld: "Ця дата надто давня — понад {years} років тому.",
+      },
+    },
+    /**
+     * K2 · the animal list at `/kabinet/tvaryny` (`docs/k2-copy-sheet.md`):
+     * Oleksii's final Ukrainian (`k2-copy-uk.md`, 2026-10-18), verbatim, U+02BC
+     * as the apostrophe. His rules there, verbatim: "No «ми», no «адоптери», no
+     * «реєстр», pronoun-free for the animal." Keys his answers reuse from
+     * elsewhere (the draft line `animalForm.draft.notVisible`, a row publish's
+     * `animalForm.publish.*`, the suspended and rejected lines
+     * `verificationDecision.*Effect`, the dialog fields `profileEdit.pause.*`)
+     * are read from their own homes, not copied here.
+     *
+     * - `captionCards` / `stale.countCards` are the three forms his `{cards}`
+     *   takes (nominative for the header, accusative for the strip), picked by
+     *   `pluralizeUk`.
+     * - `stale.count` types «днів» for `{days}` = `agingMaxDays` (30), pinned in
+     *   `copy-plural-pins.test.ts`.
+     * - `stale.caption` and `empty.body` say people see the cards, so they show
+     *   only while the shelter is verified (his answer 5); otherwise one line
+     *   says why (`paused.hidden`, `notVisible.pending`, or R-UI's lines).
+     * - `withdrawReason.adopted_elsewhere` is a label only: the dialog offers
+     *   the other four codes (`KABINET_WITHDRAWAL_CODES`, his answer 10).
+     */
+    animalList: {
+      pageTitle: "Тварини",
+      title: "Тварини",
+      caption: "{shelter} · {cards}",
+      captionCards: {
+        one: "{count} картка",
+        few: "{count} картки",
+        many: "{count} карток",
+      },
+      add: "Додати тварину",
+      addShort: "Додати",
+      filter: {
+        label: "Показати",
+        all: "Усі",
+        draft: "Чернетки",
+        published: "Опубліковано",
+        reserved: "Домовляються",
+        adopted: "Удома",
+        withdrawn: "Знято з показу",
+        withCount: "{label} · {count}",
+      },
+      row: {
+        adoptedSince: "Удома з {date}",
+        withdrawnOn: "Знято з показу {date} · {reason}",
+        more: "Ще",
+      },
+      actions: {
+        edit: "Редагувати",
+        reserve: "Почали домовлятися",
+        release: "Не домовилися — знову шукає",
+        adopt: "Уже вдома",
+        withdraw: "Зняти з показу",
+        restore: "Повернути в чернетки",
+        deleteDraft: "Видалити чернетку",
+      },
+      confirm: {
+        stillLooking: "Ще шукає",
+        stillArranging: "Ще домовляються",
+        done: "Підтверджено сьогодні",
+        undo: "Скасувати · {seconds} с",
+        undone: "Скасовано: на картці знову попередня дата.",
+        undoExpired:
+          "Скасувати вже не можна: час минув або картку змінено. На картці — сьогоднішня дата.",
+        failed:
+          "Не підтверджено: дата на картці не змінилася. Перевірте зʼєднання і спробуйте ще раз.",
+      },
+      adoptDialog: {
+        title: "{name} уже вдома?",
+        body: "Картка зникне з галереї та стрічки, а її сторінка повідомлятиме, що тварини там уже немає. У вашому списку картка лишиться з позначкою «Удома». Скасувати це не можна: якщо тварина повернеться, додайте її як нову картку.",
+        confirm: "Так, уже вдома",
+      },
+      withdrawDialog: {
+        title: "Зняти з показу: {name}?",
+        body: "Ті, хто шукає тварину, більше не бачитимуть картку, а її сторінка повідомлятиме, що тварини там уже немає. У вашому списку картка лишиться, її можна повернути в чернетки. Якщо опублікувати її знову, дата й час очікування почнуться з того дня.",
+        adoptedHint: "Якщо тварина знайшла дім, позначте краще «Уже вдома».",
+        confirm: "Зняти з показу",
+      },
+      withdrawReason: {
+        adopted_elsewhere: "знайшла дім іншим шляхом",
+        transferred: "переїхала до іншого притулку",
+        deceased: "тварини не стало",
+        listing_error: "додано помилково",
+        other: "інша причина",
+      },
+      moved: {
+        reserved: "{name}: почали домовлятися.",
+        released: "{name}: знову шукає дім.",
+        adopted: "{name}: уже вдома.",
+        withdrawn: "{name}: знято з показу.",
+        restored: "{name}: повернуто в чернетки.",
+      },
+      deleteDialog: {
+        title: "Видалити чернетку «{name}»?",
+        body: "Вона назавжди зникне з вашого списку.",
+        photosStay:
+          "Файли фото не видаляються одразу — якщо їх треба прибрати зовсім, напишіть мені.",
+        confirm: "Видалити",
+      },
+      deleted: "Чернетку «{name}» видалено.",
+      stale: {
+        count: "{cards} ви не підтверджували понад {days} днів.",
+        countCards: {
+          one: "{count} картку",
+          few: "{count} картки",
+          many: "{count} карток",
+        },
+        caption:
+          "Ті, хто шукає тварину, бачать на них давню дату. Якщо нічого не змінилося, достатньо натиснути «Ще шукає» чи «Ще домовляються».",
+        show: "Показати ці {count}",
+        showAll: "Показати всі",
+      },
+      paused: {
+        hidden: "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає.",
+      },
+      notVisible: {
+        pending: "Ваші тварини зʼявляться в галереї, щойно притулок пройде перевірку.",
+      },
+      orderNote:
+        "Порядок у галереї — за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у стрічці. Тут порядок змінити не можна, і просування немає.",
+      empty: {
+        title: "Тут поки немає тварин.",
+        body: "Додайте першу. Ті, хто шукає тварину, побачать картку після публікації.",
+        add: "Додати першу тварину",
+        caption: "Щоб зберегти чернетку, потрібні імʼя та вид — решту можна дописати пізніше.",
+      },
+      loading: "Завантаження",
+      loadMore: "Показати ще",
+      filterEmpty: "У цій групі поки немає карток.",
+      loadFailed: "Список не завантажився. Перевірте зʼєднання і спробуйте ще раз.",
+      errors: {
+        rateLimited: "Забагато дій за короткий час. Зачекайте хвилину й спробуйте ще раз.",
+        actionFailed: "Не вдалося. Перевірте зʼєднання і спробуйте ще раз.",
+      },
+    },
+    /** The kabinet's section nav (N2): «Тварини» · «Профіль притулку» (`profile.title`). */
+    nav: {
+      label: "Розділи кабінету",
+      animals: "Тварини",
+    },
+    /**
+     * `WAS_PUBLISHED`, the one answer for both causes (K-Q9). His Q2: the first
+     * clause kept, «лише зняти з показу» dropped. Nothing in it may vary with
+     * whether anyone swiped or asked about the animal (commitment #2).
+     */
+    deleteDraft: {
+      refused: {
+        wasPublished:
+          "Цю картку вже публікували, тож видалити її не можна. Вона лишається у вашому списку як чернетка, і ті, хто шукає тварину, її не бачать.",
       },
     },
     /** S5 · support mode (N16): the operator's read-only view of this page. */

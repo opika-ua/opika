@@ -3,6 +3,7 @@ import {
   AGE_DATE_MAX_YEARS_BACK,
   ANIMAL_DESCRIPTION_MAX_CHARACTERS,
   ANIMAL_NAME_MAX_CHARACTERS,
+  DEFAULT_FRESHNESS_POLICY,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
@@ -97,5 +98,26 @@ describe("the caps K3's plural nouns were written for", () => {
     expect(rules.select(1500)).toBe("many");
     expect(rules.select(60)).toBe("many");
     expect(rules.select(30)).toBe("many");
+  });
+});
+
+/**
+ * K2's strip (Oleksii, 2026-10-18) types «днів» after `{days}`: «{cards} ви не
+ * підтверджували понад {days} днів.», `{days}` filled with the freshness
+ * policy's `agingMaxDays` (his note, verbatim: "{days} pinned to agingMaxDays
+ * (30)"). «днів» is right for 30, not for 31 («день») or 32 («дні»). The
+ * `{cards}` forms are picked by `pluralizeUk`, so they need no pin.
+ */
+describe("the stale cut-off K2's plural noun was written for", () => {
+  it("a card goes stale after 30 days («днів»)", () => {
+    expect(
+      DEFAULT_FRESHNESS_POLICY.agingMaxDays,
+      "agingMaxDays changed: «днів» in kabinet.animalList.stale.count was written for 30 and must be rechecked before this pin moves",
+    ).toBe(30);
+  });
+
+  it("the copy carries the noun form that value takes", () => {
+    expect(uk.kabinet.animalList.stale.count).toContain("понад {days} днів.");
+    expect(new Intl.PluralRules("uk").select(30)).toBe("many");
   });
 });

@@ -2,23 +2,31 @@ import { headers } from "next/headers";
 import { getDb } from "../../../api/db";
 import { requireEnv } from "../../../api/env";
 import {
+  type KabinetAnimalListPage,
+  kabinetAnimalListPageOf,
+} from "../../../features/kabinet/animal-list/animal-list-page";
+import {
   type AnimalPageTarget,
   type KabinetAnimalPage,
   kabinetAnimalPageOf,
 } from "../../../features/kabinet/animal-page";
+import type { KabinetHomeDeps } from "../../../features/kabinet/home";
 import { shelterWritePolicyOf } from "../../../kabinet/access";
 import { operatorDisplayName } from "../../../kabinet/operator";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
 import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "../available-auth";
 
 /**
- * The request side of K3's two pages: each answers its own 404 while sign-in
- * is unavailable, before touching auth or the database (the layout's 404
- * can't stop a page, `available-auth.ts`), then resolves who is asking and
- * hands the decision to `kabinetAnimalPageOf`, with the served route's own
+ * The request side of K2's and K3's pages: each answers its own 404 while
+ * sign-in is unavailable, before touching auth or the database (the layout's
+ * 404 can't stop a page, `available-auth.ts`), then resolves who is asking
+ * and hands the decision to the page's own function, with the served route's
  * write policy (K-Q17), as `/kabinet` does.
  */
-export async function loadKabinetAnimalPage(target: AnimalPageTarget): Promise<KabinetAnimalPage> {
+async function requestOf(): Promise<{
+  principal: Awaited<ReturnType<typeof kabinetIdentityOf>>["principal"];
+  deps: KabinetHomeDeps;
+}> {
   const auth = kabinetAuthOrNotFound();
   const { invites, baseURL } = kabinetAvailabilityOrNotFound();
   const now = new Date();
@@ -30,16 +38,31 @@ export async function loadKabinetAnimalPage(target: AnimalPageTarget): Promise<K
     now,
     process.env.NODE_ENV === "production",
   );
-  return kabinetAnimalPageOf(identity.principal, target, {
-    db,
-    now,
-    newId: () => crypto.randomUUID(),
-    invites,
-    linkBaseURL: baseURL,
-    shelterWrites: shelterWritePolicyOf(process.env),
-    cursorSecret: requireEnv("CURSOR_HMAC_SECRET"),
-    operatorDisplayName: operatorDisplayName({
-      KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,
-    }),
-  });
+  return {
+    principal: identity.principal,
+    deps: {
+      db,
+      now,
+      newId: () => crypto.randomUUID(),
+      invites,
+      linkBaseURL: baseURL,
+      shelterWrites: shelterWritePolicyOf(process.env),
+      cursorSecret: requireEnv("CURSOR_HMAC_SECRET"),
+      operatorDisplayName: operatorDisplayName({
+        KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,
+      }),
+    },
+  };
+}
+
+/** K3's two pages. */
+export async function loadKabinetAnimalPage(target: AnimalPageTarget): Promise<KabinetAnimalPage> {
+  const { principal, deps } = await requestOf();
+  return kabinetAnimalPageOf(principal, target, deps);
+}
+
+/** K2's list. */
+export async function loadKabinetAnimalListPage(): Promise<KabinetAnimalListPage> {
+  const { principal, deps } = await requestOf();
+  return kabinetAnimalListPageOf(principal, deps);
 }

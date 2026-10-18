@@ -1851,3 +1851,84 @@ describe("K2: the animal list", () => {
     ).toEqual([]);
   });
 });
+
+/**
+ * Oleksii, verbatim: "add the endpoint test to #129. Two shelters seeded, an
+ * admin of A calls shelter.animals.list through the served router: gets only
+ * A's rows, and counts only A's." The list's rows, its chip counts and the
+ * strip's stale count all come from the actor's shelter (the scope), never
+ * from anything a caller sends; a support view entered on A reads A alike.
+ */
+describe("shelter.animals.list answers for the caller's shelter only (endpoint)", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const NOW = new Date("2026-10-18T12:00:00.000Z");
+  const confirmed = (days: number) => {
+    const at = new Date(NOW.getTime() - days * DAY - 60_000);
+    return { kind: "published", publishedAt: at, confirmedAt: at, undoable: null } as const;
+  };
+  type Page = { items: { id: string }[]; counts: Record<string, number>; staleCount: number };
+
+  it("an admin of A, and a support view entered on A, get A's rows, A's counts and A's stale cards", async () => {
+    const other = makeShelter({
+      displayName: "Притулок Б",
+      publicLocation: { ...shelter.publicLocation, cityId: cityId as never },
+    });
+    await shelterRepo(db).insert(other);
+    const seed = async (shelterId: string, overrides: AnimalFixtureOverrides) => {
+      const a =
+        overrides.listing?.kind === "draft"
+          ? makeDraftAnimal({ shelterId: shelterId as never })
+          : makeAnimal({ shelterId: shelterId as never, ...overrides });
+      await animalRepo(db).insert(a, cityId as never);
+      return a.id;
+    };
+    const mine = [
+      await seed(shelter.id, { listing: { kind: "draft" } }),
+      await seed(shelter.id, { listing: confirmed(2) }),
+      await seed(shelter.id, { listing: confirmed(40) }),
+      await seed(shelter.id, {
+        listing: {
+          kind: "reserved",
+          since: NOW,
+          publishedAt: NOW,
+          confirmedAt: NOW,
+          undoable: null,
+        },
+      }),
+      await seed(shelter.id, { listing: { kind: "adopted", adoptedAt: NOW } }),
+    ];
+    // B's: one of every kind but reserved, and two stale published cards.
+    await seed(other.id, { listing: { kind: "draft" } });
+    await seed(other.id, { listing: confirmed(40) });
+    await seed(other.id, { listing: confirmed(90) });
+    await seed(other.id, { listing: { kind: "adopted", adoptedAt: NOW } });
+    await seed(other.id, {
+      listing: { kind: "withdrawn", withdrawnAt: NOW, reason: { code: "other", note: null } },
+    });
+
+    const support: KabinetPrincipal = {
+      kind: "support_view",
+      moderatorId: "11111111-1111-4111-8111-111111111111" as never,
+      shelterId: shelter.id,
+    };
+    for (const principal of [asAdmin, support]) {
+      const result = await call<Page>(
+        "shelter.animals.list",
+        { filter: { kind: "all" }, cursor: null, limit: 50 },
+        { now: NOW, principal },
+      );
+      expect(result.status, principal.kind).toBe(200);
+      expect(result.body.items.map((row) => row.id).sort(), principal.kind).toEqual(
+        [...mine].sort(),
+      );
+      expect(result.body.counts, principal.kind).toEqual({
+        draft: 1,
+        published: 2,
+        reserved: 1,
+        adopted: 1,
+        withdrawn: 0,
+      });
+      expect(result.body.staleCount, principal.kind).toBe(1);
+    }
+  });
+});

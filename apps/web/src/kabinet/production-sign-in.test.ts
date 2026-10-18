@@ -215,7 +215,8 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
    *
    * K3 (PR 4) has nothing pending either: its two hidden-shelter lines got
    * his final text (round 2b, answer 3) and left `kabinet.testShelterOnly`,
-   * whose one remaining line is final too. The namespace's exemption (CG-Q1,
+   * and K2 (PR 5) moved its last line out (`animalForm.listed.dateUnchanged`,
+   * P10), so the namespace is empty. The namespace's exemption (CG-Q1,
    * Oleksii, verbatim: "Pending strings only under
    * uk.kabinet.testShelterOnly.*" and "At runtime, sign-in ignores those
    * strings only while the write policy is allowlist or refused. Under the
@@ -245,7 +246,7 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     expect(withLiveCopy(allowlisted).kind).toBe("on");
     // A pending line inside the namespace: exempt under the refusal and the
     // allowlist, and it turns an open policy (PR 6's shape) off.
-    const namespaceLine = [`${TEST_SHELTER_ONLY_PREFIX}animalForm.dateUnchanged`];
+    const namespaceLine = [`${TEST_SHELTER_ONLY_PREFIX}animalList.parkedLine`];
     expect(withLiveCopy(reported, namespaceLine).kind).toBe("on");
     expect(withLiveCopy(allowlisted, namespaceLine).kind).toBe("on");
     expect(withLiveCopy(reported, namespaceLine, { kind: "open_for_tests_only" })).toEqual({
@@ -296,11 +297,18 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 516 with K3 (PR 4): 110 `animalForm.*` and 5 `listingStatus.*` strings
     // and the one `testShelterOnly.animalForm.*` line (his text, 2026-10-17,
     // all pinned in copy-status.test.ts).
-    expect(pending.length + written.length).toBe(516);
+    // 594 with K2 (PR 5): his 78 strings (`k2-copy-uk.md`, 2026-10-18): 75
+    // under `animalList.*` (the two `{cards}` groups' six forms included), the
+    // two `nav.*` and `deleteDraft.refused.wasPublished`, pinned in
+    // copy-status.test.ts. `dateUnchanged` moved within the tree (P10), so it
+    // adds nothing.
+    expect(pending.length + written.length).toBe(594);
     expect(written).toContain("kabinet.profileEdit.state.saved");
     expect(written).toContain("kabinet.animalForm.draft.notVisible");
     expect(written).toContain("kabinet.animalForm.publish.publishedNotShown");
-    expect(written).toContain("kabinet.testShelterOnly.animalForm.dateUnchanged");
+    expect(written).toContain("kabinet.animalForm.listed.dateUnchanged");
+    expect(written).toContain("kabinet.animalList.stale.caption");
+    expect(written).toContain("kabinet.deleteDraft.refused.wasPublished");
     expect(pending).toEqual([]);
     expect(written).toContain("kabinet.confirm.rateLimited");
     expect(kabinetPendingCopy()).toEqual(pending.sort());
@@ -324,17 +332,17 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
       email: { invite: Record<string, string> };
       history: Record<string, string>;
       support: Record<string, string>;
-      testShelterOnly: { animalForm: Record<string, string> };
+      testShelterOnly: Record<string, string>;
     };
     synthetic.email.invite.notYou = `${COPY_PENDING} sign-off`;
     synthetic.history.adminJoined = `${COPY_PENDING} history`;
-    synthetic.testShelterOnly.animalForm.dateUnchanged = `${COPY_PENDING} parked line`;
+    synthetic.testShelterOnly.parkedLine = `${COPY_PENDING} parked line`;
     synthetic.support.body = "Written.";
     const pending = pendingCopyPaths(synthetic, "kabinet");
     expect(pending).toEqual([
       "kabinet.email.invite.notYou",
       "kabinet.history.adminJoined",
-      "kabinet.testShelterOnly.animalForm.dateUnchanged",
+      "kabinet.testShelterOnly.parkedLine",
     ]);
     // The served policy exempts the namespace (CG-Q1); the other two still turn it off.
     expect(withLiveCopy(full, pending)).toEqual({

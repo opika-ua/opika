@@ -3,6 +3,7 @@ import { AnimalForm } from "./animal-form/AnimalForm";
 import type { KabinetAnimalPage } from "./animal-page";
 import { KabinetBrand } from "./KabinetBrand";
 import { CAPTION } from "./profile-edit/styles";
+import { ANIMAL_LIST_PATH, animalListShownTo, SHELTER_HOME } from "./routes";
 import { SignOutButton } from "./SignOutButton";
 import { SupportBanner } from "./SupportBanner";
 
@@ -12,13 +13,14 @@ import { SupportBanner } from "./SupportBanner";
  * `/kabinet`), then the form, or `errors.notFound` for an id that isn't this
  * shelter's animal.
  *
- * **The back link** goes to `/kabinet`, the only kabinet page there is until
- * K2's animal list (PR 5), and says so: «← Профіль притулку», the profile's
- * own title, rather than `animalForm.backToList` («← Тварини»), which would
- * name a list that doesn't exist yet. PR 5 points it at the list with his
- * words (decision taken, reversible).
+ * **The back link** goes to K2's list with his `animalForm.backToList`
+ * («← Тварини», PR 5), wherever the list is shown to this viewer (P1:
+ * writes open, or the support view). A shelter outside the K-Q17 allowlist,
+ * which reaches K3 read-only but has no list (it answers 404 for them), goes
+ * back to its profile, named by the profile's own title, as before PR 5.
  */
-export const BACK_TO_PROFILE = { href: "/kabinet", label: `← ${uk.kabinet.profile.title}` };
+export const BACK_TO_LIST = { href: ANIMAL_LIST_PATH, label: uk.kabinet.animalForm.backToList };
+export const BACK_TO_PROFILE = { href: SHELTER_HOME, label: `← ${uk.kabinet.profile.title}` };
 
 export function AnimalPage({
   page,
@@ -26,6 +28,7 @@ export function AnimalPage({
   page: Extract<KabinetAnimalPage, { kind: "form" | "missing" }>;
 }) {
   const support = page.viewer === "support";
+  const back = animalListShownTo(page.viewer, page.editing) ? BACK_TO_LIST : BACK_TO_PROFILE;
   return (
     <div
       className={
@@ -52,12 +55,12 @@ export function AnimalPage({
             editing={page.editing}
             viewer={page.viewer}
             shelterVisibility={page.shelterVisibility}
-            back={BACK_TO_PROFILE}
+            back={back}
           />
         ) : (
           <div className="flex flex-col gap-4">
-            <a href={BACK_TO_PROFILE.href} className="self-start text-base text-rg-ink underline">
-              {BACK_TO_PROFILE.label}
+            <a href={back.href} className="self-start text-base text-rg-ink underline">
+              {back.label}
             </a>
             <p className={CAPTION}>{uk.kabinet.animalForm.errors.notFound}</p>
           </div>

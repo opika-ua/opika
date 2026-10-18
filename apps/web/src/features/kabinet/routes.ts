@@ -8,3 +8,30 @@ export const OPERATOR_HOME = "/kabinet/prytulky";
 
 /** S2, «Новий притулок» (R-UI 2): the shell's nav, S1's button and its empty state link here. */
 export const NEW_SHELTER_PATH = `${OPERATOR_HOME}/novyi`;
+
+/** The shelter's home, K4's profile page. */
+export const SHELTER_HOME = "/kabinet";
+
+/** K2, the shelter's animal list (PR 5): the nav's «Тварини» and K3's back link go here. */
+export const ANIMAL_LIST_PATH = "/kabinet/tvaryny";
+
+/** K3's create page: K2's «Додати тварину» and its empty state link here. */
+export const NEW_ANIMAL_PATH = `${ANIMAL_LIST_PATH}/nova`;
+
+/** K3's page for one animal: K2's «Редагувати». */
+export const animalPath = (animalId: string): string => `${ANIMAL_LIST_PATH}/${animalId}`;
+
+/**
+ * Who K2 is for until PR 6 (K2 sheet P1, accepted in his K2 answers, §13): a
+ * shelter whose writes the served policy opens (the K-Q17 allowlist's test
+ * shelter today), and the operator's support view of any shelter, read-only
+ * (S5). Every other shelter keeps the kabinet it had: no «Тварини» in its
+ * nav and a 404 at `/kabinet/tvaryny`, since a list that pointed at buttons
+ * it doesn't have (the strip's caption, the empty state) would describe a
+ * product that shelter can't use. The one rule for the page, the nav and
+ * K3's back link, so the three can't disagree.
+ */
+export const animalListShownTo = (
+  viewer: "admin" | "support",
+  writes: { readonly kind: "open" | "read_only" },
+): boolean => viewer === "support" || writes.kind === "open";
