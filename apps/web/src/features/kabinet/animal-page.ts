@@ -49,14 +49,6 @@ export type KabinetAnimalPage =
       shelterVisibility: ShelterVisibility;
     };
 
-/**
- * `shelterVisibilityOf` lives beside `ShelterVisibility` in the form's
- * client-safe labels, so K2's client list can use it without pulling this
- * module's server router into the browser bundle; re-exported here for the
- * pages and tests that read it from where the pages decide.
- */
-export { shelterVisibilityOf } from "./animal-form/labels";
-
 export type AnimalPageTarget = { kind: "new" } | { kind: "existing"; animalId: string };
 
 /** Two reads, picked: the shelter (for its name and whether its cards are shown) and the animal. */

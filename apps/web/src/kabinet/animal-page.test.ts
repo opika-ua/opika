@@ -21,12 +21,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   publishedAnnouncementOf,
   type ShelterVisibility,
-} from "../features/kabinet/animal-form/labels";
-import {
-  type AnimalPageTarget,
-  kabinetAnimalPageOf,
   shelterVisibilityOf,
-} from "../features/kabinet/animal-page";
+} from "../features/kabinet/animal-form/labels";
+import { type AnimalPageTarget, kabinetAnimalPageOf } from "../features/kabinet/animal-page";
 import { SHELTER_WRITE_POLICY, type ShelterWritePolicy, shelterWritePolicyOf } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
