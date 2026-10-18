@@ -106,11 +106,11 @@ describe("only test-shelter-only/ reads kabinet.testShelterOnly (CG-Q1)", () => 
  * write grant to the shelter's own admin (CG-Q1: "it mounts only when the
  * server allows the signed-in shelter to write through the allowlist"):
  *
- * - `ShelterProfile.tsx` (K4, PR 2);
- * - `animal-form/AnimalForm.tsx` (K3, PR 4), the form his parked K3 line
- *   belongs to, with its mount condition tested in `AnimalForm.test.tsx`
- *   ("mounts the test-shelter line only for the allowlisted shelter's own
- *   admin").
+ * - `ShelterProfile.tsx` (K4, PR 2).
+ *
+ * `animal-form/AnimalForm.tsx` (K3, PR 4) mounted the folder for his parked
+ * K3 line until K2 (PR 5) made that line true and moved it to
+ * `animalForm.listed.dateUnchanged` (P10); the form no longer imports it.
  *
  * A new importer is a change to this list, which a reviewer sees, with its
  * own mount test.
@@ -120,13 +120,10 @@ describe("only test-shelter-only/ reads kabinet.testShelterOnly (CG-Q1)", () => 
  * in code, so a barrel re-exporting it is caught too. Comments are dropped
  * first: a doc line pointing at the folder is not an import.
  */
-const MOUNTED_BY = [
-  "apps/web/src/features/kabinet/ShelterProfile.tsx",
-  "apps/web/src/features/kabinet/animal-form/AnimalForm.tsx",
-];
+const MOUNTED_BY = ["apps/web/src/features/kabinet/ShelterProfile.tsx"];
 const INTO_FOLDER =
   /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|\bimport\s+)["'`][^"'`]*test-shelter-only\/?[^"'`]*["'`]/;
-const ENTRY = /\b(AllowlistedShelterArea|DateUnchangedLine)\b/;
+const ENTRY = /\bAllowlistedShelterArea\b/;
 
 const withoutComments = (text: string) =>
   text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
@@ -143,7 +140,7 @@ const importersOutsideFolder = (files: readonly Source[]) =>
 describe("only the listed screens import test-shelter-only/ (CG-Q1, review finding 3)", () => {
   const files = sources();
 
-  it("the folder's importers outside itself are the profile page and the animal form", () => {
+  it("the folder's only importer outside itself is the profile page", () => {
     expect(importersOutsideFolder(files).sort()).toEqual([...MOUNTED_BY].sort());
   });
 

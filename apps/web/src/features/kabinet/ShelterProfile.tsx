@@ -5,19 +5,17 @@ import {
   type OperatorName,
   standaloneOperatorName,
 } from "../../kabinet/operator";
-import { buttonClass } from "../controls/controls";
 import type { ProfileEditing } from "./home";
 import { KabinetBrand, KabinetMark } from "./KabinetBrand";
+import { KabinetNav } from "./KabinetNav";
 import { CAPTION, CARD, CARD_TITLE, channelValue, LockedBlock, Row } from "./ProfileParts";
 import { PausedStatus } from "./profile-edit/PausedStatus";
 import { ProfileEditor } from "./profile-edit/ProfileEditor";
+import { animalListShownTo } from "./routes";
 import { SignOutButton } from "./SignOutButton";
 import { SupportBanner } from "./SupportBanner";
 import { AllowlistedShelterArea } from "./test-shelter-only/AllowlistedShelterArea";
 import { VerificationDecision } from "./VerificationDecision";
-
-/** K3's create page (`app/kabinet/tvaryny/nova`). */
-export const NEW_ANIMAL_PATH = "/kabinet/tvaryny/nova";
 
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"; mock
@@ -68,7 +66,6 @@ export function ShelterProfile({
   const operatorName = inSentenceOperatorName(operator);
   const notRecorded = uk.kabinet.profileNotRecorded;
   const support = viewer === "support";
-  const newAnimalLink = editing.kind === "open" && !support;
 
   return (
     <div
@@ -108,29 +105,13 @@ export function ShelterProfile({
 
       <div className="flex flex-col gap-3 px-4 pt-5 pb-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
         {/*
-          K4's side nav holds «Тварини» and «Профіль притулку». K2's list
-          («Тварини») doesn't exist until PR 5, so it isn't shown: a link to a
-          screen that isn't there would be a dead end. Until then the one way
-          into K3 is «Нова тварина», for a shelter whose writes are open (the
-          page's own access decision), the only one the form would accept
+          K4's side nav: «Тварини» (K2, PR 5) where the list is shown to this
+          viewer (P1: writes open, or the support view), and «Профіль
+          притулку». The list is K3's entry point now («Додати тварину»), so
+          the «Нова тварина» link that stood in for it here until PR 5 is gone
           (decision taken, reversible).
         */}
-        <nav
-          aria-label={t.title}
-          className="hidden w-[220px] flex-none flex-col gap-1 desktop:flex"
-        >
-          <span
-            aria-current="page"
-            className="flex min-h-12 items-center rounded-rg-button bg-rg-surface px-4 text-[15px] font-medium text-rg-ink"
-          >
-            {t.title}
-          </span>
-          {newAnimalLink ? (
-            <a href={NEW_ANIMAL_PATH} className={`justify-start ${buttonClass("text")}`}>
-              {uk.kabinet.animalForm.titleNew}
-            </a>
-          ) : null}
-        </nav>
+        <KabinetNav current="profile" animalList={animalListShownTo(viewer, editing)} />
 
         <main className="flex min-w-0 max-w-[1080px] flex-1 flex-col gap-3 desktop:gap-6">
           <div className="flex flex-col gap-1">
@@ -139,14 +120,6 @@ export function ShelterProfile({
               {t.title}
             </h1>
             <p className={`hidden desktop:block ${CAPTION}`}>{t.intro}</p>
-            {newAnimalLink ? (
-              <a
-                href={NEW_ANIMAL_PATH}
-                className={`self-start desktop:hidden ${buttonClass("secondary")}`}
-              >
-                {uk.kabinet.animalForm.titleNew}
-              </a>
-            ) : null}
           </div>
 
           {/* K5 (RU-Q7): a rejected or suspended shelter reads why, for its admins and the support view alike. */}

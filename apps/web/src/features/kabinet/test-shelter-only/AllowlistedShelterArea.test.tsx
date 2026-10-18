@@ -5,8 +5,8 @@ import { AllowlistedShelterArea } from "./AllowlistedShelterArea";
 
 /** The CG-Q1 area itself: nothing with an empty namespace, its strings otherwise. */
 describe("AllowlistedShelterArea", () => {
-  /** Since K3 the namespace holds only the animal form's group, which is that screen's to show. */
-  it("renders nothing from the live namespace: its only lines are the animal form's group", () => {
+  /** Empty since K2 (PR 5): its one line, K3's, moved to `animalForm.listed` (P10). */
+  it("renders nothing from the live namespace, which is empty", () => {
     const { container } = render(<AllowlistedShelterArea />);
     expect(container.innerHTML).toBe("");
   });

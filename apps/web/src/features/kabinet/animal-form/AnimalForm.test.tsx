@@ -1004,41 +1004,60 @@ describe("who may change what", () => {
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
   });
 
-  /** CG-Q1: the testShelterOnly folder mounts only on an allowlist grant to the shelter's own admin. */
-  it("mounts the test-shelter line only for the allowlisted shelter's own admin", () => {
+  /**
+   * P10 (K2 sheet, accepted): his `listed.dateUnchanged` is true once K2's
+   * «Ще шукає» exists, so it left `testShelterOnly` and shows under every
+   * write grant, on the cards that carry the date (published, reserved), in
+   * the footer only an editing admin gets. Never on a draft, which has no
+   * date, and never in a read-only view, which has no footer.
+   */
+  it("says text edits leave the date alone on a published or reserved card, under either write grant", () => {
     const line =
       "Правки тексту не змінюють дату «Оновлено». Її змінює ваше підтвердження в списку тварин і будь-яка зміна фото.";
-    const { unmount } = render(
-      <AnimalForm
-        initialView={published()}
-        editing={{ kind: "open", grantedBy: "allowlist" }}
-        viewer="admin"
-        shelterVisibility="visible"
-        back={{ href: "/kabinet", label: "←" }}
-        client={fakeClient(published())}
-        clock={() => NOW}
-      />,
-    );
-    expect(screen.getByText(line)).toBeTruthy();
-    unmount();
-    for (const [editing, viewer] of [
-      [{ kind: "open", grantedBy: "open_policy" }, "admin"],
-      [{ kind: "open", grantedBy: "allowlist" }, "support"],
-      [{ kind: "read_only" }, "admin"],
-    ] as const) {
+    const reserved = published({
+      listing: { kind: "reserved", since: NOW, publishedAt: NOW, confirmedAt: NOW, undoable: null },
+    } as Partial<KabinetAnimalView>);
+    for (const grantedBy of ["allowlist", "open_policy"] as const) {
+      for (const view of [published(), reserved]) {
+        const rendered = render(
+          <AnimalForm
+            initialView={view}
+            editing={{ kind: "open", grantedBy }}
+            viewer="admin"
+            shelterVisibility="visible"
+            back={{ href: "/kabinet/tvaryny", label: "←" }}
+            client={fakeClient(view)}
+            clock={() => NOW}
+          />,
+        );
+        expect(screen.getByText(line), `${grantedBy} ${view.listing.kind}`).toBeTruthy();
+        rendered.unmount();
+      }
+    }
+    const cases: [string, KabinetAnimalView, AnimalFormEditing, "admin" | "support"][] = [
+      [
+        "a draft",
+        draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>),
+        { kind: "open", grantedBy: "allowlist" },
+        "admin",
+      ],
+      ["a support view", published(), { kind: "open", grantedBy: "allowlist" }, "support"],
+      ["a read-only shelter", published(), { kind: "read_only" }, "admin"],
+    ];
+    for (const [who, view, editing, viewer] of cases) {
       const rendered = render(
         <AnimalForm
-          initialView={published()}
+          initialView={view}
           editing={editing}
           viewer={viewer}
-          shelterVisibility="hidden"
-          back={{ href: "/kabinet", label: "←" }}
-          client={fakeClient(published())}
+          shelterVisibility="visible"
+          back={{ href: "/kabinet/tvaryny", label: "←" }}
+          client={fakeClient(view)}
           clock={() => NOW}
         />,
       );
-      expect(screen.queryByText(line), `${editing.kind} ${viewer}`).toBeNull();
-      expect(screen.queryByText(/COPY PENDING/), `${editing.kind} ${viewer}`).toBeNull();
+      expect(screen.queryByText(line), who).toBeNull();
+      expect(screen.queryByText(/COPY PENDING/), who).toBeNull();
       rendered.unmount();
     }
   });

@@ -13,7 +13,6 @@ import { Button, buttonClass } from "../../controls/controls";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { CAPTION, ERROR_TEXT } from "../profile-edit/styles";
 import { confirmLeave, useUnsavedChanges } from "../profile-edit/unsaved-changes";
-import { DateUnchangedLine } from "../test-shelter-only/AnimalFormTestShelterLines";
 import { AgeSection, DescriptionSection, HealthSection, WhoSection } from "./FormSections";
 import {
   type AnimalPatch,
@@ -118,9 +117,6 @@ export function AnimalForm({
   compress?: (file: File) => Promise<CompressedPhoto>;
 }) {
   const editable = editing.kind === "open" && viewer === "admin";
-  // CG-Q1: the parked test-shelter line, for the allowlisted shelter's own admin only.
-  const allowlistLinesShown =
-    editing.kind === "open" && editing.grantedBy === "allowlist" && viewer === "admin";
 
   const [view, setView] = useState<KabinetAnimalView | null>(initialView);
   const [values, setValues] = useState<FormValues>(() =>
@@ -454,9 +450,10 @@ export function AnimalForm({
               visible={visibleListing}
               onSave={() => void saveNow()}
               onReload={() => void reload()}
+              // True since K2's «Ще шукає» (P10): on the cards that carry the date.
               dateUnchanged={
-                allowlistLinesShown && view !== null && isDiscoverable(view.listing) ? (
-                  <DateUnchangedLine className={CAPTION} />
+                view !== null && isDiscoverable(view.listing) ? (
+                  <p className={CAPTION}>{t.listed.dateUnchanged}</p>
                 ) : null
               }
             />

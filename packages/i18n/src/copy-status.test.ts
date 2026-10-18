@@ -154,17 +154,15 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
   });
 
   /**
-   * Empty in PR 2. Since K3 (PR 4) it holds one line his test shelter alone
-   * sees: `animalForm.dateUnchanged`, his final text, parked until K2 ships
-   * the confirmation it names (PR 5). The two hidden-shelter stand-ins that
-   * sat here pending have his final text now (round 2b, answer 3) and live
-   * under `animalForm.*`, pinned in "kabinet K3 copy" below. Pinned exactly,
-   * so nothing else drifts in.
+   * Empty in PR 2. K3 (PR 4) parked one line here, `animalForm.dateUnchanged`,
+   * his final text, until K2 shipped the confirmation it names; K2 (PR 5)
+   * ships it, so the line lives at `animalForm.listed.dateUnchanged` (sheet
+   * P10) and the namespace is empty again. Pinned exactly, so nothing drifts
+   * in: the object itself stays (the mechanism is PR 6's to delete).
    */
-  it("the testShelterOnly namespace holds exactly one line, dateUnchanged, and nothing pending", () => {
+  it("the testShelterOnly namespace is empty: its one line moved out with K2 (P10)", () => {
     expect(typeof uk.kabinet.testShelterOnly).toBe("object");
-    expect(Object.keys(uk.kabinet.testShelterOnly)).toEqual(["animalForm"]);
-    expect(Object.keys(uk.kabinet.testShelterOnly.animalForm)).toEqual(["dateUnchanged"]);
+    expect(Object.keys(uk.kabinet.testShelterOnly)).toEqual([]);
     expect(pendingCopyPaths(uk.kabinet.testShelterOnly, "kabinet.testShelterOnly")).toEqual([]);
   });
 
@@ -1232,8 +1230,9 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
  * literally from his answer file (`k3-copy-uk.md`, 2026-10-17) by script,
  * never retyped, and compared with the catalogue key by key. His note
  * there, verbatim: "Final unless marked. Apostrophe ʼ (U+02BC). Top-level
- * quotes «…», nested „…“." `listed.dateUnchanged` lives under
- * `testShelterOnly` by his own note until K2 (PR 5); `dismissFailedName` is
+ * quotes «…», nested „…“." `listed.dateUnchanged` lived under
+ * `testShelterOnly` by his own note until K2 (PR 5), which moved it back to
+ * `animalForm.listed` (K2 sheet P10); `dismissFailedName` is
  * the accessible name his `dismissFailed` answer gives in brackets.
  * `photos.lastPhotoKeptNotShown` and `publish.publishedNotShown` are his
  * final text from a later answer (round 2b, answer 3, 2026-10-17),
@@ -1350,7 +1349,7 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.draft.saveShort": "Зберегти",
     "kabinet.animalForm.listed.liveOnSave": "Зміни зʼявляться на картці одразу після збереження.",
     "kabinet.animalForm.listed.notShownNow": "Цю картку зараз ніхто не бачить.",
-    "kabinet.testShelterOnly.animalForm.dateUnchanged":
+    "kabinet.animalForm.listed.dateUnchanged":
       "Правки тексту не змінюють дату «Оновлено». Її змінює ваше підтвердження в списку тварин і будь-яка зміна фото.",
     "kabinet.animalForm.publish.button": "Опублікувати",
     "kabinet.animalForm.publish.missing": "Щоб опублікувати, ще потрібно: {list}.",
@@ -1464,5 +1463,165 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
   it("no «ми» voice and no «адоптер» (his answers 3 and 4)", () => {
     const k3 = Object.values(K3_FINAL).join(" ");
     expect(/(^|[^\p{L}])(ми|адоптер\p{L}*)([^\p{L}]|$)/iu.test(k3)).toBe(false);
+  });
+});
+
+/**
+ * K2 (PR 5): Oleksii's final Ukrainian for the animal list, transcribed
+ * literally from his answer file (`k2-copy-uk.md`, 2026-10-18) by script,
+ * never retyped, and compared with the catalogue key by key. His note there,
+ * verbatim: "Final. ʼ (U+02BC). «…» top level, „…“ nested. No «ми», no
+ * «адоптери», no «реєстр», pronoun-free for the animal." `captionCards.*` and
+ * `stale.countCards.*` are the three forms his `{cards}` takes in `caption`
+ * and `stale.count` (one, few, many, in his order).
+ */
+describe("kabinet K2 copy (final, 2026-10-18)", () => {
+  const K2_FINAL: Record<string, string> = {
+    "kabinet.animalList.pageTitle": "Тварини",
+    "kabinet.animalList.title": "Тварини",
+    "kabinet.animalList.caption": "{shelter} · {cards}",
+    "kabinet.animalList.captionCards.one": "{count} картка",
+    "kabinet.animalList.captionCards.few": "{count} картки",
+    "kabinet.animalList.captionCards.many": "{count} карток",
+    "kabinet.animalList.add": "Додати тварину",
+    "kabinet.animalList.addShort": "Додати",
+    "kabinet.nav.label": "Розділи кабінету",
+    "kabinet.nav.animals": "Тварини",
+    "kabinet.animalList.filter.label": "Показати",
+    "kabinet.animalList.filter.all": "Усі",
+    "kabinet.animalList.filter.draft": "Чернетки",
+    "kabinet.animalList.filter.published": "Опубліковано",
+    "kabinet.animalList.filter.reserved": "Домовляються",
+    "kabinet.animalList.filter.adopted": "Удома",
+    "kabinet.animalList.filter.withdrawn": "Знято з показу",
+    "kabinet.animalList.filter.withCount": "{label} · {count}",
+    "kabinet.animalList.row.adoptedSince": "Удома з {date}",
+    "kabinet.animalList.row.withdrawnOn": "Знято з показу {date} · {reason}",
+    "kabinet.animalList.row.more": "Ще",
+    "kabinet.animalList.actions.edit": "Редагувати",
+    "kabinet.animalList.confirm.stillLooking": "Ще шукає",
+    "kabinet.animalList.confirm.stillArranging": "Ще домовляються",
+    "kabinet.animalList.confirm.done": "Підтверджено сьогодні",
+    "kabinet.animalList.confirm.undo": "Скасувати · {seconds} с",
+    "kabinet.animalList.confirm.undone": "Скасовано: на картці знову попередня дата.",
+    "kabinet.animalList.confirm.undoExpired":
+      "Скасувати вже не можна: час минув або картку змінено. На картці — сьогоднішня дата.",
+    "kabinet.animalList.confirm.failed":
+      "Не підтверджено: дата на картці не змінилася. Перевірте зʼєднання і спробуйте ще раз.",
+    "kabinet.animalList.actions.reserve": "Почали домовлятися",
+    "kabinet.animalList.actions.release": "Не домовилися — знову шукає",
+    "kabinet.animalList.actions.adopt": "Уже вдома",
+    "kabinet.animalList.adoptDialog.title": "{name} уже вдома?",
+    "kabinet.animalList.adoptDialog.body":
+      "Картка зникне з галереї та стрічки, а її сторінка повідомлятиме, що тварини там уже немає. У вашому списку картка лишиться з позначкою «Удома». Скасувати це не можна: якщо тварина повернеться, додайте її як нову картку.",
+    "kabinet.animalList.adoptDialog.confirm": "Так, уже вдома",
+    "kabinet.animalList.actions.withdraw": "Зняти з показу",
+    "kabinet.animalList.withdrawDialog.title": "Зняти з показу: {name}?",
+    "kabinet.animalList.withdrawDialog.body":
+      "Ті, хто шукає тварину, більше не бачитимуть картку, а її сторінка повідомлятиме, що тварини там уже немає. У вашому списку картка лишиться, її можна повернути в чернетки. Якщо опублікувати її знову, дата й час очікування почнуться з того дня.",
+    "kabinet.animalList.withdrawDialog.adoptedHint":
+      "Якщо тварина знайшла дім, позначте краще «Уже вдома».",
+    "kabinet.animalList.withdrawDialog.confirm": "Зняти з показу",
+    "kabinet.animalList.withdrawReason.adopted_elsewhere": "знайшла дім іншим шляхом",
+    "kabinet.animalList.withdrawReason.transferred": "переїхала до іншого притулку",
+    "kabinet.animalList.withdrawReason.deceased": "тварини не стало",
+    "kabinet.animalList.withdrawReason.listing_error": "додано помилково",
+    "kabinet.animalList.withdrawReason.other": "інша причина",
+    "kabinet.animalList.actions.restore": "Повернути в чернетки",
+    "kabinet.animalList.moved.reserved": "{name}: почали домовлятися.",
+    "kabinet.animalList.moved.released": "{name}: знову шукає дім.",
+    "kabinet.animalList.moved.adopted": "{name}: уже вдома.",
+    "kabinet.animalList.moved.withdrawn": "{name}: знято з показу.",
+    "kabinet.animalList.moved.restored": "{name}: повернуто в чернетки.",
+    "kabinet.animalList.actions.deleteDraft": "Видалити чернетку",
+    "kabinet.animalList.deleteDialog.title": "Видалити чернетку «{name}»?",
+    "kabinet.animalList.deleteDialog.body": "Вона назавжди зникне з вашого списку.",
+    "kabinet.animalList.deleteDialog.photosStay":
+      "Файли фото не видаляються одразу — якщо їх треба прибрати зовсім, напишіть мені.",
+    "kabinet.animalList.deleteDialog.confirm": "Видалити",
+    "kabinet.animalList.deleted": "Чернетку «{name}» видалено.",
+    "kabinet.deleteDraft.refused.wasPublished":
+      "Цю картку вже публікували, тож видалити її не можна. Вона лишається у вашому списку як чернетка, і ті, хто шукає тварину, її не бачать.",
+    "kabinet.animalList.stale.count": "{cards} ви не підтверджували понад {days} днів.",
+    "kabinet.animalList.stale.countCards.one": "{count} картку",
+    "kabinet.animalList.stale.countCards.few": "{count} картки",
+    "kabinet.animalList.stale.countCards.many": "{count} карток",
+    "kabinet.animalList.stale.caption":
+      "Ті, хто шукає тварину, бачать на них давню дату. Якщо нічого не змінилося, достатньо натиснути «Ще шукає» чи «Ще домовляються».",
+    "kabinet.animalList.stale.show": "Показати ці {count}",
+    "kabinet.animalList.stale.showAll": "Показати всі",
+    "kabinet.animalList.paused.hidden":
+      "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає.",
+    "kabinet.animalList.notVisible.pending":
+      "Ваші тварини зʼявляться в галереї, щойно притулок пройде перевірку.",
+    "kabinet.animalList.orderNote":
+      "Порядок у галереї — за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у стрічці. Тут порядок змінити не можна, і просування немає.",
+    "kabinet.animalList.empty.title": "Тут поки немає тварин.",
+    "kabinet.animalList.empty.body":
+      "Додайте першу. Ті, хто шукає тварину, побачать картку після публікації.",
+    "kabinet.animalList.empty.add": "Додати першу тварину",
+    "kabinet.animalList.empty.caption":
+      "Щоб зберегти чернетку, потрібні імʼя та вид — решту можна дописати пізніше.",
+    "kabinet.animalList.loading": "Завантаження",
+    "kabinet.animalList.loadMore": "Показати ще",
+    "kabinet.animalList.filterEmpty": "У цій групі поки немає карток.",
+    "kabinet.animalList.loadFailed":
+      "Список не завантажився. Перевірте зʼєднання і спробуйте ще раз.",
+    "kabinet.animalList.errors.rateLimited":
+      "Забагато дій за короткий час. Зачекайте хвилину й спробуйте ще раз.",
+    "kabinet.animalList.errors.actionFailed": "Не вдалося. Перевірте зʼєднання і спробуйте ще раз.",
+  };
+
+  const at = (path: string): unknown =>
+    path
+      .split(".")
+      .slice(1)
+      .reduce<unknown>(
+        (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+        uk.kabinet,
+      );
+
+  const leaves = (node: unknown, path: string): string[] =>
+    typeof node === "string"
+      ? [path]
+      : Object.entries(node as Record<string, unknown>).flatMap(([key, child]) =>
+          leaves(child, `${path}.${key}`),
+        );
+
+  it.each(Object.entries(K2_FINAL))("%s is his text, exactly", (path, text) => {
+    expect(at(path)).toBe(text);
+  });
+
+  it("every key K2 adds is one of his (no string of ours under animalList, nav or deleteDraft)", () => {
+    expect(
+      [
+        ...leaves(uk.kabinet.animalList, "kabinet.animalList"),
+        ...leaves(uk.kabinet.nav, "kabinet.nav"),
+        ...leaves(uk.kabinet.deleteDraft, "kabinet.deleteDraft"),
+      ].sort(),
+    ).toEqual(Object.keys(K2_FINAL).sort());
+  });
+
+  it("nothing K2 adds is pending", () => {
+    expect(pendingCopyPaths(uk.kabinet.animalList, "kabinet.animalList")).toEqual([]);
+    expect(pendingCopyPaths(uk.kabinet.nav, "kabinet.nav")).toEqual([]);
+    expect(pendingCopyPaths(uk.kabinet.deleteDraft, "kabinet.deleteDraft")).toEqual([]);
+  });
+
+  it("no U+0027 or U+2019 apostrophe in any K2 string (his U+02BC only)", () => {
+    const offenders = Object.entries(K2_FINAL)
+      .filter(
+        ([, text]) =>
+          text.includes(String.fromCodePoint(0x27)) || text.includes(String.fromCodePoint(0x2019)),
+      )
+      .map(([path]) => path);
+    expect(offenders).toEqual([]);
+    expect(uk.kabinet.animalList.loadFailed).toContain(String.fromCodePoint(0x2bc));
+  });
+
+  it("no «ми» voice, no «адоптер» and no «реєстр» (his note)", () => {
+    const k2 = Object.values(K2_FINAL).join(" ");
+    expect(/(^|[^\p{L}])(ми|адоптер\p{L}*)([^\p{L}]|$)/iu.test(k2)).toBe(false);
+    expect(/реєстр/iu.test(k2)).toBe(false);
   });
 });

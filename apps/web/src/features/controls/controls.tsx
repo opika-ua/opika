@@ -25,7 +25,7 @@ import type {
 export const FOCUS_RING =
   "focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-solid focus-visible:outline-rg-registry";
 
-export type ButtonVariant = "primary" | "secondary" | "text" | "icon";
+export type ButtonVariant = "primary" | "secondary" | "text" | "icon" | "chip";
 
 const BUTTON: Record<ButtonVariant, string> = {
   primary: "rounded-rg-button bg-rg-ink px-6 text-base font-medium text-rg-surface",
@@ -33,6 +33,12 @@ const BUTTON: Record<ButtonVariant, string> = {
   text: "px-2 text-base text-rg-ink underline",
   /** A glyph-only control (a dialog's ✕); its name goes in `aria-label`. */
   icon: "w-target flex-none rounded-rg-button bg-rg-fill text-lg text-rg-ink",
+  /**
+   * A filter chip that acts in place (K2's chips): the `chip` link's look, the
+   * chosen one styled from `aria-pressed`, so what tells a screen reader which
+   * one is on also decides what a sighted person sees.
+   */
+  chip: "rounded-rg-chip bg-rg-fill px-4 text-base text-rg-ink aria-pressed:bg-rg-ink aria-pressed:text-rg-surface",
 };
 
 /**

@@ -36,7 +36,13 @@ import type { KabinetHomeDeps } from "./home";
 export type KabinetAnimalPage =
   | { kind: "sign_in" }
   | { kind: "not_found" }
-  | { kind: "missing"; shelter: KabinetShelterView; viewer: "admin" | "support" }
+  | {
+      kind: "missing";
+      shelter: KabinetShelterView;
+      viewer: "admin" | "support";
+      /** For the way back: K2 when it is shown to this viewer, the profile otherwise. */
+      editing: AnimalFormEditing;
+    }
   | {
       kind: "form";
       shelter: KabinetShelterView;
@@ -134,12 +140,14 @@ export async function kabinetAnimalPageOf(
   }
   // Not an id at all: the same answer as an id that names nothing here.
   const animalId = AnimalIdSchema.safeParse(target.animalId);
-  if (!animalId.success) return { kind: "missing", shelter, viewer };
+  if (!animalId.success) return { kind: "missing", shelter, viewer, editing };
   try {
     const view = await client.shelter.animals.byId({ animalId: animalId.data });
     return { kind: "form", shelter, view, viewer, editing, shelterVisibility };
   } catch (error) {
-    if (isCode(error, "NOT_FOUND", "FORBIDDEN")) return { kind: "missing", shelter, viewer };
+    if (isCode(error, "NOT_FOUND", "FORBIDDEN")) {
+      return { kind: "missing", shelter, viewer, editing };
+    }
     throw error;
   }
 }
