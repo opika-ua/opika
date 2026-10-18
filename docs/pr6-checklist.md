@@ -129,7 +129,7 @@ transcribes.
 | # | Step | When | Verified by |
 |---|---|---|---|
 | 8.1 | **Delete `KABINET_WRITE_ALLOWLIST` from Vercel** (Production, where it was set, RH-B1), then redeploy. His words: "after PR 6: delete the variable, then redeploy" (RH-B6); "KABINET_WRITE_ALLOWLIST is only for that interim and goes away with PR 6" (RU-B5) | after PR 6's production deployment is live. Until then it keeps the rehearsal shelter's id | `vercel env ls production` doesn't list it; the dress rehearsal (§9) opens writes for a shelter nothing names |
-| 8.2 | No migration is expected: nothing in §1-§7 touches SQL. If the build turns one up, it is Tier 1 with his real-Neon run (`db:check-hashes` → `db:migrate --prod`; `db:migrate` has no `--expect` until follow-up AW-F1), drafted in the PR, never run by the builder | — | — |
+| 8.2 | No migration is expected: nothing in §1-§7 touches SQL. If the build turns one up, it is Tier 1 with his real-Neon run (the block in `docs/onboarding-a-shelter.md`, "Migrating production": `db:check-hashes` → `db:migrate --prod --expect <production ep- id>` → `db:check-hashes`), drafted in the PR, never run by the builder | — | — |
 | 8.3 | Re-run `email:delivery-test` if the invite body changed length (inbox placement was tested on today's body) | after 6.6 lands | his report |
 | 8.4 | The copy and decisions in §0 | PR 6's start | inbox rows |
 | 8.5 | Merge | after review and a green `pnpm check` | — |

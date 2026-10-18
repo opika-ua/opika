@@ -264,6 +264,50 @@ treat an onboarded animal's photos as fixed once inserted. If you need to
 correct a photo (not just add one), that has to be done by hand for now,
 not by re-running this script.
 
+## Migrating production (the gate block for a PR with a migration)
+
+Every merge gate that applies a migration uses this block. Oleksii, 2026-10-18, verbatim: "From
+now on every gate block uses db:migrate --prod --expect <ep>; update the runbook." A migration is
+a gate *before* the merge: Vercel deploys the default branch as soon as it merges, so the schema
+has to be there first. Run it from the main checkout (its root `.env.local` provides
+`PROD_NEON_ENDPOINT`) switched to the PR's head, in Windows PowerShell 5.1 with `Read-Secret` from
+"PowerShell 5.1: reading a secret" pasted first. Replace `<pr branch>` and `<production ep- id>`
+before running:
+
+```powershell
+cd D:\Startup\opika
+git fetch origin
+git switch --detach origin/<pr branch>
+pnpm i --frozen-lockfile --prefer-offline
+$env:DATABASE_URL = Read-Secret "Production DIRECT connection string"
+pnpm --filter @opika/db db:check-hashes
+pnpm --filter @opika/db db:migrate --prod --expect <production ep- id>
+pnpm --filter @opika/db db:check-hashes
+Remove-Item Env:DATABASE_URL
+git switch main
+```
+
+Expected:
+
+1. **`db:check-hashes`** (read-only): first line `Target: Neon endpoint <production ep- id> (…)`,
+   then `match` for every migration already applied and `not run` for the PR's new one; exit 0.
+   **Stop if the endpoint differs.**
+2. **`db:migrate`**: `WARNING: writing to PRODUCTION (--prod given).`, the same `Target:` line,
+   then drizzle-kit applying exactly the new migration; exit 0. Without `--prod` it refuses
+   production. Without `--expect`, or with one naming another compute, it refuses before
+   anything runs, and prints neither the URL nor an endpoint.
+3. **`db:check-hashes` again**: the same `Target:` line, `match` for every migration including
+   the new one; exit 0.
+
+Then the PR's own before/after queries, if it lists any, and its Neon smoke on a temporary child
+branch, as its status gives them.
+
+**Type the endpoint id, don't derive it.** `$ep` in "PowerShell 5.1: reading a secret" is read
+out of `$env:DATABASE_URL`, so `--expect $ep` would always agree with the very URL it is there to
+check, and catch nothing. For production, `--expect` states the compute you mean to migrate,
+written independently of the shell: the value of `PROD_NEON_ENDPOINT`, the same
+`<production ep- id>` that `demo:remove` takes below.
+
 ## Removing the demo corpus (once, after the first real shelter)
 
 The seeded demo shelters (ids `51000000-…`) go when the first real shelter is in
