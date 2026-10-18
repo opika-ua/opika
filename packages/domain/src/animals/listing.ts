@@ -61,27 +61,52 @@ export type UndoableConfirmation = z.infer<typeof UndoableConfirmationSchema>;
  * never touches it: that is `Animal.lastUpdatedAt`, which is edit time, and a
  * typo fix must not make a four-month-old card read as fresh.
  */
+export const DraftListingSchema = z.object({ kind: z.literal("draft") });
+
+const PublishedListingSchema = z.object({
+  kind: z.literal("published"),
+  publishedAt: z.date(),
+  confirmedAt: z.date(),
+  undoable: UndoableConfirmationSchema.nullable(),
+});
+
+const ReservedListingSchema = z.object({
+  kind: z.literal("reserved"),
+  since: z.date(),
+  publishedAt: z.date(),
+  confirmedAt: z.date(),
+  undoable: UndoableConfirmationSchema.nullable(),
+});
+
+const AdoptedListingSchema = z.object({ kind: z.literal("adopted"), adoptedAt: z.date() });
+
+const WithdrawnListingSchema = z.object({
+  kind: z.literal("withdrawn"),
+  withdrawnAt: z.date(),
+  reason: WithdrawalReasonSchema,
+});
+
+/**
+ * Every state a listing reaches only through `publish`, which is what makes an
+ * animal "listed" (F-B1): each was complete enough to publish once, so the
+ * animal union (`ListedAnimalSchema`) requires every listing fact on these and
+ * allows one missing on a draft alone.
+ */
+export const NonDraftListingSchema = z.discriminatedUnion("kind", [
+  PublishedListingSchema,
+  ReservedListingSchema,
+  AdoptedListingSchema,
+  WithdrawnListingSchema,
+]);
+export type NonDraftListing = z.infer<typeof NonDraftListingSchema>;
+
+/** The same five variants as before F-B1, now named so the animal union can refer to them. */
 export const AnimalListingStateSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("draft") }),
-  z.object({
-    kind: z.literal("published"),
-    publishedAt: z.date(),
-    confirmedAt: z.date(),
-    undoable: UndoableConfirmationSchema.nullable(),
-  }),
-  z.object({
-    kind: z.literal("reserved"),
-    since: z.date(),
-    publishedAt: z.date(),
-    confirmedAt: z.date(),
-    undoable: UndoableConfirmationSchema.nullable(),
-  }),
-  z.object({ kind: z.literal("adopted"), adoptedAt: z.date() }),
-  z.object({
-    kind: z.literal("withdrawn"),
-    withdrawnAt: z.date(),
-    reason: WithdrawalReasonSchema,
-  }),
+  DraftListingSchema,
+  PublishedListingSchema,
+  ReservedListingSchema,
+  AdoptedListingSchema,
+  WithdrawnListingSchema,
 ]);
 export type AnimalListingState = z.infer<typeof AnimalListingStateSchema>;
 
@@ -102,7 +127,13 @@ export const DISCOVERABLE_LISTING_KINDS = [
   "reserved",
 ] as const satisfies readonly AnimalListingState["kind"][];
 
-export const isDiscoverable = (listing: AnimalListingState): boolean =>
+/** The two listing states an adopter can see. */
+export type DiscoverableListing = Extract<
+  AnimalListingState,
+  { kind: (typeof DISCOVERABLE_LISTING_KINDS)[number] }
+>;
+
+export const isDiscoverable = (listing: AnimalListingState): listing is DiscoverableListing =>
   (DISCOVERABLE_LISTING_KINDS as readonly string[]).includes(listing.kind);
 
 /**

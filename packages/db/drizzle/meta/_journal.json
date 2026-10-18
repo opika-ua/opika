@@ -85,6 +85,13 @@
       "when": 1791884035811,
       "tag": "0011_amazing_young_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792251563842,
+      "tag": "0012_glorious_warpath",
+      "breakpoints": true
     }
   ]
 }

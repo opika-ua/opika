@@ -1,10 +1,11 @@
-import type {
-  apiErrors,
-  CreatedShelterView,
-  EmailSendOutcome,
-  InvitationReminder,
-  InvitedAdminView,
-  ShelterAdminView,
+import {
+  type apiErrors,
+  type CreatedShelterView,
+  type EmailSendOutcome,
+  type InvitationReminder,
+  type InvitedAdminView,
+  type ShelterAdminView,
+  UNKNOWN_CITY_MESSAGE,
 } from "@opika/contracts";
 import {
   type AddressRole,
@@ -173,7 +174,7 @@ export async function registrySheltersCreate(
   if ((await cityRepo(deps.db).findById(input.exactAddress.cityId as CityId)) === null) {
     // A client fault (the form offers known cities only), not one of the
     // contract's typed refusals; answered as a bad request, never a 500.
-    throw new ORPCError("BAD_REQUEST", { status: 400, message: "Unknown city" });
+    throw new ORPCError("BAD_REQUEST", { status: 400, message: UNKNOWN_CITY_MESSAGE });
   }
   // Checked before anything is created (RG-T10): a shelter, an operator
   // grant, or a live invitation elsewhere all refuse the first admin, with

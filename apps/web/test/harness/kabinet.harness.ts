@@ -35,7 +35,13 @@ test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" 
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
-for (const path of ["/kabinet", "/kabinet/vkhid"]) {
+// The operator's pages (R-UI 1) answer the same 404 while production sign-in is off.
+for (const path of [
+  "/kabinet",
+  "/kabinet/vkhid",
+  "/kabinet/prytulky",
+  "/kabinet/prytulky/00000000-0000-4000-8000-000000000000",
+]) {
   test(`${path} answers 404 while production sign-in is off`, async ({ page }) => {
     const response = await page.goto(path);
     expect(response?.status()).toBe(404);
@@ -96,12 +102,15 @@ test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
     });
     const page = await context.newPage();
     expect((await page.goto(link))?.status()).toBe(200);
-    const landing = page.waitForResponse(
-      (response) =>
-        response.request().method() === "GET" && new URL(response.url()).pathname === "/kabinet",
-    );
-    await page.getByRole("button").click();
-    expect((await landing).status(), "/kabinet after sign-in").toBe(200);
+    // «Увійти», then signed in once the page is the cabinet: waited on by the URL and the
+    // heading, not by the GET's response event, which CI has missed with /kabinet already
+    // rendered (#120's run 39144246376; the same fix as b598d93's for K4). Each test's own
+    // `goto("/kabinet")` asserts 200.
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.getByRole("button").click(),
+    ]);
+    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
     await page.close();
   });
 

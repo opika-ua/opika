@@ -237,18 +237,7 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
     ["shelter.verification.requestReview", () => smuggle({})],
     ["shelter.animals.list", () => smuggle({ listing: null, cursor: null, limit: 50 })],
     ["shelter.history.list", () => smuggle({ cursor: null, limit: 50 })],
-    [
-      "shelter.animals.createDraft",
-      () =>
-        smuggle({
-          name: "Новий",
-          species: "dog",
-          sex: "male",
-          size: "small",
-          age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date() },
-          description: { uk: "Опис", en: null },
-        }),
-    ],
+    ["shelter.animals.createDraft", () => smuggle({ name: "Новий", species: "dog" })],
   ];
 
   for (const [procedure, input] of cases) {
@@ -271,14 +260,7 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
     const items = (list.body as { items: { id: string }[] }).items;
     expect(items.map((item) => item.id)).toEqual([aPublished.id]);
 
-    await call("shelter.animals.createDraft", {
-      name: "Новий",
-      species: "cat",
-      sex: "female",
-      size: "small",
-      age: { kind: "declared_bucket", bucket: "baby", declaredAt: new Date() },
-      description: { uk: "Опис", en: null },
-    });
+    await call("shelter.animals.createDraft", { name: "Новий", species: "cat" });
     expect((await animalRepo(db).findByShelterId(shelterA.id)).map((a) => a.name)).toContain(
       "Новий",
     );
