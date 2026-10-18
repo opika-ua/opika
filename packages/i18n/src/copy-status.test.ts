@@ -641,6 +641,8 @@ describe("CB-B1: the replaced strings name no «реєстр»", () => {
     "demo.bannerNotice": [uk.demo.bannerNotice, en.demo.bannerNotice],
     "detail.notFound.body": [uk.detail.notFound.body, en.detail.notFound.body],
     PENDING_R4_2_ANALYTICS_SENTENCE: [PENDING_R4_2_ANALYTICS_SENTENCE, ""],
+    // PR 6: his pr6-copy-uk.md §1.5 replaces the whole paragraph (0.3d: «реєстр зберігає» → «сайт зберігає»).
+    "about.data": [uk.about.data, en.about.data],
   };
 
   // «зареєстрований» / «незареєстрована» are legal terms (a registered

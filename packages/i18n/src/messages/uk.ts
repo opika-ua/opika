@@ -1580,8 +1580,8 @@ export const uk = {
      * phishing signal). Values in `{braces}` are filled by the builder.
      * `invite.what` is his PR 6 text (pr6-copy-uk.md §1.4): what a shelter
      * changes itself once its writes are open, and what still goes through
-     * him. `invite.intro` keeps «у реєстрі» until he has reviewed #123's
-     * CB-B2 draft for it (his §1.4 note).
+     * him. `invite.intro`'s «у реєстрі» is #123's to change (CB-B2), not
+     * PR 6's.
      */
     email: {
       signIn: {
