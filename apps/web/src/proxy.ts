@@ -137,9 +137,9 @@ export function isGateExemptPath(pathname: string): boolean {
 
 /**
  * Vercel's cron calls skip the pre-launch gate (inbox KH-T5): Vercel sends no
- * gate cookie, so a gated cron path would answer 403 every day and never
- * run, and the provisional /pro promise that expired sign-in records go
- * within two days (KH-C1) would be false from the first night. Each cron route
+ * gate cookie, so a gated cron path would answer 403 on every run and never
+ * delete anything, and the /pro promise that expired sign-in records go
+ * within a day (KH-Q12) would be false from the first day. Each cron route
  * authenticates itself with `CRON_SECRET` and fails closed without it
  * (`kabinet/auth-cleanup.ts`); the gate is a bot shutter, not that. Exact
  * paths, not a prefix, so a route added under `/api/cron/` later is gated

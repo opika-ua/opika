@@ -652,7 +652,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `${dupAccepted.kind}; newest ${statusOf(newerId)}, older ${statusOf(olderInvite.invitationId)}, ${stillPending} pending`,
   );
 
-  // 18. the daily auth clean-up's one statement (KH-Q9, plus EM-Q11's 30-day
+  // 18. the auth clean-up's one statement (KH-Q9, plus EM-Q11's 30-day
   // cap): two data-modifying CTEs and their counts, through neon-http. Rows
   // past expiry go, and a session past the absolute cap goes even with its
   // idle expiry still ahead (EM-Q11: "Test the case where the cap is passed

@@ -2,8 +2,8 @@ import { getDb } from "../../../../api/db";
 import { handleAuthCleanup } from "../../../../kabinet/auth-cleanup";
 
 /**
- * Vercel's daily cron (`apps/web/vercel.json`, `crons`) calls this with GET
- * and `Authorization: Bearer <CRON_SECRET>`. Everything it does is in
+ * Vercel's cron (`apps/web/vercel.json`, `crons`, every 6 hours) calls this
+ * with GET and `Authorization: Bearer <CRON_SECRET>`. Everything it does is in
  * `handleAuthCleanup`, which the tests call with a real `Request`.
  */
 export async function GET(request: Request): Promise<Response> {
