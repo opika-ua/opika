@@ -318,18 +318,14 @@ export const uk = {
       action: "Усі тварини",
     },
     /**
-     * O-10 (`docs/observations.md`) + critique C6 — new accessibility copy
-     * for the photo gallery's dot indicator (mobile) and thumbnail strip
-     * (desktop), neither of which existed as interactive elements before.
-     * `[COPY_PENDING]`-prefixed per this repo's own mechanism
-     * (`packages/i18n/src/copy-status.ts`) — proposed English sense only,
-     * not approved Ukrainian; flagged as D6-3 in
-     * `docs/decisions-inbox/feat-d-6-detail-photo-gallery.md`, not invented
-     * here. `{n}` is the photo's 1-based position.
+     * O-10 (`docs/observations.md`) + critique C6 — accessibility copy for the
+     * photo gallery's dot indicator (mobile) and thumbnail strip (desktop).
+     * Placeholders since D6-3; his Ukrainian since PR 6 (Q-A, 2026-10-19).
+     * `{n}` is the photo's 1-based position.
      */
-    photoGalleryLabel: `${COPY_PENDING} "Photo gallery" (role="tablist" aria-label)`,
-    photoGalleryDot: `${COPY_PENDING} "Photo {n}" (dot button aria-label)`,
-    photoGalleryThumbnail: `${COPY_PENDING} "View photo {n}" (thumbnail button aria-label)`,
+    photoGalleryLabel: "Фотографії тварини",
+    photoGalleryDot: "Фото {n}",
+    photoGalleryThumbnail: "Переглянути фото {n}",
   },
 
   // --- Contact reveal (05) ---
@@ -1579,7 +1575,17 @@ export const uk = {
         subject: "Ваш доступ до кабінету притулку",
         intro:
           "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті.",
+        /**
+         * Q-C (Oleksii, 2026-10-19): the invite's second sentence depends on the
+         * shelter's verification status at send time. `what` for a verified or
+         * paused shelter; `whatBeforeVerification` for pending, under review,
+         * suspended and rejected (PC-T10), which includes the first invite, sent
+         * at create. The rest of the paragraph is
+         * the same in both.
+         */
         what: "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
+        whatBeforeVerification:
+          "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
         action: "Відкрити запрошення",
         expiry: "Запрошення діє {hours} години. Якщо не встигнете — я надішлю нове.",
         notYou:

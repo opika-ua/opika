@@ -218,6 +218,7 @@ describe("productionMailOf: each email through its own route (EM-T22, EM-T18)", 
       shelterName: "Тестовий",
       operatorName: "Олексій Колотенко",
       url: "https://example.org/kabinet/vkhid?zaproshennia=x",
+      shelterVerification: "verified",
       validForHours: 72,
     });
     expect(outcome).toEqual({ kind: "sent", blockCheck: "clear" });
@@ -240,6 +241,7 @@ describe("productionMailOf: each email through its own route (EM-T22, EM-T18)", 
       shelterName: "Тестовий",
       operatorName: "Олексій Колотенко",
       url: "https://example.org/kabinet/vkhid?zaproshennia=x",
+      shelterVerification: "verified",
       validForHours: 72,
     });
     expect(outcome).toEqual({ kind: "sent", blockCheck: "unknown" });

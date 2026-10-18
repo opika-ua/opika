@@ -70,8 +70,12 @@ describe("PR 6: open shelter writes ship with no [COPY PENDING] string (CG-B1)",
     expect(productionSignInOf(PRODUCTION, []).kind).toBe("on");
   });
 
-  it("the /prytulkam and /pro strings PR 6 rewrites are never pending", () => {
-    expect(pendingCopyPaths(uk.forShelters, "forShelters")).toEqual([]);
-    expect(pendingCopyPaths(uk.about, "about")).toEqual([]);
+  /**
+   * Q-B (Oleksii, 2026-10-19), verbatim: "(a). The guard checks the entire catalogue; nothing
+   * pending anywhere." Not only kabinet, /prytulkam and /pro: the whole live catalogue, the
+   * public animal page's screen-reader labels included.
+   */
+  it("nothing in the entire uk catalogue is pending", () => {
+    expect(pendingCopyPaths(uk, "uk")).toEqual([]);
   });
 });

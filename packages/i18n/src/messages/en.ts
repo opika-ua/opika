@@ -134,9 +134,9 @@ export const en = {
       body: "The animal is no longer on the site or the link is out of date. This isn't an error — the listing is simply no longer here.",
       action: "All animals",
     },
-    photoGalleryLabel: `${COPY_PENDING} Photo gallery`,
-    photoGalleryDot: `${COPY_PENDING} Photo {n}`,
-    photoGalleryThumbnail: `${COPY_PENDING} View photo {n}`,
+    photoGalleryLabel: "Animal photos",
+    photoGalleryDot: "Photo {n}",
+    photoGalleryThumbnail: "View photo {n}",
   },
 
   // --- Contact reveal (05) ---
@@ -844,6 +844,7 @@ export const en = {
         subject: `Your access to the shelter's cabinet`,
         intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» on the site for this address.`,
         what: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on your cards and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
+        whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on your cards and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours} hours. If you miss it, I will send a new one.`,
         notYou: `If you weren't expecting this email, just ignore it: nobody gets access without signing in from this address.\n— {operator}`,

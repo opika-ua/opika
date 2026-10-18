@@ -214,7 +214,15 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       profileChannel: ["email", "phone", "telegram", "viber", "website"],
       support: ["body", "exit", "exitFailed", "signOutDisabled", "title", "viewingAs"],
       emailSignIn: ["action", "expiry", "intro", "notYou", "subject"],
-      emailInvite: ["action", "expiry", "intro", "notYou", "subject", "what"],
+      emailInvite: [
+        "action",
+        "expiry",
+        "intro",
+        "notYou",
+        "subject",
+        "what",
+        "whatBeforeVerification",
+      ],
       registry: ["tellPersonally"],
       history: ["adminJoined"],
     });
@@ -250,6 +258,9 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     // his PR 6 text (pr6-copy-uk.md §1.4): what the shelter changes itself, once writes open
     "email.invite.what":
       "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
+    // Q-C (Oleksii, 2026-10-19): the before-verification variant, his second sentence, the rest unchanged
+    "email.invite.whatBeforeVerification":
+      "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
     // row 86
     "email.invite.action": "Відкрити запрошення",
     // row 87
@@ -1681,5 +1692,18 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     const k2 = Object.values(K2_FINAL).join(" ");
     expect(/(^|[^\p{L}])(ми|адоптер\p{L}*)([^\p{L}]|$)/iu.test(k2)).toBe(false);
     expect(/реєстр/iu.test(k2)).toBe(false);
+  });
+});
+
+/**
+ * Q-A (Oleksii, 2026-10-19), verbatim: "detail.photoGalleryLabel «Фотографії тварини»;
+ * detail.photoGalleryDot «Фото {n}»; detail.photoGalleryThumbnail «Переглянути фото {n}»." The
+ * public animal page's screen-reader labels, transcribed from his message.
+ */
+describe("Q-A: the animal page's photo gallery labels", () => {
+  it("are his three strings", () => {
+    expect(uk.detail.photoGalleryLabel).toBe("Фотографії тварини");
+    expect(uk.detail.photoGalleryDot).toBe("Фото {n}");
+    expect(uk.detail.photoGalleryThumbnail).toBe("Переглянути фото {n}");
   });
 });

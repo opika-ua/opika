@@ -108,6 +108,8 @@ export function invitationEmail(input: {
   url: string;
   shelterName: string;
   operatorName: string;
+  /** Q-C: `verified` says changes appear at once; anything else says once verification passes. */
+  shelterVerification: "verified" | "not_yet_verified";
   ttlHours: number;
 }): OutgoingEmail {
   const copy = uk.kabinet.email.invite;
@@ -115,7 +117,7 @@ export function invitationEmail(input: {
     subject: copy.subject,
     before: [
       fill(copy.intro, { operator: input.operatorName, shelter: input.shelterName }),
-      copy.what,
+      input.shelterVerification === "verified" ? copy.what : copy.whatBeforeVerification,
     ],
     link: { label: copy.action, url: input.url },
     after: [

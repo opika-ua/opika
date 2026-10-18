@@ -34,6 +34,7 @@ const builders = {
       url: INVITE_URL,
       shelterName: "Притулок «Лапа»",
       operatorName: "Олексій",
+      shelterVerification: "verified",
       ttlHours: 72,
     }),
 };
@@ -186,12 +187,42 @@ describe("the builders fill his final copy", () => {
     expect(email.text).not.toMatch(/\{\w+\}/);
   });
 
+  /** Q-C (Oleksii, 2026-10-19): his two second sentences, transcribed, never read from uk.ts. */
+  it.each([
+    [
+      "verified",
+      "Контакти, речення на картках і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження.",
+      "Контакти, речення на картках і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку.",
+    ],
+    [
+      "not_yet_verified",
+      "Контакти, речення на картках і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку.",
+      "Контакти, речення на картках і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження.",
+    ],
+  ] as const)(
+    "invitation: a %s shelter's email carries its own second sentence, and not the other",
+    (verification, own, other) => {
+      const email = invitationEmail({
+        to: "a@example.org",
+        url: INVITE_URL,
+        shelterName: "Лапа",
+        operatorName: "Олексій",
+        shelterVerification: verification,
+        ttlHours: 72,
+      });
+      expect(email.text).toContain(own);
+      expect(email.text).not.toContain(other);
+      expect(email.html).toContain(own);
+    },
+  );
+
   it("invitation: with no display name configured, the signature is the catalogue's fallback, never a blank or a raw {operator}", () => {
     const email = invitationEmail({
       to: "a@example.org",
       url: INVITE_URL,
       shelterName: "Лапа",
       operatorName: operatorDisplayName({}),
+      shelterVerification: "verified",
       ttlHours: 72,
     });
     expect(email.text.endsWith("\n— Адміністратор сайту")).toBe(true);

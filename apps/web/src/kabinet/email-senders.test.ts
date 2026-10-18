@@ -326,6 +326,7 @@ describe("providerInvitationSender", () => {
       shelterName: "Лапа",
       operatorName: "Олексій",
       url: "https://example.org/kabinet/vkhid?zaproshennia=1",
+      shelterVerification: "verified",
       validForHours: 72,
     });
     expect(outcome).toEqual({ kind: "sent", blockCheck: "clear" });
@@ -340,6 +341,7 @@ describe("providerInvitationSender", () => {
         shelterName: "Лапа",
         operatorName: "Олексій",
         url: "https://example.org/kabinet/vkhid?zaproshennia=1",
+        shelterVerification: "verified",
         validForHours: 72,
       }),
     ).toEqual({ kind: "blocked", reason: "hard_bounce" });

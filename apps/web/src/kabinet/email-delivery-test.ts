@@ -218,6 +218,8 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
         url: testLink(INVITE_LINK),
         shelterName: DELIVERY_TEST_SHELTER_NAME,
         operatorName,
+        // The first invite, the one every shelter gets at create, is the before-verification one (Q-C).
+        shelterVerification: "not_yet_verified",
         ttlHours: INVITATION_TTL_MS / 3_600_000,
       }),
     },
