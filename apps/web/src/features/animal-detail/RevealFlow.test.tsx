@@ -55,10 +55,9 @@ function revealFor(contact: ShelterContact): ContactRevealView {
     id: REVEAL_ID,
     animalId: ANIMAL_ID,
     revealedAt: new Date("2026-08-08T10:00:00Z"),
-    shelterContact: { source: "current", contact },
+    shelterContact: { source: "current", displayName: "Притулок «Домівка»", contact },
     shelterAtFirstReveal: {
       shelterId: SHELTER_ID,
-      displayName: "Притулок «Домівка»",
       // City only, as the served reveal carries it (EM-D1): no exact
       // address, district or point ever reaches the client.
       publicLocation: { cityId: CITY_ID },

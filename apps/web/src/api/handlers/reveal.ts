@@ -71,8 +71,8 @@ export async function animalsReveal(
   }
 
   // The shelter is visible (checked above), so both answers below carry its
-  // current contacts (K4-B4), never the first-reveal record's.
-  const current = { source: "current", contact: shelter.contact } as const;
+  // current name and contacts (K4-B4, RUI4-F1), never the first-reveal record's.
+  const current = currentShelterContactOf(shelter);
 
   // Idempotent: return existing reveal if one exists
   const reveals = revealRepo(context.db);
@@ -113,37 +113,55 @@ export async function animalsReveal(
 }
 
 /**
- * The contacts a «Мої запити» item carries (K4-B4, Oleksii, verbatim: "Reveal
+ * The shelter's name and channels as they are now, read together from one
+ * row, so the name above a number is that number's (RUI4-F1). For a shelter
+ * the caller has already found visible.
+ */
+const currentShelterContactOf = (shelter: Shelter): RevealShelterContactView => ({
+  source: "current",
+  displayName: shelter.displayName,
+  contact: shelter.contact,
+});
+
+/**
+ * The shelter a «Мої запити» item names (K4-B4, Oleksii, verbatim: "Reveal
  * views and «Мої запити» show the shelter's CURRENT contacts; the snapshot
- * stays stored as the record."), labelled with where they came from (K4-B5):
+ * stays stored as the record."), labelled with where it came from (K4-B5):
  *
- * - `current`, the shelter's channels now, while it is visible
+ * - `current`, the shelter's name and channels now, while it is visible
  *   (`isPubliclyVerified`, the feed's own rule), so a shelter that changes its
  *   number in K4 is reached on the new one, by people who asked before the
- *   change too;
- * - `first_reveal`, the stored record's channels, when it is not visible
- *   (paused, suspended, rejected, pending, or no row at all), which is what
- *   «Мої запити» showed for such a shelter before (his words: "keep today's
- *   behaviour for those views").
+ *   change too, and a shelter the operator renamed (R-UI 4) is named as it is
+ *   now;
+ * - `first_reveal`, the stored record's name and channels, when it is not
+ *   visible (paused, suspended, rejected, pending, or no row at all), which is
+ *   what «Мої запити» showed for such a shelter before (his words: "keep
+ *   today's behaviour for those views").
  *
- * The stored record is never rewritten either way.
+ * The name follows the contacts' rule in the same branch (RUI4-F1): a name
+ * and the channels under it never come from two different moments. The
+ * stored record is never rewritten either way.
  */
 export const shelterContactOf = (
   reveal: ContactReveal,
   shelter: Shelter | null | undefined,
 ): RevealShelterContactView =>
   shelter !== null && shelter !== undefined && isPubliclyVerified(shelter.verification)
-    ? { source: "current", contact: shelter.contact }
-    : { source: "first_reveal", contact: reveal.shelterSnapshot.contact };
+    ? currentShelterContactOf(shelter)
+    : {
+        source: "first_reveal",
+        displayName: reveal.shelterSnapshot.displayName,
+        contact: reveal.shelterSnapshot.contact,
+      };
 
 /**
  * The stored reveal, cut down to what the adopter receives (EM-D1, Oleksii,
  * 2026-10-15: "the exact address never leaves the server for adopters"): the
- * contacts the caller chose (`shelterContact`: current, or the first-reveal
- * record's, K4-B5), and from the first-reveal record the shelter's name,
- * donation link, status and city. The exact address, district and point stay
- * in the stored record, the operator's. Shared by `animals.reveal` and
- * `reveals.listMine`.
+ * name and contacts the caller chose (`shelterContact`: current, or the
+ * first-reveal record's, K4-B5, RUI4-F1), and from the first-reveal record the
+ * shelter's donation link, status and city. The exact address, district and
+ * point stay in the stored record, the operator's. Shared by `animals.reveal`
+ * and `reveals.listMine`.
  *
  * Projected field by field here, not left to oRPC's output stripping alone:
  * handing the whole snapshot to the narrower view typechecks either way, so
@@ -161,7 +179,6 @@ export function toView(
     shelterContact,
     shelterAtFirstReveal: {
       shelterId: record.shelterId,
-      displayName: record.displayName,
       verificationStatusAtReveal: record.verificationStatusAtReveal,
       donation: record.donation,
       publicLocation: cityOnlyLocationOf(record.publicLocation),

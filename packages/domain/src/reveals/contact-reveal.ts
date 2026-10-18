@@ -15,8 +15,8 @@ import { VERIFICATION_STATUSES } from "../shelters/verification/state";
  * Denormalised on purpose. If a shelter changes its phone number, the record
  * should still hold what the adopter was told — otherwise the record of a
  * conversation contradicts the conversation. (What the adopter is *shown*
- * is a separate question: the shelter's current contacts while it is
- * visible, K4-B4. This stays the record either way.)
+ * is a separate question: the shelter's current name and contacts while it
+ * is visible, K4-B4 and RUI4-F1. This stays the record either way.)
  *
  * `verificationStatusAtReveal` is captured for the same reason: a shelter
  * suspended next month was verified at the moment this adopter was pointed at
@@ -76,7 +76,8 @@ export const ContactRevealSchema = z.object({
   /**
    * The first-reveal record: written once, at this adopter's first reveal of
    * the animal, and never rewritten. Since K4-B4 an adopter is shown the
-   * shelter's current contacts while it is visible, so this is the record of
+   * shelter's current contacts while it is visible (and its current name,
+   * since RUI4-F1), so this is the record of
    * what they were told then, not necessarily what they see now; the
    * contract's view says which they got (`shelterContact.source`, K4-B5).
    */

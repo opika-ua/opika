@@ -920,6 +920,11 @@ a thin form; `create.nameHint` narrowed. Verified: `pnpm check` at `60c25c6` (lo
 240 harness), unit, served-router, access, form and harness tests; CI on Node 24 decides. Asserted
 only: real Neon (no new SQL shape, RUI4-T5). Follow-ups: RUI4-F1 (the reveal shows the first-reveal name), RUI4-F2.
 
+RUI4-F1: built on `feat/rui4-f1-reveal-name` (Tier 1, PR pending). The reveal view carries the name inside `shelterContact`
+(current while visible, first reveal's otherwise, the contacts' K4-B4 rule), not in `shelterAtFirstReveal`. Verified:
+`pnpm check` at `2e224df` (local Node 22: 4,527 workspace unit tests, 244 harness), served, end-to-end, contract and
+dialog tests, mutations. Asserted only: real Neon (no SQL change, F1-T4). Decisions: F1-T1..T5.
+
 ## Part 3 — Timeline
 
 The **Hours** column is a relative-complexity signal, not a schedule. These figures were estimated

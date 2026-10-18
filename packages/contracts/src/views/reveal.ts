@@ -3,20 +3,26 @@ import { z } from "zod";
 import { PublicCityLocationViewSchema } from "./location";
 
 /**
- * The contact channels a reveal view carries, and where they came from: a
- * discriminated union on `source`, so a reader of the view can't take one for
- * the other.
+ * The shelter a reveal view tells the adopter to write to: its name and its
+ * contact channels, and where both came from. A discriminated union on
+ * `source`, so a reader of the view can't take one for the other.
  *
- * - `current`: the shelter's channels as they are now. Carried while the
- *   shelter is visible (K4-B4, Oleksii, verbatim: "Reveal views and «Мої
+ * - `current`: the shelter's name and channels as they are now. Carried while
+ *   the shelter is visible (K4-B4, Oleksii, verbatim: "Reveal views and «Мої
  *   запити» show the shelter's CURRENT contacts; the snapshot stays stored as
  *   the record."), so a shelter that changes its number is reached on the new
  *   one, by people who asked before the change too. `animals.reveal` refuses
  *   a shelter that isn't visible, so it only ever answers with this.
- * - `first_reveal`: the channels stored when this adopter first revealed the
- *   animal (the reveal's stored snapshot, the record). Carried where the
- *   shelter is no longer visible, which today is a «Мої запити» item only
- *   (his words: "keep today's behaviour for those views").
+ * - `first_reveal`: the name and channels stored when this adopter first
+ *   revealed the animal (the reveal's stored snapshot, the record). Carried
+ *   where the shelter is no longer visible, which today is a «Мої запити» item
+ *   only (his words: "keep today's behaviour for those views").
+ *
+ * The name sits here, beside the channels, and not in the first-reveal object
+ * below (RUI4-F1): it is read in the same branch as the channels, so the name
+ * an adopter sees above a phone number is never from a different moment than
+ * that number. Before, a repeat reveal after an operator rename (R-UI 4)
+ * showed the first reveal's name over the current channels.
  *
  * Its own field, outside the first-reveal object below (K4-B5, Oleksii,
  * verbatim: "rename shelterSnapshot.contact. While the shelter is visible it
@@ -26,8 +32,10 @@ import { PublicCityLocationViewSchema } from "./location";
  * Chosen by the handler (`shelterContactOf`, `apps/web/src/api/handlers/reveal.ts`).
  */
 export const RevealShelterContactViewSchema = z.discriminatedUnion("source", [
-  ShelterContactSnapshotSchema.pick({ contact: true }).extend({ source: z.literal("current") }),
-  ShelterContactSnapshotSchema.pick({ contact: true }).extend({
+  ShelterContactSnapshotSchema.pick({ displayName: true, contact: true }).extend({
+    source: z.literal("current"),
+  }),
+  ShelterContactSnapshotSchema.pick({ displayName: true, contact: true }).extend({
     source: z.literal("first_reveal"),
   }),
 ]);
@@ -35,11 +43,13 @@ export type RevealShelterContactView = z.infer<typeof RevealShelterContactViewSc
 
 /**
  * What an adopter receives of the shelter as it stood at their first reveal of
- * this animal, from the reveal's stored snapshot (the record): its name, its
- * donation link, the verification status it held then, and its city. Never
- * its exact address, district or coordinates. Named for when it was taken:
- * a repeat reveal returns the same stored reveal, so none of this is re-read
- * from the shelter; only `shelterContact` can be current.
+ * this animal, from the reveal's stored snapshot (the record): its donation
+ * link, the verification status it held then, and its city. Never its exact
+ * address, district or coordinates. Named for when it was taken: a repeat
+ * reveal returns the same stored reveal, so none of this is re-read from the
+ * shelter; only `shelterContact` (the name and the channels) can be current.
+ * The name left this object for `shelterContact` (RUI4-F1); the stored record
+ * still holds the first reveal's name.
  *
  * Oleksii, 2026-10-15 (inbox EM-B6, answer 5; recorded as decision EM-D1,
  * the revision of CLAUDE.md's decision #2), verbatim: "Exact address in the
@@ -62,7 +72,6 @@ export type RevealShelterContactView = z.infer<typeof RevealShelterContactViewSc
  */
 export const ShelterAtFirstRevealViewSchema = ShelterContactSnapshotSchema.pick({
   shelterId: true,
-  displayName: true,
   verificationStatusAtReveal: true,
   donation: true,
 }).extend({ publicLocation: PublicCityLocationViewSchema });
