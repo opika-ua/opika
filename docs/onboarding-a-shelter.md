@@ -578,11 +578,37 @@ retention only).
 
 All kabinet email goes through Resend (EM-B10). While Resend is the provider, the registry's
 blocked-addresses view answers "not checked" (EM-T26; a scan of Resend's suppression list is
-follow-up EM-F1), so it can't tell you whether an address is blocked. The first step is Resend's
-dashboard for that address: **Logs** (was the invite sent, delivered, bounced?), then
-**Suppressions** (is the address on the suppression list, and why?). Only then resend the invite
+follow-up EM-F1), so it can't tell you whether an address is blocked. Check, in this order:
+
+1. **A TLS bounce first.** Since 2026-10-19 Resend sends with TLS **Enforced**: a receiving
+   server that can't take TLS gets a bounce, never a plaintext copy, because auth emails carry
+   bearer links. In Resend → **Logs**, filter on the address and look for a bounce whose reason
+   is TLS. If it is one, the shelter's mail host is refusing TLS: ask them for another address.
+   Don't turn TLS back to Opportunistic. Oleksii, 2026-10-19, verbatim: "I switched Resend TLS from Opportunistic to Enforced (auth emails carry bearer links). Record it in the stack notes; runbook "email didn't arrive" checklist: check Resend logs for a TLS bounce first."
+2. **Logs:** was the invite sent, delivered, or bounced for another reason?
+3. **Suppressions:** is the address on the suppression list, and why? Only then resend the invite
 from the registry, and tell the shelter personally (IN-E13). Oleksii's condition on EM-T26,
 2026-10-15.
+
+## DMARC: raising the policy (launch gate, Oleksii's step)
+
+Before the first real shelter (`docs/build-plan.md` Part 5), he reviews the DMARC aggregate
+reports that arrive at `dmarc@`, then raises the apex policy in Cloudflare DNS. Oleksii,
+2026-10-19, verbatim: "review DMARC aggregate reports at dmarc@, then raise _dmarc.opika.org.ua
+from p=none to p=quarantine (later p=reject). My step in Cloudflare DNS; note the current record
+and the change in the runbook." (The earlier plan, IN-E3, went straight to `p=reject`. This one
+goes through `p=quarantine` first.)
+
+- **The current record** (`_dmarc.opika.org.ua`, TXT): the policy is `p=none`, with aggregate
+  reports to `dmarc@`. Paste the exact TXT value here when you change it, so the history is in the
+  runbook rather than only in DNS.
+- **Before changing anything:** the reports must show nothing legitimate failing. Every sender
+  as `opika.org.ua` passes SPF or DKIM in alignment: Resend for `mail.opika.org.ua`, and anything
+  that sends as `hello@`.
+- **The change:** set `p=quarantine` (keep the same `rua`), then watch the reports. Later,
+  `p=reject`.
+- **After each change:** send a delivery test (`email:delivery-test`) and confirm the invite and
+  sign-in emails still arrive in the inbox.
 
 ## Debugging sign-in: share a name and an email, never the response
 
