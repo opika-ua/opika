@@ -187,7 +187,7 @@ describe(`a shelter membership is created by the automatic accept only — ${COP
     // home itself; the read-only paragraph, and the one before it that said
     // there is no kabinet, are gone.
     expect(uk.forShelters.whenAnimalFindsHome, COPY_GATE).toContain(
-      "Кожна тварина в кабінеті має кнопку «Уже вдома». Після неї картка одразу зникає з галереї та стрічки, а у вашому списку лишається з позначкою «Удома».",
+      "Кожна опублікована картка в кабінеті має кнопку «Уже вдома». Після неї картка одразу зникає з галереї та стрічки, а у вашому списку лишається з позначкою «Удома».",
     );
     for (const gone of [
       "лише для перегляду",
