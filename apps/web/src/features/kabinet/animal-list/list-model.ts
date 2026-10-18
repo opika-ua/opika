@@ -18,7 +18,7 @@ import {
   type ShelterFacingVerification,
   type WithdrawalReason,
 } from "@opika/domain";
-import { ageBucketLabel, fillTemplate, uk } from "@opika/i18n";
+import { ageWordFor, fillTemplate, uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 import type { InferContractRouterOutputs } from "@orpc/contract";
 import { publishedAnnouncementOf, type ShelterVisibility } from "../animal-form/labels";
@@ -110,7 +110,8 @@ const SIZE: Record<NonNullable<AnimalRow["size"]>, string> = {
 
 /**
  * Species · sex · size · age (his answer 6): K3's own segment labels, and
- * the card's age word for the bucket the age is in today. A draft's missing
+ * the card's age word for the bucket the age is in today, agreeing with the
+ * animal's sex as the card's does (Q9: «молода» for a female). A draft's missing
  * size or age is left out rather than written «Не записано»: it is a gap,
  * named in the gap line, not an answer. No foster part (K-Q10).
  */
@@ -119,7 +120,7 @@ export const metaLineOf = (row: AnimalRow, now: Date): string =>
     SPECIES[row.species],
     SEX[row.sex],
     ...(row.size === null ? [] : [SIZE[row.size]]),
-    ...(row.age === null ? [] : [ageBucketLabel(ageBucketOf(row.age, now))]),
+    ...(row.age === null ? [] : [ageWordFor(ageBucketOf(row.age, now), row.sex)]),
   ].join(" · ");
 
 /** A day on Kyiv's calendar in `Intl`'s words, «12 вересня», with the year when it isn't this one. */

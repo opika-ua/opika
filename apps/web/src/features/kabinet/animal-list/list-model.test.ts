@@ -85,7 +85,7 @@ describe("the meta line: species · sex · size · age (his answer 6)", () => {
   it("K3's segment labels and the card's age word", () => {
     expect(metaLineOf(row(), NOW)).toBe("Собака · Хлопчик · Середній · молодий");
     expect(metaLineOf(row({ species: "cat", sex: "female", size: "small" }), NOW)).toBe(
-      "Кіт · Дівчинка · Малий · молодий",
+      "Кіт · Дівчинка · Малий · молода",
     );
   });
 

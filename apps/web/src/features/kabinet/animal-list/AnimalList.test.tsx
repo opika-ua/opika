@@ -222,7 +222,7 @@ describe("the page: header, rows, order note", () => {
     expect(inRow("Рекс").getByText("Собака · Хлопчик · Середній · молодий")).toBeTruthy();
     expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy();
     expect(inRow("Мурка").getByText("Домовляються")).toBeTruthy();
-    expect(inRow("Мурка").getByText("Кіт · Дівчинка · Малий · молодий")).toBeTruthy();
+    expect(inRow("Мурка").getByText("Кіт · Дівчинка · Малий · молода")).toBeTruthy();
     expect(inRow("Сірко").getByText("Собака · Не записано")).toBeTruthy();
     expect(inRow("Сірко").getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeTruthy();
     expect(inRow("Бім").getByText("Удома з 12 вересня")).toBeTruthy();
