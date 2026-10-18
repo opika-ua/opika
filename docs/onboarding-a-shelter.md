@@ -661,8 +661,8 @@ might have held the secret): generate a new value with `openssl rand -hex 32`,
 replace it in Vercel's Production environment, and redeploy. Every cookie
 signed with the old value stops verifying at once, so **every shelter admin
 and the operator are signed out** and sign in again with a fresh link. The
-old rows become unusable at once and are deleted by the daily auth clean-up
-once their 7-day expiry passes (inbox KH-Q9, KH-Q10).
+old rows become unusable at once and are deleted by the auth clean-up (every
+6 hours) once their 7-day expiry passes (inbox KH-Q9, KH-Q10, KH-Q12).
 
 What rotation leaves alone, exactly. `CURSOR_HMAC_SECRET` and
 `LOCATION_HMAC_SECRET` sign with their own keys, the pre-launch gate checks
