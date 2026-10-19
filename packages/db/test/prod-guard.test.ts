@@ -1272,7 +1272,8 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
   );
 
   /**
-   * Review of #144, finding 2: `xn--a.…` passed the old guard, then neon() threw with the whole
+   * Review of #144, finding 2: `xn--a.…` passed the old guard, then (on Node 22, whose URL parser
+   * rejects it) neon() threw with the whole
    * connection string, password included (admin and db:check-hashes). The child's one transport
    * is disabled, so nothing reaches Neon even on a regression.
    */
@@ -1345,6 +1346,9 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
       "ERROR: the host is neither local nor a Neon endpoint host (ep-…[-pooler].<region>.aws.neon.tech). Refusing (not printing it).",
     );
     expect(result.stderr).not.toContain("network disabled");
+    // Refused before the target line, which would name the host.
+    expect(result.stdout).not.toContain("Target:");
+    expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL_HOST);
     expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
   });
 
@@ -1358,6 +1362,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("ERROR: set in the environment: PGPASSWORD.");
     expect(result.stderr).not.toContain("network disabled");
+    expect(result.stdout).not.toContain("Target:");
     expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
   });
 

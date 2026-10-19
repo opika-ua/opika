@@ -1046,6 +1046,13 @@ weeks.
 
 ### Before the first real shelter or animal record is inserted
 
+- [ ] **PG-F3 merged: a hard item.** Oleksii, 2026-10-19, verbatim: "Add PG-F3 to the launch gate as
+  a hard item: no real shelters before it's merged." `db:migrate` could reach a database the
+  production guard never checked (drizzle-kit's own config file and env-file loading). The fix is
+  parked on `fix/pgf3-migrate-bypass` (WIP, unreviewed, tests missing; handoff in its inbox file):
+  he writes its tests, then it gets the full Tier 1 review. No real shelter is onboarded before it
+  merges.
+
 **Launch order** (Oleksii, 2026-10-17, inbox RH-B5, RU-B4):
 1. **Built and merged:** PR 4 (K3 form) → PR 5 (K2 list) → PR 6 (writes open for everyone, the
    allowlist gone; draft on `feat/pr6-open-writes`), with the operator screens (R-UI, below)

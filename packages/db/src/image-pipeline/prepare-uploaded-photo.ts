@@ -17,11 +17,12 @@ export type PreparedPhoto =
   | { kind: "rejected"; reason: PhotoRejectionReason };
 
 /**
- * The most pixels any read in the pipeline may open. sharp checks it against
+ * The most pixels any decode in the pipeline may open. sharp checks it against
  * the header's width × height when it opens a file, so it is a second check
- * behind the 2000 px dimension check below, carried on every read
+ * behind the 2000 px dimension check below, carried on every decode
  * (generateVariants' own included) so none can open a larger image if that
- * check is ever loosened.
+ * check is ever loosened. The one header read below lifts it on purpose, so an
+ * oversized file is refused by name.
  */
 export const UPLOAD_PIXEL_LIMIT = PHOTO_MAX_EDGE_PX * PHOTO_MAX_EDGE_PX;
 

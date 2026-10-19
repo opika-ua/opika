@@ -135,7 +135,8 @@ The body must contain:
 - **Follow-ups** — deferred work, and which phase owns it. File GitHub issues for
   anything that will outlive this branch.
 
-Then stop. Do not merge, do not push to `main`.
+Then stop. Do not merge (*narrowed 2026-10-19:* except under CLAUDE.md's "Merge only the commit
+that was reviewed"), do not push to `main`.
 
 ## Reporting back
 

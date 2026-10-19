@@ -23,8 +23,11 @@
  *      or `--expect` with no endpoint after it or given twice: the command line
  *      has to say exactly what it means. A refusal echoes a flag's spelling, never
  *      anything that could be a pasted URL;
- *   2. production without `--prod` (`assertProductionWriteAllowed`, which fails
- *      closed when `PROD_NEON_ENDPOINT` is unknown);
+ *   2. what the production guard refuses (`assertProductionWriteAllowed`): a PG*
+ *      variable set in the environment, a URL that isn't exactly one host, or a
+ *      non-local host that isn't a Neon endpoint host (all three even with
+ *      `--prod`), and production without `--prod` (it fails closed when
+ *      `PROD_NEON_ENDPOINT` is unknown);
  *   3. a non-local target whose Neon compute isn't exactly `--expect`, or
  *      `--expect` given for a local target (`migrateTargetCheck`, the same
  *      check `db:migrate` runs, AW-F1).

@@ -94,7 +94,8 @@ The pull request body must contain:
   the human is reading.
 - **Follow-ups** — anything deliberately deferred, and to which milestone.
 
-**Then stop.** Do not merge. Do not push to `main`. The pull request is the handoff.
+**Then stop.** Do not merge (*narrowed 2026-10-19:* except under CLAUDE.md's "Merge only the
+commit that was reviewed"). Do not push to `main`. The pull request is the handoff.
 
 ## Reporting back
 

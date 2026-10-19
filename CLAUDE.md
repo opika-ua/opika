@@ -575,7 +575,8 @@ sweep. For each iteration:
      waiting for Oleksii, not before reviewing.)
 5. When a phase's rows are all committed and every pending review file has been read, open the
    PR with the verified-vs-asserted ledger in the body, and tell Oleksii it is ready. Do not
-   merge. (*Narrowed 2026-10-19:* a green PR whose exact head was reviewed may be merged; see
+   merge. (*Narrowed 2026-10-19:* a green PR whose exact head was reviewed may be merged, except
+   the two kinds that wait for him (a migration PR, a Tier 1 PR before its full review passes); see
    "Merge only the commit that was reviewed" under Agent rules.)
 
 Never spawn a review on work you have not finished, and never continue past a STOP by
@@ -665,7 +666,8 @@ What that changes, concretely:
     review-of-the-fix loops.
 - **Reversible decisions are taken, not asked.** Anything the builder can undo later (layout,
   naming, test shape, an ambiguous design point with no mock) is decided and listed under
-  **"Decisions taken"** in the PR description, where he can overturn it at merge, and recorded
+  **"Decisions taken"** in the PR description, where he can overturn it at merge (or afterwards, as
+  a follow-up, when the PR merged under "Merge only the commit that was reviewed"), and recorded
   as one inbox line. These are the builder's decisions and are recorded as such, never as his
   approval (standing constraints: only his own words are approval).
 - **He is asked only** about irreversible, security, public-claim or brand-voice questions
@@ -737,10 +739,12 @@ copies for new decisions.
     delta reviewed before the merge.
   - A rebase is new commits too; the ruleset requires a PR to be up to date before it merges, so
     a PR that waits while the default branch moves gets one. His rule for it, verbatim
-    (2026-10-19): "A rebase over docs-only commits on main needs no re-review only if it had no
-    conflicts and git range-diff shows every patch unchanged. Paste the range-diff summary in the
-    PR. Any conflict or any patch difference means a short delta review. A rebase over code
-    commits always gets one."
+    (2026-10-19, replacing his earlier docs-only version): "Keep "require branches to be up to
+    date" on. A rebase needs no delta review only when all three hold: no conflicts; git
+    range-diff shows every patch unchanged; the PR's changed files don't overlap the files changed
+    by the new commits on main. Then green CI on the rebased head is the gate. Paste the
+    range-diff summary and the overlap check in the PR. Anything else (a conflict, a patch
+    difference, an overlapping file) gets a short delta review, Tier 1 included."
   - The two exceptions in his words above: a PR with a migration waits for his production
     migration from the PR branch; a Tier 1 PR waits until its full review has passed, then
     merges like any other.

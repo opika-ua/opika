@@ -363,6 +363,8 @@ describe("the processing budget", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(puts).toEqual([]);
     expect((await reload(target.id)).photos).toEqual([]);
+    // Nor has the date a photo write on a visible card moves (RH-B7).
+    expect((await reload(target.id)).listing).toEqual(target.listing);
     expect(await photoHistory()).toEqual([]);
     expect(logged.mock.calls).toHaveLength(1);
   });
