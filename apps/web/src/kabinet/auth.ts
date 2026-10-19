@@ -60,7 +60,7 @@ const DAY_SECONDS = 24 * 60 * 60;
  */
 export const KABINET_SESSION = {
   /**
-   * One number with the daily clean-up's (`KABINET_SESSION_ABSOLUTE_MS`,
+   * One number with the auth clean-up's (`KABINET_SESSION_ABSOLUTE_MS`,
    * `@opika/db`), which deletes a session past this cap (EM-Q11).
    */
   absoluteMs: KABINET_SESSION_ABSOLUTE_MS,

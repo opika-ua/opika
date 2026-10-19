@@ -14,12 +14,13 @@ import {
   testOnlyLocationPolicy,
   transitionListing,
 } from "@opika/domain";
-import { eq, inArray } from "drizzle-orm";
+import { count, eq, inArray } from "drizzle-orm";
 import { createDatabase, type Database } from "../src/client";
 import { productionEndpoint } from "../src/prod-guard";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { authExpiryRepo, KABINET_SESSION_ABSOLUTE_MS } from "../src/repos/auth-expiry-repo";
+import { authRevokeRepo } from "../src/repos/auth-revoke-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import {
   type AnimalHistoryRow,
@@ -652,7 +653,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `${dupAccepted.kind}; newest ${statusOf(newerId)}, older ${statusOf(olderInvite.invitationId)}, ${stillPending} pending`,
   );
 
-  // 18. the daily auth clean-up's one statement (KH-Q9, plus EM-Q11's 30-day
+  // 18. the auth clean-up's one statement (KH-Q9, plus EM-Q11's 30-day
   // cap): two data-modifying CTEs and their counts, through neon-http. Rows
   // past expiry go, and a session past the absolute cap goes even with its
   // idle expiry still ahead (EM-Q11: "Test the case where the cap is passed
@@ -1752,6 +1753,37 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       staleBeforeAdopt === 3 &&
       staleAfterAdopt === 2,
     `${adoptWrite.kind}, ${adoptLines} line(s), now ${adoptedRaw?.listingKind}, stale ${staleBeforeAdopt} → ${staleAfterAdopt}`,
+  );
+
+  // 37. `auth:revoke-all`'s one statement (KH-Q12 rotation, the required purge
+  // after rotating BETTER_AUTH_SECRET): two data-modifying CTEs that delete
+  // every auth_session and auth_verification row, through neon-http, the
+  // driver the CLI uses on Neon. Users and memberships stay. On a disposable
+  // branch the two tables may also hold rows copied from production; they go
+  // too (the branch is thrown away), so the counts are "at least". Last on
+  // purpose: it signs out every session the steps above wrote.
+  const revokeSession = randomUUID();
+  const revokeLink = randomUUID();
+  await db.insert(authSession).values({ ...session(operator), id: revokeSession });
+  await db.insert(authVerification).values(verification(revokeLink, later(900_000)));
+  const membersBefore = (await db.select({ n: count() }).from(authMember))[0]?.n ?? -1;
+  const revoked = await authRevokeRepo(db).deleteAll();
+  const revokeLeft = await authRevokeRepo(db).countAll();
+  const membersAfter = (await db.select({ n: count() }).from(authMember))[0]?.n ?? -1;
+  const operatorStays =
+    (await db.select({ id: authUser.id }).from(authUser).where(eq(authUser.id, operator)))
+      .length === 1;
+  check(
+    "auth:revoke-all (every session and sign-in link, one statement; users and members stay)",
+    typeof revoked.sessions === "number" &&
+      typeof revoked.verifications === "number" &&
+      revoked.sessions >= 1 &&
+      revoked.verifications >= 1 &&
+      revokeLeft.sessions === 0 &&
+      revokeLeft.verifications === 0 &&
+      operatorStays &&
+      membersAfter === membersBefore,
+    `deleted ${revoked.sessions} session(s), ${revoked.verifications} link(s); left ${revokeLeft.sessions} and ${revokeLeft.verifications}; operator ${operatorStays ? "kept" : "GONE"}, members ${membersBefore} → ${membersAfter}`,
   );
   return out;
 }

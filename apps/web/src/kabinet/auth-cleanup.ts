@@ -3,16 +3,18 @@ import type { Database } from "@opika/db";
 import { authExpiryRepo } from "@opika/db/repos";
 
 /**
- * The daily clean-up of dead Better Auth rows (inbox KH-Q9). Oleksii,
+ * The scheduled clean-up of dead Better Auth rows (inbox KH-Q9). Oleksii,
  * 2026-10-14, relayed, verbatim: "(b), a daily Vercel cron. (a) alone is too
  * weak: rows survive until the next sign-in, which can be weeks away." The
- * provisional /pro sentence that expired sign-in records go within two days
- * (KH-C1; two, not one, because KH-Q12 chose one run a day, the most Vercel
- * Hobby allowed, and Hobby promised only the hour, not the minute) rests on
- * this route running, not on Better Auth's lazy deletes. The project is on
- * Pro since 2026-10-18, which allows more frequent runs; moving to every 6
- * hours with «протягом доби» is his call (KH-Q12), not made, so the schedule
- * and the sentence stay as they are.
+ * /pro sentence that expired sign-in records go within a day («…видаляються
+ * протягом доби.») rests on this route running, not on Better Auth's lazy
+ * deletes. It runs every 6 hours (`apps/web/vercel.json`): KH-Q12, resolved
+ * 2026-10-18 by his VP-T1 answer, verbatim: "Run the sign-in clean-up every 6
+ * hours on Pro, and change /pro to «…видаляються протягом доби.»". On Hobby it
+ * ran once a day and /pro said «протягом двох діб» (KH-C1). A link's 15
+ * minutes plus two gaps, should one run be skipped (Vercel does not retry), is
+ * 12 h 15 min; `auth-cleanup.test.ts` reads the schedule from config and fails
+ * if that worst case passes 24 h or the sentence changes.
  *
  * - **What goes:** exactly what `authExpiryRepo.deleteExpired` deletes, in
  *   one statement: rows past their expiry (KH-Q9), and sessions past the

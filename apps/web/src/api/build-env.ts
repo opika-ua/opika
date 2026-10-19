@@ -70,7 +70,7 @@ function productionSecretProblem(
  * check"): the bearer Vercel sends to the auth clean-up cron
  * (`kabinet/auth-cleanup.ts`), which refuses every call without it. Missing,
  * the cron fails closed on every run with nothing red on the site, and the
- * /pro promise that expired sign-in records go within two days would be false
+ * /pro promise that expired sign-in records go within a day would be false
  * silently.
  *
  * `VERCEL_ENV === "production"` only: Vercel runs crons on production

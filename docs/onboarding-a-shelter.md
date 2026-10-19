@@ -658,11 +658,15 @@ That value lives only in Vercel's environment: never in the database, the
 repo, a log or a local file. Rotate it on any suspected exposure (of the
 secret itself, or of the `auth_session` table together with anything that
 might have held the secret): generate a new value with `openssl rand -hex 32`,
-replace it in Vercel's Production environment, and redeploy. Every cookie
-signed with the old value stops verifying at once, so **every shelter admin
-and the operator are signed out** and sign in again with a fresh link. The
-old rows become unusable at once and are deleted by the daily auth clean-up
-once their 7-day expiry passes (inbox KH-Q9, KH-Q10).
+replace it in Vercel's Production environment, redeploy, then run the
+**required** purge below. On the new deployment every cookie signed with the
+old value stops verifying at once; a tab already open can keep reaching the old
+deployment for up to 12 hours (skew protection), so it is the purge, not the
+redeploy, that signs **every shelter admin and the operator** out everywhere.
+They sign in again with a fresh link, after the purge, which deletes the old
+rows at once. Left to the auth
+clean-up (every 6 hours), they would stay until their 7-day expiry passed
+(inbox KH-Q9, KH-Q10, KH-Q12).
 
 What rotation leaves alone, exactly. `CURSOR_HMAC_SECRET` and
 `LOCATION_HMAC_SECRET` sign with their own keys, the pre-launch gate checks
@@ -671,18 +675,71 @@ a random token stored as its hash, with no key at all. None of them read
 `BETTER_AUTH_SECRET`, so feed cursors, fuzzed locations, the gate cookie and
 adopters' sessions all keep working.
 
-What it also leaves alone, and this one matters: **a sign-in link sent in the
-last 15 minutes still works after the rotation.** Links are stored in
+What it also leaves alone, and this one matters: **rotation on its own leaves
+a sign-in link sent in the last 15 minutes working.** Links are stored in
 `auth_verification` as a plain SHA-256 of the token, with no key, so the new
 secret doesn't invalidate them, and following one creates a fresh session
-signed with the new secret. If the exposure could include a link itself (a
-mailbox, a log line carrying the verify URL), finish with one more step after
-the redeploy: in Neon's SQL editor, on the production branch, run
+signed with the new secret. That is why the purge below empties that table
+too.
 
-```sql
-DELETE FROM auth_verification;
+### After the redeploy: delete every sign-in (REQUIRED)
+
+Two steps, both required, both Oleksii's to run, on production. Oleksii,
+2026-10-18 (KH-Q12 rotation), verbatim: "after the redeploy, these two steps
+are REQUIRED (my steps, production, 5.1-safe block, typed --expect-style
+target check first): DELETE FROM auth_session; DELETE FROM auth_verification;"
+
+`auth:revoke-all` runs exactly those two deletes, as one statement, behind the
+same checks as `db:migrate`: `--prod` for production, and `--expect` naming
+the exact Neon compute, typed and never derived (see "Migrating production").
+It deletes nothing else. Users, accounts, memberships, invitations,
+super_admins and support sessions stay, so everyone signs in again as the same
+person, with the same access.
+
+Why, in his words (verbatim): "every cookie and link is already invalid, so
+nothing is lost, and /pro's «…протягом доби» then holds in every case."
+Without the purge, the old session rows would wait for the clean-up's 7-day
+expiry, past the day /pro promises. The kabinet signs in by magic link only,
+so `auth_verification` holds nothing but links not yet used (a used link's row
+is deleted when it's followed). Strictly, three kinds of row are still live when
+the purge runs, and they all go: a link sent in the 15 minutes before it (links
+don't depend on the secret, above); a session started after the redeploy; and a
+pre-rotation session in a kabinet tab that was already open. Skew protection
+(12 h, SK-B1) keeps that tab talking to the old deployment, which still holds
+the old secret, so for it the redeploy alone changes nothing: **the purge is
+what ends those sessions.** Run this block right after the redeploy, not later.
+The worst any of the three does is make that person ask for a new link. So sign
+in again yourself only after this block.
+
+Run it from the main checkout (its root `.env.local` provides
+`PROD_NEON_ENDPOINT`), up to date with the default branch, in Windows
+PowerShell 5.1 with `Read-Secret` from "PowerShell 5.1: reading a secret"
+pasted first. `ep-dawn-pond-b1dz515g` is production's endpoint id, the value
+to type for `--expect`:
+
+```powershell
+$env:DATABASE_URL = Read-Secret "Production DIRECT connection string"
+pnpm --filter @opika/db auth:revoke-all --prod --expect ep-dawn-pond-b1dz515g
+pnpm --filter @opika/db auth:revoke-all --prod --expect ep-dawn-pond-b1dz515g --commit
+pnpm --filter @opika/db auth:revoke-all --prod --expect ep-dawn-pond-b1dz515g
+Remove-Item Env:DATABASE_URL
 ```
 
-The kabinet signs in by magic link only, so that table holds nothing but
-links not yet used (a used link's row is deleted when it's followed). The
-worst it does is make someone whose link was in flight ask for a new one.
+Expected:
+
+1. **Dry run**: `WARNING: reading PRODUCTION (--prod given).`, then
+   `Target: Neon endpoint ep-dawn-pond-b1dz515g (…)`, `DRY RUN (nothing is
+   deleted)`, `Rows now:` with one count for `auth_session` and one for
+   `auth_verification`, and `Nothing was deleted. …`; exit 0. **Stop if the
+   endpoint differs.**
+2. **`--commit`**: `WARNING: writing to PRODUCTION (--prod given).`, the same
+   `Target:` line, `COMMIT`, `Deleted, in one statement:` with both counts (they
+   may differ from the dry run's: a sign-in, a link asked for or followed, or the
+   6-hourly clean-up can change them in between),
+   and `Done. Run the dry run again: both counts should be 0.`; exit 0.
+3. **Dry run again**: as in 1, with `auth_session 0` and
+   `auth_verification 0`.
+
+Without `--prod` it refuses production. Without `--expect`, or with one naming
+another compute, it refuses before anything runs, and prints neither the URL
+nor an endpoint. Then sign in again at `/kabinet/vkhid` with a fresh link.

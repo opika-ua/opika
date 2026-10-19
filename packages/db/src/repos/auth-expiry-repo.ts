@@ -16,9 +16,9 @@ export const KABINET_SESSION_ABSOLUTE_MS = 30 * 24 * 60 * 60 * 1000;
 /**
  * Deletes the Better Auth rows that have lost force (inbox KH-Q9; Oleksii,
  * 2026-10-14, relayed, verbatim: "One statement: delete auth_verification
- * rows past expiry, and auth_session rows past expires_at."). The daily cron
- * (`apps/web/src/kabinet/auth-cleanup.ts`) is what the /pro sentence (row 90:
- * records of sign-ins that have lost force are deleted within two days)
+ * rows past expiry, and auth_session rows past expires_at."). The cron, every
+ * 6 hours (`apps/web/src/kabinet/auth-cleanup.ts`), is what the /pro sentence
+ * (records of sign-ins that have lost force are deleted within a day, KH-Q12)
  * relies on: Better Auth on its own deletes an expired session only when that
  * session's cookie comes back, which may be never.
  *
