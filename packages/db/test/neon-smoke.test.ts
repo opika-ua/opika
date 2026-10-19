@@ -49,6 +49,30 @@ describe("smokeTarget", () => {
     expect(target.kind).toBe("refused");
     expect(JSON.stringify(target)).not.toContain("secret");
   });
+
+  /** The production guard's one-host reading (2026-10-19): production can't hide behind the rehearsal host. */
+  it.each([
+    [
+      "a fragment",
+      "postgresql://u:secret@ep-rehearsal-1-pooler.eu-central-1.aws.neon.tech#,ep-prod-1-pooler.eu-central-1.aws.neon.tech/neondb",
+      "it has a '#' fragment",
+    ],
+    [
+      "a second '@'",
+      "postgresql://u:secret@ep-prod-1-pooler.eu-central-1.aws.neon.tech,x@ep-rehearsal-1-pooler.eu-central-1.aws.neon.tech/neondb",
+      "it has more than one '@' before the host",
+    ],
+    [
+      "a percent-encoded host list",
+      "postgresql://u:secret@nope%2Cep-prod-1-pooler.eu-central-1.aws.neon.tech/neondb",
+      "it lists several hosts",
+    ],
+  ])("refuses %s as not exactly one host", (_what, url, why) => {
+    expect(smokeTarget(url, "ep-rehearsal-1", "ep-prod-1")).toEqual({
+      kind: "refused",
+      reason: `DATABASE_URL can't be read as exactly one host: ${why} (not printing it)`,
+    });
+  });
 });
 
 describe("runSmoke against the local database", () => {

@@ -42,16 +42,70 @@ export type ProductionWriteCheck =
   | { kind: "allowed"; reason: "local" | "not_production" | "production_flagged" }
   | {
       kind: "refused";
-      reason:
-        | "production_without_flag"
-        | "production_unknown"
-        | "unparseable"
-        | "ambiguous_host"
-        | "misconfigured";
-    };
+      reason: "production_without_flag" | "production_unknown" | "unparseable" | "misconfigured";
+    }
+  | { kind: "refused"; reason: "ambiguous_host"; cause: HostAmbiguity };
 
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
+/**
+ * Why a database URL can't be read as exactly one host. The guard checks one
+ * host against production, so that host has to be the one the driver would
+ * connect to. Each cause is a form where the guard's reading (WHATWG `URL`)
+ * and a driver's were shown to differ, or one the guard can't vouch for, so it
+ * refuses rather than guesses (Oleksii, 2026-10-19: "Refuse any database URL
+ * the guard can't classify unambiguously as one host").
+ */
+export type HostAmbiguity =
+  | "characters"
+  | "fragment"
+  | "scheme"
+  | "userinfo"
+  | "host_list"
+  | "no_host"
+  | "host_form"
+  | "query"
+  | "routing_hint";
+
+/** What a refusal says: the rule the URL broke, never any part of the URL. */
+export const HOST_AMBIGUITY_TEXT: Readonly<Record<HostAmbiguity, string>> = {
+  characters: "it contains a space, a backslash, a control character or a non-ASCII character",
+  fragment: "it has a '#' fragment",
+  scheme: "it doesn't start with postgres:// or postgresql://",
+  userinfo: "it has more than one '@' before the host",
+  host_list: "it lists several hosts",
+  no_host: "it names no host",
+  host_form: "its host isn't a plain hostname or IPv4 address",
+  query: "it carries a query parameter, or a value, the guard doesn't accept",
+  routing_hint: "it names a Neon endpoint or project outside the host",
+};
+
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
 const ENDPOINT_ID = /^ep-[a-z0-9-]+$/;
+
+/**
+ * The only query parameters a database URL may carry, each with the values it
+ * may take: what Neon's own connection strings use, nothing else. None of them
+ * names a host. Everything else is refused, because drivers and Neon read
+ * parameters as connection settings: the pg-connection-string inside
+ * `@neondatabase/serverless` (its `Client`/`Pool`, unused here) takes `?host=`
+ * over the URL's host, libpq (`psql`, which no script uses) honours `host`,
+ * `hostaddr` and `service`, Neon's proxy routes by `options=endpoint%3D…`, and
+ * postgres-js sends unknown keys to the server as startup parameters
+ * (`?database=` replaces the path's database). An allowlist fails closed on a
+ * parameter nobody has looked at yet.
+ */
+const ALLOWED_QUERY = new Map<string, ReadonlySet<string>>([
+  ["sslmode", new Set(["disable", "allow", "prefer", "require", "verify-ca", "verify-full"])],
+  ["channel_binding", new Set(["disable", "prefer", "require"])],
+]);
+
+/** Neon's SNI workarounds name the endpoint outside the hostname (`endpoint=ep-…`, older `project=`). */
+const NEON_ROUTING_HINT = /(endpoint|project)=/i;
+
+/** Each valid `%XX` decoded on its own, the rest kept: a malformed escape elsewhere can't hide a hint. */
+const decodeEscapes = (text: string): string =>
+  text.replace(/%([0-9a-f]{2})/gi, (_escape, hex: string) =>
+    String.fromCharCode(Number.parseInt(hex, 16)),
+  );
 
 const parseOrNull = (url: string): URL | null => {
   try {
@@ -60,6 +114,73 @@ const parseOrNull = (url: string): URL | null => {
     return null;
   }
 };
+
+type HostReading =
+  | { kind: "one_host"; parsed: URL; host: string }
+  | { kind: "unparseable" }
+  | { kind: "ambiguous_host"; cause: HostAmbiguity };
+
+/**
+ * The one host a database URL names, or why it can't be read as exactly one.
+ * Every check below exists because `URL`'s reading and postgres-js's own
+ * (`parseUrl` and `parseOptions` in postgres@3.4.9 `src/index.js`, which
+ * drizzle-kit uses too) or neon()'s (it re-parses the string as `http:`) can
+ * differ. postgres-js slices the authority itself: everything after `://` up
+ * to the first `?` or `/`, the host after the *first* `@`, percent-decoded;
+ * whenever that contains a comma it connects to that list, in order, failing
+ * over on error, and ignores `URL`'s host entirely. Once the checks pass, its
+ * slice and `URL`'s hostname are the same characters.
+ *
+ * `host` is lowercased (`postgres:` isn't a WHATWG special scheme, so `URL`
+ * keeps the host's case) and otherwise exactly as written.
+ */
+function readOneHost(url: string): HostReading {
+  const parsed = parseOrNull(url);
+  if (parsed === null) return { kind: "unparseable" };
+  const ambiguous = (cause: HostAmbiguity): HostReading => ({ kind: "ambiguous_host", cause });
+
+  // `URL` drops tabs and newlines anywhere and trims spaces; postgres-js slices
+  // the raw string, so the two would read different characters. neon() re-parses
+  // the string as `http:`, where a backslash ends the authority as `/` does.
+  if (!/^[\x21-\x5b\x5d-\x7e]+$/.test(url)) return ambiguous("characters");
+  // postgres-js ends the host at the first `?` or `/`, never at `#`: in
+  // `…@localhost#,ep-….neon.tech/db`, `URL` reads localhost while postgres-js
+  // reads ["localhost#", "ep-….neon.tech"] and fails over to the second (the
+  // review that found this hole). A connection string has no use for a fragment.
+  if (url.includes("#")) return ambiguous("fragment");
+  // Other schemes get WHATWG's special-scheme host rules (backslashes, IPv4
+  // rewriting); neon() refuses them, postgres-js ignores the scheme entirely.
+  if (!/^postgres(ql)?:\/\//i.test(url)) return ambiguous("scheme");
+
+  const authority = url.slice(url.indexOf("://") + 3).split(/[?/]/)[0] ?? "";
+  // postgres-js takes the host after the first `@`, `URL` after the last:
+  // `u:p@ep-….neon.tech,x@localhost/db` is localhost to `URL` and
+  // ["ep-….neon.tech", "x@localhost"] to postgres-js, production first.
+  const at = authority.indexOf("@");
+  if (at !== authority.lastIndexOf("@")) return ambiguous("userinfo");
+  const hostAndPort = authority.slice(at + 1);
+  // postgres-js percent-decodes its host before splitting on commas, so
+  // `nope%2Cep-….neon.tech` is one opaque host to `URL` and two to it.
+  if (/,|%2c/i.test(hostAndPort)) return ambiguous("host_list");
+  const host = hostAndPort.replace(/:[0-9]*$/, "");
+  // An empty host falls back to PGHOST, or localhost.
+  if (host === "") return ambiguous("no_host");
+  // Anything but letters, digits, dots and hyphens: percent-escapes (postgres-js
+  // decodes them, `%2F` turning the host into a unix-socket path), brackets
+  // (postgres-js splits `[::1]` at its first `:` and connects to `[`).
+  if (!/^[a-z0-9.-]+$/i.test(host)) return ambiguous("host_form");
+
+  for (const [key, value] of parsed.searchParams) {
+    if (ALLOWED_QUERY.get(key)?.has(value) !== true) return ambiguous("query");
+  }
+  // Neon routes a connection by an endpoint named in the password (or, through
+  // libpq, the database name) ahead of the hostname's, so the host checked here
+  // would not decide which database answers.
+  for (const part of [parsed.username, parsed.password, parsed.pathname]) {
+    if (NEON_ROUTING_HINT.test(decodeEscapes(part))) return ambiguous("routing_hint");
+  }
+  return { kind: "one_host", parsed, host: host.toLowerCase() };
+}
 
 /** `ep-quiet-lake-a1b2c3-pooler.eu-…`, `ep-quiet-lake-a1b2c3.eu-…` and `ep-quiet-lake-a1b2c3` are one compute. */
 const computeOf = (hostOrId: string): string =>
@@ -82,7 +203,7 @@ export type DatabaseTarget =
   | { kind: "neon"; endpoint: string; host: string }
   | { kind: "local"; host: string; port: string; database: string }
   | { kind: "remote"; host: string }
-  | { kind: "ambiguous_host" }
+  | { kind: "ambiguous_host"; cause: HostAmbiguity }
   | { kind: "unparseable" };
 
 /**
@@ -94,24 +215,25 @@ export type DatabaseTarget =
 const isNeonHostname = (hostname: string): boolean => hostname.endsWith(".neon.tech");
 
 export function databaseTargetOf(url: string): DatabaseTarget {
-  const parsed = parseOrNull(url);
-  if (parsed === null) return { kind: "unparseable" };
-  // A comma lists several hosts (postgres-js tries them in turn) and an empty
-  // host falls back to PGHOST or localhost: either way the line couldn't
-  // name the database honestly, and it exists to be proof (review, finding 2).
-  if (parsed.hostname === "" || parsed.hostname.includes(",")) return { kind: "ambiguous_host" };
-  // `postgres:` isn't a WHATWG special scheme, so `URL` keeps the host's case;
-  // the trailing dot is the same host written fully qualified.
-  const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
-  if (LOCAL_HOSTS.has(host.replace(/^\[|\]$/g, ""))) {
+  // A URL that isn't exactly one host could reach any of several databases:
+  // the line couldn't name the database honestly, and it exists to be proof
+  // (review of 4e30965, finding 2). The same reading as the production guard.
+  const reading = readOneHost(url);
+  if (reading.kind !== "one_host") return reading;
+  const { parsed } = reading;
+  // Local only when the production guard agrees it is: a fully qualified
+  // `localhost.` goes to the resolver, so it is named as remote.
+  if (LOCAL_HOSTS.has(reading.host)) {
     return {
       kind: "local",
-      host,
+      host: reading.host,
       // Postgres' own default, which is what an omitted port connects to.
       port: parsed.port || "5432",
       database: parsed.pathname.replace(/^\//, ""),
     };
   }
+  // The trailing dot is the same host written fully qualified.
+  const host = reading.host.replace(/\.$/, "");
   // The endpoint id is the compute, which is what the production guard compares,
   // so the pooled and direct hostnames of one database print the same id.
   const endpoint = computeOf(host);
@@ -130,6 +252,12 @@ export function expectedTargetOf(url: string, expect: string | undefined): Expec
     return { kind: "refused", reason: "pass --expect ep-… (the target's Neon endpoint id)" };
   }
   const target = databaseTargetOf(url);
+  if (target.kind === "ambiguous_host") {
+    return {
+      kind: "refused",
+      reason: `the target can't be read as exactly one host: ${HOST_AMBIGUITY_TEXT[target.cause]}`,
+    };
+  }
   if (target.kind !== "neon") {
     return { kind: "refused", reason: "the target is not a Neon endpoint" };
   }
@@ -153,7 +281,7 @@ export function databaseTargetLine(url: string): string {
     case "remote":
       return `Target: remote host ${target.host} (not a Neon endpoint)`;
     case "ambiguous_host":
-      return "Target: DATABASE_URL names several hosts or none, so it can't be named (not printing it).";
+      return `Target: DATABASE_URL can't be read as exactly one host (${HOST_AMBIGUITY_TEXT[target.cause]}), so it can't be named (not printing it).`;
     case "unparseable":
       return "Target: DATABASE_URL could not be parsed (not printing it).";
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
@@ -171,19 +299,19 @@ export function checkProductionWrite(
 ): ProductionWriteCheck {
   // A URL that won't parse is refused, never thrown on: Node's uncaught-error
   // dump prints the input, password included.
-  const target = parseOrNull(targetUrl);
-  if (target === null) return { kind: "refused", reason: "unparseable" };
-  // Only one host can be checked against production. A comma lists several
-  // (postgres-js fails over through them, so a production host second in
-  // line would be reached without --prod), and an empty host falls back to
-  // PGHOST or localhost: neither can be shown not to be production
-  // (review of 9ce9bc1, finding 1). Same rule as `databaseTargetOf`.
-  if (target.hostname === "" || target.hostname.includes(",")) {
-    return { kind: "refused", reason: "ambiguous_host" };
+  const target = readOneHost(targetUrl);
+  if (target.kind === "unparseable") return { kind: "refused", reason: "unparseable" };
+  // Only one host can be checked against production, and it has to be the one
+  // the driver connects to. A host list (review of 9ce9bc1, finding 1), a
+  // fragment hiding one (2026-10-19), an empty host falling back to PGHOST:
+  // none of them can be shown not to be production, so --prod doesn't help
+  // either. Same reading as `databaseTargetOf`.
+  if (target.kind === "ambiguous_host") {
+    return { kind: "refused", reason: "ambiguous_host", cause: target.cause };
   }
   // Exact hostname match, never a substring test: a URL merely *containing*
   // "localhost" (in a password, a query string) must not pass as local.
-  if (LOCAL_HOSTS.has(target.hostname.toLowerCase().replace(/^\[|\]$/g, ""))) {
+  if (LOCAL_HOSTS.has(target.host)) {
     return { kind: "allowed", reason: "local" };
   }
 
@@ -198,7 +326,7 @@ export function checkProductionWrite(
   const prod = computeOf(prodEndpoint.trim());
   if (!ENDPOINT_ID.test(prod)) return { kind: "refused", reason: "misconfigured" };
 
-  if (computeOf(target.hostname) !== prod) return { kind: "allowed", reason: "not_production" };
+  if (computeOf(target.host) !== prod) return { kind: "allowed", reason: "not_production" };
   return flagged
     ? { kind: "allowed", reason: "production_flagged" }
     : {
@@ -250,21 +378,39 @@ export function assertProductionWriteAllowed(
     }
     return;
   }
-  const messages: Record<typeof check.reason, string> = {
-    production_without_flag:
-      `ERROR: this target is PRODUCTION (its Neon compute is ${PROD_ENDPOINT_ENV}). ` +
-      `Pass ${PROD_FLAG} if that is really what you mean.`,
-    production_unknown:
-      `ERROR: ${PROD_ENDPOINT_ENV} is not set (environment or the root .env.local), so this ` +
-      `non-local target can't be shown not to be production. Set it, or pass ${PROD_FLAG} if ` +
-      "you mean production.",
-    unparseable: "ERROR: a database URL could not be parsed. Refusing (not printing it).",
-    ambiguous_host:
-      "ERROR: the database URL names several hosts or none; only one host can be checked against production. Refusing (not printing it).",
-    misconfigured:
-      `ERROR: ${PROD_ENDPOINT_ENV} doesn't look like a Neon endpoint id (ep-…). Refusing ` +
-      "(not printing it).",
-  };
-  console.error(messages[check.reason]);
+  console.error(refusalMessage(check));
   process.exit(1);
+}
+
+function refusalMessage(check: Extract<ProductionWriteCheck, { kind: "refused" }>): string {
+  switch (check.reason) {
+    case "production_without_flag":
+      return (
+        `ERROR: this target is PRODUCTION (its Neon compute is ${PROD_ENDPOINT_ENV}). ` +
+        `Pass ${PROD_FLAG} if that is really what you mean.`
+      );
+    case "production_unknown":
+      return (
+        `ERROR: ${PROD_ENDPOINT_ENV} is not set (environment or the root .env.local), so this ` +
+        `non-local target can't be shown not to be production. Set it, or pass ${PROD_FLAG} if ` +
+        "you mean production."
+      );
+    case "unparseable":
+      return "ERROR: a database URL could not be parsed. Refusing (not printing it).";
+    case "ambiguous_host":
+      return (
+        `ERROR: the database URL can't be read as exactly one host: ${HOST_AMBIGUITY_TEXT[check.cause]}. ` +
+        "Only one host can be checked against production. Refusing (not printing it)."
+      );
+    case "misconfigured":
+      return (
+        `ERROR: ${PROD_ENDPOINT_ENV} doesn't look like a Neon endpoint id (ep-…). Refusing ` +
+        "(not printing it)."
+      );
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled reason; unreachable at runtime */
+    default: {
+      const unreachable: never = check;
+      throw new Error(`Unhandled refusal ${JSON.stringify(unreachable)}`);
+    }
+  }
 }

@@ -3,13 +3,17 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import postgres from "postgres";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { migrateTargetCheck, parseMigrateArgs } from "../src/migrate-args";
 import {
   assertProductionWriteAllowed,
   checkProductionWrite,
+  type DatabaseTarget,
   databaseTargetLine,
   databaseTargetOf,
+  expectedTargetOf,
+  type HostAmbiguity,
   productionEndpoint,
 } from "../src/prod-guard";
 
@@ -93,11 +97,11 @@ describe("checkProductionWrite edge cases", () => {
       "postgresql://u:secret@localhost,ep-other-hill-d4e5f6.eu-central-1.aws.neon.tech/neondb",
       "postgres:///opika",
     ]) {
-      expect(checkProductionWrite(url, [], PROD_ENDPOINT)).toEqual({
+      expect(checkProductionWrite(url, [], PROD_ENDPOINT)).toMatchObject({
         kind: "refused",
         reason: "ambiguous_host",
       });
-      expect(checkProductionWrite(url, ["--prod"], PROD_ENDPOINT)).toEqual({
+      expect(checkProductionWrite(url, ["--prod"], PROD_ENDPOINT)).toMatchObject({
         kind: "refused",
         reason: "ambiguous_host",
       });
@@ -110,8 +114,8 @@ describe("checkProductionWrite edge cases", () => {
       "postgresql://u:secret@EP-QUIET-LAKE-A1B2C3.EU-CENTRAL-1.AWS.NEON.TECH/neondb",
     ],
     [
-      "explicit port and options",
-      "postgresql://u:secret@ep-quiet-lake-a1b2c3.eu-central-1.aws.neon.tech:5432/neondb?sslmode=require&options=x",
+      "explicit port and the query Neon's console gives",
+      "postgresql://u:secret@ep-quiet-lake-a1b2c3.eu-central-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require",
     ],
     [
       "trailing dot",
@@ -140,6 +144,273 @@ describe("checkProductionWrite edge cases", () => {
       reason: "misconfigured",
     });
   });
+});
+
+/**
+ * Verbatim from the review that found the hole (KH-Q12 purge, 2026-10-19).
+ * `ep-dawn-pond-b1dz515g` is production's endpoint id, already public in
+ * docs/onboarding-a-shelter.md; the literal `<region>` keeps the second host
+ * unresolvable, so even a regression couldn't reach anything with it.
+ */
+const REVIEWS_EXAMPLE =
+  "postgres://u:p@localhost#,ep-dawn-pond-b1dz515g.<region>.aws.neon.tech/neondb";
+const REVIEWS_PROD_ENDPOINT = "ep-dawn-pond-b1dz515g";
+const PROD_HOST = `${PROD_ENDPOINT}-pooler.eu-central-1.aws.neon.tech`;
+const CHILD_HOST = "ep-other-hill-d4e5f6.eu-central-1.aws.neon.tech";
+
+/**
+ * Oleksii, 2026-10-19, verbatim: "Refuse any database URL the guard can't
+ * classify unambiguously as one host: '#' (fragment), ',' (already), query
+ * parameters that set or override the host (host=, hostaddr=, and any others
+ * the driver honours; check the postgres/neon driver docs), userinfo tricks,
+ * and anything else that lets the parsed host differ from what the driver
+ * connects to. Test each case, including the exact example you found."
+ *
+ * Each row names the rule it breaks, so a row caught by a different rule (the
+ * review's example has a comma after its `#`) still fails when its own rule is
+ * removed.
+ */
+const NOT_ONE_HOST: ReadonlyArray<readonly [string, string, HostAmbiguity]> = [
+  ["the review's example: a fragment hiding a second host", REVIEWS_EXAMPLE, "fragment"],
+  ["a fragment and nothing else", "postgres://opika:opika@localhost:5433/opika#x", "fragment"],
+  [
+    "a fragment between the port and a second host",
+    `postgres://localhost:5433#@${PROD_HOST}/neondb`,
+    "fragment",
+  ],
+  ["a comma host list", `postgresql://u:secret@localhost,${PROD_HOST}/neondb`, "host_list"],
+  [
+    "a percent-encoded comma",
+    `postgresql://u:secret@nope%2C${PROD_HOST}/neondb?sslmode=require`,
+    "host_list",
+  ],
+  [
+    "a lowercase percent-encoded comma",
+    `postgresql://u:secret@nope%2c${PROD_HOST}/neondb`,
+    "host_list",
+  ],
+  [
+    "a second '@' hiding a host list",
+    `postgresql://u:secret@${PROD_HOST},x@localhost:5433/neondb`,
+    "userinfo",
+  ],
+  ["a second '@' alone", `postgresql://u:secret@${PROD_HOST}@localhost:5433/neondb`, "userinfo"],
+  ["an unescaped '@' in the password", "postgres://opika:p@ss@localhost:5433/opika", "userinfo"],
+  ["?host=", `postgres://opika:opika@localhost:5433/opika?host=${PROD_HOST}`, "query"],
+  ["?hostaddr=", "postgres://opika:opika@localhost:5433/opika?hostaddr=3.125.0.1", "query"],
+  ["?service=", "postgres://opika:opika@localhost:5433/opika?service=prod", "query"],
+  ["?port=", "postgres://opika:opika@localhost:5433/opika?port=5432", "query"],
+  [
+    "?database=",
+    "postgres://opika:opika@localhost:5433/opika_test_0123abcd?database=opika",
+    "query",
+  ],
+  [
+    "?options= naming an endpoint",
+    `postgresql://u:secret@3.125.0.1/neondb?sslmode=require&options=endpoint%3D${PROD_ENDPOINT}`,
+    "query",
+  ],
+  [
+    "?sslmode= with a value it doesn't take",
+    `postgresql://u:secret@${CHILD_HOST}/neondb?sslmode=x`,
+    "query",
+  ],
+  [
+    "the endpoint in the password (Neon's SNI workaround D)",
+    `postgresql://u:endpoint=${PROD_ENDPOINT};pw@3.125.0.1/neondb?sslmode=require`,
+    "routing_hint",
+  ],
+  [
+    "the endpoint in the password, percent-encoded",
+    `postgresql://u:%65ndpoint%3D${PROD_ENDPOINT}$pw@${CHILD_HOST}/neondb`,
+    "routing_hint",
+  ],
+  [
+    "a project in the user name",
+    `postgresql://project=${PROD_ENDPOINT}:pw@3.125.0.1/neondb`,
+    "routing_hint",
+  ],
+  [
+    "the endpoint in the database name (workaround B)",
+    `postgresql://u:secret@3.125.0.1/neondb%20options%3Dendpoint%3D${PROD_ENDPOINT}`,
+    "routing_hint",
+  ],
+  ["an IPv6 literal", "postgres://opika:opika@[::1]:5433/opika", "host_form"],
+  ["a percent-encoded unix-socket path", "postgres://opika:opika@%2Ftmp/opika", "host_form"],
+  [
+    "a percent-escape inside the host",
+    "postgres://opika:opika@local%68ost:5433/opika",
+    "host_form",
+  ],
+  ["an empty host", "postgres:///opika", "no_host"],
+  [
+    "a backslash before the '@'",
+    `postgres://${PROD_HOST}:443\\@${CHILD_HOST}/neondb`,
+    "characters",
+  ],
+  ["a tab inside the host", "postgres://opika:opika@local\thost:5433/opika", "characters"],
+  ["a leading space", " postgres://opika:opika@localhost:5433/opika", "characters"],
+  ["a non-ASCII host", "postgres://opika:opika@lоcalhost:5433/opika", "characters"],
+  ["another scheme", "http://opika:opika@localhost:5433/opika", "scheme"],
+  ["no '//' after the scheme", "postgres:opika", "scheme"],
+];
+
+describe("one host, or refused (2026-10-19)", () => {
+  it.each(NOT_ONE_HOST)("checkProductionWrite refuses %s, --prod or not", (_name, url, cause) => {
+    for (const argv of [[], ["--prod"]]) {
+      for (const prod of [PROD_ENDPOINT, REVIEWS_PROD_ENDPOINT, undefined]) {
+        expect(checkProductionWrite(url, argv, prod)).toEqual({
+          kind: "refused",
+          reason: "ambiguous_host",
+          cause,
+        });
+      }
+    }
+  });
+
+  it.each(NOT_ONE_HOST)("databaseTargetOf won't name %s", (_name, url, cause) => {
+    expect(databaseTargetOf(url)).toEqual({ kind: "ambiguous_host", cause });
+  });
+
+  it.each(NOT_ONE_HOST)(
+    "migrateTargetCheck refuses %s, even with a matching --expect",
+    (_name, url) => {
+      expect(migrateTargetCheck(url, undefined).kind).toBe("refused");
+      for (const expected of [PROD_ENDPOINT, REVIEWS_PROD_ENDPOINT]) {
+        expect(migrateTargetCheck(url, expected)).toEqual({
+          kind: "refused",
+          reason: expect.stringMatching(/^the target can't be read as exactly one host: /),
+        });
+      }
+    },
+  );
+
+  /** The three readings the review found, one line each, now refused. */
+  it("refuses the review's example in all three places it got through", () => {
+    expect(checkProductionWrite(REVIEWS_EXAMPLE, [], REVIEWS_PROD_ENDPOINT)).toEqual({
+      kind: "refused",
+      reason: "ambiguous_host",
+      cause: "fragment",
+    });
+    expect(databaseTargetOf(REVIEWS_EXAMPLE)).toEqual({
+      kind: "ambiguous_host",
+      cause: "fragment",
+    });
+    expect(migrateTargetCheck(REVIEWS_EXAMPLE, undefined).kind).toBe("refused");
+    expect(expectedTargetOf(REVIEWS_EXAMPLE, REVIEWS_PROD_ENDPOINT)).toEqual({
+      kind: "refused",
+      reason: "the target can't be read as exactly one host: it has a '#' fragment",
+    });
+    expect(databaseTargetLine(REVIEWS_EXAMPLE)).toBe(
+      "Target: DATABASE_URL can't be read as exactly one host (it has a '#' fragment), so it can't be named (not printing it).",
+    );
+  });
+
+  /**
+   * The driver evidence, pinned: postgres-js (which drizzle-kit uses too)
+   * really reads these differently from `URL`, built lazily (nothing connects).
+   * If an upgrade changes its parsing, this says so before anyone relies on it.
+   */
+  it.each([
+    [REVIEWS_EXAMPLE, "localhost", ["localhost#", "ep-dawn-pond-b1dz515g.<region>.aws.neon.tech"]],
+    [`postgres://u:p@nope%2C${PROD_HOST}/neondb`, `nope%2C${PROD_HOST}`, ["nope", PROD_HOST]],
+    [
+      `postgres://u:p@${PROD_HOST},x@localhost:5433/neondb`,
+      "localhost",
+      [PROD_HOST, "x@localhost"],
+    ],
+    ["postgres://u:p@%2Ftmp,localhost/opika", "%2Ftmp,localhost", ["/tmp", "localhost"]],
+    ["postgres://opika:opika@[::1]:5433/opika", "[::1]", ["["]],
+  ])("postgres-js and URL disagree on %s", async (url, whatwgHost, driverHosts) => {
+    expect(new URL(url).hostname).toBe(whatwgHost);
+    const sql = postgres(url, { max: 1, onnotice: () => {} });
+    try {
+      expect(sql.options.host).toEqual(driverHosts);
+    } finally {
+      await sql.end();
+    }
+  });
+});
+
+/** The forms the scripts and the runbook really use keep working (his brief). */
+describe("one host: the forms in use still pass", () => {
+  type Named = Extract<DatabaseTarget, { host: string }>;
+  const LOCAL_OK = { kind: "allowed", reason: "local" } as const;
+  const NOT_PROD = { kind: "allowed", reason: "not_production" } as const;
+  const PROD_REFUSED = { kind: "refused", reason: "production_without_flag" } as const;
+  const ONE_HOST: ReadonlyArray<
+    readonly [string, string, Named, ReturnType<typeof checkProductionWrite>]
+  > = [
+    [
+      "docker-compose's database",
+      LOCAL,
+      { kind: "local", host: "localhost", port: "5433", database: "opika" },
+      LOCAL_OK,
+    ],
+    [
+      "a derived test database",
+      "postgres://opika:opika@localhost:5433/opika_test_0123abcd",
+      { kind: "local", host: "localhost", port: "5433", database: "opika_test_0123abcd" },
+      LOCAL_OK,
+    ],
+    [
+      "127.0.0.1, default port",
+      "postgres://opika:opika@127.0.0.1/opika_test",
+      { kind: "local", host: "127.0.0.1", port: "5432", database: "opika_test" },
+      LOCAL_OK,
+    ],
+    [
+      "a percent-encoded password with '@', '#' and ','",
+      "postgres://opika:p%40s%23s%2Cw@localhost:5433/opika",
+      { kind: "local", host: "localhost", port: "5433", database: "opika" },
+      LOCAL_OK,
+    ],
+    [
+      "Neon pooled, as its console gives it",
+      `postgresql://neondb_owner:npg_AbC123dEf@${PROD_HOST}/neondb?sslmode=require&channel_binding=require`,
+      { kind: "neon", endpoint: PROD_ENDPOINT, host: PROD_HOST },
+      PROD_REFUSED,
+    ],
+    [
+      "Neon direct with sslmode=require",
+      `postgresql://u:secret@${CHILD_HOST}/neondb?sslmode=require`,
+      { kind: "neon", endpoint: "ep-other-hill-d4e5f6", host: CHILD_HOST },
+      NOT_PROD,
+    ],
+    [
+      "Neon with a port, no query",
+      `postgres://u:secret@${CHILD_HOST}:5432/neondb`,
+      { kind: "neon", endpoint: "ep-other-hill-d4e5f6", host: CHILD_HOST },
+      NOT_PROD,
+    ],
+    [
+      "uppercase scheme and host",
+      `POSTGRESQL://u:secret@${CHILD_HOST.toUpperCase()}/neondb`,
+      { kind: "neon", endpoint: "ep-other-hill-d4e5f6", host: CHILD_HOST },
+      NOT_PROD,
+    ],
+  ];
+
+  it.each(ONE_HOST)("names %s", (_name, url, target) => {
+    expect(databaseTargetOf(url)).toEqual(target);
+  });
+
+  it.each(ONE_HOST)("the guard decides %s on its host alone", (_name, url, _target, verdict) => {
+    expect(checkProductionWrite(url, [], PROD_ENDPOINT)).toEqual(verdict);
+  });
+
+  /** The host the guard checks is the host postgres-js would connect to (built lazily, nothing connects). */
+  it.each(ONE_HOST)(
+    "postgres-js connects to the host the guard names: %s",
+    async (_name, url, target) => {
+      const sql = postgres(url, { max: 1, onnotice: () => {} });
+      try {
+        expect(sql.options.host.map((host) => host.toLowerCase())).toEqual([target.host]);
+      } finally {
+        await sql.end();
+      }
+    },
+  );
 });
 
 /**
@@ -180,21 +451,19 @@ describe("databaseTargetLine", () => {
     expect(databaseTargetLine("postgres://opika:opika@127.0.0.1/opika_test")).toBe(
       "Target: local (127.0.0.1:5432/opika_test)",
     );
-    expect(databaseTargetLine("postgres://opika:opika@[::1]:5433")).toBe(
-      "Target: local ([::1]:5433/<default database>)",
+    expect(databaseTargetLine("postgres://opika:opika@localhost:5433")).toBe(
+      "Target: local (localhost:5433/<default database>)",
     );
   });
 
   /** Review of 4e30965, finding 2: a line that exists to be proof never guesses. */
-  it("refuses to label a host list or an empty host", () => {
-    for (const url of [
-      "postgres://u:p@ep-a-pooler.x.neon.tech,localhost/db",
-      "postgres:///opika",
-    ]) {
-      expect(databaseTargetLine(url)).toBe(
-        "Target: DATABASE_URL names several hosts or none, so it can't be named (not printing it).",
-      );
-    }
+  it("refuses to label a host list or an empty host, and says which", () => {
+    expect(databaseTargetLine("postgres://u:p@ep-a-pooler.x.neon.tech,localhost/db")).toBe(
+      "Target: DATABASE_URL can't be read as exactly one host (it lists several hosts), so it can't be named (not printing it).",
+    );
+    expect(databaseTargetLine("postgres:///opika")).toBe(
+      "Target: DATABASE_URL can't be read as exactly one host (it names no host), so it can't be named (not printing it).",
+    );
   });
 
   it("calls a non-Neon remote host neither Neon nor local", () => {
@@ -393,15 +662,21 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
   const PKG = resolve(fileURLToPath(import.meta.url), "../..");
   // The developer's real .env.local must never decide a test's outcome.
   const NO_ENV_FILE = resolve(tmpdir(), "opika-prod-guard-test-no-such-file.env");
-  const run = (script: string, args: readonly string[] = []) =>
+  const run = (
+    script: string,
+    args: readonly string[] = [],
+    target: { DATABASE_URL: string; PROD_NEON_ENDPOINT: string } = {
+      DATABASE_URL: PROD_DIRECT,
+      PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+    },
+  ) =>
     spawnSync("npx", ["tsx", script, ...args], {
       cwd: PKG,
       encoding: "utf8",
       shell: process.platform === "win32",
       env: {
         ...process.env,
-        DATABASE_URL: PROD_DIRECT,
-        PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+        ...target,
         PROD_GUARD_ENV_FILE: NO_ENV_FILE,
         LOCATION_HMAC_SECRET: "x".repeat(64),
       },
@@ -578,8 +853,9 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
   });
 
-  it.each([
-    ["db:migrate", "src/migrate.ts", []],
+  const WRITING_CLIS = [
+    // The missing config stops drizzle-kit before it connects, should a regression ever reach it.
+    ["db:migrate", "src/migrate.ts", ["--config=does-not-exist.ts"]],
     ["db:seed", "src/seed.ts", ["--profile=demo", "--force", "--db-name=neondb"]],
     ["onboard:shelter", "src/onboard-shelter.ts", ["does-not-matter.json"]],
     // Read-only, but it reads every exact address, so it takes --prod too (RG-Q10).
@@ -588,7 +864,45 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     ["admin:grant", "src/admin.ts", ["grant", "oleksii@example.org"]],
     ["admin:revoke", "src/admin.ts", ["revoke", "oleksii@example.org"]],
     ["admin:sweep-invites", "src/admin.ts", ["sweep-invites"]],
-  ] as const)("%s refuses production without --prod", (_name, script, args) => {
+  ] as const;
+
+  /**
+   * 2026-10-19: the review's example got through every one of these as
+   * "local". With production's endpoint configured and --prod given, it is
+   * still refused, before anything connects, and never echoed.
+   */
+  it.each(WRITING_CLIS)(
+    "%s refuses the review's example, even with --prod",
+    (_name, script, args) => {
+      const result = run(script, [...args, "--prod"], {
+        DATABASE_URL: REVIEWS_EXAMPLE,
+        PROD_NEON_ENDPOINT: REVIEWS_PROD_ENDPOINT,
+      });
+      expect(result.status, result.stderr).toBe(1);
+      expect(result.stderr).toContain(
+        "ERROR: the database URL can't be read as exactly one host: it has a '#' fragment. Only one host can be checked against production. Refusing (not printing it).",
+      );
+      expect(result.stderr).not.toContain("u:p@");
+      expect(result.stderr).not.toContain("<region>");
+      expect(result.stdout).not.toContain("Target:");
+    },
+  );
+
+  /** demo:remove checks --expect before the guard: the same reading refuses it there first. */
+  it("demo:remove refuses the review's example at its --expect check", () => {
+    const result = run("src/demo-remove.ts", ["--expect", REVIEWS_PROD_ENDPOINT], {
+      DATABASE_URL: REVIEWS_EXAMPLE,
+      PROD_NEON_ENDPOINT: REVIEWS_PROD_ENDPOINT,
+    });
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain(
+      "REFUSED: the target can't be read as exactly one host: it has a '#' fragment. Nothing was run.",
+    );
+    expect(result.stderr).not.toContain("u:p@");
+    expect(result.stdout).not.toContain("Target:");
+  });
+
+  it.each(WRITING_CLIS)("%s refuses production without --prod", (_name, script, args) => {
     const result = run(script, args);
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("this target is PRODUCTION");

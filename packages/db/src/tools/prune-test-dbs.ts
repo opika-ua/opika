@@ -168,8 +168,9 @@ function localServerOrNull(serverUrl: string): URL | null {
   const check = checkProductionWrite(serverUrl, [], undefined);
   if (check.kind !== "allowed" || check.reason !== "local") return null;
   const parsed = new URL(serverUrl);
-  // postgres.js reads options (`?host=`, `?database=`) from the query string:
-  // the host just checked would not be the host connected to.
+  // Stricter than the guard, which accepts `sslmode` and `channel_binding`: a
+  // local server needs neither, and postgres.js sends any other key to the
+  // server as a startup parameter (`?database=` replaces the path's database).
   if (parsed.search !== "" || parsed.hash !== "") return null;
   return parsed;
 }
