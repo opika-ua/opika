@@ -65,8 +65,12 @@ describe("ci.yml", () => {
     .slice(1);
 
   it("has one job, `check`, with no job-level skip", () => {
-    expect(workflow).toMatch(/^jobs:\n {2}check:\n {4}runs-on: ubuntu-latest\n/m);
-    expect(workflow).not.toMatch(/^ {2}[a-z-]+:\n {4}(needs|if):/m);
+    const jobs = workflow.slice(workflow.indexOf("\njobs:\n"));
+    expect([...jobs.matchAll(/^ {2}([a-z0-9_-]+):\s*$/gm)].map((match) => match[1])).toEqual([
+      "check",
+    ]);
+    // Only job-level keys sit at four spaces, so this catches one in any position.
+    expect(jobs).not.toMatch(/^ {4}(needs|if):/m);
   });
 
   it("gates every step after the classification, except the upload that runs only on failure", () => {

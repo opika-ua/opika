@@ -1046,6 +1046,13 @@ weeks.
 
 ### Before the first real shelter or animal record is inserted
 
+- [ ] **PG-F3 merged: a hard item.** Oleksii, 2026-10-19, verbatim: "Add PG-F3 to the launch gate as
+  a hard item: no real shelters before it's merged." `db:migrate` could reach a database the
+  production guard never checked (drizzle-kit's own config file and env-file loading). The fix is
+  parked on `fix/pgf3-migrate-bypass` (WIP, unreviewed, tests missing; handoff in its inbox file):
+  he writes its tests, then it gets the full Tier 1 review. No real shelter is onboarded before it
+  merges.
+
 **Launch order** (Oleksii, 2026-10-17, inbox RH-B5, RU-B4):
 1. **Built and merged:** PR 4 (K3 form) → PR 5 (K2 list) → PR 6 (writes open for everyone, the
    allowlist gone; draft on `feat/pr6-open-writes`), with the operator screens (R-UI, below)
@@ -1089,9 +1096,9 @@ someone says yes to an outreach email, independent of whatever else is or isn't 
   then check the next reports before `p=reject`.
 - [ ] **Google Postmaster Tools for `mail.opika.org.ua`** (Oleksii, 2026-10-19, verbatim: "Launch
   gate: add Google Postmaster Tools for mail.opika.org.ua. I add the verification TXT."). His step:
-  add the domain in Postmaster Tools, and its verification TXT in Cloudflare DNS. The reason: the
-  delivery test of 2026-10-19 put the sign-in email in Gmail's Promotions tab although it
-  authenticated (SPF, aligned DKIM, DMARC pass, TLS 1.3). No email headers change, and no
+  add the domain in Postmaster Tools, and its verification TXT in Cloudflare DNS. The reason, his
+  report of the delivery test, verbatim: "Gmail sorted the sign-in email into Promotions in the
+  delivery test (it authenticated fine)." (SPF, aligned DKIM and DMARC passed, over TLS 1.3: EA-B8.) No email headers change, and no
   List-Unsubscribe on auth emails (his words: "No headers or other email changes. Don't add
   List-Unsubscribe to auth emails.").
 - **Follow-up, decided after the first real sends, not now:** consider `kabinet@` instead of

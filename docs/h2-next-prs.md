@@ -444,7 +444,7 @@ is not the SPF domain (EM-R3, EM-B9). DMARC `_dmarc` and `_dmarc.mail`, `p=none`
       Oleksii's explicit OK.
 - [ ] *Then, separately:* IN-E3's apex DMARC `p=reject`, once the reports are clean for Resend alone.
       *Superseded 2026-10-19 (inbox EA-B6):* the launch gate raises DMARC to `p=quarantine` first
-      (later `p=reject`). Two records exist, the apex and `_dmarc.mail`; which ones that step
-      raises is open (EA-Q1). Runbook "DMARC: raising the policy". The Brevo API and SMTP keys
+      (later `p=reject`). Two records exist, the apex and `_dmarc.mail`, and the step raises both
+      together (EA-Q1, answered: option (b)). Runbook "DMARC: raising the policy". The Brevo API and SMTP keys
       were revoked by Oleksii on 2026-10-19, so the "rollback" lines above describe a path that
       can no longer send; the code removal waits for his ~2026-11-14 check (EA-B5).
