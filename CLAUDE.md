@@ -733,11 +733,14 @@ copies for new decisions.
   - A merge watcher takes the reviewed head SHA and merges with `gh pr merge --squash
     --match-head-commit <sha>`, so GitHub refuses if the head moved.
   - It never runs `update-branch` itself, which would create an unreviewed head.
-  - Any new head is new commits, a clean rebase included, so its delta is reviewed before the
-    merge. For a rebase, that review checks that `git range-diff` shows every commit as `=` and
-    reads the default branch's new commits for interaction with the PR. The ruleset requires a
-    PR to be up to date before it merges, so a PR that waits while the default branch moves gets
-    this short review.
+  - Any new commit (a fix, his own copy, a merge commit carrying a conflict resolution) gets its
+    delta reviewed before the merge.
+  - A rebase is new commits too; the ruleset requires a PR to be up to date before it merges, so
+    a PR that waits while the default branch moves gets one. His rule for it, verbatim
+    (2026-10-19): "A rebase over docs-only commits on main needs no re-review only if it had no
+    conflicts and git range-diff shows every patch unchanged. Paste the range-diff summary in the
+    PR. Any conflict or any patch difference means a short delta review. A rebase over code
+    commits always gets one."
   - The two exceptions in his words above: a PR with a migration waits for his production
     migration from the PR branch; a Tier 1 PR waits until its full review has passed, then
     merges like any other.
