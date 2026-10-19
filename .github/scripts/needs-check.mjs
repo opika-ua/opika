@@ -1,11 +1,11 @@
-// Reads a pull request's changed paths (one per line) on stdin and prints `true` when the full
-// `check` job has to run, `false` when the change is documentation only.
+// Reads a pull request's changed paths (one per line) on stdin and prints `true` when the
+// suite's steps have to run, `false` when the change is documentation only.
 //
 // Oleksii, 2026-10-19, verbatim: "Docs-only: use paths-ignore for docs-only changes (docs/**,
 // **/*.md, except anything under packages/i18n). A required check skipped this way must still
 // report success, so branch protection doesn't block docs PRs." A workflow-level `paths-ignore`
-// would leave the required `check` pending, so the workflow always runs and this decides whether
-// `check` is skipped (a skipped job reports success).
+// would leave the required `check` pending, so `check` always runs and this decides whether its
+// steps after the classification are skipped (the job then succeeds with skipped steps).
 //
 // Documentation only means every path is a .md file or under docs/design/, and none is under
 // apps/ or packages/. Those two hold the code, and files there are read by it: the copy
@@ -16,7 +16,7 @@
 import { readFileSync } from "node:fs";
 
 const CODE_TREE = /^(apps|packages)\//;
-const DOCUMENTATION = /\.md$|^docs\/design\//i;
+const DOCUMENTATION = /\.md$|^docs\/design\//;
 
 function needsCheck(paths) {
   const files = paths.map((path) => path.trim()).filter((path) => path !== "");
