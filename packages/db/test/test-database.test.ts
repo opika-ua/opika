@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import {
   assertDisposableTestDatabase,
   disposeTestDatabaseAfterRun,
@@ -65,6 +65,20 @@ describe("assertDisposableTestDatabase", () => {
     }
     expect(message).toMatch(/Refusing/);
     expect(message).not.toContain("secret");
+  });
+
+  /** The guard's ambient rule (PG-T10, 2026-10-19): the message names the variable, never its value. */
+  it("refuses a derived local name with PGPASSWORD set, naming it", () => {
+    vi.stubEnv("PGPASSWORD", "endpoint=ep-x;secret");
+    try {
+      expect(() => assertDisposableTestDatabase(testDatabaseUrl("test", "D:/anywhere"))).toThrow(
+        new Error(
+          "The test database setup refuses: set in the environment: PGPASSWORD. A driver reads it alongside DATABASE_URL, the only connection setting the guard checks. Unset it and put everything in DATABASE_URL. Refusing.",
+        ),
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 
