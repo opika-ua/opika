@@ -233,18 +233,8 @@ const NOT_ONE_HOST: ReadonlyArray<readonly [string, string, HostAmbiguity]> = [
     `postgresql://u:secret@${CHILD_HOST}/neondb?options=-c%20x`,
     "query",
   ],
-  // neon() re-parses as http:, which rewrites or refuses these; its refusal printed the
-  // whole connection string (review of #144, finding 2).
-  [
-    "invalid punycode in the host (the review's password-printing host)",
-    "postgres://u:secret@xn--a.eu-central-1.aws.neon.tech/db",
-    "host_form",
-  ],
-  [
-    "an invalid punycode middle label (PG-T13's own case)",
-    "postgres://u:secret@ep-a.xn--a.eu-central-1.aws.neon.tech/db",
-    "host_form",
-  ],
+  // neon() re-parses as http:, which rewrites these; a host must come back from that reading
+  // exactly as written (review of #144, finding 2). Same on every Node version.
   // neon() throws on a %-escape decodeURIComponent rejects, printing the whole string (delta
   // review of #144, finding 1).
   [
@@ -363,6 +353,31 @@ describe("one host, or refused (2026-10-19)", () => {
     } finally {
       await sql.end();
     }
+  });
+});
+
+/**
+ * Invalid punycode: the review's password-printing host (`xn--a.…`) and PG-T13's middle label.
+ * Node 22's URL parser rejects `xn--a`, so the http: reading refuses it as `host_form`; Node 24's
+ * (CI) accepts it, and the host rule refuses it instead. Refused on both, whichever reads it
+ * first; the cause is the runtime's, so only the verdict is asserted (CI, 2026-10-19).
+ */
+describe("invalid punycode is refused on every Node version", () => {
+  const EITHER_REFUSAL = [
+    { kind: "refused", reason: "ambiguous_host", cause: "host_form" },
+    { kind: "refused", reason: "not_a_neon_host" },
+  ];
+  it.each([
+    ["in the host", "postgres://u:secret@xn--a.eu-central-1.aws.neon.tech/db"],
+    ["as a middle label", "postgres://u:secret@ep-a.xn--a.eu-central-1.aws.neon.tech/db"],
+  ])("%s", (_name, url) => {
+    for (const argv of [[], ["--prod"]]) {
+      for (const prod of [PROD_ENDPOINT, REVIEWS_PROD_ENDPOINT, undefined]) {
+        expect(EITHER_REFUSAL).toContainEqual(checkProductionWrite(url, argv, prod, {}));
+      }
+    }
+    expect(["ambiguous_host", "remote"]).toContain(databaseTargetOf(url).kind);
+    expect(migrateTargetCheck(url, PROD_ENDPOINT).kind).toBe("refused");
   });
 });
 
@@ -650,7 +665,9 @@ describe("no refusal prints the password, the URL or a variable's value", () => 
       "the older bug's host",
       `postgres://u:${SENTINEL}@xn--a.eu-central-1.aws.neon.tech/db`,
       {},
-      "its host isn't",
+      // host_form where the http: reading rejects `xn--a` (Node 22), the host rule where it
+      // doesn't (Node 24, CI): refused either way, and named.
+      "the database URL",
     ],
     ["a raw IP", `postgresql://u:${SENTINEL}@${SENTINEL_HOST}/neondb`, {}, "neither local"],
     [

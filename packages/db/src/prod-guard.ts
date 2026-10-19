@@ -263,10 +263,11 @@ function readOneHost(url: string): HostReading {
   // (postgres-js splits `[::1]` at its first `:` and connects to `[`).
   if (!/^[a-z0-9.-]+$/i.test(host)) return ambiguous("host_form");
   // neon() re-parses the string as `http:`, where a host can be rewritten
-  // (`127.1` becomes `127.0.0.1`) or refused (`xn--a`, invalid punycode). A
-  // refusal there throws with the whole connection string in its message,
-  // password included (review of #144, finding 2), so the host must come back
-  // from that reading exactly as written.
+  // (`127.1` becomes `127.0.0.1`) or, depending on the Node version, refused
+  // (`xn--a`, invalid punycode: Node 22 refuses it, Node 24 doesn't). A refusal
+  // there throws with the whole connection string in its message, password
+  // included (review of #144, finding 2), so the host must come back from that
+  // reading exactly as written.
   if (httpHostnameOf(host) !== host.toLowerCase()) return ambiguous("host_form");
 
   for (const [key, value] of parsed.searchParams) {
