@@ -362,6 +362,25 @@ const messageIdOf = (body: Record<string, unknown> | null): string | null => {
 };
 
 /**
+ * A send the provider refused or never answered. The message is unchanged (provider and status,
+ * never the key or the recipient); `provider` and `status` are the same facts as data, so the
+ * failure log line can name them without parsing a message. `status` is null when no answer came.
+ */
+export class ProviderSendError extends Error {
+  // Plain fields, not constructor parameter properties: `proxy.test.ts` reads this module with
+  // Node's strip-only TypeScript, which cannot handle parameter properties.
+  readonly provider: EmailProvider;
+  readonly status: number | null;
+
+  constructor(provider: EmailProvider, status: number | null, message: string) {
+    super(message);
+    this.name = "ProviderSendError";
+    this.provider = provider;
+    this.status = status;
+  }
+}
+
+/**
  * Sends through the configured provider. Throws on any failure, a 2xx
  * carrying an error included, with the provider and status only: never
  * the key, and never the recipient's address in the message. A send is
@@ -386,7 +405,11 @@ export function fetchEmailSender(
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch {
-        throw new Error(`Email provider ${config.provider} did not answer the send.`);
+        throw new ProviderSendError(
+          config.provider,
+          null,
+          `Email provider ${config.provider} did not answer the send.`,
+        );
       }
       const body = (await response.json().catch(() => null)) as
         | (Record<string, unknown> & { ErrorCode?: number })
@@ -396,7 +419,9 @@ export function fetchEmailSender(
       const postmarkError =
         config.provider === "postmark" && (body === null || (body.ErrorCode ?? 0) !== 0);
       if (!response.ok || postmarkError) {
-        throw new Error(
+        throw new ProviderSendError(
+          config.provider,
+          response.status,
           `Email provider ${config.provider} refused the send (status ${response.status}).`,
         );
       }

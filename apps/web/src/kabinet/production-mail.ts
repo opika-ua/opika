@@ -56,6 +56,7 @@ export function productionMailOf(
       log,
     }),
     invites: providerInvitationSender(providerMailOf(on.email.invite, fetchImpl), {
+      log,
       fromAddress: on.email.invite.fromAddress,
       blockList: cachedBlockList(on.email.invite, { fetchImpl }),
     }),

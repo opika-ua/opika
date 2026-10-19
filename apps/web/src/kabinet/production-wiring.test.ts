@@ -261,8 +261,31 @@ describe("productionMailOf: each email through its own route (EM-T22, EM-T18)", 
       url: "https://example.org/kabinet/vkhid/pidtverdzhennia?token=secret-token",
     });
     expect(lines).toEqual([
-      "[kabinet] sign-in email to o•••@example.org not sent: failed (provider_error)",
+      "[kabinet] sign-in email to o•••@example.org not sent: failed (provider_error), provider resend, status 500",
     ]);
+  });
+
+  it("logs a refused invite send through the same line, with the provider and status (2026-10-19)", async () => {
+    const lines: string[] = [];
+    const failing = (async () => new Response("no", { status: 401 })) as typeof fetch;
+    const mail = productionMailOf(onWith(production), {
+      fetchImpl: failing,
+      log: (line) => lines.push(line),
+    });
+    const outcome = await mail.invites.send({
+      email: "olena@example.org",
+      shelterName: "Лапа",
+      operatorName: "Олексій",
+      url: "https://example.org/kabinet/vkhid?zaproshennia=secret-invite",
+      shelterVerification: "verified",
+      validForHours: 72,
+    });
+    expect(outcome).toEqual({ kind: "failed", reason: "provider_error" });
+    expect(lines).toEqual([
+      "[kabinet] invite email to o•••@example.org not sent: failed (provider_error), provider resend, status 401",
+    ]);
+    expect(lines.join("")).not.toContain("secret-invite");
+    expect(lines.join("")).not.toContain("resend-key-example");
   });
 
   it("is rebuilt only when the configuration changes (productionMailFor)", () => {

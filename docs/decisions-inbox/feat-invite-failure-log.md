@@ -1,0 +1,7 @@
+# Decisions inbox: feat/invite-failure-log
+
+| ID | Date | Row | Question | Options | Default taken | Oleksii's answer | Status |
+|---|---|---|---|---|---|---|---|
+| IL-B1 | 2026-10-19 | Invite send failures reach the logs | — | — | — | Verbatim: "Invite failure logging: yes. Build it as its own small PR, queued after the production-guard PR (no third agent). Rules: Use the same masked line format as sign-in failures, with one shared helper (no second copy). Log the provider name, HTTP status and a stable reason code. Never log the full address, the invite link or token, the email body, or any provider key. Tests: one for a failed send and its exact masked log line, and one that a successful send logs no failure. Mutation: remove the log call and confirm a test fails. It changes logging only, so it's not Tier 1. Auto-merge after its one review." | built |
+| IL-T1 | 2026-10-19 | The sign-in line through the same helper | keep sign-in's line as it was · add the provider and status to it too | — | — | — | Decision taken: one helper means one format, so a sign-in line for a provider failure now also ends ", provider <name>, status <code>". Blocked and copy-pending lines are unchanged (nothing was sent, so no provider part) |
+| IL-T2 | 2026-10-19 | Where provider and status come from | parse the error message · a typed error | — | — | — | Decision taken: `ProviderSendError` (provider, status, the same message as before) from `fetchEmailSender`; status `none` when the provider never answered |
