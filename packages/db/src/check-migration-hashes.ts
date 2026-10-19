@@ -4,7 +4,12 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
 import { createDatabase } from "./client";
-import { databaseTargetLine, databaseTargetOf } from "./prod-guard";
+import {
+  ambientConnectionSettings,
+  ambientSettingsText,
+  databaseTargetLine,
+  databaseTargetOf,
+} from "./prod-guard";
 
 /**
  * `pnpm db:check-hashes`: read-only. For every migration in the committed
@@ -85,12 +90,28 @@ async function main(): Promise<void> {
     console.error("ERROR: DATABASE_URL is not set.");
     process.exit(1);
   }
+  // A setting the driver reads alongside the URL would make the target line untrue.
+  const ambient = ambientConnectionSettings(process.env);
+  if (ambient.length > 0) {
+    console.error(`ERROR: ${ambientSettingsText(ambient)}. Refusing (not printing any value).`);
+    process.exit(1);
+  }
+  // Only a target the line can name honestly is read: local, or a Neon endpoint
+  // host. Anything else never reaches a driver, whose error for an odd host
+  // carries the whole connection string, password included (review of #144,
+  // finding 2). Refused before the line, which would print the host.
+  const kind = databaseTargetOf(url).kind;
+  if (kind === "remote") {
+    console.error(
+      "ERROR: the host is neither local nor a Neon endpoint host (ep-…[-pooler].<region>.aws.neon.tech). Refusing (not printing it).",
+    );
+    process.exit(1);
+  }
   // First, before connecting: a pasted report proves which database it came
   // from only if the target is part of it (Oleksii, 2026-10-13).
   console.log(databaseTargetLine(url));
   // Nothing to check against if the target can't be named: a bad URL, or a
   // host list / empty host that could reach any of several databases.
-  const kind = databaseTargetOf(url).kind;
   if (kind === "unparseable" || kind === "ambiguous_host") process.exit(1);
   const db = createDatabase(url);
   const result = await db.execute(sql`SELECT hash, created_at FROM drizzle.__drizzle_migrations`);

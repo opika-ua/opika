@@ -227,6 +227,22 @@ describe("pruneTestDatabases", () => {
     expect(lines.join("\n")).not.toContain("secret");
   });
 
+  /** The guard's ambient rule (PG-T10, 2026-10-19): the message names the variable, never its value. */
+  it("refuses with PGPORT set, naming it, before connecting", async () => {
+    vi.stubEnv("PGPORT", "6543-secret");
+    try {
+      const { code, lines, list, drop } = await run(true);
+      expect(code).toBe(1);
+      expect(list).not.toHaveBeenCalled();
+      expect(drop).not.toHaveBeenCalled();
+      expect(lines).toEqual([
+        "ERROR: db:prune-test-dbs refuses: set in the environment: PGPORT. A driver reads it alongside DATABASE_URL, the only connection setting the guard checks. Unset it and put everything in DATABASE_URL. Refusing.",
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("dry run (no --yes) lists everything and drops nothing", async () => {
     const { code, lines, drop } = await run(false);
     expect(code).toBe(0);

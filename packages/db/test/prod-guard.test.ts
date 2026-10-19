@@ -7,6 +7,8 @@ import postgres from "postgres";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { migrateTargetCheck, parseMigrateArgs } from "../src/migrate-args";
 import {
+  AMBIENT_CONNECTION_VARIABLES,
+  type AmbientConnectionVariable,
   assertProductionWriteAllowed,
   checkProductionWrite,
   type DatabaseTarget,
@@ -16,6 +18,7 @@ import {
   type HostAmbiguity,
   productionEndpoint,
 } from "../src/prod-guard";
+import { smokeTarget } from "../src/test-utils/smoke-target";
 
 /** Fake endpoints only. Nothing here resolves, and nothing should try. */
 const PROD_ENDPOINT = "ep-quiet-lake-a1b2c3";
@@ -86,28 +89,6 @@ describe("checkProductionWrite", () => {
 });
 
 describe("checkProductionWrite edge cases", () => {
-  /**
-   * Review of 9ce9bc1, finding 1: postgres-js fails over through a comma host
-   * list, so production second in line was reached without --prod; and an
-   * empty host goes wherever PGHOST points. Both are refused, never guessed.
-   */
-  it("refuses a host list with production anywhere in it, and an empty host", () => {
-    for (const url of [
-      `postgresql://u:secret@ep-other-hill-d4e5f6.eu-central-1.aws.neon.tech,${PROD_ENDPOINT}-pooler.eu-central-1.aws.neon.tech/neondb`,
-      "postgresql://u:secret@localhost,ep-other-hill-d4e5f6.eu-central-1.aws.neon.tech/neondb",
-      "postgres:///opika",
-    ]) {
-      expect(checkProductionWrite(url, [], PROD_ENDPOINT)).toMatchObject({
-        kind: "refused",
-        reason: "ambiguous_host",
-      });
-      expect(checkProductionWrite(url, ["--prod"], PROD_ENDPOINT)).toMatchObject({
-        kind: "refused",
-        reason: "ambiguous_host",
-      });
-    }
-  });
-
   it.each([
     [
       "uppercase hostname",
@@ -218,23 +199,76 @@ const NOT_ONE_HOST: ReadonlyArray<readonly [string, string, HostAmbiguity]> = [
   [
     "the endpoint in the password (Neon's SNI workaround D)",
     `postgresql://u:endpoint=${PROD_ENDPOINT};pw@3.125.0.1/neondb?sslmode=require`,
-    "routing_hint",
+    "routing_hint_password",
   ],
   [
     "the endpoint in the password, percent-encoded",
     `postgresql://u:%65ndpoint%3D${PROD_ENDPOINT}$pw@${CHILD_HOST}/neondb`,
-    "routing_hint",
+    "routing_hint_password",
   ],
   [
     "a project in the user name",
     `postgresql://project=${PROD_ENDPOINT}:pw@3.125.0.1/neondb`,
-    "routing_hint",
+    "routing_hint_user",
   ],
   [
     "the endpoint in the database name (workaround B)",
     `postgresql://u:secret@3.125.0.1/neondb%20options%3Dendpoint%3D${PROD_ENDPOINT}`,
-    "routing_hint",
+    "routing_hint_database",
   ],
+  // His words (2026-10-19, verbatim): "Refuse a URL whose password or query carries endpoint= or options= too."
+  [
+    "options= in the password",
+    `postgresql://u:options=pw@${CHILD_HOST}/neondb`,
+    "routing_hint_password",
+  ],
+  [
+    "options= in the password, percent-encoded",
+    `postgresql://u:%6Fptions%3D-c%20x@${CHILD_HOST}/neondb`,
+    "routing_hint_password",
+  ],
+  ["?endpoint=", `postgresql://u:secret@${CHILD_HOST}/neondb?endpoint=${PROD_ENDPOINT}`, "query"],
+  [
+    "?options= naming no endpoint",
+    `postgresql://u:secret@${CHILD_HOST}/neondb?options=-c%20x`,
+    "query",
+  ],
+  // neon() re-parses as http:, which rewrites or refuses these; its refusal printed the
+  // whole connection string (review of #144, finding 2).
+  [
+    "invalid punycode in the host (the review's password-printing host)",
+    "postgres://u:secret@xn--a.eu-central-1.aws.neon.tech/db",
+    "host_form",
+  ],
+  [
+    "an invalid punycode middle label (PG-T13's own case)",
+    "postgres://u:secret@ep-a.xn--a.eu-central-1.aws.neon.tech/db",
+    "host_form",
+  ],
+  // neon() throws on a %-escape decodeURIComponent rejects, printing the whole string (delta
+  // review of #144, finding 1).
+  [
+    "a malformed escape in the password",
+    `postgresql://u:pw%zz@${CHILD_HOST}/neondb`,
+    "escape_password",
+  ],
+  [
+    "a cut UTF-8 escape in the password",
+    `postgresql://u:pw%C3@${CHILD_HOST}/neondb`,
+    "escape_password",
+  ],
+  [
+    "a malformed escape in the user name",
+    `postgresql://u%FF:pw@${CHILD_HOST}/neondb`,
+    "escape_user",
+  ],
+  [
+    "a malformed escape in the database name",
+    `postgresql://u:pw@${CHILD_HOST}/neon%zzdb`,
+    "escape_database",
+  ],
+  ["an IPv4 shorthand", "postgres://opika:opika@127.1:5433/opika", "host_form"],
+  ["a hex IPv4", "postgres://opika:opika@0x7f000001:5433/opika", "host_form"],
   ["an IPv6 literal", "postgres://opika:opika@[::1]:5433/opika", "host_form"],
   ["a percent-encoded unix-socket path", "postgres://opika:opika@%2Ftmp/opika", "host_form"],
   [
@@ -408,6 +442,260 @@ describe("one host: the forms in use still pass", () => {
         expect(sql.options.host.map((host) => host.toLowerCase())).toEqual([target.host]);
       } finally {
         await sql.end();
+      }
+    },
+  );
+});
+
+/**
+ * PG-T10 (b), Oleksii, 2026-10-19, verbatim: "Hosts: refuse any non-local host
+ * that isn't ep-…[-pooler].<region>.aws.neon.tech, and --prod doesn't override
+ * that." and "Local access: WSL-IP local Postgres access is lost; that's accepted."
+ */
+const NOT_A_NEON_HOST: ReadonlyArray<readonly [string, string]> = [
+  [
+    "a raw IP (the review's exploit host)",
+    "postgresql://u:secret@3.125.0.1/neondb?sslmode=require",
+  ],
+  ["a WSL IP (local, but not a local host name)", "postgres://opika:opika@172.28.16.1:5433/opika"],
+  ["another provider", "postgres://u:secret@db.example.org:6543/app"],
+  [
+    "a label in front of production's endpoint",
+    `postgresql://u:secret@foo.${REVIEWS_PROD_ENDPOINT}.eu-central-1.aws.neon.tech/neondb`,
+  ],
+  [
+    "a Neon host that isn't an endpoint",
+    "postgresql://u:secret@api.eu-central-1.aws.neon.tech/neondb",
+  ],
+  ["an endpoint with no region", `postgresql://u:secret@${PROD_ENDPOINT}.neon.tech/neondb`],
+  [
+    "a second endpoint label (delta review of #144, finding 7)",
+    `postgresql://u:secret@ep-foo.${REVIEWS_PROD_ENDPOINT}.eu-central-1.aws.neon.tech/neondb`,
+  ],
+  ["a region that isn't one", `postgresql://u:secret@${PROD_ENDPOINT}.x.aws.neon.tech/neondb`],
+  [
+    "an endpoint host under another domain",
+    `postgresql://u:secret@${PROD_ENDPOINT}.eu-central-1.aws.neon.tech.example.org/neondb`,
+  ],
+  ["localhost, fully qualified", "postgres://opika:opika@localhost.:5433/opika"],
+];
+
+describe("a non-local host is a Neon endpoint host, or refused (PG-T10 (b))", () => {
+  it.each(NOT_A_NEON_HOST)("checkProductionWrite refuses %s, --prod or not", (_name, url) => {
+    for (const argv of [[], ["--prod"]]) {
+      for (const prod of [PROD_ENDPOINT, REVIEWS_PROD_ENDPOINT, undefined]) {
+        expect(checkProductionWrite(url, argv, prod, {})).toEqual({
+          kind: "refused",
+          reason: "not_a_neon_host",
+        });
+      }
+    }
+  });
+
+  it.each(NOT_A_NEON_HOST)("migrateTargetCheck refuses %s", (_name, url) => {
+    expect(migrateTargetCheck(url, PROD_ENDPOINT)).toEqual({
+      kind: "refused",
+      reason: "the target is not a Neon endpoint",
+    });
+  });
+
+  /** Review of #144, finding 5: the label printed the dot-stripped host, which reads as local. */
+  it("names a fully qualified localhost exactly as written", () => {
+    expect(databaseTargetLine("postgres://opika:opika@localhost.:5433/opika")).toBe(
+      "Target: remote host localhost. (not a Neon endpoint)",
+    );
+  });
+});
+
+/**
+ * Oleksii, 2026-10-19, verbatim: "Environment: also refuse when any of these
+ * are set: PGHOST, PGHOSTADDR, PGPORT, PGPASSWORD, PGOPTIONS, PGSERVICE,
+ * PGSERVICEFILE. … DATABASE_URL is the only input the guard trusts." and
+ * "Tests: the reviewer's exploit (raw IP plus PGPASSWORD=endpoint=…) and the
+ * variant with a valid child-branch hostname plus that PGPASSWORD. Both must be
+ * refused. Also a mutation that drops the env check must fail a test."
+ */
+describe("DATABASE_URL is the only input the guard trusts (2026-10-19)", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const EXPLOIT_PASSWORD = `endpoint=${REVIEWS_PROD_ENDPOINT};pw`;
+  const RAW_IP = "postgresql://neondb_owner@3.125.0.1/neondb?sslmode=require";
+  const CHILD_NO_PASSWORD = `postgresql://neondb_owner@${CHILD_HOST}/neondb?sslmode=require`;
+
+  it("his list, then the three postgres-js adds, in that order", () => {
+    expect(AMBIENT_CONNECTION_VARIABLES).toEqual([
+      "PGHOST",
+      "PGHOSTADDR",
+      "PGPORT",
+      "PGPASSWORD",
+      "PGOPTIONS",
+      "PGSERVICE",
+      "PGSERVICEFILE",
+      "PGUSER",
+      "PGUSERNAME",
+      "PGDATABASE",
+    ]);
+  });
+
+  it.each(AMBIENT_CONNECTION_VARIABLES)(
+    "refuses with %s set, a local target and --prod included",
+    (name) => {
+      for (const url of [LOCAL, CHILD_BRANCH, PROD]) {
+        for (const argv of [[], ["--prod"]]) {
+          expect(checkProductionWrite(url, argv, PROD_ENDPOINT, { [name]: "x" })).toEqual({
+            kind: "refused",
+            reason: "ambient_settings",
+            variables: [name],
+          });
+        }
+      }
+      // Set but empty still counts: the guard doesn't second-guess what a driver makes of "".
+      expect(checkProductionWrite(LOCAL, [], undefined, { [name]: "" })).toMatchObject({
+        reason: "ambient_settings",
+      });
+    },
+  );
+
+  it("names every one that is set, in the list's order", () => {
+    const variables: AmbientConnectionVariable[] = ["PGHOST", "PGPASSWORD", "PGDATABASE"];
+    expect(
+      checkProductionWrite(LOCAL, [], undefined, { PGDATABASE: "a", PGPASSWORD: "b", PGHOST: "c" }),
+    ).toEqual({ kind: "refused", reason: "ambient_settings", variables });
+  });
+
+  it("refuses the review's exploit: a raw IP plus PGPASSWORD naming production's endpoint", () => {
+    expect(
+      checkProductionWrite(RAW_IP, [], REVIEWS_PROD_ENDPOINT, { PGPASSWORD: EXPLOIT_PASSWORD }),
+    ).toEqual({ kind: "refused", reason: "ambient_settings", variables: ["PGPASSWORD"] });
+    // Each rule holds on its own: with the environment clean, the host rule still refuses it.
+    expect(checkProductionWrite(RAW_IP, [], REVIEWS_PROD_ENDPOINT, {})).toEqual({
+      kind: "refused",
+      reason: "not_a_neon_host",
+    });
+  });
+
+  /** The env check alone refuses this one: the URL by itself is a child branch, allowed. */
+  it("refuses a valid child-branch host plus that PGPASSWORD", () => {
+    expect(checkProductionWrite(CHILD_NO_PASSWORD, [], REVIEWS_PROD_ENDPOINT, {})).toEqual({
+      kind: "allowed",
+      reason: "not_production",
+    });
+    for (const argv of [[], ["--prod"]]) {
+      expect(
+        checkProductionWrite(CHILD_NO_PASSWORD, argv, REVIEWS_PROD_ENDPOINT, {
+          PGPASSWORD: EXPLOIT_PASSWORD,
+        }),
+      ).toEqual({ kind: "refused", reason: "ambient_settings", variables: ["PGPASSWORD"] });
+    }
+  });
+
+  it("reads the process environment when none is passed", () => {
+    vi.stubEnv("PGPASSWORD", EXPLOIT_PASSWORD);
+    expect(checkProductionWrite(CHILD_NO_PASSWORD, [], REVIEWS_PROD_ENDPOINT)).toMatchObject({
+      reason: "ambient_settings",
+    });
+  });
+
+  /** A smoke writes test data: the same rule, through its own guard. */
+  it("smokeTarget refuses that PGPASSWORD too, naming the variable and not its value", () => {
+    expect(
+      smokeTarget(CHILD_NO_PASSWORD, "ep-other-hill-d4e5f6", REVIEWS_PROD_ENDPOINT, {
+        PGPASSWORD: EXPLOIT_PASSWORD,
+      }),
+    ).toEqual({
+      kind: "refused",
+      reason:
+        "set in the environment: PGPASSWORD. A driver reads it alongside DATABASE_URL, the only connection setting the guard checks. Unset it and put everything in DATABASE_URL (not printing any value)",
+    });
+    expect(
+      smokeTarget(CHILD_NO_PASSWORD, "ep-other-hill-d4e5f6", REVIEWS_PROD_ENDPOINT, {}),
+    ).toEqual({ kind: "ok", host: CHILD_HOST });
+  });
+});
+
+/**
+ * Oleksii, 2026-10-19, verbatim: "Refusal messages: they name the variable or
+ * URL part, never print its value, and never print the URL." and "Odd host
+ * printing the password (the older bug): add a test that no refusal or driver
+ * error path prints the password." The driver paths are spawned below, in
+ * "every writing CLI runs the guard first".
+ */
+const SENTINEL = "npg_S3NTINEL";
+const SENTINEL_HOST = "203.0.113.7";
+
+describe("no refusal prints the password, the URL or a variable's value", () => {
+  afterEach(() => vi.restoreAllMocks());
+  const NO_FILE = join(tmpdir(), "opika-prod-guard-no-such-file.env");
+  const REFUSED: ReadonlyArray<readonly [string, string, Record<string, string>, string]> = [
+    ["unparseable", `postgresql://u:${SENTINEL}@[not-a-host`, {}, "could not be parsed"],
+    ["a fragment", `postgres://u:${SENTINEL}@localhost:5433/opika#x`, {}, "'#' fragment"],
+    [
+      "a host list",
+      `postgresql://u:${SENTINEL}@localhost,${PROD_HOST}/neondb`,
+      {},
+      "several hosts",
+    ],
+    [
+      "?options=",
+      `postgresql://u:${SENTINEL}@${CHILD_HOST}/neondb?options=endpoint%3D${PROD_ENDPOINT}`,
+      {},
+      "its query string",
+    ],
+    [
+      "options= in the password",
+      `postgresql://u:options=${SENTINEL}@${SENTINEL_HOST}/neondb`,
+      {},
+      "its password carries",
+    ],
+    [
+      "the older bug's host",
+      `postgres://u:${SENTINEL}@xn--a.eu-central-1.aws.neon.tech/db`,
+      {},
+      "its host isn't",
+    ],
+    ["a raw IP", `postgresql://u:${SENTINEL}@${SENTINEL_HOST}/neondb`, {}, "neither local"],
+    [
+      "PGPASSWORD naming production",
+      `postgresql://u@${CHILD_HOST}/neondb`,
+      { PGPASSWORD: `endpoint=${PROD_ENDPOINT};${SENTINEL}`, PGHOST: SENTINEL_HOST },
+      "set in the environment: PGHOST, PGPASSWORD.",
+    ],
+    [
+      "production without --prod",
+      `postgresql://u:${SENTINEL}@${PROD_HOST}/neondb`,
+      {},
+      "this target is PRODUCTION",
+    ],
+    [
+      "PROD_NEON_ENDPOINT holding a URL",
+      `postgresql://u:${SENTINEL}@${CHILD_HOST}/neondb`,
+      { PROD_NEON_ENDPOINT: `postgresql://u:${SENTINEL}@${SENTINEL_HOST}/db` },
+      "doesn't look like a Neon endpoint id",
+    ],
+  ];
+
+  it.each(REFUSED)(
+    "%s: names the rule, prints nothing of the URL or the value",
+    (_name, url, extra, rule) => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.spyOn(process, "exit").mockImplementation((code) => {
+        throw new Error(`exit ${code}`);
+      });
+      const env = { PROD_NEON_ENDPOINT: PROD_ENDPOINT, PROD_GUARD_ENV_FILE: NO_FILE, ...extra };
+      expect(() => assertProductionWriteAllowed(url, ["node", "x"], env)).toThrow("exit 1");
+      expect(error).toHaveBeenCalledTimes(1);
+      const printed = String(error.mock.calls[0]?.[0]);
+      expect(printed).toContain(rule);
+      for (const leak of [
+        SENTINEL,
+        SENTINEL_HOST,
+        "u:",
+        "@",
+        "xn--a",
+        CHILD_HOST,
+        PROD_HOST,
+        PROD_ENDPOINT,
+      ]) {
+        expect(printed).not.toContain(leak);
       }
     },
   );
@@ -656,6 +944,12 @@ describe("migrateTargetCheck", () => {
  * as timeouts, never as assertions (19 s on a machine running two full checks at once).
  */
 const SPAWN_TIMEOUT_MS = 60_000;
+/** The environment each spawned CLI inherits, minus the variables the guard refuses on sight. */
+const INHERITED_ENV = Object.fromEntries(
+  Object.entries(process.env).filter(
+    ([name]) => !(AMBIENT_CONNECTION_VARIABLES as readonly string[]).includes(name.toUpperCase()),
+  ),
+);
 const SPAWN_TEST_TIMEOUT_MS = SPAWN_TIMEOUT_MS + 30_000;
 
 describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT_MS }, () => {
@@ -669,23 +963,25 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
       DATABASE_URL: PROD_DIRECT,
       PROD_NEON_ENDPOINT: PROD_ENDPOINT,
     },
+    extra: Record<string, string> = {},
   ) =>
     spawnSync("npx", ["tsx", script, ...args], {
       cwd: PKG,
       encoding: "utf8",
       shell: process.platform === "win32",
       env: {
-        ...process.env,
+        ...INHERITED_ENV,
         ...target,
         PROD_GUARD_ENV_FILE: NO_ENV_FILE,
         LOCATION_HMAC_SECRET: "x".repeat(64),
+        ...extra,
       },
       timeout: SPAWN_TIMEOUT_MS,
     });
 
   /** Fail closed through the real CLI: with production unconfigured, a Neon target is refused. */
   it("db:migrate refuses a non-local target when production isn't configured", () => {
-    const env = { ...process.env, DATABASE_URL: CHILD_BRANCH, PROD_GUARD_ENV_FILE: NO_ENV_FILE };
+    const env = { ...INHERITED_ENV, DATABASE_URL: CHILD_BRANCH, PROD_GUARD_ENV_FILE: NO_ENV_FILE };
     delete (env as Record<string, string | undefined>).PROD_NEON_ENDPOINT;
     const result = spawnSync("npx", ["tsx", "src/migrate.ts"], {
       cwd: PKG,
@@ -706,7 +1002,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
       encoding: "utf8",
       shell: process.platform === "win32",
       env: {
-        ...process.env,
+        ...INHERITED_ENV,
         DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host",
         PROD_NEON_ENDPOINT: PROD_ENDPOINT,
         PROD_GUARD_ENV_FILE: NO_ENV_FILE,
@@ -724,7 +1020,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
       cwd: PKG,
       encoding: "utf8",
       shell: process.platform === "win32",
-      env: { ...process.env, TEST_DATABASE_URL: CHILD_BRANCH, PROD_GUARD_ENV_FILE: NO_ENV_FILE },
+      env: { ...INHERITED_ENV, TEST_DATABASE_URL: CHILD_BRANCH, PROD_GUARD_ENV_FILE: NO_ENV_FILE },
       timeout: SPAWN_TIMEOUT_MS,
     });
     expect(result.status, result.stderr).not.toBe(0);
@@ -746,7 +1042,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
         cwd: PKG,
         encoding: "utf8",
         shell: process.platform === "win32",
-        env: { ...process.env, DATABASE_URL: PROD, PROD_GUARD_ENV_FILE: NO_ENV_FILE },
+        env: { ...INHERITED_ENV, DATABASE_URL: PROD, PROD_GUARD_ENV_FILE: NO_ENV_FILE },
         timeout: SPAWN_TIMEOUT_MS,
       },
     );
@@ -764,7 +1060,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
       cwd: PKG,
       encoding: "utf8",
       shell: process.platform === "win32",
-      env: { ...process.env, DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host" },
+      env: { ...INHERITED_ENV, DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host" },
       timeout: SPAWN_TIMEOUT_MS,
     });
     expect(result.status, result.stderr).toBe(1);
@@ -784,7 +1080,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
       encoding: "utf8",
       shell: process.platform === "win32",
       env: {
-        ...process.env,
+        ...INHERITED_ENV,
         DATABASE_URL: "postgres://opika:secret@localhost:1/opika_print_target",
         PROD_GUARD_ENV_FILE: NO_ENV_FILE,
       },
@@ -802,7 +1098,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
       encoding: "utf8",
       shell: process.platform === "win32",
       env: {
-        ...process.env,
+        ...INHERITED_ENV,
         DATABASE_URL: url,
         PROD_NEON_ENDPOINT: PROD_ENDPOINT,
         PROD_GUARD_ENV_FILE: NO_ENV_FILE,
@@ -900,6 +1196,150 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     );
     expect(result.stderr).not.toContain("u:p@");
     expect(result.stdout).not.toContain("Target:");
+  });
+
+  /** His exploit variant through every real CLI: a child-branch URL, PGPASSWORD naming production. */
+  it.each(WRITING_CLIS)(
+    "%s refuses a child-branch URL when PGPASSWORD names production, even with --prod",
+    (_name, script, args) => {
+      const result = run(
+        script,
+        [...args, "--prod"],
+        {
+          DATABASE_URL: `postgresql://neondb_owner@${CHILD_HOST}/neondb?sslmode=require`,
+          PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+        },
+        { PGPASSWORD: `endpoint=${PROD_ENDPOINT};${SENTINEL}` },
+      );
+      expect(result.status, result.stderr).toBe(1);
+      expect(result.stderr).toContain("ERROR: set in the environment: PGPASSWORD.");
+      expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
+      expect(result.stdout).not.toContain("Target:");
+    },
+  );
+
+  it("demo:remove refuses it too, after its --expect check passes", () => {
+    const result = run(
+      "src/demo-remove.ts",
+      ["--expect", "ep-other-hill-d4e5f6"],
+      {
+        DATABASE_URL: `postgresql://neondb_owner@${CHILD_HOST}/neondb?sslmode=require`,
+        PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+      },
+      { PGPASSWORD: `endpoint=${PROD_ENDPOINT};${SENTINEL}` },
+    );
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("ERROR: set in the environment: PGPASSWORD.");
+    expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
+  });
+
+  it.each([
+    ["db:migrate", "src/migrate.ts", ["--config=does-not-exist.ts"]],
+    ["admin:sweep-invites", "src/admin.ts", ["sweep-invites"]],
+  ] as const)(
+    "%s refuses a raw IP even with --prod, printing neither it nor the password",
+    (_name, script, args) => {
+      const result = run(script, [...args, "--prod"], {
+        DATABASE_URL: `postgresql://u:${SENTINEL}@${SENTINEL_HOST}/neondb`,
+        PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+      });
+      expect(result.status, result.stderr).toBe(1);
+      expect(result.stderr).toContain(
+        "nor a Neon endpoint host (ep-…[-pooler].<region>.aws.neon.tech)",
+      );
+      expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
+      expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL_HOST);
+    },
+  );
+
+  /**
+   * Review of #144, finding 2: `xn--a.…` passed the old guard, then neon() threw with the whole
+   * connection string, password included (admin and db:check-hashes). The child's one transport
+   * is disabled, so nothing reaches Neon even on a regression.
+   */
+  const withNoNetwork = (
+    script: string,
+    args: readonly string[],
+    url: string,
+    extra: Record<string, string> = {},
+  ) =>
+    spawnSync("npx", ["tsx", "--import", "./test/no-network.mjs", script, ...args], {
+      cwd: PKG,
+      encoding: "utf8",
+      shell: process.platform === "win32",
+      env: {
+        ...INHERITED_ENV,
+        DATABASE_URL: url,
+        PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+        PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+        ...extra,
+      },
+      timeout: SPAWN_TIMEOUT_MS,
+    });
+
+  it.each([
+    ["admin:sweep-invites", "src/admin.ts", ["sweep-invites"]],
+    ["db:check-hashes", "src/check-migration-hashes.ts", []],
+  ] as const)(
+    "%s refuses the password-printing URLs before any driver sees them",
+    (_name, script, args) => {
+      for (const url of [
+        `postgres://u:${SENTINEL}@xn--a.eu-central-1.aws.neon.tech/db`,
+        `postgresql://u:${SENTINEL}%zz@${CHILD_HOST}/neondb?sslmode=require`,
+      ]) {
+        const result = withNoNetwork(script, args, url);
+        expect(result.status, result.stderr).toBe(1);
+        expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
+        expect(`${result.stdout}${result.stderr}`).not.toContain("network disabled");
+      }
+    },
+  );
+
+  /** A target that passes every check reaches the driver; its failure still prints no password. */
+  it.each([
+    [
+      "a Neon host, the network disabled",
+      `postgresql://u:${SENTINEL}@${CHILD_HOST}/neondb?sslmode=require`,
+      "network disabled by test/no-network.mjs",
+    ],
+    [
+      "a local host with nothing listening",
+      `postgres://u:${SENTINEL}@localhost:1/opika_no_listener`,
+      "ECONNREFUSED",
+    ],
+  ])("admin's driver error prints no password: %s", (_name, url, failure) => {
+    const result = withNoNetwork("src/admin.ts", ["sweep-invites"], url);
+    expect(result.status).not.toBe(0);
+    // It failed in the driver, not somewhere before reaching it.
+    expect(`${result.stdout}${result.stderr}`).toContain(failure);
+    expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
+  });
+
+  it("db:check-hashes refuses a host that is neither local nor Neon, before connecting", () => {
+    const result = withNoNetwork(
+      "src/check-migration-hashes.ts",
+      [],
+      `postgresql://u:${SENTINEL}@${SENTINEL_HOST}/neondb`,
+    );
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain(
+      "ERROR: the host is neither local nor a Neon endpoint host (ep-…[-pooler].<region>.aws.neon.tech). Refusing (not printing it).",
+    );
+    expect(result.stderr).not.toContain("network disabled");
+    expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
+  });
+
+  it("db:check-hashes refuses when PGPASSWORD is set, before connecting", () => {
+    const result = withNoNetwork(
+      "src/check-migration-hashes.ts",
+      [],
+      `postgresql://neondb_owner@${CHILD_HOST}/neondb`,
+      { PGPASSWORD: `endpoint=${PROD_ENDPOINT};${SENTINEL}` },
+    );
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("ERROR: set in the environment: PGPASSWORD.");
+    expect(result.stderr).not.toContain("network disabled");
+    expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
   });
 
   it.each(WRITING_CLIS)("%s refuses production without --prod", (_name, script, args) => {

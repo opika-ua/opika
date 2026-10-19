@@ -3,7 +3,7 @@ import { hostname } from "node:os";
 import { posix, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
-import { checkProductionWrite, databaseTargetLine } from "../prod-guard";
+import { ambientSettingsText, checkProductionWrite, databaseTargetLine } from "../prod-guard";
 import {
   CHECKOUT_ROOT,
   DEV_DATABASE_NAME,
@@ -163,27 +163,38 @@ export type PruneOptions = {
   log: (line: string) => void;
 };
 
-/** The server must be local, and the URL must carry nothing that could redirect a connection. */
-function localServerOrNull(serverUrl: string): URL | null {
+const LOCAL_ONLY =
+  "ERROR: db:prune-test-dbs only works on a local server (it drops databases), with no query string. Refusing (not printing the URL).";
+
+/** The server must be local, and nothing, in the URL or the environment, may redirect a connection. */
+function localServer(
+  serverUrl: string,
+): { kind: "ok"; url: URL } | { kind: "refused"; message: string } {
   const check = checkProductionWrite(serverUrl, [], undefined);
-  if (check.kind !== "allowed" || check.reason !== "local") return null;
-  const parsed = new URL(serverUrl);
+  if (check.kind === "refused" && check.reason === "ambient_settings") {
+    return {
+      kind: "refused",
+      message: `ERROR: db:prune-test-dbs refuses: ${ambientSettingsText(check.variables)}. Refusing.`,
+    };
+  }
+  if (check.kind !== "allowed" || check.reason !== "local")
+    return { kind: "refused", message: LOCAL_ONLY };
+  const url = new URL(serverUrl);
   // Stricter than the guard, which accepts `sslmode` and `channel_binding`: a
   // local server needs neither, and postgres.js sends any other key to the
   // server as a startup parameter (`?database=` replaces the path's database).
-  if (parsed.search !== "" || parsed.hash !== "") return null;
-  return parsed;
+  if (url.search !== "" || url.hash !== "") return { kind: "refused", message: LOCAL_ONLY };
+  return { kind: "ok", url };
 }
 
 export async function pruneTestDatabases(options: PruneOptions): Promise<number> {
   const { env, log } = options;
-  const server = localServerOrNull(options.serverUrl);
-  if (server === null) {
-    log(
-      "ERROR: db:prune-test-dbs only works on a local server (it drops databases), with no query string. Refusing (not printing the URL).",
-    );
+  const local = localServer(options.serverUrl);
+  if (local.kind === "refused") {
+    log(local.message);
     return 1;
   }
+  const server = local.url;
   server.pathname = "/postgres";
   log(databaseTargetLine(server.toString()));
 

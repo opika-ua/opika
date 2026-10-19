@@ -31,6 +31,14 @@ import { parseEnv } from "node:util";
  * Oleksii's standing OK), which is exactly why the line has to be explicit:
  * an allowance for test data must not carry over silently to the day real
  * shelters exist.
+ *
+ * DATABASE_URL is the only input it trusts, and a non-local host has to be a
+ * Neon endpoint host (Oleksii, 2026-10-19, PG-T10 (b), verbatim: "refuse any
+ * non-local host that isn't ep-…[-pooler].<region>.aws.neon.tech, and --prod
+ * doesn't override that", and "DATABASE_URL is the only input the guard
+ * trusts"). The review that led there: a raw IP passed as "not production"
+ * while `PGPASSWORD='endpoint=ep-…;…'`, which the driver reads alongside the
+ * URL, routed the connection to production inside Neon.
  */
 
 export const PROD_ENDPOINT_ENV = "PROD_NEON_ENDPOINT";
@@ -42,9 +50,51 @@ export type ProductionWriteCheck =
   | { kind: "allowed"; reason: "local" | "not_production" | "production_flagged" }
   | {
       kind: "refused";
-      reason: "production_without_flag" | "production_unknown" | "unparseable" | "misconfigured";
+      reason:
+        | "production_without_flag"
+        | "production_unknown"
+        | "unparseable"
+        | "misconfigured"
+        | "not_a_neon_host";
     }
-  | { kind: "refused"; reason: "ambiguous_host"; cause: HostAmbiguity };
+  | { kind: "refused"; reason: "ambiguous_host"; cause: HostAmbiguity }
+  | {
+      kind: "refused";
+      reason: "ambient_settings";
+      variables: readonly AmbientConnectionVariable[];
+    };
+
+/**
+ * Environment variables a driver reads alongside DATABASE_URL. Any of them set
+ * means the URL the guard checked isn't the whole of what the driver connects
+ * with, so the guard refuses outright, local targets included (a `localhost`
+ * port can be a tunnel). The first seven are his list (2026-10-19, verbatim:
+ * "also refuse when any of these are set: PGHOST, PGHOSTADDR, PGPORT,
+ * PGPASSWORD, PGOPTIONS, PGSERVICE, PGSERVICEFILE"); libpq reads them all.
+ * The last three are added under his "DATABASE_URL is the only input the guard
+ * trusts": postgres-js 3.4.9 (`parseOptions`, which drizzle-kit uses too) reads
+ * them whenever the URL leaves out its user or database (PG-T11, a decision
+ * taken, reversible).
+ */
+export const AMBIENT_CONNECTION_VARIABLES = [
+  "PGHOST",
+  "PGHOSTADDR",
+  "PGPORT",
+  "PGPASSWORD",
+  "PGOPTIONS",
+  "PGSERVICE",
+  "PGSERVICEFILE",
+  "PGUSER",
+  "PGUSERNAME",
+  "PGDATABASE",
+] as const;
+export type AmbientConnectionVariable = (typeof AMBIENT_CONNECTION_VARIABLES)[number];
+
+/** The ambient variables that are set, an empty one included: names only, never a value. */
+export const ambientConnectionSettings = (
+  env: Readonly<Record<string, string | undefined>>,
+): AmbientConnectionVariable[] =>
+  AMBIENT_CONNECTION_VARIABLES.filter((name) => env[name] !== undefined);
 
 /**
  * Why a database URL can't be read as exactly one host. The guard checks one
@@ -63,9 +113,14 @@ export type HostAmbiguity =
   | "no_host"
   | "host_form"
   | "query"
-  | "routing_hint";
+  | "routing_hint_user"
+  | "routing_hint_password"
+  | "routing_hint_database"
+  | "escape_user"
+  | "escape_password"
+  | "escape_database";
 
-/** What a refusal says: the rule the URL broke, never any part of the URL. */
+/** What a refusal says: the rule the URL broke and the part it broke it in, never the part's value. */
 export const HOST_AMBIGUITY_TEXT: Readonly<Record<HostAmbiguity, string>> = {
   characters: "it contains a space, a backslash, a control character or a non-ASCII character",
   fragment: "it has a '#' fragment",
@@ -73,13 +128,32 @@ export const HOST_AMBIGUITY_TEXT: Readonly<Record<HostAmbiguity, string>> = {
   userinfo: "it has more than one '@' before the host",
   host_list: "it lists several hosts",
   no_host: "it names no host",
-  host_form: "its host isn't a plain hostname or IPv4 address",
-  query: "it carries a query parameter, or a value, the guard doesn't accept",
-  routing_hint: "it names a Neon endpoint or project outside the host",
+  host_form: "its host isn't a plain hostname or IPv4 address, written the way a driver reads it",
+  query: "its query string carries a parameter, or a value, the guard doesn't accept",
+  routing_hint_user: "its user name carries endpoint=, project= or options=",
+  routing_hint_password: "its password carries endpoint=, project= or options=",
+  routing_hint_database: "its database name carries endpoint=, project= or options=",
+  escape_user: "its user name has a %-escape that doesn't decode",
+  escape_password: "its password has a %-escape that doesn't decode",
+  escape_database: "its database name has a %-escape that doesn't decode",
 };
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
 const ENDPOINT_ID = /^ep-[a-z0-9-]+$/;
+
+/**
+ * A Neon endpoint host: the compute's id (with `-pooler` for the pooled one) as
+ * the first label, an optional cell label (`c-2`), an AWS region
+ * (`eu-central-1`), then `aws.neon.tech`. Applied after the trailing dot is
+ * stripped. Neon's proxy routes by that first label, the one the guard
+ * compares. Exactly these shapes and no others: any other label in between
+ * (`ep-a.ep-prod.eu-central-1…`) would rest on how the proxy reads the rest of
+ * the name, so a shape Neon introduces later is refused until it's added here.
+ */
+const NEON_ENDPOINT_HOST =
+  /^ep-[a-z0-9-]+\.(?:c-[0-9]+\.)?[a-z]{2}(?:-[a-z]+)+-[0-9]+\.aws\.neon\.tech$/;
+const isNeonEndpointHost = (host: string): boolean =>
+  NEON_ENDPOINT_HOST.test(host.replace(/\.$/, ""));
 
 /**
  * The only query parameters a database URL may carry, each with the values it
@@ -98,8 +172,23 @@ const ALLOWED_QUERY = new Map<string, ReadonlySet<string>>([
   ["channel_binding", new Set(["disable", "prefer", "require"])],
 ]);
 
-/** Neon's SNI workarounds name the endpoint outside the hostname (`endpoint=ep-…`, older `project=`). */
-const NEON_ROUTING_HINT = /(endpoint|project)=/i;
+/**
+ * Neon's SNI workarounds name the endpoint outside the hostname (`endpoint=ep-…`,
+ * older `project=`, or libpq's `options=endpoint%3D…`). His words (2026-10-19,
+ * verbatim): "Refuse a URL whose password or query carries endpoint= or options=
+ * too." The query is covered by `ALLOWED_QUERY`; this covers the rest.
+ */
+const NEON_ROUTING_HINT = /(endpoint|project|options)=/i;
+
+/** Whether `decodeURIComponent` accepts the text (`%zz`, `%FF` and a cut UTF-8 sequence it doesn't). */
+const decodes = (text: string): boolean => {
+  try {
+    decodeURIComponent(text);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /** Each valid `%XX` decoded on its own, the rest kept: a malformed escape elsewhere can't hide a hint. */
 const decodeEscapes = (text: string): string =>
@@ -114,6 +203,10 @@ const parseOrNull = (url: string): URL | null => {
     return null;
   }
 };
+
+/** The host as an `http:` URL reads it, or null where that reading refuses it. */
+const httpHostnameOf = (host: string): string | null =>
+  parseOrNull(`http://${host}`)?.hostname ?? null;
 
 type HostReading =
   | { kind: "one_host"; parsed: URL; host: string }
@@ -169,21 +262,36 @@ function readOneHost(url: string): HostReading {
   // decodes them, `%2F` turning the host into a unix-socket path), brackets
   // (postgres-js splits `[::1]` at its first `:` and connects to `[`).
   if (!/^[a-z0-9.-]+$/i.test(host)) return ambiguous("host_form");
+  // neon() re-parses the string as `http:`, where a host can be rewritten
+  // (`127.1` becomes `127.0.0.1`) or refused (`xn--a`, invalid punycode). A
+  // refusal there throws with the whole connection string in its message,
+  // password included (review of #144, finding 2), so the host must come back
+  // from that reading exactly as written.
+  if (httpHostnameOf(host) !== host.toLowerCase()) return ambiguous("host_form");
 
   for (const [key, value] of parsed.searchParams) {
     if (ALLOWED_QUERY.get(key)?.has(value) !== true) return ambiguous("query");
   }
-  // Neon routes a connection by an endpoint named in the password (or, through
-  // libpq, the database name) ahead of the hostname's, so the host checked here
-  // would not decide which database answers.
-  for (const part of [parsed.username, parsed.password, parsed.pathname]) {
-    if (NEON_ROUTING_HINT.test(decodeEscapes(part))) return ambiguous("routing_hint");
+  const parts = [
+    [parsed.username, "escape_user", "routing_hint_user"],
+    [parsed.password, "escape_password", "routing_hint_password"],
+    [parsed.pathname, "escape_database", "routing_hint_database"],
+  ] as const;
+  for (const [part, malformed, hint] of parts) {
+    // neon() decodes these with decodeURIComponent, and when that throws it
+    // throws too, with the whole connection string, password included, in its
+    // message (delta review of #144, finding 1).
+    if (!decodes(part)) return ambiguous(malformed);
+    // Neon routes a connection by an endpoint named in the password (or,
+    // through libpq, the database name) ahead of the hostname's, so the host
+    // checked here would not decide which database answers.
+    if (NEON_ROUTING_HINT.test(decodeEscapes(part))) return ambiguous(hint);
   }
   return { kind: "one_host", parsed, host: host.toLowerCase() };
 }
 
 /** `ep-quiet-lake-a1b2c3-pooler.eu-…`, `ep-quiet-lake-a1b2c3.eu-…` and `ep-quiet-lake-a1b2c3` are one compute. */
-const computeOf = (hostOrId: string): string =>
+export const computeOf = (hostOrId: string): string =>
   (hostOrId.toLowerCase().split(".")[0] ?? "").replace(/-pooler$/, "");
 
 /**
@@ -206,14 +314,6 @@ export type DatabaseTarget =
   | { kind: "ambiguous_host"; cause: HostAmbiguity }
   | { kind: "unparseable" };
 
-/**
- * The same suffix test as `client.ts`'s `isNeonHost`, which picks the driver,
- * applied after the trailing dot is stripped (a fully qualified
- * `x.neon.tech.` is still Neon, so the label holds even where the two
- * spellings differ).
- */
-const isNeonHostname = (hostname: string): boolean => hostname.endsWith(".neon.tech");
-
 export function databaseTargetOf(url: string): DatabaseTarget {
   // A URL that isn't exactly one host could reach any of several databases:
   // the line couldn't name the database honestly, and it exists to be proof
@@ -232,13 +332,15 @@ export function databaseTargetOf(url: string): DatabaseTarget {
       database: parsed.pathname.replace(/^\//, ""),
     };
   }
+  // Neon only in the one shape the production guard accepts. A remote host is
+  // named exactly as written, trailing dot included: stripped, `localhost.`
+  // would print as "remote host localhost" (review of #144, finding 5).
+  if (!isNeonEndpointHost(reading.host)) return { kind: "remote", host: reading.host };
   // The trailing dot is the same host written fully qualified.
   const host = reading.host.replace(/\.$/, "");
   // The endpoint id is the compute, which is what the production guard compares,
   // so the pooled and direct hostnames of one database print the same id.
-  const endpoint = computeOf(host);
-  if (isNeonHostname(host) && ENDPOINT_ID.test(endpoint)) return { kind: "neon", endpoint, host };
-  return { kind: "remote", host };
+  return { kind: "neon", endpoint: computeOf(host), host };
 }
 
 /**
@@ -296,7 +398,15 @@ export function checkProductionWrite(
   targetUrl: string,
   argv: readonly string[],
   prodEndpoint: string | undefined,
+  env: Readonly<Record<string, string | undefined>> = process.env,
 ): ProductionWriteCheck {
+  // First, and for every target: a setting the driver reads alongside the URL
+  // can send the connection somewhere the URL doesn't say (PGPASSWORD naming an
+  // endpoint routes inside Neon; PGPORT redirects a portless localhost), so no
+  // verdict on the URL alone would hold. --prod doesn't help either.
+  const ambient = ambientConnectionSettings(env);
+  if (ambient.length > 0)
+    return { kind: "refused", reason: "ambient_settings", variables: ambient };
   // A URL that won't parse is refused, never thrown on: Node's uncaught-error
   // dump prints the input, password included.
   const target = readOneHost(targetUrl);
@@ -314,6 +424,12 @@ export function checkProductionWrite(
   if (LOCAL_HOSTS.has(target.host)) {
     return { kind: "allowed", reason: "local" };
   }
+  // Anything else must be a Neon endpoint host, whose first label is the compute
+  // Neon routes by and the one compared below. A raw IP, another provider or an
+  // odd label under neon.tech can't be shown not to be production, and --prod
+  // doesn't open it: production is only ever reached through its own name
+  // (PG-T10 (b); a local Postgres on a WSL IP is refused too, which he accepted).
+  if (!isNeonEndpointHost(target.host)) return { kind: "refused", reason: "not_a_neon_host" };
 
   const flagged = argv.includes(PROD_FLAG);
   if (!prodEndpoint) {
@@ -370,7 +486,7 @@ export function assertProductionWriteAllowed(
   env: Readonly<Record<string, string | undefined>> = process.env,
   access: "write" | "read" = "write",
 ): void {
-  const check = checkProductionWrite(targetUrl, argv, productionEndpoint(env));
+  const check = checkProductionWrite(targetUrl, argv, productionEndpoint(env), env);
   if (check.kind === "allowed") {
     if (check.reason === "production_flagged") {
       const verb = access === "write" ? "writing to" : "reading";
@@ -382,8 +498,22 @@ export function assertProductionWriteAllowed(
   process.exit(1);
 }
 
+/** The ambient refusal's text: the variables by name, never a value. Shared with the smoke guard. */
+export const ambientSettingsText = (variables: readonly AmbientConnectionVariable[]): string =>
+  `set in the environment: ${variables.join(", ")}. A driver reads ${variables.length === 1 ? "it" : "them"} ` +
+  "alongside DATABASE_URL, the only connection setting the guard checks. Unset " +
+  `${variables.length === 1 ? "it" : "them"} and put everything in DATABASE_URL`;
+
 function refusalMessage(check: Extract<ProductionWriteCheck, { kind: "refused" }>): string {
   switch (check.reason) {
+    case "ambient_settings":
+      return `ERROR: ${ambientSettingsText(check.variables)}. Refusing (not printing any value).`;
+    case "not_a_neon_host":
+      return (
+        "ERROR: the database URL's host is neither local (localhost, 127.0.0.1, 0.0.0.0) nor a " +
+        "Neon endpoint host (ep-…[-pooler].<region>.aws.neon.tech), so it can't be checked " +
+        `against production, and ${PROD_FLAG} doesn't change that. Refusing (not printing it).`
+      );
     case "production_without_flag":
       return (
         `ERROR: this target is PRODUCTION (its Neon compute is ${PROD_ENDPOINT_ENV}). ` +

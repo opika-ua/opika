@@ -1,4 +1,10 @@
-import { databaseTargetOf, HOST_AMBIGUITY_TEXT } from "../prod-guard";
+import {
+  ambientConnectionSettings,
+  ambientSettingsText,
+  computeOf,
+  databaseTargetOf,
+  HOST_AMBIGUITY_TEXT,
+} from "../prod-guard";
 
 /**
  * The guard every real-Neon smoke run goes through (`test/neon-smoke.ts`, and
@@ -8,9 +14,6 @@ import { databaseTargetOf, HOST_AMBIGUITY_TEXT } from "../prod-guard";
  * through the production guard's `databaseTargetOf` (2026-10-19).
  */
 
-const computeOf = (host: string) =>
-  (host.toLowerCase().split(".")[0] ?? "").replace(/-pooler$/, "");
-
 export type SmokeTarget = { kind: "ok"; host: string } | { kind: "refused"; reason: string };
 
 /** Pure, so it is tested without a network: the endpoint must match `--expect` and not be production. */
@@ -18,7 +21,15 @@ export function smokeTarget(
   url: string,
   expect: string | undefined,
   prodEndpoint: string | undefined,
+  env: Readonly<Record<string, string | undefined>> = process.env,
 ): SmokeTarget {
+  // A smoke writes test data, so the production guard's rule holds here too: a
+  // setting the driver reads alongside the URL (PGPASSWORD naming production's
+  // endpoint) would route a rehearsal-host connection to production (PG-T10).
+  const ambient = ambientConnectionSettings(env);
+  if (ambient.length > 0) {
+    return { kind: "refused", reason: `${ambientSettingsText(ambient)} (not printing any value)` };
+  }
   // The production guard's reading, so the host compared below is the one the
   // driver connects to (a `#`, a second `@` or a host list could put production
   // behind a rehearsal host; Oleksii, 2026-10-19).

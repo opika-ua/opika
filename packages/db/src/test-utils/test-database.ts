@@ -3,7 +3,7 @@ import { hostname } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
-import { checkProductionWrite } from "../prod-guard";
+import { ambientSettingsText, checkProductionWrite } from "../prod-guard";
 
 /**
  * Every checkout gets its own disposable test databases, named after its
@@ -55,8 +55,14 @@ export const testDatabaseUrl = (kind: "test" | "harness", checkoutPath = CHECKOU
  * something that matters. Messages never echo the URL (it carries a password).
  */
 export function assertDisposableTestDatabase(url: string): string {
-  if (checkProductionWrite(url, [], undefined).kind !== "allowed") {
-    throw new Error("The test database must be local (it is dropped and truncated). Refusing.");
+  const check = checkProductionWrite(url, [], undefined);
+  if (check.kind !== "allowed") {
+    // An ambient setting is named, so the fix is obvious: the URL itself may well be local.
+    throw new Error(
+      check.reason === "ambient_settings"
+        ? `The test database setup refuses: ${ambientSettingsText(check.variables)}. Refusing.`
+        : "The test database must be local (it is dropped and truncated). Refusing.",
+    );
   }
   const parsed = new URL(url);
   // postgres.js reads connection options from the query string, and a
