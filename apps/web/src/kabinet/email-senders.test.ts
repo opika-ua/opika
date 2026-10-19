@@ -336,9 +336,10 @@ describe("providerInvitationSender", () => {
   };
 
   /**
-   * Oleksii, 2026-10-19: an unsent invite logs the same masked line as sign-in, through one
-   * helper, with the provider, the HTTP status and a stable reason code. Never the full address,
-   * the invite link or its id, the body, or a key.
+   * His rules for this log (2026-10-19, paraphrased here; verbatim in the inbox, IL-B1): an unsent
+   * invite logs the same masked line as sign-in, through one helper, with the provider, the HTTP
+   * status and a stable reason code; never the full address, the invite link or its id, the body,
+   * or a key.
    */
   it("logs a failed send: one exact masked line, with the provider and the HTTP status", async () => {
     const lines: string[] = [];

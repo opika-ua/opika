@@ -56,10 +56,12 @@ export async function sendChecked(
 }
 
 /**
- * `sendChecked`, plus why the block check wasn't done when the outcome is
- * `sent` with `blockCheck: "unknown"`. The outcome the operator sees stays
- * the contract's; the reason only feeds the sign-in log line, so a Resend
- * send reads `provider_suppresses` there, not like a failed lookup.
+ * `sendChecked`, plus two things only the log lines use: why the block check
+ * wasn't done when the outcome is `sent` with `blockCheck: "unknown"` (so a
+ * Resend send reads `provider_suppresses` in the sign-in line, not like a
+ * failed lookup), and, for a failed send, the provider and HTTP status, which
+ * both the sign-in and the invite line carry. The outcome the operator sees
+ * stays the contract's.
  */
 async function sendCheckedWithReason(
   mail: ProviderMail,
@@ -117,7 +119,7 @@ type ProviderFailure = { provider: EmailProvider; status: number | null };
  * link or its token, the body, or a key (Oleksii, 2026-10-19: "Never log the full address, the
  * invite link or token, the email body, or any provider key").
  */
-export function sendFailureLine(
+function sendFailureLine(
   template: "sign-in" | "invite",
   to: string,
   outcome: Exclude<EmailSendOutcome, { kind: "sent" }>,
