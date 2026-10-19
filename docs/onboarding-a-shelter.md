@@ -594,11 +594,11 @@ from the registry, and tell the shelter personally (IN-E13). Oleksii's condition
 ## DMARC: raising the policy (launch gate, Oleksii's step)
 
 Before the first real shelter (`docs/build-plan.md` Part 5), he reviews the DMARC aggregate
-reports that arrive at `dmarc@`, then raises the apex policy in Cloudflare DNS. Oleksii,
+reports that arrive at `dmarc@`, then raises both DMARC records in Cloudflare DNS. Oleksii,
 2026-10-19, verbatim: "review DMARC aggregate reports at dmarc@, then raise _dmarc.opika.org.ua
 from p=none to p=quarantine (later p=reject). My step in Cloudflare DNS; note the current record
 and the change in the runbook." (The earlier plan, IN-E3, went straight to `p=reject`. This one
-goes through `p=quarantine` first.)
+goes through `p=quarantine` first. Both records, not only the apex: EA-Q1 below.)
 
 - **The current records** (public DNS, read 2026-10-19). There are two, and they cover
   different senders:
@@ -613,7 +613,8 @@ goes through `p=quarantine` first.)
   first, then later to p=reject, and keep the same rua."
 - **Before changing anything:** the reports at `dmarc@` show nothing legitimate failing:
   everything sending as `@opika.org.ua` (e.g. `hello@`), and Resend for `mail.opika.org.ua`.
-- **The step, in this order** (his order, verbatim in substance: "Write the order into the step"):
+- **The step, in this order** (his order, paraphrased, with the record names and commands added;
+  his words are in the inbox, EA-Q1, which also asks: "Write the order into the step"):
   1. **Remove the Brevo DNS records** (the `brevo2` DKIM, and any Brevo SPF include or
      verification TXT, e.g. `brevo1._domainkey.mail`, `brevo2._domainkey.mail` and the `mail`
      TXT `brevo-code`), before raising or in the same step.

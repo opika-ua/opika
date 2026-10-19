@@ -1089,9 +1089,9 @@ someone says yes to an outreach email, independent of whatever else is or isn't 
   then check the next reports before `p=reject`.
 - [ ] **Google Postmaster Tools for `mail.opika.org.ua`** (Oleksii, 2026-10-19, verbatim: "Launch
   gate: add Google Postmaster Tools for mail.opika.org.ua. I add the verification TXT."). His step:
-  add the domain in Postmaster Tools, and its verification TXT in Cloudflare DNS. The reason: the
-  delivery test of 2026-10-19 put the sign-in email in Gmail's Promotions tab although it
-  authenticated (SPF, aligned DKIM, DMARC pass, TLS 1.3). No email headers change, and no
+  add the domain in Postmaster Tools, and its verification TXT in Cloudflare DNS. The reason, his
+  report of the delivery test, verbatim: "Gmail sorted the sign-in email into Promotions in the
+  delivery test (it authenticated fine)." (SPF, aligned DKIM and DMARC passed, over TLS 1.3: EA-B8.) No email headers change, and no
   List-Unsubscribe on auth emails (his words: "No headers or other email changes. Don't add
   List-Unsubscribe to auth emails.").
 - **Follow-up, decided after the first real sends, not now:** consider `kabinet@` instead of
