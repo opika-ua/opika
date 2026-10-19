@@ -148,7 +148,28 @@ export function AnimalForm({
   const dirty = view === null ? creatable : patch !== null;
   const gaps = gapsOf(values, view?.photos.length ?? 0);
 
-  useUnsavedChanges("animal-form", editable && !isDraft && dirty);
+  // One rule for a draft and a listed card alike (Oleksii, 2026-10-19,
+  // verbatim): "warn while there are unsaved edits or a save pending or
+  // queued ... don't warn when everything is saved." `dirty` diffs the
+  // current field values against the last-known server state on every
+  // render, which covers all three of his cases in this form's save
+  // queue: a value typed but never blurred or saved (nothing sent yet);
+  // a save in flight (`view` only updates once the request resolves, so
+  // the diff stays nonzero for the entire pending window); and a save
+  // still queued behind another (same reasoning — queued means not yet
+  // resolved either). On a FAILED save `dirty` stays true on its own, for
+  // the same reason: the view the patch was computed against never
+  // changed, so no separate "undo on failure" branch is needed. (Decision
+  // taken: an earlier revision also tracked a `pendingSaveCount` ref as a
+  // belt-and-suspenders second signal; dropped because no reachable save
+  // path in this component ever has a save pending while `dirty` is
+  // false, which made it untestable dead weight — removing it changed no
+  // test's outcome. If a future save path ever updates `view` before its
+  // request settles, that would reopen the gap and need its own term
+  // here.) The same `useUnsavedChanges` section already used by the
+  // profile editor's own fields (`unsaved-changes.ts`) is the one shared
+  // helper; there is no second copy of this logic.
+  useUnsavedChanges("animal-form", editable && dirty);
 
   const set = useCallback((change: Partial<FormValues>) => {
     setValues((current) => ({ ...current, ...change }));
@@ -428,6 +449,7 @@ export function AnimalForm({
               save={save}
               created={view !== null}
               creatable={creatable}
+              dirty={dirty}
               gaps={gaps}
               publishing={publishing}
               onSave={() => void saveNow()}
@@ -519,6 +541,7 @@ function DraftFooter({
   save,
   created,
   creatable,
+  dirty,
   gaps,
   publishing,
   onSave,
@@ -528,16 +551,22 @@ function DraftFooter({
   save: SaveState;
   created: boolean;
   creatable: boolean;
+  dirty: boolean;
   gaps: readonly PublishGap[];
   publishing: boolean;
   onSave: () => void;
   onPublish: () => void;
   onReload: () => void;
 }) {
+  // «Чернетку збережено о …» names a moment that is only still true while
+  // nothing has changed since (the same `save.kind === "saved" && !dirty`
+  // rule `ListedFooter` already uses below) — a value typed since then, or
+  // a save still pending or queued, keeps it hidden rather than naming a
+  // time that no longer describes the draft's current content.
   const status =
     save.kind === "saving"
       ? uk.kabinet.profileEdit.state.saving
-      : save.kind === "saved"
+      : save.kind === "saved" && !dirty
         ? fillTemplate(t.draft.savedAt, { time: timeOf(save.at) })
         : !created && !creatable
           ? t.draft.notSavedYet

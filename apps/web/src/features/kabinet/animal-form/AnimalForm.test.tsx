@@ -602,6 +602,118 @@ describe("a draft saves itself (T6)", () => {
   });
 });
 
+/**
+ * One rule for a draft and a listed card alike (Oleksii, 2026-10-19,
+ * verbatim): "warn while there are unsaved edits or a save pending or
+ * queued ... 'Unsaved' includes text typed into a field that hasn't been
+ * blurred or saved yet. Don't warn when everything is saved." And, on his
+ * correction to the line itself: "Hide «Чернетку збережено о …» while
+ * there are unsaved edits, the same as listed cards" — so a failed save
+ * (the view never changed) leaves both the warning and the hidden line
+ * exactly where an unsaved edit already leaves them, with no separate
+ * "undo on failure" branch. Every save below is a controlled promise, so
+ * the test — never a sleep — decides exactly when it settles.
+ */
+describe("the unsaved-work warning and the saved-time line", () => {
+  const FAILURE = "Чернетку не збережено. Перевірте зʼєднання — усе, що ви ввели, лишається тут.";
+
+  /** Dispatches `beforeunload` on `window` and reports what the listener, if any, did to it. */
+  const dispatchUnload = (): { prevented: boolean; returnValue: unknown } => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return {
+      prevented: event.defaultPrevented,
+      returnValue: (event as unknown as { returnValue: unknown }).returnValue,
+    };
+  };
+
+  /** The next `update` call hangs until the test calls the returned function. */
+  const deferredUpdate = (client: FakeClient) => {
+    let release: (view: KabinetAnimalView) => void = () => {};
+    client.calls.update.mockImplementationOnce(
+      () =>
+        new Promise<KabinetAnimalView>((resolve) => {
+          release = resolve;
+        }),
+    );
+    return (view: KabinetAnimalView) => release(view);
+  };
+
+  const CASES = [
+    {
+      name: "a draft",
+      view: () => draft(),
+      saveLabel: SAVE_DRAFT,
+      savedLine: /^Чернетку збережено о /,
+    },
+    {
+      name: "a listed card",
+      view: () => published(),
+      saveLabel: "Зберегти",
+      savedLine: /^Збережено о /,
+    },
+  ] as const;
+
+  it.each(CASES)(
+    "$name: typing (unblurred) hides the line and warns; settling shows it with the new time and clears the warning; a failed save re-hides it and re-warns",
+    async ({ view, saveLabel, savedLine }) => {
+      const client = fakeClient(view());
+      renderForm(view(), { client });
+
+      // Nothing typed, nothing saved yet: no warning, no line.
+      expect(dispatchUnload().prevented).toBe(false);
+      expect(screen.queryByText(savedLine)).toBeNull();
+
+      // Typing without leaving the field: `dirty` alone turns the warning
+      // on, before any save is even attempted.
+      fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+      expect(dispatchUnload().prevented).toBe(true);
+      expect(screen.queryByText(savedLine)).toBeNull();
+
+      const release1 = deferredUpdate(client);
+      fireEvent.click(screen.getByRole("button", { name: saveLabel }));
+      expect(dispatchUnload().prevented).toBe(true); // still pending
+      expect(screen.queryByText(savedLine)).toBeNull();
+
+      await act(async () =>
+        release1({ ...view(), description: { uk: "Лагідна.", en: null } } as KabinetAnimalView),
+      );
+      await screen.findByText(savedLine);
+      expect(dispatchUnload()).toEqual({ prevented: false, returnValue: undefined });
+
+      // Type again: `save.kind` is still "saved" from the last success, but
+      // the new, unblurred edit alone must hide the line and re-warn —
+      // "saved" is no longer true of the form's current content.
+      fireEvent.change(screen.getByLabelText("Про тварину"), {
+        target: { value: "Лагідна, грається." },
+      });
+      expect(screen.queryByText(savedLine)).toBeNull();
+      expect(dispatchUnload().prevented).toBe(true);
+
+      // Now let this save fail: the edits are still unsaved (the view the
+      // patch was computed against never changed), so the line stays
+      // hidden and the warning stays on.
+      client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      fireEvent.click(screen.getByRole("button", { name: saveLabel }));
+      await screen.findByText(FAILURE);
+      expect(screen.queryByText(savedLine)).toBeNull();
+      expect(dispatchUnload().prevented).toBe(true);
+
+      // A successful retry: idle and fully saved again — no warning, line shown.
+      const release2 = deferredUpdate(client);
+      fireEvent.click(screen.getByRole("button", { name: saveLabel }));
+      await act(async () =>
+        release2({
+          ...view(),
+          description: { uk: "Лагідна, грається.", en: null },
+        } as KabinetAnimalView),
+      );
+      await screen.findByText(savedLine);
+      expect(dispatchUnload()).toEqual({ prevented: false, returnValue: undefined });
+    },
+  );
+});
+
 describe("photos", () => {
   it("an upload shows its progress, then the photo; the gap list loses «фото»", async () => {
     const user = userEvent.setup();
