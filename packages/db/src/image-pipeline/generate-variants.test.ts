@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-import { generateVariants } from "./generate-variants";
+import { attentionCropBox, generateVariants } from "./generate-variants";
 import { IMAGE_VARIANTS } from "./variants";
 
 // Deliberate cross-package coupling, not an accident — real photographs
@@ -105,15 +105,68 @@ describe("generateVariants", () => {
       .jpeg()
       .toBuffer();
 
+    // Every variant: the displayed 200 × 300 covers `thumb` (scaled down,
+    // then cropped) but not `card` or `detail` (cropped, then enlarged), so
+    // both paths through `generateVariants` are held to the rotation.
     const variants = await generateVariants(source);
-    const { data, info } = await sharp(variants.thumb).raw().toBuffer({ resolveWithObject: true });
+    for (const [name, bytes] of Object.entries(variants)) {
+      const { data, info } = await sharp(bytes).raw().toBuffer({ resolveWithObject: true });
 
-    const topLeft = pixelAt(data, info, 2, 2);
-    const topRight = pixelAt(data, info, info.width - 3, 2);
+      const topLeft = pixelAt(data, info, 2, 2);
+      const topRight = pixelAt(data, info, info.width - 3, 2);
 
-    expect(isRed(topLeft), `top-left should be background, was rgb(${topLeft})`).toBe(false);
-    expect(isRed(topRight), `top-right should carry the rotated marker, was rgb(${topRight})`).toBe(
-      true,
-    );
+      expect(isRed(topLeft), `${name}: top-left should be background, was rgb(${topLeft})`).toBe(
+        false,
+      );
+      expect(
+        isRed(topRight),
+        `${name}: top-right should carry the rotated marker, was rgb(${topRight})`,
+      ).toBe(true);
+    }
+  });
+});
+
+/**
+ * The expected boxes are worked by hand: the variant's shape, as large as fits
+ * inside the source, never larger than the variant, and never under a pixel.
+ */
+describe("attentionCropBox", () => {
+  it("a source that covers the variant is cropped at the variant's own size", () => {
+    expect(attentionCropBox({ width: 2000, height: 2000 }, IMAGE_VARIANTS.detail)).toEqual({
+      width: 1120,
+      height: 1400,
+    });
+    expect(attentionCropBox({ width: 1200, height: 900 }, IMAGE_VARIANTS.card)).toEqual({
+      width: 640,
+      height: 800,
+    });
+  });
+
+  it("a source that doesn't is cropped at its own scale, to the variant's shape", () => {
+    // 1200 × 900 is 900 tall where `detail` is 1400: a 4:5 box 900 tall.
+    expect(attentionCropBox({ width: 1200, height: 900 }, IMAGE_VARIANTS.detail)).toEqual({
+      width: 720,
+      height: 900,
+    });
+  });
+
+  it.each([
+    ["2000×10", { width: 2000, height: 10 }, { thumb: [10, 10], card: [8, 10], detail: [8, 10] }],
+    ["10×2000", { width: 10, height: 2000 }, { thumb: [10, 10], card: [10, 13], detail: [10, 13] }],
+    ["2000×1", { width: 2000, height: 1 }, { thumb: [1, 1], card: [1, 1], detail: [1, 1] }],
+    ["1×2000", { width: 1, height: 2000 }, { thumb: [1, 1], card: [1, 1], detail: [1, 1] }],
+  ] as const)("%s: a box inside the source for every variant", (_label, source, boxes) => {
+    for (const [name, variant] of Object.entries(IMAGE_VARIANTS)) {
+      const box = attentionCropBox(source, variant);
+      expect([box.width, box.height], name).toEqual(boxes[name as keyof typeof boxes]);
+    }
+  });
+
+  it("a side that would round to nothing is one pixel", () => {
+    // 2000 × 1 into a 1:4 box: 0.25 px wide, before the floor.
+    expect(attentionCropBox({ width: 2000, height: 1 }, { width: 100, height: 400 })).toEqual({
+      width: 1,
+      height: 1,
+    });
   });
 });

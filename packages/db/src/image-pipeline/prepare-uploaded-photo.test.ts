@@ -184,6 +184,8 @@ describe("the 2000 px ceiling (P-Q5)", () => {
   it.each([
     ["2001 wide", 2001, 10],
     ["2001 tall", 10, 2001],
+    ["5000 × 1", 5000, 1],
+    ["1 × 5000", 1, 5000],
   ])("refuses %s", async (_label, width, height) => {
     const bytes = await solid(width, height).png().toBuffer();
     expect(await prepareUploadedPhoto(bytes)).toEqual({
