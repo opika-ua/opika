@@ -6,6 +6,7 @@ import {
   type BlockedStatus,
   blockedStatusOf,
   type OutgoingEmail,
+  ProviderSendError,
   unsupportedBlockList,
 } from "./email-provider";
 import {
@@ -30,7 +31,11 @@ function mail(
     sender: {
       async send(message) {
         if (options.sendFails)
-          throw new Error("Email provider brevo refused the send (status 500).");
+          throw new ProviderSendError(
+            "brevo",
+            500,
+            "Email provider brevo refused the send (status 500).",
+          );
         sent.push(message);
         return { status: 201, messageId: "m" };
       },
@@ -162,7 +167,10 @@ describe("providerMagicLinkSender", () => {
   it("logs a blocked or failed send with the address masked, never the link or the full address", async () => {
     for (const [m, expected] of [
       [mail({ kind: "blocked", reason: "unsubscribed" }), "blocked (unsubscribed)"],
-      [mail({ kind: "not_blocked" }, { sendFails: true }), "failed (provider_error)"],
+      [
+        mail({ kind: "not_blocked" }, { sendFails: true }),
+        "failed (provider_error), provider brevo, status 500",
+      ],
     ] as const) {
       const lines: string[] = [];
       await providerMagicLinkSender(m.provider, {
@@ -310,9 +318,68 @@ describe("providerMagicLinkSender", () => {
   });
 });
 
-const CHANNEL = { fromAddress: "noreply@mail.example.org", blockList: unsupportedBlockList };
+const CHANNEL = {
+  fromAddress: "noreply@mail.example.org",
+  blockList: unsupportedBlockList,
+  log: () => {},
+};
 
 describe("providerInvitationSender", () => {
+  const INVITE_URL = "https://example.org/kabinet/vkhid?zaproshennia=SECRET-INVITE-ID";
+  const invitation = {
+    email: "olena@example.org",
+    shelterName: "Лапа",
+    operatorName: "Олексій",
+    url: INVITE_URL,
+    shelterVerification: "verified" as const,
+    validForHours: 72,
+  };
+
+  /**
+   * Oleksii, 2026-10-19: an unsent invite logs the same masked line as sign-in, through one
+   * helper, with the provider, the HTTP status and a stable reason code. Never the full address,
+   * the invite link or its id, the body, or a key.
+   */
+  it("logs a failed send: one exact masked line, with the provider and the HTTP status", async () => {
+    const lines: string[] = [];
+    const m = mail({ kind: "not_blocked" }, { sendFails: true });
+    const outcome = await providerInvitationSender(m.provider, {
+      ...CHANNEL,
+      log: (line) => lines.push(line),
+    }).send(invitation);
+    expect(outcome).toEqual({ kind: "failed", reason: "provider_error" });
+    expect(lines).toEqual([
+      "[kabinet] invite email to o•••@example.org not sent: failed (provider_error), provider brevo, status 500",
+    ]);
+    const all = lines.join("\n");
+    expect(all).not.toContain("olena@");
+    expect(all).not.toContain("SECRET-INVITE-ID");
+    expect(all).not.toContain(uk.kabinet.email.invite.subject);
+  });
+
+  it("logs a blocked address the same way, with no provider part (nothing was sent)", async () => {
+    const lines: string[] = [];
+    const m = mail({ kind: "blocked", reason: "hard_bounce" });
+    await providerInvitationSender(m.provider, {
+      ...CHANNEL,
+      log: (line) => lines.push(line),
+    }).send(invitation);
+    expect(lines).toEqual([
+      "[kabinet] invite email to o•••@example.org not sent: blocked (hard_bounce)",
+    ]);
+  });
+
+  it("logs nothing for a successful send", async () => {
+    const lines: string[] = [];
+    const m = mail({ kind: "not_blocked" });
+    const outcome = await providerInvitationSender(m.provider, {
+      ...CHANNEL,
+      log: (line) => lines.push(line),
+    }).send(invitation);
+    expect(outcome).toEqual({ kind: "sent", blockCheck: "clear" });
+    expect(lines).toEqual([]);
+  });
+
   it("exposes the configured From address and block list for the operator's side (IN-E13, answer 4)", () => {
     const sender = providerInvitationSender(mail({ kind: "not_blocked" }).provider, CHANNEL);
     expect(sender.fromAddress).toBe("noreply@mail.example.org");
