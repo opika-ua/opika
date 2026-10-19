@@ -19,7 +19,7 @@ import { createDatabase, type Database } from "../src/client";
 import { productionEndpoint } from "../src/prod-guard";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
-import { authExpiryRepo, KABINET_SESSION_ABSOLUTE_MS } from "../src/repos/auth-expiry-repo";
+import { authExpiryRepo, KABINET_SESSION_LIMITS } from "../src/repos/auth-expiry-repo";
 import { authRevokeRepo } from "../src/repos/auth-revoke-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import {
@@ -44,6 +44,7 @@ import {
   authSession,
   authUser,
   authVerification,
+  superAdmins,
   supportSessions,
 } from "../src/schema/auth";
 import { insertShelterFromScript, recordAnimalsImported } from "../src/script-history";
@@ -653,33 +654,51 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `${dupAccepted.kind}; newest ${statusOf(newerId)}, older ${statusOf(olderInvite.invitationId)}, ${stillPending} pending`,
   );
 
-  // 18. the auth clean-up's one statement (KH-Q9, plus EM-Q11's 30-day
-  // cap): two data-modifying CTEs and their counts, through neon-http. Rows
-  // past expiry go, and a session past the absolute cap goes even with its
-  // idle expiry still ahead (EM-Q11: "Test the case where the cap is passed
-  // but the idle expiry is in the future"); one just under the cap stays. On a
-  // disposable branch the counts may include rows copied from production, so
-  // they are "at least" and this run's own rows are checked by id.
-  const expired = { session: randomUUID(), verification: randomUUID() };
-  const live = { session: randomUUID(), verification: randomUUID() };
-  const pastCap = randomUUID();
-  const underCap = randomUUID();
-  await db.insert(authSession).values([
-    { ...session(operator), id: expired.session, expiresAt: later(-1000) },
-    { ...session(operator), id: live.session, expiresAt: later(86_400_000) },
-    {
-      ...session(operator),
-      id: pastCap,
-      createdAt: later(-KABINET_SESSION_ABSOLUTE_MS - 60_000),
-      expiresAt: later(5 * 86_400_000),
-    },
-    {
-      ...session(operator),
-      id: underCap,
-      createdAt: later(-KABINET_SESSION_ABSOLUTE_MS + 60_000),
-      expiresAt: later(5 * 86_400_000),
-    },
-  ]);
+  // 18. the auth clean-up's one statement (KH-Q9, EM-Q11), with PW-1's limits by role
+  // (F-B9, §9 answers 3 and 6: a shelter-side session 30 days idle and 90 at most, the
+  // operator's 7 and 30; KABINET_SESSION_LIMITS): two data-modifying CTEs and their counts,
+  // and, new with PW-1, a subquery on super_admins inside the delete, through neon-http. Rows
+  // past expiry go; a session past a limit goes even with its expiry still ahead (EM-Q11: "Test
+  // the case where the cap is passed but the idle expiry is in the future"); one just inside a
+  // limit stays, and a shelter-side session past the operator's limits stays. On a disposable
+  // branch the counts may include rows copied from production, so they are "at least" and this
+  // run's own rows are checked by id.
+  const DAY_MS = 86_400_000;
+  const { shelterAdmin, operator: operatorLimits } = KABINET_SESSION_LIMITS;
+  const granted = randomUUID();
+  await db.insert(authUser).values({
+    id: granted,
+    name: `smoke-granted-${tag}`,
+    email: `smoke-granted-${tag}@example.invalid`,
+    emailVerified: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  await db.insert(superAdmins).values({ id: randomUUID(), userId: granted, grantedAt: NOW });
+  const aged = (userId: string, ago: { created: number; updated: number }) => ({
+    ...session(userId),
+    createdAt: later(-ago.created),
+    updatedAt: later(-ago.updated),
+    expiresAt: later(60 * DAY_MS),
+  });
+  const rows = {
+    expired: { ...session(operator), expiresAt: later(-1000) },
+    live: { ...session(operator), expiresAt: later(DAY_MS) },
+    pastCap: aged(operator, { created: shelterAdmin.absoluteMs + 60_000, updated: 60_000 }),
+    underCap: aged(operator, { created: shelterAdmin.absoluteMs - 60_000, updated: 60_000 }),
+    pastIdle: aged(operator, { created: DAY_MS, updated: shelterAdmin.idleMs + 60_000 }),
+    underIdle: aged(operator, {
+      created: shelterAdmin.idleMs,
+      updated: shelterAdmin.idleMs - 60_000,
+    }),
+    opPastIdle: aged(granted, { created: DAY_MS, updated: operatorLimits.idleMs + 60_000 }),
+    opUnderIdle: aged(granted, { created: DAY_MS, updated: operatorLimits.idleMs - 60_000 }),
+    opPastCap: aged(granted, { created: operatorLimits.absoluteMs + 60_000, updated: 60_000 }),
+    opUnderCap: aged(granted, { created: operatorLimits.absoluteMs - 60_000, updated: 60_000 }),
+  };
+  await db.insert(authSession).values(Object.values(rows));
+  const expiredVerification = randomUUID();
+  const liveVerification = randomUUID();
   const verification = (id: string, expiresAt: Date) => ({
     id,
     identifier: `smoke-${tag}-${id}`,
@@ -691,37 +710,41 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   await db
     .insert(authVerification)
     .values([
-      verification(expired.verification, later(-1000)),
-      verification(live.verification, later(900_000)),
+      verification(expiredVerification, later(-1000)),
+      verification(liveVerification, later(900_000)),
     ]);
   const counts = await authExpiryRepo(db).deleteExpired(NOW);
+  const sessionIds = Object.values(rows).map((row) => row.id);
   const left = new Set([
     ...(
       await db
         .select({ id: authSession.id })
         .from(authSession)
-        .where(inArray(authSession.id, [expired.session, live.session, pastCap, underCap]))
+        .where(inArray(authSession.id, sessionIds))
     ).map((r) => r.id),
     ...(
       await db
         .select({ id: authVerification.id })
         .from(authVerification)
-        .where(inArray(authVerification.id, [expired.verification, live.verification]))
+        .where(inArray(authVerification.id, [expiredVerification, liveVerification]))
     ).map((r) => r.id),
   ]);
+  const gone = ["expired", "pastCap", "pastIdle", "opPastIdle", "opPastCap"] as const;
+  const kept = ["live", "underCap", "underIdle", "opUnderIdle", "opUnderCap"] as const;
+  const wrong = [
+    ...gone.filter((name) => left.has(rows[name].id)).map((name) => `${name} kept`),
+    ...kept.filter((name) => !left.has(rows[name].id)).map((name) => `${name} deleted`),
+    ...(left.has(expiredVerification) ? ["expired verification kept"] : []),
+    ...(left.has(liveVerification) ? [] : ["live verification deleted"]),
+  ];
   check(
-    "auth clean-up (expired verification + session, session past the 30-day cap, one statement)",
+    "auth clean-up (expiry, and each holder's limits: shelter-side 30/90, the operator's 7/30, one statement)",
     typeof counts.sessions === "number" &&
       typeof counts.verifications === "number" &&
-      counts.sessions >= 2 &&
+      counts.sessions >= gone.length &&
       counts.verifications >= 1 &&
-      !left.has(expired.session) &&
-      !left.has(expired.verification) &&
-      !left.has(pastCap) &&
-      left.has(underCap) &&
-      left.has(live.session) &&
-      left.has(live.verification),
-    `deleted ${counts.verifications} verification(s), ${counts.sessions} session(s); this run's live rows kept ${left.has(live.session) && left.has(live.verification)}, expired gone ${!left.has(expired.session) && !left.has(expired.verification)}, past-cap gone ${!left.has(pastCap)}, under-cap kept ${left.has(underCap)}`,
+      wrong.length === 0,
+    `deleted ${counts.verifications} verification(s), ${counts.sessions} session(s); ${wrong.length === 0 ? "every row of this run where it should be" : wrong.join(", ")}`,
   );
 
   // 19–21: the K2/K3 animal writes HS-T4b names (the listing jsonb

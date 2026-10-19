@@ -16,7 +16,7 @@ describe("runAuthSmoke against the local database", () => {
   });
   afterAll(async () => cleanup?.());
 
-  it("passes every step: sign-in, verify, the accept, getSession, sign-out", async () => {
+  it("passes every step: sign-in, verify, the accept, getSession, sign-out, and PW-1's four", async () => {
     const outcomes = await runAuthSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
     expect(outcomes.map((o) => o.name)).toEqual([
@@ -25,6 +25,10 @@ describe("runAuthSmoke against the local database", () => {
       "automatic accept on sign-in (invitation + membership, one statement)",
       "getSession (Better Auth reads the session back; the kabinet resolves a shelter admin)",
       "sign-out (session row deleted)",
+      "forgot password (the reset token stored hashed, the email captured)",
+      "reset (token consumed, credential created with a hash, the notice captured)",
+      "password sign-in (session created, no token in the body)",
+      "change password (hash updated, other sessions revoked, one renewed session)",
     ]);
   });
 

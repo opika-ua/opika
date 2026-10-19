@@ -39,6 +39,9 @@ const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harne
 for (const path of [
   "/kabinet",
   "/kabinet/vkhid",
+  // PW-1: «Забули пароль?» and the reset link's page.
+  "/kabinet/vkhid/zabuly",
+  "/kabinet/vkhid/novyi-parol",
   "/kabinet/prytulky",
   "/kabinet/prytulky/00000000-0000-4000-8000-000000000000",
 ]) {

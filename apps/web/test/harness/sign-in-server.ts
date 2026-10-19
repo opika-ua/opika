@@ -35,6 +35,8 @@ export type SignInServer = {
   stdout: () => string;
   /** The magic link the console sender printed for `email`, once it appears. */
   linkFor: (email: string) => Promise<string>;
+  /** The newest reset link the console password mail printed for `email` (PW-1), once it appears. */
+  resetLinkFor: (email: string) => Promise<string>;
   stop: () => Promise<void>;
 };
 
@@ -119,6 +121,11 @@ export async function startSignInServer(
       const marker = `[kabinet] magic link for ${email}: `;
       await expect.poll(() => stdout.includes(marker), { timeout: 10_000 }).toBe(true);
       return stdout.slice(stdout.indexOf(marker) + marker.length).split(/\s/, 1)[0] ?? "";
+    },
+    async resetLinkFor(email) {
+      const marker = `[kabinet] password reset link for ${email}: `;
+      await expect.poll(() => stdout.includes(marker), { timeout: 10_000 }).toBe(true);
+      return stdout.slice(stdout.lastIndexOf(marker) + marker.length).split(/\s/, 1)[0] ?? "";
     },
     // Waits for the exit rather than only signalling it, so the run never
     // ends with this server still shutting down. `next start` serves in this
