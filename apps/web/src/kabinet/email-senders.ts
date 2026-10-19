@@ -1,6 +1,11 @@
 import type { EmailSendOutcome } from "@opika/contracts";
 import { COPY_PENDING } from "@opika/i18n";
-import { invitationEmail, magicLinkEmail } from "./email-message";
+import {
+  invitationEmail,
+  magicLinkEmail,
+  passwordChangedEmail,
+  passwordResetEmail,
+} from "./email-message";
 import {
   type BlockedStatus,
   type BlockListReader,
@@ -11,6 +16,7 @@ import {
   unsupportedBlockList,
 } from "./email-provider";
 import type { MagicLinkSender } from "./magic-link-sender";
+import type { PasswordMailSender } from "./password-mail";
 
 /**
  * The provider-backed senders for the two kabinet emails, and the rule both
@@ -120,7 +126,7 @@ type ProviderFailure = { provider: EmailProvider; status: number | null };
  * invite link or token, the email body, or any provider key").
  */
 function sendFailureLine(
-  template: "sign-in" | "invite",
+  template: "sign-in" | "invite" | "password-reset" | "password-changed",
   to: string,
   outcome: Exclude<EmailSendOutcome, { kind: "sent" }>,
   providerFailure: ProviderFailure | null,
@@ -278,6 +284,58 @@ export function capturingInvitationSender(
     async send(message) {
       sent.push(message);
       return outcome;
+    },
+  };
+}
+
+/**
+ * The production password emails (PW-1, §4.4), on the same rule as the
+ * magic link: checked before sending, and, since nobody is shown the result
+ * (they go out after the response), a failure is one masked log line, never
+ * the link, which is a credential. `contact` is the Reply-To address the
+ * notice names («напишіть мені: {contact}»).
+ */
+export function providerPasswordMail(
+  mail: ProviderMail,
+  options: {
+    ttlMinutes: number;
+    operatorName: string;
+    contact: string;
+    log: (line: string) => void;
+  },
+): PasswordMailSender {
+  const send = async (
+    template: "password-reset" | "password-changed",
+    to: string,
+    email: OutgoingEmail,
+  ) => {
+    const { outcome, providerFailure } = await sendCheckedWithReason(mail, email);
+    if (outcome.kind !== "sent")
+      options.log(sendFailureLine(template, to, outcome, providerFailure));
+  };
+  return {
+    async sendReset({ email, url }) {
+      await send(
+        "password-reset",
+        email,
+        passwordResetEmail({
+          to: email,
+          url,
+          ttlMinutes: options.ttlMinutes,
+          operatorName: options.operatorName,
+        }),
+      );
+    },
+    async sendChanged({ email }) {
+      await send(
+        "password-changed",
+        email,
+        passwordChangedEmail({
+          to: email,
+          contact: options.contact,
+          operatorName: options.operatorName,
+        }),
+      );
     },
   };
 }

@@ -11,6 +11,8 @@ import { SIGN_IN_LINK } from "./email-links";
 import { capturingInvitationSender } from "./email-senders";
 import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
 import { capturingSender } from "./magic-link-sender";
+import { generousPasswordLimiters } from "./password-limits";
+import { capturingPasswordMail } from "./password-mail";
 
 /**
  * IN-Q11: a GET never consumes anything. Real Better Auth, real Postgres,
@@ -55,12 +57,15 @@ beforeEach(async () => {
     secureCookies: false,
     // #95's kabinet limiters on verify/get-session/sign-out: never refusing,
     // only recorded, for the charge-once test below.
+    passwordLimiters: generousPasswordLimiters(),
+    passwordMail: capturingPasswordMail(),
     limiters: { perUser: recording("perUser"), perIp: recording("perIp") },
   });
 });
 
 const available: KabinetAuthAvailability = {
   kind: "available",
+  passwordMail: capturingPasswordMail(),
   sender: capturingSender(),
   invites: capturingInvitationSender(),
   secret: "unused-here",

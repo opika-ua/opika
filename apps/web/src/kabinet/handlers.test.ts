@@ -30,6 +30,7 @@ import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
+import { capturingPasswordMail } from "./password-mail";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
 
@@ -88,6 +89,7 @@ async function call<T = Record<string, unknown>>(
   const response = await handleKabinetRpc(request, {
     availability: {
       kind: "available",
+      passwordMail: capturingPasswordMail(),
       sender: { send: async () => {} },
       invites: capturingInvitationSender(),
       secret: "x",

@@ -17,6 +17,7 @@ import { fromRpcBody, rpcRequestInit } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
+import { capturingPasswordMail } from "./password-mail";
 import { PHOTO_PROCESSING_BUDGET_MS, type PhotoUploads } from "./photo-uploads";
 import { handleKabinetRpc } from "./rpc-route";
 
@@ -137,6 +138,7 @@ async function call<T = KabinetAnimalView>(
   const response = await handleKabinetRpc(request, {
     availability: {
       kind: "available",
+      passwordMail: capturingPasswordMail(),
       sender: { send: async () => {} },
       invites: capturingInvitationSender(),
       secret: "x",

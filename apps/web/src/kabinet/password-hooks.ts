@@ -1,0 +1,337 @@
+import type { Database } from "@opika/db";
+import { kabinetActorRepo } from "@opika/db/repos";
+import type { PasswordVerdict } from "@opika/domain";
+import { APIError, isAPIError } from "better-auth/api";
+import { z } from "zod";
+import { clientIp } from "../api/client-ip";
+import { addressRateLimitKey, ipRateLimitKey } from "../api/rate-limit-key";
+import { linkTo, RESET_LINK } from "./email-links";
+import { shelterPasswordVerdictOf } from "./password-checks";
+import { AUTH_ERROR_CODES, PASSWORD_REFUSAL_CODES, SIGN_IN_DELAYED_CODE } from "./password-codes";
+import {
+  chargeSignInAttempt,
+  clearSignInAttempts,
+  type PasswordLimiters,
+  type SignInAttempt,
+} from "./password-limits";
+import type { PasswordMailSender } from "./password-mail";
+
+/** Better Auth's password endpoints, as `ctx.path` names them. */
+export const PASSWORD_PATHS = {
+  signIn: "/sign-in/email",
+  signUp: "/sign-up/email",
+  forgot: "/request-password-reset",
+  reset: "/reset-password",
+  change: "/change-password",
+} as const;
+
+/**
+ * What the password guards read from a Better Auth hook's context: a
+ * structural slice of it, so this module doesn't depend on Better Auth's
+ * generic middleware types. Better Auth's own context satisfies it.
+ */
+export type PasswordHookContext = {
+  path: string;
+  body?: unknown;
+  query?: unknown;
+  request?: Request | undefined;
+  context: {
+    password: { hash: (password: string) => Promise<string> };
+    internalAdapter: {
+      findVerificationValue: (
+        identifier: string,
+      ) => Promise<{ value: string; expiresAt: Date } | null>;
+      deleteVerificationByIdentifier: (identifier: string) => Promise<void>;
+    };
+    returned?: unknown;
+  };
+};
+
+export type PasswordHookDeps = {
+  db: Database;
+  limiters: PasswordLimiters;
+  mail: PasswordMailSender;
+  /** After the response (`after()` in the route; immediate in tests), as the magic link's send. */
+  schedule: (work: () => Promise<void>) => void;
+  baseURL: string;
+  /** Where a failure that reaches nobody on screen is written; never a password, a token or an address. */
+  log: (line: string) => void;
+};
+
+/** The one answer «Забули пароль?» gives for any address (§6.3); the route reduces Better Auth's own to the same. */
+export const FORGOT_ANSWER = { status: true } as const;
+
+/** How long the delay store may take before a sign-in is refused rather than waited on (fail closed, as RL-1). */
+const DELAY_STORE_TIMEOUT_MS = 1_000;
+
+const isEmail = (value: unknown): value is string =>
+  typeof value === "string" && z.email().safeParse(value).success;
+
+const field = (source: unknown, name: string): unknown =>
+  typeof source === "object" && source !== null
+    ? (source as Record<string, unknown>)[name]
+    : undefined;
+
+const stringField = (source: unknown, name: string): string | null => {
+  const value = field(source, name);
+  return typeof value === "string" ? value : null;
+};
+
+/**
+ * Better Auth's own 401 for a failed sign-in, built the same way
+ * (`APIError.from("UNAUTHORIZED", BASE_ERROR_CODES.INVALID_EMAIL_OR_PASSWORD)`:
+ * message first, then code), so the operator's refusal is byte for byte the
+ * refusal anyone else gets (§5).
+ */
+const invalidCredentials = () =>
+  new APIError("UNAUTHORIZED", {
+    message: "Invalid email or password",
+    code: AUTH_ERROR_CODES.invalidCredentials,
+  });
+
+/** Better Auth's own answer to an unknown or used reset token. */
+const invalidToken = () =>
+  new APIError("BAD_REQUEST", { message: "Invalid token", code: AUTH_ERROR_CODES.invalidToken });
+
+const refusal = (verdict: Exclude<PasswordVerdict, { kind: "ok" }>) =>
+  new APIError("BAD_REQUEST", {
+    message: "Password refused",
+    code: PASSWORD_REFUSAL_CODES[verdict.kind],
+  });
+
+/** The delay's refusal: the same body for every address, the minutes for «через {minutes} хв.». */
+const delayed = (minutes: number) =>
+  new APIError(
+    "TOO_MANY_REQUESTS",
+    {
+      message: "Too many sign-in attempts",
+      code: SIGN_IN_DELAYED_CODE,
+      retryAfterMinutes: minutes,
+    },
+    { "Retry-After": String(minutes * 60) },
+  );
+
+const withTimeout = <T>(work: Promise<T>, ms: number): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timed out")), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+
+/**
+ * The password guards (`docs/shelter-passwords.md` §4.1, §4.3, §4.6), called
+ * from `createKabinetAuth`'s hooks and callbacks. Every rule here applies to
+ * any HTTP call into Better Auth and to server code calling `auth.handler`
+ * alike, because both pass through the hooks.
+ */
+export function passwordHooks(deps: PasswordHookDeps) {
+  const actors = kabinetActorRepo(deps.db);
+
+  /** The delay, failing closed: a store that errors or stalls refuses the attempt for a minute. */
+  async function chargeAttempt(email: string, now: Date): Promise<SignInAttempt> {
+    try {
+      return await withTimeout(
+        chargeSignInAttempt(deps.limiters.signInDelay, addressRateLimitKey(email), now),
+        DELAY_STORE_TIMEOUT_MS,
+      );
+    } catch {
+      deps.log("[kabinet] sign-in delay store unavailable: attempt refused (fail closed)");
+      return { kind: "wait", minutes: 1 };
+    }
+  }
+
+  /** Work after the response; a failure there is a log line, never an unhandled rejection. */
+  function later(what: string, work: () => Promise<void>) {
+    deps.schedule(async () => {
+      try {
+        await work();
+      } catch {
+        deps.log(`[kabinet] ${what} failed after the response`);
+      }
+    });
+  }
+
+  /** Whether this user is a shelter admin with exactly this address now (the email's recipient). */
+  const isShelterAdmin = async (user: { id: string; email: string }) =>
+    (await actors.shelterAdminIdByEmail(user.email)) === user.id;
+
+  return {
+    /**
+     * Before any session is read. Answers the request itself (by returning a
+     * body) only for «Забули пароль?»'s uniform answer; refuses by throwing.
+     *
+     * - `/sign-up/email`: refused for everyone, though `disableSignUp` is set
+     *   too and the route forwards no sign-up (§4.1: two locks, one test each).
+     * - `/sign-in/email`: the per-address delay, charged before the password
+     *   is even checked; then the operator guard, which burns a hash so the
+     *   refusal takes as long as anyone's (§4.6, §5).
+     * - `/request-password-reset`: 20 an hour per IP, 3 per address, for any
+     *   address; then a reset token only for a shelter admin. Everyone else
+     *   (nobody, the operator, a roleless user) gets the same answer and no
+     *   token (§4.6).
+     * - `/reset-password`: 20 an hour per IP; the token must name a shelter
+     *   admin (never the operator); the new password must pass the policy. All
+     *   of it before Better Auth consumes the token, so a refused password
+     *   leaves the link usable.
+     */
+    async beforeSession(
+      ctx: PasswordHookContext,
+      now: Date,
+    ): Promise<typeof FORGOT_ANSWER | undefined> {
+      switch (ctx.path) {
+        case PASSWORD_PATHS.signUp:
+          throw new APIError("FORBIDDEN", { message: "Sign-up is closed", code: "SIGN_UP_CLOSED" });
+
+        case PASSWORD_PATHS.signIn: {
+          const email = stringField(ctx.body, "email");
+          if (!isEmail(email)) return undefined; // Better Auth's own 400
+          const attempt = await chargeAttempt(email, now);
+          if (attempt.kind === "wait") throw delayed(attempt.minutes);
+          if (await actors.operatorGrantForEmail(email)) {
+            await ctx.context.password.hash(stringField(ctx.body, "password") ?? "");
+            throw invalidCredentials();
+          }
+          return undefined;
+        }
+
+        case PASSWORD_PATHS.forgot: {
+          const email = stringField(ctx.body, "email");
+          if (ctx.request !== undefined) {
+            const charges = [
+              deps.limiters.forgotPerIp.check(ipRateLimitKey(clientIp(ctx.request)), now),
+              ...(email === null
+                ? []
+                : [deps.limiters.forgotPerAddress.check(addressRateLimitKey(email), now)]),
+            ];
+            if ((await Promise.all(charges)).includes(false)) {
+              throw new APIError("TOO_MANY_REQUESTS");
+            }
+          }
+          if (!isEmail(email)) return undefined; // Better Auth's own 400
+          return (await actors.shelterAdminIdByEmail(email)) === null ? FORGOT_ANSWER : undefined;
+        }
+
+        case PASSWORD_PATHS.reset: {
+          if (
+            ctx.request !== undefined &&
+            !(await deps.limiters.resetPerIp.check(ipRateLimitKey(clientIp(ctx.request)), now))
+          ) {
+            throw new APIError("TOO_MANY_REQUESTS");
+          }
+          const token = stringField(ctx.body, "token") ?? stringField(ctx.query, "token");
+          if (token === null) return undefined; // Better Auth's own INVALID_TOKEN
+          const identifier = `reset-password:${token}`;
+          const verification = await ctx.context.internalAdapter.findVerificationValue(identifier);
+          if (verification === null || verification.expiresAt.getTime() < now.getTime()) {
+            throw invalidToken();
+          }
+          const subject = await actors.passwordSubjectOf(verification.value);
+          if (subject === null) {
+            // Never created for the operator (`forgot` above), so this is a role
+            // that changed within the hour, or a planted row: the token goes, and
+            // the answer is the generic one.
+            await ctx.context.internalAdapter.deleteVerificationByIdentifier(identifier);
+            throw invalidToken();
+          }
+          const password = stringField(ctx.body, "newPassword");
+          if (password === null) return undefined; // Better Auth's own 400
+          const verdict = shelterPasswordVerdictOf(password, subject);
+          if (verdict.kind !== "ok") throw refusal(verdict);
+          return undefined;
+        }
+
+        default:
+          return undefined;
+      }
+    },
+
+    /**
+     * «Змінити пароль», once `hooks.before` has found a live session for
+     * `userId`. Only a shelter admin may: the operator and a support view (an
+     * operator's session) get 403, as does a roleless user (§4.6). The new
+     * password must pass the policy, and other sessions are always revoked
+     * (Oleksii's scope item 7: "requires the current one; revokes other
+     * sessions"), whatever the request asked for.
+     */
+    async beforeChange(
+      ctx: PasswordHookContext,
+      userId: string,
+    ): Promise<{ context: { body: Record<string, unknown> } } | undefined> {
+      const subject = await actors.passwordSubjectOf(userId);
+      if (subject === null) throw new APIError("FORBIDDEN");
+      const password = stringField(ctx.body, "newPassword");
+      if (password === null) return undefined; // Better Auth's own 400
+      const verdict = shelterPasswordVerdictOf(password, subject);
+      if (verdict.kind !== "ok") throw refusal(verdict);
+      const body = typeof ctx.body === "object" && ctx.body !== null ? ctx.body : {};
+      return { context: { body: { ...body, revokeOtherSessions: true } } };
+    },
+
+    /**
+     * After Better Auth answered. A successful sign-in clears its address's
+     * delay (a failure needs nothing: the attempt was charged as it started);
+     * a successful change sends «пароль змінено» (§9 answer 4).
+     */
+    async after(ctx: PasswordHookContext, now: Date): Promise<void> {
+      if (isAPIError(ctx.context.returned) || ctx.context.returned === undefined) return;
+      if (ctx.path === PASSWORD_PATHS.signIn) {
+        const email = stringField(ctx.body, "email");
+        if (email === null) return;
+        try {
+          await withTimeout(
+            clearSignInAttempts(deps.limiters.signInDelay, addressRateLimitKey(email), now),
+            DELAY_STORE_TIMEOUT_MS,
+          );
+        } catch {
+          deps.log("[kabinet] sign-in delay store unavailable: a success was not cleared");
+        }
+        return;
+      }
+      if (ctx.path === PASSWORD_PATHS.change) {
+        const user = field(ctx.context.returned, "user");
+        const id = stringField(user, "id");
+        const email = stringField(user, "email");
+        if (id === null || email === null) return;
+        later("the password-changed notice", async () => {
+          if (await isShelterAdmin({ id, email })) await deps.mail.sendChanged({ email });
+        });
+      }
+    },
+
+    /**
+     * Better Auth's `sendResetPassword`: called only for the shelter admins
+     * `beforeSession` let through. The email goes after the response, checked
+     * once more there (a second lock: never the operator, §4.6), and links to
+     * the reset page, never Better Auth's redirecting GET.
+     */
+    async sendResetPassword(input: {
+      user: { id: string; email: string };
+      token: string;
+    }): Promise<void> {
+      const url = linkTo(deps.baseURL, RESET_LINK, input.token);
+      later("the reset email", async () => {
+        if (await isShelterAdmin(input.user)) {
+          await deps.mail.sendReset({ email: input.user.email, url });
+        }
+      });
+    },
+
+    /** Better Auth's `onPasswordReset`: «пароль змінено» after a reset too (§9 answer 4). */
+    async onPasswordReset(input: { user: { id: string; email: string } }): Promise<void> {
+      later("the password-changed notice", async () => {
+        if (await isShelterAdmin(input.user))
+          await deps.mail.sendChanged({ email: input.user.email });
+      });
+    },
+  };
+}
+
+export type PasswordHooks = ReturnType<typeof passwordHooks>;

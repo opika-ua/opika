@@ -3,12 +3,17 @@ export { animalRepo } from "./animal-repo";
 export {
   type AuthExpiryCounts,
   authExpiryRepo,
-  KABINET_SESSION_ABSOLUTE_MS,
+  KABINET_SESSION_LIMITS,
 } from "./auth-expiry-repo";
 export { cityRepo } from "./city-repo";
 export { type FeedCursorData, type FeedPage, feedRepo } from "./feed-repo";
 export { type GalleryPage, type GalleryRelaxationCounts, galleryRepo } from "./gallery-repo";
-export { kabinetActorRepo, type UserRole } from "./kabinet-actor-repo";
+export {
+  CREDENTIAL_PROVIDER_ID,
+  kabinetActorRepo,
+  type PasswordSubject,
+  type UserRole,
+} from "./kabinet-actor-repo";
 export {
   type AnimalHistoryRow,
   type ConditionalWrite,

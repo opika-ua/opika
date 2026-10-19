@@ -9,8 +9,10 @@ import {
   type ProviderMail,
   providerInvitationSender,
   providerMagicLinkSender,
+  providerPasswordMail,
 } from "./email-senders";
 import { MAGIC_LINK_TTL_SECONDS, type MagicLinkSender } from "./magic-link-sender";
+import { type PasswordMailSender, RESET_PASSWORD_TTL_SECONDS } from "./password-mail";
 import type { ProductionSignIn } from "./production-sign-in";
 
 /**
@@ -27,7 +29,12 @@ import type { ProductionSignIn } from "./production-sign-in";
  * Every email still holding `[COPY PENDING]` is refused, never sent (IN-Q5),
  * on top of the copy gate that keeps sign-in off while any is pending.
  */
-export type ProductionMail = { sender: MagicLinkSender; invites: InvitationSender };
+export type ProductionMail = {
+  sender: MagicLinkSender;
+  invites: InvitationSender;
+  /** PW-1: the reset link and the «пароль змінено» notice, on the sign-in route, signed like it. */
+  passwordMail: PasswordMailSender;
+};
 
 type Deps = {
   /** Injectable so a test can see which provider each email reaches; production uses `fetch`. */
@@ -59,6 +66,12 @@ export function productionMailOf(
       log,
       fromAddress: on.email.invite.fromAddress,
       blockList: cachedBlockList(on.email.invite, { fetchImpl }),
+    }),
+    passwordMail: providerPasswordMail(providerMailOf(on.email.signIn, fetchImpl), {
+      ttlMinutes: RESET_PASSWORD_TTL_SECONDS / 60,
+      operatorName: on.operatorName,
+      contact: on.email.signIn.replyTo,
+      log,
     }),
   };
 }

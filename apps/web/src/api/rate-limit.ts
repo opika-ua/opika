@@ -370,3 +370,23 @@ export function sharedRateLimiter(opts: {
       })
     : inMemoryRateLimiter({ windowMs: opts.windowMs, maxRequests: opts.maxRequests });
 }
+
+/**
+ * A client on the same shared store as the limiters above, or null where none
+ * is configured (local dev, CI, the harness), for state a sliding window can't
+ * hold: the password sign-in's increasing delays (`kabinet/password-limits.ts`).
+ * Built the same way as the limiters' clients (one complete credential pair,
+ * no retries: an outright failure rejects fast), with keys namespaced by
+ * `name` and the deploy target, like theirs.
+ */
+export function sharedRedisStore(name: string): { redis: Redis; prefix: string } | null {
+  if (!(RESOLVED_REDIS_URL && RESOLVED_REDIS_TOKEN)) return null;
+  return {
+    redis: new Redis({
+      url: RESOLVED_REDIS_URL,
+      token: RESOLVED_REDIS_TOKEN,
+      retry: { retries: 0 },
+    }),
+    prefix: `opika-${name}-${VERCEL_ENV}`,
+  };
+}

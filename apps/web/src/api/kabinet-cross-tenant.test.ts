@@ -13,6 +13,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SHELTER_WRITE_POLICY } from "../kabinet/access";
 import type { KabinetPrincipal } from "../kabinet/actor";
 import { capturingInvitationSender } from "../kabinet/email-senders";
+import { capturingPasswordMail } from "../kabinet/password-mail";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
 import { inMemoryRateLimiter } from "./rate-limit";
 import { fromRpcBody, rpcRequestInit } from "./test-harness";
@@ -100,6 +101,7 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
   const response = await handleKabinetRpc(request, {
     availability: {
       kind: "available",
+      passwordMail: capturingPasswordMail(),
       sender: { send: async () => {} },
       invites: capturingInvitationSender(),
       secret: "x",

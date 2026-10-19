@@ -283,7 +283,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // adds nothing. 595 with operator.create.errors.nameTooLong (his RUI4-F2
     // text, 2026-10-18). 596 with email.invite.whatBeforeVerification (Q-C, 2026-10-19).
     // 595 since PR 6 deleted profileEdit.errors.notAvailable (P6-Q8).
-    expect(pending.length + written.length).toBe(595);
+    // 635 with PW-1's passwords (his text, 2026-10-19, pinned in copy-status.test.ts): 8 new
+    // `signIn.*` keys less `signIn.send`, 3 `setPassword.*`, 5 `password.*`, 5 `forgot.*`,
+    // 5 `reset.*`, 7 `changePassword.*`, 5 `email.reset.*` and 3 `email.passwordChanged.*`.
+    expect(pending.length + written.length).toBe(635);
     expect(written).toContain("kabinet.operator.create.errors.nameTooLong");
     expect(written).toContain("kabinet.profileEdit.state.saved");
     expect(written).toContain("kabinet.animalForm.draft.notVisible");

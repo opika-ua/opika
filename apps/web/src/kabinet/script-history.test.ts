@@ -7,6 +7,7 @@ import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
 import { capturingInvitationSender } from "./email-senders";
+import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc } from "./rpc-route";
 
 /**
@@ -37,6 +38,7 @@ async function asShelterAdmin(shelterId: string, path: string, input: unknown) {
   const response = await handleKabinetRpc(request, {
     availability: {
       kind: "available",
+      passwordMail: capturingPasswordMail(),
       sender: { send: async () => {} },
       invites: capturingInvitationSender(),
       secret: "x",

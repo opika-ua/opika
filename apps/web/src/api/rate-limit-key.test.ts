@@ -224,6 +224,7 @@ describe("no limiter key carries the raw IP (EM-Q11)", () => {
       shared = [];
       vi.doMock("./rate-limit", () => ({
         apiRateLimiter: api,
+        sharedRedisStore: () => null,
         sharedRateLimiter: () => {
           const limiter = recorder(true);
           shared.push(limiter);
@@ -258,7 +259,11 @@ describe("no limiter key carries the raw IP (EM-Q11)", () => {
 
     it("the adopter API route (/api/rpc)", async () => {
       api = recorder(false);
-      vi.doMock("./rate-limit", () => ({ apiRateLimiter: api, sharedRateLimiter: recorder }));
+      vi.doMock("./rate-limit", () => ({
+        apiRateLimiter: api,
+        sharedRateLimiter: recorder,
+        sharedRedisStore: () => null,
+      }));
       // The route opens its (lazy) connection before the limiter; nothing is queried.
       vi.doMock("./db", () => ({ getDb: () => ({}) }));
       const { POST } = await import("../app/api/rpc/[...rpc]/route");

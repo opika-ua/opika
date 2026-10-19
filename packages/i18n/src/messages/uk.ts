@@ -671,7 +671,7 @@ export const uk = {
      *   showing and its file is deleted by hand in Cloudflare (P8, his Q5).
      * `copy-status.test.ts` pins it.
      */
-    data: "Дані, які вносить притулок — адреса, контакти, картки тварин, — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби. Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто — адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють — їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин — лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку. Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
+    data: "Дані, які вносить притулок — адреса, контакти, картки тварин, — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби. Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто — адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють — їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин — лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку. Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
     analytics:
       "Сайт збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко працюють сторінки — без реклами.",
     contact: "Зв'язатися з розробником: {contact}",
@@ -894,14 +894,35 @@ export const uk = {
       /** Next to the wordmark in the header (K1, N2). */
       label: "кабінет",
     },
-    /** K1 · sign-in (N1), both states. */
+    /**
+     * K1 · sign-in (N1), both states. Since the passwords build (PW-1,
+     * `docs/shelter-passwords-copy-uk.md` §A, his Ukrainian, 2026-10-19,
+     * verbatim): the password form first, «Надіслати посилання для входу» (the
+     * magic link, his scope item 3) second, and «Забули пароль?». `intro` is his
+     * replacement for «…Пароля немає: посилання для входу приходить на пошту.»,
+     * which the passwords made false; it stays true for the operator, who has no
+     * password («або за посиланням»). `wrongCredentials` is the one answer to
+     * every failed sign-in (§5): it suggests the link, which honestly covers an
+     * admin with no password yet and the operator without hinting at either.
+     * `throttled` is his §9 answer 5, the same for every address; «хв.» avoids a
+     * plural, and `copy-plural-pins.test.ts` pins it for several values anyway.
+     */
     signIn: {
       pageTitle: "Вхід до кабінету",
       title: "Вхід до кабінету",
       intro:
-        "Для притулків і адміністратора сайту. Пароля немає: посилання для входу приходить на пошту.",
+        "Для притулків і адміністратора сайту. Увійти можна з паролем або за посиланням, що приходить на пошту.",
       emailLabel: "Електронна пошта",
-      send: "Надіслати посилання",
+      passwordLabel: "Пароль",
+      showPassword: "Показати пароль",
+      hidePassword: "Сховати пароль",
+      submitPassword: "Увійти",
+      useLink: "Надіслати посилання для входу",
+      forgot: "Забули пароль?",
+      wrongCredentials:
+        "Не вдалося увійти. Перевірте адресу й пароль або надішліть собі посилання для входу.",
+      /** `{minutes}` is the wait, whole minutes rounded up. */
+      throttled: "Забагато спроб входу. Спробуйте ще раз через {minutes} хв.",
       addressNote:
         "Адресу додаю я, коли запрошую притулок. Якщо адреси немає в списку, лист не прийде — і ця сторінка про це не повідомляє, щоб не розкривати, хто зареєстрований.",
       sendFailed: "Не вдалося надіслати посилання. Перевірте з'єднання і спробуйте ще раз.",
@@ -915,6 +936,71 @@ export const uk = {
       /** `{time}` is the countdown, m:ss. Shown while the 60s resend lockout runs. */
       resendIn: "Надіслати ще раз · {time}",
       otherAddress: "Інша адреса",
+    },
+    /**
+     * The password fields every password form shares (`docs/shelter-passwords-copy-uk.md` §B,
+     * his Ukrainian, 2026-10-19, verbatim). PW-1 renders these three on the reset page and in
+     * «Змінити пароль»; the invitation's «Створіть пароль» (PW-2) adds its title, intro and
+     * button. `hint` is the live hint under the field: «Символів: {count} з {min}», the length so
+     * far against the minimum, worded to avoid a plural.
+     */
+    setPassword: {
+      newLabel: "Пароль",
+      repeatLabel: "Повторіть пароль",
+      hint: "Символів: {count} з {min}",
+    },
+    /**
+     * The policy's refusals and the mismatch (§B, his Ukrainian, verbatim), shared by every
+     * password form. `personal` is his changed text (2026-10-19, verbatim), naming the part before
+     * the @ outright. `{min}` and `{max}` are 10 and 128, filled from the policy's constants.
+     */
+    password: {
+      tooShort: "Пароль закороткий. Мінімум символів: {min}.",
+      tooLong: "Пароль задовгий. Максимум символів: {max}.",
+      common: "Цей пароль надто легко вгадати. Оберіть інший.",
+      personal:
+        "Пароль не може містити вашу адресу пошти (навіть частину до @), назву притулку чи назву сайту.",
+      mismatch: "Паролі не збігаються.",
+    },
+    /**
+     * «Забули пароль?» (`/kabinet/vkhid/zabuly`, §C, his Ukrainian, verbatim). `sent` is the one
+     * answer for every address, the operator's included (his note: «Якщо це адреса…» keeps it
+     * true for every address); `{minutes}` is the link's lifetime, 60.
+     */
+    forgot: {
+      title: "Забули пароль?",
+      intro: "Вкажіть адресу пошти, з якою ви входите в кабінет.",
+      submit: "Надіслати посилання",
+      sent: "Якщо це адреса адміністратора кабінету притулку, на неї надіслано посилання для нового пароля. Воно діє {minutes} хв.",
+      throttled: "Забагато запитів. Спробуйте ще раз пізніше.",
+    },
+    /**
+     * The new password from a reset link (`/kabinet/vkhid/novyi-parol`, §D, his Ukrainian,
+     * verbatim). `invalidLink`'s `{link}` is `invalidLinkText`, a link to «Забули пароль?»; his key
+     * `reset.invalidLink.linkText` can't sit beside the string in this nested catalogue, so it is a
+     * sibling (the copy sheet's own note), his wording unchanged.
+     */
+    reset: {
+      title: "Новий пароль",
+      submit: "Зберегти пароль",
+      done: "Пароль змінено, на всіх пристроях виконано вихід. Увійдіть з новим паролем.",
+      invalidLink: "Посилання застаріло або вже використане. {link}",
+      invalidLinkText: "Отримати нове посилання",
+    },
+    /**
+     * «Змінити пароль» on `/kabinet` (§E, his Ukrainian, verbatim; `title` is his scope item 7).
+     * `noPasswordYet` is for an admin who signs in by link and has never set a password (his scope
+     * item 9: existing admins use «Забули пароль?»).
+     */
+    changePassword: {
+      title: "Змінити пароль",
+      currentLabel: "Поточний пароль",
+      newLabel: "Новий пароль",
+      submit: "Змінити пароль",
+      done: "Пароль змінено. На інших пристроях виконано вихід, тут ви залишаєтеся в кабінеті.",
+      wrongCurrent: "Поточний пароль неправильний.",
+      noPasswordYet:
+        "Пароля ще немає. Створити його можна через «Забули пароль?» на сторінці входу.",
     },
     /**
      * KS-Q1 (Oleksii: "A"): the read-only "your shelter" page at `/kabinet`,
@@ -1591,6 +1677,30 @@ export const uk = {
         expiry: "Запрошення діє {hours} години. Якщо не встигнете — я надішлю нове.",
         notYou:
           "Якщо ви не чекали цього листа, просто проігноруйте його: без входу з цієї адреси доступу ніхто не отримає.\n— {operator}",
+      },
+      /**
+       * F1, the reset link (`docs/shelter-passwords-copy-uk.md`, his Ukrainian, 2026-10-19,
+       * verbatim), sent only to a shelter admin's address. `{minutes}` is the link's lifetime,
+       * 60; «хв.» needs no plural. `action` is the link's label in the HTML part (IN-E8). Signed
+       * `— {operator}` like the other emails.
+       */
+      reset: {
+        subject: "Новий пароль до кабінету притулку",
+        intro: "Надійшов запит на новий пароль до кабінету притулку для цієї адреси.",
+        action: "Створити новий пароль",
+        expiry: "Посилання спрацює один раз і діє {minutes} хв.",
+        notYou:
+          "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\n— {operator}",
+      },
+      /**
+       * F2, the notice after a reset and after a change (his §9 answer 4, verbatim: "Yes:
+       * «пароль змінено» after a change too."), his Ukrainian, verbatim. No link. `{contact}` is
+       * the Reply-To address (`EMAIL_REPLY_TO`), filled from config.
+       */
+      passwordChanged: {
+        subject: "Кабінет притулку: пароль змінено",
+        body: "Пароль до кабінету притулку для цієї адреси щойно змінено. На інших пристроях виконано вихід.",
+        notYou: "Якщо це не ви — напишіть мені: {contact}\n— {operator}",
       },
     },
     /**

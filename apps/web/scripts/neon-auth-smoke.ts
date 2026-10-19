@@ -25,6 +25,8 @@ import { handleKabinetConfirm } from "../src/kabinet/confirm-route";
 import { capturingInvitationSender } from "../src/kabinet/email-senders";
 import { invitationAccepter } from "../src/kabinet/invitation-accept";
 import { capturingSender } from "../src/kabinet/magic-link-sender";
+import { generousPasswordLimiters } from "../src/kabinet/password-limits";
+import { capturingPasswordMail } from "../src/kabinet/password-mail";
 import { kabinetIdentityOf } from "../src/kabinet/principal";
 
 /**
@@ -119,10 +121,13 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
     baseURL: BASE,
     secret: randomUUID() + randomUUID(),
     secureCookies: true,
+    passwordLimiters: generousPasswordLimiters(),
+    passwordMail: capturingPasswordMail(),
     limiters: { perUser: unlimited(), perIp: unlimited() },
   });
   const availability: KabinetAuthAvailability = {
     kind: "available",
+    passwordMail: capturingPasswordMail(),
     sender,
     invites: capturingInvitationSender(),
     secret: "unused-here",

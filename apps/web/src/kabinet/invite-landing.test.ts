@@ -17,6 +17,8 @@ import {
   submitInviteLanding,
 } from "./invite-landing";
 import { capturingSender } from "./magic-link-sender";
+import { generousPasswordLimiters } from "./password-limits";
+import { capturingPasswordMail } from "./password-mail";
 import { SIGN_IN_LIMITS, signInAllowed } from "./sign-in-limit";
 
 /**
@@ -58,6 +60,8 @@ beforeEach(async () => {
     secret: "test-only-secret-that-is-long-enough-0123456789",
     secureCookies: false,
     // #95's kabinet limiters on verify/get-session/sign-out; out of the way here.
+    passwordLimiters: generousPasswordLimiters(),
+    passwordMail: capturingPasswordMail(),
     limiters: {
       perUser: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 }),
       perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 }),
