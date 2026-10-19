@@ -134,9 +134,9 @@ export const en = {
       body: "The animal is no longer on the site or the link is out of date. This isn't an error — the listing is simply no longer here.",
       action: "All animals",
     },
-    photoGalleryLabel: `${COPY_PENDING} Photo gallery`,
-    photoGalleryDot: `${COPY_PENDING} Photo {n}`,
-    photoGalleryThumbnail: `${COPY_PENDING} View photo {n}`,
+    photoGalleryLabel: "Animal photos",
+    photoGalleryDot: "Photo {n}",
+    photoGalleryThumbnail: "View photo {n}",
   },
 
   // --- Contact reveal (05) ---
@@ -309,7 +309,7 @@ export const en = {
     free: 'The site is free for shelters today and will stay free. No paid tiers, no "free for the first three months." If that were ever to change, every shelter would know well in advance, not after the fact.',
     money:
       'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) — the site only shows the link; the money goes directly, and you can see exactly where.',
-    data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: an adopter only ever sees an approximate location. A shelter can ask to have its listing removed at any time. For shelters with cabinet access, the registry keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. IP addresses are not stored. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within two days.",
+    data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. IP addresses are not stored. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within two days. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks.",
     analytics:
       "The site collects basic visit statistics — how many people visit and how fast the pages load — with no advertising.",
     /** Template: "Get in touch: {contact}" */
@@ -432,7 +432,6 @@ export const en = {
       website: "Website",
     },
     profileNotRecorded: "Not recorded",
-    testShelterOnly: {},
     profileEdit: {
       actions: {
         save: "Save",
@@ -460,7 +459,6 @@ export const en = {
           "Intake can't be paused right now: the shelter's status has changed. Reload the page.",
         illegalTransitionResume:
           "Intake can't be resumed from here right now: the shelter's status has changed. Write to me.",
-        notAvailable: "Changes from the cabinet aren't available yet. Write to me to make one.",
         phoneFormat: "Enter the number with the country code, for example +380 67 123 45 67.",
         telegramFormat:
           "A Telegram username: 5–32 Latin letters, digits or underscores. The @ is optional.",
@@ -844,7 +842,8 @@ export const en = {
       invite: {
         subject: `Your access to the shelter's cabinet`,
         intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» on the site for this address.`,
-        what: `For now the cabinet shows the shelter's details: both what people see and the verification details. They can't be changed there yet: write to me for that.`,
+        what: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on your cards and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
+        whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on your cards and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours} hours. If you miss it, I will send a new one.`,
         notYou: `If you weren't expecting this email, just ignore it: nobody gets access without signing in from this address.\n— {operator}`,

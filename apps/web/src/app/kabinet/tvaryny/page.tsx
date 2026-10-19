@@ -8,9 +8,9 @@ export const metadata: Metadata = { title: uk.kabinet.animalList.pageTitle };
 
 /**
  * K2 · the shelter's animal list. A shelter whose writes the served policy
- * opens gets it with its moves, the support view gets it read-only, and
- * everyone else a 404: a shelter outside the K-Q17 allowlist (P1) and a
- * super_admin outside support mode alike (`kabinetAnimalListPageOf`).
+ * opens (every shelter's own admins, since PR 6) gets it with its moves, the
+ * support view gets it read-only, and everyone else a 404, a super_admin
+ * outside support mode included (`kabinetAnimalListPageOf`).
  */
 export default async function AnimalListPage() {
   const page = await loadKabinetAnimalListPage();

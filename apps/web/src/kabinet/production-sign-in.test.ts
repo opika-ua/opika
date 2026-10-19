@@ -1,17 +1,7 @@
 import { COPY_PENDING, pendingCopyPaths, uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
-import {
-  type ShelterWritePolicy,
-  shelterWritePolicyOf,
-  testShelterCopyExemptUnder,
-} from "./access";
 import { kabinetAuthAvailability } from "./auth-route";
-import {
-  kabinetPendingCopy,
-  signInBlockingCopy,
-  TEST_SHELTER_ONLY_PREFIX,
-  productionSignInOf as withLiveCopy,
-} from "./production-sign-in";
+import { kabinetPendingCopy, productionSignInOf as withLiveCopy } from "./production-sign-in";
 
 /**
  * IN-Q6 and IN-R2 (Oleksii, Decision 2: "PRODUCTION_ORIGIN=https://opika.org.ua
@@ -216,12 +206,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
    * K3 (PR 4) has nothing pending either: its two hidden-shelter lines got
    * his final text (round 2b, answer 3) and left `kabinet.testShelterOnly`,
    * and K2 (PR 5) moved its last line out (`animalForm.listed.dateUnchanged`,
-   * P10), so the namespace is empty. The namespace's exemption (CG-Q1,
-   * Oleksii, verbatim: "Pending strings only under
-   * uk.kabinet.testShelterOnly.*" and "At runtime, sign-in ignores those
-   * strings only while the write policy is allowlist or refused. Under the
-   * open policy, any pending string turns sign-in off.") is checked here with
-   * a pending path handed in, since the live catalogue has none.
+   * P10), so the namespace was empty, and PR 6 deleted it with its
+   * exemption (his 0.3a). CG-B1, verbatim: "Under the open policy, any
+   * pending string turns sign-in off." That is checked here with a pending
+   * path handed in, since the live catalogue has none.
    */
   it("against the live catalogue, nothing is pending and the reported Production configuration is on", () => {
     const reported = {
@@ -237,24 +225,15 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
       KABINET_OPERATOR_DISPLAY_NAME: "Оператор",
     };
     expect(kabinetPendingCopy()).toEqual([]);
-    const allowlisted = {
-      ...reported,
-      KABINET_WRITE_ALLOWLIST: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
-    };
-    // The served policy (allowlist unset: the refusal), then the K-Q17 allowlist.
     expect(withLiveCopy(reported).kind).toBe("on");
-    expect(withLiveCopy(allowlisted).kind).toBe("on");
-    // A pending line inside the namespace: exempt under the refusal and the
-    // allowlist, and it turns an open policy (PR 6's shape) off.
-    const namespaceLine = [`${TEST_SHELTER_ONLY_PREFIX}animalList.parkedLine`];
-    expect(withLiveCopy(reported, namespaceLine).kind).toBe("on");
-    expect(withLiveCopy(allowlisted, namespaceLine).kind).toBe("on");
-    expect(withLiveCopy(reported, namespaceLine, { kind: "open_for_tests_only" })).toEqual({
+    // A line where the exempt namespace used to be turns it off like any other.
+    const formerNamespaceLine = ["kabinet.testShelterOnly.animalList.parkedLine"];
+    expect(withLiveCopy(reported, formerNamespaceLine)).toEqual({
       kind: "off",
       reason: "copy_pending",
-      pending: namespaceLine,
+      pending: formerNamespaceLine,
     });
-    // The gate still reads the catalogue: one pending path outside the namespace turns it off.
+    // The gate still reads the catalogue: one pending path anywhere turns it off.
     expect(withLiveCopy(reported, ["kabinet.confirm.rateLimited"])).toEqual({
       kind: "off",
       reason: "copy_pending",
@@ -302,7 +281,8 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // two `nav.*` and `deleteDraft.refused.wasPublished`, pinned in
     // copy-status.test.ts. `dateUnchanged` moved within the tree (P10), so it
     // adds nothing. 595 with operator.create.errors.nameTooLong (his RUI4-F2
-    // text, 2026-10-18).
+    // text, 2026-10-18). 596 with email.invite.whatBeforeVerification (Q-C, 2026-10-19).
+    // 595 since PR 6 deleted profileEdit.errors.notAvailable (P6-Q8).
     expect(pending.length + written.length).toBe(595);
     expect(written).toContain("kabinet.operator.create.errors.nameTooLong");
     expect(written).toContain("kabinet.profileEdit.state.saved");
@@ -334,24 +314,20 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
       email: { invite: Record<string, string> };
       history: Record<string, string>;
       support: Record<string, string>;
-      testShelterOnly: Record<string, string>;
+      parked: Record<string, string>;
     };
     synthetic.email.invite.notYou = `${COPY_PENDING} sign-off`;
     synthetic.history.adminJoined = `${COPY_PENDING} history`;
-    synthetic.testShelterOnly.parkedLine = `${COPY_PENDING} parked line`;
+    synthetic.parked = { line: `${COPY_PENDING} parked line` };
     synthetic.support.body = "Written.";
     const pending = pendingCopyPaths(synthetic, "kabinet");
     expect(pending).toEqual([
       "kabinet.email.invite.notYou",
       "kabinet.history.adminJoined",
-      "kabinet.testShelterOnly.parkedLine",
+      "kabinet.parked.line",
     ]);
-    // The served policy exempts the namespace (CG-Q1); the other two still turn it off.
-    expect(withLiveCopy(full, pending)).toEqual({
-      kind: "off",
-      reason: "copy_pending",
-      pending: ["kabinet.email.invite.notYou", "kabinet.history.adminJoined"],
-    });
+    // No namespace is exempt (PR 6): all three turn it off.
+    expect(withLiveCopy(full, pending)).toEqual({ kind: "off", reason: "copy_pending", pending });
   });
 
   /** The copy gate comes first, whatever the email routes say (EM-B6 changes routing, not the gate). */
@@ -406,63 +382,23 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
 });
 
 /**
- * CG-Q1 (Oleksii, verbatim: "At runtime, sign-in ignores those strings only
- * while the write policy is allowlist or refused. Under the open policy, any
- * pending string turns sign-in off."). The pending lists are injected through
- * the checker's own input; the catalogue ships nothing pending.
+ * CG-B1 (Oleksii, verbatim: "Under the open policy, any pending string turns
+ * sign-in off."). PR 6 opened writes for every shelter and deleted the
+ * `kabinet.testShelterOnly` namespace and its exemption (his 0.3a), so no
+ * path under `kabinet.*` is exempt any more, whatever it is called.
  */
-describe("the testShelterOnly exemption (CG-Q1)", () => {
-  const ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
-  const refused = shelterWritePolicyOf({});
-  const allowlist = shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: ID });
-  // The only open policy that exists before PR 6; it can never reach a
-  // deployment (KH-T1), but it is the shape PR 6's production one will have.
-  const open: ShelterWritePolicy = { kind: "open_for_tests_only" };
-  const inNamespace = ["kabinet.testShelterOnly.k3.photoHint"];
-
-  it("allowlist + pending in the namespace → on", () => {
-    expect(withLiveCopy(full, inNamespace, allowlist).kind).toBe("on");
-  });
-
-  it("refused + pending in the namespace → on", () => {
-    expect(withLiveCopy(full, inNamespace, refused).kind).toBe("on");
-  });
-
-  it("open + the same → off, naming the string", () => {
-    expect(withLiveCopy(full, inNamespace, open)).toEqual({
-      kind: "off",
-      reason: "copy_pending",
-      pending: inNamespace,
-    });
-  });
-
+describe("no kabinet namespace is exempt from the copy gate (CG-B1, PR 6)", () => {
   it.each([
+    ["kabinet.testShelterOnly.k3.photoHint"],
     ["kabinet.email.signIn.subject"],
     ["kabinet.signIn.title"],
     ["kabinet.profileEdit.state.saved"],
-    // A sibling that merely starts with the same letters is not the namespace.
-    ["kabinet.testShelterOnlyExtra.line"],
-  ])("pending %s → off under every policy", (path) => {
-    for (const policy of [refused, allowlist, open]) {
-      expect(withLiveCopy(full, [...inNamespace, path], policy), policy.kind).toEqual({
-        kind: "off",
-        reason: "copy_pending",
-        pending: testShelterCopyExemptUnder(policy) ? [path] : [...inNamespace, path],
-      });
-    }
-  });
-
-  it("takes the policy from the same builder as the served route by default", () => {
-    // Unset allowlist: the refusal, so the namespace is exempt.
-    expect(withLiveCopy(full, inNamespace).kind).toBe("on");
-    expect(withLiveCopy({ ...full, KABINET_WRITE_ALLOWLIST: ID }, inNamespace).kind).toBe("on");
-  });
-
-  it("the exemption is decided per policy kind, as he set it", () => {
-    expect(testShelterCopyExemptUnder(refused)).toBe(true);
-    expect(testShelterCopyExemptUnder(allowlist)).toBe(true);
-    expect(testShelterCopyExemptUnder(open)).toBe(false);
-    expect(signInBlockingCopy(inNamespace, allowlist)).toEqual([]);
-    expect(signInBlockingCopy(inNamespace, open)).toEqual(inNamespace);
+    ["kabinet.animalList.stale.caption"],
+  ])("pending %s → off, naming it", (path) => {
+    expect(withLiveCopy(full, [path])).toEqual({
+      kind: "off",
+      reason: "copy_pending",
+      pending: [path],
+    });
   });
 });

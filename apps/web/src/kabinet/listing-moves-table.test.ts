@@ -33,6 +33,7 @@ import {
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
+import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "./photo-uploads";
@@ -218,9 +219,8 @@ async function call(path: string, input: unknown): Promise<Answer> {
       operatorDisplayName: "Олексій",
       locationPolicy: null,
       production: false,
-      // The served route refuses shelter writes outside the allowlist
-      // (`shelter-writes-refused.test.ts`); the moves themselves are tested here.
-      shelterWrites: { kind: "open_for_tests_only" },
+      // The served policy (shelter writes open, `shelter-writes-open.test.ts`).
+      shelterWrites: SHELTER_WRITE_POLICY,
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
     },
   );

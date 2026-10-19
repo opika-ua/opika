@@ -143,10 +143,21 @@ export function providerMagicLinkSender(
   };
 }
 
+/**
+ * Which second sentence the invite carries (Q-C, Oleksii 2026-10-19): `verified` for a shelter
+ * that has passed verification (verified, or paused, PC-T10), whose changes appear at once;
+ * `not_yet_verified` for every other status (pending, under review, suspended, rejected), which
+ * gets the sentence saying people will see them once the shelter passes verification. The first
+ * invite, sent at create, is always the second.
+ */
+export type InviteShelterVerification = "verified" | "not_yet_verified";
+
 export type InvitationMessage = {
   email: string;
   shelterName: string;
   operatorName: string;
+  /** The shelter's verification status when this email is sent. */
+  shelterVerification: InviteShelterVerification;
   /** `/kabinet/vkhid?zaproshennia=<id>`, absolute. Not a sign-in link (IN-Q3). */
   url: string;
   validForHours: number;
@@ -182,6 +193,7 @@ export function providerInvitationSender(
           url: message.url,
           shelterName: message.shelterName,
           operatorName: message.operatorName,
+          shelterVerification: message.shelterVerification,
           ttlHours: message.validForHours,
         }),
       ),

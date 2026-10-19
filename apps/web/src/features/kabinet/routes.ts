@@ -22,10 +22,10 @@ export const NEW_ANIMAL_PATH = `${ANIMAL_LIST_PATH}/nova`;
 export const animalPath = (animalId: string): string => `${ANIMAL_LIST_PATH}/${animalId}`;
 
 /**
- * Who K2 is for until PR 6 (K2 sheet P1, accepted in his K2 answers, §13): a
- * shelter whose writes the served policy opens (the K-Q17 allowlist's test
- * shelter today), and the operator's support view of any shelter, read-only
- * (S5). Every other shelter keeps the kabinet it had: no «Тварини» in its
+ * Who K2 is for (K2 sheet P1, accepted in his K2 answers, §13): a shelter
+ * whose writes the served policy opens (every shelter's own admins, since
+ * PR 6), and the operator's support view of any shelter, read-only (S5).
+ * Before PR 6 every other shelter kept the kabinet it had: no «Тварини» in its
  * nav and a 404 at `/kabinet/tvaryny`, since a list that pointed at buttons
  * it doesn't have (the strip's caption, the empty state) would describe a
  * product that shelter can't use. The one rule for the page, the nav and

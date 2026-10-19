@@ -1,9 +1,4 @@
 import { pendingCopyPaths, uk } from "@opika/i18n";
-import {
-  type ShelterWritePolicy,
-  shelterWritePolicyOf,
-  testShelterCopyExemptUnder,
-} from "./access";
 import type { EmailRoutes } from "./email-provider";
 import { operatorDisplayName } from "./operator";
 import { signInConfigOf } from "./sign-in-env";
@@ -22,9 +17,10 @@ import { signInConfigOf } from "./sign-in-env";
  *   that can't be identified (unset or unknown `VERCEL_ENV`, as off Vercel):
  *   fail closed, never skipped;
  * - only when no `kabinet.*` string, the email templates included, is still
- *   `[COPY PENDING]` (one exception since CG-Q1: `kabinet.testShelterOnly.*`,
- *   while the write policy is the refusal or the allowlist; see
- *   `testShelterCopyExemptUnder`) (Oleksii, 2026-10-14, answer 7, verbatim: "Yes.
+ *   `[COPY PENDING]`, with no exception (CG-Q1's `kabinet.testShelterOnly.*`
+ *   exemption ended with PR 6 of the K milestone, which opened writes for
+ *   every shelter; CG-B1, verbatim: "Under the open policy, any pending
+ *   string turns sign-in off.") (Oleksii, 2026-10-14, answer 7, verbatim: "Yes.
  *   Production sign-in stays off while any kabinet.* or email-template string
  *   is [COPY PENDING]. Test it."). The email templates live under
  *   `kabinet.email`, so one walk of `uk.kabinet` covers both. Checked after
@@ -86,40 +82,15 @@ export type ProductionSignIn =
 /** Every `kabinet.*` string still `[COPY PENDING]`, by full path; empty once the copy has landed. */
 export const kabinetPendingCopy = (): string[] => pendingCopyPaths(uk.kabinet, "kabinet");
 
-/**
- * The one namespace whose pending strings may leave sign-in on (CG-Q1,
- * Oleksii, verbatim: "Pending strings only under
- * uk.kabinet.testShelterOnly.*"). A path prefix with its trailing dot, so a
- * sibling key that merely starts with the same letters is not exempt. Only
- * `features/kabinet/test-shelter-only/` may render the namespace
- * (`test-shelter-only.test.ts` scans for it), and that folder mounts only
- * for a shelter the allowlist lets write.
- */
-export const TEST_SHELTER_ONLY_PREFIX = "kabinet.testShelterOnly.";
-
-/** The pending paths that keep production sign-in off under `policy`. */
-export function signInBlockingCopy(
-  pendingCopy: readonly string[],
-  policy: ShelterWritePolicy,
-): readonly string[] {
-  if (!testShelterCopyExemptUnder(policy)) return pendingCopy;
-  return pendingCopy.filter((path) => !path.startsWith(TEST_SHELTER_ONLY_PREFIX));
-}
-
 export function productionSignInOf(
   env: Readonly<Record<string, string | undefined>>,
   // Injectable so the other conditions are testable without waiting for the
   // copy; production always takes the default, the live catalogue.
   pendingCopy: readonly string[] = kabinetPendingCopy(),
-  // The served write policy, built from the same environment by the same
-  // function the kabinet route and page use (K-Q17), so the copy gate and
-  // the routes can never disagree about who may write.
-  writePolicy: ShelterWritePolicy = shelterWritePolicyOf(env),
 ): ProductionSignIn {
   if (env.VERCEL_ENV === "preview") return { kind: "off", reason: "preview_never_sends" };
   if (env.VERCEL_ENV !== "production") return { kind: "off", reason: "environment_unidentified" };
-  const blocking = signInBlockingCopy(pendingCopy, writePolicy);
-  if (blocking.length > 0) return { kind: "off", reason: "copy_pending", pending: blocking };
+  if (pendingCopy.length > 0) return { kind: "off", reason: "copy_pending", pending: pendingCopy };
   const config = signInConfigOf(env);
   if (config.kind !== "configured") return { kind: "off", reason: config.kind };
   return {

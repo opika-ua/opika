@@ -3,7 +3,7 @@ import { cache } from "react";
 import { getDb } from "../../../api/db";
 import { requireEnv } from "../../../api/env";
 import type { OperatorPageDeps } from "../../../features/kabinet/operator/pages";
-import { shelterWritePolicyOf } from "../../../kabinet/access";
+import { SHELTER_WRITE_POLICY } from "../../../kabinet/access";
 import type { KabinetPrincipal } from "../../../kabinet/actor";
 import {
   type OperatorName,
@@ -50,9 +50,8 @@ export const operatorRequest = cache(async (): Promise<OperatorRequest> => {
       newId: () => crypto.randomUUID(),
       invites: availability.invites,
       linkBaseURL: availability.baseURL,
-      // The served route's own policy: the middleware refuses the test-only
-      // one on a deployed instance before any read. The registry ignores it.
-      shelterWrites: shelterWritePolicyOf(process.env),
+      // The served route's own policy. The registry ignores it.
+      shelterWrites: SHELTER_WRITE_POLICY,
       cursorSecret: requireEnv("CURSOR_HMAC_SECRET"),
       operatorDisplayName: standaloneOperatorName(operator),
       production,

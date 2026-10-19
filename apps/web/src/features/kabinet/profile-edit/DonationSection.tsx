@@ -25,12 +25,7 @@ const formatDate = (date: Date): string =>
     timeZone: "Europe/Kyiv",
   }).format(date);
 
-type Notice =
-  | { kind: "none" }
-  | { kind: "proposed" }
-  | { kind: "cancelled" }
-  | { kind: "failed" }
-  | { kind: "not_available" };
+type Notice = { kind: "none" } | { kind: "proposed" } | { kind: "cancelled" } | { kind: "failed" };
 
 /**
  * K4's donation link (N20): proposed, never live on save. The field starts at
@@ -76,7 +71,7 @@ export function DonationSection({
 
   const noticeOf = (result: WriteResult, success: Notice): Notice => {
     if (result.kind === "ok") return success;
-    return result.kind === "not_available" ? { kind: "not_available" } : { kind: "failed" };
+    return { kind: "failed" };
   };
 
   const onPropose = async () => {
@@ -185,11 +180,6 @@ export function DonationSection({
       {notice.kind === "failed" ? (
         <p role="alert" className={ERROR_TEXT}>
           {t.donation.failed}
-        </p>
-      ) : null}
-      {notice.kind === "not_available" ? (
-        <p role="alert" className={ERROR_TEXT}>
-          {t.errors.notAvailable}
         </p>
       ) : null}
     </section>

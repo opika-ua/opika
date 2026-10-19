@@ -1,42 +1,43 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ShelterAdminId, ShelterId } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
-import { decideAccess, shelterWritePolicyOf } from "./access";
-import type { KabinetPrincipal } from "./actor";
 import { FORWARDED_AUTH_PATHS } from "./auth";
 import { kabinetAuthAvailability } from "./auth-route";
 import { productionSignInOf } from "./production-sign-in";
 
 /**
- * HS-Q3 (Oleksii): "self-serve shipped" is the first PR in which a real
- * shelter can sign in, and the /prytulkam copy that self-serve makes false
- * must land before that merge:
+ * What self-serve may and may not do, after PR 6 of the K milestone opened
+ * shelter writes for every shelter (commitment #6 in
+ * `docs/standing-constraints.md`). The name is its history (HS-Q3, Oleksii:
+ * "self-serve shipped" is the first PR in which a real shelter can sign in);
+ * it stays, because the register and the messages below cite it (PC-T2).
  *
- *   A1 `forShelters.whatToPrepare`        (§7  «ви розкажете, а я внесу все сам»)
- *   A2 `forShelters.whenAnimalFindsHome`  (§9  «напишіть, і я приберу»)
- *   A3 `forShelters.whoIsBehindThis`      (§10 «відповідаю я»)
- *   B1 `forShelters.whyThatSentence`      (commitment #7, «оновлювали»)
+ * The /prytulkam copy self-serve made false had to land with it, and all of
+ * it is live since PR 6, which is the edit-screens gate B1 moved to (Oleksii,
+ * 2026-10-14, verbatim: "Yes, B1 moves to the edit-screens merge gate"):
  *
- * B1 now gates a later merge (Oleksii, 2026-10-14, verbatim: "Yes, B1 moves
- * to the edit-screens merge gate"): «оновлювали» stays true until the kabinet
- * can edit or confirm a listing, and this PR ships neither. The messages
- * below still name it, so whoever trips one sees the whole HS-Q3 set.
+ *   §7  `forShelters.whatToPrepare`        A1, and his PR 6 last paragraph (the shelter keeps its own cards)
+ *   §9  `forShelters.whenAnimalFindsHome`  his PR 6 ¶1 and ¶3 («Уже вдома» is the shelter's own)
+ *   §10 `forShelters.whoIsBehindThis`      A3 («відповідаю я»), kept
+ *   §8  `forShelters.whyThatSentence`      B1, his PR 6 text (what moves the date)
  *
- * A shelter can sign in only once someone holds a membership, so this file
- * pins where one can come from: **exactly one module**, the automatic
- * invitation accept (IN-Q12/IN-Q13; Oleksii, verbatim: "Order and the guard
- * replacement: approved as described"), named by its full path, and only the
- * app's accept wrapper may call it. Everything else is still refused. The
- * accept runs only after a sign-in, which production allows since the wiring
- * commit (when `productionSignInOf` is on). These scans match the shapes code actually takes (direct and
- * namespaced table writes, raw SQL, Better Auth's server API); they guard
+ * What PR 6 did not open, and this file still pins: a shelter can sign in
+ * only once someone holds a membership, and the operator alone decides who
+ * does. So this file pins where one can come from: **exactly one module**,
+ * the automatic invitation accept (IN-Q12/IN-Q13; Oleksii, verbatim: "Order
+ * and the guard replacement: approved as described"), named by its full
+ * path, and only the app's accept wrapper may call it. Everything else is
+ * still refused. The accept runs only after a sign-in, which production
+ * allows since the wiring commit (when `productionSignInOf` is on). These
+ * scans match the shapes code actually takes (direct and namespaced table
+ * writes, raw SQL, Better Auth's server API); they guard
  * against accident, not against someone deliberately aliasing a table to
  * slip past them. **If you are deleting or changing an assertion here, you
- * are widening self-serve: A1–A3 in docs/h2-copy-sheet.md must already be
- * live in the same PR, and B1 before the edit screens merge.**
+ * are widening self-serve past what commitment #6 says** (only the operator
+ * creates a shelter and sends cabinet access): rewrite §7 and the register
+ * in the same PR.
  */
 
 const REPO = resolve(fileURLToPath(import.meta.url), "../../../../..");
@@ -77,8 +78,8 @@ const ACCEPT_MODULE = "packages/db/src/repos/kabinet-invitation-accept-repo.ts";
 const ACCEPT_CALLER = "apps/web/src/kabinet/invitation-accept.ts";
 
 const COPY_GATE =
-  "/prytulkam A1–A3 (§7 whatToPrepare, §9 whenAnimalFindsHome, §10 whoIsBehindThis) and B1 " +
-  "(whyThatSentence) must be live before this changes: see docs/h2-copy-sheet.md (HS-Q3)";
+  "/prytulkam §7 whatToPrepare, §9 whenAnimalFindsHome, §10 whoIsBehindThis and §8 " +
+  "whyThatSentence describe this: see docs/standing-constraints.md, commitments 6 and 7";
 
 describe(`a shelter membership is created by the automatic accept only — ${COPY_GATE}`, () => {
   it("sanity: the scan sees the source tree", () => {
@@ -182,17 +183,34 @@ describe(`a shelter membership is created by the automatic accept only — ${COP
     expect(
       kabinetAuthAvailability(production, { signIn: (env) => productionSignInOf(env, []) }).kind,
     ).toBe("available");
-    // A2 (row 89): the third paragraph of §9 is his; the sentence that said
-    // there is no kabinet is gone.
+    // §9 (A2's successor, pr6-copy-uk.md §1.2): the shelter marks an animal
+    // home itself; the read-only paragraph, and the one before it that said
+    // there is no kabinet, are gone.
     expect(uk.forShelters.whenAnimalFindsHome, COPY_GATE).toContain(
-      "Кабінет притулку вже є, але лише для перегляду — змінити чи прибрати щось у ньому поки не можна.",
+      "Кожна опублікована картка в кабінеті має кнопку «Уже вдома». Після неї картка одразу зникає з галереї та стрічки, а у вашому списку лишається з позначкою «Удома».",
     );
-    expect(uk.forShelters.whenAnimalFindsHome, COPY_GATE).not.toContain(
+    for (const gone of [
+      "лише для перегляду",
+      "напишіть, і я приберу",
       "не хочу обіцяти кабінет, якого не існує",
-    );
-    // A1 (row 91): his line, in §7.
+    ]) {
+      expect(uk.forShelters.whenAnimalFindsHome, `${gone}. ${COPY_GATE}`).not.toContain(gone);
+    }
+    // A1 (row 91): his line, in §7, and §7's last paragraph his PR 6 text
+    // (pr6-copy-uk.md §1.1) in place of «ви розкажете, а я внесу все сам».
     expect(uk.forShelters.whatToPrepare, COPY_GATE).toContain(
       "Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.",
+    );
+    expect(uk.forShelters.whatToPrepare, COPY_GATE).toContain(
+      "Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте — і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам — надішліть список і фото.",
+    );
+    expect(uk.forShelters.whatToPrepare, COPY_GATE).not.toContain("я внесу все сам");
+    // B1 (pr6-copy-uk.md §1.3): what moves the date, named, and a text edit not among it.
+    expect(uk.forShelters.whyThatSentence, COPY_GATE).toContain(
+      "Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють — так вона показує саме те, що обіцяє. Речення пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».",
+    );
+    expect(uk.forShelters.whyThatSentence, COPY_GATE).not.toContain(
+      "коли інформацію востаннє оновлювали",
     );
     // A3: kept as is (answer 3), and still true: one person answers.
     expect(uk.forShelters.whoIsBehindThis, COPY_GATE).toContain(
@@ -273,69 +291,6 @@ describe("Better Auth's invitation table has exactly three writers (HS-Q7, IN-Q1
     expect([...new Set(statuses)].sort(), `${ACCEPT_MODULE}'s status writes`).toEqual([
       "accepted",
       "canceled",
-    ]);
-  });
-});
-
-/**
- * K-Q17 (Oleksii, verbatim: "commitment #6 register entry +
- * no-self-serve-yet.test.ts made conditional on "no shelter outside the
- * allowlist""). Commitment #6 («ви розкажете, а я внесу все сам», «напишіть,
- * і я приберу») stays true for every shelter outside `KABINET_WRITE_ALLOWLIST`,
- * which until PR 6 holds only his own test shelter. These pin that a shelter
- * outside the list can change nothing: the served policy refuses it, the list
- * opens only the id it names, and holds exactly one ("one open path for that
- * id").
- */
-describe(`no shelter outside the allowlist can write (K-Q17) — ${COPY_GATE}`, () => {
-  const LISTED = "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as ShelterId;
-  const OUTSIDE = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" as ShelterId;
-  const write = { surface: "shelter", mode: "write" } as const;
-  const adminOf = (shelterId: ShelterId): KabinetPrincipal => ({
-    kind: "shelter_admin",
-    shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
-    shelterId,
-  });
-
-  it("with the variable unset, no shelter can write", () => {
-    const policy = shelterWritePolicyOf({});
-    for (const shelterId of [LISTED, OUTSIDE]) {
-      expect(decideAccess(write, adminOf(shelterId), policy), COPY_GATE).toEqual({
-        kind: "deny",
-        code: "SHELTER_WRITES_NOT_YET_AVAILABLE",
-      });
-    }
-  });
-
-  it("with it set, only the listed shelter can; a shelter outside it is refused", () => {
-    const policy = shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: LISTED });
-    expect(decideAccess(write, adminOf(LISTED), policy).kind).toBe("allow_shelter_write");
-    expect(decideAccess(write, adminOf(OUTSIDE), policy), COPY_GATE).toEqual({
-      kind: "deny",
-      code: "SHELTER_WRITES_NOT_YET_AVAILABLE",
-    });
-  });
-
-  it("holds exactly one id: a second makes it refuse everyone, the first included", () => {
-    const policy = shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: `${LISTED},${OUTSIDE}` });
-    for (const shelterId of [LISTED, OUTSIDE]) {
-      expect(decideAccess(write, adminOf(shelterId), policy).kind, COPY_GATE).toBe("deny");
-    }
-  });
-
-  it("the served route and the page build their policy from it and from nothing else", () => {
-    for (const file of [
-      "apps/web/src/app/api/kabinet/[...rpc]/route.ts",
-      "apps/web/src/app/kabinet/page.tsx",
-    ]) {
-      const text = readFileSync(join(REPO, file), "utf8");
-      expect(text, `${file}. ${COPY_GATE}`).toContain(
-        "shelterWrites: shelterWritePolicyOf(process.env)",
-      );
-    }
-    // Only access.ts builds an open policy for production.
-    expect(filesMatching(/open_for_allowlisted_shelter/), COPY_GATE).toEqual([
-      "apps/web/src/kabinet/access.ts",
     ]);
   });
 });

@@ -3,11 +3,10 @@
  * text only (Oleksii, 2026-10-17: "Test logic, not looks ... a few Playwright
  * flow tests that query by role/label/text only; accessibility basics").
  *
- * Writes open through the production-legal path: this server is started with
- * `KABINET_WRITE_ALLOWLIST` naming the shelter signed in here (K-Q17), the
- * same variable production reads, through the served route's own
- * `shelterWritePolicyOf(process.env)`. Nothing in the app is patched. The
- * second server is `sign-in-server.ts`'s, for the reason given there (the
+ * Writes go through the served route and its own write policy, which opens
+ * every shelter's writes to its own admins (PR 6).
+ * Nothing in the app is patched, and no environment variable opens anything.
+ * The second server is `sign-in-server.ts`'s, for the reason given there (the
  * main server is production mode, where sign-in stays off).
  *
  * The shelter is left as found: the pause flow resumes, and the contact edit
@@ -30,7 +29,7 @@ test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" 
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
-test.describe("/kabinet K4 profile editing (allowlisted shelter)", () => {
+test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
   let server: SignInServer | undefined;
   let context: BrowserContext | undefined;
 
@@ -51,9 +50,7 @@ test.describe("/kabinet K4 profile editing (allowlisted shelter)", () => {
     if (shelter === undefined)
       throw new Error("no verified seeded shelter without an organization");
 
-    server = await startSignInServer(HARNESS_DATABASE_URL, {
-      KABINET_WRITE_ALLOWLIST: shelter.id,
-    });
+    server = await startSignInServer(HARNESS_DATABASE_URL);
     const { origin } = server;
 
     const email = `harness-k4-${randomUUID()}@example.test`;

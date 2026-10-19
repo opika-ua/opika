@@ -319,7 +319,6 @@ export type ActionFailure =
   | { kind: "publish_unmet"; gaps: readonly PublishGap[] }
   | { kind: "undo_expired" }
   | { kind: "was_published" }
-  | { kind: "not_available" }
   | { kind: "rate_limited" }
   | { kind: "no_answer" }
   | { kind: "failed" };
@@ -347,8 +346,6 @@ export function actionFailureOf(error: unknown): ActionFailure {
       return { kind: "undo_expired" };
     case "WAS_PUBLISHED":
       return { kind: "was_published" };
-    case "SHELTER_WRITES_NOT_YET_AVAILABLE":
-      return { kind: "not_available" };
     case "TOO_MANY_REQUESTS":
       return { kind: "rate_limited" };
     default:

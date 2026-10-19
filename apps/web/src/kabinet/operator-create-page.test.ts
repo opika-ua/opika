@@ -3,7 +3,7 @@ import { makeCity, setupTestDatabase, truncateAll } from "@opika/db/test";
 import type { ModeratorId, ShelterAdminId, ShelterId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { operatorCreatePageOf } from "../features/kabinet/operator/create/create-page";
-import { SHELTER_WRITE_POLICY, shelterWritePolicyOf } from "./access";
+import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 
 /**
@@ -70,11 +70,10 @@ describe("S2 /kabinet/prytulky/novyi: who gets the create form", () => {
     expect(await operatorCreatePageOf(principal, deps())).toEqual({ kind: "not_found" });
   });
 
-  it("is the operator's whatever the shelter write policy says, and a shelter on the allowlist gets nothing", async () => {
-    const allowlisted = deps(shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: SHELTER }));
+  it("is the operator's, and a shelter admin with open writes gets nothing", async () => {
+    const open = deps();
     expect(
-      (await operatorCreatePageOf({ kind: "super_admin", moderatorId: OPERATOR }, allowlisted))
-        .kind,
+      (await operatorCreatePageOf({ kind: "super_admin", moderatorId: OPERATOR }, open)).kind,
     ).toBe("create");
     expect(
       await operatorCreatePageOf(
@@ -83,7 +82,7 @@ describe("S2 /kabinet/prytulky/novyi: who gets the create form", () => {
           shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
           shelterId: SHELTER,
         },
-        allowlisted,
+        open,
       ),
     ).toEqual({ kind: "not_found" });
   });

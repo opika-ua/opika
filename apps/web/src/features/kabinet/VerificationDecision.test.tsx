@@ -1,12 +1,8 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { OperatorName } from "../../kabinet/operator";
 import { ShelterProfile } from "./ShelterProfile";
-
-vi.mock("./test-shelter-only/AllowlistedShelterArea", () => ({
-  AllowlistedShelterArea: () => null,
-}));
 
 /**
  * The shelter's side of a rejection or suspension on `/kabinet` (RU-Q7,

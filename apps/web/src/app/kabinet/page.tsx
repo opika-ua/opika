@@ -9,7 +9,7 @@ import { JoinFailedCard } from "../../features/kabinet/JoinFailedCard";
 import { KabinetBrand } from "../../features/kabinet/KabinetBrand";
 import { OPERATOR_HOME } from "../../features/kabinet/routes";
 import { ShelterProfile } from "../../features/kabinet/ShelterProfile";
-import { shelterWritePolicyOf } from "../../kabinet/access";
+import { SHELTER_WRITE_POLICY } from "../../kabinet/access";
 import { invitationAccepter, selfHealingIdentity } from "../../kabinet/invitation-accept";
 import { operatorNameOf, standaloneOperatorName } from "../../kabinet/operator";
 import { kabinetIdentityOf } from "../../kabinet/principal";
@@ -61,9 +61,9 @@ export default async function KabinetHomePage() {
     newId: () => crypto.randomUUID(),
     invites,
     linkBaseURL: baseURL,
-    // K-Q17: the served route's own policy, so the editor shows exactly when
-    // the API would accept its writes.
-    shelterWrites: shelterWritePolicyOf(process.env),
+    // The served route's own policy, so the editor shows exactly when the
+    // API would accept its writes.
+    shelterWrites: SHELTER_WRITE_POLICY,
     cursorSecret: requireEnv("CURSOR_HMAC_SECRET"),
     operatorDisplayName: standaloneOperatorName(operator),
   });

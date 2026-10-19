@@ -107,18 +107,6 @@ export const apiErrors = {
     status: 403,
     message: "Not permitted for this account.",
   },
-  /**
-   * A shelter admin called a `shelter.*` write while the cabinet's editing
-   * screens (K2/K3) haven't shipped (inbox KH-Q1). Its own code rather than
-   * FORBIDDEN: the caller is the right actor for the procedure, the procedure
-   * just isn't open yet, and a client or a test must be able to tell "never yours" from
-   * "not yet" by the code. 403 because it is still the access policy
-   * refusing, not a server failure; the code carries the distinction.
-   */
-  SHELTER_WRITES_NOT_YET_AVAILABLE: {
-    status: 403,
-    message: "Changes from the shelter's cabinet are not available yet.",
-  },
   /** A compare-and-set lost: someone else changed the record first. Reload and try again. */
   CONFLICT: {
     status: 409,

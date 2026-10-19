@@ -43,7 +43,7 @@ const row = (n: number, overrides: Partial<AnimalRow>): AnimalRow =>
 const PUBLISHED = row(1, {
   name: "Рекс",
   listing: { kind: "published", publishedAt: OLD, confirmedAt: OLD, undoable: null },
-  freshness: { kind: "stale", updatedAt: OLD, ageDays: 40 },
+  freshness: { kind: "stale", confirmedAt: OLD, ageDays: 40 },
 });
 const RESERVED = row(2, {
   name: "Мурка",
@@ -57,7 +57,7 @@ const RESERVED = row(2, {
     confirmedAt: new Date(NOW.getTime() - 3 * DAY),
     undoable: null,
   },
-  freshness: { kind: "fresh", updatedAt: new Date(NOW.getTime() - 3 * DAY), ageDays: 3 },
+  freshness: { kind: "fresh", confirmedAt: new Date(NOW.getTime() - 3 * DAY), ageDays: 3 },
 });
 const READY_DRAFT = row(3, { name: "Ластівка" });
 const GAPPY_DRAFT = row(4, {
@@ -154,7 +154,7 @@ const shelterIn = (verification: KabinetShelterView["verification"]) =>
     verification,
   }) as unknown as KabinetShelterView;
 
-const OPEN: AnimalFormEditing = { kind: "open", grantedBy: "allowlist" };
+const OPEN: AnimalFormEditing = { kind: "open" };
 
 function renderList({
   first = FIRST,
@@ -660,22 +660,6 @@ describe("«Зняти з показу» with a reason (his answer 10)", () => {
         "Знято з показу 18 жовтня · переїхала до іншого притулку · «до Києва»",
       ),
     ).toBeTruthy();
-  });
-
-  it("writes refused by the policy: his «Змінювати дані… поки не можна»", async () => {
-    renderList({
-      handlers: {
-        transition: async () => Promise.reject(apiError("SHELTER_WRITES_NOT_YET_AVAILABLE")),
-      },
-    });
-    await openMenu("Рекс");
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Зняти з показу" }));
-    const dialog = screen.getByRole("dialog");
-    await userEvent.selectOptions(within(dialog).getByLabelText("Причина"), "other");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Зняти з показу" }));
-    expect(within(dialog).getByRole("alert").textContent).toBe(
-      "Змінювати дані в кабінеті поки не можна — для цього напишіть мені.",
-    );
   });
 });
 

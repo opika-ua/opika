@@ -5,6 +5,9 @@ verified. Nothing here is built. The copy itself (what goes false and the Englis
 replacement) is `docs/pr6-copy-sheet.md` (on main since #109): this list doesn't repeat it, it
 points to it and says what changed since.
 
+**Status:** being built on `feat/pr6-open-writes` as one draft PR, the switch to open writes as its
+final commit (his round-3b answer 2, in `docs/decisions-inbox/feat-pr6-open-writes.md`, P6-B1).
+
 **What PR 6 is, in his words** (verbatim; sources in brackets):
 - "K-Q3: live immediately. PR 6 rewrites commitment #6." (K-B1, `docs/decisions-inbox/feat-k-groundwork.md`)
 - "K-Q4: allowlist containing only my test shelter's id, from PR 2, so I can test each PR on

@@ -27,7 +27,7 @@ describe("listingFreshness", () => {
   it("measures a published listing from its confirmation, not its publication", () => {
     expect(listingFreshness(PUBLISHED, NOW)).toMatchObject({
       ageDays: 2,
-      updatedAt: daysBefore(2),
+      confirmedAt: daysBefore(2),
     });
   });
 
@@ -35,7 +35,7 @@ describe("listingFreshness", () => {
   it("measures a reserved listing from its confirmation, not the reservation or publication", () => {
     expect(listingFreshness(RESERVED, NOW)).toMatchObject({
       ageDays: 12,
-      updatedAt: daysBefore(12),
+      confirmedAt: daysBefore(12),
     });
   });
 

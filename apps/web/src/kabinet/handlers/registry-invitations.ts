@@ -34,6 +34,7 @@ import {
 } from "@opika/domain";
 import { ORPCError, type ORPCErrorConstructorMap } from "@orpc/server";
 import { INVITE_LINK, linkTo } from "../email-links";
+import type { InviteShelterVerification } from "../email-senders";
 import { invitationReminderOf } from "../invitation-reminder";
 import { loadShelterOr404, type RegistryDeps, registryShelterView } from "./registry-reads";
 import { acceptEvidence } from "./registry-writes";
@@ -72,15 +73,33 @@ async function cleanUpInvitedUsers(deps: RegistryDeps, organizationId: string): 
 const organizationOf = (deps: RegistryDeps, shelterId: ShelterId): Promise<string | null> =>
   kabinetRegistryRepo(deps.db).organizationIdOf(shelterId);
 
+/**
+ * The invite's second sentence follows the shelter's verification status at send time (Q-C):
+ * a verified shelter's changes appear at once. Paused is a status of its own in the domain, not
+ * "verified" with a flag, but a paused shelter has passed verification, so it gets the verified
+ * sentence (his decision, PC-T10: "paused → the verified sentence; suspended/rejected → the
+ * before-verification sentence"). Pending and under review have not passed it yet.
+ */
+const inviteVerificationOf = (shelter: Pick<Shelter, "verification">): InviteShelterVerification =>
+  shelter.verification.status === "verified" || shelter.verification.status === "paused"
+    ? "verified"
+    : "not_yet_verified";
+
 /** The invite email for one live invitation. Never throws: a sender that does is `provider_error`. */
 async function emailInvitation(
   deps: RegistryDeps,
-  input: { email: string; shelterName: string; invitationId: string },
+  input: {
+    email: string;
+    shelterName: string;
+    shelterVerification: InviteShelterVerification;
+    invitationId: string;
+  },
 ): Promise<EmailSendOutcome> {
   try {
     return await deps.invites.send({
       email: input.email,
       shelterName: input.shelterName,
+      shelterVerification: input.shelterVerification,
       operatorName: deps.operatorDisplayName,
       url: linkTo(deps.linkBaseURL, INVITE_LINK, input.invitationId),
       validForHours: Math.round(INVITATION_TTL_MS / 3_600_000),
@@ -93,7 +112,13 @@ async function emailInvitation(
 async function invite(
   deps: RegistryDeps,
   moderatorId: ModeratorId,
-  input: { shelterId: ShelterId; shelterName: string; name: string; email: string },
+  input: {
+    shelterId: ShelterId;
+    shelterName: string;
+    shelterVerification: InviteShelterVerification;
+    name: string;
+    email: string;
+  },
 ): Promise<
   | { kind: "invited"; view: ShelterAdminView; email: EmailSendOutcome }
   | { kind: "address_has_a_role"; reason: AddressRole }
@@ -124,6 +149,7 @@ async function invite(
   const email = await emailInvitation(deps, {
     email: row.email,
     shelterName: input.shelterName,
+    shelterVerification: input.shelterVerification,
     invitationId,
   });
   return {
@@ -211,6 +237,8 @@ export async function registrySheltersCreate(
   const invited = await invite(deps, moderatorId, {
     shelterId: id,
     shelterName: input.displayName,
+    // Created `pending` just above, so the first invite is always the before-verification one.
+    shelterVerification: inviteVerificationOf(shelter),
     ...input.firstAdmin,
   });
   // Lost the race on the first admin's address after the check above: the
@@ -240,7 +268,11 @@ export async function registryAdminsInvite(
   const shelter = await loadShelterOr404(deps, input.shelterId, errors);
   const organizationId = await organizationOf(deps, input.shelterId);
   if (organizationId !== null) await cleanUpInvitedUsers(deps, organizationId);
-  const invited = await invite(deps, moderatorId, { ...input, shelterName: shelter.displayName });
+  const invited = await invite(deps, moderatorId, {
+    ...input,
+    shelterName: shelter.displayName,
+    shelterVerification: inviteVerificationOf(shelter),
+  });
   if (invited.kind === "address_has_a_role") {
     throw errors.ADDRESS_HAS_A_ROLE({ data: { reason: invited.reason } });
   }
@@ -290,6 +322,7 @@ export async function registryAdminsResendInvite(
   const invitationEmail = await emailInvitation(deps, {
     email: admin.email,
     shelterName: shelter.displayName,
+    shelterVerification: inviteVerificationOf(shelter),
     invitationId: latest.id,
   });
   return {
