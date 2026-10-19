@@ -1,3 +1,4 @@
+import { kabinetActorRepo } from "@opika/db/repos";
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -78,7 +79,16 @@ export default async function KabinetHomePage() {
       // RU-T1: the operator's home is their list, which guards itself.
       redirect(OPERATOR_HOME);
       break;
-    case "shelter":
+    case "shelter": {
+      // PW-1: «Змінити пароль» for the shelter's own admin, never a support view (the
+      // operator's session): whether a password exists decides the form or the note.
+      const userId = healed.identity.userId;
+      const password =
+        home.viewer === "admin" && userId !== null
+          ? ({
+              kind: (await kabinetActorRepo(db).hasPassword(userId)) ? "set" : "not_set",
+            } as const)
+          : null;
       return (
         <ShelterProfile
           view={home.view}
@@ -87,8 +97,10 @@ export default async function KabinetHomePage() {
           // The locked note puts the name mid-sentence; the decision's signature stands alone.
           operator={operator}
           editing={home.editing}
+          password={password}
         />
       );
+    }
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {
       const unreachable: never = home;

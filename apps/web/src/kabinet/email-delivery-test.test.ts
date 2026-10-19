@@ -16,16 +16,41 @@ const RESEND_KEY = "re_test-key-not-real-9876543210";
 
 type Call = { url: string; init: RequestInit };
 
-const harness = (respond: (n: number) => Response = () => okResponse()) => {
+/** The sending domain on Resend, as `GET /domains` and `GET /domains/{id}` answer: tracking off unless a test says otherwise. */
+type DomainAnswer = { list: Response | "throw"; domain: Response | "throw" };
+const trackingOff = (): DomainAnswer => ({
+  list: Response.json({ data: [{ id: "dom-1", name: "mail.example.org" }] }),
+  domain: Response.json({
+    id: "dom-1",
+    name: "mail.example.org",
+    click_tracking: false,
+    open_tracking: false,
+  }),
+});
+
+const harness = (
+  respond: (n: number) => Response = () => okResponse(),
+  domainAnswer: () => DomainAnswer = trackingOff,
+) => {
   const calls: Call[] = [];
+  /** The tracking check's reads, kept apart from the sends `calls` counts. */
+  const reads: Call[] = [];
   const lines: string[] = [];
+  const domains = domainAnswer();
   const fetchImpl = (async (url: string, init: RequestInit) => {
+    if (url.startsWith("https://api.resend.com/domains")) {
+      reads.push({ url, init });
+      const answer = url.includes("/domains/") ? domains.domain : domains.list;
+      if (answer === "throw") throw new Error("no answer");
+      return answer;
+    }
     calls.push({ url, init });
     return respond(calls.length);
   }) as unknown as typeof fetch;
   let n = 0;
   return {
     calls,
+    reads,
     lines,
     // Both through Brevo unless a test says otherwise: the comparison run the
     // grace period keeps (EM-B10). The default, both via Resend, is its own
@@ -506,5 +531,84 @@ describe("readSingleKey", () => {
     expect(readSingleKey(join(dir, "absent.env"), "BREVO_API_KEY")).toBeUndefined();
     expect(readSingleKey(file, "BREVO_API_KEY")).toBeUndefined();
     expect(readSingleKey(file, "EMPTY")).toBeUndefined();
+  });
+});
+
+/**
+ * Oleksii, 2026-10-19 (`docs/shelter-passwords.md` §9), verbatim: "Both #136 safeguards
+ * approved: the exact-payload test ({from,to,reply_to,subject,html,text} only) and
+ * delivery-test refusing if tracking is on." Resend's tracking is a setting of the sending
+ * domain (`mail.<origin host>`), read before anything is sent; whatever doesn't show both
+ * switches off refuses, and nothing is sent.
+ */
+describe("runDeliveryTest refuses unless Resend's tracking is off", () => {
+  const resendRun = (domains: () => DomainAnswer) => {
+    const h = harness(() => Response.json({ id: "re-1" }), domains);
+    return {
+      h,
+      run: () => {
+        // Neither provider named and no Brevo key: the default, both through Resend.
+        const { signInProvider: _s, inviteProvider: _i, brevoApiKey: _b, ...unnamed } = h.input;
+        return runDeliveryTest({ ...unnamed, resendApiKey: RESEND_KEY });
+      },
+    };
+  };
+  const domainWith = (tracking: { click_tracking?: unknown; open_tracking?: unknown }) => () => ({
+    list: Response.json({ data: [{ id: "dom-1", name: "mail.example.org" }] }),
+    domain: Response.json({ id: "dom-1", name: "mail.example.org", ...tracking }),
+  });
+
+  it("reads the sending domain with the Resend key, and sends once both switches are off", async () => {
+    const { h, run } = resendRun(trackingOff);
+    expect(await run()).toBe(0);
+    expect(h.reads.map((read) => read.url)).toEqual([
+      "https://api.resend.com/domains?limit=100",
+      "https://api.resend.com/domains/dom-1",
+    ]);
+    for (const read of h.reads) {
+      expect((read.init.headers as Record<string, string>).Authorization).toBe(
+        `Bearer ${RESEND_KEY}`,
+      );
+    }
+    expect(h.calls).toHaveLength(2);
+  });
+
+  it.each([
+    [{ click_tracking: true, open_tracking: false }, "(click)"],
+    [{ click_tracking: false, open_tracking: true }, "(open)"],
+    [{ click_tracking: true, open_tracking: true }, "(click and open)"],
+    [{ click_tracking: false }, "(open)"],
+  ])("refuses with tracking on %o, sending nothing", async (tracking, which) => {
+    const { h, run } = resendRun(domainWith(tracking));
+    expect(await run()).toBe(1);
+    expect(h.calls).toEqual([]);
+    expect(h.lines.join("\n")).toContain(`Resend tracking is on for the sending domain ${which}`);
+    expect(h.lines.join("\n")).toContain("Nothing sent.");
+  });
+
+  it("refuses when it can't tell: the domain missing, a key that can't read domains, no answer", async () => {
+    for (const [domains, why] of [
+      [
+        () => ({ list: Response.json({ data: [] }), domain: Response.json({}) }),
+        "not on this Resend account",
+      ],
+      [
+        () => ({ list: new Response("{}", { status: 401 }), domain: Response.json({}) }),
+        "the key can't read domains",
+      ],
+      [() => ({ list: "throw" as const, domain: "throw" as const }), "Resend didn't answer"],
+    ] as const) {
+      const { h, run } = resendRun(domains);
+      expect(await run(), why).toBe(1);
+      expect(h.calls, why).toEqual([]);
+      expect(h.lines.join("\n"), why).toContain(why);
+      expect(h.lines.join("\n"), why).not.toContain(RESEND_KEY);
+    }
+  });
+
+  it("a run with both emails through Brevo reads no Resend domain", async () => {
+    const h = harness();
+    expect(await runDeliveryTest(h.input)).toBe(0);
+    expect(h.reads).toEqual([]);
   });
 });

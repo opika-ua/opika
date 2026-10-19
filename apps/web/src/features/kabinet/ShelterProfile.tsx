@@ -9,6 +9,7 @@ import type { ProfileEditing } from "./home";
 import { KabinetBrand, KabinetMark } from "./KabinetBrand";
 import { KabinetNav } from "./KabinetNav";
 import { CAPTION, CARD, CARD_TITLE, channelValue, LockedBlock, Row } from "./ProfileParts";
+import { ChangePasswordSection, type PasswordState } from "./password/ChangePasswordSection";
 import { PausedStatus } from "./profile-edit/PausedStatus";
 import { ProfileEditor } from "./profile-edit/ProfileEditor";
 import { animalListShownTo } from "./routes";
@@ -51,6 +52,11 @@ export type ShelterProfileProps = {
   operator: OperatorName;
   /** K4: `read_only` unless the page's access decision opened writes. */
   editing?: ProfileEditing;
+  /**
+   * PW-1: «Змінити пароль», for the shelter's own admin only (null in a support
+   * view, whose session is the operator's: the operator never has a password).
+   */
+  password?: PasswordState | null;
 };
 
 export function ShelterProfile({
@@ -59,6 +65,7 @@ export function ShelterProfile({
   viewer,
   operator,
   editing = { kind: "read_only" },
+  password = null,
 }: ShelterProfileProps) {
   const t = uk.kabinet.profile;
   const operatorName = inSentenceOperatorName(operator);
@@ -192,6 +199,12 @@ export function ShelterProfile({
               </div>
             </div>
           )}
+
+          {password !== null && !support ? (
+            <div className={CARD}>
+              <ChangePasswordSection password={password} />
+            </div>
+          ) : null}
         </main>
       </div>
     </div>

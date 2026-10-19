@@ -8,7 +8,10 @@ import {
 import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 import { nameTooLongMessage } from "../features/kabinet/operator/display-name";
+import { throttledMessage } from "../features/kabinet/password/password-copy";
 import { MAGIC_LINK_TTL_SECONDS } from "./auth";
+import { SIGN_IN_DELAY } from "./password-limits";
+import { RESET_PASSWORD_TTL_SECONDS } from "./password-mail";
 
 /**
  * Oleksii's final copy (2026-10-14) types the plural noun after a filled
@@ -138,5 +141,30 @@ describe("the cap RUI4-F2's plural noun was written for", () => {
 
   it("100 falls in the plural category «символів» takes", () => {
     expect(new Intl.PluralRules("uk").select(100)).toBe("many");
+  });
+});
+
+/**
+ * PW-1 (`docs/shelter-passwords-copy-uk.md`): his wording avoids plurals by design («хв.»), and
+ * his note asks to keep the `{minutes}` pins anyway: «Забагато спроб входу. Спробуйте ще раз
+ * через {minutes} хв.» (§9 answer 5, "plural pin for minutes") for every wait the delay can
+ * give, and the reset link's hour in `forgot.sent` and the reset email. Each rendered sentence is
+ * pinned whole against his literal.
+ */
+describe("the password copy's {minutes} (PW-1)", () => {
+  it.each([1, 2, 3, 4, 5, 8, 11, 15, 21])("the delay's sentence for %i minutes", (minutes) => {
+    expect(throttledMessage(minutes)).toBe(
+      `Забагато спроб входу. Спробуйте ще раз через ${minutes} хв.`,
+    );
+  });
+
+  it("every wait the delay gives is one of those, and a reset link lives an hour", () => {
+    expect(SIGN_IN_DELAY.delaysMinutes).toEqual([1, 2, 4, 8, 15]);
+    expect(
+      RESET_PASSWORD_TTL_SECONDS / 60,
+      "RESET_PASSWORD_TTL_SECONDS changed: forgot.sent and email.reset.expiry say «{minutes} хв.», recheck them",
+    ).toBe(60);
+    expect(uk.kabinet.forgot.sent.endsWith("Воно діє {minutes} хв.")).toBe(true);
+    expect(uk.kabinet.email.reset.expiry).toBe("Посилання спрацює один раз і діє {minutes} хв.");
   });
 });

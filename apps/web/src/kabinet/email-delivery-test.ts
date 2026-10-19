@@ -194,6 +194,22 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
     input.log(`Not configured: ${why}. Nothing sent.`);
     return 1;
   }
+  // Oleksii, 2026-10-19 (`docs/shelter-passwords.md` §9), verbatim: "Both #136 safeguards
+  // approved: the exact-payload test ({from,to,reply_to,subject,html,text} only) and
+  // delivery-test refusing if tracking is on." Resend's tracking is a setting of the sending
+  // domain, never of a message, so it is read from the domain before anything is sent, and an
+  // answer that can't be read refuses too (fail closed).
+  if (routing.signIn === "resend" || routing.invite === "resend") {
+    const tracking = await resendTrackingOf(
+      input.resendApiKey ?? "",
+      `mail.${originHost}`,
+      input.fetchImpl ?? fetch,
+    );
+    if (tracking.kind !== "off") {
+      input.log(`${trackingRefusal(tracking)} Nothing sent.`);
+      return 1;
+    }
+  }
   const operatorName = operatorDisplayName({ KABINET_OPERATOR_DISPLAY_NAME: input.operatorName });
   const testLink = (target: { path: string; param: string }) =>
     linkTo(input.base, target, `TEST-${input.random()}`);
@@ -248,4 +264,77 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
     }
   }
   return failed ? 1 : 0;
+}
+
+/**
+ * What Resend says about the sending domain's tracking. `off` only when the
+ * domain is found and both switches read exactly `false`; anything else
+ * (tracking on, the domain missing, a key that may not read domains, no
+ * answer) refuses the test, since none of it shows tracking is off.
+ */
+export type ResendTracking =
+  | { kind: "off" }
+  | { kind: "on"; click: boolean; open: boolean }
+  | { kind: "unknown"; why: "domain_not_found" | "not_readable" | "no_answer" };
+
+/** Resend's domain endpoints (`GET /domains`, `GET /domains/{id}`), read with the same key as the sends. */
+export async function resendTrackingOf(
+  apiKey: string,
+  domainName: string,
+  fetchImpl: typeof fetch,
+): Promise<ResendTracking> {
+  const get = async (path: string): Promise<unknown | null> => {
+    try {
+      const response = await fetchImpl(`https://api.resend.com${path}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Accept: "application/json",
+          "User-Agent": "kabinet-mailer/1",
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) return undefined;
+      return (await response.json().catch(() => undefined)) ?? undefined;
+    } catch {
+      return null;
+    }
+  };
+  const list = await get("/domains?limit=100");
+  if (list === null) return { kind: "unknown", why: "no_answer" };
+  if (list === undefined) return { kind: "unknown", why: "not_readable" };
+  const domains = (list as { data?: unknown }).data;
+  const found = Array.isArray(domains)
+    ? (domains as { id?: unknown; name?: unknown }[]).find(
+        (domain) => typeof domain.name === "string" && domain.name.toLowerCase() === domainName,
+      )
+    : undefined;
+  if (found === undefined || typeof found.id !== "string") {
+    return { kind: "unknown", why: "domain_not_found" };
+  }
+  const domain = await get(`/domains/${encodeURIComponent(found.id)}`);
+  if (domain === null) return { kind: "unknown", why: "no_answer" };
+  if (domain === undefined) return { kind: "unknown", why: "not_readable" };
+  const { click_tracking: click, open_tracking: open } = domain as {
+    click_tracking?: unknown;
+    open_tracking?: unknown;
+  };
+  if (click === false && open === false) return { kind: "off" };
+  return { kind: "on", click: click !== false, open: open !== false };
+}
+
+/** The refusal's line: which switch is on, or why the answer couldn't be read. Never a key or an address. */
+function trackingRefusal(tracking: Exclude<ResendTracking, { kind: "off" }>): string {
+  if (tracking.kind === "on") {
+    const which = [tracking.click ? "click" : null, tracking.open ? "open" : null]
+      .filter((name) => name !== null)
+      .join(" and ");
+    return `Resend tracking is on for the sending domain (${which}): no auth email may be tracked. Turn it off in Resend (Domains, the sending subdomain).`;
+  }
+  const why = {
+    domain_not_found: "the sending domain is not on this Resend account",
+    not_readable: "the key can't read domains (a sending-only key? the check needs one that can)",
+    no_answer: "Resend didn't answer",
+  }[tracking.why];
+  return `Couldn't confirm Resend tracking is off: ${why}.`;
 }

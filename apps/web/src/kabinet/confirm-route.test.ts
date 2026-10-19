@@ -6,7 +6,7 @@ import { inMemoryRateLimiter } from "../api/rate-limit";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import { CONFIRM_PATH, createKabinetAuth, type KabinetAuth } from "./auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "./auth-route";
-import { handleKabinetConfirm } from "./confirm-route";
+import { handleKabinetConfirm, STRIP_TOKEN_FROM_ADDRESS_BAR } from "./confirm-route";
 import { SIGN_IN_LINK } from "./email-links";
 import { capturingInvitationSender } from "./email-senders";
 import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
@@ -330,7 +330,11 @@ describe("the page itself", () => {
     const html = await shown.text();
     expect(shown.status).toBe(400);
     expect(html).not.toContain("<form");
-    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<script>x");
+    // The page's only script is its own: taking the token out of the address bar (2026-10-20).
+    expect([...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1])).toEqual([
+      STRIP_TOKEN_FROM_ADDRESS_BAR,
+    ]);
   });
 
   it("answers 404 to both methods while kabinet sign-in is unavailable, consuming nothing", async () => {
