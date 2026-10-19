@@ -20,6 +20,28 @@ describe("smokeTarget", () => {
     });
   });
 
+  /**
+   * Oleksii, 2026-10-19, verbatim: "that smokeTarget still accepts the standard child-branch host
+   * format (ep-…-pooler.c-N.<region>.aws.neon.tech), with a test pinning that exact format." The
+   * shape his step-37 smoke ran against, under #144's stricter host rule. Written out, not built
+   * with NEON(); an empty environment, so no PG* variable of the machine decides it.
+   */
+  it.each([
+    [
+      "postgresql://u:secret@ep-rehearsal-1-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+      "ep-rehearsal-1-pooler.c-2.eu-central-1.aws.neon.tech",
+    ],
+    [
+      "postgresql://u:secret@ep-rehearsal-1-pooler.c-12.us-east-2.aws.neon.tech/neondb?sslmode=require",
+      "ep-rehearsal-1-pooler.c-12.us-east-2.aws.neon.tech",
+    ],
+  ])(
+    "accepts the standard child-branch host format (ep-…-pooler.c-N.<region>.aws.neon.tech): %s",
+    (url, host) => {
+      expect(smokeTarget(url, "ep-rehearsal-1", "ep-prod-1", {})).toEqual({ kind: "ok", host });
+    },
+  );
+
   it.each([
     ["a different endpoint than expected", NEON("ep-other-1"), "ep-rehearsal-1", "ep-prod-1"],
     ["no --expect", NEON("ep-rehearsal-1"), undefined, "ep-prod-1"],
