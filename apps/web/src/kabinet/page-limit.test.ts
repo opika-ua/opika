@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
+import { SHELTER_WRITE_POLICY } from "./access";
 import { capturingInvitationSender } from "./email-senders";
 import { isChargedKabinetPageLoad, isKabinetPagePath, kabinetPageLoadAllowed } from "./page-limit";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
@@ -130,7 +131,7 @@ describe("a page load and an API call share one allowance", () => {
         operatorDisplayName: "Олексій",
         locationPolicy: null,
         production: false,
-        shelterWrites: { kind: "refused_until_edit_screens" },
+        shelterWrites: SHELTER_WRITE_POLICY,
       },
     );
     return response.status;

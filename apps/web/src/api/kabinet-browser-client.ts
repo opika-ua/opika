@@ -15,7 +15,7 @@ import { type UploadProgress, xhrFetch } from "./xhr-fetch";
  * Same origin, always: the URL is this page's own origin, so the browser
  * sends the site's Origin header and `/api/kabinet`'s Origin check (K-Q8)
  * passes, and the session cookie goes with it (`credentials: "same-origin"`
- * is fetch's default). The access decision, the write policy (K-Q17) and the
+ * is fetch's default). The access decision, the write policy and the
  * output stripping all stay on the server; nothing here trims anything.
  *
  * `url` is a function for the reason `browser-client.ts` explains: oRPC builds

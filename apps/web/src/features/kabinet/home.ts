@@ -2,7 +2,7 @@ import type { KabinetCursor, KabinetShelterView } from "@opika/contracts";
 import { cityRepo } from "@opika/db/repos";
 import { type CityId, DEFAULT_FRESHNESS_POLICY, type Freshness, freshnessOf } from "@opika/domain";
 import { createRouterClient, ORPCError, type RouterClient } from "@orpc/server";
-import { decideAccess, registryOperatorOf, type WriteGrant } from "../../kabinet/access";
+import { decideAccess, registryOperatorOf } from "../../kabinet/access";
 import type { KabinetPrincipal } from "../../kabinet/actor";
 import type { KabinetContext } from "../../kabinet/context";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../kabinet/photo-uploads";
@@ -48,21 +48,13 @@ export type PreviewAnimal = { name: string; freshness: Freshness };
  * Whether this viewer may change the profile (K4), decided by the same
  * `decideAccess` the router applies to every shelter write, with the same
  * policy: a page that offered an editor the API then refused would be
- * pretending. `read_only` for a support view and, until PR 6, for every
- * shelter outside the K-Q17 allowlist, which then sees exactly the page it
- * saw before K4.
+ * pretending. `read_only` for a support view; open for every shelter's own
+ * admins since PR 6.
  */
 export type ProfileEditing =
   | { kind: "read_only" }
   | {
       kind: "open";
-      /**
-       * Which policy opened writes. `allowlist` (K-Q17) is the only grant that
-       * mounts `test-shelter-only/`, whose copy may still be pending (CG-Q1);
-       * `open_policy` is any wider grant (today only the handler tests' one,
-       * from PR 6 the production one), where nothing pending may show.
-       */
-      grantedBy: WriteGrant;
       /** Null when the shelter has no animal at all (`voice.previewNoAnimals`). */
       previewAnimal: PreviewAnimal | null;
       /** The newest donation line is the operator declining the last proposal (answer 12). */
@@ -74,9 +66,9 @@ export type ProfileEditing =
  * `shelter.profile.get` reads neither today, but they are what the kabinet
  * RPC route would give the same procedure, so a later change that starts
  * reading them can't silently get a sender that claims a send it never made.
- * `shelterWrites` is `shelterWritePolicyOf(process.env)`, the served route's
- * own policy (K-Q17); `cursorSecret` and `operatorDisplayName` are the
- * route's too, since the history read pages and names the operator.
+ * `shelterWrites` is `SHELTER_WRITE_POLICY`, the served route's own policy;
+ * `cursorSecret` and `operatorDisplayName` are the route's too, since the
+ * history read pages and names the operator.
  */
 export type KabinetHomeDeps = Pick<
   KabinetContext,
@@ -186,7 +178,6 @@ export async function kabinetHomeOf(
     write.kind === "allow_shelter_write"
       ? {
           kind: "open",
-          grantedBy: write.grantedBy,
           previewAnimal: await previewAnimalOf(client, deps.now),
           donationDeclined: view.pendingDonation === null && (await donationDeclinedOf(client)),
         }

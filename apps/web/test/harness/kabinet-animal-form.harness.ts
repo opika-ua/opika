@@ -4,11 +4,10 @@
  * tests that query by role/label/text only"). Nothing is measured but one
  * data limit: the photo the device sends is at most 2000 px (K-Q2, P-T14).
  *
- * Writes open through the production-legal path, as in the K4 spec: this
- * server is started with `KABINET_WRITE_ALLOWLIST` naming the shelter signed
- * in here (K-Q17), read by the served route's own `shelterWritePolicyOf`.
- * Nothing in the app is patched. The second server is `sign-in-server.ts`'s,
- * for the reason given there.
+ * Writes go through the served route and its own write policy, as in the K4
+ * spec, which opens every shelter's writes to its own admins (PR 6). Nothing
+ * in the app is patched, and no environment variable opens anything. The second server is `sign-in-server.ts`'s, for
+ * the reason given there.
  *
  * **Photos.** The harness never reaches R2 (no upload variables, so uploads
  * are off on this server, P-Q10). So the upload flow runs for real up to the
@@ -65,7 +64,7 @@ function jpegSize(bytes: Buffer): { width: number; height: number } | null {
   return null;
 }
 
-test.describe("/kabinet/tvaryny K3 animal form (allowlisted shelter)", () => {
+test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
   test.describe.configure({ mode: "serial" });
 
   let server: SignInServer | undefined;
@@ -89,9 +88,7 @@ test.describe("/kabinet/tvaryny K3 animal form (allowlisted shelter)", () => {
     if (shelter === undefined)
       throw new Error("no verified seeded shelter without an organization");
 
-    server = await startSignInServer(HARNESS_DATABASE_URL, {
-      KABINET_WRITE_ALLOWLIST: shelter.id,
-    });
+    server = await startSignInServer(HARNESS_DATABASE_URL);
     const { origin } = server;
 
     const email = `harness-k3-${randomUUID()}@example.test`;

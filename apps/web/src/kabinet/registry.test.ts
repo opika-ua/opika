@@ -41,7 +41,7 @@ import { router as publicRouter } from "../api/router";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import { refusedForNameLength } from "../features/kabinet/operator/display-name";
 import { historyLineOf, historyLineText } from "../features/kabinet/operator/history-lines";
-import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
+import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import {
   BLOCKED_MAX_PAGES,
@@ -50,7 +50,11 @@ import {
   type BlockListSnapshot,
   cachedBlockList,
 } from "./email-provider";
-import { capturingInvitationSender, type InvitationSender } from "./email-senders";
+import {
+  capturingInvitationSender,
+  type InvitationMessage,
+  type InvitationSender,
+} from "./email-senders";
 import { handleKabinetRpc } from "./rpc-route";
 
 /**
@@ -76,7 +80,7 @@ const policy = testOnlyLocationPolicy("registry-test");
 let cityId: string;
 let otherCityId: string;
 /** What the invitation emails do in this test; reset to "sent" before each. */
-let invites: InvitationSender & { readonly sent: { email: string; url: string }[] };
+let invites: InvitationSender & { readonly sent: InvitationMessage[] };
 
 beforeEach(async () => {
   await truncateAll(db);
@@ -112,7 +116,6 @@ async function call<T = Record<string, unknown>>(
     now?: Date;
     cookie?: string;
     locationPolicy?: typeof policy | null;
-    shelterWrites?: ShelterWritePolicy;
   } = {},
 ): Promise<Result<T>> {
   const headers: Record<string, string> = { "content-type": "application/json" };
@@ -144,7 +147,7 @@ async function call<T = Record<string, unknown>>(
     operatorDisplayName: "Олексій",
     locationPolicy: opts.locationPolicy === undefined ? policy : opts.locationPolicy,
     production: false,
-    shelterWrites: opts.shelterWrites ?? SHELTER_WRITE_POLICY,
+    shelterWrites: SHELTER_WRITE_POLICY,
   });
   const text = await response.text();
   let body: unknown = null;
@@ -368,7 +371,6 @@ describe("registry.shelters.list / byId / history.list", () => {
       { name: "Мурчик", species: "cat" },
       {
         principal: { kind: "shelter_admin", shelterAdminId: admin as never, shelterId: s.id },
-        shelterWrites: { kind: "open_for_tests_only" },
       },
     );
     expect(created.status).toBe(200);
@@ -1229,13 +1231,8 @@ describe("registry.donation.approve / reject (N20)", () => {
       const other = "https://send.monobank.ua/jar/zzz";
       expect(
         // A K2-era proposal, so writes are opened for it (KH-Q1).
-        (
-          await call(
-            "shelter.profile.proposeDonation",
-            { url: other },
-            { principal: asAdmin, shelterWrites: { kind: "open_for_tests_only" } },
-          )
-        ).status,
+        (await call("shelter.profile.proposeDonation", { url: other }, { principal: asAdmin }))
+          .status,
       ).toBe(200);
       const stale = await call(`registry.donation.${decision}`, {
         shelterId: s.id,
@@ -1562,12 +1559,97 @@ describe("invitation emails: every write that makes an invitation live sends one
         email: "olena@example.org",
         shelterName: s.displayName,
         operatorName: "Олексій",
+        // The fixture shelter is verified (Q-C).
+        shelterVerification: "verified",
         url: expect.stringMatching(INVITE_URL),
         validForHours: 72,
       },
     ]);
     const id = INVITE_URL.exec(invites.sent[0]?.url ?? "")?.[1];
     expect(await pendingInvitationIds()).toEqual([id]);
+  });
+
+  /**
+   * Q-C (Oleksii, 2026-10-19): the invite's second sentence follows the shelter's verification
+   * status when it is sent; PC-T10 (his decision): verified and paused get the verified sentence,
+   * every other status the before-verification one.
+   */
+  const PAUSED: ShelterVerification = {
+    status: "paused",
+    verifiedAt: NOW,
+    verifiedBy: OPERATOR as ModeratorId,
+    pausedAt: NOW,
+    pausedBy: { kind: "moderator", moderatorId: OPERATOR as ModeratorId },
+    reason: { code: "seasonal_closure", note: null },
+    evidence,
+  };
+  const SUSPENDED: ShelterVerification = {
+    status: "suspended",
+    suspendedAt: NOW,
+    suspendedBy: OPERATOR as ModeratorId,
+    reason: { code: "complaint_upheld", note: null },
+    priorState: { status: "verified", verifiedAt: NOW, verifiedBy: OPERATOR as ModeratorId },
+    evidence,
+  };
+  const REJECTED: ShelterVerification = {
+    status: "rejected",
+    rejectedAt: NOW,
+    rejectedBy: OPERATOR as ModeratorId,
+    reason: { code: "spam", note: null },
+    evidence,
+  };
+  /** His decision (PC-T10), written out per status, never derived from the code under test. */
+  const BY_STATUS = [
+    ["verified", STATES.verified, "verified"],
+    ["paused", PAUSED, "verified"],
+    ["pending", STATES.pending, "not_yet_verified"],
+    ["under review", STATES.under_review, "not_yet_verified"],
+    ["suspended", SUSPENDED, "not_yet_verified"],
+    ["rejected", REJECTED, "not_yet_verified"],
+  ] as const;
+
+  it.each(BY_STATUS)(
+    "invite: a %s shelter's invite carries the sentence it should",
+    async (_label, verification, expected) => {
+      const s = await shelter({ verification });
+      const invited = await call("registry.admins.invite", {
+        shelterId: s.id,
+        name: "Олена",
+        email: "olena@example.org",
+      });
+      expect(invited.status).toBe(200);
+      expect(invites.sent.map((message) => message.shelterVerification)).toEqual([expected]);
+    },
+  );
+
+  it.each(BY_STATUS)(
+    "resend: a %s shelter's resent invite carries the sentence it should",
+    async (_label, verification, expected) => {
+      const s = await shelter({ verification });
+      const invited = await call<{ id: string }>("registry.admins.invite", {
+        shelterId: s.id,
+        name: "Олена",
+        email: "olena@example.org",
+      });
+      expect(invited.status).toBe(200);
+      const resent = await call("registry.admins.resendInvite", {
+        shelterId: s.id,
+        adminId: invited.body.id,
+      });
+      expect(resent.status).toBe(200);
+      expect(invites.sent.map((message) => message.shelterVerification)).toEqual([
+        expected,
+        expected,
+      ]);
+    },
+  );
+
+  it("create: the first invite, sent at create, is always the before-verification one", async () => {
+    const created = await call("registry.shelters.create", createInput());
+    expect(created.status).toBe(200);
+    expect(invites.sent.map((message) => message.shelterVerification)).toEqual([
+      "not_yet_verified",
+    ]);
   });
 
   it("invite: a blocked address is reported as blocked, with the reason, and the invitation still stands", async () => {

@@ -10,6 +10,7 @@ import {
 } from "@opika/db/test";
 import type { Animal, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { SHELTER_WRITE_POLICY } from "../kabinet/access";
 import type { KabinetPrincipal } from "../kabinet/actor";
 import { capturingInvitationSender } from "../kabinet/email-senders";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
@@ -117,10 +118,8 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
     operatorDisplayName: "Олексій",
     locationPolicy: null,
     production: false,
-    // The K2/K3 handlers, exercised with writes opened explicitly (KH-Q1): the
-    // served route refuses them (`SHELTER_WRITE_POLICY`), which
-    // shelter-writes-refused.test.ts pins.
-    shelterWrites: { kind: "open_for_tests_only" },
+    // The served policy: every shelter's own admins write (PR 6).
+    shelterWrites: SHELTER_WRITE_POLICY,
     // On, so an upload reaches the ownership check rather than stopping at
     // "uploads unavailable" (which would pass this suite for the wrong reason).
     photoUploads: {

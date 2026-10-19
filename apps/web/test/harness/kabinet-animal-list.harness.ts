@@ -4,11 +4,9 @@
  * Playwright flow tests that query by role/label/text only"). Nothing is
  * measured.
  *
- * Writes open through the production-legal path, as in the K3 and K4 specs:
- * the second server (`sign-in-server.ts`) is started with
- * `KABINET_WRITE_ALLOWLIST` naming the shelter signed in here (K-Q17), read
- * by the served route's own `shelterWritePolicyOf`. Nothing in the app is
- * patched.
+ * Writes go through the served route and its own write policy, as in the K3
+ * and K4 specs, which opens every shelter's writes to its own admins (PR 6).
+ * Nothing in the app is patched, and no environment variable opens anything. The second server is `sign-in-server.ts`'s.
  *
  * **The shelter** is the second-to-last verified seeded one nobody has signed
  * in to: never K3's (the last one, which its spec, running first, claims) nor
@@ -36,7 +34,7 @@ test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 const DAY = 86_400_000;
 
-test.describe("/kabinet/tvaryny K2 animal list (allowlisted shelter)", () => {
+test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
   test.describe.configure({ mode: "serial" });
 
   let server: SignInServer | undefined;
@@ -75,7 +73,12 @@ test.describe("/kabinet/tvaryny K2 animal list (allowlisted shelter)", () => {
         shelterId: shelter.id as ShelterId,
         name: STALE,
         photos,
-        listing: { kind: "published", publishedAt: longAgo, confirmedAt: longAgo, undoable: null },
+        listing: {
+          kind: "published",
+          publishedAt: longAgo,
+          confirmedAt: longAgo,
+          undoable: null,
+        },
       }),
       makeAnimal({
         shelterId: shelter.id as ShelterId,
@@ -99,9 +102,7 @@ test.describe("/kabinet/tvaryny K2 animal list (allowlisted shelter)", () => {
       await animalRepo(db).insert(animal, cityId);
     }
 
-    server = await startSignInServer(HARNESS_DATABASE_URL, {
-      KABINET_WRITE_ALLOWLIST: shelter.id,
-    });
+    server = await startSignInServer(HARNESS_DATABASE_URL);
     const { origin } = server;
 
     const email = `harness-k2-${randomUUID()}@example.test`;

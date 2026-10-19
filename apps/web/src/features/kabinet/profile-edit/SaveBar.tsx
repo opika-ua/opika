@@ -94,11 +94,6 @@ export function SaveBar({
           </Button>
         </div>
       ) : null}
-      {state.kind === "not_available" ? (
-        <p role="alert" className={ERROR_TEXT}>
-          {t.errors.notAvailable}
-        </p>
-      ) : null}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
+import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "./photo-uploads";
@@ -119,7 +120,7 @@ async function call(path: string, input: unknown) {
       operatorDisplayName: "Олексій",
       locationPolicy: null,
       production: false,
-      shelterWrites: { kind: "open_for_tests_only" },
+      shelterWrites: SHELTER_WRITE_POLICY,
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
     },
   );

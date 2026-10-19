@@ -19,8 +19,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 /**
  * K3 · one animal: the form, writable exactly when the served policy opens
- * this shelter's writes, read-only for a support view and for a shelter
- * outside the K-Q17 allowlist; `errors.notFound` for an id that isn't this
+ * this shelter's writes (for its own admins, since PR 6), read-only for a
+ * support view; `errors.notFound` for an id that isn't this
  * shelter's animal; a 404 for anyone without a shelter (a super_admin outside
  * support mode included).
  */

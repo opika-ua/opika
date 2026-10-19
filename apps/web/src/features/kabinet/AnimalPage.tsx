@@ -15,9 +15,10 @@ import { SupportBanner } from "./SupportBanner";
  *
  * **The back link** goes to K2's list with his `animalForm.backToList`
  * («← Тварини», PR 5), wherever the list is shown to this viewer (P1:
- * writes open, or the support view). A shelter outside the K-Q17 allowlist,
- * which reaches K3 read-only but has no list (it answers 404 for them), goes
- * back to its profile, named by the profile's own title, as before PR 5.
+ * writes open, or the support view). A viewer the list isn't shown to goes
+ * back to its profile, named by the profile's own title; since PR 6 opened
+ * every shelter's writes, no shelter admin is one, and the branch stays so
+ * the page, the nav and this link keep sharing one rule.
  */
 export const BACK_TO_LIST = { href: ANIMAL_LIST_PATH, label: uk.kabinet.animalForm.backToList };
 export const BACK_TO_PROFILE = { href: SHELTER_HOME, label: `← ${uk.kabinet.profile.title}` };

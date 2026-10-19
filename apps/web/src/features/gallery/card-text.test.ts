@@ -7,7 +7,7 @@ import { cardAccessibleName, cardMetaLine, housingCityLabel, isReserved } from "
 const FRESHNESS: Freshness = {
   kind: "fresh",
   ageDays: 3,
-  updatedAt: new Date("2026-08-03T00:00:00Z"),
+  confirmedAt: new Date("2026-08-03T00:00:00Z"),
 };
 
 function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {

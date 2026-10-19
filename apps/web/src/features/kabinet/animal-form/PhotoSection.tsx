@@ -80,8 +80,6 @@ const uploadFailure = (error: unknown): { message: string; retryable: boolean } 
       return { message: t.photoErrors.rateLimited, retryable: true };
     case "PHOTO_UPLOADS_UNAVAILABLE":
       return { message: t.photoErrors.uploadsUnavailable, retryable: false };
-    case "SHELTER_WRITES_NOT_YET_AVAILABLE":
-      return { message: uk.kabinet.profileEdit.errors.notAvailable, retryable: false };
     default:
       return { message: t.photos.failed, retryable: true };
   }
@@ -208,8 +206,6 @@ export function PhotoSection({
       } else if (code === "PHOTOS_REQUIRED_WHILE_VISIBLE") {
         setStatus(lastPhotoText);
         await reload();
-      } else if (code === "SHELTER_WRITES_NOT_YET_AVAILABLE") {
-        setStatus(uk.kabinet.profileEdit.errors.notAvailable);
       } else {
         // A reorder or removal that didn't go through left the card as it
         // was: K4's «Не збереглося — на картках нічого не змінилося…» says

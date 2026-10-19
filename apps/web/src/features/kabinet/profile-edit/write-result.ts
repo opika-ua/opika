@@ -6,9 +6,6 @@ import type { KabinetShelterView } from "@opika/contracts";
  *
  * - `conflict`: CONFLICT (409), someone saved first; the section offers the
  *   current version (`errors.conflict`).
- * - `not_available`: SHELTER_WRITES_NOT_YET_AVAILABLE (403), the policy
- *   refused (`errors.notAvailable`). The page only offers the editor when the
- *   same policy allows it, so this means it changed since the page loaded.
  * - `illegal_transition`: ILLEGAL_TRANSITION (409) on pause or resume.
  * - `no_answer`: no response at all (the connection dropped, a timeout). The
  *   server may have saved it anyway, so a form section reads the profile
@@ -19,7 +16,6 @@ import type { KabinetShelterView } from "@opika/contracts";
 export type WriteResult =
   | { kind: "ok"; view: KabinetShelterView }
   | { kind: "conflict" }
-  | { kind: "not_available" }
   | { kind: "illegal_transition" }
   | { kind: "no_answer" }
   | { kind: "failed" };
@@ -35,8 +31,6 @@ export function writeFailureOf(error: unknown): WriteFailure {
   switch (codeOf(error)) {
     case "CONFLICT":
       return { kind: "conflict" };
-    case "SHELTER_WRITES_NOT_YET_AVAILABLE":
-      return { kind: "not_available" };
     case "ILLEGAL_TRANSITION":
       return { kind: "illegal_transition" };
     case null:

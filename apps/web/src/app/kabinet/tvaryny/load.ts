@@ -11,7 +11,7 @@ import {
   kabinetAnimalPageOf,
 } from "../../../features/kabinet/animal-page";
 import type { KabinetHomeDeps } from "../../../features/kabinet/home";
-import { shelterWritePolicyOf } from "../../../kabinet/access";
+import { SHELTER_WRITE_POLICY } from "../../../kabinet/access";
 import { operatorDisplayName } from "../../../kabinet/operator";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
 import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "../available-auth";
@@ -21,7 +21,7 @@ import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "../availab
  * sign-in is unavailable, before touching auth or the database (the layout's
  * 404 can't stop a page, `available-auth.ts`), then resolves who is asking
  * and hands the decision to the page's own function, with the served route's
- * write policy (K-Q17), as `/kabinet` does.
+ * write policy, as `/kabinet` does.
  */
 async function requestOf(): Promise<{
   principal: Awaited<ReturnType<typeof kabinetIdentityOf>>["principal"];
@@ -46,7 +46,7 @@ async function requestOf(): Promise<{
       newId: () => crypto.randomUUID(),
       invites,
       linkBaseURL: baseURL,
-      shelterWrites: shelterWritePolicyOf(process.env),
+      shelterWrites: SHELTER_WRITE_POLICY,
       cursorSecret: requireEnv("CURSOR_HMAC_SECRET"),
       operatorDisplayName: operatorDisplayName({
         KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,

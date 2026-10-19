@@ -24,7 +24,7 @@ describe("AnimalPage", () => {
           kind: "missing",
           shelter,
           viewer: "admin",
-          editing: { kind: "open", grantedBy: "allowlist" },
+          editing: { kind: "open" },
         }}
       />,
     );

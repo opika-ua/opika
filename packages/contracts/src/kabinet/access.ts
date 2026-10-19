@@ -7,8 +7,7 @@ import { oc } from "@orpc/contract";
  *
  * - `shelter` — the shelter's own cabinet; `shelterId` comes from the actor.
  *   Reads: shelter_admin (own) and support_view (its target). Writes:
- *   shelter_admin only, and refused to them too until K2/K3 ship
- *   (`SHELTER_WRITES_NOT_YET_AVAILABLE`, inbox KH-Q1).
+ *   shelter_admin only, its own shelter (open since PR 6 of the K milestone).
  * - `registry` — the operator's; super_admin only, `shelterId` explicit.
  * - `support_exit` — the one write a support_view may make.
  */

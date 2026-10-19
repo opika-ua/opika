@@ -8,7 +8,6 @@ import {
   type KabinetAnimalClient,
   kabinetAnimalBrowserClient,
 } from "../../../api/kabinet-browser-client";
-import type { WriteGrant } from "../../../kabinet/access";
 import { Button, buttonClass } from "../../controls/controls";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { CAPTION, ERROR_TEXT } from "../profile-edit/styles";
@@ -56,13 +55,13 @@ import { PhotoSection } from "./PhotoSection";
  *
  * Writes are offered exactly when the API would accept them: `editing` is
  * the page's own `decideAccess` answer with the served policy. A support view
- * and every shelter outside the K-Q17 allowlist get the same page read-only.
+ * gets the same page read-only.
  */
 
 const t = uk.kabinet.animalForm;
 const AUTOSAVE_AFTER_MS = 10_000;
 
-export type AnimalFormEditing = { kind: "open"; grantedBy: WriteGrant } | { kind: "read_only" };
+export type AnimalFormEditing = { kind: "open" } | { kind: "read_only" };
 
 type SaveState =
   | { kind: "idle" }
@@ -70,7 +69,6 @@ type SaveState =
   | { kind: "saved"; at: Date }
   | { kind: "failed" }
   | { kind: "conflict" }
-  | { kind: "not_available" }
   | { kind: "registry_confirmed" };
 
 /** How a save ended, with the animal as the server last returned it (null before `/nova`'s first save). */
@@ -210,9 +208,6 @@ export function AnimalForm({
         case "CONFLICT":
           setSave({ kind: "conflict" });
           break;
-        case "SHELTER_WRITES_NOT_YET_AVAILABLE":
-          setSave({ kind: "not_available" });
-          break;
         case "REGISTRY_CONFIRMED":
           setSave({ kind: "registry_confirmed" });
           break;
@@ -254,8 +249,7 @@ export function AnimalForm({
     }
   }, [runSave]);
 
-  const autosaving =
-    editable && isDraft && creatable && save.kind !== "conflict" && save.kind !== "not_available";
+  const autosaving = editable && isDraft && creatable && save.kind !== "conflict";
 
   // A draft: 10 s after the last change (T6). Each change restarts the wait:
   // `values` is a dependency for that alone (a new object on every change),
@@ -331,9 +325,6 @@ export function AnimalForm({
         }
         case "ILLEGAL_TRANSITION":
           setAnnouncement(t.publish.stateChanged);
-          break;
-        case "SHELTER_WRITES_NOT_YET_AVAILABLE":
-          setAnnouncement(uk.kabinet.profileEdit.errors.notAvailable);
           break;
         default:
           // The save before it went through (a failed save returns above),
@@ -503,12 +494,6 @@ function SaveProblems({
             {e.errors.conflictReload}
           </Button>
         </div>
-      );
-    case "not_available":
-      return (
-        <p role="alert" className={ERROR_TEXT}>
-          {e.errors.notAvailable}
-        </p>
       );
     case "registry_confirmed":
       return (

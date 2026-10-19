@@ -3,7 +3,7 @@ import { makeAnimal, makeCity, makeShelter, setupTestDatabase, truncateAll } fro
 import type { CityId, ModeratorId, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { kabinetHomeOf, leavesSignIn } from "../features/kabinet/home";
-import { SHELTER_WRITE_POLICY, type ShelterWritePolicy, shelterWritePolicyOf } from "./access";
+import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 
@@ -78,12 +78,6 @@ describe("kabinetHomeOf", () => {
   it("sends the operator, a super_admin outside support mode, to their own screens", async () => {
     const operator: KabinetPrincipal = { kind: "super_admin", moderatorId: OPERATOR };
     expect(await kabinetHomeOf(operator, deps())).toEqual({ kind: "operator" });
-    expect(
-      await kabinetHomeOf(
-        operator,
-        deps(shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: mine.id })),
-      ),
-    ).toEqual({ kind: "operator" });
   });
 
   it("keeps a support view on the shelter it entered, not the operator's list", async () => {
@@ -170,37 +164,31 @@ describe("kabinetHomeOf", () => {
 
 /**
  * K4: whether the page offers the editor, decided with the router's own
- * `decideAccess` and the served policy (K-Q17), and what the editor needs:
- * an animal for the preview (N11) and whether the last proposal was declined
+ * `decideAccess` and the policy it is given, and what the editor needs: an
+ * animal for the preview (N11) and whether the last proposal was declined
  * (answer 12).
  */
 describe("kabinetHomeOf: K4 editing", () => {
-  const allowlistMine = () => shelterWritePolicyOf({ KABINET_WRITE_ALLOWLIST: mine.id });
-
-  it("read-only for a shelter admin while writes are refused (the served default)", async () => {
-    const home = await kabinetHomeOf(adminOf(mine), deps());
-    expect(home).toMatchObject({ kind: "shelter", editing: { kind: "read_only" } });
-  });
-
-  it("open for the allowlisted shelter's admin, read-only for every other shelter", async () => {
-    expect(await kabinetHomeOf(adminOf(mine), deps(allowlistMine()))).toMatchObject({
+  it("open for each shelter's own admin under the served policy, every shelter alike", async () => {
+    expect(await kabinetHomeOf(adminOf(mine), deps())).toMatchObject({
       editing: { kind: "open" },
     });
-    expect(await kabinetHomeOf(adminOf(theirs), deps(allowlistMine()))).toMatchObject({
-      editing: { kind: "read_only" },
-    });
+    const home = await kabinetHomeOf(adminOf(theirs), deps());
+    expect(home).toMatchObject({ editing: { kind: "open" } });
+    if (home.kind !== "shelter") throw new Error("not a shelter page");
+    expect(home.view.id).toBe(theirs.id);
   });
 
-  it("read-only for a support view, even of the allowlisted shelter", async () => {
+  it("read-only for a support view, even with writes open", async () => {
     const home = await kabinetHomeOf(
       { kind: "support_view", moderatorId: OPERATOR, shelterId: mine.id },
-      deps(allowlistMine()),
+      deps(),
     );
     expect(home).toMatchObject({ viewer: "support", editing: { kind: "read_only" } });
   });
 
   it("no animal: no preview animal", async () => {
-    const home = await kabinetHomeOf(adminOf(mine), deps(allowlistMine()));
+    const home = await kabinetHomeOf(adminOf(mine), deps());
     expect(home).toMatchObject({ editing: { kind: "open", previewAnimal: null } });
   });
 
@@ -218,7 +206,7 @@ describe("kabinetHomeOf: K4 editing", () => {
       }),
       cityId,
     );
-    const home = await kabinetHomeOf(adminOf(mine), deps(allowlistMine()));
+    const home = await kabinetHomeOf(adminOf(mine), deps());
     if (home.kind !== "shelter" || home.editing.kind !== "open") throw new Error("not open");
     expect(home.editing.previewAnimal?.name).toBe("Ластівка");
     expect(home.editing.previewAnimal?.freshness).toMatchObject({ ageDays: 12, kind: "aging" });
@@ -229,7 +217,7 @@ describe("kabinetHomeOf: K4 editing", () => {
       makeAnimal({ shelterId: mine.id, name: "Чернетка", listing: { kind: "draft" } }),
       cityId,
     );
-    const home = await kabinetHomeOf(adminOf(mine), deps(allowlistMine()));
+    const home = await kabinetHomeOf(adminOf(mine), deps());
     if (home.kind !== "shelter" || home.editing.kind !== "open") throw new Error("not open");
     expect(home.editing.previewAnimal).toMatchObject({
       name: "Чернетка",
@@ -258,7 +246,7 @@ describe("kabinetHomeOf: K4 editing", () => {
       previousLive: null,
     });
     const declinedOf = async () => {
-      const home = await kabinetHomeOf(adminOf(mine), deps(allowlistMine()));
+      const home = await kabinetHomeOf(adminOf(mine), deps());
       if (home.kind !== "shelter" || home.editing.kind !== "open") throw new Error("not open");
       return home.editing.donationDeclined;
     };

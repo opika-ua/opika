@@ -16,8 +16,7 @@ type Notice =
   | { kind: "paused" }
   | { kind: "resumed" }
   | { kind: "illegal_resume" }
-  | { kind: "failed" }
-  | { kind: "not_available" };
+  | { kind: "failed" };
 
 /**
  * N21: the shelter pauses or resumes taking animals itself (the domain's
@@ -58,9 +57,7 @@ export function PauseControl({
         ? { kind: "resumed" }
         : result.kind === "illegal_transition"
           ? { kind: "illegal_resume" }
-          : result.kind === "not_available"
-            ? { kind: "not_available" }
-            : { kind: "failed" },
+          : { kind: "failed" },
     );
   };
 
@@ -101,11 +98,6 @@ export function PauseControl({
           {uk.kabinet.profileEdit.state.failed}
         </p>
       ) : null}
-      {notice.kind === "not_available" ? (
-        <p role="alert" className={ERROR_TEXT}>
-          {errors.notAvailable}
-        </p>
-      ) : null}
       {dialogOpen ? (
         <PauseDialog
           pause={pause}
@@ -123,12 +115,7 @@ export function PauseControl({
   );
 }
 
-type DialogError =
-  | { kind: "none" }
-  | { kind: "reason" }
-  | { kind: "illegal" }
-  | { kind: "failed" }
-  | { kind: "not_available" };
+type DialogError = { kind: "none" } | { kind: "reason" } | { kind: "illegal" } | { kind: "failed" };
 
 /**
  * N15's reason-dialog template: modal over the page, the five pause codes as
@@ -182,13 +169,7 @@ function PauseDialog({
       onPaused();
       return;
     }
-    setError(
-      result.kind === "illegal_transition"
-        ? { kind: "illegal" }
-        : result.kind === "not_available"
-          ? { kind: "not_available" }
-          : { kind: "failed" },
-    );
+    setError(result.kind === "illegal_transition" ? { kind: "illegal" } : { kind: "failed" });
   };
 
   return (
@@ -236,11 +217,6 @@ function PauseDialog({
       {error.kind === "failed" ? (
         <p role="alert" className={ERROR_TEXT}>
           {uk.kabinet.profileEdit.state.failed}
-        </p>
-      ) : null}
-      {error.kind === "not_available" ? (
-        <p role="alert" className={ERROR_TEXT}>
-          {uk.kabinet.profileEdit.errors.notAvailable}
         </p>
       ) : null}
       <div className="flex flex-col-reverse gap-2 tablet:flex-row tablet:justify-end">

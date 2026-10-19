@@ -29,8 +29,8 @@ const mockShelterNoSentence: ShelterSummaryView = {
 
 function mockFreshness(kind: FreshnessKind, ageDays: number): Freshness {
   const now = new Date();
-  const updatedAt = new Date(now.getTime() - ageDays * 86_400_000);
-  return { kind, updatedAt, ageDays };
+  const confirmedAt = new Date(now.getTime() - ageDays * 86_400_000);
+  return { kind, confirmedAt, ageDays };
 }
 
 const names = [
