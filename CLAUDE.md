@@ -575,7 +575,8 @@ sweep. For each iteration:
      waiting for Oleksii, not before reviewing.)
 5. When a phase's rows are all committed and every pending review file has been read, open the
    PR with the verified-vs-asserted ledger in the body, and tell Oleksii it is ready. Do not
-   merge.
+   merge. (*Narrowed 2026-10-19:* a green PR whose exact head was reviewed may be merged; see
+   "Merge only the commit that was reviewed" under Agent rules.)
 
 Never spawn a review on work you have not finished, and never continue past a STOP by
 reinterpreting it as a note.
@@ -676,7 +677,10 @@ What that changes, concretely:
   `open-writes-copy-gate.test.ts`) and at run time (any pending string keeps production sign-in off).
 - **At most two open feature PRs,** touching different areas. Docs-only PRs don't count.
 - **Unchanged:** production guards, `--expect`, no secrets in chat, no R2 deletes, real-Neon
-  for SQL, copy truth on public surfaces, and he merges everything.
+  for SQL, copy truth on public surfaces, and he merges everything. (*Narrowed 2026-10-19:* he
+  allows merging a green PR whose exact head was reviewed, with two exceptions that wait for him;
+  see "Merge only the commit that was reviewed" under Agent rules. His WM-B1 words above stay as
+  he wrote them.)
 
 ## Decisions stop blocking
 
@@ -714,20 +718,29 @@ copies for new decisions.
   clocks, an injected delay, a `MutationObserver` hook, a forced scheduling order. Oleksii,
   2026-10-19, verbatim: "the no-artificial-load rule is right, keep it permanent (write it into
   CLAUDE.md's agent rules)."
-- **Merge only the commit that was reviewed.** Oleksii, 2026-10-19, verbatim: "enable
-  auto-merge only after the final push. The merge has to apply to the exact commit that was
-  reviewed: if new commits arrive, the review is stale and auto-merge turns off until the delta is
-  reviewed." In practice:
-  - a merge watcher takes the reviewed head SHA and merges with `gh pr merge --squash
-    --match-head-commit <sha>`, so GitHub refuses if the head moved;
-  - it never runs `update-branch` itself, which would create an unreviewed head;
-  - a rebase onto the default branch that leaves every commit patch-identical
-    (`git range-diff`: all `=`) moves only the base and doesn't stale the review;
-  - any other new commit (a fix, the owner's own copy, a merge commit carrying conflict
-    resolution) needs its delta reviewed before merge.
-  - Two kinds of PR always wait for him: one with a migration (he migrates production from the
-    PR branch first), and a Tier 1 PR until its full review has passed. Every PR states
-    `Migration: none | additive | destructive`.
+- **Merge only the commit that was reviewed.** The permission, Oleksii, 2026-10-19, verbatim:
+  "Auto-merge is allowed, including #137, #136 and #139, once each is green and has had its one
+  review. Two exceptions wait for me: A PR with a migration. I run the production migration from
+  the PR branch first, then merge. If it merges before that, production deploys code against the
+  old schema. A Tier 1 PR (auth/access, deletion, prod writes, secrets, R2, public claims) until
+  its full review has passed. Once it has, auto-merge is fine. Every PR states its migration kind
+  (“none” / “additive” / “destructive”) so it’s clear which ones wait." Its limit, verbatim, the
+  same day: "enable auto-merge only after the final push. The merge has to apply to the exact
+  commit that was reviewed: if new commits arrive, the review is stale and auto-merge turns off
+  until the delta is reviewed."
+
+  How it's applied:
+  - A merge watcher takes the reviewed head SHA and merges with `gh pr merge --squash
+    --match-head-commit <sha>`, so GitHub refuses if the head moved.
+  - It never runs `update-branch` itself, which would create an unreviewed head.
+  - Any new head is new commits, a clean rebase included, so its delta is reviewed before the
+    merge. For a rebase, that review checks that `git range-diff` shows every commit as `=` and
+    reads the default branch's new commits for interaction with the PR. The ruleset requires a
+    PR to be up to date before it merges, so a PR that waits while the default branch moves gets
+    this short review.
+  - The two exceptions in his words above: a PR with a migration waits for his production
+    migration from the PR branch; a Tier 1 PR waits until its full review has passed, then
+    merges like any other.
 - **Full `pnpm check` runs are serialised:** at most two at once on the machine. In this session's
   scratchpad that's `check-slot.sh`; any equivalent lock will do. Targeted suites are free.
 
