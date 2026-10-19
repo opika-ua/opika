@@ -1083,7 +1083,20 @@ someone says yes to an outreach email, independent of whatever else is or isn't 
   addition (before the first real shelter): review DMARC aggregate reports at dmarc@, then raise
   _dmarc.opika.org.ua from p=none to p=quarantine (later p=reject). My step in Cloudflare DNS;
   note the current record and the change in the runbook."). The runbook section is "DMARC:
-  raising the policy".
+  raising the policy". **Both records, together** (his EA-Q1, option (b)): `_dmarc.opika.org.ua`
+  and `_dmarc.mail.opika.org.ua` to `p=quarantine`, then later `p=reject`, the same `rua`. In
+  order: remove the Brevo DNS records, raise both, delivery-test a sign-in email and an invite,
+  then check the next reports before `p=reject`.
+- [ ] **Google Postmaster Tools for `mail.opika.org.ua`** (Oleksii, 2026-10-19, verbatim: "Launch
+  gate: add Google Postmaster Tools for mail.opika.org.ua. I add the verification TXT."). His step:
+  add the domain in Postmaster Tools, and its verification TXT in Cloudflare DNS. The reason: the
+  delivery test of 2026-10-19 put the sign-in email in Gmail's Promotions tab although it
+  authenticated (SPF, aligned DKIM, DMARC pass, TLS 1.3). No email headers change, and no
+  List-Unsubscribe on auth emails (his words: "No headers or other email changes. Don't add
+  List-Unsubscribe to auth emails.").
+- **Follow-up, decided after the first real sends, not now:** consider `kabinet@` instead of
+  `noreply@` as the From address (his words: "consider kabinet@ instead of noreply@ as the From
+  address", "to be decided after the first real sends, not now").
 
 **Location fuzzing.** `packages/db/src/seed.ts` computes every seeded `publicLocation` with
 `testOnlyLocationPolicy("seed")` — deterministic, unkeyed, and reversible by anyone reading

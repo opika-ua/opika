@@ -580,13 +580,14 @@ All kabinet email goes through Resend (EM-B10). While Resend is the provider, th
 blocked-addresses view answers "not checked" (EM-T26; a scan of Resend's suppression list is
 follow-up EM-F1), so it can't tell you whether an address is blocked. Check, in this order:
 
-1. **A TLS bounce first.** Since 2026-10-19 Resend sends with TLS **Enforced**: a receiving
-   server that can't take TLS gets a bounce, never a plaintext copy, because auth emails carry
-   bearer links. In Resend → **Logs**, filter on the address and look for a bounce whose reason
-   is TLS. If it is one, the shelter's mail host is refusing TLS: ask them for another address.
-   Don't turn TLS back to Opportunistic. Oleksii, 2026-10-19, verbatim: "I switched Resend TLS from Opportunistic to Enforced (auth emails carry bearer links). Record it in the stack notes; runbook "email didn't arrive" checklist: check Resend logs for a TLS bounce first."
-2. **Logs:** was the invite sent, delivered, or bounced for another reason?
-3. **Suppressions:** is the address on the suppression list, and why? Only then resend the invite
+1. **Logs, a TLS bounce first.** Since 2026-10-19 Resend sends with TLS **Enforced**: a
+   receiving server that can't take TLS gets a bounce, never a plaintext copy, because auth emails
+   carry bearer links. In Resend → **Logs**, filter on the address. Look first for a bounce whose
+   reason is TLS: if it is one, the shelter's mail host is refusing TLS, so ask them for another
+   address. (The builder's recommendation, not his rule: keep TLS Enforced rather than switching
+   back to Opportunistic for one host.) Then check whether the invite was sent, delivered, or
+   bounced for another reason. Oleksii, 2026-10-19, verbatim: "I switched Resend TLS from Opportunistic to Enforced (auth emails carry bearer links). Record it in the stack notes; runbook "email didn't arrive" checklist: check Resend logs for a TLS bounce first."
+2. **Suppressions:** is the address on the suppression list, and why? Only then resend the invite
 from the registry, and tell the shelter personally (IN-E13). Oleksii's condition on EM-T26,
 2026-10-15.
 
@@ -599,16 +600,32 @@ from p=none to p=quarantine (later p=reject). My step in Cloudflare DNS; note th
 and the change in the runbook." (The earlier plan, IN-E3, went straight to `p=reject`. This one
 goes through `p=quarantine` first.)
 
-- **The current record** (`_dmarc.opika.org.ua`, TXT): the policy is `p=none`, with aggregate
-  reports to `dmarc@`. Paste the exact TXT value here when you change it, so the history is in the
-  runbook rather than only in DNS.
-- **Before changing anything:** the reports must show nothing legitimate failing. Every sender
-  as `opika.org.ua` passes SPF or DKIM in alignment: Resend for `mail.opika.org.ua`, and anything
-  that sends as `hello@`.
-- **The change:** set `p=quarantine` (keep the same `rua`), then watch the reports. Later,
-  `p=reject`.
-- **After each change:** send a delivery test (`email:delivery-test`) and confirm the invite and
-  sign-in emails still arrive in the inbox.
+- **The current records** (public DNS, read 2026-10-19). There are two, and they cover
+  different senders:
+  - `_dmarc.opika.org.ua` (the apex: anything that sends as `@opika.org.ua`, e.g. `hello@`):
+    `v=DMARC1; p=none; rua=mailto:dmarc@opika.org.ua`
+  - `_dmarc.mail.opika.org.ua` (the sending subdomain, the auth emails' From address, Resend):
+    `v=DMARC1; p=none; rua=mailto:dmarc@opika.org.ua`
+
+  **The subdomain's own record decides the auth emails' policy, not the apex's**, so the step
+  raises both together. Oleksii, 2026-10-19, verbatim (EA-Q1): "option (b). The launch-gate step
+  raises both _dmarc.opika.org.ua and _dmarc.mail.opika.org.ua together. They go to p=quarantine
+  first, then later to p=reject, and keep the same rua."
+- **Before changing anything:** the reports at `dmarc@` show nothing legitimate failing:
+  everything sending as `@opika.org.ua` (e.g. `hello@`), and Resend for `mail.opika.org.ua`.
+- **The step, in this order** (his order, verbatim in substance: "Write the order into the step"):
+  1. **Remove the Brevo DNS records** (the `brevo2` DKIM, and any Brevo SPF include or
+     verification TXT, e.g. `brevo1._domainkey.mail`, `brevo2._domainkey.mail` and the `mail`
+     TXT `brevo-code`), before raising or in the same step.
+  2. **Raise both records** to `p=quarantine`, keeping the same
+     `rua=mailto:dmarc@opika.org.ua`:
+     - `_dmarc.opika.org.ua`: `v=DMARC1; p=quarantine; rua=mailto:dmarc@opika.org.ua`
+     - `_dmarc.mail.opika.org.ua`: `v=DMARC1; p=quarantine; rua=mailto:dmarc@opika.org.ua`
+  3. **Run a delivery test** of a sign-in email and an invite (`email:delivery-test`) and confirm
+     both arrive in the inbox.
+  4. **Check the next DMARC reports** for anything failing **before** going to `p=reject` (both
+     records, the same `rua`).
+- **All DNS changes are his** ("I make all DNS changes myself").
 
 ## Debugging sign-in: share a name and an email, never the response
 
