@@ -11,7 +11,7 @@ import {
 import { Button, buttonClass } from "../../controls/controls";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { CAPTION, ERROR_TEXT } from "../profile-edit/styles";
-import { confirmLeave, useUnsavedChanges } from "../profile-edit/unsaved-changes";
+import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../profile-edit/unsaved-changes";
 import { AgeSection, DescriptionSection, HealthSection, WhoSection } from "./FormSections";
 import {
   type AnimalPatch,
@@ -21,6 +21,7 @@ import {
   type FormValues,
   patchOf,
   problemsOf,
+  valuesEqual,
   valuesOf,
 } from "./form-values";
 import {
@@ -130,6 +131,12 @@ export function AnimalForm({
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
   const inFlight = useRef<Promise<SaveOutcome> | null>(null);
+  // How many `saveNow` calls are pending or queued right now: incremented
+  // the instant a call is made, decremented only once that call's own
+  // turn is fully done. See the inbox (UW-T2) for why this is needed
+  // alongside `dirty`, not redundant with it.
+  const pendingSaveCount = useRef(0);
+  const [savePending, setSavePending] = useState(false);
   // The latest server view and fields, for a save that was queued behind
   // another: it must send the version the first one left, not the one its
   // render saw, or it would conflict with its own form's save.
@@ -137,6 +144,10 @@ export function AnimalForm({
   viewRef.current = view;
   const valuesRef = useRef(values);
   valuesRef.current = values;
+  // `/nova`'s own starting point, captured once, to tell "nothing typed
+  // yet" from "something typed" before a name and a species exist to diff
+  // against (UW-T5).
+  const initialValuesRef = useRef(values);
 
   const now = clock();
   const listingKind = view?.listing.kind ?? "new";
@@ -145,31 +156,16 @@ export function AnimalForm({
   const shownProblems = attempted ? problems : problems.filter((p) => touched.has(p.field));
   const patch: AnimalPatch | null = view === null ? null : patchOf(view, values);
   const creatable = values.name.trim() !== "" && values.species !== null;
-  const dirty = view === null ? creatable : patch !== null;
+  const dirty = view === null ? !valuesEqual(values, initialValuesRef.current) : patch !== null;
   const gaps = gapsOf(values, view?.photos.length ?? 0);
 
-  // One rule for a draft and a listed card alike (Oleksii, 2026-10-19,
-  // verbatim): "warn while there are unsaved edits or a save pending or
-  // queued ... don't warn when everything is saved." `dirty` diffs the
-  // current field values against the last-known server state on every
-  // render, which covers all three of his cases in this form's save
-  // queue: a value typed but never blurred or saved (nothing sent yet);
-  // a save in flight (`view` only updates once the request resolves, so
-  // the diff stays nonzero for the entire pending window); and a save
-  // still queued behind another (same reasoning — queued means not yet
-  // resolved either). On a FAILED save `dirty` stays true on its own, for
-  // the same reason: the view the patch was computed against never
-  // changed, so no separate "undo on failure" branch is needed. (Decision
-  // taken: an earlier revision also tracked a `pendingSaveCount` ref as a
-  // belt-and-suspenders second signal; dropped because no reachable save
-  // path in this component ever has a save pending while `dirty` is
-  // false, which made it untestable dead weight — removing it changed no
-  // test's outcome. If a future save path ever updates `view` before its
-  // request settles, that would reopen the gap and need its own term
-  // here.) The same `useUnsavedChanges` section already used by the
-  // profile editor's own fields (`unsaved-changes.ts`) is the one shared
-  // helper; there is no second copy of this logic.
-  useUnsavedChanges("animal-form", editable && dirty);
+  // Oleksii, 2026-10-19 (UW-B2) and the review that followed it: warn while
+  // there's unsaved work — dirty, a save pending or queued, or (his
+  // recommendation) a publish request in flight — never otherwise, for a
+  // draft and a listed card alike. Rationale and what was decided:
+  // docs/decisions-inbox/feat-draft-save-unload-warning.md (UW-T2, UW-T6).
+  const hasUnsavedWork = dirty || savePending || publishing;
+  useUnsavedChanges("animal-form", editable && hasUnsavedWork);
 
   const set = useCallback((change: Partial<FormValues>) => {
     setValues((current) => ({ ...current, ...change }));
@@ -260,13 +256,20 @@ export function AnimalForm({
 
   /** One save at a time: a second request waits for the first, then saves what is left. */
   const saveNow = useCallback(async (): Promise<SaveOutcome> => {
-    while (inFlight.current !== null) await inFlight.current;
-    const promise = runSave();
-    inFlight.current = promise;
+    pendingSaveCount.current += 1;
+    setSavePending(true);
     try {
-      return await promise;
+      while (inFlight.current !== null) await inFlight.current;
+      const promise = runSave();
+      inFlight.current = promise;
+      try {
+        return await promise;
+      } finally {
+        inFlight.current = null;
+      }
     } finally {
-      inFlight.current = null;
+      pendingSaveCount.current -= 1;
+      if (pendingSaveCount.current === 0) setSavePending(false);
     }
   }, [runSave]);
 
@@ -364,6 +367,19 @@ export function AnimalForm({
     if (isDraft && dirty && creatable) {
       event.preventDefault();
       await saveNow();
+      // `location.assign` below fires `beforeunload` synchronously, before
+      // React re-renders and runs the effect that would otherwise remove
+      // the listener — so this intentional navigation is only ever waved
+      // through once nothing is left unsaved (recomputed fresh from the
+      // refs, not from the save's own outcome: more typing during the
+      // await, or another save still pending, must still warn) (UW-T4).
+      const currentView = viewRef.current;
+      const currentValues = valuesRef.current;
+      const stillDirty =
+        currentView === null
+          ? !valuesEqual(currentValues, initialValuesRef.current)
+          : patchOf(currentView, currentValues) !== null;
+      if (!stillDirty && pendingSaveCount.current === 0) clearUnsavedNow("animal-form");
       window.location.assign(back.href);
       return;
     }

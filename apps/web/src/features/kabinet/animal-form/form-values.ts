@@ -96,6 +96,11 @@ export const valuesOf = (view: KabinetAnimalView, today: CalendarDate): FormValu
   spayNeuter: view.spayNeuter.state,
 });
 
+/** Field by field, so a `/nova` form with nothing typed can be told from one with something in it, even before a name and a species exist to diff against. */
+export function valuesEqual(a: FormValues, b: FormValues): boolean {
+  return (Object.keys(a) as (keyof FormValues)[]).every((key) => a[key] === b[key]);
+}
+
 /** The age the fields give, or null while the chosen mode isn't filled in. */
 export const ageInputOf = (values: FormValues): AgeEstimateInput | null => {
   if (values.ageMode === "birth_date") {
