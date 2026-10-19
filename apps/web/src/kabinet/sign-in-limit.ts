@@ -1,5 +1,5 @@
 import type { RateLimiter } from "../api/rate-limit";
-import { ipRateLimitKey } from "../api/rate-limit-key";
+import { addressRateLimitKey, ipRateLimitKey } from "../api/rate-limit-key";
 
 /**
  * HS-Q5 (Oleksii): per address 5 links an hour, per IP 20 sign-in requests an
@@ -12,8 +12,10 @@ export const SIGN_IN_LIMITS = {
 } as const;
 
 /**
- * Trimmed and lowercased before it keys anything (HS-Q5), so " Olena@X.ua"
- * and "olena@x.ua" share one budget rather than each getting five.
+ * Trimmed and lowercased (HS-Q5), so " Olena@X.ua" and "olena@x.ua" are one
+ * address: the address Better Auth is given, and, inside `addressRateLimitKey`
+ * (the same rule), the one a budget is keyed on, so they share one budget
+ * rather than each getting five.
  */
 export const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
@@ -33,7 +35,7 @@ export async function signInAllowed(
   now: Date,
 ): Promise<boolean> {
   const [address, ip] = await Promise.all([
-    limiters.perAddress.check(`address:${normalizeEmail(request.email)}`, now),
+    limiters.perAddress.check(addressRateLimitKey(request.email), now),
     limiters.perIp.check(ipRateLimitKey(request.ip), now),
   ]);
   return address && ip;

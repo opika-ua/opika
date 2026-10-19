@@ -17,7 +17,7 @@ import {
   submitInviteLanding,
 } from "./invite-landing";
 import { capturingSender } from "./magic-link-sender";
-import { SIGN_IN_LIMITS } from "./sign-in-limit";
+import { SIGN_IN_LIMITS, signInAllowed } from "./sign-in-limit";
 
 /**
  * IN-T10: the invite landing (`/kabinet/vkhid?zaproshennia=<id>`). Real
@@ -223,11 +223,18 @@ describe("rate limits: the existing sign-in budgets (IN-Q11, HS-Q5)", () => {
     expect(sender.sent).toHaveLength(5);
   });
 
-  it("charges the same `address:` key K1's form charges, so the two share one budget", async () => {
+  it("charges the same per-address key K1's form charges, so the two share one budget", async () => {
     const { invitationId } = await invitation("Olena@Example.org");
     const shared = limiters(1);
-    // K1's form spends the address's one link (signInAllowed's key format).
-    expect(await shared.perAddress.check("address:olena@example.org", new Date())).toBe(true);
+    // K1's form spends the address's one link, through signInAllowed itself (its key is an
+    // HMAC of the address since §9 answer 7, so it is never spelled out here).
+    expect(
+      await signInAllowed(
+        { perAddress: shared.perAddress, perIp: limiters().perIp },
+        { email: " olena@example.org", ip: "203.0.113.9" },
+        new Date(),
+      ),
+    ).toBe(true);
     expect(await open(invitationId, deps({ limiters: shared }))).toEqual({ kind: "rate_limited" });
     expect(sender.sent).toEqual([]);
   });

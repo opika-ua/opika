@@ -7,5 +7,6 @@ export * from "./history";
 export * from "./history-shelter-facing";
 export * from "./legal-entity";
 export * from "./location";
+export * from "./password-policy";
 export * from "./shelter";
 export * from "./verification/index";
