@@ -82,8 +82,9 @@ export async function generateVariants(
       if (crop.width === variant.width && crop.height === variant.height) {
         return [name, await cropped.webp({ quality: 82 }).toBuffer()] as const;
       }
-      // The crop already has the variant's shape (to the pixel), so this only
-      // enlarges it; `cover` keeps the exact size without stretching.
+      // The crop has the variant's shape to the nearest pixel, so this only
+      // enlarges it; `cover` lands on the exact size without stretching,
+      // trimming at most that rounding.
       const { data, info } = await cropped.raw().toBuffer({ resolveWithObject: true });
       const buffer = await sharp(data, {
         ...input,
