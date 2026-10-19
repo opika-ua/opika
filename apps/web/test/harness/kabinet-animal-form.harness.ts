@@ -191,6 +191,16 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
 
   test("the facts filled in, the gap list shrinks to «фото»", async () => {
     const page = await open(`/kabinet/tvaryny/${draftId}`);
+    // Every save answers a second late, so the reload below can only show the
+    // facts if the test first waits for the form to say they are stored. The
+    // gap list is the form's own state and reads «фото» before any save lands;
+    // leaving a field saves too, and the saves queue one behind another. A
+    // reload while one is still queued cancels it (seen 2026-10-19: the page
+    // came back with the size only).
+    await page.route("**/api/kabinet/shelter/animals/update", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      await route.continue();
+    });
     await page.getByRole("group", { name: "Розмір" }).getByText("Середній").click();
     await page
       .getByRole("group", { name: "Вік на ту дату" })
@@ -199,6 +209,11 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await expect(page.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeVisible();
     await page.getByLabel("Про тварину").fill("Спокійний, любить гуляти в парку.");
     await page.getByRole("button", { name: "Зберегти чернетку" }).click();
+    await expect(
+      page.getByText(
+        /^Чернетку збережено о \d\d:\d\d · Ті, хто шукає тварину, цю чернетку не бачать\.$/,
+      ),
+    ).toBeVisible();
     await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
     await expect(publishButton(page)).toHaveAttribute("aria-disabled", "true");
 
