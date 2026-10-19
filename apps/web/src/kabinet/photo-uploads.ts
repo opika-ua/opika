@@ -12,7 +12,25 @@ import type { PhotoUploadLimiters } from "./rate-limits";
  */
 export type PhotoUploads =
   | Extract<PhotoUploadConfig, { kind: "off" }>
-  | { kind: "on"; storage: ImageStorageClient; limiters: PhotoUploadLimiters };
+  | {
+      kind: "on";
+      storage: ImageStorageClient;
+      limiters: PhotoUploadLimiters;
+      /** How long checking and re-encoding one file may take (`PHOTO_PROCESSING_BUDGET_MS`). */
+      processingBudgetMs: number;
+    };
+
+/**
+ * The served route's budget for one upload's processing. The costliest file
+ * an upload may be, 2000 × 2000 of photographic noise, measured 0.35
+ * CPU-seconds on a development machine (2026-10-19), and every shape costs
+ * about the same since variants are cropped before they are enlarged. Ten
+ * seconds leaves a slower one-CPU function a wide margin and is still far
+ * inside the function's own time limit, so an upload that runs past it
+ * answers as a failed upload instead of holding the request until the
+ * platform kills it.
+ */
+export const PHOTO_PROCESSING_BUDGET_MS = 10_000;
 
 /**
  * What a caller that names no upload setup gets: off. Fail-closed, so a test

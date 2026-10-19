@@ -17,10 +17,11 @@ export type PreparedPhoto =
   | { kind: "rejected"; reason: PhotoRejectionReason };
 
 /**
- * Decoding stops at this many pixels whatever the header claimed: the
- * dimension check below already refuses anything larger from the header
- * alone, and this is the decoder's own ceiling behind it, in case a file's
- * header and its pixel data disagree.
+ * The most pixels any read in the pipeline may open. sharp checks it against
+ * the header's width × height when it opens a file, so it is a second check
+ * behind the 2000 px dimension check below, carried on every read
+ * (generateVariants' own included) so none can open a larger image if that
+ * check is ever loosened.
  */
 export const UPLOAD_PIXEL_LIMIT = PHOTO_MAX_EDGE_PX * PHOTO_MAX_EDGE_PX;
 
