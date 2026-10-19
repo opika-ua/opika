@@ -5,9 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# One run per pull request: a new push cancels that PR's run in progress. On the default branch
+# every merged commit keeps its own run, never cancelled by the next merge (Oleksii, 2026-10-19:
+# "Superseded runs: add concurrency with cancel-in-progress: true per PR").
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Avoid Corepack's interactive "about to download" confirmation prompt,
@@ -42,30 +45,62 @@ jobs:
       # anything older than actions/checkout@v5 targets that runtime and
       # is not guaranteed to run on current hosted runners.
       - uses: actions/checkout@v7
+        with:
+          # The whole history, so the next step can diff the pull request against its base.
+          fetch-depth: 0
+
+      # Documentation only? Then every step below is skipped and `check` still passes, so the
+      # required check doesn't block a docs PR (Oleksii, 2026-10-19: "A required check skipped this
+      # way must still report success"). Decided here, inside `check`, not in a job before it: a job
+      # skipped because the job it needs was cancelled reports success too, and a cancelled run must
+      # not pass. `--no-renames` lists a rename's source as well, so moving code into docs/ isn't
+      # documentation only. If the classifier fails its output is empty, and everything runs. The
+      # rule is .github/scripts/needs-check.mjs, tested by apps/web/src/ci-needs-check.test.ts.
+      - name: Classify the change
+        id: classify
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --no-renames --name-only "$BASE...$HEAD" > "$RUNNER_TEMP/changed.txt"
+          cat "$RUNNER_TEMP/changed.txt"
+          echo "code=$(node .github/scripts/needs-check.mjs < "$RUNNER_TEMP/changed.txt")" >> "$GITHUB_OUTPUT"
 
       - name: Enable Corepack
+        if: steps.classify.outputs.code != 'false'
         run: corepack enable
 
       - name: Activate pinned package manager
+        if: steps.classify.outputs.code != 'false'
         run: corepack install
 
       # v6 — same Node-20-runner deprecation applies to setup-node; v6 is
       # current as of this workflow and targets the node24 runtime.
       - uses: actions/setup-node@v6
+        if: steps.classify.outputs.code != 'false'
         with:
           node-version: 24
           cache: pnpm
 
       - name: Install dependencies
+        if: steps.classify.outputs.code != 'false'
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck
+        if: steps.classify.outputs.code != 'false'
         run: pnpm run typecheck
 
       - name: Lint
+        if: steps.classify.outputs.code != 'false'
         run: pnpm run lint
 
       - name: Test
+        if: steps.classify.outputs.code != 'false'
         run: pnpm run test
 
       # DO NOT REMOVE. `tsc` resolves `./x.js` to `./x.ts` under every
@@ -79,17 +114,20 @@ jobs:
       # redundant. It is not: this one fails in seconds with a compiler error,
       # and it keeps working if the harness is ever quarantined or broken.
       - name: Build web
+        if: steps.classify.outputs.code != 'false'
         run: pnpm run build:web
 
       # ~170MB and unchanged between runs of the same Playwright version, so
       # key the cache on the lockfile — a version bump busts it.
       - name: Cache Playwright browsers
+        if: steps.classify.outputs.code != 'false'
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright Chromium
+        if: steps.classify.outputs.code != 'false'
         run: pnpm --filter @opika/web exec playwright install --with-deps chromium
 
       # DO NOT REMOVE. The gate for the browser layer: real layout geometry and
@@ -101,6 +139,7 @@ jobs:
       # phone-only and that gap is recorded rather than hidden. See the TODO in
       # test/harness/discovery-layout.harness.ts.
       - name: Rendering harness
+        if: steps.classify.outputs.code != 'false'
         run: pnpm run test:harness
 
       # Failure screenshots and traces. Without these a red harness run in CI
