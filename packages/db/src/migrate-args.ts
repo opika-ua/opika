@@ -3,22 +3,28 @@ import { databaseTargetOf, expectedTargetOf, PROD_FLAG } from "./prod-guard";
 export const EXPECT_FLAG = "--expect";
 
 /**
- * `db:migrate`'s own arguments, read before anything connects (AW-F1, Oleksii: "a real --expect
- * on db:migrate"). `--prod` and `--expect <ep>` are this package's flags and never reach
- * drizzle-kit, which refuses options it doesn't know; everything else passes through unchanged.
+ * `db:migrate`'s arguments, read before anything connects (AW-F1, Oleksii: "a real --expect on
+ * db:migrate"). It takes `--prod` and `--expect <ep>` and nothing else (PG-F3). The migration runs
+ * in this process from this package's own migrations folder, so there is nothing to hand on, and
+ * the arguments that used to reach drizzle-kit could point it at a database the guard never
+ * checked: `--config` names another config file, and `dotenv_config_*` steers the env file
+ * drizzle-kit loads at startup. A refusal names the kind of argument, never its value.
  */
 export type MigrateArgs =
-  | { kind: "ok"; expect: string | undefined; drizzleArgs: string[] }
+  | { kind: "ok"; expect: string | undefined }
   | { kind: "refused"; reason: string };
 
+const CONFIG_FLAG = "--config";
+/** drizzle-kit's bundled dotenv reads `dotenv_config_(encoding|path|debug|override|DOTENV_KEY)=…`. */
+const DOTENV_ARGUMENT = /^dotenv_config_/i;
+
 export function parseMigrateArgs(argv: readonly string[]): MigrateArgs {
-  const passThrough: string[] = [];
   let expect: string | undefined;
   for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
+    const arg = argv[i] ?? "";
     if (arg === PROD_FLAG) continue;
     // `--expect ep-…` and `--expect=ep-…` read the same; anything else starting `--expect` is a typo.
-    const inline = arg?.startsWith(`${EXPECT_FLAG}=`)
+    const inline = arg.startsWith(`${EXPECT_FLAG}=`)
       ? arg.slice(EXPECT_FLAG.length + 1)
       : undefined;
     if (arg === EXPECT_FLAG || inline !== undefined) {
@@ -32,9 +38,26 @@ export function parseMigrateArgs(argv: readonly string[]): MigrateArgs {
       if (inline === undefined) i++;
       continue;
     }
-    passThrough.push(arg as string);
+    if (arg === CONFIG_FLAG || arg.startsWith(`${CONFIG_FLAG}=`)) {
+      return {
+        kind: "refused",
+        reason: `${CONFIG_FLAG} isn't accepted: db:migrate applies this package's own migrations to DATABASE_URL, and reads no config file`,
+      };
+    }
+    if (DOTENV_ARGUMENT.test(arg)) {
+      return {
+        kind: "refused",
+        reason:
+          "a dotenv_config_* argument isn't accepted: DATABASE_URL is the only input, and no env file is loaded",
+      };
+    }
+    // Never echoed: a stray argument could be a URL with its password.
+    return {
+      kind: "refused",
+      reason: `it takes only ${PROD_FLAG} and ${EXPECT_FLAG} ep-… (not printing the argument it was given)`,
+    };
   }
-  return { kind: "ok", expect, drizzleArgs: ["migrate", ...passThrough] };
+  return { kind: "ok", expect };
 }
 
 /**
