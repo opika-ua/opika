@@ -130,6 +130,7 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
         },
       },
       limiters: { perHour: generousLimiters.perUser, perDay: generousLimiters.perUser },
+      processingBudgetMs: 10_000,
     },
   });
   const text = await response.text();

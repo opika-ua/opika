@@ -8,7 +8,11 @@ import { kabinetAuthAvailability } from "../../../../kabinet/auth-route";
 import { kabinetLimiters, photoUploadLimiters } from "../../../../kabinet/limiters";
 import { operatorDisplayName } from "../../../../kabinet/operator";
 import { photoUploadConfigOf } from "../../../../kabinet/photo-upload-env";
-import { lazyR2Storage, type PhotoUploads } from "../../../../kabinet/photo-uploads";
+import {
+  lazyR2Storage,
+  PHOTO_PROCESSING_BUDGET_MS,
+  type PhotoUploads,
+} from "../../../../kabinet/photo-uploads";
 import { kabinetIdentityOf } from "../../../../kabinet/principal";
 import { handleKabinetRpc } from "../../../../kabinet/rpc-route";
 import { kabinetAuth } from "../../../../kabinet/runtime";
@@ -36,7 +40,12 @@ function photoUploads(): PhotoUploads {
   const config = photoUploadConfigOf(process.env);
   if (config.kind === "off") return config;
   cachedStorage ??= lazyR2Storage(config.r2);
-  return { kind: "on", storage: cachedStorage, limiters: photoUploadLimiters };
+  return {
+    kind: "on",
+    storage: cachedStorage,
+    limiters: photoUploadLimiters,
+    processingBudgetMs: PHOTO_PROCESSING_BUDGET_MS,
+  };
 }
 
 async function handle(request: Request): Promise<Response> {

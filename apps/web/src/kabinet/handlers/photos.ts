@@ -85,6 +85,27 @@ const writePhotos = (deps: PhotoDeps, scope: ShelterWriteScope, read: Animal, ne
 const logOrphan = (storageKey: string) => console.error({ event: "photo_orphaned", storageKey });
 
 /**
+ * The processing, or `over_budget` once `budgetMs` passes first. The work
+ * itself isn't stopped (sharp can't be interrupted while it builds a
+ * pipeline, and its work is bounded by the input pixel ceiling); what it
+ * produces after the budget is dropped, so it never reaches storage.
+ */
+async function withinBudget<T>(
+  work: Promise<T>,
+  budgetMs: number,
+): Promise<{ kind: "done"; value: T } | { kind: "over_budget" }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<{ kind: "over_budget" }>((resolve) => {
+    timer = setTimeout(() => resolve({ kind: "over_budget" }), budgetMs);
+  });
+  try {
+    return await Promise.race([work.then((value) => ({ kind: "done" as const, value })), deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * `shelter.photos.add`, one step (P-Q2), in this order:
  *
  * 1. uploads must be on for this deployment (P-Q10), or `PHOTO_UPLOADS_UNAVAILABLE`;
@@ -92,7 +113,10 @@ const logOrphan = (storageKey: string) => console.error({ event: "photo_orphaned
  *    file is read, so a refused file still counts;
  * 3. the animal must be this shelter's and have room (K-Q11);
  * 4. the bytes are checked and re-encoded (`prepareUploadedPhoto`: magic bytes,
- *    2000 px, every piece of metadata stripped);
+ *    2000 px, every piece of metadata stripped), within the deployment's
+ *    processing budget: past it, the upload fails as any unexpected failure
+ *    does (a 500, «Не завантажилось» on the screen), logged without the file,
+ *    its name or any key, and nothing is stored;
  * 5. the three variants are stored under a fresh random key (P-Q4);
  * 6. the photo is appended, compare-and-set on the photo list as re-read, so
  *    two uploads at once both land or the eleventh is refused, never lost.
@@ -129,7 +153,16 @@ export async function photosAdd(
   if (animal.photos.length >= MAX_ANIMAL_PHOTOS) throw limitReached();
 
   const pipeline = await import("@opika/db/image-pipeline/server");
-  const prepared = await pipeline.prepareUploadedPhoto(Buffer.from(await input.file.arrayBuffer()));
+  const bytes = Buffer.from(await input.file.arrayBuffer());
+  const processed = await withinBudget(
+    pipeline.prepareUploadedPhoto(bytes),
+    uploads.processingBudgetMs,
+  );
+  if (processed.kind === "over_budget") {
+    console.error({ event: "photo_processing_over_budget", budgetMs: uploads.processingBudgetMs });
+    throw new Error("Photo processing ran past its budget");
+  }
+  const prepared = processed.value;
   if (prepared.kind === "rejected") {
     throw errors.PHOTO_REJECTED({ data: { reason: prepared.reason } });
   }

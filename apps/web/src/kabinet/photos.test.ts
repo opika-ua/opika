@@ -17,8 +17,29 @@ import { fromRpcBody, rpcRequestInit } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
-import type { PhotoUploads } from "./photo-uploads";
+import { PHOTO_PROCESSING_BUDGET_MS, type PhotoUploads } from "./photo-uploads";
 import { handleKabinetRpc } from "./rpc-route";
+
+type Pipeline = typeof import("@opika/db/image-pipeline/server");
+
+/**
+ * The real pipeline, unless a test holds its processing back (the processing
+ * budget, below): a pass-through, so every other test here runs real sharp.
+ */
+const processing = vi.hoisted(() => ({
+  held: null as null | ((bytes: Buffer) => ReturnType<Pipeline["prepareUploadedPhoto"]>),
+  real: null as null | Pipeline["prepareUploadedPhoto"],
+}));
+
+vi.mock("@opika/db/image-pipeline/server", async (importOriginal) => {
+  const actual = await importOriginal<Pipeline>();
+  processing.real = actual.prepareUploadedPhoto;
+  return {
+    ...actual,
+    prepareUploadedPhoto: (bytes: Buffer) =>
+      (processing.held ?? actual.prepareUploadedPhoto)(bytes),
+  };
+});
 
 /**
  * `shelter.photos.*` (PR 3), through the served router: a real `Request`
@@ -35,7 +56,10 @@ beforeAll(async () => {
   ({ db, cleanup } = await setupTestDatabase());
 });
 afterAll(async () => cleanup?.());
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  processing.held = null;
+});
 
 const ADMIN = "33333333-3333-4333-8333-333333333333" as ShelterAdminId;
 const ORIGIN = "http://localhost";
@@ -81,6 +105,7 @@ const generous = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_0
 function uploadsOn(
   store = capturingStore(),
   limiters: { perHour?: RateLimiter; perDay?: RateLimiter } = {},
+  processingBudgetMs = PHOTO_PROCESSING_BUDGET_MS,
 ): { uploads: PhotoUploads; puts: Put[] } {
   return {
     puts: store.puts,
@@ -88,6 +113,7 @@ function uploadsOn(
       kind: "on",
       storage: store.storage,
       limiters: { perHour: limiters.perHour ?? generous(), perDay: limiters.perDay ?? generous() },
+      processingBudgetMs,
     },
   };
 }
@@ -293,6 +319,52 @@ describe("shelter.photos.add", () => {
       { uploads },
     );
     expect(at.status).toBe(200);
+  });
+});
+
+describe("the processing budget", () => {
+  /**
+   * Forced, not loaded: the processing is held until the test lets it go, so
+   * the budget always passes first, whatever the machine is doing. Let go
+   * afterwards, it runs to completion on the real pipeline, which is the
+   * moment a late result could still reach storage.
+   */
+  it("past it the upload fails as any upload failure does, logged without the file or a key, and nothing is stored, even once processing finishes", async () => {
+    const target = await animal({ photos: [] });
+    const { uploads, puts } = uploadsOn(undefined, {}, 50);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    let release = () => {};
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let finished: Promise<unknown> = Promise.resolve();
+    processing.held = (bytes) => {
+      const late = released.then(() => {
+        if (processing.real === null) throw new Error("the real pipeline was never loaded");
+        return processing.real(bytes);
+      });
+      finished = late;
+      return late;
+    };
+
+    const result = await call(
+      "shelter.photos.add",
+      { animalId: target.id, file: await jpeg() },
+      { uploads },
+    );
+
+    expect(result.status).toBe(500);
+    expect(errorOf(result.body).code).toBe("INTERNAL_SERVER_ERROR");
+    expect(logged.mock.calls).toEqual([[{ event: "photo_processing_over_budget", budgetMs: 50 }]]);
+
+    release();
+    expect(await finished).toMatchObject({ kind: "ok" });
+    // Anything still queued behind the late result runs before this line.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(puts).toEqual([]);
+    expect((await reload(target.id)).photos).toEqual([]);
+    expect(await photoHistory()).toEqual([]);
+    expect(logged.mock.calls).toHaveLength(1);
   });
 });
 
