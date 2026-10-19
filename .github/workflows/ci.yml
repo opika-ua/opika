@@ -5,9 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# One run per pull request: a new push cancels that PR's run in progress. On the default branch
+# every merged commit keeps its own run, never cancelled by the next merge (Oleksii, 2026-10-19:
+# "Superseded runs: add concurrency with cancel-in-progress: true per PR").
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Avoid Corepack's interactive "about to download" confirmation prompt,
@@ -17,7 +20,38 @@ env:
   COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
 
 jobs:
+  # Whether `check` runs. A documentation-only pull request skips it, and a skipped job reports
+  # success, so the required `check` doesn't block a docs PR (Oleksii, 2026-10-19: "A required
+  # check skipped this way must still report success"). A workflow-level paths-ignore would leave
+  # `check` pending instead. The rule itself is .github/scripts/needs-check.mjs, tested by
+  # apps/web/src/ci-needs-check.test.ts. Pushes to the default branch always run the check.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: classify
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --name-only "$BASE...$HEAD" > "$RUNNER_TEMP/changed.txt"
+          cat "$RUNNER_TEMP/changed.txt"
+          echo "code=$(node .github/scripts/needs-check.mjs < "$RUNNER_TEMP/changed.txt")" >> "$GITHUB_OUTPUT"
+
   check:
+    needs: changes
+    # Skipped only on an explicit `false` from a classification that succeeded: if `changes`
+    # fails, the suite runs rather than being skipped (a skip would report success).
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code != 'false') }}
     runs-on: ubuntu-latest
 
     services:
