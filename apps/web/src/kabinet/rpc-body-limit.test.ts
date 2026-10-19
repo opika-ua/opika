@@ -5,7 +5,7 @@ import nextConfig from "../../next.config";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetContext } from "./context";
-import { PHOTO_UPLOADS_NOT_CONFIGURED } from "./photo-uploads";
+import { PHOTO_PROCESSING_BUDGET_MS, PHOTO_UPLOADS_NOT_CONFIGURED } from "./photo-uploads";
 import { handleKabinetRpc, KABINET_RPC_PREFIX, kabinetRpcHandler } from "./rpc-route";
 
 /**
@@ -59,6 +59,7 @@ function deps() {
           perHour: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
           perDay: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
         },
+        processingBudgetMs: PHOTO_PROCESSING_BUDGET_MS,
       },
     } as unknown as Parameters<typeof handleKabinetRpc>[1],
   };

@@ -17,7 +17,8 @@ type Size = { width: number; height: number };
  * attention crop then holds that whole intermediate in memory (sharp copies
  * it there before `smartcrop`). A 2000 × 10 upload, inside every upload rule,
  * became 280,000 × 1400 for `detail`: 2.6 GB and 19 CPU-seconds. Cropped
- * first, nothing in the pipeline exceeds the source or the variant.
+ * first, the attention crop runs at the source's own size and only the kept
+ * box is enlarged, so memory follows the variant's size, not the aspect ratio.
  *
  * Each side is at least one pixel, and no larger than the source's.
  */

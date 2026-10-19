@@ -18,6 +18,19 @@ import { handleKabinetRpc } from "../../../../kabinet/rpc-route";
 import { kabinetAuth } from "../../../../kabinet/runtime";
 
 /**
+ * The longest this function may run on Vercel, in seconds, set here so it
+ * doesn't depend on the project's settings. Photo uploads come through this
+ * route, and it must stay above their processing budget
+ * (`PHOTO_PROCESSING_BUDGET_MS`, 10 s), so an over-budget upload gets its 500
+ * and «Не завантажилось» rather than the platform cutting the request off
+ * first. Oleksii, 2026-10-19, verbatim: "Add a check that the upload route's
+ * Vercel maxDuration is above the 10 s processing budget, so the budget always
+ * fires first." A literal, because Next reads route segment config
+ * statically; pinned by `photo-processing-budget.test.ts`.
+ */
+export const maxDuration = 60;
+
+/**
  * RG-Q10: the registry needs `LOCATION_HMAC_SECRET` and answers 503 without
  * it. Built once per process; a key that is set but too short throws
  * (`productionLocationPolicy`), loudly, rather than fuzzing with a weak key.

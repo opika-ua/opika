@@ -11,8 +11,9 @@ import { prepareUploadedPhoto } from "./prepare-uploaded-photo";
  * "accepts 2000 wide" in CI (2026-10-18, PR #133's run).
  *
  * The measure is libvips's own high-water mark of the memory it allocated, a
- * count of bytes rather than a clock, so it reads the same on any machine
- * under any load. The mark never resets, which is why this is its own file:
+ * count of bytes rather than a clock, so load doesn't move it. It does scale
+ * with libvips's thread count (about 12 MB at 24 threads, 2 MB at one), far
+ * under the ceiling either way. The mark never resets, which is why this is its own file:
  * vitest runs each test file in a fresh process.
  */
 const VIPS_MEMORY_CEILING_MB = 256;

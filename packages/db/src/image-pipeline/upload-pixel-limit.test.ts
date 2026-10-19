@@ -59,8 +59,9 @@ describe("UPLOAD_PIXEL_LIMIT", () => {
   });
 
   it("refuses to decode one column more, whatever the header check did", async () => {
-    // 2001 × 2000 is 4,002,000 pixels, so this is the decoder refusing, not
-    // the 2000 px side check, which prepareUploadedPhoto runs first.
+    // 2001 × 2000 is 4,002,000 pixels, so this is sharp's pixel limit refusing
+    // (at generateVariants' own header read, the first open that carries it),
+    // not the 2000 px side check, which prepareUploadedPhoto runs first.
     await expect(
       generateVariants(await solid(2001, 2000), { limitInputPixels: UPLOAD_PIXEL_LIMIT }),
     ).rejects.toThrow("Input image exceeds pixel limit");

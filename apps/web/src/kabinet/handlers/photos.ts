@@ -87,7 +87,8 @@ const logOrphan = (storageKey: string) => console.error({ event: "photo_orphaned
 /**
  * The processing, or `over_budget` once `budgetMs` passes first. The work
  * itself isn't stopped (sharp can't be interrupted while it builds a
- * pipeline, and its work is bounded by the input pixel ceiling); what it
+ * pipeline; its work is bounded by the input pixel ceiling together with
+ * cropping before enlarging, `attentionCropBox`); what it
  * produces after the budget is dropped, so it never reaches storage.
  */
 async function withinBudget<T>(
