@@ -32,11 +32,4 @@ describe("JoinFailedCard", () => {
       uk.kabinet.confirm.joinFailedTitle,
     );
   });
-
-  it("the retry carries focus-visible styling and a 56px target", () => {
-    render(<JoinFailedCard />);
-    const retry = screen.getByRole("link", { name: uk.kabinet.confirm.joinRetry });
-    expect(retry.className).toContain("focus-visible:outline");
-    expect(retry.className).toContain("min-h-14");
-  });
 });

@@ -8,7 +8,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { dragHorizontally, expectFocusVisibleOutline, openRoute } from "./harness";
+import { dragHorizontally, expectReachableByTab, openRoute } from "./harness";
 import { PHONE } from "./viewports";
 
 const ROUTE = "/tvaryny/gortaty";
@@ -98,18 +98,18 @@ test.describe(`${ROUTE} inline reveal`, () => {
   });
 
   /**
-   * The write button's own outline is already covered by
-   * `discovery-layout.harness.ts`'s "keyboard focus" block (R2). This is
+   * The write button's own reachability is already covered by
+   * `discovery-layout.harness.ts`'s "keyboard reachability" block (R2). This is
    * the dialog's own close control — shared code with the detail page's
    * `RevealFlow.tsx`, but the detail page's harness has never asserted it
    * directly either; worth a real check now that a second surface opens
    * the same component.
    */
-  test("the dialog's own close button carries a real focus-visible outline", async ({ page }) => {
+  test("the dialog's own close button is reachable by Tab", async ({ page }) => {
     await page.getByRole("button", { name: "Написати" }).click();
     await page.getByTestId("reveal-dialog").waitFor({ state: "visible" });
 
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "reveal close button",
       locator: page.getByTestId("reveal-close"),
     });

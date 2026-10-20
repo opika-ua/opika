@@ -106,7 +106,7 @@ describe("the invite landing card (IN-T10, KS-Q2 A)", () => {
     expect(container.textContent).not.toContain("@");
   });
 
-  it("already_accepted: says so and links to sign-in, with focus styling and a 56px target", () => {
+  it("already_accepted: says so and links to sign-in", () => {
     render(
       <InviteLandingCard landing={{ kind: "already_accepted" }} minutes={15} contact={null} />,
     );
@@ -114,8 +114,6 @@ describe("the invite landing card (IN-T10, KS-Q2 A)", () => {
     const link = screen.getByRole("link", { name: t.signIn });
     expect(link.getAttribute("href")).toBe(SIGN_IN_PAGE);
     expect(SIGN_IN_PAGE).toBe("/kabinet/vkhid");
-    expect(link.className).toContain("focus-visible:outline");
-    expect(link.className).toContain("min-h-14");
   });
 
   it("rate_limited: says too many links were asked for, and names no shelter", () => {

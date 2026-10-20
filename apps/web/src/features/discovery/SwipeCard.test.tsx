@@ -59,17 +59,12 @@ describe("SwipeCard freshness marker", () => {
    * `fresh` would still look plausible in markup and would silently drop the
    * "how far has this travelled" comparison the whole component exists for.
    */
-  // V2 repoint (docs/design/README.md, "The freshness marker"): fill colours moved
-  // bg-leaf -> bg-rg-registry, bg-ink-4 -> bg-rg-ink-3, bg-ink -> bg-rg-ink (same role,
-  // new token names). The empty slot is no longer `null`/unstyled: it's the
-  // WCAG 1.4.11 fix — transparent fill + border-rg-ink-3 — replacing the mock's
-  // original solid #DCDCD9 fill, which measured 1.16-1.37:1 against every background
-  // it appears on and fails the 3:1 non-text-contrast requirement. The design was
-  // subsequently updated to specify the outline directly.
+  // Which pips are filled, per the design table. Their colours are appearance and are
+  // not asserted (CLAUDE.md, "Test logic, not looks"; removed 2026-10-20).
   it.each([
-    ["fresh", 3, ["bg-rg-registry", "empty", "empty"]],
-    ["aging", 19, ["bg-rg-ink-3", "bg-rg-ink-3", "empty"]],
-    ["stale", 41, ["bg-rg-ink-3", "bg-rg-ink-3", "bg-rg-ink"]],
+    ["fresh", 3, ["filled", "empty", "empty"]],
+    ["aging", 19, ["filled", "filled", "empty"]],
+    ["stale", 41, ["filled", "filled", "filled"]],
   ] as const)("renders three pips for %s, filled per the design table", (kind, days, expected) => {
     renderCard(makeCard({ freshness: makeFreshness(kind, days) }));
 
@@ -78,18 +73,6 @@ describe("SwipeCard freshness marker", () => {
     expect(pips.map((p) => p.getAttribute("data-filled"))).toEqual(
       expected.map((fill) => (fill === "empty" ? "false" : "true")),
     );
-    // Stronger than the boolean check above: the *specific* fill colour per
-    // the design table, not just whether a pip is filled at all. The empty
-    // slot gets its own check — border-drawn, transparent, never a bg- fill.
-    expected.forEach((fill, i) => {
-      if (fill === "empty") {
-        expect(pips[i]?.className).toContain("bg-transparent");
-        expect(pips[i]?.className).toContain("border-rg-ink-3");
-        expect(pips[i]?.className).not.toContain("bg-rg-");
-      } else {
-        expect(pips[i]?.className).toContain(fill);
-      }
-    });
   });
 
   /**
@@ -148,26 +131,8 @@ describe("SwipeCard freshness marker", () => {
 
 describe("SwipeCard name", () => {
   /**
-   * A long name must truncate to one line rather than wrap and push the rest
-   * of the card down. happy-dom does no layout, so this asserts the mechanism
-   * that produces the single line; the rendered height is measured for real in
-   * `test/harness/discovery-layout.harness.ts`.
-   */
-  it("truncates a long Ukrainian name to a single line", () => {
-    renderCard(makeCard({ name: "Всеволода-Мирослава Великодушна з Броварського притулку" }));
-
-    const nameEl = screen.getByTestId("card-name");
-
-    // Tailwind's `truncate` utility is exactly `overflow:hidden;
-    // text-overflow:ellipsis; white-space:nowrap` — the same three
-    // properties this test checked individually before the Tailwind
-    // migration, now behind one class instead of three that could drift
-    // independently.
-    expect(nameEl.className.split(/\s+/)).toContain("truncate");
-  });
-
-  /**
-   * Truncation is visual only. The full name must stay in the accessible tree,
+   * A long name truncates visually (not asserted: appearance). The full name
+   * must stay in the accessible tree,
    * or the ellipsis becomes data loss for anyone using a screen reader.
    */
   it("keeps the full name in the DOM and on the card's accessible label", () => {

@@ -28,7 +28,7 @@
 import { citySlugOf } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { expect, test } from "@playwright/test";
-import { expectFocusVisibleOutline, openRoute } from "./harness";
+import { expectReachableByTab, openRoute } from "./harness";
 import { DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
 
 const SPOOFED_IP_HEADERS = { "x-forwarded-for": "198.51.100.29" };
@@ -222,50 +222,50 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
   });
 });
 
-test.describe("/tvaryny/[animalId] keyboard focus", () => {
-  test("the back-to-list link shows a real focus-visible outline", async ({ page }) => {
+test.describe("/tvaryny/[animalId] keyboard reachability", () => {
+  test("the back-to-list link is reachable by Tab", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_PHONE);
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "back-to-list link",
       locator: page.getByTestId("back-to-list"),
     });
   });
 
-  test("the reveal trigger shows a real focus-visible outline", async ({ page }) => {
+  test("the reveal trigger is reachable by Tab", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "reveal-trigger button",
       locator: page.getByTestId("reveal-trigger"),
     });
   });
 
-  test("the back-to-list-desktop link shows a real focus-visible outline", async ({ page }) => {
+  test("the back-to-list-desktop link is reachable by Tab", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "back-to-list-desktop link",
       locator: page.getByTestId("back-to-list-desktop"),
     });
   });
 
-  test("the not-now link shows a real focus-visible outline", async ({ page }) => {
+  test("the not-now link is reachable by Tab", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "not-now-button link",
       locator: page.getByTestId("not-now-button"),
     });
   });
 
-  test("the reveal dialog's close button shows a real focus-visible outline", async ({ page }) => {
+  test("the reveal dialog's close button is reachable by Tab", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
     await page.getByTestId("reveal-trigger").click();
     await page.getByTestId("reveal-dialog").waitFor({ state: "visible" });
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "reveal-close button",
       locator: page.getByTestId("reveal-close"),
     });
   });
 
-  test("the reveal dialog's primary action and back-to-gallery controls show a real focus-visible outline", async ({
+  test("the reveal dialog's primary action and back-to-gallery controls are reachable by Tab", async ({
     page,
   }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
@@ -274,13 +274,13 @@ test.describe("/tvaryny/[animalId] keyboard focus", () => {
 
     const primaryAction = page.getByTestId("reveal-primary-action");
     if ((await primaryAction.count()) > 0) {
-      await expectFocusVisibleOutline(page, {
+      await expectReachableByTab(page, {
         label: "reveal-primary-action link",
         locator: primaryAction,
       });
     }
 
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "reveal-back-to-gallery button",
       locator: page.getByTestId("reveal-back-to-gallery"),
     });
@@ -299,9 +299,9 @@ test.describe("/tvaryny/[animalId] an unknown or malformed id 404s on-brand", ()
     await expect(page.getByText("Цієї картки більше немає.")).toBeVisible();
   });
 
-  test("the not-found page's action link shows a real focus-visible outline", async ({ page }) => {
+  test("the not-found page's action link is reachable by Tab", async ({ page }) => {
     await page.goto("/tvaryny/not-a-real-id", { waitUntil: "load" });
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "not-found-action link",
       locator: page.getByTestId("not-found-action"),
     });

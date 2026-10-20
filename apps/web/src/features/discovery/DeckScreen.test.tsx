@@ -480,7 +480,7 @@ describe("DeckScreen — demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
     vi.doUnmock("../../seo-flags");
   });
 
-  it("shows the demo banner, keeping the position but hiding the progress bar", async () => {
+  it("shows the demo banner, keeping the position", async () => {
     vi.doMock("../../seo-flags", async (importOriginal) => ({
       ...(await importOriginal()),
       REGISTRY_HAS_NO_REAL_SHELTERS: true,
@@ -504,17 +504,10 @@ describe("DeckScreen — demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
     // period, so a deck missing the position count for weeks is not the
     // deck being tested.
     expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
-    // Degrades instead of the count (Oleksii, D-1): the bar only duplicates
-    // what the count already says, and giving up its width is what lets a
-    // short demo label fit at 320px. jsdom doesn't apply real CSS, so this
-    // asserts the Tailwind toggle class directly rather than computed
-    // visibility — the harness (`discovery-layout.harness.ts`) is what
-    // proves this actually renders hidden in a real browser. Split on
-    // whitespace, not a substring check — `overflow-hidden` already
-    // contains "hidden".
-    const barClasses = screen.getByTestId("deck-progress-bar").className.split(/\s+/);
-    expect(barClasses).toContain("hidden");
-    expect(barClasses).not.toContain("block");
+    // The bar degrades instead of the count (Oleksii, D-1). It is hidden by a
+    // CSS class, which happy-dom can't apply, so its visibility is asserted in
+    // a real browser (`discovery-layout.harness.ts`); the class assertion that
+    // stood here measured markup and was removed on 2026-10-20.
   });
 
   it("shows the real filters phrase, position, and progress bar once the flag is false, same DeckScreen module", async () => {
@@ -538,8 +531,6 @@ describe("DeckScreen — demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
     expect(screen.queryByTestId("deck-demo-banner")).toBeNull();
     expect(screen.getByTestId("deck-filters-label").textContent).toBe("Бровари · собаки");
     expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
-    const barClasses = screen.getByTestId("deck-progress-bar").className.split(/\s+/);
-    expect(barClasses).toContain("block");
-    expect(barClasses).not.toContain("hidden");
+    expect(screen.getByTestId("deck-progress-bar")).toBeTruthy();
   });
 });

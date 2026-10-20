@@ -12,7 +12,7 @@
 
 import { MAX_GALLERY_PAGE } from "@opika/contracts";
 import { expect, test } from "@playwright/test";
-import { expectFocusVisibleOutline, openRoute } from "./harness";
+import { expectReachableByTab, openRoute } from "./harness";
 import { DESKTOP } from "./viewports";
 
 const ROUTE = "/tvaryny";
@@ -25,7 +25,8 @@ const RETRY = "[data-testid='gallery-error-retry']";
  * TEST-NET-2 (198.51.100.0/24), `.26` — the next unused address in this
  * block; `.21`-`.25` are already claimed by the other `/tvaryny` harness
  * files (`gallery-arrow-nav`, `gallery-filters`, `gallery-layout`,
- * `gallery-pagination`, `freshness-pip-contrast`). Without a distinct
+ * `gallery-pagination`; `.25` was `freshness-pip-contrast`'s, removed
+ * 2026-10-20). Without a distinct
  * identity this file's five tests would share `proxy.ts`'s 100/min-per-IP
  * budget with whichever of those runs concurrently — flaky, not obviously
  * this file's fault when it fails.
@@ -110,23 +111,19 @@ test.describe("/tvaryny out-of-range page", () => {
   });
 
   /**
-   * docs/standing-constraints.md: "An interactive element ships with its
-   * focus-visible styling and a test" — a keyboard user has no other way
-   * to know where they are. Retry and the "show all animals" link are the
-   * only two interactive elements on this card.
+   * Keyboard operation: retry and the "show all animals" link are the only
+   * two interactive elements on this card, and both are in the tab order.
    */
-  test("retry and the 'show all animals' link both show a real focus-visible outline", async ({
-    page,
-  }) => {
+  test("retry and the 'show all animals' link are both reachable by Tab", async ({ page }) => {
     await openRoute(page, `${ROUTE}?stor=${MAX_GALLERY_PAGE + 1}`, DESKTOP, {
       readySelector: ERROR_CARD,
     });
 
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "retry button",
       locator: page.locator(RETRY),
     });
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "show-all-animals link",
       locator: page.getByTestId("gallery-error-show-all"),
     });

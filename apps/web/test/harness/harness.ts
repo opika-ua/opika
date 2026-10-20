@@ -7,9 +7,16 @@
  * and grepping it for card text, while the action row sat on top of the card
  * and the gesture did not work at all.
  *
- * So the two things this file provides are the two things grepping markup
- * cannot do: measure what the browser actually laid out, and drive a real
- * pointer sequence through the real event loop.
+ * So what this file provides is what grepping markup cannot do: drive a real
+ * pointer sequence and a real tab order through the real event loop.
+ *
+ * 2026-10-20: the layout-measuring helpers (overlap, containment, margins,
+ * viewport overflow, touch-target boxes, row counts, contrast, `sizes` and
+ * srcset resolution) are gone, removed with the tests that used them
+ * (Oleksii, 2026-10-20, verbatim: "UI-measuring tests: yes, keep both V-B2
+ * tests (the 48px shared controls and the focus indicator being present).
+ * They’re accessibility guarantees, not looks. Drop the rest that measure
+ * appearance."). See CLAUDE.md, "Test logic, not looks".
  *
  * It is a verification tool, not a framework. Everything here is a thin,
  * well-labelled wrapper whose value is the failure message.
@@ -26,32 +33,17 @@ export interface Rect {
   readonly height: number;
 }
 
-/** A locator with a human name, so failures say what was measured. */
+/** A locator with a human name, so failures say which element it was. */
 export interface Measured {
   readonly label: string;
   readonly locator: Locator;
 }
 
 /**
- * Sub-pixel slack. Layout rounds, and two elements that merely share an edge
- * can report rects differing by a fraction of a pixel. At or below this, an
- * intersection is treated as touching rather than overlapping — otherwise
- * every stacked-but-adjacent pair would report a false positive.
- */
-const EPSILON_PX = 0.5;
-
-function fmt(r: Rect): string {
-  const round = (n: number) => Math.round(n * 100) / 100;
-  return `x=${round(r.x)} y=${round(r.y)} w=${round(r.width)} h=${round(r.height)} (right=${round(
-    r.x + r.width,
-  )} bottom=${round(r.y + r.height)})`;
-}
-
-/**
  * Load a route at an exact viewport size.
  *
  * `readySelector` is awaited rather than a fixed sleep: the deck mounts on the
- * client, and asserting geometry before hydration measures the wrong thing.
+ * client, and asserting before hydration tests the wrong thing.
  */
 export async function openRoute(
   page: Page,
@@ -79,249 +71,20 @@ export async function rectOf(locator: Locator, label: string): Promise<Rect> {
 }
 
 /**
- * `docs/design/README.md:200` — 48px minimum touch target anywhere in this
- * app by default; some components declare their own higher floor (pagination
- * targets are 56px, `Opika Registry System.dc.html` lines 189/195). Raised
- * from this product's own previous 44px value at Phase D — not a WCAG
- * number: WCAG 2.2's own target-size floor is 24px (2.5.8, AA) / 44px
- * (2.5.5, AAA), so 48 is this design's own civic-trust choice, stricter than
- * either WCAG level, not a restatement of one.
+ * Real Tab presses, not `locator.focus()`: `focus()` succeeds on a
+ * `tabindex="-1"` element (removed from the tab order), so a `focus()`-based
+ * check can't fail for the reason a keyboard-operation test needs to fail
+ * for. This walks the real tab order and asserts `target` is in it.
  *
- * O-19 (`docs/observations.md`), 2026-09-12: four harness files each
- * hand-copied their own `MIN_TOUCH_TARGET_PX`/`MIN_TARGET_PX` const and their
- * own `expect(rect.height/width, ...).toBeGreaterThanOrEqual(...)` lines —
- * `discovery-layout.harness.ts`, `gallery-filters.harness.ts`,
- * `site-header.harness.ts`, `gallery-pagination.harness.ts` (the fourth,
- * found on reviewer round 2 — its own 56px floor and its own *width* check,
- * both missed by the first pass here, which only replaced the three sharing
- * the exact 48px value and only checked height) — which is exactly how
- * `Footer.tsx`'s first draft shipped its two links at the surrounding 18px
- * line-height with nothing to catch it (O-11/O-13's own reviewer round; the
- * one-off `<footer>` fragment it replaced never had a floor asserted at
- * all, in any file). A floor copied by hand is a floor that misses the next
- * new component by construction, not by oversight. One assertion here means
- * a new interactive element gets this check by calling it, not by someone
- * remembering to re-copy a constant into another file.
- *
- * `min-height`/`min-width` in the class list is not the rendered size — a
- * flex parent, a line box, or a later padding change can each leave the
- * real target short of the class's number without the class itself ever
- * changing, which is the whole reason this is a measurement and not a
- * `className` grep.
+ * Reachability only, not appearance. Until 2026-10-20 this was
+ * `expectFocusVisibleOutline` and also asserted the focused element's
+ * computed outline width and offset; those were measurements of how focus
+ * looks, removed with the other UI-measuring tests (Oleksii, 2026-10-20,
+ * verbatim: "Drop the rest that measure appearance."). The one focus
+ * indicator presence test V-B2 keeps lives in
+ * `kabinet-profile-edit.harness.ts`.
  */
-export const MIN_TOUCH_TARGET_PX = 48;
-
-/**
- * Measures `locator`'s real rendered box (both height and width — a WCAG
- * "target size" is a box, not a line height; the first version of this
- * helper checked height only, which would have passed a real 48-tall,
- * 20-wide icon button) against `minPx`, defaulting to `MIN_TOUCH_TARGET_PX`.
- * Pass a component's own stricter floor explicitly (e.g. `56` for
- * pagination) rather than adding a second constant beside this one.
- */
-export async function expectMinTouchTarget(
-  locator: Locator,
-  label: string,
-  minPx: number = MIN_TOUCH_TARGET_PX,
-): Promise<void> {
-  const rect = await rectOf(locator, label);
-  expect(
-    rect.height,
-    `${label} is ${rect.height.toFixed(1)}px tall; docs/design/README.md:200 sets ` +
-      `${minPx}px as the minimum touch target here.`,
-  ).toBeGreaterThanOrEqual(minPx);
-  expect(
-    rect.width,
-    `${label} is ${rect.width.toFixed(1)}px wide; docs/design/README.md:200 sets ` +
-      `${minPx}px as the minimum touch target here.`,
-  ).toBeGreaterThanOrEqual(minPx);
-}
-
-/**
- * How many items share each row of a grid, in DOM order — the real check
- * for "N columns," as opposed to reading a `grid-cols-N` class out of
- * markup. Two rects are the same row when their top edges are within
- * `tolerancePx`, which absorbs sub-pixel layout rounding without conflating
- * two genuinely different rows.
- *
- * Assumes `locators` are already in the grid's visual reading order (DOM
- * order for a plain `grid-auto-flow: row` container, which is what a card
- * grid with no `order` overrides produces) — this does not re-derive row
- * membership from `x`, only from the `y` grouping, so a caller that passes
- * locators out of order gets a wrong answer rather than a caught one.
- */
-export async function rowCounts(locators: readonly Locator[], tolerancePx = 1): Promise<number[]> {
-  const rects = await Promise.all(locators.map((l, i) => rectOf(l, `row item ${i}`)));
-  const counts: number[] = [];
-  let rowTop: number | null = null;
-  for (const rect of rects) {
-    if (rowTop === null || Math.abs(rect.y - rowTop) > tolerancePx) {
-      counts.push(1);
-      rowTop = rect.y;
-    } else {
-      counts[counts.length - 1] = (counts[counts.length - 1] ?? 0) + 1;
-    }
-  }
-  return counts;
-}
-
-/** The intersection of two rects, or null when they do not meaningfully overlap. */
-export function overlapOf(a: Rect, b: Rect): Rect | null {
-  const x = Math.max(a.x, b.x);
-  const y = Math.max(a.y, b.y);
-  const width = Math.min(a.x + a.width, b.x + b.width) - x;
-  const height = Math.min(a.y + a.height, b.y + b.height) - y;
-  if (width <= EPSILON_PX || height <= EPSILON_PX) return null;
-  return { x, y, width, height };
-}
-
-/**
- * Assert two elements do not sit on top of one another.
- *
- * This is the assertion M5 needed and did not have: an action row positioned
- * `absolute; bottom: 0` over the card reads perfectly in the markup.
- */
-export async function expectNoOverlap(a: Measured, b: Measured): Promise<void> {
-  const ra = await rectOf(a.locator, a.label);
-  const rb = await rectOf(b.locator, b.label);
-  const overlap = overlapOf(ra, rb);
-
-  expect(
-    overlap,
-    `"${a.label}" and "${b.label}" must not intersect.\n` +
-      `        ${a.label}: ${fmt(ra)}\n` +
-      `        ${b.label}: ${fmt(rb)}\n` +
-      `        intersection: ${overlap ? fmt(overlap) : "none"}`,
-  ).toBeNull();
-}
-
-/**
- * Assert `inner` is fully inside `outer` — nothing clipped on any edge.
- *
- * Used for "the freshness block is fully visible inside the card", where a
- * too-tall photo pushes the block past the card's `overflow: hidden` edge and
- * the text simply vanishes with no error anywhere.
- */
-export async function expectContainedBy(inner: Measured, outer: Measured): Promise<void> {
-  const ri = await rectOf(inner.locator, inner.label);
-  const ro = await rectOf(outer.locator, outer.label);
-
-  const spill = {
-    top: ro.y - ri.y,
-    left: ro.x - ri.x,
-    right: ri.x + ri.width - (ro.x + ro.width),
-    bottom: ri.y + ri.height - (ro.y + ro.height),
-  };
-  const worst = Math.max(spill.top, spill.left, spill.right, spill.bottom);
-
-  expect(
-    worst,
-    `"${inner.label}" must be fully visible inside "${outer.label}".\n` +
-      `        ${inner.label}: ${fmt(ri)}\n` +
-      `        ${outer.label}: ${fmt(ro)}\n` +
-      `        spill: top=${spill.top.toFixed(2)} left=${spill.left.toFixed(2)} ` +
-      `right=${spill.right.toFixed(2)} bottom=${spill.bottom.toFixed(2)} (positive = clipped)`,
-  ).toBeLessThanOrEqual(EPSILON_PX);
-}
-
-/**
- * Assert `inner`'s bottom edge sits at least `minMarginPx` above `outer`'s —
- * not merely "not clipped", but "not dangerously close to clipping".
- *
- * `expectContainedBy` only fails once spill turns positive. That is the
- * right bar for correctness, but it gives zero warning as the margin erodes
- * from generous to razor-thin — a change (a longer localized string, a
- * font swap, a line-height tweak) can eat the entire buffer and this would
- * stay green right up until the pixel it goes negative. This is the second,
- * separate thing worth asserting: that today's margin is a margin, not an
- * accident one bad content change away from becoming a real clip.
- */
-export async function expectMinimumBottomMargin(
-  inner: Measured,
-  outer: Measured,
-  minMarginPx: number,
-): Promise<void> {
-  const ri = await rectOf(inner.locator, inner.label);
-  const ro = await rectOf(outer.locator, outer.label);
-  const margin = ro.y + ro.height - (ri.y + ri.height);
-
-  expect(
-    margin,
-    `"${inner.label}" has only ${margin.toFixed(1)}px of margin above "${outer.label}"'s ` +
-      `bottom edge; expected at least ${minMarginPx}px.\n` +
-      `        ${inner.label}: ${fmt(ri)}\n` +
-      `        ${outer.label}: ${fmt(ro)}\n` +
-      `        The containment check elsewhere only fails at 0 — this exists so an eroding ` +
-      `margin is caught while there is still room to fix it, not the moment it clips.`,
-  ).toBeGreaterThanOrEqual(minMarginPx);
-}
-
-async function viewportOverflow(page: Page) {
-  return page.evaluate(() => ({
-    scrollWidth: document.documentElement.scrollWidth,
-    scrollHeight: document.documentElement.scrollHeight,
-    innerWidth: window.innerWidth,
-    innerHeight: window.innerHeight,
-  }));
-}
-
-/**
- * Assert the document does not scroll sideways.
- *
- * `window.innerWidth` rather than the nominal viewport, because once a
- * scrollbar appears it takes width from the layout and the nominal number
- * stops describing what the user sees.
- *
- * Split from `expectNoViewportOverflow` for a page that is *supposed* to
- * scroll vertically — a content list, or "this screen scrolls" pages like
- * the eventual animal detail page (docs/design/README.md, "04 Detail —
- * 1440") — where asserting `scrollHeight` would fail against correct
- * behaviour rather than catch a real defect.
- */
-export async function expectNoHorizontalOverflow(page: Page, viewport: Viewport): Promise<void> {
-  const m = await viewportOverflow(page);
-
-  expect(
-    m.scrollWidth,
-    `document scrollWidth ${m.scrollWidth} exceeds the ${viewport.name} viewport ` +
-      `(${m.innerWidth}px) by ${m.scrollWidth - m.innerWidth}px — the page scrolls sideways`,
-  ).toBeLessThanOrEqual(m.innerWidth);
-}
-
-/**
- * Assert the document does not scroll in either axis. For a page that must
- * fit entirely within one screen (the swipe deck) — see
- * `expectNoHorizontalOverflow` for a page allowed to grow vertically.
- */
-export async function expectNoViewportOverflow(page: Page, viewport: Viewport): Promise<void> {
-  await expectNoHorizontalOverflow(page, viewport);
-  const m = await viewportOverflow(page);
-
-  expect(
-    m.scrollHeight,
-    `document scrollHeight ${m.scrollHeight} exceeds the ${viewport.name} viewport ` +
-      `(${m.innerHeight}px) by ${m.scrollHeight - m.innerHeight}px — the page scrolls vertically`,
-  ).toBeLessThanOrEqual(m.innerHeight);
-}
-
-/**
- * Real Tab presses, not `locator.focus()` — same reasoning
- * `gallery-filters.harness.ts`'s tab-order test already documents:
- * `focus()` succeeds on a `tabindex="-1"` element (removed from the tab
- * order) and even on elements with no visible focus styling at all, so a
- * `focus()`-based check can't fail for the reason a focus-visible test
- * needs to fail for. Walking the real tab order, then reading the
- * genuinely-focused element's own computed outline, is the only version
- * that can.
- *
- * Chromium's own `:focus-visible` heuristic is what's actually exercised
- * here: keyboard-driven focus qualifies, a mouse click on a button/link
- * generally doesn't. Asserting a real, non-zero outline after reaching the
- * target by keyboard is therefore a genuine test of
- * `docs/standing-constraints.md`'s "an interactive element ships with its
- * focus-visible styling and a test" — not a proxy for it.
- */
-export async function expectFocusVisibleOutline(
+export async function expectReachableByTab(
   page: Page,
   target: Measured,
   maxTabPresses = 25,
@@ -338,209 +101,6 @@ export async function expectFocusVisibleOutline(
   }
 
   expect(reached, `${target.label} was not reached within ${maxTabPresses} Tab presses`).toBe(true);
-
-  const outline = await page.evaluate((el) => {
-    const style = getComputedStyle(el);
-    return {
-      width: style.outlineWidth,
-      style: style.outlineStyle,
-      offset: style.outlineOffset,
-    };
-  }, handle);
-
-  /**
-   * `outline-width >= 2px` alone is not enough — verified by mutation, not
-   * assumed: Chromium's own fallback focus ring for a plain link/button
-   * that has no author styling at all (`outline-style: auto`) still reports
-   * a non-"none" style and a >0 width (1px, 1px offset, in the browsers
-   * this suite runs against) — deleting this app's actual
-   * `focus-visible:outline-*` classes from an element and re-running this
-   * check used to still pass, against the native fallback. Both `width`
-   * and `offset` being at least 2px is what actually distinguishes this
-   * design system's intentional styling (every focus ring in this app is
-   * 3px, offset 3px) from that fallback, which never reaches 2px on
-   * either axis.
-   */
-  const MIN_INTENTIONAL_PX = 2;
-  expect(
-    outline.style,
-    `${target.label}: focus-visible outline-style is "${outline.style}" — no visible focus ring`,
-  ).not.toBe("none");
-  expect(
-    Number.parseFloat(outline.width),
-    `${target.label}: focus-visible outline-width is "${outline.width}" — looks like the ` +
-      `browser's own unstyled fallback ring (1px), not this app's intentional styling`,
-  ).toBeGreaterThanOrEqual(MIN_INTENTIONAL_PX);
-  expect(
-    Number.parseFloat(outline.offset),
-    `${target.label}: focus-visible outline-offset is "${outline.offset}" — looks like the ` +
-      `browser's own unstyled fallback ring (1px offset), not this app's intentional styling`,
-  ).toBeGreaterThanOrEqual(MIN_INTENTIONAL_PX);
-}
-
-function relativeLuminance([r, g, b]: readonly [number, number, number]): number {
-  const [rl, gl, bl] = [r, g, b].map((c) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  }) as [number, number, number];
-  return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
-}
-
-function parseRgb(css: string): readonly [number, number, number] {
-  const m = css.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/);
-  if (!m) throw new Error(`not an rgb()/rgba() color: "${css}"`);
-  return [Number(m[1]), Number(m[2]), Number(m[3])];
-}
-
-/**
- * WCAG contrast ratio between two colors, each as `getComputedStyle` resolves
- * them — always an `rgb()`/`rgba()` string regardless of the source CSS
- * syntax (a hex value, a `theme()` token, a named color). Assumes both are
- * opaque against an opaque page, which holds for every surface this design
- * system defines — there is no semi-transparent background anywhere in it.
- */
-export function contrastRatio(colorA: string, colorB: string): number {
-  const lumA = relativeLuminance(parseRgb(colorA));
-  const lumB = relativeLuminance(parseRgb(colorB));
-  const [lighter, darker] = lumA >= lumB ? [lumA, lumB] : [lumB, lumA];
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
-/** What a `sizes` attribute actually resolves to at the current viewport. */
-export interface ResolvedSizes {
-  /** The clause that won, verbatim — named so a failure says which one. */
-  readonly source: string;
-  /** Its resolved CSS-pixel length. */
-  readonly px: number;
-}
-
-/**
- * Resolve a real `sizes` attribute the way the browser does: walk the
- * comma-separated clauses, take the first whose media condition matches
- * (or the trailing default), then resolve its length through real CSS.
- *
- * Read the attribute off the shipped element and pass it here — never
- * hand-write the string in a test. `docs/standing-constraints.md`: "a test
- * may not compare output against the same constant the code renders."
- *
- * Real `matchMedia` and a real element's computed width, rather than parsing
- * lengths in JS, because the clause can be a `calc()` — which is exactly what
- * an honest declaration for an inset box looks like, and a hand-rolled parser
- * would quietly not support it.
- */
-export async function resolveSizesAttribute(
-  page: Page,
-  sizesAttribute: string,
-): Promise<ResolvedSizes> {
-  const resolved = await page.evaluate((sizes) => {
-    const clauses = sizes.split(",").map((c) => c.trim());
-    let winner: string | null = null;
-    for (const clause of clauses) {
-      const withCondition = clause.match(/^(\(.+\))\s+(.+)$/);
-      if (!withCondition) {
-        winner = clause; // trailing default, no media condition
-        break;
-      }
-      if (window.matchMedia(withCondition[1] as string).matches) {
-        winner = withCondition[2] as string;
-        break;
-      }
-    }
-    if (winner === null) return null;
-
-    const probe = document.createElement("div");
-    probe.style.position = "absolute";
-    probe.style.visibility = "hidden";
-    probe.style.width = winner;
-    document.body.appendChild(probe);
-    const px = probe.getBoundingClientRect().width;
-    probe.remove();
-    return { source: winner, px };
-  }, sizesAttribute);
-
-  if (resolved === null) {
-    throw new Error(`no clause of sizes="${sizesAttribute}" matched at this viewport`);
-  }
-  return resolved;
-}
-
-/**
- * Which variant the browser itself picks, given a real `sizes` string and the
- * real variant width ladder, at the context's real `deviceScaleFactor`.
- *
- * This runs the browser's own srcset selection rather than reimplementing it.
- * That matters: the selection multiplies the resolved `sizes` length by DPR
- * before comparing against `w` descriptors, and it is that multiplication —
- * not the declaration alone — that decides whether a phone downloads 136KB or
- * 284KB. A test that modelled the rule in JS would agree with a wrong `sizes`
- * just as happily as with a right one.
- *
- * The probe URLs are fulfilled locally, so this measures selection, not the
- * network, and needs no R2 credentials.
- *
- * ## Do not identify a variant from `naturalWidth`
- *
- * Read `currentSrc` (which is what this helper does) or the network request.
- * Never `naturalWidth`. This cost a full re-measurement during H1's real-R2
- * verification pass, and it is genuinely counter-intuitive, so it is written
- * down here rather than rediscovered.
- *
- * When an image is selected from a `srcset` carrying `w` descriptors,
- * `naturalWidth`/`naturalHeight` do **not** report the file's real pixel
- * dimensions. Per the HTML spec the UA derives a "current pixel density" from
- * the chosen descriptor and the resolved `sizes`, and `naturalWidth` returns
- * the *density-corrected* intrinsic width — `realWidth / density`. A real
- * 1120x1400 `detail.webp` selected for a 360px box reports `360x450`.
- *
- * Two consequences, both encountered for real:
- * - A single-DPR reading looks exactly like the wrong variant was served when
- *   it wasn't. Only `currentSrc` distinguishes them.
- * - To confirm a variant's true dimensions you must fetch the URL and measure
- *   the response bytes, which is what the H1 pass did against the real bucket.
- *
- * `naturalWidth > 0` remains a valid check for "did it decode at all", and
- * nothing more.
- */
-export async function selectVariantFromSrcset(
-  page: Page,
-  sizesAttribute: string,
-  variantWidths: Readonly<Record<string, number>>,
-): Promise<string> {
-  const PROBE_PREFIX = "/__variant-probe/";
-  // 1x1 transparent GIF — the bytes are irrelevant, the descriptors are the test.
-  const PIXEL = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
-  await page.route(`**${PROBE_PREFIX}*`, (route) =>
-    route.fulfill({ status: 200, contentType: "image/gif", body: PIXEL }),
-  );
-
-  const srcset = Object.entries(variantWidths)
-    .map(([name, width]) => `${PROBE_PREFIX}${name} ${width}w`)
-    .join(", ");
-
-  const chosen = await page.evaluate(
-    async ({ sizes, set, prefix }) => {
-      const img = document.createElement("img");
-      img.setAttribute("sizes", sizes);
-      img.setAttribute("srcset", set);
-      document.body.appendChild(img);
-      try {
-        await img.decode();
-      } catch {
-        // Selection is what's under test; a decode failure must not mask it.
-      }
-      const current = img.currentSrc;
-      img.remove();
-      return current.includes(prefix) ? (current.split(prefix)[1] ?? null) : null;
-    },
-    { sizes: sizesAttribute, set: srcset, prefix: PROBE_PREFIX },
-  );
-
-  if (chosen === null) {
-    throw new Error(
-      `browser selected no variant from srcset="${srcset}" sizes="${sizesAttribute}"`,
-    );
-  }
-  return chosen;
 }
 
 export interface DragOptions {

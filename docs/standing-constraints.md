@@ -76,6 +76,8 @@ it decays silently at exactly the rate the thing it describes changes.
 *Until the brand lands (CLAUDE.md, "Test logic, not looks"), this holds for behavioural and data limits. Visual
 limits (pixel floors, margins, viewports measured for layout) get no new tests; the one size
 floor kept is the 48px target, tested once on the shared primitives.*
+*2026-10-20: the existing visual-limit tests are removed, not frozen (Oleksii, verbatim:
+"UI-measuring tests: yes, keep both V-B2 tests (the 48px shared controls and the focus indicator being present). They’re accessibility guarantees, not looks. Drop the rest that measure appearance."; CLAUDE.md, "Test logic, not looks").*
 
 *Why:* the third variant of one failure. First conditional assertions (a test skipping its
 own checks when the element was absent — which is the broken state). Then self-comparing
@@ -92,7 +94,8 @@ change is a change-detector wearing a floor's name, and it will be re-based on e
 legitimate layout change until it means nothing. To prove a floor works, move the real
 measurement *past* it and check the failure names the value, the limit and the case.
 *Until the brand lands (CLAUDE.md, "Test logic, not looks"), new floors are behavioural or data floors; existing
-pixel floors are frozen, not extended.*
+pixel floors are frozen, not extended.* *2026-10-20: those pixel floors are now removed, not
+frozen (CLAUDE.md, "Test logic, not looks", his decision of that date).*
 
 *Why:* the instruction given for `MIN_SHELTER_MARGIN_PX` was "shrinking the margin by 1px
 must turn it red." It could not, by construction — the floor was 8 against a measured 12 —

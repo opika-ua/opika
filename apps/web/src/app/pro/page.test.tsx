@@ -39,11 +39,10 @@ describe("AboutPage", () => {
     ).toBe(true);
   });
 
-  it("the header wordmark links back to the gallery and shows a real focus-visible outline", () => {
+  it("the header wordmark links back to the gallery", () => {
     render(<AboutPage />);
 
     const link = screen.getByRole("link", { name: "Opika" });
     expect(link.getAttribute("href")).toBe("/tvaryny");
-    expect(link.className).toContain("focus-visible:outline");
   });
 });

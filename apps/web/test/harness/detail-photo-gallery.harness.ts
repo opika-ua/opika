@@ -2,12 +2,12 @@
  * O-10/C6 + D-6 (`feat/d-6-detail-photo-gallery`) — `DetailPhotoGallery.tsx`'s
  * dot indicator (mobile) and thumbnail strip (desktop) are new interactive
  * controls. Reviewer round 1 on this row found neither had a rendered
- * assertion for the two things markup inspection can't catch
+ * assertion for what markup inspection can't catch
  * (`docs/standing-constraints.md`'s "a UI item may not be marked done on the
- * basis of inspecting markup"): a real 48px touch target on the dot buttons
- * (an 8px visual dot, sized up to a 48px hit area — the same "small visual,
- * real hit area" shape O-19, `docs/observations.md`, exists to keep from
- * regressing) and a real focus-visible outline on both control types.
+ * basis of inspecting markup"): both control types are in the real tab
+ * order. (Until 2026-10-20 this file also measured the dots' 48px touch
+ * target and the focus ring's width; both measured appearance and were
+ * removed with the other UI-measuring tests.)
  *
  * A dedicated `x-forwarded-for` isolates this file from `animal-detail.
  * harness.ts`'s own already-tight request budget (that file's own top
@@ -27,8 +27,8 @@
  * changes enough that none of the first few do.
  */
 
-import { expect, test } from "@playwright/test";
-import { expectFocusVisibleOutline, expectMinTouchTarget, openRoute } from "./harness";
+import { test } from "@playwright/test";
+import { expectReachableByTab, openRoute } from "./harness";
 import { DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
 
 const SPOOFED_IP_HEADERS = { "x-forwarded-for": "198.51.100.33" };
@@ -77,53 +77,25 @@ async function discoverMultiPhotoAnimalHref(
   }
 }
 
-test.describe("detail page photo gallery — touch target and focus-visible", () => {
-  test("every mobile dot button meets the 48px touch-target floor", async ({ page, browser }) => {
+test.describe("detail page photo gallery — keyboard reachability", () => {
+  test("a mobile dot button is reachable by Tab", async ({ page, browser }) => {
     const href = await discoverMultiPhotoAnimalHref(browser);
     await openRoute(page, href, DETAIL_PHONE, { readySelector: DETAIL_READY });
 
-    const dots = page.getByTestId("detail-photo-dot");
-    const count = await dots.count();
-    expect(
-      count,
-      "expected at least one photo dot on a multi-photo animal at phone width",
-    ).toBeGreaterThan(0);
-    for (let i = 0; i < count; i++) {
-      await expectMinTouchTarget(dots.nth(i), `photo dot ${i + 1} of ${count}`);
-    }
-  });
-
-  test("a mobile dot button shows a real focus-visible outline", async ({ page, browser }) => {
-    const href = await discoverMultiPhotoAnimalHref(browser);
-    await openRoute(page, href, DETAIL_PHONE, { readySelector: DETAIL_READY });
-
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "photo-dot button",
       locator: page.getByTestId("detail-photo-dot").first(),
     });
   });
 
-  test("a desktop thumbnail button shows a real focus-visible outline", async ({
-    page,
-    browser,
-  }) => {
+  test("a desktop thumbnail button is reachable by Tab", async ({ page, browser }) => {
     const href = await discoverMultiPhotoAnimalHref(browser);
     await openRoute(page, href, DETAIL_DESKTOP, { readySelector: DETAIL_READY });
 
-    /**
-     * `.nth(1)`, deliberately not `.first()`: the first thumbnail is the
-     * active one by default, and the active thumbnail carries its ring
-     * (`outline outline-[3px] outline-offset-[3px] outline-rg-ink`)
-     * unconditionally — not gated on `:focus-visible` at all. Asserting
-     * against it would pass even with the component's real
-     * `focus-visible:outline-*` classes deleted outright (confirmed by
-     * mutation: that deletion left `.first()`'s check green, because what it
-     * was actually measuring was the always-on active ring, not focus).
-     * `.nth(1)` is never the active one here (`activeIndex` starts at 0), so
-     * any outline it shows after a real Tab sequence can only come from its
-     * own `focus-visible:` styling.
-     */
-    await expectFocusVisibleOutline(page, {
+    // `.nth(1)`, the non-active thumbnail: kept from when this also read the
+    // focus ring (the active one carries an always-on ring); reachability
+    // holds for either.
+    await expectReachableByTab(page, {
       label: "photo-thumbnail button (non-active)",
       locator: page.getByTestId("detail-photo-thumbnail").nth(1),
     });

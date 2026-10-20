@@ -93,7 +93,7 @@ export default defineConfig({
     // exists. The build is a few seconds; a false green is not.
     //
     // migrate then seed, ahead of `next start`: gallery-layout.harness.ts
-    // needs real rows behind `/tvaryny` to count columns per row, and
+    // needs real rows behind `/tvaryny` to load their photos, and
     // db:seed's own safety gate truncates first (packages/db/src/seed.ts),
     // so this is idempotent across repeated harness runs rather than
     // accumulating duplicate rows. `--filter @opika/db`, not a relative
