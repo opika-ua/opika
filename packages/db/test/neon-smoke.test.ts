@@ -111,7 +111,7 @@ describe("runSmoke against the local database", () => {
     // 25 through PR 3, R-UI 1's 26 (S1 row: admin counts and donationPending),
     // K3's 27–31 (F-B1, K3-T7, RH-B7), then K2's 32–36 (the list's keyset,
     // filters and counts; confirm/undo; the recorded moves), then KH-Q12's 37
-    // (auth:revoke-all's purge).
-    expect(outcomes.length).toBe(37);
+    // (auth:revoke-all's purge), then 38 (the gallery's relaxation counts).
+    expect(outcomes.length).toBe(38);
   });
 });

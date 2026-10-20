@@ -7,6 +7,7 @@ import {
   listingAfterPhotoChange,
   listingHistoryEventOf,
   type ModeratorId,
+  NO_FILTERS,
   publicLocationOf,
   type ShelterAdminId,
   type ShelterHistoryEntry,
@@ -22,6 +23,7 @@ import { animalRepo } from "../src/repos/animal-repo";
 import { authExpiryRepo, KABINET_SESSION_LIMITS } from "../src/repos/auth-expiry-repo";
 import { authRevokeRepo } from "../src/repos/auth-revoke-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { galleryRepo } from "../src/repos/gallery-repo";
 import {
   type AnimalHistoryRow,
   isCheckViolation,
@@ -1807,6 +1809,46 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       operatorStays &&
       membersAfter === membersBefore,
     `deleted ${revoked.sessions} session(s), ${revoked.verifications} link(s); left ${revokeLeft.sessions} and ${revokeLeft.verifications}; operator ${operatorStays ? "kept" : "GONE"}, members ${membersBefore} → ${membersAfter}`,
+  );
+
+  // 38. the gallery's relaxation counts through neon-http (found in the review
+  // of #163): the query read a raw `db.execute()` result as an array, which on
+  // this driver is `{ rows }`, so every count was 0 and no no-match screen
+  // offered a relaxation. A city, a verified shelter and three cards of this
+  // run's own, so the counts don't depend on what the branch copied from
+  // production. After 37 is harmless: it reads no session.
+  const relaxCity = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(relaxCity);
+  const relaxBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} G` });
+  const relaxAddress = { ...relaxBase.exactAddress, cityId: relaxCity.id };
+  await insertShelterFromScript(
+    db,
+    {
+      ...relaxBase,
+      exactAddress: relaxAddress,
+      publicLocation: publicLocationOf(relaxBase.id, relaxAddress, policy),
+    },
+    by,
+  );
+  for (const species of ["cat", "dog", "dog"] as const) {
+    await animalRepo(db).insert(
+      makeAnimal({ id: randomUUID() as never, shelterId: relaxBase.id, species }),
+      relaxCity.id,
+    );
+  }
+  const relaxation = await galleryRepo(db).relaxationCounts({
+    filters: {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf", values: [relaxCity.id] },
+      species: { kind: "oneOf", values: ["cat"] },
+    },
+    now: NOW,
+  });
+  const withoutSpecies = relaxation.relaxations.find((r) => r.dimension === "species");
+  check(
+    "gallery relaxation counts (typed select, not a raw execute read)",
+    relaxation.current === 1 && withoutSpecies?.additional === 2,
+    `current ${relaxation.current}, without species +${withoutSpecies?.additional ?? "none"}, ${relaxation.relaxations.length} suggestion(s)`,
   );
   return out;
 }

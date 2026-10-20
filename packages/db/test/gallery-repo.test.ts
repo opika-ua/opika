@@ -7,7 +7,9 @@ import {
   NO_FILTERS,
   type ShelterId,
 } from "@opika/domain";
+import type { SQL } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { Database } from "../src/client";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { galleryRepo } from "../src/repos/gallery-repo";
@@ -529,6 +531,40 @@ describe("galleryRepo.relaxationCounts", () => {
     // Most useful suggestion first, so the caller renders an order rather than
     // inventing one.
     expect(counts.relaxations.map((r) => r.additional)).toEqual([5, 3, 2]);
+  });
+
+  it("counts the same over a driver whose raw results are `{ rows }`, as neon-http's are", async () => {
+    // Production's driver (neon-http, any `.neon.tech` host) returns a raw
+    // `db.execute()` result as `{ rows, fields, … }`, not postgres-js's array.
+    // The query that read it as an array gave every count 0 there and passed
+    // every local test (#112, found in the review of #163). This wrapper gives
+    // the local database neon-http's raw shape, so a raw read fails here too.
+    const neonHttpRawShape = new Proxy(db, {
+      get(target, property, receiver) {
+        if (property === "execute") {
+          return async (query: SQL) => ({
+            rows: Array.from(await target.execute(query)),
+            fields: [],
+          });
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    }) as Database;
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = await makeShelterInCity(city.id);
+    await animalRepo(db).insertMany([
+      { animal: makeAnimal({ shelterId: shelter.id, species: "cat" }), cityId: city.id },
+      { animal: makeAnimal({ shelterId: shelter.id, species: "dog" }), cityId: city.id },
+      { animal: makeAnimal({ shelterId: shelter.id, species: "dog" }), cityId: city.id },
+    ]);
+
+    const counts = await galleryRepo(neonHttpRawShape).relaxationCounts({
+      filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
+      now: NOW,
+    });
+
+    expect(counts).toEqual({ current: 1, relaxations: [{ dimension: "species", additional: 2 }] });
   });
 
   it("makes no suggestions when nothing is filtered", async () => {

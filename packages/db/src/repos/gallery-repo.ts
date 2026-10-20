@@ -190,26 +190,35 @@ export function galleryRepo(db: Database) {
         isConstrained(opts.filters, dimension),
       );
 
-      const columns: SQL[] = [sql`count(*) FILTER (WHERE ${currentFilter}) AS current`];
+      // A typed `.select()`, never a raw `db.execute()`: the raw result is a
+      // `RowList` array on postgres-js but `{ rows, fields }` on neon-http, so
+      // reading it as an array gave `[]` in production and every count 0
+      // (`raw-execute-reads.test.ts`). The query builder maps rows the same way
+      // on both drivers, and `.mapWith(Number)` turns `count(*)`'s bigint
+      // string into a number as `countMatching` does.
+      const columns: Record<string, SQL.Aliased<number>> = {
+        current: sql<number>`count(*) FILTER (WHERE ${currentFilter})`
+          .mapWith(Number)
+          .as("current"),
+      };
       for (const [index, dimension] of constrained.entries()) {
         const relaxed =
           and(...buildFilterPredicate(relaxDimension(opts.filters, dimension), opts.now)) ??
           sql`TRUE`;
-        columns.push(sql`count(*) FILTER (WHERE ${relaxed}) AS ${sql.raw(`without_${index}`)}`);
+        columns[`without_${index}`] = sql<number>`count(*) FILTER (WHERE ${relaxed})`
+          .mapWith(Number)
+          .as(`without_${index}`);
       }
 
-      const rows = await db.execute<Record<string, string | number>>(
-        sql`SELECT ${sql.join(columns, sql`, `)} FROM ${animals} WHERE ${base}`,
-      );
-      const row = Array.from(rows as Iterable<Record<string, string | number>>)[0] ?? {};
+      const [row = {}] = await db.select(columns).from(animals).where(base);
 
-      const current = Number(row["current"] ?? 0);
+      const current = row["current"] ?? 0;
       const relaxations = constrained
         .map((dimension, index) => ({
           dimension,
           // The `+N` the suggestion shows is the gain, not the total. Never
           // negative: relaxing a dimension can only widen the match set.
-          additional: Math.max(0, Number(row[`without_${index}`] ?? 0) - current),
+          additional: Math.max(0, (row[`without_${index}`] ?? 0) - current),
         }))
         // Most useful suggestion first, so the caller renders an order rather
         // than inventing one.
