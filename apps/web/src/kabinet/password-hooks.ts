@@ -238,11 +238,10 @@ export function passwordHooks(deps: PasswordHookDeps) {
    * line, and it also catches a session inserted between the write and its own delete, which a
    * skipped revoke would leave. A sign-in racing the write (one that checked the old password
    * before it) is refused by its own after-hook, whenever its insert lands (PW1-F6,
-   * `sign-in-race.ts`). A failure
-   * or a timeout is one line at error level, masked (his PW1-F1 answer, verbatim excerpt: "A failure
-   * is logged at error level, masked. The links die within the hour anyway."): no user id, no
-   * address, never the error's message (a query error's message carries its parameters); only a
-   * SQLSTATE code, when there is one.
+   * `sign-in-race.ts`). A failure or a timeout is one line at error level, masked (his PW1-F1
+   * answer, verbatim excerpt: "A failure is logged at error level, masked. The links die within
+   * the hour anyway."): no user id, no address, never the error's message (a query error's
+   * message carries its parameters); only a SQLSTATE code, when there is one.
    */
   async function voidResetLinks(userId: string, after: "reset" | "change"): Promise<void> {
     try {

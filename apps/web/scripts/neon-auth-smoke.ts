@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDatabase, type Database } from "@opika/db";
@@ -19,6 +19,8 @@ import {
   passwordRevokeIsInPlace,
   productionEndpoint,
   smokeTarget,
+  statementName,
+  steppedDatabase,
   writeCredentialPassword,
 } from "@opika/db/test";
 import {
@@ -69,6 +71,12 @@ import { kabinetIdentityOf } from "../src/kabinet/principal";
  *      Auth call at all, ends every session of theirs in that statement (the new password then
  *      signs in). Steps 7, 9, 10 and 11 above already run with the triggers in place: step 9's
  *      one renewed session is the change keeping the caller signed in.
+ *   14. PW1-F6: a password sign-in held at its session insert (a second auth instance over a
+ *      stepped database: by order, never by timing) while our own statement writes the password
+ *      (as step 13's does, whose trigger ends the sessions there are); released, it inserts after
+ *      that revoke, and its own after-hook deletes that session and answers what a wrong
+ *      password gets. Every password sign-in from step 8 on also runs PW1-F6's read twice over
+ *      this driver; the last sign-in here is the check's success path.
  *
  * Nothing is sent anywhere: the magic link is captured in memory, never
  * printed. Refuses unless the target's compute is exactly `--expect`, and
@@ -134,19 +142,24 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
   const passwordMail = capturingPasswordMail();
   const scheduled: Promise<void>[] = [];
   const unlimited = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 });
-  const auth = createKabinetAuth({
-    db,
-    sender,
-    schedule: (work) => {
-      scheduled.push(work());
-    },
-    baseURL: BASE,
-    secret: randomUUID() + randomUUID(),
-    secureCookies: true,
-    passwordLimiters: generousPasswordLimiters(),
-    passwordMail,
-    limiters: { perUser: unlimited(), perIp: unlimited() },
-  });
+  // One secret for both instances (step 14's second one too), so a cookie signed for a session
+  // by either reads the same through `auth`.
+  const secret = randomUUID() + randomUUID();
+  const authOver = (database: Database) =>
+    createKabinetAuth({
+      db: database,
+      sender,
+      schedule: (work) => {
+        scheduled.push(work());
+      },
+      baseURL: BASE,
+      secret,
+      secureCookies: true,
+      passwordLimiters: generousPasswordLimiters(),
+      passwordMail,
+      limiters: { perUser: unlimited(), perIp: unlimited() },
+    });
+  const auth = authOver(db);
   const availability: KabinetAuthAvailability = {
     kind: "available",
     passwordMail,
@@ -296,7 +309,7 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
 
   // PW-1's write paths (docs/shelter-passwords.md §8, "Neon smoke (new SQL paths: credential
   // create, reset-token consume)"), driven through the route as the browser drives them.
-  const route = async (path: string, body: unknown, cookie = "") => {
+  const route = async (path: string, body: unknown, cookie = "", via = auth) => {
     const response = await handleKabinetAuth(
       new Request(`${BASE}${path}`, {
         method: "POST",
@@ -310,7 +323,7 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       }),
       {
         availability,
-        auth: () => auth,
+        auth: () => via,
         limiters: { perAddress: unlimited(), perIp: unlimited() },
         now,
       },
@@ -532,6 +545,83 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       !phoneSignedIn &&
       newPassword.status === 200,
     `sign-ins ${phone.status}/${laptop.status}, sessions ${sessionsBeforeWrite} then ${sessionsAfterWrite}, a device still signed in ${phoneSignedIn}, new password ${newPassword.status}`,
+  );
+
+  // 14. PW1-F6: a sign-in held at its session insert while our own statement writes the password.
+  const sixthPassword = `smoke-${randomUUID()}`;
+  const wrong = await route("/api/auth/sign-in/email", {
+    email,
+    password: `smoke-${randomUUID()}`,
+  });
+  const wrongBody = await wrong.clone().text();
+  const stepped = steppedDatabase(db, {
+    holdWhen: (statement) => statementName(statement) === "insert:auth_session",
+  });
+  const racingAuth = authOver(stepped.db);
+  const signingIn = route(
+    "/api/auth/sign-in/email",
+    { email, password: fifthPassword },
+    "",
+    racingAuth,
+  );
+  await stepped.hold.reached;
+  if (user) {
+    const hasher = (await auth.$context).password;
+    await writeCredentialPassword(db, user.id, await hasher.hash(sixthPassword), new Date());
+  }
+  const sessionsAtTheWrite = user ? (await sessionsOf(user.id)).length : -1;
+  stepped.hold.release();
+  const raced = await signingIn;
+  const racedBody = await raced.clone().text();
+  // The sessions the stepped instance inserted, found by what it wrote: the raced one is in no
+  // response, which is the point. Never printed.
+  const insertedTokens = () =>
+    stepped.trace
+      .filter((statement) => statementName(statement) === "insert:auth_session")
+      .map((statement) => (statement.values as { token?: unknown }).token)
+      .filter((value): value is string => typeof value === "string");
+  const [racedToken = ""] = insertedTokens();
+  const signedCookieFor = (value: string) =>
+    `${cookieName}=${encodeURIComponent(
+      `${value}.${createHmac("sha256", secret).update(value).digest("base64")}`,
+    )}`;
+  const racedRead = await auth.handler(
+    new Request(`${BASE}/api/auth/get-session`, {
+      headers: new Headers({
+        cookie: racedToken === "" ? "" : signedCookieFor(racedToken),
+        origin: BASE,
+        "x-forwarded-for": "198.51.100.77",
+      }),
+    }),
+  );
+  const racedReadBody = (await racedRead.json().catch(() => null)) as { user?: unknown } | null;
+  const racedSignedIn = racedReadBody?.user !== undefined;
+  const sessionsAfterRace = user ? (await sessionsOf(user.id)).length : -1;
+  // The check's success path, through the same instance (its hold is spent): and the cookie
+  // built above is the one Better Auth sets, so the raced session's null read is a real one.
+  const afterRace = await route(
+    "/api/auth/sign-in/email",
+    { email, password: sixthPassword },
+    "",
+    racingAuth,
+  );
+  const [, afterToken = ""] = insertedTokens();
+  const builtCookieMatches =
+    afterToken !== "" && signedCookieFor(afterToken) === cookieOf(afterRace);
+  const racedCookies = raced.headers.getSetCookie().length;
+  check(
+    "a sign-in racing a password write keeps no session (deleted after its insert; a wrong password's answer)",
+    wrong.status === 401 &&
+      raced.status === 401 &&
+      racedBody === wrongBody &&
+      racedCookies === 0 &&
+      racedToken !== "" &&
+      sessionsAtTheWrite === 0 &&
+      !racedSignedIn &&
+      sessionsAfterRace === 0 &&
+      afterRace.status === 200 &&
+      builtCookieMatches,
+    `status ${raced.status}, a wrong password's answer ${racedBody === wrongBody}, cookies set ${racedCookies}, session inserted ${racedToken !== ""}, sessions at the write ${sessionsAtTheWrite} then ${sessionsAfterRace}, raced session signed in ${racedSignedIn}, new password ${afterRace.status}, built cookie matches ${builtCookieMatches}`,
   );
   return out;
 }

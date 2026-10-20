@@ -3,11 +3,14 @@ import type { Database } from "../client";
 
 /**
  * One statement a `steppedDatabase` saw start: what it does, and the tables it names (for a
- * select, `from` and then each join, in order; for a write, its table).
+ * select, `from` and then each join, in order; for a write, its table). An insert also keeps
+ * what it was given to write (`values`), so a test can find a row the code under test never
+ * hands back, such as a session whose token must reach nobody.
  */
 export type SteppedStatement = {
   kind: "select" | "insert" | "update" | "delete";
   tables: string[];
+  values?: unknown;
 };
 
 export type StatementHold = {
@@ -15,6 +18,13 @@ export type StatementHold = {
   reached: Promise<SteppedStatement>;
   /** Sends it. */
   release: () => void;
+};
+
+export type SteppedOptions = {
+  /** Holds the first statement this matches, unsent, until `hold.release()`. */
+  holdWhen?: (statement: SteppedStatement) => boolean;
+  /** Fails, unsent, each statement this returns an error for (as a dropped connection would). */
+  failWhen?: (statement: SteppedStatement) => Error | undefined;
 };
 
 const STARTS = {
@@ -38,21 +48,23 @@ const isStarter = (property: string | symbol): property is keyof typeof STARTS =
   typeof property === "string" && Object.hasOwn(STARTS, property);
 
 /**
- * `db`, with every query-builder statement recorded as it starts (`trace`), and, given
- * `holdWhen`, the first statement it matches held back unsent until `hold.release()`. How a test
- * runs another request's statements between two of this one's: deterministically, by order,
- * never by timing or load (CLAUDE.md, agent rules). The match is decided when the statement is
- * awaited, by which time its tables are all known. For the tests and the real-Neon auth smoke
- * only; nothing in production builds one.
+ * `db`, with every query-builder statement recorded as it starts (`trace`); given `holdWhen`, the
+ * first statement it matches held back unsent until `hold.release()`; given `failWhen`, the
+ * statements it picks failed unsent. How a test runs another request's statements between two of
+ * this one's, or makes one statement fail: deterministically, by order, never by timing or load
+ * (CLAUDE.md, agent rules). Both are decided when the statement is awaited, by which time its
+ * tables are all known. For the tests and the real-Neon auth smoke only; nothing in production
+ * builds one.
  *
  * Relational queries (`db.query.*`) and raw `execute()` pass through untraced: Better Auth's
  * adapter uses neither in this config (no experimental joins), and our own statements on the
  * paths this serves use the query builder.
  */
-export function steppedDatabase(
-  db: Database,
-  holdWhen?: (statement: SteppedStatement) => boolean,
-): { db: Database; trace: SteppedStatement[]; hold: StatementHold } {
+export function steppedDatabase<D extends Database>(
+  db: D,
+  options: SteppedOptions = {},
+): { db: D; trace: SteppedStatement[]; hold: StatementHold } {
+  const { holdWhen, failWhen } = options;
   const trace: SteppedStatement[] = [];
   let armed = holdWhen !== undefined;
   let release = (): void => {};
@@ -64,7 +76,7 @@ export function steppedDatabase(
     reach = resolve;
   });
 
-  /** A builder of `statement`'s chain: records its tables, holds it at `then` if it matches. */
+  /** A builder of `statement`'s chain: records its tables, fails or holds it at `then`. */
   const follow = (builder: object, statement: SteppedStatement): object =>
     new Proxy(builder, {
       get(target, property) {
@@ -72,6 +84,13 @@ export function steppedDatabase(
         if (typeof value !== "function") return value;
         if (property === "then") {
           return (onFulfilled?: unknown, onRejected?: unknown) => {
+            const failure = failWhen?.(statement);
+            if (failure !== undefined) {
+              return Promise.reject(failure).then(
+                onFulfilled as (value: unknown) => unknown,
+                onRejected as (reason: unknown) => unknown,
+              );
+            }
             if (armed && holdWhen?.(statement) === true) {
               armed = false;
               reach(statement);
@@ -84,6 +103,7 @@ export function steppedDatabase(
           if (property === "from" || (typeof property === "string" && JOINS.has(property))) {
             statement.tables.push(nameOf(args[0]));
           }
+          if (property === "values") statement.values = args[0];
           const result = value.apply(target, args);
           // The chain goes on through query builders (each one thenable); `execute()`'s own
           // promise has already sent the statement, so it is never held.
