@@ -163,48 +163,42 @@ describe("AnimalCard resolved variant", () => {
     render(<AnimalCard card={makeCard({ listingKind: "reserved" })} cityName="Бровари" resolved />);
     expect(screen.queryByTestId("reserved-badge")).toBeNull();
   });
-
-  it("gives the shelter line ink-2, not the standard card's ink-3", () => {
-    render(<AnimalCard card={makeCard()} cityName="Бровари" resolved />);
-    expect(screen.getByTestId("shelter-line").className).toContain("text-rg-ink-2");
-  });
 });
 
 /**
- * `REGISTRY_HAS_NO_REAL_SHELTERS` is unmocked throughout this describe
- * block — its real value is `true` on production today, which is exactly
- * what the tests below assert against.
+ * Designer round 1, S1 (docs/designer-round-1.md §3, DR1-D1): the gallery
+ * card is the preview, and it names no shelter, in any variant. The shelter
+ * is named on the animal page; the deck card keeps its own line. With the
+ * name goes the «перевірений» suffix, so none of these cards states a
+ * verification either.
  */
-describe("AnimalCard shelter line", () => {
-  /**
-   * 2026-09-10, found by Oleksii, not by any test: this test used to assert
-   * the opposite of what it should — a verified shelter's suffix rendering
-   * unconditionally, which is exactly the regression `verificationSuffix`
-   * (`seo-flags.ts`) exists to close. Real `REGISTRY_HAS_NO_REAL_SHELTERS`
-   * is `true` on production today, so the correct assertion here is
-   * suppression. The other branch (real shelters existing) is
-   * `seo-flags.test.ts`'s own job, via `verificationSuffix`'s explicit
-   * parameter — not `vi.doMock` here, which cannot reach it: the function
-   * is copied into a mocked module namespace by `...importOriginal()`, but
-   * still closes over its *original* module instance's own binding, the
-   * same limitation `assertDemoDiscoverabilityInvariant`'s own doc comment
-   * already documents (confirmed by hitting it, not assumed).
-   */
-  it("does not mark a verified shelter as verified while the registry holds no real shelters", () => {
-    render(<AnimalCard card={makeCard()} cityName="Бровари" />);
+describe("AnimalCard names no shelter", () => {
+  const shelterName = "Тестовий притулок";
+  const variants = [
+    { label: "standard", card: makeCard(), resolved: false },
+    { label: "reserved", card: makeCard({ listingKind: "reserved" }), resolved: false },
+    { label: "resolved", card: makeCard(), resolved: true },
+  ] as const;
 
-    const line = screen.getByTestId("shelter-line");
-    expect(line.textContent).toContain("Тестовий притулок");
-    expect(line.textContent).not.toContain("перевірений");
-  });
+  for (const { label, card, resolved } of variants) {
+    it(`shows neither the shelter's name nor a verification on the ${label} card`, () => {
+      expect(card.shelter.displayName).toBe(shelterName);
+      render(<AnimalCard card={card} cityName="Бровари" resolved={resolved} />);
 
-  it("says nothing about verification for an unverified shelter, under today's real demo flag", () => {
-    render(
-      <AnimalCard
-        card={makeCard({ shelter: { ...makeCard().shelter, verification: "unverified" } })}
-        cityName="Бровари"
-      />,
-    );
-    expect(screen.getByTestId("shelter-line").textContent).not.toContain("перевірений");
-  });
+      const link = screen.getByRole("link");
+      expect(link.textContent).not.toContain(shelterName);
+      expect(link.textContent).not.toContain("перевірений");
+      expect(screen.queryByText(shelterName, { exact: false })).toBeNull();
+    });
+
+    it(`keeps the shelter's name out of the ${label} card's accessible name`, () => {
+      render(<AnimalCard card={card} cityName="Бровари" resolved={resolved} />);
+
+      const link = screen.getByRole("link", { name: /Мурчик/ });
+      const name = link.getAttribute("aria-label") ?? "";
+      expect(name).toContain("Бровари");
+      expect(name).not.toContain(shelterName);
+      expect(screen.getAllByRole("link")).toHaveLength(1);
+    });
+  }
 });
