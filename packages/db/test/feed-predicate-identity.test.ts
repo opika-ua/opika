@@ -99,6 +99,7 @@ const ALL_FILTERS: FeedFilters = {
   species: { kind: "oneOf", values: ["dog"] as [AnimalSpecies] },
   sizes: { kind: "oneOf", values: ["small", "medium"] as [SizeBucket, SizeBucket] },
   ages: { kind: "oneOf", values: ["baby", "young"] as [AgeBucket, AgeBucket] },
+  coatLengths: { kind: "any" },
 };
 
 describe("feed.list generated SQL is unchanged by the shared-predicate extraction", () => {
@@ -146,6 +147,19 @@ describe("feed.list generated SQL is unchanged by the shared-predicate extractio
     expect(
       await sqlFor({
         filters: { ...NO_FILTERS, ages: { kind: "oneOf", values: ["baby"] as [AgeBucket] } },
+        cursor: null,
+        adopterId: null,
+      }),
+    ).toMatchSnapshot();
+  });
+
+  it("a fur filter (DR1, S2): one IN over coat_length, NULL left out by IN itself", async () => {
+    // Added with the fifth dimension rather than recorded before it: there was
+    // no fur clause to preserve. Pins that the clause is a plain equality set
+    // with no `OR coat_length IS NULL` (DR1-D11).
+    expect(
+      await sqlFor({
+        filters: { ...NO_FILTERS, coatLengths: { kind: "oneOf", values: ["long"] } },
         cursor: null,
         adopterId: null,
       }),

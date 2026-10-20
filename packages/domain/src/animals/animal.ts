@@ -4,6 +4,7 @@ import { LocalizedTextSchema } from "../primitives/localized-text";
 import { PublicLocationSchema } from "../shelters/location";
 import { AgeEstimateSchema } from "./age";
 import { SpayNeuterStatusSchema, VaccinationStatusSchema } from "./attestation";
+import { CoatLengthSchema } from "./coat";
 import { DocumentReadinessSchema } from "./document-readiness";
 import {
   type DiscoverableListing,
@@ -47,6 +48,12 @@ const animalCoreShape = {
   name: z.string().min(1),
   species: AnimalSpeciesSchema,
   sex: AnimalSexSchema,
+  /**
+   * Null is «Не записано» on drafts and listed animals alike (DR1-D10): fur is
+   * not a `ListingFacts` requirement, so no published animal needs it to stay
+   * editable, and no backfill invents it for one.
+   */
+  coatLength: CoatLengthSchema.nullable(),
   photos: z.array(AnimalPhotoSchema).max(MAX_ANIMAL_PHOTOS).readonly(),
   vaccination: VaccinationStatusSchema,
   spayNeuter: SpayNeuterStatusSchema,

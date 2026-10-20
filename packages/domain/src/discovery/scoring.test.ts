@@ -3,7 +3,7 @@ import { type FeedFilters, NO_FILTERS } from "../adopters/feed-filters";
 import type { DiscoverableAnimal } from "../animals/animal";
 import { AnimalIdSchema, ShelterIdSchema } from "../primitives/ids";
 import { DEFAULT_FRESHNESS_POLICY, freshnessOf } from "./freshness";
-import { DEFAULT_SCORING_POLICY, scoreAnimal } from "./scoring";
+import { DEFAULT_SCORING_POLICY, ScoringPolicySchema, scoreAnimal } from "./scoring";
 
 const NOW = new Date("2026-08-05T12:00:00.000Z");
 const daysAgo = (days: number): Date => new Date(NOW.getTime() - days * 86_400_000);
@@ -14,6 +14,7 @@ const baseAnimal: DiscoverableAnimal = {
   name: "Мурчик",
   species: "cat",
   sex: "male",
+  coatLength: "short",
   size: "small",
   age: { kind: "declared_bucket", bucket: "young", declaredAt: NOW },
   description: { uk: "Лагідний кіт, любить дітей та інших тварин. Привчений до лотка.", en: null },
@@ -152,6 +153,42 @@ describe("completeness", () => {
       },
     });
     expect(scoreAt(viaRegistry, 0)).toBe(scoreAt(baseAnimal, 0));
+  });
+});
+
+/**
+ * Commitment 1 (`/prytulkam` §3): what ranks a card in the deck is its date
+ * plus completeness, and completeness is photos, a description and a known
+ * vaccination («та, де є фотографії, опис і відмітка про щеплення»), nothing
+ * else. Fur (DR1, S2) is a filter, never a ranking input.
+ */
+describe("completeness stays photos, description and vaccination (commitment 1)", () => {
+  it("names exactly three components", () => {
+    expect(Object.keys(ScoringPolicySchema.shape.completenessScore.shape).sort()).toEqual([
+      "hasDescription",
+      "hasPhotos",
+      "vaccinationKnown",
+    ]);
+  });
+
+  it("scores an animal the same whatever its fur, recorded or not", () => {
+    const scores = (["short", "long", null] as const).map((coatLength) =>
+      scoreAt(animal({ coatLength }), 0),
+    );
+    expect(new Set(scores).size).toBe(1);
+  });
+
+  it("does not rank on fur even when a fur filter is on", () => {
+    // The query applies the filter; ranking must not add fur as a preference
+    // signal on top, or recording fur would move a card.
+    const longOnly: FeedFilters = {
+      ...NO_FILTERS,
+      coatLengths: { kind: "oneOf", values: ["long"] },
+    };
+    const scores = (["short", "long", null] as const).map((coatLength) =>
+      scoreAt(animal({ coatLength }), 0, longOnly),
+    );
+    expect(new Set(scores).size).toBe(1);
   });
 });
 

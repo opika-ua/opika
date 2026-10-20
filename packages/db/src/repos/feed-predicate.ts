@@ -74,6 +74,12 @@ export function buildFilterPredicate(filters: FeedFilters, now: Date): SQL[] {
   if (filters.sizes.kind === "oneOf") {
     conditions.push(inArray(animals.size, [...filters.sizes.values]));
   }
+  // `IN` never matches NULL, so an animal whose fur isn't recorded is left
+  // out while a fur filter is on (DR1-D11), the way every other dimension
+  // treats a value it can't confirm; the relaxation count says how many.
+  if (filters.coatLengths.kind === "oneOf") {
+    conditions.push(inArray(animals.coatLength, [...filters.coatLengths.values]));
+  }
   if (filters.ages.kind === "oneOf") {
     const ageConditions: SQL[] = filters.ages.values.map((bucket) => {
       const range = ageAnchorRange(bucket, now);

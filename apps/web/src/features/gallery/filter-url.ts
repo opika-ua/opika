@@ -163,6 +163,8 @@ export function parseGalleryQuery(
     species: parseSelection<AnimalSpecies>(searchParams[SPECIES_PARAM], AnimalSpeciesSchema),
     sizes: parseSelection<SizeBucket>(searchParams[SIZE_PARAM], SizeBucketSchema),
     ages: parseSelection<AgeBucket>(searchParams[AGE_PARAM], AgeBucketSchema),
+    // No URL parameter for fur until S3 (DR1): the gallery never filters on it yet.
+    coatLengths: ANY,
   });
 
   const sortResult = GallerySortSchema.safeParse(firstValue(searchParams[SORT_PARAM]));

@@ -189,6 +189,7 @@ describe("filter dimensions", () => {
       species: { kind: "oneOf", values: ["dog"] },
       sizes: { kind: "oneOf", values: ["small"] },
       ages: { kind: "oneOf", values: ["baby"] },
+      coatLengths: { kind: "oneOf", values: ["long"] },
     };
 
     const relaxed = relaxDimension(narrow, "sizes");
@@ -197,11 +198,102 @@ describe("filter dimensions", () => {
     expect(relaxed.cities).toEqual(narrow.cities);
     expect(relaxed.species).toEqual(narrow.species);
     expect(relaxed.ages).toEqual(narrow.ages);
+    expect(relaxed.coatLengths).toEqual(narrow.coatLengths);
   });
 
   it("does not mutate the filters it relaxes", () => {
     const dogs: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
     relaxDimension(dogs, "species");
     expect(dogs.species).toEqual({ kind: "oneOf", values: ["dog"] });
+  });
+});
+
+describe("the fur dimension (DR1, S2)", () => {
+  const furOnly = (values: readonly ["short" | "long", ...("short" | "long")[]]): FeedFilters => ({
+    ...NO_FILTERS,
+    coatLengths: { kind: "oneOf", values },
+  });
+
+  it("collapses picking both fur lengths back to any", () => {
+    expect(canonicalizeFilters(furOnly(["long", "short"])).coatLengths).toEqual({ kind: "any" });
+    expect(filtersFingerprint(furOnly(["short", "long"]))).toBe(filtersFingerprint(NO_FILTERS));
+  });
+
+  it("keeps a single fur length as a constraint", () => {
+    expect(canonicalizeFilters(furOnly(["long"])).coatLengths).toEqual({
+      kind: "oneOf",
+      values: ["long"],
+    });
+    expect(isUnfiltered(furOnly(["long"]))).toBe(false);
+    expect(isConstrained(furOnly(["short"]), "coatLengths")).toBe(true);
+  });
+
+  it("gives each fur selection its own fingerprint", () => {
+    const prints = [NO_FILTERS, furOnly(["short"]), furOnly(["long"])].map(filtersFingerprint);
+    expect(new Set(prints).size).toBe(3);
+  });
+
+  it("never reproduces a fingerprint from before the fifth dimension", () => {
+    // The four-segment form every cursor issued before S2 carries. Rebuilt by
+    // hand from the old rule (cities|species|sizes|ages), never from the
+    // current function, so a fingerprint that dropped the fur segment again
+    // would collide here.
+    const legacy = (f: FeedFilters): string => {
+      const c = canonicalizeFilters(f);
+      const encode = (s: { kind: "any" } | { kind: "oneOf"; values: readonly string[] }) =>
+        s.kind === "any" ? "*" : s.values.join(",");
+      return [c.cities, c.species, c.sizes, c.ages].map(encode).join("|");
+    };
+    const sets: FeedFilters[] = [
+      NO_FILTERS,
+      { ...NO_FILTERS, cities: { kind: "oneOf", values: [KHARKIV, POLTAVA] } },
+      { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } },
+      {
+        ...NO_FILTERS,
+        sizes: { kind: "oneOf", values: ["large"] },
+        ages: { kind: "oneOf", values: ["senior"] },
+      },
+      furOnly(["long"]),
+    ];
+    const current = new Set(sets.map(filtersFingerprint));
+    for (const set of sets) {
+      expect(current.has(legacy(set))).toBe(false);
+    }
+  });
+
+  it("reads a filter set stored before the fifth dimension as no fur filter", () => {
+    const stored = {
+      cities: { kind: "any" },
+      species: { kind: "oneOf", values: ["cat"] },
+      sizes: { kind: "any" },
+      ages: { kind: "any" },
+    };
+    const parsed = FeedFiltersSchema.parse(stored);
+    expect(parsed.coatLengths).toEqual({ kind: "any" });
+    expect(parsed.species).toEqual({ kind: "oneOf", values: ["cat"] });
+  });
+
+  it("refuses a fur value outside the two buckets and an empty fur selection", () => {
+    expect(
+      FeedFiltersSchema.safeParse({
+        ...NO_FILTERS,
+        coatLengths: { kind: "oneOf", values: ["wire"] },
+      }).success,
+    ).toBe(false);
+    expect(
+      FeedFiltersSchema.safeParse({ ...NO_FILTERS, coatLengths: { kind: "oneOf", values: [] } })
+        .success,
+    ).toBe(false);
+  });
+
+  it("relaxes the fur dimension like any other", () => {
+    const narrow: FeedFilters = {
+      ...furOnly(["short"]),
+      sizes: { kind: "oneOf", values: ["small"] },
+    };
+    const relaxed = relaxDimension(narrow, "coatLengths");
+    expect(relaxed.coatLengths).toEqual({ kind: "any" });
+    expect(relaxed.sizes).toEqual(narrow.sizes);
+    expect(FEED_FILTER_DIMENSIONS).toContain("coatLengths");
   });
 });

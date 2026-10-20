@@ -371,6 +371,9 @@ export function buildAnimal(
     name: input.name,
     species: input.species,
     sex: input.sex,
+    // Not part of the onboarding input (DR1-D12): an onboarded animal starts
+    // with fur «Не записано», and the shelter records it in the kabinet.
+    coatLength: null,
     size: input.size,
     age: { kind: "declared_bucket", bucket: input.ageBucket, declaredAt: now },
     description: { uk: input.descriptionUk, en: null },

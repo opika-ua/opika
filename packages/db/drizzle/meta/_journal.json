@@ -99,6 +99,13 @@
       "when": 1792504489527,
       "tag": "0013_password_write_revokes_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792523988903,
+      "tag": "0014_animal_coat_length",
+      "breakpoints": true
     }
   ]
 }

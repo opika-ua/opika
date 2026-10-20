@@ -37,6 +37,7 @@ import {
   animalPublicLocationOf,
   type City,
   type CityId,
+  type CoatLength,
   citySlugOf,
   type DocumentReadiness,
   type Edrpou,
@@ -1178,6 +1179,13 @@ export function buildAnimals(
       size = sizeRoll < 2 ? "small" : sizeRoll < 4 ? "medium" : "large";
     }
 
+    // Fur (DR1, S2): short, long or not recorded, on its own cycle (7) so it
+    // spreads across both species (cycle 3) and every listing kind (cycle 20),
+    // and published animals include unrecorded ones: the fur filter, its
+    // relaxation count and «Не записано» all have rows to show.
+    const coatRoll = i % 7;
+    const coatLength: CoatLength | null = coatRoll < 3 ? "short" : coatRoll < 5 ? "long" : null;
+
     // Age: mix of birth_date and declared_bucket
     const age: AgeEstimate =
       i % 3 === 0
@@ -1375,6 +1383,7 @@ export function buildAnimals(
       name,
       species,
       sex,
+      coatLength,
       size,
       age,
       description,

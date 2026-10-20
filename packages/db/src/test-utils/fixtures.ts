@@ -125,6 +125,7 @@ const completeAnimalFields = (): CompleteAnimalFields => ({
   name: "Бровко",
   species: "dog",
   sex: "male",
+  coatLength: null,
   size: "medium",
   age: defaultAge,
   description: { uk: "Дуже гарний песик", en: null },

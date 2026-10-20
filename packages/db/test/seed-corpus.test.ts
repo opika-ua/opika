@@ -184,6 +184,27 @@ describe("seed corpus — D-4 hostile cases", () => {
       expect(animals.some((a) => a.name.length >= LONG_ANIMAL_NAME_MIN_CHARS)).toBe(true);
     });
   });
+  /**
+   * DR1, S2: the fur filter, its relaxation count and «Не записано» each need
+   * rows to show, in both species, among animals an adopter can actually see.
+   */
+  describe("fur (DR1, S2)", () => {
+    const discoverable = animals.filter((a) => isDiscoverable(a.listing));
+
+    for (const species of ["dog", "cat"] as const) {
+      for (const coatLength of ["short", "long", null] as const) {
+        it(`has a discoverable ${species} with fur ${coatLength ?? "not recorded"}`, () => {
+          expect(
+            discoverable.some((a) => a.species === species && a.coatLength === coatLength),
+          ).toBe(true);
+        });
+      }
+    }
+
+    it("leaves fur unrecorded on drafts too, never a listing fact", () => {
+      expect(animals.some((a) => a.listing.kind === "draft" && a.coatLength === null)).toBe(true);
+    });
+  });
 });
 
 /**

@@ -6,6 +6,7 @@ import type {
   AnimalSex,
   AnimalSpecies,
   CityId,
+  CoatLength,
   DocumentReadiness,
   LocalizedText,
   PublicLocation,
@@ -43,6 +44,15 @@ export const animals = pgTable(
      * domain union refuses.
      */
     size: text({ enum: ["small", "medium", "large"] }).$type<SizeBucket>(),
+    /**
+     * Null is «Не записано» on every listing kind, not only a draft (DR1-D10):
+     * fur is no listing fact, so `animals_listing_facts_check` leaves it out.
+     * Added with no default and no backfill (migration 0014), because a
+     * value written for an animal nobody described would be an invented fact.
+     * No index of its own: a two-value equality applied on rows the feed and
+     * wait-anchor indexes already narrow.
+     */
+    coatLength: text("coat_length", { enum: ["short", "long"] }).$type<CoatLength>(),
 
     age: jsonb<AgeEstimate>("age"),
     /**

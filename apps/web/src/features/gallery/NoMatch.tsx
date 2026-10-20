@@ -13,22 +13,35 @@ interface NoMatchProps {
   relaxations: readonly GalleryRelaxation[];
 }
 
-const DIMENSION_LABEL: Record<FeedFilterDimension, string> = {
+/**
+ * `null` for a dimension with no Ukrainian label yet: fur (DR1, S2) reached
+ * the filter set before its copy did, and the gallery's URL can't set it
+ * until S3, so its suggestion can't arise; should one ever, it is left out
+ * rather than shown with a made-up or `[COPY PENDING]` label on a public page.
+ */
+const DIMENSION_LABEL: Record<FeedFilterDimension, string | null> = {
   cities: uk.filters.city.toLowerCase(),
   species: uk.filters.species.toLowerCase(),
   sizes: uk.filters.size.toLowerCase(),
   ages: uk.filters.age.toLowerCase(),
+  coatLengths: null,
 };
 
-function suggestionLabel(dimension: FeedFilterDimension, additional: number): string {
+type LabelledRelaxation = GalleryRelaxation & { label: string };
+
+const labelled = (relaxations: readonly GalleryRelaxation[]): LabelledRelaxation[] =>
+  relaxations.flatMap((relaxation) => {
+    const label = DIMENSION_LABEL[relaxation.dimension];
+    return label === null ? [] : [{ ...relaxation, label }];
+  });
+
+function suggestionLabel({ dimension, additional, label }: LabelledRelaxation): string {
   const animalWord = uk.noMatch.additionalAnimals
     .replace("{count}", String(additional))
     .replace("{animalWord}", pluralizeUk(additional, uk.filters.animalWord));
 
   const template = dimension === "cities" ? uk.noMatch.showAllCities : uk.noMatch.removeDimension;
-  return template
-    .replace("{dimension}", DIMENSION_LABEL[dimension])
-    .replace("{animalWord}", animalWord);
+  return template.replace("{dimension}", label).replace("{animalWord}", animalWord);
 }
 
 /**
@@ -42,6 +55,7 @@ function suggestionLabel(dimension: FeedFilterDimension, additional: number): st
  * component re-sorting anything.
  */
 export function NoMatch({ filters, sort, citySlugs, relaxations }: NoMatchProps) {
+  const suggestions = labelled(relaxations);
   return (
     <div
       data-testid="gallery-no-match"
@@ -54,19 +68,19 @@ export function NoMatch({ filters, sort, citySlugs, relaxations }: NoMatchProps)
         <p className="text-[17px]/[26px] text-rg-ink-2 text-pretty">{uk.noMatch.reassurance}</p>
       </div>
 
-      {relaxations.length > 0 && (
+      {suggestions.length > 0 && (
         <>
           <div className="flex flex-col gap-2 w-full">
-            {relaxations.map(({ dimension, additional }, index) => (
+            {suggestions.map((suggestion, index) => (
               <Link
-                key={dimension}
-                href={galleryHref(relaxDimension(filters, dimension), sort, citySlugs)}
+                key={suggestion.dimension}
+                href={galleryHref(relaxDimension(filters, suggestion.dimension), sort, citySlugs)}
                 data-testid="no-match-suggestion"
                 className={`min-h-14 flex items-center justify-center rounded-rg-button font-medium text-[15px] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] ${
                   index === 0 ? "bg-rg-ink text-rg-surface" : "bg-rg-fill text-rg-ink"
                 }`}
               >
-                {suggestionLabel(dimension, additional)}
+                {suggestionLabel(suggestion)}
               </Link>
             ))}
           </div>

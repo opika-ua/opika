@@ -22,6 +22,7 @@ const animal: Animal = {
   name: "Мурчик",
   species: "cat",
   sex: "male",
+  coatLength: "long",
   size: "small",
   age: { kind: "declared_bucket", bucket: "young", declaredAt: AT },
   description: { uk: "Лагідний кіт", en: null },
@@ -73,6 +74,7 @@ describe("animal views expose exactly their intended fields", () => {
 
     expect(Object.keys(parsed).sort()).toEqual([
       "ageBucket",
+      "coatLength",
       "freshness",
       "id",
       "listingKind",
@@ -95,6 +97,7 @@ describe("animal views expose exactly their intended fields", () => {
 
     expect(Object.keys(parsed).sort()).toEqual([
       "ageBucket",
+      "coatLength",
       "description",
       "documentReadiness",
       "freshness",
@@ -109,6 +112,31 @@ describe("animal views expose exactly their intended fields", () => {
       "species",
       "vaccination",
     ]);
+  });
+
+  it("both public views carry unrecorded fur as null, never dropped or invented (DR1-D10)", () => {
+    const unrecorded = { ...animal, coatLength: null };
+    expect(
+      FeedCardViewSchema.parse({
+        ...unrecorded,
+        ...derived,
+        primaryPhoto: null,
+        shelter: shelterSummary,
+      }).coatLength,
+    ).toBeNull();
+    expect(
+      AnimalDetailViewSchema.parse({ ...unrecorded, ...derived, shelter: shelterSummary })
+        .coatLength,
+    ).toBeNull();
+    expect(
+      FeedCardViewSchema.safeParse({
+        ...animal,
+        coatLength: undefined,
+        ...derived,
+        primaryPhoto: null,
+        shelter: shelterSummary,
+      }).success,
+    ).toBe(false);
   });
 
   it("never ships the raw age estimate or lastUpdatedAt", () => {
