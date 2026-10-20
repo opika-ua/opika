@@ -9,10 +9,10 @@ import { productionSignInOf } from "./production-sign-in";
  * approved: the exact-payload test ({from,to,reply_to,subject,html,text} only) and
  * delivery-test refusing if tracking is on." This is the first one: every auth email the code
  * can send (the magic link, the invite in both forms, the reset link, «пароль змінено»), through
- * the production senders, to a recording fetch, for every provider the code can route to while
- * more than one exists. The body each provider receives holds exactly its fields: no `headers`
- * (so no List-Unsubscribe), no `tags`, no tracking field of any kind ("No tracking on any auth
- * email, ever"). Asserted on the bytes that go out.
+ * the production senders, to a recording fetch, for every provider config can route to: Resend
+ * alone since PW1-Q4 (the lock's own tests are `email-provider.test.ts`). The body holds exactly
+ * its provider's fields: no `headers` (so no List-Unsubscribe), no `tags`, no tracking field of
+ * any kind ("No tracking on any auth email, ever"). Asserted on the bytes that go out.
  */
 
 /** Each provider's whole payload, field by field; Resend's is his six. */
@@ -38,8 +38,8 @@ const KEY_NAMES: Readonly<Record<EmailProvider, string>> = {
   brevo: "BREVO_API_KEY",
 };
 
-const onFor = (provider: EmailProvider) => {
-  const on = productionSignInOf(
+const signInFor = (provider: EmailProvider) =>
+  productionSignInOf(
     {
       VERCEL_ENV: "production",
       EMAIL_PROVIDER: provider,
@@ -54,9 +54,15 @@ const onFor = (provider: EmailProvider) => {
     },
     [],
   );
+
+const onFor = (provider: EmailProvider) => {
+  const on = signInFor(provider);
   if (on.kind !== "on") throw new Error(`production sign-in off: ${on.reason}`);
   return on;
 };
+
+/** The providers config turns production sign-in on for, each with its own key: derived, not listed. */
+const ROUTABLE = EMAIL_PROVIDERS.filter((provider) => signInFor(provider).kind === "on");
 
 /** Records each send's body as sent (the block-list reads aside) and answers each provider's success. */
 function recordingFetch() {
@@ -73,11 +79,13 @@ function recordingFetch() {
 }
 
 describe("every outgoing auth email carries exactly its provider's fields, and no tracking", () => {
-  it("covers every provider the code can route to", () => {
+  it("knows every provider's exact fields, and config routes auth emails to Resend alone (PW1-Q4)", () => {
     expect([...EMAIL_PROVIDERS].sort()).toEqual(Object.keys(EXACT_FIELDS).sort());
+    // Should the lock ever widen, the provider let in is tested below, against its own fields.
+    expect(ROUTABLE).toEqual(["resend"]);
   });
 
-  it.each(EMAIL_PROVIDERS)(
+  it.each(ROUTABLE)(
     "through %s: the magic link, both invites, the reset link and the notice",
     async (provider) => {
       const { sends, fetchImpl } = recordingFetch();

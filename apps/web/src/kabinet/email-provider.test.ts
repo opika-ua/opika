@@ -5,7 +5,6 @@ import {
   BLOCKED_PAGE_SIZE,
   blockedStatusOf,
   cachedBlockList,
-  EMAIL_PROVIDERS,
   type EmailProviderConfig,
   emailProviderConfigOf,
   emailRoutesOf,
@@ -237,7 +236,11 @@ describe("emailProviderConfigOf", () => {
       kind: "invalid",
       reason: "EMAIL_PROVIDER=resend needs RESEND_API_KEY",
     });
-    expect(emailProviderConfigOf({ ...base, EMAIL_PROVIDER: "sendgrid" }).kind).toBe("invalid");
+    expect(emailProviderConfigOf({ ...base, EMAIL_PROVIDER: "sendgrid" })).toEqual({
+      kind: "invalid",
+      reason:
+        "EMAIL_PROVIDER must be resend: every email it routes is an auth email, and auth emails go through resend only",
+    });
     expect(emailProviderConfigOf({ ...base, EMAIL_FROM_ADDRESS: "kabinet@example.org" }).kind).toBe(
       "invalid",
     );
@@ -279,11 +282,13 @@ describe("emailProviderConfigOf", () => {
 
 /**
  * EM-B6 (Oleksii, 2026-10-15, verbatim: "Resend for SIGN-IN sends: GO. a.
- * Same domain mail.opika.org.ua"): `EMAIL_SIGN_IN_PROVIDER` can move sign-in
- * alone. EM-B10 (delivery test 5, verbatim: "the invite path reads
+ * Same domain mail.opika.org.ua"): `EMAIL_SIGN_IN_PROVIDER` can name the
+ * sign-in route. EM-B10 (delivery test 5, verbatim: "the invite path reads
  * RESEND_API_KEY via the provider switch, same as sign-in. No sends with a
  * mismatched provider/key pair at any point."): every route reads its key
- * from its provider's own variable, so the pair cannot disagree.
+ * from its provider's own variable, so the pair cannot disagree. Since PW1-Q4
+ * the one provider either variable may name is Resend (the lock's own block,
+ * below).
  */
 describe("emailRoutesOf: one key per provider, for both routes", () => {
   const RESEND_KEY = "resend-key-SECRET-4567";
@@ -324,18 +329,16 @@ describe("emailRoutesOf: one key per provider, for both routes", () => {
     expect(signIn).toEqual(invite);
   });
 
-  it("each provider reads its own key and no other, whatever else is set: a mismatched pair can't be built", () => {
-    const expected = { resend: RESEND_KEY, brevo: BREVO_KEY, postmark: POSTMARK_KEY } as const;
-    for (const provider of EMAIL_PROVIDERS) {
-      const { invite, signIn } = configured({
-        ...resendOnly,
-        ...allKeys,
-        EMAIL_PROVIDER: provider,
-        EMAIL_PROVIDER_API_KEY: "generic-key-never-read",
-      });
-      expect(invite, provider).toMatchObject({ provider, apiKey: expected[provider] });
-      expect(signIn, provider).toEqual(invite);
-      expect(JSON.stringify(invite)).not.toContain("generic-key-never-read");
+  it("Resend reads its own key and no other, whatever else is set: a mismatched pair can't be built", () => {
+    const { invite, signIn } = configured({
+      ...resendOnly,
+      ...allKeys,
+      EMAIL_PROVIDER_API_KEY: "generic-key-never-read",
+    });
+    expect(invite).toMatchObject({ provider: "resend", apiKey: RESEND_KEY });
+    expect(signIn).toEqual(invite);
+    for (const other of [BREVO_KEY, POSTMARK_KEY, "generic-key-never-read"]) {
+      expect(JSON.stringify(invite)).not.toContain(other);
     }
   });
 
@@ -348,25 +351,15 @@ describe("emailRoutesOf: one key per provider, for both routes", () => {
   });
 
   it("the default route's provider without its key: invalid, naming the variable and no value", () => {
-    for (const provider of EMAIL_PROVIDERS) {
-      const name = PROVIDER_KEY_NAMES[provider];
+    for (const blank of [undefined, "", "  "]) {
       // Every other provider's key set: none of them may stand in.
-      const others = Object.fromEntries(Object.entries(allKeys).filter(([key]) => key !== name));
-      for (const blank of [undefined, "", "  "]) {
-        const result = emailRoutesOf({
-          ...resendOnly,
-          RESEND_API_KEY: undefined,
-          ...others,
-          [name]: blank,
-          EMAIL_PROVIDER: provider,
-        });
-        expect(result, `${provider} ${String(blank)}`).toEqual({
-          kind: "invalid",
-          reason: `EMAIL_PROVIDER=${provider} needs ${name}`,
-        });
-        for (const value of Object.values(allKeys))
-          expect(JSON.stringify(result)).not.toContain(value);
-      }
+      const result = emailRoutesOf({ ...resendOnly, ...allKeys, RESEND_API_KEY: blank });
+      expect(result, String(blank)).toEqual({
+        kind: "invalid",
+        reason: "EMAIL_PROVIDER=resend needs RESEND_API_KEY",
+      });
+      for (const value of Object.values(allKeys))
+        expect(JSON.stringify(result)).not.toContain(value);
     }
   });
 
@@ -383,45 +376,20 @@ describe("emailRoutesOf: one key per provider, for both routes", () => {
     expect(signIn).toMatchObject({ provider: "resend", apiKey: RESEND_KEY });
   });
 
-  it("another sign-in provider: that provider on its own key, one From, From name and Reply-To", () => {
-    // Before test 5's switch-on: invites on Brevo, sign-in on Resend (EM-B6).
-    const brevoInvites = configured({
-      ...resendOnly,
-      ...allKeys,
-      EMAIL_PROVIDER: "brevo",
-      EMAIL_SIGN_IN_PROVIDER: "resend",
-    });
-    expect(brevoInvites.invite).toMatchObject({ provider: "brevo", apiKey: BREVO_KEY });
-    expect(brevoInvites.signIn).toMatchObject({ provider: "resend", apiKey: RESEND_KEY });
-    // And the reverse, Brevo as a sign-in rollback during the grace period.
-    const brevoSignIn = configured({ ...resendOnly, ...allKeys, EMAIL_SIGN_IN_PROVIDER: "brevo" });
-    expect(brevoSignIn.invite).toMatchObject({ provider: "resend", apiKey: RESEND_KEY });
-    expect(brevoSignIn.signIn).toMatchObject({ provider: "brevo", apiKey: BREVO_KEY });
-    const sender = (c: EmailProviderConfig) => [c.fromAddress, c.fromName, c.replyTo];
-    for (const routes of [brevoInvites, brevoSignIn]) {
-      expect(sender(routes.signIn)).toEqual(sender(routes.invite));
-      expect(sender(routes.signIn)).toEqual([
-        "noreply@mail.example.org",
-        "Реєстр",
-        "hello@example.org",
-      ]);
-    }
-  });
-
   it("a sign-in provider without its key: invalid, naming the variable and no value, never the default route", () => {
-    for (const provider of ["brevo", "postmark"] as const) {
-      for (const blank of [
-        {},
-        { [PROVIDER_KEY_NAMES[provider]]: "" },
-        { [PROVIDER_KEY_NAMES[provider]]: " " },
-      ]) {
-        const result = emailRoutesOf({ ...resendOnly, EMAIL_SIGN_IN_PROVIDER: provider, ...blank });
-        expect(result).toEqual({
-          kind: "invalid",
-          reason: `EMAIL_SIGN_IN_PROVIDER=${provider} needs ${PROVIDER_KEY_NAMES[provider]}`,
-        });
-        expect(JSON.stringify(result)).not.toContain(RESEND_KEY);
-      }
+    for (const blank of [undefined, "", " "]) {
+      const result = emailRoutesOf({
+        ...resendOnly,
+        ...allKeys,
+        RESEND_API_KEY: blank,
+        EMAIL_SIGN_IN_PROVIDER: "resend",
+      });
+      expect(result, String(blank)).toEqual({
+        kind: "invalid",
+        reason: "EMAIL_SIGN_IN_PROVIDER=resend needs RESEND_API_KEY",
+      });
+      for (const value of Object.values(allKeys))
+        expect(JSON.stringify(result)).not.toContain(value);
     }
   });
 
@@ -429,8 +397,10 @@ describe("emailRoutesOf: one key per provider, for both routes", () => {
     const result = emailRoutesOf({ ...resendOnly, EMAIL_SIGN_IN_PROVIDER: RESEND_KEY });
     expect(result).toEqual({
       kind: "invalid",
-      reason: "EMAIL_SIGN_IN_PROVIDER must be one of resend, postmark, brevo",
+      reason:
+        "EMAIL_SIGN_IN_PROVIDER must be unset or resend: every email it routes is an auth email, and auth emails go through resend only",
     });
+    expect(JSON.stringify(result)).not.toContain(RESEND_KEY);
   });
 
   it("a half-done switch is named even when the default route is missing too", () => {
@@ -441,22 +411,95 @@ describe("emailRoutesOf: one key per provider, for both routes", () => {
   });
 
   it("the shared checks still apply to the sign-in route: the default route's problems come through", () => {
-    const withBrevoSignIn = {
-      ...resendOnly,
-      EMAIL_SIGN_IN_PROVIDER: "brevo",
-      BREVO_API_KEY: BREVO_KEY,
-    };
-    expect(emailRoutesOf({ ...withBrevoSignIn, EMAIL_PROVIDER: undefined })).toEqual({
+    const withSignInNamed = { ...resendOnly, EMAIL_SIGN_IN_PROVIDER: "resend" };
+    expect(emailRoutesOf({ ...withSignInNamed, EMAIL_PROVIDER: undefined })).toEqual({
       kind: "missing",
       missing: ["EMAIL_PROVIDER"],
     });
     const offHost = emailRoutesOf({
-      ...withBrevoSignIn,
+      ...withSignInNamed,
       EMAIL_FROM_ADDRESS: "noreply@mail.attacker.example",
     });
     expect(offHost.kind).toBe("invalid");
-    expect(JSON.stringify(offHost)).not.toContain(BREVO_KEY);
     expect(JSON.stringify(offHost)).not.toContain(RESEND_KEY);
+  });
+});
+
+/**
+ * Oleksii, 2026-10-20 (inbox PW1-Q4), verbatim: "PW1-Q4: (a). Lock auth emails (sign-in,
+ * invite, reset, password changed) to Resend in config, with a test that a Brevo setting is
+ * refused for them. Note: the Brevo keys are already revoked, so this makes the current state
+ * explicit. The full Brevo removal stays planned for after the 14 Nov check."
+ *
+ * Every route this config builds carries auth emails (`production-mail.ts`: the invite on one,
+ * the magic link, the reset link and «пароль змінено» on the other), so a Brevo setting on
+ * either variable is refused, with Brevo's own key present, and never falls back to Resend.
+ * The reasons are transcribed, not built from the module's constant.
+ */
+describe("PW1-Q4: a Brevo setting is refused for the auth emails, on both variables", () => {
+  const DEFAULT_LOCKED =
+    "EMAIL_PROVIDER must be resend: every email it routes is an auth email, and auth emails go through resend only";
+  const SIGN_IN_LOCKED =
+    "EMAIL_SIGN_IN_PROVIDER must be unset or resend: every email it routes is an auth email, and auth emails go through resend only";
+  const RESEND_KEY = "resend-key-SECRET-4567";
+  const BREVO_KEY = "brevo-key-SECRET-0123";
+  const POSTMARK_KEY = "postmark-key-SECRET-89";
+  /** Production's shape with every provider's key present, so only the lock can refuse. */
+  const everyKey = {
+    EMAIL_PROVIDER: "resend",
+    RESEND_API_KEY: RESEND_KEY,
+    BREVO_API_KEY: BREVO_KEY,
+    POSTMARK_API_KEY: POSTMARK_KEY,
+    EMAIL_FROM_ADDRESS: "noreply@mail.example.org",
+    EMAIL_FROM_NAME: "Реєстр",
+    EMAIL_REPLY_TO: "hello@example.org",
+    PRODUCTION_ORIGIN: "https://example.org",
+  };
+  const leaksNoKey = (result: unknown) => {
+    for (const key of [RESEND_KEY, BREVO_KEY, POSTMARK_KEY])
+      expect(JSON.stringify(result)).not.toContain(key);
+  };
+
+  it("EMAIL_PROVIDER=brevo (the invite, and sign-in by default): refused, naming the variable", () => {
+    const env = { ...everyKey, EMAIL_PROVIDER: "brevo" };
+    expect(emailProviderConfigOf(env)).toEqual({ kind: "invalid", reason: DEFAULT_LOCKED });
+    expect(emailRoutesOf(env)).toEqual({ kind: "invalid", reason: DEFAULT_LOCKED });
+    // Naming Resend for sign-in doesn't rescue the invite's route.
+    expect(emailRoutesOf({ ...env, EMAIL_SIGN_IN_PROVIDER: "resend" })).toEqual({
+      kind: "invalid",
+      reason: DEFAULT_LOCKED,
+    });
+    leaksNoKey(emailRoutesOf(env));
+  });
+
+  it("EMAIL_SIGN_IN_PROVIDER=brevo (sign-in, reset, password changed): refused, never the default route", () => {
+    const result = emailRoutesOf({ ...everyKey, EMAIL_SIGN_IN_PROVIDER: "brevo" });
+    expect(result).toEqual({ kind: "invalid", reason: SIGN_IN_LOCKED });
+    leaksNoKey(result);
+    // Named before the default route, as a half-done switch is: refused even with nothing else set.
+    expect(emailRoutesOf({ EMAIL_SIGN_IN_PROVIDER: "brevo", BREVO_API_KEY: BREVO_KEY })).toEqual({
+      kind: "invalid",
+      reason: SIGN_IN_LOCKED,
+    });
+  });
+
+  it("Postmark, never configured, is refused by the same lock on either variable", () => {
+    expect(emailRoutesOf({ ...everyKey, EMAIL_PROVIDER: "postmark" })).toEqual({
+      kind: "invalid",
+      reason: DEFAULT_LOCKED,
+    });
+    expect(emailRoutesOf({ ...everyKey, EMAIL_SIGN_IN_PROVIDER: "postmark" })).toEqual({
+      kind: "invalid",
+      reason: SIGN_IN_LOCKED,
+    });
+  });
+
+  it("Resend on both variables, with the other keys present, is configured: the lock refuses nothing else", () => {
+    const result = emailRoutesOf({ ...everyKey, EMAIL_SIGN_IN_PROVIDER: "resend" });
+    expect(result.kind).toBe("configured");
+    if (result.kind !== "configured") return;
+    expect(result.routes.invite).toMatchObject({ provider: "resend", apiKey: RESEND_KEY });
+    expect(result.routes.signIn).toEqual(result.routes.invite);
   });
 });
 

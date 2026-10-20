@@ -1,9 +1,8 @@
 import { envValueOf, paddedValueMessage } from "../api/env-value";
 import {
-  EMAIL_PROVIDERS,
-  type EmailProvider,
   type EmailRoutes,
   emailRoutesOf,
+  isAuthEmailProvider,
   PROVIDER_KEY_NAMES,
   productionOriginOf,
 } from "./email-provider";
@@ -46,9 +45,12 @@ export const BETTER_AUTH_SECRET_MIN_LENGTH = 32;
  * Every variable production sign-in reads, for this environment. Required:
  * the provider setting and its key, the From and Reply-To addresses, the
  * origin, and Better Auth's secret and URL. Optional: the sign-in route's
- * override and its key, when one is named. A provider name that isn't one
- * names no key (there is no variable for it). The From name is display text
- * with a fallback, not part of whether sign-in can work, and is not here.
+ * override and its key, when one is named. Only a provider config accepts
+ * (`AUTH_EMAIL_PROVIDERS`, Resend since PW1-Q4) names a key: `EMAIL_PROVIDER=brevo`
+ * is then refused for what it is, never reported as a missing BREVO_API_KEY,
+ * which would send the operator to set a key for a route that can't be
+ * configured. The From name is display text with a fallback, not part of
+ * whether sign-in can work, and is not here.
  */
 function signInVariablesOf(env: Readonly<Record<string, string | undefined>>): {
   required: string[];
@@ -56,9 +58,7 @@ function signInVariablesOf(env: Readonly<Record<string, string | undefined>>): {
 } {
   const keyOf = (name: string): string[] => {
     const value = env[name]?.trim() ?? "";
-    return (EMAIL_PROVIDERS as readonly string[]).includes(value)
-      ? [PROVIDER_KEY_NAMES[value as EmailProvider]]
-      : [];
+    return isAuthEmailProvider(value) ? [PROVIDER_KEY_NAMES[value]] : [];
   };
   const required = [
     "EMAIL_PROVIDER",

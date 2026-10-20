@@ -598,6 +598,28 @@ follow-up EM-F1), so it can't tell you whether an address is blocked. Check, in 
 from the registry, and tell the shelter personally (IN-E13). Oleksii's condition on EM-T26,
 2026-10-15.
 
+## Every delivery test: tracking is checked by hand (Oleksii's steps)
+
+`email:delivery-test` sends the sign-in email and the invite through Resend on a sending-only key,
+and reads none of the domain's settings: a sending-only key can't, so the script no longer checks
+tracking itself. His rule is "no tracking on any auth email, ever" (2026-10-19), so each delivery
+test carries two checks by hand. Oleksii, 2026-10-20, verbatim (inbox PW1-Q5): "PW1-Q5: (b). Keep
+a sending-only key and drop the domain-reading check from the script. Tracking stays verified by
+hand: the Resend dashboard shows click and open tracking off, and the links in the received email
+are plain. Add both as runbook steps for each delivery test."
+
+1. **Run it:** `pnpm --filter @opika/web email:delivery-test --to <address>`. The key is
+   `RESEND_API_KEY` in the repo-root `.env.local`, a sending-only one. `--sign-in-provider brevo`
+   and `--invite-provider brevo` are refused: auth emails are locked to Resend (PW1-Q4).
+2. **The Resend dashboard shows click and open tracking off:** Resend → Domains → the sending
+   subdomain (`mail.opika.org.ua`), both switches off.
+3. **The links in the received email are plain:** in each of the two emails, the link points
+   straight at the page it names (the `--base` address, with its `TEST-` token), not at a
+   redirect on another host. Gmail: ⋮ → "Show original", and read each `href`.
+
+If either check shows tracking, turn it off in Resend (Domains, the sending subdomain) before
+anything else is sent.
+
 ## DMARC: raising the policy (launch gate, Oleksii's step)
 
 Before the first real shelter (`docs/build-plan.md` Part 5), he reviews the DMARC aggregate
@@ -630,7 +652,9 @@ goes through `p=quarantine` first. Both records, not only the apex: EA-Q1 below.
      - `_dmarc.opika.org.ua`: `v=DMARC1; p=quarantine; rua=mailto:dmarc@opika.org.ua`
      - `_dmarc.mail.opika.org.ua`: `v=DMARC1; p=quarantine; rua=mailto:dmarc@opika.org.ua`
   3. **Run a delivery test** of a sign-in email and an invite (`email:delivery-test`) and confirm
-     both arrive in the inbox.
+     both arrive in the inbox, with the two tracking checks of "Every delivery test" above: the
+     Resend dashboard shows click and open tracking off, and the links in the received email are
+     plain.
   4. **Check the next DMARC reports** for anything failing **before** going to `p=reject` (both
      records, the same `rua`).
 - **All DNS changes are his** ("I make all DNS changes myself").

@@ -62,28 +62,37 @@ describe("productionSignInOf", () => {
 
   /**
    * EM-B6 and EM-B10: the routes `production-mail.ts` hands to the two senders.
-   * After the switch-on both are Resend, on one key; a split still works and
-   * each route reads its own provider's key.
+   * After the switch-on both are Resend, on one key. Since PW1-Q4 no other
+   * shape can be configured (the next test).
    */
-  it("carries both email routes: both on Resend's key after the switch-on, split when sign-in names another provider", () => {
+  it("carries both email routes, both on Resend's key; a Brevo key left in the environment moves nothing", () => {
     const on = productionSignInOf(full);
     expect(on.kind).toBe("on");
     if (on.kind !== "on") return;
     expect(on.email.invite).toMatchObject({ provider: "resend", apiKey: "resend-key" });
     expect(on.email.signIn).toEqual(on.email.invite);
-    // A Brevo key left in the environment moves nothing: no route names Brevo.
     const leftover = productionSignInOf({ ...full, BREVO_API_KEY: "brevo-key" });
     expect(leftover.kind === "on" && leftover.email).toEqual(on.email);
-    const split = productionSignInOf({
-      ...full,
-      EMAIL_PROVIDER: "brevo",
-      BREVO_API_KEY: "brevo-key",
-      EMAIL_SIGN_IN_PROVIDER: "resend",
-    });
-    expect(split.kind).toBe("on");
-    if (split.kind !== "on") return;
-    expect(split.email.signIn).toMatchObject({ provider: "resend", apiKey: "resend-key" });
-    expect(split.email.invite).toMatchObject({ provider: "brevo", apiKey: "brevo-key" });
+  });
+
+  /**
+   * Oleksii, 2026-10-20 (inbox PW1-Q4), verbatim: "PW1-Q4: (a). Lock auth emails (sign-in,
+   * invite, reset, password changed) to Resend in config, with a test that a Brevo setting is
+   * refused for them." Every email production sends is an auth email, so a Brevo setting on
+   * either variable turns production sign-in off, failing closed as any misconfiguration does,
+   * with Brevo's own key present: the grace-period rollback that used to be on is gone.
+   */
+  it("is off (provider_invalid) with a Brevo setting on either variable, Brevo's key set and all", () => {
+    for (const brevo of [
+      { EMAIL_PROVIDER: "brevo", BREVO_API_KEY: "brevo-key" },
+      { EMAIL_PROVIDER: "brevo", BREVO_API_KEY: "brevo-key", EMAIL_SIGN_IN_PROVIDER: "resend" },
+      { EMAIL_SIGN_IN_PROVIDER: "brevo", BREVO_API_KEY: "brevo-key" },
+    ]) {
+      const off = productionSignInOf({ ...full, ...brevo });
+      expect(off, JSON.stringify(brevo)).toEqual({ kind: "off", reason: "provider_invalid" });
+      expect(JSON.stringify(off)).not.toContain("brevo-key");
+      expect(JSON.stringify(off)).not.toContain("resend-key");
+    }
   });
 
   /**
