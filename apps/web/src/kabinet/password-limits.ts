@@ -15,11 +15,15 @@ const HOUR_MS = 60 * MINUTE_MS;
  *   existing or not, so the refusal says nothing about who exists.
  * - A reset link's POST: 20 an hour per IP. No per-address budget: the token
  *   is single use and names its own user.
+ * - The invitation link's «Створіть пароль» POST (PW-2): 20 an hour per IP, for
+ *   the same reason none per address. Opening the link charges nothing (his
+ *   PW-2 Q1).
  */
 export const PASSWORD_LIMITS = {
   forgotPerIp: { windowMs: HOUR_MS, maxRequests: 20 },
   forgotPerAddress: { windowMs: HOUR_MS, maxRequests: 3 },
   resetPerIp: { windowMs: HOUR_MS, maxRequests: 20 },
+  invitePerIp: { windowMs: HOUR_MS, maxRequests: 20 },
 } as const;
 
 /**

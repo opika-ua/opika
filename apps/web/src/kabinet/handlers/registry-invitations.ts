@@ -13,6 +13,7 @@ import {
   INVITATION_TTL_MS,
   kabinetInvitationRepo,
   kabinetInvitedUsersRepo,
+  kabinetInviteTokenRepo,
   kabinetRegistryRepo,
   kabinetShelterRepo,
   shelterRepo,
@@ -36,6 +37,7 @@ import { ORPCError, type ORPCErrorConstructorMap } from "@orpc/server";
 import { INVITE_LINK, linkTo } from "../email-links";
 import type { InviteShelterVerification } from "../email-senders";
 import { invitationReminderOf } from "../invitation-reminder";
+import { newInviteToken } from "../invite-password";
 import { loadShelterOr404, type RegistryDeps, registryShelterView } from "./registry-reads";
 import { acceptEvidence } from "./registry-writes";
 
@@ -49,8 +51,8 @@ import { acceptEvidence } from "./registry-writes";
  * /prytulkam copy (A1–A3, B1) has to be live.
  *
  * Each write that makes an invitation live (create's first admin, invite,
- * resend) emails the invitee a link to the invite landing (IN-Q3), after the
- * write and never deciding it, and returns what became of the email so the
+ * resend) emails the invitee a link to «Створіть пароль» (IN-Q3; PW-2, a new
+ * hashed token each time), after the write and never deciding it, and returns what became of the email so the
  * operator sees it directly (IN-E7, Oleksii, 2026-10-14). A failed or blocked
  * email leaves the invitation in place; a resend retries the email. A sent
  * one comes back with the reminder to tell the shelter personally (IN-E13).
@@ -85,7 +87,14 @@ const inviteVerificationOf = (shelter: Pick<Shelter, "verification">): InviteShe
     ? "verified"
     : "not_yet_verified";
 
-/** The invite email for one live invitation. Never throws: a sender that does is `provider_error`. */
+/**
+ * The invite email for one live invitation, with a new link (PW-2): a fresh random token, stored
+ * hashed, good until the invitation's own expiry, replacing any earlier link of this invitation
+ * (`kabinetInviteTokenRepo.issue`), so only the newest email's link works. The invitation id is
+ * not the link's secret any more. Storing the link can throw (the database); the send never does:
+ * a sender that does is `provider_error`. Either way the invitation stays, and a resend retries
+ * both.
+ */
 async function emailInvitation(
   deps: RegistryDeps,
   input: {
@@ -93,15 +102,24 @@ async function emailInvitation(
     shelterName: string;
     shelterVerification: InviteShelterVerification;
     invitationId: string;
+    expiresAt: Date;
   },
 ): Promise<EmailSendOutcome> {
+  const token = newInviteToken();
+  await kabinetInviteTokenRepo(deps.db).issue({
+    id: deps.newId(),
+    invitationId: input.invitationId,
+    token,
+    expiresAt: input.expiresAt,
+    now: deps.now,
+  });
   try {
     return await deps.invites.send({
       email: input.email,
       shelterName: input.shelterName,
       shelterVerification: input.shelterVerification,
       operatorName: deps.operatorDisplayName,
-      url: linkTo(deps.linkBaseURL, INVITE_LINK, input.invitationId),
+      url: linkTo(deps.linkBaseURL, INVITE_LINK, token),
       validForHours: Math.round(INVITATION_TTL_MS / 3_600_000),
     });
   } catch {
@@ -151,6 +169,7 @@ async function invite(
     shelterName: input.shelterName,
     shelterVerification: input.shelterVerification,
     invitationId,
+    expiresAt: result.expiresAt,
   });
   return {
     kind: "invited",
@@ -324,6 +343,7 @@ export async function registryAdminsResendInvite(
     shelterName: shelter.displayName,
     shelterVerification: inviteVerificationOf(shelter),
     invitationId: latest.id,
+    expiresAt: resent.expiresAt,
   });
   return {
     invitationEmail,

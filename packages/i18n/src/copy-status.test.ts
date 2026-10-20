@@ -43,8 +43,9 @@ describe("«Для притулків» copy status", () => {
     // Guards the guard: `toEqual([])` above also passes against an empty
     // object, so deleting a section rather than writing it would look
     // identical without this.
+    // `signInLink` (PW-2) is the link to the kabinet's sign-in, not a section.
     const sections = Object.keys(uk.forShelters).filter(
-      (key) => key !== "title" && key !== "headings",
+      (key) => key !== "title" && key !== "headings" && key !== "signInLink",
     );
     expect(sections.length).toBe(14);
   });
@@ -202,18 +203,9 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
         "submit",
         "title",
       ],
-      inviteLanding: [
-        "alreadyAccepted",
-        "expired",
-        "pageTitle",
-        "rateLimited",
-        "ready",
-        "send",
-        "sent",
-        "signIn",
-        "title",
-        "unusableTitle",
-      ],
+      // PW-2: the magic-link landing's strings went with it (his copy sheet, B: "removed when
+      // PW-2 ships"); the one unusable page keeps these.
+      inviteLanding: ["expired", "pageTitle", "signIn", "unusableTitle"],
       // 25 with addressNote back (row 57, his replacement, 2026-10-14): deleted as
       // a false claim (a map no adopter sees), restored once adopters receive
       // the city only (EM-Q10).
@@ -273,9 +265,9 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     "email.invite.action": "Відкрити запрошення",
     // row 87
     "email.invite.expiry": "Запрошення діє {hours} години. Якщо не встигнете — я надішлю нове.",
-    // row 88
+    // row 88, replaced by his PW-2 Q2 paragraph (2026-10-20, verbatim), the signature kept
     "email.invite.notYou":
-      "Якщо ви не чекали цього листа, просто проігноруйте його: без входу з цієї адреси доступу ніхто не отримає.\n— {operator}",
+      "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n— {operator}",
     // row 10 (2026-10-14: the sign-in email reached Gmail's Promotions tab)
     "signIn.spamNote":
       "Листа немає? Перевірте «Спам» і «Промоакції». Надіслати ще раз можна через 60 секунд.",
@@ -296,11 +288,6 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     // row 21
     "confirm.joinFailed":
       "Нічого не збережено наполовину. Спробуйте ще раз — а якщо не вийде, спроба повториться автоматично під час наступного входу.",
-    // row 24
-    "inviteLanding.ready":
-      "Посилання для входу прийде на адресу, на яку ви отримали це запрошення.",
-    // row 25
-    "inviteLanding.send": "Надіслати посилання",
     // row 70: no {shelter}, deliberately
     "support.body": "Так кабінет бачить адміністратор притулку.",
     // row 69
@@ -1742,8 +1729,9 @@ describe("Q-A: the animal page's photo gallery labels", () => {
  * PW-1, the shelter passwords (`docs/shelter-passwords-copy-uk.md`, his Ukrainian, 2026-10-19,
  * verbatim, the source every string is copied from; the copy sheet's "yours" rows are his scope's
  * own words). Transcribed from that file, never read from `uk.ts`. Each group's key set is
- * pinned exactly, so a key added without his text, or one of his dropped, fails here; PW-2 adds
- * `setPassword`'s title, intro and button with the invitation.
+ * pinned exactly, so a key added without his text, or one of his dropped, fails here. PW-2 adds
+ * `setPassword`'s title (his scope item 2), intro and button (§B) with the invitation, and
+ * /prytulkam's `forShelters.signInLink` (his scope item 1).
  */
 describe("kabinet passwords copy (PW-1, his Ukrainian, 2026-10-19)", () => {
   const HIS: Record<string, string> = {
@@ -1761,6 +1749,10 @@ describe("kabinet passwords copy (PW-1, his Ukrainian, 2026-10-19)", () => {
     "signIn.throttled": "Забагато спроб входу. Спробуйте ще раз через {minutes} хв.",
     // §B, the parts PW-1 renders
     "setPassword.newLabel": "Пароль",
+    // §B, PW-2's invitation page (title: his scope item 2)
+    "setPassword.title": "Створіть пароль",
+    "setPassword.intro": "Пароль для кабінету притулку «{shelter}». Адреса для входу: {email}.",
+    "setPassword.submit": "Зберегти й увійти",
     "setPassword.repeatLabel": "Повторіть пароль",
     "setPassword.hint": "Символів: {count} з {min}",
     "password.tooShort": "Пароль закороткий. Мінімум символів: {min}.",
@@ -1827,7 +1819,7 @@ describe("kabinet passwords copy (PW-1, his Ukrainian, 2026-10-19)", () => {
       emailReset: keysOf(uk.kabinet.email.reset),
       emailPasswordChanged: keysOf(uk.kabinet.email.passwordChanged),
     }).toEqual({
-      setPassword: ["hint", "newLabel", "repeatLabel"],
+      setPassword: ["hint", "intro", "newLabel", "repeatLabel", "submit", "title"],
       password: ["common", "mismatch", "personal", "tooLong", "tooShort"],
       forgot: ["intro", "sent", "submit", "throttled", "title"],
       reset: ["done", "invalidLink", "invalidLinkText", "submit", "title"],
@@ -1843,6 +1835,10 @@ describe("kabinet passwords copy (PW-1, his Ukrainian, 2026-10-19)", () => {
       emailReset: ["action", "expiry", "intro", "notYou", "subject"],
       emailPasswordChanged: ["body", "notYou", "subject"],
     });
+  });
+
+  it("/prytulkam's link to sign-in is his «Увійти в кабінет» (scope item 1)", () => {
+    expect(uk.forShelters.signInLink).toBe("Увійти в кабінет");
   });
 
   it("the sentence the passwords made false is gone", () => {

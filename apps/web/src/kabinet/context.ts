@@ -3,6 +3,7 @@ import type { LocationPrivacyPolicy } from "@opika/domain";
 import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import type { InvitationSender } from "./email-senders";
+import type { InvitePasswords } from "./invite-password";
 import type { PhotoUploads } from "./photo-uploads";
 
 /**
@@ -39,4 +40,9 @@ export type KabinetContext = {
   shelterWrites: ShelterWritePolicy;
   /** Where `shelter.photos.add` stores, or why it can't on this deployment (P-Q10). */
   photoUploads: PhotoUploads;
+  /**
+   * What the invitation link's «Створіть пароль» needs (PW-2): on for the served route, off
+   * (`INVITE_PASSWORDS_OFF`) for in-process page clients, which never call it.
+   */
+  invitePasswords: InvitePasswords;
 };

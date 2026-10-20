@@ -38,7 +38,14 @@ import {
 import { z } from "zod";
 import { apiErrors } from "../errors";
 import { MAX_PAGE_SIZE } from "../procedures/pagination";
-import { kabinet, registry, shelterRead, shelterWrite, supportExit } from "./access";
+import {
+  invitationLink,
+  kabinet,
+  registry,
+  shelterRead,
+  shelterWrite,
+  supportExit,
+} from "./access";
 import {
   BlockedAddressesViewSchema,
   CreatedShelterViewSchema,
@@ -826,4 +833,33 @@ export const kabinetSessionContract = {
     .input(empty)
     .output(emptyOutput)
     .errors({ UNAUTHENTICATED: apiErrors.UNAUTHENTICATED, FORBIDDEN: apiErrors.FORBIDDEN }),
+};
+
+/**
+ * The invitation link's one write (PW-2, `docs/shelter-passwords.md` §4.2): sets the invitee's
+ * password and signs them in. The token is the credential, so no session is needed. Every reason
+ * the link can't be used is one `INVITE_UNUSABLE` (Oleksii, PW-2 Q1); a password the policy
+ * refuses is `PASSWORD_REJECTED`, and leaves the link usable. The address is always the
+ * invitation's, never one the request sends. The password is only ever hashed: it is never
+ * logged, echoed or returned.
+ */
+export const kabinetInvitationContract = {
+  acceptWithPassword: kabinet
+    .$meta(invitationLink)
+    .input(
+      z.strictObject({
+        token: z.string().min(1).max(256),
+        // The policy decides the length (§3); this only bounds the body. 128 characters of up to
+        // 4 UTF-16 units each (a grapheme the policy counts once can be longer still, and is then
+        // refused as too long by Better Auth's second line, PW1-D17).
+        password: z.string().max(1024),
+      }),
+    )
+    .output(z.object({ kind: z.enum(["signed_in", "password_set"]) }))
+    .errors({
+      INVITE_UNUSABLE: apiErrors.INVITE_UNUSABLE,
+      PASSWORD_REJECTED: apiErrors.PASSWORD_REJECTED,
+      RATE_LIMITED: apiErrors.RATE_LIMITED,
+      FORBIDDEN: apiErrors.FORBIDDEN,
+    }),
 };

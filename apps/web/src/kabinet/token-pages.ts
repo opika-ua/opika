@@ -1,4 +1,4 @@
-import { RESET_LINK } from "./email-links";
+import { INVITE_LINK, RESET_LINK } from "./email-links";
 
 /**
  * The kabinet sign-in pages whose URL carries a credential and which the proxy answers for: the
@@ -13,8 +13,14 @@ import { RESET_LINK } from "./email-links";
  * strict-origin on pages whose button submits an ordinary form (the magic-link confirm page), and
  * no-referrer everywhere else as specified (the reset page included)." `confirm-route.test.ts`
  * pins that the confirm page's form POST passes IN-T8 under its own policy. The reset page has no
- * such conflict: its POST is a `fetch`, whose `Origin` no referrer policy removes. PW-2 adds the
- * invitation's `?zaproshennia=`.
+ * such conflict: its POST is a `fetch`, whose `Origin` no referrer policy removes.
+ *
+ * PW-2 adds the invitation link, `/kabinet/vkhid?zaproshennia=<token>`. His words, verbatim (PW-2
+ * Q1): "Token pages send Cache-Control: no-store, plus Referrer-Policy: no-referrer, except that
+ * pages whose button submits an ordinary form use strict-origin (PW1-Q1)." Its form posts by
+ * `fetch` too, so it gets both. It shares its path with the plain sign-in page, so it is matched
+ * by the parameter: any `zaproshennia`, valid or not, repeated or empty, since the page treats
+ * each as a link (one that can't be used is still a link page).
  */
 export const TOKEN_PAGE_PATHS: readonly string[] = [RESET_LINK.path];
 
@@ -23,4 +29,6 @@ export const TOKEN_PAGE_HEADERS = {
   "Referrer-Policy": "no-referrer",
 } as const;
 
-export const isTokenPagePath = (pathname: string): boolean => TOKEN_PAGE_PATHS.includes(pathname);
+export const isTokenPage = (url: { pathname: string; searchParams: URLSearchParams }): boolean =>
+  TOKEN_PAGE_PATHS.includes(url.pathname) ||
+  (url.pathname === INVITE_LINK.path && url.searchParams.has(INVITE_LINK.param));

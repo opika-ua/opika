@@ -3,7 +3,13 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspect } from "node:util";
 import { createDatabase, type Database } from "@opika/db";
-import { cityRepo, kabinetActorRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
+import {
+  cityRepo,
+  kabinetActorRepo,
+  kabinetInvitationRepo,
+  kabinetInviteTokenRepo,
+  shelterRepo,
+} from "@opika/db/repos";
 import {
   authAccount,
   authInvitation,
@@ -33,16 +39,24 @@ import {
   testOnlyLocationPolicy,
 } from "@opika/domain";
 import { inMemoryRateLimiter } from "../src/api/rate-limit";
+import { fromRpcBody, toRpcBody } from "../src/api/test-harness";
+import { SHELTER_WRITE_POLICY } from "../src/kabinet/access";
 import { createKabinetAuth, kabinetCookieName } from "../src/kabinet/auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "../src/kabinet/auth-route";
 import { withQueryErrorsCleaned } from "../src/kabinet/clean-query-errors";
 import { handleKabinetConfirm } from "../src/kabinet/confirm-route";
 import { capturingInvitationSender } from "../src/kabinet/email-senders";
 import { invitationAccepter } from "../src/kabinet/invitation-accept";
+import {
+  inviteCredentialsOf,
+  invitePasswordLandingOf,
+  newInviteToken,
+} from "../src/kabinet/invite-password";
 import { capturingSender } from "../src/kabinet/magic-link-sender";
 import { generousPasswordLimiters } from "../src/kabinet/password-limits";
 import { capturingPasswordMail } from "../src/kabinet/password-mail";
 import { kabinetIdentityOf } from "../src/kabinet/principal";
+import { handleKabinetRpc } from "../src/kabinet/rpc-route";
 
 /**
  * Better Auth's own write paths on real Neon, through the production driver
@@ -91,6 +105,12 @@ import { kabinetIdentityOf } from "../src/kabinet/principal";
  *      and one failing query (a word bound to an integer column: `22P02`, whose driver message
  *      quotes the value), each over this driver: the error keeps its name, SQLSTATE and constraint, and
  *      carries no message text, no parameters and no SQL. Neither statement writes a row.
+ *   17. PW-2: the invitation link's «Створіть пароль». A second invitation, on this run's
+ *      shelter for a second address, gets a link the way the registry issues one (our
+ *      delete-and-insert in one statement); the link's page reads it twice (our join, with its
+ *      three EXISTS) and nothing changes; the form's POST through the RPC route uses it up (our
+ *      DELETE … RETURNING), and Better Auth writes the credential, marks the address verified
+ *      and signs in, then the automatic accept runs. A second POST is the one unusable answer.
  *
  * Nothing is sent anywhere: the magic link is captured in memory, never
  * printed. Refuses unless the target's compute is exactly `--expect`, and
@@ -746,6 +766,140 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       duplicateFacts.noValues &&
       badValueFacts.noValues,
     `duplicate ${duplicateFacts.name} ${duplicateFacts.code} ${duplicateFacts.constraint}, bad value ${badValueFacts.name} ${badValueFacts.code}, no message text ${duplicateFacts.noText && badValueFacts.noText}, no values or SQL ${duplicateFacts.noValues && badValueFacts.noValues}`,
+  );
+
+  // 17. PW-2: the invitation link sets a password, signs in and accepts.
+  const inviteeEmail = `auth-smoke-invitee-${tag}@example.invalid`;
+  const secondInvite = await kabinetInvitationRepo(db).invite({
+    shelterId: base.id,
+    email: inviteeEmail,
+    name: "Auth smoke invitee",
+    inviterUserId: operator,
+    ids: { invitationId: randomUUID(), userId: randomUUID(), organizationId: randomUUID() },
+    now: new Date(),
+    history: {
+      id: randomUUID(),
+      entry: {
+        kind: "admin_invited",
+        at: new Date(),
+        moderatorId: operator as ModeratorId,
+        email: inviteeEmail,
+      },
+    },
+  });
+  const inviteName =
+    "invitation link (issued hashed, read twice with nothing changed, used up by the POST: credential, verified, signed in, accepted; a second POST unusable)";
+  if (secondInvite.kind !== "invited") {
+    check(inviteName, false, `invitation not written: ${secondInvite.kind}`);
+    return out;
+  }
+  const inviteToken = newInviteToken();
+  const tokens = kabinetInviteTokenRepo(db);
+  await tokens.issue({
+    id: randomUUID(),
+    invitationId: secondInvite.invitationId,
+    token: inviteToken,
+    expiresAt: secondInvite.expiresAt,
+    now: new Date(),
+  });
+  const linkRows = async () =>
+    (await db.select({ value: authVerification.value }).from(authVerification)).filter(
+      (row) => row.value === `invitation:${secondInvite.invitationId}`,
+    ).length;
+  const lookup = { lookup: (value: string) => tokens.landingOf(value), now: new Date() };
+  const shownOnce = await invitePasswordLandingOf(inviteToken, lookup);
+  const shownTwice = await invitePasswordLandingOf(inviteToken, lookup);
+  const rowsAfterOpening = await linkRows();
+  const invitePassword = `${randomUUID()}-${randomUUID()}`;
+  const acceptOnce = async () => {
+    const request = new Request(`${BASE}/api/kabinet/invitation/acceptWithPassword`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: BASE,
+        "x-forwarded-for": "198.51.100.77",
+      },
+      body: JSON.stringify(toRpcBody({ token: inviteToken, password: invitePassword })),
+    });
+    const response = await handleKabinetRpc(request, {
+      availability,
+      resolve: async () => ({
+        ...(await kabinetIdentityOf(auth, db, request.headers, new Date(), true)),
+        db,
+        cursorSecret: "auth-smoke-cursor-secret",
+      }),
+      limiters: { perUser: unlimited(), perIp: unlimited() },
+      ip: "198.51.100.77",
+      now: new Date(),
+      newId: () => randomUUID(),
+      operatorDisplayName: "Auth smoke",
+      locationPolicy: null,
+      production: true,
+      shelterWrites: SHELTER_WRITE_POLICY,
+      invitePasswords: () => ({
+        kind: "on",
+        perIp: unlimited(),
+        ip: "198.51.100.77",
+        credentials: inviteCredentialsOf(auth, BASE, request.headers),
+      }),
+    });
+    await Promise.all(scheduled);
+    const text = await response.text();
+    let body: unknown = null;
+    try {
+      body = fromRpcBody(JSON.parse(text));
+    } catch {
+      body = null;
+    }
+    return { status: response.status, body, cookie: cookieOf(response) };
+  };
+  const firstUse = await acceptOnce();
+  const inviteeRead = await auth.handler(
+    new Request(`${BASE}/api/auth/get-session`, {
+      headers: new Headers({
+        cookie: firstUse.cookie,
+        origin: BASE,
+        "x-forwarded-for": "198.51.100.77",
+      }),
+    }),
+  );
+  const inviteeSignedIn =
+    ((await inviteeRead.json().catch(() => null)) as { user?: { email?: unknown } } | null)?.user
+      ?.email === inviteeEmail;
+  const inviteeUser = (
+    await db
+      .select({ id: authUser.id, email: authUser.email, emailVerified: authUser.emailVerified })
+      .from(authUser)
+  ).find((row) => row.email === inviteeEmail);
+  const inviteeCredential =
+    inviteeUser === undefined
+      ? false
+      : (
+          await db
+            .select({ userId: authAccount.userId, providerId: authAccount.providerId })
+            .from(authAccount)
+        ).some((row) => row.userId === inviteeUser.id && row.providerId === "credential");
+  const inviteeMember =
+    inviteeUser === undefined
+      ? false
+      : (await db.select({ userId: authMember.userId }).from(authMember)).some(
+          (row) => row.userId === inviteeUser.id,
+        );
+  const secondUse = await acceptOnce();
+  check(
+    inviteName,
+    shownOnce.kind === "form" &&
+      shownTwice.kind === "form" &&
+      rowsAfterOpening === 1 &&
+      firstUse.status === 200 &&
+      (firstUse.body as { kind?: unknown } | null)?.kind === "signed_in" &&
+      inviteeSignedIn &&
+      inviteeUser?.emailVerified === true &&
+      inviteeCredential &&
+      inviteeMember &&
+      (await linkRows()) === 0 &&
+      secondUse.status === 410,
+    `page ${shownOnce.kind} then ${shownTwice.kind}, link rows after opening ${rowsAfterOpening}, POST ${firstUse.status}, signed in ${inviteeSignedIn}, verified ${inviteeUser?.emailVerified === true}, credential ${inviteeCredential}, member ${inviteeMember}, link rows after ${await linkRows()}, second POST ${secondUse.status}`,
   );
   return out;
 }

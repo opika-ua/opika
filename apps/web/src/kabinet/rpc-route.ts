@@ -7,17 +7,19 @@ import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import type { KabinetAuthAvailability } from "./auth-route";
 import { isSameOriginPost } from "./confirm-route";
+import { invitationRouter } from "./invitation-router";
+import { INVITE_PASSWORDS_OFF, type InvitePasswords } from "./invite-password";
 import { PHOTO_UPLOADS_NOT_CONFIGURED, type PhotoUploads } from "./photo-uploads";
 import { type KabinetLimiters, kabinetUserKey } from "./rate-limits";
 import { registryRouter } from "./registry-router";
 import { shelterKabinetRouter } from "./router";
 
 /**
- * Both surfaces on one handler (`shelter`, `registry`, `session` are disjoint
+ * Every surface on one handler (`shelter`, `registry`, `session`, `invitation` are disjoint
  * top-level keys). Each router was built with `implement(...)` over its own
  * contract and is complete, so no stub answers a real route (HS-Q1).
  */
-export const kabinetRouter = { ...shelterKabinetRouter, ...registryRouter };
+export const kabinetRouter = { ...shelterKabinetRouter, ...registryRouter, ...invitationRouter };
 
 /**
  * `BodyLimitPlugin` holds the body ceiling inside oRPC too (P-Q7). The route
@@ -107,6 +109,12 @@ export async function handleKabinetRpc(
      * Left out, uploads are off: a caller that doesn't say can't store.
      */
     photoUploads?: PhotoUploads;
+    /**
+     * The invitation link's «Створіть пароль» (PW-2). Called only once the kabinet is known to be
+     * available, since it needs Better Auth. Left out, it is off: the procedure answers that the
+     * link can't be used.
+     */
+    invitePasswords?: () => InvitePasswords;
   },
 ): Promise<Response> {
   if (!(await deps.limiters.perIp.check(ipRateLimitKey(deps.ip), deps.now))) return tooMany();
@@ -152,6 +160,7 @@ export async function handleKabinetRpc(
       linkBaseURL: deps.availability.baseURL,
       shelterWrites: deps.shelterWrites,
       photoUploads: deps.photoUploads ?? PHOTO_UPLOADS_NOT_CONFIGURED,
+      invitePasswords: deps.invitePasswords?.() ?? INVITE_PASSWORDS_OFF,
     },
   });
   if (!result.matched) return new Response("Not Found", { status: 404 });

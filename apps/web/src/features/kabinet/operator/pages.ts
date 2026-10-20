@@ -16,6 +16,7 @@ import { createRouterClient, ORPCError, type RouterClient } from "@orpc/server";
 import { registryOperatorOf } from "../../../kabinet/access";
 import type { KabinetPrincipal } from "../../../kabinet/actor";
 import type { KabinetContext } from "../../../kabinet/context";
+import { INVITE_PASSWORDS_OFF } from "../../../kabinet/invite-password";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../../kabinet/photo-uploads";
 import { registryRouter } from "../../../kabinet/registry-router";
 import { HISTORY_PAGE, SHELTERS_PAGE, type ShelterListFilters } from "./list-params";
@@ -76,6 +77,7 @@ function readClient(principal: KabinetPrincipal, deps: OperatorPageDeps): ReadCl
       setCookies: [],
       cookieHeader: null,
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
+      invitePasswords: INVITE_PASSWORDS_OFF,
     }),
   });
 }

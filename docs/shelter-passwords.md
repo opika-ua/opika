@@ -151,6 +151,19 @@ would be signed out at once.
 Today's invitation id stops being the link's secret. The invite email carries a separate random token,
 stored hashed through the same `storeIdentifier` override, so **no migration** is needed.
 
+**As built in PW-2 (2026-10-20, unreviewed; `docs/decisions-inbox/feat-pw-2-invite-password.md`):**
+- **The GET reads.** His Q1 replaces "the GET looks nothing up" above: one read-only lookup by the
+  token's hash. It shows the form (the shelter and the address, masked) or one identical unusable
+  page for every failure kind. It consumes nothing, charges no budget and sends nothing.
+- **Headers.** `no-store` and `no-referrer`, since the form's POST is a `fetch`.
+- **The token.** Our own `auth_verification` row (`kabinetInviteTokenRepo`): SHA-256 of
+  `invite-password:<token>`, value `invitation:<id>`. Better Auth never reads it, so no
+  `storeIdentifier` entry was needed.
+- **The order.** Charge, read, policy, consume, credential (and the address marked verified),
+  void reset links, sign in, accept. The accept runs after the sign-in, as on every sign-in
+  (IN-Q12), rather than before it as in steps 8 and 9 above.
+- **The output** gains `password_set`: set, but the sign-in didn't go through (the delay).
+
 ### 4.3 Rate limits (shared Upstash store, keys never plain)
 
 | Action | Per IP | Per account (key = HMAC of the normalised address, §9 Q7) |

@@ -24,8 +24,7 @@ import { RESET_PASSWORD_TTL_SECONDS } from "./password-mail";
  * the same way, as is R-UI's `operator.create.whatHappens.step2` («72 години»).
  */
 
-const MINUTE_KEYS =
-  "kabinet.email.signIn.expiry, kabinet.inviteLanding.sent and kabinet.signIn.sentBody";
+const MINUTE_KEYS = "kabinet.email.signIn.expiry and kabinet.signIn.sentBody";
 const HOUR_KEYS = "kabinet.email.invite.expiry and kabinet.operator.create.whatHappens.step2";
 
 describe("the TTLs the copy's plural nouns were written for", () => {
@@ -46,7 +45,6 @@ describe("the TTLs the copy's plural nouns were written for", () => {
   /** The forms in the copy, from his answer sheet: what the pins above protect. */
   it("the copy carries the noun forms those values take", () => {
     expect(uk.kabinet.email.signIn.expiry).toContain("{minutes} хвилин.");
-    expect(uk.kabinet.inviteLanding.sent).toContain("{minutes} хвилин.");
     expect(uk.kabinet.signIn.sentBody).toContain("15 хвилин");
     expect(uk.kabinet.email.invite.expiry).toContain("{hours} години.");
     expect(uk.kabinet.operator.create.whatHappens.step2).toContain("72 години");

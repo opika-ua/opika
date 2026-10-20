@@ -28,6 +28,8 @@ describe("the password limits' numbers (§4.3)", () => {
       forgotPerIp: { windowMs: 60 * MINUTE, maxRequests: 20 },
       forgotPerAddress: { windowMs: 60 * MINUTE, maxRequests: 3 },
       resetPerIp: { windowMs: 60 * MINUTE, maxRequests: 20 },
+      // PW-2: «Створіть пароль»'s POST (§4.3, "Invite acceptance | 20/h").
+      invitePerIp: { windowMs: 60 * MINUTE, maxRequests: 20 },
     });
     expect(SIGN_IN_DELAY).toEqual({
       freeAttempts: 5,

@@ -118,9 +118,23 @@ describe("every outgoing auth email carries exactly its provider's fields, and n
         // No pixel or remote image: an open tracker needs one.
         expect(sent).not.toMatch(/<img/i);
       }
+      // PW-2 Q2 (Oleksii, 2026-10-20, verbatim), in both invites' bytes as they went out: the
+      // link sets a password, so the paragraph says not to forward it.
+      const invites = sends
+        .map((sent) => JSON.parse(sent) as { subject?: string; text?: string; html?: string })
+        .filter((body) => body.subject === "Ваш доступ до кабінету притулку");
+      expect(invites).toHaveLength(2);
+      for (const invite of invites) {
+        expect(invite.text?.endsWith(`\n\n${INVITE_NOT_YOU}\n— Олексій`)).toBe(true);
+        expect(invite.html).toContain(`${INVITE_NOT_YOU}<br>— Олексій</p>`);
+      }
     },
   );
 });
+
+/** His PW-2 Q2 paragraph, transcribed (2026-10-20). */
+const INVITE_NOT_YOU =
+  "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.";
 
 describe("the two password emails (his F1 and F2, transcribed)", () => {
   it("F1: subject, the request, the labelled link, an hour, and the signed «not you» line", () => {

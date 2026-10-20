@@ -5,7 +5,8 @@ import { getDb } from "../../../../api/db";
 import { requireEnv } from "../../../../api/env";
 import { SHELTER_WRITE_POLICY } from "../../../../kabinet/access";
 import { kabinetAuthAvailability } from "../../../../kabinet/auth-route";
-import { kabinetLimiters, photoUploadLimiters } from "../../../../kabinet/limiters";
+import { inviteCredentialsOf } from "../../../../kabinet/invite-password";
+import { inviteLimiters, kabinetLimiters, photoUploadLimiters } from "../../../../kabinet/limiters";
 import { operatorDisplayName } from "../../../../kabinet/operator";
 import { photoUploadConfigOf } from "../../../../kabinet/photo-upload-env";
 import {
@@ -64,8 +65,9 @@ function photoUploads(): PhotoUploads {
 async function handle(request: Request): Promise<Response> {
   const now = new Date();
   const production = process.env.NODE_ENV === "production";
+  const availability = kabinetAuthAvailability(process.env);
   return handleKabinetRpc(request, {
-    availability: kabinetAuthAvailability(process.env),
+    availability,
     resolve: async () => ({
       ...(await kabinetIdentityOf(kabinetAuth(), getDb(), request.headers, now, production)),
       db: getDb(),
@@ -83,6 +85,16 @@ async function handle(request: Request): Promise<Response> {
     // The one served write policy, read from no environment variable.
     shelterWrites: SHELTER_WRITE_POLICY,
     photoUploads: photoUploads(),
+    invitePasswords: () => ({
+      kind: "on",
+      perIp: inviteLimiters.perIp,
+      ip: clientIp(request),
+      credentials: inviteCredentialsOf(
+        kabinetAuth(),
+        availability.kind === "available" ? availability.baseURL : "",
+        request.headers,
+      ),
+    }),
   });
 }
 

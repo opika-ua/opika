@@ -35,8 +35,31 @@ describe("the token pages' headers, set by the proxy", () => {
     }
   });
 
+  /**
+   * PW-2 Q1 (Oleksii, 2026-10-20, verbatim): "Token pages send Cache-Control: no-store, plus
+   * Referrer-Policy: no-referrer, except that pages whose button submits an ordinary form use
+   * strict-origin (PW1-Q1)." The invitation link's form posts by `fetch`, so it gets both,
+   * whatever the parameter holds.
+   */
+  it("the invitation link's page answers no-store and no-referrer, whatever its parameter holds", async () => {
+    for (const path of [
+      `/kabinet/vkhid?zaproshennia=${"A".repeat(43)}`,
+      "/kabinet/vkhid?zaproshennia=",
+      "/kabinet/vkhid?zaproshennia=a&zaproshennia=b",
+    ]) {
+      const response = await load(path);
+      expect(response.headers.get("cache-control"), path).toBe("no-store");
+      expect(response.headers.get("referrer-policy"), path).toBe("no-referrer");
+    }
+  });
+
   it("other pages, kabinet ones included, are left as they were", async () => {
-    for (const path of ["/kabinet/vkhid", "/kabinet/vkhid/zabuly", "/tvaryny"]) {
+    for (const path of [
+      "/kabinet/vkhid",
+      "/kabinet/vkhid?token=x",
+      "/kabinet/vkhid/zabuly?zaproshennia=x",
+      "/tvaryny",
+    ]) {
       const response = await load(path);
       expect(response.headers.get("referrer-policy"), path).toBeNull();
       expect(response.headers.get("cache-control"), path).toBeNull();

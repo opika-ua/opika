@@ -1,4 +1,5 @@
 import {
+  kabinetInvitationContract,
   kabinetSessionContract,
   registryAdminsContract,
   registryDonationContract,
@@ -52,3 +53,14 @@ export const registryContract = {
 } as const;
 
 export type RegistryContract = typeof registryContract;
+
+/**
+ * The invitation link's «Створіть пароль» (PW-2): the one kabinet procedure a signed-out visitor
+ * may call, because the link's token is its credential. A contract of its own, so the access
+ * matrix and the router each name it once.
+ */
+export const invitationContract = {
+  invitation: kabinetInvitationContract,
+} as const;
+
+export type InvitationContract = typeof invitationContract;
