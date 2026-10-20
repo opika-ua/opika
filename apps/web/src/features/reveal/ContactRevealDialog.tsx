@@ -3,7 +3,7 @@
 import type { ContactRevealView } from "@opika/contracts";
 import { allChannels, type ContactChannel } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { RevealErrorReason, RevealState } from "./useReveal";
 
 /**
@@ -173,7 +173,15 @@ export function ContactRevealDialog({
 
   // Esc closes; page behind the dialog does not scroll while it's open;
   // Tab is trapped inside the dialog's own focusable elements.
-  useEffect(() => {
+  //
+  // A layout effect, not a passive one (RF-F1): this dialog mounts only
+  // after an awaited `animals.reveal` resolves, not inline inside the
+  // click that triggered it, so a passive effect here would be scheduled
+  // for after the browser's next paint instead of flushed before it. A
+  // layout effect locks the scroll in the same commit that inserts the
+  // dialog, before anything paints, so there is never a frame where the
+  // dialog is visible and the page behind it is still scrollable.
+  useLayoutEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
