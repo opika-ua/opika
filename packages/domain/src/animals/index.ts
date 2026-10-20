@@ -1,6 +1,7 @@
 export * from "./age";
 export * from "./animal";
 export * from "./attestation";
+export * from "./coat";
 export * from "./document-readiness";
 export * from "./grammatical-gender";
 export * from "./listing";

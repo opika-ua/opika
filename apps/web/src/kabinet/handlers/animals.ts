@@ -433,8 +433,8 @@ export async function animalsById(
 /**
  * A new draft from a name and a species (K-Q5, Oleksii: "name + species to
  * create"). Sex starts «Не записано» (D2, verbatim: "sex defaults to
- * "unknown""), the medical facts unknown, no size, age, description or
- * photo: what the shelter hasn't told yet stays unanswered, never invented.
+ * "unknown""), the medical facts and fur unknown, no size, age, description
+ * or photo: what the shelter hasn't told yet stays unanswered, never invented.
  */
 export async function animalsCreateDraft(
   deps: AnimalDeps,
@@ -449,6 +449,7 @@ export async function animalsCreateDraft(
     name: input.name,
     species: input.species,
     sex: "unknown",
+    coatLength: null,
     size: null,
     age: null,
     description: null,

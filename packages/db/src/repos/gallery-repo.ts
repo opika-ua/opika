@@ -231,6 +231,7 @@ function getAnimalColumns() {
     name: animals.name,
     species: animals.species,
     sex: animals.sex,
+    coatLength: animals.coatLength,
     size: animals.size,
     age: animals.age,
     ageAnchorAt: animals.ageAnchorAt,

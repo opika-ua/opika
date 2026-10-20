@@ -36,6 +36,7 @@ const newDraft: DraftAnimal = {
   name: "Ластівка",
   species: "dog",
   sex: "unknown",
+  coatLength: null,
   size: null,
   age: null,
   description: null,
@@ -99,6 +100,21 @@ describe("the animal union (F-B1)", () => {
     });
   }
 
+  it("fur is never a listing fact: every listing kind parses with it unrecorded (DR1-D10)", () => {
+    expect(DraftAnimalSchema.safeParse(newDraft).success).toBe(true);
+    for (const listing of NON_DRAFT_LISTINGS) {
+      expect(ListedAnimalSchema.safeParse({ ...listed(listing), coatLength: null }).success).toBe(
+        true,
+      );
+      expect(ListedAnimalSchema.safeParse({ ...listed(listing), coatLength: "long" }).success).toBe(
+        true,
+      );
+      expect(ListedAnimalSchema.safeParse({ ...listed(listing), coatLength: "wire" }).success).toBe(
+        false,
+      );
+    }
+  });
+
   it("the guards split on the listing, and only published and reserved are discoverable", () => {
     expect(isDraftAnimal(newDraft)).toBe(true);
     expect(isListedAnimal(newDraft)).toBe(false);
@@ -146,6 +162,10 @@ describe("publishReadinessOf", () => {
 
   it("never counts the sex or the medical facts as gaps (D2, «Не записано» is an answer)", () => {
     expect(publishReadinessOf({ ...completeDraft, sex: "unknown" }).kind).toBe("ready");
+  });
+
+  it("never counts unrecorded fur as a gap (DR1-D10)", () => {
+    expect(publishReadinessOf({ ...completeDraft, coatLength: null }).kind).toBe("ready");
   });
 });
 

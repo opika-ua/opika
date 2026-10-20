@@ -58,6 +58,7 @@ export function generateMockCards(count: number): FeedCardView[] {
     species: i % 3 === 0 ? ("cat" as const) : ("dog" as const),
     sex: i % 2 === 0 ? ("male" as const) : ("female" as const),
     size: (["small", "medium", "large"] as const)[i % 3] ?? ("medium" as const),
+    coatLength: (["short", "long", null] as const)[i % 3] ?? null,
     publicLocation: null,
     ageBucket: (["baby", "young", "adult", "senior"] as const)[i % 4] ?? "young",
     freshness: mockFreshness(

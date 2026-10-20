@@ -65,6 +65,7 @@ export async function galleryList(
         species: animal.species,
         sex: animal.sex,
         size: animal.size,
+        coatLength: animal.coatLength,
         publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
         ageBucket: ageBucketOf(animal.age, context.now),
         freshness: listingFreshness(animal.listing, context.now),

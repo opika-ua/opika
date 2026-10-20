@@ -236,6 +236,7 @@ describe("longest-waiting EXPLAIN", () => {
       species: { kind: "oneOf", values: ["dog"] },
       sizes: { kind: "oneOf", values: ["small"] },
       ages: { kind: "any" },
+      coatLengths: { kind: "any" },
     };
 
     const plan = await explainGalleryQuery({ filters, sort: "longest_waiting" });

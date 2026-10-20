@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AGE_BUCKETS, AgeBucketSchema } from "../animals/age";
 import { ANIMAL_SPECIES, AnimalSpeciesSchema } from "../animals/animal";
+import { COAT_LENGTHS, CoatLengthSchema } from "../animals/coat";
 import { SIZE_BUCKETS, SizeBucketSchema } from "../animals/size";
 import { CityIdSchema } from "../primitives/ids";
 
@@ -38,6 +39,14 @@ export const FeedFiltersSchema = z.object({
   species: filterSelectionSchema(AnimalSpeciesSchema),
   sizes: filterSelectionSchema(SizeBucketSchema),
   ages: filterSelectionSchema(AgeBucketSchema),
+  /**
+   * Defaults to "any" when absent, so a filter set written before the fifth
+   * dimension existed (a tab's `sessionStorage`, a request from a page loaded
+   * before the deploy) still parses, as "no fur filter", which is what it
+   * meant. Its cursor still answers `INVALID_CURSOR`: the fingerprint gained a
+   * segment, so no earlier fingerprint can equal a current one.
+   */
+  coatLengths: filterSelectionSchema(CoatLengthSchema).default({ kind: "any" }),
 });
 export type FeedFilters = z.infer<typeof FeedFiltersSchema>;
 
@@ -46,15 +55,16 @@ export const NO_FILTERS: FeedFilters = {
   species: { kind: "any" },
   sizes: { kind: "any" },
   ages: { kind: "any" },
+  coatLengths: { kind: "any" },
 };
 
 /**
- * The dimensions a filter set constrains, as data rather than as four
+ * The dimensions a filter set constrains, as data rather than as
  * hand-written string literals.
  *
  * `FeedFiltersSchema.keyof()` derives this from the schema itself, so adding a
- * fifth dimension cannot leave a relaxation suggestion, a URL parameter or a
- * count query silently covering only the original four.
+ * dimension (fur was the fifth) cannot leave a relaxation suggestion, a URL
+ * parameter or a count query silently covering only the earlier ones.
  */
 export const FeedFilterDimensionSchema = FeedFiltersSchema.keyof();
 export type FeedFilterDimension = z.infer<typeof FeedFilterDimensionSchema>;
@@ -139,6 +149,7 @@ export const canonicalizeFilters = (filters: FeedFilters): FeedFilters => ({
   species: canonicalizeSelection(filters.species, ANIMAL_SPECIES),
   sizes: canonicalizeSelection(filters.sizes, SIZE_BUCKETS),
   ages: canonicalizeSelection(filters.ages, AGE_BUCKETS),
+  coatLengths: canonicalizeSelection(filters.coatLengths, COAT_LENGTHS),
 });
 
 /**
@@ -159,6 +170,7 @@ export const filtersFingerprint = (filters: FeedFilters): string => {
     encode(canonical.species),
     encode(canonical.sizes),
     encode(canonical.ages),
+    encode(canonical.coatLengths),
   ].join("|");
 };
 
@@ -166,4 +178,5 @@ export const isUnfiltered = (filters: FeedFilters): boolean =>
   filters.cities.kind === "any" &&
   filters.species.kind === "any" &&
   filters.sizes.kind === "any" &&
-  filters.ages.kind === "any";
+  filters.ages.kind === "any" &&
+  filters.coatLengths.kind === "any";

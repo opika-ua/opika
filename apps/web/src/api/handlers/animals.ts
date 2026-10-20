@@ -49,6 +49,7 @@ export async function animalsById(
     species: animal.species,
     sex: animal.sex,
     size: animal.size,
+    coatLength: animal.coatLength,
     publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
     description: animal.description,
     photos: animal.photos,

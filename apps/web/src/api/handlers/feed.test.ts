@@ -105,3 +105,79 @@ describe("feedList — reachableCount wiring", () => {
     expect(reachableCountMock).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * DR1, S2: the fingerprint gained a fifth segment (fur), so every deck cursor
+ * issued before the deploy carries a four-segment one. It must be refused as
+ * `INVALID_CURSOR` (the deck restarts from the first page), never decoded
+ * into a page of a differently filtered feed.
+ */
+describe("feedList — cursors across the fifth filter dimension", () => {
+  beforeEach(() => {
+    listMock.mockReset().mockResolvedValue({ items: [], nextCursor: null });
+    reachableCountMock.mockReset().mockResolvedValue(0);
+    findByIdsMock.mockReset().mockResolvedValue([]);
+  });
+
+  const context: AppContext = {
+    db: {} as AppContext["db"],
+    adopterId: null,
+    tokenHash: null,
+    now: new Date("2026-10-20T12:00:00Z"),
+    setCookies: [],
+  };
+  const position = { at: new Date("2026-10-01T00:00:00Z"), id: "some-animal-id" };
+  const longOnly = { ...NO_FILTERS, coatLengths: { kind: "oneOf", values: ["long"] } } as const;
+  const shortOnly = { ...NO_FILTERS, coatLengths: { kind: "oneOf", values: ["short"] } } as const;
+
+  async function codeOf(promise: Promise<unknown>): Promise<string | null> {
+    try {
+      await promise;
+      return null;
+    } catch (error) {
+      return (error as { code?: string }).code ?? "thrown without a code";
+    }
+  }
+
+  it("refuses a cursor signed before fur existed, and never queries a page for it", async () => {
+    // What `filtersFingerprint(NO_FILTERS)` returned before S2, transcribed
+    // rather than computed: four "any" segments.
+    const legacy = encodeFeedCursor(position, "*|*|*|*", "test-secret") as FeedCursor;
+    expect(
+      await codeOf(feedList({ filters: NO_FILTERS, cursor: legacy, limit: 10 }, context, errors)),
+    ).toBe("INVALID_CURSOR");
+    expect(listMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a cursor issued for one fur and replayed under the other", async () => {
+    const issued = encodeFeedCursor(
+      position,
+      filtersFingerprint(longOnly),
+      "test-secret",
+    ) as FeedCursor;
+    expect(
+      await codeOf(feedList({ filters: shortOnly, cursor: issued, limit: 10 }, context, errors)),
+    ).toBe("INVALID_CURSOR");
+    expect(
+      await codeOf(feedList({ filters: NO_FILTERS, cursor: issued, limit: 10 }, context, errors)),
+    ).toBe("INVALID_CURSOR");
+    expect(listMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a cursor issued for the same fur filter", async () => {
+    const issued = encodeFeedCursor(
+      position,
+      filtersFingerprint(longOnly),
+      "test-secret",
+    ) as FeedCursor;
+    expect(
+      await codeOf(feedList({ filters: longOnly, cursor: issued, limit: 10 }, context, errors)),
+    ).toBeNull();
+    expect(listMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: longOnly,
+        cursor: { confirmedAt: position.at, id: position.id },
+      }),
+    );
+  });
+});

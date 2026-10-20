@@ -23,6 +23,7 @@ function makeAnimal(overrides: Partial<AnimalDetailView> = {}): AnimalDetailView
     species: "cat",
     sex: "male",
     size: "small",
+    coatLength: null,
     publicLocation: null,
     description: { uk: "Лагідний кіт", en: null },
     // Empty, not a real storageKey — same reason `AnimalCard.test.tsx` uses

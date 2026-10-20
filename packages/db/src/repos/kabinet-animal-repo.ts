@@ -240,6 +240,7 @@ export function kabinetAnimalRepo(db: Database) {
           name: row.name,
           species: row.species,
           sex: row.sex,
+          coatLength: row.coatLength,
           size: row.size,
           age: row.age,
           ageAnchorAt: row.ageAnchorAt,
