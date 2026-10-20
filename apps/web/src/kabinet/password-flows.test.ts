@@ -109,6 +109,18 @@ const available = (): KabinetAuthAvailability => ({
 /** Every response body read in a test, so the no-password-in-any-body check can see them all. */
 const bodies: string[] = [];
 
+/** Every session token a response's `kabinet.session_token` cookie carried (signed: `<token>.<signature>`). */
+const issuedSessionTokens: string[] = [];
+
+function noteSessionTokens(response: Response) {
+  for (const cookie of response.headers.getSetCookie()) {
+    if (!cookie.startsWith("kabinet.session_token=")) continue;
+    const value = decodeURIComponent(cookie.split(";")[0]?.split("=")[1] ?? "");
+    const token = value.split(".")[0] ?? "";
+    if (token !== "") issuedSessionTokens.push(token);
+  }
+}
+
 async function route(
   request: Request,
 ): Promise<{ status: number; text: string; response: Response }> {
@@ -124,6 +136,7 @@ async function route(
   await Promise.all(pending);
   const text = await response.clone().text();
   bodies.push(text);
+  noteSessionTokens(response);
   return { status: response.status, text, response };
 }
 
@@ -221,6 +234,7 @@ async function signInByLink(email: string): Promise<string> {
       acceptInvitation: invitationAccepter(db, () => new Date()),
     },
   );
+  noteSessionTokens(verified);
   return sessionCookieOf(verified);
 }
 
@@ -863,6 +877,45 @@ describe("no password in any response body or log line (§3)", () => {
     expect(bodies.length).toBeGreaterThan(5);
     for (const password of [GOOD, NEWER, "не-той-пароль-зовсім", "qwertyuiop"]) {
       expect(everything, "a password was echoed").not.toContain(password);
+    }
+  });
+});
+
+/**
+ * The session token stays in the HttpOnly cookie (PW1-D11; Decision 1, Oleksii, 2026-10-20,
+ * verbatim: "Strip the session token from /api/auth/get-session's response in PW-1"). Every path
+ * the route forwards answers here at least once, and none of their bodies carries the token of
+ * any session a response created or refreshed.
+ */
+describe("no session token in any response body (PW1-D11, Decision 1)", () => {
+  it("across both sign-ins, get-session, the change, «Забули пароль?», the reset, the magic link and sign-out", async () => {
+    const from = bodies.length;
+    const tokensFrom = issuedSessionTokens.length;
+    await adminWithPassword(); // «Забули пароль?» and the reset
+    const byLink = await signInByLink(ADMIN); // the magic link's request and its confirm
+    expect(await signedInUser(byLink)).toBe(ADMIN); // get-session
+    const signedIn = await signInWithPassword(ADMIN, GOOD);
+    const cookie = sessionCookieOf(signedIn.response);
+    expect(await signedInUser(cookie)).toBe(ADMIN);
+    const changed = await route(
+      post("/api/auth/change-password", { currentPassword: GOOD, newPassword: NEWER }, { cookie }),
+    );
+    expect(changed.status).toBe(200);
+    const renewed = sessionCookieOf(changed.response);
+    expect(await signedInUser(renewed)).toBe(ADMIN);
+    const signedOut = await route(post("/api/auth/sign-out", {}, { cookie: renewed }));
+    expect(signedOut.status).toBe(200);
+
+    const tokens = [...new Set(issuedSessionTokens.slice(tokensFrom))];
+    // Three sessions: the link's, the password's, and the one the change renewed.
+    expect(tokens.length).toBeGreaterThanOrEqual(3);
+    const seen = bodies.slice(from);
+    expect(seen.length).toBeGreaterThan(8);
+    for (const token of tokens) {
+      expect(
+        seen.filter((body) => body.includes(token)),
+        "a response body carries a session token",
+      ).toEqual([]);
     }
   });
 });

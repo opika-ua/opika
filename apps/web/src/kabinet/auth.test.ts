@@ -835,6 +835,76 @@ describe("what the route lets through", () => {
   });
 });
 
+/** Every string and every key anywhere in a parsed JSON value. */
+function everythingIn(value: unknown): { strings: string[]; keys: string[] } {
+  const strings: string[] = [];
+  const keys: string[] = [];
+  const walk = (node: unknown) => {
+    if (typeof node === "string") strings.push(node);
+    else if (Array.isArray(node)) node.forEach(walk);
+    else if (typeof node === "object" && node !== null) {
+      for (const [key, child] of Object.entries(node)) {
+        keys.push(key);
+        walk(child);
+      }
+    }
+  };
+  walk(value);
+  return { strings, keys };
+}
+
+/**
+ * Oleksii, 2026-10-20, verbatim: "Decision 1: (a). Strip the session token from
+ * /api/auth/get-session's response in PW-1, as its own commit with a delta review. Add a test that
+ * the body carries no token, and confirm in the PR that nothing in the app reads it."
+ */
+describe("get-session's body carries no session token (Decision 1)", () => {
+  it("not in any value or under any key; it still says who is signed in, and the session still works", async () => {
+    const user = await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    const [row] = await db.select().from(authSession);
+    const token = row?.token ?? "";
+    // The value searched for is the real one: the row's token, which the cookie carries signed.
+    expect(token).toMatch(/^[A-Za-z0-9]{32}$/);
+    expect(decodeURIComponent(cookie.split("=")[1] ?? "").startsWith(`${token}.`)).toBe(true);
+    const carriesToken = (body: unknown) => {
+      const { strings, keys } = everythingIn(body);
+      return {
+        values: strings.filter((value) => value.includes(token)),
+        keys: keys.filter((key) => /token/i.test(key)),
+      };
+    };
+
+    const read = () =>
+      route(new Request(`${BASE}/api/auth/get-session`, { headers: { cookie, origin: BASE } }));
+    for (const attempt of ["first read", "second read"]) {
+      const answer = await read();
+      expect(answer.status, attempt).toBe(200);
+      const body: unknown = await answer.json();
+      expect(carriesToken(body), attempt).toEqual({ values: [], keys: [] });
+      expect(body, attempt).toMatchObject({
+        session: { userId: user.id },
+        user: { id: user.id, email: "olena@example.org" },
+      });
+    }
+    // A POST is Better Auth's own refusal here (it needs `deferSessionRefresh`), and carries none.
+    const posted = await route(post("/api/auth/get-session", {}, { cookie }));
+    expect(posted.status).toBe(405);
+    expect(carriesToken(await posted.json())).toEqual({ values: [], keys: [] });
+    // No cookie: still Better Auth's own "no session".
+    const anonymous = await route(
+      new Request(`${BASE}/api/auth/get-session`, { headers: { origin: BASE } }),
+    );
+    expect(anonymous.status).toBe(200);
+    expect(await anonymous.json()).toBeNull();
+    // The session works as before: the same row, and a page's own server-side session read.
+    expect(await db.select().from(authSession)).toHaveLength(1);
+    expect(await principalOf(auth, db, new Headers({ cookie }), new Date())).toEqual({
+      kind: "no_role",
+    });
+  });
+});
+
 describe("plugins (HS-T2, HS-Q7)", () => {
   /**
    * HS-T2 (Oleksii): Better Auth's `admin` plugin keeps a `role` on the user;
