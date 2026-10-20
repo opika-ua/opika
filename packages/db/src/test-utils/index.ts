@@ -13,6 +13,12 @@ export {
   policy,
   uuid,
 } from "./fixtures";
+export {
+  type PasswordRevokeCatalog,
+  passwordRevokeCatalog,
+  passwordRevokeIsInPlace,
+  writeCredentialPassword,
+} from "./password-revoke";
 export { imageFactsOf, testJpeg } from "./photo-fixtures";
 export { setupTestDatabase, type TestContext, truncateAll } from "./setup";
 export { type SmokeTarget, smokeTarget } from "./smoke-target";
