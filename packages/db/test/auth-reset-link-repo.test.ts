@@ -78,8 +78,8 @@ describe("authResetLinkRepo.deleteUnused (PW1-F1)", () => {
     ]);
   });
 
-  it("deletes the user's reset links, expired included, and answers how many", async () => {
-    expect(await authResetLinkRepo(db).deleteUnused(OLENA)).toBe(3);
+  it("deletes the user's reset links, expired included, and nothing else", async () => {
+    await authResetLinkRepo(db).deleteUnused(OLENA);
     expect(await ids()).toEqual([
       "oauth-state",
       "olena-delete-account",
@@ -91,7 +91,7 @@ describe("authResetLinkRepo.deleteUnused (PW1-F1)", () => {
   it("keeps another user's reset link", async () => {
     await authResetLinkRepo(db).deleteUnused(OLENA);
     expect(await ids()).toContain("petro-reset");
-    expect(await authResetLinkRepo(db).deleteUnused(PETRO)).toBe(1);
+    await authResetLinkRepo(db).deleteUnused(PETRO);
     expect(await ids()).not.toContain("petro-reset");
   });
 
@@ -103,12 +103,12 @@ describe("authResetLinkRepo.deleteUnused (PW1-F1)", () => {
     expect(left).toContain("olena-magic-link");
   });
 
-  it("answers 0, as a number, when the user holds none", async () => {
+  it("is a no-op when the user holds none, or is nobody", async () => {
     await authResetLinkRepo(db).deleteUnused(OLENA);
-    expect(await authResetLinkRepo(db).deleteUnused(OLENA)).toBe(0);
-    expect(await authResetLinkRepo(db).deleteUnused("cccccccc-0000-4000-8000-00000000000c")).toBe(
-      0,
-    );
+    const left = await ids();
+    await authResetLinkRepo(db).deleteUnused(OLENA);
+    await authResetLinkRepo(db).deleteUnused("cccccccc-0000-4000-8000-00000000000c");
+    expect(await ids()).toEqual(left);
   });
 
   it("leaves the user row alone", async () => {

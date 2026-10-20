@@ -38,27 +38,26 @@ const HASHED_IDENTIFIER = "^[A-Za-z0-9_-]{43}$";
  * Expired links of the user go too: they are already dead, and the clean-up
  * would delete them within six hours (`authExpiryRepo`).
  *
- * Drizzle's query builder, no raw `.execute()`, so the result is the same on
- * `postgres-js` and `neon-http` (standing constraint).
+ * Drizzle's query builder, no raw `.execute()`, and nothing read back: the
+ * two drivers return different result shapes (`postgres-js` and `neon-http`,
+ * standing constraint), and nobody needs a count.
  */
 export function authResetLinkRepo(db: Database) {
   return {
     /**
-     * Deletes every reset link this user still holds, and returns how many.
-     * Called right after Better Auth writes a new password (a reset or a
-     * change): the link a reset used is already consumed by then.
+     * Deletes every reset link this user still holds. Called right after
+     * Better Auth writes a new password (a reset or a change): the link a
+     * reset used is already consumed by then.
      */
-    async deleteUnused(userId: string): Promise<number> {
-      const deleted = await db
+    async deleteUnused(userId: string): Promise<void> {
+      await db
         .delete(authVerification)
         .where(
           and(
             eq(authVerification.value, userId),
             sql`${authVerification.identifier} ~ ${HASHED_IDENTIFIER}`,
           ),
-        )
-        .returning({ id: authVerification.id });
-      return deleted.length;
+        );
     },
   };
 }

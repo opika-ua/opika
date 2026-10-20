@@ -72,6 +72,13 @@ export const FORGOT_ANSWER = { status: true } as const;
 /** How long the delay store may take before a sign-in is refused rather than waited on (fail closed, as RL-1). */
 const DELAY_STORE_TIMEOUT_MS = 1_000;
 
+/**
+ * How long voiding a user's reset links may hold a reset or a change (PW1-F1): one DELETE on a
+ * table holding a few hours' links answers in tens of milliseconds, so a second means a stalled
+ * database, and the links lapse within the hour anyway.
+ */
+const VOID_RESET_LINKS_TIMEOUT_MS = 1_000;
+
 const isEmail = (value: unknown): value is string =>
   typeof value === "string" && z.email().safeParse(value).success;
 
@@ -184,20 +191,29 @@ export function passwordHooks(deps: PasswordHookDeps) {
 
   /**
    * PW1-F1: once a new password is written, every reset link the user still holds is deleted, so
-   * a link asked for earlier can't set another one (Oleksii, PW1-Q6, verbatim: "Delete the user's
-   * other unused reset links on any successful reset or change"). Option (ii) of PW1-F1, his
-   * choice: a second statement right after Better Auth's write, so a link used in the moment
-   * between the two still works. Awaited, before the response, to keep that moment short.
+   * a link asked for earlier can't set another one. Oleksii, PW1-Q6, verbatim: "PW1-Q6: (a).
+   * Delete the user's other unused reset links on any successful reset or change, in the same
+   * transaction. Do it in PW-1 if it's a few lines; otherwise as the first follow-up." Not in the
+   * same transaction: Better Auth's write is its own statement, and his PW1-F1 answer chose option
+   * (ii) instead (verbatim excerpt: "(ii), a delete in our hook."), a second statement right after
+   * that write, so a link used in the moment between the two still works. Awaited, before the
+   * response, to keep that moment short.
    *
-   * It never fails the reset or the change: on a reset Better Auth awaits `onPasswordReset` and
-   * only then revokes the sessions, so a throw here would leave them alive. A failure is one line
-   * at error level, masked (his answer, verbatim: "A failure is logged at error level, masked. The
-   * links die within the hour anyway."): no user id, no address, never the error's message (a
-   * query error's message carries its parameters); only a SQLSTATE code, when there is one.
+   * It never fails the reset or the change, and never holds one past
+   * `VOID_RESET_LINKS_TIMEOUT_MS`: on a reset Better Auth awaits `onPasswordReset` and only then
+   * revokes the sessions, so a throw here would leave them alive, and a stall would hold the
+   * revoke (and leave the sessions alive if the function were killed meanwhile). A failure or a
+   * timeout is one line at error level, masked (his PW1-F1 answer, verbatim excerpt: "A failure
+   * is logged at error level, masked. The links die within the hour anyway."): no user id, no
+   * address, never the error's message (a query error's message carries its parameters); only a
+   * SQLSTATE code, when there is one.
    */
   async function voidResetLinks(userId: string, after: "reset" | "change"): Promise<void> {
     try {
-      await authResetLinkRepo(deps.db).deleteUnused(userId);
+      await withTimeout(
+        authResetLinkRepo(deps.db).deleteUnused(userId),
+        VOID_RESET_LINKS_TIMEOUT_MS,
+      );
     } catch (error) {
       const code = sqlStateOf(error);
       deps.logError(
