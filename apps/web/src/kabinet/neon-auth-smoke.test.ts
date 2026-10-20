@@ -16,7 +16,7 @@ describe("runAuthSmoke against the local database", () => {
   });
   afterAll(async () => cleanup?.());
 
-  it("passes every step: sign-in, verify, the accept, getSession, sign-out, and PW-1's four", async () => {
+  it("passes every step: sign-in, verify, the accept, getSession, sign-out, PW-1's four and PW1-F1's two", async () => {
     const outcomes = await runAuthSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
     expect(outcomes.map((o) => o.name)).toEqual([
@@ -29,6 +29,8 @@ describe("runAuthSmoke against the local database", () => {
       "reset (token consumed, credential created with a hash, the notice captured)",
       "password sign-in (session created, no token in the body)",
       "change password (hash updated, other sessions revoked, one renewed session)",
+      "reset voids the other reset links (the other link refused, the sign-in link's row kept)",
+      "change voids the reset links (a link asked for before it refused after it, the sign-in link's row kept)",
     ]);
   });
 

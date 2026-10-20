@@ -5,6 +5,7 @@ export {
   authExpiryRepo,
   KABINET_SESSION_LIMITS,
 } from "./auth-expiry-repo";
+export { authResetLinkRepo } from "./auth-reset-link-repo";
 export { cityRepo } from "./city-repo";
 export { type FeedCursorData, type FeedPage, feedRepo } from "./feed-repo";
 export { type GalleryPage, type GalleryRelaxationCounts, galleryRepo } from "./gallery-repo";
