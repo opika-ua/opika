@@ -17,6 +17,7 @@ import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 import { clientIp } from "../api/client-ip";
 import { ipRateLimitKey } from "../api/rate-limit-key";
+import { maskedAuthLogging } from "./auth-log";
 import { MAGIC_LINK_TTL_SECONDS, type MagicLinkSender } from "./magic-link-sender";
 import { PASSWORD_PATHS, passwordHooks } from "./password-hooks";
 import type { PasswordLimiters } from "./password-limits";
@@ -232,6 +233,9 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
     baseURL: deps.baseURL,
     basePath: "/api/auth",
     secret: deps.secret,
+    // Every line Better Auth logs, and its log of an error escaping an endpoint or a hook, go
+    // through the masking (PW1-F8, `auth-log.ts`): a failed query's message names the address.
+    ...maskedAuthLogging(),
     database: drizzleAdapter(deps.db, {
       provider: "pg",
       transaction: false,

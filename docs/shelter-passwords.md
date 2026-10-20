@@ -62,6 +62,13 @@ passwordVerdictOf(password: string): PasswordVerdict
   returned in a response body. A test asserts no response or log line contains the submitted
   password (§8).
 
+**PW1-F8 (2026-10-20), on logging:** Better Auth's own logger and its error handler
+(`onAPIError`) write through the masking in `apps/web/src/kabinet/auth-log.ts`: an error is its
+name and SQLSTATE only (a failed query's message holds its parameters), an address is masked, a
+token-shaped value replaced. Better Auth's router no longer prints an unexpected error whole.
+`auth-log.test.ts` forces a failed query whose message holds an address, a token and a password,
+and finds none of them in any console line.
+
 ## 4. Contract
 
 ### 4.1 Better Auth configuration (`createKabinetAuth`)
