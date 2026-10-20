@@ -1052,6 +1052,18 @@ weeks.
   parked on `fix/pgf3-migrate-bypass` (WIP, unreviewed, tests missing; handoff in its inbox file):
   he writes its tests, then it gets the full Tier 1 review. No real shelter is onboarded before it
   merges.
+- [ ] **PW1-F5 merged: a hard item.** His handoff (2026-10-20), verbatim: "PW1-F5 (approved, Tier 1,
+  a hard launch-gate item): make the session revoke on a reset (all) and a change (all but the
+  current one) atomic with the password write." Until it merges, a revoke that fails after a
+  password write leaves the user's other sessions alive (up to 30 days idle, 90 at most). Built on
+  `fix/pw1-f5-atomic-session-revoke`: an additive migration, `0013`, a trigger on `auth_account`.
+  It waits for his production migration.
+- [ ] **PW1-F6 merged: a hard item. Until then, a known gap.** Oleksii, 2026-10-20, verbatim:
+  "F5-Q1: (b), as PW1-F6, after F5. Tier 1 and a hard launch-gate item." The gap: a password
+  sign-in that read the old hash before a reset or change wrote the new one, and that inserts its
+  session after the revoke, keeps that session; F5 doesn't close it, because the session insert is
+  a later statement. His words, verbatim: "Until F6 merges, record the race as a known gap in the
+  inbox and on the launch gate." Inbox: `docs/decisions-inbox/docs-pw1-f6-known-gap.md`.
 
 **Launch order** (Oleksii, 2026-10-17, inbox RH-B5, RU-B4):
 1. **Built and merged:** PR 4 (K3 form) → PR 5 (K2 list) → PR 6 (writes open for everyone, the
