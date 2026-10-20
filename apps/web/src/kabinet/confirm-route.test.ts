@@ -6,7 +6,12 @@ import { inMemoryRateLimiter } from "../api/rate-limit";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import { CONFIRM_PATH, createKabinetAuth, type KabinetAuth } from "./auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "./auth-route";
-import { handleKabinetConfirm, STRIP_TOKEN_FROM_ADDRESS_BAR } from "./confirm-route";
+import {
+  CREDENTIAL_PAGE_REFERRER_POLICY,
+  handleKabinetConfirm,
+  isSameOriginPost,
+  STRIP_TOKEN_FROM_ADDRESS_BAR,
+} from "./confirm-route";
 import { SIGN_IN_LINK } from "./email-links";
 import { capturingInvitationSender } from "./email-senders";
 import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
@@ -290,6 +295,30 @@ describe("login CSRF (IN-T7)", () => {
     expect(refused.status).toBe(403);
     expect(sessionCookieOf(refused)).toBeUndefined();
     expect((await confirmPost(tokenOf(link))).status).toBe(303);
+  });
+});
+
+/**
+ * Oleksii, 2026-10-20, verbatim: "PW1-Q1: (a). Use strict-origin on pages whose button submits an
+ * ordinary form (the magic-link confirm page), and no-referrer everywhere else as specified (the
+ * reset page included). … Add a test that the confirm page's form submission passes IN-T8, so this
+ * can't regress." A browser's Origin on a same-origin form POST (Fetch, "append a request Origin
+ * header"): `null` under `no-referrer`, the page's origin under a policy that sends one. The harness
+ * (`kabinet-confirm.harness.ts`) drives a real browser through the same POST.
+ */
+describe("the confirm page's own Referrer-Policy and IN-T8 (PW1-Q1)", () => {
+  const originOfFormPost = (policy: string, pageOrigin: string): string =>
+    policy === "no-referrer" ? "null" : pageOrigin;
+
+  it("under the confirm page's policy, the «Увійти» POST keeps an Origin that passes the check", () => {
+    expect(CREDENTIAL_PAGE_REFERRER_POLICY).not.toBe("no-referrer");
+    expect(isSameOriginPost(originOfFormPost(CREDENTIAL_PAGE_REFERRER_POLICY, BASE), BASE)).toBe(
+      true,
+    );
+  });
+
+  it("under no-referrer the same POST would be refused: why this page alone keeps strict-origin", () => {
+    expect(isSameOriginPost(originOfFormPost("no-referrer", BASE), BASE)).toBe(false);
   });
 });
 
