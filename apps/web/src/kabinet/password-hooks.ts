@@ -6,6 +6,7 @@ import { z } from "zod";
 import { clientIp } from "../api/client-ip";
 import { addressRateLimitKey, ipRateLimitKey } from "../api/rate-limit-key";
 import { linkTo, RESET_LINK } from "./email-links";
+import { field, stringField } from "./fields";
 import { shelterPasswordVerdictOf } from "./password-checks";
 import { AUTH_ERROR_CODES, PASSWORD_REFUSAL_CODES, SIGN_IN_DELAYED_CODE } from "./password-codes";
 import {
@@ -15,6 +16,8 @@ import {
   type SignInAttempt,
 } from "./password-limits";
 import type { PasswordMailSender } from "./password-mail";
+import { type PasswordWriteCheck, signInRaceCheck } from "./sign-in-race";
+import { sqlStateOf } from "./sql-state";
 
 /** Better Auth's password endpoints, as `ctx.path` names them. */
 export const PASSWORD_PATHS = {
@@ -42,8 +45,15 @@ export type PasswordHookContext = {
         identifier: string,
       ) => Promise<{ value: string; expiresAt: Date } | null>;
       deleteVerificationByIdentifier: (identifier: string) => Promise<void>;
+      deleteSession: (token: string) => Promise<void>;
     };
+    /** In `hooks.after`: what the endpoint answered (an `APIError` for a failure). */
     returned?: unknown;
+    /** In `hooks.after`: the headers the answer will carry so far (a sign-in's session cookie). */
+    responseHeaders?: Headers | undefined;
+    /** The session this request created, as Better Auth's `setSessionCookie` records it. */
+    newSession?: { session: { token: string } } | null;
+    setNewSession?: (session: null) => void;
   };
 };
 
@@ -82,16 +92,6 @@ const VOID_RESET_LINKS_TIMEOUT_MS = 1_000;
 const isEmail = (value: unknown): value is string =>
   typeof value === "string" && z.email().safeParse(value).success;
 
-const field = (source: unknown, name: string): unknown =>
-  typeof source === "object" && source !== null
-    ? (source as Record<string, unknown>)[name]
-    : undefined;
-
-const stringField = (source: unknown, name: string): string | null => {
-  const value = field(source, name);
-  return typeof value === "string" ? value : null;
-};
-
 /**
  * Better Auth's own 401 for a failed sign-in, built the same way
  * (`APIError.from("UNAUTHORIZED", BASE_ERROR_CODES.INVALID_EMAIL_OR_PASSWORD)`:
@@ -126,13 +126,33 @@ const delayed = (minutes: number) =>
     { "Retry-After": String(minutes * 60) },
   );
 
+/** A SQLSTATE in parentheses for a log line, or nothing. */
+const sqlStateSuffix = (code: string | null) => (code === null ? "" : ` (${code})`);
+
 /**
- * A database error's SQLSTATE (five digits or capitals: `57P01`, `08006`), from the driver's
- * error or the one Drizzle wraps, or null. Nothing else of the error is ever logged.
+ * The log line for each reason a successful password sign-in is refused (PW1-F6). None names the
+ * user, the address or the session. The race itself is a warning (someone held the old password
+ * as it was replaced, and the refusal is the system working); the other two are errors, someone
+ * should look.
  */
-const sqlStateOf = (error: unknown): string | null => {
-  const code = field(field(error, "cause"), "code") ?? field(error, "code");
-  return typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) ? code : null;
+const refusalLine = (check: Exclude<PasswordWriteCheck, { kind: "unchanged" }>) => {
+  switch (check.kind) {
+    case "written":
+      return {
+        level: "warn",
+        line: "[kabinet] password sign-in refused: the password was written while it ran",
+      } as const;
+    case "not_begun":
+      return {
+        level: "error",
+        line: "[kabinet] password sign-in refused: no first password read",
+      } as const;
+    case "unreadable":
+      return {
+        level: "error",
+        line: `[kabinet] password sign-in refused: the second password read failed${sqlStateSuffix(check.sqlState)}`,
+      } as const;
+  }
 };
 
 const withTimeout = <T>(work: Promise<T>, ms: number): Promise<T> =>
@@ -158,6 +178,7 @@ const withTimeout = <T>(work: Promise<T>, ms: number): Promise<T> =>
  */
 export function passwordHooks(deps: PasswordHookDeps) {
   const actors = kabinetActorRepo(deps.db);
+  const race = signInRaceCheck(deps.db);
 
   /** The delay, failing closed: a store that errors or stalls refuses the attempt for a minute. */
   async function chargeAttempt(email: string, now: Date): Promise<SignInAttempt> {
@@ -206,12 +227,14 @@ export function passwordHooks(deps: PasswordHookDeps) {
    * alive a session that existed when the password was written: the write itself ended every one
    * of them, in its own statement (migration 0013's triggers). Better Auth's revoke is the second
    * line, and it also catches a session inserted between the write and its own delete, which a
-   * skipped revoke would leave: a sign-in racing the write (one that checked the old password
-   * before it) is PW1-F6's, a known gap until it merges (`docs/build-plan.md` Part 5). A failure
-   * or a timeout is one line at error level, masked (his PW1-F1 answer, verbatim excerpt: "A failure
-   * is logged at error level, masked. The links die within the hour anyway."): no user id, no
-   * address, never the error's message (a query error's message carries its parameters); only a
-   * SQLSTATE code, when there is one.
+   * skipped revoke would leave. A sign-in racing the write (one that checked the old password
+   * before it) keeps no session without that revoke: inserted before the write's statement, the
+   * trigger deletes it; after, its own after-hook's second read, which waits for a write in
+   * flight (`FOR SHARE`), sees the write and deletes it (PW1-F6, `sign-in-race.ts`). A failure or
+   * a timeout is one line at error level, masked (his PW1-F1
+   * answer, verbatim excerpt: "A failure is logged at error level, masked. The links die within
+   * the hour anyway."): no user id, no address, never the error's message (a query error's
+   * message carries its parameters); only a SQLSTATE code, when there is one.
    */
   async function voidResetLinks(userId: string, after: "reset" | "change"): Promise<void> {
     try {
@@ -231,6 +254,49 @@ export function passwordHooks(deps: PasswordHookDeps) {
   const isShelterAdmin = async (user: { id: string; email: string }) =>
     (await actors.shelterAdminIdByEmail(user.email)) === user.id;
 
+  /**
+   * PW1-F6: a successful password sign-in made into the failure a wrong password gets, with
+   * nothing it made leaving the server (the caller throws that failure next).
+   *
+   * - **Every header the endpoint set is dropped**: the session cookie, and a `Location` for a
+   *   `callbackURL`. A wrong password's answer carries none, so the two answers are the same
+   *   status, body and headers, and the browser is told nothing (a cookie it already held is
+   *   left as a wrong password leaves it).
+   * - **The session goes**, by its own token only: any other session of the user now was made
+   *   after the write ended them all (PW1-F5), with the new password or by a change, and is not
+   *   this request's to end. Later hooks no longer see it (`setNewSession(null)`, as Better
+   *   Auth's own two-factor plugin does to a sign-in it holds back).
+   * - **The delay is not cleared**: the attempt was charged as it began and counts as the
+   *   failure it answers, so a refused sign-in is never a way round the delay, and costs no
+   *   more than a wrong password does.
+   *
+   * A delete that fails still refuses: the token was in nothing that left the server (the
+   * cookie dropped, the body Better Auth's error), so the row is unreachable until it lapses.
+   * That is logged at error level, with only a SQLSTATE.
+   */
+  async function refuseSignIn(
+    ctx: PasswordHookContext,
+    check: Exclude<PasswordWriteCheck, { kind: "unchanged" }>,
+  ): Promise<void> {
+    const headers = ctx.context.responseHeaders;
+    if (headers !== undefined) {
+      for (const name of [...headers.keys()]) headers.delete(name);
+    }
+    const token =
+      ctx.context.newSession?.session.token ?? stringField(ctx.context.returned, "token");
+    ctx.context.setNewSession?.(null);
+    const { level, line } = refusalLine(check);
+    (level === "warn" ? deps.log : deps.logError)(line);
+    if (token === null) return;
+    try {
+      await ctx.context.internalAdapter.deleteSession(token);
+    } catch (error) {
+      deps.logError(
+        `[kabinet] a refused password sign-in's session could not be deleted${sqlStateSuffix(sqlStateOf(error))}; its token never left the server`,
+      );
+    }
+  }
+
   return {
     /**
      * Before any session is read. Answers the request itself (by returning a
@@ -239,8 +305,10 @@ export function passwordHooks(deps: PasswordHookDeps) {
      * - `/sign-up/email`: refused for everyone, though `disableSignUp` is set
      *   too and the route forwards no sign-up (§4.1: two locks, one test each).
      * - `/sign-in/email`: the per-address delay, charged before the password
-     *   is even checked; then the operator guard, which burns a hash so the
-     *   refusal takes as long as anyone's (§4.6, §5).
+     *   is even checked; then PW1-F6's first read of the credential, before
+     *   Better Auth reads the hash (`sign-in-race.ts`); then the operator
+     *   guard, which burns a hash and makes the second read so the refusal
+     *   takes as long as anyone's (§4.6, §5).
      * - `/request-password-reset` over HTTP: 20 an hour per IP, 3 per address,
      *   for any address; then the one answer, at once, for every well-formed
      *   address, with nothing else done before it (§4.4: "the answer takes the
@@ -268,8 +336,10 @@ export function passwordHooks(deps: PasswordHookDeps) {
           if (!isEmail(email)) return undefined; // Better Auth's own 400
           const attempt = await chargeAttempt(email, now);
           if (attempt.kind === "wait") throw delayed(attempt.minutes);
+          await race.begin(ctx.context, email);
           if (await actors.operatorGrantForEmail(email)) {
             await ctx.context.password.hash(stringField(ctx.body, "password") ?? "");
+            await race.settle(ctx.context);
             throw invalidCredentials();
           }
           return undefined;
@@ -364,14 +434,22 @@ export function passwordHooks(deps: PasswordHookDeps) {
     },
 
     /**
-     * After Better Auth answered. A successful sign-in clears its address's
-     * delay (a failure needs nothing: the attempt was charged as it started);
-     * a successful change voids the user's reset links (PW1-F1) and sends
-     * «пароль змінено» (§9 answer 4).
+     * After Better Auth answered. Every password sign-in makes PW1-F6's second read, its failures
+     * too, so a success and a failure do the same reads (his words, verbatim excerpt: "Run the
+     * check on every sign-in so the timing stays identical."). A failure stands as Better Auth
+     * gave it, its attempt charged as it began. A success stands only if no password was written
+     * while it ran (`sign-in-race.ts`): then it clears its address's delay; otherwise it becomes
+     * the failure a wrong password gets (`refuseSignIn`). A successful change voids the user's
+     * reset links (PW1-F1) and sends «пароль змінено» (§9 answer 4).
      */
     async after(ctx: PasswordHookContext, now: Date): Promise<void> {
-      if (isAPIError(ctx.context.returned) || ctx.context.returned === undefined) return;
       if (ctx.path === PASSWORD_PATHS.signIn) {
+        const check = await race.settle(ctx.context);
+        if (isAPIError(ctx.context.returned) || ctx.context.returned === undefined) return;
+        if (check.kind !== "unchanged") {
+          await refuseSignIn(ctx, check);
+          throw invalidCredentials();
+        }
         const email = stringField(ctx.body, "email");
         if (email === null) return;
         try {
@@ -384,6 +462,7 @@ export function passwordHooks(deps: PasswordHookDeps) {
         }
         return;
       }
+      if (isAPIError(ctx.context.returned) || ctx.context.returned === undefined) return;
       if (ctx.path === PASSWORD_PATHS.change) {
         const user = field(ctx.context.returned, "user");
         const id = stringField(user, "id");

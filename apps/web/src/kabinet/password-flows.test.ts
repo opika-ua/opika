@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { cityRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
 import {
   authAccount,
@@ -7,7 +7,16 @@ import {
   authVerification,
   superAdmins,
 } from "@opika/db/schema";
-import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
+import {
+  holdPasswordWriteUncommitted,
+  makeCity,
+  makeShelter,
+  type SteppedStatement,
+  setupTestDatabase,
+  statementName,
+  steppedDatabase,
+  truncateAll,
+} from "@opika/db/test";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { createKabinetAuth, type KabinetAuth } from "./auth";
@@ -61,19 +70,24 @@ afterAll(async () => cleanup?.());
 const generous = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 });
 const kabinet = (): KabinetLimiters => ({ perUser: generous(), perIp: generous() });
 
-function build(
-  overrides: {
-    password?: Partial<PasswordLimiters>;
-    kabinet?: KabinetLimiters;
-    db?: typeof db;
-    /** In place of running scheduled work at once (and awaiting it in `route`). */
-    schedule?: (work: () => Promise<void>) => void;
-    /** Leave out `log` and `logError`, so the production defaults (the console) are used. */
-    productionLogs?: boolean;
-  } = {},
-) {
+type BuildOverrides = {
+  password?: Partial<PasswordLimiters>;
+  kabinet?: KabinetLimiters;
+  db?: typeof db;
+  /** In place of running scheduled work at once (and awaiting it in `route`). */
+  schedule?: (work: () => Promise<void>) => void;
+  /** Leave out `log` and `logError`, so the production defaults (the console) are used. */
+  productionLogs?: boolean;
+};
+
+function build(overrides: BuildOverrides = {}) {
+  auth = authWith(overrides);
+}
+
+/** A kabinet auth as `build` makes it, without replacing `auth`: a second instance, for a race. */
+function authWith(overrides: BuildOverrides = {}): KabinetAuth {
   delayStore = overrides.password?.signInDelay ?? inMemoryDelayStore();
-  auth = createKabinetAuth({
+  return createKabinetAuth({
     db: overrides.db ?? db,
     sender: links,
     schedule:
@@ -140,10 +154,11 @@ function noteSessionTokens(response: Response) {
 
 async function route(
   request: Request,
+  via?: KabinetAuth,
 ): Promise<{ status: number; text: string; response: Response }> {
   const response = await handleKabinetAuth(request, {
     availability: available(),
-    auth: () => auth,
+    auth: () => via ?? auth,
     limiters: {
       perAddress: inMemoryRateLimiter({ windowMs: 3_600_000, maxRequests: 1000 }),
       perIp: inMemoryRateLimiter({ windowMs: 3_600_000, maxRequests: 1000 }),
@@ -1240,6 +1255,450 @@ describe("PW1-F5: the password write itself ends the sessions", () => {
     expect(await signedInUser(first), "the first password session").toBe(ADMIN);
     expect(await signedInUser(second), "the second password session").toBe(ADMIN);
     expect(await signedInUser(byLink), "the link session").toBe(ADMIN);
+  });
+});
+
+/**
+ * PW1-F6: a password sign-in that read the old hash before a reset or a change wrote the new one
+ * keeps no session (`sign-in-race.ts`). Oleksii, 2026-10-20, verbatim excerpt: "Tests: a
+ * deterministic interleaving (sign-in reads the old hash → reset writes and revokes → sign-in
+ * inserts its session), where no session survives and the answer is the generic failure; the
+ * same with a change; a normal sign-in is unaffected; a mutation that removes the check makes the
+ * interleaving test fail."
+ *
+ * The interleaving is forced by order, never by timing: the sign-in runs on a second Better Auth
+ * instance over the same database, stepped (`steppedDatabase`), which holds its session insert
+ * unsent until the reset or the change, on the first instance, has written the password and
+ * revoked. By the insert Better Auth has read the hash and checked the password, with no
+ * statement in between (`dist/api/routes/sign-in.mjs`), and each trace below shows it.
+ */
+describe("PW1-F6: a sign-in racing a password write keeps no session", () => {
+  const THIRD = "кава-з-корицею-о-сьомій";
+  const WRONG = "зовсім-не-той-пароль";
+  const MARTA = "marta@example.org";
+  /** PW1-F6's read, before and after the sign-in (`authPasswordWriteRepo`): the only such join. */
+  const OUR_READ = "select:auth_account+auth_user";
+  const SESSION_INSERT = "insert:auth_session";
+  /** What a password sign-in runs up to its insert: our first read, the operator guard, Better Auth's two reads. */
+  const UP_TO_THE_INSERT = [
+    OUR_READ,
+    "select:auth_user+super_admins",
+    "select:auth_user",
+    "select:auth_account",
+    SESSION_INSERT,
+  ];
+  const RACE_LINE = "[kabinet] password sign-in refused: the password was written while it ran";
+
+  const isSessionInsert = (statement: SteppedStatement) =>
+    statementName(statement) === SESSION_INSERT;
+
+  /** A second auth over the same database, its statements stepped, sharing the delay store. */
+  function racing(options: Parameters<typeof steppedDatabase>[1] = {}) {
+    const stepped = steppedDatabase(db, options);
+    const instance = authWith({ db: stepped.db, password: { signInDelay: delayStore } });
+    /** The tokens of the sessions it inserted: in no response, if the check works. */
+    const tokens = () =>
+      stepped.trace
+        .filter(isSessionInsert)
+        .map((statement) => (statement.values as { token?: unknown }).token)
+        .filter((token): token is string => typeof token === "string");
+    return { auth: instance, trace: stepped.trace, hold: stepped.hold, tokens };
+  }
+
+  /** The signed cookie a browser would hold for `token` (better-call: HMAC-SHA256, base64). */
+  const cookieFor = (token: string) =>
+    `kabinet.session_token=${encodeURIComponent(
+      `${token}.${createHmac("sha256", SECRET).update(token).digest("base64")}`,
+    )}`;
+
+  /** How many sessions this user has: a count, so no failure prints a token. */
+  const sessionsOf = async (userId: string) =>
+    (await db.select().from(authSession)).filter((row) => row.userId === userId).length;
+
+  /** An answer whole: status, body and every header, to compare two of them. */
+  const whole = (answer: { status: number; text: string; response: Response }) => ({
+    status: answer.status,
+    text: answer.text,
+    headers: [...answer.response.headers],
+  });
+
+  const signInVia = (via: KabinetAuth, password: string, email = ADMIN) =>
+    route(post("/api/auth/sign-in/email", { email, password }), via);
+
+  /**
+   * His words, verbatim excerpt: "First, verify whether Better Auth stamps the credential's
+   * updatedAt on every password write (reset, change, set). … Don't depend on Better Auth's
+   * behaviour without a test that pins it." Only `Date` is faked, so each write's stamp can be
+   * held to that write's own moment; the hash must be new every time too, the same password
+   * written again included (a fresh salt), since the check compares both.
+   */
+  it("pins Better Auth: every password write (a first reset, a reset over it, the same password again, a change, a set) stamps updated_at with its own moment and writes a new hash", async () => {
+    const admin = await shelterAdmin(ADMIN);
+    const other = await shelterAdmin(MARTA, "Притулок «Берег»");
+    const start = Date.now() + 60 * 60_000;
+    const moment = (step: number) => new Date(start + step * 60_000);
+    const credentialOf = async (userId: string) => {
+      const rows = (await credentialRows()).filter((row) => row.userId === userId);
+      expect(rows, "one credential").toHaveLength(1);
+      return { updatedAt: rows[0]?.updatedAt.getTime(), hash: rows[0]?.password ?? "" };
+    };
+    const resetAt = async (step: number, password: string) => {
+      vi.setSystemTime(moment(step));
+      const { token } = await forgot(ADMIN);
+      if (token === null) throw new Error("no link");
+      expect((await reset(token, password)).status).toBe(200);
+      return credentialOf(admin.id);
+    };
+
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const first = await resetAt(1, GOOD); // Better Auth's `createAccount`
+      const over = await resetAt(2, NEWER); // `updatePassword`
+      const same = await resetAt(3, NEWER); // `updatePassword`, the same password
+      vi.setSystemTime(moment(4));
+      const cookie = sessionCookieOf((await signInWithPassword(ADMIN, NEWER)).response);
+      const changed = await route(
+        post(
+          "/api/auth/change-password",
+          { currentPassword: NEWER, newPassword: THIRD },
+          { cookie },
+        ),
+      ); // `updateAccount`
+      expect(changed.status).toBe(200);
+      const change = await credentialOf(admin.id);
+      // The server-only `setPassword` (never called by the kabinet, never forwarded): it creates a
+      // credential only for someone who has none (`linkAccount`).
+      vi.setSystemTime(moment(5));
+      const linkCookie = await signInByLink(MARTA);
+      await auth.api.setPassword({
+        body: { newPassword: THIRD },
+        headers: new Headers({ cookie: linkCookie }),
+      });
+      const set = await credentialOf(other.id);
+
+      expect(first.updatedAt, "a first reset").toBe(moment(1).getTime());
+      expect(over.updatedAt, "a reset over it").toBe(moment(2).getTime());
+      expect(same.updatedAt, "the same password again").toBe(moment(3).getTime());
+      expect(change.updatedAt, "a change").toBe(moment(4).getTime());
+      expect(set.updatedAt, "a set").toBe(moment(5).getTime());
+      const hashes = [first.hash, over.hash, same.hash, change.hash];
+      expect(new Set(hashes).size, "a new hash on every write").toBe(hashes.length);
+      expect(set.hash).not.toBe("");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a reset: the sign-in read the old hash, the reset wrote and revoked, then the sign-in inserted: no session survives, and the answer is a wrong password's", async () => {
+    const admin = await adminWithPassword();
+    const wrong = whole(await signInWithPassword(ADMIN, WRONG));
+    const { token } = await forgot(ADMIN);
+    if (token === null) throw new Error("no link");
+    const race = racing({ holdWhen: isSessionInsert });
+
+    const signingIn = signInVia(race.auth, GOOD);
+    await race.hold.reached;
+    expect(race.trace.map(statementName), "held at its insert, the old hash read").toEqual(
+      UP_TO_THE_INSERT,
+    );
+    expect((await reset(token, NEWER)).status).toBe(200);
+    expect(await sessionsOf(admin.id), "the reset revoked every session there was").toBe(0);
+    race.hold.release();
+    const raced = await signingIn;
+
+    // The generic failure, byte for byte: status, body and headers, so no cookie.
+    expect(whole(raced)).toEqual(wrong);
+    expect(raced.response.headers.getSetCookie()).toEqual([]);
+    // It did insert a session, after the revoke; that session, and every other, is gone.
+    const [sessionToken = ""] = race.tokens();
+    expect(race.tokens()).toHaveLength(1);
+    expect(await sessionsOf(admin.id)).toBe(0);
+    expect(await signedInUser(cookieFor(sessionToken)), "the raced session works").toBeNull();
+    expect(logged).toContain(RACE_LINE);
+    // The reset stands.
+    expect((await signInWithPassword(ADMIN, GOOD)).status).toBe(401);
+    expect((await signInWithPassword(ADMIN, NEWER)).status).toBe(200);
+  });
+
+  it("a change: the same, and the device that changed it keeps its renewed session", async () => {
+    const admin = await adminWithPassword();
+    const here = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const elsewhere = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const wrong = whole(await signInWithPassword(ADMIN, WRONG));
+    const race = racing({ holdWhen: isSessionInsert });
+
+    const signingIn = signInVia(race.auth, GOOD);
+    await race.hold.reached;
+    expect(race.trace.map(statementName), "held at its insert, the old hash read").toEqual(
+      UP_TO_THE_INSERT,
+    );
+    const changed = await route(
+      post(
+        "/api/auth/change-password",
+        { currentPassword: GOOD, newPassword: NEWER },
+        { cookie: here },
+      ),
+    );
+    expect(changed.status).toBe(200);
+    const renewed = sessionCookieOf(changed.response);
+    race.hold.release();
+    const raced = await signingIn;
+
+    expect(whole(raced)).toEqual(wrong);
+    expect(
+      await signedInUser(cookieFor(race.tokens()[0] ?? "")),
+      "the raced session works",
+    ).toBeNull();
+    expect(await signedInUser(elsewhere), "the other device is still signed in").toBeNull();
+    expect(await signedInUser(renewed), "the device that changed it").toBe(ADMIN);
+    expect(await sessionsOf(admin.id), "the renewed session, and no other").toBe(1);
+    expect(logged).toContain(RACE_LINE);
+  });
+
+  /**
+   * The review's forced case (its blocker): the write's statement has run, PW1-F5's trigger with
+   * it, but it has not committed. The sign-in inserts its session after that trigger's delete and
+   * commits it, so the trigger never saw it; a plain second read would still see the old row, and
+   * answer 200 with that session alive after the commit. The second read must wait for the write
+   * and see it. The write is held open on a connection of its own (`holdPasswordWriteUncommitted`);
+   * whether the sign-in waits is asked of Postgres (`pg_blocking_pids`), never timed.
+   */
+  it("forced: a write whose statement ran (its trigger too) but hasn't committed; the sign-in inserts after that delete; its second read waits for the commit, sees the write and refuses: no session survives", async () => {
+    const admin = await adminWithPassword();
+    const wrong = whole(await signInWithPassword(ADMIN, WRONG));
+    const hash = await (await auth.$context).password.hash(NEWER);
+    const race = racing();
+    const held = await holdPasswordWriteUncommitted(admin.id, hash, new Date(Date.now() + 60_000));
+    let signingIn: ReturnType<typeof signInVia> | undefined;
+    let waited = false;
+    let traceWhileWaiting: string[] = [];
+    let sessionsWhileUncommitted = -1;
+    try {
+      signingIn = signInVia(race.auth, GOOD);
+      waited = await held.waitsOnIt(signingIn);
+      traceWhileWaiting = race.trace.map(statementName);
+      sessionsWhileUncommitted = await held.sessionsOf(admin.id);
+    } finally {
+      await held.commit();
+    }
+    if (signingIn === undefined) throw new Error("the sign-in never started");
+    const raced = await signingIn;
+
+    // No session survives the write's commit, and the answer is a wrong password's.
+    expect(whole(raced)).toEqual(wrong);
+    expect(await sessionsOf(admin.id)).toBe(0);
+    expect(
+      await signedInUser(cookieFor(race.tokens()[0] ?? "")),
+      "the raced session works",
+    ).toBeNull();
+    expect(logged).toContain(RACE_LINE);
+    // It waited, and where: at its second read, after its insert (the first read is plain and
+    // went straight through), with its session committed and the write's not yet.
+    expect(waited, "the sign-in waited on the uncommitted write").toBe(true);
+    expect(traceWhileWaiting).toEqual([...UP_TO_THE_INSERT, OUR_READ]);
+    expect(
+      sessionsWhileUncommitted,
+      "the sign-in's session, inserted after the trigger's delete",
+    ).toBe(1);
+    // The write stands.
+    expect((await signInWithPassword(ADMIN, NEWER)).status).toBe(200);
+  });
+
+  it("a normal sign-in is unaffected: held the same way, with another user's password written meanwhile, it signs in", async () => {
+    const admin = await adminWithPassword();
+    await adminWithPassword(MARTA, THIRD);
+    const { token } = await forgot(MARTA);
+    if (token === null) throw new Error("no link");
+    const race = racing({ holdWhen: isSessionInsert });
+
+    const signingIn = signInVia(race.auth, GOOD);
+    await race.hold.reached;
+    expect((await reset(token, NEWER)).status, "Marta's reset").toBe(200);
+    race.hold.release();
+    const signedIn = await signingIn;
+
+    expect(signedIn.status).toBe(200);
+    expect(signedIn.text).toBe('{"status":true}');
+    const cookie = sessionCookieOf(signedIn.response);
+    expect(await signedInUser(cookie)).toBe(ADMIN);
+    expect(await sessionsOf(admin.id)).toBe(1);
+    // The cookie the tests above build for a token is the one Better Auth sets, so a null they
+    // read through it means the session is gone, not that the cookie was malformed.
+    expect(cookieFor(race.tokens()[0] ?? "")).toBe(cookie);
+    expect([...logged, ...loggedErrors].filter((line) => line.includes("refused"))).toEqual([]);
+  });
+
+  it("every sign-in makes the same two reads, a success and each failure alike: the first before anything else, the second last of all", async () => {
+    await adminWithPassword();
+    await shelterAdmin(NO_PASSWORD_ADMIN);
+    await operator();
+    const attempts = [
+      { name: "the right password", email: ADMIN, password: GOOD, status: 200 },
+      { name: "a wrong password", email: ADMIN, password: WRONG, status: 401 },
+      { name: "an unknown address", email: "nobody@example.org", password: GOOD, status: 401 },
+      {
+        name: "an admin with no password yet",
+        email: NO_PASSWORD_ADMIN,
+        password: GOOD,
+        status: 401,
+      },
+      { name: "the operator", email: OPERATOR, password: GOOD, status: 401 },
+    ];
+    /** What the sign-in itself runs: the operator guard, Better Auth's reads and its insert. */
+    const SIGN_IN_STATEMENTS = UP_TO_THE_INSERT.filter((name) => name !== OUR_READ);
+    for (const attempt of attempts) {
+      const race = racing();
+      const answer = await signInVia(race.auth, attempt.password, attempt.email);
+      expect(answer.status, attempt.name).toBe(attempt.status);
+      const names = race.trace.map(statementName);
+      const ours = names.flatMap((name, i) => (name === OUR_READ ? [i] : []));
+      const lastOfTheSignIn = Math.max(
+        ...SIGN_IN_STATEMENTS.map((name) => names.lastIndexOf(name)),
+      );
+      const trace = `${attempt.name}: ${names.join(", ")}`;
+      expect(ours.length, trace).toBe(2);
+      expect(ours[0], trace).toBe(0);
+      expect(ours[1] ?? -1, trace).toBeGreaterThan(lastOfTheSignIn);
+    }
+    // The success's second read comes after its insert: the window the check closes. (Better
+    // Auth's own `session.create.after` work, the first-session stamp, is queued to the end.)
+    const success = racing();
+    await signInVia(success.auth, GOOD);
+    expect(success.trace.map(statementName)).toEqual([
+      ...UP_TO_THE_INSERT,
+      OUR_READ,
+      "update:invitation_created_users",
+    ]);
+  });
+
+  it("a refused sign-in counts as the failure it answers: it never clears the delay", async () => {
+    await adminWithPassword();
+    for (let i = 0; i < 4; i++) expect((await signInWithPassword(ADMIN, WRONG)).status).toBe(401);
+    const { token } = await forgot(ADMIN);
+    if (token === null) throw new Error("no link");
+    const race = racing({ holdWhen: isSessionInsert });
+
+    const signingIn = signInVia(race.auth, GOOD);
+    await race.hold.reached;
+    expect((await reset(token, NEWER)).status).toBe(200);
+    race.hold.release();
+    expect((await signingIn).status).toBe(401);
+    // The fifth attempt in the window, as a fifth wrong password would be: the gate is closed,
+    // and even the new password waits. A cleared delay would have let it in.
+    const next = await signInWithPassword(ADMIN, NEWER);
+    expect(next.status).toBe(429);
+    expect(JSON.parse(next.text)).toMatchObject({ retryAfterMinutes: 1 });
+  });
+
+  it("a write between the first read and Better Auth's: even the new password is refused this once, then signs in", async () => {
+    const admin = await adminWithPassword();
+    const { token } = await forgot(ADMIN);
+    if (token === null) throw new Error("no link");
+    const race = racing({
+      holdWhen: (statement) => statementName(statement) === "select:auth_user",
+    });
+
+    const signingIn = signInVia(race.auth, NEWER);
+    await race.hold.reached;
+    expect(race.trace.map(statementName), "held before Better Auth reads the user").toEqual([
+      OUR_READ,
+      "select:auth_user+super_admins",
+      "select:auth_user",
+    ]);
+    expect((await reset(token, NEWER)).status).toBe(200);
+    race.hold.release();
+    const refused = await signingIn;
+
+    expect(refused.status).toBe(401);
+    expect(codeOf(refused.text)).toBe("INVALID_EMAIL_OR_PASSWORD");
+    expect(await sessionsOf(admin.id)).toBe(0);
+    expect((await signInWithPassword(ADMIN, NEWER)).status).toBe(200);
+  });
+
+  it("a session delete that fails still refuses: nothing that left the server carries the token, and one masked line is logged at error level", async () => {
+    const admin = await adminWithPassword();
+    const wrong = whole(await signInWithPassword(ADMIN, WRONG));
+    const { token } = await forgot(ADMIN);
+    if (token === null) throw new Error("no link");
+    const race = racing({
+      holdWhen: isSessionInsert,
+      // The only session delete a sign-in runs is the refusal's own.
+      failWhen: (statement) =>
+        statementName(statement) === "delete:auth_session"
+          ? Object.assign(new Error(`delete failed: params ${ADMIN} ${admin.id}`), {
+              cause: { code: "57P01" },
+            })
+          : undefined,
+    });
+
+    const signingIn = signInVia(race.auth, GOOD);
+    await race.hold.reached;
+    expect((await reset(token, NEWER)).status).toBe(200);
+    race.hold.release();
+    const raced = await signingIn;
+
+    expect(whole(raced)).toEqual(wrong);
+    const [sessionToken = ""] = race.tokens();
+    expect(sessionToken).not.toBe("");
+    // A boolean, so a failure never prints the token.
+    expect(
+      JSON.stringify(whole(raced)).includes(sessionToken),
+      "the answer carries the token",
+    ).toBe(false);
+    expect(await sessionsOf(admin.id), "the row is left, its token held by nobody").toBe(1);
+    expect(loggedErrors).toEqual([
+      "[kabinet] a refused password sign-in's session could not be deleted (57P01); its token never left the server",
+    ]);
+    expect(logged).toContain(RACE_LINE);
+    const everything = [...logged, ...loggedErrors].join("\n");
+    for (const secret of [ADMIN, "olena", admin.id, sessionToken]) {
+      expect(everything.includes(secret), "a log line names the user or the session").toBe(false);
+    }
+  });
+
+  it("a second read that fails refuses the sign-in: the generic failure, no session, one masked line at error level", async () => {
+    const admin = await adminWithPassword();
+    const wrong = whole(await signInWithPassword(ADMIN, WRONG));
+    let reads = 0;
+    const race = racing({
+      failWhen: (statement) =>
+        statementName(statement) === OUR_READ && ++reads === 2
+          ? Object.assign(new Error(`select failed: params ${ADMIN}`), { cause: { code: "08006" } })
+          : undefined,
+    });
+
+    const answer = await signInVia(race.auth, GOOD);
+
+    expect(whole(answer)).toEqual(wrong);
+    expect(race.tokens(), "Better Auth inserted its session").toHaveLength(1);
+    expect(await sessionsOf(admin.id)).toBe(0);
+    expect(loggedErrors).toEqual([
+      "[kabinet] password sign-in refused: the second password read failed (08006)",
+    ]);
+  });
+
+  it("a first read that fails fails the sign-in before Better Auth reads the user: no session, no cookie", async () => {
+    const admin = await adminWithPassword();
+    const race = racing({
+      failWhen: (statement) =>
+        statementName(statement) === OUR_READ
+          ? Object.assign(new Error(`select failed: params ${ADMIN}`), { cause: { code: "08006" } })
+          : undefined,
+    });
+
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    let answer: Awaited<ReturnType<typeof signInVia>>;
+    try {
+      answer = await signInVia(race.auth, GOOD);
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(answer.status).toBe(500);
+    expect(answer.response.headers.getSetCookie()).toEqual([]);
+    expect(answer.text.includes(ADMIN), "the answer names the address").toBe(false);
+    expect(race.trace.map(statementName)).toEqual([OUR_READ]);
+    expect(await sessionsOf(admin.id)).toBe(0);
   });
 });
 

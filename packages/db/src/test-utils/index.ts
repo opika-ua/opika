@@ -13,6 +13,7 @@ export {
   policy,
   uuid,
 } from "./fixtures";
+export { type HeldPasswordWrite, holdPasswordWriteUncommitted } from "./held-password-write";
 export {
   type PasswordRevokeCatalog,
   passwordRevokeCatalog,
@@ -22,6 +23,13 @@ export {
 export { imageFactsOf, testJpeg } from "./photo-fixtures";
 export { setupTestDatabase, type TestContext, truncateAll } from "./setup";
 export { type SmokeTarget, smokeTarget } from "./smoke-target";
+export {
+  type StatementHold,
+  type SteppedOptions,
+  type SteppedStatement,
+  statementName,
+  steppedDatabase,
+} from "./stepped-database";
 export {
   assertDisposableTestDatabase,
   disposeTestDatabaseAfterRun,
