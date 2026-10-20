@@ -12,7 +12,15 @@ import {
   authVerification,
   invitationCreatedUsers,
 } from "@opika/db/schema";
-import { makeCity, makeShelter, productionEndpoint, smokeTarget } from "@opika/db/test";
+import {
+  makeCity,
+  makeShelter,
+  passwordRevokeCatalog,
+  passwordRevokeIsInPlace,
+  productionEndpoint,
+  smokeTarget,
+  writeCredentialPassword,
+} from "@opika/db/test";
 import {
   type ModeratorId,
   publicLocationOf,
@@ -56,6 +64,11 @@ import { kabinetIdentityOf } from "../src/kabinet/principal";
  *      DELETE, right after Better Auth's write) and nothing else: the user's own sign-in link
  *      row stays, and the statement names only this run's user, so no other row on the
  *      branch is touched.
+ *   12–13. PW1-F5: migration 0013's function and both triggers are in place and enabled; then
+ *      our own UPDATE of this run's user's password hash, over this driver and with no Better
+ *      Auth call at all, ends every session of theirs in that statement (the new password then
+ *      signs in). Steps 7, 9, 10 and 11 above already run with the triggers in place: step 9's
+ *      one renewed session is the change keeping the caller signed in.
  *
  * Nothing is sent anywhere: the magic link is captured in memory, never
  * printed. Refuses unless the target's compute is exactly `--expect`, and
@@ -478,6 +491,47 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       refusedC.status === 400 &&
       signInRowsAtEnd === 1,
     `sign-in ${signedInAgain.status}, link captured ${linkC !== ""}, change ${changedAgain.status}, earlier link rows ${earlierRowsBefore} then ${earlierRowsAfter}, earlier link ${refusedC.status}, sign-in link rows ${signInRowsAtEnd}`,
+  );
+
+  // 12. PW1-F5: the catalog, read through the query builder (the same shape on both drivers).
+  const catalog = await passwordRevokeCatalog(db);
+  check(
+    "password-write revoke in place (the function and both triggers, enabled)",
+    passwordRevokeIsInPlace(catalog),
+    `function ${catalog.functions.map((f) => f.security).join(", ") || "missing"}, triggers ${catalog.triggers.map((t) => `${t.name} ${t.enabled}`).join(", ") || "none"}`,
+  );
+
+  // 13. Two more sessions, then the hash written by our own statement: no Better Auth revoke runs.
+  const fifthPassword = `smoke-${randomUUID()}`;
+  const phone = await route("/api/auth/sign-in/email", { email, password: fourthPassword });
+  const laptop = await route("/api/auth/sign-in/email", { email, password: fourthPassword });
+  const sessionsBeforeWrite = user ? (await sessionsOf(user.id)).length : 0;
+  if (user) {
+    const hasher = (await auth.$context).password;
+    await writeCredentialPassword(db, user.id, await hasher.hash(fifthPassword), new Date());
+  }
+  const sessionsAfterWrite = user ? (await sessionsOf(user.id)).length : -1;
+  const phoneRead = await auth.handler(
+    new Request(`${BASE}/api/auth/get-session`, {
+      headers: new Headers({
+        cookie: cookieOf(phone),
+        origin: BASE,
+        "x-forwarded-for": "198.51.100.77",
+      }),
+    }),
+  );
+  const phoneBody = (await phoneRead.json().catch(() => null)) as { user?: unknown } | null;
+  const phoneSignedIn = phoneBody?.user !== undefined;
+  const newPassword = await route("/api/auth/sign-in/email", { email, password: fifthPassword });
+  check(
+    "own password write ends every session in its statement (no Better Auth revoke)",
+    phone.status === 200 &&
+      laptop.status === 200 &&
+      sessionsBeforeWrite >= 2 &&
+      sessionsAfterWrite === 0 &&
+      !phoneSignedIn &&
+      newPassword.status === 200,
+    `sign-ins ${phone.status}/${laptop.status}, sessions ${sessionsBeforeWrite} then ${sessionsAfterWrite}, a device still signed in ${phoneSignedIn}, new password ${newPassword.status}`,
   );
   return out;
 }

@@ -669,7 +669,10 @@ describe("«Змінити пароль» (scope item 7)", () => {
     expect(codeOf(weak.text)).toBe("PASSWORD_COMMON");
     expect(mail.sent).toEqual([]);
 
-    // Asks to keep the other sessions: they end anyway (scope item 7).
+    // Asks to keep the other sessions: they end anyway (scope item 7). Also PW1-F5's tripwire: the
+    // password write itself ends every session, this one's too, so this device stays signed in
+    // only through the new session Better Auth creates after it (`revokeOtherSessions`, forced on
+    // in `beforeChange`). A Better Auth that kept the caller's row instead fails here.
     const done = await change({
       currentPassword: GOOD,
       newPassword: NEWER,
@@ -1030,6 +1033,213 @@ describe("PW1-F1: a new password voids the user's other reset links", () => {
       warnings.mockRestore();
     }
     expect(loggedErrors).toEqual([]);
+  });
+});
+
+/**
+ * PW1-F5: writing the password ends the user's sessions in the write's own statement (migration
+ * 0013's triggers), so Better Auth's revoke after it is a second line, not the only one. His
+ * PW1-F1 answer, verbatim excerpt: "If it's revoking sessions on reset: (i), the trigger, Tier 1,
+ * as an additive migration with a real-Neon check. A failed revoke would leave a session alive for
+ * up to 90 days, which is worth atomicity." Here Better Auth's own revoke is made to fail or to do
+ * nothing, and the sessions must end anyway.
+ */
+describe("PW1-F5: the password write itself ends the sessions", () => {
+  /**
+   * `db`, except that once a password is written (a credential inserted or updated), a delete from
+   * `auth_session` is `instead()`. Every such delete after the write is Better Auth's revoke: the
+   * lapsed-session delete in `hooks.before` runs before the handler, so before any write.
+   */
+  function sessionDeleteAfterPasswordWrite(instead: "throws" | "does nothing") {
+    const seen = { replaced: 0 };
+    let written = false;
+    const proxied = new Proxy(db, {
+      get(object, property) {
+        const value = Reflect.get(object, property, object);
+        if (typeof value !== "function") return value;
+        return (...args: unknown[]) => {
+          if ((property === "insert" || property === "update") && args[0] === authAccount) {
+            written = true;
+          }
+          if (property === "delete" && args[0] === authSession && written) {
+            seen.replaced += 1;
+            if (instead === "throws") throw new Error("connection lost");
+            // A delete that matched nothing, as a Better Auth that stopped revoking would send.
+            return { where: async () => [] };
+          }
+          return value.apply(object, args);
+        };
+      },
+    });
+    return { db: proxied, seen };
+  }
+
+  /** How many sessions this user has: a count, so no failure prints a token. */
+  const sessionsOf = async (userId: string) =>
+    (await db.select().from(authSession)).filter((row) => row.userId === userId).length;
+
+  /** `work`, with Better Auth's own error log for the failure it is handed kept off the console. */
+  async function quietly<T>(work: () => Promise<T>): Promise<T> {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      return await work();
+    } finally {
+      spy.mockRestore();
+    }
+  }
+
+  it("a reset over an existing password: Better Auth's delete fails, and both devices are signed out anyway", async () => {
+    const admin = await adminWithPassword();
+    const phone = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const laptop = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const { token } = await forgot(ADMIN);
+    if (token === null) throw new Error("no link");
+    const failing = sessionDeleteAfterPasswordWrite("throws");
+    build({ db: failing.db });
+
+    const done = await quietly(() => reset(token, NEWER));
+    expect(failing.seen.replaced, "Better Auth's own revoke ran, and failed").toBe(1);
+    expect(done.status).toBe(500);
+    build();
+    expect(await signedInUser(phone), "the phone is still signed in").toBeNull();
+    expect(await signedInUser(laptop), "the laptop is still signed in").toBeNull();
+    expect(await sessionsOf(admin.id)).toBe(0);
+    // The write the revoke rode on stands: the new password signs in, the old one doesn't.
+    expect((await signInWithPassword(ADMIN, GOOD)).status).toBe(401);
+    expect((await signInWithPassword(ADMIN, NEWER)).status).toBe(200);
+  });
+
+  it("a first password (Better Auth creates the credential): Better Auth's delete fails, and both devices are signed out anyway", async () => {
+    const admin = await shelterAdmin(ADMIN);
+    const phone = await signInByLink(ADMIN);
+    const laptop = await signInByLink(ADMIN);
+    const { token } = await forgot(ADMIN);
+    if (token === null) throw new Error("no link");
+    expect(await credentialRows(), "no credential yet: the reset creates one").toEqual([]);
+    const failing = sessionDeleteAfterPasswordWrite("throws");
+    build({ db: failing.db });
+
+    const done = await quietly(() => reset(token, GOOD));
+    expect(failing.seen.replaced, "Better Auth's own revoke ran, and failed").toBe(1);
+    expect(done.status).toBe(500);
+    build();
+    expect(await signedInUser(phone), "the phone is still signed in").toBeNull();
+    expect(await signedInUser(laptop), "the laptop is still signed in").toBeNull();
+    expect(await sessionsOf(admin.id)).toBe(0);
+    expect((await credentialRows()).map((row) => row.userId)).toEqual([admin.id]);
+    expect((await signInWithPassword(ADMIN, GOOD)).status).toBe(200);
+  });
+
+  it("a change with Better Auth's delete doing nothing: the other device is signed out, this one keeps its new session", async () => {
+    const admin = await adminWithPassword();
+    const here = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const elsewhere = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const idle = sessionDeleteAfterPasswordWrite("does nothing");
+    build({ db: idle.db });
+
+    const done = await route(
+      post(
+        "/api/auth/change-password",
+        { currentPassword: GOOD, newPassword: NEWER },
+        { cookie: here },
+      ),
+    );
+    expect(idle.seen.replaced, "Better Auth's own revoke ran, and deleted nothing").toBe(1);
+    expect(done.status).toBe(200);
+    const renewed = sessionCookieOf(done.response);
+    build();
+    expect(await signedInUser(elsewhere), "the other device is still signed in").toBeNull();
+    expect(await signedInUser(renewed)).toBe(ADMIN);
+    // This device's old session went with the rest; the one Better Auth created after the
+    // write is the only one left.
+    expect(await signedInUser(here)).toBeNull();
+    expect(await sessionsOf(admin.id)).toBe(1);
+  });
+
+  it("a change with Better Auth's delete failing fails closed: every session ends, this one too, and the new password stands", async () => {
+    const admin = await adminWithPassword();
+    const here = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const elsewhere = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const failing = sessionDeleteAfterPasswordWrite("throws");
+    build({ db: failing.db });
+
+    const done = await quietly(() =>
+      route(
+        post(
+          "/api/auth/change-password",
+          { currentPassword: GOOD, newPassword: NEWER },
+          { cookie: here },
+        ),
+      ),
+    );
+    expect(failing.seen.replaced, "Better Auth's own revoke ran, and failed").toBe(1);
+    expect(done.status).toBe(500);
+    build();
+    expect(await signedInUser(elsewhere), "the other device is still signed in").toBeNull();
+    // Better Auth never got as far as this device's new session: it signs in again.
+    expect(await signedInUser(here)).toBeNull();
+    expect(await sessionsOf(admin.id)).toBe(0);
+    expect((await signInWithPassword(ADMIN, GOOD)).status).toBe(401);
+    expect((await signInWithPassword(ADMIN, NEWER)).status).toBe(200);
+  });
+
+  /**
+   * The revoke and the write are one transaction: a trigger of the test's own, firing after ours
+   * on the same UPDATE, raises only once our DELETE has already run (no session of the user left),
+   * and the whole statement rolls back. The sessions are back and the password is the old one:
+   * neither of which could be true together if our DELETE were not inside the write's statement,
+   * or ran after this trigger (it would see the sessions, not raise, and the write would stand).
+   */
+  it("a write that fails after the revoke takes the revoke with it: the sessions stay, and so does the old password", async () => {
+    const admin = await adminWithPassword();
+    const here = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const elsewhere = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    await db.execute(`
+      CREATE OR REPLACE FUNCTION pw1f5_test_raise_once_revoked() RETURNS trigger
+      LANGUAGE plpgsql AS $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM public.auth_session WHERE user_id = NEW.user_id) THEN
+          RAISE EXCEPTION 'raised after the revoke';
+        END IF;
+        RETURN NULL;
+      END
+      $$`);
+    // Same event, same table: Postgres fires triggers in name order, so «zz_» comes after ours.
+    await db.execute(`
+      CREATE TRIGGER zz_pw1f5_test_raise_once_revoked
+      AFTER UPDATE OF password ON public.auth_account
+      FOR EACH ROW EXECUTE FUNCTION pw1f5_test_raise_once_revoked()`);
+    let done: { status: number };
+    try {
+      done = await quietly(() =>
+        route(
+          post(
+            "/api/auth/change-password",
+            { currentPassword: GOOD, newPassword: NEWER },
+            { cookie: here },
+          ),
+        ),
+      );
+    } finally {
+      await db.execute("DROP TRIGGER IF EXISTS zz_pw1f5_test_raise_once_revoked ON auth_account");
+      await db.execute("DROP FUNCTION IF EXISTS pw1f5_test_raise_once_revoked()");
+    }
+    expect(done.status).toBe(500);
+    expect(await sessionsOf(admin.id), "both sessions, back with the rolled-back write").toBe(2);
+    expect(await signedInUser(here)).toBe(ADMIN);
+    expect(await signedInUser(elsewhere)).toBe(ADMIN);
+    expect((await signInWithPassword(ADMIN, NEWER)).status, "the new password").toBe(401);
+    expect((await signInWithPassword(ADMIN, GOOD)).status, "the old password").toBe(200);
+  });
+
+  it("signing in again writes no password: the first password session and a link session stay", async () => {
+    await adminWithPassword();
+    const first = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const second = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const byLink = await signInByLink(ADMIN);
+    expect(await signedInUser(first), "the first password session").toBe(ADMIN);
+    expect(await signedInUser(second), "the second password session").toBe(ADMIN);
+    expect(await signedInUser(byLink), "the link session").toBe(ADMIN);
   });
 });
 

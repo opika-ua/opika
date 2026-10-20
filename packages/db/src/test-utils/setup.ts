@@ -74,6 +74,8 @@ export async function setupTestDatabase() {
     DROP TABLE IF EXISTS adopters CASCADE;
     DROP TABLE IF EXISTS shelters CASCADE;
     DROP TABLE IF EXISTS cities CASCADE;
+    -- Outlives its tables otherwise; dropped so each run proves migration 0013 creates it.
+    DROP FUNCTION IF EXISTS auth_account_password_revokes_sessions() CASCADE;
     DROP SCHEMA IF EXISTS drizzle CASCADE;
   `);
 

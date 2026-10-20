@@ -201,9 +201,14 @@ export function passwordHooks(deps: PasswordHookDeps) {
    *
    * It never fails the reset or the change, and never holds one past
    * `VOID_RESET_LINKS_TIMEOUT_MS`: on a reset Better Auth awaits `onPasswordReset` and only then
-   * revokes the sessions, so a throw here would leave them alive, and a stall would hold the
-   * revoke (and leave the sessions alive if the function were killed meanwhile). A failure or a
-   * timeout is one line at error level, masked (his PW1-F1 answer, verbatim excerpt: "A failure
+   * runs its own session revoke, so a throw here would answer an error for a password already
+   * set and skip that revoke, and a stall would hold the answer. Since PW1-F5 neither leaves
+   * alive a session that existed when the password was written: the write itself ended every one
+   * of them, in its own statement (migration 0013's triggers). Better Auth's revoke is the second
+   * line, and it also catches a session inserted between the write and its own delete, which a
+   * skipped revoke would leave: a sign-in racing the write (one that checked the old password
+   * before it) is PW1-F6's, a known gap until it merges (`docs/build-plan.md` Part 5). A failure
+   * or a timeout is one line at error level, masked (his PW1-F1 answer, verbatim excerpt: "A failure
    * is logged at error level, masked. The links die within the hour anyway."): no user id, no
    * address, never the error's message (a query error's message carries its parameters); only a
    * SQLSTATE code, when there is one.
@@ -337,6 +342,12 @@ export function passwordHooks(deps: PasswordHookDeps) {
      * password must pass the policy, and other sessions are always revoked
      * (Oleksii's scope item 7: "requires the current one; revokes other
      * sessions"), whatever the request asked for.
+     *
+     * The forced `revokeOtherSessions` is load-bearing since PW1-F5: the
+     * password write itself ends every session of the user, this device's
+     * too (migration 0013), and this device stays signed in only because,
+     * with it, Better Auth creates a new session after the write. Without it
+     * every change would sign the person out where they made it.
      */
     async beforeChange(
       ctx: PasswordHookContext,
@@ -408,9 +419,10 @@ export function passwordHooks(deps: PasswordHookDeps) {
     },
 
     /**
-     * Better Auth's `onPasswordReset`, called once the new password is written and before the
-     * sessions are revoked: voids the user's other reset links (PW1-F1; the one just used is
-     * already consumed), then «пароль змінено» after a reset too (§9 answer 4).
+     * Better Auth's `onPasswordReset`, called once the new password is written (which ended the
+     * user's sessions, PW1-F5) and before Better Auth's own revoke: voids the user's other reset
+     * links (PW1-F1; the one just used is already consumed), then «пароль змінено» after a reset
+     * too (§9 answer 4).
      */
     async onPasswordReset(input: { user: { id: string; email: string } }): Promise<void> {
       await voidResetLinks(input.user.id, "reset");

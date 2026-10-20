@@ -202,7 +202,11 @@ export const LIMITED_AUTH_PATHS: readonly string[] = [
  *   super_admin role lives in `super_admins` only. A test fails if it's added.
  * - **Origin checks always on**, in tests too (`disableOriginCheck: false`).
  * - **No transactions.** Production's neon-http driver has none; on Postgres
- *   the Drizzle adapter runs statements one after another without them.
+ *   the Drizzle adapter runs statements one after another without them. So
+ *   ending a user's sessions when their password is written, which must not
+ *   fail on its own, is the database's job, in the write's own statement
+ *   (PW1-F5, migration 0013's triggers), with Better Auth's revoke after it as
+ *   a second line.
  */
 export function createKabinetAuth(deps: KabinetAuthDeps) {
   const actors = kabinetActorRepo(deps.db);
@@ -271,7 +275,12 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       maxPasswordLength: PASSWORD_MAX_CHARACTERS,
       resetPasswordTokenExpiresIn: RESET_PASSWORD_TTL_SECONDS,
       // Scope item 6: "On reset: all other sessions are revoked." Better Auth
-      // deletes every session of the user; the reset itself holds none.
+      // deletes every session of the user; the reset itself holds none. A
+      // second line since PW1-F5: the password write has already ended every
+      // session that existed then, in its own statement (migration 0013), so a
+      // failure here leaves none of those. This revoke still catches a session
+      // inserted between the write and it; a sign-in racing the write is
+      // PW1-F6's, a known gap until it merges (`docs/build-plan.md` Part 5).
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: (input) => passwords.sendResetPassword(input),
       // Voids the user's other reset links (PW1-F1), then the notice. The change does the same
