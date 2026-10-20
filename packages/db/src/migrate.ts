@@ -3,7 +3,7 @@ import { migrateTargetCheck, parseMigrateArgs } from "./migrate-args";
 import { assertProductionWriteAllowed, databaseTargetLine } from "./prod-guard";
 
 /**
- * `pnpm db:migrate`: the production-write guard, then `drizzle-kit migrate`,
+ * `pnpm --filter @opika/db db:migrate`: the production-write guard, then `drizzle-kit migrate`,
  * unchanged. `drizzle-kit` has no hook of its own, so without this wrapper a
  * migration was the one write in this package that ran against production
  * with no check at all.
