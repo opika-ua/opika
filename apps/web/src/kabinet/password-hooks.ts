@@ -46,6 +46,8 @@ export type PasswordHookContext = {
       ) => Promise<{ value: string; expiresAt: Date } | null>;
       deleteVerificationByIdentifier: (identifier: string) => Promise<void>;
       deleteSession: (token: string) => Promise<void>;
+      /** Better Auth's own sign-in read (`includeAccounts`: the user, then its accounts). */
+      findUserByEmail: (email: string, options: { includeAccounts: true }) => Promise<unknown>;
     };
     /** In `hooks.after`: what the endpoint answered (an `APIError` for a failure). */
     returned?: unknown;
@@ -307,8 +309,9 @@ export function passwordHooks(deps: PasswordHookDeps) {
      * - `/sign-in/email`: the per-address delay, charged before the password
      *   is even checked; then PW1-F6's first read of the credential, before
      *   Better Auth reads the hash (`sign-in-race.ts`); then the operator
-     *   guard, which burns a hash and makes the second read so the refusal
-     *   takes as long as anyone's (§4.6, §5).
+     *   guard, which makes Better Auth's user and credential reads itself
+     *   (PW1-F7), burns a hash and makes the second read, so the refusal does
+     *   the same work as a wrong password's (§4.6, §5).
      * - `/request-password-reset` over HTTP: 20 an hour per IP, 3 per address,
      *   for any address; then the one answer, at once, for every well-formed
      *   address, with nothing else done before it (§4.4: "the answer takes the
@@ -338,6 +341,10 @@ export function passwordHooks(deps: PasswordHookDeps) {
           if (attempt.kind === "wait") throw delayed(attempt.minutes);
           await race.begin(ctx.context, email);
           if (await actors.operatorGrantForEmail(email)) {
+            // PW1-F7: Better Auth's own two reads, through its own call, before the hash, so the
+            // operator's refusal does a wrong password's work, statement for statement. What
+            // they find is not used: the operator is refused whatever it is (§4.6).
+            await ctx.context.internalAdapter.findUserByEmail(email, { includeAccounts: true });
             await ctx.context.password.hash(stringField(ctx.body, "password") ?? "");
             await race.settle(ctx.context);
             throw invalidCredentials();

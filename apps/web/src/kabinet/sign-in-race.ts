@@ -67,6 +67,11 @@ export const sameWrites = (
  *   the time `settle` runs: `settle` comes after the insert, so after the UPDATE, and either
  *   reads the committed row or waits for it; it sees the write, deletes the session the sign-in
  *   just inserted, and answers the generic failure. A write that rolls back changes nothing.
+ * - the UPDATE runs before Better Auth's read, even before `begin`, and commits only after the
+ *   insert (the forced test's order: "forced: a write whose statement ran …" in
+ *   `password-flows.test.ts`): both plain reads still see the old row, so the old password
+ *   passes and the session is inserted after the trigger's delete; `settle` waits for the
+ *   commit, reads the new row, and refuses, as in the race above.
  * - A first password is an INSERT, with no row to wait on and nothing to race: the user had no
  *   password, so Better Auth's read found none and the sign-in failed.
  *

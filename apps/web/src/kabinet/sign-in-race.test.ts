@@ -152,6 +152,7 @@ describe("the sign-in's after-hook, on each answer", () => {
         internalAdapter: {
           findVerificationValue: async () => null,
           deleteVerificationByIdentifier: async () => {},
+          findUserByEmail: async () => null,
           deleteSession: async (token) => {
             deleted.push(token);
           },
