@@ -206,7 +206,9 @@ export const LIMITED_AUTH_PATHS: readonly string[] = [
  *   ending a user's sessions when their password is written, which must not
  *   fail on its own, is the database's job, in the write's own statement
  *   (PW1-F5, migration 0013's triggers), with Better Auth's revoke after it as
- *   a second line.
+ *   a second line. A password sign-in that checked the old password before
+ *   such a write, and inserts its session after it, is caught by reading the
+ *   credential before and after the sign-in instead (PW1-F6, `sign-in-race.ts`).
  */
 export function createKabinetAuth(deps: KabinetAuthDeps) {
   const actors = kabinetActorRepo(deps.db);
@@ -279,8 +281,9 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       // second line since PW1-F5: the password write has already ended every
       // session that existed then, in its own statement (migration 0013), so a
       // failure here leaves none of those. This revoke still catches a session
-      // inserted between the write and it; a sign-in racing the write is
-      // PW1-F6's, a known gap until it merges (`docs/build-plan.md` Part 5).
+      // inserted between the write and it. A sign-in racing the write (one
+      // that checked the old password before it) is refused by its own
+      // after-hook, however late its insert lands (PW1-F6, `sign-in-race.ts`).
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: (input) => passwords.sendResetPassword(input),
       // Voids the user's other reset links (PW1-F1), then the notice. The change does the same
