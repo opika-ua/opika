@@ -11,6 +11,7 @@ import {
   authUser,
   authVerification,
   invitationCreatedUsers,
+  superAdmins,
 } from "@opika/db/schema";
 import {
   makeCity,
@@ -79,6 +80,9 @@ import { kabinetIdentityOf } from "../src/kabinet/principal";
  *      this driver, the second with `FOR SHARE`; the last sign-in here is the check's success
  *      path. The forced case (a write held uncommitted) needs a transaction held open, which
  *      neon-http doesn't have: it is tested locally (`password-flows.test.ts`, "forced: …").
+ *   15. PW1-F7: the operator's password sign-in (a grant for this run's fixture operator) is
+ *      refused with a wrong password's answer, after the same statements in the same order:
+ *      the guard's own call of Better Auth's two reads, over this driver.
  *
  * Nothing is sent anywhere: the magic link is captured in memory, never
  * printed. Refuses unless the target's compute is exactly `--expect`, and
@@ -638,6 +642,39 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       afterRace.status === 200 &&
       builtCookieMatches,
     `status ${raced.status}, a wrong password's answer ${racedBody === wrongBody}, cookies set ${racedCookies}, session inserted ${racedToken !== ""}, sessions at the write ${sessionsAtTheWrite} then ${sessionsAfterRace}, raced session signed in ${racedSignedIn}, new password ${afterRace.status}, built cookie matches ${builtCookieMatches}`,
+  );
+
+  // 15. PW1-F7: the operator's password sign-in, refused, runs a wrong password's statements in
+  // the same order (its guard makes Better Auth's two reads itself), over this driver. The grant
+  // is this run's fixture operator's, on the disposable branch, as its user is.
+  await db.insert(superAdmins).values({ id: randomUUID(), userId: operator, grantedAt: now });
+  const traced = async (to: string, password: string) => {
+    const tracing = steppedDatabase(db);
+    const answer = await route(
+      "/api/auth/sign-in/email",
+      { email: to, password },
+      "",
+      authOver(tracing.db),
+    );
+    return { answer, body: await answer.clone().text(), names: tracing.trace.map(statementName) };
+  };
+  const wrongTraced = await traced(email, `smoke-${randomUUID()}`);
+  const operatorTraced = await traced(
+    `auth-smoke-operator-${tag}@example.invalid`,
+    `smoke-${randomUUID()}`,
+  );
+  const sameWork =
+    operatorTraced.names.length === wrongTraced.names.length &&
+    operatorTraced.names.every((name, i) => name === wrongTraced.names[i]);
+  const operatorCookies = operatorTraced.answer.headers.getSetCookie().length;
+  check(
+    "the operator's refused sign-in does a wrong password's work (the same statements, in order; the same answer)",
+    wrongTraced.answer.status === 401 &&
+      operatorTraced.answer.status === 401 &&
+      operatorTraced.body === wrongTraced.body &&
+      operatorCookies === 0 &&
+      sameWork,
+    `status ${operatorTraced.answer.status}, a wrong password's answer ${operatorTraced.body === wrongTraced.body}, cookies set ${operatorCookies}, statements ${operatorTraced.names.length} against ${wrongTraced.names.length}, the same in order ${sameWork}`,
   );
   return out;
 }

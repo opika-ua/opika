@@ -233,6 +233,13 @@ operator skips both of Better Auth's reads (inbox PW1-F4-Q1). Mutations: the ope
 hash removed, Better Auth's unknown-address dummy hash removed, the guard's hash left un-awaited,
 an extra statement on the operator's path; each turns it red.
 
+**PW1-F7 (2026-10-20), on the operator's two reads:** the operator guard now makes Better Auth's
+user and credential reads itself, through Better Auth's own call
+(`internalAdapter.findUserByEmail(email, { includeAccounts: true })`), before its dummy hash, so the
+operator's work equals a wrong password's, statement for statement, and the test pins that
+equality. The unknown address's skipped credential read stays, a recorded residual (inbox
+PW1-F4-Q1, his (b)): revisit if the per-address delay is ever loosened.
+
 ## 6. Flows
 
 1. **Invite:** the operator invites (unchanged); the email carries `/kabinet/vkhid?zaproshennia=<token>`

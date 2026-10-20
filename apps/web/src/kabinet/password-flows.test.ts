@@ -699,13 +699,14 @@ describe("sign-in: one answer for every failure (§5)", () => {
    * before anything else starts: Better Auth hashes a dummy for an address nobody has and for an
    * admin with no password, the operator guard hashes one too (the PW-1 review's mutation M8,
    * "operator guard skips its dummy hash", was caught then only by the clock), and a credential
-   * is verified. Around it, each cause makes a wrong password's calls and statements, less two
-   * reads, pinned here rather than hidden: Better Auth reads no credential for an address nobody
-   * has (its user read found no one), and the operator guard refuses before Better Auth reads
-   * anything (inbox PW1-F4-Q1). PW1-F6's two reads are in every trace; where they fall is the
-   * PW1-F6 test's to pin ("every sign-in makes the same two reads …").
+   * is verified. Around it, each cause makes exactly a wrong password's calls and statements, the
+   * operator too: its guard refuses before Better Auth runs, so it makes Better Auth's user and
+   * credential reads itself (PW1-F7). One cause makes one read fewer, pinned here rather than
+   * hidden: Better Auth reads no credential for an address nobody has (its user read found no
+   * one), a recorded residual (inbox PW1-F4-Q1, his (b)). PW1-F6's two reads are in every trace;
+   * where they fall is the PW1-F6 test's to pin ("every sign-in makes the same two reads …").
    */
-  it("similar timing, as the work behind it: one awaited scrypt for every cause and a success, among a wrong password's statements less only the reads an unknown address and the operator skip", async () => {
+  it("similar timing, as the work behind it: one awaited scrypt for every cause and a success, among a wrong password's statements, the operator's included, less only the credential read an unknown address skips", async () => {
     const attempts = [
       ...(await causes()).map((cause) => ({ ...cause, status: 401 })),
       { name: "the right password", email: ADMIN, password: GOOD, status: 200 },
@@ -747,9 +748,7 @@ describe("sign-in: one answer for every failure (§5)", () => {
     const named = (name: string) => expect(of(name), `${name}: ${of(name).join(", ")}`);
     named("an admin with no password yet").toEqual(wrong);
     named("an unknown address").toEqual(wrong.filter((step) => step !== "select:auth_account"));
-    named("the operator, even holding a credential").toEqual(
-      wrong.filter((step) => step !== "select:auth_user" && step !== "select:auth_account"),
-    );
+    named("the operator, even holding a credential").toEqual(wrong);
     // A success: the same up to its scrypt; then its session, the second read, the delay
     // cleared, and Better Auth's first-session stamp, which it queues to the end.
     named("the right password").toEqual([
