@@ -831,15 +831,21 @@ Referrer-Policy: no-referrer. A day later, check that Vercel Analytics → Pages
 /kabinet/vkhid entry with a query string. If any of these fail, it's a fix-forward PR straight
 away. The reset link from step 1 is a real token, so don't paste it anywhere."
 
-As a checklist (his steps, in his order):
+And the step he added, verbatim (2026-10-20): "Deployment check: add a step. In each analytics
+request, search the whole payload for token= and zaproshennia=, not just the URL field."
+
+As a checklist (his steps, in his order; his added step is 3, beside the analytics step it
+extends):
 
 1. Request a reset link for the Репетиція admin («Забули пароль?») and open it.
 2. In DevTools → Network, filter for `insights` / `vitals`: each analytics request's payload URL
    is `/kabinet/vkhid/…` with no query string.
-3. The address bar no longer shows `token=` after the page loads.
-4. The reset page's response headers include `Cache-Control: no-store` and
+3. In each of those analytics requests, search the whole payload (not just the URL field) for
+   `token=` and `zaproshennia=`: neither appears.
+4. The address bar no longer shows `token=` after the page loads.
+5. The reset page's response headers include `Cache-Control: no-store` and
    `Referrer-Policy: no-referrer`.
-5. A day later: Vercel Analytics → Pages lists no `/kabinet/vkhid` entry with a query string.
+6. A day later: Vercel Analytics → Pages lists no `/kabinet/vkhid` entry with a query string.
 
 If any of these fail, a fix-forward PR straight away. **The reset link from step 1 is a real
 token: don't paste it anywhere** (his words).
