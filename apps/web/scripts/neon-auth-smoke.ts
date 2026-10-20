@@ -1,6 +1,7 @@
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { inspect } from "node:util";
 import { createDatabase, type Database } from "@opika/db";
 import { cityRepo, kabinetActorRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
 import {
@@ -11,6 +12,7 @@ import {
   authUser,
   authVerification,
   invitationCreatedUsers,
+  shelters,
   superAdmins,
 } from "@opika/db/schema";
 import {
@@ -33,6 +35,7 @@ import {
 import { inMemoryRateLimiter } from "../src/api/rate-limit";
 import { createKabinetAuth, kabinetCookieName } from "../src/kabinet/auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "../src/kabinet/auth-route";
+import { withQueryErrorsCleaned } from "../src/kabinet/clean-query-errors";
 import { handleKabinetConfirm } from "../src/kabinet/confirm-route";
 import { capturingInvitationSender } from "../src/kabinet/email-senders";
 import { invitationAccepter } from "../src/kabinet/invitation-accept";
@@ -83,6 +86,11 @@ import { kabinetIdentityOf } from "../src/kabinet/principal";
  *   15. PW1-F7: the operator's password sign-in (a grant for this run's fixture operator) is
  *      refused with a wrong password's answer, after the same statements in the same order:
  *      the guard's own call of Better Auth's two reads, over this driver.
+ *   16. PW1-F8: through the cleaned handle (`withQueryErrorsCleaned`, the one Better Auth is
+ *      given), one constraint violation (this run's own address again: `auth_user_email_unique`)
+ *      and one failing query (a word bound to an integer column: `22P02`, whose driver message
+ *      quotes the value), each over this driver: the error keeps its name, SQLSTATE and constraint, and
+ *      carries no message text, no parameters and no SQL. Neither statement writes a row.
  *
  * Nothing is sent anywhere: the magic link is captured in memory, never
  * printed. Refuses unless the target's compute is exactly `--expect`, and
@@ -675,6 +683,69 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       operatorCookies === 0 &&
       sameWork,
     `status ${operatorTraced.answer.status}, a wrong password's answer ${operatorTraced.body === wrongTraced.body}, cookies set ${operatorCookies}, statements ${operatorTraced.names.length} against ${wrongTraced.names.length}, the same in order ${sameWork}`,
+  );
+
+  // 16. PW1-F8: query errors through the cleaned handle, over this driver. Only names, codes,
+  // the constraint's name and booleans are printed; the marker and the address never are.
+  const cleanDb = withQueryErrorsCleaned(db);
+  const marker = `auth-smoke-${tag}-${randomUUID()}`;
+  const failureOf = async (work: Promise<unknown>): Promise<unknown> => {
+    try {
+      await work;
+      return null;
+    } catch (error) {
+      return error;
+    }
+  };
+  const duplicate = await failureOf(
+    cleanDb.insert(authUser).values({
+      id: randomUUID(),
+      name: marker,
+      email,
+      emailVerified: true,
+      createdAt: now,
+      updatedAt: now,
+    }),
+  );
+  // A word bound to an integer column: Postgres refuses the parameter itself (22P02, its message
+  // quoting the value) before the row is built, on either driver.
+  const badValue = await failureOf(
+    cleanDb.insert(shelters).values({ id: randomUUID(), version: marker } as never),
+  );
+  type Facts = { name?: unknown; message?: unknown; code?: unknown; constraint?: unknown };
+  const factsOf = (error: unknown) => {
+    const outer = (typeof error === "object" && error !== null ? error : {}) as Facts & {
+      cause?: Facts;
+    };
+    const kept = inspect(error, { depth: 8, showHidden: true });
+    return {
+      name: `${String(outer.name)}/${String(outer.cause?.name)}`,
+      code: String(outer.code),
+      constraint: String(outer.constraint),
+      noText: outer.message === "" && outer.cause?.message === "",
+      noValues:
+        !kept.includes(marker) &&
+        !kept.includes(email) &&
+        !/params|insert into|"auth_user"|"shelters"/i.test(kept) &&
+        !["query", "params", "detail", "where"].some(
+          (key) => Object.hasOwn(outer, key) || Object.hasOwn(outer.cause ?? {}, key),
+        ),
+    };
+  };
+  const duplicateFacts = factsOf(duplicate);
+  const badValueFacts = factsOf(badValue);
+  check(
+    "query errors through the cleaned handle keep name, SQLSTATE and constraint, and no message, parameters or SQL",
+    duplicate !== null &&
+      badValue !== null &&
+      duplicateFacts.code === "23505" &&
+      duplicateFacts.constraint === "auth_user_email_unique" &&
+      badValueFacts.code === "22P02" &&
+      duplicateFacts.noText &&
+      badValueFacts.noText &&
+      duplicateFacts.noValues &&
+      badValueFacts.noValues,
+    `duplicate ${duplicateFacts.name} ${duplicateFacts.code} ${duplicateFacts.constraint}, bad value ${badValueFacts.name} ${badValueFacts.code}, no message text ${duplicateFacts.noText && badValueFacts.noText}, no values or SQL ${duplicateFacts.noValues && badValueFacts.noValues}`,
   );
   return out;
 }

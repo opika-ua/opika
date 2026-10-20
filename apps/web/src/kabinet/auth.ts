@@ -18,6 +18,7 @@ import { organization } from "better-auth/plugins/organization";
 import { clientIp } from "../api/client-ip";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import { maskedAuthLogging } from "./auth-log";
+import { withQueryErrorsCleaned } from "./clean-query-errors";
 import { MAGIC_LINK_TTL_SECONDS, type MagicLinkSender } from "./magic-link-sender";
 import { PASSWORD_PATHS, passwordHooks } from "./password-hooks";
 import type { PasswordLimiters } from "./password-limits";
@@ -213,10 +214,15 @@ export const LIMITED_AUTH_PATHS: readonly string[] = [
  *   for a write still in flight (PW1-F6, `sign-in-race.ts`).
  */
 export function createKabinetAuth(deps: KabinetAuthDeps) {
-  const actors = kabinetActorRepo(deps.db);
+  // Every statement this instance runs, Better Auth's and our hooks', fails with a cleaned error:
+  // name, SQLSTATE and schema names, never the message or the parameters (PW1-F8,
+  // `clean-query-errors.ts`). Better Auth prints a failed fallback join whole, and an error from
+  // `auth.api.getSession` reaches whoever called it.
+  const db = withQueryErrorsCleaned(deps.db);
+  const actors = kabinetActorRepo(db);
   const clock = deps.now ?? (() => new Date());
   const passwords = passwordHooks({
-    db: deps.db,
+    db,
     limiters: deps.passwordLimiters,
     mail: deps.passwordMail,
     schedule: deps.schedule,
@@ -236,7 +242,7 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
     // Every line Better Auth logs, and its log of an error escaping an endpoint or a hook, go
     // through the masking (PW1-F8, `auth-log.ts`): a failed query's message names the address.
     ...maskedAuthLogging(),
-    database: drizzleAdapter(deps.db, {
+    database: drizzleAdapter(db, {
       provider: "pg",
       transaction: false,
       schema: {
@@ -306,7 +312,7 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
            * A no-op for every other user.
            */
           after: async (session) => {
-            await kabinetInvitedUsersRepo(deps.db).markFirstSession(session.userId, clock());
+            await kabinetInvitedUsersRepo(db).markFirstSession(session.userId, clock());
           },
         },
       },

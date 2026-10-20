@@ -63,11 +63,19 @@ passwordVerdictOf(password: string): PasswordVerdict
   password (§8).
 
 **PW1-F8 (2026-10-20), on logging:** Better Auth's own logger and its error handler
-(`onAPIError`) write through the masking in `apps/web/src/kabinet/auth-log.ts`: an error is its
-name and SQLSTATE only (a failed query's message holds its parameters), an address is masked, a
-token-shaped value replaced. Better Auth's router no longer prints an unexpected error whole.
-`auth-log.test.ts` forces a failed query whose message holds an address, a token and a password,
-and finds none of them in any console line.
+(`onAPIError`) write through the masking in `apps/web/src/kabinet/auth-log.ts`: an error (an
+`instanceof Error` only) is its name and SQLSTATE only, an address is masked (URL-encoded too), a
+token-shaped value replaced, and Drizzle's `params:` part cut whatever its case. Better Auth's
+router no longer prints an unexpected error whole. After the review's STOP (two paths that print a
+raw query error: Better Auth's fallback join, and a direct `auth.api.getSession`), query errors are
+also cleaned where they happen (Oleksii's Q1, (i)): the database handle Better Auth is given, and
+the kabinet's principal path, go through `withQueryErrorsCleaned`
+(`apps/web/src/kabinet/clean-query-errors.ts`). A cleaned error keeps its name, SQLSTATE and the
+constraint, table, schema and column names (both drivers' spellings, on it and its cause); it has
+no message, no SQL, no parameters, no `detail` or `where`. `principal.ts` also rethrows anything
+else `getSession` throws cleaned. `clean-query-errors.test.ts` forces failures at the driver (both
+drivers' error shapes, an outage) and finds no address, token, password or `params:` in any log
+line or thrown error; every caller that reads a SQLSTATE behaves as before.
 
 ## 4. Contract
 

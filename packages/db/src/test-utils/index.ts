@@ -1,5 +1,13 @@
 export { productionEndpoint } from "../prod-guard";
 export {
+  downDatabase,
+  failingDriverDatabase,
+  type NeonErrorReport,
+  neonHttpDatabaseAnswering,
+  type PostgresErrorFields,
+  postgresError,
+} from "./failing-driver";
+export {
   type AnimalFixtureOverrides,
   ageAnchorOf,
   makeAdopter,

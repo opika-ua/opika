@@ -1,7 +1,9 @@
 import type { Database } from "@opika/db";
 import { kabinetActorRepo } from "@opika/db/repos";
+import { isAPIError } from "better-auth/api";
 import type { KabinetPrincipal } from "./actor";
 import type { KabinetAuth } from "./auth";
+import { cleanedQueryError, withQueryErrorsCleaned } from "./clean-query-errors";
 import { sessionHasLapsed } from "./session-lapse";
 import { withSupportMode } from "./support";
 
@@ -34,11 +36,21 @@ export async function kabinetIdentityOf(
   now: Date,
   production: boolean,
 ): Promise<KabinetIdentity> {
-  const userId = await kabinetSessionUserIdOf(auth, db, headers, now);
+  // Every page load and API call reads through here: a failed query reaches the caller, and so
+  // Next's error log, cleaned (PW1-F8): a support session's token is one of its parameters.
+  const clean = withQueryErrorsCleaned(db);
+  const userId = await kabinetSessionUserIdOf(auth, clean, headers, now);
   if (userId === null) return { principal: { kind: "anonymous" }, userId: null };
-  const role = await kabinetActorRepo(db).roleOf(userId);
+  const role = await kabinetActorRepo(clean).roleOf(userId);
   // A super_admin with an open support session is a support view (RG-Q4).
-  const principal = await withSupportMode(db, role, userId, headers.get("cookie"), now, production);
+  const principal = await withSupportMode(
+    clean,
+    role,
+    userId,
+    headers.get("cookie"),
+    now,
+    production,
+  );
   return { principal, userId };
 }
 
@@ -55,11 +67,26 @@ export async function kabinetSessionUserIdOf(
   headers: Headers,
   now: Date,
 ): Promise<string | null> {
-  const session = await auth.api.getSession({ headers });
+  const session = await sessionOf(auth, headers);
   if (session === null) return null;
   const userId = session.user.id;
   const lapsed = await sessionHasLapsed(session.session, now, () =>
-    kabinetActorRepo(db).hasActiveOperatorGrant(userId),
+    kabinetActorRepo(withQueryErrorsCleaned(db)).hasActiveOperatorGrant(userId),
   );
   return lapsed ? null : userId;
+}
+
+/**
+ * Better Auth's session read, called directly: no `onAPIError` runs, so whatever it throws
+ * reaches the proxy or the route, and Next logs it (the F8 review's finding 2). Its queries
+ * already fail cleaned (`createKabinetAuth` gives Better Auth the cleaned handle, and our
+ * `hooks.before` reads through it); this catch is the second line, for anything thrown that
+ * didn't come from that handle. An `APIError` is an answer with fixed text and passes as it is.
+ */
+async function sessionOf(auth: KabinetAuth, headers: Headers) {
+  try {
+    return await auth.api.getSession({ headers });
+  } catch (error) {
+    throw isAPIError(error) ? error : cleanedQueryError(error);
+  }
 }

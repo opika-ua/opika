@@ -9,27 +9,46 @@ export type AuthLogLevel = "debug" | "info" | "warn" | "error";
 /** Where a masked line goes: the console by default, a capture in tests. */
 export type AuthLogConsole = Pick<Console, "error" | "warn" | "log">;
 
-const EMAIL = /[^\s"'<>(),;:@]+@[^\s"'<>(),;:@]+\.[^\s"'<>(),;:@]+/g;
+/** An address, also URL-encoded (`olena%40example.org`, as a query string or a form body has it). */
+const EMAIL = /[^\s"'<>(),;:@]+(?:@|%40)[^\s"'<>(),;:@%]+\.[^\s"'<>(),;:@%]+/gi;
 const URL_PATTERN = /https?:\/\/[^\s"'<>]+/g;
-/** A token, a hash, a secret: a long run of base64url, base64 or hex. */
-const TOKEN_LIKE = /[A-Za-z0-9_+=-]{20,}/g;
+/** A run of base64url, base64 or hex characters long enough to be looked at (`TOKEN_SHAPED`). */
+const TOKEN_RUN = /[A-Za-z0-9_+=-]{12,}/g;
+
+/**
+ * A token, a hash, a secret: any run of 20 or more such characters, or a run of 12 or more that
+ * mixes letters and digits. The second catches a short token (the review's note 5: 19 characters
+ * passed) without masking words: a word has no digits, and these are ASCII runs only, so Ukrainian
+ * text never matches. A long word (20+ ASCII letters) is masked; that was so before too.
+ */
+const TOKEN_SHAPED = (run: string): boolean =>
+  run.length >= 20 || (/[0-9]/.test(run) && /[A-Za-z]/.test(run));
+
+/** An address masked as `maskAddress` does, decoded first if it came URL-encoded. */
+const maskedAddress = (match: string): string => {
+  try {
+    return maskAddress(decodeURIComponent(match));
+  } catch {
+    return maskAddress(match.replace(/%40/i, "@"));
+  }
+};
 
 /** A URL's origin and path only: a token in its query or fragment never reaches a log. */
 const withoutQuery = (url: string) => url.replace(/[?#].*$/, "");
 
 /**
- * Text Better Auth composed for a log line, masked (PW1-F8): Drizzle's "params:" part cut off (a
- * failed query's message carries its parameters there, the address among them), a URL's query
- * dropped, an address reduced to `o•••@example.org` (`maskAddress`), and anything token-shaped
- * replaced by «•••». Better Auth's own messages are fixed text; what this guards is a value
+ * Text Better Auth composed for a log line, masked (PW1-F8): Drizzle's "params:" part cut off,
+ * whatever its case (a failed query's message carries its parameters there, the address among
+ * them), a URL's query dropped, an address reduced to `o•••@example.org` (`maskAddress`), also
+ * when URL-encoded, and anything token-shaped (`TOKEN_SHAPED`) replaced by «•••». Better Auth's own messages are fixed text; what this guards is a value
  * interpolated into one.
  */
 export function maskedLogText(text: string): string {
-  const [head = ""] = text.split(/\bparams:/);
+  const [head = ""] = text.split(/\bparams:/i);
   return head
     .replace(URL_PATTERN, withoutQuery)
-    .replace(EMAIL, maskAddress)
-    .replace(TOKEN_LIKE, "•••")
+    .replace(EMAIL, maskedAddress)
+    .replace(TOKEN_RUN, (run) => (TOKEN_SHAPED(run) ? "•••" : run))
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -38,16 +57,18 @@ export function maskedLogText(text: string): string {
  * A value Better Auth passed alongside a message, as a log line may show it. **Never an error's
  * message**, the house rule for query errors (`sql-state.ts`, `invitation-accept.ts`): a query
  * error's message holds its parameters (an address, a user id, a token), so an error is its name
- * and SQLSTATE only, and an `APIError` its status and code. Any other object is not printed at
- * all: Better Auth passes user info, request data and the like as objects.
+ * and SQLSTATE only (an `instanceof Error` only), and an `APIError` its status and code. Any other
+ * object is not printed at all: Better Auth passes user info, request data and the like as objects.
  */
 export function maskedLogValue(value: unknown): string {
   if (isAPIError(value)) {
     const code = stringField(field(value, "body"), "code");
     return `APIError ${String(value.status)}${code !== null && /^[A-Z0-9_]+$/.test(code) ? ` ${code}` : ""}`;
   }
-  if (value instanceof Error || stringField(value, "name") !== null) {
-    const name = stringField(value, "name") ?? "";
+  // Only a real error is shown by its name: any other object with a `name` is user data (a
+  // display name), and is shown as `[object]` like the rest (the review's note 3).
+  if (value instanceof Error) {
+    const name = value.name;
     const code = sqlStateOf(value);
     return `${/^[A-Za-z]+$/.test(name) ? name : "Error"}${code === null ? "" : ` (${code})`}`;
   }
