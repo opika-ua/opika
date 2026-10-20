@@ -31,6 +31,11 @@ key; any new string is given as its English sense, with the Ukrainian left to hi
 | Auth email goes through **Resend** (EM-B10: production sets `EMAIL_PROVIDER=resend`, `EMAIL_SIGN_IN_PROVIDER` unset; Brevo's code stayed as a grace-period rollback, refused in config since PW1-Q4, §4.4). Resend has **no per-message tracking option**: click and open tracking are per-domain settings, active only with a verified tracking subdomain. Our payloads carry no tracking field or header | `email-provider.ts:296`; Resend's API reference (send email; update domain) | His rule, "no tracking on any auth email, ever", is enforced at the Resend domain plus a payload test (§4.4). The code comments about Brevo's click tracker describe the provider being retired |
 | Per-address limiter keys are plain (`address:<email>`); only IP keys are HMAC'd (EM-Q11) | `sign-in-limit.ts:36`, `invite-landing.ts:86` | "HMAC'd keys as now" is true for IPs, not for addresses (§9, Q7) |
 
+**PW1-F5 (2026-10-20), on the first row:** storing a password still needed no migration, but ending
+the sessions atomically with it did. Migration 0013 (additive: a function and two triggers on
+`auth_account`) ends every session of the user inside the statement that writes the password, and
+Better Auth's revokes stay as a second line (`docs/decisions-inbox/fix-pw1-f5-atomic-session-revoke.md`).
+
 ## 3. Password policy (domain, pure)
 
 `packages/domain`, no I/O:
@@ -123,6 +128,10 @@ What it does, in one transaction where it writes:
 7. create the `credential` account with Better Auth's hash;
 8. accept the invitation (membership);
 9. sign in through Better Auth's `sign-in/email`, server-side, so the cookie comes from Better Auth.
+
+**PW1-F5 (2026-10-20):** step 7 before step 9 is required, not only the order written: inserting
+the credential ends every session of the user (migration 0013), so a session created before it
+would be signed out at once.
 
 Today's invitation id stops being the link's secret. The invite email carries a separate random token,
 stored hashed through the same `storeIdentifier` override, so **no migration** is needed.
@@ -332,6 +341,9 @@ to find accounts. Its message is the same for every address (§9, Q5).
 **Migration:** none expected (`auth_account.password` and `auth_verification` already exist). If
 building shows otherwise, the PR states its kind (additive expected) and follows the
 "Migrating production" block.
+
+**PW1-F5 (2026-10-20):** one migration after all, additive: 0013, the session revoke made atomic
+with the password write (§2's note). It follows the "Migrating production" block.
 
 **Dress rehearsal, added to the final script:** invite → set the password → sign out → sign in with
 the password → forgot password → reset (the old session is gone).
