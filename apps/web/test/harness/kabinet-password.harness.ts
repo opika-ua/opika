@@ -50,10 +50,19 @@ test.describe("shelter passwords, end to end (PW-1)", () => {
       createdAt: now,
       updatedAt: now,
     });
+    // The suspended one: the password flows need no verified status, and every verified seeded
+    // shelter is already some other spec's (K4 profile editing takes the last one left).
     const shelter = (
-      await db.select({ id: shelters.id, organizationId: shelters.organizationId }).from(shelters)
-    ).find((row) => row.organizationId === null);
-    if (shelter === undefined) throw new Error("no seeded shelter without an organization");
+      await db
+        .select({
+          id: shelters.id,
+          organizationId: shelters.organizationId,
+          status: shelters.verificationStatus,
+        })
+        .from(shelters)
+    ).find((row) => row.organizationId === null && row.status === "suspended");
+    if (shelter === undefined)
+      throw new Error("no suspended seeded shelter without an organization");
     const organizationId = await kabinetInvitationRepo(db).ensureOrganization(
       shelter.id,
       { organizationId: randomUUID() },
@@ -119,7 +128,8 @@ test.describe("shelter passwords, end to end (PW-1)", () => {
     await page.getByLabel("Електронна пошта").fill(email);
     await page.getByLabel("Пароль", { exact: true }).fill("зовсім-не-той-пароль");
     await page.getByRole("button", { name: "Увійти", exact: true }).click();
-    await expect(page.getByRole("alert")).toHaveText(
+    // Inside the page's own content: Next's route announcer is an alert too.
+    await expect(page.getByRole("main").getByRole("alert")).toHaveText(
       "Не вдалося увійти. Перевірте адресу й пароль або надішліть собі посилання для входу.",
     );
 
