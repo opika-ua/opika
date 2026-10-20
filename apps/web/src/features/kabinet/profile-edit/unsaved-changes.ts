@@ -29,6 +29,20 @@ export function useUnsavedChanges(section: string, dirty: boolean): void {
 }
 
 /**
+ * Clears `section` immediately, for a caller that already knows nothing is
+ * unsaved and is about to navigate — skips waiting for the next render's
+ * effect. `window.location.assign` fires `beforeunload` synchronously, so a
+ * save that resolves and navigates in the same microtask chain would still
+ * warn without this: React hasn't re-rendered yet, so the effect above that
+ * would otherwise remove the listener hasn't run (K3 form, blocker 1 of the
+ * 2026-10-19 review).
+ */
+export function clearUnsavedNow(section: string): void {
+  dirtySections.delete(section);
+  if (dirtySections.size === 0) window.removeEventListener("beforeunload", onBeforeUnload);
+}
+
+/**
  * Whether an in-page leave («Вийти») may go ahead: yes with nothing unsaved,
  * otherwise only if the person confirms his question (`actions.unsavedLeave`).
  */

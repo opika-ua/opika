@@ -455,10 +455,17 @@ a second address""), because creating a shelter already invites its first admin:
    reveals contacts, and messages the shelter.
 5. The shelter marks one adopted and hides one. He approves a donation link, then suspends and
    reinstates the shelter, and checks that the history shows all of it.
-6. Both test shelters are retired afterwards, each the same way (N8, option A): in his screens,
+6. **Taps before scripts load.** Oleksii, 2026-10-19, verbatim: "Taps before scripts load: no
+   code now. Add a check to the final UI dress-rehearsal list: Chrome DevTools at 6× CPU
+   throttling and Slow 4G, tap kabinet forms immediately on load. If a tap is lost, fix it
+   then, with a reproduction." No code changed for this; it is a manual check. (Placed before
+   step 7, below: that step retires both test shelters, after which there's no kabinet form
+   left to tap.)
+7. Both test shelters are retired afterwards, each the same way (N8, option A): in his screens,
    remove every admin and suspend; then `demo:remove --shelter <id>` from his machine, per
    "Retiring the rehearsal shelter" above. The existing rehearsal shelter first, then «Генеральна».
-   (This step reworded on 2026-10-18 per his N8 answer; the rest of the script is verbatim RU-B5.)
+   (This step reworded on 2026-10-18 per his N8 answer, and the throttled-tap step added on
+   2026-10-19 per his own words quoted there; the rest of the script is verbatim RU-B5.)
 
 Until then the current rehearsal shelter (`c00c73ac-…`) stays as the dev test bed, and
 `KABINET_WRITE_ALLOWLIST` serves only that interim; it goes away with PR 6.

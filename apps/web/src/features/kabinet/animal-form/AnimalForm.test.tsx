@@ -1,9 +1,10 @@
 import type { KabinetAnimalView } from "@opika/contracts";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
 import type { CompressedPhoto } from "../photos/compress-photo";
+import { confirmLeave } from "../profile-edit/unsaved-changes";
 import { AnimalForm, type AnimalFormEditing } from "./AnimalForm";
 import type { ShelterVisibility } from "./labels";
 
@@ -182,6 +183,7 @@ function renderForm(
     shelterVisibility?: ShelterVisibility;
     compress?: (file: File) => Promise<CompressedPhoto>;
     client?: FakeClient;
+    clock?: () => Date;
   } = {},
 ) {
   const client = options.client ?? fakeClient(view);
@@ -193,7 +195,7 @@ function renderForm(
       shelterVisibility={options.shelterVisibility ?? "visible"}
       back={{ href: "/kabinet", label: "← Профіль притулку" }}
       client={client}
-      clock={() => NOW}
+      clock={options.clock ?? (() => NOW)}
       compress={options.compress ?? okJpeg}
     />,
   );
@@ -599,6 +601,372 @@ describe("a draft saves itself (T6)", () => {
     ).toBeTruthy();
     expect(screen.queryByRole("group", { name: "Комплексне щеплення" })).toBeNull();
     expect(screen.getByRole("group", { name: "Стерилізація" })).toBeTruthy();
+  });
+});
+
+/**
+ * One rule for a draft and a listed card alike (Oleksii, 2026-10-19,
+ * verbatim): "warn while there are unsaved edits or a save pending or
+ * queued ... 'Unsaved' includes text typed into a field that hasn't been
+ * blurred or saved yet. Don't warn when everything is saved." And, on his
+ * correction to the line itself: "Hide «Чернетку збережено о …» while
+ * there are unsaved edits, the same as listed cards" — so a failed save
+ * (the view never changed) leaves both the warning and the hidden line
+ * exactly where an unsaved edit already leaves them, with no separate
+ * "undo on failure" branch. Every save below is a controlled promise, so
+ * the test — never a sleep — decides exactly when it settles.
+ */
+describe("the unsaved-work warning and the saved-time line", () => {
+  const FAILURE = "Чернетку не збережено. Перевірте зʼєднання — усе, що ви ввели, лишається тут.";
+  // Kyiv is UTC+3 in October (before the last-Sunday-of-October change):
+  // NOW ("2026-10-17T09:00:00.000Z") reads 12:00, and 15 minutes later reads
+  // 12:15 — transcribed by hand, never computed with the code's own `timeOf`
+  // (a test may not compare output against the same constant the code
+  // renders).
+  const FIRST_TIME = "12:00";
+  const SECOND_TIME = "12:15";
+  const SECOND_NOW = new Date(NOW.getTime() + 15 * 60_000);
+
+  /** Dispatches `beforeunload` on `window` and reports what the listener, if any, did to it. */
+  const dispatchUnload = (): { prevented: boolean; returnValue: unknown } => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return {
+      prevented: event.defaultPrevented,
+      returnValue: (event as unknown as { returnValue: unknown }).returnValue,
+    };
+  };
+
+  /** The next `update` call hangs until the test calls the returned function. */
+  const deferredUpdate = (client: FakeClient) => {
+    let release: (view: KabinetAnimalView) => void = () => {};
+    client.calls.update.mockImplementationOnce(
+      () =>
+        new Promise<KabinetAnimalView>((resolve) => {
+          release = resolve;
+        }),
+    );
+    return (view: KabinetAnimalView) => release(view);
+  };
+
+  const CASES = [
+    {
+      name: "a draft",
+      view: () => draft(),
+      saveLabel: SAVE_DRAFT,
+      savedLineText: (time: string) =>
+        `Чернетку збережено о ${time} · Ті, хто шукає тварину, цю чернетку не бачать.`,
+    },
+    {
+      name: "a listed card",
+      view: () => published(),
+      saveLabel: "Зберегти",
+      savedLineText: (time: string) => `Збережено о ${time}`,
+    },
+  ] as const;
+
+  it.each(CASES)(
+    "$name: typing (unblurred) hides the line and warns; settling shows it with the new time and clears the warning; a failed save re-hides it and re-warns",
+    async ({ view, saveLabel, savedLineText }) => {
+      let now = NOW;
+      const client = fakeClient(view());
+      renderForm(view(), { client, clock: () => now });
+
+      // Nothing typed, nothing saved yet: no warning, no line.
+      expect(dispatchUnload().prevented).toBe(false);
+      expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
+
+      // Typing without leaving the field: `dirty` alone turns the warning
+      // on, before any save is even attempted.
+      fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+      expect(dispatchUnload().prevented).toBe(true);
+      expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
+
+      const release1 = deferredUpdate(client);
+      fireEvent.click(screen.getByRole("button", { name: saveLabel }));
+      expect(dispatchUnload().prevented).toBe(true); // still pending
+      expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
+
+      await act(async () =>
+        release1({ ...view(), description: { uk: "Лагідна.", en: null } } as KabinetAnimalView),
+      );
+      await screen.findByText(savedLineText(FIRST_TIME));
+      expect(dispatchUnload()).toEqual({ prevented: false, returnValue: undefined });
+
+      // Type again: `save.kind` is still "saved" from the last success, but
+      // the new, unblurred edit alone must hide the line and re-warn —
+      // "saved" is no longer true of the form's current content.
+      fireEvent.change(screen.getByLabelText("Про тварину"), {
+        target: { value: "Лагідна, грається." },
+      });
+      expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
+      expect(dispatchUnload().prevented).toBe(true);
+
+      // Now let this save fail: the edits are still unsaved (the view the
+      // patch was computed against never changed), so the line stays
+      // hidden and the warning stays on.
+      client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      fireEvent.click(screen.getByRole("button", { name: saveLabel }));
+      await screen.findByText(FAILURE);
+      expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
+      expect(dispatchUnload().prevented).toBe(true);
+
+      // A successful retry, 15 minutes later: idle and fully saved again —
+      // no warning, and the line names *this* save's own time, not the
+      // first one's.
+      now = SECOND_NOW;
+      const release2 = deferredUpdate(client);
+      fireEvent.click(screen.getByRole("button", { name: saveLabel }));
+      await act(async () =>
+        release2({
+          ...view(),
+          description: { uk: "Лагідна, грається.", en: null },
+        } as KabinetAnimalView),
+      );
+      await screen.findByText(savedLineText(SECOND_TIME));
+      expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
+      expect(dispatchUnload()).toEqual({ prevented: false, returnValue: undefined });
+    },
+  );
+
+  /**
+   * Blocker 1 (2026-10-19 review of UW-B2): `window.location.assign` fires
+   * `beforeunload` synchronously, in a real browser, before React ever gets
+   * a chance to re-render and run the effect that would otherwise remove
+   * the listener — so the probe has to check at that exact instant, inside
+   * the `assign` call itself, not after. (happy-dom's own `assign` doesn't
+   * fire `beforeunload` or stop the test's event loop, so checking only
+   * after an `await` would pass either way — on `main` included — without
+   * ever exercising the race.)
+   */
+  it("an intentional back-link leave, after the save it triggers succeeds, never warns", async () => {
+    const client = fakeClient(draft());
+    renderForm(draft(), { client });
+    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+
+    let preventedAtNavigation: boolean | null = null;
+    const assign = vi.spyOn(window.location, "assign").mockImplementation(() => {
+      preventedAtNavigation = dispatchUnload().prevented;
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: "← Профіль притулку" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/kabinet"));
+
+    expect(preventedAtNavigation).toBe(false);
+    assign.mockRestore();
+  });
+
+  /**
+   * Blocker 2: on `/nova`, `dirty` used to be `creatable` (a name AND a
+   * species), so anything typed before both existed gave no warning at all
+   * — including a whole typed description. "Unsaved" must include any
+   * value that differs from the empty starting form, name/species or not.
+   */
+  it.each([
+    [
+      "a description",
+      () =>
+        fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } }),
+    ],
+    ["a name", () => fireEvent.change(screen.getByLabelText("Імʼя"), { target: { value: "Л" } })],
+  ] as const)(
+    "/nova: typing only %s, before a name and a species both exist, still warns",
+    (_field, type) => {
+      renderForm(null);
+      type();
+      expect(dispatchUnload().prevented).toBe(true);
+    },
+  );
+
+  /**
+   * Blocker 3: `dirty` diffs the CURRENT fields against the server's LAST
+   * KNOWN view, which a save in flight hasn't changed yet — so reverting a
+   * field back to that stored value, while the save for the edit it
+   * replaces is still in flight, used to read as "nothing unsaved" and
+   * silently drop the warning. "Pending or queued" is its own term,
+   * independent of what the fields currently say (UW-T2).
+   */
+  it("reverting a field to its stored value keeps the warning on while that edit's save is still in flight", async () => {
+    const stored = draft({ description: { uk: "Було.", en: null } } as Partial<KabinetAnimalView>);
+    const client = fakeClient(stored);
+    renderForm(stored, { client });
+    const description = screen.getByLabelText("Про тварину");
+
+    fireEvent.change(description, { target: { value: "Зараз." } });
+    expect(dispatchUnload().prevented).toBe(true);
+
+    const release = deferredUpdate(client);
+    fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(dispatchUnload().prevented).toBe(true); // the save for "Зараз." is in flight
+
+    // Revert to the value still on the server: `dirty` alone now reads
+    // false, but the in-flight save hasn't settled.
+    fireEvent.change(description, { target: { value: "Було." } });
+    expect(dispatchUnload().prevented).toBe(true);
+
+    await act(async () =>
+      release(draft({ description: { uk: "Зараз.", en: null } } as Partial<KabinetAnimalView>)),
+    );
+    // Settled — and the revert now genuinely diverges from what the server
+    // actually holds, so the warning is still correctly on, for `dirty`'s
+    // own reason this time.
+    expect(dispatchUnload().prevented).toBe(true);
+  });
+
+  /**
+   * The first review's own recommendation on its blocker 3 (whether a
+   * publish request in flight counts), taken here as a builder decision —
+   * his words say nothing about this. `publish()` saves first (covered by
+   * `savePending` above), then makes its own, separate `transition` call —
+   * by the time that one is in flight, the save it depended on has already
+   * settled, so neither `dirty` nor `savePending` is still true; only
+   * `publishing` is.
+   */
+  it("a publish request in flight keeps the warning on, after its own save already settled", async () => {
+    const ready = draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>);
+    const client = fakeClient(ready);
+    let releaseTransition: (view: KabinetAnimalView) => void = () => {};
+    client.calls.transition.mockImplementationOnce(
+      () =>
+        new Promise<KabinetAnimalView>((resolve) => {
+          releaseTransition = resolve;
+        }),
+    );
+    renderForm(ready, { client });
+
+    fireEvent.click(screen.getByRole("button", { name: "Опублікувати" }));
+    await waitFor(() => expect(client.calls.transition).toHaveBeenCalled());
+
+    expect(dispatchUnload().prevented).toBe(true); // nothing left to save, but not published yet
+
+    await act(async () =>
+      releaseTransition({
+        ...ready,
+        listing: { kind: "published", publishedAt: NOW, confirmedAt: NOW, undoable: null },
+      } as KabinetAnimalView),
+    );
+    expect(dispatchUnload().prevented).toBe(false);
+  });
+
+  /**
+   * UW-T7: reusing `useUnsavedChanges` for drafts (UW-T1) puts a dirty
+   * draft in the same shared `dirtySections` a listed card already used —
+   * so «Вийти» (the header's own sign-out, `SignOutButton`'s `confirmLeave`)
+   * now asks before leaving a dirty draft too, not only a dirty listed card.
+   */
+  it("a dirty draft also makes «Вийти» ask before signing out", () => {
+    renderForm(draft());
+    expect(confirmLeave(() => true)).toBe(true); // nothing unsaved: goes ahead, never asks
+
+    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+    const confirm = vi.fn(() => false);
+    expect(confirmLeave(confirm)).toBe(false);
+    expect(confirm).toHaveBeenCalledWith("Зміни не збережено. Все одно вийти?");
+  });
+
+  /**
+   * The second review's probes, kept as tests (UW-T4, UW-T8, UW-T9): the back link's own
+   * navigation is checked at the instant a real browser fires `beforeunload`, inside a spy on
+   * `location.assign` (happy-dom's own `assign` fires nothing).
+   */
+  describe("the back link's own leave", () => {
+    const backLink = () => screen.getByRole("link", { name: "← Профіль притулку" });
+    const description = () => screen.getByLabelText("Про тварину");
+    const preventedAtNavigation = () => {
+      const seen: boolean[] = [];
+      const assign = vi
+        .spyOn(window.location, "assign")
+        .mockImplementation(() => void seen.push(dispatchUnload().prevented));
+      return { seen, assign };
+    };
+    const holdNext = (client: FakeClient, call: "update" | "transition") => {
+      let release: (view: KabinetAnimalView) => void = () => {};
+      client.calls[call].mockImplementationOnce(
+        () =>
+          new Promise<KabinetAnimalView>((resolve) => {
+            release = resolve;
+          }),
+      );
+      return (view: KabinetAnimalView) => release(view);
+    };
+    const savedDescription = (uk: string) =>
+      draft({ description: { uk, en: null }, version: 1 } as Partial<KabinetAnimalView>);
+
+    it("typing more while its save is in flight still warns when it navigates", async () => {
+      const client = fakeClient(draft());
+      const release = holdNext(client, "update");
+      renderForm(draft(), { client });
+      const { seen, assign } = preventedAtNavigation();
+      fireEvent.change(description(), { target: { value: "Лагідна." } });
+      fireEvent.click(backLink());
+      fireEvent.change(description(), { target: { value: "Лагідна, грається." } });
+      await act(async () => release(savedDescription("Лагідна.")));
+      await waitFor(() => expect(assign).toHaveBeenCalled());
+      expect(seen).toEqual([true]);
+      assign.mockRestore();
+    });
+
+    it("a failed save still warns when it navigates: the edits are unsaved", async () => {
+      const client = fakeClient(draft());
+      renderForm(draft(), { client });
+      client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      const { seen, assign } = preventedAtNavigation();
+      fireEvent.change(description(), { target: { value: "Лагідна." } });
+      fireEvent.click(backLink());
+      await waitFor(() => expect(assign).toHaveBeenCalled());
+      expect(seen).toEqual([true]);
+      assign.mockRestore();
+    });
+
+    it("a double click saves once and never warns once everything is saved", async () => {
+      const client = fakeClient(draft());
+      const release = holdNext(client, "update");
+      renderForm(draft(), { client });
+      const { seen, assign } = preventedAtNavigation();
+      fireEvent.change(description(), { target: { value: "Лагідна." } });
+      fireEvent.click(backLink());
+      fireEvent.click(backLink());
+      await act(async () => release(savedDescription("Лагідна.")));
+      await waitFor(() => expect(assign).toHaveBeenCalledTimes(2));
+      expect({ seen, updates: client.calls.update.mock.calls.length }).toEqual({
+        seen: [false, false],
+        updates: 1,
+      });
+      assign.mockRestore();
+    });
+
+    it("a publish still in flight warns when it navigates", async () => {
+      const ready = draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>);
+      const client = fakeClient(ready);
+      const release = holdNext(client, "transition");
+      renderForm(ready, { client });
+      fireEvent.click(screen.getByRole("button", { name: "Опублікувати" }));
+      await waitFor(() => expect(client.calls.transition).toHaveBeenCalled());
+      expect(dispatchUnload().prevented).toBe(true);
+      const { seen, assign } = preventedAtNavigation();
+      fireEvent.change(description(), { target: { value: "Спокійна, любить гуляти. Ще." } });
+      fireEvent.click(backLink());
+      await waitFor(() => expect(assign).toHaveBeenCalled());
+      const atNavigation = seen.slice();
+      await act(async () =>
+        release({
+          ...ready,
+          listing: { kind: "published", publishedAt: NOW, confirmedAt: NOW, undoable: null },
+        } as KabinetAnimalView),
+      );
+      expect(atNavigation).toEqual([true]);
+      assign.mockRestore();
+    });
+  });
+
+  it("/nova with nothing typed never warns, and typing then clearing doesn't either", () => {
+    renderForm(null);
+    const description = screen.getByLabelText("Про тварину");
+    expect(dispatchUnload().prevented).toBe(false);
+    fireEvent.change(description, { target: { value: "а" } });
+    expect(dispatchUnload().prevented).toBe(true);
+    fireEvent.change(description, { target: { value: "" } });
+    expect(dispatchUnload().prevented).toBe(false);
   });
 });
 
