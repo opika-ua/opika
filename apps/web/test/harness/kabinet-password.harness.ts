@@ -137,7 +137,9 @@ test.describe("shelter passwords, end to end (PW-1)", () => {
     await page.getByLabel("Новий пароль").fill(SECOND);
     await page.getByLabel("Повторіть пароль").fill(SECOND);
     await page.getByRole("button", { name: "Змінити пароль" }).click();
-    await expect(page.getByRole("status")).toHaveText(
+    // The profile's own sections have status lines too: this one is the section's.
+    const changeSection = page.getByRole("region", { name: "Змінити пароль" });
+    await expect(changeSection.getByRole("status")).toHaveText(
       "Пароль змінено. На інших пристроях виконано вихід, тут ви залишаєтеся в кабінеті.",
     );
     // This browser stays in: the server renewed its session.
