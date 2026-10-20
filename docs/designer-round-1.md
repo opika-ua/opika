@@ -772,3 +772,49 @@ The /pro sentence for saved animals stays as I sent it.
 
 Any other live string this makes false: send it to me; don’t rewrite it yourself.
 ```
+
+## 11. His copy for the slices (Oleksii, 2026-10-20, verbatim)
+
+The only source for these keys. Anything not here stays `[COPY PENDING]` and goes back to him.
+
+```text
+1. DR1-S2-Q1: (a). The kabinet half moves to S3, built with the copy below.
+
+2. Fur copy (S3):
+
+kabinet.animalForm.coat.label: «Шерсть»
+kabinet.animalForm.coat.short / .long / .unknown: «Коротка» / «Довга» / «Не вказано»
+kabinet.history.field.coatLength: «Шерсть»
+filters.coat: «Шерсть»
+filters.coatShort / filters.coatLong: «Короткошерсті» / «Довгошерсті»
+noMatch.relaxCoat: «Будь-яка шерсть: +{count}»
+detail.coatLabel: «Шерсть». Don’t reuse the filter labels. The value is «Коротка» / «Довга», the same as the form. If it isn’t recorded, hide the row (don’t show «Не вказано» to adopters).
+
+3. Preview drawer (S4):
+
+preview.openFull: «Відкрити повну сторінку»
+preview.close: yes, reuse the existing «Закрити» label if there is one. If not: «Закрити».
+
+4. Shelter page (S6):
+
+shelterPage.title: the shelter’s name alone, yes.
+The «Слова притулку» heading: reuse the existing string, yes.
+shelterPage.animalsHeading: «Шукають дім: {count}»
+shelterPage.noAnimals: «Зараз тут немає тварин, які шукають дім.»
+shelterPage.cityLine: reuse the existing string, yes.
+detail.shelterRowLink (accessible name): «Сторінка притулку «{name}»»
+
+5. Saved animals (S7, S8):
+
+likes.announceAdded: «{name}: додано до збережених»
+likes.announceRemoved: «{name}: прибрано зі збережених»
+likes.full: «Список повний — у ньому може бути не більше {max} тварин. Щоб додати нову, приберіть когось зі списку.» This is written for {max} = 200. If the limit ever changes, send it back for the plural check.
+likes.page.deviceOnly: don’t reuse myReveals.deviceOnly unless it’s literally true for the saved list. Use: «Список зберігається лише в цьому браузері: на іншому пристрої чи в іншому браузері його не буде.»
+likes.page.empty: «Тут поки нічого немає. Збережіть тварин у галереї, щоб повернутися до них пізніше.» Link text: «До галереї».
+likes.page.unavailable: «{name} більше не показується на сайті.»
+likes.page.remove: «Прибрати зі списку»
+likes.page.storageBlocked: «Цей браузер не дає сайту зберегти ваш список.»
+nav.liked: «Збережені»
+
+All of these use ʼ (U+02BC) wherever an apostrophe appears, and no exclamation marks.
+```
