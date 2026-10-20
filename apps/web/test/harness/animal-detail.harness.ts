@@ -202,19 +202,23 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
     ).toBe(expectedSlugFor(visibleCityName));
   });
 
-  test("clicking a gallery card actually reaches a real detail page, not a 404", async ({
-    page,
-  }) => {
+  test("clicking a gallery card actually reaches a real animal, not a 404", async ({ page }) => {
     // The one test in this file that does a genuine, uncached gallery visit
     // and click — every other test below reuses `discoverFirstAnimalHref`'s
     // cached result instead, to stay under proxy.ts's rate limit. This is
-    // what actually proves the gallery→click→detail path works end to end,
+    // what actually proves the gallery→click→animal path works end to end,
     // not just that the detail route renders when opened directly.
     await openRoute(page, GALLERY_ROUTE, DETAIL_DESKTOP, { readySelector: CARD });
     const href = await page.locator(CARD).first().getAttribute("href");
     expect(href, "the first gallery card should link somewhere").not.toBeNull();
+    // Since designer round 1 (S4) the click opens the preview drawer over the
+    // gallery, at this page's own URL; `gallery-preview-drawer.harness.ts`
+    // follows its «Відкрити повну сторінку» on to this page, and loads the URL
+    // directly. Not repeated here: this file's request budget is spent.
+    const name =
+      (await page.locator(CARD).first().getByTestId("card-name").textContent())?.trim() ?? "";
     await page.locator(CARD).first().click();
-    await page.getByTestId("animal-name").waitFor({ state: "visible" });
+    await expect(page.getByRole("dialog", { name })).toBeVisible();
     expect(page.url()).toContain(href as string);
     // A genuine assertion that this is F1's own page, not Next's bare 404 —
     // the not-found route renders uk.detail.notFound.title instead.

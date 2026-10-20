@@ -57,6 +57,11 @@ export function SortControl({ filters, sort, citySlugs }: SortControlProps) {
       */}
       {GALLERY_SORTS.map((option, index) => (
         <Link
+          // Off, like the cards' own links: with the preview drawer's interception
+          // in the tree, Next keys prefetches by the current URL, so every drawer
+          // opened re-prefetched every visible gallery link, each one a request
+          // against proxy.ts's per-IP limit (gallery-preview-drawer.harness.ts).
+          prefetch={false}
           key={option}
           href={galleryHref(filters, option, citySlugs)}
           // `aria-current`, not `aria-pressed` — same reason as FilterRail's

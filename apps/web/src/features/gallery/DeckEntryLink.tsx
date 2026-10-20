@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { markEnteringFromGallery } from "../discovery/deck-entry-marker";
 
 /**
@@ -22,6 +21,18 @@ import { markEnteringFromGallery } from "../discovery/deck-entry-marker";
  * rate limiter, not assumed: a single gallery load was issuing 6-7 requests
  * where it used to issue 1-3, entirely from prefetches nothing on the page
  * was about to need.
+ *
+ * **A plain `<a>` since designer round 1, S4, not `next/link`.** The gallery's
+ * preview drawer is an intercepting route for `/tvaryny/[animalId]`, and Next
+ * 16.3 matches it against every client navigation from under `/tvaryny`:
+ * `/tvaryny/gortaty` fits `[animalId]`, so a client navigation to the deck
+ * was rewritten into the drawer's slot, leaving the gallery on screen under
+ * the deck's URL (`gallery-preview-drawer.harness.ts`, "the deck's entry link
+ * still reaches the deck", failed exactly so). A document load is never
+ * intercepted, wherever the app is hosted. It also never prefetches, so the
+ * rate-limit reasoning above holds with nothing to switch off. The marker
+ * below lives in `sessionStorage`, which a document load in the same tab
+ * keeps.
  */
 export function DeckEntryLink({
   href,
@@ -35,11 +46,10 @@ export function DeckEntryLink({
   testId: string;
 }) {
   return (
-    <Link
+    <a
       href={href}
       className={className}
       data-testid={testId}
-      prefetch={false}
       onClick={(event) => {
         // A modifier/middle click opens a new tab rather than navigating
         // this one — sessionStorage is copied into that new tab (a real
@@ -59,6 +69,6 @@ export function DeckEntryLink({
       }}
     >
       {children}
-    </Link>
+    </a>
   );
 }

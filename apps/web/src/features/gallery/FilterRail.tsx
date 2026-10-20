@@ -91,6 +91,11 @@ function Chip({
 }) {
   return (
     <Link
+      // Off, like the cards' own links: with the preview drawer's interception
+      // in the tree, Next keys prefetches by the current URL, so every drawer
+      // opened re-prefetched every visible gallery link, each one a request
+      // against proxy.ts's per-IP limit (gallery-preview-drawer.harness.ts).
+      prefetch={false}
       href={href}
       aria-current={active ? "true" : undefined}
       className={`${CHIP_BASE} ${active ? CHIP_ACTIVE : CHIP_INACTIVE}`}
@@ -134,6 +139,7 @@ export function FilterRail({
           {uk.filters.title}
         </span>
         <Link
+          prefetch={false}
           href={resetFiltersHref(sort)}
           className="min-h-12 flex items-center text-[15px] text-rg-ink-3 underline underline-offset-2 hover:text-rg-ink-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
