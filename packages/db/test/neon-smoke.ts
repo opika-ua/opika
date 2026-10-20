@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   type AnimalListingState,
+  DEFAULT_SEEN_SET_POLICY,
+  type FeedFilters,
   isDraftAnimal,
   listingAfterPhotoChange,
   listingHistoryEventOf,
@@ -23,6 +25,7 @@ import { animalRepo } from "../src/repos/animal-repo";
 import { authExpiryRepo, KABINET_SESSION_LIMITS } from "../src/repos/auth-expiry-repo";
 import { authRevokeRepo } from "../src/repos/auth-revoke-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { feedRepo } from "../src/repos/feed-repo";
 import { galleryRepo } from "../src/repos/gallery-repo";
 import {
   type AnimalHistoryRow,
@@ -1785,8 +1788,9 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   // every auth_session and auth_verification row, through neon-http, the
   // driver the CLI uses on Neon. Users and memberships stay. On a disposable
   // branch the two tables may also hold rows copied from production; they go
-  // too (the branch is thrown away), so the counts are "at least". Last on
-  // purpose: it signs out every session the steps above wrote.
+  // too (the branch is thrown away), so the counts are "at least". It runs
+  // after every step that writes a session, since it signs out every session
+  // the steps above wrote; the steps after it read no session.
   const revokeSession = randomUUID();
   const revokeLink = randomUUID();
   await db.insert(authSession).values({ ...session(operator), id: revokeSession });
@@ -1849,6 +1853,100 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     "gallery relaxation counts (typed select, not a raw execute read)",
     relaxation.current === 1 && withoutSpecies?.additional === 2,
     `current ${relaxation.current}, without species +${withoutSpecies?.additional ?? "none"}, ${relaxation.relaxations.length} suggestion(s)`,
+  );
+
+  // 39. fur (DR1 S3, Oleksii's Q2 (a): "set «long», clear to null, then filter
+  // the gallery and the deck by fur"): written and cleared through the
+  // kabinet edit's own write (`writeEditIf`, as `animalsUpdate` calls it),
+  // read back through this driver, and filtered through the gallery's and the
+  // deck's own repositories. A city, a verified shelter and a published dog of
+  // this run's own, so every list below is scoped to that one city.
+  const furCity = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(furCity);
+  const furBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} H` });
+  const furAddress = { ...furBase.exactAddress, cityId: furCity.id };
+  await insertShelterFromScript(
+    db,
+    {
+      ...furBase,
+      exactAddress: furAddress,
+      publicLocation: publicLocationOf(furBase.id, furAddress, policy),
+    },
+    by,
+  );
+  const furDog = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: furBase.id,
+    species: "dog",
+    coatLength: null,
+  });
+  await animalRepo(db).insert(furDog, furCity.id);
+  const furEdit = async (coatLength: "long" | null, at: Date) => {
+    const read = await kabinetAnimals.findWithCity(furDog.id);
+    if (!read) return { kind: "conflict" as const };
+    return kabinetAnimals.writeEditIf(
+      { ...read.animal, coatLength, lastUpdatedAt: at, version: read.animal.version + 1 },
+      read.cityId,
+      read.animal.version,
+      {
+        id: randomUUID(),
+        entry: {
+          kind: "animal_edited",
+          at,
+          actor: smokeActor,
+          animalId: furDog.id,
+          animalName: read.animal.name,
+          fields: ["coatLength"],
+        },
+      },
+    );
+  };
+  const furFound = async (coatLength: "short" | "long") => {
+    const filters: FeedFilters = {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf", values: [furCity.id] },
+      coatLengths: { kind: "oneOf", values: [coatLength] },
+    };
+    const gallery = await galleryRepo(db).list({
+      filters,
+      sort: "freshest",
+      page: 1,
+      pageSize: 24,
+      now: NOW,
+    });
+    const deck = await feedRepo(db).list({
+      filters,
+      cursor: null,
+      limit: 20,
+      adopterId: null,
+      now: NOW,
+      seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
+    });
+    return {
+      gallery: gallery.items.some((a) => a.id === furDog.id),
+      deck: deck.items.some((a) => a.id === furDog.id),
+    };
+  };
+  const furSet = await furEdit("long", later(27000));
+  const furAfterSet = (await kabinetAnimals.findWithCity(furDog.id))?.animal.coatLength;
+  const longWhileSet = await furFound("long");
+  const shortWhileSet = await furFound("short");
+  const furCleared = await furEdit(null, later(28000));
+  const furAfterClear = (await kabinetAnimals.findWithCity(furDog.id))?.animal.coatLength;
+  const longAfterClear = await furFound("long");
+  check(
+    "fur set «long» then cleared through the kabinet edit write, filtered in the gallery and the deck",
+    furSet.kind === "ok" &&
+      furAfterSet === "long" &&
+      longWhileSet.gallery &&
+      longWhileSet.deck &&
+      !shortWhileSet.gallery &&
+      !shortWhileSet.deck &&
+      furCleared.kind === "ok" &&
+      furAfterClear === null &&
+      !longAfterClear.gallery &&
+      !longAfterClear.deck,
+    `set ${furSet.kind} → ${furAfterSet ?? "null"}; long: gallery ${longWhileSet.gallery}, deck ${longWhileSet.deck}; short: gallery ${shortWhileSet.gallery}, deck ${shortWhileSet.deck}; cleared ${furCleared.kind} → ${furAfterClear === undefined ? "missing" : (furAfterClear ?? "null")}; long after clear: gallery ${longAfterClear.gallery}, deck ${longAfterClear.deck}`,
   );
   return out;
 }
