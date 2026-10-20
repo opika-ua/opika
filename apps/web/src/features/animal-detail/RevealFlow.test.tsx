@@ -334,14 +334,13 @@ describe("RevealFlow's dialog semantics", () => {
   /**
    * RF-F1's regression guard. The assertion above (`toBe("hidden")` read
    * right after `findByTestId`) only catches the race if the test run
-   * happens to land in the unlucky scheduling window — it passed 50/50 over
-   * three runs with the lock reverted to a passive effect, which is why that
-   * revert shipped unnoticed to CI once already. This test forces the
-   * window open deterministically instead of hoping to land in it: a
+   * happens to land in the unlucky scheduling window: the passive original
+   * passed it in every local run and failed it once in CI. This test forces
+   * the window open deterministically instead of hoping to land in it: a
    * `MutationObserver` fires on the exact DOM mutation that inserts the
-   * dialog, and its callback reads `document.body.style.overflow`
-   * synchronously, before anything else — including a later-scheduled
-   * passive effect — gets a chance to run. The dialog mounts only after an
+   * dialog, and its callback reads `document.body.style.overflow` after the
+   * commit's layout effects and before any later-scheduled passive effect
+   * runs. The dialog mounts only after an
    * awaited `animals.reveal` resolves, so nothing about this update is a
    * plain discrete click; that's exactly the shape that exposed the race.
    */
