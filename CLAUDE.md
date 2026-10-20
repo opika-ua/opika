@@ -412,7 +412,7 @@ Typecheck structurally cannot catch this class of break. If you add a
 frontend surface, it stays behind that gate.
 
 One residual to know about: `module: ESNext` means TS no longer checks
-Node's ESM↔CJS interop rules for `pnpm db:seed`, the repo's only real
+Node's ESM↔CJS interop rules for `pnpm --filter @opika/db db:seed`, the repo's only real
 Node-ESM entry point. No live exposure today (`postgres` resolves ESM,
 `drizzle-orm` and `zod` are dual), but a CJS-only dependency added to
 `packages/db` and named-imported would typecheck and fail at seed time.

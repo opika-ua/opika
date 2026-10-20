@@ -12,7 +12,7 @@ import {
 } from "./prod-guard";
 
 /**
- * `pnpm db:check-hashes`: read-only. For every migration in the committed
+ * `pnpm --filter @opika/db db:check-hashes`: read-only. For every migration in the committed
  * journal, compares the hash drizzle recorded on the target database
  * (`drizzle.__drizzle_migrations`, keyed by the journal entry's `when`) with
  * the sha256 of the committed `.sql` file, which is how drizzle computes it.
