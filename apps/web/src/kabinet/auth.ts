@@ -41,8 +41,6 @@ export const confirmUrlOf = (baseURL: string, token: string): string => {
   return url.toString();
 };
 
-const DAY_SECONDS = 24 * 60 * 60;
-
 /**
  * The kabinet session: a `__Host-` cookie (decision #13's pattern, HS-Q8),
  * living by its holder's limits (`KABINET_SESSION_LIMITS`, `@opika/db`): a
@@ -56,18 +54,21 @@ const DAY_SECONDS = 24 * 60 * 60;
  *   the API and the proxy), which refreshes the row but throws its
  *   `Set-Cookie` away. Were Better Auth's expiry the 30-day idle limit, every
  *   session would end 30 days after sign-in, used or not: not rolling at all.
- * - **The limits are ours.** A request refreshes the row (`updated_at`) once
- *   it is older than `refreshSeconds`; `hooks.before` deletes a session past
+ * - **The limits are ours.** Every kabinet request refreshes the row
+ *   (`updated_at`; `refreshSeconds` is 0, PW1-Q2), so "30 days from the last
+ *   visit" is exact; `hooks.before` deletes a session past
  *   its holder's idle limit or cap before the request sees it (`get-session`
  *   then reports none, and nothing Better Auth serves can act on it), and
  *   `kabinetSessionUserIdOf` refuses it as a second line (reviewer, HS-Q8,
  *   finding 1). The clean-up deletes it within six hours (`authExpiryRepo`).
- *   Measured from the last refresh, a session lapses between one day short
- *   of its idle limit and the limit itself after its last use, never later.
+ *   Oleksii, 2026-10-20, verbatim: "PW1-Q2: (b). Refresh the session on every
+ *   kabinet request, so "30 days from the last visit" is exactly true. Kabinet
+ *   sessions only, not the rest of the site." This instance serves the kabinet
+ *   only; the adopter session is separate (decision #13).
  */
 export const KABINET_SESSION = {
   expiresInSeconds: KABINET_SESSION_LIMITS.shelterAdmin.absoluteMs / 1000,
-  refreshSeconds: DAY_SECONDS,
+  refreshSeconds: 0,
 } as const;
 
 /**

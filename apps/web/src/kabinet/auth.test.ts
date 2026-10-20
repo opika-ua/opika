@@ -377,10 +377,10 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
    * Better Auth's own expiry (and the cookie's lifetime from sign-in) is the longest any session
    * may live, the shelter admin's 90 days; the limits by role are ours (`session-lapse.ts`).
    */
-  it("pins Better Auth's expiry at 90 days, refreshed at most daily", () => {
+  it("pins Better Auth's expiry at 90 days, refreshed on every request (PW1-Q2)", () => {
     expect(KABINET_SESSION).toEqual({
       expiresInSeconds: 90 * 24 * 60 * 60,
-      refreshSeconds: 24 * 60 * 60,
+      refreshSeconds: 0,
     });
   });
 
@@ -563,6 +563,34 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
       await age({ created: 90 * day + 60_000, updated: 60_000 });
       expect(await getSession(again)).toBeNull();
       expect(await db.select().from(authSession)).toEqual([]);
+    });
+
+    /**
+     * Oleksii, 2026-10-20, verbatim: "Add a test that a session used on day 29 is still valid on
+     * day 58, and that the 90-day cap still applies." The hour-later step is what a daily refresh
+     * would fail: the second request has to move `updated_at` again.
+     */
+    it("refreshes on every request: used on day 29, live on day 58, and the 90-day cap still ends it", async () => {
+      await createUser("olena@example.org");
+      const cookie = await signIn("olena@example.org");
+      // Day 29, unused since sign-in: this request is the use.
+      await age({ created: 29 * day, updated: 29 * day });
+      expect(await getSession(cookie)).not.toBeNull();
+      const [used] = await db.select().from(authSession);
+      expect(Date.now() - (used?.updatedAt.getTime() ?? 0)).toBeLessThan(60_000);
+      // An hour later, the next request moves it again.
+      await db
+        .update(authSession)
+        .set({ updatedAt: new Date((used?.updatedAt.getTime() ?? 0) - 60 * 60_000) });
+      expect(await getSession(cookie)).not.toBeNull();
+      const [usedAgain] = await db.select().from(authSession);
+      expect(Date.now() - (usedAgain?.updatedAt.getTime() ?? 0)).toBeLessThan(60_000);
+      // Day 58: 29 days after that last use, still live.
+      await age({ created: 58 * day, updated: 29 * day });
+      expect(await getSession(cookie)).not.toBeNull();
+      // In daily use, but past 90 days since sign-in: the cap ends it.
+      await age({ created: 90 * day + 60_000, updated: 60_000 });
+      expect(await getSession(cookie)).toBeNull();
     });
 
     it("the operator's session: gone past 7 days idle or 30 days, enforced by role", async () => {
