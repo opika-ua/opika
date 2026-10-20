@@ -276,8 +276,11 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       resetPasswordTokenExpiresIn: RESET_PASSWORD_TTL_SECONDS,
       // Scope item 6: "On reset: all other sessions are revoked." Better Auth
       // deletes every session of the user; the reset itself holds none. A
-      // second line since PW1-F5: the password write has already ended them,
-      // in its own statement (migration 0013), so a failure here leaves none.
+      // second line since PW1-F5: the password write has already ended every
+      // session that existed then, in its own statement (migration 0013), so a
+      // failure here leaves none of those. This revoke still catches a session
+      // inserted between the write and it; a sign-in racing the write is
+      // PW1-F6's, a known gap until it merges (`docs/build-plan.md` Part 5).
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: (input) => passwords.sendResetPassword(input),
       // Voids the user's other reset links (PW1-F1), then the notice. The change does the same
