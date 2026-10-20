@@ -3,7 +3,7 @@
 import type { ContactRevealView } from "@opika/contracts";
 import { allChannels, type ContactChannel } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { RevealErrorReason, RevealState } from "./useReveal";
 
 /**
@@ -173,7 +173,20 @@ export function ContactRevealDialog({
 
   // Esc closes; page behind the dialog does not scroll while it's open;
   // Tab is trapped inside the dialog's own focusable elements.
-  useEffect(() => {
+  //
+  // A layout effect, not a passive one (RF-F1): the dialog renders after an
+  // async `animals.reveal` resolves, so this effect's own mount is already
+  // decoupled from the triggering click by a promise boundary. A passive
+  // effect runs on the browser's own schedule *after* paint, which leaves a
+  // real — if brief — frame where the dialog is on screen and the page
+  // behind it can still be scrolled; a layout effect runs synchronously in
+  // the same commit that inserts the dialog into the DOM, before anything
+  // paints, so that frame never exists. (Confirmed by forcing it: a
+  // MutationObserver reading `document.body.style.overflow` at the instant
+  // the dialog node first appears saw `""` under the passive version and
+  // `"hidden"` under this one — this is what let the CI flake read
+  // `expect(...).toBe('hidden')` as `''` once and pass on rerun.)
+  useLayoutEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
