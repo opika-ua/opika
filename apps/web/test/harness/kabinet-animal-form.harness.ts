@@ -191,14 +191,32 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
 
   test("the facts filled in, the gap list shrinks to «фото»", async () => {
     const page = await open(`/kabinet/tvaryny/${draftId}`);
-    // Every save answers a second late, so the reload below can only show the
-    // facts if the test first waits for the form to say they are stored. The
-    // gap list is the form's own state and reads «фото» before any save lands;
-    // leaving a field saves too, and the saves queue one behind another. A
-    // reload while one is still queued cancels it (seen 2026-10-19: the page
-    // came back with the size only).
+    // Every save is held at the route until the test lets it through, so the
+    // gap list is read while no save has landed (it is the form's own state
+    // and reads «фото» before any does), and the reload below waits for the
+    // form to say the facts are stored. Leaving a field saves too, and the
+    // saves queue one behind another; a reload while one is still queued
+    // cancels it (seen 2026-10-19: the page came back with the size only).
+    // The hold is a promise the test resolves, not a timed delay (Oleksii,
+    // 2026-10-20: "the kabinet form without the 1 s delay").
+    let releaseSaves: () => void = () => {};
+    const savesReleased = new Promise<void>((resolve) => {
+      releaseSaves = resolve;
+    });
+    let savesHeld = 0;
+    let savesUnfinished = 0;
+    const isSave = (request: { url(): string }) =>
+      request.url().includes("/api/kabinet/shelter/animals/update");
+    page.on("requestfinished", (request) => {
+      if (isSave(request)) savesUnfinished -= 1;
+    });
+    page.on("requestfailed", (request) => {
+      if (isSave(request)) savesUnfinished -= 1;
+    });
     await page.route("**/api/kabinet/shelter/animals/update", async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      savesHeld += 1;
+      savesUnfinished += 1;
+      await savesReleased;
       await route.continue();
     });
     await page.getByRole("group", { name: "Розмір" }).getByText("Середній").click();
@@ -209,11 +227,20 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await expect(page.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeVisible();
     await page.getByLabel("Про тварину").fill("Спокійний, любить гуляти в парку.");
     await page.getByRole("button", { name: "Зберегти чернетку" }).click();
+    // Held: a save has been asked for and none has landed, yet the gap list
+    // already reads the form's own state.
+    await expect.poll(() => savesHeld, { message: "no save reached the route" }).toBeGreaterThan(0);
+    await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
+
+    releaseSaves();
     await expect(
       page.getByText(
         /^Чернетку збережено о \d\d:\d\d · Ті, хто шукає тварину, цю чернетку не бачать\.$/,
       ),
     ).toBeVisible();
+    await expect
+      .poll(() => savesUnfinished, { message: "a save was still in flight before the reload" })
+      .toBe(0);
     await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
     await expect(publishButton(page)).toHaveAttribute("aria-disabled", "true");
 

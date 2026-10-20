@@ -472,9 +472,14 @@ purpose, and neither is redundant:
   drives real pointer events. (Until the brand lands, its geometry checks
   are frozen and new specs test flows only: see "Test logic, not looks".)
   **2026-10-20:** removed, not frozen. Oleksii, verbatim: "UI-measuring tests: yes, keep both V-B2 tests (the 48px shared controls and the focus indicator being present). They’re accessibility guarantees, not looks. Drop the rest that measure appearance." The
-  harness now drives flows, keyboard operation and pointer events only;
-  the one measurement left is V-B2's 48px min-height test on the shared
-  primitives (`kabinet-profile-edit.harness.ts`).
+  harness now drives flows, keyboard operation and pointer events; the
+  only size measurement left is V-B2's 48px min-height test on the shared
+  primitives (`kabinet-profile-edit.harness.ts`). A few computed reads stay
+  as presence checks, not measurements of looks: the V-B2 focus test's
+  outline/box-shadow (an indicator is there), UI-U1's `boundingBox()`
+  widths (a control exists at a width) and UI-U6's `naturalWidth` (a photo
+  decoded). Its timing waits wait on a settled state or a stated event
+  time, never the real clock (his condition for UI-U1..U7, 2026-10-20).
 
 The harness builds the app too, which makes `build:web` look duplicated.
 Keep both — `build:web` is the fast, specific failure, and it keeps

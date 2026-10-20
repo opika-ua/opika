@@ -8,7 +8,13 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { dragHorizontally, expectReachableByTab, openRoute } from "./harness";
+import {
+  CARD_AT_REST_TRANSFORM,
+  dragHorizontally,
+  expectReachableByTab,
+  nameOnceSettled,
+  openRoute,
+} from "./harness";
 import { PHONE } from "./viewports";
 
 const ROUTE = "/tvaryny/gortaty";
@@ -183,7 +189,7 @@ test.describe(`${ROUTE} inline reveal`, () => {
     await dragHorizontally(page, page.getByTestId("swipe-card"), {
       dx: 140,
       steps: 12,
-      stepDelayMs: 16,
+      stepMs: 16,
     });
 
     const dialog = page.getByTestId("reveal-dialog");
@@ -227,7 +233,7 @@ test.describe(`${ROUTE} inline reveal`, () => {
     await dragHorizontally(page, page.getByTestId("swipe-card"), {
       dx: 140,
       steps: 12,
-      stepDelayMs: 16,
+      stepMs: 16,
     });
 
     // Wait for the deck to actually advance past the first card, proving the
@@ -249,17 +255,15 @@ test.describe(`${ROUTE} inline reveal`, () => {
     await dragHorizontally(page, page.getByTestId("swipe-card"), {
       dx: 140,
       steps: 12,
-      stepDelayMs: 16,
+      stepMs: 16,
     });
 
     // A refused commit takes the exact same path as an under-threshold drag
-    // (see `use-swipe-gesture.test.tsx`'s own unit coverage) — give the
-    // return spring time to settle (it is at rest by ~390ms for any drag
-    // this test makes, `spring.test.ts`), then check the deck never
-    // advanced past the second card at all.
-    await page.waitForTimeout(600);
+    // (see `use-swipe-gesture.test.tsx`'s own unit coverage) — wait for the
+    // return spring to come to rest (or the deck to move on), then check the
+    // deck never advanced past the second card at all.
     expect(
-      await topCardName(page),
+      await nameOnceSettled(page, secondCardName),
       "a right-drag refused by canCommit must not advance the deck",
     ).toBe(secondCardName);
 
@@ -291,7 +295,7 @@ test.describe(`${ROUTE} inline reveal`, () => {
           timeout: 5_000,
         },
       )
-      .toBe("translate3d(0px, 0px, 0px) rotate(0deg)");
+      .toBe(CARD_AT_REST_TRANSFORM);
 
     releaseReveal();
     const dialog = page.getByTestId("reveal-dialog");

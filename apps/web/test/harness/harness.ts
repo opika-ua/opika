@@ -108,46 +108,82 @@ export interface DragOptions {
   readonly dx: number;
   /** Intermediate `pointermove` events. */
   readonly steps?: number;
-  /** Wall-clock gap between moves. ~16ms is one animation frame at 60Hz. */
-  readonly stepDelayMs?: number;
-  /** Pause between the final move and `pointerup`. */
+  /** Stated time between moves, stamped on the events. ~16ms is one frame at 60Hz. */
+  readonly stepMs?: number;
+  /** Stated time between the final move and `pointerup`. */
   readonly holdBeforeReleaseMs?: number;
 }
 
 /**
- * Drive a real pointerdown → pointermove* → pointerup sequence.
+ * Drive a real pointerdown → pointermove* → pointerup sequence, with every
+ * event's time stated rather than waited for.
  *
- * The delays are the point. `page.mouse.move(x, y, { steps })` dispatches every
+ * The times are the point. `page.mouse.move(x, y, { steps })` dispatches every
  * move in the same tick, so `event.timeStamp` barely advances and any velocity
- * computed from it is fiction. Spacing the moves in wall-clock time is what
- * makes this exercise the gesture rather than inspect it.
- *
- * Use this for *distance*-driven gestures only. It cannot express a velocity:
- * the gap between two `page.mouse` events is however long the CDP round trip
- * took — measured at ~3ms on an idle laptop and far more on a loaded runner —
- * so the same script reads as 0.6 px/ms one run and 0.05 px/ms the next. For
- * anything that turns on velocity, use `flickWithTimestamps`.
+ * computed from it is fiction. This used to space the moves with real sleeps,
+ * which only moved the fiction: the gap between two `page.mouse` events is
+ * however long the sleep plus the CDP round trip took, so the same script read
+ * as one velocity on an idle machine and another on a loaded one. Stamping each
+ * event (see `dispatchStamped`) makes the velocity the hook computes exactly
+ * `dx / steps / stepMs`, on any machine, and the helper never waits on the
+ * real clock (Oleksii, 2026-10-20: "the drag helper without real sleeps").
  */
 export async function dragHorizontally(
   page: Page,
   target: Locator,
   opts: DragOptions,
 ): Promise<void> {
-  const { dx, steps = 12, stepDelayMs = 16, holdBeforeReleaseMs = 0 } = opts;
-  const box = await rectOf(target, "drag target");
-  const startX = box.x + box.width / 2;
-  const y = box.y + box.height / 2;
+  const { dx, steps = 12, stepMs = 16, holdBeforeReleaseMs = 0 } = opts;
+  const moves = Array.from({ length: steps }, (_, i) => ({
+    dx: (dx * (i + 1)) / steps,
+    atMs: stepMs * (i + 1),
+  }));
+  await dispatchStamped(page, target, "drag target", {
+    moves,
+    releaseAtMs: stepMs * steps + holdBeforeReleaseMs,
+  });
+}
 
-  await page.mouse.move(startX, y);
-  await page.mouse.down();
+/** The swipe card's inline transform once the return spring has come to rest (CSSOM-normalised). */
+export const CARD_AT_REST_TRANSFORM = "translate3d(0px, 0px, 0px) rotate(0deg)";
 
-  for (let i = 1; i <= steps; i++) {
-    await page.mouse.move(startX + (dx * i) / steps, y);
-    if (stepDelayMs > 0) await page.waitForTimeout(stepDelayMs);
-  }
-
-  if (holdBeforeReleaseMs > 0) await page.waitForTimeout(holdBeforeReleaseMs);
-  await page.mouse.up();
+/**
+ * The top card's name once the deck has settled after a gesture that should
+ * not advance it, for a "did not advance" assertion to read.
+ *
+ * Settled is a state, not a duration. The card carries no inline transform
+ * until a gesture moves it, and the return spring's last write puts it at
+ * exactly `CARD_AT_REST_TRANSFORM` (`springToOrigin`, and the reduced-motion
+ * return), so that string means "this card was moved and has come back to
+ * rest". A deck that advanced instead shows another card's name. This waits
+ * for whichever comes first and returns the name then; the caller asserts it.
+ *
+ * It replaces a fixed 600ms sleep, which guessed the spring would be done by
+ * then: on a slow runner it read the deck mid-flight, and the negative
+ * assertion passed whether or not the gesture was broken. A gesture that
+ * delivered no events at all never reaches rest and fails here, by timeout,
+ * rather than passing vacuously.
+ */
+export async function nameOnceSettled(page: Page, before: string): Promise<string> {
+  const card = page.getByTestId("swipe-card");
+  const read = () =>
+    card.evaluate((el) => ({
+      name: el.getAttribute("aria-label"),
+      transform: (el as HTMLElement).style.transform,
+    }));
+  await expect
+    .poll(
+      async () => {
+        const { name, transform } = await read();
+        return name !== before || transform === CARD_AT_REST_TRANSFORM;
+      },
+      {
+        message: `the card "${before}" neither came back to rest nor gave way to another card`,
+        timeout: 5_000,
+      },
+    )
+    .toBe(true);
+  return (await read()).name ?? "";
 }
 
 export interface FlickOptions {
@@ -179,37 +215,70 @@ export async function flickWithTimestamps(
   target: Locator,
   opts: FlickOptions,
 ): Promise<void> {
-  const box = await rectOf(target, "flick target");
+  await dispatchStamped(page, target, "flick target", {
+    moves: [{ dx: opts.dx, atMs: opts.overMs }],
+    releaseAtMs: opts.overMs + 1,
+  });
+}
+
+interface StampedGesture {
+  /** Each move's offset from the press point, and its time after the press. */
+  readonly moves: ReadonlyArray<{ readonly dx: number; readonly atMs: number }>;
+  /** The release's time after the press, at the last move's offset. */
+  readonly releaseAtMs: number;
+}
+
+/**
+ * Press, move and release on `target`'s centre with each event's timestamp
+ * stated through `Input.dispatchMouseEvent`, which Blink carries through to
+ * `event.timeStamp`.
+ *
+ * The times are stamped forward from now, never back: a stamp earlier than
+ * the page's own time origin arrives clamped to 0 (measured, Chromium 151),
+ * which would make every gap zero.
+ */
+async function dispatchStamped(
+  page: Page,
+  target: Locator,
+  label: string,
+  gesture: StampedGesture,
+): Promise<void> {
+  const box = await rectOf(target, label);
   const x = Math.round(box.x + box.width / 2);
   const y = Math.round(box.y + box.height / 2);
+  const lastDx = gesture.moves.at(-1)?.dx ?? 0;
 
   const cdp = await page.context().newCDPSession(page);
   try {
-    // Input.TimeSinceEpoch is seconds, fractional.
+    // Input.TimeSinceEpoch is seconds, fractional. A clock read to anchor
+    // the stamps, not a wait.
     const t0 = Date.now() / 1000;
-    const common = { x, y, button: "left" as const };
+    const common = { y, button: "left" as const };
 
     await cdp.send("Input.dispatchMouseEvent", {
       ...common,
+      x,
       type: "mousePressed",
       buttons: 1,
       clickCount: 1,
       timestamp: t0,
     });
+    for (const move of gesture.moves) {
+      await cdp.send("Input.dispatchMouseEvent", {
+        ...common,
+        x: x + move.dx,
+        type: "mouseMoved",
+        buttons: 1,
+        timestamp: t0 + move.atMs / 1000,
+      });
+    }
     await cdp.send("Input.dispatchMouseEvent", {
       ...common,
-      x: x + opts.dx,
-      type: "mouseMoved",
-      buttons: 1,
-      timestamp: t0 + opts.overMs / 1000,
-    });
-    await cdp.send("Input.dispatchMouseEvent", {
-      ...common,
-      x: x + opts.dx,
+      x: x + lastDx,
       type: "mouseReleased",
       buttons: 0,
       clickCount: 1,
-      timestamp: t0 + (opts.overMs + 1) / 1000,
+      timestamp: t0 + gesture.releaseAtMs / 1000,
     });
   } finally {
     await cdp.detach();
