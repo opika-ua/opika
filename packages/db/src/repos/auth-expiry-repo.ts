@@ -26,11 +26,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  *   `super_admins` grant, the same rule as `kabinetActorRepo.roleOf`.
  *
  * "Since the last visit" is measured from `auth_session.updated_at`, which
- * Better Auth moves when it refreshes a session, at most once a day
- * (`updateAge`), so a session lapses between one day short of its idle limit
- * and the limit itself after its last use, never later. The operator's limits
- * are the shorter in both dimensions; `session-lapse.ts` relies on it, and its
- * test pins it.
+ * Better Auth moves when it refreshes a session. The kabinet's instance
+ * refreshes it on every kabinet request (`updateAge` 0:
+ * `KABINET_SESSION.refreshSeconds` in `apps/web/src/kabinet/auth.ts`, PW1-Q2),
+ * so a session lapses exactly its idle limit after its last use. The
+ * operator's limits are the shorter in both dimensions; `session-lapse.ts`
+ * relies on it, and its test pins it.
  */
 export const KABINET_SESSION_LIMITS = {
   shelterAdmin: { idleMs: 30 * DAY_MS, absoluteMs: 90 * DAY_MS },

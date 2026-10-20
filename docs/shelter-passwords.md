@@ -172,6 +172,15 @@ to find accounts. Its message is the same for every address (§9, Q5).
 - `expiresIn: 30 days`, `updateAge: 1 day`: a rolling 30-day idle expiry.
 - `KABINET_SESSION_ABSOLUTE_MS = 90 days`, the same constant in our `hooks.before` and in the
   clean-up (which deletes sessions past the cap, KH-Q12's job).
+- **As built (revised 2026-10-20).** The two bullets above are not what shipped:
+  - Better Auth's `expiresIn` is the 90-day cap, and the 30-day idle limit is ours, on
+    `updated_at`, in `hooks.before`, the second line and the clean-up. The kabinet reads sessions
+    server-side, which never renews the cookie, so a 30-day `expiresIn` would end every session 30
+    days after sign-in, used or not (PW1-D12, the builder's decision).
+  - `updateAge` is 0: the session refreshes on every kabinet request, so "30 days from the last
+    visit" is exact (PW1-Q2, answered (b); his words in `docs/decisions-inbox/feat-pw-1-passwords.md`).
+  - The one source for the numbers, by role, is `KABINET_SESSION_LIMITS` (`packages/db`), not a
+    `KABINET_SESSION_ABSOLUTE_MS` constant.
 - For the operator, see §9 Q3.
 - **/pro:** no sentence states a kabinet session length today. F-B9 asks /pro to gain one (new copy,
   §7). The «…протягом доби» clause keeps holding, because the clean-up deletes a session at most a

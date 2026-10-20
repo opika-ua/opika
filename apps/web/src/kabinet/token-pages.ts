@@ -9,7 +9,10 @@ import { RESET_LINK } from "./email-links";
  * sets its own headers (`CONFIRM_HEADERS`: `no-store` already, and `strict-origin`, not
  * `no-referrer`). Its «Увійти» is a form POST, and under `no-referrer` a browser sends that POST
  * with `Origin: null`, which the confirm page's login-CSRF check refuses (IN-T8, Oleksii
- * 2026-10-14): the conflict with this rule is put to him, not chosen here. The reset page has no
+ * 2026-10-14). He settled the conflict, verbatim (2026-10-20, inbox PW1-Q1): "PW1-Q1: (a). Use
+ * strict-origin on pages whose button submits an ordinary form (the magic-link confirm page), and
+ * no-referrer everywhere else as specified (the reset page included)." `confirm-route.test.ts`
+ * pins that the confirm page's form POST passes IN-T8 under its own policy. The reset page has no
  * such conflict: its POST is a `fetch`, whose `Origin` no referrer policy removes. PW-2 adds the
  * invitation's `?zaproshennia=`.
  */

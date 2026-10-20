@@ -184,9 +184,11 @@ describe("the auth clean-up is scheduled and reachable", () => {
  * - an address typed into the sign-in form lives in `auth_verification` for
  *   the link's lifetime (`MAGIC_LINK_TTL_SECONDS`), then is past expiry; a
  *   sign-in record is past expiry from the moment it loses force;
- * - the same typed address is also a key in the shared rate limiter, as is
- *   (`address:<email>`, the per-address limit, HS-Q5; only IP keys are
- *   HMAC'd, EM-Q11). `@upstash/ratelimit`'s sliding window keeps a key for
+ * - the same typed address also keys the shared rate limiter (the
+ *   per-address limit, HS-Q5; since PW-1 the key is `address:` and an HMAC
+ *   of the address, `addressKeyWith`, `docs/shelter-passwords.md` §9 answer
+ *   7, no longer the address itself). `@upstash/ratelimit`'s sliding window
+ *   keeps a key for
  *   2 × its window + 1 s, then Redis drops it; that has to fit within a day
  *   too, and is checked below beside the schedule;
  * - a record past expiry goes at the first run after it expired, and since the
