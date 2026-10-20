@@ -223,6 +223,16 @@ to find accounts. Its message is the same for every address (§9, Q5).
   breaks. Its mutation removes the dummy hash in a wrapper and shows the test going red.
 - **The per-account delay** (§4.3) behaves identically for existing and unknown addresses.
 
+**PW1-F4 (2026-10-20), on the timing bullet:** the test no longer reads the clock. Comparing
+wall-clock medians went red once on a busy machine and passed in CI, so it now asserts the work
+that makes the time instead, by order (`password-flows.test.ts`, "similar timing, as the work behind
+it …"): every cause, and a success, runs exactly one scrypt, awaited before anything else starts,
+among a wrong password's limiter calls and statements. Two causes run fewer reads, and the test
+pins that rather than hiding it: an unknown address skips Better Auth's credential read, and the
+operator skips both of Better Auth's reads (inbox PW1-F4-Q1). Mutations: the operator guard's dummy
+hash removed, Better Auth's unknown-address dummy hash removed, the guard's hash left un-awaited,
+an extra statement on the operator's path; each turns it red.
+
 ## 6. Flows
 
 1. **Invite:** the operator invites (unchanged); the email carries `/kabinet/vkhid?zaproshennia=<token>`

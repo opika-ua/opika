@@ -596,6 +596,63 @@ async function userIdOf(email: string): Promise<string | null> {
 }
 
 describe("sign-in: one answer for every failure (§5)", () => {
+  /**
+   * One password sign-in on a fresh instance, and its work in the order it ran (PW1-F4): each
+   * statement as it starts (`steppedDatabase`), each call into the kabinet's per-IP limiter and
+   * the delay store (in production a round trip each), and each scrypt: `password.hash` or
+   * `.verify` on this instance's own context, the object Better Auth's endpoint and the operator
+   * guard both call through. A scrypt nothing started during reads `scrypt`; one that something
+   * started during is split into `scrypt…` and `…scrypt` around it, which is how a hash nobody
+   * awaited shows. Order only: nothing here reads a clock.
+   */
+  async function workOf(email: string, password: string) {
+    const stepped = steppedDatabase(db);
+    const events: { at: number; what: string }[] = [];
+    const mark = (what: string) => events.push({ at: stepped.trace.length, what });
+    function observed<T extends object>(name: string, target: T): T {
+      return new Proxy(target, {
+        get(object, property) {
+          const value = Reflect.get(object, property, object);
+          if (typeof value !== "function") return value;
+          return (...args: unknown[]) => {
+            mark(`${name}.${String(property)}`);
+            return value.apply(object, args);
+          };
+        },
+      });
+    }
+    const instance = authWith({
+      db: stepped.db,
+      kabinet: { perUser: generous(), perIp: observed("perIp", generous()) },
+      password: { signInDelay: observed("delay", inMemoryDelayStore()) },
+    });
+    const scrypt = (await instance.$context).password;
+    const { hash, verify } = scrypt;
+    const around = async <T>(work: Promise<T>): Promise<T> => {
+      mark("scrypt…");
+      try {
+        return await work;
+      } finally {
+        mark("…scrypt");
+      }
+    };
+    scrypt.hash = (value) => around(hash(value));
+    scrypt.verify = (data) => around(verify(data));
+
+    const answer = await route(post("/api/auth/sign-in/email", { email, password }), instance);
+    const names = stepped.trace.map(statementName);
+    const work: string[] = [];
+    for (let at = 0; at <= names.length; at++) {
+      for (const event of events.filter((e) => e.at === at)) {
+        if (event.what === "…scrypt" && work.at(-1) === "scrypt…") work[work.length - 1] = "scrypt";
+        else work.push(event.what);
+      }
+      const name = names[at];
+      if (name !== undefined) work.push(name);
+    }
+    return { work, answer };
+  }
+
   /** The four causes §5 lists, each set up for real. */
   async function causes() {
     await adminWithPassword();
@@ -635,37 +692,73 @@ describe("sign-in: one answer for every failure (§5)", () => {
   });
 
   /**
-   * Similar timing (§5): every cause runs a password hash (Better Auth hashes a dummy on the
-   * unknown and no-credential paths; the operator guard burns one too). Each cause is timed in
-   * rounds, interleaved so drift hits all four alike, and its median compared with the wrong
-   * password's: a cause that skipped the hash answers in a few milliseconds against a scrypt's
-   * tens, far outside the tolerance. Sequential, a handful of hashes: no load is generated.
+   * Similar timing (§5), asserted as the work that makes it and never by the clock (PW1-F4: a
+   * comparison of wall-clock medians went red on a busy machine and green in CI). A sign-in's time
+   * is its one scrypt (tens of milliseconds) plus its round trips, so each attempt's work is
+   * compared whole, in order (`workOf`). Every cause and a success run exactly one scrypt, awaited
+   * before anything else starts: Better Auth hashes a dummy for an address nobody has and for an
+   * admin with no password, the operator guard hashes one too (the PW-1 review's mutation M8,
+   * "operator guard skips its dummy hash", was caught then only by the clock), and a credential
+   * is verified. Around it, each cause makes a wrong password's calls and statements, less two
+   * reads, pinned here rather than hidden: Better Auth reads no credential for an address nobody
+   * has (its user read found no one), and the operator guard refuses before Better Auth reads
+   * anything (inbox PW1-F4-Q1). PW1-F6's two reads are in every trace; where they fall is the
+   * PW1-F6 test's to pin ("every sign-in makes the same two reads …").
    */
-  it("similar timing: each cause's median is within half of the wrong password's", async () => {
-    const list = await causes();
-    const rounds = 7;
-    const timings = new Map(list.map((c) => [c.name, [] as number[]]));
-    for (let round = 0; round < rounds; round++) {
-      for (const cause of list) {
-        // A fresh delay store per attempt, so the per-address delay never steps in.
-        build();
-        const started = performance.now();
-        await signInWithPassword(cause.email, cause.password);
-        timings.get(cause.name)?.push(performance.now() - started);
+  it("similar timing, as the work behind it: one awaited scrypt for every cause and a success, among a wrong password's statements less only the reads an unknown address and the operator skip", async () => {
+    const attempts = [
+      ...(await causes()).map((cause) => ({ ...cause, status: 401 })),
+      { name: "the right password", email: ADMIN, password: GOOD, status: 200 },
+    ];
+    const work = new Map<string, string[]>();
+    try {
+      for (const attempt of attempts) {
+        const done = await workOf(attempt.email, attempt.password);
+        expect(done.answer.status, attempt.name).toBe(attempt.status);
+        work.set(attempt.name, done.work);
       }
+    } finally {
+      // The planted operator credential goes before anything is asserted, so a red names its own
+      // cause rather than the afterEach invariant too.
+      await removePlantedCredential();
     }
-    const median = (values: number[]) => {
-      const sorted = [...values].sort((a, b) => a - b);
-      return sorted[Math.floor(sorted.length / 2)] ?? 0;
-    };
-    const reference = median(timings.get("a wrong password") ?? []);
-    for (const [name, values] of timings) {
+    const of = (name: string) => work.get(name) ?? [];
+
+    for (const [name, done] of work) {
       expect(
-        Math.abs(median(values) - reference),
-        `${name}: median ${median(values).toFixed(1)} ms against ${reference.toFixed(1)} ms`,
-      ).toBeLessThan(reference * 0.5);
+        done.filter((step) => step.includes("scrypt")),
+        `${name}: ${done.join(", ")}`,
+      ).toEqual(["scrypt"]);
     }
-    await removePlantedCredential();
+    // A wrong password: the per-IP charge, the delay, PW1-F6's first read, the operator guard's
+    // read, Better Auth's user and credential reads, the scrypt, PW1-F6's second read.
+    const wrong = of("a wrong password");
+    expect(wrong, wrong.join(", ")).toEqual([
+      "perIp.check",
+      "delay.remainingMs",
+      "delay.increment",
+      "select:auth_account+auth_user",
+      "select:auth_user+super_admins",
+      "select:auth_user",
+      "select:auth_account",
+      "scrypt",
+      "select:auth_account+auth_user",
+    ]);
+    const named = (name: string) => expect(of(name), `${name}: ${of(name).join(", ")}`);
+    named("an admin with no password yet").toEqual(wrong);
+    named("an unknown address").toEqual(wrong.filter((step) => step !== "select:auth_account"));
+    named("the operator, even holding a credential").toEqual(
+      wrong.filter((step) => step !== "select:auth_user" && step !== "select:auth_account"),
+    );
+    // A success: the same up to its scrypt; then its session, the second read, the delay
+    // cleared, and Better Auth's first-session stamp, which it queues to the end.
+    named("the right password").toEqual([
+      ...wrong.slice(0, wrong.indexOf("scrypt") + 1),
+      "insert:auth_session",
+      "select:auth_account+auth_user",
+      "delay.remove",
+      "update:invitation_created_users",
+    ]);
   });
 });
 
