@@ -53,6 +53,12 @@ export type PasswordHookDeps = {
   mail: PasswordMailSender;
   /** After the response (`after()` in the route; immediate in tests), as the magic link's send. */
   schedule: (work: () => Promise<void>) => void;
+  /**
+   * Better Auth's own `requestPasswordReset`, called server-side (no request) for an address
+   * «Забули пароль?» was asked for, from the work scheduled after the response. The token and
+   * the email are Better Auth's, through the same statements an HTTP call to it runs.
+   */
+  requestReset: (email: string) => Promise<void>;
   baseURL: string;
   /** Where a failure that reaches nobody on screen is written; never a password, a token or an address. */
   log: (line: string) => void;
@@ -148,15 +154,21 @@ export function passwordHooks(deps: PasswordHookDeps) {
     }
   }
 
-  /** Work after the response; a failure there is a log line, never an unhandled rejection. */
+  /**
+   * Work nobody waits for on screen: a failure is one log line naming only `what` (never the
+   * address, a token or a link), never an unhandled rejection or Better Auth's own error log.
+   */
+  async function quietly(what: string, work: () => Promise<void>): Promise<void> {
+    try {
+      await work();
+    } catch {
+      deps.log(`[kabinet] ${what} failed after the response`);
+    }
+  }
+
+  /** Work after the response (`deps.schedule`), failing `quietly`. */
   function later(what: string, work: () => Promise<void>) {
-    deps.schedule(async () => {
-      try {
-        await work();
-      } catch {
-        deps.log(`[kabinet] ${what} failed after the response`);
-      }
-    });
+    deps.schedule(() => quietly(what, work));
   }
 
   /** Whether this user is a shelter admin with exactly this address now (the email's recipient). */
@@ -173,10 +185,15 @@ export function passwordHooks(deps: PasswordHookDeps) {
      * - `/sign-in/email`: the per-address delay, charged before the password
      *   is even checked; then the operator guard, which burns a hash so the
      *   refusal takes as long as anyone's (§4.6, §5).
-     * - `/request-password-reset`: 20 an hour per IP, 3 per address, for any
-     *   address; then a reset token only for a shelter admin. Everyone else
-     *   (nobody, the operator, a roleless user) gets the same answer and no
-     *   token (§4.6).
+     * - `/request-password-reset` over HTTP: 20 an hour per IP, 3 per address,
+     *   for any address; then the one answer, at once, for every well-formed
+     *   address, with nothing else done before it (§4.4: "the answer takes the
+     *   same time either way"). Who the address belongs to is asked only after
+     *   the response, in the scheduled work, which calls Better Auth's own
+     *   `requestPasswordReset` server-side.
+     * - That server-side call (no request): a reset token only for a shelter
+     *   admin. Everyone else (nobody, the operator, a roleless user) gets the
+     *   same answer and no token (§4.6).
      * - `/reset-password`: 20 an hour per IP; the token must name a shelter
      *   admin (never the operator); the new password must pass the policy. All
      *   of it before Better Auth consumes the token, so a refused password
@@ -204,19 +221,28 @@ export function passwordHooks(deps: PasswordHookDeps) {
 
         case PASSWORD_PATHS.forgot: {
           const email = stringField(ctx.body, "email");
-          if (ctx.request !== undefined) {
-            const charges = [
-              deps.limiters.forgotPerIp.check(ipRateLimitKey(clientIp(ctx.request)), now),
-              ...(email === null
-                ? []
-                : [deps.limiters.forgotPerAddress.check(addressRateLimitKey(email), now)]),
-            ];
-            if ((await Promise.all(charges)).includes(false)) {
-              throw new APIError("TOO_MANY_REQUESTS");
-            }
+          if (ctx.request === undefined) {
+            // The call scheduled below, after the response has gone: a token
+            // for a shelter admin only, never the operator (§4.6).
+            if (!isEmail(email)) return undefined; // Better Auth's own 400
+            return (await actors.shelterAdminIdByEmail(email)) === null ? FORGOT_ANSWER : undefined;
+          }
+          // Both limits cost every address the same: one store call each, the
+          // address's key an HMAC whoever holds it.
+          const charges = [
+            deps.limiters.forgotPerIp.check(ipRateLimitKey(clientIp(ctx.request)), now),
+            ...(email === null
+              ? []
+              : [deps.limiters.forgotPerAddress.check(addressRateLimitKey(email), now)]),
+          ];
+          if ((await Promise.all(charges)).includes(false)) {
+            throw new APIError("TOO_MANY_REQUESTS");
           }
           if (!isEmail(email)) return undefined; // Better Auth's own 400
-          return (await actors.shelterAdminIdByEmail(email)) === null ? FORGOT_ANSWER : undefined;
+          // No lookup and no write before the answer: the role, the token and
+          // the email all wait for the response, as the magic link's do (N1).
+          later("the reset request", () => deps.requestReset(email));
+          return FORGOT_ANSWER;
         }
 
         case PASSWORD_PATHS.reset: {
@@ -308,16 +334,20 @@ export function passwordHooks(deps: PasswordHookDeps) {
 
     /**
      * Better Auth's `sendResetPassword`: called only for the shelter admins
-     * `beforeSession` let through. The email goes after the response, checked
-     * once more there (a second lock: never the operator, §4.6), and links to
-     * the reset page, never Better Auth's redirecting GET.
+     * `beforeSession` let through, and only inside the server-side call the
+     * forgot answer scheduled (an HTTP «Забули пароль?» never reaches Better
+     * Auth's endpoint), so it is already after the response and sends at once
+     * rather than scheduling again. Checked once more (a second lock: never
+     * the operator, §4.6); links to the reset page, never Better Auth's
+     * redirecting GET. A failure is ours to log, `quietly`: left to Better
+     * Auth, its background-task log would print the error itself.
      */
     async sendResetPassword(input: {
       user: { id: string; email: string };
       token: string;
     }): Promise<void> {
       const url = linkTo(deps.baseURL, RESET_LINK, input.token);
-      later("the reset email", async () => {
+      await quietly("the reset email", async () => {
         if (await isShelterAdmin(input.user)) {
           await deps.mail.sendReset({ email: input.user.email, url });
         }

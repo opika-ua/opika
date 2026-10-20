@@ -99,9 +99,10 @@ const SIGN_IN_PATH = "/api/auth/sign-in/magic-link";
  * - **the password sign-in and «Змінити пароль»**: Better Auth's body carries
  *   the new session's token, which the page's script could then read although
  *   the cookie is HttpOnly. The browser needs only the cookie.
- * - **«Забули пароль?»**: one body for every address, whatever Better Auth's
- *   own wording is in a later version (`FORGOT_ANSWER`, `password-hooks.ts`);
- *   a body that differed between addresses would say which exist (§6.3).
+ * - **«Забули пароль?»**: one body for every address (§6.3). The hook already
+ *   answers every well-formed address itself, before Better Auth's endpoint
+ *   runs (`FORGOT_ANSWER`, `password-hooks.ts`); this is the second lock, so
+ *   a later version's own wording could never reach the page either.
  *
  * The sign-in and «Забули пароль?» also get the address trimmed and
  * lower-cased, as the magic link does, so the delay's key and the stored

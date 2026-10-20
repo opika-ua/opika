@@ -91,7 +91,9 @@ export type KabinetAuthDeps = {
    * the route; immediate in tests). The send, and the lookup deciding whether
    * to send at all, both happen here, so the sign-in response takes the same
    * time whether or not the address belongs to anyone (N1: "identical
-   * response for any address", including how long it takes).
+   * response for any address", including how long it takes). «Забули
+   * пароль?» works the same way (§4.4): the role lookup, the reset token and
+   * the email all run here (`password-hooks.ts`).
    */
   schedule: (work: () => Promise<void>) => void;
   baseURL: string;
@@ -208,11 +210,15 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
     limiters: deps.passwordLimiters,
     mail: deps.passwordMail,
     schedule: deps.schedule,
+    // Only ever called after `auth` exists: from work a request it serves scheduled.
+    requestReset: async (email: string): Promise<void> => {
+      await auth.api.requestPasswordReset({ body: { email } });
+    },
     baseURL: deps.baseURL,
     log: deps.log ?? ((line) => console.warn(line)),
   });
 
-  return betterAuth({
+  const auth = betterAuth({
     baseURL: deps.baseURL,
     basePath: "/api/auth",
     secret: deps.secret,
@@ -390,6 +396,7 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       }),
     ],
   });
+  return auth;
 }
 
 export type KabinetAuth = ReturnType<typeof createKabinetAuth>;

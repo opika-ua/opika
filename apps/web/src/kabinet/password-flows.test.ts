@@ -363,6 +363,182 @@ describe("forgot → reset → sign in (§6.3)", () => {
   });
 });
 
+describe("«Забули пароль?» takes the same time for every address (§4.4)", () => {
+  /** Every database statement started, and every call into a dependency, in order. */
+  let trace: string[];
+  /** The work scheduled for after the response, held until the response is in hand. */
+  let queued: (() => Promise<void>)[];
+
+  /** Records each call of a function on `target` as `name.method`, then makes it. */
+  function traced<T extends object>(name: string, target: T): T {
+    return new Proxy(target, {
+      get(object, property) {
+        const value = Reflect.get(object, property, object);
+        if (typeof value !== "function") return value;
+        return (...args: unknown[]) => {
+          trace.push(`${name}.${String(property)}`);
+          return value.apply(object, args);
+        };
+      },
+    });
+  }
+
+  /**
+   * `db` with each statement recorded as it starts: the query builders, and the relational
+   * `db.query.<table>.findFirst/findMany` Better Auth's adapter uses for its joins.
+   */
+  function countingDb(target: typeof db): typeof db {
+    const STARTS = new Set(["select", "selectDistinct", "insert", "update", "delete", "with"]);
+    const OTHER = new Set(["execute", "transaction", "batch", "$count"]);
+    const queries = new Proxy(target.query, {
+      get(models, model) {
+        const builder = Reflect.get(models, model, models);
+        return typeof builder === "object" && builder !== null
+          ? traced(`db.query.${String(model)}`, builder)
+          : builder;
+      },
+    });
+    return new Proxy(target, {
+      get(object, property) {
+        if (property === "query") return queries;
+        const value = Reflect.get(object, property, object);
+        if (typeof value !== "function") return value;
+        return (...args: unknown[]) => {
+          if (typeof property === "string" && (STARTS.has(property) || OTHER.has(property))) {
+            trace.push(`db.${property}`);
+          }
+          return value.apply(object, args);
+        };
+      },
+    });
+  }
+
+  function tracedAuth() {
+    const counted = (name: string) => traced(name, generous());
+    return createKabinetAuth({
+      db: countingDb(db),
+      sender: traced("magicLink", links),
+      schedule: (work) => {
+        trace.push("schedule");
+        queued.push(work);
+      },
+      baseURL: BASE,
+      secret: SECRET,
+      secureCookies: false,
+      now: () => clock,
+      limiters: { perUser: counted("kabinet.perUser"), perIp: counted("kabinet.perIp") },
+      passwordLimiters: {
+        forgotPerIp: counted("forgotPerIp"),
+        forgotPerAddress: counted("forgotPerAddress"),
+        resetPerIp: counted("resetPerIp"),
+        signInDelay: traced("signInDelay", inMemoryDelayStore()),
+      },
+      passwordMail: traced("mail", mail),
+      log: (line) => logged.push(line),
+    });
+  }
+
+  it("the same work before the answer for nobody, the operator, a roleless user and a shelter admin; the lookup, the token and the email only after it", async () => {
+    await shelterAdmin(ADMIN);
+    await operator();
+    await createUser("roleless@example.org");
+    const traceAuth = tracedAuth();
+    const addresses = ["nobody@example.org", OPERATOR, "roleless@example.org", ADMIN];
+    const before = new Map<string, string[]>();
+    const after = new Map<string, string[]>();
+    const answers = new Map<string, { status: number; text: string }>();
+    for (const email of addresses) {
+      trace = [];
+      queued = [];
+      const response = await handleKabinetAuth(
+        post("/api/auth/request-password-reset", { email }),
+        {
+          availability: available(),
+          auth: () => traceAuth,
+          limiters: { perAddress: generous(), perIp: generous() },
+          now: clock,
+        },
+      );
+      answers.set(email, { status: response.status, text: await response.text() });
+      before.set(email, trace);
+      trace = [];
+      while (queued.length > 0) await queued.shift()?.();
+      after.set(email, trace);
+    }
+
+    const nobody = before.get("nobody@example.org");
+    for (const email of addresses) {
+      // The same calls, in the same order, until the answer exists (§4.4).
+      expect(before.get(email), email).toEqual(nobody);
+      expect(answers.get(email), email).toEqual({ status: 200, text: '{"status":true}' });
+    }
+    // And what they are: the kabinet's per-IP charge, both «Забули пароль?» limits, and the
+    // scheduling. Nothing from the database, the mail or Better Auth's token before the answer.
+    expect(nobody).toEqual([
+      "kabinet.perIp.check",
+      "forgotPerIp.check",
+      "forgotPerAddress.check",
+      "schedule",
+    ]);
+
+    // After it: the address-dependent work, a token and an email for the shelter admin only.
+    for (const email of ["nobody@example.org", OPERATOR, "roleless@example.org"]) {
+      const work = after.get(email) ?? [];
+      expect(
+        work.some((call) => call.startsWith("db.")),
+        email,
+      ).toBe(true);
+      expect(work, email).not.toContain("db.insert");
+      expect(
+        work.filter((call) => call.startsWith("mail.")),
+        email,
+      ).toEqual([]);
+    }
+    const admin = after.get(ADMIN) ?? [];
+    expect(admin).toContain("db.insert");
+    expect(admin.filter((call) => call.startsWith("mail."))).toEqual(["mail.sendReset"]);
+    const tokens = await db.select().from(authVerification);
+    expect(tokens.map((row) => row.value)).toEqual([(await userIdOf(ADMIN)) ?? "none"]);
+    expect(mail.sent.map((m) => [m.kind, m.email])).toEqual([["reset", ADMIN]]);
+    expect(logged).toEqual([]);
+  });
+
+  it("a failure after the answer is one log line naming no address, token or link", async () => {
+    await shelterAdmin(ADMIN);
+    const failing = capturingPasswordMail();
+    failing.sendReset = async () => {
+      throw new Error(`provider down for ${ADMIN}`);
+    };
+    mail = failing;
+    build();
+    const consoleLines: string[] = [];
+    const spies = (["log", "info", "warn", "error"] as const).map((level) =>
+      vi.spyOn(console, level).mockImplementation((...args: unknown[]) => {
+        consoleLines.push(args.map(String).join(" "));
+      }),
+    );
+    try {
+      const asked = await forgot(ADMIN);
+      expect(asked.answer.text).toBe('{"status":true}');
+    } finally {
+      for (const spy of spies) spy.mockRestore();
+    }
+    expect(logged).toEqual(["[kabinet] the reset email failed after the response"]);
+    const [row] = await db.select().from(authVerification);
+    expect(row).toBeDefined();
+    const everything = [...logged, ...consoleLines].join("\n");
+    expect(everything).not.toContain(ADMIN);
+    expect(everything).not.toContain("olena");
+    expect(everything).not.toContain("novyi-parol");
+  });
+});
+
+/** The id of the user with this address. */
+async function userIdOf(email: string): Promise<string | null> {
+  const ctx = await auth.$context;
+  return (await ctx.internalAdapter.findUserByEmail(email))?.user.id ?? null;
+}
+
 describe("sign-in: one answer for every failure (§5)", () => {
   /** The four causes §5 lists, each set up for real. */
   async function causes() {
