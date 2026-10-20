@@ -14,7 +14,6 @@ import { CAPTION, ERROR_TEXT } from "../profile-edit/styles";
 import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../profile-edit/unsaved-changes";
 import { AgeSection, DescriptionSection, HealthSection, WhoSection } from "./FormSections";
 import {
-  type AnimalPatch,
   ageInputOf,
   emptyValues,
   type FieldProblem,
@@ -86,6 +85,14 @@ const codeOf = (error: unknown): string | null =>
 const dataOf = (error: unknown): unknown =>
   typeof error === "object" && error !== null && "data" in error ? error.data : undefined;
 
+/** Whether `values` differs from what's known saved: `view`'s own diff once it exists, or `/nova`'s own empty starting point before it does. */
+const dirtyOf = (
+  view: KabinetAnimalView | null,
+  values: FormValues,
+  initialValues: FormValues,
+): boolean =>
+  view === null ? !valuesEqual(values, initialValues) : patchOf(view, values) !== null;
+
 /** What still keeps the form's current content from publishing, in form order (K-Q5, as `publishReadinessOf`). */
 const gapsOf = (values: FormValues, photoCount: number): PublishGap[] => [
   ...(values.size === null ? [{ kind: "size" } as const] : []),
@@ -148,22 +155,33 @@ export function AnimalForm({
   // yet" from "something typed" before a name and a species exist to diff
   // against (UW-T5).
   const initialValuesRef = useRef(values);
+  // `leave()` reads this fresh, off the ref, for the same reason `viewRef`
+  // and `valuesRef` exist: its own render's `publishing` would be stale by
+  // the time the save it awaits resolves (UW-T8).
+  const publishingRef = useRef(publishing);
+  publishingRef.current = publishing;
+  // A second, concurrent `leave()` call (a double-click) must join the
+  // first's own save rather than starting another: a second `saveNow()`
+  // would hold `pendingSaveCount` above zero even once the one real save
+  // is done, and warn on a navigation that, by then, has saved everything
+  // (UW-T9).
+  const leaveSaveRef = useRef<Promise<SaveOutcome> | null>(null);
 
   const now = clock();
   const listingKind = view?.listing.kind ?? "new";
   const isDraft = listingKind === "new" || listingKind === "draft";
   const problems = [...problemsOf(values, listingKind, now), ...serverProblems];
   const shownProblems = attempted ? problems : problems.filter((p) => touched.has(p.field));
-  const patch: AnimalPatch | null = view === null ? null : patchOf(view, values);
   const creatable = values.name.trim() !== "" && values.species !== null;
-  const dirty = view === null ? !valuesEqual(values, initialValuesRef.current) : patch !== null;
+  const dirty = dirtyOf(view, values, initialValuesRef.current);
   const gaps = gapsOf(values, view?.photos.length ?? 0);
 
-  // Oleksii, 2026-10-19 (UW-B2) and the review that followed it: warn while
-  // there's unsaved work — dirty, a save pending or queued, or (his
-  // recommendation) a publish request in flight — never otherwise, for a
-  // draft and a listed card alike. Rationale and what was decided:
-  // docs/decisions-inbox/feat-draft-save-unload-warning.md (UW-T2, UW-T6).
+  // Oleksii, 2026-10-19 (UW-B2): warn while there's unsaved work — dirty,
+  // or a save pending or queued — never otherwise, for a draft and a
+  // listed card alike. Publishing counts too: the first review's own
+  // recommendation, taken here as a builder decision, not his. Rationale
+  // and what was decided: docs/decisions-inbox/feat-draft-save-unload-warning.md
+  // (UW-T2, UW-T6).
   const hasUnsavedWork = dirty || savePending || publishing;
   useUnsavedChanges("animal-form", editable && hasUnsavedWork);
 
@@ -366,20 +384,22 @@ export function AnimalForm({
     if (!editable) return;
     if (isDraft && dirty && creatable) {
       event.preventDefault();
-      await saveNow();
+      // A concurrent second call joins this one's own save (UW-T9) rather
+      // than starting another.
+      leaveSaveRef.current ??= saveNow();
+      await leaveSaveRef.current;
+      leaveSaveRef.current = null;
       // `location.assign` below fires `beforeunload` synchronously, before
       // React re-renders and runs the effect that would otherwise remove
       // the listener — so this intentional navigation is only ever waved
       // through once nothing is left unsaved (recomputed fresh from the
       // refs, not from the save's own outcome: more typing during the
-      // await, or another save still pending, must still warn) (UW-T4).
-      const currentView = viewRef.current;
-      const currentValues = valuesRef.current;
-      const stillDirty =
-        currentView === null
-          ? !valuesEqual(currentValues, initialValuesRef.current)
-          : patchOf(currentView, currentValues) !== null;
-      if (!stillDirty && pendingSaveCount.current === 0) clearUnsavedNow("animal-form");
+      // await, another save still pending, or a publish still in flight,
+      // must still warn) (UW-T4, UW-T8).
+      const stillDirty = dirtyOf(viewRef.current, valuesRef.current, initialValuesRef.current);
+      if (!stillDirty && pendingSaveCount.current === 0 && !publishingRef.current) {
+        clearUnsavedNow("animal-form");
+      }
       window.location.assign(back.href);
       return;
     }

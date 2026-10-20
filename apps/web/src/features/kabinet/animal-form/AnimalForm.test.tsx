@@ -814,8 +814,9 @@ describe("the unsaved-work warning and the saved-time line", () => {
   });
 
   /**
-   * His recommendation on the review's blocker 3 (whether a publish request
-   * in flight counts): yes. `publish()` saves first (covered by
+   * The first review's own recommendation on its blocker 3 (whether a
+   * publish request in flight counts), taken here as a builder decision —
+   * his words say nothing about this. `publish()` saves first (covered by
    * `savePending` above), then makes its own, separate `transition` call —
    * by the time that one is in flight, the save it depended on has already
    * settled, so neither `dirty` nor `savePending` is still true; only
