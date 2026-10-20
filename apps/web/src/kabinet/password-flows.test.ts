@@ -140,10 +140,17 @@ const signInWithPassword = (
   headers: Record<string, string> = {},
 ) => route(post("/api/auth/sign-in/email", { email, password }, headers));
 
+/**
+ * The session cookie a browser would hold after this response: the last `kabinet.session_token`
+ * it sets, since each Set-Cookie replaces an earlier one of the same name and path (RFC 6265,
+ * §5.3). Not the first: since sessions refresh on every request (PW1-Q2), a change's response
+ * re-sets the old session's cookie (Better Auth's session check refreshing it) before the new
+ * session's, and by then the old session is deleted.
+ */
 const sessionCookieOf = (response: Response): string => {
   const cookie = response.headers
     .getSetCookie()
-    .find((c) => c.startsWith("kabinet.session_token="));
+    .findLast((c) => c.startsWith("kabinet.session_token="));
   return cookie?.split(";")[0] ?? "";
 };
 
