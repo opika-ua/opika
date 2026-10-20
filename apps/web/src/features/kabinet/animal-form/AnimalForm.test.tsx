@@ -863,6 +863,111 @@ describe("the unsaved-work warning and the saved-time line", () => {
     expect(confirmLeave(confirm)).toBe(false);
     expect(confirm).toHaveBeenCalledWith("Зміни не збережено. Все одно вийти?");
   });
+
+  /**
+   * The second review's probes, kept as tests (UW-T4, UW-T8, UW-T9): the back link's own
+   * navigation is checked at the instant a real browser fires `beforeunload`, inside a spy on
+   * `location.assign` (happy-dom's own `assign` fires nothing).
+   */
+  describe("the back link's own leave", () => {
+    const backLink = () => screen.getByRole("link", { name: "← Профіль притулку" });
+    const description = () => screen.getByLabelText("Про тварину");
+    const preventedAtNavigation = () => {
+      const seen: boolean[] = [];
+      const assign = vi
+        .spyOn(window.location, "assign")
+        .mockImplementation(() => void seen.push(dispatchUnload().prevented));
+      return { seen, assign };
+    };
+    const holdNext = (client: FakeClient, call: "update" | "transition") => {
+      let release: (view: KabinetAnimalView) => void = () => {};
+      client.calls[call].mockImplementationOnce(
+        () =>
+          new Promise<KabinetAnimalView>((resolve) => {
+            release = resolve;
+          }),
+      );
+      return (view: KabinetAnimalView) => release(view);
+    };
+    const savedDescription = (uk: string) =>
+      draft({ description: { uk, en: null }, version: 1 } as Partial<KabinetAnimalView>);
+
+    it("typing more while its save is in flight still warns when it navigates", async () => {
+      const client = fakeClient(draft());
+      const release = holdNext(client, "update");
+      renderForm(draft(), { client });
+      const { seen, assign } = preventedAtNavigation();
+      fireEvent.change(description(), { target: { value: "Лагідна." } });
+      fireEvent.click(backLink());
+      fireEvent.change(description(), { target: { value: "Лагідна, грається." } });
+      await act(async () => release(savedDescription("Лагідна.")));
+      await waitFor(() => expect(assign).toHaveBeenCalled());
+      expect(seen).toEqual([true]);
+      assign.mockRestore();
+    });
+
+    it("a failed save still warns when it navigates: the edits are unsaved", async () => {
+      const client = fakeClient(draft());
+      renderForm(draft(), { client });
+      client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      const { seen, assign } = preventedAtNavigation();
+      fireEvent.change(description(), { target: { value: "Лагідна." } });
+      fireEvent.click(backLink());
+      await waitFor(() => expect(assign).toHaveBeenCalled());
+      expect(seen).toEqual([true]);
+      assign.mockRestore();
+    });
+
+    it("a double click saves once and never warns once everything is saved", async () => {
+      const client = fakeClient(draft());
+      const release = holdNext(client, "update");
+      renderForm(draft(), { client });
+      const { seen, assign } = preventedAtNavigation();
+      fireEvent.change(description(), { target: { value: "Лагідна." } });
+      fireEvent.click(backLink());
+      fireEvent.click(backLink());
+      await act(async () => release(savedDescription("Лагідна.")));
+      await waitFor(() => expect(assign).toHaveBeenCalledTimes(2));
+      expect({ seen, updates: client.calls.update.mock.calls.length }).toEqual({
+        seen: [false, false],
+        updates: 1,
+      });
+      assign.mockRestore();
+    });
+
+    it("a publish still in flight warns when it navigates", async () => {
+      const ready = draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>);
+      const client = fakeClient(ready);
+      const release = holdNext(client, "transition");
+      renderForm(ready, { client });
+      fireEvent.click(screen.getByRole("button", { name: "Опублікувати" }));
+      await waitFor(() => expect(client.calls.transition).toHaveBeenCalled());
+      expect(dispatchUnload().prevented).toBe(true);
+      const { seen, assign } = preventedAtNavigation();
+      fireEvent.change(description(), { target: { value: "Спокійна, любить гуляти. Ще." } });
+      fireEvent.click(backLink());
+      await waitFor(() => expect(assign).toHaveBeenCalled());
+      const atNavigation = seen.slice();
+      await act(async () =>
+        release({
+          ...ready,
+          listing: { kind: "published", publishedAt: NOW, confirmedAt: NOW, undoable: null },
+        } as KabinetAnimalView),
+      );
+      expect(atNavigation).toEqual([true]);
+      assign.mockRestore();
+    });
+  });
+
+  it("/nova with nothing typed never warns, and typing then clearing doesn't either", () => {
+    renderForm(null);
+    const description = screen.getByLabelText("Про тварину");
+    expect(dispatchUnload().prevented).toBe(false);
+    fireEvent.change(description, { target: { value: "а" } });
+    expect(dispatchUnload().prevented).toBe(true);
+    fireEvent.change(description, { target: { value: "" } });
+    expect(dispatchUnload().prevented).toBe(false);
+  });
 });
 
 describe("photos", () => {

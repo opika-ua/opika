@@ -464,7 +464,8 @@ a second address""), because creating a shelter already invites its first admin:
 7. Both test shelters are retired afterwards, each the same way (N8, option A): in his screens,
    remove every admin and suspend; then `demo:remove --shelter <id>` from his machine, per
    "Retiring the rehearsal shelter" above. The existing rehearsal shelter first, then «Генеральна».
-   (This step reworded on 2026-10-18 per his N8 answer; the rest of the script is verbatim RU-B5.)
+   (This step reworded on 2026-10-18 per his N8 answer, and the throttled-tap step added on
+   2026-10-19 per his own words quoted there; the rest of the script is verbatim RU-B5.)
 
 Until then the current rehearsal shelter (`c00c73ac-…`) stays as the dev test bed, and
 `KABINET_WRITE_ALLOWLIST` serves only that interim; it goes away with PR 6.
