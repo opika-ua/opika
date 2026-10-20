@@ -331,6 +331,42 @@ describe("RevealFlow's dialog semantics", () => {
     expect(document.body.style.overflow).not.toBe("hidden");
   });
 
+  /**
+   * RF-F1's regression guard. The assertion above (`toBe("hidden")` read
+   * right after `findByTestId`) only catches the race if the test run
+   * happens to land in the unlucky scheduling window — it passed 50/50 over
+   * three runs with the lock reverted to a passive effect, which is why that
+   * revert shipped unnoticed to CI once already. This test forces the
+   * window open deterministically instead of hoping to land in it: a
+   * `MutationObserver` fires on the exact DOM mutation that inserts the
+   * dialog, and its callback reads `document.body.style.overflow`
+   * synchronously, before anything else — including a later-scheduled
+   * passive effect — gets a chance to run. The dialog mounts only after an
+   * awaited `animals.reveal` resolves, so nothing about this update is a
+   * plain discrete click; that's exactly the shape that exposed the race.
+   */
+  it("has the scroll lock applied at the exact moment the dialog node appears, not merely by the time it's queried", async () => {
+    revealCall.mockResolvedValue(
+      revealFor({ primary: { kind: "phone", e164: "+380671234567" }, additional: [] }),
+    );
+    renderFlow();
+
+    let overflowAtFirstSight: string | null = null;
+    const observer = new MutationObserver(() => {
+      if (overflowAtFirstSight !== null) return;
+      if (document.querySelector('[data-testid="reveal-dialog"]')) {
+        overflowAtFirstSight = document.body.style.overflow;
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    fireEvent.click(screen.getByTestId("reveal-trigger"));
+    await screen.findByTestId("reveal-dialog");
+    observer.disconnect();
+
+    expect(overflowAtFirstSight).toBe("hidden");
+  });
+
   it("wraps Shift+Tab from the heading back to the last control instead of leaking to the page behind", async () => {
     revealCall.mockResolvedValue(
       revealFor({ primary: { kind: "phone", e164: "+380671234567" }, additional: [] }),

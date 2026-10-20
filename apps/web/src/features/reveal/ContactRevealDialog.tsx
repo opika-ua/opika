@@ -174,18 +174,13 @@ export function ContactRevealDialog({
   // Esc closes; page behind the dialog does not scroll while it's open;
   // Tab is trapped inside the dialog's own focusable elements.
   //
-  // A layout effect, not a passive one (RF-F1): the dialog renders after an
-  // async `animals.reveal` resolves, so this effect's own mount is already
-  // decoupled from the triggering click by a promise boundary. A passive
-  // effect runs on the browser's own schedule *after* paint, which leaves a
-  // real — if brief — frame where the dialog is on screen and the page
-  // behind it can still be scrolled; a layout effect runs synchronously in
-  // the same commit that inserts the dialog into the DOM, before anything
-  // paints, so that frame never exists. (Confirmed by forcing it: a
-  // MutationObserver reading `document.body.style.overflow` at the instant
-  // the dialog node first appears saw `""` under the passive version and
-  // `"hidden"` under this one — this is what let the CI flake read
-  // `expect(...).toBe('hidden')` as `''` once and pass on rerun.)
+  // A layout effect, not a passive one (RF-F1): this dialog mounts only
+  // after an awaited `animals.reveal` resolves, not inline inside the
+  // click that triggered it, so a passive effect here would be scheduled
+  // for after the browser's next paint instead of flushed before it. A
+  // layout effect locks the scroll in the same commit that inserts the
+  // dialog, before anything paints, so there is never a frame where the
+  // dialog is visible and the page behind it is still scrollable.
   useLayoutEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
