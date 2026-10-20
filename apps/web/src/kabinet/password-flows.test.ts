@@ -777,7 +777,6 @@ describe("the limits (§4.3, §9 answers 5 and 7)", () => {
         throw new Error("store down");
       },
       increment: async () => 0,
-      expireIn: async () => {},
       setIfAbsent: async () => false,
       remove: async () => {},
     };
