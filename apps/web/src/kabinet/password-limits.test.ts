@@ -140,19 +140,23 @@ describe("PW1-F3: a store that fails part-way through a charge", () => {
   const KEPT_PAST_A_WAIT = 15 * MINUTE;
 
   type Failure = { call: number; kind: "lost request" | "lost response" };
-  type Counted = DelayStore & { calls: () => number };
+  /** The store, plus how many calls it took and which method the failing one was. */
+  type Counted = DelayStore & { calls: () => number; failed: () => string | null };
 
   /** `store` with one call failing (counted from 0 across every method), or none. */
   function failing(store: DelayStore, failure: Failure | null): Counted {
     let calls = 0;
+    let failed: string | null = null;
     const wrapped = new Proxy(store, {
       get(target, property, receiver) {
         if (property === "calls") return () => calls;
+        if (property === "failed") return () => failed;
         const method: unknown = Reflect.get(target, property, receiver);
         if (typeof method !== "function") return method;
         return async (...args: unknown[]) => {
           const index = calls++;
           if (failure === null || index !== failure.call) return method.apply(target, args);
+          failed = String(property);
           if (failure.kind === "lost request") throw new Error("lost request");
           await method.apply(target, args);
           throw new Error("lost response");
@@ -164,12 +168,21 @@ describe("PW1-F3: a store that fails part-way through a charge", () => {
 
   const charge = (store: DelayStore, ms: number) => chargeSignInAttempt(store, KEY, at(ms));
 
-  /** Where each case starts: it prepares the store and returns when (ms after START) the attempt that fails is made. */
-  type Case = { name: string; prepare: (store: DelayStore) => Promise<number> };
+  /**
+   * Where each case starts: it prepares the store and returns when (ms after START) the attempt
+   * that fails is made. `closesGate`: whether a gate is closed after some failure of its attempt
+   * (closed before it, or by it), so the check that a closed gate keeps its count must run.
+   */
+  type Case = {
+    name: string;
+    closesGate: boolean;
+    prepare: (store: DelayStore) => Promise<number>;
+  };
   const CASES: Case[] = [
-    { name: "the first attempt", prepare: async () => 0 },
+    { name: "the first attempt", closesGate: false, prepare: async () => 0 },
     {
       name: "the fifth attempt, which closes the first gate",
+      closesGate: true,
       prepare: async (store) => {
         for (let i = 0; i < 4; i++) await charge(store, 0);
         return 0;
@@ -177,6 +190,7 @@ describe("PW1-F3: a store that fails part-way through a charge", () => {
     },
     {
       name: "an attempt at the 15-minute cap",
+      closesGate: true,
       prepare: async (store) => {
         for (let i = 0; i < 5; i++) await charge(store, 0);
         let t = 0;
@@ -189,6 +203,7 @@ describe("PW1-F3: a store that fails part-way through a charge", () => {
     },
     {
       name: "an attempt while the gate is closed",
+      closesGate: true,
       prepare: async (store) => {
         for (let i = 0; i < 5; i++) await charge(store, 0);
         return 0;
@@ -250,15 +265,15 @@ describe("PW1-F3: a store that fails part-way through a charge", () => {
       it(`${title}: any one call failing, either way, leaves every key with an expiry and no count lower`, async () => {
         const calls = await callsOf(c, seed);
         expect(calls).toBeGreaterThan(0);
+        let gateChecks = 0;
         for (let call = 0; call < calls; call++) {
           for (const kind of FAILURES) {
             const label = `${title}, call ${call} (${kind})`;
             const { entries, store, failAt } = await prepared(c, seed);
             const before = liveAt(entries, failAt);
+            const broken = failing(store, { call, kind });
 
-            await expect(charge(failing(store, { call, kind }), failAt), label).rejects.toThrow(
-              kind,
-            );
+            await expect(charge(broken, failAt), label).rejects.toThrow(kind);
 
             // Every key the attempt created or counted has an expiry, and one that had an expiry
             // keeps one: nothing starts counting forever. (A count already left with none, which
@@ -269,14 +284,22 @@ describe("PW1-F3: a store that fails part-way through a charge", () => {
                 expect(entry.expiresAt, `${label}: ${key} has no expiry`).not.toBeNull();
               }
             }
-            // A closed gate keeps its count until 15 minutes past the wait.
+            // A closed gate keeps its count until 15 minutes past the wait. Whether a gate must be
+            // closed is decided by the case, not read from the outcome: it is when one was closed
+            // before the attempt, or when the failing call was the gate's and it was applied.
             const after = liveAt(entries, failAt);
+            const gateMustBeClosed =
+              before.has(GATE) || (kind === "lost response" && broken.failed() === "setIfAbsent");
             const gate = after.get(GATE);
-            if (gate !== undefined) {
+            expect(gate !== undefined, `${label}: a closed gate`).toBe(gateMustBeClosed);
+            if (gateMustBeClosed) {
+              gateChecks++;
               expect(
                 after.get(CHAIN)?.expiresAt ?? 0,
                 `${label}: the count is kept past the gate`,
-              ).toBeGreaterThanOrEqual((gate.expiresAt ?? 0) + KEPT_PAST_A_WAIT);
+              ).toBeGreaterThanOrEqual(
+                (gate?.expiresAt ?? Number.POSITIVE_INFINITY) + KEPT_PAST_A_WAIT,
+              );
             }
             // Nothing went down: no key gone, no count lower, no expiry earlier (one with none gains one).
             for (const [key, was] of before) {
@@ -294,6 +317,8 @@ describe("PW1-F3: a store that fails part-way through a charge", () => {
             }
           }
         }
+        // The gate check ran wherever the case closes a gate, and only there.
+        expect(gateChecks > 0, `${title}: a closed gate was checked`).toBe(c.closesGate);
       });
 
       it(`${title}: after any one call fails, no more attempts get through, by any minute of the next two hours, than if it hadn't`, async () => {

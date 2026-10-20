@@ -209,10 +209,21 @@ export type PasswordLimiters = {
 };
 
 /**
- * `increment` on Upstash: `INCR`, then `PEXPIRE` when the key has no expiry
- * (`PTTL` -1), in one script, which Redis runs as one step. The same shape as
- * `@upstash/ratelimit`'s window scripts, which `INCRBY` and `PEXPIRE` inside
- * one script on this same database.
+ * The delay's two scripts on Upstash. Redis runs each as one step, so its
+ * writes happen whole or not at all.
+ *
+ * `increment`: `INCR`, then `PEXPIRE` when the key has no expiry (`PTTL` -1).
+ * The precedent covers only part of it: `@upstash/ratelimit` 2.2.0 runs
+ * `INCRBY` and `PEXPIRE` inside one script on this same database, but none of
+ * its scripts calls `PTTL`, so this read-then-write has no precedent on
+ * Upstash. The real-Upstash smoke is what verifies it.
+ *
+ * **CI can't see these scripts.** The unit tests run the in-memory store and a
+ * fake client, so a change to either script leaves `password-limits.test.ts`
+ * green; only the smoke (`scripts/sign-in-delay-smoke.ts`), run against a real
+ * store, catches it. Any edit to either script needs `pnpm --filter @opika/web
+ * kabinet:sign-in-delay-smoke --write-smoke-keys` re-run on real Upstash
+ * before merge.
  */
 const INCREMENT_SCRIPT = `local n = redis.call("INCR", KEYS[1])
 if redis.call("PTTL", KEYS[1]) < 0 then
