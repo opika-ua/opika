@@ -1,8 +1,10 @@
 # Designer round 1: plan (for review)
 
-Status: **plan only, for Oleksii's review. Nothing here is built.** Contract-first: the shapes,
-copy keys and slice order below are proposals until he answers the open questions (§8). Then
-each slice is built as its own PR.
+Status: **answered, and being built slice by slice (2026-10-20).** Oleksii answered the open
+questions (§8); his answers are in §10 and his copy for the slices in §11, both verbatim, and §11
+is the only source for those strings. Each slice is its own PR: S1 (#162) and S2 (#163) are merged,
+S3 (#165) is in review. The rest of this document is the plan as reviewed, not a record of what was
+built; each slice's PR is that record.
 
 ## The scope, as it reached this session
 
