@@ -78,11 +78,16 @@ export type Database = PostgresJsDatabase<typeof schema>;
  * -rn "\.transaction(" packages/db/src/repos` is empty) — if that ever
  * changes, it will typecheck cleanly and crash only against Neon in
  * production, never locally against postgres-js. The narrower claim this
- * cast actually rests on: nothing in the repo layer calls `.execute()` or
- * otherwise touches the raw `TQueryResult` shape that genuinely differs
- * between adapters (a `RowList` array for postgres-js vs a `{ rows: T[] }`
- * object for neon-http, `drizzle-orm/{postgres-js,neon-http}/session.d.ts`)
- * — verified the same way, and every repository call is a plain
+ * cast actually rests on: nothing reads the raw `TQueryResult` shape that
+ * genuinely differs between adapters (a `RowList` array for postgres-js vs a
+ * `{ rows, fields, … }` object for neon-http,
+ * `drizzle-orm/{postgres-js,neon-http}/session.d.ts`) except `executeRows`
+ * (`raw-rows.ts`), which reads both. That is enforced, not verified once:
+ * this comment used to say "nothing in the repo layer calls `.execute()`"
+ * while `gallery.relaxationCounts` did, and read the result as an array, so
+ * every relaxation count was 0 in production (#112, found in the review of
+ * #163). `test/raw-execute-reads.test.ts` now refuses any raw `.execute()`
+ * whose result is used outside `executeRows`. Every repository call is a plain
  * `.select()/.insert()/.update()/.delete()` chain, whose *typed row*
  * return shape Drizzle's query builder normalises identically regardless
  * of adapter. A real union (`PostgresJsDatabase | NeonHttpDatabase`) was

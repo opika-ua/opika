@@ -10,6 +10,7 @@ import {
   databaseTargetLine,
   databaseTargetOf,
 } from "./prod-guard";
+import { executeRows } from "./raw-rows";
 
 /**
  * `pnpm --filter @opika/db db:check-hashes`: read-only. For every migration in the committed
@@ -114,12 +115,12 @@ async function main(): Promise<void> {
   // host list / empty host that could reach any of several databases.
   if (kind === "unparseable" || kind === "ambiguous_host") process.exit(1);
   const db = createDatabase(url);
-  const result = await db.execute(sql`SELECT hash, created_at FROM drizzle.__drizzle_migrations`);
-  // postgres-js returns an array, neon-http `{ rows }` (standing constraints, R1).
-  const rows = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as {
-    hash: string;
-    created_at: number | string;
-  }[];
+  // Raw, because `drizzle.__drizzle_migrations` is drizzle's own table, not in
+  // the schema; read through `executeRows`, which knows both drivers' shapes.
+  const rows = await executeRows<{ hash: string; created_at: number | string }>(
+    db,
+    sql`SELECT hash, created_at FROM drizzle.__drizzle_migrations`,
+  );
   const checks = compareHashes(committedHashes(), rows);
   for (const check of checks) {
     switch (check.status) {
