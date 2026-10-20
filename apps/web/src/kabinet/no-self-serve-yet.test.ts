@@ -114,11 +114,22 @@ describe(`a shelter membership is created by the automatic accept only — ${COP
   });
 
   /**
+   * The server API calls added on purpose (PW1-D29), each with why it can't
+   * write a membership:
+   * - `requestPasswordReset`, in the kabinet's auth config only: «Забули
+   *   пароль?»'s work after the response (contract §4.4, PW-1). It writes an
+   *   `auth_verification` row (the reset token) for a shelter admin, never an
+   *   `auth_member` or an organization.
+   */
+  const SERVER_API_ON_PURPOSE = new Set(["apps/web/src/kabinet/auth.ts: requestPasswordReset"]);
+
+  /**
    * Better Auth's server API (`auth.api.addMember`, `createOrganization`,
    * `acceptInvitation`, …) writes memberships without going through the
    * route, so `FORWARDED_AUTH_PATHS` can't see it (reviewer, row 3, finding
    * 3). Source may call `getSession` only; anything else is a new path to a
-   * membership and has to be added here on purpose.
+   * membership and has to be added here on purpose: `SERVER_API_ON_PURPOSE`,
+   * one file and one call per entry.
    */
   it("source calls no Better Auth server API but getSession", () => {
     const calls = new Set<string>();
@@ -128,7 +139,9 @@ describe(`a shelter membership is created by the automatic accept only — ${COP
       }
     }
     expect(
-      [...calls].filter((call) => !call.endsWith(": getSession")),
+      [...calls].filter(
+        (call) => !call.endsWith(": getSession") && !SERVER_API_ON_PURPOSE.has(call),
+      ),
       COPY_GATE,
     ).toEqual([]);
   });
