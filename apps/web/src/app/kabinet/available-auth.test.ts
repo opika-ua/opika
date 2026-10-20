@@ -6,7 +6,9 @@ import OperatorSheltersPage from "./prytulky/page";
 import AnimalEditPage, { generateMetadata as animalEditMetadata } from "./tvaryny/[id]/page";
 import NewAnimalPage from "./tvaryny/nova/page";
 import AnimalListPage from "./tvaryny/page";
+import ResetPasswordPage from "./vkhid/novyi-parol/page";
 import SignInPage from "./vkhid/page";
+import ForgotPasswordPage from "./vkhid/zabuly/page";
 
 /**
  * Each page answers its own 404 while sign-in is unavailable, before
@@ -52,6 +54,12 @@ describe.each([
   ["/kabinet/tvaryny/nova", () => NewAnimalPage()],
   ["/kabinet/tvaryny/<id>", () => AnimalEditPage(animalParams())],
   ["/kabinet/tvaryny/<id> (its <title>)", () => animalEditMetadata(animalParams())],
+  // PW-1: «Забули пароль?» and the reset link's page.
+  ["/kabinet/vkhid/zabuly", async () => ForgotPasswordPage()],
+  [
+    "/kabinet/vkhid/novyi-parol?token=<t>",
+    () => ResetPasswordPage({ searchParams: Promise.resolve({ token: "t" }) }),
+  ],
 ])("%s while sign-in is unavailable", (_route, page) => {
   it("answers 404 itself, never reaching the auth instance", async () => {
     vi.stubEnv("BETTER_AUTH_SECRET", "");

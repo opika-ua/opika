@@ -19,3 +19,10 @@ export function linkTo(
   url.searchParams.set(target.param, value);
   return url.toString();
 }
+
+/**
+ * The reset link (PW-1, §4.1): the new-password page, whose GET looks nothing
+ * up and only shows the form; its POST goes to Better Auth's `/reset-password`,
+ * which consumes the token.
+ */
+export const RESET_LINK = { path: "/kabinet/vkhid/novyi-parol", param: "token" } as const;

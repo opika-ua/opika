@@ -19,8 +19,9 @@ type NotFound = ORPCErrorConstructorMap<Pick<typeof apiErrors, "NOT_FOUND">>;
  * `unknown` and what was cut off by the page cap is `incomplete`: neither is
  * ever answered as an empty `checked` list. With the invite route on Resend
  * (EM-B10) the answer is `unknown` (`provider_suppresses`): Resend filters on
- * a suppression list this doesn't read yet (follow-up EM-F1); the Brevo read
- * stays as the grace-period rollback. A shelter with no addresses has
+ * a suppression list this doesn't read yet (follow-up EM-F1). The Brevo read
+ * stays in the code, unreachable now that config routes auth emails to Resend
+ * only (PW1-Q4), until Brevo's removal. A shelter with no addresses has
  * nothing to look up, so its answer is an honest empty `checked`, without a
  * call to the provider.
  */

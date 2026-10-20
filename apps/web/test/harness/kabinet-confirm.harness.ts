@@ -133,8 +133,12 @@ test.describe("kabinet confirm page, in a real browser", () => {
 
       const shown = await page.goto(link);
       expect(shown?.status()).toBe(200);
+      // Oleksii, 2026-10-20: once the page has read the token, the address bar no longer shows
+      // it (history.replaceState); the button's form carries it in its hidden field.
+      expect(new URL(page.url()).pathname).toBe(CONFIRM_PATH);
+      expect(page.url().includes("token="), "the token left the address bar").toBe(false);
       // Opened twice, as a mail scanner and then the person would: still valid.
-      const reloaded = await page.reload();
+      const reloaded = await page.goto(link);
       expect(reloaded?.status()).toBe(200);
 
       const postResponse = page.waitForResponse(

@@ -20,7 +20,8 @@ export type EmailLink = { label: string; url: string };
 export type EmailParts = {
   subject: string;
   before: readonly string[];
-  link: EmailLink;
+  /** Null for an email that carries no link at all (the «пароль змінено» notice). */
+  link: EmailLink | null;
   after: readonly string[];
 };
 
@@ -52,7 +53,8 @@ const escapeHtml = (text: string) =>
     .replaceAll("'", "&#39;");
 
 export function emailBody(to: string, parts: EmailParts): OutgoingEmail {
-  if (looksLikeUrl(parts.link.label)) {
+  const link = parts.link;
+  if (link !== null && looksLikeUrl(link.label)) {
     throw new Error("An email link's text must be a label, never a URL (IN-E8).");
   }
   // A line break inside one paragraph (the invite's `— {operator}` signature
@@ -60,10 +62,12 @@ export function emailBody(to: string, parts: EmailParts): OutgoingEmail {
   const paragraph = (text: string) => `<p>${escapeHtml(text).replaceAll("\n", "<br>")}</p>`;
   const html = [
     ...parts.before.map(paragraph),
-    `<p><a href="${escapeHtml(parts.link.url)}">${escapeHtml(parts.link.label)}</a></p>`,
+    ...(link === null
+      ? []
+      : [`<p><a href="${escapeHtml(link.url)}">${escapeHtml(link.label)}</a></p>`]),
     ...parts.after.map(paragraph),
   ].join("");
-  const text = [...parts.before, parts.link.url, ...parts.after].join("\n\n");
+  const text = [...parts.before, ...(link === null ? [] : [link.url]), ...parts.after].join("\n\n");
   return { to, subject: parts.subject, html, text };
 }
 
@@ -124,5 +128,52 @@ export function invitationEmail(input: {
       fill(copy.expiry, { hours: String(input.ttlHours) }),
       fill(copy.notYou, { operator: input.operatorName }),
     ],
+  });
+}
+
+/**
+ * F1, the reset link (PW-1, `docs/shelter-passwords.md` §4.4): sent only to a
+ * shelter admin's address, never the operator's (§4.6). Its link is the reset
+ * page (`RESET_LINK`), whose GET only shows the form, so a mail scanner that
+ * opens it consumes nothing; Better Auth's own redirecting
+ * `/reset-password/:token` is never emailed. Signed `— {operator}` like the
+ * others.
+ */
+export function passwordResetEmail(input: {
+  to: string;
+  url: string;
+  ttlMinutes: number;
+  /** Nominative display name (`operatorDisplayName`), the value that signs every kabinet email. */
+  operatorName: string;
+}): OutgoingEmail {
+  const copy = uk.kabinet.email.reset;
+  return emailBody(input.to, {
+    subject: copy.subject,
+    before: [copy.intro],
+    link: { label: copy.action, url: input.url },
+    after: [
+      fill(copy.expiry, { minutes: String(input.ttlMinutes) }),
+      fill(copy.notYou, { operator: input.operatorName }),
+    ],
+  });
+}
+
+/**
+ * F2, the «пароль змінено» notice, after a reset and after a change (§9
+ * answer 4, verbatim: "Yes: «пароль змінено» after a change too."). No link:
+ * it says what happened, and whom to write to (`{contact}`, the Reply-To
+ * address) if it wasn't them.
+ */
+export function passwordChangedEmail(input: {
+  to: string;
+  contact: string;
+  operatorName: string;
+}): OutgoingEmail {
+  const copy = uk.kabinet.email.passwordChanged;
+  return emailBody(input.to, {
+    subject: copy.subject,
+    before: [copy.body],
+    link: null,
+    after: [fill(copy.notYou, { contact: input.contact, operator: input.operatorName })],
   });
 }

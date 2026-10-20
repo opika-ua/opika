@@ -12,7 +12,8 @@ export type AuthRevokeCounts = { sessions: number; verifications: number };
  * rotation), verbatim: "after the redeploy, these two steps are REQUIRED (…):
  * DELETE FROM auth_session; DELETE FROM auth_verification;". Rotation alone
  * leaves the old session rows in place until the clean-up's expiry rule
- * reaches them, up to 7 days later, which /pro's «…протягом доби» doesn't allow.
+ * reaches them, up to 30 days later (a shelter admin's idle limit since PW-1;
+ * the operator's is 7), which /pro's «…протягом доби» doesn't allow.
  *
  * **Only these two tables.** Users, accounts, memberships, organizations,
  * invitations, super_admins and support_sessions all stay: a signed-out admin

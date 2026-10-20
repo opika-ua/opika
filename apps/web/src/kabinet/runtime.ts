@@ -2,7 +2,7 @@ import { after } from "next/server";
 import { getDb } from "../api/db";
 import { createKabinetAuth, type KabinetAuth } from "./auth";
 import { kabinetAuthAvailability } from "./auth-route";
-import { kabinetLimiters } from "./limiters";
+import { kabinetLimiters, passwordLimiters } from "./limiters";
 import { kabinetSessionUserIdOf } from "./principal";
 
 /**
@@ -25,6 +25,8 @@ export function kabinetAuth(): KabinetAuth {
     secret: availability.secret,
     secureCookies: availability.baseURL.startsWith("https://"),
     limiters: kabinetLimiters,
+    passwordLimiters,
+    passwordMail: availability.passwordMail,
   });
   return cachedAuth;
 }
@@ -36,5 +38,5 @@ export function kabinetAuth(): KabinetAuth {
  */
 export async function kabinetPageUserId(headers: Headers, now: Date): Promise<string | null> {
   if (kabinetAuthAvailability(process.env).kind === "unavailable") return null;
-  return kabinetSessionUserIdOf(kabinetAuth(), headers, now);
+  return kabinetSessionUserIdOf(kabinetAuth(), getDb(), headers, now);
 }

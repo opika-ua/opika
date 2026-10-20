@@ -88,12 +88,13 @@ export function Button({
   return <button type={type} className={`${buttonClass(variant)} ${className}`} {...props} />;
 }
 
-const CONTROL = `min-h-target w-full min-w-0 rounded-rg-button bg-rg-fill px-4 text-lg text-rg-ink ${FOCUS_RING}`;
+/** Exported for composite fields (the password field and its show/hide button), so they share these tokens. */
+export const CONTROL = `min-h-target w-full min-w-0 rounded-rg-button bg-rg-fill px-4 text-lg text-rg-ink ${FOCUS_RING}`;
 /** An invalid control: an inset ink ring, never a colour of its own. */
-const INVALID = "ring-2 ring-inset ring-rg-ink";
-const LABEL = "text-base font-medium text-rg-ink";
-const HINT = "text-sm text-rg-ink-3";
-const ERROR = "text-base font-medium text-rg-ink";
+export const INVALID = "ring-2 ring-inset ring-rg-ink";
+export const LABEL = "text-base font-medium text-rg-ink";
+export const HINT = "text-sm text-rg-ink-3";
+export const ERROR = "text-base font-medium text-rg-ink";
 
 type FieldSlots = {
   id: string;
@@ -146,13 +147,16 @@ export function TextField({
   error,
   describedBy,
   className = "",
+  ref,
   ...props
-}: FieldSlots & Omit<InputHTMLAttributes<HTMLInputElement>, "id">) {
+}: FieldSlots &
+  Omit<InputHTMLAttributes<HTMLInputElement>, "id"> & { ref?: Ref<HTMLInputElement> }) {
   const slots = { id, label, hint, error, describedBy };
   return (
     <FieldFrame slots={slots}>
       <input
         id={id}
+        ref={ref}
         className={`${CONTROL} ${error ? INVALID : ""} ${className}`}
         {...fieldA11y(slots)}
         {...props}

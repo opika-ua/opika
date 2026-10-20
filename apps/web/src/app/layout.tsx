@@ -1,8 +1,7 @@
 import { uk } from "@opika/i18n";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 import "./globals.css";
+import { SiteAnalytics } from "../features/chrome/SiteAnalytics";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
 import { commissioner, eUkraine, literata } from "./fonts";
 
@@ -89,10 +88,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Cookieless, no-op without JS — aggregate page views (Analytics)
           and real Core Web Vitals from actual devices (Speed Insights),
           which the harness cannot simulate. «Про проєкт» discloses this to
-          shelters and adopters.
+          shelters and adopters. Their one `beforeSend` strips the query string from
+          every kabinet sign-in page, so no token reaches either (`SiteAnalytics`).
         */}
-        <Analytics />
-        <SpeedInsights />
+        <SiteAnalytics />
       </body>
     </html>
   );

@@ -35,3 +35,9 @@ export const animalListShownTo = (
   viewer: "admin" | "support",
   writes: { readonly kind: "open" | "read_only" },
 ): boolean => viewer === "support" || writes.kind === "open";
+
+/** K1, the sign-in page (and, with `?zaproshennia=`, the invite landing). */
+export const SIGN_IN_PAGE_PATH = "/kabinet/vkhid";
+
+/** «Забули пароль?» (PW-1, §4.2): K1's link, the reset page's invalid-link link and «Змінити пароль»'s note point here. */
+export const FORGOT_PATH = `${SIGN_IN_PAGE_PATH}/zabuly`;

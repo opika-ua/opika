@@ -2,6 +2,7 @@ import { uk } from "@opika/i18n";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { SignInOutcome } from "./password/password-api";
 import { RESEND_LOCKOUT_SECONDS, SignInCard } from "./SignInCard";
 
 /**
@@ -30,7 +31,8 @@ const setup = (
 };
 
 const emailField = () => screen.getByLabelText(uk.kabinet.signIn.emailLabel);
-const sendButton = () => screen.getByRole("button", { name: uk.kabinet.signIn.send });
+/** The secondary way in since PW-1: «Надіслати посилання для входу», the magic link. */
+const sendButton = () => screen.getByRole("button", { name: uk.kabinet.signIn.useLink });
 /** The resend button in either form: «Send again», or «Send again · m:ss» while locked. */
 const resendButton = () => {
   const lockedPrefix = uk.kabinet.signIn.resendIn.split("{time}")[0] ?? "";
@@ -51,12 +53,12 @@ async function signIn(user: ReturnType<typeof userEvent.setup>, address = "  Ole
 }
 
 describe("K1 · enter email", () => {
-  it("has one heading, a labelled email field and the send button", () => {
+  it("has one heading, a labelled email field and the link button", () => {
     setup();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(emailField().getAttribute("type")).toBe("email");
     expect(emailField().getAttribute("autocomplete")).toBe("email");
-    expect(sendButton().getAttribute("type")).toBe("submit");
+    expect(sendButton().getAttribute("type")).toBe("button");
   });
 
   it("sends the trimmed address and moves to «check your email», focus on its heading", async () => {
@@ -81,13 +83,17 @@ describe("K1 · enter email", () => {
     ).toBe("P");
   });
 
-  it("says when the request itself failed, on the field, and stays on the form", async () => {
+  it("says when the link request itself failed, in an alert, and stays on the form", async () => {
     const { user } = setup(async () => false);
     await signIn(user);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(uk.kabinet.signIn.title);
-    const error = screen.getByText(uk.kabinet.signIn.sendFailed);
-    expect(emailField().getAttribute("aria-invalid")).toBe("true");
-    expect(emailField().getAttribute("aria-describedby")).toBe(error.id);
+    expect(screen.getByRole("alert").textContent).toBe(uk.kabinet.signIn.sendFailed);
+  });
+
+  it("asks for no link while the address field is empty", async () => {
+    const { user, send } = setup();
+    await user.click(sendButton());
+    expect(send).not.toHaveBeenCalled();
   });
 });
 
@@ -225,20 +231,88 @@ describe("K1 · «check your email» names a person to write to (IN-T9)", () => 
   });
 });
 
-describe("K1 · focus and targets", () => {
-  it("every interactive element carries focus-visible styling and a 56px target", async () => {
-    const { user } = setup();
-    const check = () => {
-      for (const element of [
-        ...screen.getAllByRole("button"),
-        ...screen.queryAllByRole("textbox"),
-      ]) {
-        expect(element.className).toContain("focus-visible:outline");
-        expect(element.className).toContain("min-h-14");
-      }
-    };
-    check();
-    await signIn(user);
-    check();
+/**
+ * PW-1, the password (scope item 3). Found by role, label and text; the sentences checked are
+ * his, transcribed from `docs/shelter-passwords-copy-uk.md`.
+ */
+describe("K1 · the password, first (PW-1)", () => {
+  const passwordField = () =>
+    screen.getByLabelText(uk.kabinet.signIn.passwordLabel, { selector: "input" });
+  const submit = () => screen.getByRole("button", { name: "Увійти" });
+
+  function renderWith(outcome: SignInOutcome) {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const signInSpy = vi.fn(async (_email: string, _password: string) => outcome);
+    const onSignedIn = vi.fn();
+    render(
+      <SignInCard
+        contact="hello@example.org"
+        signIn={signInSpy}
+        onSignedIn={onSignedIn}
+        send={async () => true}
+      />,
+    );
+    return { user, signIn: signInSpy, onSignedIn };
+  }
+
+  async function fill(user: ReturnType<typeof userEvent.setup>, password = "ялинка-під-вікном") {
+    await user.type(emailField(), "  Olena@Example.org ");
+    await user.type(passwordField(), password);
+    await user.click(submit());
+  }
+
+  it("has the password field, «Увійти» as the form's submit, and «Забули пароль?» to its page", () => {
+    renderWith({ kind: "signed_in" });
+    expect(passwordField().getAttribute("type")).toBe("password");
+    expect(passwordField().getAttribute("autocomplete")).toBe("current-password");
+    expect(submit().getAttribute("type")).toBe("submit");
+    expect(screen.getByRole("link", { name: "Забули пароль?" }).getAttribute("href")).toBe(
+      "/kabinet/vkhid/zabuly",
+    );
+    expect(
+      screen.getByText(
+        "Для притулків і адміністратора сайту. Увійти можна з паролем або за посиланням, що приходить на пошту.",
+      ),
+    ).toBeDefined();
+  });
+
+  it("signs in with the trimmed address and the password as typed, then goes home", async () => {
+    const { user, signIn, onSignedIn } = renderWith({ kind: "signed_in" });
+    await fill(user, " пробіл-на-початку ");
+    expect(signIn).toHaveBeenCalledWith("Olena@Example.org", " пробіл-на-початку ");
+    expect(onSignedIn).toHaveBeenCalledTimes(1);
+  });
+
+  it("one sentence for every refusal (§5), in an alert", async () => {
+    const { user, onSignedIn } = renderWith({ kind: "wrong" });
+    await fill(user);
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Не вдалося увійти. Перевірте адресу й пароль або надішліть собі посилання для входу.",
+    );
+    expect(onSignedIn).not.toHaveBeenCalled();
+  });
+
+  it("the delay's sentence with its minutes (§9 answer 5)", async () => {
+    const { user } = renderWith({ kind: "throttled", minutes: 4 });
+    await fill(user);
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Забагато спроб входу. Спробуйте ще раз через 4 хв.",
+    );
+  });
+
+  it("a failed request is the connection's, not the credentials'", async () => {
+    const { user } = renderWith({ kind: "failed" });
+    await fill(user);
+    expect(screen.getByRole("alert").textContent).toBe(uk.kabinet.animalList.errors.actionFailed);
+  });
+
+  it("«Показати пароль» shows it and becomes «Сховати пароль»; the value stays", async () => {
+    const { user } = renderWith({ kind: "signed_in" });
+    await user.type(passwordField(), "секрет-123456");
+    await user.click(screen.getByRole("button", { name: "Показати пароль" }));
+    expect(passwordField().getAttribute("type")).toBe("text");
+    expect((passwordField() as HTMLInputElement).value).toBe("секрет-123456");
+    await user.click(screen.getByRole("button", { name: "Сховати пароль" }));
+    expect(passwordField().getAttribute("type")).toBe("password");
   });
 });

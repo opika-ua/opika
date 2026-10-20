@@ -309,7 +309,7 @@ export const en = {
     free: 'The site is free for shelters today and will stay free. No paid tiers, no "free for the first three months." If that were ever to change, every shelter would know well in advance, not after the fact.',
     money:
       'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) — the site only shows the link; the money goes directly, and you can see exactly where.',
-    data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. IP addresses are not stored. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks.",
+    data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks.",
     analytics:
       "The site collects basic visit statistics — how many people visit and how fast the pages load — with no advertising.",
     /** Template: "Get in touch: {contact}" */
@@ -372,9 +372,17 @@ export const en = {
       pageTitle: "Sign in to the cabinet",
       title: "Sign in to the cabinet",
       intro:
-        "For shelters and the site administrator. There is no password: a sign-in link arrives by email.",
+        "For shelters and the site administrator. Sign in with a password or with a link that arrives by email.",
       emailLabel: "Email address",
-      send: "Send the link",
+      passwordLabel: "Password",
+      showPassword: "Show password",
+      hidePassword: "Hide password",
+      submitPassword: "Sign in",
+      useLink: "Send a sign-in link",
+      forgot: "Forgot your password?",
+      wrongCredentials:
+        "Couldn't sign in. Check the address and password, or send yourself a sign-in link.",
+      throttled: "Too many sign-in attempts. Try again in {minutes} min.",
       addressNote:
         "I add your address when I invite your shelter. If the address is not on the list no email arrives, and this page does not say so, so that it never reveals who is registered.",
       sendFailed: "The link could not be sent. Check your connection and try again.",
@@ -385,6 +393,43 @@ export const en = {
       resend: "Send again",
       resendIn: "Send again · {time}",
       otherAddress: "A different address",
+    },
+    setPassword: {
+      newLabel: "Password",
+      repeatLabel: "Repeat the password",
+      hint: "Characters: {count} of {min}",
+    },
+    password: {
+      tooShort: "The password is too short. Minimum characters: {min}.",
+      tooLong: "The password is too long. Maximum characters: {max}.",
+      common: "This password is too easy to guess. Choose another.",
+      personal:
+        "The password can't contain your email address (even the part before the @), the shelter's name or the site's name.",
+      mismatch: "The passwords don't match.",
+    },
+    forgot: {
+      title: "Forgot your password?",
+      intro: "Enter the email address you sign in to the cabinet with.",
+      submit: "Send the link",
+      sent: "If this is a shelter cabinet administrator's address, a link for a new password has been sent to it. It works for {minutes} min.",
+      throttled: "Too many requests. Try again later.",
+    },
+    reset: {
+      title: "New password",
+      submit: "Save the password",
+      done: "Password changed, and you have been signed out on every device. Sign in with the new password.",
+      invalidLink: "The link has expired or has already been used. {link}",
+      invalidLinkText: "Get a new link",
+    },
+    changePassword: {
+      title: "Change password",
+      currentLabel: "Current password",
+      newLabel: "New password",
+      submit: "Change password",
+      done: "Password changed. Other devices have been signed out; you stay in the cabinet here.",
+      wrongCurrent: "The current password is wrong.",
+      noPasswordYet:
+        "There is no password yet. You can create one through «Forgot your password?» on the sign-in page.",
     },
     profile: {
       pageTitle: "Shelter profile",
@@ -847,6 +892,18 @@ export const en = {
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours} hours. If you miss it, I will send a new one.`,
         notYou: `If you weren't expecting this email, just ignore it: nobody gets access without signing in from this address.\n— {operator}`,
+      },
+      reset: {
+        subject: `A new password for the shelter's cabinet`,
+        intro: `A new password for the shelter's cabinet was requested for this address.`,
+        action: `Create a new password`,
+        expiry: `The link works once and expires in {minutes} min.`,
+        notYou: `If you didn't make this request, just ignore this email: your password stays the same.\n— {operator}`,
+      },
+      passwordChanged: {
+        subject: `Shelter cabinet: password changed`,
+        body: `The password to the shelter's cabinet for this address has just been changed. Other devices have been signed out.`,
+        notYou: `If this wasn't you, write to me: {contact}\n— {operator}`,
       },
     },
     signInCard: {

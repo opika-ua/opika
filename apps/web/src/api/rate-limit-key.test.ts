@@ -5,7 +5,7 @@ import { Redis } from "@upstash/redis";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RateLimiter } from "./rate-limit";
-import { ipKeyWith, ipRateLimitKey } from "./rate-limit-key";
+import { addressKeyWith, addressRateLimitKey, ipKeyWith, ipRateLimitKey } from "./rate-limit-key";
 
 /**
  * Oleksii, 2026-10-14 (inbox EM-Q11), verbatim: "Rate-limit keys become
@@ -26,6 +26,18 @@ function expectNoIpIn(keys: readonly string[], ip: string) {
   for (const key of keys) {
     for (const variant of variantsOf(ip)) {
       expect(key, `limiter key carries the IP (${variant}): EM-Q11`).not.toContain(variant);
+    }
+  }
+}
+
+/** No key carries the address as typed, trimmed, lower-cased, or its local part. */
+function expectNoAddressIn(keys: readonly string[]) {
+  expect(keys.length, "the limiter was never charged, so nothing was checked").toBeGreaterThan(0);
+  for (const key of keys) {
+    for (const variant of ["Olena@Example.org", "olena@example.org", "olena", "Olena"]) {
+      expect(key, `limiter key carries the address (${variant}): §9 answer 7`).not.toContain(
+        variant,
+      );
     }
   }
 }
@@ -61,6 +73,29 @@ describe("ipKeyWith", () => {
     const { createHash } = await import("node:crypto");
     const plain = createHash("sha256").update(IPV4).digest("base64url");
     expect(ipKeyWith(SECRET_A, IPV4)).not.toBe(`ip:${plain}`);
+  });
+});
+
+describe("addressKeyWith (§9 answer 7)", () => {
+  it("is `address:` and a 256-bit HMAC, base64url, with no trace of the address", () => {
+    const key = addressKeyWith(SECRET_A, "Olena@Example.org");
+    expect(key).toMatch(/^address:[A-Za-z0-9_-]{43}$/);
+    expectNoAddressIn([key]);
+  });
+
+  it("one key however the address is typed; another address or secret, another key", () => {
+    const key = addressKeyWith(SECRET_A, "olena@example.org");
+    for (const spelling of [" Olena@Example.org", "OLENA@EXAMPLE.ORG\t", "olena@example.org"]) {
+      expect(addressKeyWith(SECRET_A, spelling), spelling).toBe(key);
+    }
+    expect(addressKeyWith(SECRET_A, "petro@example.org")).not.toBe(key);
+    expect(addressKeyWith(SECRET_B, "olena@example.org")).not.toBe(key);
+  });
+
+  it("is keyed under the configured secret, like the IP key", () => {
+    expect(addressRateLimitKey("olena@example.org", { RATE_LIMIT_KEY_SECRET: SECRET_A })).toBe(
+      addressKeyWith(SECRET_A, "olena@example.org"),
+    );
   });
 });
 
@@ -105,17 +140,33 @@ describe("ipRateLimitKey: where the secret comes from", () => {
  * real entry point, recording the keys it charges.
  */
 describe("no limiter key carries the raw IP (EM-Q11)", () => {
-  it("the sign-in limiter (per IP; the per-address key is the address, by design)", async () => {
+  it("the sign-in limiter, per IP and per address (§9 answer 7: the address is HMAC'd too)", async () => {
     const { signInAllowed } = await import("../kabinet/sign-in-limit");
     for (const ip of [IPV4, IPV6]) {
       const perIp = recorder(true);
-      await signInAllowed(
-        { perIp, perAddress: recorder(true) },
-        { email: "olena@example.org", ip },
-        new Date(),
-      );
+      const perAddress = recorder(true);
+      await signInAllowed({ perIp, perAddress }, { email: " Olena@Example.org", ip }, new Date());
       expectNoIpIn(perIp.keys, ip);
+      expectNoAddressIn(perAddress.keys);
     }
+  });
+
+  it("the invite landing's per-address budget", async () => {
+    const { inviteLandingOf } = await import("../kabinet/invite-landing");
+    const perAddress = recorder(true);
+    await inviteLandingOf("00000000-0000-4000-8000-000000000000", {
+      lookup: async () => ({
+        status: "pending",
+        email: "Olena@Example.org",
+        shelterName: "Ліс",
+        expiresAt: new Date(Date.now() + 60_000),
+      }),
+      limiters: { perIp: recorder(true), perAddress },
+      ip: IPV4,
+      now: new Date(),
+      sendMagicLink: async () => true,
+    });
+    expectNoAddressIn(perAddress.keys);
   });
 
   it("the invite landing", async () => {
@@ -173,6 +224,7 @@ describe("no limiter key carries the raw IP (EM-Q11)", () => {
       shared = [];
       vi.doMock("./rate-limit", () => ({
         apiRateLimiter: api,
+        sharedRedisStore: () => null,
         sharedRateLimiter: () => {
           const limiter = recorder(true);
           shared.push(limiter);
@@ -207,7 +259,11 @@ describe("no limiter key carries the raw IP (EM-Q11)", () => {
 
     it("the adopter API route (/api/rpc)", async () => {
       api = recorder(false);
-      vi.doMock("./rate-limit", () => ({ apiRateLimiter: api, sharedRateLimiter: recorder }));
+      vi.doMock("./rate-limit", () => ({
+        apiRateLimiter: api,
+        sharedRateLimiter: recorder,
+        sharedRedisStore: () => null,
+      }));
       // The route opens its (lazy) connection before the limiter; nothing is queried.
       vi.doMock("./db", () => ({ getDb: () => ({}) }));
       const { POST } = await import("../app/api/rpc/[...rpc]/route");
@@ -279,6 +335,9 @@ describe("the helper is the only way to an IP key", () => {
       name: "a limiter charged on a bare address",
       pattern: /\.check\(\s*(?:clientIp\(|(?:[\w.]+\.)?ip\s*[,)])/,
     },
+    // §9 answer 7: per-address keys are HMAC'd too, through `addressRateLimitKey`.
+    { name: "an `address:` template", pattern: /`address:\$\{/ },
+    { name: "an `address:` string concatenation", pattern: /["']address:["']\s*\+/ },
   ];
 
   it("finds the source it scans (so an empty result means something)", () => {
@@ -295,13 +354,20 @@ describe("the helper is the only way to an IP key", () => {
           ({ name }) => `${relative(SRC, path)}: ${name}`,
         );
       });
-    expect(found, "build IP limiter keys with ipRateLimitKey (EM-Q11)").toEqual([]);
+    expect(
+      found,
+      "build limiter keys with ipRateLimitKey (EM-Q11) and addressRateLimitKey (§9 answer 7)",
+    ).toEqual([]);
   });
 
   it("the patterns catch what they are for", () => {
-    const [template, concat, bare] = HAND_BUILT.map(({ pattern }) => pattern);
+    const [template, concat, bare, addressTemplate, addressConcat] = HAND_BUILT.map(
+      ({ pattern }) => pattern,
+    );
     // Built from pieces so the sample itself is not a template-in-a-string.
     expect(template?.test(`limiter.check(\`ip:$${"{"}deps.ip}\`, now)`)).toBe(true);
+    expect(addressTemplate?.test(`limiter.check(\`address:$${"{"}email}\`, now)`)).toBe(true);
+    expect(addressConcat?.test('limiter.check("address:" + email, now)')).toBe(true);
     expect(concat?.test('limiter.check("ip:" + ip, now)')).toBe(true);
     expect(bare?.test("apiRateLimiter.check(clientIp(request), now)")).toBe(true);
     expect(bare?.test("apiRateLimiter.check(ip, now)")).toBe(true);

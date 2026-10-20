@@ -598,6 +598,28 @@ follow-up EM-F1), so it can't tell you whether an address is blocked. Check, in 
 from the registry, and tell the shelter personally (IN-E13). Oleksii's condition on EM-T26,
 2026-10-15.
 
+## Every delivery test: tracking is checked by hand (Oleksii's steps)
+
+`email:delivery-test` sends the sign-in email and the invite through Resend on a sending-only key,
+and reads none of the domain's settings: a sending-only key can't, so the script no longer checks
+tracking itself. His rule is "no tracking on any auth email, ever" (2026-10-19), so each delivery
+test carries two checks by hand. Oleksii, 2026-10-20, verbatim (inbox PW1-Q5): "PW1-Q5: (b). Keep
+a sending-only key and drop the domain-reading check from the script. Tracking stays verified by
+hand: the Resend dashboard shows click and open tracking off, and the links in the received email
+are plain. Add both as runbook steps for each delivery test."
+
+1. **Run it:** `pnpm --filter @opika/web email:delivery-test --to <address>`. The key is
+   `RESEND_API_KEY` in the repo-root `.env.local`, a sending-only one. `--sign-in-provider brevo`
+   and `--invite-provider brevo` are refused: auth emails are locked to Resend (PW1-Q4).
+2. **The Resend dashboard shows click and open tracking off:** Resend → Domains → the sending
+   subdomain (`mail.opika.org.ua`), both switches off.
+3. **The links in the received email are plain:** in each of the two emails, the link points
+   straight at the page it names (the `--base` address, with its `TEST-` token), not at a
+   redirect on another host. Gmail: ⋮ → "Show original", and read each `href`.
+
+If either check shows tracking, turn it off in Resend (Domains, the sending subdomain) before
+anything else is sent.
+
 ## DMARC: raising the policy (launch gate, Oleksii's step)
 
 Before the first real shelter (`docs/build-plan.md` Part 5), he reviews the DMARC aggregate
@@ -630,7 +652,9 @@ goes through `p=quarantine` first. Both records, not only the apex: EA-Q1 below.
      - `_dmarc.opika.org.ua`: `v=DMARC1; p=quarantine; rua=mailto:dmarc@opika.org.ua`
      - `_dmarc.mail.opika.org.ua`: `v=DMARC1; p=quarantine; rua=mailto:dmarc@opika.org.ua`
   3. **Run a delivery test** of a sign-in email and an invite (`email:delivery-test`) and confirm
-     both arrive in the inbox.
+     both arrive in the inbox, with the two tracking checks of "Every delivery test" above: the
+     Resend dashboard shows click and open tracking off, and the links in the received email are
+     plain.
   4. **Check the next DMARC reports** for anything failing **before** going to `p=reject` (both
      records, the same `rua`).
 - **All DNS changes are his** ("I make all DNS changes myself").
@@ -671,10 +695,16 @@ replace it in Vercel's Production environment, redeploy, then run the
 old value stops verifying at once; a tab already open can keep reaching the old
 deployment for up to 12 hours (skew protection), so it is the purge, not the
 redeploy, that signs **every shelter admin and the operator** out everywhere.
-They sign in again with a fresh link, after the purge, which deletes the old
-rows at once. Left to the auth
-clean-up (every 6 hours), they would stay until their 7-day expiry passed
-(inbox KH-Q9, KH-Q10, KH-Q12).
+They sign in again after the purge, which deletes the old rows at once:
+shelter admins with their password (or a fresh link), the operator with a
+fresh link, since the operator never has a password. **Rotation is a sign-out,
+not a lockout** (PW-1): a password is stored as Better Auth's scrypt hash in
+`auth_account.password`, with a salt and no key, so it doesn't depend on
+`BETTER_AUTH_SECRET` and keeps working across a rotation; what the secret binds
+is the sessions and the links, which the purge removes. Left to the auth
+clean-up (every 6 hours), the old sessions would stay until each passed its
+limit, up to 30 days idle for a shelter admin (7 for the operator), far past
+the day /pro promises (inbox KH-Q9, KH-Q10, KH-Q12).
 
 What rotation leaves alone, exactly. `CURSOR_HMAC_SECRET` and
 `LOCATION_HMAC_SECRET` sign with their own keys, the pre-launch gate checks
@@ -684,11 +714,11 @@ a random token stored as its hash, with no key at all. None of them read
 adopters' sessions all keep working.
 
 What it also leaves alone, and this one matters: **rotation on its own leaves
-a sign-in link sent in the last 15 minutes working.** Links are stored in
-`auth_verification` as a plain SHA-256 of the token, with no key, so the new
-secret doesn't invalidate them, and following one creates a fresh session
-signed with the new secret. That is why the purge below empties that table
-too.
+a sign-in link sent in the last 15 minutes, and a reset link sent in the last
+hour, working.** Both are stored in `auth_verification` as a plain SHA-256 of
+the token, with no key, so the new secret doesn't invalidate them; following a
+sign-in link creates a fresh session signed with the new secret, and a reset
+link sets a new password. That is why the purge below empties that table too.
 
 ### After the redeploy: delete every sign-in (REQUIRED)
 
@@ -706,18 +736,21 @@ person, with the same access.
 
 Why, in his words (verbatim): "every cookie and link is already invalid, so
 nothing is lost, and /pro's «…протягом доби» then holds in every case."
-Without the purge, the old session rows would wait for the clean-up's 7-day
-expiry, past the day /pro promises. The kabinet signs in by magic link only,
-so `auth_verification` holds nothing but links not yet used (a used link's row
-is deleted when it's followed). Strictly, three kinds of row are still live when
-the purge runs, and they all go: a link sent in the 15 minutes before it (links
-don't depend on the secret, above); a session started after the redeploy; and a
-pre-rotation session in a kabinet tab that was already open. Skew protection
-(12 h, SK-B1) keeps that tab talking to the old deployment, which still holds
-the old secret, so for it the redeploy alone changes nothing: **the purge is
-what ends those sessions.** Run this block right after the redeploy, not later.
-The worst any of the three does is make that person ask for a new link. So sign
-in again yourself only after this block.
+Without the purge, the old session rows would wait for the clean-up to reach
+each one's limit (up to 30 days idle for a shelter admin since PW-1), past the
+day /pro promises. `auth_verification` holds nothing but links not yet used:
+sign-in links and, since PW-1, password-reset links (a used link's row is
+deleted when it's followed). Strictly, three kinds of row are still live when
+the purge runs, and they all go: a link sent shortly before it (a sign-in link
+within 15 minutes, a reset link within the hour; links don't depend on the
+secret, above); a session started after the redeploy; and a pre-rotation
+session in a kabinet tab that was already open. Skew protection (12 h, SK-B1)
+keeps that tab talking to the old deployment, which still holds the old secret,
+so for it the redeploy alone changes nothing: **the purge is what ends those
+sessions.** Run this block right after the redeploy, not later. The worst any
+of the three does is make that person sign in again or ask for a new link.
+Passwords are not touched: `auth_account` stays. So sign in again yourself only
+after this block.
 
 Run it from the main checkout (its root `.env.local` provides
 `PROD_NEON_ENDPOINT`), up to date with the default branch, in Windows
@@ -750,4 +783,69 @@ Expected:
 
 Without `--prod` it refuses production. Without `--expect`, or with one naming
 another compute, it refuses before anything runs, and prints neither the URL
-nor an endpoint. Then sign in again at `/kabinet/vkhid` with a fresh link.
+nor an endpoint. Then sign in again at `/kabinet/vkhid` with a fresh link (the
+operator never has a password; shelter admins can use theirs).
+
+## Before PW-1 merges: the Neon smoke for the password paths (Oleksii's run)
+
+PW-1 adds SQL paths that only real Neon (neon-http) can verify ("Local Postgres and Neon are not
+the same database"): Better Auth creating the credential account and consuming the hashed reset
+token, the password sign-in and change, and the clean-up's new `super_admins` subquery. Both
+smokes pass locally (postgres-js); neither has run against Neon. On a fresh child branch of
+production (its own endpoint id, never production's; nothing is sent anywhere), from the PW-1
+worktree, with `PROD_NEON_ENDPOINT=ep-dawn-pond-b1dz515g` in the shell and the child branch's
+DIRECT connection string read with `Read-Secret`:
+
+```powershell
+$env:DATABASE_URL = Read-Secret "Child branch DIRECT connection string"
+pnpm --filter @opika/db db:neon-smoke --expect ep-…
+pnpm --filter @opika/web kabinet:neon-auth-smoke --expect ep-…
+Remove-Item Env:DATABASE_URL
+```
+
+Expected:
+
+1. `db:neon-smoke`: **37 passed, 0 failed** (the count its local test pins), with step 18 now named
+   «auth clean-up (expiry, and each holder's limits: shelter-side 30/90, the operator's 7/30, one
+   statement)» and its line ending «every row of this run where it should be».
+2. `kabinet:neon-auth-smoke`: **9 passed, 0 failed**: the five steps as before, then «forgot
+   password (the reset token stored hashed, the email captured)», «reset (token consumed,
+   credential created with a hash, the notice captured)», «password sign-in (session created, no
+   token in the body)», «change password (hash updated, other sessions revoked, one renewed
+   session)».
+
+Both print the host and one line per step only (never a URL, a token, an address or a password),
+and refuse production and any endpoint but `--expect`. Report the two counts.
+
+## After PW-1 deploys: the token pages (Oleksii's step)
+
+Oleksii, 2026-10-20, verbatim (his step, run on production once PW-1 has merged and deployed;
+production is the test environment until launch):
+
+"Deployment check: (a), production after PW-1 merges. Write it as my step in the PR and the
+runbook, and make it concrete: Request a reset link for the Репетиція admin and open it. In
+DevTools → Network, filter for insights / vitals and check that each analytics request's payload
+URL is /kabinet/vkhid/… with no query string. Check that the address bar no longer shows token=
+after the page loads. Check that the response headers include Cache-Control: no-store and
+Referrer-Policy: no-referrer. A day later, check that Vercel Analytics → Pages lists no
+/kabinet/vkhid entry with a query string. If any of these fail, it's a fix-forward PR straight
+away. The reset link from step 1 is a real token, so don't paste it anywhere."
+
+And the step he added, verbatim (2026-10-20): "Deployment check: add a step. In each analytics
+request, search the whole payload for token= and zaproshennia=, not just the URL field."
+
+As a checklist (his steps, in his order; his added step is 3, beside the analytics step it
+extends):
+
+1. Request a reset link for the Репетиція admin («Забули пароль?») and open it.
+2. In DevTools → Network, filter for `insights` / `vitals`: each analytics request's payload URL
+   is `/kabinet/vkhid/…` with no query string.
+3. In each of those analytics requests, search the whole payload (not just the URL field) for
+   `token=` and `zaproshennia=`: neither appears.
+4. The address bar no longer shows `token=` after the page loads.
+5. The reset page's response headers include `Cache-Control: no-store` and
+   `Referrer-Policy: no-referrer`.
+6. A day later: Vercel Analytics → Pages lists no `/kabinet/vkhid` entry with a query string.
+
+If any of these fail, a fix-forward PR straight away. **The reset link from step 1 is a real
+token: don't paste it anywhere** (his words).

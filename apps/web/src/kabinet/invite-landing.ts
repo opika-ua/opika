@@ -1,5 +1,5 @@
 import type { InviteLandingRow } from "@opika/db/repos";
-import { ipRateLimitKey } from "../api/rate-limit-key";
+import { addressRateLimitKey, ipRateLimitKey } from "../api/rate-limit-key";
 import type { KabinetAuth } from "./auth";
 import { isSameOriginPost } from "./confirm-route";
 import { maskAddress } from "./email-senders";
@@ -39,8 +39,8 @@ import { normalizeEmail, type SignInLimiters } from "./sign-in-limit";
  *   ids costs the guesser the same budget a sign-in attempt does, and learns
  *   nothing from the answer;
  * - only a live invitation charges its address's budget, the same
- *   `address:` key K1's form charges, so the landing and the form share
- *   HS-Q5's five links an hour.
+ *   `addressRateLimitKey` K1's form charges (an HMAC of the address, §9
+ *   answer 7), so the landing and the form share HS-Q5's five links an hour.
  *
  * The magic link goes through Better Auth's own `sign-in/magic-link`, by a
  * server-built request into `auth.handler` (the entry the auth route
@@ -83,7 +83,7 @@ export async function inviteLandingOf(
   if (row.status === "accepted") return { kind: "already_accepted" };
   if (row.expiresAt.getTime() <= deps.now.getTime()) return { kind: "unusable" };
   const email = normalizeEmail(row.email);
-  if (!(await deps.limiters.perAddress.check(`address:${email}`, deps.now))) {
+  if (!(await deps.limiters.perAddress.check(addressRateLimitKey(email), deps.now))) {
     return { kind: "rate_limited" };
   }
   let accepted: boolean;

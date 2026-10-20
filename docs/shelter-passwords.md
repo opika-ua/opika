@@ -28,7 +28,7 @@ key; any new string is given as its English sense, with the Ukrainian left to hi
 | `/reset-password` **creates** a credential account if the user has none | `password.mjs:162` | Without a guard, a reset would give the operator a password. That's the main hole (§4.6) |
 | Reset tokens are stored as `identifier = 'reset-password:<token>'`, in plain text by default | `password.mjs:77`, `db/internal-adapter.mjs:600` | His "stored hashed" needs `verification.storeIdentifier: { default: "plain", overrides: { "reset-password:": "hashed" } }` (SHA-256, built into 1.6.33, `verification-token-storage.mjs`) |
 | Sessions today: 7 days idle, 30 days absolute (HS-Q8); the absolute cap is enforced in our `hooks.before` and by the clean-up (`KABINET_SESSION_ABSOLUTE_MS`) | `auth.ts`, `auth-expiry-repo.ts` | F-B9's 30-day rolling / 90-day cap changes those two numbers (§4.5) |
-| Auth email goes through **Resend** (EM-B10: production sets `EMAIL_PROVIDER=resend`, `EMAIL_SIGN_IN_PROVIDER` unset; Brevo's code stays only as a grace-period rollback). Resend has **no per-message tracking option**: click and open tracking are per-domain settings, active only with a verified tracking subdomain. Our payloads carry no tracking field or header | `email-provider.ts:296`; Resend's API reference (send email; update domain) | His rule, "no tracking on any auth email, ever", is enforced at the Resend domain plus a payload test (§4.4). The code comments about Brevo's click tracker describe the provider being retired |
+| Auth email goes through **Resend** (EM-B10: production sets `EMAIL_PROVIDER=resend`, `EMAIL_SIGN_IN_PROVIDER` unset; Brevo's code stayed as a grace-period rollback, refused in config since PW1-Q4, §4.4). Resend has **no per-message tracking option**: click and open tracking are per-domain settings, active only with a verified tracking subdomain. Our payloads carry no tracking field or header | `email-provider.ts:296`; Resend's API reference (send email; update domain) | His rule, "no tracking on any auth email, ever", is enforced at the Resend domain plus a payload test (§4.4). The code comments about Brevo's click tracker describe the provider being retired |
 | Per-address limiter keys are plain (`address:<email>`); only IP keys are HMAC'd (EM-Q11) | `sign-in-limit.ts:36`, `invite-landing.ts:86` | "HMAC'd keys as now" is true for IPs, not for addresses (§9, Q7) |
 
 ## 3. Password policy (domain, pure)
@@ -148,20 +148,39 @@ to find accounts. Its message is the same for every address (§9, Q5).
 - **The «пароль змінено» notice**, sent after a reset (and after a change, §9 Q4), with his
   «…якщо це не ви — напишіть мені» and the contact address.
 - **No tracking on any auth email, ever** (his rule, 2026-10-19). Resend can't express this per
-  message, so two locks:
+  message, so three locks:
   1. **A test** pins every auth email's provider payload to exactly `{ from, to, reply_to, subject,
      html, text }`. A `headers`, `tags` or tracking field fails it. The same test runs for each
-     provider the code can route to, while more than one exists.
-  2. **The domain check:** `email:delivery-test` reads the Resend domain (`GET /domains/{id}`) and
-     refuses to send unless `click_tracking` and `open_tracking` are both false. His dashboard
-     check stays the authority (Resend → Domains → the sending subdomain → tracking off, no
-     tracking subdomain).
+     provider config can route to (Resend alone, item 3).
+  2. **The domain check, by hand** (revised 2026-10-20, PW1-Q5). As first built,
+     `email:delivery-test` read the Resend domain and refused unless `click_tracking` and
+     `open_tracking` were both false; that read needs more than a sending-only key. His answer,
+     verbatim: "PW1-Q5: (b). Keep a sending-only key and drop the domain-reading check from the
+     script. Tracking stays verified by hand: the Resend dashboard shows click and open tracking
+     off, and the links in the received email are plain. Add both as runbook steps for each
+     delivery test." The two steps are in `docs/onboarding-a-shelter.md` ("Every delivery test").
+  3. **Resend only, in config** (2026-10-20, PW1-Q4). `EMAIL_PROVIDER` and
+     `EMAIL_SIGN_IN_PROVIDER` accept `resend` alone (`AUTH_EMAIL_PROVIDERS`), so Brevo, whose
+     click tracker rewrites every link (IN-E8), can't carry an auth email; the delivery test
+     refuses `--…-provider brevo` by name. His answer, verbatim: "PW1-Q4: (a). Lock auth emails
+     (sign-in, invite, reset, password changed) to Resend in config, with a test that a Brevo
+     setting is refused for them. Note: the Brevo keys are already revoked, so this makes the
+     current state explicit. The full Brevo removal stays planned for after the 14 Nov check."
 
 ### 4.5 Sessions (F-B9)
 
 - `expiresIn: 30 days`, `updateAge: 1 day`: a rolling 30-day idle expiry.
 - `KABINET_SESSION_ABSOLUTE_MS = 90 days`, the same constant in our `hooks.before` and in the
   clean-up (which deletes sessions past the cap, KH-Q12's job).
+- **As built (revised 2026-10-20).** The two bullets above are not what shipped:
+  - Better Auth's `expiresIn` is the 90-day cap, and the 30-day idle limit is ours, on
+    `updated_at`, in `hooks.before`, the second line and the clean-up. The kabinet reads sessions
+    server-side, which never renews the cookie, so a 30-day `expiresIn` would end every session 30
+    days after sign-in, used or not (PW1-D12, the builder's decision).
+  - `updateAge` is 0: the session refreshes on every kabinet request, so "30 days from the last
+    visit" is exact (PW1-Q2, answered (b); his words in `docs/decisions-inbox/feat-pw-1-passwords.md`).
+  - The one source for the numbers, by role, is `KABINET_SESSION_LIMITS` (`packages/db`), not a
+    `KABINET_SESSION_ABSOLUTE_MS` constant.
 - For the operator, see §9 Q3.
 - **/pro:** no sentence states a kabinet session length today. F-B9 asks /pro to gain one (new copy,
   §7). The «…протягом доби» clause keeps holding, because the clean-up deletes a session at most a

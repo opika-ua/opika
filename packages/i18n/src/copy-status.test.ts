@@ -167,20 +167,28 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       history: keysOf(uk.kabinet.history),
     }).toEqual({
       shell: ["label"],
+      // PW-1: `send` (the magic-link button) gave way to his `useLink`; the password keys are his §A.
       signIn: [
         "addressNote",
         "emailLabel",
+        "forgot",
+        "hidePassword",
         "intro",
         "otherAddress",
         "pageTitle",
+        "passwordLabel",
         "resend",
         "resendIn",
-        "send",
         "sendFailed",
         "sentBody",
         "sentTitle",
+        "showPassword",
         "spamNote",
+        "submitPassword",
+        "throttled",
         "title",
+        "useLink",
+        "wrongCredentials",
       ],
       signInCard: ["notArrived"],
       confirm: [
@@ -1200,10 +1208,25 @@ describe("/prytulkam A1 (forShelters.whatToPrepare)", () => {
  * clean-up runs every 6 hours, and `apps/web/src/kabinet/auth-cleanup.test.ts`
  * ties that schedule to the sentence.
  */
-describe("/pro about.data (his PR 6 text)", () => {
+describe("/pro about.data (his PR 6 text, and PW-1's two sentences)", () => {
+  /**
+   * PW-1 adds his two sentences (`docs/shelter-passwords-copy-uk.md` §G, 2026-10-19, verbatim):
+   * the password hash after what the cabinet stores, the session's length after «IP-адреси не
+   * зберігаються». The placement is the builder's (recorded under "Decisions taken"); the words
+   * are his.
+   */
+  it("carries his two password sentences, word for word", () => {
+    expect(uk.about.data).toContain(
+      "Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль.",
+    );
+    expect(uk.about.data).toContain(
+      "Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову.",
+    );
+  });
+
   it("is his paragraph, byte for byte", () => {
     expect(uk.about.data).toBe(
-      "Дані, які вносить притулок — адреса, контакти, картки тварин, — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби. Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто — адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють — їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин — лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку. Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
+      "Дані, які вносить притулок — адреса, контакти, картки тварин, — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби. Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто — адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють — їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин — лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку. Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
     );
     expect(uk.about.data).not.toContain("реєстр");
     expect(uk.about.data).not.toContain("наближену");
@@ -1708,5 +1731,125 @@ describe("Q-A: the animal page's photo gallery labels", () => {
     expect(uk.detail.photoGalleryLabel).toBe("Фотографії тварини");
     expect(uk.detail.photoGalleryDot).toBe("Фото {n}");
     expect(uk.detail.photoGalleryThumbnail).toBe("Переглянути фото {n}");
+  });
+});
+
+/**
+ * PW-1, the shelter passwords (`docs/shelter-passwords-copy-uk.md`, his Ukrainian, 2026-10-19,
+ * verbatim, the source every string is copied from; the copy sheet's "yours" rows are his scope's
+ * own words). Transcribed from that file, never read from `uk.ts`. Each group's key set is
+ * pinned exactly, so a key added without his text, or one of his dropped, fails here; PW-2 adds
+ * `setPassword`'s title, intro and button with the invitation.
+ */
+describe("kabinet passwords copy (PW-1, his Ukrainian, 2026-10-19)", () => {
+  const HIS: Record<string, string> = {
+    // §A (intro: his replacement, verbatim; useLink, forgot: his scope item 3; throttled: §9 answer 5)
+    "signIn.intro":
+      "Для притулків і адміністратора сайту. Увійти можна з паролем або за посиланням, що приходить на пошту.",
+    "signIn.passwordLabel": "Пароль",
+    "signIn.showPassword": "Показати пароль",
+    "signIn.hidePassword": "Сховати пароль",
+    "signIn.submitPassword": "Увійти",
+    "signIn.useLink": "Надіслати посилання для входу",
+    "signIn.forgot": "Забули пароль?",
+    "signIn.wrongCredentials":
+      "Не вдалося увійти. Перевірте адресу й пароль або надішліть собі посилання для входу.",
+    "signIn.throttled": "Забагато спроб входу. Спробуйте ще раз через {minutes} хв.",
+    // §B, the parts PW-1 renders
+    "setPassword.newLabel": "Пароль",
+    "setPassword.repeatLabel": "Повторіть пароль",
+    "setPassword.hint": "Символів: {count} з {min}",
+    "password.tooShort": "Пароль закороткий. Мінімум символів: {min}.",
+    "password.tooLong": "Пароль задовгий. Максимум символів: {max}.",
+    "password.common": "Цей пароль надто легко вгадати. Оберіть інший.",
+    // changed by him 2026-10-19 (the merged catalogue's text, his rule: the source of truth)
+    "password.personal":
+      "Пароль не може містити вашу адресу пошти (навіть частину до @), назву притулку чи назву сайту.",
+    "password.mismatch": "Паролі не збігаються.",
+    // §C
+    "forgot.title": "Забули пароль?",
+    "forgot.intro": "Вкажіть адресу пошти, з якою ви входите в кабінет.",
+    "forgot.submit": "Надіслати посилання",
+    "forgot.sent":
+      "Якщо це адреса адміністратора кабінету притулку, на неї надіслано посилання для нового пароля. Воно діє {minutes} хв.",
+    "forgot.throttled": "Забагато запитів. Спробуйте ще раз пізніше.",
+    // §D (`reset.invalidLink.linkText` is the sibling `invalidLinkText`, the sheet's note)
+    "reset.title": "Новий пароль",
+    "reset.submit": "Зберегти пароль",
+    "reset.done": "Пароль змінено, на всіх пристроях виконано вихід. Увійдіть з новим паролем.",
+    "reset.invalidLink": "Посилання застаріло або вже використане. {link}",
+    "reset.invalidLinkText": "Отримати нове посилання",
+    // §E (title: his scope item 7)
+    "changePassword.title": "Змінити пароль",
+    "changePassword.currentLabel": "Поточний пароль",
+    "changePassword.newLabel": "Новий пароль",
+    "changePassword.submit": "Змінити пароль",
+    "changePassword.done":
+      "Пароль змінено. На інших пристроях виконано вихід, тут ви залишаєтеся в кабінеті.",
+    "changePassword.wrongCurrent": "Поточний пароль неправильний.",
+    "changePassword.noPasswordYet":
+      "Пароля ще немає. Створити його можна через «Забули пароль?» на сторінці входу.",
+    // F1
+    "email.reset.subject": "Новий пароль до кабінету притулку",
+    "email.reset.intro": "Надійшов запит на новий пароль до кабінету притулку для цієї адреси.",
+    "email.reset.action": "Створити новий пароль",
+    "email.reset.expiry": "Посилання спрацює один раз і діє {minutes} хв.",
+    "email.reset.notYou":
+      "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\n— {operator}",
+    // F2
+    "email.passwordChanged.subject": "Кабінет притулку: пароль змінено",
+    "email.passwordChanged.body":
+      "Пароль до кабінету притулку для цієї адреси щойно змінено. На інших пристроях виконано вихід.",
+    "email.passwordChanged.notYou": "Якщо це не ви — напишіть мені: {contact}\n— {operator}",
+  };
+
+  const at = (path: string) =>
+    path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown>)[key], uk.kabinet);
+
+  it.each(Object.entries(HIS))("%s is his text", (path, text) => {
+    expect(at(path)).toBe(text);
+  });
+
+  it("each new group holds exactly his keys", () => {
+    const keysOf = (group: object) => Object.keys(group).sort();
+    expect({
+      setPassword: keysOf(uk.kabinet.setPassword),
+      password: keysOf(uk.kabinet.password),
+      forgot: keysOf(uk.kabinet.forgot),
+      reset: keysOf(uk.kabinet.reset),
+      changePassword: keysOf(uk.kabinet.changePassword),
+      emailReset: keysOf(uk.kabinet.email.reset),
+      emailPasswordChanged: keysOf(uk.kabinet.email.passwordChanged),
+    }).toEqual({
+      setPassword: ["hint", "newLabel", "repeatLabel"],
+      password: ["common", "mismatch", "personal", "tooLong", "tooShort"],
+      forgot: ["intro", "sent", "submit", "throttled", "title"],
+      reset: ["done", "invalidLink", "invalidLinkText", "submit", "title"],
+      changePassword: [
+        "currentLabel",
+        "done",
+        "newLabel",
+        "noPasswordYet",
+        "submit",
+        "title",
+        "wrongCurrent",
+      ],
+      emailReset: ["action", "expiry", "intro", "notYou", "subject"],
+      emailPasswordChanged: ["body", "notYou", "subject"],
+    });
+  });
+
+  it("the sentence the passwords made false is gone", () => {
+    expect(uk.kabinet.signIn.intro).not.toContain("Пароля немає");
+  });
+
+  it("nothing PW-1 adds is pending, and no U+0027 or U+2019 apostrophe is in it", () => {
+    for (const [path] of Object.entries(HIS)) {
+      const text = at(path) as string;
+      expect(text, path).not.toContain(COPY_PENDING);
+      expect(text, path).not.toMatch(/['’]/);
+    }
   });
 });

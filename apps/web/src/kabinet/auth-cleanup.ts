@@ -17,9 +17,10 @@ import { authExpiryRepo } from "@opika/db/repos";
  * if that worst case passes 24 h or the sentence changes.
  *
  * - **What goes:** exactly what `authExpiryRepo.deleteExpired` deletes, in
- *   one statement: rows past their expiry (KH-Q9), and sessions past the
- *   kabinet's 30-day absolute cap even while their idle expiry is still
- *   ahead (EM-Q11, 2026-10-14).
+ *   one statement: rows past their expiry (KH-Q9), and sessions past their
+ *   holder's idle limit or cap whatever their `expires_at` (EM-Q11,
+ *   2026-10-14; by role since PW-1, `KABINET_SESSION_LIMITS`: 30 days idle
+ *   and 90 at most for a shelter admin, 7 and 30 for the operator).
  * - **Who may call it:** Vercel's cron, which sends
  *   `Authorization: Bearer <CRON_SECRET>`. Compared in constant time over
  *   SHA-256 digests (fixed length, so neither the value nor its length

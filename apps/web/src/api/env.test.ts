@@ -352,15 +352,20 @@ describe("validateEnv", () => {
       vi.stubEnv("BETTER_AUTH_SECRET", "b".repeat(31));
       expect(() => validateEnv()).toThrow(/BETTER_AUTH_SECRET must be at least 32 characters/);
       vi.stubEnv("BETTER_AUTH_SECRET", SIGN_IN.BETTER_AUTH_SECRET);
+      // PW1-Q4: Brevo is refused for the auth emails, its key present or not.
       vi.stubEnv("EMAIL_SIGN_IN_PROVIDER", "brevo");
+      vi.stubEnv("BREVO_API_KEY", "brevo-key-example");
       let message = "";
       try {
         validateEnv();
       } catch (error) {
         message = (error as Error).message;
       }
-      expect(message).toMatch(/EMAIL_SIGN_IN_PROVIDER=brevo needs BREVO_API_KEY/);
+      expect(message).toMatch(
+        /EMAIL_SIGN_IN_PROVIDER must be unset or resend: every email it routes is an auth email/,
+      );
       expect(message).not.toContain(SIGN_IN.RESEND_API_KEY);
+      expect(message).not.toContain("brevo-key-example");
     });
 
     it("is not required on a Preview or under the harness's next start", () => {

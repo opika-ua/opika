@@ -3,6 +3,7 @@ import { inMemoryRateLimiter } from "../api/rate-limit";
 import { SHELTER_WRITE_POLICY } from "./access";
 import { capturingInvitationSender } from "./email-senders";
 import { isChargedKabinetPageLoad, isKabinetPagePath, kabinetPageLoadAllowed } from "./page-limit";
+import { capturingPasswordMail } from "./password-mail";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
 
@@ -113,6 +114,7 @@ describe("a page load and an API call share one allowance", () => {
       {
         availability: {
           kind: "available",
+          passwordMail: capturingPasswordMail(),
           sender: { send: async () => {} },
           invites: capturingInvitationSender(),
           secret: "x",

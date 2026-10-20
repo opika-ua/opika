@@ -1,9 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDatabase, type Database } from "@opika/db";
-import { cityRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
+import { cityRepo, kabinetActorRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
 import {
+  authAccount,
   authInvitation,
   authMember,
   authSession,
@@ -25,6 +26,8 @@ import { handleKabinetConfirm } from "../src/kabinet/confirm-route";
 import { capturingInvitationSender } from "../src/kabinet/email-senders";
 import { invitationAccepter } from "../src/kabinet/invitation-accept";
 import { capturingSender } from "../src/kabinet/magic-link-sender";
+import { generousPasswordLimiters } from "../src/kabinet/password-limits";
+import { capturingPasswordMail } from "../src/kabinet/password-mail";
 import { kabinetIdentityOf } from "../src/kabinet/principal";
 
 /**
@@ -45,7 +48,10 @@ import { kabinetIdentityOf } from "../src/kabinet/principal";
  *      Better Auth's accept-invitation;
  *   4. getSession: Better Auth reading the session back, and the principal
  *      the kabinet resolves from it;
- *   5. sign-out: the session row deleted.
+ *   5. sign-out: the session row deleted;
+ *   6–9. PW-1: «Забули пароль?» (the reset token stored hashed), the reset (the token
+ *      consumed, a credential account created), the password sign-in, and «Змінити пароль»
+ *      (the hash updated, other sessions revoked).
  *
  * Nothing is sent anywhere: the magic link is captured in memory, never
  * printed. Refuses unless the target's compute is exactly `--expect`, and
@@ -108,6 +114,7 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
   }
 
   const sender = capturingSender();
+  const passwordMail = capturingPasswordMail();
   const scheduled: Promise<void>[] = [];
   const unlimited = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 });
   const auth = createKabinetAuth({
@@ -119,10 +126,13 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
     baseURL: BASE,
     secret: randomUUID() + randomUUID(),
     secureCookies: true,
+    passwordLimiters: generousPasswordLimiters(),
+    passwordMail,
     limiters: { perUser: unlimited(), perIp: unlimited() },
   });
   const availability: KabinetAuthAvailability = {
     kind: "available",
+    passwordMail,
     sender,
     invites: capturingInvitationSender(),
     secret: "unused-here",
@@ -265,6 +275,125 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
     "sign-out (session row deleted)",
     signedOut.status === 200 && left.length === 0,
     `status ${signedOut.status}, sessions left ${left.length}`,
+  );
+
+  // PW-1's write paths (docs/shelter-passwords.md §8, "Neon smoke (new SQL paths: credential
+  // create, reset-token consume)"), driven through the route as the browser drives them.
+  const route = async (path: string, body: unknown, cookie = "") => {
+    const response = await handleKabinetAuth(
+      new Request(`${BASE}${path}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: BASE,
+          "x-forwarded-for": "198.51.100.77",
+          ...(cookie === "" ? {} : { cookie }),
+        },
+        body: JSON.stringify(body),
+      }),
+      {
+        availability,
+        auth: () => auth,
+        limiters: { perAddress: unlimited(), perIp: unlimited() },
+        now,
+      },
+    );
+    await Promise.all(scheduled);
+    return response;
+  };
+  const cookieOf = (response: Response) =>
+    response.headers
+      .getSetCookie()
+      .find((cookie) => cookie.startsWith(`${cookieName}=`))
+      ?.split(";")[0] ?? "";
+  // Fictional passwords, generated per run; never printed.
+  const firstPassword = `smoke-${randomUUID()}`;
+  const secondPassword = `smoke-${randomUUID()}`;
+
+  // 6. «Забули пароль?»: the reset token, written hashed (`storeIdentifier`), and the reset email.
+  const asked = await route("/api/auth/request-password-reset", { email });
+  const resetMail = passwordMail.sent.find((m) => m.kind === "reset" && m.email === email);
+  const resetToken =
+    resetMail?.kind === "reset" ? (new URL(resetMail.url).searchParams.get("token") ?? "") : "";
+  const hashedIdentifier = createHash("sha256")
+    .update(`reset-password:${resetToken}`)
+    .digest("base64url");
+  const identifiers = async () =>
+    (await db.select({ identifier: authVerification.identifier }).from(authVerification)).map(
+      (row) => row.identifier,
+    );
+  const hashedRows = async () => (await identifiers()).filter((id) => id === hashedIdentifier);
+  const plainRows = (await identifiers()).filter(
+    (id) => resetToken !== "" && id.includes(resetToken),
+  );
+  const stored = await hashedRows();
+  check(
+    "forgot password (the reset token stored hashed, the email captured)",
+    asked.status === 200 && resetToken !== "" && stored.length === 1 && plainRows.length === 0,
+    `status ${asked.status}, email captured ${resetToken !== ""}, hashed rows ${stored.length}, plain rows ${plainRows.length}`,
+  );
+
+  // 7. the reset: the token consumed, a credential account created through Better Auth's adapter.
+  const reset = await route("/api/auth/reset-password", {
+    token: resetToken,
+    newPassword: firstPassword,
+  });
+  const credentials = user
+    ? (
+        await db
+          .select({
+            userId: authAccount.userId,
+            providerId: authAccount.providerId,
+            password: authAccount.password,
+          })
+          .from(authAccount)
+      ).filter((row) => row.userId === user.id && row.providerId === "credential")
+    : [];
+  const hash = credentials[0]?.password ?? null;
+  const hasPassword = user ? await kabinetActorRepo(db).hasPassword(user.id) : false;
+  const tokenRowsLeft = (await hashedRows()).length;
+  check(
+    "reset (token consumed, credential created with a hash, the notice captured)",
+    reset.status === 200 &&
+      tokenRowsLeft === 0 &&
+      credentials.length === 1 &&
+      hash !== null &&
+      !hash.includes(firstPassword) &&
+      hasPassword &&
+      passwordMail.sent.some((m) => m.kind === "changed" && m.email === email),
+    `status ${reset.status}, token rows left ${tokenRowsLeft}, credentials ${credentials.length}, hasPassword ${hasPassword}`,
+  );
+
+  // 8. sign in with the password (the operator-grant join runs on every attempt), twice.
+  const first = await route("/api/auth/sign-in/email", { email, password: firstPassword });
+  const second = await route("/api/auth/sign-in/email", { email, password: firstPassword });
+  const signedInSessions = user ? await sessionsOf(user.id) : [];
+  const firstBody = await first.clone().text();
+  check(
+    "password sign-in (session created, no token in the body)",
+    first.status === 200 &&
+      cookieOf(first) !== "" &&
+      firstBody === '{"status":true}' &&
+      second.status === 200 &&
+      signedInSessions.length === 2,
+    `status ${first.status}/${second.status}, cookie ${cookieOf(first) !== ""}, sessions ${signedInSessions.length}`,
+  );
+
+  // 9. «Змінити пароль»: the hash updated, the other session revoked, this one renewed.
+  const changed = await route(
+    "/api/auth/change-password",
+    { currentPassword: firstPassword, newPassword: secondPassword },
+    cookieOf(first),
+  );
+  const afterChange = user ? await sessionsOf(user.id) : [];
+  const oldRefused = await route("/api/auth/sign-in/email", { email, password: firstPassword });
+  check(
+    "change password (hash updated, other sessions revoked, one renewed session)",
+    changed.status === 200 &&
+      cookieOf(changed) !== "" &&
+      afterChange.length === 1 &&
+      oldRefused.status === 401,
+    `status ${changed.status}, sessions after ${afterChange.length}, old password ${oldRefused.status}`,
   );
   return out;
 }

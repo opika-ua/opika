@@ -36,6 +36,7 @@ import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
+import { capturingPasswordMail } from "./password-mail";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "./photo-uploads";
 import { handleKabinetRpc } from "./rpc-route";
 
@@ -206,6 +207,7 @@ async function call(path: string, input: unknown): Promise<Answer> {
     {
       availability: {
         kind: "available",
+        passwordMail: capturingPasswordMail(),
         sender: { send: async () => {} },
         invites: capturingInvitationSender(),
         secret: "x",

@@ -1,6 +1,7 @@
 import { uk } from "@opika/i18n";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { WORDMARK } from "../../brand";
 
 /**
  * The one header, on every user-facing surface except the deck.
@@ -111,14 +112,8 @@ import type { ReactNode } from "react";
  * load-bearing without `leading`, for an unrelated reason (O-1's logo mark).
  */
 
-/**
- * The product name is deliberately not in `packages/i18n`'s catalogues or in
- * `packages/domain`/`packages/contracts` — `CLAUDE.md`'s "the name is not
- * final" rule puts a brand string in app-level config, and it is identical in
- * every locale so it is not a translation unit. One constant, one file to
- * change if the name changes.
- */
-export const WORDMARK = "Opika";
+/** The product's name (`brand.ts`, the one constant), re-exported for the wordmark's readers. */
+export { WORDMARK };
 
 export interface SiteHeaderProps {
   /** Surface-specific trailing actions, after the nav — the gallery's deck entry. */

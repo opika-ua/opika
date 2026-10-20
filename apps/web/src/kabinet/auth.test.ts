@@ -30,6 +30,8 @@ import { capturingInvitationSender, providerMagicLinkSender } from "./email-send
 import { forwardedClientHeaders } from "./forwarded-client-headers";
 import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
 import { capturingSender } from "./magic-link-sender";
+import { generousPasswordLimiters } from "./password-limits";
+import { capturingPasswordMail } from "./password-mail";
 import { kabinetIdentityOf, kabinetSessionUserIdOf } from "./principal";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
@@ -81,6 +83,8 @@ beforeEach(async () => {
     baseURL: BASE,
     secret: "test-only-secret-that-is-long-enough-0123456789",
     secureCookies: false,
+    passwordLimiters: generousPasswordLimiters(),
+    passwordMail: capturingPasswordMail(),
     limiters: unlimitedKabinet(),
   });
 });
@@ -95,6 +99,7 @@ function unlimitedKabinet(): KabinetLimiters {
 
 const available: KabinetAuthAvailability = {
   kind: "available",
+  passwordMail: capturingPasswordMail(),
   sender: capturingSender(),
   invites: capturingInvitationSender(),
   secret: "unused-here",
@@ -148,6 +153,7 @@ async function confirm(
 ): Promise<Response> {
   const availability: KabinetAuthAvailability = {
     kind: "available",
+    passwordMail: capturingPasswordMail(),
     sender: capturingSender(),
     invites: capturingInvitationSender(),
     secret: "unused-here",
@@ -250,6 +256,8 @@ describe("magic-link sign-in", () => {
       baseURL: BASE,
       secret: "test-only-secret-that-is-long-enough-0123456789",
       secureCookies: false,
+      passwordLimiters: generousPasswordLimiters(),
+      passwordMail: capturingPasswordMail(),
       limiters: unlimitedKabinet(),
     });
     await createUser("known@example.org");
@@ -364,12 +372,15 @@ describe("principalOf", () => {
   });
 });
 
-describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
-  it("pins 30 days absolute, 7 days idle, refreshed at most daily", () => {
+describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
+  /**
+   * Better Auth's own expiry (and the cookie's lifetime from sign-in) is the longest any session
+   * may live, the shelter admin's 90 days; the limits by role are ours (`session-lapse.ts`).
+   */
+  it("pins Better Auth's expiry at 90 days, refreshed on every request (PW1-Q2)", () => {
     expect(KABINET_SESSION).toEqual({
-      absoluteMs: 30 * 24 * 60 * 60 * 1000,
-      idleSeconds: 7 * 24 * 60 * 60,
-      refreshSeconds: 24 * 60 * 60,
+      expiresInSeconds: 90 * 24 * 60 * 60,
+      refreshSeconds: 0,
     });
   });
 
@@ -378,7 +389,7 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
     expect(kabinetCookieName("session_token", false)).toBe("kabinet.session_token");
   });
 
-  it("over HTTPS sets a __Host- cookie: Secure, Path=/, no Domain, HttpOnly, 7-day Max-Age", async () => {
+  it("over HTTPS sets a __Host- cookie: Secure, Path=/, no Domain, HttpOnly, SameSite=Lax, 90-day Max-Age", async () => {
     const https = "https://kabinet.example";
     const secureAuth = createKabinetAuth({
       db,
@@ -389,6 +400,8 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
       baseURL: https,
       secret: "test-only-secret-that-is-long-enough-0123456789",
       secureCookies: true,
+      passwordLimiters: generousPasswordLimiters(),
+      passwordMail: capturingPasswordMail(),
       limiters: unlimitedKabinet(),
     });
     const ctx = await secureAuth.$context;
@@ -413,7 +426,11 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
     expect(cookie).toMatch(/; Secure/);
     expect(cookie).toMatch(/; Path=\//);
     expect(cookie).toMatch(/; HttpOnly/);
-    expect(cookie).toMatch(/; Max-Age=604800/);
+    // Lax: sent on a top-level navigation into the kabinet (an emailed link), never on a
+    // cross-site POST or a third-party request.
+    expect(cookie).toMatch(/; SameSite=Lax(;|$)/);
+    // 90 days: no server-side session read renews the cookie, so it must outlive every limit.
+    expect(cookie).toMatch(/; Max-Age=7776000/);
     expect(cookie).not.toMatch(/Domain=/i);
     expect(cookie).not.toMatch(/__Secure-/);
 
@@ -439,6 +456,56 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
     expect(cleared).toMatch(/; Path=\//);
     expect(cleared).toMatch(/; Secure/);
     expect(signedOut.headers.getSetCookie().some((c) => c.startsWith("better-auth."))).toBe(false);
+  });
+
+  it("the password sign-in, through the route, sets the same cookie: Secure, HttpOnly, SameSite=Lax (PW-1)", async () => {
+    const https = "https://kabinet.example";
+    const secureAuth = createKabinetAuth({
+      db,
+      sender,
+      schedule: (work) => {
+        pending.push(work());
+      },
+      baseURL: https,
+      secret: "test-only-secret-that-is-long-enough-0123456789",
+      secureCookies: true,
+      passwordLimiters: generousPasswordLimiters(),
+      passwordMail: capturingPasswordMail(),
+      limiters: unlimitedKabinet(),
+    });
+    const ctx = await secureAuth.$context;
+    const user = await ctx.internalAdapter.createUser({
+      email: "olena@example.org",
+      name: "О",
+      emailVerified: true,
+    });
+    const password = "ялинка-під-вікном-1987";
+    await ctx.internalAdapter.linkAccount({
+      userId: user.id,
+      accountId: user.id,
+      providerId: "credential",
+      password: await ctx.password.hash(password),
+    });
+    const signedIn = await handleKabinetAuth(
+      new Request(`${https}/api/auth/sign-in/email`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: https },
+        body: JSON.stringify({ email: "olena@example.org", password }),
+      }),
+      {
+        availability: { ...available, baseURL: https },
+        auth: () => secureAuth,
+        limiters: limiters(),
+        now: new Date(),
+      },
+    );
+    await Promise.all(pending);
+    expect(signedIn.status).toBe(200);
+    const cookie = signedIn.headers.getSetCookie().find((c) => c.includes("session_token="));
+    expect(cookie).toMatch(/^__Host-kabinet\.session_token=/);
+    expect(cookie).toMatch(/; Secure/);
+    expect(cookie).toMatch(/; HttpOnly/);
+    expect(cookie).toMatch(/; SameSite=Lax(;|$)/);
   });
 
   /**
@@ -490,8 +557,10 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
     expect(row.activeOrganizationId).toBeNull();
     expect(row.createdAt.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
     expect(row.updatedAt.getTime()).toBe(row.createdAt.getTime());
+    // Better Auth's own expiry is the longest any session may live, 90 days (the limits are
+    // ours: `session-lapse.ts`), written out rather than read from the constant.
     expect(row.expiresAt.getTime() - row.createdAt.getTime()).toBeCloseTo(
-      KABINET_SESSION.idleSeconds * 1000,
+      90 * 24 * 60 * 60 * 1000,
       -4,
     );
     const cookie = verified.headers.getSetCookie().find((c) => c.includes("session_token="));
@@ -505,41 +574,103 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
     expect(
       await kabinetSessionUserIdOf(
         auth,
+        db,
         new Headers({ cookie: cookie?.split(";")[0] ?? "" }),
         new Date(),
       ),
     ).toBe(user.id);
-    expect(await kabinetSessionUserIdOf(auth, new Headers(), new Date())).toBeNull();
+    expect(await kabinetSessionUserIdOf(auth, db, new Headers(), new Date())).toBeNull();
   });
 
-  /** Better Auth itself (the before-hook) forgets a session older than 30 days. */
-  it("get-session reports no session past 30 days, and the row is gone", async () => {
-    await createUser("olena@example.org");
-    const cookie = await signIn("olena@example.org");
+  /**
+   * The limits by role (F-B9; §9 answers 3 and 6): a shelter-side session lives 30 days since
+   * its last refresh and 90 at most, the operator's 7 and 30. The before-hook deletes a session
+   * past its holder's limits, so Better Auth reports none and the row is gone. The numbers are
+   * written out, not read from `KABINET_SESSION_LIMITS`.
+   */
+  describe("the session limits by role, enforced by the before-hook", () => {
     const day = 24 * 60 * 60 * 1000;
-    const ageSessionTo = (ms: number) =>
-      db.update(authSession).set({ createdAt: new Date(Date.now() - ms) });
-    const getSession = async () =>
+    const getSession = async (cookie: string) =>
       (
         await route(
           new Request(`${BASE}/api/auth/get-session`, { headers: { cookie, origin: BASE } }),
         )
       ).json();
+    const age = (times: { created: number; updated: number }) =>
+      db.update(authSession).set({
+        createdAt: new Date(Date.now() - times.created),
+        updatedAt: new Date(Date.now() - times.updated),
+      });
 
-    await ageSessionTo(30 * day - 60_000);
-    expect(await getSession()).not.toBeNull();
+    it("a shelter-side session: live inside 30 days idle and 90 days, gone past either", async () => {
+      await createUser("olena@example.org");
+      const cookie = await signIn("olena@example.org");
+      // Past the operator's limits, inside hers: still live.
+      await age({ created: 89 * day, updated: 29 * day });
+      expect(await getSession(cookie)).not.toBeNull();
+      await age({ created: 2 * day, updated: 30 * day + 60_000 });
+      expect(await getSession(cookie)).toBeNull();
+      expect(await db.select().from(authSession)).toEqual([]);
 
-    await ageSessionTo(30 * day + 60_000);
-    expect(await getSession()).toBeNull();
-    expect(await db.select().from(authSession)).toEqual([]);
+      const again = await signIn("olena@example.org");
+      await age({ created: 90 * day + 60_000, updated: 60_000 });
+      expect(await getSession(again)).toBeNull();
+      expect(await db.select().from(authSession)).toEqual([]);
+    });
+
+    /**
+     * Oleksii, 2026-10-20, verbatim: "Add a test that a session used on day 29 is still valid on
+     * day 58, and that the 90-day cap still applies." The hour-later step is what a daily refresh
+     * would fail: the second request has to move `updated_at` again.
+     */
+    it("refreshes on every request: used on day 29, live on day 58, and the 90-day cap still ends it", async () => {
+      await createUser("olena@example.org");
+      const cookie = await signIn("olena@example.org");
+      // Day 29, unused since sign-in: this request is the use.
+      await age({ created: 29 * day, updated: 29 * day });
+      expect(await getSession(cookie)).not.toBeNull();
+      const [used] = await db.select().from(authSession);
+      expect(Date.now() - (used?.updatedAt.getTime() ?? 0)).toBeLessThan(60_000);
+      // An hour later, the next request moves it again.
+      await db
+        .update(authSession)
+        .set({ updatedAt: new Date((used?.updatedAt.getTime() ?? 0) - 60 * 60_000) });
+      expect(await getSession(cookie)).not.toBeNull();
+      const [usedAgain] = await db.select().from(authSession);
+      expect(Date.now() - (usedAgain?.updatedAt.getTime() ?? 0)).toBeLessThan(60_000);
+      // Day 58: 29 days after that last use, still live.
+      await age({ created: 58 * day, updated: 29 * day });
+      expect(await getSession(cookie)).not.toBeNull();
+      // In daily use, but past 90 days since sign-in: the cap ends it.
+      await age({ created: 90 * day + 60_000, updated: 60_000 });
+      expect(await getSession(cookie)).toBeNull();
+    });
+
+    it("the operator's session: gone past 7 days idle or 30 days, enforced by role", async () => {
+      const operator = await createUser("op@example.org");
+      await db
+        .insert(superAdmins)
+        .values({ id: crypto.randomUUID(), userId: operator.id, grantedAt: new Date() });
+      const cookie = await signIn("op@example.org");
+      await age({ created: 29 * day, updated: 6 * day });
+      expect(await getSession(cookie)).not.toBeNull();
+      await age({ created: 2 * day, updated: 7 * day + 60_000 });
+      expect(await getSession(cookie)).toBeNull();
+      expect(await db.select().from(authSession)).toEqual([]);
+
+      const again = await signIn("op@example.org");
+      await age({ created: 30 * day + 60_000, updated: 60_000 });
+      expect(await getSession(again)).toBeNull();
+      expect(await db.select().from(authSession)).toEqual([]);
+    });
   });
 
   /**
-   * The second line, on its own: an auth instance whose clock says the
-   * session is still young (so the hook keeps it), and a principalOf asked at
-   * a moment past 30 days. principalOf alone must refuse.
+   * The second line, on its own: an auth instance whose clock says the session is still young
+   * (so the hook keeps it), and a principalOf asked at a moment past the limits. principalOf alone
+   * must refuse, for each holder's own limits.
    */
-  it("principalOf refuses past 30 days even when Better Auth's clock keeps the session", async () => {
+  it("principalOf refuses past the holder's limits even when Better Auth's clock keeps the session", async () => {
     const day = 24 * 60 * 60 * 1000;
     const lenient = createKabinetAuth({
       db,
@@ -551,18 +682,32 @@ describe("the kabinet session (HS-Q8: mirror decision #13)", () => {
       secret: "test-only-secret-that-is-long-enough-0123456789",
       secureCookies: false,
       now: () => new Date(Date.now() - 365 * day),
+      passwordLimiters: generousPasswordLimiters(),
+      passwordMail: capturingPasswordMail(),
       limiters: unlimitedKabinet(),
     });
     auth = lenient;
     await createUser("olena@example.org");
     const cookie = await signIn("olena@example.org");
-    const later = new Date(Date.now() + 30 * day + 60_000);
-    expect(await principalOf(lenient, db, new Headers({ cookie }), later)).toEqual({
-      kind: "anonymous",
-    });
-    expect(await principalOf(lenient, db, new Headers({ cookie }), new Date())).toEqual({
+    const at = (ms: number) => new Date(Date.now() + ms);
+    expect(await principalOf(lenient, db, new Headers({ cookie }), at(29 * day))).toEqual({
       kind: "no_role",
     });
+    expect(await principalOf(lenient, db, new Headers({ cookie }), at(30 * day + 60_000))).toEqual({
+      kind: "anonymous",
+    });
+
+    const operator = await createUser("op@example.org");
+    await db
+      .insert(superAdmins)
+      .values({ id: crypto.randomUUID(), userId: operator.id, grantedAt: new Date() });
+    const operatorCookie = await signIn("op@example.org");
+    expect(
+      await principalOf(lenient, db, new Headers({ cookie: operatorCookie }), at(6 * day)),
+    ).toMatchObject({ kind: "super_admin" });
+    expect(
+      await principalOf(lenient, db, new Headers({ cookie: operatorCookie }), at(7 * day + 60_000)),
+    ).toEqual({ kind: "anonymous" });
   });
 
   it("an idle-expired session is anonymous", async () => {
@@ -616,9 +761,13 @@ describe("the sign-in limits (HS-Q5)", () => {
 });
 
 describe("what the route lets through", () => {
-  it("forwards exactly three Better Auth paths, never the GET that consumes a link (IN-Q11)", () => {
+  it("forwards exactly these Better Auth paths: never the GET that consumes a link (IN-Q11), no sign-up, no reset GET", () => {
     expect([...FORWARDED_AUTH_PATHS].sort()).toEqual([
+      "/api/auth/change-password",
       "/api/auth/get-session",
+      "/api/auth/request-password-reset",
+      "/api/auth/reset-password",
+      "/api/auth/sign-in/email",
       "/api/auth/sign-in/magic-link",
       "/api/auth/sign-out",
     ]);
@@ -682,6 +831,76 @@ describe("what the route lets through", () => {
     expect(kabinetAuthAvailability({ NODE_ENV: "development" })).toEqual({
       kind: "unavailable",
       reason: "missing_config",
+    });
+  });
+});
+
+/** Every string and every key anywhere in a parsed JSON value. */
+function everythingIn(value: unknown): { strings: string[]; keys: string[] } {
+  const strings: string[] = [];
+  const keys: string[] = [];
+  const walk = (node: unknown) => {
+    if (typeof node === "string") strings.push(node);
+    else if (Array.isArray(node)) node.forEach(walk);
+    else if (typeof node === "object" && node !== null) {
+      for (const [key, child] of Object.entries(node)) {
+        keys.push(key);
+        walk(child);
+      }
+    }
+  };
+  walk(value);
+  return { strings, keys };
+}
+
+/**
+ * Oleksii, 2026-10-20, verbatim: "Decision 1: (a). Strip the session token from
+ * /api/auth/get-session's response in PW-1, as its own commit with a delta review. Add a test that
+ * the body carries no token, and confirm in the PR that nothing in the app reads it."
+ */
+describe("get-session's body carries no session token (Decision 1)", () => {
+  it("not in any value or under any key; it still says who is signed in, and the session still works", async () => {
+    const user = await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    const [row] = await db.select().from(authSession);
+    const token = row?.token ?? "";
+    // The value searched for is the real one: the row's token, which the cookie carries signed.
+    expect(token).toMatch(/^[A-Za-z0-9]{32}$/);
+    expect(decodeURIComponent(cookie.split("=")[1] ?? "").startsWith(`${token}.`)).toBe(true);
+    const carriesToken = (body: unknown) => {
+      const { strings, keys } = everythingIn(body);
+      return {
+        values: strings.filter((value) => value.includes(token)),
+        keys: keys.filter((key) => /token/i.test(key)),
+      };
+    };
+
+    const read = () =>
+      route(new Request(`${BASE}/api/auth/get-session`, { headers: { cookie, origin: BASE } }));
+    for (const attempt of ["first read", "second read"]) {
+      const answer = await read();
+      expect(answer.status, attempt).toBe(200);
+      const body: unknown = await answer.json();
+      expect(carriesToken(body), attempt).toEqual({ values: [], keys: [] });
+      expect(body, attempt).toMatchObject({
+        session: { userId: user.id },
+        user: { id: user.id, email: "olena@example.org" },
+      });
+    }
+    // A POST is Better Auth's own refusal here (it needs `deferSessionRefresh`), and carries none.
+    const posted = await route(post("/api/auth/get-session", {}, { cookie }));
+    expect(posted.status).toBe(405);
+    expect(carriesToken(await posted.json())).toEqual({ values: [], keys: [] });
+    // No cookie: still Better Auth's own "no session".
+    const anonymous = await route(
+      new Request(`${BASE}/api/auth/get-session`, { headers: { origin: BASE } }),
+    );
+    expect(anonymous.status).toBe(200);
+    expect(await anonymous.json()).toBeNull();
+    // The session works as before: the same row, and a page's own server-side session read.
+    expect(await db.select().from(authSession)).toHaveLength(1);
+    expect(await principalOf(auth, db, new Headers({ cookie }), new Date())).toEqual({
+      kind: "no_role",
     });
   });
 });
@@ -884,6 +1103,8 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
       baseURL: BASE,
       secret: "test-only-secret-that-is-long-enough-0123456789",
       secureCookies: false,
+      passwordLimiters: generousPasswordLimiters(),
+      passwordMail: capturingPasswordMail(),
       limiters: kabinet,
     });
   });
@@ -980,6 +1201,8 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
       baseURL: BASE,
       secret: "test-only-secret-that-is-long-enough-0123456789",
       secureCookies: false,
+      passwordLimiters: generousPasswordLimiters(),
+      passwordMail: capturingPasswordMail(),
       limiters: kabinet,
       now: () => clock,
     });
