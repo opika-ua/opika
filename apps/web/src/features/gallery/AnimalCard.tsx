@@ -3,7 +3,6 @@ import { uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips } from "@opika/ui";
 import Image from "next/image";
 import Link from "next/link";
-import { verificationSuffix } from "../../seo-flags";
 import { cardAccessibleName, cardMetaLine, isReserved } from "./card-text";
 
 /**
@@ -229,6 +228,13 @@ export function AnimalCard({
           replaces this row entirely with the shelter's own sentence instead
           of freshness — "Different fill and different text — never
           dimming" (docs/design/README.md, "The gallery card" > "Resolved").
+
+          No shelter name either, in any variant (designer round 1, §3 of
+          docs/designer-round-1.md, decision DR1-D1): the gallery card is the
+          preview, and the shelter is named on the animal page. The deck card
+          keeps its shelter line, because it carries the shelter's sentence,
+          which needs its speaker. `card.shelter` still feeds the city of an
+          animal at its shelter (`cardCityId`).
         */}
         {resolved ? (
           <span className="text-[15px]/[22px] text-rg-ink">
@@ -251,29 +257,6 @@ export function AnimalCard({
             <span className="text-[15px]/[22px] text-rg-ink">{freshnessLabel(card.freshness)}</span>
           </div>
         )}
-
-        {/*
-          "· перевірений" carries no colour of its own — docs/design/README.md,
-          "The gallery card": "caption 13/18 #63676B ... (no colour;
-          verification is stated, not tinted)." The resolved variant's
-          shelter line is ink-2, not ink-3 — the one other place this card's
-          text departs from the standard/reserved caption colour
-          (`Opika Registry System.dc.html`'s own B5 resolved-card frame).
-
-          `verificationSuffix` (`seo-flags.ts`), not the raw
-          `card.shelter.verification` check this line used to have — found
-          2026-09-10, by Oleksii, not by any test: every one of this seed
-          corpus's 6 "verified" shelters is fictional, and this line asserted
-          a real moderator had checked them, on the gallery's own card grid,
-          with no reference anywhere to `REGISTRY_HAS_NO_REAL_SHELTERS`.
-        */}
-        <div
-          data-testid="shelter-line"
-          className={`text-[13px]/[18px] ${resolved ? "text-rg-ink-2" : "text-rg-ink-3"}`}
-        >
-          {card.shelter.displayName}
-          {verificationSuffix(card.shelter.verification)}
-        </div>
       </div>
     </Link>
   );

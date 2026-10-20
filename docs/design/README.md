@@ -316,14 +316,21 @@ Surface white, radius 24, padding 12, inner `gap: 16`; text block `gap: 12`, pad
 - Name — display-s 24/28/700/−0.02em, one line, ellipsis.
 - Meta — body 15/22 `#45484B`: age · size · housing + city.
 - Freshness — pips + "оновлено N днів тому" at body 15, `gap: 10`.
-- Shelter — caption 13/18 `#63676B`, "· перевірений" (no colour; verification is stated, not tinted).
+
+**No shelter line (designer round 1, 2026-10-20).** The card no longer names the shelter, in any
+variant (standard, reserved, resolved), and so carries no "· перевірений" suffix either. The
+shelter is named on the animal page; the deck card keeps its own shelter line. Scope, reasoning
+and the interpretation taken (DR1-D1: "the card preview" is this card, and the preview drawer
+follows the same rule): `docs/designer-round-1.md` §3. Once `REGISTRY_HAS_NO_REAL_SHELTERS` flips,
+verification is stated on the animal page and the shelter page, not here.
 
 **Demo deviation (Oleksii, found 2026-09-10, not in the mock) — while `REGISTRY_HAS_NO_REAL_SHELTERS`,
-the "· перевірений" suffix above is suppressed entirely, on every card, gallery and deck alike.**
+the "· перевірений" suffix is suppressed entirely, on every card.** (The gallery card has since
+dropped its shelter line altogether, above; the deck card is where the suffix lives now.)
 Every shelter in the seed corpus marked "verified" is fictional; the mock's own spec asserts a real
 moderator checked this shelter, which would be a false claim about fabricated data on the app's
-highest-traffic surface. `apps/web/src/seo-flags.ts`'s `verificationSuffix` is the one gate both
-`AnimalCard.tsx` and `SwipeCard.tsx` call. Reverts to the mock's literal spec the moment the flag
+highest-traffic surface. `apps/web/src/seo-flags.ts`'s `verificationSuffix` is the one gate (`SwipeCard.tsx` calls it;
+`AnimalCard.tsx` did until designer round 1 removed its shelter line). Reverts to the mock's literal spec the moment the flag
 goes `false`. Same demo-mode pattern as the deck's «Демо» label recorded below (`04 Discovery`),
 plus one more: the gallery page and the detail page (`tvaryny/page.tsx`,
 `AnimalDetailScreen.tsx`) each render a visible demo disclosure (`uk.demo.bannerNotice`) — a
@@ -918,9 +925,9 @@ a shelter name long enough to run to a second line needs the same extra vertical
 scaled text would. Nothing renders that case today. The deck harness always measures the top
 card of `feed.list`, which under the seeded order is «Притулок «Добрі лапи»» — a short name,
 measured at a one-line 32px at both 320 and 360. The corpus *does* carry one deliberately long
-shelter name (critique C1 / T5), but it is exercised only on the gallery card, where the design
-calls for `truncate` — one line, no extra height, which is the opposite of the mechanism this
-paragraph is about. Closing this needs a long-named shelter at the head of the deck's own feed
+shelter name (critique C1 / T5), but it was exercised only on the gallery card, where the design
+called for `truncate` — one line, no extra height, which is the opposite of the mechanism this
+paragraph is about — and since designer round 1 the gallery card shows no shelter name at all. Closing this needs a long-named shelter at the head of the deck's own feed
 order, which is a seed change with its own knock-on effect on every measured number in
 `discovery-layout.harness.ts`; it is named here as unbuilt rather than counted as partial cover.
 
