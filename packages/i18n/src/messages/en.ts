@@ -52,6 +52,9 @@ export const en = {
     ageYoung: "Young",
     ageAdult: "Adult",
     ageSenior: "Senior",
+    coat: "Fur",
+    coatShort: "Short-haired",
+    coatLong: "Long-haired",
     /** Template: "{count} {animalWord} match. Shelters in this city — {shelterCount}." */
     resultCount: "{count} {animalWord} match. Shelters in this city — {shelterCount}.",
     /** Template: "{count} {animalWord} match, across {shelterCount} {shelterWord}." — used when no city is selected, see uk.ts's note. */
@@ -128,6 +131,9 @@ export const en = {
     backToListIn: "← All animals in {city}",
     speciesDog: "Dog",
     speciesCat: "Cat",
+    coatLabel: "Fur",
+    coatShort: "Short",
+    coatLong: "Long",
     notFound: {
       eyebrow: "NOT FOUND",
       title: "This listing is gone.",
@@ -268,6 +274,7 @@ export const en = {
     removeDimension: "Remove “{dimension}” ({animalWord})",
     showAllCities: "Show every city ({animalWord})",
     additionalAnimals: "+{count} {animalWord}",
+    relaxCoat: "Any fur: +{count}",
     suggestionExplainer:
       "Each suggestion names how many animals it would add. An empty screen never says " +
       '"try something else" without a number.',
@@ -612,6 +619,12 @@ export const en = {
         sizeHintUpTo: "up to {max} kg",
         sizeHintRange: "{min}–{max} kg",
         sizeHintFrom: "from {min} kg",
+      },
+      coat: {
+        label: "Fur",
+        short: "Short",
+        long: "Long",
+        unknown: "Not given",
       },
       age: {
         title: "Age",
@@ -1284,6 +1297,7 @@ export const en = {
         age: "Age",
         description: "Description",
         photos: "Photos",
+        coatLength: "Fur",
       },
     },
   },

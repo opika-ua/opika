@@ -129,4 +129,53 @@ describe("FilterRail", () => {
       "/tvaryny?sort=longest_waiting",
     );
   });
+
+  it("has a «Шерсть» group whose chips toggle `sherst` in the URL", () => {
+    const filters = {
+      ...NO_FILTERS,
+      coatLengths: { kind: "oneOf" as const, values: ["long"] as const },
+    };
+    render(
+      <FilterRail
+        filters={filters}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+        resultCount={3}
+        shelterCount={1}
+      />,
+    );
+    const group = within(screen.getByRole("group", { name: "Шерсть" }));
+
+    const long = group.getByRole("link", { name: /Довгошерсті/ });
+    expect(long.getAttribute("aria-current")).toBe("true");
+    // Toggling the selected value off drops the param entirely.
+    expect(long.getAttribute("href")).toBe("/tvaryny");
+
+    const short = group.getByRole("link", { name: "Короткошерсті" });
+    expect(short.getAttribute("aria-current")).toBeNull();
+    // Both values selected is "any fur": canonicalized away, not `sherst=long,short`.
+    expect(short.getAttribute("href")).toBe("/tvaryny");
+  });
+
+  it("a fur chip adds `sherst` beside the other filters, keeping them", () => {
+    const filters = {
+      ...NO_FILTERS,
+      species: { kind: "oneOf" as const, values: ["cat"] as const },
+    };
+    render(
+      <FilterRail
+        filters={filters}
+        sort="longest_waiting"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+        resultCount={3}
+        shelterCount={1}
+      />,
+    );
+    const group = within(screen.getByRole("group", { name: "Шерсть" }));
+    expect(group.getByRole("link", { name: "Короткошерсті" }).getAttribute("href")).toBe(
+      "/tvaryny?vyd=cat&sherst=short&sort=longest_waiting",
+    );
+  });
 });

@@ -9,6 +9,8 @@ import {
   type AnimalSex,
   type AnimalSpecies,
   ageBucketOf,
+  COAT_LENGTHS,
+  type CoatLength,
   characterCount,
   declaredAtOfCalendarDate,
   instantOfCalendarDate,
@@ -109,6 +111,13 @@ const SIZE_NAME: Record<SizeBucket, string> = {
   large: uk.filters.sizeLarge,
 };
 
+/** «Не вказано» is a segment of its own, standing for null (`FormValues.coatLength`). */
+type CoatSegment = CoatLength | "unknown";
+const COAT: readonly Segment<CoatSegment>[] = [
+  ...COAT_LENGTHS.map((coat) => ({ value: coat, label: t.coat[coat] })),
+  { value: "unknown", label: t.coat.unknown },
+];
+
 const AGE_NAME: Record<(typeof AGE_BUCKETS)[number], string> = {
   baby: uk.filters.ageBaby,
   young: uk.filters.ageYoung,
@@ -162,6 +171,14 @@ export function WhoSection({ values, set, problems, disabled }: SectionProps) {
         hint={t.who.sizeNote}
         disabled={disabled}
         onChange={(size) => set({ size })}
+      />
+      <SegmentedControl
+        name="animal-coat"
+        legend={t.coat.label}
+        segments={COAT}
+        value={values.coatLength ?? "unknown"}
+        disabled={disabled}
+        onChange={(coat) => set({ coatLength: coat === "unknown" ? null : coat })}
       />
     </section>
   );

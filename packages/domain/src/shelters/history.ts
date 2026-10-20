@@ -28,6 +28,7 @@ export const ANIMAL_EDITED_FIELDS = [
   "species",
   "sex",
   "size",
+  "coatLength",
   "age",
   "description",
   "vaccination",

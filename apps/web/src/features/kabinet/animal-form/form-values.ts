@@ -7,6 +7,7 @@ import {
   animalDescriptionProblem,
   animalNameProblem,
   type CalendarDate,
+  type CoatLength,
   kyivCalendarDateOf,
   type MedicalState,
   type SizeBucket,
@@ -32,6 +33,8 @@ export type FormValues = {
   species: AnimalSpecies | null;
   sex: AnimalSex;
   size: SizeBucket | null;
+  /** Null is «Не вказано», an answer in its own right: unlike size, it can be chosen again after a value (DR1-D10). */
+  coatLength: CoatLength | null;
   ageMode: AgeMode;
   /** `YYYY-MM-DD`, or "" while not given. */
   birthDate: string;
@@ -52,6 +55,7 @@ export const emptyValues = (today: CalendarDate): FormValues => ({
   species: null,
   sex: "unknown",
   size: null,
+  coatLength: null,
   ageMode: "declared_bucket",
   birthDate: "",
   bucket: null,
@@ -90,6 +94,7 @@ export const valuesOf = (view: KabinetAnimalView, today: CalendarDate): FormValu
   species: view.species,
   sex: view.sex,
   size: view.size,
+  coatLength: view.coatLength,
   ...ageFieldsOf(view.age, today),
   description: view.description?.uk ?? "",
   vaccination: view.vaccination.state,
@@ -136,6 +141,7 @@ export function patchOf(view: KabinetAnimalView, values: FormValues): AnimalPatc
   if (values.species !== null && values.species !== view.species) patch.species = values.species;
   if (values.sex !== view.sex) patch.sex = values.sex;
   if (values.size !== null && values.size !== view.size) patch.size = values.size;
+  if (values.coatLength !== view.coatLength) patch.coatLength = values.coatLength;
   const age = ageInputOf(values);
   if (age !== null && !sameAgeInput(age, storedAgeInputOf(view.age))) patch.age = age;
   if (isBlank(values.description)) {

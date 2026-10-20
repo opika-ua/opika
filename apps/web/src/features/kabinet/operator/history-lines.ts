@@ -75,6 +75,7 @@ const fieldLabel = (field: AnimalEditedField): string => {
     case "species":
     case "sex":
     case "size":
+    case "coatLength":
     case "age":
     case "description":
     case "photos":

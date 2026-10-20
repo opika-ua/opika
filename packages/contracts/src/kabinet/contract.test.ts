@@ -285,6 +285,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "species",
         "sex",
         "size",
+        "coatLength",
         "age",
         "description",
         "photos",

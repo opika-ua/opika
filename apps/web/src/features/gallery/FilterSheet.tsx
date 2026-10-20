@@ -5,6 +5,7 @@ import type {
   AnimalSpecies,
   CityId,
   CitySlug,
+  CoatLength,
   FeedFilters,
   GallerySort,
   SizeBucket,
@@ -13,6 +14,7 @@ import {
   AGE_BUCKETS,
   ANIMAL_SPECIES,
   ANY,
+  COAT_LENGTHS,
   DEFAULT_GALLERY_SORT,
   isExplicitlySelected,
   SIZE_BUCKETS,
@@ -57,6 +59,10 @@ const AGE_LABEL: Record<AgeBucket, string> = {
   young: uk.filters.ageYoung,
   adult: uk.filters.ageAdult,
   senior: uk.filters.ageSenior,
+};
+const COAT_LABEL: Record<CoatLength, string> = {
+  short: uk.filters.coatShort,
+  long: uk.filters.coatLong,
 };
 
 /**
@@ -351,6 +357,26 @@ export function FilterSheet({
                     className="sr-only"
                   />
                   {SIZE_LABEL[size]}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="flex flex-col gap-3">
+            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
+              {uk.filters.coat}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {COAT_LENGTHS.map((coat) => (
+                <label key={coat} className={CHIP_LABEL_BASE}>
+                  <input
+                    type="checkbox"
+                    name={GALLERY_PARAM.coat}
+                    value={coat}
+                    defaultChecked={isExplicitlySelected(filters.coatLengths, coat)}
+                    className="sr-only"
+                  />
+                  {COAT_LABEL[coat]}
                 </label>
               ))}
             </div>

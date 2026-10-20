@@ -7,6 +7,7 @@ import {
   animalDescriptionProblem,
   animalDescriptionProblemMessage,
   CalendarDateSchema,
+  CoatLengthSchema,
   characterCount,
   DonationLinkSchema,
   EvidenceItemInputSchema,
@@ -346,7 +347,9 @@ export type AgeEstimateInput = z.infer<typeof AgeEstimateInputSchema>;
  * Only the description can be cleared (null), and only on a draft (F-B1): a
  * listed animal answers `LISTING_FACT_REQUIRED`. A size or an age bucket is a
  * segmented choice with no "unselected" once made, so `size: null` and
- * `age: null` stay BAD_REQUEST (decision taken T4).
+ * `age: null` stay BAD_REQUEST (decision taken T4). Fur is the exception
+ * that can go back to null (DR1-D10): «Не вказано» is a complete answer, not
+ * a gap, so a shelter that guessed can take the guess back.
  */
 export const AnimalPatchSchema = z
   .strictObject({
@@ -354,6 +357,7 @@ export const AnimalPatchSchema = z
     species: AnimalSpeciesSchema,
     sex: AnimalSexSchema,
     size: SizeBucketSchema,
+    coatLength: CoatLengthSchema.nullable(),
     age: AgeEstimateInputSchema,
     description: AnimalDescriptionInputSchema.nullable(),
     vaccination: MedicalDeclarationInputSchema,

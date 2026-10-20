@@ -2,11 +2,18 @@ import type {
   AgeBucket,
   AnimalSpecies,
   CityId,
+  CoatLength,
   FeedFilters,
   GallerySort,
   SizeBucket,
 } from "@opika/domain";
-import { AGE_BUCKETS, ANIMAL_SPECIES, isExplicitlySelected, SIZE_BUCKETS } from "@opika/domain";
+import {
+  AGE_BUCKETS,
+  ANIMAL_SPECIES,
+  COAT_LENGTHS,
+  isExplicitlySelected,
+  SIZE_BUCKETS,
+} from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Link from "next/link";
 import type { CitySlugsById } from "./filter-url";
@@ -15,6 +22,7 @@ import {
   resetFiltersHref,
   withToggledAge,
   withToggledCity,
+  withToggledCoat,
   withToggledSize,
   withToggledSpecies,
 } from "./filter-url";
@@ -46,6 +54,10 @@ const AGE_LABEL: Record<AgeBucket, string> = {
   young: uk.filters.ageYoung,
   adult: uk.filters.ageAdult,
   senior: uk.filters.ageSenior,
+};
+const COAT_LABEL: Record<CoatLength, string> = {
+  short: uk.filters.coatShort,
+  long: uk.filters.coatLong,
 };
 
 /**
@@ -181,6 +193,23 @@ export function FilterRail({
               href={galleryHref(withToggledSize(filters, size), sort, citySlugs)}
             >
               {SIZE_LABEL[size]}
+            </Chip>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-3">
+        <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
+          {uk.filters.coat}
+        </legend>
+        <div className="flex flex-wrap gap-2">
+          {COAT_LENGTHS.map((coat) => (
+            <Chip
+              key={coat}
+              active={isExplicitlySelected(filters.coatLengths, coat)}
+              href={galleryHref(withToggledCoat(filters, coat), sort, citySlugs)}
+            >
+              {COAT_LABEL[coat]}
             </Chip>
           ))}
         </div>

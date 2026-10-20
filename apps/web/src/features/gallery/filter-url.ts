@@ -3,6 +3,7 @@ import type {
   AnimalSpecies,
   CityId,
   CitySlug,
+  CoatLength,
   FeedFilters,
   FilterSelection,
   GallerySort,
@@ -13,6 +14,7 @@ import {
   ANY,
   AnimalSpeciesSchema,
   CityIdSchema,
+  CoatLengthSchema,
   canonicalizeFilters,
   DEFAULT_GALLERY_SORT,
   GallerySortSchema,
@@ -36,16 +38,19 @@ import { uk } from "@opika/i18n";
  * something these pure functions can fetch themselves, so the lookup always
  * arrives as a parameter built once by the caller (`cities.list`), the same
  * pattern `filtersInWords`'s own `cityNames` map already established below.
+ *
+ * `sherst` (fur, designer round 1) follows the same transliteration.
  */
 const CITY_PARAM = "misto";
 const SPECIES_PARAM = "vyd";
 const SIZE_PARAM = "rozmir";
 const AGE_PARAM = "vik";
+const COAT_PARAM = "sherst";
 const SORT_PARAM = "sort";
 const PAGE_PARAM = "stor";
 
 /**
- * The same six names, exported for the one caller that cannot go through
+ * The same seven names, exported for the one caller that cannot go through
  * `galleryHref`: `FilterSheet`'s `<form method="GET">`, whose field `name`
  * attributes ARE the query keys the browser submits with no JS running.
  * Spelling them as literals there would be a second, uncompiled copy of
@@ -58,6 +63,7 @@ export const GALLERY_PARAM = {
   species: SPECIES_PARAM,
   size: SIZE_PARAM,
   age: AGE_PARAM,
+  coat: COAT_PARAM,
   sort: SORT_PARAM,
   page: PAGE_PARAM,
 } as const;
@@ -163,8 +169,7 @@ export function parseGalleryQuery(
     species: parseSelection<AnimalSpecies>(searchParams[SPECIES_PARAM], AnimalSpeciesSchema),
     sizes: parseSelection<SizeBucket>(searchParams[SIZE_PARAM], SizeBucketSchema),
     ages: parseSelection<AgeBucket>(searchParams[AGE_PARAM], AgeBucketSchema),
-    // No URL parameter for fur until S3 (DR1): the gallery never filters on it yet.
-    coatLengths: ANY,
+    coatLengths: parseSelection<CoatLength>(searchParams[COAT_PARAM], CoatLengthSchema),
   });
 
   const sortResult = GallerySortSchema.safeParse(firstValue(searchParams[SORT_PARAM]));
@@ -187,7 +192,7 @@ export function parseGalleryQuery(
  * instead."
  *
  * Rewrites only the value of the city param — every other param's value
- * (`stor`, `sort`, `vyd`, `rozmir`, `vik`, or anything this file doesn't
+ * (`stor`, `sort`, `vyd`, `rozmir`, `vik`, `sherst`, or anything this file doesn't
  * recognise) survives unchanged once re-parsed, never dropped or altered.
  * Not literally byte-for-byte: `URLSearchParams` re-serialises the whole
  * query string, so `misto` always ends up last regardless of where it sat
@@ -288,6 +293,9 @@ export const withToggledSize = (filters: FeedFilters, size: SizeBucket): FeedFil
 export const withToggledAge = (filters: FeedFilters, age: AgeBucket): FeedFilters =>
   canonicalizeFilters({ ...filters, ages: toggle(filters.ages, age) });
 
+export const withToggledCoat = (filters: FeedFilters, coat: CoatLength): FeedFilters =>
+  canonicalizeFilters({ ...filters, coatLengths: toggle(filters.coatLengths, coat) });
+
 /** Any `CityId` the map has no slug for is dropped — see `parseCitySelection`'s
  * own comment on the same "unmappable degrades silently" posture. In
  * practice every id in `filters.cities` came from `cities.list` in the first
@@ -316,6 +324,9 @@ function filterAndSortParams(
   }
   if (canonical.ages.kind === "oneOf") {
     params.set(AGE_PARAM, canonical.ages.values.join(","));
+  }
+  if (canonical.coatLengths.kind === "oneOf") {
+    params.set(COAT_PARAM, canonical.coatLengths.values.join(","));
   }
   if (sort !== DEFAULT_GALLERY_SORT) {
     params.set(SORT_PARAM, sort);
@@ -414,6 +425,9 @@ export function deckEntryHref(
   if (canonical.ages.kind === "oneOf") {
     params.set(AGE_PARAM, canonical.ages.values.join(","));
   }
+  if (canonical.coatLengths.kind === "oneOf") {
+    params.set(COAT_PARAM, canonical.coatLengths.values.join(","));
+  }
   params.set(TOTAL_PARAM, String(total));
 
   return `/tvaryny/gortaty?${params.toString()}`;
@@ -437,7 +451,7 @@ const MAX_PLAUSIBLE_DECK_TOTAL = 1_000_000;
 
 /**
  * The deck's own reading of the same URL scheme `parseGalleryQuery` reads —
- * same four filter params, `sort`/`stor` simply don't apply to a
+ * same filter params, `sort`/`stor` simply don't apply to a
  * cursor-paginated feed and are ignored if present (a stray `?stor=3`
  * carried over by accident degrades to "unused," not an error, matching
  * this file's existing posture toward unrecognised input). `total` is an
@@ -478,6 +492,10 @@ const AGE_WORDS: Record<AgeBucket, string> = {
   adult: uk.filters.ageAdult,
   senior: uk.filters.ageSenior,
 };
+const COAT_WORDS: Record<CoatLength, string> = {
+  short: uk.filters.coatShort,
+  long: uk.filters.coatLong,
+};
 
 /**
  * "Бровари · собаки · середні" — `docs/design/README.md`'s "Deck chrome and
@@ -515,6 +533,9 @@ export function filtersInWords(
   }
   if (canonical.ages.kind === "oneOf") {
     parts.push(canonical.ages.values.map((a) => AGE_WORDS[a].toLowerCase()).join("/"));
+  }
+  if (canonical.coatLengths.kind === "oneOf") {
+    parts.push(canonical.coatLengths.values.map((c) => COAT_WORDS[c].toLowerCase()).join("/"));
   }
 
   return parts.length > 0 ? parts.join(" · ") : null;

@@ -1088,6 +1088,8 @@ describe("kabinet animal history labels (his K3 words, 2026-10-17)", () => {
     "field.description": "Опис",
     // photos.title
     "field.photos": "Фото",
+    // Not a K3 word: his designer-round-1 text (2026-10-20), «kabinet.history.field.coatLength».
+    "field.coatLength": "Шерсть",
   };
 
   it("holds exactly these words, as he wrote them", () => {
@@ -1501,9 +1503,11 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
             leaves(child, `${path}.${key}`),
           );
     expect(leaves(uk.kabinet.animalForm, "kabinet.animalForm").sort()).toEqual(
-      Object.keys(K3_FINAL)
-        .filter((path) => path.startsWith("kabinet.animalForm."))
-        .sort(),
+      [
+        ...Object.keys(K3_FINAL).filter((path) => path.startsWith("kabinet.animalForm.")),
+        // His designer-round-1 fur words, pinned in their own block below.
+        ...Object.keys(DR1_FUR).filter((path) => path.startsWith("kabinet.animalForm.")),
+      ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
       "adopted",
@@ -1851,5 +1855,42 @@ describe("kabinet passwords copy (PW-1, his Ukrainian, 2026-10-19)", () => {
       expect(text, path).not.toContain(COPY_PENDING);
       expect(text, path).not.toMatch(/['’]/);
     }
+  });
+});
+
+/**
+ * Designer round 1, S3: his fur copy (`docs/designer-round-1.md` §11,
+ * Oleksii, 2026-10-20), transcribed literally. `detail.coatShort` /
+ * `detail.coatLong` carry his instruction "The value is «Коротка» / «Довга»,
+ * the same as the form", under the animal page's own keys.
+ */
+const DR1_FUR: Record<string, string> = {
+  "kabinet.animalForm.coat.label": "Шерсть",
+  "kabinet.animalForm.coat.short": "Коротка",
+  "kabinet.animalForm.coat.long": "Довга",
+  "kabinet.animalForm.coat.unknown": "Не вказано",
+  "kabinet.animalHistoryLabels.field.coatLength": "Шерсть",
+  "filters.coat": "Шерсть",
+  "filters.coatShort": "Короткошерсті",
+  "filters.coatLong": "Довгошерсті",
+  "noMatch.relaxCoat": "Будь-яка шерсть: +{count}",
+  "detail.coatLabel": "Шерсть",
+  "detail.coatShort": "Коротка",
+  "detail.coatLong": "Довга",
+};
+
+describe("designer round 1 fur copy (his text, 2026-10-20)", () => {
+  const atRoot = (path: string): unknown =>
+    path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], uk);
+
+  it.each(Object.entries(DR1_FUR))("%s is his text, exactly", (path, text) => {
+    expect(atRoot(path)).toBe(text);
+  });
+
+  it("the animal page's value words are not the filter labels", () => {
+    expect(uk.detail.coatShort).not.toBe(uk.filters.coatShort);
+    expect(uk.detail.coatLong).not.toBe(uk.filters.coatLong);
   });
 });

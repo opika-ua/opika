@@ -154,6 +154,10 @@ export const uk = {
     ageYoung: "Молодий",
     ageAdult: "Дорослий",
     ageSenior: "Літній",
+    /** Designer round 1 (S3): the fur group, his text (2026-10-20). */
+    coat: "Шерсть",
+    coatShort: "Короткошерсті",
+    coatLong: "Довгошерсті",
     /**
      * Template: "Підходить {count} {animalWord}. Притулків у цьому місті —
      * {shelterCount}." `{animalWord}` is pre-pluralized by the caller
@@ -311,6 +315,11 @@ export const uk = {
      */
     speciesDog: "Собака",
     speciesCat: "Кіт",
+    /** DR1 (S3), his text: the fact's own words, not the filter labels («Короткошерсті»);
+     * the value matches the kabinet form's. No row at all when fur isn't recorded. */
+    coatLabel: "Шерсть",
+    coatShort: "Коротка",
+    coatLong: "Довга",
     notFound: {
       eyebrow: "НЕ ЗНАЙДЕНО",
       title: "Цієї картки більше немає.",
@@ -551,6 +560,9 @@ export const uk = {
      * never a suggestion with none (docs/design/README.md: "no suggestion
      * without a number"). */
     additionalAnimals: "+{count} {animalWord}",
+    /** The fur dimension's own suggestion, his text (DR1, 2026-10-20): a
+     * whole template of its own, not `removeDimension` with a fur label. */
+    relaxCoat: "Будь-яка шерсть: +{count}",
     /** Static, filter-value-independent — the mock's own closing caption
      * below the two suggestion buttons (`Opika Registry System.dc.html`'s
      * B4 frame), unlike the middle sentence above which names one specific
@@ -1279,6 +1291,13 @@ export const uk = {
         sizeHintUpTo: "до {max} кг",
         sizeHintRange: "{min}–{max} кг",
         sizeHintFrom: "від {min} кг",
+      },
+      /** DR1 (S3), his text (2026-10-20). Optional, and clearable back to «Не вказано». */
+      coat: {
+        label: "Шерсть",
+        short: "Коротка",
+        long: "Довга",
+        unknown: "Не вказано",
       },
       age: {
         title: "Вік",
@@ -2216,6 +2235,8 @@ export const uk = {
         age: "Вік",
         description: "Опис",
         photos: "Фото",
+        /** DR1 (S3), his text (2026-10-20). */
+        coatLength: "Шерсть",
       },
     },
   },

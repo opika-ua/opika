@@ -22,6 +22,7 @@ const draftView = {
   species: "dog",
   sex: "unknown",
   size: null,
+  coatLength: null,
   age: null,
   description: null,
   photos: [],
@@ -70,6 +71,12 @@ describe("shelter.animals.createDraft (K-Q5: name + species)", () => {
 describe("the update patch (F-B1, T4)", () => {
   it("may clear the description with null", () => {
     expect(AnimalPatchSchema.safeParse({ description: null }).success).toBe(true);
+  });
+
+  it("may set fur or clear it with null (DR1-D10), and takes only its two values", () => {
+    expect(AnimalPatchSchema.safeParse({ coatLength: null }).success).toBe(true);
+    expect(AnimalPatchSchema.safeParse({ coatLength: "long" }).success).toBe(true);
+    expect(AnimalPatchSchema.safeParse({ coatLength: "wire" }).success).toBe(false);
   });
 
   it("may not clear the size or the age", () => {
@@ -136,6 +143,14 @@ describe("the kabinet animal views are the union (T2)", () => {
     expect(
       KabinetAnimalViewSchema.safeParse({ ...draftView, ...facts, listing: published }).success,
     ).toBe(true);
+  });
+
+  it("a published animal's fur may be unknown: it is no publishing fact (DR1-D10)", () => {
+    const listed = { ...draftView, ...facts, listing: published };
+    expect(KabinetAnimalViewSchema.safeParse({ ...listed, coatLength: null }).success).toBe(true);
+    expect(KabinetAnimalViewSchema.safeParse({ ...listed, coatLength: "short" }).success).toBe(
+      true,
+    );
   });
 });
 

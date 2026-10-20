@@ -295,7 +295,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 635 with PW-1's passwords (his text, 2026-10-19, pinned in copy-status.test.ts): 8 new
     // `signIn.*` keys less `signIn.send`, 3 `setPassword.*`, 5 `password.*`, 5 `forgot.*`,
     // 5 `reset.*`, 7 `changePassword.*`, 5 `email.reset.*` and 3 `email.passwordChanged.*`.
-    expect(pending.length + written.length).toBe(635);
+    // 640 with designer round 1's fur (his text, 2026-10-20, pinned in copy-status.test.ts):
+    // the four `animalForm.coat.*` and `animalHistoryLabels.field.coatLength`.
+    expect(pending.length + written.length).toBe(640);
+    expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.operator.create.errors.nameTooLong");
     expect(written).toContain("kabinet.profileEdit.state.saved");
     expect(written).toContain("kabinet.animalForm.draft.notVisible");
