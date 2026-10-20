@@ -389,7 +389,7 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
     expect(kabinetCookieName("session_token", false)).toBe("kabinet.session_token");
   });
 
-  it("over HTTPS sets a __Host- cookie: Secure, Path=/, no Domain, HttpOnly, 90-day Max-Age", async () => {
+  it("over HTTPS sets a __Host- cookie: Secure, Path=/, no Domain, HttpOnly, SameSite=Lax, 90-day Max-Age", async () => {
     const https = "https://kabinet.example";
     const secureAuth = createKabinetAuth({
       db,
@@ -426,6 +426,9 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
     expect(cookie).toMatch(/; Secure/);
     expect(cookie).toMatch(/; Path=\//);
     expect(cookie).toMatch(/; HttpOnly/);
+    // Lax: sent on a top-level navigation into the kabinet (an emailed link), never on a
+    // cross-site POST or a third-party request.
+    expect(cookie).toMatch(/; SameSite=Lax(;|$)/);
     // 90 days: no server-side session read renews the cookie, so it must outlive every limit.
     expect(cookie).toMatch(/; Max-Age=7776000/);
     expect(cookie).not.toMatch(/Domain=/i);
@@ -453,6 +456,56 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
     expect(cleared).toMatch(/; Path=\//);
     expect(cleared).toMatch(/; Secure/);
     expect(signedOut.headers.getSetCookie().some((c) => c.startsWith("better-auth."))).toBe(false);
+  });
+
+  it("the password sign-in, through the route, sets the same cookie: Secure, HttpOnly, SameSite=Lax (PW-1)", async () => {
+    const https = "https://kabinet.example";
+    const secureAuth = createKabinetAuth({
+      db,
+      sender,
+      schedule: (work) => {
+        pending.push(work());
+      },
+      baseURL: https,
+      secret: "test-only-secret-that-is-long-enough-0123456789",
+      secureCookies: true,
+      passwordLimiters: generousPasswordLimiters(),
+      passwordMail: capturingPasswordMail(),
+      limiters: unlimitedKabinet(),
+    });
+    const ctx = await secureAuth.$context;
+    const user = await ctx.internalAdapter.createUser({
+      email: "olena@example.org",
+      name: "О",
+      emailVerified: true,
+    });
+    const password = "ялинка-під-вікном-1987";
+    await ctx.internalAdapter.linkAccount({
+      userId: user.id,
+      accountId: user.id,
+      providerId: "credential",
+      password: await ctx.password.hash(password),
+    });
+    const signedIn = await handleKabinetAuth(
+      new Request(`${https}/api/auth/sign-in/email`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: https },
+        body: JSON.stringify({ email: "olena@example.org", password }),
+      }),
+      {
+        availability: { ...available, baseURL: https },
+        auth: () => secureAuth,
+        limiters: limiters(),
+        now: new Date(),
+      },
+    );
+    await Promise.all(pending);
+    expect(signedIn.status).toBe(200);
+    const cookie = signedIn.headers.getSetCookie().find((c) => c.includes("session_token="));
+    expect(cookie).toMatch(/^__Host-kabinet\.session_token=/);
+    expect(cookie).toMatch(/; Secure/);
+    expect(cookie).toMatch(/; HttpOnly/);
+    expect(cookie).toMatch(/; SameSite=Lax(;|$)/);
   });
 
   /**
