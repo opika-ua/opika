@@ -730,3 +730,45 @@ later go live describing the device incompletely.
 | DR1-D13 | Fur on the animal page, not on the card's meta line | The meta line already fills a 360px card |
 | DR1-D14 | Likes stored under a brand-free key `likes.v1`, capped at 200, refusing (never dropping) past the cap | A rename never orphans a list; a silent drop would lose what the person chose |
 | DR1-D15 | Liking records nothing server-side and sends no analytics event | Commitments 1 and 2 hold by construction, not by policy |
+
+---
+
+## 10. His final answers (Oleksii, 2026-10-20, verbatim)
+
+These override anything above that they contradict. DR1-Q2 and DR1-Q3 are in the inbox file's rows.
+
+```text
+DR1-Q1, final: «Слова притулку» only on the shelter page.
+
+What moves: the shelter’s freshness sentence leaves the deck and animal pages and shows only on the shelter page. «Оновлено … тому» stays on every card.
+The medical rows: their source label «Слова притулку» is renamed to «Дані притулку» (option (c)).
+Rewrites: the strings below. Email changes are Tier 1; update the exact-payload tests.
+
+The strings:
+
+forShelters.whyThatSentence, paragraph 1 only (paragraphs 2–3 unchanged): «Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого — позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а на сторінці притулку — ваше речення про те, як часто ви це робите, вашими словами.»
+kabinet.profileEdit.voice.previewLabel: «Так це виглядає на сторінці притулку:» (drop {name})
+kabinet.profileEdit.actions.liveOnSave.voice: «Нове речення зʼявиться на сторінці притулку одразу після збереження.»
+kabinet.profileEdit.errors.dateTokenGone: «Дата оновлення показується на кожній картці, тому {дата} у реченні писати не потрібно.»
+kabinet.profileEdit.voice.hint: «Одне речення від першої особи, вашими словами, про те, як часто ви оновлюєте картки. Воно показується на сторінці притулку.»
+kabinet.profileEdit.voice.emptyMeans: «Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде „Оновлено … тому“.»
+kabinet.profileEdit.voice.previewNoAnimals: delete the key, since the preview no longer needs an animal. If it must stay: «Тут видно, як речення виглядатиме на сторінці притулку.»
+kabinet.profileEdit.voice.previewEmpty: «Речення немає — на сторінці притулку його не буде.»
+kabinet.email.invite.what and whatBeforeVerification: replace «Контакти, речення на картках і картки тварин ви змінюєте самі» with «Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі». The rest is unchanged.
+kabinet.operator.history.freshness_sentence_changed: «Змінено речення на сторінці притулку»
+The medical rows’ source label: «Дані притулку»
+
+DR1-Q5: (a), drop {імʼя}.
+
+The sentence is shelter-level, and the editor refuses {імʼя}.
+The new error: «Тепер речення показується на сторінці притулку, тому {імʼя} у ньому не використовується. Приберіть його й збережіть ще раз.»
+Existing test-shelter sentences containing it are re-saved, not migrated.
+
+DR1-Q4, the R4-2 amendment. The pending sentence becomes:
+«Людині, яка шукає тварину, сайт ставить одне кукі — і тільки після першої дії: «Не зараз», «Запитати» чи «Написати». У ньому немає імені чи номера телефону, лише випадковий ідентифікатор: щоб режим «по одній» памʼятав, кого ви вже бачили, а сайт — чиї контакти ви вже відкрили. Він перестає діяти через 7 днів без візитів або через 30 днів у будь-якому разі. Окремо від кукі, якщо ви зберігаєте тварин, їхній список лежить у цьому браузері.»
+
+Note «памʼятав» with ʼ (U+02BC). Grep the catalogue for straight apostrophes in Ukrainian strings and fix them in the same PR.
+The /pro sentence for saved animals stays as I sent it.
+
+Any other live string this makes false: send it to me; don’t rewrite it yourself.
+```
