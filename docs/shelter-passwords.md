@@ -215,6 +215,9 @@ to find accounts. Its message is the same for every address (§9, Q5).
 - **One answer for every failure:** an unknown address, a known address with the wrong password, a
   shelter admin with no password yet, and the operator all get the same status (401) and the same
   body text.
+  - A fifth (PW1-F6): a sign-in whose password was right when Better Auth checked it, but was
+    written by a reset or a change while the sign-in ran, gets that same answer, its headers
+    included, and keeps no session (`apps/web/src/kabinet/sign-in-race.ts`).
 - **Timing:** Better Auth hashes a dummy on the unknown and no-credential paths. The test runs each
   case N times and asserts the medians lie within a tolerance that a real difference (hash skipped)
   breaks. Its mutation removes the dummy hash in a wrapper and shows the test going red.

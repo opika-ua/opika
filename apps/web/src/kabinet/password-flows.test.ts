@@ -8,6 +8,7 @@ import {
   superAdmins,
 } from "@opika/db/schema";
 import {
+  holdPasswordWriteUncommitted,
   makeCity,
   makeShelter,
   type SteppedStatement,
@@ -1452,6 +1453,55 @@ describe("PW1-F6: a sign-in racing a password write keeps no session", () => {
     expect(await signedInUser(renewed), "the device that changed it").toBe(ADMIN);
     expect(await sessionsOf(admin.id), "the renewed session, and no other").toBe(1);
     expect(logged).toContain(RACE_LINE);
+  });
+
+  /**
+   * The review's forced case (its blocker): the write's statement has run, PW1-F5's trigger with
+   * it, but it has not committed. The sign-in inserts its session after that trigger's delete and
+   * commits it, so the trigger never saw it; a plain second read would still see the old row, and
+   * answer 200 with that session alive after the commit. The second read must wait for the write
+   * and see it. The write is held open on a connection of its own (`holdPasswordWriteUncommitted`);
+   * whether the sign-in waits is asked of Postgres (`pg_blocking_pids`), never timed.
+   */
+  it("forced: a write whose statement ran (its trigger too) but hasn't committed; the sign-in inserts after that delete; its second read waits for the commit, sees the write and refuses: no session survives", async () => {
+    const admin = await adminWithPassword();
+    const wrong = whole(await signInWithPassword(ADMIN, WRONG));
+    const hash = await (await auth.$context).password.hash(NEWER);
+    const race = racing();
+    const held = await holdPasswordWriteUncommitted(admin.id, hash, new Date(Date.now() + 60_000));
+    let signingIn: ReturnType<typeof signInVia> | undefined;
+    let waited = false;
+    let traceWhileWaiting: string[] = [];
+    let sessionsWhileUncommitted = -1;
+    try {
+      signingIn = signInVia(race.auth, GOOD);
+      waited = await held.waitsOnIt(signingIn);
+      traceWhileWaiting = race.trace.map(statementName);
+      sessionsWhileUncommitted = await held.sessionsOf(admin.id);
+    } finally {
+      await held.commit();
+    }
+    if (signingIn === undefined) throw new Error("the sign-in never started");
+    const raced = await signingIn;
+
+    // No session survives the write's commit, and the answer is a wrong password's.
+    expect(whole(raced)).toEqual(wrong);
+    expect(await sessionsOf(admin.id)).toBe(0);
+    expect(
+      await signedInUser(cookieFor(race.tokens()[0] ?? "")),
+      "the raced session works",
+    ).toBeNull();
+    expect(logged).toContain(RACE_LINE);
+    // It waited, and where: at its second read, after its insert (the first read is plain and
+    // went straight through), with its session committed and the write's not yet.
+    expect(waited, "the sign-in waited on the uncommitted write").toBe(true);
+    expect(traceWhileWaiting).toEqual([...UP_TO_THE_INSERT, OUR_READ]);
+    expect(
+      sessionsWhileUncommitted,
+      "the sign-in's session, inserted after the trigger's delete",
+    ).toBe(1);
+    // The write stands.
+    expect((await signInWithPassword(ADMIN, NEWER)).status).toBe(200);
   });
 
   it("a normal sign-in is unaffected: held the same way, with another user's password written meanwhile, it signs in", async () => {

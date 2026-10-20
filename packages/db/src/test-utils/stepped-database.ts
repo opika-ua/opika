@@ -29,13 +29,12 @@ export type SteppedOptions = {
 
 const STARTS = {
   select: "select",
-  selectDistinct: "select",
   insert: "insert",
   update: "update",
   delete: "delete",
 } as const;
 
-const JOINS = new Set(["innerJoin", "leftJoin", "rightJoin", "fullJoin"]);
+const JOINS = new Set(["innerJoin", "leftJoin"]);
 
 /** A table's SQL name; `sql` for anything else (a raw `from`). */
 const nameOf = (value: unknown): string => {

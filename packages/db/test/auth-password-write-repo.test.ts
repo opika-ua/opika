@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { authPasswordWriteRepo } from "../src/repos/auth-password-write-repo";
 import { authAccount, authSession, authUser } from "../src/schema/auth";
 import {
+  holdPasswordWriteUncommitted,
   setupTestDatabase,
   statementName,
   steppedDatabase,
@@ -85,6 +86,44 @@ describe("authPasswordWriteRepo.writesByEmail", () => {
     const [after] = await repo.writesByEmail("olena@example.org");
     expect(before).toEqual({ accountId: "acc-1", updatedAt: NOW, hash: "salt:old" });
     expect(after).toEqual({ accountId: "acc-1", updatedAt: at(60_000), hash: "salt:new" });
+  });
+
+  it("committedWritesByEmail reads the same as writesByEmail when no write is in flight", async () => {
+    await user(OLENA, "olena@example.org");
+    await account("acc-1", OLENA, "credential", "salt:key");
+    const repo = authPasswordWriteRepo(db);
+    expect(await repo.committedWritesByEmail("olena@example.org")).toEqual(
+      await repo.writesByEmail("olena@example.org"),
+    );
+    expect(await repo.committedWritesByEmail("nobody@example.org")).toEqual([]);
+  });
+
+  /**
+   * The review's forced case, at the database: a write whose statement has run but not committed.
+   * The plain read sees the old row and goes on; the second read waits for the commit, then reads
+   * the new one. Without `FOR SHARE` it would read the old row too, at once.
+   */
+  it("with a write in flight, the plain read sees the old row at once, and committedWritesByEmail waits for the commit and reads the new one", async () => {
+    await user(OLENA, "olena@example.org");
+    await account("acc-1", OLENA, "credential", "salt:old");
+    const repo = authPasswordWriteRepo(db);
+    const held = await holdPasswordWriteUncommitted(OLENA, "salt:new", at(60_000));
+    let plain: string[] = [];
+    let committed: Promise<{ hash: string | null }[]> = Promise.resolve([]);
+    let waited = false;
+    try {
+      plain = (await repo.writesByEmail("olena@example.org")).map((w) => w.hash ?? "");
+      committed = repo.committedWritesByEmail("olena@example.org");
+      waited = await held.waitsOnIt(committed);
+    } finally {
+      await held.commit();
+    }
+    expect(plain, "the plain read, during the write").toEqual(["salt:old"]);
+    expect(
+      (await committed).map((w) => w.hash),
+      "the second read, after the commit",
+    ).toEqual(["salt:new"]);
+    expect(waited, "the second read waited on the write").toBe(true);
   });
 });
 

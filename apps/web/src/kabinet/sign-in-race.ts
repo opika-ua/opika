@@ -47,14 +47,28 @@ export const sameWrites = (
  * salt on every write). Nothing compares a time written on one server with a time read on
  * another; the stamp is only ever compared with itself.
  *
- * Every order of the two requests ends with no session made with the old password:
- * - the write lands before `begin`: Better Auth reads the new hash, and the old password fails;
- * - between `begin` and Better Auth's read: the old password fails the same way, and even the
- *   new one is refused this once (the reads differ), the conservative side;
- * - between Better Auth's read and its insert (the race): `settle` sees the write, and the
- *   session the sign-in just inserted is deleted before the answer;
- * - after the insert: the write's own statement deletes the session (PW1-F5's trigger), and
- *   `settle` refuses the answer if it hasn't gone out yet.
+ * **The second read waits for a write in flight** (`committedWritesByEmail`, `FOR SHARE`). A
+ * password write is one statement: the UPDATE, inside which PW1-F5's trigger deletes the user's
+ * sessions, and then its commit. Until that commit any other read still sees the old row. So a
+ * plain second read, run after the trigger's delete but before the commit, would find nothing
+ * changed and keep a session inserted after that delete (the review of this change forced exactly
+ * that: 200, the session alive after the commit). `FOR SHARE` waits for the UPDATE's row lock and
+ * then reads what it committed. The first read stays plain: a write it cannot see yet can only
+ * make the second differ.
+ *
+ * With that, every order of the two requests ends with no session made with the old password.
+ * The write's UPDATE (trigger included) runs, then commits:
+ * - committed before `begin`: Better Auth reads the new hash, and the old password fails;
+ * - committed between `begin` and Better Auth's read: the old password fails the same way, and
+ *   even the new one is refused this once (the reads differ), the conservative side;
+ * - the UPDATE runs after the sign-in's insert: its trigger deletes that session (PW1-F5), and
+ *   `settle`, if it comes after, refuses the answer too;
+ * - the UPDATE runs between Better Auth's read and the insert (the race), committed or not by
+ *   the time `settle` runs: `settle` comes after the insert, so after the UPDATE, and either
+ *   reads the committed row or waits for it; it sees the write, deletes the session the sign-in
+ *   just inserted, and answers the generic failure. A write that rolls back changes nothing.
+ * - A first password is an INSERT, with no row to wait on and nothing to race: the user had no
+ *   password, so Better Auth's read found none and the sign-in failed.
  *
  * The request is the per-call context object Better Auth hands both hooks (`ctx.context`), so a
  * `begin` is found only by its own request's `settle`, held weakly, and dropped once settled.
@@ -72,15 +86,16 @@ export function signInRaceCheck(db: Database) {
     },
 
     /**
-     * After Better Auth has answered, a success or a failure alike: the same read either way. A
-     * failure here is not thrown, since a session may already exist: it is `unreadable`, refused.
+     * After Better Auth has answered, a success or a failure alike: the same read either way,
+     * waiting for a password write in flight. A failure here is not thrown, since a session may
+     * already exist: it is `unreadable`, refused.
      */
     async settle(request: object): Promise<PasswordWriteCheck> {
       const start = begun.get(request);
       if (start === undefined) return { kind: "not_begun" };
       begun.delete(request);
       try {
-        const now = await repo.writesByEmail(start.email);
+        const now = await repo.committedWritesByEmail(start.email);
         return sameWrites(start.writes, now) ? { kind: "unchanged" } : { kind: "written" };
       } catch (error) {
         return { kind: "unreadable", sqlState: sqlStateOf(error) };

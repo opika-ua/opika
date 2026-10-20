@@ -6,6 +6,7 @@ import { z } from "zod";
 import { clientIp } from "../api/client-ip";
 import { addressRateLimitKey, ipRateLimitKey } from "../api/rate-limit-key";
 import { linkTo, RESET_LINK } from "./email-links";
+import { field, stringField } from "./fields";
 import { shelterPasswordVerdictOf } from "./password-checks";
 import { AUTH_ERROR_CODES, PASSWORD_REFUSAL_CODES, SIGN_IN_DELAYED_CODE } from "./password-codes";
 import {
@@ -90,16 +91,6 @@ const VOID_RESET_LINKS_TIMEOUT_MS = 1_000;
 
 const isEmail = (value: unknown): value is string =>
   typeof value === "string" && z.email().safeParse(value).success;
-
-const field = (source: unknown, name: string): unknown =>
-  typeof source === "object" && source !== null
-    ? (source as Record<string, unknown>)[name]
-    : undefined;
-
-const stringField = (source: unknown, name: string): string | null => {
-  const value = field(source, name);
-  return typeof value === "string" ? value : null;
-};
 
 /**
  * Better Auth's own 401 for a failed sign-in, built the same way
@@ -237,8 +228,10 @@ export function passwordHooks(deps: PasswordHookDeps) {
    * of them, in its own statement (migration 0013's triggers). Better Auth's revoke is the second
    * line, and it also catches a session inserted between the write and its own delete, which a
    * skipped revoke would leave. A sign-in racing the write (one that checked the old password
-   * before it) is refused by its own after-hook, whenever its insert lands (PW1-F6,
-   * `sign-in-race.ts`). A failure or a timeout is one line at error level, masked (his PW1-F1
+   * before it) keeps no session without that revoke: inserted before the write's statement, the
+   * trigger deletes it; after, its own after-hook's second read, which waits for a write in
+   * flight (`FOR SHARE`), sees the write and deletes it (PW1-F6, `sign-in-race.ts`). A failure or
+   * a timeout is one line at error level, masked (his PW1-F1
    * answer, verbatim excerpt: "A failure is logged at error level, masked. The links die within
    * the hour anyway."): no user id, no address, never the error's message (a query error's
    * message carries its parameters); only a SQLSTATE code, when there is one.

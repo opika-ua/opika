@@ -75,8 +75,10 @@ import { kabinetIdentityOf } from "../src/kabinet/principal";
  *      stepped database: by order, never by timing) while our own statement writes the password
  *      (as step 13's does, whose trigger ends the sessions there are); released, it inserts after
  *      that revoke, and its own after-hook deletes that session and answers what a wrong
- *      password gets. Every password sign-in from step 8 on also runs PW1-F6's read twice over
- *      this driver; the last sign-in here is the check's success path.
+ *      password gets. Every password sign-in from step 8 on also runs PW1-F6's two reads over
+ *      this driver, the second with `FOR SHARE`; the last sign-in here is the check's success
+ *      path. The forced case (a write held uncommitted) needs a transaction held open, which
+ *      neon-http doesn't have: it is tested locally (`password-flows.test.ts`, "forced: …").
  *
  * Nothing is sent anywhere: the magic link is captured in memory, never
  * printed. Refuses unless the target's compute is exactly `--expect`, and
@@ -558,13 +560,27 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
     holdWhen: (statement) => statementName(statement) === "insert:auth_session",
   });
   const racingAuth = authOver(stepped.db);
+  const raceName =
+    "a sign-in racing a password write keeps no session (deleted after its insert; a wrong password's answer)";
   const signingIn = route(
     "/api/auth/sign-in/email",
     { email, password: fifthPassword },
     "",
     racingAuth,
   );
-  await stepped.hold.reached;
+  // A sign-in that answers (or fails) before its insert is never held: the step fails rather
+  // than wait for a hold that can't come.
+  const heldOrNot = await Promise.race([
+    stepped.hold.reached.then(() => "held"),
+    signingIn.then(
+      (response) => `answered ${response.status} before its insert`,
+      () => "failed before its insert",
+    ),
+  ]);
+  if (heldOrNot !== "held") {
+    check(raceName, false, `the sign-in ${heldOrNot}, so the race never ran`);
+    return out;
+  }
   if (user) {
     const hasher = (await auth.$context).password;
     await writeCredentialPassword(db, user.id, await hasher.hash(sixthPassword), new Date());
@@ -610,7 +626,7 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
     afterToken !== "" && signedCookieFor(afterToken) === cookieOf(afterRace);
   const racedCookies = raced.headers.getSetCookie().length;
   check(
-    "a sign-in racing a password write keeps no session (deleted after its insert; a wrong password's answer)",
+    raceName,
     wrong.status === 401 &&
       raced.status === 401 &&
       racedBody === wrongBody &&

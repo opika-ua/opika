@@ -13,6 +13,7 @@ export {
   policy,
   uuid,
 } from "./fixtures";
+export { type HeldPasswordWrite, holdPasswordWriteUncommitted } from "./held-password-write";
 export {
   type PasswordRevokeCatalog,
   passwordRevokeCatalog,
