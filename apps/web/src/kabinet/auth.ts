@@ -114,6 +114,8 @@ export type KabinetAuthDeps = {
   passwordMail: PasswordMailSender;
   /** Where a failure nobody sees on screen is logged (masked); defaults to `console.warn`. */
   log?: (line: string) => void;
+  /** The same at error level (masked), for a failure someone should look at; defaults to `console.error`. */
+  logError?: (line: string) => void;
 };
 
 /**
@@ -216,6 +218,7 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
     },
     baseURL: deps.baseURL,
     log: deps.log ?? ((line) => console.warn(line)),
+    logError: deps.logError ?? ((line) => console.error(line)),
   });
 
   const auth = betterAuth({
@@ -271,6 +274,8 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       // deletes every session of the user; the reset itself holds none.
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: (input) => passwords.sendResetPassword(input),
+      // Voids the user's other reset links (PW1-F1), then the notice. The change does the same
+      // from `hooks.after`.
       onPasswordReset: (input) => passwords.onPasswordReset(input),
     },
     databaseHooks: {

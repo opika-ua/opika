@@ -52,6 +52,10 @@ import { kabinetIdentityOf } from "../src/kabinet/principal";
  *   6–9. PW-1: «Забули пароль?» (the reset token stored hashed), the reset (the token
  *      consumed, a credential account created), the password sign-in, and «Змінити пароль»
  *      (the hash updated, other sessions revoked).
+ *   10–11. PW1-F1: a reset, then a change, each deleting the user's other reset links (our
+ *      DELETE, right after Better Auth's write) and nothing else: the user's own sign-in link
+ *      row stays, and the statement names only this run's user, so no other row on the
+ *      branch is touched.
  *
  * Nothing is sent anywhere: the magic link is captured in memory, never
  * printed. Refuses unless the target's compute is exactly `--expect`, and
@@ -394,6 +398,86 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       afterChange.length === 1 &&
       oldRefused.status === 401,
     `status ${changed.status}, sessions after ${afterChange.length}, old password ${oldRefused.status}`,
+  );
+
+  // 10–11. PW1-F1: a new password voids the user's other reset links. Fresh tokens are read
+  // from the captured mail, never printed; a row is found by its hash, as in step 6.
+  const thirdPassword = `smoke-${randomUUID()}`;
+  const fourthPassword = `smoke-${randomUUID()}`;
+  const resetTokensSince = (from: number) =>
+    passwordMail.sent
+      .slice(from)
+      .flatMap((m) =>
+        m.kind === "reset" && m.email === email
+          ? [new URL(m.url).searchParams.get("token") ?? ""]
+          : [],
+      );
+  const rowsOfToken = async (resetLink: string) => {
+    const hashed = createHash("sha256").update(`reset-password:${resetLink}`).digest("base64url");
+    return (await identifiers()).filter((id) => id === hashed).length;
+  };
+
+  // 10. two reset links and a sign-in link; the first reset link used: the second is refused
+  // and its row gone, the sign-in link's row kept.
+  const beforeTwo = passwordMail.sent.length;
+  await route("/api/auth/request-password-reset", { email });
+  await route("/api/auth/request-password-reset", { email });
+  const [linkA = "", linkB = ""] = resetTokensSince(beforeTwo);
+  await route("/api/auth/sign-in/magic-link", { email });
+  const signInRowsBefore = (await verificationRows()).length;
+  const otherRowsBefore = linkB === "" ? 0 : await rowsOfToken(linkB);
+  const usedA = await route("/api/auth/reset-password", {
+    token: linkA,
+    newPassword: thirdPassword,
+  });
+  const otherRowsAfter = linkB === "" ? -1 : await rowsOfToken(linkB);
+  const refusedB = await route("/api/auth/reset-password", {
+    token: linkB,
+    newPassword: fourthPassword,
+  });
+  const signInRowsAfter = (await verificationRows()).length;
+  check(
+    "reset voids the other reset links (the other link refused, the sign-in link's row kept)",
+    linkA !== "" &&
+      linkB !== "" &&
+      linkA !== linkB &&
+      otherRowsBefore === 1 &&
+      usedA.status === 200 &&
+      otherRowsAfter === 0 &&
+      refusedB.status === 400 &&
+      signInRowsBefore === 1 &&
+      signInRowsAfter === 1,
+    `links captured ${linkA !== "" && linkB !== ""}, reset ${usedA.status}, other link rows ${otherRowsBefore} then ${otherRowsAfter}, other link ${refusedB.status}, sign-in link rows ${signInRowsBefore} then ${signInRowsAfter}`,
+  );
+
+  // 11. a reset link asked for before a change: refused after it, its row gone; the sign-in
+  // link's row still kept.
+  const signedInAgain = await route("/api/auth/sign-in/email", { email, password: thirdPassword });
+  const beforeOne = passwordMail.sent.length;
+  await route("/api/auth/request-password-reset", { email });
+  const [linkC = ""] = resetTokensSince(beforeOne);
+  const earlierRowsBefore = linkC === "" ? 0 : await rowsOfToken(linkC);
+  const changedAgain = await route(
+    "/api/auth/change-password",
+    { currentPassword: thirdPassword, newPassword: fourthPassword },
+    cookieOf(signedInAgain),
+  );
+  const earlierRowsAfter = linkC === "" ? -1 : await rowsOfToken(linkC);
+  const refusedC = await route("/api/auth/reset-password", {
+    token: linkC,
+    newPassword: thirdPassword,
+  });
+  const signInRowsAtEnd = (await verificationRows()).length;
+  check(
+    "change voids the reset links (a link asked for before it refused after it, the sign-in link's row kept)",
+    signedInAgain.status === 200 &&
+      linkC !== "" &&
+      earlierRowsBefore === 1 &&
+      changedAgain.status === 200 &&
+      earlierRowsAfter === 0 &&
+      refusedC.status === 400 &&
+      signInRowsAtEnd === 1,
+    `sign-in ${signedInAgain.status}, link captured ${linkC !== ""}, change ${changedAgain.status}, earlier link rows ${earlierRowsBefore} then ${earlierRowsAfter}, earlier link ${refusedC.status}, sign-in link rows ${signInRowsAtEnd}`,
   );
   return out;
 }

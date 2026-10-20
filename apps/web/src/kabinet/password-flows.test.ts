@@ -51,6 +51,7 @@ let pending: Promise<void>[];
 let clock: Date;
 let delayStore: DelayStore;
 let logged: string[];
+let loggedErrors: string[];
 
 beforeAll(async () => {
   ({ db, cleanup } = await setupTestDatabase());
@@ -61,11 +62,15 @@ const generous = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_
 const kabinet = (): KabinetLimiters => ({ perUser: generous(), perIp: generous() });
 
 function build(
-  overrides: { password?: Partial<PasswordLimiters>; kabinet?: KabinetLimiters } = {},
+  overrides: {
+    password?: Partial<PasswordLimiters>;
+    kabinet?: KabinetLimiters;
+    db?: typeof db;
+  } = {},
 ) {
   delayStore = overrides.password?.signInDelay ?? inMemoryDelayStore();
   auth = createKabinetAuth({
-    db,
+    db: overrides.db ?? db,
     sender: links,
     schedule: (work) => {
       pending.push(work());
@@ -84,6 +89,7 @@ function build(
     },
     passwordMail: mail,
     log: (line) => logged.push(line),
+    logError: (line) => loggedErrors.push(line),
   });
 }
 
@@ -93,6 +99,7 @@ beforeEach(async () => {
   links = capturingSender();
   pending = [];
   logged = [];
+  loggedErrors = [];
   clock = new Date();
   build();
 });
@@ -215,12 +222,22 @@ async function operator(email = OPERATOR) {
   return user;
 }
 
-/** A magic-link sign-in, through the confirm page's POST (IN-Q11): a session without a password. */
-async function signInByLink(email: string): Promise<string> {
+/** «Увійти» by link for `email`: Better Auth writes the link's row; the confirm page's URL. */
+async function requestLink(email: string): Promise<string> {
   const before = links.sent.length;
   await route(post("/api/auth/sign-in/magic-link", { email }));
   const link = links.sent[before]?.url;
   if (link === undefined) throw new Error(`no link sent to ${email}`);
+  return link;
+}
+
+/** A magic-link sign-in, through the confirm page's POST (IN-Q11): a session without a password. */
+async function signInByLink(email: string): Promise<string> {
+  return confirmLink(await requestLink(email));
+}
+
+/** The confirm page's POST for a link `requestLink` returned; the session cookie it sets. */
+async function confirmLink(link: string): Promise<string> {
   const token = new URL(link).searchParams.get("token") ?? "";
   const verified = await handleKabinetConfirm(
     new Request(link, {
@@ -669,6 +686,218 @@ describe("«Змінити пароль» (scope item 7)", () => {
   });
 });
 
+/**
+ * PW1-F1: a new password voids the user's other reset links. Oleksii, PW1-Q6, verbatim: "Delete
+ * the user's other unused reset links on any successful reset or change". PW1-F1, verbatim: "(ii),
+ * a delete in our hook. A failure is logged at error level, masked. The links die within the hour
+ * anyway. … Either way: a test against real Better Auth pins the storage format it matches, so a
+ * Better Auth upgrade that changes it fails loudly."
+ */
+describe("PW1-F1: a new password voids the user's other reset links", () => {
+  const OTHER_ADMIN = "marta@example.org";
+  const THIRD = "кава-з-корицею-о-сьомій";
+  const NEVER_ISSUED = "never-issued-token-0123456";
+
+  /** Better Auth's own answer to a token it never issued: what a voided link must get, exactly. */
+  const unknownTokenAnswer = async () => {
+    const answer = await reset(NEVER_ISSUED, THIRD);
+    expect(answer.status).toBe(400);
+    return answer.text;
+  };
+
+  /** How many verification rows hold this user's id: a count, so no failure prints a row. */
+  const rowsOf = async (userId: string) =>
+    (await db.select().from(authVerification)).filter((row) => row.value === userId).length;
+
+  it("pins the storage format the delete matches, against Better Auth itself", async () => {
+    const admin = await shelterAdmin(ADMIN);
+    const { token } = await forgot(ADMIN);
+    if (token === null) throw new Error("no link");
+    await requestLink(ADMIN);
+    const rows = await db.select().from(authVerification);
+    expect(rows).toHaveLength(2);
+    // The reset link: its identifier SHA-256 (base64url, 43 characters) of
+    // `reset-password:<token>`, its value the user's id. A Better Auth that stores either
+    // differently fails here, before the delete quietly stops matching. Booleans, so a failure
+    // never prints an identifier (stored plain, it would be the link itself).
+    const hashedShape = /^[A-Za-z0-9_-]{43}$/;
+    const resetRow = rows.find((row) => row.value === admin.id);
+    expect(resetRow !== undefined, "a reset row whose value is the user's id").toBe(true);
+    expect(
+      resetRow?.identifier ===
+        createHash("sha256").update(`reset-password:${token}`).digest("base64url"),
+      "the reset row's identifier is SHA-256 (base64url) of reset-password:<token>",
+    ).toBe(true);
+    expect(hashedShape.test(resetRow?.identifier ?? ""), "43 characters of base64url").toBe(true);
+    // The magic link: hashed the same way, but its value is JSON naming the address.
+    const linkRow = rows.find((row) => row !== resetRow);
+    expect(hashedShape.test(linkRow?.identifier ?? ""), "the magic link's identifier").toBe(true);
+    expect(JSON.parse(linkRow?.value ?? "null")).toEqual({ email: ADMIN });
+  });
+
+  it("a reset: her other link is refused as an unknown token is; her sign-in link and another admin's reset link still work", async () => {
+    const admin = await shelterAdmin(ADMIN);
+    await shelterAdmin(OTHER_ADMIN, "Притулок «Берег»");
+    const first = await forgot(ADMIN);
+    const second = await forgot(ADMIN);
+    const others = await forgot(OTHER_ADMIN);
+    const signInLink = await requestLink(ADMIN);
+    if (first.token === null || second.token === null || others.token === null) {
+      throw new Error("no link");
+    }
+    expect(await rowsOf(admin.id)).toBe(2);
+    const unknown = await unknownTokenAnswer();
+
+    expect((await reset(first.token, GOOD)).status).toBe(200);
+    expect(await rowsOf(admin.id)).toBe(0);
+    const refused = await reset(second.token, NEWER);
+    expect(refused.status).toBe(400);
+    expect(refused.text).toBe(unknown);
+    expect(codeOf(refused.text)).toBe("INVALID_TOKEN");
+    // The password the first link set stands.
+    expect((await signInWithPassword(ADMIN, GOOD)).status).toBe(200);
+    expect((await signInWithPassword(ADMIN, NEWER)).status).toBe(401);
+
+    // Untouched: her magic link, and another user's reset link.
+    expect(await signedInUser(await confirmLink(signInLink))).toBe(ADMIN);
+    expect((await reset(others.token, THIRD)).status).toBe(200);
+    expect(loggedErrors).toEqual([]);
+  });
+
+  it("a change: a link asked for before it is refused after it; her sign-in link and another admin's reset link still work", async () => {
+    const admin = await adminWithPassword();
+    await shelterAdmin(OTHER_ADMIN, "Притулок «Берег»");
+    const others = await forgot(OTHER_ADMIN);
+    const cookie = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const earlier = await forgot(ADMIN);
+    const signInLink = await requestLink(ADMIN);
+    if (earlier.token === null || others.token === null) throw new Error("no link");
+    expect(await rowsOf(admin.id)).toBe(1);
+    const unknown = await unknownTokenAnswer();
+
+    const changed = await route(
+      post("/api/auth/change-password", { currentPassword: GOOD, newPassword: NEWER }, { cookie }),
+    );
+    expect(changed.status).toBe(200);
+    expect(await rowsOf(admin.id)).toBe(0);
+    const refused = await reset(earlier.token, THIRD);
+    expect(refused.status).toBe(400);
+    expect(refused.text).toBe(unknown);
+    expect((await signInWithPassword(ADMIN, NEWER)).status).toBe(200);
+
+    expect(await signedInUser(await confirmLink(signInLink))).toBe(ADMIN);
+    expect((await reset(others.token, THIRD)).status).toBe(200);
+    expect(loggedErrors).toEqual([]);
+  });
+
+  /**
+   * `db`, except that once a password is written (a credential inserted or updated), every delete
+   * from `auth_verification` fails, as a dropped connection would. Better Auth's own deletes (the
+   * token's consume, its expiry sweep) all come before the write, so the delete that fails is
+   * ours. The error carries the address, the user id and a token, as a query error's message
+   * carries its parameters, so a log line that printed it would be caught.
+   */
+  function failingAfterPasswordWrite(secrets: string[], code?: string): typeof db {
+    let written = false;
+    return new Proxy(db, {
+      get(object, property) {
+        const value = Reflect.get(object, property, object);
+        if (typeof value !== "function") return value;
+        return (...args: unknown[]) => {
+          if ((property === "insert" || property === "update") && args[0] === authAccount) {
+            written = true;
+          }
+          if (property === "delete" && args[0] === authVerification && written) {
+            throw Object.assign(new Error(`delete failed: params ${secrets.join(", ")}`), {
+              cause: { code, message: `connection lost (${secrets.join(", ")})` },
+            });
+          }
+          return value.apply(object, args);
+        };
+      },
+    });
+  }
+
+  /** Every console line while `work` runs, so Better Auth's own logger is checked too. */
+  async function consoleDuring(work: () => Promise<void>): Promise<string[]> {
+    const lines: string[] = [];
+    const spies = (["log", "info", "warn", "error"] as const).map((level) =>
+      vi.spyOn(console, level).mockImplementation((...args: unknown[]) => {
+        lines.push(args.map(String).join(" "));
+      }),
+    );
+    try {
+      await work();
+    } finally {
+      for (const spy of spies) spy.mockRestore();
+    }
+    return lines;
+  }
+
+  it("a delete that fails never fails the reset: the sessions still end, the notice goes, and one masked line is logged at error level", async () => {
+    const admin = await shelterAdmin(ADMIN);
+    const phone = await signInByLink(ADMIN);
+    const first = await forgot(ADMIN);
+    const second = await forgot(ADMIN);
+    if (first.token === null || second.token === null) throw new Error("no link");
+    build({ db: failingAfterPasswordWrite([ADMIN, admin.id, second.token]) });
+
+    const consoleLines = await consoleDuring(async () => {
+      const done = await reset(first.token ?? "", GOOD);
+      expect(done.status).toBe(200);
+      expect(done.text).toBe('{"status":true}');
+    });
+    // Better Auth went on past `onPasswordReset`: every session ended (scope item 6).
+    expect(await signedInUser(phone)).toBeNull();
+    expect(await db.select().from(authSession)).toEqual([]);
+    expect(mail.sent.map((m) => m.kind)).toEqual(["reset", "reset", "changed"]);
+    expect(loggedErrors).toEqual([
+      "[kabinet] voiding the other reset links after a reset failed; they lapse within the hour",
+    ]);
+    expect(logged).toEqual([]);
+    // The failure is honest: the other link is still there, for its hour.
+    expect(await rowsOf(admin.id)).toBe(1);
+    const everything = [...loggedErrors, ...logged, ...consoleLines].join("\n");
+    for (const secret of [ADMIN, "olena", admin.id, first.token, second.token]) {
+      // A boolean, so a failure never prints the token it found.
+      expect(everything.includes(secret), "a log line names the user or a link").toBe(false);
+    }
+  });
+
+  it("a delete that fails never fails the change: the new session works, and the line carries only the SQLSTATE", async () => {
+    const admin = await adminWithPassword();
+    const cookie = sessionCookieOf((await signInWithPassword(ADMIN, GOOD)).response);
+    const earlier = await forgot(ADMIN);
+    if (earlier.token === null) throw new Error("no link");
+    build({ db: failingAfterPasswordWrite([ADMIN, admin.id, earlier.token], "57P01") });
+
+    let renewed = "";
+    const consoleLines = await consoleDuring(async () => {
+      const changed = await route(
+        post(
+          "/api/auth/change-password",
+          { currentPassword: GOOD, newPassword: NEWER },
+          { cookie },
+        ),
+      );
+      expect(changed.status).toBe(200);
+      renewed = sessionCookieOf(changed.response);
+    });
+    expect(await signedInUser(renewed)).toBe(ADMIN);
+    // Kinds only: a failure message must never print a reset link (a credential).
+    expect(mail.sent.map((m) => m.kind)).toEqual(["reset", "changed"]);
+    expect(loggedErrors).toEqual([
+      "[kabinet] voiding the other reset links after a change failed (57P01); they lapse within the hour",
+    ]);
+    expect(logged).toEqual([]);
+    expect(await rowsOf(admin.id)).toBe(1);
+    const everything = [...loggedErrors, ...logged, ...consoleLines].join("\n");
+    for (const secret of [ADMIN, "olena", admin.id, earlier.token]) {
+      // A boolean, so a failure never prints the token it found.
+      expect(everything.includes(secret), "a log line names the user or a link").toBe(false);
+    }
+  });
+});
 describe("the operator can never have or use a password (§4.6)", () => {
   it("asking for a reset creates no token and sends nothing", async () => {
     await operator();

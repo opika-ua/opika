@@ -1,5 +1,5 @@
 import type { Database } from "@opika/db";
-import { kabinetActorRepo } from "@opika/db/repos";
+import { authResetLinkRepo, kabinetActorRepo } from "@opika/db/repos";
 import type { PasswordVerdict } from "@opika/domain";
 import { APIError, isAPIError } from "better-auth/api";
 import { z } from "zod";
@@ -62,6 +62,8 @@ export type PasswordHookDeps = {
   baseURL: string;
   /** Where a failure that reaches nobody on screen is written; never a password, a token or an address. */
   log: (line: string) => void;
+  /** The same, at error level: a failure someone should look at (PW1-F1). */
+  logError: (line: string) => void;
 };
 
 /** The one answer «Забули пароль?» gives for any address (§6.3); the route reduces Better Auth's own to the same. */
@@ -117,6 +119,15 @@ const delayed = (minutes: number) =>
     { "Retry-After": String(minutes * 60) },
   );
 
+/**
+ * A database error's SQLSTATE (five digits or capitals: `57P01`, `08006`), from the driver's
+ * error or the one Drizzle wraps, or null. Nothing else of the error is ever logged.
+ */
+const sqlStateOf = (error: unknown): string | null => {
+  const code = field(field(error, "cause"), "code") ?? field(error, "code");
+  return typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) ? code : null;
+};
+
 const withTimeout = <T>(work: Promise<T>, ms: number): Promise<T> =>
   new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("timed out")), ms);
@@ -169,6 +180,30 @@ export function passwordHooks(deps: PasswordHookDeps) {
   /** Work after the response (`deps.schedule`), failing `quietly`. */
   function later(what: string, work: () => Promise<void>) {
     deps.schedule(() => quietly(what, work));
+  }
+
+  /**
+   * PW1-F1: once a new password is written, every reset link the user still holds is deleted, so
+   * a link asked for earlier can't set another one (Oleksii, PW1-Q6, verbatim: "Delete the user's
+   * other unused reset links on any successful reset or change"). Option (ii) of PW1-F1, his
+   * choice: a second statement right after Better Auth's write, so a link used in the moment
+   * between the two still works. Awaited, before the response, to keep that moment short.
+   *
+   * It never fails the reset or the change: on a reset Better Auth awaits `onPasswordReset` and
+   * only then revokes the sessions, so a throw here would leave them alive. A failure is one line
+   * at error level, masked (his answer, verbatim: "A failure is logged at error level, masked. The
+   * links die within the hour anyway."): no user id, no address, never the error's message (a
+   * query error's message carries its parameters); only a SQLSTATE code, when there is one.
+   */
+  async function voidResetLinks(userId: string, after: "reset" | "change"): Promise<void> {
+    try {
+      await authResetLinkRepo(deps.db).deleteUnused(userId);
+    } catch (error) {
+      const code = sqlStateOf(error);
+      deps.logError(
+        `[kabinet] voiding the other reset links after a ${after} failed${code === null ? "" : ` (${code})`}; they lapse within the hour`,
+      );
+    }
   }
 
   /** Whether this user is a shelter admin with exactly this address now (the email's recipient). */
@@ -304,7 +339,8 @@ export function passwordHooks(deps: PasswordHookDeps) {
     /**
      * After Better Auth answered. A successful sign-in clears its address's
      * delay (a failure needs nothing: the attempt was charged as it started);
-     * a successful change sends «пароль змінено» (§9 answer 4).
+     * a successful change voids the user's reset links (PW1-F1) and sends
+     * «пароль змінено» (§9 answer 4).
      */
     async after(ctx: PasswordHookContext, now: Date): Promise<void> {
       if (isAPIError(ctx.context.returned) || ctx.context.returned === undefined) return;
@@ -326,6 +362,7 @@ export function passwordHooks(deps: PasswordHookDeps) {
         const id = stringField(user, "id");
         const email = stringField(user, "email");
         if (id === null || email === null) return;
+        await voidResetLinks(id, "change");
         later("the password-changed notice", async () => {
           if (await isShelterAdmin({ id, email })) await deps.mail.sendChanged({ email });
         });
@@ -354,8 +391,13 @@ export function passwordHooks(deps: PasswordHookDeps) {
       });
     },
 
-    /** Better Auth's `onPasswordReset`: «пароль змінено» after a reset too (§9 answer 4). */
+    /**
+     * Better Auth's `onPasswordReset`, called once the new password is written and before the
+     * sessions are revoked: voids the user's other reset links (PW1-F1; the one just used is
+     * already consumed), then «пароль змінено» after a reset too (§9 answer 4).
+     */
     async onPasswordReset(input: { user: { id: string; email: string } }): Promise<void> {
+      await voidResetLinks(input.user.id, "reset");
       later("the password-changed notice", async () => {
         if (await isShelterAdmin(input.user))
           await deps.mail.sendChanged({ email: input.user.email });
