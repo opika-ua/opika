@@ -585,6 +585,16 @@ feature PRs open at once, in different areas (WM-B1).
 Order of work: S1 and S2 in parallel (different areas) → S3 and S4 → S5 → S6 → S7 → S8. S5–S8
 wait on the open questions; S1–S4 don't, so building starts there while he answers.
 
+Added from the coordinator's review on PR #160 (2026-10-20; the coordinator's notes, not
+Oleksii's decisions):
+
+- `animals.cardsByIds` (S7) goes through the per-IP rate limit and returns a `pick`-built public
+  view (`FeedCardView`), like every public read; Tier 1 review.
+- S2's migration `0014` is the only migration-bearing branch until it lands, so two branches never
+  both claim `0014`.
+- S2 and S3 change SQL (`buildFilterPredicate`), so each waits for Oleksii's real-Neon smoke
+  before merge.
+
 Every slice: `pnpm check` green, pasted in the PR; behaviour tests only; new strings as
 `[COPY PENDING]` listed in the PR body; "Decisions taken" in the PR body; its migration kind
 stated. Each Tier 1 slice is reviewed before commit; the others get one review.
