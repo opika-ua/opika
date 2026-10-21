@@ -6,6 +6,11 @@ because of a visual change is deleted (listed in that PR's body), not fixed. Cla
 `origin/main` at `ac3e02f`. This is a snapshot, not maintained; when the brand lands the whole
 list is reconsidered.
 
+**2026-10-20: superseded.** Oleksii, verbatim: "UI-measuring tests: yes, keep both V-B2 tests (the 48px shared controls and the focus indicator being present). They’re accessibility guarantees, not looks. Drop the rest that measure appearance." The LOOKS tests and the LOOKS parts of
+the MIXED ones listed below are deleted (branch `chore/drop-ui-measuring-tests`); the record of
+what went is `docs/decisions-inbox/chore-drop-ui-measuring-tests.md`. This file is kept as the
+pre-removal snapshot. Its line numbers are `ac3e02f`'s.
+
 Classes: **LOOKS** (geometry, sizes, margins, font size, wrapping or truncation, colours,
 contrast, `sizes` attributes, columns, CSS values, focus-ring appearance) · **LOGIC** · **A11Y**
 (labels, keyboard, aria-live, focus order) · **MIXED** (part LOOKS, part LOGIC or A11Y).

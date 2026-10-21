@@ -436,7 +436,9 @@ describe("removeWorktree, for real", () => {
 
 /**
  * Finding 7: arguments reach Playwright as given. Through a shell,
- * `--grep "keyboard focus"` was re-split into two words.
+ * `--grep "keyboard focus"` was re-split into two words. (The grep is now
+ * "keyboard reachability": the harness's "keyboard focus" blocks were renamed
+ * when their focus-ring measurements were removed, 2026-10-20.)
  */
 describe("the harness wrapper", () => {
   const web = resolve(fileURLToPath(import.meta.url), "../../../../apps/web");
@@ -446,7 +448,7 @@ describe("the harness wrapper", () => {
     const cli = require.resolve("@playwright/test/cli", { paths: [web] });
     const direct = spawnSync(
       process.execPath,
-      [cli, "test", "--list", "--grep", "keyboard focus"],
+      [cli, "test", "--list", "--grep", "keyboard reachability"],
       {
         cwd: web,
         encoding: "utf8",
@@ -454,7 +456,7 @@ describe("the harness wrapper", () => {
     );
     const wrapped = spawnSync(
       process.execPath,
-      ["test/run-harness.mjs", "--list", "--grep", "keyboard focus"],
+      ["test/run-harness.mjs", "--list", "--grep", "keyboard reachability"],
       { cwd: web, encoding: "utf8" },
     );
     const expected = total(direct.stdout);

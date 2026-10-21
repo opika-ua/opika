@@ -6,10 +6,9 @@ import { SiteHeader } from "./SiteHeader";
 /**
  * The critique findings this component exists for (E5, E1, B2, E7) are all
  * "the link is not reachable from here" — so these assert reachability and the
- * destinations, not appearance. Geometry (the 64/88 heights, A2) is measured
- * in `test/harness/site-header.harness.ts` instead, where a real browser lays
- * it out; asserting a Tailwind class string here would be the markup-shaped
- * check `docs/standing-constraints.md` exists to forbid.
+ * destinations, not appearance. Appearance is not tested at all (CLAUDE.md,
+ * "Test logic, not looks"; the header's geometry tests were removed
+ * 2026-10-20).
  */
 describe("SiteHeader", () => {
   it("links to «Про проєкт» — the finding was that this was reachable from one place in the whole app", () => {
@@ -44,14 +43,6 @@ describe("SiteHeader", () => {
     render(<SiteHeader />);
 
     expect(screen.getByRole("navigation", { name: "Opika" })).toBeTruthy();
-  });
-
-  it("every link carries focus-visible styling", () => {
-    render(<SiteHeader />);
-
-    for (const link of screen.getAllByRole("link")) {
-      expect(link.className).toContain("focus-visible:outline");
-    }
   });
 
   it("renders a surface-specific trailing slot alongside the site nav", () => {

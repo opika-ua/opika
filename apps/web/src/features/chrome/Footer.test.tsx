@@ -32,12 +32,4 @@ describe("Footer", () => {
     expect(screen.queryByRole("link", { name: uk.nav.forShelters })).toBeNull();
     expect(screen.getByRole("link", { name: uk.nav.about })).toBeTruthy();
   });
-
-  it("every link carries focus-visible styling", () => {
-    render(<Footer />);
-
-    for (const link of screen.getAllByRole("link")) {
-      expect(link.className).toContain("focus-visible:outline");
-    }
-  });
 });

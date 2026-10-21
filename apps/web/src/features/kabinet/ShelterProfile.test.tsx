@@ -137,10 +137,9 @@ describe("ShelterProfile (K4, read-only)", () => {
     expect(rowValue(t.voiceLabel)).toBe("Напишіть, і ми скажемо, чи {імʼя} ще з нами.");
   });
 
-  it("keeps the verified details in the dashed block: legal name, grouped EDRPOU, status with its date, address", () => {
+  it("keeps the verified details in their own block: legal name, grouped EDRPOU, status with its date, address", () => {
     renderProfile();
     const block = screen.getByRole("region", { name: t.lockedTitle });
-    expect(block.className).toContain("border-dashed");
     expect(rowValue(t.legalName)).toBe("ГО «Домівка для хвостатих»");
     expect(rowValue(t.edrpou)).toBe("43 218 765");
     expect(rowValue(t.registrationStatus)).toContain("14 березня 2025");
@@ -155,10 +154,6 @@ describe("ShelterProfile (K4, read-only)", () => {
     expect(
       within(block).getByText("Ті, хто шукає тварину, не бачать точної адреси — лише місто."),
     ).toBeTruthy();
-    // Only the verification block is dashed: contacts are not "not yours to edit".
-    expect(screen.getByRole("region", { name: t.contactsTitle }).className).not.toContain(
-      "border-dashed",
-    );
   });
 
   it("names the operator in the block's note, without an instruction it gives no channel for", () => {
@@ -258,8 +253,8 @@ describe("ShelterProfile (K4, read-only)", () => {
     expect(screen.queryByRole("region", { name: bannerTitle })).toBeNull();
   });
 
-  it("a support view gets the banner and the frame, sign-out disabled, and no sign-out button", () => {
-    const { container } = renderProfile({}, "support");
+  it("a support view gets the banner, sign-out disabled, and no sign-out button", () => {
+    renderProfile({}, "support");
     const banner = screen.getByRole("region", { name: bannerTitle });
     expect(within(banner).getByRole("button", { name: uk.kabinet.support.exit })).toBeDefined();
     expect(
@@ -269,19 +264,6 @@ describe("ShelterProfile (K4, read-only)", () => {
     ).toBeDefined();
     expect(screen.queryByRole("button", { name: t.signOut })).toBeNull();
     expect(screen.getByText(uk.kabinet.support.signOutDisabled)).toBeDefined();
-    expect((container.firstElementChild as HTMLElement).className).toContain("outline-4");
-  });
-
-  it("every interactive element carries focus-visible styling and a 48px target", () => {
-    renderProfile({}, "support");
-    for (const button of screen.getAllByRole("button")) {
-      expect(button.className).toContain("focus-visible:outline");
-      expect(button.className).toMatch(/min-h-1[2-9]/);
-    }
-    renderProfile();
-    const signOut = screen.getByRole("button", { name: t.signOut });
-    expect(signOut.className).toContain("focus-visible:outline");
-    expect(signOut.className).toContain("min-h-12");
   });
 });
 

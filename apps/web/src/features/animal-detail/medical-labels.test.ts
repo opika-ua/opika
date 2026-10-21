@@ -13,7 +13,7 @@ import { spayNeuterRow, vaccinationRow } from "./medical-labels";
  * output against the same constant the code renders."
  */
 describe("vaccinationRow", () => {
-  it("unknown: reads as 'Не записано', unknown bar", () => {
+  it("unknown: reads as 'Не записано'", () => {
     const row = vaccinationRow({
       source: "shelter_declared",
       state: "unknown",
@@ -21,20 +21,18 @@ describe("vaccinationRow", () => {
     });
     expect(row.label).toBe("Комплексне щеплення");
     expect(row.statusText).toBe("Не записано");
-    expect(row.barClassName).toBe("bg-rg-fill-strong");
   });
 
-  it("in_progress: reads as 'У процесі', shelter-declared bar", () => {
+  it("in_progress: reads as 'У процесі'", () => {
     const row = vaccinationRow({
       source: "shelter_declared",
       state: "in_progress",
       declaredAt: new Date(),
     });
     expect(row.statusText).toBe("У процесі");
-    expect(row.barClassName).toBe("bg-rg-ink-3");
   });
 
-  it("confirmed + shelter_declared: reads as the general combo vaccination, shelter's-words bar", () => {
+  it("confirmed + shelter_declared: reads as the general combo vaccination", () => {
     const row = vaccinationRow({
       source: "shelter_declared",
       state: "confirmed",
@@ -42,10 +40,9 @@ describe("vaccinationRow", () => {
     });
     expect(row.label).toBe("Комплексне щеплення");
     expect(row.statusText).toBe("Слова притулку");
-    expect(row.barClassName).toBe("bg-rg-ink-3");
   });
 
-  it("confirmed + registry: reads as rabies specifically, registry bar — the one variant today's seed data never produces", () => {
+  it("confirmed + registry: reads as rabies specifically — the one variant today's seed data never produces", () => {
     const row = vaccinationRow({
       source: "registry",
       state: "confirmed",
@@ -55,7 +52,6 @@ describe("vaccinationRow", () => {
     expect(row.label).toBe("Сказ");
     // Q5 of the K3 sheet (Oleksii, verbatim): "`medical.registry` → «Державний реєстр тварин»".
     expect(row.statusText).toBe("Державний реєстр тварин");
-    expect(row.barClassName).toBe("bg-rg-registry");
   });
 });
 
@@ -68,7 +64,6 @@ describe("spayNeuterRow", () => {
     });
     expect(row.label).toBe("Стерилізація");
     expect(row.statusText).toBe("Не записано");
-    expect(row.barClassName).toBe("bg-rg-fill-strong");
   });
 
   it("in_progress: reads as 'У процесі'", () => {
@@ -78,7 +73,6 @@ describe("spayNeuterRow", () => {
       declaredAt: new Date(),
     });
     expect(row.statusText).toBe("У процесі");
-    expect(row.barClassName).toBe("bg-rg-ink-3");
   });
 
   it("confirmed: reads as the shelter's own words, never a registry badge — SpayNeuterStatus admits no registry variant at all", () => {
@@ -88,7 +82,6 @@ describe("spayNeuterRow", () => {
       declaredAt: new Date(),
     });
     expect(row.statusText).toBe("Слова притулку");
-    expect(row.barClassName).toBe("bg-rg-ink-3");
   });
 });
 

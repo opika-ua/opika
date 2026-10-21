@@ -10,7 +10,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { expectFocusVisibleOutline, expectMinTouchTarget, openRoute } from "./harness";
+import { expectReachableByTab, openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
 /**
@@ -81,47 +81,27 @@ test.describe("/tvaryny rail vs sheet — mutually exclusive by breakpoint", () 
 });
 
 /**
- * docs/standing-constraints.md: "An interactive element ships with its
- * focus-visible styling and a test." E5's deck-entry control has two
- * instances — desktop header, mobile row — CSS-hidden by breakpoint, same
- * as the rail/sheet split above, so each needs its own viewport.
+ * Keyboard operation. E5's deck-entry control has two instances — desktop
+ * header, mobile row — CSS-hidden by breakpoint, same as the rail/sheet
+ * split above, so each needs its own viewport.
  */
-test.describe("/tvaryny deck entry — keyboard focus", () => {
-  test("the desktop entry link shows a real focus-visible outline", async ({ page }) => {
+test.describe("/tvaryny deck entry — keyboard reachability", () => {
+  test("the desktop entry link is reachable by Tab", async ({ page }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "desktop deck-entry link",
       locator: page.getByTestId("deck-entry-desktop"),
     });
   });
 
-  test("the mobile entry link shows a real focus-visible outline", async ({ page }) => {
+  test("the mobile entry link is reachable by Tab", async ({ page }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
 
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "mobile deck-entry link",
       locator: page.getByTestId("deck-entry-mobile"),
     });
-  });
-});
-
-/**
- * Phase D raised this control from `min-h-11` to `min-h-12`. Asserted rather
- * than left in the class list: a `min-h-*` with no measurement behind it is
- * documentation, and the same branch's own standing constraint — a documented
- * limit with no test exercising it is not a limit — is what makes this a
- * required assertion rather than a nicety. `min-height` is also not the
- * rendered height: padding, a line box, or a flex parent can each leave the
- * real target short of the class's number without the class ever changing.
- *
- * Mobile only, matching the diff that raised it. The desktop instance is a
- * separate element with its own classes and is not this change's to assert.
- */
-test.describe("/tvaryny deck entry — touch target", () => {
-  test("the mobile entry link meets the 48px minimum", async ({ page }) => {
-    await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
-    await expectMinTouchTarget(page.getByTestId("deck-entry-mobile"), "mobile deck-entry link");
   });
 });
 

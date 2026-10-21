@@ -471,6 +471,15 @@ purpose, and neither is redundant:
   compiles perfectly and lays out wrongly. It measures real geometry and
   drives real pointer events. (Until the brand lands, its geometry checks
   are frozen and new specs test flows only: see "Test logic, not looks".)
+  **2026-10-20:** removed, not frozen. Oleksii, verbatim: "UI-measuring tests: yes, keep both V-B2 tests (the 48px shared controls and the focus indicator being present). They’re accessibility guarantees, not looks. Drop the rest that measure appearance." The
+  harness now drives flows, keyboard operation and pointer events; the
+  only size measurement left is V-B2's 48px min-height test on the shared
+  primitives (`kabinet-profile-edit.harness.ts`). A few computed reads stay
+  as presence checks, not measurements of looks: the V-B2 focus test's
+  outline/box-shadow (an indicator is there), UI-U1's `boundingBox()`
+  widths (a control exists at a width) and UI-U6's `naturalWidth` (a photo
+  decoded). Its timing waits wait on a settled state or a stated event
+  time, never the real clock (his condition for UI-U1..U7, 2026-10-20).
 
 The harness builds the app too, which makes `build:web` look duplicated.
 Keep both — `build:web` is the fast, specific failure, and it keeps
@@ -482,6 +491,9 @@ marked `test.fail()`: the deck
 column and does not adapt at 1280x800. That gap is recorded, not hidden.
 When the responsive pass lands, Playwright will report an unexpected
 pass — that is the signal to delete the marker.
+**2026-10-20:** that marker is deleted, with the other UI-measuring tests (Oleksii, verbatim:
+"UI-measuring tests: yes, keep both V-B2 tests (the 48px shared controls and the focus indicator being present). They’re accessibility guarantees, not looks. Drop the rest that measure appearance."). The deck's desktop gap is no longer asserted anywhere; the responsive pass is
+tracked as design work, not as a failing test.
 
 ## Test logic, not looks (standing convention until the brand lands)
 
@@ -519,6 +531,16 @@ In practice:
 - **`test:harness` (above) still runs in `check`.** Its job narrows to flows and behaviour in a
   real browser. Its geometry assertions are the frozen visual tests just described.
 - Rules in `docs/standing-constraints.md` that this narrows carry a pointer back here.
+
+**2026-10-20: the visual tests are removed, not frozen.** Oleksii, 2026-10-20, verbatim: "UI-measuring tests: yes, keep both V-B2 tests (the 48px shared controls and the focus indicator being present). They’re accessibility guarantees, not looks. Drop the rest that measure appearance."
+So every harness and unit test that measured appearance (geometry, sizes, margins, overflow,
+contrast, wrapping and truncation, `sizes`/srcset, CSS class and colour assertions, focus-ring
+width) is deleted, and the `test.fail()` desktop-deck marker with it. Two V-B2 tests stay, both in
+`kabinet-profile-edit.harness.ts`: the shared controls' computed min-height ≥ 48px, and a focused
+control showing an indicator when tabbing. Where a deleted check also walked the tab order, the
+walk stays as keyboard reachability (`expectReachableByTab`). The list of what went and what was
+kept as unsure is `docs/decisions-inbox/chore-drop-ui-measuring-tests.md`. The bullets above that
+say "frozen" describe the state before that date.
 
 ## Supply-chain note (why a version pin looks slightly stale)
 

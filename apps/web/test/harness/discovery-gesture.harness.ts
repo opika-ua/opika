@@ -16,7 +16,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { dragHorizontally, flickWithTimestamps, openRoute } from "./harness";
+import { dragHorizontally, flickWithTimestamps, nameOnceSettled, openRoute } from "./harness";
 import { PHONE } from "./viewports";
 
 const ROUTE = "/tvaryny/gortaty";
@@ -46,12 +46,12 @@ test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
   test("a deliberate drag past the threshold advances the deck", async ({ page }) => {
     const before = await topCardName(page);
 
-    // 140px is past the 88px commit distance, spread over ~12 frames so the
-    // gesture looks like a thumb rather than a teleport.
+    // 140px is past the 88px commit distance, spread over 12 stated frames so
+    // the gesture looks like a thumb rather than a teleport.
     await dragHorizontally(page, page.getByTestId("swipe-card"), {
       dx: 140,
       steps: 12,
-      stepDelayMs: 16,
+      stepMs: 16,
     });
 
     await expect
@@ -68,11 +68,10 @@ test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
     await dragHorizontally(page, page.getByTestId("swipe-card"), {
       dx: 20,
       steps: 10,
-      stepDelayMs: 24,
+      stepMs: 24,
     });
 
-    await page.waitForTimeout(600); // let the spring-back finish
-    expect(await topCardName(page), "a 20px drag must not commit").toBe(before);
+    expect(await nameOnceSettled(page, before), "a 20px drag must not commit").toBe(before);
   });
 
   /**
@@ -118,9 +117,8 @@ test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
 
     await flickWithTimestamps(page, page.getByTestId("swipe-card"), { dx: 2, overMs: 1 });
 
-    await page.waitForTimeout(600);
     expect(
-      await topCardName(page),
+      await nameOnceSettled(page, before),
       "a 2px twitch at 2 px/ms is a tap, not a swipe — the deck must not advance",
     ).toBe(before);
   });

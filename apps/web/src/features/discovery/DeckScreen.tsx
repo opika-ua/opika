@@ -102,6 +102,7 @@ export function DeckScreen({
   const showPosition = effectiveTotal !== null && effectiveTotal > 0 && state.kind === "ready";
 
   const showDemoBanner = REGISTRY_HAS_NO_REAL_SHELTERS;
+  const progressBarState: "shown" | "hidden" = showDemoBanner ? "hidden" : "shown";
 
   /**
    * Written once per mount, on the first "ready" state, and never again —
@@ -215,12 +216,17 @@ export function DeckScreen({
              * the banner *more* space at the wider ones, not less — hidden
              * unconditionally whenever the demo banner is showing, visible
              * whenever the real `filtersLabel` is (unaffected).
+             *
+             * `data-state` names that choice so a unit test can read it
+             * (happy-dom applies no CSS); the class is derived from the
+             * same value, so the two cannot disagree.
              */}
             <div
               aria-hidden="true"
               data-testid="deck-progress-bar"
+              data-state={progressBarState}
               className={`h-1.5 w-20 overflow-hidden rounded-full bg-rg-fill-strong ${
-                showDemoBanner ? "hidden" : "block"
+                progressBarState === "hidden" ? "hidden" : "block"
               }`}
             >
               <div

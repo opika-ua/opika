@@ -1,17 +1,20 @@
 /**
  * E3's own verification list (docs/build-plan.md doesn't spell these out
  * per-phase, but the phase brief does): numbered pages render with the real
- * corpus's page count, all pagination targets are actually >=56px (V2
- * repoint from E3's original 44px — measured, not read off a class name),
- * the active page is leaf-filled and carries
- * `aria-current="page"`, clicking a page link is a real `push` (unlike E2's
- * filter `replace` — docs/gallery-contract-decisions.md §7), the skip link
- * is invisible until focused and actually moves focus past the grid, and at
- * least one page transition works with JavaScript disabled.
+ * corpus's page count, the active page carries `aria-current="page"`,
+ * clicking a page link is a real `push` (unlike E2's filter `replace` —
+ * docs/gallery-contract-decisions.md §7), the skip link actually moves focus
+ * past the grid, and at least one page transition works with JavaScript
+ * disabled.
+ *
+ * 2026-10-20: the target-size (>=56px), active-page colour and skip-link size
+ * checks measured appearance and were removed (Oleksii, 2026-10-20, verbatim:
+ * "Drop the rest that measure appearance."; CLAUDE.md, "Test logic, not
+ * looks").
  */
 
 import { expect, test } from "@playwright/test";
-import { expectMinTouchTarget, openRoute, rectOf } from "./harness";
+import { openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
 /**
@@ -30,13 +33,6 @@ const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
 const NAV = "[data-testid='gallery-pagination']";
 const PAGE_LINK = "[data-testid='pagination-page']";
-// V2 repoint: 44 -> 56 (`Opika Registry System.dc.html`'s pagination row,
-// lines 189/195: `min-height: 56px` on both prev and next). The component
-// itself already renders 56 (`min-h-14`) — this assertion had gone stale
-// against it, silently looser than the code it's meant to guard. 56, not
-// `harness.ts`'s own default `MIN_TOUCH_TARGET_PX` (48) — pagination's own
-// stricter floor, passed explicitly to `expectMinTouchTarget` below.
-const MIN_TARGET_PX = 56;
 
 /**
  * The mock's own literals (`docs/design/Opika Registry System.dc.html`,
@@ -62,43 +58,16 @@ test.describe("/tvaryny pagination", () => {
     ).toBeAttached();
   });
 
-  test("all pagination targets are measurably >=56px, not just styled that way", async ({
-    page,
-  }) => {
-    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
-
-    const targets = page.locator(
-      `${NAV} a, ${NAV} [data-testid='pagination-page'], ${NAV} [data-testid$='-disabled']`,
-    );
-    const count = await targets.count();
-    expect(count, "expected at least prev, one page number, and next").toBeGreaterThan(2);
-
-    for (let i = 0; i < count; i++) {
-      await expectMinTouchTarget(targets.nth(i), `pagination target ${i}`, MIN_TARGET_PX);
-    }
-  });
-
-  test("the active page is ink-filled, carries aria-current, and is not a link to itself", async ({
-    page,
-  }) => {
+  test("the active page carries aria-current and is not a link to itself", async ({ page }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
     const active = page.locator(`${NAV} [data-active='true']`);
     await expect(active, "exactly one page should be marked active on load").toHaveCount(1);
     await expect(active).toHaveAttribute("aria-current", "page");
     await expect(active, "page 1 is active on a bare /tvaryny visit").toHaveText(/^1/);
-    // An ink-filled pill is a <span>, not an <a> — clicking "the page you're
+    // The active page is a <span>, not an <a> — clicking "the page you're
     // already on" has nothing to do, so it should not be a navigation target.
     expect(await active.evaluate((el) => el.tagName)).toBe("SPAN");
-
-    const bg = await active.evaluate((el) => getComputedStyle(el).backgroundColor);
-    // V2 repoint: the active-page fill moved from --color-leaf (#4f6b3a,
-    // green) to --color-rg-ink (#101112, black) — docs/design/README.md,
-    // "Pagination — not infinite scroll": "active page #101112 filled."
-    // The old system's leaf-green primary-action colour has no equivalent
-    // in a token set with "no colour in the interface at all" apart from
-    // the one registry blue, which pagination never uses.
-    expect(bg, "the active page's background should be the rg-ink token").toBe("rgb(16, 17, 18)");
   });
 
   test("prev is absent on page 1; clicking next moves the active page and the URL", async ({
@@ -151,30 +120,11 @@ test.describe("/tvaryny pagination", () => {
     await expect(page, "a third back-press should reach the real prior page").toHaveURL("/pro");
   });
 
-  test("the skip link is invisible until focused, and activating it moves focus to the pagination nav", async ({
-    page,
-  }) => {
+  test("activating the skip link moves focus to the pagination nav", async ({ page }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
     const skipLink = page.getByTestId("pagination-skip-link");
-    // `sr-only` clips to a real-but-tiny (1px x 1px) box rather than
-    // `display:none` — boundingBox() still returns a rect, so the assertion
-    // is "clipped to ~1px", not "null".
-    const before = await skipLink.boundingBox();
-    expect(
-      before?.width,
-      "the skip link should be clipped to ~1px before focus",
-    ).toBeLessThanOrEqual(1);
-    expect(
-      before?.height,
-      "the skip link should be clipped to ~1px before focus",
-    ).toBeLessThanOrEqual(1);
-
     await skipLink.focus();
-    const after = await rectOf(skipLink, "skip link, focused");
-    expect(after.width, "the skip link should have real size once focused").toBeGreaterThan(0);
-    expect(after.height, "the skip link should have real size once focused").toBeGreaterThan(0);
-
     await page.keyboard.press("Enter");
     const navIsActive = await page.evaluate(
       () => document.activeElement?.getAttribute("data-testid") === "gallery-pagination",

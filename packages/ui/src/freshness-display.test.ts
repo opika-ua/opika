@@ -7,16 +7,20 @@ function makeFreshness(kind: Freshness["kind"], ageDays: number): Freshness {
 }
 
 describe("freshnessPips", () => {
-  it("fills one registry pip when fresh, the rest empty", () => {
-    expect(freshnessPips("fresh")).toEqual(["bg-rg-registry", "empty", "empty"]);
+  // Which pips are filled; the colour each carries is appearance and is not
+  // asserted (CLAUDE.md, "Test logic, not looks"; removed 2026-10-20).
+  const filled = (kind: Freshness["kind"]) => freshnessPips(kind).map((pip) => pip !== "empty");
+
+  it("fills one pip when fresh, the rest empty", () => {
+    expect(filled("fresh")).toEqual([true, false, false]);
   });
 
-  it("fills two ink-3 pips when aging, the last empty", () => {
-    expect(freshnessPips("aging")).toEqual(["bg-rg-ink-3", "bg-rg-ink-3", "empty"]);
+  it("fills two pips when aging, the last empty", () => {
+    expect(filled("aging")).toEqual([true, true, false]);
   });
 
-  it("fills all three pips, the last a full ink, when stale", () => {
-    expect(freshnessPips("stale")).toEqual(["bg-rg-ink-3", "bg-rg-ink-3", "bg-rg-ink"]);
+  it("fills all three pips when stale", () => {
+    expect(filled("stale")).toEqual([true, true, true]);
   });
 });
 

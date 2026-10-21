@@ -2,7 +2,7 @@ import type { ContactRevealView } from "@opika/contracts";
 import { AnimalIdSchema, CityIdSchema, RevealIdSchema, ShelterIdSchema } from "@opika/domain";
 import { ORPCError } from "@orpc/client";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useReveal } from "./useReveal";
 
 const bootstrap = vi.fn();
@@ -56,11 +56,20 @@ beforeEach(() => {
  *
  * Each test drives the two overlapping calls in strict, deterministic
  * order (first call's own request registered, then the second call
- * fired, then the second call's own resolution awaited via `waitFor`,
- * only then the first call's own deferred promise settled) rather than
- * racing real timers — the guard is meant to hold regardless of timing,
- * and a fixed order is what makes a failure attributable to the guard
- * itself rather than to test flakiness.
+ * fired, then the second call's own resolution settled, only then the
+ * first call's own deferred promise settled) rather than racing real
+ * timers — the guard is meant to hold regardless of timing, and a fixed
+ * order is what makes a failure attributable to the guard itself rather
+ * than to test flakiness.
+ *
+ * Each step is settled with `settle()`, on fake timers, never a real-clock
+ * sleep (Oleksii, 2026-10-20: "useReveal flushed with fake timers"). The
+ * hook reaches its state through several awaits (`safe()` wraps each
+ * call), so awaiting the test's own deferred promise would resume ahead of
+ * the hook and assert too early; `vi.runAllTimersAsync()` drains every
+ * pending promise continuation before it returns, so the assertion after it
+ * reads the state the hook settled on. `waitFor` is not used here: it polls
+ * on `setInterval`, which these fake timers own.
  */
 describe("useReveal's error reason", () => {
   /**
@@ -150,6 +159,18 @@ describe("useReveal's error reason", () => {
 });
 
 describe("useReveal's generation guard", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Run every pending timer and promise continuation, inside `act`. */
+  async function settle(): Promise<void> {
+    await act(() => vi.runAllTimersAsync());
+  }
+
   it("discards a slower first reveal response that resolves after a faster second one", async () => {
     let resolveFirst: (value: ContactRevealView) => void = () => {};
     const firstReveal = new Promise<ContactRevealView>((resolve) => {
@@ -163,21 +184,21 @@ describe("useReveal's generation guard", () => {
     act(() => {
       result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
     });
-    await waitFor(() => expect(revealCall).toHaveBeenCalledTimes(1));
+    await settle();
+    expect(revealCall).toHaveBeenCalledTimes(1);
 
     act(() => {
       result.current.open({ animalId: ANIMAL_B, animalName: "Барон", cityName: null });
     });
-    await waitFor(() =>
-      expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" }),
-    );
+    await settle();
+    expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" });
 
     // The first call's slow response lands now — it must not un-resolve
     // or overwrite the second call's already-applied result.
     act(() => {
       resolveFirst(revealFor(ANIMAL_A, "Мурчик"));
     });
-    await new Promise((r) => setTimeout(r, 10));
+    await settle();
 
     expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" });
   });
@@ -195,21 +216,21 @@ describe("useReveal's generation guard", () => {
     act(() => {
       result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
     });
-    await waitFor(() => expect(revealCall).toHaveBeenCalledTimes(1));
+    await settle();
+    expect(revealCall).toHaveBeenCalledTimes(1);
 
     act(() => {
       result.current.open({ animalId: ANIMAL_B, animalName: "Барон", cityName: null });
     });
-    await waitFor(() =>
-      expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" }),
-    );
+    await settle();
+    expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" });
 
     // The first call's failure lands after the second already succeeded —
     // it must not downgrade a real, already-shown result to an error.
     act(() => {
       rejectFirst(new Error("network error"));
     });
-    await new Promise((r) => setTimeout(r, 10));
+    await settle();
 
     expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" });
   });
@@ -228,19 +249,19 @@ describe("useReveal's generation guard", () => {
     act(() => {
       result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
     });
-    await waitFor(() => expect(bootstrap).toHaveBeenCalledTimes(1));
+    await settle();
+    expect(bootstrap).toHaveBeenCalledTimes(1);
 
     act(() => {
       result.current.open({ animalId: ANIMAL_B, animalName: "Барон", cityName: null });
     });
-    await waitFor(() =>
-      expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" }),
-    );
+    await settle();
+    expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" });
 
     act(() => {
       rejectFirstBootstrap(new Error("session bootstrap failed"));
     });
-    await new Promise((r) => setTimeout(r, 10));
+    await settle();
 
     expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" });
   });
@@ -257,7 +278,8 @@ describe("useReveal's generation guard", () => {
     act(() => {
       result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
     });
-    await waitFor(() => expect(result.current.state.kind).toBe("loading"));
+    await settle();
+    expect(result.current.state.kind).toBe("loading");
 
     act(() => {
       result.current.close();
@@ -269,7 +291,7 @@ describe("useReveal's generation guard", () => {
     act(() => {
       resolveReveal(revealFor(ANIMAL_A, "Мурчик"));
     });
-    await new Promise((r) => setTimeout(r, 10));
+    await settle();
 
     expect(result.current.state).toEqual({ kind: "idle" });
   });
