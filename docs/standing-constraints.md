@@ -43,7 +43,16 @@ changes nothing about how product options are weighed.
 *Narrowed 2026-10-17 (CLAUDE.md, working-mode amendment, inbox WM-B1):* outside Tier 1, a fix
 for a non-blocking review note is committed without a second review. That is the one place a
 check no longer happens. Tier 1 keeps every check, and product options are still weighed on
-quality.
+quality. (Superseded by the 2026-10-21 paragraph below: non-blocking notes are now reviewed in
+their batch, and Tier 1's non-blocking notes move to a batch too.)
+*Narrowed again 2026-10-21 (CLAUDE.md, "Who does what"):* only blockers loop. A PASS WITH NOTES
+merges, Tier 1 included (after his smoke where SQL or auth is involved), and its notes are fixed
+and reviewed together later, in one follow-up batch per area. A Tier 1 note that touches a live
+security path is a blocker, so it is fixed and re-reviewed before the merge. Oleksii, verbatim:
+"Only blockers loop. A STOP gets fixed and re-reviewed. PASS WITH NOTES merges (after my smoke if
+SQL or auth is involved). Its notes go into one follow-up batch per area, fixed and reviewed
+together later. Tier 1 notes that touch a live security path count as blockers; tests-only and
+docs notes don’t." Every check still happens; a non-blocking note's check moves to its batch.
 
 ## How work is verified
 

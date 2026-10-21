@@ -6,6 +6,15 @@ allowed-tools: Read, Glob, Grep, Edit, Write, Bash, Task
 
 Implement milestone **$ARGUMENTS** from `docs/build-plan.md`.
 
+> **Since 2026-10-21, `CLAUDE.md`'s "Who does what" overrides this playbook wherever they
+> differ.**
+> - A cloud builder builds and pushes its branch only. It never opens a PR, never merges, and
+>   never has a reviewer fix its code.
+> - Reviews are read-only and run on the pushed head: a fresh cloud reviewer for Tier 1, the
+>   local agent for everything else.
+> - Only blockers loop.
+> - Phase 4's PR is the local agent's.
+
 Read `CLAUDE.md`, `docs/build-plan.md` and `docs/stack-decision.md` first. They are the
 source of truth. Do not relitigate decisions recorded there — if you believe one is
 wrong, say so and stop; do not quietly work around it.

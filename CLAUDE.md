@@ -559,10 +559,117 @@ entry; wait a day, or pick the next-newest cleared version instead.
 Append this section to CLAUDE.md. It is what makes the reviewer fire without being asked, and
 what lets work continue without Oleksii gating every step.
 
+## Who does what (2026-10-21; supersedes the rules below where they conflict)
+
+Oleksii, 2026-10-21, verbatim (the working mode): "… Cloud does builds and Tier 1 reviews, 3–4
+sessions in parallel. … You, locally, do non-Tier-1 reviews (UI slices, docs, tests), small fixes
+from review notes, rebases and merges, directly with no prompt round trip. Keep them lean. Only
+blockers loop. A STOP gets fixed and re-reviewed. PASS WITH NOTES merges (after my smoke if SQL or
+auth is involved). Its notes go into one follow-up batch per area, fixed and reviewed together
+later. Tier 1 notes that touch a live security path count as blockers; tests-only and docs notes
+don’t. Batched launches: put every ready cloud task into one file (Claude
+outputs/LAUNCH-batch-<date>.txt), each prompt with its branch, pinned SHA and expected outcome. I
+start them all at once and send you all the links in one message. Batched smokes: collect
+everything that needs my real-Neon smoke and give me one sitting with one fresh child branch and
+the commands in order, once or twice a day."
+
+And, the same day, verbatim (the roles; the host his network rule names is cut as "…", since
+that rule forbids naming it in this public repository): "… Cloud builders: build, push their
+branch only; never open, merge or approve PRs; never touch production or Neon; guardrails
+unchanged (no secrets or .env, never …, [COPY PENDING] for new Ukrainian, fake timers). Cloud reviewers:
+read-only, verdict pinned to the exact SHA, push only the review file. They do Tier 1 reviews. The
+local agent: non-Tier-1 reviews, small fixes from review notes, rebases, merges at the reviewed
+head on green CI. The only one that merges. Me: real-Neon smokes in batched sittings, production
+migrations, decisions and copy. The rules: only blockers loop; PASS WITH NOTES merges (after my
+smoke where SQL or auth is involved); notes go into one follow-up batch per area; Tier 1 notes on
+a live security path count as blockers. The file-overlap rule for open PRs, and the rebase rule
+(=, no conflict, no overlap → the verdict carries over). Launches: batched in Claude
+outputs/LAUNCH-batch-<date>.txt; I start them by hand. No routines. …"
+
+What each role may do:
+
+- **A cloud builder** is a cloud session Oleksii starts by hand from a launch file. One session
+  builds one task.
+  - **May:** build on the branch its prompt names, commit, and push that branch only. It runs
+    `pnpm check`, tests and mutations in its own sandbox, and records its decisions in its own
+    `docs/decisions-inbox/<branch>.md`.
+  - **Never:**
+    - open, edit, approve or merge a PR, or push to `main` or any other branch;
+    - touch production or Neon (no smoke runs, no migration applied);
+    - read or write secrets or `.env` files;
+    - start another session, routine or remote trigger;
+    - edit a file that its prompt lists as belonging to other open work.
+  - **Always** (the guardrails, unchanged):
+    - `[COPY PENDING]` for new Ukrainian;
+    - fake timers or deterministic forcing, never artificial load;
+    - a migration written, never applied, with its kind stated.
+  - **The network rule**, verbatim, in every launch prompt. It names a host that must never be
+    used, called or mentioned in Opika's commits or PRs, so this public repository doesn't quote
+    it. The local agent copies it into each prompt from its own notes.
+  - It ends by naming the head SHA it pushed and the smoke it expects.
+- **A cloud reviewer** is a fresh session, never the builder's (a review run inside the session
+  that built the change does not count). It does the Tier 1 reviews.
+  - **Read-only:** it never edits code, pushes the PR branch, or merges, approves or closes a PR.
+  - **Never**, the same as a builder:
+    - touch production or Neon (no smoke runs);
+    - read or write secrets or `.env` files;
+    - start another session, routine or remote trigger.
+    The network rule in its prompt applies too.
+  - **Its verdict names the exact head SHA** on its first line; a verdict for any other SHA
+    doesn't count.
+  - **It pushes only the review file,** `docs/reviews/<branch>/<short-sha>.md`, on its own
+    `reviews/pr-<n>-<short-sha>` branch, and posts one PR comment.
+- **The local agent** is the coordinating session on Oleksii's machine.
+  - **Reviews:** the non-Tier-1 ones (UI slices, docs, tests), kept lean: the diff, the suites it
+    touches, a few mutations, CI's `pnpm check`. A change the local agent wrote itself (a docs PR,
+    a batch of note fixes) is reviewed by a fresh cloud reviewer instead, for the same
+    independence reason.
+  - **Fixes:** small fixes from review notes.
+  - **Rebases:** under the rebase rule.
+  - **PRs:** opens them as drafts, since builders never open PRs. This is the local agent's
+    reading (WM-C8), not his words. It also writes the launch files and the smoke sittings.
+  - **Merges:** at the reviewed head, or at its rebase under the rebase rule, on green CI. **It is
+    the only one that merges.**
+  - It never runs a production action.
+- **Oleksii:**
+  - runs the real-Neon smokes, in batched sittings;
+  - runs the production migrations;
+  - takes the decisions and writes the copy;
+  - starts every cloud session by hand;
+  - runs every other production action (env, DNS, deletions).
+
+The rules:
+
+- **Only blockers loop.**
+  - A STOP is fixed and re-reviewed, as a delta.
+  - A PASS WITH NOTES merges at the reviewed head on green CI. Where SQL or auth is involved, it
+    waits for his smoke first. A PR with a migration also waits for his production migration.
+  - The notes go into one follow-up batch per area, fixed and reviewed together later.
+  - A Tier 1 note that touches a live security path counts as a blocker; tests-only and docs notes
+    don't. A reviewer marks such a note `[Blocker]`.
+- **Open PRs never share a file.** His rule, verbatim (2026-10-20): "Replace the hard “two PRs”
+  limit with a rule: any number of PRs may be open as long as no two share a file. A PR that
+  shares a file with an open one waits." Parallel cloud sessions follow the same rule: each prompt
+  lists the files that belong to other open work.
+- **The rebase rule:** the verdict carries over when there is no conflict, `git range-diff` shows
+  every patch `=`, and the PR's files don't overlap main's new commits. Green CI on the rebased
+  head is then the gate. Anything else gets a short delta review. His wording is quoted in full
+  under "Merge only the commit that was reviewed".
+- **Launches** are batched in `Claude outputs/LAUNCH-batch-<date>.txt`, and Oleksii starts them by
+  hand.
+  - Each prompt carries its branch, its pinned SHA and its expected outcome.
+  - Each block is for its own session, and the file says so at the top.
+  - His rule, verbatim (2026-10-21, in his message that cleared the S3 smoke; inbox WM-C7):
+    "Cloud rule, unchanged: no routines. Every cloud task comes to me as a ready-to-paste prompt,
+    and I start it by hand."
+- **Smokes** are batched: one sitting, one fresh child branch, the commands in order, once or
+  twice a day.
+
 Revised 2026-10-04 per `docs/handoff-2026-10-04.md` §4: review and decisions now run in
 parallel with building rather than ahead of it. The quality bar, the standing constraints and
 the Tier 1 gates are unchanged — what changed is *where* review happens and *what blocks the
-builder*. See the 2026-10-04 amendment below for the mechanism.
+builder*. See the 2026-10-04 amendment below for the mechanism. Who reviews and who merges was
+revised again on 2026-10-21 ("Who does what", above).
 
 ## The loop
 
@@ -571,35 +678,29 @@ sweep. For each iteration:
 
 1. Do the work.
 2. Run `pnpm check`.
-3. Classify the row's tier (see Process tiers) — this decides whether review happens before or
-   after the commit:
-   - **Tier 1** — invoke the `opika-reviewer` subagent synchronously, now, **before
-     committing**. Unchanged from before 2026-10-04, ordering included: this is where the
-     discipline has caught real production-shaped bugs, and a secrets/cookie/migration/
-     production-data change is never committed un-reviewed. Act on the verdict (step 4), then
-     commit.
-   - **Tier 2** — **commit now** (green `pnpm check`, output pasted in the commit body), then
-     spawn `opika-reviewer` in the background against that commit and **immediately start the
-     next row** without waiting for it. See the 2026-10-04 amendment below.
-   - **Tier 3** — commit now; no per-row review, one PR-level pass over the batch later.
-4. Act on a verdict once you have one (synchronously before committing, for Tier 1; or on
-   reading a review file some time after committing, for Tier 2):
-   - **PASS** — commit if Tier 1 and not already committed; otherwise nothing further.
-   - **PASS WITH NOTES** — address the notes (before the first commit, for Tier 1; in a
-     follow-up commit "review: `<sha>` — `<finding>`", for Tier 2), reviewed the same way
-     again, then commit (or continue, for Tier 2).
-   - **STOP** — do not continue past it and do not work around it, but **do commit first,
-     then push, then write to Oleksii**: what the decision is, the options with their
-     consequences, and what you recommend. Then wait. See the amendment below for why commit
-     precedes the wait rather than following it. (This is the one case where Tier 1 work is
-     committed without a clean PASS — the STOP itself was returned by the synchronous review,
-     so the review still ran before the commit; "commit first" refers to committing before
-     waiting for Oleksii, not before reviewing.)
-5. When a phase's rows are all committed and every pending review file has been read, open the
-   PR with the verified-vs-asserted ledger in the body, and tell Oleksii it is ready. Do not
-   merge. (*Narrowed 2026-10-19:* a green PR whose exact head was reviewed may be merged, except
-   the two kinds that wait for him (a migration PR, a Tier 1 PR before its full review passes); see
-   "Merge only the commit that was reviewed" under Agent rules.)
+3. Commit (green `pnpm check`, output pasted in the commit body) and push the branch. A branch
+   commit ships nothing to anyone. Classify the row's tier (see Process tiers): it decides who
+   reviews the pushed head ("Who does what", above):
+   - **Tier 1:** a fresh cloud reviewer session, pinned to the exact SHA. Nothing merges before
+     that review has passed. (Until 2026-10-21 the Tier 1 review ran synchronously before the
+     commit, through a local `opika-reviewer` subagent.)
+   - **Everything else:** one review by the local agent, kept lean. A change the local agent
+     wrote itself goes to a fresh cloud reviewer instead.
+4. Act on the verdict:
+   - **PASS:** the local agent merges it at that head on green CI.
+   - **PASS WITH NOTES:** it merges the same way, after Oleksii's smoke where SQL or auth is
+     involved. Its notes go into one follow-up batch per area, fixed and reviewed together later.
+     The exception is a Tier 1 note that touches a live security path: it is a blocker, and is
+     handled like a STOP.
+   - **STOP:** do not continue past it and do not work around it. **Commit first, then push,
+     then write to Oleksii:** what the decision is, the options with their consequences, and what
+     you recommend. Then wait; the amendment below says why the commit comes first. The fix is
+     reviewed again as a delta, and only blockers loop.
+5. Builders never open PRs. The local agent opens each PR as a draft, with the
+   verified-vs-asserted ledger in the body. It merges at the reviewed head, except the kinds that
+   wait for Oleksii: a migration PR waits for his production migration, a Tier 1 PR waits until its
+   full review has passed, and SQL or auth work waits for his smoke. See "Merge only the commit
+   that was reviewed" under Agent rules.
 
 Never spawn a review on work you have not finished, and never continue past a STOP by
 reinterpreting it as a note.
@@ -613,7 +714,10 @@ hold a green working tree uncommitted while waiting for an answer.
 
 Corollary: STOP-list items about documentation, attribution and provenance are **PR-blocking**,
 not commit-blocking. Only items that would reach users or destroy data block a commit —
-production writes, deletions, and secrets. If the open PR is still a draft, keep it in draft
+production writes, deletions, and secrets. (*Since 2026-10-21* the review runs on the pushed head,
+after the commit. So these three are the builder's own never-list in "Who does what": a secret, a
+production write or a deletion is never committed at all. A reviewer's STOP on one still blocks
+the merge, and the builder removes it.) If the open PR is still a draft, keep it in draft
 until the STOP resolves; if it's already open for review, say in the same message that a STOP
 finding is unresolved rather than merging over it.
 
@@ -626,38 +730,39 @@ whole suite after every small fix is the same waste `test:harness` already warns
 running twice concurrently: it slows the loop without changing what gets asserted.
 
 Tier 3 changes (see "Process tiers" below) get no reviewer pass at all — they are covered
-once, in the batch, at the PR-level pass.
+once, in the batch, at the PR-level pass. (*Since 2026-10-21* everything outside Tier 1, Tier 3
+included, gets one review: by the local agent, or by a fresh cloud reviewer when the local agent
+wrote it. See "Who does what".)
 
-### Amendment, 2026-10-04 — Tier 2 review is asynchronous
+### Amendment, 2026-10-04 — review runs beside building (superseded in part, 2026-10-21)
 
 (`docs/handoff-2026-10-04.md` §4.1–§4.3, an owner-stated process change, not a quality
 change — see "Process latency is a stated owner cost" in `docs/standing-constraints.md`.)
 
-After a Tier 2 row's commit goes green, **spawn `opika-reviewer` in the background** against
-that commit range and start the next row without waiting. The reviewer writes its verdict to
-`docs/reviews/<branch>/<short-sha>.md` (git-tracked, Tier 3 to commit) instead of returning it
-to the builder's context — the agent file's own instructions say to write there, not in prose.
+What still holds:
+- **Review files are git-tracked:** every verdict is written to
+  `docs/reviews/<branch>/<short-sha>.md` (Tier 3 to commit). A cloud reviewer pushes it on its
+  own `reviews/*` branch; the local agent commits the files of its own reviews the same way.
+- **The full `pnpm check` is the builder's evidence.** A reviewer reads the commit's pasted green
+  run, runs only the suites the diff touches, plus its own mutations. Mutation testing of a new
+  guard, floor or assertion is **the builder's job**, recorded in the commit message as
+  `mutation: <what was broken> → <failure text>`. The reviewer spot-checks at least one
+  mutation per row and verifies the rest were done rather than redoing them.
+- **A STOP blocks the PR, never the commit** (the 2026-09-06 amendment above stands for every
+  tier).
+- **Tier 1's Phase 0 questions go to Oleksii before code**, batched at the PR's start (WM-B1).
 
-Read a pending review file at three points only: starting a row that touches the same files as
-an already-reviewed row, before opening the PR, and whenever a review file says `STOP`.
-Fixes for a review finding are their own small commit, re-reviewed the same way.
+What 2026-10-21 replaced ("Who does what", above):
+- the background `opika-reviewer` subagent in the builder's own session, and the three points at
+  which the builder read its pending review files;
+- the limit of two rows in flight, and the pause when the reviewer fell three rows behind;
+- "fixes for a review finding are their own small commit, re-reviewed the same way". Now only a
+  blocker's fix is re-reviewed; other notes wait for their area's follow-up batch.
 
-The reviewer does not re-run the full `pnpm check` for a Tier 2 row — the commit's own pasted
-green run is the evidence; it runs only the suites the diff touches, plus its own mutations.
-Mutation testing of a new guard, floor or assertion is **the builder's job**, recorded in the
-commit message as `mutation: <what was broken> → <failure text>`; the reviewer spot-checks one
-mutation per row and verifies the rest were done rather than redoing them.
+Builds now run in parallel cloud sessions under the file-overlap rule. Each review is done by a
+fresh cloud reviewer for Tier 1, or by the local agent for everything else.
 
-**Two rows in flight at once is the limit** (one building, one in review). If the reviewer
-falls three rows behind the builder, the builder pauses for one review cycle rather than
-piling up unread verdicts — the review is what catches real bugs, so it must not fall
-arbitrarily behind.
-
-Tier 1 is unchanged: synchronous, blocking, Phase 0 questions to Oleksii before code. A STOP
-on a Tier 2 row still blocks the **PR**, never the commit (the 2026-09-06 amendment above
-stands for both tiers).
-
-### Amendment, 2026-10-17 — working mode (supersedes the rules above and below where they conflict)
+### Amendment, 2026-10-17 — working mode (supersedes the rules above and below where they conflict, except "Who does what", 2026-10-21, which supersedes it)
 
 Oleksii, 2026-10-17 (inbox WM-B1), verbatim:
 
@@ -679,13 +784,14 @@ Unchanged: prod guards, --expect, no secrets in chat, no R2 deletes, real-Neon f
 What that changes, concretely:
 - **Two tiers, not three.**
   - **Tier 1:** auth and access, data deletion, production writes, secrets, R2, and anything a
-    public page or an email claims. The full process stays: review before commit (in a
-    worktree), real-Neon when SQL changes, his explicit decisions asked up front, full inbox
-    records.
-  - **Everything else** (the old Tiers 2 and 3) gets **one** review, run asynchronously as the
-    2026-10-04 amendment describes. A second review happens only when the first finds a
-    blocker. A fix for a non-blocking note is committed without another review: no
-    review-of-the-fix loops.
+    public page or an email claims. The full process stays: a full review before merge, real-Neon
+    when SQL changes, his explicit decisions asked up front, full inbox records. (*Since
+    2026-10-21* the review runs in a fresh cloud reviewer session on the pushed head, before
+    merge. It used to run before the commit, in a worktree; see "Who does what".)
+  - **Everything else** (the old Tiers 2 and 3) gets **one** review, by the local agent since
+    2026-10-21. A second review happens only when the first finds a blocker. No review-of-the-fix
+    loops: non-blocking notes go into one follow-up batch per area, fixed and reviewed together
+    later.
 - **Reversible decisions are taken, not asked.** Anything the builder can undo later (layout,
   naming, test shape, an ambiguous design point with no mock) is decided and listed under
   **"Decisions taken"** in the PR description, where he can overturn it at merge (or afterwards, as
@@ -701,10 +807,13 @@ What that changes, concretely:
   `open-writes-copy-gate.test.ts`) and at run time (any pending string keeps production sign-in off).
 - **Parallel PRs, replaced 2026-10-20:** his words, verbatim: "Replace the hard “two PRs” limit with a rule: any number of PRs may be open as long as no two share a file. A PR that shares a file with an open one waits." (The two-PR text in his WM-B1 quote above is kept as he wrote it.)
 - **Unchanged:** production guards, `--expect`, no secrets in chat, no R2 deletes, real-Neon
-  for SQL, copy truth on public surfaces, and he merges everything. (*Narrowed 2026-10-19:* he
-  allows merging a green PR whose exact head was reviewed, with two exceptions that wait for him;
-  see "Merge only the commit that was reviewed" under Agent rules. His WM-B1 words above stay as
-  he wrote them.)
+  for SQL, copy truth on public surfaces. "I merge everything" was narrowed twice:
+  - *2026-10-19:* he allows merging a green PR whose exact head was reviewed, with two exceptions
+    that wait for him (see "Merge only the commit that was reviewed" under Agent rules).
+  - *2026-10-21:* the local agent merges, and it is the only one that does ("Who does what").
+
+  His WM-B1 words above stay as he wrote them, including item 5's two-PR limit, which his
+  2026-10-20 file rule replaced.
 
 ## Decisions stop blocking
 
@@ -754,6 +863,9 @@ copies for new decisions.
   until the delta is reviewed."
 
   How it's applied:
+  - **Who merges:** the local agent, and only the local agent (2026-10-21, "Who does what"). A
+    PASS WITH NOTES merges like a PASS. Where SQL or auth is involved, it waits for Oleksii's
+    real-Neon smoke on the reviewed head.
   - A merge watcher takes the reviewed head SHA and merges with `gh pr merge --squash
     --match-head-commit <sha>`, so GitHub refuses if the head moved.
   - It never runs `update-branch` itself, which would create an unreviewed head.
@@ -778,8 +890,9 @@ copies for new decisions.
 Continue without asking:
 
 - the next row in the current phase's plan
-- fixes the reviewer asked for
-- sweeps the reviewer identified as the same defect class
+- fixes for a blocker: a STOP, or a Tier 1 note on a live security path. Since 2026-10-21 other
+  review notes wait for their area's follow-up batch.
+- sweeps the reviewer identified as the same defect class (into that batch, unless a blocker)
 - anything already decided in this conversation or recorded in `docs/`
 
 Stop and ask, regardless of what the reviewer said (narrowed 2026-10-17: ask only for
@@ -847,7 +960,10 @@ Not every change earns the same scrutiny. Classify before starting; say which ti
 **Superseded in part, 2026-10-17** (the working-mode amendment under "The loop"): Tier 1 is now
 auth/access, data deletion, production writes, secrets, R2, and anything a public page or email
 claims. Tiers 2 and 3 below merge into "everything else: one review". Read the definitions below
-with that override.
+with that override. **And since 2026-10-21** ("Who does what", top of "Working loop"), the
+reviewer is a fresh cloud reviewer session for Tier 1 and the local agent for everything else; a
+PASS WITH NOTES merges and its notes are batched. Where Tier 2 below says to spawn
+`opika-reviewer` in the background, read that as the local agent's one review.
 
 TIER 1 — full gate. Phase 0 questions answered and sent to Oleksii before code. Reviewer
 required. Mutation required. Applies to: production data, seed/truncate/migration paths,
@@ -867,7 +983,8 @@ spawn opika-reviewer in the background against the commit (see the 2026-10-04 am
 tests, harness work, refactors.
 
 TIER 3 — light. pnpm check and commit. Reviewer runs once at PR level over the batch, not per
-commit. Applies to: renames with no behaviour change, doc edits, comments, formatting,
+commit (since 2026-10-21, that review is the local agent's, or a fresh cloud reviewer's when the
+local agent wrote it). Applies to: renames with no behaviour change, doc edits, comments, formatting,
 config with no runtime effect.
 
 When a tier is ambiguous, pick the higher one and say so in one line. When a Tier 3 change
