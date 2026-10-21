@@ -14,7 +14,14 @@ import {
   superAdminRepo,
   swipeRepo,
 } from "@opika/db/repos";
-import { authAccount, authInvitation, authSession, authUser, superAdmins } from "@opika/db/schema";
+import {
+  authAccount,
+  authInvitation,
+  authSession,
+  authUser,
+  authVerification,
+  superAdmins,
+} from "@opika/db/schema";
 import {
   downDatabase,
   failingDriverDatabase,
@@ -30,6 +37,8 @@ import {
   truncateAll,
 } from "@opika/db/test";
 import { type AnimalListingState, type ShelterId, transitionListing } from "@opika/domain";
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
@@ -263,6 +272,33 @@ describe("the cleaned error: what it keeps, what it drops", () => {
     const odd = Object.assign(new Error(TOKEN), { name: ADDRESS, code: "olena" });
     expect(factsOf(cleanedQueryError(odd))).toEqual({ name: "Error", message: "" });
   });
+
+  it("F8-F1 (note 4): a name made only of letters is kept only when it is a class name", () => {
+    const named = (name: string) => cleanedQueryError(Object.assign(new Error(""), { name })).name;
+    // A person's name, in any case, is not an error class's.
+    expect(["mykola", "Mykola", "MYKOLA", "olena", "Olenaerror", "errorOlena"].map(named)).toEqual([
+      "Error",
+      "Error",
+      "Error",
+      "Error",
+      "Error",
+      "Error",
+    ]);
+    // The known classes, and any PascalCase name ending in `Error`, are kept.
+    expect(
+      ["Error", "PostgresError", "NeonDbError", "TypeError", "APIError", "SomeDriverError"].map(
+        named,
+      ),
+    ).toEqual([
+      "Error",
+      "PostgresError",
+      "NeonDbError",
+      "TypeError",
+      "APIError",
+      "SomeDriverError",
+    ]);
+    expect(named(`${"A".repeat(60)}Error`), "a name past 64 characters").toBe("Error");
+  });
 });
 
 describe("our callers read the cleaned error exactly as they read the raw one", () => {
@@ -438,15 +474,18 @@ describe("our callers read the cleaned error exactly as they read the raw one", 
     expect(outcomes[1]).toEqual(outcomes[0]);
   });
 
-  it("23505 in Better Auth: its adapter's duplicate user write rejects with the same SQLSTATE and constraint, and the route answers the same empty 500", async () => {
-    const outcomes = await bothWays(async (handle) => {
-      await handle.insert(authUser).values(userRow(randomUUID(), ADDRESS));
-      // Better Auth 1.6.33 inspects no SQLSTATE itself: a unique violation in its own write
-      // propagates to its caller. Over the raw handle (Better Auth's adapter, built directly) and
-      // over ours, it must propagate the same.
-      const auth = authOver(handle);
+  it("23505 in Better Auth: a duplicate user write rejects with the same SQLSTATE and constraint through its adapter over the raw handle as through the served instance (the cleaned one)", async () => {
+    // Better Auth 1.6.33 inspects no SQLSTATE itself: a unique violation in its own write
+    // propagates to its caller. The raw side is Better Auth's adapter built directly over the
+    // raw handle (`rawAuthOver`); the cleaned side is the served instance, which wraps its handle.
+    type UserWrite = { email: string; name: string; emailVerified: boolean };
+    const duplicateThrough = async (
+      context: Promise<{ internalAdapter: { createUser: (user: UserWrite) => Promise<unknown> } }>,
+    ) => {
+      await truncateAll(db);
+      await db.insert(authUser).values(userRow(randomUUID(), ADDRESS));
       const error = await failureOf(
-        (await auth.$context).internalAdapter.createUser({
+        (await context).internalAdapter.createUser({
           email: ADDRESS,
           name: "Олена",
           emailVerified: true,
@@ -455,12 +494,45 @@ describe("our callers read the cleaned error exactly as they read the raw one", 
       const pg = (
         error as { cause?: { code?: string; constraint_name?: string; constraint?: string } }
       ).cause;
-      return { state: sqlStateOf(error), constraint: pg?.constraint_name ?? pg?.constraint };
-    });
-    expect(outcomes[0]).toEqual({ state: "23505", constraint: "auth_user_email_unique" });
-    expect(outcomes[1]).toEqual(outcomes[0]);
+      return {
+        cleaned: error instanceof CleanedQueryError,
+        state: sqlStateOf(error),
+        constraint: pg?.constraint_name ?? pg?.constraint,
+      };
+    };
+    const raw = await duplicateThrough(rawAuthOver(db).$context);
+    const served = await duplicateThrough(authOver(db).$context);
+    expect(raw).toEqual({ cleaned: false, state: "23505", constraint: "auth_user_email_unique" });
+    expect(served).toEqual({ ...raw, cleaned: true });
   });
 });
+
+/**
+ * Better Auth with its Drizzle adapter built directly over `handle`, nothing wrapped: the raw
+ * side of a raw-vs-cleaned comparison (F8-F1, the PW1-F8 review's note 2). The served instance's
+ * model names, so its adapter writes the same tables.
+ */
+function rawAuthOver(handle: Database) {
+  return betterAuth({
+    baseURL: BASE,
+    secret: SECRET,
+    logger: { disabled: true },
+    database: drizzleAdapter(handle, {
+      provider: "pg",
+      transaction: false,
+      schema: {
+        auth_user: authUser,
+        auth_session: authSession,
+        auth_account: authAccount,
+        auth_verification: authVerification,
+      },
+    }),
+    user: { modelName: "auth_user" },
+    session: { modelName: "auth_session" },
+    account: { modelName: "auth_account" },
+    verification: { modelName: "auth_verification" },
+  });
+}
 
 /** An instance over `handle`, as the served one is built (its own handle cleaned inside). */
 function authOver(handle: Database): KabinetAuth {
@@ -637,6 +709,154 @@ describe("a /kabinet page load during a database outage (the principal path)", (
     expect(
       await failureOf(kabinetSessionUserIdOf(throwing(refusal), db, signedInHeaders(), new Date())),
     ).toBe(refusal);
+  });
+});
+
+describe("a transaction on the cleaned handle (F8-F1, the PW1-F8 review's note 1)", () => {
+  /** A unique violation inside the transaction: a real driver error, its parameters the address. */
+  const duplicateUser = () => userRow(randomUUID(), ADDRESS);
+  const usersNamed = async (name: string) =>
+    (await db.select({ name: authUser.name }).from(authUser)).filter((row) => row.name === name)
+      .length;
+
+  it("a statement that fails inside the callback is cleaned at the statement: the callback sees a CleanedQueryError, and the caller the same one", async () => {
+    await db.insert(authUser).values(userRow(randomUUID(), ADDRESS));
+    // The control: the same statement in a transaction on the raw handle fails raw in the callback.
+    let rawSeen: unknown;
+    await failureOf(
+      db.transaction(async (tx) => {
+        rawSeen = await failureOf(tx.insert(authUser).values(duplicateUser()));
+        throw rawSeen;
+      }),
+    );
+    expect(leaks([shown(rawSeen)])[0], "the raw error names the address").toBeGreaterThan(0);
+
+    let seen: unknown;
+    const escaped = await failureOf(
+      withQueryErrorsCleaned(db).transaction(async (tx) => {
+        await tx
+          .insert(authUser)
+          .values({ ...userRow(randomUUID(), "kept@example.org"), name: TOKEN });
+        seen = await failureOf(tx.insert(authUser).values(duplicateUser()));
+        throw seen;
+      }),
+    );
+    expect(seen).toBeInstanceOf(CleanedQueryError);
+    expect(escaped).toBe(seen);
+    expect(leaks([shown(seen), String(seen)])).toEqual(none());
+    expect(factsOf(seen)).toMatchObject({
+      message: "",
+      code: "23505",
+      constraint: "auth_user_email_unique",
+      cause: { name: "PostgresError", message: "", code: "23505" },
+    });
+    for (const dropped of ["query", "params", "detail"]) {
+      expect([dropped, Object.hasOwn(seen as object, dropped)]).toEqual([dropped, false]);
+    }
+    // Rolled back: the first insert is gone.
+    expect(await usersNamed(TOKEN)).toBe(0);
+  });
+
+  it("what the callback throws reaches the caller unchanged: an APIError, Drizzle's rollback, a plain error", async () => {
+    const clean = withQueryErrorsCleaned(db);
+    const refusal = new APIError("FORBIDDEN");
+    const plain = new Error("the callback's own answer");
+    const apiError = await failureOf(
+      clean.transaction(async (tx) => {
+        await tx
+          .insert(authUser)
+          .values({ ...userRow(randomUUID(), "a@example.org"), name: TOKEN });
+        throw refusal;
+      }),
+    );
+    let rollbackThrown: unknown;
+    const rolledBack = await failureOf(
+      clean.transaction(async (tx) => {
+        await tx
+          .insert(authUser)
+          .values({ ...userRow(randomUUID(), "b@example.org"), name: TOKEN });
+        try {
+          tx.rollback();
+        } catch (error) {
+          rollbackThrown = error;
+          throw error;
+        }
+      }),
+    );
+    const plainError = await failureOf(
+      clean.transaction(async () => {
+        throw plain;
+      }),
+    );
+    expect(apiError).toBe(refusal);
+    expect(rolledBack).toBe(rollbackThrown);
+    // Drizzle's own class, its name and message intact (its name is `DrizzleError`, its base's).
+    expect([(rolledBack as Error).constructor.name, (rolledBack as Error).message]).toEqual([
+      "TransactionRollbackError",
+      "Rollback",
+    ]);
+    expect(plainError).toBe(plain);
+    expect(plain.message).toBe("the callback's own answer");
+    expect(await usersNamed(TOKEN)).toBe(0);
+  });
+
+  it("a commit still commits, and a nested transaction (a savepoint) is cleaned the same way", async () => {
+    await db.insert(authUser).values(userRow(randomUUID(), ADDRESS));
+    const refusal = new APIError("CONFLICT");
+    let innerSeen: unknown;
+    const outcome = await withQueryErrorsCleaned(db).transaction(async (tx) => {
+      await tx.insert(authUser).values({ ...userRow(randomUUID(), "c@example.org"), name: TOKEN });
+      const innerFailure = await failureOf(
+        tx.transaction(async (inner) => {
+          innerSeen = await failureOf(inner.insert(authUser).values(duplicateUser()));
+          throw innerSeen;
+        }),
+      );
+      const innerRefusal = await failureOf(
+        tx.transaction(async () => {
+          throw refusal;
+        }),
+      );
+      return { innerFailure, innerRefusal };
+    });
+    expect(innerSeen).toBeInstanceOf(CleanedQueryError);
+    expect(outcome.innerFailure).toBe(innerSeen);
+    expect(outcome.innerRefusal).toBe(refusal);
+    expect(leaks([shown(innerSeen)])).toEqual(none());
+    expect(await usersNamed(TOKEN), "the outer transaction committed").toBe(1);
+  });
+
+  it("a raw query error the callback lets through from another handle is cleaned on its way out", async () => {
+    await db.insert(authUser).values(userRow(randomUUID(), ADDRESS));
+    // Failed before the transaction: the test database's one connection is the transaction's.
+    const raw = await failureOf(db.insert(authUser).values(duplicateUser()));
+    expect(leaks([shown(raw)])[0], "the raw error names the address").toBeGreaterThan(0);
+    const escaped = await failureOf(
+      withQueryErrorsCleaned(db).transaction(async () => {
+        throw raw;
+      }),
+    );
+    expect(escaped).toBeInstanceOf(CleanedQueryError);
+    expect(sqlStateOf(escaped)).toBe("23505");
+    expect(leaks([shown(escaped)])).toEqual(none());
+  });
+
+  it("neon-http: the driver has no transactions, so the callback never runs; its refusal is cleaned as before, and no request is sent", async () => {
+    const neonDb = neonHttpDatabaseAnswering({ message: "unused", code: "XX000" });
+    try {
+      let ran = false;
+      const refused = await failureOf(
+        withQueryErrorsCleaned(neonDb.db).transaction(async () => {
+          ran = true;
+        }),
+      );
+      expect(ran).toBe(false);
+      expect(refused).toBeInstanceOf(CleanedQueryError);
+      expect(factsOf(refused)).toEqual({ name: "Error", message: "" });
+      expect(neonDb.requests()).toBe(0);
+    } finally {
+      neonDb.restore();
+    }
   });
 });
 

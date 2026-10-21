@@ -1,10 +1,10 @@
 import { headers } from "next/headers";
 import { cache } from "react";
-import { getDb } from "../../../api/db";
 import { requireEnv } from "../../../api/env";
 import type { OperatorPageDeps } from "../../../features/kabinet/operator/pages";
 import { SHELTER_WRITE_POLICY } from "../../../kabinet/access";
 import type { KabinetPrincipal } from "../../../kabinet/actor";
+import { kabinetDb } from "../../../kabinet/kabinet-db";
 import {
   type OperatorName,
   operatorNameOf,
@@ -36,7 +36,7 @@ export const operatorRequest = cache(async (): Promise<OperatorRequest> => {
   const { auth, availability } = operatorPagesOrNotFound();
   const now = new Date();
   const production = process.env.NODE_ENV === "production";
-  const db = getDb();
+  const db = kabinetDb();
   const identity = await kabinetIdentityOf(auth, db, new Headers(await headers()), now, production);
   const operator = operatorNameOf({
     KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,

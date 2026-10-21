@@ -77,6 +77,17 @@ else `getSession` throws cleaned. `clean-query-errors.test.ts` forces failures a
 drivers' error shapes, an outage) and finds no address, token, password or `params:` in any log
 line or thrown error; every caller that reads a SQLSTATE behaves as before.
 
+**F8-F1 (2026-10-21), the PW1-F8 review's five notes:** a transaction on the cleaned handle hands
+its callback the transaction cleaned, so a statement failing inside it is cleaned at the statement;
+what the callback throws (an `APIError`, Drizzle's rollback) reaches the caller unchanged, and only
+what the transaction itself raises is cleaned (neon-http has no transactions: its refusal is cleaned
+as before). Every kabinet page, route and procedure reads through `kabinetDb()`
+(`apps/web/src/kabinet/kabinet-db.ts`, the served database cleaned), and `kabinet-db-scan.test.ts`
+fails if a kabinet file imports `getDb` or `createDatabase` again. In log text, a snake_case
+schema or constant name (`auth_user_email_unique`, `INTERNAL_SERVER_ERROR`) is no longer masked as a
+token; a hex or base64url token still is. An error's name is shown, in a cleaned error or a log
+line, only when it is an error class's name (`error-class-name.ts`), else `Error`.
+
 ## 4. Contract
 
 ### 4.1 Better Auth configuration (`createKabinetAuth`)

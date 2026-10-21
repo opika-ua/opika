@@ -2,7 +2,6 @@ import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getDb } from "../../../api/db";
 import { leavesSignIn } from "../../../features/kabinet/home";
 import { KabinetBrand } from "../../../features/kabinet/KabinetBrand";
 import { InviteUnusableCard } from "../../../features/kabinet/password/InviteUnusableCard";
@@ -12,6 +11,7 @@ import { INVITE_LINK } from "../../../kabinet/email-links";
 import { replyToAddressOf } from "../../../kabinet/email-provider";
 import { invitePasswordLandingOf } from "../../../kabinet/invite-password";
 import { inviteTokensOf } from "../../../kabinet/invite-tokens";
+import { kabinetDb } from "../../../kabinet/kabinet-db";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
 import { TOKEN_PAGE_HEADERS } from "../../../kabinet/token-pages";
 import { kabinetAuthOrNotFound } from "../available-auth";
@@ -70,7 +70,7 @@ export default async function SignInPage({
   const now = new Date();
   const identity = await kabinetIdentityOf(
     auth,
-    getDb(),
+    kabinetDb(),
     requestHeaders,
     now,
     process.env.NODE_ENV === "production",
@@ -83,7 +83,7 @@ export default async function SignInPage({
     card = <SignInCard contact={contact} />;
   } else {
     const landing = await invitePasswordLandingOf(token, {
-      lookup: (value) => inviteTokensOf(getDb()).landingOf(value),
+      lookup: (value) => inviteTokensOf(kabinetDb()).landingOf(value),
       now,
     });
     card =
