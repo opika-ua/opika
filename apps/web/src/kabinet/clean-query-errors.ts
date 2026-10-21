@@ -74,7 +74,7 @@ function cleaned(error: unknown, depth: number): CleanedQueryError {
       : undefined;
   // Drizzle's own error has no SQLSTATE or names of its own: they're the driver's, its cause's.
   const facts = { ...schemaFactsOf(cleanedCause), ...schemaFactsOf(error) };
-  // A class name only (`errorClassNameOf`): anything else is shown as `Error`.
+  // A name from the explicit list only (`ERROR_CLASS_NAMES`): anything else is shown as `Error`.
   return new CleanedQueryError(errorClassNameOf(error), facts, cleanedCause);
 }
 

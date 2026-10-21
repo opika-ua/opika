@@ -284,10 +284,12 @@ describe("the review's notes on the masking (3, 4 and 5)", () => {
     expect(maskedLogText(tokens.join(" "))).toBe(tokens.map(() => "•••").join(" "));
   });
 
-  it("F8-F1 (note 4): an error's name is shown only when it is a class name", () => {
+  it("F8-F1 (note 4): an error's name is shown only when it is on the explicit list", () => {
     const named = (name: string) => maskedLogValue(Object.assign(new Error(""), { name }));
     expect(
-      ["mykola", "Mykola", "olena", "PostgresError", "NeonDbError", "TypeError"].map(named),
+      ["mykola", "OlenaPetrenkoError", "olena", "PostgresError", "NeonDbError", "TypeError"].map(
+        named,
+      ),
     ).toEqual(["Error", "Error", "Error", "PostgresError", "NeonDbError", "TypeError"]);
   });
 

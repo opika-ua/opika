@@ -1,38 +1,47 @@
 /**
- * The error classes whose names a cleaned query error or a masked log line may show: the
- * built-ins, the two drivers', Drizzle's, Better Auth's and our own (F8-F1, the PW1-F8 review's
- * note 4). A name is otherwise kept only when it has a class name's shape (`CLASS_NAME`).
+ * The only error names a cleaned query error, a masked log line or `maskedLogValue` may show
+ * (F8-F1, the PW1-F8 review's note 4). Oleksii, 2026-10-21, verbatim: "(c), an explicit list,
+ * which our own classes join by name." No shape rule: a name off this list is shown as `Error`,
+ * however much it looks like a class's.
+ *
+ * Why a list: an error's `name` is free text, and a rule that accepts a shape (letters only, or
+ * PascalCase ending in `Error`) also accepts a person's name written that way. A new error class
+ * in our own code joins by name here; `error-class-name.test.ts` scans `apps/` and `packages/`
+ * and fails while one is missing.
  */
-const KNOWN_ERROR_CLASSES: ReadonlySet<string> = new Set([
+export const ERROR_CLASS_NAMES = [
+  // The standard JavaScript errors, and the DOMException names a fetch or a timer raises.
   "Error",
-  "TypeError",
-  "RangeError",
-  "SyntaxError",
-  "ReferenceError",
   "AggregateError",
+  "EvalError",
+  "RangeError",
+  "ReferenceError",
+  "SyntaxError",
+  "TypeError",
+  "URIError",
   "AbortError",
   "TimeoutError",
-  "PostgresError",
-  "NeonDbError",
+  // The library errors the database and auth paths meet: Drizzle (its rollback error is named
+  // `DrizzleError`), the two drivers, Better Auth and better-call.
   "DrizzleError",
   "DrizzleQueryError",
   "TransactionRollbackError",
-  "CleanedQueryError",
+  "PostgresError",
+  "NeonDbError",
   "APIError",
   "BetterAuthError",
-]);
+  "BetterCallError",
+  // Every error class defined in our own code, by its class name.
+  "CleanedQueryError",
+  "ProviderSendError",
+  "EmptyRemovalTarget",
+  "DemoRemovalDrift",
+] as const;
 
-/** PascalCase ending in `Error` (`PostgresError`, `NeonDbError`): how a class is named, not a person. */
-const CLASS_NAME = /^(?:[A-Z][a-z0-9]*)+Error$/;
-const MAX_NAME_LENGTH = 64;
+const KNOWN: ReadonlySet<string> = new Set(ERROR_CLASS_NAMES);
 
-/**
- * `error`'s name when it reads as an error class's name, else `Error`. Why: an error's `name` is
- * free text, and anything that only checked it was made of letters (`mykola`) would print a
- * person's name in a log. No library sets a name from data today; this keeps it that way.
- */
+/** `error`'s name when it is on `ERROR_CLASS_NAMES`, else `Error`. */
 export function errorClassNameOf(error: unknown): string {
   const name = error instanceof Error ? error.name : "";
-  if (name.length === 0 || name.length > MAX_NAME_LENGTH) return "Error";
-  return KNOWN_ERROR_CLASSES.has(name) || CLASS_NAME.test(name) ? name : "Error";
+  return KNOWN.has(name) ? name : "Error";
 }

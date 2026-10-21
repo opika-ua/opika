@@ -85,8 +85,8 @@ as before). Every kabinet page, route and procedure reads through `kabinetDb()`
 (`apps/web/src/kabinet/kabinet-db.ts`, the served database cleaned), and `kabinet-db-scan.test.ts`
 fails if a kabinet file imports `getDb` or `createDatabase` again. In log text, a snake_case
 schema or constant name (`auth_user_email_unique`, `INTERNAL_SERVER_ERROR`) is no longer masked as a
-token; a hex or base64url token still is. An error's name is shown, in a cleaned error or a log
-line, only when it is an error class's name (`error-class-name.ts`), else `Error`.
+token; a hex or base64url token still is. Error names are allow-listed: a cleaned error or a log
+line shows a name only from the explicit list in `error-class-name.ts` (his (c)), else `Error`.
 
 ## 4. Contract
 

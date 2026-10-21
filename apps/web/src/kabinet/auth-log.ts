@@ -79,7 +79,7 @@ export function maskedLogValue(value: unknown): string {
   }
   // Only a real error is shown by its name: any other object with a `name` is user data (a
   // display name), and is shown as `[object]` like the rest (the review's note 3).
-  // A class name only (`errorClassNameOf`, F8-F1): a name made of letters can still be a person's.
+  // A name from the explicit list only (`ERROR_CLASS_NAMES`, F8-F1): any other name may be a person's.
   if (value instanceof Error) {
     const code = sqlStateOf(value);
     return `${errorClassNameOf(value)}${code === null ? "" : ` (${code})`}`;

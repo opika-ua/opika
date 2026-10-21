@@ -273,31 +273,19 @@ describe("the cleaned error: what it keeps, what it drops", () => {
     expect(factsOf(cleanedQueryError(odd))).toEqual({ name: "Error", message: "" });
   });
 
-  it("F8-F1 (note 4): a name made only of letters is kept only when it is a class name", () => {
+  it("F8-F1 (note 4): a name is kept only when it is on the explicit list (his (c))", () => {
     const named = (name: string) => cleanedQueryError(Object.assign(new Error(""), { name })).name;
-    // A person's name, in any case, is not an error class's.
-    expect(["mykola", "Mykola", "MYKOLA", "olena", "Olenaerror", "errorOlena"].map(named)).toEqual([
-      "Error",
-      "Error",
-      "Error",
-      "Error",
-      "Error",
-      "Error",
-    ]);
-    // The known classes, and any PascalCase name ending in `Error`, are kept.
+    // A person's name, in any case or shaped like a class, is not on the list.
     expect(
-      ["Error", "PostgresError", "NeonDbError", "TypeError", "APIError", "SomeDriverError"].map(
-        named,
-      ),
-    ).toEqual([
+      ["mykola", "Mykola", "OlenaPetrenkoError", "SomeDriverError", "olena"].map(named),
+    ).toEqual(["Error", "Error", "Error", "Error", "Error"]);
+    expect(["Error", "PostgresError", "NeonDbError", "TypeError", "APIError"].map(named)).toEqual([
       "Error",
       "PostgresError",
       "NeonDbError",
       "TypeError",
       "APIError",
-      "SomeDriverError",
     ]);
-    expect(named(`${"A".repeat(60)}Error`), "a name past 64 characters").toBe("Error");
   });
 });
 
