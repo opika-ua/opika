@@ -1,4 +1,11 @@
-import { CityIdSchema, citySlugOf, NO_FILTERS } from "@opika/domain";
+import {
+  CityIdSchema,
+  citySlugOf,
+  NO_FILTERS,
+  RevealIdSchema,
+  ShelterIdSchema,
+} from "@opika/domain";
+import { uk } from "@opika/i18n";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CitySlugsById } from "../gallery/filter-url";
@@ -24,6 +31,18 @@ vi.mock("./use-feed-deck", () => ({
 vi.mock("../../seo-flags", async (importOriginal) => ({
   ...(await importOriginal()),
   REGISTRY_HAS_NO_REAL_SHELTERS: false,
+}));
+
+/**
+ * Only the Escape-in-the-reveal test below opens a reveal; mocked at the
+ * module boundary the same way `SwipeDeck.test.tsx` does.
+ */
+const revealCall = vi.fn();
+vi.mock("../../api/browser-client", () => ({
+  revealBrowserClient: {
+    session: { bootstrap: () => Promise.resolve({}) },
+    animals: { reveal: (...args: unknown[]) => revealCall(...args) },
+  },
 }));
 
 const FROM_GALLERY_KEY = "opika:deck-entered-from-gallery";
@@ -450,6 +469,66 @@ describe("DeckScreen", () => {
 
     expect(router.back).not.toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalled();
+  });
+
+  /**
+   * RF-F2: the reveal dialog and this screen both listen for Escape on
+   * `window`, and this screen's listener was registered first, so an Escape
+   * meant only for the dialog also left the deck (R3: "the deck session must
+   * survive a reveal — no exit back to the gallery"). The harness saw it as
+   * a flake, «Написати» missing after Escape, whenever the gallery
+   * navigation won the race against its assertions; here the router is a
+   * mock, so the exit is observed synchronously, every time.
+   */
+  it("Escape inside the deck's reveal dialog closes the dialog and does not leave the deck", async () => {
+    sessionStorage.setItem(FROM_GALLERY_KEY, "1");
+    const router = mockAppRouter();
+    const [card] = generateMockCards(2);
+    if (!card) throw new Error("generateMockCards(2) must return a card");
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(2) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+      ensureSession: () => Promise.resolve(true),
+    });
+    revealCall.mockResolvedValue({
+      id: RevealIdSchema.parse("bbbbbbbb-cccc-4ddd-8eee-ffffffffffff"),
+      animalId: card.id,
+      revealedAt: new Date("2026-08-08T10:00:00Z"),
+      shelterContact: {
+        source: "current",
+        displayName: "Притулок «Домівка»",
+        contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
+      },
+      shelterAtFirstReveal: {
+        shelterId: ShelterIdSchema.parse("66666666-7777-4888-8999-aaaaaaaaaaaa"),
+        publicLocation: { cityId: CityIdSchema.parse("12121212-3434-4565-8787-909090909090") },
+        verificationStatusAtReveal: "verified",
+        donation: null,
+      },
+      animalSnapshot: { name: card.name, primaryPhoto: null },
+    });
+
+    render(
+      <WithMockRouter router={router}>
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} citySlugs={CITY_SLUGS} />
+      </WithMockRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: uk.actions.write }));
+    await screen.findByTestId("reveal-dialog");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByTestId("reveal-dialog")).toBeNull();
+    expect(router.back).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+
+    // The deck's own Escape still works once the dialog is gone.
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(router.back).toHaveBeenCalledTimes(1);
   });
 });
 

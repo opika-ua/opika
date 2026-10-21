@@ -3,7 +3,7 @@
 import type { ContactRevealView } from "@opika/contracts";
 import { allChannels, type ContactChannel } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import type { RevealErrorReason, RevealState } from "./useReveal";
 
 /**
@@ -167,7 +167,13 @@ export function ContactRevealDialog({
   // only ever mounted while open (the caller renders it conditionally), so
   // a mount-only effect already is "once per open" — no `isOpen` dependency
   // needed the way the pre-extraction single component required.
-  useEffect(() => {
+  //
+  // A layout effect for the same reason as the scroll lock below (RF-F2):
+  // the dialog mounts after an awaited reveal, so a passive effect would
+  // run after the commit. An Escape in that gap closed the dialog and
+  // returned focus to the trigger, and then the late effect focused this
+  // heading, which unmounted with the dialog and left focus on `<body>`.
+  useLayoutEffect(() => {
     headingRef.current?.focus();
   }, []);
 
@@ -187,6 +193,10 @@ export function ContactRevealDialog({
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        // Marked handled, so a page-level Escape behind the dialog (the
+        // deck's own "exit to the gallery", `DeckScreen.tsx`) knows this
+        // press belonged to the dialog and does nothing (RF-F2).
+        event.preventDefault();
         onClose();
         return;
       }
@@ -214,9 +224,14 @@ export function ContactRevealDialog({
       }
     }
 
-    window.addEventListener("keydown", onKeyDown);
+    // Capture phase: the deck's page-level Escape listener is also on
+    // `window` and was registered first, so in the bubble phase it ran
+    // before this one and left the deck on every Escape that only meant to
+    // close the dialog (RF-F2). Capturing runs this first, whatever the
+    // registration order.
+    window.addEventListener("keydown", onKeyDown, true);
     return () => {
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKeyDown, true);
       document.body.style.overflow = previousOverflow;
     };
   }, [onClose]);
