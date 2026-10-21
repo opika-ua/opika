@@ -16,7 +16,7 @@ describe("runAuthSmoke against the local database", () => {
   });
   afterAll(async () => cleanup?.());
 
-  it("passes every step: sign-in, verify, the accept, getSession, sign-out, PW-1's four, PW1-F1's two, PW1-F5's two, PW1-F6's one and PW1-F7's one", async () => {
+  it("passes every step: sign-in, verify, the accept, getSession, sign-out, PW-1's four, PW1-F1's two, PW1-F5's two, PW1-F6's one, PW1-F7's one and PW1-F8's one", async () => {
     const outcomes = await runAuthSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
     expect(outcomes.map((o) => o.name)).toEqual([
@@ -35,7 +35,9 @@ describe("runAuthSmoke against the local database", () => {
       "own password write ends every session in its statement (no Better Auth revoke)",
       "a sign-in racing a password write keeps no session (deleted after its insert; a wrong password's answer)",
       "the operator's refused sign-in does a wrong password's work (the same statements, in order; the same answer)",
+      "query errors through the cleaned handle keep name, SQLSTATE and constraint, and no message, parameters or SQL",
     ]);
+    expect(outcomes).toHaveLength(16);
   });
 
   it("prints no link, token or address in any line", async () => {
