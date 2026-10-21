@@ -211,14 +211,16 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
     await openRoute(page, GALLERY_ROUTE, DETAIL_DESKTOP, { readySelector: CARD });
     const href = await page.locator(CARD).first().getAttribute("href");
     expect(href, "the first gallery card should link somewhere").not.toBeNull();
-    // Since designer round 1 (S4) the click opens the preview drawer over the
-    // gallery, at this page's own URL; `gallery-preview-drawer.harness.ts`
-    // follows its «Відкрити повну сторінку» on to this page, and loads the URL
-    // directly. Not repeated here: this file's request budget is spent.
+    // Since designer round 1 (S4b) the click opens this page in the gallery's
+    // overlay, at this page's own URL; `gallery-animal-overlay.harness.ts`
+    // covers the overlay and reloads the URL into this page. Not repeated
+    // here: this file's request budget is spent.
     const name =
       (await page.locator(CARD).first().getByTestId("card-name").textContent())?.trim() ?? "";
     await page.locator(CARD).first().click();
-    await expect(page.getByRole("dialog", { name })).toBeVisible();
+    const overlay = page.getByRole("dialog", { name });
+    await expect(overlay).toBeVisible();
+    await expect(overlay.getByRole("heading", { level: 1, name })).toBeVisible();
     expect(page.url()).toContain(href as string);
     // A genuine assertion that this is F1's own page, not Next's bare 404 —
     // the not-found route renders uk.detail.notFound.title instead.

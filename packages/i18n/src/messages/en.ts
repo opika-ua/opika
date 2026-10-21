@@ -140,14 +140,14 @@ export const en = {
       body: "The animal is no longer on the site or the link is out of date. This isn't an error — the listing is simply no longer here.",
       action: "All animals",
     },
+    rateLimited: "Too many requests. Please try again later.",
     photoGalleryLabel: "Animal photos",
     photoGalleryDot: "Photo {n}",
     photoGalleryThumbnail: "View photo {n}",
   },
 
-  // --- The gallery's preview drawer ---
+  // --- The gallery's animal overlay ---
   preview: {
-    openFull: "Open the full page",
     close: "Close",
   },
 

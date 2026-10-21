@@ -36,6 +36,7 @@ describe("proxy", () => {
 
   afterEach(() => {
     vi.doUnmock("./seo-flags");
+    vi.doUnmock("./api/rate-limit");
     vi.unstubAllEnvs();
   });
 
@@ -246,6 +247,29 @@ describe("proxy", () => {
         );
       }
       expect(last.status).toBe(429);
+    });
+
+    it("answers that 429 with his sentence in Ukrainian, not the not-found copy (RL-F1)", async () => {
+      // The limiter stubbed to refuse: the refusal's body is under test, not
+      // the counting (the test above), so no budget is spent to reach it.
+      vi.doMock("./api/rate-limit", async (importOriginal) => ({
+        ...(await importOriginal<typeof import("./api/rate-limit")>()),
+        apiRateLimiter: { check: async () => false },
+      }));
+      const { proxy } = await import("./proxy");
+      const refused = await proxy(
+        request("https://opika.example/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc", {
+          "x-forwarded-for": "8.8.4.4",
+        }),
+      );
+      expect(refused.status).toBe(429);
+      expect(refused.headers.get("content-type")).toBe("text/html; charset=utf-8");
+      expect(refused.headers.get("x-robots-tag")).toBe("noindex");
+      const body = await refused.text();
+      // His words, transcribed from his message, not read from the catalogue.
+      expect(body).toContain("Забагато запитів. Спробуйте ще раз пізніше.");
+      expect(body).not.toContain("Це не помилка");
+      expect(body).not.toContain("більше немає");
     });
 
     it("429s a /kabinet page load past the kabinet's per-IP limit (KH-Q8)", async () => {

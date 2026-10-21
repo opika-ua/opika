@@ -88,7 +88,7 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
     isDiscoveryPagePath(request.nextUrl.pathname) &&
     !(await apiRateLimiter.check(ipRateLimitKey(clientIp(request)), now))
   ) {
-    return new NextResponse("Too Many Requests", { status: 429 });
+    return discoveryRateLimitedResponse();
   }
   // KH-Q8: `/kabinet` pages draw on the kabinet API's own budgets (never the
   // adopter one, HS-Q10). Here rather than in the pages because a page
@@ -158,6 +158,32 @@ const CRON_PATHS: readonly string[] = ["/api/cron/auth-cleanup"];
 
 export function isCronPath(pathname: string): boolean {
   return CRON_PATHS.includes(pathname);
+}
+
+/**
+ * RL-F1: the per-IP refusal on `/tvaryny` pages, which is the rate limit a
+ * visitor actually meets on the animal page and the gallery's overlay (the
+ * overlay's request is the same URL; Next's router, given a response that
+ * isn't its own, loads the URL as a document and gets this). Oleksii,
+ * 2026-10-20, verbatim: "gives the rate-limited case its own state on both
+ * the full page and the drawer, using the existing «Забагато запитів.
+ * Спробуйте ще раз пізніше.». It never shows «Це не помилка…» for a rate
+ * limit." So a small Ukrainian page with his sentence, still a 429, not
+ * indexed, instead of the English plain text this answered before.
+ *
+ * The catalogue is imported here, on a refusal only, for the same reason
+ * `kabinet/runtime` is imported lazily below: the proxy runs on every
+ * request, and its cold start shouldn't parse every message for the rare
+ * one that is refused.
+ */
+async function discoveryRateLimitedResponse(): Promise<NextResponse> {
+  const { uk } = await import("@opika/i18n");
+  const sentence = uk.detail.rateLimited;
+  const html = `<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${sentence}</title></head><body><main><h1>${sentence}</h1></main></body></html>`;
+  return new NextResponse(html, {
+    status: 429,
+    headers: { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex" },
+  });
 }
 
 function isDiscoveryPagePath(pathname: string): boolean {

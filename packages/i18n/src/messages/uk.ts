@@ -327,6 +327,15 @@ export const uk = {
       action: "Усі тварини",
     },
     /**
+     * RL-F1: the animal page (and the gallery's overlay of it) when the
+     * visitor's request was refused for rate, not answered. Oleksii's text,
+     * verbatim (2026-10-20): "using the existing «Забагато запитів. Спробуйте
+     * ще раз пізніше.»", the same words as `kabinet.password.forgot.throttled`,
+     * given a public key so a public page doesn't read a kabinet string. It
+     * says nothing about the card, which may well still be there.
+     */
+    rateLimited: "Забагато запитів. Спробуйте ще раз пізніше.",
+    /**
      * O-10 (`docs/observations.md`) + critique C6 — accessibility copy for the
      * photo gallery's dot indicator (mobile) and thumbnail strip (desktop).
      * Placeholders since D6-3; his Ukrainian since PR 6 (Q-A, 2026-10-19).
@@ -337,16 +346,18 @@ export const uk = {
     photoGalleryThumbnail: "Переглянути фото {n}",
   },
 
-  // --- The gallery's preview drawer (designer round 1, §2 of docs/designer-round-1.md) ---
+  // --- The gallery's animal overlay (designer round 1, §2 of docs/designer-round-1.md) ---
   /**
    * Oleksii's Ukrainian, verbatim (docs/designer-round-1.md §11, item 3).
    * `close` is his «Закрити», the same word as the kabinet dialogs' own
    * `close`, given its own key here so a public surface doesn't read a
-   * kabinet dialog's string. The drawer's accessible name is the animal's
-   * name heading, so it has no label key of its own.
+   * kabinet dialog's string. The overlay's accessible name is the animal's
+   * name, so it has no label key of its own. `openFull` («Відкрити повну
+   * сторінку») went with the drawer: the overlay is the full page (his
+   * 2026-10-21 decision, Q2: "remove «Відкрити повну сторінку» and
+   * preview.openFull").
    */
   preview: {
-    openFull: "Відкрити повну сторінку",
     close: "Закрити",
   },
 
