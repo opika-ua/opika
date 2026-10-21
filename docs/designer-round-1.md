@@ -202,7 +202,8 @@ full animal page. Source: the scope sentence; no mock frame (proposed here).
   link or a no-JS click renders the full page exactly as today. So the URL in the address bar is
   always the animal's own shareable URL (the reveal modal's own reasoning, README 05), and the
   phone's back gesture closes the drawer (history, not component state).
-- **Scope of the interception:** the gallery and the saved page (§4) only. The deck
+- **Scope of the interception:** the gallery only. The saved page (§4) opens the full animal page, not
+  the drawer (his decision, 2026-10-21; see §4). The deck
   (`/tvaryny/gortaty`) and the shelter page keep full-page navigation; a harness flow pins that
   the deck's link to an animal is **not** intercepted. If Next can't scope `(.)` that narrowly
   without restructuring routes, the slice moves the gallery under a route group rather than
@@ -343,14 +344,15 @@ scope sentence, plus README "06 My reveals" as the nearest precedent (a device-o
   third one beside them would read as a stronger yes (the swipe filters, it doesn't judge).
 - **Saving records nothing on the server**: no `swipes.record`, no analytics event, nothing in the
   session. A saved animal stays in the list and the deck exactly as before (commitment 8).
-- **The saved page** («Збережені тварини», nav «Збережені», a bookmark icon, no heart: his DR1-Q3):
-  a new route at his slug `zberezheni` ("slug /zberezheni"). Whether it sits at `/zberezheni` or
-  under `/tvaryny/` is S8's call; under `/tvaryny/` it must be a static sibling of `[animalId]`
-  like `gortaty`, and the drawer's `(.)[animalId]` interception must not swallow a soft navigation
-  to it (S8 adds a harness flow proving that, as S4 did for the deck; S4's review, note 5). Linked
-  from the site header. Client-rendered from storage (it can't be server-rendered: the server doesn't know the
+- **The saved page** («Збережені тварини», a bookmark icon, no heart: his DR1-Q3; nav «Збережені»: his
+  §11): a new route at his slug, `/zberezheni`, at the root ("slug /zberezheni"). Oleksii, verbatim (2026-10-21): "For S8: clicking an animal on the saved page (/zberezheni) opens the full animal page, not the drawer. Record it as my decision. The harness flow still proves the drawer route doesn’t swallow navigation to or from /zberezheni". So
+  a click on one of its animals is a plain navigation to the animal's full page; and because
+  `/zberezheni` sits outside `/tvaryny`, S4's `(.)[animalId]` interception (scoped to a current URL
+  under `/tvaryny`) neither opens the drawer from it nor swallows a navigation to it (S4's delta
+  review, 13e7b5b). Whatever the location, S8 adds a harness flow proving the drawer route swallows
+  no soft navigation to or from `/zberezheni`, as S4 did for the deck. Linked from the site header. Client-rendered from storage (it can't be server-rendered: the server doesn't know the
   list). Newest first, by `likedAt` (an internal field name): the person's own order, not a ranking. Each item renders
-  as a gallery card (no shelter name, §3) opening the drawer; an animal that is no longer
+  as a gallery card (no shelter name, §3) opening the animal's full page (his decision above); an animal that is no longer
   discoverable (adopted, withdrawn, shelter paused or no longer verified) shows as "no longer
   listed" **without saying why** (the same no-leak rule as `shelters.byId`'s `NOT_FOUND`), with a
   button to remove it from the list. The header link carries no count (decision DR1-D9).
@@ -585,7 +587,7 @@ feature PRs open at once, in different areas (WM-B1).
 | S5 | **Shelter page: contract** (`GalleryScope`, `PublicShelterView` pick per DR1-Q1) | `packages/contracts/src/procedures/gallery.ts`, `views/shelter.ts`, `apps/web/src/api/handlers/*`, `packages/db/src/repos/gallery-repo.ts`, tests | **1** | none | DR1-Q1 answered |
 | S6 | **Shelter page: UI**, «Слова притулку» moved per DR1-Q1, `/prytulkam` §8 and `voice.previewLabel` changed in the same PR | `app/prytulky/[shelterId]/page.tsx`, `features/shelters/*`, `features/animal-detail/*`, `features/discovery/SwipeCard.tsx` (if the sentence leaves the deck), `packages/i18n` | **1** | none | S5; DR1-Q1; his Ukrainian |
 | S7 | **Saved animals: store, control, `animals.cardsByIds`** | `features/likes/*`, `packages/contracts/src/procedures/animals.ts`, `apps/web/src/api/handlers/animals.ts`, `packages/db/src/repos/feed-repo.ts` | **1** | none | DR1-Q2, DR1-Q3; S4 (the control sits in the drawer) |
-| S8 | **The saved page («Збережені тварини») + `/pro` sentence** | the `zberezheni` route (his slug, DR1-Q3; location S8's call, with the drawer-interception harness flow), `features/likes/*`, `features/chrome/SiteHeader.tsx`, `packages/i18n` (`about.*`) | **1** | none | S7; DR1-Q4; his Ukrainian |
+| S8 | **The saved page («Збережені тварини») + `/pro` sentence** | the `/zberezheni` route at the root (his slug, DR1-Q3; its cards open the full animal page, his 2026-10-21 decision; a harness flow proves the drawer route swallows no navigation to or from it), `features/likes/*`, `features/chrome/SiteHeader.tsx`, `packages/i18n` (`about.*`) | **1** | none | S7; DR1-Q4; his Ukrainian |
 
 Order of work: S1 and S2 in parallel (different areas) → S3 and S4 → S5 → S6 → S7 → S8. S5–S8
 wait on the open questions; S1–S4 don't, so building starts there while he answers.
@@ -724,7 +726,7 @@ later go live describing the device incompletely.
 | DR1-D2 | Shelter page at `/prytulky/{shelterId}` (id, not a slug) | Shelters have no slug column; a slug is an additive change later. Matches the kabinet's `/kabinet/prytulky` |
 | DR1-D3 | No filter rail on the shelter page in round 1 | A shelter's list is short; avoids a scoped `relaxationCounts` |
 | DR1-D4 | The shelter's animals come from `gallery.list` with a `scope` union, not a new procedure | Stays inside the one named `OFFSET` exception and reuses the discoverable predicate and both sorts |
-| DR1-D5 | The drawer is a Next intercepting route, gallery and saved page only; the deck keeps full-page navigation | Shareable URL, back gesture closes it, no-JS degrades to the full page |
+| DR1-D5 | The drawer is a Next intercepting route, from the gallery only (narrowed by his 2026-10-21 decision: the saved page opens the full animal page); the deck keeps full-page navigation | Shareable URL, back gesture closes it, no-JS degrades to the full page |
 | DR1-D6 | The focus trap is extracted from `ModalDialog` into a shared hook | One trap, not three |
 | DR1-D7 | No contact reveal in the drawer | One reveal surface, with its rate limit and reassurance |
 | DR1-D8 | The save control on the drawer and the animal page, not on the gallery card or the deck card | The card is one `<a>` with one Tab stop (README); a third deck action would read as a stronger yes |

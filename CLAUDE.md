@@ -699,7 +699,7 @@ What that changes, concretely:
   shelter. PR 6 deleted the allowlist and that namespace with it (his 0.3a), so the exemption has
   ended: no `[COPY PENDING]` anywhere under `kabinet.*`, in CI (`copy-status.test.ts`,
   `open-writes-copy-gate.test.ts`) and at run time (any pending string keeps production sign-in off).
-- **At most two open feature PRs,** touching different areas. Docs-only PRs don't count.
+- **Parallel PRs, replaced 2026-10-20:** his words, verbatim: "Replace the hard “two PRs” limit with a rule: any number of PRs may be open as long as no two share a file. A PR that shares a file with an open one waits." (The two-PR text in his WM-B1 quote above is kept as he wrote it.)
 - **Unchanged:** production guards, `--expect`, no secrets in chat, no R2 deletes, real-Neon
   for SQL, copy truth on public surfaces, and he merges everything. (*Narrowed 2026-10-19:* he
   allows merging a green PR whose exact head was reviewed, with two exceptions that wait for him;
