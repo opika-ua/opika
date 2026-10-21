@@ -160,7 +160,7 @@ const snapshot = async () => ({
 });
 
 describe("the invitation link's GET (PW-2 Q1)", () => {
-  it("opened twice, changes nothing: no row written or deleted, nothing sent, no budget charged", async () => {
+  it("opened twice, changes nothing: no row written or deleted, nothing sent, and the lookup charges no budget of its own", async () => {
     const { token } = await invited("olena@example.org", "Притулок «Ліс»");
     const before = await snapshot();
     const first = await rendered(token);
