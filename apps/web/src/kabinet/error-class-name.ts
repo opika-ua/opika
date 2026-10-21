@@ -24,6 +24,8 @@ export const ERROR_CLASS_NAMES = [
   // The library errors the database and auth paths meet: Drizzle (its rollback error is named
   // `DrizzleError`), the two drivers, Better Auth and better-call.
   "DrizzleError",
+  // Never a `.name` in drizzle-orm 0.45.2 (one sets none, the other inherits `DrizzleError`):
+  // kept so a Drizzle upgrade that names them still shows the class, not `Error`.
   "DrizzleQueryError",
   "TransactionRollbackError",
   "PostgresError",
@@ -42,10 +44,17 @@ const KNOWN: ReadonlySet<string> = new Set(ERROR_CLASS_NAMES);
 
 /**
  * `error`'s name when it is on `ERROR_CLASS_NAMES`, else `Error`. Never throws: a name that isn't
- * a string (`undefined`, a number, an object, a symbol) is `Error` too, so the error being cleaned
- * or logged is never replaced by a TypeError from reading its name (the review of 78c888f, note 2).
+ * a string (`undefined`, a number, an object, a symbol), or a read of it that throws (a getter, a
+ * Proxy), is `Error` too, so the error being cleaned or logged is never replaced by a TypeError or
+ * by the getter's own error (the review of 78c888f, note 2; of 73d03fa, finding 3).
  */
 export function errorClassNameOf(error: unknown): string {
-  const name: unknown = error instanceof Error ? error.name : undefined;
+  let name: unknown;
+  try {
+    name = error instanceof Error ? error.name : undefined;
+  } catch {
+    // A `name` getter or a Proxy that throws: fail closed, its own error never escapes.
+    return "Error";
+  }
   return typeof name === "string" && KNOWN.has(name) ? name : "Error";
 }

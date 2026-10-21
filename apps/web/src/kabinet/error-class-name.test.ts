@@ -47,9 +47,10 @@ describe("error names come from the explicit list only", () => {
     expect(ERROR_CLASS_NAMES.map((name) => errorClassNameOf(errorNamed(name)))).toEqual([
       ...ERROR_CLASS_NAMES,
     ]);
-    expect(ERROR_CLASS_NAMES.map((name) => shownBy.cleanedError(errorNamed(name)))).toEqual([
-      ...ERROR_CLASS_NAMES,
-    ]);
+    // A cleaned error is never named APIError (F8-F1-D9): Better Auth would answer it as one.
+    expect(ERROR_CLASS_NAMES.map((name) => shownBy.cleanedError(errorNamed(name)))).toEqual(
+      ERROR_CLASS_NAMES.map((name) => (name === "APIError" ? "Error" : name)),
+    );
     expect(plainNames.map((name) => shownBy.maskedLogValue(errorNamed(name)))).toEqual(plainNames);
     expect(plainNames.map((name) => shownBy.logLine(errorNamed(name)))).toEqual(
       plainNames.map((name) => `[kabinet] Better Auth error: API error · ${name}`),
@@ -71,6 +72,26 @@ describe("error names come from the explicit list only", () => {
       expect([label, shownBy.cleanedError(withName(name))]).toEqual([label, "Error"]);
       expect([label, shownBy.maskedLogValue(withName(name))]).toEqual([label, "Error"]);
       expect([label, shownBy.logLine(withName(name))]).toEqual([
+        label,
+        "[kabinet] Better Auth error: API error · Error",
+      ]);
+    }
+  });
+
+  it("a name getter or a Proxy that throws gives `Error` through all four callers; its own error never escapes", () => {
+    const boom = () => {
+      throw new Error("boom olena@example.org");
+    };
+    const getter = Object.defineProperty(new Error(""), "name", { get: boom });
+    const proxy = new Proxy(new Error(""), { get: boom });
+    for (const [label, value] of [
+      ["getter", getter],
+      ["proxy", proxy],
+    ] as const) {
+      expect([label, errorClassNameOf(value)]).toEqual([label, "Error"]);
+      expect([label, shownBy.cleanedError(value)]).toEqual([label, "Error"]);
+      expect([label, shownBy.maskedLogValue(value)]).toEqual([label, "Error"]);
+      expect([label, shownBy.logLine(value)]).toEqual([
         label,
         "[kabinet] Better Auth error: API error · Error",
       ]);
@@ -99,15 +120,36 @@ const CODE = /\.(?:[cm]?js|tsx?)$/;
 
 type Declaration = { name: string; parent: string; path: string };
 
-/** Every `class X extends Y` in `text`. */
+const IDENTIFIER = String.raw`[A-Za-z_$][\w$]*`;
+
+/**
+ * Every class with a parent in `text`, in each form it can take: `class X extends Y`, with type
+ * parameters (`class X<T> extends Y`), as an expression (`const X = class extends Y`), as an
+ * anonymous default export (named `default`), or with the parent in parentheses
+ * (`extends (Y)`). A parent imported under another name (`APIError as Refusal`) counts as the
+ * original. A class with no name it can be listed by is named `(anonymous)`, which no list holds.
+ */
 function declarationsIn(path: string, text: string): Declaration[] {
-  const pattern = /\bclass\s+([A-Za-z_$][\w$]*)\s+extends\s+([A-Za-z_$][\w$.]*)/g;
-  return [...text.matchAll(pattern)].map((match) => ({
-    name: match[1] ?? "",
+  const aliases = new Map<string, string>();
+  for (const match of text.matchAll(
+    new RegExp(`\\b(${IDENTIFIER})\\s+as\\s+(${IDENTIFIER})`, "g"),
+  )) {
+    if (match[1] !== undefined && match[2] !== undefined) aliases.set(match[2], match[1]);
+  }
+  const pattern = new RegExp(
+    `\\bclass\\b(?:\\s+(${IDENTIFIER}))?\\s*(?:<[^{]*?>)?\\s*extends\\s*\\(?\\s*(${IDENTIFIER}(?:\\.${IDENTIFIER})*)`,
+    "g",
+  );
+  return [...text.matchAll(pattern)].map((match) => {
+    const before = text.slice(0, match.index);
+    const name =
+      match[1] ??
+      before.match(new RegExp(`(${IDENTIFIER})\\s*=\\s*$`))?.[1] ??
+      (/\bexport\s+default\s*$/.test(before) ? "default" : "(anonymous)");
     // `errors.DrizzleError` counts as `DrizzleError`.
-    parent: (match[2] ?? "").split(".").at(-1) ?? "",
-    path,
-  }));
+    const written = (match[2] ?? "").split(".").at(-1) ?? "";
+    return { name, parent: aliases.get(written) ?? written, path };
+  });
 }
 
 /**
@@ -174,6 +216,26 @@ describe("every error class in apps/ and packages/ is on the list", () => {
 
   it("each one is listed by name", () => {
     expect(unlisted(declarations)).toEqual([]);
+  });
+
+  it("the detector catches every form a class can take (the review of 73d03fa, finding 4)", () => {
+    const forms: Array<readonly [string, string]> = [
+      ["generic.ts", ["class", "Generic<T>", "extends", "Error {}"].join(" ")],
+      ["expression.ts", ["const Expression =", "class", "extends", "Error {}"].join(" ")],
+      ["default.ts", ["export default", "class", "extends", "Error {}"].join(" ")],
+      [
+        "aliased.ts",
+        `import { APIError as Refusal } from "better-auth/api";\n${["class", "Aliased", "extends", "Refusal {}"].join(" ")}`,
+      ],
+      ["parenthesised.ts", ["class", "Parenthesised", "extends", "(Error) {}"].join(" ")],
+    ];
+    expect(unlisted(forms.flatMap(([path, text]) => declarationsIn(path, text)))).toEqual([
+      "generic.ts: Generic",
+      "expression.ts: Expression",
+      "default.ts: default",
+      "aliased.ts: Aliased",
+      "parenthesised.ts: Parenthesised",
+    ]);
   });
 
   it("the detector: a new class extending Error, or extending a listed or found error, is caught", () => {

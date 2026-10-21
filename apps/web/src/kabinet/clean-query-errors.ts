@@ -65,17 +65,34 @@ function schemaFactsOf(error: unknown): SchemaFacts {
   return facts;
 }
 
+/**
+ * The cleaned error's name: one from the explicit list (`ERROR_CLASS_NAMES`), anything else
+ * `Error`; and never `APIError` (F8-F1-D9). Better Auth and better-call take any error named
+ * `APIError` for one (`isAPIError` reads the name), and answer it from its `status`, which a
+ * cleaned error doesn't carry: better-call's `toResponse` throws a TypeError on it. A database
+ * failure under an `APIError` is a plain 500.
+ */
+function cleanedNameOf(error: unknown): string {
+  const name = errorClassNameOf(error);
+  return name === "APIError" ? "Error" : name;
+}
+
 function cleaned(error: unknown, depth: number): CleanedQueryError {
-  if (error instanceof CleanedQueryError) return error;
-  const cause = field(error, "cause");
-  const cleanedCause =
-    depth < CAUSE_DEPTH && typeof cause === "object" && cause !== null
-      ? cleaned(cause, depth + 1)
-      : undefined;
-  // Drizzle's own error has no SQLSTATE or names of its own: they're the driver's, its cause's.
-  const facts = { ...schemaFactsOf(cleanedCause), ...schemaFactsOf(error) };
-  // A name from the explicit list only (`ERROR_CLASS_NAMES`): anything else is shown as `Error`.
-  return new CleanedQueryError(errorClassNameOf(error), facts, cleanedCause);
+  try {
+    if (error instanceof CleanedQueryError) return error;
+    const cause = field(error, "cause");
+    const cleanedCause =
+      depth < CAUSE_DEPTH && typeof cause === "object" && cause !== null
+        ? cleaned(cause, depth + 1)
+        : undefined;
+    // Drizzle's own error has no SQLSTATE or names of its own: they're the driver's, its cause's.
+    const facts = { ...schemaFactsOf(cleanedCause), ...schemaFactsOf(error) };
+    return new CleanedQueryError(cleanedNameOf(error), facts, cleanedCause);
+  } catch {
+    // A getter or a Proxy that throws while being read: nothing of it is kept, its own error
+    // included (the review of 73d03fa, finding 3).
+    return new CleanedQueryError("Error", {});
+  }
 }
 
 /** `error`, cleaned (`CleanedQueryError`); one already cleaned is returned as it is. */
@@ -136,21 +153,33 @@ function isQueryError(error: unknown): boolean {
   return name === "PostgresError" || name === "NeonDbError";
 }
 
-/** How many links of a `cause` chain are looked at before the chain is treated as holding one. */
-const CHAIN_LIMIT = 64;
+/** How many errors the walk looks at before it stops. */
+const WALK_LIMIT = 64;
 
 /**
- * Whether `error` or anything down its `cause` chain is a raw query error (`isQueryError`). A
- * cycle ends the walk (each link is visited once); a chain longer than `CHAIN_LIMIT` counts as
- * holding one, so the answer on doubt is "clean it" (F8-F1-D7, the review of 78c888f, note 3).
+ * Whether what a transaction callback threw must be cleaned rather than passed through as itself:
+ * a raw query error (`isQueryError`) is in it, under `cause` or under `errors` (an
+ * `AggregateError`'s list, or any error carrying one), at any depth; or the walk stopped before it
+ * could show there is none. It stops on an error reached twice (a loop, or one error held in two
+ * places), past `WALK_LIMIT` errors, or on a read that throws, and a stopped walk always cleans.
+ * Oleksii, 2026-10-21, verbatim: "when the cause walk stops (a loop or 64 links), the error is
+ * cleaned (fail closed), never passed through." (F8-F1-D7, amended.)
  */
-function holdsQueryError(error: unknown): boolean {
-  const seen = new Set<unknown>();
-  let link: unknown = error;
-  while (typeof link === "object" && link !== null && !seen.has(link)) {
-    if (seen.size >= CHAIN_LIMIT || isQueryError(link)) return true;
-    seen.add(link);
-    link = field(link, "cause");
+function mustBeCleaned(error: unknown): boolean {
+  const seen = new Set<object>();
+  const pending: unknown[] = [error];
+  try {
+    while (pending.length > 0) {
+      const next = pending.pop();
+      if (typeof next !== "object" || next === null) continue;
+      if (seen.has(next) || seen.size >= WALK_LIMIT || isQueryError(next)) return true;
+      seen.add(next);
+      pending.push(field(next, "cause"));
+      const errors = field(next, "errors");
+      if (Array.isArray(errors)) pending.push(...errors);
+    }
+  } catch {
+    return true;
   }
   return false;
 }
@@ -162,9 +191,8 @@ function holdsQueryError(error: unknown): boolean {
  *
  * What the callback throws reaches the caller unchanged (an `APIError`, Drizzle's rollback, a
  * statement's error already cleaned): it is the callback's answer, not a database error. Two
- * exceptions are cleaned: an error holding a raw query error anywhere in its `cause` chain (one
- * the callback let through from some other handle, or wrapped as its own error's cause:
- * `holdsQueryError`), and anything the transaction itself raises (BEGIN, COMMIT, a savepoint, or
+ * exceptions are cleaned: an error holding a raw query error under `cause` or `errors` at any
+ * depth, or one whose walk stops on a loop or the limit (`mustBeCleaned`), and anything the transaction itself raises (BEGIN, COMMIT, a savepoint, or
  * neon-http's "no transactions", whose callback never runs).
  */
 function cleanedTransaction(method: Method, receiver: object) {
@@ -186,7 +214,7 @@ function cleanedTransaction(method: Method, receiver: object) {
     try {
       return await Reflect.apply(method, receiver, [cleanedCallback, ...rest]);
     } catch (error) {
-      if (thrown !== undefined && thrown.error === error && !holdsQueryError(error)) throw error;
+      if (thrown !== undefined && thrown.error === error && !mustBeCleaned(error)) throw error;
       throw cleanedQueryError(error);
     }
   };

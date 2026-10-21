@@ -80,18 +80,25 @@ line or thrown error; every caller that reads a SQLSTATE behaves as before.
 **F8-F1 (2026-10-21), the PW1-F8 review's five notes:** a transaction on the cleaned handle hands
 its callback the transaction cleaned, so a statement failing inside it is cleaned at the statement.
 What the callback throws (an `APIError`, Drizzle's rollback, a plain error) reaches the caller as the
-same object, unless a raw query error is in it or anywhere down its `cause` chain: that is cleaned,
-as is anything the transaction itself raises (neon-http has no transactions: its refusal is cleaned
-as before). Every kabinet page, route and procedure reads through `kabinetDb()`
+same object, unless the walk over it finds a raw query error: the walk follows `cause` and `errors`
+(an `AggregateError`'s list, or any error carrying one), from the thrown error down, at any depth.
+If the walk stops first (on a loop, past 64 errors, or on a read that throws), the throw is cleaned
+too (fail closed, his rule). A cleaned error is never named `APIError`, so Better Auth answers it as
+a plain 500. Anything the transaction itself raises is cleaned (neon-http has no transactions: its
+refusal is cleaned as before). Every kabinet page, route and procedure reads through `kabinetDb()`
 (`apps/web/src/kabinet/kabinet-db.ts`, the served database cleaned), pinned by
 `kabinet-db.test.ts`. `kabinet-db-scan.test.ts` walks the import closure from every kabinet page,
-route and module and `proxy.ts`, through `@/` and relative imports into any folder, and fails if a
-reached module imports `getDb` or uses `createDatabase`; `kabinet-db.ts` is its one exception. In
+route and module and `proxy.ts`, through `@/` and relative imports (static, re-exported, and
+dynamic of a literal) into any folder, comments ignored, and fails if a reached module imports
+`getDb` or uses `createDatabase`, or loads a module in a way it can't follow (a non-literal
+`import()`, `createRequire`, a namespace or dynamic load of `@opika/db`); `kabinet-db.ts` is its one
+exception. In
 log text, a snake_case schema or constant name (`auth_user_email_unique`, `INTERNAL_SERVER_ERROR`)
 is no longer masked as a token; a hex or base64url token still is. Error names are allow-listed: a
 cleaned error, a log line and `maskedLogValue` show a name only from the fixed list in
 `error-class-name.ts` (the standard JS errors, the library errors the code meets, and each of our
-own error classes, by name; his (c)); anything else, a non-string name included, is `Error`.
+own error classes, by name; his (c)); anything else, a non-string name or one whose read throws
+included, is `Error`.
 
 ## 4. Contract
 

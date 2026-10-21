@@ -4,7 +4,8 @@
 server-side half is now built: Phase E0 landed §1-§4 (`gallery.list`,
 `gallery.relaxationCounts`, `wait_anchor_at` and both indexes, `reserved` carrying
 `publishedAt`, `buildFeedPredicate`), and §5's in-process router client landed earlier in
-C7 (`apps/web/src/api/server-client.ts`) — the gallery Server Component that calls it is
+C7 (`apps/web/src/api/router-client.ts` since F8-F1; `server-client.ts` is its default-handle
+wrapper for the public pages) — the gallery Server Component that calls it is
 E1. Sections marked "Correction ... (as built)" record where the implementation
 deliberately departed from what is written above them. This is still what the rest of
 Phase E in `docs/build-plan.md` builds from, and what its definition of done is checked
@@ -524,7 +525,7 @@ the new procedures are added to `contract` in the same commit as the router wiri
 As of Phase E0, `gallery.list` and `gallery.relaxationCounts` are only reachable over the
 HTTP route (`apps/web/src/app/api/rpc/[...rpc]/route.ts`), because nothing calls this
 section's in-process mechanism for them yet — `serverComponentRouter`
-(`apps/web/src/api/server-client.ts`) deliberately doesn't include them until a Server
+(`apps/web/src/api/router-client.ts` since F8-F1) deliberately doesn't include them until a Server
 Component actually needs to. Over that HTTP path they inherit the same generic,
 cost-agnostic per-IP limiter (`apiRateLimiter`, 100 requests/minute, `apps/web/src/api/
 rate-limit.ts`) every other procedure gets — not unlimited, no special exception carved

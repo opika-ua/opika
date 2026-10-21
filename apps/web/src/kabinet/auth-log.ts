@@ -73,6 +73,16 @@ export function maskedLogText(text: string): string {
  * object is not printed at all: Better Auth passes user info, request data and the like as objects.
  */
 export function maskedLogValue(value: unknown): string {
+  try {
+    return maskedValueOf(value);
+  } catch {
+    // A getter or a Proxy that throws while being read (its `name` included): fail closed, so the
+    // line still goes out and the getter's own error never does (the review of 73d03fa, finding 3).
+    return "Error";
+  }
+}
+
+function maskedValueOf(value: unknown): string {
   if (isAPIError(value)) {
     const code = stringField(field(value, "body"), "code");
     return `APIError ${String(value.status)}${code !== null && /^[A-Z0-9_]+$/.test(code) ? ` ${code}` : ""}`;

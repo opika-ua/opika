@@ -34,12 +34,19 @@ const ROOTS = [
 const ENTRY_FILES = ["proxy.ts"];
 
 /**
- * The justified exceptions, each with its reason. Kept exact: an entry that no longer holds the
- * raw handle, or that the walk no longer reaches, fails the test too, so the list can't go stale.
+ * The justified exceptions: a module, the one finding it may have, and why. Kept exact: an entry
+ * whose module no longer has that finding, or that the walk no longer reaches, fails the test too,
+ * so the list can't go stale. A non-literal `import()` or `createRequire` in a reached module
+ * would need an entry here, proven the same way; none has one today.
  */
-const ALLOWED: Readonly<Record<string, string>> = {
-  "kabinet/kabinet-db.ts": "the one place the raw handle is wrapped",
+const ALLOWED: Readonly<Record<string, { use: string; why: string }>> = {
+  "kabinet/kabinet-db.ts": {
+    use: "imports ../api/db",
+    why: "the one place the raw handle is wrapped",
+  },
 };
+const allowed = (offence: { key: string; use: string }) =>
+  Object.hasOwn(ALLOWED, offence.key) && ALLOWED[offence.key]?.use === offence.use;
 
 const SOURCE = /\.(?:ts|tsx)$/;
 const TEST = /\.(?:test|harness)\.(?:ts|tsx)$/;
@@ -64,20 +71,50 @@ function sourcesUnder(root: string): string[] {
 }
 
 /**
+ * `text` without its comments, so a comment can neither hide an import (`/* c *\/ import …` on one
+ * line) nor fake one. A `//` right after a `:` is kept (a URL in a string).
+ */
+const withoutComments = (text: string) =>
+  text.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:\\])\/\/[^\n]*/g, "$1");
+
+/** A dynamic `import()` of a literal: quotes, or a template literal with nothing interpolated. */
+const LITERAL_IMPORT = /\bimport\s*\(\s*(["'`])([^"'`$]*)\1\s*\)/g;
+
+/**
  * Every module `text` loads: static imports and re-exports (a whole-statement `import type` or
- * `export type` loads nothing and is skipped), side-effect imports, and dynamic `import()`.
+ * `export type` loads nothing and is skipped), side-effect imports, and a dynamic `import()` of a
+ * literal.
  */
 function loadedSpecifiers(text: string): string[] {
+  const code = withoutComments(text);
   const out: string[] = [];
   const statement =
     /(?:^|[\n;])\s*(?:import|export)\s+(type\s+)?(?:[^'";]*?\s+from\s*)?["']([^"']+)["']/g;
-  for (const match of text.matchAll(statement)) {
+  for (const match of code.matchAll(statement)) {
     if (match[1] === undefined && match[2] !== undefined) out.push(match[2]);
   }
-  for (const match of text.matchAll(/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g)) {
-    if (match[1] !== undefined) out.push(match[1]);
+  for (const match of code.matchAll(LITERAL_IMPORT)) {
+    if (match[2] !== undefined) out.push(match[2]);
   }
   return out;
+}
+
+/**
+ * Ways to load a module the walk can't follow, so it fails closed on them: an `import()` of
+ * anything but a literal, `createRequire`, and a namespace or dynamic load of `@opika/db` (through
+ * which `createDatabase` can be reached by a computed name).
+ */
+function unfollowableLoadIn(text: string): string | null {
+  const code = withoutComments(text);
+  const dynamic = [...code.matchAll(/\bimport\s*\(/g)].length;
+  const literal = [...code.matchAll(LITERAL_IMPORT)].length;
+  if (dynamic > literal) return "a non-literal import()";
+  if (/\bcreateRequire\b/.test(code)) return "createRequire";
+  if (/\bimport\s+\*\s+as\s+[\w$]+\s+from\s*["']@opika\/db["']/.test(code)) {
+    return "a namespace import of @opika/db";
+  }
+  if (/\bimport\s*\(\s*(["'`])@opika\/db\1\s*\)/.test(code)) return "a dynamic import of @opika/db";
+  return null;
 }
 
 /** The file `specifier` names from `fromFile`, or null for a package. Throws when a local one names none. */
@@ -117,7 +154,7 @@ function closureOf(entries: readonly string[], fs: FileSystem): Set<string> {
   return seen;
 }
 
-/** Why `text` (at `path`) holds the raw database, or null when it doesn't. */
+/** Why `text` (at `path`) holds, or may hold, the raw database; null when it doesn't. */
 function rawDatabaseUseIn(path: string, text: string, fs: FileSystem): string | null {
   for (const specifier of loadedSpecifiers(text)) {
     if (resolveLocal(specifier, path, fs) === RAW_DB_MODULE) return `imports ${specifier}`;
@@ -125,8 +162,10 @@ function rawDatabaseUseIn(path: string, text: string, fs: FileSystem): string | 
   const loadsDbPackage = loadedSpecifiers(text).some(
     (specifier) => specifier === "@opika/db" || specifier.startsWith("@opika/db/"),
   );
-  if (loadsDbPackage && /\bcreateDatabase\b/.test(text)) return "uses createDatabase";
-  return null;
+  if (loadsDbPackage && /\bcreateDatabase\b/.test(withoutComments(text))) {
+    return "uses createDatabase";
+  }
+  return unfollowableLoadIn(text);
 }
 
 const keyOf = (path: string) => relative(SRC, path).replaceAll("\\", "/");
@@ -165,13 +204,16 @@ describe("the kabinet reaches the database only through kabinetDb()", () => {
   });
 
   it("no reached module imports getDb or createDatabase, beyond the allow-list", () => {
-    expect(offences.filter((offence) => !Object.hasOwn(ALLOWED, offence.key))).toEqual([]);
+    expect(offences.filter((offence) => !allowed(offence))).toEqual([]);
   });
 
-  it("every allow-list entry is still reached and still needs its exception", () => {
-    for (const key of Object.keys(ALLOWED)) {
+  it("every allow-list entry is still reached and still has exactly its finding", () => {
+    for (const [key, { use }] of Object.entries(ALLOWED)) {
       expect([key, reachedKeys.has(key)]).toEqual([key, true]);
-      expect([key, offences.some((offence) => offence.key === key)]).toEqual([key, true]);
+      expect([key, offences.filter((offence) => offence.key === key)]).toEqual([
+        key,
+        [{ key, use }],
+      ]);
     }
   });
 
@@ -202,6 +244,21 @@ describe("the scan's detector", () => {
       ['const { getDb } = await import("../../../api/db");', "imports ../../../api/db"],
       ['import { createDatabase } from "@opika/db";', "uses createDatabase"],
       ['import * as m from "@opika/db";\nconst db = m.createDatabase(url);', "uses createDatabase"],
+      // The review of 73d03fa, finding 5.
+      ['/* c */ import { getDb } from "@/api/db";', "imports @/api/db"],
+      ["const { getDb } = await import(`@/api/db`);", "imports @/api/db"],
+      ["const m = await import(target);", "a non-literal import()"],
+      // An interpolated template literal, assembled so it isn't a template in this file.
+      [`const m = await import(\`@/api/$${"{name}"}\`);`, "a non-literal import()"],
+      [
+        'import { createRequire } from "node:module";\nconst m = createRequire(import.meta.url)(x);',
+        "createRequire",
+      ],
+      [
+        'import * as pkg from "@opika/db";\nconst make = pkg["create" + "Data" + "base"];',
+        "a namespace import of @opika/db",
+      ],
+      ['const pkg = await import("@opika/db");', "a dynamic import of @opika/db"],
     ] as const) {
       expect([source, offencesFrom({ [page]: source })]).toEqual([source, [use]]);
     }

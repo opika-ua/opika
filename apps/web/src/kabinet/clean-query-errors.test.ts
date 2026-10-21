@@ -1,4 +1,6 @@
 import { createHmac, randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { inspect } from "node:util";
 import type { Database } from "@opika/db";
 import {
@@ -39,10 +41,11 @@ import {
 import { type AnimalListingState, type ShelterId, transitionListing } from "@opika/domain";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { APIError } from "better-auth/api";
+import { APIError, isAPIError } from "better-auth/api";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { createKabinetAuth, type KabinetAuth } from "./auth";
+import { maskedAuthLogging } from "./auth-log";
 import { CleanedQueryError, cleanedQueryError, withQueryErrorsCleaned } from "./clean-query-errors";
 import { capturingSender } from "./magic-link-sender";
 import { kabinetPageLoadAllowed } from "./page-limit";
@@ -98,6 +101,16 @@ beforeEach(async () => {
     for (const spy of spies) spy.mockRestore();
   };
 });
+
+/**
+ * better-call, the router under Better Auth, as Better Auth itself resolves it (it is not a direct
+ * dependency of the web app): its `toResponse` is how a thrown `APIError` becomes the answer.
+ */
+async function betterCall(): Promise<{ toResponse: (data: unknown) => Response }> {
+  const fromBetterAuth = createRequire(createRequire(import.meta.url).resolve("better-auth"));
+  const path = fromBetterAuth.resolve("better-call").replace(/index\.cjs$/, "index.mjs");
+  return (await import(pathToFileURL(path).href)) as { toResponse: (data: unknown) => Response };
+}
 
 /** What a promise rejects with (or throws), or a marker when it resolves. */
 async function failureOf(work: Promise<unknown> | (() => Promise<unknown>)): Promise<unknown> {
@@ -279,12 +292,13 @@ describe("the cleaned error: what it keeps, what it drops", () => {
     expect(
       ["mykola", "Mykola", "OlenaPetrenkoError", "SomeDriverError", "olena"].map(named),
     ).toEqual(["Error", "Error", "Error", "Error", "Error"]);
+    // A cleaned error is never named APIError (F8-F1-D9): Better Auth would answer it as one.
     expect(["Error", "PostgresError", "NeonDbError", "TypeError", "APIError"].map(named)).toEqual([
       "Error",
       "PostgresError",
       "NeonDbError",
       "TypeError",
-      "APIError",
+      "Error",
     ]);
   });
 });
@@ -850,13 +864,37 @@ describe("a transaction on the cleaned handle (F8-F1, the PW1-F8 review's note 1
       expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
     });
 
-    it("an APIError with a raw cause is cleaned, its name kept", async () => {
+    it("an APIError with a raw cause is cleaned and named Error (F8-F1-D9): a plain 500 through Better Auth's error path, never a TypeError", async () => {
+      const { toResponse } = await betterCall();
+      // The control: an APIError holding no raw error passes as itself and stays its 403.
+      const plainRefusal = new APIError("FORBIDDEN");
+      expect(await escapingWith(plainRefusal)).toBe(plainRefusal);
+      expect(toResponse(plainRefusal).status).toBe(403);
+      // Why D9: a cleaned error still named APIError has no status, and better-call throws on it.
+      expect(() => toResponse(new CleanedQueryError("APIError", {}))).toThrow(TypeError);
+
       const refusal = new APIError("FORBIDDEN");
       Object.assign(refusal, { cause: await rawFailure() });
       const escaped = await escapingWith(refusal);
       expect(escaped).toBeInstanceOf(CleanedQueryError);
-      expect((escaped as Error).name).toBe("APIError");
+      expect([(escaped as Error).name, isAPIError(escaped)]).toEqual(["Error", false]);
       expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+      // Better Auth's error path (our onAPIError, then better-call's answer to what it throws).
+      const logged: string[] = [];
+      const capture = (line: string) => logged.push(line);
+      let answered: unknown;
+      try {
+        maskedAuthLogging({ error: capture, warn: capture, log: capture }).onAPIError.onError(
+          escaped,
+        );
+      } catch (error) {
+        answered = error;
+      }
+      const response = toResponse(answered);
+      expect([response.status, logged]).toEqual([
+        500,
+        ["[kabinet] Better Auth error: API error · Error (23505)"],
+      ]);
     });
 
     it("a two-deep chain is cleaned", async () => {
@@ -868,18 +906,70 @@ describe("a transaction on the cleaned handle (F8-F1, the PW1-F8 review's note 1
       expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
     });
 
-    it("a cyclic chain terminates: with no raw error it passes as itself; with one it is cleaned", async () => {
-      const a = new Error("a");
-      const b = new Error("b", { cause: a });
-      Object.assign(a, { cause: b });
-      expect(await escapingWith(a)).toBe(a);
+    /** Nothing of a stopped walk's errors is left: no message, query, params or detail, anywhere. */
+    const expectBare = (escaped: unknown, texts: readonly string[]) => {
+      expect(escaped).toBeInstanceOf(CleanedQueryError);
+      const inspected = shown(escaped);
+      for (const text of texts) expect([text, inspected.includes(text)]).toEqual([text, false]);
+      for (let link: unknown = escaped; link instanceof Error; link = link.cause) {
+        expect(link.message).toBe("");
+        for (const dropped of ["query", "params", "detail", "errors"]) {
+          expect([dropped, Object.hasOwn(link, dropped)]).toEqual([dropped, false]);
+        }
+      }
+    };
 
+    it("his condition: a loop with no raw error stops the walk, and is cleaned (fail closed), never passed through", async () => {
+      const a = new Error(`a ${ADDRESS}`);
+      const b = new Error(`b ${TOKEN}`, { cause: a });
+      Object.assign(a, { cause: b });
+      const escaped = await escapingWith(a);
+      expect(escaped).not.toBe(a);
+      expectBare(escaped, [ADDRESS, TOKEN]);
+    });
+
+    it("a loop that holds a raw error is cleaned", async () => {
       const raw = await rawFailure();
       const holder = new Error("holder", { cause: raw });
-      // The driver's error (raw's cause) points back at the holder: a cycle through the raw error.
+      // The driver's error (raw's cause) points back at the holder: a loop through the raw error.
       Object.assign(raw.cause as object, { cause: holder });
       const escaped = await escapingWith(holder);
-      expect(escaped).toBeInstanceOf(CleanedQueryError);
+      expectBare(escaped, [ADDRESS, "Failed query"]);
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+    });
+
+    it("his condition: a chain past 64 links, with no raw error, is cleaned", async () => {
+      let chain = new Error(`end ${ADDRESS}`);
+      for (let link = 0; link < 70; link += 1) chain = new Error(`link ${link}`, { cause: chain });
+      expectBare(await escapingWith(chain), [ADDRESS]);
+      // Within the limit and with no raw error, the callback's own error passes as itself.
+      let short = new Error("end");
+      for (let link = 0; link < 10; link += 1) short = new Error(`link ${link}`, { cause: short });
+      expect(await escapingWith(short)).toBe(short);
+    });
+
+    it("errors are walked too: an AggregateError([raw]) is cleaned (the review of 73d03fa, finding 1)", async () => {
+      const escaped = await escapingWith(new AggregateError([await rawFailure()], "several"));
+      expectBare(escaped, [ADDRESS, "Failed query"]);
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+      // With no raw error among them, an AggregateError passes as itself.
+      const plain = new AggregateError([new Error("one"), new Error("two")], "several");
+      expect(await escapingWith(plain)).toBe(plain);
+    });
+
+    it("a nested mix of cause and errors holding a raw error is cleaned", async () => {
+      const raw = await rawFailure();
+      const nested = new Error("outer", {
+        cause: new AggregateError(
+          [
+            new Error("first"),
+            Object.assign(new Error("second"), { errors: [new Error("deep", { cause: raw })] }),
+          ],
+          "several",
+        ),
+      });
+      const escaped = await escapingWith(nested);
+      expectBare(escaped, [ADDRESS, "Failed query"]);
       expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
     });
   });
