@@ -5,6 +5,16 @@ argument-hint: <phase id, e.g. E or E1, or a phase name>
 
 Implement phase **$ARGUMENTS** from `docs/build-plan.md`.
 
+> **Since 2026-10-21, `CLAUDE.md`'s "Who does what" overrides this playbook wherever they
+> differ.**
+> - A cloud builder runs Phases 1–2 and stops after pushing its branch. It reports the head SHA
+>   and the smoke it expects.
+> - It never opens a PR, never spawns a reviewer in its own session, and never merges.
+> - Reviews run on the pushed head: a fresh cloud reviewer for Tier 1, the local agent for
+>   everything else.
+> - Only blockers loop: a PASS WITH NOTES merges, and its notes go to a follow-up batch.
+> - Phase 3's follow-through and Phase 4's PR are the local agent's.
+
 ## Read first
 
 `CLAUDE.md`, `docs/standing-constraints.md`, `docs/build-plan.md`, and the sections of
@@ -80,17 +90,11 @@ For each task, in dependency order:
 3. **Commit** (green `pnpm check`, output pasted in the commit body). Nine files of finished
    work were once lost to a branch switch because they sat uncommitted for hours — commit
    after each task, not at the end.
-4. Classify the task's tier (`CLAUDE.md`'s Process tiers) and review accordingly:
-   - **Tier 1** — invoke the `opika-reviewer` subagent now, synchronously, before the next
-     task. Act on the verdict per the working loop before continuing.
-   - **Tier 2** — spawn `opika-reviewer` in the background against this commit, with a file
-     path (`docs/reviews/<branch>/<short-sha>.md`) for it to write its verdict to, and start
-     the next task immediately without waiting. Cap at two rows in flight (one building, one
-     in review); pause for one review cycle if the reviewer falls three rows behind.
-   - **Tier 3** — no per-task review; it is covered by the single PR-level pass below.
-5. Read a pending Tier 2 review file when starting a task that touches the same files as an
-   already-reviewed one, and whenever one says `STOP`. A `STOP` blocks the PR, never the
-   commit — commit and push what's done, then surface the decision per the working loop.
+4. Classify the task's tier (`CLAUDE.md`'s Process tiers) and say it in the commit body. The
+   review isn't run from this session ("Who does what"): Tier 1 goes to a fresh cloud reviewer,
+   and everything else to the local agent, both on the pushed head.
+5. A `STOP` blocks the PR, never the commit: commit and push what's done, then surface the
+   decision per the working loop.
 
 Apply `docs/standing-constraints.md` throughout. If something is genuinely ambiguous and
 Phase 1 did not settle it, stop and ask rather than guessing.
@@ -99,10 +103,10 @@ Phase 1 did not settle it, stop and ask rather than guessing.
 
 Before opening the PR, make sure every pending review has actually been read and acted on:
 
-1. Read every file under `docs/reviews/<branch>/` produced during Phase 2. Resolve any
-   `PASS WITH NOTES` not yet addressed, with its own small commit, re-reviewed the same way
-   (async for Tier 2, up to two rounds total per row — anything surviving two rounds goes into
-   the pull request as unresolved rather than being attempted a third time).
+1. Read every file under `docs/reviews/<branch>/`. A blocker gets its own small commit,
+   re-reviewed as a delta. A `PASS WITH NOTES` merges, and its notes go to the area's follow-up
+   batch. A blocker surviving two rounds goes into the pull request as unresolved rather than
+   being attempted a third time.
 2. If any review file says `STOP` and it hasn't already been surfaced to Oleksii, do that now
    per the working loop's STOP handling — the branch stays pushed with the decision pending,
    and the PR (if opened) stays a draft until it resolves.
@@ -116,6 +120,7 @@ If an unresolved `STOP` remains from step 2, stop and report. Do not open a pull
 
 ## Phase 4 — Pull request
 
+The local agent's step, never a cloud builder's ("Who does what"); it opens the PR as a draft.
 Only once `pnpm check` is green, including `next build` and the harness:
 
 ```

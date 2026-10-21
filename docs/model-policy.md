@@ -45,7 +45,7 @@ foundation costs a rewrite, and on a ten-hour week a rewrite costs a month.
 
 ## Subagents
 
-- **reviewer** — Opus, always. It is the last gate before a pull request and there is
+- **reviewer** — Opus, always. It is the last gate before a merge and there is
   no second human reviewer. Reviewing well is harder than implementing.
 - **debugger** — Opus. Root-causing is exactly the "subtly wrong" category; a cheap
   wrong diagnosis produces a fix that hides the bug rather than removing it.
