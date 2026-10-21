@@ -22,6 +22,10 @@ env:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # A hung process (a compiler held open over IPC, a stuck server) would otherwise
+    # hold the run until GitHub's 6-hour default. Recent runs (the last 30 completed,
+    # 2026-10-21): median 9.8 min, slowest 14.6; 30 leaves about twice the slowest.
+    timeout-minutes: 30
 
     services:
       postgres:
