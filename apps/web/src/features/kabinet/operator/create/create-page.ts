@@ -1,4 +1,4 @@
-import { anonymousRouterClient } from "../../../../api/server-client";
+import { routerClientOver } from "../../../../api/router-client";
 import type { KabinetPrincipal } from "../../../../kabinet/actor";
 import { registryRouter } from "../../../../kabinet/registry-router";
 import { accessOrThrow } from "../../../../kabinet/router";
@@ -37,7 +37,7 @@ export async function operatorCreatePageOf(
     if (refusal !== null) return refusal;
     throw error;
   }
-  const cities = await anonymousRouterClient(deps.db).cities.list({});
+  const cities = await routerClientOver(deps.db).cities.list({});
   return {
     kind: "create",
     cities: cities.map((city) => ({ id: city.id, name: city.name.uk })),

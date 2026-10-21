@@ -78,15 +78,20 @@ drivers' error shapes, an outage) and finds no address, token, password or `para
 line or thrown error; every caller that reads a SQLSTATE behaves as before.
 
 **F8-F1 (2026-10-21), the PW1-F8 review's five notes:** a transaction on the cleaned handle hands
-its callback the transaction cleaned, so a statement failing inside it is cleaned at the statement;
-what the callback throws (an `APIError`, Drizzle's rollback) reaches the caller unchanged, and only
-what the transaction itself raises is cleaned (neon-http has no transactions: its refusal is cleaned
+its callback the transaction cleaned, so a statement failing inside it is cleaned at the statement.
+What the callback throws (an `APIError`, Drizzle's rollback, a plain error) reaches the caller as the
+same object, unless a raw query error is in it or anywhere down its `cause` chain: that is cleaned,
+as is anything the transaction itself raises (neon-http has no transactions: its refusal is cleaned
 as before). Every kabinet page, route and procedure reads through `kabinetDb()`
-(`apps/web/src/kabinet/kabinet-db.ts`, the served database cleaned), and `kabinet-db-scan.test.ts`
-fails if a kabinet file imports `getDb` or `createDatabase` again. In log text, a snake_case
-schema or constant name (`auth_user_email_unique`, `INTERNAL_SERVER_ERROR`) is no longer masked as a
-token; a hex or base64url token still is. Error names are allow-listed: a cleaned error or a log
-line shows a name only from the explicit list in `error-class-name.ts` (his (c)), else `Error`.
+(`apps/web/src/kabinet/kabinet-db.ts`, the served database cleaned), pinned by
+`kabinet-db.test.ts`. `kabinet-db-scan.test.ts` walks the import closure from every kabinet page,
+route and module and `proxy.ts`, through `@/` and relative imports into any folder, and fails if a
+reached module imports `getDb` or uses `createDatabase`; `kabinet-db.ts` is its one exception. In
+log text, a snake_case schema or constant name (`auth_user_email_unique`, `INTERNAL_SERVER_ERROR`)
+is no longer masked as a token; a hex or base64url token still is. Error names are allow-listed: a
+cleaned error, a log line and `maskedLogValue` show a name only from the fixed list in
+`error-class-name.ts` (the standard JS errors, the library errors the code meets, and each of our
+own error classes, by name; his (c)); anything else, a non-string name included, is `Error`.
 
 ## 4. Contract
 

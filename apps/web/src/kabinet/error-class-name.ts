@@ -40,8 +40,12 @@ export const ERROR_CLASS_NAMES = [
 
 const KNOWN: ReadonlySet<string> = new Set(ERROR_CLASS_NAMES);
 
-/** `error`'s name when it is on `ERROR_CLASS_NAMES`, else `Error`. */
+/**
+ * `error`'s name when it is on `ERROR_CLASS_NAMES`, else `Error`. Never throws: a name that isn't
+ * a string (`undefined`, a number, an object, a symbol) is `Error` too, so the error being cleaned
+ * or logged is never replaced by a TypeError from reading its name (the review of 78c888f, note 2).
+ */
 export function errorClassNameOf(error: unknown): string {
-  const name = error instanceof Error ? error.name : "";
-  return KNOWN.has(name) ? name : "Error";
+  const name: unknown = error instanceof Error ? error.name : undefined;
+  return typeof name === "string" && KNOWN.has(name) ? name : "Error";
 }

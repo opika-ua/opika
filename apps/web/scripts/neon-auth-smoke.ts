@@ -47,6 +47,7 @@ import {
   newInviteToken,
 } from "../src/kabinet/invite-password";
 import { inviteTokensOf } from "../src/kabinet/invite-tokens";
+import { kabinetDbOver } from "../src/kabinet/kabinet-db";
 import { capturingSender } from "../src/kabinet/magic-link-sender";
 import { generousPasswordLimiters } from "../src/kabinet/password-limits";
 import { capturingPasswordMail } from "../src/kabinet/password-mail";
@@ -114,7 +115,7 @@ import { handleKabinetRpc } from "../src/kabinet/rpc-route";
  *      the address is verified, no password, the link used; the invitation's resend and a new
  *      link (as the registry issues one) then set the password, sign in and accept.
  *   20. F8-F1: a /kabinet page's reads through the handle every kabinet page and route now uses
- *      (`kabinetDb()`, the served database with its query errors cleaned): the principal and the
+ *      (`kabinetDbOver(db)`, the rule `kabinetDb()` applies to the served database): the principal and the
  *      password status for step 19's signed-in user, then a relational read Postgres refuses
  *      (`22P02`), which comes back cleaned: name and SQLSTATE, no message, parameters or SQL.
  *
@@ -1089,13 +1090,14 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
   );
 
   // 20. F8-F1: a /kabinet page's reads through the handle every kabinet page and route now uses
-  // (`kabinetDb()`: the served database, its query errors cleaned), over this driver: the
+  // (`kabinetDbOver`, what `kabinetDb()` applies to the served database), over this driver: the
   // principal and the password status `/kabinet` reads for step 19's signed-in user, then a
   // relational read Postgres refuses (a word bound to an integer column, 22P02). Only statuses,
   // booleans and the cleaned error's name, code and constraint are printed. Nothing is written.
   const pageName =
     "kabinet page reads through the cleaned handle (the principal and the password status; a refused read cleaned, no message, parameters or SQL)";
-  const kabinetHandle = withQueryErrorsCleaned(db);
+  // `kabinetDbOver`: the rule `kabinetDb()` applies to the served database, over this target.
+  const kabinetHandle = kabinetDbOver(db);
   const pageHeaders = new Headers({ cookie: finished.cookie, origin: BASE });
   const pagePrincipal = (
     await kabinetIdentityOf(auth, kabinetHandle, pageHeaders, new Date(), true)

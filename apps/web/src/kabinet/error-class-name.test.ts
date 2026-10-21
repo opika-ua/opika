@@ -56,6 +56,27 @@ describe("error names come from the explicit list only", () => {
     );
   });
 
+  it("a name that isn't a string gives `Error` through every caller, and never throws", () => {
+    const odd: unknown[] = [
+      undefined,
+      null,
+      42,
+      { name: "PostgresError" },
+      Symbol("PostgresError"),
+    ];
+    const withName = (name: unknown) => Object.assign(new Error(""), { name }) as Error;
+    for (const name of odd) {
+      const label = typeof name === "symbol" ? "symbol" : String(name);
+      expect([label, errorClassNameOf(withName(name))]).toEqual([label, "Error"]);
+      expect([label, shownBy.cleanedError(withName(name))]).toEqual([label, "Error"]);
+      expect([label, shownBy.maskedLogValue(withName(name))]).toEqual([label, "Error"]);
+      expect([label, shownBy.logLine(withName(name))]).toEqual([
+        label,
+        "[kabinet] Better Auth error: API error · Error",
+      ]);
+    }
+  });
+
   it("a value that isn't an Error is `Error`, whatever its name", () => {
     expect(errorClassNameOf({ name: "PostgresError" })).toBe("Error");
     expect(errorClassNameOf("PostgresError")).toBe("Error");

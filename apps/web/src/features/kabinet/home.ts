@@ -86,7 +86,7 @@ export type KabinetHomeDeps = Pick<
 /**
  * Three reads, picked, never the whole router: a page render can't write a
  * cookie, so a procedure that queues one (support entry or exit) must not be
- * reachable from here, the same rule as `api/server-client.ts`. No write is
+ * reachable from here, the same rule as `api/router-client.ts`. No write is
  * here either: the editor writes from the browser, through the API. These
  * procedures read none of the context fields given inert values below.
  */

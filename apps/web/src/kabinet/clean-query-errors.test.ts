@@ -829,6 +829,61 @@ describe("a transaction on the cleaned handle (F8-F1, the PW1-F8 review's note 1
     expect(leaks([shown(escaped)])).toEqual(none());
   });
 
+  describe("a raw query error inside the cause chain of what the callback throws (the review of 78c888f, note 3)", () => {
+    /** A raw query error, failed before the transaction (the test database has one connection). */
+    const rawFailure = async () => {
+      await db.insert(authUser).values(userRow(randomUUID(), ADDRESS));
+      const raw = await failureOf(db.insert(authUser).values(duplicateUser()));
+      expect(leaks([shown(raw)])[0], "the raw error names the address").toBeGreaterThan(0);
+      return raw as Error;
+    };
+    const escapingWith = (thrown: unknown) =>
+      failureOf(
+        withQueryErrorsCleaned(db).transaction(async () => {
+          throw thrown;
+        }),
+      );
+
+    it("an Error with a raw cause is cleaned (probe P2)", async () => {
+      const escaped = await escapingWith(new Error("x", { cause: await rawFailure() }));
+      expect(escaped).toBeInstanceOf(CleanedQueryError);
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+    });
+
+    it("an APIError with a raw cause is cleaned, its name kept", async () => {
+      const refusal = new APIError("FORBIDDEN");
+      Object.assign(refusal, { cause: await rawFailure() });
+      const escaped = await escapingWith(refusal);
+      expect(escaped).toBeInstanceOf(CleanedQueryError);
+      expect((escaped as Error).name).toBe("APIError");
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+    });
+
+    it("a two-deep chain is cleaned", async () => {
+      const outer = new Error("outer", {
+        cause: new Error("inner", { cause: await rawFailure() }),
+      });
+      const escaped = await escapingWith(outer);
+      expect(escaped).toBeInstanceOf(CleanedQueryError);
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+    });
+
+    it("a cyclic chain terminates: with no raw error it passes as itself; with one it is cleaned", async () => {
+      const a = new Error("a");
+      const b = new Error("b", { cause: a });
+      Object.assign(a, { cause: b });
+      expect(await escapingWith(a)).toBe(a);
+
+      const raw = await rawFailure();
+      const holder = new Error("holder", { cause: raw });
+      // The driver's error (raw's cause) points back at the holder: a cycle through the raw error.
+      Object.assign(raw.cause as object, { cause: holder });
+      const escaped = await escapingWith(holder);
+      expect(escaped).toBeInstanceOf(CleanedQueryError);
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+    });
+  });
+
   it("neon-http: the driver has no transactions, so the callback never runs; its refusal is cleaned as before, and no request is sent", async () => {
     const neonDb = neonHttpDatabaseAnswering({ message: "unused", code: "XX000" });
     try {

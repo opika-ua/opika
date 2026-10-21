@@ -132,8 +132,27 @@ function isQueryError(error: unknown): boolean {
   if (typeof field(error, "query") === "string" && Array.isArray(field(error, "params"))) {
     return true;
   }
-  const name = error instanceof Error ? error.name : "";
+  const name: unknown = error instanceof Error ? error.name : undefined;
   return name === "PostgresError" || name === "NeonDbError";
+}
+
+/** How many links of a `cause` chain are looked at before the chain is treated as holding one. */
+const CHAIN_LIMIT = 64;
+
+/**
+ * Whether `error` or anything down its `cause` chain is a raw query error (`isQueryError`). A
+ * cycle ends the walk (each link is visited once); a chain longer than `CHAIN_LIMIT` counts as
+ * holding one, so the answer on doubt is "clean it" (F8-F1-D7, the review of 78c888f, note 3).
+ */
+function holdsQueryError(error: unknown): boolean {
+  const seen = new Set<unknown>();
+  let link: unknown = error;
+  while (typeof link === "object" && link !== null && !seen.has(link)) {
+    if (seen.size >= CHAIN_LIMIT || isQueryError(link)) return true;
+    seen.add(link);
+    link = field(link, "cause");
+  }
+  return false;
 }
 
 /**
@@ -143,9 +162,10 @@ function isQueryError(error: unknown): boolean {
  *
  * What the callback throws reaches the caller unchanged (an `APIError`, Drizzle's rollback, a
  * statement's error already cleaned): it is the callback's answer, not a database error. Two
- * exceptions are cleaned: a raw query error the callback let through from some other handle,
- * and anything the transaction itself raises (BEGIN, COMMIT, a savepoint, or neon-http's "no
- * transactions", whose callback never runs).
+ * exceptions are cleaned: an error holding a raw query error anywhere in its `cause` chain (one
+ * the callback let through from some other handle, or wrapped as its own error's cause:
+ * `holdsQueryError`), and anything the transaction itself raises (BEGIN, COMMIT, a savepoint, or
+ * neon-http's "no transactions", whose callback never runs).
  */
 function cleanedTransaction(method: Method, receiver: object) {
   return async (callback: unknown, ...rest: unknown[]): Promise<unknown> => {
@@ -166,7 +186,7 @@ function cleanedTransaction(method: Method, receiver: object) {
     try {
       return await Reflect.apply(method, receiver, [cleanedCallback, ...rest]);
     } catch (error) {
-      if (thrown !== undefined && thrown.error === error && !isQueryError(error)) throw error;
+      if (thrown !== undefined && thrown.error === error && !holdsQueryError(error)) throw error;
       throw cleanedQueryError(error);
     }
   };
