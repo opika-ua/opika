@@ -1,11 +1,11 @@
 import { productionLocationPolicy } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
 import { clientIp } from "../../../../api/client-ip";
-import { getDb } from "../../../../api/db";
 import { requireEnv } from "../../../../api/env";
 import { SHELTER_WRITE_POLICY } from "../../../../kabinet/access";
 import { kabinetAuthAvailability } from "../../../../kabinet/auth-route";
 import { inviteCredentialsOf } from "../../../../kabinet/invite-password";
+import { kabinetDb } from "../../../../kabinet/kabinet-db";
 import { inviteLimiters, kabinetLimiters, photoUploadLimiters } from "../../../../kabinet/limiters";
 import { operatorDisplayName } from "../../../../kabinet/operator";
 import { photoUploadConfigOf } from "../../../../kabinet/photo-upload-env";
@@ -69,8 +69,8 @@ async function handle(request: Request): Promise<Response> {
   return handleKabinetRpc(request, {
     availability,
     resolve: async () => ({
-      ...(await kabinetIdentityOf(kabinetAuth(), getDb(), request.headers, now, production)),
-      db: getDb(),
+      ...(await kabinetIdentityOf(kabinetAuth(), kabinetDb(), request.headers, now, production)),
+      db: kabinetDb(),
       cursorSecret: requireEnv("CURSOR_HMAC_SECRET"),
     }),
     limiters: kabinetLimiters,

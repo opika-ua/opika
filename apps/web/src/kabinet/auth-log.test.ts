@@ -260,6 +260,39 @@ describe("the review's notes on the masking (3, 4 and 5)", () => {
     expect(maskedLogText("token Zq3vN8kLwP2x and 7f3a9c1e2b4d5f60a1b2")).toBe("token ••• and •••");
   });
 
+  it("F8-F1 (note 3): a schema or constant name is not a token, however long", () => {
+    const text =
+      "duplicate key auth_user_email_unique on kabinet_member_one_shelter_idx: INTERNAL_SERVER_ERROR " +
+      "animals_wait_anchor_filtered_idx PASSWORD_REVOKE_TRIGGER_2026 auth_session_user_id_idx";
+    expect(maskedLogText(text)).toBe(text);
+  });
+
+  it("F8-F1 (note 3): a token is still a token, underscores and all: a session token, hex, base64url, a short mixed run", () => {
+    const tokens = [
+      // Better Auth's 32-character session token.
+      TOKEN,
+      // Hex: 40 characters, no underscore.
+      "7f3a9c1e2b4d5f60a1b27f3a9c1e2b4d5f60a1b2",
+      // base64url with underscores and dashes, mixed case and digits within its parts.
+      "q8_Zr3-vN8kL_wP2xR7tYb4mC9hJ6sD1fG5aE",
+      // Underscored, but its parts mix case or digits: not a name.
+      "auth_Session_tok3n_abcdef",
+      "abc_DEF_ghi_jkl_mno_pqr",
+      // 12+ mixed letters and digits.
+      "Zq3vN8kLwP2x",
+    ];
+    expect(maskedLogText(tokens.join(" "))).toBe(tokens.map(() => "•••").join(" "));
+  });
+
+  it("F8-F1 (note 4): an error's name is shown only when it is on the explicit list", () => {
+    const named = (name: string) => maskedLogValue(Object.assign(new Error(""), { name }));
+    expect(
+      ["mykola", "OlenaPetrenkoError", "olena", "PostgresError", "NeonDbError", "TypeError"].map(
+        named,
+      ),
+    ).toEqual(["Error", "Error", "Error", "PostgresError", "NeonDbError", "TypeError"]);
+  });
+
   it("note 5's threshold leaves ordinary words alone: no digits, under 20 ASCII letters, or not ASCII", () => {
     const text =
       "Failed to query fallback join for model auth_account: INTERNAL_ERROR 23505 2026-10-20 " +

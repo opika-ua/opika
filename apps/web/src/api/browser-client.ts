@@ -7,7 +7,7 @@ import type { ContractRouterClient } from "@orpc/contract";
  * The subset of the contract the deck (`/tvaryny/gortaty`) may call
  * directly, over HTTP.
  *
- * Same `pick`-not-`omit` reasoning as `server-client.ts`'s
+ * Same `pick`-not-`omit` reasoning as `router-client.ts`'s
  * `serverComponentRouter`: an explicit list, not `typeof contract` minus
  * what's excluded, so a procedure added to the contract later doesn't
  * become callable from client-side JavaScript by default.

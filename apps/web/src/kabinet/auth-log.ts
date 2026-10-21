@@ -1,5 +1,6 @@
 import { APIError, isAPIError } from "better-auth/api";
 import { maskAddress } from "./email-senders";
+import { errorClassNameOf } from "./error-class-name";
 import { field, stringField } from "./fields";
 import { sqlStateOf } from "./sql-state";
 
@@ -16,13 +17,24 @@ const URL_PATTERN = /https?:\/\/[^\s"'<>]+/g;
 const TOKEN_RUN = /[A-Za-z0-9_+=-]{12,}/g;
 
 /**
+ * A schema or constant name, snake_case in one case: `auth_user_email_unique`,
+ * `kabinet_member_one_shelter_idx`, `INTERNAL_SERVER_ERROR`. Words of letters joined by single
+ * underscores (a part may be a number), all lower or all upper case. Why it is safe to keep: hex
+ * has no underscore, and a base64url token mixes cases and digits within its parts, so a token
+ * reads this way by chance about as often as 32 random characters fall in 27 of 64 values.
+ */
+const IDENTIFIER = /^(?:[a-z]+(?:_(?:[a-z]+|[0-9]+))+|[A-Z]+(?:_(?:[A-Z]+|[0-9]+))+)$/;
+
+/**
  * A token, a hash, a secret: any run of 20 or more such characters, or a run of 12 or more that
- * mixes letters and digits. The second catches a short token (the review's note 5: 19 characters
- * passed) without masking words: a word has no digits, and these are ASCII runs only, so Ukrainian
- * text never matches. A long word (20+ ASCII letters) is masked; that was so before too.
+ * mixes letters and digits, unless it reads as an identifier (`IDENTIFIER`; F8-F1, the PW1-F8
+ * review's note 3: constraint names were masked). The second rule catches a short token (the
+ * review's note 5: 19 characters passed) without masking words: a word has no digits, and these
+ * are ASCII runs only, so Ukrainian text never matches. A long word (20+ ASCII letters, camelCase
+ * included) is masked; that was so before too.
  */
 const TOKEN_SHAPED = (run: string): boolean =>
-  run.length >= 20 || (/[0-9]/.test(run) && /[A-Za-z]/.test(run));
+  !IDENTIFIER.test(run) && (run.length >= 20 || (/[0-9]/.test(run) && /[A-Za-z]/.test(run)));
 
 /** An address masked as `maskAddress` does, decoded first if it came URL-encoded. */
 const maskedAddress = (match: string): string => {
@@ -61,16 +73,26 @@ export function maskedLogText(text: string): string {
  * object is not printed at all: Better Auth passes user info, request data and the like as objects.
  */
 export function maskedLogValue(value: unknown): string {
+  try {
+    return maskedValueOf(value);
+  } catch {
+    // A getter or a Proxy that throws while being read (its `name` included): fail closed, so the
+    // line still goes out and the getter's own error never does (the review of 73d03fa, finding 3).
+    return "Error";
+  }
+}
+
+function maskedValueOf(value: unknown): string {
   if (isAPIError(value)) {
     const code = stringField(field(value, "body"), "code");
     return `APIError ${String(value.status)}${code !== null && /^[A-Z0-9_]+$/.test(code) ? ` ${code}` : ""}`;
   }
   // Only a real error is shown by its name: any other object with a `name` is user data (a
   // display name), and is shown as `[object]` like the rest (the review's note 3).
+  // A name from the explicit list only (`ERROR_CLASS_NAMES`, F8-F1): any other name may be a person's.
   if (value instanceof Error) {
-    const name = value.name;
     const code = sqlStateOf(value);
-    return `${/^[A-Za-z]+$/.test(name) ? name : "Error"}${code === null ? "" : ` (${code})`}`;
+    return `${errorClassNameOf(value)}${code === null ? "" : ` (${code})`}`;
   }
   if (typeof value === "string") return maskedLogText(value);
   if (typeof value === "number" || typeof value === "boolean") return String(value);

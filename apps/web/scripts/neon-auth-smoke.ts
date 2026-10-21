@@ -47,6 +47,7 @@ import {
   newInviteToken,
 } from "../src/kabinet/invite-password";
 import { inviteTokensOf } from "../src/kabinet/invite-tokens";
+import { kabinetDbOver } from "../src/kabinet/kabinet-db";
 import { capturingSender } from "../src/kabinet/magic-link-sender";
 import { generousPasswordLimiters } from "../src/kabinet/password-limits";
 import { capturingPasswordMail } from "../src/kabinet/password-mail";
@@ -113,6 +114,10 @@ import { handleKabinetRpc } from "../src/kabinet/rpc-route";
  *   19. PW-2 review finding 4: the POST with the credential's insert failed (forced, unsent):
  *      the address is verified, no password, the link used; the invitation's resend and a new
  *      link (as the registry issues one) then set the password, sign in and accept.
+ *   20. F8-F1: a /kabinet page's reads through the handle every kabinet page and route now uses
+ *      (`kabinetDbOver(db)`, the rule `kabinetDb()` applies to the served database): the principal and the
+ *      password status for step 19's signed-in user, then a relational read Postgres refuses
+ *      (`22P02`), which comes back cleaned: name and SQLSTATE, no message, parameters or SQL.
  *
  * Nothing is sent anywhere: the magic link is captured in memory, never
  * printed. Refuses unless the target's compute is exactly `--expect`, and
@@ -1082,6 +1087,37 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       credentialAfter &&
       finishedMember,
     `forced POST ${failedUse.status}; between: verified ${verifiedBetween}, credential ${credentialBetween}, same link ${sameLinkAgain}; resend ${resent.kind}, page ${resentPage}, POST ${finished.status}, cookie ${finished.cookie !== ""}, credential ${credentialAfter}, member ${finishedMember}`,
+  );
+
+  // 20. F8-F1: a /kabinet page's reads through the handle every kabinet page and route now uses
+  // (`kabinetDbOver`, what `kabinetDb()` applies to the served database), over this driver: the
+  // principal and the password status `/kabinet` reads for step 19's signed-in user, then a
+  // relational read Postgres refuses (a word bound to an integer column, 22P02). Only statuses,
+  // booleans and the cleaned error's name, code and constraint are printed. Nothing is written.
+  const pageName =
+    "kabinet page reads through the cleaned handle (the principal and the password status; a refused read cleaned, no message, parameters or SQL)";
+  // `kabinetDbOver`: the rule `kabinetDb()` applies to the served database, over this target.
+  const kabinetHandle = kabinetDbOver(db);
+  const pageHeaders = new Headers({ cookie: finished.cookie, origin: BASE });
+  const pagePrincipal = (
+    await kabinetIdentityOf(auth, kabinetHandle, pageHeaders, new Date(), true)
+  ).principal.kind;
+  const pagePassword = await kabinetActorRepo(kabinetHandle).hasPassword(stranded.userId);
+  const refusedRead = await failureOf(
+    kabinetHandle.query.shelters.findFirst({
+      where: (shelter, { eq }) => eq(shelter.version, marker as never),
+    }),
+  );
+  const refusedFacts = factsOf(refusedRead);
+  check(
+    pageName,
+    pagePrincipal === "shelter_admin" &&
+      pagePassword &&
+      refusedRead !== null &&
+      refusedFacts.code === "22P02" &&
+      refusedFacts.noText &&
+      refusedFacts.noValues,
+    `principal ${pagePrincipal}, password set ${pagePassword}; refused read ${refusedFacts.name} ${refusedFacts.code}, no message text ${refusedFacts.noText}, no values or SQL ${refusedFacts.noValues}`,
   );
   return out;
 }

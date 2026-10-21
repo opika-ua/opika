@@ -791,7 +791,7 @@ void (async () => { await import("./kabinet/runtime"); })();
 
   it("the check itself sees one: kabinet/runtime.ts does import both", () => {
     expect(heavyImports(closure(join(SRC, "kabinet/runtime.ts")))).toEqual(
-      expect.arrayContaining(["kabinet/runtime.ts: ../api/db", "kabinet/auth.ts: better-auth"]),
+      expect.arrayContaining(["kabinet/kabinet-db.ts: ../api/db", "kabinet/auth.ts: better-auth"]),
     );
   });
 });

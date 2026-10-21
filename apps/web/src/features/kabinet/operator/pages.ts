@@ -29,7 +29,7 @@ import { HISTORY_PAGE, SHELTERS_PAGE, type ShelterListFilters } from "./list-par
  *
  * **Picked and read-only.** Four reads, never the whole router: no page render
  * may reach a write, and `registry.support.enter` sets a cookie, which a
- * render can't do (the same reason `api/server-client.ts` picks). Writes go
+ * render can't do (the same reason `api/router-client.ts` picks). Writes go
  * from the browser to `/api/kabinet/registry/*` (R-UI 3), which carries the
  * Origin check, the per-user limit and the 503 without the location key.
  */

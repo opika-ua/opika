@@ -1,4 +1,6 @@
 import { createHmac, randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { inspect } from "node:util";
 import type { Database } from "@opika/db";
 import {
@@ -14,7 +16,14 @@ import {
   superAdminRepo,
   swipeRepo,
 } from "@opika/db/repos";
-import { authAccount, authInvitation, authSession, authUser, superAdmins } from "@opika/db/schema";
+import {
+  authAccount,
+  authInvitation,
+  authSession,
+  authUser,
+  authVerification,
+  superAdmins,
+} from "@opika/db/schema";
 import {
   downDatabase,
   failingDriverDatabase,
@@ -30,10 +39,13 @@ import {
   truncateAll,
 } from "@opika/db/test";
 import { type AnimalListingState, type ShelterId, transitionListing } from "@opika/domain";
-import { APIError } from "better-auth/api";
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError, isAPIError } from "better-auth/api";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { createKabinetAuth, type KabinetAuth } from "./auth";
+import { maskedAuthLogging } from "./auth-log";
 import { CleanedQueryError, cleanedQueryError, withQueryErrorsCleaned } from "./clean-query-errors";
 import { capturingSender } from "./magic-link-sender";
 import { kabinetPageLoadAllowed } from "./page-limit";
@@ -89,6 +101,16 @@ beforeEach(async () => {
     for (const spy of spies) spy.mockRestore();
   };
 });
+
+/**
+ * better-call, the router under Better Auth, as Better Auth itself resolves it (it is not a direct
+ * dependency of the web app): its `toResponse` is how a thrown `APIError` becomes the answer.
+ */
+async function betterCall(): Promise<{ toResponse: (data: unknown) => Response }> {
+  const fromBetterAuth = createRequire(createRequire(import.meta.url).resolve("better-auth"));
+  const path = fromBetterAuth.resolve("better-call").replace(/index\.cjs$/, "index.mjs");
+  return (await import(pathToFileURL(path).href)) as { toResponse: (data: unknown) => Response };
+}
 
 /** What a promise rejects with (or throws), or a marker when it resolves. */
 async function failureOf(work: Promise<unknown> | (() => Promise<unknown>)): Promise<unknown> {
@@ -262,6 +284,22 @@ describe("the cleaned error: what it keeps, what it drops", () => {
     expect(factsOf(cleanedQueryError(`${ADDRESS}`))).toEqual({ name: "Error", message: "" });
     const odd = Object.assign(new Error(TOKEN), { name: ADDRESS, code: "olena" });
     expect(factsOf(cleanedQueryError(odd))).toEqual({ name: "Error", message: "" });
+  });
+
+  it("F8-F1 (note 4): a name is kept only when it is on the explicit list (his (c))", () => {
+    const named = (name: string) => cleanedQueryError(Object.assign(new Error(""), { name })).name;
+    // A person's name, in any case or shaped like a class, is not on the list.
+    expect(
+      ["mykola", "Mykola", "OlenaPetrenkoError", "SomeDriverError", "olena"].map(named),
+    ).toEqual(["Error", "Error", "Error", "Error", "Error"]);
+    // A cleaned error is never named APIError (F8-F1-D9): Better Auth would answer it as one.
+    expect(["Error", "PostgresError", "NeonDbError", "TypeError", "APIError"].map(named)).toEqual([
+      "Error",
+      "PostgresError",
+      "NeonDbError",
+      "TypeError",
+      "Error",
+    ]);
   });
 });
 
@@ -438,15 +476,18 @@ describe("our callers read the cleaned error exactly as they read the raw one", 
     expect(outcomes[1]).toEqual(outcomes[0]);
   });
 
-  it("23505 in Better Auth: its adapter's duplicate user write rejects with the same SQLSTATE and constraint, and the route answers the same empty 500", async () => {
-    const outcomes = await bothWays(async (handle) => {
-      await handle.insert(authUser).values(userRow(randomUUID(), ADDRESS));
-      // Better Auth 1.6.33 inspects no SQLSTATE itself: a unique violation in its own write
-      // propagates to its caller. Over the raw handle (Better Auth's adapter, built directly) and
-      // over ours, it must propagate the same.
-      const auth = authOver(handle);
+  it("23505 in Better Auth: a duplicate user write rejects with the same SQLSTATE and constraint through its adapter over the raw handle as through the served instance (the cleaned one)", async () => {
+    // Better Auth 1.6.33 inspects no SQLSTATE itself: a unique violation in its own write
+    // propagates to its caller. The raw side is Better Auth's adapter built directly over the
+    // raw handle (`rawAuthOver`); the cleaned side is the served instance, which wraps its handle.
+    type UserWrite = { email: string; name: string; emailVerified: boolean };
+    const duplicateThrough = async (
+      context: Promise<{ internalAdapter: { createUser: (user: UserWrite) => Promise<unknown> } }>,
+    ) => {
+      await truncateAll(db);
+      await db.insert(authUser).values(userRow(randomUUID(), ADDRESS));
       const error = await failureOf(
-        (await auth.$context).internalAdapter.createUser({
+        (await context).internalAdapter.createUser({
           email: ADDRESS,
           name: "Олена",
           emailVerified: true,
@@ -455,12 +496,45 @@ describe("our callers read the cleaned error exactly as they read the raw one", 
       const pg = (
         error as { cause?: { code?: string; constraint_name?: string; constraint?: string } }
       ).cause;
-      return { state: sqlStateOf(error), constraint: pg?.constraint_name ?? pg?.constraint };
-    });
-    expect(outcomes[0]).toEqual({ state: "23505", constraint: "auth_user_email_unique" });
-    expect(outcomes[1]).toEqual(outcomes[0]);
+      return {
+        cleaned: error instanceof CleanedQueryError,
+        state: sqlStateOf(error),
+        constraint: pg?.constraint_name ?? pg?.constraint,
+      };
+    };
+    const raw = await duplicateThrough(rawAuthOver(db).$context);
+    const served = await duplicateThrough(authOver(db).$context);
+    expect(raw).toEqual({ cleaned: false, state: "23505", constraint: "auth_user_email_unique" });
+    expect(served).toEqual({ ...raw, cleaned: true });
   });
 });
+
+/**
+ * Better Auth with its Drizzle adapter built directly over `handle`, nothing wrapped: the raw
+ * side of a raw-vs-cleaned comparison (F8-F1, the PW1-F8 review's note 2). The served instance's
+ * model names, so its adapter writes the same tables.
+ */
+function rawAuthOver(handle: Database) {
+  return betterAuth({
+    baseURL: BASE,
+    secret: SECRET,
+    logger: { disabled: true },
+    database: drizzleAdapter(handle, {
+      provider: "pg",
+      transaction: false,
+      schema: {
+        auth_user: authUser,
+        auth_session: authSession,
+        auth_account: authAccount,
+        auth_verification: authVerification,
+      },
+    }),
+    user: { modelName: "auth_user" },
+    session: { modelName: "auth_session" },
+    account: { modelName: "auth_account" },
+    verification: { modelName: "auth_verification" },
+  });
+}
 
 /** An instance over `handle`, as the served one is built (its own handle cleaned inside). */
 function authOver(handle: Database): KabinetAuth {
@@ -637,6 +711,285 @@ describe("a /kabinet page load during a database outage (the principal path)", (
     expect(
       await failureOf(kabinetSessionUserIdOf(throwing(refusal), db, signedInHeaders(), new Date())),
     ).toBe(refusal);
+  });
+});
+
+describe("a transaction on the cleaned handle (F8-F1, the PW1-F8 review's note 1)", () => {
+  /** A unique violation inside the transaction: a real driver error, its parameters the address. */
+  const duplicateUser = () => userRow(randomUUID(), ADDRESS);
+  const usersNamed = async (name: string) =>
+    (await db.select({ name: authUser.name }).from(authUser)).filter((row) => row.name === name)
+      .length;
+
+  it("a statement that fails inside the callback is cleaned at the statement: the callback sees a CleanedQueryError, and the caller the same one", async () => {
+    await db.insert(authUser).values(userRow(randomUUID(), ADDRESS));
+    // The control: the same statement in a transaction on the raw handle fails raw in the callback.
+    let rawSeen: unknown;
+    await failureOf(
+      db.transaction(async (tx) => {
+        rawSeen = await failureOf(tx.insert(authUser).values(duplicateUser()));
+        throw rawSeen;
+      }),
+    );
+    expect(leaks([shown(rawSeen)])[0], "the raw error names the address").toBeGreaterThan(0);
+
+    let seen: unknown;
+    const escaped = await failureOf(
+      withQueryErrorsCleaned(db).transaction(async (tx) => {
+        await tx
+          .insert(authUser)
+          .values({ ...userRow(randomUUID(), "kept@example.org"), name: TOKEN });
+        seen = await failureOf(tx.insert(authUser).values(duplicateUser()));
+        throw seen;
+      }),
+    );
+    expect(seen).toBeInstanceOf(CleanedQueryError);
+    expect(escaped).toBe(seen);
+    expect(leaks([shown(seen), String(seen)])).toEqual(none());
+    expect(factsOf(seen)).toMatchObject({
+      message: "",
+      code: "23505",
+      constraint: "auth_user_email_unique",
+      cause: { name: "PostgresError", message: "", code: "23505" },
+    });
+    for (const dropped of ["query", "params", "detail"]) {
+      expect([dropped, Object.hasOwn(seen as object, dropped)]).toEqual([dropped, false]);
+    }
+    // Rolled back: the first insert is gone.
+    expect(await usersNamed(TOKEN)).toBe(0);
+  });
+
+  it("what the callback throws reaches the caller unchanged: an APIError, Drizzle's rollback, a plain error", async () => {
+    const clean = withQueryErrorsCleaned(db);
+    const refusal = new APIError("FORBIDDEN");
+    const plain = new Error("the callback's own answer");
+    const apiError = await failureOf(
+      clean.transaction(async (tx) => {
+        await tx
+          .insert(authUser)
+          .values({ ...userRow(randomUUID(), "a@example.org"), name: TOKEN });
+        throw refusal;
+      }),
+    );
+    let rollbackThrown: unknown;
+    const rolledBack = await failureOf(
+      clean.transaction(async (tx) => {
+        await tx
+          .insert(authUser)
+          .values({ ...userRow(randomUUID(), "b@example.org"), name: TOKEN });
+        try {
+          tx.rollback();
+        } catch (error) {
+          rollbackThrown = error;
+          throw error;
+        }
+      }),
+    );
+    const plainError = await failureOf(
+      clean.transaction(async () => {
+        throw plain;
+      }),
+    );
+    expect(apiError).toBe(refusal);
+    expect(rolledBack).toBe(rollbackThrown);
+    // Drizzle's own class, its name and message intact (its name is `DrizzleError`, its base's).
+    expect([(rolledBack as Error).constructor.name, (rolledBack as Error).message]).toEqual([
+      "TransactionRollbackError",
+      "Rollback",
+    ]);
+    expect(plainError).toBe(plain);
+    expect(plain.message).toBe("the callback's own answer");
+    expect(await usersNamed(TOKEN)).toBe(0);
+  });
+
+  it("a commit still commits, and a nested transaction (a savepoint) is cleaned the same way", async () => {
+    await db.insert(authUser).values(userRow(randomUUID(), ADDRESS));
+    const refusal = new APIError("CONFLICT");
+    let innerSeen: unknown;
+    const outcome = await withQueryErrorsCleaned(db).transaction(async (tx) => {
+      await tx.insert(authUser).values({ ...userRow(randomUUID(), "c@example.org"), name: TOKEN });
+      const innerFailure = await failureOf(
+        tx.transaction(async (inner) => {
+          innerSeen = await failureOf(inner.insert(authUser).values(duplicateUser()));
+          throw innerSeen;
+        }),
+      );
+      const innerRefusal = await failureOf(
+        tx.transaction(async () => {
+          throw refusal;
+        }),
+      );
+      return { innerFailure, innerRefusal };
+    });
+    expect(innerSeen).toBeInstanceOf(CleanedQueryError);
+    expect(outcome.innerFailure).toBe(innerSeen);
+    expect(outcome.innerRefusal).toBe(refusal);
+    expect(leaks([shown(innerSeen)])).toEqual(none());
+    expect(await usersNamed(TOKEN), "the outer transaction committed").toBe(1);
+  });
+
+  it("a raw query error the callback lets through from another handle is cleaned on its way out", async () => {
+    await db.insert(authUser).values(userRow(randomUUID(), ADDRESS));
+    // Failed before the transaction: the test database's one connection is the transaction's.
+    const raw = await failureOf(db.insert(authUser).values(duplicateUser()));
+    expect(leaks([shown(raw)])[0], "the raw error names the address").toBeGreaterThan(0);
+    const escaped = await failureOf(
+      withQueryErrorsCleaned(db).transaction(async () => {
+        throw raw;
+      }),
+    );
+    expect(escaped).toBeInstanceOf(CleanedQueryError);
+    expect(sqlStateOf(escaped)).toBe("23505");
+    expect(leaks([shown(escaped)])).toEqual(none());
+  });
+
+  describe("a raw query error inside the cause chain of what the callback throws (the review of 78c888f, note 3)", () => {
+    /** A raw query error, failed before the transaction (the test database has one connection). */
+    const rawFailure = async () => {
+      await db.insert(authUser).values(userRow(randomUUID(), ADDRESS));
+      const raw = await failureOf(db.insert(authUser).values(duplicateUser()));
+      expect(leaks([shown(raw)])[0], "the raw error names the address").toBeGreaterThan(0);
+      return raw as Error;
+    };
+    const escapingWith = (thrown: unknown) =>
+      failureOf(
+        withQueryErrorsCleaned(db).transaction(async () => {
+          throw thrown;
+        }),
+      );
+
+    it("an Error with a raw cause is cleaned (probe P2)", async () => {
+      const escaped = await escapingWith(new Error("x", { cause: await rawFailure() }));
+      expect(escaped).toBeInstanceOf(CleanedQueryError);
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+    });
+
+    it("an APIError with a raw cause is cleaned and named Error (F8-F1-D9): a plain 500 through Better Auth's error path, never a TypeError", async () => {
+      const { toResponse } = await betterCall();
+      // The control: an APIError holding no raw error passes as itself and stays its 403.
+      const plainRefusal = new APIError("FORBIDDEN");
+      expect(await escapingWith(plainRefusal)).toBe(plainRefusal);
+      expect(toResponse(plainRefusal).status).toBe(403);
+      // Why D9: a cleaned error still named APIError has no status, and better-call throws on it.
+      expect(() => toResponse(new CleanedQueryError("APIError", {}))).toThrow(TypeError);
+
+      const refusal = new APIError("FORBIDDEN");
+      Object.assign(refusal, { cause: await rawFailure() });
+      const escaped = await escapingWith(refusal);
+      expect(escaped).toBeInstanceOf(CleanedQueryError);
+      expect([(escaped as Error).name, isAPIError(escaped)]).toEqual(["Error", false]);
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+      // Better Auth's error path (our onAPIError, then better-call's answer to what it throws).
+      const logged: string[] = [];
+      const capture = (line: string) => logged.push(line);
+      let answered: unknown;
+      try {
+        maskedAuthLogging({ error: capture, warn: capture, log: capture }).onAPIError.onError(
+          escaped,
+        );
+      } catch (error) {
+        answered = error;
+      }
+      const response = toResponse(answered);
+      expect([response.status, logged]).toEqual([
+        500,
+        ["[kabinet] Better Auth error: API error · Error (23505)"],
+      ]);
+    });
+
+    it("a two-deep chain is cleaned", async () => {
+      const outer = new Error("outer", {
+        cause: new Error("inner", { cause: await rawFailure() }),
+      });
+      const escaped = await escapingWith(outer);
+      expect(escaped).toBeInstanceOf(CleanedQueryError);
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+    });
+
+    /** Nothing of a stopped walk's errors is left: no message, query, params or detail, anywhere. */
+    const expectBare = (escaped: unknown, texts: readonly string[]) => {
+      expect(escaped).toBeInstanceOf(CleanedQueryError);
+      const inspected = shown(escaped);
+      for (const text of texts) expect([text, inspected.includes(text)]).toEqual([text, false]);
+      for (let link: unknown = escaped; link instanceof Error; link = link.cause) {
+        expect(link.message).toBe("");
+        for (const dropped of ["query", "params", "detail", "errors"]) {
+          expect([dropped, Object.hasOwn(link, dropped)]).toEqual([dropped, false]);
+        }
+      }
+    };
+
+    it("his condition: a loop with no raw error stops the walk, and is cleaned (fail closed), never passed through", async () => {
+      const a = new Error(`a ${ADDRESS}`);
+      const b = new Error(`b ${TOKEN}`, { cause: a });
+      Object.assign(a, { cause: b });
+      const escaped = await escapingWith(a);
+      expect(escaped).not.toBe(a);
+      expectBare(escaped, [ADDRESS, TOKEN]);
+    });
+
+    it("a loop that holds a raw error is cleaned", async () => {
+      const raw = await rawFailure();
+      const holder = new Error("holder", { cause: raw });
+      // The driver's error (raw's cause) points back at the holder: a loop through the raw error.
+      Object.assign(raw.cause as object, { cause: holder });
+      const escaped = await escapingWith(holder);
+      expectBare(escaped, [ADDRESS, "Failed query"]);
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+    });
+
+    it("his condition: a chain past 64 links, with no raw error, is cleaned", async () => {
+      let chain = new Error(`end ${ADDRESS}`);
+      for (let link = 0; link < 70; link += 1) chain = new Error(`link ${link}`, { cause: chain });
+      expectBare(await escapingWith(chain), [ADDRESS]);
+      // Within the limit and with no raw error, the callback's own error passes as itself.
+      let short = new Error("end");
+      for (let link = 0; link < 10; link += 1) short = new Error(`link ${link}`, { cause: short });
+      expect(await escapingWith(short)).toBe(short);
+    });
+
+    it("errors are walked too: an AggregateError([raw]) is cleaned (the review of 73d03fa, finding 1)", async () => {
+      const escaped = await escapingWith(new AggregateError([await rawFailure()], "several"));
+      expectBare(escaped, [ADDRESS, "Failed query"]);
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+      // With no raw error among them, an AggregateError passes as itself.
+      const plain = new AggregateError([new Error("one"), new Error("two")], "several");
+      expect(await escapingWith(plain)).toBe(plain);
+    });
+
+    it("a nested mix of cause and errors holding a raw error is cleaned", async () => {
+      const raw = await rawFailure();
+      const nested = new Error("outer", {
+        cause: new AggregateError(
+          [
+            new Error("first"),
+            Object.assign(new Error("second"), { errors: [new Error("deep", { cause: raw })] }),
+          ],
+          "several",
+        ),
+      });
+      const escaped = await escapingWith(nested);
+      expectBare(escaped, [ADDRESS, "Failed query"]);
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+    });
+  });
+
+  it("neon-http: the driver has no transactions, so the callback never runs; its refusal is cleaned as before, and no request is sent", async () => {
+    const neonDb = neonHttpDatabaseAnswering({ message: "unused", code: "XX000" });
+    try {
+      let ran = false;
+      const refused = await failureOf(
+        withQueryErrorsCleaned(neonDb.db).transaction(async () => {
+          ran = true;
+        }),
+      );
+      expect(ran).toBe(false);
+      expect(refused).toBeInstanceOf(CleanedQueryError);
+      expect(factsOf(refused)).toEqual({ name: "Error", message: "" });
+      expect(neonDb.requests()).toBe(0);
+    } finally {
+      neonDb.restore();
+    }
   });
 });
 

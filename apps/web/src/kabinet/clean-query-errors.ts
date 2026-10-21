@@ -1,3 +1,4 @@
+import { errorClassNameOf } from "./error-class-name";
 import { field, stringField } from "./fields";
 
 /**
@@ -40,8 +41,6 @@ export class CleanedQueryError extends Error {
 type SchemaFacts = Partial<Record<(typeof SCHEMA_NAMES)[number][number] | "code", string>>;
 
 const SQLSTATE = /^[0-9A-Z]{5}$/;
-/** A class name (`Error`, `PostgresError`, `NeonDbError`); anything else is shown as `Error`. */
-const ERROR_NAME = /^[A-Za-z]{1,64}$/;
 /** Each schema name under neon-http's spelling, then postgres-js's. */
 const SCHEMA_NAMES = [
   ["constraint", "constraint_name"],
@@ -66,17 +65,34 @@ function schemaFactsOf(error: unknown): SchemaFacts {
   return facts;
 }
 
+/**
+ * The cleaned error's name: one from the explicit list (`ERROR_CLASS_NAMES`), anything else
+ * `Error`; and never `APIError` (F8-F1-D9). Better Auth and better-call take any error named
+ * `APIError` for one (`isAPIError` reads the name), and answer it from its `status`, which a
+ * cleaned error doesn't carry: better-call's `toResponse` throws a TypeError on it. A database
+ * failure under an `APIError` is a plain 500.
+ */
+function cleanedNameOf(error: unknown): string {
+  const name = errorClassNameOf(error);
+  return name === "APIError" ? "Error" : name;
+}
+
 function cleaned(error: unknown, depth: number): CleanedQueryError {
-  if (error instanceof CleanedQueryError) return error;
-  const cause = field(error, "cause");
-  const cleanedCause =
-    depth < CAUSE_DEPTH && typeof cause === "object" && cause !== null
-      ? cleaned(cause, depth + 1)
-      : undefined;
-  // Drizzle's own error has no SQLSTATE or names of its own: they're the driver's, its cause's.
-  const facts = { ...schemaFactsOf(cleanedCause), ...schemaFactsOf(error) };
-  const name = error instanceof Error ? error.name : "";
-  return new CleanedQueryError(ERROR_NAME.test(name) ? name : "Error", facts, cleanedCause);
+  try {
+    if (error instanceof CleanedQueryError) return error;
+    const cause = field(error, "cause");
+    const cleanedCause =
+      depth < CAUSE_DEPTH && typeof cause === "object" && cause !== null
+        ? cleaned(cause, depth + 1)
+        : undefined;
+    // Drizzle's own error has no SQLSTATE or names of its own: they're the driver's, its cause's.
+    const facts = { ...schemaFactsOf(cleanedCause), ...schemaFactsOf(error) };
+    return new CleanedQueryError(cleanedNameOf(error), facts, cleanedCause);
+  } catch {
+    // A getter or a Proxy that throws while being read: nothing of it is kept, its own error
+    // included (the review of 73d03fa, finding 3).
+    return new CleanedQueryError("Error", {});
+  }
 }
 
 /** `error`, cleaned (`CleanedQueryError`); one already cleaned is returned as it is. */
@@ -87,16 +103,17 @@ const cleanHandles = new WeakSet<object>();
 
 /**
  * `target` with each method it inherits (Drizzle's session or prepared query: `execute`, `all`,
- * `values`, `prepareQuery`, `transaction`, `batch`, `count`) cleaning what it throws or rejects
- * with, and a prepared query it hands out wrapped the same way. Own function-valued properties
- * (the driver's client) are left alone: Drizzle calls them inside the wrapped methods, which is
- * where their failures are caught.
+ * `values`, `prepareQuery`, `batch`, `count`) cleaning what it throws or rejects with, and a
+ * prepared query it hands out wrapped the same way; `transaction` as `cleanedTransaction` says.
+ * Own function-valued properties (the driver's client) are left alone: Drizzle calls them inside
+ * the wrapped methods, which is where their failures are caught.
  */
 function cleaning<T extends object>(target: T): T {
   const proxy: T = new Proxy(target, {
     get(object, property) {
       const value = Reflect.get(object, property, object);
       if (typeof value !== "function" || Object.hasOwn(object, property)) return value;
+      if (property === "transaction") return cleanedTransaction(value, proxy);
       return (...args: unknown[]) => {
         let result: unknown;
         try {
@@ -119,6 +136,88 @@ function cleaning<T extends object>(target: T): T {
     },
   });
   return proxy;
+}
+
+/** Whatever `Reflect.apply` can call: a method read off a Drizzle object. */
+type Method = Parameters<typeof Reflect.apply>[0];
+
+/**
+ * Drizzle's query error (`DrizzleQueryError`: the statement's `query` and `params`) or a driver's
+ * own (`PostgresError`, `NeonDbError`). Read by shape: the web app doesn't depend on drizzle-orm.
+ */
+function isQueryError(error: unknown): boolean {
+  if (typeof field(error, "query") === "string" && Array.isArray(field(error, "params"))) {
+    return true;
+  }
+  const name: unknown = error instanceof Error ? error.name : undefined;
+  return name === "PostgresError" || name === "NeonDbError";
+}
+
+/** How many errors the walk looks at before it stops. */
+const WALK_LIMIT = 64;
+
+/**
+ * Whether what a transaction callback threw must be cleaned rather than passed through as itself:
+ * a raw query error (`isQueryError`) is in it, under `cause` or under `errors` (an
+ * `AggregateError`'s list, or any error carrying one), at any depth; or the walk stopped before it
+ * could show there is none. It stops on an error reached twice (a loop, or one error held in two
+ * places), past `WALK_LIMIT` errors, or on a read that throws, and a stopped walk always cleans.
+ * Oleksii, 2026-10-21, verbatim: "when the cause walk stops (a loop or 64 links), the error is
+ * cleaned (fail closed), never passed through." (F8-F1-D7, amended.)
+ */
+function mustBeCleaned(error: unknown): boolean {
+  const seen = new Set<object>();
+  const pending: unknown[] = [error];
+  try {
+    while (pending.length > 0) {
+      const next = pending.pop();
+      if (typeof next !== "object" || next === null) continue;
+      if (seen.has(next) || seen.size >= WALK_LIMIT || isQueryError(next)) return true;
+      seen.add(next);
+      pending.push(field(next, "cause"));
+      const errors = field(next, "errors");
+      if (Array.isArray(errors)) pending.push(...errors);
+    }
+  } catch {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * `method` (a session's or a transaction's `transaction`), with its callback handed the
+ * transaction cleaned (`withQueryErrorsCleaned`), so a statement that fails inside the callback
+ * is cleaned at that statement, as on the top-level handle (F8-F1, the PW1-F8 review's note 1).
+ *
+ * What the callback throws reaches the caller unchanged (an `APIError`, Drizzle's rollback, a
+ * statement's error already cleaned): it is the callback's answer, not a database error. Two
+ * exceptions are cleaned: an error holding a raw query error under `cause` or `errors` at any
+ * depth, or one whose walk stops on a loop or the limit (`mustBeCleaned`), and anything the transaction itself raises (BEGIN, COMMIT, a savepoint, or
+ * neon-http's "no transactions", whose callback never runs).
+ */
+function cleanedTransaction(method: Method, receiver: object) {
+  return async (callback: unknown, ...rest: unknown[]): Promise<unknown> => {
+    let thrown: { error: unknown } | undefined;
+    const cleanedCallback =
+      typeof callback === "function"
+        ? async (tx: unknown) => {
+            try {
+              return await callback(
+                typeof tx === "object" && tx !== null ? withQueryErrorsCleaned(tx) : tx,
+              );
+            } catch (error) {
+              thrown = { error };
+              throw error;
+            }
+          }
+        : callback;
+    try {
+      return await Reflect.apply(method, receiver, [cleanedCallback, ...rest]);
+    } catch (error) {
+      if (thrown !== undefined && thrown.error === error && !mustBeCleaned(error)) throw error;
+      throw cleanedQueryError(error);
+    }
+  };
 }
 
 /** `target` reading `session` (and each of `overrides`) from the given functions, on first use. */
@@ -156,8 +255,9 @@ function once<T>(compute: () => T): () => T {
  * Cleaned at Drizzle's session, which every statement goes through on both drivers: a query
  * builder reads `this.session` when it is built, so a builder built from this handle executes
  * through the cleaning one; `db._.session` and the relational builders (`db.query.*`, which keep
- * the session they were built with) are given it too. What's raised is caught after Drizzle has
- * wrapped the driver's error, so nothing of either survives but the facts listed above.
+ * the session they were built with) are given it too, and a transaction's callback is handed the
+ * transaction cleaned the same way (`cleanedTransaction`, F8-F1). What's raised is caught after
+ * Drizzle has wrapped the driver's error, so nothing of either survives but the facts listed above.
  *
  * One limit: a proxy that calls `db`'s methods on `db` itself, not on the proxy (the tests'
  * `steppedDatabase`), builds from the original session, so wrapping it here cleans nothing it
@@ -195,7 +295,12 @@ export function withQueryErrorsCleaned<D extends object>(db: D): D {
       ]),
     );
   });
-  const handle = withSession(db, cleanSession, { _: internals, query: relational });
+  // A transaction's own `transaction` (a savepoint) doesn't go through the session's: cleaned here.
+  const transaction = once(() => {
+    const value = Reflect.get(db, "transaction");
+    return typeof value === "function" ? cleanedTransaction(value, handle) : value;
+  });
+  const handle: D = withSession(db, cleanSession, { _: internals, query: relational, transaction });
   cleanedHandles.set(db, handle);
   cleanHandles.add(handle);
   return handle;

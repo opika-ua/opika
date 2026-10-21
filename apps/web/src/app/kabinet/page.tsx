@@ -3,7 +3,6 @@ import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { getDb } from "../../api/db";
 import { requireEnv } from "../../api/env";
 import { kabinetHomeOf } from "../../features/kabinet/home";
 import { JoinFailedCard } from "../../features/kabinet/JoinFailedCard";
@@ -12,6 +11,7 @@ import { OPERATOR_HOME } from "../../features/kabinet/routes";
 import { ShelterProfile } from "../../features/kabinet/ShelterProfile";
 import { SHELTER_WRITE_POLICY } from "../../kabinet/access";
 import { invitationAccepter, selfHealingIdentity } from "../../kabinet/invitation-accept";
+import { kabinetDb } from "../../kabinet/kabinet-db";
 import { operatorNameOf, standaloneOperatorName } from "../../kabinet/operator";
 import { kabinetIdentityOf } from "../../kabinet/principal";
 import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "./available-auth";
@@ -34,7 +34,7 @@ export default async function KabinetHomePage() {
   const { invites, baseURL } = kabinetAvailabilityOrNotFound();
   const now = new Date();
   const production = process.env.NODE_ENV === "production";
-  const db = getDb();
+  const db = kabinetDb();
   const requestHeaders = new Headers(await headers());
   const resolve = () => kabinetIdentityOf(auth, db, requestHeaders, now, production);
   const healed = await selfHealingIdentity(await resolve(), {
