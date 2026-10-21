@@ -1755,7 +1755,12 @@ export const uk = {
       pageTitle: "Запрошення до кабінету",
       /** Heading of the one page every link that can't be used gets (PW-2 Q1). */
       unusableTitle: "Цим запрошенням не можна скористатися",
-      expired: "Запрошення більше не дійсне. Напишіть мені — я надішлю нове.",
+      /**
+       * His 2026-10-21 revision (PW-2 review, Q2 (b)): one text for every broken link, whether
+       * the password was already set with it or not (`docs/h2-invite-copy-sheet.md` L).
+       */
+      expired:
+        "Посилання вже не діє. Якщо пароль уже створено — увійдіть. Якщо ні — напишіть мені, і я надішлю нове запрошення.",
       signIn: "Перейти до входу",
     },
     /**

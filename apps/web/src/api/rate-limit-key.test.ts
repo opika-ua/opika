@@ -165,6 +165,7 @@ describe("no limiter key carries the raw IP (EM-Q11)", () => {
           perIp,
           ip,
           credentials: {
+            markVerified: async () => {},
             createCredential: async () => {},
             signIn: async () => ({ kind: "refused" }),
           },

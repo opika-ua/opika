@@ -1890,3 +1890,29 @@ describe("designer round 1 fur copy (his text, 2026-10-20)", () => {
     expect(uk.detail.coatLong).not.toBe(uk.filters.coatLong);
   });
 });
+
+/**
+ * PW-2, the one page every broken invitation link gets: unknown, expired, used, replaced,
+ * withdrawn, an operator's, one that already has a password, a member's, a pre-PW-2 id link.
+ * Oleksii, 2026-10-21, Q2 (b), verbatim: "The shared “link no longer works” page gets this text:
+ * «Посилання вже не діє. Якщо пароль уже створено — увійдіть. Якщо ні — напишіть мені, і я
+ * надішлю нове запрошення.» Keep the «Перейти до входу» button. It’s still one identical page for
+ * every broken link. Update its test and the exact copy check." Transcribed from his message,
+ * never read from `uk.ts`. It replaces «Запрошення більше не дійсне. Напишіть мені — я надішлю
+ * нове.» (`docs/h2-invite-copy-sheet.md` L).
+ */
+describe("the invitation's one unusable page (his 2026-10-21 text, Q2 (b))", () => {
+  it("inviteLanding.expired is his text, character for character", () => {
+    expect(uk.kabinet.inviteLanding.expired).toBe(
+      "Посилання вже не діє. Якщо пароль уже створено — увійдіть. Якщо ні — напишіть мені, і я надішлю нове запрошення.",
+    );
+  });
+
+  it("the button stays «Перейти до входу»", () => {
+    expect(uk.kabinet.inviteLanding.signIn).toBe("Перейти до входу");
+  });
+
+  it("the replaced text is gone from the catalogue", () => {
+    expect(JSON.stringify(uk)).not.toContain("Запрошення більше не дійсне");
+  });
+});

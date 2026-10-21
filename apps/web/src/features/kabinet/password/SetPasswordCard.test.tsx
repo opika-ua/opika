@@ -102,7 +102,9 @@ describe("«Створіть пароль»", () => {
     });
     expect(document.activeElement).toBe(heading);
     expect(
-      screen.getByText("Запрошення більше не дійсне. Напишіть мені — я надішлю нове."),
+      screen.getByText(
+        "Посилання вже не діє. Якщо пароль уже створено — увійдіть. Якщо ні — напишіть мені, і я надішлю нове запрошення.",
+      ),
     ).toBeDefined();
     expect(screen.getByRole("link", { name: "Перейти до входу" }).getAttribute("href")).toBe(
       "/kabinet/vkhid",

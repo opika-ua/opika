@@ -179,7 +179,9 @@ test.describe("the invitation link sets a password (PW-2)", () => {
       page.getByRole("heading", { level: 1, name: "Цим запрошенням не можна скористатися" }),
     ).toBeVisible();
     await expect(
-      page.getByText("Запрошення більше не дійсне. Напишіть мені — я надішлю нове."),
+      page.getByText(
+        "Посилання вже не діє. Якщо пароль уже створено — увійдіть. Якщо ні — напишіть мені, і я надішлю нове запрошення.",
+      ),
     ).toBeVisible();
 
     // Sign in with the password, from that page's own link.

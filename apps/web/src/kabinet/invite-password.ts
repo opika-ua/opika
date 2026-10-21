@@ -18,12 +18,13 @@ import type { PasswordRefusal } from "./password-codes";
  *
  * - **The link's page** (`invitePasswordLandingOf`) reads the invitation its token names and
  *   shows the form, naming the shelter and the address (masked), or the one unusable page. It
- *   writes nothing, charges no budget and sends nothing, so a mail scanner opening the link,
- *   any number of times, leaves it exactly as it was.
+ *   writes nothing and sends nothing, so a mail scanner opening the link, any number of times,
+ *   leaves it exactly as it was. It adds no budget of its own; the page load counts against the
+ *   per-IP page budget, as every `/kabinet` page does (PW2-Q1 (a)).
  * - **The form's POST** (`acceptInvitationWithPassword`, the oRPC procedure
  *   `invitation.acceptWithPassword`): 20 an hour per IP; the same reading of the invitation; the
- *   policy; then the link is used up, the password written, the user signed in and the
- *   invitation accepted, in that order (below).
+ *   policy; then the link is used up, the address marked verified, the password written, the
+ *   user signed in and the invitation accepted, in that order (below).
  *
  * The token is 256 random bits (43 base64url characters), so neither the page nor the POST is an
  * oracle worth asking: guessing a live token is out of reach at any rate.
@@ -98,10 +99,11 @@ export async function invitePasswordLandingOf(
  */
 export type InviteCredentials = {
   /**
-   * Hashes with Better Auth's hasher (scrypt), writes the user's first credential through its
-   * adapter, and marks the address verified: the link reached that mailbox, as a magic link does,
-   * and the automatic accept takes only a verified address (IN-Q13).
+   * Marks the address verified, through Better Auth's adapter: the link reached that mailbox, as
+   * a magic link does, and the automatic accept takes only a verified address (IN-Q13).
    */
+  markVerified: (userId: string) => Promise<void>;
+  /** Hashes with Better Auth's hasher (scrypt) and writes the user's first credential through its adapter. */
   createCredential: (userId: string, password: string) => Promise<void>;
   /**
    * Better Auth's own password sign-in for `email`, so the session and its cookie are Better
@@ -158,22 +160,30 @@ export type AcceptWithPasswordDeps = {
  * 2. **The invitation, as the page reads it**: unusable is one answer.
  * 3. **The policy**, for the invitation's own address and shelter (§3, the same check as the
  *    reset and the change). A refused password leaves the link usable, as on a reset (PW1-D9).
- * 4. **The link is used up** (one delete): of two POSTs at once, exactly one goes on.
- * 5. **The credential is written**, through Better Auth, and the address marked verified (the
- *    link was delivered to it, the proof a magic link gives). Before the sign-in, never after
+ * 4. **The link is used up** (one delete): of two POSTs at once, exactly one goes on. Before
+ *    the writes, not after them, so only the one POST that used the link writes anything.
+ * 5. **The address is marked verified** (the link was delivered to it, the proof a magic link
+ *    gives). Before the credential (review finding 4; Oleksii, 2026-10-21, verbatim excerpt:
+ *    "Swap the two steps, so a crash between them can’t strand a shelter"): a failure after this
+ *    step and before the next leaves no password, so a resend's link reads usable and finishes.
+ *    The other way round, it left a password on an unverified address, which a resend reads as
+ *    unusable and the automatic accept refuses.
+ * 6. **The credential is written**, through Better Auth. Before the sign-in, never after
  *    (PW1-F5-N2): writing it ends every session of the user (migration 0013's trigger), so a
- *    session made first would be deleted at once.
- * 6. **The user's other reset links are voided** (PW1-F1-N1), as after a reset or a change.
- * 7. **Better Auth signs the user in** with the password just set. Its own hooks run: PW1-F6's
- *    first read happens after step 5 has committed, so both reads see the same credential and
+ *    session made first would be deleted at once. From here the address is verified and holds
+ *    a password, so a failure later is finished by signing in with it: the automatic accept
+ *    runs on that sign-in.
+ * 7. **The user's other reset links are voided** (PW1-F1-N1), as after a reset or a change.
+ * 8. **Better Auth signs the user in** with the password just set. Its own hooks run: PW1-F6's
+ *    first read happens after step 6 has committed, so both reads see the same credential and
  *    the sign-in stands. If it doesn't go through, the password still stands: `password_set`.
- * 8. **The invitation is accepted** for the signed-in user, by the automatic accept that every
+ * 9. **The invitation is accepted** for the signed-in user, by the automatic accept that every
  *    sign-in runs (IN-Q12). If it fails, the person is still signed in and `/kabinet` retries it
  *    and says so (`selfHealingIdentity`), exactly as after a magic link.
  *
- * Not one transaction (neon-http has none): a failure after step 4 leaves the link used. That
- * costs a resend, never a password on the wrong account: the address is always the
- * invitation's, never the request's.
+ * Not one transaction (neon-http has none): a failure after step 4 leaves the link used. Before
+ * step 6 that costs a resend; from step 6 on, a sign-in with the new password. Never a password
+ * on the wrong account: the address is always the invitation's, never the request's.
  */
 export async function acceptInvitationWithPassword(
   input: { token: string; password: string },
@@ -189,6 +199,7 @@ export async function acceptInvitationWithPassword(
   });
   if (verdict.kind !== "ok") return { kind: "rejected", reason: verdict.kind };
   if (!(await deps.consume(input.token, deps.now))) return UNUSABLE;
+  await deps.credentials.markVerified(state.userId);
   await deps.credentials.createCredential(state.userId, input.password);
   await deps.voidResetLinks(state.userId);
   const signedIn = await deps.credentials.signIn(state.email, input.password);
@@ -220,6 +231,10 @@ export function inviteCredentialsOf(
   requestHeaders: Headers,
 ): InviteCredentials {
   return {
+    async markVerified(userId) {
+      const context = await auth.$context;
+      await context.internalAdapter.updateUser(userId, { emailVerified: true });
+    },
     async createCredential(userId, password) {
       const context = await auth.$context;
       await context.internalAdapter.createAccount({
@@ -228,7 +243,6 @@ export function inviteCredentialsOf(
         accountId: userId,
         password: await context.password.hash(password),
       });
-      await context.internalAdapter.updateUser(userId, { emailVerified: true });
     },
     async signIn(email, password) {
       const url = new URL(SIGN_IN_PATH, baseURL);

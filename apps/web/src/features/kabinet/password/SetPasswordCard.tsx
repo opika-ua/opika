@@ -1,7 +1,7 @@
 "use client";
 
 import { fillTemplate, uk } from "@opika/i18n";
-import { type FormEvent, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { type FormEvent, useId, useLayoutEffect, useRef, useState } from "react";
 import { buttonClass } from "../../controls/controls";
 import { SHELTER_HOME, SIGN_IN_PAGE_PATH } from "../routes";
 import { CARD_BODY, CARD_MESSAGE, CARD_TITLE, CardFrame } from "./CardFrame";
@@ -9,6 +9,7 @@ import { InviteUnusableCard } from "./InviteUnusableCard";
 import { acceptWithPassword, type SetPasswordOutcome } from "./invitation-client";
 import { NewPasswordFields } from "./NewPasswordFields";
 import { refusalMessage } from "./password-copy";
+import { useTokenOutOfAddressBar } from "./use-token-out-of-address-bar";
 
 /** The hidden field the link's token travels in, once it has left the address bar. */
 const TOKEN_FIELD = "zaproshennia";
@@ -60,14 +61,8 @@ export function SetPasswordCard({
     if (state.kind === "unusable") titleRef.current?.focus();
   }, [state.kind]);
 
-  // His PW1-V1 rule, extended to the invitation by his PW-2 Q3: once the page has read the token
-  // (the `token` prop, now in the form's hidden field), the address bar, the history entry and
-  // anything reading `location` see the bare path.
-  useEffect(() => {
-    if (window.location.search !== "") {
-      window.history.replaceState(null, "", window.location.pathname);
-    }
-  }, []);
+  // The page has read the token (the `token` prop, now in the form's hidden field).
+  useTokenOutOfAddressBar();
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

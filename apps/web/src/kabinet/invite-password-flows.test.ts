@@ -1,4 +1,5 @@
 import { createHash, createHmac } from "node:crypto";
+import type { Database } from "@opika/db";
 import {
   cityRepo,
   INVITATION_TTL_MS,
@@ -15,20 +16,32 @@ import {
   authVerification,
   superAdmins,
 } from "@opika/db/schema";
-import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
-import type { ShelterId } from "@opika/domain";
+import {
+  failingDriverDatabase,
+  holdStatementUncommitted,
+  makeCity,
+  makeShelter,
+  postgresError,
+  setupTestDatabase,
+  truncateAll,
+} from "@opika/db/test";
+import type { ModeratorId, ShelterId } from "@opika/domain";
+import { call } from "@orpc/server";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter, type RateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
 import { createKabinetAuth, type KabinetAuth } from "./auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "./auth-route";
+import type { KabinetContext } from "./context";
 import { capturingInvitationSender } from "./email-senders";
 import { inviteCredentialsOf, invitePasswordLandingOf, newInviteToken } from "./invite-password";
 import { capturingSender } from "./magic-link-sender";
 import { type DelayStore, inMemoryDelayStore, SIGN_IN_DELAY } from "./password-limits";
 import { capturingPasswordMail } from "./password-mail";
+import { PHOTO_UPLOADS_NOT_CONFIGURED } from "./photo-uploads";
 import { kabinetIdentityOf } from "./principal";
+import { registryRouter } from "./registry-router";
 import { handleKabinetRpc } from "./rpc-route";
 
 /**
@@ -67,10 +80,11 @@ afterAll(async () => cleanup?.());
 
 const generous = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 });
 
-function build() {
+/** Better Auth over `handle`: the test's database, or one whose driver fails a statement. */
+function build(handle: Database = db) {
   delayStore = inMemoryDelayStore();
   auth = createKabinetAuth({
-    db,
+    db: handle,
     sender: capturingSender(),
     schedule: (work) => {
       pending.push(work());
@@ -170,7 +184,7 @@ const seen: string[] = [];
 async function accept(
   token: string,
   password: string,
-  opts: { cookie?: string; ip?: string } = {},
+  opts: { cookie?: string; ip?: string; db?: Database } = {},
 ): Promise<{ status: number; body: unknown; setCookies: string[] }> {
   const headers: Record<string, string> = {
     "content-type": "application/json",
@@ -187,7 +201,7 @@ async function accept(
     availability: available(),
     resolve: async () => ({
       ...(await kabinetIdentityOf(auth, db, request.headers, clock, false)),
-      db,
+      db: opts.db ?? db,
       cursorSecret: "test-cursor-secret",
     }),
     limiters: { perUser: generous(), perIp: generous() },
@@ -339,10 +353,31 @@ describe("«Створіть пароль»: set a password at the invitation (�
     expect(signedIn.status).toBe(200);
   });
 
-  it("two submissions at once: exactly one sets the password, the other is unusable", async () => {
+  /**
+   * Two submissions at once, meeting in Postgres (review finding 3): each POST on a connection of
+   * its own, the first one's consume run inside a transaction held open, so the second one's
+   * consume reaches the same row while the first one's delete holds its lock. Forced by order,
+   * never by load: the second waits on the lock (asked of `pg_blocking_pids`), and only then is
+   * the first committed. The second's delete then finds no row: exactly one sets the password.
+   */
+  it("two submissions at once, on two connections: exactly one sets the password, the other is unusable", async () => {
     const { token } = await invited();
-    const answers = await Promise.all([accept(token, GOOD), accept(token, GOOD)]);
-    expect(answers.map((a) => a.status).sort()).toEqual([200, 410]);
+    const held = holdStatementUncommitted((query) =>
+      /^delete from "auth_verification" .* like /i.test(query),
+    );
+    try {
+      const first = accept(token, GOOD, { db: held.db });
+      await held.ran;
+      // Its own connection: the test's (Better Auth's writes share it, after the release).
+      const second = accept(token, GOOD);
+      expect(await held.waitsOnIt(second), "the second consume waited on the first").toBe(true);
+      held.release();
+      const answers = await Promise.all([first, second]);
+      expect(answers.map((a) => a.status)).toEqual([200, 410]);
+      expect(errorCode(answers[1]?.body)).toBe("INVITE_UNUSABLE");
+    } finally {
+      await held.end();
+    }
     expect(
       (await db.select().from(authAccount)).filter((r) => r.providerId === "credential"),
     ).toHaveLength(1);
@@ -527,5 +562,81 @@ describe("what the link refuses, and what a refusal leaves", () => {
       (await db.select().from(authAccount)).filter((r) => r.providerId === "credential"),
     ).toHaveLength(1);
     expect((await accept(token, GOOD)).status).toBe(410);
+  });
+});
+
+/**
+ * Review finding 4; Oleksii, 2026-10-21, verbatim excerpt: "Swap the two steps, so a crash
+ * between them can’t strand a shelter. Add a test that forces the failure between the steps and
+ * shows the shelter can still finish through the invite or a resend." The POST's two writes are
+ * marking the address verified and writing the credential. The second of them, whichever it is,
+ * fails at the driver (a dropped connection), so the POST stops between the two. With the address
+ * marked first, that leaves no password: the operator's resend sends a link that works, and it
+ * sets the password and signs in. The old order left a password on an unverified address, which
+ * the resend's link reads as unusable.
+ */
+describe("a failure between the POST's two writes doesn't strand the shelter", () => {
+  /** Fails the second write to `auth_user` or `auth_account`, as a connection lost mid-request. */
+  const failingSecondWrite = () => {
+    let writes = 0;
+    return failingDriverDatabase(db, (query) => {
+      if (!/^(update "auth_user"|insert into "auth_account")/.test(query)) return undefined;
+      writes += 1;
+      return writes === 2
+        ? postgresError({ message: "connection lost", code: "08006", severity: "FATAL" })
+        : undefined;
+    });
+  };
+
+  /** The operator's «Надіслати ще раз», through the served registry procedure. */
+  async function resend(shelterId: string, adminId: string): Promise<string> {
+    const invites = capturingInvitationSender();
+    const context: KabinetContext = {
+      db,
+      now: clock,
+      newId: () => crypto.randomUUID(),
+      principal: { kind: "super_admin", moderatorId: operatorId as ModeratorId },
+      cursorSecret: "test-cursor-secret",
+      operatorDisplayName: "Олексій",
+      locationPolicy: null,
+      setCookies: [],
+      cookieHeader: null,
+      production: false,
+      invites,
+      linkBaseURL: BASE,
+      shelterWrites: SHELTER_WRITE_POLICY,
+      photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
+      invitePasswords: { kind: "off" },
+    };
+    await call(registryRouter.registry.admins.resendInvite, { shelterId, adminId }, { context });
+    const token = /[?&]zaproshennia=([A-Za-z0-9_-]{43})$/.exec(invites.sent[0]?.url ?? "")?.[1];
+    if (token === undefined) throw new Error("the resend sent no link");
+    return token;
+  }
+
+  it("the address verified, no password, the link used: a resend's link sets the password and signs in", async () => {
+    const { token, invitationId, userId, shelter } = await invited();
+    build(failingSecondWrite());
+    const failed = await accept(token, GOOD);
+    expect(failed.status).toBe(500);
+    build();
+
+    // Stopped between the two writes: verified, no credential, the link used, still pending.
+    const [user] = (await db.select().from(authUser)).filter((u) => u.id === userId);
+    expect(user?.emailVerified, "the address is marked verified").toBe(true);
+    expect(
+      (await db.select().from(authAccount)).filter((r) => r.providerId === "credential"),
+    ).toEqual([]);
+    expect((await accept(token, GOOD)).status).toBe(410);
+    expect(
+      (await db.select().from(authInvitation)).find((i) => i.id === invitationId)?.status,
+    ).toBe("pending");
+
+    // The operator resends; the new link finishes the job.
+    const fresh = await resend(shelter.id, userId);
+    const answered = await accept(fresh, GOOD);
+    expect(answered.body).toEqual({ kind: "signed_in" });
+    expect(await signedInAs(sessionCookieOf(answered.setCookies))).toBe(INVITEE);
+    expect((await db.select().from(authMember)).map((m) => m.userId)).toEqual([userId]);
   });
 });

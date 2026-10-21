@@ -52,8 +52,9 @@ export async function generateMetadata({
  * With `?zaproshennia=<token>` it is the invitation link's «Створіть пароль» instead (PW-2,
  * `kabinet/invite-password.ts`): one read of the invitation the token names, by its hash, and
  * either the form (the shelter and the address, masked) or the one unusable page. The GET
- * consumes nothing, charges no budget and sends nothing (his PW-2 Q1; `invite-landing-get.test.ts`
- * opens it twice and compares the database). Same frame, same 404 while sign-in is unavailable,
+ * consumes nothing and sends nothing (his PW-2 Q1; `invite-landing-get.test.ts` opens it twice and
+ * compares the database). It adds no budget of its own: the load counts against the per-IP page
+ * budget in `proxy.ts`, as every `/kabinet` page does (PW2-Q1 (a)). Same frame, same 404 while sign-in is unavailable,
  * same redirect home for a live session.
  */
 export default async function SignInPage({

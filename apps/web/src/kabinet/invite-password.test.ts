@@ -1,4 +1,4 @@
-import type { InviteTokenRow } from "@opika/db/repos";
+import { type InviteTokenRow, inviteTokenRowOf } from "@opika/db/repos";
 import { describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import {
@@ -115,6 +115,9 @@ function recording(overrides: Partial<AcceptWithPasswordDeps> = {}) {
     },
     ip: "198.51.100.7",
     credentials: {
+      markVerified: async (userId) => {
+        calls.push(`markVerified:${userId}`);
+      },
       createCredential: async (userId) => {
         calls.push(`createCredential:${userId}`);
       },
@@ -132,7 +135,7 @@ function recording(overrides: Partial<AcceptWithPasswordDeps> = {}) {
 const token = newInviteToken();
 
 describe("acceptInvitationWithPassword: the order of the steps", () => {
-  it("charges, reads, uses the link up, writes the credential, voids reset links, signs in, then accepts", async () => {
+  it("charges, reads, uses the link up, marks the address verified, writes the credential, voids reset links, signs in, then accepts", async () => {
     const { calls, deps } = recording();
     expect(await acceptInvitationWithPassword({ token, password: GOOD }, deps)).toEqual({
       kind: "signed_in",
@@ -142,6 +145,7 @@ describe("acceptInvitationWithPassword: the order of the steps", () => {
       "perIp",
       "lookup",
       "consume",
+      "markVerified:user-1",
       "createCredential:user-1",
       "voidResetLinks",
       "signIn:olena@example.org",
@@ -202,5 +206,60 @@ describe("acceptInvitationWithPassword: the order of the steps", () => {
     expect(await acceptInvitationWithPassword({ token, password: GOOD }, deps)).toMatchObject({
       kind: "signed_in",
     });
+  });
+});
+
+/**
+ * Review finding 1 (Oleksii, 2026-10-21, verbatim excerpt: "anything other than an explicit
+ * “not refused” counts as refused"): a row whose refusal flag a driver answered as anything but
+ * `false`, read through the repo's own normaliser (`inviteTokenRowOf`), is the one unusable
+ * answer on the page and on the POST, identical to an unknown link's, and the POST writes
+ * nothing. The normaliser's own cases: `packages/db/test/kabinet-invite-token-flags.test.ts`.
+ */
+describe("a refusal flag the driver didn't answer as false: refused, on the page and the POST", () => {
+  const driverValues: ReadonlyArray<readonly [string, unknown]> = [
+    ["true", true],
+    ["'t'", "t"],
+    ["1", 1],
+    ["null", null],
+    ["undefined", undefined],
+    ["an object", { exists: false }],
+    ["the string 'false'", "false"],
+  ];
+  const unknownLink = async () => ({
+    page: await invitePasswordLandingOf(token, { lookup: async () => null, now: NOW }),
+    post: await acceptInvitationWithPassword(
+      { token, password: GOOD },
+      recording({ lookup: async () => null }).deps,
+    ),
+  });
+
+  for (const flag of ["operator", "hasPassword", "member"] as const) {
+    it.each(driverValues)(`${flag} = %s`, async (_name, value) => {
+      const read = async () => inviteTokenRowOf({ ...row(), [flag]: value });
+      const { calls, deps } = recording();
+      deps.lookup = async () => {
+        calls.push("lookup");
+        return read();
+      };
+      const answers = {
+        page: await invitePasswordLandingOf(token, { lookup: read, now: NOW }),
+        post: await acceptInvitationWithPassword({ token, password: GOOD }, deps),
+      };
+      expect(answers).toEqual({ page: { kind: "unusable" }, post: { kind: "unusable" } });
+      expect(answers).toEqual(await unknownLink());
+      // Read, then refused: nothing used up, nothing written.
+      expect(calls).toEqual(["perIp", "lookup"]);
+    });
+  }
+
+  it("the control: every flag explicitly false is the form and a signed-in POST", async () => {
+    const lookup = async () => inviteTokenRowOf(row());
+    expect(await invitePasswordLandingOf(token, { lookup, now: NOW })).toMatchObject({
+      kind: "form",
+    });
+    expect(
+      await acceptInvitationWithPassword({ token, password: GOOD }, recording({ lookup }).deps),
+    ).toMatchObject({ kind: "signed_in" });
   });
 });

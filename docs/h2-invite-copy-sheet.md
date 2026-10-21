@@ -126,6 +126,17 @@ up, so it can't name the shelter; two keys added, both `[COPY PENDING]`:
 | `kabinet.inviteLanding.ready` | Under `pageTitle`, before anything is sent | Says where the link will go, without showing the address (EM-Q4: kept). Oleksii's draft: «Посилання для входу прийде на адресу, на яку ви отримали це запрошення.» |
 | `kabinet.inviteLanding.send` | The one button | Send the link. **Oleksii's draft (EM-Q3):** «Надіслати посилання». In code with the draft quoted inside. |
 
+**Revised by Oleksii, 2026-10-21 (PW-2 review, Q2 (b)), `kabinet.inviteLanding.expired` only.**
+His message, verbatim: "Q2: (b). The shared “link no longer works” page gets this text:
+«Посилання вже не діє. Якщо пароль уже створено — увійдіть. Якщо ні — напишіть мені, і я надішлю
+нове запрошення.» Keep the «Перейти до входу» button. It’s still one identical page for every
+broken link. Update its test and the exact copy check."
+
+| Key | Where | Text |
+|---|---|---|
+| `kabinet.inviteLanding.expired` | Under `unusableTitle`, on the one page every broken invitation link gets (unknown, expired, used, replaced, withdrawn, an operator's, one with a password already, a member's, a pre-PW-2 id link) | **Now:** «Посилання вже не діє. Якщо пароль уже створено — увійдіть. Якщо ні — напишіть мені, і я надішлю нове запрошення.» English sense: the link no longer works; if you've already created a password, sign in; if not, write to me and I'll send a new invitation. **Replaced:** «Запрошення більше не дійсне. Напишіть мені — я надішлю нове.» |
+| `kabinet.inviteLanding.signIn` | The link under it, to K1 | Kept: «Перейти до входу» |
+
 ## P. The confirm page (IN-Q11)
 
 The page every emailed sign-in link opens. Its GET only shows the button; pressing it signs in

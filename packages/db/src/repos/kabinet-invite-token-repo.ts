@@ -69,6 +69,32 @@ export type InviteTokenRow = {
   hasPassword: boolean;
 };
 
+/**
+ * The three refusal flags as a driver hands them back: typed boolean by `sql<boolean>`, but
+ * whatever the driver parsed at run time (postgres-js and neon-http both parse `bool` today).
+ */
+export type RawInviteTokenRow = Omit<InviteTokenRow, "operator" | "member" | "hasPassword"> & {
+  operator: unknown;
+  member: unknown;
+  hasPassword: unknown;
+};
+
+/**
+ * Fails closed (PW-2 review finding 1; Oleksii, 2026-10-21, verbatim excerpt: "anything other
+ * than an explicit “not refused” counts as refused"): each flag is a refusal, and only an
+ * explicit `false` lifts it. A driver that ever answered `'t'`, `1` or null, or a shape nobody
+ * expected, would otherwise make an operator's, a password holder's or a member's link usable.
+ */
+export const isRefusalFlagSet = (value: unknown): boolean => value !== false;
+
+/** `landingOf`'s row with every refusal flag read fail-closed. */
+export const inviteTokenRowOf = (raw: RawInviteTokenRow): InviteTokenRow => ({
+  ...raw,
+  operator: isRefusalFlagSet(raw.operator),
+  member: isRefusalFlagSet(raw.member),
+  hasPassword: isRefusalFlagSet(raw.hasPassword),
+});
+
 export function kabinetInviteTokenRepo(db: Database) {
   return {
     /**
@@ -130,13 +156,9 @@ export function kabinetInviteTokenRepo(db: Database) {
         .where(eq(authVerification.identifier, inviteTokenIdentifierOf(token)))
         .limit(1);
       if (row === undefined) return null;
-      // EXISTS over a missing user (the left join found none) is false, never null.
-      return {
-        ...row,
-        operator: row.operator === true,
-        member: row.member === true,
-        hasPassword: row.hasPassword === true,
-      };
+      // EXISTS is never NULL (over a missing user, the left join found none, it is false), so the
+      // SQL needs no coercion; `inviteTokenRowOf` reads anything but `false` as refused anyway.
+      return inviteTokenRowOf(row);
     },
 
     /**

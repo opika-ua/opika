@@ -930,7 +930,7 @@ export const en = {
     inviteLanding: {
       pageTitle: `Invitation to the cabinet`,
       unusableTitle: `This invitation can't be used`,
-      expired: `This invitation is no longer valid; write to me and I'll send a new one.`,
+      expired: `The link no longer works. If you've already created a password, sign in. If not, write to me and I'll send a new invitation.`,
       signIn: `Go to sign-in`,
     },
     /** The operator's reminder after an invite (IN-E13); see the Ukrainian catalogue. */

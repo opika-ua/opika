@@ -215,6 +215,30 @@ describe("the invitation link's GET (PW-2 Q1)", () => {
     await db
       .insert(superAdmins)
       .values({ id: crypto.randomUUID(), userId: operator.userId, grantedAt: NOW });
+    // Review finding 6 (PW2-D4, PW2-Q2): a password already set, a member already, a pre-PW-2 link.
+    const hasPassword = await invited("has-password@example.org", "Притулок «Пароль»");
+    await db.insert(authAccount).values({
+      id: crypto.randomUUID(),
+      accountId: hasPassword.userId,
+      providerId: "credential",
+      userId: hasPassword.userId,
+      password: "scrypt-hash-planted-for-the-test",
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    const member = await invited("member@example.org", "Притулок «Учасник»");
+    const [memberInvitation] = (await db.select().from(authInvitation)).filter(
+      (row) => row.id === member.invitationId,
+    );
+    await db.insert(authMember).values({
+      id: crypto.randomUUID(),
+      organizationId: memberInvitation?.organizationId ?? "",
+      userId: member.userId,
+      role: "admin",
+      createdAt: NOW,
+    });
+    // An invitation emailed before PW-2: its link carried the invitation id, a UUID (PW2-Q2 (a)).
+    const preDeploy = await invited("pre-deploy@example.org", "Притулок «Старе посилання»");
 
     const unusable = {
       unknown: newInviteToken(),
@@ -227,6 +251,9 @@ describe("the invitation link's GET (PW-2 Q1)", () => {
       replaced: replaced.token,
       "lapsed link": lapsedLink,
       operator: operator.token,
+      "has a password": hasPassword.token,
+      member: member.token,
+      "pre-PW-2 id link": preDeploy.invitationId,
     };
     const pages = new Map<string, string>();
     for (const [name, value] of Object.entries(unusable)) pages.set(name, await rendered(value));
