@@ -19,7 +19,7 @@ Five items:
 1. a public **shelter page**, the only place «Слова притулку» appears (§1);
 2. a **preview drawer** over the gallery (§2);
 3. **no shelter name on the card preview** (§3);
-4. **likes in localStorage**, plus a page that lists them (§4);
+4. **saved animals in localStorage** («Зберегти»; his DR1-Q3 renamed the scope's "likes"), plus a page that lists them, «Збережені тварини» (§4);
 5. a **long/short fur filter** (§5).
 
 **Out of scope: "viewed".** No "viewed" marker, no seen-history on cards, no "you looked at this"
@@ -35,7 +35,7 @@ frame.** What exists:
 - `docs/design/README.md`'s "The shelter's sentence" (the «Слова притулку» attribution, VH-Q2),
   "The gallery card" (the shelter line), "Detail (04)", "Contact reveal (05)" (the modal pattern
   this plan reuses for the drawer), "06 My reveals" (a device-only list, the nearest precedent
-  for a liked page) and "Deliberately absent" (no attention counters).
+  for the saved page) and "Deliberately absent" (no attention counters).
 - `Opika Registry Frames.dc.html`, the D1 caption: «Смужка джерела … #63676B — слова притулку»,
   the source legend on «Медичний стан» rows.
 
@@ -137,7 +137,7 @@ Source: the scope sentence; no mock frame (proposed here).
   порядок.»): the shelter page uses the gallery's two date sorts and nothing else. No "featured",
   no pinning, no shelter-chosen order.
 - **Commitment 2** (a shelter is never told someone looked): the page shows inventory only. No
-  view count, no likes count, no "N people asked". A shelter reading its own public page learns
+  view count, no saved count, no "N people asked". A shelter reading its own public page learns
   nothing about adopters.
 - **Commitment 7** (the freshness date and the sentence say only what they measure): DR1-Q1.
 - **Commitment 5** (money): the donation link stays an external link with its domain shown,
@@ -202,13 +202,13 @@ full animal page. Source: the scope sentence; no mock frame (proposed here).
   link or a no-JS click renders the full page exactly as today. So the URL in the address bar is
   always the animal's own shareable URL (the reveal modal's own reasoning, README 05), and the
   phone's back gesture closes the drawer (history, not component state).
-- **Scope of the interception:** the gallery and the liked page (§4) only. The deck
+- **Scope of the interception:** the gallery and the saved page (§4) only. The deck
   (`/tvaryny/gortaty`) and the shelter page keep full-page navigation; a harness flow pins that
   the deck's link to an animal is **not** intercepted. If Next can't scope `(.)` that narrowly
   without restructuring routes, the slice moves the gallery under a route group rather than
   widening the drawer to the deck (decision DR1-D5).
 - Contents (no shelter name, §3): the photos (`DetailPhotoGallery`), name, meta line, the
-  freshness pips and day count, the animal's description, the like control (§4), «open the full
+  freshness pips and day count, the animal's description, the save control (§4), «open the full
   page» (a link to the same URL, full navigation), and ✕. **No contact reveal in the drawer**: the
   reveal stays on the animal page, so there is still one reveal surface with its rate limit and its
   reassurance sentence (README 05, «Притулок не знає про цей запит…»).
@@ -301,7 +301,7 @@ None.
 
 ---
 
-## 4. Likes in localStorage, and a liked page
+## 4. Saved animals in localStorage, and the saved page («Збережені тварини»)
 
 **What it is.** A person can mark an animal to come back to; the marks live only in their
 browser's `localStorage`; a page lists the marked animals with their current state. Source: the
@@ -331,22 +331,25 @@ scope sentence, plus README "06 My reveals" as the nearest precedent (a device-o
 
   parsed with a Zod schema on read; anything that fails to parse is treated as empty and
   overwritten on the next write (never a crash, never a partial list). Capped at **200** items
-  (`MAX_LIKES`); at the cap, a new like is refused with a message (never a silent drop of the
+  (`MAX_LIKES`); at the cap, a new save is refused with a message (never a silent drop of the
   oldest). Same-browser tabs stay in sync through the `storage` event. When `localStorage`
   throws (private mode, blocked storage), the control still toggles for the page's lifetime and
-  the liked page says the list can't be kept on this device.
+  the saved page says the list can't be kept on this device.
 - **The control**: a toggle button (`aria-pressed`) on the drawer (§2) and the animal page. **Not
   on the gallery card** in round 1: the card is one `<a>` with no nested controls and one Tab stop
-  per animal (README "The gallery card"); a like button there means a second, sibling tab stop per
+  per animal (README "The gallery card"); a save button there means a second, sibling tab stop per
   card and a change to `ArrowKeyGrid` (decision DR1-D8, reversible once the designer's frames say
   otherwise). **Not on the deck card**: the deck's two actions are «Не зараз» and «Запитати», and a
   third one beside them would read as a stronger yes (the swipe filters, it doesn't judge).
-- **Liking records nothing on the server**: no `swipes.record`, no analytics event, nothing in the
-  session. A liked animal stays in the list and the deck exactly as before (commitment 8).
-- **The liked page**: a new route (proposed `apps/web/src/app/tvaryny/vpodobani/page.tsx`, a static
-  sibling of `[animalId]` like `gortaty`; the slug follows DR1-Q3's wording), linked from the site
-  header. Client-rendered from storage (it can't be server-rendered: the server doesn't know the
-  list). Newest like first, by `likedAt`: the person's own order, not a ranking. Each item renders
+- **Saving records nothing on the server**: no `swipes.record`, no analytics event, nothing in the
+  session. A saved animal stays in the list and the deck exactly as before (commitment 8).
+- **The saved page** («Збережені тварини», nav «Збережені», a bookmark icon, no heart: his DR1-Q3):
+  a new route at his slug `zberezheni` ("slug /zberezheni"). Whether it sits at `/zberezheni` or
+  under `/tvaryny/` is S8's call; under `/tvaryny/` it must be a static sibling of `[animalId]`
+  like `gortaty`, and the drawer's `(.)[animalId]` interception must not swallow a soft navigation
+  to it (S8 adds a harness flow proving that, as S4 did for the deck; S4's review, note 5). Linked
+  from the site header. Client-rendered from storage (it can't be server-rendered: the server doesn't know the
+  list). Newest first, by `likedAt` (an internal field name): the person's own order, not a ranking. Each item renders
   as a gallery card (no shelter name, §3) opening the drawer; an animal that is no longer
   discoverable (adopted, withdrawn, shelter paused or no longer verified) shows as "no longer
   listed" **without saying why** (the same no-leak rule as `shelters.byId`'s `NOT_FOUND`), with a
@@ -377,16 +380,16 @@ animals.cardsByIds
 
 ### Privacy and public claims
 
-- **What is stored:** animal ids and the time each was liked, in this browser only.
-- **What is sent:** under DR1-Q2 (A), the list of ids, once per visit to the liked page, without
+- **What is stored:** animal ids and the time each was saved, in this browser only.
+- **What is sent:** under DR1-Q2 (A), the list of ids, once per visit to the saved page, without
   the session cookie, and nothing is kept. Under (B) nothing is ever sent, at the cost of a stale
-  list. Under no option is a like ever written to the server.
-- **Commitment 1** (ordering): likes never reach the server, so they can't reach `scoreAnimal`,
+  list. Under no option is a save ever written to the server.
+- **Commitment 1** (ordering): saved animals never reach the server, so they can't reach `scoreAnimal`,
   the feed or the gallery. A test asserts `DEFAULT_SCORING_POLICY`'s inputs are unchanged and the
-  feed/gallery handlers receive no like data.
+  feed/gallery handlers receive no saved-list data.
 - **Commitment 2** (no engagement reported to shelters): there is nothing server-side to report.
   No shelter-facing count, ever; the kabinet gains nothing from this slice.
-- **Commitment 8** (only what she hid herself): a like hides nothing and excludes nothing.
+- **Commitment 8** (only what she hid herself): saving hides nothing and excludes nothing.
   «пам'ять лише її пристрою» stays true and gains a second device-only memory of the same kind.
 - **`/pro`:** the page today says nothing about adopter devices, and the pending R4-2 sentence says
   «сайт ставить одне кукі». A `localStorage` list isn't a cookie, but a reader who is told "one
@@ -401,17 +404,17 @@ animals.cardsByIds
 
 | Key | English sense |
 |---|---|
-| `likes.toggleOff` | button, not yet liked: "Save for later" (wording per DR1-Q3) |
-| `likes.toggleOn` | button, liked: "Saved" (accessible state via `aria-pressed`, so the label may stay one string) |
+| `likes.toggleOff` | button, not yet saved: «Зберегти» (his DR1-Q3) |
+| `likes.toggleOn` | button, saved: «Збережено» (his DR1-Q3; accessible state via `aria-pressed`, so the label may stay one string) |
 | `likes.announceAdded` / `likes.announceRemoved` | aria-live: "{name} added to / removed from your list" |
 | `likes.full` | at the cap: "Your list holds {max}; remove one to add another." |
-| `likes.page.title` | the page title: "Saved animals" |
+| `likes.page.title` | the page title: «Збережені тварини» (his DR1-Q3) |
 | `likes.page.deviceOnly` | "Kept only on this device…" **Proposed: reuse `myReveals.deviceOnly` verbatim** if its second sentence («Ми не знаємо, хто ви.») is true of this page too, which it is under DR1-Q2 (A) and (B) |
 | `likes.page.empty` | "Nothing saved yet." plus a link back to the gallery |
 | `likes.page.unavailable` | "{name} is no longer listed." (no reason) |
 | `likes.page.remove` | "Remove from the list" |
 | `likes.page.storageBlocked` | "This browser doesn't let the site keep your list." |
-| `nav.liked` | the header link |
+| `nav.liked` | the header link: «Збережені» (his §11; the key's name is internal) |
 | `about.likesSentence` | the `/pro` sentence, per DR1-Q4 |
 
 ### Tests (behaviour only)
@@ -426,12 +429,12 @@ animals.cardsByIds
   draft, unknown and unverified-shelter ids all land in `unavailable` with no way to tell them
   apart; >200 ids or duplicates → `BAD_REQUEST`; the handler reads no session (a request with a
   valid cookie and one without return the same and write nothing to `adopters`/`sessions`).
-- The liked page (component): renders from storage, newest first; unavailable items say so with
+- The saved page (component): renders from storage, newest first; unavailable items say so with
   no reason and can be removed; the empty and blocked states render.
-- Harness flow: like on the animal page → reload → the liked page lists it → remove it → empty;
+- Harness flow: save on the animal page → reload → the saved page lists it → remove it → empty;
   the request the page sends carries no `Cookie` header (checked on the request, not the code).
 - Commitment guards: a test that `scoreAnimal`'s signature and `DEFAULT_SCORING_POLICY`'s
-  components are unchanged (it fails if a like-derived input is ever added); the existing
+  components are unchanged (it fails if a saved-list-derived input is ever added); the existing
   `history-no-engagement.test.ts` stays green.
 
 **Tier: 1.** It adds a public claim (`/pro`) and a new read that touches adopter privacy.
@@ -581,8 +584,8 @@ feature PRs open at once, in different areas (WM-B1).
 | S4 | **Preview drawer** (§2) | `app/tvaryny/layout.tsx`, `app/tvaryny/@preview/**`, `features/animal-preview/*`, shared focus-trap hook from `features/controls/ModalDialog.tsx` | not 1 | none | S1 (the drawer follows the no-shelter-name rule) |
 | S5 | **Shelter page: contract** (`GalleryScope`, `PublicShelterView` pick per DR1-Q1) | `packages/contracts/src/procedures/gallery.ts`, `views/shelter.ts`, `apps/web/src/api/handlers/*`, `packages/db/src/repos/gallery-repo.ts`, tests | **1** | none | DR1-Q1 answered |
 | S6 | **Shelter page: UI**, «Слова притулку» moved per DR1-Q1, `/prytulkam` §8 and `voice.previewLabel` changed in the same PR | `app/prytulky/[shelterId]/page.tsx`, `features/shelters/*`, `features/animal-detail/*`, `features/discovery/SwipeCard.tsx` (if the sentence leaves the deck), `packages/i18n` | **1** | none | S5; DR1-Q1; his Ukrainian |
-| S7 | **Likes: store, control, `animals.cardsByIds`** | `features/likes/*`, `packages/contracts/src/procedures/animals.ts`, `apps/web/src/api/handlers/animals.ts`, `packages/db/src/repos/feed-repo.ts` | **1** | none | DR1-Q2, DR1-Q3; S4 (the control sits in the drawer) |
-| S8 | **Liked page + `/pro` sentence** | `app/tvaryny/vpodobani/page.tsx`, `features/likes/*`, `features/chrome/SiteHeader.tsx`, `packages/i18n` (`about.*`) | **1** | none | S7; DR1-Q4; his Ukrainian |
+| S7 | **Saved animals: store, control, `animals.cardsByIds`** | `features/likes/*`, `packages/contracts/src/procedures/animals.ts`, `apps/web/src/api/handlers/animals.ts`, `packages/db/src/repos/feed-repo.ts` | **1** | none | DR1-Q2, DR1-Q3; S4 (the control sits in the drawer) |
+| S8 | **The saved page («Збережені тварини») + `/pro` sentence** | the `zberezheni` route (his slug, DR1-Q3; location S8's call, with the drawer-interception harness flow), `features/likes/*`, `features/chrome/SiteHeader.tsx`, `packages/i18n` (`about.*`) | **1** | none | S7; DR1-Q4; his Ukrainian |
 
 Order of work: S1 and S2 in parallel (different areas) → S3 and S4 → S5 → S6 → S7 → S8. S5–S8
 wait on the open questions; S1–S4 don't, so building starts there while he answers.
@@ -606,14 +609,14 @@ stated. Each Tier 1 slice is reviewed before commit; the others get one review.
 ## 7. What each slice must not break
 
 - **Commitment 1:** S2/S3 (completeness unchanged, guarded), S5/S6 (date sorts only), S7/S8
-  (likes never reach ordering).
+  (saved animals never reach ordering).
 - **Commitment 2:** S6 (shelter page shows inventory only), S7/S8 (nothing server-side to report).
 - **Commitment 5:** S6 (donation link stays on the animal page, domain visible).
 - **Commitment 7:** S6 (DR1-Q1; B1 and the voice preview label change in the same PR as the move,
   so a false sentence is never live).
-- **Commitment 8:** S7/S8 (likes hide nothing).
+- **Commitment 8:** S7/S8 (saving hides nothing).
 - **Product rules:** freshness stays pips plus the day count in words (S4's drawer, S6's cards);
-  «Не записано» for unknown fur (S3); no attention counters anywhere (no like counts shown to
+  «Не записано» for unknown fur (S3); no attention counters anywhere (no saved counts shown to
   anyone, no "N saved this"); no money UI.
 
 ---
@@ -653,7 +656,7 @@ animal page: B1 says «а на сторінці тварини — ваше ре
 medical label is a source legend, not quoted speech, and renaming it buys nothing for an adopter.
 If "only there" was meant literally for the label too, (c).
 
-### DR1-Q2 · How the liked page learns the animals' current state (security / privacy)
+### DR1-Q2 · How the saved page learns the animals' current state (security / privacy)
 
 **Decision.** The list lives on the device; showing it accurately (adopted, reserved, freshness,
 photo) needs current data from the server, which means sending the ids.
@@ -661,7 +664,7 @@ photo) needs current data from the server, which means sending the ids.
 **Options.**
 - **(A) A cookieless batch read**, `animals.cardsByIds`: ids in a POST body, sent without the
   session cookie, not stored or logged, one bucket for "no longer listed".
-- **(B) Snapshot only, nothing ever sent**: store name, photo and city at like time; the page shows
+- **(B) Snapshot only, nothing ever sent**: store name, photo and city at save time; the page shows
   that snapshot and links to each animal's page.
 - **(C) Per-id `animals.byId` calls** from the page, with cookies as today.
 
@@ -673,7 +676,7 @@ photo) needs current data from the server, which means sending the ids.
   the page would have to drop the pips (a product rule says freshness is always both pips and
   words wherever it appears).
 - (C): no new procedure, but up to 200 requests per visit, each carrying the session cookie, so
-  the server could link the liked set to the anonymous session.
+  the server could link the saved set to the anonymous session.
 
 **Recommendation: (A).**
 
@@ -689,20 +692,20 @@ sit close to dating-app language; the feature is really "keep for later".
 **Consequences.** (i) matches the scope's word, risks the "match" reading the voice rules avoid.
 (ii) says what it does; the route slug and every key above follow it. (iii) as he writes it.
 
-**Recommendation: (ii)**, with the Ukrainian his. The slug (`vpodobani` proposed) follows his
+**Recommendation: (ii)**, with the Ukrainian his. The slug (`vpodobani` proposed then; his answer is `/zberezheni`) follows his
 word.
 
 ### DR1-Q4 · The `/pro` sentence about on-device storage (public claim)
 
 **Decision.** `/pro` says nothing about adopter devices today, and the pending R4-2 sentence says
-«сайт ставить одне кукі». Likes add a second thing kept on the device.
+«сайт ставить одне кукі». The saved list adds a second thing kept on the device.
 
 **Options.**
 - (a) Add one sentence to `about.data` (his Ukrainian) saying the saved list is kept only on this
   device, and, under DR1-Q2 (A), that the page asks for those cards without the cookie and keeps
   nothing; and amend R4-2 before it lands so "one cookie" isn't read as "the only thing on your
   device".
-- (b) Add the sentence only on the liked page (the `myReveals.deviceOnly` pattern), nothing on
+- (b) Add the sentence only on the saved page (the `myReveals.deviceOnly` pattern), nothing on
   `/pro`.
 
 **Consequences.** (a) keeps `/pro` a complete description of what the site keeps; two strings to
@@ -721,17 +724,17 @@ later go live describing the device incompletely.
 | DR1-D2 | Shelter page at `/prytulky/{shelterId}` (id, not a slug) | Shelters have no slug column; a slug is an additive change later. Matches the kabinet's `/kabinet/prytulky` |
 | DR1-D3 | No filter rail on the shelter page in round 1 | A shelter's list is short; avoids a scoped `relaxationCounts` |
 | DR1-D4 | The shelter's animals come from `gallery.list` with a `scope` union, not a new procedure | Stays inside the one named `OFFSET` exception and reuses the discoverable predicate and both sorts |
-| DR1-D5 | The drawer is a Next intercepting route, gallery and liked page only; the deck keeps full-page navigation | Shareable URL, back gesture closes it, no-JS degrades to the full page |
+| DR1-D5 | The drawer is a Next intercepting route, gallery and saved page only; the deck keeps full-page navigation | Shareable URL, back gesture closes it, no-JS degrades to the full page |
 | DR1-D6 | The focus trap is extracted from `ModalDialog` into a shared hook | One trap, not three |
 | DR1-D7 | No contact reveal in the drawer | One reveal surface, with its rate limit and reassurance |
-| DR1-D8 | The like control on the drawer and the animal page, not on the gallery card or the deck card | The card is one `<a>` with one Tab stop (README); a third deck action would read as a stronger yes |
-| DR1-D9 | No count on the header's liked-page link | No counters; also avoids a hydration mismatch from storage |
+| DR1-D8 | The save control on the drawer and the animal page, not on the gallery card or the deck card | The card is one `<a>` with one Tab stop (README); a third deck action would read as a stronger yes |
+| DR1-D9 | No count on the header's saved-page link | No counters; also avoids a hydration mismatch from storage |
 | DR1-D10 | Fur is optional and nullable, not a publish requirement; no backfill | Unknown is a complete answer; a backfill would invent facts about real animals |
 | DR1-D11 | A fur filter excludes animals whose fur isn't recorded; the relaxation count shows how many | Same semantics as every other dimension; the person sees what the filter cost |
 | DR1-D12 | `onboard:shelter` unchanged in round 1 | It is a production write path (Tier 1); onboarded animals start "not recorded" |
 | DR1-D13 | Fur on the animal page, not on the card's meta line | The meta line already fills a 360px card |
-| DR1-D14 | Likes stored under a brand-free key `likes.v1`, capped at 200, refusing (never dropping) past the cap | A rename never orphans a list; a silent drop would lose what the person chose |
-| DR1-D15 | Liking records nothing server-side and sends no analytics event | Commitments 1 and 2 hold by construction, not by policy |
+| DR1-D14 | The saved list stored under a brand-free key `likes.v1` (internal), capped at 200, refusing (never dropping) past the cap | A rename never orphans a list; a silent drop would lose what the person chose |
+| DR1-D15 | Saving records nothing server-side and sends no analytics event | Commitments 1 and 2 hold by construction, not by policy |
 
 ---
 
