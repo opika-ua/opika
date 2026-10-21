@@ -173,10 +173,3 @@ export const filtersFingerprint = (filters: FeedFilters): string => {
     encode(canonical.coatLengths),
   ].join("|");
 };
-
-export const isUnfiltered = (filters: FeedFilters): boolean =>
-  filters.cities.kind === "any" &&
-  filters.species.kind === "any" &&
-  filters.sizes.kind === "any" &&
-  filters.ages.kind === "any" &&
-  filters.coatLengths.kind === "any";
