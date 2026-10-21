@@ -206,8 +206,12 @@ export function SiteHeader({ children, wordmarkIsCurrentPage = false }: SiteHead
           <span className={WORDMARK_CLASS}>{WORDMARK}</span>
         </span>
       ) : (
+        // Not prefetched: `/tvaryny` is charged to the visitor's per-IP budget
+        // (`proxy.ts`), and the animal page, which the gallery's overlay
+        // shows, carries this header (DR1-S4-T3's reason, S4b).
         <Link
           href="/tvaryny"
+          prefetch={false}
           data-testid="site-wordmark"
           className="inline-flex min-h-12 items-baseline gap-3 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >

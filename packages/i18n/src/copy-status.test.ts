@@ -1892,19 +1892,19 @@ describe("designer round 1 fur copy (his text, 2026-10-20)", () => {
 });
 
 /**
- * Designer round 1, S4: the preview drawer's two strings
- * (`docs/designer-round-1.md` §11, item 3, Oleksii, 2026-10-20), transcribed
- * from that item, never read from `uk.ts`. Item 3, verbatim: "preview.openFull:
- * «Відкрити повну сторінку»" and "preview.close: yes, reuse the existing
+ * Designer round 1, S4: the preview drawer's strings (`docs/designer-round-1.md`
+ * §11, item 3, Oleksii, 2026-10-20), transcribed from that item, never read
+ * from `uk.ts`. Item 3, verbatim: "preview.close: yes, reuse the existing
  * «Закрити» label if there is one. If not: «Закрити»." `preview.close` is its
- * own key holding his word (DR1-S4-T5).
+ * own key holding his word (DR1-S4-T5). S4b (the overlay, 2026-10-21) removed
+ * the other one, his words verbatim: "Q2: yes, remove «Відкрити повну
+ * сторінку» and preview.openFull."
  */
 const DR1_PREVIEW: Record<string, string> = {
-  "preview.openFull": "Відкрити повну сторінку",
   "preview.close": "Закрити",
 };
 
-describe("designer round 1 preview drawer copy (his text, §11 item 3)", () => {
+describe("designer round 1 animal overlay copy (his text, §11 item 3; S4b)", () => {
   const atRoot = (path: string): unknown =>
     path
       .split(".")
@@ -1914,12 +1914,31 @@ describe("designer round 1 preview drawer copy (his text, §11 item 3)", () => {
     expect(atRoot(path)).toBe(text);
   });
 
-  it("the drawer has no strings beyond these two", () => {
+  it("the overlay has no strings beyond its close label", () => {
     expect(
       Object.keys(uk.preview)
         .map((key) => `preview.${key}`)
         .sort(),
     ).toEqual(Object.keys(DR1_PREVIEW).sort());
+  });
+});
+
+/**
+ * RL-F1: the animal page's rate-limited state, on the full page and the
+ * gallery's overlay. Oleksii, 2026-10-20, verbatim: "The follow-up (call it
+ * RL-1, small, not Tier 1) gives the rate-limited case its own state on both
+ * the full page and the drawer, using the existing «Забагато запитів.
+ * Спробуйте ще раз пізніше.». It never shows «Це не помилка…» for a rate
+ * limit." Transcribed from his message, never read from `uk.ts`.
+ */
+describe("RL-F1: the animal page's rate-limited state (his text)", () => {
+  it("detail.rateLimited is his sentence, exactly", () => {
+    expect(uk.detail.rateLimited).toBe("Забагато запитів. Спробуйте ще раз пізніше.");
+  });
+
+  it("says nothing the not-found state says about the card being gone", () => {
+    expect(uk.detail.rateLimited).not.toContain("Це не помилка");
+    expect(uk.detail.rateLimited).not.toContain("більше немає");
   });
 });
 

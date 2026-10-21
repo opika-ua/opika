@@ -1,6 +1,7 @@
 "use client";
 
 import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
+import { lockBodyScroll } from "./body-scroll-lock";
 
 /**
  * What Tab can land on. A natively disabled control can't take focus, so it
@@ -24,6 +25,11 @@ const FOCUSABLE =
  * next paint: one frame where the dialog is visible and the page behind it
  * still scrolls. A layout effect locks it in the commit that inserts the
  * dialog.
+ *
+ * A key a dialog stacked above this one already handled (`defaultPrevented`)
+ * is left alone: the contact reveal opens over the gallery's animal
+ * overlay, and its Escape, caught in the capture phase, must close the
+ * reveal only, not the overlay under it as well.
  *
  * Giving focus back to whatever opened the dialog stays with the caller:
  * only the caller knows whether that control still exists afterwards.
@@ -49,9 +55,9 @@ export function useModalFocus({
   }, [initialFocusRef]);
 
   useLayoutEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const releaseScroll = lockBodyScroll();
     function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
       if (event.key === "Escape") {
         onCloseRef.current();
         return;
@@ -76,7 +82,7 @@ export function useModalFocus({
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      releaseScroll();
     };
   }, [dialogRef]);
 }

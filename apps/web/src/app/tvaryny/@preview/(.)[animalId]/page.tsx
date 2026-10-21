@@ -1,54 +1,70 @@
-import { type AnimalId, AnimalIdSchema, textIn } from "@opika/domain";
-import { anonymousRouterClient } from "../../../../api/server-client";
+import { AnimalIdSchema } from "@opika/domain";
+import type { ReactNode } from "react";
+import { AnimalDetailScreen } from "../../../../features/animal-detail/AnimalDetailScreen";
 import {
-  type AnimalPreviewContent,
-  AnimalPreviewDrawer,
-} from "../../../../features/animal-preview/AnimalPreviewDrawer";
+  type AnimalOverlayNotice,
+  AnimalOverlayNoticeView,
+  overlayNoticeTitle,
+} from "../../../../features/animal-detail/AnimalPageStates";
+import {
+  type AnimalPageClient,
+  loadAnimalPage,
+} from "../../../../features/animal-detail/animal-page-load";
+import { AnimalOverlay } from "../../../../features/animal-overlay/AnimalOverlay";
 
-/** Same reasoning as the full page: the drawer reads live listing data. */
+/** Same reasoning as the full page: the overlay reads live listing data. */
 export const dynamic = "force-dynamic";
 
 /**
- * The preview drawer (designer round 1, §2, DR1-D5): a client navigation
- * from the gallery to `/tvaryny/{id}` lands here and draws the drawer over
- * the gallery, which stays mounted with its scroll, filters and page. A
- * direct load of the same URL never comes here; it renders
- * `../../[animalId]/page.tsx`, the full page.
+ * The gallery's animal overlay (designer round 1, §2; Oleksii, 2026-10-21:
+ * "One component: the gallery opens the same AnimalDetailScreen in an
+ * overlay"). A client navigation from the gallery to `/tvaryny/{id}` lands
+ * here and draws the overlay over the gallery, which stays mounted with its
+ * scroll, filters and page. A direct load of the same URL never comes here;
+ * it renders `../../[animalId]/page.tsx`, the full page.
  *
- * Reads `animals.byId`, as the full page does, and nothing else is recorded:
- * no `swipes.record`, no event. The city comes from the view itself (the
- * foster city, or the shelter's), so the drawer needs no `shelters.byId`.
+ * Same loader, same component, same props as the full page, so the overlay
+ * shows exactly what the page shows (his Q1) and the two can't drift. Only
+ * the states without an animal differ in form: the page answers them with
+ * its 404 and `/tvaryny/error.tsx`, which would replace the gallery; here
+ * they are said inside the dialog (`AnimalPageStates.tsx`).
  */
-export default async function AnimalPreviewPage({
+export default async function AnimalOverlayPage({
   params,
 }: {
   params: Promise<{ animalId: string }>;
 }) {
-  const { animalId: rawAnimalId } = await params;
-  const parsedId = AnimalIdSchema.safeParse(rawAnimalId);
-  if (!parsedId.success) return null;
-  return (
-    <AnimalPreviewDrawer animalId={parsedId.data} content={await previewContent(parsedId.data)} />
-  );
+  const { animalId } = await params;
+  return renderAnimalOverlay(animalId);
 }
 
-/**
- * `animals.byId` answers one `NOT_FOUND` for a missing, undiscoverable or
- * unverified-shelter animal alike; any failure here becomes the drawer's
- * not-found state, as the full page turns any failure of the same call into
- * its 404.
- */
-async function previewContent(animalId: AnimalId): Promise<AnimalPreviewContent> {
-  const client = anonymousRouterClient();
+/** The overlay for an id; `client` is a test's stub, the page's own client otherwise. */
+export async function renderAnimalOverlay(
+  animalId: string,
+  client?: AnimalPageClient,
+): Promise<ReactNode> {
+  // Not an animal id: some other `/tvaryny/…` path the interception's
+  // `[animalId]` pattern also fits (DR1-S4-T2 met `gortaty`). No overlay.
+  if (!AnimalIdSchema.safeParse(animalId).success) return null;
+  const openerHref = `/tvaryny/${animalId}`;
+  const notice = (kind: AnimalOverlayNotice) => (
+    <AnimalOverlay label={overlayNoticeTitle(kind)} openerHref={openerHref}>
+      <AnimalOverlayNoticeView kind={kind} />
+    </AnimalOverlay>
+  );
+
+  let load: Awaited<ReturnType<typeof loadAnimalPage>>;
   try {
-    const [animal, cities] = await Promise.all([
-      client.animals.byId({ animalId }),
-      client.cities.list({}),
-    ]);
-    const cityId = animal.publicLocation?.cityId ?? animal.shelter.publicLocation.cityId;
-    const city = cities.find((c) => c.id === cityId);
-    return { kind: "animal", animal, cityName: city ? textIn(city.name, "uk") : null };
+    load = await loadAnimalPage(animalId, client);
   } catch {
-    return { kind: "not_found" };
+    // The full page lets this reach `/tvaryny/error.tsx`; from here that
+    // boundary would replace the gallery the visitor is still using.
+    return notice("failed");
   }
+  if (load.kind !== "animal") return notice(load.kind);
+  return (
+    <AnimalOverlay label={load.view.animal.name} openerHref={openerHref}>
+      <AnimalDetailScreen {...load.view} now={new Date()} />
+    </AnimalOverlay>
+  );
 }

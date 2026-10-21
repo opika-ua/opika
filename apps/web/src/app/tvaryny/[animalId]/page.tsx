@@ -1,18 +1,15 @@
 import { isRealPhotoKey, r2PublicUrl } from "@opika/db/image-pipeline";
-import {
-  type AnimalId,
-  AnimalIdSchema,
-  DEFAULT_GALLERY_SORT,
-  NO_FILTERS,
-  textIn,
-} from "@opika/domain";
 import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { cache } from "react";
-import { anonymousRouterClient } from "../../../api/server-client";
 import { AnimalDetailScreen } from "../../../features/animal-detail/AnimalDetailScreen";
-import { galleryHref } from "../../../features/gallery/filter-url";
+import { AnimalRateLimitedScreen } from "../../../features/animal-detail/AnimalPageStates";
+import {
+  type AnimalPageLoad,
+  loadAnimalPage,
+} from "../../../features/animal-detail/animal-page-load";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
 
 /**
@@ -25,89 +22,47 @@ export const dynamic = "force-dynamic";
 
 /**
  * F1, `docs/design/README.md`'s addendum frames D1 (1920)/D2 (360) —
- * `AnimalDetailScreen`'s own comment has the rendering detail. This file
- * is the data-fetching shell: parse the route param, fetch, resolve the
- * city name, hand a fully-formed view to the presentational component.
+ * `AnimalDetailScreen`'s own comment has the rendering detail. The data
+ * comes from `loadAnimalPage`, which the gallery's overlay
+ * (`../@preview/(.)[animalId]`) also renders from (designer round 1, §2:
+ * one component, one loader).
  *
- * `notFound()` (Next's own 404 mechanism, `not-found.tsx` in this same
- * segment), not this route's inherited `error.tsx` — a malformed id or an
- * animal that genuinely doesn't exist (or isn't discoverable, or whose
- * shelter isn't verified — `animals.byId`'s own handler collapses all
- * three to one `NOT_FOUND`, deliberately not distinguishing a real id from
- * a guessed one) is a real 404, not a failure to recover from by retrying.
- * Any other error (a database failure, RATE_LIMITED) is not caught here
- * and falls through to `/tvaryny/error.tsx`, the same boundary the
- * gallery already has — consistent copy for "something failed on our
- * side" regardless of which route under `/tvaryny` hit it.
+ * Its three outcomes:
+ * - `not_found` → `notFound()` (Next's 404, `not-found.tsx` in this
+ *   segment): a malformed id, or an animal that doesn't exist, isn't
+ *   discoverable or whose shelter isn't verified (`animals.byId` collapses
+ *   all three to one `NOT_FOUND`).
+ * - `rate_limited` → its own screen, his sentence (RL-F1). This used to be
+ *   caught with everything else and shown as the 404, «Це не помилка —
+ *   просто картки тут більше немає», which was false.
+ * - any other error (a database failure) is thrown by the loader and lands
+ *   on `/tvaryny/error.tsx`, the boundary the gallery already has. It is
+ *   never the not-found copy either.
  */
 export default async function Page({ params }: { params: Promise<{ animalId: string }> }) {
-  const { animalId: rawAnimalId } = await params;
-  const parsedId = AnimalIdSchema.safeParse(rawAnimalId);
-  if (!parsedId.success) notFound();
+  const { animalId } = await params;
+  return renderAnimalPage(await loadAnimalPageOnce(animalId));
+}
 
-  const client = anonymousRouterClient();
-  const [animalResult, cities] = await Promise.all([
-    safeById(parsedId.data),
-    client.cities.list({}),
-  ]);
-  if (!animalResult) notFound();
-
-  const shelter = await client.shelters.byId({ shelterId: animalResult.shelter.id });
-
-  const cityId = animalResult.publicLocation
-    ? animalResult.publicLocation.cityId
-    : shelter.publicLocation.cityId;
-  const city = cities.find((c) => c.id === cityId) ?? null;
-
-  /**
-   * O-12 (`docs/observations.md`): «← Усі тварини у Бровари» has to actually
-   * return to Brovary, not the unfiltered gallery — the link's own text is a
-   * claim about where it goes. Built through `galleryHref`, the same URL
-   * scheme every other city link in the app uses, rather than a hand-rolled
-   * `/tvaryny?misto=...` string — one scheme, one place it can drift.
-   * `/tvaryny` unfiltered only when this animal's city genuinely isn't in
-   * the list `cities.list` returned (never expected in practice; every
-   * animal's location resolves to a real seeded city).
-   */
-  const citySlugs = new Map(cities.map((c) => [c.id, c.slug]));
-  const backToGalleryHref = city
-    ? galleryHref(
-        { ...NO_FILTERS, cities: { kind: "oneOf", values: [city.id] } },
-        DEFAULT_GALLERY_SORT,
-        citySlugs,
-      )
-    : "/tvaryny";
-
-  return (
-    <AnimalDetailScreen
-      animal={animalResult}
-      shelter={shelter}
-      backToGalleryHref={backToGalleryHref}
-      now={new Date()}
-      cityName={city ? textIn(city.name, "uk") : null}
-    />
-  );
+/** The page body for a load result; exported so a test can render each state. */
+export function renderAnimalPage(load: AnimalPageLoad): ReactNode {
+  switch (load.kind) {
+    case "not_found":
+      return notFound();
+    case "rate_limited":
+      return <AnimalRateLimitedScreen />;
+    case "animal":
+      return <AnimalDetailScreen {...load.view} now={new Date()} />;
+  }
 }
 
 /**
- * `animals.byId` throws `NOT_FOUND` (an `ORPCError`, not a plain rejected
- * promise) for both a missing id and a genuinely malformed one that still
- * happens to parse as a UUID — this narrows either case to `null` so the
- * caller can call `notFound()` once, rather than needing oRPC's own error
- * type at the call site.
- *
- * `cache()` because Next calls `generateMetadata` and the component in the same
- * request and both need the animal. Without it this route would issue two
- * identical queries per view on a `force-dynamic` page — React dedupes them for
- * the lifetime of the request instead.
+ * `cache()` because Next calls `generateMetadata` and the component in the
+ * same request and both need the animal. Without it this route would issue
+ * two identical sets of queries per view on a `force-dynamic` page; React
+ * dedupes them for the lifetime of the request instead.
  */
-const safeById = cache(async (animalId: AnimalId) => {
-  try {
-    return await anonymousRouterClient().animals.byId({ animalId });
-  } catch {
-    return null;
-  }
-});
+const loadAnimalPageOnce = cache((animalId: string) => loadAnimalPage(animalId));
 
 /**
  * Phase T. Before this the route had no metadata at all, so a shared
@@ -148,12 +103,13 @@ export async function generateMetadata({
 }: {
   params: Promise<{ animalId: string }>;
 }): Promise<Metadata> {
-  const { animalId: rawAnimalId } = await params;
-  const parsedId = AnimalIdSchema.safeParse(rawAnimalId);
-  if (!parsedId.success) return {};
-
-  const animal = await safeById(parsedId.data);
-  if (!animal) return {};
+  const { animalId } = await params;
+  const load = await loadAnimalPageOnce(animalId);
+  // A refusal says nothing about the animal; a search engine that met it
+  // must not keep it as this URL's page (RL-F1).
+  if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
+  if (load.kind !== "animal") return {};
+  const { animal } = load.view;
 
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
     ? uk.demo.bannerNotice

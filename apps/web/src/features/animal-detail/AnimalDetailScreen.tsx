@@ -136,8 +136,15 @@ export function AnimalDetailScreen({
         text columns it sits above, not with the header's wider padding.
       */}
       <div className="p-4 tablet:p-6 desktop:px-8 desktop:pt-6 desktop:max-w-[1200px] desktop:mx-auto">
+        {/*
+          Not prefetched, like every link back to the gallery here: each
+          prefetch of a `/tvaryny` URL is charged to the visitor's per-IP
+          budget in `proxy.ts`, and in the gallery's overlay these links are
+          on screen the moment a card opens (DR1-S4-T3's reason, S4b).
+        */}
         <Link
           href={backToGalleryHref}
+          prefetch={false}
           data-testid="back-to-list"
           className="min-h-12 inline-flex items-center gap-1.5 rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] desktop:hidden"
         >
@@ -145,6 +152,7 @@ export function AnimalDetailScreen({
         </Link>
         <Link
           href={backToGalleryHref}
+          prefetch={false}
           data-testid="back-to-list-desktop"
           className="hidden desktop:inline-flex min-h-12 items-center text-[15px] text-rg-ink-2 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
@@ -249,6 +257,7 @@ export function AnimalDetailScreen({
             */}
             <Link
               href={backToGalleryHref}
+              prefetch={false}
               data-testid="not-now-button"
               className="min-h-14 flex-1 flex items-center justify-center rounded-rg-button bg-rg-fill text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
             >

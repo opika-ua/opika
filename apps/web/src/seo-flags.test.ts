@@ -464,6 +464,8 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — /tvaryny/[animalId] link-preview des
     ageBucket: "adult",
     size: "medium",
     photos: [],
+    publicLocation: null,
+    shelter: { id: "d0000000-0000-4000-8000-000000000001" },
   };
 
   /**
@@ -481,8 +483,16 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — /tvaryny/[animalId] link-preview des
     servedAnimal = fakeAnimal;
     vi.resetModules();
     vi.doMock("./api/server-client", () => ({
+      // The route reads its data through the animal page's one loader (S4b),
+      // which also asks for the shelter and the cities.
       anonymousRouterClient: () => ({
         animals: { byId: async () => servedAnimal },
+        shelters: {
+          byId: async () => ({
+            publicLocation: { cityId: "c0000000-0000-4000-8000-000000000001" },
+          }),
+        },
+        cities: { list: async () => [] },
       }),
     }));
   });

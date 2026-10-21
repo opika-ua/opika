@@ -4,6 +4,7 @@ import type { ContactRevealView } from "@opika/contracts";
 import { allChannels, type ContactChannel } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useLayoutEffect, useRef } from "react";
+import { lockBodyScroll } from "../controls/body-scroll-lock";
 import type { RevealErrorReason, RevealState } from "./useReveal";
 
 /**
@@ -188,8 +189,9 @@ export function ContactRevealDialog({
   // dialog, before anything paints, so there is never a frame where the
   // dialog is visible and the page behind it is still scrollable.
   useLayoutEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    // Counted, not saved and restored (`body-scroll-lock.ts`): this dialog
+    // can sit over the gallery's animal overlay, which holds its own lock.
+    const releaseScroll = lockBodyScroll();
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -228,11 +230,13 @@ export function ContactRevealDialog({
     // `window` and was registered first, so in the bubble phase it ran
     // before this one and left the deck on every Escape that only meant to
     // close the dialog (RF-F2). Capturing runs this first, whatever the
-    // registration order.
+    // registration order. The gallery's animal overlay (`useModalFocus`)
+    // listens in the bubble phase too and skips a key marked handled, so
+    // with the reveal open over it the first Escape closes the reveal only.
     window.addEventListener("keydown", onKeyDown, true);
     return () => {
       window.removeEventListener("keydown", onKeyDown, true);
-      document.body.style.overflow = previousOverflow;
+      releaseScroll();
     };
   }, [onClose]);
 

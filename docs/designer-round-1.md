@@ -179,13 +179,29 @@ DR1-Q1 takes; the full review runs before commit.
 
 ---
 
-## 2. The preview drawer
+## 2. The animal overlay (was: the preview drawer)
 
-**What it is.** From the gallery, opening a card shows the animal in a drawer over the list
-instead of leaving it: the list keeps its scroll, filters and page, and the drawer links to the
-full animal page. Source: the scope sentence; no mock frame (proposed here).
+**What it is.** From the gallery, opening a card shows the animal page in an overlay over the list
+instead of leaving it: the list keeps its scroll, filters and page. S4 (#174) built this as a
+drawer showing a subset; S4b replaces it with the page itself, by his decision. Oleksii, verbatim
+(2026-10-21): "Overlay like Dribbble: agreed. One component: the gallery opens the same
+AnimalDetailScreen in an overlay. Full screen on a phone; on desktop, nearly full height with a
+dimmed strip and ✕. The URL stays /tvaryny/{id}. ✕, Escape and back close it and keep the list
+position. Gallery only: the saved page and the deck open the full page. Q1: yes, exactly what the
+page shows, because it’s the same component. Corrections: The shelter’s freshness sentence is not
+on the animal page any more (DR1-Q1 final: shelter page only), so it isn’t in the overlay either.
+Don’t reintroduce it. “No shelter name on the card preview” was about the gallery card (S1) and
+still holds. The overlay shows the shelter because it’s the page. Q2: yes, remove «Відкрити повну
+сторінку» and preview.openFull. No previous/next arrows for now. Conditions: Stacked dialogs: with
+the reveal open over the overlay, the first Escape closes only the reveal, and focus returns to
+«Написати притулку» inside the overlay. The second Escape closes the overlay, and focus returns to
+the gallery card it came from. Add tests for both, plus back-button behaviour with the reveal
+open. The reveal’s rate limit and one-request behaviour are unchanged whether it opens from the
+page or the overlay. Pin that with a test. A full review, not a delta: S4 was reviewed as a
+drawer, and this is a different design. The combined prompt with RL-F1 is fine; the review covers
+both."
 
-### What exists today
+### What exists today (before S4)
 
 - `AnimalCard` (`apps/web/src/features/gallery/AnimalCard.tsx`) is one `<a href="/tvaryny/{id}">`
   per animal, no nested buttons (README "The gallery card"); `ArrowKeyGrid.tsx` moves between
@@ -196,59 +212,65 @@ full animal page. Source: the scope sentence; no mock frame (proposed here).
 
 ### What changes
 
-- **A Next intercepting route**: `apps/web/src/app/tvaryny/@preview/(.)[animalId]/page.tsx` with
-  `@preview/default.tsx` and a `tvaryny/layout.tsx` rendering the slot. A soft navigation from the
-  gallery to `/tvaryny/{id}` renders the drawer over the gallery; a direct load, a reload, a shared
-  link or a no-JS click renders the full page exactly as today. So the URL in the address bar is
-  always the animal's own shareable URL (the reveal modal's own reasoning, README 05), and the
-  phone's back gesture closes the drawer (history, not component state).
-- **Scope of the interception:** the gallery only. The saved page (§4) opens the full animal page, not
-  the drawer (his decision, 2026-10-21; see §4). The deck
-  (`/tvaryny/gortaty`) and the shelter page keep full-page navigation; a harness flow pins that
-  the deck's link to an animal is **not** intercepted. If Next can't scope `(.)` that narrowly
-  without restructuring routes, the slice moves the gallery under a route group rather than
-  widening the drawer to the deck (decision DR1-D5).
-- Contents (no shelter name, §3): the photos (`DetailPhotoGallery`), name, meta line, the
-  freshness pips and day count, the animal's description, the save control (§4), «open the full
-  page» (a link to the same URL, full navigation), and ✕. **No contact reveal in the drawer**: the
-  reveal stays on the animal page, so there is still one reveal surface with its rate limit and its
-  reassurance sentence (README 05, «Притулок не знає про цей запит…»).
-- Phone: a bottom sheet; tablet and up: a side panel. Through tokens only.
-- The focus trap is extracted from `ModalDialog` into a shared hook both use, rather than a third
-  copy of it (DRY; decision DR1-D6).
+- **A Next intercepting route** (S4): `apps/web/src/app/tvaryny/@preview/(.)[animalId]/page.tsx`
+  with `@preview/default.tsx` and a `tvaryny/layout.tsx` rendering the slot. A soft navigation from
+  the gallery to `/tvaryny/{id}` renders the overlay over the gallery; a direct load, a reload, a
+  shared link or a no-JS click renders the full page. So the URL in the address bar is always the
+  animal's own shareable URL, and ✕, Escape and the phone's back gesture close it (history, not
+  component state). `@preview/page.tsx` (S4b) renders nothing at `/tvaryny`, so a link from inside
+  the overlay back to the gallery («Не зараз», the back links, the wordmark) closes it instead of
+  leaving it over the new list.
+- **One component, one loader** (S4b): `features/animal-detail/animal-page-load.ts` gathers what
+  the page shows (the animal, the shelter, the cities, the city name, the way back) for both the
+  page and the overlay, and both render `AnimalDetailScreen` with the same props. The overlay is
+  `features/animal-overlay/AnimalOverlay.tsx`, a dialog container around it: full screen on a
+  phone, nearly full height on desktop with a dimmed strip of the list and ✕. The shelter's
+  freshness sentence is whatever the page renders (it leaves the page and the overlay together in
+  S6, with `/prytulkam` §8).
+- **Scope of the interception:** the gallery only. The saved page (§4) opens the full animal page
+  (his decision, 2026-10-21; see §4). The deck (`/tvaryny/gortaty`) and the shelter page keep
+  full-page navigation; a harness flow pins that the deck's entry link is **not** intercepted
+  (DR1-D5).
+- **The contact reveal opens over the overlay**, because the overlay is the page (DR1-D7, revised
+  by his decision above). Stacked: the reveal's Escape is caught first (capture phase) and marked
+  handled, and the overlay's `useModalFocus` skips a handled key, so the first Escape closes only
+  the reveal. Both dialogs hold one counted scroll lock (`features/controls/body-scroll-lock.ts`),
+  so back with the reveal open leaves the page scrollable.
+- No previous/next arrows.
+- The focus trap is shared with `ModalDialog` (`useModalFocus`, DR1-D6).
 
 ### Contract
 
-**None.** The drawer reads `animals.byId` (`AnimalDetailView`), which the full page already reads.
-No DB change.
+**None.** The overlay reads what the full page reads (`animals.byId`, `shelters.byId`,
+`cities.list`), in process, in the one request the click makes. No DB change.
 
 ### Privacy and public claims
 
-Nothing is recorded when the drawer opens: no `swipes.record`, no analytics event beyond the page
-view the URL change already produces today. Commitments 1, 2 and 8 are untouched: the drawer
-neither reorders nor hides anything, and tells no shelter anything.
+Nothing is recorded when the overlay opens: no `swipes.record`, no analytics event beyond the page
+view the URL change already produces today. Commitments 1, 2 and 8 are untouched: the overlay
+neither reorders nor hides anything, and tells no shelter anything. A reveal from the overlay is
+the page's reveal: the same one request and the same per-day limit.
 
-### Copy (`[COPY PENDING]`)
+### Copy
 
-| Key | English sense |
-|---|---|
-| `preview.openFull` | "Open the full page" |
-| `preview.close` | accessible name of ✕: "Close" (reuse an existing close label if one fits) |
-| `preview.dialogLabel` | none new: the dialog's accessible name is the animal's name heading |
+`preview.close` («Закрити», his §11 item 3). `preview.openFull` is removed (his Q2). The overlay's
+accessible name is the animal's name.
 
 ### Tests (behaviour only)
 
-- Component (happy-dom + RTL): opening focuses the heading; Tab and Shift+Tab stay inside; Escape
-  closes; ✕ closes; on close focus returns to the card that opened it; `role="dialog"`,
-  `aria-modal="true"`, labelled by the name heading; the page behind is inert to Tab.
-- Harness flows (by role/label/text): click a card → a dialog named after the animal, URL is
-  `/tvaryny/{id}`; browser back → dialog gone, the same gallery page and filters in the URL;
-  reload on `/tvaryny/{id}` → the full page, no dialog; «open the full page» → the full page; the
-  deck's animal link → the full page, no dialog; with JavaScript disabled, the card is a plain link
-  to the full page.
-- The drawer shows no reveal button and no shelter name (asserted by role and text).
+- Component (happy-dom + RTL, `AnimalOverlay.test.tsx`): a modal dialog named after the animal;
+  the page's content inside it (the shelter, «Написати притулку», the donation link, fur, photos,
+  freshness); no «Відкрити повну сторінку»; ✕ and Escape go back; closing gives focus to the card
+  and the page its scroll; the stacked Escape sequence; unmounting with the reveal open leaves no
+  dialog and no scroll lock; one `animals.reveal` with the same input from the overlay and the page.
+- Harness flows (`gallery-animal-overlay.harness.ts`, by role/label/text): click a card → a dialog
+  named after the animal with the page's `h1`, URL `/tvaryny/{id}`; one charged request; the list
+  keeps its position; Escape, ✕ and back close it with focus on the card; Tab stays inside;
+  «Не зараз» leaves no overlay; reload → the full page; the deck's entry link → the deck; no-JS →
+  the full page; the stacked Escape sequence; back with the reveal open; one `animals.reveal`
+  request on the network.
 
-**Tier: not Tier 1** (no claim, no auth, no data). One review.
+**Tier: not Tier 1** (no claim, no auth, no data). A full review (his condition).
 
 ---
 
@@ -575,8 +597,10 @@ the builder). One review. The migration slice waits for his production migration
 
 ## 6. Slice plan
 
-One PR per slice. DB and contract slices land before the UI slices that use them. At most two
-feature PRs open at once, in different areas (WM-B1).
+One PR per slice. DB and contract slices land before the UI slices that use them. Parallel PRs,
+his rule since 2026-10-20 (as CLAUDE.md quotes it), verbatim: "Replace the hard “two PRs” limit
+with a rule: any number of PRs may be open as long as no two share a file. A PR that shares a file
+with an open one waits."
 
 | # | Slice | Files (main ones) | Tier | Migration | Depends on |
 |---|---|---|---|---|---|
@@ -584,6 +608,7 @@ feature PRs open at once, in different areas (WM-B1).
 | S2 | **Fur: domain, contract, DB, seed, repository** (§5, no UI) | `packages/domain/src/animals/coat.ts`, `animal.ts`, `adopters/feed-filters.ts`; `packages/contracts` views + `AnimalPatchSchema`; `packages/db/src/schema/animals.ts`, `drizzle/0014_*.sql`, `repos/feed-predicate.ts`, mappers, `seed.ts`, tests | not 1 | **additive** (waits for his production migration) | — |
 | S3 | **Fur: UI** (gallery rail/sheet, deck sheet, URL, no-match, animal page, kabinet form, history label) | `features/gallery/*`, `features/filters/*`, `features/animal-detail/*`, `features/kabinet/animal-form/*`, `packages/i18n` | not 1 | none | S2 merged; his copy for `kabinet.*` keys |
 | S4 | **Preview drawer** (§2) | `app/tvaryny/layout.tsx`, `app/tvaryny/@preview/**`, `features/animal-preview/*`, shared focus-trap hook from `features/controls/ModalDialog.tsx` | not 1 | none | S1 (the drawer follows the no-shelter-name rule) |
+| S4b | **The animal overlay** (§2, his 2026-10-21 decision) + **RL-F1** (the page's rate-limited state) | `app/tvaryny/@preview/**`, `app/tvaryny/[animalId]/page.tsx`, `features/animal-overlay/*` (replaces `features/animal-preview/*`), `features/animal-detail/animal-page-load.ts`, `features/controls/*`, `features/reveal/ContactRevealDialog.tsx`, `proxy.ts`, `packages/i18n` | not 1 | none | S4 |
 | S5 | **Shelter page: contract** (`GalleryScope`, `PublicShelterView` pick per DR1-Q1) | `packages/contracts/src/procedures/gallery.ts`, `views/shelter.ts`, `apps/web/src/api/handlers/*`, `packages/db/src/repos/gallery-repo.ts`, tests | **1** | none | DR1-Q1 answered |
 | S6 | **Shelter page: UI**, «Слова притулку» moved per DR1-Q1, `/prytulkam` §8 and `voice.previewLabel` changed in the same PR | `app/prytulky/[shelterId]/page.tsx`, `features/shelters/*`, `features/animal-detail/*`, `features/discovery/SwipeCard.tsx` (if the sentence leaves the deck), `packages/i18n` | **1** | none | S5; DR1-Q1; his Ukrainian |
 | S7 | **Saved animals: store, control, `animals.cardsByIds`** | `features/likes/*`, `packages/contracts/src/procedures/animals.ts`, `apps/web/src/api/handlers/animals.ts`, `packages/db/src/repos/feed-repo.ts` | **1** | none | DR1-Q2, DR1-Q3; S4 (the control sits in the drawer) |
@@ -726,10 +751,10 @@ later go live describing the device incompletely.
 | DR1-D2 | Shelter page at `/prytulky/{shelterId}` (id, not a slug) | Shelters have no slug column; a slug is an additive change later. Matches the kabinet's `/kabinet/prytulky` |
 | DR1-D3 | No filter rail on the shelter page in round 1 | A shelter's list is short; avoids a scoped `relaxationCounts` |
 | DR1-D4 | The shelter's animals come from `gallery.list` with a `scope` union, not a new procedure | Stays inside the one named `OFFSET` exception and reuses the discoverable predicate and both sorts |
-| DR1-D5 | The drawer is a Next intercepting route, from the gallery only (narrowed by his 2026-10-21 decision: the saved page opens the full animal page); the deck keeps full-page navigation | Shareable URL, back gesture closes it, no-JS degrades to the full page |
+| DR1-D5 | The drawer (since S4b, the overlay) is a Next intercepting route, from the gallery only (narrowed by his 2026-10-21 decision: the saved page opens the full animal page); the deck keeps full-page navigation | Shareable URL, back gesture closes it, no-JS degrades to the full page |
 | DR1-D6 | The focus trap is extracted from `ModalDialog` into a shared hook | One trap, not three |
-| DR1-D7 | No contact reveal in the drawer | One reveal surface, with its rate limit and reassurance |
-| DR1-D8 | The save control on the drawer and the animal page, not on the gallery card or the deck card | The card is one `<a>` with one Tab stop (README); a third deck action would read as a stronger yes |
+| DR1-D7 | ~~No contact reveal in the drawer~~ **Revised 2026-10-21 by his decision (§2):** the overlay is the animal page, so its reveal is there, the same one surface | One reveal surface still: the page's own `RevealFlow`, with its rate limit and reassurance unchanged (pinned by tests) |
+| DR1-D8 | The save control on the drawer and the animal page (since S4b one place: the overlay is the animal page), not on the gallery card or the deck card | The card is one `<a>` with one Tab stop (README); a third deck action would read as a stronger yes |
 | DR1-D9 | No count on the header's saved-page link | No counters; also avoids a hydration mismatch from storage |
 | DR1-D10 | Fur is optional and nullable, not a publish requirement; no backfill | Unknown is a complete answer; a backfill would invent facts about real animals |
 | DR1-D11 | A fur filter excludes animals whose fur isn't recorded; the relaxation count shows how many | Same semantics as every other dimension; the person sees what the filter cost |
