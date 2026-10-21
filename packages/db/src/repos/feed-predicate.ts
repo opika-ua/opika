@@ -3,8 +3,9 @@ import {
   DISCOVERABLE_LISTING_KINDS,
   FEED_VISIBLE_VERIFICATION_STATUSES,
   type FeedFilters,
+  type GalleryScope,
 } from "@opika/domain";
-import { and, inArray, or, type SQL, sql } from "drizzle-orm";
+import { and, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import { animals } from "../schema/animals";
 import { shelters } from "../schema/shelters";
 
@@ -100,6 +101,29 @@ export function buildFilterPredicate(filters: FeedFilters, now: Date): SQL[] {
   }
 
   return conditions;
+}
+
+/**
+ * Whose animals: nothing for everyone, one equality for a shelter's page.
+ *
+ * Always added *alongside* the discoverability half, never instead of it, so
+ * a scope naming an unknown, unverified, suspended or paused shelter matches
+ * nothing (the shelter subquery already excludes it) rather than listing its
+ * animals. Kept out of `buildFeedPredicate` because the deck has no scope and
+ * `feed-predicate-identity.test.ts` pins the SQL the deck generates.
+ */
+export function buildScopePredicate(scope: GalleryScope): SQL[] {
+  switch (scope.kind) {
+    case "everyone":
+      return [];
+    case "shelter":
+      return [eq(animals.shelterId, scope.shelterId)];
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = scope;
+      return unreachable;
+    }
+  }
 }
 
 /**

@@ -1,9 +1,12 @@
 import {
   type Animal,
   type CityId,
+  EVERYONE_SCOPE,
   type FeedFilters,
+  type GalleryScope,
   type GallerySort,
   NO_FILTERS,
+  type ShelterId,
 } from "@opika/domain";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -79,6 +82,7 @@ const client = postgres(TEST_DATABASE_URL, {
 const db = drizzle(client, { schema });
 
 let filterCity: CityId;
+let scopedShelter: ShelterId;
 
 beforeAll(async () => {
   const setup = await setupTestDatabase();
@@ -122,6 +126,9 @@ beforeAll(async () => {
     });
   });
   for (const shelter of shelterList) await shelters.insert(shelter);
+  const firstShelter = shelterList[0];
+  if (!firstShelter) throw new Error("no shelter seeded");
+  scopedShelter = firstShelter.id;
 
   const species = ["dog", "cat"] as const;
   const sizes = ["small", "medium", "large"] as const;
@@ -168,13 +175,15 @@ afterAll(async () => {
  * The page query is the one carrying `count(*) OVER()`; the count-only queries
  * the repo may also run are not the ones with an ordering to preserve.
  */
-async function explainGalleryQuery(opts: {
+async function captureGalleryQuery(opts: {
   filters: FeedFilters;
+  scope: GalleryScope;
   sort: GallerySort;
-}): Promise<string> {
+}): Promise<{ query: string; parameters: readonly unknown[] }> {
   captured.length = 0;
   await galleryRepo(db).list({
     filters: opts.filters,
+    scope: opts.scope,
     sort: opts.sort,
     page: 1,
     pageSize: 24,
@@ -183,6 +192,14 @@ async function explainGalleryQuery(opts: {
 
   const pageQuery = captured.find((statement) => statement.query.includes("count(*) OVER()"));
   if (!pageQuery) throw new Error("the page query was not captured — the debug hook is not wired");
+  return pageQuery;
+}
+
+async function explainGalleryQuery(opts: {
+  filters: FeedFilters;
+  sort: GallerySort;
+}): Promise<string> {
+  const pageQuery = await captureGalleryQuery({ ...opts, scope: EVERYONE_SCOPE });
 
   // The planner is constrained to the plan family that *can* preserve an
   // ordering, so the question asked is the one that matters: is there an index
@@ -254,4 +271,37 @@ describe("longest-waiting EXPLAIN", () => {
     expect(plan, plan).not.toContain("Sort ");
     expect(plan, plan).toContain("animals_feed_unfiltered_idx");
   });
+});
+
+/**
+ * The shelter page's list (DR1-D4): one shelter's animals, both sorts.
+ *
+ * A different bar from the one above, on purpose. A shelter lists tens of
+ * animals, not the whole registry, so the plan that matters is "find this
+ * shelter's rows through an index" rather than "walk the registry in sort
+ * order": a `Sort` node over one shelter's few rows is the cheap plan, and a
+ * composite `(shelter_id, sort key)` index would buy nothing at that size while
+ * adding write cost to every animal row. So: the default planner settings, as
+ * production runs them, and the assertion is that `animals` is reached through
+ * `animals_shelter_id_idx`, never by a sequential scan. No migration.
+ */
+describe("a shelter's own list EXPLAIN", () => {
+  for (const sort of ["freshest", "longest_waiting"] as const) {
+    it(`${sort}: reaches the shelter's rows through animals_shelter_id_idx, no full scan`, async () => {
+      const pageQuery = await captureGalleryQuery({
+        filters: NO_FILTERS,
+        scope: { kind: "shelter", shelterId: scopedShelter },
+        sort,
+      });
+      const rows = await client.unsafe(`EXPLAIN (FORMAT TEXT) ${pageQuery.query}`, [
+        ...pageQuery.parameters,
+      ] as never[]);
+      const plan = Array.from(rows as Iterable<Record<string, unknown>>)
+        .map((row) => row["QUERY PLAN"])
+        .join("\n");
+
+      expect(plan, plan).toContain("animals_shelter_id_idx");
+      expect(plan, plan).not.toContain("Seq Scan on animals");
+    });
+  }
 });

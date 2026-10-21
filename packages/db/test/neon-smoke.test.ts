@@ -115,8 +115,9 @@ describe("runSmoke against the local database", () => {
     // filters and counts; confirm/undo; the recorded moves), then KH-Q12's 37
     // (auth:revoke-all's purge), then 38 (the gallery's relaxation counts),
     // then 39 (fur set and cleared by the kabinet edit, filtered in the
-    // gallery and the deck, DR1 S3).
-    expect(outcomes.length).toBe(39);
+    // gallery and the deck, DR1 S3), then 40 (the gallery list scoped to one
+    // shelter, DR1 S5).
+    expect(outcomes.length).toBe(40);
   });
 
   it("passes every statement over a driver whose raw results are `{ rows }`, as neon-http's are", async () => {
@@ -138,6 +139,6 @@ describe("runSmoke against the local database", () => {
     }) as Database;
     const outcomes = await runSmoke(neonHttpRawShape);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes.length).toBe(39);
+    expect(outcomes.length).toBe(40);
   });
 });
