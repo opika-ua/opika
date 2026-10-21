@@ -95,8 +95,37 @@ function cleaned(error: unknown, depth: number): CleanedQueryError {
   }
 }
 
-/** `error`, cleaned (`CleanedQueryError`); one already cleaned is returned as it is. */
-export const cleanedQueryError = (error: unknown): CleanedQueryError => cleaned(error, 0);
+/**
+ * `error`, cleaned (`CleanedQueryError`); one already cleaned is returned as it is.
+ *
+ * The cleaned chain keeps `CAUSE_DEPTH` links, but the facts never stop there: when the chain's own
+ * links carry no SQLSTATE, the outermost cleaned error takes the facts of the first raw query error
+ * the walk finds (`walkOf`), at any depth within its limit (F8-F2, the review of 72b8a3b, note 7).
+ * Only the facts listed above move up, so nothing user-shaped does.
+ */
+export function cleanedQueryError(error: unknown): CleanedQueryError {
+  const shallow = cleaned(error, 0);
+  if (shallow === error || shallow.code !== undefined) return shallow;
+  const deep = deepFactsOf(error);
+  if (deep.code === undefined) return shallow;
+  return new CleanedQueryError(
+    shallow.name,
+    { ...deep, ...schemaFactsOf(shallow) },
+    shallow.cause instanceof CleanedQueryError ? shallow.cause : undefined,
+  );
+}
+
+/** The schema facts of the first raw query error under `error`, its driver's (its `cause`) included. */
+function deepFactsOf(error: unknown): SchemaFacts {
+  try {
+    const raw = walkOf(error).raw[0];
+    return raw === undefined
+      ? {}
+      : { ...schemaFactsOf(field(raw, "cause")), ...schemaFactsOf(raw) };
+  } catch {
+    return {};
+  }
+}
 
 const cleanedHandles = new WeakMap<object, object>();
 const cleanHandles = new WeakSet<object>();
@@ -157,31 +186,55 @@ function isQueryError(error: unknown): boolean {
 const WALK_LIMIT = 64;
 
 /**
- * Whether what a transaction callback threw must be cleaned rather than passed through as itself:
- * a raw query error (`isQueryError`) is in it, under `cause` or under `errors` (an
- * `AggregateError`'s list, or any error carrying one), at any depth; or the walk stopped before it
- * could show there is none. It stops on an error reached twice (a loop, or one error held in two
- * places), past `WALK_LIMIT` errors, or on a read that throws, and a stopped walk always cleans.
- * Oleksii, 2026-10-21, verbatim: "when the cause walk stops (a loop or 64 links), the error is
- * cleaned (fail closed), never passed through." (F8-F1-D7, amended.)
+ * What a walk over an error's `cause` and `errors` found: every raw query error (`isQueryError`)
+ * in the order reached, and whether it saw everything (`complete`) or stopped first (`stopped`).
  */
-function mustBeCleaned(error: unknown): boolean {
+type Walk = { kind: "complete" | "stopped"; raw: readonly object[] };
+
+/**
+ * The walk under `error`, through `cause` and `errors`. It stops on an error reached twice (a loop,
+ * or one error held in two places), past `WALK_LIMIT` errors, on a read that throws, and on an
+ * `errors` that is there but isn't an array (a `Set`, an array-like, a plain object): the walk
+ * follows arrays only, so anything else may hold what it can't see. Oleksii, 2026-10-21, verbatim:
+ * "In F8-F2, add one rule: if an error has an errors property that isn’t an array, the error is
+ * cleaned (fail closed) instead of passed through, with a test using a Set."
+ */
+function walkOf(error: unknown): Walk {
   const seen = new Set<object>();
+  const raw: object[] = [];
   const pending: unknown[] = [error];
   try {
     while (pending.length > 0) {
       const next = pending.pop();
       if (typeof next !== "object" || next === null) continue;
-      if (seen.has(next) || seen.size >= WALK_LIMIT || isQueryError(next)) return true;
+      if (seen.has(next) || seen.size >= WALK_LIMIT) return { kind: "stopped", raw };
       seen.add(next);
+      if (isQueryError(next)) raw.push(next);
       pending.push(field(next, "cause"));
-      const errors = field(next, "errors");
-      if (Array.isArray(errors)) pending.push(...errors);
+      if ("errors" in next) {
+        const errors = field(next, "errors");
+        if (!Array.isArray(errors)) return { kind: "stopped", raw };
+        pending.push(...errors.toReversed());
+      }
     }
   } catch {
-    return true;
+    return { kind: "stopped", raw };
   }
-  return false;
+  return { kind: "complete", raw };
+}
+
+/**
+ * Whether what a transaction callback threw must be cleaned rather than passed through as itself:
+ * a raw query error (`isQueryError`) is in it, under `cause` or under `errors` (an
+ * `AggregateError`'s list, or any error carrying an array there), at any depth; or the walk
+ * stopped before it could show there is none (`walkOf`: a loop, the limit, a read that throws, or
+ * an `errors` that isn't an array), and a stopped walk always cleans. Oleksii, 2026-10-21,
+ * verbatim: "when the cause walk stops (a loop or 64 links), the error is cleaned (fail closed),
+ * never passed through." (F8-F1-D7, amended.)
+ */
+function mustBeCleaned(error: unknown): boolean {
+  const walk = walkOf(error);
+  return walk.kind === "stopped" || walk.raw.length > 0;
 }
 
 /**
@@ -192,8 +245,8 @@ function mustBeCleaned(error: unknown): boolean {
  * What the callback throws reaches the caller unchanged (an `APIError`, Drizzle's rollback, a
  * statement's error already cleaned): it is the callback's answer, not a database error. Two
  * exceptions are cleaned: an error holding a raw query error under `cause` or `errors` at any
- * depth, or one whose walk stops on a loop or the limit (`mustBeCleaned`), and anything the transaction itself raises (BEGIN, COMMIT, a savepoint, or
- * neon-http's "no transactions", whose callback never runs).
+ * depth, or one whose walk stops (`mustBeCleaned`); and anything the transaction itself raises
+ * (BEGIN, COMMIT, a savepoint, or neon-http's "no transactions", whose callback never runs).
  */
 function cleanedTransaction(method: Method, receiver: object) {
   return async (callback: unknown, ...rest: unknown[]): Promise<unknown> => {

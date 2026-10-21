@@ -1,7 +1,19 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { Node, SourceFile } from "typescript/unstable/ast";
+import { SyntaxKind } from "typescript/unstable/ast";
+import {
+  isClassDeclaration,
+  isClassExpression,
+  isIdentifier,
+  isImportSpecifier,
+  isParenthesizedExpression,
+  isPropertyAccessExpression,
+  isVariableDeclaration,
+} from "typescript/unstable/ast/is";
 import { describe, expect, it } from "vitest";
+import { nodesOf, readParsed } from "../../test/source-ast";
 import { type AuthLogConsole, maskedLogValue, writeMaskedAuthLine } from "./auth-log";
 import { cleanedQueryError } from "./clean-query-errors";
 import { ERROR_CLASS_NAMES, errorClassNameOf } from "./error-class-name";
@@ -120,37 +132,69 @@ const CODE = /\.(?:[cm]?js|tsx?)$/;
 
 type Declaration = { name: string; parent: string; path: string };
 
-const IDENTIFIER = String.raw`[A-Za-z_$][\w$]*`;
+/** The name `expression` (a class's parent) is written as: `Y`, `(Y)` or `errors.Y` give `Y`. */
+function writtenName(expression: Node): string {
+  if (isParenthesizedExpression(expression)) return writtenName(expression.expression);
+  if (isIdentifier(expression)) return expression.text;
+  if (isPropertyAccessExpression(expression)) return writtenName(expression.name);
+  return "(expression)";
+}
+
+/** The name a class can be listed by: its own, the variable it is assigned to, or `default`. */
+function classNameOf(node: Node, parent: Node | undefined): string {
+  if ((isClassDeclaration(node) || isClassExpression(node)) && node.name !== undefined) {
+    return node.name.text;
+  }
+  if (isClassExpression(node) && parent !== undefined && isVariableDeclaration(parent)) {
+    return isIdentifier(parent.name) ? parent.name.text : "(anonymous)";
+  }
+  const isDefault =
+    isClassDeclaration(node) &&
+    (node.modifiers ?? []).some((modifier) => modifier.kind === SyntaxKind.DefaultKeyword);
+  return isDefault ? "default" : "(anonymous)";
+}
 
 /**
- * Every class with a parent in `text`, in each form it can take: `class X extends Y`, with type
- * parameters (`class X<T> extends Y`), as an expression (`const X = class extends Y`), as an
- * anonymous default export (named `default`), or with the parent in parentheses
- * (`extends (Y)`). A parent imported under another name (`APIError as Refusal`) counts as the
- * original. A class with no name it can be listed by is named `(anonymous)`, which no list holds.
+ * Every class with a parent in `sourceFile`, read from the compiler's syntax tree (F8-F2, note 5),
+ * in each form it can take: `class X extends Y`, with type parameters, as an expression
+ * (`const X = class extends Y`), as an anonymous default export (named `default`), or with the
+ * parent in parentheses. A parent imported under another name (`APIError as Refusal`) counts as
+ * the original; aliases come from import specifiers only, so a cast (`x as Error`) is no alias.
  */
-function declarationsIn(path: string, text: string): Declaration[] {
+function declarationsOf(sourceFile: SourceFile, path: string): Declaration[] {
   const aliases = new Map<string, string>();
-  for (const match of text.matchAll(
-    new RegExp(`\\b(${IDENTIFIER})\\s+as\\s+(${IDENTIFIER})`, "g"),
-  )) {
-    if (match[1] !== undefined && match[2] !== undefined) aliases.set(match[2], match[1]);
+  for (const node of nodesOf(sourceFile)) {
+    if (isImportSpecifier(node) && node.propertyName !== undefined) {
+      aliases.set(node.name.text, node.propertyName.text);
+    }
   }
-  const pattern = new RegExp(
-    `\\bclass\\b(?:\\s+(${IDENTIFIER}))?\\s*(?:<[^{]*?>)?\\s*extends\\s*\\(?\\s*(${IDENTIFIER}(?:\\.${IDENTIFIER})*)`,
-    "g",
-  );
-  return [...text.matchAll(pattern)].map((match) => {
-    const before = text.slice(0, match.index);
-    const name =
-      match[1] ??
-      before.match(new RegExp(`(${IDENTIFIER})\\s*=\\s*$`))?.[1] ??
-      (/\bexport\s+default\s*$/.test(before) ? "default" : "(anonymous)");
-    // `errors.DrizzleError` counts as `DrizzleError`.
-    const written = (match[2] ?? "").split(".").at(-1) ?? "";
-    return { name, parent: aliases.get(written) ?? written, path };
-  });
+  const out: Declaration[] = [];
+  const visit = (node: Node, parent: Node | undefined) => {
+    if (isClassDeclaration(node) || isClassExpression(node)) {
+      const extendsClause = (node.heritageClauses ?? []).find(
+        (clause) => clause.token === SyntaxKind.ExtendsKeyword,
+      );
+      const parentType = extendsClause?.types[0];
+      if (parentType !== undefined) {
+        const written = writtenName(parentType.expression);
+        out.push({
+          name: classNameOf(node, parent),
+          parent: aliases.get(written) ?? written,
+          path,
+        });
+      }
+    }
+    node.forEachChild((child) => {
+      visit(child, node);
+    });
+  };
+  visit(sourceFile, undefined);
+  return out;
 }
+
+/** The declarations in each of `files` (path → text), parsed in one compiler run. */
+const declarationsIn = (files: ReadonlyArray<readonly [string, string]>): Declaration[] =>
+  [...readParsed(new Map(files), declarationsOf).values()].flat();
 
 /**
  * The error classes among `declarations`: those extending a listed error, or (transitively)
@@ -180,20 +224,19 @@ const unlisted = (declarations: readonly Declaration[]) =>
     .map((declaration) => `${declaration.path}: ${declaration.name}`);
 
 function ourDeclarations(): Declaration[] {
-  const out: Declaration[] = [];
+  const files: Array<readonly [string, string]> = [];
   const walk = (dir: string) => {
     for (const name of readdirSync(dir)) {
       const path = join(dir, name);
       if (statSync(path).isDirectory()) {
         if (!SKIPPED_DIRECTORIES.has(name)) walk(path);
       } else if (CODE.test(name)) {
-        const key = relative(REPO, path).replaceAll("\\", "/");
-        out.push(...declarationsIn(key, readFileSync(path, "utf8")));
+        files.push([relative(REPO, path).replaceAll("\\", "/"), readFileSync(path, "utf8")]);
       }
     }
   };
   for (const root of ROOTS) walk(join(REPO, root));
-  return out;
+  return declarationsIn(files);
 }
 
 /** Source text for the detector's own checks, assembled so this file declares no class. */
@@ -229,7 +272,7 @@ describe("every error class in apps/ and packages/ is on the list", () => {
       ],
       ["parenthesised.ts", ["class", "Parenthesised", "extends", "(Error) {}"].join(" ")],
     ];
-    expect(unlisted(forms.flatMap(([path, text]) => declarationsIn(path, text)))).toEqual([
+    expect(unlisted(declarationsIn(forms))).toEqual([
       "generic.ts: Generic",
       "expression.ts: Expression",
       "default.ts: default",
@@ -239,16 +282,26 @@ describe("every error class in apps/ and packages/ is on the list", () => {
   });
 
   it("the detector: a new class extending Error, or extending a listed or found error, is caught", () => {
-    const fresh = [
-      ...declarationsIn("a.ts", source("ShelterImportError", "Error")),
-      ...declarationsIn("b.ts", source("RevealRefusal", "APIError")),
-      ...declarationsIn("c.ts", source("DeeperRefusal", "RevealRefusal")),
-      ...declarationsIn("d.ts", source("CardView", "Component")),
-    ];
+    const fresh = declarationsIn([
+      ["a.ts", source("ShelterImportError", "Error")],
+      ["b.ts", source("RevealRefusal", "APIError")],
+      ["c.ts", source("DeeperRefusal", "RevealRefusal")],
+      ["d.ts", source("CardView", "Component")],
+    ]);
     expect(unlisted(fresh)).toEqual([
       "a.ts: ShelterImportError",
       "b.ts: RevealRefusal",
       "c.ts: DeeperRefusal",
     ]);
+  });
+
+  it("a type cast is no alias: `x as Error` beside a new class still finds it (the review of 72b8a3b, note 5)", () => {
+    const withCast = `export const wrap = (x: unknown) => (x as Error).message;\n${source(PERSON, "Error")}`;
+    expect(unlisted(declarationsIn([["cast.ts", withCast]]))).toEqual([`cast.ts: ${PERSON}`]);
+  });
+
+  it("a class written in a string or a comment is no class", () => {
+    const text = `export const s = "${source("InString", "Error")}";\n// ${source("InComment", "Error")}`;
+    expect(unlisted(declarationsIn([["strings.ts", text]]))).toEqual([]);
   });
 });

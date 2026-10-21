@@ -972,6 +972,76 @@ describe("a transaction on the cleaned handle (F8-F1, the PW1-F8 review's note 1
       expectBare(escaped, [ADDRESS, "Failed query"]);
       expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
     });
+
+    it("a read that throws stops the walk and is cleaned: a `cause` getter, a Proxy's `get` trap (the review of 72b8a3b, note 2)", async () => {
+      const boom = () => {
+        throw new Error(`boom ${ADDRESS}`);
+      };
+      const getter = Object.defineProperty(new Error(`getter ${TOKEN}`), "cause", { get: boom });
+      const proxy = new Proxy(new Error(`proxy ${TOKEN}`), { get: boom });
+      for (const [label, thrown] of [
+        ["a cause getter", getter],
+        ["a Proxy", proxy],
+      ] as const) {
+        const escaped = await escapingWith(thrown);
+        expect([label, escaped instanceof CleanedQueryError]).toEqual([label, true]);
+        expect([label, escaped === thrown]).toEqual([label, false]);
+        expectBare(escaped, [ADDRESS, TOKEN, "boom"]);
+      }
+    });
+
+    it("his Q2 rule: an `errors` that is there but isn't an array is cleaned (fail closed), whatever it holds", async () => {
+      const raw = await rawFailure();
+      for (const [label, errors] of [
+        ["a Set holding a raw error", new Set([raw])],
+        ["a Set of plain errors", new Set([new Error(`one ${ADDRESS}`), new Error("two")])],
+        ["an array-like holding a raw error", { 0: raw, length: 1 }],
+        ["a plain object", { first: new Error(`one ${ADDRESS}`) }],
+      ] as const) {
+        const thrown = Object.assign(new Error(`holder ${TOKEN}`), { errors });
+        const escaped = await escapingWith(thrown);
+        expect([label, escaped instanceof CleanedQueryError]).toEqual([label, true]);
+        expectBare(escaped, [ADDRESS, TOKEN, "Failed query"]);
+      }
+      // The control: the same plain errors in an array, the shape the walk follows, pass as is.
+      const listed = Object.assign(new Error("holder"), { errors: [new Error("one")] });
+      expect(await escapingWith(listed)).toBe(listed);
+    });
+
+    it("a raw error deeper than the cleaned chain keeps its SQLSTATE and schema names on the cleaned error (the review of 72b8a3b, note 7)", async () => {
+      // The review's D9 probe: APIError → Error → APIError → raw, the raw error four links down.
+      const raw = await rawFailure();
+      const inner = Object.assign(new APIError("BAD_REQUEST"), { cause: raw });
+      const outer = Object.assign(new APIError("FORBIDDEN"), {
+        cause: new Error(`middle ${TOKEN}`, { cause: inner }),
+      });
+      const escaped = await escapingWith(outer);
+      expect(escaped).toBeInstanceOf(CleanedQueryError);
+      expect(factsOf(escaped)).toMatchObject({
+        name: "Error",
+        message: "",
+        code: "23505",
+        constraint: "auth_user_email_unique",
+        constraint_name: "auth_user_email_unique",
+      });
+      expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
+      expectBare(escaped, [ADDRESS, TOKEN, "Failed query"]);
+      const logged: string[] = [];
+      const capture = (line: string) => logged.push(line);
+      try {
+        maskedAuthLogging({ error: capture, warn: capture, log: capture }).onAPIError.onError(
+          escaped,
+        );
+      } catch {
+        // Its answer is the plain 500 the D9 test above checks; the line is what's checked here.
+      }
+      expect(logged).toEqual(["[kabinet] Better Auth error: API error · Error (23505)"]);
+
+      // Twenty links down, still within the walk's limit: the same facts.
+      let chain: Error = raw;
+      for (let link = 0; link < 20; link += 1) chain = new Error(`link ${link}`, { cause: chain });
+      expect(sqlStateOf(await escapingWith(chain))).toBe("23505");
+    });
   });
 
   it("neon-http: the driver has no transactions, so the callback never runs; its refusal is cleaned as before, and no request is sent", async () => {

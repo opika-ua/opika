@@ -81,18 +81,24 @@ line or thrown error; every caller that reads a SQLSTATE behaves as before.
 its callback the transaction cleaned, so a statement failing inside it is cleaned at the statement.
 What the callback throws (an `APIError`, Drizzle's rollback, a plain error) reaches the caller as the
 same object, unless the walk over it finds a raw query error: the walk follows `cause` and `errors`
-(an `AggregateError`'s list, or any error carrying one), from the thrown error down, at any depth.
-If the walk stops first (on a loop, past 64 errors, or on a read that throws), the throw is cleaned
-too (fail closed, his rule). A cleaned error is never named `APIError`, so Better Auth answers it as
+when `errors` is an array (an `AggregateError`'s list, or any error carrying an array there), from
+the thrown error down, at any depth. If the walk stops first (on a loop, past 64 errors, or on a
+read that throws), the throw is cleaned too (fail closed, his rule). So does an `errors` that is
+there but isn't an array (a `Set`, an array-like, a plain object): the walk can't see into it, so
+the throw is cleaned (F8-F2, his Q2). A cleaned error keeps the SQLSTATE and schema names of the
+first raw query error the walk finds, at any depth within its limit, not only within the three
+links its cleaned chain keeps (F8-F2). A cleaned error is never named `APIError`, so Better Auth answers it as
 a plain 500. Anything the transaction itself raises is cleaned (neon-http has no transactions: its
 refusal is cleaned as before). Every kabinet page, route and procedure reads through `kabinetDb()`
 (`apps/web/src/kabinet/kabinet-db.ts`, the served database cleaned), pinned by
 `kabinet-db.test.ts`. `kabinet-db-scan.test.ts` walks the import closure from every kabinet page,
-route and module and `proxy.ts`, through `@/` and relative imports (static, re-exported, and
-dynamic of a literal) into any folder, comments ignored, and fails if a reached module imports
-`getDb` or uses `createDatabase`, or loads a module in a way it can't follow (a non-literal
-`import()`, `createRequire`, a namespace or dynamic load of `@opika/db`); `kabinet-db.ts` is its one
-exception. In
+route and module and `proxy.ts`, through `@/` and relative imports (static, re-exported, dynamic
+of a literal, and `require` of a literal) into any folder. It reads imports from the TypeScript
+compiler's syntax tree (`apps/web/test/source-ast.ts`, F8-F2), so a string or a comment can neither
+hide an import nor fake one. It fails if a reached module imports `getDb` or uses
+`createDatabase`, or loads a module in a way it can't follow (a non-literal `import()` or
+`require()`, `createRequire`, a namespace or dynamic load of `@opika/db`); `kabinet-db.ts` is its one
+exception, with exactly its one finding. In
 log text, a snake_case schema or constant name (`auth_user_email_unique`, `INTERNAL_SERVER_ERROR`)
 is no longer masked as a token; a hex or base64url token still is. Error names are allow-listed: a
 cleaned error, a log line and `maskedLogValue` show a name only from the fixed list in
