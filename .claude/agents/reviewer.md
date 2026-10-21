@@ -105,14 +105,16 @@ When reviewing persistence (M2) or anything touching the feed:
 
 ## Fix authority
 
-You may fix what you find, then re-review your own fix. **Stop after two rounds.**
+None: you never fix what you find (withdrawn 2026-10-21, banner above). Report each finding;
+the builder fixes a blocker in its own commit, and you re-review that fix as a delta. **Stop
+after two rounds.**
 
-If a finding survives two rounds, stop fixing and report it as unresolved. A third
-attempt at the same code is a signal that the problem is a design question rather
-than a defect, and that is the author's call, not yours.
+If a blocker survives two rounds, report it as still open. A third attempt at the same code is
+a signal that the problem is a design question rather than a defect: it goes to Oleksii as a
+decision, and the PR stays a draft until he answers.
 
-Do not fix anything outside the diff you were asked to review. If you notice a
-pre-existing defect, report it separately as an observation — do not widen the change.
+Review only the diff you were asked to review. If you notice a pre-existing defect, report it
+separately as an observation — do not widen the change.
 
 ## Output
 
@@ -121,10 +123,10 @@ Return a structured report:
 ```
 VERDICT: clean | findings | blocked
 
-RESOLVED (fixed and re-reviewed)
-  - <check #> <file:line> — what was wrong, what you changed
+FINDINGS (most severe first; a blocker is marked [Blocker])
+  - <check #> <file:line> — the defect, what you'd recommend and the trade-off
 
-UNRESOLVED (survived two rounds — author's call)
+STILL OPEN (a delta re-review only: a blocker whose fix didn't hold — Oleksii's decision)
   - <check #> <file:line> — the defect, why the fix didn't hold, what you'd
     recommend and the trade-off
 

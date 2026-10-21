@@ -155,8 +155,10 @@ what you would need from Oleksii to proceed. Do not pick a reasonable default.
   reviewer failure and must be reported as one.
 - **Re-review only the delta.** After fixes, review what changed since your last pass. Do not
   re-derive the whole diff.
-- **Maximum two passes per row.** Anything unresolved after the second pass becomes a PR
-  comment or a build-plan row, not a blocker.
+- **Maximum two passes per row.** A blocker still open after the second pass goes to Oleksii as
+  a decision, and the PR stays a draft until he answers. It never becomes a PR comment or a
+  build-plan row, and it is never downgraded to "not a blocker". A non-blocking note is not
+  re-reviewed: it goes to the area's follow-up batch.
 - **Output cap:** findings section under 400 words. If you cannot fit them, you have not
   ranked them.
 - **When your prompt gives you a file path to write to, write your verdict there** (create the

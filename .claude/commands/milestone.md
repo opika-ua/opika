@@ -70,11 +70,14 @@ Guessing is what produces work that has to be redone.
 
 ## Phase 3 — Review
 
-Invoke the **reviewer** subagent against `git diff main...HEAD`.
+Invoke the **reviewer** subagent against `git diff main...HEAD`. It is read-only: it reports
+findings and never fixes them.
 
-It may fix what it finds and re-review, up to two rounds. If a finding survives two
-rounds, it stops — that is a design question for a human, and you must not attempt a
-third fix. Carry unresolved findings into the pull request body verbatim.
+A blocker it reports is fixed in its own commit and re-reviewed as a delta, up to two rounds.
+If a blocker survives two rounds, that is a design question for a human: you must not attempt a
+third fix. It goes to Oleksii as a decision, and the PR stays a draft until he answers; it is
+never carried into the pull request as unresolved, and never becomes "not a blocker". Non-blocking
+findings go to the area's follow-up batch; carry them into the pull request body verbatim.
 
 If the reviewer returns `blocked`, stop and report. Do not open a pull request.
 
@@ -87,7 +90,7 @@ Only after `pnpm check` is green and the reviewer has returned `clean` or `findi
 
 ```
 git push -u origin <branch>
-gh pr create --fill
+gh pr create --draft --fill
 ```
 
 The pull request body must contain:
@@ -99,8 +102,9 @@ The pull request body must contain:
 - **Decisions made** — anything you settled during implementation that the plan did
   not, and the reasoning.
 - **Reviewer report** — resolved, unresolved, and observations, in full.
-- **Unresolved findings** — called out at the top if any exist. These are the reason
-  the human is reading.
+- **Open findings** — the non-blocking findings headed for the follow-up batch, called out at
+  the top if any exist. These are the reason the human is reading. (A blocker is never listed
+  here: it goes to Oleksii as a decision first.)
 - **Follow-ups** — anything deliberately deferred, and to which milestone.
 
 **Then stop.** Do not merge (*narrowed 2026-10-19:* except under CLAUDE.md's "Merge only the
