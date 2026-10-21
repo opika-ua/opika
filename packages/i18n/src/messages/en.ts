@@ -145,6 +145,12 @@ export const en = {
     photoGalleryThumbnail: "View photo {n}",
   },
 
+  // --- The gallery's preview drawer ---
+  preview: {
+    openFull: "Open the full page",
+    close: "Close",
+  },
+
   // --- Contact reveal (05) ---
   reveal: {
     /** Template: "You asked about {name}." */

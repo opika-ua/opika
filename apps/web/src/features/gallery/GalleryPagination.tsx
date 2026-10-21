@@ -92,6 +92,11 @@ export function GalleryPagination({
     >
       {page > 1 ? (
         <Link
+          // Off, like the cards' own links: with the preview drawer's interception
+          // in the tree, Next keys prefetches by the current URL, so every drawer
+          // opened re-prefetched every visible gallery link, each one a request
+          // against proxy.ts's per-IP limit (gallery-preview-drawer.harness.ts).
+          prefetch={false}
           href={galleryPageHref(filters, sort, page - 1, citySlugs)}
           data-testid="pagination-prev"
           className={NAV_BUTTON_AVAILABLE}
@@ -127,6 +132,7 @@ export function GalleryPagination({
             </span>
           ) : (
             <Link
+              prefetch={false}
               key={item}
               href={galleryPageHref(filters, sort, item, citySlugs)}
               aria-label={pageAriaLabel(item)}
@@ -151,6 +157,7 @@ export function GalleryPagination({
 
       {page < totalPages ? (
         <Link
+          prefetch={false}
           href={galleryPageHref(filters, sort, page + 1, citySlugs)}
           data-testid="pagination-next"
           className={NAV_BUTTON_AVAILABLE}

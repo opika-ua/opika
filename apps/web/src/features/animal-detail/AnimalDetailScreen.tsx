@@ -1,18 +1,19 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
 import {
-  type CoatLength,
   donationHost,
   fillAnimalName,
   hasAnyDocumentEvidence,
   pluralizeUk,
   textIn,
 } from "@opika/domain";
-import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
+import { uk } from "@opika/i18n";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { Footer } from "../chrome/Footer";
 import { SiteHeader } from "../chrome/SiteHeader";
+import { CoatFact } from "./CoatFact";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
+import { animalLocationLine, animalSubtitle } from "./detail-text";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
 import { ShelterFreshnessBlock } from "./ShelterFreshnessBlock";
@@ -29,15 +30,6 @@ function yearsOnOpika(createdAt: Date, now: Date): number {
 
 /** The subtitle's own type, shared by the fur row under it rather than a style of its own. */
 const SUBTITLE_TEXT = "text-[15px]/[22px] text-rg-ink-2";
-
-const COAT_VALUE: Record<CoatLength, string> = {
-  short: uk.detail.coatShort,
-  long: uk.detail.coatLong,
-};
-
-function speciesLabel(species: AnimalDetailView["species"]): string {
-  return species === "dog" ? uk.detail.speciesDog : uk.detail.speciesCat;
-}
 
 interface AnimalDetailScreenProps {
   animal: AnimalDetailView;
@@ -97,23 +89,8 @@ export function AnimalDetailScreen({
   const years = yearsOnOpika(shelter.createdAt, now);
   const yearsLabel = pluralizeUk(years, { one: "рік", few: "роки", many: "років" });
 
-  const subtitle = [
-    speciesLabel(animal.species),
-    ageWordFor(animal.ageBucket, animal.sex),
-    sizeLabel(animal.size),
-  ].join(" · ");
-
-  /**
-   * `animal.publicLocation` is `null` for an animal still at its own
-   * shelter — it inherits the shelter's location (`CLAUDE.md` decision
-   * #17). Non-null means fostered. Either way this view holds the city only
-   * (Oleksii, 2026-10-14, EM-Q10), so nullness is the one signal.
-   */
-  const isFostered = animal.publicLocation !== null;
-  const locationLine = (isFostered ? uk.location.lineFostered : uk.location.lineAtShelter).replace(
-    "{city}",
-    () => cityName ?? "",
-  );
+  const subtitle = animalSubtitle(animal);
+  const locationLine = animalLocationLine(animal, cityName);
 
   return (
     <div className="font-rg min-h-dvh bg-rg-page">
@@ -191,17 +168,7 @@ export function AnimalDetailScreen({
               {animal.name}
             </h1>
             <span className={SUBTITLE_TEXT}>{subtitle}</span>
-            {/*
-              Fur (DR1, S3): his rule is no row at all when it isn't recorded
-              («Не вказано» is the kabinet's word, never an adopter's), and the
-              value is the form's word, not the plural filter label.
-            */}
-            {animal.coatLength !== null && (
-              <dl className={`flex gap-1 ${SUBTITLE_TEXT}`}>
-                <dt>{uk.detail.coatLabel}:</dt>
-                <dd>{COAT_VALUE[animal.coatLength]}</dd>
-              </dl>
-            )}
+            <CoatFact coatLength={animal.coatLength} className={SUBTITLE_TEXT} />
           </div>
 
           {/*

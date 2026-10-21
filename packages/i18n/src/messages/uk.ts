@@ -337,6 +337,19 @@ export const uk = {
     photoGalleryThumbnail: "Переглянути фото {n}",
   },
 
+  // --- The gallery's preview drawer (designer round 1, §2 of docs/designer-round-1.md) ---
+  /**
+   * Oleksii's Ukrainian, verbatim (docs/designer-round-1.md §11, item 3).
+   * `close` is his «Закрити», the same word as the kabinet dialogs' own
+   * `close`, given its own key here so a public surface doesn't read a
+   * kabinet dialog's string. The drawer's accessible name is the animal's
+   * name heading, so it has no label key of its own.
+   */
+  preview: {
+    openFull: "Відкрити повну сторінку",
+    close: "Закрити",
+  },
+
   // --- Contact reveal (05) ---
   reveal: {
     /** Template: "Ви запитали про {name}." */
