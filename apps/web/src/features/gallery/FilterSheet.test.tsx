@@ -182,4 +182,24 @@ describe("FilterSheet", () => {
       false,
     );
   });
+
+  it("has a «Шерсть» group; ticking «Довгошерсті» submits `sherst=long`", () => {
+    const { router } = renderSheet();
+    const sheet = within(screen.getByTestId("filter-sheet"));
+    const group = within(sheet.getByRole("group", { name: "Шерсть", hidden: true }));
+    expect((group.getByLabelText("Короткошерсті") as HTMLInputElement).checked).toBe(false);
+
+    fireEvent.click(group.getByLabelText("Довгошерсті"));
+    fireEvent.click(sheet.getByRole("button", { name: /Показати/, hidden: true }));
+
+    const [href] = router.replace.mock.calls[0] as [string];
+    expect(new URL(href, "http://x").searchParams.get("sherst")).toBe("long");
+  });
+
+  it("shows the applied fur selection as checked", () => {
+    renderSheet({ ...NO_FILTERS, coatLengths: { kind: "oneOf", values: ["short"] } });
+    const sheet = within(screen.getByTestId("filter-sheet"));
+    expect((sheet.getByLabelText("Короткошерсті") as HTMLInputElement).checked).toBe(true);
+    expect((sheet.getByLabelText("Довгошерсті") as HTMLInputElement).checked).toBe(false);
+  });
 });

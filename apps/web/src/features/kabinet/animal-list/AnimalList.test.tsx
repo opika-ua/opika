@@ -97,6 +97,7 @@ const viewOf = (from: AnimalRow, listing: KabinetAnimalView["listing"]): Kabinet
     species: from.species,
     sex: from.sex,
     size: from.size,
+    coatLength: null,
     age: from.age,
     description: { uk: "Опис", en: null },
     photos: from.coverPhoto === null ? [] : [from.coverPhoto],

@@ -1,4 +1,6 @@
+import type { SQL } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { Database } from "../src/client";
 import { setupTestDatabase } from "../src/test-utils/index";
 import { runSmoke, smokeTarget } from "./neon-smoke";
 
@@ -111,7 +113,31 @@ describe("runSmoke against the local database", () => {
     // 25 through PR 3, R-UI 1's 26 (S1 row: admin counts and donationPending),
     // K3's 27–31 (F-B1, K3-T7, RH-B7), then K2's 32–36 (the list's keyset,
     // filters and counts; confirm/undo; the recorded moves), then KH-Q12's 37
-    // (auth:revoke-all's purge), then 38 (the gallery's relaxation counts).
-    expect(outcomes.length).toBe(38);
+    // (auth:revoke-all's purge), then 38 (the gallery's relaxation counts),
+    // then 39 (fur set and cleared by the kabinet edit, filtered in the
+    // gallery and the deck, DR1 S3).
+    expect(outcomes.length).toBe(39);
+  });
+
+  it("passes every statement over a driver whose raw results are `{ rows }`, as neon-http's are", async () => {
+    // Production's driver returns a raw `db.execute()` result as
+    // `{ rows, fields, … }`, not postgres-js's array (#166). This wrapper gives
+    // the local database that shape, so a step that reads a raw result as an
+    // array fails here before it reaches Neon. A second run on the same
+    // database: every step makes fixtures of its own, under a fresh tag.
+    const neonHttpRawShape = new Proxy(db, {
+      get(target, property, receiver) {
+        if (property === "execute") {
+          return async (query: SQL) => ({
+            rows: Array.from(await target.execute(query)),
+            fields: [],
+          });
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    }) as Database;
+    const outcomes = await runSmoke(neonHttpRawShape);
+    expect(outcomes.filter((o) => !o.ok)).toEqual([]);
+    expect(outcomes.length).toBe(39);
   });
 });

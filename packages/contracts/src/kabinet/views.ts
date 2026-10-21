@@ -65,6 +65,7 @@ const ANIMAL_VIEW_FIELDS = {
   species: true,
   sex: true,
   size: true,
+  coatLength: true,
   age: true,
   description: true,
   photos: true,

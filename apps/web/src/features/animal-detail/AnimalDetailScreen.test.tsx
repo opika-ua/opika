@@ -247,3 +247,39 @@ describe("AnimalDetailScreen subtitle, by sex", () => {
     expect(screen.getByText(word)).toBeTruthy();
   });
 });
+
+/**
+ * DR1 (S3), his rule: «Шерсть» with «Коротка» / «Довга», the form's words;
+ * no row at all when fur isn't recorded (never «Не вказано» to adopters).
+ */
+describe("AnimalDetailScreen — the fur fact", () => {
+  const renderWith = async (coatLength: AnimalDetailView["coatLength"]) => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal({ coatLength })}
+        shelter={makeShelter()}
+        now={NOW}
+        cityName="Бровари"
+        backToGalleryHref="/tvaryny"
+      />,
+    );
+  };
+
+  it.each([
+    ["short", "Коротка"],
+    ["long", "Довга"],
+  ] as const)("a %s coat reads «Шерсть: %s»", async (coatLength, value) => {
+    await renderWith(coatLength);
+    const term = screen.getByRole("term");
+    expect(term.textContent).toBe("Шерсть:");
+    expect(screen.getByRole("definition").textContent).toBe(value);
+  });
+
+  it("shows no fur row when it isn't recorded", async () => {
+    await renderWith(null);
+    expect(screen.queryByText(/Шерсть/)).toBeNull();
+    expect(screen.queryByText(/Не вказано/)).toBeNull();
+    expect(screen.queryByRole("term")).toBeNull();
+  });
+});

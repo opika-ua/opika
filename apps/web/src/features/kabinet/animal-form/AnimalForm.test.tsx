@@ -33,6 +33,7 @@ const draft = (overrides: Partial<KabinetAnimalView> = {}): KabinetAnimalView =>
     species: "dog",
     sex: "unknown",
     size: null,
+    coatLength: null,
     age: null,
     description: null,
     photos: [],
@@ -92,6 +93,7 @@ function fakeClient(start: KabinetAnimalView | null): FakeClient {
         ...(patch.species !== undefined ? { species: patch.species } : {}),
         ...(patch.sex !== undefined ? { sex: patch.sex } : {}),
         ...(patch.size !== undefined ? { size: patch.size } : {}),
+        ...(patch.coatLength !== undefined ? { coatLength: patch.coatLength } : {}),
         ...(patch.description !== undefined ? { description: patch.description } : {}),
         ...(patch.age !== undefined
           ? {
@@ -1398,6 +1400,75 @@ describe("a listed animal saves only when asked (T8)", () => {
     );
     expect(screen.getByText("Цю картку зараз ніхто не бачить.")).toBeTruthy();
     expect(screen.getByText("Удома")).toBeTruthy();
+  });
+});
+
+/**
+ * DR1 (S3): fur, his words «Шерсть», «Коротка», «Довга», «Не вказано»
+ * (2026-10-20). Optional for publishing, and the only fact that can go back
+ * to unknown once chosen.
+ */
+describe("fur", () => {
+  const coatGroup = () => within(screen.getByRole("group", { name: "Шерсть" }));
+  const checked = (label: string) =>
+    (coatGroup().getByLabelText(label) as HTMLInputElement).checked;
+
+  it("is a labelled radio group, starting on «Не вказано» on /nova", () => {
+    renderForm(null);
+    expect(
+      coatGroup()
+        .getAllByRole("radio")
+        .map((radio) => radio.closest("label")?.textContent),
+    ).toEqual(["Коротка", "Довга", "Не вказано"]);
+    expect(checked("Не вказано")).toBe(true);
+  });
+
+  it("isn't one of the publish gaps", () => {
+    renderForm(null);
+    expect(screen.getByText(MISSING_ALL)).toBeTruthy();
+  });
+
+  it("is chosen with the keyboard and saved on a draft as the one changed field", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    // Space chooses the focused radio, as a keyboard user does.
+    coatGroup().getByLabelText("Довга").focus();
+    await user.keyboard(" ");
+    expect(checked("Довга")).toBe(true);
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update).toHaveBeenCalledWith({
+      animalId: ID,
+      expectedVersion: 0,
+      patch: { coatLength: "long" },
+    });
+  });
+
+  it("shows the stored value, and «Не вказано» clears it on a published card", async () => {
+    const client = renderForm(published({ coatLength: "short" }));
+    expect(checked("Коротка")).toBe(true);
+    fireEvent.click(coatGroup().getByLabelText("Не вказано"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { coatLength: null } });
+    expect(checked("Не вказано")).toBe(true);
+  });
+
+  it("on /nova, the draft is made from a name and a species, and fur follows in the next save", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(null);
+    await user.type(screen.getByLabelText("Імʼя"), "Ластівка");
+    await user.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Собака"));
+    await user.click(coatGroup().getByLabelText("Довга"));
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.createDraft).toHaveBeenCalledWith({ name: "Ластівка", species: "dog" });
+    await waitFor(() =>
+      expect(client.calls.update).toHaveBeenCalledWith({
+        animalId: ID,
+        expectedVersion: 0,
+        patch: { coatLength: "long" },
+      }),
+    );
   });
 });
 

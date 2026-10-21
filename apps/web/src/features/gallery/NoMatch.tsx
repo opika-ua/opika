@@ -1,7 +1,7 @@
 import type { GalleryRelaxation } from "@opika/contracts";
 import type { FeedFilterDimension, FeedFilters, GallerySort } from "@opika/domain";
 import { pluralizeUk, relaxDimension } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
 import type { CitySlugsById } from "./filter-url";
 import { galleryHref } from "./filter-url";
@@ -13,35 +13,30 @@ interface NoMatchProps {
   relaxations: readonly GalleryRelaxation[];
 }
 
-/**
- * `null` for a dimension with no Ukrainian label yet: fur (DR1, S2) reached
- * the filter set before its copy did, and the gallery's URL can't set it
- * until S3, so its suggestion can't arise; should one ever, it is left out
- * rather than shown with a made-up or `[COPY PENDING]` label on a public page.
- */
-const DIMENSION_LABEL: Record<FeedFilterDimension, string | null> = {
+const DIMENSION_LABEL: Record<Exclude<FeedFilterDimension, "coatLengths">, string> = {
   cities: uk.filters.city.toLowerCase(),
   species: uk.filters.species.toLowerCase(),
   sizes: uk.filters.size.toLowerCase(),
   ages: uk.filters.age.toLowerCase(),
-  coatLengths: null,
 };
 
-type LabelledRelaxation = GalleryRelaxation & { label: string };
-
-const labelled = (relaxations: readonly GalleryRelaxation[]): LabelledRelaxation[] =>
-  relaxations.flatMap((relaxation) => {
-    const label = DIMENSION_LABEL[relaxation.dimension];
-    return label === null ? [] : [{ ...relaxation, label }];
-  });
-
-function suggestionLabel({ dimension, additional, label }: LabelledRelaxation): string {
+/**
+ * Fur has a sentence of its own (his `noMatch.relaxCoat`, DR1), so it never
+ * goes through «Прибрати «{dimension}»»: the bare count is his template's
+ * whole number, with no noun to agree with it.
+ */
+function suggestionLabel({ dimension, additional }: GalleryRelaxation): string {
+  if (dimension === "coatLengths") {
+    return fillTemplate(uk.noMatch.relaxCoat, { count: String(additional) });
+  }
   const animalWord = uk.noMatch.additionalAnimals
     .replace("{count}", String(additional))
     .replace("{animalWord}", pluralizeUk(additional, uk.filters.animalWord));
 
   const template = dimension === "cities" ? uk.noMatch.showAllCities : uk.noMatch.removeDimension;
-  return template.replace("{dimension}", label).replace("{animalWord}", animalWord);
+  return template
+    .replace("{dimension}", DIMENSION_LABEL[dimension])
+    .replace("{animalWord}", animalWord);
 }
 
 /**
@@ -55,7 +50,6 @@ function suggestionLabel({ dimension, additional, label }: LabelledRelaxation): 
  * component re-sorting anything.
  */
 export function NoMatch({ filters, sort, citySlugs, relaxations }: NoMatchProps) {
-  const suggestions = labelled(relaxations);
   return (
     <div
       data-testid="gallery-no-match"
@@ -68,10 +62,10 @@ export function NoMatch({ filters, sort, citySlugs, relaxations }: NoMatchProps)
         <p className="text-[17px]/[26px] text-rg-ink-2 text-pretty">{uk.noMatch.reassurance}</p>
       </div>
 
-      {suggestions.length > 0 && (
+      {relaxations.length > 0 && (
         <>
           <div className="flex flex-col gap-2 w-full">
-            {suggestions.map((suggestion, index) => (
+            {relaxations.map((suggestion, index) => (
               <Link
                 key={suggestion.dimension}
                 href={galleryHref(relaxDimension(filters, suggestion.dimension), sort, citySlugs)}

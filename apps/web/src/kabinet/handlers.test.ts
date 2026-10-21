@@ -958,6 +958,59 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
   });
 
   /**
+   * DR1 (S3): fur is set and cleared through the patch, on a listed card too
+   * (DR1-D10: «Не вказано» is an answer, not a gap), and history names the
+   * field, never its value (K-Q7).
+   */
+  it("fur is set, then cleared on a published card, each a recorded edit of «coatLength»", async () => {
+    const a = await animal();
+    expect(a.listing.kind).toBe("published");
+    const set = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { coatLength: "long" },
+    });
+    expect(set.status).toBe(200);
+    expect(set.body.coatLength).toBe("long");
+    expect((await reload(a.id)).coatLength).toBe("long");
+
+    const cleared = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: set.body.version,
+      patch: { coatLength: null },
+    });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.coatLength).toBeNull();
+    expect((await reload(a.id)).coatLength).toBeNull();
+
+    const lines = await animalLines();
+    expect(lines.map((l) => (l.kind === "animal_edited" ? l.fields : l.kind))).toEqual([
+      ["coatLength"],
+      ["coatLength"],
+    ]);
+    expect(JSON.stringify(lines)).not.toContain('"long"');
+  });
+
+  it("re-sending the stored fur, or leaving it out, changes nothing", async () => {
+    const a = await animal({ coatLength: "short" });
+    const same = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { coatLength: "short" },
+    });
+    expect(same.body.version).toBe(a.version);
+    const other = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { sex: a.sex === "male" ? "female" : "male" },
+    });
+    expect(other.body.coatLength).toBe("short");
+    expect(
+      (await animalLines()).map((l) => (l.kind === "animal_edited" ? l.fields : l.kind)),
+    ).toEqual([["sex"]]);
+  });
+
+  /**
    * D3 (Oleksii: "keep the chosen «Станом на» date"): the form shows the
    * stored bucket and its date, so re-sending them is "no change", even for a
    * bucket stamped at save time before D3 (compared as Kyiv calendar dates).

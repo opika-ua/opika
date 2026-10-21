@@ -13,6 +13,7 @@ import {
   resetFiltersHref,
   withToggledAge,
   withToggledCity,
+  withToggledCoat,
   withToggledSize,
   withToggledSpecies,
 } from "./filter-url";
@@ -361,5 +362,56 @@ describe("redirectHrefForLegacyCityIds", () => {
     expect(redirectHrefForLegacyCityIds({ misto: CITY_A }, "/tvaryny/gortaty", CITY_SLUGS)).toBe(
       `/tvaryny/gortaty?misto=${SLUG_A}`,
     );
+  });
+});
+
+/**
+ * Fur (DR1, S3): `sherst`, read and written like the other multi-selects.
+ * The expected strings are the URL scheme literally, not built from
+ * `GALLERY_PARAM`, so a renamed param fails here.
+ */
+describe("the fur filter in the URL", () => {
+  it("parses `sherst`, comma-joined or repeated, dropping a value it doesn't know", () => {
+    expect(parseGalleryQuery({ sherst: "long" }, NO_SLUGS).filters.coatLengths).toEqual({
+      kind: "oneOf",
+      values: ["long"],
+    });
+    expect(parseGalleryQuery({ sherst: ["short", "curly"] }, NO_SLUGS).filters.coatLengths).toEqual(
+      { kind: "oneOf", values: ["short"] },
+    );
+  });
+
+  it("both values is no fur filter at all", () => {
+    expect(parseGalleryQuery({ sherst: "short,long" }, NO_SLUGS).filters.coatLengths).toEqual(ANY);
+  });
+
+  it("round-trips through galleryHref with the other filters and the sort", () => {
+    const filters = withToggledCoat(withToggledSpecies(NO_FILTERS, "cat"), "long");
+    const href = galleryHref(filters, "longest_waiting", NO_CITIES);
+    expect(href).toBe("/tvaryny?vyd=cat&sherst=long&sort=longest_waiting");
+    const reparsed = parseGalleryQuery(
+      Object.fromEntries(new URL(href, "http://x").searchParams),
+      NO_SLUGS,
+    );
+    expect(reparsed).toEqual({ filters, sort: "longest_waiting", page: 1 });
+  });
+
+  it("is carried into a page link and into the deck", () => {
+    const filters = withToggledCoat(NO_FILTERS, "short");
+    expect(galleryPageHref(filters, "freshest", 2, NO_CITIES)).toBe("/tvaryny?sherst=short&stor=2");
+    const deckHref = deckEntryHref(filters, 5, NO_CITIES);
+    expect(deckHref).toBe("/tvaryny/gortaty?sherst=short&total=5");
+    expect(
+      parseDeckQuery(Object.fromEntries(new URL(deckHref, "http://x").searchParams), NO_SLUGS),
+    ).toEqual({ filters, total: 5 });
+  });
+
+  it("the deck's header names it in his filter words", () => {
+    const filters = withToggledCoat(withToggledSpecies(NO_FILTERS, "dog"), "long");
+    expect(filtersInWords(filters, new Map())).toBe("собаки · довгошерсті");
+  });
+
+  it("«Скинути» clears it", () => {
+    expect(resetFiltersHref("freshest")).toBe("/tvaryny");
   });
 });

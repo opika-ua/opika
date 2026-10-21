@@ -83,6 +83,7 @@ export function kabinetAnimalViewOf(animal: Animal): KabinetAnimalView {
     name: animal.name,
     species: animal.species,
     sex: animal.sex,
+    coatLength: animal.coatLength,
     photos: animal.photos,
     vaccination: animal.vaccination,
     spayNeuter: animal.spayNeuter,
@@ -518,6 +519,8 @@ export async function animalsUpdate(
     name: patch.name ?? animal.name,
     species: patch.species ?? animal.species,
     sex: patch.sex ?? animal.sex,
+    // `?? ` would turn a cleared fur (null) back into the stored one.
+    coatLength: patch.coatLength === undefined ? animal.coatLength : patch.coatLength,
     vaccination,
     spayNeuter,
   };

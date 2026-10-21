@@ -1,5 +1,6 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
 import {
+  type CoatLength,
   donationHost,
   fillAnimalName,
   hasAnyDocumentEvidence,
@@ -25,6 +26,14 @@ function yearsOnOpika(createdAt: Date, now: Date): number {
   const years = (now.getTime() - createdAt.getTime()) / (365.2425 * 86_400_000);
   return Math.max(0, Math.floor(years));
 }
+
+/** The subtitle's own type, shared by the fur row under it rather than a style of its own. */
+const SUBTITLE_TEXT = "text-[15px]/[22px] text-rg-ink-2";
+
+const COAT_VALUE: Record<CoatLength, string> = {
+  short: uk.detail.coatShort,
+  long: uk.detail.coatLong,
+};
 
 function speciesLabel(species: AnimalDetailView["species"]): string {
   return species === "dog" ? uk.detail.speciesDog : uk.detail.speciesCat;
@@ -181,7 +190,18 @@ export function AnimalDetailScreen({
             >
               {animal.name}
             </h1>
-            <span className="text-[15px]/[22px] text-rg-ink-2">{subtitle}</span>
+            <span className={SUBTITLE_TEXT}>{subtitle}</span>
+            {/*
+              Fur (DR1, S3): his rule is no row at all when it isn't recorded
+              («Не вказано» is the kabinet's word, never an adopter's), and the
+              value is the form's word, not the plural filter label.
+            */}
+            {animal.coatLength !== null && (
+              <dl className={`flex gap-1 ${SUBTITLE_TEXT}`}>
+                <dt>{uk.detail.coatLabel}:</dt>
+                <dd>{COAT_VALUE[animal.coatLength]}</dd>
+              </dl>
+            )}
           </div>
 
           {/*

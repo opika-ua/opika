@@ -274,6 +274,7 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
         "species",
         "sex",
         "size",
+        "coatLength",
         "age",
         "description",
         "vaccination",
@@ -281,7 +282,7 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
         "photos",
       ],
     },
-    "Змінено картку Рекс: Імʼя, Вид, Стать, Розмір, Вік, Опис, Комплексне щеплення, Стерилізація, Фото · Олена",
+    "Змінено картку Рекс: Імʼя, Вид, Стать, Розмір, Шерсть, Вік, Опис, Комплексне щеплення, Стерилізація, Фото · Олена",
   ],
   [
     "animal_listing_changed",
