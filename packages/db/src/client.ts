@@ -86,8 +86,14 @@ export type Database = PostgresJsDatabase<typeof schema>;
  * this comment used to say "nothing in the repo layer calls `.execute()`"
  * while `gallery.relaxationCounts` did, and read the result as an array, so
  * every relaxation count was 0 in production (#112, found in the review of
- * #163). `test/raw-execute-reads.test.ts` now refuses any raw `.execute()`
- * whose result is used outside `executeRows`. Every repository call is a plain
+ * #163). `test/raw-execute-reads.test.ts` now allows a raw `.execute` outside
+ * `executeRows` only as a whole statement that discards its result
+ * (`await <name>.execute(…);`, the `await` opening the statement) and refuses
+ * every other use in `apps/` and `packages/`: assigned (Biome's break after
+ * `=` included), wrapped in another call, chained, returned, or `.execute`
+ * named without a call (`const run = db.execute`). What it does not follow:
+ * `const { execute } = db` and `db["execute"]`, and test and harness files,
+ * which run against local postgres-js only. Every repository call is a plain
  * `.select()/.insert()/.update()/.delete()` chain, whose *typed row*
  * return shape Drizzle's query builder normalises identically regardless
  * of adapter. A real union (`PostgresJsDatabase | NeonHttpDatabase`) was
