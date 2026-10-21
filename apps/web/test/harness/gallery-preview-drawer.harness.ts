@@ -14,7 +14,7 @@
  */
 
 import { uk } from "@opika/i18n";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, type Request, test } from "@playwright/test";
 import { openRoute } from "./harness";
 import { DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
 
@@ -39,42 +39,54 @@ async function cardAt(page: Page, index: number) {
 }
 
 /**
- * A settled state, not a timeout: nothing in flight, and nothing new started
- * across two rendered frames. A prefetch is started by the links being seen
- * again after the drawer's tree commits, so it shows up within those frames
- * or as a request this loop then waits out.
+ * Watches the requests that start from now on, to wait until they have
+ * settled: none of them in flight, and nothing new started across two
+ * rendered frames. A settled state, not a timeout. Started before the action
+ * it watches, so every request that action causes is seen from its start.
+ * Requests that were already in flight when it started are not its business:
+ * it tracks `Request` objects, so their finish is ignored rather than counted
+ * against the ones it did see.
  */
-async function untilNetworkSettles(page: Page) {
+function watchNetwork(page: Page) {
+  const inFlight = new Set<Request>();
   let started = 0;
-  let inFlight = 0;
-  const onStart = () => {
+  const onStart = (request: Request) => {
     started += 1;
-    inFlight += 1;
+    inFlight.add(request);
   };
-  const onEnd = () => {
-    inFlight -= 1;
+  const onEnd = (request: Request) => {
+    inFlight.delete(request);
   };
   page.on("request", onStart);
   page.on("requestfinished", onEnd);
   page.on("requestfailed", onEnd);
-  try {
-    for (let round = 0; round < 50; round += 1) {
-      await expect.poll(() => inFlight, { message: "requests still in flight" }).toBe(0);
-      const startedBefore = started;
-      await page.evaluate(
-        () =>
-          new Promise<void>((resolve) =>
-            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-          ),
-      );
-      if (started === startedBefore && inFlight === 0) return;
+
+  async function untilSettled() {
+    try {
+      for (let round = 0; round < 50; round += 1) {
+        await expect
+          .poll(() => [...inFlight].map((request) => request.url()), {
+            message: "requests still in flight",
+          })
+          .toEqual([]);
+        const startedBefore = started;
+        await page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+        );
+        if (started === startedBefore && inFlight.size === 0) return;
+      }
+      throw new Error("the network never settled after opening the drawer");
+    } finally {
+      page.off("request", onStart);
+      page.off("requestfinished", onEnd);
+      page.off("requestfailed", onEnd);
     }
-    throw new Error("the network never settled after opening the drawer");
-  } finally {
-    page.off("request", onStart);
-    page.off("requestfinished", onEnd);
-    page.off("requestfailed", onEnd);
   }
+
+  return { untilSettled };
 }
 
 async function openDrawerFrom(page: Page, index = 0) {
@@ -122,10 +134,11 @@ test.describe("the gallery's preview drawer", () => {
         }
       });
 
+      const network = watchNetwork(page);
       const { href } = await openDrawerFrom(page);
       // Prefetches start when the new tree commits and the links are seen
       // again. Wait for the network to settle rather than for a time.
-      await untilNetworkSettles(page);
+      await network.untilSettled();
 
       expect(charged.map((url) => url.split("?")[0])).toEqual([href]);
     });
@@ -138,7 +151,10 @@ test.describe("the gallery's preview drawer", () => {
       expect(before, "the sixth card on a phone is below the first screen").toBeGreaterThan(0);
 
       await openDrawerFrom(page, 5);
-      // Unlock first: the open drawer pins the body, which doesn't move it.
+      expect(
+        await page.evaluate(() => window.scrollY),
+        "the list behind the open drawer is where it was",
+      ).toBe(before);
       await page.keyboard.press("Escape");
       await expect(page.getByRole("dialog")).toHaveCount(0);
       expect(await page.evaluate(() => window.scrollY)).toBe(before);

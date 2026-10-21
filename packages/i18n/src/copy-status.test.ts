@@ -1892,6 +1892,38 @@ describe("designer round 1 fur copy (his text, 2026-10-20)", () => {
 });
 
 /**
+ * Designer round 1, S4: the preview drawer's two strings
+ * (`docs/designer-round-1.md` §11, item 3, Oleksii, 2026-10-20), transcribed
+ * from that item, never read from `uk.ts`. Item 3, verbatim: "preview.openFull:
+ * «Відкрити повну сторінку»" and "preview.close: yes, reuse the existing
+ * «Закрити» label if there is one. If not: «Закрити»." `preview.close` is its
+ * own key holding his word (DR1-S4-T5).
+ */
+const DR1_PREVIEW: Record<string, string> = {
+  "preview.openFull": "Відкрити повну сторінку",
+  "preview.close": "Закрити",
+};
+
+describe("designer round 1 preview drawer copy (his text, §11 item 3)", () => {
+  const atRoot = (path: string): unknown =>
+    path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], uk);
+
+  it.each(Object.entries(DR1_PREVIEW))("%s is his text, exactly", (path, text) => {
+    expect(atRoot(path)).toBe(text);
+  });
+
+  it("the drawer has no strings beyond these two", () => {
+    expect(
+      Object.keys(uk.preview)
+        .map((key) => `preview.${key}`)
+        .sort(),
+    ).toEqual(Object.keys(DR1_PREVIEW).sort());
+  });
+});
+
+/**
  * PW-2, the one page every broken invitation link gets: unknown, expired, used, replaced,
  * withdrawn, an operator's, one that already has a password, a member's, a pre-PW-2 id link.
  * Oleksii, 2026-10-21, Q2 (b), verbatim: "The shared “link no longer works” page gets this text:

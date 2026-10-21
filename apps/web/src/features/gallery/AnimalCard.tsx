@@ -150,11 +150,6 @@ export function AnimalCard({
       // real destination behind it: a click is a real navigation either
       // way, prefetch only ever saved the time between hover and click.
       prefetch={false}
-      // The click opens the preview drawer over the list (designer round 1,
-      // §2), and the list keeps its scroll. Left on, Next skips the drawer's
-      // fixed frame when picking what to scroll to and scrolls the page to
-      // the top instead. A document load (no JS, a new tab) ignores this.
-      scroll={false}
       aria-label={cardAccessibleName(card, cityName)}
       data-testid="animal-card"
       className={`font-rg flex flex-col tablet:flex-row desktop:flex-col gap-4 tablet:gap-3 desktop:gap-4 rounded-rg-card p-3 box-border transition-colors duration-[120ms] ease-rg focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] ${

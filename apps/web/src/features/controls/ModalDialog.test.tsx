@@ -19,10 +19,11 @@ function renderDialog(onClose = vi.fn()) {
       onClose={onClose}
     >
       <button type="button">Скасувати</button>
+      <button type="button">Призупинити</button>
+      {/* Last, where a trap that counted it would wrap to it and lose focus. */}
       <button type="button" disabled>
         Неактивна
       </button>
-      <button type="button">Призупинити</button>
     </ModalDialog>,
   );
   return { onClose, dialog: within(screen.getByRole("dialog", { name: "Призупинити прийом?" })) };
@@ -50,13 +51,13 @@ describe("ModalDialog", () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it("cycles Tab inside, skipping a disabled control, and wraps Shift+Tab from the title", () => {
+  it("cycles Tab inside, skipping a disabled last control, and wraps Shift+Tab from the title", () => {
     const { dialog } = renderDialog();
     const close = dialog.getByRole("button", { name: "Закрити" });
-    const last = dialog.getByRole("button", { name: "Призупинити" });
+    const lastEnabled = dialog.getByRole("button", { name: "Призупинити" });
 
     fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
-    expect(document.activeElement).toBe(last);
+    expect(document.activeElement).toBe(lastEnabled);
     fireEvent.keyDown(window, { key: "Tab" });
     expect(document.activeElement).toBe(close);
   });
