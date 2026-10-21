@@ -131,14 +131,12 @@ jobs:
         if: steps.classify.outputs.code != 'false'
         run: pnpm --filter @opika/web exec playwright install --with-deps chromium
 
-      # DO NOT REMOVE. The gate for the browser layer: real layout geometry and
-      # real pointer events against /discovery at 390x844 and 1280x800. Every
-      # assertion in it corresponds to a defect that shipped through a green CI
-      # because the check applied was "the text is in the HTML".
-      #
-      # One desktop assertion is marked `test.fail()` on purpose — the layout is
-      # phone-only and that gap is recorded rather than hidden. See the TODO in
-      # test/harness/discovery-layout.harness.ts.
+      # DO NOT REMOVE. The gate for the browser layer: flows, keyboard operation
+      # and real pointer events in a real browser, against the built app. It
+      # exists because a defect shipped through a green CI whose check was "the
+      # text is in the HTML". Since 2026-10-20 it measures no appearance; the one
+      # size read left is the 48px floor on the shared controls (CLAUDE.md,
+      # "Test logic, not looks").
       - name: Rendering harness
         if: steps.classify.outputs.code != 'false'
         run: pnpm run test:harness

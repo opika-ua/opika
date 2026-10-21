@@ -23,8 +23,9 @@ const TEST_DATABASE_TEARDOWN = "./test/vitest-global-setup.ts";
  * happy-dom rather than jsdom: lighter, and nothing here needs jsdom's heavier
  * CSS and navigation emulation. Know the limit that comes with it — happy-dom
  * does no layout, so `getBoundingClientRect` is all zeros and computed styles
- * are the inline ones. Anything that depends on real geometry belongs in the
- * Playwright harness under `test/harness`, not here.
+ * are the inline ones. Anything that needs a real browser (pointer events, the
+ * tab order, a photo that decodes) belongs in the Playwright harness under
+ * `test/harness`, not here.
  *
  * `dom` therefore claims everything `api` does not, rather than only
  * `src/features`. Two narrow globs would leave the rest of `src` matched by no

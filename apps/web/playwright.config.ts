@@ -37,12 +37,12 @@ export default defineConfig({
   testDir: "./test/harness",
   testMatch: /.*\.harness\.ts$/,
 
-  // Layout assertions read shared page geometry; parallelism buys nothing and
-  // makes a failure harder to reproduce.
+  // The specs share one seeded database and one server; parallelism buys
+  // nothing and makes a failure harder to reproduce.
   fullyParallel: false,
   workers: 1,
 
-  // A flaky-passing layout assertion is worse than none: it would re-teach the
+  // A flaky-passing assertion is worse than none: it would re-teach the
   // habit this harness exists to break.
   retries: 0,
   forbidOnly: !!process.env.CI,
@@ -61,7 +61,7 @@ export default defineConfig({
     // failed. Written next to the failing test under `outputDir`.
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
-    // Deterministic geometry: no device pixel ratio surprises between the
+    // Deterministic rendering: no device pixel ratio surprises between the
     // developer's machine and CI.
     deviceScaleFactor: 1,
   },

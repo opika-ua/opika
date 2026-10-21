@@ -205,6 +205,10 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     });
     let savesHeld = 0;
     let savesUnfinished = 0;
+    // Saves waiting at the route for the release. The held check needs every save that
+    // reached the route still parked: a release moved ahead of it lets them through at once,
+    // whatever the timing (UI-F1).
+    let savesParked = 0;
     const isSave = (request: { url(): string }) =>
       request.url().includes("/api/kabinet/shelter/animals/update");
     page.on("requestfinished", (request) => {
@@ -216,7 +220,9 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await page.route("**/api/kabinet/shelter/animals/update", async (route) => {
       savesHeld += 1;
       savesUnfinished += 1;
+      savesParked += 1;
       await savesReleased;
+      savesParked -= 1;
       await route.continue();
     });
     await page.getByRole("group", { name: "Розмір" }).getByText("Середній").click();
@@ -231,6 +237,10 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     // already reads the form's own state.
     await expect.poll(() => savesHeld, { message: "no save reached the route" }).toBeGreaterThan(0);
     await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
+    expect(
+      { letThrough: savesHeld - savesParked, landed: savesHeld - savesUnfinished },
+      "a save was let through, or landed, before the held check",
+    ).toEqual({ letThrough: 0, landed: 0 });
 
     releaseSaves();
     await expect(
