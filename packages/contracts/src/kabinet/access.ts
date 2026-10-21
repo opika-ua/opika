@@ -10,11 +10,15 @@ import { oc } from "@orpc/contract";
  *   shelter_admin only, its own shelter (open since PR 6 of the K milestone).
  * - `registry` — the operator's; super_admin only, `shelterId` explicit.
  * - `support_exit` — the one write a support_view may make.
+ * - `invitation_link` — the invitation's «Створіть пароль» (PW-2): no session, since the link's
+ *   token is the credential. Signed-out callers only (and a signed-in user with no role), the
+ *   same visitors the link's page shows the form to.
  */
 export type KabinetAccess =
   | { surface: "shelter"; mode: "read" | "write" }
   | { surface: "registry" }
-  | { surface: "support_exit" };
+  | { surface: "support_exit" }
+  | { surface: "invitation_link" };
 
 export type KabinetMeta = { access: KabinetAccess | null };
 
@@ -34,3 +38,6 @@ export const shelterWrite = {
 } as const satisfies KabinetMeta;
 export const registry = { access: { surface: "registry" } } as const satisfies KabinetMeta;
 export const supportExit = { access: { surface: "support_exit" } } as const satisfies KabinetMeta;
+export const invitationLink = {
+  access: { surface: "invitation_link" },
+} as const satisfies KabinetMeta;

@@ -22,6 +22,7 @@ export {
   uuid,
 } from "./fixtures";
 export { type HeldPasswordWrite, holdPasswordWriteUncommitted } from "./held-password-write";
+export { type HeldStatementDatabase, holdStatementUncommitted } from "./held-statement";
 export {
   type PasswordRevokeCatalog,
   passwordRevokeCatalog,

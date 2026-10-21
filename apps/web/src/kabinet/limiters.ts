@@ -33,6 +33,11 @@ export const photoUploadLimiters = {
   perDay: sharedRateLimiter({ name: "kabinet-photo-day", ...PHOTO_UPLOAD_RATE_LIMITS.perDay }),
 };
 
+/** PW-2, §4.3: «Створіть пароль»'s POST, 20 an hour per IP (the link is single use, so nothing per address). */
+export const inviteLimiters = {
+  perIp: sharedRateLimiter({ name: "kabinet-invite-ip", ...PASSWORD_LIMITS.invitePerIp }),
+};
+
 const signInDelayStore = sharedRedisStore("kabinet-sign-in-delay");
 
 /** §4.3: «Забули пароль?», a reset link's POST, and the password sign-in's increasing delays. */

@@ -1,9 +1,15 @@
-import { contract, registryContract, shelterKabinetContract } from "@opika/contracts";
+import {
+  contract,
+  invitationContract,
+  registryContract,
+  shelterKabinetContract,
+} from "@opika/contracts";
 import { isContractProcedure } from "@orpc/contract";
 import { type AnyRouter, implement, isLazy, isProcedure, os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { invitationRouter } from "../kabinet/invitation-router";
 import { registryRouter } from "../kabinet/registry-router";
 import { shelterKabinetRouter } from "../kabinet/router";
 import { kabinetRouter } from "../kabinet/rpc-route";
@@ -207,9 +213,40 @@ describe("every served registry procedure goes through implement(registryContrac
     );
   });
 
-  it("mounts exactly the shelter and registry contracts, nothing shadowed or extra", () => {
-    const union = [...collectLeaves(shelterKabinetContract), ...contractLeaves].map((l) => l.path);
+  it("mounts exactly the shelter, registry and invitation contracts, nothing shadowed or extra", () => {
+    const union = [
+      ...collectLeaves(shelterKabinetContract),
+      ...contractLeaves,
+      ...collectLeaves(invitationContract),
+    ].map((l) => l.path);
     expect(mountedLeaves.map((l) => l.path).sort()).toEqual(union.sort());
+  });
+
+  it.each(contractLeaves.map((l) => l.path))(
+    "%s: the served output schema is the contract's own schema instance",
+    (path) => {
+      const contractSchema = outputSchemaOf(contractLeaves.find((l) => l.path === path)?.node);
+      const routerSchema = outputSchemaOf(mountedLeaves.find((l) => l.path === path)?.node);
+      expect(contractSchema).toBeDefined();
+      expect(routerSchema).toBe(contractSchema);
+    },
+  );
+});
+
+/** The invitation link's «Створіть пароль» (PW-2): the one procedure a signed-out visitor may call. */
+describe("every served invitation procedure goes through implement(invitationContract)", () => {
+  const contractLeaves = collectLeaves(invitationContract);
+  const routerLeaves = collectLeaves(invitationRouter);
+  const mountedLeaves = collectLeaves(kabinetRouter);
+
+  it("finds the one procedure (not vacuous)", () => {
+    expect(contractLeaves.map((l) => l.path)).toEqual(["invitation.acceptWithPassword"]);
+  });
+
+  it("serves exactly the contracted paths", () => {
+    expect(routerLeaves.map((l) => l.path).sort()).toEqual(
+      contractLeaves.map((l) => l.path).sort(),
+    );
   });
 
   it.each(contractLeaves.map((l) => l.path))(

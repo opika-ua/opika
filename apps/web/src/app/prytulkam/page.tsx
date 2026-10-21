@@ -1,7 +1,10 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Footer } from "../../features/chrome/Footer";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
+import { linkClass } from "../../features/controls/controls";
+import { SIGN_IN_PAGE_PATH } from "../../features/kabinet/routes";
 
 /**
  * The subject. The root layout's `title.template` («%s — Opika») appends
@@ -116,6 +119,14 @@ export default function ForSheltersPage() {
         <h1 className="font-bold text-[34px]/[38px] desktop:text-[44px]/[46px] tracking-[-0.035em] text-rg-ink">
           {uk.forShelters.title}
         </h1>
+        {/*
+          PW-2, his scope item 1: «Увійти в кабінет» → /kabinet/vkhid. Under the title, so a shelter
+          already in the kabinet, sent here again, finds the way in without reading the page; the
+          shared link control, theme tokens only.
+        */}
+        <Link href={SIGN_IN_PAGE_PATH} className={`${linkClass("text")} self-start`}>
+          {uk.forShelters.signInLink}
+        </Link>
 
         <Section heading={h.whatThisIs}>
           <p className="text-[19px]/[28px] text-rg-ink">{uk.forShelters.whatThisIs}</p>

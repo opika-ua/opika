@@ -3,6 +3,7 @@ import {
   adopterRepo,
   animalRepo,
   cityRepo,
+  kabinetInviteTokenRepo,
   kabinetShelterRepo,
   shelterRepo,
 } from "@opika/db/repos";
@@ -12,6 +13,7 @@ import {
   authMember,
   authSession,
   authUser,
+  authVerification,
   superAdmins,
   supportSessions,
 } from "@opika/db/schema";
@@ -1540,7 +1542,15 @@ describe("registry.support.enter / session.exitSupport", () => {
 // ─── invitation emails (IN-Q3, IN-E7) ───────────────────────────────────────
 
 describe("invitation emails: every write that makes an invitation live sends one, and the operator sees the outcome (IN-E7)", () => {
-  const INVITE_URL = /^http:\/\/localhost\/kabinet\/vkhid\?zaproshennia=([0-9a-f-]{36})$/;
+  /** PW-2: the link carries a 43-character random token, never the invitation id. */
+  const INVITE_URL = /^http:\/\/localhost\/kabinet\/vkhid\?zaproshennia=([A-Za-z0-9_-]{43})$/;
+
+  /** The invitation each emailed link's token names, through its stored hash only. */
+  const invitationOfLink = async (url: string | undefined) => {
+    const token = INVITE_URL.exec(url ?? "")?.[1];
+    if (token === undefined) return undefined;
+    return (await kabinetInviteTokenRepo(db).landingOf(token))?.invitationId;
+  };
 
   const pendingInvitationIds = async () =>
     (await db.select().from(authInvitation))
@@ -1567,8 +1577,15 @@ describe("invitation emails: every write that makes an invitation live sends one
         validForHours: 72,
       },
     ]);
-    const id = INVITE_URL.exec(invites.sent[0]?.url ?? "")?.[1];
+    const id = await invitationOfLink(invites.sent[0]?.url);
     expect(await pendingInvitationIds()).toEqual([id]);
+    // Stored hashed: no verification row holds the token, or the invitation id as its identifier.
+    const token = INVITE_URL.exec(invites.sent[0]?.url ?? "")?.[1] ?? "";
+    const rows = await db.select().from(authVerification);
+    expect(rows.some((row) => row.identifier.includes(token) || row.value.includes(token))).toBe(
+      false,
+    );
+    expect(rows.map((row) => row.value)).toEqual([`invitation:${id}`]);
   });
 
   /**
@@ -1704,6 +1721,7 @@ describe("invitation emails: every write that makes an invitation live sends one
       name: "Олена",
       email: "olena@example.org",
     });
+    const firstLink = invites.sent[0]?.url;
     invites = capturingInvitationSender({ kind: "failed", reason: "provider_error" });
     const resent = await call<{ invitationEmail: unknown }>("registry.admins.resendInvite", {
       shelterId: s.id,
@@ -1715,9 +1733,13 @@ describe("invitation emails: every write that makes an invitation live sends one
       invitationReminder: null,
     });
     const [id] = await pendingInvitationIds();
-    expect(invites.sent.map((m) => m.url)).toEqual([
-      `http://localhost/kabinet/vkhid?zaproshennia=${id}`,
-    ]);
+    const [link] = invites.sent.map((m) => m.url);
+    expect(invites.sent).toHaveLength(1);
+    expect(link).toMatch(INVITE_URL);
+    // A new link for the same invitation; the first email's link no longer names anything.
+    expect(await invitationOfLink(link)).toBe(id);
+    expect(link).not.toBe(firstLink);
+    expect(await invitationOfLink(firstLink)).toBeUndefined();
   });
 
   it("create: emails the first admin and returns the outcome beside the record", async () => {

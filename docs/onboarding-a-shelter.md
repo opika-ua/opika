@@ -449,6 +449,20 @@ a second address""), because creating a shelter already invites its first admin:
    the first admin, so this is where `oleksii.kolotenko+shelter2@gmail.com` is entered and
    invited.)
 2. From the shelter page: resend, or invite a second address.
+2a. **Passwords (PW-2).** His words for the rehearsal, verbatim (2026-10-19, scope): "Add it to
+   the final dress-rehearsal script: invite → set password → sign out → sign in with password →
+   forgot password → reset." As steps, before step 3 (the invitation from step 1 or 2 is the
+   one used):
+   1. The shelter admin opens the invite email's «Відкрити запрошення»: «Створіть пароль» names
+      the shelter and the address (masked). Set a password (the repeat field must match) and
+      press «Зберегти й увійти»: the kabinet opens, signed in.
+   2. Open the same invite link again: «Цим запрошенням не можна скористатися» (the link works
+      once).
+   3. «Вийти», then sign in on `/kabinet/vkhid` with the address and the password.
+   4. In a second browser, sign in the same way. In the first, «Вийти», then «Забули пароль?»:
+      the reset email arrives; open it and set a new password. The second browser is signed out
+      (reload `/kabinet`: the sign-in page), and «пароль змінено» arrives.
+   5. Sign in with the new password.
 3. The shelter admin signs in on a phone, fills the profile, adds 2–3 animals with photos taken
    on the phone, and publishes.
 4. The adopter (a separate browser plus the gate cookie) finds them in the deck and the gallery,
@@ -849,3 +863,29 @@ extends):
 
 If any of these fail, a fix-forward PR straight away. **The reset link from step 1 is a real
 token: don't paste it anywhere** (his words).
+
+## After PW-2 deploys: the invitation link (Oleksii's step)
+
+His PW-2 words, verbatim (2026-10-20, Q3): "Q3, analytics: extend PW-1's beforeSend
+query-stripping and the history.replaceState token removal to ?zaproshennia=. Add the same
+production check (whole-payload search)." The same checklist as PW-1's above, on the invitation
+link instead of the reset link (production, once PW-2 has merged and deployed):
+
+1. From his screens, invite a test address on the Репетиція shelter (or resend its pending
+   invite), and open the email's «Відкрити запрошення».
+2. In DevTools → Network, filter for `insights` / `vitals`: each analytics request's payload URL
+   is `/kabinet/vkhid` with no query string.
+3. In each of those analytics requests, search the whole payload (not just the URL field) for
+   `token=` and `zaproshennia=`: neither appears.
+4. The address bar no longer shows `zaproshennia=` after the page loads.
+5. The page's response headers include `Cache-Control: no-store` and
+   `Referrer-Policy: no-referrer` (PW-2 Q1).
+6. A day later: Vercel Analytics → Pages lists no `/kabinet/vkhid` entry with a query string.
+
+If any of these fail, a fix-forward PR straight away. **The invitation link is a real
+credential: it sets that address's password, once. Don't paste it anywhere**, and finish the
+flow (set a password) or withdraw the invite afterwards.
+
+**Pending invitations from before PW-2** carry the invitation id as their link, which is no
+longer a link's secret: they open the one unusable page. Resend each one from his screens after
+the deploy (the resend issues a new link). See inbox PW2-Q2.

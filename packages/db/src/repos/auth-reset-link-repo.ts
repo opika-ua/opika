@@ -31,7 +31,9 @@ const HASHED_IDENTIFIER = "^[A-Za-z0-9_-]{43}$";
  *   47 characters), and the kabinet never turns `user.deleteUser` on anyway;
  * - OAuth state (`state.mjs`): a plain identifier and a JSON value, and the
  *   kabinet has no social sign-in.
- * Invitations live in `auth_invitation`, not here. Another user's links carry
+ * Invitations live in `auth_invitation`; since PW-2 each invitation's link is a
+ * row here too (`kabinetInviteTokenRepo`), with a hashed identifier but a value
+ * of `invitation:<id>`, which never equals a user id. Another user's links carry
  * another user's id. `auth.test.ts` pins the plugin list to magic-link and
  * organization, so a new writer can't arrive unseen.
  *

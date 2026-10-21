@@ -18,6 +18,8 @@ export type AccessDecision =
   | { kind: "allow_shelter_write"; scope: ShelterWriteScope }
   | { kind: "allow_registry"; moderatorId: ModeratorId }
   | { kind: "allow_support_exit"; moderatorId: ModeratorId; shelterId: ShelterId }
+  /** The invitation link's «Створіть пароль» (PW-2): the token, checked by the handler, is the credential. */
+  | { kind: "allow_invitation_link" }
   | { kind: "deny"; code: "UNAUTHENTICATED" | "FORBIDDEN" };
 
 const FORBIDDEN = { kind: "deny", code: "FORBIDDEN" } as const;
@@ -60,8 +62,14 @@ export const SHELTER_WRITE_POLICY: ShelterWritePolicy = Object.freeze({ kind: "o
  *
  * Order matters: no session is UNAUTHENTICATED whatever the procedure, so an
  * anonymous caller learns nothing about which procedures exist or what they
- * need. A procedure with no declared access is refused for everyone
- * (deny-by-default), after that. The write policy is applied here, the one
+ * need, with one exception, decided first: the invitation link (PW-2), whose
+ * caller is signed out by design (the link's token is the credential, and the
+ * handler checks it). It admits exactly the visitors the link's page shows the
+ * form to: nobody signed in, or a signed-in user with no role (an invitee
+ * whose earlier accept failed). A shelter admin, the operator, a support view
+ * and a conflicting user are FORBIDDEN, so no signed-in role is swapped for
+ * the invitee's session by a POST. A procedure with no declared access is
+ * refused for everyone (deny-by-default), after that. The write policy is applied here, the one
  * choke point every shelter write passes, so no handler can skip it;
  * `shelterWrites` is a required argument so no caller can either.
  */
@@ -70,6 +78,11 @@ export function decideAccess(
   principal: KabinetPrincipal,
   shelterWrites: ShelterWritePolicy,
 ): AccessDecision {
+  if (access?.surface === "invitation_link") {
+    return principal.kind === "anonymous" || principal.kind === "no_role"
+      ? { kind: "allow_invitation_link" }
+      : FORBIDDEN;
+  }
   if (principal.kind === "anonymous") return { kind: "deny", code: "UNAUTHENTICATED" };
   if (access === null) return FORBIDDEN;
   if (principal.kind === "no_role" || principal.kind === "conflicting_roles") return FORBIDDEN;

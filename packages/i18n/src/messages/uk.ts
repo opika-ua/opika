@@ -879,6 +879,8 @@ export const uk = {
     howToStart:
       "Напишіть на {contact}. Достатньо розказати, хто ви і скільки у вас тварин. Далі — розмова, " +
       "перевірка, про яку йшлося вище, і ваші тварини з'являються на сайті.",
+    /** PW-2: the link to the kabinet's sign-in, `/kabinet/vkhid` (his scope item 1, verbatim). */
+    signInLink: "Увійти в кабінет",
   },
   kabinet: {
     /**
@@ -957,9 +959,14 @@ export const uk = {
      * far against the minimum, worded to avoid a plural.
      */
     setPassword: {
+      /** PW-2: the invitation link's page (his scope item 2, verbatim). */
+      title: "Створіть пароль",
+      /** `{shelter}` is the invitation's shelter; `{email}` its address, masked (o•••@gmail.com). */
+      intro: "Пароль для кабінету притулку «{shelter}». Адреса для входу: {email}.",
       newLabel: "Пароль",
       repeatLabel: "Повторіть пароль",
       hint: "Символів: {count} з {min}",
+      submit: "Зберегти й увійти",
     },
     /**
      * The policy's refusals and the mismatch (§B, his Ukrainian, verbatim), shared by every
@@ -1694,8 +1701,12 @@ export const uk = {
           "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
         action: "Відкрити запрошення",
         expiry: "Запрошення діє {hours} години. Якщо не встигнете — я надішлю нове.",
+        /**
+         * PW-2 (Oleksii, 2026-10-20, Q2, verbatim): the link sets a password, so whoever holds it
+         * can; the paragraph says so, and not to forward it. Signed `— {operator}` as before.
+         */
         notYou:
-          "Якщо ви не чекали цього листа, просто проігноруйте його: без входу з цієї адреси доступу ніхто не отримає.\n— {operator}",
+          "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n— {operator}",
       },
       /**
        * F1, the reset link (`docs/shelter-passwords-copy-uk.md`, his Ukrainian, 2026-10-19,
@@ -1733,28 +1744,24 @@ export const uk = {
       notArrived: "Якщо лист не прийшов за кілька хвилин, напишіть мені на {contact}.",
     },
     /**
-     * The invite landing (`/kabinet/vkhid?zaproshennia=<id>`, IN-Q11 and
-     * KS-Q2 A, EM-Q3): opening it shows one button, and only that button's
-     * POST sends a sign-in link to the invited address; there is no address
-     * field. `{shelter}` and `{email}` (the
-     * address masked, o•••@gmail.com) are filled by the page; `{minutes}` is
-     * the magic link's lifetime. Keys and English sense:
-     * `docs/h2-invite-copy-sheet.md` L.
+     * The invitation link's page (`/kabinet/vkhid?zaproshennia=<token>`) when the link can't be
+     * used: unknown, expired, used or withdrawn all read the same (PW-2 Q1). His strings from
+     * `docs/h2-invite-copy-sheet.md` L; the form itself is `setPassword` (PW-2). `pageTitle` is the
+     * page's `<title>` in every state. The magic-link landing's own strings (`ready`, `send`,
+     * `sent`, `title`, `alreadyAccepted`, `rateLimited`) went with it (his copy sheet, B:
+     * "removed when PW-2 ships").
      */
     inviteLanding: {
       pageTitle: "Запрошення до кабінету",
-      title: "Запрошення до кабінету притулку «{shelter}»",
-      sent: "Посилання для входу надіслано на {email}. Воно спрацює один раз і діє {minutes} хвилин. Вхід за ним приймає запрошення.",
-      /** Heading of every state that can't name the shelter. */
+      /** Heading of the one page every link that can't be used gets (PW-2 Q1). */
       unusableTitle: "Цим запрошенням не можна скористатися",
-      expired: "Запрошення більше не дійсне. Напишіть мені — я надішлю нове.",
-      alreadyAccepted: "Це запрошення вже прийнято. Увійдіть як зазвичай.",
-      rateLimited: "Для цього запрошення запитано забагато посилань. Спробуйте пізніше.",
+      /**
+       * His 2026-10-21 revision (PW-2 review, Q2 (b)): one text for every broken link, whether
+       * the password was already set with it or not (`docs/h2-invite-copy-sheet.md` L).
+       */
+      expired:
+        "Посилання вже не діє. Якщо пароль уже створено — увійдіть. Якщо ні — напишіть мені, і я надішлю нове запрошення.",
       signIn: "Перейти до входу",
-      /** What the page says before anything is sent: the GET looks nothing up (EM-Q3). */
-      ready: "Посилання для входу прийде на адресу, на яку ви отримали це запрошення.",
-      /** The one button; only its POST sends (EM-Q3). */
-      send: "Надіслати посилання",
     },
     /**
      * What the operator's side shows after an invite (IN-E13). The sending

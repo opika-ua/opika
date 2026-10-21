@@ -37,7 +37,15 @@ export {
   type InviteResult,
   kabinetInvitationRepo,
 } from "./kabinet-invitation-repo";
-export { type InviteLandingRow, kabinetInviteLandingRepo } from "./kabinet-invite-landing-repo";
+export {
+  type InviteTokenRow,
+  inviteTokenIdentifierOf,
+  inviteTokenRowOf,
+  inviteTokenValueOf,
+  isRefusalFlagSet,
+  kabinetInviteTokenRepo,
+  type RawInviteTokenRow,
+} from "./kabinet-invite-token-repo";
 export { type CleanupCandidate, kabinetInvitedUsersRepo } from "./kabinet-invited-users-repo";
 export {
   kabinetRegistryRepo,

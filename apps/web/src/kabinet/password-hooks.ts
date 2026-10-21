@@ -172,6 +172,60 @@ const withTimeout = <T>(work: Promise<T>, ms: number): Promise<T> =>
     );
   });
 
+/** What a password write was, for the masked log line when voiding the links after it fails. */
+const AFTER_PHRASE = {
+  reset: "a reset",
+  change: "a change",
+  invitation: "the invitation's password",
+} as const;
+
+/**
+ * PW1-F1: once a new password is written, every reset link the user still holds is deleted, so
+ * a link asked for earlier can't set another one. Oleksii, PW1-Q6, verbatim: "PW1-Q6: (a).
+ * Delete the user's other unused reset links on any successful reset or change, in the same
+ * transaction. Do it in PW-1 if it's a few lines; otherwise as the first follow-up." Not in the
+ * same transaction: Better Auth's write is its own statement, and his PW1-F1 answer chose option
+ * (ii) instead (verbatim excerpt: "(ii), a delete in our hook."), a second statement right after
+ * that write, so a link used in the moment between the two still works. Awaited, before the
+ * response, to keep that moment short.
+ *
+ * It never fails the reset or the change, and never holds one past
+ * `VOID_RESET_LINKS_TIMEOUT_MS`: on a reset Better Auth awaits `onPasswordReset` and only then
+ * runs its own session revoke, so a throw here would answer an error for a password already
+ * set and skip that revoke, and a stall would hold the answer. Since PW1-F5 neither leaves
+ * alive a session that existed when the password was written: the write itself ended every one
+ * of them, in its own statement (migration 0013's triggers). Better Auth's revoke is the second
+ * line, and it also catches a session inserted between the write and its own delete, which a
+ * skipped revoke would leave. A sign-in racing the write (one that checked the old password
+ * before it) keeps no session without that revoke: inserted before the write's statement, the
+ * trigger deletes it; after, its own after-hook's second read, which waits for a write in
+ * flight (`FOR SHARE`), sees the write and deletes it (PW1-F6, `sign-in-race.ts`). A failure or
+ * a timeout is one line at error level, masked (his PW1-F1
+ * answer, verbatim excerpt: "A failure is logged at error level, masked. The links die within
+ * the hour anyway."): no user id, no address, never the error's message (a query error's
+ * message carries its parameters); only a SQLSTATE code, when there is one.
+ *
+ * PW-2 sets a first password at the invitation through a third path, which calls this too
+ * (PW1-F1-N1).
+ */
+export function resetLinkVoider(
+  deps: Pick<PasswordHookDeps, "db" | "logError">,
+): (userId: string, after: keyof typeof AFTER_PHRASE) => Promise<void> {
+  return async (userId, after) => {
+    try {
+      await withTimeout(
+        authResetLinkRepo(deps.db).deleteUnused(userId),
+        VOID_RESET_LINKS_TIMEOUT_MS,
+      );
+    } catch (error) {
+      const code = sqlStateOf(error);
+      deps.logError(
+        `[kabinet] voiding the other reset links after ${AFTER_PHRASE[after]} failed${code === null ? "" : ` (${code})`}; they lapse within the hour`,
+      );
+    }
+  };
+}
+
 /**
  * The password guards (`docs/shelter-passwords.md` §4.1, §4.3, §4.6), called
  * from `createKabinetAuth`'s hooks and callbacks. Every rule here applies to
@@ -212,45 +266,7 @@ export function passwordHooks(deps: PasswordHookDeps) {
     deps.schedule(() => quietly(what, work));
   }
 
-  /**
-   * PW1-F1: once a new password is written, every reset link the user still holds is deleted, so
-   * a link asked for earlier can't set another one. Oleksii, PW1-Q6, verbatim: "PW1-Q6: (a).
-   * Delete the user's other unused reset links on any successful reset or change, in the same
-   * transaction. Do it in PW-1 if it's a few lines; otherwise as the first follow-up." Not in the
-   * same transaction: Better Auth's write is its own statement, and his PW1-F1 answer chose option
-   * (ii) instead (verbatim excerpt: "(ii), a delete in our hook."), a second statement right after
-   * that write, so a link used in the moment between the two still works. Awaited, before the
-   * response, to keep that moment short.
-   *
-   * It never fails the reset or the change, and never holds one past
-   * `VOID_RESET_LINKS_TIMEOUT_MS`: on a reset Better Auth awaits `onPasswordReset` and only then
-   * runs its own session revoke, so a throw here would answer an error for a password already
-   * set and skip that revoke, and a stall would hold the answer. Since PW1-F5 neither leaves
-   * alive a session that existed when the password was written: the write itself ended every one
-   * of them, in its own statement (migration 0013's triggers). Better Auth's revoke is the second
-   * line, and it also catches a session inserted between the write and its own delete, which a
-   * skipped revoke would leave. A sign-in racing the write (one that checked the old password
-   * before it) keeps no session without that revoke: inserted before the write's statement, the
-   * trigger deletes it; after, its own after-hook's second read, which waits for a write in
-   * flight (`FOR SHARE`), sees the write and deletes it (PW1-F6, `sign-in-race.ts`). A failure or
-   * a timeout is one line at error level, masked (his PW1-F1
-   * answer, verbatim excerpt: "A failure is logged at error level, masked. The links die within
-   * the hour anyway."): no user id, no address, never the error's message (a query error's
-   * message carries its parameters); only a SQLSTATE code, when there is one.
-   */
-  async function voidResetLinks(userId: string, after: "reset" | "change"): Promise<void> {
-    try {
-      await withTimeout(
-        authResetLinkRepo(deps.db).deleteUnused(userId),
-        VOID_RESET_LINKS_TIMEOUT_MS,
-      );
-    } catch (error) {
-      const code = sqlStateOf(error);
-      deps.logError(
-        `[kabinet] voiding the other reset links after a ${after} failed${code === null ? "" : ` (${code})`}; they lapse within the hour`,
-      );
-    }
-  }
+  const voidResetLinks = resetLinkVoider(deps);
 
   /** Whether this user is a shelter admin with exactly this address now (the email's recipient). */
   const isShelterAdmin = async (user: { id: string; email: string }) =>

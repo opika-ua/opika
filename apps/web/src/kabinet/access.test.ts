@@ -23,6 +23,7 @@ const ACCESS: Record<string, KabinetAccess | null> = {
   shelter_write: { surface: "shelter", mode: "write" },
   registry: { surface: "registry" },
   support_exit: { surface: "support_exit" },
+  invitation_link: { surface: "invitation_link" },
 };
 
 /**
@@ -30,21 +31,38 @@ const ACCESS: Record<string, KabinetAccess | null> = {
  * anon/adopter columns: an adopter cookie is not a kabinet session, so it
  * arrives here as `anonymous`), with shelter writes open since PR 6 of the K
  * milestone: a shelter admin writes its own shelter, and nobody else writes
- * any. Not derived from `decideAccess` or from the contract's meta: a table
+ * any. The invitation link (PW-2) admits the visitors its page shows the form
+ * to, signed out or signed in with no role, and nobody holding a role. Not derived from `decideAccess` or from the contract's meta: a table
  * read back from the code would agree with any bug.
  */
 const U = "UNAUTHENTICATED";
 const F = "FORBIDDEN";
+const I = "allow_invitation_link";
 const EXPECTED: Record<string, Record<string, string>> = {
   //                 undeclared  shelter_read          shelter_write          registry          support_exit
-  anonymous: { undeclared: U, shelter_read: U, shelter_write: U, registry: U, support_exit: U },
-  no_role: { undeclared: F, shelter_read: F, shelter_write: F, registry: F, support_exit: F },
+  anonymous: {
+    undeclared: U,
+    shelter_read: U,
+    shelter_write: U,
+    registry: U,
+    support_exit: U,
+    invitation_link: I,
+  },
+  no_role: {
+    undeclared: F,
+    shelter_read: F,
+    shelter_write: F,
+    registry: F,
+    support_exit: F,
+    invitation_link: I,
+  },
   conflicting_roles: {
     undeclared: F,
     shelter_read: F,
     shelter_write: F,
     registry: F,
     support_exit: F,
+    invitation_link: F,
   },
   shelter_admin: {
     undeclared: F,
@@ -52,6 +70,7 @@ const EXPECTED: Record<string, Record<string, string>> = {
     shelter_write: "allow_shelter_write",
     registry: F,
     support_exit: F,
+    invitation_link: F,
   },
   support_view: {
     undeclared: F,
@@ -59,6 +78,7 @@ const EXPECTED: Record<string, Record<string, string>> = {
     shelter_write: F,
     registry: F,
     support_exit: "allow_support_exit",
+    invitation_link: F,
   },
   super_admin: {
     undeclared: F,
@@ -66,6 +86,7 @@ const EXPECTED: Record<string, Record<string, string>> = {
     shelter_write: F,
     registry: "allow_registry",
     support_exit: F,
+    invitation_link: F,
   },
 };
 

@@ -6,7 +6,7 @@ import { apiRateLimiter } from "./api/rate-limit";
 import { ipRateLimitKey } from "./api/rate-limit-key";
 import { kabinetLimiters } from "./kabinet/limiters";
 import { isChargedKabinetPageLoad, kabinetPageLoadAllowed } from "./kabinet/page-limit";
-import { isTokenPagePath, TOKEN_PAGE_HEADERS } from "./kabinet/token-pages";
+import { isTokenPage, TOKEN_PAGE_HEADERS } from "./kabinet/token-pages";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
 
 /**
@@ -117,9 +117,10 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
     return new NextResponse("Too Many Requests", { status: 429 });
   }
   const response = NextResponse.next();
-  // A sign-in page whose URL carries a credential (a reset link's token): never cached, and no
-  // referrer sent anywhere (Oleksii, 2026-10-20, verbatim in `kabinet/token-pages.ts`).
-  if (isTokenPagePath(request.nextUrl.pathname)) {
+  // A sign-in page whose URL carries a credential (a reset link's token, an invitation link's):
+  // never cached, and no referrer sent anywhere (Oleksii, 2026-10-20, verbatim in
+  // `kabinet/token-pages.ts`).
+  if (isTokenPage(request.nextUrl)) {
     for (const [name, value] of Object.entries(TOKEN_PAGE_HEADERS))
       response.headers.set(name, value);
   }

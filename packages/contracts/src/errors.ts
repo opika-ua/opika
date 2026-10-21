@@ -197,6 +197,22 @@ export const apiErrors = {
       reason: z.enum(["shelter_admin", "operator", "invited_elsewhere"]),
     }),
   },
+  /**
+   * An invitation link that can't set a password (PW-2): unknown, expired, already used, withdrawn,
+   * or naming an address that can't hold a password through it (the operator's, one that already
+   * has a password or a membership). One answer for all of them, as the link's page shows one
+   * page for all of them (Oleksii, PW-2 Q1).
+   */
+  INVITE_UNUSABLE: {
+    status: 410,
+    message: "This invitation link no longer works.",
+  },
+  /** The password policy refused the new password (`data.reason`, `docs/shelter-passwords.md` §3). */
+  PASSWORD_REJECTED: {
+    status: 422,
+    message: "That password can't be used.",
+    data: z.object({ reason: z.enum(["too_short", "too_long", "contains_personal", "common"]) }),
+  },
   /** An undo past its window, or after a newer write (H2-16). */
   UNDO_EXPIRED: {
     status: 409,

@@ -363,6 +363,7 @@ export const en = {
     howToLeave: `${COPY_PENDING} 9b. How to leave — write, and everything is removed, no conditions.`,
     whoIsBehindThis: `${COPY_PENDING} 10. Who is behind this.`,
     howToStart: `${COPY_PENDING} 11. How to start — write to {contact}.`,
+    signInLink: `Sign in to the cabinet`,
   },
   kabinet: {
     /**
@@ -402,9 +403,12 @@ export const en = {
       otherAddress: "A different address",
     },
     setPassword: {
+      title: "Create a password",
+      intro: "The password for the cabinet of «{shelter}». You sign in as: {email}.",
       newLabel: "Password",
       repeatLabel: "Repeat the password",
       hint: "Characters: {count} of {min}",
+      submit: "Save and sign in",
     },
     password: {
       tooShort: "The password is too short. Minimum characters: {min}.",
@@ -904,7 +908,7 @@ export const en = {
         whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on your cards and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours} hours. If you miss it, I will send a new one.`,
-        notYou: `If you weren't expecting this email, just ignore it: nobody gets access without signing in from this address.\n— {operator}`,
+        notYou: `If you weren't expecting this email, just ignore it and don't forward it to anyone: while the invitation is valid, this link lets someone create a password for this address, once.\n— {operator}`,
       },
       reset: {
         subject: `A new password for the shelter's cabinet`,
@@ -925,15 +929,9 @@ export const en = {
     /** The invite landing (IN-Q11, KS-Q2 A); see the Ukrainian catalogue. */
     inviteLanding: {
       pageTitle: `Invitation to the cabinet`,
-      title: `An invitation to administer «{shelter}»`,
-      sent: `We've sent a sign-in link to {email}. It works once and expires in {minutes} minutes; signing in with it accepts the invitation.`,
       unusableTitle: `This invitation can't be used`,
-      expired: `This invitation is no longer valid; write to me and I'll send a new one.`,
-      alreadyAccepted: `This invitation was already accepted; sign in as usual.`,
-      rateLimited: `Too many links were requested for this invitation; try again later.`,
+      expired: `The link no longer works. If you've already created a password, sign in. If not, write to me and I'll send a new invitation.`,
       signIn: `Go to sign-in`,
-      ready: `The sign-in link will go to the address this invitation reached you at.`,
-      send: `Send the link`,
     },
     /** The operator's reminder after an invite (IN-E13); see the Ukrainian catalogue. */
     registry: {

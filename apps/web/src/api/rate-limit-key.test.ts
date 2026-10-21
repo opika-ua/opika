@@ -151,35 +151,29 @@ describe("no limiter key carries the raw IP (EM-Q11)", () => {
     }
   });
 
-  it("the invite landing's per-address budget", async () => {
-    const { inviteLandingOf } = await import("../kabinet/invite-landing");
-    const perAddress = recorder(true);
-    await inviteLandingOf("00000000-0000-4000-8000-000000000000", {
-      lookup: async () => ({
-        status: "pending",
-        email: "Olena@Example.org",
-        shelterName: "Ліс",
-        expiresAt: new Date(Date.now() + 60_000),
-      }),
-      limiters: { perIp: recorder(true), perAddress },
-      ip: IPV4,
-      now: new Date(),
-      sendMagicLink: async () => true,
-    });
-    expectNoAddressIn(perAddress.keys);
-  });
-
-  it("the invite landing", async () => {
-    const { inviteLandingOf } = await import("../kabinet/invite-landing");
-    const perIp = recorder(false);
-    await inviteLandingOf("00000000-0000-4000-8000-000000000000", {
-      lookup: async () => null,
-      limiters: { perIp, perAddress: recorder(true) },
-      ip: IPV4,
-      now: new Date(),
-      sendMagicLink: async () => false,
-    });
-    expectNoIpIn(perIp.keys, IPV4);
+  it("the invitation link's «Створіть пароль» POST (PW-2), per IP", async () => {
+    const { acceptInvitationWithPassword } = await import("../kabinet/invite-password");
+    for (const ip of [IPV4, IPV6]) {
+      const perIp = recorder(false);
+      await acceptInvitationWithPassword(
+        { token: "A".repeat(43), password: "a long enough password" },
+        {
+          lookup: async () => null,
+          consume: async () => false,
+          voidResetLinks: async () => {},
+          accept: async () => ({ kind: "nothing_to_accept" }),
+          perIp,
+          ip,
+          credentials: {
+            markVerified: async () => {},
+            createCredential: async () => {},
+            signIn: async () => ({ kind: "refused" }),
+          },
+          now: new Date(),
+        },
+      );
+      expectNoIpIn(perIp.keys, ip);
+    }
   });
 
   it("kabinet page loads", async () => {

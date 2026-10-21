@@ -33,16 +33,25 @@ import {
   testOnlyLocationPolicy,
 } from "@opika/domain";
 import { inMemoryRateLimiter } from "../src/api/rate-limit";
+import { fromRpcBody, toRpcBody } from "../src/api/test-harness";
+import { SHELTER_WRITE_POLICY } from "../src/kabinet/access";
 import { createKabinetAuth, kabinetCookieName } from "../src/kabinet/auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "../src/kabinet/auth-route";
 import { withQueryErrorsCleaned } from "../src/kabinet/clean-query-errors";
 import { handleKabinetConfirm } from "../src/kabinet/confirm-route";
 import { capturingInvitationSender } from "../src/kabinet/email-senders";
 import { invitationAccepter } from "../src/kabinet/invitation-accept";
+import {
+  inviteCredentialsOf,
+  invitePasswordLandingOf,
+  newInviteToken,
+} from "../src/kabinet/invite-password";
+import { inviteTokensOf } from "../src/kabinet/invite-tokens";
 import { capturingSender } from "../src/kabinet/magic-link-sender";
 import { generousPasswordLimiters } from "../src/kabinet/password-limits";
 import { capturingPasswordMail } from "../src/kabinet/password-mail";
 import { kabinetIdentityOf } from "../src/kabinet/principal";
+import { handleKabinetRpc } from "../src/kabinet/rpc-route";
 
 /**
  * Better Auth's own write paths on real Neon, through the production driver
@@ -91,6 +100,19 @@ import { kabinetIdentityOf } from "../src/kabinet/principal";
  *      and one failing query (a word bound to an integer column: `22P02`, whose driver message
  *      quotes the value), each over this driver: the error keeps its name, SQLSTATE and constraint, and
  *      carries no message text, no parameters and no SQL. Neither statement writes a row.
+ *   17. PW-2: the invitation link's «Створіть пароль». A second invitation, on this run's
+ *      shelter for a second address, gets a link the way the registry issues one (our
+ *      delete-and-insert in one statement); the link's page reads it twice (our join, with its
+ *      three EXISTS) and nothing changes; the form's POST through the RPC route uses it up (our
+ *      DELETE … RETURNING), and Better Auth marks the address verified, writes the credential
+ *      and signs in, then the automatic accept runs. A second POST is the one unusable answer.
+ *   18. PW-2 review finding 1: three more invitations whose addresses may not take a password
+ *      this way (one holds a credential, one is an operator, one is a member already): the
+ *      link's read gives each its own EXISTS true and the other two false, over this driver,
+ *      and the page and the POST answer unusable for all three.
+ *   19. PW-2 review finding 4: the POST with the credential's insert failed (forced, unsent):
+ *      the address is verified, no password, the link used; the invitation's resend and a new
+ *      link (as the registry issues one) then set the password, sign in and accept.
  *
  * Nothing is sent anywhere: the magic link is captured in memory, never
  * printed. Refuses unless the target's compute is exactly `--expect`, and
@@ -746,6 +768,320 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       duplicateFacts.noValues &&
       badValueFacts.noValues,
     `duplicate ${duplicateFacts.name} ${duplicateFacts.code} ${duplicateFacts.constraint}, bad value ${badValueFacts.name} ${badValueFacts.code}, no message text ${duplicateFacts.noText && badValueFacts.noText}, no values or SQL ${duplicateFacts.noValues && badValueFacts.noValues}`,
+  );
+
+  // 17. PW-2: the invitation link sets a password, signs in and accepts.
+  const inviteeEmail = `auth-smoke-invitee-${tag}@example.invalid`;
+  const secondInvite = await kabinetInvitationRepo(db).invite({
+    shelterId: base.id,
+    email: inviteeEmail,
+    name: "Auth smoke invitee",
+    inviterUserId: operator,
+    ids: { invitationId: randomUUID(), userId: randomUUID(), organizationId: randomUUID() },
+    now: new Date(),
+    history: {
+      id: randomUUID(),
+      entry: {
+        kind: "admin_invited",
+        at: new Date(),
+        moderatorId: operator as ModeratorId,
+        email: inviteeEmail,
+      },
+    },
+  });
+  const inviteName =
+    "invitation link (issued hashed, read twice with nothing changed, used up by the POST: credential, verified, signed in, accepted; a second POST unusable)";
+  if (secondInvite.kind !== "invited") {
+    check(inviteName, false, `invitation not written: ${secondInvite.kind}`);
+    return out;
+  }
+  const inviteToken = newInviteToken();
+  const tokens = inviteTokensOf(db);
+  await tokens.issue({
+    id: randomUUID(),
+    invitationId: secondInvite.invitationId,
+    token: inviteToken,
+    expiresAt: secondInvite.expiresAt,
+    now: new Date(),
+  });
+  const linkRows = async () =>
+    (await db.select({ value: authVerification.value }).from(authVerification)).filter(
+      (row) => row.value === `invitation:${secondInvite.invitationId}`,
+    ).length;
+  const lookup = { lookup: (value: string) => tokens.landingOf(value), now: new Date() };
+  const shownOnce = await invitePasswordLandingOf(inviteToken, lookup);
+  const shownTwice = await invitePasswordLandingOf(inviteToken, lookup);
+  const rowsAfterOpening = await linkRows();
+  const invitePassword = `${randomUUID()}-${randomUUID()}`;
+  /** The form's POST through the RPC route, Better Auth's two writes and sign-in on `over`. */
+  const acceptWith = async (linkToken: string, password: string, over = auth) => {
+    const request = new Request(`${BASE}/api/kabinet/invitation/acceptWithPassword`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: BASE,
+        "x-forwarded-for": "198.51.100.77",
+      },
+      body: JSON.stringify(toRpcBody({ token: linkToken, password })),
+    });
+    const response = await handleKabinetRpc(request, {
+      availability,
+      resolve: async () => ({
+        ...(await kabinetIdentityOf(auth, db, request.headers, new Date(), true)),
+        db,
+        cursorSecret: "auth-smoke-cursor-secret",
+      }),
+      limiters: { perUser: unlimited(), perIp: unlimited() },
+      ip: "198.51.100.77",
+      now: new Date(),
+      newId: () => randomUUID(),
+      operatorDisplayName: "Auth smoke",
+      locationPolicy: null,
+      production: true,
+      shelterWrites: SHELTER_WRITE_POLICY,
+      invitePasswords: () => ({
+        kind: "on",
+        perIp: unlimited(),
+        ip: "198.51.100.77",
+        credentials: inviteCredentialsOf(over, BASE, request.headers),
+      }),
+    });
+    await Promise.all(scheduled);
+    const text = await response.text();
+    let body: unknown = null;
+    try {
+      body = fromRpcBody(JSON.parse(text));
+    } catch {
+      body = null;
+    }
+    return { status: response.status, body, cookie: cookieOf(response) };
+  };
+  const acceptOnce = () => acceptWith(inviteToken, invitePassword);
+  const firstUse = await acceptOnce();
+  const inviteeRead = await auth.handler(
+    new Request(`${BASE}/api/auth/get-session`, {
+      headers: new Headers({
+        cookie: firstUse.cookie,
+        origin: BASE,
+        "x-forwarded-for": "198.51.100.77",
+      }),
+    }),
+  );
+  const inviteeSignedIn =
+    ((await inviteeRead.json().catch(() => null)) as { user?: { email?: unknown } } | null)?.user
+      ?.email === inviteeEmail;
+  const inviteeUser = (
+    await db
+      .select({ id: authUser.id, email: authUser.email, emailVerified: authUser.emailVerified })
+      .from(authUser)
+  ).find((row) => row.email === inviteeEmail);
+  const inviteeCredential =
+    inviteeUser === undefined
+      ? false
+      : (
+          await db
+            .select({ userId: authAccount.userId, providerId: authAccount.providerId })
+            .from(authAccount)
+        ).some((row) => row.userId === inviteeUser.id && row.providerId === "credential");
+  const inviteeMember =
+    inviteeUser === undefined
+      ? false
+      : (await db.select({ userId: authMember.userId }).from(authMember)).some(
+          (row) => row.userId === inviteeUser.id,
+        );
+  const secondUse = await acceptOnce();
+  check(
+    inviteName,
+    shownOnce.kind === "form" &&
+      shownTwice.kind === "form" &&
+      rowsAfterOpening === 1 &&
+      firstUse.status === 200 &&
+      (firstUse.body as { kind?: unknown } | null)?.kind === "signed_in" &&
+      inviteeSignedIn &&
+      inviteeUser?.emailVerified === true &&
+      inviteeCredential &&
+      inviteeMember &&
+      (await linkRows()) === 0 &&
+      secondUse.status === 410,
+    `page ${shownOnce.kind} then ${shownTwice.kind}, link rows after opening ${rowsAfterOpening}, POST ${firstUse.status}, signed in ${inviteeSignedIn}, verified ${inviteeUser?.emailVerified === true}, credential ${inviteeCredential}, member ${inviteeMember}, link rows after ${await linkRows()}, second POST ${secondUse.status}`,
+  );
+
+  /** One more invitation on this run's shelter, for `label`'s own address, with a link issued. */
+  const inviteWithLink = async (label: string) => {
+    const to = `auth-smoke-${label}-${tag}@example.invalid`;
+    const made = await kabinetInvitationRepo(db).invite({
+      shelterId: base.id,
+      email: to,
+      name: `Auth smoke ${label}`,
+      inviterUserId: operator,
+      ids: { invitationId: randomUUID(), userId: randomUUID(), organizationId: randomUUID() },
+      now: new Date(),
+      history: {
+        id: randomUUID(),
+        entry: {
+          kind: "admin_invited",
+          at: new Date(),
+          moderatorId: operator as ModeratorId,
+          email: to,
+        },
+      },
+    });
+    if (made.kind !== "invited") return null;
+    const linkToken = newInviteToken();
+    await tokens.issue({
+      id: randomUUID(),
+      invitationId: made.invitationId,
+      token: linkToken,
+      expiresAt: made.expiresAt,
+      now: new Date(),
+    });
+    return { email: to, token: linkToken, ...made };
+  };
+  const authContext = await auth.$context;
+
+  // 18. PW-2 review finding 1: the three refusal flags read true over this driver, each for its
+  // own case and only there, and the page and the POST then refuse.
+  const flagsName =
+    "invitation link refused for a password holder, an operator and a member (each EXISTS true over this driver; page and POST unusable)";
+  const holder = await inviteWithLink("has-password");
+  const operatorLater = await inviteWithLink("operator-later");
+  const memberAlready = await inviteWithLink("member");
+  if (holder === null || operatorLater === null || memberAlready === null) {
+    check(flagsName, false, "an invitation was not written");
+    return out;
+  }
+  await authContext.internalAdapter.createAccount({
+    userId: holder.userId,
+    providerId: "credential",
+    accountId: holder.userId,
+    password: await authContext.password.hash(`smoke-${randomUUID()}`),
+  });
+  await db
+    .insert(superAdmins)
+    .values({ id: randomUUID(), userId: operatorLater.userId, grantedAt: new Date() });
+  const memberOrganization = (
+    await db
+      .select({ id: authInvitation.id, organizationId: authInvitation.organizationId })
+      .from(authInvitation)
+  ).find((row) => row.id === memberAlready.invitationId)?.organizationId;
+  if (memberOrganization !== undefined) {
+    await db.insert(authMember).values({
+      id: randomUUID(),
+      organizationId: memberOrganization,
+      userId: memberAlready.userId,
+      role: "admin",
+      createdAt: new Date(),
+    });
+  }
+  const flagsOf = async (linkToken: string) => {
+    const row = await tokens.landingOf(linkToken);
+    return `${row?.hasPassword}/${row?.operator}/${row?.member}`;
+  };
+  const refusedLink = async (linkToken: string) => ({
+    flags: await flagsOf(linkToken),
+    page: (await invitePasswordLandingOf(linkToken, { ...lookup, now: new Date() })).kind,
+    post: (await acceptWith(linkToken, `${randomUUID()}-${randomUUID()}`)).status,
+  });
+  const refused = {
+    hasPassword: await refusedLink(holder.token),
+    operator: await refusedLink(operatorLater.token),
+    member: await refusedLink(memberAlready.token),
+  };
+  check(
+    flagsName,
+    memberOrganization !== undefined &&
+      refused.hasPassword.flags === "true/false/false" &&
+      refused.operator.flags === "false/true/false" &&
+      refused.member.flags === "false/false/true" &&
+      Object.values(refused).every((link) => link.page === "unusable" && link.post === 410),
+    `flags (password/operator/member): holder ${refused.hasPassword.flags}, operator ${refused.operator.flags}, member ${refused.member.flags}; page ${Object.values(
+      refused,
+    )
+      .map((link) => link.page)
+      .join("/")}; POST ${Object.values(refused)
+      .map((link) => link.post)
+      .join("/")}`,
+  );
+
+  // 19. PW-2 review finding 4: the address is marked verified before the credential is written.
+  // The credential's insert fails (forced, unsent), so the POST stops between the two writes:
+  // the address is verified, there is no password and the link is used. The operator's resend
+  // (the invitation's resend and a new link, as the registry does) then sets the password, signs
+  // in and accepts.
+  const orderName =
+    "invitation POST marks the address verified before the password (a failure between leaves no password; a resend's link then signs in)";
+  const stranded = await inviteWithLink("stranded");
+  if (stranded === null) {
+    check(orderName, false, "the invitation was not written");
+    return out;
+  }
+  const failingCredential = steppedDatabase(db, {
+    failWhen: (statement) =>
+      statementName(statement) === "insert:auth_account"
+        ? new Error("forced: the credential's insert")
+        : undefined,
+  });
+  const strandedPassword = `${randomUUID()}-${randomUUID()}`;
+  const failedUse = await acceptWith(
+    stranded.token,
+    strandedPassword,
+    authOver(failingCredential.db),
+  );
+  const strandedUser = async () =>
+    (
+      await db.select({ id: authUser.id, emailVerified: authUser.emailVerified }).from(authUser)
+    ).find((row) => row.id === stranded.userId);
+  const credentialOf = async (userId: string) =>
+    (
+      await db
+        .select({ userId: authAccount.userId, providerId: authAccount.providerId })
+        .from(authAccount)
+    ).some((row) => row.userId === userId && row.providerId === "credential");
+  const verifiedBetween = (await strandedUser())?.emailVerified === true;
+  const credentialBetween = await credentialOf(stranded.userId);
+  const sameLinkAgain = (await acceptWith(stranded.token, strandedPassword)).status;
+  const resent = await kabinetInvitationRepo(db).resend(stranded.invitationId, new Date(), {
+    id: randomUUID(),
+    shelterId: base.id,
+    entry: {
+      kind: "admin_invitation_resent",
+      at: new Date(),
+      moderatorId: operator as ModeratorId,
+      email: stranded.email,
+    },
+  });
+  const resentToken = newInviteToken();
+  if (resent.kind === "resent") {
+    await tokens.issue({
+      id: randomUUID(),
+      invitationId: stranded.invitationId,
+      token: resentToken,
+      expiresAt: resent.expiresAt,
+      now: new Date(),
+    });
+  }
+  const resentPage = (await invitePasswordLandingOf(resentToken, { ...lookup, now: new Date() }))
+    .kind;
+  const finished = await acceptWith(resentToken, strandedPassword);
+  const finishedMember = (await db.select({ userId: authMember.userId }).from(authMember)).some(
+    (row) => row.userId === stranded.userId,
+  );
+  const credentialAfter = await credentialOf(stranded.userId);
+  check(
+    orderName,
+    failedUse.status === 500 &&
+      verifiedBetween &&
+      !credentialBetween &&
+      sameLinkAgain === 410 &&
+      resent.kind === "resent" &&
+      resentPage === "form" &&
+      finished.status === 200 &&
+      (finished.body as { kind?: unknown } | null)?.kind === "signed_in" &&
+      finished.cookie !== "" &&
+      (await strandedUser())?.emailVerified === true &&
+      credentialAfter &&
+      finishedMember,
+    `forced POST ${failedUse.status}; between: verified ${verifiedBetween}, credential ${credentialBetween}, same link ${sameLinkAgain}; resend ${resent.kind}, page ${resentPage}, POST ${finished.status}, cookie ${finished.cookie !== ""}, credential ${credentialAfter}, member ${finishedMember}`,
   );
   return out;
 }

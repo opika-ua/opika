@@ -255,9 +255,11 @@ export function providerInvitationSender(
 }
 
 /**
- * Development: prints the invite landing's link. It isn't a credential (the
- * landing sends its own magic link). No block list is read, so the check is
- * `unknown`, never a claimed `clear`.
+ * Development: prints the invitation link, as `consoleSender` prints the magic
+ * link. Since PW-2 the link is a credential (it sets the invitee's password,
+ * once), so this channel is development's only, like the magic link's: never
+ * production, and the harness reads it without printing it. No block list is
+ * read, so the check is `unknown`, never a claimed `clear`.
  */
 export const consoleInvitationSender: InvitationSender = {
   fromAddress: null,

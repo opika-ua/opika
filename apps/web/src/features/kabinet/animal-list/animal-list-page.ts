@@ -3,6 +3,7 @@ import { createRouterClient, ORPCError } from "@orpc/server";
 import { decideAccess } from "../../../kabinet/access";
 import type { KabinetPrincipal } from "../../../kabinet/actor";
 import type { KabinetContext } from "../../../kabinet/context";
+import { INVITE_PASSWORDS_OFF } from "../../../kabinet/invite-password";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../../kabinet/photo-uploads";
 import { shelterKabinetRouter } from "../../../kabinet/router";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
@@ -71,6 +72,7 @@ export async function kabinetAnimalListPageOf(
       production: false,
       // Reads only; the served route carries the real upload config.
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
+      invitePasswords: INVITE_PASSWORDS_OFF,
     }),
   });
   try {
