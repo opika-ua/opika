@@ -4,7 +4,6 @@ import {
   type ContactsForm,
   contactOfForm,
   contactsFormOf,
-  insertAt,
   linkProblem,
   sentenceCheck,
   sentenceLength,
@@ -125,11 +124,17 @@ describe("sentenceCheck (his messages for the K-Q6 rule)", () => {
     expect(sentenceCheck("   ")).toEqual({ kind: "ok", text: null });
   });
 
-  it("normalises the token spellings", () => {
-    expect(sentenceCheck("{ім'я} досі шукає дім.")).toEqual({
+  it("trims what it accepts", () => {
+    expect(sentenceCheck("  Оновлюємо щосуботи. ")).toEqual({
       kind: "ok",
-      text: "{імʼя} досі шукає дім.",
+      text: "Оновлюємо щосуботи.",
     });
+  });
+
+  it("refuses {імʼя} in any spelling with its own message (DR1-Q5)", () => {
+    for (const text of ["{ім'я} досі шукає дім.", "Чи {імʼя} тут?", "{ІМ’Я}"]) {
+      expect(sentenceCheck(text)).toEqual({ kind: "invalid", error: { key: "nameTokenGone" } });
+    }
   });
 
   it("{дата} gets its own message (answer 5), in any case and spacing", () => {
@@ -159,12 +164,5 @@ describe("sentenceCheck (his messages for the K-Q6 rule)", () => {
 
   it("counts characters as a reader sees them", () => {
     expect(sentenceLength("  🐾 ок  ")).toBe(4);
-  });
-});
-
-describe("insertAt (answer 7)", () => {
-  it("replaces the selection and puts the caret after the token", () => {
-    expect(insertAt("ab cd", 3, 5, "{імʼя}")).toEqual({ value: "ab {імʼя}", caret: 9 });
-    expect(insertAt("", 0, 0, "{імʼя}")).toEqual({ value: "{імʼя}", caret: 6 });
   });
 });

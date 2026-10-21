@@ -3,10 +3,15 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 
-interface ArrowKeyGridProps {
+/**
+ * The gallery's grid is its page's `<main>`; the shelter page (designer
+ * round 1, S6) lays the same cards out as a list named by its heading, inside
+ * a `<main>` of its own. The arrow keys work the same in both.
+ */
+type ArrowKeyGridProps = {
   className: string;
   children: ReactNode;
-}
+} & ({ element?: "main" } | { element: "ul"; labelledBy: string });
 
 const CARD_SELECTOR = "[data-testid='animal-card']";
 
@@ -57,11 +62,13 @@ function columnCountOf(grid: HTMLElement): number {
  * hydration carve-out precisely because it changed Tab order in a way a
  * no-JS client could never do safely).
  */
-export function ArrowKeyGrid({ className, children }: ArrowKeyGridProps) {
+export function ArrowKeyGrid(props: ArrowKeyGridProps) {
+  const { className, children } = props;
   const ref = useRef<HTMLElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
-    const grid = ref.current;
+    const grid = ref.current ?? listRef.current;
     if (!grid) return;
     const gridEl: HTMLElement = grid;
 
@@ -117,6 +124,13 @@ export function ArrowKeyGrid({ className, children }: ArrowKeyGridProps) {
     return () => gridEl.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  if (props.element === "ul") {
+    return (
+      <ul ref={listRef} aria-labelledby={props.labelledBy} className={className}>
+        {children}
+      </ul>
+    );
+  }
   return (
     <main ref={ref} data-testid="gallery-grid" className={className}>
       {children}

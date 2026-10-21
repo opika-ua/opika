@@ -220,10 +220,16 @@ describe("OnboardInputSchema's text rules", () => {
       animals: [{ ...ANIMAL_INPUT, ...animal }],
     });
 
-  it("normalises the token's spellings in the freshness sentence to {імʼя}", () => {
-    const parsed = parse({ freshnessSentenceUk: " Чи {Ім'я} ще з нами? " });
+  it("trims the freshness sentence", () => {
+    const parsed = parse({ freshnessSentenceUk: " Оновлюємо щосуботи. " });
     expect(parsed.success).toBe(true);
-    expect(parsed.data?.shelter.freshnessSentenceUk).toBe("Чи {імʼя} ще з нами?");
+    expect(parsed.data?.shelter.freshnessSentenceUk).toBe("Оновлюємо щосуботи.");
+  });
+
+  // DR1-Q5: the sentence is shelter-level, so the operator's script refuses the
+  // name token too, as the kabinet does; nothing it writes can carry one.
+  it.each([["{імʼя}"], ["{Ім'я}"]])("refuses a freshness sentence with %s", (token) => {
+    expect(parse({ freshnessSentenceUk: `Чи ${token} ще з нами?` }).success).toBe(false);
   });
 
   it.each([

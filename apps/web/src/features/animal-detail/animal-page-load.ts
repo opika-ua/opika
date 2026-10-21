@@ -1,6 +1,6 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
 import { AnimalIdSchema, DEFAULT_GALLERY_SORT, NO_FILTERS, textIn } from "@opika/domain";
-import { ORPCError } from "@orpc/server";
+import { pageRefusalOf } from "../../api/page-refusal";
 import { anonymousRouterClient } from "../../api/server-client";
 import { galleryHref } from "../gallery/filter-url";
 
@@ -87,15 +87,8 @@ export async function loadAnimalPage(
       },
     };
   } catch (error) {
-    const refusal = refusalOf(error);
+    const refusal = pageRefusalOf(error);
     if (refusal) return { kind: refusal };
     throw error;
   }
-}
-
-function refusalOf(error: unknown): "not_found" | "rate_limited" | null {
-  if (!(error instanceof ORPCError)) return null;
-  if (error.code === "NOT_FOUND") return "not_found";
-  if (error.code === "RATE_LIMITED") return "rate_limited";
-  return null;
 }

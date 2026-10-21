@@ -39,7 +39,8 @@ describe("vaccinationRow", () => {
       declaredAt: new Date(),
     });
     expect(row.label).toBe("Комплексне щеплення");
-    expect(row.statusText).toBe("Слова притулку");
+    // DR1-Q1, option (c), his label (2026-10-20): «Слова притулку» is the shelter page's alone.
+    expect(row.statusText).toBe("Дані притулку");
   });
 
   it("confirmed + registry: reads as rabies specifically — the one variant today's seed data never produces", () => {
@@ -81,7 +82,8 @@ describe("spayNeuterRow", () => {
       state: "confirmed",
       declaredAt: new Date(),
     });
-    expect(row.statusText).toBe("Слова притулку");
+    // DR1-Q1, option (c), his label (2026-10-20): «Слова притулку» is the shelter page's alone.
+    expect(row.statusText).toBe("Дані притулку");
   });
 });
 
@@ -94,6 +96,6 @@ describe("literal strings match uk.ts", () => {
     expect(uk.medical.vaccination).toBe("Комплексне щеплення");
     expect(uk.medical.spayNeuter).toBe("Стерилізація");
     expect(uk.medical.registry).toBe("Зроблено, за даними державного реєстру тварин");
-    expect(uk.medical.shelterDeclared).toBe("Слова притулку");
+    expect(uk.medical.shelterDeclared).toBe("Дані притулку");
   });
 });

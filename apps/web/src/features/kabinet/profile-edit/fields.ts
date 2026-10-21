@@ -228,6 +228,8 @@ export function contactOfForm(form: ContactsForm): ContactsCheck {
 
 export type SentenceError =
   | { key: "sentenceTooLong" }
+  /** DR1-Q5: `{імʼя}` in any spelling; the sentence shows on the shelter page now. */
+  | { key: "nameTokenGone" }
   | { key: "unknownToken"; token: string }
   /** Answer 5: `{дата}` typed by habit gets its own explanation. */
   | { key: "dateTokenGone" }
@@ -253,6 +255,8 @@ export function sentenceCheck(raw: string): SentenceCheck {
       switch (problem.kind) {
         case "too_long":
           return { kind: "invalid", error: { key: "sentenceTooLong" } };
+        case "name_token":
+          return { kind: "invalid", error: { key: "nameTokenGone" } };
         case "unknown_token":
           return DATE_TOKEN.test(problem.token)
             ? { kind: "invalid", error: { key: "dateTokenGone" } }
@@ -277,15 +281,3 @@ export function sentenceCheck(raw: string): SentenceCheck {
 /** The counter's number: characters as the server counts them, after trimming. */
 export const sentenceLength = (raw: string): number => characterCount(raw.trim());
 export const SENTENCE_MAX = FRESHNESS_SENTENCE_MAX_CHARACTERS;
-
-/** The textarea's value and caret after inserting `token` over the selection (answer 7). */
-export function insertAt(
-  value: string,
-  selectionStart: number,
-  selectionEnd: number,
-  token: string,
-): { value: string; caret: number } {
-  const start = Math.max(0, Math.min(selectionStart, value.length));
-  const end = Math.max(start, Math.min(selectionEnd, value.length));
-  return { value: value.slice(0, start) + token + value.slice(end), caret: start + token.length };
-}

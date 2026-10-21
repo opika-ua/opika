@@ -5,11 +5,11 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { cache } from "react";
 import { AnimalDetailScreen } from "../../../features/animal-detail/AnimalDetailScreen";
-import { AnimalRateLimitedScreen } from "../../../features/animal-detail/AnimalPageStates";
 import {
   type AnimalPageLoad,
   loadAnimalPage,
 } from "../../../features/animal-detail/animal-page-load";
+import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
 
 /**
@@ -50,7 +50,7 @@ export function renderAnimalPage(load: AnimalPageLoad): ReactNode {
     case "not_found":
       return notFound();
     case "rate_limited":
-      return <AnimalRateLimitedScreen />;
+      return <RateLimitedScreen />;
     case "animal":
       return <AnimalDetailScreen {...load.view} />;
   }

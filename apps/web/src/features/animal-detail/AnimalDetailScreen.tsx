@@ -1,16 +1,18 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
-import { donationHost, fillAnimalName, hasAnyDocumentEvidence, textIn } from "@opika/domain";
+import { donationHost, hasAnyDocumentEvidence } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { Footer } from "../chrome/Footer";
 import { SiteHeader } from "../chrome/SiteHeader";
+import { FOCUS_RING } from "../controls/controls";
+import { shelterPagePath } from "../shelters/shelter-url";
 import { CoatFact } from "./CoatFact";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
 import { animalLocationLine, animalSubtitle } from "./detail-text";
+import { FreshnessBlock } from "./FreshnessBlock";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
-import { ShelterFreshnessBlock } from "./ShelterFreshnessBlock";
 
 /**
  * "Перевірено вручну · на сайті з {year} року" — the calendar year the shelter's
@@ -183,52 +185,14 @@ export function AnimalDetailScreen({
             `docs/observations.md`, for the full account.
           */}
           {/*
-            `freshnessSentence`, NOT `description` — this block quoted the
-            shelter's general description («Один з найбільших притулків
-            Києва, працює з 2015 року…») under an attribution that reads
-            «Слова притулку · дата автоматична» (as it then read), inside a freshness block.
-            Wrong field, and wrong against the design: README's freshness
-            section specifies a sentence "written once by the shelter at
-            verification, in their own words" about how current their
-            listings are, which is what `freshnessSentence` holds and what
-            `SwipeCard` already renders. The contract exposes it
-            (`ShelterSummaryViewSchema`) and the handler already passes it;
-            only this surface read the wrong one.
-
-            Found by verifying a claim in `/prytulkam`'s own copy — §8 tells
-            shelters their sentence appears on the animal's page, which was
-            false here. A copy claim that could not be checked against the
-            screen is how the page would have shipped describing a product
-            that did not exist.
-
-            Read from `animal.shelter`, not the `shelter` prop:
-            `PublicShelterViewSchema` does not `pick` `freshnessSentence`
-            (which is why this reached for `description` in the first place),
-            but `AnimalDetailView`'s own nested `ShelterSummaryView` does and
-            the handler already populates it. Using the data already on the
-            page beats widening a public view — `pick`, never `omit`, means
-            every field on that view is a deliberate decision, and this one
-            needs no new decision.
-
-            `{імʼя}` is filled with this page's animal (K-Q6), here and on the
-            deck only; the kabinet shows the shelter its sentence as written,
-            except K4's voice preview (N11), which fills it in this same block.
-
-            Nullable by design: a shelter with no sentence falls back to the
-            pips and day count alone (`FreshnessSentenceSchema`'s own note),
-            which is why this stays conditional rather than gaining a
-            placeholder. The attribution goes with it: under the day count
-            alone, «Слова притулку» would credit the shelter with words it
-            never wrote (VH-Q2).
+            The pips and the day count only. The shelter's sentence that sat
+            under them moved to the shelter page (designer round 1, S6;
+            Oleksii's DR1-Q1, verbatim: "the shelter’s freshness sentence
+            leaves the deck and animal pages and shows only on the shelter
+            page. «Оновлено … тому» stays on every card."). The shelter row
+            below links there.
           */}
-          <ShelterFreshnessBlock
-            freshness={animal.freshness}
-            sentence={
-              animal.shelter.freshnessSentence
-                ? fillAnimalName(textIn(animal.shelter.freshnessSentence, "uk"), animal.name)
-                : null
-            }
-          />
+          <FreshnessBlock freshness={animal.freshness} />
 
           <div className="flex gap-2">
             {/*
@@ -296,7 +260,20 @@ export function AnimalDetailScreen({
           </div>
 
           <div className="flex flex-col gap-4 pt-2">
-            <div className="flex items-center gap-3">
+            {/*
+              The shelter row is a link to the shelter page (designer round 1,
+              S6), where its own words are. Its accessible name is his
+              `detail.shelterRowLink`; the visible name and badge stay as they
+              were. Not prefetched, like every link here: a prefetch of a
+              `/prytulky` URL is charged to the visitor's per-IP budget
+              (`proxy.ts`).
+            */}
+            <Link
+              href={shelterPagePath(shelter.id)}
+              prefetch={false}
+              aria-label={fillTemplate(uk.detail.shelterRowLink, { name: shelter.displayName })}
+              className={`flex min-h-target items-center gap-3 rounded-rg-button ${FOCUS_RING}`}
+            >
               <span
                 aria-hidden="true"
                 className="size-11 rounded-full bg-rg-fill inline-flex items-center justify-center text-[15px] font-medium text-rg-ink-2 flex-none"
@@ -322,7 +299,7 @@ export function AnimalDetailScreen({
                   </span>
                 )}
               </div>
-            </div>
+            </Link>
 
             {shelter.donation && (
               <a

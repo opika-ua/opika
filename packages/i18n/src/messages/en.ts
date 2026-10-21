@@ -103,7 +103,7 @@ export const en = {
     unknown: "Not recorded",
     inProgress: "In progress",
     registryConfirmed: "Confirmed by the national pet registry",
-    shelterDeclared: "The shelter's own words",
+    shelterDeclared: "The shelter's data",
     rabies: "Rabies",
     vaccination: "Core vaccination",
     spayNeuter: "Spay/neuter",
@@ -122,11 +122,18 @@ export const en = {
     lineAtShelter: "{city}",
   },
 
+  // --- Shelter page (designer round 1, S6) ---
+  shelterPage: {
+    animalsHeading: "Looking for a home: {count}",
+    noAnimals: "No animals here are looking for a home right now.",
+  },
+
   // --- Detail screen (04) ---
   detail: {
     /** Template: "Manually verified · on the site since {year}" — `{year}` is the year the shelter's record was created. */
     shelterVerifiedYears: "Manually verified · on the site since {year}",
     donateShelter: "Support the shelter",
+    shelterRowLink: "The shelter's page: «{name}»",
     /** Template: "← All animals in {city}" */
     backToListIn: "← All animals in {city}",
     speciesDog: "Dog",
@@ -505,8 +512,7 @@ export const en = {
         liveOnSave: {
           contacts:
             "People see the new contacts as soon as you save, when they tap «Write to the shelter».",
-          voice:
-            "The new sentence appears in the deck and on the animals' pages as soon as you save.",
+          voice: "The new sentence appears on the shelter page as soon as you save.",
         },
         unsavedLeave: "Your changes aren't saved. Leave anyway?",
       },
@@ -534,7 +540,10 @@ export const en = {
         notAUrl: "That doesn't look like a link.",
         sentenceTooLong: "The sentence is longer than {max} characters.",
         unknownToken: "Only {імʼя} is filled in. Remove «{token}», or write it without braces.",
-        dateTokenGone: "The date is already shown above your sentence, so {дата} isn't needed.",
+        dateTokenGone:
+          "Every card shows when it was updated, so {дата} isn't needed in the sentence.",
+        nameTokenGone:
+          "The sentence now shows on the shelter page, so {імʼя} isn't used in it. Remove it and save again.",
         strayBrace: "A brace without its pair. Braces are only for {імʼя}.",
       },
       contacts: {
@@ -547,17 +556,13 @@ export const en = {
         atLeastOne: "Keep at least one way to reach you.",
       },
       voice: {
-        hint: "One sentence in the first person, in your own words. On the card, only the animal's name is filled in, where you write {імʼя}. Nothing else changes.",
-        nameStaysHint:
-          "The name goes in as it is: Rex, Murka. It isn't declined, so write the sentence so it reads naturally, for example «{імʼя} is still looking for a home».",
-        insertName: "Insert {імʼя}",
+        hint: "One sentence in the first person, in your own words, about how often you update your cards. It shows on the shelter page.",
         counter: "{count} / {max}",
         counterOver: "Characters over: {over}",
-        emptyMeans: "Leave it empty and the cards show only “Updated … ago”.",
-        previewLabel: "This is how it looks on the animal's page: {name}",
-        previewNoAnimals:
-          "The preview appears once you have an animal: it shows how the sentence will look on its page.",
-        previewEmpty: "No sentence: the card shows only “Updated … ago”.",
+        emptyMeans:
+          "Leave it empty and the shelter page has no sentence; the cards still show “Updated … ago”.",
+        previewLabel: "This is how it looks on the shelter page:",
+        previewEmpty: "No sentence: the shelter page won't show one.",
       },
       donation: {
         optional: "· optional",
@@ -914,8 +919,8 @@ export const en = {
       invite: {
         subject: `Your access to the shelter's cabinet`,
         intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» on the site {site} for this address.`,
-        what: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on your cards and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
-        whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on your cards and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
+        what: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
+        whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours} hours. If you miss it, I will send a new one.`,
         notYou: `If you weren't expecting this email, just ignore it and don't forward it to anyone: while the invitation is valid, this link lets someone create a password for this address, once.\n— {operator}`,
@@ -1109,7 +1114,7 @@ export const en = {
         admin_removed: "Access closed: {name}",
         admin_removed_pending: "Invitation withdrawn: {name}",
         contact_changed: "Contacts changed",
-        freshness_sentence_changed: "Card sentence changed",
+        freshness_sentence_changed: "Shelter page sentence changed",
         description_changed: "Shelter description changed",
         donation_proposed: "Fundraising link proposed: {host}",
         donation_proposal_cancelled: "Link proposal withdrawn",

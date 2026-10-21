@@ -175,7 +175,6 @@ test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
         "TextAreaField",
         page.getByRole("region", { name: "Голос притулку" }).getByLabel("Ваші слова на картках"),
       ],
-      ["Button, secondary", page.getByRole("button", { name: "Вставити {імʼя}" })],
       ["Button, secondary", page.getByRole("button", { name: "Призупинити прийом тварин" })],
       ["SegmentedControl", form.getByRole("radio", { name: "Собака" })],
     ] as const;

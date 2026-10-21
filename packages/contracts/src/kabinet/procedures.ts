@@ -199,9 +199,9 @@ const animalRef = z.strictObject({ animalId: AnimalIdSchema });
 const humanName = z.string().trim().min(1);
 
 /**
- * One language's freshness sentence, checked and normalised by the domain
- * rule (K-Q6), so the handler only ever receives `{імʼя}` in its canonical
- * spelling. Blank becomes null: the sentence is optional, and a shelter who
+ * One language's freshness sentence, checked and trimmed by the domain rule
+ * (K-Q6), so the handler never receives a brace: since DR1-Q5 not even
+ * `{імʼя}`, the sentence being shelter-level. Blank becomes null: the sentence is optional, and a shelter who
  * clears the field means "no sentence", which a refusal would only make them
  * retype as an explicit null.
  */

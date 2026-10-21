@@ -1,5 +1,4 @@
 import { uk } from "@opika/i18n";
-import { buttonClass } from "../controls/controls";
 
 /**
  * What the gallery's overlay shows when it has no animal to show. The full
@@ -37,31 +36,5 @@ export function AnimalOverlayNoticeView({ kind }: { kind: AnimalOverlayNotice })
       <h2 className={TITLE}>{title}</h2>
       {body && <p className={BODY}>{body}</p>}
     </div>
-  );
-}
-
-/**
- * RL-F1: the full page when `animals.byId` refused for rate. Before this,
- * the page turned every failure of that call into its 404, so a rate limit
- * read «Цієї картки більше немає. … Це не помилка — просто картки тут більше
- * немає.», which was false. His sentence only, and the 404's own «Усі
- * тварини» link to the gallery (the same words and destination, so no new
- * string). A plain anchor: a document load is a fresh try, which is what
- * the sentence asks for.
- *
- * Answered with 200 and `noindex` (the page's metadata), not 429: a page
- * render streams after its status is sent, so only `proxy.ts` can answer
- * 429, and it does for the per-IP limit, before the page runs.
- */
-export function AnimalRateLimitedScreen() {
-  return (
-    <main className="font-rg flex min-h-dvh items-center justify-center bg-rg-page p-section">
-      <div className="flex w-full max-w-xl flex-col items-start gap-group rounded-rg-card bg-rg-surface p-screen">
-        <h1 className={TITLE}>{uk.detail.rateLimited}</h1>
-        <a href="/tvaryny" className={buttonClass("primary")}>
-          {uk.detail.notFound.action}
-        </a>
-      </div>
-    </main>
   );
 }

@@ -173,7 +173,8 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
   [
     "freshness_sentence_changed",
     { kind: "freshness_sentence_changed", at: AT, actor: byOlena, previous: null, next: null },
-    "Змінено речення на картках · Олена",
+    // his DR1-Q1 text (2026-10-20)
+    "Змінено речення на сторінці притулку · Олена",
   ],
   [
     "description_changed",

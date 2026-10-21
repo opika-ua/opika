@@ -1,7 +1,6 @@
 "use client";
 
 import type { FeedCardView } from "@opika/contracts";
-import { fillAnimalName } from "@opika/domain";
 import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips, type PipFill } from "@opika/ui";
 import Image from "next/image";
@@ -211,11 +210,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         </div>
 
         {/* Freshness block */}
-        <FreshnessBlock
-          freshness={card.freshness}
-          shelterSentence={card.shelter.freshnessSentence}
-          animalName={card.name}
-        />
+        <FreshnessBlock freshness={card.freshness} />
 
         {/*
           Shelter line. `leading-[normal]`, not a specific pixel value: these
@@ -278,15 +273,7 @@ function ShelterMonogram({ name }: { name: string }) {
   );
 }
 
-function FreshnessBlock({
-  freshness,
-  shelterSentence,
-  animalName,
-}: {
-  freshness: FeedCardView["freshness"];
-  shelterSentence: FeedCardView["shelter"]["freshnessSentence"];
-  animalName: string;
-}) {
+function FreshnessBlock({ freshness }: { freshness: FeedCardView["freshness"] }) {
   const label = freshnessLabel(freshness);
   const fills = freshnessPips(freshness.kind);
 
@@ -313,19 +300,10 @@ function FreshnessBlock({
         <span className="text-[15px]/[22px] text-rg-ink">{label}</span>
       </div>
 
-      {/* Shelter sentence (if present) — 15/22, not the detail page's
-        body-l 17/26: docs/design/README.md's "The shelter's sentence"
-        states body-l for the full sentence, but the deck renders the
-        "shortened sentence" (same section, "The deck"), and the B7 frame's
-        own literal value for it is 15/22 — `Opika Registry System.dc.html`.
-        `{імʼя}` is filled with this card's animal (K-Q6): the deck and the
-        animal page are the only places it is, so the kabinet still shows
-        the shelter exactly what it wrote. */}
-      {shelterSentence?.uk && (
-        <div className="text-[15px]/[22px] text-rg-ink-2 text-pretty">
-          {fillAnimalName(shelterSentence.uk, animalName)}
-        </div>
-      )}
+      {/* No shelter sentence here since designer round 1, S6: it moved to the
+        shelter page (Oleksii's DR1-Q1, verbatim: "the shelter’s freshness
+        sentence leaves the deck and animal pages and shows only on the
+        shelter page. «Оновлено … тому» stays on every card."). */}
     </section>
   );
 }

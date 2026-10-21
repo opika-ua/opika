@@ -305,6 +305,18 @@ The sentence does **not** appear on gallery cards — pips plus the day count do
 to read as speech rather than a status string, so it lives on the detail page and the deck card,
 where there is room for it and for the attribution.
 
+*(Amended 2026-10-21, designer round 1, S6. Oleksii's DR1-Q1, verbatim: "«Слова притулку» only on
+the shelter page. What moves: the shelter’s freshness sentence leaves the deck and animal pages and
+shows only on the shelter page. «Оновлено … тому» stays on every card. The medical rows: their
+source label «Слова притулку» is renamed to «Дані притулку» (option (c))." And DR1-Q5, verbatim:
+"(a), drop {імʼя}. The sentence is shelter-level, and the editor refuses {імʼя}." So, since S6: the
+sentence sits on the shelter page (`/prytulky/{id}`) under the «Слова притулку» heading, with the
+shelter's description; the detail page and the deck card show the marker and day count only, and
+the detail page's shelter row links to the shelter page; no name is substituted, and the example
+above, with an animal's name in it, no longer describes the product. The «Медичний стан» rows'
+source legend in `Opika Registry Frames.dc.html`'s D1 caption («#63676B — слова притулку») now
+reads «Дані притулку» on the page; on this point too this prose wins over the mock.)*
+
 ---
 
 ## The gallery card

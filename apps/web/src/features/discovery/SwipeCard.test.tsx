@@ -104,29 +104,8 @@ describe("SwipeCard freshness marker", () => {
     // Same words visible and announced, not two different phrasings.
     expect(screen.getByText(sentence)).toBeTruthy();
   });
-
-  it("renders the shelter's own sentence beneath the day count", () => {
-    const card = makeCard();
-    renderCard(card);
-
-    const sentence = card.shelter.freshnessSentence?.uk;
-    expect(sentence).toBeTruthy();
-    expect(screen.getByText(sentence as string)).toBeTruthy();
-  });
-
-  it("fills {імʼя} with this card's animal name (K-Q6)", () => {
-    const card = makeCard({ name: "Мурчик" });
-    renderCard({
-      ...card,
-      shelter: {
-        ...card.shelter,
-        freshnessSentence: { uk: "Напишіть, і ми скажемо, чи {імʼя} ще з нами.", en: null },
-      },
-    });
-    const block = screen.getByTestId("freshness-block");
-    expect(block.textContent).toContain("Напишіть, і ми скажемо, чи Мурчик ще з нами.");
-    expect(block.textContent).not.toContain("{");
-  });
+  // The shelter's sentence left the deck in designer round 1, S6 (DR1-Q1); its
+  // absence is pinned in `features/shelters/sentence-only-there.test.tsx`.
 });
 
 describe("SwipeCard name", () => {

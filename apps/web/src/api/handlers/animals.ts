@@ -62,7 +62,6 @@ export async function animalsById(
       id: shelter.id,
       displayName: shelter.displayName,
       publicLocation: cityOnlyLocationOf(shelter.publicLocation),
-      freshnessSentence: shelter.freshnessSentence,
       verification: "verified",
     },
   };

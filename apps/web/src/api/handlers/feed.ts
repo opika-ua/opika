@@ -114,7 +114,6 @@ export async function feedList(
           id: shelter.id,
           displayName: shelter.displayName,
           publicLocation: cityOnlyLocationOf(shelter.publicLocation),
-          freshnessSentence: shelter.freshnessSentence,
           verification:
             shelter.verification.status === "verified"
               ? ("verified" as const)

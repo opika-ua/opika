@@ -93,13 +93,21 @@ function expectCityOnly(name: string, res: { status: number; raw: string }) {
 }
 
 describe("served pre-reveal responses carry the city only (EM-Q10)", () => {
-  it("feed.list, gallery.list, animals.byId, shelters.byId and cities.list", async () => {
+  it("feed.list, gallery.list (both scopes), animals.byId, shelters.byId and cities.list", async () => {
     const { city, shelter, atShelter, fostered } = await seed();
 
     const feed = await h.call("feed.list", { filters: NO_FILTERS, cursor: null, limit: 20 });
     expectCityOnly("feed.list", feed);
     const gallery = await h.call("gallery.list", { filters: NO_FILTERS });
     expectCityOnly("gallery.list", gallery);
+    // The shelter page's own list (designer round 1, S6): the same procedure,
+    // scoped to one shelter. It must hold the same rule, and it isn't empty.
+    const shelterPageList = await h.call("gallery.list", {
+      filters: NO_FILTERS,
+      scope: { kind: "shelter", shelterId: shelter.id },
+    });
+    expectCityOnly("gallery.list (shelter scope)", shelterPageList);
+    expect((shelterPageList.body as { items: unknown[] }).items).toHaveLength(2);
     for (const animal of [atShelter, fostered]) {
       expectCityOnly("animals.byId", await h.call("animals.byId", { animalId: animal.id }));
     }

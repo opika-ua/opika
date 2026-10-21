@@ -39,8 +39,8 @@ const baseView = (overrides: Partial<KabinetShelterView> = {}): KabinetShelterVi
   donation: { url: "https://dobro.ua/fund/domivka", provider: "other" },
   pendingDonation: null,
   freshnessSentence: {
-    uk: "{імʼя} досі шукає дім.",
-    en: { text: "{імʼя} is still looking for a home.", provenance: "human" },
+    uk: "Оновлюємо картки щосуботи.",
+    en: { text: "We update the cards every Saturday.", provenance: "human" },
   },
   version: 3,
   verification: { status: "verified", since: new Date("2025-03-14T10:00:00Z") },
@@ -93,31 +93,16 @@ function renderEditor(
   options: {
     view?: KabinetShelterView;
     overrides?: Partial<Fake>;
-    previewAnimal?: { name: string; ageDays: number } | null;
     donationDeclined?: boolean;
   } = {},
 ) {
   const view = options.view ?? baseView();
   const { fns, client } = fakeClient(view, options.overrides);
-  const animal =
-    options.previewAnimal === undefined ? { name: "Ластівка", ageDays: 3 } : options.previewAnimal;
   render(
     <ProfileEditor
       initialView={view}
       cityName="Бровари"
       operatorName="Олексій"
-      previewAnimal={
-        animal === null
-          ? null
-          : {
-              name: animal.name,
-              freshness: {
-                kind: "fresh",
-                confirmedAt: new Date("2026-10-14T00:00:00Z"),
-                ageDays: animal.ageDays,
-              },
-            }
-      }
       donationDeclined={options.donationDeclined ?? false}
       client={client}
     />,
@@ -321,19 +306,26 @@ describe("the voice sentence (N11)", () => {
     expect(within(voice()).getByText("265 / 280").getAttribute("aria-live")).toBe("polite");
   });
 
-  it("«Вставити {імʼя}» puts the token at the cursor (answer 7)", async () => {
-    renderEditor({ view: baseView({ freshnessSentence: null }) });
-    await userEvent.type(textarea(), "досі шукає дім");
-    textarea().setSelectionRange(0, 0);
-    await userEvent.click(within(voice()).getByRole("button", { name: "Вставити {імʼя}" }));
-    expect(textarea().value).toBe("{імʼя}досі шукає дім");
+  it("offers no button to insert {імʼя} any more (DR1-Q5)", () => {
+    renderEditor();
+    expect(within(voice()).queryByRole("button", { name: /імʼя/ })).toBeNull();
   });
 
   it.each([
     [
-      "{дата} (answer 5)",
+      "{дата} (answer 5; his DR1-Q1 text)",
       "Оновлено {дата}.",
-      "Дата й так показується над вашим реченням, тому {дата} писати не потрібно.",
+      "Дата оновлення показується на кожній картці, тому {дата} у реченні писати не потрібно.",
+    ],
+    [
+      "{імʼя} (DR1-Q5, his text)",
+      "Напишіть, чи {імʼя} ще з нами.",
+      "Тепер речення показується на сторінці притулку, тому {імʼя} у ньому не використовується. Приберіть його й збережіть ще раз.",
+    ],
+    [
+      "{імʼя} typed with an ASCII apostrophe (DR1-Q5)",
+      "Чи {ім'я} ще з нами?",
+      "Тепер речення показується на сторінці притулку, тому {імʼя} у ньому не використовується. Приберіть його й збережіть ще раз.",
     ],
     [
       "an unknown token, named",
@@ -356,28 +348,37 @@ describe("the voice sentence (N11)", () => {
     expect(fns.updateFreshnessSentence).not.toHaveBeenCalled();
   });
 
-  it("previews in the freshness block with a real animal's name", async () => {
+  /**
+   * Designer round 1, S6: the preview is the shelter page's «Слова притулку»
+   * section, so it needs no animal, and his DR1-Q1 label and empty text
+   * (transcribed from his message).
+   */
+  it("previews the sentence as the shelter page shows it, with no animal", async () => {
     renderEditor();
     const preview = within(within(voice()).getByTestId("voice-preview"));
-    expect(preview.getByText("Так це виглядає на сторінці тварини: Ластівка")).toBeTruthy();
-    // In «…», as on the animal page it previews (CB-B1, item 4).
-    expect(preview.getByTestId("shelter-freshness-sentence").textContent).toBe(
-      "«Ластівка досі шукає дім.»",
-    );
+    expect(preview.getByText("Так це виглядає на сторінці притулку:")).toBeTruthy();
+    expect(preview.getByRole("heading", { name: "Слова притулку" })).toBeTruthy();
+    expect(preview.getByText("«Оновлюємо картки щосуботи.»")).toBeTruthy();
     await userEvent.clear(textarea());
-    expect(preview.queryByTestId("shelter-freshness-sentence")).toBeNull();
-    expect(
-      preview.getByText("Речення немає — на картці буде лише «Оновлено … тому»."),
-    ).toBeTruthy();
+    expect(preview.queryByText(/щосуботи/)).toBeNull();
+    expect(preview.queryByRole("heading", { name: "Слова притулку" })).toBeNull();
+    expect(preview.getByText("Речення немає — на сторінці притулку його не буде.")).toBeTruthy();
   });
 
-  it("with no animal, says the preview comes later", () => {
-    renderEditor({ previewAnimal: null });
+  /** His words: "Existing test-shelter sentences containing it are re-saved, not migrated." */
+  it("a stored sentence with {імʼя} is shown as written, and saving it asks for it to go", async () => {
+    const fns = renderEditor({
+      view: baseView({ freshnessSentence: { uk: "Чи {імʼя} ще з нами?", en: null } }),
+    });
+    expect(textarea().value).toBe("Чи {імʼя} ще з нами?");
+    await userEvent.type(textarea(), " Пишіть.");
+    await userEvent.click(within(voice()).getByRole("button", { name: "Зберегти" }));
     expect(
       within(voice()).getByText(
-        "Попередній перегляд зʼявиться, щойно у вас буде тварина: тут буде видно, як речення виглядатиме на її сторінці.",
+        "Тепер речення показується на сторінці притулку, тому {імʼя} у ньому не використовується. Приберіть його й збережіть ще раз.",
       ),
     ).toBeTruthy();
+    expect(fns.updateFreshnessSentence).not.toHaveBeenCalled();
   });
 
   it("sends the stored English back with the new Ukrainian (the server clears it, answer 13)", async () => {
@@ -386,8 +387,8 @@ describe("the voice sentence (N11)", () => {
     await userEvent.click(within(voice()).getByRole("button", { name: "Зберегти" }));
     expect(fns.updateFreshnessSentence).toHaveBeenCalledWith({
       freshnessSentence: {
-        uk: "{імʼя} досі шукає дім. Пишіть.",
-        en: { text: "{імʼя} is still looking for a home.", provenance: "human" },
+        uk: "Оновлюємо картки щосуботи. Пишіть.",
+        en: { text: "We update the cards every Saturday.", provenance: "human" },
       },
       expectedVersion: 3,
     });
@@ -403,21 +404,20 @@ describe("the voice sentence (N11)", () => {
     });
   });
 
-  it("shows his per-section caption and hints", () => {
+  it("shows his per-section caption and hints (his DR1-Q1 text)", () => {
     renderEditor();
     const v = within(voice());
     expect(
+      v.getByText("Нове речення зʼявиться на сторінці притулку одразу після збереження."),
+    ).toBeTruthy();
+    expect(
       v.getByText(
-        "Нове речення зʼявиться в стрічці та на сторінках тварин одразу після збереження.",
+        "Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде „Оновлено … тому“.",
       ),
     ).toBeTruthy();
     expect(
-      v.getByText("Якщо залишити порожнім, на картках буде лише «Оновлено … тому»."),
-    ).toBeTruthy();
-    // CB-B1, item 3: `{імʼя}` shows literally, never filled
-    expect(
       v.getByText(
-        "Одне речення від першої особи, вашими словами. На картці підставляється лише імʼя тварини — там, де ви напишете {імʼя}. Більше нічого не змінюється.",
+        "Одне речення від першої особи, вашими словами, про те, як часто ви оновлюєте картки. Воно показується на сторінці притулку.",
       ),
     ).toBeTruthy();
   });
@@ -748,7 +748,7 @@ describe("a save whose answer is lost (K4-T16)", () => {
         get: vi.fn(async () =>
           baseView({
             version: 4,
-            freshnessSentence: { uk: "{імʼя} досі шукає дім. Пишіть.", en: null },
+            freshnessSentence: { uk: "Оновлюємо картки щосуботи. Пишіть.", en: null },
           }),
         ),
       },

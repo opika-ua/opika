@@ -1,6 +1,6 @@
 import type { KabinetCursor, KabinetShelterView } from "@opika/contracts";
 import { cityRepo } from "@opika/db/repos";
-import { type CityId, DEFAULT_FRESHNESS_POLICY, type Freshness, freshnessOf } from "@opika/domain";
+import type { CityId } from "@opika/domain";
 import { createRouterClient, ORPCError, type RouterClient } from "@orpc/server";
 import { decideAccess, registryOperatorOf } from "../../kabinet/access";
 import type { KabinetPrincipal } from "../../kabinet/actor";
@@ -40,12 +40,6 @@ export type KabinetHome =
     };
 
 /**
- * The animal the voice editor's preview fills `{імʼя}` with (N11), and the
- * day count the real freshness block would show on its page.
- */
-export type PreviewAnimal = { name: string; freshness: Freshness };
-
-/**
  * Whether this viewer may change the profile (K4), decided by the same
  * `decideAccess` the router applies to every shelter write, with the same
  * policy: a page that offered an editor the API then refused would be
@@ -56,8 +50,6 @@ export type ProfileEditing =
   | { kind: "read_only" }
   | {
       kind: "open";
-      /** Null when the shelter has no animal at all (`voice.previewNoAnimals`). */
-      previewAnimal: PreviewAnimal | null;
       /** The newest donation line is the operator declining the last proposal (answer 12). */
       donationDeclined: boolean;
     };
@@ -84,7 +76,7 @@ export type KabinetHomeDeps = Pick<
 >;
 
 /**
- * Three reads, picked, never the whole router: a page render can't write a
+ * Two reads, picked, never the whole router: a page render can't write a
  * cookie, so a procedure that queues one (support entry or exit) must not be
  * reachable from here, the same rule as `api/router-client.ts`. No write is
  * here either: the editor writes from the browser, through the API. These
@@ -93,7 +85,6 @@ export type KabinetHomeDeps = Pick<
 const homeRouter = {
   shelter: {
     profile: { get: shelterKabinetRouter.shelter.profile.get },
-    animals: { list: shelterKabinetRouter.shelter.animals.list },
     history: { list: shelterKabinetRouter.shelter.history.list },
   },
 };
@@ -106,28 +97,7 @@ const homeRouter = {
 const DONATION_HISTORY_PAGES = 10;
 const HISTORY_PAGE = 50;
 
-/** The first animals page is enough to find one to preview with. */
-const PREVIEW_ANIMALS_PAGE = 50;
-
 type HomeClient = RouterClient<typeof homeRouter>;
-
-/**
- * The animal the preview uses: one adopters can see, with its real day count;
- * failing that any animal, read as it would be on the day it is published
- * (inbox K4-T4); none, when the shelter has no animal.
- */
-async function previewAnimalOf(client: HomeClient, now: Date): Promise<PreviewAnimal | null> {
-  const page = await client.shelter.animals.list({
-    filter: { kind: "all" },
-    cursor: null,
-    limit: PREVIEW_ANIMALS_PAGE,
-  });
-  const visible = page.items.find((item) => item.freshness !== null);
-  if (visible?.freshness) return { name: visible.name, freshness: visible.freshness };
-  const any = page.items[0];
-  if (any === undefined) return null;
-  return { name: any.name, freshness: freshnessOf(now, now, DEFAULT_FRESHNESS_POLICY) };
-}
 
 async function donationDeclinedOf(client: HomeClient): Promise<boolean> {
   let cursor: KabinetCursor | null = null;
@@ -180,7 +150,6 @@ export async function kabinetHomeOf(
     write.kind === "allow_shelter_write"
       ? {
           kind: "open",
-          previewAnimal: await previewAnimalOf(client, deps.now),
           donationDeclined: view.pendingDonation === null && (await donationDeclinedOf(client)),
         }
       : { kind: "read_only" };

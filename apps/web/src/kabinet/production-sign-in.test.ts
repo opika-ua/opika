@@ -300,7 +300,11 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 637 with PW-2: his 3 `setPassword.*` (title, intro, submit), less the magic-link landing's
     // 6 `inviteLanding.*` (ready, send, sent, title, alreadyAccepted, rateLimited).
     // 639 with the copy audit's G3 `profile.pendingNote` and G4 `signIn.failed` (2026-10-22).
-    expect(pending.length + written.length).toBe(639);
+    // 637 with designer round 1, S6 (his DR1-Q1 and DR1-Q5 text, 2026-10-20): less
+    // `voice.nameStaysHint`, `voice.insertName` and `voice.previewNoAnimals`, plus
+    // `errors.nameTokenGone`.
+    expect(pending.length + written.length).toBe(637);
+    expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.operator.create.errors.nameTooLong");
     expect(written).toContain("kabinet.profileEdit.state.saved");

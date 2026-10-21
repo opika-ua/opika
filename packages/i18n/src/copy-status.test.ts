@@ -257,12 +257,14 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     // audit 2026-10-22 #46: «на сайті {site}», the name filled from app config
     "email.invite.intro":
       "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті {site}.",
-    // his PR 6 text (pr6-copy-uk.md §1.4): what the shelter changes itself, once writes open
+    // his PR 6 text (pr6-copy-uk.md §1.4): what the shelter changes itself, once writes open;
+    // one phrase replaced by his DR1-Q1 text (2026-10-20): «речення на сторінці притулку»
     "email.invite.what":
-      "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
-    // Q-C (Oleksii, 2026-10-19): the before-verification variant, his second sentence, the rest unchanged
+      "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
+    // Q-C (Oleksii, 2026-10-19): the before-verification variant, his second sentence, the rest unchanged;
+    // the same DR1-Q1 phrase replaced
     "email.invite.whatBeforeVerification":
-      "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
+      "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
     // row 86
     // audit 2026-10-22 #26: the link's job is to create a password
     "email.invite.action": "Створити пароль",
@@ -385,31 +387,27 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // k4-copy-uk.md
     "profileEdit.errors.unknownToken":
       "Підставляється лише {імʼя}. Приберіть «{token}» або напишіть без фігурних дужок.",
-    // k4-copy-uk.md
+    // k4-copy-uk.md; replaced by his DR1-Q1 text (2026-10-20)
     "profileEdit.errors.dateTokenGone":
-      "Дата й так показується над вашим реченням, тому {дата} писати не потрібно.",
+      "Дата оновлення показується на кожній картці, тому {дата} у реченні писати не потрібно.",
+    // his DR1-Q5 text (2026-10-20): the editor refuses {імʼя}
+    "profileEdit.errors.nameTokenGone":
+      "Тепер речення показується на сторінці притулку, тому {імʼя} у ньому не використовується. Приберіть його й збережіть ще раз.",
     // k4-copy-uk.md
     "profileEdit.errors.strayBrace": "Є дужка без пари. Фігурні дужки потрібні лише для {імʼя}.",
     // k4-copy-uk.md
     // K4-B4, answer 3: U+02BC, as in every one of his K4 strings
     "profileEdit.contacts.atLeastOne": "Залиште хоча б один спосіб звʼязку.",
-    // k4-copy-uk.md; second sentence replaced by CB-B1 (2026-10-17)
+    // replaced by his DR1-Q1 text (2026-10-20); nameStaysHint and insertName deleted with
+    // the {імʼя} token they explained (DR1-Q5)
     "profileEdit.voice.hint":
-      "Одне речення від першої особи, вашими словами. На картці підставляється лише імʼя тварини — там, де ви напишете {імʼя}. Більше нічого не змінюється.",
-    // k4-copy-uk.md
-    "profileEdit.voice.nameStaysHint":
-      "Імʼя стоїть як є: Рекс, Мурка. Його не відмінюють, тож пишіть так, щоб воно звучало природно, — наприклад, «{імʼя} досі шукає дім».",
-    // k4-copy-uk.md
-    "profileEdit.voice.insertName": "Вставити {імʼя}",
+      "Одне речення від першої особи, вашими словами, про те, як часто ви оновлюєте картки. Воно показується на сторінці притулку.",
     // k4-copy-uk.md
     "profileEdit.voice.counter": "{count} / {max}",
     // k4-copy-uk.md
     "profileEdit.voice.counterOver": "Зайвих символів: {over}",
-    // k4-copy-uk.md
-    "profileEdit.voice.previewLabel": "Так це виглядає на сторінці тварини: {name}",
-    // k4-copy-uk.md
-    "profileEdit.voice.previewNoAnimals":
-      "Попередній перегляд зʼявиться, щойно у вас буде тварина: тут буде видно, як речення виглядатиме на її сторінці.",
+    // his DR1-Q1 text (2026-10-20): {name} dropped; previewNoAnimals deleted by his answer
+    "profileEdit.voice.previewLabel": "Так це виглядає на сторінці притулку:",
     // k4-copy-uk.md
     "profileEdit.donation.optional": "· необовʼязково",
     // k4-copy-uk.md
@@ -495,19 +493,19 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // K4 copy fixes
     "profileEdit.actions.liveOnSave.contacts":
       "Нові контакти побачать одразу після збереження — коли натиснуть «Написати притулку».",
-    // K4 copy fixes
+    // his DR1-Q1 text (2026-10-20)
     "profileEdit.actions.liveOnSave.voice":
-      "Нове речення зʼявиться в стрічці та на сторінках тварин одразу після збереження.",
+      "Нове речення зʼявиться на сторінці притулку одразу після збереження.",
     // K4 copy fixes
     "profileEdit.state.saved": "Збережено.",
     // K4 copy fixes
     "profileEdit.pause.noteHint":
       "Коментар бачите ви, інші адміністратори притулку і я. Людям, які шукають тварину, він не показується.",
-    // K4 copy fixes; the quoted label is «» per CB-Q1 (2026-10-17)
+    // his DR1-Q1 text (2026-10-20)
     "profileEdit.voice.emptyMeans":
-      "Якщо залишити порожнім, на картках буде лише «Оновлено … тому».",
-    // K4 copy fixes; the quoted label is «» per CB-Q1 (2026-10-17)
-    "profileEdit.voice.previewEmpty": "Речення немає — на картці буде лише «Оновлено … тому».",
+      "Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде „Оновлено … тому“.",
+    // his DR1-Q1 text (2026-10-20)
+    "profileEdit.voice.previewEmpty": "Речення немає — на сторінці притулку його не буде.",
   };
 
   const leafPaths = (node: unknown, prefix: string): string[] =>
@@ -747,7 +745,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.history.admin_removed": "Доступ закрито: {name}",
     "operator.history.admin_removed_pending": "Запрошення скасовано: {name}",
     "operator.history.contact_changed": "Змінено контакти",
-    "operator.history.freshness_sentence_changed": "Змінено речення на картках",
+    // DR1-Q1, his text (2026-10-20)
+    "operator.history.freshness_sentence_changed": "Змінено речення на сторінці притулку",
     "operator.history.description_changed": "Змінено опис притулку",
     "operator.history.donation_proposed": "Запропоновано посилання на збір: {host}",
     "operator.history.donation_proposal_cancelled": "Пропозицію посилання скасовано",
@@ -1245,17 +1244,51 @@ describe("/pro about.data (his PR 6 text, and PW-1's two sentences)", () => {
 });
 
 /**
+ * Designer round 1, S6: the strings his DR1-Q1 answer and his shelter-page copy
+ * (`docs/designer-round-1.md` §10 and §11 item 4, Oleksii, 2026-10-20) set
+ * outside `kabinet.*`, transcribed from that file by script, never read from
+ * `uk.ts`. The «Слова притулку» heading and the city line reuse existing
+ * strings by his answer ("reuse the existing string, yes"), so those are
+ * pinned as unchanged.
+ */
+describe("designer round 1, S6 (his DR1-Q1 and shelter-page copy)", () => {
+  it.each([
+    ["medical.shelterDeclared", uk.medical.shelterDeclared, "Дані притулку"],
+    ["shelterPage.animalsHeading", uk.shelterPage.animalsHeading, "Шукають дім: {count}"],
+    ["shelterPage.noAnimals", uk.shelterPage.noAnimals, "Зараз тут немає тварин, які шукають дім."],
+    ["detail.shelterRowLink", uk.detail.shelterRowLink, "Сторінка притулку «{name}»"],
+    [
+      "freshness.attribution (the section heading, reused)",
+      uk.freshness.attribution,
+      "Слова притулку",
+    ],
+    ["cardMeta.atShelter (the city line, reused)", uk.cardMeta.atShelter, "м. {city}"],
+  ])("%s is his text", (_key, actual, his) => {
+    expect(actual).toBe(his);
+  });
+
+  it("«Слова притулку» is no longer the medical rows' source label (option (c))", () => {
+    expect(uk.medical.shelterDeclared).not.toBe(uk.freshness.attribution);
+  });
+});
+
+/**
  * §8 (commitment #7, B1), his PR 6 text (pr6-copy-uk.md §1.3), transcribed:
  * what moves the date (publish, «Ще шукає» / «Ще домовляються», a photo
  * change) and what doesn't (a text edit), and «один раз» gone (his K4 answer
  * 10). `freshness.updatedAgo` stays «Оновлено {days}» (K-Q14 (a)).
  */
 describe("/prytulkam §8 B1 (forShelters.whyThatSentence)", () => {
+  it("DR1-Q1: no longer says the sentence is on the animal's page", () => {
+    expect(uk.forShelters.whyThatSentence).not.toContain("на сторінці тварини");
+  });
+
   const paragraphs = uk.forShelters.whyThatSentence.split("\n\n");
 
   it("is his three paragraphs", () => {
     expect(paragraphs).toEqual([
-      "Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого — позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а на сторінці тварини — ваше речення про те, як часто ви це робите, вашими словами.",
+      // ¶1: his DR1-Q1 text (2026-10-20), the sentence is on the shelter page
+      "Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого — позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а на сторінці притулку — ваше речення про те, як часто ви це робите, вашими словами.",
       "Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють — так вона показує саме те, що обіцяє. Речення пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».",
       "Саме це робить решту карток вартими довіри. Коли видно, що ви підтверджуєте картки щосуботи, ваше «ця тварина ще шукає дім» означає рівно те, що написано.",
     ]);
@@ -1318,8 +1351,10 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
   });
 
   it("sanity: the walk reaches his strings, and the letter-apostrophe is in them", () => {
-    // 74 since PR 6 deleted errors.notAvailable (P6-Q8).
-    expect(k4.length).toBe(74);
+    // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
+    // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
+    // errors.nameTokenGone.
+    expect(k4.length).toBe(72);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });

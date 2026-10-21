@@ -272,15 +272,34 @@ describe("shelter.profile", () => {
       expect(result.body.freshnessSentence).toEqual(stored);
     });
 
-    it("compares the normalised Ukrainian: another spelling of {імʼя} is not a change", async () => {
-      const withToken = { uk: "{імʼя} досі шукає дім.", en: stored.en };
-      await reseed(withToken);
+    it("compares the trimmed Ukrainian: surrounding spaces are not a change", async () => {
+      const sentence = { uk: "Оновлюємо картки щосуботи.", en: stored.en };
+      await reseed(sentence);
       const result = await call<KabinetShelterView>("shelter.profile.updateFreshnessSentence", {
-        freshnessSentence: { uk: "{ім'я} досі шукає дім.", en: stored.en },
+        freshnessSentence: { uk: "  Оновлюємо картки щосуботи.  ", en: stored.en },
         expectedVersion: 0,
       });
       expect(result.status).toBe(200);
-      expect(result.body.freshnessSentence).toEqual(withToken);
+      expect(result.body.freshnessSentence).toEqual(sentence);
+    });
+
+    /**
+     * DR1-Q5 (Oleksii, verbatim: "the editor refuses {імʼя}. … Existing
+     * test-shelter sentences containing it are re-saved, not migrated."): a
+     * sentence stored with the token can't be saved again with it, in any
+     * spelling, and nothing is written.
+     */
+    it("refuses {імʼя} with 400 and writes nothing, even over a stored sentence carrying it", async () => {
+      const withToken = { uk: "{імʼя} досі шукає дім.", en: null };
+      await reseed(withToken);
+      for (const uk of ["{імʼя} досі шукає дім. Пишіть.", "{ім'я} досі шукає дім."]) {
+        const result = await call("shelter.profile.updateFreshnessSentence", {
+          freshnessSentence: { uk, en: null },
+          expectedVersion: 0,
+        });
+        expect(result.status, uk).toBe(400);
+      }
+      expect((await shelterRepo(db).findById(shelter.id))?.freshnessSentence).toEqual(withToken);
     });
   });
 

@@ -1,14 +1,19 @@
 import { z } from "zod";
 
 /**
- * The one slot a shelter's freshness sentence may carry (VH-Q1, K-Q6). It is
- * filled with the animal's name in its base form, so it only reads right
- * where the nominative does: Ukrainian names aren't declined here.
+ * The animal-name slot the sentence used to carry (VH-Q1, K-Q6), now refused.
+ * The sentence is shelter-level since designer round 1: it shows only on the
+ * shelter page, where no single animal's name could fill it. Oleksii's DR1-Q5,
+ * verbatim: "DR1-Q5: (a), drop {імʼя}. The sentence is shelter-level, and the
+ * editor refuses {імʼя}." Every write path refuses it (the kabinet, the
+ * registry, the onboarding script), so a sentence stored from now on can't
+ * carry one; a sentence stored before still might, until it is re-saved (his
+ * words: "Existing test-shelter sentences containing it are re-saved, not
+ * migrated."), which is why readers check `carriesAnimalNameToken`.
  *
  * The apostrophe is U+02BC MODIFIER LETTER APOSTROPHE, the letter-apostrophe
- * Ukrainian orthography uses inside a word. Every accepted spelling is
- * normalised to this one before storage, so substitution matches a single
- * exact string and never has to guess.
+ * Ukrainian orthography uses inside a word, and the spelling earlier writes
+ * normalised every variant to.
  */
 export const ANIMAL_NAME_TOKEN = "{імʼя}";
 
@@ -52,21 +57,24 @@ export const characterCount = (text: string): number => {
 };
 
 /**
- * The spellings a person actually types for the token: the ASCII apostrophe,
+ * The spellings a person actually types for the old token: the ASCII apostrophe,
  * the typographic ’ (and ‘, which autocorrect sometimes produces), the
  * letter-apostrophe ʼ, the turned comma ʻ, and the backtick, which is what the
  * apostrophe key gives on a US layout while the writer believes they are on
  * the Ukrainian one. Matched case-insensitively ({Імʼя}, {ІМʼЯ}). Nothing
- * looser: spaces inside the braces or a Latin "i" stay unknown tokens, and the
- * shelter is told so rather than having a guess stored on their behalf.
+ * looser: spaces inside the braces or a Latin "i" stay unknown tokens. Each of
+ * these gets its own refusal, so a shelter who learnt the token is told why it
+ * has gone rather than that it was never known.
  */
-const NAME_TOKEN_SPELLINGS = /\{ім['‘’ʼʻ`]я\}/giu;
-const ANY_BRACED = /\{[^{}]*\}/gu;
+const NAME_TOKEN_SPELLINGS = /\{ім['‘’ʼʻ`]я\}/iu;
+const ANY_BRACED = /\{[^{}]*\}/u;
 const ANY_BRACE = /[{}]/u;
 
 export type FreshnessSentenceProblem =
   | { readonly kind: "too_long"; readonly characters: number; readonly max: number }
-  /** Any `{…}` but the name token: `{дата}`, `{name}`. Nothing else is ever filled in. */
+  /** `{імʼя}` in any spelling (DR1-Q5): the sentence no longer belongs to one animal. */
+  | { readonly kind: "name_token" }
+  /** Any other `{…}`: `{дата}`, `{name}`. Nothing is ever filled in. */
   | { readonly kind: "unknown_token"; readonly token: string }
   | { readonly kind: "stray_brace" };
 
@@ -76,20 +84,31 @@ export type FreshnessSentenceNormalization =
   | { readonly kind: "invalid"; readonly problem: FreshnessSentenceProblem };
 
 /**
+ * Whether a sentence still carries the old name slot, in any spelling. True
+ * only for a sentence stored before DR1-Q5 and not yet re-saved; the shelter
+ * page leaves such a sentence out rather than show adopters a literal
+ * `{імʼя}` it can no longer fill.
+ */
+export const carriesAnimalNameToken = (text: string): boolean => NAME_TOKEN_SPELLINGS.test(text);
+
+/**
  * Checks and normalises one language's sentence text, the same way on every
- * write path (the kabinet, the registry, the onboarding script). Braces are
- * refused outside the token because the text is shown verbatim: a `{дата}`
- * nobody fills in would reach adopters as literal braces.
+ * write path (the kabinet, the registry, the onboarding script). Since DR1-Q5
+ * the only normalisation left is trimming. Braces are refused because the
+ * text is shown verbatim: a `{дата}` nobody fills in
+ * would reach adopters as literal braces.
  */
 export const normalizeFreshnessSentenceText = (raw: string): FreshnessSentenceNormalization => {
-  const trimmed = raw.trim();
-  if (trimmed === "") return { kind: "empty" };
-  const text = trimmed.replace(NAME_TOKEN_SPELLINGS, ANIMAL_NAME_TOKEN);
-  const unknown = [...text.matchAll(ANY_BRACED)].find(([braced]) => braced !== ANIMAL_NAME_TOKEN);
-  if (unknown !== undefined) {
+  const text = raw.trim();
+  if (text === "") return { kind: "empty" };
+  if (carriesAnimalNameToken(text)) {
+    return { kind: "invalid", problem: { kind: "name_token" } };
+  }
+  const unknown = text.match(ANY_BRACED);
+  if (unknown !== null) {
     return { kind: "invalid", problem: { kind: "unknown_token", token: unknown[0] } };
   }
-  if (ANY_BRACE.test(text.replaceAll(ANIMAL_NAME_TOKEN, ""))) {
+  if (ANY_BRACE.test(text)) {
     return { kind: "invalid", problem: { kind: "stray_brace" } };
   }
   const characters = characterCount(text);
@@ -102,18 +121,14 @@ export const normalizeFreshnessSentenceText = (raw: string): FreshnessSentenceNo
   return { kind: "ok", text };
 };
 
-/**
- * Fills every token with the animal's name. Only the deck and the animal page
- * call this (K-Q6); the kabinet shows the sentence as the shelter wrote it.
- * The replacer is a function so a name is inserted literally: a string
- * replacement would read `$&` or `$1` in a name as a pattern.
- */
-export const fillAnimalName = (text: string, animalName: string): string =>
-  text.replaceAll(ANIMAL_NAME_TOKEN, () => animalName);
-
 export type AnimalNameProblem =
   | { readonly kind: "empty" }
-  /** A name is substituted into the sentence, so one carrying braces could fake a token there. */
+  /**
+   * Refused since K-Q6, when a name was substituted into the sentence and one
+   * carrying braces could fake a token there. Nothing substitutes a name since
+   * DR1-Q5; the rule stays because loosening what a name accepts is a
+   * decision of its own, not a side effect of this one.
+   */
   | { readonly kind: "brace" }
   | { readonly kind: "too_long"; readonly characters: number; readonly max: number };
 
@@ -157,10 +172,12 @@ export const freshnessSentenceProblemMessage = (problem: FreshnessSentenceProble
   switch (problem.kind) {
     case "too_long":
       return `Freshness sentence is ${problem.characters} characters; the maximum is ${problem.max}`;
+    case "name_token":
+      return `Freshness sentence contains ${ANIMAL_NAME_TOKEN}; the sentence is shown on the shelter page, where no animal's name is filled in`;
     case "unknown_token":
-      return `Freshness sentence contains ${problem.token}; the only placeholder is ${ANIMAL_NAME_TOKEN}`;
+      return `Freshness sentence contains ${problem.token}; nothing in braces is filled in`;
     case "stray_brace":
-      return `Freshness sentence contains a brace outside ${ANIMAL_NAME_TOKEN}`;
+      return "Freshness sentence contains a brace; nothing in braces is filled in";
   }
 };
 

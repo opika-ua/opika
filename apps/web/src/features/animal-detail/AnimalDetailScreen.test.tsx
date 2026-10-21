@@ -39,7 +39,6 @@ function makeAnimal(overrides: Partial<AnimalDetailView> = {}): AnimalDetailView
       id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as AnimalDetailView["shelter"]["id"],
       displayName: "Тестовий притулок",
       publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
-      freshnessSentence: null,
       verification: "verified",
     },
     ...overrides,
@@ -54,6 +53,7 @@ function makeShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterV
     publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
     donation: null,
     createdAt: new Date("2023-01-01T00:00:00.000Z"),
+    freshnessSentence: null,
     verification: "verified",
     ...overrides,
   };
@@ -172,47 +172,45 @@ describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
   });
 });
 
-describe("AnimalDetailScreen — the shelter's sentence and its attribution (VH-Q2)", () => {
-  const renderWith = async (
-    freshnessSentence: AnimalDetailView["shelter"]["freshnessSentence"],
-  ) => {
-    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
-    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
-    const base = makeAnimal();
-    render(
-      <AnimalDetailScreen
-        animal={{ ...base, shelter: { ...base.shelter, freshnessSentence } }}
-        shelter={makeShelter()}
-        cityName="Бровари"
-        backToGalleryHref="/tvaryny?misto=brovary"
-      />,
-    );
-  };
-
+/**
+ * Designer round 1, S6: the shelter row is a link to the shelter page, named
+ * by his `detail.shelterRowLink` («Сторінка притулку «{name}»», transcribed
+ * from his message), and the donation link stays here too (commitment 5).
+ */
+describe("AnimalDetailScreen — the shelter row (designer round 1, S6)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
 
-  it("attributes a sentence to the shelter, and claims nothing about a date", async () => {
-    await renderWith({ uk: "Оновлюємо картки щосуботи.", en: null });
-    // In «…», not English “…” (CB-B1, item 4).
-    expect(screen.getByTestId("shelter-freshness-sentence").textContent).toBe(
-      "«Оновлюємо картки щосуботи.»",
+  it("is a link to the shelter's page, named after the shelter", async () => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter({ displayName: "Лапа допомоги" })}
+        cityName="Бровари"
+        backToGalleryHref="/tvaryny"
+      />,
     );
-    expect(screen.getByTestId("shelter-freshness-attribution").textContent).toBe("Слова притулку");
+    const link = screen.getByRole("link", { name: "Сторінка притулку «Лапа допомоги»" });
+    expect(link.getAttribute("href")).toBe("/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd");
   });
 
-  it("fills {імʼя} with this page's animal name (K-Q6)", async () => {
-    await renderWith({ uk: "Напишіть, і ми скажемо, чи {імʼя} ще з нами.", en: null });
-    expect(screen.getByTestId("shelter-freshness-sentence").textContent).toBe(
-      "«Напишіть, і ми скажемо, чи Мурчик ще з нами.»",
+  it("keeps the donation link, with its domain as text", async () => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter({
+          donation: { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" },
+        })}
+        cityName="Бровари"
+        backToGalleryHref="/tvaryny"
+      />,
     );
-  });
-
-  it("shows no attribution without a sentence: the day count isn't the shelter's words", async () => {
-    await renderWith(null);
-    expect(screen.queryByTestId("shelter-freshness-sentence")).toBeNull();
-    expect(screen.queryByTestId("shelter-freshness-attribution")).toBeNull();
+    const donate = screen.getByTestId("donate-link");
+    expect(donate.getAttribute("href")).toBe("https://send.monobank.ua/jar/abc");
+    expect(donate.textContent).toContain("send.monobank.ua");
   });
 });
 
