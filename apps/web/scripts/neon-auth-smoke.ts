@@ -3,13 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspect } from "node:util";
 import { createDatabase, type Database } from "@opika/db";
-import {
-  cityRepo,
-  kabinetActorRepo,
-  kabinetInvitationRepo,
-  kabinetInviteTokenRepo,
-  shelterRepo,
-} from "@opika/db/repos";
+import { cityRepo, kabinetActorRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
 import {
   authAccount,
   authInvitation,
@@ -52,6 +46,7 @@ import {
   invitePasswordLandingOf,
   newInviteToken,
 } from "../src/kabinet/invite-password";
+import { inviteTokensOf } from "../src/kabinet/invite-tokens";
 import { capturingSender } from "../src/kabinet/magic-link-sender";
 import { generousPasswordLimiters } from "../src/kabinet/password-limits";
 import { capturingPasswordMail } from "../src/kabinet/password-mail";
@@ -794,7 +789,7 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
     return out;
   }
   const inviteToken = newInviteToken();
-  const tokens = kabinetInviteTokenRepo(db);
+  const tokens = inviteTokensOf(db);
   await tokens.issue({
     id: randomUUID(),
     invitationId: secondInvite.invitationId,

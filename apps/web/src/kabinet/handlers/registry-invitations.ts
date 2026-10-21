@@ -13,7 +13,6 @@ import {
   INVITATION_TTL_MS,
   kabinetInvitationRepo,
   kabinetInvitedUsersRepo,
-  kabinetInviteTokenRepo,
   kabinetRegistryRepo,
   kabinetShelterRepo,
   shelterRepo,
@@ -38,6 +37,7 @@ import { INVITE_LINK, linkTo } from "../email-links";
 import type { InviteShelterVerification } from "../email-senders";
 import { invitationReminderOf } from "../invitation-reminder";
 import { newInviteToken } from "../invite-password";
+import { inviteTokensOf } from "../invite-tokens";
 import { loadShelterOr404, type RegistryDeps, registryShelterView } from "./registry-reads";
 import { acceptEvidence } from "./registry-writes";
 
@@ -90,7 +90,7 @@ const inviteVerificationOf = (shelter: Pick<Shelter, "verification">): InviteShe
 /**
  * The invite email for one live invitation, with a new link (PW-2): a fresh random token, stored
  * hashed, good until the invitation's own expiry, replacing any earlier link of this invitation
- * (`kabinetInviteTokenRepo.issue`), so only the newest email's link works. The invitation id is
+ * (`kabinetInviteTokenRepo.issue`, on the cleaned handle: `inviteTokensOf`), so only the newest email's link works. The invitation id is
  * not the link's secret any more. Storing the link can throw (the database); the send never does:
  * a sender that does is `provider_error`. Either way the invitation stays, and a resend retries
  * both.
@@ -106,7 +106,7 @@ async function emailInvitation(
   },
 ): Promise<EmailSendOutcome> {
   const token = newInviteToken();
-  await kabinetInviteTokenRepo(deps.db).issue({
+  await inviteTokensOf(deps.db).issue({
     id: deps.newId(),
     invitationId: input.invitationId,
     token,

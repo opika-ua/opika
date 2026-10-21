@@ -1,9 +1,10 @@
 import { invitationContract } from "@opika/contracts";
-import { kabinetInviteTokenRepo } from "@opika/db/repos";
 import { implement } from "@orpc/server";
+import { withQueryErrorsCleaned } from "./clean-query-errors";
 import type { KabinetContext } from "./context";
 import { invitationAccepter } from "./invitation-accept";
 import { acceptInvitationWithPassword } from "./invite-password";
+import { inviteTokensOf } from "./invite-tokens";
 import { resetLinkVoider } from "./password-hooks";
 import { accessOrThrow } from "./router";
 
@@ -29,16 +30,19 @@ export const invitationRouter = guarded.router({
         }
         // Off only for in-process page clients, which never call this.
         if (context.invitePasswords.kind === "off") throw errors.INVITE_UNUSABLE();
-        const tokens = kabinetInviteTokenRepo(context.db);
+        // Every statement of the POST on the cleaned handle (PW1-F8), as Better Auth's own are:
+        // the accept's history entry carries the invitee's address as a parameter.
+        const db = withQueryErrorsCleaned(context.db);
+        const tokens = inviteTokensOf(db);
         const voidResetLinks = resetLinkVoider({
-          db: context.db,
+          db,
           logError: (line) => console.error(line),
         });
         const result = await acceptInvitationWithPassword(input, {
           lookup: (token) => tokens.landingOf(token),
           consume: (token, now) => tokens.consume(token, now),
           voidResetLinks: (userId) => voidResetLinks(userId, "invitation"),
-          accept: invitationAccepter(context.db, () => context.now, context.newId),
+          accept: invitationAccepter(db, () => context.now, context.newId),
           perIp: context.invitePasswords.perIp,
           ip: context.invitePasswords.ip,
           credentials: context.invitePasswords.credentials,

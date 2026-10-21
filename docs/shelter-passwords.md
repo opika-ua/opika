@@ -163,6 +163,9 @@ stored hashed through the same `storeIdentifier` override, so **no migration** i
   void reset links, sign in, accept. The accept runs after the sign-in, as on every sign-in
   (IN-Q12), rather than before it as in steps 8 and 9 above.
 - **The output** gains `password_set`: set, but the sign-in didn't go through (the delay).
+- **Query errors** (PW1-F8): every statement of the link's page and its POST runs on the cleaned
+  handle (`inviteTokensOf`, `withQueryErrorsCleaned`), so a failed one logs no token, address or
+  `params:`.
 
 ### 4.3 Rate limits (shared Upstash store, keys never plain)
 

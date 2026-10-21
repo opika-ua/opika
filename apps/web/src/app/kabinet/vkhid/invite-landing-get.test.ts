@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { inspect } from "node:util";
+import type { Database } from "@opika/db";
 import {
   cityRepo,
   INVITATION_TTL_MS,
@@ -16,10 +18,19 @@ import {
   authVerification,
   superAdmins,
 } from "@opika/db/schema";
-import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
+import {
+  failingDriverDatabase,
+  makeCity,
+  makeShelter,
+  postgresError,
+  setupTestDatabase,
+  truncateAll,
+} from "@opika/db/test";
 import type { ShelterId } from "@opika/domain";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { CleanedQueryError } from "../../../kabinet/clean-query-errors";
 import { newInviteToken } from "../../../kabinet/invite-password";
+import { sqlStateOf } from "../../../kabinet/sql-state";
 
 /**
  * The invitation link's GET (PW-2). Oleksii, 2026-10-20, Q1, verbatim: "a read-only lookup by
@@ -37,12 +48,14 @@ import { newInviteToken } from "../../../kabinet/invite-password";
 
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
 let cleanup: () => Promise<void>;
+/** What `getDb()` serves the page, when a test replaces the database (a forced failure). */
+let served: Database | null = null;
 
 const sends = vi.fn(async (_request: Request) => new Response(null, { status: 200 }));
 const charges = vi.fn(async (_key: string, _now: Date) => true);
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
-vi.mock("../../../api/db", () => ({ getDb: () => db }));
+vi.mock("../../../api/db", () => ({ getDb: () => served ?? db }));
 vi.mock("../../../kabinet/runtime", () => ({
   kabinetAuth: () => ({ handler: sends, api: { getSession: async () => null } }),
 }));
@@ -77,6 +90,7 @@ beforeEach(async () => {
   vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
   sends.mockClear();
   charges.mockClear();
+  served = null;
   await truncateAll(db);
   operatorId = crypto.randomUUID();
   await db.insert(authUser).values({
@@ -246,5 +260,73 @@ describe("the invitation link's GET (PW-2 Q1)", () => {
     expect(await generateMetadata({ searchParams: Promise.resolve({}) })).not.toHaveProperty(
       "referrer",
     );
+  });
+});
+
+describe("a failed lookup reaches the log cleaned (PW1-F8 on PW-2's statements)", () => {
+  const ADDRESS = "olena@example.org";
+  let lines: string[];
+
+  beforeEach(() => {
+    lines = [];
+    const spies = (["error", "warn", "log", "info", "debug", "trace"] as const).map((method) =>
+      vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
+        lines.push(
+          args.map((arg) => (typeof arg === "string" ? arg : inspect(arg, { depth: 8 }))).join(" "),
+        );
+      }),
+    );
+    return () => {
+      for (const spy of spies) spy.mockRestore();
+    };
+  });
+
+  /**
+   * The database with the link's one read refused by the server, its report quoting the token and
+   * the address (as a Postgres message can quote a value). Every other statement runs, so the
+   * page's identity read passes and the failure is the lookup's alone. By the statement's text.
+   */
+  const lookupRefused = (token: string) =>
+    failingDriverDatabase(db, (query) =>
+      /from "auth_verification" inner join "auth_invitation"/.test(query)
+        ? postgresError({
+            message: `invalid input syntax: "${token} ${ADDRESS}"`,
+            code: "XX000",
+            severity: "ERROR",
+            detail: `Key (email)=(${ADDRESS})`,
+          })
+        : undefined,
+    );
+
+  /** Everything a log could show of `value`: its whole inspection, the cause chain included. */
+  const shown = (value: unknown) => inspect(value, { depth: 8, showHidden: true });
+  /** Which of the three is anywhere in `texts`, as booleans, so a failure prints no value. */
+  const leaks = (texts: readonly string[], token: string) => ({
+    token: texts.some((text) => text.includes(token)),
+    address: texts.some((text) => text.includes(ADDRESS) || text.includes("olena")),
+    params: texts.some((text) => /params:/i.test(text)),
+  });
+  const NONE = { token: false, address: false, params: false };
+
+  it("the page throws (what Next's error log prints) a cleaned error: no token, address or params: in it or any log line", async () => {
+    const { token } = await invited(ADDRESS, "Притулок «Ліс»");
+    const failing = lookupRefused(token);
+    // The control: the same statement on the raw handle carries all three, so the needles find a leak.
+    const raw = await kabinetInviteTokenRepo(failing)
+      .landingOf(token)
+      .then(
+        () => "resolved",
+        (error: unknown) => error,
+      );
+    expect(leaks([shown(raw)], token)).toEqual({ token: true, address: true, params: true });
+
+    served = failing;
+    const thrown = await open(token).then(
+      () => "resolved",
+      (error: unknown) => error,
+    );
+    expect(thrown).toBeInstanceOf(CleanedQueryError);
+    expect(sqlStateOf(thrown)).toBe("XX000");
+    expect(leaks([shown(thrown), String(thrown), ...lines], token)).toEqual(NONE);
   });
 });

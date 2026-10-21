@@ -1,4 +1,3 @@
-import { kabinetInviteTokenRepo } from "@opika/db/repos";
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -12,6 +11,7 @@ import { SignInCard } from "../../../features/kabinet/SignInCard";
 import { INVITE_LINK } from "../../../kabinet/email-links";
 import { replyToAddressOf } from "../../../kabinet/email-provider";
 import { invitePasswordLandingOf } from "../../../kabinet/invite-password";
+import { inviteTokensOf } from "../../../kabinet/invite-tokens";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
 import { TOKEN_PAGE_HEADERS } from "../../../kabinet/token-pages";
 import { kabinetAuthOrNotFound } from "../available-auth";
@@ -82,7 +82,7 @@ export default async function SignInPage({
     card = <SignInCard contact={contact} />;
   } else {
     const landing = await invitePasswordLandingOf(token, {
-      lookup: (value) => kabinetInviteTokenRepo(getDb()).landingOf(value),
+      lookup: (value) => inviteTokensOf(getDb()).landingOf(value),
       now,
     });
     card =
