@@ -23,6 +23,7 @@ function makeAnimal(overrides: Partial<AnimalDetailView> = {}): AnimalDetailView
     species: "cat",
     sex: "male",
     size: "small",
+    coatLength: null,
     publicLocation: null,
     description: { uk: "Лагідний кіт, любить сидіти на підвіконні.", en: null },
     photos: [],
@@ -77,6 +78,28 @@ describe("AnimalPreviewDrawer", () => {
     const pips = drawer.getByTestId("freshness-block").querySelector('[aria-hidden="true"]');
     expect(pips?.children.length).toBe(3);
     expect(drawer.getByText("Лагідний кіт, любить сидіти на підвіконні.")).toBeTruthy();
+  });
+
+  // Oleksii, 2026-10-21 (DR1-S4-T10): the fur fact row, as on the animal page.
+  it.each([
+    ["short", "Коротка"],
+    ["long", "Довга"],
+  ] as const)("shows a %s coat as «Шерсть: %s», as the animal page does", (coatLength, value) => {
+    const { dialog } = renderDrawer({
+      kind: "animal",
+      animal: makeAnimal({ coatLength }),
+      cityName: "Бровари",
+    });
+    const drawer = within(dialog());
+    expect(drawer.getByRole("term").textContent).toBe("Шерсть:");
+    expect(drawer.getByRole("definition").textContent).toBe(value);
+  });
+
+  it("shows no fur row when fur isn't recorded", () => {
+    const { dialog } = renderDrawer();
+    expect(within(dialog()).queryByRole("term")).toBeNull();
+    expect(dialog().textContent).not.toContain("Шерсть");
+    expect(dialog().textContent).not.toContain("Не вказано");
   });
 
   it("names a fostered animal's city as a place, with no map", () => {

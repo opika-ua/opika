@@ -6,6 +6,7 @@ import { textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
 import { useId, useLayoutEffect, useRef } from "react";
+import { CoatFact } from "../animal-detail/CoatFact";
 import { DetailPhotoGallery } from "../animal-detail/DetailPhotoGallery";
 import { animalLocationLine, animalSubtitle } from "../animal-detail/detail-text";
 import { ShelterFreshnessBlock } from "../animal-detail/ShelterFreshnessBlock";
@@ -113,6 +114,7 @@ function AnimalPreviewBody({
     <>
       <div className="flex flex-col gap-1">
         <p className={MUTED}>{animalSubtitle(animal)}</p>
+        <CoatFact coatLength={animal.coatLength} className={MUTED} />
         <p className={MUTED}>{animalLocationLine(animal, cityName)}</p>
       </div>
       <DetailPhotoGallery photos={animal.photos} altFallback={animal.name} />

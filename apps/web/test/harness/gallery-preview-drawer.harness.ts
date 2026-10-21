@@ -38,6 +38,45 @@ async function cardAt(page: Page, index: number) {
   return { card, href: href as string, name };
 }
 
+/**
+ * A settled state, not a timeout: nothing in flight, and nothing new started
+ * across two rendered frames. A prefetch is started by the links being seen
+ * again after the drawer's tree commits, so it shows up within those frames
+ * or as a request this loop then waits out.
+ */
+async function untilNetworkSettles(page: Page) {
+  let started = 0;
+  let inFlight = 0;
+  const onStart = () => {
+    started += 1;
+    inFlight += 1;
+  };
+  const onEnd = () => {
+    inFlight -= 1;
+  };
+  page.on("request", onStart);
+  page.on("requestfinished", onEnd);
+  page.on("requestfailed", onEnd);
+  try {
+    for (let round = 0; round < 50; round += 1) {
+      await expect.poll(() => inFlight, { message: "requests still in flight" }).toBe(0);
+      const startedBefore = started;
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+      if (started === startedBefore && inFlight === 0) return;
+    }
+    throw new Error("the network never settled after opening the drawer");
+  } finally {
+    page.off("request", onStart);
+    page.off("requestfinished", onEnd);
+    page.off("requestfailed", onEnd);
+  }
+}
+
 async function openDrawerFrom(page: Page, index = 0) {
   const target = await cardAt(page, index);
   await target.card.click();
@@ -85,8 +124,8 @@ test.describe("the gallery's preview drawer", () => {
 
       const { href } = await openDrawerFrom(page);
       // Prefetches start when the new tree commits and the links are seen
-      // again; give them the time they took before they were switched off.
-      await page.waitForTimeout(3000);
+      // again. Wait for the network to settle rather than for a time.
+      await untilNetworkSettles(page);
 
       expect(charged.map((url) => url.split("?")[0])).toEqual([href]);
     });
@@ -198,7 +237,7 @@ test.describe("the gallery's preview drawer", () => {
     test("the deck's entry link still reaches the deck, not a drawer", async ({ page }) => {
       await openGallery(page);
 
-      await page.getByTestId("deck-entry-desktop").click();
+      await page.getByRole("link", { name: uk.feed.enterDeck }).click();
 
       await page.waitForURL(/\/tvaryny\/gortaty/);
       await expect(page.getByRole("dialog")).toHaveCount(0);

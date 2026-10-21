@@ -1,8 +1,8 @@
 # Decisions inbox: feat/dr1-s4-preview-drawer
 
 Rows for the shared table (`docs/decisions-inbox.md`), appended at merge. Designer round 1, S4
-(`docs/designer-round-1.md` §2, DR1-D1, DR1-D5, DR1-D6, DR1-D7). Builder's decisions, reversible;
-none is Oleksii's approval. His copy for this slice (§11, item 3) is used verbatim.
+(`docs/designer-round-1.md` §2, DR1-D1, DR1-D5, DR1-D6, DR1-D7). Builder's decisions, reversible, except DR1-S4-T10, which is his (2026-10-21);
+the others are not his approval. His copy for this slice (§11, item 3) is used verbatim.
 
 | ID | Date | Row | Question | Options | Default taken | Oleksii's answer | Status |
 |---|---|---|---|---|---|---|---|
@@ -15,3 +15,4 @@ none is Oleksii's approval. His copy for this slice (§11, item 3) is used verba
 | DR1-S4-T7 | 2026-10-20 | S4, «Відкрити повну сторінку» | Link type | `next/link` · plain `<a>` | Plain `<a>`: a client navigation to the same URL from the drawer would be intercepted again. A document load is the full page | — | Decision taken |
 | DR1-S4-T8 | 2026-10-20 | S4, focus trap (DR1-D6) | Which dialogs use the shared hook | `ModalDialog` + drawer · also `ContactRevealDialog` | `ModalDialog` and the drawer, as S4 says. `ContactRevealDialog` keeps its own copy for now (a reveal-surface change belongs in its own review). The hook's scroll lock is a layout effect (RF-F1), which also closes RF-F1-D1-SWEEP for `ModalDialog` | — | Decision taken; `ContactRevealDialog` is a sweep candidate |
 | DR1-S4-T9 | 2026-10-20 | S4, `animal-detail.harness.ts` | Its "clicking a gallery card reaches a real detail page" flow now opens the drawer | follow the drawer on to the page · assert the drawer | Asserts the drawer, named after the animal, and still not the not-found copy. Following «Відкрити повну сторінку» there pushed that file over its own per-IP budget (its last test 429'd); `gallery-preview-drawer.harness.ts` follows the link on its own addresses | — | Decision taken |
+| DR1-S4-T10 | 2026-10-21 | S4, rebased onto S3 (#165) | Does the drawer show S3's fur fact? No mock; §2's contents list predates S3 | show it, as a fact row under the subtitle, as the animal page does · leave it to the full page | Built as he decided: one `CoatFact` component (`features/animal-detail/CoatFact.tsx`) renders the row on both the animal page and the drawer, so the §11 keys (`detail.coatLabel`, `detail.coatShort` / `detail.coatLong`) and the hide-when-unrecorded rule live in one place. No new string. Tested in `AnimalPreviewDrawer.test.tsx` (each value shown, absent when unknown) | Oleksii, 2026-10-21, verbatim: "Fur in the drawer: show it, as a fact row using the §11 strings, hidden when not recorded (same as the animal page). Record it as my decision, not the builder's." | His decision, 2026-10-21 |
