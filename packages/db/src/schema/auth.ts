@@ -160,7 +160,8 @@ export const authInvitation = pgTable(
  * so who held the role, and when, survives the revocation. A grant is active
  * while `revoked_at` is null, and a user has at most one active grant at a
  * time (the partial unique index), so a re-grant after a revoke is a new row.
- * The only writers are `admin:grant` and `admin:revoke` (HS-Q4), both behind
+ * The only production writers are `admin:grant` and `admin:revoke` (HS-Q4; tests and the auth
+ * smoke write fixture grants on throwaway databases), both behind
  * the production guard.
  */
 export const superAdmins = pgTable(

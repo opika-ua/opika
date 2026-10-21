@@ -2,7 +2,7 @@
 
 Rows for the shared table (`docs/decisions-inbox.md`), appended at merge. PW1-F4, a follow-up from
 `docs/decisions-inbox/feat-pw-1-passwords.md` (merged in #153). That row's status changes by
-PW1-F4 below, not by editing that file. Stacked on PW1-F6 (#159, in its Tier 1 review). This is a
+PW1-F4 below, not by editing that file. Stacked on PW1-F6 (#159), which has since merged. This is a
 test-only change, so not Tier 1: one review, no Phase 0 round trip. His handoff, verbatim excerpt
 as relayed to the builder: "PW1-F4: the sign-in timing test reads the clock. Test flake." D1–D6 are
 the builder's reversible decisions, listed under "Decisions taken" in the PR. None of them is his
