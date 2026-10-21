@@ -40,6 +40,7 @@ export async function galleryList(
 ): Promise<GalleryListOutput> {
   const page = await galleryRepo(context.db).list({
     filters: input.filters,
+    scope: input.scope,
     sort: input.sort,
     page: input.page,
     pageSize: input.pageSize,

@@ -1,11 +1,16 @@
+import { randomUUID } from "node:crypto";
 import {
   type Animal,
   type CityId,
+  EVERYONE_SCOPE,
   type FeedFilters,
+  type GalleryScope,
+  type GallerySort,
   MAX_GALLERY_NAVIGABLE_ROWS,
   maxNavigablePage,
   NO_FILTERS,
   type ShelterId,
+  type ShelterVerification,
 } from "@opika/domain";
 import type { SQL } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -44,8 +49,13 @@ beforeEach(async () => {
 
 const daysBefore = (days: number): Date => new Date(NOW.getTime() - days * 86_400_000);
 
-async function makeShelterInCity(cityId: CityId, name = "Тестовий притулок") {
+async function makeShelterInCity(
+  cityId: CityId,
+  name = "Тестовий притулок",
+  verification?: ShelterVerification,
+) {
   const shelter = makeShelter({
+    ...(verification ? { verification } : {}),
     displayName: name,
     publicLocation: {
       cityId,
@@ -115,6 +125,7 @@ describe("galleryRepo.list", () => {
     const gallery = galleryRepo(db);
     const freshest = await gallery.list({
       filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
       sort: "freshest",
       page: 1,
       pageSize: 10,
@@ -122,6 +133,7 @@ describe("galleryRepo.list", () => {
     });
     const waiting = await gallery.list({
       filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
       sort: "longest_waiting",
       page: 1,
       pageSize: 10,
@@ -191,6 +203,7 @@ describe("galleryRepo.list", () => {
     const gallery = galleryRepo(db);
     const before = await gallery.list({
       filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
       sort: "longest_waiting",
       page: 1,
       pageSize: 10,
@@ -216,6 +229,7 @@ describe("galleryRepo.list", () => {
 
     const after = await gallery.list({
       filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
       sort: "longest_waiting",
       page: 1,
       pageSize: 10,
@@ -244,6 +258,7 @@ describe("galleryRepo.list", () => {
       [1, 2, 3].map((page) =>
         gallery.list({
           filters: NO_FILTERS,
+          scope: EVERYONE_SCOPE,
           sort: "freshest",
           page,
           pageSize: PAGE_SIZE,
@@ -273,6 +288,7 @@ describe("galleryRepo.list", () => {
     const gallery = galleryRepo(db);
     const stale = await gallery.list({
       filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
       sort: "freshest",
       page: 7,
       pageSize: PAGE_SIZE,
@@ -288,6 +304,7 @@ describe("galleryRepo.list", () => {
 
     const last = await gallery.list({
       filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
       sort: "freshest",
       page: 2,
       pageSize: PAGE_SIZE,
@@ -304,6 +321,7 @@ describe("galleryRepo.list", () => {
 
     const noMatch = await galleryRepo(db).list({
       filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
+      scope: EVERYONE_SCOPE,
       sort: "freshest",
       page: 1,
       pageSize: PAGE_SIZE,
@@ -342,6 +360,7 @@ describe("galleryRepo.list", () => {
     };
     const page = await galleryRepo(db).list({
       filters,
+      scope: EVERYONE_SCOPE,
       sort: "freshest",
       page: 1,
       pageSize: PAGE_SIZE,
@@ -395,6 +414,7 @@ describe("galleryRepo.list", () => {
 
     const page = await galleryRepo(db).list({
       filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
       sort: "longest_waiting",
       page: 1,
       pageSize: PAGE_SIZE,
@@ -435,6 +455,7 @@ describe("galleryRepo.list", () => {
     const lastNavigable = maxNavigablePage(PAGE_SIZE);
     const beyond = await gallery.list({
       filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
       sort: "freshest",
       page: lastNavigable + 1,
       pageSize: PAGE_SIZE,
@@ -451,6 +472,7 @@ describe("galleryRepo.list", () => {
     // ...and the capped page is the real last navigable page, not an empty one.
     const last = await gallery.list({
       filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
       sort: "freshest",
       page: lastNavigable,
       pageSize: PAGE_SIZE,
@@ -458,6 +480,219 @@ describe("galleryRepo.list", () => {
     });
     expect(beyond.items.map((a) => a.id)).toEqual(last.items.map((a) => a.id));
     expect(beyond.items.length).toBeGreaterThan(0);
+
+    // A shelter scope sits inside the same bound: its own page links stop at
+    // the same depth, and its count stays honest past it.
+    const scopedBeyond = await gallery.list({
+      filters: NO_FILTERS,
+      scope: { kind: "shelter", shelterId: shelter.id },
+      sort: "freshest",
+      page: lastNavigable + 1,
+      pageSize: PAGE_SIZE,
+      now: NOW,
+    });
+    expect(scopedBeyond.totalMatching).toBe(overBound);
+    expect(scopedBeyond.totalPages).toBe(lastNavigable);
+    expect(scopedBeyond.page).toBe(lastNavigable);
+    expect(scopedBeyond.items.map((a) => a.id)).toEqual(last.items.map((a) => a.id));
+  });
+});
+
+/**
+ * The shelter page's list (DR1-D4): the same predicate, sorts, pages and
+ * bound as the gallery, narrowed to one shelter.
+ */
+describe("galleryRepo.list, scoped to one shelter", () => {
+  const MODERATOR = randomUUID() as never;
+  const EVIDENCE = { items: [], submittedAt: NOW };
+  const verifiedFacts = { verifiedAt: NOW, verifiedBy: MODERATOR };
+  const notListed: Record<string, ShelterVerification> = {
+    unverified: { status: "pending", submittedAt: NOW, evidence: EVIDENCE },
+    paused: {
+      status: "paused",
+      ...verifiedFacts,
+      pausedAt: NOW,
+      pausedBy: { kind: "moderator", moderatorId: MODERATOR },
+      reason: { code: "relocation", note: null },
+      evidence: EVIDENCE,
+    },
+    suspended: {
+      status: "suspended",
+      suspendedAt: NOW,
+      suspendedBy: MODERATOR,
+      reason: { code: "unresponsive", note: null },
+      priorState: { status: "verified", ...verifiedFacts },
+      evidence: EVIDENCE,
+    },
+  };
+
+  const scopeOf = (shelterId: ShelterId): GalleryScope => ({ kind: "shelter", shelterId });
+
+  /** Every page of one scope and sort, walked in order. */
+  async function walk(scope: GalleryScope, sort: GallerySort, pageSize: number) {
+    const gallery = galleryRepo(db);
+    const first = await gallery.list({
+      filters: NO_FILTERS,
+      scope,
+      sort,
+      page: 1,
+      pageSize,
+      now: NOW,
+    });
+    const pages = [first];
+    for (let page = 2; page <= first.totalPages; page++) {
+      pages.push(
+        await gallery.list({ filters: NO_FILTERS, scope, sort, page, pageSize, now: NOW }),
+      );
+    }
+    return pages;
+  }
+
+  it("lists only that shelter's discoverable animals", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const own = await makeShelterInCity(city.id, "Свій");
+    const other = await makeShelterInCity(city.id, "Інший");
+    const ownPublished = makeAnimal({ shelterId: own.id, name: "Свій видимий" });
+    const ownReserved = makeAnimal({
+      shelterId: own.id,
+      name: "Свій заброньований",
+      listing: {
+        kind: "reserved",
+        since: daysBefore(1),
+        publishedAt: daysBefore(20),
+        confirmedAt: daysBefore(1),
+        undoable: null,
+      },
+    });
+    const ownDraft = makeAnimal({
+      shelterId: own.id,
+      name: "Чернетка",
+      listing: { kind: "draft" },
+    });
+    const otherPublished = makeAnimal({ shelterId: other.id, name: "Чужий" });
+    await animalRepo(db).insertMany(
+      [ownPublished, ownReserved, ownDraft, otherPublished].map((animal) => ({
+        animal,
+        cityId: city.id,
+      })),
+    );
+
+    const page = await galleryRepo(db).list({
+      filters: NO_FILTERS,
+      scope: scopeOf(own.id),
+      sort: "freshest",
+      page: 1,
+      pageSize: PAGE_SIZE,
+      now: NOW,
+    });
+
+    expect(page.items.map((a) => a.name).sort()).toEqual(["Свій видимий", "Свій заброньований"]);
+    expect(page.totalMatching).toBe(2);
+    expect(page.totalShelters).toBe(1);
+    expect(page.totalPages).toBe(1);
+
+    // The unscoped list still holds both shelters' animals: the scope narrows
+    // this call, it doesn't change what "everyone" means.
+    const everyone = await galleryRepo(db).list({
+      filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
+      sort: "freshest",
+      page: 1,
+      pageSize: PAGE_SIZE,
+      now: NOW,
+    });
+    expect(everyone.totalMatching).toBe(3);
+  });
+
+  it("is an empty page, with nothing about why, for a shelter that isn't listed", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const listed = await makeShelterInCity(city.id, "Перевірений");
+    const scopes: [string, GalleryScope][] = [["unknown", scopeOf(randomUUID() as ShelterId)]];
+    const corpus: Animal[] = [makeAnimal({ shelterId: listed.id, name: "Видимий" })];
+    for (const [label, verification] of Object.entries(notListed)) {
+      const shelter = await makeShelterInCity(city.id, label, verification);
+      corpus.push(makeAnimal({ shelterId: shelter.id, name: `У ${label}` }));
+      scopes.push([label, scopeOf(shelter.id)]);
+    }
+    await animalRepo(db).insertMany(corpus.map((animal) => ({ animal, cityId: city.id })));
+
+    for (const [label, scope] of scopes) {
+      for (const sort of ["freshest", "longest_waiting"] as const) {
+        const page = await galleryRepo(db).list({
+          filters: NO_FILTERS,
+          scope,
+          sort,
+          page: 1,
+          pageSize: PAGE_SIZE,
+          now: NOW,
+        });
+        // The same answer for every reason, so the response can't be used to
+        // tell a paused shelter from a suspended or a missing one.
+        expect({ label, sort, ...page }).toEqual({
+          label,
+          sort,
+          items: [],
+          totalMatching: 0,
+          totalShelters: 0,
+          totalPages: 0,
+          page: 1,
+        });
+      }
+    }
+  });
+
+  it("orders and pages exactly as the unscoped list does, for both sorts", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const own = await makeShelterInCity(city.id, "Свій");
+    const other = await makeShelterInCity(city.id, "Інший");
+    const seeded = await seedPermutedOrderings(own.id, city.id, 7);
+    await seedPermutedOrderings(other.id, city.id, 7);
+    const ownIds = new Set(seeded.map((a) => a.id));
+
+    for (const sort of ["freshest", "longest_waiting"] as const) {
+      const scopedPages = await walk(scopeOf(own.id), sort, 3);
+      const everyonePages = await walk(EVERYONE_SCOPE, sort, 3);
+
+      // 7 animals at 3 a page: three pages, the last one partial.
+      expect(scopedPages.map((p) => p.page)).toEqual([1, 2, 3]);
+      expect(scopedPages.map((p) => p.items.length)).toEqual([3, 3, 1]);
+      for (const page of scopedPages) {
+        expect(page.totalMatching).toBe(7);
+        expect(page.totalPages).toBe(3);
+      }
+
+      const scoped = scopedPages.flatMap((p) => p.items.map((a) => a.id));
+      const unscopedOwn = everyonePages
+        .flatMap((p) => p.items.map((a) => a.id))
+        .filter((id) => ownIds.has(id));
+      expect(new Set(scoped).size).toBe(7);
+      expect(scoped).toEqual(unscopedOwn);
+    }
+  });
+
+  it("serves a stale page number as the scope's last real page", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const own = await makeShelterInCity(city.id, "Свій");
+    const other = await makeShelterInCity(city.id, "Інший");
+    await seedPermutedOrderings(own.id, city.id, 7);
+    // Enough animals elsewhere that page 5 exists for everyone but not here.
+    await seedPermutedOrderings(other.id, city.id, 14);
+
+    const stale = await galleryRepo(db).list({
+      filters: NO_FILTERS,
+      scope: scopeOf(own.id),
+      sort: "freshest",
+      page: 5,
+      pageSize: 3,
+      now: NOW,
+    });
+    expect(stale.page).toBe(3);
+    expect(stale.totalPages).toBe(3);
+    expect(stale.items.length).toBe(1);
   });
 });
 

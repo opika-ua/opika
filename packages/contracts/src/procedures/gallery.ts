@@ -1,7 +1,9 @@
 import {
   DEFAULT_GALLERY_SORT,
+  EVERYONE_SCOPE,
   FeedFilterDimensionSchema,
   FeedFiltersSchema,
+  GalleryScopeSchema,
   GallerySortSchema,
 } from "@opika/domain";
 import { oc } from "@orpc/contract";
@@ -27,6 +29,15 @@ export const GalleryListInputSchema = z.object({
   sort: GallerySortSchema.default(DEFAULT_GALLERY_SORT),
   page: galleryPageSchema,
   pageSize: galleryPageSizeSchema,
+  /**
+   * `{ kind: "shelter" }` lists one shelter's animals for its public page.
+   * Defaults to everyone, so every caller that predates the shelter page sends
+   * exactly what it sent before. A shelter that isn't publicly listed (unknown,
+   * unverified, suspended, paused) gets an empty page that doesn't say why:
+   * the reason is the shelter's, and `shelters.byId` has already answered
+   * `NOT_FOUND` for it on the page that asks.
+   */
+  scope: GalleryScopeSchema.default(EVERYONE_SCOPE),
 });
 
 export const GalleryListOutputSchema = z.object({

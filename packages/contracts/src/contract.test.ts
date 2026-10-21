@@ -53,14 +53,14 @@ describe("pagination constants", () => {
   });
 });
 
-describe("gallery pagination input", () => {
-  const ANY_FILTERS = {
-    cities: { kind: "any" },
-    species: { kind: "any" },
-    sizes: { kind: "any" },
-    ages: { kind: "any" },
-  };
+const ANY_FILTERS = {
+  cities: { kind: "any" },
+  species: { kind: "any" },
+  sizes: { kind: "any" },
+  ages: { kind: "any" },
+};
 
+describe("gallery pagination input", () => {
   it("pins the gallery's own constants literally", () => {
     // 24 rather than the cursor default of 20 because it fills a grid: it
     // divides evenly by every column count the breakpoints use.
@@ -96,6 +96,60 @@ describe("gallery pagination input", () => {
     expect(
       GalleryListInputSchema.safeParse({ filters: ANY_FILTERS, sort: "best_match" }).success,
     ).toBe(false);
+  });
+});
+
+describe("gallery scope input (the shelter page, DR1-D4)", () => {
+  const SHELTER_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+
+  it("lists everyone when no scope is sent, so every existing caller is unchanged", () => {
+    const parsed = GalleryListInputSchema.parse({ filters: ANY_FILTERS });
+
+    expect(parsed.scope).toEqual({ kind: "everyone" });
+  });
+
+  it("accepts one shelter by id", () => {
+    const parsed = GalleryListInputSchema.parse({
+      filters: ANY_FILTERS,
+      scope: { kind: "shelter", shelterId: SHELTER_ID },
+    });
+
+    expect(parsed.scope).toEqual({ kind: "shelter", shelterId: SHELTER_ID });
+  });
+
+  it("refuses a shelter id that isn't a UUID", () => {
+    for (const shelterId of ["42", "not-a-uuid", "", `${SHELTER_ID}x`]) {
+      expect(
+        GalleryListInputSchema.safeParse({
+          filters: ANY_FILTERS,
+          scope: { kind: "shelter", shelterId },
+        }).success,
+        shelterId,
+      ).toBe(false);
+    }
+  });
+
+  it("refuses a shelter scope with no id, and a scope kind it doesn't know", () => {
+    for (const scope of [
+      { kind: "shelter" },
+      { kind: "city", cityId: SHELTER_ID },
+      { kind: "featured" },
+      { shelterId: SHELTER_ID },
+    ]) {
+      expect(
+        GalleryListInputSchema.safeParse({ filters: ANY_FILTERS, scope }).success,
+        JSON.stringify(scope),
+      ).toBe(false);
+    }
+  });
+
+  it("drops an id sent with the everyone scope rather than narrowing by it", () => {
+    const parsed = GalleryListInputSchema.parse({
+      filters: ANY_FILTERS,
+      scope: { kind: "everyone", shelterId: SHELTER_ID },
+    });
+
+    expect(parsed.scope).toEqual({ kind: "everyone" });
   });
 });
 

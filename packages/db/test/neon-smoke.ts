@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import {
   type AnimalListingState,
   DEFAULT_SEEN_SET_POLICY,
+  EVERYONE_SCOPE,
   type FeedFilters,
   isDraftAnimal,
   listingAfterPhotoChange,
@@ -1909,6 +1910,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     };
     const gallery = await galleryRepo(db).list({
       filters,
+      scope: EVERYONE_SCOPE,
       sort: "freshest",
       page: 1,
       pageSize: 24,
@@ -1947,6 +1949,34 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       !longAfterClear.gallery &&
       !longAfterClear.deck,
     `set ${furSet.kind} → ${furAfterSet ?? "null"}; long: gallery ${longWhileSet.gallery}, deck ${longWhileSet.deck}; short: gallery ${shortWhileSet.gallery}, deck ${shortWhileSet.deck}; cleared ${furCleared.kind} → ${furAfterClear === undefined ? "missing" : (furAfterClear ?? "null")}; long after clear: gallery ${longAfterClear.gallery}, deck ${longAfterClear.deck}`,
+  );
+
+  // 40. the shelter page's list (DR1 S5, DR1-D4): `gallery.list` scoped to one
+  // shelter, over this driver. Reads only: step 38's shelter and its three
+  // cards are the known shelter, and a fresh UUID is the unknown one. No
+  // filters, so the only thing narrowing the list is the scope; the registry
+  // the branch copied holds other shelters' animals besides.
+  const scopedList = (shelterId: ShelterId) =>
+    galleryRepo(db).list({
+      filters: NO_FILTERS,
+      scope: { kind: "shelter", shelterId },
+      sort: "freshest",
+      page: 1,
+      pageSize: 24,
+      now: NOW,
+    });
+  const ownList = await scopedList(relaxBase.id);
+  const ownOnly = ownList.items.every((a) => a.shelterId === relaxBase.id);
+  const unknownList = await scopedList(randomUUID() as ShelterId);
+  check(
+    "gallery list scoped to one shelter: only its own animals, none for an unknown id",
+    ownList.items.length === 3 &&
+      ownList.totalMatching === 3 &&
+      ownList.totalShelters === 1 &&
+      ownOnly &&
+      unknownList.items.length === 0 &&
+      unknownList.totalMatching === 0,
+    `known: ${ownList.items.length} item(s), total ${ownList.totalMatching}, shelters ${ownList.totalShelters}, all its own ${ownOnly}; unknown: ${unknownList.items.length} item(s), total ${unknownList.totalMatching}`,
   );
   return out;
 }

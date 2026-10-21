@@ -1132,6 +1132,79 @@ describe("gallery.list", () => {
     const res = await h.call("gallery.list", { filters: NO_FILTERS, page: 10_000 }, { now: NOW });
     expect(res.status).toBeGreaterThanOrEqual(400);
   });
+
+  describe("scoped to one shelter (the shelter page, DR1-D4)", () => {
+    async function seedTwoShelters() {
+      const corpus = await seedGalleryCorpus();
+      const other = makeShelter({
+        displayName: "Інший притулок",
+        exactAddress: {
+          line1: "вул. Тестова 2",
+          line2: null,
+          postalCode: "01001",
+          cityId: corpus.city.id,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
+      });
+      await shelterRepo(h.db).insert(other);
+      const elsewhere = makeAnimal({ shelterId: other.id, name: "Чужий" });
+      await animalRepo(h.db).insert(elsewhere, corpus.city.id);
+      return { ...corpus, other, elsewhere };
+    }
+
+    const body = (res: { body: unknown }) =>
+      res.body as { items: Array<{ name: string }>; totalMatching: number; totalShelters: number };
+
+    it("serves only that shelter's animals; no scope still serves everyone", async () => {
+      const { shelter, oldTimer, middling, newcomer } = await seedTwoShelters();
+
+      const scoped = await h.call(
+        "gallery.list",
+        { filters: NO_FILTERS, scope: { kind: "shelter", shelterId: shelter.id } },
+        { now: NOW },
+      );
+      const everyone = await h.call("gallery.list", { filters: NO_FILTERS }, { now: NOW });
+
+      expect(scoped.status).toBe(200);
+      expect(body(scoped).items.map((item) => item.name)).toEqual([
+        oldTimer.name,
+        newcomer.name,
+        middling.name,
+      ]);
+      expect(body(scoped).totalShelters).toBe(1);
+      expect(everyone.status).toBe(200);
+      expect(body(everyone).totalMatching).toBe(4);
+      expect(body(everyone).totalShelters).toBe(2);
+    });
+
+    it("answers an unknown shelter with an empty page, not an error", async () => {
+      await seedTwoShelters();
+
+      const res = await h.call(
+        "gallery.list",
+        {
+          filters: NO_FILTERS,
+          scope: { kind: "shelter", shelterId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" },
+        },
+        { now: NOW },
+      );
+
+      expect(res.status).toBe(200);
+      expect(body(res).items).toEqual([]);
+      expect(body(res).totalMatching).toBe(0);
+    });
+
+    it("refuses a shelter id that isn't a UUID", async () => {
+      const res = await h.call(
+        "gallery.list",
+        { filters: NO_FILTERS, scope: { kind: "shelter", shelterId: "42" } },
+        { now: NOW },
+      );
+
+      expect(res.status).toBe(400);
+    });
+  });
 });
 
 describe("gallery.relaxationCounts", () => {

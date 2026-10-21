@@ -2,6 +2,7 @@ import {
   type AdopterId,
   type Animal,
   DEFAULT_SEEN_SET_POLICY,
+  EVERYONE_SCOPE,
   type FeedFilters,
   NO_FILTERS,
 } from "@opika/domain";
@@ -1135,6 +1136,7 @@ describe("feedRepo", () => {
       for (const filters of [NO_FILTERS, catsOnly]) {
         const gallery = await galleryRepo(db).list({
           filters,
+          scope: EVERYONE_SCOPE,
           sort: "freshest",
           page: 1,
           pageSize: 24,

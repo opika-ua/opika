@@ -4,6 +4,7 @@ import {
   FEED_FILTER_DIMENSIONS,
   type FeedFilterDimension,
   type FeedFilters,
+  type GalleryScope,
   type GallerySort,
   galleryPageCount,
   isConstrained,
@@ -17,6 +18,7 @@ import {
   buildDiscoverabilityPredicate,
   buildFeedPredicate,
   buildFilterPredicate,
+  buildScopePredicate,
 } from "./feed-predicate";
 import { rowToDiscoverableAnimal } from "./mappers";
 
@@ -85,15 +87,24 @@ export function galleryRepo(db: Database) {
      * time passed — and a numbered, shareable, crawlable page whose contents
      * shift between two requests is not reproducible, which is the whole
      * premise of this surface.
+     *
+     * `scope` is required here, unlike in the contract (which defaults it), so
+     * no repository caller lists everyone by leaving a field out. A shelter
+     * scope narrows the same predicate, so its page, totals and navigable bound
+     * are this method's, unchanged.
      */
     async list(opts: {
       filters: FeedFilters;
+      scope: GalleryScope;
       sort: GallerySort;
       page: number;
       pageSize: number;
       now: Date;
     }): Promise<GalleryPage> {
-      const conditions = buildFeedPredicate(opts.filters, opts.now);
+      const conditions = [
+        ...buildFeedPredicate(opts.filters, opts.now),
+        ...buildScopePredicate(opts.scope),
+      ];
       const where = and(...conditions);
       const ordering = orderingFor(opts.sort);
 

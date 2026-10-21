@@ -3,6 +3,7 @@ import {
   type CityId,
   type CoatLength,
   DEFAULT_SEEN_SET_POLICY,
+  EVERYONE_SCOPE,
   type FeedFilters,
   type ListedAnimal,
   NO_FILTERS,
@@ -114,7 +115,14 @@ describe("the fur filter in the shared predicate (DR1-D11)", () => {
   it("the gallery lists only the chosen fur, never an unrecorded one", async () => {
     const corpus = await seedFur();
     const list = (filters: FeedFilters) =>
-      galleryRepo(db).list({ filters, sort: "freshest", page: 1, pageSize: 24, now: NOW });
+      galleryRepo(db).list({
+        filters,
+        scope: EVERYONE_SCOPE,
+        sort: "freshest",
+        page: 1,
+        pageSize: 24,
+        now: NOW,
+      });
 
     expect(ids((await list(furFilter(["long"]))).items)).toEqual(ids(corpus.long));
     expect(ids((await list(furFilter(["short"]))).items)).toEqual(ids(corpus.short));
