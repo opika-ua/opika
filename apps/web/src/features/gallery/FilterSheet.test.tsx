@@ -62,7 +62,7 @@ describe("FilterSheet", () => {
   it("shows the same result-count sentence the rail's own closing box uses", () => {
     renderSheet();
     const sheet = within(screen.getByTestId("filter-sheet"));
-    expect(sheet.getByText(/Підходить 12 тварин/, { selector: "p" })).toBeTruthy();
+    expect(sheet.getByText(/Знайдено 12 тварин/, { selector: "p" })).toBeTruthy();
   });
 
   it("checks no box when nothing is filtered — the same bug FilterRail's chips had", () => {

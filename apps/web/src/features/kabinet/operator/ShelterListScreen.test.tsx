@@ -60,7 +60,7 @@ describe("S1 rows", () => {
     renderList([row({ admins: { joined: 1, invited: 2 } })]);
     const item = within(rows()).getByRole("listitem");
     expect(within(item).getByRole("heading", { name: "Притулок «Домівка»" })).toBeTruthy();
-    expect(within(item).getByText("Очікує · Бровари")).toBeTruthy();
+    expect(within(item).getByText("Очікує перевірки · Бровари")).toBeTruthy();
     expect(within(item).getByText("Адміністраторів: 1 · Запрошено: 2")).toBeTruthy();
     const open = within(item).getByRole("link", { name: "Відкрити Притулок «Домівка»" });
     expect(open.getAttribute("href")).toBe(
@@ -86,7 +86,7 @@ describe("S1 rows", () => {
 
   it("reads «Не записано» for a city the list doesn't know", () => {
     renderList([row({ cityId: "c9" as never })]);
-    expect(screen.getByText("Очікує · Не записано")).toBeTruthy();
+    expect(screen.getByText("Очікує перевірки · Не записано")).toBeTruthy();
   });
 });
 
@@ -120,7 +120,12 @@ describe("S1 heading, search and status filter", () => {
     expect(screen.getByRole("link", { name: "На розгляді · 1" }).getAttribute("href")).toBe(
       "/kabinet/prytulky?poshuk=%D0%94%D0%BE%D0%BC&status=under_review",
     );
-    for (const name of ["Очікує · 2", "Перевірено · 4", "Відхилено · 0", "На паузі · 0"]) {
+    for (const name of [
+      "Очікує перевірки · 2",
+      "Перевірено · 4",
+      "Відхилено · 0",
+      "На паузі · 0",
+    ]) {
       expect(screen.getByRole("link", { name })).toBeTruthy();
     }
   });

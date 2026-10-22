@@ -163,16 +163,16 @@ describe("the row's status line", () => {
         freshness: null,
       } as Partial<AnimalRow>);
     expect(statusLineOf(withdrawn(null), NOW)).toBe(
-      "Знято з показу 2 жовтня · переїхала до іншого притулку",
+      "Знято з показу 2 жовтня · переведено до іншого притулку",
     );
     expect(statusLineOf(withdrawn("до Києва"), NOW)).toBe(
-      "Знято з показу 2 жовтня · переїхала до іншого притулку · «до Києва»",
+      "Знято з показу 2 жовтня · переведено до іншого притулку · «до Києва»",
     );
   });
 
   it("a row that already carries adopted_elsewhere keeps its label (his answer 10)", () => {
     expect(withdrawalReasonOf({ code: "adopted_elsewhere", note: null })).toBe(
-      "знайшла дім іншим шляхом",
+      "дім знайдено іншим шляхом",
     );
   });
 });
@@ -309,11 +309,11 @@ describe("why nobody sees the cards (his answer 5)", () => {
     },
     pending: {
       kind: "line",
-      text: "Ваші тварини зʼявляться в галереї, щойно притулок пройде перевірку.",
+      text: "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
     },
     under_review: {
       kind: "line",
-      text: "Ваші тварини зʼявляться в галереї, щойно притулок пройде перевірку.",
+      text: "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
     },
     rejected: {
       kind: "line",

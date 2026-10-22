@@ -157,7 +157,7 @@ describe("creating a shelter", () => {
     await u.click(submit());
     const fact = await screen.findByRole("heading", { name: "Притулок створено." });
     expect(document.activeElement).toBe(fact);
-    expect(screen.getByText("Очікує")).toBeDefined();
+    expect(screen.getByText("Очікує перевірки")).toBeDefined();
     expect(screen.getByRole("status").textContent).toBe(
       "Запрошення надіслано на iryna@example.org.",
     );
@@ -548,7 +548,7 @@ describe("what happens next", () => {
     await user().type(screen.getByLabelText("Імʼя"), "Ірина");
     expect(steps()).toEqual([
       "Притулок зʼявиться у списку зі статусом «Очікує».",
-      "Ірина отримає лист для входу. Посилання діє 72 години, його можна надіслати ще раз.",
+      "Ірина отримає запрошення: посилання, щоб створити пароль, діє 72 години. Його можна надіслати ще раз.",
       "Тварин притулку не буде в галереї, доки ви не схвалите перевірку.",
     ]);
   });

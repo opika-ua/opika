@@ -50,7 +50,7 @@ describe("housingCityLabel", () => {
     const card = makeCard({
       publicLocation: { cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never },
     });
-    expect(housingCityLabel(card, "Ірпінь")).toBe("живе у волонтерки, м. Ірпінь");
+    expect(housingCityLabel(card, "Ірпінь")).toBe("на перетримці, м. Ірпінь");
   });
 
   it("degrades to null, not a broken template, when the city name hasn't resolved", () => {
