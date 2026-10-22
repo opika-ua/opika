@@ -52,7 +52,7 @@ export function vaccinationRow(vaccination: VaccinationStatus): MedicalRow {
   }
   return {
     label: uk.medical.vaccination,
-    statusText: uk.medical.shelterDeclared,
+    statusText: uk.medical.doneShelterDeclared,
     barClassName: "bg-rg-ink-3",
   };
 }
@@ -75,7 +75,7 @@ export function spayNeuterRow(spayNeuter: SpayNeuterStatus): MedicalRow {
   }
   return {
     label: uk.medical.spayNeuter,
-    statusText: uk.medical.shelterDeclared,
+    statusText: uk.medical.doneShelterDeclared,
     barClassName: "bg-rg-ink-3",
   };
 }

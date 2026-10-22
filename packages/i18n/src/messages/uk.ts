@@ -281,6 +281,12 @@ export const uk = {
      * is a word of its own.
      */
     shelterDeclared: "Дані притулку",
+    /**
+     * Copy audit 2026-10-22 #16: the vaccination and sterilisation rows' status line.
+     * «Дані притулку» names the source and never says the thing was done; this says both.
+     * A key of its own so `shelterDeclared` stays the reusable source label.
+     */
+    doneShelterDeclared: "Зроблено, за даними притулку",
     rabies: "Щеплення від сказу",
     vaccination: "Комплексне щеплення",
     spayNeuter: "Стерилізація",
@@ -1116,7 +1122,7 @@ export const uk = {
        */
       donationPending: "Запропоноване посилання чекає, поки я його перевірю.",
       voiceTitle: "Голос притулку",
-      voiceLabel: "Ваші слова на картках",
+      voiceLabel: "Ваші слова на сторінці притулку",
       /**
        * The second sentence (that the registry fills in {date} and {name})
        * was deleted 2026-10-15 as false: nothing substitutes anything, the

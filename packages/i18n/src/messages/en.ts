@@ -104,6 +104,7 @@ export const en = {
     inProgress: "In progress",
     registryConfirmed: "Confirmed by the national pet registry",
     shelterDeclared: "The shelter's data",
+    doneShelterDeclared: "Done, according to the shelter's data",
     rabies: "Rabies",
     vaccination: "Core vaccination",
     spayNeuter: "Spay/neuter",
@@ -474,7 +475,7 @@ export const en = {
       donationNote: "https only. No money passes through the site: this is an external link.",
       donationPending: "The proposed link is waiting for me to check it.",
       voiceTitle: "The shelter's voice",
-      voiceLabel: "Your words on the cards",
+      voiceLabel: "Your words on the shelter page",
       voiceNote: "One sentence in the first person, written by you.",
       pendingNote:
         "I carry out the verification myself: I will write or call to arrange it. Until it is finished, only you can see your animals.",

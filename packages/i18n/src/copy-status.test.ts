@@ -1254,6 +1254,18 @@ describe("/pro about.data (his PR 6 text, and PW-1's two sentences)", () => {
 describe("designer round 1, S6 (his DR1-Q1 and shelter-page copy)", () => {
   it.each([
     ["medical.shelterDeclared", uk.medical.shelterDeclared, "Дані притулку"],
+    // The copy audit of 2026-10-22 (Oleksii: "#14 and every key S6 rewrites: apply them on
+    // `feat/dr1-s6-shelter-page` as a separate commit"): #16 and #14, transcribed from the audit.
+    [
+      "medical.doneShelterDeclared (#16)",
+      uk.medical.doneShelterDeclared,
+      "Зроблено, за даними притулку",
+    ],
+    [
+      "kabinet.profile.voiceLabel (#14)",
+      uk.kabinet.profile.voiceLabel,
+      "Ваші слова на сторінці притулку",
+    ],
     ["shelterPage.animalsHeading", uk.shelterPage.animalsHeading, "Шукають дім: {count}"],
     ["shelterPage.noAnimals", uk.shelterPage.noAnimals, "Зараз тут немає тварин, які шукають дім."],
     ["detail.shelterRowLink", uk.detail.shelterRowLink, "Сторінка притулку «{name}»"],

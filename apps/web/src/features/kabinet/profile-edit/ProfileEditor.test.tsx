@@ -274,7 +274,7 @@ describe("per-section saves share one version (answer 1)", () => {
     await userEvent.type(phone, "+380501112233");
     await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
     const v = within(voice());
-    await userEvent.type(v.getByLabelText("Ваші слова на картках"), " Пишіть.");
+    await userEvent.type(v.getByLabelText("Ваші слова на сторінці притулку"), " Пишіть.");
     await userEvent.click(v.getByRole("button", { name: "Зберегти" }));
     expect(fns.updateFreshnessSentence).toHaveBeenCalledWith(
       expect.objectContaining({ expectedVersion: 4 }),
@@ -284,7 +284,7 @@ describe("per-section saves share one version (answer 1)", () => {
 
 describe("the voice sentence (N11)", () => {
   const textarea = () =>
-    within(voice()).getByLabelText("Ваші слова на картках") as HTMLTextAreaElement;
+    within(voice()).getByLabelText("Ваші слова на сторінці притулку") as HTMLTextAreaElement;
 
   it("counts characters as «{count} / 280», and the extra ones past 280", async () => {
     renderEditor({ view: baseView({ freshnessSentence: null }) });
@@ -754,7 +754,7 @@ describe("a save whose answer is lost (K4-T16)", () => {
       },
     });
     const v = within(voice());
-    await userEvent.type(v.getByLabelText("Ваші слова на картках"), " Пишіть.");
+    await userEvent.type(v.getByLabelText("Ваші слова на сторінці притулку"), " Пишіть.");
     await userEvent.click(v.getByRole("button", { name: "Зберегти" }));
     expect(fns.get).toHaveBeenCalledOnce();
     expect(v.getByRole("status").textContent).toBe("Збережено.");
