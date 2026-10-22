@@ -1,34 +1,47 @@
 import { describe, expect, it } from "vitest";
 import { railResultCount, sheetResultCount, showCountLabel } from "./gallery-copy";
 
+/**
+ * Audit 2026-10-22 #29 (Oleksii: "#29 must agree for 1, 2, 5, 11, 21 and 22, with tests"):
+ * «Підходить 3 тварини» broke agreement for 2–4, so both sheet sentences open with the
+ * impersonal «Знайдено», which governs the accusative and agrees at every count. The
+ * words are transcribed here per count, never computed with `pluralizeUk`, so a wrong
+ * form list can't agree with itself.
+ */
+const AGREEMENT: ReadonlyArray<readonly [count: number, animals: string, shelters: string]> = [
+  [1, "1 тварину", "1 притулку"],
+  [2, "2 тварини", "2 притулках"],
+  [5, "5 тварин", "5 притулках"],
+  [11, "11 тварин", "11 притулках"],
+  [21, "21 тварину", "21 притулку"],
+  [22, "22 тварини", "22 притулках"],
+];
+
 describe("sheetResultCount", () => {
-  describe("a city is selected — design's own screen 03 copy", () => {
-    it.each([
-      [1, 1, "Підходить 1 тварина. Притулків у цьому місті — 1."],
-      [2, 3, "Підходить 2 тварини. Притулків у цьому місті — 3."],
-      [12, 3, "Підходить 12 тварин. Притулків у цьому місті — 3."],
-    ])("count=%i shelters=%i -> %s", (count, shelters, expected) => {
-      expect(sheetResultCount(count, shelters, true)).toBe(expected);
+  describe("a city is selected — the audit's «Знайдено …» sentence", () => {
+    it.each(AGREEMENT)("count=%i -> Знайдено %s", (count, animals) => {
+      expect(sheetResultCount(count, 3, true)).toBe(
+        `Знайдено ${animals}. Притулків у цьому місті: 3.`,
+      );
     });
   });
 
   describe("no city selected — 'у цьому місті' would name a city that isn't chosen", () => {
-    it.each([
-      [1, 1, "Підходить 1 тварина у 1 притулку."],
-      [220, 6, "Підходить 220 тварин у 6 притулках."],
-    ])("count=%i shelters=%i -> %s", (count, shelters, expected) => {
-      expect(sheetResultCount(count, shelters, false)).toBe(expected);
+    // The shelter count walks the same six numbers, so «притулку» / «притулках» agree too.
+    it.each(AGREEMENT)("shelters=%i -> у %s", (shelters, _animals, shelterPhrase) => {
+      expect(sheetResultCount(7, shelters, false)).toBe(`Знайдено 7 тварин у ${shelterPhrase}.`);
+    });
+
+    it.each(AGREEMENT)("count=%i -> Знайдено %s", (count, animals) => {
+      expect(sheetResultCount(count, 6, false)).toBe(`Знайдено ${animals} у 6 притулках.`);
     });
   });
 });
 
 describe("railResultCount", () => {
   // "Знайдено" is impersonal and governs the ACCUSATIVE, so the one-form is
-  // "тварину" — unlike the sheet's "Підходить 1 тварина", which is
-  // nominative. Same count, same noun, different case: the two sentences
-  // agree at every other count, which is why sharing one form list looks
-  // correct in the design's own 34-result example and reads wrong the first
-  // time a filter matches exactly one animal.
+  // "тварину". Since the audit of 2026-10-22 the sheet says the same, so both
+  // sentences share one form list (`AGREEMENT` above walks it for the sheet).
   it.each([
     [34, 7, "Знайдено 34 тварини у 7 притулках"],
     [1, 1, "Знайдено 1 тварину у 1 притулку"],
@@ -36,6 +49,10 @@ describe("railResultCount", () => {
     [21, 1, "Знайдено 21 тварину у 1 притулку"],
   ])("count=%i shelters=%i -> %s", (count, shelters, expected) => {
     expect(railResultCount(count, shelters)).toBe(expected);
+  });
+
+  it.each(AGREEMENT)("count=%i -> Знайдено %s", (count, animals) => {
+    expect(railResultCount(count, 6)).toBe(`Знайдено ${animals} у 6 притулках`);
   });
 });
 

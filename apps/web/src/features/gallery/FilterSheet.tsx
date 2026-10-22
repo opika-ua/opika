@@ -288,7 +288,7 @@ export function FilterSheet({
             <a
               href="#"
               onClick={closeWithJs}
-              aria-label="Закрити"
+              aria-label={uk.preview.close}
               className="min-h-12 min-w-12 inline-flex items-center justify-center rounded-rg-button text-rg-ink-3 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
             >
               ✕

@@ -33,7 +33,7 @@ export const COPY_PENDING = "[COPY PENDING]";
 export const PENDING_R4_2_ANALYTICS_SENTENCE =
   "Людині, яка шукає тварину, сайт ставить одне кукі — і тільки після першої дії: " +
   "«Не зараз», «Запитати» чи «Написати». У ньому немає імені чи номера телефону, лише " +
-  "випадковий ідентифікатор: щоб режим «по одній» пам'ятав, кого ви вже бачили, а сайт — " +
+  "випадковий ідентифікатор: щоб режим «по одній» памʼятав, кого ви вже бачили, а сайт — " +
   "чиї контакти ви вже відкрили. Він перестає діяти через 7 днів без візитів або через 30 " +
   "днів у будь-якому разі.";
 
@@ -53,8 +53,7 @@ export const uk = {
      * link-preview copy only, but still an accurate invitation to the page
      * it describes.
      */
-    promise:
-      "Тварини з перевірених притулків Київщини. Перегляньте список і подивіться, кого шукає дім.",
+    promise: "Собаки й коти з перевірених притулків Київщини шукають дім. Перегляньте список.",
   },
 
   /**
@@ -159,26 +158,28 @@ export const uk = {
     coatShort: "Короткошерсті",
     coatLong: "Довгошерсті",
     /**
-     * Template: "Підходить {count} {animalWord}. Притулків у цьому місті —
+     * Template: "Знайдено {count} {animalWord}. Притулків у цьому місті:
      * {shelterCount}." `{animalWord}` is pre-pluralized by the caller
-     * (`pluralizeUk(count, uk.filters.animalWord)`) — the template cannot
-     * pick the right Ukrainian noun form itself, only compose around it.
+     * (`pluralizeUk(count, uk.filters.animalWordAccusative)`) — the template
+     * cannot pick the right Ukrainian noun form itself, only compose around
+     * it. The impersonal «Знайдено» governs the accusative, so it agrees for
+     * every count (1, 2, 5, 11, 21, 22: «1 тварину», «2 тварини», «5 тварин»);
+     * the earlier «Підходить {count}» did not, for 2–4 (audit 2026-10-22, #29).
      * "Притулків" is a fixed label form here (a count-value pair, "Тварин: 12"
      * in sentence form), not an embedded count-noun phrase, so it never
      * varies with `shelterCount`.
      */
-    resultCount: "Підходить {count} {animalWord}. Притулків у цьому місті — {shelterCount}.",
+    resultCount: "Знайдено {count} {animalWord}. Притулків у цьому місті: {shelterCount}.",
     /**
-     * The sheet's `resultCount` above is docs/design/README.md's own screen
-     * 03 copy, written for its own example (МІСТО constrained to one city —
-     * "Притулків у цьому місті" only means something when there is a
-     * "цьому місті"). With no city selected — "Уся Київщина" is the sheet's
-     * own default — `shelterCount` spans the whole oblast, and the sentence
-     * would claim a specific city that isn't selected. This is that case:
-     * same verb and register as `resultCount`, the rail's locative shelter
-     * phrasing instead of the false claim.
+     * The sheet's `resultCount` above names "цьому місті", which only means
+     * something when a city is selected. With no city selected — "Уся
+     * Київщина" is the sheet's own default — `shelterCount` spans the whole
+     * oblast, and the sentence would claim a specific city that isn't
+     * selected. This is that case: the same sentence as the rail's
+     * `resultCountRail` below (one wording for it, `gallery-copy.ts` fills
+     * both the same way), closed with a full stop for the sheet.
      */
-    resultCountAnyCity: "Підходить {count} {animalWord} у {shelterCount} {shelterWord}.",
+    resultCountAnyCity: "Знайдено {count} {animalWord} у {shelterCount} {shelterWord}.",
     reset: "Скинути",
     /** Template: "Показати {count}" */
     showCount: "Показати {count}",
@@ -191,13 +192,11 @@ export const uk = {
      * plural doesn't distinguish few/many the way the nominative animal
      * count does.
      *
-     * `{animalWord}` here is `animalWordAccusative`, not `animalWord`: the
-     * impersonal "Знайдено" governs the accusative, so one result reads
-     * "Знайдено 1 тварину", while the sheet's "Підходить 1 тварина" is
-     * nominative. The two sentences differ only at the `one` form (1, 21,
-     * 31…) — which is exactly why one shared list would look right in the
-     * design's own 34-result example and be wrong on the day a filter
-     * matches a single animal.
+     * `{animalWord}` here is `animalWordAccusative`: the impersonal
+     * "Знайдено" governs the accusative, so one result reads "Знайдено 1
+     * тварину". Since the audit of 2026-10-22 (#29) the sheet's sentences
+     * open with the same «Знайдено» and use the same list, so the nominative
+     * `animalWord` below is no longer used by either.
      */
     resultCountRail: "Знайдено {count} {animalWord} у {shelterCount} {shelterWord}",
     animalWord: { one: "тварина", few: "тварини", many: "тварин" },
@@ -207,14 +206,13 @@ export const uk = {
     sortFreshest: "Спочатку найсвіжіші картки",
     sortLongestWaiting: "Найдовше чекають",
     allCities: "Уся Київщина",
-    railFooter:
-      "Немає фільтра «тільки свіжі картки». Тварина, про яку давно не писали, все одно чекає.",
+    railFooter: "Фільтра за датою немає: тварина, про яку давно не писали, теж шукає дім.",
   },
 
   // --- Swipe affordances ---
   swipe: {
     left: "Не зараз",
-    right: "Запитати",
+    right: "Написати",
   },
 
   // --- Action buttons ---
@@ -273,10 +271,10 @@ export const uk = {
      */
     registryConfirmed: "Підтверджено державним реєстром тварин",
     shelterDeclared: "Слова притулку",
-    rabies: "Сказ",
+    rabies: "Щеплення від сказу",
     vaccination: "Комплексне щеплення",
     spayNeuter: "Стерилізація",
-    registry: "Державний реєстр тварин",
+    registry: "Зроблено, за даними державного реєстру тварин",
   },
 
   // --- Location ---
@@ -285,7 +283,7 @@ export const uk = {
     /** Template: "м. {city} · у домі волонтерки" */
     fostered: "Живе у волонтерки, м. {city}. Точної адреси ми не знаємо і не показуємо.",
     noMapExplanation:
-      "Карти тут немає: ми не знаємо точної адреси і не вигадуємо її. Місце зустрічі узгодите з притулком.",
+      "Карти тут немає: сайт показує лише місто. Місце зустрічі узгодите з притулком.",
     /**
      * The detail screen's own "Де живе" block (D1/D2) — a short first line,
      * `noMapExplanation` above as the second. Distinct from `fostered`
@@ -293,17 +291,17 @@ export const uk = {
      * (the gallery card's meta line uses `cardMeta.fosteredHousing`/
      * `atShelter` instead, also separate from both of these).
      */
-    lineFostered: "м. {city} · у домі волонтерки",
+    lineFostered: "м. {city} · на перетримці",
     lineAtShelter: "м. {city}",
   },
 
   // --- Detail screen (04) ---
   detail: {
-    /** Template: "Перевірений вручну · {years} на Opika" — brand string lives here, not in domain */
-    shelterVerifiedYears: "Перевірений вручну · {years} на Opika",
+    /** Template: "Перевірено вручну · на сайті з {year} року" — `{year}` is the year the shelter's record was created. */
+    shelterVerifiedYears: "Перевірено вручну · на сайті з {year} року",
     donateShelter: "Підтримати притулок",
-    /** Template: "← Усі тварини у {city}" — the mock's D1 desktop back link (frame D1). */
-    backToListIn: "← Усі тварини у {city}",
+    /** Template: "← Усі тварини · м. {city}" — the mock's D1 desktop back link (frame D1). */
+    backToListIn: "← Усі тварини · м. {city}",
     /**
      * The subtitle line's species word — "Метис · 2 роки · середня" in the
      * mock, but "Метис" (mixed breed) has no domain field at all (`Animal`
@@ -323,7 +321,7 @@ export const uk = {
     notFound: {
       eyebrow: "НЕ ЗНАЙДЕНО",
       title: "Цієї картки більше немає.",
-      body: "Тварини вже немає на сайті або посилання застаріле. Це не помилка — просто картки тут більше немає.",
+      body: "Цієї тварини вже немає на сайті, або посилання застаріло.",
       action: "Усі тварини",
     },
     /**
@@ -365,19 +363,20 @@ export const uk = {
   reveal: {
     /** Template: "Ви запитали про {name}." */
     youAskedAbout: "Ви запитали про {name}.",
-    title: "Ось як зв'язатися з притулком.",
+    title: "Ось як звʼязатися з притулком.",
     subtitle:
       "Притулок не знає про цей запит, поки ви не напишете самі. Нічого не сталося автоматично.",
     /**
-     * Template: "Контакти збережено такими, якими вони є сьогодні · {date}"
-     * ({date} is the first reveal's). Shown only under the first-reveal
+     * Template: "Контакти такі, якими були {date}, коли ви їх відкрили."
+     * ({date} is the first reveal's; «є сьогодні» next to a past date said
+     * two opposite things, audit 2026-10-22 #5). Shown only under the first-reveal
      * record's contacts, never under the shelter's current ones (K4-B5,
      * `contactsFootnoteOf` in `ContactRevealDialog.tsx`; inbox K4-Q11).
      */
-    contactsFootnote: "Контакти збережено такими, якими вони є сьогодні · {date}",
+    contactsFootnote: "Контакти такі, якими були {date}, коли ви їх відкрили.",
     meetingPlace: "місце узгодите в листуванні",
     reflectionHeading: "Перед тим як писати — три речі, про які варто подумати спокійно:",
-    reflection1: "Це 10–15 років разом, а не вихідні.",
+    reflection1: "Це роки разом, а не вихідні.",
     reflection2: "Корм, ветеринар, перевезення — щомісячні витрати.",
     reflection3: "Чи згодні всі, хто живе з вами.",
     writeTelegram: "Написати в Telegram",
@@ -391,13 +390,13 @@ export const uk = {
     call: "Подзвонити",
     writeEmail: "Написати листа",
     /**
-     * "Опика Registry Frames.dc.html" (R1/R2) says «Повернутися до
-     * галереї» verbatim — corrected from an earlier "до стрічки" here,
-     * which predates the gallery-first course correction and never
-     * matched the mock. `docs/standing-constraints.md`: "when a mock
-     * exists, open the mock file."
+     * The mock (R1/R2) says «Повернутися до галереї», but on the animal page
+     * and in the gallery's overlay this button only closes the dialog
+     * (`RevealFlow.tsx`, `secondaryAction: { onClick: close }`): the person
+     * stays on the animal. Oleksii renamed it «Повернутися до картки»
+     * (audit 2026-10-22, #8), behaviour unchanged. The key keeps its old name.
      */
-    backToFeed: "Повернутися до галереї",
+    backToFeed: "Повернутися до картки",
   },
 
   // --- My reveals (06) ---
@@ -411,9 +410,8 @@ export const uk = {
   // --- Exhausted (07) ---
   exhausted: {
     title: "Це всі, хто зараз підходить.",
-    body: "Притулків тут небагато, тому список короткий — це нормально.",
-    newAnimals:
-      "Нові тварини з'являються, коли притулки оновлюють картки. Зазвичай раз на кілька тижнів.",
+    body: "Тих, кого ви пропустили через «Не зараз», режим «по одній» покаже знову через 30 днів. У списку видно всіх.",
+    newAnimals: "Нові тварини зʼявляються, щойно притулки публікують картки.",
     /**
      * Template: "Уся Київщина (+{count})"
      * Deviation from the original handoff's "Додати сусідні міста" (add
@@ -422,6 +420,8 @@ export const uk = {
      */
     addNearbyCities: "Уся Київщина (+{count})",
     changeFilters: "Змінити фільтри",
+    /** G5 (audit 2026-10-22): the deck's end state, linking to `/tvaryny` with the deck's own filters. */
+    toList: "Переглянути список",
     reviewAgain: "Переглянути ще раз спокійно",
     footnote:
       "Якщо ви знаєте притулок на Київщині, якого тут немає — напишіть нам, і ми з ним поговоримо.",
@@ -430,20 +430,20 @@ export const uk = {
   // --- Error states (08) ---
   errors: {
     offline: {
-      eyebrow: "БЕЗ ЗВ'ЯЗКУ",
-      title: "Зараз немає інтернету.",
+      eyebrow: "БЕЗ ЗВʼЯЗКУ",
+      title: "Немає звʼязку із сайтом. Перевірте інтернет і спробуйте ще раз.",
       action: "Спробувати ще раз",
     },
     loadFailed: {
       eyebrow: "НЕ ЗАВАНТАЖИЛОСЯ",
-      title: "Щось не спрацювало на нашому боці.",
+      title: "Збій на боці сайту.",
       body: "Це не ваша помилка і не помилка притулку.",
       action: "Оновити",
     },
     sessionExpired: {
-      eyebrow: "СЕСІЯ ЗАВЕРШИЛАСЯ",
-      title: "Ми почали стрічку заново.",
-      action: "До стрічки",
+      eyebrow: "НЕ ВДАЛОСЯ ПРОДОВЖИТИ",
+      title: "Режим «по одній» почнеться спочатку.",
+      action: "Почати спочатку",
     },
     /**
      * `animals.reveal`'s own `RATE_LIMITED` (`apps/web/src/api/reveal-rate-limit.ts`)
@@ -456,12 +456,14 @@ export const uk = {
      * "honest copy for it isn't mine to write" line this row was blocked
      * on in the first place. No retry action by design, not omission —
      * `ContactRevealDialog.tsx`'s `RevealError` renders no retry button for
-     * this reason specifically, since retrying before tomorrow cannot
-     * succeed.
+     * this reason specifically, since retrying before the window passes
+     * cannot succeed. The window is a rolling 24 h (`reveal-rate-limit.ts`),
+     * not a calendar day, and re-opening a shelter already opened stays free;
+     * the 2026-10-22 audit (#6) rewrote both lines to say so.
      */
     rateLimited: {
-      title: "Ви відкрили контакти багатьох притулків сьогодні.",
-      body: "Наступні — завтра.",
+      title: "За останню добу ви відкрили контакти багатьох притулків.",
+      body: "Притулки, чиї контакти ви вже відкривали, можна відкрити знову. Нові — пізніше, коли мине доба від перших.",
     },
     photoMissing: {
       placeholder: "Фото немає — притулок ще не надіслав",
@@ -486,8 +488,8 @@ export const uk = {
 
   // --- Documents ---
   documents: {
-    chipPresent: "Чип є",
-    rabiesPresent: "Сказ є",
+    chipPresent: "Є чип",
+    rabiesPresent: "Є щеплення від сказу",
   },
 
   // --- Animal card meta line ("молодий · мала · живе у волонтерки, м. Бровари") ---
@@ -527,7 +529,7 @@ export const uk = {
      * detail page's own address disclaimer the card has no room for.
      */
     atShelter: "м. {city}",
-    fosteredHousing: "живе у волонтерки, м. {city}",
+    fosteredHousing: "на перетримці, м. {city}",
   },
 
   // --- Pagination footer (E3, re-skinned V2) ---
@@ -591,9 +593,7 @@ export const uk = {
      * below the two suggestion buttons (`Opika Registry System.dc.html`'s
      * B4 frame), unlike the middle sentence above which names one specific
      * example combination. */
-    suggestionExplainer:
-      "Кожна пропозиція називає, скільки тварин вона додасть. Порожній екран не питає " +
-      "«спробуйте інше» без числа.",
+    suggestionExplainer: "Біля кожної пропозиції — скільки тварин вона додасть.",
   },
 
   // --- Gallery error (E4, V2 mock frames E1/E2 — copy adapted, see
@@ -636,7 +636,7 @@ export const uk = {
      * `noMatch`'s own dropped middle sentence, docs/design/README.md
      * records this one too), so a numeral phrasing avoids asserting an
      * ordinal form that might be wrong. */
-    showingLast: "Показуємо сторінку {total} — останню. Нічого не загубилось.",
+    showingLast: "Це сторінка {total}, остання. Нічого не загубилося.",
     backToFirst: "На першу сторінку",
   },
 
@@ -676,8 +676,8 @@ export const uk = {
   about: {
     title: "Про проєкт",
     intro:
-      "Opika — сайт, де тварини з притулків Київщини шукають дім. Я роблю його сам, поза роботою. Немає команди, немає інвестора — є одна людина, яка вважає, що знайти дім для тварини не повинно залежати від того, чи вміє притулок вести застарілий Excel-файл.",
-    free: "Сайт безкоштовний для притулків сьогодні і лишиться безкоштовним. Жодних платних тарифів, жодного «спробуйте безкоштовно перші три місяці» — якщо це колись зміниться, кожен притулок дізнається про це заздалегідь, а не постфактум.",
+      "{site} — сайт, де тварини з притулків Київщини шукають дім. Його робить одна людина — я, у вільний від роботи час. Немає команди й інвестора.",
+    free: "Сайт безкоштовний для притулків, без платних тарифів. Якщо це колись зміниться, кожен притулок дізнається про це заздалегідь, а не постфактум.",
     money:
       "Opika ніколи не бере участі в грошах: немає прийому платежів, немає комісії, немає збору донатів через платформу. Кнопка «Підтримати притулок» веде на власну сторінку притулку в іншому сервісі (наприклад, monobank) — сайт лише показує посилання, гроші йдуть напряму, і видно, куди саме.",
     /**
@@ -707,10 +707,14 @@ export const uk = {
      *   showing and its file is deleted by hand in Cloudflare (P8, his Q5).
      * `copy-status.test.ts` pins it.
      */
-    data: "Дані, які вносить притулок — адреса, контакти, картки тварин, — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби. Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто — адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють — їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин — лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку. Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
+    data:
+      "Дані, які вносить притулок — адреса, контакти, картки тварин, — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент.\n\n" +
+      "Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора, щоб надсилати запрошення, посилання для входу чи нового пароля і повідомлення про зміну пароля, а також технічний запис про браузер і пристрій, з якого виконано вхід. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби.\n\n" +
+      "Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто — адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють — їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин — лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку.\n\n" +
+      "Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
     analytics:
       "Сайт збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко працюють сторінки — без реклами.",
-    contact: "Зв'язатися з розробником: {contact}",
+    contact: "Написати мені: {contact}",
   },
 
   /**
@@ -766,9 +770,7 @@ export const uk = {
     whatThisIs:
       "Opika — сайт, де тварини з перевірених притулків Київщини шукають дім, а кожен ваш підопічний отримує власну сторінку.",
     /** §2 — free now and later. Early, because it is what they are bracing for. */
-    cost:
-      "Це безкоштовно. Не «безкоштовно перші три місяці» і не «безкоштовно, поки ми не виростемо» — " +
-      "просто безкоштовно, сьогодні і далі. Якщо це колись зміниться, ви дізнаєтеся заздалегідь, а не з рахунку.",
+    cost: "Це безкоштовно, сьогодні і далі. Якщо це колись зміниться, ви дізнаєтеся заздалегідь, а не з рахунку.",
     /**
      * §3 — a page each, shareable, and the ordering rule.
      *
@@ -793,8 +795,8 @@ export const uk = {
       "в Telegram, показати знайомим, залишити під дописом.\n\n" +
       "Тварин можна дивитися списком або по одній.\n\n" +
       "Список завжди показує всіх. У режимі «по одній» людина більше не бачить тих, на кого вже " +
-      "натиснула «Не зараз» чи «Запитати», — це пам'ять лише її пристрою, і після «Не зараз» " +
-      "тварина згодом з'являється знову. Від людини не ховається нічого, крім того, що вона " +
+      "натиснула «Не зараз» чи «Написати», — це памʼять лише її пристрою, і після «Не зараз» " +
+      "тварина згодом зʼявляється знову. Від людини не ховається нічого, крім того, що вона " +
       "сховала сама.\n\n" +
       // ¶4: his PR 6 text (pr6-copy-uk.md §1.6), «оновлено» meaning the
       // confirmation date, as K-Q14 (a) keeps it on the cards.
@@ -824,8 +826,7 @@ export const uk = {
       "«Перевірений» означає, що вас перевіряла людина. Ось що це означає конкретно.\n\n" +
       "Зареєстрована організація показує ЄДРПОУ, банківські реквізити на ту саму організацію і одну " +
       "незалежну рекомендацію.\n\n" +
-      "Незареєстрована ініціатива — а це більшість волонтерських груп — показує візит і дві " +
-      "незалежні рекомендації.",
+      "Незареєстрована ініціатива показує візит і дві незалежні рекомендації.",
     /**
      * §6b — ends on «Ваш другий номер телефону — не рекомендація», the only
      * sentence that anticipates someone gaming the process. It proves the
@@ -835,8 +836,8 @@ export const uk = {
      * opening on «потрібно небагато» must stay adjacent to it.
      */
     verificationOpenToVolunteers:
-      "«Візит» не означає, що хтось обов'язково приїде. Справжня телефонна розмова, після якої я " +
-      "можу переказати, що почув, теж рахується. Рекомендація має бути від когось іншого, ніж ви: " +
+      "«Візит» не означає, що хтось обовʼязково приїде. Справжня телефонна розмова, після якої я " +
+      "можу переказати її зміст, теж рахується. Рекомендація має бути від когось іншого, ніж ви: " +
       "сусідній притулок, ветклініка, з якою ви працюєте, будь-хто, хто може підтвердити, що ви " +
       "існуєте і робите те, що кажете. Ваш другий номер телефону — не рекомендація.",
     /**
@@ -849,7 +850,7 @@ export const uk = {
     whatToPrepare:
       "Щоб почати, потрібно небагато:\n\n" +
       "фотографії тварин — справжні файли, а не скріншоти;\n" +
-      "кілька речень про кожну: ім'я, приблизний вік, розмір, вдача;\n" +
+      "кілька речень про кожну: імʼя, приблизний вік, розмір, вдача;\n" +
       "контакт, на який ви справді відповідаєте;\n" +
       "посилання на донати, якщо воно у вас є;\n" +
       "і одне речення про те, як часто ви оновлюєте інформацію — про нього нижче.\n\n" +
@@ -901,8 +902,9 @@ export const uk = {
       "відділу підтримки: коли ви пишете на цю адресу, відповідаю я.",
     /** §11 — one instruction, and what happens next. `{contact}` filled by the page. */
     howToStart:
-      "Напишіть на {contact}. Достатньо розказати, хто ви і скільки у вас тварин. Далі — розмова, " +
-      "перевірка, про яку йшлося вище, і ваші тварини з'являються на сайті.",
+      "Напишіть на {contact}: хто ви і скільки у вас тварин. Після розмови я створю притулок на сайті " +
+      "й надішлю вам доступ до кабінету. Тварин ви додаєте самі, поки триває перевірка, про яку " +
+      "йшлося вище, а ті, хто шукає тварину, бачать картки, щойно її завершено.",
     /** PW-2: the link to the kabinet's sign-in, `/kabinet/vkhid` (his scope item 1, verbatim). */
     signInLink: "Увійти в кабінет",
   },
@@ -963,7 +965,13 @@ export const uk = {
       throttled: "Забагато спроб входу. Спробуйте ще раз через {minutes} хв.",
       addressNote:
         "Адресу додаю я, коли запрошую притулок. Якщо адреси немає в списку, лист не прийде — і ця сторінка про це не повідомляє, щоб не розкривати, хто зареєстрований.",
-      sendFailed: "Не вдалося надіслати посилання. Перевірте з'єднання і спробуйте ще раз.",
+      /**
+       * G4 (audit 2026-10-22): a request that got no answer at all (the fetch threw),
+       * on the sign-in, set-password and reset forms. Never for a refused sign-in,
+       * which keeps `wrongCredentials`.
+       */
+      failed: "Не вдалося звʼязатися із сайтом. Перевірте зʼєднання і спробуйте ще раз.",
+      sendFailed: "Не вдалося надіслати посилання. Перевірте зʼєднання і спробуйте ще раз.",
       sentTitle: "Перевірте пошту",
       /** `{email}` is the address, shown in 500 weight. */
       sentBody:
@@ -1054,11 +1062,12 @@ export const uk = {
       title: "Профіль притулку",
       /** The phone header's short page name (K4 360: «Профіль»). */
       phoneTitle: "Профіль",
-      intro: "Те, що бачать про вас на кожній картці ті, хто шукає тварину.",
+      intro:
+        "Дані притулку: те, що бачать ті, хто шукає тварину, і те, що встановлено під час перевірки.",
       role: "адміністратор притулку",
       signOut: "Вийти",
       signOutFailed:
-        "Вийти не вдалося — ви досі в кабінеті. Перевірте з'єднання і спробуйте ще раз.",
+        "Вийти не вдалося — ви досі в кабінеті. Перевірте зʼєднання і спробуйте ще раз.",
       contactsTitle: "Контакти",
       /**
        * CB-B1 (Oleksii, 2026-10-17): no «реєстр» in user-facing copy, since it
@@ -1084,6 +1093,12 @@ export const uk = {
        * ever builds substitution, is new copy and goes through the gate.
        */
       voiceNote: "Одне речення від першої особи, написане вами.",
+      /**
+       * G3 (audit 2026-10-22): shown while the shelter is «Очікує перевірки» or «На розгляді».
+       * A claim about the operator's conduct, accepted by Oleksii as proposed.
+       */
+      pendingNote:
+        "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваших тварин бачите лише ви.",
       lockedTitle: "Встановлено під час перевірки",
       /** `{operator}` is the operator's display name (RS-Q2). */
       lockedNote:
@@ -1106,7 +1121,7 @@ export const uk = {
     },
     /** N12's verification chip labels, as KABINET.md drafts them. */
     profileStatus: {
-      pending: "Очікує",
+      pending: "Очікує перевірки",
       under_review: "На розгляді",
       verified: "Перевірено",
       rejected: "Відхилено",
@@ -1584,8 +1599,8 @@ export const uk = {
         confirm: "Зняти з показу",
       },
       withdrawReason: {
-        adopted_elsewhere: "знайшла дім іншим шляхом",
-        transferred: "переїхала до іншого притулку",
+        adopted_elsewhere: "дім знайдено іншим шляхом",
+        transferred: "переведено до іншого притулку",
         deceased: "тварини не стало",
         listing_error: "додано помилково",
         other: "інша причина",
@@ -1621,10 +1636,10 @@ export const uk = {
         hidden: "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає.",
       },
       notVisible: {
-        pending: "Ваші тварини зʼявляться в галереї, щойно притулок пройде перевірку.",
+        pending: "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
       },
       orderNote:
-        "Порядок у галереї — за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у стрічці. Тут порядок змінити не можна, і просування немає.",
+        "Порядок у галереї — за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.",
       empty: {
         title: "Тут поки немає тварин.",
         body: "Додайте першу. Ті, хто шукає тварину, побачать картку після публікації.",
@@ -1711,7 +1726,7 @@ export const uk = {
       invite: {
         subject: "Ваш доступ до кабінету притулку",
         intro:
-          "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті.",
+          "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті {site}.",
         /**
          * Q-C (Oleksii, 2026-10-19): the invite's second sentence depends on the
          * shelter's verification status at send time. `what` for a verified or
@@ -1723,7 +1738,7 @@ export const uk = {
         what: "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
         whatBeforeVerification:
           "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
-        action: "Відкрити запрошення",
+        action: "Створити пароль",
         expiry: "Запрошення діє {hours} години. Якщо не встигнете — я надішлю нове.",
         /**
          * PW-2 (Oleksii, 2026-10-20, Q2, verbatim): the link sets a password, so whoever holds it
@@ -1815,7 +1830,7 @@ export const uk = {
        * «Увійти» response and on `/kabinet`; the person stays signed in.
        */
       joinFailed:
-        "Нічого не збережено наполовину. Спробуйте ще раз — а якщо не вийде, спроба повториться автоматично під час наступного входу.",
+        "Доступ до притулку ще не додано. Натисніть «Спробувати ще раз». Якщо не вийде, сайт спробує знову, коли ви наступного разу ввійдете.",
       /**
        * The failure answer's heading, on the «Увійти» response and on
        * `/kabinet`'s `JoinFailedCard` (IN-T12 item 7, Oleksii 2026-10-14:
@@ -1994,7 +2009,7 @@ export const uk = {
       },
       history: {
         title: "Історія",
-        note: "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» тут не записуються.",
+        note: "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» і «Ще домовляються» тут не записуються.",
         empty: "Записів ще немає.",
         more: "Показати ще",
         actor: {
@@ -2079,7 +2094,7 @@ export const uk = {
         registeredAt: "Дата реєстрації",
         firstAdminTitle: "Перший адміністратор",
         firstAdminHint:
-          "Отримає лист із посиланням для входу. Інших адміністраторів можна запросити зі сторінки притулку.",
+          "Отримає запрошення на пошту: за посиланням створить пароль і увійде. Інших адміністраторів можна запросити зі сторінки притулку.",
         adminName: "Імʼя",
         submit: "Створити й надіслати запрошення",
         submitShort: "Створити",
@@ -2089,7 +2104,7 @@ export const uk = {
           step1: "Притулок зʼявиться у списку зі статусом «Очікує».",
           /** «72 години» is typed for INVITATION_TTL_MS; `copy-plural-pins.test.ts` pins it. */
           step2:
-            "{name} отримає лист для входу. Посилання діє 72 години, його можна надіслати ще раз.",
+            "{name} отримає запрошення: посилання, щоб створити пароль, діє 72 години. Його можна надіслати ще раз.",
           step3: "Тварин притулку не буде в галереї, доки ви не схвалите перевірку.",
         },
         created: "Притулок створено.",

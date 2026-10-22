@@ -300,6 +300,25 @@ describe("K1 · the password, first (PW-1)", () => {
     );
   });
 
+  /**
+   * G4 (audit 2026-10-22): a request that got no answer says so, in its own sentence; a refused
+   * sign-in keeps «Не вдалося увійти…» and never shows it. A server error (`failed`, below)
+   * is an answer, so it keeps the older line.
+   */
+  it("no answer at all: «Не вдалося звʼязатися із сайтом…», not a word about the credentials", async () => {
+    const { user } = renderWith({ kind: "no_answer" });
+    await fill(user);
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Не вдалося звʼязатися із сайтом. Перевірте зʼєднання і спробуйте ще раз.",
+    );
+  });
+
+  it("a refused sign-in never shows the no-answer sentence", async () => {
+    const { user } = renderWith({ kind: "wrong" });
+    await fill(user);
+    expect(screen.getByRole("alert").textContent).not.toContain("звʼязатися із сайтом");
+  });
+
   it("a failed request is the connection's, not the credentials'", async () => {
     const { user } = renderWith({ kind: "failed" });
     await fill(user);

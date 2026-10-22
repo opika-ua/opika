@@ -52,7 +52,7 @@ export function renderAnimalPage(load: AnimalPageLoad): ReactNode {
     case "rate_limited":
       return <AnimalRateLimitedScreen />;
     case "animal":
-      return <AnimalDetailScreen {...load.view} now={new Date()} />;
+      return <AnimalDetailScreen {...load.view} />;
   }
 }
 

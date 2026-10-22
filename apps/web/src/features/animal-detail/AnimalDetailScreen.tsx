@@ -1,12 +1,6 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
-import {
-  donationHost,
-  fillAnimalName,
-  hasAnyDocumentEvidence,
-  pluralizeUk,
-  textIn,
-} from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { donationHost, fillAnimalName, hasAnyDocumentEvidence, textIn } from "@opika/domain";
+import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { Footer } from "../chrome/Footer";
@@ -19,13 +13,14 @@ import { RevealFlow } from "./RevealFlow";
 import { ShelterFreshnessBlock } from "./ShelterFreshnessBlock";
 
 /**
- * "Перевірений вручну · {years} на Opika" — years is whole, floored, never
- * negative (a shelter created "today" reads as 0, not a fraction or a
- * negative from clock skew).
+ * "Перевірено вручну · на сайті з {year} року" — the calendar year the shelter's
+ * record was created, in UTC so the server's time zone can't move it. A count of
+ * years floored from the creation date (the earlier wording) read «0 років» for a
+ * shelter's whole first year (audit 2026-10-22 #21); a year can't. Deliberately
+ * no site name in the sentence: it was a brand string in the catalogue.
  */
-function yearsOnOpika(createdAt: Date, now: Date): number {
-  const years = (now.getTime() - createdAt.getTime()) / (365.2425 * 86_400_000);
-  return Math.max(0, Math.floor(years));
+function sinceYear(createdAt: Date): number {
+  return createdAt.getUTCFullYear();
 }
 
 /** The subtitle's own type, shared by the fur row under it rather than a style of its own. */
@@ -34,10 +29,9 @@ const SUBTITLE_TEXT = "text-[15px]/[22px] text-rg-ink-2";
 interface AnimalDetailScreenProps {
   animal: AnimalDetailView;
   shelter: PublicShelterView;
-  now: Date;
   /** Resolved by the caller (`cities.list`), same pattern as the gallery's `AnimalCard` — this component never fetches. */
   cityName: string | null;
-  /** O-12 (`docs/observations.md`): where "← Усі тварини у {city}" actually
+  /** O-12 (`docs/observations.md`): where "← Усі тварини · м. {city}" actually
    * goes — the gallery filtered to this animal's city, built by the caller
    * through `galleryHref` (`/tvaryny` unfiltered only if the city couldn't
    * be resolved). Every back-navigation on this screen shares it: the
@@ -80,14 +74,11 @@ interface AnimalDetailScreenProps {
 export function AnimalDetailScreen({
   animal,
   shelter,
-  now,
   cityName,
   backToGalleryHref,
 }: AnimalDetailScreenProps) {
   const showDocuments =
     animal.documentReadiness.kind === "tracked" && hasAnyDocumentEvidence(animal.documentReadiness);
-  const years = yearsOnOpika(shelter.createdAt, now);
-  const yearsLabel = pluralizeUk(years, { one: "рік", few: "роки", many: "років" });
 
   const subtitle = animalSubtitle(animal);
   const locationLine = animalLocationLine(animal, cityName);
@@ -325,7 +316,9 @@ export function AnimalDetailScreen({
                 */}
                 {!REGISTRY_HAS_NO_REAL_SHELTERS && (
                   <span className="text-[13px]/[18px] text-rg-ink-3">
-                    {uk.detail.shelterVerifiedYears.replace("{years}", `${years} ${yearsLabel}`)}
+                    {fillTemplate(uk.detail.shelterVerifiedYears, {
+                      year: String(sinceYear(shelter.createdAt)),
+                    })}
                   </span>
                 )}
               </div>

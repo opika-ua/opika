@@ -64,7 +64,7 @@ export async function renderAnimalOverlay(
   if (load.kind !== "animal") return notice(load.kind);
   return (
     <AnimalOverlay label={load.view.animal.name} openerHref={openerHref}>
-      <AnimalDetailScreen {...load.view} now={new Date()} />
+      <AnimalDetailScreen {...load.view} />
     </AnimalOverlay>
   );
 }

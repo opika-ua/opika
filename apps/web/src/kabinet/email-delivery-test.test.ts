@@ -94,7 +94,7 @@ describe("runDeliveryTest: both emails through Resend", () => {
     const anchors = (html: string) =>
       [...html.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => match[1]);
     expect(anchors(signIn.html)).toEqual(["Відкрити сторінку входу"]);
-    expect(anchors(invite.html)).toEqual(["Відкрити запрошення"]);
+    expect(anchors(invite.html)).toEqual(["Створити пароль"]);
     // IN-E15: the final Ukrainian through the real templates, transcribed from
     // Oleksii's answer sheet (2026-10-14), with the real TTLs, the fictional
     // shelter and the configured operator name filled in.
@@ -110,7 +110,7 @@ describe("runDeliveryTest: both emails through Resend", () => {
     expect(invite.subject).toBe("Ваш доступ до кабінету притулку");
     expect(invite.text).toBe(
       [
-        "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «Тестовий» на сайті.",
+        "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «Тестовий» на сайті Opika.",
         "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
         "http://localhost:3000/kabinet/vkhid?zaproshennia=TEST-r2",
         "Запрошення діє 72 години. Якщо не встигнете — я надішлю нове.",

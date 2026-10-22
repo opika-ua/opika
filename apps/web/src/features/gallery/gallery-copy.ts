@@ -10,19 +10,17 @@ import { uk } from "@opika/i18n";
  * count, sort"), not the same one reused at two widths.
  */
 
-const animalWord = (count: number) => pluralizeUk(count, uk.filters.animalWord);
-/** The rail's "Знайдено …" governs the accusative; the sheet's "Підходить …" is nominative. They differ only at `one` — see `uk.ts`'s note on `resultCountRail`. */
+/** Both sentences open with the impersonal "Знайдено …", which governs the accusative — see `uk.ts`'s note on `resultCountRail`. Agrees for 1, 2, 5, 11, 21 and 22 (`gallery-copy.test.ts`). */
 const animalWordAccusative = (count: number) => pluralizeUk(count, uk.filters.animalWordAccusative);
 const shelterWordLocative = (count: number) => pluralizeUk(count, uk.filters.shelterWordLocative);
 
 /**
- * "Підходить {count} тварин. Притулків у цьому місті — {shelterCount}." when
- * a city is selected — design's own screen 03 copy, written for exactly
+ * "Знайдено {count} тварин. Притулків у цьому місті: {shelterCount}." when
+ * a city is selected — design's own screen 03 sentence, written for exactly
  * that case. With no city constrained (`cityConstrained: false` — "Уся
  * Київщина", the sheet's own default), `shelterCount` spans the whole
  * oblast and "у цьому місті" would name a city that isn't selected; falls
- * back to the rail's locative shelter phrasing instead, in the sheet's own
- * verb and register.
+ * back to the rail's locative shelter phrasing instead.
  */
 export function sheetResultCount(
   count: number,
@@ -32,7 +30,7 @@ export function sheetResultCount(
   const template = cityConstrained ? uk.filters.resultCount : uk.filters.resultCountAnyCity;
   return template
     .replace("{count}", String(count))
-    .replace("{animalWord}", animalWord(count))
+    .replace("{animalWord}", animalWordAccusative(count))
     .replace("{shelterCount}", String(shelterCount))
     .replace("{shelterWord}", shelterWordLocative(shelterCount));
 }

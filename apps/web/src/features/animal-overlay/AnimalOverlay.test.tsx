@@ -189,7 +189,6 @@ describe("the reveal from the overlay and from the page", () => {
       <AnimalDetailScreen
         animal={makeDetailAnimal()}
         shelter={makeDetailShelter()}
-        now={new Date("2026-09-06T00:00:00.000Z")}
         cityName="Бровари"
         backToGalleryHref="/tvaryny?misto=brovary"
       />,

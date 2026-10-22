@@ -119,7 +119,7 @@ describe("useReveal's error reason", () => {
     );
   });
 
-  it("a failed session bootstrap is reason: 'loadFailed' — the per-IP limiter that actually protects it answers with a raw, non-oRPC 429, not a defined RATE_LIMITED error", async () => {
+  it("a failed session bootstrap is reason: 'loadFailed' unless it was the per-IP limiter's 429", async () => {
     bootstrap.mockRejectedValueOnce(new Error("session bootstrap failed"));
 
     const { result } = renderHook(() => useReveal());
@@ -131,6 +131,41 @@ describe("useReveal's error reason", () => {
       expect(result.current.state).toMatchObject({ kind: "error", reason: "loadFailed" }),
     );
     expect(revealCall).not.toHaveBeenCalled();
+  });
+
+  /**
+   * G1 (audit 2026-10-22). `session.bootstrap` is what the per-IP limiter
+   * actually protects, and it answers a raw 429 the client reports as
+   * `TOO_MANY_REQUESTS` — not a defined `RATE_LIMITED`. Its own reason, so the
+   * dialog doesn't call a limit a failure «на боці сайту». `animals.reveal` can
+   * be refused the same way, and a *defined* `RATE_LIMITED` (the reveal budget,
+   * also status 429) must keep its own reason.
+   */
+  it("the per-IP limiter's 429 is reason: 'tooManyRequests' at the bootstrap and at the reveal", async () => {
+    bootstrap.mockRejectedValueOnce(new ORPCError("TOO_MANY_REQUESTS"));
+    const first = renderHook(() => useReveal());
+    act(() => {
+      first.result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+    });
+    await waitFor(() =>
+      expect(first.result.current.state).toMatchObject({
+        kind: "error",
+        reason: "tooManyRequests",
+      }),
+    );
+    expect(revealCall).not.toHaveBeenCalled();
+
+    revealCall.mockRejectedValueOnce(new ORPCError("TOO_MANY_REQUESTS"));
+    const second = renderHook(() => useReveal());
+    act(() => {
+      second.result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+    });
+    await waitFor(() =>
+      expect(second.result.current.state).toMatchObject({
+        kind: "error",
+        reason: "tooManyRequests",
+      }),
+    );
   });
 
   /**

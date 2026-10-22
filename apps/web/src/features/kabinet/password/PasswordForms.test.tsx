@@ -107,6 +107,14 @@ describe("the reset page", () => {
     expect(field("Пароль").getAttribute("aria-describedby")).toContain(error.id);
   });
 
+  it("no answer at all: «Не вдалося звʼязатися із сайтом…» (G4, audit 2026-10-22)", async () => {
+    const { user } = renderWith({ kind: "no_answer" });
+    await submit(user, "ялинка-під-вікном");
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Не вдалося звʼязатися із сайтом. Перевірте зʼєднання і спробуйте ще раз.",
+    );
+  });
+
   it("done: every device signed out, and the way to sign in", async () => {
     const { user } = renderWith({ kind: "done" });
     await submit(user, "ялинка-під-вікном");

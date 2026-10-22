@@ -236,6 +236,71 @@ describe("ShelterProfile (K4, read-only)", () => {
     },
   );
 
+  /**
+   * G3 (audit 2026-10-22), Oleksii's accepted text transcribed: how verification goes and who
+   * acts next, for the shelter's own admin while it waits. A claim about the operator's
+   * conduct, so it is shown to no other viewer and in no other state.
+   */
+  const PENDING_NOTE =
+    "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваших тварин бачите лише ви.";
+
+  it.each([
+    ["pending", { status: "pending", since: new Date("2025-03-14T10:00:00Z") }],
+    ["under_review", { status: "under_review", since: new Date("2025-03-14T10:00:00Z") }],
+  ] as const)("tells a %s shelter's admin how verification goes", (_status, verification) => {
+    renderProfile({ verification });
+    expect(screen.getByText(PENDING_NOTE)).toBeTruthy();
+  });
+
+  it.each([
+    ["verified", { status: "verified", since: new Date("2025-03-14T10:00:00Z") }],
+    [
+      "paused",
+      {
+        status: "paused",
+        since: new Date("2025-03-14T10:00:00Z"),
+        reason: { code: "relocation", note: null },
+      },
+    ],
+    [
+      "rejected",
+      {
+        status: "rejected",
+        at: new Date("2025-03-14T10:00:00Z"),
+        reason: { code: "spam", note: "Ні" },
+      },
+    ],
+    [
+      "suspended",
+      {
+        status: "suspended",
+        at: new Date("2025-03-14T10:00:00Z"),
+        reason: { code: "other", note: "Ні" },
+      },
+    ],
+  ] as const)("says nothing about verification to a %s shelter", (_status, verification) => {
+    renderProfile({ verification: verification as KabinetShelterView["verification"] });
+    expect(screen.queryByText(PENDING_NOTE)).toBeNull();
+  });
+
+  it("does not show the note in the support view, where «я» would be the operator talking to themselves", () => {
+    renderProfile(
+      { verification: { status: "pending", since: new Date("2025-03-14T10:00:00Z") } },
+      "support",
+    );
+    expect(screen.queryByText(PENDING_NOTE)).toBeNull();
+  });
+
+  // Audit 2026-10-22 #13, transcribed: the page also holds the data set during verification.
+  it("introduces the page as the shelter's data, public and from verification", () => {
+    renderProfile();
+    expect(
+      screen.getByText(
+        "Дані притулку: те, що бачать ті, хто шукає тварину, і те, що встановлено під час перевірки.",
+      ),
+    ).toBeTruthy();
+  });
+
   it("dates a status by the day it was in Kyiv, not the server's zone", () => {
     // 22:30 UTC on 13 March is already 14 March in Kyiv.
     renderProfile({

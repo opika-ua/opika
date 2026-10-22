@@ -124,8 +124,8 @@ export const en = {
 
   // --- Detail screen (04) ---
   detail: {
-    /** Template: "Manually verified · {years} on Opika" — brand string lives here, not in domain */
-    shelterVerifiedYears: "Manually verified · {years} on Opika",
+    /** Template: "Manually verified · on the site since {year}" — `{year}` is the year the shelter's record was created. */
+    shelterVerifiedYears: "Manually verified · on the site since {year}",
     donateShelter: "Support the shelter",
     /** Template: "← All animals in {city}" */
     backToListIn: "← All animals in {city}",
@@ -191,6 +191,7 @@ export const en = {
      */
     addNearbyCities: "All of Kyiv oblast (+{count})",
     changeFilters: "Change filters",
+    toList: "Browse the list",
     reviewAgain: "Look through them again, no rush",
     footnote:
       "If you know a shelter in Kyiv oblast that isn't here — tell us, and we'll reach out to them.",
@@ -318,8 +319,8 @@ export const en = {
   about: {
     title: "About this project",
     intro:
-      "Opika is a site where animals from shelters in the Kyiv region look for a home. I build it on my own, outside of a day job. There's no team, no investor — just someone who believes finding an animal a home shouldn't depend on whether a shelter knows how to run an outdated spreadsheet.",
-    free: 'The site is free for shelters today and will stay free. No paid tiers, no "free for the first three months." If that were ever to change, every shelter would know well in advance, not after the fact.',
+      "{site} is a site where animals from shelters in the Kyiv region look for a home. One person builds it — me, in my free time. There's no team and no investor.",
+    free: "The site is free for shelters, with no paid tiers. If that ever changes, every shelter will know well in advance, not after the fact.",
     money:
       'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) — the site only shows the link; the money goes directly, and you can see exactly where.',
     data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks.",
@@ -399,6 +400,7 @@ export const en = {
       throttled: "Too many sign-in attempts. Try again in {minutes} min.",
       addressNote:
         "I add your address when I invite your shelter. If the address is not on the list no email arrives, and this page does not say so, so that it never reveals who is registered.",
+      failed: "Could not reach the site. Check your connection and try again.",
       sendFailed: "The link could not be sent. Check your connection and try again.",
       sentTitle: "Check your email",
       sentBody:
@@ -467,6 +469,8 @@ export const en = {
       voiceTitle: "The shelter's voice",
       voiceLabel: "Your words on the cards",
       voiceNote: "One sentence in the first person, written by you.",
+      pendingNote:
+        "I carry out the verification myself: I will write or call to arrange it. Until it is finished, only you can see your animals.",
       lockedTitle: "Set during verification",
       lockedNote:
         "{operator} sets these details while verifying the shelter. Here they are read-only.",
@@ -909,7 +913,7 @@ export const en = {
       },
       invite: {
         subject: `Your access to the shelter's cabinet`,
-        intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» on the site for this address.`,
+        intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» on the site {site} for this address.`,
         what: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on your cards and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
         whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on your cards and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
         action: `Open the invitation`,

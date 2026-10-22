@@ -18,7 +18,13 @@ export type SignInOutcome =
   | { kind: "wrong" }
   /** The per-address delay or the per-IP budget (a minute, the budget's window). */
   | { kind: "throttled"; minutes: number }
-  /** No answer, or a server error: the connection, not the credentials. */
+  /**
+   * The request got no answer at all (the fetch threw): the connection, not the
+   * credentials, and not the site's fault. G4 (audit 2026-10-22) gives it a sentence
+   * of its own, `kabinet.signIn.failed`; never used for a refused sign-in.
+   */
+  | { kind: "no_answer" }
+  /** A server error: an answer, but not one about the credentials. */
   | { kind: "failed" };
 
 export type ForgotOutcome = { kind: "sent" } | { kind: "throttled" } | { kind: "failed" };
@@ -28,6 +34,8 @@ export type ResetOutcome =
   | { kind: "refused"; refusal: PasswordRefusal }
   | { kind: "invalid_link" }
   | { kind: "throttled" }
+  /** G4: the request got no answer at all. */
+  | { kind: "no_answer" }
   | { kind: "failed" };
 
 export type ChangeOutcome =
@@ -47,7 +55,8 @@ const field = (body: unknown, name: string): unknown =>
 const codeOf = (answer: Answer) => (answer === null ? undefined : field(answer.body, "code"));
 
 export function signInOutcomeOf(answer: Answer): SignInOutcome {
-  if (answer === null || answer.status >= 500) return { kind: "failed" };
+  if (answer === null) return { kind: "no_answer" };
+  if (answer.status >= 500) return { kind: "failed" };
   if (answer.status === 200) return { kind: "signed_in" };
   if (answer.status === 429) {
     const minutes = field(answer.body, "retryAfterMinutes");
@@ -72,7 +81,8 @@ export function forgotOutcomeOf(answer: Answer): ForgotOutcome {
 }
 
 export function resetOutcomeOf(answer: Answer): ResetOutcome {
-  if (answer === null || answer.status >= 500) return { kind: "failed" };
+  if (answer === null) return { kind: "no_answer" };
+  if (answer.status >= 500) return { kind: "failed" };
   if (answer.status === 200) return { kind: "done" };
   if (answer.status === 429) return { kind: "throttled" };
   const refusal = passwordRefusalOf(codeOf(answer));

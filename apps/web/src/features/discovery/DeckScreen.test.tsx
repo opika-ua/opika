@@ -440,6 +440,36 @@ describe("DeckScreen", () => {
     expect(router.push).toHaveBeenCalledWith("/tvaryny?misto=brovary");
   });
 
+  /**
+   * G5 (audit 2026-10-22): the deck's end state links to the list with the deck's own
+   * filters, the same href the exit button's fallback builds. A real city filter and a real
+   * slug map, asserted against the literal URL, for the reason the test above gives.
+   */
+  it("its end state links to the list with the same filters", () => {
+    const BROVARY = CityIdSchema.parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    const filters = {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf" as const, values: [BROVARY] as const },
+    };
+    const citySlugs = new Map([[BROVARY, citySlugOf("Brovary")]]);
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "exhausted", seenCount: 4 },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 4,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={filters} total={null} filtersLabel={null} citySlugs={citySlugs} />
+      </WithMockRouter>,
+    );
+
+    const link = screen.getByRole("link", { name: "Переглянути список" });
+    expect(link.getAttribute("href")).toBe("/tvaryny?misto=brovary");
+  });
+
   it("Escape triggers the same exit as the back-to-list button", () => {
     sessionStorage.setItem(FROM_GALLERY_KEY, "1");
     const router = mockAppRouter();

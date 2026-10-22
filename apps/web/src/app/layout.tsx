@@ -1,6 +1,7 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import "./globals.css";
+import { SITE_TITLE, TITLE_TEMPLATE, WORDMARK } from "../brand";
 import { SiteAnalytics } from "../features/chrome/SiteAnalytics";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
 import { commissioner, eUkraine, literata } from "./fonts";
@@ -45,15 +46,15 @@ const linkPreviewDescription = REGISTRY_HAS_NO_REAL_SHELTERS
 
 export const metadata: Metadata = {
   title: {
-    default: "Opika — тварини з притулків Київщини",
-    template: "%s — Opika",
+    default: SITE_TITLE,
+    template: TITLE_TEMPLATE,
   },
   description: linkPreviewDescription,
   openGraph: {
     type: "website",
-    siteName: "Opika",
+    siteName: WORDMARK,
     locale: "uk_UA",
-    title: "Opika — тварини з притулків Київщини",
+    title: SITE_TITLE,
     description: linkPreviewDescription,
   },
   /**

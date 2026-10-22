@@ -8,3 +8,11 @@
  * containing the site's name (`kabinet/password-checks.ts`).
  */
 export const WORDMARK = "Opika";
+
+/**
+ * The site's `<title>` and its link-preview headline, next to the name they are built from
+ * (audit 2026-10-22, G6): they were typed in `app/layout.tsx`, outside the catalogue and
+ * outside this file, so a rename would have missed them. `%s` is Next's title template slot.
+ */
+export const SITE_TITLE = `${WORDMARK} — тварини з притулків Київщини`;
+export const TITLE_TEMPLATE = `%s — ${WORDMARK}`;

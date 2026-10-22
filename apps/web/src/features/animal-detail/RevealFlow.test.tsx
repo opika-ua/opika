@@ -228,7 +228,7 @@ describe("RevealFlow's dialog semantics", () => {
     fireEvent.click(screen.getByTestId("reveal-trigger"));
     await screen.findByTestId("reveal-dialog");
 
-    const dialog = screen.getByRole("dialog", { name: "Ось як зв'язатися з притулком." });
+    const dialog = screen.getByRole("dialog", { name: "Ось як звʼязатися з притулком." });
     expect(dialog).toBeTruthy();
     await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
   });
@@ -242,7 +242,7 @@ describe("RevealFlow's dialog semantics", () => {
     // Without a `#reveal-heading` in this branch the dialog's own
     // `aria-labelledby` dangles: an unnamed modal, with focus left on the
     // trigger button behind the overlay.
-    expect(screen.getByRole("dialog", { name: "Щось не спрацювало на нашому боці." })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Збій на боці сайту." })).toBeTruthy();
     await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
   });
 
@@ -260,9 +260,16 @@ describe("RevealFlow's dialog semantics", () => {
     await screen.findByTestId("reveal-dialog");
 
     expect(
-      screen.getByRole("dialog", { name: "Ви відкрили контакти багатьох притулків сьогодні." }),
+      screen.getByRole("dialog", {
+        name: "За останню добу ви відкрили контакти багатьох притулків.",
+      }),
     ).toBeTruthy();
-    expect(screen.getByText("Наступні — завтра.")).toBeTruthy();
+    // Audit 2026-10-22 #6: the window is a rolling day, and a shelter already opened is free.
+    expect(
+      screen.getByText(
+        "Притулки, чиї контакти ви вже відкривали, можна відкрити знову. Нові — пізніше, коли мине доба від перших.",
+      ),
+    ).toBeTruthy();
     expect(screen.queryByTestId("reveal-retry")).toBeNull();
     await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
   });
@@ -283,8 +290,12 @@ describe("RevealFlow's dialog semantics", () => {
     fireEvent.click(screen.getByTestId("reveal-trigger"));
     await screen.findByTestId("reveal-dialog");
 
-    expect(screen.getByRole("dialog", { name: "Зараз немає інтернету." })).toBeTruthy();
-    expect(screen.getByText("БЕЗ ЗВ'ЯЗКУ")).toBeTruthy();
+    expect(
+      screen.getByRole("dialog", {
+        name: "Немає звʼязку із сайтом. Перевірте інтернет і спробуйте ще раз.",
+      }),
+    ).toBeTruthy();
+    expect(screen.getByText("БЕЗ ЗВʼЯЗКУ")).toBeTruthy();
     // `uk.errors.offline` has no `body` field — the only text in this dialog
     // is the eyebrow, the title (the dialog's own accessible name, asserted
     // above) and the retry button; a stray loadFailed-style body line would
@@ -310,8 +321,31 @@ describe("RevealFlow's dialog semantics", () => {
     fireEvent.click(screen.getByTestId("reveal-trigger"));
     await screen.findByTestId("reveal-dialog");
 
-    expect(screen.getByRole("dialog", { name: "Зараз немає інтернету." })).toBeTruthy();
+    expect(
+      screen.getByRole("dialog", {
+        name: "Немає звʼязку із сайтом. Перевірте інтернет і спробуйте ще раз.",
+      }),
+    ).toBeTruthy();
     expect(revealCall).not.toHaveBeenCalled();
+  });
+
+  /**
+   * G1 (audit 2026-10-22): the per-IP limiter answers a plain 429, which the client reports
+   * as `TOO_MANY_REQUESTS` (an undefined, non-contract error). It used to read «Щось не
+   * спрацювало на нашому боці», blaming the site for a limit; it reads `detail.rateLimited`.
+   * Unlike the reveal budget above, it keeps a retry: the limit clears by itself.
+   */
+  it("shows «Забагато запитів…» with a retry for the per-IP 429, not the site's failure", async () => {
+    revealCall.mockRejectedValue(new ORPCError("TOO_MANY_REQUESTS"));
+    renderFlow();
+    fireEvent.click(screen.getByTestId("reveal-trigger"));
+    await screen.findByTestId("reveal-dialog");
+
+    expect(
+      screen.getByRole("dialog", { name: "Забагато запитів. Спробуйте ще раз пізніше." }),
+    ).toBeTruthy();
+    expect(screen.queryByText("Збій на боці сайту.")).toBeNull();
+    expect(screen.getByTestId("reveal-retry").textContent).toBe("Спробувати ще раз");
   });
 
   it("Escape closes the dialog, restores focus to the trigger, and unlocks page scroll", async () => {

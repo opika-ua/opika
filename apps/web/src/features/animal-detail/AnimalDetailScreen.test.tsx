@@ -82,16 +82,15 @@ describe("AnimalDetailScreen — shelterVerifiedYears badge (REGISTRY_HAS_NO_REA
       <AnimalDetailScreen
         animal={makeAnimal()}
         shelter={makeShelter({ createdAt: new Date("2023-01-01T00:00:00.000Z") })}
-        now={NOW}
         cityName="Бровари"
         backToGalleryHref="/tvaryny?misto=brovary"
       />,
     );
 
-    expect(screen.queryByText(/Перевірений вручну/)).toBeNull();
+    expect(screen.queryByText(/Перевірено вручну/)).toBeNull();
   });
 
-  it("shows the real badge, with the real computed year count, once real shelters exist", async () => {
+  it("shows the badge with the year the shelter's record was created, once real shelters exist", async () => {
     vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
 
@@ -99,16 +98,30 @@ describe("AnimalDetailScreen — shelterVerifiedYears badge (REGISTRY_HAS_NO_REA
       <AnimalDetailScreen
         animal={makeAnimal()}
         shelter={makeShelter({ createdAt: new Date("2023-01-01T00:00:00.000Z") })}
-        now={NOW}
         cityName="Бровари"
         backToGalleryHref="/tvaryny?misto=brovary"
       />,
     );
 
-    // 2023-01-01 -> 2026-09-06 is 3 whole years — transcribed as a plain
-    // number here rather than computed via the component's own
-    // `yearsOnOpika`, so this doesn't turn into a self-comparing assertion.
-    expect(screen.getByText("Перевірений вручну · 3 роки на Opika")).not.toBeNull();
+    // Audit 2026-10-22 #21: a year, not a count of years — a shelter's whole first year
+    // used to read «0 років на Opika». Transcribed from the audit's wording.
+    expect(screen.getByText("Перевірено вручну · на сайті з 2023 року")).not.toBeNull();
+  });
+
+  it("reads the year in UTC, so the server's time zone can't move it across New Year", async () => {
+    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter({ createdAt: new Date("2025-12-31T23:30:00.000Z") })}
+        cityName="Бровари"
+        backToGalleryHref="/tvaryny?misto=brovary"
+      />,
+    );
+
+    expect(screen.getByText("Перевірено вручну · на сайті з 2025 року")).not.toBeNull();
   });
 });
 
@@ -132,7 +145,6 @@ describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
       <AnimalDetailScreen
         animal={makeAnimal()}
         shelter={makeShelter()}
-        now={NOW}
         cityName="Бровари"
         backToGalleryHref="/tvaryny?misto=brovary"
       />,
@@ -151,7 +163,6 @@ describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
       <AnimalDetailScreen
         animal={makeAnimal()}
         shelter={makeShelter()}
-        now={NOW}
         cityName="Бровари"
         backToGalleryHref="/tvaryny?misto=brovary"
       />,
@@ -172,7 +183,6 @@ describe("AnimalDetailScreen — the shelter's sentence and its attribution (VH-
       <AnimalDetailScreen
         animal={{ ...base, shelter: { ...base.shelter, freshnessSentence } }}
         shelter={makeShelter()}
-        now={NOW}
         cityName="Бровари"
         backToGalleryHref="/tvaryny?misto=brovary"
       />,
@@ -218,7 +228,6 @@ describe("AnimalDetailScreen — a city name is printed literally (review findin
       <AnimalDetailScreen
         animal={makeAnimal()}
         shelter={makeShelter()}
-        now={NOW}
         cityName="Місто $& $1"
         backToGalleryHref="/tvaryny?misto=brovary"
       />,
@@ -239,7 +248,6 @@ describe("AnimalDetailScreen subtitle, by sex", () => {
       <AnimalDetailScreen
         animal={makeAnimal({ sex, ageBucket: "young" })}
         shelter={makeShelter()}
-        now={NOW}
         cityName="Бровари"
         backToGalleryHref="/tvaryny"
       />,
@@ -259,7 +267,6 @@ describe("AnimalDetailScreen — the fur fact", () => {
       <AnimalDetailScreen
         animal={makeAnimal({ coatLength })}
         shelter={makeShelter()}
-        now={NOW}
         cityName="Бровари"
         backToGalleryHref="/tvaryny"
       />,
