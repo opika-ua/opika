@@ -49,7 +49,7 @@ test.describe("/tvaryny out-of-range page", () => {
 
     await expect(page.locator(NOTICE)).toBeVisible();
     await expect(page.locator(NOTICE)).toContainText("Сторінки 50 не існує");
-    await expect(page.locator(NOTICE)).toContainText("сторінку 10");
+    await expect(page.locator(NOTICE)).toContainText("сторінка 10");
 
     // The clamp actually happened, not just the notice: real cards render,
     // and the pagination nav (if present) agrees this is page 10.
@@ -204,7 +204,7 @@ test.describe("/tvaryny no-match — relaxation counts are real numbers", () => 
     await suggestion.click();
 
     await expect(page.locator(CARD).first()).toBeVisible();
-    const resultCount = page.getByText(/Знайдено \d+/);
+    const resultCount = page.getByText(/Знайдено \d+/).first();
     await expect(resultCount).toContainText(`Знайдено ${claimedCount} `);
   });
 });

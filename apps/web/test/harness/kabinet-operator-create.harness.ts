@@ -151,7 +151,7 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
     await page.getByRole("button", { name: "Створити й надіслати запрошення" }).click();
 
     await expect(page.getByRole("heading", { name: "Притулок створено." })).toBeVisible();
-    await expect(page.getByText("Очікує", { exact: true })).toBeVisible();
+    await expect(page.getByText("Очікує перевірки", { exact: true })).toBeVisible();
     await expect(page.getByRole("status")).toHaveText(
       "Запрошення надіслано. Перевірити, чи адреса не заблокована, не вдалося.",
     );
@@ -166,7 +166,7 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
       page.getByRole("link", { name: "Відкрити притулок" }).click(),
     ]);
     await expect(page.getByRole("heading", { level: 1, name: displayName })).toBeVisible();
-    await expect(page.getByText("Очікує", { exact: true })).toBeVisible();
+    await expect(page.getByText("Очікує перевірки", { exact: true })).toBeVisible();
     await page.close();
   });
 });

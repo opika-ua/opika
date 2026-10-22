@@ -353,7 +353,7 @@ test.describe("the gallery's animal overlay", () => {
       // The reveal answered (the per-day limit counted it like the page's):
       // the contact, not a refusal.
       await expect(
-        page.getByTestId("reveal-dialog").getByText("Ось як зв'язатися з притулком."),
+        page.getByTestId("reveal-dialog").getByText("Ось як звʼязатися з притулком."),
       ).toBeVisible();
     });
   });

@@ -22,7 +22,7 @@ test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.43" } });
 const CARD = "[data-testid='animal-card']";
 
 const foundCount = async (page: import("@playwright/test").Page): Promise<number> => {
-  const text = await page.getByText(/Знайдено \d+/).innerText();
+  const text = await page.getByText(/Знайдено \d+/).first().innerText();
   return Number(text.match(/Знайдено (\d+)/)?.[1]);
 };
 
