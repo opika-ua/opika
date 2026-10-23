@@ -86,9 +86,9 @@ the thrown error down, at any depth. If the walk stops first (on a loop, past 64
 read that throws), the throw is cleaned too (fail closed, his rule). So does an `errors` that is
 there but isn't an array (a `Set`, an array-like, a plain object): the walk can't see into it, so
 the throw is cleaned (F8-F2, his Q2). The cleaned chain itself only ever follows `cause` three
-hops deep from the outermost error (`CAUSE_DEPTH`) — the outermost error itself, then Drizzle's
-error, the driver's, and one more, four objects linked by three hops. When none of those four
-carries a SQLSTATE, a separate, deeper walk over the original error's `cause`/`errors` tree
+hops deep from the outermost error (`CAUSE_DEPTH`) — four linked objects over three hops, not
+three. When none of those four carries a SQLSTATE, a separate, deeper walk over the original
+error's `cause`/`errors` tree
 (`walkOf`, the same walk above, within its own 64-error limit) finds the facts of the first raw
 query error at whatever depth it's actually at, and attaches them to the outermost cleaned error
 only — the chain under it still stops at three hops (F8-F2). A cleaned error is never named `APIError`, so Better Auth answers it as
