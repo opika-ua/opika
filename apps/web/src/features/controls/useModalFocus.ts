@@ -13,13 +13,13 @@ const FOCUSABLE =
   'button:not([disabled]), select:not([disabled]), textarea:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 
 /**
- * The modal behaviour shared by `ModalDialog` and the gallery's preview
- * drawer (designer round 1, DR1-D6: one trap, not one per dialog): focus to
+ * The modal behaviour shared by `ModalDialog` and the gallery's animal
+ * overlay (designer round 1, DR1-D6: one trap, not one per dialog): focus to
  * the title on open, Tab and Shift+Tab cycle inside the dialog, Escape calls
  * `onClose`, and the page behind doesn't scroll while it is open.
  *
  * The scroll lock is a layout effect, not a passive one (RF-F1,
- * `docs/decisions-inbox/fix-rf-f1-reveal-scroll-lock.md`). The drawer mounts
+ * `docs/decisions-inbox/fix-rf-f1-reveal-scroll-lock.md`). The overlay mounts
  * when a server navigation resolves, not inside the click that asked for
  * it, and React defers a passive effect from such an update to after the
  * next paint: one frame where the dialog is visible and the page behind it

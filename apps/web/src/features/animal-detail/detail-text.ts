@@ -6,9 +6,11 @@ function speciesLabel(species: AnimalDetailView["species"]): string {
 }
 
 /**
- * The line under the animal's name: species · age · size. Shared by the
- * animal page and the gallery's preview drawer, so the drawer can't describe
- * an animal differently from the page it opens.
+ * The line under the animal's name: species · age · size. Its own function,
+ * not inlined into `AnimalDetailScreen` (its only caller since S4b unified
+ * the animal page and the gallery's overlay into one shared screen
+ * component, rendered from both routes) — kept separate for the same reason
+ * `CoatFact` is.
  */
 export function animalSubtitle(animal: AnimalDetailView): string {
   return [

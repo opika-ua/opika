@@ -23,12 +23,12 @@ import { markEnteringFromGallery } from "../discovery/deck-entry-marker";
  * was about to need.
  *
  * **A plain `<a>` since designer round 1, S4, not `next/link`.** The gallery's
- * preview drawer is an intercepting route for `/tvaryny/[animalId]`, and Next
+ * animal overlay is an intercepting route for `/tvaryny/[animalId]`, and Next
  * 16.3 matches it against every client navigation from under `/tvaryny`:
  * `/tvaryny/gortaty` fits `[animalId]`, so a client navigation to the deck
- * was rewritten into the drawer's slot, leaving the gallery on screen under
- * the deck's URL (`gallery-preview-drawer.harness.ts`, "the deck's entry link
- * still reaches the deck", failed exactly so). A document load is never
+ * was rewritten into the overlay's slot, leaving the gallery on screen under
+ * the deck's URL (`gallery-animal-overlay.harness.ts`, "the deck's entry link
+ * still reaches the deck, not an overlay", failed exactly so). A document load is never
  * intercepted, wherever the app is hosted. It also never prefetches, so the
  * rate-limit reasoning above holds with nothing to switch off. The marker
  * below lives in `sessionStorage`, which a document load in the same tab

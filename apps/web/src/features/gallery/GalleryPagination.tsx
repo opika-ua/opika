@@ -117,10 +117,10 @@ export function PaginationNav({
     >
       {page > 1 ? (
         <Link
-          // Off, like the cards' own links: with the preview drawer's interception
-          // in the tree, Next keys prefetches by the current URL, so every drawer
+          // Off, like the cards' own links: with the animal overlay's interception
+          // in the tree, Next keys prefetches by the current URL, so every overlay
           // opened re-prefetched every visible gallery link, each one a request
-          // against proxy.ts's per-IP limit (gallery-preview-drawer.harness.ts).
+          // against proxy.ts's per-IP limit (gallery-animal-overlay.harness.ts).
           prefetch={false}
           href={pageHref(page - 1)}
           data-testid="pagination-prev"

@@ -2,9 +2,11 @@ import { uk } from "@opika/i18n";
 
 /**
  * What the gallery's overlay shows when it has no animal to show. The full
- * page answers `not_found` with its 404 (`not-found.tsx`) and a failure with
- * `/tvaryny/error.tsx`; the overlay sits over a gallery that still works, so
- * it says the same things inside the dialog and leaves ✕ to get back.
+ * page answers `not_found` with its 404 (`not-found.tsx`), `rate_limited`
+ * with its own screen (`<RateLimitedScreen/>`, his sentence, RL-F1), and any
+ * other failure with `/tvaryny/error.tsx`; the overlay sits over a gallery
+ * that still works, so it says the same three things inside the dialog and
+ * leaves ✕ to get back.
  *
  * - `not_found`: the 404's own copy (an animal adopted, withdrawn or paused
  *   between the gallery's render and the click, DR1-S4-T6).

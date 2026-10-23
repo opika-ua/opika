@@ -5,7 +5,7 @@ import { ModalDialog } from "./ModalDialog";
 
 /**
  * `ModalDialog` on its own, since its trap moved into `useModalFocus`
- * (designer round 1, DR1-D6), which the preview drawer shares. Its callers'
+ * (designer round 1, DR1-D6), which the gallery's animal overlay shares. Its callers'
  * tests (`ReasonDialog`, `PauseControl`, the K2 list dialogs) cover what
  * goes inside; this covers the frame.
  */

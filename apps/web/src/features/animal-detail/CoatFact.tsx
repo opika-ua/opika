@@ -8,10 +8,13 @@ const COAT_VALUE: Record<CoatLength, string> = {
 };
 
 /**
- * The fur fact, shared by the animal page and the gallery's preview drawer so
- * the two can't disagree. His rule (DR1, S3): «Шерсть» with the form's words
- * «Коротка» / «Довга», and no row at all when fur isn't recorded («Не вказано»
- * is the kabinet's word, never an adopter's).
+ * The fur fact. Its own file, not inlined into `AnimalDetailScreen` (its
+ * only caller since S4b unified the animal page and the gallery's overlay
+ * into one shared screen component, rendered from both routes) — kept
+ * separate so a second caller, if one ever needs this fact again, doesn't
+ * have to pull it back out of a larger component. His rule (DR1, S3):
+ * «Шерсть» with the form's words «Коротка» / «Довга», and no row at all when
+ * fur isn't recorded («Не вказано» is the kabinet's word, never an adopter's).
  */
 export function CoatFact({
   coatLength,

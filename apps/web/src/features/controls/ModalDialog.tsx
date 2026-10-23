@@ -14,7 +14,7 @@ import { useModalFocus } from "./useModalFocus";
  * card. Focus moves to the title on open; Tab and Shift+Tab cycle inside
  * while it is open; Escape and ✕ both close it (the reveal dialog's own
  * pattern, `ContactRevealDialog`). The page behind doesn't scroll while it is
- * open (`useModalFocus`, shared with the gallery's preview drawer). The title
+ * open (`useModalFocus`, shared with the gallery's animal overlay). The title
  * is its accessible name, the body its description. Giving focus back to
  * whatever opened it is the caller's: only the caller knows whether that
  * control still exists after the action.
