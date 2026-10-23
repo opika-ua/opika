@@ -21,6 +21,7 @@
     "db:seed": "tsx src/seed.ts",
     "onboard:shelter": "tsx src/onboard-shelter.ts",
     "test-db:ensure": "tsx src/test-utils/ensure-test-database.ts",
+    "test-db:reset": "tsx src/test-utils/reset-test-database.ts",
     "db:check-hashes": "tsx src/check-migration-hashes.ts",
     "location:verify": "tsx src/verify-locations.ts",
     "demo:remove": "tsx src/demo-remove.ts",

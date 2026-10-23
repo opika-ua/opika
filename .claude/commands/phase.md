@@ -105,8 +105,9 @@ Before opening the PR, make sure every pending review has actually been read and
 
 1. Read every file under `docs/reviews/<branch>/`. A blocker gets its own small commit,
    re-reviewed as a delta. A `PASS WITH NOTES` merges, and its notes go to the area's follow-up
-   batch. A blocker surviving two rounds goes into the pull request as unresolved rather than
-   being attempted a third time.
+   batch. A blocker surviving two rounds is not attempted a third time: it goes to Oleksii as a
+   decision, and the PR stays a draft until he answers. It never goes into the pull request as
+   unresolved, and it never becomes "not a blocker".
 2. If any review file says `STOP` and it hasn't already been surfaced to Oleksii, do that now
    per the working loop's STOP handling — the branch stays pushed with the decision pending,
    and the PR (if opened) stays a draft until it resolves.
@@ -125,7 +126,7 @@ Only once `pnpm check` is green, including `next build` and the harness:
 
 ```
 git push -u origin <branch>
-gh pr create --fill
+gh pr create --draft --fill
 ```
 
 The body must contain:

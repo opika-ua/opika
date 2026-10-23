@@ -82,6 +82,8 @@ afterAll(async () => cleanup?.());
 const NOW = new Date("2026-10-21T10:00:00.000Z");
 const LATER = new Date(NOW.getTime() + 72 * 3_600_000);
 const TOKEN = "pw2-f1-token";
+/** The invitee's user, so the control can check the link resolves to it. */
+let inviteeId: string;
 
 /**
  * An otherwise usable link: a pending, unexpired invitation to a shelter, for an address whose
@@ -96,6 +98,7 @@ beforeEach(async () => {
   });
   await shelterRepo(db).insert(shelter);
   const inviter = crypto.randomUUID();
+  inviteeId = crypto.randomUUID();
   await db.insert(authUser).values([
     {
       id: inviter,
@@ -106,7 +109,7 @@ beforeEach(async () => {
       updatedAt: NOW,
     },
     {
-      id: crypto.randomUUID(),
+      id: inviteeId,
       name: "Олена",
       email: "olena@example.org",
       emailVerified: false,
@@ -148,6 +151,15 @@ describe("landingOf reads the refusal flags fail-closed (PW2-F1)", () => {
       hasPassword: row?.hasPassword,
       member: row?.member,
     }).toEqual({ operator: false, hasPassword: false, member: false });
+    // And nothing but a flag could refuse it (PW2-F2): `invitePasswordStateOf` (apps/web)
+    // refuses a link with no user or a status other than pending before it reads any flag,
+    // so without these the cases below could go red, or stay green, for another reason.
+    expect({ userId: row?.userId, status: row?.status }).toEqual({
+      userId: inviteeId,
+      status: "pending",
+    });
+    expect(row?.linkExpiresAt.getTime()).toBeGreaterThan(NOW.getTime());
+    expect(row?.invitationExpiresAt.getTime()).toBeGreaterThan(NOW.getTime());
   });
 
   for (const flag of FLAGS) {

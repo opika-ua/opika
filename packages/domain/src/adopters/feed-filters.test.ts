@@ -8,7 +8,6 @@ import {
   filtersFingerprint,
   isConstrained,
   isExplicitlySelected,
-  isUnfiltered,
   matchesSelection,
   NO_FILTERS,
   relaxDimension,
@@ -102,7 +101,6 @@ describe("canonicalizeFilters", () => {
       species: { kind: "oneOf", values: ["dog", "cat"] },
     };
     expect(canonicalizeFilters(everySpecies)).toEqual(NO_FILTERS);
-    expect(isUnfiltered(canonicalizeFilters(everySpecies))).toBe(true);
   });
 
   it("does not collapse a partial selection", () => {
@@ -126,18 +124,6 @@ describe("canonicalizeFilters", () => {
     };
     const once = canonicalizeFilters(filters);
     expect(canonicalizeFilters(once)).toEqual(once);
-  });
-});
-
-describe("isUnfiltered", () => {
-  it("is true when nothing is constrained", () => {
-    expect(isUnfiltered(NO_FILTERS)).toBe(true);
-  });
-
-  it("is false when any dimension is constrained", () => {
-    expect(isUnfiltered({ ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } })).toBe(
-      false,
-    );
   });
 });
 
@@ -224,7 +210,6 @@ describe("the fur dimension (DR1, S2)", () => {
       kind: "oneOf",
       values: ["long"],
     });
-    expect(isUnfiltered(furOnly(["long"]))).toBe(false);
     expect(isConstrained(furOnly(["short"]), "coatLengths")).toBe(true);
   });
 

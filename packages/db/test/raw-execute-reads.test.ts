@@ -44,6 +44,11 @@ import { rowsOfRawResult } from "../src/raw-rows";
  * accident (the shapes code actually takes), not evasion: `const { execute } =
  * db` and `db["execute"]` are not followed. Being a lexer, it also takes JSX
  * text in a `.tsx` file as code; a quote there is closed at the end of its line.
+ * It tells a regex from a division by the token before the `/` (RX-F2): a
+ * regex follows punctuation, a keyword such as `return` or `typeof`, `=>`, or
+ * the `)` closing an `if`/`while`/`for`/`with` head. A `}` is always taken as
+ * ending a block, so a division right after an object literal (`({}) / 2` is
+ * the only shape) is lexed as a regex to the end of its line.
  */
 
 const REPO_ROOT = resolve(fileURLToPath(import.meta.url), "../../../..");
@@ -65,8 +70,29 @@ function sourceFiles(directory: string): string[] {
 
 const IDENTIFIER_CHAR = /[\w$]/;
 // After one of these (or nothing), a `/` opens a regular expression, not a division.
-// `<` and `>` are left out so that JSX's `</p>` and `/>` stay code.
+// `<` and `>` are left out so that JSX's `</p>` and `/>` stay code; `=>` is handled on its own.
 const REGEX_MAY_FOLLOW = new Set([..."(,=:[!&|?{};+-*%~^"]);
+// A word after which a `/` opens a regex: an operand can't follow an operand, so after
+// these keywords the slash starts one (`return /`/.test(s)` read as division hid the
+// rest of the file behind the backtick, RX-F2).
+const REGEX_MAY_FOLLOW_WORD = new Set([
+  "return",
+  "typeof",
+  "instanceof",
+  "in",
+  "of",
+  "new",
+  "delete",
+  "void",
+  "throw",
+  "case",
+  "do",
+  "else",
+  "yield",
+  "await",
+]);
+// The `)` closing one of these heads ends no operand: `if (x) /re/.test(s)` is a regex.
+const CONTROL_HEAD_WORD = new Set(["if", "while", "for", "with"]);
 
 /**
  * The source with every comment, and every string's and template's text,
@@ -75,13 +101,18 @@ const REGEX_MAY_FOLLOW = new Set([..."(,=:[!&|?{};+-*%~^"]);
  * end of its line, so one apostrophe can't swallow the rest of the file.
  */
 function codeOnly(source: string): string {
-  const out = [...source];
+  // UTF-16 units, as `source[i]` indexes: a code-point split (`[...source]`) shifted every
+  // blanked range one place per astral character before it (RX-F2).
+  const out = source.split("");
   const blank = (from: number, to: number) => {
     for (let k = from; k < to; k++) if (out[k] !== "\n") out[k] = " ";
   };
   // One entry per open template expression: the `{` depth at which its `}` closes it.
   const templateDepths: number[] = [];
   let depth = 0;
+  // One entry per open `(`: whether it opens an `if`/`while`/`for`/`with` head.
+  const parenIsControlHead: boolean[] = [];
+  let lastClosedParenWasControlHead = false;
   let i = 0;
 
   const scanTemplateText = () => {
@@ -104,10 +135,29 @@ function codeOnly(source: string): string {
     blank(start, i);
   };
 
-  const previousCodeChar = (before: number) => {
+  const previousCodeIndex = (before: number) => {
     let k = before - 1;
     while (k >= 0 && /\s/.test(out[k] ?? "")) k--;
-    return k < 0 ? "" : (out[k] ?? "");
+    return k;
+  };
+  const wordEndingAt = (end: number) => {
+    let k = end;
+    while (k >= 0 && IDENTIFIER_CHAR.test(out[k] ?? "")) k--;
+    return out.slice(k + 1, end + 1).join("");
+  };
+  const previousWord = (before: number) => {
+    const k = previousCodeIndex(before);
+    return k >= 0 && IDENTIFIER_CHAR.test(out[k] ?? "") ? wordEndingAt(k) : "";
+  };
+  const regexMayStartAt = (slash: number) => {
+    const k = previousCodeIndex(slash);
+    if (k < 0) return true;
+    const previous = out[k] ?? "";
+    if (REGEX_MAY_FOLLOW.has(previous)) return true;
+    if (previous === ">") return out[k - 1] === "=";
+    if (previous === ")") return lastClosedParenWasControlHead;
+    // A word: a keyword lets an operand follow, a name or number is one.
+    return IDENTIFIER_CHAR.test(previous) && REGEX_MAY_FOLLOW_WORD.has(wordEndingAt(k));
   };
 
   while (i < source.length) {
@@ -133,7 +183,7 @@ function codeOnly(source: string): string {
     } else if (c === "`") {
       i++;
       scanTemplateText();
-    } else if (c === "/" && REGEX_MAY_FOLLOW.has(previousCodeChar(i) || ";")) {
+    } else if (c === "/" && regexMayStartAt(i)) {
       const start = i++;
       let inClass = false;
       while (i < source.length && source[i] !== "\n") {
@@ -147,6 +197,12 @@ function codeOnly(source: string): string {
         i++;
       }
       blank(start + 1, i);
+      i++;
+    } else if (c === "(") {
+      parenIsControlHead.push(CONTROL_HEAD_WORD.has(previousWord(i)));
+      i++;
+    } else if (c === ")") {
+      lastClosedParenWasControlHead = parenIsControlHead.pop() ?? false;
       i++;
     } else if (c === "{") {
       depth++;
@@ -248,6 +304,7 @@ describe("rawExecuteReadsIn", () => {
     // `relaxationCounts` before #166, verbatim in shape.
     const relaxationCountsBefore = [
       "      const rows = await db.execute<Record<string, string | number>>(",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: source text for the scanner, holding a template on purpose
       "        sql`SELECT ${sql.join(columns, sql`, `)} FROM ${animals} WHERE ${base}`,",
       "      );",
       "      const row = Array.from(rows as Iterable<Record<string, string | number>>)[0] ?? {};",
@@ -270,6 +327,7 @@ describe("rawExecuteReadsIn", () => {
       "export async function counts(db: Database, base: SQL) {",
       "  const rows = Array.from(",
       "    await db.execute<Record<string, string | number>>(",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: source text for the scanner, holding a template on purpose
       "      sql`SELECT count(*) AS current FROM ${animals} WHERE ${base} AND ${animals.species} = 'cat'`,",
       "    ),",
       "  );",
@@ -315,6 +373,7 @@ describe("rawExecuteReadsIn", () => {
     );
     expect(
       rawExecuteReadsIn(
+        // biome-ignore lint/suspicious/noTemplateCurlyInString: source text for the scanner, holding a template on purpose
         "async function f() {\n  await this.db.execute(sql`SET x = ${(() => 1)()}`);\n  await db.execute<never>(q);\n}",
       ),
     ).toEqual([]);
@@ -327,6 +386,41 @@ describe("rawExecuteReadsIn", () => {
       [],
     );
     expect(rawExecuteReadsIn("  const hint = `const rows = await db.execute(q)`;")).toEqual([]);
+  });
+});
+
+describe("codeOnly's lexing (RX-F2)", () => {
+  const READ = "const r = await db.execute(q);\nreturn r;";
+
+  it("refuses a read inside a template's embedded expression, which stays code", () => {
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: source text for the scanner, holding a template on purpose
+    expect(rawExecuteReadsIn("  const s = `first: ${(await db.execute(q))[0]}`;")).toEqual([1]);
+  });
+
+  it("lexes a regex after a keyword, `=>` or a control head, so its backtick opens no template", () => {
+    const afterRegex = (regexLine: string) => rawExecuteReadsIn(`${regexLine}\n${READ}`);
+    expect(afterRegex("export function a(s: string) {\n  return /`/.test(s);\n}")).toEqual([4]);
+    expect(afterRegex("const a = (s: string) => /`/.test(s);")).toEqual([2]);
+    expect(afterRegex("if (typeof /`/ === s) x();")).toEqual([2]);
+    expect(afterRegex("if (ok) /`/.test(s);")).toEqual([2]);
+    expect(afterRegex("while (s) /`/.exec(s);")).toEqual([2]);
+  });
+
+  it("keeps a division a division: after a name, a number or a call's `)`", () => {
+    // Read as regexes, each would blank the rest of its line, the read on it included.
+    expect(rawExecuteReadsIn("const h = total / 2; const r = await db.execute(q);")).toEqual([1]);
+    expect(rawExecuteReadsIn("const h = 10 / 2; const r = await db.execute(q);")).toEqual([1]);
+    expect(rawExecuteReadsIn("const h = f(x) / 2; const r = await db.execute(q);")).toEqual([1]);
+    expect(rawExecuteReadsIn("const h = (a + b) / 2; const r = await db.execute(q);")).toEqual([1]);
+    // A name that merely contains a keyword is still a name.
+    expect(rawExecuteReadsIn("const h = returned / 2; const r = await db.execute(q);")).toEqual([
+      1,
+    ]);
+  });
+
+  it("blanks by UTF-16 offset, so astral characters before a statement don't shift it", () => {
+    expect(rawExecuteReadsIn("// 🐶🐱\nawait db.execute(sql`TRUNCATE x`);")).toEqual([]);
+    expect(rawExecuteReadsIn("const e = '🐶🐱';\nconst r = await db.execute(q);")).toEqual([2]);
   });
 });
 

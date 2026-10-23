@@ -1459,6 +1459,20 @@ export function buildDemoAnimals(
 // Main
 // ---------------------------------------------------------------------------
 
+/**
+ * The seed's truncate. CASCADE also empties every table that references
+ * `shelters`, which since 0009 includes `shelter_history`: a reseed erases
+ * the operator's audit trail along with the shelters it describes. The
+ * `auth_*` tables are not touched (shelters point at organizations, not the
+ * other way round), so kabinet users and organizations survive a reseed,
+ * unlinked from any shelter, and resolve to no role. The harness empties
+ * them itself before seeding (`test-db:reset`). Exported so a test runs the
+ * same statement.
+ */
+export async function truncateForReseed(db: Database): Promise<void> {
+  await db.execute(sql`TRUNCATE reveals, swipes, animals, adopters, shelters, cities CASCADE`);
+}
+
 async function main(profile: SeedProfile) {
   console.log("🐾 Seeding database...");
   console.log(`  Profile:      ${profile}`);
@@ -1469,14 +1483,8 @@ async function main(profile: SeedProfile) {
   const client = postgres(DATABASE_URL, { max: 1 });
   const db = drizzle(client, { schema });
 
-  // Truncate all tables. CASCADE also empties every table that references
-  // `shelters`, which since 0009 includes `shelter_history`: a reseed erases
-  // the operator's audit trail along with the shelters it describes. The
-  // `auth_*` tables are not touched (shelters point at organizations, not the
-  // other way round), so kabinet users and organizations survive a reseed,
-  // unlinked from any shelter, and resolve to no role.
   console.log("  Truncating existing data...");
-  await db.execute(sql`TRUNCATE reveals, swipes, animals, adopters, shelters, cities CASCADE`);
+  await truncateForReseed(db);
 
   // Build data
   const citiesList = buildCities();
