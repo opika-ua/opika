@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { en } from "./messages/en";
 import { PENDING_R4_2_ANALYTICS_SENTENCE, uk } from "./messages/uk";
@@ -56,6 +57,21 @@ describe("message catalogue apostrophes", () => {
     const offending = leafStrings(en, "")
       .filter(([, text]) => LOOK_ALIKE_BETWEEN_LETTERS.test(text))
       .map(([path]) => path);
+    expect(offending).toEqual([]);
+  });
+
+  it("no seed string a person can read uses U+0027 or U+2019 between letters", () => {
+    // The seed is what a demo visitor reads as shelter-authored text, and it
+    // is code, not the catalogue, so it is scanned as source: comment lines
+    // are free, a string literal is not. Read as text because the seed's
+    // module pulls in the database driver, which this package must not.
+    const seedSource = readFileSync(new URL("../../db/src/seed.ts", import.meta.url), "utf8");
+    const offending = seedSource
+      .split("\n")
+      .map((line, index): [number, string] => [index + 1, line])
+      .filter(([, line]) => !/^\s*(\/\/|\*|\/\*)/u.test(line))
+      .filter(([, line]) => LOOK_ALIKE_BETWEEN_LETTERS.test(line))
+      .map(([lineNumber]) => `seed.ts:${lineNumber}`);
     expect(offending).toEqual([]);
   });
 

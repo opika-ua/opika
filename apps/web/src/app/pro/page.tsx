@@ -5,6 +5,12 @@ import { Footer } from "../../features/chrome/Footer";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 
 /**
+ * `about.intro` names the site with a `{site}` slot (audit 2026-10-22 #33): the
+ * name is app config (`brand.ts`), never typed in the catalogue.
+ */
+const INTRO = fillTemplate(uk.about.intro, { site: WORDMARK });
+
+/**
  * Title only, plus an explicit `description`/`openGraph` override (Option B,
  * 2026-09-06, see `docs/observations.md`) — without one this page would
  * inherit the root layout's default, which swaps to the demo-data
@@ -22,12 +28,6 @@ import { SiteHeader } from "../../features/chrome/SiteHeader";
  * brand name from the link-preview headline (PR #53 review, caught by
  * rebuilding and diffing the served `og:title`, not by inspection).
  */
-/**
- * `about.intro` names the site with a `{site}` slot (audit 2026-10-22 #33): the
- * name is app config (`brand.ts`), never typed in the catalogue.
- */
-const INTRO = fillTemplate(uk.about.intro, { site: WORDMARK });
-
 export const metadata: Metadata = {
   title: uk.about.title,
   description: INTRO,
