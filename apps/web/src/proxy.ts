@@ -171,18 +171,24 @@ export function isCronPath(pathname: string): boolean {
  * — found by running the saved-page harness against a real server, not
  * inferred.
  *
- * **S8-D1, open, not settled** (review of 529a6cc, finding 3): the earlier
- * version of this comment claimed the exemption "leaks nothing… the same
- * shape and visibility `/tvaryny` already serves through the gate" — false.
- * `/tvaryny` still requires the gate cookie; this path, once exempted,
- * answers *anyone* holding an animal id and no cookie at all, which is a
- * different exposure during the pre-launch window than anything else this
- * file exempts (the kabinet and cron exemptions both came from Oleksii's own
- * answers — IN-Q1, KH-T5 — not a builder default). Left in place, tested,
- * because the alternative ships a non-functional feature; whether that
- * trade is the right one is his call, not a default to take. Queued in
- * `docs/decisions-inbox/feat-dr1-s8-saved-page.md` (S8-D1) for his explicit
- * yes/no before this PR merges.
+ * **S8-D1, settled.** An earlier version of this comment claimed the
+ * exemption "leaks nothing… the same shape and visibility `/tvaryny`
+ * already serves through the gate" — a reviewer correctly called that
+ * false (`/tvaryny` still requires the gate cookie; this path, once
+ * exempted, answers *anyone* holding an animal id and no cookie at all).
+ * Oleksii's own answer, 2026-10-23 (option (b), exempt it): the gate is a
+ * bot shutter, not a security boundary — his own 2026-09-13 note, quoted
+ * in full in `prelaunch-gate.ts`'s own top comment. The ids this path is
+ * ever called with come only from gated pages (the gallery, the animal
+ * page — both require the gate cookie to reach at all), so exempting this
+ * one batch-read procedure adds no way to enumerate ids that gating it
+ * would otherwise have closed off. Enforced and tested, per his answer:
+ * POST only (`route.ts`, `CARDS_BY_IDS_PATH`); at most 200 valid animal
+ * ids (`MAX_SAVED_CARDS_PER_REQUEST`); the same per-IP rate limit as every
+ * other procedure; the public `ShelterSummaryView` shape only, the same
+ * shelter projection `/tvaryny/{id}` itself returns; `Cache-Control:
+ * no-store`; nothing logged about which ids were asked for. Full record:
+ * `docs/decisions-inbox/feat-dr1-s8-saved-page.md` (S8-D1).
  */
 const GATE_EXEMPT_EXACT_PATHS: readonly string[] = ["/api/rpc/animals/cardsByIds"];
 

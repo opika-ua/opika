@@ -1066,6 +1066,17 @@ weeks.
   session after the revoke, keeps that session; F5 doesn't close it, because the session insert is
   a later statement. His words, verbatim excerpt: "Until F6 merges, record the race as a known gap in
   the inbox and on the launch gate." Inbox: `docs/decisions-inbox/docs-pw1-f6-known-gap.md`.
+- [ ] **S8-F5 merged: a hard item.** Oleksii, 2026-10-23, verbatim: "S8-F5 (a never-shown card's
+  name coming back) goes on the launch-gate list as a hard item. It must be fixed before the
+  first real shelter." The gap (`docs/decisions-inbox/feat-dr1-s8-saved-page.md`'s S8-F5 row,
+  from the review of 3fce3b7): `animals.cardsByIds`'s `wasEverPublic` check approximates "was
+  this row ever shown" with "has the shelter ever been verified," which aren't the same fact —
+  a shelter that *was* verified once, is now paused or suspended, and publishes-then-withdraws a
+  *new* card entirely inside that window still has that card's name returned, even though that
+  specific card was never actually rendered on any public page. Closing it precisely needs a
+  stored "was this ever actually served" fact per listing, which doesn't exist today — real
+  product/schema work, not a quick check tweak. Until it merges, record the gap as known, the
+  same way PW1-F6 does above.
 
 **Launch order** (Oleksii, 2026-10-17, inbox RH-B5, RU-B4):
 1. **Built and merged:** PR 4 (K3 form) → PR 5 (K2 list) → PR 6 (writes open for everyone, the

@@ -76,6 +76,39 @@ describe("animals.cardsByIds", () => {
     expect(body.items[0]?.card).toHaveProperty("id", animal.id);
   });
 
+  /**
+   * S8-D1 (Oleksii, 2026-10-23): "the public view only — the same shelter
+   * projection `/tvaryny/{id}` itself returns (`ShelterSummaryView`)." oRPC's
+   * output-schema stripping already guarantees this structurally
+   * (`handlers-implement-contract.test.ts`), but a claim verified against
+   * shape is not verified — this checks the actual wire text the fixture's
+   * exact address never reaches it, not only that the typed body happens to
+   * omit it.
+   */
+  it("the shelter in an available card is exactly ShelterSummaryView — no exact address, no extra fields", async () => {
+    const { animal, shelter } = await seedFeedAnimal();
+    const res = await h.call("animals.cardsByIds", { animalIds: [animal.id] });
+
+    // The raw wire text, not just the typed body: the fixture's real street,
+    // postal code and coordinates must never appear anywhere in the response,
+    // regardless of what key they'd be under.
+    expect(res.raw).not.toContain("вул. Тестова");
+    expect(res.raw).not.toContain(shelter.exactAddress.postalCode);
+    expect(res.raw).not.toContain(String(shelter.exactAddress.coordinates?.lat));
+
+    const body = res.body as {
+      items: { card?: { shelter?: Record<string, unknown> } }[];
+    };
+    const shelterView = body.items[0]?.card?.shelter;
+    expect(shelterView).toBeDefined();
+    expect(Object.keys(shelterView ?? {}).sort()).toEqual([
+      "displayName",
+      "id",
+      "publicLocation",
+      "verification",
+    ]);
+  });
+
   it("returns unavailable for an adopted animal — no reason, but its name", async () => {
     const { animal } = await seedFeedAnimal({
       listing: { kind: "adopted", adoptedAt: new Date("2026-08-01T00:00:00Z") },
@@ -209,6 +242,24 @@ describe("animals.cardsByIds", () => {
     );
     const res = await h.call("animals.cardsByIds", { animalIds: tooMany });
     expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
+  /**
+   * S8-D1 (Oleksii, 2026-10-23): "valid animal ids only, at most 200" — the
+   * test above only proved 201 is refused, never that 200 itself is
+   * accepted. `MAX_SAVED_CARDS_PER_REQUEST` (the contract's own cap) is the
+   * boundary this exercises directly, so a future change to that constant
+   * without updating this test would fail here first.
+   */
+  it("accepts exactly 200 ids — the boundary itself, not just past it", async () => {
+    const exactly200 = Array.from(
+      { length: 200 },
+      (_, i) => `00000000-0000-4000-8000-${i.toString().padStart(12, "0")}`,
+    );
+    const res = await h.call("animals.cardsByIds", { animalIds: exactly200 });
+    expect(res.status).toBe(200);
+    const body = res.body as { items: unknown[] };
+    expect(body.items).toHaveLength(200);
   });
 
   it("gives the identical answer with and without a session cookie — the saved list is never tied to one", async () => {
