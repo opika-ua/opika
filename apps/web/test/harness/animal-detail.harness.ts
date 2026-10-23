@@ -437,6 +437,36 @@ test.describe("shelter-verified badge — suppressed while the registry holds no
 });
 
 /**
+ * Designer round 1, S7: the save toggle, in a real browser. `localStorage`
+ * is per-origin and genuinely persists across a navigation in a way
+ * happy-dom's component tests can't exercise — this is the flow those
+ * tests can't cover, not a re-run of them. His DR1-Q3 text for both of the
+ * button's accessible names.
+ */
+test.describe("the save toggle persists a save across a reload", () => {
+  test("saving an animal, then reloading, shows it still saved", async ({ page, browser }) => {
+    await openRoute(page, await discoverFirstAnimalHref(browser), DETAIL_DESKTOP, {
+      readySelector: "[data-testid='detail-photo']",
+    });
+
+    const save = page.getByRole("button", { name: "Зберегти" });
+    await expect(save).toHaveAttribute("aria-pressed", "false");
+    await save.click();
+    await expect(page.getByRole("button", { name: "Збережено" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await page.reload();
+
+    await expect(page.getByRole("button", { name: "Збережено" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+});
+
+/**
  * The not-a-judgement notice's interim home was here, under the action
  * pair (Phase D). R2 (Phase R, `docs/build-plan.md`) moved it to its
  * permanent one, the deck itself (`SwipeDeck.tsx`) — see

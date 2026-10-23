@@ -6,6 +6,7 @@ import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { Footer } from "../chrome/Footer";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { FOCUS_RING } from "../controls/controls";
+import { SaveButton } from "../likes/SaveButton";
 import { shelterPagePath } from "../shelters/shelter-url";
 import { CoatFact } from "./CoatFact";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
@@ -162,12 +163,23 @@ export function AnimalDetailScreen({
         {/* Content column */}
         <div className="flex-1 min-w-0 flex flex-col gap-6 mt-4 desktop:mt-0">
           <div className="flex flex-col gap-1">
-            <h1
-              data-testid="animal-name"
-              className="font-bold text-[34px]/[38px] desktop:text-[44px]/[46px] tracking-[-0.03em] text-rg-ink"
-            >
-              {animal.name}
-            </h1>
+            {/*
+              The save toggle (designer round 1, S7; DR1-D8) sits beside the name, not in the
+              "Не зараз" / "Написати" row below: those two are the swipe-equivalent choice this
+              page offers, and a bookmark is a lighter, independent "come back to this" mark, not
+              a third option in that choice (DR1-D8's own reasoning for keeping it off the deck
+              card applies to crowding that specific row, not to the page as a whole). No mock
+              frame for this screen exists; this placement is the builder's call, reversible.
+            */}
+            <div className="flex items-start justify-between gap-3">
+              <h1
+                data-testid="animal-name"
+                className="font-bold text-[34px]/[38px] desktop:text-[44px]/[46px] tracking-[-0.03em] text-rg-ink"
+              >
+                {animal.name}
+              </h1>
+              <SaveButton animalId={animal.id} animalName={animal.name} />
+            </div>
             <span className={SUBTITLE_TEXT}>{subtitle}</span>
             <CoatFact coatLength={animal.coatLength} className={SUBTITLE_TEXT} />
           </div>

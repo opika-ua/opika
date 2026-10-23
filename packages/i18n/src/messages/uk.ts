@@ -215,6 +215,22 @@ export const uk = {
     right: "Написати",
   },
 
+  // --- Saved animals (designer round 1, S7). "Save," never "like" (DR1-Q3, his text,
+  // verbatim): the button, the saved state, and the bookmark icon (no heart). Storage stays
+  // `likes.v1`/`likes*` internally (DR1-D14) — nothing user-facing says "like." ---
+  likes: {
+    /** The save toggle's accessible name while an animal is not saved. */
+    save: "Зберегти",
+    /** The save toggle's accessible name once an animal is saved. */
+    saved: "Збережено",
+    /** `{name}` is the animal's name. Announced (aria-live) the moment a save succeeds. */
+    added: "{name}: додано до збережених",
+    /** `{name}` is the animal's name. Announced (aria-live) the moment a save is undone. */
+    removed: "{name}: прибрано зі збережених",
+    /** `{max}` is `MAX_LIKES` (200). Announced in place of `added` when the list is full. */
+    full: "Список повний — у ньому може бути не більше {max} тварин. Щоб додати нову, приберіть когось зі списку.",
+  },
+
   // --- Action buttons ---
   actions: {
     notNow: "Не зараз",
