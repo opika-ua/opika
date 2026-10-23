@@ -45,12 +45,17 @@ export const AnimalsCardsByIdsInputSchema = z.object({
  * looking at, nothing about who is calling it is known — a caller is not
  * necessarily reading back its own saved list, and the per-IP rate limit
  * is the only thing standing between it and brute-forcing ids. `name` is
- * therefore only ever the real name for a row that was listed (not a draft)
- * under a shelter that has been verified (`isListedAnimal` and
- * `hasBeenVerified`, review of 529a6cc, finding 4) — i.e. a row that really
- * was public at some point. `name: null` for an id that never resolved to a
- * row, and for a draft or an unverified shelter's row, neither of which was
- * ever shown to anyone.
+ * therefore the real name only for a row that was listed (not a draft)
+ * under a shelter that has been verified at some point (`isListedAnimal`
+ * and `hasBeenVerified`, review of 529a6cc, finding 4) — an approximation
+ * of "this row was ever public," not that fact exactly: a shelter that was
+ * once verified and is now paused or suspended can still publish and
+ * withdraw a *new* card entirely inside that window, and its name comes
+ * back too even though that specific card was never actually shown
+ * (review of 3fce3b7, finding 1 — closing that needs a stored per-listing
+ * fact this schema doesn't carry). `name: null` for an id that never
+ * resolved to a row, for a draft, and for a listed row under a shelter
+ * that has never once been verified.
  */
 export const SavedCardResultSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("available"), animalId: AnimalIdSchema, card: FeedCardViewSchema }),

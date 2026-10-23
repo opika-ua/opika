@@ -175,8 +175,9 @@ describe("animals.cardsByIds", () => {
       },
     });
     await shelterRepo(h.db).insert(shelter);
-    // A fixture-only state (publishing requires a verified shelter), kept to
-    // prove the guard holds even if that invariant is ever violated upstream.
+    // A real, reachable state, not a fixture-only one (review of 3fce3b7,
+    // finding 2): a pending shelter's admins can publish a card from day
+    // one, before the shelter has ever been verified.
     const animal = makeAnimal({ shelterId: shelter.id });
     await animalRepo(h.db).insert(animal, city.id);
 

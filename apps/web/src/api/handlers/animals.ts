@@ -122,6 +122,22 @@ export async function animalsCardsByIds(
     // A draft was never public, under any shelter state — its name is not
     // honest to show to a caller who sends no cookie and could in principle
     // be probing ids rather than reading back its own saved list.
+    //
+    // An approximation, not a precise guarantee (review of 3fce3b7, finding
+    // 1): publishing doesn't actually require shelter verification — a
+    // pending shelter's admins can publish from day one, and `verified` is
+    // the only state `paused`/`suspended` can ever be reached from
+    // (`transition.ts`'s own table). So a card published and withdrawn while
+    // its shelter has never been anything but pending correctly reads as
+    // `wasEverPublic: false` here — but a shelter that *was* verified once,
+    // is now paused or suspended, and publishes-then-withdraws a *new* card
+    // entirely inside that paused/suspended window reads as "was public"
+    // too, even though that specific card's own lifetime never overlapped
+    // with the shelter being verified. `hasBeenVerified` checks the
+    // shelter's history, not whether this one listing's window did. Closing
+    // that precisely needs a stored fact per listing ("was this ever
+    // actually served"), which doesn't exist; this check is the closest
+    // approximation available today, not that fact itself.
     const wasEverPublic =
       animal !== undefined &&
       isListedAnimal(animal) &&
