@@ -222,19 +222,25 @@ export function AnimalCard({
         </div>
 
         {/*
-          No boxed freshness block and no shelter sentence here, unlike the
-          deck: "The shelter's sentence is NOT on gallery cards" —
-          docs/design/README.md, "The Gallery" > "Card". The resolved variant
+          No boxed freshness block here, unlike the deck. No shelter
+          sentence either, on this card or the deck — "The shelter's
+          sentence is NOT on gallery cards" (docs/design/README.md, "The
+          Gallery" > "Card"); the deck lost its own copy of the sentence
+          too, in designer round 1, S6, when it moved to the shelter page
+          (`SwipeCard.tsx`'s own comment on that). The resolved variant
           replaces this row entirely with the shelter's own sentence instead
           of freshness — "Different fill and different text — never
           dimming" (docs/design/README.md, "The gallery card" > "Resolved").
 
           No shelter name either, in any variant (designer round 1, §3 of
           docs/designer-round-1.md, decision DR1-D1): the gallery card is the
-          preview, and the shelter is named on the animal page. The deck card
-          keeps its shelter line, because it carries the shelter's sentence,
-          which needs its speaker. `card.shelter` still feeds the city of an
-          animal at its shelter (`cardCityId`).
+          preview, and the shelter is named on the animal page. The deck
+          card still keeps its own shelter line (name, monogram,
+          verification suffix) — that's a content decision about
+          attribution and verification (`SwipeCard.tsx`'s own comment on
+          why), not a consequence of the sentence living there or not.
+          `card.shelter` still feeds the city of an animal at its shelter
+          (`cardCityId`).
         */}
         {resolved ? (
           <span className="text-[15px]/[22px] text-rg-ink">
