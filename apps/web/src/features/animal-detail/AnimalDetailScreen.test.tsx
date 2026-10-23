@@ -230,7 +230,7 @@ describe("AnimalDetailScreen — a city name is printed literally (review findin
         backToGalleryHref="/tvaryny?misto=brovary"
       />,
     );
-    expect(screen.getByText("← Усі тварини · м. Місто $& $1")).toBeTruthy();
+    expect(screen.getByText("← Усі тварини у Місто $& $1")).toBeTruthy();
     expect(screen.getByText("м. Місто $& $1")).toBeTruthy();
   });
 });

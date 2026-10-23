@@ -64,7 +64,6 @@ describe("the shelter's sentence and «Слова притулку» show only o
       <AnimalDetailScreen
         animal={animal}
         shelter={makeShelterPageShelter()}
-        now={new Date("2026-10-21T00:00:00Z")}
         cityName="Бровари"
         backToGalleryHref="/tvaryny"
       />,
@@ -80,7 +79,6 @@ describe("the shelter's sentence and «Слова притулку» show only o
           <AnimalDetailScreen
             animal={animal}
             shelter={makeShelterPageShelter()}
-            now={new Date("2026-10-21T00:00:00Z")}
             cityName="Бровари"
             backToGalleryHref="/tvaryny"
           />

@@ -173,7 +173,9 @@ test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
       ["TextField", page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/)],
       [
         "TextAreaField",
-        page.getByRole("region", { name: "Голос притулку" }).getByLabel("Ваші слова на картках"),
+        page
+          .getByRole("region", { name: "Голос притулку" })
+          .getByLabel("Ваші слова на сторінці притулку"),
       ],
       ["Button, secondary", page.getByRole("button", { name: "Призупинити прийом тварин" })],
       ["SegmentedControl", form.getByRole("radio", { name: "Собака" })],
