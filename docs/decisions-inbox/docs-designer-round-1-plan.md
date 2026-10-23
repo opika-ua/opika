@@ -18,7 +18,7 @@ decision, recorded as such, never as his approval. Full reasoning: `docs/designe
 | DR1-D2 | 2026-10-20 | §1 | Shelter page URL | `/prytulky/{id}` · a slug | `/prytulky/{id}` | | taken (reversible) |
 | DR1-D3 | 2026-10-20 | §1 | Filters on the shelter page | none · the gallery's rail | none in round 1 | | taken (reversible) |
 | DR1-D4 | 2026-10-20 | §1 | Where the shelter's animals come from | `gallery.list` + `scope` union · a new procedure | `gallery.list` + `scope` (stays in the named OFFSET exception) | | taken (reversible) |
-| DR1-D5 | 2026-10-20 | §2 | Drawer mechanism and reach | intercepting route · client state; gallery only · also the deck | intercepting route, gallery and saved page only | | taken (reversible) |
+| DR1-D5 | 2026-10-20 | §2 | Drawer mechanism and reach | intercepting route · client state; gallery only · also the deck | intercepting route, gallery and saved page only | Narrowed 2026-10-21 (DR1-S8-Q1, below): gallery only. The saved page opens the full animal page — it is never intercepted, since `/zberezheni` sits outside `/tvaryny` | narrowed, reversible |
 | DR1-D6 | 2026-10-20 | §2 | Focus trap | extract a shared hook · copy | shared hook from `ModalDialog` | | taken (reversible) |
 | DR1-D7 | 2026-10-20 | §2 | Reveal inside the drawer | yes · no | no; reveal stays on the animal page | | taken (reversible) |
 | DR1-D8 | 2026-10-20 | §4 | Where the save control sits | card · drawer · animal page · deck | drawer and animal page | | taken (reversible) |

@@ -424,6 +424,11 @@ corepack enable          # once, machine-wide
 pnpm i                   # install — resolves the pinned pnpm automatically
 pnpm check                # typecheck -> lint -> test -> build:web -> test:harness, same as CI
 
+# db:migrate, db:seed and onboard:shelter have no root alias — always run them with --filter.
+pnpm --filter @opika/db run db:migrate
+pnpm --filter @opika/db run db:seed
+pnpm --filter @opika/db run onboard:shelter
+
 # Writing to production (Neon) needs an explicit --prod on db:migrate, db:seed and
 # onboard:shelter (packages/db/src/prod-guard.ts). Production is identified by its Neon
 # endpoint id only (PROD_NEON_ENDPOINT=ep-…, never a URL), read from the environment or,
@@ -559,86 +564,42 @@ entry; wait a day, or pick the next-newest cleared version instead.
 Append this section to CLAUDE.md. It is what makes the reviewer fire without being asked, and
 what lets work continue without Oleksii gating every step.
 
-## Who does what (2026-10-21; supersedes the rules below where they conflict)
+## Who does what (2026-10-23; supersedes the 2026-10-21 cloud/local split below, and the rules
+further below where they conflict)
 
-Oleksii, 2026-10-21, verbatim (the working mode): "… Cloud does builds and Tier 1 reviews, 3–4
-sessions in parallel. … You, locally, do non-Tier-1 reviews (UI slices, docs, tests), small fixes
-from review notes, rebases and merges, directly with no prompt round trip. Keep them lean. Only
-blockers loop. A STOP gets fixed and re-reviewed. PASS WITH NOTES merges (after my smoke if SQL or
-auth is involved). Its notes go into one follow-up batch per area, fixed and reviewed together
-later. Tier 1 notes that touch a live security path count as blockers; tests-only and docs notes
-don’t. Batched launches: put every ready cloud task into one file (Claude
-outputs/LAUNCH-batch-<date>.txt), each prompt with its branch, pinned SHA and expected outcome. I
-start them all at once and send you all the links in one message. Batched smokes: collect
-everything that needs my real-Neon smoke and give me one sitting with one fresh child branch and
-the commands in order, once or twice a day."
-
-And, the same day, verbatim (the roles; the host his network rule names is cut as "…", since
-that rule forbids naming it in this public repository): "… Cloud builders: build, push their
-branch only; never open, merge or approve PRs; never touch production or Neon; guardrails
-unchanged (no secrets or .env, never …, [COPY PENDING] for new Ukrainian, fake timers). Cloud reviewers:
-read-only, verdict pinned to the exact SHA, push only the review file. They do Tier 1 reviews. The
-local agent: non-Tier-1 reviews, small fixes from review notes, rebases, merges at the reviewed
-head on green CI. The only one that merges. Me: real-Neon smokes in batched sittings, production
-migrations, decisions and copy. The rules: only blockers loop; PASS WITH NOTES merges (after my
-smoke where SQL or auth is involved); notes go into one follow-up batch per area; Tier 1 notes on
-a live security path count as blockers. The file-overlap rule for open PRs, and the rebase rule
-(=, no conflict, no overlap → the verdict carries over). Launches: batched in Claude
-outputs/LAUNCH-batch-<date>.txt; I start them by hand. No routines. …"
+Cloud sessions ran from 2026-10-21 to 2026-10-23 (3–4 parallel builders, cloud Tier 1 reviewers).
+Oleksii ended that, verbatim (2026-10-23): "From now on, everything runs locally; no cloud
+sessions until I say otherwise. Keep local use lean." The mechanics he gave the same day,
+verbatim: "Local agents only. At most two at once. Builder and reviewer are always separate
+agents. A Tier 1 review is always a fresh agent pinned to the exact SHA. You do non-Tier-1
+reviews, delta checks, rebases, and merges at the reviewed head on green CI. You're the only one
+who merges. Only blockers loop. Notes go into one follow-up batch per area."
 
 What each role may do:
 
-- **A cloud builder** is a cloud session Oleksii starts by hand from a launch file. One session
-  builds one task.
-  - **May:** build on the branch its prompt names, commit, and push that branch only. It runs
-    `pnpm check`, tests and mutations in its own sandbox, and records its decisions in its own
-    `docs/decisions-inbox/<branch>.md`.
-  - **Never:**
-    - open, edit, approve or merge a PR, or push to `main` or any other branch;
-    - touch production or Neon (no smoke runs, no migration applied);
-    - read or write secrets or `.env` files;
-    - start another session, routine or remote trigger;
-    - edit a file that its prompt lists as belonging to other open work.
-  - **Always** (the guardrails, unchanged):
-    - `[COPY PENDING]` for new Ukrainian;
-    - fake timers or deterministic forcing, never artificial load;
-    - a migration written, never applied, with its kind stated.
-  - **The network rule**, verbatim, in every launch prompt. It names a host that must never be
-    used, called or mentioned in Opika's commits or PRs, so this public repository doesn't quote
-    it. The local agent copies it into each prompt from its own notes.
-  - It ends by naming the head SHA it pushed and the smoke it expects.
-- **A cloud reviewer** is a fresh session, never the builder's (a review run inside the session
-  that built the change does not count). It does the Tier 1 reviews.
-  - **Read-only:** it never edits code, pushes the PR branch, or merges, approves or closes a PR.
-  - **Never**, the same as a builder:
-    - touch production or Neon (no smoke runs);
-    - read or write secrets or `.env` files;
-    - start another session, routine or remote trigger.
-    The network rule in its prompt applies too.
-  - **Its verdict names the exact head SHA** on its first line; a verdict for any other SHA
-    doesn't count.
-  - **It pushes only the review file,** `docs/reviews/<branch>/<short-sha>.md`, on its own
-    `reviews/pr-<n>-<short-sha>` branch, and posts one PR comment.
-- **The local agent** is the coordinating session on Oleksii's machine.
-  - **Reviews:** the non-Tier-1 ones (UI slices, docs, tests), kept lean: the diff, the suites it
-    touches, a few mutations, CI's `pnpm check`. A change the local agent wrote itself (a docs PR,
-    a batch of note fixes) is reviewed by a fresh cloud reviewer instead, for the same
-    independence reason.
-  - **Fixes:** small fixes from review notes.
-  - **Rebases:** under the rebase rule.
-  - **PRs:** opens them as drafts, since builders never open PRs. This is the local agent's
-    reading (WM-C8), not his words. It also writes the launch files and the smoke sittings.
-  - **Merges:** at the reviewed head, or at its rebase under the rebase rule, on green CI. **It is
-    the only one that merges.**
-  - It never runs a production action.
-- **Oleksii:**
-  - runs the real-Neon smokes, in batched sittings;
-  - runs the production migrations;
-  - takes the decisions and writes the copy;
-  - starts every cloud session by hand;
-  - runs every other production action (env, DNS, deletions).
+- **The local agent** (this session, on Oleksii's machine) builds: implements the row,
+  runs `pnpm check`, commits with the green run pasted in the body, pushes.
+  - Opens each PR as a draft, with the verified-vs-asserted ledger in the body.
+  - Reviews everything except Tier 1 itself, kept lean: the diff, the suites it touches, a few
+    mutations, CI's `pnpm check`.
+  - Merges at the reviewed head — its own review for non-Tier-1, a fresh local reviewer's for
+    Tier 1 — on green CI. **It is the only one that merges.**
+  - Writes a smoke sitting (`Claude outputs/SMOKE-sitting-<date>.txt`: one fresh child branch,
+    `nvm use 24` first, every command in its `--filter` form, expected counts) for anything
+    needing his real-Neon check, and does not merge that PR until he's run it.
+  - Never runs a production action, writes a secret, or force-pushes `main`.
+- **A Tier 1 reviewer** is a fresh local agent, never the one that built the change (a review run
+  inside the building session doesn't count).
+  - Read-only: it never edits code, pushes the PR branch, or merges, approves or closes a PR.
+  - Its verdict names the exact head SHA on its first line; a verdict for any other SHA doesn't
+    count.
+  - It pushes only the review file, `docs/reviews/<branch>/<short-sha>.md`, on its own
+    `reviews/pr-<n>-<short-sha>` branch — the same mechanism the cloud reviewers used, just run
+    locally now.
+- **Oleksii:** runs the real-Neon smokes in batched sittings, the production migrations, takes
+  the decisions and writes the copy, runs every other production action (env, DNS, deletions).
 
-The rules:
+The rules (carried over from the cloud era, unchanged by the switch to local-only):
 
 - **Only blockers loop.**
   - A STOP is fixed and re-reviewed, as a delta.
@@ -647,29 +608,31 @@ The rules:
   - The notes go into one follow-up batch per area, fixed and reviewed together later.
   - A Tier 1 note that touches a live security path counts as a blocker; tests-only and docs notes
     don't. A reviewer marks such a note `[Blocker]`.
-- **Open PRs never share a file.** His rule, verbatim (2026-10-20): "Replace the hard “two PRs”
+- **Open PRs never share a file.** His rule, verbatim (2026-10-20): "Replace the hard "two PRs"
   limit with a rule: any number of PRs may be open as long as no two share a file. A PR that
-  shares a file with an open one waits." Parallel cloud sessions follow the same rule: each prompt
-  lists the files that belong to other open work.
+  shares a file with an open one waits."
 - **The rebase rule:** the verdict carries over when there is no conflict, `git range-diff` shows
   every patch `=`, and the PR's files don't overlap main's new commits. Green CI on the rebased
   head is then the gate. Anything else gets a short delta review. His wording is quoted in full
-  under "Merge only the commit that was reviewed".
-- **Launches** are batched in `Claude outputs/LAUNCH-batch-<date>.txt`, and Oleksii starts them by
-  hand.
-  - Each prompt carries its branch, its pinned SHA and its expected outcome.
-  - Each block is for its own session, and the file says so at the top.
-  - His rule, verbatim (2026-10-21, in his message that cleared the S3 smoke; inbox WM-C7):
-    "Cloud rule, unchanged: no routines. Every cloud task comes to me as a ready-to-paste prompt,
-    and I start it by hand."
+  under "Merge only the commit that was reviewed". A rebase with real conflicts (not just `=`
+  patches over a clean range-diff) is never a bare "take one side" per hunk — a hunk can look like
+  one branch's change when it's really unchanged context from a third branch that already landed;
+  verify each resolved hunk against both sides' own diffs against their common ancestor, not just
+  against the conflict markers.
 - **Smokes** are batched: one sitting, one fresh child branch, the commands in order, once or
-  twice a day.
+  twice a day, in `Claude outputs/SMOKE-sitting-<date>.txt`.
+
+Dropped with the cloud sessions (2026-10-23): the cloud builder role; the "3–4 sessions in
+parallel" scale; the launch-file ritual (`Claude outputs/LAUNCH-batch-<date>.txt`, Oleksii
+starting each session by hand) — nothing starts a session for him to paste anymore; and the
+launch-prompt network-naming rule, which existed only because a cloud prompt could end up quoted
+in a commit or PR of this public repository.
 
 Revised 2026-10-04 per `docs/handoff-2026-10-04.md` §4: review and decisions now run in
 parallel with building rather than ahead of it. The quality bar, the standing constraints and
 the Tier 1 gates are unchanged — what changed is *where* review happens and *what blocks the
 builder*. See the 2026-10-04 amendment below for the mechanism. Who reviews and who merges was
-revised again on 2026-10-21 ("Who does what", above).
+revised on 2026-10-21 and again on 2026-10-23 ("Who does what", above).
 
 ## The loop
 
@@ -681,11 +644,13 @@ sweep. For each iteration:
 3. Commit (green `pnpm check`, output pasted in the commit body) and push the branch. A branch
    commit ships nothing to anyone. Classify the row's tier (see Process tiers): it decides who
    reviews the pushed head ("Who does what", above):
-   - **Tier 1:** a fresh cloud reviewer session, pinned to the exact SHA. Nothing merges before
-     that review has passed. (Until 2026-10-21 the Tier 1 review ran synchronously before the
-     commit, through a local `opika-reviewer` subagent.)
-   - **Everything else:** one review by the local agent, kept lean. A change the local agent
-     wrote itself goes to a fresh cloud reviewer instead.
+   - **Tier 1:** a fresh local agent, pinned to the exact SHA, never the one that built it.
+     Nothing merges before that review has passed. (Until 2026-10-21 it ran synchronously before
+     the commit, through a local `opika-reviewer` subagent; 2026-10-21 to 2026-10-23 it ran in a
+     cloud session; see "Who does what".)
+   - **Everything else:** one review by the local agent, kept lean. A change the
+     local agent wrote itself goes to a fresh local reviewer instead, for the same
+     independence reason.
 4. Act on the verdict:
    - **PASS:** the local agent merges it at that head on green CI.
    - **PASS WITH NOTES:** it merges the same way, after Oleksii's smoke where SQL or auth is
@@ -731,7 +696,7 @@ running twice concurrently: it slows the loop without changing what gets asserte
 
 Tier 3 changes (see "Process tiers" below) get no reviewer pass at all — they are covered
 once, in the batch, at the PR-level pass. (*Since 2026-10-21* everything outside Tier 1, Tier 3
-included, gets one review: by the local agent, or by a fresh cloud reviewer when the local agent
+included, gets one review: by the local agent, or by a fresh local reviewer when the local agent
 wrote it. See "Who does what".)
 
 ### Amendment, 2026-10-04 — review runs beside building (superseded in part, 2026-10-21)
@@ -741,7 +706,7 @@ change — see "Process latency is a stated owner cost" in `docs/standing-constr
 
 What still holds:
 - **Review files are git-tracked:** every verdict is written to
-  `docs/reviews/<branch>/<short-sha>.md` (Tier 3 to commit). A cloud reviewer pushes it on its
+  `docs/reviews/<branch>/<short-sha>.md` (Tier 3 to commit). A Tier 1 reviewer pushes it on its
   own `reviews/*` branch; the local agent commits the files of its own reviews the same way.
 - **The full `pnpm check` is the builder's evidence.** A reviewer reads the commit's pasted green
   run, runs only the suites the diff touches, plus its own mutations. Mutation testing of a new
@@ -759,10 +724,11 @@ What 2026-10-21 replaced ("Who does what", above):
 - "fixes for a review finding are their own small commit, re-reviewed the same way". Now only a
   blocker's fix is re-reviewed; other notes wait for their area's follow-up batch.
 
-Builds now run in parallel cloud sessions under the file-overlap rule. Each review is done by a
-fresh cloud reviewer for Tier 1, or by the local agent for everything else.
+Builds ran in parallel cloud sessions under the file-overlap rule from 2026-10-21 to 2026-10-23;
+local-only since (see "Who does what"). Each review is done by a fresh local reviewer for Tier 1,
+or by the local agent for everything else.
 
-### Amendment, 2026-10-17 — working mode (supersedes the rules above and below where they conflict, except "Who does what", 2026-10-21, which supersedes it)
+### Amendment, 2026-10-17 — working mode (supersedes the rules above and below where they conflict, except "Who does what", 2026-10-21 and 2026-10-23, which supersedes it)
 
 Oleksii, 2026-10-17 (inbox WM-B1), verbatim:
 
@@ -786,8 +752,9 @@ What that changes, concretely:
   - **Tier 1:** auth and access, data deletion, production writes, secrets, R2, and anything a
     public page or an email claims. The full process stays: a full review before merge, real-Neon
     when SQL changes, his explicit decisions asked up front, full inbox records. (*Since
-    2026-10-21* the review runs in a fresh cloud reviewer session on the pushed head, before
-    merge. It used to run before the commit, in a worktree; see "Who does what".)
+    2026-10-21* the review runs in a fresh reviewer session on the pushed head, before merge —
+    cloud through 2026-10-23, a fresh local agent since. It used to run before the commit, in a
+    worktree; see "Who does what".)
   - **Everything else** (the old Tiers 2 and 3) gets **one** review, by the local agent since
     2026-10-21. A second review happens only when the first finds a blocker. No review-of-the-fix
     loops: non-blocking notes go into one follow-up batch per area, fixed and reviewed together
@@ -961,9 +928,10 @@ Not every change earns the same scrutiny. Classify before starting; say which ti
 auth/access, data deletion, production writes, secrets, R2, and anything a public page or email
 claims. Tiers 2 and 3 below merge into "everything else: one review". Read the definitions below
 with that override. **And since 2026-10-21** ("Who does what", top of "Working loop"), the
-reviewer is a fresh cloud reviewer session for Tier 1 and the local agent for everything else; a
-PASS WITH NOTES merges and its notes are batched. Where Tier 2 below says to spawn
-`opika-reviewer` in the background, read that as the local agent's one review.
+reviewer is a fresh reviewer session for Tier 1 (cloud through 2026-10-23, a fresh local agent
+since) and the local agent for everything else; a PASS WITH NOTES merges and its notes are
+batched. Where Tier 2 below says to spawn `opika-reviewer` in the background, read that as the
+local agent's one review.
 
 TIER 1 — full gate. Phase 0 questions answered and sent to Oleksii before code. Reviewer
 required. Mutation required. Applies to: production data, seed/truncate/migration paths,
@@ -983,7 +951,7 @@ spawn opika-reviewer in the background against the commit (see the 2026-10-04 am
 tests, harness work, refactors.
 
 TIER 3 — light. pnpm check and commit. Reviewer runs once at PR level over the batch, not per
-commit (since 2026-10-21, that review is the local agent's, or a fresh cloud reviewer's when the
+commit (since 2026-10-21, that review is the local agent's, or a fresh local reviewer's when the
 local agent wrote it). Applies to: renames with no behaviour change, doc edits, comments, formatting,
 config with no runtime effect.
 
