@@ -82,6 +82,15 @@ export const en = {
     right: "Ask about them",
   },
 
+  // --- Saved animals (designer round 1, S7) ---
+  likes: {
+    save: "Save",
+    saved: "Saved",
+    added: "{name}: added to saved",
+    removed: "{name}: removed from saved",
+    full: "The list is full — it can hold at most {max} animals. To add a new one, remove one first.",
+  },
+
   // --- Action buttons ---
   actions: {
     notNow: "Not right now",
