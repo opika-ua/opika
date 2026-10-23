@@ -38,10 +38,35 @@ const SORT_LABEL: Record<GallerySort, string> = {
  */
 export function SortControl({ filters, sort, citySlugs }: SortControlProps) {
   return (
+    <SortLinks
+      sort={sort}
+      hrefFor={(option) => galleryHref(filters, option, citySlugs)}
+      visibility="hidden desktop:flex"
+    />
+  );
+}
+
+/**
+ * The two date sorts as links, for any list that offers them: the gallery
+ * (`SortControl`, beside its rail) and the shelter page (designer round 1,
+ * S6), which has no rail or sheet and so shows them at every width. The
+ * caller says where each sort leads, so the URL scheme stays the caller's.
+ */
+export function SortLinks({
+  sort,
+  hrefFor,
+  visibility,
+}: {
+  sort: GallerySort;
+  hrefFor: (option: GallerySort) => string;
+  /** The display utilities: the gallery hides these below `desktop`, where its sheet holds them. */
+  visibility: "flex" | "hidden desktop:flex";
+}) {
+  return (
     <nav
       data-testid="sort-control"
       aria-label={uk.filters.sortLabel}
-      className="font-rg hidden desktop:flex rounded-rg-button bg-rg-surface h-12"
+      className={`font-rg ${visibility} rounded-rg-button bg-rg-surface h-12`}
     >
       {/*
         The nav keeps its own rounding (for the continuous-pill fill,
@@ -63,7 +88,7 @@ export function SortControl({ filters, sort, citySlugs }: SortControlProps) {
           // against proxy.ts's per-IP limit (gallery-preview-drawer.harness.ts).
           prefetch={false}
           key={option}
-          href={galleryHref(filters, option, citySlugs)}
+          href={hrefFor(option)}
           // `aria-current`, not `aria-pressed` — same reason as FilterRail's
           // Chip: `aria-pressed` is not an allowed attribute on role="link".
           aria-current={sort === option ? "true" : undefined}

@@ -100,6 +100,27 @@ describe("public shelter projections withhold the private fields", () => {
   });
 
   /**
+   * Designer round 1, S6 (Oleksii's DR1-Q1, verbatim: "the shelter’s freshness
+   * sentence leaves the deck and animal pages and shows only on the shelter
+   * page."): the shelter page's view carries it, the card summary never does,
+   * even when handed a shelter that has one.
+   */
+  it("carries the freshness sentence on the shelter page's view only, never on a card", () => {
+    const withSentence = {
+      ...shelter,
+      freshnessSentence: { uk: "Оновлюємо щосуботи.", en: null },
+      verification: "verified" as const,
+    };
+    expect(PublicShelterViewSchema.parse(withSentence).freshnessSentence).toEqual({
+      uk: "Оновлюємо щосуботи.",
+      en: null,
+    });
+    const summary = ShelterSummaryViewSchema.parse(withSentence);
+    expect(summary).not.toHaveProperty("freshnessSentence");
+    expect(JSON.stringify(summary)).not.toContain("щосуботи");
+  });
+
+  /**
    * H2 (N20): a proposed donation link is unapproved by definition, and the
    * live link is the one adopters trust because it was verified. The input
    * carries a real pending link, so this can't pass merely because the field
@@ -330,6 +351,7 @@ describe("the pause note reaches no public view (K4-B4)", () => {
       "description",
       "displayName",
       "donation",
+      "freshnessSentence",
       "id",
       "publicLocation",
       "verification",
@@ -337,7 +359,6 @@ describe("the pause note reaches no public view (K4-B4)", () => {
     const summary = ShelterSummaryViewSchema.parse({ ...paused, verification: "unverified" });
     expect(Object.keys(summary).sort()).toEqual([
       "displayName",
-      "freshnessSentence",
       "id",
       "publicLocation",
       "verification",

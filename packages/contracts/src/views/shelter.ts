@@ -21,6 +21,10 @@ export type VerificationBadge = z.infer<typeof VerificationBadgeSchema>;
  * `publicLocation` is the city only (`./location.ts`, Oleksii 2026-10-14,
  * EM-Q10): the shelter's domain location, district and fuzzed point included,
  * is not picked, and the handler projects it down.
+ *
+ * `freshnessSentence` is here and on no card view (designer round 1, S6):
+ * Oleksii's DR1-Q1 answer puts the shelter's sentence on the shelter page
+ * only, so it travels with the shelter's own page and nowhere else.
  */
 export const PublicShelterViewSchema = ShelterSchema.pick({
   id: true,
@@ -28,17 +32,21 @@ export const PublicShelterViewSchema = ShelterSchema.pick({
   description: true,
   donation: true,
   createdAt: true,
+  freshnessSentence: true,
 }).extend({
   publicLocation: PublicCityLocationViewSchema,
   verification: VerificationBadgeSchema,
 });
 export type PublicShelterView = z.infer<typeof PublicShelterViewSchema>;
 
-/** What a card needs to name the shelter without loading its profile. */
+/**
+ * What a card needs to name the shelter without loading its profile. No
+ * `freshnessSentence` since S6: nothing on a card, the deck or the animal page
+ * renders it any more (DR1-Q1), and a field nothing renders is not shipped.
+ */
 export const ShelterSummaryViewSchema = ShelterSchema.pick({
   id: true,
   displayName: true,
-  freshnessSentence: true,
 }).extend({
   publicLocation: PublicCityLocationViewSchema,
   verification: VerificationBadgeSchema,

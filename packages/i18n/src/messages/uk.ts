@@ -255,6 +255,11 @@ export const uk = {
      * «· дата автоматична» deleted 2026-10-15 (VH-Q2, Oleksii): nothing fills a
      * date into the shelter's sentence, and the design drops `{date}` (VH-Q1).
      */
+    /**
+     * Since designer round 1 (S6), the heading of the shelter page's section
+     * holding the shelter's description and its sentence, and nowhere else
+     * (Oleksii's DR1-Q1: «Слова притулку» only on the shelter page).
+     */
     attribution: "Слова притулку",
   },
 
@@ -270,7 +275,18 @@ export const uk = {
      * registry, which really is a state service.
      */
     registryConfirmed: "Підтверджено державним реєстром тварин",
-    shelterDeclared: "Слова притулку",
+    /**
+     * DR1-Q1 (option (c)), his text: «Слова притулку» names the shelter's
+     * own words on the shelter page only, so the medical rows' source label
+     * is a word of its own.
+     */
+    shelterDeclared: "Дані притулку",
+    /**
+     * Copy audit 2026-10-22 #16: the vaccination and sterilisation rows' status line.
+     * «Дані притулку» names the source and never says the thing was done; this says both.
+     * A key of its own so `shelterDeclared` stays the reusable source label.
+     */
+    doneShelterDeclared: "Зроблено, за даними притулку",
     rabies: "Щеплення від сказу",
     vaccination: "Комплексне щеплення",
     spayNeuter: "Стерилізація",
@@ -295,11 +311,30 @@ export const uk = {
     lineAtShelter: "м. {city}",
   },
 
+  // --- Shelter page (designer round 1, S6) ---
+  /**
+   * His text (`docs/designer-round-1.md` §11 item 4). The page's title is the
+   * shelter's name alone, its «Слова притулку» heading is
+   * `freshness.attribution`, and its city line is `cardMeta.atShelter`: three
+   * reuses he confirmed, so no key of their own here.
+   */
+  shelterPage: {
+    /** `{count}` is the number of the shelter's animals adopters can see. */
+    animalsHeading: "Шукають дім: {count}",
+    noAnimals: "Зараз тут немає тварин, які шукають дім.",
+  },
+
   // --- Detail screen (04) ---
   detail: {
     /** Template: "Перевірено вручну · на сайті з {year} року" — `{year}` is the year the shelter's record was created. */
     shelterVerifiedYears: "Перевірено вручну · на сайті з {year} року",
     donateShelter: "Підтримати притулок",
+    /**
+     * Designer round 1 (S6), his text: the animal page's shelter row is a
+     * link to the shelter page, and this is its accessible name. `{name}` is
+     * the shelter's display name.
+     */
+    shelterRowLink: "Сторінка притулку «{name}»",
     /** Template: "← Усі тварини · м. {city}" — the mock's D1 desktop back link (frame D1). */
     backToListIn: "← Усі тварини · м. {city}",
     /**
@@ -869,9 +904,11 @@ export const uk = {
      * домовляються» (one animal per tap, no bulk) and by a photo change on a
      * card people can see (RH-B7); a text edit never moves it. Each of those
      * is named here, so the sentence can be read literally. See commitment 7.
+     * ¶1 is his DR1-Q1 text (designer round 1, S6): the sentence is on the
+     * shelter page now, not the animal's; ¶2 and ¶3 are unchanged.
      */
     whyThatSentence:
-      "Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого — позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а на сторінці тварини — ваше речення про те, як часто ви це робите, вашими словами.\n\n" +
+      "Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого — позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а на сторінці притулку — ваше речення про те, як часто ви це робите, вашими словами.\n\n" +
       "Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють — так вона показує саме те, що обіцяє. Речення пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».\n\n" +
       "Саме це робить решту карток вартими довіри. Коли видно, що ви підтверджуєте картки щосуботи, ваше «ця тварина ще шукає дім» означає рівно те, що написано.",
     /**
@@ -1085,7 +1122,7 @@ export const uk = {
        */
       donationPending: "Запропоноване посилання чекає, поки я його перевірю.",
       voiceTitle: "Голос притулку",
-      voiceLabel: "Ваші слова на картках",
+      voiceLabel: "Ваші слова на сторінці притулку",
       /**
        * The second sentence (that the registry fills in {date} and {name})
        * was deleted 2026-10-15 as false: nothing substitutes anything, the
@@ -1176,7 +1213,7 @@ export const uk = {
            */
           contacts:
             "Нові контакти побачать одразу після збереження — коли натиснуть «Написати притулку».",
-          voice: "Нове речення зʼявиться в стрічці та на сторінках тварин одразу після збереження.",
+          voice: "Нове речення зʼявиться на сторінці притулку одразу після збереження.",
         },
         unsavedLeave: "Зміни не збережено. Все одно вийти?",
       },
@@ -1209,8 +1246,15 @@ export const uk = {
         /** `{token}` is the braced text the shelter typed. `{імʼя}` is literal. */
         unknownToken:
           "Підставляється лише {імʼя}. Приберіть «{token}» або напишіть без фігурних дужок.",
-        /** Answer 5. `{дата}` is literal. */
-        dateTokenGone: "Дата й так показується над вашим реченням, тому {дата} писати не потрібно.",
+        /** Answer 5; DR1-Q1, his text. `{дата}` is literal. */
+        dateTokenGone:
+          "Дата оновлення показується на кожній картці, тому {дата} у реченні писати не потрібно.",
+        /**
+         * DR1-Q5, his text: the sentence shows on the shelter page only, so
+         * `{імʼя}` (literal here) is refused in any spelling.
+         */
+        nameTokenGone:
+          "Тепер речення показується на сторінці притулку, тому {імʼя} у ньому не використовується. Приберіть його й збережіть ще раз.",
         strayBrace: "Є дужка без пари. Фігурні дужки потрібні лише для {імʼя}.",
       },
       contacts: {
@@ -1225,20 +1269,19 @@ export const uk = {
         atLeastOne: "Залиште хоча б один спосіб звʼязку.",
       },
       voice: {
-        /** CB-B1: the second sentence is his replacement; `{імʼя}` is literal. */
-        hint: "Одне речення від першої особи, вашими словами. На картці підставляється лише імʼя тварини — там, де ви напишете {імʼя}. Більше нічого не змінюється.",
-        nameStaysHint:
-          "Імʼя стоїть як є: Рекс, Мурка. Його не відмінюють, тож пишіть так, щоб воно звучало природно, — наприклад, «{імʼя} досі шукає дім».",
-        /** Answer 7: inserts the token at the cursor. */
-        insertName: "Вставити {імʼя}",
+        /**
+         * DR1-Q1, his text. `nameStaysHint` and `insertName` («Вставити
+         * {імʼя}») are deleted with the token they explained (DR1-Q5): the
+         * editor refuses it now, so a button inserting it would be broken.
+         */
+        hint: "Одне речення від першої особи, вашими словами, про те, як часто ви оновлюєте картки. Воно показується на сторінці притулку.",
         counter: "{count} / {max}",
         counterOver: "Зайвих символів: {over}",
-        emptyMeans: "Якщо залишити порожнім, на картках буде лише «Оновлено … тому».",
-        /** `{name}` is the preview animal's name (nominative, by his note). */
-        previewLabel: "Так це виглядає на сторінці тварини: {name}",
-        previewNoAnimals:
-          "Попередній перегляд зʼявиться, щойно у вас буде тварина: тут буде видно, як речення виглядатиме на її сторінці.",
-        previewEmpty: "Речення немає — на картці буде лише «Оновлено … тому».",
+        /** DR1-Q1, his text (and the next two); `previewNoAnimals` deleted by his answer. */
+        emptyMeans:
+          "Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде „Оновлено … тому“.",
+        previewLabel: "Так це виглядає на сторінці притулку:",
+        previewEmpty: "Речення немає — на сторінці притулку його не буде.",
       },
       donation: {
         optional: "· необовʼязково",
@@ -1735,9 +1778,9 @@ export const uk = {
          * at create. The rest of the paragraph is
          * the same in both.
          */
-        what: "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
+        what: "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
         whatBeforeVerification:
-          "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
+          "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
         action: "Створити пароль",
         expiry: "Запрошення діє {hours} години. Якщо не встигнете — я надішлю нове.",
         /**
@@ -2034,7 +2077,7 @@ export const uk = {
         admin_removed: "Доступ закрито: {name}",
         admin_removed_pending: "Запрошення скасовано: {name}",
         contact_changed: "Змінено контакти",
-        freshness_sentence_changed: "Змінено речення на картках",
+        freshness_sentence_changed: "Змінено речення на сторінці притулку",
         description_changed: "Змінено опис притулку",
         donation_proposed: "Запропоновано посилання на збір: {host}",
         donation_proposal_cancelled: "Пропозицію посилання скасовано",

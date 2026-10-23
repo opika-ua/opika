@@ -187,42 +187,18 @@ describe("kabinetHomeOf: K4 editing", () => {
     expect(home).toMatchObject({ viewer: "support", editing: { kind: "read_only" } });
   });
 
-  it("no animal: no preview animal", async () => {
-    const home = await kabinetHomeOf(adminOf(mine), deps());
-    expect(home).toMatchObject({ editing: { kind: "open", previewAnimal: null } });
-  });
-
-  it("previews with an animal adopters can see, and its real day count", async () => {
-    const confirmedAt = new Date(Date.now() - 12 * 86_400_000);
+  /**
+   * Designer round 1, S6: the voice preview shows the shelter page's section,
+   * which needs no animal (DR1-Q5), so the page reads none for it.
+   */
+  it("needs no animal for the voice preview", async () => {
     await animalRepo(db).insert(
-      makeAnimal({ shelterId: mine.id, name: "Чернетка", listing: { kind: "draft" } }),
-      cityId,
-    );
-    await animalRepo(db).insert(
-      makeAnimal({
-        shelterId: mine.id,
-        name: "Ластівка",
-        listing: { kind: "published", publishedAt: confirmedAt, confirmedAt, undoable: null },
-      }),
+      makeAnimal({ shelterId: mine.id, name: "Ластівка", listing: { kind: "draft" } }),
       cityId,
     );
     const home = await kabinetHomeOf(adminOf(mine), deps());
-    if (home.kind !== "shelter" || home.editing.kind !== "open") throw new Error("not open");
-    expect(home.editing.previewAnimal?.name).toBe("Ластівка");
-    expect(home.editing.previewAnimal?.freshness).toMatchObject({ ageDays: 12, kind: "aging" });
-  });
-
-  it("with drafts only, previews with a draft as it would read on the day it is published", async () => {
-    await animalRepo(db).insert(
-      makeAnimal({ shelterId: mine.id, name: "Чернетка", listing: { kind: "draft" } }),
-      cityId,
-    );
-    const home = await kabinetHomeOf(adminOf(mine), deps());
-    if (home.kind !== "shelter" || home.editing.kind !== "open") throw new Error("not open");
-    expect(home.editing.previewAnimal).toMatchObject({
-      name: "Чернетка",
-      freshness: { ageDays: 0, kind: "fresh" },
-    });
+    if (home.kind !== "shelter") throw new Error("not a shelter");
+    expect(home.editing).toEqual({ kind: "open", donationDeclined: false });
   });
 
   describe("the declined proposal (answer 12)", () => {

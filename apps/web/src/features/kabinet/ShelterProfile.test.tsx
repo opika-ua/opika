@@ -354,7 +354,7 @@ describe("ShelterProfile with K4 editing", () => {
       />,
     );
     expect(screen.getByLabelText(/^Телефон/)).toBeTruthy();
-    expect(screen.getByLabelText("Ваші слова на картках")).toBeTruthy();
+    expect(screen.getByLabelText("Ваші слова на сторінці притулку")).toBeTruthy();
   });
 
   it("a support view stays read-only even if editing were open", () => {

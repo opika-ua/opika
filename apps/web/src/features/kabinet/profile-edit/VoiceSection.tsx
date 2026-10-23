@@ -1,19 +1,12 @@
 "use client";
 
 import type { KabinetShelterView } from "@opika/contracts";
-import { ANIMAL_NAME_TOKEN, type FreshnessSentence, fillAnimalName } from "@opika/domain";
+import type { FreshnessSentence } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import { useId, useRef, useState } from "react";
-import { ShelterFreshnessBlock } from "../../animal-detail/ShelterFreshnessBlock";
-import { Button, TextAreaField } from "../../controls/controls";
-import type { PreviewAnimal } from "../home";
-import {
-  insertAt,
-  SENTENCE_MAX,
-  type SentenceError,
-  sentenceCheck,
-  sentenceLength,
-} from "./fields";
+import { useId, useState } from "react";
+import { TextAreaField } from "../../controls/controls";
+import { ShelterWordsSection } from "../../shelters/ShelterWordsSection";
+import { SENTENCE_MAX, type SentenceError, sentenceCheck, sentenceLength } from "./fields";
 import { SaveBar, type SaveState } from "./SaveBar";
 import { CAPTION, CARD, CARD_TITLE, ERROR_TEXT } from "./styles";
 import { useUnsavedChanges } from "./unsaved-changes";
@@ -27,6 +20,8 @@ const messageOf = (error: SentenceError): string => {
   switch (error.key) {
     case "sentenceTooLong":
       return fillTemplate(t.sentenceTooLong, { max: String(SENTENCE_MAX) });
+    case "nameTokenGone":
+      return t.nameTokenGone;
     case "unknownToken":
       return fillTemplate(t.unknownToken, { token: error.token });
     case "dateTokenGone":
@@ -43,28 +38,27 @@ const messageOf = (error: SentenceError): string => {
 
 /**
  * K4's voice editor (N11, VH-Q1, K-Q6): one sentence, a 280-character
- * counter, a button that inserts `{імʼя}` at the cursor (answer 7; most
- * keyboards here can't type ʼ, and the server normalises the other spellings
- * anyway), and a live preview in the animal page's own freshness block with
- * one of the shelter's animals. Saved on its own (answer 1).
+ * counter, and a live preview in the shelter page's own «Слова притулку»
+ * section (designer round 1, S6), so the preview can't drift from the page it
+ * claims to show. Saved on its own (answer 1).
+ *
+ * Since DR1-Q5 the sentence is shelter-level: `{імʼя}` is refused, so the
+ * button that inserted it (answer 7) is gone, and the preview needs no animal.
  *
  * The English translation is sent back as stored; the server drops it when
  * the Ukrainian changes (answer 13), so this form never edits English.
  */
 export function VoiceSection({
   sentence,
-  previewAnimal,
   save,
   reload,
 }: {
   sentence: FreshnessSentence;
-  previewAnimal: PreviewAnimal | null;
   save: (next: FreshnessSentence) => Promise<WriteResult>;
   reload: () => Promise<KabinetShelterView | null>;
 }) {
   const t = uk.kabinet.profileEdit;
   const id = useId();
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [base, setBase] = useState(sentence);
   const [text, setText] = useState(sentence?.uk ?? "");
   const [error, setError] = useState<SentenceError | null>(null);
@@ -120,18 +114,6 @@ export function VoiceSection({
     setState({ kind: "idle" });
   };
 
-  const insertName = () => {
-    const area = textareaRef.current;
-    const start = area?.selectionStart ?? text.length;
-    const end = area?.selectionEnd ?? text.length;
-    const next = insertAt(text, start, end, ANIMAL_NAME_TOKEN);
-    setText(next.value);
-    requestAnimationFrame(() => {
-      area?.focus();
-      area?.setSelectionRange(next.caret, next.caret);
-    });
-  };
-
   const length = sentenceLength(text);
   const over = length - SENTENCE_MAX;
   // The preview shows the text as it would be stored when it is valid, and as
@@ -147,7 +129,6 @@ export function VoiceSection({
       </h2>
       <TextAreaField
         id={`${id}-sentence`}
-        ref={textareaRef}
         label={uk.kabinet.profile.voiceLabel}
         value={text}
         onChange={(event) => setText(event.target.value)}
@@ -156,15 +137,11 @@ export function VoiceSection({
         hint={
           <>
             <p>{t.voice.hint}</p>
-            <p>{t.voice.nameStaysHint}</p>
             <p>{t.voice.emptyMeans}</p>
           </>
         }
       />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button variant="secondary" onClick={insertName}>
-          {t.voice.insertName}
-        </Button>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <p
           id={counterId}
           aria-live={over > -ANNOUNCE_WITHIN ? "polite" : "off"}
@@ -177,20 +154,15 @@ export function VoiceSection({
       </div>
 
       <div className="flex flex-col gap-2" data-testid="voice-preview">
-        {previewAnimal === null ? (
-          <p className={CAPTION}>{t.voice.previewNoAnimals}</p>
+        {previewText === null ? (
+          <p className={CAPTION}>{t.voice.previewEmpty}</p>
         ) : (
           <>
-            <p className={CAPTION}>
-              {fillTemplate(t.voice.previewLabel, { name: previewAnimal.name })}
-            </p>
-            <ShelterFreshnessBlock
-              freshness={previewAnimal.freshness}
-              sentence={
-                previewText === null ? null : fillAnimalName(previewText, previewAnimal.name)
-              }
+            <p className={CAPTION}>{t.voice.previewLabel}</p>
+            <ShelterWordsSection
+              words={{ description: null, sentence: previewText }}
+              headingLevel={3}
             />
-            {previewText === null ? <p className={CAPTION}>{t.voice.previewEmpty}</p> : null}
           </>
         )}
       </div>

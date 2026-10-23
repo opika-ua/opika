@@ -39,22 +39,28 @@ const freshnessFields: readonly [string, Parser][] = [
 ];
 
 describe.each(freshnessFields)("%s freshnessSentence", (_path, field) => {
-  it("normalises the token spellings to {імʼя}", () => {
-    expect(field.safeParse({ uk: "  Чи {Ім'я} ще з нами?  ", en: null })).toMatchObject({
-      success: true,
-      data: { uk: `Чи ${TOKEN} ще з нами?`, en: null },
-    });
+  /**
+   * DR1-Q5 (Oleksii, verbatim: "The sentence is shelter-level, and the editor
+   * refuses {імʼя}."): refused at the contract too, in Ukrainian and English,
+   * whatever its spelling, so no write path can store it.
+   */
+  it.each([
+    ["Ukrainian, ASCII apostrophe", { uk: "  Чи {Ім'я} ще з нами?  ", en: null }],
+    ["Ukrainian, canonical", { uk: `Чи ${TOKEN} ще з нами?`, en: null }],
+    [
+      "English",
+      { uk: "Оновлюємо щотижня.", en: { text: "Is {ім’я} still here?", provenance: "human" } },
+    ],
+  ])("refuses {імʼя} (%s)", (_label, value) => {
+    const result = field.safeParse(value);
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result.error?.issues)).toContain("shelter page");
   });
 
-  it("normalises the English text too", () => {
-    expect(
-      field.safeParse({
-        uk: "Оновлюємо щотижня.",
-        en: { text: "Is {ім’я} still here?", provenance: "human" },
-      }),
-    ).toMatchObject({
+  it("trims what it accepts", () => {
+    expect(field.safeParse({ uk: "  Оновлюємо щосуботи.  ", en: null })).toMatchObject({
       success: true,
-      data: { en: { text: `Is ${TOKEN} still here?`, provenance: "human" } },
+      data: { uk: "Оновлюємо щосуботи.", en: null },
     });
   });
 
@@ -99,16 +105,25 @@ describe.each(freshnessFields)("%s freshnessSentence", (_path, field) => {
 });
 
 describe("updateFreshnessSentence's whole input", () => {
-  it("hands the handler the normalised text", () => {
+  it("hands the handler the trimmed text", () => {
     expect(
       inputOf(shelterProfileContract.updateFreshnessSentence).safeParse({
-        freshnessSentence: { uk: "{ІМ`Я} чекає.", en: null },
+        freshnessSentence: { uk: " Оновлюємо щосуботи. ", en: null },
         expectedVersion: 3,
       }),
     ).toEqual({
       success: true,
-      data: { freshnessSentence: { uk: `${TOKEN} чекає.`, en: null }, expectedVersion: 3 },
+      data: { freshnessSentence: { uk: "Оновлюємо щосуботи.", en: null }, expectedVersion: 3 },
     });
+  });
+
+  it("refuses {імʼя} in any spelling (DR1-Q5)", () => {
+    expect(
+      inputOf(shelterProfileContract.updateFreshnessSentence).safeParse({
+        freshnessSentence: { uk: "{ІМ`Я} чекає.", en: null },
+        expectedVersion: 3,
+      }).success,
+    ).toBe(false);
   });
 });
 

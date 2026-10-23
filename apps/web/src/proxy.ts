@@ -161,7 +161,8 @@ export function isCronPath(pathname: string): boolean {
 }
 
 /**
- * RL-F1: the per-IP refusal on `/tvaryny` pages, which is the rate limit a
+ * RL-F1: the per-IP refusal on `/tvaryny` pages (and, since S6, the shelter
+ * page under `/prytulky`), which is the rate limit a
  * visitor actually meets on the animal page and the gallery's overlay (the
  * overlay's request is the same URL; Next's router, given a response that
  * isn't its own, loads the URL as a document and gets this). Oleksii,
@@ -186,8 +187,18 @@ async function discoveryRateLimitedResponse(): Promise<NextResponse> {
   });
 }
 
+/**
+ * The public pages that read listings on every load: the gallery, the deck,
+ * the animal page, and (designer round 1, S6) the shelter page, which reads
+ * the shelter and a page of its animals the same way. Matched by whole path
+ * segment, so `/prytulkam` (the static page for shelters) isn't one.
+ */
+const DISCOVERY_PAGE_PREFIXES = ["/tvaryny", "/prytulky"] as const;
+
 function isDiscoveryPagePath(pathname: string): boolean {
-  return pathname === "/tvaryny" || pathname.startsWith("/tvaryny/");
+  return DISCOVERY_PAGE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
 /**

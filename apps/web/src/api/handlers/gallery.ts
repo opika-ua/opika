@@ -76,7 +76,6 @@ export async function galleryList(
           id: shelter.id,
           displayName: shelter.displayName,
           publicLocation: cityOnlyLocationOf(shelter.publicLocation),
-          freshnessSentence: shelter.freshnessSentence,
           verification:
             shelter.verification.status === "verified"
               ? ("verified" as const)

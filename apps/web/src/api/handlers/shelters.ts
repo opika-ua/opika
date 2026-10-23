@@ -34,6 +34,7 @@ export async function sheltersById(
     publicLocation: cityOnlyLocationOf(shelter.publicLocation),
     donation: shelter.donation,
     createdAt: shelter.createdAt,
+    freshnessSentence: shelter.freshnessSentence,
     verification: "verified",
   };
 }

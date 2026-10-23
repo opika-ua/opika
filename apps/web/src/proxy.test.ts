@@ -249,6 +249,20 @@ describe("proxy", () => {
       expect(last.status).toBe(429);
     });
 
+    it("429s a shelter page past the same per-IP limit (designer round 1, S6)", async () => {
+      const { proxy } = await import("./proxy");
+      const load = () =>
+        proxy(
+          request("https://opika.example/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd", {
+            "x-forwarded-for": "9.9.9.10",
+          }),
+        );
+      let last = await load();
+      for (let i = 0; i < 100; i++) last = await load();
+      expect(last.status).toBe(429);
+      expect(await last.text()).toContain("Забагато запитів. Спробуйте ще раз пізніше.");
+    });
+
     it("answers that 429 with his sentence in Ukrainian, not the not-found copy (RL-F1)", async () => {
       // The limiter stubbed to refuse: the refusal's body is under test, not
       // the counting (the test above), so no budget is spent to reach it.

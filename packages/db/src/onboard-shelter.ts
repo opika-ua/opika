@@ -172,8 +172,8 @@ const OnboardPhotoSchema = z.object({
 
 /**
  * The operator's sentences get the same validation as the kabinet's (K-Q6):
- * the token's spellings normalised to `{імʼя}`, other braces refused, 280
- * characters. Unlike the kabinet, blank is refused rather than cleared,
+ * no braces at all (`{імʼя}` included since DR1-Q5: the sentence shows on the
+ * shelter page, where no animal's name fills it), 280 characters. Unlike the kabinet, blank is refused rather than cleared,
  * because this field is required (see `freshnessSentenceUk` below).
  */
 const OnboardFreshnessSentenceUkSchema = z.string().transform((raw, ctx) => {
@@ -195,7 +195,7 @@ const OnboardFreshnessSentenceUkSchema = z.string().transform((raw, ctx) => {
 
 const OnboardAnimalSchema = z.object({
   idSeed: z.string().min(1),
-  // The kabinet's rule: a name is substituted into the sentence, so no braces.
+  // The kabinet's rule: no braces in a name (K-Q6, kept since DR1-Q5; see `animalNameProblem`).
   name: AnimalNameInputSchema,
   species: AnimalSpeciesSchema,
   sex: AnimalSexSchema,

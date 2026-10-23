@@ -228,6 +228,7 @@ describe("shelter views expose exactly their intended fields", () => {
       "description",
       "displayName",
       "donation",
+      "freshnessSentence",
       "id",
       "publicLocation",
       "verification",
@@ -237,7 +238,6 @@ describe("shelter views expose exactly their intended fields", () => {
   it("ShelterSummaryView", () => {
     expect(Object.keys(ShelterSummaryViewSchema.shape).sort()).toEqual([
       "displayName",
-      "freshnessSentence",
       "id",
       "publicLocation",
       "verification",

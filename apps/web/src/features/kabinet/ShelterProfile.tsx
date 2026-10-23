@@ -149,7 +149,6 @@ export function ShelterProfile({
               initialView={view}
               cityName={cityName}
               operatorName={operatorName}
-              previewAnimal={editing.previewAnimal}
               donationDeclined={editing.donationDeclined}
             />
           ) : (

@@ -76,6 +76,31 @@ export function GalleryPagination({
   page,
   totalPages,
 }: GalleryPaginationProps) {
+  return (
+    <PaginationNav
+      page={page}
+      totalPages={totalPages}
+      pageHref={(target) => galleryPageHref(filters, sort, target, citySlugs)}
+    />
+  );
+}
+
+/**
+ * The numbered pagination for any `gallery.list` result: the gallery's own
+ * (`GalleryPagination`) and the shelter page's (designer round 1, S6). The
+ * caller says where each page lives, so a shelter page's links stay on that
+ * shelter's page and never lead into the whole gallery.
+ */
+export function PaginationNav({
+  page,
+  totalPages,
+  pageHref,
+}: {
+  /** The page actually served, `gallery.list`'s own `page`. */
+  page: number;
+  totalPages: number;
+  pageHref: (page: number) => string;
+}) {
   if (!hasPagination(totalPages)) return null;
 
   const items = paginationWindow(page, totalPages);
@@ -97,7 +122,7 @@ export function GalleryPagination({
           // opened re-prefetched every visible gallery link, each one a request
           // against proxy.ts's per-IP limit (gallery-preview-drawer.harness.ts).
           prefetch={false}
-          href={galleryPageHref(filters, sort, page - 1, citySlugs)}
+          href={pageHref(page - 1)}
           data-testid="pagination-prev"
           className={NAV_BUTTON_AVAILABLE}
         >
@@ -134,7 +159,7 @@ export function GalleryPagination({
             <Link
               prefetch={false}
               key={item}
-              href={galleryPageHref(filters, sort, item, citySlugs)}
+              href={pageHref(item)}
               aria-label={pageAriaLabel(item)}
               data-testid="pagination-page"
               className={PAGE_PILL_INACTIVE}
@@ -158,7 +183,7 @@ export function GalleryPagination({
       {page < totalPages ? (
         <Link
           prefetch={false}
-          href={galleryPageHref(filters, sort, page + 1, citySlugs)}
+          href={pageHref(page + 1)}
           data-testid="pagination-next"
           className={NAV_BUTTON_AVAILABLE}
         >

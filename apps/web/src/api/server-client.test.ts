@@ -76,7 +76,6 @@ describe("anonymousRouterClient", () => {
     expect(page.items).toHaveLength(1);
     expect(Object.keys(page.items[0]?.shelter ?? {}).sort()).toEqual([
       "displayName",
-      "freshnessSentence",
       "id",
       "publicLocation",
       "verification",
@@ -155,13 +154,13 @@ describe("anonymousRouterClient", () => {
       "description",
       "displayName",
       "donation",
+      "freshnessSentence",
       "id",
       "publicLocation",
       "verification",
     ]);
     expect(Object.keys(detail.shelter).sort()).toEqual([
       "displayName",
-      "freshnessSentence",
       "id",
       "publicLocation",
       "verification",

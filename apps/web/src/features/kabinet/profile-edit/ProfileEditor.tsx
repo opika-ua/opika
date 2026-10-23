@@ -6,7 +6,6 @@ import {
   type KabinetProfileClient,
   kabinetProfileBrowserClient,
 } from "../../../api/kabinet-browser-client";
-import type { PreviewAnimal } from "../home";
 import { LockedBlock } from "../ProfileParts";
 import { ContactsSection } from "./ContactsSection";
 import { DonationSection } from "./DonationSection";
@@ -29,14 +28,12 @@ export function ProfileEditor({
   initialView,
   cityName,
   operatorName,
-  previewAnimal,
   donationDeclined,
   client = kabinetProfileBrowserClient,
 }: {
   initialView: KabinetShelterView;
   cityName: string | null;
   operatorName: string;
-  previewAnimal: PreviewAnimal | null;
   donationDeclined: boolean;
   client?: KabinetProfileClient;
 }) {
@@ -80,7 +77,6 @@ export function ProfileEditor({
       <div className="flex min-w-0 flex-col gap-3 desktop:gap-4">
         <VoiceSection
           sentence={view.freshnessSentence}
-          previewAnimal={previewAnimal}
           save={(freshnessSentence) =>
             write(() =>
               profile.updateFreshnessSentence({ freshnessSentence, expectedVersion: view.version }),

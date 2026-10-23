@@ -14,17 +14,12 @@ const mockShelter: ShelterSummaryView = {
   id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as never,
   displayName: "Тестовий притулок",
   publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
-  freshnessSentence: {
-    uk: "Ми оновлювали цю картку 25 червня. Напишіть — скажемо, чи тварина ще з нами.",
-    en: null,
-  },
   verification: "verified",
 };
 
-const mockShelterNoSentence: ShelterSummaryView = {
+const mockSecondShelter: ShelterSummaryView = {
   ...mockShelter,
   displayName: "Другий притулок",
-  freshnessSentence: null,
 };
 
 function mockFreshness(kind: FreshnessKind, ageDays: number): Freshness {
@@ -70,6 +65,6 @@ export function generateMockCards(count: number): FeedCardView[] {
     // (filed as a follow-up alongside E1's own listingKind addition), so
     // there's nothing here for a "reserved" mock card to demonstrate.
     listingKind: "published" as const,
-    shelter: i % 2 === 0 ? mockShelter : mockShelterNoSentence,
+    shelter: i % 2 === 0 ? mockShelter : mockSecondShelter,
   }));
 }
