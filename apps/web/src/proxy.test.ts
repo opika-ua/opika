@@ -198,9 +198,9 @@ describe("proxy", () => {
      * (`credentials: "omit"`, DR1-Q2), so it can never carry the gate's own
      * cookie either. Without this exact-path exemption it would 403 on every
      * call before launch — found running the saved-page harness for real,
-     * not inferred from the gate's code. Builder decision (reversible,
-     * no security boundary per this file's own top comment), recorded in
-     * `docs/decisions-inbox/feat-dr1-s8-saved-page.md`.
+     * not inferred from the gate's code. Oleksii's own answer (S8-D1, not a
+     * builder default), recorded in `docs/decisions-inbox.md` (folded from
+     * `feat-dr1-s8-saved-page.md` at #186's merge).
      */
     it("exempts animals.cardsByIds, the one RPC path built to carry no cookie (S8)", async () => {
       const { proxy } = await import("./proxy");
