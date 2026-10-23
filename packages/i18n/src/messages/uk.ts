@@ -335,8 +335,8 @@ export const uk = {
      * the shelter's display name.
      */
     shelterRowLink: "Сторінка притулку «{name}»",
-    /** Template: "← Усі тварини у {city}" — the mock's D1 desktop back link (frame D1). */
-    backToListIn: "← Усі тварини у {city}",
+    /** Template: "← Усі тварини · м. {city}" — the mock's D1 desktop back link (frame D1). */
+    backToListIn: "← Усі тварини · м. {city}",
     /**
      * The subtitle line's species word — "Метис · 2 роки · середня" in the
      * mock, but "Метис" (mixed breed) has no domain field at all (`Animal`
