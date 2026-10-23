@@ -75,8 +75,7 @@ export const REGISTRY_HAS_NO_REAL_SHELTERS = true;
  * inherits the suppression rather than needing to remember
  * `REGISTRY_HAS_NO_REAL_SHELTERS` exists. (`AnimalCard.tsx` carries no
  * shelter name at all since S1 — "No shelter name on the gallery card" —
- * so it has no verified-suffix call to make; review of feat-dr1-s1-card-
- * no-shelter, finding 1, S1-F1.) Not sourced from
+ * so it has no verified-suffix call to make.) Not sourced from
  * `packages/i18n`: the literal predates this fix and moving it into the
  * catalogue is a separate, unrelated cleanup this row doesn't scope-creep
  * into — the string itself is unchanged, only where the check lives.
