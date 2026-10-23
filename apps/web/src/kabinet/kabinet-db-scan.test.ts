@@ -53,9 +53,9 @@ const ENTRY_FILES = ["proxy.ts"];
 /**
  * The justified exceptions: a module, every finding it may have, and why. Kept exact: an entry
  * whose module has a finding more or fewer, or that the walk no longer reaches, fails the test
- * too, so the list can't go stale or cover a finding added later. A non-literal `import()` or
- * `createRequire` in a reached module would need an entry here, proven the same way; none has one
- * today.
+ * too, so the list can't go stale or cover a finding added later. A non-literal `import()` or a
+ * load of `node:module` in a reached module would need an entry here, proven the same way; none
+ * has one today.
  */
 const ALLOWED: Readonly<Record<string, { uses: readonly string[]; why: string }>> = {
   "kabinet/kabinet-db.ts": {
@@ -116,12 +116,27 @@ function literalText(node: Node | undefined): string | null {
 const DB_PACKAGE = "@opika/db";
 
 /**
+ * Both spellings resolve to the same built-in (`"module"` is `"node:module"` without the
+ * protocol prefix) and both hand back `createRequire`, which hands back a `require` that can
+ * reach `@opika/db` by a computed name the same way the namespace-import check below exists to
+ * catch. F8-F3 (review of #179): the earlier version of this check looked for the bare
+ * identifier `createRequire` instead, which missed `mod["createRequire"]` and
+ * `require("node:module")["createRequire"]` — neither contains that identifier, since bracket
+ * access on a string reads as a `StringLiteral` node, not an `Identifier` one. Flagging the
+ * import itself, regardless of how `createRequire` is later pulled out of it, closes that the
+ * same way the `@opika/db` checks below do: by naming the module, not enumerating the ways to
+ * misuse it.
+ */
+const MODULE_BUILTIN_SPECIFIERS = ["module", "node:module"];
+
+/**
  * `sourceFile`'s facts, read from the compiler's tree (F8-F2, note 4): a string or a comment is
  * never code, so neither can hide an import or fake one. Read: import declarations (a whole
  * `import type` names a type only), `export … from` (likewise `export type`), `import x =
  * require()`, `import()` and `require()` calls; and, failing closed, an `import()` or `require()`
- * of anything but a literal, any use of `createRequire`, and a namespace or dynamic load of
- * `@opika/db` (through which `createDatabase` can be reached by a computed name).
+ * of anything but a literal, any load of `node:module` (through which `createRequire` can reach
+ * `@opika/db` by a computed name), and a namespace or dynamic load of `@opika/db` itself (through
+ * which `createDatabase` can be reached by a computed name).
  */
 function factsOf(sourceFile: SourceFile): ModuleFacts {
   const loads: Load[] = [];
@@ -133,6 +148,9 @@ function factsOf(sourceFile: SourceFile): ModuleFacts {
       if (specifier === null) continue;
       const typeOnly = node.importClause?.phaseModifier === SyntaxKind.TypeKeyword;
       loads.push({ specifier, via: typeOnly ? "type" : "import" });
+      if (!typeOnly && MODULE_BUILTIN_SPECIFIERS.includes(specifier)) {
+        unfollowable.push("an import of node:module");
+      }
       const bindings = node.importClause?.namedBindings;
       if (!typeOnly && specifier === DB_PACKAGE && bindings && isNamespaceImport(bindings)) {
         unfollowable.push("a namespace import of @opika/db");
@@ -155,8 +173,10 @@ function factsOf(sourceFile: SourceFile): ModuleFacts {
       }
       loads.push({ specifier, via: isImport ? "import()" : "require" });
       if (isImport && specifier === DB_PACKAGE) unfollowable.push("a dynamic import of @opika/db");
+      if (MODULE_BUILTIN_SPECIFIERS.includes(specifier)) {
+        unfollowable.push("an import of node:module");
+      }
     } else if (isIdentifier(node)) {
-      if (node.text === "createRequire") unfollowable.push("createRequire");
       if (node.text === "createDatabase") namesCreateDatabase = true;
     }
   }
@@ -366,13 +386,33 @@ describe("the scan's detector", () => {
       [`const m = await import(\`@/api/$${"{name}"}\`);`, ["a non-literal import()"]],
       [
         'import { createRequire } from "node:module";\nconst m = createRequire(import.meta.url)(x);',
-        ["createRequire"],
+        ["an import of node:module"],
       ],
       [
         'import * as pkg from "@opika/db";\nconst make = pkg["create" + "Data" + "base"];',
         ["a namespace import of @opika/db"],
       ],
       ['const pkg = await import("@opika/db");', ["a dynamic import of @opika/db"]],
+    ] as const) {
+      expect([source, usesFrom({ [page]: source })]).toEqual([source, uses]);
+    }
+  });
+
+  /**
+   * F8-F3 (review of #179): the old detector looked for the bare identifier `createRequire`,
+   * which both of these miss — bracket access on a string reads as a `StringLiteral` node, never
+   * an `Identifier` one, so neither form ever contains that identifier at all. Flagging any load
+   * of `node:module`/`module` itself, regardless of how `createRequire` is pulled out of it,
+   * catches both.
+   */
+  it("catches createRequire reached through a computed property, not just the bare identifier (F8-F3)", () => {
+    for (const [source, uses] of [
+      [
+        'import * as mod from "node:module";\nconst cr = mod["createRequire"];',
+        ["an import of node:module"],
+      ],
+      ['const cr = require("node:module")["createRequire"];', ["an import of node:module"]],
+      ['import { createRequire } from "module";', ["an import of node:module"]],
     ] as const) {
       expect([source, usesFrom({ [page]: source })]).toEqual([source, uses]);
     }
@@ -428,7 +468,7 @@ describe("the scan's detector", () => {
     expect(found).toEqual([
       {
         key: "kabinet/kabinet-db.ts",
-        uses: ["imports ../api/db", "a non-literal import()", "createRequire"],
+        uses: ["imports ../api/db", "a non-literal import()", "an import of node:module"],
       },
     ]);
     expect(found.filter((offence) => !allowed(offence))).toEqual(found);

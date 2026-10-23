@@ -85,9 +85,12 @@ when `errors` is an array (an `AggregateError`'s list, or any error carrying an 
 the thrown error down, at any depth. If the walk stops first (on a loop, past 64 errors, or on a
 read that throws), the throw is cleaned too (fail closed, his rule). So does an `errors` that is
 there but isn't an array (a `Set`, an array-like, a plain object): the walk can't see into it, so
-the throw is cleaned (F8-F2, his Q2). A cleaned error keeps the SQLSTATE and schema names of the
-first raw query error the walk finds, at any depth within its limit, not only within the three
-links its cleaned chain keeps (F8-F2). A cleaned error is never named `APIError`, so Better Auth answers it as
+the throw is cleaned (F8-F2, his Q2). The cleaned chain itself only ever follows `cause` three
+links deep (Drizzle's error, the driver's, and one more — `CAUSE_DEPTH`). When none of those three
+carries a SQLSTATE, a separate, deeper walk over the original error's `cause`/`errors` tree
+(`walkOf`, the same walk above, within its own 64-error limit) finds the facts of the first raw
+query error at whatever depth it's actually at, and attaches them to the outermost cleaned error
+only — the chain under it still stops at three links (F8-F2). A cleaned error is never named `APIError`, so Better Auth answers it as
 a plain 500. Anything the transaction itself raises is cleaned (neon-http has no transactions: its
 refusal is cleaned as before). Every kabinet page, route and procedure reads through `kabinetDb()`
 (`apps/web/src/kabinet/kabinet-db.ts`, the served database cleaned), pinned by
