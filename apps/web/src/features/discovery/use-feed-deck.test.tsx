@@ -395,6 +395,20 @@ describe("useFeedDeck", () => {
    * network is fine. `error instanceof TypeError` is the real signal for
    * "the fetch never reached a server at all" — this is not that.
    */
+  /**
+   * G1 (audit 2026-10-22): the limiter's raw 429 is neither offline nor the site's failure.
+   * oRPC's client reports it as `TOO_MANY_REQUESTS`, status 429, `defined: false` (checked
+   * against a real `RPCLink` answering `new Response("Too Many Requests", { status: 429 })`).
+   */
+  it("the per-IP limiter's 429 is tooManyRequests — not offline, and not loadFailed", async () => {
+    list.mockRejectedValueOnce(new ORPCError("TOO_MANY_REQUESTS"));
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() =>
+      expect(result.current.state).toEqual({ kind: "error", reason: "tooManyRequests" }),
+    );
+  });
+
   it("an undeclared server-side error is loadFailed, never offline — the network is fine", async () => {
     list.mockRejectedValueOnce(new ORPCError("INTERNAL_SERVER_ERROR", { defined: false }));
 

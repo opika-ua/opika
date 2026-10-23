@@ -1,4 +1,5 @@
 import { uk } from "@opika/i18n";
+import { WORDMARK } from "../brand";
 import type { OutgoingEmail } from "./email-provider";
 
 /**
@@ -105,7 +106,9 @@ export function magicLinkEmail(input: {
  * E2: the invite email. Not a sign-in link (IN-Q3): it opens the invite
  * landing. Oleksii's final copy (2026-10-14) is a personal note: the intro has
  * no `{operator}`, and the name signs the last line instead (`— {operator}`,
- * nominative, `operatorDisplayName`'s value).
+ * nominative, `operatorDisplayName`'s value). The intro names the site (`{site}`,
+ * audit 2026-10-22 #46: «на сайті» alone doesn't say which one, in a mail opened
+ * days later), filled from app config, never typed in the catalogue.
  */
 export function invitationEmail(input: {
   to: string;
@@ -120,7 +123,11 @@ export function invitationEmail(input: {
   return emailBody(input.to, {
     subject: copy.subject,
     before: [
-      fill(copy.intro, { operator: input.operatorName, shelter: input.shelterName }),
+      fill(copy.intro, {
+        operator: input.operatorName,
+        shelter: input.shelterName,
+        site: WORDMARK,
+      }),
       input.shelterVerification === "verified" ? copy.what : copy.whatBeforeVerification,
     ],
     link: { label: copy.action, url: input.url },

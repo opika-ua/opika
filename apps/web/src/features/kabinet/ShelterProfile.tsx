@@ -133,6 +133,17 @@ export function ShelterProfile({
             operatorName={standaloneOperatorName(operator)}
           />
 
+          {/*
+            G3 (audit 2026-10-22): how verification goes and who acts next, for the shelter's
+            own admins while it waits. Not for the support view, where «я» would be the
+            operator speaking to themselves.
+          */}
+          {!support &&
+          (view.verification.status === "pending" ||
+            view.verification.status === "under_review") ? (
+            <p className={CAPTION}>{t.pendingNote}</p>
+          ) : null}
+
           {editing.kind === "open" && !support ? (
             <ProfileEditor
               initialView={view}

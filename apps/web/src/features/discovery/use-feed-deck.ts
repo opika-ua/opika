@@ -5,6 +5,7 @@ import { type AnimalId, type FeedFilters, filtersFingerprint } from "@opika/doma
 import { isDefinedError, safe } from "@orpc/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { feedBrowserClient } from "../../api/browser-client";
+import { isTooManyRequests } from "../../api/too-many-requests";
 import type { CommitDirection, DeckErrorReason, DeckState } from "./SwipeDeck";
 
 /**
@@ -108,7 +109,9 @@ export function useFeedDeck(filters: FeedFilters) {
             ? "offline"
             : isDefinedError(error) && error.code === "INVALID_CURSOR"
               ? "sessionExpired"
-              : "loadFailed";
+              : isTooManyRequests(error)
+                ? "tooManyRequests"
+                : "loadFailed";
         setState({ kind: "error", reason });
         return;
       }
@@ -243,8 +246,8 @@ export function useFeedDeck(filters: FeedFilters) {
 
   /** Every reason restarts the feed from its first page — there is no
    * partial state worth preserving once the error card has replaced the
-   * deck view, and `sessionExpired`'s own copy ("Ми почали стрічку
-   * заново") specifically promises this. */
+   * deck view, and `sessionExpired`'s own copy ("Режим «по одній»
+   * почнеться спочатку", on the button «Почати спочатку») specifically promises this. */
   const onRetry = useCallback(() => {
     generationRef.current += 1;
     cursorRef.current = null;

@@ -5,6 +5,7 @@ import { allChannels, type ContactChannel } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useLayoutEffect, useRef } from "react";
 import { lockBodyScroll } from "../controls/body-scroll-lock";
+import { THROTTLED_COPY } from "./throttled-copy";
 import type { RevealErrorReason, RevealState } from "./useReveal";
 
 /**
@@ -300,7 +301,7 @@ function RevealError({
   onClose: () => void;
   onRetry: () => void;
 }) {
-  const copy = uk.errors[reason];
+  const copy = reason === "tooManyRequests" ? THROTTLED_COPY : uk.errors[reason];
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
@@ -323,7 +324,7 @@ function RevealError({
         <button
           type="button"
           onClick={onClose}
-          aria-label={uk.actions.notNow}
+          aria-label={uk.preview.close}
           data-testid="reveal-close"
           className="size-12 flex-none rounded-rg-button bg-rg-fill text-[17px] text-rg-ink-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
@@ -399,7 +400,7 @@ function RevealContent({
         <button
           type="button"
           onClick={onClose}
-          aria-label={uk.actions.notNow}
+          aria-label={uk.preview.close}
           data-testid="reveal-close"
           className="size-12 flex-none rounded-rg-button bg-rg-fill text-[17px] text-rg-ink-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >

@@ -19,7 +19,8 @@ describe("the password answers, read by status and code only", () => {
     );
     expect(signInOutcomeOf(answer(429))).toEqual({ kind: "throttled", minutes: 1 });
     expect(signInOutcomeOf(answer(503))).toEqual({ kind: "failed" });
-    expect(signInOutcomeOf(null)).toEqual({ kind: "failed" });
+    // G4 (audit 2026-10-22): no answer at all is its own outcome, with its own sentence.
+    expect(signInOutcomeOf(null)).toEqual({ kind: "no_answer" });
   });
 
   it("forgot: sent, throttled, failed", () => {
@@ -42,7 +43,8 @@ describe("the password answers, read by status and code only", () => {
       kind: "invalid_link",
     });
     expect(resetOutcomeOf(answer(429))).toEqual({ kind: "throttled" });
-    expect(resetOutcomeOf(null)).toEqual({ kind: "failed" });
+    expect(resetOutcomeOf(answer(503))).toEqual({ kind: "failed" });
+    expect(resetOutcomeOf(null)).toEqual({ kind: "no_answer" });
   });
 
   it("change: the wrong current password, no password yet, a refusal, done", () => {

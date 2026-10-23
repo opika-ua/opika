@@ -110,8 +110,8 @@ describe("FilterRail", () => {
       />,
     );
     const rail = within(screen.getByTestId("filter-rail"));
-    expect(rail.getByText("Підходить 34 тварини у 7 притулках.")).toBeTruthy();
-    expect(rail.getByText(/Немає фільтра «тільки свіжі картки»/)).toBeTruthy();
+    expect(rail.getByText("Знайдено 34 тварини у 7 притулках.")).toBeTruthy();
+    expect(rail.getByText(/Фільтра за датою немає/)).toBeTruthy();
   });
 
   it("Скинути preserves the current sort", () => {

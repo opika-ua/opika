@@ -1,7 +1,14 @@
-import { uk } from "@opika/i18n";
+import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
+import { WORDMARK } from "../../brand";
 import { Footer } from "../../features/chrome/Footer";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
+
+/**
+ * `about.intro` names the site with a `{site}` slot (audit 2026-10-22 #33): the
+ * name is app config (`brand.ts`), never typed in the catalogue.
+ */
+const INTRO = fillTemplate(uk.about.intro, { site: WORDMARK });
 
 /**
  * Title only, plus an explicit `description`/`openGraph` override (Option B,
@@ -23,12 +30,12 @@ import { SiteHeader } from "../../features/chrome/SiteHeader";
  */
 export const metadata: Metadata = {
   title: uk.about.title,
-  description: uk.about.intro,
+  description: INTRO,
   openGraph: {
     type: "website",
-    siteName: "Opika",
+    siteName: WORDMARK,
     locale: "uk_UA",
-    description: uk.about.intro,
+    description: INTRO,
   },
 };
 
@@ -65,10 +72,15 @@ export default function AboutPage() {
         <h1 className="font-bold text-[34px]/[38px] desktop:text-[44px]/[46px] tracking-[-0.03em] text-rg-ink">
           {uk.about.title}
         </h1>
-        <p className="text-[17px]/[26px] text-rg-ink">{uk.about.intro}</p>
+        <p className="text-[17px]/[26px] text-rg-ink">{INTRO}</p>
         <p className="text-[17px]/[26px] text-rg-ink">{uk.about.free}</p>
         <p className="text-[17px]/[26px] text-rg-ink">{uk.about.money}</p>
-        <p className="text-[17px]/[26px] text-rg-ink">{uk.about.data}</p>
+        {/* Four paragraphs in one catalogue string (audit 2026-10-22 #45), split on the blank line. */}
+        {uk.about.data.split("\n\n").map((paragraph) => (
+          <p key={paragraph} className="text-[17px]/[26px] text-rg-ink">
+            {paragraph}
+          </p>
+        ))}
         <p className="text-[17px]/[26px] text-rg-ink">{uk.about.analytics}</p>
         <p className="text-[15px]/[22px] text-rg-ink-2 pt-2">
           {uk.about.contact.replace("{contact}", "hello@opika.org.ua")}

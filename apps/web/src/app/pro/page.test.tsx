@@ -10,7 +10,7 @@ describe("AboutPage", () => {
     expect(
       screen.getByText(/Opika — сайт, де тварини з притулків Київщини шукають дім\./),
     ).toBeTruthy();
-    expect(screen.getByText(/Сайт безкоштовний для притулків сьогодні/)).toBeTruthy();
+    expect(screen.getByText(/Сайт безкоштовний для притулків, без платних тарифів/)).toBeTruthy();
     expect(screen.getByText(/Opika ніколи не бере участі в грошах/)).toBeTruthy();
     expect(screen.getByText(/Дані, які вносить притулок/)).toBeTruthy();
     expect(
@@ -18,7 +18,7 @@ describe("AboutPage", () => {
         "Сайт збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко працюють сторінки — без реклами.",
       ),
     ).toBeTruthy();
-    expect(screen.getByText("Зв'язатися з розробником: hello@opika.org.ua")).toBeTruthy();
+    expect(screen.getByText("Написати мені: hello@opika.org.ua")).toBeTruthy();
   });
 
   /**
@@ -28,15 +28,23 @@ describe("AboutPage", () => {
    * (KH-Q12) changed: «…видаляються протягом доби.», and PW-1's two sentences (his copy,
    * `docs/shelter-passwords-copy-uk.md` §G): the password hash and the session's length.
    */
-  it("the data paragraph ends with the kabinet's history and photo facts", () => {
+  it("the data is four paragraphs, the last two the kabinet's history and photo facts", () => {
     render(<AboutPage />);
-    const data = screen.getByText(/Дані, які вносить притулок/);
-    expect(data.tagName).toBe("P");
-    expect(
-      data.textContent?.endsWith(
-        "Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби. Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто — адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють — їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин — лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку. Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
-      ),
-    ).toBe(true);
+    // Audit 2026-10-22 #4 and #45: the same sentences in four paragraphs, not one.
+    const history = screen.getByText(/^Кожна зміна в кабінеті записується/);
+    expect(history.tagName).toBe("P");
+    expect(history.textContent?.endsWith("Історія видаляється разом із записом притулку.")).toBe(
+      true,
+    );
+    const photos = screen.getByText(/^Фото, завантажені в кабінеті/);
+    expect(photos.tagName).toBe("P");
+    expect(photos.textContent).toBe(
+      "Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
+    );
+    const sessions = screen.getByText(/^Для притулків із доступом до кабінету/);
+    expect(sessions.textContent).toContain(
+      "щоб надсилати запрошення, посилання для входу чи нового пароля і повідомлення про зміну пароля, а також технічний запис",
+    );
   });
 
   it("the header wordmark links back to the gallery", () => {

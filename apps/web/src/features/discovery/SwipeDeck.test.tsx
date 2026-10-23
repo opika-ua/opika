@@ -666,8 +666,10 @@ describe("SwipeDeck error state", () => {
       />,
     );
 
-    expect(screen.getByText("БЕЗ ЗВ'ЯЗКУ")).toBeTruthy();
-    expect(screen.getByText("Зараз немає інтернету.")).toBeTruthy();
+    expect(screen.getByText("БЕЗ ЗВʼЯЗКУ")).toBeTruthy();
+    expect(
+      screen.getByText("Немає звʼязку із сайтом. Перевірте інтернет і спробуйте ще раз."),
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Спробувати ще раз" })).toBeTruthy();
   });
 
@@ -683,7 +685,7 @@ describe("SwipeDeck error state", () => {
     );
 
     expect(screen.getByText("НЕ ЗАВАНТАЖИЛОСЯ")).toBeTruthy();
-    expect(screen.getByText("Щось не спрацювало на нашому боці.")).toBeTruthy();
+    expect(screen.getByText("Збій на боці сайту.")).toBeTruthy();
     expect(screen.getByText("Це не ваша помилка і не помилка притулку.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Оновити" })).toBeTruthy();
   });
@@ -699,9 +701,35 @@ describe("SwipeDeck error state", () => {
       />,
     );
 
-    expect(screen.getByText("СЕСІЯ ЗАВЕРШИЛАСЯ")).toBeTruthy();
-    expect(screen.getByText("Ми почали стрічку заново.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "До стрічки" })).toBeTruthy();
+    // Audit 2026-10-22 #7: the cause is a rejected cursor, not a session, and the restart
+    // happens when the button is pressed.
+    expect(screen.getByText("НЕ ВДАЛОСЯ ПРОДОВЖИТИ")).toBeTruthy();
+    expect(screen.getByText("Режим «по одній» почнеться спочатку.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Почати спочатку" })).toBeTruthy();
+  });
+
+  /**
+   * G1 (audit 2026-10-22): the per-IP limiter's 429 used to land on «Щось не спрацювало на
+   * нашому боці», blaming the site for a limit. It shows `detail.rateLimited` instead — the
+   * sentence the animal page already uses — with no eyebrow and no body, and the same retry.
+   */
+  it("renders a per-IP 429 as «Забагато запитів…», not as the site's failure", () => {
+    const onRetry = vi.fn();
+    render(
+      <SwipeDeck
+        ensureSession={ENSURE_SESSION}
+        state={{ kind: "error", reason: "tooManyRequests" }}
+        onSwipe={vi.fn()}
+        onPrefetch={vi.fn()}
+        onRetry={onRetry}
+      />,
+    );
+
+    expect(screen.getByText("Забагато запитів. Спробуйте ще раз пізніше.")).toBeTruthy();
+    expect(screen.queryByText("Збій на боці сайту.")).toBeNull();
+    expect(screen.queryByText("НЕ ЗАВАНТАЖИЛОСЯ")).toBeNull();
+    screen.getByRole("button", { name: "Спробувати ще раз" }).click();
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
   it("calls onRetry when the error card's action button is activated", () => {
@@ -718,5 +746,44 @@ describe("SwipeDeck error state", () => {
 
     screen.getByRole("button", { name: "Оновити" }).click();
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * G5 (audit 2026-10-22): the deck's end state had text and no next step. It links to the
+ * gallery with the deck's own filters — the href is built by `DeckScreen` (`galleryHref`)
+ * and handed down, so what's tested here is that the end state offers exactly that link,
+ * and offers none when it isn't given one.
+ */
+describe("SwipeDeck exhausted state", () => {
+  it.each([
+    ["exhausted", { kind: "exhausted", seenCount: 3 } as const],
+    ["empty feed", { kind: "exhausted", seenCount: 0 } as const],
+  ])("%s: «Переглянути список» goes to the list with the same filters", (_name, state) => {
+    render(
+      <SwipeDeck
+        ensureSession={ENSURE_SESSION}
+        state={state}
+        onSwipe={vi.fn()}
+        onPrefetch={vi.fn()}
+        listHref="/tvaryny?misto=brovary"
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: "Переглянути список" });
+    expect(link.getAttribute("href")).toBe("/tvaryny?misto=brovary");
+  });
+
+  it("offers no link when it has nowhere to send the person", () => {
+    render(
+      <SwipeDeck
+        ensureSession={ENSURE_SESSION}
+        state={{ kind: "exhausted", seenCount: 3 }}
+        onSwipe={vi.fn()}
+        onPrefetch={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("link", { name: "Переглянути список" })).toBeNull();
   });
 });

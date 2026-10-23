@@ -71,6 +71,7 @@ export function DeckScreen({
   const { state, onSwipe, onPrefetch, onRetry, shownCount, reachableCount, ensureSession } =
     useFeedDeck(filters);
   const exit = useDeckExit(filters, citySlugs);
+  const listHref = galleryHref(filters, DEFAULT_GALLERY_SORT, citySlugs);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -257,6 +258,7 @@ export function DeckScreen({
         onRetry={onRetry}
         ensureSession={ensureSession}
         cityNames={cityNames}
+        listHref={listHref}
       />
     </div>
   );

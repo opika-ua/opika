@@ -154,6 +154,9 @@ export function SignInCard({
       case "throttled":
         setState({ kind: "entering", error: throttledMessage(outcome.minutes) });
         return;
+      case "no_answer":
+        setState({ kind: "entering", error: uk.kabinet.signIn.failed });
+        return;
       case "failed":
         setState({ kind: "entering", error: uk.kabinet.animalList.errors.actionFailed });
         return;

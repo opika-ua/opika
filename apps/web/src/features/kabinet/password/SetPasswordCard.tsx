@@ -105,6 +105,14 @@ export function SetPasswordCard({
           message: uk.kabinet.forgot.throttled,
         });
         return;
+      case "no_answer":
+        setState({
+          kind: "entering",
+          refusal: null,
+          mismatch: false,
+          message: uk.kabinet.signIn.failed,
+        });
+        return;
       case "failed":
         setState({
           kind: "entering",

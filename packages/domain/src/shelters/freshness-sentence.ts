@@ -56,7 +56,7 @@ export const characterCount = (text: string): number => {
  * the typographic ’ (and ‘, which autocorrect sometimes produces), the
  * letter-apostrophe ʼ, the turned comma ʻ, and the backtick, which is what the
  * apostrophe key gives on a US layout while the writer believes they are on
- * the Ukrainian one. Matched case-insensitively ({Імʼя}, {ІМ'Я}). Nothing
+ * the Ukrainian one. Matched case-insensitively ({Імʼя}, {ІМʼЯ}). Nothing
  * looser: spaces inside the braces or a Latin "i" stay unknown tokens, and the
  * shelter is told so rather than having a guess stored on their behalf.
  */

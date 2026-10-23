@@ -5,6 +5,7 @@ import type { AnimalId } from "@opika/domain";
 import { isDefinedError, safe } from "@orpc/client";
 import { useCallback, useRef, useState } from "react";
 import { revealBrowserClient } from "../../api/browser-client";
+import { isTooManyRequests } from "../../api/too-many-requests";
 
 /**
  * What `ContactRevealDialog` needs to display before the server has
@@ -28,8 +29,12 @@ export interface RevealSnapshot {
  * this repo's own standing rule — these are not "the same failure,
  * sometimes flagged," they are different facts a caller needs to render
  * differently (no retry action makes sense for `rateLimited`).
+ *
+ * `tooManyRequests` is the other 429: the per-IP limiter's plain refusal, a
+ * different fact from the reveal budget. It reads «Забагато запитів…», not
+ * «на нашому боці» (audit 2026-10-22, G1).
  */
-export type RevealErrorReason = "rateLimited" | "offline" | "loadFailed";
+export type RevealErrorReason = "rateLimited" | "tooManyRequests" | "offline" | "loadFailed";
 
 export type RevealState =
   | { kind: "idle" }
@@ -127,7 +132,11 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
          * does — it doesn't today because nothing here can produce one.
          */
         const reason: RevealErrorReason =
-          bootstrapError instanceof TypeError ? "offline" : "loadFailed";
+          bootstrapError instanceof TypeError
+            ? "offline"
+            : isTooManyRequests(bootstrapError)
+              ? "tooManyRequests"
+              : "loadFailed";
         setState({ kind: "error", reason, ...snapshot });
         return;
       }
@@ -156,7 +165,9 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
             ? "offline"
             : revealError && isDefinedError(revealError) && revealError.code === "RATE_LIMITED"
               ? "rateLimited"
-              : "loadFailed";
+              : isTooManyRequests(revealError)
+                ? "tooManyRequests"
+                : "loadFailed";
         setState({ kind: "error", reason, ...snapshot });
         return;
       }

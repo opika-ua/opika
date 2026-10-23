@@ -54,7 +54,7 @@ describe("ContactRevealDialog prints names literally", () => {
 });
 
 /**
- * The footnote «Контакти збережено такими, якими вони є сьогодні · {date}» is
+ * The footnote «Контакти такі, якими були {date}, коли ви їх відкрили.» is
  * dated by the first reveal. Under the shelter's current contacts (K4-B4)
  * that date would caption channels it never saw, so it is shown only under
  * the first-reveal record's (Tier 1 review, finding 1; inbox K4-B5, K4-Q11).
@@ -72,7 +72,7 @@ describe("the contacts footnote shows only under the first-reveal record (K4-B5)
       shelterContact: { source: "current", displayName: "Притулок «Домівка»", contact: NEW_NUMBER },
     });
     expect(screen.getByText("@new_number")).toBeTruthy();
-    expect(screen.queryByText(/Контакти збережено/)).toBeNull();
+    expect(screen.queryByText(/коли ви їх відкрили/)).toBeNull();
     expect(screen.queryByText(/серпня 2026/)).toBeNull();
   });
 
@@ -86,9 +86,41 @@ describe("the contacts footnote shows only under the first-reveal record (K4-B5)
       },
     });
     expect(screen.getByText("+380671234567")).toBeTruthy();
+    // Audit 2026-10-22 #5: «є сьогодні» beside a past date said two opposite things.
     expect(
-      screen.getByText("Контакти збережено такими, якими вони є сьогодні · 8 серпня 2026 р."),
+      screen.getByText("Контакти такі, якими були 8 серпня 2026 р., коли ви їх відкрили."),
     ).toBeTruthy();
+  });
+});
+
+/**
+ * Audit 2026-10-22 #18: in the deck «Не зараз» hides an animal for 30 days, so a screen
+ * reader must not hear it on a plain close button. The ✕ is «Закрити», in the open dialog
+ * and in the error dialog alike.
+ */
+describe("the ✕ is named «Закрити», never «Не зараз»", () => {
+  it("in the open dialog", () => {
+    renderOpen(reveal);
+    expect(screen.getByRole("button", { name: "Закрити" }).textContent).toBe("✕");
+    expect(screen.queryByRole("button", { name: "Не зараз" })).toBeNull();
+  });
+
+  it("in the error dialog", () => {
+    render(
+      <ContactRevealDialog
+        state={{
+          kind: "error",
+          reason: "loadFailed",
+          animalId: ANIMAL_ID,
+          animalName: "Мурчик",
+          cityName: null,
+        }}
+        onClose={() => {}}
+        onRetry={() => {}}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Закрити" }).textContent).toBe("✕");
+    expect(screen.queryByRole("button", { name: "Не зараз" })).toBeNull();
   });
 });
 

@@ -30,7 +30,9 @@ export type SetPasswordOutcome =
   | { kind: "unusable" }
   | { kind: "refused"; refusal: PasswordRefusal }
   | { kind: "throttled" }
-  /** No answer, or a server error. */
+  /** G4 (audit 2026-10-22): the request got no answer at all (the fetch threw). */
+  | { kind: "no_answer" }
+  /** A server error, or an answer this form has no sentence for. */
   | { kind: "failed" };
 
 /** The answer, read from oRPC's error code and data only, never a message. */
@@ -42,6 +44,8 @@ export function setPasswordOutcomeOf(
     const kind = (answer as { kind?: unknown } | null)?.kind;
     return kind === "signed_in" || kind === "password_set" ? { kind } : { kind: "failed" };
   }
+  // A fetch that never reached the site throws a TypeError (the Fetch API's contract).
+  if (answer instanceof TypeError) return { kind: "no_answer" };
   if (!(answer instanceof ORPCError)) return { kind: "failed" };
   switch (answer.code) {
     case "INVITE_UNUSABLE":

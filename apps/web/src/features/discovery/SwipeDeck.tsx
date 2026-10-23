@@ -3,9 +3,12 @@
 import type { FeedCardView } from "@opika/contracts";
 import type { AnimalId, CityId } from "@opika/domain";
 import { uk } from "@opika/i18n";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { buttonClass } from "../controls/controls";
 import { cardCityId } from "../gallery/card-text";
 import { ContactRevealDialog } from "../reveal/ContactRevealDialog";
+import { THROTTLED_COPY } from "../reveal/throttled-copy";
 import { useReveal } from "../reveal/useReveal";
 import { SwipeCard } from "./SwipeCard";
 import { layout } from "./tokens";
@@ -33,15 +36,18 @@ const noopRef = (): void => {};
  * not an oRPC response). `sessionExpired`: the feed's cursor was rejected
  * (`INVALID_CURSOR` — signed and bound to this filter set, so a mismatch
  * means resuming a stale cursor, not a user mistake); retrying restarts the
- * feed from its first page, matching the copy's own "Ми почали стрічку
- * заново." `loadFailed`: anything else — a real server-side failure, or an
+ * feed from its first page, matching the copy's own «Режим «по одній»
+ * почнеться спочатку» (only once the button is pressed, audit 2026-10-22
+ * #7). `loadFailed`: anything else — a real server-side failure, or an
  * oRPC-defined error with no dedicated copy of its own — `feed.list`'s own
  * `RATE_LIMITED` (the generic per-IP limiter, distinct from
  * `animals.reveal`'s reveal-budget `RATE_LIMITED`, which gained its own
  * `uk.errors.rateLimited` copy — see `useReveal.ts`) still falls here,
- * unaddressed by that row.
+ * unaddressed by that row. The per-IP limiter's 429 is `tooManyRequests`
+ * since the audit of 2026-10-22 (G1): `detail.rateLimited`, not «на боці
+ * сайту».
  */
-export type DeckErrorReason = "offline" | "loadFailed" | "sessionExpired";
+export type DeckErrorReason = "offline" | "loadFailed" | "sessionExpired" | "tooManyRequests";
 
 export type DeckState =
   | { kind: "loading" }
@@ -86,6 +92,12 @@ interface SwipeDeckProps {
    * exercise something unrelated to city names, and `ContactRevealDialog`
    * already degrades gracefully for a city it can't resolve. */
   cityNames?: Record<CityId, string>;
+  /**
+   * G5 (audit 2026-10-22): where the end state's «Переглянути список» goes — the
+   * gallery with the deck's own filters (`galleryHref`), so the person lands on the
+   * list they were swiping through. Optional: without it the end state is text only.
+   */
+  listHref?: string | undefined;
 }
 
 export function SwipeDeck({
@@ -96,6 +108,7 @@ export function SwipeDeck({
   onRetry,
   ensureSession,
   cityNames = {},
+  listHref,
 }: SwipeDeckProps) {
   const [dx, setDx] = useState(0);
   const { state: revealState, open: openReveal, close: closeReveal } = useReveal(ensureSession);
@@ -243,9 +256,15 @@ export function SwipeDeck({
   } else if (state.kind === "error") {
     content = <ErrorState reason={state.reason} onRetry={onRetry} />;
   } else if (state.kind === "exhausted") {
-    content = <ExhaustedState seenCount={state.seenCount} headingRef={exhaustedHeadingRef} />;
+    content = (
+      <ExhaustedState
+        seenCount={state.seenCount}
+        headingRef={exhaustedHeadingRef}
+        listHref={listHref}
+      />
+    );
   } else if (state.cards.length === 0) {
-    content = <ExhaustedState seenCount={0} headingRef={exhaustedHeadingRef} />;
+    content = <ExhaustedState seenCount={0} headingRef={exhaustedHeadingRef} listHref={listHref} />;
   } else {
     // Show up to 3 stack layers
     const visibleCards = state.cards.slice(0, layout.stackLayers);
@@ -478,7 +497,7 @@ function ErrorState({
 }) {
   // `loadFailed` is the only one of the three with a `body` line — `offline`
   // and `sessionExpired` are short enough without one.
-  const copy = uk.errors[reason];
+  const copy = reason === "tooManyRequests" ? THROTTLED_COPY : uk.errors[reason];
 
   // `leading-[normal]` below (eyebrow, body, the retry button): none of
   // these three had an explicit `lineHeight` before this migration, so they
@@ -497,9 +516,11 @@ function ErrorState({
       <div className="bg-rg-surface rounded-rg-card p-group flex flex-col gap-row w-full max-w-89.5">
         {/* tracking-[0.12em] carries the "eyebrow" identity on its own; the
             source string is already uppercase. */}
-        <div className="text-[11px] leading-[normal] tracking-[0.12em] text-rg-ink-3 font-medium">
-          {copy.eyebrow}
-        </div>
+        {"eyebrow" in copy && (
+          <div className="text-[11px] leading-[normal] tracking-[0.12em] text-rg-ink-3 font-medium">
+            {copy.eyebrow}
+          </div>
+        )}
         <div className="text-[17px]/[24.65px] text-rg-ink">{copy.title}</div>
         {"body" in copy && (
           <div className="text-[13px] leading-[normal] text-rg-ink-2">{copy.body}</div>
@@ -521,7 +542,7 @@ function ErrorState({
           focusable element in the app has (README:201) — not a claim this
           button is itself registry-related.
         */}
-        {onRetry && (
+        {onRetry && "action" in copy && (
           <button
             type="button"
             onClick={onRetry}
@@ -538,9 +559,11 @@ function ErrorState({
 
 function ExhaustedState({
   headingRef,
+  listHref,
 }: {
   seenCount: number;
   headingRef: React.RefObject<HTMLDivElement | null>;
+  listHref: string | undefined;
 }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-section p-section text-center">
@@ -553,6 +576,17 @@ function ExhaustedState({
       </div>
       <div className="font-sans text-[15px]/[23px] text-ink-2">{uk.exhausted.body}</div>
       <div className="font-sans text-sm leading-[normal] text-ink-3">{uk.exhausted.newAnimals}</div>
+      {/* Not prefetched: each prefetch of a `/tvaryny` URL is charged to the per-IP budget (`proxy.ts`). */}
+      {listHref !== undefined && (
+        <Link
+          href={listHref}
+          prefetch={false}
+          data-testid="deck-exhausted-to-list"
+          className={buttonClass("primary")}
+        >
+          {uk.exhausted.toList}
+        </Link>
+      )}
     </div>
   );
 }

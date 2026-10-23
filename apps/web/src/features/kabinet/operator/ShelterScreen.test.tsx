@@ -107,7 +107,7 @@ describe("S4 heading", () => {
     });
     expect(screen.getByRole("heading", { level: 1, name: "Притулок «Домівка»" })).toBeTruthy();
     expect(screen.getByText("Бровари · Адміністраторів: 1")).toBeTruthy();
-    expect(screen.getByText("Очікує")).toBeTruthy();
+    expect(screen.getByText("Очікує перевірки")).toBeTruthy();
     expect(screen.getByText("з 15 жовтня 2026 р.")).toBeTruthy();
     expect(screen.getByRole("link", { name: "← Притулки" }).getAttribute("href")).toBe(
       "/kabinet/prytulky",
@@ -368,7 +368,7 @@ describe("S4 history", () => {
     expect(within(section("Історія")).getByText("Записів ще немає.")).toBeTruthy();
     expect(
       within(section("Історія")).getByText(
-        "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» тут не записуються.",
+        "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» і «Ще домовляються» тут не записуються.",
       ),
     ).toBeTruthy();
   });

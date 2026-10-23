@@ -172,6 +172,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       signIn: [
         "addressNote",
         "emailLabel",
+        "failed",
         "forgot",
         "hidePassword",
         "intro",
@@ -209,7 +210,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       // 25 with addressNote back (row 57, his replacement, 2026-10-14): deleted as
       // a false claim (a map no adopter sees), restored once adopters receive
       // the city only (EM-Q10).
-      profile: 25,
+      profile: 26,
       profileStatus: ["paused", "pending", "rejected", "suspended", "under_review", "verified"],
       profileChannel: ["email", "phone", "telegram", "viber", "website"],
       support: ["body", "exit", "exitFailed", "signOutDisabled", "title", "viewingAs"],
@@ -253,8 +254,9 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     // row 83
     "email.invite.subject": "Ваш доступ до кабінету притулку",
     // row 84
+    // audit 2026-10-22 #46: «на сайті {site}», the name filled from app config
     "email.invite.intro":
-      "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті.",
+      "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті {site}.",
     // his PR 6 text (pr6-copy-uk.md §1.4): what the shelter changes itself, once writes open
     "email.invite.what":
       "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
@@ -262,7 +264,8 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     "email.invite.whatBeforeVerification":
       "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на картках і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
     // row 86
-    "email.invite.action": "Відкрити запрошення",
+    // audit 2026-10-22 #26: the link's job is to create a password
+    "email.invite.action": "Створити пароль",
     // row 87
     "email.invite.expiry": "Запрошення діє {hours} години. Якщо не встигнете — я надішлю нове.",
     // row 88, replaced by his PW-2 Q2 paragraph (2026-10-20, verbatim), the signature kept
@@ -286,8 +289,9 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     // row 20
     "confirm.joinFailedTitle": "Ви увійшли, але приєднати вас до притулку не вдалося",
     // row 21
+    // audit 2026-10-22 #25
     "confirm.joinFailed":
-      "Нічого не збережено наполовину. Спробуйте ще раз — а якщо не вийде, спроба повториться автоматично під час наступного входу.",
+      "Доступ до притулку ще не додано. Натисніть «Спробувати ще раз». Якщо не вийде, сайт спробує знову, коли ви наступного разу ввійдете.",
     // row 70: no {shelter}, deliberately
     "support.body": "Так кабінет бачить адміністратор притулку.",
     // row 69
@@ -560,10 +564,11 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
  * the sentence he wrote and the start of the text he kept.
  */
 describe("CB-Q2: his four rewrites of the CB-B2 drafts", () => {
-  it("about.intro opens with his two sentences, then the kept text", () => {
+  // audit 2026-10-22 #33 replaced the whole text; the name is the `{site}` slot, filled from app config
+  it("about.intro is his three sentences, the name a slot", () => {
     expect(
       uk.about.intro.startsWith(
-        "Opika — сайт, де тварини з притулків Київщини шукають дім. Я роблю його сам, поза роботою. Немає команди, немає інвестора — ",
+        "{site} — сайт, де тварини з притулків Київщини шукають дім. Його робить одна людина — я, у вільний від роботи час. Немає команди й інвестора.",
       ),
     ).toBe(true);
   });
@@ -581,7 +586,9 @@ describe("CB-Q2: his four rewrites of the CB-B2 drafts", () => {
   });
   it("detail.notFound.body opens with his sentence, no comma", () => {
     expect(
-      uk.detail.notFound.body.startsWith("Тварини вже немає на сайті або посилання застаріле. "),
+      uk.detail.notFound.body.startsWith(
+        "Цієї тварини вже немає на сайті, або посилання застаріло.",
+      ),
     ).toBe(true);
   });
 });
@@ -717,8 +724,9 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.blocked.manualUnblock":
       "Розблокувати адресу можна лише в кабінеті поштового сервісу, не тут.",
     "operator.history.title": "Історія",
+    // audit 2026-10-22 #42
     "operator.history.note":
-      "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» тут не записуються.",
+      "Зміни статусу, даних, адміністраторів, збору коштів і тварин. Підтвердження «Ще шукає» і «Ще домовляються» тут не записуються.",
     "operator.history.empty": "Записів ще немає.",
     "operator.history.more": "Показати ще",
     "operator.history.actor.you": "ви",
@@ -772,16 +780,18 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.legalKind.unregistered_initiative": "Ініціатива без реєстрації",
     "operator.create.registeredAt": "Дата реєстрації",
     "operator.create.firstAdminTitle": "Перший адміністратор",
+    // audit 2026-10-22 #9
     "operator.create.firstAdminHint":
-      "Отримає лист із посиланням для входу. Інших адміністраторів можна запросити зі сторінки притулку.",
+      "Отримає запрошення на пошту: за посиланням створить пароль і увійде. Інших адміністраторів можна запросити зі сторінки притулку.",
     "operator.create.adminName": "Імʼя",
     "operator.create.submit": "Створити й надіслати запрошення",
     "operator.create.submitShort": "Створити",
     "operator.create.cancel": "Скасувати",
     "operator.create.whatHappens.title": "Що буде далі",
     "operator.create.whatHappens.step1": "Притулок зʼявиться у списку зі статусом «Очікує».",
+    // audit 2026-10-22 #10
     "operator.create.whatHappens.step2":
-      "{name} отримає лист для входу. Посилання діє 72 години, його можна надіслати ще раз.",
+      "{name} отримає запрошення: посилання, щоб створити пароль, діє 72 години. Його можна надіслати ще раз.",
     "operator.create.whatHappens.step3":
       "Тварин притулку не буде в галереї, доки ви не схвалите перевірку.",
     "operator.evidence.add": "+ Додати доказ",
@@ -1213,10 +1223,15 @@ describe("/pro about.data (his PR 6 text, and PW-1's two sentences)", () => {
     );
   });
 
-  it("is his paragraph, byte for byte", () => {
-    expect(uk.about.data).toBe(
-      "Дані, які вносить притулок — адреса, контакти, картки тварин, — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора — щоб надсилати посилання для входу, — а також технічний запис про браузер і пристрій, з якого виконано вхід. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби. Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто — адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють — їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин — лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку. Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
-    );
+  // audit 2026-10-22 #4 and #45: the stored address's purposes widened to the invite, the reset link
+  // and the «пароль змінено» notice; the same sentences in four paragraphs.
+  it("is his text, byte for byte, in four paragraphs", () => {
+    expect(uk.about.data.split("\n\n")).toEqual([
+      "Дані, які вносить притулок — адреса, контакти, картки тварин, — належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент.",
+      "Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора, щоб надсилати запрошення, посилання для входу чи нового пароля і повідомлення про зміну пароля, а також технічний запис про браузер і пристрій, з якого виконано вхід. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби.",
+      "Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто — адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють — їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин — лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку.",
+      "Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
+    ]);
     expect(uk.about.data).not.toContain("реєстр");
     expect(uk.about.data).not.toContain("наближену");
   });
@@ -1518,7 +1533,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
    * Never «реєстр» alone."
    */
   it("the public registry keys name the state register (Q5)", () => {
-    expect(uk.medical.registry).toBe("Державний реєстр тварин");
+    // audit 2026-10-22 #17: the row's status line says it was done, and by whom
+    expect(uk.medical.registry).toBe("Зроблено, за даними державного реєстру тварин");
     expect(uk.medical.registryConfirmed).toBe("Підтверджено державним реєстром тварин");
   });
 
@@ -1608,8 +1624,9 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.withdrawDialog.adoptedHint":
       "Якщо тварина знайшла дім, позначте краще «Уже вдома».",
     "kabinet.animalList.withdrawDialog.confirm": "Зняти з показу",
-    "kabinet.animalList.withdrawReason.adopted_elsewhere": "знайшла дім іншим шляхом",
-    "kabinet.animalList.withdrawReason.transferred": "переїхала до іншого притулку",
+    // audit 2026-10-22 #43: impersonal, since the label follows an animal's name
+    "kabinet.animalList.withdrawReason.adopted_elsewhere": "дім знайдено іншим шляхом",
+    "kabinet.animalList.withdrawReason.transferred": "переведено до іншого притулку",
     "kabinet.animalList.withdrawReason.deceased": "тварини не стало",
     "kabinet.animalList.withdrawReason.listing_error": "додано помилково",
     "kabinet.animalList.withdrawReason.other": "інша причина",
@@ -1638,10 +1655,12 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.stale.showAll": "Показати всі",
     "kabinet.animalList.paused.hidden":
       "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає.",
+    // audit 2026-10-22 #24
     "kabinet.animalList.notVisible.pending":
-      "Ваші тварини зʼявляться в галереї, щойно притулок пройде перевірку.",
+      "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
+    // audit 2026-10-22 #41: the public name of the deck is «по одній»
     "kabinet.animalList.orderNote":
-      "Порядок у галереї — за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у стрічці. Тут порядок змінити не можна, і просування немає.",
+      "Порядок у галереї — за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.",
     "kabinet.animalList.empty.title": "Тут поки немає тварин.",
     "kabinet.animalList.empty.body":
       "Додайте першу. Ті, хто шукає тварину, побачать картку після публікації.",
@@ -1965,5 +1984,123 @@ describe("the invitation's one unusable page (his 2026-10-21 text, Q2 (b))", () 
 
   it("the replaced text is gone from the catalogue", () => {
     expect(JSON.stringify(uk)).not.toContain("Запрошення більше не дійсне");
+  });
+});
+
+/**
+ * The copy audit of 2026-10-22 (`docs/copy-audit-2026-10-22.md`), applied with Oleksii's
+ * decisions of that day. His words, verbatim: "Accept rows 1–13, 15–32, 35–43, 44 (all straight
+ * apostrophes → ʼ U+02BC), 45, 26 and 46, plus gaps G1, G3, G4, G5 and G6, with these edits:
+ * #2 `about.free`: exactly «Сайт безкоштовний для притулків, без платних тарифів. Якщо це
+ * колись зміниться, кожен притулок дізнається про це заздалегідь, а не постфактум.» No mention
+ * of any trial period anywhere. #34 `forShelters.cost`: exactly «Це безкоштовно, сьогодні і
+ * далі. Якщо це колись зміниться, ви дізнаєтеся заздалегідь, а не з рахунку.» #8: rename to
+ * «Повернутися до картки»; the behaviour is unchanged (it closes the dialog). #33: as
+ * proposed, keeping «Немає команди й інвестора», but the site's name comes from a `{site}`
+ * slot filled from app config, never typed in the catalogue. #19: «Написати» everywhere for
+ * the right swipe, including /prytulkam ¶3. The held R4-2 sentence follows when it lands."
+ *
+ * Every expected text below is transcribed from that message and the audit, never read from
+ * `uk.ts`. (The rows whose pins already lived in this file were updated in place, with a
+ * comment naming the row.)
+ */
+describe("the copy audit of 2026-10-22", () => {
+  const leaves = (value: unknown, path: string): [string, string][] =>
+    typeof value === "string"
+      ? [[path, value]]
+      : value !== null && typeof value === "object"
+        ? Object.entries(value as Record<string, unknown>).flatMap(([key, child]) =>
+            leaves(child, path === "" ? key : `${path}.${key}`),
+          )
+        : [];
+
+  it("#2 about.free and #34 forShelters.cost are exactly his texts", () => {
+    expect(uk.about.free).toBe(
+      "Сайт безкоштовний для притулків, без платних тарифів. Якщо це колись зміниться, кожен притулок дізнається про це заздалегідь, а не постфактум.",
+    );
+    expect(uk.forShelters.cost).toBe(
+      "Це безкоштовно, сьогодні і далі. Якщо це колись зміниться, ви дізнаєтеся заздалегідь, а не з рахунку.",
+    );
+  });
+
+  // His rule: "No mention of any trial period anywhere" / "Grep the whole catalogue for «пробн»".
+  it("«пробн» appears nowhere in either catalogue", () => {
+    const everything = [...leaves(uk, ""), ...leaves(en, "")];
+    expect(everything.length).toBeGreaterThan(1000);
+    const hits = everything.filter(([, text]) => /пробн/iu.test(text)).map(([path]) => path);
+    expect(hits).toEqual([]);
+    expect(PENDING_R4_2_ANALYTICS_SENTENCE).not.toMatch(/пробн/iu);
+  });
+
+  it("the guard above would catch the word", () => {
+    expect(/пробн/iu.test("без пробного періоду")).toBe(true);
+    expect(/пробн/iu.test("спробуйте ще раз")).toBe(false);
+  });
+
+  // #33, #21 and #46: the name (and the year) are slots filled from app config, never typed here.
+  it("#33, #46 and #21 carry {site} / {year} slots, and none of them types the site's name", () => {
+    expect(uk.about.intro).toBe(
+      "{site} — сайт, де тварини з притулків Київщини шукають дім. Його робить одна людина — я, у вільний від роботи час. Немає команди й інвестора.",
+    );
+    expect(uk.kabinet.email.invite.intro).toBe(
+      "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті {site}.",
+    );
+    expect(uk.detail.shelterVerifiedYears).toBe("Перевірено вручну · на сайті з {year} року");
+    for (const text of [
+      uk.about.intro,
+      uk.kabinet.email.invite.intro,
+      uk.detail.shelterVerifiedYears,
+    ]) {
+      expect(text).not.toMatch(/opika/iu);
+    }
+  });
+
+  it("#8 the reveal dialog's second button is «Повернутися до картки»", () => {
+    expect(uk.reveal.backToFeed).toBe("Повернутися до картки");
+  });
+
+  // #19: one name for the right swipe and the button beside it; /prytulkam ¶3 follows it.
+  it("#19 the right swipe is «Написати», and /prytulkam ¶3 names it", () => {
+    expect(uk.swipe.right).toBe("Написати");
+    expect(uk.swipe.right).toBe(uk.actions.write);
+    const paragraph3 = uk.forShelters.whatHappensToAnimals.split("\n\n")[2];
+    expect(paragraph3).toContain("на кого вже натиснула «Не зараз» чи «Написати»");
+    expect(paragraph3).not.toContain("«Запитати»");
+  });
+
+  it("#3 forShelters.howToStart describes today's order: invite at creation, cards by the shelter", () => {
+    expect(uk.forShelters.howToStart).toBe(
+      "Напишіть на {contact}: хто ви і скільки у вас тварин. Після розмови я створю притулок на сайті й надішлю вам доступ до кабінету. Тварин ви додаєте самі, поки триває перевірка, про яку йшлося вище, а ті, хто шукає тварину, бачать картки, щойно її пройдено.",
+    );
+  });
+
+  it("G1 reuses detail.rateLimited, G3, G4 and G5 are his proposed strings", () => {
+    expect(uk.detail.rateLimited).toBe("Забагато запитів. Спробуйте ще раз пізніше.");
+    expect(uk.kabinet.profile.pendingNote).toBe(
+      "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваших тварин бачите лише ви.",
+    );
+    expect(uk.kabinet.signIn.failed).toBe(
+      "Не вдалося звʼязатися із сайтом. Перевірте зʼєднання і спробуйте ще раз.",
+    );
+    expect(uk.exhausted.toList).toBe("Переглянути список");
+  });
+
+  it("#12 and #11: the end state says where hidden animals come back, and no invented cadence", () => {
+    expect(uk.exhausted.body).toBe(
+      "Тих, кого ви пропустили через «Не зараз», режим «по одній» покаже знову через 30 днів. У списку видно всіх.",
+    );
+    expect(uk.exhausted.newAnimals).toBe(
+      "Нові тварини зʼявляються, щойно притулки публікують картки.",
+    );
+  });
+
+  it("#44 every Ukrainian value uses U+02BC between letters; none keeps a straight apostrophe", () => {
+    const cyr = "Ѐ-ӿ";
+    const straight = new RegExp(`(?<=[${cyr}])'(?=[${cyr}])`, "u");
+    expect(
+      leaves(uk, "")
+        .filter(([, text]) => straight.test(text))
+        .map(([path]) => path),
+    ).toEqual([]);
   });
 });

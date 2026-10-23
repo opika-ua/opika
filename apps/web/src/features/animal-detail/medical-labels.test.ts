@@ -49,9 +49,9 @@ describe("vaccinationRow", () => {
       registryRef: "UA-123",
       verifiedAt: new Date(),
     });
-    expect(row.label).toBe("Сказ");
+    expect(row.label).toBe("Щеплення від сказу");
     // Q5 of the K3 sheet (Oleksii, verbatim): "`medical.registry` → «Державний реєстр тварин»".
-    expect(row.statusText).toBe("Державний реєстр тварин");
+    expect(row.statusText).toBe("Зроблено, за даними державного реєстру тварин");
   });
 });
 
@@ -90,10 +90,10 @@ describe("literal strings match uk.ts", () => {
   it("medical labels", () => {
     expect(uk.medical.unknown).toBe("Не записано");
     expect(uk.medical.inProgress).toBe("У процесі");
-    expect(uk.medical.rabies).toBe("Сказ");
+    expect(uk.medical.rabies).toBe("Щеплення від сказу");
     expect(uk.medical.vaccination).toBe("Комплексне щеплення");
     expect(uk.medical.spayNeuter).toBe("Стерилізація");
-    expect(uk.medical.registry).toBe("Державний реєстр тварин");
+    expect(uk.medical.registry).toBe("Зроблено, за даними державного реєстру тварин");
     expect(uk.medical.shelterDeclared).toBe("Слова притулку");
   });
 });

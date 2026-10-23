@@ -1,6 +1,7 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { WORDMARK } from "../../brand";
 import { Footer } from "../../features/chrome/Footer";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { linkClass } from "../../features/controls/controls";
@@ -36,7 +37,7 @@ export const metadata: Metadata = {
   description: uk.forShelters.whatThisIs,
   openGraph: {
     type: "website",
-    siteName: "Opika",
+    siteName: WORDMARK,
     locale: "uk_UA",
     description: uk.forShelters.whatThisIs,
   },

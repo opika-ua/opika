@@ -120,6 +120,14 @@ describe("«Створіть пароль»", () => {
     );
   });
 
+  it("no answer at all: «Не вдалося звʼязатися із сайтом…» (G4, audit 2026-10-22)", async () => {
+    const { user } = renderWith({ kind: "no_answer" });
+    await submit(user, "ялинка-під-вікном");
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Не вдалося звʼязатися із сайтом. Перевірте зʼєднання і спробуйте ще раз.",
+    );
+  });
+
   it("a failed connection", async () => {
     const { user } = renderWith({ kind: "failed" });
     await submit(user, "ялинка-під-вікном");
@@ -147,7 +155,9 @@ describe("setPasswordOutcomeOf: the POST's answer, read by code and data only", 
       { kind: "failed" },
     ],
     [new ORPCError("FORBIDDEN", { status: 403 }), true, { kind: "failed" }],
-    [new TypeError("Failed to fetch"), true, { kind: "failed" }],
+    // A fetch that never reached the site throws a TypeError: G4's no-answer outcome.
+    [new TypeError("Failed to fetch"), true, { kind: "no_answer" }],
+    [new Error("boom"), true, { kind: "failed" }],
   ] as const)("%o → %o", (answer, failed, outcome) => {
     expect(setPasswordOutcomeOf(answer, failed)).toEqual(outcome);
   });
