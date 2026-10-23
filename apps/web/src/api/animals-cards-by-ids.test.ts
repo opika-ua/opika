@@ -98,14 +98,21 @@ describe("animals.cardsByIds", () => {
     expect(body.items).toEqual([{ kind: "unavailable", animalId: animal.id, name: animal.name }]);
   });
 
-  it("returns unavailable once the shelter is no longer verified", async () => {
+  it("returns unavailable with the name once a verified shelter is suspended — it was once public", async () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
       verification: {
-        status: "pending",
-        submittedAt: new Date("2026-08-01T00:00:00Z"),
-        evidence: { items: [], submittedAt: new Date("2026-08-01T00:00:00Z") },
+        status: "suspended",
+        suspendedAt: new Date("2026-08-01T00:00:00Z"),
+        suspendedBy: "00000000-0000-4000-8000-000000000099" as never,
+        reason: { code: "unresponsive", note: null },
+        priorState: {
+          status: "verified",
+          verifiedAt: new Date("2026-07-01T00:00:00Z"),
+          verifiedBy: "00000000-0000-4000-8000-000000000099" as never,
+        },
+        evidence: { items: [], submittedAt: new Date("2026-06-01T00:00:00Z") },
       },
       exactAddress: {
         line1: "вул. Тестова 1",
@@ -133,6 +140,49 @@ describe("animals.cardsByIds", () => {
     expect(body.items).toEqual([
       { kind: "unavailable", animalId: "00000000-0000-4000-8000-000000000000", name: null },
     ]);
+  });
+
+  /**
+   * Review of 529a6cc, finding 4: the earlier version returned a draft's real
+   * name to any caller, even though a draft — never published — was never
+   * shown to anyone. A draft has no `publicLocation`/listing to leak, but its
+   * name alone is enough to let a probe confirm a shelter's unpublished animal
+   * exists before it ever goes live.
+   */
+  it("returns unavailable with no name for a draft — never public, regardless of the shelter", async () => {
+    const { animal } = await seedFeedAnimal({ listing: { kind: "draft" } });
+    const res = await h.call("animals.cardsByIds", { animalIds: [animal.id] });
+    const body = res.body as { items: Record<string, unknown>[] };
+    expect(body.items).toEqual([{ kind: "unavailable", animalId: animal.id, name: null }]);
+  });
+
+  it("returns unavailable with no name for a listed animal whose shelter was never verified", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      verification: {
+        status: "pending",
+        submittedAt: new Date("2026-08-01T00:00:00Z"),
+        evidence: { items: [], submittedAt: new Date("2026-08-01T00:00:00Z") },
+      },
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    // A fixture-only state (publishing requires a verified shelter), kept to
+    // prove the guard holds even if that invariant is ever violated upstream.
+    const animal = makeAnimal({ shelterId: shelter.id });
+    await animalRepo(h.db).insert(animal, city.id);
+
+    const res = await h.call("animals.cardsByIds", { animalIds: [animal.id] });
+    const body = res.body as { items: Record<string, unknown>[] };
+    expect(body.items).toEqual([{ kind: "unavailable", animalId: animal.id, name: null }]);
   });
 
   it("answers one entry per requested id, in the order asked, mixing available and unavailable", async () => {

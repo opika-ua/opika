@@ -6,7 +6,14 @@ import type {
   apiErrors,
 } from "@opika/contracts";
 import { animalRepo, shelterRepo } from "@opika/db/repos";
-import { ageBucketOf, isDiscoverableAnimal, isPubliclyVerified, primaryPhoto } from "@opika/domain";
+import {
+  ageBucketOf,
+  hasBeenVerified,
+  isDiscoverableAnimal,
+  isListedAnimal,
+  isPubliclyVerified,
+  primaryPhoto,
+} from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
@@ -100,14 +107,26 @@ export async function animalsCardsByIds(
   const animalRows = await animalRepo(context.db).findByIds(input.animalIds);
   const animalById = new Map(animalRows.map((animal) => [animal.id, animal]));
 
-  const discoverable = animalRows.filter(isDiscoverableAnimal);
-  const shelterIds = [...new Set(discoverable.map((animal) => animal.shelterId))];
+  // Shelters for every *listed* animal (anything past `draft`), not only the
+  // currently discoverable ones: a listed-but-withdrawn/adopted animal's
+  // shelter is still needed below to tell it apart from a draft that was
+  // never public at all (review of 529a6cc, finding 4).
+  const listed = animalRows.filter(isListedAnimal);
+  const shelterIds = [...new Set(listed.map((animal) => animal.shelterId))];
   const shelterRows = await shelterRepo(context.db).findByIds(shelterIds);
   const shelterById = new Map(shelterRows.map((shelter) => [shelter.id, shelter]));
 
   const items = input.animalIds.map((animalId) => {
     const animal = animalById.get(animalId);
     const shelter = animal && shelterById.get(animal.shelterId);
+    // A draft was never public, under any shelter state — its name is not
+    // honest to show to a caller who sends no cookie and could in principle
+    // be probing ids rather than reading back its own saved list.
+    const wasEverPublic =
+      animal !== undefined &&
+      isListedAnimal(animal) &&
+      shelter !== undefined &&
+      hasBeenVerified(shelter.verification);
 
     if (
       !animal ||
@@ -115,10 +134,11 @@ export async function animalsCardsByIds(
       !shelter ||
       !isPubliclyVerified(shelter.verification)
     ) {
-      // The row exists but isn't shown any more (adopted, withdrawn, a
-      // paused or no-longer-verified shelter) — its name is still honest to
-      // show. `null` only for an id with no row behind it at all.
-      return { kind: "unavailable" as const, animalId, name: animal?.name ?? null };
+      // The row exists and was once shown but isn't any more (adopted,
+      // withdrawn, a paused or no-longer-verified shelter) — its name is
+      // still honest to show. `null` for an id with no row behind it, or a
+      // draft that never had one to show.
+      return { kind: "unavailable" as const, animalId, name: wasEverPublic ? animal.name : null };
     }
 
     return {

@@ -164,20 +164,25 @@ export function isCronPath(pathname: string): boolean {
 /**
  * S8's saved-page batch read (`animals.cardsByIds`) is built to carry no
  * cookie at all — `credentials: "omit"` (DR1-Q2), so the request can never
- * be tied to an adopter's session or correlated across visits. The gate's
- * own cookie carries no adopter identity, only "this browser passed the bot
- * shutter," so exempting this one path leaks nothing DR1-Q2 was protecting
- * against; what it returns (`FeedCardView`) is the same shape and visibility
- * `/tvaryny` already serves through the gate normally. Without this, a
- * cookie-less request would 403 on every call before launch, making the
- * feature permanently non-functional rather than merely logged-out-looking —
- * found by running the saved-page harness against a real server, not
- * inferred. Reversible builder decision (CLAUDE.md working-mode amendment),
- * recorded as such in the inbox, not Oleksii's: the conservative-seeming
- * alternative (leave it gated) would ship a broken feature instead of a
- * narrow, documented, exact-path exemption of the same shape already used
- * for the kabinet and cron above. Exact path, not a prefix — one procedure
- * only, siblings under `/api/rpc/animals/*` stay gated.
+ * be tied to an adopter's session or correlated across visits, and can
+ * never satisfy this gate's own cookie check either. Without this
+ * exemption, the endpoint 403s on every call before launch, making the
+ * feature permanently non-functional rather than merely logged-out-looking
+ * — found by running the saved-page harness against a real server, not
+ * inferred.
+ *
+ * **S8-D1, open, not settled** (review of 529a6cc, finding 3): the earlier
+ * version of this comment claimed the exemption "leaks nothing… the same
+ * shape and visibility `/tvaryny` already serves through the gate" — false.
+ * `/tvaryny` still requires the gate cookie; this path, once exempted,
+ * answers *anyone* holding an animal id and no cookie at all, which is a
+ * different exposure during the pre-launch window than anything else this
+ * file exempts (the kabinet and cron exemptions both came from Oleksii's own
+ * answers — IN-Q1, KH-T5 — not a builder default). Left in place, tested,
+ * because the alternative ships a non-functional feature; whether that
+ * trade is the right one is his call, not a default to take. Queued in
+ * `docs/decisions-inbox/feat-dr1-s8-saved-page.md` (S8-D1) for his explicit
+ * yes/no before this PR merges.
  */
 const GATE_EXEMPT_EXACT_PATHS: readonly string[] = ["/api/rpc/animals/cardsByIds"];
 

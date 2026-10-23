@@ -8,7 +8,7 @@ import {
   toggleSavedAnimal,
 } from "./likes-store";
 
-type SavedCardResult = Awaited<
+export type SavedCardResult = Awaited<
   ReturnType<typeof savedBrowserClient.animals.cardsByIds>
 >["items"][number];
 

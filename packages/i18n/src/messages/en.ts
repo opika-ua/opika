@@ -95,7 +95,6 @@ export const en = {
     empty: "Nothing here yet. Save animals from the gallery to come back to them later.",
     emptyLink: "To the gallery",
     unavailable: "{name} is no longer shown on the site.",
-    unavailableUnnamed: "This animal is no longer shown on the site.",
     remove: "Remove from the list",
     storageBlocked: "This browser won't let the site keep your list.",
   },

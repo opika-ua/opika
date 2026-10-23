@@ -239,10 +239,14 @@ export const uk = {
     empty: "Тут поки нічого немає. Збережіть тварин у галереї, щоб повернутися до них пізніше.",
     /** The empty state's link back to the gallery. */
     emptyLink: "До галереї",
-    /** `{name}` is the animal's name (`SavedCardResult`'s `unavailable.name`, nullable). */
+    /**
+     * `{name}` is the animal's name. Only ever rendered when `unavailable.name` is non-null
+     * (S8-D2, revised: Q-B forbids `[COPY PENDING]` anywhere live in this catalogue — production
+     * sign-in checks the whole thing, not just kabinet — and a builder can't invent his
+     * Ukrainian, so a saved id with no name left to show is dropped from the page instead of
+     * given a sentence; `SavedPageScreen.tsx` never reaches this key for a `null` name).
+     */
     unavailable: "{name} більше не показується на сайті.",
-    /** A saved-but-no-longer-real id, `unavailable.name` is `null`: the same sentence with no name to fill. */
-    unavailableUnnamed: "Ця тварина більше не показується на сайті.",
     /** The remove control on each saved-page card. */
     remove: "Прибрати зі списку",
     /** `localStorage` threw (private mode, blocked storage) — the saved page's own notice. */

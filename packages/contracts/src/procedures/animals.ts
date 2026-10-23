@@ -37,15 +37,20 @@ export const AnimalsCardsByIdsInputSchema = z.object({
  *
  * `unavailable` carries no *reason* (adopted, withdrawn, a shelter paused or
  * no longer verified are all the same answer, "not shown any more") — but it
- * does carry the animal's name, when the row still exists, because the
- * required copy names it ("«{name}» більше не показується на сайті"). This
- * is not the same leak commitment 2 protects: that rule is about a
- * *shelter* probing whether one of *its own* animals changed state. Here the
- * only observer is the adopter looking at their own device-local list — no
- * one outside it can ever see this response, so naming the animal is not
- * disclosing anything to anyone it could be used against. `name: null` only
- * for an id that never resolved to a real row at all (a corrupted or
- * hand-edited saved list) — the one case with nothing honest to show.
+ * does carry the animal's name, when the row *was ever public*, because the
+ * required copy names it ("«{name}» більше не показується на сайті"). This is
+ * not the same leak commitment 2 protects: that rule is about a *shelter*
+ * probing whether one of *its own* animals changed state. This endpoint
+ * carries no cookie at all (DR1-Q2), so unlike a page a real adopter is
+ * looking at, nothing about who is calling it is known — a caller is not
+ * necessarily reading back its own saved list, and the per-IP rate limit
+ * is the only thing standing between it and brute-forcing ids. `name` is
+ * therefore only ever the real name for a row that was listed (not a draft)
+ * under a shelter that has been verified (`isListedAnimal` and
+ * `hasBeenVerified`, review of 529a6cc, finding 4) — i.e. a row that really
+ * was public at some point. `name: null` for an id that never resolved to a
+ * row, and for a draft or an unverified shelter's row, neither of which was
+ * ever shown to anyone.
  */
 export const SavedCardResultSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("available"), animalId: AnimalIdSchema, card: FeedCardViewSchema }),

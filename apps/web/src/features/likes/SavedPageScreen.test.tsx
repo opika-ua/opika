@@ -90,7 +90,7 @@ describe("SavedPageScreen", () => {
     expect(screen.queryByRole("link", { name: /Рекс/ })).toBeNull();
   });
 
-  it("falls back to the unnamed sentence when the server has no name at all", async () => {
+  it("drops an item with no name at all — nothing honest to show, and no copy to invent (S8-D2)", async () => {
     toggleSavedAnimal("00000003-0000-4000-8000-000000000000", new Date());
     cardsByIds.mockResolvedValue({
       items: [
@@ -100,7 +100,8 @@ describe("SavedPageScreen", () => {
 
     render(<SavedPageScreen cityNames={CITY_NAMES} />);
 
-    expect(await screen.findByText("Ця тварина більше не показується на сайті.")).toBeTruthy();
+    expect(await screen.findByTestId("saved-empty")).toBeTruthy();
+    expect(screen.queryByTestId("saved-unavailable")).toBeNull();
   });
 
   it("removing the only saved item empties the page with no second fetch — there is nothing left to ask for", async () => {
