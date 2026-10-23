@@ -85,6 +85,9 @@ export function AnimalDetailScreen({
 
   const subtitle = animalSubtitle(animal);
   const locationLine = animalLocationLine(animal, cityName);
+  // Computed once, not written out at both the link and the badge, so the
+  // two can't drift apart (review of df5915d, simplification).
+  const shelterVerifiedBadgeId = `shelter-verified-${shelter.id}`;
 
   return (
     <div className="font-rg min-h-dvh bg-rg-page">
@@ -279,11 +282,22 @@ export function AnimalDetailScreen({
               were. Not prefetched, like every link here: a prefetch of a
               `/prytulky` URL is charged to the visitor's per-IP budget
               (`proxy.ts`).
+
+              `aria-label` replaces a link's whole accessible name, so without
+              more it would silence the verified-years badge below for a
+              screen reader (review of b50a905, DR1-S6-F1's aria-label
+              finding) — true today only because
+              `REGISTRY_HAS_NO_REAL_SHELTERS` keeps the badge from rendering
+              at all, but a wrong fix here breaks the day that flag flips.
+              `aria-describedby` adds the badge as the link's description
+              rather than folding it into `shelterRowLink`'s own wording,
+              which would need new Ukrainian this isn't the row to invent.
             */}
             <Link
               href={shelterPagePath(shelter.id)}
               prefetch={false}
               aria-label={fillTemplate(uk.detail.shelterRowLink, { name: shelter.displayName })}
+              aria-describedby={REGISTRY_HAS_NO_REAL_SHELTERS ? undefined : shelterVerifiedBadgeId}
               className={`flex min-h-target items-center gap-3 rounded-rg-button ${FOCUS_RING}`}
             >
               <span
@@ -304,7 +318,7 @@ export function AnimalDetailScreen({
                   exist.
                 */}
                 {!REGISTRY_HAS_NO_REAL_SHELTERS && (
-                  <span className="text-[13px]/[18px] text-rg-ink-3">
+                  <span id={shelterVerifiedBadgeId} className="text-[13px]/[18px] text-rg-ink-3">
                     {fillTemplate(uk.detail.shelterVerifiedYears, {
                       year: String(sinceYear(shelter.createdAt)),
                     })}

@@ -196,6 +196,50 @@ describe("AnimalDetailScreen — the shelter row (designer round 1, S6)", () => 
     expect(link.getAttribute("href")).toBe("/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd");
   });
 
+  /**
+   * Review of b50a905 (DR1-S6-F1): `aria-label` replaces a link's whole
+   * accessible name, so the verified-years badge text was invisible to a
+   * screen reader once `REGISTRY_HAS_NO_REAL_SHELTERS` is false — true only
+   * by the flag's own suppression, not by design. `aria-describedby` wires
+   * the badge in as the link's description instead.
+   */
+  it("exposes the verified-years badge to a screen reader via aria-describedby, once real shelters exist", async () => {
+    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    const shelter = makeShelter({
+      displayName: "Лапа допомоги",
+      createdAt: new Date("2023-01-01T00:00:00.000Z"),
+    });
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={shelter}
+        cityName="Бровари"
+        backToGalleryHref="/tvaryny"
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Сторінка притулку «Лапа допомоги»" });
+    const describedById = link.getAttribute("aria-describedby");
+    expect(describedById).toBeTruthy();
+    const badge = document.getElementById(describedById as string);
+    expect(badge?.textContent).toBe("Перевірено вручну · на сайті з 2023 року");
+  });
+
+  it("carries no aria-describedby while the badge is suppressed (demo mode)", async () => {
+    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter({ displayName: "Лапа допомоги" })}
+        cityName="Бровари"
+        backToGalleryHref="/tvaryny"
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Сторінка притулку «Лапа допомоги»" });
+    expect(link.getAttribute("aria-describedby")).toBeNull();
+  });
+
   it("keeps the donation link, with its domain as text", async () => {
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
     render(
