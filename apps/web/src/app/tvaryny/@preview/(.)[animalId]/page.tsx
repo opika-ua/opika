@@ -25,9 +25,12 @@ export const dynamic = "force-dynamic";
  *
  * Same loader, same component, same props as the full page, so the overlay
  * shows exactly what the page shows (his Q1) and the two can't drift. Only
- * the states without an animal differ in form: the page answers them with
- * its 404 and `/tvaryny/error.tsx`, which would replace the gallery; here
- * they are said inside the dialog (`AnimalPageStates.tsx`).
+ * the states without an animal differ in form, not in substance: the full
+ * page's `not_found` is its 404, `rate_limited` is its own screen (his
+ * sentence, RL-F1), and any other failure reaches `/tvaryny/error.tsx` —
+ * three distinct answers, not two, and replacing the gallery is exactly
+ * what the overlay exists to avoid. Here, all three are said inside the
+ * dialog instead (`AnimalPageStates.tsx`'s own comment has the mapping).
  */
 export default async function AnimalOverlayPage({
   params,
