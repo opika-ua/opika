@@ -1,5 +1,5 @@
 import type { Animal, AnimalId, CityId, ShelterId } from "@opika/domain";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
 import { animalToRowWithCity, firstPublishedAnchorOf, rowToAnimal } from "./mappers";
@@ -10,6 +10,21 @@ export function animalRepo(db: Database) {
       const rows = await db.select().from(animals).where(eq(animals.id, id)).limit(1);
       const row = rows[0];
       return row ? rowToAnimal(row) : null;
+    },
+
+    /**
+     * The saved page's own lookup (S8, DR1-Q2): one query for the whole
+     * batch, not one `findById` per id. An empty `ids` short-circuits
+     * before the query — `inArray` with nothing to match is a query Postgres
+     * would answer correctly anyway, but there is no reason to send it.
+     * Missing ids are simply absent from the result, same as `findById`
+     * returning `null` for one; the caller (the handler) is what turns that
+     * absence into the contract's `unavailable` entry.
+     */
+    async findByIds(ids: readonly AnimalId[]): Promise<readonly Animal[]> {
+      if (ids.length === 0) return [];
+      const rows = await db.select().from(animals).where(inArray(animals.id, ids));
+      return rows.map(rowToAnimal);
     },
 
     async findByShelterId(shelterId: ShelterId): Promise<readonly Animal[]> {

@@ -611,8 +611,8 @@ with an open one waits."
 | S4b | **The animal overlay** (§2, his 2026-10-21 decision) + **RL-F1** (the page's rate-limited state) | `app/tvaryny/@preview/**`, `app/tvaryny/[animalId]/page.tsx`, `features/animal-overlay/*` (replaces `features/animal-preview/*`), `features/animal-detail/animal-page-load.ts`, `features/controls/*`, `features/reveal/ContactRevealDialog.tsx`, `proxy.ts`, `packages/i18n` | not 1 | none | S4 |
 | S5 | **Shelter page: contract** (`GalleryScope`, `PublicShelterView` pick per DR1-Q1) | `packages/contracts/src/procedures/gallery.ts`, `views/shelter.ts`, `apps/web/src/api/handlers/*`, `packages/db/src/repos/gallery-repo.ts`, tests | **1** | none | DR1-Q1 answered |
 | S6 | **Shelter page: UI**, «Слова притулку» moved per DR1-Q1, `/prytulkam` §8 and `voice.previewLabel` changed in the same PR | `app/prytulky/[shelterId]/page.tsx`, `features/shelters/*`, `features/animal-detail/*`, `features/discovery/SwipeCard.tsx` (if the sentence leaves the deck), `packages/i18n` | **1** | none | S5; DR1-Q1; his Ukrainian |
-| S7 | **Saved animals: store, control, `animals.cardsByIds`** | `features/likes/*`, `packages/contracts/src/procedures/animals.ts`, `apps/web/src/api/handlers/animals.ts`, `packages/db/src/repos/feed-repo.ts` | **1** | none | DR1-Q2, DR1-Q3; S4 (the control sits in the drawer) |
-| S8 | **The saved page («Збережені тварини») + `/pro` sentence** | the `/zberezheni` route at the root (his slug, DR1-Q3; its cards open the full animal page, his 2026-10-21 decision; a harness flow proves the drawer route swallows no navigation to or from it), `features/likes/*`, `features/chrome/SiteHeader.tsx`, `packages/i18n` (`about.*`) | **1** | none | S7; DR1-Q4; his Ukrainian |
+| S7 | **Saved animals: store, control** | `features/likes/*`, `packages/i18n` | **1** | none | DR1-Q2, DR1-Q3; S4 (the control sits in the drawer) |
+| S8 | **The saved page («Збережені тварини») + `/pro` sentence, `animals.cardsByIds`** | the `/zberezheni` route at the root (his slug, DR1-Q3; its cards open the full animal page, his 2026-10-21 decision; a harness flow proves the drawer route swallows no navigation to or from it), `features/likes/*`, `features/chrome/SiteHeader.tsx`, `packages/i18n` (`about.*`), `packages/contracts/src/procedures/animals.ts`, `apps/web/src/api/handlers/animals.ts`, `packages/db/src/repos/animal-repo.ts` | **1** | none | S7; DR1-Q2, DR1-Q4; his Ukrainian |
 
 Order of work: S1 and S2 in parallel (different areas) → S3 and S4 → S5 → S6 → S7 → S8. S5–S8
 wait on the open questions; S1–S4 don't, so building starts there while he answers.
@@ -620,8 +620,9 @@ wait on the open questions; S1–S4 don't, so building starts there while he ans
 Added from the coordinator's review on PR #160 (2026-10-20; the coordinator's notes, not
 Oleksii's decisions):
 
-- `animals.cardsByIds` (S7) goes through the per-IP rate limit and returns a `pick`-built public
-  view (`FeedCardView`), like every public read; Tier 1 review.
+- `animals.cardsByIds`, built in S8 (S7-F4: deferred from S7, which built only the store and the
+  control) goes through the per-IP rate limit and returns a `pick`-built public view
+  (`FeedCardView`), like every public read; Tier 1 review.
 - S2's migration `0014` is the only migration-bearing branch until it lands, so two branches never
   both claim `0014`.
 - S2 and S3 change SQL (`buildFilterPredicate`), so each waits for Oleksii's real-Neon smoke

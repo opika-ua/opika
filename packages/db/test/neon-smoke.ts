@@ -1978,6 +1978,25 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       unknownList.totalMatching === 0,
     `known: ${ownList.items.length} item(s), total ${ownList.totalMatching}, shelters ${ownList.totalShelters}, all its own ${ownOnly}; unknown: ${unknownList.items.length} item(s), total ${unknownList.totalMatching}`,
   );
+
+  // 41. S8's `animals.cardsByIds`: `animalRepo.findByIds` (a plain
+  // `inArray` select, no new migration) over this driver. A mix of two real
+  // ids from this run (`atShelter`, `fostered`, both inserted in step 2) and
+  // one random, never-inserted id returns exactly the two real rows — the
+  // unknown id is silently absent, not an error, which is what the handler's
+  // order-preserving map over `input.animalIds` relies on. An empty array
+  // short-circuits in TS before any query, so it has no real-Neon case to add
+  // here; it's already covered locally (`animals-cards-by-ids.test.ts`).
+  const foundIds = (
+    await animalRepo(db).findByIds([atShelter.id, fostered.id, randomUUID() as never])
+  )
+    .map((a) => a.id)
+    .sort();
+  check(
+    "animals.cardsByIds: findByIds (inArray select) over neon-http",
+    foundIds.length === 2 && foundIds.includes(atShelter.id) && foundIds.includes(fostered.id),
+    `${foundIds.length} row(s) found for 2 real + 1 unknown id`,
+  );
   return out;
 }
 

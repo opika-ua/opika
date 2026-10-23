@@ -7,7 +7,16 @@ import { requireEnv } from "./env";
  * carries the one shared secret below, except the kabinet's own routes
  * (`/api/auth/*`, `/api/kabinet/*`, `/kabinet/*`), which `proxy.ts`'s
  * `isGateExemptPath` lets through so a magic link opened in a fresh browser
- * can complete sign-in (IN-Q1, Oleksii). Say what it actually does, not more:
+ * can complete sign-in (IN-Q1, Oleksii), and `/api/rpc/animals/cardsByIds`
+ * (`proxy.ts`'s `isGateExemptExactPath`, S8-D1, Oleksii 2026-10-23): a
+ * request that can never carry this gate's cookie in the first place
+ * (`credentials: "omit"`, DR1-Q2), exempted because the ids it's ever
+ * called with come only from pages this same gate already covers, so
+ * exempting it adds no way to enumerate ids that gating it would otherwise
+ * have closed off — `proxy.ts`'s own comment on that exemption has the
+ * full reasoning and the list of what's separately enforced and tested on
+ * it (POST only, the id cap, the rate limit, the public shape,
+ * `no-store`, no logging). Say what this gate actually does, not more:
  * it closes off automated traffic that ignores `X-Robots-Tag` and a
  * noindexed `robots.txt`, over a deploy that today holds nothing but a
  * fabricated corpus. It is not access control on anything valuable, it does

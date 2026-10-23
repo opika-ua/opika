@@ -1,7 +1,7 @@
 import { contract } from "@opika/contracts";
 import { implement } from "@orpc/server";
 import type { AppContext } from "./context";
-import { animalsById } from "./handlers/animals";
+import { animalsById, animalsCardsByIds } from "./handlers/animals";
 import { citiesList } from "./handlers/cities";
 import { feedList } from "./handlers/feed";
 import { galleryList, galleryRelaxationCounts } from "./handlers/gallery";
@@ -44,6 +44,9 @@ export const router = impl.router({
     ),
     reveal: impl.animals.reveal.handler(({ input, context, errors }) =>
       animalsReveal(input, context, errors),
+    ),
+    cardsByIds: impl.animals.cardsByIds.handler(({ input, context }) =>
+      animalsCardsByIds(input, context),
     ),
   },
   reveals: {

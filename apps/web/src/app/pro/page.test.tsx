@@ -28,7 +28,7 @@ describe("AboutPage", () => {
    * (KH-Q12) changed: «…видаляються протягом доби.», and PW-1's two sentences (his copy,
    * `docs/shelter-passwords-copy-uk.md` §G): the password hash and the session's length.
    */
-  it("the data is four paragraphs, the last two the kabinet's history and photo facts", () => {
+  it("the data is five paragraphs, the saved list's own sentence last (S8, DR1-Q4)", () => {
     render(<AboutPage />);
     // Audit 2026-10-22 #4 and #45: the same sentences in four paragraphs, not one.
     const history = screen.getByText(/^Кожна зміна в кабінеті записується/);
@@ -40,6 +40,11 @@ describe("AboutPage", () => {
     expect(photos.tagName).toBe("P");
     expect(photos.textContent).toBe(
       "Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
+    );
+    const savedList = screen.getByText(/^Список збережених тварин/);
+    expect(savedList.tagName).toBe("P");
+    expect(savedList.textContent).toBe(
+      "Список збережених тварин зберігається лише в цьому браузері. Щоб показати його актуальним, сайт запитує дані про цих тварин без кукі й не зберігає, яких саме.",
     );
     const sessions = screen.getByText(/^Для притулків із доступом до кабінету/);
     expect(sessions.textContent).toContain(

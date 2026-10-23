@@ -82,13 +82,21 @@ export const en = {
     right: "Ask about them",
   },
 
-  // --- Saved animals (designer round 1, S7) ---
+  // --- Saved animals (designer round 1, S7/S8) ---
   likes: {
     save: "Save",
     saved: "Saved",
     added: "{name}: added to saved",
     removed: "{name}: removed from saved",
     full: "The list is full — it can hold at most {max} animals. To add a new one, remove one first.",
+    title: "Saved animals",
+    deviceOnly:
+      "The list is kept only in this browser: it won't be there on another device or browser.",
+    empty: "Nothing here yet. Save animals from the gallery to come back to them later.",
+    emptyLink: "To the gallery",
+    unavailable: "{name} is no longer shown on the site.",
+    remove: "Remove from the list",
+    storageBlocked: "This browser won't let the site keep your list.",
   },
 
   // --- Action buttons ---
@@ -330,6 +338,7 @@ export const en = {
   nav: {
     about: "About",
     forShelters: "For shelters",
+    saved: "Saved",
   },
 
   // --- About page — see the uk key's own note ---

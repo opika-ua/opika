@@ -1,7 +1,8 @@
 /**
  * Phase T — the site-wide header: on every user-facing surface except the
- * deck, carrying the wordmark and both site links, reachable by keyboard;
- * plus the demo banner on the gallery and detail pages.
+ * deck, carrying the wordmark and all three site links (S8 added the saved
+ * page's), reachable by keyboard; plus the demo banner on the gallery and
+ * detail pages.
  *
  * - **E5/E1/B2** — «Про проєкт» was reachable from one link in the whole
  *   app, and the detail page (the URL people paste into Telegram) carried no
@@ -25,11 +26,13 @@ const GALLERY = "/tvaryny";
 const DECK = "/tvaryny/gortaty";
 const ABOUT = "/pro";
 const FOR_SHELTERS = "/prytulkam";
+const SAVED = "/zberezheni";
 
 const HEADER = "[data-testid='site-header']";
 const WORDMARK = "[data-testid='site-wordmark']";
 const NAV_ABOUT = "[data-testid='nav-about']";
 const NAV_SHELTERS = "[data-testid='nav-for-shelters']";
+const NAV_SAVED = "[data-testid='nav-saved']";
 const CARD = "[data-testid='animal-card']";
 
 let cachedAnimalHref: string | null = null;
@@ -48,12 +51,13 @@ test.describe("the header is on every user-facing surface except the deck", () =
     ["about", ABOUT],
     ["for shelters", FOR_SHELTERS],
   ] as const) {
-    test(`${name} carries the wordmark and both site links`, async ({ page }) => {
+    test(`${name} carries the wordmark and all three site links`, async ({ page }) => {
       await openRoute(page, route, PHONE, { readySelector: HEADER });
 
       await expect(page.locator(WORDMARK)).toHaveText("Opika");
       await expect(page.locator(NAV_ABOUT)).toHaveAttribute("href", ABOUT);
       await expect(page.locator(NAV_SHELTERS)).toHaveAttribute("href", FOR_SHELTERS);
+      await expect(page.locator(NAV_SAVED)).toHaveAttribute("href", SAVED);
     });
   }
 
@@ -65,6 +69,7 @@ test.describe("the header is on every user-facing surface except the deck", () =
     await expect(page.locator(WORDMARK)).toHaveText("Opika");
     await expect(page.locator(NAV_ABOUT)).toHaveAttribute("href", ABOUT);
     await expect(page.locator(NAV_SHELTERS)).toHaveAttribute("href", FOR_SHELTERS);
+    await expect(page.locator(NAV_SAVED)).toHaveAttribute("href", SAVED);
   });
 
   test("the deck does NOT carry it — docs/design/README.md:589, never two navigations at once", async ({
@@ -115,6 +120,14 @@ test.describe("the header is reachable by keyboard", () => {
     await expectReachableByTab(page, {
       label: "header «Для притулків» link",
       locator: page.locator(NAV_SHELTERS),
+    });
+  });
+
+  test("the «Збережені» link is reachable by Tab", async ({ page }) => {
+    await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
+    await expectReachableByTab(page, {
+      label: "header «Збережені» link",
+      locator: page.locator(NAV_SAVED),
     });
   });
 });
