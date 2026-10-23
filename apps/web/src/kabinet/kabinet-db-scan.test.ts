@@ -53,9 +53,9 @@ const ENTRY_FILES = ["proxy.ts"];
 /**
  * The justified exceptions: a module, every finding it may have, and why. Kept exact: an entry
  * whose module has a finding more or fewer, or that the walk no longer reaches, fails the test
- * too, so the list can't go stale or cover a finding added later. A non-literal `import()` or
- * `createRequire` in a reached module would need an entry here, proven the same way; none has one
- * today.
+ * too, so the list can't go stale or cover a finding added later. A non-literal `import()` or a
+ * load of `node:module` in a reached module would need an entry here, proven the same way; none
+ * has one today.
  */
 const ALLOWED: Readonly<Record<string, { uses: readonly string[]; why: string }>> = {
   "kabinet/kabinet-db.ts": {
@@ -116,33 +116,66 @@ function literalText(node: Node | undefined): string | null {
 const DB_PACKAGE = "@opika/db";
 
 /**
+ * Both spellings resolve to the same built-in (`"module"` is `"node:module"` without the
+ * protocol prefix) and both hand back `createRequire`, which hands back a `require` that can
+ * reach `@opika/db` by a computed name the same way the namespace-import check below exists to
+ * catch. F8-F3 (review of #179): the earlier version of this check looked only for the bare
+ * identifier `createRequire`, which missed `mod["createRequire"]` and
+ * `require("node:module")["createRequire"]` — neither contains that identifier, since bracket
+ * access on a string reads as a `StringLiteral` node, not an `Identifier` one. This specifier
+ * check closes those two; it runs *alongside* the bare-identifier check below, not instead of
+ * it (review of 9f5a214, finding 1's fix) — the identifier check is still the only thing that
+ * catches a property-access form naming the module through a call this scan doesn't otherwise
+ * recognise (`process.getBuiltinModule("node:module").createRequire`), and this check is still
+ * the only thing that catches the bracket forms the identifier check never could. Neither
+ * subsumes the other.
+ */
+const MODULE_BUILTIN_SPECIFIERS = ["module", "node:module"];
+
+/**
  * `sourceFile`'s facts, read from the compiler's tree (F8-F2, note 4): a string or a comment is
  * never code, so neither can hide an import or fake one. Read: import declarations (a whole
  * `import type` names a type only), `export … from` (likewise `export type`), `import x =
  * require()`, `import()` and `require()` calls; and, failing closed, an `import()` or `require()`
- * of anything but a literal, any use of `createRequire`, and a namespace or dynamic load of
- * `@opika/db` (through which `createDatabase` can be reached by a computed name).
+ * of anything but a literal, any load of `node:module` (through which `createRequire` can reach
+ * `@opika/db` by a computed name), and a namespace or dynamic load of `@opika/db` itself (through
+ * which `createDatabase` can be reached by a computed name).
  */
 function factsOf(sourceFile: SourceFile): ModuleFacts {
   const loads: Load[] = [];
   const unfollowable: string[] = [];
   let namesCreateDatabase = false;
+  // Review of 9f5a214, finding 1: the first version of this check only ran in two of the four
+  // places a module can be named (the `import` declaration and the `require()`/`import()`
+  // call), silently losing coverage for `export … from "node:module"` and
+  // `import m = require("node:module")` — both real ways to reach the same builtin. One
+  // function, called everywhere a non-type-only specifier is resolved, so a fifth place added
+  // later can't make the same mistake by omission.
+  const flagModuleBuiltin = (specifier: string) => {
+    if (MODULE_BUILTIN_SPECIFIERS.includes(specifier))
+      unfollowable.push("an import of node:module");
+  };
   for (const node of nodesOf(sourceFile)) {
     if (isImportDeclaration(node)) {
       const specifier = literalText(node.moduleSpecifier);
       if (specifier === null) continue;
       const typeOnly = node.importClause?.phaseModifier === SyntaxKind.TypeKeyword;
       loads.push({ specifier, via: typeOnly ? "type" : "import" });
+      if (!typeOnly) flagModuleBuiltin(specifier);
       const bindings = node.importClause?.namedBindings;
       if (!typeOnly && specifier === DB_PACKAGE && bindings && isNamespaceImport(bindings)) {
         unfollowable.push("a namespace import of @opika/db");
       }
     } else if (isExportDeclaration(node)) {
       const specifier = literalText(node.moduleSpecifier);
-      if (specifier !== null) loads.push({ specifier, via: node.isTypeOnly ? "type" : "export" });
+      if (specifier === null) continue;
+      loads.push({ specifier, via: node.isTypeOnly ? "type" : "export" });
+      if (!node.isTypeOnly) flagModuleBuiltin(specifier);
     } else if (isImportEqualsDeclaration(node) && isExternalModuleReference(node.moduleReference)) {
       const specifier = literalText(node.moduleReference.expression);
-      if (specifier !== null) loads.push({ specifier, via: node.isTypeOnly ? "type" : "import" });
+      if (specifier === null) continue;
+      loads.push({ specifier, via: node.isTypeOnly ? "type" : "import" });
+      if (!node.isTypeOnly) flagModuleBuiltin(specifier);
     } else if (isCallExpression(node)) {
       const callee = node.expression;
       const isImport = callee.kind === SyntaxKind.ImportKeyword;
@@ -155,7 +188,13 @@ function factsOf(sourceFile: SourceFile): ModuleFacts {
       }
       loads.push({ specifier, via: isImport ? "import()" : "require" });
       if (isImport && specifier === DB_PACKAGE) unfollowable.push("a dynamic import of @opika/db");
+      flagModuleBuiltin(specifier);
     } else if (isIdentifier(node)) {
+      // Kept alongside `flagModuleBuiltin` above, not replaced by it (review of 9f5a214,
+      // finding 1's fix): `process.getBuiltinModule("node:module").createRequire` names the
+      // module through a call neither `isImport`/`isRequire` recognises, so no specifier is
+      // ever resolved for it — only the bare identifier `createRequire` as a property name is
+      // visible to catch that form.
       if (node.text === "createRequire") unfollowable.push("createRequire");
       if (node.text === "createDatabase") namesCreateDatabase = true;
     }
@@ -366,7 +405,7 @@ describe("the scan's detector", () => {
       [`const m = await import(\`@/api/$${"{name}"}\`);`, ["a non-literal import()"]],
       [
         'import { createRequire } from "node:module";\nconst m = createRequire(import.meta.url)(x);',
-        ["createRequire"],
+        ["an import of node:module", "createRequire"],
       ],
       [
         'import * as pkg from "@opika/db";\nconst make = pkg["create" + "Data" + "base"];',
@@ -376,6 +415,64 @@ describe("the scan's detector", () => {
     ] as const) {
       expect([source, usesFrom({ [page]: source })]).toEqual([source, uses]);
     }
+  });
+
+  /**
+   * F8-F3 (review of #179): the old detector looked for the bare identifier `createRequire`,
+   * which both of these miss — bracket access on a string reads as a `StringLiteral` node, never
+   * an `Identifier` one, so neither form ever contains that identifier at all. Flagging any load
+   * of `node:module`/`module` itself, regardless of how `createRequire` is pulled out of it,
+   * catches both.
+   */
+  it("catches createRequire reached through a computed property, not just the bare identifier (F8-F3)", () => {
+    for (const [source, uses] of [
+      [
+        'import * as mod from "node:module";\nconst cr = mod["createRequire"];',
+        ["an import of node:module"],
+      ],
+      ['const cr = require("node:module")["createRequire"];', ["an import of node:module"]],
+      ['import { createRequire } from "module";', ["an import of node:module", "createRequire"]],
+    ] as const) {
+      expect([source, usesFrom({ [page]: source })]).toEqual([source, uses]);
+    }
+  });
+
+  /**
+   * Review of 9f5a214, finding 1: the first version of the F8-F3 fix only ran
+   * `flagModuleBuiltin` in two of `factsOf`'s four branches, silently losing the five forms
+   * below — all caught before F8-F3's own fix, by the bare-identifier check it removed. Fixed
+   * by running the check in every branch, and by keeping the identifier check alongside it
+   * rather than instead of it.
+   */
+  it("still catches every form the pre-F8-F3 scanner caught (review of 9f5a214, finding 1)", () => {
+    for (const [source, uses] of [
+      [
+        'export { createRequire } from "node:module";',
+        ["an import of node:module", "createRequire"],
+      ],
+      [
+        'import m = require("node:module");\nconst cr = m.createRequire;',
+        ["an import of node:module", "createRequire"],
+      ],
+      ['const cr = process.getBuiltinModule("node:module").createRequire;', ["createRequire"]],
+    ] as const) {
+      expect([source, usesFrom({ [page]: source })]).toEqual([source, uses]);
+    }
+
+    // Two-file forms: a helper re-exports the builtin, the page never names
+    // "node:module" itself, only the helper it imports from.
+    expect(
+      usesFrom({
+        [page]: 'export { createRequire } from "@/lib/helper";',
+        [helper]: 'export * from "node:module";',
+      }),
+    ).toEqual(["createRequire", "an import of node:module"]);
+    expect(
+      usesFrom({
+        [page]: 'import { cr } from "@/lib/helper";',
+        [helper]: 'export { createRequire as cr } from "node:module";',
+      }),
+    ).toEqual(["an import of node:module", "createRequire"]);
   });
 
   it("a comment marker inside a string hides no import (the review of 72b8a3b, note 4)", () => {
@@ -428,7 +525,12 @@ describe("the scan's detector", () => {
     expect(found).toEqual([
       {
         key: "kabinet/kabinet-db.ts",
-        uses: ["imports ../api/db", "a non-literal import()", "createRequire"],
+        uses: [
+          "imports ../api/db",
+          "a non-literal import()",
+          "an import of node:module",
+          "createRequire",
+        ],
       },
     ]);
     expect(found.filter((offence) => !allowed(offence))).toEqual(found);
