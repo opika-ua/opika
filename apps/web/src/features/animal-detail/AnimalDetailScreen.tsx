@@ -85,6 +85,9 @@ export function AnimalDetailScreen({
 
   const subtitle = animalSubtitle(animal);
   const locationLine = animalLocationLine(animal, cityName);
+  // Computed once, not written out at both the link and the badge, so the
+  // two can't drift apart (review of df5915d, simplification).
+  const shelterVerifiedBadgeId = `shelter-verified-${shelter.id}`;
 
   return (
     <div className="font-rg min-h-dvh bg-rg-page">
@@ -294,9 +297,7 @@ export function AnimalDetailScreen({
               href={shelterPagePath(shelter.id)}
               prefetch={false}
               aria-label={fillTemplate(uk.detail.shelterRowLink, { name: shelter.displayName })}
-              aria-describedby={
-                REGISTRY_HAS_NO_REAL_SHELTERS ? undefined : `shelter-verified-${shelter.id}`
-              }
+              aria-describedby={REGISTRY_HAS_NO_REAL_SHELTERS ? undefined : shelterVerifiedBadgeId}
               className={`flex min-h-target items-center gap-3 rounded-rg-button ${FOCUS_RING}`}
             >
               <span
@@ -317,10 +318,7 @@ export function AnimalDetailScreen({
                   exist.
                 */}
                 {!REGISTRY_HAS_NO_REAL_SHELTERS && (
-                  <span
-                    id={`shelter-verified-${shelter.id}`}
-                    className="text-[13px]/[18px] text-rg-ink-3"
-                  >
+                  <span id={shelterVerifiedBadgeId} className="text-[13px]/[18px] text-rg-ink-3">
                     {fillTemplate(uk.detail.shelterVerifiedYears, {
                       year: String(sinceYear(shelter.createdAt)),
                     })}
