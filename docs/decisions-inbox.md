@@ -400,9 +400,10 @@ IN-B1..IN-T16 (50 rows) appended from `docs/decisions-inbox/feat-h2-invite.md`, 
 S7-F1..F5 and S8-D1, S8-D2, S8-F1, S8-F4, S8-F5 (10 rows) appended from
 `docs/decisions-inbox/feat-dr1-s8-saved-page.md` (PR #186) on 2026-10-23, with Oleksii's answers
 as recorded there; the branch-local file is deleted in the same commit. That file's two review-
-notes sections are not rows and are not dropped: "fixed as part of S8-D1's enforcement list" (the
-harness's no-cookie test moved from `headers()` to `allHeaders()`; a test added for the 200-id
-boundary itself) is already described inside the S8-D1 row above, so it is not duplicated here;
+notes sections are not rows and are not dropped: "fixed as part of S8-D1's enforcement list" had
+two items — the 200-id boundary test is already described inside the S8-D1 row above, so it is
+not duplicated here; the harness's no-cookie test moving from `headers()` to `allHeaders()` is
+recorded only in this paragraph, since no row above names it.
 "still open, genuinely follow-up material" (four items: `MAX_LIKES` vs. the server cap,
 `useSavedCards.ts`'s silent fetch failure, `SavedPageScreen`'s cosmetic Tailwind values, and
 `proxy.test.ts`'s missing percent-encoded exemption spellings) moves to
