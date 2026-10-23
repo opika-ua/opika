@@ -70,10 +70,13 @@ export const REGISTRY_HAS_NO_REAL_SHELTERS = true;
 
 /**
  * The "· перевірений" suffix a card appends next to a verified shelter's
- * name. The one gate for that claim — `AnimalCard.tsx` and `SwipeCard.tsx`
- * both call this rather than each carrying its own copy of the check, so
- * a future card surface inherits the suppression rather than needing to
- * remember `REGISTRY_HAS_NO_REAL_SHELTERS` exists. Not sourced from
+ * name. The one gate for that claim — `SwipeCard.tsx` calls this rather
+ * than carrying its own copy of the check, so a future card surface
+ * inherits the suppression rather than needing to remember
+ * `REGISTRY_HAS_NO_REAL_SHELTERS` exists. (`AnimalCard.tsx` carries no
+ * shelter name at all since S1 — "No shelter name on the gallery card" —
+ * so it has no verified-suffix call to make; review of feat-dr1-s1-card-
+ * no-shelter, finding 1, S1-F1.) Not sourced from
  * `packages/i18n`: the literal predates this fix and moving it into the
  * catalogue is a separate, unrelated cleanup this row doesn't scope-creep
  * into — the string itself is unchanged, only where the check lives.

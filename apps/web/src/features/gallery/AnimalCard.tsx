@@ -232,9 +232,11 @@ export function AnimalCard({
           No shelter name either, in any variant (designer round 1, §3 of
           docs/designer-round-1.md, decision DR1-D1): the gallery card is the
           preview, and the shelter is named on the animal page. The deck card
-          keeps its shelter line, because it carries the shelter's sentence,
-          which needs its speaker. `card.shelter` still feeds the city of an
-          animal at its shelter (`cardCityId`).
+          still keeps its own shelter line (name, monogram, verification
+          suffix) — unrelated to the shelter's sentence, which moved off the
+          deck card to the shelter page in designer round 1, S6 (review of
+          feat-dr1-s1-card-no-shelter, finding 1, S1-F1). `card.shelter`
+          still feeds the city of an animal at its shelter (`cardCityId`).
         */}
         {resolved ? (
           <span className="text-[15px]/[22px] text-rg-ink">
