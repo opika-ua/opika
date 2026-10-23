@@ -1,4 +1,8 @@
-import { animalsByIdContract, animalsRevealContract } from "./procedures/animals";
+import {
+  animalsByIdContract,
+  animalsCardsByIdsContract,
+  animalsRevealContract,
+} from "./procedures/animals";
 import { citiesListContract } from "./procedures/cities";
 import { feedListContract } from "./procedures/feed";
 import { galleryListContract, galleryRelaxationCountsContract } from "./procedures/gallery";
@@ -32,6 +36,7 @@ export const contract = {
   animals: {
     byId: animalsByIdContract,
     reveal: animalsRevealContract,
+    cardsByIds: animalsCardsByIdsContract,
   },
   reveals: {
     listMine: revealsListMineContract,

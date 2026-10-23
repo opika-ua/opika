@@ -1,9 +1,16 @@
-import type { AnimalDetailView, AnimalsByIdInputSchema, apiErrors } from "@opika/contracts";
+import type {
+  AnimalDetailView,
+  AnimalsByIdInputSchema,
+  AnimalsCardsByIdsInputSchema,
+  AnimalsCardsByIdsOutputSchema,
+  apiErrors,
+} from "@opika/contracts";
 import { animalRepo, shelterRepo } from "@opika/db/repos";
-import { ageBucketOf, isDiscoverableAnimal } from "@opika/domain";
+import { ageBucketOf, isDiscoverableAnimal, isPubliclyVerified, primaryPhoto } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
+import { discoverableListingKind } from "./discoverable-listing-kind";
 import { listingFreshness } from "./listing-freshness";
 import { cityOnlyLocationOf } from "./public-location";
 
@@ -65,4 +72,79 @@ export async function animalsById(
       verification: "verified",
     },
   };
+}
+
+type CardsByIdsInput = z.infer<typeof AnimalsCardsByIdsInputSchema>;
+type CardsByIdsOutput = z.infer<typeof AnimalsCardsByIdsOutputSchema>;
+
+/**
+ * S8, the saved page: DR1-Q2 option (A), his spec. Never reads
+ * `context.adopterId` (the caller omits the cookie client-side, so there is
+ * usually none to read anyway) — the saved list is never tied to a session,
+ * on-device only, the same as a reveal's own "Опіка never tells a shelter"
+ * commitment is about what the *server* keeps, not what the caller sends.
+ *
+ * One batch query each for the animals and their shelters (the gallery
+ * handler's own pattern), not one round trip per id. Nothing here logs
+ * `input.animalIds` — the one requirement his spec states explicitly
+ * ("nothing stored or logged about which ids were asked for") is upheld by
+ * omission: there is no `console.log`/`console.error` anywhere in this
+ * function at all, pinned by a test that spies on both.
+ */
+export async function animalsCardsByIds(
+  input: CardsByIdsInput,
+  context: AppContext,
+): Promise<CardsByIdsOutput> {
+  if (input.animalIds.length === 0) return { items: [] };
+
+  const animalRows = await animalRepo(context.db).findByIds(input.animalIds);
+  const animalById = new Map(animalRows.map((animal) => [animal.id, animal]));
+
+  const discoverable = animalRows.filter(isDiscoverableAnimal);
+  const shelterIds = [...new Set(discoverable.map((animal) => animal.shelterId))];
+  const shelterRows = await shelterRepo(context.db).findByIds(shelterIds);
+  const shelterById = new Map(shelterRows.map((shelter) => [shelter.id, shelter]));
+
+  const items = input.animalIds.map((animalId) => {
+    const animal = animalById.get(animalId);
+    const shelter = animal && shelterById.get(animal.shelterId);
+
+    if (
+      !animal ||
+      !isDiscoverableAnimal(animal) ||
+      !shelter ||
+      !isPubliclyVerified(shelter.verification)
+    ) {
+      // The row exists but isn't shown any more (adopted, withdrawn, a
+      // paused or no-longer-verified shelter) — its name is still honest to
+      // show. `null` only for an id with no row behind it at all.
+      return { kind: "unavailable" as const, animalId, name: animal?.name ?? null };
+    }
+
+    return {
+      kind: "available" as const,
+      animalId,
+      card: {
+        id: animal.id,
+        name: animal.name,
+        species: animal.species,
+        sex: animal.sex,
+        size: animal.size,
+        coatLength: animal.coatLength,
+        publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
+        ageBucket: ageBucketOf(animal.age, context.now),
+        freshness: listingFreshness(animal.listing, context.now),
+        primaryPhoto: primaryPhoto(animal),
+        listingKind: discoverableListingKind(animal.listing),
+        shelter: {
+          id: shelter.id,
+          displayName: shelter.displayName,
+          publicLocation: cityOnlyLocationOf(shelter.publicLocation),
+          verification: "verified" as const,
+        },
+      },
+    };
+  });
+
+  return { items };
 }

@@ -193,6 +193,44 @@ describe("proxy", () => {
       expect(response.status).toBe(403);
     });
 
+    /**
+     * S8: `animals.cardsByIds` is built to send no cookie at all
+     * (`credentials: "omit"`, DR1-Q2), so it can never carry the gate's own
+     * cookie either. Without this exact-path exemption it would 403 on every
+     * call before launch — found running the saved-page harness for real,
+     * not inferred from the gate's code. Builder decision (reversible,
+     * no security boundary per this file's own top comment), recorded in
+     * `docs/decisions-inbox/feat-dr1-s8-saved-page.md`.
+     */
+    it("exempts animals.cardsByIds, the one RPC path built to carry no cookie (S8)", async () => {
+      const { proxy } = await import("./proxy");
+      const response = await proxy(request("https://opika.example/api/rpc/animals/cardsByIds"));
+      expect(response.status).toBe(200);
+    });
+
+    it("mints no gate cookie on that exempt RPC path either, even with the gate parameter", async () => {
+      const { proxy } = await import("./proxy");
+      const response = await proxy(
+        request(`https://opika.example/api/rpc/animals/cardsByIds?gate=${SECRET}`),
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("set-cookie")).toBeNull();
+    });
+
+    it.each([
+      "/api/rpc/animals",
+      "/api/rpc/animals/",
+      "/api/rpc/animals/cardsbyids",
+      "/api/rpc/animals/cardsByIdsx",
+      "/api/rpc/animals/cardsByIds/",
+      "/api/rpc/animals/cardsByIds/extra",
+      "/api/rpc/animal/cardsByIds",
+      "/api/rpc/gallery/cardsByIds",
+    ])("still gates %s: the exemption is that one exact path", async (path) => {
+      const { proxy } = await import("./proxy");
+      expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
+    });
+
     it("carries no user-agent carve-out: a Telegram-bot-shaped user agent is denied identically", async () => {
       const { proxy } = await import("./proxy");
       const response = await proxy(

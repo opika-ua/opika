@@ -63,7 +63,8 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (
     !SITE_IS_PUBLICLY_DISCOVERABLE &&
     !isGateExemptPath(request.nextUrl.pathname) &&
-    !isCronPath(request.nextUrl.pathname)
+    !isCronPath(request.nextUrl.pathname) &&
+    !isGateExemptExactPath(request.nextUrl.pathname)
   ) {
     const decision = evaluatePrelaunchGate(
       request.headers.get("cookie"),
@@ -158,6 +159,30 @@ const CRON_PATHS: readonly string[] = ["/api/cron/auth-cleanup"];
 
 export function isCronPath(pathname: string): boolean {
   return CRON_PATHS.includes(pathname);
+}
+
+/**
+ * S8's saved-page batch read (`animals.cardsByIds`) is built to carry no
+ * cookie at all — `credentials: "omit"` (DR1-Q2), so the request can never
+ * be tied to an adopter's session or correlated across visits. The gate's
+ * own cookie carries no adopter identity, only "this browser passed the bot
+ * shutter," so exempting this one path leaks nothing DR1-Q2 was protecting
+ * against; what it returns (`FeedCardView`) is the same shape and visibility
+ * `/tvaryny` already serves through the gate normally. Without this, a
+ * cookie-less request would 403 on every call before launch, making the
+ * feature permanently non-functional rather than merely logged-out-looking —
+ * found by running the saved-page harness against a real server, not
+ * inferred. Reversible builder decision (CLAUDE.md working-mode amendment),
+ * recorded as such in the inbox, not Oleksii's: the conservative-seeming
+ * alternative (leave it gated) would ship a broken feature instead of a
+ * narrow, documented, exact-path exemption of the same shape already used
+ * for the kabinet and cron above. Exact path, not a prefix — one procedure
+ * only, siblings under `/api/rpc/animals/*` stay gated.
+ */
+const GATE_EXEMPT_EXACT_PATHS: readonly string[] = ["/api/rpc/animals/cardsByIds"];
+
+export function isGateExemptExactPath(pathname: string): boolean {
+  return GATE_EXEMPT_EXACT_PATHS.includes(pathname);
 }
 
 /**

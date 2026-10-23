@@ -234,6 +234,10 @@ export function SiteHeader({ children, wordmarkIsCurrentPage = false }: SiteHead
         <Link href="/pro" data-testid="nav-about" className={NAV_LINK_CLASS}>
           {uk.nav.about}
         </Link>
+        {/* S8: the saved page (`/zberezheni`), linked from every surface the header is on. */}
+        <Link href="/zberezheni" data-testid="nav-saved" className={NAV_LINK_CLASS}>
+          {uk.nav.saved}
+        </Link>
       </nav>
 
       {children}

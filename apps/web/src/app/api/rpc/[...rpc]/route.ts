@@ -45,6 +45,15 @@ async function handleRequest(request: Request): Promise<Response> {
     result.response.headers.append("Set-Cookie", cookie);
   }
 
+  // DR1-Q2 (S8): the saved page's batch read is never cached by an
+  // intermediate layer — its answer depends on moderation state that can
+  // change between two requests for the same ids. Scoped to this one
+  // procedure's path rather than every procedure this route serves, since
+  // nothing asked for the others' caching behaviour to change.
+  if (new URL(request.url).pathname === "/api/rpc/animals/cardsByIds") {
+    result.response.headers.set("Cache-Control", "no-store");
+  }
+
   return result.response;
 }
 

@@ -60,6 +60,20 @@ const revealBrowserContract = {
 } as const;
 
 /**
+ * S8, the saved page. Its own link, not `link` below: DR1-Q2's spec is
+ * `credentials: 'omit'` specifically for this one call — the saved list is
+ * never tied to a session, so sending the cookie would be pointless at best
+ * and, since the server's shared route handler calls `validateSession` on
+ * whatever cookie header it receives, an unnecessary session lookup at
+ * worst. `feedBrowserClient`/`revealBrowserClient` must keep the browser's
+ * default (same-origin) credentials — a reveal and `swipes.record` both
+ * depend on the cookie reaching the server.
+ */
+const savedBrowserContract = {
+  animals: { cardsByIds: contract.animals.cardsByIds },
+} as const;
+
+/**
  * `url` is a function, not the string `"/api/rpc"` directly — confirmed
  * necessary, not a style preference: oRPC's own encoder does `new URL(url)`
  * with no base, which throws `Invalid URL` on a relative path (a relative
@@ -75,8 +89,17 @@ const link = new RPCLink<Record<never, never>>({
   url: () => `${window.location.origin}/api/rpc`,
 });
 
+/** `credentials: "omit"` — see `savedBrowserContract`'s own comment above. */
+const savedLink = new RPCLink<Record<never, never>>({
+  url: () => `${window.location.origin}/api/rpc`,
+  fetch: (request, init) => fetch(request, { ...init, credentials: "omit" }),
+});
+
 export const feedBrowserClient: ContractRouterClient<typeof browserContract> =
   createORPCClient(link);
 
 export const revealBrowserClient: ContractRouterClient<typeof revealBrowserContract> =
   createORPCClient(link);
+
+export const savedBrowserClient: ContractRouterClient<typeof savedBrowserContract> =
+  createORPCClient(savedLink);
