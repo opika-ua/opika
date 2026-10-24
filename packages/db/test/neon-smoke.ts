@@ -828,6 +828,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           atShelter.id,
           { ...readListing, confirmedAt: later(2000), undoable: null },
           readListing,
+          NOW,
           { kind: "not_recorded", because: "confirmation" },
         )
       : { kind: "conflict" as const };
@@ -837,6 +838,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           atShelter.id,
           { ...readListing, confirmedAt: later(3000), undoable: null },
           readListing,
+          NOW,
           { kind: "not_recorded", because: "confirmation" },
         )
       : { kind: "ok" as const };
@@ -977,6 +979,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           publishable.id,
           published.next,
           draftListing,
+          NOW,
           publishLine(publishable),
           publishGuard(publishableRead.animal.version),
         )
@@ -987,6 +990,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           publishable.id,
           published.next,
           draftListing,
+          NOW,
           publishLine(publishable),
           publishGuard(publishableRead.animal.version),
         )
@@ -1298,6 +1302,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
         bareDraft.id,
         barePublish.next,
         bareRead.animal.listing,
+        NOW,
         publishLine(bareDraft),
         publishGuard(bareRead.animal.version),
       );
@@ -1392,6 +1397,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           raced.id,
           racedPublish.next,
           racedRead.animal.listing,
+          NOW,
           publishLine(raced),
           publishGuard(racedRead.animal.version),
         )
@@ -1402,6 +1408,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           raced.id,
           racedPublish.next,
           racedRead.animal.listing,
+          NOW,
           publishLine(raced),
           publishGuard(racedRead.animal.version + 1),
         )
@@ -1419,6 +1426,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           photoless.id,
           racedPublish.next,
           { kind: "draft" },
+          NOW,
           publishLine(photoless),
           publishGuard(0),
         )
@@ -1602,6 +1610,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           k2Confirmed.id,
           confirmMove.next,
           beforeConfirm.animal.listing,
+          NOW,
           notRecorded,
         )
       : { kind: "conflict" as const };
@@ -1615,6 +1624,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           k2Confirmed.id,
           undoMove.next,
           confirmedRead.animal.listing,
+          NOW,
           notRecorded,
         )
       : { kind: "conflict" as const };
@@ -1624,6 +1634,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           k2Confirmed.id,
           undoMove.next,
           confirmedRead.animal.listing,
+          NOW,
           notRecorded,
         )
       : { kind: "ok" as const };
@@ -1670,6 +1681,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       k2Moving.id,
       move.next,
       read.animal.listing,
+      NOW,
       {
         kind: "recorded",
         row: {
@@ -1740,6 +1752,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           k2Adopting.id,
           adoptMove.next,
           adoptRead.animal.listing,
+          NOW,
           {
             kind: "recorded",
             row: {

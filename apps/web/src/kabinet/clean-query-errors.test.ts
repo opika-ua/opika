@@ -326,7 +326,7 @@ describe("our callers read the cleaned error exactly as they read the raw one", 
       publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
     });
     await shelterRepo(handle).insert(shelter);
-    return { shelterId: shelter.id, cityId: city.id };
+    return { shelterId: shelter.id, cityId: city.id, verification: shelter.verification };
   }
 
   it("23514: isCheckViolation finds the CHECK's refusal of an incomplete draft's publish", async () => {
@@ -360,6 +360,7 @@ describe("our callers read the cleaned error exactly as they read the raw one", 
           draft.id,
           published.next as AnimalListingState,
           draft.listing,
+          AT,
           line,
           { kind: "publish", expectedVersion: draft.version },
         ),

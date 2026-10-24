@@ -32,6 +32,7 @@ const animal: Animal = {
   documentReadiness: { kind: "unknown" },
   listing: { kind: "published", publishedAt: AT, confirmedAt: AT, undoable: null },
   publicLocation: null,
+  everServedAt: AT,
   createdAt: AT,
   lastUpdatedAt: AT,
   version: 0,

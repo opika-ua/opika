@@ -109,6 +109,15 @@ export const animals = pgTable(
      */
     firstPublishedAt: timestamp("first_published_at", { withTimezone: true }),
 
+    /**
+     * The first instant this row was both discoverable and its shelter
+     * publicly verified (S8-F5). Set once, by `everServedAtAfter`, never
+     * cleared. `null` means this specific listing has never actually been
+     * rendered to an adopter — the precise fact `animals.cardsByIds`'s
+     * `wasEverPublic` approximation couldn't express.
+     */
+    everServedAt: timestamp("ever_served_at", { withTimezone: true }),
+
     descriptionUk: text("description_uk"),
     descriptionEnText: text("description_en_text"),
     descriptionEnProvenance: text("description_en_provenance", {

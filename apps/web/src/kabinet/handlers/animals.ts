@@ -296,6 +296,7 @@ async function tap(
       animal.id,
       next.listing,
       animal.listing,
+      deps.now,
       typeof history === "function" ? history(animal, next) : history,
       guard,
     );
@@ -455,6 +456,7 @@ export async function animalsCreateDraft(
     age: null,
     description: null,
     photos: [],
+    everServedAt: null,
     vaccination: UNKNOWN_ATTESTATION(deps.now),
     spayNeuter: UNKNOWN_ATTESTATION(deps.now),
     documentReadiness: { kind: "unknown" },

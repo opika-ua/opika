@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   type AnimalId,
   AnimalIdSchema,
+  type AnimalListingState,
   AnimalNameInputSchema,
   type AnimalPhoto,
   AnimalSexSchema,
@@ -16,6 +17,7 @@ import {
   DonationLinkSchema,
   EvidenceItemInputSchema,
   ExactAddressSchema,
+  everServedAtAfter,
   freshnessSentenceProblemMessage,
   type ListedAnimal,
   MAX_ANIMAL_PHOTOS,
@@ -28,6 +30,7 @@ import {
   ShelterContactSchema,
   ShelterIdSchema,
   ShelterLegalEntitySchema,
+  type ShelterVerification,
   SizeBucketSchema,
   toVerificationEvidence,
   UNKNOWN_ATTESTATION,
@@ -362,12 +365,18 @@ export function animalIdFor(idSeed: string): AnimalId {
 export function buildAnimal(
   input: z.infer<typeof OnboardAnimalSchema>,
   photos: readonly AnimalPhoto[],
-  shelterId: Shelter["id"],
+  shelter: Pick<Shelter, "id" | "verification">,
   now: Date,
 ): ListedAnimal {
+  const listing: AnimalListingState = {
+    kind: "published",
+    publishedAt: now,
+    confirmedAt: now,
+    undoable: null,
+  };
   return {
     id: animalIdFor(input.idSeed),
-    shelterId,
+    shelterId: shelter.id,
     name: input.name,
     species: input.species,
     sex: input.sex,
@@ -383,11 +392,17 @@ export function buildAnimal(
     documentReadiness: UNKNOWN_DOCUMENT_READINESS,
     // Publishing is the first confirmation: a shelter handing over a live
     // animal is saying it is looking for a home today.
-    listing: { kind: "published", publishedAt: now, confirmedAt: now, undoable: null },
+    listing,
     // null: inherits the shelter's own publicLocation, computed above.
     // Only a fostered animal (not supported by this script) would need its
     // own city-precision location — see animal.ts's own comment on the field.
     publicLocation: null,
+    // S8-F5's third hook: this script is the one real path that can insert an
+    // animal already published under an already-verified shelter (every
+    // shelter it inserts is `status: "verified"` from the start), so the
+    // publish-transition and verification-transition hooks never fire for
+    // it — this is the only chance to stamp the fact.
+    everServedAt: everServedAtAfter(null, listing, shelter.verification, now),
     createdAt: now,
     lastUpdatedAt: now,
     version: 0,
@@ -453,6 +468,34 @@ export async function insertOnboardedShelter(
   if ((await shelterRepo(db).findById(shelter.id)) !== null) return "exists";
   await insertShelterFromScript(db, shelter, by);
   return "inserted";
+}
+
+/**
+ * The verification a *new* animal from this run should be stamped with
+ * (S8-F5's hook 3, `buildAnimal`'s `everServedAtAfter` call).
+ *
+ * Tier 1 review finding 1 (PR #196): `buildShelter` always sets a freshly
+ * built shelter to `verified` — the status *this run* would give it, never
+ * what a shelter that already existed is at *now*. A second run against an
+ * existing shelter (adding a new animal: `docs/onboarding-a-shelter.md`'s
+ * documented re-run flow) must stamp the new animal with that shelter's
+ * real, current row — not `shelter.verification`'s optimistic value — or a
+ * card published while the shelter is paused or suspended would read as
+ * "ever served" when it was never actually shown.
+ */
+export async function verificationForNewAnimals(
+  db: Database,
+  shelter: Shelter,
+  insertResult: "inserted" | "exists",
+): Promise<ShelterVerification> {
+  if (insertResult === "inserted") return shelter.verification;
+  const stored = await shelterRepo(db).findById(shelter.id);
+  if (!stored) {
+    throw new Error(
+      `Internal error: shelter ${shelter.id} was reported as existing but not found.`,
+    );
+  }
+  return stored.verification;
 }
 
 async function main(): Promise<void> {
@@ -635,13 +678,15 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  if ((await insertOnboardedShelter(db, shelter, scriptActor)) === "exists") {
-    console.log(
-      `\nShelter ${shelter.id} already exists — skipping (re-run is safe, not duplicating).`,
-    );
-  } else {
-    console.log(`\nInserted shelter ${shelter.id}.`);
-  }
+  const insertResult = await insertOnboardedShelter(db, shelter, scriptActor);
+  console.log(
+    insertResult === "exists"
+      ? `\nShelter ${shelter.id} already exists — skipping (re-run is safe, not duplicating).`
+      : `\nInserted shelter ${shelter.id}.`,
+  );
+  // S8-F5, Tier 1 review finding 1: see verificationForNewAnimals' own doc
+  // comment for why this can't just be `shelter.verification`.
+  const shelterVerification = await verificationForNewAnimals(db, shelter, insertResult);
 
   // Existence checked BEFORE uploading, not after — round-1 review found
   // the original order (upload every animal's photos, then check
@@ -690,7 +735,10 @@ async function main(): Promise<void> {
     }
     console.log(`Uploading ${validated.length} photo(s) for ${animalInput.name}...`);
     const photos = await uploadAnimalPhotos(r2, animalId, validated);
-    await animalsRepo.insert(buildAnimal(animalInput, photos, shelter.id, now), cityId);
+    await animalsRepo.insert(
+      buildAnimal(animalInput, photos, { id: shelter.id, verification: shelterVerification }, now),
+      cityId,
+    );
     insertedCount += 1;
   }
 

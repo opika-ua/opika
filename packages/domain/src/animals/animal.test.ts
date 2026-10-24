@@ -41,6 +41,7 @@ const newDraft: DraftAnimal = {
   age: null,
   description: null,
   photos: [],
+  everServedAt: null,
   vaccination: unknownFact,
   spayNeuter: unknownFact,
   documentReadiness: { kind: "unknown" },

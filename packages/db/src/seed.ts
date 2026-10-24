@@ -42,6 +42,7 @@ import {
   type DocumentReadiness,
   type Edrpou,
   type ExactAddress,
+  everServedAtAfter,
   type LocalizedText,
   type ModeratorId,
   type PublicLocation,
@@ -1392,6 +1393,11 @@ export function buildAnimals(
       spayNeuter,
       documentReadiness,
       publicLocation,
+      // S8-F5: fictional seed data, computed the same way the real hooks
+      // would, not hand-set — so a verified shelter's published animals
+      // come out served and a non-verified one's come out null, exactly
+      // matching `buildDiscoverabilityPredicate`.
+      everServedAt: everServedAtAfter(null, listing, shelter.verification, daysAgo(updatedDaysAgo)),
       createdAt: daysAgo(updatedDaysAgo + 7), // created a week before last update
       lastUpdatedAt,
       version: 0,

@@ -2,11 +2,13 @@ import { z } from "zod";
 import { AnimalIdSchema, ShelterIdSchema } from "../primitives/ids";
 import { LocalizedTextSchema } from "../primitives/localized-text";
 import { PublicLocationSchema } from "../shelters/location";
+import { isPubliclyVerified, type ShelterVerification } from "../shelters/verification";
 import { AgeEstimateSchema } from "./age";
 import { SpayNeuterStatusSchema, VaccinationStatusSchema } from "./attestation";
 import { CoatLengthSchema } from "./coat";
 import { DocumentReadinessSchema } from "./document-readiness";
 import {
+  type AnimalListingState,
   type DiscoverableListing,
   DraftListingSchema,
   isDiscoverable,
@@ -71,6 +73,17 @@ const animalCoreShape = {
    * `animalPublicLocationOf(cityId, district)`.
    */
   publicLocation: PublicLocationSchema.nullable(),
+  /**
+   * The first instant this exact row was both discoverable and its shelter
+   * publicly verified — the only precise answer to "was this card ever
+   * actually rendered to an adopter" (S8-F5). Set once, never cleared: a
+   * card withdrawn and restored to draft keeps the fact that it was shown
+   * before, which is the whole point of "ever". Approximating this from
+   * `hasBeenVerified(shelter.verification)` alone is what S8-F5 was —
+   * "the shelter was verified at some point" isn't "this listing was live
+   * while it was".
+   */
+  everServedAt: z.date().nullable(),
   createdAt: z.date(),
   lastUpdatedAt: z.date(),
   /**
@@ -149,3 +162,20 @@ export const isDiscoverableAnimal = (animal: Animal): animal is DiscoverableAnim
   isDiscoverable(animal.listing);
 
 export const primaryPhoto = (animal: Animal): AnimalPhoto | null => animal.photos[0] ?? null;
+
+/**
+ * The `everServedAt` an animal's own row should carry after a write that
+ * could newly satisfy `buildDiscoverabilityPredicate` (`packages/db/src/
+ * repos/feed-predicate.ts` — the actual query every adopter-facing surface
+ * runs, which this mirrors exactly: `isDiscoverable(listing) &&
+ * isPubliclyVerified(verification)`). Monotonic by construction: once set,
+ * `current` always wins, so a later withdraw or suspension can't un-ring
+ * this bell.
+ */
+export const everServedAtAfter = (
+  current: Date | null,
+  listing: AnimalListingState,
+  verification: ShelterVerification,
+  now: Date,
+): Date | null =>
+  current ?? (isDiscoverable(listing) && isPubliclyVerified(verification) ? now : null);

@@ -6,16 +6,20 @@ import {
   type CityId,
   confirmationAnchorOf,
   DISCOVERABLE_LISTING_KINDS,
+  type DraftAnimal,
+  FEED_VISIBLE_VERIFICATION_STATUSES,
+  isDiscoverable,
   LISTING_KINDS,
   type ListingKind,
   type ShelterHistoryEntry,
   type ShelterId,
   waitAnchorOf,
 } from "@opika/domain";
-import { and, desc, eq, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, lte, or, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
 import { shelterHistory } from "../schema/shelter-history";
+import { shelters } from "../schema/shelters";
 import { historyRowSelect } from "./history-sql";
 import { animalToRowWithCity, rowToAnimal } from "./mappers";
 
@@ -191,9 +195,15 @@ export function kabinetAnimalRepo(db: Database) {
         : null;
     },
 
-    /** A new draft and its `animal_created` line, as one statement (K-Q7). */
+    /**
+     * A new draft and its `animal_created` line, as one statement (K-Q7).
+     * `DraftAnimal`, not `Animal` (Tier 1 review finding 7, PR #196): the PR
+     * that introduced S8-F5's exhaustive write-path scan claimed this was
+     * already type-enforced, which the signature didn't actually back —
+     * narrowed here to make that claim true rather than just restated.
+     */
     async insert(
-      animal: Animal,
+      animal: DraftAnimal,
       cityId: CityId,
       history: AnimalHistoryRow<"animal_created">,
     ): Promise<void> {
@@ -276,10 +286,28 @@ export function kabinetAnimalRepo(db: Database) {
      * extra guard (`ListingWriteGuard`), and one without it is refused here
      * before anything is written.
      */
+    /**
+     * S8-F5, hook 1 of 3 (hook 2: `kabinetShelterRepo.applyAuditedMany`;
+     * hook 3: `onboard-shelter.ts`/`seed.ts`'s insert-time case). Whether this
+     * move serves the row is checked **inside this statement**, against the
+     * shelter's committed row at write time (`EXISTS` on `shelters`, the same
+     * `FEED_VISIBLE_VERIFICATION_STATUSES` test `buildDiscoverabilityPredicate`
+     * uses) — not against a verification value the caller read earlier.
+     *
+     * Tier 1 review finding 4 (PR #196): this used to take the shelter's
+     * verification as a parameter, read once by the caller before this
+     * function's retry loop even starts. A concurrent pause/suspension
+     * landing between that read and this statement's commit would stamp
+     * `everServedAt` on a row that, by the time this write actually lands,
+     * isn't served at all — an over-stamp, not merely a delayed one, and
+     * exactly the leak S8-F5 exists to prevent. Checking inside the
+     * statement makes the two atomic: there is no window left to race.
+     */
     async writeListingIf(
       animalId: AnimalId,
       next: AnimalListingState,
       expected: AnimalListingState,
+      now: Date,
       history: ListingMoveHistory,
       guard: ListingWriteGuard = { kind: "listing_only" },
     ): Promise<ConditionalWrite> {
@@ -287,6 +315,20 @@ export function kabinetAnimalRepo(db: Database) {
       if (publishes && guard.kind !== "publish") {
         throw new Error(`Animal ${animalId}: a publish must compare-and-set on version and photos`);
       }
+      // Only a move that lands the row on a discoverable kind can possibly
+      // serve it — every other move (draft, adopted, withdrawn) is a no-op
+      // for this column regardless of the shelter's status, so the subquery
+      // is skipped entirely rather than run to produce NULL.
+      const everServedAt: SQL | undefined = isDiscoverable(next)
+        ? sql`COALESCE(
+            ${animals.everServedAt},
+            CASE WHEN EXISTS (
+              SELECT 1 FROM ${shelters}
+              WHERE ${shelters.id} = ${animals.shelterId}
+                AND ${inArray(shelters.verificationStatus, [...FEED_VISIBLE_VERIFICATION_STATUSES])}
+            ) THEN ${now.toISOString()}::timestamptz ELSE NULL END
+          )`
+        : undefined;
       const update = db
         .update(animals)
         .set({
@@ -300,6 +342,7 @@ export function kabinetAnimalRepo(db: Database) {
               ? next.publishedAt.toISOString()
               : null
           }::timestamptz)`,
+          ...(everServedAt === undefined ? {} : { everServedAt }),
         })
         .where(
           and(

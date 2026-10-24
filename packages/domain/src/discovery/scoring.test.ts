@@ -24,6 +24,7 @@ const baseAnimal: DiscoverableAnimal = {
   documentReadiness: { kind: "unknown" },
   listing: { kind: "published", publishedAt: NOW, confirmedAt: NOW, undoable: null },
   publicLocation: null,
+  everServedAt: NOW,
   createdAt: NOW,
   lastUpdatedAt: NOW,
   version: 0,
