@@ -281,13 +281,6 @@ async function tap(
   plan: (animal: Animal) => Animal,
   history: ListingMoveHistory | ((animal: Animal, next: Animal) => ListingMoveHistory),
 ): Promise<Animal> {
-  // S8-F5, hook 1: the shelter's *current* verification, read once per tap
-  // (its status can't change mid-retry-loop from this request's own writes,
-  // and a concurrent change here only means a lost race re-plans on the
-  // animal, same as always — a stale verification read would at worst defer
-  // the stamp to hook 2, next time that shelter's status actually moves).
-  const shelter = await shelterRepo(deps.db).findById(scope.shelterId as ShelterId);
-  if (shelter === null) throw new Error(`Scope names missing shelter ${scope.shelterId}`);
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const { animal } = await owned(deps, scope, animalId, errors);
     const next = plan(animal);
@@ -303,7 +296,6 @@ async function tap(
       animal.id,
       next.listing,
       animal.listing,
-      shelter.verification,
       deps.now,
       typeof history === "function" ? history(animal, next) : history,
       guard,

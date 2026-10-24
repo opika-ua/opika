@@ -150,7 +150,6 @@ const publishedElsewhere = (draft: DraftAnimal) => async () => {
     draft.id,
     next.next,
     { kind: "draft" },
-    shelter.verification,
     new Date(),
     { kind: "not_recorded", because: "confirmation" },
     { kind: "publish", expectedVersion: draft.version },

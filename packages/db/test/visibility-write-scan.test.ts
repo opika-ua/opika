@@ -80,14 +80,22 @@ const EXPECTED: ReadonlyArray<{
     line: 189,
     text: "listingKind: animal.listing.kind,",
     kind: "write",
-    why: "animalToRowWithCity, used by every animal INSERT (hook 3: onboard-shelter.ts, seed.ts)",
+    why:
+      "animalToRowWithCity, used by every animal INSERT (hook 3: onboard-shelter.ts, seed.ts) " +
+      "and by animalRepo.update's full-row overwrite, which is not a hook (test/harness setup " +
+      "only — see the reachability check below) and relies on its own everServedAt COALESCE, " +
+      "not on this mapper, to never clear the fact (Tier 1 review finding 3, PR #196)",
   },
   {
     file: "repos/kabinet-animal-repo.ts",
-    line: 308,
+    line: 336,
     text: "listingKind: next.kind,",
     kind: "write",
-    why: "writeListingIf — hook 1, the only UPDATE of this column anywhere",
+    why:
+      "writeListingIf — hook 1. everServedAt is stamped by an EXISTS subquery against the " +
+      "shelters row inside this same UPDATE, not from a verification value the caller read " +
+      "earlier (Tier 1 review finding 4, PR #196: a value read before the retry loop could go " +
+      "stale across a concurrent pause/suspend and over-stamp)",
   },
   {
     file: "repos/kabinet-shelter-repo.ts",
@@ -150,5 +158,48 @@ describe("S8-F5: every listingKind/verificationStatus property site is accounted
     expect(writes.some((e) => e.file === "repos/kabinet-animal-repo.ts")).toBe(true);
     expect(writes.some((e) => e.file === "repos/kabinet-shelter-repo.ts")).toBe(true);
     expect(writes.some((e) => e.file === "repos/mappers.ts")).toBe(true);
+  });
+});
+
+/**
+ * `animalRepo.update` (`repos/animal-repo.ts`) is a full-row overwrite with no
+ * compare-and-set, no S8-F5 hook, and no handler guard — safe only because
+ * nothing in production calls it (Tier 1 review finding 3, PR #196). That was
+ * previously a comment's claim, not a tested one. Scoped to `apps/web/src`:
+ * the one real caller of `@opika/db/repos` outside this package's own tests.
+ */
+describe("animalRepo.update stays unreachable from production code", () => {
+  const WEB_SRC = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+    "..",
+    "apps/web/src",
+  );
+  const CALL_PATTERN = /animalRepo\([^)]*\)\s*\.\s*update\s*\(/;
+
+  function* productionFiles(dir: string): Generator<string> {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) yield* productionFiles(path);
+      else if (entry.isFile() && path.endsWith(".ts") && !path.endsWith(".test.ts")) yield path;
+    }
+  }
+
+  it("no file under apps/web/src calls animalRepo(...).update(...)", () => {
+    const hits: { file: string; line: number }[] = [];
+    for (const path of productionFiles(WEB_SRC)) {
+      readFileSync(path, "utf8")
+        .split("\n")
+        .forEach((lineText, index) => {
+          if (CALL_PATTERN.test(lineText)) {
+            hits.push({
+              file: path.slice(WEB_SRC.length + 1).replaceAll("\\", "/"),
+              line: index + 1,
+            });
+          }
+        });
+    }
+    expect(hits).toEqual([]);
   });
 });

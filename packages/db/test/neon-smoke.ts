@@ -828,7 +828,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           atShelter.id,
           { ...readListing, confirmedAt: later(2000), undoable: null },
           readListing,
-          shelter.verification,
           NOW,
           { kind: "not_recorded", because: "confirmation" },
         )
@@ -839,7 +838,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           atShelter.id,
           { ...readListing, confirmedAt: later(3000), undoable: null },
           readListing,
-          shelter.verification,
           NOW,
           { kind: "not_recorded", because: "confirmation" },
         )
@@ -981,7 +979,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           publishable.id,
           published.next,
           draftListing,
-          shelter.verification,
           NOW,
           publishLine(publishable),
           publishGuard(publishableRead.animal.version),
@@ -993,7 +990,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           publishable.id,
           published.next,
           draftListing,
-          shelter.verification,
           NOW,
           publishLine(publishable),
           publishGuard(publishableRead.animal.version),
@@ -1306,7 +1302,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
         bareDraft.id,
         barePublish.next,
         bareRead.animal.listing,
-        shelter.verification,
         NOW,
         publishLine(bareDraft),
         publishGuard(bareRead.animal.version),
@@ -1402,7 +1397,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           raced.id,
           racedPublish.next,
           racedRead.animal.listing,
-          shelter.verification,
           NOW,
           publishLine(raced),
           publishGuard(racedRead.animal.version),
@@ -1414,7 +1408,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           raced.id,
           racedPublish.next,
           racedRead.animal.listing,
-          shelter.verification,
           NOW,
           publishLine(raced),
           publishGuard(racedRead.animal.version + 1),
@@ -1433,7 +1426,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           photoless.id,
           racedPublish.next,
           { kind: "draft" },
-          shelter.verification,
           NOW,
           publishLine(photoless),
           publishGuard(0),
@@ -1618,7 +1610,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           k2Confirmed.id,
           confirmMove.next,
           beforeConfirm.animal.listing,
-          k2Shelter.verification,
           NOW,
           notRecorded,
         )
@@ -1633,7 +1624,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           k2Confirmed.id,
           undoMove.next,
           confirmedRead.animal.listing,
-          k2Shelter.verification,
           NOW,
           notRecorded,
         )
@@ -1644,7 +1634,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           k2Confirmed.id,
           undoMove.next,
           confirmedRead.animal.listing,
-          k2Shelter.verification,
           NOW,
           notRecorded,
         )
@@ -1692,7 +1681,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       k2Moving.id,
       move.next,
       read.animal.listing,
-      k2Shelter.verification,
       NOW,
       {
         kind: "recorded",
@@ -1764,7 +1752,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           k2Adopting.id,
           adoptMove.next,
           adoptRead.animal.listing,
-          k2Shelter.verification,
           NOW,
           {
             kind: "recorded",

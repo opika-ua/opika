@@ -383,6 +383,51 @@ describe("S8-F5: everServedAt, a shelter entering `verified` (hook 2)", () => {
     expect(await everServedAtOf(draft.id)).toBeNull();
   });
 
+  /**
+   * Mutation (Tier 1 review finding 6, PR #196): replacing the "served" CTE's
+   * `shelter_id IN (SELECT id FROM upd)` scope with an unconditional `TRUE`
+   * left every existing hook-2 test green, because none of them had a
+   * *second* shelter in the same unaffected state to prove wasn't touched.
+   */
+  it("never stamps a different shelter's animals", async () => {
+    const { s, publishedWhilePaused } = await pausedShelterWithAnimals();
+    const otherShelter = makeShelter({
+      verification: PAUSED,
+      publicLocation: { ...makeShelter().publicLocation, cityId: homeCity } as never,
+    });
+    await shelterRepo(db).insert(otherShelter);
+    const otherPublishedWhilePaused = makeAnimal({
+      shelterId: otherShelter.id,
+      everServedAt: null,
+    });
+    await animalRepo(db).insert(otherPublishedWhilePaused, homeCity as never);
+
+    await repo().applyAuditedMany({
+      shelterId: s.id,
+      expectedVersion: s.version,
+      changes: [{ kind: "verification", verification: VERIFIED }],
+      entries: [
+        {
+          id: "h1",
+          entry: {
+            kind: "verification",
+            event: {
+              type: "resume",
+              at: NOW,
+              actor: { kind: "shelter_admin", shelterAdminId: "admin-1" as ShelterAdminId },
+            },
+            from: "paused",
+            to: "verified",
+          },
+        },
+      ],
+      now: NOW,
+    });
+
+    expect(await everServedAtOf(publishedWhilePaused.id)).toEqual(NOW);
+    expect(await everServedAtOf(otherPublishedWhilePaused.id)).toBeNull();
+  });
+
   it("never moves an already-set everServedAt forward", async () => {
     const { s, alreadyServed, alreadyServedAt } = await pausedShelterWithAnimals();
     await repo().applyAuditedMany({
@@ -493,5 +538,74 @@ describe("S8-F5: everServedAt, a shelter entering `verified` (hook 2)", () => {
       now: NOW,
     });
     expect(await everServedAtOf(publishedBeforeApproval.id)).toEqual(NOW);
+  });
+
+  /**
+   * Tier 1 review finding 5 (PR #196): an address move (hook "moved") and a
+   * verification approval (hook 2, "served") used to be two separate sibling
+   * CTEs, each its own UPDATE of `animals`. When both land in one audited
+   * write and target the same row — any animal at the shelter's own
+   * premises — Postgres's documented behaviour for two data-modifying WITH
+   * statements racing the same row is unspecified; empirically, only one
+   * column's change survived. Both must land from a single combined write.
+   */
+  it("moves the address AND stamps everServedAt in one call, for the same row", async () => {
+    const s = makeShelter({
+      verification: PAUSED,
+      publicLocation: { ...makeShelter().publicLocation, cityId: homeCity } as never,
+    });
+    await shelterRepo(db).insert(s);
+    const atShelter = makeAnimal({ shelterId: s.id, everServedAt: null });
+    await animalRepo(db).insert(atShelter, homeCity as never);
+
+    const exactAddress = {
+      ...s.exactAddress,
+      cityId: otherCity as never,
+      coordinates: { lat: 49.84, lng: 24.03 },
+    };
+    const publicLocation = publicLocationOf(s.id, exactAddress, policy);
+
+    const result = await repo().applyAuditedMany({
+      shelterId: s.id,
+      expectedVersion: s.version,
+      changes: [
+        { kind: "exact_address", exactAddress, publicLocation },
+        { kind: "verification", verification: VERIFIED },
+      ],
+      entries: [
+        {
+          id: "h1",
+          entry: {
+            kind: "verified_data_changed",
+            at: NOW,
+            moderatorId: MOD,
+            change: { field: "exact_address", previous: s.exactAddress, next: exactAddress },
+          },
+        },
+        {
+          id: "h2",
+          entry: {
+            kind: "verification",
+            event: {
+              type: "resume",
+              at: NOW,
+              actor: { kind: "shelter_admin", shelterAdminId: "admin-1" as ShelterAdminId },
+            },
+            from: "paused",
+            to: "verified",
+          },
+        },
+      ],
+      now: NOW,
+    });
+
+    expect(result).toEqual({ kind: "ok" });
+    const after = await animalRepo(db).findById(atShelter.id as never);
+    expect(after?.everServedAt).toEqual(NOW);
+    const row = await db
+      .select({ cityId: animals.cityId })
+      .from(animals)
+      .where(eq(animals.id, atShelter.id as never));
+    expect(row[0]?.cityId).toBe(otherCity);
   });
 });

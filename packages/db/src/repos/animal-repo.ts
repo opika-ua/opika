@@ -46,6 +46,16 @@ export function animalRepo(db: Database) {
       await db.insert(animals).values(entries.map((e) => animalToRowWithCity(e.animal, e.cityId)));
     },
 
+    /**
+     * A full-row overwrite with no compare-and-set — test and harness setup
+     * only (writing an arbitrary state directly, skipping the handler
+     * guards), never called from `apps/web`'s production handlers. Pinned by
+     * `visibility-write-scan.test.ts`'s `animalRepo.update` reachability
+     * check, not left to this comment alone (Tier 1 review finding 3, PR
+     * #196): if it ever is called from production code, its everServedAt
+     * COALESCE below still holds — the real risk was the field it protects,
+     * not just who calls it.
+     */
     async update(animal: Animal, cityId: CityId): Promise<void> {
       await db
         .update(animals)
@@ -53,6 +63,12 @@ export function animalRepo(db: Database) {
           ...animalToRowWithCity(animal, cityId),
           // Never cleared (HS-Q9): a row that was ever public stays marked.
           firstPublishedAt: sql`COALESCE(${animals.firstPublishedAt}, ${firstPublishedAnchorOf(animal.listing)?.toISOString() ?? null}::timestamptz)`,
+          // Same reasoning as firstPublishedAt, just above: a full-row
+          // overwrite must never clear a fact set once hooks 1–3 have
+          // stamped it (Tier 1 review finding 3 — this used to overwrite
+          // unconditionally with whatever `animal.everServedAt` the caller
+          // passed, the one place in the repo layer that didn't COALESCE it).
+          everServedAt: sql`COALESCE(${animals.everServedAt}, ${animal.everServedAt?.toISOString() ?? null}::timestamptz)`,
         })
         .where(eq(animals.id, animal.id));
     },

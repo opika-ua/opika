@@ -232,7 +232,7 @@ describe("writeEditIf: a null is written only while the row is a draft", () => {
   });
 
   it("a clearing save planned on a draft that was published meanwhile writes nothing and records nothing", async () => {
-    const { shelterId, cityId, verification } = await place();
+    const { shelterId, cityId } = await place();
     const draft = makeAnimal({
       shelterId,
       listing: { kind: "draft" },
@@ -245,7 +245,6 @@ describe("writeEditIf: a null is written only while the row is a draft", () => {
         draft.id,
         publishedAt(AT),
         draft.listing,
-        verification,
         AT,
         publishLine(draft.id),
         {
@@ -298,13 +297,12 @@ describe("the publish compare-and-set (K3-T7)", () => {
   }
 
   it("publishes on the version and photos it read", async () => {
-    const { draft, shelterId, verification } = await completeDraft();
+    const { draft, shelterId } = await completeDraft();
     expect(
       await kabinetAnimalRepo(db).writeListingIf(
         draft.id,
         publishedAt(AT),
         draft.listing,
-        verification,
         AT,
         publishLine(draft.id),
         {
@@ -318,7 +316,7 @@ describe("the publish compare-and-set (K3-T7)", () => {
   });
 
   it("a publish planned before a description-clearing save writes nothing and records nothing", async () => {
-    const { draft, shelterId, cityId, verification } = await completeDraft();
+    const { draft, shelterId, cityId } = await completeDraft();
     await kabinetAnimalRepo(db).writeEditIf(
       { ...draft, description: null, lastUpdatedAt: AT },
       cityId,
@@ -331,7 +329,6 @@ describe("the publish compare-and-set (K3-T7)", () => {
         draft.id,
         publishedAt(LATER),
         draft.listing,
-        verification,
         AT,
         publishLine(draft.id),
         {
@@ -345,7 +342,7 @@ describe("the publish compare-and-set (K3-T7)", () => {
   });
 
   it("a publish planned before a last-photo removal writes nothing (photo writes keep the version)", async () => {
-    const { draft, shelterId, verification } = await completeDraft();
+    const { draft, shelterId } = await completeDraft();
     expect(
       await kabinetAnimalRepo(db).writePhotosIf(
         draft.id,
@@ -361,7 +358,6 @@ describe("the publish compare-and-set (K3-T7)", () => {
         draft.id,
         publishedAt(LATER),
         draft.listing,
-        verification,
         AT,
         publishLine(draft.id),
         {
@@ -375,12 +371,11 @@ describe("the publish compare-and-set (K3-T7)", () => {
   });
 
   it("a last-photo removal planned on the draft writes nothing once the publish has landed", async () => {
-    const { draft, shelterId, verification } = await completeDraft();
+    const { draft, shelterId } = await completeDraft();
     await kabinetAnimalRepo(db).writeListingIf(
       draft.id,
       publishedAt(AT),
       draft.listing,
-      verification,
       AT,
       publishLine(draft.id),
       {
@@ -404,13 +399,12 @@ describe("the publish compare-and-set (K3-T7)", () => {
   });
 
   it("a publish without its guard is refused before anything is written", async () => {
-    const { draft, verification } = await completeDraft();
+    const { draft } = await completeDraft();
     await expect(
       kabinetAnimalRepo(db).writeListingIf(
         draft.id,
         publishedAt(AT),
         draft.listing,
-        verification,
         AT,
         publishLine(draft.id),
       ),
@@ -419,7 +413,7 @@ describe("the publish compare-and-set (K3-T7)", () => {
   });
 
   it("the CHECK is the backstop: publishing an incomplete draft directly is a 23514", async () => {
-    const { shelterId, cityId, verification } = await place();
+    const { shelterId, cityId } = await place();
     const draft = makeDraftAnimal({ shelterId, photos: [PHOTO("a")] });
     await animalRepo(db).insert(draft, cityId);
     const error = await failureOf(
@@ -427,7 +421,6 @@ describe("the publish compare-and-set (K3-T7)", () => {
         draft.id,
         publishedAt(AT),
         draft.listing,
-        verification,
         AT,
         publishLine(draft.id),
         {
@@ -491,18 +484,14 @@ describe("writePhotosIf with the listing (RH-B7)", () => {
   });
 
   it("a listing changed since the read writes nothing and records nothing", async () => {
-    const { shelterId, cityId, verification } = await place();
+    const { shelterId, cityId } = await place();
     const animal = makeAnimal({ shelterId, photos: [PHOTO("a")] });
     await animalRepo(db).insert(animal, cityId);
     const confirmed = { ...animal.listing, confirmedAt: AT, undoable: null } as AnimalListingState;
-    await kabinetAnimalRepo(db).writeListingIf(
-      animal.id,
-      confirmed,
-      animal.listing,
-      verification,
-      AT,
-      { kind: "not_recorded", because: "confirmation" },
-    );
+    await kabinetAnimalRepo(db).writeListingIf(animal.id, confirmed, animal.listing, AT, {
+      kind: "not_recorded",
+      because: "confirmation",
+    });
     expect(
       await kabinetAnimalRepo(db).writePhotosIf(
         animal.id,

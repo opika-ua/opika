@@ -174,35 +174,50 @@ export function kabinetShelterRepo(db: Database) {
         (change) => change.kind === "verification" && change.verification.status === "verified",
       );
       const extraWrites: WriteCte[] = [];
-      if (moved !== undefined) {
+      // Tier 1 review finding 5 (PR #196): an address move and a verification
+      // change used to be two separate sibling CTEs, each its own UPDATE of
+      // `animals`. When a single audited write carries both (a profile edit
+      // and an approval in one call) and they target the same row — any
+      // animal at the shelter's own premises, not fostered — Postgres's
+      // documented behaviour for two data-modifying WITH statements racing
+      // the same row is "the results are unspecified": observed empirically
+      // as `city_id` silently not moving while `everServedAt` still got set.
+      // Merged into one UPDATE so a row is written at most once; each
+      // column's own eligibility is re-checked independently with CASE, so a
+      // row that qualifies for only one of the two still gets exactly that
+      // one column touched.
+      if (moved !== undefined || becomesVerified) {
+        const movedCondition = moved !== undefined ? isNull(animals.publicLocation) : undefined;
+        const servedCondition = becomesVerified
+          ? and(
+              inArray(animals.listingKind, [...DISCOVERABLE_LISTING_KINDS]),
+              isNull(animals.everServedAt),
+            )
+          : undefined;
+        const rowFilter =
+          movedCondition !== undefined && servedCondition !== undefined
+            ? or(movedCondition, servedCondition)
+            : (movedCondition ?? servedCondition);
+        if (rowFilter === undefined) {
+          throw new Error("Unreachable: at least one of moved/becomesVerified is set");
+        }
         extraWrites.push(
-          db.$with("moved").as(
+          db.$with("visibility").as(
             db
               .update(animals)
-              .set({ cityId: moved.publicLocation.cityId as never })
-              .where(
-                and(
-                  sql`${animals.shelterId} IN (SELECT "id" FROM "upd")`,
-                  isNull(animals.publicLocation),
-                ),
-              )
-              .returning({ id: animals.id }),
-          ),
-        );
-      }
-      if (becomesVerified) {
-        extraWrites.push(
-          db.$with("served").as(
-            db
-              .update(animals)
-              .set({ everServedAt: input.now })
-              .where(
-                and(
-                  sql`${animals.shelterId} IN (SELECT "id" FROM "upd")`,
-                  inArray(animals.listingKind, [...DISCOVERABLE_LISTING_KINDS]),
-                  isNull(animals.everServedAt),
-                ),
-              )
+              .set({
+                ...(moved === undefined
+                  ? {}
+                  : {
+                      cityId: sql`CASE WHEN ${isNull(animals.publicLocation)} THEN ${moved.publicLocation.cityId} ELSE ${animals.cityId} END`,
+                    }),
+                ...(becomesVerified
+                  ? {
+                      everServedAt: sql`CASE WHEN ${inArray(animals.listingKind, [...DISCOVERABLE_LISTING_KINDS])} THEN COALESCE(${animals.everServedAt}, ${input.now.toISOString()}::timestamptz) ELSE ${animals.everServedAt} END`,
+                    }
+                  : {}),
+              })
+              .where(and(sql`${animals.shelterId} IN (SELECT "id" FROM "upd")`, rowFilter))
               .returning({ id: animals.id }),
           ),
         );

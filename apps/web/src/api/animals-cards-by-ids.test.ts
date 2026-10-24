@@ -189,6 +189,25 @@ describe("animals.cardsByIds", () => {
     expect(body.items).toEqual([{ kind: "unavailable", animalId: animal.id, name: null }]);
   });
 
+  /**
+   * Tier 1 review finding 2, PR #196: `everServedAt` is monotonic and never
+   * cleared, so a card shown once and then restored to draft («Скасувати
+   * публікацію») keeps it set. This is the regression that fact alone
+   * created: a draft must never return a name, no matter what `everServedAt`
+   * says, because a draft's name can be edited freely before ever being
+   * shown again, and this handler must never leak that unreviewed edit under
+   * cover of "it was shown before".
+   */
+  it("returns no name for a draft even when everServedAt is set from before it was restored to draft", async () => {
+    const { animal } = await seedFeedAnimal({
+      listing: { kind: "draft" },
+      everServedAt: new Date("2026-08-01T00:00:00Z"),
+    });
+    const res = await h.call("animals.cardsByIds", { animalIds: [animal.id] });
+    const body = res.body as { items: Record<string, unknown>[] };
+    expect(body.items).toEqual([{ kind: "unavailable", animalId: animal.id, name: null }]);
+  });
+
   it("returns unavailable with no name for a listed animal whose shelter was never verified", async () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);

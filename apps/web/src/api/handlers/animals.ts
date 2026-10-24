@@ -133,12 +133,22 @@ export async function animalsCardsByIds(
     ) {
       // The row exists and was once shown but isn't any more (adopted,
       // withdrawn, a paused or no-longer-verified shelter) — its name is
-      // still honest to show. `null` for an id with no row behind it, a
-      // draft, or a listing that was never actually served.
+      // still honest to show. `null` for an id with no row behind it, or a
+      // listing that was never actually served.
+      //
+      // A *current* draft is excluded even when `everServedAt` is set
+      // (Tier 1 review finding 2, PR #196): `everServedAt` is monotonic and
+      // never cleared, so a card restored to draft via «Скасувати
+      // публікацію» keeps the fact that it was shown once — but its name on
+      // the draft screen can be edited freely before ever being republished,
+      // and this handler must never leak that unreviewed edit under cover of
+      // "it was shown before" (the rule the 529a6cc review already settled:
+      // a draft never returns a name).
+      const isCurrentDraft = animal !== undefined && !isListedAnimal(animal);
       return {
         kind: "unavailable" as const,
         animalId,
-        name: everServedAt !== null ? (animal?.name ?? null) : null,
+        name: !isCurrentDraft && everServedAt !== null ? (animal?.name ?? null) : null,
       };
     }
 

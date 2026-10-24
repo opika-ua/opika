@@ -30,6 +30,7 @@ import {
   ShelterContactSchema,
   ShelterIdSchema,
   ShelterLegalEntitySchema,
+  type ShelterVerification,
   SizeBucketSchema,
   toVerificationEvidence,
   UNKNOWN_ATTESTATION,
@@ -469,6 +470,34 @@ export async function insertOnboardedShelter(
   return "inserted";
 }
 
+/**
+ * The verification a *new* animal from this run should be stamped with
+ * (S8-F5's hook 3, `buildAnimal`'s `everServedAtAfter` call).
+ *
+ * Tier 1 review finding 1 (PR #196): `buildShelter` always sets a freshly
+ * built shelter to `verified` — the status *this run* would give it, never
+ * what a shelter that already existed is at *now*. A second run against an
+ * existing shelter (adding a new animal: `docs/onboarding-a-shelter.md`'s
+ * documented re-run flow) must stamp the new animal with that shelter's
+ * real, current row — not `shelter.verification`'s optimistic value — or a
+ * card published while the shelter is paused or suspended would read as
+ * "ever served" when it was never actually shown.
+ */
+export async function verificationForNewAnimals(
+  db: Database,
+  shelter: Shelter,
+  insertResult: "inserted" | "exists",
+): Promise<ShelterVerification> {
+  if (insertResult === "inserted") return shelter.verification;
+  const stored = await shelterRepo(db).findById(shelter.id);
+  if (!stored) {
+    throw new Error(
+      `Internal error: shelter ${shelter.id} was reported as existing but not found.`,
+    );
+  }
+  return stored.verification;
+}
+
 async function main(): Promise<void> {
   // First, before anything else this script checks or reads: which database
   // it would write to. Checked even on a dry run, because it costs nothing and
@@ -649,13 +678,15 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  if ((await insertOnboardedShelter(db, shelter, scriptActor)) === "exists") {
-    console.log(
-      `\nShelter ${shelter.id} already exists — skipping (re-run is safe, not duplicating).`,
-    );
-  } else {
-    console.log(`\nInserted shelter ${shelter.id}.`);
-  }
+  const insertResult = await insertOnboardedShelter(db, shelter, scriptActor);
+  console.log(
+    insertResult === "exists"
+      ? `\nShelter ${shelter.id} already exists — skipping (re-run is safe, not duplicating).`
+      : `\nInserted shelter ${shelter.id}.`,
+  );
+  // S8-F5, Tier 1 review finding 1: see verificationForNewAnimals' own doc
+  // comment for why this can't just be `shelter.verification`.
+  const shelterVerification = await verificationForNewAnimals(db, shelter, insertResult);
 
   // Existence checked BEFORE uploading, not after — round-1 review found
   // the original order (upload every animal's photos, then check
@@ -704,7 +735,10 @@ async function main(): Promise<void> {
     }
     console.log(`Uploading ${validated.length} photo(s) for ${animalInput.name}...`);
     const photos = await uploadAnimalPhotos(r2, animalId, validated);
-    await animalsRepo.insert(buildAnimal(animalInput, photos, shelter, now), cityId);
+    await animalsRepo.insert(
+      buildAnimal(animalInput, photos, { id: shelter.id, verification: shelterVerification }, now),
+      cityId,
+    );
     insertedCount += 1;
   }
 
