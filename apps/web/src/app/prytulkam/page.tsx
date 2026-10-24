@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { WORDMARK } from "../../brand";
 import { Footer } from "../../features/chrome/Footer";
+import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { linkClass } from "../../features/controls/controls";
 import { SIGN_IN_PAGE_PATH } from "../../features/kabinet/routes";
@@ -111,10 +112,26 @@ function Section({ heading, children }: { heading: string; children: React.React
   );
 }
 
-export default function ForSheltersPage() {
+/**
+ * Designer feedback batch D (2026-10-23): same trade as `/pro`'s own
+ * comment on this — reading the kabinet cookie here makes this page
+ * `force-dynamic` too, so the role-aware header doesn't flip-flop between
+ * this page and the rest of the site for a signed-in admin. Split into
+ * this thin async wrapper and `renderForSheltersPage` below for the same
+ * reason `/pro` is: `cookies()` throws outside a real request scope.
+ */
+export const dynamic = "force-dynamic";
+
+export default async function ForSheltersPage() {
+  const kabinetSignedIn = await kabinetSessionCookiePresent();
+  return renderForSheltersPage(kabinetSignedIn);
+}
+
+/** The page body; exported so `page.test.tsx` can render it without a real request scope. */
+export function renderForSheltersPage(kabinetSignedIn: boolean) {
   return (
     <div className="font-rg min-h-dvh bg-rg-page">
-      <SiteHeader />
+      <SiteHeader kabinetSignedIn={kabinetSignedIn} />
 
       <div className="max-w-[640px] mx-auto p-4 tablet:p-6 desktop:py-16 flex flex-col gap-6">
         <h1 className="font-bold text-[34px]/[38px] desktop:text-[44px]/[46px] tracking-[-0.035em] text-rg-ink">

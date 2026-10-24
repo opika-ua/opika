@@ -4,6 +4,7 @@ import { uk } from "@opika/i18n";
 import { permanentRedirect } from "next/navigation";
 import { anonymousRouterClient } from "../../api/server-client";
 import { Footer } from "../../features/chrome/Footer";
+import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { AnimalCard } from "../../features/gallery/AnimalCard";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
@@ -109,6 +110,13 @@ const PRIORITY_ROW_SIZE = 2;
 export async function renderGallery(
   client: ReturnType<typeof anonymousRouterClient> = anonymousRouterClient(),
   rawSearchParams: SearchParams = {},
+  // Defaulted (not read from `cookies()` in here) so every existing direct
+  // call in `page.test.tsx` keeps working without a real Next.js request
+  // scope, which `cookies()` requires and a plain vitest render doesn't
+  // have; `cookies()` itself throws outside one ("called outside a request
+  // scope"), caught by running this suite, not inferred. `Page` below is
+  // the one real caller and always computes the real value.
+  kabinetSignedIn = false,
 ) {
   /**
    * Cities have to be fetched before the URL can be parsed at all now — a
@@ -167,7 +175,7 @@ export async function renderGallery(
         row's own comment records why it's neither the mock's sticky bottom
         bar nor a combined "Фільтри · N" label — both pre-existing gaps).
       */}
-      <SiteHeader wordmarkIsCurrentPage>
+      <SiteHeader wordmarkIsCurrentPage kabinetSignedIn={kabinetSignedIn}>
         {page.totalMatching > 0 && (
           <DeckEntryLink
             href={deckHref}
@@ -247,7 +255,8 @@ export async function renderGallery(
             scope, not a retrofit of the row's positioning.
           */}
           <div className="flex items-center gap-2">
-            {page.totalMatching > 0 && (
+            {/* Batch D: «По одній» is adopter-only, his own wording — suppressed here too, not just in the header's own children slot above. */}
+            {page.totalMatching > 0 && !kabinetSignedIn && (
               <DeckEntryLink
                 href={deckHref}
                 testId="deck-entry-mobile"
@@ -386,5 +395,9 @@ export async function renderGallery(
 
 /** Server Component. Next.js calls this with `{ searchParams }` — a Promise, per Next 16's App Router contract. */
 export default async function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  return renderGallery(anonymousRouterClient(), await searchParams);
+  const [rawSearchParams, kabinetSignedIn] = await Promise.all([
+    searchParams,
+    kabinetSessionCookiePresent(),
+  ]);
+  return renderGallery(anonymousRouterClient(), rawSearchParams, kabinetSignedIn);
 }

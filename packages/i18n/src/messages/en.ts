@@ -97,6 +97,7 @@ export const en = {
     unavailable: "{name} is no longer shown on the site.",
     remove: "Remove from the list",
     storageBlocked: "This browser won't let the site keep your list.",
+    loading: "Loading the list…",
   },
 
   // --- Action buttons ---
@@ -339,6 +340,7 @@ export const en = {
     about: "About",
     forShelters: "For shelters",
     saved: "Saved",
+    kabinet: "Cabinet",
   },
 
   // --- About page — see the uk key's own note ---

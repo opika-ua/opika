@@ -126,6 +126,16 @@ export interface SiteHeaderProps {
    * between.
    */
   readonly wordmarkIsCurrentPage?: boolean;
+  /**
+   * Designer feedback batch D (2026-10-23): a signed-in shelter admin or the
+   * operator doesn't see visitor-only items — no `children` (every current
+   * caller's is adopter-only: the deck entry link), and «Збережені» becomes
+   * «Кабінет». No default: every caller decides this from its own request,
+   * via `kabinetSessionCookiePresent()` (`kabinet-signed-in.ts`) — a silent
+   * default here would be exactly the kind of place a caller's omission
+   * goes unnoticed.
+   */
+  readonly kabinetSignedIn: boolean;
 }
 
 /**
@@ -181,7 +191,11 @@ function LogoMark() {
   );
 }
 
-export function SiteHeader({ children, wordmarkIsCurrentPage = false }: SiteHeaderProps) {
+export function SiteHeader({
+  children,
+  wordmarkIsCurrentPage = false,
+  kabinetSignedIn,
+}: SiteHeaderProps) {
   return (
     <header
       data-testid="site-header"
@@ -234,13 +248,20 @@ export function SiteHeader({ children, wordmarkIsCurrentPage = false }: SiteHead
         <Link href="/pro" data-testid="nav-about" className={NAV_LINK_CLASS}>
           {uk.nav.about}
         </Link>
-        {/* S8: the saved page (`/zberezheni`), linked from every surface the header is on. */}
-        <Link href="/zberezheni" data-testid="nav-saved" className={NAV_LINK_CLASS}>
-          {uk.nav.saved}
-        </Link>
+        {kabinetSignedIn ? (
+          <Link href="/kabinet" data-testid="nav-kabinet" className={NAV_LINK_CLASS}>
+            {uk.nav.kabinet}
+          </Link>
+        ) : (
+          // S8: the saved page (`/zberezheni`), linked from every surface the header is on.
+          <Link href="/zberezheni" data-testid="nav-saved" className={NAV_LINK_CLASS}>
+            {uk.nav.saved}
+          </Link>
+        )}
       </nav>
 
-      {children}
+      {/* Batch D: every current caller's `children` is adopter-only (the deck entry link). */}
+      {!kabinetSignedIn && children}
     </header>
   );
 }

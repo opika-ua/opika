@@ -2,6 +2,7 @@ import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { WORDMARK } from "../../brand";
 import { Footer } from "../../features/chrome/Footer";
+import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 
 /**
@@ -62,11 +63,32 @@ export const metadata: Metadata = {
  * `uk.about.analytics` discloses @vercel/analytics + @vercel/speed-insights
  * (mounted in the root layout) — the disclosure ships in the same phase as
  * the collection, not after.
+ *
+ * **Designer feedback batch D (2026-10-23):** reading the kabinet cookie
+ * for the role-aware header makes this page `force-dynamic` (below) rather
+ * than statically prerendered — a real, named trade, not an oversight. The
+ * alternative (skip the role-aware header on this one marketing page)
+ * would show a signed-in admin «Збережені» here and «Кабінет» everywhere
+ * else the header appears, which reads as broken rather than merely
+ * static; this page has no other dynamic data, so that's the whole cost.
+ * Split into this thin async wrapper (the real page, computes the cookie)
+ * and `renderAboutPage` below (what `page.test.tsx` calls directly) for
+ * the same reason the animal and shelter pages already are: `cookies()`
+ * throws outside a real request scope, which a direct vitest render never
+ * has.
  */
-export default function AboutPage() {
+export const dynamic = "force-dynamic";
+
+export default async function AboutPage() {
+  const kabinetSignedIn = await kabinetSessionCookiePresent();
+  return renderAboutPage(kabinetSignedIn);
+}
+
+/** The page body; exported so `page.test.tsx` can render it without a real request scope. */
+export function renderAboutPage(kabinetSignedIn: boolean) {
   return (
     <div className="font-rg min-h-dvh bg-rg-page">
-      <SiteHeader />
+      <SiteHeader kabinetSignedIn={kabinetSignedIn} />
 
       <div className="max-w-[640px] mx-auto p-4 tablet:p-6 desktop:py-16 flex flex-col gap-6">
         <h1 className="font-bold text-[34px]/[38px] desktop:text-[44px]/[46px] tracking-[-0.03em] text-rg-ink">

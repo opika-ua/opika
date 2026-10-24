@@ -73,25 +73,26 @@ interface AnimalDetailScreenProps {
  *    text, and no route to «Про проєкт» (critique E1/B2). The header is now
  *    the shared `SiteHeader`, which carries the wordmark and site nav on
  *    every surface but the deck.
+ *
+ * **Designer feedback batch A (2026-10-23):** split into this frame — the
+ * header, demo banner and breadcrumb, full-page only — and
+ * `AnimalDetailContent` below, which the gallery's overlay now renders
+ * directly with none of the three. The overlay's own "no page frame inside
+ * it" is a Dribbble-style convention (the opened card's own chrome, not the
+ * site's), not a claim that the two surfaces show different facts — same
+ * loader, same content component either way.
  */
 export function AnimalDetailScreen({
-  animal,
-  shelter,
-  cityName,
-  backToGalleryHref,
-}: AnimalDetailScreenProps) {
-  const showDocuments =
-    animal.documentReadiness.kind === "tracked" && hasAnyDocumentEvidence(animal.documentReadiness);
-
-  const subtitle = animalSubtitle(animal);
-  const locationLine = animalLocationLine(animal, cityName);
-  // Computed once, not written out at both the link and the badge, so the
-  // two can't drift apart (review of df5915d, simplification).
-  const shelterVerifiedBadgeId = `shelter-verified-${shelter.id}`;
-
+  // Defaulted here (not in `SiteHeader`, which stays strict) purely so the
+  // many existing tests exercising this screen's own content don't all need
+  // a prop they aren't testing; the one real caller (`app/tvaryny/[animalId]/page.tsx`)
+  // always passes the computed value explicitly.
+  kabinetSignedIn = false,
+  ...content
+}: AnimalDetailScreenProps & { kabinetSignedIn?: boolean }) {
   return (
     <div className="font-rg min-h-dvh bg-rg-page">
-      <SiteHeader />
+      <SiteHeader kabinetSignedIn={kabinetSignedIn} />
 
       {/*
         The gallery's own visible carrier of the D-2 demo disclosure
@@ -120,6 +121,10 @@ export function AnimalDetailScreen({
         navigations at once" direction `docs/design/README.md`'s deck-chrome
         section states for the gallery/deck split, applied here to header
         nav vs. page-own navigation instead of gallery nav vs. deck nav.
+        **Batch A:** this is also exactly the "«← Усі тварини» breadcrumb"
+        his overlay feedback says stays off the overlay — the full page
+        keeps it, the overlay (which renders `AnimalDetailContent` alone,
+        below) never had it move back in.
 
         `min-h-12` (48), not the `min-h-11` (44) these carried before:
         docs/design/README.md:200 sets 48 as the minimum touch target
@@ -140,7 +145,7 @@ export function AnimalDetailScreen({
           on screen the moment a card opens (DR1-S4-T3's reason, S4b).
         */}
         <Link
-          href={backToGalleryHref}
+          href={content.backToGalleryHref}
           prefetch={false}
           data-testid="back-to-list"
           className="min-h-12 inline-flex items-center gap-1.5 rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] desktop:hidden"
@@ -148,15 +153,43 @@ export function AnimalDetailScreen({
           {uk.feed.backToList}
         </Link>
         <Link
-          href={backToGalleryHref}
+          href={content.backToGalleryHref}
           prefetch={false}
           data-testid="back-to-list-desktop"
           className="hidden desktop:inline-flex min-h-12 items-center text-[15px] text-rg-ink-2 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
         >
-          {uk.detail.backToListIn.replace("{city}", () => cityName ?? "")}
+          {uk.detail.backToListIn.replace("{city}", () => content.cityName ?? "")}
         </Link>
       </div>
 
+      <AnimalDetailContent {...content} />
+    </div>
+  );
+}
+
+/**
+ * The gallery overlay and the full page both render exactly this (batch A):
+ * everything the mock specifies for the animal itself, with no page chrome
+ * — no header, no demo banner, no breadcrumb, all three of which the full
+ * page supplies around it above and the overlay, deliberately, does not.
+ */
+export function AnimalDetailContent({
+  animal,
+  shelter,
+  cityName,
+  backToGalleryHref,
+}: AnimalDetailScreenProps) {
+  const showDocuments =
+    animal.documentReadiness.kind === "tracked" && hasAnyDocumentEvidence(animal.documentReadiness);
+
+  const subtitle = animalSubtitle(animal);
+  const locationLine = animalLocationLine(animal, cityName);
+  // Computed once, not written out at both the link and the badge, so the
+  // two can't drift apart (review of df5915d, simplification).
+  const shelterVerifiedBadgeId = `shelter-verified-${shelter.id}`;
+
+  return (
+    <>
       <div className="desktop:max-w-[1200px] desktop:mx-auto p-4 tablet:p-6 desktop:py-10 desktop:px-8 desktop:flex desktop:gap-10 desktop:items-start">
         {/* Photo column — sticky on desktop, fixed-height strip on mobile. */}
         <div className="desktop:w-[560px] desktop:flex-none desktop:sticky desktop:top-10 flex flex-col gap-2">
@@ -346,7 +379,7 @@ export function AnimalDetailScreen({
       <div className="p-4 tablet:p-6 desktop:px-8 desktop:max-w-[1200px] desktop:mx-auto">
         <Footer />
       </div>
-    </div>
+    </>
   );
 }
 

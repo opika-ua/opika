@@ -66,7 +66,17 @@ export function SortLinks({
     <nav
       data-testid="sort-control"
       aria-label={uk.filters.sortLabel}
-      className={`font-rg ${visibility} rounded-rg-button bg-rg-surface h-12`}
+      /*
+       * Designer feedback batch B: on the shelter page this sits directly in a
+       * `flex flex-col` section, whose default `align-items: stretch` was
+       * pulling the nav (and so its two links) across the full row — a
+       * compact segmented control reading as a stretched bar while the cards
+       * below it stayed their own width. `self-start` sizes it to its content
+       * in a column parent; in the gallery's row parent (`items-center`
+       * already overrides stretch there) it changes nothing, so one class
+       * serves both without a new prop.
+       */
+      className={`font-rg self-start ${visibility} rounded-rg-button bg-rg-surface h-12`}
     >
       {/*
         The nav keeps its own rounding (for the continuous-pill fill,

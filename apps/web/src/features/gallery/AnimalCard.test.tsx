@@ -106,6 +106,46 @@ describe("AnimalCard meta line", () => {
     );
     expect(screen.getByTestId("card-meta").textContent).toBe("літній · велика · м. Бровари");
   });
+
+  /**
+   * Designer feedback batch B (hideCityInMeta): the shelter page's own
+   * heading already states the city once, so a card there drops the bare
+   * "м. {city}" — but a fostered card's "на перетримці, м. {city}"
+   * says more than city alone and stays. Review of 6825ffd, finding 3:
+   * ignoring `hideCityInMeta` entirely left the rest of the suite green,
+   * so this is the test that would have caught it.
+   */
+  it("hideCityInMeta drops the bare city line for a card at the shelter", () => {
+    render(
+      <AnimalCard
+        card={makeCard({ ageBucket: "senior", size: "large", publicLocation: null })}
+        cityName="Бровари"
+        hideCityInMeta
+      />,
+    );
+    expect(screen.getByTestId("card-meta").textContent).toBe("літній · велика");
+  });
+
+  it("hideCityInMeta keeps the fuller housing+city line for a fostered card", () => {
+    const card = makeCard({
+      ageBucket: "senior",
+      size: "large",
+      publicLocation: {
+        precision: "city",
+        cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never,
+      } as never,
+    });
+    render(<AnimalCard card={card} cityName="Бровари" hideCityInMeta />);
+    expect(screen.getByTestId("card-meta").textContent).toBe(
+      "літній · велика · на перетримці, м. Бровари",
+    );
+  });
+
+  it("hideCityInMeta never touches the accessible name — city stays there for a screen-reader user", () => {
+    const card = makeCard({ publicLocation: null });
+    render(<AnimalCard card={card} cityName="Бровари" hideCityInMeta />);
+    expect(screen.getByRole("link").getAttribute("aria-label")).toContain("Бровари");
+  });
 });
 
 describe("AnimalCard freshness marker", () => {

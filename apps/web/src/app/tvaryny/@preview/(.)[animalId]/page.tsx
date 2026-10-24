@@ -1,6 +1,6 @@
 import { AnimalIdSchema } from "@opika/domain";
 import type { ReactNode } from "react";
-import { AnimalDetailScreen } from "../../../../features/animal-detail/AnimalDetailScreen";
+import { AnimalDetailContent } from "../../../../features/animal-detail/AnimalDetailScreen";
 import {
   type AnimalOverlayNotice,
   AnimalOverlayNoticeView,
@@ -67,7 +67,7 @@ export async function renderAnimalOverlay(
   if (load.kind !== "animal") return notice(load.kind);
   return (
     <AnimalOverlay label={load.view.animal.name} openerHref={openerHref}>
-      <AnimalDetailScreen {...load.view} />
+      <AnimalDetailContent {...load.view} />
     </AnimalOverlay>
   );
 }

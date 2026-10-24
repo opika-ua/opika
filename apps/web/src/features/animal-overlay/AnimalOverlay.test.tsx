@@ -111,6 +111,14 @@ describe("the gallery's animal overlay", () => {
     expect(inside.getByText("Оновлено 5 днів тому")).toBeTruthy();
   });
 
+  it("batch A: no site header, no breadcrumb inside it — those stay on the full page only (review of 6825ffd, finding 3)", async () => {
+    const { dialog } = await openOverlay();
+    const inside = within(dialog);
+    expect(inside.queryByTestId("site-header")).toBeNull();
+    expect(inside.queryByTestId("back-to-list")).toBeNull();
+    expect(inside.queryByTestId("back-to-list-desktop")).toBeNull();
+  });
+
   it("has no «Відкрити повну сторінку»: the overlay is the page (his Q2)", async () => {
     const { dialog } = await openOverlay();
     expect(within(dialog).queryByText("Відкрити повну сторінку")).toBeNull();

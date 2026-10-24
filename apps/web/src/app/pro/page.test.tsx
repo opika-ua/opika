@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import AboutPage from "./page";
+import { renderAboutPage } from "./page";
 
 describe("AboutPage", () => {
   it("renders the required subjects, including the analytics disclosure", () => {
-    render(<AboutPage />);
+    render(renderAboutPage(false));
 
     expect(screen.getByRole("heading", { name: "Про проєкт" })).toBeTruthy();
     expect(
@@ -29,7 +29,7 @@ describe("AboutPage", () => {
    * `docs/shelter-passwords-copy-uk.md` §G): the password hash and the session's length.
    */
   it("the data is five paragraphs, the saved list's own sentence last (S8, DR1-Q4)", () => {
-    render(<AboutPage />);
+    render(renderAboutPage(false));
     // Audit 2026-10-22 #4 and #45: the same sentences in four paragraphs, not one.
     const history = screen.getByText(/^Кожна зміна в кабінеті записується/);
     expect(history.tagName).toBe("P");
@@ -53,7 +53,7 @@ describe("AboutPage", () => {
   });
 
   it("the header wordmark links back to the gallery", () => {
-    render(<AboutPage />);
+    render(renderAboutPage(false));
 
     const link = screen.getByRole("link", { name: "Opika" });
     expect(link.getAttribute("href")).toBe("/tvaryny");
