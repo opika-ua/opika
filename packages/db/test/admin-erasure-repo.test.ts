@@ -285,6 +285,38 @@ describe("eraseUsersAndScrubHistory, via erasableIf (registry.admins.remove's ow
     expect(await historyEmail(removedId)).toBe(EMAIL);
   });
 
+  /**
+   * PR #198's Tier 1 delta review, finding 5 (Oleksii's fix, verbatim: "one
+   * shared comparison for erasure and accept, a test at the exact expiry
+   * instant"). `invitationNotExpiredAt` (`../src/repos/invitation-liveness.ts`)
+   * uses `>=`, matching the accept flow's own "accepts an invitation at its
+   * exact expiry instant" behaviour — so a live-invitation-elsewhere check
+   * must still find it live at that exact instant, not already dead.
+   */
+  it("still treats an invitation elsewhere as live at its exact expiry instant", async () => {
+    const { shelter, organizationId } = await insertShelterWithOrganization();
+    const { organizationId: otherOrg } = await insertShelterWithOrganization();
+    const { userId } = await insertInvitedAdmin({ organizationId, email: EMAIL });
+    const inviterId = await insertInviter();
+    await db.insert(authInvitation).values({
+      id: randomUUID(),
+      organizationId: otherOrg,
+      email: EMAIL,
+      role: "admin",
+      status: "pending",
+      expiresAt: NOW, // expires at exactly the instant erasableIf is asked about
+      createdAt: NOW,
+      inviterId,
+    });
+    const removedId = await insertHistory(shelter.id, "admin_removed", EMAIL);
+
+    const result = await eraseUsersAndScrubHistory(db, erasableIf(userId, NOW));
+
+    expect(result.erasedCount).toBe(0);
+    expect(await db.select().from(authUser).where(eq(authUser.id, userId))).toHaveLength(1);
+    expect(await historyEmail(removedId)).toBe(EMAIL);
+  });
+
   it("never scrubs a different shelter's history, even with the same email", async () => {
     const { shelter: thisShelter, organizationId: thisOrg } = await insertShelterWithOrganization();
     const { shelter: otherShelter } = await insertShelterWithOrganization();

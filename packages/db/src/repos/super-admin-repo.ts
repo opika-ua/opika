@@ -1,6 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { authInvitation, authMember, authUser, superAdmins } from "../schema/auth";
+import { invitationNotExpiredAt } from "./invitation-liveness";
 
 export type BootstrapResult =
   // already_bootstrapped: the fixed grant id is taken (bootstrap ran once, or a concurrent run won).
@@ -125,7 +126,7 @@ export function superAdminRepo(db: Database) {
           and(
             eq(authInvitation.email, input.email.trim().toLowerCase()),
             eq(authInvitation.status, "pending"),
-            sql`${authInvitation.expiresAt} > ${input.now.toISOString()}::timestamptz`,
+            sql`${authInvitation.expiresAt} ${invitationNotExpiredAt(input.now)}`,
           ),
         )
         .limit(1);

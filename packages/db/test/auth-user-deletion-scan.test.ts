@@ -48,7 +48,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/admin-erasure-repo.ts",
-    line: 147,
+    line: 157,
     text: 'DELETE FROM "auth_user"',
     kind: "mechanism",
     why: "eraseUsersAndScrubHistory itself — the one shared mechanism every real deletion routes through",

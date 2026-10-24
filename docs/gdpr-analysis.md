@@ -447,6 +447,37 @@ decisions (`docs/standing-constraints.md`'s Ukrainian-copy and public-claim gate
    live `uk.about.data` string, as its own paragraph between the kabinet-access one it continues
    and the history paragraph it's a specific case of — unlike `PENDING_R4_2_ANALYTICS_SENTENCE`,
    nothing gates this one off `/pro`.
+
+   **A Tier 1 delta review, pinned to the STOP's fix (`abe951c`), returned PASS WITH NOTES.**
+   Reproduced all five of the builder's mutation-test claims (each went red as described) plus
+   two of its own, confirmed the real accept flow never leaves an accepted invitation `pending`
+   (so the `markInvitationAccepted` fixture fix covers a test gap, not a hidden bug), and found
+   no new blocker. Six non-blocking findings recorded in full in
+   `docs/decisions-inbox/gdpr-admin-erasure.md`'s "Non-blocking follow-up notes" section, deferred
+   to a later batch — except the one Oleksii named explicitly (below).
+
+   **Oleksii's own real-Neon smoke, same day:** a fresh Neon child branch (`ep-weathered-base-
+   b1q8ugg0`) ran the dry run (listed 1, his own test address), then `--apply` (erased 1), then a
+   re-run (listed 0) — the 4-CTE statement ran cleanly over `neon-http`. Production
+   (`ep-dawn-pond-b1dz515g`), dry run only: the same one test address, fine to erase; the cron
+   does the actual erasure after merge.
+
+   **His merge instruction, verbatim:** "Merge #198 after the >/>= boundary fix (one shared
+   comparison for erasure and accept, a test at the exact expiry instant), on green CI, with no
+   further smoke if that's all it changes." Built: `invitationNotExpiredAt(now)`
+   (`packages/db/src/repos/invitation-liveness.ts`) — before this, `noLiveInvitationElsewhere`
+   used a bare `expires_at > now` while the accept flow's own two live-invitation checks
+   (`kabinet-invitation-accept-repo.ts`) used `>=`, so at the exact expiry instant a user could be
+   a clean-up candidate while the accept would still succeed. While extracting the one shared
+   function, two *more* sites with the identical gap were found —
+   `kabinetInvitationRepo.roleOfAddress`'s "invited_elsewhere" refusal and `superAdminRepo.grant`'s
+   "invited_admin" refusal, both guarding RG-T10's one-role-per-person rule with the same "is this
+   invitation live" question — closed in the same change rather than left only partly shared, a
+   builder decision beyond what he asked for. Tested at the exact expiry instant on the erasure
+   side (`admin-erasure-repo.test.ts`); mutation-tested by reverting the shared helper's `>=` to
+   `>` and confirming it turns *both* that test and the accept flow's own pre-existing boundary
+   test ("accepts an invitation at its exact expiry instant") red from the single change —
+   direct proof the comparison is now actually shared, not two copies that happen to agree today.
 5. **State `auth_session.user_agent`'s purpose in `/pro`'s own copy** (closes G5) — a copy
    change, not a code change; the decision to keep the field is already made.
 6. **Decide G7** — a consent mechanism for the one adopter cookie, or a recorded "strictly

@@ -3,6 +3,7 @@ import { and, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { executeRows } from "../raw-rows";
 import { authInvitation, authMember, authUser, superAdmins, supportSessions } from "../schema/auth";
+import { invitationNotExpiredAt } from "./invitation-liveness";
 
 /**
  * Never a member of any organization, never an operator (a `super_admins`
@@ -28,6 +29,15 @@ export const NOT_ELSEWHERE_IN_USE: SQL = sql`
  * clean-up both check (Oleksii, 2026-10-24, the STOP decision, "A,
  * generalised"): "a non-operator account with no shelter membership and no
  * live invitation is erased … whether or not it ever signed in."
+ *
+ * `invitationNotExpiredAt` (`./invitation-liveness.ts`) is the exact same
+ * comparison the accept flow uses for "is this invitation still live" — a
+ * bare `>` here, independent of the accept flow's own `>=`, let a user be a
+ * clean-up candidate at the exact instant their invitation expired while the
+ * accept would still have succeeded (PR #198's Tier 1 delta review, finding
+ * 5; Oleksii's fix: "one shared comparison for erasure and accept, a test at
+ * the exact expiry instant" — `admin-erasure-repo.test.ts`'s own boundary
+ * test).
  */
 export function noLiveInvitationElsewhere(now: Date): SQL {
   return sql`
@@ -35,7 +45,7 @@ export function noLiveInvitationElsewhere(now: Date): SQL {
       SELECT 1 FROM ${authInvitation} live
       WHERE lower(live."email") = lower(${authUser.email})
         AND live."status" = 'pending'
-        AND live."expires_at" > ${now.toISOString()}::timestamptz
+        AND live."expires_at" ${invitationNotExpiredAt(now)}
     )
   `;
 }
