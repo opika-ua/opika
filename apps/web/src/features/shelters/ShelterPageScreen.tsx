@@ -39,7 +39,10 @@ export function ShelterPageScreen({
   animals,
   cityNames,
   query,
-}: ShelterPageView) {
+  // Defaulted here (not in `SiteHeader`) for the same reason
+  // `AnimalDetailScreen` defaults it — the real caller always passes it.
+  kabinetSignedIn = false,
+}: ShelterPageView & { kabinetSignedIn?: boolean }) {
   const animalsHeadingId = useId();
   const words = shelterWordsOf(shelter);
   const hrefFor = (sort: typeof query.sort, page: number) =>
@@ -47,7 +50,7 @@ export function ShelterPageScreen({
 
   return (
     <div className="font-rg min-h-dvh bg-rg-page">
-      <SiteHeader />
+      <SiteHeader kabinetSignedIn={kabinetSignedIn} />
 
       {/* The D-2 demo disclosure, visible in the body as on the gallery and the animal page. */}
       {REGISTRY_HAS_NO_REAL_SHELTERS && (
@@ -82,8 +85,30 @@ export function ShelterPageScreen({
             <span className="text-rg-ink-2">{donationHost(shelter.donation)} ↗</span>
           </a>
         )}
+      </main>
 
-        <section aria-labelledby={animalsHeadingId} className="flex flex-col gap-group">
+      {/*
+        Designer feedback batch B: the grid itself now matches the gallery's
+        own columns, gaps and per-breakpoint max-widths exactly (including
+        `ultrawide:grid-cols-6`, missing before), so cards end up the same
+        size on both pages. Outside `max-w-6xl` on purpose — that cap, fine
+        for the name/words/donation prose above, is narrower than the
+        gallery's own "wide" and "ultrawide" targets and would have clipped
+        the grid right back to looking shrunk.
+
+        His follow-up correction (screenshot, red line): the heading and
+        sort control have to share the grid's own left edge, not just this
+        wrapper's. The per-breakpoint max-width and `mx-auto` moved here,
+        onto `<section>` itself, so every child — heading, sort, skip link,
+        grid, pagination — sits inside the exact same box instead of the
+        heading sitting at this `<div>`'s wider edge while only the grid
+        (previously centred on its own, one level down) was narrower.
+      */}
+      <div className="p-group tablet:px-section tablet:pb-section">
+        <section
+          aria-labelledby={animalsHeadingId}
+          className="mx-auto flex w-full flex-col gap-group desktop:max-w-[960px] wide:max-w-[1320px] ultrawide:max-w-[1992px]"
+        >
           <h2 id={animalsHeadingId} className="text-2xl font-medium text-rg-ink">
             {fillTemplate(uk.shelterPage.animalsHeading, {
               count: String(animals.totalMatching),
@@ -108,7 +133,7 @@ export function ShelterPageScreen({
               <ArrowKeyGrid
                 element="ul"
                 labelledBy={animalsHeadingId}
-                className="grid grid-cols-1 gap-group tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4"
+                className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 ultrawide:grid-cols-6 gap-4 desktop:gap-6"
               >
                 {animals.items.map((card, index) => (
                   <li key={card.id} className="flex flex-col">
@@ -116,6 +141,7 @@ export function ShelterPageScreen({
                       card={card}
                       cityName={cityNames.get(cardCityId(card)) ?? null}
                       priority={index < PRIORITY_ROW_SIZE}
+                      hideCityInMeta
                     />
                   </li>
                 ))}
@@ -129,7 +155,7 @@ export function ShelterPageScreen({
             </>
           )}
         </section>
-      </main>
+      </div>
 
       <div className="mx-auto max-w-6xl p-group tablet:p-section">
         <Footer />

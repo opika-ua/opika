@@ -251,6 +251,8 @@ export const uk = {
     remove: "Прибрати зі списку",
     /** `localStorage` threw (private mode, blocked storage) — the saved page's own notice. */
     storageBlocked: "Цей браузер не дає сайту зберегти ваш список.",
+    /** Designer feedback batch C, his own text: aria-live while the saved page is reading ids/fetching cards, never shown as visible body text. */
+    loading: "Завантаження списку…",
   },
 
   // --- Action buttons ---
@@ -739,6 +741,8 @@ export const uk = {
     forShelters: "Для притулків",
     /** S8: the site header's link to the saved page (`/zberezheni`). §11, his text. */
     saved: "Збережені",
+    /** Designer feedback batch D, his own text: the signed-in shelter admin/operator's header link, replacing `saved`. */
+    kabinet: "Кабінет",
   },
 
   /**

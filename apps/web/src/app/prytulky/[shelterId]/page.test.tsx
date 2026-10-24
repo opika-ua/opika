@@ -30,7 +30,7 @@ describe("the route's outcomes, with shelters.byId stubbed", () => {
     const { client } = stubShelterPageClient({ kind: "refuse", code: "RATE_LIMITED" });
     const load = await loadShelterPage(SHELTER_ID, FIRST_PAGE, client);
     expect(load.kind).toBe("rate_limited");
-    render(<div>{renderShelterPage(load)}</div>);
+    render(<div>{renderShelterPage(load, false)}</div>);
     expect(screen.getByRole("heading", { level: 1, name: HIS_SENTENCE })).toBeTruthy();
     expect(screen.queryByText(/НЕ ЗНАЙДЕНО/)).toBeNull();
   });
@@ -42,7 +42,7 @@ describe("the route's outcomes, with shelters.byId stubbed", () => {
     expect(galleryList).not.toHaveBeenCalled();
     let thrown: unknown = null;
     try {
-      renderShelterPage(load);
+      renderShelterPage(load, false);
     } catch (error) {
       thrown = error;
     }

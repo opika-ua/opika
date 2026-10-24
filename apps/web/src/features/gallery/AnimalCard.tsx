@@ -3,7 +3,7 @@ import { uk } from "@opika/i18n";
 import { freshnessLabel, freshnessPips } from "@opika/ui";
 import Image from "next/image";
 import Link from "next/link";
-import { cardAccessibleName, cardMetaLine, isReserved } from "./card-text";
+import { cardAccessibleName, cardMetaLine, isFostered, isReserved } from "./card-text";
 
 /**
  * The photo's rendered width by breakpoint. Every number here is derived from
@@ -108,6 +108,18 @@ interface AnimalCardProps {
    * no live path exercising it until that decision is made.
    */
   resolved?: boolean;
+  /**
+   * Designer feedback batch B: the shelter page's own heading already states
+   * the city once, so a card whose meta line would otherwise read bare "м.
+   * {city}" repeats it there for nothing. Scoped to that bare case only — a
+   * fostered card's "живе у волонтерки, м. {city}" says more than the city
+   * (`isFostered`), so it's untouched — and to the visible text only:
+   * `cardAccessibleName` still gets the real `cityName` regardless, since a
+   * screen-reader user tabbing card to card never re-hears the page heading
+   * the way a sighted user re-reads it, and the design's own Keyboard table
+   * specifies city as part of that name unconditionally.
+   */
+  hideCityInMeta?: boolean;
 }
 
 /**
@@ -129,6 +141,7 @@ export function AnimalCard({
   cityName,
   priority = false,
   resolved = false,
+  hideCityInMeta = false,
 }: AnimalCardProps) {
   const reserved = !resolved && isReserved(card.listingKind);
   const photo = card.primaryPhoto;
@@ -217,7 +230,7 @@ export function AnimalCard({
           </span>
 
           <span data-testid="card-meta" className="text-[15px]/[22px] text-rg-ink-2">
-            {cardMetaLine(card, cityName)}
+            {cardMetaLine(card, hideCityInMeta && !isFostered(card) ? null : cityName)}
           </span>
         </div>
 

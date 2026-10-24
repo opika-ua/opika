@@ -35,7 +35,8 @@ export function cardCityId(card: FeedCardView): CityId {
   return card.publicLocation?.cityId ?? card.shelter.publicLocation.cityId;
 }
 
-function isFostered(card: FeedCardView): boolean {
+/** Exported for `AnimalCard`'s `hideCityInMeta`, which only suppresses a bare "м. {city}" — a fostered card's "живе у волонтерки, м. {city}" says more than city alone, so it stays. */
+export function isFostered(card: FeedCardView): boolean {
   return card.publicLocation !== null;
 }
 

@@ -12,42 +12,42 @@ import { SiteHeader } from "./SiteHeader";
  */
 describe("SiteHeader", () => {
   it("links to «Про проєкт» — the finding was that this was reachable from one place in the whole app", () => {
-    render(<SiteHeader />);
+    render(<SiteHeader kabinetSignedIn={false} />);
 
     const link = screen.getByRole("link", { name: uk.nav.about });
     expect(link.getAttribute("href")).toBe("/pro");
   });
 
   it("links to «Для притулків» — the surface a shelter is sent to", () => {
-    render(<SiteHeader />);
+    render(<SiteHeader kabinetSignedIn={false} />);
 
     const link = screen.getByRole("link", { name: uk.nav.forShelters });
     expect(link.getAttribute("href")).toBe("/prytulkam");
   });
 
   it("carries the wordmark, linking home", () => {
-    render(<SiteHeader />);
+    render(<SiteHeader kabinetSignedIn={false} />);
 
     const link = screen.getByRole("link", { name: "Opika" });
     expect(link.getAttribute("href")).toBe("/tvaryny");
   });
 
   it("renders the wordmark as plain text, not a self-link, on the page it points at", () => {
-    render(<SiteHeader wordmarkIsCurrentPage />);
+    render(<SiteHeader wordmarkIsCurrentPage kabinetSignedIn={false} />);
 
     expect(screen.queryByRole("link", { name: "Opika" })).toBeNull();
     expect(screen.getByTestId("site-wordmark").textContent).toBe("Opika");
   });
 
   it("names its nav landmark, so it is distinguishable from the pagination nav on the gallery", () => {
-    render(<SiteHeader />);
+    render(<SiteHeader kabinetSignedIn={false} />);
 
     expect(screen.getByRole("navigation", { name: "Opika" })).toBeTruthy();
   });
 
   it("renders a surface-specific trailing slot alongside the site nav", () => {
     render(
-      <SiteHeader>
+      <SiteHeader kabinetSignedIn={false}>
         <span>deck entry</span>
       </SiteHeader>,
     );
@@ -59,8 +59,31 @@ describe("SiteHeader", () => {
     expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
   });
 
+  it("designer feedback batch D: a signed-in shelter admin/operator sees «Кабінет», not «Збережені», and no surface-specific adopter slot", () => {
+    render(
+      <SiteHeader kabinetSignedIn={true}>
+        <span>deck entry</span>
+      </SiteHeader>,
+    );
+
+    const kabinetLink = screen.getByRole("link", { name: uk.nav.kabinet });
+    expect(kabinetLink.getAttribute("href")).toBe("/kabinet");
+    expect(screen.queryByRole("link", { name: uk.nav.saved })).toBeNull();
+    expect(screen.queryByText("deck entry")).toBeNull();
+    // «Для притулків» and «Про проєкт» stay, his own wording for who still sees what.
+    expect(screen.getByRole("link", { name: uk.nav.about })).toBeTruthy();
+    expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
+  });
+
+  it("a visitor (not signed in) sees «Збережені», not «Кабінет»", () => {
+    render(<SiteHeader kabinetSignedIn={false} />);
+
+    expect(screen.getByRole("link", { name: uk.nav.saved })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: uk.nav.kabinet })).toBeNull();
+  });
+
   it("the logo mark is marked decorative", () => {
-    const { container } = render(<SiteHeader />);
+    const { container } = render(<SiteHeader kabinetSignedIn={false} />);
 
     // O-1: asserted directly, not just "the accessible name still comes out
     // right" — an svg with no accessible text of its own contributes nothing
@@ -73,7 +96,7 @@ describe("SiteHeader", () => {
   });
 
   it("the wordmark link's accessible name stays 'Opika' regardless", () => {
-    render(<SiteHeader />);
+    render(<SiteHeader kabinetSignedIn={false} />);
 
     expect(screen.getByRole("link", { name: "Opika" })).toBeTruthy();
   });

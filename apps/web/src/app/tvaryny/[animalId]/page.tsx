@@ -9,6 +9,7 @@ import {
   type AnimalPageLoad,
   loadAnimalPage,
 } from "../../../features/animal-detail/animal-page-load";
+import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
 import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
 
@@ -41,18 +42,22 @@ export const dynamic = "force-dynamic";
  */
 export default async function Page({ params }: { params: Promise<{ animalId: string }> }) {
   const { animalId } = await params;
-  return renderAnimalPage(await loadAnimalPageOnce(animalId));
+  const [load, kabinetSignedIn] = await Promise.all([
+    loadAnimalPageOnce(animalId),
+    kabinetSessionCookiePresent(),
+  ]);
+  return renderAnimalPage(load, kabinetSignedIn);
 }
 
 /** The page body for a load result; exported so a test can render each state. */
-export function renderAnimalPage(load: AnimalPageLoad): ReactNode {
+export function renderAnimalPage(load: AnimalPageLoad, kabinetSignedIn: boolean): ReactNode {
   switch (load.kind) {
     case "not_found":
       return notFound();
     case "rate_limited":
       return <RateLimitedScreen />;
     case "animal":
-      return <AnimalDetailScreen {...load.view} />;
+      return <AnimalDetailScreen {...load.view} kabinetSignedIn={kabinetSignedIn} />;
   }
 }
 

@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { cache } from "react";
+import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
 import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
 import type { SearchParams } from "../../../features/gallery/filter-url";
 import { ShelterPageScreen } from "../../../features/shelters/ShelterPageScreen";
@@ -36,18 +37,22 @@ export default async function Page({
   searchParams: Promise<SearchParams>;
 }) {
   const { shelterId } = await params;
-  return renderShelterPage(await loadShelterPageOnce(shelterId, await searchParams));
+  const [load, kabinetSignedIn] = await Promise.all([
+    loadShelterPageOnce(shelterId, await searchParams),
+    kabinetSessionCookiePresent(),
+  ]);
+  return renderShelterPage(load, kabinetSignedIn);
 }
 
 /** The page body for a load result; exported so a test can render each state. */
-export function renderShelterPage(load: ShelterPageLoad): ReactNode {
+export function renderShelterPage(load: ShelterPageLoad, kabinetSignedIn: boolean): ReactNode {
   switch (load.kind) {
     case "not_found":
       return notFound();
     case "rate_limited":
       return <RateLimitedScreen />;
     case "shelter":
-      return <ShelterPageScreen {...load.view} />;
+      return <ShelterPageScreen {...load.view} kabinetSignedIn={kabinetSignedIn} />;
   }
 }
 

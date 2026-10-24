@@ -2,6 +2,7 @@ import { textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { anonymousRouterClient } from "../../api/server-client";
+import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SavedPageScreen } from "../../features/likes/SavedPageScreen";
 
 /**
@@ -40,8 +41,11 @@ export const dynamic = "force-dynamic";
  */
 export default async function SavedPage() {
   const client = anonymousRouterClient();
-  const cities = await client.cities.list({});
+  const [cities, kabinetSignedIn] = await Promise.all([
+    client.cities.list({}),
+    kabinetSessionCookiePresent(),
+  ]);
   const cityNames = Object.fromEntries(cities.map((city) => [city.id, textIn(city.name, "uk")]));
 
-  return <SavedPageScreen cityNames={cityNames} />;
+  return <SavedPageScreen cityNames={cityNames} kabinetSignedIn={kabinetSignedIn} />;
 }

@@ -12,9 +12,34 @@ export type SavedCardResult = Awaited<
   ReturnType<typeof savedBrowserClient.animals.cardsByIds>
 >["items"][number];
 
+/**
+ * Designer feedback batch C (2026-10-23): a pure, directly testable
+ * description of what the saved page should show, derived from the two
+ * pieces of async state below. `ids === null` is the brief moment before
+ * `localStorage` has been read at all (client-only, so never true once an
+ * effect has run); once ids are known, `loading` carries the count so the
+ * page can show that many skeletons, sized like real cards, before
+ * `items` resolves — never the empty state for a list that merely hasn't
+ * loaded yet.
+ */
+export type SavedCardsLoadState =
+  | { readonly kind: "unknown" }
+  | { readonly kind: "loading"; readonly count: number }
+  | { readonly kind: "empty" }
+  | { readonly kind: "ready"; readonly items: readonly SavedCardResult[] };
+
+export function savedCardsLoadStateOf(
+  ids: readonly string[] | null,
+  items: readonly SavedCardResult[] | null,
+): SavedCardsLoadState {
+  if (ids === null) return { kind: "unknown" };
+  if (items !== null) return { kind: "ready", items };
+  if (ids.length === 0) return { kind: "empty" };
+  return { kind: "loading", count: ids.length };
+}
+
 export interface SavedCardsState {
-  /** `null` while the first fetch is still in flight. */
-  readonly items: readonly SavedCardResult[] | null;
+  readonly load: SavedCardsLoadState;
   readonly storageBlocked: boolean;
   removeSaved(animalId: AnimalId): void;
 }
@@ -22,11 +47,18 @@ export interface SavedCardsState {
 /**
  * The saved page's own data: the ordered ids from `likes-store` (newest
  * first — the store's own order), refetched from `animals.cardsByIds`
- * whenever that list changes. Server state and client state stay two
- * separate pieces here rather than merged into one: `items` is `null`
- * until the first real answer, so the page can tell "no saves yet" from
- * "not resolved yet" instead of rendering the empty state for a moment
- * before data arrives.
+ * whenever that list changes.
+ *
+ * `ids` starts `null` (not `[]`) specifically so this never reads as "zero
+ * saved" before `localStorage` has actually been read — the earlier `[]`
+ * default meant a visitor *with* saved animals briefly got the real empty
+ * state rendered: the mount effect below set `ids` to the real (non-empty)
+ * list, but the *other* effect, keyed on `ids.join(",")`, ran in the same
+ * pass with its own stale closure over the render's `ids` — still `[]` at
+ * that point — and set `items: []` from that stale read before ever
+ * re-running against the real ids. `null` removes the stale state there
+ * was ever a read of: the fetch effect below now simply does nothing while
+ * `ids` is `null`, and runs once, correctly, when `ids` actually changes.
  *
  * `storage` fires only for *other* tabs (the Web Storage spec's own rule),
  * so a save undone on the saved page itself (`removeSaved`) updates the
@@ -34,7 +66,7 @@ export interface SavedCardsState {
  * from this document.
  */
 export function useSavedCards(): SavedCardsState {
-  const [ids, setIds] = useState<readonly string[]>([]);
+  const [ids, setIds] = useState<readonly string[] | null>(null);
   const [items, setItems] = useState<readonly SavedCardResult[] | null>(null);
   const [storageBlocked, setStorageBlocked] = useState(false);
 
@@ -50,6 +82,7 @@ export function useSavedCards(): SavedCardsState {
   }, [readIds]);
 
   useEffect(() => {
+    if (ids === null) return;
     if (ids.length === 0) {
       setItems([]);
       return;
@@ -68,10 +101,12 @@ export function useSavedCards(): SavedCardsState {
     return () => {
       cancelled = true;
     };
-    // Depends on `ids.join(",")`, not `ids` itself: `ids` is a fresh array
+    // Depends on `ids?.join(",")`, not `ids` itself: `ids` is a fresh array
     // every render (from `store.items.map` above), so depending on the
     // array identity would refetch every render; joining compares content.
-  }, [ids.join(",")]);
+    // `null` joins to `""`, same as `[]` would — harmless, since the guard
+    // above already returns before this effect does anything for `null`.
+  }, [ids?.join(",")]);
 
   const removeSaved = useCallback(
     (animalId: AnimalId) => {
@@ -81,5 +116,5 @@ export function useSavedCards(): SavedCardsState {
     [readIds],
   );
 
-  return { items, storageBlocked, removeSaved };
+  return { load: savedCardsLoadStateOf(ids, items), storageBlocked, removeSaved };
 }
