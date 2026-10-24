@@ -28,7 +28,7 @@ describe("AboutPage", () => {
    * (KH-Q12) changed: «…видаляються протягом доби.», and PW-1's two sentences (his copy,
    * `docs/shelter-passwords-copy-uk.md` §G): the password hash and the session's length.
    */
-  it("the data is five paragraphs, the saved list's own sentence last (S8, DR1-Q4)", () => {
+  it("the data is six paragraphs, the saved list's own sentence last (S8, DR1-Q4)", () => {
     render(renderAboutPage(false));
     // Audit 2026-10-22 #4 and #45: the same sentences in four paragraphs, not one.
     const history = screen.getByText(/^Кожна зміна в кабінеті записується/);
@@ -49,6 +49,13 @@ describe("AboutPage", () => {
     const sessions = screen.getByText(/^Для притулків із доступом до кабінету/);
     expect(sessions.textContent).toContain(
       "щоб надсилати запрошення, посилання для входу чи нового пароля і повідомлення про зміну пароля, а також технічний запис",
+    );
+    // GDPR-F1 (2026-10-24): the departed-admin erasure sentence, its own paragraph
+    // between the kabinet-access one above and the history one below.
+    const erasure = screen.getByText(/^Коли адміністратора притулку прибирають із кабінету/);
+    expect(erasure.tagName).toBe("P");
+    expect(erasure.textContent).toBe(
+      "Коли адміністратора притулку прибирають із кабінету, скасовують його запрошення або запрошення так і не прийняли, обліковий запис і адреса пошти видаляються, якщо ця адреса не має доступу до іншого притулку і не запрошена до нього. Тоді ж адресу прибирають з історії притулку: там лишається лише запис про те, що адміністратора запрошено, додано чи прибрано.",
     );
   });
 

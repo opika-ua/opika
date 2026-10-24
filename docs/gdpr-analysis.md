@@ -278,6 +278,113 @@ decisions (`docs/standing-constraints.md`'s Ukrainian-copy and public-claim gate
    and doesn't ask a future reader of the privacy policy to accept a balancing argument (C)
    for data that's easy enough to actually remove. But this is squarely his call — it's a
    product/legal decision, not an implementation detail.
+
+   **Decided, 2026-10-24: A.** Oleksii, verbatim: "GDPR departed-admin erasure: A. Delete the
+   account (when it has no other membership) and scrub the email in that shelter's admin
+   history entries to the placeholder, at the moment of removal. Tier 1. Document it in the
+   privacy text and docs/gdpr-analysis.md."
+
+   **Widened the same day**, from the first build's own word-for-word check of the `/pro`
+   sentence against the code (finding 2 — a withdrawn or expired-and-never-accepted invitation
+   deleted its account without scrubbing its history). Oleksii, verbatim: "Withdrawn and
+   expired invitations: fix the code. Rule: whenever an admin's or invitee's account is
+   deleted, by any path (registry.admins.remove, withdrawing a pending invitation,
+   cleanUpInvitedUsers for expired never-accepted invites, or anything else that deletes such
+   a user), their email is scrubbed from that shelter's history entries in the same transaction
+   as the deletion. One shared mechanism, not three copies. Tests for each path. A structural
+   check fails if a new user-deletion path appears without the scrub. Tier 1, in the same GDPR
+   PR."
+
+   **Built, Tier 1:** `eraseUsersAndScrubHistory` (`packages/db/src/repos/admin-erasure-repo.ts`),
+   one statement, three CTEs — the `auth_user` delete, a join from the deleted user(s) back to
+   every shelter their email was ever invited to (`auth_invitation` joined by **email**, not
+   `invitation_created_users`'s own user→invitation link — see below), and the
+   `shelter_history` email scrub, conditional on the delete. Both or neither: a user who turns
+   out to hold another membership, a `super_admin` grant or a support session gets neither
+   half. Two real call sites, both now routed through it: `registry.admins.remove` (an
+   accepted member, via `eraseOneUserIf`) and `kabinetInvitedUsersRepo.deleteCandidates` (a
+   withdrawn-pending or expired-never-accepted invite — called both from
+   `registry.admins.remove`'s own clean-up and the standalone `admin:sweep-invites`). A third
+   deletion site, `demo-remove.ts`, is a named exception: it deletes the whole `shelter_history`
+   row alongside the demo/rehearsal shelter itself, so there is no stale row left to scrub.
+   `auth-user-deletion-scan.test.ts` enforces this is the complete list — a new
+   `auth_user`-deleting call site anywhere else in `packages/db/src` fails that test by name
+   and line until it either routes through the shared mechanism or is added there with a
+   reasoned exception. The placeholder is `ERASED_ADMIN_EMAIL`
+   (`packages/domain/src/shelters/history.ts`, `"removed@erased.invalid"` — RFC 2606's reserved
+   TLD, and a real `z.email()` so the entry still parses).
+
+   **A second code check, same day, caught by Oleksii's own word-for-word re-read of the
+   sentence's new "not invited to it either" clause:** "when the account is finally deleted …
+   the shared mechanism must scrub that email from every shelter's history entries for that
+   user, A's included, not only the shelter that triggered the deletion." It didn't.
+   `invitation_created_users.user_id` is a primary key — one row per account, fixed to
+   whichever invitation *first* created it, because `kabinetInvitationRepo.invite` reuses an
+   existing account on a second invite rather than writing a second row. An address invited to
+   shelter A, dead, then invited to shelter B (the same account throughout) had its join
+   resolve to A alone, regardless of which shelter's death actually triggered the eventual
+   deletion. Fixed by joining `auth_invitation` on the deleted user's **email** instead —
+   finds every invitation that address ever received, at every shelter, not just the first.
+   Test: `kabinet-invitation-repo.test.ts`, "scrubs every shelter's history once the account is
+   finally deleted, not only the one that triggered it" — invited to A and B, A's invite dies
+   (not yet a candidate, B still live), B's invite then also dies (now deleted, both A's and
+   B's history scrubbed in the same statement). Mutation-tested: reverting to the
+   `invitation_created_users` join leaves this exact test red, naming A's email as still real.
+
+   Mutation-tested overall: the shared mechanism itself (10 tests: eligible erasure, three
+   ineligible cases, cross-shelter scoping, idempotency, the shelter-scoping join, a
+   differently-cased address, and a second admin's untouched entries), the
+   `registry.admins.remove` path at the handler level (the realistic, reachable case), the
+   `deleteCandidates` path (2 tests: the expired-invite scrub, and that a still-signed-in
+   user's history is never touched), and the multi-shelter case above.
+
+   **A third review brief, same day, asked for normalised-address comparison specifically**
+   (Oleksii: "The email join must compare normalised addresses, exactly as invitations and
+   users store them (lowercase/trim). Test with a differently-cased address. It must only
+   ever scrub entries belonging to the deleted account, and a test proves another person's
+   entries with a different email stay untouched."). Both email comparisons inside
+   `eraseUsersAndScrubHistory` (the `targets` join and the `scrubbed` match against the
+   history entry's own stored email) now go through `lower()` on both sides, never a bare
+   `=` — every write path already normalises first (`kabinetInvitationRepo.invite`,
+   `admin.ts`'s `emailArg`), so this is the comparison's own guarantee of that, not trust that
+   every future write path remembers to. Tested directly: "joins and scrubs on a
+   differently-cased address, not a bare equality" (`admin-erasure-repo.test.ts`), mutation-
+   tested by reverting to a bare `=` and confirming it goes red with `historyEntriesScrubbed:
+   0`. Scoping proved by "scrubs only the deleted account's own entries, leaving another
+   admin's email untouched" in the same file — a second admin, a different email, erasing one
+   leaves the other's history and account alone.
+
+   The same risk exists in `kabinet-invited-users-repo.ts`'s own "live invitation elsewhere"
+   guard (`cleanupCandidates`/`deleteCandidates`, the clause the sentence's "і не запрошена до
+   нього" names): it also compared `authInvitation.email` against `authUser.email` with a
+   bare `=`. Fixed the same way, for the same reason — a case mismatch there is worse than in
+   the scrub, since it would let an account be *deleted* despite a live invitation elsewhere,
+   not merely leave a history row unscrubbed. Tested: "never takes a user with a live
+   invitation elsewhere stored in a different case" (`kabinet-invitation-repo.test.ts`),
+   mutation-tested by reverting one of the two `lower()` call sites and confirming the test
+   goes red (the user wrongly appears as erasable). This is a builder decision, not something
+   Oleksii's brief named directly — recorded under "Decisions taken" in the PR.
+
+   **Decision 1 — keep the public sentence's single membership condition.** The code checks
+   three things for `eraseOneUserIf` (no other shelter membership, not a `super_admin`, no
+   support session as operator); the sentence states one ("if that address has no access to
+   another shelter"). Oleksii's decision: keep the simple sentence. The other two guards are
+   internal safety checks a real shelter admin can never actually trip, by construction
+   elsewhere in this system: `registry.admins.invite` refuses to invite an operator's address
+   at all (RG-T10), and support mode is reachable only by an operator acting as one — so a
+   real shelter admin's account can never also be a `super_admin` or hold a support session.
+   `deleteCandidates`'s own extra "no live invite elsewhere" guard is covered honestly instead
+   — the sentence's final wording ("і не запрошена до нього") names it directly, closing what
+   the first round of this check found missing.
+
+   **Landed, not held.** `/pro` is a public page, under the strict copy gate
+   (`docs/standing-constraints.md`), but this is Oleksii's own dictated Ukrainian, not copy
+   this session invented — checked word for word against the final code across the rounds
+   above, with nothing left differing on the last pass. `ADMIN_ERASURE_SENTENCE`
+   (`packages/i18n/src/messages/uk.ts`) is appended directly into the live `uk.about.data`
+   string, as its own paragraph between the kabinet-access one it continues and the history
+   paragraph it's a specific case of — unlike `PENDING_R4_2_ANALYTICS_SENTENCE`, nothing gates
+   this one off `/pro`.
 5. **State `auth_session.user_agent`'s purpose in `/pro`'s own copy** (closes G5) — a copy
    change, not a code change; the decision to keep the field is already made.
 6. **Decide G7** — a consent mechanism for the one adopter cookie, or a recorded "strictly
