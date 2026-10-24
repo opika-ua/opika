@@ -37,9 +37,13 @@ test.describe("saving an animal, from the gallery, shows up on the saved page", 
     await saveButton.click();
     await expect(saveButton).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("Escape");
-    // The overlay's own `AnimalDetailScreen` renders its own `SiteHeader`
-    // (and therefore its own `nav-saved`), so the next click is ambiguous
-    // until the dialog is actually gone, not merely told to close.
+    // Review of 6825ffd, finding 6: this comment used to say the overlay
+    // rendered its own `SiteHeader` (and so its own `nav-saved`), making
+    // the next click ambiguous until the dialog was gone — stale since
+    // batch A, which moved the header out of the overlay entirely. The
+    // wait stays for a real reason instead: Escape is a history pop, and
+    // the click below must land on the gallery page, not mid-transition
+    // while the dialog is merely told to close.
     await page.getByRole("dialog").waitFor({ state: "hidden" });
 
     // The saved page is linked from the header, on the gallery — a real,

@@ -146,6 +146,37 @@ describe("/tvaryny (renderGallery)", () => {
       expect(link.getAttribute("href")).toBe("/tvaryny/gortaty?total=1");
     }
   });
+
+  /**
+   * Designer feedback batch D: «По одні» is adopter-only, his own wording —
+   * suppressed for a signed-in admin in both places it renders (the
+   * header's own children slot, and this page's separate mobile toolbar
+   * row). Review of 6825ffd, finding 3: dropping the mobile row's own
+   * `!kabinetSignedIn` guard left the rest of the suite green, so this is
+   * the test that would have caught it.
+   */
+  it("kabinetSignedIn=true hides both deck-entry controls (header and mobile toolbar), everywhere «Гортати» would otherwise show", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: {
+        precision: "fuzzed_address",
+        cityId: city.id,
+        district: null,
+        approximate: { center: { lat: 50.51, lng: 30.79 }, precisionMetres: 1000 } as never,
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: shelter.id }), city.id);
+
+    const element = await renderGallery(anonymousRouterClient(h.db), {}, true);
+    render(<WithMockRouter>{element}</WithMockRouter>);
+
+    expect(screen.queryByText("Гортати по одній")).toBeNull();
+    expect(screen.queryByText("Гортати")).toBeNull();
+    expect(screen.getByRole("link", { name: "Кабінет" }).getAttribute("href")).toBe("/kabinet");
+    expect(screen.queryByRole("link", { name: "Збережені" })).toBeNull();
+  });
 });
 
 /**

@@ -104,8 +104,11 @@ export function useSavedCards(): SavedCardsState {
     // Depends on `ids?.join(",")`, not `ids` itself: `ids` is a fresh array
     // every render (from `store.items.map` above), so depending on the
     // array identity would refetch every render; joining compares content.
-    // `null` joins to `""`, same as `[]` would — harmless, since the guard
-    // above already returns before this effect does anything for `null`.
+    // Review of 6825ffd, finding 6: `null?.join(",")` is `undefined`, not
+    // `""` — a different value from `[]`'s `""`, which is exactly what's
+    // wanted: the very first transition out of `null` always counts as a
+    // dependency change and reruns this effect, whether the real list
+    // turns out empty or not.
   }, [ids?.join(",")]);
 
   const removeSaved = useCallback(

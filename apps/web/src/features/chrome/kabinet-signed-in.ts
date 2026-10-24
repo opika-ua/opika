@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
 import { kabinetCookieName } from "../../kabinet/auth";
 
 /** The shape `next/headers`' cookie store satisfies — narrowed so this stays unit-testable without mocking the module. */
@@ -39,11 +40,19 @@ export function kabinetSignedInFrom(store: CookiePresence): boolean {
  * through a testable inner function). Failing to "not signed in" there is
  * the same answer the cookie's own absence would give — never a different
  * code path, never silently treated as signed in.
+ *
+ * Review of 6825ffd, finding 4: `unstable_rethrow` first, so this never
+ * swallows Next's own prerender-bailout signal for a future caller that
+ * isn't `force-dynamic` — without it, that signal would be caught here and
+ * the page would be served statically as "not signed in" for everyone,
+ * silently. Today's six callers are all `force-dynamic`, so nothing bails
+ * out this way yet; this is what keeps that true if one ever isn't.
  */
 export async function kabinetSessionCookiePresent(): Promise<boolean> {
   try {
     return kabinetSignedInFrom(await cookies());
-  } catch {
+  } catch (error) {
+    unstable_rethrow(error);
     return false;
   }
 }

@@ -112,7 +112,7 @@ interface AnimalCardProps {
    * Designer feedback batch B: the shelter page's own heading already states
    * the city once, so a card whose meta line would otherwise read bare "м.
    * {city}" repeats it there for nothing. Scoped to that bare case only — a
-   * fostered card's "живе у волонтерки, м. {city}" says more than the city
+   * fostered card's "на перетримці, м. {city}" says more than the city
    * (`isFostered`), so it's untouched — and to the visible text only:
    * `cardAccessibleName` still gets the real `cityName` regardless, since a
    * screen-reader user tabbing card to card never re-hears the page heading

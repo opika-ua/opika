@@ -76,6 +76,38 @@ describe("SavedPageScreen", () => {
     });
   });
 
+  /**
+   * Review of 6825ffd, finding 2: `useSavedCards.ts`'s own comment names the
+   * bug this guards — a stale `ids===[]` closure in one effect synchronously
+   * setting `items: []` before a sibling effect had set the real (non-empty)
+   * ids, so a visitor *with* a save briefly got the wrong empty state. With
+   * the old `useState<readonly string[]>([])` default restored in place of
+   * `useState<readonly string[] | null>(null)`, this goes red: `saved-empty`
+   * is present at the point this asserts it must not be.
+   */
+  it("never shows the empty state while a saved item's fetch is still pending — only skeletons", async () => {
+    toggleSavedAnimal("00000001-0000-4000-8000-000000000000", new Date());
+    let resolveFetch!: (value: { items: unknown[] }) => void;
+    cardsByIds.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      }),
+    );
+
+    render(<SavedPageScreen cityNames={CITY_NAMES} />);
+
+    await screen.findByTestId("saved-skeletons");
+    expect(screen.getAllByTestId("saved-skeletons").length).toBeGreaterThan(0);
+    expect(screen.queryByTestId("saved-empty")).toBeNull();
+
+    resolveFetch({
+      items: [
+        { kind: "available", animalId: "00000001-0000-4000-8000-000000000000", card: makeCard() },
+      ],
+    });
+    expect(await screen.findByRole("link", { name: /Мурчик/ })).toBeTruthy();
+  });
+
   it("shows an unavailable item with its name, not as a card", async () => {
     toggleSavedAnimal("00000002-0000-4000-8000-000000000000", new Date());
     cardsByIds.mockResolvedValue({
