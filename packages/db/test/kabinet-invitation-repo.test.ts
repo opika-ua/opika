@@ -1,4 +1,4 @@
-import type { ShelterId } from "@opika/domain";
+import { ERASED_ADMIN_EMAIL, type ShelterId } from "@opika/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { cityRepo } from "../src/repos/city-repo";
@@ -13,6 +13,7 @@ import {
   superAdmins,
   supportSessions,
 } from "../src/schema/auth";
+import { shelterHistory } from "../src/schema/shelter-history";
 import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "../src/test-utils/index";
 
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
@@ -289,7 +290,15 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
   const repo = () => kabinetInvitationRepo(db);
   const users = () => kabinetInvitedUsersRepo(db);
 
-  it("takes a created user whose invitation expired, unaccepted and never signed in, and deletes it", async () => {
+  /**
+   * GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4): widened,
+   * 2026-10-24, to every path that deletes an `auth_user` row tied to a
+   * shelter's admin history, not only `registry.admins.remove`'s accepted
+   * case. `invite()`'s own `admin_invited` history entry — written with
+   * the real email at invite time, before anyone knows whether it will
+   * ever be accepted — is scrubbed in the same statement as this deletion.
+   */
+  it("takes a created user whose invitation expired, unaccepted and never signed in, deletes it, and scrubs the shelter's admin_invited entry", async () => {
     const r = await invite("olena@example.org");
     if (r.kind !== "invited") throw new Error("unreachable");
     expect(await users().cleanupCandidates({ organizationId: null, now: NOW })).toEqual([]);
@@ -305,6 +314,54 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
     ).toBe(1);
     expect(await userByEmail("olena@example.org")).toBeUndefined();
     expect(await db.select().from(invitationCreatedUsers)).toEqual([]);
+    const [history] = await db
+      .select()
+      .from(shelterHistory)
+      .where(eq(shelterHistory.kind, "admin_invited"));
+    expect((history?.entry as { email?: string } | undefined)?.email).toBe(ERASED_ADMIN_EMAIL);
+  });
+
+  /**
+   * RG-Q3's "no session ever" condition is gone (Oleksii, 2026-10-24, the
+   * STOP decision on the `/pro` sentence, "A, generalised"): "a non-operator
+   * account with no shelter membership and no live invitation is erased …
+   * whether or not it ever signed in." These three replace the two tests
+   * that pinned the old rule.
+   */
+  it("erases a user even though they signed in, once their invitation is dead and no membership was ever granted", async () => {
+    const r = await invite("olena@example.org");
+    if (r.kind !== "invited") throw new Error("unreachable");
+    await users().markFirstSession(r.userId, NOW);
+    expect(await users().deleteCandidates([r.userId], later)).toBe(1);
+    expect(await userByEmail("olena@example.org")).toBeUndefined();
+    const [history] = await db
+      .select()
+      .from(shelterHistory)
+      .where(eq(shelterHistory.kind, "admin_invited"));
+    expect((history?.entry as { email?: string } | undefined)?.email).toBe(ERASED_ADMIN_EMAIL);
+  });
+
+  it("lists a signed-in user as a candidate too, once their invitation is dead", async () => {
+    const r = await invite("olena@example.org");
+    if (r.kind !== "invited") throw new Error("unreachable");
+    await users().markFirstSession(r.userId, NOW);
+    expect(
+      (await users().cleanupCandidates({ organizationId: null, now: later })).map((c) => c.userId),
+    ).toEqual([r.userId]);
+    expect(await users().deleteCandidates([r.userId], later)).toBe(1);
+    expect(await userByEmail("olena@example.org")).toBeUndefined();
+  });
+
+  /** His own test instruction, verbatim: "signing in after the invite expired → erased on the next sweep." */
+  it("is erased on the next sweep even when the sign-in happens after the invitation has already expired", async () => {
+    const r = await invite("olena@example.org");
+    if (r.kind !== "invited") throw new Error("unreachable");
+    await users().markFirstSession(r.userId, later); // signs in only once already dead
+    expect(
+      (await users().cleanupCandidates({ organizationId: null, now: later })).map((c) => c.userId),
+    ).toEqual([r.userId]);
+    expect(await users().deleteCandidates([r.userId], later)).toBe(1);
+    expect(await userByEmail("olena@example.org")).toBeUndefined();
   });
 
   it("takes a created user whose invitation was revoked, before it expires", async () => {
@@ -314,15 +371,6 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
     expect(
       (await users().cleanupCandidates({ organizationId: null, now: NOW })).map((c) => c.userId),
     ).toEqual([r.userId]);
-  });
-
-  it("never takes a user who has signed in", async () => {
-    const r = await invite("olena@example.org");
-    if (r.kind !== "invited") throw new Error("unreachable");
-    await users().markFirstSession(r.userId, NOW);
-    expect(await users().cleanupCandidates({ organizationId: null, now: later })).toEqual([]);
-    // And the delete re-checks, even if handed the id anyway.
-    expect(await users().deleteCandidates([r.userId], later)).toBe(0);
   });
 
   it("never takes a user who accepted (has a membership)", async () => {
@@ -404,6 +452,39 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
     expect(await userByEmail("olena@example.org")).toBeDefined();
   });
 
+  /**
+   * Same guard as above, proved against a differently-cased stored address —
+   * the same normalised-comparison requirement as `admin-erasure-repo.ts`'s
+   * own join (Oleksii, 2026-10-24 review brief), applied to this module's own
+   * "live elsewhere" check (`cleanupCandidates`/`deleteCandidates`). `invite()`
+   * always normalises before writing, so only a direct update can create the
+   * mismatch — the same reason `admin-erasure-repo.test.ts`'s fixtures bypass
+   * `invite()` for its own case.
+   */
+  it("never takes a user with a live invitation elsewhere stored in a different case", async () => {
+    const a = await invite("olena@example.org");
+    if (a.kind !== "invited") throw new Error("unreachable");
+    expect(await repo().revoke(a.invitationId)).toBe(true); // A's own invite dies.
+
+    const cityB = makeCity();
+    await cityRepo(db).insert(cityB);
+    const shelterB = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: cityB.id },
+    });
+    await shelterRepo(db).insert(shelterB);
+    const bAt = new Date(NOW.getTime() + 60 * 60 * 1000);
+    const b = await invite("olena@example.org", bAt, shelterB.id);
+    if (b.kind !== "invited") throw new Error("unreachable");
+    await db
+      .update(authInvitation)
+      .set({ email: "OLENA@EXAMPLE.ORG" })
+      .where(eq(authInvitation.id, b.invitationId));
+
+    expect(await users().cleanupCandidates({ organizationId: null, now: later })).toEqual([]);
+    expect(await users().deleteCandidates([a.userId], later)).toBe(0);
+    expect(await userByEmail("olena@example.org")).toBeDefined();
+  });
+
   /** Finding 2: a user with a non-cascading row is skipped, and the rest of the batch still goes. */
   it("skips a user with a super_admin grant without failing the batch", async () => {
     const granted = await invite("granted@example.org");
@@ -431,5 +512,75 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
     expect(await users().deleteCandidates([operatorToBe.userId, plain.userId], later)).toBe(1);
     expect(await userByEmail("support@example.org")).toBeDefined();
     expect(await userByEmail("plain@example.org")).toBeUndefined();
+  });
+
+  /**
+   * GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4). Oleksii,
+   * 2026-10-24, checking the widened mechanism: "when the account is
+   * finally deleted (for example after shelter B's invitation also dies),
+   * the shared mechanism must scrub that email from every shelter's history
+   * entries for that user, A's included, not only the shelter that
+   * triggered the deletion." `invite()`'s own real path reuses one account
+   * across both invitations (`kabinetInvitationRepo.invite`: `existing !==
+   * undefined` returns the existing user, never a second one) — exactly
+   * the shape `invitation_created_users`'s single, first-invitation-only
+   * row can't see, which is why the scrub joins by email, not that table.
+   */
+  it("scrubs every shelter's history once the account is finally deleted, not only the one that triggered it", async () => {
+    const cityB = makeCity();
+    await cityRepo(db).insert(cityB);
+    const shelterB = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: cityB.id },
+    });
+    await shelterRepo(db).insert(shelterB);
+
+    const a = await invite("olena@example.org");
+    if (a.kind !== "invited") throw new Error("unreachable");
+    expect(await repo().revoke(a.invitationId)).toBe(true); // A's invite dies.
+
+    // Invited to B an hour after A, so B's own 72h window still covers `later`
+    // below (A's own checkpoint) — otherwise both expire at the same instant,
+    // since they'd share one invite's worth of TTL from the same `now`.
+    const bAt = new Date(NOW.getTime() + 60 * 60 * 1000);
+    const b = await invite("olena@example.org", bAt, shelterB.id);
+    if (b.kind !== "invited") throw new Error("unreachable");
+    expect(b.userId).toBe(a.userId); // The real path reuses the one account.
+
+    // B's invite is still live: not a candidate yet, A's dead invite notwithstanding.
+    expect(await users().cleanupCandidates({ organizationId: null, now: later })).toEqual([]);
+    expect(await users().deleteCandidates([a.userId], later)).toBe(0);
+    const [aStillReal] = await db
+      .select()
+      .from(shelterHistory)
+      .where(eq(shelterHistory.shelterId, shelterId as never));
+    expect((aStillReal?.entry as { email?: string } | undefined)?.email).toBe("olena@example.org");
+
+    // Now B's invite dies too — the account is finally a real candidate.
+    expect(await repo().revoke(b.invitationId)).toBe(true);
+    const muchLater = new Date(later.getTime() + 1000);
+    expect(
+      (await users().cleanupCandidates({ organizationId: null, now: muchLater })).map(
+        (c) => c.userId,
+      ),
+    ).toEqual([a.userId]);
+    expect(await users().deleteCandidates([a.userId], muchLater)).toBe(1);
+    expect(await userByEmail("olena@example.org")).toBeUndefined();
+
+    const [aAfter] = await db
+      .select()
+      .from(shelterHistory)
+      .where(eq(shelterHistory.shelterId, shelterId as never));
+    const [bAfter] = await db
+      .select()
+      .from(shelterHistory)
+      .where(eq(shelterHistory.shelterId, shelterB.id as never));
+    expect((aAfter?.entry as { email?: string } | undefined)?.email).toBe(ERASED_ADMIN_EMAIL);
+    expect((bAfter?.entry as { email?: string } | undefined)?.email).toBe(ERASED_ADMIN_EMAIL);
+
+    // Oleksii's own check on the STOP fix: no row anywhere still holds the
+    // address, invitations included — A's and B's own invitation rows, not
+    // only their shelters' history.
+    const invitations = await db.select({ email: authInvitation.email }).from(authInvitation);
+    expect(invitations.map((i) => i.email)).toEqual([ERASED_ADMIN_EMAIL, ERASED_ADMIN_EMAIL]);
   });
 });

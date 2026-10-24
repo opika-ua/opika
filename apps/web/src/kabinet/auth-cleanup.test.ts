@@ -1,7 +1,15 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { authSession, authUser, authVerification } from "@opika/db/schema";
+import {
+  authInvitation,
+  authOrganization,
+  authSession,
+  authUser,
+  authVerification,
+  invitationCreatedUsers,
+} from "@opika/db/schema";
 import { setupTestDatabase, truncateAll } from "@opika/db/test";
 import { uk } from "@opika/i18n";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -93,7 +101,11 @@ describe("the auth clean-up cron (KH-Q9)", () => {
   it("with the secret: deletes the expired session and verification, keeps the live ones", async () => {
     const { response } = await run({ authorization: `Bearer ${SECRET}` });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ verifications: 1, sessions: 1 });
+    expect(await response.json()).toEqual({
+      verifications: 1,
+      sessions: 1,
+      erasedInvitedUsers: 0,
+    });
     expect(await rows()).toEqual({
       sessions: ["session-live"],
       verifications: ["verification-live"],
@@ -108,10 +120,81 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       outcome: "deleted",
       verifications: 1,
       sessions: 1,
+      erasedInvitedUsers: 0,
     });
     for (const secretish of [EMAIL, "olena", "token-of-", "hashed-", USER, "expired", SECRET]) {
       expect(lines[0]).not.toContain(secretish);
     }
+  });
+
+  /**
+   * GDPR erasure, decision 3 of the 2026-10-24 STOP (Oleksii, verbatim):
+   * "add the expired-invitation sweep to the existing auth clean-up
+   * schedule. A dormant shelter's dead invitee is erased without any
+   * kabinet action." No fixture here ever calls a `registry.admins.*`
+   * handler — the cron alone, given a later `now`, is what erases this
+   * account. `now` is already a parameter the handler takes rather than
+   * reading the clock, so the two different instants below (one to create
+   * the dead invitation, one to run the cron after it expired) stand in for
+   * "fake timers": nothing here touches the real clock either way.
+   */
+  it("erases a dormant invitee's account on its own, with no kabinet action — the invitation sweep", async () => {
+    const inviterId = randomUUID();
+    await db.insert(authUser).values({
+      id: inviterId,
+      name: "Operator",
+      email: "operator@example.org",
+      emailVerified: true,
+      createdAt: at(-30 * 86_400_000),
+      updatedAt: at(-30 * 86_400_000),
+    });
+    const [org] = await db
+      .insert(authOrganization)
+      .values({
+        id: randomUUID(),
+        name: "Притулок",
+        slug: `dormant-${randomUUID()}`,
+        logo: null,
+        createdAt: at(-30 * 86_400_000),
+        metadata: null,
+      })
+      .returning();
+    const invitedId = randomUUID();
+    await db.insert(authUser).values({
+      id: invitedId,
+      name: "Departed",
+      email: "departed@example.org",
+      emailVerified: false,
+      createdAt: at(-10 * 86_400_000),
+      updatedAt: at(-10 * 86_400_000),
+    });
+    const invitationId = randomUUID();
+    await db.insert(authInvitation).values({
+      id: invitationId,
+      organizationId: org?.id ?? "",
+      email: "departed@example.org",
+      role: "admin",
+      status: "pending",
+      expiresAt: at(-1), // already dead — no one ever acted on it
+      createdAt: at(-10 * 86_400_000),
+      inviterId,
+    });
+    await db.insert(invitationCreatedUsers).values({
+      userId: invitedId,
+      invitationId,
+      createdAt: at(-10 * 86_400_000),
+      firstSessionAt: null,
+    });
+
+    const { response } = await run({ authorization: `Bearer ${SECRET}` });
+    expect(response.status).toBe(200);
+    expect((await response.json()).erasedInvitedUsers).toBe(1);
+    expect(
+      await db
+        .select()
+        .from(authUser)
+        .then((users) => users.filter((u) => u.id === invitedId)),
+    ).toEqual([]);
   });
 
   it.each([

@@ -23,6 +23,7 @@ export {
 } from "./fixtures";
 export { type HeldPasswordWrite, holdPasswordWriteUncommitted } from "./held-password-write";
 export { type HeldStatementDatabase, holdStatementUncommitted } from "./held-statement";
+export { markInvitationAccepted } from "./invitation-fixtures";
 export {
   type PasswordRevokeCatalog,
   passwordRevokeCatalog,

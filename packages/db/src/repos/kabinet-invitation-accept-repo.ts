@@ -17,6 +17,7 @@ import {
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
 import { historyRowSelect } from "./history-sql";
+import { invitationNotExpiredAt } from "./invitation-liveness";
 
 /** A pending invitation this user may accept now, as read before the write. */
 export type AcceptableInvitation = {
@@ -136,7 +137,7 @@ export function kabinetInvitationAcceptRepo(db: Database) {
           and(
             sql`lower(${authInvitation.email}) = lower(${authUser.email})`,
             eq(authInvitation.status, "pending"),
-            sql`${authInvitation.expiresAt} >= ${now.toISOString()}::timestamptz`,
+            sql`${authInvitation.expiresAt} ${invitationNotExpiredAt(now)}`,
           ),
         )
         .innerJoin(authOrganization, eq(authOrganization.id, authInvitation.organizationId))
@@ -207,7 +208,7 @@ export function kabinetInvitationAcceptRepo(db: Database) {
             and(
               eq(authInvitation.id, invitation.id),
               eq(authInvitation.status, "pending"),
-              sql`${authInvitation.expiresAt} >= ${now.toISOString()}::timestamptz`,
+              sql`${authInvitation.expiresAt} ${invitationNotExpiredAt(now)}`,
               sql`lower(${authInvitation.email}) = (SELECT lower(${authUser.email}) FROM ${authUser} WHERE ${authUser.id} = ${userId} AND ${authUser.emailVerified})`,
               sql`EXISTS (SELECT 1 FROM ${authOrganization} JOIN ${shelters} ON ${shelters.organizationId} = ${authOrganization.id} WHERE ${authOrganization.id} = ${authInvitation.organizationId})`,
               sql`NOT EXISTS (SELECT 1 FROM ${superAdmins} WHERE ${superAdmins.userId} = ${userId} AND ${superAdmins.revokedAt} IS NULL)`,

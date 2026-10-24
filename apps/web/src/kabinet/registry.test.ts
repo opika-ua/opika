@@ -22,12 +22,14 @@ import {
   makeAnimal,
   makeCity,
   makeShelter,
+  markInvitationAccepted,
   setupTestDatabase,
   truncateAll,
 } from "@opika/db/test";
 import {
   type AdopterId,
   donationProviderOf,
+  ERASED_ADMIN_EMAIL,
   type ModeratorId,
   publicLocationOf,
   type Shelter,
@@ -1286,6 +1288,12 @@ describe("registry.admins.*", () => {
       role: "admin",
       createdAt: NOW,
     });
+    // The real accept flow flips the invitation to `accepted` in the same
+    // statement as the membership — a real accepted admin's own invitation
+    // is never still `pending`. Without this, `erasableIf`'s
+    // `noLiveInvitationElsewhere` check would (rightly) treat the fixture's
+    // own invitation as a live invitation elsewhere.
+    await markInvitationAccepted(db, invitation?.id ?? "");
     return invited.body.id;
   }
 
@@ -1398,8 +1406,20 @@ describe("registry.admins.*", () => {
     ).toBe(404);
   });
 
-  /** RG-Q6: sessions end at once; the last admin may go; it is recorded. */
-  it("removes the last admin, ending every session of theirs, and records it", async () => {
+  /**
+   * RG-Q6: sessions end at once; the last admin may go; it is recorded.
+   *
+   * GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4; Oleksii,
+   * 2026-10-24): this is also the realistic, reachable shape of that
+   * decision — a real, accepted admin removed from their only shelter
+   * (one person administers at most one shelter, `auth_member_user_id_unique`),
+   * who is never a `super_admins` grant either (RG-T10: an operator is
+   * never invited as a shelter admin). So the account is erased and this
+   * same `admin_removed` entry's own email — the one `removeMember` just
+   * wrote — is scrubbed to the placeholder *before this call returns*: "at
+   * the moment of removal" means this request, not a later sweep.
+   */
+  it("removes the last admin, ending every session of theirs, erasing the account, and scrubbing their email from history", async () => {
     const s = await shelter();
     const member = await acceptedAdmin(s.id, "member@example.org");
     const session = (id: string, userId: string) => ({
@@ -1424,12 +1444,26 @@ describe("registry.admins.*", () => {
         .from(authSession)
         .then((rows) => rows.filter((row) => row.userId === member)),
     ).toEqual([]);
+    // The account itself is gone — not just its memberships and sessions.
+    expect(
+      await db
+        .select()
+        .from(authUser)
+        .then((rows) => rows.filter((row) => row.id === member)),
+    ).toEqual([]);
     expect(await history(s.id)).toContainEqual(
       expect.objectContaining({
         kind: "admin_removed",
-        email: "member@example.org",
+        email: ERASED_ADMIN_EMAIL,
         wasPending: false,
       }),
+    );
+    // The earlier admin_invited entry for the same address is scrubbed too, not just admin_removed.
+    expect(await history(s.id)).toContainEqual(
+      expect.objectContaining({ kind: "admin_invited", email: ERASED_ADMIN_EMAIL }),
+    );
+    expect(await history(s.id)).not.toContainEqual(
+      expect.objectContaining({ email: "member@example.org" }),
     );
   });
 

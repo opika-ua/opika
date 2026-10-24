@@ -1,3 +1,4 @@
+export { erasableIf, eraseUsersAndScrubHistory } from "./admin-erasure-repo";
 export { adopterRepo } from "./adopter-repo";
 export { animalRepo } from "./animal-repo";
 export {
