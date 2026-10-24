@@ -22,6 +22,7 @@ import {
   makeAnimal,
   makeCity,
   makeShelter,
+  markInvitationAccepted,
   setupTestDatabase,
   truncateAll,
 } from "@opika/db/test";
@@ -1287,6 +1288,12 @@ describe("registry.admins.*", () => {
       role: "admin",
       createdAt: NOW,
     });
+    // The real accept flow flips the invitation to `accepted` in the same
+    // statement as the membership — a real accepted admin's own invitation
+    // is never still `pending`. Without this, `erasableIf`'s
+    // `noLiveInvitationElsewhere` check would (rightly) treat the fixture's
+    // own invitation as a live invitation elsewhere.
+    await markInvitationAccepted(db, invitation?.id ?? "");
     return invited.body.id;
   }
 

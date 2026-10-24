@@ -10,7 +10,7 @@ import {
 import {
   type AddressRole,
   cityRepo,
-  eraseOneUserIf,
+  erasableIf,
   eraseUsersAndScrubHistory,
   INVITATION_TTL_MS,
   kabinetInvitationRepo,
@@ -400,9 +400,10 @@ export async function registryAdminsRemove(
   // GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4; Oleksii,
   // 2026-10-24), the accepted-member half: a withdrawn *pending* invite has
   // no membership to lose here — `cleanUpInvitedUsers` below erases that
-  // account (same shared mechanism) if it was never signed into at all.
+  // account (same shared mechanism, same invariant) if it now holds no
+  // shelter role at all, whether or not it was ever signed into.
   if (admin.invite.status === "accepted") {
-    await eraseUsersAndScrubHistory(deps.db, eraseOneUserIf(admin.userId));
+    await eraseUsersAndScrubHistory(deps.db, erasableIf(admin.userId, deps.now));
   }
   await cleanUpInvitedUsers(deps, organizationId);
   return {};

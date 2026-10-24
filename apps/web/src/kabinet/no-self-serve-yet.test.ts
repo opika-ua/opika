@@ -239,6 +239,12 @@ describe(`a shelter membership is created by the automatic accept only — ${COP
  * (Oleksii, 2026-10-14: "accept the newest and mark the older ones
  * status=canceled in the same statement") lets that statement also cancel
  * the address's other pending invitations to the shelter; nothing else.
+ * GDPR erasure (Oleksii, 2026-10-24, the STOP decision on the `/pro`
+ * sentence: "A: scrub auth_invitation.email in the same statement as the
+ * rest") adds a fourth: `eraseUsersAndScrubHistory`'s own `invitations_
+ * scrubbed` CTE, an in-place edit of the `email` field alone on every row a
+ * deleted user's address was ever sent — the one place outside the accept
+ * and `demo:remove` that may touch this table at all.
  */
 const AUTH_INVITATION_WRITE =
   /\.(insert|update|delete)\(\s*(?:\w+\.)*authInvitation\b|(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:"?auth_invitation\b|\$\{\s*(?:\w+\.)*authInvitation\s*\})/gi;
@@ -252,13 +258,32 @@ const AUTH_INVITATION_WRITE =
  */
 const DEMO_REMOVE_MODULE = "packages/db/src/demo-remove.ts";
 
-describe("Better Auth's invitation table has exactly three writers (HS-Q7, IN-Q13, DR-B1)", () => {
-  it("is kabinetInvitationRepo, the automatic accept, and demo:remove", () => {
+/** GDPR erasure's own shared mechanism (`docs/gdpr-analysis.md` §5 item 4). */
+const ERASURE_MODULE = "packages/db/src/repos/admin-erasure-repo.ts";
+
+describe("Better Auth's invitation table has exactly four writers (HS-Q7, IN-Q13, DR-B1, GDPR-F1)", () => {
+  it("is kabinetInvitationRepo, the automatic accept, demo:remove, and the GDPR erasure", () => {
     expect(filesMatching(new RegExp(AUTH_INVITATION_WRITE.source, "i"))).toEqual([
       DEMO_REMOVE_MODULE,
+      ERASURE_MODULE,
       ACCEPT_MODULE,
       "packages/db/src/repos/kabinet-invitation-repo.ts",
     ]);
+  });
+
+  /**
+   * The erasure may only scrub the `email` field in place — never insert or
+   * delete an invitation row, which would be a new decision, not this one.
+   */
+  it("the erasure's only write to auth_invitation is UPDATE ... SET email", () => {
+    const writes = [
+      ...readFileSync(join(REPO, ERASURE_MODULE), "utf8").matchAll(AUTH_INVITATION_WRITE),
+    ].map((match) => match[0].replace(/\s+/g, ""));
+    expect(writes.length, `${ERASURE_MODULE} no longer scrubs invitations`).toBeGreaterThan(0);
+    expect(
+      [...new Set(writes)],
+      `${ERASURE_MODULE} may only update invitations' email (GDPR-F1)`,
+    ).toEqual(['UPDATE"auth_invitation']);
   });
 
   it("demo:remove's only write to it is .delete(authInvitation)", () => {

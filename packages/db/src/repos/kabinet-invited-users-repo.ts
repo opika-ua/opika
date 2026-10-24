@@ -1,21 +1,18 @@
-import { and, eq, inArray, isNull, lt, or, type SQL, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
+import { authInvitation, authMember, authUser, invitationCreatedUsers } from "../schema/auth";
 import {
-  authInvitation,
-  authMember,
-  authUser,
-  invitationCreatedUsers,
-  superAdmins,
-  supportSessions,
-} from "../schema/auth";
-import { eraseUsersAndScrubHistory, NOT_ELSEWHERE_IN_USE } from "./admin-erasure-repo";
+  eraseUsersAndScrubHistory,
+  NOT_ELSEWHERE_IN_USE,
+  noLiveInvitationElsewhere,
+} from "./admin-erasure-repo";
 
 /** A user an invitation created that the clean-up would remove (RG-Q3, RS-Q1). */
 export type CleanupCandidate = { userId: string; email: string; invitationId: string };
 
 /**
  * The users an invitation created (RG-Q3): marking their first sign-in, and
- * cleaning up the ones whose invitation died unused. Separate from
+ * cleaning up the ones who no longer hold any shelter role. Separate from
  * `kabinetInvitationRepo` on purpose: this module creates no invitation, no
  * user and no membership, so Better Auth's session hook can use it without
  * becoming a path to a membership (HS-Q3's guard in no-self-serve-yet.test.ts).
@@ -23,8 +20,12 @@ export type CleanupCandidate = { userId: string; email: string; invitationId: st
 export function kabinetInvitedUsersRepo(db: Database) {
   return {
     /**
-     * Set once, by Better Auth's session-create hook: from then on this user
-     * has signed in, and the clean-up never touches them (RG-Q3, RS-Q0).
+     * Set once, by Better Auth's session-create hook. Kept for its own sake
+     * (an audit fact — has this invitee ever signed in) but no longer read
+     * by the clean-up below: Oleksii's generalised erasure invariant,
+     * 2026-10-24 ("whether or not it ever signed in"), replaced the earlier
+     * "no session ever" condition entirely (RG-Q3's own rule, amended the
+     * same day — see `cleanupCandidates`/`deleteCandidates`).
      */
     async markFirstSession(userId: string, at: Date): Promise<void> {
       await db
@@ -39,19 +40,34 @@ export function kabinetInvitedUsersRepo(db: Database) {
     },
 
     /**
-     * Users the clean-up may delete (RG-Q3, Oleksii): created by an invitation
-     * that was revoked or has expired, with **no membership** and **no session
-     * ever**. Scoped to one organization (the lazy clean-up on
-     * `registry.admins.*`, RS-Q1) or to all (`admin:sweep-invites`).
+     * Users the clean-up may delete: every account an invitation created
+     * that today holds no shelter role at all — no membership, not an
+     * operator, no support session, and no live invitation anywhere
+     * (`NOT_ELSEWHERE_IN_USE` and `noLiveInvitationElsewhere`, the same two
+     * checks `deleteCandidates` below and `erasableIf` both use — one
+     * invariant, not a copy of it. `NOT_ELSEWHERE_IN_USE`'s own membership
+     * check is redundant with the `leftJoin`/`isNull` below; kept anyway,
+     * since reusing the shared constant as-is is what keeps this in sync
+     * with every other caller rather than drifting from it). Scoped to one
+     * organization (the lazy clean-up on `registry.admins.*`, RS-Q1) or to
+     * all (the auth-cleanup cron, `admin:sweep-invites`).
+     *
+     * **Amended, 2026-10-24** (Oleksii, the STOP decision on the `/pro`
+     * sentence, "A, generalised"): "a non-operator account with no shelter
+     * membership and no live invitation is erased … whether or not it ever
+     * signed in." RG-Q3's original "no session ever" condition is gone —
+     * `firstSessionAt` no longer gates this at all, only
+     * `erasableIf`/`noLiveInvitationElsewhere`'s own invariant does, which
+     * already excludes a user whose *own* creating invitation is still live
+     * (it would itself be "a live invitation … for the address"), so the
+     * separate revoked-or-expired check on that one invitation is gone too
+     * — redundant with the "no live invitation anywhere" check once
+     * `firstSessionAt` no longer needs its own `dead`-invitation join.
      */
     async cleanupCandidates(input: {
       organizationId: string | null;
       now: Date;
     }): Promise<CleanupCandidate[]> {
-      const dead = or(
-        eq(authInvitation.status, "canceled"),
-        and(eq(authInvitation.status, "pending"), lt(authInvitation.expiresAt, input.now)),
-      );
       return db
         .select({
           userId: invitationCreatedUsers.userId,
@@ -64,23 +80,9 @@ export function kabinetInvitedUsersRepo(db: Database) {
         .leftJoin(authMember, eq(authMember.userId, invitationCreatedUsers.userId))
         .where(
           and(
-            dead,
-            isNull(invitationCreatedUsers.firstSessionAt),
             isNull(authMember.id),
-            // Re-invited since (review of the invited-users row, finding 1):
-            // a live invitation for the same address keeps the user, or the
-            // clean-up would delete someone who can then never sign in to
-            // accept it (sign-up is off). lower() on both sides for the same
-            // reason admin-erasure-repo.ts's own join does (Oleksii,
-            // 2026-10-24 review brief): a differently-cased address must
-            // still be found, not only addresses that already match case for
-            // case because every write path normalises first.
-            sql`NOT EXISTS (SELECT 1 FROM ${authInvitation} live WHERE lower(live.email) = lower(${authUser.email}) AND live.status = 'pending' AND live.expires_at > ${input.now.toISOString()}::timestamptz)`,
-            // The same exclusions the delete applies, so a dry run never
-            // lists someone `--apply` would then skip (review of the scripts
-            // row, finding 7).
-            sql`NOT EXISTS (SELECT 1 FROM ${superAdmins} WHERE ${superAdmins.userId} = ${authUser.id})`,
-            sql`NOT EXISTS (SELECT 1 FROM ${supportSessions} WHERE ${supportSessions.operatorUserId} = ${authUser.id})`,
+            NOT_ELSEWHERE_IN_USE,
+            noLiveInvitationElsewhere(input.now),
             input.organizationId === null
               ? undefined
               : eq(authInvitation.organizationId, input.organizationId),
@@ -89,31 +91,28 @@ export function kabinetInvitedUsersRepo(db: Database) {
     },
 
     /**
-     * Deletes the candidates, re-checking every condition in the same
-     * statement (never signed in, no membership, no live invitation for the
-     * address), so a sign-in, an acceptance or a re-invite between listing and
-     * deleting keeps the user. Users with a non-cascading row (a super_admin
-     * grant, a support session) are skipped, never an error. Better Auth's FKs
-     * cascade the rest.
+     * Deletes the candidates, re-checking the full invariant in the same
+     * statement (no membership, not an operator, no live invitation
+     * anywhere for the address), so a sign-in, an acceptance or a re-invite
+     * between listing and deleting keeps the user. Users with a
+     * non-cascading row (a super_admin grant, a support session) are
+     * skipped, never an error. Better Auth's FKs cascade the rest.
      *
      * Routes through `eraseUsersAndScrubHistory` (GDPR erasure, option A,
-     * `docs/gdpr-analysis.md` §5 item 4): a withdrawn-pending or
-     * expired-never-accepted invite's `admin_invited`/`admin_invitation_resent`/
-     * `admin_removed` history entries lose the real email in the same
-     * statement as the account's deletion, exactly as an accepted admin's
-     * removal already did — one shared mechanism, not a second copy of the
-     * scrub for this path.
+     * `docs/gdpr-analysis.md` §5 item 4): a departed invitee's
+     * `admin_invited`/`admin_invitation_resent`/`admin_removed` history
+     * entries, and every `auth_invitation` row their address was ever sent,
+     * lose the real email in the same statement as the account's deletion,
+     * exactly as an accepted admin's removal (`erasableIf`) already did —
+     * one shared mechanism, not a second copy of the scrub for this path.
      */
     async deleteCandidates(userIds: readonly string[], now: Date): Promise<number> {
       if (userIds.length === 0) return 0;
       const condition = and(
         inArray(authUser.id, [...userIds]),
-        sql`EXISTS (SELECT 1 FROM ${invitationCreatedUsers} WHERE ${invitationCreatedUsers.userId} = ${authUser.id} AND ${invitationCreatedUsers.firstSessionAt} IS NULL)`,
-        sql`NOT EXISTS (SELECT 1 FROM ${authInvitation} live WHERE lower(live.email) = lower(${authUser.email}) AND live.status = 'pending' AND live.expires_at > ${now.toISOString()}::timestamptz)`,
-        // Rows whose FKs don't cascade (a grant, a support session): such
-        // a user is never the clean-up's to delete, and one of them must
-        // not abort the whole batch with a raw FK error (finding 2).
+        sql`EXISTS (SELECT 1 FROM ${invitationCreatedUsers} WHERE ${invitationCreatedUsers.userId} = ${authUser.id})`,
         NOT_ELSEWHERE_IN_USE,
+        noLiveInvitationElsewhere(now),
       ) as SQL;
       const { erasedCount } = await eraseUsersAndScrubHistory(db, condition);
       return erasedCount;

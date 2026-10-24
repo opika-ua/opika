@@ -366,25 +366,87 @@ decisions (`docs/standing-constraints.md`'s Ukrainian-copy and public-claim gate
    Oleksii's brief named directly — recorded under "Decisions taken" in the PR.
 
    **Decision 1 — keep the public sentence's single membership condition.** The code checks
-   three things for `eraseOneUserIf` (no other shelter membership, not a `super_admin`, no
+   three things for `erasableIf` (no other shelter membership, not a `super_admin`, no
    support session as operator); the sentence states one ("if that address has no access to
    another shelter"). Oleksii's decision: keep the simple sentence. The other two guards are
    internal safety checks a real shelter admin can never actually trip, by construction
    elsewhere in this system: `registry.admins.invite` refuses to invite an operator's address
    at all (RG-T10), and support mode is reachable only by an operator acting as one — so a
    real shelter admin's account can never also be a `super_admin` or hold a support session.
-   `deleteCandidates`'s own extra "no live invite elsewhere" guard is covered honestly instead
-   — the sentence's final wording ("і не запрошена до нього") names it directly, closing what
-   the first round of this check found missing.
+   `erasableIf`'s own "no live invite elsewhere" guard is covered honestly instead — the
+   sentence's final wording ("і не запрошена до нього") names it directly, closing what the
+   first round of this check found missing.
+
+   **A Tier 1 STOP, same day, pinned to `4412085` (the first PASS-pending head), found the
+   sentence still false in two reachable states.** Finding 1 (blocker): `eraseUsersAndScrubHistory`
+   never touched `auth_invitation.email`, so every invitation the deleted address was ever sent
+   kept the real address in plain sight — "обліковий запис і адреса пошти видаляються" was false
+   whenever an invitation row (dead or not) existed for that address, which is every real case.
+   Finding 2 (blocker): `kabinetInvitedUsersRepo`'s clean-up only ever deleted a user with
+   `firstSessionAt IS NULL` (RG-Q3's original condition), so an invitee who signed in even once
+   — reachable, since Better Auth's magic link accepts any existing user, expired invitation or
+   not — was never erased at all, contradicting "запрошення так і не прийняли … видаляються."
+   A third, non-blocking finding: the auth-cleanup cron never ran the invite sweep, so a dormant
+   shelter's dead invitee could wait indefinitely rather than being erased promptly. A fourth,
+   also non-blocking: `NOT_ELSEWHERE_IN_USE`'s `super_admin` check had no `revokedAt` filter, so
+   Decision 1's premise ("a real shelter admin can never also be a super_admin") is false for a
+   *former* operator — reachable only by Oleksii's own account today.
+
+   Oleksii's decisions on all four, verbatim:
+   1. "A: scrub auth_invitation.email in the same statement as the rest. Test that no row
+      anywhere still holds the address after the erasure (invitations, history, users)."
+   2. "A, generalised: replace the trigger-specific conditions with one invariant: a
+      non-operator account with no shelter membership and no live invitation is erased
+      (account deleted, email scrubbed from every shelter's history and from invitations),
+      whether or not it ever signed in. The three paths (removal, withdrawal, expiry) all just
+      check this invariant through the shared mechanism. Update RG-Q3 accordingly, with my
+      decision quoted. Tests include signing in after the invite expired → erased on the next
+      sweep."
+   3. "A: add the expired-invitation sweep to the existing auth clean-up schedule. A dormant
+      shelter's dead invitee is erased without any kabinet action. Test it with fake timers."
+   4. "The former operator: no code change. Document in docs/gdpr-analysis.md that an account
+      with any operator grant, active or revoked, is outside this mechanism (operator audit
+      trail), and that today that's only me."
+
+   **Built.** `eraseUsersAndScrubHistory` gained a fourth CTE, `invitations_scrubbed`, scrubbing
+   every `auth_invitation` row (any shelter, any status) whose email matches a deleted user's,
+   independently of `targets`/`scrubbed` — so a dead invitation at a shelter with no matching
+   history row is still scrubbed. `NOT_ELSEWHERE_IN_USE` and a new `noLiveInvitationElsewhere(now)`
+   became the one shared invariant, exported as `erasableIf(userId, now)` (replacing the
+   narrower `eraseOneUserIf`) and used identically by `registry.admins.remove`'s accepted-member
+   path and `kabinetInvitedUsersRepo.cleanupCandidates`/`deleteCandidates` — the latter's
+   `firstSessionAt`/`dead`-invitation-specific filters are gone entirely, since "no live
+   invitation anywhere" already subsumes a user's own creating invitation being dead.
+   `apps/web/src/kabinet/auth-cleanup.ts` (the existing 6-hourly sign-in clean-up cron) now also
+   runs the invite sweep across every organisation, logging only a count
+   (`erasedInvitedUsers`), same discipline as its existing "counts only, never an address" rule.
+   Decision 4 needed no code change; documented here as the `NOT_ELSEWHERE_IN_USE` constant's
+   own doc comment states it: any `super_admins` row, active or revoked, keeps an account
+   outside this mechanism entirely — today that is only Oleksii's own operator account, which
+   has never been invited as a shelter admin (RG-T10 prevents it) and so never reaches this path
+   in practice.
+
+   Mutation-tested: the invitations CTE (dropped to `WHERE FALSE`, and its own `lower()` dropped
+   separately — both confirmed red against the differently-cased, scoping and "no row anywhere"
+   tests); `erasableIf`'s live-invitation-elsewhere check (dropped to `TRUE`, confirmed red); the
+   `firstSessionAt`-removal itself (reverted to the old `isNull(firstSessionAt)` gate on both
+   `cleanupCandidates` and `deleteCandidates`, confirmed red on all three of the new sign-in
+   tests); and the cron's sweep call (removed, confirmed red on the dormant-invitee test). A
+   genuine test-fixture gap surfaced by the widened invariant, not a product bug: `registry.
+   test.ts`'s `acceptedAdmin()` helper created a membership via a raw insert without flipping the
+   invitation's own status to `accepted` (which the real accept flow does atomically) — so the
+   fixture's own invitation looked, correctly, like a live invitation elsewhere once `erasableIf`
+   started checking for one. Fixed by a small test-only `markInvitationAccepted` helper
+   (`packages/db/src/test-utils/invitation-fixtures.ts`) rather than weakening the invariant.
 
    **Landed, not held.** `/pro` is a public page, under the strict copy gate
    (`docs/standing-constraints.md`), but this is Oleksii's own dictated Ukrainian, not copy
-   this session invented — checked word for word against the final code across the rounds
-   above, with nothing left differing on the last pass. `ADMIN_ERASURE_SENTENCE`
-   (`packages/i18n/src/messages/uk.ts`) is appended directly into the live `uk.about.data`
-   string, as its own paragraph between the kabinet-access one it continues and the history
-   paragraph it's a specific case of — unlike `PENDING_R4_2_ANALYTICS_SENTENCE`, nothing gates
-   this one off `/pro`.
+   this session invented. Re-checked word for word against the final, STOP-fixed code — see
+   this row's own entry in `docs/decisions-inbox/gdpr-admin-erasure.md` for the outcome.
+   `ADMIN_ERASURE_SENTENCE` (`packages/i18n/src/messages/uk.ts`) is appended directly into the
+   live `uk.about.data` string, as its own paragraph between the kabinet-access one it continues
+   and the history paragraph it's a specific case of — unlike `PENDING_R4_2_ANALYTICS_SENTENCE`,
+   nothing gates this one off `/pro`.
 5. **State `auth_session.user_agent`'s purpose in `/pro`'s own copy** (closes G5) — a copy
    change, not a code change; the decision to keep the field is already made.
 6. **Decide G7** — a consent mechanism for the one adopter cookie, or a recorded "strictly

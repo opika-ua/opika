@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Database } from "@opika/db";
-import { authExpiryRepo } from "@opika/db/repos";
+import { authExpiryRepo, kabinetInvitedUsersRepo } from "@opika/db/repos";
 
 /**
  * The scheduled clean-up of dead Better Auth rows (inbox KH-Q9). Oleksii,
@@ -20,7 +20,15 @@ import { authExpiryRepo } from "@opika/db/repos";
  *   one statement: rows past their expiry (KH-Q9), and sessions past their
  *   holder's idle limit or cap whatever their `expires_at` (EM-Q11,
  *   2026-10-14; by role since PW-1, `KABINET_SESSION_LIMITS`: 30 days idle
- *   and 90 at most for a shelter admin, 7 and 30 for the operator).
+ *   and 90 at most for a shelter admin, 7 and 30 for the operator). Since
+ *   2026-10-24 (the GDPR STOP decision, item 3: "add the expired-invitation
+ *   sweep to the existing auth clean-up schedule. A dormant shelter's dead
+ *   invitee is erased without any kabinet action"), also every account
+ *   `kabinetInvitedUsersRepo.cleanupCandidates`/`deleteCandidates` finds
+ *   eligible across every organisation — a departed invitee who never
+ *   triggers a `registry.admins.*` call (no one ever removes or resends
+ *   their dead invitation by hand) is erased here instead, within this
+ *   cron's own 6-hour worst case, not left to wait indefinitely.
  * - **Who may call it:** Vercel's cron, which sends
  *   `Authorization: Bearer <CRON_SECRET>`. Compared in constant time over
  *   SHA-256 digests (fixed length, so neither the value nor its length
@@ -47,15 +55,25 @@ export async function handleAuthCleanup(
     return new Response("Unauthorized", { status: 401 });
   }
   const counts = await authExpiryRepo(deps.db()).deleteExpired(deps.now);
+  const users = kabinetInvitedUsersRepo(deps.db());
+  const candidates = await users.cleanupCandidates({ organizationId: null, now: deps.now });
+  const erasedInvitedUsers =
+    candidates.length === 0
+      ? 0
+      : await users.deleteCandidates(
+          candidates.map((candidate) => candidate.userId),
+          deps.now,
+        );
   deps.log(
     JSON.stringify({
       event: "kabinet_auth_cleanup",
       outcome: "deleted",
       verifications: counts.verifications,
       sessions: counts.sessions,
+      erasedInvitedUsers,
     }),
   );
-  return Response.json(counts);
+  return Response.json({ ...counts, erasedInvitedUsers });
 }
 
 const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();

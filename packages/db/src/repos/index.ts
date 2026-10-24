@@ -1,8 +1,4 @@
-export {
-  eraseOneUserIf,
-  eraseUsersAndScrubHistory,
-  NOT_ELSEWHERE_IN_USE,
-} from "./admin-erasure-repo";
+export { erasableIf, eraseUsersAndScrubHistory } from "./admin-erasure-repo";
 export { adopterRepo } from "./adopter-repo";
 export { animalRepo } from "./animal-repo";
 export {
