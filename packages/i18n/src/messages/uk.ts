@@ -18,21 +18,27 @@
 export const COPY_PENDING = "[COPY PENDING]";
 
 /**
- * R4-2 (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`), Oleksii's
- * own Ukrainian, verbatim — held here rather than appended to
+ * R4-2, Oleksii's own Ukrainian — held here rather than appended to
  * `uk.about.analytics` yet, because it can't go live while the pre-launch
  * gate still gives a real visitor a second, undisclosed cookie
  * (`docs/observations.md`'s "/pro sentence" section has the full gating
- * decision). `apps/web/src/seo-flags.ts`'s `assertAnalyticsCopyMatchesGateState`
- * checks for this exact string, not a loose substring, so that a reworded or
- * partial version of the sentence still trips the tripwire. When this lands,
- * append this constant to `uk.about.analytics` directly — `+ " " +
- * PENDING_R4_2_ANALYTICS_SENTENCE` or equivalent — rather than retyping the
- * text, so the landed sentence and this constant can never drift apart.
+ * decision). The text has moved since his original 2026-10-06 draft
+ * (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`): PR #186 (S8)
+ * appended the saved-list sentence, and the right-swipe word is now
+ * «Написати» only, matching the global rename in copy audit #19
+ * (2026-10-22, PR #183) — «Запитати» no longer names anything in the
+ * product. **This constant, not the 2026-10-06 file, is what lands** when
+ * R4-2 actually ships. `apps/web/src/seo-flags.ts`'s
+ * `assertAnalyticsCopyMatchesGateState` checks for this exact string, not a
+ * loose substring, so that a reworded or partial version of the sentence
+ * still trips the tripwire. When this lands, append this constant to
+ * `uk.about.analytics` directly — `+ " " + PENDING_R4_2_ANALYTICS_SENTENCE`
+ * or equivalent — rather than retyping the text, so the landed sentence and
+ * this constant can never drift apart.
  */
 export const PENDING_R4_2_ANALYTICS_SENTENCE =
   "Людині, яка шукає тварину, сайт ставить одне кукі — і тільки після першої дії: " +
-  "«Не зараз», «Запитати» чи «Написати». У ньому немає імені чи номера телефону, лише " +
+  "«Не зараз» чи «Написати». У ньому немає імені чи номера телефону, лише " +
   "випадковий ідентифікатор: щоб режим «по одній» памʼятав, кого ви вже бачили, а сайт — " +
   "чиї контакти ви вже відкрили. Він перестає діяти через 7 днів без візитів або через 30 " +
   "днів у будь-якому разі. Окремо від кукі, якщо ви зберігаєте тварин, їхній список лежить " +
