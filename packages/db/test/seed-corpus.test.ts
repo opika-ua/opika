@@ -4,6 +4,7 @@ import {
   DEFAULT_FRESHNESS_POLICY,
   freshnessOf,
   isDiscoverable,
+  isPubliclyVerified,
   ShelterSchema,
 } from "@opika/domain";
 import { describe, expect, it } from "vitest";
@@ -50,6 +51,29 @@ describe("seed corpus — D-4 hostile cases", () => {
     for (const animal of animals) {
       expect(() => AnimalSchema.parse(animal)).not.toThrow();
     }
+  });
+
+  /**
+   * S8-F5: `everServedAt` is non-null exactly for a row that's actually
+   * discoverable under its own (possibly non-verified) shelter right now —
+   * computed the same way the real hooks would, not hand-set per row, so
+   * this is the corpus itself proving the predicate, not a fixture pretending to.
+   */
+  it("everServedAt is set exactly where the real visibility predicate would say so, nowhere else", () => {
+    const shelterById = new Map(shelters.map((s) => [s.id, s]));
+    for (const animal of animals) {
+      const shelter = shelterById.get(animal.shelterId);
+      if (shelter === undefined)
+        throw new Error(`Animal ${animal.id} has no shelter in the corpus`);
+      const shouldBeServed =
+        isDiscoverable(animal.listing) && isPubliclyVerified(shelter.verification);
+      expect(animal.everServedAt !== null).toBe(shouldBeServed);
+    }
+    // Both sides of the predicate are actually exercised by this corpus —
+    // a check that trivially passes because every row is the same kind
+    // would be decoration, not a limit.
+    expect(animals.some((a) => a.everServedAt !== null)).toBe(true);
+    expect(animals.some((a) => a.everServedAt === null)).toBe(true);
   });
 
   describe("built for D-4, 2026-09-06", () => {

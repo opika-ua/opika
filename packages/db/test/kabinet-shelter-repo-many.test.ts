@@ -7,6 +7,7 @@ import {
   type ShelterAdminId,
   type ShelterHistoryEntry,
   ShelterHistoryEntrySchema,
+  type ShelterVerification,
   testOnlyLocationPolicy,
 } from "@opika/domain";
 import { eq } from "drizzle-orm";
@@ -275,5 +276,222 @@ describe("an admin_joined history line", () => {
     const page = await repo().historyPage({ shelterId: s.id, after: null, limit: 10 });
     expect(page.items).toEqual([entry]);
     expect(ShelterHistoryEntrySchema.parse(page.items[0])).toEqual(entry);
+  });
+});
+
+/**
+ * S8-F5, hook 2: entering `verified` is the one thing that can make an
+ * already-published card visible for the first time without any write of
+ * its own (hook 1, `writeListingIf`, never runs for it). `kabinetShelterRepo
+ * .applyAuditedMany` stamps every one of that shelter's discoverable,
+ * not-yet-stamped animals in the same statement as the verification write —
+ * the same cross-table-CTE shape as the address-change tests above.
+ */
+describe("S8-F5: everServedAt, a shelter entering `verified` (hook 2)", () => {
+  const PAUSED: ShelterVerification = {
+    status: "paused",
+    verifiedAt: new Date("2026-01-01T00:00:00.000Z"),
+    verifiedBy: MOD,
+    pausedAt: new Date("2026-08-01T00:00:00.000Z"),
+    pausedBy: { kind: "shelter_admin", shelterAdminId: "admin-1" as ShelterAdminId },
+    reason: { code: "other", note: null },
+    evidence: { items: [], submittedAt: new Date("2026-01-01T00:00:00.000Z") },
+  };
+  const VERIFIED: ShelterVerification = {
+    status: "verified",
+    verifiedAt: new Date("2026-01-01T00:00:00.000Z"),
+    verifiedBy: MOD,
+    evidence: { items: [], submittedAt: new Date("2026-01-01T00:00:00.000Z") },
+  };
+  const everServedAtOf = async (id: string) =>
+    (await animalRepo(db).findById(id as never))?.everServedAt ?? null;
+
+  async function pausedShelterWithAnimals() {
+    const s = makeShelter({
+      verification: PAUSED,
+      publicLocation: { ...makeShelter().publicLocation, cityId: homeCity } as never,
+    });
+    await shelterRepo(db).insert(s);
+    // Published while paused: never actually served, so `null` — exactly
+    // what hook 1 would have computed, had this gone through it.
+    const publishedWhilePaused = makeAnimal({ shelterId: s.id, everServedAt: null });
+    // Not discoverable: must stay untouched regardless of the shelter.
+    const draft = makeAnimal({ shelterId: s.id, listing: { kind: "draft" }, everServedAt: null });
+    // Already served before this shelter was ever paused: must keep its
+    // own, earlier timestamp, not be bumped to this write's `now`.
+    const alreadyServedAt = new Date("2026-02-01T00:00:00.000Z");
+    const alreadyServed = makeAnimal({ shelterId: s.id, everServedAt: alreadyServedAt });
+    await animalRepo(db).insert(publishedWhilePaused, homeCity as never);
+    await animalRepo(db).insert(draft, homeCity as never);
+    await animalRepo(db).insert(alreadyServed, homeCity as never);
+    return { s, publishedWhilePaused, draft, alreadyServed, alreadyServedAt };
+  }
+
+  it("published while paused → null → resumed → set", async () => {
+    const { s, publishedWhilePaused } = await pausedShelterWithAnimals();
+    expect(await everServedAtOf(publishedWhilePaused.id)).toBeNull();
+
+    const result = await repo().applyAuditedMany({
+      shelterId: s.id,
+      expectedVersion: s.version,
+      changes: [{ kind: "verification", verification: VERIFIED }],
+      entries: [
+        {
+          id: "h1",
+          entry: {
+            kind: "verification",
+            event: {
+              type: "resume",
+              at: NOW,
+              actor: { kind: "shelter_admin", shelterAdminId: "admin-1" as ShelterAdminId },
+            },
+            from: "paused",
+            to: "verified",
+          },
+        },
+      ],
+      now: NOW,
+    });
+
+    expect(result).toEqual({ kind: "ok" });
+    expect(await everServedAtOf(publishedWhilePaused.id)).toEqual(NOW);
+  });
+
+  it("leaves a draft untouched, even at a shelter that just became verified", async () => {
+    const { s, draft } = await pausedShelterWithAnimals();
+    await repo().applyAuditedMany({
+      shelterId: s.id,
+      expectedVersion: s.version,
+      changes: [{ kind: "verification", verification: VERIFIED }],
+      entries: [
+        {
+          id: "h1",
+          entry: {
+            kind: "verification",
+            event: {
+              type: "resume",
+              at: NOW,
+              actor: { kind: "shelter_admin", shelterAdminId: "admin-1" as ShelterAdminId },
+            },
+            from: "paused",
+            to: "verified",
+          },
+        },
+      ],
+      now: NOW,
+    });
+    expect(await everServedAtOf(draft.id)).toBeNull();
+  });
+
+  it("never moves an already-set everServedAt forward", async () => {
+    const { s, alreadyServed, alreadyServedAt } = await pausedShelterWithAnimals();
+    await repo().applyAuditedMany({
+      shelterId: s.id,
+      expectedVersion: s.version,
+      changes: [{ kind: "verification", verification: VERIFIED }],
+      entries: [
+        {
+          id: "h1",
+          entry: {
+            kind: "verification",
+            event: {
+              type: "resume",
+              at: NOW,
+              actor: { kind: "shelter_admin", shelterAdminId: "admin-1" as ShelterAdminId },
+            },
+            from: "paused",
+            to: "verified",
+          },
+        },
+      ],
+      now: NOW,
+    });
+    expect(await everServedAtOf(alreadyServed.id)).toEqual(alreadyServedAt);
+  });
+
+  it("does nothing extra for a verification change that doesn't reach `verified` (e.g. a suspend)", async () => {
+    const s = makeShelter({
+      verification: VERIFIED,
+      publicLocation: { ...makeShelter().publicLocation, cityId: homeCity } as never,
+    });
+    await shelterRepo(db).insert(s);
+    const published = makeAnimal({ shelterId: s.id, everServedAt: null });
+    await animalRepo(db).insert(published, homeCity as never);
+
+    await repo().applyAuditedMany({
+      shelterId: s.id,
+      expectedVersion: s.version,
+      changes: [
+        {
+          kind: "verification",
+          verification: {
+            status: "suspended",
+            suspendedAt: NOW,
+            suspendedBy: MOD,
+            reason: { code: "unresponsive", note: null },
+            priorState: { status: "verified", verifiedAt: VERIFIED.verifiedAt, verifiedBy: MOD },
+            evidence: { items: [], submittedAt: NOW },
+          },
+        },
+      ],
+      entries: [
+        {
+          id: "h1",
+          entry: {
+            kind: "verification",
+            event: {
+              type: "suspend",
+              at: NOW,
+              moderatorId: MOD,
+              reason: { code: "unresponsive", note: null },
+            },
+            from: "verified",
+            to: "suspended",
+          },
+        },
+      ],
+      now: NOW,
+    });
+    // Suspending never serves anything new — the animal genuinely was
+    // never served (it was published null, and a suspend only removes
+    // visibility, never grants it), so it correctly stays null.
+    expect(await everServedAtOf(published.id)).toBeNull();
+  });
+
+  it("approve (under_review → verified) stamps a pending shelter's already-published cards too", async () => {
+    const s = makeShelter({
+      verification: {
+        status: "under_review",
+        startedAt: new Date("2026-08-01T00:00:00.000Z"),
+        reviewerId: MOD,
+        evidence: { items: [], submittedAt: new Date("2026-08-01T00:00:00.000Z") },
+      },
+      publicLocation: { ...makeShelter().publicLocation, cityId: homeCity } as never,
+    });
+    await shelterRepo(db).insert(s);
+    // S8-F5's own motivating case: a pending/under-review shelter's admins
+    // can publish from day one (CLAUDE.md decision #6), before the shelter
+    // has ever been verified once.
+    const publishedBeforeApproval = makeAnimal({ shelterId: s.id, everServedAt: null });
+    await animalRepo(db).insert(publishedBeforeApproval, homeCity as never);
+
+    await repo().applyAuditedMany({
+      shelterId: s.id,
+      expectedVersion: s.version,
+      changes: [{ kind: "verification", verification: VERIFIED }],
+      entries: [
+        {
+          id: "h1",
+          entry: {
+            kind: "verification",
+            event: { type: "approve", at: NOW, moderatorId: MOD },
+            from: "under_review",
+            to: "verified",
+          },
+        },
+      ],
+      now: NOW,
+    });
+    expect(await everServedAtOf(publishedBeforeApproval.id)).toEqual(NOW);
   });
 });

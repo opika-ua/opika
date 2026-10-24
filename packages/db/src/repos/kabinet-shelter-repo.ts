@@ -1,4 +1,5 @@
 import {
+  DISCOVERABLE_LISTING_KINDS,
   type DonationLink,
   type ExactAddress,
   type FreshnessSentence,
@@ -13,7 +14,7 @@ import {
   type ShelterLegalEntity,
   type ShelterVerification,
 } from "@opika/domain";
-import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
 import { shelterHistory } from "../schema/shelter-history";
@@ -45,6 +46,8 @@ export type AuditedShelterChange =
   | { kind: "display_name"; displayName: string };
 
 export type AuditedWriteResult = { kind: "ok" } | { kind: "conflict" };
+
+type WriteCte = Parameters<Database["with"]>[number];
 
 function columnsOf(change: AuditedShelterChange) {
   switch (change.kind) {
@@ -161,24 +164,50 @@ export function kabinetShelterRepo(db: Database) {
           .returning({ id: shelters.id }),
       );
       const moved = input.changes.find((change) => change.kind === "exact_address");
-      const withs =
-        moved === undefined
-          ? [upd]
-          : [
-              upd,
-              db.$with("moved").as(
-                db
-                  .update(animals)
-                  .set({ cityId: moved.publicLocation.cityId as never })
-                  .where(
-                    and(
-                      sql`${animals.shelterId} IN (SELECT "id" FROM "upd")`,
-                      isNull(animals.publicLocation),
-                    ),
-                  )
-                  .returning({ id: animals.id }),
-              ),
-            ];
+      // S8-F5, hook 2: entering `verified` (approve, resume, reinstate — the
+      // only three events `transition()` can produce this status for) can
+      // make animals visible that a publish never stamped, because they
+      // were published while this shelter was pending, paused or suspended.
+      // Every one of that shelter's currently-discoverable, not-yet-stamped
+      // animals gets it in the same statement as the shelter's own write.
+      const becomesVerified = input.changes.some(
+        (change) => change.kind === "verification" && change.verification.status === "verified",
+      );
+      const extraWrites: WriteCte[] = [];
+      if (moved !== undefined) {
+        extraWrites.push(
+          db.$with("moved").as(
+            db
+              .update(animals)
+              .set({ cityId: moved.publicLocation.cityId as never })
+              .where(
+                and(
+                  sql`${animals.shelterId} IN (SELECT "id" FROM "upd")`,
+                  isNull(animals.publicLocation),
+                ),
+              )
+              .returning({ id: animals.id }),
+          ),
+        );
+      }
+      if (becomesVerified) {
+        extraWrites.push(
+          db.$with("served").as(
+            db
+              .update(animals)
+              .set({ everServedAt: input.now })
+              .where(
+                and(
+                  sql`${animals.shelterId} IN (SELECT "id" FROM "upd")`,
+                  inArray(animals.listingKind, [...DISCOVERABLE_LISTING_KINDS]),
+                  isNull(animals.everServedAt),
+                ),
+              )
+              .returning({ id: animals.id }),
+          ),
+        );
+      }
+      const withs = [upd, ...extraWrites];
       // One SELECT per entry, each reading `upd`: no update, no history.
       const rows = sql.join(
         input.entries.map(

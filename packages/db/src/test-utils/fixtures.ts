@@ -134,6 +134,10 @@ const completeAnimalFields = (): CompleteAnimalFields => ({
   spayNeuter: { source: "shelter_declared", state: "unknown", declaredAt: now },
   documentReadiness: UNKNOWN_DOCUMENT_READINESS,
   publicLocation: null,
+  // Matches the published/verified defaults below: a fixture a test doesn't
+  // override is already visible. A test exercising S8-F5 overrides this
+  // (and/or listing/verification) explicitly.
+  everServedAt: now,
   createdAt: now,
   lastUpdatedAt: now,
   version: 0,

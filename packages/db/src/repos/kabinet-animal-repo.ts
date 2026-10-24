@@ -6,10 +6,12 @@ import {
   type CityId,
   confirmationAnchorOf,
   DISCOVERABLE_LISTING_KINDS,
+  everServedAtAfter,
   LISTING_KINDS,
   type ListingKind,
   type ShelterHistoryEntry,
   type ShelterId,
+  type ShelterVerification,
   waitAnchorOf,
 } from "@opika/domain";
 import { and, desc, eq, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
@@ -276,10 +278,21 @@ export function kabinetAnimalRepo(db: Database) {
      * extra guard (`ListingWriteGuard`), and one without it is refused here
      * before anything is written.
      */
+    /**
+     * `shelterVerification` is the shelter's *current* verification state
+     * (hook 1 of 3 for S8-F5; see `kabinetShelterRepo.applyAuditedMany` for
+     * hook 2, and `onboard-shelter.ts`/`seed.ts` for hook 3's insert-time
+     * case). Every listing move passes it — not only `publish` — because a
+     * shelter that stays verified across a confirm/reserve/release needs no
+     * new stamp, and `everServedAtAfter` is a no-op in that case; computing
+     * it uniformly is simpler than special-casing which events can matter.
+     */
     async writeListingIf(
       animalId: AnimalId,
       next: AnimalListingState,
       expected: AnimalListingState,
+      shelterVerification: ShelterVerification,
+      now: Date,
       history: ListingMoveHistory,
       guard: ListingWriteGuard = { kind: "listing_only" },
     ): Promise<ConditionalWrite> {
@@ -287,6 +300,7 @@ export function kabinetAnimalRepo(db: Database) {
       if (publishes && guard.kind !== "publish") {
         throw new Error(`Animal ${animalId}: a publish must compare-and-set on version and photos`);
       }
+      const servedNow = everServedAtAfter(null, next, shelterVerification, now);
       const update = db
         .update(animals)
         .set({
@@ -300,6 +314,13 @@ export function kabinetAnimalRepo(db: Database) {
               ? next.publishedAt.toISOString()
               : null
           }::timestamptz)`,
+          // S8-F5, hook 1: set the first time this row is actually served —
+          // discoverable *and* its shelter currently verified — never
+          // cleared by a later move. `servedNow` is `null` whenever this
+          // move doesn't make the row served (every event but a publish
+          // into an already-verified shelter, ordinarily), in which case
+          // COALESCE is a no-op and the existing value (set or not) stands.
+          everServedAt: sql`COALESCE(${animals.everServedAt}, ${servedNow?.toISOString() ?? null}::timestamptz)`,
         })
         .where(
           and(

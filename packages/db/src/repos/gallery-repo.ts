@@ -267,6 +267,7 @@ function getAnimalColumns() {
     documentReadiness: animals.documentReadiness,
     listing: animals.listing,
     listingKind: animals.listingKind,
+    everServedAt: animals.everServedAt,
     publicLocation: animals.publicLocation,
     cityId: animals.cityId,
     createdAt: animals.createdAt,

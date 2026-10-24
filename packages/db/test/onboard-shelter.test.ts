@@ -191,10 +191,38 @@ describe("buildShelter and buildAnimal ids", () => {
         photos: [{ localPath: "dog-1.jpg" }],
       },
       [{ storageKey: "animals/test/0", width: 800, height: 1000, alt: null }],
-      shelter.id,
+      shelter,
       now,
     );
     expect(animal.id).not.toBe(shelter.id);
+  });
+
+  /**
+   * S8-F5, hook 3: this script is the one real path that inserts an animal
+   * already `published` under a shelter already `verified` — both the
+   * publish-transition hook and the verification-transition hook never run
+   * for it, so this insert is the only chance to stamp `everServedAt`.
+   */
+  it("stamps everServedAt at insert, since every shelter this script creates is already verified", () => {
+    const shelter = buildShelter(SHELTER_INPUT, now, SECRET_A);
+    expect(shelter.verification.status).toBe("verified");
+    const animal = buildAnimal(
+      {
+        idSeed: "test-shelter-served",
+        name: "Ластівка",
+        species: "dog",
+        sex: "female",
+        size: "medium",
+        ageBucket: "adult",
+        descriptionUk: "Опис.",
+        photos: [{ localPath: "dog-1.jpg" }],
+      },
+      [{ storageKey: "animals/test/1", width: 800, height: 1000, alt: null }],
+      shelter,
+      now,
+    );
+    expect(animal.listing.kind).toBe("published");
+    expect(animal.everServedAt).toEqual(now);
   });
 });
 

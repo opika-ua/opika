@@ -183,7 +183,7 @@ describe("animals.cardsByIds", () => {
    * exists before it ever goes live.
    */
   it("returns unavailable with no name for a draft — never public, regardless of the shelter", async () => {
-    const { animal } = await seedFeedAnimal({ listing: { kind: "draft" } });
+    const { animal } = await seedFeedAnimal({ listing: { kind: "draft" }, everServedAt: null });
     const res = await h.call("animals.cardsByIds", { animalIds: [animal.id] });
     const body = res.body as { items: Record<string, unknown>[] };
     expect(body.items).toEqual([{ kind: "unavailable", animalId: animal.id, name: null }]);
@@ -210,8 +210,61 @@ describe("animals.cardsByIds", () => {
     await shelterRepo(h.db).insert(shelter);
     // A real, reachable state, not a fixture-only one (review of 3fce3b7,
     // finding 2): a pending shelter's admins can publish a card from day
-    // one, before the shelter has ever been verified.
-    const animal = makeAnimal({ shelterId: shelter.id });
+    // one, before the shelter has ever been verified. S8-F5: this is the
+    // case `everServedAtAfter` closes precisely — this listing's own window
+    // never overlapped a verified shelter, so it reads `null`.
+    const animal = makeAnimal({ shelterId: shelter.id, everServedAt: null });
+    await animalRepo(h.db).insert(animal, city.id);
+
+    const res = await h.call("animals.cardsByIds", { animalIds: [animal.id] });
+    const body = res.body as { items: Record<string, unknown>[] };
+    expect(body.items).toEqual([{ kind: "unavailable", animalId: animal.id, name: null }]);
+  });
+
+  /**
+   * S8-F5's own case: a card published and withdrawn entirely inside a
+   * window where its shelter was verified once, then paused — the gap
+   * `hasBeenVerified` used to miss, because the shelter's history still
+   * says "was verified", even though this specific listing's own lifetime
+   * never overlapped that window.
+   */
+  it("returns unavailable with no name for a card whose own window never overlapped a verified shelter, even though the shelter was verified before and after", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      verification: {
+        status: "paused",
+        verifiedAt: new Date("2026-01-01T00:00:00Z"),
+        verifiedBy: "00000000-0000-4000-8000-000000000000" as never,
+        pausedAt: new Date("2026-08-01T00:00:00Z"),
+        pausedBy: {
+          kind: "shelter_admin",
+          shelterAdminId: "00000000-0000-4000-8000-000000000000" as never,
+        },
+        reason: { code: "other", note: null },
+        evidence: { items: [], submittedAt: new Date("2026-01-01T00:00:00Z") },
+      },
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    // Published and withdrawn entirely inside the paused window, so this
+    // listing's own lifetime never once overlapped `status: "verified"`.
+    const animal = makeAnimal({
+      shelterId: shelter.id,
+      listing: {
+        kind: "withdrawn",
+        withdrawnAt: new Date("2026-08-05T00:00:00Z"),
+        reason: { code: "other", note: null },
+      },
+      everServedAt: null,
+    });
     await animalRepo(h.db).insert(animal, city.id);
 
     const res = await h.call("animals.cardsByIds", { animalIds: [animal.id] });

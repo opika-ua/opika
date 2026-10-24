@@ -8,7 +8,6 @@ import type {
 import { animalRepo, shelterRepo } from "@opika/db/repos";
 import {
   ageBucketOf,
-  hasBeenVerified,
   isDiscoverableAnimal,
   isListedAnimal,
   isPubliclyVerified,
@@ -119,30 +118,12 @@ export async function animalsCardsByIds(
   const items = input.animalIds.map((animalId) => {
     const animal = animalById.get(animalId);
     const shelter = animal && shelterById.get(animal.shelterId);
-    // A draft was never public, under any shelter state — its name is not
-    // honest to show to a caller who sends no cookie and could in principle
-    // be probing ids rather than reading back its own saved list.
-    //
-    // An approximation, not a precise guarantee (review of 3fce3b7, finding
-    // 1): publishing doesn't actually require shelter verification — a
-    // pending shelter's admins can publish from day one, and `verified` is
-    // the only state `paused`/`suspended` can ever be reached from
-    // (`transition.ts`'s own table). So a card published and withdrawn while
-    // its shelter has never been anything but pending correctly reads as
-    // `wasEverPublic: false` here — but a shelter that *was* verified once,
-    // is now paused or suspended, and publishes-then-withdraws a *new* card
-    // entirely inside that paused/suspended window reads as "was public"
-    // too, even though that specific card's own lifetime never overlapped
-    // with the shelter being verified. `hasBeenVerified` checks the
-    // shelter's history, not whether this one listing's window did. Closing
-    // that precisely needs a stored fact per listing ("was this ever
-    // actually served"), which doesn't exist; this check is the closest
-    // approximation available today, not that fact itself.
-    const wasEverPublic =
-      animal !== undefined &&
-      isListedAnimal(animal) &&
-      shelter !== undefined &&
-      hasBeenVerified(shelter.verification);
+    // S8-F5: the precise fact, not an approximation — `everServedAt` is set
+    // only the instant this exact listing was simultaneously discoverable
+    // and its shelter publicly verified (`everServedAtAfter`), so a card
+    // that was only ever published while pending, paused or suspended reads
+    // `null` here regardless of what the shelter's own history later holds.
+    const everServedAt = animal?.everServedAt ?? null;
 
     if (
       !animal ||
@@ -152,9 +133,13 @@ export async function animalsCardsByIds(
     ) {
       // The row exists and was once shown but isn't any more (adopted,
       // withdrawn, a paused or no-longer-verified shelter) — its name is
-      // still honest to show. `null` for an id with no row behind it, or a
-      // draft that never had one to show.
-      return { kind: "unavailable" as const, animalId, name: wasEverPublic ? animal.name : null };
+      // still honest to show. `null` for an id with no row behind it, a
+      // draft, or a listing that was never actually served.
+      return {
+        kind: "unavailable" as const,
+        animalId,
+        name: everServedAt !== null ? (animal?.name ?? null) : null,
+      };
     }
 
     return {

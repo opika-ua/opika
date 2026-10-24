@@ -326,14 +326,14 @@ describe("our callers read the cleaned error exactly as they read the raw one", 
       publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
     });
     await shelterRepo(handle).insert(shelter);
-    return { shelterId: shelter.id, cityId: city.id };
+    return { shelterId: shelter.id, cityId: city.id, verification: shelter.verification };
   }
 
   it("23514: isCheckViolation finds the CHECK's refusal of an incomplete draft's publish", async () => {
     const published = transitionListing({ kind: "draft" }, { type: "publish", at: AT });
     if (published.kind !== "ok") throw new Error("publish refused");
     const outcomes = await bothWays(async (handle) => {
-      const { shelterId, cityId } = await place(handle);
+      const { shelterId, cityId, verification } = await place(handle);
       const draft = makeDraftAnimal({
         shelterId,
         photos: [{ storageKey: "animals/x/a", width: 800, height: 1000, blurhash: null } as never],
@@ -360,6 +360,8 @@ describe("our callers read the cleaned error exactly as they read the raw one", 
           draft.id,
           published.next as AnimalListingState,
           draft.listing,
+          verification,
+          AT,
           line,
           { kind: "publish", expectedVersion: draft.version },
         ),

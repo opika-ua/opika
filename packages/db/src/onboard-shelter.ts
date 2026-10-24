@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   type AnimalId,
   AnimalIdSchema,
+  type AnimalListingState,
   AnimalNameInputSchema,
   type AnimalPhoto,
   AnimalSexSchema,
@@ -16,6 +17,7 @@ import {
   DonationLinkSchema,
   EvidenceItemInputSchema,
   ExactAddressSchema,
+  everServedAtAfter,
   freshnessSentenceProblemMessage,
   type ListedAnimal,
   MAX_ANIMAL_PHOTOS,
@@ -362,12 +364,18 @@ export function animalIdFor(idSeed: string): AnimalId {
 export function buildAnimal(
   input: z.infer<typeof OnboardAnimalSchema>,
   photos: readonly AnimalPhoto[],
-  shelterId: Shelter["id"],
+  shelter: Pick<Shelter, "id" | "verification">,
   now: Date,
 ): ListedAnimal {
+  const listing: AnimalListingState = {
+    kind: "published",
+    publishedAt: now,
+    confirmedAt: now,
+    undoable: null,
+  };
   return {
     id: animalIdFor(input.idSeed),
-    shelterId,
+    shelterId: shelter.id,
     name: input.name,
     species: input.species,
     sex: input.sex,
@@ -383,11 +391,17 @@ export function buildAnimal(
     documentReadiness: UNKNOWN_DOCUMENT_READINESS,
     // Publishing is the first confirmation: a shelter handing over a live
     // animal is saying it is looking for a home today.
-    listing: { kind: "published", publishedAt: now, confirmedAt: now, undoable: null },
+    listing,
     // null: inherits the shelter's own publicLocation, computed above.
     // Only a fostered animal (not supported by this script) would need its
     // own city-precision location — see animal.ts's own comment on the field.
     publicLocation: null,
+    // S8-F5's third hook: this script is the one real path that can insert an
+    // animal already published under an already-verified shelter (every
+    // shelter it inserts is `status: "verified"` from the start), so the
+    // publish-transition and verification-transition hooks never fire for
+    // it — this is the only chance to stamp the fact.
+    everServedAt: everServedAtAfter(null, listing, shelter.verification, now),
     createdAt: now,
     lastUpdatedAt: now,
     version: 0,
@@ -690,7 +704,7 @@ async function main(): Promise<void> {
     }
     console.log(`Uploading ${validated.length} photo(s) for ${animalInput.name}...`);
     const photos = await uploadAnimalPhotos(r2, animalId, validated);
-    await animalsRepo.insert(buildAnimal(animalInput, photos, shelter.id, now), cityId);
+    await animalsRepo.insert(buildAnimal(animalInput, photos, shelter, now), cityId);
     insertedCount += 1;
   }
 
