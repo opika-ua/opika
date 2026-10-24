@@ -1073,14 +1073,17 @@ weeks.
   first real shelter." The gap (`docs/decisions-inbox.md`'s S8-F5 row, folded from
   `feat-dr1-s8-saved-page.md` at #186's merge; from the review of 3fce3b7): `animals.cardsByIds`'s
   `wasEverPublic` check approximates "was this row ever shown" with "has the shelter ever been
-  verified," which aren't the same fact —
-  a shelter that *was* verified once, is now paused or suspended, and publishes-then-withdraws a
-  *new* card entirely inside that window still has that card's name returned, even though that
-  specific card was never actually rendered on any public page. Closing it precisely needs a
+  verified," which aren't the same fact. **Two distinct windows, not one** (S8-D1-F1 finding 1
+  corrected an earlier draft of this row that named only the first): a shelter that *was*
+  verified once, is now paused or suspended, and publishes-then-withdraws a *new* card entirely
+  inside that window still has that card's name returned; *and* a shelter still
+  pending/under_review that publishes-then-withdraws a card before it's ever reached `verified`
+  at all has the same thing happen the first time that shelter is later approved. Neither card
+  was ever actually rendered on any public page. Closing it precisely needs a
   stored "was this ever actually served" fact per listing, which doesn't exist today — real
   product/schema work, not a quick check tweak. Until it merges, record the gap as known.
-  **Needs a migration** (additive: the new per-listing fact, probably a nullable
-  `first_served_at`-shaped column, defaulting to unknown/never for existing rows). Same flow as
+  **Needs a migration** (additive: the new per-listing fact, a nullable `ever_served_at`
+  timestamp column, defaulting to unknown/never for existing rows). Same flow as
   `0013`/`0014`: his rehearsal on a child branch with the real-Neon smoke, then his production
   migration from the PR branch, then the merge — his steps written in PowerShell form, per
   `docs/onboarding-a-shelter.md`'s existing pattern.
@@ -1190,13 +1193,19 @@ longer floors to «0 років» in a shelter's first year. No wording decision
 Deferred from Phase D on 2026-09-06 — see that phase's reprioritisation note for the full
 original reasoning.
 
-**D-5 dropped, Oleksii, 2026-10-24.** His reasoning: the demo corpus is wiped before any real
-shelter exists at all (the launch order above — onboard the first real shelter, retire the
-rehearsal shelter, `demo:remove`, *then* invite it), and the discoverability flip requires real
-shelters with the demo already gone. So no demo shelter's contact is ever live at the same time
-the site is indexable — D-5's premise (a placeholder needed because demo contacts might still
-be on an indexed page) never actually arises given the sequence the launch order already
-enforces. There is accordingly no placeholder-format decision to make.
+**This row's own concern (the full `test`-profile corpus, live in production today): dropped,
+Oleksii, 2026-10-24.** His instruction, directly: "Drop D-5: demo data is wiped before any real
+data, and the flip needs real shelters with the demo gone, so no demo contact is ever indexed."
+Checked against the actual launch order above: the wipe (`demo:remove`) happens *after* the
+first real shelter is onboarded, not before one exists (DR-Q2) — what actually closes this
+row's concern is the wipe landing before the *discoverability flip*, a later, separate step in
+the same order, not before the real shelter record itself. On that corrected reading his
+instruction still holds: no demo contact from the full corpus is ever live while the site is
+indexable. **A related but distinct item isn't closed by this:** `docs/handoff-2026-10-04.md`
+§3 pulled a version of this same concern forward into Phase 3, for the separate, two-shelter
+`demo` seed profile shown during the dress rehearsal — already built and pinned
+(`seed-profiles.test.ts`), with its placeholder-format choice (SP-1, `docs/decisions-inbox.md`)
+still a default, not his confirmed answer.
 
 - **D-7.** Write the demo-to-real transition into `docs/standing-constraints.md` and the
   onboarding checklist: wipe before the first `onboard-shelter --commit`; the banner
