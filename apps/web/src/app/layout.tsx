@@ -4,7 +4,7 @@ import "./globals.css";
 import { SITE_TITLE, TITLE_TEMPLATE, WORDMARK } from "../brand";
 import { SiteAnalytics } from "../features/chrome/SiteAnalytics";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
-import { commissioner, eUkraine, literata } from "./fonts";
+import { brandDisplay, brandUi, commissioner, eUkraine, literata } from "./fonts";
 
 /**
  * Phase T. This was `title: "Adoption Platform"` — a generic English
@@ -72,7 +72,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="uk"
-      className={`${literata.variable} ${commissioner.variable} ${eUkraine.variable}`}
+      className={`${literata.variable} ${commissioner.variable} ${eUkraine.variable} ${brandDisplay.variable} ${brandUi.variable}`}
     >
       {/*
         The user agent's default 8px body margin is not decoration: combined
