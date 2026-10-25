@@ -41,25 +41,40 @@ export function r2CleanupConfigOf(env: Env): R2CleanupCronConfig | undefined {
 }
 
 /**
- * What a production deployment refuses to build or boot without, the same
- * shape as `photoUploadEnvProblem`: the job is on Vercel's schedule
- * regardless, so a production deployment missing credentials would run the
- * cron, find nothing configured, and refuse every call forever rather than
- * cleaning anything up — silently, until someone checks the logs.
+ * What a production deployment refuses to build or boot over, the same
+ * shape as `photoUploadEnvProblem` **except for one deliberate difference**
+ * (Tier 1 review, PR #200, blocker 2): the job is "enabled by the env vars'
+ * own presence" — unlike the upload token, which production can't function
+ * without at all, this job is allowed to simply be off. So this never
+ * refuses on all four being absent (the job is disabled, not broken); it
+ * refuses only a state that can't mean "disabled on purpose":
+ *   - a padded value, anywhere among the four;
+ *   - exactly one of `R2_CLEANUP_ACCESS_KEY_ID`/`R2_CLEANUP_SECRET_ACCESS_KEY`
+ *     set without the other (a half-entered credential, not "off");
+ *   - either cleanup-specific credential set while `R2_ACCOUNT_ID` or
+ *     `R2_BUCKET_NAME` is missing (those two are normally already required
+ *     by the upload token, `photoUploadEnvProblem`, but refuse here too in
+ *     case a deployment somehow has the cleanup credential without them).
+ * Setting the credentials is therefore the one and only switch that turns
+ * the job on — never a separate feature flag, and never something a build
+ * can refuse its way into forcing.
  */
 export function r2CleanupEnvProblem(env: Env): string | null {
   if (env.VERCEL_ENV !== "production") return null;
-  const missing: string[] = [];
-  const padded: string[] = [];
-  for (const name of R2_CLEANUP_ENV_NAMES) {
-    const value = envValueOf(env, name);
-    if (value.kind === "missing") missing.push(name);
-    if (value.kind === "padded") padded.push(name);
-  }
+  const values = R2_CLEANUP_ENV_NAMES.map((name) => ({ name, value: envValueOf(env, name) }));
+  const padded = values.filter(({ value }) => value.kind === "padded").map(({ name }) => name);
   if (padded.length > 0) return paddedValueMessage(padded);
+
+  const accessKeyId = envValueOf(env, "R2_CLEANUP_ACCESS_KEY_ID");
+  const secretAccessKey = envValueOf(env, "R2_CLEANUP_SECRET_ACCESS_KEY");
+  const cleanupCredentialAttempted = accessKeyId.kind === "set" || secretAccessKey.kind === "set";
+  if (!cleanupCredentialAttempted) return null;
+
+  const missing = values.filter(({ value }) => value.kind === "missing").map(({ name }) => name);
   if (missing.length === 0) return null;
   return (
-    `${missing.join(", ")} must be set on a production deployment (the R2 photo clean-up job, ` +
-    "GDPR photo retention) — set them in Vercel's Production environment only, never Preview"
+    `${missing.join(", ")} must be set alongside R2_CLEANUP_ACCESS_KEY_ID/R2_CLEANUP_SECRET_ACCESS_KEY ` +
+    "once either is set (the R2 photo clean-up job, GDPR photo retention) — set them in Vercel's " +
+    "Production environment only, never Preview, or unset both cleanup credentials to leave the job off"
   );
 }

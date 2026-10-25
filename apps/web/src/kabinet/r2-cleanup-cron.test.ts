@@ -81,6 +81,38 @@ describe("the R2 clean-up cron's own boundary", () => {
     vi.doUnmock("@opika/db/image-pipeline/server");
   });
 
+  it("calls runR2Cleanup with commit: true and no graceDays override — pinned, not asserted by trust (Tier 1 review, note 5)", async () => {
+    const calls: unknown[] = [];
+    vi.doMock("@opika/db/image-pipeline/server", () => ({
+      createR2CleanupClient: () => ({
+        listObjectKeys: async () => [],
+        deleteObjects: async () => ({ deleted: [], failed: [] }),
+      }),
+      runR2Cleanup: async (...args: unknown[]) => {
+        calls.push(args);
+        return {
+          scanned: 0,
+          newlyTracked: 0,
+          clearedBack: 0,
+          dueForDeletion: [],
+          deleted: [],
+          failed: [],
+          snapshotsNulled: 0,
+        };
+      },
+    }));
+    await run({ authorization: `Bearer ${SECRET}` });
+    expect(calls).toHaveLength(1);
+    const [, , , options] = calls[0] as [
+      unknown,
+      unknown,
+      unknown,
+      { commit: boolean; graceDays: number | undefined },
+    ];
+    expect(options).toEqual({ commit: true, graceDays: undefined });
+    vi.doUnmock("@opika/db/image-pipeline/server");
+  });
+
   it.each([
     ["no Authorization header", {}],
     ["a wrong secret", { authorization: "Bearer not-the-secret" }],
@@ -113,7 +145,11 @@ describe("the R2 clean-up cron's own boundary", () => {
     ]);
   });
 
-  it("logs counts only — no object key, storage key or animal id, even with a real referenced photo", async () => {
+  it("logs counts only — no object key, storage key or animal id, even when the report carries real ones", async () => {
+    // Tier 1 review, PR #200, note 8: the report this mock returns must
+    // actually carry keys in dueForDeletion/deleted/failed, or this test
+    // passes trivially (nothing to leak) regardless of what the handler
+    // logs. Real-shaped keys in every array a future change might log.
     vi.doMock("@opika/db/image-pipeline/server", () => ({
       createR2CleanupClient: () => ({
         listObjectKeys: async () => ["animals/secret-id/card.webp"],
@@ -123,15 +159,22 @@ describe("the R2 clean-up cron's own boundary", () => {
         scanned: 1,
         newlyTracked: 1,
         clearedBack: 0,
-        dueForDeletion: [],
-        deleted: [],
-        failed: [],
-        snapshotsNulled: 0,
+        dueForDeletion: ["animals/due-secret/card.webp"],
+        deleted: ["animals/deleted-secret/card.webp"],
+        failed: [{ key: "animals/failed-secret/card.webp", message: "AccessDenied" }],
+        snapshotsNulled: 1,
       }),
     }));
     const { lines } = await run({ authorization: `Bearer ${SECRET}` });
     expect(lines).toHaveLength(1);
-    for (const secretish of ["animals/secret-id", SECRET]) {
+    for (const secretish of [
+      "animals/secret-id",
+      "animals/due-secret",
+      "animals/deleted-secret",
+      "animals/failed-secret",
+      "AccessDenied",
+      SECRET,
+    ]) {
       expect(lines[0]).not.toContain(secretish);
     }
     vi.doUnmock("@opika/db/image-pipeline/server");

@@ -20,17 +20,21 @@
  *     actually delete, and the one place `--grace-days` can be overridden —
  *     Oleksii, 2026-10-25: "the one-off run: --grace-days 0 allowed only in a
  *     manual run with --commit and the typed --expect, refused by the
- *     scheduled job." `--expect` is required unconditionally (this script
- *     only ever targets production — there is nothing to clean up locally,
- *     the same reasoning as `demo:remove`), so "with --commit and the typed
- *     --expect" falls out of that plus `--grace-days` needing `--commit`.
+ *     scheduled job." That's about the *deletion* (never without `--commit`,
+ *     the scheduled job never reads this flag at all); `--grace-days` alone
+ *     previews what that period would catch, without deleting anything —
+ *     Tier 1 review, PR #200, blocker 3. `--expect` is required
+ *     unconditionally either way (this script only ever targets production
+ *     — there is nothing to clean up locally, the same reasoning as
+ *     `demo:remove`).
  *
  * Usage (from the repo root; `PROD_NEON_ENDPOINT` from the shell or the root
  * `.env.local`, as for every production-aware script):
  *   pnpm --filter @opika/db r2:cleanup --expect ep-…                 dry run
+ *   pnpm --filter @opika/db r2:cleanup --expect ep-… --grace-days 0   preview the post-reset grace period, deletes nothing
  *   pnpm --filter @opika/db r2:cleanup --expect ep-… --commit        deletes
  *   … --prod                                                           when the target is production
- *   … --grace-days 0                                                   the post-reset one-off (needs --commit)
+ *   … --grace-days 0 --commit                                          the post-reset one-off, for real
  *
  * R2 credentials are this job's own (`R2_CLEANUP_ACCESS_KEY_ID`/
  * `R2_CLEANUP_SECRET_ACCESS_KEY`), never the upload token
@@ -67,11 +71,17 @@ const FLAG_SPELLING = /^-{1,2}[A-Za-z][A-Za-z0-9-]*$/;
 /**
  * Reads the whole command line (`process.argv`). `--expect` is validated by
  * `expectedTargetOf` in `main`, not here — this only tracks that it was
- * given once, with a value, the same split `demo:remove` uses. A non-default
- * `--grace-days` needs `--commit`: Oleksii's "allowed only in a manual run
- * with --commit" (and, since `--expect` is required unconditionally in
- * `main` regardless of `--grace-days`, "and the typed --expect" falls out of
- * that rather than needing its own check here).
+ * given once, with a value, the same split `demo:remove` uses.
+ *
+ * A non-default `--grace-days` is accepted without `--commit` too (Tier 1
+ * review, PR #200, blocker 3): it previews what that grace period would
+ * catch — `recordScan`'s own bookkeeping still runs, nothing is deleted
+ * without `--commit` either way (`runR2Cleanup`'s own `!options.commit`
+ * branch). Oleksii's "allowed only in a manual run with --commit" is about
+ * the *deletion* the post-reset one-off run makes, not about previewing
+ * it first — the same "dry run first" shape `demo:remove`/`db:full-reset`
+ * already use, and `--expect` is still required unconditionally in `main`
+ * regardless of either flag.
  */
 export function parseCleanupArgs(argv: readonly string[]): CleanupArgs {
   const args = argv.slice(2);
@@ -97,7 +107,12 @@ export function parseCleanupArgs(argv: readonly string[]): CleanupArgs {
     }
     if (arg === "--grace-days") {
       const value = args[i + 1];
-      const n = value === undefined ? Number.NaN : Number(value);
+      // `Number("")` and `Number(" ")` are both 0 — the most destructive
+      // value this flag takes — so an empty or whitespace-only value must
+      // be refused explicitly, never silently read as 0 (Tier 1 review,
+      // PR #200, note 10).
+      const trimmed = value?.trim();
+      const n = trimmed === undefined || trimmed === "" ? Number.NaN : Number(trimmed);
       if (!Number.isInteger(n) || n < 0) {
         return {
           kind: "refused",
@@ -114,13 +129,6 @@ export function parseCleanupArgs(argv: readonly string[]): CleanupArgs {
       ? `${arg} is not an argument this script takes`
       : `argument ${i + 1} is not one this script takes`;
     return { kind: "refused", reason: `${what}; it takes ${ARGUMENTS_TAKEN}` };
-  }
-  if (graceDays !== undefined && !commit) {
-    return {
-      kind: "refused",
-      reason:
-        "--grace-days needs --commit (a non-default grace period is honoured only on a real run)",
-    };
   }
   return { kind: "ok", commit, graceDays };
 }

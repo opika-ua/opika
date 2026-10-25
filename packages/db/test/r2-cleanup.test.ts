@@ -206,11 +206,11 @@ describe("parseCleanupArgs", () => {
     });
   });
 
-  it("refuses --grace-days without --commit", () => {
+  it("accepts --grace-days without --commit — a preview, nothing deleted (Tier 1 review, blocker 3)", () => {
     expect(parseCleanupArgs(argv("--expect", "ep-x", "--grace-days", "0"))).toEqual({
-      kind: "refused",
-      reason:
-        "--grace-days needs --commit (a non-default grace period is honoured only on a real run)",
+      kind: "ok",
+      commit: false,
+      graceDays: 0,
     });
   });
 
@@ -219,6 +219,13 @@ describe("parseCleanupArgs", () => {
     expect(parseCleanupArgs(argv("--commit", "--grace-days", "1.5")).kind).toBe("refused");
     expect(parseCleanupArgs(argv("--commit", "--grace-days", "nope")).kind).toBe("refused");
     expect(parseCleanupArgs(argv("--commit", "--grace-days")).kind).toBe("refused");
+  });
+
+  it("refuses an empty or whitespace-only --grace-days, never reading it as 0", () => {
+    // Number("") and Number(" ") are both 0 — the most destructive value
+    // this flag takes (Tier 1 review, PR #200, note 10).
+    expect(parseCleanupArgs(argv("--commit", "--grace-days", "")).kind).toBe("refused");
+    expect(parseCleanupArgs(argv("--commit", "--grace-days", "   ")).kind).toBe("refused");
   });
 
   it("refuses --grace-days given twice, and --expect given twice", () => {

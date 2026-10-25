@@ -40,6 +40,17 @@ export type R2CleanupReport = {
  * `commit`, and re-checks every candidate right before deleting
  * (`stillUnreferenced`) — Oleksii's own requirement, so a key referenced
  * again since the scan is never deleted.
+ *
+ * The re-check runs once, against the whole `due` list, not once per
+ * network batch inside `r2.deleteObjects` (which still chunks its own
+ * calls at 1000 keys). At this product's real volume — tens of photos a
+ * day, not thousands — the gap between the one check and the last of a
+ * few delete calls is seconds, not the minutes it would take for the
+ * narrower race (a photo re-referenced mid-run, after the check but before
+ * its own batch) to matter in practice. Narrowing this to a per-batch
+ * check would mean `runR2Cleanup` orchestrating `deleteObjects`'s own
+ * chunking rather than treating it as one call — a reasonable future
+ * tightening, not done here (Tier 1 review, PR #200, note 7).
  */
 export async function runR2Cleanup(
   db: Database,

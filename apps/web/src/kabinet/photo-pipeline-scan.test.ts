@@ -10,12 +10,12 @@ import { describe, expect, it } from "vitest";
  *
  * - no S3 call that deletes, copies over, or schedules the deletion of an
  *   object exists anywhere — **except** `r2-cleanup-client.ts`, the GDPR
- *   photo-retention job's own client (`docs/gdpr-analysis.md`), the one
- *   named exception Oleksii's rule now carries (2026-10-25: "this job is
- *   the only code allowed to delete R2 objects"). That file's own commands
- *   are checked separately, below, against its own narrower allowlist —
- *   never folded into the general "no destructive calls" check, which
- *   still holds for every other file unchanged;
+ *   photo-retention job's own client (`docs/gdpr-analysis.md`,
+ *   `docs/decisions-inbox/feat-r2-photo-cleanup.md`, R2-B1: his approval of
+ *   the design that made this job the one named exception). That file's own
+ *   commands are checked separately, below, against its own narrower
+ *   allowlist — never folded into the general "no destructive calls" check,
+ *   which still holds for every other file unchanged;
  * - no SDK command but `PutObjectCommand` is named in any other non-test
  *   source, and `@aws-sdk/lib-storage` (multipart uploads, which assemble
  *   an object from copied parts) appears in none;

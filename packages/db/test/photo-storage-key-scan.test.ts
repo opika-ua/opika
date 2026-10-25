@@ -83,7 +83,13 @@ function animalPhotoSchemaEmbeddings(): Hit[] {
 }
 
 /** A bare `z.string()` field whose name reads like a storage key, wherever it is declared. */
-const BARE_STORAGE_KEY_FIELD = /\b(storageKey|photoKey|imageKey|objectKey)\s*:\s*z\.string\(/;
+// A suffix match (`\w*`), not an exact one, and case-insensitive on the key
+// name (Tier 1 review, PR #200, note 11) — `coverPhotoKey` has a capital
+// `P`, which a case-sensitive exact match on `photoKey` would silently
+// miss. `coverPhotoKey`, `thumbnailStorageKey` and the like read like a
+// storage key just as much as the bare names do, and a suffix check costs
+// nothing against today's one real site (`photo.ts`'s own `storageKey`).
+const BARE_STORAGE_KEY_FIELD = /\b\w*(?:storageKey|photoKey|imageKey|objectKey)\s*:\s*z\.string\(/i;
 function bareStorageKeyFields(): Hit[] {
   return [
     ...scan(DOMAIN_ROOT, BARE_STORAGE_KEY_FIELD),

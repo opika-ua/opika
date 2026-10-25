@@ -9,13 +9,14 @@ import { r2EndpointUrl } from "./variants";
  *
  * A separate client, a separate config type, and its own credentials
  * (`R2_CLEANUP_ACCESS_KEY_ID`/`R2_CLEANUP_SECRET_ACCESS_KEY`, read only by
- * `r2-cleanup.ts`): the app's own upload token (`R2_UPLOAD_*`) never gains
+ * `r2-cleanup.ts`'s CLI and `apps/web/src/kabinet/r2-cleanup-env.ts`'s
+ * cron wiring): the app's own upload token (`R2_UPLOAD_*`) never gains
  * delete rights just because this file exists beside it. Cloudflare's own
  * token UI has no delete-only scope — "Object Read & Write" is the finest
  * grain that includes delete, and it also permits `PutObject` — so the real
  * safety boundary is this file's own source, not the token's permission
- * scope: `photo-pipeline-scan.test.ts`'s sibling structural test
- * (`r2-cleanup-scan.test.ts`) asserts this file's only two SDK commands are
+ * scope: `apps/web/src/kabinet/photo-pipeline-scan.test.ts`'s own structural
+ * scan asserts this file's only two SDK commands are
  * `ListObjectsV2Command`/`DeleteObjectsCommand`, and that nothing else in
  * the repo imports either.
  */

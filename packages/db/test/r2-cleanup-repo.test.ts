@@ -129,6 +129,49 @@ describe("recordScan", () => {
     expect(result).toEqual({ newlyTracked: 0, cleared: 1 });
     expect(await trackedUnreferencedObjects(db)).toEqual([]);
   });
+
+  it("tracks across more than one SQL batch (Tier 1 review, PR #200, note 9)", async () => {
+    // Postgres binds at most 65535 parameters per statement; this proves
+    // the chunking loop actually accumulates across batches rather than
+    // silently dropping everything past the first one.
+    const keys = Array.from({ length: 1500 }, (_, i) => `animals/batch-${i}/card.webp`);
+
+    const tracked = await recordScan(db, keys, NOW);
+    expect(tracked).toEqual({ newlyTracked: 1500, cleared: 0 });
+    expect(await trackedUnreferencedObjects(db)).toHaveLength(1500);
+  }, 30_000);
+
+  it("clears across more than one SQL batch", async () => {
+    const storageKeys = Array.from({ length: 150 }, (_, a) =>
+      Array.from({ length: 10 }, (_, p) => `animals/batch-${a}-${p}`),
+    ).flat(); // 150 x 10 (MAX_ANIMAL_PHOTOS) = 1500
+    const objectKeys = storageKeys.map((sk) => variantObjectKey(sk, "card"));
+
+    await recordScan(db, objectKeys, NOW); // tracked while nothing references them yet
+    expect(await trackedUnreferencedObjects(db)).toHaveLength(1500);
+
+    // Now make every one of them referenced, 10 photos per animal, sharing
+    // one city/shelter to keep the fixture setup itself fast — what this
+    // test measures is the repo's own batching, not fixture insert speed.
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id } as never,
+    });
+    await shelterRepo(db).insert(shelter);
+    for (let a = 0; a < 150; a++) {
+      const animalPhotos = storageKeys.slice(a * 10, a * 10 + 10);
+      const animal = makeAnimal({
+        shelterId: shelter.id,
+        photos: animalPhotos.map(photo) as never,
+      });
+      await animalRepo(db).insert(animal, city.id as never);
+    }
+
+    const cleared = await recordScan(db, objectKeys, new Date(NOW.getTime() + 60_000));
+    expect(cleared).toEqual({ newlyTracked: 0, cleared: 1500 });
+    expect(await trackedUnreferencedObjects(db)).toEqual([]);
+  }, 60_000);
 });
 
 describe("stillUnreferenced", () => {

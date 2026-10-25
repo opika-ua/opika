@@ -9,6 +9,21 @@ import { executeRows } from "../raw-rows";
 import { r2UnreferencedObjects } from "../schema/r2-cleanup";
 
 /**
+ * Postgres binds at most 65535 parameters per statement. A few hundred
+ * photos a day is this job's real volume, but nothing here should fail
+ * *every day* past some row count instead of degrading gracefully (Tier 1
+ * review, PR #200, note 9) — each chunk stays well under the limit even at
+ * several parameters per row.
+ */
+const SQL_BATCH_SIZE = 1000;
+
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
+/**
  * GDPR photo retention (`docs/gdpr-analysis.md`): the one source of "this
  * photo is referenced" — every `storageKey` in any `animals.photos` row,
  * any listing state (draft/published/reserved/adopted/withdrawn all count).
@@ -50,6 +65,35 @@ export async function referencedObjectKeys(db: Database): Promise<Set<string>> {
 }
 
 /**
+ * Whether a real bucket object key belongs to a currently-referenced photo
+ * — parses the key's own `storageKey` prefix (`storageKeyFromObjectKey`)
+ * and checks *that* against the referenced storage keys, rather than
+ * deriving an exact 3-key set per storage key and matching the candidate
+ * against it (Tier 1 review, PR #200, note 6). For today's naming scheme
+ * the two give identical results — both `variantObjectKey` (the forward
+ * direction) and `storageKeyFromObjectKey` (the reverse) are built from the
+ * same `IMAGE_VARIANT_NAMES` list and the same `.webp` suffix, by
+ * construction, and `referencedObjectKeys` already iterates
+ * `IMAGE_VARIANT_NAMES` rather than a hardcoded count — so a variant
+ * *added* to that list was never the gap. This version is simply the more
+ * direct way to ask the same question (one membership check per candidate,
+ * not three), and is what `recordScan`/`stillUnreferenced` use below.
+ *
+ * ⚠ What neither version protects against: a *file-extension* change.
+ * `storageKeyFromObjectKey`'s own regex hardcodes `.webp`, the same as
+ * `variantObjectKey`'s construction — if that suffix is ever changed, every
+ * object already in the bucket under the old extension stops parsing (or
+ * stops matching the new derivation) and would look unreferenced to BOTH
+ * implementations, however it's written. Changing the image format is not
+ * a drop-in edit here: it needs either keeping the old suffix recognised
+ * as well (a migration period), or pausing this job across the cutover.
+ */
+function isReferencedObjectKey(objectKey: string, referenced: ReadonlySet<string>): boolean {
+  const storageKey = storageKeyFromObjectKey(objectKey);
+  return storageKey !== null && referenced.has(storageKey);
+}
+
+/**
  * One scan's worth of bookkeeping against the tracking table
  * (`r2_unreferenced_objects`): every `bucketObjectKeys` entry not in the
  * referenced set is marked first-seen-unreferenced-now, unless already
@@ -60,35 +104,52 @@ export async function referencedObjectKeys(db: Database): Promise<Set<string>> {
  * and a row that was already written gets deleted the next time this runs).
  * Idempotent: a re-run with the same inputs changes nothing further.
  *
- * `bucketObjectKeys` must be the *complete* listing for this run (every
- * page of a paginated `ListObjectsV2`, collected by the caller first) — a
- * partial page would make every untracked-but-still-unreferenced key on
- * the missing pages look "referenced again" and get wrongly cleared.
+ * `bucketObjectKeys` should be the *complete* listing for this run (every
+ * page of a paginated `ListObjectsV2`, collected by the caller first) —
+ * correctness doesn't depend on it, since clearing re-derives "referenced
+ * now" from the database for every row already in the tracking table, never
+ * from `bucketObjectKeys` (so a partial page can't cause a wrongful clear,
+ * and clears nothing it shouldn't — Tier 1 review, PR #200, note 12, fixing
+ * an earlier version of this comment that claimed otherwise). What a
+ * partial page actually costs: any genuinely-unreferenced object that sits
+ * on a missing page simply isn't tracked yet, by omission — its grace
+ * period starts later than it should, not never, since the next complete
+ * scan still finds it.
  */
 export async function recordScan(
   db: Database,
   bucketObjectKeys: readonly string[],
   now: Date,
 ): Promise<{ newlyTracked: number; cleared: number }> {
-  const referenced = await referencedObjectKeys(db);
-  const unreferenced = bucketObjectKeys.filter((key) => !referenced.has(key));
+  const referenced = await referencedStorageKeys(db);
+  const unreferenced = bucketObjectKeys.filter((key) => !isReferencedObjectKey(key, referenced));
 
-  const tracked =
-    unreferenced.length === 0
-      ? []
-      : await db
-          .insert(r2UnreferencedObjects)
-          .values(unreferenced.map((objectKey) => ({ objectKey, firstSeenUnreferencedAt: now })))
-          .onConflictDoNothing()
-          .returning({ objectKey: r2UnreferencedObjects.objectKey });
+  let tracked: { objectKey: string }[] = [];
+  for (const batch of chunk(unreferenced, SQL_BATCH_SIZE)) {
+    const inserted = await db
+      .insert(r2UnreferencedObjects)
+      .values(batch.map((objectKey) => ({ objectKey, firstSeenUnreferencedAt: now })))
+      .onConflictDoNothing()
+      .returning({ objectKey: r2UnreferencedObjects.objectKey });
+    tracked = tracked.concat(inserted);
+  }
 
-  const cleared =
-    referenced.size === 0
-      ? []
-      : await db
-          .delete(r2UnreferencedObjects)
-          .where(inArray(r2UnreferencedObjects.objectKey, [...referenced]))
-          .returning({ objectKey: r2UnreferencedObjects.objectKey });
+  // Clearing checks the tracking table's own rows, filtered the same way —
+  // `referenced` is a set of storage keys, not object keys, so it can't be
+  // passed to `inArray` on `objectKey` directly.
+  const trackedRows = await trackedUnreferencedObjects(db);
+  const nowReferenced = trackedRows
+    .map((row) => row.objectKey)
+    .filter((objectKey) => isReferencedObjectKey(objectKey, referenced));
+
+  let cleared: { objectKey: string }[] = [];
+  for (const batch of chunk(nowReferenced, SQL_BATCH_SIZE)) {
+    const deleted = await db
+      .delete(r2UnreferencedObjects)
+      .where(inArray(r2UnreferencedObjects.objectKey, batch))
+      .returning({ objectKey: r2UnreferencedObjects.objectKey });
+    cleared = cleared.concat(deleted);
+  }
 
   return { newlyTracked: tracked.length, cleared: cleared.length };
 }
@@ -110,8 +171,8 @@ export async function stillUnreferenced(
   db: Database,
   candidateObjectKeys: readonly string[],
 ): Promise<string[]> {
-  const referenced = await referencedObjectKeys(db);
-  return candidateObjectKeys.filter((key) => !referenced.has(key));
+  const referenced = await referencedStorageKeys(db);
+  return candidateObjectKeys.filter((key) => !isReferencedObjectKey(key, referenced));
 }
 
 /**
@@ -130,9 +191,9 @@ export async function afterDeleted(
   deletedObjectKeys: readonly string[],
 ): Promise<{ snapshotsNulled: number }> {
   if (deletedObjectKeys.length === 0) return { snapshotsNulled: 0 };
-  await db
-    .delete(r2UnreferencedObjects)
-    .where(inArray(r2UnreferencedObjects.objectKey, [...deletedObjectKeys]));
+  for (const batch of chunk(deletedObjectKeys, SQL_BATCH_SIZE)) {
+    await db.delete(r2UnreferencedObjects).where(inArray(r2UnreferencedObjects.objectKey, batch));
+  }
 
   const storageKeys = [
     ...new Set(
@@ -149,20 +210,27 @@ export async function afterDeleted(
   // constraints, R1), so each storage key gets its own `OR`'d equality
   // instead, exactly like every other multi-value raw-SQL match in this
   // package (`admin-erasure-repo.ts`'s own `kindList`, built the same way).
-  const matchesAStorageKey = sql.join(
-    storageKeys.map(
-      (key) => sql`lower("animal_snapshot"->'primaryPhoto'->>'storageKey') = lower(${key})`,
-    ),
-    sql` OR `,
-  );
-  const rows = await executeRows<{ id: string }>(
-    db,
-    sql`
-      UPDATE "reveals"
-      SET "animal_snapshot" = jsonb_set("animal_snapshot", '{primaryPhoto}', 'null'::jsonb)
-      WHERE ${matchesAStorageKey}
-      RETURNING "id"
-    `,
-  );
-  return { snapshotsNulled: rows.length };
+  // Chunked the same way as the rest of this file (`SQL_BATCH_SIZE`): one
+  // parameter per storage key here, so the chunk size is also the
+  // parameter count, nowhere near the 65535 bind-parameter limit.
+  let snapshotsNulled = 0;
+  for (const batch of chunk(storageKeys, SQL_BATCH_SIZE)) {
+    const matchesAStorageKey = sql.join(
+      batch.map(
+        (key) => sql`lower("animal_snapshot"->'primaryPhoto'->>'storageKey') = lower(${key})`,
+      ),
+      sql` OR `,
+    );
+    const rows = await executeRows<{ id: string }>(
+      db,
+      sql`
+        UPDATE "reveals"
+        SET "animal_snapshot" = jsonb_set("animal_snapshot", '{primaryPhoto}', 'null'::jsonb)
+        WHERE ${matchesAStorageKey}
+        RETURNING "id"
+      `,
+    );
+    snapshotsNulled += rows.length;
+  }
+  return { snapshotsNulled };
 }
