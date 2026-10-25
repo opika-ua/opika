@@ -25,6 +25,16 @@ import { describe, expect, it } from "vitest";
  * this test by naming the file and line, forcing whoever added it to either
  * route it through `eraseUsersAndScrubHistory` or add a reasoned exception
  * here — never to silently ship a third way to delete a user.
+ *
+ * A fourth way exists and this scan's line-level pattern can't see it (Tier
+ * 1 review, PR #199, finding 6): `full-reset.ts`'s `truncateFullReset` wipes
+ * `auth_user` via a dynamically built `TRUNCATE "${table}", …` — the literal
+ * text "auth_user" never appears next to the word `TRUNCATE` in the source,
+ * it sits in a separate `FULL_RESET_TABLES` array `truncateFullReset` reads
+ * at runtime. The second scan below catches this shape instead: any
+ * non-test file naming `"auth_user"` as a quoted table *and* calling
+ * `TRUNCATE` needs the same classification, even though no single line
+ * shows both.
  */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "src");
 
@@ -98,4 +108,28 @@ describe("every auth_user deletion is the shared mechanism or a named exception"
     expect(mechanisms).toHaveLength(1);
     for (const entry of EXPECTED) expect(entry.why.length).toBeGreaterThan(20);
   });
+
+  it("every TRUNCATE naming auth_user is covered too, even with no single matching line", () => {
+    expect(filesWithDynamicTruncateOfAuthUser().sort()).toEqual([...TRUNCATE_SITES].sort());
+  });
 });
+
+/**
+ * `full-reset.ts`: builds `TRUNCATE "support_sessions", …, "auth_user", …`
+ * from `FULL_RESET_TABLES` at runtime, in the same statement as every other
+ * application table — including `shelter_history`, so there is no row left
+ * to carry a stale email once it runs, the same reasoning `demo-remove.ts`'s
+ * own exception above already uses.
+ */
+const TRUNCATE_SITES = ["full-reset.ts"] as const;
+
+function filesWithDynamicTruncateOfAuthUser(): string[] {
+  const results: string[] = [];
+  for (const path of walk(ROOT)) {
+    const text = readFileSync(path, "utf8");
+    if (/\bTRUNCATE\b/.test(text) && /"auth_user"/.test(text)) {
+      results.push(path.slice(ROOT.length + 1).replaceAll("\\", "/"));
+    }
+  }
+  return results;
+}

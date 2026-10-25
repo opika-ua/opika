@@ -1252,6 +1252,70 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
   });
 
+  /**
+   * db:full-reset has the identical --expect-then-guard ordering as
+   * demo:remove (both read via `expectedTargetOf` before
+   * `assertProductionWriteAllowed`), so it needs the same two dedicated
+   * tests rather than joining `WRITING_CLIS` — a bare member there would
+   * assert the generic guard's "ERROR: …" message where this script's own
+   * --expect check actually answers first, with "REFUSED: …".
+   */
+  it("db:full-reset refuses the review's example at its --expect check", () => {
+    const result = run("src/full-reset.ts", ["--expect", REVIEWS_PROD_ENDPOINT], {
+      DATABASE_URL: REVIEWS_EXAMPLE,
+      PROD_NEON_ENDPOINT: REVIEWS_PROD_ENDPOINT,
+    });
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain(
+      "REFUSED: the target can't be read as exactly one host: it has a '#' fragment. Nothing was run.",
+    );
+    expect(result.stderr).not.toContain("u:p@");
+    expect(result.stdout).not.toContain("Target:");
+  });
+
+  it("db:full-reset refuses it too, after its --expect check passes", () => {
+    const result = run(
+      "src/full-reset.ts",
+      ["--expect", "ep-other-hill-d4e5f6"],
+      {
+        DATABASE_URL: `postgresql://neondb_owner@${CHILD_HOST}/neondb?sslmode=require`,
+        PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+      },
+      { PGPASSWORD: `endpoint=${PROD_ENDPOINT};${SENTINEL}` },
+    );
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("ERROR: set in the environment: PGPASSWORD.");
+    expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
+  });
+
+  /**
+   * Tier 1 review finding 4, PR #199: db:full-reset's own `--prod`
+   * requirement had no direct test — only the `--expect`-ordering exploits
+   * above, which pass `--expect` a value matching the target on purpose to
+   * reach the second guard. This is the plain case: a real production
+   * target, a correct `--expect`, no `--prod` at all.
+   */
+  it("db:full-reset refuses production without --prod", () => {
+    const result = run("src/full-reset.ts", ["--expect", PROD_ENDPOINT]);
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("this target is PRODUCTION");
+    expect(result.stderr).not.toContain("secret");
+    expect(result.stderr).not.toContain("ep-quiet-lake");
+    expect(result.stdout).not.toContain("Target:");
+  });
+
+  it("db:full-reset refuses the password-printing URLs before any driver sees them", () => {
+    for (const url of [
+      `postgres://u:${SENTINEL}@xn--a.eu-central-1.aws.neon.tech/db`,
+      `postgresql://u:${SENTINEL}%zz@${CHILD_HOST}/neondb?sslmode=require`,
+    ]) {
+      const result = withNoNetwork("src/full-reset.ts", ["--expect", PROD_ENDPOINT, "--prod"], url);
+      expect(result.status, result.stderr).toBe(1);
+      expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
+      expect(`${result.stdout}${result.stderr}`).not.toContain("network disabled");
+    }
+  });
+
   it.each([
     ["db:migrate", "src/migrate.ts", ["--config=does-not-exist.ts"]],
     ["admin:sweep-invites", "src/admin.ts", ["sweep-invites"]],

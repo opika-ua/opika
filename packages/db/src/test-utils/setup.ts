@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { FULL_RESET_TABLES, RESET_EXCLUDED_TABLES } from "../full-reset";
 import * as schema from "../schema/index";
 import { assertDisposableTestDatabase, ensureTestDatabase, testDatabaseUrl } from "./test-database";
 
@@ -90,11 +91,21 @@ export async function setupTestDatabase() {
 }
 
 /**
+ * Every real table, derived from `full-reset.ts`'s own two lists rather
+ * than kept as a third hand-written copy (Tier 1 review simplification, PR
+ * #199) — `full-reset-table-coverage.test.ts` already proves those two
+ * together are exactly the schema's real tables, so this can never drift
+ * from that set the way an independent literal list could.
+ */
+const ALL_TABLES = [...FULL_RESET_TABLES, ...RESET_EXCLUDED_TABLES.map((entry) => entry.table)];
+
+/**
  * Truncate all tables between tests. Faster than dropping/recreating and
- * preserves the schema.
+ * preserves the schema. `CASCADE` is fine here, unlike `full-reset.ts`'s own
+ * production `TRUNCATE` — this always covers every real table already, so
+ * there is nothing outside the list for `CASCADE` to reach.
  */
 export async function truncateAll(db: ReturnType<typeof drizzle<typeof schema>>) {
-  await db.execute(
-    sql`TRUNCATE support_sessions, invitation_created_users, shelter_history, super_admins, auth_invitation, auth_member, auth_session, auth_account, auth_verification, auth_organization, auth_user, sessions, reveals, swipes, animals, adopters, shelters, cities CASCADE`,
-  );
+  const list = ALL_TABLES.map((table) => `"${table}"`).join(", ");
+  await db.execute(sql.raw(`TRUNCATE ${list} CASCADE`));
 }
