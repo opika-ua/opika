@@ -3,27 +3,76 @@
 One ordered runbook, replacing the three separately-tracked items it supersedes: D-7 (the
 demo-to-real transition write-up), the wipe-and-flip script + runbook, and the
 discoverability-flip runbook (`docs/launch-gate.md`). Built on Oleksii's own instruction,
-2026-10-24: a **full reset**, not a demo-only wipe, run once, personally, after his own dress
-rehearsal as a real shelter through the real kabinet flow. With the full reset, no demo data
-and no rehearsal data ever coexists with real data — closing D-5's concern by construction,
-not by timing (see "D-5/D-7, closed by this document" at the end).
+2026-10-24: a **full reset**, not a demo-only wipe. **Corrected 2026-10-25 on the order** —
+his own words, verbatim: "you have my order backwards. I said: wipe everything, then set up
+my admin account, then invite myself as a shelter and go through the whole flow." The reset
+runs *before* the dress rehearsal, twice in total: once to clear whatever is already in
+production, once more right after the rehearsal to remove the rehearsal shelter itself —
+no `demo:remove --shelter` step. With the full reset, no demo data and no rehearsal data ever
+coexists with real data — closing D-5's concern by construction, not by timing (see
+"D-5/D-7, closed by this document" at the end).
 
 Every command below is PowerShell. Every count is read in the **Neon SQL Editor** (the
 console), not `psql` — this supersedes the `psql`-based form used in earlier migration
 runbooks (0013–0015) for this document's own steps; those runbooks are otherwise unchanged.
 Oleksii runs every step; nothing here is automated end-to-end.
 
-## 0. Before anything: a Neon backup branch
+## Rehearse first, once, long before the real sequence ever runs
+
+**Oleksii's own instruction, 2026-10-25** (in place of rebuilding this script under a
+different model — `docs/model-policy.md` would otherwise call for Opus on irreversible
+production work): before `db:full-reset` ever touches real production, rehearse it on a
+disposable Neon child branch. This is not part of either cycle below and is not repeated —
+once this has passed, both cycles below are the same script, already proven, against
+production.
+
+```powershell
+nvm use 24
+cd D:\Startup\opika
+git switch main
+git pull
+pnpm i --frozen-lockfile --prefer-offline
+
+# A fresh Neon child branch of production (Neon console, or neonctl branches create --parent main).
+$env:PROD_NEON_ENDPOINT = "ep-dawn-pond-b1dz515g"
+$env:DATABASE_URL = Read-Secret "Child branch connection string"
+
+pnpm --filter @opika/db db:migrate --expect <child-branch-endpoint-id>
+
+# Dry run — prints every table's current row count.
+pnpm --filter @opika/db db:full-reset --expect <child-branch-endpoint-id>
+
+# Apply.
+pnpm --filter @opika/db db:full-reset --expect <child-branch-endpoint-id> --commit
+
+pnpm --filter @opika/db db:check-hashes
+pnpm --filter @opika/db admin:bootstrap oleksii@example.org --expect <child-branch-endpoint-id>
+
+Remove-Item Env:DATABASE_URL
+```
+
+**Verification:** the `--commit` run's own output prints every table at 0; `db:check-hashes`
+reports every migration `match`; `admin:bootstrap` prints "Done." Confirms the script, the
+guard, and the whole chain of commands run clean end to end before any of it touches
+production for real.
+
+**Rollback:** none needed — a child branch is disposable. Delete it when done
+(`neonctl branches delete`, or the Neon console).
+
+## Cycle 1 — clear what's there, then the dress rehearsal
+
+### 1. A Neon backup branch
 
 **His own step, in the Neon console.** Create a branch of production (`main`) named
-something like `pre-launch-reset-2026-10-24`, from the current head. This is the rollback for
-step 1 — restoring from it is faster and less error-prone than trying to reconstruct anything
-by hand. Keep it until a real shelter has been live for a few days past launch, then delete it
-(it costs storage otherwise).
+something like `pre-launch-reset-1-2026-10-25`, from the current head. This is the rollback
+for step 2 — restoring from it is faster and less error-prone than trying to reconstruct
+anything by hand. Keep it until cycle 2's own reset (step 8) has run, then delete it (it
+costs storage otherwise, and once step 8 has run there's nothing left in it worth restoring
+to).
 
 **Rollback:** n/a — this step is itself the rollback mechanism for everything after it.
 
-## 1. The full reset
+### 2. The full reset
 
 Empties every application data table in production — shelters, animals, history, reveals,
 swipes, every `auth_*` table, support sessions — in one `TRUNCATE`. Keeps the schema, the
@@ -32,12 +81,6 @@ data; see `packages/db/src/full-reset.ts`'s own doc comment for the full list an
 exclusion is deliberate, not a gap).
 
 ```powershell
-nvm use 24
-cd D:\Startup\opika
-git fetch origin
-git switch main
-git pull
-pnpm i --frozen-lockfile --prefer-offline
 $env:PROD_NEON_ENDPOINT = "ep-dawn-pond-b1dz515g"
 $env:DATABASE_URL = Read-Secret "Production DIRECT connection string"
 
@@ -61,14 +104,17 @@ ORDER BY table_name;
 ```
 
 Expected: every table in `packages/db/src/full-reset.ts`'s `FULL_RESET_TABLES` list is 0;
-`cities` is unchanged from before; no table is missing from this list at all (if one is,
-`full-reset-table-coverage.test.ts` would already have failed in CI before this ever merged).
+`cities` is unchanged from before; no table is missing from this list at all
+(`full-reset-table-coverage.test.ts` would already have failed in CI before this ever
+merged). This TRUNCATE overrides two standing "never delete" rules (`super_admins`,
+`support_sessions`) by design — see the override notes next to both in
+`packages/db/src/schema/auth.ts`.
 
-**Rollback:** restore the Neon backup branch from step 0 as `main` (Neon console: "Restore
-from branch"). Nothing else in this document has run yet at this point, so there is nothing
-else to undo.
+**Rollback:** restore the Neon backup branch from step 1 as `main` (Neon console: "Restore
+from branch"). Nothing else in this cycle has run yet at this point, so there is nothing else
+to undo.
 
-## 2. `db:check-hashes`
+### 3. `db:check-hashes`
 
 Proves the reset touched no migration — same schema, same applied history.
 
@@ -82,9 +128,9 @@ own doc comment.)
 
 **Rollback:** a mismatch here means something touched the migrations table outside this
 document, which the reset itself cannot cause. Stop and investigate before continuing; do not
-proceed to step 3 with a mismatch unexplained.
+proceed to step 4 with a mismatch unexplained.
 
-## 3. Bootstrap the operator account
+### 4. Bootstrap the operator account
 
 ```powershell
 pnpm --filter @opika/db admin:bootstrap oleksii@example.org --prod
@@ -106,77 +152,106 @@ WHERE sa.revoked_at IS NULL;
 Expected: exactly one row, your address, `revoked_at` null.
 
 **Rollback:** `pnpm --filter @opika/db admin:revoke <email> --prod` (stamps `revoked_at`,
-never deletes the row — RG-T9). A fresh `admin:bootstrap` cannot run again afterward (it is
-one-time by a fixed grant id, not by "no active operator"); recovery from a mistaken bootstrap
-is `admin:grant` on the same address, not a second bootstrap.
+never deletes the row — HS-T2, overridden only by the reset itself). A fresh
+`admin:bootstrap` cannot run again afterward (it is one-time by a fixed grant id, not by "no
+active operator", RG-T9); recovery from a mistaken bootstrap is `admin:grant` on the same
+address, not a second bootstrap.
 
 **Signing in:** go to `/kabinet/vkhid`, request a magic link to your address (the operator
 has no password — Better Auth's magic-link plugin, not the shelter-admin password flow), and
 follow the emailed link.
 
-## 4. The UI dress rehearsal — invite yourself as a shelter
+### 5. The UI dress rehearsal — invite yourself as a shelter
 
-**As the operator**, on `/kabinet/prytulky/novyi`, create a shelter with your own details (a
-clearly-test-shaped name is fine — this shelter is removed in step 6, before any real one is
-onboarded). Invite yourself as its admin with an address you control.
+**RU-B5, Oleksii's own script, verbatim** — written in full in
+`docs/onboarding-a-shelter.md`'s "Dress rehearsal (UI only)" section; follow it there rather
+than a paraphrase here. In short: as the operator, create and verify a shelter; invite
+yourself as its admin from the shelter page; as that admin, sign in on a phone, fill the
+profile, add 2–3 animals with real phone photos, and publish; as an adopter, find them in the
+deck and gallery, reveal contacts, and message the shelter; mark one adopted and hide one,
+approve a donation link, suspend and reinstate the shelter, and check the history shows all
+of it.
 
-Then, **as that shelter admin** (a separate browser session or private window — the operator
-and the shelter admin are different accounts):
-
-1. Open the invite email, follow the link, set a password («Створіть пароль»).
-2. Sign out, sign back in with the password.
-3. In the kabinet, create at least one animal card with a photo, publish it.
-4. As an adopter (no sign-in needed), walk: the gallery → the card → its overlay → the deck
-   (`/tvaryny/gortaty`) → save it (the saved page, `/zberezheni`) → the shelter's own page →
-   reveal the shelter's contact → the donation link, if you set one (destination domain
-   visible before the tap).
-5. Back as the shelter admin: request a password reset («Забули пароль?»), confirm the email
-   arrives and the new password works.
-
-**Verification:** each step above IS its own verification — this is a human walkthrough, not
-a scripted check. The point is confirming the real kabinet, real email delivery (Resend/Brevo,
-whichever is live), and the real adopter-facing surfaces all work end to end against production,
-immediately after a reset that touched every one of their tables.
+**Verification:** each step of RU-B5 IS its own verification — this is a human walkthrough,
+not a scripted check. The point is confirming the real kabinet, real email delivery
+(Resend/Brevo, whichever is live), and the real adopter-facing surfaces all work end to end
+against production, immediately after a reset that touched every one of their tables.
 
 **Rollback:** none needed mid-rehearsal — nothing here is a one-way action. If something is
-wrong, fix it, redeploy, and repeat from wherever it broke. The whole shelter is removed in
-step 6 regardless of how the rehearsal went.
+wrong, fix it, redeploy, and repeat from wherever it broke. The whole shelter (and this
+cycle's operator account) is removed by cycle 2's own reset (step 8), not by a separate
+removal step.
 
-## 5. Remove the test shelter
+### 6. R2 clean-up, one-off run
 
-**The existing path** (`docs/onboarding-a-shelter.md`'s "Retiring the rehearsal shelter" —
-that section's own hardcoded shelter id, `c00c73ac-…`, no longer exists after step 1's reset;
-use your new test shelter's id instead):
-
-1. On `/kabinet/prytulky`, open the test shelter; remove every admin and every invitation
-   under «Адміністратори», then «Призупинити…» with a reason.
-2. Check for support sessions on it (if you ever entered support mode on it, `demo:remove`
-   refuses — the dry run below prints the count).
-3. Dry run, then commit:
+**Dependency, confirmed 2026-10-25:** the R2 clean-up job (`docs/gdpr-analysis.md`, photo
+retention) must already be built, deployed and enabled — its scheduled job running, its own
+`R2_CLEANUP_*` token set — before this step, and before cycle 2's step 2 too. Sweeps whatever
+step 2's reset just orphaned: every photo belonging to whatever test/demo data was already in
+production before this cycle began.
 
 ```powershell
 $env:DATABASE_URL = Read-Secret "Production DIRECT connection string"
-pnpm --filter @opika/db demo:remove --expect ep-dawn-pond-b1dz515g --prod --shelter <test-shelter-id>
-pnpm --filter @opika/db demo:remove --expect ep-dawn-pond-b1dz515g --prod --shelter <test-shelter-id> --commit
+$env:R2_CLEANUP_ACCESS_KEY_ID = Read-Secret "R2_CLEANUP_ACCESS_KEY_ID"
+$env:R2_CLEANUP_SECRET_ACCESS_KEY = Read-Secret "R2_CLEANUP_SECRET_ACCESS_KEY"
+
+# Dry run — counts and total size only, never a key.
+pnpm --filter @opika/db r2:cleanup --expect ep-dawn-pond-b1dz515g --prod --grace-days 0
+
+# Apply.
+pnpm --filter @opika/db r2:cleanup --expect ep-dawn-pond-b1dz515g --prod --grace-days 0 --commit
+
 Remove-Item Env:DATABASE_URL
+Remove-Item Env:R2_CLEANUP_ACCESS_KEY_ID
+Remove-Item Env:R2_CLEANUP_SECRET_ACCESS_KEY
 ```
 
-**Verification:** the dry run names the shelter and prints the R2 photo keys of its animals
-(add those to the Cloudflare takedown list — nothing here deletes R2 objects, same as every
-other use of `demo:remove`). Re-run the dry run afterward: it refuses with "no shelter has id
-…", confirming it's gone. In the **Neon SQL Editor**:
+`--grace-days 0` is refused everywhere except a manual run with `--commit` and a correct
+`--expect` — the scheduled job itself has no way to be given an override at all, so this
+flag only ever does something here, by hand, right after a reset. Script and flag name as
+designed; confirm the exact invocation against that PR once it lands.
 
-```sql
-SELECT count(*) FROM shelters;
-```
+**Verification:** the dry run reports a count and a total size, nothing identifying; the
+`--commit` run reports how many objects it actually deleted.
 
-Expected: 0 (no real shelter onboarded yet, step 1's reset having removed everything, and this
-step having just removed the one shelter the rehearsal created).
+**Rollback:** none — this only deletes R2 objects nothing in the database (just emptied by
+step 2) refers to any more.
 
-**Rollback:** none — this step only removes a shelter that exists purely for the rehearsal
-just completed, with nothing downstream depending on it yet.
+## Cycle 2 — remove the rehearsal, onboard for real
 
-## 6. Onboard the real shelters
+### 7. A Neon backup branch, again
+
+Same as step 1, a fresh branch (e.g. `pre-launch-reset-2-2026-10-25`) from the current head —
+cycle 1 changed production, so step 1's backup is now stale as a rollback target for this
+cycle's own reset.
+
+**Rollback:** n/a — this step is itself the rollback mechanism for everything after it.
+
+### 8. The full reset, again
+
+Exactly step 2, run again. This is what removes the rehearsal shelter and cycle 1's operator
+account — not a `demo:remove --shelter` call. Same commands as step 2 (swap the backup
+branch name in your own notes; the production target and `--expect` value are unchanged).
+
+**Verification:** identical to step 2's.
+
+**Rollback:** restore the Neon backup branch from step 7 as `main`.
+
+### 9. `db:check-hashes`, again
+
+Identical to step 3.
+
+### 10. Bootstrap the operator account, again
+
+Identical to step 4 — cycle 1's operator account was just removed by step 8, so this is a
+fresh bootstrap, not a no-op.
+
+### 11. R2 clean-up, one-off run, again
+
+Identical to step 6. Sweeps the rehearsal's own photos, now genuinely orphaned: their
+`animals` row is gone (step 8), so nothing references them any more.
+
+### 12. Onboard the real shelters
 
 **The existing path**, `docs/onboarding-a-shelter.md` in full, run once per real shelter:
 
@@ -200,15 +275,17 @@ SELECT id, display_name, verification_status FROM shelters;
 
 Expected: exactly the real shelters just onboarded, each `verification_status = 'verified'`.
 
-**Rollback:** `onboard:shelter` only inserts; a mistaken onboard is removed the same way the
-test shelter was in step 5 (`demo:remove --shelter <id> --prod --commit`), before any animal
-on it has been shown to an adopter (S8-F5's `everServedAt` names exactly this: if nothing has
-served it yet, nothing is lost by removing it).
+**Rollback:** `onboard:shelter` only inserts; a mistaken onboard is removed with
+`demo:remove --shelter <id> --prod --commit` (the same mechanism the old plan used to retire
+the rehearsal shelter — still the right tool for removing *one* mistakenly onboarded real
+shelter, just not for the rehearsal shelter, which the reset above already removes), before
+any animal on it has been shown to an adopter (S8-F5's `everServedAt` names exactly this: if
+nothing has served it yet, nothing is lost by removing it).
 
-## 7. Flip `REGISTRY_HAS_NO_REAL_SHELTERS`
+### 13. Flip `REGISTRY_HAS_NO_REAL_SHELTERS`
 
 A one-line code change: `apps/web/src/seo-flags.ts`, `REGISTRY_HAS_NO_REAL_SHELTERS = true`
-→ `false`. Commit, push, let the deploy land. This is independent of step 8 below — real
+→ `false`. Commit, push, let the deploy land. This is independent of step 14 below — real
 shelters existing is not the same fact as the site being publicly discoverable
 (`docs/standing-constraints.md`'s "two facts that happen to be true at the same time are not
 one fact"; `seo-flags.ts`'s own doc comment on this constant has the full reasoning).
@@ -218,13 +295,15 @@ deploy, the gallery's demo banner and the deck's demo label are gone, and a card
 перевірений" suffix appears for a verified real shelter — all driven by this one flag
 (`verificationSuffix`, `seo-flags.ts`).
 
-**Rollback:** flip it back to `true`, commit, redeploy. Reversible at any point before step 8,
-since nothing downstream depends on it alone.
+**Rollback:** flip it back to `true`, commit, redeploy. Reversible at any point before step
+14, since nothing downstream depends on it alone.
 
-## 8. Remove the gate, flip `SITE_IS_PUBLICLY_DISCOVERABLE`, land R4-2 — one commit
+### 14. Remove the gate, flip `SITE_IS_PUBLICLY_DISCOVERABLE`, land R4-2 — one commit
 
 Three changes, one commit, because `assertAnalyticsCopyMatchesGateState` (`seo-flags.ts`)
-throws at boot if they land out of step with each other:
+is a test-time tripwire that fails CI if they land out of step with each other (it does not
+throw at boot — `instrumentation.ts`'s `assertDemoDiscoverabilityInvariant` is the one
+boot-time check, and it covers the other pair of constants, step 13 above):
 
 1. `apps/web/src/seo-flags.ts`: `SITE_IS_PUBLICLY_DISCOVERABLE = false` → `true`. This alone
    removes the pre-launch gate too — `proxy.ts`'s gate only runs
@@ -239,11 +318,9 @@ throws at boot if they land out of step with each other:
 
 Commit, push, let the deploy land.
 
-**Verification:** `instrumentation.ts`'s `assertDemoDiscoverabilityInvariant` and
-`assertAnalyticsCopyMatchesGateState` both run at boot and would crash the deploy if these
-three are out of sync with each other — a failed deploy here is the check working, not a
-surprise. After a successful deploy, from a machine with no gate cookie and no `?gate=`
-parameter:
+**Verification:** the tripwire test above is green in CI before this ever merges — a failed
+merge here is the check working, not a surprise. After a successful deploy, from a machine
+with no gate cookie and no `?gate=` parameter:
 
 ```powershell
 Invoke-WebRequest -Uri "https://opika.org.ua/tvaryny" -UseBasicParsing | Select-Object StatusCode, Headers
@@ -256,18 +333,18 @@ no `<meta name="robots" content="noindex...">`. `/pro`'s analytics paragraph inc
 **Rollback:** revert the commit, redeploy. All three changes are plain code/copy; nothing
 here is a data migration.
 
-## 9. Allow indexing
+### 15. Allow indexing
 
-Nothing left to *do* — step 8 already made the site crawlable and indexable. This step is
-confirming it, a day or two after step 8's deploy:
+Nothing left to *do* — step 14 already made the site crawlable and indexable. This step is
+confirming it, a day or two after step 14's deploy:
 
 - Google Search Console (if not already verified for `opika.org.ua`, verify it now) — submit
   the root URL for indexing, or just wait for the next crawl.
 - Spot-check `https://opika.org.ua/robots.txt` allows `/` (it always has, D-3) and a real page
-  no longer carries `noindex` (same check as step 8's verification).
+  no longer carries `noindex` (same check as step 14's verification).
 
 **Rollback:** n/a — there is nothing to roll back; "allow indexing" is an observation that
-step 8 worked, not an action with its own state.
+step 14 worked, not an action with its own state.
 
 ---
 
@@ -280,11 +357,11 @@ to index regardless of how the steps above are sequenced relative to each other.
 
 **D-7** (write the demo-to-real transition into `docs/standing-constraints.md` and the
 onboarding checklist) is this document. The two-constants distinction it was supposed to
-record (`REGISTRY_HAS_NO_REAL_SHELTERS` vs `SITE_IS_PUBLICLY_DISCOVERABLE`, steps 7–8 above)
+record (`REGISTRY_HAS_NO_REAL_SHELTERS` vs `SITE_IS_PUBLICLY_DISCOVERABLE`, steps 13–14 above)
 is unchanged by the move to a full reset — that window (a real shelter live, not yet
 publicly discoverable) still exists and is still deliberate, for the same reason it always
 was: a shelter's first real listing needs to be checkable (the `?gate=` preview link, step
-4's rehearsal having already proven the mechanism works) before the whole site is meant to be
+5's rehearsal having already proven the mechanism works) before the whole site is meant to be
 found.
 
 `docs/launch-gate.md`'s rows for D-7, the wipe-and-flip script/runbook, and the

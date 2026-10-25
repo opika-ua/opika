@@ -163,6 +163,13 @@ export const authInvitation = pgTable(
  * The only production writers are `admin:grant` and `admin:revoke` (HS-Q4; tests and the auth
  * smoke write fixture grants on throwaway databases), both behind
  * the production guard.
+ *
+ * **One named exception** (Oleksii, 2026-10-25, confirming PR #199's Tier 1
+ * review): `db:full-reset` (`full-reset.ts`) overrides this rule by design.
+ * A full reset's whole purpose is the moment before any real shelter exists
+ * — there is no real operator history yet to audit, so wiping this table
+ * along with everything else loses nothing a pre-launch reset is meant to
+ * protect. The rule above still holds for every other write path.
  */
 export const superAdmins = pgTable(
   "super_admins",
@@ -187,6 +194,11 @@ export const superAdmins = pgTable(
  * token, as decision #13 does for adopters (Oleksii: "Hashed token in
  * support_sessions: fine"). Rows are never deleted: who viewed which shelter,
  * and when, stays auditable.
+ *
+ * **One named exception** (Oleksii, 2026-10-25, confirming PR #199's Tier 1
+ * review): `db:full-reset` (`full-reset.ts`) overrides this rule by design,
+ * for the same reason `super_admins` above does — nothing real to audit
+ * before launch. The rule above still holds for every other write path.
  */
 export const supportSessions = pgTable(
   "support_sessions",

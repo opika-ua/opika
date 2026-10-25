@@ -6,34 +6,46 @@ import { assertProductionWriteAllowed, databaseTargetLine, expectedTargetOf } fr
 import { executeRows } from "./raw-rows";
 
 /**
- * `db:full-reset`: the final-dress-rehearsal-to-real-launch reset
- * (`docs/launch-sequence.md`'s first code step, after Oleksii's own Neon
- * backup branch). Empties every application data table in one
- * `TRUNCATE … CASCADE` statement: shelters, animals, their history, swipes,
- * reveals, every `auth_*` table, support sessions. Keeps the schema and
- * drizzle's own migrations table — `db:check-hashes` matches, unchanged,
- * before and after a reset — and keeps `cities` (see `RESET_EXCLUDED_TABLES`
- * below): reference data a shelter can't be onboarded without, not
- * application data this reset is about.
+ * `db:full-reset`: `docs/launch-sequence.md`'s own reset step, run *before*
+ * the dress rehearsal, not after — corrected 2026-10-25, Oleksii's own
+ * words, verbatim: "you have my order backwards. I said: wipe everything,
+ * then set up my admin account, then invite myself as a shelter and go
+ * through the whole flow." Run once per cycle (after Oleksii's own Neon
+ * backup branch), twice in total: once to clear whatever test data already
+ * sits in production before the rehearsal, once more right after the
+ * rehearsal to remove the rehearsal shelter itself along with everything
+ * else — `docs/launch-sequence.md` has the full two-cycle sequence. Empties
+ * every application data table in one plain `TRUNCATE` statement: shelters,
+ * animals, their history, swipes, reveals, every `auth_*` table, support
+ * sessions. Keeps the schema and drizzle's own migrations table —
+ * `db:check-hashes` matches, unchanged, before and after a reset — and
+ * keeps `cities` (see `RESET_EXCLUDED_TABLES` below): reference data a
+ * shelter can't be onboarded without, not application data this reset is
+ * about.
  *
  * Replaces the demo-only wipe this repo was building toward launch, on
  * Oleksii's own instruction (2026-10-24, inbox): a full reset, not a
- * demo-only one, run once, personally, right after his own dress rehearsal
- * as a real shelter through the real kabinet flow — so no demo data and no
- * rehearsal data ever coexists with real data. `demo:remove`
- * (`demo-remove.ts`) stays in the repo for its own narrower, repeatable use
- * (removing one shelter, or the seed range, without wiping everything);
- * this script is not built on top of it — a full `TRUNCATE` has no use for
- * demo:remove's shelter-targeting or its per-row delete-with-returning
- * machinery, so sharing code there would only couple two things that solve
- * different problems.
+ * demo-only one, run personally — so no demo data and no rehearsal data
+ * ever coexists with real data. `demo:remove` (`demo-remove.ts`) stays in
+ * the repo for its own narrower, repeatable use (removing one shelter, or
+ * the seed range, without wiping everything); this script is not built on
+ * top of it — a full `TRUNCATE` has no use for demo:remove's
+ * shelter-targeting or its per-row delete-with-returning machinery, so
+ * sharing code there would only couple two things that solve different
+ * problems. Removing the rehearsal shelter specifically is this script's
+ * own second run, not a `demo:remove --shelter` call — see
+ * `docs/launch-sequence.md`.
  *
  * `--commit` is the only way this writes anything; without it, this is a
  * read-only report of what's there. There is deliberately no "refuse unless
  * a real shelter already exists" guard, unlike `demo:remove`'s own
- * `no_real_shelter` check — this script's whole purpose is the moment
- * *before* any real shelter exists, between the dress rehearsal and the
- * first real onboarding.
+ * `no_real_shelter` check — every one of this script's real runs happens
+ * before any real shelter exists at all.
+ *
+ * Overrides two standing "never delete" rules by design (Oleksii,
+ * 2026-10-25, confirming PR #199's Tier 1 review — see the override notes
+ * next to `superAdmins` and `supportSessions` in `schema/auth.ts`): nothing
+ * real exists yet for either rule to protect.
  *
  * Usage (from the repo root; `PROD_NEON_ENDPOINT` from the shell or the root
  * `.env.local`, as for every production-aware script):
