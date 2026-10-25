@@ -191,3 +191,77 @@ export const eUkraine = localFont({
  * surface) with `eUkraine` above, which supersedes this substitution
  * rather than adding a fourth place to reverse it.
  */
+
+/**
+ * Climate Crisis — the gallery-v3 brand redesign's display family (PR 1 of
+ * the gallery-v3 work; no consumer yet, see `./fonts/brand-display/README.md`).
+ * A third, parallel visual system alongside Literata/Commissioner and
+ * e-Ukraine above, for the same "skin, not skeleton" reason those two
+ * coexist: this redesign re-skins only `/tvaryny` and the shared header, not
+ * the whole app.
+ *
+ * Self-hosted from a locally pinned static instance, not `next/font/google`:
+ * upstream ships a variable font with a `YEAR` axis (1979–2050, default
+ * 1979), and the design renders at the axis default, so
+ * `fonttools varLib.instancer` pins `YEAR=1979` before converting to woff2 —
+ * see the README for the exact commands. One static weight, 400, because the
+ * design's title is the only surface this family draws
+ * (`docs/design/README.md`'s gallery-v3 type scale).
+ *
+ * Not subset, for the same reason as every other family in this file:
+ * subsetting picks a glyph set this redesign isn't final on yet
+ * (`docs/build-plan.md`'s H3.5).
+ *
+ * `preload: false`, measured the same way as Literata/Commissioner above
+ * (Playwright, intercepting `*.woff2` responses against a built app, this
+ * time `/tvaryny` and `/pro`): this font and `brandUi` below have no
+ * consumer yet (PR 1 of the gallery-v3 work), so the baseline with both at
+ * `preload: false` is 97,140 bytes on both routes — unchanged from before
+ * this PR, all of it e-Ukraine. Flipping both to `preload: true` to measure
+ * the counterfactual added 254,800 bytes (162,640 + 92,160, this file's and
+ * `brandUi`'s) to **both** routes, including `/pro`, which never renders
+ * either family — `next/font` preloads based on reachability from the root
+ * layout's module graph, not on whether a route's rendered CSS actually
+ * resolves to the font-family. `preload: false` until PR 2 wires an actual
+ * consumer into the gallery and the header; re-measure then, since at that
+ * point `/tvaryny` legitimately pays some of this cost and the question is
+ * only how much of it should be eager.
+ *
+ * `variable: "--font-climate-crisis"`, not `--font-brand-display`: the same
+ * split `--font-serif`/`--font-literata` and `--font-rg`/`--font-e-ukraine`
+ * already use above — the loader's own generated variable is named after
+ * the actual typeface, and `globals.css`'s `@theme` block maps the
+ * role-named utility (`--font-brand-display`) onto it with `var()`. Naming
+ * both the same would make `globals.css`'s declaration self-referential
+ * (`--font-brand-display: var(--font-brand-display)` never resolves).
+ */
+export const brandDisplay = localFont({
+  src: [{ path: "./fonts/brand-display/ClimateCrisis-static.woff2", weight: "400" }],
+  display: "swap",
+  preload: false,
+  variable: "--font-climate-crisis",
+});
+
+/**
+ * «Opika Variable» — the gallery-v3 redesign's UI family (PR 1; no consumer
+ * yet, see `./fonts/brand-ui/README.md`). A renamed, OFL-licensed derivative
+ * of Bellota Text (Kemie Guaida); the rename exists only so the CSS family
+ * name carries no upstream project's name, the same reasoning as the
+ * name-agnostic `brand-` token prefix in `globals.css`.
+ *
+ * One variable file covers the whole 300–700 weight range the design's type
+ * scale uses (500/600/700), rather than vendoring three static instances —
+ * see the README for the byte-cost comparison. Not subset, same reasoning as
+ * every other family above.
+ *
+ * `variable: "--font-bellota-text"` (the font's actual upstream typeface,
+ * same naming split as `brandDisplay` above) — not `--font-brand-ui`, for
+ * the same self-reference reason.
+ */
+export const brandUi = localFont({
+  src: [{ path: "./fonts/brand-ui/OpikaVariable-wght.woff2" }],
+  weight: "300 700",
+  display: "swap",
+  preload: false,
+  variable: "--font-bellota-text",
+});

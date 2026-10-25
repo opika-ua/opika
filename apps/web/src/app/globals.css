@@ -285,6 +285,57 @@
    * rule ("short and dry; no springiness") applies here too.
    */
   --animate-fade-in: fade-in 220ms ease-out;
+
+  /*
+   * ==== Gallery-v3 brand redesign — a third, parallel token set ====
+   *
+   * Figma file `euz4JGfpToY31VJY7ppVj9`, node `58:1617` ("catalog"). This
+   * redesign re-skins only `/tvaryny` and the shared header (PR 2 of the
+   * gallery-v3 work) — every other route keeps reading the bare or `rg-`
+   * tokens above, unmodified, same reasoning as the `rg-` block's own
+   * comment above it.
+   *
+   * `brand-` rather than `ink`/`surface`/etc: `ink` already collides at two
+   * different hex values in the two blocks above, so this is the third
+   * parallel set sharing that same collision, prefixed for the same reason.
+   * This is the point `--color-rg-*`'s own comment calls "once a future
+   * phase finishes re-skinning every remaining surface" for the bare block —
+   * except a third surface arrived before that happened, so there are now
+   * three parallel sets rather than a clean swap to two. The bare and `rg-`
+   * blocks above get deleted, and these three names come off their prefix,
+   * once every surface in the app is on one visual system.
+   *
+   * `--radius-brand-*` and `--font-brand-*` follow the same prefixing for
+   * the same reason as the colours above.
+   */
+  --color-brand-page: #faf7f6;
+  --color-brand-surface: #faf8f6;
+  --color-brand-ink: #270041;
+  --color-brand-on-ink: #faf8f9;
+  --color-brand-ink-2: #805f6e;
+  --color-brand-muted: #b58fa0;
+  --color-brand-line: #e7dae0;
+  --color-brand-accent: #f26427;
+  --color-brand-dog: #794eba;
+
+  --radius-brand-tag: 8px;
+  --radius-brand-field: 12px;
+  --radius-brand-panel: 20px;
+  --radius-brand-card: 24px;
+  --radius-brand-pill: 999px;
+
+  /*
+   * `next/font/local` (apps/web/src/app/fonts.ts, `brandDisplay`/`brandUi`),
+   * same mechanism and same reasoning as `--font-serif`/`--font-sans` above:
+   * nothing after `var()` because a reachable but somehow-undefined
+   * variable means the root layout stopped applying the class, which is a
+   * bug to fix rather than a fallback to paper over. The loader variables
+   * are named after the actual typefaces (`--font-climate-crisis`,
+   * `--font-bellota-text`), not after these role names — see fonts.ts's
+   * doc comments for why same-naming would be self-referential.
+   */
+  --font-brand-display: var(--font-climate-crisis);
+  --font-brand-ui: var(--font-bellota-text);
 }
 
 @keyframes spin-fast {
