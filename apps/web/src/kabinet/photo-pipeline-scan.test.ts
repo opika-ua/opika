@@ -9,15 +9,22 @@ import { describe, expect, it } from "vitest";
  * or deletes an existing object"; "re-encode strips ALL metadata"):
  *
  * - no S3 call that deletes, copies over, or schedules the deletion of an
- *   object exists anywhere;
- * - no SDK command but `PutObjectCommand` is named in any non-test source,
- *   and `@aws-sdk/lib-storage` (multipart uploads, which assemble an object
- *   from copied parts) appears in none;
- * - the AWS SDK is imported in exactly one source file (`r2-client.ts`), and
- *   there as exactly `{ PutObjectCommand, S3Client }` from
- *   `@aws-sdk/client-s3`, so the first rule has one place to look; that
- *   file's put carries `IfNoneMatch` (P-Q11). Its own test is the one other
- *   importer, held to the same import;
+ *   object exists anywhere — **except** `r2-cleanup-client.ts`, the GDPR
+ *   photo-retention job's own client (`docs/gdpr-analysis.md`), the one
+ *   named exception Oleksii's rule now carries (2026-10-25: "this job is
+ *   the only code allowed to delete R2 objects"). That file's own commands
+ *   are checked separately, below, against its own narrower allowlist —
+ *   never folded into the general "no destructive calls" check, which
+ *   still holds for every other file unchanged;
+ * - no SDK command but `PutObjectCommand` is named in any other non-test
+ *   source, and `@aws-sdk/lib-storage` (multipart uploads, which assemble
+ *   an object from copied parts) appears in none;
+ * - the AWS SDK is imported in exactly two source files (`r2-client.ts`,
+ *   put-only, and `r2-cleanup-client.ts`, list-and-delete-only), each as
+ *   exactly its own named set from `@aws-sdk/client-s3`, so the first rule
+ *   has two places to look, never a third; `r2-client.ts`'s put carries
+ *   `IfNoneMatch` (P-Q11). Each file's own test is the one other importer,
+ *   held to the same import;
  * - nothing in the image pipeline asks sharp to keep or write metadata;
  * - no `apps/web` module imports the server pipeline statically: it is loaded
  *   inside the upload handler (`import()`), which keeps sharp and the S3
@@ -51,6 +58,8 @@ const others = all.filter((file) => file.path !== SELF);
 
 const R2_CLIENT = "packages/db/src/image-pipeline/r2-client.ts";
 const R2_CLIENT_TEST = "packages/db/src/image-pipeline/r2-client.test.ts";
+const R2_CLEANUP_CLIENT = "packages/db/src/image-pipeline/r2-cleanup-client.ts";
+const R2_CLEANUP_CLIENT_TEST = "packages/db/src/image-pipeline/r2-cleanup-client.test.ts";
 const PIPELINE_DIR = "packages/db/src/image-pipeline/";
 
 /** Each check as a function over files, so the bypass cases below run the same code. */
@@ -143,12 +152,32 @@ describe("the photo pipeline's never-rules (K-Q2, P-Q11)", () => {
     );
   });
 
-  it("no source file deletes, copies or schedules the deletion of an object", () => {
-    expect(filesWithDestructiveCalls(others)).toEqual([]);
+  it("no source file deletes, copies or schedules the deletion of an object, except the one named GDPR job", () => {
+    const othersExceptCleanup = others.filter(
+      (file) => file.path !== R2_CLEANUP_CLIENT && file.path !== R2_CLEANUP_CLIENT_TEST,
+    );
+    expect(filesWithDestructiveCalls(othersExceptCleanup)).toEqual([]);
   });
 
-  it("only r2-client.ts (and its own test) imports anything from @aws-sdk/*", () => {
-    expect(filesImportingAwsSdk(others).sort()).toEqual([R2_CLIENT, R2_CLIENT_TEST].sort());
+  it("the named exception's own destructive calls are exactly DeleteObjectsCommand, nothing wider", () => {
+    for (const path of [R2_CLEANUP_CLIENT, R2_CLEANUP_CLIENT_TEST]) {
+      const text = all.find((file) => file.path === path)?.text ?? "";
+      expect(text, path).not.toBe("");
+      expect(
+        [
+          ...new Set(
+            text.match(/\b(DeleteObject|CopyObject|PutBucketLifecycle|DeleteBucket)\w*/g) ?? [],
+          ),
+        ],
+        path,
+      ).toEqual(["DeleteObjectsCommand"]);
+    }
+  });
+
+  it("only r2-client.ts and r2-cleanup-client.ts (and their own tests) import anything from @aws-sdk/*", () => {
+    expect(filesImportingAwsSdk(others).sort()).toEqual(
+      [R2_CLIENT, R2_CLIENT_TEST, R2_CLEANUP_CLIENT, R2_CLEANUP_CLIENT_TEST].sort(),
+    );
   });
 
   it("r2-client.ts (and its test) import exactly { PutObjectCommand, S3Client } from client-s3", () => {
@@ -159,11 +188,32 @@ describe("the photo pipeline's never-rules (K-Q2, P-Q11)", () => {
     }
   });
 
-  it("no non-test source names an SDK command but PutObjectCommand, or lib-storage", () => {
-    expect(otherCommandNamesIn(nonTest)).toEqual([]);
+  it("r2-cleanup-client.ts (and its test) import exactly { DeleteObjectsCommand, ListObjectsV2Command, S3Client }", () => {
+    for (const path of [R2_CLEANUP_CLIENT, R2_CLEANUP_CLIENT_TEST]) {
+      const text = all.find((file) => file.path === path)?.text ?? "";
+      expect(text, path).not.toBe("");
+      expect(sdkImportNamesOf(text), path).toEqual([
+        "DeleteObjectsCommand",
+        "ListObjectsV2Command",
+        "S3Client",
+      ]);
+    }
+  });
+
+  it("no non-test source names an SDK command but PutObjectCommand, or lib-storage, outside the named exception", () => {
+    const nonTestExceptCleanup = nonTest.filter((file) => file.path !== R2_CLEANUP_CLIENT);
+    expect(otherCommandNamesIn(nonTestExceptCleanup)).toEqual([]);
     expect(filesNamingLibStorage(nonTest)).toEqual([]);
     const admin = all.find((file) => file.path === "packages/db/src/admin.ts")?.text ?? "";
     expect(admin).toMatch(/export type AdminCommand = "/);
+  });
+
+  it("the named exception names only its own two commands, nothing else", () => {
+    const CLEANUP_COMMANDS = new Set(["DeleteObjectsCommand", "ListObjectsV2Command"]);
+    const text = all.find((file) => file.path === R2_CLEANUP_CLIENT)?.text ?? "";
+    const names = [...new Set(text.match(COMMAND_NAME) ?? [])];
+    expect(names.filter((name) => !CLEANUP_COMMANDS.has(name))).toEqual([]);
+    expect([...CLEANUP_COMMANDS].every((name) => names.includes(name))).toBe(true);
   });
 
   it("r2-client.ts's put refuses to overwrite: IfNoneMatch: *", () => {

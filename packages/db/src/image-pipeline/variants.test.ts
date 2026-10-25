@@ -7,6 +7,7 @@ import {
   nearestVariant,
   r2EndpointUrl,
   r2PublicUrl,
+  storageKeyFromObjectKey,
   variantObjectKey,
 } from "./variants";
 
@@ -56,6 +57,26 @@ describe("variantObjectKey", () => {
     expect(variantObjectKey("animals/x/0", "card")).toBe("animals/x/0/card.webp");
     expect(variantObjectKey("animals/x/0", "thumb")).toBe("animals/x/0/thumb.webp");
     expect(variantObjectKey("animals/x/0", "detail")).toBe("animals/x/0/detail.webp");
+  });
+});
+
+describe("storageKeyFromObjectKey (the R2 clean-up job's own need, the inverse of variantObjectKey)", () => {
+  it("recovers the storage key for each real variant", () => {
+    for (const variant of ["thumb", "card", "detail"] as const) {
+      expect(storageKeyFromObjectKey(variantObjectKey("animals/x/0", variant))).toBe("animals/x/0");
+    }
+  });
+
+  it("round-trips through variantObjectKey for a realistic key with slashes in the storage key itself", () => {
+    const storageKey = animalPhotoStorageKeyFor(ANIMAL_ID, "b1000000-0000-4000-8000-000000000001");
+    expect(storageKeyFromObjectKey(variantObjectKey(storageKey, "card"))).toBe(storageKey);
+  });
+
+  it("refuses anything that isn't a real variant object key, rather than mis-parsing it", () => {
+    expect(storageKeyFromObjectKey("animals/x/0")).toBeNull();
+    expect(storageKeyFromObjectKey("animals/x/0/original.jpg")).toBeNull();
+    expect(storageKeyFromObjectKey("animals/x/0/thumb.jpg")).toBeNull();
+    expect(storageKeyFromObjectKey("not-a-photo-key")).toBeNull();
   });
 });
 

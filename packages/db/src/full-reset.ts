@@ -78,6 +78,13 @@ export const FULL_RESET_TABLES = [
   "animals",
   "adopters",
   "shelters",
+  // GDPR photo retention's own tracking table (r2-cleanup-repo.ts): which real
+  // R2 keys are currently unreferenced, and since when. Wiped with the data it
+  // describes, same as swipes/reveals/shelter_history — the next scan
+  // (necessarily run after a reset, as part of the post-reset R2 clean-up step)
+  // repopulates it fresh from the bucket listing and the post-reset reference
+  // set, so nothing is lost by resetting it too.
+  "r2_unreferenced_objects",
 ] as const;
 export type FullResetTable = (typeof FULL_RESET_TABLES)[number];
 
