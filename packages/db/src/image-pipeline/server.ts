@@ -13,8 +13,8 @@
  * the same dynamic-import shape, for `createR2CleanupClient`/`runR2Cleanup`.
  */
 
-export type { R2CleanupReport } from "../r2-cleanup";
-export { runR2Cleanup } from "../r2-cleanup";
+export type { R2CleanupReport } from "../r2-cleanup-run";
+export { runR2Cleanup } from "../r2-cleanup-run";
 export { generateVariants } from "./generate-variants";
 export { prepareUploadedPhoto } from "./prepare-uploaded-photo";
 export type { R2CleanupClient, R2CleanupConfig } from "./r2-cleanup-client";

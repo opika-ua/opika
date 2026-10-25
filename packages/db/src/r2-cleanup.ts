@@ -2,8 +2,12 @@
  * `r2:cleanup`: GDPR photo retention (`docs/gdpr-analysis.md`). Deletes R2
  * photo objects that have sat unreferenced (no `animals.photos` row names
  * their storage key) for at least the grace period — `r2-cleanup-repo.ts`'s
- * own doc comments cover the reference rule and the tracking table; this
- * file is the orchestration and the CLI.
+ * own doc comments cover the reference rule and the tracking table,
+ * `r2-cleanup-run.ts` the orchestration this CLI and the scheduled job both
+ * share. This file is the CLI only — `r2-cleanup-run.ts` has no `prod-guard`
+ * import, so `image-pipeline/server.ts` (which `apps/web`'s cron route
+ * dynamically imports) re-exports from there, never from here; this file's
+ * own `main()` is the one place `prod-guard`'s CLI-only guard belongs.
  *
  * Two callers, two trust boundaries:
  *   - **The scheduled job** (`apps/web`'s `/api/cron/r2-cleanup`, Vercel
@@ -35,107 +39,23 @@
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isPastGracePeriod, R2_CLEANUP_GRACE_PERIOD_DAYS } from "@opika/domain";
 import postgres from "postgres";
-import { createDatabaseWithClient, type Database } from "./client";
-import { createR2CleanupClient, type R2CleanupClient } from "./image-pipeline/r2-cleanup-client";
+import { createDatabaseWithClient } from "./client";
+import { createR2CleanupClient } from "./image-pipeline/r2-cleanup-client";
 import {
   assertProductionWriteAllowed,
   databaseTargetLine,
   expectedTargetOf,
   PROD_FLAG,
 } from "./prod-guard";
-import {
-  afterDeleted,
-  recordScan,
-  stillUnreferenced,
-  trackedUnreferencedObjects,
-} from "./repos/r2-cleanup-repo";
+import { formatReport, runR2Cleanup } from "./r2-cleanup-run";
 
-/** The one namespace this job ever touches — `isRealPhotoKey`'s own bound. */
-export const ANIMAL_PHOTO_PREFIX = "animals/";
-
-export type R2CleanupReport = {
-  scanned: number;
-  newlyTracked: number;
-  clearedBack: number;
-  dueForDeletion: readonly string[];
-  deleted: readonly string[];
-  failed: readonly { key: string; message: string }[];
-  snapshotsNulled: number;
-};
-
-/**
- * One full run. Always scans and records (bookkeeping, idempotent, never
- * destructive — see `recordScan`'s own doc comment), so a dry run's report
- * of what's due is accurate rather than stale. Deletes for real only when
- * `commit`, and re-checks every candidate right before deleting
- * (`stillUnreferenced`) — Oleksii's own requirement, so a key referenced
- * again since the scan is never deleted.
- */
-export async function runR2Cleanup(
-  db: Database,
-  r2: R2CleanupClient,
-  now: Date,
-  options: { commit: boolean; graceDays: number | undefined },
-): Promise<R2CleanupReport> {
-  const graceDays = options.graceDays ?? R2_CLEANUP_GRACE_PERIOD_DAYS;
-  const bucketKeys = await r2.listObjectKeys(ANIMAL_PHOTO_PREFIX);
-  const { newlyTracked, cleared } = await recordScan(db, bucketKeys, now);
-
-  const tracked = await trackedUnreferencedObjects(db);
-  const due = tracked
-    .filter((row) => isPastGracePeriod(row.firstSeenUnreferencedAt, now, graceDays))
-    .map((row) => row.objectKey);
-
-  if (!options.commit || due.length === 0) {
-    return {
-      scanned: bucketKeys.length,
-      newlyTracked,
-      clearedBack: cleared,
-      dueForDeletion: due,
-      deleted: [],
-      failed: [],
-      snapshotsNulled: 0,
-    };
-  }
-
-  const stillDue = await stillUnreferenced(db, due);
-  const { deleted, failed } = await r2.deleteObjects(stillDue);
-  const { snapshotsNulled } = await afterDeleted(db, deleted);
-
-  return {
-    scanned: bucketKeys.length,
-    newlyTracked,
-    clearedBack: cleared,
-    dueForDeletion: due,
-    deleted,
-    failed,
-    snapshotsNulled,
-  };
-}
-
-export function formatReport(
-  report: R2CleanupReport,
-  heading: "Would delete" | "Deleted",
-): string[] {
-  const lines = [
-    `Bucket objects scanned (${ANIMAL_PHOTO_PREFIX}): ${report.scanned}`,
-    `Newly tracked as unreferenced: ${report.newlyTracked}`,
-    `Referenced again, untracked: ${report.clearedBack}`,
-    `Past the grace period (${heading}): ${report.dueForDeletion.length}`,
-  ];
-  for (const key of report.dueForDeletion) lines.push(`  ${key}`);
-  if (heading === "Deleted") {
-    lines.push(`Deleted: ${report.deleted.length}`);
-    lines.push(`Reveal snapshots nulled: ${report.snapshotsNulled}`);
-    if (report.failed.length > 0) {
-      lines.push(`Failed (left in place, left tracked): ${report.failed.length}`);
-      for (const { key, message } of report.failed) lines.push(`  ${key}: ${message}`);
-    }
-  }
-  return lines;
-}
+export {
+  ANIMAL_PHOTO_PREFIX,
+  formatReport,
+  type R2CleanupReport,
+  runR2Cleanup,
+} from "./r2-cleanup-run";
 
 export type CleanupArgs =
   | { kind: "ok"; commit: boolean; graceDays: number | undefined }
