@@ -1288,6 +1288,34 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
   });
 
+  /**
+   * Tier 1 review finding 4, PR #199: db:full-reset's own `--prod`
+   * requirement had no direct test — only the `--expect`-ordering exploits
+   * above, which pass `--expect` a value matching the target on purpose to
+   * reach the second guard. This is the plain case: a real production
+   * target, a correct `--expect`, no `--prod` at all.
+   */
+  it("db:full-reset refuses production without --prod", () => {
+    const result = run("src/full-reset.ts", ["--expect", PROD_ENDPOINT]);
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("this target is PRODUCTION");
+    expect(result.stderr).not.toContain("secret");
+    expect(result.stderr).not.toContain("ep-quiet-lake");
+    expect(result.stdout).not.toContain("Target:");
+  });
+
+  it("db:full-reset refuses the password-printing URLs before any driver sees them", () => {
+    for (const url of [
+      `postgres://u:${SENTINEL}@xn--a.eu-central-1.aws.neon.tech/db`,
+      `postgresql://u:${SENTINEL}%zz@${CHILD_HOST}/neondb?sslmode=require`,
+    ]) {
+      const result = withNoNetwork("src/full-reset.ts", ["--expect", PROD_ENDPOINT, "--prod"], url);
+      expect(result.status, result.stderr).toBe(1);
+      expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
+      expect(`${result.stdout}${result.stderr}`).not.toContain("network disabled");
+    }
+  });
+
   it.each([
     ["db:migrate", "src/migrate.ts", ["--config=does-not-exist.ts"]],
     ["admin:sweep-invites", "src/admin.ts", ["sweep-invites"]],

@@ -91,25 +91,47 @@ export type FullResetCounts = Record<FullResetTable, number>;
  * literal list, never external input. Reads through `executeRows`
  * (`raw-rows.ts`), not a raw `.execute()` destructure — the two drivers this
  * repo runs return raw results in different shapes (standing constraints,
- * R1), and `count(*)` arrives as a string on both, so it's parsed here
- * rather than trusted to already be a number.
+ * R1). `::int` (not a bare `count(*)`, which is `bigint` and arrives
+ * stringified on both drivers to avoid precision loss past 2^53) already
+ * returns a real number here — confirmed directly against the local
+ * driver, Tier 1 review finding 7, PR #199, not assumed from the cast
+ * alone. A missing row throws rather than silently reading as 0: `SELECT
+ * count(*)` always returns exactly one row, so a missing one means the
+ * query itself failed in a way worth seeing, not a legitimate empty count.
  */
 export async function countFullResetTables(db: Database): Promise<FullResetCounts> {
   const counts = {} as FullResetCounts;
   for (const table of FULL_RESET_TABLES) {
-    const rows = await executeRows<{ n: string }>(
+    const rows = await executeRows<{ n: number }>(
       db,
       sql`SELECT count(*)::int AS n FROM ${sql.raw(`"${table}"`)}`,
     );
-    counts[table] = Number(rows[0]?.n ?? 0);
+    const row = rows[0];
+    if (row === undefined) throw new Error(`count(*) for "${table}" returned no row`);
+    counts[table] = row.n;
   }
   return counts;
 }
 
-/** The one statement that empties every table in `FULL_RESET_TABLES`. Never touches `cities` or drizzle's own tables. */
+/**
+ * The one statement that empties every table in `FULL_RESET_TABLES`. Never
+ * touches `cities` or drizzle's own tables.
+ *
+ * No `CASCADE` (Tier 1 review finding 1, PR #199): every table with a
+ * foreign key into this list is itself in this list, so Postgres truncates
+ * the whole set in one statement without it — `TRUNCATE` across multiple
+ * tables in one command already handles the FKs *between* them. `CASCADE`
+ * would instead also reach any table outside this list with an FK into one
+ * of these, the moment one exists, silently emptying a table the dry run's
+ * own printed counts never mentioned. A plain `TRUNCATE` instead fails
+ * loudly ("cannot truncate a table referenced in a foreign key constraint")
+ * the day a new table's FK isn't added here — forcing the same classify-it
+ * decision `full-reset-table-coverage.test.ts` already forces for the table
+ * itself, rather than silently reaching past this list.
+ */
 export async function truncateFullReset(db: Database): Promise<void> {
   const list = FULL_RESET_TABLES.map((table) => `"${table}"`).join(", ");
-  await db.execute(sql.raw(`TRUNCATE ${list} CASCADE`));
+  await db.execute(sql.raw(`TRUNCATE ${list}`));
 }
 
 const pad = (label: string) => label.padEnd(24);
