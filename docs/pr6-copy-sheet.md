@@ -12,6 +12,14 @@ Correction to this sheet: §1.3's English ("Fixing a typo or changing a photo do
 §2's "Never set by: … a photo change" predate RH-B7. A photo change on a card people can see moves
 the date (PR 4), and his B1 says so (`docs/pr6-checklist.md` 6.3).
 
+**Second correction, 2026-10-25:** P8's "No sentence may say photos are deleted automatically or by
+a tool" and "the deployed app never deletes R2 objects" were true when this sheet was written, but
+are superseded by the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`, R2-B1):
+it is the one named exception, deleting a photo's objects automatically once they've sat
+unreferenced for the grace period (~7 days). Row P8 is left as written below — it records what was
+true for PR 6's own copy decisions — but any *new* commitment-#6-adjacent copy must read against
+this correction, not against P8's original text.
+
 **Read at** `origin/main` `baa629b` unless marked. `uk.ts` = `packages/i18n/src/messages/uk.ts`.
 `SC` = `docs/standing-constraints.md`. `H2CS` = `docs/h2-copy-sheet.md`. `K4CS` = `docs/k4-copy-sheet.md`.
 `K4UK` = `D:\opika-worktrees\k4-copy-uk.md`. It is outside the repo, headed «K4 copy — Ukrainian

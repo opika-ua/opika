@@ -774,7 +774,12 @@ What that changes, concretely:
   `open-writes-copy-gate.test.ts`) and at run time (any pending string keeps production sign-in off).
 - **Parallel PRs, replaced 2026-10-20:** his words, verbatim: "Replace the hard “two PRs” limit with a rule: any number of PRs may be open as long as no two share a file. A PR that shares a file with an open one waits." (The two-PR text in his WM-B1 quote above is kept as he wrote it.)
 - **Unchanged:** production guards, `--expect`, no secrets in chat, no R2 deletes, real-Neon
-  for SQL, copy truth on public surfaces. "I merge everything" was narrowed twice:
+  for SQL, copy truth on public surfaces. **"No R2 deletes" gained its one named exception,
+  2026-10-25:** the GDPR photo-retention job (`r2-cleanup-client.ts`, `docs/gdpr-analysis.md`)
+  deletes an R2 object only after it has sat unreferenced for the grace period, and is the one
+  code path allowed `DeleteObjectsCommand`/`ListObjectsV2Command` — enforced structurally by
+  `photo-pipeline-scan.test.ts`, which still fails any *other* file that imports either. "I merge
+  everything" was narrowed twice:
   - *2026-10-19:* he allows merging a green PR whose exact head was reviewed, with two exceptions
     that wait for him (see "Merge only the commit that was reviewed" under Agent rules).
   - *2026-10-21:* the local agent merges, and it is the only one that does ("Who does what").

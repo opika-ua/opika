@@ -379,9 +379,13 @@ touches the demo corpus (run the two separately). The dry run prints each target
 id and name (check them before `--commit`), how many other shelters stay (demo
 shelters included, never named), the same per-table and cascade counts as above,
 and the R2 keys of the target animals' photos (every variant, `animals/…/thumb.webp`
-and so on). **Photos stay in R2, unlinked**: the script never deletes R2 objects
-(K-Q2); delete those keys by hand in Cloudflare if you want them gone (a dedicated
-script is follow-up DR-F3). `--commit` prints the keys again.
+and so on). **Photos stay in R2, unlinked**: `demo:remove` itself never deletes R2
+objects (K-Q2). Since the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
+R2-B1), that's no longer the whole story: once an animal's row is gone, its photos are
+unreferenced, and the daily scheduled sweep deletes them on its own once they've sat
+unreferenced for the grace period (~7 days) — the one named exception to K-Q2. Delete the
+keys by hand in Cloudflare first if you want them gone sooner (a dedicated takedown script
+is still follow-up DR-F3). `--commit` prints the keys again.
 
 Besides every refusal above (member, support session, test-only key, crossing
 reveal, `NODE_ENV=production`, `--expect`, `--prod`), it refuses an id that isn't a
@@ -421,9 +425,12 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
    pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter c00c73ac-b27f-535e-b629-ac8cd2c69123 --commit
    ```
    The dry run names the shelter and prints the R2 keys of its animals' photos, including the
-   ones uploaded from the kabinet. **Add those keys to the DR-F3 takedown list.** Nothing
-   deletes R2 objects; DR-F3's operator-run script, or the Cloudflare dashboard by hand, does
-   it later. Run the dry run again afterwards: every count is 0, and it refuses with «no
+   ones uploaded from the kabinet. **Add those keys to the DR-F3 takedown list** if you want
+   them gone sooner than the automatic sweep — the GDPR R2 clean-up job (R2-B1) deletes a
+   photo's objects on its own, with no action here, once they've sat unreferenced for the
+   grace period (~7 days). `demo:remove` itself still deletes nothing from R2; DR-F3's
+   operator-run script, or the Cloudflare dashboard by hand, is only for deleting sooner than
+   that. Run the dry run again afterwards: every count is 0, and it refuses with «no
    shelter has id …», which confirms the shelter is gone.
 4. **`KABINET_WRITE_ALLOWLIST`**: PR 6 has merged by then: delete `KABINET_WRITE_ALLOWLIST`,
    then redeploy (environment changes apply only to new deployments). Oleksii, 2026-10-17,
@@ -531,11 +538,16 @@ photo actually loads on the live detail page before trusting the rest.
 ## Taking a photo down (P-Q14)
 
 Removing a photo in the kabinet (`shelter.photos.remove`) only takes it off
-the animal: its three files stay in the bucket and stay reachable by their URL
-(no code path deletes an object, K-Q2). Nothing links to them any more, but
-anyone who saved the URL can still open it. When a photo must actually go (a
-shelter asks, or it shows something it shouldn't), delete it by hand in
-Cloudflare's dashboard.
+the animal: its three files stay in the bucket and stay reachable by their URL.
+Nothing links to them any more, but anyone who saved the URL can still open it
+— until the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
+R2-B1) deletes it on its own, automatically, once it has sat unreferenced for the
+grace period (~7 days). That job — `DeleteObjectsCommand`/`ListObjectsV2Command`
+in `r2-cleanup-client.ts` — is the one named exception to K-Q2's "no code path
+deletes an object"; no other code path does. When a photo must go sooner than the
+grace period allows (a shelter asks for it right away, or it shows something it
+shouldn't), delete it by hand in Cloudflare's dashboard — the manual path still
+works exactly as before, it's just no longer the only path.
 
 **Where the key comes from: the bucket, not the database.** A removed photo's
 key has already left `animals.photos`, and the animal's history records only
