@@ -36,6 +36,7 @@ import { SIGN_IN_PAGE_PATH } from "../../features/kabinet/routes";
 export const metadata: Metadata = {
   title: uk.forShelters.title,
   description: uk.forShelters.whatThisIs,
+  alternates: { canonical: "/prytulkam" },
   openGraph: {
     type: "website",
     siteName: WORDMARK,

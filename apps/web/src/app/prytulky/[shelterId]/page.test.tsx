@@ -8,6 +8,7 @@ import { anonymousRouterClient } from "../../../api/server-client";
 import { createTestHarness, type TestHarness } from "../../../api/test-harness";
 import { loadShelterPage } from "../../../features/shelters/shelter-page-load";
 import { SHELTER_ID, stubShelterPageClient } from "../../../features/shelters/test-fixtures";
+import { metadata as notFoundMetadata } from "./not-found";
 import { renderShelterPage } from "./page";
 
 /**
@@ -24,6 +25,10 @@ const isNotFound = (error: unknown) =>
   error instanceof Error &&
   "digest" in error &&
   String((error as { digest: unknown }).digest).includes("404");
+
+it("the not-found page is noindex (PR B, the SEO review of page titles)", () => {
+  expect(notFoundMetadata.robots).toEqual({ index: false, follow: false });
+});
 
 describe("the route's outcomes, with shelters.byId stubbed", () => {
   it("RATE_LIMITED shows his sentence, never the not-found page (RL-F1)", async () => {

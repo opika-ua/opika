@@ -1,6 +1,6 @@
 import { AGE_BUCKETS, SIZE_BUCKETS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import { ageBucketLabel, ageWordFor, sexWordFor, sizeLabel } from "./animal-labels";
+import { ageBucketLabel, ageWordFor, sexWordFor, sizeLabel, speciesWordFor } from "./animal-labels";
 
 describe("ageBucketLabel", () => {
   it("returns a distinct, non-empty word for every bucket", () => {
@@ -61,5 +61,23 @@ describe("sexWordFor", () => {
 
   it("an unknown sex has no word - the caller omits it rather than guessing", () => {
     expect(sexWordFor("unknown")).toBeNull();
+  });
+});
+
+/**
+ * The animal page's meta description (PR B, the SEO review of page titles), owner's exact
+ * wording: cat male «Кіт», female «Кішка»; dog male «Пес», female «Собака»; unknown sex takes
+ * the masculine form, same convention `ageWordFor` above already uses.
+ */
+describe("speciesWordFor, each sex × species", () => {
+  it.each([
+    ["male", "cat", "Кіт"],
+    ["female", "cat", "Кішка"],
+    ["unknown", "cat", "Кіт"],
+    ["male", "dog", "Пес"],
+    ["female", "dog", "Собака"],
+    ["unknown", "dog", "Пес"],
+  ] as const)("%s, %s → «%s»", (sex, species, word) => {
+    expect(speciesWordFor(species, sex)).toBe(word);
   });
 });

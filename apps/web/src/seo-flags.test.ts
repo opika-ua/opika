@@ -1,5 +1,6 @@
 import { PENDING_R4_2_ANALYTICS_SENTENCE } from "@opika/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SITE_ORIGIN } from "./brand";
 import {
   assertAnalyticsCopyMatchesGateState,
   assertDemoDiscoverabilityInvariant,
@@ -41,6 +42,16 @@ vi.mock("next/font/local", () => ({
  */
 afterEach(() => {
   vi.doUnmock("./seo-flags");
+});
+
+/**
+ * PR B, the SEO review of page titles - found missing on review: `metadataBase` had
+ * no test at all, even though every indexable page's `alternates.canonical` is a
+ * relative path that depends on it resolving correctly.
+ */
+it("metadataBase is the fixed SITE_ORIGIN constant, never left unset", async () => {
+  const { metadata } = await import("./app/layout");
+  expect(metadata.metadataBase).toEqual(new URL(SITE_ORIGIN));
 });
 
 /**
@@ -447,52 +458,52 @@ describe("/pro - description is its own opening sentence, never the demo swap", 
  * `/tvaryny/[animalId]` at all - Next does not merge a route's own
  * `generateMetadata` with the root layout's, it overrides it, and this
  * route builds its own `description`/`openGraph.description` from the
- * animal's age/size. Without its own demo swap this route would preview a
- * fictional animal's age and size with no demo-data disclosure - exactly
- * the shared-link surface `/prytulkam` tells shelters they can paste into
- * Telegram, so the one route this disclosure matters on most.
+ * animal's own data (PR B, the SEO review of page titles: sex-aware species
+ * word, name, city, shelter name, and a trimmed line of the animal's own
+ * description - age and size are gone from here, deliberately;
+ * `animalMetaDescription`'s own test in
+ * `[animalId]/animal-meta-description.test.ts` covers that formatting in
+ * detail). Without its own demo swap this route would preview a fictional
+ * animal with no demo-data disclosure - exactly the shared-link surface
+ * `/prytulkam` tells shelters they can paste into Telegram, so the one
+ * route this disclosure matters on most.
  *
  * `anonymousRouterClient` is mocked rather than hitting a real database -
  * this test is about the swap in `generateMetadata`, which `animals.byId`'s
  * own integration coverage elsewhere does not touch.
  */
 describe("REGISTRY_HAS_NO_REAL_SHELTERS - /tvaryny/[animalId] link-preview description swap (D-2)", () => {
+  const CITY_ID = "c0000000-0000-4000-8000-000000000001";
   const fakeAnimal = {
     id: "a0000000-0000-4000-8000-000000000001",
     name: "Мурчик",
+    species: "cat",
     sex: "male",
     ageBucket: "adult",
     size: "medium",
+    description: { uk: "Лагідний кіт.", en: null },
     photos: [],
     publicLocation: null,
     shelter: { id: "d0000000-0000-4000-8000-000000000001" },
   };
-
-  /**
-   * The animal the mocked `animals.byId` answers, read when it is called. A
-   * test needing another animal reassigns this; it must never `vi.doMock`
-   * `./api/server-client` a second time. Vitest queues every `doMock` until
-   * the next import, resolves same-kind entries concurrently, and registers
-   * each one when its resolution settles, so a second `doMock` of the same
-   * path does not reliably replace this `beforeEach`'s: about one run in four
-   * served the male animal to the female test.
-   */
-  let servedAnimal: typeof fakeAnimal = fakeAnimal;
+  const REAL_DESCRIPTION = "Кіт Мурчик · Бровари · Добрі лапи. Лагідний кіт.";
 
   beforeEach(() => {
-    servedAnimal = fakeAnimal;
     vi.resetModules();
     vi.doMock("./api/server-client", () => ({
       // The route reads its data through the animal page's one loader (S4b),
       // which also asks for the shelter and the cities.
       anonymousRouterClient: () => ({
-        animals: { byId: async () => servedAnimal },
+        animals: { byId: async () => fakeAnimal },
         shelters: {
           byId: async () => ({
-            publicLocation: { cityId: "c0000000-0000-4000-8000-000000000001" },
+            displayName: "Добрі лапи",
+            publicLocation: { cityId: CITY_ID },
           }),
         },
-        cities: { list: async () => [] },
+        cities: {
+          list: async () => [{ id: CITY_ID, slug: "brovary", name: { uk: "Бровари", en: null } }],
+        },
       }),
     }));
   });
@@ -517,7 +528,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS - /tvaryny/[animalId] link-preview descr
     expect(metadata.openGraph?.description).toBe(DEMO_BANNER_NOTICE);
   });
 
-  it("uses the animal's own age/size at the launch-gate window - real shelters, still not discoverable", async () => {
+  it("uses the animal's own data at the launch-gate window - real shelters, still not discoverable", async () => {
     // Deliberately does NOT vary both flags in lockstep with the case above
     // - `(SITE=false, REGISTRY=false)` here vs. `(SITE=false, REGISTRY=true)`
     // above. Two cases that only ever move opposite each other cannot tell a
@@ -538,13 +549,11 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS - /tvaryny/[animalId] link-preview descr
       params: Promise.resolve({ animalId: fakeAnimal.id }),
     });
 
-    // Transcribed from `uk.ts`'s cardMeta section, not derived via
-    // `ageBucketLabel`/`sizeLabel` - same reasoning as above.
-    expect(metadata.description).toBe("дорослий · середня");
-    expect(metadata.openGraph?.description).toBe("дорослий · середня");
+    expect(metadata.description).toBe(REAL_DESCRIPTION);
+    expect(metadata.openGraph?.description).toBe(REAL_DESCRIPTION);
   });
 
-  it("uses the animal's own age/size once fully launched", async () => {
+  it("uses the animal's own data once fully launched", async () => {
     vi.doMock("./seo-flags", () => ({
       SITE_IS_PUBLICLY_DISCOVERABLE: true,
       REGISTRY_HAS_NO_REAL_SHELTERS: false,
@@ -556,24 +565,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS - /tvaryny/[animalId] link-preview descr
       params: Promise.resolve({ animalId: fakeAnimal.id }),
     });
 
-    expect(metadata.description).toBe("дорослий · середня");
-    expect(metadata.openGraph?.description).toBe("дорослий · середня");
-  });
-
-  /** Q9 (Oleksii, 2026-10-18): a female animal's age word, his «доросла». */
-  it("a female animal's description carries the agreeing age word", async () => {
-    servedAnimal = { ...fakeAnimal, sex: "female" };
-    vi.doMock("./seo-flags", () => ({
-      SITE_IS_PUBLICLY_DISCOVERABLE: true,
-      REGISTRY_HAS_NO_REAL_SHELTERS: false,
-      assertDemoDiscoverabilityInvariant: vi.fn(),
-    }));
-
-    const { generateMetadata } = await import("./app/tvaryny/[animalId]/page");
-    const metadata = await generateMetadata({
-      params: Promise.resolve({ animalId: fakeAnimal.id }),
-    });
-
-    expect(metadata.description).toBe("доросла · середня");
+    expect(metadata.description).toBe(REAL_DESCRIPTION);
+    expect(metadata.openGraph?.description).toBe(REAL_DESCRIPTION);
   });
 });

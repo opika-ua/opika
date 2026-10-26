@@ -1,4 +1,5 @@
 import { uk } from "@opika/i18n";
+import type { Metadata } from "next";
 import { buttonClass } from "../../../features/controls/controls";
 
 /**
@@ -9,6 +10,8 @@ import { buttonClass } from "../../../features/controls/controls";
  * немає»), which is false here, so they are not used; a fuller shelter
  * wording is Oleksii's to write, if he wants one.
  */
+export const metadata: Metadata = { robots: { index: false, follow: false } };
+
 export default function NotFound() {
   return (
     <main className="font-rg flex min-h-dvh items-center justify-center bg-rg-page p-section">

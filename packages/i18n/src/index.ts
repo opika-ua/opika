@@ -3,6 +3,7 @@ export {
   ageWordFor,
   sexWordFor,
   sizeLabel,
+  speciesWordFor,
 } from "./animal-labels";
 export { colourChipLabel, colourFilterLabel } from "./colour-labels";
 export { pendingCopyKeys, pendingCopyPaths } from "./copy-status";

@@ -3,16 +3,32 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { en, uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
-import { SITE_TITLE, TITLE_TEMPLATE, WORDMARK } from "./brand";
+import { SITE_TITLE, TITLE_TEMPLATE, titled, WORDMARK } from "./brand";
 
 /**
- * Owner's dash rule, 2026-10-26 (`docs/standing-constraints.md`): no em dash (U+2014)
- * and no en dash (U+2013) anywhere a user can see one - UI copy, metadata, email. A
- * verbatim quote of someone's own words, or of an external source, is exempt and stays
- * character-exact - that's why this only scans for a dash *outside* a comment in the
- * source-scanned files below (`isCodeLine`), and why the catalogue check below walks
- * actual string values rather than the module's source text, which still carries two
- * intentionally preserved verbatim quotes (`packages/i18n/src/messages/uk.ts`).
+ * This file's first rule, below (PR #206, 2026-10-26, earlier the same day): no em dash
+ * (U+2014) and no en dash (U+2013) anywhere a user can see one – UI copy, metadata,
+ * email. That rule is now superseded (#208, `docs/standing-constraints.md`'s Code
+ * section, same day, later): en dash is the general clause separator, hyphen is for
+ * compound words only, em dash is still always banned. The assertions below that check
+ * for "no en dash" anywhere (the catalogue check, the email/metadata source scans) are
+ * therefore known-wrong pending a follow-up PR (see that doc) – they still assert
+ * #206's superseded direction, not #208's corrected one.
+ *
+ * A verbatim quote of someone's own words, or of an external source, is exempt from
+ * either version of the rule and stays character-exact – that's why this only scans
+ * for a dash *outside* a comment in the source-scanned files below (`isCodeLine`), and
+ * why the catalogue check below walks actual string values rather than the module's
+ * source text, which still carries two intentionally preserved verbatim quotes
+ * (`packages/i18n/src/messages/uk.ts`).
+ *
+ * `TITLE_TEMPLATE`'s separator is an en dash on purpose – a title-bar/search-result
+ * convention, not prose, decided (owner, verbatim, same day) while #206's wording was
+ * still current. It is not an exception to #208's corrected rule – it's an instance of
+ * it, same as any other clause-separating en dash now is. What's specific to this one
+ * location: the test below checks it's *exactly* that en dash, not merely "not a hyphen
+ * or em dash", so it already asserts #208's corrected behaviour directly and needs no
+ * change when the rest of this file's assertions are eventually fixed.
  */
 const EM_DASH = "—";
 const EN_DASH = "–";
@@ -79,7 +95,7 @@ function metadataFiles(): string[] {
   return out;
 }
 
-describe("no em dash or en dash anywhere a user can see one (owner's rule, 2026-10-26)", () => {
+describe("no em dash or en dash anywhere a user can see one (#206's superseded rule - see this file's own top comment)", () => {
   it("no catalogue value (uk or en) contains an em or en dash", () => {
     const offending = [...leafStrings(uk, "uk"), ...leafStrings(en, "en")]
       .filter(([, text]) => HAS_EM_OR_EN_DASH.test(text))
@@ -87,10 +103,16 @@ describe("no em dash or en dash anywhere a user can see one (owner's rule, 2026-
     expect(offending).toEqual([]);
   });
 
-  it("brand.ts's title strings contain no em or en dash", () => {
+  it("brand.ts's WORDMARK and SITE_TITLE contain no em or en dash - TITLE_TEMPLATE has its own test, below", () => {
     expect(HAS_EM_OR_EN_DASH.test(WORDMARK)).toBe(false);
     expect(HAS_EM_OR_EN_DASH.test(SITE_TITLE)).toBe(false);
-    expect(HAS_EM_OR_EN_DASH.test(TITLE_TEMPLATE)).toBe(false);
+  });
+
+  it("TITLE_TEMPLATE's separator is exactly the en dash, never a hyphen or em dash", () => {
+    expect(TITLE_TEMPLATE).toBe(`%s ${EN_DASH} ${WORDMARK}`);
+    expect(TITLE_TEMPLATE.includes(EM_DASH)).toBe(false);
+    expect(TITLE_TEMPLATE.includes("-")).toBe(false);
+    expect(titled(SITE_TITLE)).toBe(`${SITE_TITLE} ${EN_DASH} ${WORDMARK}`);
   });
 
   it("no email template's non-comment source contains an em or en dash", () => {

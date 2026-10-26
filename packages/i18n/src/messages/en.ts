@@ -164,6 +164,9 @@ export const en = {
     backToListIn: "← All animals in {city}",
     speciesDog: "Dog",
     speciesCat: "Cat",
+    /** English has no sex-specific noun the way `speciesWordFor` needs for Ukrainian - both reuse the plain word. */
+    speciesDogMale: "Dog",
+    speciesCatFemale: "Cat",
     coatLabel: "Fur",
     coatShort: "Short",
     coatLong: "Long",

@@ -1,6 +1,7 @@
 import {
   type AgeBucket,
   type AnimalSex,
+  type AnimalSpecies,
   type GrammaticalGender,
   grammaticalGenderOf,
   type SizeBucket,
@@ -49,6 +50,36 @@ const FEMININE_AGE_BUCKET_LABELS: Record<AgeBucket, string> = {
 export function ageWordFor(bucket: AgeBucket, sex: AnimalSex): string {
   const gender: GrammaticalGender = grammaticalGenderOf(sex);
   return gender === "feminine" ? FEMININE_AGE_BUCKET_LABELS[bucket] : AGE_BUCKET_LABELS[bucket];
+}
+
+const SPECIES_WORD_LABELS: Record<AnimalSpecies, string> = {
+  dog: uk.detail.speciesDogMale,
+  cat: uk.detail.speciesCat,
+};
+const FEMININE_SPECIES_WORD_LABELS: Record<AnimalSpecies, string> = {
+  dog: uk.detail.speciesDog,
+  cat: uk.detail.speciesCatFemale,
+};
+
+/**
+ * The sex-aware species word for the animal page's meta description (PR B, the SEO
+ * review of page titles; owner's exact wording): cat male «Кіт», female «Кішка»; dog
+ * male «Пес», female «Собака»; unknown sex uses the masculine form via
+ * `grammaticalGenderOf`, his words, "as everywhere else" - the same procedural
+ * convention `ageWordFor` above already applies to its own unknown-sex case. Not a
+ * claim that «Пес» reads as neutral for a dog: `speciesDog`'s own comment below calls
+ * «Собака» the actual generic noun for either sex, which is why `FEMININE_SPECIES_WORD_LABELS`
+ * reuses it as the *feminine* form here rather than treating it as neutral - this
+ * function's unknown-sex case is the owner's stated convention, not a linguistic claim
+ * that masculine is the neutral choice for a dog specifically.
+ * Distinct from `detail-text.ts`'s `speciesLabel`, which stays sex-neutral at both its
+ * callers (the subtitle line, the page's own `<title>`) and is unaffected by this.
+ */
+export function speciesWordFor(species: AnimalSpecies, sex: AnimalSex): string {
+  const gender: GrammaticalGender = grammaticalGenderOf(sex);
+  return gender === "feminine"
+    ? FEMININE_SPECIES_WORD_LABELS[species]
+    : SPECIES_WORD_LABELS[species];
 }
 
 /**

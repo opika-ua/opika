@@ -260,6 +260,22 @@ happened.
   the written rule itself. A verbatim quote of someone's own words, or of an external
   source, is exempt from the rule – it stays character-exact rather than being silently
   rewritten into something he or the source never wrote.
+
+  **One case pinned by a test, not just by the written rule (PR B, the SEO review of
+  page titles):** `apps/web/src/brand.ts`'s `TITLE_TEMPLATE` separator is an en dash
+  (U+2013) – not an exception to the rule above, an instance of it, now that en dash is
+  the general clause separator rather than banned. (It predates this correction: the
+  owner specified it, verbatim, while the hyphen-only wording was still current –
+  "The title separator is « – » (U+2013)... No «-» or «—»" – which is why PR B's own
+  commit still calls it a "named exception"; that framing is superseded along with the
+  rest of #206's wording.) What's still worth a note of its own: it's the one place the
+  en-dash half of this rule is pinned by a test asserting the character itself
+  (`apps/web/src/no-em-en-dash.test.ts` asserts it's exactly U+2013, not merely that it
+  isn't a hyphen or an em dash; `apps/web/test/harness/page-titles.harness.ts` pins the
+  same separator against a real rendered `<title>`) rather than resting on the written
+  rule alone, the way a comment or a doc string does. The em-dash-ban half is pinned far
+  more broadly – the same test file's other assertions, throughout the catalogues,
+  `brand.ts` and every metadata export.
 - **No `any`.** Biome errors on it.
 - **Every state that isn't a boolean is a discriminated union**, generics over string
   enums, distinguishing field named consistently within a type (`kind`, `status`, or
