@@ -7,8 +7,9 @@ import { markEnteringFromGallery } from "../discovery/deck-entry-marker";
  * mid-build: "let's hide access to Гортати по одній page for now as
  * well") — kept, not deleted, because that hiding is a documented
  * temporary narrowing (`docs/standing-constraints.md`'s commitment #8
- * row, GV3-Q3), not a removal of the feature. Deleting this now would
- * mean rewriting it from scratch to restore the entry point later;
+ * row, GV3-Q3), not a removal of the feature. A `git revert` could bring
+ * deleted code back, but deleting now and reverting later is still two
+ * reviewed PRs of churn for code that was never actually meant to leave;
  * keeping it costs nothing a dead-code check would catch, since
  * `deckEntryHref` (`filter-url.ts`) still has real tests of its own.
  *

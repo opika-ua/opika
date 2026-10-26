@@ -98,7 +98,10 @@ import { useEffect, useRef } from "react";
  *
  * The header stays inside this same failing tree, not moved out: E5 added
  * a "Гортати по одні" deck-entry link to `page.tsx`'s header (`filter-
- * url.ts`'s `deckEntryHref`), and that link needs both the current
+ * url.ts`'s `deckEntryHref`) — not currently rendered there (GV3-Q3,
+ * `docs/standing-constraints.md`'s commitment #8 row), but kept rather
+ * than deleted, so this reasoning is written for when it's restored, not
+ * just history. That link needs both the current
  * `filters` (from `searchParams`, which — per the above — a `layout.tsx`
  * cannot read) and the real `totalMatching` count (from the very
  * `gallery.list` call that can fail). A header with no state at all could

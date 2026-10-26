@@ -1344,11 +1344,12 @@ describe("/prytulkam §3 ¶4 (forShelters.whatHappensToAnimals)", () => {
  * deck being temporarily unlinked, instead of only deleting the overclaim —
  * which a Tier 1 review caught, since adding copy needs the normal gate
  * regardless of how accurate it reads; only a bare deletion is exempt. This
- * pins the result as an exact match, not merely `.not.toContain("по одній")`
- * — a test that only checks the phrase is gone would have passed against
- * that first, wrongly-replaced attempt just as easily as against the
- * correct bare deletion, since the added clause didn't contain that phrase
- * either.
+ * pins the result as an exact match, not `.not.toContain("по одній")`: that
+ * first attempt's own clause did still contain the phrase («Перегляд по
+ * одній поки не має…»), so a substring check would have happened to catch
+ * it too — but only by coincidence of wording. An exact match catches any
+ * future replacement sentence, not just ones that happen to reuse this
+ * particular phrase.
  */
 describe("/prytulkam §3 ¶2 (forShelters.whatHappensToAnimals, GV3-Q3)", () => {
   it("is the bare deletion, not a replacement sentence", () => {
