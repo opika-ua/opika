@@ -6,9 +6,12 @@
  * needs to survive exactly one navigation and be gone after, which a query
  * string doesn't do on its own.
  *
- * Its own file, not living inside `DeckScreen.tsx`: `DeckEntryLink` is
- * rendered on every `/tvaryny` page view (the gallery's entry control), and
- * `DeckScreen.tsx` statically imports the deck's full data hook, `SwipeDeck`,
+ * Its own file, not living inside `DeckScreen.tsx`: `DeckEntryLink` was the
+ * gallery's entry control, rendered on every `/tvaryny` page view until
+ * GV3-Q3 (`docs/standing-constraints.md`'s commitment #8 row) hid that
+ * entry point — `DeckEntryLink.tsx`'s own top comment explains why it's
+ * kept rather than deleted. `DeckScreen.tsx` statically imports the deck's
+ * full data hook, `SwipeDeck`,
  * and the browser-side oRPC client (`use-feed-deck.ts` → `browser-client.ts`,
  * `new RPCLink(...)` at module scope). Importing `markEnteringFromGallery`
  * from `DeckScreen.tsx` directly pulled that whole subtree into the
