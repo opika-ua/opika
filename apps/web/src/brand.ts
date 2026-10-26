@@ -10,9 +10,41 @@
 export const WORDMARK = "Opika";
 
 /**
- * The site's `<title>` and its link-preview headline, next to the name they are built from
- * (audit 2026-10-22, G6): they were typed in `app/layout.tsx`, outside the catalogue and
- * outside this file, so a rename would have missed them. `%s` is Next's title template slot.
+ * The fixed public domain, for `metadataBase` (`app/layout.tsx`) and every page's
+ * `alternates.canonical`. A literal, never `VERCEL_URL`/`VERCEL_PROJECT_PRODUCTION_URL`
+ * (owner, PR B SEO review, 2026-10-26) - the same reasoning `PRODUCTION_ORIGIN`
+ * (`kabinet/production-sign-in.ts`) already applies to the auth origin, but as a
+ * build-time constant rather than an env var: a canonical URL has to point at the real
+ * public domain on every deploy, preview included, not at whatever hostname served the
+ * request.
  */
-export const SITE_TITLE = `${WORDMARK} - тварини з притулків Київщини`;
-export const TITLE_TEMPLATE = `%s - ${WORDMARK}`;
+export const SITE_ORIGIN = "https://opika.org.ua";
+
+/**
+ * The subject only - no brand suffix. `app/layout.tsx`'s root `title.default` uses it
+ * as-is (Next never runs a segment's own `template` against its own `default`, so the
+ * root's fallback title - reached only by a route with no explicit title of its own,
+ * today just the error/not-found boundaries - renders subject-only, brand-less; a
+ * minor, accepted gap on pages that are noindex anyway). `/tvaryny` (`app/tvaryny/
+ * page.tsx`) sets this as its own explicit `title`, which Next *does* run through the
+ * template, producing the real brand-suffixed title. `titled()` below does the same
+ * job manually for the one place that bypasses the template entirely: `openGraph.title`,
+ * which Next never auto-templates when it's set explicitly.
+ */
+export const SITE_TITLE = "Собаки й коти з притулків Київщини";
+
+/**
+ * `%s` is Next's title-template slot. The separator is an en dash (U+2013), not this
+ * repo's own hyphen rule - a deliberate, named exception (owner, PR B SEO review,
+ * 2026-10-26, verbatim: "The title separator is « – » (U+2013)... No «-» or «—»."),
+ * because a browser-tab/search-result title separator is a different convention than
+ * prose punctuation. `docs/standing-constraints.md`'s dash rule carries this exception;
+ * `apps/web/src/no-em-en-dash.test.ts` checks for exactly this character here, not its
+ * absence.
+ */
+export const TITLE_TEMPLATE = `%s – ${WORDMARK}`;
+
+/** `openGraph.title` is never auto-templated by Next, unlike the HTML `<title>` tag. */
+export function titled(subject: string): string {
+  return TITLE_TEMPLATE.replace("%s", subject);
+}

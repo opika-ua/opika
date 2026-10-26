@@ -1,7 +1,7 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import "./globals.css";
-import { SITE_TITLE, TITLE_TEMPLATE, WORDMARK } from "../brand";
+import { SITE_ORIGIN, SITE_TITLE, TITLE_TEMPLATE, titled, WORDMARK } from "../brand";
 import { SiteAnalytics } from "../features/chrome/SiteAnalytics";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
 import { brandDisplay, brandUi, commissioner, eUkraine, literata } from "./fonts";
@@ -24,11 +24,15 @@ import { brandDisplay, brandUi, commissioner, eUkraine, literata } from "./fonts
  * (`tvaryny/[animalId]/page.tsx`); a default card for the other routes is a
  * design task, recorded rather than faked.
  *
- * `metadataBase` is deliberately unset too: nothing here or in the detail route
- * uses a relative image URL - the animal photos are absolute R2 CDN URLs - so
- * there is no relative path for Next to resolve, and setting a base to
- * `VERCEL_URL` would point link previews at a deployment hostname rather than
- * the real domain.
+ * `metadataBase` is set below, to `SITE_ORIGIN` (`brand.ts`) - a fixed literal, never
+ * `VERCEL_URL`/`VERCEL_PROJECT_PRODUCTION_URL` (owner, PR B SEO review, 2026-10-26):
+ * a canonical URL has to point at the real public domain on every deploy, preview
+ * included, not at whatever hostname served the request. Until this PR it was
+ * deliberately unset, because nothing here or in the detail route used a relative
+ * image URL - the animal photos are absolute R2 CDN URLs - so there was no relative
+ * path for Next to resolve. It's needed now because every indexable page sets its
+ * own `alternates.canonical` as a relative path, and that *does* need a base to
+ * resolve against.
  */
 /**
  * D-2: a shared link's preview must not claim verified shelters exist while
@@ -45,6 +49,7 @@ const linkPreviewDescription = REGISTRY_HAS_NO_REAL_SHELTERS
   : uk.firstRun.promise;
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_ORIGIN),
   title: {
     default: SITE_TITLE,
     template: TITLE_TEMPLATE,
@@ -54,7 +59,9 @@ export const metadata: Metadata = {
     type: "website",
     siteName: WORDMARK,
     locale: "uk_UA",
-    title: SITE_TITLE,
+    // `openGraph.title` is never auto-templated by Next (unlike the HTML `<title>`
+    // tag), so this is `titled()`, not the bare subject - see brand.ts.
+    title: titled(SITE_TITLE),
     description: linkPreviewDescription,
   },
   /**

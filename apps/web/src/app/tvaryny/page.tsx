@@ -1,8 +1,10 @@
 import type { CityId } from "@opika/domain";
 import { textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
+import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import { anonymousRouterClient } from "../../api/server-client";
+import { SITE_TITLE } from "../../brand";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
@@ -23,6 +25,7 @@ import { hasPagination } from "../../features/gallery/gallery-pagination";
 import { NoMatch } from "../../features/gallery/NoMatch";
 import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
+import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 
 /**
  * Same reasoning as `../page.tsx`: without this, `next build` would try to
@@ -31,6 +34,34 @@ import { ReplaceNav } from "../../features/gallery/ReplaceNav";
  * a shelter's listing changes.
  */
 export const dynamic = "force-dynamic";
+
+/**
+ * PR B, the SEO review of page titles. Before this the route had no metadata of its
+ * own at all, so it inherited the root layout's `title.default` - which Next never
+ * runs through `title.template`, so it rendered brand-first ("Opika - тварини...")
+ * rather than subject-first. Setting an explicit `title` here (the same subject,
+ * `SITE_TITLE`) is what gets it templated, producing "Собаки й коти з притулків
+ * Київщини – Opika".
+ *
+ * `description`/`openGraph.description` reuse `uk.firstRun.promise` outright, not new
+ * copy - it's already the root layout's own non-demo link-preview sentence (D-2), and
+ * the owner's review of this PR's draft already cut the longer version proposed here
+ * down to exactly that sentence ("remove «гортайте по одній» - the deck is off").
+ * While `REGISTRY_HAS_NO_REAL_SHELTERS`, the existing D-2 demo-notice swap applies
+ * instead - this page claims nothing about verified shelters that don't exist yet.
+ *
+ * The gallery's own filter/sort/page query variants canonicalise here too (owner,
+ * PR B): no `generateMetadata`, so this one static object answers every `?...` combo
+ * identically, which is exactly what a single shared canonical needs.
+ */
+const description = REGISTRY_HAS_NO_REAL_SHELTERS ? uk.demo.bannerNotice : uk.firstRun.promise;
+
+export const metadata: Metadata = {
+  title: SITE_TITLE,
+  description,
+  alternates: { canonical: "/tvaryny" },
+  openGraph: { type: "website", description },
+};
 
 /**
  * Not the `wide` breakpoint's column count (4) - that was tried first and

@@ -1,4 +1,5 @@
 import { uk } from "@opika/i18n";
+import type { Metadata } from "next";
 import Link from "next/link";
 
 /**
@@ -11,6 +12,8 @@ import Link from "next/link";
  * established eyebrow/title/body/action pattern from the gallery's own
  * error card (`docs/design/README.md`'s "Whole-list error").
  */
+export const metadata: Metadata = { robots: { index: false, follow: false } };
+
 export default function NotFound() {
   const copy = uk.detail.notFound;
   return (

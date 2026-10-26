@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ANIMAL_ID,
   type ByIdBehaviour,
+  makeDetailAnimal,
   stubAnimalPageClient,
 } from "../../features/animal-detail/test-fixtures";
 import { WithMockRouter } from "../../features/gallery/test-router";
 import { renderAnimalOverlay } from "./@preview/(.)[animalId]/page";
+import { metadata as notFoundMetadata } from "./[animalId]/not-found";
 import AnimalPage, { generateMetadata } from "./[animalId]/page";
 
 /**
@@ -45,6 +47,10 @@ beforeEach(() => {
   document.body.style.overflow = "";
 });
 
+it("the not-found page is noindex (PR B, the SEO review of page titles)", () => {
+  expect(notFoundMetadata.robots).toEqual({ index: false, follow: false });
+});
+
 describe("the full page", () => {
   it("RATE_LIMITED shows his sentence and nothing that says the card is gone", async () => {
     await renderPage({ kind: "refuse", code: "RATE_LIMITED" });
@@ -57,6 +63,87 @@ describe("the full page", () => {
   it("RATE_LIMITED is kept out of search results", async () => {
     current = stubAnimalPageClient({ kind: "refuse", code: "RATE_LIMITED" });
     expect((await generateMetadata({ params })).robots).toEqual({ index: false, follow: false });
+  });
+
+  describe("metadata (PR B, the SEO review of page titles)", () => {
+    it("title is name, species, city - no age bucket, no reserved/adopted state", async () => {
+      current = stubAnimalPageClient();
+      expect((await generateMetadata({ params })).title).toBe("Мурчик, Кіт, Бровари");
+    });
+
+    it("drops the city segment rather than rendering an empty one when it doesn't resolve", async () => {
+      // The animal's own location, not the shelter's, wins when both are set
+      // (`loadAnimalPage`'s own fallback order) - a city id absent from the
+      // stub's one-city `cities.list` resolves to `cityName: null`.
+      current = stubAnimalPageClient({
+        kind: "answer",
+        animal: makeDetailAnimal({ publicLocation: { cityId: "unknown-city-id" as never } }),
+      });
+      expect((await generateMetadata({ params })).title).toBe("Мурчик, Кіт");
+    });
+
+    it("canonical is always the bare id, never a query string", async () => {
+      current = stubAnimalPageClient();
+      expect((await generateMetadata({ params })).alternates?.canonical).toBe(
+        `/tvaryny/${ANIMAL_ID}`,
+      );
+    });
+
+    it("openGraph carries no title of its own - Next fills it from the already-templated one", async () => {
+      current = stubAnimalPageClient();
+      const metadata = await generateMetadata({ params });
+      expect(metadata.openGraph).not.toHaveProperty("title");
+    });
+
+    it("gets twitter:card summary_large_image only when a real image is emitted", async () => {
+      current = stubAnimalPageClient();
+      const withoutEnv = await generateMetadata({ params });
+      expect(withoutEnv.twitter).toBeUndefined();
+      expect(withoutEnv.openGraph).not.toHaveProperty("images");
+
+      vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", "https://cdn.example.test");
+      current = stubAnimalPageClient({
+        kind: "answer",
+        animal: makeDetailAnimal({
+          photos: [{ storageKey: "animals/real.jpg", width: 1200, height: 900, alt: null }],
+        }),
+      });
+      const withEnv = await generateMetadata({ params });
+      expect(withEnv.twitter).toEqual({ card: "summary_large_image" });
+      expect(withEnv.openGraph).toHaveProperty("images");
+      vi.unstubAllEnvs();
+    });
+
+    /**
+     * `REGISTRY_HAS_NO_REAL_SHELTERS` is `true` today, so the two branches need
+     * their own module mock - the same `vi.doMock` + `vi.resetModules` + dynamic
+     * re-import pattern `AnimalDetailScreen.test.tsx` uses for its own demo-gated
+     * branches. `animalMetaDescription`'s own test covers the real formatting in
+     * detail; this just confirms the ternary actually wires to it.
+     */
+    describe("description, by REGISTRY_HAS_NO_REAL_SHELTERS", () => {
+      beforeEach(() => {
+        vi.resetModules();
+      });
+
+      it("is the D-2 demo disclosure while the registry holds no real shelters", async () => {
+        current = stubAnimalPageClient();
+        vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
+        const { generateMetadata: freshGenerateMetadata } = await import("./[animalId]/page");
+        expect((await freshGenerateMetadata({ params })).description).toBe(
+          "На сайті поки немає справжніх притулків - усі картки тут демонстраційні.",
+        );
+      });
+
+      it("is built from the animal's own data once real shelters exist", async () => {
+        current = stubAnimalPageClient();
+        vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
+        const { generateMetadata: freshGenerateMetadata } = await import("./[animalId]/page");
+        expect((await freshGenerateMetadata({ params })).description).toBe(
+          "Кіт з притулку «Тестовий притулок «Домівка»», м. Бровари. Лагідний кіт, любить сидіти на підвіконні.",
+        );
+      });
+    });
   });
 
   it("NOT_FOUND is still the 404", async () => {

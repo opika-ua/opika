@@ -1,5 +1,7 @@
+import type { AnimalDetailView } from "@opika/contracts";
 import { isRealPhotoKey, r2PublicUrl } from "@opika/db/image-pipeline";
-import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
+import { textIn } from "@opika/domain";
+import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -9,9 +11,11 @@ import {
   type AnimalPageLoad,
   loadAnimalPage,
 } from "../../../features/animal-detail/animal-page-load";
+import { speciesLabel } from "../../../features/animal-detail/detail-text";
 import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
 import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
+import { trimAtWordBoundary } from "../../../seo-text";
 
 /**
  * Same reasoning as `../page.tsx` and `../../page.tsx`: prerendering at
@@ -102,6 +106,26 @@ const loadAnimalPageOnce = cache((animalId: string) => loadAnimalPage(animalId))
  * `/prytulkam` tells shelters they can paste into Telegram, so this is one
  * of the routes the disclosure matters on most (see the root layout's own
  * comment for which routes deliberately don't carry it).
+ *
+ * `title`/`description`, PR B (the SEO review of page titles), owner-approved:
+ * - `title`: `{name}, {species}, {city}` (`city` omitted when the animal's own
+ *   location doesn't resolve to a known city - `filter(Boolean)`, not a guess).
+ *   The age bucket and the reserved/adopted state are both deliberately absent -
+ *   neither belongs in a title a search index can keep stale, and the state was
+ *   never in it to begin with.
+ * - `description`: species + shelter name + city (as "м. {city}", the same
+ *   case-free convention `uk.detail.backToListIn` already uses, rather than a
+ *   locative "у {city}" this codebase has no declension support for - see
+ *   `ageBucketLabel`'s own flagged simplifications for the class of gap this
+ *   sidesteps deliberately rather than by oversight), then one line of the
+ *   animal's own description, trimmed at a word boundary to stay within 160
+ *   characters total and never padded past whatever's actually there.
+ *
+ * `openGraph.title` is omitted, not duplicated: Next resolves a missing
+ * `openGraph.title` from the page's own already-templated `title` (same
+ * pattern `/prytulkam`'s and `/pro`'s own metadata already use), which is how
+ * "og:title matches the page's title" (owner) holds without hand-typing the
+ * brand suffix here too.
  */
 export async function generateMetadata({
   params,
@@ -114,11 +138,12 @@ export async function generateMetadata({
   // must not keep it as this URL's page (RL-F1).
   if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
   if (load.kind !== "animal") return {};
-  const { animal } = load.view;
+  const { animal, shelter, cityName } = load.view;
 
+  const title = [animal.name, speciesLabel(animal.species), cityName].filter(Boolean).join(", ");
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
     ? uk.demo.bannerNotice
-    : [ageWordFor(animal.ageBucket, animal.sex), sizeLabel(animal.size)].join(" · ");
+    : animalMetaDescription(animal, shelter.displayName, cityName);
   const photo = animal.photos[0];
   const publicBaseUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
 
@@ -135,13 +160,37 @@ export async function generateMetadata({
       : undefined;
 
   return {
-    title: animal.name,
+    title,
     description,
+    // Always the bare id, no query string - the pet-card work (owner, PR B)
+    // adds gallery-context params to this same URL, and this canonical must
+    // never vary with them.
+    alternates: { canonical: `/tvaryny/${animalId}` },
     openGraph: {
       type: "article",
-      title: animal.name,
       description,
       ...(images ? { images } : {}),
     },
+    ...(images ? { twitter: { card: "summary_large_image" as const } } : {}),
   };
+}
+
+const META_DESCRIPTION_MAX_LENGTH = 160;
+
+/**
+ * `{species} з притулку «{shelter}», м. {city}. {animal's own description, trimmed}.`
+ * Exported for its own test; `cityName` is `null` whenever the animal's location
+ * doesn't resolve to a known city (`loadAnimalPage`'s own fallback), dropped from the
+ * sentence entirely rather than rendered as an empty "м. ".
+ */
+export function animalMetaDescription(
+  animal: Pick<AnimalDetailView, "species" | "description">,
+  shelterName: string,
+  cityName: string | null,
+): string {
+  const cityPart = cityName ? `, м. ${cityName}` : "";
+  const prefix = `${speciesLabel(animal.species)} з притулку «${shelterName}»${cityPart}.`;
+  const remaining = META_DESCRIPTION_MAX_LENGTH - prefix.length - 1;
+  const body = remaining > 0 ? trimAtWordBoundary(textIn(animal.description, "uk"), remaining) : "";
+  return body ? `${prefix} ${body}` : prefix;
 }

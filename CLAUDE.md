@@ -117,13 +117,16 @@ task.
   `packages/domain` are the cheapest tests in the codebase - if a domain
   function needs a DB or a mock to test, that's a design smell, not a
   testing problem.
-- **No em dash (U+2014 "—") and no en dash (U+2013 "–") anywhere we write**:
-  UI copy, emails, metadata, code comments, docs, commit messages, PR
-  bodies. Use a plain hyphen "-" (spaced " - " where a dash would separate
-  clauses), or rewrite the sentence. Owner, 2026-10-26. A verbatim quote of
-  someone's own words, or of an external source, is exempt - it stays
-  character-exact, dashes included; guarded for copy and metadata by
-  `apps/web/src/no-em-en-dash.test.ts` (see `docs/standing-constraints.md`).
+- **Never an em dash (U+2014 "—").** Where a dash is needed, use an en dash
+  (U+2013 "–") - spaced between clauses, unspaced in a range. A plain hyphen
+  is for compound words only, never a clause separator. Owner, 2026-10-26,
+  final wording - supersedes an earlier same-day "hyphen everywhere, ban the
+  en dash too" phrasing that #206 had already merged; see
+  `docs/standing-constraints.md`'s Code section for the full history,
+  including what that supersession leaves known-wrong on `main` pending a
+  follow-up PR. A verbatim quote of someone's own words, or of an external
+  source, is exempt - it stays character-exact, dashes included; guarded for
+  copy and metadata by `apps/web/src/no-em-en-dash.test.ts`.
 
 (No `any`, discriminated unions over booleans, `now` as a parameter,
 justify every dependency - `docs/standing-constraints.md`, not restated

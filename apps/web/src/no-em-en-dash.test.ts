@@ -3,7 +3,7 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { en, uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
-import { SITE_TITLE, TITLE_TEMPLATE, WORDMARK } from "./brand";
+import { SITE_TITLE, TITLE_TEMPLATE, titled, WORDMARK } from "./brand";
 
 /**
  * Owner's dash rule, 2026-10-26 (`docs/standing-constraints.md`): no em dash (U+2014)
@@ -13,6 +13,16 @@ import { SITE_TITLE, TITLE_TEMPLATE, WORDMARK } from "./brand";
  * source-scanned files below (`isCodeLine`), and why the catalogue check below walks
  * actual string values rather than the module's source text, which still carries two
  * intentionally preserved verbatim quotes (`packages/i18n/src/messages/uk.ts`).
+ *
+ * `TITLE_TEMPLATE`'s separator is an en dash on purpose - a title-bar/search-result
+ * convention, not prose. The test below checks it's *exactly* that en dash, not merely
+ * "not a hyphen or em dash". **Not a named exception to the rule above, an instance of
+ * it** - #208 (`docs/standing-constraints.md`'s Code section, same day, later) corrected
+ * the general rule to make en dash the clause separator, superseding the "hyphen
+ * everywhere, ban en dash" wording this file's other assertions below were written
+ * against. Those other assertions are therefore known-wrong pending a follow-up PR (see
+ * that doc); this one - the exact-character check on `TITLE_TEMPLATE` - already asserts
+ * the corrected behaviour and needs no change.
  */
 const EM_DASH = "—";
 const EN_DASH = "–";
@@ -87,10 +97,16 @@ describe("no em dash or en dash anywhere a user can see one (owner's rule, 2026-
     expect(offending).toEqual([]);
   });
 
-  it("brand.ts's title strings contain no em or en dash", () => {
+  it("brand.ts's title strings contain no em or en dash, except the title template's separator", () => {
     expect(HAS_EM_OR_EN_DASH.test(WORDMARK)).toBe(false);
     expect(HAS_EM_OR_EN_DASH.test(SITE_TITLE)).toBe(false);
-    expect(HAS_EM_OR_EN_DASH.test(TITLE_TEMPLATE)).toBe(false);
+  });
+
+  it("TITLE_TEMPLATE's separator is exactly the en dash, never a hyphen or em dash", () => {
+    expect(TITLE_TEMPLATE).toBe(`%s ${EN_DASH} ${WORDMARK}`);
+    expect(TITLE_TEMPLATE.includes(EM_DASH)).toBe(false);
+    expect(TITLE_TEMPLATE.includes("-")).toBe(false);
+    expect(titled(SITE_TITLE)).toBe(`${SITE_TITLE} ${EN_DASH} ${WORDMARK}`);
   });
 
   it("no email template's non-comment source contains an em or en dash", () => {
