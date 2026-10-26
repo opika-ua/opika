@@ -377,7 +377,7 @@ function CharacterCounter({ text, max }: { text: string; max: number }) {
 
 /**
  * A short text in the shelter's own words, under its own cap: «Інше» for a
- * colour or a temperament. Its accessible name is «Інше - Своїми словами»,
+ * colour or a temperament. Its accessible name is «Інше – Своїми словами»,
  * two approved strings: the checkbox or radio that opens it is already
  * «Інше», and a screen reader would otherwise announce two controls with one
  * name. The visible label stays in the name (WCAG 2.5.3, label in name).
@@ -405,7 +405,7 @@ function CustomTextField({
     <TextField
       id={id}
       label={label}
-      aria-label={`${label} - ${placeholder}`}
+      aria-label={`${label} – ${placeholder}`}
       placeholder={placeholder}
       value={value}
       error={error}
