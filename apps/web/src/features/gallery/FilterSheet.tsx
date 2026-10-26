@@ -24,7 +24,6 @@ import {
 import { colourFilterLabel, temperamentFilterLabel, uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { COLOUR_GROUP_LABEL, TEMPERAMENT_GROUP_LABEL } from "./filter-labels";
 import type { CitySlugsById } from "./filter-url";
 import {
   GALLERY_PARAM,
@@ -417,10 +416,14 @@ export function FilterSheet({
           </fieldset>
 
           {/* Pet card PR 1b: the same group, twice more, after age and before
-              sort, with the filter words PR 1 built for these two. */}
+              sort, with the filter words PR 1 built for these two. Below
+              1024px the sheet is the only filter control, so phones need these
+              (Oleksii, 2026-10-26, verbatim as relayed: "keeping the two new
+              filter groups there is approved; phones need a control for these
+              filters."; inbox PC1b-T15). */}
           <fieldset className="flex flex-col gap-3">
             <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {TEMPERAMENT_GROUP_LABEL}
+              {uk.filters.temperament}
             </legend>
             <div className="flex flex-wrap gap-2">
               {TEMPERAMENT_TRAITS.map((trait) => (
@@ -440,7 +443,7 @@ export function FilterSheet({
 
           <fieldset className="flex flex-col gap-3">
             <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {COLOUR_GROUP_LABEL}
+              {uk.filters.colour}
             </legend>
             <div className="flex flex-wrap gap-2">
               {COAT_COLOURS.map((colour) => (

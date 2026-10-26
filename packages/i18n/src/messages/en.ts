@@ -57,6 +57,8 @@ export const en = {
     coat: "Fur",
     coatShort: "Short-haired",
     coatLong: "Long-haired",
+    temperament: "Temperament",
+    colour: "Colour",
     /** Template: "{count} {animalWord} match. Shelters in this city - {shelterCount}." */
     resultCount: "{count} {animalWord} match. Shelters in this city - {shelterCount}.",
     /** Template: "{count} {animalWord} match, across {shelterCount} {shelterWord}." - used when no city is selected, see uk.ts's note. */

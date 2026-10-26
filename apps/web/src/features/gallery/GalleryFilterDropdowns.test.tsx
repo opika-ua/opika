@@ -242,7 +242,7 @@ describe("GalleryFilterDropdowns", () => {
   });
   /**
    * Pet card PR 1b: the sixth and seventh dropdowns. Expected names are his
-   * approved words typed out («Характер», «Забарвлення», PC1-D2; the plural
+   * approved words typed out («Характер», «Забарвлення», PC1b-T2; the plural
    * trait words, PC-Q2; the neuter colours, PC1-D4), not read from the
    * catalogue.
    */

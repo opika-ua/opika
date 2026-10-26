@@ -54,8 +54,8 @@ describe("NoMatch: the fur suggestion", () => {
 
 /**
  * Pet card PR 1b: temperament and colour take fur's pattern, a sentence of
- * their own. Expected text is the builder's draft as it stands in the
- * catalogue (inbox PC1b-C1, awaiting his sign-off), typed out here.
+ * their own. Expected text is his approved copy (inbox PC1b-C1), typed out
+ * here.
  */
 describe("NoMatch: the temperament and colour suggestions", () => {
   const filters: FeedFilters = {

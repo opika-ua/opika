@@ -206,6 +206,18 @@ export const uk = {
     coatShort: "Короткошерсті",
     coatLong: "Довгошерсті",
     /**
+     * Pet card PR 1b: the temperament and colour groups' names, public keys of
+     * their own like `coat` above, never read from `kabinet.*`. Oleksii,
+     * 2026-10-26, verbatim: "split them. Add filters.temperament = «Характер»
+     * and filters.colour = «Забарвлення» (same text, their own keys),
+     * mirroring filters.coat. The public gallery must not read kabinet.*
+     * strings. Both new keys count as owner-approved, since the text is
+     * identical to what I already approved." Their options are the card's own
+     * words (`temperamentFilterLabel`, `colourFilterLabel`).
+     */
+    temperament: "Характер",
+    colour: "Забарвлення",
+    /**
      * Template: "Знайдено {count} {animalWord}. Притулків у цьому місті:
      * {shelterCount}." `{animalWord}` is pre-pluralized by the caller
      * (`pluralizeUk(count, uk.filters.animalWordAccusative)`) - the template
@@ -835,9 +847,11 @@ export const uk = {
     /**
      * Pet card PR 1b: the temperament and colour suggestions, built on his
      * `relaxCoat` above, word for word but the group's noun, agreeing in
-     * gender («характер» masculine, «забарвлення» neuter). **The builder's
-     * draft, awaiting his sign-off** (inbox PC1b-C1): not `[COPY PENDING]`,
-     * which nothing in `uk` may be.
+     * gender («характер» masculine, «забарвлення» neuter). Drafted by the
+     * builder, then approved by him (inbox PC1b-C1). Oleksii, 2026-10-26,
+     * verbatim as the coordinating session relayed it: "No-match copy: (a),
+     * approved as written... owner-approved final copy, matching the
+     * «Будь-яка шерсть» precedent."
      */
     relaxTemperament: "Будь-який характер: +{count}",
     relaxColour: "Будь-яке забарвлення: +{count}",

@@ -3,8 +3,8 @@
  * browser, through the real query. Behaviour only (CLAUDE.md, "Test logic, not
  * looks"): elements found by role, label or text, nothing measured. Expected
  * strings are typed here, not read from the catalogue: his approved group
- * names and option words (PC1-D2, PC-Q2, PC1-D4), and the two suggestion
- * sentences as drafted (inbox PC1b-C1).
+ * names and option words (PC1b-T2, PC-Q2, PC1-D4), and the two suggestion
+ * sentences (inbox PC1b-C1).
  *
  * The no-match cases lean on the seeded corpus (`packages/db/src/seed.ts`): no
  * cream animal carries a temperament preset, so

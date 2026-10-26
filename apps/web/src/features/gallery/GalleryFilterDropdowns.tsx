@@ -23,7 +23,6 @@ import { colourFilterLabel, temperamentFilterLabel, uk } from "@opika/i18n";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { COLOUR_GROUP_LABEL, TEMPERAMENT_GROUP_LABEL } from "./filter-labels";
 import type { CitySlugsById } from "./filter-url";
 import {
   galleryHref,
@@ -272,7 +271,11 @@ function DropdownOption({
  * behaviour as the existing five. Below 1024px, unchanged." Their options
  * read the filter words PR 1 built for exactly this (`temperamentFilterLabel`,
  * the plural, his PC-Q2; `colourFilterLabel`, the neuter), and their group
- * names are the kabinet's («Характер», «Забарвлення», `filter-labels.ts`).
+ * names are public keys of their own, `uk.filters.temperament` and
+ * `uk.filters.colour`, as fur's is `uk.filters.coat` (his PC1b-T2 answer: "The
+ * public gallery must not read kabinet.* strings."). Below 1024px this row
+ * stays hidden; the sheet there gains the same two groups, which he approved
+ * separately (PC1b-T15): "phones need a control for these filters."
  * This container takes the room the sort switch leaves (`min-w-0 flex-1`) and
  * wraps inside it; `GalleryControlBlock`'s row itself no longer wraps, so the
  * switch never drops below the dropdowns.
@@ -324,14 +327,14 @@ export function GalleryFilterDropdowns({
     ? TEMPERAMENT_TRAITS.filter((trait) => isExplicitlySelected(filters.temperaments, trait))
         .map(temperamentFilterLabel)
         .join(", ")
-    : TEMPERAMENT_GROUP_LABEL;
+    : uk.filters.temperament;
 
   const colourActive = filters.colours.kind !== "any";
   const colourLabel = colourActive
     ? COAT_COLOURS.filter((colour) => isExplicitlySelected(filters.colours, colour))
         .map(colourFilterLabel)
         .join(", ")
-    : COLOUR_GROUP_LABEL;
+    : uk.filters.colour;
 
   return (
     <div
@@ -438,7 +441,7 @@ export function GalleryFilterDropdowns({
       </Dropdown>
 
       <Dropdown
-        legend={TEMPERAMENT_GROUP_LABEL}
+        legend={uk.filters.temperament}
         active={temperamentActive}
         label={temperamentLabel}
         clearHref={galleryHref(relaxDimension(filters, "temperaments"), sort, citySlugs)}
@@ -455,7 +458,7 @@ export function GalleryFilterDropdowns({
       </Dropdown>
 
       <Dropdown
-        legend={COLOUR_GROUP_LABEL}
+        legend={uk.filters.colour}
         active={colourActive}
         label={colourLabel}
         clearHref={galleryHref(relaxDimension(filters, "colours"), sort, citySlugs)}
