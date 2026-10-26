@@ -2,6 +2,7 @@ import { uk } from "@opika/i18n";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { WORDMARK } from "../../brand";
+import { BrandLogo } from "./BrandLogo";
 
 /**
  * The one header, on every user-facing surface except the deck.
@@ -110,6 +111,19 @@ import { WORDMARK } from "../../brand";
  * populates it anymore. The `flex-wrap` the slot's own content used to need
  * at 360px stays — see the header element's own comment on why it's still
  * load-bearing without `leading`, for an unrelated reason (O-1's logo mark).
+ *
+ * **gallery-v3 re-skin (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`).**
+ * This header is in that frame, and "the header is shared, so it changes on
+ * every route" is the hand-off's own words — unlike the gallery page itself,
+ * this component's restyle is not scoped to `/tvaryny`. The hand-drawn
+ * `LogoMark` above is retired in favour of `BrandLogo` (a static asset,
+ * `public/brand-v3/logo.svg` — see that file's own comment for why), and
+ * every colour/radius/font class below moved from the `rg-` token set to the
+ * `brand-` one (`globals.css`). 72px tall / 56px side gutters at desktop are
+ * the frame's own numbers; mobile/tablet keep this component's pre-existing
+ * values, since the frame specifies desktop only and "no mock, no invented
+ * layout" extends to this header's narrow-viewport case the same way it
+ * does to the gallery page's.
  */
 
 /** The product's name (`brand.ts`, the one constant), re-exported for the wordmark's readers. */
@@ -156,39 +170,43 @@ export interface SiteHeaderProps {
  * (`flex-wrap` on the parent `nav`, below) rather than the pill's internal
  * text wrapping.
  */
+/**
+ * ui 600, 20/1.2, ink; gap 40 between links (`gap-10`) — the frame's own
+ * type-scale row for "Header nav links". Kept as a pill on `bg-brand-line`
+ * ("other page pills", the token table's own words for that colour) rather
+ * than the frame's bare text, because every link here still needs a real
+ * touch target and a visible focus ring, same reasoning the old `rg-`
+ * pill had.
+ */
+/**
+ * Bare text, no pill — Figma's own node geometry for this nav (`58:1698`)
+ * is a 24px-tall text box with nothing behind it, not the earlier
+ * `bg-brand-line` pill this file shipped first (Oleksii, mid-build: "our
+ * header links look much different than on Figma"). The 48px touch-target
+ * floor is still met, just invisibly: `min-h-12` extends the hit area
+ * *vertically* around the 20px text with no background to show it, and
+ * carries no horizontal padding, so the flex row's `gap-10` (40px) still
+ * measures text-edge to text-edge exactly as the frame does — adding
+ * horizontal padding here would have widened that gap by twice the
+ * padding without changing what's visible.
+ */
 const NAV_LINK_CLASS =
-  "inline-flex min-h-12 shrink-0 items-center whitespace-nowrap rounded-rg-button bg-rg-fill " +
-  "px-4 text-[15px] font-medium text-rg-ink transition-colors duration-[120ms] ease-rg " +
-  "hover:bg-rg-fill-strong focus-visible:outline focus-visible:outline-[3px] " +
-  "focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
-
-const WORDMARK_CLASS =
-  "font-bold text-[22px] desktop:text-[26px] tracking-[-0.03em] text-rg-ink whitespace-nowrap";
+  "font-brand-ui inline-flex min-h-12 shrink-0 items-center whitespace-nowrap " +
+  "text-[20px]/[1.2] font-semibold text-brand-ink transition-colors duration-[120ms] " +
+  "hover:text-brand-accent focus-visible:outline focus-visible:outline-[3px] " +
+  "focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]";
 
 /**
- * «Поріг · Межа» — an arch that never touches the ground, a threshold line
- * below it, a dot between them. Geometry transcribed verbatim from
- * `docs/design/README.md`'s "The logo" section; see this file's own top
- * comment (O-1) for why it's drawn rather than sourced as an image asset.
+ * `sr-only`, not visible text: the lockup image (`BrandLogo`) already draws
+ * "Opika" as part of its artwork, so a second, visible rendering of the same
+ * word would duplicate it on screen. This span exists purely so the
+ * accessible name (and, for the `wordmarkIsCurrentPage` branch, the literal
+ * `.textContent` `SiteHeader.test.tsx` and the harness both read) stays
+ * "Opika" regardless of which branch renders — the image itself is
+ * `aria-hidden` and contributes nothing to either.
  */
-function LogoMark() {
-  return (
-    <svg
-      viewBox="0 0 96 96"
-      fill="none"
-      aria-hidden="true"
-      className="w-[26px] h-[26px] desktop:w-[30px] desktop:h-[30px] shrink-0 text-rg-ink translate-y-[8.3333%]"
-    >
-      <path
-        d="M22 70 V46 a26 26 0 0 1 52 0 v24"
-        stroke="currentColor"
-        strokeWidth="10"
-        strokeLinecap="round"
-      />
-      <path d="M14 88 h68" stroke="currentColor" strokeWidth="10" strokeLinecap="round" />
-      <circle cx="48" cy="79" r="6" fill="currentColor" />
-    </svg>
-  );
+function WordmarkText() {
+  return <span className="sr-only">{WORDMARK}</span>;
 }
 
 export function SiteHeader({
@@ -205,19 +223,23 @@ export function SiteHeader({
         `leading` slot's own content stopped needing it (O-8 moved that
         content out of this component entirely) broke real horizontal-scroll
         harness assertions at 360px, on both the gallery and detail pages.
-        The wordmark + logo mark (O-1) + both nav pills no longer fit one row
-        at 360px on their own, mark or no `leading` content — the mark's
-        added ~38px (26px + 12px gap) was what tipped a row that used to fit
-        exactly into one that doesn't. Above 600px everything fits on one
-        line and `tablet:flex-nowrap` restores the single row the design's
-        own header description assumes.
+        Above 600px everything fits on one line and `tablet:flex-nowrap`
+        restores the single row the design's own header description assumes.
+        72px desktop height / 56px desktop side gutters are the gallery-v3
+        frame's own numbers; mobile/tablet keep this component's pre-existing
+        values (see this file's top comment). `sticky top-0`: Oleksii,
+        mid-build — "header must be sticky." `z-30`, not the default
+        stacking order: this is site-wide chrome (every route but the
+        deck), so it has to stay above whatever scrolls beneath it on every
+        one of them, while staying below `FilterSheet`'s own `z-50` modal,
+        which must still cover it when open.
       */
-      className="min-h-16 desktop:min-h-22 flex flex-wrap tablet:flex-nowrap items-center gap-3 desktop:gap-4 bg-rg-surface px-4 tablet:px-6 desktop:px-15 py-2 tablet:py-0"
+      className="sticky top-0 z-30 min-h-16 desktop:min-h-18 flex flex-wrap tablet:flex-nowrap items-center gap-3 desktop:gap-4 bg-brand-page px-4 tablet:px-6 desktop:px-14 py-2 tablet:py-0"
     >
       {wordmarkIsCurrentPage ? (
-        <span data-testid="site-wordmark" className="inline-flex items-baseline gap-3">
-          <LogoMark />
-          <span className={WORDMARK_CLASS}>{WORDMARK}</span>
+        <span data-testid="site-wordmark" className="inline-flex items-center">
+          <BrandLogo />
+          <WordmarkText />
         </span>
       ) : (
         // Not prefetched: `/tvaryny` is charged to the visitor's per-IP budget
@@ -227,10 +249,10 @@ export function SiteHeader({
           href="/tvaryny"
           prefetch={false}
           data-testid="site-wordmark"
-          className="inline-flex min-h-12 items-baseline gap-3 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+          className="inline-flex min-h-12 items-center rounded-brand-field focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
         >
-          <LogoMark />
-          <span className={WORDMARK_CLASS}>{WORDMARK}</span>
+          <BrandLogo />
+          <WordmarkText />
         </Link>
       )}
 
@@ -241,7 +263,7 @@ export function SiteHeader({
         on the gallery (the pagination nav is the other), and two unnamed
         `nav`s are indistinguishable in a screen reader's landmark list.
       */}
-      <nav aria-label={WORDMARK} className="flex flex-wrap items-center gap-2 desktop:gap-3">
+      <nav aria-label={WORDMARK} className="flex flex-wrap items-center gap-2 desktop:gap-10">
         <Link href="/prytulkam" data-testid="nav-for-shelters" className={NAV_LINK_CLASS}>
           {uk.nav.forShelters}
         </Link>

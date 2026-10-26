@@ -1,0 +1,26 @@
+<!--
+  gallery-v3 favicon, "for now" (Oleksii, mid-build) — supplied as a
+  1920x1080 canvas with a white background rect and the mark centred
+  around roughly x:[265,680] y:[341,740]; this file only changes the root
+  `width`/`height`/`viewBox` to crop tightly to that mark (every path's own
+  coordinates are untouched) and drops the white background rect per his
+  follow-up ("drop a white bg from it so only purple dog would be there"),
+  so Next's `app/icon.svg` convention (auto-wired, no layout.tsx metadata
+  needed) renders a transparent-backed mark instead of a mostly-empty white
+  square. Picked up automatically by Next's file-convention routing.
+-->
+<svg width="455" height="455" viewBox="245 313 455 455" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M293.375 341L346.444 355.226L318.069 461.117L265 446.891L293.375 341Z" fill="#A469FB"/>
+<path d="M608.937 633.208L657.07 646.106L669.959 597.983L621.826 585.085L608.937 633.208Z" fill="#A469FB"/>
+<path d="M651.995 342.849L598.926 357.075L627.3 462.966L680.37 448.74L651.995 342.849Z" fill="#A469FB"/>
+<path d="M327.718 682.141H385.009V739.431H327.718V682.141Z" fill="#A469FB"/>
+<path d="M560.361 682.141H617.651V739.431H560.361V682.141Z" fill="#A469FB"/>
+<path d="M327.87 342.926H617.803V726.411H327.87V342.926Z" fill-rule="evenodd" clip-rule="evenodd" fill="#A469FB"/>
+<path d="M377.797 516.667H473.951V405.719H377.797V516.667Z" fill="#794EBA"/>
+<path d="M405.534 490.779H446.214V431.607H405.534V490.779Z" fill="white"/>
+<path d="M499.839 490.779H540.52V431.607H499.839V490.779Z" fill="white"/>
+<path d="M405.534 498.176H540.52V549.951H405.534V498.176Z" fill-rule="evenodd" clip-rule="evenodd" fill="#DBC3FD"/>
+<rect x="455.46" y="505.572" width="36.9825" height="22.1895" fill="white"/>
+<path d="M327.718 574.688H617.651V594.48H327.718V574.688Z" fill="#794EBA"/>
+<path d="M462.928 593.552H482.458V613.082H462.928V593.552Z" fill="#F1D692"/>
+</svg>

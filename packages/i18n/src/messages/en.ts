@@ -29,11 +29,13 @@ export const en = {
 
   // --- Screen 02 · Feed / deck ---
   feed: {
-    filtersLabel: "Filters",
+    filtersLabel: "Filter",
     enterDeck: "Swipe one at a time",
     enterDeckShort: "Swipe",
     backToList: "← Back to the list",
     deckEntryAnnouncement: "One-at-a-time mode. Animal {position} of {total}.",
+    adoptPill: "Adopt",
+    galleryTitle: "Catalogue",
   },
 
   // --- Screen 03 · Filters ---
@@ -71,9 +73,12 @@ export const en = {
     sortLabel: "Sort",
     sortFreshest: "Freshest cards first",
     sortLongestWaiting: "Longest waiting",
+    sortFreshestShort: "New",
+    sortLongestWaitingShort: "Waiting",
     allCities: "All of Kyiv oblast",
     railFooter:
       "There's no \"only fresh cards\" filter. An animal nobody's written about in a while is still waiting.",
+    clearDimension: "Clear {dimension}",
   },
 
   // --- Swipe affordances ---
@@ -287,6 +292,8 @@ export const en = {
     sizeLarge: "large",
     atShelter: "{city}",
     fosteredHousing: "with a volunteer foster in {city}",
+    sexMale: "boy",
+    sexFemale: "girl",
   },
 
   // --- Pagination footer (E3) ---

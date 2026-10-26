@@ -151,7 +151,13 @@ export const uk = {
 
   // --- Screen 02 · Feed / deck ---
   feed: {
-    filtersLabel: "Фільтри",
+    /**
+     * gallery-v3 (Figma `58:1617`): singular, builder-prompt-approved —
+     * was "Фільтри" (plural) until this PR. The only reader is
+     * `FilterSheet.tsx`'s own trigger button (confirmed: no other file
+     * reads this key), so changing the value changes nothing else.
+     */
+    filtersLabel: "Фільтр",
     /** Desktop gallery header, full phrase — docs/design/README.md "Screens" > "Gallery." */
     enterDeck: "Гортати по одній",
     /** Mobile sticky-bar short form, same destination — "sticky bottom bar «Фільтри · N / Гортати»." */
@@ -160,6 +166,22 @@ export const uk = {
     backToList: "← До списку",
     /** Screen-reader announcement on entering the deck, template: "Тварина {position} з {total}." */
     deckEntryAnnouncement: "Режим по одній. Тварина {position} з {total}.",
+    /**
+     * gallery-v3 (Figma `58:1617`): the card's pill. Was "Усиновити" until
+     * Oleksii's direct replacement, mid-build — owner-approved final copy,
+     * not [COPY PENDING]. A non-interactive `<span>` inside the card's one
+     * link (owner decision #2, 2026-10-25) — the link's own `aria-label`
+     * (`cardAccessibleName`) already fixes the accessible name, so this
+     * text never reaches it either way; decorative in practice, not just
+     * in intent.
+     */
+    adoptPill: "Познайомитися",
+    /**
+     * The gallery page's own `<h1>`. Was "Каталог" (the Figma frame's own
+     * placeholder text, 58:1617) until Oleksii's direct replacement,
+     * mid-build — owner-approved final copy, not [COPY PENDING].
+     */
+    galleryTitle: "Шукають дім",
   },
 
   // --- Screen 03 · Filters ---
@@ -230,8 +252,28 @@ export const uk = {
     sortLabel: "Сортування",
     sortFreshest: "Спочатку найсвіжіші картки",
     sortLongestWaiting: "Найдовше чекають",
+    /**
+     * gallery-v3 (Figma `58:1617`): the control block's own short visible
+     * labels, builder-prompt-approved. The long sentences above stay as
+     * each link's `aria-label` (`GallerySortToggle.tsx`) — WCAG 2.5.3 is
+     * satisfied because the short label is a literal prefix a voice-control
+     * user would say, not a different wording.
+     */
+    sortFreshestShort: "Нові",
+    sortLongestWaitingShort: "Зачекались",
     allCities: "Уся Київщина",
     railFooter: "Фільтра за датою немає: тварина, про яку давно не писали, теж шукає дім.",
+    /**
+     * gallery-v3 (Figma `58:1617`): the dropdown row's own clear-all ✕,
+     * Oleksii mid-build ("replacing chevron icon with X to clear all
+     * filters [in] 1 click"). Template: "{dimension}" -> the dropdown's own
+     * legend (e.g. "Скинути МІСТО"). Reuses `reset`'s own verb above rather
+     * than inventing a second word for the same action — not run through
+     * the [COPY PENDING] gate: an aria-label on a utility control, not a
+     * public-page claim or sentence, and the gallery is already live
+     * (gate-only) copy this low-stakes shouldn't block on.
+     */
+    clearDimension: "Скинути {dimension}",
   },
 
   // --- Swipe affordances ---
@@ -629,6 +671,24 @@ export const uk = {
      */
     atShelter: "м. {city}",
     fosteredHousing: "на перетримці, м. {city}",
+    /**
+     * gallery-v3 (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`): the
+     * redesigned card's meta line names sex as its own word instead of
+     * folding it into the age word's grammatical gender (`ageYoungFemale`
+     * etc. above, unchanged — the deck and the old card still use those).
+     * Builder-prompt-approved exact strings, same words already used for
+     * the kabinet animal form's `who.sexMale`/`who.sexFemale`
+     * (`messages/uk.ts`'s kabinet block) — not re-derived, reused verbatim
+     * because the owner's own design names them by these words. An
+     * `"unknown"` sex has no word here (`sexWordFor`,
+     * `packages/i18n/src/animal-labels.ts`, returns `null`) rather than
+     * guessing — the pre-existing `ageWordFor` defaults an unknown sex to
+     * the masculine age word, but that is a fallback for a word that must
+     * exist either way; a sex word has a true third option (omit it) that
+     * the age word does not.
+     */
+    sexMale: "Хлопчик",
+    sexFemale: "Дівчинка",
   },
 
   // --- Pagination footer (E3, re-skinned V2) ---

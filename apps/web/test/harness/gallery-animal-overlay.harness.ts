@@ -257,15 +257,13 @@ test.describe("the gallery's animal overlay", () => {
   test.describe(() => {
     test.use({ extraHTTPHeaders: ipHeaders(46) });
 
-    test("the deck's entry link still reaches the deck, not an overlay", async ({ page }) => {
-      await openGallery(page);
-
-      await page.getByRole("link", { name: uk.feed.enterDeck }).click();
-
-      await page.waitForURL(/\/tvaryny\/gortaty/);
-      await expect(page.getByRole("dialog")).toHaveCount(0);
-      await expect(page.locator(CARD)).toHaveCount(0);
-    });
+    // "the deck's entry link still reaches the deck, not an overlay" used
+    // to live here — removed, not rewritten: the deck entry link is gone
+    // from the gallery page entirely (Oleksii, mid-build: "let's hide
+    // access to Гортати по одній page for now as well"), so there is no
+    // link left for this test to click. The deck route and its own
+    // interception-avoidance logic (`DeckEntryLink.tsx`'s plain-`<a>`
+    // reasoning) are untouched; only this page's link to it is gone.
 
     test("with JavaScript disabled, a card is a plain link to the full page", async ({
       browser,

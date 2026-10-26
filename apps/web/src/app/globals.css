@@ -395,8 +395,9 @@
  * selector regardless of source order, so without this the sheet would
  * reappear at >=1024 for anyone who reached #tvaryny-filters at a narrow
  * width and then resized (or opened a bookmarked/shared URL carrying the
- * fragment directly at desktop width) — exactly the width the rail, not
- * the sheet, owns.
+ * fragment directly at desktop width) — exactly the width `FilterRail`
+ * used to own and `GalleryControlBlock`'s own toggle (gallery-v3, Figma
+ * `58:1617`) owns now, not the sheet.
  *
  * Deliberately NOT also gated on `:not([open])`: when JS calls
  * `showModal()`, the browser sets `open` itself and renders the dialog in

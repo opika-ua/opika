@@ -223,6 +223,17 @@ export function FilterSheet({
 
   return (
     <>
+      {/*
+        gallery-v3 (Figma `58:1617`): unchanged by this PR, after a
+        designer clarification mid-build. «Фільтр» at >=1024 now toggles
+        `GalleryControlBlock`'s own dropdown row, not this sheet — and
+        there is no mobile Figma section yet ("do only desktop for now"),
+        so this component keeps its pre-existing `desktop:hidden` trigger
+        and dialog, its original styling, and its original role: the
+        mobile/tablet filter UI, exactly as before this PR. Only
+        `uk.feed.filtersLabel`'s value changed (plural → singular, the
+        hand-off's own pre-approved word, its one reader).
+      */}
       <a
         ref={triggerRef}
         href={`#${SHEET_ID}`}

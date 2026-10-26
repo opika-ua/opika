@@ -55,7 +55,16 @@ async function focusedIndex(page: { evaluate: <T>(fn: () => T) => Promise<T> }):
   });
 }
 
-test.describe("/tvaryny arrow-key grid navigation (desktop, 3 columns)", () => {
+/**
+ * gallery-v3 (Figma `58:1617`): the grid's own desktop (>=1024) column
+ * count changed from 3 to 4 (`GalleryCard.tsx`'s/`page.tsx`'s grid
+ * classes). `ArrowKeyGrid` reads the real, live column count off the
+ * rendered `grid-template-columns` rather than a constant, so this file's
+ * own job — proving arrow steps follow whatever the grid actually renders
+ * — is unaffected by the redesign; only the *numbers* below (which row a
+ * given card index falls in) needed updating for the new column count.
+ */
+test.describe("/tvaryny arrow-key grid navigation (desktop, 4 columns)", () => {
   test("ArrowRight/ArrowDown/ArrowLeft/ArrowUp move focus by the real column count", async ({
     page,
   }) => {
@@ -67,10 +76,10 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 3 columns)", () => {
     expect(await focusedIndex(page), "ArrowRight moves to the next card in the row").toBe(1);
 
     await page.keyboard.press("ArrowDown");
-    expect(await focusedIndex(page), "ArrowDown moves by the column count (3)").toBe(4);
+    expect(await focusedIndex(page), "ArrowDown moves by the column count (4)").toBe(5);
 
     await page.keyboard.press("ArrowLeft");
-    expect(await focusedIndex(page), "ArrowLeft moves back one").toBe(3);
+    expect(await focusedIndex(page), "ArrowLeft moves back one").toBe(4);
 
     await page.keyboard.press("ArrowUp");
     expect(await focusedIndex(page), "ArrowUp moves back up by the column count").toBe(0);
@@ -80,38 +89,38 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 3 columns)", () => {
     page,
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
-    // Card index 2 is the rightmost of the first 3-column row. Every card
+    // Card index 3 is the rightmost of the first 4-column row. Every card
     // keeps its native tabIndex (no roving state — see ArrowKeyGrid's own
     // doc comment for why), so focus() alone is enough to land here.
-    await page.evaluate(() => {
-      const card = document.querySelectorAll("[data-testid='animal-card']")[2] as HTMLElement;
-      card.focus();
-    });
-    expect(await focusedIndex(page)).toBe(2);
-
-    await page.keyboard.press("ArrowRight");
-    expect(
-      await focusedIndex(page),
-      "the rightmost card in a row must not wrap to the next row's first card",
-    ).toBe(2);
-  });
-
-  test("edges do not wrap — the leftmost card in a row stays put on ArrowLeft", async ({
-    page,
-  }) => {
-    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
-    // Card index 3 is the leftmost of the second row (row 1, columns=3).
     await page.evaluate(() => {
       const card = document.querySelectorAll("[data-testid='animal-card']")[3] as HTMLElement;
       card.focus();
     });
     expect(await focusedIndex(page)).toBe(3);
 
+    await page.keyboard.press("ArrowRight");
+    expect(
+      await focusedIndex(page),
+      "the rightmost card in a row must not wrap to the next row's first card",
+    ).toBe(3);
+  });
+
+  test("edges do not wrap — the leftmost card in a row stays put on ArrowLeft", async ({
+    page,
+  }) => {
+    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
+    // Card index 4 is the leftmost of the second row (row 1, columns=4).
+    await page.evaluate(() => {
+      const card = document.querySelectorAll("[data-testid='animal-card']")[4] as HTMLElement;
+      card.focus();
+    });
+    expect(await focusedIndex(page)).toBe(4);
+
     await page.keyboard.press("ArrowLeft");
     expect(
       await focusedIndex(page),
       "the leftmost card in a row must not wrap to the previous row's last card",
-    ).toBe(3);
+    ).toBe(4);
   });
 
   test("Home jumps to the first card, End jumps to the last", async ({ page }) => {
@@ -168,8 +177,13 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 3 columns)", () => {
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await page.getByTestId("filter-rail").getByRole("link", { name: "Собаки" }).click();
-    await page.waitForURL(/vyd=dog/);
+    // gallery-v3: species is no longer one of the desktop dropdown row's
+    // three dimensions (city/age/size only — `FilterRail`, the old species
+    // chip's own home, is retired), so this exercises the size dropdown
+    // instead, through the same UI click path the old test used.
+    await page.getByRole("button", { name: "РОЗМІР" }).click();
+    await page.getByRole("link", { name: "Великий" }).click();
+    await page.waitForURL(/rozmir=large/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
 
     await page.locator(CARD).first().focus();
@@ -195,15 +209,15 @@ test.describe("/tvaryny arrow-key grid navigation — the column count is read l
     await page.locator(CARD).first().focus();
 
     await page.keyboard.press("ArrowDown");
-    expect(await focusedIndex(page), "3 columns at desktop width, so ArrowDown steps by 3").toBe(3);
+    expect(await focusedIndex(page), "4 columns at desktop width, so ArrowDown steps by 4").toBe(4);
 
     await page.setViewportSize({ width: PHONE.width, height: PHONE.height });
     await page.keyboard.press("ArrowDown");
     expect(
       await focusedIndex(page),
       "after the resize the grid is 1 column, so ArrowDown must step by 1 — a column count " +
-        "cached at mount would still step by 3 and land on 6",
-    ).toBe(4);
+        "cached at mount would still step by 4 and land on 8",
+    ).toBe(5);
   });
 });
 

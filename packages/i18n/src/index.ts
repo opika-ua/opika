@@ -1,6 +1,7 @@
 export {
   ageBucketLabel,
   ageWordFor,
+  sexWordFor,
   sizeLabel,
 } from "./animal-labels";
 export { pendingCopyKeys, pendingCopyPaths } from "./copy-status";

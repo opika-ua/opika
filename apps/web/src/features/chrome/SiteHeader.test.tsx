@@ -85,14 +85,17 @@ describe("SiteHeader", () => {
   it("the logo mark is marked decorative", () => {
     const { container } = render(<SiteHeader kabinetSignedIn={false} />);
 
-    // O-1: asserted directly, not just "the accessible name still comes out
-    // right" — an svg with no accessible text of its own contributes nothing
-    // to the name either way today, so that assertion alone would stay green
-    // even if `aria-hidden` were dropped entirely. This is the one that
-    // actually goes red for that regression.
-    const mark = container.querySelector("svg");
-    expect(mark, "expected the logo mark's <svg> to be present").not.toBeNull();
+    // O-1, updated for the gallery-v3 re-skin: the hand-drawn inline <svg>
+    // was replaced by a static <img> (`BrandLogo.tsx`) — asserted directly,
+    // not just "the accessible name still comes out right", for the same
+    // reason as before: an aria-hidden image with no alt text contributes
+    // nothing to the name either way, so that assertion alone would stay
+    // green even if `aria-hidden` were dropped entirely. This is the one
+    // that actually goes red for that regression.
+    const mark = container.querySelector("img");
+    expect(mark, "expected the logo mark's <img> to be present").not.toBeNull();
     expect(mark?.getAttribute("aria-hidden")).toBe("true");
+    expect(mark?.getAttribute("alt")).toBe("");
   });
 
   it("the wordmark link's accessible name stays 'Opika' regardless", () => {

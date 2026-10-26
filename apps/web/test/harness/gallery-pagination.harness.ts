@@ -34,17 +34,6 @@ const CARD = "[data-testid='animal-card']";
 const NAV = "[data-testid='gallery-pagination']";
 const PAGE_LINK = "[data-testid='pagination-page']";
 
-/**
- * The mock's own literals (`docs/design/Opika Registry System.dc.html`,
- * lines 189/195), NOT `uk.pagination.prev`/`next`:
- * comparing the rendered text to the same constant the component renders
- * would hold no matter what that constant said, which is the one thing
- * these two assertions exist to pin. Copy drifting away from the design
- * should fail here and send the next reader back to the mock.
- */
-const DESIGN_PREV = "← Назад";
-const DESIGN_NEXT = "Далі →";
-
 test.describe("/tvaryny pagination", () => {
   test("the seeded corpus is genuinely multi-page — a precondition for every test below", async ({
     page,
@@ -173,19 +162,24 @@ test.describe("/tvaryny pagination", () => {
     await expect(secondPageLink).toHaveAccessibleName("Сторінка 2");
   });
 
-  test("prev/next carry the design's own visible text, not a bare glyph with a separate label", async ({
+  /**
+   * gallery-v3 (Figma `58:1617`): prev/next are icon-only chevrons now, not
+   * the old design's own visible "← Назад" / "Далі →" text this test used
+   * to pin. Icon-only is *not* a reversion to the WCAG 2.5.3 bug the old
+   * test existed to catch (an aria-label that doesn't contain visible
+   * text) — that rule only applies when there IS visible text; with none
+   * at all, a plain `aria-label` naming the action is the standard,
+   * compliant pattern (`GalleryPageNav.tsx`'s own top comment has the full
+   * reasoning). This test is what would catch a regression back to
+   * mismatched visible text instead.
+   */
+  test("prev/next carry no visible text — the accessible name alone says what they do", async ({
     page,
   }) => {
-    // docs/design's mock (`Opika Registry System.dc.html`, lines 189/195)
-    // sets "← Назад" / "Далі →" as the buttons' own visible text —
-    // an earlier draft used a bare "‹"/"›" glyph plus an aria-label that
-    // didn't contain it, a WCAG 2.5.3 accessible-name mismatch caught on
-    // review. Asserting the visible text (not just the aria-label) is what
-    // would have caught that draft.
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await expect(page.getByTestId("pagination-prev-disabled")).toHaveText(DESIGN_PREV);
-    await expect(page.getByTestId("pagination-next")).toHaveText(DESIGN_NEXT);
+    await expect(page.getByTestId("pagination-next")).toHaveText("");
+    await expect(page.getByTestId("pagination-next")).toHaveAccessibleName("Далі →");
   });
 
   /**

@@ -50,3 +50,26 @@ export function ageWordFor(bucket: AgeBucket, sex: AnimalSex): string {
   const gender: GrammaticalGender = grammaticalGenderOf(sex);
   return gender === "feminine" ? FEMININE_AGE_BUCKET_LABELS[bucket] : AGE_BUCKET_LABELS[bucket];
 }
+
+/**
+ * The gallery-v3 card's own sex word («Хлопчик»/«Дівчинка»), named as its own fact rather than
+ * folded into the age word's grammatical gender the way `ageWordFor` above does. `null` for
+ * `"unknown"` — unlike `ageWordFor`, which must always return *some* age word and so falls back
+ * to the masculine form, there is no fallback sex word that would be true, so the caller omits
+ * it instead of guessing.
+ */
+export function sexWordFor(sex: AnimalSex): string | null {
+  switch (sex) {
+    case "male":
+      return uk.cardMeta.sexMale;
+    case "female":
+      return uk.cardMeta.sexFemale;
+    case "unknown":
+      return null;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = sex;
+      return unreachable;
+    }
+  }
+}
