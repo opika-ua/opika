@@ -36,7 +36,7 @@ describe("GalleryFilterDropdowns", () => {
         citySlugs={CITY_SLUGS}
       />,
     );
-    const cityButton = screen.getByLabelText(uk.filters.city);
+    const cityButton = screen.getByLabelText(`${uk.filters.city}: ${uk.filters.city}`);
     expect(cityButton.textContent).toContain(uk.filters.city);
     expect(cityButton.className).toContain("text-brand-muted");
   });
@@ -50,7 +50,7 @@ describe("GalleryFilterDropdowns", () => {
         citySlugs={CITY_SLUGS}
       />,
     );
-    const cityButton = screen.getByLabelText(uk.filters.city);
+    const cityButton = screen.getByLabelText(`${uk.filters.city}: Бровари`);
     expect(cityButton.textContent).toBe("Бровари");
     expect(cityButton.className).toContain("text-brand-ink");
   });
@@ -66,7 +66,7 @@ describe("GalleryFilterDropdowns", () => {
     );
     expect(screen.queryByRole("link", { name: "Бровари" })).toBeNull();
 
-    fireEvent.click(screen.getByLabelText(uk.filters.city));
+    fireEvent.click(screen.getByLabelText(`${uk.filters.city}: ${uk.filters.city}`));
     const option = screen.getByRole("link", { name: "Бровари" });
     expect(option).toBeTruthy();
     expect(option.className).toContain("w-full");
@@ -86,14 +86,14 @@ describe("GalleryFilterDropdowns", () => {
       </div>,
     );
 
-    fireEvent.click(screen.getByLabelText(uk.filters.city));
+    fireEvent.click(screen.getByLabelText(`${uk.filters.city}: ${uk.filters.city}`));
     expect(screen.getByRole("link", { name: "Бровари" })).toBeTruthy();
 
     fireEvent.pointerDown(screen.getByTestId("outside"));
     expect(screen.queryByRole("link", { name: "Бровари" })).toBeNull();
   });
 
-  it("pressing Escape closes the open dropdown", () => {
+  it("pressing Escape closes the open dropdown and returns focus to its trigger", () => {
     render(
       <GalleryFilterDropdowns
         filters={NO_FILTERS}
@@ -103,11 +103,26 @@ describe("GalleryFilterDropdowns", () => {
       />,
     );
 
-    fireEvent.click(screen.getByLabelText(uk.filters.city));
+    const trigger = screen.getByLabelText(`${uk.filters.city}: ${uk.filters.city}`);
+    fireEvent.click(trigger);
     expect(screen.getByRole("link", { name: "Бровари" })).toBeTruthy();
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("link", { name: "Бровари" })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("the trigger's accessible name includes the visible selected value (WCAG 2.5.3)", () => {
+    render(
+      <GalleryFilterDropdowns
+        filters={{ ...NO_FILTERS, cities: { kind: "oneOf", values: [BROVARY_ID] } }}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+      />,
+    );
+    const cityButton = screen.getByRole("button", { name: `${uk.filters.city}: Бровари` });
+    expect(cityButton.textContent).toContain("Бровари");
   });
 
   /**
@@ -152,7 +167,7 @@ describe("GalleryFilterDropdowns", () => {
         citySlugs={CITY_SLUGS}
       />,
     );
-    fireEvent.click(screen.getByLabelText(uk.filters.age));
+    fireEvent.click(screen.getByLabelText(`${uk.filters.age}: ${uk.filters.ageYoung}`));
     const option = screen.getByRole("link", { name: /Молодий/ });
     expect(option.getAttribute("aria-current")).toBe("true");
   });

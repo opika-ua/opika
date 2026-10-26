@@ -153,9 +153,10 @@ export const uk = {
   feed: {
     /**
      * gallery-v3 (Figma `58:1617`): singular, builder-prompt-approved —
-     * was "Фільтри" (plural) until this PR. The only reader is
-     * `FilterSheet.tsx`'s own trigger button (confirmed: no other file
-     * reads this key), so changing the value changes nothing else.
+     * was "Фільтри" (plural) until this PR. Read by both
+     * `FilterSheet.tsx`'s own trigger button and, since this PR,
+     * `GalleryControlBlock.tsx`'s desktop «Фільтр» toggle — the same label
+     * on both of this page's two filter-disclosure controls.
      */
     filtersLabel: "Фільтр",
     /** Desktop gallery header, full phrase — docs/design/README.md "Screens" > "Gallery." */
@@ -267,11 +268,20 @@ export const uk = {
      * gallery-v3 (Figma `58:1617`): the dropdown row's own clear-all ✕,
      * Oleksii mid-build ("replacing chevron icon with X to clear all
      * filters [in] 1 click"). Template: "{dimension}" -> the dropdown's own
-     * legend (e.g. "Скинути МІСТО"). Reuses `reset`'s own verb above rather
-     * than inventing a second word for the same action — not run through
-     * the [COPY PENDING] gate: an aria-label on a utility control, not a
-     * public-page claim or sentence, and the gallery is already live
-     * (gate-only) copy this low-stakes shouldn't block on.
+     * legend (e.g. "Скинути МІСТО").
+     *
+     * Draft, not confirmed: this wording is the builder's own, not his —
+     * flagged in the PR's decisions batch (GV3-Q2) rather than shipped as
+     * [COPY PENDING]. That sentinel is not an option here:
+     * `open-writes-copy-gate.test.ts`'s "nothing in the entire uk catalogue
+     * is pending" CI gate (Oleksii, Q-B, verbatim: "the guard checks the
+     * entire catalogue; nothing pending anywhere") turns production sign-in
+     * off for ANY pending string, this namespace included, not only
+     * `kabinet.*`. Reuses `reset`'s own verb above rather than inventing a
+     * second word for the same action — a reasonable draft like the demo-mode
+     * strings' own precedent ("drafted by Claude from an English sense;
+     * Oleksii selected these from offered options"), awaiting the same kind
+     * of confirm-or-replace rather than a round-trip before shipping.
      */
     clearDimension: "Скинути {dimension}",
   },

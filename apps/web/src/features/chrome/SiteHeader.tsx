@@ -172,14 +172,8 @@ export interface SiteHeaderProps {
  */
 /**
  * ui 600, 20/1.2, ink; gap 40 between links (`gap-10`) — the frame's own
- * type-scale row for "Header nav links". Kept as a pill on `bg-brand-line`
- * ("other page pills", the token table's own words for that colour) rather
- * than the frame's bare text, because every link here still needs a real
- * touch target and a visible focus ring, same reasoning the old `rg-`
- * pill had.
- */
-/**
- * Bare text, no pill — Figma's own node geometry for this nav (`58:1698`)
+ * type-scale row for "Header nav links". Bare text, no pill — Figma's own
+ * node geometry for this nav (`58:1698`)
  * is a 24px-tall text box with nothing behind it, not the earlier
  * `bg-brand-line` pill this file shipped first (Oleksii, mid-build: "our
  * header links look much different than on Figma"). The 48px touch-target

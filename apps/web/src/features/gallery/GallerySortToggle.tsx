@@ -55,62 +55,60 @@ export function GallerySortToggle({ filters, sort, citySlugs }: GallerySortToggl
   const otherHref = sort === "freshest" ? longestWaitingHref : freshestHref;
 
   return (
-    <div className="flex items-center gap-3">
-      <nav aria-label={uk.filters.sortLabel} className="flex items-center gap-3 font-brand-ui">
-        <Link
-          prefetch={false}
-          href={freshestHref}
-          aria-label={`${uk.filters.sortFreshestShort}. ${uk.filters.sortFreshest}`}
-          aria-current={sort === "freshest" ? "true" : undefined}
-          data-testid="sort-freshest"
-          className={`flex min-h-12 items-center rounded-brand-pill px-2 text-[18px]/[1.2] font-semibold focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
-            sort === "freshest" ? "text-brand-ink" : "text-brand-muted"
-          }`}
-        >
-          {uk.filters.sortFreshestShort}
-        </Link>
+    <nav aria-label={uk.filters.sortLabel} className="flex items-center gap-3 font-brand-ui">
+      <Link
+        prefetch={false}
+        href={freshestHref}
+        aria-label={`${uk.filters.sortFreshestShort}. ${uk.filters.sortFreshest}`}
+        aria-current={sort === "freshest" ? "true" : undefined}
+        data-testid="sort-freshest"
+        className={`flex min-h-12 items-center rounded-brand-pill px-2 text-[18px]/[1.2] font-semibold focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+          sort === "freshest" ? "text-brand-ink" : "text-brand-muted"
+        }`}
+      >
+        {uk.filters.sortFreshestShort}
+      </Link>
 
-        {/*
-          The track itself: 46x26, radius 13 (`rounded-brand-pill`, which is
-          999 and so renders the same fully-rounded shape at this size), ink
-          fill, a 20px surface-coloured knob sliding to whichever side is
-          active. A real, clickable link to "the other" sort — not merely
-          decorative — but `tabIndex={-1}` and `aria-hidden="true"` keep it
-          out of the Tab order and the accessible tree: it always leads to
-          exactly the same place one of the two text links beside it
-          already does, so a keyboard or screen-reader user has no reason
-          to meet it as a third, redundant stop. Mouse/touch clicks reach
-          it regardless of either attribute — neither suppresses pointer
-          interaction, only keyboard/AT exposure.
-        */}
-        <Link
-          prefetch={false}
-          href={otherHref}
-          tabIndex={-1}
-          aria-hidden="true"
-          data-testid="sort-track"
-          className="relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-brand-pill bg-brand-ink p-[3px]"
-        >
-          <span
-            className={`block size-5 rounded-brand-pill bg-brand-surface transition-transform duration-[120ms] ${
-              activeIndex === 1 ? "translate-x-5" : "translate-x-0"
-            }`}
-          />
-        </Link>
-
-        <Link
-          prefetch={false}
-          href={longestWaitingHref}
-          aria-label={`${uk.filters.sortLongestWaitingShort}. ${uk.filters.sortLongestWaiting}`}
-          aria-current={sort === "longest_waiting" ? "true" : undefined}
-          data-testid="sort-longest-waiting"
-          className={`flex min-h-12 items-center rounded-brand-pill px-2 text-[18px]/[1.2] font-semibold focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
-            sort === "longest_waiting" ? "text-brand-ink" : "text-brand-muted"
+      {/*
+        The track itself: 46x26, radius 13 (`rounded-brand-pill`, which is
+        999 and so renders the same fully-rounded shape at this size), ink
+        fill, a 20px surface-coloured knob sliding to whichever side is
+        active. A real, clickable link to "the other" sort — not merely
+        decorative — but `tabIndex={-1}` and `aria-hidden="true"` keep it
+        out of the Tab order and the accessible tree: it always leads to
+        exactly the same place one of the two text links beside it
+        already does, so a keyboard or screen-reader user has no reason
+        to meet it as a third, redundant stop. Mouse/touch clicks reach
+        it regardless of either attribute — neither suppresses pointer
+        interaction, only keyboard/AT exposure.
+      */}
+      <Link
+        prefetch={false}
+        href={otherHref}
+        tabIndex={-1}
+        aria-hidden="true"
+        data-testid="sort-track"
+        className="relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-brand-pill bg-brand-ink p-[3px]"
+      >
+        <span
+          className={`block size-5 rounded-brand-pill bg-brand-surface transition-transform duration-[120ms] ${
+            activeIndex === 1 ? "translate-x-5" : "translate-x-0"
           }`}
-        >
-          {uk.filters.sortLongestWaitingShort}
-        </Link>
-      </nav>
-    </div>
+        />
+      </Link>
+
+      <Link
+        prefetch={false}
+        href={longestWaitingHref}
+        aria-label={`${uk.filters.sortLongestWaitingShort}. ${uk.filters.sortLongestWaiting}`}
+        aria-current={sort === "longest_waiting" ? "true" : undefined}
+        data-testid="sort-longest-waiting"
+        className={`flex min-h-12 items-center rounded-brand-pill px-2 text-[18px]/[1.2] font-semibold focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+          sort === "longest_waiting" ? "text-brand-ink" : "text-brand-muted"
+        }`}
+      >
+        {uk.filters.sortLongestWaitingShort}
+      </Link>
+    </nav>
   );
 }

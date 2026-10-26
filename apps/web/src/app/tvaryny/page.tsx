@@ -199,9 +199,9 @@ export async function renderGallery(
             designer clarification mid-build, not the generic hand-off's
             "opens the sheet" instruction. See `GalleryControlBlock.tsx`'s
             own comment. Desktop only for now (no mobile Figma section yet):
-            `FilterSheet` — passed as `trailing`, alongside the deck entry —
-            keeps its own pre-existing `desktop:hidden` trigger for
-            mobile/tablet, unchanged by this PR.
+            `FilterSheet` — the sole `trailing` content now the deck entry
+            link is gone — keeps its own pre-existing `desktop:hidden`
+            trigger for mobile/tablet, unchanged by this PR.
           */}
           <GalleryControlBlock
             // `min-w-0 break-words` on the h1 below: the heading's text

@@ -1,6 +1,5 @@
 import type { FeedCardView } from "@opika/contracts";
 import type { Freshness, FreshnessKind } from "@opika/domain";
-import { uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
@@ -71,17 +70,25 @@ describe("GalleryCard link", () => {
   });
 });
 
-describe("GalleryCard the pill", () => {
+describe("GalleryCard the «Познайомитися» pill", () => {
+  // Oleksii's owner-approved replacement for the builder prompt's
+  // "Усиновити" — the design's own literal, transcribed here rather than
+  // read from `uk.feed.adoptPill`: a test that imports the same constant
+  // the component renders can't catch a wrong value, only a wiring
+  // regression (`docs/standing-constraints.md`'s "a test may not compare
+  // output against the same constant the code renders" — confirmed by
+  // mutating `adoptPill` back to "Усиновити" during review: the earlier,
+  // `uk`-importing version of this test still passed).
   it("is visible on every card, published or reserved", () => {
     render(<GalleryCard card={makeCard()} cityName="Бровари" />);
-    expect(screen.getByText(uk.feed.adoptPill)).toBeTruthy();
+    expect(screen.getByText("Познайомитися")).toBeTruthy();
   });
 
   it("does not change the accessible name — the link's own aria-label is what's read", () => {
     const card = makeCard();
     render(<GalleryCard card={card} cityName="Бровари" />);
     const link = screen.getByRole("link");
-    expect(link.getAttribute("aria-label")).not.toContain(uk.feed.adoptPill);
+    expect(link.getAttribute("aria-label")).not.toContain("Познайомитися");
   });
 });
 

@@ -81,6 +81,7 @@ function Dropdown({
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -89,7 +90,13 @@ function Dropdown({
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     }
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+        // Escape returns focus to the trigger (WAI-ARIA APG's listbox/combobox
+        // pattern); an outside click doesn't need this — focus already moved
+        // to whatever the pointer landed on.
+        buttonRef.current?.focus();
+      }
     }
 
     document.addEventListener("pointerdown", onPointerDown);
@@ -103,10 +110,15 @@ function Dropdown({
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        aria-label={legend}
+        // Composed, not the bare legend: the legend alone ("МІСТО") would
+        // drop the visible selected value ("Бровари") from the accessible
+        // name, failing WCAG 2.5.3 (Label in Name) against the visible
+        // <span> below. Ending with `label` verbatim is what satisfies it.
+        aria-label={`${legend}: ${label}`}
         className={`flex h-13 w-53 min-w-0 cursor-pointer items-center justify-between gap-3 rounded-brand-field border-2 bg-brand-page px-5 font-brand-ui text-[16px]/[1.2] font-semibold transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
           active ? "border-brand-accent text-brand-ink" : "border-brand-line text-brand-muted"
         } ${open ? "border-brand-accent" : ""}`}
@@ -129,7 +141,13 @@ function Dropdown({
           onClick={() => setOpen(false)}
           aria-label={uk.filters.clearDimension.replace("{dimension}", legend)}
           data-testid="dropdown-clear"
-          className="absolute top-1/2 right-5 flex size-5 -translate-y-1/2 cursor-pointer items-center justify-center text-[16px] text-brand-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+          // 48px hit area (min-h-12/min-w-12), matching FilterSheet.tsx's own
+          // "✕" close affordance — the same glyph at size-5 (20px) was below
+          // both the 48px floor this app uses elsewhere and WCAG 2.5.8's 24px
+          // minimum target size. `right-1.5` (not `right-5`) keeps the glyph
+          // itself centered on the same spot the chevron it replaces occupies
+          // — only the invisible padding around it grew.
+          className="absolute top-1/2 right-1.5 flex min-h-12 min-w-12 -translate-y-1/2 cursor-pointer items-center justify-center text-[16px] text-brand-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
         >
           <span aria-hidden="true">✕</span>
         </Link>

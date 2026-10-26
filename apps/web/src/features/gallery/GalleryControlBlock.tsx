@@ -17,7 +17,7 @@ import { FilterIcon } from "./icons";
  * this PR).
  *
  * A Client Component, not a `<details>`/`<summary>` disclosure: the
- * toggle's row 1 (title, deck entry, the button itself) and row 2 (the
+ * toggle's row 1 (title, `trailing`, the button itself) and row 2 (the
  * dropdowns) are two visually separate flex rows, not "a summary followed
  * by its own content" — the one shape `<details>` can express natively.
  * Defaults to **open** so a no-JS visitor still sees and can use every
@@ -31,7 +31,7 @@ export function GalleryControlBlock({
   children,
 }: {
   title: ReactNode;
-  /** The deck entry link and, at narrow widths, `FilterSheet`'s own trigger — rendered before the toggle button. */
+  /** `FilterSheet`'s own trigger (at narrow widths — it's `desktop:hidden`) — rendered before the toggle button. */
   trailing: ReactNode;
   /** Row 2's content — the three dropdowns and the sort toggle. */
   children: ReactNode;

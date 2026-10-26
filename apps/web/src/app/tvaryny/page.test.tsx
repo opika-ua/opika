@@ -141,7 +141,6 @@ describe("/tvaryny (renderGallery)", () => {
 
     expect(screen.queryByText("Гортати по одній")).toBeNull();
     expect(screen.queryByText("Гортати")).toBeNull();
-    expect(screen.queryByTestId("deck-entry")).toBeNull();
   });
 
   it("kabinetSignedIn=true still shows «Кабінет», not «Збережені», in the header", async () => {
