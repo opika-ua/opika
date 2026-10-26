@@ -1,4 +1,11 @@
-import { AnimalIdSchema } from "@opika/domain";
+import {
+  AnimalIdSchema,
+  DEFAULT_GALLERY_SORT,
+  EVERYONE_SCOPE,
+  FeedFiltersSchema,
+  GalleryScopeSchema,
+  GallerySortSchema,
+} from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 import { apiErrors } from "../errors";
@@ -82,6 +89,49 @@ export const AnimalsCardsByIdsOutputSchema = z.object({
 export const animalsCardsByIdsContract = oc
   .input(AnimalsCardsByIdsInputSchema)
   .output(AnimalsCardsByIdsOutputSchema)
+  .errors({
+    RATE_LIMITED: apiErrors.RATE_LIMITED,
+  });
+
+/**
+ * Prev/next for the pet card overlay (pet card PR 2, section B).
+ *
+ * The context is the gallery the visitor is on, not a property of the
+ * animal, so it travels on every call rather than being looked up server
+ * side: `filters` and `sort` are the same values `gallery.list` was called
+ * with, and the repository reuses its predicate and ordering builders so the
+ * two can never drift apart. Still answers correctly for an animal that has
+ * since dropped out of that filtered set - the seek key comes from the
+ * animal's own row, not from a position in the result set.
+ */
+export const AnimalsNeighboursInputSchema = z.object({
+  animalId: AnimalIdSchema,
+  filters: FeedFiltersSchema,
+  sort: GallerySortSchema.default(DEFAULT_GALLERY_SORT),
+  scope: GalleryScopeSchema.default(EVERYONE_SCOPE),
+});
+
+/** Just enough to render a label and link to the next overlay - the full
+ * card is a second navigation away, not prefetched into this response. */
+export const NeighbourViewSchema = z.object({
+  id: AnimalIdSchema,
+  name: z.string(),
+});
+
+export const AnimalsNeighboursOutputSchema = z.object({
+  /**
+   * `null` at either end (no wrap-around), and for an unknown `animalId` or
+   * one that no longer has a position in this ordering (a draft, adopted or
+   * withdrawn animal) - both read the same as "nothing there" to a caller
+   * that only wants to know what to link to next.
+   */
+  prev: NeighbourViewSchema.nullable(),
+  next: NeighbourViewSchema.nullable(),
+});
+
+export const animalsNeighboursContract = oc
+  .input(AnimalsNeighboursInputSchema)
+  .output(AnimalsNeighboursOutputSchema)
   .errors({
     RATE_LIMITED: apiErrors.RATE_LIMITED,
   });

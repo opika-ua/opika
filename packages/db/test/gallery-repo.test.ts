@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   type Animal,
+  type AnimalId,
   type CityId,
   EVERYONE_SCOPE,
   type FeedFilters,
@@ -844,5 +845,182 @@ describe("galleryRepo.relaxationCounts", () => {
     // then show is worse than no suggestion.
     expect(counts.current).toBe(0);
     expect(counts.relaxations).toEqual([{ dimension: "species", additional: 1 }]);
+  });
+});
+
+describe("galleryRepo.neighbours", () => {
+  it.each<GallerySort>(["freshest", "longest_waiting"])(
+    "walks in exactly %s's own list order, with null at both ends",
+    async (sort) => {
+      const city = makeCity();
+      await cityRepo(db).insert(city);
+      const shelter = await makeShelterInCity(city.id);
+      const seeded = await seedPermutedOrderings(shelter.id, city.id, 6);
+
+      const gallery = galleryRepo(db);
+      const page = await gallery.list({
+        filters: NO_FILTERS,
+        scope: EVERYONE_SCOPE,
+        sort,
+        page: 1,
+        pageSize: seeded.length,
+        now: NOW,
+      });
+      const order = page.items.map((animal) => animal.id);
+      expect(order).toHaveLength(seeded.length);
+
+      for (let i = 0; i < order.length; i++) {
+        const neighbours = await gallery.neighbours({
+          animalId: order[i] as AnimalId,
+          filters: NO_FILTERS,
+          scope: EVERYONE_SCOPE,
+          sort,
+          now: NOW,
+        });
+        expect(neighbours.prev?.id ?? null, `prev of index ${i}`).toBe(order[i - 1] ?? null);
+        expect(neighbours.next?.id ?? null, `next of index ${i}`).toBe(order[i + 1] ?? null);
+      }
+    },
+  );
+
+  it("seeks from an animal's own row even once it has dropped out of the current filters", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = await makeShelterInCity(city.id);
+
+    const dogAfter = makeAnimal({
+      shelterId: shelter.id,
+      species: "dog",
+      listing: {
+        kind: "published",
+        publishedAt: daysBefore(30),
+        confirmedAt: daysBefore(1),
+        undoable: null,
+      },
+    });
+    const catMiddle = makeAnimal({
+      shelterId: shelter.id,
+      species: "cat",
+      listing: {
+        kind: "published",
+        publishedAt: daysBefore(30),
+        confirmedAt: daysBefore(2),
+        undoable: null,
+      },
+    });
+    const dogBefore = makeAnimal({
+      shelterId: shelter.id,
+      species: "dog",
+      listing: {
+        kind: "published",
+        publishedAt: daysBefore(30),
+        confirmedAt: daysBefore(3),
+        undoable: null,
+      },
+    });
+    await animalRepo(db).insertMany(
+      [dogAfter, catMiddle, dogBefore].map((animal) => ({ animal, cityId: city.id })),
+    );
+
+    const dogsOnly: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
+
+    // The cat itself would never pass `dogsOnly` - this call only works at
+    // all because the seek key comes from its own row, not from a position
+    // in the filtered set it doesn't have.
+    const neighbours = await galleryRepo(db).neighbours({
+      animalId: catMiddle.id,
+      filters: dogsOnly,
+      scope: EVERYONE_SCOPE,
+      sort: "freshest",
+      now: NOW,
+    });
+
+    expect(neighbours.prev?.id).toBe(dogAfter.id);
+    expect(neighbours.next?.id).toBe(dogBefore.id);
+  });
+
+  it("returns null at both ends for an unknown animal id", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = await makeShelterInCity(city.id);
+    await seedPermutedOrderings(shelter.id, city.id, 3);
+
+    const neighbours = await galleryRepo(db).neighbours({
+      animalId: randomUUID() as AnimalId,
+      filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
+      sort: "freshest",
+      now: NOW,
+    });
+
+    expect(neighbours).toEqual({ prev: null, next: null });
+  });
+
+  it("returns null at both ends for an animal with no position in either ordering (a draft)", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = await makeShelterInCity(city.id);
+    const draft = makeAnimal({ shelterId: shelter.id, listing: { kind: "draft" } });
+    await animalRepo(db).insertMany([{ animal: draft, cityId: city.id }]);
+
+    const neighbours = await galleryRepo(db).neighbours({
+      animalId: draft.id,
+      filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
+      sort: "longest_waiting",
+      now: NOW,
+    });
+
+    expect(neighbours).toEqual({ prev: null, next: null });
+  });
+
+  it("narrows to one shelter's own order under a shelter scope", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelterA = await makeShelterInCity(city.id, "Притулок А");
+    const shelterB = await makeShelterInCity(city.id, "Притулок Б");
+
+    // Interleaved confirmation times across the two shelters, so a query that
+    // forgot the scope predicate would find a different, wrong neighbour.
+    const a1 = makeAnimal({
+      shelterId: shelterA.id,
+      listing: {
+        kind: "published",
+        publishedAt: daysBefore(30),
+        confirmedAt: daysBefore(1),
+        undoable: null,
+      },
+    });
+    const b1 = makeAnimal({
+      shelterId: shelterB.id,
+      listing: {
+        kind: "published",
+        publishedAt: daysBefore(30),
+        confirmedAt: daysBefore(2),
+        undoable: null,
+      },
+    });
+    const a2 = makeAnimal({
+      shelterId: shelterA.id,
+      listing: {
+        kind: "published",
+        publishedAt: daysBefore(30),
+        confirmedAt: daysBefore(3),
+        undoable: null,
+      },
+    });
+    await animalRepo(db).insertMany([a1, b1, a2].map((animal) => ({ animal, cityId: city.id })));
+
+    const scope: GalleryScope = { kind: "shelter", shelterId: shelterA.id };
+    const neighbours = await galleryRepo(db).neighbours({
+      animalId: a1.id,
+      filters: NO_FILTERS,
+      scope,
+      sort: "freshest",
+      now: NOW,
+    });
+
+    expect(neighbours.prev).toBeNull();
+    expect(neighbours.next?.id).toBe(a2.id);
   });
 });

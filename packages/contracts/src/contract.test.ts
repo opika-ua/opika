@@ -19,13 +19,15 @@ const procedurePaths = (node: object, prefix = ""): readonly string[] =>
   });
 
 describe("the contract surface", () => {
-  it("exposes exactly the eleven agreed procedures", () => {
+  it("exposes exactly the twelve agreed procedures", () => {
     // Spelled out rather than counted, so adding a procedure is a deliberate
     // edit made while looking at the surface. `gallery.*` joined in Phase E0;
-    // `animals.cardsByIds` (S8, the saved page's batch read) joined after it.
+    // `animals.cardsByIds` (S8, the saved page's batch read) joined after it;
+    // `animals.neighbours` (pet card PR 2) joined after that.
     expect([...procedurePaths(contract)].sort()).toEqual([
       "animals.byId",
       "animals.cardsByIds",
+      "animals.neighbours",
       "animals.reveal",
       "cities.list",
       "feed.list",

@@ -100,10 +100,11 @@ describe("every served procedure goes through implement(contract)", () => {
   // The list is spelled out rather than counted so that adding a procedure is
   // a deliberate edit here, made while looking at what is being served, rather
   // than a number quietly incremented. `gallery.*` joined it in Phase E0.
-  it("finds exactly the eleven contracted procedures", () => {
+  it("finds exactly the twelve contracted procedures", () => {
     expect(contractLeaves.map((l) => l.path).sort()).toEqual([
       "animals.byId",
       "animals.cardsByIds",
+      "animals.neighbours",
       "animals.reveal",
       "cities.list",
       "feed.list",

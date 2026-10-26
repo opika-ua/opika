@@ -3,9 +3,11 @@ import type {
   AnimalsByIdInputSchema,
   AnimalsCardsByIdsInputSchema,
   AnimalsCardsByIdsOutputSchema,
+  AnimalsNeighboursInputSchema,
+  AnimalsNeighboursOutputSchema,
   apiErrors,
 } from "@opika/contracts";
-import { animalRepo, shelterRepo } from "@opika/db/repos";
+import { animalRepo, galleryRepo, shelterRepo } from "@opika/db/repos";
 import {
   ageBucketOf,
   isDiscoverableAnimal,
@@ -181,4 +183,28 @@ export async function animalsCardsByIds(
   });
 
   return { items };
+}
+
+type NeighboursInput = z.infer<typeof AnimalsNeighboursInputSchema>;
+type NeighboursOutput = z.infer<typeof AnimalsNeighboursOutputSchema>;
+
+/**
+ * Pet card PR 2, section B: prev/next for the overlay, computed server side
+ * from the gallery's own order so the walk can't drift from what `gallery.
+ * list` shows. No `NOT_FOUND` for an unknown or no-longer-positioned
+ * `animalId` - the repository already answers that the same way as an end
+ * of the list, `{ prev: null, next: null }`, which is what a caller that
+ * only wants to know what to link to next needs either way.
+ */
+export async function animalsNeighbours(
+  input: NeighboursInput,
+  context: AppContext,
+): Promise<NeighboursOutput> {
+  return galleryRepo(context.db).neighbours({
+    animalId: input.animalId,
+    filters: input.filters,
+    scope: input.scope,
+    sort: input.sort,
+    now: context.now,
+  });
 }
