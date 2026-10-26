@@ -42,7 +42,7 @@ function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
 }
 
 describe("GalleryCard link", () => {
-  it("is exactly one link, and only one — the pill is not a nested button or anchor", () => {
+  it("is exactly one link, and only one - the pill is not a nested button or anchor", () => {
     render(<GalleryCard card={makeCard()} cityName="Бровари" />);
     expect(screen.getAllByRole("link")).toHaveLength(1);
     expect(screen.queryAllByRole("button")).toHaveLength(0);
@@ -72,7 +72,7 @@ describe("GalleryCard link", () => {
 
 describe("GalleryCard the «Познайомитися» pill", () => {
   // Oleksii's owner-approved replacement for the builder prompt's
-  // "Усиновити" — the design's own literal, transcribed here rather than
+  // "Усиновити" - the design's own literal, transcribed here rather than
   // read from `uk.feed.adoptPill`: a test that imports the same constant
   // the component renders can't catch a wrong value, only a wiring
   // regression (`docs/standing-constraints.md`'s "a test may not compare
@@ -84,7 +84,7 @@ describe("GalleryCard the «Познайомитися» pill", () => {
     expect(screen.getByText("Познайомитися")).toBeTruthy();
   });
 
-  it("does not change the accessible name — the link's own aria-label is what's read", () => {
+  it("does not change the accessible name - the link's own aria-label is what's read", () => {
     const card = makeCard();
     render(<GalleryCard card={card} cityName="Бровари" />);
     const link = screen.getByRole("link");
@@ -121,7 +121,7 @@ describe("GalleryCard freshness badge", () => {
 });
 
 describe("GalleryCard meta line", () => {
-  it("shows sex, age and size — no city", () => {
+  it("shows sex, age and size - no city", () => {
     render(
       <GalleryCard
         card={makeCard({ sex: "female", ageBucket: "senior", size: "large" })}

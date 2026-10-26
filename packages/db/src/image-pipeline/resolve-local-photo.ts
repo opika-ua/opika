@@ -5,10 +5,10 @@ import sharp, { type Metadata } from "sharp";
 /**
  * An operator points the onboarding input's `photos[].localPath` at a real
  * file next to their JSON (a `photos/` folder alongside it is the
- * documented convention — `docs/onboarding-a-shelter.md`), not at an
+ * documented convention - `docs/onboarding-a-shelter.md`), not at an
  * absolute path they'd have to hand-type identically on every machine this
  * might run from. Relative paths resolve against the *input file's own
- * directory*, not `process.cwd()` — the operator invokes this script from
+ * directory*, not `process.cwd()` - the operator invokes this script from
  * the repo root (per its own usage comment), not from wherever the photos
  * live, so `cwd`-relative resolution would silently look in the wrong
  * place.
@@ -24,7 +24,7 @@ export interface LocalPhotoDimensions {
 }
 
 /**
- * Real file, real read, no network — `sharp(...).metadata()` decodes just
+ * Real file, real read, no network - `sharp(...).metadata()` decodes just
  * the header, not the whole image, so this is cheap even for a large
  * source photo. Deliberately run for every photo in both dry-run and
  * `--commit` (see `onboard-shelter.ts`'s `main`): a shelter's photo folder
@@ -54,12 +54,12 @@ export async function validateLocalPhoto(resolvedPath: string): Promise<LocalPho
 
 /**
  * sharp's metadata() reports the STORED pixel grid, not the displayed
- * orientation — EXIF Orientation 5-8 means a 90°/270° rotation, so the
+ * orientation - EXIF Orientation 5-8 means a 90°/270° rotation, so the
  * stored width/height are transposed relative to how the photo actually
  * displays (and how `generateVariants`' own `.rotate()` will output it).
  * Round-1 review found this missing: without the swap, a portrait phone
  * photo stored with a rotation tag would report landscape dimensions,
- * and AnimalPhoto.width/height (which downstream code trusts as real —
+ * and AnimalPhoto.width/height (which downstream code trusts as real -
  * packages/domain/src/animals/photo.ts's aspectRatio()) would be wrong.
  * Shared by the onboarding script's local files and the kabinet's uploads
  * (`prepareUploadedPhoto`), so both record a photo's shape the same way.

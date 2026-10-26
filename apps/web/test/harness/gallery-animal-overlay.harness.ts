@@ -258,7 +258,7 @@ test.describe("the gallery's animal overlay", () => {
     test.use({ extraHTTPHeaders: ipHeaders(46) });
 
     // "the deck's entry link still reaches the deck, not an overlay" used
-    // to live here — removed, not rewritten: the deck entry link is gone
+    // to live here - removed, not rewritten: the deck entry link is gone
     // from the gallery page entirely (Oleksii, mid-build: "let's hide
     // access to Гортати по одній page for now as well"), so there is no
     // link left for this test to click. The deck route and its own

@@ -45,7 +45,7 @@ describe("parseGalleryQuery", () => {
 
   it("parses a comma-separated multi-select dimension", () => {
     const { filters } = parseGalleryQuery({ vyd: "dog,cat" }, NO_SLUGS);
-    // Both species selected collapses to "any" — canonicalizeFilters' own rule,
+    // Both species selected collapses to "any" - canonicalizeFilters' own rule,
     // exercised here rather than re-asserted, since a multi-value parse is
     // exactly the shape that would hit it first.
     expect(filters.species).toEqual(ANY);
@@ -71,7 +71,7 @@ describe("parseGalleryQuery", () => {
     expect(filters.cities).toEqual({ kind: "oneOf", values: [CITY_A] });
   });
 
-  it("still accepts a raw CityId — the pre-slug link form, resolved without needing the slug map to know it", () => {
+  it("still accepts a raw CityId - the pre-slug link form, resolved without needing the slug map to know it", () => {
     const { filters } = parseGalleryQuery({ misto: CITY_A }, NO_SLUGS);
     expect(filters.cities).toEqual({ kind: "oneOf", values: [CITY_A] });
   });
@@ -102,7 +102,7 @@ describe("parseGalleryQuery", () => {
   it("keeps every value from a repeated query key, not just the first", () => {
     // A native <form method="GET"> submitting two checked boxes named the
     // same thing produces exactly this shape (?rozmir=small&rozmir=medium)
-    // — the real submission FilterSheet relies on, not a synthetic case.
+    // - the real submission FilterSheet relies on, not a synthetic case.
     // Two of three sizes, deliberately not all of them: with all three the
     // result collapses to "any" regardless of whether this bug is present,
     // which would make the assertion pass for the wrong reason.
@@ -113,7 +113,7 @@ describe("parseGalleryQuery", () => {
     });
   });
 
-  it("keeps every repeated city — cities have no universe to collapse into, so this also covers the no-collapse path", () => {
+  it("keeps every repeated city - cities have no universe to collapse into, so this also covers the no-collapse path", () => {
     expect(parseGalleryQuery({ misto: [SLUG_A, SLUG_B] }, CITIES_BY_SLUG).filters.cities).toEqual({
       kind: "oneOf",
       values: [CITY_A, CITY_B],
@@ -185,7 +185,7 @@ describe("galleryHref", () => {
     expect(reparsed).toEqual({ filters, sort: "longest_waiting", page: 1 });
   });
 
-  it("never carries a page param — a filter change always returns to page 1", () => {
+  it("never carries a page param - a filter change always returns to page 1", () => {
     expect(galleryHref(NO_FILTERS, "freshest", NO_CITIES)).not.toContain("stor");
   });
 });
@@ -197,7 +197,7 @@ describe("resetFiltersHref", () => {
 });
 
 describe("galleryPageHref", () => {
-  it("page 1 has no stor param — matching sort's absent-param-is-default convention", () => {
+  it("page 1 has no stor param - matching sort's absent-param-is-default convention", () => {
     expect(galleryPageHref(NO_FILTERS, "freshest", 1, NO_CITIES)).toBe("/tvaryny");
   });
 
@@ -241,7 +241,7 @@ describe("deckEntryHref / parseDeckQuery", () => {
     expect(deckEntryHref(NO_FILTERS, 320, NO_CITIES)).toBe("/tvaryny/gortaty?total=320");
   });
 
-  it("parseDeckQuery falls back to null when total is missing — direct navigation, not a filtered click", () => {
+  it("parseDeckQuery falls back to null when total is missing - direct navigation, not a filtered click", () => {
     expect(parseDeckQuery({}, NO_SLUGS)).toEqual({ filters: NO_FILTERS, total: null });
   });
 
@@ -252,14 +252,14 @@ describe("deckEntryHref / parseDeckQuery", () => {
     });
   });
 
-  it("parseDeckQuery falls back to null on an implausibly large total — untrusted input, not rendered verbatim", () => {
+  it("parseDeckQuery falls back to null on an implausibly large total - untrusted input, not rendered verbatim", () => {
     expect(parseDeckQuery({ total: "99999999" }, NO_SLUGS)).toEqual({
       filters: NO_FILTERS,
       total: null,
     });
   });
 
-  it("parseDeckQuery falls back to null on total=0 — deckEntryHref never produces one, so it's already a stale or hand-edited link", () => {
+  it("parseDeckQuery falls back to null on total=0 - deckEntryHref never produces one, so it's already a stale or hand-edited link", () => {
     expect(parseDeckQuery({ total: "0" }, NO_SLUGS)).toEqual({ filters: NO_FILTERS, total: null });
   });
 
@@ -334,7 +334,7 @@ describe("redirectHrefForLegacyCityIds", () => {
     expect(url.searchParams.get("misto")).toBe(`${SLUG_A},${SLUG_B}`);
   });
 
-  it("does not redirect at all when a legacy id has no entry in the slug map — dropping it would change the result set, and this redirect is permanent", () => {
+  it("does not redirect at all when a legacy id has no entry in the slug map - dropping it would change the result set, and this redirect is permanent", () => {
     const NO_ENTRY_FOR_B: CitySlugsById = new Map([[CITY_A, SLUG_A]]);
     expect(
       redirectHrefForLegacyCityIds({ misto: `${CITY_A},${CITY_B}` }, "/tvaryny", NO_ENTRY_FOR_B),
@@ -358,7 +358,7 @@ describe("redirectHrefForLegacyCityIds", () => {
     expect(url.searchParams.get("misto")).toBe(SLUG_A);
   });
 
-  it("uses the given path — the deck's own route, not the gallery's", () => {
+  it("uses the given path - the deck's own route, not the gallery's", () => {
     expect(redirectHrefForLegacyCityIds({ misto: CITY_A }, "/tvaryny/gortaty", CITY_SLUGS)).toBe(
       `/tvaryny/gortaty?misto=${SLUG_A}`,
     );

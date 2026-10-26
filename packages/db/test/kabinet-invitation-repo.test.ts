@@ -294,9 +294,9 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
    * GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4): widened,
    * 2026-10-24, to every path that deletes an `auth_user` row tied to a
    * shelter's admin history, not only `registry.admins.remove`'s accepted
-   * case. `invite()`'s own `admin_invited` history entry — written with
+   * case. `invite()`'s own `admin_invited` history entry - written with
    * the real email at invite time, before anyone knows whether it will
-   * ever be accepted — is scrubbed in the same statement as this deletion.
+   * ever be accepted - is scrubbed in the same statement as this deletion.
    */
   it("takes a created user whose invitation expired, unaccepted and never signed in, deletes it, and scrubs the shelter's admin_invited entry", async () => {
     const r = await invite("olena@example.org");
@@ -453,12 +453,12 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
   });
 
   /**
-   * Same guard as above, proved against a differently-cased stored address —
+   * Same guard as above, proved against a differently-cased stored address -
    * the same normalised-comparison requirement as `admin-erasure-repo.ts`'s
    * own join (Oleksii, 2026-10-24 review brief), applied to this module's own
    * "live elsewhere" check (`cleanupCandidates`/`deleteCandidates`). `invite()`
    * always normalises before writing, so only a direct update can create the
-   * mismatch — the same reason `admin-erasure-repo.test.ts`'s fixtures bypass
+   * mismatch - the same reason `admin-erasure-repo.test.ts`'s fixtures bypass
    * `invite()` for its own case.
    */
   it("never takes a user with a live invitation elsewhere stored in a different case", async () => {
@@ -522,7 +522,7 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
    * entries for that user, A's included, not only the shelter that
    * triggered the deletion." `invite()`'s own real path reuses one account
    * across both invitations (`kabinetInvitationRepo.invite`: `existing !==
-   * undefined` returns the existing user, never a second one) — exactly
+   * undefined` returns the existing user, never a second one) - exactly
    * the shape `invitation_created_users`'s single, first-invitation-only
    * row can't see, which is why the scrub joins by email, not that table.
    */
@@ -539,7 +539,7 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
     expect(await repo().revoke(a.invitationId)).toBe(true); // A's invite dies.
 
     // Invited to B an hour after A, so B's own 72h window still covers `later`
-    // below (A's own checkpoint) — otherwise both expire at the same instant,
+    // below (A's own checkpoint) - otherwise both expire at the same instant,
     // since they'd share one invite's worth of TTL from the same `now`.
     const bAt = new Date(NOW.getTime() + 60 * 60 * 1000);
     const b = await invite("olena@example.org", bAt, shelterB.id);
@@ -555,7 +555,7 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
       .where(eq(shelterHistory.shelterId, shelterId as never));
     expect((aStillReal?.entry as { email?: string } | undefined)?.email).toBe("olena@example.org");
 
-    // Now B's invite dies too — the account is finally a real candidate.
+    // Now B's invite dies too - the account is finally a real candidate.
     expect(await repo().revoke(b.invitationId)).toBe(true);
     const muchLater = new Date(later.getTime() + 1000);
     expect(
@@ -578,7 +578,7 @@ describe("kabinetInvitationRepo clean-up (RG-Q3, RS-Q1)", () => {
     expect((bAfter?.entry as { email?: string } | undefined)?.email).toBe(ERASED_ADMIN_EMAIL);
 
     // Oleksii's own check on the STOP fix: no row anywhere still holds the
-    // address, invitations included — A's and B's own invitation rows, not
+    // address, invitations included - A's and B's own invitation rows, not
     // only their shelters' history.
     const invitations = await db.select({ email: authInvitation.email }).from(authInvitation);
     expect(invitations.map((i) => i.email)).toEqual([ERASED_ADMIN_EMAIL, ERASED_ADMIN_EMAIL]);

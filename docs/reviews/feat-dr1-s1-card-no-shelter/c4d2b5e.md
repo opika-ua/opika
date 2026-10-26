@@ -27,13 +27,13 @@ Mutations I ran (scratch copy, discarded):
 3. A second `<a>` inside the card → 9 red, including all six new tests (the one-link assertion).
 
 FINDINGS (most severe first; none blocking)
-1. [minor] `apps/web/src/seo-flags.ts:72-76` — the doc comment still says "`AnimalCard.tsx` and
+1. [minor] `apps/web/src/seo-flags.ts:72-76` - the doc comment still says "`AnimalCard.tsx` and
    `SwipeCard.tsx` both call this". After this PR only `SwipeCard.tsx` does. The README sentence
    saying the same thing was corrected; the code comment wasn't. Comments are claims (standing
    constraints: update any comment your change invalidates).
    Failure scenario: a reader trusts the comment, assumes the gallery still states verification
    through this gate, and misjudges the launch-gate work when the flag flips.
-2. [minor] `apps/web/src/features/gallery/AnimalCard.tsx:234-236` — the reason given for the deck
+2. [minor] `apps/web/src/features/gallery/AnimalCard.tsx:234-236` - the reason given for the deck
    keeping its shelter line ("because it carries the shelter's sentence, which needs its speaker")
    is true today, but his DR1-Q1 final answer (§10) moves the sentence off the deck. The plan's
    own DR1-D1 row says "(until DR1-Q1)". Either word the comment so it survives that change, or

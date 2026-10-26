@@ -47,7 +47,7 @@ const codeOf = (error: unknown): string | null =>
     ? error.code
     : null;
 
-/** A device-side refusal, in his words (P-T8 (1)–(3)); retrying the same file can't help. */
+/** A device-side refusal, in his words (P-T8 (1)-(3)); retrying the same file can't help. */
 const compressionMessage = (result: Exclude<CompressedPhoto, { kind: "ok" }>): string => {
   switch (result.kind) {
     case "heic_unsupported":
@@ -64,7 +64,7 @@ const compressionMessage = (result: Exclude<CompressedPhoto, { kind: "ok" }>): s
   }
 };
 
-/** The server's refusal of an upload, in his words (P-T8 (4)–(8)); a lost connection is «Не завантажилось». */
+/** The server's refusal of an upload, in his words (P-T8 (4)-(8)); a lost connection is «Не завантажилось». */
 const uploadFailure = (error: unknown): { message: string; retryable: boolean } => {
   switch (codeOf(error)) {
     case "PHOTO_REJECTED":

@@ -28,7 +28,7 @@ describe("paginationWindow", () => {
     expect(paginationWindow(5, 10)).toEqual([1, "ellipsis", 4, 5, 6, "ellipsis", 10]);
   });
 
-  it("collapses the ellipsis when the band touches page 1 — no gap of one", () => {
+  it("collapses the ellipsis when the band touches page 1 - no gap of one", () => {
     expect(paginationWindow(1, 10)).toEqual([1, 2, "ellipsis", 10]);
     expect(paginationWindow(2, 10)).toEqual([1, 2, 3, "ellipsis", 10]);
   });

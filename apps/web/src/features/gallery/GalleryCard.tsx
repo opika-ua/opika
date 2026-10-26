@@ -6,7 +6,7 @@ import Link from "next/link";
 import { cardAccessibleName, cardFactsParts, cardSpeciesBadgeTone, isReserved } from "./card-text";
 
 /**
- * The gallery-v3 card (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`) — a
+ * The gallery-v3 card (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`) - a
  * new component, not a restyle of `AnimalCard.tsx` in place: that component
  * is shared with the shelter page (`ShelterPageScreen.tsx`) and the saved
  * page (`SavedPageScreen.tsx`), neither of which is in this redesign's
@@ -17,8 +17,8 @@ import { cardAccessibleName, cardFactsParts, cardSpeciesBadgeTone, isReserved } 
  * Same accessibility contract as `AnimalCard`: one `<a>` per animal, no
  * nested interactive elements (the pill below is a non-interactive
  * `<span>`, owner decision #2), `aria-label` carries the full composed name
- * (`cardAccessibleName`) so none of this card's visible text — the pill
- * included — needs to agree with or extend the accessible name.
+ * (`cardAccessibleName`) so none of this card's visible text - the pill
+ * included - needs to agree with or extend the accessible name.
  *
  * Unlike `AnimalCard`, there is only one layout at every breakpoint: the
  * design states "cards keep the frame's aspect ratio 328:480 at every
@@ -36,20 +36,20 @@ import { cardAccessibleName, cardFactsParts, cardSpeciesBadgeTone, isReserved } 
  * this design, unlike `AnimalCard`'s own padded box) → `100vw - 32px`.
  *
  * Tablet (600-1023, 2 columns): page padding 24px a side (`px-6`), the
- * grid's own gap stays this app's pre-existing 16px here (`gap-4`) — only
+ * grid's own gap stays this app's pre-existing 16px here (`gap-4`) - only
  * `desktop:` picks up the frame's new 30px value, per "below 1024px, keep
  * the existing column counts and breakpoints" — so one 16px gap between
  * the two columns → `(100vw - 48 - 16) / 2` = `50vw - 32px`.
  *
  * Desktop+ (>=1024, 4 columns, gap 30, content capped at max-width 1400
- * centred): page padding 56px a side (`px-14`, this PR's own decision —
+ * centred): page padding 56px a side (`px-14`, this PR's own decision -
  * the frame gives the header that gutter and nothing states the main
  * content's, so it reuses the header's number for a consistent column
- * edge). Below the point the 1400 cap binds — `100vw - 112 < 1400`, i.e.
- * viewports under 1512px (the frame's own stated width) — the grid is
+ * edge). Below the point the 1400 cap binds - `100vw - 112 < 1400`, i.e.
+ * viewports under 1512px (the frame's own stated width) - the grid is
  * fluid: `column = (100vw - 112 - 90) / 4` = `25vw - 50.5px`. At and above
  * 1512, the cap binds and a column is a flat `(1400 - 90) / 4` = `327.5px`,
- * rounded up to 328 — matching the aspect-ratio's own first number, which
+ * rounded up to 328 - matching the aspect-ratio's own first number, which
  * is this derivation's own check on itself, not a coincidence stated
  * without proof.
  */
@@ -62,7 +62,7 @@ const META_SEPARATOR = (
 
 interface GalleryCardProps {
   card: FeedCardView;
-  /** Pre-resolved by the caller (`cities.list`) — the card never fetches. */
+  /** Pre-resolved by the caller (`cities.list`) - the card never fetches. */
   cityName: string | null;
   priority?: boolean;
 }
@@ -85,14 +85,14 @@ export function GalleryCard({ card, cityName, priority = false }: GalleryCardPro
     >
       {/*
         A pulsating skeleton (Figma node `87:1747`, a flat rounded-rect the
-        same shape as this card — a static reference frame, so the pulse
+        same shape as this card - a static reference frame, so the pulse
         itself is this PR's own addition, "a common approach... skeletons
         pulsating," Oleksii's words mid-build). Sits behind the photo, not
         swapped in by a loading state: the photo covers it the instant it
         paints, and it stays visible for the rare animal with no photo at
         all (`photo` null) rather than leaving that case a blank void,
         which a real scroll-into-view test against the seeded corpus
-        actually hit — a photo several rows down was still decoding when
+        actually hit - a photo several rows down was still decoding when
         first screenshotted, with nothing behind it in the pre-skeleton
         build.
       */}

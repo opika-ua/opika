@@ -5,7 +5,7 @@ import { r2CleanupEnvProblem, r2CleanupStateOf } from "./r2-cleanup-env";
  * GDPR photo retention (`docs/gdpr-analysis.md`). Tier 1 review (PR #200,
  * blocker 2) found the first version of `r2CleanupEnvProblem` copied
  * `photoUploadEnvProblem`'s "production can't boot without these" shape
- * wholesale — wrong for a job R2-B1 confirms, verbatim, "enabling it by the
+ * wholesale - wrong for a job R2-B1 confirms, verbatim, "enabling it by the
  * env vars' presence": all four absent must mean "off," not "broken."
  * These tests pin the asymmetry directly, not just through `build-env.test.ts`'s
  * one "full production env" fixture.
@@ -60,7 +60,7 @@ describe("r2CleanupEnvProblem", () => {
     expect(r2CleanupEnvProblem({ VERCEL_ENV: "preview" })).toBeNull();
   });
 
-  it("all four absent, in production, is not a problem — the job is simply off", () => {
+  it("all four absent, in production, is not a problem - the job is simply off", () => {
     expect(r2CleanupEnvProblem({ VERCEL_ENV: "production" })).toBeNull();
   });
 
@@ -68,7 +68,7 @@ describe("r2CleanupEnvProblem", () => {
     // The scenario this job actually ships into (Tier 1 delta review,
     // finding 3): the upload token's two shared vars are already required
     // in production regardless of this job, so "off" in practice never
-    // looks like all four absent — it looks like exactly this. A mutation
+    // looks like all four absent - it looks like exactly this. A mutation
     // that collapses this function to "a problem unless all four are
     // absent or all four are present" passes every other test here but
     // would wrongly flag this one as a problem.
@@ -120,7 +120,7 @@ describe("r2CleanupEnvProblem", () => {
   });
 
   it("a padded value is a problem even when the job is otherwise off", () => {
-    // Someone set ONE padded var and nothing else — still worth surfacing,
+    // Someone set ONE padded var and nothing else - still worth surfacing,
     // never silently read as "off" just because the other three are unset.
     expect(r2CleanupEnvProblem({ VERCEL_ENV: "production", R2_ACCOUNT_ID: " acct " })).toMatch(
       /space or a line break/,

@@ -23,14 +23,14 @@ const SORT_LABEL: Record<GallerySort, string> = {
  * appears, and is folded into the sheet's own form (as radios) below 1024.
  *
  * The mock (`Opika Registry System.dc.html`'s B1 frame) draws this as a
- * single closed dropdown showing the active choice plus a "▾" caret — but
+ * single closed dropdown showing the active choice plus a "▾" caret - but
  * with only two options ever, rebuilding that as a real opening menu would
  * trade a working, no-JS, keyboard-native pair of links for a client
  * component that has to reinvent focus management, Escape-to-close and a
  * no-JS fallback none of which the mock actually specifies (it only shows
  * the closed state). That is new interaction surface, not a restyle, so
- * this keeps the two-link structure — both options are always real,
- * instantly-applying navigations, same as the rail's chips — and applies
+ * this keeps the two-link structure - both options are always real,
+ * instantly-applying navigations, same as the rail's chips - and applies
  * the mock's sizing/radius/colour to it instead of its dropdown affordance.
  * Reviewed and settled, not left open: a "skin, not skeleton" call, the
  * same reasoning `docs/build-plan.md`'s Phase E entry for V2 states for
@@ -69,7 +69,7 @@ export function SortLinks({
       /*
        * Designer feedback batch B: on the shelter page this sits directly in a
        * `flex flex-col` section, whose default `align-items: stretch` was
-       * pulling the nav (and so its two links) across the full row — a
+       * pulling the nav (and so its two links) across the full row - a
        * compact segmented control reading as a stretched bar while the cards
        * below it stayed their own width. `self-start` sizes it to its content
        * in a column parent; in the gallery's row parent (`items-center`
@@ -81,12 +81,12 @@ export function SortLinks({
       {/*
         The nav keeps its own rounding (for the continuous-pill fill,
         visible through the inactive link's transparent background) but
-        NOT `overflow-hidden` — that was clipping a focus-visible outline
+        NOT `overflow-hidden` - that was clipping a focus-visible outline
         on the two end links along with everything else, and this
         control's own focus ring must never disappear
         (docs/design/README.md, "Focus": "Never removed."). Rounding the
         two end links individually (GALLERY_SORTS is a fixed 2-option
-        union — `packages/domain` — so first/last is exactly
+        union - `packages/domain` - so first/last is exactly
         first/second here) keeps each link's own corner from squaring
         off against the nav's now-unclipped edges.
       */}
@@ -99,7 +99,7 @@ export function SortLinks({
           prefetch={false}
           key={option}
           href={hrefFor(option)}
-          // `aria-current`, not `aria-pressed` — same reason as FilterRail's
+          // `aria-current`, not `aria-pressed` - same reason as FilterRail's
           // Chip: `aria-pressed` is not an allowed attribute on role="link".
           aria-current={sort === option ? "true" : undefined}
           className={`flex items-center px-5 text-[15px] whitespace-nowrap transition-colors duration-[120ms] ease-rg focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] ${

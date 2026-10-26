@@ -22,7 +22,7 @@ import { cityOnlyLocationOf } from "./public-location";
 
 type RevealInput = z.infer<typeof AnimalsRevealInputSchema>;
 
-/** The exact subset `animalsRevealContract` declares — see animals.ts's own comment (O-20). */
+/** The exact subset `animalsRevealContract` declares - see animals.ts's own comment (O-20). */
 export type AnimalsRevealErrors = ORPCErrorConstructorMap<{
   NOT_FOUND: typeof apiErrors.NOT_FOUND;
   ANIMAL_NOT_AVAILABLE: typeof apiErrors.ANIMAL_NOT_AVAILABLE;
@@ -81,7 +81,7 @@ export async function animalsReveal(
     return toView(existing, current);
   }
 
-  // Rate limit check — persisted in Postgres, survives across instances.
+  // Rate limit check - persisted in Postgres, survives across instances.
   // Distinct-shelter budget: free if this shelter is already revealed
   // within the window (see checkRevealRateLimit's own doc comment).
   await checkRevealRateLimit(context.db, context.adopterId, shelter.id, context.now, errors);

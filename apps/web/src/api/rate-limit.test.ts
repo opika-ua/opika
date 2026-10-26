@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * No test file existed for this module before Phase 3, block 4
- * (`docs/handoff-2026-10-04.md` §3) — the in-memory sliding window had only
+ * (`docs/handoff-2026-10-04.md` §3) - the in-memory sliding window had only
  * `proxy.test.ts`'s indirect 429-after-100-requests coverage. Direct tests
  * here are faster and pin the sliding-window boundary precisely; `upstashRate
  * Limiter` and `apiRateLimiter`'s branching are new in this row and had no
@@ -49,9 +49,9 @@ describe("inMemoryRateLimiter", () => {
  * `@upstash/ratelimit` and `@upstash/redis` are mocked: this is a real
  * network call to a shared store in production, which a unit test can
  * neither reach nor should want to reach. What's under test is this
- * module's own wiring — does `upstashRateLimiter` build the right
+ * module's own wiring - does `upstashRateLimiter` build the right
  * algorithm with the right arguments, and does `check` map the SDK's
- * response correctly — not whether Upstash's own sliding-window Lua script
+ * response correctly - not whether Upstash's own sliding-window Lua script
  * works, which is Upstash's test suite's job, not this one's.
  */
 describe("upstashRateLimiter", () => {
@@ -143,7 +143,7 @@ describe("upstashRateLimiter", () => {
    * under 500ms to `"0 s"`, which `@upstash/ratelimit`'s own Lua script
    * divides by. No caller passes a sub-second window today, but the floor
    * is what actually prevents that from becoming a live crash if one ever
-   * did — this test is what would fail if the floor were removed.
+   * did - this test is what would fail if the floor were removed.
    */
   it("floors the window at 1 second even for a sub-second windowMs", async () => {
     limitMock.mockResolvedValue({ success: true });
@@ -185,7 +185,7 @@ describe("upstashRateLimiter", () => {
 
   /**
    * `@upstash/ratelimit`'s own default behaviour on its internal timeout is
-   * to *resolve* `{ success: true, reason: "timeout" }` — the library's own
+   * to *resolve* `{ success: true, reason: "timeout" }` - the library's own
    * doc comment calls this "allow requests to pass... in case of network
    * problems," i.e. fail open. RL-1 chose the opposite; this is the
    * override that makes `check` actually fail closed on that specific
@@ -194,7 +194,7 @@ describe("upstashRateLimiter", () => {
   /**
    * Second Tier 1 review round's finding: the first version of this branch
    * returned `false` with no log line at all, so a genuinely slow (not
-   * failing) store denied every request silently — found by review, not
+   * failing) store denied every request silently - found by review, not
    * by this test, which is what now pins the fix.
    */
   it("fails closed and logs when the SDK reports its own timeout, even though success is true", async () => {
@@ -217,7 +217,7 @@ describe("upstashRateLimiter", () => {
   /**
    * The other RL-1 failure mode: an outright rejection (DNS failure,
    * connection refused), which the `timeout` option above does not catch
-   * at all — it only races against an indefinitely *pending* promise, not
+   * at all - it only races against an indefinitely *pending* promise, not
    * one that settles via rejection. Tier 1 review's own probe reproduced
    * this live against a real unreachable URL; this test pins the fix
    * without needing a real network call.
@@ -244,7 +244,7 @@ describe("upstashRateLimiter", () => {
  * `apiRateLimiter`'s own module-scope branch: Upstash-backed when a
  * complete URL/token pair is present (either naming), in-memory otherwise.
  * `vi.resetModules()` per test is required because the branch runs once, at
- * module evaluation time — a cached module from an earlier test's env
+ * module evaluation time - a cached module from an earlier test's env
  * would silently carry the wrong decision forward. Every test clears all
  * four possible env vars first so a leftover value can't make a "should
  * fall back" case pass by accident.
@@ -278,7 +278,7 @@ describe("apiRateLimiter", () => {
      * fallback that instead tried to construct `upstashRateLimiter` against
      * an empty URL would reject every call with a real connection error
      * (an unhandled rejection failing this test), not resolve `false` on
-     * the 101st — this distinguishes "falls back correctly" from "fails in
+     * the 101st - this distinguishes "falls back correctly" from "fails in
      * a way `await` happens not to surface."
      */
     const key = `apiRateLimiter-fallback-${Math.random()}`;
@@ -291,7 +291,7 @@ describe("apiRateLimiter", () => {
 
   /**
    * Tier 1 review's medium finding, applied to both naming pairs: only
-   * "both present" and "both absent" were tested — `URL && TOKEN`
+   * "both present" and "both absent" were tested - `URL && TOKEN`
    * (requiring both) could regress to `!URL && !TOKEN` (requiring neither,
    * the inverse condition) without either existing test catching it, since
    * both conditions agree on the all-present and all-absent cases and
@@ -347,7 +347,7 @@ describe("apiRateLimiter", () => {
     return { limitMock, slidingWindowMock, redisConstructorMock, ratelimitConstructorMock };
   }
 
-  it("constructs the Upstash-backed limiter from KV_REST_API_URL/TOKEN — Vercel's own Storage integration naming", async () => {
+  it("constructs the Upstash-backed limiter from KV_REST_API_URL/TOKEN - Vercel's own Storage integration naming", async () => {
     const { limitMock, slidingWindowMock, redisConstructorMock } = mockUpstashSdk();
     clearAllUpstashEnv();
     vi.stubEnv("KV_REST_API_URL", "https://example-upstash.example.com");
@@ -356,7 +356,7 @@ describe("apiRateLimiter", () => {
     const { apiRateLimiter } = await import("./rate-limit");
 
     /**
-     * `retry: { retries: 0 }` — second Tier 1 review round's finding:
+     * `retry: { retries: 0 }` - second Tier 1 review round's finding:
      * `@upstash/redis`'s own default (5 retries, exponential backoff) would
      * make an outright connection failure retry for several seconds during
      * a real outage, racing (and usually losing to) `upstashRateLimiter`'s

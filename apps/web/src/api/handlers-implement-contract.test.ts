@@ -19,7 +19,7 @@ import { router } from "./router";
  * Locks the one property the type system cannot enforce (CLAUDE.md,
  * "Obligations the contract cannot express"): every procedure the server
  * actually serves must be built through `implement(contract)`, because that
- * is the only thing that attaches an output schema — and an output schema is
+ * is the only thing that attaches an output schema - and an output schema is
  * the only thing that strips a handler's return value down to the public
  * view. The fields at stake are a shelter's exact address and contact
  * details (`Shelter.exactAddress`, `ShelterContactSnapshot`): a handler
@@ -27,12 +27,12 @@ import { router } from "./router";
  * whatever the handler function produced, unfiltered.
  *
  * Two independent checks:
- *  1. Structural — walk `contract` and the real `router` in parallel and
+ *  1. Structural - walk `contract` and the real `router` in parallel and
  *     assert, for every leaf, that the router's output schema is the exact
  *     same object the contract declares. This is what "goes through
  *     implement(contract)" means at runtime: `implement()` does not restate
  *     the schema, it inherits the contract's own instance.
- *  2. Behavioural — on a throwaway contract, prove the mechanism the
+ *  2. Behavioural - on a throwaway contract, prove the mechanism the
  *     structural check relies on: an `implement(contract)`-built procedure
  *     strips a field the handler adds but the schema doesn't declare, and a
  *     plain-`os` procedure does not. Without this, check 1 is trusting a
@@ -47,19 +47,19 @@ type LeafInfo = {
 /**
  * Walk a contract or router tree and collect every leaf procedure with its
  * dotted path. Works on both trees because `isContractProcedure` and
- * `isProcedure` each recognise only their own kind — a router leaf is never
+ * `isProcedure` each recognise only their own kind - a router leaf is never
  * mistaken for a contract leaf and vice versa, so running this once per tree
  * and comparing path sets is exact, not approximate.
  *
  * Exact, however, only over the node kinds it understands. A *lazy* router
  * (`os.lazy(...)`, oRPC's code-splitting primitive) is an object with no own
- * enumerable keys — `Object.entries` on one returns `[]` — so the recursion
+ * enumerable keys - `Object.entries` on one returns `[]` - so the recursion
  * below walks straight past it and reports zero leaves for the whole subtree
  * behind it. Verified against @orpc/server 1.14.14: splicing
  * `{ admin: os.lazy(async () => ({ default: { leak: os.handler(...) } })) }`
  * into the router leaves every assertion in this file green while
  * `RPCHandler` happily serves `POST /api/rpc/admin/leak` and returns the
- * handler's raw object — exact address and phone number included. That is
+ * handler's raw object - exact address and phone number included. That is
  * precisely the bypass these tests exist to make impossible, so a lazy node
  * is a hard error rather than something to walk past: whoever introduces one
  * must first teach this walk to resolve it (`unlazy` from @orpc/server).
@@ -116,13 +116,13 @@ describe("every served procedure goes through implement(contract)", () => {
     ]);
   });
 
-  it("wires exactly the contracted paths — nothing missing, nothing extra", () => {
+  it("wires exactly the contracted paths - nothing missing, nothing extra", () => {
     const contractPaths = contractLeaves.map((l) => l.path).sort();
     const routerPaths = routerLeaves.map((l) => l.path).sort();
 
-    // Missing: a contract procedure with no router counterpart — an endpoint
+    // Missing: a contract procedure with no router counterpart - an endpoint
     // documented in the contract but never actually served.
-    // Extra: a router leaf with no contract counterpart — an ad-hoc
+    // Extra: a router leaf with no contract counterpart - an ad-hoc
     // procedure spliced into the router object outside `impl`, which is
     // exactly the shape a bypass would take, since `impl.<path>` is typed
     // against `contract` and cannot reference a path the contract lacks.
@@ -137,7 +137,7 @@ describe("every served procedure goes through implement(contract)", () => {
       expect(contractLeaf, `no contract leaf at ${path}`).toBeDefined();
       expect(
         routerLeaf,
-        `router has no procedure at ${path} — see the previous test`,
+        `router has no procedure at ${path} - see the previous test`,
       ).toBeDefined();
 
       const contractSchema = outputSchemaOf(contractLeaf?.node);
@@ -149,7 +149,7 @@ describe("every served procedure goes through implement(contract)", () => {
       // router the contract's own Zod schema object; a handler re-declaring
       // an output schema that merely *looks* the same would defeat the point
       // of a shared contract just as thoroughly as omitting `.output()`
-      // entirely — the two schemas could drift the next time either changes.
+      // entirely - the two schemas could drift the next time either changes.
       expect(
         routerSchema,
         `${path}: the router's output schema is not the contract's schema instance. ` +
@@ -263,7 +263,7 @@ describe("every served invitation procedure goes through implement(invitationCon
 
 describe("collectLeaves refuses to walk past what it cannot see", () => {
   /**
-   * The guard added to `collectLeaves` for lazy routers, exercised — a throw
+   * The guard added to `collectLeaves` for lazy routers, exercised - a throw
    * branch nothing reaches is the same as no guard at all. Without it this
    * subtree contributes zero paths, so "nothing extra" above passes while
    * `RPCHandler` serves `admin.leak` and returns its handler's object
@@ -284,7 +284,7 @@ describe("collectLeaves refuses to walk past what it cannot see", () => {
 
 describe("what an implement(contract) bypass actually leaks (mechanism check)", () => {
   /**
-   * Not the real API — a two-procedure throwaway contract, exercised through
+   * Not the real API - a two-procedure throwaway contract, exercised through
    * a real `RPCHandler` exactly like the app's own route handler
    * (`app/api/rpc/[...rpc]/route.ts`). This is the thing the structural
    * checks above are trusting: that an attached output schema strips extra
@@ -304,7 +304,7 @@ describe("what an implement(contract) bypass actually leaks (mechanism check)", 
       body: JSON.stringify({ json: {} }),
     });
     const result = await rpcHandler.handle(request, { prefix: "/api/rpc" });
-    if (!result.matched) throw new Error("request did not match — test is misconfigured");
+    if (!result.matched) throw new Error("request did not match - test is misconfigured");
     return JSON.parse(await result.response.text());
   }
 

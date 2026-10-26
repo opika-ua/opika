@@ -40,7 +40,7 @@ export type AnimalSex = z.infer<typeof AnimalSexSchema>;
  * "unknown" («Не записано»). Sex stays NOT NULL and is not a publish gap.").
  *
  * `lastUpdatedAt` is edit time: when anything on the record last changed. It
- * is not what freshness measures — that is `listing.confirmedAt` (H2-3), when
+ * is not what freshness measures - that is `listing.confirmedAt` (H2-3), when
  * the shelter last said the animal is still looking, which a form edit never
  * moves. Kept required because the kabinet shows it ("Чернетку збережено …").
  */
@@ -66,7 +66,7 @@ const animalCoreShape = {
    * null, the animal is at the shelter and inherits the shelter's
    * `fuzzed_address`-precision public location.
    *
-   * No exact foster address is ever stored — a foster home is a private
+   * No exact foster address is ever stored - a foster home is a private
    * residence. The city centroid is `City.centroid`, honestly labelled as
    * such, rather than posing as the animal's position (not served to
    * adopters since 2026-10-14: EM-Q10 sends the city only). Built via
@@ -75,11 +75,11 @@ const animalCoreShape = {
   publicLocation: PublicLocationSchema.nullable(),
   /**
    * The first instant this exact row was both discoverable and its shelter
-   * publicly verified — the only precise answer to "was this card ever
+   * publicly verified - the only precise answer to "was this card ever
    * actually rendered to an adopter" (S8-F5). Set once, never cleared: a
    * card withdrawn and restored to draft keeps the fact that it was shown
    * before, which is the whole point of "ever". Approximating this from
-   * `hasBeenVerified(shelter.verification)` alone is what S8-F5 was —
+   * `hasBeenVerified(shelter.verification)` alone is what S8-F5 was -
    * "the shelter was verified at some point" isn't "this listing was live
    * while it was".
    */
@@ -166,7 +166,7 @@ export const primaryPhoto = (animal: Animal): AnimalPhoto | null => animal.photo
 /**
  * The `everServedAt` an animal's own row should carry after a write that
  * could newly satisfy `buildDiscoverabilityPredicate` (`packages/db/src/
- * repos/feed-predicate.ts` — the actual query every adopter-facing surface
+ * repos/feed-predicate.ts` - the actual query every adopter-facing surface
  * runs, which this mirrors exactly: `isDiscoverable(listing) &&
  * isPubliclyVerified(verification)`). Monotonic by construction: once set,
  * `current` always wins, so a later withdraw or suspension can't un-ring

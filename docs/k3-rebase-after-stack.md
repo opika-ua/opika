@@ -33,7 +33,7 @@ the protected-push hook lets it through. Every line runs in Git Bash. In Windows
 `Get-FileHash packages\db\drizzle\0012_glorious_warpath.sql -Algorithm SHA256`. The file is LF
 on disk (`.gitattributes`), so the bytes are the committed ones.
 
-**Neon smoke total after the rebase: 31** (PR 3's 25, R-UI 1's step 26, then K3's 27–31). His
+**Neon smoke total after the rebase: 31** (PR 3's 25, R-UI 1's step 26, then K3's 27-31). His
 PR 4 gate said "30 passed, 0 failed"; that count predates R-UI 1's step. Expect
 **31 passed, 0 failed** (`docs/k3-draft-shapes.md` §2.7).
 

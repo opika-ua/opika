@@ -9,7 +9,7 @@ import { TEST_DATABASE_URL } from "../src/test-utils/setup";
 
 /**
  * Migration `0005_nervous_shinko_yamashiro` (`packages/db/drizzle`) adds
- * `cities.slug` — hand-edited, not drizzle-kit's plain generated form, for
+ * `cities.slug` - hand-edited, not drizzle-kit's plain generated form, for
  * exactly the reason this file exists to prove: `ADD COLUMN ... NOT NULL`
  * with no default fails outright against a `cities` table that already has
  * rows, which is the real state of every deployed database this repo has
@@ -31,7 +31,7 @@ const client = postgres(TEST_DATABASE_URL, { max: 1 });
 afterAll(async () => {
   // This file (like `wait-anchor-backfill.test.ts`) drops `drizzle`'s own
   // migration-tracking schema in `resetToPreSlugState` below and never
-  // repopulates it via the real migrator — most other test files' own
+  // repopulates it via the real migrator - most other test files' own
   // `setupTestDatabase()` calls do, so this only surfaces when one of these
   // two hand-migrated files happens to be the last to touch the test
   // database (one shared `opika_test` until 2026-10-13, when the harness
@@ -97,10 +97,10 @@ async function resetToPreSlugState(): Promise<void> {
 }
 
 /** The exact 8 cities `seed.ts`'s `buildCities()` produces against an empty
- * database — deterministic ids (`seededUuid("c1000000", i)`), real names —
+ * database - deterministic ids (`seededUuid("c1000000", i)`), real names -
  * i.e. the actual shape of every database this migration will ever run
  * against for real, not a synthetic stand-in. `nameEn` is `seed.ts`'s own
- * `CITY_DATA.name.en.text` for each — the field the migration's hardcoded
+ * `CITY_DATA.name.en.text` for each - the field the migration's hardcoded
  * slugs are now computed from (2026-09-12), not `nameUk`. */
 const REAL_SEEDED_CITIES = [
   { id: "c1000000-0000-4000-8000-000000000000", nameUk: "Київ", nameEn: "Kyiv" },
@@ -149,7 +149,7 @@ describe("0005 cities.slug backfill", () => {
     }
   });
 
-  it("backfills correctly even when the table holds only a subset of the 8 — order and completeness aren't assumed", async () => {
+  it("backfills correctly even when the table holds only a subset of the 8 - order and completeness aren't assumed", async () => {
     const subset = [REAL_SEEDED_CITIES[3], REAL_SEEDED_CITIES[0], REAL_SEEDED_CITIES[6]];
     for (const city of subset) {
       // biome-ignore lint/style/noNonNullAssertion: subset is a fixed literal of 3 real entries
@@ -167,7 +167,7 @@ describe("0005 cities.slug backfill", () => {
   });
 
   it("aborts rather than silently leaving a NULL slug on a city id it doesn't recognise", async () => {
-    // A row this migration's hardcoded CASE has never seen — real onboarding
+    // A row this migration's hardcoded CASE has never seen - real onboarding
     // (H2) already having added a city, or a database seeded from something
     // other than this repo's own seed.ts. Constructed with a real-shaped
     // UUID that provably isn't one of the 8 known ids. Given a real English
@@ -183,7 +183,7 @@ describe("0005 cities.slug backfill", () => {
   });
 
   /**
-   * 2026-09-12 — the migration now tightens `name_en_text`/`name_en_provenance`
+   * 2026-09-12 - the migration now tightens `name_en_text`/`name_en_provenance`
    * to NOT NULL before it ever touches `slug` (Oleksii's own instruction, after
    * confirming all 8 real Neon rows carry both). This is that tightening's own
    * abort path, exercised the same way the slug backfill's own abort is above:
@@ -194,7 +194,7 @@ describe("0005 cities.slug backfill", () => {
     for (const city of REAL_SEEDED_CITIES) {
       await insertLegacyCity(city.id, city.nameUk, city.nameEn);
     }
-    // One real row regresses to no English name at all — the exact gap the
+    // One real row regresses to no English name at all - the exact gap the
     // tightening exists to catch before it ever reaches ALTER COLUMN.
     await client`UPDATE cities SET name_en_text = NULL, name_en_provenance = NULL WHERE id = ${REAL_SEEDED_CITIES[0].id}`;
 
@@ -206,7 +206,7 @@ describe("0005 cities.slug backfill", () => {
   /**
    * Reviewer found, 2026-09-12: the test above only exercises the guard's
    * `OR` with *both* sides true (`text IS NULL OR provenance IS NULL`, both
-   * null at once) — the actual reason the two columns were tightened
+   * null at once) - the actual reason the two columns were tightened
    * *together* (`packages/db/src/schema/cities.ts`'s own comment) is a row
    * where only one is missing, which this covers and the other test does
    * not.
@@ -215,7 +215,7 @@ describe("0005 cities.slug backfill", () => {
     for (const city of REAL_SEEDED_CITIES) {
       await insertLegacyCity(city.id, city.nameUk, city.nameEn);
     }
-    // A real English string survives, but its own provenance doesn't — the
+    // A real English string survives, but its own provenance doesn't - the
     // exact half-null shape `columnsToLocalizedText` (historically) and
     // `rowToCity` (today, directly) both treat as "no English name at all."
     await client`UPDATE cities SET name_en_provenance = NULL WHERE id = ${REAL_SEEDED_CITIES[0].id}`;
@@ -227,14 +227,14 @@ describe("0005 cities.slug backfill", () => {
 
   /**
    * Reviewer found, 2026-09-12: every other test here only proves the
-   * tightening's own *abort path* — nothing proved the `NOT NULL`
+   * tightening's own *abort path* - nothing proved the `NOT NULL`
    * constraint the migration is supposed to leave behind actually exists
    * afterward. Deleting both `ALTER COLUMN ... SET NOT NULL` statements
    * left every other test in this file green; this is the one that would
    * have caught it. Symmetric to "the unique constraint is real" below,
    * same reasoning, applied to the other guarantee this migration adds.
    */
-  it("the NOT NULL constraint is real — neither column accepts a null after the migration", async () => {
+  it("the NOT NULL constraint is real - neither column accepts a null after the migration", async () => {
     for (const city of REAL_SEEDED_CITIES) {
       await insertLegacyCity(city.id, city.nameUk, city.nameEn);
     }
@@ -248,7 +248,7 @@ describe("0005 cities.slug backfill", () => {
     ).rejects.toThrow();
   });
 
-  it("the unique constraint is real — two rows can't share a slug after the migration", async () => {
+  it("the unique constraint is real - two rows can't share a slug after the migration", async () => {
     for (const city of REAL_SEEDED_CITIES) {
       await insertLegacyCity(city.id, city.nameUk, city.nameEn);
     }

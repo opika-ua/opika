@@ -1,13 +1,13 @@
-# H2 — kabinet contract & domain shapes: proposal for review
+# H2 - kabinet contract & domain shapes: proposal for review
 
 **Status:** answered by Oleksii, 2026-10-07. His answers, quoted verbatim, are in
 `docs/decisions-inbox.md`; §10 below lists what they change in this
-document. Implementation follows §8's PR sequence. Originally a proposal, also 2026-10-07. Tier 1 — `packages/domain` and
+document. Implementation follows §8's PR sequence. Originally a proposal, also 2026-10-07. Tier 1 - `packages/domain` and
 `packages/contracts` shapes reviewed by Oleksii before any code (`CLAUDE.md`, "Contract-first").
 Inputs: `docs/h2-contract-handoff.md` (the delta list), `docs/kabinet-contract-decisions.md`
 (his decisions), `docs/design/KABINET.md` (the design), `docs/handoff-2026-10-04.md` §3.1 (scope).
 
-Sketches below are Zod-shaped TypeScript, not final code — names and fields are what is being
+Sketches below are Zod-shaped TypeScript, not final code - names and fields are what is being
 reviewed. §0 lists what reading the code turned up that the handoff didn't carry; §9 lists the
 questions that need your answer before implementation starts.
 
@@ -18,7 +18,7 @@ questions that need your answer before implementation starts.
 1. **`pause`/`resume` aren't pure wiring.** Both events carry `moderatorId: ModeratorId`, and
    the `paused` state stores `pausedBy: ModeratorId` (`verification/events.ts:53-63`,
    `state.ts:19-23`). A shelter_admin is not a moderator; storing their id under that brand
-   would make the field lie. Needs an actor union (§1.4) — a small domain change with a JSONB
+   would make the field lie. Needs an actor union (§1.4) - a small domain change with a JSONB
    backfill (zero paused rows in the seed; production count unknown).
 2. **There is no verification history to "reuse".** KABINET N14 (S3's history log) and N23 (the
    audit log, "same entry shape as the verification history log") both assume one exists.
@@ -26,7 +26,7 @@ questions that need your answer before implementation starts.
    transitions. §3 proposes one append-only history covering both.
 3. **`lastConfirmedAt` (K2's «Ще шукає», N4) isn't on the handoff's list.** It's in H2's
    original scope (§3.1: "a new `last_confirmed_at` column distinct from `last_updated_at`").
-   It also collides with a settled decision — see §1.6 and Q3.
+   It also collides with a settled decision - see §1.6 and Q3.
 4. **S2 can't produce a valid `Shelter`.** S2 asks for name + city + first admin + evidence.
    `ShelterSchema` requires `legalEntity`, `exactAddress`, `contact` and `description`, all
    non-null, and `evidenceGaps` can't evaluate anything without `legalEntity.kind`. See Q1.
@@ -44,7 +44,7 @@ audit-log entry below". §3 logs both.
 
 ## 1. `packages/domain` changes
 
-### 1.1 `EvidenceItemSchema` — `registeredName` (handoff §1)
+### 1.1 `EvidenceItemSchema` - `registeredName` (handoff §1)
 
 ```ts
 z.object({
@@ -70,7 +70,7 @@ KABINET S3 specify. I'd also add `legalEntity.legalName` to that comparison, bec
 shelter's own claim about its registered name. It's a display-only addition to a decided
 layout, so it's Q8, not a default.
 
-### 1.2 Shared evidence input — `verification/evidence-input.ts` (handoff §2)
+### 1.2 Shared evidence input - `verification/evidence-input.ts` (handoff §2)
 
 New module beside `evidence.ts`. Pure Zod plus one pure function, so it fits the package's
 no-I/O rule. `OnboardEvidenceItemSchema` and `toEvidenceItem` move out of
@@ -89,7 +89,7 @@ export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
              documentKey: z.string().min(1) }),
 ]);
 
-/** Who is recording this evidence and when — the two facts an operator never types. */
+/** Who is recording this evidence and when - the two facts an operator never types. */
 export type EvidenceAttribution = { recordedBy: ModeratorId; recordedAt: Date };
 
 export const toEvidenceItem = (input: EvidenceItemInput, by: EvidenceAttribution): EvidenceItem;
@@ -124,7 +124,7 @@ export const PendingDonationSchema = z.object({
 /** Derived from the host, so a single URL field (K4) is enough to propose. */
 export const donationProviderOf = (url: string): DonationProvider;  // send.monobank.ua → monobank_jar, …, else "other"
 
-// shelters/shelter.ts — ShelterSchema gains:
+// shelters/shelter.ts - ShelterSchema gains:
 pendingDonation: PendingDonationSchema.nullable(),
 ```
 
@@ -138,10 +138,10 @@ pendingDonation: PendingDonationSchema.nullable(),
   protects it and the test is what proves the rule still holds.
 - `proposedBy` uses a new brand, below.
 
-### 1.4 Actors — `primitives/ids.ts` + `shelters/actor.ts` (fixes §0.1)
+### 1.4 Actors - `primitives/ids.ts` + `shelters/actor.ts` (fixes §0.1)
 
 ```ts
-// primitives/ids.ts — same "named for the role" reasoning as ModeratorId
+// primitives/ids.ts - same "named for the role" reasoning as ModeratorId
 export const ShelterAdminIdSchema = brandedId<"ShelterAdminId">();
 
 // shelters/actor.ts
@@ -169,7 +169,7 @@ The FSM table itself (`transition.ts`) is untouched. No edge opens or closes.
 "<uuid>" }` in `verification` (top level and inside `priorState`). The seed has no paused
 shelters. Tier 1 (migration path).
 
-### 1.5 Listing transitions — `animals/listing-transition.ts` (new)
+### 1.5 Listing transitions - `animals/listing-transition.ts` (new)
 
 K2's forward actions imply a second state machine that doesn't exist yet. Today
 `AnimalListingState` has no transition function, and every write path would hand-assemble
@@ -200,7 +200,7 @@ Closed edges (defaults, flag any you disagree with):
 - `draft → withdrawn` is closed. A draft is deleted, not withdrawn.
 - `withdrawn → draft` drops `publishedAt`, so republishing restarts the wait clock.
 
-### 1.6 Confirmation — `lastConfirmedAt` (fixes §0.3)
+### 1.6 Confirmation - `lastConfirmedAt` (fixes §0.3)
 
 The confirmation goes **on the listing variants that can be confirmed**, not on `Animal` as a
 nullable top-level field. A draft that "was confirmed on" a date is then unrepresentable:
@@ -240,14 +240,14 @@ overwritten. The read-only rendering is enforced on the server, not just in the 
 
 ---
 
-## 2. Identity — how `context` carries the actor
+## 2. Identity - how `context` carries the actor
 
 Better Auth 1.6.x is a **new catalog dependency** (ADR-decided, not yet installed): magic link
 only, plus the `organization` plugin. Adopters keep the hand-rolled anonymous session
 (decision #13). Nothing here touches it.
 
 ```ts
-// apps/web/src/api/context.ts — AppContext gains:
+// apps/web/src/api/context.ts - AppContext gains:
 kabinetActor: KabinetActor | null;
 
 type KabinetActor =
@@ -277,7 +277,7 @@ type KabinetActor =
 
 ---
 
-## 3. History — one append-only log for N14 and N23 (handoff §4, fixes §0.2)
+## 3. History - one append-only log for N14 and N23 (handoff §4, fixes §0.2)
 
 One table, `shelter_history`, and one discriminated union. **Structured snapshots, not
 free-text and not field diffs.** A free-text description would mean writing Ukrainian into the
@@ -336,14 +336,14 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
 
 ---
 
-## 4. Contract — the kabinet router (handoff §5–§6)
+## 4. Contract - the kabinet router (handoff §5-§6)
 
 Two namespaces split by who supplies `shelterId`. That split is what keeps the authorization
 matrix legible:
 
-- **`kabinet.shelter.*`** — the shelter's own cabinet. `shelterId` comes from the actor
+- **`kabinet.shelter.*`** - the shelter's own cabinet. `shelterId` comes from the actor
   (shelter_admin, or support_view for reads).
-- **`kabinet.registry.*`** — the operator's. `shelterId` is explicit, and only super_admin is
+- **`kabinet.registry.*`** - the operator's. `shelterId` is explicit, and only super_admin is
   allowed.
 
 Auth itself (`/kabinet/vkhid`, magic link, invite acceptance) runs on Better Auth's own route
@@ -393,9 +393,9 @@ client redirects to K1 instead of bootstrapping.
 
 ---
 
-## 5. Output views — never `PublicShelterViewSchema` plus extras
+## 5. Output views - never `PublicShelterViewSchema` plus extras
 
-- **`KabinetShelterView`** — what a shelter sees of itself: `pick` of `id, displayName,
+- **`KabinetShelterView`** - what a shelter sees of itself: `pick` of `id, displayName,
   description, legalEntity, exactAddress, contact, donation, pendingDonation,
   freshnessSentence` (the locked block shows legal entity and premises address read-only).
   It also carries **`verification: ShelterFacingVerificationSchema`**, a projection with no
@@ -403,9 +403,9 @@ client redirects to K1 instead of bootstrapping.
   | { status: "paused", since, reason } | { status: "rejected", at, reason } | { status:
   "suspended", at, reason }`. The operator's name on K5 comes from the app-level config
   (decisions §5), not from a moderator id.
-- **`RegistryShelterView`** — a separate, operator-only schema: the full shelter including
+- **`RegistryShelterView`** - a separate, operator-only schema: the full shelter including
   `verification` with evidence, `organizationId`, and admins (name, email, invite state).
-- **`KabinetAnimalView`** — `pick` of every `Animal` field, listed explicitly, plus
+- **`KabinetAnimalView`** - `pick` of every `Animal` field, listed explicitly, plus
   `lastUpdatedAt`, so K3's footer can say when the draft was saved.
 - **No view has a reveal, swipe or view count.** A projection test asserts that none of these
   schemas has any key outside its hand-written expected list (commitment #2, "no engagement
@@ -425,7 +425,7 @@ Actors under test: `anon` (no session) · `adopter` (anonymous adopter cookie on
 | `shelter.*` reads | UNAUTH | UNAUTH | ✓ | NOT_FOUND | ✓ | NOT_FOUND | FORBIDDEN (must enter support) |
 | `shelter.*` writes | UNAUTH | UNAUTH | ✓ | NOT_FOUND | **FORBIDDEN** | FORBIDDEN | FORBIDDEN |
 | `registry.*` (all) | UNAUTH | UNAUTH | FORBIDDEN | FORBIDDEN | FORBIDDEN | FORBIDDEN | ✓ |
-| `session.exitSupport` | UNAUTH | UNAUTH | FORBIDDEN | — | ✓ | — | FORBIDDEN (not in support) |
+| `session.exitSupport` | UNAUTH | UNAUTH | FORBIDDEN | - | ✓ | - | FORBIDDEN (not in support) |
 
 The real test is one row per procedure, not per group. Every cell is asserted, including the
 refusals, as with the FSM table. The `*-other` columns apply only to procedures that take an
@@ -467,7 +467,7 @@ engagement surface, no messaging, no money.
 2. Auth + org model + context actor + matrix test skeleton.
 3. Animal CRUD + listing FSM + confirm (K2/K3).
 4. Photo upload (own proposal first).
-5. Registry: S1–S4, evidence step, donation approval, history.
+5. Registry: S1-S4, evidence step, donation approval, history.
 6. Support mode (S5).
 7. `/prytulkam` rewrite with your copy. This one gates the merge of whichever PR ships
    self-serve.
@@ -476,7 +476,7 @@ engagement surface, no messaging, no money.
 
 ## 9. Questions that need your answer before implementation
 
-**Q1 — S2 and the incomplete shelter (§0.4).**
+**Q1 - S2 and the incomplete shelter (§0.4).**
 - **A (recommended):** S2 also collects legal entity, premises address, primary contact and a
   description, reusing S4's own sections. The shelter is complete when created, and no type
   changes. *Cost:* a longer S2 form, laid out from S4's existing frames rather than a new mock.
@@ -486,7 +486,7 @@ engagement surface, no messaging, no money.
 - **C:** make those `Shelter` fields nullable. Not recommended: it pushes nullability into
   every consumer, the public feed included, for a state the feed never shows.
 
-**Q2 — what «Подати ще раз» resubmits (§0.5).**
+**Q2 - what «Подати ще раз» resubmits (§0.5).**
 - **A (recommended):** the shelter's button resubmits the evidence it already has (the server
   carries it forward, the client sends none). The operator amends evidence through
   `registry.verification.resubmit` with a new list. *Consequence:* `resubmit` gains `actor`,
@@ -494,7 +494,7 @@ engagement surface, no messaging, no money.
 - **B:** K5's button only writes to the operator, and resubmission is operator-only.
   *Consequence:* `resubmit` stays moderator-only, and K5's secondary action changes meaning.
 
-**Q3 — move freshness and the freshest-first orders onto `last_confirmed_at` (§1.6)?**
+**Q3 - move freshness and the freshest-first orders onto `last_confirmed_at` (§1.6)?**
 - **Yes (recommended):** freshness, the deck keyset (decision #10's key) and the gallery's
   `freshest` sort move off edit time. *Consequence:* each «Ще шукає» tap sends that animal to
   the top of the freshest-first gallery and the deck. That's honest, since it really was just
@@ -505,24 +505,24 @@ engagement surface, no messaging, no money.
   saying "updated" while meaning "confirmed", which is the mismatch commitment #7 says to fix
   properly rather than paper over.
 
-**Q4 — the reject/suspend dialog has no code select (§0.6).**
+**Q4 - the reject/suspend dialog has no code select (§0.6).**
 - **A (recommended):** add a code select above the textarea, the same pattern N21 already uses
   for pause. The note is required at the contract level for reject and suspend, because the
   shelter reads it verbatim. That's a design addition with no mock.
 - **B:** a hidden default `code: "other"` with the textarea as the note. *Consequence:* every
   reason code goes unused, and S1's filters and any future reporting lose them.
 
-**Q5 — `registeredName` on records that predate it (§1.1).** Has any real shelter been
+**Q5 - `registeredName` on records that predate it (§1.1).** Has any real shelter been
 onboarded to production Neon yet? If not, make it required everywhere and reseed. If so, keep
 it nullable in the domain and required in input (recommended).
 
-**Q6 — evidence document upload.** Documents must sit in a private bucket, never the public
+**Q6 - evidence document upload.** Documents must sit in a private bucket, never the public
 photo bucket (`CLAUDE.md` obligation). **Recommended:** its own sub-PR, sharing the
 presigned-upload mechanism with photo upload (PR 4). Until it lands, S2's type picker omits
 `supporting_document` and the optional document rows stay `null`. *Alternative:* keep document
 evidence script-only for H2.
 
-**Q7 — the site-visit date.** Decisions §4 keeps `site_visit` input to notes only, and the
+**Q7 - the site-visit date.** Decisions §4 keeps `site_visit` input to notes only, and the
 caller fills `visitedAt`. If it fills it with *now*, the record is false whenever the visit
 happened before the data entry.
 - **A (recommended):** add a required `visitedOn` date to the shared input. *Cost:* the
@@ -530,15 +530,15 @@ happened before the data entry.
   format.
 - **B:** keep it as decided. S3's "when" then means "when it was recorded".
 
-**Q8 — add `legalName` to S3's identity comparison (§1.1)?** Display-only. The decided layout
+**Q8 - add `legalName` to S3's identity comparison (§1.1)?** Display-only. The decided layout
 compares against `displayName` and `holderName`.
 
-**Q9 — super_admin editing animals.** §3.1 and KABINET say super_admin "can edit everything",
+**Q9 - super_admin editing animals.** §3.1 and KABINET say super_admin "can edit everything",
 but no S-screen designs animal editing, and support mode is read-only by design.
 - **A (recommended):** none in H2. The operator asks the shelter, or uses the script.
 - **B:** add `registry.animals.*`, which needs a screen that has no mock.
 
-**Q10 — the withdrawal reason.** K2 sends →Знято through N15, whose textarea is required, and
+**Q10 - the withdrawal reason.** K2 sends →Знято through N15, whose textarea is required, and
 K2's row shows «Знято … · «причина»». `WithdrawalReason` is a code only.
 - **A (recommended):** `withdrawn.reason` becomes `{ code, note | null }`, the same shape as the
   three verification reasons, with the note required at input. *Cost:* a JSONB shape change and
@@ -560,7 +560,7 @@ reversible:
 
 ---
 
-## 10. Decisions, 2026-10-07 — what the answers change above
+## 10. Decisions, 2026-10-07 - what the answers change above
 
 Oleksii's answers are quoted verbatim in the inbox file. This section records only their effect
 on the shapes, so the document above can be read as the spec without re-deriving it.

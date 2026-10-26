@@ -34,4 +34,4 @@ export function envValueOf(
 /** Names the variable, never its value. */
 export const paddedValueMessage = (names: readonly string[]): string =>
   `${names.join(", ")} ${names.length === 1 ? "has" : "have"} a space or a line break before ` +
-  "or after the value — set it again in Vercel without one";
+  "or after the value - set it again in Vercel without one";

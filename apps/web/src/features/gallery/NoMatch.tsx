@@ -43,7 +43,7 @@ function suggestionLabel({ dimension, additional }: GalleryRelaxation): string {
  * docs/design/README.md, "Gallery states" > "No match": "white card, radius
  * 24, padding 48 32, gap: 32... two 56px actions that name their yield...
  * No suggestion without a number." `relaxations` is
- * `gallery.relaxationCounts`'s own output (`packages/contracts`) — built
+ * `gallery.relaxationCounts`'s own output (`packages/contracts`) - built
  * and tested in E2, never wired to any UI until now. Ordered by
  * `additional` descending, so rendering it in order already puts "the most
  * useful suggestion first" (the contract's own words) without this

@@ -17,7 +17,7 @@ export const DonationProviderSchema = z.enum([
 export type DonationProvider = z.infer<typeof DonationProviderSchema>;
 
 /**
- * A link and nothing else. No account number, no token, no amount — the
+ * A link and nothing else. No account number, no token, no amount - the
  * absence of stored payment data is what keeps a future payment provider an
  * addition rather than a retrofit, so it is enforced by the type.
  */

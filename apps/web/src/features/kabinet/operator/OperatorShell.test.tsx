@@ -63,7 +63,7 @@ describe("OperatorShell: «Вийти»", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(screen.getByRole("alert").textContent).toBe(
-      "Вийти не вдалося — ви досі в кабінеті. Перевірте зʼєднання і спробуйте ще раз.",
+      "Вийти не вдалося - ви досі в кабінеті. Перевірте зʼєднання і спробуйте ще раз.",
     );
   });
 

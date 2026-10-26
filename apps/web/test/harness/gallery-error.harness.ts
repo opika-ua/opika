@@ -1,11 +1,11 @@
 /**
- * E4's error state and out-of-range notice — both rendered assertions, per
+ * E4's error state and out-of-range notice - both rendered assertions, per
  * `docs/build-plan.md`'s own words for the notice ("the note must actually
  * render") and this project's standing rule that a UI item isn't done on
  * the basis of inspecting markup.
  *
  * No loading.tsx coverage here: it was built, found to break the no-JS
- * path, and reverted — see `docs/gallery-contract-decisions.md`'s note and
+ * path, and reverted - see `docs/gallery-contract-decisions.md`'s note and
  * the commit that reverted it. Nothing to test until it's rebuilt
  * client-side.
  */
@@ -22,13 +22,13 @@ const ERROR_CARD = "[data-testid='gallery-error']";
 const RETRY = "[data-testid='gallery-error-retry']";
 
 /**
- * TEST-NET-2 (198.51.100.0/24), `.26` — the next unused address in this
+ * TEST-NET-2 (198.51.100.0/24), `.26` - the next unused address in this
  * block; `.21`-`.25` are already claimed by the other `/tvaryny` harness
  * files (`gallery-arrow-nav`, `gallery-filters`, `gallery-layout`,
  * `gallery-pagination`; `.25` was `freshness-pip-contrast`'s, removed
  * 2026-10-20). Without a distinct
  * identity this file's five tests would share `proxy.ts`'s 100/min-per-IP
- * budget with whichever of those runs concurrently — flaky, not obviously
+ * budget with whichever of those runs concurrently - flaky, not obviously
  * this file's fault when it fails.
  */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.26" } });
@@ -36,7 +36,7 @@ test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.26" } });
 test.describe("/tvaryny out-of-range page", () => {
   /**
    * `docs/design/README.md`, "Out-of-range page (P1/P2)": `?stor=50` with
-   * 10 real pages returns the last page, 200, with a visible notice — not
+   * 10 real pages returns the last page, 200, with a visible notice - not
    * a 404, not a silent redirect. The seeded corpus's own page count
    * (`gallery-pagination.harness.ts`'s "genuinely multi-page" precondition)
    * is 10, so 50 is comfortably past it without being past
@@ -62,7 +62,7 @@ test.describe("/tvaryny out-of-range page", () => {
 
   /**
    * Beyond `MAX_GALLERY_PAGE` (2000), oRPC's own input-schema validation
-   * rejects the request before `gallery.list`'s handler runs at all — a
+   * rejects the request before `gallery.list`'s handler runs at all - a
    * genuinely different case from a page beyond `totalPages`, which
    * clamps. This one throws, and lands in `error.tsx`, not the notice.
    */
@@ -79,10 +79,10 @@ test.describe("/tvaryny out-of-range page", () => {
 
     /**
      * `Opika Registry Frames.dc.html`'s E1 frame's own literal text
-     * (eyebrow, retry label) — not `uk.galleryError`'s own constant,
+     * (eyebrow, retry label) - not `uk.galleryError`'s own constant,
      * `docs/standing-constraints.md`: "A test may not compare output
      * against the same constant the code renders." The heading/body are
-     * NOT asserted here on purpose — they're this phase's own adapted
+     * NOT asserted here on purpose - they're this phase's own adapted
      * copy (`docs/design/README.md`'s "Deviation, E4" note), not the
      * mock's literal text, so pinning them against the mock would be
      * asserting a value the code correctly does NOT render.
@@ -94,7 +94,7 @@ test.describe("/tvaryny out-of-range page", () => {
   /**
    * E5's real escape hatch (see `error.tsx`'s own top comment for why a
    * filter rail here would not be one): a plain link to the bare,
-   * unfiltered gallery. Asserted end to end — following it actually
+   * unfiltered gallery. Asserted end to end - following it actually
    * lands on a working page with real cards and no leftover filter, not
    * just that the href string looks right.
    */
@@ -133,7 +133,7 @@ test.describe("/tvaryny out-of-range page", () => {
 test.describe("/tvaryny error state", () => {
   /**
    * History worth keeping: this test originally tried to prove retry
-   * issues a fresh network request and gave up, twice — once trying to
+   * issues a fresh network request and gave up, twice - once trying to
    * force a *transient* failure by aborting a client-side RSC fetch (Next's
    * client router doesn't reliably surface an aborted client-side
    * navigation fetch to the nearest error boundary the way a genuine
@@ -142,7 +142,7 @@ test.describe("/tvaryny error state", () => {
    *
    * The second one had a real cause, found by round-2 review: `error.tsx`
    * was calling `reset()` instead of `retry()`. Next passes both, and only
-   * `retry()` calls `router.refresh()` — `reset()` alone clears the
+   * `retry()` calls `router.refresh()` - `reset()` alone clears the
    * boundary's local state without re-running anything, so of course no
    * request fired; there was nothing left to observe. Fixed, and this test
    * now asserts the request that was missing every time before.
@@ -161,7 +161,7 @@ test.describe("/tvaryny error state", () => {
     await page.locator(RETRY).click();
     await refetch;
 
-    // Deterministic failure — retrying the exact same invalid page number
+    // Deterministic failure - retrying the exact same invalid page number
     // fails again, correctly. What matters here is that it failed against
     // the SAME state, not a different one: the filter is still in the URL,
     // and it's still the error card, not a silent fall-through to
@@ -171,14 +171,14 @@ test.describe("/tvaryny error state", () => {
   });
 });
 
-test.describe("/tvaryny no-match — relaxation counts are real numbers", () => {
+test.describe("/tvaryny no-match - relaxation counts are real numbers", () => {
   /**
    * `gallery.relaxationCounts` (E2) had no verified consumer through a
-   * real browser render before this test — `NoMatch.tsx`'s own unit-level
+   * real browser render before this test - `NoMatch.tsx`'s own unit-level
    * coverage (`server-client.test.ts`) asserts the query directly, not
    * that the rendered suggestion and the number it promises agree.
    * `vyd=cat&rozmir=large` is zero-result city-wide in the seeded corpus
-   * (cats are never bucketed "large") — self-verifying, not asserted
+   * (cats are never bucketed "large") - self-verifying, not asserted
    * against a hardcoded expectation: whatever number the suggestion
    * claims, following it should produce exactly that many results, since
    * the current (no-match) total is 0 and `additional` is defined as the

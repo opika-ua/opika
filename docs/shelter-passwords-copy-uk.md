@@ -1,4 +1,4 @@
-# Shelter passwords — Ukrainian (for docs/shelter-passwords-copy-sheet.md)
+# Shelter passwords - Ukrainian (for docs/shelter-passwords-copy-sheet.md)
 
 Rows marked "yours" in the sheet stay verbatim. Plurals are avoided by design (`хв.`, `Символів: {count} з {min}`), so no plural pins are needed beyond the existing `{minutes}` ones; keep those tests anyway.
 
@@ -52,13 +52,13 @@ Rows marked "yours" in the sheet stay verbatim. Plurals are avoided by design (`
 - kabinet.email.reset.action: Створити новий пароль
 - kabinet.email.reset.expiry: Посилання спрацює один раз і діє {minutes} хв.
 - kabinet.email.reset.notYou: Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.
-  — {operator}
+  - {operator}
 
 ## F2. Changed notice
 - kabinet.email.passwordChanged.subject: Кабінет притулку: пароль змінено
 - kabinet.email.passwordChanged.body: Пароль до кабінету притулку для цієї адреси щойно змінено. На інших пристроях виконано вихід.
-- kabinet.email.passwordChanged.notYou: Якщо це не ви — напишіть мені: {contact}
-  — {operator}
+- kabinet.email.passwordChanged.notYou: Якщо це не ви - напишіть мені: {contact}
+  - {operator}
 
 ## G. /pro public claims (about.data, two new sentences)
 - password: Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль.

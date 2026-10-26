@@ -1,5 +1,5 @@
 /**
- * The gallery-v3 header lockup (Figma `58:1617`) — a static asset
+ * The gallery-v3 header lockup (Figma `58:1617`) - a static asset
  * (`public/brand-v3/logo.svg`, see that folder's own README for
  * provenance), not inline JSX like the old `LogoMark` it replaces: it is
  * multi-coloured and already draws the wordmark as vector paths, so
@@ -8,7 +8,7 @@
  *
  * Decorative (`alt=""`, `aria-hidden="true"`): the accessible name for
  * "Opika" comes from the sibling `sr-only` text `SiteHeader.tsx` renders
- * next to this image, not from this element — see that file's own comment
+ * next to this image, not from this element - see that file's own comment
  * for why (the image contributes nothing to `.textContent`, which
  * `SiteHeader.test.tsx`'s "renders the wordmark as plain text" case reads
  * directly).

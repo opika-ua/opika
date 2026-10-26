@@ -188,7 +188,7 @@ export const LIMITED_AUTH_PATHS: readonly string[] = [
  *   addresses (it only refuses at verify time), so the sender below skips any
  *   address with no user, after the response. The password sign-up is refused
  *   twice: `disableSignUp`, and `hooks.before` for everyone.
- * - **Ids are generated here, not by the database** (reviewer, rows 1–2,
+ * - **Ids are generated here, not by the database** (reviewer, rows 1-2,
  *   finding 1): with `generateId: "uuid"` on Postgres, Better Auth leaves the
  *   id out and expects a database default, which these `text` keys don't
  *   have. A function makes Better Auth fill it in, as every other id in this

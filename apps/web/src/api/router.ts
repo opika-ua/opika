@@ -15,7 +15,7 @@ import { swipesRecord } from "./handlers/swipes";
  * The oRPC router, implementing the contract from @opika/contracts.
  *
  * Each handler receives the validated input and the AppContext. oRPC validates
- * outputs against the contract's output schema and strips extra fields — this
+ * outputs against the contract's output schema and strips extra fields - this
  * is the runtime guarantee that `pick`-based views actually hold over the wire.
  */
 const impl = implement(contract).$context<AppContext>();

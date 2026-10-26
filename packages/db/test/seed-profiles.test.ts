@@ -63,7 +63,7 @@ describe("buildDemoShelters", () => {
    * Two of the handoff's five named hostile cases ("unregistered_initiative",
    * "no freshness sentence") are supposed to be free properties of the
    * reused «Вірний друг» identity, not something this function adds
-   * separately — asserted here so a future change to which indices
+   * separately - asserted here so a future change to which indices
    * `buildDemoShelters` reuses can't silently drop them.
    */
   it("includes the unregistered_initiative shelter, with no freshness sentence, for free", () => {
@@ -80,7 +80,7 @@ describe("buildDemoShelters", () => {
   });
 
   /**
-   * D-5 (pulled forward to Phase 3) + round-1 Tier 1 review — three
+   * D-5 (pulled forward to Phase 3) + round-1 Tier 1 review - three
    * separate things a demo shelter can never do if revealed to a real
    * person: look reachable (contact), look payable (donation), or send
    * someone to a real street expecting a shelter that was never there
@@ -92,7 +92,7 @@ describe("buildDemoShelters", () => {
       expect(() => ShelterContactSchema.parse(shelter.contact)).not.toThrow();
 
       // Email, not Telegram: round 1 of Tier 1 review found a `demo_`-prefixed
-      // Telegram handle is still a real, registerable username — the exact
+      // Telegram handle is still a real, registerable username - the exact
       // live-contactability risk this profile exists to avoid. An `.invalid`
       // email domain (RFC 2606) cannot be registered or delivered to by
       // anyone, by internet standard rather than by this project's own
@@ -105,7 +105,7 @@ describe("buildDemoShelters", () => {
       const phoneChannel = shelter.contact.additional.find((c) => c.kind === "phone");
       expect(phoneChannel).toBeDefined();
       if (phoneChannel?.kind === "phone") {
-        // +380000000000 — an all-zero subscriber number, never a real
+        // +380000000000 - an all-zero subscriber number, never a real
         // assigned Ukrainian range.
         expect(phoneChannel.e164).toBe("+380000000000");
       }
@@ -114,7 +114,7 @@ describe("buildDemoShelters", () => {
     }
   });
 
-  it("has no donation link — the reused identities' real ones point at real payment providers", () => {
+  it("has no donation link - the reused identities' real ones point at real payment providers", () => {
     for (const shelter of shelters) {
       expect(shelter.donation).toBeNull();
     }

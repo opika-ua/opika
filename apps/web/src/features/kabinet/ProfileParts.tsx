@@ -4,7 +4,7 @@ import { fillTemplate, uk } from "@opika/i18n";
 import type { ReactNode } from "react";
 
 /**
- * Pieces the read-only profile and K4's editor share: the label–value row
+ * Pieces the read-only profile and K4's editor share: the label-value row
  * and the locked block (N10). No hooks and no browser API, so the server page
  * renders them and the editor, a client component, re-renders the locked
  * block from its own state after a pause or resume changes the status chip.

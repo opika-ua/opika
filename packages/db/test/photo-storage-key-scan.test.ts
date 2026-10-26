@@ -13,9 +13,9 @@ import { describe, expect, it } from "vitest";
  *
  * This is that check. It finds every place in `packages/domain` and
  * `packages/contracts` where a schema field is typed to carry a photo's
- * storage key — either by embedding `AnimalPhotoSchema` (never just naming
+ * storage key - either by embedding `AnimalPhotoSchema` (never just naming
  * it in an import) or by declaring a bare `z.string()` field whose name reads
- * like a storage key — and requires each to be a classified, reasoned entry
+ * like a storage key - and requires each to be a classified, reasoned entry
  * below. A new one (a second durable field, a bare string that bypasses
  * `AnimalPhotoSchema`) fails this test by file and line, forcing a decision
  * about whether `r2-cleanup-repo.ts`'s reference set needs to widen too,
@@ -85,7 +85,7 @@ function animalPhotoSchemaEmbeddings(): Hit[] {
 /**
  * A `.pick({ …, photos: true, … })` that carries the whole `photos` array
  * through to a new schema, without ever writing `AnimalPhotoSchema` as a
- * token (Tier 1 review, PR #200, note 11) — the textual embedding scan
+ * token (Tier 1 review, PR #200, note 11) - the textual embedding scan
  * above can't see this, since nothing here literally names the schema;
  * `pick` just selects an existing field by name.
  */
@@ -100,11 +100,11 @@ function pickedPhotosFields(): Hit[] {
 /**
  * `.shape.photos` reaches into an existing object schema's `photos` field
  * directly (never through `.pick`/`.extend`, so `PICKED_PHOTOS_FIELD` above
- * can't see it either) — the same unclassified-widening risk `.pick({
+ * can't see it either) - the same unclassified-widening risk `.pick({
  * photos: true })` was, by a different route (round 3 Tier 1 delta review,
  * finding 5). Today's one real occurrence is in a `.test.ts` file
  * (`photo.test.ts`, reading `DraftAnimalSchema.shape.photos` to build a
- * fixture), which `walk()` already excludes from every scan in this file —
+ * fixture), which `walk()` already excludes from every scan in this file -
  * so this is expected to find nothing live outside a test, and a new
  * non-test site needs a new entry below, same as the other three scans.
  */
@@ -118,7 +118,7 @@ function shapePhotosAccesses(): Hit[] {
 
 /** A bare `z.string()` field whose name reads like a storage key, wherever it is declared. */
 // A suffix match (`\w*`), not an exact one, and case-insensitive on the key
-// name (Tier 1 review, PR #200, note 11) — `coverPhotoKey` has a capital
+// name (Tier 1 review, PR #200, note 11) - `coverPhotoKey` has a capital
 // `P`, which a case-sensitive exact match on `photoKey` would silently
 // miss. `coverPhotoKey`, `thumbnailStorageKey` and the like read like a
 // storage key just as much as the bare names do, and a suffix check costs
@@ -139,7 +139,7 @@ const EXPECTED_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
     text: "photos: z.array(AnimalPhotoSchema).max(MAX_ANIMAL_PHOTOS).readonly(),",
     kind: "storage",
     why:
-      "animals.photos — the one durable reference set. r2-cleanup-repo.ts's referencedStorageKeys " +
+      "animals.photos - the one durable reference set. r2-cleanup-repo.ts's referencedStorageKeys " +
       'reads exactly this column; a photo\'s storage key is "live" iff it appears here.',
   },
   {
@@ -148,7 +148,7 @@ const EXPECTED_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
     text: "primaryPhoto: AnimalPhotoSchema.nullable(),",
     kind: "storage",
     why:
-      "reveals.animal_snapshot.primaryPhoto — durable, but deliberately NOT a reference (Oleksii, " +
+      "reveals.animal_snapshot.primaryPhoto - durable, but deliberately NOT a reference (Oleksii, " +
       "2026-10-25): traced every consumer of ContactRevealView and reveals.listMine has a handler " +
       "but no route or component anywhere calls it, so nothing displays this today. A deleted " +
       "object's key is nulled out of this field in the same clean-up run (r2-cleanup-repo.ts's " +
@@ -160,7 +160,7 @@ const EXPECTED_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
     text: "coverPhoto: AnimalPhotoSchema.nullable(),",
     kind: "view",
     why:
-      "KabinetAnimalRowViewSchema's own extend() field — an API response projection built per " +
+      "KabinetAnimalRowViewSchema's own extend() field - an API response projection built per " +
       "request from the one durable animals.photos column (its first entry), never a second " +
       "stored copy.",
   },
@@ -170,7 +170,7 @@ const EXPECTED_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
     text: "primaryPhoto: AnimalPhotoSchema.nullable(),",
     kind: "view",
     why:
-      "FeedCardViewSchema's own extend() field — same as kabinet/views.ts's coverPhoto: a " +
+      "FeedCardViewSchema's own extend() field - same as kabinet/views.ts's coverPhoto: a " +
       "per-request projection of animals.photos, not storage.",
   },
 ];
@@ -182,7 +182,7 @@ const EXPECTED_PICKED_PHOTOS: ReadonlyArray<Hit & { kind: Kind; why: string }> =
     text: "photos: true,",
     kind: "view",
     why:
-      "KabinetDraftAnimalViewSchema/KabinetListedAnimalViewSchema (K3's edit form) — the whole " +
+      "KabinetDraftAnimalViewSchema/KabinetListedAnimalViewSchema (K3's edit form) - the whole " +
       "photos array picked straight from DraftAnimalSchema/ListedAnimalSchema, a per-request " +
       "projection of animals.photos, not a second stored copy.",
   },
@@ -192,7 +192,7 @@ const EXPECTED_PICKED_PHOTOS: ReadonlyArray<Hit & { kind: Kind; why: string }> =
     text: "photos: true,",
     kind: "view",
     why:
-      "AnimalDetailViewSchema (the animal detail page) — same shape as kabinet/views.ts's pick: " +
+      "AnimalDetailViewSchema (the animal detail page) - same shape as kabinet/views.ts's pick: " +
       "a per-request projection of animals.photos, not storage.",
   },
 ];
@@ -204,13 +204,13 @@ const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
     text: "storageKey: z.string().min(1),",
     kind: "definition",
     why:
-      "AnimalPhotoSchema's own field — the one place a storage key is a bare string; every " +
+      "AnimalPhotoSchema's own field - the one place a storage key is a bare string; every " +
       "other field that can carry one wraps this schema instead of repeating its shape.",
   },
 ];
 
 describe("every schema field that can hold a photo's storage key is classified (GDPR photo retention)", () => {
-  it("AnimalPhotoSchema is embedded in exactly the classified places — a new site needs a new entry here", () => {
+  it("AnimalPhotoSchema is embedded in exactly the classified places - a new site needs a new entry here", () => {
     expect(animalPhotoSchemaEmbeddings()).toEqual(
       [...EXPECTED_EMBEDDINGS]
         .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
@@ -226,7 +226,7 @@ describe("every schema field that can hold a photo's storage key is classified (
     );
   });
 
-  it("every .pick({ photos: true }) site is classified — a new one needs a new entry here", () => {
+  it("every .pick({ photos: true }) site is classified - a new one needs a new entry here", () => {
     expect(pickedPhotosFields()).toEqual(
       [...EXPECTED_PICKED_PHOTOS]
         .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)

@@ -16,8 +16,8 @@ the date (PR 4), and his B1 says so (`docs/pr6-checklist.md` 6.3).
 a tool" and "the deployed app never deletes R2 objects" were true when this sheet was written, but
 are superseded by the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`, R2-B1):
 it is the one named exception, deleting a photo's objects automatically once they've sat
-unreferenced for the grace period (~7 days). Row P8 is left as written below — it records what was
-true for PR 6's own copy decisions — but any *new* commitment-#6-adjacent copy must read against
+unreferenced for the grace period (~7 days). Row P8 is left as written below - it records what was
+true for PR 6's own copy decisions - but any *new* commitment-#6-adjacent copy must read against
 this correction, not against P8's original text.
 
 **Read at** `origin/main` `baa629b` unless marked. `uk.ts` = `packages/i18n/src/messages/uk.ts`.
@@ -28,11 +28,11 @@ drafts + answers to section 10 (Oleksii, for review)». These are drafts, not fi
 `KG` = `docs/decisions-inbox/feat-k-groundwork.md`.
 
 **State today.** `SHELTER_WRITE_POLICY` is `refused_until_edit_screens` for every shelter
-(`apps/web/src/kabinet/access.ts:69-71`). PR 2 adds the allowlist (K-Q17); PR 2–5 are not on main yet.
+(`apps/web/src/kabinet/access.ts:69-71`). PR 2 adds the allowlist (K-Q17); PR 2-5 are not on main yet.
 
 **No string on this sheet can ship as `[COPY PENDING]`.** Under `kabinet.*` a placeholder turns
 production sign-in off (`productionSignInOf`, `production-sign-in.test.ts:238-264`). Under
-`forShelters.*` it fails `copy-status.test.ts:37-39`. Rows 1.1–1.3 are `/prytulkam` commitment
+`forShelters.*` it fails `copy-status.test.ts:37-39`. Rows 1.1-1.3 are `/prytulkam` commitment
 sentences, and those block the merge.
 
 ---
@@ -72,7 +72,7 @@ sentences, and those block the merge.
 
 ### 1.2 `forShelters.whenAnimalFindsHome` §9, third paragraph: commitment #6
 - **Live** (`uk.ts:823-824`): «Поки що це просто: напишіть, і я приберу. Кабінет притулку вже є, але
-  лише для перегляду — змінити чи прибрати щось у ньому поки не можна.»
+  лише для перегляду - змінити чи прибрати щось у ньому поки не можна.»
 - **What goes false.** "Read-only, nothing can be changed or removed." From PR 6 each animal has
   «Уже вдома» (`transition` with `adopt`, `procedures.ts:274, 335`; FSM `listing-transition.ts:166-167,
   185-186`) and withdraw (`:168-169`), and K4's profile writes are open. «напишіть, і я приберу» ("write
@@ -97,7 +97,7 @@ sentences, and those block the merge.
 ### 1.3 `forShelters.whyThatSentence` §8: commitment #7 (B1) and «один раз»
 - **Live** (`uk.ts:804-810`):
   ¶1 «Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а
-  про кого — позаторік. Тому на картці видно, коли інформацію востаннє оновлювали, а на сторінці тварини —
+  про кого - позаторік. Тому на картці видно, коли інформацію востаннє оновлювали, а на сторінці тварини -
   ваше речення про те, як часто ви це робите, вашими словами.»
   ¶2 «Дата ставиться сама. Речення пишете ви — один раз, як вам зручно: «оновлюємо щосуботи», «дзвоніть,
   ми скажемо точно», «влітку рідше».»
@@ -127,7 +127,7 @@ sentences, and those block the merge.
 
 ### 1.4 `kabinet.email.invite.what`: the invite email
 - **Live** (`uk.ts:1006`): «Поки що в кабінеті можна переглянути дані притулку — і те, що бачать люди, і
-  дані з перевірки. Змінювати їх там ще не можна — для цього напишіть мені.»
+  дані з перевірки. Змінювати їх там ще не можна - для цього напишіть мені.»
 - **What goes false.** «Змінювати їх там ще не можна» ("they can't be changed there yet"), for contacts,
   the sentence, the donation proposal, pause, and all animal management. It stays true only for the
   locked verification block. The first real shelter receives this email after PR 6 (F-B6), so it must be
@@ -149,7 +149,7 @@ sentences, and those block the merge.
 - **Live** (`uk.ts:644`): «Дані, які вносить притулок — адреса, контакти, картки тварин — належать
   притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише наближену
   локацію. Притулок може попросити видалити свій запис у будь-який момент. Для притулків із доступом до
-  кабінету реєстр зберігає ім'я та адресу пошти адміністратора — щоб надсилати посилання для входу, — а
+  кабінету реєстр зберігає ім'я та адресу пошти адміністратора - щоб надсилати посилання для входу, - а
   також технічний запис про браузер і пристрій, з якого виконано вхід. IP-адреси не зберігаються. Адреси,
   введені у формі входу, і записи про входи, що втратили силу, видаляються протягом двох діб.»
 - **What goes false.** Nothing in it becomes untrue. It becomes incomplete: the cabinet now holds a
@@ -162,7 +162,7 @@ sentences, and those block the merge.
 
 ### 1.6 `forShelters.whatHappensToAnimals` §3, fourth paragraph: depends on K-Q14 (not on K4CS §9)
 - **Live** (`uk.ts:733-735`): «Порядок у списку — за датою: спочатку ті, кого оновлювали найновіше, або
-  ті, хто чекає найдовше; людина обирає сама. У режимі «по одній» до дати додається повнота картки — та,
+  ті, хто чекає найдовше; людина обирає сама. У режимі «по одній» до дати додається повнота картки - та,
   де є фотографії, опис і відмітка про щеплення, показується раніше. Це все, що впливає на порядок.»
 - **What goes false.** «кого оновлювали найновіше» ("the most recently updated first"). The «freshest» sort
   orders by `last_confirmed_at` (`gallery-repo.ts:54`). From PR 6 an edited card doesn't move up, so this
@@ -195,7 +195,7 @@ counts whole days since `last_confirmed_at`, through `listingFreshness` → `fre
   reserve/release (`listing-transition.ts:137-139, 176-184`), or a listing move.
 - Withdraw → restore → publish starts over (`:134-135`).
 - Existing rows were backfilled from `last_updated_at` (H2-14).
-- Pips: fresh ≤7 days, aging 8–30, stale 30+ (`docs/design/README.md:240-244`).
+- Pips: fresh ≤7 days, aging 8-30, stale 30+ (`docs/design/README.md:240-244`).
 - The code's own example of the risk (`listing-freshness.ts:12-13`): "once shelters can edit, a typo fix
   would otherwise make a four-month-old card read 'оновлено сьогодні'."
 
@@ -224,7 +224,7 @@ Either way, the same wording choice reaches:
 ## 3. `/pro`: facts PR 6 must state
 
 Every new sentence is Ukrainian copy and a claim, so **each one needs his wording** (Tier 1). Each fact
-needs checking against PR 2–5's code when PR 6 is built.
+needs checking against PR 2-5's code when PR 6 is built.
 
 | # | Fact | Source | Needs his wording |
 |---|---|---|---|
@@ -271,8 +271,8 @@ wording is still open (F-T2, KFD:23) and must not imply that anyone acted on an 
 |---|---|
 | `forShelters.whatThisIs` :700, `cost` :703 (#3), `whoContactsWhom` :739 (#4), `money` :752 (#5), `verification` :757, `verificationOpenToVolunteers` :771 | Untouched by writes. The donation link is still a URL the operator approves (`procedures.ts:203-206`) |
 | `forShelters.noObligation` :743 (#2) | K2 rows carry inventory only (`animals.ts:81-97`). History holds the shelter's own actions. One delete refusal (K-Q9) |
-| `forShelters.whatToPrepare` ¶1–¶3 :778-784 and A1 :787 | The list still describes what to bring. Only the operator invites |
-| `forShelters.whatHappensToAnimals` ¶1–¶3, ¶5 :726-737 | Per-animal pages; the list shows everyone; reserved stays visible. Q9 is about ¶3 and pause |
+| `forShelters.whatToPrepare` ¶1-¶3 :778-784 and A1 :787 | The list still describes what to bring. Only the operator invites |
+| `forShelters.whatHappensToAnimals` ¶1-¶3, ¶5 :726-737 | Per-animal pages; the list shows everyone; reserved stays visible. Q9 is about ¶3 and pause |
 | `forShelters.whoIsBehindThis` :834 (A3) | One person still answers (his answer 3: "A3: keep as is.") |
 | `forShelters.howToStart` :838 | It doesn't say who adds the animals |
 | `forShelters.howToLeave` :831 | True only if he deletes photos in R2 by hand (Q5) |
@@ -303,7 +303,7 @@ Prepared for later, unchanged here:
 Adjacent but a separate gate: `PENDING_R4_2_ANALYTICS_SENTENCE` (`uk.ts:33-38`, the pre-launch gate). A
 cabinet session-length sentence goes on `/pro` with RO-F2 (F-B9).
 
-PR 2–5 sheets own neighbouring strings that touch PR 6's topics: F-B2 K3 draft footer (final); F-B3/F-T1
+PR 2-5 sheets own neighbouring strings that touch PR 6's topics: F-B2 K3 draft footer (final); F-B3/F-T1
 K2 ordering sentence (open); F-B4/F-T2 E3 refusal (open); KABINET.md:164-165 stale-strip caption
 (follows K-Q14).
 

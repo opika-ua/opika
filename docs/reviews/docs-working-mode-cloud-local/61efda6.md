@@ -18,7 +18,7 @@ commit touches none of this PR's four files, so the rebase rule's overlap condit
 
 ## Findings (most severe first)
 
-1. **[Blocker] — needs his decision, not a fix.** CLAUDE.md, cloud builder's "Always" list (and inbox
+1. **[Blocker] - needs his decision, not a fix.** CLAUDE.md, cloud builder's "Always" list (and inbox
    WM-C2). The PR puts his network-secret guardrail, verbatim, into a **public** repository. It names
    the other-work host and states that his Default environment holds a network secret for it. The
    rule itself says Opika sessions must never mention that host in commits or PRs, and this commit
@@ -29,7 +29,7 @@ commit touches none of this PR's four files, so the rebase rule's overlap condit
    secret; (c) keep it as written. Recommend (a): every launch prompt already carries the rule. The
    branch is already public, so whichever he chooses, the branch should be deleted after the PR
    closes.
-2. **Surviving contradictions outside CLAUDE.md.** `.claude/commands/phase.md` §2–4 still prescribe
+2. **Surviving contradictions outside CLAUDE.md.** `.claude/commands/phase.md` §2-4 still prescribe
    the replaced process: a synchronous Tier 1 subagent, a background Tier 2 reviewer, "two rows in
    flight", PASS WITH NOTES "re-reviewed the same way", and the builder running `gh pr create`.
    `.claude/commands/milestone.md` and `.claude/agents/reviewer.md` describe a reviewer that fixes
@@ -77,7 +77,7 @@ opening a PR, or "he merges".
 ## STOP reason
 
 Finding 1: whether a host name, and the existence of a secret for it, may live in this public
-repository. I need his choice of (a), (b) or (c). Findings 2–7 are notes.
+repository. I need his choice of (a), (b) or (c). Findings 2-7 are notes.
 
 ## Tests
 

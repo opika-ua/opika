@@ -6,7 +6,7 @@ const TOKEN_BYTES = 32;
 /**
  * Mint a cryptographically random session token.
  *
- * 256 bits from crypto.randomBytes — not a UUID (122 bits), not
+ * 256 bits from crypto.randomBytes - not a UUID (122 bits), not
  * Math.random (not cryptographic). The token is the only thing that
  * identifies a session, so it must be unguessable.
  */

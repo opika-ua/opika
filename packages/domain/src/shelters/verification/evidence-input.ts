@@ -50,7 +50,7 @@ export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
   /**
    * `visitedOn` is required (H2-9): stamping the visit with the moment it is
    * *recorded* is false whenever the visit happened before the data entry,
-   * which is almost always. A calendar date, not an instant — the operator
+   * which is almost always. A calendar date, not an instant - the operator
    * knows the day they went, not the minute.
    */
   z.object({

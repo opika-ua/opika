@@ -23,8 +23,8 @@ beforeEach(async () => {
 
 /**
  * The one thing no other test in this branch covers: that `/tvaryny` itself
- * — not `AnimalCard` given fabricated props (AnimalCard.test.tsx), not
- * `gallery.list` in isolation (apps/web/src/api/api.test.ts) — wires a real
+ * - not `AnimalCard` given fabricated props (AnimalCard.test.tsx), not
+ * `gallery.list` in isolation (apps/web/src/api/api.test.ts) - wires a real
  * database through `anonymousRouterClient` to a real render. Same reasoning
  * as `../page.test.tsx`: `force-dynamic` means `next build` never exercises
  * this path, so nothing else does either.
@@ -51,7 +51,7 @@ describe("/tvaryny (renderGallery)", () => {
     render(<WithMockRouter>{element}</WithMockRouter>);
 
     // Scoped to the grid: the page around it now carries its own links too
-    // (dropdown options, the sort toggle, the sheet trigger) — this
+    // (dropdown options, the sort toggle, the sheet trigger) - this
     // assertion is about the one animal card, not "the only link on the
     // page."
     const grid = within(screen.getByTestId("gallery-grid"));
@@ -59,7 +59,7 @@ describe("/tvaryny (renderGallery)", () => {
     expect(link.getAttribute("href")).toBe(`/tvaryny/${animal.id}`);
     expect(link.getAttribute("aria-label")).toContain("Мурчик");
     // gallery-v3 (Figma `58:1617`): the card's visible meta line no longer
-    // shows city at all (sex · age · size only) — city stays in the
+    // shows city at all (sex · age · size only) - city stays in the
     // accessible name, which this is the real-handler proof of.
     expect(link.getAttribute("aria-label")).toContain("Бровари");
     expect(screen.getByTestId("card-meta").textContent).not.toContain("Бровари");
@@ -97,11 +97,11 @@ describe("/tvaryny (renderGallery)", () => {
   });
 
   /**
-   * V2 repoint: this used to assert "an empty grid, not a crash" — the E4
+   * V2 repoint: this used to assert "an empty grid, not a crash" - the E4
    * no-match state had no mock yet, so an empty `<main>` was the honest
    * placeholder. docs/design/README.md's "Gallery states" > "No match" now
    * has one (`Opika Registry System.dc.html`'s B4 frame), built as
-   * `NoMatch.tsx` and wired in here — the design value that changed is the
+   * `NoMatch.tsx` and wired in here - the design value that changed is the
    * whole rendered branch, "empty grid" -> "the no-match card", not a
    * colour or a class.
    */
@@ -117,7 +117,7 @@ describe("/tvaryny (renderGallery)", () => {
   /**
    * Oleksii, mid-build, verbatim: "let's hide access to Гортати по одній
    * page for now as well." The deck entry link is gone from this page
-   * entirely — not conditional on match count or sign-in anymore, so this
+   * entirely - not conditional on match count or sign-in anymore, so this
    * collapses the three tests that used to check it under each of those
    * conditions into one: it is simply never there. The deck route itself
    * (`/tvaryny/gortaty`) is untouched; only this page's link to it is gone.
@@ -167,7 +167,7 @@ describe("/tvaryny (renderGallery)", () => {
 
 /**
  * The visible D-2 demo disclosure banner this describe block used to cover
- * (`gallery-demo-banner`) is removed from this page — Oleksii, mid-build,
+ * (`gallery-demo-banner`) is removed from this page - Oleksii, mid-build,
  * verbatim: "remove На сайті поки немає справжніх притулків — усі картки
  * тут демонстраційні. as we hide our app anyways and people without gate
  * cant access it ye[t]." Deleted, not weakened: there is no banner left to

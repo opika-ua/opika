@@ -9,7 +9,7 @@ import {
 } from "./listing";
 
 const AT = new Date("2026-08-05T00:00:00.000Z");
-/** Four months before `AT` — the "has waited a long time" end of the range. */
+/** Four months before `AT` - the "has waited a long time" end of the range. */
 const LONG_AGO = new Date("2026-04-05T00:00:00.000Z");
 
 const states: readonly AnimalListingState[] = [

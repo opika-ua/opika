@@ -63,7 +63,7 @@ describe("swipeDecision", () => {
   /**
    * The lost fix. Velocity is sampled between the last two pointermove events,
    * so it is instantaneous: a finger lifting off a tap moves 2px in about a
-   * millisecond, which reads as 2 px/ms — four times the commit threshold.
+   * millisecond, which reads as 2 px/ms - four times the commit threshold.
    * The card then flew off screen and the adopter had silently passed on an
    * animal they were trying to open.
    */
@@ -83,7 +83,7 @@ describe("swipeDecision", () => {
 
   /**
    * The floor gates the *velocity* path only. A slow deliberate drag past the
-   * distance threshold must still commit — otherwise this fix would have
+   * distance threshold must still commit - otherwise this fix would have
    * traded one broken gesture for another.
    */
   it("still commits a long slow drag, which the floor must not block", () => {

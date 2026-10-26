@@ -75,7 +75,7 @@ brand component.
 | `shelter.meta` | `{city} · {admins}` | «{city} · {admins} · 14 тварин» (M34) | animal count not in `byId`, dropped |
 | `shelter.timeInState` | How long it has been in this status, `{days}` | «2 дні» (M33) | [plural]; via `Intl` |
 | `shelter.legalNote` | The shelter sees these fields read-only. A change of legal entity or ЄДРПОУ doesn't change the status; the operator decides | «Ці поля притулок бачить лише для читання. Зміна юридичної особи чи ЄДРПОУ не змінює стан автоматично — вирішуєте ви.» (M34) | true |
-| — | Address note | M34: «Адоптери бачать лише приблизне коло, зсунуте приблизно на кілометр.» | [false] since EM-D1 (adopters see the city only); reuse `profile.addressNote` |
+| - | Address note | M34: «Адоптери бачать лише приблизне коло, зсунуте приблизно на кілометр.» | [false] since EM-D1 (adopters see the city only); reuse `profile.addressNote` |
 | `shelter.descriptionTitle` | The public description | none | |
 | `donation.title` | Donation link section | none | |
 | `donation.live` | The live link | none | |
@@ -117,7 +117,7 @@ removed them (K:325-330), and no documents exist in the system.
 |---|---|---|
 | `blocked.title` | Addresses the email provider won't deliver to | none |
 | `blocked.none` | Checked: none of this shelter's addresses is blocked | none |
-| `blocked.line` | `{email} — {reason}` (reasons reuse the email outcomes in 2.3) | none |
+| `blocked.line` | `{email} - {reason}` (reasons reuse the email outcomes in 2.3) | none |
 | `blocked.incomplete` | Only part of the list could be checked | none |
 | `blocked.unknown.provider_error` / `.timed_out` / `.unsupported_provider` / `.provider_suppresses` | Why the check couldn't run | none |
 | `blocked.asOf` | As of `{time}` | none |

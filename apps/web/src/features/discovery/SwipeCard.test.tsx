@@ -39,7 +39,7 @@ function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       freshnessSentence: {
-        uk: "Ми оновлювали цю картку 25 червня. Напишіть — скажемо, чи Ластівка ще з нами.",
+        uk: "Ми оновлювали цю картку 25 червня. Напишіть - скажемо, чи Ластівка ще з нами.",
         en: null,
       },
       verification: "verified",
@@ -91,7 +91,7 @@ describe("SwipeCard freshness marker", () => {
     expect(screen.getByText("Оновлено 3 дні тому")).toBeTruthy();
   });
 
-  /** "…and `aria-label` repeats the same sentence" — docs/design/README.md. */
+  /** "…and `aria-label` repeats the same sentence" - docs/design/README.md. */
   it("repeats that same sentence as the block's aria-label", () => {
     const freshness = makeFreshness("aging", 19);
     renderCard(makeCard({ freshness }));
@@ -126,10 +126,10 @@ describe("SwipeCard name", () => {
 /**
  * 2026-09-10, found by Oleksii, not by any test: this card had no
  * assertion at all about the "· перевірений" suffix, and it rendered
- * unconditionally — no reference anywhere to `REGISTRY_HAS_NO_REAL_SHELTERS`,
+ * unconditionally - no reference anywhere to `REGISTRY_HAS_NO_REAL_SHELTERS`,
  * the identical defect `AnimalCard.test.tsx`'s own gallery card had.
  * `verificationSuffix` (`seo-flags.ts`) is the shared gate both cards now
- * call. Real `REGISTRY_HAS_NO_REAL_SHELTERS` is `true` on production today —
+ * call. Real `REGISTRY_HAS_NO_REAL_SHELTERS` is `true` on production today -
  * `seo-flags.test.ts`'s `verificationSuffix` describe block covers the
  * other branch directly, via the function's own explicit parameter.
  */

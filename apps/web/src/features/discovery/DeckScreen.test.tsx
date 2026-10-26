@@ -49,7 +49,7 @@ const FROM_GALLERY_KEY = "opika:deck-entered-from-gallery";
 const CITY_SLUGS: CitySlugsById = new Map();
 
 /**
- * `useFeedDeck` is mocked here — its own real fetch/cursor/error behaviour
+ * `useFeedDeck` is mocked here - its own real fetch/cursor/error behaviour
  * is `use-feed-deck.test.tsx`'s job. This file is about what `DeckScreen`
  * itself owns: the header (position, progress, inherited-filters phrase)
  * and the exit control (button, Esc, and which of `router.back()` vs a
@@ -89,13 +89,13 @@ describe("DeckScreen", () => {
     );
 
     expect(screen.getByTestId("deck-filters-label").textContent).toBe("Бровари · собаки");
-    // shownCount 5 means 5 cards already swiped past — the 6th is on screen.
+    // shownCount 5 means 5 cards already swiped past - the 6th is on screen.
     expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
   });
 
   /**
    * R5: once the starting fetch counted against a session, its
-   * `reachableCount` is the total — not the gallery's, which has no
+   * `reachableCount` is the total - not the gallery's, which has no
    * seen-set exclusion. Position and progress bar share the one total
    * (`DeckScreen.tsx`'s `effectiveTotal`), so both are asserted.
    */
@@ -116,14 +116,14 @@ describe("DeckScreen", () => {
     );
 
     expect(screen.getByTestId("deck-position").textContent).toBe("6 з 20");
-    // Position 6 of 20 — a literal, not the component's own formula.
+    // Position 6 of 20 - a literal, not the component's own formula.
     const fill = screen.getByTestId("deck-progress-bar").firstElementChild as HTMLElement;
     expect(fill.style.width).toBe("30%");
   });
 
   /**
    * No session at the starting fetch means nothing was excluded, so the
-   * gallery's total is the honest snapshot — and stays shown after swipes,
+   * gallery's total is the honest snapshot - and stays shown after swipes,
    * which R1 used to suppress from the very first one.
    */
   it("falls back to the gallery's total when the starting fetch had no session, and keeps it", () => {
@@ -202,7 +202,7 @@ describe("DeckScreen", () => {
     expect(screen.queryByTestId("deck-position")).toBeNull();
   });
 
-  it("hides the position once the deck errors — there's no card to number", () => {
+  it("hides the position once the deck errors - there's no card to number", () => {
     useFeedDeckMock.mockReturnValue({
       state: { kind: "error", reason: "loadFailed" },
       onSwipe: vi.fn(),
@@ -220,7 +220,7 @@ describe("DeckScreen", () => {
     expect(screen.queryByTestId("deck-position")).toBeNull();
   });
 
-  it("hides the position while loading — no fetch has resolved yet to confirm a first card exists", () => {
+  it("hides the position while loading - no fetch has resolved yet to confirm a first card exists", () => {
     useFeedDeckMock.mockReturnValue({
       state: { kind: "loading" },
       onSwipe: vi.fn(),
@@ -238,7 +238,7 @@ describe("DeckScreen", () => {
     expect(screen.queryByTestId("deck-position")).toBeNull();
   });
 
-  it("hides the position once exhausted — numbering a card past the last one is a real off-by-one, not shown", () => {
+  it("hides the position once exhausted - numbering a card past the last one is a real off-by-one, not shown", () => {
     useFeedDeckMock.mockReturnValue({
       state: { kind: "exhausted", seenCount: 3 },
       onSwipe: vi.fn(),
@@ -266,7 +266,7 @@ describe("DeckScreen", () => {
     expect(screen.getByRole("status").textContent).toBe("Режим по одній. Тварина 1 з 34.");
 
     // A later render with a higher shownCount (as if the user had swiped
-    // several cards) must not re-announce — docs/design/README.md's
+    // several cards) must not re-announce - docs/design/README.md's
     // announcement is about *entering* the deck, not a running commentary,
     // and a live region whose text keeps changing re-announces on every
     // change (aria-live's own contract), talking over SwipeDeck's own
@@ -301,7 +301,7 @@ describe("DeckScreen", () => {
 
   /**
    * R5: the announcement used to be written at mount from the gallery's
-   * total — before any fetch — and promised a returning visitor a number
+   * total - before any fetch - and promised a returning visitor a number
    * their seen-set had already made unreachable. It now waits for the
    * first "ready" and uses the same total as the header.
    */
@@ -383,7 +383,7 @@ describe("DeckScreen", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("clears the marker after reading it — a second mount doesn't get a free pass", () => {
+  it("clears the marker after reading it - a second mount doesn't get a free pass", () => {
     sessionStorage.setItem(FROM_GALLERY_KEY, "1");
 
     render(
@@ -413,7 +413,7 @@ describe("DeckScreen", () => {
   /**
    * The bare-`NO_FILTERS` case above passes even if `citySlugs` were wired
    * up wrong (an empty or garbage map produces the same "/tvaryny" either
-   * way, since there is no city to translate) — this is the case that
+   * way, since there is no city to translate) - this is the case that
    * actually exercises the threading: a real city filter, a real map,
    * asserted against the real slug, not just "some string came back."
    */
@@ -434,7 +434,7 @@ describe("DeckScreen", () => {
 
     fireEvent.click(screen.getByTestId("deck-back-to-list"));
 
-    // Literal, not `citySlugOf("Brovary")` — `citySlugs` above is built from
+    // Literal, not `citySlugOf("Brovary")` - `citySlugs` above is built from
     // the same call, so comparing against it again would pass even if
     // citySlugOf itself were broken, as long as it were broken consistently.
     expect(router.push).toHaveBeenCalledWith("/tvaryny?misto=brovary");
@@ -505,7 +505,7 @@ describe("DeckScreen", () => {
    * RF-F2: the reveal dialog and this screen both listen for Escape on
    * `window`, and this screen's listener was registered first, so an Escape
    * meant only for the dialog also left the deck (R3: "the deck session must
-   * survive a reveal — no exit back to the gallery"). The harness saw it as
+   * survive a reveal - no exit back to the gallery"). The harness saw it as
    * a flake, «Написати» missing after Escape, whenever the gallery
    * navigation won the race against its assertions; here the router is a
    * mock, so the exit is observed synchronously, every time.
@@ -564,15 +564,15 @@ describe("DeckScreen", () => {
 
 /**
  * D-1/D-2 (Oleksii, Phase D decisions): exercises the branch the top-level
- * `vi.mock` above hides from every other test in this file —
+ * `vi.mock` above hides from every other test in this file -
  * `REGISTRY_HAS_NO_REAL_SHELTERS: true`, which is the real, live value on
  * production today. `vi.doMock` + `vi.resetModules` + a dynamic re-import of
  * `DeckScreen`, not the statically-imported one, because the static import
  * already bound to the file-level mock's `false`. `uk.demo.deckLabel`
- * ("Демо") is real Ukrainian, landed 2026-09-06 — no i18n mocking needed to
+ * ("Демо") is real Ukrainian, landed 2026-09-06 - no i18n mocking needed to
  * exercise this branch.
  */
-describe("DeckScreen — demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
+describe("DeckScreen - demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
   beforeEach(() => {
     vi.resetModules();
     useFeedDeckMock.mockReset();

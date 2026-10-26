@@ -10,13 +10,13 @@ import { SavedCardSkeleton } from "./SavedCardSkeleton";
 import { type SavedCardResult, useSavedCards } from "./useSavedCards";
 
 interface SavedPageScreenProps {
-  /** `cities.list`, resolved server-side — this screen never fetches it itself. */
+  /** `cities.list`, resolved server-side - this screen never fetches it itself. */
   cityNames: Readonly<Record<string, string>>;
-  /** Designer feedback batch D: whether to show the role-aware header's kabinet nav. Defaulted, like `AnimalDetailScreen`'s — the real caller (`app/zberezheni/page.tsx`) always passes it explicitly. */
+  /** Designer feedback batch D: whether to show the role-aware header's kabinet nav. Defaulted, like `AnimalDetailScreen`'s - the real caller (`app/zberezheni/page.tsx`) always passes it explicitly. */
   kabinetSignedIn?: boolean;
 }
 
-/** An `unavailable` item with no name has nothing honest to show (S8-D2) — dropped, not rendered. */
+/** An `unavailable` item with no name has nothing honest to show (S8-D2) - dropped, not rendered. */
 type VisibleSavedCardResult =
   | Extract<SavedCardResult, { kind: "available" }>
   | (Extract<SavedCardResult, { kind: "unavailable" }> & { name: string });
@@ -53,7 +53,7 @@ function EmptyState() {
  * **Designer feedback batch C (2026-10-23):** `load`'s `unknown`/`loading`
  * states (`useSavedCards.ts`'s own comment has the race this replaced)
  * render an `aria-live` notice and, once the real count is known,
- * that many skeleton cards — never the empty state for a list that merely
+ * that many skeleton cards - never the empty state for a list that merely
  * hasn't loaded yet. The empty state now only ever renders for ids that are
  * genuinely empty (`load.kind === "empty"`) or for a `ready` list with
  * nothing left to show after the S8-D2 filter below.
@@ -62,7 +62,7 @@ export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPag
   const { load, storageBlocked, removeSaved } = useSavedCards();
   // S8-D2: a saved id that resolves to no animal at all has no honest sentence to
   // show (inventing one isn't the builder's call, and `[COPY PENDING]` can never
-  // ship live in this catalogue — Q-B, 2026-10-19 — since it turns production
+  // ship live in this catalogue - Q-B, 2026-10-19 - since it turns production
   // sign-in off site-wide). Dropped from the page entirely rather than shown with
   // no text; the empty/grid decision below is based on this filtered list, not
   // the raw fetch result, so a page whose only saved id is one of these reads as

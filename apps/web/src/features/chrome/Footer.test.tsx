@@ -19,14 +19,14 @@ describe("Footer", () => {
     );
   });
 
-  it("suppresses the /pro link when rendered on /pro — no self-link", () => {
+  it("suppresses the /pro link when rendered on /pro - no self-link", () => {
     render(<Footer currentPage="pro" />);
 
     expect(screen.queryByRole("link", { name: uk.nav.about })).toBeNull();
     expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
   });
 
-  it("suppresses the /prytulkam link when rendered on /prytulkam — no self-link", () => {
+  it("suppresses the /prytulkam link when rendered on /prytulkam - no self-link", () => {
     render(<Footer currentPage="prytulkam" />);
 
     expect(screen.queryByRole("link", { name: uk.nav.forShelters })).toBeNull();

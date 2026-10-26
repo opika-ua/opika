@@ -5,14 +5,14 @@ import { customType } from "drizzle-orm/pg-core";
  * this narrows it to the domain type at the TypeScript level while keeping
  * the same SQL: `jsonb NOT NULL` (or nullable, per `.notNull()` usage).
  *
- * The domain type is trusted at the TS level — no Zod parse on read.
+ * The domain type is trusted at the TS level - no Zod parse on read.
  * The `fromDriver` reviver handles Date round-tripping (JSONB stores dates
  * as ISO strings; the domain types expect Date objects).
  */
 
 /**
  * ISO 8601 date string pattern. Used to revive Date objects that were
- * serialized to JSON — JSONB stores dates as strings, and the domain
+ * serialized to JSON - JSONB stores dates as strings, and the domain
  * types expect Date objects.
  */
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;

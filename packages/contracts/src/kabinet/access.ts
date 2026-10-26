@@ -5,12 +5,12 @@ import { oc } from "@orpc/contract";
  * (H2 S3 addendum §1). The handlers slice's middleware applies it; the
  * matrix test there asserts it by hand, never by reading this back.
  *
- * - `shelter` — the shelter's own cabinet; `shelterId` comes from the actor.
+ * - `shelter` - the shelter's own cabinet; `shelterId` comes from the actor.
  *   Reads: shelter_admin (own) and support_view (its target). Writes:
  *   shelter_admin only, its own shelter (open since PR 6 of the K milestone).
- * - `registry` — the operator's; super_admin only, `shelterId` explicit.
- * - `support_exit` — the one write a support_view may make.
- * - `invitation_link` — the invitation's «Створіть пароль» (PW-2): no session, since the link's
+ * - `registry` - the operator's; super_admin only, `shelterId` explicit.
+ * - `support_exit` - the one write a support_view may make.
+ * - `invitation_link` - the invitation's «Створіть пароль» (PW-2): no session, since the link's
  *   token is the credential. Signed-out callers only (and a signed-in user with no role), the
  *   same visitors the link's page shows the form to.
  */

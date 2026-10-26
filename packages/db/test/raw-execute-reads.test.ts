@@ -11,7 +11,7 @@ import { rowsOfRawResult } from "../src/raw-rows";
  * The defect class: postgres-js returns a raw result as an array, neon-http
  * (production, any `.neon.tech` host) as `{ rows, fields, … }`, and
  * `createDatabase` types both as one `Database`. A read that assumes the
- * array passes every local test and reads nothing in production —
+ * array passes every local test and reads nothing in production -
  * `hasActiveSeenSet` (R1) and `gallery.relaxationCounts` (#112) both did,
  * the second offering no relaxation on any no-match screen.
  *

@@ -10,7 +10,7 @@ import { CityIdSchema } from "../primitives/ids";
  *
  * With a plain list, `[]` has to mean either "no constraint" or "match
  * nothing". The codebase picks one by convention, and eventually somewhere
- * picks the other — a filter sheet that renders an empty feed, or one that
+ * picks the other - a filter sheet that renders an empty feed, or one that
  * ignores the filter entirely. Neither is a failure a type should permit, and
  * the non-empty tuple makes an empty selection unconstructable.
  */
@@ -79,7 +79,7 @@ export const isConstrained = (filters: FeedFilters, dimension: FeedFilterDimensi
  *
  * Exists so "how many more animals would you see if you stopped filtering by
  * size" is answered by the *same* predicate builder the real query uses, over a
- * relaxed filter set — rather than by a second, parallel predicate builder that
+ * relaxed filter set - rather than by a second, parallel predicate builder that
  * omits one clause and can drift from the first.
  */
 export const relaxDimension = (
@@ -91,13 +91,13 @@ export const matchesSelection = <T>(selection: FilterSelection<T>, value: T): bo
   selection.kind === "any" || selection.values.includes(value);
 
 /**
- * Whether `value` was explicitly chosen — never true for `{kind: "any"}`,
+ * Whether `value` was explicitly chosen - never true for `{kind: "any"}`,
  * unlike `matchesSelection`, which deliberately treats "any" as matching
  * everything (the right behaviour for *filtering*: an unconstrained
  * dimension excludes nothing). A filter-UI checkbox or chip asking "should
  * I render as checked" wants this function instead: reusing
  * `matchesSelection` there marks every single option active the moment
- * nothing is filtered, which is a real bug, not a cosmetic one — a filter
+ * nothing is filtered, which is a real bug, not a cosmetic one - a filter
  * sheet whose "select all" state is indistinguishable from "nothing
  * selected" cannot show the adopter what they actually chose.
  */
@@ -108,7 +108,7 @@ export const isExplicitlySelected = <T>(selection: FilterSelection<T>, value: T)
  * `universe` collapses an exhaustive selection back to "any".
  *
  * Without it, ticking every species box yields `{oneOf:["cat","dog"]}` while
- * leaving the filter alone yields `{any}` — two encodings of the same question,
+ * leaving the filter alone yields `{any}` - two encodings of the same question,
  * which is exactly the cursor mismatch this function exists to prevent. Sorting
  * alone does not catch it.
  *
@@ -125,7 +125,7 @@ const canonicalizeSelection = <T extends string>(
   const [first, ...rest] = unique;
   // Unreachable through the schema, which forbids an empty selection. Reaching
   // it means a hand-built object, and widening to "any" there would silently
-  // show every animal — the opposite of what an empty selection suggests. Say
+  // show every animal - the opposite of what an empty selection suggests. Say
   // so instead of guessing.
   if (first === undefined) {
     throw new Error("A oneOf filter selection must contain at least one value.");
@@ -155,7 +155,7 @@ export const canonicalizeFilters = (filters: FeedFilters): FeedFilters => ({
 /**
  * A stable identity for a filter set.
  *
- * A cursor is only valid for the filters it was issued against — page 2 of an
+ * A cursor is only valid for the filters it was issued against - page 2 of an
  * unfiltered feed means nothing once a city is selected. Embedding this in the
  * cursor payload turns "cursor reused across a filter change" from a silently
  * wrong page into a rejected one. Doubles as the URL state key.

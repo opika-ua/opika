@@ -1,6 +1,6 @@
 # Review: feat/h2-kabinet-hardening, uncommitted delta on 702bf75 (pass 3, Tier 1, delta only)
 
-VERDICT: STOP, carried over and blocking the merge only. Findings 1–4 from pass 2 are fixed. The delta adds no code blocker. The STOP is the two pass-2 decisions still waiting for Oleksii, plus one new runbook step for him to approve. Everything else is notes.
+VERDICT: STOP, carried over and blocking the merge only. Findings 1-4 from pass 2 are fixed. The delta adds no code blocker. The STOP is the two pass-2 decisions still waiting for Oleksii, plus one new runbook step for him to approve. Everything else is notes.
 
 VERIFIED | TAKEN ON TRUST
 --- | ---
@@ -26,7 +26,7 @@ STOP REASON (merge only; commit is fine)
 1. **KH-T6** (carried): production refuses to boot without a `CRON_SECRET` of 32+ characters. Needs Oleksii's yes, and the secret set before deploying.
 2. **KH-T5** (carried): `/api/cron/auth-cleanup` is exempt from the pre-launch gate. Needs his yes.
 3. **New:** the runbook now tells the operator to run `DELETE FROM auth_verification;` on the production Neon branch after a suspected link exposure. It is safe as written (see the ledger): it is his manual action, no code runs it, and the worst case is someone with a link in flight asking for a new one. But it is a prescribed production deletion, and it goes beyond the "one-paragraph runbook entry" he asked for. He should approve the step in the PR. If the organization plugin or any other Better Auth plugin is ever enabled, re-check the "nothing but links" sentence.
-This is pass 3 on the row. Per the two-pass cap, findings 1–3 become PR comments or follow-ups, not blockers.
+This is pass 3 on the row. Per the two-pass cap, findings 1-3 become PR comments or follow-ups, not blockers.
 
 TESTS
 apps/web, Node 24.21.0: src/proxy.test.ts + src/kabinet/auth.test.ts, 2 files, 74 passed. Mutations: side-effect import gives 2 failed, 30 passed; IIFE gives 32 passed (finding 1); `@/` alias gives 18 failed, all module resolution; accept-invitation forwarded gives 1 failed.

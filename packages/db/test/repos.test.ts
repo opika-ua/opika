@@ -465,7 +465,7 @@ describe("revealRepo", () => {
   });
 
   /**
-   * The keyset predicate has two branches — a strict `revealed_at <` and an
+   * The keyset predicate has two branches - a strict `revealed_at <` and an
    * `=` plus `id <` tiebreaker. Three reveals share a timestamp so the tie
    * straddles the page boundary at limit 2, which is the only arrangement
    * that exercises the second branch: a tie contained entirely within one
@@ -1103,7 +1103,7 @@ describe("feedRepo", () => {
      * filter-independent: a swipe on a dog excludes nothing from a cats-only
      * feed, and the count says so.
      */
-    it("is scoped to the filters — a swipe on a dog leaves a cats-only count untouched", async () => {
+    it("is scoped to the filters - a swipe on a dog leaves a cats-only count untouched", async () => {
       const { dogs, adopter } = await seedThreeDogsAndACat();
       await swipeRepo(db).record(
         makeSwipe({
@@ -1127,7 +1127,7 @@ describe("feedRepo", () => {
     /**
      * R5's client falls back to the gallery's `totalMatching` for a deck
      * opened with no session. That is only honest if the two count the same
-     * predicate when nothing is excluded — an assumption carried over from R1,
+     * predicate when nothing is excluded - an assumption carried over from R1,
      * asserted here rather than left assumed.
      */
     it("matches the gallery's own total when nothing is excluded", async () => {

@@ -4,11 +4,11 @@ import type { R2CleanupCronConfig } from "./r2-cleanup-cron";
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). The scheduled job's own R2
  * credentials, never the upload token (`R2_UPLOAD_*`) or the onboarding
- * script's (`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`) — `r2-cleanup-client.ts`'s
+ * script's (`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`) - `r2-cleanup-client.ts`'s
  * own doc comment. Account and bucket are shared with every other R2 caller
  * (the same bucket, so a deleted key is the same object everywhere).
  *
- * His R2-B1 words, confirmed: "enabling it by the env vars' presence" — no
+ * His R2-B1 words, confirmed: "enabling it by the env vars' presence" - no
  * separate feature flag, the same shape `photoUploadConfigOf` already uses
  * for the upload token.
  */
@@ -22,8 +22,8 @@ export const R2_CLEANUP_ENV_NAMES = [
 type Env = Readonly<Record<string, string | undefined>>;
 
 /**
- * The three-way classification this job's own env vars can be in — off,
- * genuinely broken, or on — usable at request time in any environment.
+ * The three-way classification this job's own env vars can be in - off,
+ * genuinely broken, or on - usable at request time in any environment.
  * `r2CleanupEnvProblem` below is a thin, production-only (build-time) view
  * of the same classification, never a second implementation of it
  * (Tier 1 review, PR #200: an earlier version kept a separate
@@ -68,7 +68,7 @@ export function r2CleanupStateOf(env: Env): R2CleanupState {
     secretAccessKey.kind !== "set"
   ) {
     // Unreachable: every "missing" case already returned above, and padded
-    // was ruled out at the top — but the compiler can't see that across
+    // was ruled out at the top - but the compiler can't see that across
     // two separate filters, so this stays a real, typed narrowing rather
     // than a cast.
     return { kind: "misconfigured", problem: "an env var read as neither set, missing nor padded" };
@@ -88,7 +88,7 @@ export function r2CleanupStateOf(env: Env): R2CleanupState {
  * What a production deployment refuses to build or boot over, the same
  * shape as `photoUploadEnvProblem` **except for one deliberate difference**
  * (Tier 1 review, PR #200, blocker 2): the job is on by his own words,
- * "enabling it by the env vars' presence" — unlike the upload token, which
+ * "enabling it by the env vars' presence" - unlike the upload token, which
  * production can't function without at all, this job is allowed to simply
  * be off. So this never
  * refuses on all four being absent (the job is disabled, not broken); it
@@ -101,7 +101,7 @@ export function r2CleanupStateOf(env: Env): R2CleanupState {
  *     by the upload token, `photoUploadEnvProblem`, but refuse here too in
  *     case a deployment somehow has the cleanup credential without them).
  * Setting the credentials is therefore the one and only switch that turns
- * the job on — never a separate feature flag, and never something a build
+ * the job on - never a separate feature flag, and never something a build
  * can refuse its way into forcing.
  */
 export function r2CleanupEnvProblem(env: Env): string | null {
@@ -109,7 +109,7 @@ export function r2CleanupEnvProblem(env: Env): string | null {
   const state = r2CleanupStateOf(env);
   if (state.kind !== "misconfigured") return null;
   return (
-    `${state.problem} (the R2 photo clean-up job, GDPR photo retention) — set them in Vercel's ` +
+    `${state.problem} (the R2 photo clean-up job, GDPR photo retention) - set them in Vercel's ` +
     "Production environment only, never Preview, or unset both cleanup credentials to leave the job off"
   );
 }

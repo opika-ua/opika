@@ -132,13 +132,13 @@ describe("the auth clean-up cron (KH-Q9)", () => {
    * "add the expired-invitation sweep to the existing auth clean-up
    * schedule. A dormant shelter's dead invitee is erased without any
    * kabinet action." No fixture here ever calls a `registry.admins.*`
-   * handler — the cron alone, given a later `now`, is what erases this
+   * handler - the cron alone, given a later `now`, is what erases this
    * account. `now` is already a parameter the handler takes rather than
    * reading the clock, so the two different instants below (one to create
    * the dead invitation, one to run the cron after it expired) stand in for
    * "fake timers": nothing here touches the real clock either way.
    */
-  it("erases a dormant invitee's account on its own, with no kabinet action — the invitation sweep", async () => {
+  it("erases a dormant invitee's account on its own, with no kabinet action - the invitation sweep", async () => {
     const inviterId = randomUUID();
     await db.insert(authUser).values({
       id: inviterId,
@@ -175,7 +175,7 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       email: "departed@example.org",
       role: "admin",
       status: "pending",
-      expiresAt: at(-1), // already dead — no one ever acted on it
+      expiresAt: at(-1), // already dead - no one ever acted on it
       createdAt: at(-10 * 86_400_000),
       inviterId,
     });
@@ -379,13 +379,13 @@ function runHoursOf(hourField: string, refusal: (why: string) => Error): number[
   if (step) {
     const every = Number(step[1]);
     if (!Number.isInteger(every) || every < 1 || every > 23) {
-      throw refusal(`a step of ${step[1]} hours is outside 1–23`);
+      throw refusal(`a step of ${step[1]} hours is outside 1-23`);
     }
     return Array.from({ length: Math.ceil(24 / every) }, (_, i) => i * every);
   }
   if (/^\d{1,2}(,\d{1,2})*$/.test(hourField)) {
     const hours = [...new Set(hourField.split(",").map(Number))].sort((a, b) => a - b);
-    if (hours.some((hour) => hour > 23)) throw refusal("an hour is outside 0–23");
+    if (hours.some((hour) => hour > 23)) throw refusal("an hour is outside 0-23");
     return hours;
   }
   throw refusal(

@@ -10,20 +10,20 @@ beforeEach(() => {
 
 /**
  * The critique findings this component exists for (E5, E1, B2, E7) are all
- * "the link is not reachable from here" — so these assert reachability and the
+ * "the link is not reachable from here" - so these assert reachability and the
  * destinations, not appearance. Appearance is not tested at all (CLAUDE.md,
  * "Test logic, not looks"; the header's geometry tests were removed
  * 2026-10-20).
  */
 describe("SiteHeader", () => {
-  it("links to «Про проєкт» — the finding was that this was reachable from one place in the whole app", () => {
+  it("links to «Про проєкт» - the finding was that this was reachable from one place in the whole app", () => {
     render(<SiteHeader kabinetSignedIn={false} />);
 
     const link = screen.getByRole("link", { name: uk.nav.about });
     expect(link.getAttribute("href")).toBe("/pro");
   });
 
-  it("links to «Для притулків» — the surface a shelter is sent to", () => {
+  it("links to «Для притулків» - the surface a shelter is sent to", () => {
     render(<SiteHeader kabinetSignedIn={false} />);
 
     const link = screen.getByRole("link", { name: uk.nav.forShelters });
@@ -58,7 +58,7 @@ describe("SiteHeader", () => {
     );
 
     expect(screen.getByText("deck entry")).toBeTruthy();
-    // Both site links survive the presence of surface chrome — the regression
+    // Both site links survive the presence of surface chrome - the regression
     // would be a slot that visually or structurally displaces the nav.
     expect(screen.getByRole("link", { name: uk.nav.about })).toBeTruthy();
     expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
@@ -99,7 +99,7 @@ describe("SiteHeader", () => {
   it("a visitor with nothing saved sees no «Збережені» link at all", async () => {
     render(<SiteHeader kabinetSignedIn={false} />);
 
-    // Nothing to await for an absence — give the effect a tick to run (the
+    // Nothing to await for an absence - give the effect a tick to run (the
     // same pattern as a positive case, just asserting the other outcome) so
     // this doesn't pass merely because the check hasn't happened yet.
     await screen.findByRole("link", { name: uk.nav.about });
@@ -108,7 +108,7 @@ describe("SiteHeader", () => {
 
   /**
    * The real scenario this whole feature is for: a visitor saves something
-   * on the page they're already looking at, header included — not a reload,
+   * on the page they're already looking at, header included - not a reload,
    * not another tab. `likes-store.ts`'s `SAME_TAB_CHANGE_EVENT` is what
    * makes this work at all: the native `storage` event never fires in the
    * document that made the write, so without it this would stay stuck on
@@ -128,7 +128,7 @@ describe("SiteHeader", () => {
     const { container } = render(<SiteHeader kabinetSignedIn={false} />);
 
     // O-1, updated for the gallery-v3 re-skin: the hand-drawn inline <svg>
-    // was replaced by a static <img> (`BrandLogo.tsx`) — asserted directly,
+    // was replaced by a static <img> (`BrandLogo.tsx`) - asserted directly,
     // not just "the accessible name still comes out right", for the same
     // reason as before: an aria-hidden image with no alt text contributes
     // nothing to the name either way, so that assertion alone would stay

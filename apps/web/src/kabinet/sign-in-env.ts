@@ -148,7 +148,7 @@ export function signInEnvProblems(env: Readonly<Record<string, string | undefine
   const missing = required.filter((name) => envValueOf(env, name).kind === "missing");
   if (missing.length > 0) {
     return [
-      `Missing required environment variable(s) for production sign-in: ${missing.join(", ")} — ` +
+      `Missing required environment variable(s) for production sign-in: ${missing.join(", ")} - ` +
         "set them in Vercel's Production environment (docs/h2-next-prs.md, the switch-on list)",
     ];
   }
@@ -163,7 +163,7 @@ export function signInEnvProblems(env: Readonly<Record<string, string | undefine
     case "auth_secret_too_short":
       return [
         `BETTER_AUTH_SECRET must be at least ${BETTER_AUTH_SECRET_MIN_LENGTH} characters on a ` +
-          "production deployment — generate with: openssl rand -hex 32",
+          "production deployment - generate with: openssl rand -hex 32",
       ];
     case "auth_url_not_production_origin":
       return [

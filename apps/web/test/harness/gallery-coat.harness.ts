@@ -33,7 +33,7 @@ test.describe("/tvaryny fur filter", () => {
   /**
    * gallery-v3 (Figma `58:1617`): fur also has its own desktop dropdown
    * now (`GalleryFilterDropdowns.tsx`, GV3-Q1), but this test deliberately
-   * exercises `FilterSheet` at phone width instead — its real `<form>`
+   * exercises `FilterSheet` at phone width instead - its real `<form>`
    * submit is a genuinely different interaction from the dropdown's
    * click-to-navigate links, not a cosmetic selector swap, and is the only
    * path at phone width (the sheet is the gallery's sole filter UI below

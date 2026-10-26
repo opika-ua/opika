@@ -33,7 +33,7 @@ export function testDatabaseName(kind: "test" | "harness", checkoutPath: string)
 }
 
 /**
- * This checkout's harness port, 3100–3599, derived from its path like the
+ * This checkout's harness port, 3100-3599, derived from its path like the
  * database name: two checkouts' harness runs can then go in parallel instead
  * of the second failing with "port already used" (the follow-up #88 left).
  * A collision between two paths is possible but rare, and loud when it

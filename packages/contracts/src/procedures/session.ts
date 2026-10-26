@@ -9,7 +9,7 @@ import { SessionBootstrapViewSchema } from "../views/session";
  * The session is carried in a server-issued HttpOnly cookie, so it is never
  * chosen, read, or replayed by client code. An earlier draft accepted a
  * client-supplied `deviceSessionId: z.string().min(1)`, which was the only
- * identity input in the entire surface — meaning a caller could send "1", land
+ * identity input in the entire surface - meaning a caller could send "1", land
  * on whichever adopter first claimed it, and read their whole reveal history
  * through `reveals.listMine`, including every shelter contact they had
  * unlocked (and, then, every exact address: reveals stopped sending it with
@@ -25,7 +25,7 @@ import { SessionBootstrapViewSchema } from "../views/session";
  *   client sends.
  * - Set HttpOnly, Secure, SameSite=Lax, and a path scoped to the API.
  * - Session validation is get-or-reject: an unknown token returns
- *   `{ ok: false }`, never a new session. Bootstrap is the sole exception —
+ *   `{ ok: false }`, never a new session. Bootstrap is the sole exception -
  *   when validation rejects (stale cookie, wiped DB, first visit), bootstrap
  *   mints a fresh adopter and session. This is why bootstrap MUST be covered
  *   by per-IP rate limiting: without it, unauthenticated callers can create

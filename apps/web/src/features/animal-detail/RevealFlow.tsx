@@ -16,18 +16,18 @@ interface RevealFlowProps {
  * The trigger button plus the detail page's own framing around
  * `ContactRevealDialog` (R3, Phase R, `docs/build-plan.md`, extracted the
  * dialog itself and `useReveal`'s state machine out of this component so
- * the deck could open the identical dialog — see both files' own comments).
+ * the deck could open the identical dialog - see both files' own comments).
  *
  * `secondaryAction` is the one thing this page passes that the deck does
  * not: dismissing the reveal here already meant "back to the gallery"
  * before this dialog existed, so the text link stays. Focus returns to
- * this trigger button on close — `close`'s own job, not the dialog's,
+ * this trigger button on close - `close`'s own job, not the dialog's,
  * since the dialog has no idea what triggered it.
  *
- * This whole component needs JavaScript to function at all — there is no
+ * This whole component needs JavaScript to function at all - there is no
  * server-rendered fallback for "look up a shelter's contact details,"
  * unlike the gallery/detail page's own content. That's consistent with
- * the mock's own framing: "розкриття контактів — це пошук у довіднику" —
+ * the mock's own framing: "розкриття контактів — це пошук у довіднику" -
  * an interactive lookup, not a page navigation.
  *
  * One recorded deviation from the mock, carried forward from before this
@@ -35,7 +35,7 @@ interface RevealFlowProps {
  * link is named, not a bare glyph); this implementation uses the same ✕
  * close button at both breakpoints instead of a second, differently-worded
  * close control unique to mobile. `close` already reaches the same place
- * (dialog closed, focus back on the trigger) either way — the difference
+ * (dialog closed, focus back on the trigger) either way - the difference
  * is the label, not the behaviour.
  */
 export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) {
@@ -47,7 +47,7 @@ export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) 
     [open, animalId, animalName, cityName],
   );
 
-  // Memoised — caught on review: an inline arrow here re-created a new
+  // Memoised - caught on review: an inline arrow here re-created a new
   // function identity on every render, which `ContactRevealDialog`'s own
   // `[onClose]`-dependent keydown effect (Esc, Tab trap, body-scroll-lock)
   // then treated as a reason to tear down and re-register its listener on

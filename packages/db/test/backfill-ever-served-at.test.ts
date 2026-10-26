@@ -103,7 +103,7 @@ describe("everServed:backfill", () => {
   it("never un-nulls a card that was visible once but isn't now, even though it was never stamped", async () => {
     // The one residual gap the script's own doc comment names: a card that
     // became visible and invisible again entirely inside the window, before
-    // this script ever ran, is missed — not fixed by a later run, because by
+    // this script ever ran, is missed - not fixed by a later run, because by
     // then it no longer matches the live predicate either.
     const shelter = shelterInCity();
     await shelterRepo(db).insert(shelter);

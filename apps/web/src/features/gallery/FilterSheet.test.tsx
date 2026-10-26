@@ -9,7 +9,7 @@ import { mockAppRouter, WithMockRouter } from "./test-router";
  * `{ hidden: true }`: this component's `<dialog>` never has `showModal()`
  * called on it in these tests (they're exercising form-submission logic,
  * not the open/close interaction), and content inside a closed `<dialog>`
- * is correctly excluded from the accessibility tree — real accessibility
+ * is correctly excluded from the accessibility tree - real accessibility
  * behaviour that `getByRole` respects by default, confirmed by dumping the
  * DOM and finding the elements present but unqueryable without the flag.
  * `getByLabelText` for the checkboxes doesn't perform the same hidden-state
@@ -38,7 +38,7 @@ function renderSheet(filters = NO_FILTERS, sort: "freshest" | "longest_waiting" 
       />
     </WithMockRouter>,
   );
-  /** Stands in for a navigation the sheet's own form did not cause — the back button, or one of the sheet's instant-apply links having landed. */
+  /** Stands in for a navigation the sheet's own form did not cause - the back button, or one of the sheet's instant-apply links having landed. */
   const applyFromElsewhere = (
     nextFilters: FeedFilters,
     nextSort: "freshest" | "longest_waiting" = sort,
@@ -65,7 +65,7 @@ describe("FilterSheet", () => {
     expect(sheet.getByText(/Знайдено 12 тварин/, { selector: "p" })).toBeTruthy();
   });
 
-  it("checks no box when nothing is filtered — the same bug FilterRail's chips had", () => {
+  it("checks no box when nothing is filtered - the same bug FilterRail's chips had", () => {
     renderSheet();
     const sheet = within(screen.getByTestId("filter-sheet"));
     for (const label of ["Собаки", "Коти", "Малий", "Середній", "Великий", "Малюк"]) {
@@ -81,7 +81,7 @@ describe("FilterSheet", () => {
     expect((sheet.getByLabelText("Великий") as HTMLInputElement).checked).toBe(false);
   });
 
-  it("submitting with two boxes checked in one group sends both — not just the first", () => {
+  it("submitting with two boxes checked in one group sends both - not just the first", () => {
     const { router } = renderSheet();
     const sheet = within(screen.getByTestId("filter-sheet"));
 
@@ -94,7 +94,7 @@ describe("FilterSheet", () => {
     const params = new URL(href, "http://x").searchParams;
     // One comma-joined param, not two repeated ones: the submit goes back
     // out through `galleryHref`, so the sheet and the rail spell the same
-    // state the same way. Both values surviving is what this asserts — the
+    // state the same way. Both values surviving is what this asserts - the
     // native no-JS submission's repeated-key shape is `filter-url.test.ts`'s
     // and the JS-disabled harness test's job, on the parse side.
     expect(params.get("rozmir")).toBe("medium,small");
@@ -109,7 +109,7 @@ describe("FilterSheet", () => {
     expect(href).not.toContain("sort=");
   });
 
-  it("'Уся Київщина' drops the city filter and keeps every other group — it is not a second 'Скинути'", () => {
+  it("'Уся Київщина' drops the city filter and keeps every other group - it is not a second 'Скинути'", () => {
     const { router } = renderSheet({
       ...NO_FILTERS,
       cities: { kind: "oneOf", values: [BROVARY] },
@@ -141,7 +141,7 @@ describe("FilterSheet", () => {
     // Uncontrolled inputs keep their dirty checkedness across a re-render:
     // without the form's `key`, ticking "Собаки" and then reaching an
     // unrelated filter state (back button, "Скинути", "Уся Київщина")
-    // leaves the sheet showing a selection the URL does not have — hidden
+    // leaves the sheet showing a selection the URL does not have - hidden
     // client state outliving the single source of truth.
     const { applyFromElsewhere } = renderSheet();
     const sheet = within(screen.getByTestId("filter-sheet"));
@@ -157,7 +157,7 @@ describe("FilterSheet", () => {
   });
 
   it("the ✕ falls through to its own href when the dialog was revealed by :target, not showModal()", () => {
-    // `dialog.close()` is a no-op on a dialog with no `open` attribute — the
+    // `dialog.close()` is a no-op on a dialog with no `open` attribute - the
     // state a pre-hydration click on the trigger, or a shared URL already
     // carrying #tvaryny-filters, leaves the sheet in. Swallowing the click
     // there would leave the sheet with no way to close at all.

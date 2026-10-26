@@ -8,12 +8,12 @@ import type { RefCallback } from "react";
 import { verificationSuffix } from "../../seo-flags";
 
 /** The deck stays 390-420px centred at every viewport (docs/design/README.md,
- * "02 Deck") — never full-width, so `sizes` is close to a constant. */
+ * "02 Deck") - never full-width, so `sizes` is close to a constant. */
 const PHOTO_SIZES = "(max-width: 420px) 100vw, 420px";
 
 interface SwipeCardProps {
   card: FeedCardView;
-  /** Ref callback from useSwipeGesture — wires pointer events. */
+  /** Ref callback from useSwipeGesture - wires pointer events. */
   gestureRef: RefCallback<HTMLElement>;
   /** Signed displacement for affordance labels. 0 when not dragging. */
   dx: number;
@@ -27,21 +27,21 @@ function affordanceOpacity(dx: number): number {
 }
 
 /**
- * Non-interactive stack layers (mid, back). Plain Tailwind classes — these
+ * Non-interactive stack layers (mid, back). Plain Tailwind classes - these
  * never move, so unlike the top card there is no dynamic style to keep
  * separate from the className.
  *
  * V2 (`Opika Registry System.dc.html`'s B7 frame): the two inset/top pairs
  * this codebase already had (6px/5px and 12px/10px) turned out to match the
- * mock's own two stack layers exactly — only the fill colours and the
+ * mock's own two stack layers exactly - only the fill colours and the
  * border needed to change (`#F9F3E9`/`#F7F0E4` with a line border ->
- * `#FCFCFB`/`#F7F7F5`, no border at all — "borders are gone").
+ * `#FCFCFB`/`#F7F7F5`, no border at all - "borders are gone").
  */
 const cardBase = "absolute rounded-rg-card overflow-hidden will-change-transform box-border";
 const STACK_LAYER_1_2 = [
-  // mid card — the mock's smaller inset (6px/5px).
+  // mid card - the mock's smaller inset (6px/5px).
   `${cardBase} left-1.5 right-1.5 top-1.25 h-50 bg-[#FCFCFB] z-2`,
-  // back card — the mock's larger inset (12px/10px).
+  // back card - the mock's larger inset (12px/10px).
   `${cardBase} left-3 right-3 top-2.5 h-50 bg-[#F7F7F5] z-1`,
 ] as const;
 
@@ -67,7 +67,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
       data-testid="swipe-card"
       // -1: programmatic-only focus target (docs/design/README.md, "Gallery
       // → deck": "Focus lands on the top card"), never a Tab stop of its
-      // own — the action row below is already the keyboard path through
+      // own - the action row below is already the keyboard path through
       // the deck (SwipeDeck.test.tsx), and adding this card to the Tab
       // order too would be a second, redundant one.
       tabIndex={-1}
@@ -77,13 +77,13 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
       onKeyDown={undefined}
     >
       {/*
-        Photo area. Height 396, not the design's other stated "4:5" ratio —
+        Photo area. Height 396, not the design's other stated "4:5" ratio -
         see the (long) rationale in git history / the M5 harness fix commit:
         4:5 is the source photography's crop ratio, 396 is this slot's height,
         and `object-cover` on the <img> below is what reconciles them. 396 on
         a 334px content box was measured against the rest of the feed
         screen's spacing; 4:5 would be 417.5, 21.5px taller than specified.
-        The photo shrinks before the text below it does — a photo is croppable
+        The photo shrinks before the text below it does - a photo is croppable
         by definition (`object-cover`), the shelter's sentence is not. That
         ordering was always the intent; what it lacked was room.
 
@@ -108,7 +108,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         rather than caused it.
 
         With the floor at 152 the photo absorbs the difference everywhere and
-        every 640-tall viewport lands on a 12px margin — which is exactly the
+        every 640-tall viewport lands on a 12px margin - which is exactly the
         card's own `p-3` bottom padding, i.e. the text now ends where it
         should. Measured at HEAD, i.e. after DECK-2's 4px back button landed
         on top of this change:
@@ -135,14 +135,14 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         className="w-full flex-1 min-h-38 max-h-99 rounded-rg-photo overflow-hidden bg-rg-photo-placeholder relative"
       >
         {/*
-          draggable={false}: found via E5, not assumed — every harness test
+          draggable={false}: found via E5, not assumed - every harness test
           and the deck's only real route (`/discovery`, pre-E5) always ran
           against `generateMockCards`'s `primaryPhoto: null`, so a real
           <img> here never existed until real `feed.list` data did. A real
           <img> is draggable by default; starting a native browser image
           drag on `pointerdown` suppresses the `pointermove` events
           `use-swipe-gesture.ts` needs, so the card silently stopped
-          committing the moment a real photo was behind it — `onCommit`
+          committing the moment a real photo was behind it - `onCommit`
           never fired at all, not a wrong threshold.
         */}
         {photo && (
@@ -157,15 +157,15 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
         )}
 
         {/* Affordance labels. Opacity is continuous (0..1, driven by drag
-            distance) — no fixed Tailwind step expresses that, so it stays
+            distance) - no fixed Tailwind step expresses that, so it stays
             the one inline style on this element.
             leading-[normal]: `text-lg` carries Tailwind's own paired line-
             height (1.5556), which is not what an un-line-heighted 18px
-            label rendered as before this migration — see the note by the
+            label rendered as before this migration - see the note by the
             shelter-line spans below for why `leading-[normal]` and not a
             specific pixel value. */}
         {/*
-          V2: dropped the right-swipe affordance's leaf-green — "no colour
+          V2: dropped the right-swipe affordance's leaf-green - "no colour
           in the interface at all... all colour on screen comes from the
           animals' photographs" (docs/design/README.md). Word choice, not
           hue, is what already distinguishes the two directions; a coloured
@@ -194,7 +194,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
       {/* Text content. `Opika Registry System.dc.html`'s B7 deck frame:
         outer card `padding: 12px, gap: 16px` (the `gap-4` now on the
         section above is that photo-to-text distance), text block itself
-        `gap: 12px; padding: 0 8px` — no top/bottom padding of its own. */}
+        `gap: 12px; padding: 0 8px` - no top/bottom padding of its own. */}
       <div className="px-2 flex flex-col gap-3 shrink-0">
         {/* Name + meta */}
         <div>
@@ -216,23 +216,23 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
           Shelter line. `leading-[normal]`, not a specific pixel value: these
           two spans and the monogram never had an explicit `lineHeight` before
           this migration, so they rendered at the browser's own UA-computed
-          "normal" for the fallback font — measured at 15px for 13px
+          "normal" for the fallback font - measured at 15px for 13px
           Commissioner-fallback text in this environment, but that number is
           font-and-platform-dependent and not something to hardcode. Without
           this override they inherit Tailwind Preflight's `line-height: 1.5`
           from <html> (19.5px here) instead, which is a real, measured 20px
-          vertical shift on this row — the CSS keyword is what restores the
+          vertical shift on this row - the CSS keyword is what restores the
           original rendering exactly, in every environment, not just this one.
         */}
         {/*
           Not part of the B7 mock frame, which shows no shelter line at all
-          below the freshness block — kept anyway, re-skinned rather than
+          below the freshness block - kept anyway, re-skinned rather than
           removed: dropping shelter attribution/verification is a content
           decision, not a colour or type-scale one, and this phase is
           re-skinning, not re-scoping what the deck card shows.
 
           `verificationSuffix` (`seo-flags.ts`), not the raw
-          `card.shelter.verification` check this line used to have — this
+          `card.shelter.verification` check this line used to have - this
           card and the gallery's `AnimalCard.tsx` shared the identical
           un-gated line, found together 2026-09-10, neither ever referencing
           `REGISTRY_HAS_NO_REAL_SHELTERS`.
@@ -278,15 +278,15 @@ function FreshnessBlock({ freshness }: { freshness: FeedCardView["freshness"] })
   const fills = freshnessPips(freshness.kind);
 
   return (
-    // padding 16 (p-4) — `Opika Registry System.dc.html`'s B7 deck frame
+    // padding 16 (p-4) - `Opika Registry System.dc.html`'s B7 deck frame
     // states this literally. min-height is NOT the mock's literal 88,
     // though: the mock has no box-sizing reset (its own <style> block sets
     // only `body { margin: 0 }`), so `min-height: 88px` there is
-    // content-box — an 88+16+16=120px rendered box. Preflight resets this
+    // content-box - an 88+16+16=120px rendered box. Preflight resets this
     // app to border-box, where min-height caps the whole box, padding
     // included, so reproducing the mock's real 120px total needs
     // min-h-30, not min-h-22. (The same conversion the pre-V2 code did
-    // for its own 84-content-box value — this restates it for V2's 88.)
+    // for its own 84-content-box value - this restates it for V2's 88.)
     <section
       data-testid="freshness-block"
       className="font-rg bg-rg-fill rounded-rg-freshness p-4 flex flex-col gap-row min-h-30"
@@ -311,10 +311,10 @@ function FreshnessBlock({ freshness }: { freshness: FeedCardView["freshness"] })
 /**
  * Three pips, always three, always in the same position.
  * V2 geometry (docs/design/README.md, "The freshness marker"): 10x10px,
- * gap 6 between pips, gap 10 to the label — "grown from 7px: at 1.5x
+ * gap 6 between pips, gap 10 to the label - "grown from 7px: at 1.5x
  * density on a cheap Android panel 7px pips disappeared." Each pip is
  * either filled (a Tailwind bg-* class from freshnessPips) or the "empty"
- * variant — transparent fill, 1.5px border in rg-ink-3 (#63676B), the
+ * variant - transparent fill, 1.5px border in rg-ink-3 (#63676B), the
  * WCAG 1.4.11 fix recorded in the same section. The mock's original solid
  * #DCDCD9 fill measured 1.16-1.37:1 against every background it appears
  * on; the design was subsequently updated to specify the outline

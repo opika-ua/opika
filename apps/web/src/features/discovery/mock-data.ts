@@ -1,6 +1,6 @@
 /**
  * Static mock data for local gesture testing.
- * Not used in production — the real feed comes from the oRPC client.
+ * Not used in production - the real feed comes from the oRPC client.
  */
 import type { FeedCardView, ShelterSummaryView } from "@opika/contracts";
 import type { AnimalId, Freshness, FreshnessKind } from "@opika/domain";

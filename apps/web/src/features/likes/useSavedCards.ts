@@ -19,7 +19,7 @@ export type SavedCardResult = Awaited<
  * `localStorage` has been read at all (client-only, so never true once an
  * effect has run); once ids are known, `loading` carries the count so the
  * page can show that many skeletons, sized like real cards, before
- * `items` resolves — never the empty state for a list that merely hasn't
+ * `items` resolves - never the empty state for a list that merely hasn't
  * loaded yet.
  */
 export type SavedCardsLoadState =
@@ -46,7 +46,7 @@ export interface SavedCardsState {
 
 /**
  * The saved page's own data: the ordered ids from `likes-store` (newest
- * first — the store's own order), refetched from `animals.cardsByIds`
+ * first - the store's own order), refetched from `animals.cardsByIds`
  * whenever that list changes.
  *
  * `ids` starts `null` (not `[]`) specifically so this never reads as "zero
@@ -54,8 +54,8 @@ export interface SavedCardsState {
  * default meant a visitor *with* saved animals briefly got the real empty
  * state rendered: the mount effect below set `ids` to the real (non-empty)
  * list, but the *other* effect, keyed on `ids.join(",")`, ran in the same
- * pass with its own stale closure over the render's `ids` — still `[]` at
- * that point — and set `items: []` from that stale read before ever
+ * pass with its own stale closure over the render's `ids` - still `[]` at
+ * that point - and set `items: []` from that stale read before ever
  * re-running against the real ids. `null` removes the stale state there
  * was ever a read of: the fetch effect below now simply does nothing while
  * `ids` is `null`, and runs once, correctly, when `ids` actually changes.
@@ -94,7 +94,7 @@ export function useSavedCards(): SavedCardsState {
         if (!cancelled) setItems(res.items);
       })
       .catch(() => {
-        // Offline, or the per-IP limit — the page keeps its last known
+        // Offline, or the per-IP limit - the page keeps its last known
         // state rather than clearing it; a retry happens the next time
         // `ids` changes (another save/remove) or the page reloads.
       });
@@ -105,7 +105,7 @@ export function useSavedCards(): SavedCardsState {
     // every render (from `store.items.map` above), so depending on the
     // array identity would refetch every render; joining compares content.
     // Review of 6825ffd, finding 6: `null?.join(",")` is `undefined`, not
-    // `""` — a different value from `[]`'s `""`, which is exactly what's
+    // `""` - a different value from `[]`'s `""`, which is exactly what's
     // wanted: the very first transition out of `null` always counts as a
     // dependency change and reruns this effect, whether the real list
     // turns out empty or not.

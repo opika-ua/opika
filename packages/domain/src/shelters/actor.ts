@@ -6,8 +6,8 @@ import { ModeratorIdSchema, ShelterAdminIdSchema } from "../primitives/ids";
  *
  * Used only where a shelter's own administrator may legitimately act: pausing
  * and resuming (self-declared, `reasons.ts`), and asking for another review
- * after a rejection (H2-2). Every moderator-only event — start_review,
- * approve, reject, suspend, reinstate — keeps a bare `ModeratorId`, so a
+ * after a rejection (H2-2). Every moderator-only event - start_review,
+ * approve, reject, suspend, reinstate - keeps a bare `ModeratorId`, so a
  * shelter administrator can't even *construct* one of those, whatever a
  * handler gets wrong. Part of the kabinet's authorization lives in the type.
  */

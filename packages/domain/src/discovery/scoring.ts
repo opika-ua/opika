@@ -9,7 +9,7 @@ const nonNegative = z.number().min(0);
 /**
  * Given a schema so a tuned weight cannot leave the score outside [0, 1].
  * A negative weight produced values in the millions, and these numbers are
- * explicitly meant to be edited once there is a real feed to look at — which is
+ * explicitly meant to be edited once there is a real feed to look at - which is
  * exactly when a typo arrives.
  */
 export const ScoringPolicySchema = z.object({

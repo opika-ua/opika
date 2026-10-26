@@ -320,7 +320,7 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
 };
 
 /**
- * The four history kinds that carry a departed admin's real email address —
+ * The four history kinds that carry a departed admin's real email address -
  * the exact set GDPR erasure (option A, `docs/gdpr-analysis.md` §5 item 4)
  * scrubs when an admin with no other membership is removed. Not every
  * kind with an `email` field belongs here on principle; it happens that
@@ -339,7 +339,7 @@ export const ADMIN_EMAIL_HISTORY_KINDS = [
  * Oleksii's, 2026-10-24: "Delete the account (when it has no other
  * membership) and scrub the email in that shelter's admin history entries
  * to the placeholder, at the moment of removal"). `.invalid` is RFC 2606's
- * reserved TLD for exactly this — guaranteed never to resolve, so it can
+ * reserved TLD for exactly this - guaranteed never to resolve, so it can
  * never be mistaken for a real address, and it parses as a real `z.email()`,
  * which `ShelterHistoryEntrySchema`'s own `email` field requires.
  */

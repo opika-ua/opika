@@ -1,12 +1,12 @@
-# Seed placeholder photos — sources and licences
+# Seed placeholder photos - sources and licences
 
 Every file in this directory is CC0 (public domain dedication). None depicts a real Opika
-shelter or a real Opika animal — `docs/standing-constraints.md`'s "No real shelter data in
+shelter or a real Opika animal - `docs/standing-constraints.md`'s "No real shelter data in
 the repository" rule is about this repo's *own* shelters and animals being fictional, and
 these are placeholder photos for a fictional seed corpus, not photographs sourced from any
 of them.
 
-CC0 does not require attribution, but it's recorded here anyway — for provenance, and so a
+CC0 does not require attribution, but it's recorded here anyway - for provenance, and so a
 later reviewer can verify the licence claim rather than take it on faith, per this repo's
 own "verify, don't assume" standard (`docs/standing-constraints.md`).
 
@@ -29,13 +29,13 @@ the canonical Creative Commons deed for CC0 1.0, the same for every entry.
 ## Why these nine, out of a much larger candidate pool
 
 Curated by hand from ~40 CC0-licensed candidates fetched via Openverse, not taken as the
-first N results. Rejected, and why — recorded so the criteria are visible for whoever
+first N results. Rejected, and why - recorded so the criteria are visible for whoever
 picks the next batch, not just applied silently:
 
 - **Any photo showing a real shelter's or rescue's branding, or a real government animal
   services department** (a t-shirt reading a specific humane society's name; a Flickr
   account whose stream reads as an active shelter's own adoption-listing photos; a county
-  animal-services account). Not a licence problem — CC0 permits reuse — but a real shelter's
+  animal-services account). Not a licence problem - CC0 permits reuse - but a real shelter's
   real adoptable animal has no business standing in for a fictional Opika listing, for the
   same reason `docs/standing-constraints.md`'s "no real shelter data" rule exists.
 - **Any photo with a person's face as a subject**, not incidental background. These are
@@ -45,10 +45,10 @@ picks the next batch, not just applied silently:
 - **Collages, watermarks, decorative photo-app frames.** Would render as visibly wrong on
   a card designed for one clean photo.
 - **Wildlife, or an image that's actually a photo of an empty parking lot.** Yes, one
-  candidate ("The Story That is Not Here") was that, literally — its own title should have
+  candidate ("The Story That is Not Here") was that, literally - its own title should have
   been the warning.
 - **Vintage/archival portraits and vector-art "cat portrait clipart"/"drawing" results**
-  that also matched the search terms — wrong register entirely for a modern adoption
+  that also matched the search terms - wrong register entirely for a modern adoption
   listing.
 
 ## Aspect ratios, deliberately not uniform
@@ -66,27 +66,27 @@ picks the next batch, not just applied silently:
 | `dog-5.jpg` | 768×1024 | 0.75 (portrait, close to the design's 4:5) |
 
 Every card renders its photo through a fixed CSS box (`aspect-[4/5]` vertical /
-`w-30`-fixed-width horizontal, `object-cover` — `apps/web/src/features/gallery/
+`w-30`-fixed-width horizontal, `object-cover` - `apps/web/src/features/gallery/
 AnimalCard.tsx`), so a source photo whose own ratio doesn't match the slot is the normal
-case, not an edge case — these nine exist specifically so that cropping path renders for
+case, not an edge case - these nine exist specifically so that cropping path renders for
 real during review, instead of every source image happening to already be the target shape.
 
 ## Metadata stripped
 
-Every file has had every APPn segment (APP0–APP15) and COM comment removed before being
-committed — not only APP1/EXIF. The first pass stripped APP1 alone, which removed one
-original's GPS coordinates, but every file still carried an APP13/Photoshop-IPTC block —
-`dog-4.jpg`'s named the photographer's email and home town — and IPTC routinely carries
+Every file has had every APPn segment (APP0-APP15) and COM comment removed before being
+committed - not only APP1/EXIF. The first pass stripped APP1 alone, which removed one
+original's GPS coordinates, but every file still carried an APP13/Photoshop-IPTC block -
+`dog-4.jpg`'s named the photographer's email and home town - and IPTC routinely carries
 creator/copyright fields that are exactly the kind of thing that shouldn't survive into a
 publicly redistributed file. The current strip removes every marker segment except SOI,
-DQT, SOF, DHT, DRI, SOS and EOI, which is the minimum a baseline JPEG needs to decode — no
+DQT, SOF, DHT, DRI, SOS and EOI, which is the minimum a baseline JPEG needs to decode - no
 EXIF, no IPTC, no XMP, no embedded ICC profile. Re-run after any photo in this directory
 changes; each file's pixel dimensions were verified unchanged before and after.
 
 ## `dog-5.jpg` was replaced
 
 The original `dog-5.jpg` was supplied directly by this project's maintainer under an
-unwritten "owner's permission," not a real licence — a licence gap in a public repository,
+unwritten "owner's permission," not a real licence - a licence gap in a public repository,
 flagged in `#27`'s review. Replaced with a CC0 Flickr photo from the same curation process
 as the other eight (see the table above), so all nine entries are now CC0 and verifiable
 the same way, per `docs/standing-constraints.md`'s "verify, don't assume" standard.

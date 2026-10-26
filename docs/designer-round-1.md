@@ -518,7 +518,7 @@ can filter on it. Source: the scope sentence; no mock frame.
   counting fur toward completeness would falsify commitment 1's sentence. The slice adds a test
   that the completeness components are exactly those three.
 
-### DB (proposal) — migration kind: **additive**
+### DB (proposal) - migration kind: **additive**
 
 - `animals.coat_length text` nullable, typed `$type<CoatLength>()` with the enum, like `size`. No
   default, no backfill: every existing row is `NULL` = not recorded.
@@ -604,8 +604,8 @@ with an open one waits."
 
 | # | Slice | Files (main ones) | Tier | Migration | Depends on |
 |---|---|---|---|---|---|
-| S1 | **No shelter name on the gallery card** (§3) | `features/gallery/AnimalCard.tsx`, `AnimalCard.test.tsx`, `docs/design/README.md` | not 1 | none | — |
-| S2 | **Fur: domain, contract, DB, seed, repository** (§5, no UI) | `packages/domain/src/animals/coat.ts`, `animal.ts`, `adopters/feed-filters.ts`; `packages/contracts` views + `AnimalPatchSchema`; `packages/db/src/schema/animals.ts`, `drizzle/0014_*.sql`, `repos/feed-predicate.ts`, mappers, `seed.ts`, tests | not 1 | **additive** (waits for his production migration) | — |
+| S1 | **No shelter name on the gallery card** (§3) | `features/gallery/AnimalCard.tsx`, `AnimalCard.test.tsx`, `docs/design/README.md` | not 1 | none | - |
+| S2 | **Fur: domain, contract, DB, seed, repository** (§5, no UI) | `packages/domain/src/animals/coat.ts`, `animal.ts`, `adopters/feed-filters.ts`; `packages/contracts` views + `AnimalPatchSchema`; `packages/db/src/schema/animals.ts`, `drizzle/0014_*.sql`, `repos/feed-predicate.ts`, mappers, `seed.ts`, tests | not 1 | **additive** (waits for his production migration) | - |
 | S3 | **Fur: UI** (gallery rail/sheet, deck sheet, URL, no-match, animal page, kabinet form, history label) | `features/gallery/*`, `features/filters/*`, `features/animal-detail/*`, `features/kabinet/animal-form/*`, `packages/i18n` | not 1 | none | S2 merged; his copy for `kabinet.*` keys |
 | S4 | **Preview drawer** (§2) | `app/tvaryny/layout.tsx`, `app/tvaryny/@preview/**`, `features/animal-preview/*`, shared focus-trap hook from `features/controls/ModalDialog.tsx` | not 1 | none | S1 (the drawer follows the no-shelter-name rule) |
 | S4b | **The animal overlay** (§2, his 2026-10-21 decision) + **RL-F1** (the page's rate-limited state) | `app/tvaryny/@preview/**`, `app/tvaryny/[animalId]/page.tsx`, `features/animal-overlay/*` (replaces `features/animal-preview/*`), `features/animal-detail/animal-page-load.ts`, `features/controls/*`, `features/reveal/ContactRevealDialog.tsx`, `proxy.ts`, `packages/i18n` | not 1 | none | S4 |
@@ -614,8 +614,8 @@ with an open one waits."
 | S7 | **Saved animals: store, control** | `features/likes/*`, `packages/i18n` | **1** | none | DR1-Q2, DR1-Q3; S4 (the control sits in the drawer) |
 | S8 | **The saved page («Збережені тварини») + `/pro` sentence, `animals.cardsByIds`** | the `/zberezheni` route at the root (his slug, DR1-Q3; its cards open the full animal page, his 2026-10-21 decision; a harness flow proves the drawer route swallows no navigation to or from it), `features/likes/*`, `features/chrome/SiteHeader.tsx`, `packages/i18n` (`about.*`), `packages/contracts/src/procedures/animals.ts`, `apps/web/src/api/handlers/animals.ts`, `packages/db/src/repos/animal-repo.ts` | **1** | none | S7; DR1-Q2, DR1-Q4; his Ukrainian |
 
-Order of work: S1 and S2 in parallel (different areas) → S3 and S4 → S5 → S6 → S7 → S8. S5–S8
-wait on the open questions; S1–S4 don't, so building starts there while he answers.
+Order of work: S1 and S2 in parallel (different areas) → S3 and S4 → S5 → S6 → S7 → S8. S5-S8
+wait on the open questions; S1-S4 don't, so building starts there while he answers.
 
 Added from the coordinator's review on PR #160 (2026-10-20; the coordinator's notes, not
 Oleksii's decisions):
@@ -779,7 +779,7 @@ Rewrites: the strings below. Email changes are Tier 1; update the exact-payload 
 
 The strings:
 
-forShelters.whyThatSentence, paragraph 1 only (paragraphs 2–3 unchanged): «Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого — позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а на сторінці притулку — ваше речення про те, як часто ви це робите, вашими словами.»
+forShelters.whyThatSentence, paragraph 1 only (paragraphs 2-3 unchanged): «Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого — позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а на сторінці притулку — ваше речення про те, як часто ви це робите, вашими словами.»
 kabinet.profileEdit.voice.previewLabel: «Так це виглядає на сторінці притулку:» (drop {name})
 kabinet.profileEdit.actions.liveOnSave.voice: «Нове речення зʼявиться на сторінці притулку одразу після збереження.»
 kabinet.profileEdit.errors.dateTokenGone: «Дата оновлення показується на кожній картці, тому {дата} у реченні писати не потрібно.»
@@ -798,7 +798,7 @@ The new error: «Тепер речення показується на стор�
 Existing test-shelter sentences containing it are re-saved, not migrated.
 
 DR1-Q4, the R4-2 amendment. The pending sentence becomes:
-«Людині, яка шукає тварину, сайт ставить одне кукі — і тільки після першої дії: «Не зараз», «Запитати» чи «Написати». У ньому немає імені чи номера телефону, лише випадковий ідентифікатор: щоб режим «по одній» памʼятав, кого ви вже бачили, а сайт — чиї контакти ви вже відкрили. Він перестає діяти через 7 днів без візитів або через 30 днів у будь-якому разі. Окремо від кукі, якщо ви зберігаєте тварин, їхній список лежить у цьому браузері.»
+«Людині, яка шукає тварину, сайт ставить одне кукі — і тільки після першої дії: «Не зараз», «Запитати» чи «Написати». У ньому немає імені чи номера телефону, лише випадковий ідентифікатор: щоб режим «по одній» памʼятав, кого ви вже бачили, а сайт - чиї контакти ви вже відкрили. Він перестає діяти через 7 днів без візитів або через 30 днів у будь-якому разі. Окремо від кукі, якщо ви зберігаєте тварин, їхній список лежить у цьому браузері.»
 
 Note «памʼятав» with ʼ (U+02BC). Grep the catalogue for straight apostrophes in Ukrainian strings and fix them in the same PR.
 The /pro sentence for saved animals stays as I sent it.

@@ -24,7 +24,7 @@ describe("kabinetSignedInFrom", () => {
 });
 
 describe("kabinetSessionCookiePresent", () => {
-  it("fails to 'not signed in' outside a real request scope, never throws — this vitest process is exactly such a scope", async () => {
+  it("fails to 'not signed in' outside a real request scope, never throws - this vitest process is exactly such a scope", async () => {
     await expect(kabinetSessionCookiePresent()).resolves.toBe(false);
   });
 });

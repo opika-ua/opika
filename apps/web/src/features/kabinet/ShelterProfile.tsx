@@ -21,7 +21,7 @@ import { VerificationDecision } from "./VerificationDecision";
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"; mock
  * `Opika Kabinet.dc.html`, «K4 Профіль притулку» 1440 and 360). K4's sections
  * in K4's order (contacts and fundraising, then the shelter's voice and the
- * block set during verification), with every value a label–value row: the
+ * block set during verification), with every value a label-value row: the
  * pattern K4 already uses for its locked block (N10), so nothing on the page
  * looks editable. No inputs, no Save bar, and no view or inquiry counts in any
  * form (commitment #2; KABINET K4: «Немає статистики переглядів чи запитів»).

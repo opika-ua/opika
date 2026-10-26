@@ -62,7 +62,7 @@ describe("clampGalleryPage", () => {
 
   it("serves the last real page for a stale shared link", () => {
     // The case this exists for: someone sent ?stor=7, animals were adopted,
-    // there are four pages now. Not an error, not a bounce to page 1 — that
+    // there are four pages now. Not an error, not a bounce to page 1 - that
     // would lose their place and hide what happened.
     expect(clampGalleryPage(7, 4)).toBe(4);
   });

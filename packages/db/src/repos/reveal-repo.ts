@@ -29,7 +29,7 @@ export function revealRepo(db: Database) {
      * Keyset-paginated list of reveals for an adopter.
      *
      * Ordering: `(revealed_at DESC, id DESC)`. The id tiebreaker prevents
-     * skips or duplicates when two reveals share a timestamp — the same
+     * skips or duplicates when two reveals share a timestamp - the same
      * defect class as OFFSET pagination.
      */
     async listByAdopter(
@@ -64,7 +64,7 @@ export function revealRepo(db: Database) {
      * Used by the reveal rate limiter. Deliberately shelter-count, not
      * row-count: contacts are scrapeable per shelter, not per animal, so a
      * device right-swiping many animals at the same shelter should not cost
-     * more than one unit — `hasRevealedShelterRecently` below is what lets
+     * more than one unit - `hasRevealedShelterRecently` below is what lets
      * the caller skip this check entirely for a shelter already counted.
      * Keeping this query inside the repository prevents the Drizzle query
      * builder from leaking into feature code (standing check: repository
@@ -80,7 +80,7 @@ export function revealRepo(db: Database) {
 
     /**
      * Whether an adopter has already revealed *this* shelter's contact
-     * details within a time window — the free-re-reveal check the rate
+     * details within a time window - the free-re-reveal check the rate
      * limiter runs before it ever counts against the budget.
      */
     async hasRevealedShelterRecently(

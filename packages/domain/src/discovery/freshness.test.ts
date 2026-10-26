@@ -105,7 +105,7 @@ describe("freshnessOf classification", () => {
  *
  * - 1 and 2 do not render as numerals at all. Ukrainian has a dedicated word
  *   for the day before yesterday («позавчора»), and CLDR spells yesterday
- *   «учора», not «вчора» — a difference no amount of confidence would catch.
+ *   «учора», not «вчора» - a difference no amount of confidence would catch.
  * - 3 exercises the "few" form, which the named words would otherwise mask.
  * - 11 is a teen, which takes the "many" form despite ending in 1.
  * - 21 returns to the "one" form, and 22 to "few".

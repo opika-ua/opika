@@ -5,7 +5,7 @@ import postgres from "postgres";
 import * as schema from "./schema/index";
 
 /**
- * True only when this connection string actually points at Neon — the one
+ * True only when this connection string actually points at Neon - the one
  * case `drizzle-orm/neon-http`'s stateless HTTP driver can talk to.
  * Local dev and every test point at a local Postgres (docker-compose)
  * instead, which speaks the plain wire protocol and nothing else; the
@@ -14,7 +14,7 @@ import * as schema from "./schema/index";
  *
  * `.toLowerCase()` on the hostname is load-bearing, not defensive noise:
  * `postgres:` is not a WHATWG "special" scheme, so `URL` does not
- * lowercase its host the way it would for `https:` — an uppercased
+ * lowercase its host the way it would for `https:` - an uppercased
  * hostname in a real `DATABASE_URL` would otherwise fall through to the
  * TCP driver silently, with nothing erroring, undoing this whole row
  * without a single red test or log line. Caught on review.
@@ -38,24 +38,24 @@ export type Database = PostgresJsDatabase<typeof schema>;
 
 /**
  * O-9, 2026-09-06 reprioritisation ("2.1"): production's DB-backed pages
- * plateaued at a ~1s floor — every Vercel function invocation paid a
+ * plateaued at a ~1s floor - every Vercel function invocation paid a
  * fresh TCP+TLS handshake to Neon (`aws-eu-central-1`) from a function
  * executing in `iad1` (US East), on top of the Atlantic round trip
  * itself. `@neondatabase/serverless` + `drizzle-orm/neon-http` replace
- * that with one HTTP fetch per query, no handshake to repeat — the
+ * that with one HTTP fetch per query, no handshake to repeat - the
  * dependency is justified on its own terms (MIT, zero transitive
  * dependencies, the only way to reach Neon over HTTP at all), not because
  * `docs/stack-decision.md:143`'s "PgBouncer + an HTTP serverless driver"
- * already approved this specific choice — that line is a vendor-feature
+ * already approved this specific choice - that line is a vendor-feature
  * bullet in a comparison table, not a decision record for this row.
  *
  * **Did not, on its own, address the other named half of O-9's
  * diagnosis**: at the time this driver switch landed, the function still
  * executed in `iad1` with no `regions` pin anywhere in `apps/web/vercel.json`,
  * so every request still crossed the Atlantic on top of the handshake this
- * row removes. **Corrected, 2026-09-13** — stale by then: `apps/web/vercel.json`
+ * row removes. **Corrected, 2026-09-13** - stale by then: `apps/web/vercel.json`
  * has pinned `regions: ["fra1"]` since commit `f966242` ("perf(web): O-9
- * continued — pin function region to fra1, near Neon", 2026-09-09, merged the
+ * continued - pin function region to fra1, near Neon", 2026-09-09, merged the
  * same day as this driver fix via PR #53 / squash commit `61183b2`).
  * Production has run in Frankfurt, next to Neon's own Frankfurt region, since
  * that date; this
@@ -64,18 +64,18 @@ export type Database = PostgresJsDatabase<typeof schema>;
  * unrelated bot traffic, not by anyone reading this file for its own sake.
  *
  * Branches on the connection string, not on `process.env.VERCEL` or
- * similar — the actual fact that matters is which database this is
+ * similar - the actual fact that matters is which database this is
  * talking to, not which platform is running the code.
  *
  * Return type is annotated `Database` (`PostgresJsDatabase`) even on the
- * Neon branch, which really returns a `NeonHttpDatabase` at runtime — a
+ * Neon branch, which really returns a `NeonHttpDatabase` at runtime - a
  * deliberate, narrow cast, not a lie about behaviour, and not a claim
- * that the two adapter classes are interchangeable in general — they are
+ * that the two adapter classes are interchangeable in general - they are
  * not: `drizzle-orm/neon-http` throws at runtime on `db.transaction()`
  * ("No transactions support in neon-http driver"), which this file's
  * `Database` type does NOT reject at compile time. Nothing in
  * `packages/db/src/repos` calls `.transaction()` today (verified: `grep
- * -rn "\.transaction(" packages/db/src/repos` is empty) — if that ever
+ * -rn "\.transaction(" packages/db/src/repos` is empty) - if that ever
  * changes, it will typecheck cleanly and crash only against Neon in
  * production, never locally against postgres-js. The narrower claim this
  * cast actually rests on: nothing reads the raw `TQueryResult` shape that
@@ -99,7 +99,7 @@ export type Database = PostgresJsDatabase<typeof schema>;
  * of adapter. A real union (`PostgresJsDatabase | NeonHttpDatabase`) was
  * tried first and rejected: it made `swipeRepo.record`'s
  * `.onConflictDoUpdate(...).returning(...)` fail to typecheck (`Expected
- * 0 arguments, but got 1`) — a TypeScript overload-resolution artifact of
+ * 0 arguments, but got 1`) - a TypeScript overload-resolution artifact of
  * unioning two generically-parameterised classes, confirmed by the same
  * call typechecking cleanly against each adapter individually in
  * isolation, not a real behavioural incompatibility between them for

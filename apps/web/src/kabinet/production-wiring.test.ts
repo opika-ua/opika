@@ -214,7 +214,7 @@ describe("productionMailOf: each email through its own route (EM-T22, EM-T18)", 
     expect(body.to).toEqual(["olena@example.org"]);
     expect(body.reply_to).toBe("hello@example.org");
     // Transcribed: row 82's signature line, filled with the configured name.
-    expect(body.text).toContain("— Олексій Колотенко");
+    expect(body.text).toContain("- Олексій Колотенко");
   });
 
   it("sends the invite through routes.invite, with the block check on that route's provider", async () => {

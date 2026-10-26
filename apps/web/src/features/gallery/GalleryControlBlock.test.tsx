@@ -17,7 +17,7 @@ describe("GalleryControlBlock", () => {
   });
 
   /**
-   * The row stays mounted at all times now (it used to unmount on close) —
+   * The row stays mounted at all times now (it used to unmount on close) -
    * Oleksii asked for an animated height change, and an unmounted element
    * has no height to animate from. `aria-hidden`/`inert` are what verify
    * "closed" instead of DOM absence: `queryByText` doesn't look at either

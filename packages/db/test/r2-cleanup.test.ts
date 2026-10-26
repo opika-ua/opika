@@ -17,7 +17,7 @@ import {
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). `runR2Cleanup` is tested
  * against a real, migrated local database with an in-memory fake standing in
- * for the real R2 client — the fake implements exactly `R2CleanupClient`'s
+ * for the real R2 client - the fake implements exactly `R2CleanupClient`'s
  * contract (list, delete in batches, report per-key failure), so a swap to
  * the real `createR2CleanupClient` changes nothing this test depends on.
  * The real client itself is tested only against a separate test bucket
@@ -76,7 +76,7 @@ describe("runR2Cleanup", () => {
 
     expect(report.scanned).toBe(1);
     expect(report.newlyTracked).toBe(1);
-    // Just tracked, at the same instant as "now" — 0 elapsed days, under the default 7-day grace.
+    // Just tracked, at the same instant as "now" - 0 elapsed days, under the default 7-day grace.
     expect(report.dueForDeletion).toEqual([]);
     expect(report.deleted).toEqual([]);
     expect(r2.remaining()).toEqual([orphan]); // untouched
@@ -101,7 +101,7 @@ describe("runR2Cleanup", () => {
     // A mock, not a real race: proves runR2Cleanup's delete step is driven
     // by stillUnreferenced's own return value, which removing the call
     // entirely (the mutation the delta review tried) would break even
-    // though no other test here catches it — those tests all arrange for
+    // though no other test here catches it - those tests all arrange for
     // recordScan's own self-heal to clear a re-referenced key before it
     // ever reaches `due`, so they never actually exercise this call.
     const kept = variantObjectKey("animals/kept/1", "card");
@@ -131,7 +131,7 @@ describe("runR2Cleanup", () => {
   it("re-checks before each batch, not once for the whole run (Tier 1 review, PR #200, finding re: 'before each batch' never being built)", async () => {
     // 1500 due keys cross the 1000-key batch boundary (DELETE_BATCH_SIZE in
     // r2-cleanup-run.ts, matching r2-cleanup-client.ts's own real network
-    // batch). A spy counts how many times — and with how many keys —
+    // batch). A spy counts how many times - and with how many keys -
     // stillUnreferenced is actually called.
     const keys = Array.from({ length: 1500 }, (_, i) => `animals/batch-${i}/card.webp`);
     await recordScan(db, keys, NOW);
@@ -170,7 +170,7 @@ describe("runR2Cleanup", () => {
     const report = await runR2Cleanup(db, r2, past, { commit: true, graceDays: undefined });
 
     // The scan step itself untracks it (recordScan's own self-heal), so it
-    // never reaches "due" in the first place — belt and suspenders with the
+    // never reaches "due" in the first place - belt and suspenders with the
     // stillUnreferenced re-check inside runR2Cleanup.
     expect(report.dueForDeletion).toEqual([]);
     expect(r2.remaining()).toEqual([key]);
@@ -271,7 +271,7 @@ describe("parseCleanupArgs", () => {
   it("refuses --grace-days without --commit", () => {
     // His R2-B1 words, verbatim: "--grace-days 0 allowed only in a manual
     // run with --commit". A Tier 1 delta review raised whether a
-    // read-only preview should be allowed too — an open question for him
+    // read-only preview should be allowed too - an open question for him
     // (R2-F4), not decided here either way.
     expect(parseCleanupArgs(argv("--expect", "ep-x", "--grace-days", "0"))).toEqual({
       kind: "refused",
@@ -288,7 +288,7 @@ describe("parseCleanupArgs", () => {
   });
 
   it("refuses an empty or whitespace-only --grace-days, never reading it as 0", () => {
-    // Number("") and Number(" ") are both 0 — the most destructive value
+    // Number("") and Number(" ") are both 0 - the most destructive value
     // this flag takes (Tier 1 review, PR #200, note 10).
     expect(parseCleanupArgs(argv("--commit", "--grace-days", "")).kind).toBe("refused");
     expect(parseCleanupArgs(argv("--commit", "--grace-days", "   ")).kind).toBe("refused");

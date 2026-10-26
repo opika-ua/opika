@@ -45,7 +45,7 @@ describe("evaluatePrelaunchGate", () => {
     expect(decision.setCookieHeader).toContain("SameSite=Lax");
   });
 
-  it("prefers a valid cookie over an invalid query value — an already-admitted browser is never re-checked against a mistyped param", () => {
+  it("prefers a valid cookie over an invalid query value - an already-admitted browser is never re-checked against a mistyped param", () => {
     const decision = evaluatePrelaunchGate(`${cookieName()}=${SECRET}`, "garbage", SECRET);
     expect(decision).toEqual({ kind: "allowed" });
   });
@@ -61,7 +61,7 @@ describe("evaluatePrelaunchGate", () => {
     expect(decision.setCookieHeader).not.toContain("Secure");
   });
 
-  it("mints a __Host-prefixed, Secure cookie in production — the actual production shape, not just the dev fallback", () => {
+  it("mints a __Host-prefixed, Secure cookie in production - the actual production shape, not just the dev fallback", () => {
     vi.stubEnv("NODE_ENV", "production");
     const decision = evaluatePrelaunchGate(null, SECRET, SECRET);
     if (decision.kind !== "allowed_mint_cookie") throw new Error("unreachable");
@@ -83,7 +83,7 @@ describe("evaluatePrelaunchGate", () => {
    * on UTF-8 buffers. A guess equal in `.length` to the real secret but
    * containing a multi-byte character produces a *different* byte length,
    * which `timingSafeEqual` throws `RangeError` on rather than returning
-   * `false` — an unauthenticated caller could crash this check on every
+   * `false` - an unauthenticated caller could crash this check on every
    * request just by trying a non-ASCII guess. Fixed by comparing buffer
    * length instead of string length.
    */

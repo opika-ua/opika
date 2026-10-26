@@ -104,21 +104,21 @@ describe("runDeliveryTest: both emails through Resend", () => {
         "Добрий день. На цю адресу запитали посилання для входу до кабінету притулку.",
         "http://localhost:3000/kabinet/vkhid/pidtverdzhennia?token=TEST-r1",
         "Посилання спрацює один раз і діє 15 хвилин.",
-        "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n— Олексій",
+        "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n- Олексій",
       ].join("\n\n"),
     );
     expect(invite.subject).toBe("Ваш доступ до кабінету притулку");
     expect(invite.text).toBe(
       [
         "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «Тестовий» на сайті Opika.",
-        "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
+        "У кабінеті ви бачите дані притулку - і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки - юридичну особу, ЄДРПОУ чи адресу, - напишіть мені.",
         "http://localhost:3000/kabinet/vkhid?zaproshennia=TEST-r2",
-        "Запрошення діє 72 години. Якщо не встигнете — я надішлю нове.",
-        "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n— Олексій",
+        "Запрошення діє 72 години. Якщо не встигнете - я надішлю нове.",
+        "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n- Олексій",
       ].join("\n\n"),
     );
-    expect(invite.html).toContain("<br>— Олексій</p>");
-    expect(signIn.html).toContain("<br>— Олексій</p>");
+    expect(invite.html).toContain("<br>- Олексій</p>");
+    expect(signIn.html).toContain("<br>- Олексій</p>");
   });
 
   it("sends both with exactly Resend's six fields: no headers, tags or List-Unsubscribe, on the bytes that went out", async () => {
@@ -141,8 +141,8 @@ describe("runDeliveryTest: both emails through Resend", () => {
       expect(await runDeliveryTest({ ...h.input, operatorName })).toBe(0);
       const [signIn, invite] = h.calls.map(bodyOf);
       // Round 2, answer 6, verbatim: "Email signature fallback: capitalise it → «— Адміністратор сайту»."
-      expect(signIn.text.endsWith("\n— Адміністратор сайту"), String(operatorName)).toBe(true);
-      expect(invite.text.endsWith("\n— Адміністратор сайту"), String(operatorName)).toBe(true);
+      expect(signIn.text.endsWith("\n- Адміністратор сайту"), String(operatorName)).toBe(true);
+      expect(invite.text.endsWith("\n- Адміністратор сайту"), String(operatorName)).toBe(true);
     }
   });
 
@@ -151,8 +151,8 @@ describe("runDeliveryTest: both emails through Resend", () => {
     const h = harness();
     expect(await runDeliveryTest({ ...h.input, operatorName: "Олексій Колотенко" })).toBe(0);
     for (const body of h.calls.map(bodyOf)) {
-      expect(body.text.endsWith("\n— Олексій Колотенко")).toBe(true);
-      expect(body.html).toContain("<br>— Олексій Колотенко</p>");
+      expect(body.text.endsWith("\n- Олексій Колотенко")).toBe(true);
+      expect(body.html).toContain("<br>- Олексій Колотенко</p>");
     }
   });
 

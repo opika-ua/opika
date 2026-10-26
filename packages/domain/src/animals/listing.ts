@@ -46,7 +46,7 @@ export type UndoableConfirmation = z.infer<typeof UndoableConfirmationSchema>;
  * reserved" is answerable without a separate event log.
  *
  * `reserved` additionally carries `publishedAt` forward from the state it came
- * from — the same shape, and the same reason, as `suspended` carrying
+ * from - the same shape, and the same reason, as `suspended` carrying
  * `priorStatus` in the shelter verification FSM. Without it `reserved` would
  * mean both "just became unavailable" (`since`) and "has been available, and
  * waiting, since some earlier date", and a sort named longest-waiting needs
@@ -115,7 +115,7 @@ export type AnimalListingState = z.infer<typeof AnimalListingStateSchema>;
  *
  * A query builder cannot call a TypeScript function, so persistence would
  * otherwise hand-write `IN ('published','reserved')` with no link back to
- * this file — and adding a listing state later would update the predicate while
+ * this file - and adding a listing state later would update the predicate while
  * the SQL kept the old list, silently. The `satisfies` makes that a build
  * failure instead.
  *
@@ -137,14 +137,14 @@ export const isDiscoverable = (listing: AnimalListingState): listing is Discover
   (DISCOVERABLE_LISTING_KINDS as readonly string[]).includes(listing.kind);
 
 /**
- * When the animal became available to adopters — the value a "longest waiting"
+ * When the animal became available to adopters - the value a "longest waiting"
  * ordering sorts on, and `null` for any listing that is not offering the animal
  * to anyone.
  *
  * Deliberately *not* `lastUpdatedAt`: that is edit time, so a shelter fixing a
  * typo would make a dog that has waited four months read as freshly available.
  * Equally deliberately not `reserved.since`, which is when the animal stopped
- * being available — sorting on it would rank the longest-waiting animal in the
+ * being available - sorting on it would rank the longest-waiting animal in the
  * corpus as the newest the moment someone provisionally spoke for it, and
  * reserved animals stay in the feed precisely because reservations fall
  * through.
@@ -180,7 +180,7 @@ export const waitAnchorOf = (listing: AnimalListingState): Date | null => {
 };
 
 /**
- * When the shelter last confirmed the animal is still looking — what
+ * When the shelter last confirmed the animal is still looking - what
  * freshness measures, what the deck's keyset and the gallery's `freshest`
  * sort order on, and `null` for any listing no adopter can see.
  *

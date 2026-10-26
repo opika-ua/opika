@@ -18,13 +18,13 @@ interface SaveButtonProps {
 
 /**
  * The save toggle (designer round 1, S7; DR1-D8: the overlay and the animal page, since both
- * render this same `AnimalDetailScreen` — not the gallery card or the deck card). Bookmark
+ * render this same `AnimalDetailScreen` - not the gallery card or the deck card). Bookmark
  * icon, no heart (his DR1-Q3). `aria-pressed` carries the state to a screen reader the same
  * way it decides the fill, so the two can never disagree.
  *
  * Read lazily in an effect, not at render: `localStorage` doesn't exist during server
  * rendering, and reading it during the client's first render (before hydration) would mismatch
- * what the server sent. The button renders unsaved until that effect runs, which is correct —
+ * what the server sent. The button renders unsaved until that effect runs, which is correct -
  * nothing about `isAnimalSaved` is knowable before then.
  */
 export function SaveButton({ animalId, animalName }: SaveButtonProps) {

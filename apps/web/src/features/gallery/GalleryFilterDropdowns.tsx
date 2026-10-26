@@ -67,31 +67,31 @@ const COAT_LABEL: Record<CoatLength, string> = {
  * real defects in the `<details>` version this replaces: (1) the options
  * panel sized to its widest option's own content (`w-max`), so a short
  * option like "Малий" didn't fill the same row width as "Великий"; (2)
- * `<details>` has no native "light dismiss" — it only closes on a second
+ * `<details>` has no native "light dismiss" - it only closes on a second
  * click of the summary, never on an outside click; (3) Tailwind's
  * preflight resets `cursor` on form-adjacent interactive elements to
  * `default`, so nothing here looked clickable without an explicit
  * `cursor-pointer`.
  *
  * Still multi-value (`FilterSelection`, toggle chips, never one-of-many)
- * for every dimension here — the hand-off's original "`<select>` if
+ * for every dimension here - the hand-off's original "`<select>` if
  * single-value" guidance never applied regardless of which disclosure
  * mechanism wraps the options, so this stays a list of real toggle links,
  * not a native `<select>` with single-choice semantics.
  *
- * The trailing icon swaps to a clear-all ✕ once a value is set — Oleksii,
+ * The trailing icon swaps to a clear-all ✕ once a value is set - Oleksii,
  * mid-build, verbatim: "replacing chevron icon with X to clear all filters
  * [in] 1 click... if multiple filters are chosen its hard to reset all of
  * them because it requires tons of clicks." The ✕ glyph and its styling
  * are this app's own existing close affordance (`AnimalOverlay.tsx`,
  * `FilterSheet.tsx`'s own sheet-close button both use the same bare "✕"
- * text, not an icon asset), reused here rather than invented — "same size
+ * text, not an icon asset), reused here rather than invented - "same size
  * and color and style for X" was his own instruction. It never rotates
  * (unlike the chevron it replaces, which does on open/close): his words,
  * verbatim, "dont rotate X when filter opens."
  *
  * The clear button is a sibling of the toggle `<button>`, not nested
- * inside it — interactive elements cannot nest in valid HTML, and this one
+ * inside it - interactive elements cannot nest in valid HTML, and this one
  * needs its own click handler (navigate to the cleared href, then close
  * the panel) independent of the toggle's open/closed click.
  */
@@ -123,7 +123,7 @@ function Dropdown({
       if (event.key === "Escape") {
         setOpen(false);
         // Escape returns focus to the trigger (WAI-ARIA APG's listbox/combobox
-        // pattern); an outside click doesn't need this — focus already moved
+        // pattern); an outside click doesn't need this - focus already moved
         // to whatever the pointer landed on.
         buttonRef.current?.focus();
       }
@@ -141,7 +141,7 @@ function Dropdown({
     // flex-1 (not a fixed width): when five dropdowns don't fit one row and
     // the last one wraps alone, flexbox distributes grow/shrink per wrapped
     // line independently, so that lone item stretches to fill the row
-    // instead of sitting narrow beside empty space — the specific "looks a
+    // instead of sitting narrow beside empty space - the specific "looks a
     // bit weird" Oleksii flagged from a live screenshot. min-w keeps it from
     // shrinking past a readable width before the row wraps at all.
     <div ref={rootRef} className="relative min-w-[11rem] flex-1">
@@ -159,13 +159,13 @@ function Dropdown({
           active ? "border-brand-accent text-brand-ink" : "border-brand-line text-brand-muted"
         } ${open ? "border-brand-accent" : ""}`}
       >
-        {/* `uppercase` only on the placeholder, never on a selected value —
+        {/* `uppercase` only on the placeholder, never on a selected value -
             city/age/size/species's own legends ("МІСТО"/"ВІК"/"РОЗМІР"/"ВИД")
             happen to already be uppercase strings, but fur's own approved
             text (`uk.filters.coat`, "Шерсть") isn't, which is what made it
             look inconsistent. Styling this here, once, generically on
             `!active`, fixes that without touching any dimension's approved
-            Ukrainian — a selected value (e.g. "Бровари") still renders in
+            Ukrainian - a selected value (e.g. "Бровари") still renders in
             its own natural case regardless of dimension. */}
         <span className={`truncate ${active ? "" : "uppercase"}`}>{label}</span>
         {/* Reserves the chevron's own slot even when it's replaced, so the
@@ -186,11 +186,11 @@ function Dropdown({
           aria-label={uk.filters.clearDimension.replace("{dimension}", legend)}
           data-testid="dropdown-clear"
           // 48px hit area (min-h-12/min-w-12), matching FilterSheet.tsx's own
-          // "✕" close affordance — the same glyph at size-5 (20px) was below
+          // "✕" close affordance - the same glyph at size-5 (20px) was below
           // both the 48px floor this app uses elsewhere and WCAG 2.5.8's 24px
           // minimum target size. `right-1.5` (not `right-5`) keeps the glyph
           // itself centered on the same spot the chevron it replaces occupies
-          // — only the invisible padding around it grew.
+          // - only the invisible padding around it grew.
           className="absolute top-1/2 right-1.5 flex min-h-12 min-w-12 -translate-y-1/2 cursor-pointer items-center justify-center text-[16px] text-brand-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
         >
           <span aria-hidden="true">✕</span>
@@ -231,16 +231,16 @@ function DropdownOption({
 }
 
 /**
- * The gallery-v3 control block's five real dropdowns — city, age, size,
+ * The gallery-v3 control block's five real dropdowns - city, age, size,
  * species, fur (Figma `58:1617` shows four, city/age/size/«Стать»; species
  * and fur are added here per Oleksii's Tier 1 review decision GV3-Q1 (b),
  * 2026-10-26, closing the gap the Tier 1 reviewer found: without them,
  * `desktop:` had no control at all for two of `FeedFilters`' five
- * dimensions — `FilterSheet`'s own species/fur checkboxes exist but that
+ * dimensions - `FilterSheet`'s own species/fur checkboxes exist but that
  * whole sheet is `desktop:hidden`).
  *
  * **Still no «Стать» (sex) dropdown, unchanged reasoning:** `FeedFilters`
- * (`packages/domain`) has no sex dimension at all — no param, no toggle
+ * (`packages/domain`) has no sex dimension at all - no param, no toggle
  * helper, no DB predicate. Adding one is a schema/contract/domain/db
  * change, not a skin, and `docs/standing-constraints.md`'s STOP list names
  * exactly this case ("widening a schema for a temporary mode"). Shipping a
@@ -248,14 +248,14 @@ function DropdownOption({
  * doesn't; a sex filter, if wanted, is its own follow-up phase.
  *
  * Species and fur mirror `FilterSheet.tsx`'s own `SPECIES_LABEL`/
- * `COAT_LABEL` maps (duplicated, not imported — same risk `FilterRail.tsx`,
+ * `COAT_LABEL` maps (duplicated, not imported - same risk `FilterRail.tsx`,
  * the old toggle-link UI for these two dimensions, already carried before
  * it was deleted) and reuse `filter-url.ts`'s `withToggledSpecies`/
- * `withToggledCoat` — the same helpers `FilterRail` called, not
+ * `withToggledCoat` - the same helpers `FilterRail` called, not
  * `FilterSheet`, which submits a native `<form>` instead of navigating
  * per-option links.
  *
- * Hidden below `desktop:` — "Below 1024px... Hide the dropdowns; «Фільтр»
+ * Hidden below `desktop:` - "Below 1024px... Hide the dropdowns; «Фільтр»
  * opens the sheet" (`FilterSheet.tsx`, still wired at every width since
  * this PR).
  */
@@ -305,12 +305,12 @@ export function GalleryFilterDropdowns({
     <div
       data-testid="gallery-filter-dropdowns"
       // flex-wrap: five dropdowns at their natural w-53 (212px) plus four
-      // gap-3 (12px) gaps come to 1108px — wider than the 912px of content
+      // gap-3 (12px) gaps come to 1108px - wider than the 912px of content
       // width the page's own desktop:px-14 gutters leave at the 1024px
       // desktop floor (measured live, not assumed). Figma's frame never
       // anticipated five, so there's no mock geometry to match here.
       // Each `Dropdown` is now `flex-1` rather than a fixed width (Oleksii,
-      // from a live screenshot: "2 rows of filters look a bit weird") — this
+      // from a live screenshot: "2 rows of filters look a bit weird") - this
       // doesn't stop wrapping from happening when it must, but it does mean
       // a lone item stranded on its own row stretches to fill that row
       // instead of sitting narrow beside empty space, which was the actual

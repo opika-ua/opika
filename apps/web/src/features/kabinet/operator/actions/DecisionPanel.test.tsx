@@ -185,15 +185,15 @@ describe("pending → «Взяти на розгляд» → «Схвалити�
     expect(approve.getAttribute("aria-disabled")).toBe("true");
     const description = approve.getAttribute("aria-describedby") ?? "";
     const blocked = document.getElementById(description);
-    expect(blocked?.textContent).toContain("Схвалити поки не можна — бракує доказів:");
+    expect(blocked?.textContent).toContain("Схвалити поки не можна - бракує доказів:");
     expect(
       within(blocked as HTMLElement)
         .getAllByRole("listitem")
         .map((li) => li.textContent),
     ).toEqual([
-      "Для схвалення бракує: Реєстрація · ЄДРПОУ — 0 з 1.",
-      "Для схвалення бракує: Власник банківського рахунку — 0 з 1.",
-      "Для схвалення бракує: Рекомендація — 0 з 1.",
+      "Для схвалення бракує: Реєстрація · ЄДРПОУ - 0 з 1.",
+      "Для схвалення бракує: Власник банківського рахунку - 0 з 1.",
+      "Для схвалення бракує: Рекомендація - 0 з 1.",
     ]);
     await userEvent.click(approve);
     expect(fns.verification.approve).not.toHaveBeenCalled();
@@ -221,7 +221,7 @@ describe("pending → «Взяти на розгляд» → «Схвалити�
         .getByRole("button", { name: "Схвалити → «Перевірено»" })
         .getAttribute("aria-disabled"),
     ).toBe("true");
-    expect(panel().getByText("Схвалити поки не можна — бракує доказів:")).toBeTruthy();
+    expect(panel().getByText("Схвалити поки не можна - бракує доказів:")).toBeTruthy();
   });
 });
 

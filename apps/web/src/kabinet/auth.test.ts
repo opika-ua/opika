@@ -194,7 +194,7 @@ async function signIn(email: string, acceptInvitation?: AcceptInvitation): Promi
   return cookie.split(";")[0] ?? "";
 }
 
-describe("ids (review of rows 1–2, finding 1)", () => {
+describe("ids (review of rows 1-2, finding 1)", () => {
   it("a user created through Better Auth's adapter gets an app-generated UUID", async () => {
     const user = await createUser("olena@example.org");
     expect(user.id).toMatch(UUID);
@@ -911,7 +911,7 @@ describe("plugins (HS-T2, HS-Q7)", () => {
    * the super_admin role lives in `super_admins` only. This fails if any
    * plugin beyond these two is added, the admin plugin included.
    */
-  it("runs magic-link and organization only — never the admin plugin", () => {
+  it("runs magic-link and organization only - never the admin plugin", () => {
     const ids = (auth.options.plugins ?? []).map((plugin) => plugin.id);
     expect(ids).not.toContain("admin");
     expect([...ids].sort()).toEqual(["magic-link", "organization"]);
@@ -1157,7 +1157,7 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
     expect(refused.headers.get("cache-control")).toBe("no-store");
     expect(refused.headers.get("referrer-policy")).toBe("strict-origin");
     expect(card).toContain(
-      '<p role="alert">Забагато спроб входу за короткий час. Посилання ще дійсне — зачекайте хвилину й знову натисніть «Увійти».</p>',
+      '<p role="alert">Забагато спроб входу за короткий час. Посилання ще дійсне - зачекайте хвилину й знову натисніть «Увійти».</p>',
     );
     const token = new URL(link).searchParams.get("token") ?? "";
     expect(card).toContain(`<input type="hidden" name="token" value="${token}">`);

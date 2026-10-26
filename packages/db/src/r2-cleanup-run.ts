@@ -1,10 +1,10 @@
 /**
- * GDPR photo retention (`docs/gdpr-analysis.md`) — the orchestration
+ * GDPR photo retention (`docs/gdpr-analysis.md`) - the orchestration
  * `r2-cleanup.ts` (the CLI) and `apps/web`'s `/api/cron/r2-cleanup` cron both
  * call. Split out from `r2-cleanup.ts` on purpose: that file also imports
  * `prod-guard.ts` for its CLI's own guard, and `prod-guard.ts`'s
  * `productionEndpoint` does a dynamic `readFileSync` that Next.js's build
- * traces by walking the whole repository — harmless for a Node CLI script,
+ * traces by walking the whole repository - harmless for a Node CLI script,
  * but importing it (even transitively, through `image-pipeline/server.ts`'s
  * re-export) into anything the web app's route handlers reach drags that
  * trace into the deployed bundle. This file has no such import, so
@@ -20,11 +20,11 @@ import {
   trackedUnreferencedObjects,
 } from "./repos/r2-cleanup-repo";
 
-/** The one namespace this job ever touches — `isRealPhotoKey`'s own bound. */
+/** The one namespace this job ever touches - `isRealPhotoKey`'s own bound. */
 export const ANIMAL_PHOTO_PREFIX = "animals/";
 
 /**
- * Matches `r2-cleanup-client.ts`'s own `DELETE_BATCH_SIZE` — the re-check
+ * Matches `r2-cleanup-client.ts`'s own `DELETE_BATCH_SIZE` - the re-check
  * below runs once per batch at this same size, so "before each batch"
  * means the same batch the real R2 call makes, not an arbitrary smaller
  * slice (Tier 1 review, PR #200, finding re: "re-checking before each
@@ -50,13 +50,13 @@ export type R2CleanupReport = {
 
 /**
  * One full run. Always scans and records (bookkeeping, idempotent, never
- * destructive — see `recordScan`'s own doc comment), so a dry run's report
+ * destructive - see `recordScan`'s own doc comment), so a dry run's report
  * of what's due is accurate rather than stale. Deletes for real only when
- * `commit`, and re-checks right before deleting (`stillUnreferenced`) —
+ * `commit`, and re-checks right before deleting (`stillUnreferenced`) -
  * Oleksii's own requirement, "re-checking before each batch," so a key
  * referenced again since the scan is never deleted. "Each batch" is this
  * file's own `DELETE_BATCH_SIZE` chunk, matching `r2-cleanup-client.ts`'s
- * own real network batch — the re-check and the delete for one chunk
+ * own real network batch - the re-check and the delete for one chunk
  * happen back to back before the next chunk's re-check even starts,
  * narrowing the race window to one chunk's own round trip rather than the
  * whole run's (Tier 1 review, PR #200: an earlier version of this comment

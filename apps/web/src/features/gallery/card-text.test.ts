@@ -115,7 +115,7 @@ describe("cardFactsParts", () => {
     expect(cardFactsParts(card)).toEqual(["дорослий", "велика"]);
   });
 
-  it("never mentions the city — city stays in the accessible name only", () => {
+  it("never mentions the city - city stays in the accessible name only", () => {
     const card = makeCard({
       publicLocation: { cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never },
     });
@@ -133,7 +133,7 @@ describe("cardSpeciesBadgeTone", () => {
 });
 
 describe("cardAccessibleName", () => {
-  it("composes name, age, city, then the freshness sentence — docs/design/README.md 'Keyboard'", () => {
+  it("composes name, age, city, then the freshness sentence - docs/design/README.md 'Keyboard'", () => {
     const card = makeCard({ name: "Мурчик", ageBucket: "young" });
     const expected = `Мурчик, молодий, Бровари, ${freshnessLabel(FRESHNESS)}`;
     expect(cardAccessibleName(card, "Бровари")).toBe(expected);

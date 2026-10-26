@@ -16,14 +16,14 @@ import { type CommitDirection, type DeckState, SwipeDeck } from "./SwipeDeck";
 
 /**
  * The deck's action row is the only way through the feed for anyone who cannot
- * perform a drag — a keyboard user, a switch user, anyone on a device where
+ * perform a drag - a keyboard user, a switch user, anyone on a device where
  * the pointer gesture misbehaves. That makes "reachable by keyboard" a
  * correctness property, not a nicety.
  */
 
 /**
  * `SwipeDeck`'s own reveal (`useReveal`) requires a real `ensureSession`
- * prop — no default, on purpose, since R3's own STOP finding was two
+ * prop - no default, on purpose, since R3's own STOP finding was two
  * independent session-bootstrap calls racing each other. Every render
  * site below passes this same resolved-true stub; the tests about the
  * reveal's own bootstrap ordering mock `revealBrowserClient` directly
@@ -58,21 +58,21 @@ vi.mock("../../api/browser-client", () => ({
 }));
 
 /**
- * Wraps the real `useSwipeGesture` (not a stand-in — `onDrag`/`cardRef`/
+ * Wraps the real `useSwipeGesture` (not a stand-in - `onDrag`/`cardRef`/
  * `onSnapBack`/`onCommit` all keep behaving exactly as they do outside
  * tests) purely to capture the `canCommit` predicate `SwipeDeck` passes in.
  *
  * `canCommit`, not `onCommit`: the re-entrancy guard for a right-drag while
  * a reveal is already loading lives in `canCommit`, checked by the real
- * hook *before* any exit animation starts — never inside `handleCommit`
+ * hook *before* any exit animation starts - never inside `handleCommit`
  * (`onCommit`) itself, which by construction only ever runs after a real
  * drag's exit animation has already finished. A review caught that the
- * inverse — guarding inside `onCommit` and calling `setDx(0)` — cannot
+ * inverse - guarding inside `onCommit` and calling `setDx(0)` - cannot
  * actually undo anything: the exit animation writes the off-screen
  * `transform` straight to the DOM node, a write `dx` never controlled to
  * begin with, so a card blocked that way stayed stuck off-screen forever.
  * `use-swipe-gesture.test.tsx` proves the hook itself takes the spring-back
- * path when `canCommit` refuses a commit; this file's own job is narrower —
+ * path when `canCommit` refuses a commit; this file's own job is narrower -
  * proving `SwipeDeck` wires `canCommit` to `revealState.kind`, the one thing
  * that test, driven by a bare harness with no reveal state at all, cannot
  * reach.
@@ -132,7 +132,7 @@ function renderDeck(overrides: { onSwipe?: (id: AnimalId, dir: CommitDirection) 
 }
 
 describe("SwipeDeck action row", () => {
-  it("renders exactly two actions — R2 dropped the third «Далі» button", () => {
+  it("renders exactly two actions - R2 dropped the third «Далі» button", () => {
     renderDeck();
 
     const actionRow = within(screen.getByTestId("action-row"));
@@ -145,7 +145,7 @@ describe("SwipeDeck action row", () => {
     renderDeck();
 
     const notice = screen.getByTestId("not-a-judgement-notice");
-    expect(notice.textContent).toBe("«Не зараз» — це просто фільтр, а не оцінка тварини.");
+    expect(notice.textContent).toBe("«Не зараз» - це просто фільтр, а не оцінка тварини.");
 
     // Real pixel placement is the harness's job (jsdom doesn't lay out);
     // DOM order is what this test can actually check, and it's what
@@ -174,7 +174,7 @@ describe("SwipeDeck action row", () => {
   });
 
   /**
-   * Focus is not enough — a focusable element that ignores Enter is a dead end.
+   * Focus is not enough - a focusable element that ignores Enter is a dead end.
    * These assert the swipe actually fires, and in the right direction, since
    * "Написати" and "Не зараз" mean opposite things to the adopter.
    */
@@ -208,7 +208,7 @@ describe("SwipeDeck action row", () => {
 
 /**
  * R3 (Phase R, `docs/build-plan.md`): «Написати» both records the swipe
- * (unchanged from R1 — `onSwipe` still fires) and opens the same reveal
+ * (unchanged from R1 - `onSwipe` still fires) and opens the same reveal
  * dialog the detail page uses. No `secondaryAction`: the deck's own
  * requirement is "no exit back to the gallery," so unlike the detail
  * page's dialog there is no `reveal-back-to-gallery` link here at all.
@@ -242,7 +242,7 @@ describe("SwipeDeck reveal", () => {
 
     // The deck's own `ensureSession` (here, `ENSURE_SESSION`) is what gates
     // the reveal, NOT a second, independent `revealBrowserClient.session
-    // .bootstrap` call — caught on review: two concurrent, cookie-less
+    // .bootstrap` call - caught on review: two concurrent, cookie-less
     // bootstrap calls (one from `use-feed-deck.ts`'s own swipe-recording,
     // one from an earlier version of the deck's reveal) couldn't tell the
     // server they were the same visitor and minted two adopters. Asserting
@@ -253,7 +253,7 @@ describe("SwipeDeck reveal", () => {
     expect(revealCall).toHaveBeenCalledWith({ animalId: topCard.id });
     expect(screen.getByText(`Ви запитали про ${topCard.name}.`)).toBeTruthy();
 
-    // R1's own recording is unchanged — R3 adds the reveal on top of it,
+    // R1's own recording is unchanged - R3 adds the reveal on top of it,
     // not instead of it.
     expect(onSwipe).toHaveBeenCalledWith(topCard.id, "right");
   });
@@ -268,7 +268,7 @@ describe("SwipeDeck reveal", () => {
     expect(screen.queryByTestId("reveal-dialog")).toBeNull();
   });
 
-  it("has no secondary 'back to gallery' link — the deck's own requirement is no exit at all", async () => {
+  it("has no secondary 'back to gallery' link - the deck's own requirement is no exit at all", async () => {
     const { cards } = renderDeckForReveal();
     const topCard = cards[0];
     if (!topCard) throw new Error("generateMockCards(5) must return at least one card");
@@ -299,11 +299,11 @@ describe("SwipeDeck reveal", () => {
 
     expect(screen.queryByTestId("reveal-dialog")).toBeNull();
     // The deck itself already advanced past the first card the instant
-    // «Написати» committed — closing the dialog is purely a dialog-local
+    // «Написати» committed - closing the dialog is purely a dialog-local
     // change, never a second effect on deck state.
     expect(onSwipe).toHaveBeenCalledTimes(1);
     // Caught on review: closing used to leave focus nowhere in particular
-    // (a keyboard user's next Tab would restart from the header) — the
+    // (a keyboard user's next Tab would restart from the header) - the
     // detail page's own `RevealFlow` already returns focus to its
     // trigger on close, and the deck's reveal was missing the same
     // contract until this fix.
@@ -367,7 +367,7 @@ describe("SwipeDeck reveal", () => {
     fireEvent.click(screen.getByRole("button", { name: uk.actions.write }));
     await screen.findByTestId("reveal-dialog");
 
-    // What `use-feed-deck.ts`'s own `onSwipe` does next in the real app —
+    // What `use-feed-deck.ts`'s own `onSwipe` does next in the real app -
     // the last card commits, the deck state moves to "exhausted". The
     // dialog is rendered as a sibling of the deck's own content, not
     // nested inside the "ready" branch, specifically so this rerender
@@ -389,7 +389,7 @@ describe("SwipeDeck reveal", () => {
    * PARKED section ("R3 — focus-on-close has one uncovered edge case"): the
    * same scenario as the test above (a right-swipe on the last card exhausts
    * the deck while the reveal dialog is still open), carried one step
-   * further — actually closing it. `writeButtonRef.current` is `null` here
+   * further - actually closing it. `writeButtonRef.current` is `null` here
    * (the button the ready-state branch renders has already unmounted), so
    * `closeRevealAndRefocus` must fall back to `ExhaustedState`'s own
    * heading rather than silently landing on `<body>`.
@@ -434,7 +434,7 @@ describe("SwipeDeck reveal", () => {
    * Caught on review: with no guard, a second «Написати» press (or an
    * equivalent right-drag) while the first reveal is still in flight
    * could spend a second reveal on a slower network, and a stale first
-   * response landing after a faster second one would overwrite it —
+   * response landing after a faster second one would overwrite it -
    * `useReveal.ts`'s own generation guard closes the data half of that;
    * disabling the button while loading closes the "why would anyone
    * press it twice" half, matching `RevealFlow.tsx`'s own trigger.
@@ -471,13 +471,13 @@ describe("SwipeDeck reveal", () => {
    * a reveal is already in flight needs the identical outcome the button's
    * own `disabled` prop gives it. The test above proves the button half (a
    * disabled button never reaches `handleCommit` at all); this proves
-   * `SwipeDeck` wires the drag half — `canCommit` — to the same
+   * `SwipeDeck` wires the drag half - `canCommit` - to the same
    * `revealState.kind`, the one thing `use-swipe-gesture.test.tsx`'s own
    * `canCommit` coverage cannot reach, since that file's harness carries no
    * reveal state of its own. Reading `capturedCanCommit`'s return value
    * directly, rather than simulating a drag and asserting on `onSwipe`/
    * `revealCall` call counts, tests the actual predicate the real hook
-   * consults before ever starting an exit animation — not a side effect one
+   * consults before ever starting an exit animation - not a side effect one
    * step removed from it.
    */
   it("canCommit refuses a right-drag while a reveal is already in flight, allows it once resolved", async () => {
@@ -500,7 +500,7 @@ describe("SwipeDeck reveal", () => {
     expect(writeButton.disabled, "the commit should already be loading").toBe(true);
 
     // A right-drag on the next card, while this reveal is still in flight,
-    // must be refused — matching what the disabled button itself blocks.
+    // must be refused - matching what the disabled button itself blocks.
     expect(capturedCanCommit?.("right"), "a reveal is loading").toBe(false);
     // «Не зараз» (skip) was never part of this decision and stays unaffected.
     expect(capturedCanCommit?.("left"), "skip is never gated by a reveal").toBe(true);
@@ -548,7 +548,7 @@ describe("SwipeDeck reveal", () => {
 
 /**
  * docs/design/README.md, "Gallery → deck": "Focus lands on the top card."
- * Once, on entering the deck — not re-stolen on every swipe, which would
+ * Once, on entering the deck - not re-stolen on every swipe, which would
  * fight a screen-reader user already reading the action row they just
  * activated (same "once, not per swipe" reasoning as `DeckScreen`'s own
  * entry announcement).
@@ -580,7 +580,7 @@ describe("SwipeDeck entry focus", () => {
     );
 
     // Move focus deliberately, as a keyboard user would after the entry
-    // focus lands — to the "Не зараз" button, the deck's own real
+    // focus lands - to the "Не зараз" button, the deck's own real
     // keyboard path.
     const user = userEvent.setup();
     await user.tab();
@@ -604,7 +604,7 @@ describe("SwipeDeck entry focus", () => {
    * error → loading → ready (a retry) genuinely changes `state.kind` at
    * every step, so this effect re-fires on the final transition back to
    * "ready" the same way it does on first entry. Deliberate, not an
-   * oversight — when the error card unmounts, its own focused heading
+   * oversight - when the error card unmounts, its own focused heading
    * goes with it, and leaving focus on `<body>` after a successful retry
    * would be worse than moving it again.
    */
@@ -642,12 +642,12 @@ describe("SwipeDeck entry focus", () => {
 });
 
 /**
- * `ErrorState`'s three-way switch over `DeckErrorReason` — untested before
+ * `ErrorState`'s three-way switch over `DeckErrorReason` - untested before
  * this, per a real reviewer finding on the branch that introduced it:
  * nothing asserted that `offline`/`sessionExpired`/`loadFailed` actually
  * render their own distinct copy, rather than all silently collapsing to
  * one. Pinned against the literal Ukrainian strings, transcribed from
- * `packages/i18n/src/messages/uk.ts`, not against `uk.errors.*` itself —
+ * `packages/i18n/src/messages/uk.ts`, not against `uk.errors.*` itself -
  * round-2 review caught an earlier version of this file that read the copy
  * back off the same `uk.errors[reason]` constant the component renders,
  * which would pass against any value and doesn't satisfy
@@ -710,8 +710,8 @@ describe("SwipeDeck error state", () => {
 
   /**
    * G1 (audit 2026-10-22): the per-IP limiter's 429 used to land on «Щось не спрацювало на
-   * нашому боці», blaming the site for a limit. It shows `detail.rateLimited` instead — the
-   * sentence the animal page already uses — with no eyebrow and no body, and the same retry.
+   * нашому боці», blaming the site for a limit. It shows `detail.rateLimited` instead - the
+   * sentence the animal page already uses - with no eyebrow and no body, and the same retry.
    */
   it("renders a per-IP 429 as «Забагато запитів…», not as the site's failure", () => {
     const onRetry = vi.fn();
@@ -751,7 +751,7 @@ describe("SwipeDeck error state", () => {
 
 /**
  * G5 (audit 2026-10-22): the deck's end state had text and no next step. It links to the
- * gallery with the deck's own filters — the href is built by `DeckScreen` (`galleryHref`)
+ * gallery with the deck's own filters - the href is built by `DeckScreen` (`galleryHref`)
  * and handed down, so what's tested here is that the end state offers exactly that link,
  * and offers none when it isn't given one.
  */

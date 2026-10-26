@@ -20,7 +20,7 @@ import { makeAnimal, makeCity, makeShelter, setupTestDatabase } from "../src/tes
 import { TEST_DATABASE_URL } from "../src/test-utils/setup";
 
 /**
- * The M2 bar — `EXPLAIN` shows an index scan and no `Sort` node — applied to
+ * The M2 bar - `EXPLAIN` shows an index scan and no `Sort` node - applied to
  * the longest-waiting ordering, filtered and unfiltered.
  *
  * `docs/gallery-contract-decisions.md` §2 argues for extending the existing
@@ -31,7 +31,7 @@ import { TEST_DATABASE_URL } from "../src/test-utils/setup";
  * `docs/standing-constraints.md` records three times over.
  *
  * The query being explained is the one `galleryRepo.list` actually generates,
- * captured off the wire — not a hand-written approximation of it. A test that
+ * captured off the wire - not a hand-written approximation of it. A test that
  * explains its own SQL proves the index can serve *some* query; it does not
  * prove the repository asks one the index can serve, which is the thing that
  * would silently regress.
@@ -40,7 +40,7 @@ import { TEST_DATABASE_URL } from "../src/test-utils/setup";
  *
  * Proves: for each ordering, an index exists that supplies it, and
  * `galleryRepo.list`'s own query can be answered through that index with no
- * `Sort` node. Both assertions fail when the index is wrong — verified by
+ * `Sort` node. Both assertions fail when the index is wrong - verified by
  * mutation: reordering `animals_wait_anchor_idx`'s columns fails the
  * unfiltered case, and putting `listing_kind` back at the front of
  * `animals_wait_anchor_filtered_idx` (the shape
@@ -51,7 +51,7 @@ import { TEST_DATABASE_URL } from "../src/test-utils/setup";
  * Does not prove: that Postgres *chooses* those plans under default settings.
  * It often will not, and the reason is structural rather than a missing index.
  * `count(*) OVER()` makes the window function consume every matching row, so
- * the `LIMIT` cannot stop an ordered scan early — which is the entire
+ * the `LIMIT` cannot stop an ordered scan early - which is the entire
  * advantage an ordered index has over "cheapest scan, then sort". With that
  * advantage gone the two plans cost almost the same and the choice turns on
  * table statistics: against this file's 1,500-row fixture the planner sorts,
@@ -60,7 +60,7 @@ import { TEST_DATABASE_URL } from "../src/test-utils/setup";
  *
  * This is recorded rather than resolved because resolving it means revisiting
  * `docs/gallery-contract-decisions.md` §3's decision to fold the count into
- * the page query via a window function — a signed-off decision with its own
+ * the page query via a window function - a signed-off decision with its own
  * good reason (one round-trip, and a page that cannot disagree with its own
  * total under a concurrent write). Splitting the count back out would restore
  * the early-stop advantage and make the no-Sort plan the natural choice. At
@@ -100,8 +100,8 @@ beforeAll(async () => {
   filterCity = first.id;
 
   // Many shelters, not one. With a single shelter the planner can satisfy the
-  // verified-shelter semi-join by driving from `shelters` — one row, trivially
-  // cheap — which destroys the ordering an index scan on `animals` would have
+  // verified-shelter semi-join by driving from `shelters` - one row, trivially
+  // cheap - which destroys the ordering an index scan on `animals` would have
   // provided and makes a `Sort` node the cheapest plan for reasons that have
   // nothing to do with the indexes under test. The real corpus has dozens of
   // shelters; a fixture with one asks a different question.
@@ -191,7 +191,7 @@ async function captureGalleryQuery(opts: {
   });
 
   const pageQuery = captured.find((statement) => statement.query.includes("count(*) OVER()"));
-  if (!pageQuery) throw new Error("the page query was not captured — the debug hook is not wired");
+  if (!pageQuery) throw new Error("the page query was not captured - the debug hook is not wired");
   return pageQuery;
 }
 
@@ -206,13 +206,13 @@ async function explainGalleryQuery(opts: {
   // able to serve this ordering, or must the query sort no matter what.
   //
   // Sequential and bitmap scans are off for the reason `feed-explain.test.ts`
-  // already turns them off — on a fixture-sized table a seq scan plus a sort is
+  // already turns them off - on a fixture-sized table a seq scan plus a sort is
   // genuinely cheaper, and choosing it says nothing about the index. Hash and
   // merge joins are off one level up, because the verified-shelter semi-join
   // under either discards its input's ordering. `enable_sort` is off last:
   // Postgres does not forbid a sort when it is off, it prices one at a
   // prohibitive cost, so a plan without one is chosen *if any exists*. That is
-  // precisely the question — and it is why removing an index makes these tests
+  // precisely the question - and it is why removing an index makes these tests
   // fail rather than merely get slower.
   //
   // See the file header for what this deliberately does not claim.

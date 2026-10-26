@@ -143,7 +143,7 @@ describe("animal views expose exactly their intended fields", () => {
   it("never ships the raw age estimate or lastUpdatedAt", () => {
     // The client has no trustworthy clock. Sending the inputs rather than the
     // derived values would let a wrong device date render a stale listing as
-    // fresh, or a senior animal as a puppy — which is the entire reason these
+    // fresh, or a senior animal as a puppy - which is the entire reason these
     // two fields are computed server-side.
     for (const parsed of [
       FeedCardViewSchema.parse({

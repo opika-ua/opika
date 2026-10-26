@@ -55,7 +55,7 @@ export type VaccinationStatus = z.infer<typeof VaccinationStatusSchema>;
  * sterilisation records, and no plausible future version would: a spay is a
  * surgical fact recorded by the clinic that performed it, not a registry entry.
  * So `{ source: "registry" }` on this fact is a state that can never
- * legitimately occur — and until now the type permitted it, because both facts
+ * legitimately occur - and until now the type permitted it, because both facts
  * aliased one schema.
  *
  * Sharing a schema to avoid drift was the right instinct applied to the wrong

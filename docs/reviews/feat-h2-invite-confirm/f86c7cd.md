@@ -22,7 +22,7 @@ CURSOR_HMAC_SECRET / R2_PUBLIC_BASE_URL moved with identical literals (diffed). 
    - Fix: add the test `BETTER_AUTH_SECRET`/`URL` to the main webServer env, so a 404 can only mean the production branch fired. Or reword the claim and drop the test as duplicate coverage.
    - Evidence: reading only. Not run.
 
-2. **[minor] The token can reach a CI artefact.** `trace: "retain-on-failure"` records `page.goto(link)` and the network log, token included. CI uploads `apps/web/test-results/`. The header comment (lines 21–22) says the token is never included in a failure.
+2. **[minor] The token can reach a CI artefact.** `trace: "retain-on-failure"` records `page.goto(link)` and the network log, token included. CI uploads `apps/web/test-results/`. The header comment (lines 21-22) says the token is never included in a failure.
    - Impact is low: a test token on a dropped disposable database.
    - Fix: `test.use({ trace: "off" })` in this file, or narrow the comment.
 
@@ -31,9 +31,9 @@ CURSOR_HMAC_SECRET / R2_PUBLIC_BASE_URL moved with identical literals (diffed). 
    - Fix: derive its port from the checkout too, and include it in the check, or widen the regex to any `next start` from inside the checkout.
    - Expect a `playwright.config.ts` conflict (PORT) on rebase.
 
-4. **[nit] :134–136** says the connection can't be closed. That reason is false: `Database` is `PostgresJsDatabase`, and `db.$client.end()` is reachable. Close it in a `finally`.
+4. **[nit] :134-136** says the connection can't be closed. That reason is false: `Database` is `PostgresJsDatabase`, and `db.$client.end()` is reachable. Close it in a `finally`.
 
-5. **[nit] :202–204.** Once rebased, `/kabinet` exists (#93), so "the 404 page's own assets" goes stale. The spec could then assert the landing page too.
+5. **[nit] :202-204.** Once rebased, `/kabinet` exists (#93), so "the 404 page's own assets" goes stale. The spec could then assert the landing page too.
 
 Previous findings:
 - **#2** (redirect to a 404): resolved on main via #93. Closes on rebase.

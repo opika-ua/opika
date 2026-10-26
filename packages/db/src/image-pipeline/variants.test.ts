@@ -30,7 +30,7 @@ describe("nearestVariant", () => {
     expect(nearestVariant(1120)).toBe("detail");
   });
 
-  it("never upscales past detail — the largest variant is the ceiling", () => {
+  it("never upscales past detail - the largest variant is the ceiling", () => {
     expect(nearestVariant(4000)).toBe("detail");
   });
 });
@@ -85,9 +85,9 @@ describe("isRealPhotoKey", () => {
     expect(isRealPhotoKey("animals/a0000000-0000-4000-8000-000000000000/0")).toBe(true);
   });
 
-  it("does not mistake seed.ts's actual storage keys for real ones — no leading slash either way", () => {
+  it("does not mistake seed.ts's actual storage keys for real ones - no leading slash either way", () => {
     // packages/db/src/seed.ts literally stores "seed-photos/dog-1.jpg", not
-    // "/seed-photos/dog-1.jpg" — a leading-slash check can't tell these
+    // "/seed-photos/dog-1.jpg" - a leading-slash check can't tell these
     // apart, which is exactly why this function doesn't use one.
     expect(isRealPhotoKey("seed-photos/cat-1.jpg")).toBe(false);
     expect(isRealPhotoKey("seed-photos/dog-5.jpg")).toBe(false);

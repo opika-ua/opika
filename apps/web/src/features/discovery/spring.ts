@@ -1,5 +1,5 @@
 /**
- * The deck's one spring — `docs/design/README.md`: "The only spring is the
+ * The deck's one spring - `docs/design/README.md`: "The only spring is the
  * deck's: stiffness `280`, damping `30`, no overshoot", and in the deck's own
  * gesture spec, "return is the spring 280/30, no overshoot".
  *

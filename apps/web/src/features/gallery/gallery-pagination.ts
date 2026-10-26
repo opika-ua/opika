@@ -19,13 +19,13 @@ export const hasPagination = (totalPages: number): boolean => totalPages > 1;
  * design deviation (there is no exact value here to deviate from).
  *
  * Drawing every page up to the navigable bound (`maxNavigablePage`,
- * `packages/domain` — 84 pages at 24/page) would mean up to 84 × 44px
+ * `packages/domain` - 84 pages at 24/page) would mean up to 84 × 44px
  * targets, three rows of them on a 390px phone. At or below
  * `ALWAYS_EXPANDED_THRESHOLD`, every page is drawn with no gaps (small
  * counts read better fully spelled out than abbreviated). Above it, only
  * page 1, the last page, and a `current`-1..`current`+1 band are drawn,
  * with an "ellipsis" marker for
- * each gap — worst case (current mid-range) is 5 numbers + 2 ellipses, a
+ * each gap - worst case (current mid-range) is 5 numbers + 2 ellipses, a
  * fixed upper bound regardless of `totalPages`, so this never needs a
  * viewport-conditional variant: the same window at every width, always
  * narrow enough to fit a 390px row (5 × 44px + 2 × ~24px ≈ 268px).
@@ -59,9 +59,9 @@ export function paginationWindow(current: number, total: number): PaginationItem
 /**
  * docs/design/README.md, "Pagination — not infinite scroll": "«з N»
  * renders only when the number list is truncated with an ellipsis (1 2 3 …
- * 9, з 12) — while every number is on screen the counter just restates
+ * 9, з 12) - while every number is on screen the counter just restates
  * what you can count." A page count on its own (no ellipsis) never needs
- * the reader told there's a total — they can see it.
+ * the reader told there's a total - they can see it.
  */
 export const isTruncated = (items: readonly PaginationItem[]): boolean =>
   items.includes("ellipsis");

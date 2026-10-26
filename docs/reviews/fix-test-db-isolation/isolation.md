@@ -8,7 +8,7 @@ Two paths give two names: mutated the hash input to a constant, and "gives two d
 Pattern refusal: removed `!DISPOSABLE_NAME.test`, and 2 refusal cases went red (`expected '' to match /Refusing/`) | Harness: 217 passed, harness DB dropped on teardown
 DROP without FORCE: create/drop test red, `database "opika_harness_…" is being accessed by other users` | CI behaviour (not run). From reading it: the service user `opika` is a superuser, so CREATE DATABASE works, and the runner path is stable
 Fresh-checkout path: dropped this worktree's `opika_test_f65160f0`, then apps/web vitest recreated it, 652/652 | Teardown name matches the created name on Windows when cwd/drive-letter case differs (worst case is an orphaned DB, not a safety issue)
-The override guard can be bypassed (finding 1): a probe ran live | —
+The override guard can be bypassed (finding 1): a probe ran live | -
 
 FINDINGS
 1. [high] packages/db/src/test-utils/test-database.ts:44. The guard checks only `pathname`, but postgres-js forwards unknown query params into the startup message, and they override `database`. `postgres://opika:opika@localhost:5433/opika_test_00000000?database=postgres` passes `assertDisposableTestDatabase`, and the connection reports `current_database() = postgres`. Swap in `?database=opika` and `setupTestDatabase` drops the dev DB's schema. That breaks the doc-comment's promise that "an override can't point the drop at something that matters". Fix: refuse any URL with `search` or `hash`, and add an `it.each` case for `…/opika_test_0123abcd?database=opika`. Then mutate (allow a query string) and confirm the case goes red.
@@ -33,8 +33,8 @@ VERIFIED | TAKEN ON TRUST
 --- | ---
 F1: with the `search`/`hash` refusal replaced by `false`, both new cases went red (`refuses a derived name with ?database= overriding it`, `refuses a derived name with a fragment`). Restored: 11/11 pass | F3 recorded in the PR body, F4 follow-up row (both are future actions)
 F2: read all four comment edits. Each is accurate and no longer calls `opika_test` shared | F5 42P04 branch: read, not exercised (a race is hard to provoke; the code is correct by reading)
-Simplification: the redundant comparison is gone and the "dev database" case still refuses through the pattern (the suite passes) | —
-`biome check` on the touched files: no errors | —
+Simplification: the redundant comparison is gone and the "dev database" case still refuses through the pattern (the suite passes) | -
+`biome check` on the touched files: no errors | -
 
 FINDINGS
 None blocking. [note] biome warns `noConsole` on ensure-test-database.ts:11 (from the first commit). It is only a warning, so lint passes.

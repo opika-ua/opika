@@ -10,7 +10,7 @@ const isDiscoverableKind = (kind: AnimalListingState["kind"]): kind is Discovera
 /**
  * Narrows a listing's `kind` to what `FeedCardView.listingKind` accepts. Both
  * `feedList` and `galleryList` only ever reach this with an animal the query's
- * own predicate has already restricted to `DISCOVERABLE_LISTING_KINDS` — but
+ * own predicate has already restricted to `DISCOVERABLE_LISTING_KINDS` - but
  * that's an invariant the predicate upholds, not something `Animal`'s own type
  * carries, so this makes the narrowing an explicit, loud failure if it's ever
  * wrong instead of a silent `as` cast papering over the gap between the two.
@@ -20,7 +20,7 @@ const isDiscoverableKind = (kind: AnimalListingState["kind"]): kind is Discovera
  * one drifts in the direction that fails worst: widening the constant (a third
  * discoverable kind) widens the contract's enum and the SQL predicate
  * automatically, so rows of the new kind would start arriving here and this
- * function would throw on every one of them — a 500 on the whole feed page,
+ * function would throw on every one of them - a 500 on the whole feed page,
  * with nothing failing at compile time to warn anyone first. Deriving from the
  * constant means a widening needs no edit here at all, and the one place that
  * genuinely must decide something new about a third kind (`isReserved` in
@@ -31,7 +31,7 @@ export function discoverableListingKind(listing: AnimalListingState): Discoverab
   if (!isDiscoverableKind(listing.kind)) {
     throw new Error(
       `A non-discoverable listing ("${listing.kind}") reached a handler that only expects ` +
-        `${DISCOVERABLE_LISTING_KINDS.join("/")} — the query predicate that's supposed to ` +
+        `${DISCOVERABLE_LISTING_KINDS.join("/")} - the query predicate that's supposed to ` +
         `prevent this has a gap.`,
     );
   }

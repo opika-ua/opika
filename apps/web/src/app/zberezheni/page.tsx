@@ -10,7 +10,7 @@ import { SavedPageScreen } from "../../features/likes/SavedPageScreen";
  * (`docs/designer-round-1.md` §4), so every choice below is the builder's,
  * recorded under "Decisions taken" in the PR.
  *
- * `noindex`: the page's entire content is one browser's `localStorage` —
+ * `noindex`: the page's entire content is one browser's `localStorage` -
  * there is nothing here for a crawler to find, server-rendered or not, and
  * indexing an always-empty shell would be actively misleading. The deck
  * (`/tvaryny/gortaty`) is the existing precedent for a real, linked route
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
  * `cities.list` sets it (`../tvaryny/gortaty/page.tsx`'s own comment): a
  * build-time prerender would bake in a snapshot rather than a live read.
  * Nothing about this page is actually time-sensitive in the way the gallery
- * is, since its real content never leaves the client — kept for consistency
+ * is, since its real content never leaves the client - kept for consistency
  * with the rest of the app's server shells, not because this one page would
  * otherwise go stale.
  */
@@ -34,7 +34,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * A Server Component shell around `SavedPageScreen` (Client Component), for
- * `metadata` and to resolve `cityNames` once, server-side — the same split
+ * `metadata` and to resolve `cityNames` once, server-side - the same split
  * `app/tvaryny/gortaty/page.tsx` uses, and for the identical reason:
  * `AnimalCard` needs a city's display name, which `FeedCardView` carries
  * only as an id (`PublicCityLocationViewSchema`, city id only, EM-Q10).

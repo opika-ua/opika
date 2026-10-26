@@ -284,7 +284,7 @@ describe("an admin_joined history line", () => {
  * already-published card visible for the first time without any write of
  * its own (hook 1, `writeListingIf`, never runs for it). `kabinetShelterRepo
  * .applyAuditedMany` stamps every one of that shelter's discoverable,
- * not-yet-stamped animals in the same statement as the verification write —
+ * not-yet-stamped animals in the same statement as the verification write -
  * the same cross-table-CTE shape as the address-change tests above.
  */
 describe("S8-F5: everServedAt, a shelter entering `verified` (hook 2)", () => {
@@ -312,7 +312,7 @@ describe("S8-F5: everServedAt, a shelter entering `verified` (hook 2)", () => {
       publicLocation: { ...makeShelter().publicLocation, cityId: homeCity } as never,
     });
     await shelterRepo(db).insert(s);
-    // Published while paused: never actually served, so `null` — exactly
+    // Published while paused: never actually served, so `null` - exactly
     // what hook 1 would have computed, had this gone through it.
     const publishedWhilePaused = makeAnimal({ shelterId: s.id, everServedAt: null });
     // Not discoverable: must stay untouched regardless of the shelter.
@@ -497,7 +497,7 @@ describe("S8-F5: everServedAt, a shelter entering `verified` (hook 2)", () => {
       ],
       now: NOW,
     });
-    // Suspending never serves anything new — the animal genuinely was
+    // Suspending never serves anything new - the animal genuinely was
     // never served (it was published null, and a suspend only removes
     // visibility, never grants it), so it correctly stays null.
     expect(await everServedAtOf(published.id)).toBeNull();
@@ -544,8 +544,8 @@ describe("S8-F5: everServedAt, a shelter entering `verified` (hook 2)", () => {
    * Tier 1 review finding 5 (PR #196): an address move (hook "moved") and a
    * verification approval (hook 2, "served") used to be two separate sibling
    * CTEs, each its own UPDATE of `animals`. When both land in one audited
-   * write and target the same row — any animal at the shelter's own
-   * premises — Postgres's documented behaviour for two data-modifying WITH
+   * write and target the same row - any animal at the shelter's own
+   * premises - Postgres's documented behaviour for two data-modifying WITH
    * statements racing the same row is unspecified; empirically, only one
    * column's change survived. Both must land from a single combined write.
    */

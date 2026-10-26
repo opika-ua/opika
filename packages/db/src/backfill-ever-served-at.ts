@@ -4,7 +4,7 @@
  *
  * Additive migrations run before the merge that deploys their code (so the
  * new column exists before anything references it). Between that migration
- * and the deploy, the live app has none of S8-F5's three write hooks — a card
+ * and the deploy, the live app has none of S8-F5's three write hooks - a card
  * that newly becomes visible in that window (a shelter approved, a card
  * published to an already-verified shelter) keeps `everServedAt` null, and
  * would misreport "never served" once it later becomes invisible again.
@@ -13,15 +13,15 @@
  * idempotent by construction, not by a special case added for this script:
  * it sets `everServedAt` only on rows that are, right now, both currently
  * discoverable (`buildDiscoverabilityPredicate`, the live query every
- * adopter-facing surface runs — imported, not copied, so a predicate change
+ * adopter-facing surface runs - imported, not copied, so a predicate change
  * updates this script automatically) and still null. A row the hooks already
  * stamped is excluded by that second condition, so a repeat run matches
  * nothing from the first one; a run with no gap-window activity reports 0.
  *
  * Residual gap this does NOT close: a card that becomes visible and then
  * invisible again entirely inside the window before this script's one
- * post-deploy run — e.g. published to a verified shelter, then withdrawn,
- * both before the backfill runs — is never caught, because the predicate only
+ * post-deploy run - e.g. published to a verified shelter, then withdrawn,
+ * both before the backfill runs - is never caught, because the predicate only
  * matches rows that are *currently* visible. Closing that would need the
  * hooks themselves live during the gap, which is what the deploy is for; this
  * script narrows the gap to "between merge and the one post-deploy run", not

@@ -23,15 +23,15 @@ type RelaxationOutput = z.infer<typeof GalleryRelaxationCountsOutputSchema>;
  * Deliberately does *not* call `scoreAnimal`, which `feed.list` does. That
  * re-ranking is the deck's bargain and a good one there: the deck shows one
  * card at a time and nobody can tell, or care, that the order was tuned.
- * Here the order is the product — the sort mode is named in the UI and in the
- * URL — and `scoreAnimal` is a function of freshness decay, so applying it
+ * Here the order is the product - the sort mode is named in the UI and in the
+ * URL - and `scoreAnimal` is a function of freshness decay, so applying it
  * would reorder the same rows between two requests as `now` advanced. A page
  * someone shared would not reproduce what they saw, which is exactly what this
  * surface promises.
  *
  * No seen-set either: "Не зараз" hides an animal for the rest of a deck
  * session and never in the gallery, so this handler needs no adopter and the
- * response is identical for every visitor — which is what lets it be
+ * response is identical for every visitor - which is what lets it be
  * server-rendered and crawled.
  */
 export async function galleryList(
@@ -99,7 +99,7 @@ export async function galleryList(
  *
  * Its own procedure because it answers the question that only arises when
  * there is no page of results to carry an answer on, and because it is a
- * different query shape — one scan of conditional aggregates rather than a
+ * different query shape - one scan of conditional aggregates rather than a
  * page fetch.
  */
 export async function galleryRelaxationCounts(
