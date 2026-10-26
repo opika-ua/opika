@@ -2286,6 +2286,100 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `cream|tabby: ${JSON.stringify(creamOrTabby)}; black: ${JSON.stringify(black)}; white: ${JSON.stringify(white)}`,
   );
 
+  // Pet card PR 2: animals.neighbours. Two of the three cards share one
+  // confirmedAt - the scalar-subquery seek (gallery-repo.ts's
+  // `seekCondition`) only reads correctly on neon-http if its timestamptz
+  // comparison and its `id` tiebreak both behave the same as on postgres-js.
+  const nbCity = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(nbCity);
+  const nbBase = makeShelter({ id: randomUUID() as ShelterId, displayName: "Smoke neighbours" });
+  const nbAddress = { ...nbBase.exactAddress, cityId: nbCity.id };
+  const nbShelter = {
+    ...nbBase,
+    exactAddress: nbAddress,
+    publicLocation: publicLocationOf(nbBase.id, nbAddress, policy),
+  };
+  await insertShelterFromScript(db, nbShelter, by);
+  const nbListing = (confirmedAt: Date, publishedAt: Date): AnimalListingState => ({
+    kind: "published",
+    publishedAt,
+    confirmedAt,
+    undoable: null,
+  });
+  const nbTied = new Date(NOW.getTime() - 1 * 86_400_000);
+  const nbOlder = new Date(NOW.getTime() - 2 * 86_400_000);
+  const nbA = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: nbShelter.id,
+    name: "NeighbourA",
+    listing: nbListing(nbTied, new Date(NOW.getTime() - 30 * 86_400_000)),
+  });
+  const nbB = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: nbShelter.id,
+    name: "NeighbourB",
+    listing: nbListing(nbTied, new Date(NOW.getTime() - 29 * 86_400_000)),
+  });
+  const nbC = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: nbShelter.id,
+    name: "NeighbourC",
+    listing: nbListing(nbOlder, new Date(NOW.getTime() - 31 * 86_400_000)),
+  });
+  for (const animal of [nbA, nbB, nbC]) await animalRepo(db).insert(animal, nbCity.id);
+
+  const nbFilters: FeedFilters = { ...NO_FILTERS, cities: { kind: "oneOf", values: [nbCity.id] } };
+  const nbTiedPair = [nbA, nbB].sort((a, b) => (a.id < b.id ? -1 : 1));
+  const nbExpectedFreshest = [...nbTiedPair, nbC].map((a) => a.id);
+
+  const nbList = await galleryRepo(db).list({
+    filters: nbFilters,
+    scope: EVERYONE_SCOPE,
+    sort: "freshest",
+    page: 1,
+    pageSize: 10,
+    now: NOW,
+  });
+  const nbListOrder = nbList.items.map((a) => a.id);
+
+  const nbMiddleId = nbExpectedFreshest[1] as string;
+  const nbNeighbours = await galleryRepo(db).neighbours({
+    animalId: nbMiddleId as never,
+    filters: nbFilters,
+    scope: EVERYONE_SCOPE,
+    sort: "freshest",
+    now: NOW,
+  });
+  check(
+    "animals.neighbours: list() order (incl. a tied pair broken by id) and neighbours() walk agree",
+    isDeepStrictEqual(nbListOrder, nbExpectedFreshest) &&
+      nbNeighbours.prev?.id === nbExpectedFreshest[0] &&
+      nbNeighbours.next?.id === nbExpectedFreshest[2],
+    `list: ${JSON.stringify(nbListOrder)}; expected: ${JSON.stringify(nbExpectedFreshest)}; neighbours of middle: ${JSON.stringify(nbNeighbours)}`,
+  );
+
+  const nbEndNeighbours = await galleryRepo(db).neighbours({
+    animalId: nbExpectedFreshest[2] as never,
+    filters: nbFilters,
+    scope: EVERYONE_SCOPE,
+    sort: "freshest",
+    now: NOW,
+  });
+  const nbUnknownNeighbours = await galleryRepo(db).neighbours({
+    animalId: randomUUID() as never,
+    filters: nbFilters,
+    scope: EVERYONE_SCOPE,
+    sort: "freshest",
+    now: NOW,
+  });
+  check(
+    "animals.neighbours: the last row's next is null, and an unknown id answers null at both ends",
+    nbEndNeighbours.next === null &&
+      nbUnknownNeighbours.prev === null &&
+      nbUnknownNeighbours.next === null,
+    `end.next: ${JSON.stringify(nbEndNeighbours.next)}; unknown: ${JSON.stringify(nbUnknownNeighbours)}`,
+  );
+
   return out;
 }
 
