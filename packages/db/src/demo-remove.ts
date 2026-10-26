@@ -64,8 +64,9 @@
  * period (DR-B3, answer 2; the GDPR photo-retention job,
  * `docs/gdpr-analysis.md`, R2-B1, deletes them automatically once
  * unreferenced for long enough, with no action here) — a dedicated
- * immediate-deletion script is follow-up DR-F3, narrowed by R2-B1 to "sooner
- * than the grace period allows," not "the only path."
+ * immediate-deletion script is follow-up DR-F3, narrowed by R2-B1's
+ * automatic sweep to a way of going sooner than the grace period, not the
+ * only path left at all.
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";

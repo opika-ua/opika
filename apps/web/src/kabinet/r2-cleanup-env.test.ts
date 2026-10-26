@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { r2CleanupConfigOf, r2CleanupEnvProblem } from "./r2-cleanup-env";
+import { r2CleanupEnvProblem, r2CleanupStateOf } from "./r2-cleanup-env";
 
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). Tier 1 review (PR #200,
  * blocker 2) found the first version of `r2CleanupEnvProblem` copied
  * `photoUploadEnvProblem`'s "production can't boot without these" shape
- * wholesale — wrong for a job that's meant to be "enabled by the env vars'
- * own presence" (R2-B1): all four absent must mean "off," not "broken."
+ * wholesale — wrong for a job R2-B1 confirms, verbatim, "enabling it by the
+ * env vars' presence": all four absent must mean "off," not "broken."
  * These tests pin the asymmetry directly, not just through `build-env.test.ts`'s
  * one "full production env" fixture.
  */
@@ -18,19 +18,38 @@ const FULL = {
   R2_CLEANUP_SECRET_ACCESS_KEY: "secret",
 };
 
-describe("r2CleanupConfigOf", () => {
-  it("is the config when all four are set", () => {
-    expect(r2CleanupConfigOf(FULL)).toEqual({
-      accountId: "acct",
-      bucketName: "photos",
-      accessKeyId: "id",
-      secretAccessKey: "secret",
-    });
+describe("r2CleanupStateOf", () => {
+  it(
+    "is 'on', with the config, when all four are set (Tier 1 review, PR #200, finding 4: " +
+      "the only path to 'on' had no direct test of its own)",
+    () => {
+      expect(r2CleanupStateOf(FULL)).toEqual({
+        kind: "on",
+        config: {
+          accountId: "acct",
+          bucketName: "photos",
+          accessKeyId: "id",
+          secretAccessKey: "secret",
+        },
+      });
+    },
+  );
+
+  it("is 'off' when neither cleanup credential is set", () => {
+    expect(r2CleanupStateOf({})).toEqual({ kind: "off" });
+    expect(
+      r2CleanupStateOf({
+        VERCEL_ENV: "production",
+        R2_ACCOUNT_ID: "acct",
+        R2_BUCKET_NAME: "photos",
+      }),
+    ).toEqual({ kind: "off" });
   });
 
-  it("is undefined when any one is missing", () => {
+  it("is 'misconfigured' when any one of the four is missing while a cleanup credential is set", () => {
     for (const name of Object.keys(FULL).filter((k) => k !== "VERCEL_ENV")) {
-      expect(r2CleanupConfigOf({ ...FULL, [name]: undefined })).toBeUndefined();
+      const state = r2CleanupStateOf({ ...FULL, [name]: undefined });
+      expect(state.kind).toBe("misconfigured");
     }
   });
 });

@@ -14,9 +14,9 @@ import { r2EndpointUrl } from "./variants";
  * overwrites or deletes an existing object") — a source scan in
  * `apps/web/src/kabinet/photo-pipeline-scan.test.ts` keeps it that way, and
  * keeps this and `r2-cleanup-client.ts` the only two files that import the
- * S3 client. That second file is the one named exception to K-Q2's "no
- * delete" half, for the GDPR photo-retention job (`docs/gdpr-analysis.md`)
- * — never a reason to weaken the rule here, which still holds. Two callers
+ * S3 client. That second file is the one named exception to K-Q2's delete
+ * half, for the GDPR photo-retention job (`docs/gdpr-analysis.md`) — never
+ * a reason to weaken the rule here, which still holds. Two callers
  * since PR 3: the onboarding script, from an operator's machine, and the
  * kabinet's upload (`shelter.photos.add`), from the deployed app, with its
  * own token (P-Q10).

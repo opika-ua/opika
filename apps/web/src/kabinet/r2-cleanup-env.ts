@@ -21,34 +21,21 @@ export const R2_CLEANUP_ENV_NAMES = [
 
 type Env = Readonly<Record<string, string | undefined>>;
 
-export function r2CleanupConfigOf(env: Env): R2CleanupCronConfig | undefined {
-  const values = R2_CLEANUP_ENV_NAMES.map((name) => envValueOf(env, name));
-  const [accountId, bucketName, accessKeyId, secretAccessKey] = values;
-  if (
-    accountId?.kind !== "set" ||
-    bucketName?.kind !== "set" ||
-    accessKeyId?.kind !== "set" ||
-    secretAccessKey?.kind !== "set"
-  ) {
-    return undefined;
-  }
-  return {
-    accountId: accountId.value,
-    bucketName: bucketName.value,
-    accessKeyId: accessKeyId.value,
-    secretAccessKey: secretAccessKey.value,
-  };
-}
-
 /**
- * The same three-way classification `r2CleanupEnvProblem` applies at build
- * time (off / misconfigured / on), but usable at request time in any
- * environment — `r2CleanupEnvProblem` itself is deliberately production-only
- * (a build-time gate), while the cron route needs this distinction on every
- * real call, wherever it runs (Tier 1 review, PR #200, low finding: before
- * this, the cron answered 500 every single day while deliberately left off,
- * indistinguishable from a real misconfiguration in Vercel's own cron
- * monitoring).
+ * The three-way classification this job's own env vars can be in — off,
+ * genuinely broken, or on — usable at request time in any environment.
+ * `r2CleanupEnvProblem` below is a thin, production-only (build-time) view
+ * of the same classification, never a second implementation of it
+ * (Tier 1 review, PR #200: an earlier version kept a separate
+ * `r2CleanupConfigOf` for the "on" config alone, untested on its own, with
+ * a genuinely unreachable branch papering over the fact that nothing
+ * proved it unreachable; folded in here instead, so there is exactly one
+ * place that decides "on" and exactly one config value, never two
+ * functions that could disagree).
+ *
+ * Before this three-way split existed, the cron answered 500 every single
+ * day while deliberately left off, indistinguishable from a real
+ * misconfiguration in Vercel's own cron monitoring.
  */
 export type R2CleanupState =
   | { kind: "off" }
@@ -72,17 +59,38 @@ export function r2CleanupStateOf(env: Env): R2CleanupState {
       problem: `${missing.join(", ")} must be set alongside R2_CLEANUP_ACCESS_KEY_ID/R2_CLEANUP_SECRET_ACCESS_KEY once either is set`,
     };
   }
-  const config = r2CleanupConfigOf(env);
-  if (!config) return { kind: "off" }; // unreachable given the checks above; keeps the return type honest
-  return { kind: "on", config };
+  const accountId = envValueOf(env, "R2_ACCOUNT_ID");
+  const bucketName = envValueOf(env, "R2_BUCKET_NAME");
+  if (
+    accountId.kind !== "set" ||
+    bucketName.kind !== "set" ||
+    accessKeyId.kind !== "set" ||
+    secretAccessKey.kind !== "set"
+  ) {
+    // Unreachable: every "missing" case already returned above, and padded
+    // was ruled out at the top — but the compiler can't see that across
+    // two separate filters, so this stays a real, typed narrowing rather
+    // than a cast.
+    return { kind: "misconfigured", problem: "an env var read as neither set, missing nor padded" };
+  }
+  return {
+    kind: "on",
+    config: {
+      accountId: accountId.value,
+      bucketName: bucketName.value,
+      accessKeyId: accessKeyId.value,
+      secretAccessKey: secretAccessKey.value,
+    },
+  };
 }
 
 /**
  * What a production deployment refuses to build or boot over, the same
  * shape as `photoUploadEnvProblem` **except for one deliberate difference**
- * (Tier 1 review, PR #200, blocker 2): the job is "enabled by the env vars'
- * own presence" — unlike the upload token, which production can't function
- * without at all, this job is allowed to simply be off. So this never
+ * (Tier 1 review, PR #200, blocker 2): the job is on by his own words,
+ * "enabling it by the env vars' presence" — unlike the upload token, which
+ * production can't function without at all, this job is allowed to simply
+ * be off. So this never
  * refuses on all four being absent (the job is disabled, not broken); it
  * refuses only a state that can't mean "disabled on purpose":
  *   - a padded value, anywhere among the four;

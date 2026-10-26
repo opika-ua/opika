@@ -97,6 +97,25 @@ function pickedPhotosFields(): Hit[] {
   ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
 }
 
+/**
+ * `.shape.photos` reaches into an existing object schema's `photos` field
+ * directly (never through `.pick`/`.extend`, so `PICKED_PHOTOS_FIELD` above
+ * can't see it either) — the same unclassified-widening risk `.pick({
+ * photos: true })` was, by a different route (round 3 Tier 1 delta review,
+ * finding 5). Today's one real occurrence is in a `.test.ts` file
+ * (`photo.test.ts`, reading `DraftAnimalSchema.shape.photos` to build a
+ * fixture), which `walk()` already excludes from every scan in this file —
+ * so this is expected to find nothing live outside a test, and a new
+ * non-test site needs a new entry below, same as the other three scans.
+ */
+const SHAPE_PHOTOS_ACCESS = /\.shape\.photos\b/;
+function shapePhotosAccesses(): Hit[] {
+  return [
+    ...scan(DOMAIN_ROOT, SHAPE_PHOTOS_ACCESS),
+    ...scan(CONTRACTS_ROOT, SHAPE_PHOTOS_ACCESS),
+  ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
 /** A bare `z.string()` field whose name reads like a storage key, wherever it is declared. */
 // A suffix match (`\w*`), not an exact one, and case-insensitive on the key
 // name (Tier 1 review, PR #200, note 11) — `coverPhotoKey` has a capital
@@ -213,6 +232,10 @@ describe("every schema field that can hold a photo's storage key is classified (
         .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
         .map(({ file, line, text }) => ({ file, line, text })),
     );
+  });
+
+  it("no non-test .shape.photos access exists outside this scan's own awareness of it", () => {
+    expect(shapePhotosAccesses()).toEqual([]);
   });
 
   it("exactly one embedding is classified as a live reference, and it's the one the clean-up repo reads", () => {
