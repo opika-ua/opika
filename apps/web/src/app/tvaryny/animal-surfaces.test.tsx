@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ANIMAL_ID,
   type ByIdBehaviour,
+  makeDetailAnimal,
   stubAnimalPageClient,
 } from "../../features/animal-detail/test-fixtures";
 import { WithMockRouter } from "../../features/gallery/test-router";
 import { renderAnimalOverlay } from "./@preview/(.)[animalId]/page";
+import { metadata as notFoundMetadata } from "./[animalId]/not-found";
 import AnimalPage, { generateMetadata } from "./[animalId]/page";
 
 /**
@@ -45,6 +47,10 @@ beforeEach(() => {
   document.body.style.overflow = "";
 });
 
+it("the not-found page is noindex (PR B, the SEO review of page titles)", () => {
+  expect(notFoundMetadata.robots).toEqual({ index: false, follow: false });
+});
+
 describe("the full page", () => {
   it("RATE_LIMITED shows his sentence and nothing that says the card is gone", async () => {
     await renderPage({ kind: "refuse", code: "RATE_LIMITED" });
@@ -57,6 +63,91 @@ describe("the full page", () => {
   it("RATE_LIMITED is kept out of search results", async () => {
     current = stubAnimalPageClient({ kind: "refuse", code: "RATE_LIMITED" });
     expect((await generateMetadata({ params })).robots).toEqual({ index: false, follow: false });
+  });
+
+  describe("metadata (PR B, the SEO review of page titles)", () => {
+    it("title is name, species, city - no age bucket, no reserved/adopted state", async () => {
+      current = stubAnimalPageClient();
+      expect((await generateMetadata({ params })).title).toBe("Мурчик, Кіт, Бровари");
+    });
+
+    /**
+     * Found on review: the default fixture is a male cat, where the title's sex-neutral
+     * `speciesLabel` and the description's sex-aware `speciesWordFor` happen to agree
+     * («Кіт» either way), so nothing above actually proves the title uses the right one.
+     * A female cat is where they diverge - `speciesWordFor` gives «Кішка»; `speciesLabel`
+     * must still give «Кіт».
+     */
+    it("stays sex-neutral even where the sex-aware species word would differ (a female cat)", async () => {
+      current = stubAnimalPageClient({
+        kind: "answer",
+        animal: makeDetailAnimal({ sex: "female" }),
+      });
+      expect((await generateMetadata({ params })).title).toBe("Мурчик, Кіт, Бровари");
+    });
+
+    it("drops the city segment rather than rendering an empty one when it doesn't resolve", async () => {
+      // The animal's own location, not the shelter's, wins when both are set
+      // (`loadAnimalPage`'s own fallback order) - a city id absent from the
+      // stub's one-city `cities.list` resolves to `cityName: null`.
+      current = stubAnimalPageClient({
+        kind: "answer",
+        animal: makeDetailAnimal({ publicLocation: { cityId: "unknown-city-id" as never } }),
+      });
+      expect((await generateMetadata({ params })).title).toBe("Мурчик, Кіт");
+    });
+
+    it("canonical is always the bare id, never a query string", async () => {
+      current = stubAnimalPageClient();
+      expect((await generateMetadata({ params })).alternates?.canonical).toBe(
+        `/tvaryny/${ANIMAL_ID}`,
+      );
+    });
+
+    /**
+     * Found on review: the test above can't actually distinguish "built from `animal.id`"
+     * from "built from the raw route param" - they're the same string. `AnimalIdSchema`
+     * is `z.uuid().brand(...)`, which validates format but never normalises case, so an
+     * uppercase URL reaches this far unchanged; the loaded animal's own `id` is still the
+     * canonical lowercase form. The canonical must follow the latter.
+     */
+    it("canonical uses the animal's own id, not an uppercase route param", async () => {
+      current = stubAnimalPageClient();
+      const uppercaseParams = Promise.resolve({ animalId: ANIMAL_ID.toUpperCase() });
+      expect((await generateMetadata({ params: uppercaseParams })).alternates?.canonical).toBe(
+        `/tvaryny/${ANIMAL_ID}`,
+      );
+    });
+
+    it("openGraph carries no title of its own - Next fills it from the already-templated one", async () => {
+      current = stubAnimalPageClient();
+      const metadata = await generateMetadata({ params });
+      expect(metadata.openGraph).not.toHaveProperty("title");
+    });
+
+    it("gets twitter:card summary_large_image only when a real image is emitted", async () => {
+      current = stubAnimalPageClient();
+      const withoutEnv = await generateMetadata({ params });
+      expect(withoutEnv.twitter).toBeUndefined();
+      expect(withoutEnv.openGraph).not.toHaveProperty("images");
+
+      vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", "https://cdn.example.test");
+      current = stubAnimalPageClient({
+        kind: "answer",
+        animal: makeDetailAnimal({
+          photos: [{ storageKey: "animals/real.jpg", width: 1200, height: 900, alt: null }],
+        }),
+      });
+      const withEnv = await generateMetadata({ params });
+      expect(withEnv.twitter).toEqual({ card: "summary_large_image" });
+      expect(withEnv.openGraph).toHaveProperty("images");
+      vi.unstubAllEnvs();
+    });
+
+    // The description's own demo/real branches (by `REGISTRY_HAS_NO_REAL_SHELTERS`) are
+    // covered in `seo-flags.test.ts`'s own describe block for this route, which also
+    // varies `SITE_IS_PUBLICLY_DISCOVERABLE` independently - duplicating a narrower
+    // version of the same two cases here added no coverage, found on review.
   });
 
   it("NOT_FOUND is still the 404", async () => {

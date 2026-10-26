@@ -32,6 +32,7 @@ const INTRO = fillTemplate(uk.about.intro, { site: WORDMARK });
 export const metadata: Metadata = {
   title: uk.about.title,
   description: INTRO,
+  alternates: { canonical: "/pro" },
   openGraph: {
     type: "website",
     siteName: WORDMARK,

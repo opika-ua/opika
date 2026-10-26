@@ -43,47 +43,54 @@ export default function GortatyError({
   }, []);
 
   return (
-    <div className="font-rg min-h-dvh bg-rg-page flex items-center justify-center p-4">
-      <div
-        role="alert"
-        aria-live="assertive"
-        data-testid="gortaty-error"
-        className="animate-fade-in w-full max-w-140 bg-rg-surface rounded-rg-card p-8 flex flex-col gap-4 items-start"
-      >
-        <span className="text-[12px]/[16px] font-medium tracking-[0.08em] uppercase text-rg-ink-3">
-          {uk.errors.loadFailed.eyebrow}
-        </span>
-        <h1
-          ref={headingRef}
-          tabIndex={-1}
-          className="text-[34px]/[38px] font-bold tracking-[-0.03em] text-rg-ink text-pretty outline-none"
+    <>
+      {/* PR B, the SEO review of page titles - see `/tvaryny/error.tsx`'s own comment
+          on this same tag for why it's here rather than a `metadata` export. */}
+      <meta name="robots" content="noindex, nofollow" />
+      <div className="font-rg min-h-dvh bg-rg-page flex items-center justify-center p-4">
+        <div
+          role="alert"
+          aria-live="assertive"
+          data-testid="gortaty-error"
+          className="animate-fade-in w-full max-w-140 bg-rg-surface rounded-rg-card p-8 flex flex-col gap-4 items-start"
         >
-          {uk.errors.loadFailed.title}
-        </h1>
-        <p className="text-[17px]/[26px] text-rg-ink-2 text-pretty">{uk.errors.loadFailed.body}</p>
-        <div className="flex flex-wrap items-center gap-4">
-          <button
-            type="button"
-            data-testid="gortaty-error-retry"
-            onClick={retry}
-            className="min-h-14 px-6 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+          <span className="text-[12px]/[16px] font-medium tracking-[0.08em] uppercase text-rg-ink-3">
+            {uk.errors.loadFailed.eyebrow}
+          </span>
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-[34px]/[38px] font-bold tracking-[-0.03em] text-rg-ink text-pretty outline-none"
           >
-            {uk.errors.loadFailed.action}
-          </button>
-          {/* A genuine `<a href>`, not `next/link`'s `Link` - same reason
+            {uk.errors.loadFailed.title}
+          </h1>
+          <p className="text-[17px]/[26px] text-rg-ink-2 text-pretty">
+            {uk.errors.loadFailed.body}
+          </p>
+          <div className="flex flex-wrap items-center gap-4">
+            <button
+              type="button"
+              data-testid="gortaty-error-retry"
+              onClick={retry}
+              className="min-h-14 px-6 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+            >
+              {uk.errors.loadFailed.action}
+            </button>
+            {/* A genuine `<a href>`, not `next/link`'s `Link` - same reason
               as `/tvaryny/error.tsx`'s own escape hatch: a `Link` click
               inside an active error boundary soft-navigates within the
               segment Next already knows just errored, and doesn't
               actually leave. */}
-          <a
-            href="/tvaryny"
-            data-testid="gortaty-error-back-to-list"
-            className="min-h-14 inline-flex items-center px-6 rounded-rg-button text-rg-ink font-medium text-[15px] underline underline-offset-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-          >
-            {uk.feed.backToList}
-          </a>
+            <a
+              href="/tvaryny"
+              data-testid="gortaty-error-back-to-list"
+              className="min-h-14 inline-flex items-center px-6 rounded-rg-button text-rg-ink font-medium text-[15px] underline underline-offset-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+            >
+              {uk.feed.backToList}
+            </a>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

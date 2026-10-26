@@ -1,8 +1,10 @@
 import type { CityId } from "@opika/domain";
 import { textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
+import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import { anonymousRouterClient } from "../../api/server-client";
+import { SITE_TITLE } from "../../brand";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
@@ -31,6 +33,36 @@ import { ReplaceNav } from "../../features/gallery/ReplaceNav";
  * a shelter's listing changes.
  */
 export const dynamic = "force-dynamic";
+
+/**
+ * PR B, the SEO review of page titles. Before this the route had no metadata of its
+ * own at all, so it inherited the root layout's `title.default` - which Next never
+ * runs through `title.template`, so it rendered brand-first ("Opika - тварини...")
+ * rather than subject-first. Setting an explicit `title` here (the same subject,
+ * `SITE_TITLE`) is what gets it templated, producing "Собаки й коти з притулків
+ * Київщини – Opika".
+ *
+ * No `description` and no `openGraph` here, deliberately - found on review:
+ * Next doesn't merge a child's `openGraph` into a parent's, it replaces the whole
+ * object, so this page's own `openGraph: { type, description }` was silently dropping
+ * the root layout's `siteName`/`locale` from every link preview of the gallery. The
+ * root's own `description` (D-2's `linkPreviewDescription` ternary - `uk.demo.
+ * bannerNotice` while `REGISTRY_HAS_NO_REAL_SHELTERS`, `uk.firstRun.promise` once real
+ * shelters exist) and its `openGraph` (now carrying `title: titled(SITE_TITLE)`,
+ * `brand.ts`) already say exactly what this page would have said by hand - the owner's
+ * review of this PR's draft cut the longer description once proposed here down to
+ * exactly `uk.firstRun.promise` ("remove «гортайте по одній» - the deck is off"), which
+ * is what made the two identical in the first place. Leaving both unset here means
+ * there's one definition of the non-demo link-preview sentence, not two that can drift.
+ *
+ * The gallery's own filter/sort/page query variants canonicalise here too (owner,
+ * PR B): no `generateMetadata`, so this one static object answers every `?...` combo
+ * identically, which is exactly what a single shared canonical needs.
+ */
+export const metadata: Metadata = {
+  title: SITE_TITLE,
+  alternates: { canonical: "/tvaryny" },
+};
 
 /**
  * Not the `wide` breakpoint's column count (4) - that was tried first and

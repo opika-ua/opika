@@ -35,4 +35,17 @@ describe("GalleryError", () => {
     const link = screen.getByTestId("gallery-error-show-all");
     expect(link.getAttribute("href")).toBe("/tvaryny");
   });
+
+  /**
+   * PR B, the SEO review of page titles: a Client Component (every error boundary)
+   * can't export `metadata`/`robots`, but React still hoists a `<meta>` rendered
+   * anywhere in its tree up to the real document `<head>` - confirmed here against
+   * `document.head` directly, not assumed from reading React's docs.
+   */
+  it("is noindex, via a hoisted <meta> tag - no metadata export is possible here", () => {
+    render(<GalleryError error={new Error("boom")} reset={vi.fn()} retry={vi.fn()} />);
+
+    const robotsTag = document.head.querySelector('meta[name="robots"]');
+    expect(robotsTag?.getAttribute("content")).toBe("noindex, nofollow");
+  });
 });

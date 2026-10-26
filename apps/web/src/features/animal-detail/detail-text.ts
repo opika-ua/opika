@@ -1,7 +1,14 @@
 import type { AnimalDetailView } from "@opika/contracts";
 import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
 
-function speciesLabel(species: AnimalDetailView["species"]): string {
+/**
+ * Singular, common gender regardless of `sex` - the catalogue's own flagged
+ * simplification (`uk.detail.speciesDog`'s own comment), not a new one introduced by
+ * exporting this. Reused by `[animalId]/page.tsx`'s `generateMetadata` (PR B, the SEO
+ * review) for the title's `{species}` segment, rather than that file keeping its own
+ * copy of this species → label mapping.
+ */
+export function speciesLabel(species: AnimalDetailView["species"]): string {
   return species === "dog" ? uk.detail.speciesDog : uk.detail.speciesCat;
 }
 

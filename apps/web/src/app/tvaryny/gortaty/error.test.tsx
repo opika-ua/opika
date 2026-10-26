@@ -30,4 +30,12 @@ describe("GortatyError", () => {
     const link = screen.getByTestId("gortaty-error-back-to-list");
     expect(link.getAttribute("href")).toBe("/tvaryny");
   });
+
+  /** PR B, the SEO review of page titles - same hoisted `<meta>` as `/tvaryny/error.tsx`'s own test. */
+  it("is noindex, via a hoisted <meta> tag - no metadata export is possible here", () => {
+    render(<GortatyError error={new Error("boom")} reset={vi.fn()} retry={vi.fn()} />);
+
+    const robotsTag = document.head.querySelector('meta[name="robots"]');
+    expect(robotsTag?.getAttribute("content")).toBe("noindex, nofollow");
+  });
 });

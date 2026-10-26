@@ -457,10 +457,29 @@ export const uk = {
      * those are plural ("Собаки"/"Коти" for the rail). Singular, common
      * gender regardless of `sex` - same simplification `cardMeta`'s own
      * age words already make (documented there as a flagged, not fixed,
-     * gap), not a new one introduced here.
+     * gap), not a new one introduced here. Used by `detail-text.ts`'s
+     * `speciesLabel`, sex-neutral at both its callers: the card/page
+     * subtitle line (`animalSubtitle`) and the animal page's own `<title>`
+     * (PR B, the SEO review). These two string values are also read
+     * directly, bypassing `speciesLabel`, by the kabinet form
+     * (`FormSections.tsx`) - its own `t.who.speciesLabel` is an unrelated
+     * i18n key, not this function. The gallery's filter chips are a
+     * different pair entirely (`uk.filters.speciesDogs`/`speciesCats`,
+     * plural, for the rail - see the comment above).
+     * `animal-labels.ts`'s `speciesWordFor` (PR B's animal meta description,
+     * owner's exact wording) is a separate, sex-*aware* function for that
+     * one surface only; it reuses `speciesDog` as its *feminine* form
+     * specifically ("собака" is Ukrainian's generic, grammatically feminine
+     * word for a dog of either sex, correct both as the neutral noun here
+     * and as the female-specific word there), alongside two new entries
+     * below for the masculine/other-feminine forms that function needs and
+     * this sex-neutral pair doesn't cover.
      */
     speciesDog: "Собака",
     speciesCat: "Кіт",
+    /** Sex-specific, for `speciesWordFor` only - never the sex-neutral subtitle line above. */
+    speciesDogMale: "Пес",
+    speciesCatFemale: "Кішка",
     /** DR1 (S3), his text: the fact's own words, not the filter labels («Короткошерсті»);
      * the value matches the kabinet form's. No row at all when fur isn't recorded. */
     coatLabel: "Шерсть",

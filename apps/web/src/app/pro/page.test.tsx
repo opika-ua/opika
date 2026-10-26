@@ -1,8 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { renderAboutPage } from "./page";
+import { metadata, renderAboutPage } from "./page";
 
 describe("AboutPage", () => {
+  it("sets its own canonical (PR B, the SEO review of page titles)", () => {
+    expect(metadata.alternates?.canonical).toBe("/pro");
+  });
+
   it("renders the required subjects, including the analytics disclosure", () => {
     render(renderAboutPage(false));
 

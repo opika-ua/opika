@@ -1280,6 +1280,14 @@ onboarded shelter is shown their own real listing before launch - the gate is th
 makes that preview possible at all while the site stays unreachable to everyone else. Record this
 as a feature of the design, per Oleksii's own instruction, not as an incidental side door.
 
+**`sitemap.ts` must list every animal page before this flip, not just the handful of static
+routes (owner, PR B, the SEO review of page titles).** No `app/sitemap.ts` exists in this repo
+yet - PR B's own scope explicitly excluded building it, proposing its shape only as a follow-up.
+The animal page (`/tvaryny/{id}`) is the one surface the gallery's own `alternates.canonical`
+policy (canonicalising every filter/sort/page variant to the bare `/tvaryny`) deliberately keeps
+out of a crawler's reach via links alone - a sitemap is what actually gets each animal indexed
+once this flag flips, not merely a nice-to-have.
+
 ### Done, 2026-10-06 - the rate limiter is backed by a shared store (PR #70, RL-1 through RL-4)
 
 This row described a real gap as of 2026-09-13 (below, kept as history) and was closed the

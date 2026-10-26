@@ -14,6 +14,7 @@ import {
 } from "../../../features/shelters/shelter-page-load";
 import { parseShelterPageQuery } from "../../../features/shelters/shelter-url";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
+import { META_DESCRIPTION_MAX_LENGTH, trimAtWordBoundary } from "../../../seo-text";
 
 /** Live listing data, like `/tvaryny`: prerendering would bake in a stale snapshot. */
 export const dynamic = "force-dynamic";
@@ -71,12 +72,25 @@ function loadShelterPageOnce(shelterId: string, searchParams: SearchParams) {
 }
 
 /**
- * The title is the shelter's name alone (his answer, §11 item 4). No
- * `robots` of its own: the root layout's, set by `SITE_IS_PUBLICLY_DISCOVERABLE`,
- * applies here as everywhere (with `next.config.ts`'s header), except that a
- * rate-limited answer is never indexed as this URL's page (RL-F1). The
- * description is the D-2 demo disclosure while the registry holds no real
- * shelters, as on the animal page, and the shelter's own description after.
+ * The title is `{shelterName}, {city}` (owner, PR B, the SEO review of page titles;
+ * `cityName` omitted when it doesn't resolve). No `robots` of its own: the root
+ * layout's, set by `SITE_IS_PUBLICLY_DISCOVERABLE`, applies here as everywhere (with
+ * `next.config.ts`'s header), except that a rate-limited answer is never indexed as
+ * this URL's page (RL-F1). The description is the D-2 demo disclosure while the
+ * registry holds no real shelters, as on the animal page, and otherwise the shelter's
+ * own text - trimmed at a word boundary to 160 characters, never padded past whatever
+ * the shelter actually wrote (owner, verbatim: "if it's shorter than 120, leave it
+ * short, never pad").
+ *
+ * `openGraph.title` is omitted, not duplicated: Next resolves a missing one from the
+ * page's own already-templated `title` (`/prytulkam`'s and `/pro`'s own metadata
+ * already use this), so "og:title matches the page's title" holds without hand-typing
+ * the city and brand suffix here too.
+ *
+ * `alternates.canonical` is always the bare shelter URL, with no `?sort=`/`?page=` -
+ * the same policy the gallery's own filter/sort/page variants use (owner, PR B), for
+ * the same reason: at this corpus size, one shelter's few animals paginated or
+ * re-sorted have no unique indexable value over the shelter's own unparameterised page.
  */
 export async function generateMetadata({
   params,
@@ -89,13 +103,19 @@ export async function generateMetadata({
   const load = await loadShelterPageOnce(shelterId, await searchParams);
   if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
   if (load.kind !== "shelter") return {};
-  const { shelter } = load.view;
+  const { shelter, cityName } = load.view;
+  const title = [shelter.displayName, cityName].filter(Boolean).join(", ");
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
     ? uk.demo.bannerNotice
-    : textIn(shelter.description, "uk");
+    : trimAtWordBoundary(textIn(shelter.description, "uk"), META_DESCRIPTION_MAX_LENGTH);
   return {
-    title: shelter.displayName,
+    title,
     description,
-    openGraph: { type: "website", title: shelter.displayName, description },
+    // `shelter.id`, not the raw route param - same reasoning as the animal page's own
+    // canonical (found on review): a UUID's schema accepts any case, so a request that
+    // happened to use uppercase would otherwise get a canonical that disagrees with the
+    // lowercase form every other link on the site actually uses.
+    alternates: { canonical: `/prytulky/${shelter.id}` },
+    openGraph: { type: "website", description },
   };
 }
