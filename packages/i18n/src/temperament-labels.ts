@@ -26,7 +26,7 @@ export function temperamentLabelFor(trait: TemperamentTrait, sex: AnimalSex): st
   return TEMPERAMENT_WORDS[trait][gender];
 }
 
-/** Gallery filter option and the chip-link's accessible name — names the category, not one animal. */
+/** Gallery filter option and the chip-link's accessible name - names the category, not one animal. */
 export function temperamentFilterLabel(trait: TemperamentTrait): string {
   return TEMPERAMENT_WORDS[trait].plural;
 }
