@@ -3,6 +3,7 @@ import { variantObjectKey } from "../src/image-pipeline/variants";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { adopterToRow, animalToRowWithCity, revealToRow } from "../src/repos/mappers";
 import {
   afterDeleted,
   recordScan,
@@ -14,6 +15,8 @@ import {
 } from "../src/repos/r2-cleanup-repo";
 import { revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
+import { adopters } from "../src/schema/adopters";
+import { animals } from "../src/schema/animals";
 import { reveals } from "../src/schema/reveals";
 import {
   makeAdopter,
@@ -262,4 +265,50 @@ describe("afterDeleted", () => {
     expect(result.snapshotsNulled).toBe(0); // no reveals in this test, just the tracking table
     expect(await trackedUnreferencedObjects(db)).toEqual([]);
   }, 30_000);
+
+  it("nulls reveal snapshots across more than one SQL batch (round 3 Tier 1 delta review, finding 8 — " +
+    "the 1500-row afterDeleted test above exercises only the tracking-table DELETE chunking, never " +
+    "the reveal-snapshot UPDATE chunking, since it has no reveals at all)", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id } as never,
+    });
+    await shelterRepo(db).insert(shelter);
+
+    const count = SQL_BATCH_SIZE + 100;
+    const storageKeys = Array.from({ length: count }, (_, i) => `animals/snap-${i}/1`);
+    const animalRows = Array.from({ length: count }, () =>
+      animalToRowWithCity(makeAnimal({ shelterId: shelter.id, photos: [] }), city.id),
+    );
+    await db.insert(animals).values(animalRows);
+
+    const adopterRows = Array.from({ length: count }, () => adopterToRow(makeAdopter()));
+    await db.insert(adopters).values(adopterRows);
+
+    const revealRows = storageKeys.map((storageKey, i) =>
+      revealToRow(
+        makeReveal({
+          adopterId: adopterRows[i]?.id as never,
+          animalId: animalRows[i]?.id as never,
+          shelterId: shelter.id,
+          animalSnapshot: {
+            name: "Бровко",
+            primaryPhoto: { storageKey, width: 800, height: 1000, alt: null },
+          },
+        }),
+      ),
+    );
+    await db.insert(reveals).values(revealRows);
+
+    const deletedObjectKeys = storageKeys.map((storageKey) => variantObjectKey(storageKey, "card"));
+    const result = await afterDeleted(db, deletedObjectKeys);
+
+    expect(result.snapshotsNulled).toBe(count);
+    const rows = await db.select().from(reveals);
+    expect(rows).toHaveLength(count);
+    for (const row of rows) {
+      expect((row.animalSnapshot as { primaryPhoto: unknown }).primaryPhoto).toBeNull();
+    }
+  }, 60_000);
 });

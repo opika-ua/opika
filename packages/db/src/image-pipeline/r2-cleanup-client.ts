@@ -3,7 +3,7 @@ import { r2EndpointUrl } from "./variants";
 
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). The one named exception
- * to "no code path deletes or overwrites an existing object" (K-Q2,
+ * to "no code path that overwrites or deletes an existing object" (K-Q2,
  * `r2-client.ts`'s own doc comment) — this file is the exception, not a
  * second place that one is weakened. It lists and deletes; it never puts.
  *

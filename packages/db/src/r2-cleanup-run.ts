@@ -23,6 +23,21 @@ import {
 /** The one namespace this job ever touches — `isRealPhotoKey`'s own bound. */
 export const ANIMAL_PHOTO_PREFIX = "animals/";
 
+/**
+ * Matches `r2-cleanup-client.ts`'s own `DELETE_BATCH_SIZE` — the re-check
+ * below runs once per batch at this same size, so "before each batch"
+ * means the same batch the real R2 call makes, not an arbitrary smaller
+ * slice (Tier 1 review, PR #200, finding re: "re-checking before each
+ * batch" never actually being built, only documented as accepted).
+ */
+const DELETE_BATCH_SIZE = 1000;
+
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
 export type R2CleanupReport = {
   scanned: number;
   newlyTracked: number;
@@ -37,20 +52,17 @@ export type R2CleanupReport = {
  * One full run. Always scans and records (bookkeeping, idempotent, never
  * destructive — see `recordScan`'s own doc comment), so a dry run's report
  * of what's due is accurate rather than stale. Deletes for real only when
- * `commit`, and re-checks every candidate right before deleting
- * (`stillUnreferenced`) — Oleksii's own requirement, so a key referenced
- * again since the scan is never deleted.
- *
- * The re-check runs once, against the whole `due` list, not once per
- * network batch inside `r2.deleteObjects` (which still chunks its own
- * calls at 1000 keys). At this product's real volume — tens of photos a
- * day, not thousands — the gap between the one check and the last of a
- * few delete calls is seconds, not the minutes it would take for the
- * narrower race (a photo re-referenced mid-run, after the check but before
- * its own batch) to matter in practice. Narrowing this to a per-batch
- * check would mean `runR2Cleanup` orchestrating `deleteObjects`'s own
- * chunking rather than treating it as one call — a reasonable future
- * tightening, not done here (Tier 1 review, PR #200, note 7).
+ * `commit`, and re-checks right before deleting (`stillUnreferenced`) —
+ * Oleksii's own requirement, "re-checking before each batch," so a key
+ * referenced again since the scan is never deleted. "Each batch" is this
+ * file's own `DELETE_BATCH_SIZE` chunk, matching `r2-cleanup-client.ts`'s
+ * own real network batch — the re-check and the delete for one chunk
+ * happen back to back before the next chunk's re-check even starts,
+ * narrowing the race window to one chunk's own round trip rather than the
+ * whole run's (Tier 1 review, PR #200: an earlier version of this comment
+ * accepted a single up-front check as good enough at this product's real
+ * volume, which a delta review correctly read as *documenting* the gap
+ * Oleksii's own confirmation asked to have closed, not closing it).
  */
 export async function runR2Cleanup(
   db: Database,
@@ -79,9 +91,17 @@ export async function runR2Cleanup(
     };
   }
 
-  const stillDue = await stillUnreferenced(db, due);
-  const { deleted, failed } = await r2.deleteObjects(stillDue);
-  const { snapshotsNulled } = await afterDeleted(db, deleted);
+  let deleted: string[] = [];
+  let failed: { key: string; message: string }[] = [];
+  let snapshotsNulled = 0;
+  for (const batch of chunk(due, DELETE_BATCH_SIZE)) {
+    const stillDueInBatch = await stillUnreferenced(db, batch);
+    const batchResult = await r2.deleteObjects(stillDueInBatch);
+    const batchNulled = await afterDeleted(db, batchResult.deleted);
+    deleted = deleted.concat(batchResult.deleted);
+    failed = failed.concat(batchResult.failed);
+    snapshotsNulled += batchNulled.snapshotsNulled;
+  }
 
   return {
     scanned: bucketKeys.length,

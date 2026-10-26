@@ -4,7 +4,7 @@ import { variantObjectKey } from "../src/image-pipeline/variants";
 import { formatReport, parseCleanupArgs, runR2Cleanup } from "../src/r2-cleanup";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
-import { trackedUnreferencedObjects } from "../src/repos/r2-cleanup-repo";
+import { recordScan, trackedUnreferencedObjects } from "../src/repos/r2-cleanup-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import {
   makeAnimal,
@@ -127,6 +127,37 @@ describe("runR2Cleanup", () => {
     expect(r2.remaining()).toEqual([filteredOut]);
     vi.doUnmock("../src/repos/r2-cleanup-repo");
   });
+
+  it("re-checks before each batch, not once for the whole run (Tier 1 review, PR #200, finding re: 'before each batch' never being built)", async () => {
+    // 1500 due keys cross the 1000-key batch boundary (DELETE_BATCH_SIZE in
+    // r2-cleanup-run.ts, matching r2-cleanup-client.ts's own real network
+    // batch). A spy counts how many times — and with how many keys —
+    // stillUnreferenced is actually called.
+    const keys = Array.from({ length: 1500 }, (_, i) => `animals/batch-${i}/card.webp`);
+    await recordScan(db, keys, NOW);
+
+    const calls: number[] = [];
+    vi.resetModules();
+    vi.doMock("../src/repos/r2-cleanup-repo", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("../src/repos/r2-cleanup-repo")>();
+      return {
+        ...actual,
+        stillUnreferenced: async (db2: unknown, candidates: readonly string[]) => {
+          calls.push(candidates.length);
+          return actual.stillUnreferenced(db2 as never, candidates);
+        },
+      };
+    });
+    const { runR2Cleanup: mockedRunR2Cleanup } = await import("../src/r2-cleanup-run");
+    const past = new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000);
+    const r2 = fakeR2(keys);
+
+    const report = await mockedRunR2Cleanup(db, r2, past, { commit: true, graceDays: undefined });
+
+    expect(calls).toEqual([1000, 500]); // two batches, re-checked separately
+    expect(report.deleted).toHaveLength(1500);
+    vi.doUnmock("../src/repos/r2-cleanup-repo");
+  }, 30_000);
 
   it("a key referenced again before the second run is never deleted, even past the grace period", async () => {
     const key = variantObjectKey("animals/a/1", "card");

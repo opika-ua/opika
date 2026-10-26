@@ -55,9 +55,9 @@ export const PHOTO_MAX_EDGE_PX = 2000;
  * confirms, verbatim, "the 7-day grace matching Neon's restore window" —
  * 7 is his own number, matched to Neon's Launch-plan point-in-time-restore
  * window (checked directly against Neon's own docs, 2026-10-25, not
- * assumed — `docs/stack-decision.md` names Neon's Launch plan, §6, but
- * doesn't itself state the window's length in days, so this isn't cited
- * back to that doc): if the database is ever restored a few days back,
+ * assumed — `docs/stack-decision.md` names Neon's Launch plan (§0, §3.1)
+ * but doesn't itself state the window's length in days, so this isn't
+ * cited back to that doc): if the database is ever restored a few days back,
  * the restored rows still find their photos. The same window also
  * covers two smaller, real races: an edit racing a concurrent one (both
  * touch the same animal's `photos` array within the grace window), and a
