@@ -71,6 +71,21 @@ describe("the full page", () => {
       expect((await generateMetadata({ params })).title).toBe("Мурчик, Кіт, Бровари");
     });
 
+    /**
+     * Found on review: the default fixture is a male cat, where the title's sex-neutral
+     * `speciesLabel` and the description's sex-aware `speciesWordFor` happen to agree
+     * («Кіт» either way), so nothing above actually proves the title uses the right one.
+     * A female cat is where they diverge - `speciesWordFor` gives «Кішка»; `speciesLabel`
+     * must still give «Кіт».
+     */
+    it("stays sex-neutral even where the sex-aware species word would differ (a female cat)", async () => {
+      current = stubAnimalPageClient({
+        kind: "answer",
+        animal: makeDetailAnimal({ sex: "female" }),
+      });
+      expect((await generateMetadata({ params })).title).toBe("Мурчик, Кіт, Бровари");
+    });
+
     it("drops the city segment rather than rendering an empty one when it doesn't resolve", async () => {
       // The animal's own location, not the shelter's, wins when both are set
       // (`loadAnimalPage`'s own fallback order) - a city id absent from the
@@ -85,6 +100,21 @@ describe("the full page", () => {
     it("canonical is always the bare id, never a query string", async () => {
       current = stubAnimalPageClient();
       expect((await generateMetadata({ params })).alternates?.canonical).toBe(
+        `/tvaryny/${ANIMAL_ID}`,
+      );
+    });
+
+    /**
+     * Found on review: the test above can't actually distinguish "built from `animal.id`"
+     * from "built from the raw route param" - they're the same string. `AnimalIdSchema`
+     * is `z.uuid().brand(...)`, which validates format but never normalises case, so an
+     * uppercase URL reaches this far unchanged; the loaded animal's own `id` is still the
+     * canonical lowercase form. The canonical must follow the latter.
+     */
+    it("canonical uses the animal's own id, not an uppercase route param", async () => {
+      current = stubAnimalPageClient();
+      const uppercaseParams = Promise.resolve({ animalId: ANIMAL_ID.toUpperCase() });
+      expect((await generateMetadata({ params: uppercaseParams })).alternates?.canonical).toBe(
         `/tvaryny/${ANIMAL_ID}`,
       );
     });

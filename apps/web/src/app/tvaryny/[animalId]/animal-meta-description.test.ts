@@ -72,6 +72,26 @@ describe("animalMetaDescription (PR B, the SEO review of page titles)", () => {
     expect(longName.startsWith(trimmedName)).toBe(true);
   });
 
+  /**
+   * Found on review: the test above never actually exercises a trim - `longName`'s 112
+   * characters fit comfortably inside its 136-character budget, so removing the trim
+   * (or even the `- 3 - 1` adjustment entirely) left it green. This fixture has no
+   * spaces, so `trimAtWordBoundary` can't cut at a word boundary and instead hard-cuts
+   * to exactly the shelter budget - which pins the "- 3 - 1" arithmetic precisely: the
+   * fixed prefix is exactly 20 characters ("Кіт Мурчик · Бровари"), so the shelter name
+   * is cut to exactly 136, making the full description exactly 160. Either constant
+   * changing by even one shifts that total off 160, in either direction.
+   */
+  it("pins the shelter-name budget arithmetic exactly, not just under the 160 ceiling", () => {
+    const animal = makeDetailAnimal({ description: { uk: "Короткий опис.", en: null } });
+    const noSpaceShelterName = "а".repeat(200);
+    const description = animalMetaDescription(animal, noSpaceShelterName, "Бровари");
+    expect(description.length).toBe(160);
+    expect(description.endsWith(".")).toBe(true);
+    // No body: the shelter name alone used up the entire budget.
+    expect(description).not.toContain("Короткий опис");
+  });
+
   it("omits the body sentence entirely rather than show a cut-off word, when too little room is left for it", () => {
     const animal = makeDetailAnimal({
       description: { uk: "Ляльопундра зовсім інакша фраза для теста.", en: null },
@@ -82,6 +102,24 @@ describe("animalMetaDescription (PR B, the SEO review of page titles)", () => {
     expect(description.length).toBeLessThanOrEqual(160);
     // No fragment of the animal's own description leaked into the result.
     expect(description).not.toContain("Ляльопундра");
+  });
+
+  /**
+   * Found on review: neither existing test actually lands inside the [1, 20) window
+   * `MIN_USEFUL_BODY_LENGTH` is meant to guard - the fixture above leaves exactly 0
+   * characters of body budget, which would omit the body even if the threshold were 1.
+   * This fixture's shelter name is sized so the body budget is exactly 10: room enough
+   * for a real fragment of the description to fit, but below the 20-character floor -
+   * proving the floor itself is doing the excluding, not merely "no room at all".
+   */
+  it("the body-omission floor excludes a fragment that would otherwise fit, not just a zero budget", () => {
+    const animal = makeDetailAnimal({ description: { uk: "Короткийопис.", en: null } });
+    // 25 repetitions of "дім " (4 chars each) trimmed to exactly 125 chars of shelter
+    // name -> a prefix of 149 chars -> a body budget of exactly 10.
+    const shelterName = "дім ".repeat(32).trim().slice(0, 125);
+    const description = animalMetaDescription(animal, shelterName, "Бровари");
+    expect(description.endsWith(".")).toBe(true);
+    expect(description).not.toContain("Короткийоп");
   });
 
   /**

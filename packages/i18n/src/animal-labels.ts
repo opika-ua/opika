@@ -64,10 +64,11 @@ const FEMININE_SPECIES_WORD_LABELS: Record<AnimalSpecies, string> = {
 /**
  * The sex-aware species word for the animal page's meta description (PR B, the SEO
  * review of page titles; owner's exact wording): cat male «Кіт», female «Кішка»; dog
- * male «Пес», female «Собака»; unknown sex takes the masculine form, same convention
- * `ageWordFor` above already uses - picking a gender for an unknown sex would state
- * something nobody recorded. Distinct from `detail-text.ts`'s `speciesLabel`, which
- * stays sex-neutral for the card/page subtitle line and is unaffected by this.
+ * male «Пес», female «Собака»; unknown sex defaults to the masculine form - same
+ * convention `ageWordFor` above already uses for its own unknown-sex case, masculine
+ * being Ukrainian's grammatically unmarked default, not a guess at the actual sex.
+ * Distinct from `detail-text.ts`'s `speciesLabel`, which stays sex-neutral everywhere
+ * it's read (including the page's own `<title>`) and is unaffected by this.
  */
 export function speciesWordFor(species: AnimalSpecies, sex: AnimalSex): string {
   const gender: GrammaticalGender = grammaticalGenderOf(sex);

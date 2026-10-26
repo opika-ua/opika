@@ -458,9 +458,10 @@ describe("/pro - description is its own opening sentence, never the demo swap", 
  * `/tvaryny/[animalId]` at all - Next does not merge a route's own
  * `generateMetadata` with the root layout's, it overrides it, and this
  * route builds its own `description`/`openGraph.description` from the
- * animal's own data (PR B, the SEO review of page titles: species, shelter,
- * city, and a trimmed line of the animal's own description - age and size
- * are gone from here, deliberately; `animalMetaDescription`'s own test in
+ * animal's own data (PR B, the SEO review of page titles: sex-aware species
+ * word, name, city, shelter name, and a trimmed line of the animal's own
+ * description - age and size are gone from here, deliberately;
+ * `animalMetaDescription`'s own test in
  * `[animalId]/animal-meta-description.test.ts` covers that formatting in
  * detail). Without its own demo swap this route would preview a fictional
  * animal with no demo-data disclosure - exactly the shared-link surface

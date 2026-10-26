@@ -113,14 +113,8 @@ const loadAnimalPageOnce = cache((animalId: string) => loadAnimalPage(animalId))
  *   The age bucket and the reserved/adopted state are both deliberately absent -
  *   neither belongs in a title a search index can keep stale, and the state was
  *   never in it to begin with.
- * - `description`: `{species word} {name} · {city} · {shelterName}.` (the sex-aware
- *   species word, `speciesWordFor` - distinct from the title's own sex-neutral
- *   `speciesLabel`; `city` dropped, not rendered empty, when the animal's location
- *   doesn't resolve to a known city; no "з притулку", "м.", or quotes around the
- *   shelter name, since a shelter's own display name may already carry either),
- *   then one line of the animal's own description, trimmed at a word boundary to
- *   stay within 160 characters total and never padded past whatever's actually
- *   there. See `animalMetaDescription`'s own doc comment for the full format.
+ * - `description`: built by `animalMetaDescription`, below - see its own doc comment
+ *   for the exact format, the sex-aware species word and the 160-character budget.
  *
  * `openGraph.title` is omitted, not duplicated: Next resolves a missing
  * `openGraph.title` from the page's own already-templated `title` (same
