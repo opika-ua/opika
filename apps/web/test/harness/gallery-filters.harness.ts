@@ -107,11 +107,8 @@ test.describe("/tvaryny filters — URL is the single source of truth", () => {
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    // gallery-v3: species/fur are no longer in the desktop dropdown row
-    // (only city/age/size — the sex dropdown the frame shows has no data
-    // model to back it, `GalleryFilterDropdowns.tsx`'s own top comment),
-    // so this exercises the size dropdown instead of the old rail's
-    // species chip.
+    // Any one of the five dropdowns exercises the same URL-as-source-of-truth
+    // path; size is as good as any other.
     await page.getByRole("button", { name: "РОЗМІР" }).click();
     await page.getByRole("link", { name: "Великий" }).click();
     await page.waitForURL(/rozmir=large/);

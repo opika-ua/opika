@@ -177,10 +177,8 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 4 columns)", () => {
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    // gallery-v3: species is no longer one of the desktop dropdown row's
-    // three dimensions (city/age/size only — `FilterRail`, the old species
-    // chip's own home, is retired), so this exercises the size dropdown
-    // instead, through the same UI click path the old test used.
+    // Any one of the five desktop dropdowns exercises "arrow nav survives a
+    // filter-driven re-render"; size is as good as any other.
     await page.getByRole("button", { name: "РОЗМІР" }).click();
     await page.getByRole("link", { name: "Великий" }).click();
     await page.waitForURL(/rozmir=large/);

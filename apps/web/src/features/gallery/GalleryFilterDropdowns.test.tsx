@@ -15,7 +15,7 @@ const CITY_SLUGS = new Map([
 ]);
 
 describe("GalleryFilterDropdowns", () => {
-  it("renders exactly three dropdown triggers — city, age, size, never a fourth 'sex' one", () => {
+  it("renders exactly five dropdown triggers — city, age, size, species, fur, never a 'sex' one", () => {
     render(
       <GalleryFilterDropdowns
         filters={NO_FILTERS}
@@ -24,7 +24,8 @@ describe("GalleryFilterDropdowns", () => {
         citySlugs={CITY_SLUGS}
       />,
     );
-    expect(screen.getAllByRole("button")).toHaveLength(3);
+    expect(screen.getAllByRole("button")).toHaveLength(5);
+    expect(screen.queryByLabelText(/Стать/)).toBeNull();
   });
 
   it("shows the group name as a muted placeholder when nothing is selected", () => {
@@ -170,5 +171,40 @@ describe("GalleryFilterDropdowns", () => {
     fireEvent.click(screen.getByLabelText(`${uk.filters.age}: ${uk.filters.ageYoung}`));
     const option = screen.getByRole("link", { name: /Молодий/ });
     expect(option.getAttribute("aria-current")).toBe("true");
+  });
+
+  /**
+   * GV3-Q1 (b): the two dropdowns added to close the Tier 1 review's desktop
+   * filter gap. Real coverage for `withToggledSpecies`/`withToggledCoat`'s
+   * own wiring here, not just the "five triggers exist" structural count
+   * above — a wrong import or a swapped dimension key would still render
+   * five buttons.
+   */
+  it("the species dropdown selects «Коти» and writes vyd=cat", () => {
+    render(
+      <GalleryFilterDropdowns
+        filters={NO_FILTERS}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText(`${uk.filters.species}: ${uk.filters.species}`));
+    const option = screen.getByRole("link", { name: uk.filters.speciesCats });
+    expect(option.getAttribute("href")).toBe("/tvaryny?vyd=cat");
+  });
+
+  it("the fur dropdown selects «Довгошерсті» and writes sherst=long", () => {
+    render(
+      <GalleryFilterDropdowns
+        filters={NO_FILTERS}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText(`${uk.filters.coat}: ${uk.filters.coat}`));
+    const option = screen.getByRole("link", { name: uk.filters.coatLong });
+    expect(option.getAttribute("href")).toBe("/tvaryny?sherst=long");
   });
 });

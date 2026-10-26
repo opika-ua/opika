@@ -31,14 +31,13 @@ const foundCount = async (page: import("@playwright/test").Page): Promise<number
 
 test.describe("/tvaryny fur filter", () => {
   /**
-   * gallery-v3 (Figma `58:1617`): fur is no longer one of the desktop
-   * dropdown row's three dimensions (city/age/size only —
-   * `GalleryFilterDropdowns.tsx`'s own top comment), so this filter is
-   * only reachable through `FilterSheet`, which is `desktop:hidden` since
-   * this redesign. Exercised at phone width through the sheet's real
-   * `<form>` instead of the old rail's instant-navigating chip — a
-   * genuinely different interaction (submit, not click-to-navigate), not a
-   * cosmetic selector swap.
+   * gallery-v3 (Figma `58:1617`): fur also has its own desktop dropdown
+   * now (`GalleryFilterDropdowns.tsx`, GV3-Q1), but this test deliberately
+   * exercises `FilterSheet` at phone width instead — its real `<form>`
+   * submit is a genuinely different interaction from the dropdown's
+   * click-to-navigate links, not a cosmetic selector swap, and is the only
+   * path at phone width (the sheet is the gallery's sole filter UI below
+   * `desktop:`).
    */
   test("«Довгошерсті» narrows the list, writes `sherst=long`, and a listed animal's page says «Довга»", async ({
     page,

@@ -967,11 +967,26 @@ export const uk = {
      * rather than only the weaker "doesn't re-serve what you skipped" the
      * English sense in `docs/observations.md` originally drafted. Oleksii's
      * own Ukrainian, verbatim — not drafted or polished here.
+     *
+     * **GV3-Q3 (Oleksii, 2026-10-26: "go with (b)"), narrowed again:** the
+     * first sentence used to promise «списком або по одній» unconditionally.
+     * The gallery-v3 redesign hid the deck's own entry link from the gallery
+     * (Oleksii, mid-build: "let's hide access to Гортати по одній page for
+     * now as well"), so a shelter reading this page could no longer verify
+     * the second method from the site itself. Narrowed per
+     * `docs/standing-constraints.md`'s "removing a false claim is not the
+     * same gate as adding one" — the deletion needs no round trip, and
+     * `/tvaryny/gortaty` still exists and still works, so this is a
+     * **temporary narrowing, not a withdrawal**: restore the fuller sentence
+     * once the deck has a real entry point again. The replacement sentence
+     * is the builder's own draft, not his words — flagged in the decisions
+     * inbox (GV3-Q3) pending his confirm-or-replace, same as GV3-Q2.
      */
     whatHappensToAnimals:
       "Кожна тварина отримує власну сторінку з фотографіями і власною адресою — її можна надіслати " +
       "в Telegram, показати знайомим, залишити під дописом.\n\n" +
-      "Тварин можна дивитися списком або по одній.\n\n" +
+      "Тварин можна дивитися списком. Перегляд по одній поки не має посилання з каталогу, хоча " +
+      "сама сторінка ще працює.\n\n" +
       "Список завжди показує всіх. У режимі «по одній» людина більше не бачить тих, на кого вже " +
       "натиснула «Не зараз» чи «Написати», — це памʼять лише її пристрою, і після «Не зараз» " +
       "тварина згодом зʼявляється знову. Від людини не ховається нічого, крім того, що вона " +

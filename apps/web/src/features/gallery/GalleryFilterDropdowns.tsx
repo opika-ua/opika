@@ -1,13 +1,35 @@
 "use client";
 
-import type { AgeBucket, CityId, FeedFilters, GallerySort, SizeBucket } from "@opika/domain";
-import { AGE_BUCKETS, isExplicitlySelected, relaxDimension, SIZE_BUCKETS } from "@opika/domain";
+import type {
+  AgeBucket,
+  AnimalSpecies,
+  CityId,
+  CoatLength,
+  FeedFilters,
+  GallerySort,
+  SizeBucket,
+} from "@opika/domain";
+import {
+  AGE_BUCKETS,
+  ANIMAL_SPECIES,
+  COAT_LENGTHS,
+  isExplicitlySelected,
+  relaxDimension,
+  SIZE_BUCKETS,
+} from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { CitySlugsById } from "./filter-url";
-import { galleryHref, withToggledAge, withToggledCity, withToggledSize } from "./filter-url";
+import {
+  galleryHref,
+  withToggledAge,
+  withToggledCity,
+  withToggledCoat,
+  withToggledSize,
+  withToggledSpecies,
+} from "./filter-url";
 import { ChevronDownIcon } from "./icons";
 
 interface GalleryFilterDropdownsProps {
@@ -17,6 +39,10 @@ interface GalleryFilterDropdownsProps {
   citySlugs: CitySlugsById;
 }
 
+const SPECIES_LABEL: Record<AnimalSpecies, string> = {
+  dog: uk.filters.speciesDogs,
+  cat: uk.filters.speciesCats,
+};
 const SIZE_LABEL: Record<SizeBucket, string> = {
   small: uk.filters.sizeSmall,
   medium: uk.filters.sizeMedium,
@@ -27,6 +53,10 @@ const AGE_LABEL: Record<AgeBucket, string> = {
   young: uk.filters.ageYoung,
   adult: uk.filters.ageAdult,
   senior: uk.filters.ageSenior,
+};
+const COAT_LABEL: Record<CoatLength, string> = {
+  short: uk.filters.coatShort,
+  long: uk.filters.coatLong,
 };
 
 /**
@@ -187,21 +217,30 @@ function DropdownOption({
 }
 
 /**
- * The gallery-v3 control block's three real dropdowns — city, age, size
- * (Figma `58:1617`). **Decision taken, not built as specified:** the frame
- * shows a fourth, «Стать» (sex), but `FeedFilters` (`packages/domain`) has
- * no sex dimension at all — no param, no toggle helper, no DB predicate.
- * Adding one is a schema/contract/domain/db change, not a skin (the
- * hand-off's own words for the dropdowns: "reuse what exists; this is a
- * skin, not new logic"), and `docs/standing-constraints.md`'s STOP list
- * names exactly this case ("widening a schema for a temporary mode").
- * Shipping a fourth dropdown wired to nothing would be a control that
- * claims to filter and doesn't. Three real dropdowns now; a sex filter, if
- * wanted, is its own follow-up phase.
+ * The gallery-v3 control block's five real dropdowns — city, age, size,
+ * species, fur (Figma `58:1617` shows four, city/age/size/«Стать»; species
+ * and fur are added here per Oleksii's Tier 1 review decision GV3-Q1 (b),
+ * 2026-10-26, closing the gap the Tier 1 reviewer found: without them,
+ * `desktop:` had no control at all for two of `FeedFilters`' five
+ * dimensions — `FilterSheet`'s own species/fur checkboxes exist but that
+ * whole sheet is `desktop:hidden`).
  *
- * Hidden below `desktop:` — "Below 1024px... Hide the four [here three]
- * dropdowns; «Фільтр» opens the sheet" (`FilterSheet.tsx`, still wired at
- * every width since this PR).
+ * **Still no «Стать» (sex) dropdown, unchanged reasoning:** `FeedFilters`
+ * (`packages/domain`) has no sex dimension at all — no param, no toggle
+ * helper, no DB predicate. Adding one is a schema/contract/domain/db
+ * change, not a skin, and `docs/standing-constraints.md`'s STOP list names
+ * exactly this case ("widening a schema for a temporary mode"). Shipping a
+ * dropdown wired to nothing would be a control that claims to filter and
+ * doesn't; a sex filter, if wanted, is its own follow-up phase.
+ *
+ * Species and fur reuse `FilterSheet.tsx`'s own `SPECIES_LABEL`/
+ * `COAT_LABEL` maps and `withToggledSpecies`/`withToggledCoat` helpers
+ * verbatim — same dimensions, same toggle semantics, just this row's own
+ * Dropdown/DropdownOption markup instead of the sheet's checkboxes.
+ *
+ * Hidden below `desktop:` — "Below 1024px... Hide the dropdowns; «Фільтр»
+ * opens the sheet" (`FilterSheet.tsx`, still wired at every width since
+ * this PR).
  */
 export function GalleryFilterDropdowns({
   filters,
@@ -231,8 +270,32 @@ export function GalleryFilterDropdowns({
         .join(", ")
     : uk.filters.size;
 
+  const speciesActive = filters.species.kind !== "any";
+  const speciesLabel = speciesActive
+    ? ANIMAL_SPECIES.filter((species) => isExplicitlySelected(filters.species, species))
+        .map((species) => SPECIES_LABEL[species])
+        .join(", ")
+    : uk.filters.species;
+
+  const coatActive = filters.coatLengths.kind !== "any";
+  const coatLabel = coatActive
+    ? COAT_LENGTHS.filter((coat) => isExplicitlySelected(filters.coatLengths, coat))
+        .map((coat) => COAT_LABEL[coat])
+        .join(", ")
+    : uk.filters.coat;
+
   return (
-    <div data-testid="gallery-filter-dropdowns" className="hidden items-center gap-3 desktop:flex">
+    <div
+      data-testid="gallery-filter-dropdowns"
+      // flex-wrap: five dropdowns at w-53 (212px) plus four gap-3 (12px) gaps
+      // come to 1108px — wider than the 912px of content width the page's
+      // own desktop:px-14 gutters leave at the 1024px desktop floor (measured
+      // live, not assumed). Figma's frame never anticipated five, so there's
+      // no mock geometry to match here; wrapping onto a second line is the
+      // one option that neither causes horizontal overflow nor shrinks a
+      // control below its 212px readable width.
+      className="hidden flex-wrap items-center gap-3 desktop:flex"
+    >
       <Dropdown
         legend={uk.filters.city}
         active={cityActive}
@@ -280,6 +343,40 @@ export function GalleryFilterDropdowns({
             href={galleryHref(withToggledSize(filters, size), sort, citySlugs)}
           >
             {SIZE_LABEL[size]}
+          </DropdownOption>
+        ))}
+      </Dropdown>
+
+      <Dropdown
+        legend={uk.filters.species}
+        active={speciesActive}
+        label={speciesLabel}
+        clearHref={galleryHref(relaxDimension(filters, "species"), sort, citySlugs)}
+      >
+        {ANIMAL_SPECIES.map((species) => (
+          <DropdownOption
+            key={species}
+            active={isExplicitlySelected(filters.species, species)}
+            href={galleryHref(withToggledSpecies(filters, species), sort, citySlugs)}
+          >
+            {SPECIES_LABEL[species]}
+          </DropdownOption>
+        ))}
+      </Dropdown>
+
+      <Dropdown
+        legend={uk.filters.coat}
+        active={coatActive}
+        label={coatLabel}
+        clearHref={galleryHref(relaxDimension(filters, "coatLengths"), sort, citySlugs)}
+      >
+        {COAT_LENGTHS.map((coat) => (
+          <DropdownOption
+            key={coat}
+            active={isExplicitlySelected(filters.coatLengths, coat)}
+            href={galleryHref(withToggledCoat(filters, coat), sort, citySlugs)}
+          >
+            {COAT_LABEL[coat]}
           </DropdownOption>
         ))}
       </Dropdown>
