@@ -93,7 +93,7 @@ describe("donation decision", () => {
     await userEvent.click(screen.getByRole("button", { name: "Схвалити" }));
     expect(reread).toHaveBeenCalledOnce();
     expect(screen.getByRole("status").textContent).toBe(
-      "Пропозиція змінилася, поки сторінка була відкрита. Тут - поточна.",
+      "Пропозиція змінилася, поки сторінка була відкрита. Тут – поточна.",
     );
     await userEvent.click(screen.getByRole("button", { name: "Схвалити" }));
     expect(approve).toHaveBeenLastCalledWith({ shelterId: SHELTER_ID, expectedVersion: 9 });

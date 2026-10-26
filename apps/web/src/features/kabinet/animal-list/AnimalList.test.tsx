@@ -215,7 +215,7 @@ describe("the page: header, rows, order note", () => {
     );
     expect(
       screen.getByText(
-        "Порядок у галереї - за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.",
+        "Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.",
       ),
     ).toBeTruthy();
   });
@@ -430,13 +430,13 @@ describe("listing moves: each request, and its refusal", () => {
     expect(inRow("Рекс").getByText("Опубліковано")).toBeTruthy();
   });
 
-  it("«Не домовилися - знову шукає» (in «Ще») releases; a missing card is his not-found sentence", async () => {
+  it("«Не домовилися – знову шукає» (in «Ще») releases; a missing card is his not-found sentence", async () => {
     const calls = renderList({
       handlers: { transition: async () => Promise.reject(apiError("NOT_FOUND")) },
     });
     await openMenu("Мурка");
     await userEvent.click(
-      inRow("Мурка").getByRole("button", { name: "Не домовилися - знову шукає" }),
+      inRow("Мурка").getByRole("button", { name: "Не домовилися – знову шукає" }),
     );
     expect(calls.transition).toHaveBeenCalledWith({
       animalId: RESERVED.id,
@@ -683,7 +683,7 @@ describe("«Видалити чернетку» (K2-T4, his answers 2 and 8b)", 
   it("the photos line only when the draft has photos", async () => {
     renderList();
     const PHOTOS =
-      "Файли фото не видаляються одразу - якщо їх треба прибрати зовсім, напишіть мені.";
+      "Файли фото не видаляються одразу – якщо їх треба прибрати зовсім, напишіть мені.";
     await openMenu("Ластівка");
     await userEvent.click(inRow("Ластівка").getByRole("button", { name: "Видалити чернетку" }));
     let dialog = screen.getByRole("dialog", { name: "Видалити чернетку «Ластівка»?" });
@@ -872,7 +872,7 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     await userEvent.click(inRow("Мурка").getByRole("button", { name: "Ще домовляються" }));
     await userEvent.click(inRow("Мурка").getByRole("button", { name: "Скасувати · 8 с" }));
     expect(alertText()).toContain(
-      "Скасувати вже не можна: час минув або картку змінено. На картці - сьогоднішня дата.",
+      "Скасувати вже не можна: час минув або картку змінено. На картці – сьогоднішня дата.",
     );
     expect(inRow("Мурка").getByText("Оновлено сьогодні")).toBeTruthy();
     expect(inRow("Мурка").queryByRole("button", { name: /^Скасувати/ })).toBeNull();
@@ -960,7 +960,7 @@ describe("after a lost answer, only what is known", () => {
     expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy();
   });
 
-  it("UNDO_EXPIRED and the re-read shows today's date: his «…На картці - сьогоднішня дата.»", async () => {
+  it("UNDO_EXPIRED and the re-read shows today's date: his «…На картці – сьогоднішня дата.»", async () => {
     renderList({
       handlers: {
         confirm: async () => ({ animal: confirmedToday, undoUntil: NOW }),
@@ -971,7 +971,7 @@ describe("after a lost answer, only what is known", () => {
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" }));
     expect(alertText()).toContain(
-      "Скасувати вже не можна: час минув або картку змінено. На картці - сьогоднішня дата.",
+      "Скасувати вже не можна: час минув або картку змінено. На картці – сьогоднішня дата.",
     );
   });
 
@@ -1120,7 +1120,7 @@ describe("empty list", () => {
     );
     expect(
       screen.getByText(
-        "Щоб зберегти чернетку, потрібні імʼя та вид - решту можна дописати пізніше.",
+        "Щоб зберегти чернетку, потрібні імʼя та вид – решту можна дописати пізніше.",
       ),
     ).toBeTruthy();
     expect(screen.queryByRole("group", { name: "Показати" })).toBeNull();

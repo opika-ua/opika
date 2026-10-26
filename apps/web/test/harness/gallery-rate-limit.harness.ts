@@ -54,7 +54,7 @@ test.describe("gallery rate limiting", () => {
       if (i < BUDGET) {
         expect(
           lastStatus,
-          `request ${i + 1}/${BUDGET} to ${ROUTE} was rate-limited early - ` +
+          `request ${i + 1}/${BUDGET} to ${ROUTE} was rate-limited early – ` +
             `the budget should not be spent until request ${BUDGET + 1}`,
         ).not.toBe(429);
       }

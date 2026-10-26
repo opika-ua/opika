@@ -29,7 +29,7 @@ test.describe("pre-launch gate, against a real server", () => {
     expect(response.status()).toBe(403);
   });
 
-  test("a request outside /tvaryny is denied identically - the gate is not scoped to the gallery", async ({
+  test("a request outside /tvaryny is denied identically – the gate is not scoped to the gallery", async ({
     request,
   }) => {
     const response = await request.get("/prytulkam");

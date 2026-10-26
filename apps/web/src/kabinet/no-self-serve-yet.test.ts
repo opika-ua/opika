@@ -81,7 +81,7 @@ const COPY_GATE =
   "/prytulkam §7 whatToPrepare, §9 whenAnimalFindsHome, §10 whoIsBehindThis and §8 " +
   "whyThatSentence describe this: see docs/standing-constraints.md, commitments 6 and 7";
 
-describe(`a shelter membership is created by the automatic accept only - ${COPY_GATE}`, () => {
+describe(`a shelter membership is created by the automatic accept only – ${COPY_GATE}`, () => {
   it("sanity: the scan sees the source tree", () => {
     expect(sourceFiles()).toContain("packages/db/src/repos/kabinet-invitation-repo.ts");
     expect(sourceFiles().length).toBeGreaterThan(50);
@@ -212,15 +212,15 @@ describe(`a shelter membership is created by the automatic accept only - ${COPY_
     // A1 (row 91): his line, in §7, and §7's last paragraph his PR 6 text
     // (pr6-copy-uk.md §1.1) in place of «ви розкажете, а я внесу все сам».
     expect(uk.forShelters.whatToPrepare, COPY_GATE).toContain(
-      "Доступ до кабінету я надсилаю сам - листом на адресу, яку ви мені вкажете.",
+      "Доступ до кабінету я надсилаю сам – листом на адресу, яку ви мені вкажете.",
     );
     expect(uk.forShelters.whatToPrepare, COPY_GATE).toContain(
-      "Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте - і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам - надішліть список і фото.",
+      "Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте – і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам – надішліть список і фото.",
     );
     expect(uk.forShelters.whatToPrepare, COPY_GATE).not.toContain("я внесу все сам");
     // B1 (pr6-copy-uk.md §1.3): what moves the date, named, and a text edit not among it.
     expect(uk.forShelters.whyThatSentence, COPY_GATE).toContain(
-      "Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють - так вона показує саме те, що обіцяє. Речення пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».",
+      "Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють – так вона показує саме те, що обіцяє. Речення пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».",
     );
     expect(uk.forShelters.whyThatSentence, COPY_GATE).not.toContain(
       "коли інформацію востаннє оновлювали",

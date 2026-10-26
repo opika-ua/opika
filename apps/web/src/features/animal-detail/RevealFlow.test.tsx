@@ -80,7 +80,7 @@ beforeEach(() => {
 });
 
 describe("RevealFlow's session handling", () => {
-  it("calls nothing at all until the trigger is pressed - no session is minted by opening the page", () => {
+  it("calls nothing at all until the trigger is pressed – no session is minted by opening the page", () => {
     renderFlow();
     expect(callOrder).toEqual([]);
   });
@@ -253,7 +253,7 @@ describe("RevealFlow's dialog semantics", () => {
    * rendered assertion, not a markup check: `docs/standing-constraints.md`'s
    * "a UI item may not be marked done on the basis of inspecting markup."
    */
-  it("shows the reveal-budget copy, not the generic error, when animals.reveal is RATE_LIMITED - and offers no retry", async () => {
+  it("shows the reveal-budget copy, not the generic error, when animals.reveal is RATE_LIMITED – and offers no retry", async () => {
     revealCall.mockRejectedValue(new ORPCError("RATE_LIMITED", { defined: true }));
     renderFlow();
     fireEvent.click(screen.getByTestId("reveal-trigger"));
@@ -267,7 +267,7 @@ describe("RevealFlow's dialog semantics", () => {
     // Audit 2026-10-22 #6: the window is a rolling day, and a shelter already opened is free.
     expect(
       screen.getByText(
-        "Притулки, чиї контакти ви вже відкривали, можна відкрити знову. Нові - пізніше, коли мине доба від перших.",
+        "Притулки, чиї контакти ви вже відкривали, можна відкрити знову. Нові – пізніше, коли мине доба від перших.",
       ),
     ).toBeTruthy();
     expect(screen.queryByTestId("reveal-retry")).toBeNull();
