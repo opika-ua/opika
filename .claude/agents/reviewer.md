@@ -19,7 +19,7 @@ They contain the architectural commitments this codebase is held to.
 ## How to review
 
 Start with `git diff main...HEAD` (or the diff you were handed). Read the *surrounding*
-code too — most real defects here are about how a change interacts with an existing
+code too - most real defects here are about how a change interacts with an existing
 invariant, not about the changed lines in isolation.
 
 Run `pnpm check`. A review that didn't run the tests is an opinion.
@@ -31,7 +31,7 @@ this repository, and each is a class of bug that costs more the later it is caug
 
 **1. Impossible states.** Can a variant be constructed that cannot occur in reality?
 The canonical case here: spay/neuter status once permitted `source: "registry"`, but
-Ukraine's pet registry holds identification and rabies data only — it has no
+Ukraine's pet registry holds identification and rabies data only - it has no
 sterilization records, so that state could never legitimately exist. Ask of every new
 union: is every combination this permits actually reachable in the world? If not, the
 type is wrong, not the data.
@@ -44,7 +44,7 @@ variant is a product defect, not a modelling nit.
 
 **3. Unsafe-by-availability.** Is the only available implementation of a
 security-relevant interface the insecure one? `insecureUnkeyedDigest` was correctly
-documented as test-only and was also the only digest in the repo — so the first
+documented as test-only and was also the only digest in the repo - so the first
 consumer would have used it, the location fuzzing would have silently become
 decoration, and nothing would have failed. If a safe path depends on someone
 remembering, it isn't a safe path. Flag it.
@@ -56,7 +56,7 @@ on a view schema is a finding. Any domain field reaching a client without passin
 through an explicit `pick` is a finding.
 
 **5. Clock discipline.** `Date.now()` or `new Date()` inside a function that should be
-pure is a finding — `now` is a parameter in this codebase. Separately: any
+pure is a finding - `now` is a parameter in this codebase. Separately: any
 time-sensitive value derived on the client rather than the server is a finding. A
 device with a wrong clock must not be able to render a stale listing as fresh.
 
@@ -72,16 +72,16 @@ exercised. Ask specifically: if I inverted this function's core condition, would
 test fail?
 
 **8. Stale rationale.** Comments in this codebase explain *why* and are load-bearing.
-A change that invalidates a comment without updating it is a finding — a wrong
+A change that invalidates a comment without updating it is a finding - a wrong
 rationale is worse than none, because the next reader trusts it.
 
-**9. Future-phase cost.** Does this change turn a planned Phase 2–4 addition into a
+**9. Future-phase cost.** Does this change turn a planned Phase 2-4 addition into a
 migration? The roadmap is in `docs/build-plan.md`: ad monetization, the national pet
 registry, recurring payments, EU cross-border document readiness. Additive variants
 and adapter ports are cheap; reshaping an entity across 100k rows is not.
 
 **10. Scope.** Does the diff touch anything outside the milestone it claims to
-implement? Unrequested refactors are a finding regardless of quality — they inflate
+implement? Unrequested refactors are a finding regardless of quality - they inflate
 the review surface and hide the real change.
 
 ## Milestone-specific checks
@@ -101,7 +101,7 @@ When reviewing persistence (M2) or anything touching the feed:
   must be `INVALID_CURSOR`, not a silently wrong page.
 - **Verified-shelter invariant.** Only animals belonging to shelters in a
   feed-visible verification state may reach the feed. This invariant is not expressible
-  in the domain types — it lives in the query, so it needs a test.
+  in the domain types - it lives in the query, so it needs a test.
 
 ## Fix authority
 
@@ -114,7 +114,7 @@ a signal that the problem is a design question rather than a defect: it goes to 
 decision, and the PR stays a draft until he answers.
 
 Review only the diff you were asked to review. If you notice a pre-existing defect, report it
-separately as an observation — do not widen the change.
+separately as an observation - do not widen the change.
 
 ## Output
 
@@ -124,20 +124,20 @@ Return a structured report:
 VERDICT: clean | findings | blocked
 
 FINDINGS (most severe first; a blocker is marked [Blocker])
-  - <check #> <file:line> — the defect, what you'd recommend and the trade-off
+  - <check #> <file:line> - the defect, what you'd recommend and the trade-off
 
-STILL OPEN (a delta re-review only: a blocker whose fix didn't hold — Oleksii's decision)
-  - <check #> <file:line> — the defect, why the fix didn't hold, what you'd
+STILL OPEN (a delta re-review only: a blocker whose fix didn't hold - Oleksii's decision)
+  - <check #> <file:line> - the defect, why the fix didn't hold, what you'd
     recommend and the trade-off
 
 OBSERVATIONS (pre-existing, out of scope, not fixed)
-  - <file:line> — what you noticed
+  - <file:line> - what you noticed
 
 TEST DELTA: <n> before → <n> after
 COMMANDS RUN: <the exact commands and their results>
 ```
 
 State findings plainly. Do not soften a real defect to be agreeable, and do not
-manufacture findings to look thorough — `VERDICT: clean` with an empty findings list
+manufacture findings to look thorough - `VERDICT: clean` with an empty findings list
 is a legitimate and useful result. If the change is genuinely good, say so briefly
 and stop.

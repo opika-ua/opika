@@ -16,8 +16,8 @@ No accept statement, writer or migration scaffolded; 12 modified + 1 untracked f
 Doc comments in history.ts, history-shelter-facing.ts, db/schema/shelter-history.ts ("no evidence and no ids"): checked against the projection; no shelter-facing variant carries any id |
 
 FINDINGS (most severe first)
-1. [minor] packages/domain/src/shelters/history-shelter-facing.test.ts:119 — the per-kind test title still reads "carries no moderator id or evidence", but the body now checks admin and invitation ids too (key walk at any depth). A stale title is a small wrong claim. Fix: "carries no id or evidence".
-2. [note] packages/domain/src/shelters/history.ts, admin_joined doc comment — "Written only by the accept's own atomic statement ... never after it" describes a writer that doesn't exist yet (IN-Q12/13). It is consistent with Oleksii's IN-Q12 invariant, but nothing enforces it until the accept lands. The accept's review needs to check that this sentence becomes true.
+1. [minor] packages/domain/src/shelters/history-shelter-facing.test.ts:119 - the per-kind test title still reads "carries no moderator id or evidence", but the body now checks admin and invitation ids too (key walk at any depth). A stale title is a small wrong claim. Fix: "carries no id or evidence".
+2. [note] packages/domain/src/shelters/history.ts, admin_joined doc comment - "Written only by the accept's own atomic statement ... never after it" describes a writer that doesn't exist yet (IN-Q12/13). It is consistent with Oleksii's IN-Q12 invariant, but nothing enforces it until the accept lands. The accept's review needs to check that this sentence becomes true.
 3. [note] InvitationIdSchema has no dedicated test. It uses the shared `brandedId`, which is already covered, and the "refuses without either id" test covers it being present. Acceptable as is.
 
 SIMPLIFICATIONS

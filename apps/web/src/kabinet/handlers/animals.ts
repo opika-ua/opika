@@ -179,7 +179,7 @@ function declared<T extends VaccinationStatus | SpayNeuterStatus>(
  * «Станом на» date"): a birth date at day precision, or a bucket declared as
  * of the date the shelter chose, which `ageAnchorOf` then carries forward.
  * The date is the shelter's knowledge, not the save time: «Коли ви це
- * оцінили. Зазвичай — день, коли тварина потрапила до притулку.»
+ * оцінили. Зазвичай - день, коли тварина потрапила до притулку.»
  */
 const ageOfInput = (input: AgeEstimateInput, now: Date): AgeEstimate =>
   input.kind === "birth_date"

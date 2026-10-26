@@ -57,7 +57,7 @@ export type ProductionSignIn =
       secret: string;
       baseURL: string;
       /**
-       * Signs both emails (`— {operator}`): `operatorDisplayName(env)`, so
+       * Signs both emails (`- {operator}`): `operatorDisplayName(env)`, so
        * `KABINET_OPERATOR_DISPLAY_NAME` (nominative) or the catalogue's
        * fallback. Never a reason to stay off (RS-Q2). `production-mail.ts`
        * hands it to `providerMagicLinkSender` (EM-T18); the invite takes the

@@ -12,7 +12,7 @@ import { r2UnreferencedObjects } from "../schema/r2-cleanup";
  * Postgres binds at most 65535 parameters per statement. A few hundred
  * photos a day is this job's real volume, but nothing here should fail
  * *every day* past some row count instead of degrading gracefully (Tier 1
- * review, PR #200, note 9) — each chunk stays well under the limit even at
+ * review, PR #200, note 9) - each chunk stays well under the limit even at
  * several parameters per row.
  */
 export const SQL_BATCH_SIZE = 1000;
@@ -33,13 +33,13 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
  * not, don't count it as a reference" — traced every consumer of
  * `ContactRevealView`; `reveals.listMine` has a handler but no route or
  * component anywhere calls it, so nothing renders it. A snapshot's
- * `primaryPhoto` can therefore end up pointing at a deleted object — that's
+ * `primaryPhoto` can therefore end up pointing at a deleted object - that's
  * `nullDanglingSnapshotsFor` below, not a reason to protect the object.
  *
  * Raw SQL (`jsonb_array_elements`), not a typed `.select()` chain: pulling
  * one field out of every element of a jsonb array has no natural Drizzle
  * builder expression. Read through `executeRows`, not a raw `.execute()`
- * destructure (standing constraints, R1 — the two drivers this repo runs
+ * destructure (standing constraints, R1 - the two drivers this repo runs
  * return a raw result in different shapes).
  */
 export async function referencedStorageKeys(db: Database): Promise<Set<string>> {
@@ -65,7 +65,7 @@ export async function referencedObjectKeys(db: Database): Promise<Set<string>> {
 }
 
 /**
- * A real bucket object's own parent path — `animals/{animalId}/{photoId}`
+ * A real bucket object's own parent path - `animals/{animalId}/{photoId}`
  * for `animals/{animalId}/{photoId}/card.webp`, derived structurally (one
  * path segment up), never by parsing a variant name or a file extension
  * out of the key. `variantObjectKey` always writes exactly
@@ -80,14 +80,14 @@ function parentPathOf(objectKey: string): string {
 
 /**
  * Whether a real bucket object key belongs to a currently-referenced photo
- * — by its parent path, not by exact membership in a derived 3-variant key
+ * - by its parent path, not by exact membership in a derived 3-variant key
  * set (Tier 1 review, PR #200, note 6; an earlier fix for the same note
  * checked via `storageKeyFromObjectKey`'s regex parse instead, which still
  * hardcoded the variant names and the `.webp` suffix and so protected
- * nothing more than the exact-set version — the delta review that found
+ * nothing more than the exact-set version - the delta review that found
  * that is why this is a parent-path check instead). This protects every
- * object under a referenced photo's path — a future variant name, a
- * changed file extension, anything of that shape — because none of that
+ * object under a referenced photo's path - a future variant name, a
+ * changed file extension, anything of that shape - because none of that
  * changes *where* an object for that photo sits, only what it's called
  * once it's there. The one thing this still can't do anything about: if a
  * future pipeline redesign ever wrote a referenced photo's objects
@@ -103,22 +103,22 @@ function isReferencedObjectKey(objectKey: string, referenced: ReadonlySet<string
  * One scan's worth of bookkeeping against the tracking table
  * (`r2_unreferenced_objects`): every `bucketObjectKeys` entry not in the
  * referenced set is marked first-seen-unreferenced-now, unless already
- * tracked (`onConflictDoNothing` — a key's own first-seen instant is never
+ * tracked (`onConflictDoNothing` - a key's own first-seen instant is never
  * pushed later by a later scan); every *tracked* key that is now referenced
- * again is untracked (self-healing, no write-path hook needed — a photo
+ * again is untracked (self-healing, no write-path hook needed - a photo
  * removed, then re-added before the next scan, simply never gets a row,
  * and a row that was already written gets deleted the next time this runs).
  * Idempotent: a re-run with the same inputs changes nothing further.
  *
  * `bucketObjectKeys` should be the *complete* listing for this run (every
- * page of a paginated `ListObjectsV2`, collected by the caller first) —
+ * page of a paginated `ListObjectsV2`, collected by the caller first) -
  * correctness doesn't depend on it, since clearing re-derives "referenced
  * now" from the database for every row already in the tracking table, never
  * from `bucketObjectKeys` (so a partial page can't cause a wrongful clear,
- * and clears nothing it shouldn't — Tier 1 review, PR #200, note 12, fixing
+ * and clears nothing it shouldn't - Tier 1 review, PR #200, note 12, fixing
  * an earlier version of this comment that claimed otherwise). What a
  * partial page actually costs: any genuinely-unreferenced object that sits
- * on a missing page simply isn't tracked yet, by omission — its grace
+ * on a missing page simply isn't tracked yet, by omission - its grace
  * period starts later than it should, not never, since the next complete
  * scan still finds it.
  */
@@ -140,7 +140,7 @@ export async function recordScan(
     tracked = tracked.concat(inserted);
   }
 
-  // Clearing checks the tracking table's own rows, filtered the same way —
+  // Clearing checks the tracking table's own rows, filtered the same way -
   // `referenced` is a set of storage keys, not object keys, so it can't be
   // passed to `inArray` on `objectKey` directly.
   const trackedRows = await trackedUnreferencedObjects(db);
@@ -160,7 +160,7 @@ export async function recordScan(
   return { newlyTracked: tracked.length, cleared: cleared.length };
 }
 
-/** Every tracked key, with how long it's been tracked — the caller applies the grace period (`isPastGracePeriod`, `@opika/domain`). */
+/** Every tracked key, with how long it's been tracked - the caller applies the grace period (`isPastGracePeriod`, `@opika/domain`). */
 export async function trackedUnreferencedObjects(
   db: Database,
 ): Promise<{ objectKey: string; firstSeenUnreferencedAt: Date }[]> {
@@ -169,7 +169,7 @@ export async function trackedUnreferencedObjects(
 
 /**
  * Re-derives the referenced set fresh and filters a candidate batch down to
- * keys still actually unreferenced — the re-check Oleksii required right
+ * keys still actually unreferenced - the re-check Oleksii required right
  * before each batch's delete, so a key referenced again since the scan is
  * skipped, never deleted.
  */
@@ -184,7 +184,7 @@ export async function stillUnreferenced(
 /**
  * After a real R2 delete confirms these keys are gone: clears their
  * tracking rows, and nulls any `reveals.animal_snapshot.primaryPhoto` whose
- * `storageKey` matches one of them — Oleksii, 2026-10-25: "when its object
+ * `storageKey` matches one of them - Oleksii, 2026-10-25: "when its object
  * is deleted, set that snapshot's primaryPhoto to null in the same run (so
  * nothing points at a missing file)." Grouped by `storageKey`, not
  * `objectKey`: a snapshot names a photo, not a variant, and all three of a
@@ -210,7 +210,7 @@ export async function afterDeleted(
   ];
   if (storageKeys.length === 0) return { snapshotsNulled: 0 };
 
-  // Scalar parameters only, never an array binding — the two drivers this
+  // Scalar parameters only, never an array binding - the two drivers this
   // repo runs (postgres-js locally, neon-http in production) aren't proven
   // to bind a JS array into `ANY($1)`/`unnest($1)` identically (standing
   // constraints, R1), so each storage key gets its own `OR`'d equality

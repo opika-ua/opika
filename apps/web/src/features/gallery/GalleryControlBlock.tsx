@@ -7,7 +7,7 @@ import { FilterIcon } from "./icons";
 
 /**
  * gallery-v3 (Figma `58:1617`) control block: «Фільтр» toggles the
- * dropdown row (city/age/size/species/fur + sort) open or closed — it does not open
+ * dropdown row (city/age/size/species/fur + sort) open or closed - it does not open
  * `FilterSheet`'s modal. Designer clarification (verbatim, mid-build):
  * "this Filters button shows that search filters below or hides if they
  * are shown." Desktop only for now — "we don't have [a] mobile section in
@@ -21,7 +21,7 @@ import { FilterIcon } from "./icons";
  * dropdowns) are two visually separate flex rows, not "a summary followed
  * by its own content" — the one shape `<details>` can express natively.
  * Defaults to **open** so a no-JS visitor still sees and can use every
- * filter (degraded, not broken — the same posture `ReplaceNav`'s own
+ * filter (degraded, not broken - the same posture `ReplaceNav`'s own
  * comment states for its own JS enhancement); only the *collapsing*
  * ability needs JS.
  */
@@ -31,9 +31,9 @@ export function GalleryControlBlock({
   children,
 }: {
   title: ReactNode;
-  /** `FilterSheet`'s own trigger (at narrow widths — it's `desktop:hidden`) — rendered before the toggle button. */
+  /** `FilterSheet`'s own trigger (at narrow widths - it's `desktop:hidden`) - rendered before the toggle button. */
   trailing: ReactNode;
-  /** Row 2's content — the five dropdowns and the sort toggle. */
+  /** Row 2's content - the five dropdowns and the sort toggle. */
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(true);
@@ -64,7 +64,7 @@ export function GalleryControlBlock({
         lower-precedence *origin* than any author stylesheet rule (Tailwind's
         utilities included), so `desktop:flex` would have kept winning at
         >=1024 regardless of the `hidden` attribute. `hidden` as a Tailwind
-        utility class (not the HTML attribute) doesn't have that problem —
+        utility class (not the HTML attribute) doesn't have that problem -
         it's an ordinary author-stylesheet rule `desktop:grid` already
         overrides correctly at the breakpoint, the same mechanism every other
         `hidden ... desktop:*` pair in this codebase already relies on.
@@ -75,14 +75,14 @@ export function GalleryControlBlock({
         no height to animate *from*, so this switches to the grid-rows 0fr/1fr
         technique: a single-row grid track that transitions between 0fr and
         1fr, with `overflow-hidden` on the one grid item clipping its content
-        while the track is collapsing. No motion library — CSS only, per the
-        standing "prefer native Web APIs" rule — and `motion-reduce:` drops
+        while the track is collapsing. No motion library - CSS only, per the
+        standing "prefer native Web APIs" rule - and `motion-reduce:` drops
         the transition to instant for anyone who's asked for that.
 
         Always mounted now means `aria-hidden`/`inert` do what unmounting used
         to: a screen reader doesn't announce the row while closed, and
         `inert` additionally pulls every dropdown and the sort toggle out of
-        Tab order — without it they'd stay reachable, focusably, at zero
+        Tab order - without it they'd stay reachable, focusably, at zero
         height, which is worse than the old unmounted version, not just
         different from it.
       */}

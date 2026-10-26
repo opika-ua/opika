@@ -4,7 +4,7 @@ import { PHOTO_MAX_EDGE_PX } from "@opika/domain";
 /**
  * Device-side compression before an upload (K-Q2, Oleksii: "browser-side
  * compression to 2000 px is mandatory"). A phone photo is routinely 4000 px
- * and 5–12 MB; the server refuses anything over 2000 px or over the body
+ * and 5-12 MB; the server refuses anything over 2000 px or over the body
  * ceiling rather than shrinking it, so the device does the shrinking, once,
  * where the bytes are.
  *
@@ -46,7 +46,7 @@ export interface CompressionPlatform {
 
 /**
  * Tried in order until the JPEG fits. 0.86 first: at 2000 px that is a
- * sharp photo of roughly 0.5–1.5 MB, well under the limit, so the later
+ * sharp photo of roughly 0.5-1.5 MB, well under the limit, so the later
  * steps exist only for unusually detailed images.
  */
 export const JPEG_QUALITY_STEPS = [0.86, 0.78, 0.7, 0.6, 0.5] as const;
@@ -72,7 +72,7 @@ export function scaledSize(
 const HEIF_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "mif1", "msf1"]);
 
 /**
- * Whether a file is HEIC/HEIF, by its `ftyp` box (bytes 4–11) or, failing
+ * Whether a file is HEIC/HEIF, by its `ftyp` box (bytes 4-11) or, failing
  * that, by the type or name the system gave it. Only used to choose which
  * refusal to show when decoding fails, so a false answer costs a less
  * specific message, never a wrong upload.

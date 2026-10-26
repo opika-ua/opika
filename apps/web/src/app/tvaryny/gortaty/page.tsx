@@ -19,14 +19,14 @@ import {
  * `docs/standing-constraints.md`.
  *
  * `docs/gallery-contract-decisions.md` §6 is a separate, narrower decision
- * — it settles `/tvaryny/gortaty` as a static *routing* sibling that cannot
+ * - it settles `/tvaryny/gortaty` as a static *routing* sibling that cannot
  * collide with the dynamic `[animalId]` segment. An earlier version of this
  * comment cited §6 for the noindex fact too; §6 says nothing about
  * indexing, and the correction is recorded here rather than propagated a
  * third time.
  *
  * Deliberately independent of both `REGISTRY_HAS_NO_REAL_SHELTERS` and
- * `SITE_IS_PUBLICLY_DISCOVERABLE` (`src/seo-flags.ts`, Phase D) — this
+ * `SITE_IS_PUBLICLY_DISCOVERABLE` (`src/seo-flags.ts`, Phase D) - this
  * route stays noindex under every combination of either, including once
  * the site is fully launched and publicly discoverable, because the reason
  * is the design doc's permanent SEO-ownership call above, not demo-corpus
@@ -45,8 +45,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * A Server Component shell around `DeckScreen` (Client Component) for one
- * reason: `metadata` above requires it. Everything else here — resolving
- * city names for `filtersInWords` — could just as easily run in
+ * reason: `metadata` above requires it. Everything else here - resolving
+ * city names for `filtersInWords` - could just as easily run in
  * `renderGallery`'s own Server Component, and does the same
  * `anonymousRouterClient().cities.list({})` call it does, independently.
  */
@@ -60,7 +60,7 @@ export default async function GortatyPage({
 
   // Same reordering as `../page.tsx`, same reason: a `?misto=` token is now
   // a slug, and resolving it needs the real city list before the URL can be
-  // parsed at all — see that file's own comment on the cost.
+  // parsed at all - see that file's own comment on the cost.
   const cities = await client.cities.list({});
   const cityNames = new Map<CityId, string>(
     cities.map((city) => [city.id, textIn(city.name, "uk")]),
@@ -86,7 +86,7 @@ export default async function GortatyPage({
       // R3 (Phase R, `docs/build-plan.md`): the same lookup `filtersInWords`
       // above already needed, handed to the deck's own reveal
       // (`SwipeDeck.tsx`) so it can name the swiped animal's real city
-      // instead of omitting one — a plain object, not the `Map` itself:
+      // instead of omitting one - a plain object, not the `Map` itself:
       // Client Components receive this across the server/client boundary,
       // and an object needs no serialization format beyond what every
       // other prop already uses.

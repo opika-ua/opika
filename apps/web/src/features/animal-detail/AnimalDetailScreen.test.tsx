@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * `RevealFlow` calls `session.bootstrap`/`animals.reveal` through
- * `../../api/browser-client` — its own call order and rendering is
+ * `../../api/browser-client` - its own call order and rendering is
  * `RevealFlow.test.tsx`'s job. Stubbed here so this file's badge-suppression
  * assertions don't need that transport at all.
  */
@@ -26,7 +26,7 @@ function makeAnimal(overrides: Partial<AnimalDetailView> = {}): AnimalDetailView
     coatLength: null,
     publicLocation: null,
     description: { uk: "Лагідний кіт", en: null },
-    // Empty, not a real storageKey — same reason `AnimalCard.test.tsx` uses
+    // Empty, not a real storageKey - same reason `AnimalCard.test.tsx` uses
     // `primaryPhoto: null`: `next/image` requires an absolute URL or a
     // leading-slash path, and this file isn't testing photo rendering.
     photos: [],
@@ -66,13 +66,13 @@ function makeShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterV
  * D-2 (`docs/observations.md`): the `shelterVerifiedYears` badge asserts
  * something true about a *verified* shelter, fictional while
  * `REGISTRY_HAS_NO_REAL_SHELTERS`. `animal-detail.harness.ts` only ever
- * checks the suppressed (demo, `true`) state — an absence check with no
+ * checks the suppressed (demo, `true`) state - an absence check with no
  * positive control, so it would stay green even if the badge's JSX were
  * deleted outright rather than gated. This exercises both states directly,
  * the same `vi.doMock` + `vi.resetModules` + dynamic re-import pattern
  * `DeckScreen.test.tsx` uses for its own demo-banner branch.
  */
-describe("AnimalDetailScreen — shelterVerifiedYears badge (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
+describe("AnimalDetailScreen - shelterVerifiedYears badge (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -106,7 +106,7 @@ describe("AnimalDetailScreen — shelterVerifiedYears badge (REGISTRY_HAS_NO_REA
       />,
     );
 
-    // Audit 2026-10-22 #21: a year, not a count of years — a shelter's whole first year
+    // Audit 2026-10-22 #21: a year, not a count of years - a shelter's whole first year
     // used to read «0 років на Opika». Transcribed from the audit's wording.
     expect(screen.getByText("Перевірено вручну · на сайті з 2023 року")).not.toBeNull();
   });
@@ -129,13 +129,13 @@ describe("AnimalDetailScreen — shelterVerifiedYears badge (REGISTRY_HAS_NO_REA
 });
 
 /**
- * Found by the reviewer, 2026-09-10 — the gallery's own D-2 fix
+ * Found by the reviewer, 2026-09-10 - the gallery's own D-2 fix
  * (`tvaryny/page.test.tsx`) covered `/tvaryny`, but this route carries the
  * identical gap: `/prytulkam` itself tells a shelter to expect this exact
  * URL shared into Telegram, and it had the demo disclosure in
  * `generateMetadata` only, never in the body a visitor actually opens.
  */
-describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
+describe("AnimalDetailScreen - demo disclosure banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -154,7 +154,7 @@ describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
     );
 
     expect(screen.getByTestId("detail-demo-banner").textContent).toBe(
-      "На сайті поки немає справжніх притулків — усі картки тут демонстраційні.",
+      "На сайті поки немає справжніх притулків - усі картки тут демонстраційні.",
     );
   });
 
@@ -180,7 +180,7 @@ describe("AnimalDetailScreen — demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
  * by his `detail.shelterRowLink` («Сторінка притулку «{name}»», transcribed
  * from his message), and the donation link stays here too (commitment 5).
  */
-describe("AnimalDetailScreen — the shelter row (designer round 1, S6)", () => {
+describe("AnimalDetailScreen - the shelter row (designer round 1, S6)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -202,7 +202,7 @@ describe("AnimalDetailScreen — the shelter row (designer round 1, S6)", () => 
   /**
    * Review of b50a905 (DR1-S6-F1): `aria-label` replaces a link's whole
    * accessible name, so the verified-years badge text was invisible to a
-   * screen reader once `REGISTRY_HAS_NO_REAL_SHELTERS` is false — true only
+   * screen reader once `REGISTRY_HAS_NO_REAL_SHELTERS` is false - true only
    * by the flag's own suppression, not by design. `aria-describedby` wires
    * the badge in as the link's description instead.
    */
@@ -261,7 +261,7 @@ describe("AnimalDetailScreen — the shelter row (designer round 1, S6)", () => 
   });
 });
 
-describe("AnimalDetailScreen — a city name is printed literally (review finding 2)", () => {
+describe("AnimalDetailScreen - a city name is printed literally (review finding 2)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -305,7 +305,7 @@ describe("AnimalDetailScreen subtitle, by sex", () => {
  * DR1 (S3), his rule: «Шерсть» with «Коротка» / «Довга», the form's words;
  * no row at all when fur isn't recorded (never «Не вказано» to adopters).
  */
-describe("AnimalDetailScreen — the fur fact", () => {
+describe("AnimalDetailScreen - the fur fact", () => {
   const renderWith = async (coatLength: AnimalDetailView["coatLength"]) => {
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
     render(

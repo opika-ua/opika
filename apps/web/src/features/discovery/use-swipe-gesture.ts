@@ -11,7 +11,7 @@ const MAX_ROTATION_DEG = 6;
 /** Pixels of drag over which the affordance label fades from 0 → 1 opacity. */
 const AFFORDANCE_FADE_PX = 40;
 /**
- * Exit animation duration in ms — `docs/design/README.md`'s "The deck" ·
+ * Exit animation duration in ms - `docs/design/README.md`'s "The deck" ·
  * "Gesture:" · "Exit 280ms" (G4, `docs/handoff-2026-10-04.md` §3 block 6).
  * Was 300ms, pre-dating that frame pin.
  */
@@ -19,7 +19,7 @@ const EXIT_MS = 280;
 /**
  * Exit easing for the two paths that actually move between fixed points on
  * a declared timeline (full exit, and the reduced-motion opacity-only
- * exit) — `docs/design/README.md`'s general motion table: "reveal 280ms"
+ * exit) - `docs/design/README.md`'s general motion table: "reveal 280ms"
  * and "quick 120ms" both via `cubic-bezier(0.3, 0, 0, 1)` ("short and dry;
  * no springiness"). The return to centre is not on a timeline at all: it is
  * the deck's one spring (`./spring`, G4), driven per frame from the release
@@ -27,7 +27,7 @@ const EXIT_MS = 280;
  */
 const EXIT_EASE = "cubic-bezier(0.3, 0, 0, 1)";
 /**
- * Reduced-motion duration: opacity only — `docs/design/README.md`'s "quick
+ * Reduced-motion duration: opacity only - `docs/design/README.md`'s "quick
  * 120ms" (G4). Shared by the committed-exit and the snap-back path under
  * `prefers-reduced-motion`, since reduced motion bypasses the spring
  * entirely in both cases (docs/design/README.md:204, :639, :872) and both
@@ -43,9 +43,9 @@ const ORIGIN_TRANSFORM = "translate3d(0, 0, 0) rotate(0deg)";
  * A release counts as moving only if the finger moved this recently.
  *
  * `velocityX` is the speed of the last pointermove, and a finger held still
- * produces no pointermove at all — so without this, a card dragged quickly,
+ * produces no pointermove at all - so without this, a card dragged quickly,
  * held, then let go would be released with the speed it had before the hold
- * and lurch in that direction. Pointer events arrive every 8–16ms while a
+ * and lurch in that direction. Pointer events arrive every 8-16ms while a
  * finger moves; 100ms without one is a finger at rest.
  */
 const RELEASE_VELOCITY_WINDOW_MS = 100;
@@ -67,8 +67,8 @@ export interface SwipeGestureCallbacks {
   /**
    * Checked synchronously at pointerup, before any exit animation starts, for
    * a drag that has otherwise crossed the commit threshold. Returning `false`
-   * makes the gesture spring back to origin instead — the same path and the
-   * same `onSnapBack` call an under-threshold drag already takes — rather
+   * makes the gesture spring back to origin instead - the same path and the
+   * same `onSnapBack` call an under-threshold drag already takes - rather
    * than starting an exit the caller is about to refuse anyway.
    *
    * This has to live here, checked before the animation begins, rather than
@@ -76,7 +76,7 @@ export interface SwipeGestureCallbacks {
    * transition has already finished (`whenTransitionSettles`, below), by
    * which point the DOM node has already been translated off-screen via a
    * direct style write this hook owns. A caller that decides only inside
-   * `onCommit` to refuse the commit has no way back to centre — the card is
+   * `onCommit` to refuse the commit has no way back to centre - the card is
    * stuck wherever the finished exit animation left it, permanently, since
    * nothing else in this component tree ever touches that transform again.
    * Checking first avoids ever starting the exit for a commit that is going
@@ -109,7 +109,7 @@ interface PendingSettle {
 }
 
 /**
- * Run `done` when a CSS transition on `node` finishes — or when it doesn't.
+ * Run `done` when a CSS transition on `node` finishes - or when it doesn't.
  *
  * `transitionend` is not guaranteed to fire. A backgrounded tab, a transition
  * interrupted by another style write, a dropped frame at the wrong moment, or
@@ -118,7 +118,7 @@ interface PendingSettle {
  * deck would then wedge: the card sat off screen, the deck never advanced, and
  * there was no way forward short of a reload.
  *
- * So the timer is not a nicety — it is the only thing making the commit
+ * So the timer is not a nicety - it is the only thing making the commit
  * guaranteed. Whichever of the two arrives first wins, exactly once.
  *
  * Returns a canceller for the case where the user grabs the card again before
@@ -167,7 +167,7 @@ export function releaseVelocity(velocityX: number, lastMoveAt: number, releasedA
 
 /**
  * Drive the card back to the origin on the deck's spring, one frame at a
- * time, then run `done` — exactly once, unless cancelled first.
+ * time, then run `done` - exactly once, unless cancelled first.
  *
  * Per-frame rather than a CSS transition because a transition takes a
  * duration and a curve, and a spring has neither: its motion depends on the
@@ -177,7 +177,7 @@ export function releaseVelocity(velocityX: number, lastMoveAt: number, releasedA
  *
  * No fallback timer, unlike `whenTransitionSettles`. That one exists because
  * `transitionend` may never fire; a frame callback always does while the tab
- * is visible, and in a hidden tab — where frames pause — there is no card on
+ * is visible, and in a hidden tab - where frames pause - there is no card on
  * screen to be wrong about. When the tab returns, the first frame finds the
  * spring long since at rest and finishes. A return to centre is also not a
  * decision the user can lose, which is the reason the commit path needs its
@@ -219,7 +219,7 @@ function springToOrigin(
 /**
  * Hook that wires PointerEvent-based swipe gestures to a card element.
  *
- * Returns a ref callback — attach it to the draggable card element.
+ * Returns a ref callback - attach it to the draggable card element.
  * The hook writes transforms directly to the DOM node (no React state). The
  * exit is a CSS transition on a fixed timeline; the return to centre is the
  * deck's spring, driven per frame (`springToOrigin`).
@@ -233,8 +233,8 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
   /**
    * The callbacks object is a fresh literal on every render of the deck, and
    * the deck re-renders on every pointermove because it tracks `dx` in state.
-   * When the handlers depended on it, each of them — and therefore the ref
-   * callback that registers them — changed identity ~60 times a second, so
+   * When the handlers depended on it, each of them - and therefore the ref
+   * callback that registers them - changed identity ~60 times a second, so
    * React detached and re-attached every listener on every frame of a drag.
    *
    * Reading through a ref keeps the handlers referentially stable for the life
@@ -245,7 +245,7 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
     callbacksRef.current = callbacks;
   });
 
-  // Check once on first interaction — avoids SSR issues
+  // Check once on first interaction - avoids SSR issues
   const checkReducedMotion = useCallback(() => {
     if (typeof window !== "undefined") {
       prefersReducedMotion.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -258,9 +258,9 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
   }, []);
 
   /**
-   * Every way a card goes back to centre without committing — an
+   * Every way a card goes back to centre without committing - an
    * under-threshold release, a refused commit (`canCommit`), and the browser
-   * cancelling the pointer — goes through here, so reduced motion is honoured
+   * cancelling the pointer - goes through here, so reduced motion is honoured
    * on all of them. It used to be honoured on the first two only: the cancel
    * path wrote its own transform transition and animated regardless.
    */
@@ -269,7 +269,7 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
       if (prefersReducedMotion.current) {
         // Reduced motion: the stack does not move (docs/design/README.md:204,
         // :639, :872). Transitioning opacity only means the transform below
-        // applies in one frame — the card is simply back where it started,
+        // applies in one frame - the card is simply back where it started,
         // with nothing to wait for. Reduced motion bypasses the spring
         // entirely, so this takes the exit path's fixed "quick" easing.
         node.style.transition = `opacity ${REDUCED_EXIT_MS}ms ${EXIT_EASE}`;
@@ -305,7 +305,7 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
 
       // A press landing on a card that is already leaving must not renegotiate
       // the swipe the user has just made. Cancelling the pending commit would
-      // drop it silently — and the exit's own `transitionend` would not save it
+      // drop it silently - and the exit's own `transitionend` would not save it
       // either, because the `transition: none` written below is exactly the
       // "interrupted by another style write" case the fallback timer exists for.
       // So swallow the press: the exit finishes on its own and the deck
@@ -364,7 +364,7 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
       const dx = e.clientX - state.startX;
       const decision = swipeDecision(dx, state.velocityX);
       // A caller refusing the commit (`canCommit` returning false) takes the
-      // exact same path as a decision that never crossed the threshold —
+      // exact same path as a decision that never crossed the threshold -
       // spring back, `onSnapBack`, nothing exits. See `canCommit`'s own
       // comment on `SwipeGestureCallbacks` for why this has to be decided
       // here rather than inside `onCommit`.
@@ -391,7 +391,7 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
         };
       } else {
         // The card is where the last move put it, which is where the spring
-        // starts from — not at the pointerup's own coordinate.
+        // starts from - not at the pointerup's own coordinate.
         returnToCentre(
           node,
           state.lastX - state.startX,
@@ -417,7 +417,7 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
   );
 
   /**
-   * Ref callback — attach to the card element.
+   * Ref callback - attach to the card element.
    *
    * Every dependency here is stable for the life of the component, so this
    * callback is too: React calls it once on mount and once on unmount, and the
@@ -446,7 +446,7 @@ export function useSwipeGesture(callbacks: SwipeGestureCallbacks) {
     [onPointerDown, onPointerMove, onPointerUp, onPointerCancel],
   );
 
-  // A card can unmount mid-animation — the deck advancing is exactly that.
+  // A card can unmount mid-animation - the deck advancing is exactly that.
   // Leaving a timer pointing at a detached node keeps it alive to no purpose.
   useEffect(() => {
     return () => {

@@ -8,7 +8,7 @@ import { ShelterProfile } from "./ShelterProfile";
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"). Its strings are
  * Oleksii's final Ukrainian (2026-10-14); elements are found by catalogue key and what's
- * asserted is structure and data: every value a label–value row, nothing
+ * asserted is structure and data: every value a label-value row, nothing
  * editable, the verification block apart, the support mode signals.
  */
 
@@ -103,12 +103,12 @@ describe("ShelterProfile (K4, read-only)", () => {
     renderProfile();
     expect(
       within(screen.getByRole("region", { name: t.contactsTitle })).getByText(
-        "Ці контакти бачить людина, коли натискає «Написати притулку», — і пише вам сама. Листування йде напряму, без посередників.",
+        "Ці контакти бачить людина, коли натискає «Написати притулку», - і пише вам сама. Листування йде напряму, без посередників.",
       ),
     ).toBeTruthy();
     expect(
       within(screen.getByRole("region", { name: t.donationTitle })).getByText(
-        "Лише https. Через сайт гроші не проходять — це зовнішнє посилання.",
+        "Лише https. Через сайт гроші не проходять - це зовнішнє посилання.",
       ),
     ).toBeTruthy();
   });
@@ -152,7 +152,7 @@ describe("ShelterProfile (K4, read-only)", () => {
     // Row 57, his replacement (2026-10-14), transcribed: the caption under the
     // address, inside the same block.
     expect(
-      within(block).getByText("Ті, хто шукає тварину, не бачать точної адреси — лише місто."),
+      within(block).getByText("Ті, хто шукає тварину, не бачать точної адреси - лише місто."),
     ).toBeTruthy();
   });
 

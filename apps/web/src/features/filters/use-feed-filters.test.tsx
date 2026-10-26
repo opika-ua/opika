@@ -23,7 +23,7 @@ describe("useFeedFilters", () => {
     const { result } = renderHook(() => useFeedFilters());
 
     // renderHook flushes the mount effect inside its own act(), so by the
-    // time `result` is readable the sync has already happened — this
+    // time `result` is readable the sync has already happened - this
     // wouldn't fail if the effect were missing entirely, only waitFor below
     // exercises that. Kept as the documented, asserted end state.
     await waitFor(() => {

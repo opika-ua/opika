@@ -16,7 +16,7 @@ export const RevealsListMineOutputSchema = z.object({
 
 /**
  * Scoped to the caller's own session by the server, which is why the input
- * carries no adopter id — accepting one would invite passing somebody else's.
+ * carries no adopter id - accepting one would invite passing somebody else's.
  */
 export const revealsListMineContract = oc
   .input(RevealsListMineInputSchema)

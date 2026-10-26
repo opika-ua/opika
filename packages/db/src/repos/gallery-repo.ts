@@ -24,7 +24,7 @@ import { rowToDiscoverableAnimal } from "./mappers";
 
 export type GalleryPage = {
   readonly items: readonly DiscoverableAnimal[];
-  /** Every match, not just this page, and uncapped — the count is honest even
+  /** Every match, not just this page, and uncapped - the count is honest even
    * where navigation is not. */
   readonly totalMatching: number;
   readonly totalShelters: number;
@@ -46,7 +46,7 @@ export type GalleryRelaxationCounts = {
 
 /**
  * `ORDER BY` for each sort mode, as the ordering tuple the matching partial
- * index provides — `(last_confirmed_at DESC, id)` for `animals_feed_idx` /
+ * index provides - `(last_confirmed_at DESC, id)` for `animals_feed_idx` /
  * `animals_feed_unfiltered_idx`, `(wait_anchor_at ASC, id)` for the two
  * wait-anchor indexes. Diverging from these is how a `Sort` node appears.
  */
@@ -56,8 +56,8 @@ function orderingFor(sort: GallerySort): SQL[] {
       return [desc(animals.lastConfirmedAt), asc(animals.id)];
     case "longest_waiting":
       // NULLS LAST matches the index declaration. No discoverable row should
-      // have a null anchor at all — the migration's own guard refuses to leave
-      // one — but the index has to declare an ordering for nulls regardless,
+      // have a null anchor at all - the migration's own guard refuses to leave
+      // one - but the index has to declare an ordering for nulls regardless,
       // and the query has to ask for the same one.
       return [sql`${animals.waitAnchorAt} ASC NULLS LAST`, asc(animals.id)];
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
@@ -73,7 +73,7 @@ export function galleryRepo(db: Database) {
     /**
      * One numbered page, with the totals the page links are drawn from.
      *
-     * `OFFSET`, not a keyset cursor — the named exception in
+     * `OFFSET`, not a keyset cursor - the named exception in
      * `docs/standing-constraints.md`. "What is on page 7" has no answer from a
      * cursor without walking pages 1-6 first, so this is a shape mismatch
      * rather than a discipline lapse, and it is bounded rather than open.
@@ -84,7 +84,7 @@ export function galleryRepo(db: Database) {
      *
      * Deliberately no `scoreAnimal` re-ranking, unlike the deck. Score is a
      * function of freshness decay, so re-ranking would reorder the same rows as
-     * time passed — and a numbered, shareable, crawlable page whose contents
+     * time passed - and a numbered, shareable, crawlable page whose contents
      * shift between two requests is not reproducible, which is the whole
      * premise of this surface.
      *
@@ -161,7 +161,7 @@ export function galleryRepo(db: Database) {
       const page = clampGalleryPage(requestedPage, totalPages);
 
       if (totalPages === 0 || page === requestedPage) {
-        // Genuinely no matches — or a page that is in range and simply empty,
+        // Genuinely no matches - or a page that is in range and simply empty,
         // which the predicate makes impossible but which costs nothing to
         // handle honestly rather than by re-running the same query.
         return { items: [], totalMatching, totalShelters, totalPages, page };
@@ -180,7 +180,7 @@ export function galleryRepo(db: Database) {
     /**
      * How many more animals each currently-applied filter is hiding.
      *
-     * One scan with a `COUNT(*) FILTER (...)` per constrained dimension — the
+     * One scan with a `COUNT(*) FILTER (...)` per constrained dimension - the
      * "one grouped query, not N round-trips" requirement met literally. Only
      * constrained dimensions get a column: there is no "remove the size filter"
      * suggestion to make when no size filter is applied, and leaving them out
@@ -242,7 +242,7 @@ export function galleryRepo(db: Database) {
 
 /**
  * The animal columns, spelled out so the page query can add `COUNT(*) OVER()`
- * alongside them — `db.select()` with no argument cannot be extended.
+ * alongside them - `db.select()` with no argument cannot be extended.
  */
 function getAnimalColumns() {
   return {
@@ -297,7 +297,7 @@ async function countMatching(db: Database, where: SQL | undefined): Promise<numb
 
 /**
  * `COUNT(DISTINCT shelter_id)`, which the page query's window function cannot
- * answer — a different aggregate, so a different query, bundled into the same
+ * answer - a different aggregate, so a different query, bundled into the same
  * handler call so the client still makes one round-trip.
  */
 async function countShelters(db: Database, where: SQL | undefined): Promise<number> {

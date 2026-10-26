@@ -14,7 +14,7 @@ import { RevealFlow } from "./RevealFlow";
 /**
  * The reveal dialog had no rendered assertion of its own outside the
  * Playwright harness, and the harness only ever exercises one shelter from
- * seed data — which is how "the dialog renders nothing for a shelter whose
+ * seed data - which is how "the dialog renders nothing for a shelter whose
  * primary channel isn't Telegram" survived to a screenshot, and how "the
  * Telegram handle in `additional` is silently dropped" survived past that
  * fix. These are the cases seed data cannot reach.
@@ -80,7 +80,7 @@ beforeEach(() => {
 });
 
 describe("RevealFlow's session handling", () => {
-  it("calls nothing at all until the trigger is pressed — no session is minted by opening the page", () => {
+  it("calls nothing at all until the trigger is pressed - no session is minted by opening the page", () => {
     renderFlow();
     expect(callOrder).toEqual([]);
   });
@@ -96,7 +96,7 @@ describe("RevealFlow's session handling", () => {
 
     // `animals.reveal` is gated on `context.adopterId` server-side, so a
     // reveal fired before bootstrap resolves is a guaranteed UNAUTHENTICATED
-    // — this order is the whole reason two calls exist rather than one.
+    // - this order is the whole reason two calls exist rather than one.
     expect(callOrder).toEqual(["session.bootstrap", "animals.reveal"]);
     expect(revealCall).toHaveBeenCalledWith({ animalId: ANIMAL_ID });
   });
@@ -247,13 +247,13 @@ describe("RevealFlow's dialog semantics", () => {
   });
 
   /**
-   * Oleksii's own words, 2026-09-13 (`docs/decisions-pending-review.md`) —
+   * Oleksii's own words, 2026-09-13 (`docs/decisions-pending-review.md`) -
    * the honest replacement for the generic "Щось не спрацювало" copy the
    * dialog rendered for every error, this one included, until now. A
    * rendered assertion, not a markup check: `docs/standing-constraints.md`'s
    * "a UI item may not be marked done on the basis of inspecting markup."
    */
-  it("shows the reveal-budget copy, not the generic error, when animals.reveal is RATE_LIMITED — and offers no retry", async () => {
+  it("shows the reveal-budget copy, not the generic error, when animals.reveal is RATE_LIMITED - and offers no retry", async () => {
     revealCall.mockRejectedValue(new ORPCError("RATE_LIMITED", { defined: true }));
     renderFlow();
     fireEvent.click(screen.getByTestId("reveal-trigger"));
@@ -267,7 +267,7 @@ describe("RevealFlow's dialog semantics", () => {
     // Audit 2026-10-22 #6: the window is a rolling day, and a shelter already opened is free.
     expect(
       screen.getByText(
-        "Притулки, чиї контакти ви вже відкривали, можна відкрити знову. Нові — пізніше, коли мине доба від перших.",
+        "Притулки, чиї контакти ви вже відкривали, можна відкрити знову. Нові - пізніше, коли мине доба від перших.",
       ),
     ).toBeTruthy();
     expect(screen.queryByTestId("reveal-retry")).toBeNull();
@@ -278,7 +278,7 @@ describe("RevealFlow's dialog semantics", () => {
    * Parked in `docs/decisions-pending-review.md`'s PARKED section (R3) and
    * picked up here: a genuine network failure during `animals.reveal` used
    * to collapse into the same "Щось не спрацювало на нашому боці" copy as
-   * every other error, which is false for this case specifically — neither
+   * every other error, which is false for this case specifically - neither
    * the app's fault nor the shelter's. `uk.errors.offline` was already
    * approved and already wired for the same signal in the deck
    * (`SwipeDeck.tsx`'s `DeckErrorReason`); this only extends the existing
@@ -296,7 +296,7 @@ describe("RevealFlow's dialog semantics", () => {
       }),
     ).toBeTruthy();
     expect(screen.getByText("БЕЗ ЗВʼЯЗКУ")).toBeTruthy();
-    // `uk.errors.offline` has no `body` field — the only text in this dialog
+    // `uk.errors.offline` has no `body` field - the only text in this dialog
     // is the eyebrow, the title (the dialog's own accessible name, asserted
     // above) and the retry button; a stray loadFailed-style body line would
     // mean the `"body" in copy` guard regressed.
@@ -310,7 +310,7 @@ describe("RevealFlow's dialog semantics", () => {
    * Reviewer-found gap (`docs/reviews/chore/finish-line-block-1/b22b7c1.md`):
    * the test above only proves the `animals.reveal` call's own offline path.
    * `RevealFlow.tsx` calls `useReveal()` with no `ensureSession`, so
-   * `session.bootstrap` runs *first* on every open — a real outage is at
+   * `session.bootstrap` runs *first* on every open - a real outage is at
    * least as likely to be caught there as at the reveal call, and the
    * sibling test just above it (`beforeEach`'s `bootstrap.mockResolvedValue`)
    * never exercises that path at all.

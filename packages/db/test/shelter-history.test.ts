@@ -4,7 +4,7 @@ import { setupTestDatabase } from "../src/test-utils/index";
 import { TEST_DATABASE_URL } from "../src/test-utils/setup";
 
 /**
- * HS-Q6 (Oleksii): pin `shelter_history`'s columns exactly — "no adopter,
+ * HS-Q6 (Oleksii): pin `shelter_history`'s columns exactly - "no adopter,
  * reveal or swipe data ever". Read from the migrated database's own catalog,
  * not from the Drizzle schema object, so a hand-edited migration that adds a
  * column the schema file doesn't declare is caught too.

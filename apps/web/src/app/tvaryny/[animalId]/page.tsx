@@ -22,7 +22,7 @@ import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
 export const dynamic = "force-dynamic";
 
 /**
- * F1, `docs/design/README.md`'s addendum frames D1 (1920)/D2 (360) —
+ * F1, `docs/design/README.md`'s addendum frames D1 (1920)/D2 (360) -
  * `AnimalDetailScreen`'s own comment has the rendering detail. The data
  * comes from `loadAnimalPage`, which the gallery's overlay
  * (`../@preview/(.)[animalId]`) also renders from (designer round 1, §2:
@@ -71,9 +71,9 @@ const loadAnimalPageOnce = cache((animalId: string) => loadAnimalPage(animalId))
 
 /**
  * Phase T. Before this the route had no metadata at all, so a shared
- * `/tvaryny/{id}` link — the exact URL shape the product is designed to be
+ * `/tvaryny/{id}` link - the exact URL shape the product is designed to be
  * passed around in, and the one `/prytulkam` tells shelters they can send to
- * Telegram — previewed under the root layout's title with no image and no
+ * Telegram - previewed under the root layout's title with no image and no
  * description.
  *
  * The image is only emitted for a real uploaded photo. `isRealPhotoKey` is
@@ -91,14 +91,14 @@ const loadAnimalPageOnce = cache((animalId: string) => loadAnimalPage(animalId))
  *   landscape, which is where heads get cut.
  *
  * If a real paste into Telegram, Viber and an Instagram DM looks wrong, the fix
- * is a 1200x630 JPEG OG variant in `packages/db/src/image-pipeline` — a
+ * is a 1200x630 JPEG OG variant in `packages/db/src/image-pipeline` - a
  * pipeline addition, deliberately not pre-emptively built here. Decided by what
  * the phone shows, not by what the spec says should work.
  *
  * D-2: this route builds its own `description`/`openGraph.description` rather
- * than inheriting the root layout's — Next does not merge them, it overrides.
+ * than inheriting the root layout's - Next does not merge them, it overrides.
  * Without its own demo swap, `/tvaryny/{id}` would preview an animal's
- * age/size with no demo-data disclosure at all — exactly the shared link
+ * age/size with no demo-data disclosure at all - exactly the shared link
  * `/prytulkam` tells shelters they can paste into Telegram, so this is one
  * of the routes the disclosure matters on most (see the root layout's own
  * comment for which routes deliberately don't carry it).

@@ -66,10 +66,10 @@ describe("looksLikeUrl", () => {
       "Open the page.",
       "Відкрити сторінку входу.",
       "Прийняти запрошення (72 год.)",
-      "Увійти — це просто! Далі...",
+      "Увійти - це просто! Далі...",
       "Sign in, then continue… Done.",
       "Відкрити: сторінка входу; e.g. так",
-      "Version 1.2 — open it",
+      "Version 1.2 - open it",
     ]) {
       expect(looksLikeUrl(label), label).toBe(false);
     }
@@ -134,7 +134,7 @@ describe.each(Object.entries(builders))("the %s email", (name, build) => {
 });
 
 /**
- * Oleksii's final Ukrainian (2026-10-14, rows 78–88 of the PR #94 copy
+ * Oleksii's final Ukrainian (2026-10-14, rows 78-88 of the PR #94 copy
  * export), transcribed here from his answer sheet, never read back from
  * `uk.ts`: a test comparing the email against the catalogue constant would
  * pass for any text at all.
@@ -149,11 +149,11 @@ describe("the builders fill his final copy", () => {
         "Добрий день. На цю адресу запитали посилання для входу до кабінету притулку.",
         SIGN_IN_URL,
         "Посилання спрацює один раз і діє 15 хвилин.",
-        "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n— Олексій",
+        "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n- Олексій",
       ].join("\n\n"),
     );
     // Delivery test 2 (2026-10-14): signed like the invite, a line break in HTML too.
-    expect(email.html).toContain("нічого не відбудеться.<br>— Олексій</p>");
+    expect(email.html).toContain("нічого не відбудеться.<br>- Олексій</p>");
     expect(email.text).not.toMatch(/\{\w+\}/);
   });
 
@@ -165,8 +165,8 @@ describe("the builders fill his final copy", () => {
       operatorName: operatorDisplayName({}),
     });
     // Round 2, answer 6, verbatim: "Email signature fallback: capitalise it → «— Адміністратор сайту»."
-    expect(email.text.endsWith("нічого не відбудеться.\n— Адміністратор сайту")).toBe(true);
-    expect(email.html).toContain("<br>— Адміністратор сайту</p>");
+    expect(email.text.endsWith("нічого не відбудеться.\n- Адміністратор сайту")).toBe(true);
+    expect(email.html).toContain("<br>- Адміністратор сайту</p>");
   });
 
   it("invitation: the shelter in the intro, the 72-hour expiry, and the operator signing the last line (row 88)", () => {
@@ -176,14 +176,14 @@ describe("the builders fill his final copy", () => {
     expect(email.text).toBe(
       [
         "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «Притулок «Лапа»» на сайті Opika.",
-        "У кабінеті ви бачите дані притулку — і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки — юридичну особу, ЄДРПОУ чи адресу, — напишіть мені.",
+        "У кабінеті ви бачите дані притулку - і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки - юридичну особу, ЄДРПОУ чи адресу, - напишіть мені.",
         INVITE_URL,
-        "Запрошення діє 72 години. Якщо не встигнете — я надішлю нове.",
-        "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n— Олексій",
+        "Запрошення діє 72 години. Якщо не встигнете - я надішлю нове.",
+        "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n- Олексій",
       ].join("\n\n"),
     );
     // The signature is a line break under the last sentence in HTML too, not a collapsed space.
-    expect(email.html).toContain("поки запрошення діє.<br>— Олексій</p>");
+    expect(email.html).toContain("поки запрошення діє.<br>- Олексій</p>");
     expect(email.text).not.toMatch(/\{\w+\}/);
   });
 
@@ -228,7 +228,7 @@ describe("the builders fill his final copy", () => {
       shelterVerification: "verified",
       ttlHours: 72,
     });
-    expect(email.text.endsWith("\n— Адміністратор сайту")).toBe(true);
-    expect(email.html).toContain("<br>— Адміністратор сайту</p>");
+    expect(email.text.endsWith("\n- Адміністратор сайту")).toBe(true);
+    expect(email.html).toContain("<br>- Адміністратор сайту</p>");
   });
 });

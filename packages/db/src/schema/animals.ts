@@ -59,14 +59,14 @@ export const animals = pgTable(
     age: jsonb<AgeEstimate>("age"),
     /**
      * Derived from `ageAnchorOf(age)` at write time. The indexed column for
-     * age-bucket filtering — one range predicate instead of a multi-branch OR
+     * age-bucket filtering - one range predicate instead of a multi-branch OR
      * across two columns. See `packages/domain` age.ts for the derivation.
      * Null exactly when `age` is (`animals_age_anchor_check`).
      */
     ageAnchorAt: timestamp("age_anchor_at", { withTimezone: true }),
 
     /**
-     * Derived from `waitAnchorOf(listing)` at write time — when the animal
+     * Derived from `waitAnchorOf(listing)` at write time - when the animal
      * became available, which is what a "longest waiting" ordering sorts on.
      *
      * Nullable, unlike `age_anchor_at`, because the derivation is: a draft,
@@ -74,7 +74,7 @@ export const animals = pgTable(
      * below are partial on the discoverable kinds, so those nulls are never
      * scanned rather than merely sorted last.
      *
-     * Not `last_updated_at`, which is edit time — a shelter fixing a typo
+     * Not `last_updated_at`, which is edit time - a shelter fixing a typo
      * would make a four-month wait read as freshly available.
      */
     waitAnchorAt: timestamp("wait_anchor_at", { withTimezone: true }),
@@ -115,7 +115,7 @@ export const animals = pgTable(
      * The first instant this row was both discoverable and its shelter
      * publicly verified (S8-F5). Set once, by `everServedAtAfter`, never
      * cleared. `null` means this specific listing has never actually been
-     * rendered to an adopter — the precise fact `animals.cardsByIds`'s
+     * rendered to an adopter - the precise fact `animals.cardsByIds`'s
      * `wasEverPublic` approximation couldn't express.
      */
     everServedAt: timestamp("ever_served_at", { withTimezone: true }),
@@ -218,7 +218,7 @@ export const animals = pgTable(
     /**
      * The city the animal is discoverable in. For animals at the shelter,
      * this equals the shelter's city. For fostered animals, it is the
-     * foster city — legitimately independent of the shelter's city,
+     * foster city - legitimately independent of the shelter's city,
      * supporting Ukrainian foster networks where animals move across cities.
      */
     cityId: text("city_id")
@@ -297,7 +297,7 @@ export const animals = pgTable(
     ),
 
     /**
-     * Partial index for the unfiltered feed — the most common case.
+     * Partial index for the unfiltered feed - the most common case.
      * Covers `WHERE listing_kind IN ('published','reserved') ORDER BY last_confirmed_at DESC, id`.
      * The composite feed_idx above can't provide ordering when city/species/size aren't filtered
      * because Postgres can't skip middle columns.
@@ -323,7 +323,7 @@ export const animals = pgTable(
      * `listing_kind` deliberately does *not* lead here, unlike in
      * `animals_feed_idx`. The partial predicate already restricts the index to
      * the two discoverable kinds, so repeating it as a leading column would
-     * only put a two-element `IN` in front of `city_id` — and a btree scan
+     * only put a two-element `IN` in front of `city_id` - and a btree scan
      * whose leading column is matched by `= ANY(...)` rather than a single
      * value returns rows grouped per array element, not in index order, which
      * makes the planner add the `Sort` node this index exists to remove.

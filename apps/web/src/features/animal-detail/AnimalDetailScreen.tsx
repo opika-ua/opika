@@ -16,7 +16,7 @@ import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
 
 /**
- * "Перевірено вручну · на сайті з {year} року" — the calendar year the shelter's
+ * "Перевірено вручну · на сайті з {year} року" - the calendar year the shelter's
  * record was created, in UTC so the server's time zone can't move it. A count of
  * years floored from the creation date (the earlier wording) read «0 років» for a
  * shelter's whole first year (audit 2026-10-22 #21); a year can't. Deliberately
@@ -32,10 +32,10 @@ const SUBTITLE_TEXT = "text-[15px]/[22px] text-rg-ink-2";
 interface AnimalDetailScreenProps {
   animal: AnimalDetailView;
   shelter: PublicShelterView;
-  /** Resolved by the caller (`cities.list`), same pattern as the gallery's `AnimalCard` — this component never fetches. */
+  /** Resolved by the caller (`cities.list`), same pattern as the gallery's `AnimalCard` - this component never fetches. */
   cityName: string | null;
   /** O-12 (`docs/observations.md`): where "← Усі тварини · м. {city}" actually
-   * goes — the gallery filtered to this animal's city, built by the caller
+   * goes - the gallery filtered to this animal's city, built by the caller
    * through `galleryHref` (`/tvaryny` unfiltered only if the city couldn't
    * be resolved). Every back-navigation on this screen shares it: the
    * header's two links and the "Не зараз" button all mean the same "back to
@@ -44,7 +44,7 @@ interface AnimalDetailScreenProps {
 }
 
 /**
- * `docs/design/README.md`'s addendum, frames D1 (1920)/D2 (360) —
+ * `docs/design/README.md`'s addendum, frames D1 (1920)/D2 (360) -
  * `Opika Registry Frames.dc.html`, opened directly per
  * `docs/standing-constraints.md`'s "when a mock exists, open the mock
  * file." One DOM tree reflowing by breakpoint (`tablet:`/`desktop:`),
@@ -52,34 +52,34 @@ interface AnimalDetailScreenProps {
  * client's width, and this page must render correctly with no JS.
  *
  * Real deviations from the mock, all recorded rather than silently
- * resolved — see this phase's PR body for the full account:
+ * resolved - see this phase's PR body for the full account:
  * 1. The subtitle is 3 segments (species · age · size), not the mock's 4
  *    ("Метис · 2 роки · середня · стерилізація не записана"). Two changes,
  *    not one: "Метис" (breed) is dropped because `Animal` has no breed
  *    field at all; the trailing sterilisation clause is dropped because
  *    that fact already gets its own full row in the medical section below
- *    — repeating it in the subtitle risked the two disagreeing the moment
+ *    - repeating it in the subtitle risked the two disagreeing the moment
  *    either one changed independently.
  * 2. The medical section renders two rows (vaccination, spayNeuter), not
- *    the mock's three ("Сказ" / "Комплексне щеплення" / "Стерилізація") —
+ *    the mock's three ("Сказ" / "Комплексне щеплення" / "Стерилізація") -
  *    `medical-labels.ts`'s own comment has the full reasoning.
  * 3. ~~The header carries only the back link, not the mock's own
  *    logo+wordmark beside it.~~ **Reversed in Phase T, and the reasoning
  *    that stood here was wrong.** It argued against "repeating the wordmark
  *    a second time on every route" while itself noting that mock D1 shows
- *    both — so the mock had already settled it, and this deviated from it
+ *    both - so the mock had already settled it, and this deviated from it
  *    knowingly. The design critique found the cost: this URL is the one
  *    people paste into Telegram, and it arrived with no brand, no promise
  *    text, and no route to «Про проєкт» (critique E1/B2). The header is now
  *    the shared `SiteHeader`, which carries the wordmark and site nav on
  *    every surface but the deck.
  *
- * **Designer feedback batch A (2026-10-23):** split into this frame — the
- * header, demo banner and breadcrumb, full-page only — and
+ * **Designer feedback batch A (2026-10-23):** split into this frame - the
+ * header, demo banner and breadcrumb, full-page only - and
  * `AnimalDetailContent` below, which the gallery's overlay now renders
  * directly with none of the three. The overlay's own "no page frame inside
  * it" is a Dribbble-style convention (the opened card's own chrome, not the
- * site's), not a claim that the two surfaces show different facts — same
+ * site's), not a claim that the two surfaces show different facts - same
  * loader, same content component either way.
  */
 export function AnimalDetailScreen({
@@ -96,7 +96,7 @@ export function AnimalDetailScreen({
 
       {/*
         The gallery's own visible carrier of the D-2 demo disclosure
-        (`tvaryny/page.tsx`) needed the identical fix here — found by the
+        (`tvaryny/page.tsx`) needed the identical fix here - found by the
         reviewer, not caught in the first pass: this route is the one
         `/prytulkam` itself tells a shelter to expect shared into Telegram,
         so a visitor reaching it directly (not via the gallery) saw no demo
@@ -117,12 +117,12 @@ export function AnimalDetailScreen({
         O-8 (`docs/observations.md`): this used to render inside `SiteHeader`
         via its `leading` slot, beside the wordmark, where it read as a site
         navigation item rather than the page's own back-link. Moved below
-        the header, above the content, left-aligned — the same "never two
+        the header, above the content, left-aligned - the same "never two
         navigations at once" direction `docs/design/README.md`'s deck-chrome
         section states for the gallery/deck split, applied here to header
         nav vs. page-own navigation instead of gallery nav vs. deck nav.
         **Batch A:** this is also exactly the "«← Усі тварини» breadcrumb"
-        his overlay feedback says stays off the overlay — the full page
+        his overlay feedback says stays off the overlay - the full page
         keeps it, the overlay (which renders `AnimalDetailContent` alone,
         below) never had it move back in.
 
@@ -170,7 +170,7 @@ export function AnimalDetailScreen({
 /**
  * The gallery overlay and the full page both render exactly this (batch A):
  * everything the mock specifies for the animal itself, with no page chrome
- * — no header, no demo banner, no breadcrumb, all three of which the full
+ * - no header, no demo banner, no breadcrumb, all three of which the full
  * page supplies around it above and the overlay, deliberately, does not.
  */
 export function AnimalDetailContent({
@@ -191,7 +191,7 @@ export function AnimalDetailContent({
   return (
     <>
       <div className="desktop:max-w-[1200px] desktop:mx-auto p-4 tablet:p-6 desktop:py-10 desktop:px-8 desktop:flex desktop:gap-10 desktop:items-start">
-        {/* Photo column — sticky on desktop, fixed-height strip on mobile. */}
+        {/* Photo column - sticky on desktop, fixed-height strip on mobile. */}
         <div className="desktop:w-[560px] desktop:flex-none desktop:sticky desktop:top-10 flex flex-col gap-2">
           <DetailPhotoGallery photos={animal.photos} altFallback={animal.name} />
         </div>
@@ -221,13 +221,13 @@ export function AnimalDetailContent({
           </div>
 
           {/*
-            Freshness quote block — a separate card below the name, on both
+            Freshness quote block - a separate card below the name, on both
             mobile and desktop, matching the mock's D1 (1920) and D2 (360)
             frames exactly: neither ever overlays freshness on the photo.
             An earlier version of this screen also overlaid a redundant
             freshness-pips-only cluster on the mobile photo (duplicating
             this block's own pips for no reason, and incidentally occupying
-            the mock's actual photo-dot-indicator corner) — removed when
+            the mock's actual photo-dot-indicator corner) - removed when
             `DetailPhotoGallery.tsx`'s real dot indicator needed that corner
             for what the mock actually puts there. See O-22,
             `docs/observations.md`, for the full account.
@@ -244,13 +244,13 @@ export function AnimalDetailContent({
 
           <div className="flex gap-2">
             {/*
-              Real navigation back to the gallery, not an inert button — a
+              Real navigation back to the gallery, not an inert button - a
               reviewer finding, caught by checking for an onClick/href
               rather than trusting the visible label: this used to be a
               `<button>` with neither, the same "renders but does nothing"
               failure standing-constraints was written for
               (`/discovery`'s dead swipe gesture). Unlike the deck, this
-              page has no "next card" to advance to on decline — "Не
+              page has no "next card" to advance to on decline - "Не
               зараз" here means "not this one, back to the list," so it
               goes to the same place the header's own back link does.
               Not `swipes.record`: that call is deck-scoped today (a
@@ -319,7 +319,7 @@ export function AnimalDetailContent({
               `aria-label` replaces a link's whole accessible name, so without
               more it would silence the verified-years badge below for a
               screen reader (review of b50a905, DR1-S6-F1's aria-label
-              finding) — true today only because
+              finding) - true today only because
               `REGISTRY_HAS_NO_REAL_SHELTERS` keeps the badge from rendering
               at all, but a wrong fix here breaks the day that flag flips.
               `aria-describedby` adds the badge as the link's description
@@ -345,7 +345,7 @@ export function AnimalDetailContent({
                 </span>
                 {/*
                   D-2 (seo-flags.ts's own comment on REGISTRY_HAS_NO_REAL_SHELTERS):
-                  this badge asserts something true about a *verified* shelter —
+                  this badge asserts something true about a *verified* shelter -
                   fictional while the flag is true, which it is on production
                   today. Suppressed rather than shown for a shelter that doesn't
                   exist.
@@ -386,7 +386,7 @@ export function AnimalDetailContent({
 /**
  * Stacked (label above status), not side-by-side: the medical column
  * shares its row with the fixed-width "Де живе" column at desktop
- * (`w-65`), which leaves it real but narrow — a side-by-side layout with
+ * (`w-65`), which leaves it real but narrow - a side-by-side layout with
  * "Комплексне щеплення" as the label overlapped its own status text at
  * 1920, caught by looking at the actual rendered screenshot, not assumed
  * from the JSX. Stacking removes the width budget entirely rather than

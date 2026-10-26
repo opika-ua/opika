@@ -18,7 +18,7 @@ surface what something costs so the owner can decide, not to justify a shortcut.
 
 **"Faster" is never a reason in a decision record.** If a cheaper option is chosen, the
 record must state what quality was traded and what would trigger revisiting it. A
-deviation documented for speed becomes permanent — the documenting is what makes it feel
+deviation documented for speed becomes permanent - the documenting is what makes it feel
 resolved.
 
 **Do not offer speed as a dimension when presenting options to the owner.** Describe what
@@ -28,11 +28,11 @@ say so; presenting it as a variable invites trading away quality that was never 
 for trade.
 
 The 150%-of-estimate gate condition (`.claude/commands/phase.md`, Phase 1) stays, but its
-purpose is to inform the owner that something is larger than planned — not to prompt
+purpose is to inform the owner that something is larger than planned - not to prompt
 cutting scope. Report and wait.
 
 *Why:* a phase framed around an unstated deadline led to two options being presented as
-"document the deviation (fast)" vs. "real rearchitecture" — a false economy that would
+"document the deviation (fast)" vs. "real rearchitecture" - a false economy that would
 have shipped a home page contradicting its own design spec, on a deadline nobody had
 actually set.
 
@@ -57,7 +57,7 @@ docs notes don’t." Every check still happens; a non-blocking note's check move
 ## How work is verified
 
 **A user-interface item may not be marked done on the basis of inspecting markup.** It
-requires a rendered assertion — a component test or a harness run — or a documented manual
+requires a rendered assertion - a component test or a harness run - or a documented manual
 device test with a screenshot. Text appearing in HTML is not evidence that anything works.
 *Until the brand lands (CLAUDE.md, "Test logic, not looks"): the rendered assertion is about behaviour (a
 component test, or a harness flow found by role, label or text), not geometry or a screenshot.*
@@ -76,7 +76,7 @@ handed over unlabelled invites exactly that misread, and the misread reads as a 
 
 *Why:* the fourth such incident in this project. E5's PR summary cited "272 apps/web unit
 tests" with no total figure, against a real workspace total of 662 (607 at #39, before E5's
-own 46 new tests) — the PR body itself had it right, scoped to `apps/web`; the chat summary
+own 46 new tests) - the PR body itself had it right, scoped to `apps/web`; the chat summary
 that repeated the same number without repeating the scope is what set off the alarm.
 
 **A documented limit with no test exercising it is not a limit.** A constant, a floor, a
@@ -89,10 +89,10 @@ floor kept is the 48px target, tested once on the shared primitives.*
 "UI-measuring tests: yes, keep both V-B2 tests (the 48px shared controls and the focus indicator being present). They’re accessibility guarantees, not looks. Drop the rest that measure appearance."; CLAUDE.md, "Test logic, not looks").*
 
 *Why:* the third variant of one failure. First conditional assertions (a test skipping its
-own checks when the element was absent — which is the broken state). Then self-comparing
+own checks when the element was absent - which is the broken state). Then self-comparing
 tests (asserting a value equals the constant that produced it). Now `MIN_SHELTER_MARGIN_PX`
 carried a `SHORT_PHONE` entry from V2 that no loop ever ran, so that viewport's margin
-eroded to exactly its own floor — 8.0px against a floor of 8 — with nothing red anywhere.
+eroded to exactly its own floor - 8.0px against a floor of 8 - with nothing red anywhere.
 The same sweep found the harness's narrowest frame was 390 (an iPhone width) while the
 product's stated audience is budget Android at 360, which was therefore unmeasured rather
 than known-good, and measured a real clip once looked at.
@@ -117,13 +117,13 @@ evidence was in.
 answer, the test is decoration.
 
 *Why:* a harness lock measured wall-clock event delivery rather than gesture velocity, so
-it passed under load and failed when idle — silently, on a shared runner.
+it passed under load and failed when idle - silently, on a shared runner.
 
 **"Theoretically possible but practically unlikely" is not a review verdict.** Verify, or
 record as unverified. Never as unlikely.
 
-*Why:* three findings dismissed that way — listener churn on every render, a commit path
-depending solely on `transitionend`, and a conflict between two stated photo dimensions —
+*Why:* three findings dismissed that way - listener churn on every render, a commit path
+depending solely on `transitionend`, and a conflict between two stated photo dimensions -
 were all real.
 
 **An accessibility technicality never closes a design requirement.** `docs/design/README.md`
@@ -133,12 +133,12 @@ different question than "does the design specify this," and only the second one 
 follow-up.
 
 *Why:* E1.5's residue check closed a 2D arrow-key-navigation follow-up as won't-do because
-the gallery grid carries no ARIA `grid` role — a correct answer to a WCAG question nobody
+the gallery grid carries no ARIA `grid` role - a correct answer to a WCAG question nobody
 had actually asked. `docs/design/README.md`'s own "Keyboard" table specifies exactly that
 behaviour, independent of ARIA role, and had been sitting unread the whole time.
 
 **When a mock exists, open the mock.** A prose summary of a design is not the design. If a
-surface has a mock file, build from that file — a README's description of it is a lossy
+surface has a mock file, build from that file - a README's description of it is a lossy
 secondary source.
 *Until the brand lands (CLAUDE.md, "Test logic, not looks"), the mock decides structure and content (which fields,
 states and copy), not pixels or styling.*
@@ -167,14 +167,14 @@ polish applied later; a keyboard user has no other way to know where they are.
 primitives, and is tested once for presence (a focused control shows an indicator when
 tabbing), never for its appearance.*
 
-*Why:* V2 shipped five components — filter chips, reset, sort links, pagination controls,
-no-match buttons — with no focus indication at all. The reviewer caught it; nothing in the
+*Why:* V2 shipped five components - filter chips, reset, sort links, pagination controls,
+no-match buttons - with no focus indication at all. The reviewer caught it; nothing in the
 gate would have.
 
 **Local Postgres and Neon are not the same database.** A green local suite proves nothing
 about production behaviour for anything that touches the driver, the connection, or SQL the
 two dialects handle differently. Any such change needs a check against a real Neon instance
-before it is called verified — a local integration test against `docker-compose`'s
+before it is called verified - a local integration test against `docker-compose`'s
 `postgis/postgis` image exercises the `postgres-js` driver only, and this repo runs a second,
 genuinely different driver (`drizzle-orm/neon-http`, `@neondatabase/serverless`) against
 production. The two return different raw result shapes from the same query family; a fix that
@@ -182,12 +182,12 @@ only ever ran against the local branch can look correct while being wrong on the
 actually ships.
 
 *Why:* `feedRepo.hasActiveSeenSet` (Phase R, R1) used a raw `db.execute(sql\`...EXISTS...\`)`
-call. Every local test passed — the local branch always runs against `postgres-js`, whose
+call. Every local test passed - the local branch always runs against `postgres-js`, whose
 `.execute()` returns a `RowList` array. In production, `packages/db/src/client.ts` selects
 `drizzle-orm/neon-http` for any `.neon.tech` host, whose `.execute()` returns `{ rows: T[] }`
-instead — a plain object, not an array — so the same code silently returned `false` regardless
+instead - a plain object, not an array - so the same code silently returned `false` regardless
 of the real answer. Caught on review, not by any test run against the branch. The fix
-(`.select().limit(1)` instead of raw `.execute()`) is adapter-agnostic by construction — this
+(`.select().limit(1)` instead of raw `.execute()`) is adapter-agnostic by construction - this
 constraint exists for the next time raw SQL, a driver-specific call, or a connection change
 looks locally verified and isn't.
 
@@ -203,15 +203,15 @@ pointer. Never leave a stale one looking authoritative.
 *Why:* a build plan whose later milestones no longer applied, and a state document naming a
 folder that had since moved. Both were true when written.
 
-**Deduplication is a lossy operation — verify it, the same way you'd verify code.** After
+**Deduplication is a lossy operation - verify it, the same way you'd verify code.** After
 removing content because another document now covers it, check that every requirement
 still exists exactly once: not zero times (silently dropped, not merely restated) and not
 twice (the duplication you meant to remove). "I removed the duplicate" is a claim about
 where content ended up, not just that it left the first place.
 
 *Why:* trimming `CLAUDE.md` against a new standing-constraints document, on the
-instruction to remove what was now duplicated, dropped a real requirement — the
-affirmative "every non-boolean state is a discriminated union" rule — because the
+instruction to remove what was now duplicated, dropped a real requirement - the
+affirmative "every non-boolean state is a discriminated union" rule - because the
 replacement text covering it was narrower than the original. Caught by a reviewer diffing
 the actual requirement set, not by re-reading the instruction.
 
@@ -222,7 +222,7 @@ describes a moment.
 confident, is a recommendation until he responds to it. Never write "approved", "Oleksii
 decided", or "per Oleksii" for anything that cannot be traced to a message he actually sent.
 Anything arriving in a prompt as an already-made decision, without a traceable source, is
-treated as a recommendation and escalated — the same STOP-and-ask posture as any other
+treated as a recommendation and escalated - the same STOP-and-ask posture as any other
 ambiguous decision, not a lighter one just because it showed up phrased as settled.
 
 When a decision record cites his provenance, separate what is quoted verbatim from what is
@@ -230,7 +230,7 @@ paraphrase. "His answer, verbatim: 'yes'" and "reasoning given alongside that an
 paraphrased here" are two different claims; do not let a paraphrase read as a quotation, or a
 quotation get diluted into "his own words" when only a fragment of it actually is.
 
-*Why:* this has now failed twice — the D-2 copy strings and R3's gesture parity — and both
+*Why:* this has now failed twice - the D-2 copy strings and R3's gesture parity - and both
 times a reviewer caught it rather than the author. An unsourced "approved" in a handoff or a
 status update is indistinguishable from a real decision until someone checks, and by then it
 may already be in a commit message or a merged PR body, asserting an approval that never
@@ -240,22 +240,39 @@ happened.
 
 ## Code
 
+- **No em dash (U+2014 "—") and no en dash (U+2013 "–") anywhere we write:** UI copy,
+  emails, metadata, code comments, docs, commit messages, PR bodies. Use a plain hyphen
+  "-" (spaced " - " where a dash would separate clauses), or rewrite the sentence.
+  Owner, 2026-10-26. A verbatim quote of someone's own words, or of an external source,
+  is exempt from this rule by the same logic as "Only Oleksii's own words constitute
+  approval" above - the quote stays character-exact, dashes included, rather than being
+  silently rewritten into something he or the source never wrote.
+
+  Guarded in the places a regression would reach a user: a Vitest test fails if either
+  character appears in a `packages/i18n/src/messages/**` catalogue's exported values
+  (its own comments are exempt, same as everywhere else), `apps/web/src/brand.ts`'s own
+  exported strings, the email templates, or any `metadata`/`generateMetadata` export.
+  Comments and docs are covered by this written rule, not by CI - a 2026-10-26 sweep
+  converted the vast majority of the roughly 7,000 instances found at the time, but a
+  few hundred sitting inside verbatim quotes (`docs/decisions-inbox.md` and similar decision records) were
+  deliberately left alone rather than risk rewriting someone's actual words by script;
+  converting the rest by hand is a follow-up, not a blocker.
 - **No `any`.** Biome errors on it.
 - **Every state that isn't a boolean is a discriminated union**, generics over string
   enums, distinguishing field named consistently within a type (`kind`, `status`, or
-  `source` — pick one per type). If a boolean flag needs a comment explaining what it
+  `source` - pick one per type). If a boolean flag needs a comment explaining what it
   means in each state, that comment is the union struggling to get out.
 - **`now` is a parameter** to any function that should be pure. Never read the clock inside
   one.
 - **Two facts that happen to be true at the same time are not one fact.** Before collapsing
   two conditions into a single flag "so they can never disagree," find the state where they
   diverge. If a plan or a design document reserves that state on purpose, the conditions stay
-  separate constants and the relationship between them — usually an asserted implication, not
-  a shared boolean — is what actually protects the invariant the single flag was trying to.
+  separate constants and the relationship between them - usually an asserted implication, not
+  a shared boolean - is what actually protects the invariant the single flag was trying to.
 
   *Why:* `NOINDEX_EVERYTHING` (#43) already conflated "the registry holds no real shelters"
   and "the site is publicly discoverable" into one flag, unreviewed, across a phase
-  boundary. Phase D's D-1 inherited and named the conflation rather than introducing it —
+  boundary. Phase D's D-1 inherited and named the conflation rather than introducing it -
   found only when `docs/build-plan.md`'s launch-gate paragraph, sitting two lines below the
   edit, turned out to reserve exactly the state where the two facts diverge: a verified real
   shelter can exist, reachable by direct link, before the site is meant to be publicly
@@ -266,24 +283,24 @@ happened.
   shelters' exact addresses and phone numbers.
 - **Every handler goes through `implement(contract)`**, which is what applies output
   stripping. The type system cannot enforce this; a test does.
-- **Comments explain *why*.** Update any comment your change invalidates — a wrong
+- **Comments explain *why*.** Update any comment your change invalidates - a wrong
   rationale is worse than none, because the next reader trusts it.
 - **No brand strings** in `packages/domain` or `packages/contracts`.
 - **Justify every dependency** beyond what is already in the catalog.
-- **Keyset pagination, never `OFFSET` — with one named exception.** `gallery.list` and
+- **Keyset pagination, never `OFFSET` - with one named exception.** `gallery.list` and
   `gallery.relaxationCounts` may use `OFFSET`, because the gallery's numbered pages
   (`?stor=N`, indexed, degrading to a plain list without JS) are a product requirement a
-  keyset cursor cannot serve at all — not a discipline question, a shape one. Bounded at
-  2,000 matching rows per filter combination (~83 pages at 24/page) — not because
+  keyset cursor cannot serve at all - not a discipline question, a shape one. Bounded at
+  2,000 matching rows per filter combination (~83 pages at 24/page) - not because
   Postgres struggles with the row-skip (it wouldn't, even at 20,000), but because past
   that depth numbered pagination has stopped being a sensible way to browse anything, and
   the fix is better filtering, not a higher cap. Beyond it, `gallery.list` caps navigable
   pages at the boundary rather than serving unbounded depth.
-  `feed.list` (the deck) stays keyset — this exception does not extend to it, and any
+  `feed.list` (the deck) stays keyset - this exception does not extend to it, and any
   other `OFFSET` in the codebase is the finding it always was. Full reasoning in
   `docs/gallery-contract-decisions.md` §1.
 
-  ⚠ 2,000 is confirmed, not a placeholder — but it is a number to revisit if the corpus
+  ⚠ 2,000 is confirmed, not a placeholder - but it is a number to revisit if the corpus
   legitimately approaches it, not a permanent ceiling, in the same sense CLAUDE.md's
   decision #6 treats its verification-evidence thresholds as reviewable rather than fixed
   forever.
@@ -294,14 +311,14 @@ happened.
 
 **Freshness is honest and never alarming.** Three pips plus the day count in words, always
 both. Never red, never amber, never opacity as a carrier of meaning. An unknown field reads
-as «Не записано» — never as "no", never as an error.
+as «Не записано» - never as "no", never as an error.
 
 **A fostered animal never gets a map pin.** City-precision location renders as a place
 name. A pin would claim precision that does not exist, and no exact address of a foster
 carer is ever stored or shown.
 
 **The swipe is filtering, not judging.** «Не зараз», never "nope". A right swipe is an
-inquiry, not a match — the shelter is not swiping back. No stamps, scores, streaks or
+inquiry, not a match - the shelter is not swiping back. No stamps, scores, streaks or
 celebration.
 
 **The platform never touches money.** Donations are external links to the shelter's own
@@ -314,7 +331,7 @@ payment page, with the destination domain visible before the user taps.
 ## Removing a false claim is not the same gate as adding one
 
 **Deleting a claim never requires the approval that adding one does.** A deletion can only
-reduce what a page asserts — it cannot introduce a new claim, a wrong translation, or an
+reduce what a page asserts - it cannot introduce a new claim, a wrong translation, or an
 unapproved tone, which is what the Ukrainian-copy gate exists to catch. When a shipped change
 makes existing copy false, delete the false part immediately; do not hold the shipping change
 hostage to writing its honest replacement, and do not leave the false copy live while the
@@ -322,18 +339,18 @@ replacement is drafted.
 
 **"Delete first, write later" is two separate actions, not one skipped.** The deletion needs no
 new Ukrainian and can land the moment the falsehood is found. The honest fuller replacement
-still goes through the same authoring process any new user-facing copy does — a narrower true
+still goes through the same authoring process any new user-facing copy does - a narrower true
 sentence today does not excuse a sloppier one when the fuller version is finally written.
 
 **A narrowed commitment is recorded as narrowed, not as satisfied.** If a page used to promise
 more than the deletion leaves it promising, say so in whatever register tracks that commitment
 (this repo's commitments table, `docs/observations.md`'s commitments-register note, or
-equivalent) — "temporarily narrowed, restoring a fuller version in `<row>`" is a different, true
+equivalent) - "temporarily narrowed, restoring a fuller version in `<row>`" is a different, true
 statement from silently letting the shorter sentence look like the whole of what was ever
 promised.
 
 *Why:* R1 (Phase R, 2026-09-09) wired real per-device swipe memory into the deck, which made
-two live sentences false the same day it shipped — `/prytulkam` §3's "both browsing methods show
+two live sentences false the same day it shipped - `/prytulkam` §3's "both browsing methods show
 everyone" and `/pro`'s "no cookies," each requiring a fuller honest replacement that wasn't
 written yet. Treating the deletion and the replacement as one blocked action would have held a
 real bug fix off `main` for copy that didn't exist yet, for no safety gained: a shorter true
@@ -345,8 +362,8 @@ sentence needs no more review than a false one needs less.
 
 `/prytulkam` (Phase T) is the page a shelter is *sent* to in an outreach message.
 Everything on it is deliberately a description of how the system behaves rather
-than a promise about the future, so that each claim **breaks loudly** — someone
-reading the relevant code sees the page contradicting it — instead of quietly
+than a promise about the future, so that each claim **breaks loudly** - someone
+reading the relevant code sees the page contradicting it - instead of quietly
 becoming false.
 
 That only works if the list is written down. These are the claims, the key each
@@ -354,29 +371,29 @@ lives in (`packages/i18n/src/messages/uk.ts`, `forShelters.*`), and the change
 that would falsify each one. Any work in those areas has to walk into this list
 rather than around it.
 
-⚠ Active — the Ukrainian landed in Phase T; `forShelters.*` holds no `COPY_PENDING`
+⚠ Active - the Ukrainian landed in Phase T; `forShelters.*` holds no `COPY_PENDING`
 placeholders (`copy-status.test.ts` asserts this and stays red if one reappears).
 The commitments below are enforced as written, not merely settled in substance
-awaiting copy. Row 8's temporary narrowing (2026-10-26 — its 2026-09-09 narrowing was
-restored in full on 2026-10-06, R4-1) is the one live exception — see its own entry for
+awaiting copy. Row 8's temporary narrowing (2026-10-26 - its 2026-09-09 narrowing was
+restored in full on 2026-10-06, R4-1) is the one live exception - see its own entry for
 what's currently true instead of the unqualified original.
 
 | # | Commitment | Key | Falsified by |
 |---|---|---|---|
-| 1 | **Ordering inputs are date, plus card completeness in the deck — and nothing else.** «Це все, що впливає на порядок.» | `whatHappensToAnimals` | Any new ranking input. Paid placement obviously, but equally a "featured shelter" flag, a manual boost column, or a relevance score on the list surface. The list is date-only today (`GallerySortSchema` is closed at `freshest`/`longest_waiting`, and `gallery-repo.ts` deliberately does not call `scoreAnimal`); the deck re-ranks within a page on freshness 0.5 / completeness 0.3 / preference 0.2 (`DEFAULT_SCORING_POLICY`). **Phase 2 is rewarded-video ads (`docs/stack-decision.md`, "Phase 2 — rewarded-video ads"). Ads sitting *beside* listings leave this true; ads influencing *order* make it false.** **§3's ordering paragraph is his PR 6 text** (`D:\opika-worktrees\pr6-copy-uk.md` §1.6): «спочатку ті, чиї картки оновлено найновіше, або ті, хто чекає найдовше» — «оновлено» meaning the cards' confirmation date (`last_confirmed_at`, K-Q14 (a)); the inputs and the closing «Це все, що впливає на порядок.» are unchanged, pinned in `copy-status.test.ts`. K2's ordering note (F-T1) is PR 5's. |
-| 2 | **A shelter is never told that someone looked at a card.** «Ви не дізнаєтеся, що хтось дивився картку, поки ця людина сама вам не напише.» | `noObligation` | Any shelter-facing surface that reports adopter engagement. This is closer than it looks: the data already exists and is already indexed for exactly that query — `reveals` stores `(adopter_id, animal_id, shelter_id, revealed_at)` **with `reveals_shelter_id_idx` on `shelter_id`**, and `swipes` stores `(adopter_id, animal_id, direction, swiped_at)`. It is true today only because no shelter-facing surface exists at all. **H2 (internal admin) is where this breaks by accident** — a "12 people took your contact this week" tile is one query, not a migration. **Watch item (wiring review, finding 6, 2026-10-15; resolved in code 2026-10-17, kept as a watch item):** deleting a draft used to answer `WAS_PUBLISHED` with `reason: "has_activity"` when a swipe or reveal referenced it, which would have told a shelter that someone swiped or revealed that animal. Resolved by K-Q9 (Oleksii, verbatim: "K-Q9: yes, one refusal for both cases.") plus DR-F1 (`swipes.record` refuses a non-discoverable animal, as reveals already did, so activity implies the animal was public): `animalsDeleteDraft` now answers one `WAS_PUBLISHED` with no `data` for both causes, pinned by `handlers.test.ts` ("refuses a once-public draft and a referenced draft with the same answer"). **Still watched:** no refusal, error, message or history line may ever distinguish "has activity" from "was published", or otherwise vary with whether adopters acted on an animal. The same holds for the shelter's history of its own animal writes (K-Q7): it records the shelter's actions only, never adopter data. **From PR 6 every shelter has K2's animal list and its own history:** both are inventory and the shelter's own actions only (the list's rows, `apps/web/src/kabinet/handlers/animals.ts`; history, `packages/domain/src/shelters/history-no-engagement.test.ts`), and the K2 list's answers don't vary with adopter activity (PR 5's review). The watch items above stand. |
-| 3 | **Free today and later, with advance notice if that ever changes.** «Якщо це колись зміниться, ви дізнаєтеся заздалегідь, а не з рахунку.» | `cost` | Introducing any shelter-side charge without notifying every onboarded shelter first. Note the commitment is not "free forever" — it is *notice before change*, which is a promise about conduct and survives a pricing decision made honestly. |
+| 1 | **Ordering inputs are date, plus card completeness in the deck - and nothing else.** «Це все, що впливає на порядок.» | `whatHappensToAnimals` | Any new ranking input. Paid placement obviously, but equally a "featured shelter" flag, a manual boost column, or a relevance score on the list surface. The list is date-only today (`GallerySortSchema` is closed at `freshest`/`longest_waiting`, and `gallery-repo.ts` deliberately does not call `scoreAnimal`); the deck re-ranks within a page on freshness 0.5 / completeness 0.3 / preference 0.2 (`DEFAULT_SCORING_POLICY`). **Phase 2 is rewarded-video ads (`docs/stack-decision.md`, "Phase 2 — rewarded-video ads"). Ads sitting *beside* listings leave this true; ads influencing *order* make it false.** **§3's ordering paragraph is his PR 6 text** (`D:\opika-worktrees\pr6-copy-uk.md` §1.6): «спочатку ті, чиї картки оновлено найновіше, або ті, хто чекає найдовше» - «оновлено» meaning the cards' confirmation date (`last_confirmed_at`, K-Q14 (a)); the inputs and the closing «Це все, що впливає на порядок.» are unchanged, pinned in `copy-status.test.ts`. K2's ordering note (F-T1) is PR 5's. |
+| 2 | **A shelter is never told that someone looked at a card.** «Ви не дізнаєтеся, що хтось дивився картку, поки ця людина сама вам не напише.» | `noObligation` | Any shelter-facing surface that reports adopter engagement. This is closer than it looks: the data already exists and is already indexed for exactly that query - `reveals` stores `(adopter_id, animal_id, shelter_id, revealed_at)` **with `reveals_shelter_id_idx` on `shelter_id`**, and `swipes` stores `(adopter_id, animal_id, direction, swiped_at)`. It is true today only because no shelter-facing surface exists at all. **H2 (internal admin) is where this breaks by accident** - a "12 people took your contact this week" tile is one query, not a migration. **Watch item (wiring review, finding 6, 2026-10-15; resolved in code 2026-10-17, kept as a watch item):** deleting a draft used to answer `WAS_PUBLISHED` with `reason: "has_activity"` when a swipe or reveal referenced it, which would have told a shelter that someone swiped or revealed that animal. Resolved by K-Q9 (Oleksii, verbatim: "K-Q9: yes, one refusal for both cases.") plus DR-F1 (`swipes.record` refuses a non-discoverable animal, as reveals already did, so activity implies the animal was public): `animalsDeleteDraft` now answers one `WAS_PUBLISHED` with no `data` for both causes, pinned by `handlers.test.ts` ("refuses a once-public draft and a referenced draft with the same answer"). **Still watched:** no refusal, error, message or history line may ever distinguish "has activity" from "was published", or otherwise vary with whether adopters acted on an animal. The same holds for the shelter's history of its own animal writes (K-Q7): it records the shelter's actions only, never adopter data. **From PR 6 every shelter has K2's animal list and its own history:** both are inventory and the shelter's own actions only (the list's rows, `apps/web/src/kabinet/handlers/animals.ts`; history, `packages/domain/src/shelters/history-no-engagement.test.ts`), and the K2 list's answers don't vary with adopter activity (PR 5's review). The watch items above stand. |
+| 3 | **Free today and later, with advance notice if that ever changes.** «Якщо це колись зміниться, ви дізнаєтеся заздалегідь, а не з рахунку.» | `cost` | Introducing any shelter-side charge without notifying every onboarded shelter first. Note the commitment is not "free forever" - it is *notice before change*, which is a promise about conduct and survives a pricing decision made honestly. |
 | 4 | **Opika never contacts an adopter on a shelter's behalf, and never speaks for them.** «Opika не пише за вас, не пише від вашого імені і не спілкується з нею замість вас.» | `whoContactsWhom` | Any messaging, auto-reply, or notification feature that puts the registry between the adopter and the shelter. Including a well-meant "we let the shelter know you're interested." |
 | 5 | **The registry never touches money.** «Сайт не бере і не переказує грошей…» | `money` | Payment handling of any kind, including donation collection routed through the platform. Already a standing product rule above; listed here because the shelter-facing page states it as a commitment *to them*, which is a second, independent reason it cannot quietly change. |
-| 7 | **The freshness date says only what it measures.** The page claims no more than the data model records. Until 2026-10-07 that was edit time, so the copy said «коли інформацію востаннє оновлювали» and not «коли ви востаннє підтверджували». **Since H2-3 the data model records a confirmation** (`listing.confirmedAt`, column `last_confirmed_at`), and the wording catches up via `docs/h2-copy-sheet.md` B1 (Oleksii's Ukrainian). **Moved 2026-10-21 (designer round 1, S6; Oleksii's DR1-Q1, verbatim: "the shelter’s freshness sentence leaves the deck and animal pages and shows only on the shelter page. «Оновлено … тому» stays on every card."):** B1's ¶1 is his DR1-Q1 text, «…а на сторінці притулку — ваше речення про те, як часто ви це робите, вашими словами.», pinned in `copy-status.test.ts`; ¶2 and ¶3 are unchanged. The sentence renders on `/prytulky/{id}` only (`features/shelters/ShelterWordsSection.tsx`), never on the animal page, its overlay, the deck card or the gallery card (`sentence-only-there.test.tsx`), and no card view carries it (`ShelterSummaryViewSchema`). Since DR1-Q5 it names no animal: `{імʼя}` is refused on every write path. **Also falsified by:** the sentence rendering on any card or animal page again, or leaving the shelter page. | `whyThatSentence`, `freshness.updatedAgo` | **Changed 2026-10-07 (H2-3/H2-14, migration 0006):** `freshnessOf` is now fed the listing's confirmation (`listingFreshness` in `apps/web/src/api/handlers/`). That is set at publish, and by «Ще шукає» / «Ще домовляються» once the kabinet ships (K2, one animal per tap, no bulk). Form edits never move it. A photo add, reorder or removal on a card people can see does (RH-B7, Oleksii, 2026-10-17); on a draft, adopted or withdrawn card it doesn't, since those carry no date. It was backfilled from `last_updated_at`, so today's cards read exactly as before. **Changed 2026-10-17 (K milestone PR 4; his answer, verbatim: "D4 / RH-B7: approved, option (i), with your §7.3 wording for commitment #7 as written. B1/B2 copy still due by PR 6."):** every photo write to a published or reserved card sets the date (`listingAfterPhotoChange` in `packages/domain`, written by `writePhotosIf` under a compare-and-set on the listing), and a pending «Ще шукає» undo expires with it (K2's «Скасувати» then answers `UNDO_EXPIRED`; its copy, PR 5, must allow for that). **B1 is live since PR 6 of the K milestone**, which opens editing and confirming to every shelter (row 6). His text (`D:\opika-worktrees\pr6-copy-uk.md` §1.3), pinned in `copy-status.test.ts`: «Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого — позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а на сторінці тварини — ваше речення про те, як часто ви це робите, вашими словами.» «Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють — так вона показує саме те, що обіцяє. Речення пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».» It names everything that moves the date (publish, «Ще шукає» / «Ще домовляються», a photo change on a visible card) and says a text edit doesn't, so the number can be read literally; «оновлювали» and «один раз» are gone. **B2 stays «Оновлено {days}»** (K-Q14, Oleksii, verbatim: "K-Q14 (Q1): option (a), keep «Оновлено {days}». Reason: the date only moves on publish, «Ще шукає» / «Ще домовляються» or a photo change, so a card can look older than it is but never fresher than it is. /prytulkam §8 says exactly what moves it."), and §3's ordering sentence reads «чиї картки оновлено найновіше» in the same sense (row 1). H2-15's rename of `Freshness.updatedAt` to the confirmation's name happens in PR 6, code only (his K-Q14 note: "code only; no copy change"). **Falsified by:** any write path that moves `confirmedAt` without a shelter's explicit confirmation (a form edit bumping it, a bulk "confirm all", a background job "refreshing" dates); a photo change on a visible card is one of the shelter's own confirmations, by his decision (RH-B7). Also falsified by a photo write by anyone but the shelter (none exists: the onboarding script creates animals with their photos at publish, P-T9); a bulk photo operation across animals; shipping the kabinet's edit or confirm actions before B1's replacement copy lands; B1's copy omitting photo changes from what moves the date; or widening the copy to claim a confirmation for anything the shelter did not explicitly confirm. §8's whole argument is that the number can be read literally. |
-| 6 | **A person stands behind the site, and the page says exactly what that person does.** «Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.» (§7, A1) · «Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте — і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам — надішліть список і фото.» (§7) · «Кожна опублікована картка в кабінеті має кнопку «Уже вдома». Після неї картка одразу зникає з галереї та стрічки, а у вашому списку лишається з позначкою «Удома».» (§9) · «коли ви пишете на цю адресу, відповідаю я» (§10, A3) | `whatToPrepare`, `whenAnimalFindsHome`, `whoIsBehindThis` | **Rewritten by PR 6 of the K milestone** (K-Q3, Oleksii, verbatim: "K-Q3: live immediately. PR 6 rewrites commitment #6."), which opens shelter writes for every shelter: `SHELTER_WRITE_POLICY` (`apps/web/src/kabinet/access.ts`) is the production `open` variant, and every shelter's own admins write through `decideAccess`, the one choke point. The K-Q17 allowlist that came before it (`KABINET_WRITE_ALLOWLIST`, his own test shelter only, PR 2–5; his words, verbatim: "PR 6 deletes all of it. Approved as a temporary mode with that fixed end.") is deleted, and `allowlist-removed.test.ts` scans every file under `apps/` and `packages/` for the variable's name, so a value left in Vercel until his post-deploy step can never be read (0.3e, verbatim: "0.3e: the source scan. Deleting the Vercel variable is my post-deploy step 8.1."). From PR 6 a shelter enters and keeps its own animals and profile, a card it publishes goes live with no review of the card (K-Q3; the shelter itself must be verified and not paused), and «Уже вдома» is the shelter's own (K2, on published and reserved cards). So §7 and §9 no longer say the operator enters or removes anything: «ви розкажете, а я внесу все сам» and «напишіть, і я приберу» are gone (his Q3 and Q4), replaced by his PR 6 text (`D:\opika-worktrees\pr6-copy-uk.md` §1.1, §1.2). **What stays a person's work, and stays true:** verifying each shelter (§6); creating it and sending cabinet access (only `registry.admins.invite` creates an invitation, A1); the verified data (legal entity, ЄДРПОУ, address), read-only to the shelter; approving each donation link before it is live; entering a new shelter's first cards when asked (an `onboard:shelter` run, which only adds new animals, his Q3); and answering mail at the contact address personally (A3, kept as is). History: the read-only kabinet's A2 (row 89, final 2026-10-14: «…Кабінет притулку вже є, але лише для перегляду…») was live from the wiring PR (#99) to PR 6, and the K-Q17 conditional («true for every shelter outside the allowlist») from PR 2 to PR 6. **Falsified by:** self-sign-up, or any invitation the operator didn't send; a donation link going live without the operator; a verification that isn't a person; an auto-reply, a ticket form or a second person answering the address; copy that again says the shelter can't enter or change its own animals, or that the operator must do it for them (the opt-in offer to enter a new shelter's first cards, §7, and removing everything when a shelter leaves, §9b `howToLeave`, are the two places the operator still acts, and both stay true); a shelter write that skips `decideAccess` (one shelter writing another's data, or a support view writing at all); or any environment variable that opens or closes a shelter's writes again. Pinned by `copy-status.test.ts` (A1, §7's last paragraph, §9), `no-self-serve-yet.test.ts` (memberships only through the operator's invitation and the automatic accept; the §7, §9 and §10 sentences live), `shelter-writes-open.test.ts` and `access.test.ts` (each shelter's own admin writes; another shelter's admin, a support view and every other principal are refused), and `allowlist-removed.test.ts`. |
-| 8 | **Both ways of browsing (list, one-by-one) show everyone** — describes the adopter-facing mechanics of `/tvaryny`/the deck, to the shelter reading about it. **Restored, 2026-10-06 (R4-1, Oleksii's own Ukrainian) — not narrowed again until 2026-10-26 (below).** **Changed 2026-10-22 (copy audit #19, Oleksii, verbatim: "«Написати» everywhere for the right swipe, including /prytulkam ¶3."):** the right swipe and its button are both «Написати», so the sentence below names that, and its apostrophes are U+02BC (#44). R1 (Phase R, 2026-09-09) wired real per-device swipe memory into the deck, making the unqualified claim false the day it shipped, and the false half («Обидва способи показують усіх») was deleted immediately per "Removing a false claim is not the same gate as adding one" above. `whatHappensToAnimals` (`packages/i18n/src/messages/uk.ts`) now states the fuller, accurate replacement: «Список завжди показує всіх. У режимі «по одній» людина більше не бачить тих, на кого вже натиснула «Не зараз» чи «Написати», — це памʼять лише її пристрою, і після «Не зараз» тварина згодом зʼявляється знову. Від людини не ховається нічого, крім того, що вона сховала сама.» Names both exclusion types by their real behaviour (`packages/domain/src/discovery/seen-set.ts`'s `stillExcludes`) — «Не зараз» (`pass`) expires after `DEFAULT_SEEN_SET_POLICY.reshowAfterDays` (30), «Написати» (`interested`) excludes permanently — rather than the earlier draft's undercounted "doesn't re-serve what you skipped." Pinned in `copy-status.test.ts`: the opening sentence's own exact text (the "§3 ¶2" block, added with the 2026-10-26 narrowing below), the ordering paragraph's exact text (the "§3 ¶4" block), and part of the seen-set paragraph's wording (test #19, on ¶3) — this row is still the only place tracking the rest. **Pausing (K4, open to every shelter from PR 6) hides all of a shelter's animals from both views;** that is the shelter's own choice about its own cards, not something hidden from the person looking, so «Від людини не ховається нічого, крім того, що вона сховала сама» stays true (Q9, Oleksii, verbatim: "Q9: no copy change. Pausing is the shelter's own choice about its own cards; add one line to commitment #8's register saying so."). **Narrowed again, 2026-10-26 (GV3-Q3, Oleksii, verbatim: "go with (b) on all three"):** the gallery-v3 redesign (PR #202) hid the deck's own entry link from the gallery page, so the opening sentence's unconditional «Тварин можна дивитися списком або по одній.» would have described a browsing method no longer reachable from the site at all. A first attempt replaced «або по одній» with a new builder-written clause about the deck being temporarily unlinked — caught on Tier 1 review as adding copy, not removing it, which does need the normal gate regardless of accuracy. Landed instead on a bare deletion, «Тварин можна дивитися списком.», nothing added in its place: exactly "removing a false claim is not the same gate as adding one" above, needing neither his words nor a round trip. `/tvaryny/gortaty` itself is untouched and still works, so this is temporary, pending a real entry point back into the deck — at which point «або по одній» should be restored, not left narrowed. The shortened opening sentence itself is barely falsifiable (it no longer claims anything about one-by-one browsing at all); the paragraphs that *would* go false if the deck route itself disappeared are the seen-set and ordering ones below, both naming «по одній» mode's behaviour directly, not this one. | `whatHappensToAnimals` | Any change to `stillExcludes`/`DEFAULT_SEEN_SET_POLICY` that makes a `pass` exclusion permanent (the sentence's "тварина згодом з'являється знову" would go false), hides any animal from the *list* (`gallery.list` gaining any seen-set exclusion of its own — today it has none, by design), moves skip memory off-device (e.g. syncing it to a real account across devices, which would make "пам'ять лише її пристрою" false), the deck route (`/tvaryny/gortaty`) being removed while either the seen-set paragraph or the ordering paragraph below still describes «по одній» mode's own behaviour in detail (those two, not the shortened opening sentence, are what removing the route would falsify), or a new link into the deck appearing without «або по одній» being restored in the opening sentence alongside it. |
+| 7 | **The freshness date says only what it measures.** The page claims no more than the data model records. Until 2026-10-07 that was edit time, so the copy said «коли інформацію востаннє оновлювали» and not «коли ви востаннє підтверджували». **Since H2-3 the data model records a confirmation** (`listing.confirmedAt`, column `last_confirmed_at`), and the wording catches up via `docs/h2-copy-sheet.md` B1 (Oleksii's Ukrainian). **Moved 2026-10-21 (designer round 1, S6; Oleksii's DR1-Q1, verbatim: "the shelter’s freshness sentence leaves the deck and animal pages and shows only on the shelter page. «Оновлено … тому» stays on every card."):** B1's ¶1 is his DR1-Q1 text, «…а на сторінці притулку — ваше речення про те, як часто ви це робите, вашими словами.», pinned in `copy-status.test.ts`; ¶2 and ¶3 are unchanged. The sentence renders on `/prytulky/{id}` only (`features/shelters/ShelterWordsSection.tsx`), never on the animal page, its overlay, the deck card or the gallery card (`sentence-only-there.test.tsx`), and no card view carries it (`ShelterSummaryViewSchema`). Since DR1-Q5 it names no animal: `{імʼя}` is refused on every write path. **Also falsified by:** the sentence rendering on any card or animal page again, or leaving the shelter page. | `whyThatSentence`, `freshness.updatedAgo` | **Changed 2026-10-07 (H2-3/H2-14, migration 0006):** `freshnessOf` is now fed the listing's confirmation (`listingFreshness` in `apps/web/src/api/handlers/`). That is set at publish, and by «Ще шукає» / «Ще домовляються» once the kabinet ships (K2, one animal per tap, no bulk). Form edits never move it. A photo add, reorder or removal on a card people can see does (RH-B7, Oleksii, 2026-10-17); on a draft, adopted or withdrawn card it doesn't, since those carry no date. It was backfilled from `last_updated_at`, so today's cards read exactly as before. **Changed 2026-10-17 (K milestone PR 4; his answer, verbatim: "D4 / RH-B7: approved, option (i), with your §7.3 wording for commitment #7 as written. B1/B2 copy still due by PR 6."):** every photo write to a published or reserved card sets the date (`listingAfterPhotoChange` in `packages/domain`, written by `writePhotosIf` under a compare-and-set on the listing), and a pending «Ще шукає» undo expires with it (K2's «Скасувати» then answers `UNDO_EXPIRED`; its copy, PR 5, must allow for that). **B1 is live since PR 6 of the K milestone**, which opens editing and confirming to every shelter (row 6). His text (`D:\opika-worktrees\pr6-copy-uk.md` §1.3), pinned in `copy-status.test.ts`: «Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого — позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а на сторінці тварини — ваше речення про те, як часто ви це робите, вашими словами.» «Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють - так вона показує саме те, що обіцяє. Речення пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».» It names everything that moves the date (publish, «Ще шукає» / «Ще домовляються», a photo change on a visible card) and says a text edit doesn't, so the number can be read literally; «оновлювали» and «один раз» are gone. **B2 stays «Оновлено {days}»** (K-Q14, Oleksii, verbatim: "K-Q14 (Q1): option (a), keep «Оновлено {days}». Reason: the date only moves on publish, «Ще шукає» / «Ще домовляються» or a photo change, so a card can look older than it is but never fresher than it is. /prytulkam §8 says exactly what moves it."), and §3's ordering sentence reads «чиї картки оновлено найновіше» in the same sense (row 1). H2-15's rename of `Freshness.updatedAt` to the confirmation's name happens in PR 6, code only (his K-Q14 note: "code only; no copy change"). **Falsified by:** any write path that moves `confirmedAt` without a shelter's explicit confirmation (a form edit bumping it, a bulk "confirm all", a background job "refreshing" dates); a photo change on a visible card is one of the shelter's own confirmations, by his decision (RH-B7). Also falsified by a photo write by anyone but the shelter (none exists: the onboarding script creates animals with their photos at publish, P-T9); a bulk photo operation across animals; shipping the kabinet's edit or confirm actions before B1's replacement copy lands; B1's copy omitting photo changes from what moves the date; or widening the copy to claim a confirmation for anything the shelter did not explicitly confirm. §8's whole argument is that the number can be read literally. |
+| 6 | **A person stands behind the site, and the page says exactly what that person does.** «Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.» (§7, A1) · «Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте — і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам — надішліть список і фото.» (§7) · «Кожна опублікована картка в кабінеті має кнопку «Уже вдома». Після неї картка одразу зникає з галереї та стрічки, а у вашому списку лишається з позначкою «Удома».» (§9) · «коли ви пишете на цю адресу, відповідаю я» (§10, A3) | `whatToPrepare`, `whenAnimalFindsHome`, `whoIsBehindThis` | **Rewritten by PR 6 of the K milestone** (K-Q3, Oleksii, verbatim: "K-Q3: live immediately. PR 6 rewrites commitment #6."), which opens shelter writes for every shelter: `SHELTER_WRITE_POLICY` (`apps/web/src/kabinet/access.ts`) is the production `open` variant, and every shelter's own admins write through `decideAccess`, the one choke point. The K-Q17 allowlist that came before it (`KABINET_WRITE_ALLOWLIST`, his own test shelter only, PR 2-5; his words, verbatim: "PR 6 deletes all of it. Approved as a temporary mode with that fixed end.") is deleted, and `allowlist-removed.test.ts` scans every file under `apps/` and `packages/` for the variable's name, so a value left in Vercel until his post-deploy step can never be read (0.3e, verbatim: "0.3e: the source scan. Deleting the Vercel variable is my post-deploy step 8.1."). From PR 6 a shelter enters and keeps its own animals and profile, a card it publishes goes live with no review of the card (K-Q3; the shelter itself must be verified and not paused), and «Уже вдома» is the shelter's own (K2, on published and reserved cards). So §7 and §9 no longer say the operator enters or removes anything: «ви розкажете, а я внесу все сам» and «напишіть, і я приберу» are gone (his Q3 and Q4), replaced by his PR 6 text (`D:\opika-worktrees\pr6-copy-uk.md` §1.1, §1.2). **What stays a person's work, and stays true:** verifying each shelter (§6); creating it and sending cabinet access (only `registry.admins.invite` creates an invitation, A1); the verified data (legal entity, ЄДРПОУ, address), read-only to the shelter; approving each donation link before it is live; entering a new shelter's first cards when asked (an `onboard:shelter` run, which only adds new animals, his Q3); and answering mail at the contact address personally (A3, kept as is). History: the read-only kabinet's A2 (row 89, final 2026-10-14: «…Кабінет притулку вже є, але лише для перегляду…») was live from the wiring PR (#99) to PR 6, and the K-Q17 conditional («true for every shelter outside the allowlist») from PR 2 to PR 6. **Falsified by:** self-sign-up, or any invitation the operator didn't send; a donation link going live without the operator; a verification that isn't a person; an auto-reply, a ticket form or a second person answering the address; copy that again says the shelter can't enter or change its own animals, or that the operator must do it for them (the opt-in offer to enter a new shelter's first cards, §7, and removing everything when a shelter leaves, §9b `howToLeave`, are the two places the operator still acts, and both stay true); a shelter write that skips `decideAccess` (one shelter writing another's data, or a support view writing at all); or any environment variable that opens or closes a shelter's writes again. Pinned by `copy-status.test.ts` (A1, §7's last paragraph, §9), `no-self-serve-yet.test.ts` (memberships only through the operator's invitation and the automatic accept; the §7, §9 and §10 sentences live), `shelter-writes-open.test.ts` and `access.test.ts` (each shelter's own admin writes; another shelter's admin, a support view and every other principal are refused), and `allowlist-removed.test.ts`. |
+| 8 | **Both ways of browsing (list, one-by-one) show everyone** - describes the adopter-facing mechanics of `/tvaryny`/the deck, to the shelter reading about it. **Restored, 2026-10-06 (R4-1, Oleksii's own Ukrainian) - not narrowed again until 2026-10-26 (below).** **Changed 2026-10-22 (copy audit #19, Oleksii, verbatim: "«Написати» everywhere for the right swipe, including /prytulkam ¶3."):** the right swipe and its button are both «Написати», so the sentence below names that, and its apostrophes are U+02BC (#44). R1 (Phase R, 2026-09-09) wired real per-device swipe memory into the deck, making the unqualified claim false the day it shipped, and the false half («Обидва способи показують усіх») was deleted immediately per "Removing a false claim is not the same gate as adding one" above. `whatHappensToAnimals` (`packages/i18n/src/messages/uk.ts`) now states the fuller, accurate replacement: «Список завжди показує всіх. У режимі «по одній» людина більше не бачить тих, на кого вже натиснула «Не зараз» чи «Написати», - це памʼять лише її пристрою, і після «Не зараз» тварина згодом зʼявляється знову. Від людини не ховається нічого, крім того, що вона сховала сама.» Names both exclusion types by their real behaviour (`packages/domain/src/discovery/seen-set.ts`'s `stillExcludes`) - «Не зараз» (`pass`) expires after `DEFAULT_SEEN_SET_POLICY.reshowAfterDays` (30), «Написати» (`interested`) excludes permanently - rather than the earlier draft's undercounted "doesn't re-serve what you skipped." Pinned in `copy-status.test.ts`: the opening sentence's own exact text (the "§3 ¶2" block, added with the 2026-10-26 narrowing below), the ordering paragraph's exact text (the "§3 ¶4" block), and part of the seen-set paragraph's wording (test #19, on ¶3) - this row is still the only place tracking the rest. **Pausing (K4, open to every shelter from PR 6) hides all of a shelter's animals from both views;** that is the shelter's own choice about its own cards, not something hidden from the person looking, so «Від людини не ховається нічого, крім того, що вона сховала сама» stays true (Q9, Oleksii, verbatim: "Q9: no copy change. Pausing is the shelter's own choice about its own cards; add one line to commitment #8's register saying so."). **Narrowed again, 2026-10-26 (GV3-Q3, Oleksii, verbatim: "go with (b) on all three"):** the gallery-v3 redesign (PR #202) hid the deck's own entry link from the gallery page, so the opening sentence's unconditional «Тварин можна дивитися списком або по одній.» would have described a browsing method no longer reachable from the site at all. A first attempt replaced «або по одній» with a new builder-written clause about the deck being temporarily unlinked - caught on Tier 1 review as adding copy, not removing it, which does need the normal gate regardless of accuracy. Landed instead on a bare deletion, «Тварин можна дивитися списком.», nothing added in its place: exactly "removing a false claim is not the same gate as adding one" above, needing neither his words nor a round trip. `/tvaryny/gortaty` itself is untouched and still works, so this is temporary, pending a real entry point back into the deck - at which point «або по одній» should be restored, not left narrowed. The shortened opening sentence itself is barely falsifiable (it no longer claims anything about one-by-one browsing at all); the paragraphs that *would* go false if the deck route itself disappeared are the seen-set and ordering ones below, both naming «по одній» mode's behaviour directly, not this one. | `whatHappensToAnimals` | Any change to `stillExcludes`/`DEFAULT_SEEN_SET_POLICY` that makes a `pass` exclusion permanent (the sentence's "тварина згодом з'являється знову" would go false), hides any animal from the *list* (`gallery.list` gaining any seen-set exclusion of its own - today it has none, by design), moves skip memory off-device (e.g. syncing it to a real account across devices, which would make "пам'ять лише її пристрою" false), the deck route (`/tvaryny/gortaty`) being removed while either the seen-set paragraph or the ordering paragraph below still describes «по одній» mode's own behaviour in detail (those two, not the shortened opening sentence, are what removing the route would falsify), or a new link into the deck appearing without «або по одній» being restored in the opening sentence alongside it. |
 
 ---
 
 ## Where the gates are
 
-- `pnpm check` — typecheck, lint, tests, `next build`, and the rendering harness.
+- `pnpm check` - typecheck, lint, tests, `next build`, and the rendering harness.
 - Branch protection on `main`: pull request required, CI must pass, no bypass. The agent
   pushes with your credentials, so bypass would apply to it too.
 - A `PreToolUse` hook refuses pushes to protected branches. It is a convenience gate;

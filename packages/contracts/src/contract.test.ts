@@ -72,7 +72,7 @@ describe("gallery pagination input", () => {
   });
 
   it("defaults sort, page and page size so a bare URL is a valid request", () => {
-    // `/tvaryny` with no query string has to work — it is the indexed entry
+    // `/tvaryny` with no query string has to work - it is the indexed entry
     // point, and it degrades to a plain list without JS.
     const parsed = GalleryListInputSchema.parse({ filters: ANY_FILTERS });
 

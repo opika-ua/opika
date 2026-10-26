@@ -185,8 +185,8 @@ export function AnimalForm({
   const dirty = dirtyOf(view, values, initialValuesRef.current);
   const gaps = gapsOf(values, view?.photos.length ?? 0);
 
-  // Oleksii, 2026-10-19 (UW-B2): warn while there's unsaved work — dirty,
-  // or a save pending or queued — never otherwise, for a draft and a
+  // Oleksii, 2026-10-19 (UW-B2): warn while there's unsaved work - dirty,
+  // or a save pending or queued - never otherwise, for a draft and a
   // listed card alike. Publishing counts too: the first review's own
   // recommendation, taken here as a builder decision, not his. Rationale
   // and what was decided: docs/decisions-inbox/feat-draft-save-unload-warning.md
@@ -400,7 +400,7 @@ export function AnimalForm({
       leaveSaveRef.current = null;
       // `location.assign` below fires `beforeunload` synchronously, before
       // React re-renders and runs the effect that would otherwise remove
-      // the listener — so this intentional navigation is only ever waved
+      // the listener - so this intentional navigation is only ever waved
       // through once nothing is left unsaved (recomputed fresh from the
       // refs, not from the save's own outcome: more typing during the
       // await, another save still pending, or a publish still in flight,
@@ -613,7 +613,7 @@ function DraftFooter({
 }) {
   // «Чернетку збережено о …» names a moment that is only still true while
   // nothing has changed since (the same `save.kind === "saved" && !dirty`
-  // rule `ListedFooter` already uses below) — a value typed since then, or
+  // rule `ListedFooter` already uses below) - a value typed since then, or
   // a save still pending or queued, keeps it hidden rather than naming a
   // time that no longer describes the draft's current content.
   const status =

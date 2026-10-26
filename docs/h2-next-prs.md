@@ -186,8 +186,8 @@ as #87 did. Done on `chore/inbox-fold` (2026-10-15): all six files (#89, #93, #9
       **Decided and built:** an invite email through the provider (IN-Q3, IN-E2; Resend since
       EM-B10), its landing page that sends a fresh magic link (IN-Q11, EM-T6, EM-T9), the
       operator's reminder to tell the shelter personally (IN-E13, EM-B2), the automatic accept on
-      first sign-in (IN-Q12–IN-Q14). Delivered to a real Gmail inbox in Oleksii's delivery tests
-      1–5 (IN-E6, EM-B6, EM-B9, EM-B10; test 5: invite via Resend in Primary). Production sending
+      first sign-in (IN-Q12-IN-Q14). Delivered to a real Gmail inbox in Oleksii's delivery tests
+      1-5 (IN-E6, EM-B6, EM-B9, EM-B10; test 5: invite via Resend in Primary). Production sending
       is connected by the wiring commit (below); until then production sends nothing.
 - [x] **`/kabinet` page loads are rate limited** (inbox KS-Q3, answered as KH-Q8): built on
       `feat/h2-kabinet-hardening`. `proxy.ts` charges every `/kabinet` page load against the
@@ -371,7 +371,7 @@ relay's elision.)
       branch of production (its own endpoint id, never production's; IN-Q9: nothing is sent), from
       the wiring worktree, with `PROD_NEON_ENDPOINT=ep-dawn-pond-b1dz515g` in the shell:
       1. `pnpm --filter @opika/db db:neon-smoke --expect ep-…` → expect **21 passed, 0 failed**:
-         steps 1–18 as before (the audited-write CTE is step 3, the accept 15–17), plus 19 (an edit
+         steps 1-18 as before (the audited-write CTE is step 3, the accept 15-17), plus 19 (an edit
          compare-and-set on `animals.version`, which replaced the `last_updated_at` guard, so S3-T6's
          round-trip is superseded), 20 (the listing jsonb compare-and-set), 21 (the deleteDraft
          23503 catch).

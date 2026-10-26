@@ -76,7 +76,7 @@ describe("insertOnboardedShelter", () => {
 
 /**
  * Tier 1 review finding 1, PR #196: `buildShelter` always builds a shelter
- * at `verified` — the status onboarding gives it, not necessarily the
+ * at `verified` - the status onboarding gives it, not necessarily the
  * status it's still at by the time a second run adds another animal.
  * `verificationForNewAnimals` is what a re-run's new animals get stamped
  * with instead; this is its own regression test, independent of `main()`,
@@ -95,7 +95,7 @@ describe("verificationForNewAnimals", () => {
     expect(await verificationForNewAnimals(db, shelter, result)).toEqual(shelter.verification);
   });
 
-  it("uses the shelter's real, current verification on a re-run — not the freshly-built shelter's optimistic one", async () => {
+  it("uses the shelter's real, current verification on a re-run - not the freshly-built shelter's optimistic one", async () => {
     const city = makeCity();
     await cityRepo(db).insert(city);
     const shelter = makeShelter({
@@ -103,7 +103,7 @@ describe("verificationForNewAnimals", () => {
     });
     await insertOnboardedShelter(db, shelter, { moderatorId: MOD, now: NOW });
 
-    // The shelter has since been paused — exactly the gap finding 1 found:
+    // The shelter has since been paused - exactly the gap finding 1 found:
     // a re-run's `buildShelter` call still produces `status: "verified"`.
     await kabinetShelterRepo(db).applyAudited({
       shelterId: shelter.id,
@@ -136,8 +136,8 @@ describe("verificationForNewAnimals", () => {
     });
 
     // The script is re-run with the same input: `shelter` still carries its
-    // original "verified" value — a freshly built shelter has no other
-    // state to report — exactly what `buildShelter` would produce again on
+    // original "verified" value - a freshly built shelter has no other
+    // state to report - exactly what `buildShelter` would produce again on
     // a second run with the same input file.
     const result = await insertOnboardedShelter(db, shelter, { moderatorId: MOD, now: NOW });
     expect(result).toBe("exists");

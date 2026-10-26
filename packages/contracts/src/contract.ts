@@ -14,7 +14,7 @@ import { swipesRecordContract } from "./procedures/swipes";
 /**
  * The API surface, as data.
  *
- * Every entry is a declarative object with no implementation attached —
+ * Every entry is a declarative object with no implementation attached -
  * handlers live in the app that serves them. Keeping the whole surface in one
  * package is what makes a future major-version migration of the contract
  * library a change to this package alone.

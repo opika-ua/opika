@@ -14,7 +14,7 @@ export type VerificationBadge = z.infer<typeof VerificationBadgeSchema>;
  *
  * `omit` is allow-by-default: a field added to Shelter would appear here
  * silently, and the fields being withheld are an exact address and a set of
- * contact details. `pick` is deny-by-default — the same change breaks the build
+ * contact details. `pick` is deny-by-default - the same change breaks the build
  * until somebody decides. That difference is the whole safety property, so it
  * is a rule rather than a preference.
  *

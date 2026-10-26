@@ -147,7 +147,7 @@ export type DeliveryTestInput = {
   fromName: string | undefined;
   /** From the app config (EMAIL_REPLY_TO), never a literal: every email carries a Reply-To (Oleksii, 2026-10-14, answer 5). */
   replyTo: string | undefined;
-  /** Both emails sign with this (`— {operator}`): app config, never a literal; unset, the catalogue fallback. */
+  /** Both emails sign with this (`- {operator}`): app config, never a literal; unset, the catalogue fallback. */
   operatorName: string | undefined;
   /** Injectable so the refusal is testable now the live copy is final; the script takes the default, the live catalogue. */
   pendingTemplateCopy?: readonly string[];

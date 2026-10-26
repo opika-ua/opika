@@ -9,7 +9,7 @@ import { isTooManyRequests } from "../../api/too-many-requests";
 
 /**
  * What `ContactRevealDialog` needs to display before the server has
- * answered (or after it's refused to) — the caller's own idea of which
+ * answered (or after it's refused to) - the caller's own idea of which
  * animal this is, not derived from the reveal response, since there is no
  * response yet in `"loading"`/`"error"`.
  */
@@ -20,13 +20,13 @@ export interface RevealSnapshot {
 }
 
 /**
- * `reason` distinguishes `animals.reveal`'s own `RATE_LIMITED` — 30 distinct
- * shelters in 24h, `apps/web/src/api/reveal-rate-limit.ts` — and a genuine
+ * `reason` distinguishes `animals.reveal`'s own `RATE_LIMITED` - 30 distinct
+ * shelters in 24h, `apps/web/src/api/reveal-rate-limit.ts` - and a genuine
  * network failure, from every other failure, so `ContactRevealDialog` can
  * render the honest, specific copy for each (`uk.errors.rateLimited` /
  * `.offline`) instead of the generic "something failed on our side" every
  * error used to collapse into. A discriminated union, not a boolean, per
- * this repo's own standing rule — these are not "the same failure,
+ * this repo's own standing rule - these are not "the same failure,
  * sometimes flagged," they are different facts a caller needs to render
  * differently (no retry action makes sense for `rateLimited`).
  *
@@ -52,23 +52,23 @@ export type RevealState =
  * the hook's own call site: the detail page opens the same animal every
  * time (one `RevealFlow` instance per page, `animalId` never changes), but
  * the deck's `SwipeDeck` is one long-lived component cycling through many
- * different cards — a hook parameterised at mount would need re-mounting
+ * different cards - a hook parameterised at mount would need re-mounting
  * (and losing in-flight state) on every swipe just to change which animal
  * it points at. Bundling `animalName`/`cityName` into the snapshot, not
  * kept as separate outer state, rules out one race but not the other:
  * atomic spreading means `state` can never pair one animal's display name
  * with a different animal's `ContactRevealView`, but it does NOT by
  * itself stop a *slower* first response from landing after a *faster*
- * second one and overwriting it — `callGenerationRef` below is what closes
+ * second one and overwriting it - `callGenerationRef` below is what closes
  * that half, discarding any resolution that isn't the most recent call.
  *
  * `ensureSession`, injectable rather than always calling
- * `revealBrowserClient.session.bootstrap` directly: caught on review — the
+ * `revealBrowserClient.session.bootstrap` directly: caught on review - the
  * deck already has its own memoised session-bootstrap promise
  * (`use-feed-deck.ts`'s `ensureSession`, shared with `swipes.record`), and
  * this hook calling `session.bootstrap` a second, independent time raced
  * it. Two concurrent cookie-less bootstrap requests can't tell the server
- * they're the same visitor, so both mint — two adopters, two sessions, one
+ * they're the same visitor, so both mint - two adopters, two sessions, one
  * surviving cookie, and whichever swipe or reveal landed under the
  * discarded identity silently vanishes. `SwipeDeck.tsx` passes its own
  * `ensureSession` in; `RevealFlow.tsx` (the detail page, with no sibling
@@ -88,13 +88,13 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
        * detail page, `RevealFlow.tsx`): the injected path (the deck,
        * `SwipeDeck.tsx`) collapses its own result to a plain boolean in
        * `use-feed-deck.ts`'s `ensureSession`, with no error object this
-       * hook could inspect — same reason the RATE_LIMITED comment below
+       * hook could inspect - same reason the RATE_LIMITED comment below
        * already gives for that path, now true of `offline` too.
        *
        * **Known gap, not fixed here (O-21, `docs/observations.md`):** a
        * first-ever right-swipe (`SwipeDeck.tsx`'s `handleCommit` calls
        * `openReveal` before `onSwipe`) while offline hits this exact branch
-       * too — `use-feed-deck.ts`'s own `onSwipe` doesn't await
+       * too - `use-feed-deck.ts`'s own `onSwipe` doesn't await
        * `ensureSession` before advancing the deck, and a failed bootstrap
        * there clears `sessionReadyRef` rather than caching anything. An
        * earlier version of this comment claimed the deck's exposure window
@@ -116,20 +116,20 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
         /**
          * `bootstrapError instanceof TypeError` is the same "offline" test
          * `use-feed-deck.ts:102-104` and the `revealError` branch below both
-         * use — a genuine network failure reaching `session.bootstrap`
+         * use - a genuine network failure reaching `session.bootstrap`
          * itself, before `animals.reveal` is ever called. Otherwise
-         * `"loadFailed"`, never `"rateLimited"` — not because
+         * `"loadFailed"`, never `"rateLimited"` - not because
          * `session.bootstrap` can't declare `RATE_LIMITED` in its contract
          * (`packages/contracts/src/procedures/session.ts` says it can), but
          * because the mechanism that actually rate-limits it is the generic
          * per-IP limiter (`apps/web/src/api/rate-limit.ts`), which answers
          * with a raw `new Response("Too Many Requests", { status: 429 })`
          * before oRPC's own handler ever runs
-         * (`app/api/rpc/[...rpc]/route.ts`) — never a well-formed, defined
+         * (`app/api/rpc/[...rpc]/route.ts`) - never a well-formed, defined
          * oRPC error. If `session.bootstrap` ever threw a real
          * `errors.RATE_LIMITED()` from inside its own handler, this branch
          * would need to inspect that error the same way the block below
-         * does — it doesn't today because nothing here can produce one.
+         * does - it doesn't today because nothing here can produce one.
          */
         const reason: RevealErrorReason =
           bootstrapError instanceof TypeError
@@ -147,15 +147,15 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
       if (generation !== callGenerationRef.current) return;
       if (revealError || !result) {
         /**
-         * `revealError instanceof TypeError` checked first — the same
+         * `revealError instanceof TypeError` checked first - the same
          * "offline" test `use-feed-deck.ts:102-104` already established and
          * the same reasoning: a genuine network failure (the fetch never
          * reached a server at all) is a `TypeError` at the fetch layer, per
          * the Fetch API's own contract, and is neither the app's fault nor
-         * the shelter's — `uk.errors.loadFailed`'s "щось не спрацювало на
+         * the shelter's - `uk.errors.loadFailed`'s "щось не спрацювало на
          * нашому боці" is false for this case specifically. Otherwise, same
          * `isDefinedError` + `error.code` pattern as `use-feed-deck.ts`'s own
-         * `INVALID_CURSOR` check — `RATE_LIMITED` is one of `animals.reveal`'s
+         * `INVALID_CURSOR` check - `RATE_LIMITED` is one of `animals.reveal`'s
          * declared contract errors (`packages/contracts/src/procedures/
          * animals.ts`), so a real response carrying it is
          * `isDefinedError() === true`.

@@ -30,7 +30,7 @@ describe("validateLocalPhoto", () => {
   it("reads real dimensions from a real image file, no network involved", async () => {
     const dimensions = await validateLocalPhoto(resolve(SEED_PHOTOS_DIR, "dog-3.jpg"));
     // Real, measured dimensions of this exact fixture (confirmed via sharp
-    // metadata directly, not assumed) — a change here means the fixture
+    // metadata directly, not assumed) - a change here means the fixture
     // file itself changed, not that this function is guessing.
     expect(dimensions).toEqual({ width: 1023, height: 782 });
   });
@@ -42,7 +42,7 @@ describe("validateLocalPhoto", () => {
   });
 
   it("throws a clear error for a file that exists but is not a readable image", async () => {
-    // SOURCES.md sits right next to the real photos — a real example of
+    // SOURCES.md sits right next to the real photos - a real example of
     // "wrong file type", not a synthetic fixture.
     await expect(validateLocalPhoto(resolve(SEED_PHOTOS_DIR, "SOURCES.md"))).rejects.toThrow(
       /not a readable image/,
@@ -52,7 +52,7 @@ describe("validateLocalPhoto", () => {
   describe("EXIF orientation", () => {
     // Round-1 review found the original implementation trusted sharp's
     // metadata().width/height directly, which report the STORED pixel
-    // grid, not the displayed one — wrong for any photo carrying a 90°/270°
+    // grid, not the displayed one - wrong for any photo carrying a 90°/270°
     // EXIF rotation tag, extremely common from phone cameras. Fixtures
     // generated with sharp's own withMetadata(), not hand-authored binary
     // files, so the exact tag value is verifiable in the test itself.
@@ -90,7 +90,7 @@ describe("validateLocalPhoto", () => {
     it("swaps width and height for a 90°-rotated source (orientation 6)", async () => {
       const path = await writeFixture(6);
       // Stored as 300x200; a 90° rotation means it actually displays as
-      // 200x300 — this is the exact case a naive metadata().width/height
+      // 200x300 - this is the exact case a naive metadata().width/height
       // read gets backwards.
       expect(await validateLocalPhoto(path)).toEqual({ width: 200, height: 300 });
     });
@@ -101,7 +101,7 @@ describe("validateLocalPhoto", () => {
     });
 
     it("does NOT swap for a mirrored-but-not-rotated orientation (4)", async () => {
-      // Orientations 2-4 are flips, not 90°/270° rotations — the >= 5
+      // Orientations 2-4 are flips, not 90°/270° rotations - the >= 5
       // threshold in resolve-local-photo.ts is deliberately specific to
       // the rotation cases, not "any non-1 orientation".
       const path = await writeFixture(4);

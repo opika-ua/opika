@@ -77,7 +77,7 @@ const elapsedYears = (from: Date, now: Date): number =>
  *
  * This exists so persistence has something sargable to index. Storing the union
  * faithfully makes an age filter a six-branch OR across two columns, which
- * Postgres cannot combine with a keyset seek without sorting — which would put
+ * Postgres cannot combine with a keyset seek without sorting - which would put
  * the feed query's "index scan, no sort" requirement out of reach. Stored as a
  * single derived column instead, the filter is one range predicate.
  *
@@ -123,7 +123,7 @@ export const ageAnchorRange = (
  * March is not still advertised as a puppy in December.
  *
  * For a declared bucket this reports the *youngest* bucket still consistent
- * with the declaration — the only claim the data actually supports. It does
+ * with the declaration - the only claim the data actually supports. It does
  * mean a dog declared `adult` at seven can read as `adult` for some years after
  * it is genuinely `senior`, which is why `isAgeEstimateUncertain` exists:
  * rather than guessing an older bucket the data cannot justify, the listing is
@@ -152,7 +152,7 @@ export const isAgeEstimateUncertain = (estimate: AgeEstimate, now: Date): boolea
 
   // The bucket's upper bound is exclusive, so the oldest attainable age is just
   // below it. Stepping back a day rather than an epsilon keeps this meaningful
-  // at every magnitude — and without it a freshly declared bucket would read as
+  // at every magnitude - and without it a freshly declared bucket would read as
   // uncertain the instant it was recorded.
   const oldestPossibleYears = maxYears - ONE_DAY_IN_YEARS + elapsedYears(estimate.declaredAt, now);
 

@@ -28,7 +28,7 @@ Already settled (not asked again):
 
 oRPC's `implement(contract).router()` requires every procedure in the contract to be served.
 The 16 cross-tenant tests need only the `shelter.*` handlers. The 18 `registry.*` handlers and
-`session.exitSupport` are the later registry and support PRs (proposal §8, PRs 5–6).
+`session.exitSupport` are the later registry and support PRs (proposal §8, PRs 5-6).
 
 - **A (recommended):** split `kabinetContract` into `shelterKabinetContract` (`shelter.*`) and
   `registryContract` (`registry.*` + `session.exitSupport`). #85 serves the shelter one in full,
@@ -69,9 +69,9 @@ real caller gets UNAUTHENTICATED.
 
 - **A (recommended):** the gate is the first PR in which a real shelter can sign in, which is the
   registry/invite PR or the K-screens PR, whichever completes that path. #85 can merge without
-  A1–A3 and B1, and a test pins that nothing outside tests can create a `shelter_admin`
+  A1-A3 and B1, and a test pins that nothing outside tests can create a `shelter_admin`
   membership.
-- **B:** the gate is #85, because its handlers are deployed and reachable. A1–A3 and B1 must be
+- **B:** the gate is #85, because its handlers are deployed and reachable. A1-A3 and B1 must be
   written before #85 merges.
 
 **This is a user-facing-claim question, so I won't take a default.**
@@ -118,7 +118,7 @@ must write history from day one, or the first edits go unrecorded.
 
 ## Decisions, 2026-10-13
 
-Answers verbatim in the inbox (HS-Q1–HS-Q6). Their effect on the slice:
+Answers verbatim in the inbox (HS-Q1-HS-Q6). Their effect on the slice:
 
 - **Q1 → A.** The contract is split into `shelterKabinetContract` and `registryContract`. #85
   serves the 16 `shelter.*` procedures with real handlers. No stubs.

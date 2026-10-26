@@ -15,7 +15,7 @@ const CITY_SLUGS = new Map([
 ]);
 
 describe("GalleryFilterDropdowns", () => {
-  it("renders exactly five dropdown triggers — city, age, size, species, fur, never a 'sex' one", () => {
+  it("renders exactly five dropdown triggers - city, age, size, species, fur, never a 'sex' one", () => {
     render(
       <GalleryFilterDropdowns
         filters={NO_FILTERS}
@@ -162,7 +162,7 @@ describe("GalleryFilterDropdowns", () => {
   /**
    * Tier 1 review finding (2881bc2): every key `relaxDimension` takes is a
    * `FeedFilterDimension`, so a dropdown's own ✕ silently clearing the
-   * *wrong* dimension still type-checks — nothing catches it but a test
+   * *wrong* dimension still type-checks - nothing catches it but a test
    * that sets two dimensions at once and checks each ✕ by its own href.
    */
   it("each dropdown's own ✕ clears only its own dimension, not another one active at the same time", () => {
@@ -210,7 +210,7 @@ describe("GalleryFilterDropdowns", () => {
    * GV3-Q1 (b): the two dropdowns added to close the Tier 1 review's desktop
    * filter gap. Real coverage for `withToggledSpecies`/`withToggledCoat`'s
    * own wiring here, not just the "five triggers exist" structural count
-   * above — a wrong import or a swapped dimension key would still render
+   * above - a wrong import or a swapped dimension key would still render
    * five buttons.
    */
   it("the species dropdown selects «Коти» and writes vyd=cat", () => {

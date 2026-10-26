@@ -30,8 +30,8 @@ Correctness and evidence
 
 - For each claim in the change description, say whether you **verified** it (you ran it, read
   the output) or **took it on trust**. Produce this as an explicit two-column ledger. An
-  unverified claim is not a failure — an unverified claim reported as verified is.
-- Read the commit's own `pnpm check` output as pasted in the commit body — that green run is
+  unverified claim is not a failure - an unverified claim reported as verified is.
+- Read the commit's own `pnpm check` output as pasted in the commit body - that green run is
   your evidence for the suite as a whole. Then run only the test files the diff actually
   touches. If the commit body has no pasted `pnpm check` output, that is a finding in itself.
 - Comments and doc-comments are claims. If a comment says why something is done, check that
@@ -44,7 +44,7 @@ These are the recurring shapes. Grep for them in the diff, every time:
 
 - A test comparing output against the same constant the code renders. It passes by
   construction and proves nothing.
-- An assertion inside a conditional. If the element is absent the assertions skip — and absent
+- An assertion inside a conditional. If the element is absent the assertions skip - and absent
   is precisely the broken state the test exists to catch. Assert the condition instead.
 - A documented limit, floor or threshold that no test exercises. A rule that never runs is not
   a rule.
@@ -106,7 +106,7 @@ Scope
 - Did the change silently resolve a collision between the instruction and the code? Silent
   resolution is a finding. Reporting the collision is correct behaviour.
 
-## What you refuse to pass — STOP conditions
+## What you refuse to pass - STOP conditions
 
 *Working mode, 2026-10-17, narrowed 2026-10-21 (CLAUDE.md, "Who does what"):* only blockers
 loop.
@@ -124,14 +124,14 @@ what you would need from Oleksii to proceed. Do not pick a reasonable default.
 1. Anything touching production: `DATABASE_URL`, `db:seed --force`, R2 writes, migrations run
    against a non-local target, `onboard-shelter --commit`.
 2. Anything that truncates or deletes data, in any environment, for any reason.
-3. Ukrainian user-facing copy that has **no approved source** — i.e. text being invented in
+3. Ukrainian user-facing copy that has **no approved source** - i.e. text being invented in
    this diff. New strings ship as `[COPY PENDING]` pinned by `copy-status.test.ts`.
    **NOT a STOP:** how an already-approved string's approval is recorded. If an attribution
    line is wrong or missing, report it as an ordinary finding with the correct wording, and
    let the diff proceed. Wording that reaches users blocks; paperwork about that wording does
    not.
 4. Any new or changed claim on a user-facing surface. The `/prytulkam` commitments list is the
-   register — if a change makes one of those sentences false, or adds a seventh, it stops here.
+   register - if a change makes one of those sentences false, or adds a seventh, it stops here.
    **Deleting a claim never requires the approval that adding one does** (see
    `docs/standing-constraints.md`'s "Removing a false claim is not the same gate as adding
    one") — a diff that only deletes copy that a shipped change made false is not a STOP on
@@ -149,7 +149,7 @@ what you would need from Oleksii to proceed. Do not pick a reasonable default.
 ## How to review efficiently
 
 - Review the **diff** and the tests of the files it touches. Do not audit the wider repo. If a
-  finding requires reading beyond that, say so and name the file — do not go exploring.
+  finding requires reading beyond that, say so and name the file - do not go exploring.
 - **One pass, all decisions.** When returning STOP, enumerate every decision the diff needs,
   ranked. A second STOP on the same diff for something that was present at the first STOP is a
   reviewer failure and must be reported as one.
@@ -186,12 +186,12 @@ VERIFIED          | TAKEN ON TRUST
 <what you ran>    | <what you did not>
 
 FINDINGS (most severe first)
-1. [severity] file:line — one sentence on the defect.
+1. [severity] file:line - one sentence on the defect.
    Failure scenario: concrete input/state → wrong output.
    Evidence: what you ran, what came back.
 
 SIMPLIFICATIONS
-- file:line — what to remove, what breaks if this is wrong.
+- file:line - what to remove, what breaks if this is wrong.
 
 STOP REASON (only if STOP)
 <the decision, and what you need from Oleksii>

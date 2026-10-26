@@ -10,7 +10,7 @@ replace RO-D1's "404 intended for now" (which retires RO-F1), KS-T11's "after le
 operator goes to `/`", and the "API only (RG-Q1)" comments in `apps/web/src/features/kabinet/home.ts`
 and `SupportBanner.tsx`.
 
-**Sources.** `M33`/`M34`/`M35` = `docs/design/Opika Kabinet.dc.html` at that line (frames S1–S5).
+**Sources.** `M33`/`M34`/`M35` = `docs/design/Opika Kabinet.dc.html` at that line (frames S1-S5).
 `K` = `docs/design/KABINET.md`. The mock gives structure only (test logic, not looks; the designer
 restyles). Where the markdown and the mock disagree, the markdown wins.
 
@@ -101,7 +101,7 @@ time beside PR 4 → 5 → 6, never more than two open feature PRs (RU-B4, WM-B1
 
 - **The reason dialog is shared** by K4's pause, PR 5's withdraw reason and R-UI 3. Whichever lands
   first extracts it; R-UI 3 ideally follows PR 5.
-- **`uk.ts` and `copy-status.test.ts` conflicts** with #115 and PR 4–6: R-UI keeps its keys and pins
+- **`uk.ts` and `copy-status.test.ts` conflicts** with #115 and PR 4-6: R-UI keeps its keys and pins
   in their own blocks.
 - **Resubmit replaces the evidence list wholesale.** The form prefills it. ~~The old list survives in
   the history entry~~: false (R-UI 3 review): `shelter_created` stores no evidence and `resubmit`

@@ -24,7 +24,7 @@ type AnimalsInput = z.infer<typeof AnimalsByIdInputSchema>;
 
 /**
  * The exact subset `animalsByIdContract` declares (`packages/contracts/src/
- * procedures/animals.ts`) — oRPC injects a constructor per declared code,
+ * procedures/animals.ts`) - oRPC injects a constructor per declared code,
  * pre-carrying that code's `status`/`message` from `apiErrors` (O-20,
  * 2026-09-10), so a raw `new ORPCError(code)` here can no longer silently
  * answer 500 for a code that has a real status declared for it.
@@ -89,13 +89,13 @@ type CardsByIdsOutput = z.infer<typeof AnimalsCardsByIdsOutputSchema>;
 /**
  * S8, the saved page: DR1-Q2 option (A), his spec. Never reads
  * `context.adopterId` (the caller omits the cookie client-side, so there is
- * usually none to read anyway) — the saved list is never tied to a session,
+ * usually none to read anyway) - the saved list is never tied to a session,
  * on-device only, the same as a reveal's own "Опіка never tells a shelter"
  * commitment is about what the *server* keeps, not what the caller sends.
  *
  * One batch query each for the animals and their shelters (the gallery
  * handler's own pattern), not one round trip per id. Nothing here logs
- * `input.animalIds` — the one requirement his spec states explicitly
+ * `input.animalIds` - the one requirement his spec states explicitly
  * ("nothing stored or logged about which ids were asked for") is upheld by
  * omission: there is no `console.log`/`console.error` anywhere in this
  * function at all, pinned by a test that spies on both.
@@ -121,7 +121,7 @@ export async function animalsCardsByIds(
   const items = input.animalIds.map((animalId) => {
     const animal = animalById.get(animalId);
     const shelter = animal && shelterById.get(animal.shelterId);
-    // S8-F5: the precise fact, not an approximation — `everServedAt` is set
+    // S8-F5: the precise fact, not an approximation - `everServedAt` is set
     // only the instant this exact listing was simultaneously discoverable
     // and its shelter publicly verified (`everServedAtAfter`), so a card
     // that was only ever published while pending, paused or suspended reads
@@ -135,14 +135,14 @@ export async function animalsCardsByIds(
       !isPubliclyVerified(shelter.verification)
     ) {
       // The row exists and was once shown but isn't any more (adopted,
-      // withdrawn, a paused or no-longer-verified shelter) — its name is
+      // withdrawn, a paused or no-longer-verified shelter) - its name is
       // still honest to show. `null` for an id with no row behind it, or a
       // listing that was never actually served.
       //
       // A *current* draft is excluded even when `everServedAt` is set
       // (Tier 1 review finding 2, PR #196): `everServedAt` is monotonic and
       // never cleared, so a card restored to draft via «Скасувати
-      // публікацію» keeps the fact that it was shown once — but its name on
+      // публікацію» keeps the fact that it was shown once - but its name on
       // the draft screen can be edited freely before ever being republished,
       // and this handler must never leak that unreviewed edit under cover of
       // "it was shown before" (the rule the 529a6cc review already settled:

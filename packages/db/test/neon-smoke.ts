@@ -766,7 +766,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `deleted ${counts.verifications} verification(s), ${counts.sessions} session(s); ${wrong.length === 0 ? "every row of this run where it should be" : wrong.join(", ")}`,
   );
 
-  // 19–21: the K2/K3 animal writes HS-T4b names (the listing jsonb
+  // 19-21: the K2/K3 animal writes HS-T4b names (the listing jsonb
   // compare-and-set, the deleteDraft 23503 catch) and S3-T6's guard, which is
   // the integer `version` since Oleksii's override (S3-T6: "integer version for
   // animals too"), so the `last_updated_at` equality round-trip it once
@@ -1228,7 +1228,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `R: ${counted === undefined ? "not the one row found" : `joined ${counted.admins.joined}, invited ${counted.admins.invited} (adminsOf ${listedJoined}/${listedInvited}), donationPending ${counted.donationPending}`}; S: ${uncounted === undefined ? "not the one row found" : `joined ${uncounted.admins.joined}, invited ${uncounted.admins.invited}, donationPending ${uncounted.donationPending}`}`,
   );
 
-  // 27–31: K3 (PR 4). F-B1's nullable facts and their CHECKs (migration
+  // 27-31: K3 (PR 4). F-B1's nullable facts and their CHECKs (migration
   // 0012), the draft-only null guard on a form save, the publish
   // compare-and-set (K3-T7) and RH-B7's photo write, each through neon-http.
   const smokePhotoOf = (animalId: string) => ({
@@ -1460,7 +1460,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   // 31. RH-B7: a photo change on a published row moves `photos`,
   // `listing.confirmedAt` and `last_confirmed_at` together under the photo
   // and listing compare-and-set; a stale listing writes nothing; on a draft
-  // (steps 24–25's `createdDraft`) `last_confirmed_at` stays null.
+  // (steps 24-25's `createdDraft`) `last_confirmed_at` stays null.
   const visibleRead = await kabinetAnimals.findWithCity(raced.id);
   const photoAt = later(17000);
   const visibleWrite = visibleRead
@@ -1512,7 +1512,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       draftRaw?.lastConfirmedAt === null,
     `write ${visibleWrite.kind}, stale listing ${staleListingWrite.kind}, ${visibleAfter?.animal.photos.length} photo(s), confirmed ${visibleRaw?.lastConfirmedAt?.toISOString()}, draft last_confirmed_at ${draftRaw?.lastConfirmedAt === null ? "null" : "set"}`,
   );
-  // 32–36: K2 (PR 5). The list's keyset, filters and counts, and the listing
+  // 32-36: K2 (PR 5). The list's keyset, filters and counts, and the listing
   // moves K2's buttons make (confirm and its undo with a stored `undoable`;
   // reserve, release, withdraw with a note, restore, adopt), each through
   // neon-http against the listing as this driver reads it back. On a shelter
@@ -1675,7 +1675,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   // against the listing as read back: one line each, and the draft keeps its
   // first_published_at with no confirmation or wait anchor.
   const k2Moving = await k2Animal(visibleSince("published", later(-5 * DAY)), later(-6000));
-  const k2Note = `Забрали «додому» — ${tag}`;
+  const k2Note = `Забрали «додому» - ${tag}`;
   const k2Steps = [
     { type: "reserve", at: later(22000) },
     { type: "release", at: later(23000) },
@@ -2008,7 +2008,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   // 41. S8's `animals.cardsByIds`: `animalRepo.findByIds` (a plain
   // `inArray` select, no new migration) over this driver. A mix of two real
   // ids from this run (`atShelter`, `fostered`, both inserted in step 2) and
-  // one random, never-inserted id returns exactly the two real rows — the
+  // one random, never-inserted id returns exactly the two real rows - the
   // unknown id is silently absent, not an error, which is what the handler's
   // order-preserving map over `input.animalIds` relies on. An empty array
   // short-circuits in TS before any query, so it has no real-Neon case to add
@@ -2029,7 +2029,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   // `referencedStorageKeys`'s `jsonb_array_elements` SELECT and
   // `afterDeleted`'s `jsonb_set` UPDATE (with its scalar-OR'd WHERE, never
   // an array binding) both go through `executeRows`, the one place that
-  // already handles postgres-js/neon-http's differing raw-result shapes —
+  // already handles postgres-js/neon-http's differing raw-result shapes -
   // but the statements themselves, with their real jsonb operators, had
   // only ever executed locally until this step.
   const r2StorageKey = `smoke/${tag}/photo-1`;

@@ -10,15 +10,15 @@ import { setupTestDatabase } from "../src/test-utils/index";
  * that silently stops matching the schema: it asks the real, migrated
  * database which tables actually exist and asserts the discovered set is
  * covered exactly once, by `FULL_RESET_TABLES` (reset) or
- * `RESET_EXCLUDED_TABLES` (kept, with why). A table in neither — new,
- * renamed, or just missed — fails this test by name, forcing whoever added
+ * `RESET_EXCLUDED_TABLES` (kept, with why). A table in neither - new,
+ * renamed, or just missed - fails this test by name, forcing whoever added
  * it to say which it is.
  *
  * Queries `information_schema.tables`, not a regex over `packages/db/src/
  * schema`'s source files (Tier 1 review finding 2, PR #199): a regex scan
  * missed table names with digits (`[a-z_]+` has no `0-9`), single-quoted
  * `pgTable('name', ...)` calls, and any schema file outside the one
- * directory it read non-recursively — three independently confirmed gaps,
+ * directory it read non-recursively - three independently confirmed gaps,
  * each one a real table this test would have let through uncovered. The
  * database itself has none of those blind spots: it is asked what tables
  * exist, not asked to be parsed correctly.
@@ -65,11 +65,11 @@ describe("db:full-reset covers every real table exactly once", () => {
     }
   });
 
-  it("finds at least one real table — proof the query itself isn't silently matching nothing", async () => {
+  it("finds at least one real table - proof the query itself isn't silently matching nothing", async () => {
     expect((await realTableNames()).length).toBeGreaterThan(10);
   });
 
-  it("never sees drizzle's own migrations table — it lives in a different schema", async () => {
+  it("never sees drizzle's own migrations table - it lives in a different schema", async () => {
     expect(await realTableNames()).not.toContain("__drizzle_migrations");
   });
 });

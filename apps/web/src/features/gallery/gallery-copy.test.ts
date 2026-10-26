@@ -3,7 +3,7 @@ import { railResultCount, sheetResultCount, showCountLabel } from "./gallery-cop
 
 /**
  * Audit 2026-10-22 #29 (Oleksii: "#29 must agree for 1, 2, 5, 11, 21 and 22, with tests"):
- * «Підходить 3 тварини» broke agreement for 2–4, so both sheet sentences open with the
+ * «Підходить 3 тварини» broke agreement for 2-4, so both sheet sentences open with the
  * impersonal «Знайдено», which governs the accusative and agrees at every count. The
  * words are transcribed here per count, never computed with `pluralizeUk`, so a wrong
  * form list can't agree with itself.
@@ -18,7 +18,7 @@ const AGREEMENT: ReadonlyArray<readonly [count: number, animals: string, shelter
 ];
 
 describe("sheetResultCount", () => {
-  describe("a city is selected — the audit's «Знайдено …» sentence", () => {
+  describe("a city is selected - the audit's «Знайдено …» sentence", () => {
     it.each(AGREEMENT)("count=%i -> Знайдено %s", (count, animals) => {
       expect(sheetResultCount(count, 3, true)).toBe(
         `Знайдено ${animals}. Притулків у цьому місті: 3.`,
@@ -26,7 +26,7 @@ describe("sheetResultCount", () => {
     });
   });
 
-  describe("no city selected — 'у цьому місті' would name a city that isn't chosen", () => {
+  describe("no city selected - 'у цьому місті' would name a city that isn't chosen", () => {
     // The shelter count walks the same six numbers, so «притулку» / «притулках» agree too.
     it.each(AGREEMENT)("shelters=%i -> у %s", (shelters, _animals, shelterPhrase) => {
       expect(sheetResultCount(7, shelters, false)).toBe(`Знайдено 7 тварин у ${shelterPhrase}.`);

@@ -75,7 +75,7 @@ describe("message catalogue apostrophes", () => {
     expect(offending).toEqual([]);
   });
 
-  it("would fail on either look-alike — the assertion is not vacuous", () => {
+  it("would fail on either look-alike - the assertion is not vacuous", () => {
     // Guards the guard: a regex typo or a wrong code point would make every
     // assertion above pass against any input at all.
     for (const lookAlike of LOOK_ALIKES) {

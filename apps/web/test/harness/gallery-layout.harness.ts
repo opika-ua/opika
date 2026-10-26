@@ -1,5 +1,5 @@
 /**
- * The gallery's photos actually load — `/tvaryny`, real seeded rows.
+ * The gallery's photos actually load - `/tvaryny`, real seeded rows.
  *
  * Until 2026-10-20 this file also measured column counts per breakpoint, the
  * card photo's shape, the content width, the photo box staying the same size while its image loads, the
@@ -17,14 +17,14 @@ import { PHONE } from "./viewports";
 
 /**
  * `proxy.ts` rate-limits `/tvaryny` at 100 req/min per IP, shared across
- * every harness file that requests it under the real local identity — see
+ * every harness file that requests it under the real local identity - see
  * `gallery-arrow-nav.harness.ts`'s comment for the real, reproducing 429
  * this caused once that file's requests joined this one's and
  * `gallery-filters.harness.ts`'s in the same shared budget. Isolates this
  * file's own volume the same way `gallery-rate-limit.harness.ts` already
  * isolates its own deliberate budget exhaustion. TEST-NET-2
  * (198.51.100.0/24), deliberately not the TEST-NET-3 block that file draws
- * a random host from each run — see `gallery-arrow-nav.harness.ts` for why
+ * a random host from each run - see `gallery-arrow-nav.harness.ts` for why
  * a fixed address inside that block would be a 1-in-254 collision per run.
  */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.23" } });
@@ -35,7 +35,7 @@ const GALLERY_PAGE_SIZE = 24;
 
 /**
  * `<img src>` occupying the right box is not evidence the image actually
- * decoded — `photo.storageKey` used to be rendered as a bare object key,
+ * decoded - `photo.storageKey` used to be rendered as a bare object key,
  * 404ing on every card, and the layout assertions this file then carried
  * stayed green through that the whole time: the
  * `aspect-[4/5]`/`w-30` box holds its size and `bg-photo-placeholder`'s
@@ -44,7 +44,7 @@ const GALLERY_PAGE_SIZE = 24;
  */
 test.describe("/tvaryny photos actually load", () => {
   /**
-   * `next/image` defaults to `loading="lazy"` — confirmed by a first version
+   * `next/image` defaults to `loading="lazy"` - confirmed by a first version
    * of this test that checked all 24 without scrolling and found most of
    * them still undecoded, correctly: an image below the fold hasn't been
    * asked to load yet, which is the feature working, not a bug. Real
@@ -66,7 +66,7 @@ test.describe("/tvaryny photos actually load", () => {
       await img.scrollIntoViewIfNeeded();
       await img.evaluate((el: HTMLImageElement) => {
         // `complete` becomes true once the browser has finished *attempting*
-        // to load — success or failure — so a 404 settles this fast-path
+        // to load - success or failure - so a 404 settles this fast-path
         // almost immediately. The listeners below are the case where the
         // fetch is still in flight: `error` has to be handled explicitly,
         // not just `load`, or a genuinely broken image (the exact case this

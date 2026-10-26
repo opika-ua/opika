@@ -60,7 +60,7 @@ describe("SaveButton", () => {
 
     expect(button.getAttribute("aria-pressed")).toBe("false");
     expect(screen.getByRole("status").textContent).toBe(
-      "Список повний — у ньому може бути не більше 200 тварин. Щоб додати нову, приберіть когось зі списку.",
+      "Список повний - у ньому може бути не більше 200 тварин. Щоб додати нову, приберіть когось зі списку.",
     );
   });
 

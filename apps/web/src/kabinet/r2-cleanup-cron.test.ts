@@ -10,8 +10,8 @@ import type { R2CleanupState } from "./r2-cleanup-env";
  * GDPR photo retention (`docs/gdpr-analysis.md`). The orchestration itself
  * (`runR2Cleanup`) is tested thoroughly against a real database in
  * `packages/db/test/r2-cleanup.test.ts`; this covers the route's own
- * boundary — the cron secret, the missing-R2-config refusal, and that
- * nothing it logs names a key — the same shape `auth-cleanup.test.ts`
+ * boundary - the cron secret, the missing-R2-config refusal, and that
+ * nothing it logs names a key - the same shape `auth-cleanup.test.ts`
  * already pins for the sibling cron.
  */
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
@@ -85,7 +85,7 @@ describe("the R2 clean-up cron's own boundary", () => {
     vi.doUnmock("@opika/db/image-pipeline/server");
   });
 
-  it("calls runR2Cleanup with commit: true and no graceDays override — pinned, not asserted by trust (Tier 1 review, note 5)", async () => {
+  it("calls runR2Cleanup with commit: true and no graceDays override - pinned, not asserted by trust (Tier 1 review, note 5)", async () => {
     const calls: unknown[] = [];
     vi.doMock("@opika/db/image-pipeline/server", () => ({
       createR2CleanupClient: () => ({
@@ -141,7 +141,7 @@ describe("the R2 clean-up cron's own boundary", () => {
     ]);
   });
 
-  it("deliberately off (no R2 credentials set): answers 200, quiet — never a daily false alarm", async () => {
+  it("deliberately off (no R2 credentials set): answers 200, quiet - never a daily false alarm", async () => {
     // Tier 1 review, PR #200, low finding: before this, "off" and "broken"
     // were the same response (500), so the cron reported a daily "failure"
     // in Vercel's own monitoring for as long as the job was left off on
@@ -166,7 +166,7 @@ describe("the R2 clean-up cron's own boundary", () => {
     ]);
   });
 
-  it("logs counts only — no object key, storage key or animal id, even when the report carries real ones", async () => {
+  it("logs counts only - no object key, storage key or animal id, even when the report carries real ones", async () => {
     // Tier 1 review, PR #200, note 8: the report this mock returns must
     // actually carry keys in dueForDeletion/deleted/failed, or this test
     // passes trivially (nothing to leak) regardless of what the handler

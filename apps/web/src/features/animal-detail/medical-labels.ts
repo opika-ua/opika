@@ -4,13 +4,13 @@ import { uk } from "@opika/i18n";
 export type MedicalRow = {
   label: string;
   statusText: string;
-  /** Tailwind class for the 4×16 source stripe — `docs/design/README.md`'s own legend: registry / shelter's words / not recorded. */
+  /** Tailwind class for the 4×16 source stripe - `docs/design/README.md`'s own legend: registry / shelter's words / not recorded. */
   barClassName: "bg-rg-registry" | "bg-rg-ink-3" | "bg-rg-fill-strong";
 };
 
 /**
  * `AnimalSchema.vaccination` is a single field, but the mock's D1 frame
- * shows two visually distinct rows — "Сказ" (rabies) with a registry badge,
+ * shows two visually distinct rows - "Сказ" (rabies) with a registry badge,
  * "Комплексне щеплення" (combo) with a shelter's-words badge. There is no
  * second domain field to source a real second row from (`vaccination` is
  * one union, not two), so this renders exactly one row, whose LABEL
@@ -21,7 +21,7 @@ export type MedicalRow = {
  * own claim is read as the general "Комплексне щеплення" instead. Recorded
  * as a deviation from the mock's three-row example
  * (`docs/design/README.md`'s "Whole-list error" section neighbours this
- * kind of note; see this phase's PR body for the full account) — not a
+ * kind of note; see this phase's PR body for the full account) - not a
  * silent drop, since seed data today never produces the registry variant
  * at all (verified: no `source: "registry"` anywhere in
  * `packages/db/src/seed.ts`), so this only ever shows the shelter-declared
@@ -57,7 +57,7 @@ export function vaccinationRow(vaccination: VaccinationStatus): MedicalRow {
   };
 }
 
-/** `SpayNeuterStatus` is shelter-declared only — see that schema's own comment for why. */
+/** `SpayNeuterStatus` is shelter-declared only - see that schema's own comment for why. */
 export function spayNeuterRow(spayNeuter: SpayNeuterStatus): MedicalRow {
   if (spayNeuter.state === "unknown") {
     return {

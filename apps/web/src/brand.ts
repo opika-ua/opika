@@ -14,5 +14,5 @@ export const WORDMARK = "Opika";
  * (audit 2026-10-22, G6): they were typed in `app/layout.tsx`, outside the catalogue and
  * outside this file, so a rename would have missed them. `%s` is Next's title template slot.
  */
-export const SITE_TITLE = `${WORDMARK} — тварини з притулків Київщини`;
-export const TITLE_TEMPLATE = `%s — ${WORDMARK}`;
+export const SITE_TITLE = `${WORDMARK} - тварини з притулків Київщини`;
+export const TITLE_TEMPLATE = `%s - ${WORDMARK}`;

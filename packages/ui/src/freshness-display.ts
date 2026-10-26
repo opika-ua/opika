@@ -3,7 +3,7 @@ import { formatFreshnessRelative } from "@opika/domain";
 import { uk as strings } from "@opika/i18n";
 
 /**
- * Per-pip fill state for the freshness marker — the «Реєстр» visual
+ * Per-pip fill state for the freshness marker - the «Реєстр» visual
  * system's values (V2, `docs/design/README.md` "The freshness marker").
  * Both of this function's callers (`AnimalCard`, `SwipeCard`) are in V2's
  * scope, so this returns the new system's tokens directly rather than
@@ -18,7 +18,7 @@ import { uk as strings } from "@opika/i18n";
  *   stale  (30d+):  2 filled ink-3 + 1 filled ink  (all three filled)
  *
  * `"empty"` is a deliberate WCAG 1.4.11 fix, not the mock's original
- * value — see `docs/design/README.md`'s own note under "The freshness
+ * value - see `docs/design/README.md`'s own note under "The freshness
  * marker" for the full reasoning and the measured contrast ratios (the
  * mock's original `#DCDCD9` fill measured 1.16-1.37:1 against every
  * background it appears on, failing the 3:1 requirement by a wide
@@ -26,7 +26,7 @@ import { uk as strings } from "@opika/i18n";
  * directly, so this is the current spec, not a standing deviation from
  * it). The caller renders `"empty"` as a transparent fill with a
  * border in the same colour as `"bg-rg-ink-3"`, not as its own fill colour
- * — kept as a fourth named variant here, not spelled out as classes,
+ * - kept as a fourth named variant here, not spelled out as classes,
  * for the same reason the three fills are: a closed union turns a typo
  * into a compile error instead of a pip that silently renders unstyled.
  */

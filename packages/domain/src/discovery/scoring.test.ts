@@ -222,7 +222,7 @@ describe("preference component", () => {
 
   it("is constant across candidates once filters are applied as hard constraints", () => {
     // Every candidate the query returns already matches, so this component
-    // contributes nothing today — the behaviour the comment in scoring.ts
+    // contributes nothing today - the behaviour the comment in scoring.ts
     // warns not to "clean up".
     const filters: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } };
     const other = animal({ size: "large" });

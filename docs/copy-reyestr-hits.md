@@ -5,7 +5,7 @@ default wording rule while he writes the exact text (CB-B2): «сайт» / «ч
 for the website; «я» for the person checking shelters (operator voice: no «ми», no gendered past
 tense); «перевірка» for the verification itself.
 
-**All rows are resolved (2026-10-18).** Rows 5–11, 13–18 and 21 were drafted under CB-B2 in
+**All rows are resolved (2026-10-18).** Rows 5-11, 13-18 and 21 were drafted under CB-B2 in
 #123 (`copy/reyestr-drafts`) and approved with four changes (CB-Q2, his words in
 `docs/decisions-inbox/copy-reyestr-drafts.md`). Row 12 is not reworded in #123: PR 6 replaces the
 whole paragraph with his text (`pr6-copy-uk.md` §1.5), so it keeps «реєстр» until then. The
@@ -34,4 +34,4 @@ list was generated from `packages/i18n/src/messages/uk.ts`, excluding «заре
 | 18 | `detail.notFound.body` | «Тварину вже забрали з реєстру…» | the animal page's not-found state | adopters | site | #123, his sentence: «Тварини вже немає на сайті або посилання застаріле.» |
 | 19 | `medical.registryConfirmed` | «Підтверджено реєстром тварин» | animal page, medical facts | adopters | an **external** animal registry, not the site | #116: «Підтверджено державним реєстром тварин» (his Q5 exception) |
 | 20 | `medical.registry` | «Реєстр тварин» | animal page, the medical source label | adopters | external registry | #116: «Державний реєстр тварин» (his Q5 exception) |
-| 21 | `PENDING_R4_2_ANALYTICS_SENTENCE` | «…реєстр ставить одне кукі… а реєстр — чиї контакти…» | not live (the `/pro` cookie sentence, held for launch) | — | site | #123: «…сайт ставить одне кукі… а сайт — чиї контакти…» |
+| 21 | `PENDING_R4_2_ANALYTICS_SENTENCE` | «…реєстр ставить одне кукі… а реєстр — чиї контакти…» | not live (the `/pro` cookie sentence, held for launch) | - | site | #123: «…сайт ставить одне кукі… а сайт — чиї контакти…» |

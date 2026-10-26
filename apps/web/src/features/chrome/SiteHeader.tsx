@@ -9,7 +9,7 @@ import { BrandLogo } from "./BrandLogo";
  * The one header, on every user-facing surface except the deck.
  *
  * Phase T. Before this, three routes each carried their own near-identical
- * `<header>` and the detail page carried no wordmark at all — its own comment
+ * `<header>` and the detail page carried no wordmark at all - its own comment
  * recorded that as deliberate, reasoning the wordmark shouldn't repeat "a
  * second time on every route," while citing that mock D1 shows it. The design
  * critique found the consequence: `/tvaryny/{id}` is the URL people paste into
@@ -18,8 +18,8 @@ import { BrandLogo } from "./BrandLogo";
  * footer, below a ten-page grid). That is critique findings E5, E1, B2 and E7,
  * and they are one wound with one fix.
  *
- * **Not the deck.** `docs/design/README.md:589` is explicit — "the deck's
- * header *replaces* the gallery header — never two navigations at once" — and
+ * **Not the deck.** `docs/design/README.md:589` is explicit - "the deck's
+ * header *replaces* the gallery header - never two navigations at once" — and
  * the deck already has an unambiguous way out («← До списку») to a surface
  * that does carry this. None of the four findings above concern the deck, so
  * honouring that decision costs nothing. Confirmed with the owner rather than
@@ -35,7 +35,7 @@ import { BrandLogo } from "./BrandLogo";
  * Specified, and followed:
  * - Surface white, no bottom border; min-height 88 desktop / 64 mobile
  *   (line 337). The old headers were `min-h-14 tablet:min-h-16
- *   desktop:min-h-17` — 56/64/68px — which is critique finding A2, under the
+ *   desktop:min-h-17` - 56/64/68px - which is critique finding A2, under the
  *   project's own civic-trust touch-target floor at two of three breakpoints.
  * - Wordmark 26/700/−0.03em desktop, 22 on mobile (line 225). Previously a
  *   flat `text-[19px]`, matching neither.
@@ -51,35 +51,35 @@ import { BrandLogo } from "./BrandLogo";
  * The city chip and «Мої запити · N» remain absent for the same reason they
  * always were: My Reveals and i18n are later phases. Unchanged by this one.
  *
- * **O-1 (`docs/observations.md`), 2026-09-10 — the mark shipped.** This file's
+ * **O-1 (`docs/observations.md`), 2026-09-10 - the mark shipped.** This file's
  * own comment used to record the mark asset as absent, "the honest half
  * rather than inventing a mark to fill a spec line." The design doc's "The
- * logo — «Поріг · Межа»" section names the geometry exactly (a 96-grid path,
+ * logo - «Поріг · Межа»" section names the geometry exactly (a 96-grid path,
  * not an image asset to source), so drawing it is following the spec, not
  * inventing one: arch `M22 70 V46 a26 26 0 0 1 52 0 v24`, threshold
  * `M14 88 h68` (both stroke 10, round caps), dot `cx=48 cy=79 r=6` (filled).
  * Ink `#101112` only (`currentColor`, via `text-rg-ink`). Lockup: 30px
  * desktop / 26px mobile.
  *
- * **Correction, 2026-09-10 — Oleksii caught the mark floating above the
+ * **Correction, 2026-09-10 - Oleksii caught the mark floating above the
  * wordmark in a real screenshot** (a rendered defect, not visible from
- * markup — exactly the class `docs/standing-constraints.md`'s "requires a
+ * markup - exactly the class `docs/standing-constraints.md`'s "requires a
  * rendered assertion" exists for). The original lockup used `items-end`,
  * which aligns the mark's own *box* bottom to the wordmark's line-box
- * bottom — not the same point as the spec's "align optically to the
+ * bottom - not the same point as the spec's "align optically to the
  * threshold line, not the box." Two gaps, not stacked but *net*: a CSS line
  * box extends below the true text baseline by the font's descent plus half
  * its leading (this font/size: 5px descent + 4px half-leading = 9px at
  * 26px/desktop), while the mark's own viewBox reserves 8 of its 96 units as
  * clear space *above* the box's own bottom edge, i.e. the threshold sits
  * 2.5px higher than the box bottom at 30px. 9 minus 2.5 nets the 6.5px the
- * mutated build actually measured — confirmed by measuring both in a live
+ * mutated build actually measured - confirmed by measuring both in a live
  * render (canvas `measureText` against the wordmark's real computed font for
  * ascent/descent/line-height; the SVG's own client rect against the design
- * doc's stated 88/96 threshold position — not estimated from the SVG path by
+ * doc's stated 88/96 threshold position - not estimated from the SVG path by
  * eye). Fixed with `items-baseline` (aligns the mark's box bottom to the
  * wordmark's true typographic baseline via the browser's flex baseline
- * synthesis for a replaced element) plus `translate-y-[8.3333%]` — a
+ * synthesis for a replaced element) plus `translate-y-[8.3333%]` - a
  * percentage translate resolves against the mark's own border box, so one
  * value (8/96, the clear-space fraction baked into the viewBox) covers both
  * the 26px mobile and 30px desktop sizes with no separate magic number to
@@ -90,27 +90,27 @@ import { BrandLogo } from "./BrandLogo";
  * the `<span>` (self-link-suppressed) and `<Link>` lockup branches,
  * mutation-confirmed red against the original `items-end` reverted.
  *
- * Gap to the wordmark is `gap-3` (12px) — **not** a literal rendering of
+ * Gap to the wordmark is `gap-3` (12px) - **not** a literal rendering of
  * "the dot's own height," which the spec states in the mark's 96-unit grid
  * (a 12-unit diameter) and which scales down to ~3.75px at the 30px desktop
  * mark (~3.25px at 26px mobile) once actually rendered. That literal value
  * reads as the mark and the wordmark touching, not a deliberate gap, at
- * this lockup's real size — 12px is a practical rounding chosen for visible
+ * this lockup's real size - 12px is a practical rounding chosen for visible
  * breathing room, recorded here as a deviation rather than claimed as an
  * exact match with no mock available to check a different number against.
  * **Not built:** the 16/24px dot-dropped variant and the favicon (white mark
- * on an `#101112` rounded square) — the spec calls for both only at sizes
+ * on an `#101112` rounded square) - the spec calls for both only at sizes
  * this header never renders at, and a browser favicon is a separate asset
  * pipeline (`app/icon.*`), not a header-lockup concern this observation
  * raised.
  *
- * **O-8 (`docs/observations.md`), 2026-09-10 — the `leading` slot removed.**
+ * **O-8 (`docs/observations.md`), 2026-09-10 - the `leading` slot removed.**
  * Previously existed solely for the detail page's back-link, rendered beside
  * the wordmark where it read as a site nav item rather than the page's own
  * control. Moved into `AnimalDetailScreen.tsx`'s own layout, below the
- * header — this component no longer has a `leading` prop, since nothing
+ * header - this component no longer has a `leading` prop, since nothing
  * populates it anymore. The `flex-wrap` the slot's own content used to need
- * at 360px stays — see the header element's own comment on why it's still
+ * at 360px stays - see the header element's own comment on why it's still
  * load-bearing without `leading`, for an unrelated reason (O-1's logo mark).
  *
  * **gallery-v3 re-skin (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`).**
@@ -118,7 +118,7 @@ import { BrandLogo } from "./BrandLogo";
  * every route" is the hand-off's own words — unlike the gallery page itself,
  * this component's restyle is not scoped to `/tvaryny`. The hand-drawn
  * `LogoMark` above is retired in favour of `BrandLogo` (a static asset,
- * `public/brand-v3/logo.svg` — see that file's own comment for why), and
+ * `public/brand-v3/logo.svg` - see that file's own comment for why), and
  * every colour/radius/font class below moved from the `rg-` token set to the
  * `brand-` one (`globals.css`). 72px tall / 56px side gutters at desktop are
  * the frame's own numbers; mobile/tablet keep this component's pre-existing
@@ -131,7 +131,7 @@ import { BrandLogo } from "./BrandLogo";
 export { WORDMARK };
 
 export interface SiteHeaderProps {
-  /** Surface-specific trailing actions, after the nav — the gallery's deck entry. */
+  /** Surface-specific trailing actions, after the nav - the gallery's deck entry. */
   readonly children?: ReactNode;
   /**
    * Suppresses the link on the wordmark when this *is* the gallery. A link to
@@ -143,10 +143,10 @@ export interface SiteHeaderProps {
   readonly wordmarkIsCurrentPage?: boolean;
   /**
    * Designer feedback batch D (2026-10-23): a signed-in shelter admin or the
-   * operator doesn't see visitor-only items — no `children` (every current
+   * operator doesn't see visitor-only items - no `children` (every current
    * caller's is adopter-only: the deck entry link), and «Збережені» becomes
    * «Кабінет». No default: every caller decides this from its own request,
-   * via `kabinetSessionCookiePresent()` (`kabinet-signed-in.ts`) — a silent
+   * via `kabinetSessionCookiePresent()` (`kabinet-signed-in.ts`) - a silent
    * default here would be exactly the kind of place a caller's omission
    * goes unnoticed.
    */
@@ -156,7 +156,7 @@ export interface SiteHeaderProps {
 /**
  * `shrink-0` + `whitespace-nowrap`. Added 2026-09-12 while chasing a
  * CI-only horizontal-overflow failure at 320px, on the theory that this nav
- * caused it. **It did not** — the overflow was the gallery's own mobile
+ * caused it. **It did not** - the overflow was the gallery's own mobile
  * toolbar row (`app/tvaryny/page.tsx`), and the CI failure reproduced
  * unchanged after this landed. Corrected here rather than reverted because
  * the measurement behind it was real, even though the diagnosis was not: at
@@ -164,7 +164,7 @@ export interface SiteHeaderProps {
  * exactly 288px of available width, so the nav rendered with zero slack and
  * Chromium wrapped a label internally ("Для" / "притулків" stacked inside
  * one pill). That is a legibility defect on its own, but it could never
- * push the page sideways — the nav is a flex child capped at its
+ * push the page sideways - the nav is a flex child capped at its
  * container's 288px, and measured `scrollWidth === clientWidth === 288`
  * both with and without these classes. Matches `Footer.tsx`'s own pattern
  * for the identical two-link case: the whole pill wraps to its own row
@@ -172,8 +172,8 @@ export interface SiteHeaderProps {
  * text wrapping.
  */
 /**
- * ui 600, 20/1.2, ink; gap 40 between links (`gap-10`) — the frame's own
- * type-scale row for "Header nav links". Bare text, no pill — Figma's own
+ * ui 600, 20/1.2, ink; gap 40 between links (`gap-10`) - the frame's own
+ * type-scale row for "Header nav links". Bare text, no pill - Figma's own
  * node geometry for this nav (`58:1698`)
  * is a 24px-tall text box with nothing behind it, not the earlier
  * `bg-brand-line` pill this file shipped first (Oleksii, mid-build: "our
@@ -181,7 +181,7 @@ export interface SiteHeaderProps {
  * floor is still met, just invisibly: `min-h-12` extends the hit area
  * *vertically* around the 20px text with no background to show it, and
  * carries no horizontal padding, so the flex row's `gap-10` (40px) still
- * measures text-edge to text-edge exactly as the frame does — adding
+ * measures text-edge to text-edge exactly as the frame does - adding
  * horizontal padding here would have widened that gap by twice the
  * padding without changing what's visible.
  */
@@ -197,7 +197,7 @@ const NAV_LINK_CLASS =
  * word would duplicate it on screen. This span exists purely so the
  * accessible name (and, for the `wordmarkIsCurrentPage` branch, the literal
  * `.textContent` `SiteHeader.test.tsx` and the harness both read) stays
- * "Opika" regardless of which branch renders — the image itself is
+ * "Opika" regardless of which branch renders - the image itself is
  * `aria-hidden` and contributes nothing to either.
  */
 function WordmarkText() {
@@ -213,7 +213,7 @@ export function SiteHeader({
     <header
       data-testid="site-header"
       /*
-        `flex-wrap` below `tablet:` is load-bearing, not defensive — confirmed
+        `flex-wrap` below `tablet:` is load-bearing, not defensive - confirmed
         by a real regression, not assumed safe to drop: removing it once the
         `leading` slot's own content stopped needing it (O-8 moved that
         content out of this component entirely) broke real horizontal-scroll
@@ -223,7 +223,7 @@ export function SiteHeader({
         72px desktop height / 56px desktop side gutters are the gallery-v3
         frame's own numbers; mobile/tablet keep this component's pre-existing
         values (see this file's top comment). `sticky top-0`: Oleksii,
-        mid-build — "header must be sticky." `z-30`, not the default
+        mid-build - "header must be sticky." `z-30`, not the default
         stacking order: this is site-wide chrome (every route but the
         deck), so it has to stay above whatever scrolls beneath it on every
         one of them, while staying below `FilterSheet`'s own `z-50` modal,
@@ -271,7 +271,7 @@ export function SiteHeader({
           </Link>
         ) : (
           // S8: the saved page (`/zberezheni`), linked from every surface the
-          // header is on — but only while there's something saved to link to
+          // header is on - but only while there's something saved to link to
           // (Oleksii, from a live screenshot: "show Збережені tab in header
           // only if we have something saved otherwise hide it").
           <SavedNavLink className={NAV_LINK_CLASS} />

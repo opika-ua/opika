@@ -123,7 +123,7 @@ function columnsToColour(
 
 // --- City ---
 //
-// Not `localizedTextToColumns`/`columnsToLocalizedText` — those two exist
+// Not `localizedTextToColumns`/`columnsToLocalizedText` - those two exist
 // for `LocalizedText`, whose `en` is genuinely nullable (a shelter or
 // animal description can be Ukrainian-only). `City.name` is the stricter
 // `CityName` (`packages/domain`, tightened 2026-09-12 alongside this

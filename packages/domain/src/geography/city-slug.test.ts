@@ -4,7 +4,7 @@ import { CitySlugSchema, citySlugOf } from "./city-slug";
 describe("citySlugOf", () => {
   /**
    * The corpus this repo actually seeds (`packages/db/src/seed.ts`'s
-   * `CITY_DATA`), fed its own `name.en.text` — the field the migration's
+   * `CITY_DATA`), fed its own `name.en.text` - the field the migration's
    * backfill assumes, and the same field the app already displays in
    * English locale. Pinned by name because these are exactly the slugs that
    * ship in real URLs, not arbitrary examples.
@@ -36,7 +36,7 @@ describe("citySlugOf", () => {
     expect(citySlugOf(" Bila Tserkva ")).toBe("bila-tserkva");
   });
 
-  it("an existing hyphen already reads as one — spaces are the only thing rewritten", () => {
+  it("an existing hyphen already reads as one - spaces are the only thing rewritten", () => {
     expect(citySlugOf("Kamianets-Podilskyi")).toBe("kamianets-podilskyi");
   });
 
@@ -46,7 +46,7 @@ describe("citySlugOf", () => {
   });
 
   /**
-   * Deliberately not total, and deliberately not forgiving — "lowercase,
+   * Deliberately not total, and deliberately not forgiving - "lowercase,
    * spaces to hyphens" is the whole rule (Oleksii's own instruction). A name
    * with an apostrophe, a period, or any other character `CitySlugSchema`
    * doesn't accept fails loudly here rather than being silently cleaned up
@@ -60,7 +60,7 @@ describe("citySlugOf", () => {
     expect(() => citySlugOf("Kyiv (center)")).toThrow();
   });
 
-  it("is not total — a name with nothing left to slug throws", () => {
+  it("is not total - a name with nothing left to slug throws", () => {
     expect(() => citySlugOf("")).toThrow();
     expect(() => citySlugOf("...")).toThrow();
     expect(() => citySlugOf("   ")).toThrow();

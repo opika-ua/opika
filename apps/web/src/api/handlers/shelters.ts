@@ -7,7 +7,7 @@ import { cityOnlyLocationOf } from "./public-location";
 
 type SheltersInput = z.infer<typeof SheltersByIdInputSchema>;
 
-/** The exact subset `sheltersByIdContract` declares — see animals.ts's own comment (O-20). */
+/** The exact subset `sheltersByIdContract` declares - see animals.ts's own comment (O-20). */
 type SheltersByIdErrors = ORPCErrorConstructorMap<{
   NOT_FOUND: typeof apiErrors.NOT_FOUND;
   RATE_LIMITED: typeof apiErrors.RATE_LIMITED;

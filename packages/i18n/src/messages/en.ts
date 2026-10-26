@@ -1,5 +1,5 @@
 /**
- * English UI strings — mirrors uk.ts key-for-key.
+ * English UI strings - mirrors uk.ts key-for-key.
  *
  * Machine-translated in the design's established voice (plain, warm, never
  * alarming), not a native-speaker pass. Eleven keys use the literal English
@@ -7,7 +7,7 @@
  * "КОПІЯ · UK / EN"): freshness.attribution, swipe.left/right,
  * medical.unknown/registryConfirmed, location.fostered, reveal.title,
  * exhausted.title/body, reserved.badge/action. Everything else is new
- * content in that register, not literally specified anywhere — flag any
+ * content in that register, not literally specified anywhere - flag any
  * mistranslation rather than trusting it silently; this hasn't had a
  * native-speaker read yet, and next-intl isn't wired until H3, so nothing
  * here is user-visible in production today.
@@ -15,7 +15,7 @@
 import { COPY_PENDING } from "./uk";
 
 export const en = {
-  // --- 01 First run — was a band above the gallery grid, removed in
+  // --- 01 First run - was a band above the gallery grid, removed in
   // Phase D (see uk.ts's own comment); promise survives as og:description ---
   firstRun: {
     promise:
@@ -23,7 +23,7 @@ export const en = {
   },
 
   demo: {
-    bannerNotice: "The site doesn't hold any real shelters yet — every card here is a demo.",
+    bannerNotice: "The site doesn't hold any real shelters yet - every card here is a demo.",
     deckLabel: "Demo",
   },
 
@@ -57,9 +57,9 @@ export const en = {
     coat: "Fur",
     coatShort: "Short-haired",
     coatLong: "Long-haired",
-    /** Template: "{count} {animalWord} match. Shelters in this city — {shelterCount}." */
-    resultCount: "{count} {animalWord} match. Shelters in this city — {shelterCount}.",
-    /** Template: "{count} {animalWord} match, across {shelterCount} {shelterWord}." — used when no city is selected, see uk.ts's note. */
+    /** Template: "{count} {animalWord} match. Shelters in this city - {shelterCount}." */
+    resultCount: "{count} {animalWord} match. Shelters in this city - {shelterCount}.",
+    /** Template: "{count} {animalWord} match, across {shelterCount} {shelterWord}." - used when no city is selected, see uk.ts's note. */
     resultCountAnyCity: "{count} {animalWord} match, across {shelterCount} {shelterWord}.",
     reset: "Reset",
     /** Template: "Show {count}" */
@@ -67,7 +67,7 @@ export const en = {
     /** Template: "Found {count} {animalWord} across {shelterCount} {shelterWord}" */
     resultCountRail: "Found {count} {animalWord} across {shelterCount} {shelterWord}",
     animalWord: { one: "animal", few: "animals", many: "animals" },
-    /** English has no case system, so this is `animalWord` again — it exists for key-shape parity with uk.ts, where the rail's "Знайдено" governs a different form than the sheet's "Підходить". */
+    /** English has no case system, so this is `animalWord` again - it exists for key-shape parity with uk.ts, where the rail's "Знайдено" governs a different form than the sheet's "Підходить". */
     animalWordAccusative: { one: "animal", few: "animals", many: "animals" },
     shelterWordLocative: { one: "shelter", few: "shelters", many: "shelters" },
     sortLabel: "Sort",
@@ -93,7 +93,7 @@ export const en = {
     saved: "Saved",
     added: "{name}: added to saved",
     removed: "{name}: removed from saved",
-    full: "The list is full — it can hold at most {max} animals. To add a new one, remove one first.",
+    full: "The list is full - it can hold at most {max} animals. To add a new one, remove one first.",
     title: "Saved animals",
     deviceOnly:
       "The list is kept only in this browser: it won't be there on another device or browser.",
@@ -154,7 +154,7 @@ export const en = {
 
   // --- Detail screen (04) ---
   detail: {
-    /** Template: "Manually verified · on the site since {year}" — `{year}` is the year the shelter's record was created. */
+    /** Template: "Manually verified · on the site since {year}" - `{year}` is the year the shelter's record was created. */
     shelterVerifiedYears: "Manually verified · on the site since {year}",
     donateShelter: "Support the shelter",
     shelterRowLink: "The shelter's page: «{name}»",
@@ -168,7 +168,7 @@ export const en = {
     notFound: {
       eyebrow: "NOT FOUND",
       title: "This listing is gone.",
-      body: "The animal is no longer on the site or the link is out of date. This isn't an error — the listing is simply no longer here.",
+      body: "The animal is no longer on the site or the link is out of date. This isn't an error - the listing is simply no longer here.",
       action: "All animals",
     },
     rateLimited: "Too many requests. Please try again later.",
@@ -192,9 +192,9 @@ export const en = {
     /** Template: "Contact details saved as they are today · {date}" */
     contactsFootnote: "Contact details saved as they are today · {date}",
     meetingPlace: "you'll agree on a place when you message",
-    reflectionHeading: "Before you write — three things worth thinking through calmly:",
-    reflection1: "This is 10–15 years together, not a weekend.",
-    reflection2: "Food, the vet, transport — monthly costs.",
+    reflectionHeading: "Before you write - three things worth thinking through calmly:",
+    reflection1: "This is 10-15 years together, not a weekend.",
+    reflection2: "Food, the vet, transport - monthly costs.",
     reflection3: "Whether everyone you live with agrees.",
     writeTelegram: "Message on Telegram",
     call: "Call",
@@ -213,7 +213,7 @@ export const en = {
   // --- Exhausted (07) ---
   exhausted: {
     title: "That's everyone who fits right now.",
-    body: "There aren't many shelters here, so the list is short — that's normal.",
+    body: "There aren't many shelters here, so the list is short - that's normal.",
     newAnimals: "New animals appear when shelters update their cards. Usually every few weeks.",
     /**
      * Template: "All of Kyiv oblast (+{count})"
@@ -225,7 +225,7 @@ export const en = {
     toList: "Browse the list",
     reviewAgain: "Look through them again, no rush",
     footnote:
-      "If you know a shelter in Kyiv oblast that isn't here — tell us, and we'll reach out to them.",
+      "If you know a shelter in Kyiv oblast that isn't here - tell us, and we'll reach out to them.",
   },
 
   // --- Error states (08) ---
@@ -246,13 +246,13 @@ export const en = {
       title: "We've started the feed over.",
       action: "To the feed",
     },
-    /** Mirrors uk.ts's rateLimited key-for-key — machine-translated like the rest of this file, not a native pass; see this file's own top comment. */
+    /** Mirrors uk.ts's rateLimited key-for-key - machine-translated like the rest of this file, not a native pass; see this file's own top comment. */
     rateLimited: {
       title: "You've revealed the contacts of many shelters today.",
-      body: "The next ones — tomorrow.",
+      body: "The next ones - tomorrow.",
     },
     photoMissing: {
-      placeholder: "No photo yet — the shelter hasn't sent one",
+      placeholder: "No photo yet - the shelter hasn't sent one",
     },
   },
 
@@ -263,7 +263,7 @@ export const en = {
     action: "Ask to be second in line",
   },
 
-  // --- Resolved card variant — see the uk key's own note ---
+  // --- Resolved card variant - see the uk key's own note ---
   resolved: {
     sentence: "The shelter says: {name} is already home.",
   },
@@ -277,7 +277,7 @@ export const en = {
   // --- Animal card meta line ---
   // See the note on the uk key: English adjectives don't inflect for
   // gender, so the mismatch that motivates that note doesn't reproduce
-  // here — this set exists only for key-shape parity with uk.ts.
+  // here - this set exists only for key-shape parity with uk.ts.
   cardMeta: {
     ageBaby: "baby",
     ageYoung: "young",
@@ -351,7 +351,7 @@ export const en = {
     skipLink: "Skip to pages",
   },
 
-  // --- Gallery no-match (B4) — see the uk key's own note ---
+  // --- Gallery no-match (B4) - see the uk key's own note ---
   noMatch: {
     heading: "Nobody matches these filters right now.",
     reassurance: "This isn't a search error.",
@@ -364,7 +364,7 @@ export const en = {
       '"try something else" without a number.',
   },
 
-  // --- Gallery error — see the uk key's own note ---
+  // --- Gallery error - see the uk key's own note ---
   galleryError: {
     eyebrow: "DIDN'T LOAD",
     title: "The page couldn't be loaded.",
@@ -373,20 +373,20 @@ export const en = {
     showAll: "Show all animals",
   },
 
-  // --- Gallery out-of-range page notice — see the uk key's own note ---
+  // --- Gallery out-of-range page notice - see the uk key's own note ---
   outOfRangePage: {
-    notFound: "Page {requested} doesn't exist — there are only {total}.",
-    showingLast: "Showing page {total} — the last one. Nothing was lost.",
+    notFound: "Page {requested} doesn't exist - there are only {total}.",
+    showingLast: "Showing page {total} - the last one. Nothing was lost.",
     backToFirst: "Back to the first page",
   },
 
-  // --- Footer — see the uk key's own note ---
+  // --- Footer - see the uk key's own note ---
   footer: {
     fontCredit:
-      "e-Ukraine typeface — Ukraine's Ministry of Digital Transformation (thedigital.gov.ua/fonts), Dmytro Rastvortsev / Fedoriv, CC BY 4.0.",
+      "e-Ukraine typeface - Ukraine's Ministry of Digital Transformation (thedigital.gov.ua/fonts), Dmytro Rastvortsev / Fedoriv, CC BY 4.0.",
   },
 
-  // --- Site-wide header links (Phase T) — see the uk key's own note ---
+  // --- Site-wide header links (Phase T) - see the uk key's own note ---
   nav: {
     about: "About",
     forShelters: "For shelters",
@@ -394,23 +394,23 @@ export const en = {
     kabinet: "Cabinet",
   },
 
-  // --- About page — see the uk key's own note ---
+  // --- About page - see the uk key's own note ---
   about: {
     title: "About this project",
     intro:
-      "{site} is a site where animals from shelters in the Kyiv region look for a home. One person builds it — me, in my free time. There's no team and no investor.",
+      "{site} is a site where animals from shelters in the Kyiv region look for a home. One person builds it - me, in my free time. There's no team and no investor.",
     free: "The site is free for shelters, with no paid tiers. If that ever changes, every shelter will know well in advance, not after the fact.",
     money:
-      'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) — the site only shows the link; the money goes directly, and you can see exactly where.',
-    data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks.",
+      'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) - the site only shows the link; the money goes directly, and you can see exactly where.',
+    data: "Data a shelter enters - address, contact details, animal listings - belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks.",
     analytics:
-      "The site collects basic visit statistics — how many people visit and how fast the pages load — with no advertising.",
+      "The site collects basic visit statistics - how many people visit and how fast the pages load - with no advertising.",
     /** Template: "Get in touch: {contact}" */
     contact: "Get in touch: {contact}",
   },
 
   /**
-   * «Для притулків» (Phase T) — see the uk key's own note.
+   * «Для притулків» (Phase T) - see the uk key's own note.
    *
    * ⚠ Pending in BOTH locales, deliberately. The Ukrainian is written first,
    * from `docs/prytulkam-argument.md`; the English is written from the
@@ -420,7 +420,7 @@ export const en = {
    */
   forShelters: {
     title: "For shelters",
-    /** Real copy in both locales — see the uk key's own note. */
+    /** Real copy in both locales - see the uk key's own note. */
     headings: {
       whatThisIs: "What this is",
       cost: "What it costs",
@@ -435,20 +435,20 @@ export const en = {
       whoIsBehindThis: "Who is behind this",
       howToStart: "How to start",
     },
-    whatThisIs: `${COPY_PENDING} 1. What this is — one sentence.`,
-    cost: `${COPY_PENDING} 2. What it costs — nothing, now and later.`,
+    whatThisIs: `${COPY_PENDING} 1. What this is - one sentence.`,
+    cost: `${COPY_PENDING} 2. What it costs - nothing, now and later.`,
     whatHappensToAnimals: `${COPY_PENDING} 3. What happens to their animals.`,
     whoContactsWhom: `${COPY_PENDING} 4. Who contacts whom.`,
     noObligation: `${COPY_PENDING} 4b. No lead queue, nothing to answer.`,
-    money: `${COPY_PENDING} 5. Money — never touched.`,
+    money: `${COPY_PENDING} 5. Money - never touched.`,
     verification: `${COPY_PENDING} 6. What "verified" means.`,
     verificationOpenToVolunteers: `${COPY_PENDING} 6b. Open to unregistered volunteer groups.`,
     whatToPrepare: `${COPY_PENDING} 7. What to prepare.`,
     whyThatSentence: `${COPY_PENDING} 8. Why we ask for the freshness sentence.`,
     whenAnimalFindsHome: `${COPY_PENDING} 9. When an animal finds a home.`,
-    howToLeave: `${COPY_PENDING} 9b. How to leave — write, and everything is removed, no conditions.`,
+    howToLeave: `${COPY_PENDING} 9b. How to leave - write, and everything is removed, no conditions.`,
     whoIsBehindThis: `${COPY_PENDING} 10. Who is behind this.`,
-    howToStart: `${COPY_PENDING} 11. How to start — write to {contact}.`,
+    howToStart: `${COPY_PENDING} 11. How to start - write to {contact}.`,
     signInLink: `Sign in to the cabinet`,
   },
   kabinet: {
@@ -605,7 +605,7 @@ export const en = {
           "Intake can't be resumed from here right now: the shelter's status has changed. Write to me.",
         phoneFormat: "Enter the number with the country code, for example +380 67 123 45 67.",
         telegramFormat:
-          "A Telegram username: 5–32 Latin letters, digits or underscores. The @ is optional.",
+          "A Telegram username: 5-32 Latin letters, digits or underscores. The @ is optional.",
         viberFormat: "Enter the Viber number with the country code, for example +380 67 123 45 67.",
         emailFormat: "That doesn't look like an email address.",
         httpsOnly: "Only links that start with https://.",
@@ -708,7 +708,7 @@ export const en = {
         sizeNote:
           "There is no weight on purpose: a size judged by eye is more accurate than last year's number.",
         sizeHintUpTo: "up to {max} kg",
-        sizeHintRange: "{min}–{max} kg",
+        sizeHintRange: "{min}-{max} kg",
         sizeHintFrom: "from {min} kg",
       },
       coat: {
@@ -735,7 +735,7 @@ export const en = {
         birthDateLabel: "Birth date",
         bucketLabel: "Age on that date",
         bucketRangeUnder: "under {max}",
-        bucketRange: "{min}–{max}",
+        bucketRange: "{min}-{max}",
         bucketRangeFrom: "{min}+",
         asOfLabel: "As of",
         asOfHint: "When you made this estimate. Usually the day the animal came to the shelter.",
@@ -991,14 +991,14 @@ export const en = {
       viewingAs: "as the shelter administrator",
       signOutDisabled: "Sign-out disabled",
     },
-    /** The English sense of uk.ts's final Ukrainian (2026-10-14); both emails are signed `— {operator}`. */
+    /** The English sense of uk.ts's final Ukrainian (2026-10-14); both emails are signed `- {operator}`. */
     email: {
       signIn: {
         subject: `A sign-in link for the shelter's cabinet`,
         intro: `Hello. A sign-in link for the shelter's cabinet was requested for this address.`,
         action: `Open the sign-in page`,
         expiry: `The link works once and expires in {minutes} minutes.`,
-        notYou: `If you didn't ask for this, just ignore the email: nothing happens without the link.\n— {operator}`,
+        notYou: `If you didn't ask for this, just ignore the email: nothing happens without the link.\n- {operator}`,
       },
       invite: {
         subject: `Your access to the shelter's cabinet`,
@@ -1007,19 +1007,19 @@ export const en = {
         whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours} hours. If you miss it, I will send a new one.`,
-        notYou: `If you weren't expecting this email, just ignore it and don't forward it to anyone: while the invitation is valid, this link lets someone create a password for this address, once.\n— {operator}`,
+        notYou: `If you weren't expecting this email, just ignore it and don't forward it to anyone: while the invitation is valid, this link lets someone create a password for this address, once.\n- {operator}`,
       },
       reset: {
         subject: `A new password for the shelter's cabinet`,
         intro: `A new password for the shelter's cabinet was requested for this address.`,
         action: `Create a new password`,
         expiry: `The link works once and expires in {minutes} min.`,
-        notYou: `If you didn't make this request, just ignore this email: your password stays the same.\n— {operator}`,
+        notYou: `If you didn't make this request, just ignore this email: your password stays the same.\n- {operator}`,
       },
       passwordChanged: {
         subject: `Shelter cabinet: password changed`,
         body: `The password to the shelter's cabinet for this address has just been changed. Other devices have been signed out.`,
-        notYou: `If this wasn't you, write to me: {contact}\n— {operator}`,
+        notYou: `If this wasn't you, write to me: {contact}\n- {operator}`,
       },
     },
     signInCard: {
@@ -1372,7 +1372,7 @@ export const en = {
       suspendedTitle: "The shelter is temporarily suspended",
       reason: "Reason: {code}.",
       noteLabel: "Explanation:",
-      signature: "— {operator}",
+      signature: "- {operator}",
       contact: "If you have questions, write to me.",
       suspendedEffect: "While the shelter is suspended, its animals aren't in the gallery.",
       rejectedEffect: "The shelter's animals won't be in the gallery until verification is passed.",

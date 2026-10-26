@@ -7,7 +7,7 @@ import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "..
 import { brandDisplay, brandUi, commissioner, eUkraine, literata } from "./fonts";
 
 /**
- * Phase T. This was `title: "Adoption Platform"` — a generic English
+ * Phase T. This was `title: "Adoption Platform"` - a generic English
  * placeholder, and the *default for every route*, so the gallery, the deck and
  * «Для притулків» itself all previewed under it. That mattered the moment
  * `/prytulkam` started telling shelters a card can be sent to Telegram: the
@@ -17,7 +17,7 @@ import { brandDisplay, brandUi, commissioner, eUkraine, literata } from "./fonts
  * `template` rather than a per-route full string: a route sets its own subject
  * («Тест», «Для притулків») and the product name is appended once, here.
  *
- * No default `openGraph.images` — deliberately, not an oversight. A site-wide
+ * No default `openGraph.images` - deliberately, not an oversight. A site-wide
  * OG image is a designed asset that does not exist in this repo, and inventing
  * one would be worse than the link-preview card falling back to title +
  * description. The detail route supplies a real per-animal image
@@ -25,7 +25,7 @@ import { brandDisplay, brandUi, commissioner, eUkraine, literata } from "./fonts
  * design task, recorded rather than faked.
  *
  * `metadataBase` is deliberately unset too: nothing here or in the detail route
- * uses a relative image URL — the animal photos are absolute R2 CDN URLs — so
+ * uses a relative image URL - the animal photos are absolute R2 CDN URLs - so
  * there is no relative path for Next to resolve, and setting a base to
  * `VERCEL_URL` would point link previews at a deployment hostname rather than
  * the real domain.
@@ -33,10 +33,10 @@ import { brandDisplay, brandUi, commissioner, eUkraine, literata } from "./fonts
 /**
  * D-2: a shared link's preview must not claim verified shelters exist while
  * `REGISTRY_HAS_NO_REAL_SHELTERS`. This is the **default** every route
- * inherits unless it sets its own `description` — `/tvaryny/[animalId]`
+ * inherits unless it sets its own `description` - `/tvaryny/[animalId]`
  * does (its own per-animal swap); `/prytulkam` and `/pro` do too, overriding
  * with their own existing opening sentences rather than this disclosure
- * (Option B, 2026-09-06, see `docs/observations.md`) — this default was
+ * (Option B, 2026-09-06, see `docs/observations.md`) - this default was
  * never meant to reach those two specifically, and reaching them was an
  * unconfirmed scope expansion, corrected here.
  */
@@ -86,7 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body style={{ margin: 0 }}>
         {children}
         {/*
-          Cookieless, no-op without JS — aggregate page views (Analytics)
+          Cookieless, no-op without JS - aggregate page views (Analytics)
           and real Core Web Vitals from actual devices (Speed Insights),
           which the harness cannot simulate. «Про проєкт» discloses this to
           shelters and adopters. Their one `beforeSend` strips the query string from

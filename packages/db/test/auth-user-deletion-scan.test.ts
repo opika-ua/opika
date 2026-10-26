@@ -13,10 +13,10 @@ import { describe, expect, it } from "vitest";
  *
  * This is that check. Every place that deletes an `auth_user` row, in
  * `packages/db/src` (every real write funnels through this package, never
- * `apps/web` directly — `kabinet-db-scan.test.ts`'s own premise), is one of
+ * `apps/web` directly - `kabinet-db-scan.test.ts`'s own premise), is one of
  * exactly two kinds:
  *   - **the shared mechanism's own implementation**
- *     (`repos/admin-erasure-repo.ts`'s `eraseUsersAndScrubHistory`) — the one
+ *     (`repos/admin-erasure-repo.ts`'s `eraseUsersAndScrubHistory`) - the one
  *     place a deletion and a scrub are allowed to not call each other, because
  *     it *is* the thing that does both;
  *   - **an allowed exception**, named here with why it needs no scrub.
@@ -24,11 +24,11 @@ import { describe, expect, it } from "vitest";
  * A new `.delete(authUser)`/raw `DELETE FROM "auth_user"` anywhere else fails
  * this test by naming the file and line, forcing whoever added it to either
  * route it through `eraseUsersAndScrubHistory` or add a reasoned exception
- * here — never to silently ship a third way to delete a user.
+ * here - never to silently ship a third way to delete a user.
  *
  * A fourth way exists and this scan's line-level pattern can't see it (Tier
  * 1 review, PR #199, finding 6): `full-reset.ts`'s `truncateFullReset` wipes
- * `auth_user` via a dynamically built `TRUNCATE "${table}", …` — the literal
+ * `auth_user` via a dynamically built `TRUNCATE "${table}", …` - the literal
  * text "auth_user" never appears next to the word `TRUNCATE` in the source,
  * it sits in a separate `FULL_RESET_TABLES` array `truncateFullReset` reads
  * at runtime. The second scan below catches this shape instead: any
@@ -53,7 +53,7 @@ const EXPECTED: ReadonlyArray<{
     kind: "exception",
     why:
       "deletes a demo/rehearsal shelter's own shelter_history rows outright, in the same " +
-      "removal (DEMO_REMOVAL_TABLES includes shelter_history) — there is no row left to carry " +
+      "removal (DEMO_REMOVAL_TABLES includes shelter_history) - there is no row left to carry " +
       "a stale email, so there is nothing for the shared scrub to do",
   },
   {
@@ -61,7 +61,7 @@ const EXPECTED: ReadonlyArray<{
     line: 157,
     text: 'DELETE FROM "auth_user"',
     kind: "mechanism",
-    why: "eraseUsersAndScrubHistory itself — the one shared mechanism every real deletion routes through",
+    why: "eraseUsersAndScrubHistory itself - the one shared mechanism every real deletion routes through",
   },
 ];
 
@@ -93,7 +93,7 @@ function found(): { file: string; line: number; text: string }[] {
 }
 
 describe("every auth_user deletion is the shared mechanism or a named exception", () => {
-  it("matches the expected list exactly — a new site needs a new entry here", () => {
+  it("matches the expected list exactly - a new site needs a new entry here", () => {
     const actual = found()
       .map(({ file, line, text }) => ({ file, line, text }))
       .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
@@ -117,7 +117,7 @@ describe("every auth_user deletion is the shared mechanism or a named exception"
 /**
  * `full-reset.ts`: builds `TRUNCATE "support_sessions", …, "auth_user", …`
  * from `FULL_RESET_TABLES` at runtime, in the same statement as every other
- * application table — including `shelter_history`, so there is no row left
+ * application table - including `shelter_history`, so there is no row left
  * to carry a stale email once it runs, the same reasoning `demo-remove.ts`'s
  * own exception above already uses.
  */

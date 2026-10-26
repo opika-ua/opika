@@ -1256,7 +1256,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
    * db:full-reset has the identical --expect-then-guard ordering as
    * demo:remove (both read via `expectedTargetOf` before
    * `assertProductionWriteAllowed`), so it needs the same two dedicated
-   * tests rather than joining `WRITING_CLIS` — a bare member there would
+   * tests rather than joining `WRITING_CLIS` - a bare member there would
    * assert the generic guard's "ERROR: …" message where this script's own
    * --expect check actually answers first, with "REFUSED: …".
    */
@@ -1290,7 +1290,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
 
   /**
    * Tier 1 review finding 4, PR #199: db:full-reset's own `--prod`
-   * requirement had no direct test — only the `--expect`-ordering exploits
+   * requirement had no direct test - only the `--expect`-ordering exploits
    * above, which pass `--expect` a value matching the target on purpose to
    * reach the second guard. This is the plain case: a real production
    * target, a correct `--expect`, no `--prod` at all.

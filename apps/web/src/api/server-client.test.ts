@@ -83,7 +83,7 @@ describe("anonymousRouterClient", () => {
     expect(JSON.stringify(page.items[0]?.shelter)).not.toContain("вул. Тестова");
   });
 
-  it("also exposes gallery.relaxationCounts — V2's no-match state, read-only same as gallery.list", async () => {
+  it("also exposes gallery.relaxationCounts - V2's no-match state, read-only same as gallery.list", async () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
@@ -109,7 +109,7 @@ describe("anonymousRouterClient", () => {
    * F1 put `animals.byId` and `shelters.byId` on this path, which changes the
    * shape of the guard below rather than duplicating it: `animals` is now a
    * legitimately-defined namespace, so its mere presence proves nothing. What
-   * must stay absent from it is `reveal` — the one procedure that needs an
+   * must stay absent from it is `reveal` - the one procedure that needs an
    * `adopterId` a Server Component render never has, and the only one that
    * discloses an exact address and contact details.
    */
@@ -172,7 +172,7 @@ describe("anonymousRouterClient", () => {
   });
 
   /**
-   * This path throws `setCookies` away — a Server Component cannot write a
+   * This path throws `setCookies` away - a Server Component cannot write a
    * cookie. `session.bootstrap` inserts an adopter row and a session row
    * before it queues its Set-Cookie, so exposing it here would mint an
    * orphan adopter on every render and report success. The surface is

@@ -4,7 +4,7 @@
  * __Host- prefix: implies Secure, Path=/, no Domain attribute. This
  * prevents a subdomain attacker from setting or reading the cookie, and
  * ensures it is only sent over HTTPS. In local development (HTTP),
- * browsers silently ignore __Host- cookies — use the non-prefixed
+ * browsers silently ignore __Host- cookies - use the non-prefixed
  * fallback via `cookieName()`.
  */
 

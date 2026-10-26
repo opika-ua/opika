@@ -98,7 +98,7 @@ clean everything, this test goes red: `expected [ '401 wrong password', false ] 
 
 Across the whole PR, `apps/web/scripts/neon-auth-smoke.ts` gains 36 lines (step 20) and changes none.
 
-`runAuthSmoke` was run locally (postgres-js) at `dfec9f2` and at `72b8a3b`. **Steps 1–19 match exactly in name, result
+`runAuthSmoke` was run locally (postgres-js) at `dfec9f2` and at `72b8a3b`. **Steps 1-19 match exactly in name, result
 and printed detail.** Step 20 is new and passes. The steps that check a 401 or a 410, as printed at `72b8a3b`:
 - 9: "old password 401";
 - 14 and 15: "status 401, a wrong password's answer true, cookies set 0, …";

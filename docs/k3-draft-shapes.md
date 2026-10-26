@@ -282,7 +282,7 @@ status.
 
 1. **Prove the target**, read-only, against production `main`:
    `pnpm --filter @opika/db db:check-hashes`. Its first line names the target
-   (`Target: Neon endpoint <prod ep> (…)`), then `match` for 0000–0011 and
+   (`Target: Neon endpoint <prod ep> (…)`), then `match` for 0000-0011 and
    `not run 0012_glorious_warpath`. Stop if the endpoint differs. Run the §2.4 queries.
 2. **Migrate production**: `pnpm --filter @opika/db db:migrate --prod`, against the same target.
    `db:migrate` takes no `--expect`: `migrate.ts` passes every argument but `--prod` through to
@@ -300,7 +300,7 @@ status.
    `pnpm --filter @opika/db db:neon-smoke --expect <child ep>`. `smokeTarget` refuses the
    production endpoint outright and any endpoint other than `--expect`. New steps after PR 3's
    25 and R-UI 1's 26 (the S1 row's admin counts and donationPending, which reaches the default
-   branch first; PR 4 was rebased onto the R-UI stack, so its steps moved from 26–30 to 27–31):
+   branch first; PR 4 was rebased onto the R-UI stack, so its steps moved from 26-30 to 27-31):
    - **27.** A name-and-species draft goes in through the insert CTE with null size, age,
      anchor and description. It reads back through neon-http with those nulls, and the mapper
      gives a `DraftAnimal`.
@@ -698,31 +698,31 @@ A CHECK that a visible row has at least one photo was considered and not propose
 ## 10. Ripple sites
 
 **Domain**
-- `packages/domain/src/animals/animal.ts:26-71` — the union, the guards, `ListingFactsSchema`;
+- `packages/domain/src/animals/animal.ts:26-71` - the union, the guards, `ListingFactsSchema`;
   `:73` `primaryPhoto` unchanged.
-- `packages/domain/src/animals/listing.ts:64-85` — named variants; `:100-106` unchanged, used by
+- `packages/domain/src/animals/listing.ts:64-85` - named variants; `:100-106` unchanged, used by
   `isDiscoverableAnimal`.
-- `packages/domain/src/animals/listing-transition.ts:236-251` — gaps and readiness; new
+- `packages/domain/src/animals/listing-transition.ts:236-251` - gaps and readiness; new
   `listingAfterPhotoChange` (RH-B7).
-- `packages/domain/src/discovery/scoring.ts:57, 78, 110-116` — `Animal` → `DiscoverableAnimal`.
-- `packages/domain/src/animals/photo.test.ts:20` — `AnimalSchema.shape.photos`; a union has no
+- `packages/domain/src/discovery/scoring.ts:57, 78, 110-116` - `Animal` → `DiscoverableAnimal`.
+- `packages/domain/src/animals/photo.test.ts:20` - `AnimalSchema.shape.photos`; a union has no
   `.shape`.
 
 **Contracts**
 - `packages/contracts/src/kabinet/procedures.ts:287-299` (patch), `:345-356` (createDraft),
   `:357-370` (update: new error), `:371-376` (transition: wider gaps), `:430-437` (the photos
   comment's "never `confirmedAt`" becomes false under RH-B7).
-- `packages/contracts/src/kabinet/views.ts:25-37, 41-58` — `AnimalSchema.pick` doesn't exist on a
+- `packages/contracts/src/kabinet/views.ts:25-37, 41-58` - `AnimalSchema.pick` doesn't exist on a
   union. Proposed: `z.union([DraftAnimalSchema.pick(F), ListedAnimalSchema.pick(F)])` with the
   same field list `F`, so the K3 form gets the typed union and `pick` stays the only builder
   (standing rule).
-- `packages/contracts/src/views/animal.ts:51-64, 67-83` — pick from `ListedAnimalSchema`.
+- `packages/contracts/src/views/animal.ts:51-64, 67-83` - pick from `ListedAnimalSchema`.
 - `packages/contracts/src/errors.ts:140-144` (gap enum), new `LISTING_FACT_REQUIRED`.
-- `packages/contracts/src/kabinet/contract.test.ts:697` — the edited-fields pin (unchanged list,
+- `packages/contracts/src/kabinet/contract.test.ts:697` - the edited-fields pin (unchanged list,
   re-check).
 
 **Database**
-- `packages/db/src/schema/animals.ts:38-40, 42, 48, 96` — drop `.notNull()`; `:141` — three
+- `packages/db/src/schema/animals.ts:38-40, 42, 48, 96` - drop `.notNull()`; `:141` - three
   `check(...)`; (`:35-37` only if D2 = null).
 - `packages/db/drizzle/0012_*.sql` plus `meta/` snapshot and journal (generated).
 - `packages/db/src/repos/mappers.ts`:
@@ -736,14 +736,14 @@ A CHECK that a visible row has at least one photo was considered and not propose
   - `:237-256` `writePhotosIf`: listing compare-and-set, RH-B7;
   - `:52-67`: detect `23514` like `23503`;
   - `:82-83`: doc comment.
-- `packages/db/src/repos/feed-repo.ts:16, 80`; `gallery-repo.ts:24, 134, 161` — return
+- `packages/db/src/repos/feed-repo.ts:16, 80`; `gallery-repo.ts:24, 134, 161` - return
   `DiscoverableAnimal` through an asserting mapper.
-- `packages/db/src/repos/animal-repo.ts:9-38` — union-typed; no logic change.
-- `packages/db/src/seed.ts:1372-1389` — `const animal: Animal = { …, listing, … }` with a
+- `packages/db/src/repos/animal-repo.ts:9-38` - union-typed; no logic change.
+- `packages/db/src/seed.ts:1372-1389` - `const animal: Animal = { …, listing, … }` with a
   union-typed `listing` matches neither variant; build per variant.
-- `packages/db/src/onboard-shelter.ts:362-391` — returns a `ListedAnimal` (its listing is
+- `packages/db/src/onboard-shelter.ts:362-391` - returns a `ListedAnimal` (its listing is
   published).
-- `packages/db/src/test-utils/fixtures.ts:116-137` — `makeAnimal(Partial<Animal>)` becomes
+- `packages/db/src/test-utils/fixtures.ts:116-137` - `makeAnimal(Partial<Animal>)` becomes
   `makeListedAnimal` and `makeDraftAnimal` (a `Partial` of a union is unusable as an override
   type).
 - `packages/db/test/neon-smoke.ts` (steps 27-31); `seed-corpus.test.ts:51` and
@@ -759,16 +759,16 @@ A CHECK that a visible row has at least one photo was considered and not propose
   - `:302-340` createDraft;
   - `:352-399` update (clearing, `LISTING_FACT_REQUIRED`, `en` cleared);
   - `:402-448` transition (all gaps; publish compare-and-set).
-- `apps/web/src/kabinet/handlers/photos.ts:49-54, 119-133, 148-173, 202-218` — RH-B7 and the race
+- `apps/web/src/kabinet/handlers/photos.ts:49-54, 119-133, 148-173, 202-218` - RH-B7 and the race
   fix.
-- `apps/web/src/kabinet/router.ts:188-192` — createDraft and update wiring (input types).
+- `apps/web/src/kabinet/router.ts:188-192` - createDraft and update wiring (input types).
 - `apps/web/src/api/handlers/animals.ts:32` (guard), `:44-63`; `feed.ts:96-123`;
-  `gallery.ts:55-75` — typed by `DiscoverableAnimal`.
-- `apps/web/src/kabinet/photos.test.ts:213, 540` — P-B7's "version unchanged" stays. Any
+  `gallery.ts:55-75` - typed by `DiscoverableAnimal`.
+- `apps/web/src/kabinet/photos.test.ts:213, 540` - P-B7's "version unchanged" stays. Any
   assertion that `confirmedAt` doesn't move on a photo write flips under RH-B7.
 
 **Docs**
-- `docs/standing-constraints.md:358` — commitment #7 (§7.3).
+- `docs/standing-constraints.md:358` - commitment #7 (§7.3).
 
 ---
 

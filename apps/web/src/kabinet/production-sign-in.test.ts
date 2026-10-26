@@ -42,7 +42,7 @@ describe("productionSignInOf", () => {
 
   /**
    * Oleksii, 2026-10-14 (delivery test 2): the sign-in email is signed
-   * `— {operator}` like the invite. Production's config carries the name
+   * `- {operator}` like the invite. Production's config carries the name
    * the wiring hands to `providerMagicLinkSender`; a missing or blank one is
    * the catalogue's fallback, never a reason to stay off (RS-Q2).
    */

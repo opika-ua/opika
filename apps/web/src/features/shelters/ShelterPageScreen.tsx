@@ -40,7 +40,7 @@ export function ShelterPageScreen({
   cityNames,
   query,
   // Defaulted here (not in `SiteHeader`) for the same reason
-  // `AnimalDetailScreen` defaults it — the real caller always passes it.
+  // `AnimalDetailScreen` defaults it - the real caller always passes it.
   kabinetSignedIn = false,
 }: ShelterPageView & { kabinetSignedIn?: boolean }) {
   const animalsHeadingId = useId();
@@ -63,7 +63,7 @@ export function ShelterPageScreen({
 
       {/*
         Review of 6825ffd, finding 1: the animal list used to sit in its own
-        `<div>`, outside `<main>` — a screen-reader user jumping to the main
+        `<div>`, outside `<main>` - a screen-reader user jumping to the main
         landmark landed in a region with no animals in it. One `<main>` now
         wraps both blocks; the two different width treatments (batch B's
         note below still explains why they differ) stay as inner wrappers.
@@ -99,7 +99,7 @@ export function ShelterPageScreen({
           Designer feedback batch B: the grid itself now matches the
           gallery's own columns, gaps and per-breakpoint max-widths exactly
           (including `ultrawide:grid-cols-6`, missing before), so cards end
-          up the same size on both pages. Outside `max-w-6xl` on purpose —
+          up the same size on both pages. Outside `max-w-6xl` on purpose -
           that cap, fine for the name/words/donation prose above, is
           narrower than the gallery's own "wide" and "ultrawide" targets
           and would have clipped the grid right back to looking shrunk.
@@ -107,8 +107,8 @@ export function ShelterPageScreen({
           His follow-up correction (screenshot, red line): the heading and
           sort control have to share the grid's own left edge, not just
           this wrapper's. The per-breakpoint max-width and `mx-auto` sit
-          here, on `<section>` itself, so every child — heading, sort,
-          skip link, grid, pagination — sits inside the exact same box
+          here, on `<section>` itself, so every child - heading, sort,
+          skip link, grid, pagination - sits inside the exact same box
           instead of the heading sitting at a wider edge while only the
           grid (previously centred on its own, one level down) was
           narrower.

@@ -7,7 +7,7 @@ import { invitationNotExpiredAt } from "./invitation-liveness";
 
 /**
  * Never a member of any organization, never an operator (a `super_admins`
- * row, active or revoked — Oleksii, 2026-10-24, the STOP decision on the
+ * row, active or revoked - Oleksii, 2026-10-24, the STOP decision on the
  * former-operator case: "no code change. Document in docs/gdpr-analysis.md
  * that an account with any operator grant, active or revoked, is outside
  * this mechanism (operator audit trail), and that today that's only me."),
@@ -22,7 +22,7 @@ export const NOT_ELSEWHERE_IN_USE: SQL = sql`
 `;
 
 /**
- * No pending, unexpired invitation anywhere for this user's own address —
+ * No pending, unexpired invitation anywhere for this user's own address -
  * `now` is a parameter, never read from the clock, because eligibility must
  * be evaluated against the same instant the caller's other conditions are.
  * Part of the one invariant `erasableIf` and `kabinetInvitedUsersRepo`'s own
@@ -31,7 +31,7 @@ export const NOT_ELSEWHERE_IN_USE: SQL = sql`
  * live invitation is erased … whether or not it ever signed in."
  *
  * `invitationNotExpiredAt` (`./invitation-liveness.ts`) is the exact same
- * comparison the accept flow uses for "is this invitation still live" — a
+ * comparison the accept flow uses for "is this invitation still live" - a
  * bare `>` here, independent of the accept flow's own `>=`, let a user be a
  * clean-up candidate at the exact instant their invitation expired while the
  * accept would still have succeeded (PR #198's Tier 1 delta review, finding
@@ -62,7 +62,7 @@ export function noLiveInvitationElsewhere(now: Date): SQL {
  *
  * **Widened again** after a Tier 1 STOP (same day) found the mechanism's own
  * `auth_invitation` rows were never touched, so the deleted address survived
- * in plain sight on every invitation it was ever sent — a real gap in "the
+ * in plain sight on every invitation it was ever sent - a real gap in "the
  * email is deleted," not a documentation question. Oleksii's fix, verbatim:
  * "A: scrub auth_invitation.email in the same statement as the rest. Test
  * that no row anywhere still holds the address after the erasure
@@ -70,35 +70,35 @@ export function noLiveInvitationElsewhere(now: Date): SQL {
  *
  * This is that one mechanism. Every real path that deletes an `auth_user`
  * row tied to a shelter's own admin history calls this rather than writing
- * its own direct delete on that table — `registry.admins.remove` (an accepted member,
+ * its own direct delete on that table - `registry.admins.remove` (an accepted member,
  * `registry-invitations.ts`) and `kabinetInvitedUsersRepo.deleteCandidates`
  * (a withdrawn-pending or expired-never-accepted invite, called from
  * `registry.admins.remove`'s own clean-up, the recurring auth-cleanup cron,
  * and the standalone `admin:sweep-invites`). `auth-user-deletion-scan.test.ts`
  * asserts these are the only two call sites outside this file and
  * `demo-remove.ts` (which deletes the whole `shelter_history` row alongside
- * the shelter — nothing to scrub, the row itself is gone) — a new one fails
+ * the shelter - nothing to scrub, the row itself is gone) - a new one fails
  * that test by name.
  *
- * `condition` is the caller's own eligibility WHERE clause — in practice
+ * `condition` is the caller's own eligibility WHERE clause - in practice
  * always `erasableIf(userId, now)` below, or the same invariant applied to a
- * batch of candidate ids (`kabinetInvitedUsersRepo.deleteCandidates`) — this
+ * batch of candidate ids (`kabinetInvitedUsersRepo.deleteCandidates`) - this
  * function owns only what every caller needs identically: finding which
  * shelter(s) each deleted user's own admin history belongs to, and every
  * `auth_invitation` row their address was ever sent, and scrubbing both in
  * the same statement as the delete.
  *
  * `targets` joins `auth_invitation` by **email**, not through
- * `invitation_created_users` — that table's `user_id` is a primary key, one
+ * `invitation_created_users` - that table's `user_id` is a primary key, one
  * row per account, fixed to whichever invitation *first* created it
  * (`kabinetInvitationRepo.invite` reuses the existing user, never writes a
  * second row, once an address already has an account). An address invited,
  * dead, then invited again elsewhere shares one account across both
- * invitations — Oleksii's own check, 2026-10-24: "the shared mechanism must
+ * invitations - Oleksii's own check, 2026-10-24: "the shared mechanism must
  * scrub that email from every shelter's history entries for that user, A's
  * included, not only the shelter that triggered the deletion." Joining by
  * email against every `auth_invitation` row the deleted user's address
- * ever received finds all of them, not just the first — `invitationsScrubbed`
+ * ever received finds all of them, not just the first - `invitationsScrubbed`
  * reuses the same join, independently of `targets`, so it scrubs every
  * matching row regardless of shelter or status, not only the live one (if
  * any) that let `erasableIf` conclude there wasn't one).
@@ -106,7 +106,7 @@ export function noLiveInvitationElsewhere(now: Date): SQL {
  * All three email comparisons (`targets`'s join, `invitationsScrubbed`'s
  * join, and `scrubbed`'s match against the history entry's own stored
  * `email`) go through `lower()` on both sides, never a bare `=`. Every
- * write path normalises (`.trim().toLowerCase()` — `kabinetInvitationRepo.
+ * write path normalises (`.trim().toLowerCase()` - `kabinetInvitationRepo.
  * invite`, `admin.ts`'s own `emailArg`), so in practice every stored value
  * already matches case for case; `lower()` is the comparison's own
  * guarantee of that, not a trust in every future write path remembering to
@@ -115,28 +115,28 @@ export function noLiveInvitationElsewhere(now: Date): SQL {
  * differently-cased address is tested (`admin-erasure-repo.test.ts`).
  *
  * One statement, four CTEs: the delete, the two scrubs, both-or-neither
- * with the delete (not with each other — `invitationsScrubbed` can touch
+ * with the delete (not with each other - `invitationsScrubbed` can touch
  * rows at shelters `targets`/`scrubbed` never reaches, because a dead
  * invitation can outlive every trace of that address ever having a shelter
  * admin history entry there at all). If a user `condition` names turns out
  * ineligible, none of the three scrubs touches anything either, because all
  * of them only ever see rows `erased` actually deleted. `erasedCount` is
  * read from the delete's own `RETURNING`, never from how many rows happened
- * to match elsewhere — those can differ (a departed admin whose shelter has
+ * to match elsewhere - those can differ (a departed admin whose shelter has
  * no matching history row is still a real erasure) without ever meaning the
  * delete didn't run.
  *
  * Why `shelter_history` can be written to here at all, despite being
  * explicitly append-only (`shelter-history.ts`'s own doc comment): this is
  * the one case Oleksii's decision creates, an in-place edit of the `email`
- * field alone — `kind`, `at`, and every other field stay untouched, so the
+ * field alone - `kind`, `at`, and every other field stay untouched, so the
  * history still reads correctly; only the one field GDPR Art. 17 is
  * actually about is replaced.
  *
  * Raw SQL for the joins and the final counts, read through `executeRows`
- * (not a typed `.select()` chain): the shape here — four CTEs feeding a
+ * (not a typed `.select()` chain): the shape here - four CTEs feeding a
  * final scalar count, with an arbitrary caller-supplied condition spliced
- * into the first — has no natural Drizzle builder expression, and the two
+ * into the first - has no natural Drizzle builder expression, and the two
  * drivers this repo runs return a raw result in different shapes (standing
  * constraints, R1), which `executeRows` is the one place that reads.
  */
@@ -202,7 +202,7 @@ export async function eraseUsersAndScrubHistory(
  * shelter's history and from invitations), whether or not it ever signed
  * in." Used both for a single, named user (`registry.admins.remove`'s own
  * case, an accepted admin) and, with `userId` swapped for a batch condition,
- * by `kabinetInvitedUsersRepo`'s own clean-up — same three checks either
+ * by `kabinetInvitedUsersRepo`'s own clean-up - same three checks either
  * way, so a membership, an operator grant, a support session or a live
  * invitation elsewhere protects a departed admin's account identically
  * regardless of which path is deleting it.

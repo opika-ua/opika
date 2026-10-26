@@ -7,4 +7,4 @@ are quoted only verbatim.
 
 | ID | Date | Row | Question | Options | Default taken | Oleksii's answer | Status |
 |---|---|---|---|---|---|---|---|
-| PW2-F1 | 2026-10-21 | PW-2 review notes 1 and 2 | — | — | — | "PW2-F1 (notes 1 and 2) is next, ahead of S4: one test that fails if the lookup stops calling the fail-closed normaliser, plus the test title. A short review." | Built: `packages/db/test/kabinet-invite-token-landing.test.ts`; `invite-landing-get.test.ts`'s title now matches PW2-Q1 (a) |
+| PW2-F1 | 2026-10-21 | PW-2 review notes 1 and 2 | - | - | - | "PW2-F1 (notes 1 and 2) is next, ahead of S4: one test that fails if the lookup stops calling the fail-closed normaliser, plus the test title. A short review." | Built: `packages/db/test/kabinet-invite-token-landing.test.ts`; `invite-landing-get.test.ts`'s title now matches PW2-Q1 (a) |

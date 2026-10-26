@@ -40,7 +40,7 @@ async function seedFeedAnimal(animalOverrides?: AnimalFixtureOverrides) {
 
 /**
  * DR1-Q2 (S8): the saved page's batch read. Its own file, not folded into
- * `api.test.ts` — the "nothing logged about which ids were asked for"
+ * `api.test.ts` - the "nothing logged about which ids were asked for"
  * requirement needs a `console` spy active for the whole describe block,
  * which would otherwise mask a real `console.error` from an unrelated test
  * elsewhere in that much larger file.
@@ -81,11 +81,11 @@ describe("animals.cardsByIds", () => {
    * projection `/tvaryny/{id}` itself returns (`ShelterSummaryView`)." oRPC's
    * output-schema stripping already guarantees this structurally
    * (`handlers-implement-contract.test.ts`), but a claim verified against
-   * shape is not verified — this checks the actual wire text the fixture's
+   * shape is not verified - this checks the actual wire text the fixture's
    * exact address never reaches it, not only that the typed body happens to
    * omit it.
    */
-  it("the shelter in an available card is exactly ShelterSummaryView — no exact address, no extra fields", async () => {
+  it("the shelter in an available card is exactly ShelterSummaryView - no exact address, no extra fields", async () => {
     const { animal, shelter } = await seedFeedAnimal();
     const res = await h.call("animals.cardsByIds", { animalIds: [animal.id] });
 
@@ -109,7 +109,7 @@ describe("animals.cardsByIds", () => {
     ]);
   });
 
-  it("returns unavailable for an adopted animal — no reason, but its name", async () => {
+  it("returns unavailable for an adopted animal - no reason, but its name", async () => {
     const { animal } = await seedFeedAnimal({
       listing: { kind: "adopted", adoptedAt: new Date("2026-08-01T00:00:00Z") },
     });
@@ -131,7 +131,7 @@ describe("animals.cardsByIds", () => {
     expect(body.items).toEqual([{ kind: "unavailable", animalId: animal.id, name: animal.name }]);
   });
 
-  it("returns unavailable with the name once a verified shelter is suspended — it was once public", async () => {
+  it("returns unavailable with the name once a verified shelter is suspended - it was once public", async () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
@@ -177,12 +177,12 @@ describe("animals.cardsByIds", () => {
 
   /**
    * Review of 529a6cc, finding 4: the earlier version returned a draft's real
-   * name to any caller, even though a draft — never published — was never
+   * name to any caller, even though a draft - never published - was never
    * shown to anyone. A draft has no `publicLocation`/listing to leak, but its
    * name alone is enough to let a probe confirm a shelter's unpublished animal
    * exists before it ever goes live.
    */
-  it("returns unavailable with no name for a draft — never public, regardless of the shelter", async () => {
+  it("returns unavailable with no name for a draft - never public, regardless of the shelter", async () => {
     const { animal } = await seedFeedAnimal({ listing: { kind: "draft" }, everServedAt: null });
     const res = await h.call("animals.cardsByIds", { animalIds: [animal.id] });
     const body = res.body as { items: Record<string, unknown>[] };
@@ -230,7 +230,7 @@ describe("animals.cardsByIds", () => {
     // A real, reachable state, not a fixture-only one (review of 3fce3b7,
     // finding 2): a pending shelter's admins can publish a card from day
     // one, before the shelter has ever been verified. S8-F5: this is the
-    // case `everServedAtAfter` closes precisely — this listing's own window
+    // case `everServedAtAfter` closes precisely - this listing's own window
     // never overlapped a verified shelter, so it reads `null`.
     const animal = makeAnimal({ shelterId: shelter.id, everServedAt: null });
     await animalRepo(h.db).insert(animal, city.id);
@@ -242,7 +242,7 @@ describe("animals.cardsByIds", () => {
 
   /**
    * S8-F5's own case: a card published and withdrawn entirely inside a
-   * window where its shelter was verified once, then paused — the gap
+   * window where its shelter was verified once, then paused - the gap
    * `hasBeenVerified` used to miss, because the shelter's history still
    * says "was verified", even though this specific listing's own lifetime
    * never overlapped that window.
@@ -307,7 +307,7 @@ describe("animals.cardsByIds", () => {
     ]);
   });
 
-  it("refuses more than 200 ids — a validation error, not a query", async () => {
+  it("refuses more than 200 ids - a validation error, not a query", async () => {
     const tooMany = Array.from(
       { length: 201 },
       (_, i) => `00000000-0000-4000-8000-${i.toString().padStart(12, "0")}`,
@@ -317,13 +317,13 @@ describe("animals.cardsByIds", () => {
   });
 
   /**
-   * S8-D1 (Oleksii, 2026-10-23): "valid animal ids only, at most 200" — the
+   * S8-D1 (Oleksii, 2026-10-23): "valid animal ids only, at most 200" - the
    * test above only proved 201 is refused, never that 200 itself is
    * accepted. `MAX_SAVED_CARDS_PER_REQUEST` (the contract's own cap) is the
    * boundary this exercises directly, so a future change to that constant
    * without updating this test would fail here first.
    */
-  it("accepts exactly 200 ids — the boundary itself, not just past it", async () => {
+  it("accepts exactly 200 ids - the boundary itself, not just past it", async () => {
     const exactly200 = Array.from(
       { length: 200 },
       (_, i) => `00000000-0000-4000-8000-${i.toString().padStart(12, "0")}`,
@@ -334,7 +334,7 @@ describe("animals.cardsByIds", () => {
     expect(body.items).toHaveLength(200);
   });
 
-  it("gives the identical answer with and without a session cookie — the saved list is never tied to one", async () => {
+  it("gives the identical answer with and without a session cookie - the saved list is never tied to one", async () => {
     const { animal } = await seedFeedAnimal();
     const withoutCookie = await h.call("animals.cardsByIds", { animalIds: [animal.id] });
     const res = await h.call("session.bootstrap", {});
@@ -348,7 +348,7 @@ describe("animals.cardsByIds", () => {
     expect(withoutCookie.body).toEqual(withCookie.body);
   });
 
-  it("never logs anything — his spec, verbatim: nothing stored or logged about which ids were asked for", async () => {
+  it("never logs anything - his spec, verbatim: nothing stored or logged about which ids were asked for", async () => {
     const { animal } = await seedFeedAnimal();
     await h.call("animals.cardsByIds", { animalIds: [animal.id] });
     expect(logSpy).not.toHaveBeenCalled();

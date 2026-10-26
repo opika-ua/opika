@@ -37,7 +37,7 @@ import {
  * F-B1's storage (migration 0012) and the compare-and-sets K3 relies on:
  * the three CHECKs, the draft-only null guard on edits, the publish guard
  * (K3-T7) and RH-B7's photo write. Local Postgres; the same statements run on
- * Neon as `neon-smoke.ts` steps 27–31.
+ * Neon as `neon-smoke.ts` steps 27-31.
  */
 
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];

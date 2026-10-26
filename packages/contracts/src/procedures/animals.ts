@@ -19,7 +19,7 @@ export const animalsByIdContract = oc
 
 /**
  * DR1-Q2 (S8, the saved page): the number of ids a saved list could ever
- * hold (`MAX_LIKES` in `apps/web/src/features/likes/likes-store.ts`) — the
+ * hold (`MAX_LIKES` in `apps/web/src/features/likes/likes-store.ts`) - the
  * same figure, kept as its own named constant here since a client-side
  * storage cap and a server-side input limit are two different concerns
  * that happen to agree, not one value shared across a package boundary.
@@ -31,28 +31,28 @@ export const AnimalsCardsByIdsInputSchema = z.object({
 });
 
 /**
- * One entry per requested id, in the order asked — never a shorter array for
+ * One entry per requested id, in the order asked - never a shorter array for
  * an id that no longer resolves, so the caller can zip the response back
  * against its own list without a lookup.
  *
  * `unavailable` carries no *reason* (adopted, withdrawn, a shelter paused or
- * no longer verified are all the same answer, "not shown any more") — but it
+ * no longer verified are all the same answer, "not shown any more") - but it
  * does carry the animal's name, when the row *was ever public*, because the
  * required copy names it ("«{name}» більше не показується на сайті"). This is
  * not the same leak commitment 2 protects: that rule is about a *shelter*
  * probing whether one of *its own* animals changed state. This endpoint
  * carries no cookie at all (DR1-Q2), so unlike a page a real adopter is
- * looking at, nothing about who is calling it is known — a caller is not
+ * looking at, nothing about who is calling it is known - a caller is not
  * necessarily reading back its own saved list, and the per-IP rate limit
  * is the only thing standing between it and brute-forcing ids. `name` is
  * therefore the real name only for a row that was listed (not a draft)
  * under a shelter that has been verified at some point (`isListedAnimal`
- * and `hasBeenVerified`, review of 529a6cc, finding 4) — an approximation
+ * and `hasBeenVerified`, review of 529a6cc, finding 4) - an approximation
  * of "this row was ever public," not that fact exactly: a shelter that was
  * once verified and is now paused or suspended can still publish and
  * withdraw a *new* card entirely inside that window, and its name comes
  * back too even though that specific card was never actually shown
- * (review of 3fce3b7, finding 1 — closing that needs a stored per-listing
+ * (review of 3fce3b7, finding 1 - closing that needs a stored per-listing
  * fact this schema doesn't carry). `name: null` for an id that never
  * resolved to a row, for a draft, and for a listed row under a shelter
  * that has never once been verified.
@@ -76,7 +76,7 @@ export const AnimalsCardsByIdsOutputSchema = z.object({
  * the public view only, Cache-Control: no-store. Nothing stored or logged
  * about which ids were asked for." No `UNAUTHENTICATED`: this procedure
  * never reads `context.adopterId` at all, so there is no session to be
- * missing — the saved list is never tied to one (commitment 8's own
+ * missing - the saved list is never tied to one (commitment 8's own
  * reasoning, carried here).
  */
 export const animalsCardsByIdsContract = oc

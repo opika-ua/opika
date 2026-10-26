@@ -15,7 +15,7 @@ export function animalRepo(db: Database) {
     /**
      * The saved page's own lookup (S8, DR1-Q2): one query for the whole
      * batch, not one `findById` per id. An empty `ids` short-circuits
-     * before the query — `inArray` with nothing to match is a query Postgres
+     * before the query - `inArray` with nothing to match is a query Postgres
      * would answer correctly anyway, but there is no reason to send it.
      * Missing ids are simply absent from the result, same as `findById`
      * returning `null` for one; the caller (the handler) is what turns that
@@ -34,7 +34,7 @@ export function animalRepo(db: Database) {
 
     /**
      * Insert requires the shelter's city_id for the denormalised column.
-     * The caller must resolve this — the repo does not look it up to avoid
+     * The caller must resolve this - the repo does not look it up to avoid
      * a hidden N+1 in bulk inserts.
      */
     async insert(animal: Animal, cityId: CityId): Promise<void> {
@@ -47,13 +47,13 @@ export function animalRepo(db: Database) {
     },
 
     /**
-     * A full-row overwrite with no compare-and-set — test and harness setup
+     * A full-row overwrite with no compare-and-set - test and harness setup
      * only (writing an arbitrary state directly, skipping the handler
      * guards), never called from `apps/web`'s production handlers. Pinned by
      * `visibility-write-scan.test.ts`'s `animalRepo.update` reachability
      * check, not left to this comment alone (Tier 1 review finding 3, PR
      * #196): if it ever is called from production code, its everServedAt
-     * COALESCE below still holds — the real risk was the field it protects,
+     * COALESCE below still holds - the real risk was the field it protects,
      * not just who calls it.
      */
     async update(animal: Animal, cityId: CityId): Promise<void> {
@@ -64,8 +64,8 @@ export function animalRepo(db: Database) {
           // Never cleared (HS-Q9): a row that was ever public stays marked.
           firstPublishedAt: sql`COALESCE(${animals.firstPublishedAt}, ${firstPublishedAnchorOf(animal.listing)?.toISOString() ?? null}::timestamptz)`,
           // Same reasoning as firstPublishedAt, just above: a full-row
-          // overwrite must never clear a fact set once hooks 1–3 have
-          // stamped it (Tier 1 review finding 3 — this used to overwrite
+          // overwrite must never clear a fact set once hooks 1-3 have
+          // stamped it (Tier 1 review finding 3 - this used to overwrite
           // unconditionally with whatever `animal.everServedAt` the caller
           // passed, the one place in the repo layer that didn't COALESCE it).
           everServedAt: sql`COALESCE(${animals.everServedAt}, ${animal.everServedAt?.toISOString() ?? null}::timestamptz)`,

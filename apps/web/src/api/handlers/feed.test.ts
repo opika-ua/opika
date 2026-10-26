@@ -7,7 +7,7 @@ import { encodeFeedCursor } from "../cursor";
 
 /**
  * The real oRPC mechanism (O-20, 2026-09-10) that gives each thrown error
- * its declared `status`, not a stub — `feedList` no longer constructs
+ * its declared `status`, not a stub - `feedList` no longer constructs
  * `ORPCError` itself, so a test double here would test nothing about
  * whether a thrown error carries the right status. None of the three tests
  * below throw, but the handler's own signature now requires this argument
@@ -32,14 +32,14 @@ process.env.CURSOR_HMAC_SECRET = "test-secret";
 const { feedList } = await import("./feed");
 
 /**
- * Only `reachableCount`'s own wiring is under test here — the ternary in
+ * Only `reachableCount`'s own wiring is under test here - the ternary in
  * `feed.ts` deciding when to call `feedRepo.reachableCount` at all, and
  * what it returns when it doesn't. `feedRepo.list` and `shelterRepo.findByIds`
  * are mocked to return nothing, so the item-mapping pipeline below that
- * ternary runs over an empty page rather than needing real fixtures — this
+ * ternary runs over an empty page rather than needing real fixtures - this
  * is deliberately not a full `feedList` behaviour test.
  */
-describe("feedList — reachableCount wiring", () => {
+describe("feedList - reachableCount wiring", () => {
   beforeEach(() => {
     listMock.mockReset().mockResolvedValue({ items: [], nextCursor: null });
     reachableCountMock.mockReset().mockResolvedValue(17);
@@ -86,7 +86,7 @@ describe("feedList — reachableCount wiring", () => {
     });
   });
 
-  it("is null, and never counts, on a prefetch (non-null cursor) — the total is a snapshot", async () => {
+  it("is null, and never counts, on a prefetch (non-null cursor) - the total is a snapshot", async () => {
     const adopterId = "11111111-1111-1111-1111-111111111111" as AppContext["adopterId"] & string;
     const fp = filtersFingerprint(NO_FILTERS);
     const cursor = encodeFeedCursor(
@@ -112,7 +112,7 @@ describe("feedList — reachableCount wiring", () => {
  * `INVALID_CURSOR` (the deck restarts from the first page), never decoded
  * into a page of a differently filtered feed.
  */
-describe("feedList — cursors across the fifth filter dimension", () => {
+describe("feedList - cursors across the fifth filter dimension", () => {
   beforeEach(() => {
     listMock.mockReset().mockResolvedValue({ items: [], nextCursor: null });
     reachableCountMock.mockReset().mockResolvedValue(0);

@@ -1,7 +1,7 @@
-# H2 S3 — kabinet contract shapes: addendum for review
+# H2 S3 - kabinet contract shapes: addendum for review
 
 **Status:** approved by Oleksii 2026-10-12 with additions (inbox `docs/decisions-inbox.md`, S3-Q1/S3-Q2, verbatim); §8 records what the additions change. Originally a proposal, also 2026-10-12. `CLAUDE.md` requires `packages/contracts` shapes to be
-reviewed before implementation. `docs/h2-contract-proposal.md` §4–§6 fixed the **procedure list**
+reviewed before implementation. `docs/h2-contract-proposal.md` §4-§6 fixed the **procedure list**
 and the **access matrix**, and Oleksii answered them. This addendum fills in what those sections
 left as sketches: each procedure's exact input/output schema, the error set, the access-metadata
 format, and the **H2-16 undo shape**, which the inbox explicitly left "for S3 to propose in detail".
@@ -45,12 +45,12 @@ The policy, which the next slice's middleware applies and the matrix test assert
 
 | Code | Status | `data` | When |
 |---|---|---|---|
-| `FORBIDDEN` | 403 | — | authenticated, wrong actor kind for this surface |
-| `CONFLICT` | 409 | — | a compare-and-set lost (someone changed it first) |
+| `FORBIDDEN` | 403 | - | authenticated, wrong actor kind for this surface |
+| `CONFLICT` | 409 | - | a compare-and-set lost (someone changed it first) |
 | `ILLEGAL_TRANSITION` | 409 | `{ from, event }` | either FSM refused the move |
 | `EVIDENCE_INSUFFICIENT` | 422 | `{ gaps: EvidenceGap[] }` | approve with `evidenceGaps` non-empty |
 | `PUBLISH_REQUIREMENTS_UNMET` | 422 | `{ gaps: PublishGap[] }` | publish with `publishGaps` non-empty |
-| `UNDO_EXPIRED` | 409 | — | `undoConfirm` after its window, or after a newer write |
+| `UNDO_EXPIRED` | 409 | - | `undoConfirm` after its window, or after a newer write |
 | `INVALID_EVIDENCE` | 422 | `{ reason: "site_visit_in_future" \| "document_not_issued" }` | evidence input refused |
 
 The existing `UNAUTHENTICATED` (401) is reused for "no kabinet session". `NOT_FOUND` is used for an

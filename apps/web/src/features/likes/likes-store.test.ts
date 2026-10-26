@@ -91,7 +91,7 @@ describe("when localStorage throws (private mode, blocked storage)", () => {
   // The module keeps its in-memory fallback at module scope once storage has thrown once
   // (deliberately: the page's lifetime, not re-checked on every call), so this test runs
   // against a freshly imported module instance rather than the one every other test in this
-  // file shares — otherwise it would permanently switch every later test onto the fallback.
+  // file shares - otherwise it would permanently switch every later test onto the fallback.
   it("still toggles, for the page's lifetime, and reports itself blocked", async () => {
     const getItemSpy = vi.spyOn(window.localStorage, "getItem").mockImplementation(() => {
       throw new DOMException("blocked");
@@ -142,7 +142,7 @@ describe("subscribeToLikesChanges", () => {
 
   /**
    * `storage` never fires in the document that made the write (WHATWG spec,
-   * cross-tab only) — a caller that only watches, like the header's
+   * cross-tab only) - a caller that only watches, like the header's
    * `SavedNavLink`, would otherwise never learn about a save made elsewhere
    * on the same page at all. `toggleSavedAnimal` is the real write path, not
    * a synthetic event, so this also confirms the write itself notifies.

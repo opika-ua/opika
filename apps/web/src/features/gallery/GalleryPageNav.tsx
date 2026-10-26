@@ -25,7 +25,7 @@ function pageAriaLabel(page: number): string {
  * prev/next carry their own visible text specifically *because* an
  * icon-only control with a mismatched `aria-label` was a real, previously
  * caught WCAG 2.5.3 defect (`docs/standing-constraints.md`). That rule does
- * not forbid an icon-only control outright — it forbids visible text that
+ * not forbid an icon-only control outright - it forbids visible text that
  * doesn't match the accessible name. These chevrons carry no visible text
  * at all, so an `aria-label` naming what they do (`uk.pagination.prev`/
  * `next`, the same existing strings) is the standard, compliant pattern,
@@ -44,7 +44,7 @@ function pageAriaLabel(page: number): string {
  * circle, per the hand-off's own accessibility note ("Extend each one's
  * hit area to at least 48px (padding or ::before)... keep their visual
  * size"). Same technique for the chevrons, which have no visual circle to
- * preserve a size for — just a 48px invisible box around the 24px icon.
+ * preserve a size for - just a 48px invisible box around the 24px icon.
  */
 export function GalleryPageNav({
   filters,

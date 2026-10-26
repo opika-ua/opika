@@ -2,12 +2,12 @@ import localFont from "next/font/local";
 
 /**
  * Two of the three type families from docs/design/README.md
- * ("Typography"): Literata (serif — animal names, screen titles, shelter
- * speech) and Commissioner (sans — all UI). Every family in this file is
+ * ("Typography"): Literata (serif - animal names, screen titles, shelter
+ * speech) and Commissioner (sans - all UI). Every family in this file is
  * self-hosted through `next/font/local`; nothing here loads from Google,
  * at build time or at runtime.
  *
- * The third family, IBM Plex Mono, is deliberately not loaded — see the
+ * The third family, IBM Plex Mono, is deliberately not loaded - see the
  * note at the bottom of this file for the measured reason.
  *
  * Weight sets are the current codebase's actual usage, not the design
@@ -20,8 +20,8 @@ import localFont from "next/font/local";
  * the Google loader fetches from Google at build time, and that fetch
  * failed CI's build intermittently (Turbopack: "Can't resolve
  * '@vercel/turbopack-next/internal/font/google/font'"). Either way the
- * browser only ever downloads it from our own domain — `next/font/google`
- * already self-hosted the files it fetched — so this removes a build-time
+ * browser only ever downloads it from our own domain - `next/font/google`
+ * already self-hosted the files it fetched - so this removes a build-time
  * dependency, not a runtime one. Commissioner below followed in its own PR
  * for the same reason. `./fonts/literata/README.md` has the
  * source, version and licence (SIL OFL 1.1, `OFL.txt` beside the file).
@@ -41,7 +41,7 @@ import localFont from "next/font/local";
  * Not subset, unlike Google's per-script slices: upstream's file carries
  * its full character set (≈104 KB) where Google served Cyrillic and Latin
  * slices of ≈21 KB and ≈38 KB. Same reasoning, and the same open item, as
- * `eUkraine` below — subsetting picks a glyph set that H3 can still
+ * `eUkraine` below - subsetting picks a glyph set that H3 can still
  * change; `docs/build-plan.md`'s H3.5.
  *
  * `preload: false`: Literata renders in exactly one place, the deck's
@@ -103,29 +103,29 @@ export const commissioner = localFont({
 });
 
 /**
- * e-Ukraine — the «Реєстр» visual system's one family (V2,
+ * e-Ukraine - the «Реєстр» visual system's one family (V2,
  * `docs/design/README.md` "Typeface"). Self-hosted via `next/font/local`
  * rather than `next/font/google`: e-Ukraine isn't on Google Fonts.
  * `./fonts/e-ukraine/LICENSE.txt` has the licence (CC BY 4.0, attribution
- * required — see that file and `docs/build-plan.md`'s V2 "definition of
+ * required - see that file and `docs/build-plan.md`'s V2 "definition of
  * done" for where the credit ships) and where the files came from.
  *
  * Deliberately additive, not a replacement for `literata`/`commissioner`
  * above: V2 re-skins only the surfaces `docs/design/intake-report.md`
  * confirmed the new handoff actually specifies (gallery, cards, filters,
  * pagination, the no-match state, the deck's static visual language).
- * Everything else — the home screen, the deck's dynamic gesture chrome,
- * every E4 state without a mock — stays on Literata/Commissioner
+ * Everything else - the home screen, the deck's dynamic gesture chrome,
+ * every E4 state without a mock - stays on Literata/Commissioner
  * deliberately, per the standing "skin, not skeleton" rule for this
  * phase. A two-font-system app for one phase, on purpose.
  *
  * Not yet subset to Cyrillic + Latin basic + punctuation (`literata` and
  * `commissioner` above are in the same unsubset position, for the same
- * reason) — the three
+ * reason) - the three
  * files as vendored are the mirror's full character set, ≈95 KB total
  * against the design's own "≈84 KB" subset estimate. Deliberately not
  * done here: subsetting picks a glyph set, and this one isn't final
- * yet — H3 still adds the English strings and the native-speaker pass
+ * yet - H3 still adds the English strings and the native-speaker pass
  * on the Ukrainian copy, either of which can introduce a character V2
  * never used, and a shelter's free-text `freshnessSentence` isn't a
  * character set anyone controls in the first place. Tracked as
@@ -142,35 +142,35 @@ export const eUkraine = localFont({
 });
 
 /**
- * IBM Plex Mono — measured, then dropped.
+ * IBM Plex Mono - measured, then dropped.
  *
  * The design's role table assigns it to "quantities and labels only", and
  * in the current codebase that is exactly one element: the ErrorState
- * eyebrow, an 11px uppercase label on the network-error screen — not
+ * eyebrow, an 11px uppercase label on the network-error screen - not
  * something most sessions ever see.
  *
  * Measured with `next/font`'s own per-route font requests (Playwright,
  * intercepting `*.woff2` responses against a built `/discovery`): loading
  * it, even for a single weight and even though the ErrorState it styles
  * isn't rendered on that page, added 15,560 bytes to the page's font
- * payload — 11.2% of the total (138,888 bytes with it; 123,328 without).
+ * payload - 11.2% of the total (138,888 bytes with it; 123,328 without).
  * `next/font`-loaded fonts preload on every route their loader call is
  * reachable from once mounted at the root layout, regardless of whether
- * anything on that specific route resolves to their font-family — the
+ * anything on that specific route resolves to their font-family - the
  * cost is paid everywhere, not just on the error screen.
  *
  * Commissioner is already being fetched for the rest of the UI, so
  * replacing `font-mono` with `font-sans` + the existing `tracking-[0.12em]`
  * on that one eyebrow (SwipeDeck.tsx's ErrorState) costs nothing marginal
- * and reads the same — the eyebrow string is already uppercase in the
+ * and reads the same - the eyebrow string is already uppercase in the
  * source copy, so no CSS transform is lost either.
  *
- * Deferred, not rejected — and the difference matters, because the design
+ * Deferred, not rejected - and the difference matters, because the design
  * doc does not treat this family as optional. docs/design/README.md gives
  * it two whole roles in the type scale (`measure`, 11/11 · 0.12em, for
  * quantities; `eyebrow`, same metrics, for section labels), names it as one
  * of the three families in the handoff summary, and calls for it by name on
- * screen 04 — the donate row's "dobro.ua ↗". None of those surfaces exist
+ * screen 04 - the donate row's "dobro.ua ↗". None of those surfaces exist
  * yet. When M6 builds the profile and reveal screens, re-add the loader
  * here (one `localFont` call for upstream's Medium file with its OFL beside
  * it, like the families above; the byte figure was measured on Google's
@@ -193,7 +193,7 @@ export const eUkraine = localFont({
  */
 
 /**
- * Climate Crisis — the gallery-v3 brand redesign's display family (PR 1 of
+ * Climate Crisis - the gallery-v3 brand redesign's display family (PR 1 of
  * the gallery-v3 work; no consumer yet, see `./fonts/brand-display/README.md`).
  * A third, parallel visual system alongside Literata/Commissioner and
  * e-Ukraine above, for the same "skin, not skeleton" reason those two
@@ -201,9 +201,9 @@ export const eUkraine = localFont({
  * the whole app.
  *
  * Self-hosted from a locally pinned static instance, not `next/font/google`:
- * upstream ships a variable font with a `YEAR` axis (1979–2050, default
+ * upstream ships a variable font with a `YEAR` axis (1979-2050, default
  * 1979), and the design renders at the axis default, so
- * `fonttools varLib.instancer` pins `YEAR=1979` before converting to woff2 —
+ * `fonttools varLib.instancer` pins `YEAR=1979` before converting to woff2 -
  * see the README for the exact commands. One static weight, 400, because the
  * design's title is the only surface this family draws
  * (`docs/design/README.md`'s gallery-v3 type scale).
@@ -216,11 +216,11 @@ export const eUkraine = localFont({
  * (Playwright, intercepting `*.woff2` responses against a built app, this
  * time `/tvaryny` and `/pro`): this font and `brandUi` below have no
  * consumer yet (PR 1 of the gallery-v3 work), so the baseline with both at
- * `preload: false` is 97,140 bytes on both routes — unchanged from before
+ * `preload: false` is 97,140 bytes on both routes - unchanged from before
  * this PR, all of it e-Ukraine. Flipping both to `preload: true` to measure
  * the counterfactual added 254,800 bytes (162,640 + 92,160, this file's and
  * `brandUi`'s) to **both** routes, including `/pro`, which never renders
- * either family — `next/font` preloads based on reachability from the root
+ * either family - `next/font` preloads based on reachability from the root
  * layout's module graph, not on whether a route's rendered CSS actually
  * resolves to the font-family. `preload: false` until PR 2 wires an actual
  * consumer into the gallery and the header; re-measure then, since at that
@@ -229,7 +229,7 @@ export const eUkraine = localFont({
  *
  * `variable: "--font-climate-crisis"`, not `--font-brand-display`: the same
  * split `--font-serif`/`--font-literata` and `--font-rg`/`--font-e-ukraine`
- * already use above — the loader's own generated variable is named after
+ * already use above - the loader's own generated variable is named after
  * the actual typeface, and `globals.css`'s `@theme` block maps the
  * role-named utility (`--font-brand-display`) onto it with `var()`. Naming
  * both the same would make `globals.css`'s declaration self-referential
@@ -243,19 +243,19 @@ export const brandDisplay = localFont({
 });
 
 /**
- * «Opika Variable» — the gallery-v3 redesign's UI family (PR 1; no consumer
+ * «Opika Variable» - the gallery-v3 redesign's UI family (PR 1; no consumer
  * yet, see `./fonts/brand-ui/README.md`). A renamed, OFL-licensed derivative
  * of Bellota Text (Kemie Guaida); the rename exists only so the CSS family
  * name carries no upstream project's name, the same reasoning as the
  * name-agnostic `brand-` token prefix in `globals.css`.
  *
- * One variable file covers the whole 300–700 weight range the design's type
- * scale uses (500/600/700), rather than vendoring three static instances —
+ * One variable file covers the whole 300-700 weight range the design's type
+ * scale uses (500/600/700), rather than vendoring three static instances -
  * see the README for the byte-cost comparison. Not subset, same reasoning as
  * every other family above.
  *
  * `variable: "--font-bellota-text"` (the font's actual upstream typeface,
- * same naming split as `brandDisplay` above) — not `--font-brand-ui`, for
+ * same naming split as `brandDisplay` above) - not `--font-brand-ui`, for
  * the same self-reference reason.
  */
 export const brandUi = localFont({

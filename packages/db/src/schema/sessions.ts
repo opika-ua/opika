@@ -3,7 +3,7 @@ import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { adopters } from "./adopters";
 
 /**
- * Anonymous device sessions. The token itself never touches the database —
+ * Anonymous device sessions. The token itself never touches the database -
  * only its SHA-256 hash is stored. Lookup is by hash; comparison is
  * timing-safe in the application layer.
  *

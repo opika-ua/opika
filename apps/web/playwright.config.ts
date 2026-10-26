@@ -13,7 +13,7 @@ import {
  * The rendering harness. See `test/harness/harness.ts` for why it exists.
  *
  * Chromium only, headless, one worker. This is a correctness gate on a solo
- * project, not a cross-browser matrix — breadth here would cost minutes per
+ * project, not a cross-browser matrix - breadth here would cost minutes per
  * run and catch nothing the phone layout is currently getting wrong.
  */
 
@@ -69,12 +69,12 @@ export default defineConfig({
   projects: [
     /**
      * Runs once, before `chromium`, and only opens the pre-launch gate
-     * (`test/harness/prelaunch-gate.setup.ts`) — `proxy.ts` 403s every
+     * (`test/harness/prelaunch-gate.setup.ts`) - `proxy.ts` 403s every
      * request while `SITE_IS_PUBLICLY_DISCOVERABLE` is false
      * (`apps/web/src/seo-flags.ts`), this harness's real server included,
      * on purpose: there is no test-only bypass, or the harness would stop
      * covering the gate at all. `chromium`'s `dependencies` below is what
-     * orders this ahead of every other project — Playwright's own
+     * orders this ahead of every other project - Playwright's own
      * `webServer` guarantee (server ready before any project runs) covers
      * the rest.
      */
@@ -115,12 +115,12 @@ export default defineConfig({
       `pnpm exec next start --port ${PORT} --hostname 127.0.0.1`,
     ].join(" && "),
     // Was /discovery, retired by E5 (next.config.ts now redirects it to
-    // /tvaryny/gortaty) — /tvaryny is the real front door and needs no
+    // /tvaryny/gortaty) - /tvaryny is the real front door and needs no
     // redirect hop to confirm the server is actually serving pages.
     url: `${ORIGIN}/tvaryny`,
     // Not `!process.env.CI`, which is the usual idiom. Reusing a server that
     // an aborted run left behind on its port would grade the build that server
-    // started with — the same stale-artefact false green the comment above
+    // started with - the same stale-artefact false green the comment above
     // rejects, just arriving locally instead of in CI. A loud "port in use"
     // costs seconds; a green run against code that no longer exists is what
     // this whole harness was written to stop.

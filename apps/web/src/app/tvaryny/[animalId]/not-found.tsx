@@ -3,7 +3,7 @@ import Link from "next/link";
 
 /**
  * Next's own 404 mechanism (`notFound()`, called from `page.tsx` in this
- * same segment) renders this file instead of a bare, unstyled default —
+ * same segment) renders this file instead of a bare, unstyled default -
  * an animal id that doesn't resolve (removed, never existed, or a
  * malformed string in the URL) is a real, on-brand dead end, not the
  * generic error card `/tvaryny/error.tsx` already owns for genuine

@@ -4,7 +4,7 @@ import { authVerification } from "../schema/auth";
 
 /**
  * What an identifier Better Auth stored hashed looks like: SHA-256, base64url,
- * no padding, so 43 characters of `A–Z a–z 0–9 - _` (Better Auth 1.6.33,
+ * no padding, so 43 characters of `A-Z a-z 0-9 - _` (Better Auth 1.6.33,
  * `db/verification-token-storage.mjs`, `defaultKeyHasher`). Written out here,
  * not imported from Better Auth, so an upgrade that changes the encoding fails
  * the storage-format pin in `apps/web/src/kabinet/password-flows.test.ts`

@@ -7,7 +7,7 @@ import { readStoredFilters, writeStoredFilters } from "./filter-state";
 /**
  * `window.sessionStorage` is not merely absent on the server: reading the
  * property *throws* `SecurityError` whenever the document has no access to
- * storage — an opaque origin, or a browser with site data blocked for the
+ * storage - an opaque origin, or a browser with site data blocked for the
  * site (verified in Chromium). Unhandled, that throw happens inside a mount
  * effect on the app's front door and replaces the whole screen with an error
  * boundary, over a filter preference. A browser that won't remember is a
@@ -24,9 +24,9 @@ function sessionStorageOrNull(): Storage | null {
 /**
  * Filter state shared across the app, backed by sessionStorage.
  *
- * Starts at NO_FILTERS on every render — including the first client
+ * Starts at NO_FILTERS on every render - including the first client
  * render, since Next.js server-renders this component and `sessionStorage`
- * doesn't exist there — then syncs to whatever's actually stored in an
+ * doesn't exist there - then syncs to whatever's actually stored in an
  * effect once mounted. A first-time visitor sees no city selected
  * (the honest "Уся Київщина" reading) either way; a returning one with a
  * stored preference sees it apply a moment after paint, not before.

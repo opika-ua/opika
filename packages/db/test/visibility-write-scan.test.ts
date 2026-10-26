@@ -9,13 +9,13 @@ import { describe, expect, it } from "vitest";
  * comment to keep current.
  *
  * Why a pattern, not a parsed AST (unlike `kabinet-db-scan.test.ts`'s import
- * walk): that scan exists because an import can be disguised a dozen ways —
+ * walk): that scan exists because an import can be disguised a dozen ways -
  * dynamic, re-exported, renamed, hidden behind a string a comment could also
  * produce. A Drizzle object-literal key named `listingKind`/
  * `verificationStatus` isn't that kind of risk; nobody writes
  * `this["listing" + "Kind"]` to sneak a write past a reviewer. The risk this
- * guards is mundane — a new write path added without also wiring the
- * `everServedAt` hook — and a literal-text scan catches a new occurrence of
+ * guards is mundane - a new write path added without also wiring the
+ * `everServedAt` hook - and a literal-text scan catches a new occurrence of
  * either identifier exactly as well as a parser would, for a fraction of the
  * code.
  *
@@ -26,11 +26,11 @@ import { describe, expect, it } from "vitest";
  * have to pass through one of these files first.
  *
  * Each entry below is one of exactly three kinds:
- *   - **a column definition** (`schema/*.ts`) — declares the column, writes nothing;
- *   - **a read** (`SELECT`, or a mapper reading a row back) — not a hook site;
+ *   - **a column definition** (`schema/*.ts`) - declares the column, writes nothing;
+ *   - **a read** (`SELECT`, or a mapper reading a row back) - not a hook site;
  *   - **a write**, which must be one of the three S8-F5 hooks (see each entry).
- * A new match not in this list — a new file, a new line, or an existing
- * line's text changing — fails the test by name, forcing whoever added it to
+ * A new match not in this list - a new file, a new line, or an existing
+ * line's text changing - fails the test by name, forcing whoever added it to
  * extend this list and say which of the above it is.
  */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "src");
@@ -83,7 +83,7 @@ const EXPECTED: ReadonlyArray<{
     why:
       "animalToRowWithCity, used by every animal INSERT (hook 3: onboard-shelter.ts, seed.ts) " +
       "and by animalRepo.update's full-row overwrite, which is not a hook (test/harness setup " +
-      "only — see the reachability check below) and relies on its own everServedAt COALESCE, " +
+      "only - see the reachability check below) and relies on its own everServedAt COALESCE, " +
       "not on this mapper, to never clear the fact (Tier 1 review finding 3, PR #196)",
   },
   {
@@ -92,7 +92,7 @@ const EXPECTED: ReadonlyArray<{
     text: "listingKind: next.kind,",
     kind: "write",
     why:
-      "writeListingIf — hook 1. everServedAt is stamped by an EXISTS subquery against the " +
+      "writeListingIf - hook 1. everServedAt is stamped by an EXISTS subquery against the " +
       "shelters row inside this same UPDATE, not from a verification value the caller read " +
       "earlier (Tier 1 review finding 4, PR #196: a value read before the retry loop could go " +
       "stale across a concurrent pause/suspend and over-stamp)",
@@ -102,7 +102,7 @@ const EXPECTED: ReadonlyArray<{
     line: 66,
     text: "verificationStatus: change.verification.status,",
     kind: "write",
-    why: "applyAuditedMany's columnsOf — the one UPDATE of this column; its own `becomesVerified` check is hook 2",
+    why: "applyAuditedMany's columnsOf - the one UPDATE of this column; its own `becomesVerified` check is hook 2",
   },
 ];
 
@@ -137,7 +137,7 @@ function found(): { file: string; line: number; text: string }[] {
 }
 
 describe("S8-F5: every listingKind/verificationStatus property site is accounted for", () => {
-  it("matches the expected list exactly — a new site needs a new entry here, naming its hook", () => {
+  it("matches the expected list exactly - a new site needs a new entry here, naming its hook", () => {
     const actual = found()
       .map(({ file, line, text }) => ({ file, line, text }))
       .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
@@ -163,7 +163,7 @@ describe("S8-F5: every listingKind/verificationStatus property site is accounted
 
 /**
  * `animalRepo.update` (`repos/animal-repo.ts`) is a full-row overwrite with no
- * compare-and-set, no S8-F5 hook, and no handler guard — safe only because
+ * compare-and-set, no S8-F5 hook, and no handler guard - safe only because
  * nothing in production calls it (Tier 1 review finding 3, PR #196). That was
  * previously a comment's claim, not a tested one. Scoped to `apps/web/src`:
  * the one real caller of `@opika/db/repos` outside this package's own tests.

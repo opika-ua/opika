@@ -63,7 +63,7 @@ iOS 15) couldn't sign in. Not a double-submit cookie: no new cookie.
 
 | | Value | Where it's set |
 |---|---|---|
-| Generation | 32 characters, a–z A–Z (~182 bits), Better Auth's `generateRandomString` | Better Auth |
+| Generation | 32 characters, a-z A-Z (~182 bits), Better Auth's `generateRandomString` | Better Auth |
 | At rest | SHA-256 hash only (`storeToken: "hashed"`) | `auth.ts`, unchanged |
 | TTL | **15 minutes**, `MAGIC_LINK_TTL_SECONDS` (meets "≤15 min"). Kept rather than lowered: ukr.net/i.ua delivery delay hasn't been measured, and a shorter TTL there means links that die before they arrive | `auth.ts`, unchanged |
 | Single use | `consumeVerificationValue`: inside `runWithTransaction` + `consumeOne` by row id; the second consume of the same row finds nothing → `INVALID_TOKEN` | Better Auth |
@@ -88,7 +88,7 @@ not `auth.api.*`. So **the sign-in part needs no change to `no-self-serve-yet.te
 `.api.` call is added, no organization path is forwarded, nothing writes `auth_member`.
 
 **Acceptance does.** "Accepts it" writes `auth_member` from source, which is exactly what the
-guard's "no source file writes auth_member" forbids until A1–A3/B1 are live (HS-Q3), and which
+guard's "no source file writes auth_member" forbids until A1-A3/B1 are live (HS-Q3), and which
 IN-Q4's successor guard replaces in the same commit as that copy. So acceptance is designed
 below and **not built in this slice**. *(Built 2026-10-14 per IN-Q12/IN-Q13/IN-Q14, option A below; the guard now allows exactly the accept module to write `auth_member`: inbox IN-T12.)*
 
@@ -152,7 +152,7 @@ lists three.
 | C2 | Token in the query vs the fragment | query (works without JS; in platform request logs, as before) · `#token` (never reaches a server log; needs JS to fill the form) | **query**, default-taken (IN-T5); a fragment is a small follow-up if you want it |
 | C3 | Page form | route handler, self-contained HTML (headers verified) · `page.tsx` in K1's card (headers asserted only; screens PR not on this branch) | **route handler**, default-taken (IN-T6); restyle once the screens PR lands |
 | C4 | Login CSRF on the POST | require `Origin` = our origin · none | **require it**, default-taken (IN-T7); works in a browser only with §2's `strict-origin` (IN-T8) |
-| D1 | Acceptance mechanism | §5 A · B · C | **A** — yours (Tier 1: membership writes; not built) |
-| D2 | Departing from HS-Q7 for the automatic accept | our one-statement CTE · Better Auth's `accept-invitation` via `auth.handler` (non-atomic on neon-http, see §5) | **the CTE** — yours |
-| D3 | A history entry for "joined" | new `admin_joined` kind in the domain union (Tier 1 domain change) · none | **add it** — yours |
-| D4 | Copy | confirm page (button, intro, the shelter the invitation is for, invalid/used states), invite page now has no Send button (the copy sheet's L rows change), "couldn't finish joining" | keys as `[COPY PENDING]`, sheet rows in `docs/h2-invite-copy-sheet.md` — your Ukrainian |
+| D1 | Acceptance mechanism | §5 A · B · C | **A** - yours (Tier 1: membership writes; not built) |
+| D2 | Departing from HS-Q7 for the automatic accept | our one-statement CTE · Better Auth's `accept-invitation` via `auth.handler` (non-atomic on neon-http, see §5) | **the CTE** - yours |
+| D3 | A history entry for "joined" | new `admin_joined` kind in the domain union (Tier 1 domain change) · none | **add it** - yours |
+| D4 | Copy | confirm page (button, intro, the shelter the invitation is for, invalid/used states), invite page now has no Send button (the copy sheet's L rows change), "couldn't finish joining" | keys as `[COPY PENDING]`, sheet rows in `docs/h2-invite-copy-sheet.md` - your Ukrainian |

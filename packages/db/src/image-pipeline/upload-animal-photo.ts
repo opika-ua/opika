@@ -26,7 +26,7 @@ export async function storePhotoVariants(
 }
 
 /**
- * `NOT VERIFIED against a real bucket` — the onboarding script's upload:
+ * `NOT VERIFIED against a real bucket` - the onboarding script's upload:
  * read the file, generate variants, store them under a fresh random key
  * (`photoId`, P-Q13), return the record. Everything before the storage call
  * is independently pure and tested. See `docs/h1-decisions.md`.

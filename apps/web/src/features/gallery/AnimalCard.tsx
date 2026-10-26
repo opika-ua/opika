@@ -7,31 +7,31 @@ import { cardAccessibleName, cardMetaLine, isFostered, isReserved } from "./card
 
 /**
  * The photo's rendered width by breakpoint. Every number here is derived from
- * the layout that actually produces the box, not estimated — `sizes` is a
+ * the layout that actually produces the box, not estimated - `sizes` is a
  * promise to the browser about how wide this image will be, and nothing in
  * the toolchain checks that promise against reality. Overstating it is not a
  * cosmetic inaccuracy: the browser multiplies by DPR before picking from
  * `srcset`, so a declaration that is 18% too wide crosses a variant boundary
  * at 2x and downloads the next tier up for every phone user, forever, with
- * no visible symptom. Understating it is worse in the other direction — a
+ * no visible symptom. Understating it is worse in the other direction - a
  * genuinely blurry photo. So each clause is the *maximum* real width in its
  * range, and `gallery-photo-sizes.harness.ts` asserts these against the
  * measured box rather than trusting the arithmetic below to stay true.
  *
  * Phone (<600, `grid-cols-1`): page `p-4` (16px a side) + card `p-3` (12px a
- * side) = 56px of chrome, so the photo is `100vw - 56px` exactly — 304px at
+ * side) = 56px of chrome, so the photo is `100vw - 56px` exactly - 304px at
  * a 360px viewport, measured. Not `100vw`, which was the H1 bug: it declared
  * the full viewport for a box inset by 56px, and at 2x that pushed 720
- * device px past `card`'s 640w into `detail`'s 1120w — a 284KB download in
+ * device px past `card`'s 640w into `detail`'s 1120w - a 284KB download in
  * place of a 136KB one, on the device class least able to afford it.
  *
  * Tablet (600-1023): the card turns horizontal and the photo becomes a fixed
- * `tablet:w-30` column — 120px, not viewport-relative at all. Already exact.
+ * `tablet:w-30` column - 120px, not viewport-relative at all. Already exact.
  *
  * Desktop (1024-1439, 3 columns): grid caps at `max-w-[960px]` with
  * `gap-6` (24px x 2 gaps), so a column is (960 - 48) / 3 = 304px, less the
  * card's own 24px of padding = 280px. That is the ceiling, reached once the
- * viewport clears 1392px (960 + rail 280 + rail-gap 32 + page-padding 120 —
+ * viewport clears 1392px (960 + rail 280 + rail-gap 32 + page-padding 120 -
  * `tvaryny/page.tsx`'s own comment on the rail/grid row derives the same
  * 432px of chrome). Below 1392 and down to the bracket's own 1024px floor,
  * the grid is fluidly narrower: container = `100vw - 432px`, column =
@@ -40,19 +40,19 @@ import { cardAccessibleName, cardMetaLine, isFostered, isReserved } from "./card
  *
  * Wide (1440-1999, 4 columns): grid caps at `max-w-[1320px]`, `gap-6` x 3
  * gaps, so a column is (1320 - 72) / 4 = 312px, less 24px of card padding =
- * 288px — the ceiling, reached past the 1752px (1320 + 432) point where the
+ * 288px - the ceiling, reached past the 1752px (1320 + 432) point where the
  * cap actually binds. Below that and down to 1440, same fluid arithmetic as
  * the desktop bracket, solved for 4 columns: `25vw - 150px` (O-18).
  *
  * Ultrawide (2000+, 6 columns, O-5 `docs/observations.md`): grid caps at
  * `max-w-[1992px]`, `gap-6` x 5 gaps, so a column is (1992 - 120) / 6 = 312px
- * — deliberately the *same* per-column width the wide bracket already
+ * - deliberately the *same* per-column width the wide bracket already
  * reaches, chosen so the grid gains columns without the card itself
  * visually jumping size at the boundary. Less the same 24px of card padding
- * = 288px, identical to the wide bracket's own number — the ceiling, past
+ * = 288px, identical to the wide bracket's own number - the ceiling, past
  * the 2424px (1992 + 432) point where *this* cap binds. Below that and down
  * to 2000, same fluid arithmetic solved for 6 columns: `16.6667vw - 116px`
- * (O-18) — found while adding this bracket's own harness case (a 2200px
+ * (O-18) - found while adding this bracket's own harness case (a 2200px
  * probe measured 250.66px against the flat 288px the `sizes` attribute
  * declared there at the time).
  *
@@ -69,7 +69,7 @@ import { cardAccessibleName, cardMetaLine, isFostered, isReserved } from "./card
  * resolves against, so every `calc(Nvw - Mpx)` clause above overstates the
  * real box by a few px on a platform with that scrollbar style. Already the
  * safe direction (this file's own opening paragraph), and small enough
- * never to cross a `srcset` tier boundary on its own — not fixed here, and
+ * never to cross a `srcset` tier boundary on its own - not fixed here, and
  * invisible to this harness, since headless Chromium renders with no
  * scrollbar at all.
  */
@@ -78,16 +78,16 @@ const PHOTO_SIZES =
 
 interface AnimalCardProps {
   card: FeedCardView;
-  /** Pre-resolved by the caller (`cities.list`) — the card never fetches. */
+  /** Pre-resolved by the caller (`cities.list`) - the card never fetches. */
   cityName: string | null;
   /**
    * `next/image`'s `loading="lazy"` default is right for a 24-card grid
-   * where most cards start below the fold — but it also applies to the
+   * where most cards start below the fold - but it also applies to the
    * cards that don't, on a page whose entire content is photographs, for
    * an audience the ADR names specifically as Ukrainian mobile users on
    * carrier networks. The caller passes `true` for a small prefix of cards
    * (`PRIORITY_ROW_SIZE`, `apps/web/src/app/tvaryny/page.tsx`) sized to the
-   * *tablet* breakpoint's column count, not the widest one — a wider count
+   * *tablet* breakpoint's column count, not the widest one - a wider count
    * would mean most of those "priority" preloads compete with the real LCP
    * image for bandwidth at phone width, where only the first is ever on
    * screen.
@@ -100,7 +100,7 @@ interface AnimalCardProps {
    * вдома." instead of freshness. Never set by any real caller today:
    * `FeedCardView["listingKind"]` is `DISCOVERABLE_LISTING_KINDS`-narrowed
    * (`published | reserved`, `packages/contracts/src/views/animal.ts`) and
-   * cannot carry "adopted" — the gallery/feed query never returns an
+   * cannot carry "adopted" - the gallery/feed query never returns an
    * adopted animal at all (`packages/domain/src/animals/listing.ts`).
    * Widening that predicate is a data-model decision for a future phase,
    * not this one; this prop exists so the *rendering* is real and tested
@@ -113,7 +113,7 @@ interface AnimalCardProps {
    * the city once, so a card whose meta line would otherwise read bare "м.
    * {city}" repeats it there for nothing. Scoped to that bare case only — a
    * fostered card's "на перетримці, м. {city}" says more than the city
-   * (`isFostered`), so it's untouched — and to the visible text only:
+   * (`isFostered`), so it's untouched - and to the visible text only:
    * `cardAccessibleName` still gets the real `cityName` regardless, since a
    * screen-reader user tabbing card to card never re-hears the page heading
    * the way a sighted user re-reads it, and the design's own Keyboard table
@@ -124,7 +124,7 @@ interface AnimalCardProps {
 
 /**
  * docs/design/README.md, "The Gallery" > "Card". One `<a>` per animal, no
- * nested interactive elements, so Tab stops once per card — see
+ * nested interactive elements, so Tab stops once per card - see
  * docs/gallery-contract-decisions.md §6 for why the destination resolves to
  * nothing until Phase F, and why that's the right trade for E1 regardless.
  *
@@ -151,13 +151,13 @@ export function AnimalCard({
     <Link
       href={`/tvaryny/${card.id}`}
       // F1 shipped a real destination at this URL (docs/gallery-contract-
-      // decisions.md §6) — prefetch stays off regardless. Next's default
+      // decisions.md §6) - prefetch stays off regardless. Next's default
       // prefetch fires one request per visible card, and every one of those
       // passes through proxy.ts's rate limiter alongside the page's own
       // request (its matcher covers /tvaryny/:path* on purpose, for exactly
       // this route). Left on, a single 24-card gallery page load could burn
       // a meaningful slice of the 100-req/min budget on prefetches nobody
-      // asked for — reproduced directly by
+      // asked for - reproduced directly by
       // test/harness/gallery-layout.harness.ts, which started getting
       // 429'd mid-run before this was set. Still the right trade with a
       // real destination behind it: a click is a real navigation either
@@ -172,7 +172,7 @@ export function AnimalCard({
       {/*
         Vertical (phone, desktop): full-width, 4:5. Horizontal (tablet,
         600-1023): fixed 120px column, height from flex stretch rather than
-        aspect-ratio — the two rules would otherwise compete over which one
+        aspect-ratio - the two rules would otherwise compete over which one
         sizes the box.
       */}
       <div
@@ -196,7 +196,7 @@ export function AnimalCard({
           docs/design/README.md, "The gallery card" > "Reserved": "an
           #FFFFFF pill... bottom-left inside the photo at 12px inset." Two
           text nodes, complementary visibility, rather than one node with
-          breakpoint-conditional content — CSS cannot swap text, only which
+          breakpoint-conditional content - CSS cannot swap text, only which
           element is displayed.
         */}
         {reserved && (
@@ -217,11 +217,11 @@ export function AnimalCard({
             /*
               `desktop:text-[24px]/[28px]` restores display-s above 1024
               (critique A1). The compact 22/26 step belongs to the 600-1023
-              *horizontal* card only — docs/design/README.md's Scale table:
+              *horizontal* card only - docs/design/README.md's Scale table:
               "Mobile card name drops to 22/26·700·−0.02em on the compact
               horizontal card." The class was written for that case and never
-              un-set, so the vertical card at desktop and wide — the majority
-              of desktop visitors — rendered an undersized name for two of the
+              un-set, so the vertical card at desktop and wide - the majority
+              of desktop visitors - rendered an undersized name for two of the
               four documented breakpoints.
             */
             className="font-bold text-[24px]/[28px] tablet:text-[22px]/[26px] desktop:text-[24px]/[28px] tracking-[-0.02em] text-rg-ink truncate"
@@ -236,20 +236,20 @@ export function AnimalCard({
 
         {/*
           No boxed freshness block here, unlike the deck. No shelter
-          sentence either, on this card or the deck — "The shelter's
+          sentence either, on this card or the deck - "The shelter's
           sentence is NOT on gallery cards" (docs/design/README.md, "The
           Gallery" > "Card"); the deck lost its own copy of the sentence
           too, in designer round 1, S6, when it moved to the shelter page
           (`SwipeCard.tsx`'s own comment on that). The resolved variant
           replaces this row entirely with the shelter's own sentence instead
-          of freshness — "Different fill and different text — never
+          of freshness - "Different fill and different text — never
           dimming" (docs/design/README.md, "The gallery card" > "Resolved").
 
           No shelter name either, in any variant (designer round 1, §3 of
           docs/designer-round-1.md, decision DR1-D1): the gallery card is the
           preview, and the shelter is named on the animal page. The deck
           card still keeps its own shelter line (name, monogram,
-          verification suffix) — that's a content decision about
+          verification suffix) - that's a content decision about
           attribution and verification (`SwipeCard.tsx`'s own comment on
           why), not a consequence of the sentence living there or not.
           `card.shelter` still feeds the city of an animal at its shelter

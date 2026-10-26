@@ -2,15 +2,15 @@ import { z } from "zod";
 
 /**
  * Independently tracked because the hard part of cross-border movement is the
- * ordering between items — chip before vaccination, titration a set interval
- * after it — and a single status field cannot express a dependency.
+ * ordering between items - chip before vaccination, titration a set interval
+ * after it - and a single status field cannot express a dependency.
  *
  * `unknown` and `absent` are different claims and both are needed. "Nobody has
  * checked whether this dog is chipped" is not "this dog has no chip": the first
  * is a gap in our records, the second is a fact about the animal that blocks
  * travel and that someone had to establish. Without `unknown`, the moment an
  * animal moved to `tracked` every unexamined item would assert a fact nobody
- * held — in a product whose entire differentiator is being honest about missing
+ * held - in a product whose entire differentiator is being honest about missing
  * data.
  */
 export const DocumentItemSchema = z.discriminatedUnion("kind", [
@@ -35,7 +35,7 @@ export const UNKNOWN_DOCUMENT_ITEM: DocumentItem = { kind: "unknown" };
  * somewhere to put it.
  *
  * The date arithmetic that turns these items into an eligibility date is
- * deliberately not here — it belongs with the phase that needs it, and the
+ * deliberately not here - it belongs with the phase that needs it, and the
  * regulation it would encode is still moving.
  */
 export const DocumentReadinessSchema = z.discriminatedUnion("kind", [

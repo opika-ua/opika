@@ -3,10 +3,10 @@ import { assertSafeSeedTarget, type SeedProfile } from "../src/seed";
 
 /**
  * D-9, reduced 2026-09-06 (docs/build-plan.md, Phase D): no marker column,
- * no migration — the truncate-and-reseed guard lives entirely in this one
+ * no migration - the truncate-and-reseed guard lives entirely in this one
  * function. These tests are the actual limit `docs/standing-constraints.md`
  * asks for: each one would fail if the guard it names were removed or
- * loosened, not merely if the code shape changed — confirmed by mutating
+ * loosened, not merely if the code shape changed - confirmed by mutating
  * the real function during review, not merely by reading it.
  *
  * Phase 3 (seed profiles, `docs/handoff-2026-10-04.md` §3.4) added the
@@ -14,7 +14,7 @@ import { assertSafeSeedTarget, type SeedProfile } from "../src/seed";
  * any flag combination, where `demo` keeps the pre-existing --force +
  * --db-name override. Every test below now says explicitly which profile
  * it exercises, including the pre-existing --force/--db-name tests, which
- * moved from implicitly "the only profile" to explicitly `demo` — `test`'s
+ * moved from implicitly "the only profile" to explicitly `demo` - `test`'s
  * own unconditional refusal is its own, separate set of tests below.
  */
 
@@ -61,7 +61,7 @@ describe("assertSafeSeedTarget", () => {
   /**
    * Caught by review: the original guard tested `/localhost|127\.0\.0\.1|
    * 0\.0\.0\.0/` against the *whole connection string*, not the parsed
-   * hostname — a substring test any of those three strings could satisfy
+   * hostname - a substring test any of those three strings could satisfy
    * from inside a password, a database name, or a query parameter, with
    * *zero* flags. Confirmed against a real (not reasoned-about) local
    * database before the fix landed: this exact URL truncated it. The fix
@@ -76,8 +76,8 @@ describe("assertSafeSeedTarget", () => {
     );
   });
 
-  describe("`test` profile — never allowed against a non-localhost target, no override exists", () => {
-    it("exits even with --force and a matching --db-name — the exact combination `demo` would allow", () => {
+  describe("`test` profile - never allowed against a non-localhost target, no override exists", () => {
+    it("exits even with --force and a matching --db-name - the exact combination `demo` would allow", () => {
       expectRefused(
         "postgres://user:pass@db.neon.tech:5432/opika_prod",
         ["--force", "--db-name=opika_prod"],
@@ -96,13 +96,13 @@ describe("assertSafeSeedTarget", () => {
     });
   });
 
-  describe("`demo` profile — the pre-existing --force + --db-name override", () => {
+  describe("`demo` profile - the pre-existing --force + --db-name override", () => {
     /**
      * The literal test named in the D-9 reprioritisation: `pnpm db:seed
      * --force` against a non-localhost URL must still exit non-zero.
      * --force alone was the entire hole in the pre-2026-09-06 guard.
      */
-    it("exits for a non-localhost URL even with --force alone — the hole this row closes", () => {
+    it("exits for a non-localhost URL even with --force alone - the hole this row closes", () => {
       expectRefused(
         "postgres://user:pass@db.neon.tech:5432/opika_prod",
         ["--force"],
@@ -141,11 +141,11 @@ describe("assertSafeSeedTarget", () => {
     /**
      * A pathless DATABASE_URL has an empty database name (`new
      * URL(...).pathname` is `""`). Without requiring `actualDbName` to be
-     * non-empty, an empty `--db-name=` would trivially equal it — the
+     * non-empty, an empty `--db-name=` would trivially equal it - the
      * override firing with no real name ever having been typed. Round 1 of
      * review caught this as untested; round 2 found the first fix (checking
      * *both* sides' length) left `actualDbName.length > 0` itself
-     * unmutation-pinned — removing only that clause still passed every test.
+     * unmutation-pinned - removing only that clause still passed every test.
      * Simplified to the one check that's actually load-bearing
      * (`providedDbName === actualDbName` can't be satisfied by two empty
      * strings once `actualDbName` is required non-empty; a separate

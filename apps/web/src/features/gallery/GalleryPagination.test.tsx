@@ -8,8 +8,8 @@ import { GalleryPagination } from "./GalleryPagination";
  * The harness (`test/harness/gallery-pagination.harness.ts`) drives the real
  * corpus, which means it only ever sees the pages that corpus happens to
  * have: page 1 and page 2 of many. Everything that depends on *which* page
- * is being shown — the last page, a single-page result, a window wide
- * enough to need an ellipsis — has no seed data that reaches it, so it is
+ * is being shown - the last page, a single-page result, a window wide
+ * enough to need an ellipsis - has no seed data that reaches it, so it is
  * asserted here against props instead. Without this file, inverting
  * `page < totalPages` (next stays a live link on the last page, sending
  * every reader to a `?stor=` the server then silently clamps back) or
@@ -30,7 +30,7 @@ const pageLinks = () =>
     .filter((el): el is HTMLAnchorElement => el.tagName === "A");
 
 describe("GalleryPagination", () => {
-  it("renders nothing at all when there is only one page — or none", () => {
+  it("renders nothing at all when there is only one page - or none", () => {
     // `hasPagination`, the same predicate `app/tvaryny/page.tsx` gates the
     // skip link on: if this ever renders when that returns false, the skip
     // link stops being the thing that is missing and starts being a link
@@ -58,7 +58,7 @@ describe("GalleryPagination", () => {
     expect(none.innerHTML).toBe("");
   });
 
-  it("on the last page, next is inert and prev is a real link — the mirror of page 1", () => {
+  it("on the last page, next is inert and prev is a real link - the mirror of page 1", () => {
     render(
       <GalleryPagination
         filters={NO_FILTERS}
@@ -150,7 +150,7 @@ describe("GalleryPagination", () => {
    * "«з N» renders only when the number list is truncated with an
    * ellipsis... while every number is on screen the counter just restates
    * what you can count." Previously rendered unconditionally whenever
-   * pagination existed at all (>1 page) — this is the untruncated case the
+   * pagination existed at all (>1 page) - this is the untruncated case the
    * old behaviour got wrong and the harness's real corpus (always past the
    * truncation threshold) can't reach.
    */
@@ -198,7 +198,7 @@ describe("GalleryPagination", () => {
     expect(screen.getByTestId("pagination-next").getAttribute("href")).toBe(
       "/tvaryny?vyd=dog&sort=longest_waiting&stor=3",
     );
-    // Back to page 1 drops `stor` entirely rather than writing `stor=1` —
+    // Back to page 1 drops `stor` entirely rather than writing `stor=1` -
     // one URL per result-set position, not two spellings of the first.
     expect(screen.getByTestId("pagination-prev").getAttribute("href")).toBe(
       "/tvaryny?vyd=dog&sort=longest_waiting",

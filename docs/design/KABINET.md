@@ -1,4 +1,4 @@
-# Opika — Kabinet (shelter & operator admin) · developer handoff
+# Opika - Kabinet (shelter & operator admin) · developer handoff
 
 ## What this is
 The internal admin panel for Opika, under `/kabinet`. It extends the shipped **«Реєстр»** visual
@@ -11,12 +11,12 @@ in a browser and scroll. Every screen is shown at **1440** (desktop; this is off
 need the gallery's 1920) and **360** (phone; volunteers will do this mid-walk). Recreate the values in
 the repo's stack (Next.js 16 / React 19 / Tailwind). Don't ship the HTML; take the numbers.
 
-**Fidelity: high.** Every value below is final unless it is listed under *Open questions* — all four of
+**Fidelity: high.** Every value below is final unless it is listed under *Open questions* - all four of
 which were resolved 2026-10-07; see that section and `docs/kabinet-contract-decisions.md`.
 
 ### How to read decided vs extrapolated
-Each frame name carries black tags **N1–N23** (N18–N23 added 2026-10-07, alongside the corrections in
-§1–§5 of `docs/kabinet-contract-decisions.md`). These mark patterns the core «Реєстр» system did **not**
+Each frame name carries black tags **N1-N23** (N18-N23 added 2026-10-07, alongside the corrections in
+§1-§5 of `docs/kabinet-contract-decisions.md`). These mark patterns the core «Реєстр» system did **not**
 specify, which this pass had to invent. They are listed in the *New patterns* section with exact values.
 Anything untagged was already decided and is only being applied.
 
@@ -121,7 +121,7 @@ Nav items: shelter_admin «Тварини» · «Профіль притулку
 ### K1 · Sign-in (N1)
 Centred white card, 480 wide, radius 24, padding 32 (phone: full width, padding 20).
 - **Enter email:** title 34 «Вхід до кабінету»; body 17/26 «Для притулків і оператора реєстру. Пароля
-  немає — ми надішлемо посилання на пошту.»; email field (focus ring shown); primary «Надіслати
+  немає - ми надішлемо посилання на пошту.»; email field (focus ring shown); primary «Надіслати
   посилання», full width; caption explaining that the address is added by the operator and that the
   form doesn't reveal who is registered.
 - **Sent:** «Перевірте пошту»; the address in 500 weight; «Воно діє 15 хвилин…»; caption about spam;
@@ -143,7 +143,7 @@ Filter chips with **inventory counts** (these are not engagement numbers): Ус�
 
 **Paused banner (N18)**, shown above everything when the shelter is currently «На паузі»: `#F2F2F0`,
 radius 16, padding `16 20`, «Прийом тварин на паузі · {причина}» (15/500) + «Відновити» (secondary 48). A
-shelter managing its animals while paused must never be left wondering why — see K4 for where pausing
+shelter managing its animals while paused must never be left wondering why - see K4 for where pausing
 itself happens; this is the reminder, not the control.
 
 **Desktop row:** white, radius 24, padding 16,
@@ -170,7 +170,7 @@ and the freshness marker stops being true.
 
 **Stale strip (N5)**, shown above the list only when there are any: white, radius 16, padding `16 20`. It contains stale
 pips, «3 картки ви не підтверджували понад 30 днів.» (15/500), the caption «Адоптери бачать на них
-«оновлено 41 день тому». Якщо нічого не змінилось — достатньо «Ще шукає».», and secondary «Показати ці 3».
+«оновлено 41 день тому». Якщо нічого не змінилось - достатньо «Ще шукає».», and secondary «Показати ці 3».
 No streaks, no counter of days, no colour.
 
 **Phone card:** white, radius 24, padding 12, `gap: 12`. Rows are: thumbnail 64 + name/meta · chip + freshness ·
@@ -193,8 +193,8 @@ Sections:
   size seg [Малий | Середній | Великий] with the caption «Ваги немає свідомо…». **There is no weight field.**
 - **Вік:** mode seg [Знаємо дату народження | Знаємо вік на певну дату] (phone: [Дата народження |
   Вік на дату]). Both inputs are equally valid. **The stored value is what the user actually knows.** In
-  bucket mode, a `#F2F2F0` block (radius 16, padding 16) holds bucket chips (Малюк до 1 · Молодий 1–3 ·
-  Дорослий 3–8 · Літній 8+) and a «Станом на» date (defaults to today; hint: usually the intake day). A live
+  bucket mode, a `#F2F2F0` block (radius 16, padding 16) holds bucket chips (Малюк до 1 · Молодий 1-3 ·
+  Дорослий 3-8 · Літній 8+) and a «Станом на» date (defaults to today; hint: usually the intake day). A live
   line shows what the adopter will read: «Адоптери побачать: «Молода, близько 2 років».»
 - **Опис:** plain-text textarea (160 desktop / 200 phone), with a character count in the hint, max 1,500.
 - **Фото (N9):** 4:5 tiles, radius 16 (148 desktop / 94 phone), `gap: 12`, in these states:
@@ -208,38 +208,38 @@ Sections:
   already-shipped public rendering (`apps/web/src/features/animal-detail/medical-labels.ts`'s
   `vaccinationRow`/`spayNeuterRow`), neither of which the first pass consulted. `VaccinationStatus` and
   `SpayNeuterStatus` are each a 3-state fact (`uk.medical.unknown` «Не записано» / `uk.medical.inProgress`
-  «У процесі» / confirmed), not the 2-option [Зроблено | Не зроблено] this section originally showed — the
+  «У процесі» / confirmed), not the 2-option [Зроблено | Не зроблено] this section originally showed - the
   first two options **reuse those exact public keys**, not parallel strings. The third option is a new
   kabinet-only action label (name tbd, e.g. `uk.medical.confirm`) distinct from the *display* badge
-  («Слова притулку») that same choice renders as afterward — the control is an action, the badge is a
+  («Слова притулку») that same choice renders as afterward - the control is an action, the badge is a
   provenance label, and they are allowed to read differently. Selecting it writes a `shelter_declared`
-  attestation. **A `source: "registry"` value (not reachable yet — no registry adapter exists) renders
-  read-only**, reusing `vaccinationRow`'s own existing rabies-badge treatment unchanged — never editable
+  attestation. **A `source: "registry"` value (not reachable yet - no registry adapter exists) renders
+  read-only**, reusing `vaccinationRow`'s own existing rabies-badge treatment unchanged - never editable
   here, regardless of whether it can actually occur today.
   **Documents are not edited here.** `documentReadiness` stays `{kind: "unknown"}` for every animal this
-  screen creates — its own documented default — with no checkbox UI at all: the earlier 3-item checkbox
+  screen creates - its own documented default - with no checkbox UI at all: the earlier 3-item checkbox
   list (Чип · Ветпаспорт · Довідка про сказ) undercounted the real shape (four independently-tracked items,
   each itself 4-state, for the not-yet-live cross-border phase) and is cut rather than built mismatched.
-  `uk.documents.chipPresent`/`.rabiesPresent`'s existing public display is unaffected — it already renders
+  `uk.documents.chipPresent`/`.rabiesPresent`'s existing public display is unaffected - it already renders
   correctly against the `{kind: "unknown"}` default (nothing to show), same as today.
 - **Де живе (N8):** toggle «Тварина живе у волонтерки». When on, a `#F2F2F0` block shows a city select and the
   sentence «На картці буде лише «м. Бровари · у домі волонтерки». Без адреси, без району і без
-  мапи — навіть приблизної…». **There is no address input on fostered animals.**
+  мапи - навіть приблизної…». **There is no address input on fostered animals.**
 
 ### K4 · Shelter profile (N10, N11, N20, N21)
 Editable: phone, Telegram, another contact method (optional), donation URL, and the shelter's sentence.
-**Contacts and the voice sentence save and go live immediately** — each edit is recorded in an audit
+**Contacts and the voice sentence save and go live immediately** - each edit is recorded in an audit
 entry visible to the operator (S1/S4's history, same entry shape as the verification history log, N14).
-**Donation does not** — see below.
+**Donation does not** - see below.
 
-- **Donation (N20), corrected 2026-10-07 — proposed, not immediately live.** https only, same hint as
-  before (Opika doesn't take or pass money). Saving does **not** change the live adopter-facing link —
+- **Donation (N20), corrected 2026-10-07 - proposed, not immediately live.** https only, same hint as
+  before (Opika doesn't take or pass money). Saving does **not** change the live adopter-facing link -
   it records a *proposed* URL awaiting the operator's approval, because a swapped donation link on a
   compromised account is this product's realistic fraud vector, and it is the one field adopters trust
-  specifically because it was verified. The field shows three states: **no change pending** — the live
-  URL plus its preview row, as before; **pending** — the live URL unchanged above, plus a `#F2F2F0` block
+  specifically because it was verified. The field shows three states: **no change pending** - the live
+  URL plus its preview row, as before; **pending** - the live URL unchanged above, plus a `#F2F2F0` block
   below: «Очікує підтвердження оператора» + the proposed domain + «Скасувати пропозицію» (text button);
-  **the operator's own approve/reject actions live on S4**, not here — K4 only ever proposes or cancels
+  **the operator's own approve/reject actions live on S4**, not here - K4 only ever proposes or cancels
   its own proposal, never approves it.
 - **Voice (N11):** textarea 120 with one `{імʼя}` token. Names stay in their base form (the registry
   can't decline them), so the live preview below fills the token with a real animal's name, and a hint
@@ -248,20 +248,20 @@ entry visible to the operator (S1/S4's history, same entry shape as the verifica
   (`Opika Kabinet.dc.html`) predates this:** its `{дата}` token, sample sentence, caption and
   «· дата автоматична» attribution are superseded, and this prose wins over the mock here.
 - **Pause / resume (N21).** A secondary 48 button, «Призупинити прийом тварин» (verified, not paused) or
-  «Відновити прийом тварин» (paused). Self-service — `packages/domain`'s own `pause`/`resume` FSM events
+  «Відновити прийом тварин» (paused). Self-service - `packages/domain`'s own `pause`/`resume` FSM events
   are explicitly shelter-initiated, distinct from the operator's `suspend`/`reinstate`. Pausing opens a
   reason dialog (N15's template) with `PauseCodeSchema`'s five codes (Сезонна перерва · Переїзд · Немає
   місця · Брак людей · Інше) as a select, plus the optional note. No confirmation beyond the dialog itself
-  — this is reversible by the shelter at any time, unlike suspension.
-- **Locked block (N10), corrected 2026-10-07 — consistent register, real address.** Dashed 2px `#63676B`
+  - this is reversible by the shelter at any time, unlike suspension.
+- **Locked block (N10), corrected 2026-10-07 - consistent register, real address.** Dashed 2px `#63676B`
   border, radius 24, padding 24/16, no fill. Title «Встановлено під час перевірки» + verified chip, then:
   «…щоб змінити, напишіть оператору реєстру: hello@opika.org.ua. Зміна юридичних даних не змінює статус
-  автоматично.» (`ops@` was a placeholder — `hello@opika.org.ua` is the already-shipped real address,
+  автоматично.» (`ops@` was a placeholder - `hello@opika.org.ua` is the already-shipped real address,
   `/pro`'s own contact row; the "may return to review" line is corrected to match §5 of
-  `docs/kabinet-contract-decisions.md` — no FSM transition does that today, so the copy no longer claims
+  `docs/kabinet-contract-decisions.md` - no FSM transition does that today, so the copy no longer claims
   one). Rows are plain «label — value» pairs, not disabled inputs: legal entity, EDRPOU, registration
   status, premises address. There is **no lock icon**; the reason is given in words. **Naming register:**
-  this block says «оператору реєстру» (role), matching S2/S4's own convention — K5 is corrected to match
+  this block says «оператору реєстру» (role), matching S2/S4's own convention - K5 is corrected to match
   rather than mixing «Олексію» and «оператор реєстру» on the same screen (see K5 below and
   `docs/kabinet-contract-decisions.md` §5). Both the name and the email are a single app-level config
   value referenced everywhere the kabinet needs them, never a hardcoded literal at each call site.
@@ -270,10 +270,10 @@ entry visible to the operator (S1/S4's history, same entry shape as the verifica
 A card, max 720: rejected chip · «Перевірку не пройдено» · «Ваші тварини поки не в галереї. Ось що
 написав оператор реєстру:» · the **reason verbatim in quotation marks** with the operator's name and date ·
 what's preserved (drafts) · primary «Написати оператору реєстру» · secondary **«Подати ще раз», added
-2026-10-07** — `transition.ts`'s FSM already handles `rejected` + `resubmit` → `pending`, so this screen's
+2026-10-07** - `transition.ts`'s FSM already handles `rejected` + `resubmit` → `pending`, so this screen's
 earlier "there is no resubmit button, see Open questions" was answered by code the first pass didn't
 check, not by a product decision still owed. **Naming register corrected to match K4:** «Написати
-Олексію» → «Написати оператору реєстру», consistent within this screen and with K4's own choice — the
+Олексію» → «Написати оператору реєстру», consistent within this screen and with K4's own choice - the
 previous version mixed the role («оператор реєстру», one sentence earlier) with the name in the same
 card. Both the name/email and the resubmit entry point are the only two things this card's primary and
 secondary actions do; nothing else changes.
@@ -293,37 +293,37 @@ lasts 72h and can be resent, and animals stay hidden until **Перевірен�
 Запрошення надіслано на …» + expiry + «Надіслати ще раз» / «Відкрити притулок». No celebration.
 
 **Evidence step (N22), added 2026-10-07.** The first pass had no screen showing how verification
-evidence enters the system at all — S3 was review-only. This step sits between the shelter/admin fields
+evidence enters the system at all - S3 was review-only. This step sits between the shelter/admin fields
 above and the primary action: a repeatable list of evidence cards, same five types and same per-type
 fields as S3's corrected table below, added one at a time via a secondary «+ Додати доказ» button that
 opens a type picker (the five type labels, no icons). Each added card shows inline in the same list
 style S3 uses for review, with its own «Прибрати» (text button). Validates against the shared schema the
-operator script (`onboard-shelter.ts`) already uses — `OnboardEvidenceItemSchema`, extracted so both
-validate identically — so an evidence set assembled here and one assembled by hand for the script are
-interchangeable. `site_visit`'s «хто відвідав» is **not a field here** — it is filled automatically with
+operator script (`onboard-shelter.ts`) already uses - `OnboardEvidenceItemSchema`, extracted so both
+validate identically - so an evidence set assembled here and one assembled by hand for the script are
+interchangeable. `site_visit`'s «хто відвідав» is **not a field here** - it is filled automatically with
 whichever operator is completing this screen, never typed or picked. A shelter created through S2 with
 evidence attached and «Створити й надіслати запрошення» pressed goes straight to **pending**, ready for
-S3's existing review — this screen does not itself decide verified/rejected.
+S3's existing review - this screen does not itself decide verified/rejected.
 
 ### S3 · Verification review (N13, N14, N15)
 Two columns: the evidence list (fluid) and a **sticky** decision panel (340).
 
 **Evidence is a list of different kinds of cards, not a fixed form (N13).** Card: white, radius 24, padding 24
-(16 on the phone). Order inside a card: type label 12/16 uppercase + date added · title 19/24·700 · `key 180 — value 500` rows ·
+(16 on the phone). Order inside a card: type label 12/16 uppercase + date added · title 19/24·700 · `key 180 - value 500` rows ·
 an optional document row. Empty fields are not shown. Types and their fields, **corrected 2026-10-07
 against `EvidenceItemSchema` field by field** (the first pass showed two fields per card that the schema
 doesn't carry, and dropped one it does):
 | Type | Fields | Document |
 |---|---|---|
-| Реєстрація · ЄДРПОУ | code, **registered name** (shown beside the shelter's own name/holder name — the same identity check the bank evidence performs) | optional |
+| Реєстрація · ЄДРПОУ | code, **registered name** (shown beside the shelter's own name/holder name - the same identity check the bank evidence performs) | optional |
 | Банківський рахунок | holder name **only** | optional |
 | Рекомендація | who, how to reach them, relationship (vet clinic / local authority / partner org / other) | none |
-| Візит на місце | **the recording operator's own name** (not typed — resolved from `visitedBy`, a moderator id), when, free-text note | none |
+| Візит на місце | **the recording operator's own name** (not typed - resolved from `visitedBy`, a moderator id), when, free-text note | none |
 | Документ | label | required |
 
-**Removed:** «ЄДР status» (a point-in-time registry status goes stale the moment it's recorded — storing
+**Removed:** «ЄДР status» (a point-in-time registry status goes stale the moment it's recorded - storing
 it would read as current when it may not be) and «bank, masked IBAN» (the holder-name check is the
-actual check this evidence performs; storing account numbers adds risk without adding rigour — Oleksii's
+actual check this evidence performs; storing account numbers adds risk without adding rigour - Oleksii's
 own reasoning, `docs/kabinet-contract-decisions.md` §2). **Added:** registered name on the EDRPOU card,
 a real `EvidenceItemSchema` field the first pass omitted.
 
@@ -352,9 +352,9 @@ read-only and that legal changes don't change state automatically). Also: an adm
 Header actions: «Переглянути як притулок · лише читання» and «Призупинити…».
 
 **Donation approval (N20), added 2026-10-07.** When K4 has a proposed donation URL pending, this screen
-shows both side by side — the live URL and the proposed one — with «Схвалити» (primary) and «Відхилити»
+shows both side by side - the live URL and the proposed one - with «Схвалити» (primary) and «Відхилити»
 (secondary) actions. Approving replaces the live URL and clears the proposal; rejecting clears the
-proposal and leaves the live URL untouched. Neither action needs the reason dialog (N15) — this isn't a
+proposal and leaves the live URL untouched. Neither action needs the reason dialog (N15) - this isn't a
 state-machine transition, just a value swap, and the shelter already sees which outcome happened from
 K4's own state the next time they open it.
 
@@ -380,7 +380,7 @@ the server, not only in the UI.
 
 ---
 
-## New patterns (N1–N23) — exact values
+## New patterns (N1-N23) - exact values
 | ID | Pattern | Values |
 |---|---|---|
 | N1 | Magic-link sign-in | 2 states; 60s resend lockout with countdown; identical response for any address; card 480 / padding 32 / radius 24 |
@@ -392,14 +392,14 @@ the server, not only in the UI.
 | N7 | Segmented control | track `#F2F2F0` r20 padding 4 gap 4; segment 48 r16, `flex: 1 1 auto; min-width: 0` (sizes to its label), padding `0 16` desktop / `0 8` phone; active = white + inset 2px ink + 500 |
 | N8 | Toggle | 52×32 r999. Off: 2px `#63676B` outline track, 20px `#63676B` knob (5.9:1). On: ink track, 24px white knob. **No light-fill off state** (same 1.4.11 reasoning as the outlined pip) |
 | N9 | Photo tile | 4:5 r16; add = dashed 2px `#63676B`; uploading = `#DCDCD9` + 6px bar; failed = `#F2F2F0` + inset 2px ink + words; cover pill white 28 |
-| N10 | Locked block | dashed 2px `#63676B` border, r24, no fill (5.4:1 on page); label–value rows; reason in words; no lock icon. In this system dashed means "not yours / not yet real" |
+| N10 | Locked block | dashed 2px `#63676B` border, r24, no fill (5.4:1 on page); label-value rows; reason in words; no lock icon. In this system dashed means "not yours / not yet real" |
 | N11 | Voice editor | textarea 120, `{імʼя}` token (base form; no `{дата}`, VH-Q1), live freshness-block preview with a real animal's name |
 | N12 | Verification chip | N3 geometry. Очікує: dashed · На розгляді: ink outline · Перевірено: ink fill · Відхилено: `#DCDCD9` · На паузі: `#F2F2F0` ink-2 · Призупинено: `#DCDCD9` + 2px ink outline |
-| N13 | Evidence card + doc row | see S3, corrected 2026-10-07 — EDRPOU gains registered name, bank account loses bank/IBAN, see that table |
+| N13 | Evidence card + doc row | see S3, corrected 2026-10-07 - EDRPOU gains registered name, bank account loses bank/IBAN, see that table |
 | N14 | Decision panel + history | sticky 340 r24; reinstate button names the prior state |
 | N15 | Reason dialog | modal 05 template; reason required; black primary |
 | N16 | Support mode | black bar 64 + 4px ink viewport frame + all actions disabled; 30 min timeout |
-| N17 | Rejected notice (shelter view) | card 720; verbatim reason; **resubmit added 2026-10-07** — `transition.ts` already supports `rejected` + `resubmit` → `pending` |
+| N17 | Rejected notice (shelter view) | card 720; verbatim reason; **resubmit added 2026-10-07** - `transition.ts` already supports `rejected` + `resubmit` → `pending` |
 | N18 | Paused banner (K2) | `#F2F2F0` r16 padding `16 20`; reason + «Відновити»; shown only while paused |
 | N19 | Health control | 3-option `MedicalState` control reusing `uk.medical.unknown`/`.inProgress` directly; third option is a new action label, display stays on the unchanged `vaccinationRow`/`spayNeuterRow` functions; `source: "registry"` renders read-only |
 | N20 | Donation pending-approval | K4: live URL unchanged + `#F2F2F0` pending block + «Скасувати пропозицію»; S4: live vs. proposed side by side + «Схвалити»/«Відхилити», no reason dialog, not an FSM transition |
@@ -412,7 +412,7 @@ required to be read on its own.
 
 ---
 
-## Contrast — pairs under 7:1
+## Contrast - pairs under 7:1
 - ink-3 `#63676B` on white: **5.9:1** (captions, outlined pip, dashed chip borders, toggle-off knob)
 - ink-3 on `#F2F2F0`: **5.6:1** (field hints, disabled button text)
 - ink-3 on page `#ECECEA`: **5.4:1** (N10 dashed border)
@@ -429,13 +429,13 @@ Everything else is ≥ 9.0:1. White on ink and ink on white are 18.7:1, and `#1B
 - A separate re-verification state.
 - Bulk «Ще шукає».
 
-## Open questions — resolved 2026-10-07 (`docs/kabinet-contract-decisions.md` has the full reasoning)
+## Open questions - resolved 2026-10-07 (`docs/kabinet-contract-decisions.md` has the full reasoning)
 1. ~~Who sets «На паузі»?~~ **Resolved: the shelter, self-service.** Already true of the domain model
-   (`pause`/`resume` are distinct, shelter-initiated FSM events) — not a decision still owed, a fact the
+   (`pause`/`resume` are distinct, shelter-initiated FSM events) - not a decision still owed, a fact the
    first pass didn't check. K4 gains the control (N21), K2 the banner (N18).
 2. ~~Is there a rejected → pending transition?~~ **Resolved: yes**, already built (`transition.ts`).
    K5 gains «Подати ще раз».
-3. **Resolved: split, not uniform.** `donateUrl` → pending the operator's approval (N20) — the realistic
+3. **Resolved: split, not uniform.** `donateUrl` → pending the operator's approval (N20) - the realistic
    fraud vector is a swapped donation link on a compromised account, and it's the field adopters trust
    because it was verified. Contacts and the voice sentence → live immediately, recorded in an audit log
    (N23). Legal/verification data, edited only by the operator (S4), needs no approval step (there's no
@@ -443,17 +443,17 @@ Everything else is ≥ 9.0:1. White on ink and ink on white are 18.7:1, and `#1B
    stay visible" today — checked, not assumed (`transition.ts` closes `verified -> under_review` on
    purpose). Building that properly is the not-yet-built `re_review` state, future work, not H2's.
 4. **Resolved: `hello@opika.org.ua`** (the already-shipped real address, not a new `ops@` inbox). The
-   name «Олексій» is fine to use inside the kabinet — one register per screen, never mixed with
-   «оператор реєстру» on the same screen (K4, K5 corrected) — and both the name and the email come from
+   name «Олексій» is fine to use inside the kabinet - one register per screen, never mixed with
+   «оператор реєстру» on the same screen (K4, K5 corrected) - and both the name and the email come from
    one app-level config value, never a literal at each call site.
 
 ## Files
-- `Opika Kabinet.dc.html`: this pass, with all kabinet frames at 1440 and 360, the N1–N17 table, contrast notes,
-  exclusions and open questions. **Not yet re-exported against the 2026-10-07 corrections above** — this
+- `Opika Kabinet.dc.html`: this pass, with all kabinet frames at 1440 and 360, the N1-N17 table, contrast notes,
+  exclusions and open questions. **Not yet re-exported against the 2026-10-07 corrections above** - this
   markdown file is the current source of truth until a re-export happens; treat any conflict between the
   two in that direction.
 - `README.md`: the «Реєстр» core handoff (tokens, public gallery, detail, reveal, deck).
 - `Opika Registry System.dc.html` / `Opika Registry Frames.dc.html`: the core visual references.
 - `support.js`: the prototyping runtime, needed only to open the HTML.
 - `docs/kabinet-contract-decisions.md`: the reconciliation this file's 2026-10-07 corrections are drawn
-  from — read it for the domain-code citations and the reasoning behind each one.
+  from - read it for the domain-code citations and the reasoning behind each one.

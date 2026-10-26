@@ -238,7 +238,7 @@ const WRITE_GRANTS = [["open writes", { kind: "open" }]] as const satisfies read
   AnimalFormEditing,
 ])[];
 const LAST_PHOTO_KEPT_NOT_SHOWN =
-  "Картка опублікована, тож одне фото має лишитися — навіть поки її ще не бачать.";
+  "Картка опублікована, тож одне фото має лишитися - навіть поки її ще не бачать.";
 
 beforeEach(() => {
   window.history.replaceState(null, "", "/kabinet/tvaryny/nova");
@@ -396,7 +396,7 @@ describe("a draft saves itself (T6)", () => {
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(
       await screen.findByText(
-        "Хтось змінив цю картку після того, як ви її відкрили. Ваші останні зміни не збережено. Ось поточна версія — внесіть їх ще раз.",
+        "Хтось змінив цю картку після того, як ви її відкрили. Ваші останні зміни не збережено. Ось поточна версія - внесіть їх ще раз.",
       ),
     ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Показати поточну версію" }));
@@ -413,7 +413,7 @@ describe("a draft saves itself (T6)", () => {
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(
       await screen.findByText(
-        "Чернетку не збережено. Перевірте зʼєднання — усе, що ви ввели, лишається тут.",
+        "Чернетку не збережено. Перевірте зʼєднання - усе, що ви ввели, лишається тут.",
       ),
     ).toBeTruthy();
     expect((screen.getByLabelText("Про тварину") as HTMLTextAreaElement).value).toBe("Лагідна.");
@@ -502,7 +502,7 @@ describe("a draft saves itself (T6)", () => {
     } as Partial<KabinetAnimalView>);
     renderForm(outgrown);
     const onCard = (word: string) =>
-      `Вік указано станом на 1 вересня 2024 р. Тепер на картці — «${word}». Якщо тварина вже старша, оновіть вік.`;
+      `Вік указано станом на 1 вересня 2024 р. Тепер на картці - «${word}». Якщо тварина вже старша, оновіть вік.`;
     expect(screen.getByText(onCard("молода"))).toBeTruthy();
     await user.click(
       within(screen.getByRole("group", { name: "Стать" })).getByLabelText("Хлопчик"),
@@ -540,7 +540,7 @@ describe("a draft saves itself (T6)", () => {
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(screen.getByText("Дата народження не може бути в майбутньому.")).toBeTruthy();
     fireEvent.change(birth, { target: { value: "1996-10-16" } });
-    expect(screen.getByText("Ця дата надто давня — понад 30 років тому.")).toBeTruthy();
+    expect(screen.getByText("Ця дата надто давня - понад 30 років тому.")).toBeTruthy();
     expect(client.calls.update).not.toHaveBeenCalled();
     // Exactly thirty years back is allowed, and saves as the birth date chosen.
     fireEvent.change(birth, { target: { value: "1996-10-17" } });
@@ -561,7 +561,7 @@ describe("a draft saves itself (T6)", () => {
       within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText(/Дорослий/),
     );
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expect(await screen.findByText("Ця дата надто давня — понад 30 років тому.")).toBeTruthy();
+    expect(await screen.findByText("Ця дата надто давня - понад 30 років тому.")).toBeTruthy();
   });
 
   it("an old bucket the animal may have outgrown asks for a new age", () => {
@@ -577,7 +577,7 @@ describe("a draft saves itself (T6)", () => {
     expect(
       // One full stop after «р.», not two.
       screen.getByText(
-        "Вік указано станом на 1 вересня 2024 р. Тепер на картці — «молодий». Якщо тварина вже старша, оновіть вік.",
+        "Вік указано станом на 1 вересня 2024 р. Тепер на картці - «молодий». Якщо тварина вже старша, оновіть вік.",
       ),
     ).toBeTruthy();
   });
@@ -622,13 +622,13 @@ describe("a draft saves itself (T6)", () => {
  * (the view never changed) leaves both the warning and the hidden line
  * exactly where an unsaved edit already leaves them, with no separate
  * "undo on failure" branch. Every save below is a controlled promise, so
- * the test — never a sleep — decides exactly when it settles.
+ * the test - never a sleep - decides exactly when it settles.
  */
 describe("the unsaved-work warning and the saved-time line", () => {
-  const FAILURE = "Чернетку не збережено. Перевірте зʼєднання — усе, що ви ввели, лишається тут.";
+  const FAILURE = "Чернетку не збережено. Перевірте зʼєднання - усе, що ви ввели, лишається тут.";
   // Kyiv is UTC+3 in October (before the last-Sunday-of-October change):
   // NOW ("2026-10-17T09:00:00.000Z") reads 12:00, and 15 minutes later reads
-  // 12:15 — transcribed by hand, never computed with the code's own `timeOf`
+  // 12:15 - transcribed by hand, never computed with the code's own `timeOf`
   // (a test may not compare output against the same constant the code
   // renders).
   const FIRST_TIME = "12:00";
@@ -702,7 +702,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
       expect(dispatchUnload()).toEqual({ prevented: false, returnValue: undefined });
 
       // Type again: `save.kind` is still "saved" from the last success, but
-      // the new, unblurred edit alone must hide the line and re-warn —
+      // the new, unblurred edit alone must hide the line and re-warn -
       // "saved" is no longer true of the form's current content.
       fireEvent.change(screen.getByLabelText("Про тварину"), {
         target: { value: "Лагідна, грається." },
@@ -719,7 +719,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
       expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
       expect(dispatchUnload().prevented).toBe(true);
 
-      // A successful retry, 15 minutes later: idle and fully saved again —
+      // A successful retry, 15 minutes later: idle and fully saved again -
       // no warning, and the line names *this* save's own time, not the
       // first one's.
       now = SECOND_NOW;
@@ -741,10 +741,10 @@ describe("the unsaved-work warning and the saved-time line", () => {
    * Blocker 1 (2026-10-19 review of UW-B2): `window.location.assign` fires
    * `beforeunload` synchronously, in a real browser, before React ever gets
    * a chance to re-render and run the effect that would otherwise remove
-   * the listener — so the probe has to check at that exact instant, inside
+   * the listener - so the probe has to check at that exact instant, inside
    * the `assign` call itself, not after. (happy-dom's own `assign` doesn't
    * fire `beforeunload` or stop the test's event loop, so checking only
-   * after an `await` would pass either way — on `main` included — without
+   * after an `await` would pass either way - on `main` included - without
    * ever exercising the race.)
    */
   it("an intentional back-link leave, after the save it triggers succeeds, never warns", async () => {
@@ -767,7 +767,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
   /**
    * Blocker 2: on `/nova`, `dirty` used to be `creatable` (a name AND a
    * species), so anything typed before both existed gave no warning at all
-   * — including a whole typed description. "Unsaved" must include any
+   * - including a whole typed description. "Unsaved" must include any
    * value that differs from the empty starting form, name/species or not.
    */
   it.each([
@@ -788,7 +788,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
 
   /**
    * Blocker 3: `dirty` diffs the CURRENT fields against the server's LAST
-   * KNOWN view, which a save in flight hasn't changed yet — so reverting a
+   * KNOWN view, which a save in flight hasn't changed yet - so reverting a
    * field back to that stored value, while the save for the edit it
    * replaces is still in flight, used to read as "nothing unsaved" and
    * silently drop the warning. "Pending or queued" is its own term,
@@ -815,7 +815,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
     await act(async () =>
       release(draft({ description: { uk: "Зараз.", en: null } } as Partial<KabinetAnimalView>)),
     );
-    // Settled — and the revert now genuinely diverges from what the server
+    // Settled - and the revert now genuinely diverges from what the server
     // actually holds, so the warning is still correctly on, for `dirty`'s
     // own reason this time.
     expect(dispatchUnload().prevented).toBe(true);
@@ -823,9 +823,9 @@ describe("the unsaved-work warning and the saved-time line", () => {
 
   /**
    * The first review's own recommendation on its blocker 3 (whether a
-   * publish request in flight counts), taken here as a builder decision —
+   * publish request in flight counts), taken here as a builder decision -
    * his words say nothing about this. `publish()` saves first (covered by
-   * `savePending` above), then makes its own, separate `transition` call —
+   * `savePending` above), then makes its own, separate `transition` call -
    * by the time that one is in flight, the save it depended on has already
    * settled, so neither `dirty` nor `savePending` is still true; only
    * `publishing` is.
@@ -858,7 +858,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
 
   /**
    * UW-T7: reusing `useUnsavedChanges` for drafts (UW-T1) puts a dirty
-   * draft in the same shared `dirtySections` a listed card already used —
+   * draft in the same shared `dirtySections` a listed card already used -
    * so «Вийти» (the header's own sign-out, `SignOutButton`'s `confirmLeave`)
    * now asks before leaving a dirty draft too, not only a dirty listed card.
    */
@@ -1147,7 +1147,7 @@ describe("photos", () => {
     expect(await screen.findByText("Фото прибрано.")).toBeTruthy();
     expect(
       screen.getByText(
-        "Фото зникло з картки. Сам файл не видаляється одразу — якщо його треба прибрати зовсім, напишіть мені.",
+        "Фото зникло з картки. Сам файл не видаляється одразу - якщо його треба прибрати зовсім, напишіть мені.",
       ),
     ).toBeTruthy();
   });
@@ -1161,7 +1161,7 @@ describe("photos", () => {
     await user.click(screen.getByRole("button", { name: "Зробити обкладинкою" }));
     expect(
       await screen.findByText(
-        "Фото змінилися в іншому вікні. Тут — поточний набір, спробуйте ще раз.",
+        "Фото змінилися в іншому вікні. Тут - поточний набір, спробуйте ще раз.",
       ),
     ).toBeTruthy();
     expect(await screen.findByRole("group", { name: "Фото 1 з 1" })).toBeTruthy();
@@ -1175,7 +1175,7 @@ describe("photos", () => {
     await user.click(screen.getByRole("button", { name: "Зробити обкладинкою" }));
     expect(
       await screen.findByText(
-        "Не збереглося — на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
+        "Не збереглося - на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
       ),
     ).toBeTruthy();
   });
@@ -1187,14 +1187,14 @@ describe("photos", () => {
     }));
     renderForm(draft({ photos } as Partial<KabinetAnimalView>));
     expect(screen.queryByRole("button", { name: "+ Фото" })).toBeNull();
-    expect(screen.getByText("Це максимум — 10 фото.")).toBeTruthy();
+    expect(screen.getByText("Це максимум - 10 фото.")).toBeTruthy();
   });
 
   it("captions: the on-device resize to 2000 px and the metadata stripping, both true of the pipeline", () => {
     renderForm(draft());
     expect(
       screen.getByText(
-        /^Перше фото — обкладинка; щоб змінити порядок, перетягніть фото\. Для публікації потрібне хоча б одне\. Великі фото зменшуються на пристрої до 2\s?000 пікселів перед відправкою — так менше мобільного трафіку\.$/,
+        /^Перше фото - обкладинка; щоб змінити порядок, перетягніть фото\. Для публікації потрібне хоча б одне\. Великі фото зменшуються на пристрої до 2\s?000 пікселів перед відправкою - так менше мобільного трафіку\.$/,
       ),
     ).toBeTruthy();
     expect(

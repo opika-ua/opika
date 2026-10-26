@@ -10,7 +10,7 @@ const cardsByIds = vi.fn();
 
 // `vi.mock` calls are hoisted above this file's own imports by Vitest's
 // transform, so `SavedPageScreen`'s static import of `browser-client` above
-// already sees this mock — no dynamic import needed.
+// already sees this mock - no dynamic import needed.
 vi.mock("../../api/browser-client", () => ({
   savedBrowserClient: {
     animals: { cardsByIds: (...args: unknown[]) => cardsByIds(...args) },
@@ -78,14 +78,14 @@ describe("SavedPageScreen", () => {
 
   /**
    * Review of 6825ffd, finding 2: `useSavedCards.ts`'s own comment names the
-   * bug this guards — a stale `ids===[]` closure in one effect synchronously
+   * bug this guards - a stale `ids===[]` closure in one effect synchronously
    * setting `items: []` before a sibling effect had set the real (non-empty)
    * ids, so a visitor *with* a save briefly got the wrong empty state. With
    * the old `useState<readonly string[]>([])` default restored in place of
    * `useState<readonly string[] | null>(null)`, this goes red: `saved-empty`
    * is present at the point this asserts it must not be.
    */
-  it("never shows the empty state while a saved item's fetch is still pending — only skeletons", async () => {
+  it("never shows the empty state while a saved item's fetch is still pending - only skeletons", async () => {
     toggleSavedAnimal("00000001-0000-4000-8000-000000000000", new Date());
     let resolveFetch!: (value: { items: unknown[] }) => void;
     cardsByIds.mockReturnValue(
@@ -122,7 +122,7 @@ describe("SavedPageScreen", () => {
     expect(screen.queryByRole("link", { name: /Рекс/ })).toBeNull();
   });
 
-  it("drops an item with no name at all — nothing honest to show, and no copy to invent (S8-D2)", async () => {
+  it("drops an item with no name at all - nothing honest to show, and no copy to invent (S8-D2)", async () => {
     toggleSavedAnimal("00000003-0000-4000-8000-000000000000", new Date());
     cardsByIds.mockResolvedValue({
       items: [
@@ -136,7 +136,7 @@ describe("SavedPageScreen", () => {
     expect(screen.queryByTestId("saved-unavailable")).toBeNull();
   });
 
-  it("removing the only saved item empties the page with no second fetch — there is nothing left to ask for", async () => {
+  it("removing the only saved item empties the page with no second fetch - there is nothing left to ask for", async () => {
     const animalId = "00000001-0000-4000-8000-000000000000" as AnimalId;
     toggleSavedAnimal(animalId, new Date());
     cardsByIds.mockResolvedValue({
@@ -151,7 +151,7 @@ describe("SavedPageScreen", () => {
     await user.click(screen.getByTestId("saved-remove"));
 
     expect(await screen.findByTestId("saved-empty")).toBeTruthy();
-    // No network call for an empty list — nothing to resolve.
+    // No network call for an empty list - nothing to resolve.
     expect(cardsByIds).toHaveBeenCalledTimes(1);
   });
 

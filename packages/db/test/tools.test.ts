@@ -251,7 +251,7 @@ describe("planRemoval", () => {
     });
   });
 
-  /** Findings 1–3: never delete work, a nested worktree, or through a link. */
+  /** Findings 1-3: never delete work, a nested worktree, or through a link. */
   it("refuses a worktree holding another, a locked one, a dirty or unreadable one, and a link", () => {
     expect(planRemoval({ ...base, target: "D:/opika-worktrees/review" })).toEqual({
       kind: "refuse",

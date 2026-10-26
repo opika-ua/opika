@@ -10,7 +10,7 @@ Ukrainian. Keys are proposals and can be renamed freely. `{…}` are placeholder
 Conventions as in your other sheets: ʼ (U+02BC), «…» at the top level and „…" nested, no «ми»
 in your voice, no «реєстр».
 
-## A. Sign-in page (`/kabinet/vkhid`) — PW-1
+## A. Sign-in page (`/kabinet/vkhid`) - PW-1
 
 | Key | English sense / where | Ukrainian |
 |---|---|---|
@@ -23,7 +23,7 @@ in your voice, no «реєстр».
 | `kabinet.signIn.wrongCredentials` | the **one** generic error for every failure: wrong email, wrong password, no password yet, the operator. It must not hint which | |
 | `kabinet.signIn.throttled` | the delay message, the same for every address | «Забагато спроб входу. Спробуйте ще раз через {minutes} хв.» (yours, §9 Q5; pinned for several values) |
 
-## B. Invitation: «Створіть пароль» (`/kabinet/vkhid?zaproshennia=…`) — PW-2
+## B. Invitation: «Створіть пароль» (`/kabinet/vkhid?zaproshennia=…`) - PW-2
 
 | Key | English sense / where | Ukrainian |
 |---|---|---|
@@ -38,10 +38,10 @@ in your voice, no «реєстр».
 | `kabinet.password.common` | the refusal: on the common-password list. Say plainly that it's too easy to guess | |
 | `kabinet.password.personal` | the refusal: contains the email's local part, the shelter's name, or "opika" (your §9 Q2) | |
 | `kabinet.password.mismatch` | the two fields differ | |
-| (reused) | an expired, used or unknown invitation: today's `inviteLanding` unusable and already-accepted states | — |
-| (replaced) | `inviteLanding.ready`, `inviteLanding.send`, `inviteLanding.sent`: the landing's magic-link flow, which «Створіть пароль» replaces. They are removed when PW-2 ships; nothing new is needed | — |
+| (reused) | an expired, used or unknown invitation: today's `inviteLanding` unusable and already-accepted states | - |
+| (replaced) | `inviteLanding.ready`, `inviteLanding.send`, `inviteLanding.sent`: the landing's magic-link flow, which «Створіть пароль» replaces. They are removed when PW-2 ships; nothing new is needed | - |
 
-## C. Forgot password (`/kabinet/vkhid/zabuly`) — PW-1
+## C. Forgot password (`/kabinet/vkhid/zabuly`) - PW-1
 
 | Key | English sense / where | Ukrainian |
 |---|---|---|
@@ -51,7 +51,7 @@ in your voice, no «реєстр».
 | `kabinet.forgot.sent` | the **always-same** answer, true whether or not the address belongs to anyone: if it is a shelter admin's address, a link is on its way, valid for 1 hour (`{minutes}`) | |
 | `kabinet.forgot.throttled` | too many requests for now (the same for every address) | |
 
-## D. New password from a reset link (`/kabinet/vkhid/novyi-parol`) — PW-1
+## D. New password from a reset link (`/kabinet/vkhid/novyi-parol`) - PW-1
 
 | Key | English sense / where | Ukrainian |
 |---|---|---|
@@ -59,9 +59,9 @@ in your voice, no «реєстр».
 | `kabinet.reset.submit` | the button: save the new password | |
 | `kabinet.reset.done` | success: the password is changed, every other session has ended, sign in now | |
 | `kabinet.reset.invalidLink` | the link expired or was already used; ask for a new one (link to the forgot page) | |
-| (shared) | the four refusals, the hint and the mismatch from §B | — |
+| (shared) | the four refusals, the hint and the mismatch from §B | - |
 
-## E. Kabinet: change password — PW-1
+## E. Kabinet: change password - PW-1
 
 | Key | English sense / where | Ukrainian |
 |---|---|---|
@@ -71,9 +71,9 @@ in your voice, no «реєстр».
 | `kabinet.changePassword.done` | success: changed; other devices are signed out, this one stays | |
 | `kabinet.changePassword.wrongCurrent` | the current password is wrong | |
 | `kabinet.changePassword.noPasswordYet` | an admin who signed in by link and has no password yet: set one through «Забули пароль?» (your scope item 9) | |
-| (shared) | the four refusals, the hint and the mismatch from §B | — |
+| (shared) | the four refusals, the hint and the mismatch from §B | - |
 
-## F. Emails — PW-1 (both sent through Resend, no tracking, the exact-payload test)
+## F. Emails - PW-1 (both sent through Resend, no tracking, the exact-payload test)
 
 **F1. The reset link**
 
@@ -83,7 +83,7 @@ in your voice, no «реєстр».
 | `kabinet.email.reset.intro` | someone asked to reset the password for this address | |
 | `kabinet.email.reset.action` | the button | |
 | `kabinet.email.reset.expiry` | the link works once and for `{minutes}` minutes | |
-| `kabinet.email.reset.notYou` | if you didn't ask, ignore this; the password stays as it was. Signed `— {operator}` like the other emails | |
+| `kabinet.email.reset.notYou` | if you didn't ask, ignore this; the password stays as it was. Signed `- {operator}` like the other emails | |
 
 **F2. The notice, after a reset and after a change (your §9 Q4)**
 
@@ -91,9 +91,9 @@ in your voice, no «реєстр».
 |---|---|---|
 | `kabinet.email.passwordChanged.subject` | the subject: the password was changed | «пароль змінено» is yours (scope item 6); the subject line around it is yours to write |
 | `kabinet.email.passwordChanged.body` | the kabinet password for this address was just changed; other devices were signed out | |
-| `kabinet.email.passwordChanged.notYou` | if it wasn't you, write to me | «…якщо це не ви — напишіть мені» (yours, scope item 6), with `{contact}` and `— {operator}` |
+| `kabinet.email.passwordChanged.notYou` | if it wasn't you, write to me | «…якщо це не ви — напишіть мені» (yours, scope item 6), with `{contact}` and `- {operator}` |
 
-## G. Public pages — public claims
+## G. Public pages - public claims
 
 | Key | English sense / where | Ukrainian |
 |---|---|---|

@@ -16,7 +16,7 @@ describe("DetailPhotoGallery", () => {
     const main = within(screen.getByTestId("detail-photo")).getByRole("img");
     expect(main.getAttribute("src")).toContain(encodeURIComponent("/a.jpg"));
 
-    // All three, not "the other two" — the mock's own D1 frame shows the
+    // All three, not "the other two" - the mock's own D1 frame shows the
     // active photo *inside* the thumbnail strip, ringed, not excluded from it.
     const thumbnails = screen.getAllByTestId("detail-photo-thumbnail");
     expect(thumbnails).toHaveLength(3);
@@ -24,7 +24,7 @@ describe("DetailPhotoGallery", () => {
     expect(thumbnails[1]?.getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("clicking a thumbnail makes it the active photo — it stays in the strip, ringed, rather than swapping out", () => {
+  it("clicking a thumbnail makes it the active photo - it stays in the strip, ringed, rather than swapping out", () => {
     render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
 
     const thumbnails = screen.getAllByTestId("detail-photo-thumbnail");
@@ -61,7 +61,7 @@ describe("DetailPhotoGallery", () => {
     expect(dots[0]?.getAttribute("aria-selected")).toBe("false");
   });
 
-  it("caps at 3 photos — a 4th never becomes a thumbnail, dot, or reachable active photo", () => {
+  it("caps at 3 photos - a 4th never becomes a thumbnail, dot, or reachable active photo", () => {
     render(<DetailPhotoGallery photos={[...THREE_PHOTOS, photo("/d.jpg")]} altFallback="Мурчик" />);
 
     expect(screen.getAllByTestId("detail-photo-thumbnail")).toHaveLength(3);

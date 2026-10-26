@@ -14,8 +14,8 @@ const handler = new RPCHandler(router);
  * it's built to carry no cookie at all (S8-D1). oRPC's own codec happily
  * decodes a GET's input from a `?data=` query string instead of the body
  * (`StandardRPCCodec.decode`, in `@orpc/server`, reads `request.method`
- * itself — it never checks against the procedure's declared method, so the
- * contract carries no server-side enforcement of this on its own) — which
+ * itself - it never checks against the procedure's declared method, so the
+ * contract carries no server-side enforcement of this on its own) - which
  * would put exactly the ids this endpoint's own "never logged" promise
  * exists to protect into every access log, `Referer` header and browser
  * history entry that method produces. Checked before the request reaches
@@ -36,7 +36,7 @@ async function handleRequest(request: Request): Promise<Response> {
 
   const now = new Date();
 
-  // Per-IP rate limit — Upstash-backed in production, in-memory otherwise
+  // Per-IP rate limit - Upstash-backed in production, in-memory otherwise
   // (see rate-limit.ts). Keyed on an HMAC of the IP, never the IP (EM-Q11).
   if (!(await apiRateLimiter.check(ipRateLimitKey(clientIp(request)), now))) {
     return new Response("Too Many Requests", { status: 429 });
@@ -71,7 +71,7 @@ async function handleRequest(request: Request): Promise<Response> {
   }
 
   // DR1-Q2 (S8): the saved page's batch read is never cached by an
-  // intermediate layer — its answer depends on moderation state that can
+  // intermediate layer - its answer depends on moderation state that can
   // change between two requests for the same ids. Scoped to this one
   // procedure's path rather than every procedure this route serves, since
   // nothing asked for the others' caching behaviour to change.

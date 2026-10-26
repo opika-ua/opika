@@ -27,7 +27,7 @@ export type LikesStoreV1 = z.infer<typeof LikesStoreV1Schema>;
 const EMPTY_STORE: LikesStoreV1 = { version: 1, items: [] };
 
 /**
- * Anything that fails to parse is treated as empty, never a crash and never a partial list —
+ * Anything that fails to parse is treated as empty, never a crash and never a partial list -
  * the next write overwrites it. Covers a future `version` this build doesn't know (kept simple:
  * only `1` exists today, so an unknown version parses as empty rather than attempting migration
  * that has nothing yet to migrate from).
@@ -47,7 +47,7 @@ const parseStore = (raw: string | null): LikesStoreV1 => {
  * `localStorage` throws in private mode in some browsers, and when the user has blocked site
  * storage. The control still toggles for the page's lifetime (the plan's own words) rather than
  * silently doing nothing, so this in-memory store is the fallback every read and write falls
- * back to — scoped to this module's lifetime (a reload loses it, same as `localStorage` would
+ * back to - scoped to this module's lifetime (a reload loses it, same as `localStorage` would
  * have refused to keep it anyway).
  */
 let memoryFallback: LikesStoreV1 | undefined;
@@ -66,11 +66,11 @@ const readRaw = (): LikesStoreV1 => {
 
 /**
  * `SAME_TAB_CHANGE_EVENT` exists because `storage` (below) never fires for
- * the document that made the write — by spec, it's cross-tab only. A writer
+ * the document that made the write - by spec, it's cross-tab only. A writer
  * that already knows its own new value (`SaveButton`'s `toggle()`,
  * `useSavedCards`' `removeSaved`) doesn't need this: both set their own
  * state directly, right after their own write. A component that's merely
- * watching from elsewhere in the tree and isn't the one writing — the
+ * watching from elsewhere in the tree and isn't the one writing - the
  * header's `SavedNavLink`, which has no other way to learn "something was
  * just saved on this same page" — does.
  */
@@ -105,7 +105,7 @@ export type ToggleSavedResult =
 
 /**
  * The one write path. Adding past `MAX_LIKES` refuses with `cap_reached` rather than dropping
- * the oldest save — DR1-D14's own reasoning: a silent drop would lose a choice the person made
+ * the oldest save - DR1-D14's own reasoning: a silent drop would lose a choice the person made
  * on purpose, with nothing on screen explaining why their list got shorter.
  */
 export const toggleSavedAnimal = (animalId: string, now: Date): ToggleSavedResult => {
@@ -125,13 +125,13 @@ export const toggleSavedAnimal = (animalId: string, now: Date): ToggleSavedResul
 
 /**
  * Two listeners, not one: `storage` fires on every *other* document using
- * this origin (never the one that wrote — the plan's own note), filtered to
+ * this origin (never the one that wrote - the plan's own note), filtered to
  * this store's key so an unrelated `localStorage` write elsewhere on the
  * site doesn't trigger a re-read; `SAME_TAB_CHANGE_EVENT` fires in *this*
  * document, for every write regardless of who made it. A caller that's one
  * of the writers (`SaveButton`, `useSavedCards`'s `removeSaved`) already
  * updates its own state directly and just gets a redundant, idempotent
- * re-read from its own write — harmless. A caller that only watches
+ * re-read from its own write - harmless. A caller that only watches
  * (`SavedNavLink`) needs the second listener to ever learn about a save
  * made elsewhere on the same page at all.
  */

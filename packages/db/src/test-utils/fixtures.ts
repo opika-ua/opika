@@ -60,7 +60,7 @@ export function makeCity(overrides: Partial<City> = {}): City {
     // Derived from `id`, not a fixed string: `slug` is unique in the real
     // schema, and a suite that calls this more than once per test (several
     // do) would otherwise collide on the same default the moment more than
-    // one city is inserted. Not `citySlugOf(id)` — that would produce a
+    // one city is inserted. Not `citySlugOf(id)` - that would produce a
     // slug that is *itself* UUID-shaped, which `redirectHrefForLegacyCityIds`
     // (`apps/web`) treats as a legacy id needing rewriting, not a real slug.
     // The `c-` prefix makes this fixture's default provably never collide

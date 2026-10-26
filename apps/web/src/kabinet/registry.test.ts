@@ -1289,7 +1289,7 @@ describe("registry.admins.*", () => {
       createdAt: NOW,
     });
     // The real accept flow flips the invitation to `accepted` in the same
-    // statement as the membership — a real accepted admin's own invitation
+    // statement as the membership - a real accepted admin's own invitation
     // is never still `pending`. Without this, `erasableIf`'s
     // `noLiveInvitationElsewhere` check would (rightly) treat the fixture's
     // own invitation as a live invitation elsewhere.
@@ -1411,12 +1411,12 @@ describe("registry.admins.*", () => {
    *
    * GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4; Oleksii,
    * 2026-10-24): this is also the realistic, reachable shape of that
-   * decision — a real, accepted admin removed from their only shelter
+   * decision - a real, accepted admin removed from their only shelter
    * (one person administers at most one shelter, `auth_member_user_id_unique`),
    * who is never a `super_admins` grant either (RG-T10: an operator is
    * never invited as a shelter admin). So the account is erased and this
-   * same `admin_removed` entry's own email — the one `removeMember` just
-   * wrote — is scrubbed to the placeholder *before this call returns*: "at
+   * same `admin_removed` entry's own email - the one `removeMember` just
+   * wrote - is scrubbed to the placeholder *before this call returns*: "at
    * the moment of removal" means this request, not a later sweep.
    */
   it("removes the last admin, ending every session of theirs, erasing the account, and scrubbing their email from history", async () => {
@@ -1444,7 +1444,7 @@ describe("registry.admins.*", () => {
         .from(authSession)
         .then((rows) => rows.filter((row) => row.userId === member)),
     ).toEqual([]);
-    // The account itself is gone — not just its memberships and sessions.
+    // The account itself is gone - not just its memberships and sessions.
     expect(
       await db
         .select()
@@ -1821,7 +1821,7 @@ describe("after an invitation email is sent, the operator is reminded to tell th
   const expectReminderFrom = (reminder: Reminder, sender: string) => {
     expect(reminder?.kind).toBe("tell_personally");
     expect(reminder?.text).toBe(
-      `Повідомте притулок особисто: запрошення надіслано з ${sender}. Якщо листа не видно — хай перевірить вкладку «Промоакції».`,
+      `Повідомте притулок особисто: запрошення надіслано з ${sender}. Якщо листа не видно - хай перевірить вкладку «Промоакції».`,
     );
   };
 

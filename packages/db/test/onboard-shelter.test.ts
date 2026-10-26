@@ -63,7 +63,7 @@ const now = new Date("2026-09-06T12:00:00Z");
 /**
  * The whole point of `onboard-shelter.ts`, verified directly rather than
  * trusted: a real exact address must never be recoverable from what gets
- * stored, and the offset must actually depend on the secret — not just be
+ * stored, and the offset must actually depend on the secret - not just be
  * "some fixed transform" that happens to differ numerically.
  */
 describe("buildShelter's public location", () => {
@@ -74,7 +74,7 @@ describe("buildShelter's public location", () => {
     expect(shelter.publicLocation.approximate.center).not.toEqual(EXACT_ADDRESS.coordinates);
   });
 
-  it("differs between two different secrets — proof the offset is actually keyed, not just non-zero", () => {
+  it("differs between two different secrets - proof the offset is actually keyed, not just non-zero", () => {
     const a = buildShelter(SHELTER_INPUT, now, SECRET_A);
     const b = buildShelter(SHELTER_INPUT, now, SECRET_B);
     if (
@@ -86,11 +86,11 @@ describe("buildShelter's public location", () => {
     expect(a.publicLocation.approximate.center).not.toEqual(b.publicLocation.approximate.center);
   });
 
-  it("throws on a secret shorter than 32 characters — productionLocationPolicy's own guard, exercised through this caller", () => {
+  it("throws on a secret shorter than 32 characters - productionLocationPolicy's own guard, exercised through this caller", () => {
     // The property this test actually verifies: buildShelter really does
     // call productionLocationPolicy, not merely something that behaves
     // similarly. testOnlyLocationPolicy (packages/domain) carries no such
-    // guard — mutation-tested by temporarily swapping the import in
+    // guard - mutation-tested by temporarily swapping the import in
     // onboard-shelter.ts to confirm this exact assertion, and only this
     // one, catches the swap; the two tests above still pass either way,
     // since both policies produce *some* keyed-looking variation.
@@ -159,7 +159,7 @@ describe("buildShelter's evidence requirement", () => {
     );
   });
 
-  it("does not fabricate a reference_contact pointing at the shelter's own number — evidence comes only from what the input actually supplied", () => {
+  it("does not fabricate a reference_contact pointing at the shelter's own number - evidence comes only from what the input actually supplied", () => {
     const shelter = buildShelter(SHELTER_INPUT, now, SECRET_A);
     const referenceContacts = shelter.verification.evidence.items.filter(
       (item) => item.kind === "reference_contact",
@@ -171,13 +171,13 @@ describe("buildShelter's evidence requirement", () => {
 });
 
 describe("buildShelter and buildAnimal ids", () => {
-  it("are deterministic across two calls with the same input — re-running the script must not duplicate rows", () => {
+  it("are deterministic across two calls with the same input - re-running the script must not duplicate rows", () => {
     const first = buildShelter(SHELTER_INPUT, now, SECRET_A);
     const second = buildShelter(SHELTER_INPUT, now, SECRET_A);
     expect(first.id).toBe(second.id);
   });
 
-  it("differ between a shelter and an animal sharing the same idSeed — a namespace collision must not be possible", () => {
+  it("differ between a shelter and an animal sharing the same idSeed - a namespace collision must not be possible", () => {
     const shelter = buildShelter(SHELTER_INPUT, now, SECRET_A);
     const animal = buildAnimal(
       {
@@ -199,7 +199,7 @@ describe("buildShelter and buildAnimal ids", () => {
 
   /**
    * S8-F5, hook 3: this script is the one real path that inserts an animal
-   * already `published` under a shelter already `verified` — both the
+   * already `published` under a shelter already `verified` - both the
    * publish-transition hook and the verification-transition hook never run
    * for it, so this insert is the only chance to stamp `everServedAt`.
    */
@@ -325,7 +325,7 @@ describe("refuseIfInsideRepo", () => {
 
   /**
    * `resolve()` normalises `..` away, so this is the guard working as
-   * intended rather than a hole — asserted because the normalisation is the
+   * intended rather than a hole - asserted because the normalisation is the
    * whole reason a `..` path cannot be used to smuggle a real shelter file
    * back into the working tree under a different-looking name.
    */

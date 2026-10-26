@@ -111,7 +111,7 @@ describe("the gallery's animal overlay", () => {
     expect(inside.getByText("Оновлено 5 днів тому")).toBeTruthy();
   });
 
-  it("batch A: no site header, no breadcrumb inside it — those stay on the full page only (review of 6825ffd, finding 3)", async () => {
+  it("batch A: no site header, no breadcrumb inside it - those stay on the full page only (review of 6825ffd, finding 3)", async () => {
     const { dialog } = await openOverlay();
     const inside = within(dialog);
     expect(inside.queryByTestId("site-header")).toBeNull();

@@ -30,7 +30,7 @@ export function useUnsavedChanges(section: string, dirty: boolean): void {
 
 /**
  * Clears `section` immediately, for a caller that already knows nothing is
- * unsaved and is about to navigate — skips waiting for the next render's
+ * unsaved and is about to navigate - skips waiting for the next render's
  * effect. `window.location.assign` fires `beforeunload` synchronously, so a
  * save that resolves and navigates in the same microtask chain would still
  * warn without this: React hasn't re-rendered yet, so the effect above that

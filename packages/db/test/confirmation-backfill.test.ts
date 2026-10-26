@@ -15,19 +15,19 @@ import { insertLegacyShelter } from "./legacy-rows";
 
 /**
  * The `last_confirmed_at` backfill (H2-3, H2-14), tested against rows shaped
- * the way the table looked *before* it ran — same technique and the same
+ * the way the table looked *before* it ran - same technique and the same
  * reason as `wait-anchor-backfill.test.ts`: `setupTestDatabase()` hands back a
  * table that is already correct, which would prove only that the schema
  * exists.
  *
  * The specific wrong sources this is aimed at, each of which produces a
  * perfectly sortable column and nothing visibly broken:
- * - `created_at` — the answer this replaced (H2-14). Every row below is
+ * - `created_at` - the answer this replaced (H2-14). Every row below is
  *   created well before it was last updated, so a `created_at` backfill
  *   disagrees on every row.
- * - `publishedAt` — plausible, and wrong wherever an animal was updated after
+ * - `publishedAt` - plausible, and wrong wherever an animal was updated after
  *   publishing.
- * - `now()` — would make the whole corpus read "confirmed today".
+ * - `now()` - would make the whole corpus read "confirmed today".
  */
 
 const MIGRATIONS_DIR = resolve(fileURLToPath(import.meta.url), "../../drizzle");
@@ -105,7 +105,7 @@ type LegacyAnimal = {
   readonly listing: Record<string, unknown>;
 };
 
-/** The pre-0006 shape, via raw SQL — `animalRepo` would write the new column. */
+/** The pre-0006 shape, via raw SQL - `animalRepo` would write the new column. */
 async function insertLegacyAnimal(a: LegacyAnimal, shelterId: string, cityId: string) {
   const declared = JSON.stringify({
     source: "shelter_declared",
@@ -137,7 +137,7 @@ const id = (n: number): string => `a0000000-0000-4000-8000-${String(n).padStart(
 
 /**
  * Six published rows, each created on day 1, published on a different day,
- * and last updated a different number of days after publishing — so
+ * and last updated a different number of days after publishing - so
  * `created_at`, `publishedAt` and `last_updated_at` are three different
  * values on every row, and a backfill reading the wrong one disagrees.
  */
@@ -218,7 +218,7 @@ describe("0006 last_confirmed_at backfill", () => {
     await resetToPreBackfillState();
   });
 
-  it("confirms each published row at its last update — not its creation, publication or now", async () => {
+  it("confirms each published row at its last update - not its creation, publication or now", async () => {
     await seed(PUBLISHED);
     await applyMigration(BACKFILL_TAG);
     const rows = await confirmationRows();
@@ -344,7 +344,7 @@ describe("0006 last_confirmed_at backfill", () => {
   /**
    * `rowToAnimal` hands the JSONB straight to `AnimalListingState` with no
    * Zod parse, so a `confirmedAt` the reader can't revive into a Date would be
-   * a string at runtime on a type that says Date — and would typecheck.
+   * a string at runtime on a type that says Date - and would typecheck.
    */
   it("writes confirmedAt in the format the reader revives into a Date", async () => {
     await seed([PUBLISHED[0] as LegacyAnimal]);

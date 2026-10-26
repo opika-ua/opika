@@ -31,16 +31,16 @@ export function attentionCropBox(source: Size, variant: Size): Size {
 }
 
 /**
- * `cover` — every context this renders into already uses `object-fit:
+ * `cover` - every context this renders into already uses `object-fit:
  * cover` in the app (confirmed in `AnimalCard`/`AnimalDetailScreen`), so
  * cropping to the target box here, once, at upload time, is equivalent to
- * what the browser would otherwise crop on every view — cheaper to do it
+ * what the browser would otherwise crop on every view - cheaper to do it
  * once than repeatedly on every request. `position: "attention"` (sharp's
  * saliency-based crop) over a fixed centre crop: a shelter's own photo is
  * uncontrolled framing (the seeded corpus's own real photos have
  * off-centre subjects and varied aspect ratios), and a centre crop on a
  * landscape source risks cutting the animal's head off. Not independently
- * verified against a centre crop on a real off-centre photo — sharp's own
+ * verified against a centre crop on a real off-centre photo - sharp's own
  * saliency heuristic is a reasonable default, not something this codebase
  * measured; if a real upload crops badly, this is the line to revisit
  * first. The crop is chosen before any enlargement (`attentionCropBox`).
@@ -71,10 +71,10 @@ export async function generateVariants(
       const crop = attentionCropBox(displayed, variant);
       const cropped = sharp(source, input)
         // `.rotate()` with no argument applies the file's own EXIF
-        // Orientation tag and strips it — sharp does NOT do this
+        // Orientation tag and strips it - sharp does NOT do this
         // automatically. Round-1 review found this missing: a phone photo
         // shot in portrait but stored with an EXIF rotation (extremely
-        // common — that's how most phone cameras write files) would
+        // common - that's how most phone cameras write files) would
         // otherwise produce a sideways variant, silently, since resize
         // operates on the stored pixel grid, not the displayed
         // orientation.

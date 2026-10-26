@@ -1,11 +1,11 @@
 /**
  * Seed script for local development.
  *
- * Two named profiles (`--profile=test|demo`, `test` is the default — Phase
+ * Two named profiles (`--profile=test|demo`, `test` is the default - Phase
  * 3, `docs/handoff-2026-10-04.md` §3.4):
- *   - `test` — today's 320-animal, 8-shelter hostile corpus, unchanged.
+ *   - `test` - today's 320-animal, 8-shelter hostile corpus, unchanged.
  *     Local and CI only; the harness and `pnpm check` both run this one.
- *   - `demo` — a small, 18-animal, 2-shelter set reusing `test`'s own
+ *   - `demo` - a small, 18-animal, 2-shelter set reusing `test`'s own
  *     shelter identities and real D-6 photographs, meant to actually be
  *     shown to people (a preview deployment, the rehearsal). See
  *     `buildDemoShelters`/`buildDemoAnimals`'s own comments for exactly
@@ -14,7 +14,7 @@
  * Safety: refuses to run unless DATABASE_URL points at localhost. A
  * non-localhost target is `demo`-only, and requires BOTH --force AND
  * --db-name=<name> (matching the target database's own name, read out of
- * DATABASE_URL itself) — --force alone is deliberately not enough. `test`
+ * DATABASE_URL itself) - --force alone is deliberately not enough. `test`
  * gets no non-localhost override at all, under any flag combination. See
  * `assertSafeSeedTarget`'s own comment for why (docs/build-plan.md, D-9,
  * 2026-09-06, amended Phase 3).
@@ -79,7 +79,7 @@ import { SEED_LOCATION_POLICY_KEY, SEED_SHELTER_ID_PREFIX } from "./seed-ids";
 // ---------------------------------------------------------------------------
 
 // Port matches docker-compose.yml's own OPIKA_DB_PORT (default 5433, mapped to the
-// container's internal 5432) — read from the same env var rather than a second hardcoded
+// container's internal 5432) - read from the same env var rather than a second hardcoded
 // copy, so the two can't drift apart again. They already had: this fallback said 5432,
 // which nothing in local dev actually listens on unless OPIKA_DB_PORT was overridden to
 // match, and running db:seed without an explicit DATABASE_URL failed with what looked
@@ -92,15 +92,15 @@ const DB_NAME_FLAG_PREFIX = "--db-name=";
 
 /**
  * Refuses to let this script's truncate-and-reseed run against anything but
- * a local database, unless the caller proves — not just asserts with
- * --force — that they know exactly what they're pointing it at.
+ * a local database, unless the caller proves - not just asserts with
+ * --force - that they know exactly what they're pointing it at.
  *
  * Originally a demo-marker DB column (D-9's first design): every shelter
  * and animal row carries a marker, and the guard refuses to truncate if any
  * row lacks it. Reduced, 2026-09-06 (docs/build-plan.md, Phase D
  * reprioritisation): a real shelter existing in a non-local database is the
  * actual risk this guards against, and the connection string already says
- * where the script is about to point — no migration, no backfill, no
+ * where the script is about to point - no migration, no backfill, no
  * column needed to check that. --force alone stays deliberately
  * insufficient for a non-localhost target: it's typed from habit (every
  * `db:seed --force` invocation in this repo's own history is that), so it
@@ -110,7 +110,7 @@ const DB_NAME_FLAG_PREFIX = "--db-name=";
  * unblocks things.
  *
  * Exported and called only from the CLI-only guard at the bottom of this
- * file (never at module scope) — same reasoning as
+ * file (never at module scope) - same reasoning as
  * `onboard-shelter.ts`'s `refuseIfInsideRepo`: importing this module for a
  * test must never have the side effect of running it, exiting the test
  * process included.
@@ -122,7 +122,7 @@ export function assertSafeSeedTarget(
 ): void {
   const parsed = new URL(databaseUrl);
   // Exact match on the parsed hostname, never a substring test against the
-  // whole URL — a substring test is bypassable with zero flags by any
+  // whole URL - a substring test is bypassable with zero flags by any
   // connection string that merely *contains* "localhost" somewhere (a
   // password, a database name, a query parameter), which is exactly the
   // "refuses any non-localhost target outright, full stop" guarantee this
@@ -138,14 +138,14 @@ export function assertSafeSeedTarget(
   // the only [profile] allowed `--force --db-name` against Neon." `test`
   // generates the full 320-row hostile corpus (duplicate-name stress cases,
   // a long shelter name, deliberately awkward data) that has no business
-  // existing in any shared database — it gets *no* override at all, not
+  // existing in any shared database - it gets *no* override at all, not
   // even a correct --force/--db-name pair. Checked before the --force/
   // --db-name logic below runs, not after, so a `test` run can never reach
   // the branch that would otherwise let it through.
   if (profile === "test") {
     console.error(
       "ERROR: DATABASE_URL does not point at localhost, and the `test` seed profile never\n" +
-        "runs against a non-local database — there is no override flag for this, by design.\n" +
+        "runs against a non-local database - there is no override flag for this, by design.\n" +
         "Use `--profile=demo` (with --force and --db-name) if you actually mean to seed a\n" +
         "shared database with the small, human-reviewed demo corpus instead.",
     );
@@ -159,7 +159,7 @@ export function assertSafeSeedTarget(
   const actualDbName = parsed.pathname.replace(/^\//, "");
   // actualDbName.length > 0 (not just equality) matters on its own: a
   // pathless DATABASE_URL has an empty database name, and without this
-  // clause an empty --db-name= would trivially equal it — the override
+  // clause an empty --db-name= would trivially equal it - the override
   // firing with no real name ever having been typed. Implies
   // providedDbName can't be empty either (an empty string only equals a
   // non-empty one if it isn't actually empty), so there's nothing left to
@@ -175,7 +175,7 @@ export function assertSafeSeedTarget(
       : "pass --force AND --db-name=<database name>";
   console.error(
     "ERROR: DATABASE_URL does not point at localhost.\n" +
-      "This script truncates every table before inserting — that is unrecoverable against a\n" +
+      "This script truncates every table before inserting - that is unrecoverable against a\n" +
       "database that holds a real shelter.\n" +
       `To override, ${reason}, matching the target's own database name exactly\n` +
       "(read it out of DATABASE_URL yourself).",
@@ -198,7 +198,7 @@ export const NOW = (() => {
 })();
 
 /**
- * Phase 3 (seed profiles, `docs/handoff-2026-10-04.md` §3.4) — `--profile`
+ * Phase 3 (seed profiles, `docs/handoff-2026-10-04.md` §3.4) - `--profile`
  * is a named choice, not a count flag, per that section's own "the point is
  * two explicit, named profiles." `test` (today's untouched 320/8 generator)
  * is the default, matching every existing call site (the harness, CI,
@@ -271,13 +271,13 @@ function animalId(i: number): AnimalId {
   return seededUuid("a0000000", i) as AnimalId;
 }
 function moderatorId(): ModeratorId {
-  // Not "m0d00000" (the original, mnemonic-looking prefix) — 'm' isn't a
+  // Not "m0d00000" (the original, mnemonic-looking prefix) - 'm' isn't a
   // valid hex digit, so that prefix produced a string that merely looked
   // like a UUID and worked everywhere as an opaque reference, but failed
   // strict `z.uuid()` validation outright. Found by a new schema-validation
   // test (Phase 3, seed profiles) that was the first thing in this
   // codebase to ever call `ShelterSchema.parse` directly on seeded output
-  // — "ad" (admin/moderator) is the closest hex-only approximation of the
+  // - "ad" (admin/moderator) is the closest hex-only approximation of the
   // original mnemonic.
   return seededUuid("ad000000", 1) as ModeratorId;
 }
@@ -297,24 +297,24 @@ function daysAgo(days: number): Date {
 
 /**
  * Nine real, licence-clean placeholder photos (`apps/web/public/seed-photos/`,
- * `SOURCES.md` next to them records each one's source and licence) — every
+ * `SOURCES.md` next to them records each one's source and licence) - every
  * seeded animal cycles through the ones matching its own species, resolved
- * to a URL by `apps/web/src/image-loader.ts` — the app's single `next/image`
- * loader, wired globally by `next.config.ts`'s `images.loaderFile` — which
+ * to a URL by `apps/web/src/image-loader.ts` - the app's single `next/image`
+ * loader, wired globally by `next.config.ts`'s `images.loaderFile` - which
  * H1's real R2/CDN pipeline replaces without touching any call site.
  *
- * Deliberately mixed aspect ratios (0.75 portrait to 2.09 wide landscape —
+ * Deliberately mixed aspect ratios (0.75 portrait to 2.09 wide landscape -
  * `SOURCES.md` has the full table), not nine copies of the design's own 4:5:
  * `AnimalCard`'s photo box is a fixed CSS shape, and a source photo that
  * already matches it exactly is the one case that would never exercise the
  * `object-cover` cropping path real shelter uploads will actually need.
  * `width`/`height` below are each photo's true dimensions, not a fabricated
- * uniform value — the whole point is that they disagree with the box.
+ * uniform value - the whole point is that they disagree with the box.
  *
  * A prior version of this generated 880 individual synthetic JPEGs (a
  * warm-grey pixel, byte-padded to a realistic 300-500KB) into a
- * `seed-photos/` directory Next never served — every card 404'd. A second
- * prior version pointed every animal at one single real file — real, but
+ * `seed-photos/` directory Next never served - every card 404'd. A second
+ * prior version pointed every animal at one single real file - real, but
  * indistinguishable card to card. Per-animal file-size realism can come
  * back (see git history for `generatePlaceholderPhoto`) if a real
  * requirement calls for it.
@@ -334,7 +334,7 @@ const CAT_PHOTOS: AnimalPhoto[] = [
 ];
 
 /**
- * D-6 (docs/build-plan.md) — real CC0 photographs at deliberately awkward
+ * D-6 (docs/build-plan.md) - real CC0 photographs at deliberately awkward
  * aspect ratios, dog-only (see `SIX_PHOTO_INDEX`'s own comment below for
  * why only the dog slots of the original 6-candidate set are used here).
  * Full provenance: `apps/web/public/seed-photos/d6-real/SOURCES.md`.
@@ -343,13 +343,13 @@ const CAT_PHOTOS: AnimalPhoto[] = [
  * **Order matters, not just membership.** `DetailPhotoGallery.tsx` caps its
  * gallery at 3 photos (the mock's own fixed count), and `makeD6Photos` below
  * always starts cycling at index 0 regardless of which animal it's building
- * for — so whichever 3 of these 4 sit first are the *only* 3 a site visitor
+ * for - so whichever 3 of these 4 sit first are the *only* 3 a site visitor
  * can ever actually see through that gallery; the 4th exists in
  * `animal.photos` but is structurally unreachable there. Found on review,
  * 2026-10-06: the original order put the small, near-square photo ahead of
  * the large one, silently hiding the large-pixel-dimension stress case
- * entirely. Ordered here as tall / wide / large — the two most extreme
- * aspect ratios plus the largest real pixel dimensions — with the
+ * entirely. Ordered here as tall / wide / large - the two most extreme
+ * aspect ratios plus the largest real pixel dimensions - with the
  * near-square small photo deliberately last, since it's the least
  * ratio-distinct of the four and the one most redundant with the regular
  * `DOG_PHOTOS` pool's own near-square entries.
@@ -382,7 +382,7 @@ const D6_REAL_DOG_PHOTOS: AnimalPhoto[] = [
 ];
 
 /**
- * `animalIndex`, not a random pick — the same animal gets the same photo
+ * `animalIndex`, not a random pick - the same animal gets the same photo
  * set on every seed run, so a harness screenshot or a manually-reviewed
  * page doesn't reshuffle out from under whoever's looking at it between
  * runs. Cycling starts at a different offset per animal (`animalIndex`
@@ -394,7 +394,7 @@ function makePhotos(species: AnimalSpecies, animalIndex: number, count: number):
   return Array.from({ length: count }, (_, i) => pool[(animalIndex + i) % pool.length]!);
 }
 
-/** `SIX_PHOTO_INDEX`'s own photo set — see that constant's comment. */
+/** `SIX_PHOTO_INDEX`'s own photo set - see that constant's comment. */
 function makeD6Photos(count: number): AnimalPhoto[] {
   return Array.from(
     { length: count },
@@ -403,7 +403,7 @@ function makeD6Photos(count: number): AnimalPhoto[] {
 }
 
 // ---------------------------------------------------------------------------
-// Cities — Kyiv oblast
+// Cities - Kyiv oblast
 // ---------------------------------------------------------------------------
 
 const CITY_DATA: { name: LocalizedText; centroid: { lat: number; lng: number } }[] = [
@@ -443,14 +443,14 @@ const CITY_DATA: { name: LocalizedText; centroid: { lat: number; lng: number } }
 
 /**
  * `citySlugOf` (`packages/domain`) takes the plain English string, not a
- * `LocalizedText` — it has no fallback for a missing English name now that
+ * `LocalizedText` - it has no fallback for a missing English name now that
  * it no longer transliterates the Ukrainian one (`city-slug.ts`'s own doc
  * comment). Every `CITY_DATA` entry above does carry a real `en`, but the
- * general `LocalizedText` type doesn't say so (`en` is nullable — a name can
+ * general `LocalizedText` type doesn't say so (`en` is nullable - a name can
  * be Ukrainian-only), so this throws rather than silently reading `.text`
  * off `null` or letting a typo'd empty string slip through as a slug source.
  *
- * Returns the whole `TranslatedText`, not just its `.text` — `CityName`
+ * Returns the whole `TranslatedText`, not just its `.text` - `CityName`
  * (`packages/domain`, tightened 2026-09-12 alongside the DB's own
  * `name_en_text`/`name_en_provenance` `NOT NULL` columns) requires a real
  * `en: TranslatedText`, not a plain string, so this doubles as the one place
@@ -460,7 +460,7 @@ const CITY_DATA: { name: LocalizedText; centroid: { lat: number; lng: number } }
 export function requireEnglishCityName(name: LocalizedText): TranslatedText {
   if (name.en === null || name.en.text.trim().length === 0) {
     throw new Error(
-      `City "${name.uk}" has no English name recorded — a slug cannot be derived without one.`,
+      `City "${name.uk}" has no English name recorded - a slug cannot be derived without one.`,
     );
   }
   return name.en;
@@ -479,7 +479,7 @@ export function buildCities(): City[] {
 }
 
 // ---------------------------------------------------------------------------
-// Shelters — 8 fictional shelters
+// Shelters - 8 fictional shelters
 // ---------------------------------------------------------------------------
 
 interface ShelterDef {
@@ -494,11 +494,11 @@ interface ShelterDef {
   edrpou: string;
   /**
    * Defaults to `"registered_ngo"` (the historical, only value here before
-   * D-4, 2026-09-06). Every shelter in the corpus was one legal form —
+   * D-4, 2026-09-06). Every shelter in the corpus was one legal form -
    * `ShelterLegalEntitySchema`'s other two variants (`legal-entity.ts`)
    * existed at the type level with nothing in the seed data ever
    * constructing them. **Narrowed on review, 2026-09-06:** this did not
-   * mean a registered-only assumption could pass untested anywhere —
+   * mean a registered-only assumption could pass untested anywhere -
    * `packages/domain/src/shelters/verification/policy.test.ts` and
    * `packages/db/test/onboard-shelter.test.ts` already exercise
    * `unregistered_initiative` directly, and nothing in `packages/contracts`
@@ -507,7 +507,7 @@ interface ShelterDef {
    * but `registered_ngo`, which is what this row fixes.
    *
    * Typed against `ShelterLegalEntity["kind"]` itself, not a hand-written
-   * copy of its three literals — `buildShelters`'s `switch` below is then
+   * copy of its three literals - `buildShelters`'s `switch` below is then
    * exhaustive against the real schema, so a variant added to
    * `ShelterLegalEntitySchema` fails this file's own build until handled,
    * rather than silently compiling because this local type never learned
@@ -542,7 +542,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     donationUrl: "https://send.monobank.ua/jar/dobrilapy",
     donationProvider: "monobank_jar",
     freshnessSentenceUk:
-      "Ми оновлювали цю картку 12 серпня. Напишіть — скажемо, чи тварина ще з нами.",
+      "Ми оновлювали цю картку 12 серпня. Напишіть - скажемо, чи тварина ще з нами.",
     verificationStatus: "verified",
   },
   {
@@ -561,20 +561,20 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "khvostatyi_dim",
     donationUrl: "https://send.monobank.ua/jar/khvostatyidim",
     donationProvider: "monobank_jar",
-    freshnessSentenceUk: "Ми заходили сюди 3 вересня. Напишіть — уточнимо, чи тварина ще чекає.",
+    freshnessSentenceUk: "Ми заходили сюди 3 вересня. Напишіть - уточнимо, чи тварина ще чекає.",
     verificationStatus: "verified",
   },
   {
     /**
-     * D-4, 2026-09-06 — the corpus's one `unregistered_initiative` shelter
+     * D-4, 2026-09-06 - the corpus's one `unregistered_initiative` shelter
      * (`ShelterLegalEntitySchema`'s third variant, `legal-entity.ts`):
      * "a large share of shelter activity in the target oblast is
      * unincorporated volunteer groups" per that schema's own comment, and
      * CLAUDE.md decision #6 explicitly says such a group can reach
-     * `verified` — a claim nothing in this corpus ever exercised before
+     * `verified` - a claim nothing in this corpus ever exercised before
      * this row, since every prior shelter here was `registered_ngo`.
      * `edrpou` stays on the def below for shape-consistency across
-     * `ShelterDef`, but `buildShelters` doesn't read it for this shelter —
+     * `ShelterDef`, but `buildShelters` doesn't read it for this shelter -
      * the domain type has no `edrpou` field on this variant at all.
      */
     displayName: "Притулок «Вірний друг»",
@@ -636,7 +636,7 @@ const SHELTER_DEFS: ShelterDef[] = [
   },
   {
     /**
-     * Deliberately the longest shelter name in the corpus — critique finding
+     * Deliberately the longest shelter name in the corpus - critique finding
      * C1, the shelter half. Every other name here is a short «Притулок «X»»
      * of roughly 18-24 characters, so the card's shelter line and the detail
      * page's shelter block had never been rendered against a name a
@@ -644,7 +644,7 @@ const SHELTER_DEFS: ShelterDef[] = [
      * and the legal-entity prefix is the realistic part: a registered NGO's
      * own name is rarely short.
      *
-     * Verified, and in a city with animals, on purpose — a long name on the
+     * Verified, and in a city with animals, on purpose - a long name on the
      * suspended or pending shelter would never reach the gallery at all and
      * would test nothing.
      */
@@ -662,11 +662,11 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: "https://send.monobank.ua/jar/lapusyk",
     donationProvider: "monobank_jar",
-    freshnessSentenceUk: "Картку оновлено 5 червня. Напишіть — скажемо, чи тварина ще шукає дім.",
+    freshnessSentenceUk: "Картку оновлено 5 червня. Напишіть - скажемо, чи тварина ще шукає дім.",
     verificationStatus: "verified",
   },
   {
-    // PENDING shelter — exercises the verified-shelter invariant
+    // PENDING shelter - exercises the verified-shelter invariant
     displayName: "Притулок «Новий початок»",
     descriptionUk: "Новий притулок у Фастові. Подали документи на верифікацію, очікуємо перевірку.",
     descriptionEn:
@@ -685,7 +685,7 @@ const SHELTER_DEFS: ShelterDef[] = [
     verificationStatus: "pending",
   },
   {
-    // SUSPENDED shelter — exercises the verified-shelter invariant
+    // SUSPENDED shelter - exercises the verified-shelter invariant
     displayName: "Притулок «Зоряний»",
     descriptionUk: "Призупинено через скарги на умови утримання тварин. Проводиться перевірка.",
     descriptionEn: null,
@@ -765,7 +765,7 @@ export function buildShelters(cities: City[]): Shelter[] {
           : null,
     };
 
-    // Exhaustive switch, not a ternary chain — same reasoning as
+    // Exhaustive switch, not a ternary chain - same reasoning as
     // buildVerification's own switch below: a fourth variant added to
     // ShelterLegalEntitySchema should fail to compile here, not silently
     // seed as registered_ngo with nothing red (caught on review).
@@ -822,19 +822,19 @@ export function buildShelters(cities: City[]): Shelter[] {
 }
 
 /**
- * Phase 3 (seed profiles, `docs/handoff-2026-10-04.md` §3.4) — the `demo`
+ * Phase 3 (seed profiles, `docs/handoff-2026-10-04.md` §3.4) - the `demo`
  * profile's two shelters are **reused identities from the `test` corpus
  * above, not new ones**, per that section's own "reuses `buildShelters`/
  * `buildAnimals` with fixed inputs." Chosen because each already embodies
  * one of the handoff's named "look plausible to a human" hostile cases as a
  * property of the identity itself, with no special-casing needed:
- *   - index 2, «Вірний друг» — already `unregistered_initiative`
+ *   - index 2, «Вірний друг» - already `unregistered_initiative`
  *     (CLAUDE.md decision #6's "an unregistered volunteer group can reach
  *     verified") and already has no freshness sentence
  *     (`freshnessSentenceUk: null` on its own `ShelterDef` above).
- *   - index 5, «Благодійна організація «Прихисток на Лісовій»» — already
+ *   - index 5, «Благодійна організація «Прихисток на Лісовій»» - already
  *     the corpus's deliberately long shelter name (critique C1).
- * Both are `verified` — the demo corpus never needs to exercise the
+ * Both are `verified` - the demo corpus never needs to exercise the
  * pending/suspended/non-verified-exclusion invariants, which the `test`
  * profile's other 6 shelters exist for.
  */
@@ -842,7 +842,7 @@ const DEMO_SHELTER_DEF_INDICES = [2, 5] as const;
 
 /**
  * D-5 (pulled forward from Part 5 to Phase 3, `docs/handoff-2026-10-04.md`
- * §3, row 3) — the `demo` profile is shown to real people (the rehearsal, a
+ * §3, row 3) - the `demo` profile is shown to real people (the rehearsal, a
  * preview deployment), so nothing it reveals can actually reach, pay, or
  * mislead a real person. DEFAULT placeholder format (the handoff's own
  * words: "real-shaped Ukrainian number with a visible «демо» marker in the
@@ -850,23 +850,23 @@ const DEMO_SHELTER_DEF_INDICES = [2, 5] as const;
  * `docs/decisions-inbox/feat-seed-profiles.md`, SP-1):
  *
  * **Contact.** Email is the *primary* channel, at a `.invalid` domain
- * (`opika-demo.invalid`) — RFC 2606 reserves `.invalid` so that it can
+ * (`opika-demo.invalid`) - RFC 2606 reserves `.invalid` so that it can
  * **never resolve or deliver, by internet standard, not by convention**.
  * The local part carries the visible "демо"-equivalent marker
  * (`ContactChannelSchema`'s email variant is free-form text before the @,
  * unlike an E.164 phone number's strict digits-only shape, which cannot
  * carry a marker inside the value at all). A Telegram handle was the first
  * version of this (round-1 Tier 1 review caught it): a `demo_`-prefixed
- * handle still satisfies Telegram's own 5–32-character username rule, so
+ * handle still satisfies Telegram's own 5-32-character username rule, so
  * nothing stops a stranger from registering that exact handle and
- * receiving whatever a confused rehearsal viewer sends it — a live
+ * receiving whatever a confused rehearsal viewer sends it - a live
  * contactability risk an `.invalid` email address cannot have, since it
  * is not a namespace anyone can register into. The phone channel, kept in
  * `additional` for UI parity with `test`'s own two-channel shelters, uses
- * an all-zero subscriber number (`+380000000000`) — E.164-shaped, never an
+ * an all-zero subscriber number (`+380000000000`) - E.164-shaped, never an
  * assigned Ukrainian range.
  *
- * **Donation.** `null` — the two reused identities' real `donationUrl`s
+ * **Donation.** `null` - the two reused identities' real `donationUrl`s
  * point at real third-party payment providers (Monobank jar / LiqPay)
  * whose own account ownership this codebase has no way to control or
  * verify. Round-1 Tier 1 review's highest-severity finding: a rehearsal
@@ -876,12 +876,12 @@ const DEMO_SHELTER_DEF_INDICES = [2, 5] as const;
  *
  * **Exact address.** The reused identities' `exactAddress` and
  * `publicLocation` are both real Kyiv-oblast street names and coordinates
- * (fictional shelters, but genuine, physically real streets) — also
+ * (fictional shelters, but genuine, physically real streets) - also
  * flagged in round-1 review: a rehearsal viewer who reveals a demo
  * shelter's contact sees a real address they could physically go to,
  * expecting a shelter that was never there. Replaced with an obviously
  * fictional street label and the shelter's own city centroid (already
- * public, non-precise data — `CityView.centroid`, per
+ * public, non-precise data - `CityView.centroid`, per
  * `docs/standing-constraints.md`'s location-privacy note) as the
  * coordinates, so even the reveal-gated "exact" address exposes nothing
  * more precise than city level. `publicLocation` is recomputed from the
@@ -925,7 +925,7 @@ export function buildDemoShelters(cities: City[]): Shelter[] {
 }
 
 // ---------------------------------------------------------------------------
-// Animals — 300+ with realistic distributions
+// Animals - 300+ with realistic distributions
 // ---------------------------------------------------------------------------
 
 const DOG_NAMES = [
@@ -961,7 +961,7 @@ const DOG_NAMES = [
   "Гром",
   /**
    * Deliberately the longest name in the corpus, and the only reason it is
-   * here — critique finding C1. Every other name in these pools is six
+   * here - critique finding C1. Every other name in these pools is six
    * characters or fewer, so `AnimalCard`'s `truncate` (the design's own
    * "animal names truncate to one line with ellipsis") had never once been
    * exercised anywhere near its limit: the safety net existed and was
@@ -1116,23 +1116,23 @@ const DESCRIPTIONS_EN: { text: string; provenance: "human" | "machine" }[] = [
 ];
 
 /**
- * D-4 hostile-corpus indices, 2026-09-06 (docs/build-plan.md, Phase D) —
+ * D-4 hostile-corpus indices, 2026-09-06 (docs/build-plan.md, Phase D) -
  * deliberate single instances, not statistical presence, so each is
  * findable by a query rather than by luck. Same idiom as the long
  * shelter/animal names above (Phase T's C1): a hostile shape gets exactly
  * one guaranteed occurrence, not a hope that the bulk RNG produces one.
  *
- * Both fall in `roll < 14` (`i % 20 < 14`, see `listing` below) — published,
+ * Both fall in `roll < 14` (`i % 20 < 14`, see `listing` below) - published,
  * not draft, because a draft's own 0-photo case was already covered before
  * this row; the point here is that *published* animals need to survive
  * having 0 or 6 photos too, which nothing in the corpus had ever produced.
  *
  * `SIX_PHOTO_INDEX`'s animal is a dog (`i % 3 !== 0`). **Its photos are no
- * longer `makePhotos`'s regular cycling pool** — D-6 (`docs/build-plan.md`)
+ * longer `makePhotos`'s regular cycling pool** - D-6 (`docs/build-plan.md`)
  * gives it `makeD6Photos` instead: 4 real, distinct CC0 photographs at
  * deliberately awkward aspect ratios, cycled to 6 (the 4th and 5th slots
  * repeat the first two). Still a duplicate-photo case, same as before this
- * change, just with real images instead of the regular placeholder pool —
+ * change, just with real images instead of the regular placeholder pool -
  * real shelters upload duplicates too, so this wasn't "fixed" into six
  * genuinely distinct images, only upgraded from placeholder to real.
  */
@@ -1179,7 +1179,7 @@ export function buildAnimals(
   for (let i = 0; i < count; i++) {
     // Phase 3 (seed profiles, docs/handoff-2026-10-04.md §3.4): the `demo`
     // profile calls this same function with only 2, both-verified shelters
-    // (`buildDemoShelters`) — an empty `nonVerifiedShelters` pool falls back
+    // (`buildDemoShelters`) - an empty `nonVerifiedShelters` pool falls back
     // to the verified pool rather than `shelterPool[i % 0]` (NaN index,
     // `undefined` cast through the `!`, a crash several fields downstream).
     // `test`'s own 8-shelter corpus always has at least one non-verified
@@ -1264,7 +1264,7 @@ export function buildAnimals(
           };
 
     // Description: Ukrainian always present (LocalizedTextSchema requires a
-    // non-empty string — an actually-empty description is not a
+    // non-empty string - an actually-empty description is not a
     // constructable Animal, so D-4's "no description" hostile case is this:
     // one animal (i === MINIMAL_DESCRIPTION_INDEX) with the shortest honest
     // non-answer a shelter volunteer might actually type, rather than one
@@ -1365,7 +1365,7 @@ export function buildAnimals(
           // constant. A constant would give every reserved animal an identical
           // wait anchor, recreating in fresh seed data exactly the flat
           // "longest waiting" ordering the wait_anchor_at backfill exists to
-          // remove from the old data — and it would look plausible, because
+          // remove from the old data - and it would look plausible, because
           // the rows would still sort.
           publishedAt: daysAgo(lastUpdatedDaysAgo(i, count) + 7),
           confirmedAt: daysAgo(lastUpdatedDaysAgo(i, count)),
@@ -1392,13 +1392,13 @@ export function buildAnimals(
     const id = animalId(i);
     // D-6 (docs/build-plan.md) + O-10/critique-C6: `SIX_PHOTO_INDEX`'s own
     // photos are real CC0 Commons photographs at deliberately awkward
-    // aspect ratios (9:16 tall, 16:9 wide, ~400px small, ~4000px large — see
+    // aspect ratios (9:16 tall, 16:9 wide, ~400px small, ~4000px large - see
     // `D6_REAL_DOG_PHOTOS` above and `apps/web/public/seed-photos/d6-real/
     // SOURCES.md`) instead of the regular cycling pool, so the detail page's
     // photo gallery has one deterministic, findable-by-query animal whose
     // crop behaviour is actually exercised against real variance rather than
     // 9 same-ish placeholders. Dog-only, matching this index's own species
-    // (comment above) — the EXIF-rotated candidate and the pool's other cat
+    // (comment above) - the EXIF-rotated candidate and the pool's other cat
     // photo aren't used here, not because they need stripping out of the
     // repo (SOURCES.md records both as deliberately unwired, not forgotten),
     // just because a dog's own listing showing a cat photo would be a real
@@ -1407,12 +1407,12 @@ export function buildAnimals(
     // row.
     //
     // **Only 3 of these 4 are ever visible through the gallery itself**
-    // (`DetailPhotoGallery.tsx` caps at 3, the mock's own fixed count) — the
+    // (`DetailPhotoGallery.tsx` caps at 3, the mock's own fixed count) - the
     // small near-square photo is deliberately ordered last in
     // `D6_REAL_DOG_PHOTOS` so the two most extreme ratios (tall, wide) and
     // the largest pixel dimensions (large) are the three a visitor actually
     // sees; see that array's own comment for why. Not a workaround for a
-    // gap — a real, accepted limit of showing 6 cycled photos through a
+    // gap - a real, accepted limit of showing 6 cycled photos through a
     // 3-photo-capped gallery, the same structural fact D6-2
     // (`docs/decisions-inbox/feat-d-6-detail-photo-gallery.md`) records for
     // any animal with more than 3 photos, which today is ~40% of the
@@ -1459,7 +1459,7 @@ export function buildAnimals(
       medicalNotes,
       publicLocation,
       // S8-F5: fictional seed data, computed the same way the real hooks
-      // would, not hand-set — so a verified shelter's published animals
+      // would, not hand-set - so a verified shelter's published animals
       // come out served and a non-verified one's come out null, exactly
       // matching `buildDiscoverabilityPredicate`.
       everServedAt: everServedAtAfter(null, listing, shelter.verification, daysAgo(updatedDaysAgo)),
@@ -1479,15 +1479,15 @@ export function buildAnimals(
 }
 
 /**
- * Phase 3 (seed profiles, `docs/handoff-2026-10-04.md` §3.4) — the `demo`
+ * Phase 3 (seed profiles, `docs/handoff-2026-10-04.md` §3.4) - the `demo`
  * profile's 18 animals. Reuses `buildAnimals` for the full base
  * distribution (ages, sizes, vaccination, freshness, names, listing states
- * — everything that function already produces) rather than inventing a
+ * - everything that function already produces) rather than inventing a
  * second generator, per that section's own "reuses `buildShelters`/
  * `buildAnimals` with fixed inputs." Of the handoff's five named "look
  * plausible to a human" hostile cases, three already fall out of calling
  * this with only 18 animals against the two reused shelters from
- * `buildDemoShelters` — no override needed:
+ * `buildDemoShelters` - no override needed:
  *   - **0-photo draft:** `buildAnimals`'s own listing-state roll
  *     (`i % 20`, draft at rolls 16 and 17) always lands on indices 16 and
  *     17 at an 18-animal count, and a draft's `photoCount` is
@@ -1497,12 +1497,12 @@ export function buildAnimals(
  *     (`buildDemoShelters`'s own comment).
  *   - **long name:** a property of the reused «Прихисток на Лісовій»
  *     identity.
- * The remaining named case — a 6-photo animal — has no natural equivalent
+ * The remaining named case - a 6-photo animal - has no natural equivalent
  * at this scale (the regular per-animal photo count never exceeds 5
  * without an explicit override), so it is the one case this function
  * overlays directly, onto index 1 (the first published, dog-species index
  * at this count under `buildAnimals`'s own species/listing formulas),
- * reusing the real D-6 photographs `test`'s own `SIX_PHOTO_INDEX` uses — a
+ * reusing the real D-6 photographs `test`'s own `SIX_PHOTO_INDEX` uses - a
  * real photo set, not a placeholder, since `demo` is actually shown to
  * people.
  */
@@ -1518,7 +1518,7 @@ export function buildDemoAnimals(
     if (i !== DEMO_SIX_PHOTO_INDEX) return { animal, cityId };
     if (animal.species !== "dog") {
       throw new Error(
-        `DEMO_SIX_PHOTO_INDEX (${DEMO_SIX_PHOTO_INDEX}) must land on a dog — ` +
+        `DEMO_SIX_PHOTO_INDEX (${DEMO_SIX_PHOTO_INDEX}) must land on a dog - ` +
           "buildAnimals's species formula changed under this constant.",
       );
     }
@@ -1614,7 +1614,7 @@ async function main(profile: SeedProfile) {
 }
 
 // Only run the CLI when this file is executed directly (`tsx src/seed.ts`),
-// not when its exports are imported for testing — importing a module must
+// not when its exports are imported for testing - importing a module must
 // never have the side effect of running its whole script (same convention
 // as onboard-shelter.ts's own CLI guard, see that file's comment for the
 // Windows argv[1]/pathToFileURL reasoning).
