@@ -148,7 +148,7 @@ export function providerMagicLinkSender(
   options: {
     ttlMinutes: number;
     /**
-     * Signs the email (`— {operator}`). Required, so the wiring can't build
+     * Signs the email (`- {operator}`). Required, so the wiring can't build
      * this sender without it: production passes `ProductionSignIn.operatorName`,
      * i.e. `operatorDisplayName(env)`, the value that signs the invite.
      */

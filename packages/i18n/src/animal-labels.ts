@@ -9,7 +9,7 @@ import { uk } from "./messages/uk";
 
 /**
  * Both maps are `Record`s over the domain's own bucket types, not a
- * `switch` with a `default` — a bucket added to `AGE_BUCKETS`/`SIZE_BUCKETS`
+ * `switch` with a `default` - a bucket added to `AGE_BUCKETS`/`SIZE_BUCKETS`
  * without a matching entry here is a compile error, not a fallback string.
  */
 const AGE_BUCKET_LABELS: Record<AgeBucket, string> = {
@@ -54,7 +54,7 @@ export function ageWordFor(bucket: AgeBucket, sex: AnimalSex): string {
 /**
  * The gallery-v3 card's own sex word («Хлопчик»/«Дівчинка»), named as its own fact rather than
  * folded into the age word's grammatical gender the way `ageWordFor` above does. `null` for
- * `"unknown"` — unlike `ageWordFor`, which must always return *some* age word and so falls back
+ * `"unknown"` - unlike `ageWordFor`, which must always return *some* age word and so falls back
  * to the masculine form, there is no fallback sex word that would be true, so the caller omits
  * it instead of guessing.
  */

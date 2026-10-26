@@ -59,7 +59,7 @@ describe("sexWordFor", () => {
     expect(sexWordFor(sex)).toBe(word);
   });
 
-  it("an unknown sex has no word — the caller omits it rather than guessing", () => {
+  it("an unknown sex has no word - the caller omits it rather than guessing", () => {
     expect(sexWordFor("unknown")).toBeNull();
   });
 });
