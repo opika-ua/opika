@@ -164,7 +164,7 @@ export function kabinetShelterRepo(db: Database) {
           .returning({ id: shelters.id }),
       );
       const moved = input.changes.find((change) => change.kind === "exact_address");
-      // S8-F5, hook 2: entering `verified` (approve, resume, reinstate — the
+      // S8-F5, hook 2: entering `verified` (approve, resume, reinstate - the
       // only three events `transition()` can produce this status for) can
       // make animals visible that a publish never stamped, because they
       // were published while this shelter was pending, paused or suspended.
@@ -177,8 +177,8 @@ export function kabinetShelterRepo(db: Database) {
       // Tier 1 review finding 5 (PR #196): an address move and a verification
       // change used to be two separate sibling CTEs, each its own UPDATE of
       // `animals`. When a single audited write carries both (a profile edit
-      // and an approval in one call) and they target the same row — any
-      // animal at the shelter's own premises, not fostered — Postgres's
+      // and an approval in one call) and they target the same row - any
+      // animal at the shelter's own premises, not fostered - Postgres's
       // documented behaviour for two data-modifying WITH statements racing
       // the same row is "the results are unspecified": observed empirically
       // as `city_id` silently not moving while `everServedAt` still got set.

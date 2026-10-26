@@ -3,8 +3,8 @@
  * by role, label and text (CLAUDE.md, "Test logic, not looks"): saving from
  * the gallery overlay, the saved page showing it after a reload (real
  * `localStorage`, which no component test can exercise), clicking a saved
- * card opening the full animal page — never an overlay, since `/zberezheni`
- * sits outside `/tvaryny`'s intercepting layout — and the batch endpoint's
+ * card opening the full animal page - never an overlay, since `/zberezheni`
+ * sits outside `/tvaryny`'s intercepting layout - and the batch endpoint's
  * `Cache-Control: no-store`, which only a real network response carries.
  *
  * Its own `x-forwarded-for` (TEST-NET-2 .44), the same reasoning every
@@ -39,14 +39,14 @@ test.describe("saving an animal, from the gallery, shows up on the saved page", 
     await page.keyboard.press("Escape");
     // Review of 6825ffd, finding 6: this comment used to say the overlay
     // rendered its own `SiteHeader` (and so its own `nav-saved`), making
-    // the next click ambiguous until the dialog was gone — stale since
+    // the next click ambiguous until the dialog was gone - stale since
     // batch A, which moved the header out of the overlay entirely. The
     // wait stays for a real reason instead: Escape is a history pop, and
     // the click below must land on the gallery page, not mid-transition
     // while the dialog is merely told to close.
     await page.getByRole("dialog").waitFor({ state: "hidden" });
 
-    // The saved page is linked from the header, on the gallery — a real,
+    // The saved page is linked from the header, on the gallery - a real,
     // full navigation, never the intercepting route (`/zberezheni` sits
     // outside `/tvaryny`, so S4's `(.)[animalId]` cannot match it).
     await page.getByTestId("nav-saved").click();
@@ -65,7 +65,7 @@ test.describe("saving an animal, from the gallery, shows up on the saved page", 
     await expect(page.locator(SAVE_BUTTON)).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("a reload keeps the save — real localStorage, not component state", async ({ page }) => {
+  test("a reload keeps the save - real localStorage, not component state", async ({ page }) => {
     await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
     await page.locator(CARD).first().click();
     const saveButton = page.locator(SAVE_BUTTON);
@@ -101,7 +101,7 @@ test.describe("the saved page's batch read", () => {
     expect(response.headers()["cache-control"]).toBe("no-store");
   });
 
-  test("the request carries no cookie — credentials: 'omit' (DR1-Q2)", async ({ page }) => {
+  test("the request carries no cookie - credentials: 'omit' (DR1-Q2)", async ({ page }) => {
     await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
     await page.locator(CARD).first().click();
     await page.locator(SAVE_BUTTON).click();
@@ -117,7 +117,7 @@ test.describe("the saved page's batch read", () => {
     // `request.headers()` never carries cookies at all (Playwright's own
     // doc comment: "does not return security-related headers, including
     // cookie-related ones"), so asserting on it here would pass whether or
-    // not `credentials: "omit"` actually did anything — `allHeaders()` is
+    // not `credentials: "omit"` actually did anything - `allHeaders()` is
     // the one that would show a cookie if the browser had sent it.
     const headers = await request.allHeaders();
     expect(headers.cookie).toBeUndefined();
@@ -127,7 +127,7 @@ test.describe("the saved page's batch read", () => {
    * S8-D1 (Oleksii, 2026-10-23): POST only. oRPC's own codec would happily
    * decode a GET's input from a `?data=` query string instead of the body
    * (`route.ts`'s own comment on `CARDS_BY_IDS_PATH` has the full reasoning)
-   * — exactly the ids this endpoint's "never logged" promise exists to
+   * - exactly the ids this endpoint's "never logged" promise exists to
    * protect, sitting in the URL instead. Checked against a real server, not
    * the route module's source, since the method restriction lives in
    * `route.ts`'s shared `handleRequest`, not in the oRPC contract itself.
@@ -140,13 +140,13 @@ test.describe("the saved page's batch read", () => {
 
   /**
    * S8-D1 (Oleksii, 2026-10-23): exempting this path from the pre-launch
-   * gate must not also exempt it from `apiRateLimiter` — the two are
+   * gate must not also exempt it from `apiRateLimiter` - the two are
    * independent checks in `route.ts`, but nothing short of actually
    * spending the budget proves the exemption didn't accidentally skip
    * both. Same pattern as `gallery-rate-limit.harness.ts`: a random,
    * unique IP so this test's deliberate exhaustion can never collide with
    * another test's budget, and the `request` API context rather than
-   * `page`, since this needs no browser and no gate cookie at all — the
+   * `page`, since this needs no browser and no gate cookie at all - the
    * whole point of the exemption.
    */
   test("the per-IP rate limit still applies, even though the gate doesn't", async ({ request }) => {
@@ -168,7 +168,7 @@ test.describe("the saved page's batch read", () => {
 
     expect(
       lastStatus,
-      `request ${BUDGET + 1} was not rate-limited — the gate exemption may have skipped the rate limiter too`,
+      `request ${BUDGET + 1} was not rate-limited - the gate exemption may have skipped the rate limiter too`,
     ).toBe(429);
   });
 });

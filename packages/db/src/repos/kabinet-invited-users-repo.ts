@@ -21,11 +21,11 @@ export function kabinetInvitedUsersRepo(db: Database) {
   return {
     /**
      * Set once, by Better Auth's session-create hook. Kept for its own sake
-     * (an audit fact — has this invitee ever signed in) but no longer read
+     * (an audit fact - has this invitee ever signed in) but no longer read
      * by the clean-up below: Oleksii's generalised erasure invariant,
      * 2026-10-24 ("whether or not it ever signed in"), replaced the earlier
      * "no session ever" condition entirely (RG-Q3's own rule, amended the
-     * same day — see `cleanupCandidates`/`deleteCandidates`).
+     * same day - see `cleanupCandidates`/`deleteCandidates`).
      */
     async markFirstSession(userId: string, at: Date): Promise<void> {
       await db
@@ -41,10 +41,10 @@ export function kabinetInvitedUsersRepo(db: Database) {
 
     /**
      * Users the clean-up may delete: every account an invitation created
-     * that today holds no shelter role at all — no membership, not an
+     * that today holds no shelter role at all - no membership, not an
      * operator, no support session, and no live invitation anywhere
      * (`NOT_ELSEWHERE_IN_USE` and `noLiveInvitationElsewhere`, the same two
-     * checks `deleteCandidates` below and `erasableIf` both use — one
+     * checks `deleteCandidates` below and `erasableIf` both use - one
      * invariant, not a copy of it. `NOT_ELSEWHERE_IN_USE`'s own membership
      * check is redundant with the `leftJoin`/`isNull` below; kept anyway,
      * since reusing the shared constant as-is is what keeps this in sync
@@ -61,7 +61,7 @@ export function kabinetInvitedUsersRepo(db: Database) {
      * already excludes a user whose *own* creating invitation is still live
      * (it would itself be "a live invitation … for the address"), so the
      * separate revoked-or-expired check on that one invitation is gone too
-     * — redundant with the "no live invitation anywhere" check once
+     * - redundant with the "no live invitation anywhere" check once
      * `firstSessionAt` no longer needs its own `dead`-invitation join.
      */
     async cleanupCandidates(input: {
@@ -103,7 +103,7 @@ export function kabinetInvitedUsersRepo(db: Database) {
      * `admin_invited`/`admin_invitation_resent`/`admin_removed` history
      * entries, and every `auth_invitation` row their address was ever sent,
      * lose the real email in the same statement as the account's deletion,
-     * exactly as an accepted admin's removal (`erasableIf`) already did —
+     * exactly as an accepted admin's removal (`erasableIf`) already did -
      * one shared mechanism, not a second copy of the scrub for this path.
      */
     async deleteCandidates(userIds: readonly string[], now: Date): Promise<number> {

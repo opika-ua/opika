@@ -12,7 +12,7 @@ const TEST_DATABASE_TEARDOWN = "./test/vitest-global-setup.ts";
  * Two projects, because this package has two genuinely different kinds of test
  * and one environment cannot serve both.
  *
- * `api` talks to a real Postgres over a socket and stays in Node — a DOM would
+ * `api` talks to a real Postgres over a socket and stays in Node - a DOM would
  * add globals it does not want and cannot benefit from.
  *
  * `dom` is new. Until it existed, a React component in this repository could
@@ -21,7 +21,7 @@ const TEST_DATABASE_TEARDOWN = "./test/vitest-global-setup.ts";
  * string. That is precisely the check that let the M5 layout defects through.
  *
  * happy-dom rather than jsdom: lighter, and nothing here needs jsdom's heavier
- * CSS and navigation emulation. Know the limit that comes with it — happy-dom
+ * CSS and navigation emulation. Know the limit that comes with it - happy-dom
  * does no layout, so `getBoundingClientRect` is all zeros and computed styles
  * are the inline ones. Anything that needs a real browser (pointer events, the
  * tab order, a photo that decodes) belongs in the Playwright harness under
@@ -29,7 +29,7 @@ const TEST_DATABASE_TEARDOWN = "./test/vitest-global-setup.ts";
  *
  * `dom` therefore claims everything `api` does not, rather than only
  * `src/features`. Two narrow globs would leave the rest of `src` matched by no
- * project at all, and a test file added there would not fail — it would simply
+ * project at all, and a test file added there would not fail - it would simply
  * never run, which is the same silent green this whole branch exists to remove.
  */
 export default defineConfig({
@@ -41,11 +41,11 @@ export default defineConfig({
           environment: "node",
           /**
            * `src/proxy.test.ts` joins this project, not `dom`, even though
-           * `proxy.ts` lives outside `src/api` — it constructs real
+           * `proxy.ts` lives outside `src/api` - it constructs real
            * `NextRequest`/`Headers` objects, and happy-dom's own DOM-shimmed
            * globals silently produced a `Headers` that couldn't be read back
            * (`cookie` came back empty even though the same construction
-           * worked correctly under plain Node) — found by a test that should
+           * worked correctly under plain Node) - found by a test that should
            * have passed failing for the wrong reason, not by inspection.
            * `proxy.ts` runs in the Node.js runtime in production anyway (its
            * own comment explains why), so `node` is also the accurate
@@ -70,7 +70,7 @@ export default defineConfig({
           // minority (src/app/page.test.tsx, src/app/tvaryny/page.test.tsx)
           // call createTestHarness() against this checkout's real test
           // database (opika_test_<hash>, packages/db/src/test-utils/test-database.ts), the same DROP SCHEMA CASCADE + migrate cycle
-          // src/api's files do — which is exactly why *that* project sets
+          // src/api's files do - which is exactly why *that* project sets
           // this flag. `dom` didn't need it back when it had zero DB-backed
           // files; now that it has two, they raced: one file's setup
           // dropped `drizzle.__drizzle_migrations` out from under the

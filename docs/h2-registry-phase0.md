@@ -25,7 +25,7 @@ Settled and not asked again:
 
 ## Q1. This PR: the API only, or the S-screens too?
 
-KABINET S1–S5 is five operator screens, including the reason dialog, the decision panel, the
+KABINET S1-S5 is five operator screens, including the reason dialog, the decision panel, the
 evidence step and the support bar. They need Ukrainian copy (`[COPY PENDING]`) and harness
 coverage.
 

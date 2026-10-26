@@ -302,7 +302,7 @@ describe("providerMagicLinkSender", () => {
   });
 
   /**
-   * Oleksii, 2026-10-14: the sign-in email signs `— {operator}` as the invite
+   * Oleksii, 2026-10-14: the sign-in email signs `- {operator}` as the invite
    * does. The sender is where production's configured name reaches the
    * builder, so the signature is asserted on what it actually sent.
    */
@@ -313,8 +313,8 @@ describe("providerMagicLinkSender", () => {
       operatorName: "Олексій Колотенко",
       log: () => {},
     }).send({ email: "olena@example.org", url: URL_WITH_TOKEN });
-    expect(m.sent[0]?.text.endsWith("нічого не відбудеться.\n— Олексій Колотенко")).toBe(true);
-    expect(m.sent[0]?.html).toContain("нічого не відбудеться.<br>— Олексій Колотенко</p>");
+    expect(m.sent[0]?.text.endsWith("нічого не відбудеться.\n- Олексій Колотенко")).toBe(true);
+    expect(m.sent[0]?.html).toContain("нічого не відбудеться.<br>- Олексій Колотенко</p>");
   });
 });
 

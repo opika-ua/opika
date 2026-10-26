@@ -1,5 +1,5 @@
 /**
- * Server-only exports — `sharp` native bindings, `node:fs`, and
+ * Server-only exports - `sharp` native bindings, `node:fs`, and
  * `@aws-sdk/client-s3` all live behind this file, never behind `./index.ts`
  * (see its own comment for why the split exists). Two consumers:
  * `onboard-shelter.ts` (a Node CLI script) and, since PR 3, the kabinet's

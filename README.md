@@ -1,10 +1,10 @@
 # Opika (Опіка)
 
 A swipe-based pet adoption platform connecting adopters with verified shelters in Kyiv
-oblast, Ukraine. "Opika" — Ukrainian for guardianship/care — is a working name, not final;
+oblast, Ukraine. "Opika" - Ukrainian for guardianship/care - is a working name, not final;
 see [`CLAUDE.md`](./CLAUDE.md) for what that means in practice.
 
-No accounts required to browse. The platform never touches money — donations are external
+No accounts required to browse. The platform never touches money - donations are external
 links to a shelter's own payment page. All data in this repository is fictional; no real
 shelter or animal data is ever committed here.
 
@@ -14,16 +14,16 @@ The product is being built phase by phase (current status:
 [`docs/build-plan.md`](./docs/build-plan.md)). `/` redirects to the routes below, which are
 the real, current surfaces:
 
-- **`/tvaryny`** — the gallery: a browsable, filterable grid, the primary surface. Paginated,
-  works with JavaScript disabled. Not indexed yet — see the Phase D note below.
-- **`/tvaryny/gortaty`** — the swipe deck, entered from the gallery. Pointer/touch drag, or
+- **`/tvaryny`** - the gallery: a browsable, filterable grid, the primary surface. Paginated,
+  works with JavaScript disabled. Not indexed yet - see the Phase D note below.
+- **`/tvaryny/gortaty`** - the swipe deck, entered from the gallery. Pointer/touch drag, or
   the on-screen buttons, to move through animals one at a time. Not the front door on any
   screen size, and not indexed.
-- **`/tvaryny/[animalId]`** — an animal's detail page, with contact reveal.
-- **`/pro`** and **`/prytulkam`** — about the project, and the page a shelter is sent to.
+- **`/tvaryny/[animalId]`** - an animal's detail page, with contact reveal.
+- **`/pro`** and **`/prytulkam`** - about the project, and the page a shelter is sent to.
 
 Phase D is labelling and de-indexing the demo data above so a real visitor can't mistake it
-for a real registry before real shelters exist — see `docs/observations.md` for what's
+for a real registry before real shelters exist - see `docs/observations.md` for what's
 currently true about it.
 
 ## Stack, briefly
@@ -47,13 +47,13 @@ Day-to-day engineering rules: [`CLAUDE.md`](./CLAUDE.md) and
 # Once per machine
 corepack enable
 
-# Install — resolves the pinned pnpm version automatically
+# Install - resolves the pinned pnpm version automatically
 pnpm i
 
 # Local Postgres (Docker), mapped to localhost:5433
 docker compose up -d
 
-# Seed fictional data — cities, shelters, animals.
+# Seed fictional data - cities, shelters, animals.
 # DATABASE_URL isn't picked up from .env by the seed script; pass it explicitly.
 DATABASE_URL="postgresql://opika:opika@localhost:5433/opika" pnpm --filter @opika/db run db:seed
 
@@ -64,7 +64,7 @@ DATABASE_URL="postgresql://opika:opika@localhost:5433/opika" pnpm --filter @opik
 Then open **http://localhost:3000**.
 
 `docker-compose.yml` maps the container's Postgres to host port **5433**, not the
-Postgres-standard 5432 — the `OPIKA_DB_PORT` override in `docker-compose.yml` if you need
+Postgres-standard 5432 - the `OPIKA_DB_PORT` override in `docker-compose.yml` if you need
 a different one. Passing `DATABASE_URL` on the command line (as above) is the reliable
 path today; see [issue #22](https://github.com/opika-ua/opika/issues/22) for the config
 default that will eventually make this unnecessary.
@@ -80,16 +80,16 @@ pnpm check   # typecheck -> lint -> test -> next build -> Playwright rendering h
 This is the same gate CI runs, and the standing bar for any change: it must pass on a
 clean clone before anything is considered done. Individual steps (`pnpm typecheck`,
 `pnpm lint`, `pnpm test`, `pnpm build:web`, `pnpm test:harness`) are also available
-separately — see `package.json`'s `scripts`.
+separately - see `package.json`'s `scripts`.
 
 ## Repo layout
 
 ```
 opika/
-├─ apps/web/          # the Next.js app — adopter-facing PWA
+├─ apps/web/          # the Next.js app - adopter-facing PWA
 ├─ packages/
 │  ├─ contracts/      # Zod schemas + the oRPC API contract
-│  ├─ domain/         # pure business logic — no I/O, no framework
+│  ├─ domain/         # pure business logic - no I/O, no framework
 │  ├─ db/             # Drizzle schema, migrations, repositories, seed data
 │  ├─ ui/             # shared UI primitives used across features
 │  └─ i18n/           # uk/en message catalogues
@@ -100,10 +100,10 @@ opika/
 
 ## Where to go from here
 
-- [`docs/build-plan.md`](./docs/build-plan.md) — what's built, what's next, hour estimates.
-- [`docs/design/README.md`](./docs/design/README.md) — the design handoff: every screen,
+- [`docs/build-plan.md`](./docs/build-plan.md) - what's built, what's next, hour estimates.
+- [`docs/design/README.md`](./docs/design/README.md) - the design handoff: every screen,
   the string table, motion and spacing specs.
-- [`docs/stack-decision.md`](./docs/stack-decision.md) — why each piece of the stack was
+- [`docs/stack-decision.md`](./docs/stack-decision.md) - why each piece of the stack was
   chosen, with sources.
-- [`CLAUDE.md`](./CLAUDE.md) — the engineering rules this repo holds itself to, and why
+- [`CLAUDE.md`](./CLAUDE.md) - the engineering rules this repo holds itself to, and why
   each one exists.

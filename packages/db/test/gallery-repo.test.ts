@@ -84,7 +84,7 @@ async function makeShelterInCity(
  * This matters more than it looks. If any two ran in step, an assertion about
  * one sort mode would pass just as well against a query reading the other
  * column. Two of the three are columns the decisions rejected for a sort:
- * `last_updated_at` for both (a shelter fixing a typo resets it — H2-3 moved
+ * `last_updated_at` for both (a shelter fixing a typo resets it - H2-3 moved
  * `freshest` off it), and `publishedAt` for `freshest` (publishing once says
  * nothing about whether the animal is still looking today).
  */
@@ -295,7 +295,7 @@ describe("galleryRepo.list", () => {
       now: NOW,
     });
 
-    // Not an empty page reported as a genuine no-match — that would render
+    // Not an empty page reported as a genuine no-match - that would render
     // "nobody matches these filters" for a filter set that plainly does match.
     expect(stale.totalMatching).toBe(6);
     expect(stale.totalPages).toBe(2);
@@ -371,7 +371,7 @@ describe("galleryRepo.list", () => {
     expect(page.totalMatching).toBe(1);
   });
 
-  it("hides what the deck hides — drafts, and animals at unverified shelters", async () => {
+  it("hides what the deck hides - drafts, and animals at unverified shelters", async () => {
     const city = makeCity();
     await cityRepo(db).insert(city);
     const verified = await makeShelterInCity(city.id, "Перевірений");
@@ -430,7 +430,7 @@ describe("galleryRepo.list", () => {
     // hold in the *query*, not only in `galleryPageCount`: past the bound there
     // are still rows under the offset, so a repo that clamped nothing would
     // return a full page and a `page` greater than the `totalPages` it had just
-    // reported. Verified by mutation — removing the `maxNavigablePage` clamp in
+    // reported. Verified by mutation - removing the `maxNavigablePage` clamp in
     // `galleryRepo.list` makes this fail with page 85 against totalPages 84.
     const city = makeCity();
     await cityRepo(db).insert(city);
@@ -462,8 +462,8 @@ describe("galleryRepo.list", () => {
       now: NOW,
     });
 
-    // The count stays honest — the surface never claims to have found fewer
-    // animals than it did — while navigation stops at the bound.
+    // The count stays honest - the surface never claims to have found fewer
+    // animals than it did - while navigation stops at the bound.
     expect(beyond.totalMatching).toBe(overBound);
     expect(beyond.totalPages).toBe(lastNavigable);
     expect(beyond.page).toBe(lastNavigable);
@@ -756,7 +756,7 @@ describe("galleryRepo.relaxationCounts", () => {
     expect(counts.current).toBe(1);
 
     const byDimension = new Map(counts.relaxations.map((r) => [r.dimension, r.additional]));
-    // Ages is unconstrained, so there is no suggestion to make about it — a
+    // Ages is unconstrained, so there is no suggestion to make about it - a
     // "+0" row would be noise the design never asked for.
     expect([...byDimension.keys()].sort()).toEqual(["cities", "sizes", "species"]);
     expect(byDimension.get("cities")).toBe(5);
@@ -836,7 +836,7 @@ describe("galleryRepo.relaxationCounts", () => {
     });
 
     // Dropping the species filter reveals the one published cat, never the
-    // draft — a relaxation suggestion promising animals the list would not
+    // draft - a relaxation suggestion promising animals the list would not
     // then show is worse than no suggestion.
     expect(counts.current).toBe(0);
     expect(counts.relaxations).toEqual([{ dimension: "species", additional: 1 }]);

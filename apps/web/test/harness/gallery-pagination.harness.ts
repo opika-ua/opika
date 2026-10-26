@@ -2,7 +2,7 @@
  * E3's own verification list (docs/build-plan.md doesn't spell these out
  * per-phase, but the phase brief does): numbered pages render with the real
  * corpus's page count, the active page carries `aria-current="page"`,
- * clicking a page link is a real `push` (unlike E2's filter `replace` —
+ * clicking a page link is a real `push` (unlike E2's filter `replace` -
  * docs/gallery-contract-decisions.md §7), the skip link actually moves focus
  * past the grid, and at least one page transition works with JavaScript
  * disabled.
@@ -19,7 +19,7 @@ import { DESKTOP, PHONE } from "./viewports";
 
 /**
  * `proxy.ts` rate-limits `/tvaryny` at 100 req/min per IP, shared across
- * every harness file hitting it under the real local identity — see
+ * every harness file hitting it under the real local identity - see
  * `gallery-arrow-nav.harness.ts` for the full story and why this is
  * TEST-NET-2 (198.51.100.0/24) rather than the TEST-NET-3 block
  * `gallery-rate-limit.harness.ts` draws a random host from. `.24`: the next
@@ -35,13 +35,13 @@ const NAV = "[data-testid='gallery-pagination']";
 const PAGE_LINK = "[data-testid='pagination-page']";
 
 test.describe("/tvaryny pagination", () => {
-  test("the seeded corpus is genuinely multi-page — a precondition for every test below", async ({
+  test("the seeded corpus is genuinely multi-page - a precondition for every test below", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
     await expect(
       page.locator(NAV),
-      "gallery-pagination did not render at all — either totalPages <= 1 (the seed " +
+      "gallery-pagination did not render at all - either totalPages <= 1 (the seed " +
         "corpus shrank below one page) or the component is broken. Every other test in " +
         "this file assumes a real multi-page corpus.",
     ).toBeAttached();
@@ -54,7 +54,7 @@ test.describe("/tvaryny pagination", () => {
     await expect(active, "exactly one page should be marked active on load").toHaveCount(1);
     await expect(active).toHaveAttribute("aria-current", "page");
     await expect(active, "page 1 is active on a bare /tvaryny visit").toHaveText(/^1/);
-    // The active page is a <span>, not an <a> — clicking "the page you're
+    // The active page is a <span>, not an <a> - clicking "the page you're
     // already on" has nothing to do, so it should not be a navigation target.
     expect(await active.evaluate((el) => el.tagName)).toBe("SPAN");
   });
@@ -75,13 +75,13 @@ test.describe("/tvaryny pagination", () => {
     await expect(active).toHaveText(/^2/);
   });
 
-  test("clicking a page number is a real push — three separate back-presses undo three page moves", async ({
+  test("clicking a page number is a real push - three separate back-presses undo three page moves", async ({
     page,
   }) => {
     // A real prior page, the same reasoning gallery-filters.harness.ts's own
-    // push/replace test uses (including why it's /pro and not / — see that
+    // push/replace test uses (including why it's /pro and not / - see that
     // file's own comment): what this proves is push, specifically, by
-    // contrast with E2's filter replace — ten filter clicks collapse to one
+    // contrast with E2's filter replace - ten filter clicks collapse to one
     // history entry, but page navigation must not collapse the same way, or
     // "back" from page 4 would skip straight past 3 and 2 to the pre-gallery
     // page instead of landing on 3.
@@ -167,13 +167,13 @@ test.describe("/tvaryny pagination", () => {
    * the old design's own visible "← Назад" / "Далі →" text this test used
    * to pin. Icon-only is *not* a reversion to the WCAG 2.5.3 bug the old
    * test existed to catch (an aria-label that doesn't contain visible
-   * text) — that rule only applies when there IS visible text; with none
+   * text) - that rule only applies when there IS visible text; with none
    * at all, a plain `aria-label` naming the action is the standard,
    * compliant pattern (`GalleryPageNav.tsx`'s own top comment has the full
    * reasoning). This test is what would catch a regression back to
    * mismatched visible text instead.
    */
-  test("prev/next carry no visible text — the accessible name alone says what they do", async ({
+  test("prev/next carry no visible text - the accessible name alone says what they do", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
@@ -185,12 +185,12 @@ test.describe("/tvaryny pagination", () => {
   /**
    * V2 repoint (docs/design/README.md, "Pagination — not infinite scroll"):
    * "«з N» renders only when the number list is truncated with an ellipsis
-   * — while every number is on screen the counter just restates what you
+   * - while every number is on screen the counter just restates what you
    * can count." Previously unconditional; `GalleryPagination.tsx` now
    * gates it on `isTruncated`. This assertion's outcome is unchanged
    * because the seeded corpus (256 discoverable animals / 24 per page ≈ 11
    * pages) is genuinely past `ALWAYS_EXPANDED_THRESHOLD` (7) and always
-   * truncates at the default, unfiltered view this test loads — the
+   * truncates at the default, unfiltered view this test loads - the
    * untruncated case (no "з N") is covered instead in
    * `GalleryPagination.test.tsx`, where a small `totalPages` is a prop, not
    * something that needs 8+ real seeded pages to reach.

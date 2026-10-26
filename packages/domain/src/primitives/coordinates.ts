@@ -16,7 +16,7 @@ const ApproximateCoordinatesShape = z.object({
  * by the type system.
  *
  * The brand exists because `center` would otherwise be an ordinary
- * `Coordinates`, identical to `ExactAddress.coordinates` — so a repository
+ * `Coordinates`, identical to `ExactAddress.coordinates` - so a repository
  * could assign the true position into a public view and every typecheck, every
  * schema parse and every test would still pass, while the map drew a
  * reassuring circle around a pin that was exactly right. `fuzzCoordinates` is
@@ -30,7 +30,7 @@ export type FuzzedCoordinates = z.infer<typeof FuzzedCoordinatesSchema>;
  *
  * **This must be keyed on a server-held secret.** The offset applied to a
  * shelter is a deterministic function of its id and the published radius, and
- * both of those travel to the client in the same response — so if the
+ * both of those travel to the client in the same response - so if the
  * derivation can be reproduced from public inputs alone, the true position is
  * recoverable exactly. An HMAC over a server key is the intended
  * implementation; anything unkeyed reduces the fuzzing to decoration.
@@ -55,7 +55,7 @@ export const DEFAULT_FUZZ_RADIUS_METRES = 1000;
 
 /**
  * FNV-1a over the raw input. Deterministic and dependency-free, and **not
- * keyed** — anyone holding the shelter id can reproduce it, which is how the
+ * keyed** - anyone holding the shelter id can reproduce it, which is how the
  * original implementation was shown to be exactly invertible from a single
  * public response.
  *
@@ -77,7 +77,7 @@ const insecureUnkeyedDigest: KeyedUnitDigest = (input) => {
  * The `key` is a label rather than a secret: it exists so two fixtures can
  * produce different offsets, not to protect anything.
  *
- * Throws if called with `NODE_ENV=production` — the guard `assertProduction
+ * Throws if called with `NODE_ENV=production` - the guard `assertProduction
  * LocationPolicy` provides is opt-in (only fires if some later step remembers
  * to call it on the constructed value); this one applies the moment the
  * insecure policy is constructed at all, regardless of what happens to it
@@ -85,7 +85,7 @@ const insecureUnkeyedDigest: KeyedUnitDigest = (input) => {
  * Policy` comment already names: "a safety property that depends on somebody
  * remembering is not one." `packages/db/src/seed.ts` is this function's only
  * production-package caller today, and it never runs with `NODE_ENV=
- * production` set — this only fires if that ever changes, or a future
+ * production` set - this only fires if that ever changes, or a future
  * caller copies this function into a real request path by mistake.
  */
 export const testOnlyLocationPolicy = (
@@ -107,7 +107,7 @@ export const testOnlyLocationPolicy = (
 };
 
 /**
- * The production constructor. `digest` must be keyed on a server-held secret —
+ * The production constructor. `digest` must be keyed on a server-held secret -
  * an HMAC is the intended implementation.
  */
 export const keyedLocationPolicy = (
@@ -137,7 +137,7 @@ const METRES_PER_DEGREE_LATITUDE = 111_320;
  *
  * Deterministic per shelter, so the displayed point never drifts: a fresh
  * offset per request would let an observer average repeated samples back to the
- * true position. Determinism alone is not enough, though — see
+ * true position. Determinism alone is not enough, though - see
  * `KeyedUnitDigest`. The two draws use distinct labels so bearing and distance
  * are independent.
  *

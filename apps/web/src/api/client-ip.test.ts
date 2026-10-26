@@ -22,7 +22,7 @@ describe("clientIp header precedence", () => {
     expect(clientIp(requestWith({ "x-real-ip": "203.0.113.3" }))).toBe("203.0.113.3");
   });
 
-  it("is 'unknown' when nothing sets one — local dev, and the documented fallback", () => {
+  it("is 'unknown' when nothing sets one - local dev, and the documented fallback", () => {
     expect(clientIp(requestWith({}))).toBe("unknown");
   });
 });

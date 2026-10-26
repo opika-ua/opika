@@ -1,5 +1,5 @@
 /**
- * F1 (detail page) + F2 (contact reveal) — docs/design/README.md's addendum
+ * F1 (detail page) + F2 (contact reveal) - docs/design/README.md's addendum
  * frames D1/D2 (detail) and R1/R2 (reveal), opened directly per
  * docs/standing-constraints.md's "when a mock exists, open the mock file."
  *
@@ -8,18 +8,18 @@
  * integration point between E1's grid and F1's detail page, and is what
  * actually proves the 404 this phase set out to fix is gone, not just that
  * the route exists in isolation. Every other test below reuses that first
- * test's discovered href directly (see `discoverFirstAnimalHref` below) —
+ * test's discovered href directly (see `discoverFirstAnimalHref` below) -
  * they assert against a real seeded animal, just not by re-navigating the
  * gallery to find one.
  *
  * A dedicated `x-forwarded-for` isolates this file's own request budget from
- * proxy.ts's shared 100 req/min limiter — the same reasoning
+ * proxy.ts's shared 100 req/min limiter - the same reasoning
  * `gallery-filters.harness.ts` and siblings already give for their own IPs
  * (TEST-NET-2, 198.51.100.0/24; .21 through .28 are already claimed by
  * other harness files, this one is .29). Confirmed empirically (not just
  * reasoned about) that the dedicated IP alone is not enough: with caching
  * removed and only the IP isolation in place, "Esc closes the dialog" and
- * "Tab is trapped" still time out identically waiting on the gallery page —
+ * "Tab is trapped" still time out identically waiting on the gallery page -
  * this file's own ~20 tests, each doing a full gallery navigation, exhaust
  * its own budget before the file finishes. `discoverFirstAnimalHref` below
  * is a real fix, not a guess.
@@ -36,12 +36,12 @@ test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
 /**
  * `citySlugOf` (2026-09-12) takes a city's English name, not its Ukrainian
- * one — see `packages/domain/src/geography/city-slug.ts`'s own doc comment
+ * one - see `packages/domain/src/geography/city-slug.ts`'s own doc comment
  * for why the transliteration it used to do was dropped. This page renders
  * only the Ukrainian name, so the test below (which has no database access
- * of its own — see this file's top comment) can't ask `citySlugOf` to
+ * of its own - see this file's top comment) can't ask `citySlugOf` to
  * resolve a name it scraped from the DOM anymore. Pinned to `seed.ts`'s own
- * `CITY_DATA`, the same real, only-ever corpus this repo seeds — confirmed
+ * `CITY_DATA`, the same real, only-ever corpus this repo seeds - confirmed
  * exactly 8 rows against Neon before this migration shipped (Oleksii,
  * 2026-09-12), same posture as `city-slug-backfill.test.ts`'s own
  * `REAL_SEEDED_CITIES` table.
@@ -61,7 +61,7 @@ function expectedSlugFor(visibleCityNameUk: string): string {
   const nameEn = KNOWN_CITY_NAME_UK_TO_EN[visibleCityNameUk];
   if (nameEn === undefined) {
     throw new Error(
-      `"${visibleCityNameUk}" is not one of the 8 known seeded cities — either the seed corpus ` +
+      `"${visibleCityNameUk}" is not one of the 8 known seeded cities - either the seed corpus ` +
         "grew (add it to KNOWN_CITY_NAME_UK_TO_EN above) or this is a real bug.",
     );
   }
@@ -74,7 +74,7 @@ const CARD = "[data-testid='animal-card']";
 /**
  * Discovered once per file run, not once per test: every test here already
  * proved (individually, before this existed) that it reaches a real detail
- * page — what they don't each need is their *own* gallery page load to get
+ * page - what they don't each need is their *own* gallery page load to get
  * there. ~20 tests × a full gallery navigation apiece was enough real
  * request volume to trip proxy.ts's 100 req/min limiter by itself, even
  * with this file's own dedicated IP (`SPOOFED_IP_HEADERS` above isolates
@@ -117,7 +117,7 @@ async function openFirstAnimalDetail(
 }
 
 test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
-  test("360 — name, photo, action row, and both back links are real and visible", async ({
+  test("360 - name, photo, action row, and both back links are real and visible", async ({
     page,
   }) => {
     await openFirstAnimalDetail(page, DETAIL_PHONE);
@@ -136,7 +136,7 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
     ).toBeHidden();
   });
 
-  test("1920 — desktop back link, sticky photo column, and thumbnails are real and visible", async ({
+  test("1920 - desktop back link, sticky photo column, and thumbnails are real and visible", async ({
     page,
   }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
@@ -154,7 +154,7 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
 
     /**
      * O-12 (`docs/observations.md`): «← Усі тварини у {city}» has to
-     * actually claim a real city, not the unfiltered gallery — the link's
+     * actually claim a real city, not the unfiltered gallery - the link's
      * own text is the claim being checked. Folded into this existing test
      * (rather than a standalone one) to add zero extra page loads:
      * `gallery-filters.harness.ts` already proves a `?misto=` link
@@ -163,20 +163,20 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
      * bug produced) and names *this animal's own* city, not a placeholder.
      *
      * A membership check against the known seeded slugs alone does not
-     * prove that — every seeded slug is equally "real," so a mutation that
+     * prove that - every seeded slug is equally "real," so a mutation that
      * resolves the *wrong* city consistently (e.g. always Kyiv, for every
      * animal) still produces a value that passes a bare "is this a real
      * slug" assertion. The fix cross-checks two independently computed
-     * fields instead — `backToListIn`'s own visible city name (from
+     * fields instead - `backToListIn`'s own visible city name (from
      * `AnimalDetailScreen`'s `cityName` prop) and the href's `misto` slug
-     * (from its separate `backToGalleryHref` prop) — which catches the two
+     * (from its separate `backToGalleryHref` prop) - which catches the two
      * fields disagreeing (one derivation swapped onto a different city than
-     * the other). It does **not** catch both being wrong the *same* way —
+     * the other). It does **not** catch both being wrong the *same* way -
      * a consistently-wrong `city` lookup in `page.tsx` that both props are
      * built from would still make the two sides agree. Proving "the right
      * one, not just a consistent one" needs an oracle outside this page
      * (the real seeded corpus's actual per-animal city assignment), which
-     * costs a database read this harness test doesn't have — a real,
+     * costs a database read this harness test doesn't have - a real,
      * accepted gap, not something the assertion below overclaims to close.
      */
     const linkText = await desktopBack.textContent();
@@ -204,7 +204,7 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
 
   test("clicking a gallery card actually reaches a real animal, not a 404", async ({ page }) => {
     // The one test in this file that does a genuine, uncached gallery visit
-    // and click — every other test below reuses `discoverFirstAnimalHref`'s
+    // and click - every other test below reuses `discoverFirstAnimalHref`'s
     // cached result instead, to stay under proxy.ts's rate limit. This is
     // what actually proves the gallery→click→animal path works end to end,
     // not just that the detail route renders when opened directly.
@@ -222,7 +222,7 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
     await expect(overlay).toBeVisible();
     await expect(overlay.getByRole("heading", { level: 1, name })).toBeVisible();
     expect(page.url()).toContain(href as string);
-    // A genuine assertion that this is F1's own page, not Next's bare 404 —
+    // A genuine assertion that this is F1's own page, not Next's bare 404 -
     // the not-found route renders uk.detail.notFound.title instead.
     await expect(page.getByText("Цієї картки більше немає.")).toHaveCount(0);
   });
@@ -315,12 +315,12 @@ test.describe("/tvaryny/[animalId] an unknown or malformed id 404s on-brand", ()
 });
 
 /**
- * F2 — the reveal is the one interaction on this whole page that needs
+ * F2 - the reveal is the one interaction on this whole page that needs
  * JavaScript to work at all (session.bootstrap then animals.reveal, both
  * real network calls against the harness's own seeded database). "Before"
  * and "after" match the PR's own required screenshots.
  */
-test.describe("/tvaryny/[animalId] contact reveal — before, after, and close", () => {
+test.describe("/tvaryny/[animalId] contact reveal - before, after, and close", () => {
   test("before: the reveal trigger is present and the dialog is not", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
     await expect(page.getByTestId("reveal-trigger")).toBeVisible();
@@ -338,7 +338,7 @@ test.describe("/tvaryny/[animalId] contact reveal — before, after, and close",
     await expect(dialog).toHaveAttribute("role", "dialog");
     await expect(dialog).toHaveAttribute("aria-modal", "true");
 
-    // Real data, not a placeholder — the shelter's actual name from the
+    // Real data, not a placeholder - the shelter's actual name from the
     // seeded database appears inside the dialog once the reveal resolves.
     const shelterLine = dialog.locator("text=/Притулок/");
     await expect(shelterLine.first()).toBeVisible();
@@ -371,7 +371,7 @@ test.describe("/tvaryny/[animalId] contact reveal — before, after, and close",
     const dialog = page.getByTestId("reveal-dialog");
     await dialog.waitFor({ state: "visible" });
 
-    // Tab far more times than the dialog has focusable elements — if the
+    // Tab far more times than the dialog has focusable elements - if the
     // trap is broken, focus escapes onto the page behind it (the "Не
     // зараз" button, still present but supposed to be unreachable while
     // the dialog is open) rather than cycling within the dialog.
@@ -416,14 +416,14 @@ test.describe("the detail page's freshness block is the day count only", () => {
 /**
  * D-2: `REGISTRY_HAS_NO_REAL_SHELTERS` (`apps/web/src/seo-flags.ts`) is a
  * hardcoded source constant, `true` in the build this harness runs against
- * — the same build production runs. This asserts the real, current state;
+ * - the same build production runs. This asserts the real, current state;
  * it cannot exercise the `false` branch, since that would need a second
  * build with the source flipped. That branch has no automated coverage at
- * all today (no component test file exists for `AnimalDetailScreen`) —
+ * all today (no component test file exists for `AnimalDetailScreen`) -
  * recorded here rather than silently assumed correct, same discipline
  * DECK-3 used for the text-scaling gap it also couldn't assert.
  */
-test.describe("shelter-verified badge — suppressed while the registry holds no real shelters", () => {
+test.describe("shelter-verified badge - suppressed while the registry holds no real shelters", () => {
   test("the manually-verified-years badge does not render on a real seeded animal's page", async ({
     page,
     browser,
@@ -439,7 +439,7 @@ test.describe("shelter-verified badge — suppressed while the registry holds no
 /**
  * Designer round 1, S7: the save toggle, in a real browser. `localStorage`
  * is per-origin and genuinely persists across a navigation in a way
- * happy-dom's component tests can't exercise — this is the flow those
+ * happy-dom's component tests can't exercise - this is the flow those
  * tests can't cover, not a re-run of them. His DR1-Q3 text for both of the
  * button's accessible names.
  */
@@ -469,6 +469,6 @@ test.describe("the save toggle persists a save across a reload", () => {
 /**
  * The not-a-judgement notice's interim home was here, under the action
  * pair (Phase D). R2 (Phase R, `docs/build-plan.md`) moved it to its
- * permanent one, the deck itself (`SwipeDeck.tsx`) — see
+ * permanent one, the deck itself (`SwipeDeck.tsx`) - see
  * `discovery-layout.harness.ts`'s own coverage for the notice now.
  */

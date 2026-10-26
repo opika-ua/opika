@@ -74,7 +74,7 @@ export const freshnessOf = (confirmedAt: Date, now: Date, policy: FreshnessPolic
  * The sign-and-unit contract for relative time, in one place.
  *
  * `Intl.RelativeTimeFormat` produces correct Ukrainian plurals for free, but
- * only when called with a negative offset and the "day" unit — which is the
+ * only when called with a negative offset and the "day" unit - which is the
  * mistake worth a test, rather than whether the platform's plural rules work.
  * Keeping the call here means every surface cannot re-derive the sign wrongly.
  *
@@ -100,7 +100,7 @@ const ukrainianMonthName = (): string =>
  * Ukrainian adopter is the kind of defect that ships unnoticed.
  *
  * The lookup is a parameter so the failure path can be exercised without
- * stubbing a global constructor — a boot assertion whose throw branch is never
+ * stubbing a global constructor - a boot assertion whose throw branch is never
  * tested is decoration.
  */
 export const assertFullIcu = (resolveMonthName: () => string = ukrainianMonthName): void => {

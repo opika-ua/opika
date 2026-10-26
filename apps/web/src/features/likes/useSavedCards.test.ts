@@ -10,7 +10,7 @@ describe("savedCardsLoadStateOf", () => {
     expect(savedCardsLoadStateOf(null, null)).toEqual({ kind: "unknown" });
   });
 
-  it("3 stored ids with items still fetching is loading with count 3 — the skeleton count", () => {
+  it("3 stored ids with items still fetching is loading with count 3 - the skeleton count", () => {
     const ids = ["a", "b", "c"] as AnimalId[];
     expect(savedCardsLoadStateOf(ids, null)).toEqual({ kind: "loading", count: 3 });
   });
@@ -19,7 +19,7 @@ describe("savedCardsLoadStateOf", () => {
     expect(savedCardsLoadStateOf([], null)).toEqual({ kind: "empty" });
   });
 
-  it("once items resolve, the state is ready even if ids was empty — the caller, not this function, decides what an empty `items` means", () => {
+  it("once items resolve, the state is ready even if ids was empty - the caller, not this function, decides what an empty `items` means", () => {
     expect(savedCardsLoadStateOf([], [])).toEqual({ kind: "ready", items: [] });
   });
 

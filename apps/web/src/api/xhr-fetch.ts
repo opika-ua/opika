@@ -4,7 +4,7 @@
  * measure progress with XMLHttpRequest; `uploadingProgress` below,
  * `uploading` as the fallback."). `fetch` still can't report how much of a
  * request body has gone; XHR's `upload.onprogress` can, which is what a
- * budget phone on mobile data needs to see during a 1–2 MB upload.
+ * budget phone on mobile data needs to see during a 1-2 MB upload.
  *
  * Takes the `Request` oRPC's link built, so the body (its multipart form,
  * file included), headers and URL are exactly what `fetch` would have sent:

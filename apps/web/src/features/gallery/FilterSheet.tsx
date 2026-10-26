@@ -39,9 +39,9 @@ interface FilterSheetProps {
   sort: GallerySort;
   cities: ReadonlyArray<{ id: CityId; name: string; slug: CitySlug }>;
   citySlugs: CitySlugsById;
-  /** The count a submit right now would show — matches the design's live preview, computed from the *current* (already-applied) filters, same value the rail's result line uses. A checkbox ticked but not yet submitted does not change this number; only a real submission does. */
+  /** The count a submit right now would show - matches the design's live preview, computed from the *current* (already-applied) filters, same value the rail's result line uses. A checkbox ticked but not yet submitted does not change this number; only a real submission does. */
   resultCount: number;
-  /** For the sheet's own "Підходить N тварин у M притулках." sentence — `Opika Registry System.dc.html`'s B6 frame, same sentence the rail's closing box shows. */
+  /** For the sheet's own "Підходить N тварин у M притулках." sentence - `Opika Registry System.dc.html`'s B6 frame, same sentence the rail's closing box shows. */
   shelterCount: number;
 }
 
@@ -70,7 +70,7 @@ const COAT_LABEL: Record<CoatLength, string> = {
  * `sr-only` (1x1, clipped), so the focus ring the browser draws on it is
  * drawn on a pixel nobody can see. Without lifting that ring onto the
  * visible `<label>`, a keyboard user tabbing through the sheet has no
- * indication of where they are — docs/design/README.md's "Keyboard" table
+ * indication of where they are - docs/design/README.md's "Keyboard" table
  * routes Tab through these controls, and its focus-visible rule
  * (`outline: 2px solid #4F6B3A; outline-offset: 2px`) is stated as "never
  * removed", which drawing it where nobody can see it is a way of removing.
@@ -83,7 +83,7 @@ const CHIP_LABEL_BASE =
  * 1024 it collapses into the existing 03 sheet, extended with sort."
  *
  * A native `<dialog>`, server-rendered without `open`, made visible with
- * **zero JS** via `:target` (`globals.css`, `#tvaryny-filters:target`) —
+ * **zero JS** via `:target` (`globals.css`, `#tvaryny-filters:target`) -
  * the trigger is a plain `<a href="#tvaryny-filters">`, an ordinary
  * anchor jump. The `<form method="GET">` inside needs no JS either:
  * checkboxes/radios sharing a `name` are exactly the native primitive a
@@ -92,7 +92,7 @@ const CHIP_LABEL_BASE =
  *
  * JS, when present, upgrades the same markup rather than replacing it:
  * the trigger's click is intercepted to call `showModal()` instead of
- * navigating the hash (real focus trap, real Esc-to-close, a backdrop —
+ * navigating the hash (real focus trap, real Esc-to-close, a backdrop -
  * all native `<dialog>` behaviour, not hand-rolled), and this component
  * adds only what `showModal()` doesn't provide for free: locking
  * background scroll, and returning focus to the trigger on close.
@@ -146,11 +146,11 @@ export function FilterSheet({
   /**
    * Two ways this sheet can be on screen, and only one of them has an
    * `open` attribute. `showModal()` sets it; the no-JS `:target` reveal
-   * (`globals.css`) does not — and `HTMLDialogElement.close()` on a dialog
+   * (`globals.css`) does not - and `HTMLDialogElement.close()` on a dialog
    * without `open` returns immediately, firing no `close` event. So when
-   * the sheet was revealed by the fragment — a click on the trigger before
+   * the sheet was revealed by the fragment - a click on the trigger before
    * hydration finished, or a shared/bookmarked URL already carrying
-   * `#tvaryny-filters` — swallowing this anchor's own navigation would
+   * `#tvaryny-filters` - swallowing this anchor's own navigation would
    * leave the ✕ dead and the sheet unclosable. Falling through to the
    * plain `href="#"` clears the fragment, which is exactly what closes it
    * in that state, with or without JS.
@@ -164,7 +164,7 @@ export function FilterSheet({
 
   /**
    * `router.replace`, not the default push a real `<a>`/form GET produces
-   * — same "ten clicks, ten history entries" reasoning as `ReplaceNav`
+   * - same "ten clicks, ten history entries" reasoning as `ReplaceNav`
    * (`apps/web/src/features/gallery/ReplaceNav.tsx`), applied here instead
    * of wrapping this component in it: `FilterSheet` is already a Client
    * Component with its own dialog-close bookkeeping, so a second layer of
@@ -176,7 +176,7 @@ export function FilterSheet({
   };
 
   /**
-   * "Уся Київщина" drops the city constraint and nothing else — the same
+   * "Уся Київщина" drops the city constraint and nothing else - the same
    * href the rail's own chip carries (`FilterRail`), and what
    * docs/design/README.md's deviation note says the string means: "what
    * the button actually does today, which is drop the city filter
@@ -200,7 +200,7 @@ export function FilterSheet({
    * The submitted form is read back through the same `parseGalleryQuery` a
    * cold request goes through and written out through the same
    * `galleryHref` the rail's chips use, rather than assembling a URL of
-   * its own — so the same state reached through the sheet and through the
+   * its own - so the same state reached through the sheet and through the
    * rail produces the same URL, not two equivalent-but-different-looking
    * ones. Two things that would otherwise need restating here come free
    * with that: a radio group always submits, so a native submission always
@@ -208,7 +208,7 @@ export function FilterSheet({
    * default sort; and a group with every value checked canonicalizes back
    * to "unconstrained" instead of spelling out the universe.
    *
-   * The no-JS path is untouched by this — the browser submits the form
+   * The no-JS path is untouched by this - the browser submits the form
    * itself and the server reads the repeated params through the same
    * parser. This enhances that path; it does not replace it.
    */
@@ -226,7 +226,7 @@ export function FilterSheet({
       {/*
         gallery-v3 (Figma `58:1617`): unchanged by this PR, after a
         designer clarification mid-build. «Фільтр» at >=1024 now toggles
-        `GalleryControlBlock`'s own dropdown row, not this sheet — and
+        `GalleryControlBlock`'s own dropdown row, not this sheet - and
         there is no mobile Figma section yet ("do only desktop for now"),
         so this component keeps its pre-existing `desktop:hidden` trigger
         and dialog, its original styling, and its original role: the
@@ -261,7 +261,7 @@ export function FilterSheet({
         //
         // `z-50` is load-bearing, not decorative: `position: fixed` alone
         // does not guarantee paint order over later DOM siblings unless a
-        // stacking context is established — without an explicit z-index,
+        // stacking context is established - without an explicit z-index,
         // the gallery grid (which comes after this element in the tree)
         // painted its cards' photos through the sheet in the no-JS path,
         // caught by an actual browser render, not by reasoning about it.
@@ -270,7 +270,7 @@ export function FilterSheet({
         {/*
           `key` is what keeps this form honest. Its inputs are uncontrolled
           (`defaultChecked`), and React writes a changed `defaultChecked`
-          to the *attribute* only — an input the adopter has actually
+          to the *attribute* only - an input the adopter has actually
           clicked keeps its own dirty checkedness regardless. So after any
           filter change that did NOT come from submitting this form
           ("Скинути", "Уся Київщина", the back button), the boxes would go
@@ -295,7 +295,7 @@ export function FilterSheet({
             <h2 className="text-[24px]/[28px] font-bold tracking-[-0.02em] text-rg-ink">
               {uk.filters.title}
             </h2>
-            {/* biome-ignore lint/a11y/useValidAnchor: real navigation, not a disguised button — without JS this is the only way to clear #tvaryny-filters and make the :target rule hide the sheet again; a <button> cannot change the URL fragment on its own. */}
+            {/* biome-ignore lint/a11y/useValidAnchor: real navigation, not a disguised button - without JS this is the only way to clear #tvaryny-filters and make the :target rule hide the sheet again; a <button> cannot change the URL fragment on its own. */}
             <a
               href="#"
               onClick={closeWithJs}
@@ -443,7 +443,7 @@ export function FilterSheet({
 
           {/* docs/design/README.md, "Sheet": the same closing sentence pair
             the rail's own box shows, immediately above the footer buttons
-            here rather than in its own filled block — `Opika Registry
+            here rather than in its own filled block - `Opika Registry
             System.dc.html`'s B6 frame nests both directly in the form's
             own flow, not in a separate fill. */}
           <div className="flex flex-col gap-3">

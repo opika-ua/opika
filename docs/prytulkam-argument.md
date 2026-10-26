@@ -1,8 +1,8 @@
-# «Для притулків» — the argument, in English
+# «Для притулків» - the argument, in English
 
 **This is not copy and must not be translated.** It states what each section has
 to establish, what it must not claim, and the facts it has to get right. The
-Ukrainian is written fresh from this structure by the maintainer — sentence-by-
+Ukrainian is written fresh from this structure by the maintainer - sentence-by-
 sentence translation is how calques get in, and the copy critique (D3) already
 found one construction in the live catalogue that reads translated.
 
@@ -11,7 +11,7 @@ arrive in, not the order the project finds it natural to explain itself.
 
 **Vocabulary to keep out, throughout:** платформа, екосистема, партнерство, and
 anything else that sounds like a product pitching itself. **No promise about how
-many adopters a shelter will get** — that number is unknown and promising it is
+many adopters a shelter will get** - that number is unknown and promising it is
 the one thing that would make this page dishonest.
 
 **Register:** ви, consistent with the rest of the catalogue. Plain statements.
@@ -21,7 +21,7 @@ model already in the repo for the voice this page needs.
 ## How to write it (the owner's own method, recorded so it survives)
 
 Don't write it as website copy. Write it as a message to one specific shelter
-volunteer you can actually picture — someone in Brovary, fifties, runs things off
+volunteer you can actually picture - someone in Brovary, fifties, runs things off
 Instagram, has been let down by a startup before. Write to her, in one sitting,
 badly. Then delete the greeting and the sign-off, and what's left is the page.
 
@@ -32,12 +32,12 @@ written here rather than composed by an agent.
 
 **Write the outreach message in the same sitting, in the same voice.** If the
 page is the maintainer's and the message is someone else's, a volunteer reading
-both feels the seam without being able to name it — and the seam is exactly the
+both feels the seam without being able to name it - and the seam is exactly the
 thing this page exists to not have.
 
 ---
 
-## 1. What this is — one sentence
+## 1. What this is - one sentence
 
 Establish, in a single sentence, that this is a register of animals from
 verified shelters in Kyiv oblast, and that a shelter's animals appear on it with
@@ -46,7 +46,7 @@ their own page.
 Do not open with what it costs, what it does for them, or why it exists. One
 sentence, then move.
 
-## 2. What it costs — nothing, now and later
+## 2. What it costs - nothing, now and later
 
 Early on purpose: it is what they are bracing for, and every sentence after it
 is read differently once it is answered.
@@ -55,7 +55,7 @@ Must establish: free today, and free later. No paid tier, no trial that expires,
 no "first three months free." If that ever changes, every shelter hears about it
 in advance rather than discovering it.
 
-`about.free` already says this well and can be reused nearly as-is — it is one
+`about.free` already says this well and can be reused nearly as-is - it is one
 of the strongest strings in the catalogue.
 
 Do not hedge it. A conditional here undoes the whole section.
@@ -91,7 +91,7 @@ Must establish, unambiguously:
 
 That last point is worth its own sentence. The live product already states the
 adopter-facing half of it («Притулок не знає про цей запит, поки ви не напишете
-самі») — this is the same promise from the shelter's side.
+самі») - this is the same promise from the shelter's side.
 
 ## 5. Money
 
@@ -99,7 +99,7 @@ Opika never touches money. No payments, no commission, no donation collection
 through the site.
 
 If a shelter has its own donation page, the register links to it, and the
-destination is visible before anyone taps it — a person always knows whose site
+destination is visible before anyone taps it - a person always knows whose site
 they are about to land on.
 
 `about.money` covers this already. Do not add anything about future monetisation,
@@ -114,12 +114,12 @@ Must establish: a person checks, and here is what checking is.
 
 - A registered organisation shows its EDRPOU registration and a bank record in
   the organisation's name, plus one independent reference.
-- An unregistered volunteer group — most groups — is **not excluded**. It
+- An unregistered volunteer group - most groups - is **not excluded**. It
   substitutes a visit and two independent references who can confirm the group
   is real and does what it says.
 - "A visit" includes a real phone conversation where an actual person talked to
   them and can say what they learned. It does not require anyone to travel.
-- A reference has to be someone other than the shelter itself — a neighbouring
+- A reference has to be someone other than the shelter itself - a neighbouring
   shelter, a vet clinic they work with. Not their own second phone number.
 
 Source of truth: `DEFAULT_VERIFICATION_POLICY` in `packages/domain`, and
@@ -135,7 +135,7 @@ Practical and short. A volunteer reading this should be able to tell in ten
 seconds whether they can do it this week.
 
 - Photographs of each animal. Real files.
-- A short description per animal — name, rough age, size, temperament in a
+- A short description per animal - name, rough age, size, temperament in a
   sentence or two.
 - One sentence, in their own words, about how current their listings are.
 - Contact details they actually answer on.
@@ -150,18 +150,18 @@ maintainer does the data entry.
 asked for this before, so it will read as strange unless the reason lands.
 
 The argument, in order:
-1. Listings go stale everywhere. This is not a criticism of any shelter — it is
+1. Listings go stale everywhere. This is not a criticism of any shelter - it is
    what happens when a small group is doing rescue work rather than maintaining
    a website.
 2. Most registries hide this. Every listing looks equally current, so an adopter
    cannot tell a card updated yesterday from one updated in 2023, and eventually
    stops trusting any of them.
 3. Opika will not pretend a shelter's listings are fresher than they are.
-4. So the site shows how recently the shelter confirmed their listings — plainly,
+4. So the site shows how recently the shelter confirmed their listings - plainly,
    in days, never as a warning, never in red, never with anything hidden or
    faded.
 5. And it shows the shelter's own sentence about their update rhythm, in their
-   voice, attributed to them, next to a date the system fills in automatically —
+   voice, attributed to them, next to a date the system fills in automatically -
    so the sentence can never be mistaken for something they said today.
 
 What this buys the shelter, and it is worth stating: an honest freshness signal
@@ -195,7 +195,7 @@ process is a message today.
 
 A named person. Not "our team," not "we" used to sound larger.
 
-`about.intro` already does this — one person, outside of work hours, no team and
+`about.intro` already does this - one person, outside of work hours, no team and
 no investor. Reuse that framing; do not soften it into something more corporate.
 The smallness is the credential here, not a thing to apologise for.
 
@@ -224,7 +224,7 @@ trust it exists to build.
 
 ---
 
-## The one thing this page depended on — satisfied
+## The one thing this page depended on - satisfied
 
 `hello@opika.org.ua` is live and receives mail (Cloudflare Email Routing,
 delivery tested 2026-09-02). It had to be, before this page could be linked in

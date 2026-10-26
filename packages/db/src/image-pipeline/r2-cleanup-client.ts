@@ -4,7 +4,7 @@ import { r2EndpointUrl } from "./variants";
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). The one named exception
  * to "no code path that overwrites or deletes an existing object" (K-Q2,
- * `r2-client.ts`'s own doc comment) — this file is the exception, not a
+ * `r2-client.ts`'s own doc comment) - this file is the exception, not a
  * second place that one is weakened. It lists and deletes; it never puts.
  *
  * A separate client, a separate config type, and its own credentials
@@ -12,8 +12,8 @@ import { r2EndpointUrl } from "./variants";
  * `r2-cleanup.ts`'s CLI and `apps/web/src/kabinet/r2-cleanup-env.ts`'s
  * cron wiring): the app's own upload token (`R2_UPLOAD_*`) never gains
  * delete rights just because this file exists beside it. Cloudflare's own
- * token UI has no delete-only scope — "Object Read & Write" is the finest
- * grain that includes delete, and it also permits `PutObject` — so the real
+ * token UI has no delete-only scope - "Object Read & Write" is the finest
+ * grain that includes delete, and it also permits `PutObject` - so the real
  * safety boundary is this file's own source, not the token's permission
  * scope: `apps/web/src/kabinet/photo-pipeline-scan.test.ts`'s own structural
  * scan asserts this file's only two SDK commands are
@@ -44,7 +44,7 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
   return chunks;
 }
 
-/** `NOT VERIFIED against a real bucket` — see `r2-client.ts`'s own disclosure; the same applies here until a real run against a test bucket happens. */
+/** `NOT VERIFIED against a real bucket` - see `r2-client.ts`'s own disclosure; the same applies here until a real run against a test bucket happens. */
 export function createR2CleanupClient(config: R2CleanupConfig): R2CleanupClient {
   const client = new S3Client({
     region: "auto",

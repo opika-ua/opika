@@ -257,7 +257,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
     await expect(notice.getByText("Причина: Скарга підтвердилася.")).toBeVisible();
     await expect(notice.getByText("Пояснення:", { exact: true })).toBeVisible();
     await expect(notice.getByText(NOTE, { exact: true })).toBeVisible();
-    await expect(notice.getByText(`— ${OPERATOR_NAME}`, { exact: true })).toBeVisible();
+    await expect(notice.getByText(`- ${OPERATOR_NAME}`, { exact: true })).toBeVisible();
     await kabinet.close();
 
     await decision.getByRole("button", { name: "Відновити → «Перевірено»" }).click();

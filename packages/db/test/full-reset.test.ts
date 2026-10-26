@@ -40,12 +40,12 @@ import {
  * `db:full-reset`'s own regression test, independent of the table-coverage
  * scan (`full-reset-table-coverage.test.ts`, which proves the *list* is
  * exhaustive). This proves the *mechanism*: populated tables go to 0,
- * `cities` — the one deliberate exclusion — is untouched, row and all.
+ * `cities` - the one deliberate exclusion - is untouched, row and all.
  *
  * Every table in `FULL_RESET_TABLES` gets at least one real row (Tier 1
  * review finding 5, PR #199): with only 4 of 17 populated, a `TRUNCATE` that
- * silently skipped the other 13 — `auth_user`, `super_admins` and
- * `auth_verification` included — still passed, since "0 before, 0 after" is
+ * silently skipped the other 13 - `auth_user`, `super_admins` and
+ * `auth_verification` included - still passed, since "0 before, 0 after" is
  * indistinguishable from "never touched because already empty." Grown to 18
  * with `r2_unreferenced_objects` (GDPR photo retention).
  */
@@ -215,7 +215,7 @@ describe("countFullResetTables / truncateFullReset", () => {
     expect(survivingCities.map((c) => c.id)).toEqual([city.id]);
   });
 
-  it("is a no-op on an already-empty database — every count is 0 before and after", async () => {
+  it("is a no-op on an already-empty database - every count is 0 before and after", async () => {
     const before = await countFullResetTables(db);
     for (const table of FULL_RESET_TABLES) expect(before[table]).toBe(0);
     await truncateFullReset(db);

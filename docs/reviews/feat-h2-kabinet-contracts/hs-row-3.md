@@ -6,7 +6,7 @@ VERIFIED (ran it) | TAKEN ON TRUST
 ---|---
 kabinet api suite: 3 files, 59 passed | the builder's mutations other than the one below
 db: kabinet-actor-repo + shelter-history, 13 passed | 0009 never applied outside local tests (the docs agree)
-Spot-check: a stray `db.insert(authMember)` turns the copy-gate test red, and the message names A1–A3, §7/§9/§10 and B1 | access matrix rows past line 60
+Spot-check: a stray `db.insert(authMember)` turns the copy-gate test red, and the message names A1-A3, §7/§9/§10 and B1 | access matrix rows past line 60
 `drizzle-kit check` is clean; the snapshot prevId chains to 0008; no `tired_moondragon` ref outside `.git/index` | neon-http on any Better Auth path (finding 5)
 Probe: verify of a no-user token → 302 `?error=new_user_signup_disabled`, no cookie, no user created | HS-Q4 scripts (`admin:revoke` never deletes): not in this row
 Probe: secure cookie is `__Secure-kabinet.session_token; Max-Age=604800; Path=/; HttpOnly; Secure; SameSite=Lax`, no clash with `session`/`__Host-session` |

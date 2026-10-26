@@ -50,7 +50,7 @@ export async function validateSession(
 
   if (!row) return { ok: false, reason: "invalid" };
 
-  // Timing-safe comparison even though we already found by hash —
+  // Timing-safe comparison even though we already found by hash -
   // the DB query timing may leak whether the hash exists, but
   // comparing the returned hash catches any future refactor that
   // changes to a range query or prefix match.
@@ -72,7 +72,7 @@ export async function validateSession(
     return { ok: false, reason: "expired" };
   }
 
-  // Touch last seen (fire-and-forget — a failed touch should not
+  // Touch last seen (fire-and-forget - a failed touch should not
   // break the request)
   sessions.touchLastSeen(hash, now).catch(() => {});
 

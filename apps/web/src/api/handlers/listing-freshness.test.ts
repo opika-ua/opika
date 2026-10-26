@@ -31,7 +31,7 @@ describe("listingFreshness", () => {
     });
   });
 
-  /** Neither `since` (1 day) nor `publishedAt` (90) — the confirmation (12). */
+  /** Neither `since` (1 day) nor `publishedAt` (90) - the confirmation (12). */
   it("measures a reserved listing from its confirmation, not the reservation or publication", () => {
     expect(listingFreshness(RESERVED, NOW)).toMatchObject({
       ageDays: 12,

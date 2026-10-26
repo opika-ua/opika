@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 /**
  * E5, found by re-investigating `/tvaryny`'s own `error.tsx` rationale
  * rather than trusting it: Next.js error boundaries nest by segment, and
- * `/tvaryny/gortaty` has no `error.tsx` of its own — so without this file,
+ * `/tvaryny/gortaty` has no `error.tsx` of its own - so without this file,
  * a failure in `GortatyPage`'s own server-side `cities.list()` call (needed
  * for the deck header's inherited-filters phrase) would be caught by the
  * *gallery's* `error.tsx` instead, rendering gallery-specific copy
@@ -15,14 +15,14 @@ import { useEffect, useRef } from "react";
  * works in this framework, not assumed from the two routes merely sharing
  * a `/tvaryny` URL prefix.
  *
- * Reuses `uk.errors.loadFailed` rather than `uk.galleryError` — the same
+ * Reuses `uk.errors.loadFailed` rather than `uk.galleryError` - the same
  * generic, already-neutral copy `SwipeDeck`'s own client-side error state
  * uses for the identical class of failure (a server-side load that
  * couldn't complete), so a visitor sees one consistent voice for "the deck
  * didn't load" regardless of whether the failure happened before or after
  * the client took over.
  *
- * `retry()`, not `reset()` — same finding as `/tvaryny/error.tsx`'s own
+ * `retry()`, not `reset()` - same finding as `/tvaryny/error.tsx`'s own
  * comment: `reset()` alone clears the boundary without re-running
  * `GortatyPage`'s Server Component, so it cannot recover from the
  * server-side `cities.list()` failure that reaches this file. `retry()`
@@ -70,7 +70,7 @@ export default function GortatyError({
           >
             {uk.errors.loadFailed.action}
           </button>
-          {/* A genuine `<a href>`, not `next/link`'s `Link` — same reason
+          {/* A genuine `<a href>`, not `next/link`'s `Link` - same reason
               as `/tvaryny/error.tsx`'s own escape hatch: a `Link` click
               inside an active error boundary soft-navigates within the
               segment Next already knows just errored, and doesn't

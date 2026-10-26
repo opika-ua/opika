@@ -31,7 +31,7 @@ describe("matchesSelection", () => {
 });
 
 describe("isExplicitlySelected", () => {
-  it("is false for every value when the selection is any — unlike matchesSelection", () => {
+  it("is false for every value when the selection is any - unlike matchesSelection", () => {
     // The bug this function exists to prevent: a filter-UI checkbox reusing
     // matchesSelection would render every option checked the moment nothing
     // is filtered, since matchesSelection's "any admits everything" is
@@ -58,8 +58,8 @@ describe("an empty selection is unrepresentable", () => {
       species: { kind: "oneOf", values: [] },
     });
 
-    // The alternative — an empty array meaning either "everything" or
-    // "nothing" by convention — is the ambiguity this union removes.
+    // The alternative - an empty array meaning either "everything" or
+    // "nothing" by convention - is the ambiguity this union removes.
     expect(result.success).toBe(false);
   });
 

@@ -47,12 +47,12 @@ describe("GalleryPageNav", () => {
   });
 
   /**
-   * Icon-only, unlike the existing `GalleryPagination`'s prev/next — no
+   * Icon-only, unlike the existing `GalleryPagination`'s prev/next - no
    * visible text means no WCAG 2.5.3 mismatch is even possible, which is
    * exactly why icon-only is safe here where it previously was not
    * (`GalleryPageNav.tsx`'s own top comment).
    */
-  it("prev/next carry no visible text — the aria-label names what they do", () => {
+  it("prev/next carry no visible text - the aria-label names what they do", () => {
     render(
       <GalleryPageNav
         filters={NO_FILTERS}

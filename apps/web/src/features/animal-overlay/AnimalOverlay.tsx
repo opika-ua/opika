@@ -9,12 +9,12 @@ import { useModalFocus } from "../controls/useModalFocus";
 /**
  * Designer feedback batch A (2026-10-23), the Dribbble shot-overlay
  * reference: a dark backdrop end to end (not the old light
- * `bg-rg-fill-strong/90` — "fill-strong" is `#dcdcd9`, nowhere near dark,
+ * `bg-rg-fill-strong/90` - "fill-strong" is `#dcdcd9`, nowhere near dark,
  * despite the comment this replaced calling it "dimmed"), a dark strip
  * above the panel carrying only ✕ (never inside the panel itself), and the
  * panel nearly full width on desktop rather than inset by the old
  * `--spacing-screen` (40px) gutter on both sides. On a phone the panel
- * fills the rest of the screen below that strip — full screen, as before,
+ * fills the rest of the screen below that strip - full screen, as before,
  * just with the strip now visually part of the same dark surface rather
  * than sitting on the panel's own background.
  *
@@ -22,7 +22,7 @@ import { useModalFocus } from "../controls/useModalFocus";
  * document flow underneath this (`position: fixed` only removes it from
  * layout, it doesn't stop the two from painting in the same stack), so a
  * translucent backdrop left its text a faint, legible ghost at the top of
- * the overlay — a real screenshot caught this, markup inspection wouldn't
+ * the overlay - a real screenshot caught this, markup inspection wouldn't
  * have (`docs/standing-constraints.md`'s "requires a rendered assertion").
  * That's precisely the "no site header" his feedback asks to remove, just
  * dimmed instead of hidden; opaque removes it outright.
@@ -30,30 +30,30 @@ import { useModalFocus } from "../controls/useModalFocus";
 const BACKDROP = "fixed inset-0 z-50 bg-rg-ink";
 /**
  * `useModalFocus`'s Tab trap only ever looks inside `dialogRef`'s own
- * subtree (`dialogRef.current.querySelectorAll(FOCUSABLE)`) — so `role`,
+ * subtree (`dialogRef.current.querySelectorAll(FOCUSABLE)`) - so `role`,
  * `aria-modal` and the ref all sit on this one wrapper, around *both* the
  * close strip and the panel below it. Putting ✕ in a backdrop sibling
  * instead (the first version of this batch) would have silently dropped
  * it from the trap: still visible, but unreachable by Tab while the
- * dialog is open — the exact "renders but doesn't work" class of bug
+ * dialog is open - the exact "renders but doesn't work" class of bug
  * `docs/standing-constraints.md` exists to catch, caught here before
  * shipping rather than by a reviewer.
  */
 const DIALOG = "flex flex-col h-full outline-none";
 const CLOSE_BAR = "shrink-0 flex justify-end px-group py-row desktop:px-section desktop:py-group";
 /**
- * His correction on the first pass: no filled circle behind ✕ — bare on the
+ * His correction on the first pass: no filled circle behind ✕ - bare on the
  * dark backdrop. Not `Button`'s `icon` variant (`bg-rg-fill text-rg-ink`,
  * built for a light surface): `text-rg-surface` (pure white) directly on
  * `bg-rg-ink` is the project's own highest-contrast pairing, reused here
  * rather than invented. Still a real 48px target (`min-h-target w-target`)
- * and still keeps its own focus ring — "never removed," `docs/design/
+ * and still keeps its own focus ring - "never removed," `docs/design/
  * README.md`'s own rule, regardless of a missing background box.
  */
 const CLOSE_BUTTON = `inline-flex min-h-target w-target flex-none items-center justify-center rounded-rg-button text-lg text-rg-surface ${FOCUS_RING}`;
 /**
  * His correction on the first pass (2026-10-23, screenshot): no left/right
- * gap at all — flush to the viewport like the phone layout, not inset by
+ * gap at all - flush to the viewport like the phone layout, not inset by
  * `desktop:mx-section`. Only the top corners are rounded now, against the
  * dark close strip above; left, right and bottom are all flush to the
  * viewport edge, where a rounded corner would have nothing to read against.

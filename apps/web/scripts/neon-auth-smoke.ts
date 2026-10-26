@@ -73,14 +73,14 @@ import { handleKabinetRpc } from "../src/kabinet/rpc-route";
  *   4. getSession: Better Auth reading the session back, and the principal
  *      the kabinet resolves from it;
  *   5. sign-out: the session row deleted;
- *   6–9. PW-1: «Забули пароль?» (the reset token stored hashed), the reset (the token
+ *   6-9. PW-1: «Забули пароль?» (the reset token stored hashed), the reset (the token
  *      consumed, a credential account created), the password sign-in, and «Змінити пароль»
  *      (the hash updated, other sessions revoked).
- *   10–11. PW1-F1: a reset, then a change, each deleting the user's other reset links (our
+ *   10-11. PW1-F1: a reset, then a change, each deleting the user's other reset links (our
  *      DELETE, right after Better Auth's write) and nothing else: the user's own sign-in link
  *      row stays, and the statement names only this run's user, so no other row on the
  *      branch is touched.
- *   12–13. PW1-F5: migration 0013's function and both triggers are in place and enabled; then
+ *   12-13. PW1-F5: migration 0013's function and both triggers are in place and enabled; then
  *      our own UPDATE of this run's user's password hash, over this driver and with no Better
  *      Auth call at all, ends every session of theirs in that statement (the new password then
  *      signs in). Steps 7, 9, 10 and 11 above already run with the triggers in place: step 9's
@@ -467,7 +467,7 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
     `status ${changed.status}, sessions after ${afterChange.length}, old password ${oldRefused.status}`,
   );
 
-  // 10–11. PW1-F1: a new password voids the user's other reset links. Fresh tokens are read
+  // 10-11. PW1-F1: a new password voids the user's other reset links. Fresh tokens are read
   // from the captured mail, never printed; a row is found by its hash, as in step 6.
   const thirdPassword = `smoke-${randomUUID()}`;
   const fourthPassword = `smoke-${randomUUID()}`;

@@ -17,12 +17,12 @@ function request(url: string, headers: Record<string, string> = {}): NextRequest
  * already established (and the same reason: the module cache must be torn
  * down between tests, or the second test to run would silently import the
  * first test's mock). `./proxy` reads `SITE_IS_PUBLICLY_DISCOVERABLE` as a
- * plain imported binding — not a function closing over another module's own
- * copy of it — so mocking `./seo-flags` and re-importing `./proxy` fresh is
+ * plain imported binding - not a function closing over another module's own
+ * copy of it - so mocking `./seo-flags` and re-importing `./proxy` fresh is
  * enough; no closure gotcha to work around here.
  *
  * `proxy` is async as of Phase 3, block 4 (`apiRateLimiter.check` is a
- * `Promise<boolean>` once a shared Upstash store can back it) — every call
+ * `Promise<boolean>` once a shared Upstash store can back it) - every call
  * below is awaited now. No Upstash env vars are set anywhere in this file,
  * so `apiRateLimiter` resolves to the in-memory implementation
  * (`rate-limit.ts`'s own module-scope branch), the same one these tests
@@ -137,7 +137,7 @@ describe("proxy", () => {
       expect(response.headers.get("set-cookie")).toBeNull();
     });
 
-    it("denies a request to a route outside /tvaryny just the same — the gate covers the whole site", async () => {
+    it("denies a request to a route outside /tvaryny just the same - the gate covers the whole site", async () => {
       const { proxy } = await import("./proxy");
       const response = await proxy(request("https://opika.example/prytulkam"));
       expect(response.status).toBe(403);
@@ -197,7 +197,7 @@ describe("proxy", () => {
      * S8: `animals.cardsByIds` is built to send no cookie at all
      * (`credentials: "omit"`, DR1-Q2), so it can never carry the gate's own
      * cookie either. Without this exact-path exemption it would 403 on every
-     * call before launch — found running the saved-page harness for real,
+     * call before launch - found running the saved-page harness for real,
      * not inferred from the gate's code. Oleksii's own answer (S8-D1, not a
      * builder default), recorded in `docs/decisions-inbox.md` (folded from
      * `feat-dr1-s8-saved-page.md` at #186's merge).
@@ -254,15 +254,15 @@ describe("proxy", () => {
     });
 
     /**
-     * `proxy` is async now — an async function never throws synchronously
+     * `proxy` is async now - an async function never throws synchronously
      * even if its body does (the throw surfaces as a rejected Promise
      * instead), so `expect(() => proxy(...)).not.toThrow()` would pass
      * trivially regardless of whether the call actually succeeds. Asserting
      * against the resolved Promise is what keeps this test capable of
-     * failing — would have let a reintroduced read of
+     * failing - would have let a reintroduced read of
      * `PRELAUNCH_GATE_SECRET` on this path go undetected.
      */
-    it("never reads PRELAUNCH_GATE_SECRET at all — an unset secret does not break a launched site", async () => {
+    it("never reads PRELAUNCH_GATE_SECRET at all - an unset secret does not break a launched site", async () => {
       vi.unstubAllEnvs();
       const { proxy } = await import("./proxy");
       await expect(proxy(request("https://opika.example/tvaryny"))).resolves.toBeDefined();

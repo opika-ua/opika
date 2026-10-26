@@ -121,10 +121,10 @@ const DB_PACKAGE = "@opika/db";
  * reach `@opika/db` by a computed name the same way the namespace-import check below exists to
  * catch. F8-F3 (review of #179): the earlier version of this check looked only for the bare
  * identifier `createRequire`, which missed `mod["createRequire"]` and
- * `require("node:module")["createRequire"]` — neither contains that identifier, since bracket
+ * `require("node:module")["createRequire"]` - neither contains that identifier, since bracket
  * access on a string reads as a `StringLiteral` node, not an `Identifier` one. This specifier
  * check closes those two; it runs *alongside* the bare-identifier check below, not instead of
- * it (review of 9f5a214, finding 1's fix) — the identifier check is still the only thing that
+ * it (review of 9f5a214, finding 1's fix) - the identifier check is still the only thing that
  * catches a property-access form naming the module through a call this scan doesn't otherwise
  * recognise (`process.getBuiltinModule("node:module").createRequire`), and this check is still
  * the only thing that catches the bracket forms the identifier check never could. Neither
@@ -148,7 +148,7 @@ function factsOf(sourceFile: SourceFile): ModuleFacts {
   // Review of 9f5a214, finding 1: the first version of this check only ran in two of the four
   // places a module can be named (the `import` declaration and the `require()`/`import()`
   // call), silently losing coverage for `export … from "node:module"` and
-  // `import m = require("node:module")` — both real ways to reach the same builtin. One
+  // `import m = require("node:module")` - both real ways to reach the same builtin. One
   // function, called everywhere a non-type-only specifier is resolved, so a fifth place added
   // later can't make the same mistake by omission.
   const flagModuleBuiltin = (specifier: string) => {
@@ -193,7 +193,7 @@ function factsOf(sourceFile: SourceFile): ModuleFacts {
       // Kept alongside `flagModuleBuiltin` above, not replaced by it (review of 9f5a214,
       // finding 1's fix): `process.getBuiltinModule("node:module").createRequire` names the
       // module through a call neither `isImport`/`isRequire` recognises, so no specifier is
-      // ever resolved for it — only the bare identifier `createRequire` as a property name is
+      // ever resolved for it - only the bare identifier `createRequire` as a property name is
       // visible to catch that form.
       if (node.text === "createRequire") unfollowable.push("createRequire");
       if (node.text === "createDatabase") namesCreateDatabase = true;
@@ -419,7 +419,7 @@ describe("the scan's detector", () => {
 
   /**
    * F8-F3 (review of #179): the old detector looked for the bare identifier `createRequire`,
-   * which both of these miss — bracket access on a string reads as a `StringLiteral` node, never
+   * which both of these miss - bracket access on a string reads as a `StringLiteral` node, never
    * an `Identifier` one, so neither form ever contains that identifier at all. Flagging any load
    * of `node:module`/`module` itself, regardless of how `createRequire` is pulled out of it,
    * catches both.
@@ -440,7 +440,7 @@ describe("the scan's detector", () => {
   /**
    * Review of 9f5a214, finding 1: the first version of the F8-F3 fix only ran
    * `flagModuleBuiltin` in two of `factsOf`'s four branches, silently losing the five forms
-   * below — all caught before F8-F3's own fix, by the bare-identifier check it removed. Fixed
+   * below - all caught before F8-F3's own fix, by the bare-identifier check it removed. Fixed
    * by running the check in every branch, and by keeping the identifier check alongside it
    * rather than instead of it.
    */

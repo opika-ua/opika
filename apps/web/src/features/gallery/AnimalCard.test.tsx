@@ -58,7 +58,7 @@ describe("AnimalCard link", () => {
     expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 
-  it("points at /tvaryny/{id} — docs/gallery-contract-decisions.md §6", () => {
+  it("points at /tvaryny/{id} - docs/gallery-contract-decisions.md §6", () => {
     const card = makeCard();
     render(<AnimalCard card={card} cityName="Бровари" />);
     expect(screen.getByRole("link").getAttribute("href")).toBe(`/tvaryny/${card.id}`);
@@ -110,7 +110,7 @@ describe("AnimalCard meta line", () => {
   /**
    * Designer feedback batch B (hideCityInMeta): the shelter page's own
    * heading already states the city once, so a card there drops the bare
-   * "м. {city}" — but a fostered card's "на перетримці, м. {city}"
+   * "м. {city}" - but a fostered card's "на перетримці, м. {city}"
    * says more than city alone and stays. Review of 6825ffd, finding 3:
    * ignoring `hideCityInMeta` entirely left the rest of the suite green,
    * so this is the test that would have caught it.
@@ -141,7 +141,7 @@ describe("AnimalCard meta line", () => {
     );
   });
 
-  it("hideCityInMeta never touches the accessible name — city stays there for a screen-reader user", () => {
+  it("hideCityInMeta never touches the accessible name - city stays there for a screen-reader user", () => {
     const card = makeCard({ publicLocation: null });
     render(<AnimalCard card={card} cityName="Бровари" hideCityInMeta />);
     expect(screen.getByRole("link").getAttribute("aria-label")).toContain("Бровари");
@@ -149,7 +149,7 @@ describe("AnimalCard meta line", () => {
 });
 
 describe("AnimalCard freshness marker", () => {
-  it("renders three pips, aria-hidden, filled per the design table — same as the deck", () => {
+  it("renders three pips, aria-hidden, filled per the design table - same as the deck", () => {
     render(
       <AnimalCard card={makeCard({ freshness: makeFreshness("aging", 19) })} cityName="Бровари" />,
     );
@@ -177,12 +177,12 @@ describe("AnimalCard freshness marker", () => {
 
 describe("AnimalCard resolved variant", () => {
   /**
-   * `resolved` is never set by any real caller today — see
+   * `resolved` is never set by any real caller today - see
    * AnimalCardProps["resolved"]'s own comment for why (the gallery/feed
    * query never returns an adopted animal, so no live `FeedCardView` can
    * express this). This is the one place the rendering is exercised at
    * all: a hand-built fixture, per docs/design/README.md, "The gallery
-   * card" > "Resolved" — "Different fill and different text — never
+   * card" > "Resolved" — "Different fill and different text - never
    * dimming."
    */
   it("replaces the freshness pips with the shelter's sentence, not a dimmed version of them", () => {

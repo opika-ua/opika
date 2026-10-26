@@ -167,7 +167,7 @@ export const authInvitation = pgTable(
  * **One named exception** (Oleksii, 2026-10-25, confirming PR #199's Tier 1
  * review): `db:full-reset` (`full-reset.ts`) overrides this rule by design.
  * A full reset's whole purpose is the moment before any real shelter exists
- * — there is no real operator history yet to audit, so wiping this table
+ * - there is no real operator history yet to audit, so wiping this table
  * along with everything else loses nothing a pre-launch reset is meant to
  * protect. The rule above still holds for every other write path.
  */
@@ -197,7 +197,7 @@ export const superAdmins = pgTable(
  *
  * **One named exception** (Oleksii, 2026-10-25, confirming PR #199's Tier 1
  * review): `db:full-reset` (`full-reset.ts`) overrides this rule by design,
- * for the same reason `super_admins` above does — nothing real to audit
+ * for the same reason `super_admins` above does - nothing real to audit
  * before launch. The rule above still holds for every other write path.
  */
 export const supportSessions = pgTable(

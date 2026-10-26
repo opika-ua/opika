@@ -1,7 +1,7 @@
 # Onboarding a real shelter
 
 Follow this while on the phone with a volunteer, in order. Don't improvise
-the sequence — the dry run exists specifically so you see the computed
+the sequence - the dry run exists specifically so you see the computed
 public location before anything touches the live database.
 
 ## PowerShell 5.1: reading a secret
@@ -30,33 +30,33 @@ Never paste a connection string into a command line, a file or a chat.
 - **Legal shape**: registered NGO (legal name + EDRPOU), sole proprietor
   (legal name + EDRPOU), or an unregistered volunteer group (just a contact
   person's name).
-- **Exact address** — street, city, coordinates. Never shown to an adopter
+- **Exact address** - street, city, coordinates. Never shown to an adopter
   directly; this is what gets fuzzed.
-- **A contact channel** they actually answer on — phone, Telegram, or both.
-- **A donation link**, if they have one (their own page — this platform
+- **A contact channel** they actually answer on - phone, Telegram, or both.
+- **A donation link**, if they have one (their own page - this platform
   never touches money).
-- **A freshness sentence, in their own words** — one or two sentences about
+- **A freshness sentence, in their own words** - one or two sentences about
   how current their listings are. Required; don't onboard without it.
   It is shown **word for word**: until K2, nothing fills in an animal's name,
   and nothing will ever fill in a date (inbox VH-Q1). So keep a specific date
   and any animal's name out of it: a
   typed date goes stale while it still reads as current, and `{date}` or
   `{name}` would appear with their braces.
-- **Real verification evidence** — see below. Not their name for the record;
+- **Real verification evidence** - see below. Not their name for the record;
   actual evidence the domain's own verification policy requires, or the
   script refuses to write a `verified` shelter at all.
 - **For each animal**: name, species, sex, size bucket, age bucket, a short
-  description, and at least one real photo file — see "Photos" below.
+  description, and at least one real photo file - see "Photos" below.
 
 ## The input file
 
 **Save it outside this repository.** It will contain a real address and
 phone number, and `docs/standing-constraints.md` forbids real shelter data
-in the repo — it's public. The script refuses to run on a file inside the
+in the repo - it's public. The script refuses to run on a file inside the
 working tree; this isn't a formality to route around, it's the actual
 guard. A sensible place: `~/opika-shelters/domivka-brovary.json`.
 
-Fictional worked example (values only — see `packages/db/src/onboard-
+Fictional worked example (values only - see `packages/db/src/onboard-
 shelter.ts` for the exact schema, enforced by zod, so a typo fails loudly
 before anything is computed):
 
@@ -122,14 +122,14 @@ before anything is computed):
 ```
 
 `idSeed` values (one on the shelter, one per animal) must be unique and
-**stable** — they're what makes re-running the script safe. Don't change
+**stable** - they're what makes re-running the script safe. Don't change
 them between runs of the same shelter; do use a new one for a genuinely
 different animal.
 
-### Evidence — what's actually required, per legal shape
+### Evidence - what's actually required, per legal shape
 
 `packages/domain`'s own `DEFAULT_VERIFICATION_POLICY` decides this, not the
-script — `buildShelter` checks against it and refuses to produce a
+script - `buildShelter` checks against it and refuses to produce a
 `verified` shelter (dry run included) if the evidence given falls short.
 
 | Legal shape | Needs |
@@ -138,13 +138,13 @@ script — `buildShelter` checks against it and refuses to produce a
 | `registered_ngo` / `sole_proprietor` | 1× `edrpou_registration`, 1× `bank_account_holder`, 1× `reference_contact` |
 
 A `reference_contact`'s `channel` must be someone **other than the shelter
-itself** — a neighbouring shelter, a vet clinic they work with, anyone who
+itself** - a neighbouring shelter, a vet clinic they work with, anyone who
 can independently confirm this is real. Pointing it at the shelter's own
 phone number isn't evidence, it's the thing being verified restating
 itself, and an earlier version of this script did exactly that by mistake
 (caught on review, fixed before ever being used for real).
 
-A `site_visit` doesn't require you to have physically gone anywhere — a
+A `site_visit` doesn't require you to have physically gone anywhere - a
 real phone call where you actually talked to someone and can say what you
 learned counts; `notes` should say what actually happened, in your own
 words, since this becomes a permanent part of the shelter's record.
@@ -178,7 +178,7 @@ The script refuses the old shape rather than guessing.)
 ### Photos
 
 `localPath` (in each animal's `photos` array) points at a real file on your
-own machine — relative paths resolve against **the input JSON's own
+own machine - relative paths resolve against **the input JSON's own
 directory**, not wherever you happen to run the command from. Keep a
 `photos/` folder next to the input file:
 
@@ -190,12 +190,12 @@ directory**, not wherever you happen to run the command from. Keep a
     lastivka-2.jpg
 ```
 
-You don't supply width/height — the script reads the real file for its
+You don't supply width/height - the script reads the real file for its
 actual dimensions, both in dry run and `--commit`. A missing file or one
 sharp can't decode (wrong format, corrupted download) fails immediately,
 before anything is uploaded or written, with the file path in the error.
 
-Uploading only happens on `--commit` — the dry run validates that every
+Uploading only happens on `--commit` - the dry run validates that every
 photo file exists and is readable, and nothing more. `--commit` generates
 three real sizes per photo (thumbnail, gallery-card, detail-page) and
 uploads each to R2; see "R2 credentials" below for what that step needs.
@@ -224,18 +224,18 @@ non-local target without `--prod`: it fails closed. The same rule applies to
 Neon compute for any non-local target (AW-F1), so a migration can't land on a database the shell
 happens to point at.
 
-This is a **dry run** — nothing is written. Read the printed output
+This is a **dry run** - nothing is written. Read the printed output
 carefully: it shows the *computed* public location (the fuzzed
-coordinates), not the address you typed in — that's the actual proof
+coordinates), not the address you typed in - that's the actual proof
 `productionLocationPolicy` ran with your secret before anything real was
 at stake. Check the **offset line** specifically: `Offset from the real
-address: 743m (radius: 1000m) — looks right`. At a 1km fuzz radius the
+address: 743m (radius: 1000m) - looks right`. At a 1km fuzz radius the
 raw coordinates always share their first two decimal digits with the real
-address — that's what the radius means, and eyeballing them tells you
+address - that's what the radius means, and eyeballing them tells you
 nothing. The offset figure is the actual check: it should read "looks
 right," a non-zero number inside the stated radius. If it says "CHECK
 THIS" or reads suspiciously close to 0m, stop and check
-`LOCATION_HMAC_SECRET` is set correctly — don't proceed to `--commit`.
+`LOCATION_HMAC_SECRET` is set correctly - don't proceed to `--commit`.
 
 Once it looks right, `--commit` additionally needs the R2 write
 credentials (below):
@@ -251,19 +251,19 @@ R2_BUCKET_NAME=<your R2 bucket name> \
 ```
 
 If it fails partway through (network blip, a typo caught mid-run), just
-run the exact same command again — each animal's existence is checked
+run the exact same command again - each animal's existence is checked
 *before* its photos are uploaded, so an already-inserted animal is
 skipped entirely (no re-upload, no re-insert) and only the animals that
 never made it through the first time do any work.
 
 **A re-run does not update an existing animal, and the warning that catches
 this only sees photo *count*, not content.** If you add or remove a photo
-for an animal that already exists — changing how many it has — the script
+for an animal that already exists - changing how many it has - the script
 warns loudly (`WARNING: ... already exists with N photo(s), but this
 input now lists M`) and does nothing further: no upload, no insert, no
 change. **If you replace a photo file one-for-one, the count doesn't
-change and the script stays silent** — it has no way to tell the new file
-apart from the one already recorded. There's no real update path yet —
+change and the script stays silent** - it has no way to tell the new file
+apart from the one already recorded. There's no real update path yet -
 treat an onboarded animal's photos as fixed once inserted. If you need to
 correct a photo (not just add one), that has to be done by hand for now,
 not by re-running this script.
@@ -383,7 +383,7 @@ and so on). **Photos stay in R2, unlinked**: `demo:remove` itself never deletes 
 objects (K-Q2). Since the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
 R2-B1), that's no longer the whole story: once an animal's row is gone, its photos are
 unreferenced, and the daily scheduled sweep deletes them on its own once they've sat
-unreferenced for the grace period (~7 days) — the one named exception to K-Q2. Delete the
+unreferenced for the grace period (~7 days) - the one named exception to K-Q2. Delete the
 keys by hand in Cloudflare first if you want them gone sooner (a dedicated takedown script
 is still follow-up DR-F3). `--commit` prints the keys again.
 
@@ -426,7 +426,7 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
    ```
    The dry run names the shelter and prints the R2 keys of its animals' photos, including the
    ones uploaded from the kabinet. **Add those keys to the DR-F3 takedown list** if you want
-   them gone sooner than the automatic sweep — the GDPR R2 clean-up job (R2-B1) deletes a
+   them gone sooner than the automatic sweep - the GDPR R2 clean-up job (R2-B1) deletes a
    photo's objects on its own, with no action here, once they've sat unreferenced for the
    grace period (~7 days). `demo:remove` itself still deletes nothing from R2; DR-F3's
    operator-run script, or the Cloudflare dashboard by hand, is only for deleting sooner than
@@ -470,7 +470,7 @@ a second address""), because creating a shelter already invites its first admin:
       the reset email arrives; open it and set a new password. The second browser is signed out
       (reload `/kabinet`: the sign-in page), and «пароль змінено» arrives.
    5. Sign in with the new password.
-3. The shelter admin signs in on a phone, fills the profile, adds 2–3 animals with photos taken
+3. The shelter admin signs in on a phone, fills the profile, adds 2-3 animals with photos taken
    on the phone, and publishes.
 4. The adopter (a separate browser plus the gate cookie) finds them in the deck and the gallery,
    reveals contacts, and messages the shelter.
@@ -494,7 +494,7 @@ Until then the current rehearsal shelter (`c00c73ac-…`) stays as the dev test 
 ## Where `LOCATION_HMAC_SECRET` comes from
 
 Generate one once with `openssl rand -hex 32`. Keep it somewhere you can
-find it again — the same value must be used every time you onboard a
+find it again - the same value must be used every time you onboard a
 shelter, or a shelter onboarded with a different secret would get a public
 location fuzzed against a key nothing else remembers. Since the commit that
 turns production sign-in on, Vercel Production holds the same value (the
@@ -516,7 +516,7 @@ through a *different* token: `R2_UPLOAD_ACCESS_KEY_ID` /
 permission that can write objects, set in Vercel **Production only** together with `R2_ACCOUNT_ID` and
 `R2_BUCKET_NAME` (never Preview: uploads are off there, P-Q10). A production
 build fails without all four. The deployed app also needs
-`NEXT_PUBLIC_R2_PUBLIC_BASE_URL`, the bucket's *public* read URL — set once
+`NEXT_PUBLIC_R2_PUBLIC_BASE_URL`, the bucket's *public* read URL - set once
 in Vercel (Production and Preview), not per onboarding run; see
 `docs/h1-decisions.md` for why that one's required at boot and what it
 means if it's ever missing there.
@@ -532,7 +532,7 @@ mocked storage client, but the actual authenticated `PutObject` call, CORS,
 content-type headers, and whether `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` +
 a real key resolves over HTTP are all unverified until this runs once for
 real. Treat the first real onboarding run as that verification, not as a
-formality — watch the upload log lines closely and check the resulting
+formality - watch the upload log lines closely and check the resulting
 photo actually loads on the live detail page before trusting the rest.
 
 ## Taking a photo down (P-Q14)
@@ -540,13 +540,13 @@ photo actually loads on the live detail page before trusting the rest.
 Removing a photo in the kabinet (`shelter.photos.remove`) only takes it off
 the animal: its three files stay in the bucket and stay reachable by their URL.
 Nothing links to them any more, but anyone who saved the URL can still open it
-— until the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
+- until the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
 R2-B1) deletes it on its own, automatically, once it has sat unreferenced for the
-grace period (~7 days). That job — `DeleteObjectsCommand`/`ListObjectsV2Command`
-in `r2-cleanup-client.ts` — is the one named exception to K-Q2's "no code path
+grace period (~7 days). That job - `DeleteObjectsCommand`/`ListObjectsV2Command`
+in `r2-cleanup-client.ts` - is the one named exception to K-Q2's "no code path
 deletes an object"; no other code path does. When a photo must go sooner than the
 grace period allows (a shelter asks for it right away, or it shows something it
-shouldn't), delete it by hand in Cloudflare's dashboard — the manual path still
+shouldn't), delete it by hand in Cloudflare's dashboard - the manual path still
 works exactly as before, it's just no longer the only path.
 
 **Where the key comes from: the bucket, not the database.** A removed photo's

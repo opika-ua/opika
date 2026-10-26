@@ -10,7 +10,7 @@ import type { RevealErrorReason, RevealState } from "./useReveal";
 
 /**
  * The dialog's own primary action, keyed on whichever channel the shelter
- * actually gave as `primary` — the shelter's own stated preference, not
+ * actually gave as `primary` - the shelter's own stated preference, not
  * this component's guess. The mock's R1/R2 frames only ever show the
  * Telegram case, but real seed data has phone-primary shelters. Found by
  * looking at a real rendered reveal, not assumed: a phone-only shelter
@@ -18,7 +18,7 @@ import type { RevealErrorReason, RevealState } from "./useReveal";
  *
  * `viber`/`website` return `null` rather than a guessed deep-link scheme
  * this codebase has never used anywhere else, and no fallback to a
- * *different* channel's action is attempted — the contact rows below list
+ * *different* channel's action is attempted - the contact rows below list
  * every channel either way, so such a shelter's details are readable and
  * copyable; only the one-tap button is absent. Which channel should win
  * the button when the primary cannot supply one is a product decision, not
@@ -50,20 +50,20 @@ function primaryContactAction(
 }
 
 /**
- * Every channel the shelter gave, not just `contact.primary` — the mock's
+ * Every channel the shelter gave, not just `contact.primary` - the mock's
  * own R1/R2 frames show two rows for one shelter ("+380 67 123 45 67" and
  * "@domivka_brovary"), and today's seed data puts the phone in `primary`
  * and Telegram in `additional` for every shelter that has both. Keying the
  * rows off `primary` alone dropped the Telegram handle from every real
  * reveal, and rendered nothing at all for a `viber`/`website`-primary
- * shelter — an empty dialog that had still spent one of the adopter's 30
+ * shelter - an empty dialog that had still spent one of the adopter's 30
  * daily reveals.
  *
  * `allChannels` (packages/domain) is the domain's own primary-then-additional
  * ordering; the mock's row order is the same.
  *
  * "Viber" is written out because a Viber number and a phone number are both
- * bare `+380…` strings — two identical-looking rows with nothing to tell
+ * bare `+380…` strings - two identical-looking rows with nothing to tell
  * them apart reads as a duplication bug. It is a proper noun, spelled the
  * same in both catalogues, so it is not a missing translation.
  */
@@ -123,7 +123,7 @@ function contactsFootnoteOf(reveal: ContactRevealView): string | null {
 type DialogState = Extract<RevealState, { kind: "error" }> | Extract<RevealState, { kind: "open" }>;
 
 interface ContactRevealDialogProps {
-  /** Carries its own `animalName`/`cityName` snapshot — see `useReveal.ts`'s
+  /** Carries its own `animalName`/`cityName` snapshot - see `useReveal.ts`'s
    * own comment on why those live inside the state object rather than as
    * separate props kept in sync by hand. */
   state: DialogState;
@@ -131,8 +131,8 @@ interface ContactRevealDialogProps {
   onRetry: () => void;
   /**
    * Absent for a surface where dismissing the dialog should never navigate
-   * anywhere — the deck (R3, Phase R, `docs/build-plan.md`): "the deck
-   * session must survive a reveal — no exit back to the gallery." The
+   * anywhere - the deck (R3, Phase R, `docs/build-plan.md`): "the deck
+   * session must survive a reveal - no exit back to the gallery." The
    * detail page (`RevealFlow.tsx`) still passes one, since there dismissing
    * the reveal and "going back to the gallery" already meant the same
    * thing before this dialog existed.
@@ -141,16 +141,16 @@ interface ContactRevealDialogProps {
 }
 
 /**
- * The dialog half of what used to be `RevealFlow.tsx` in full — extracted
+ * The dialog half of what used to be `RevealFlow.tsx` in full - extracted
  * (R3, Phase R, `docs/build-plan.md`) so the deck can open the identical
  * overlay, focus trap and contact-card rendering the detail page already
  * had, rather than a second implementation of either. The caller owns
- * *when* this mounts (conditionally, only for `"error"`/`"open"` — never
+ * *when* this mounts (conditionally, only for `"error"`/`"open"` - never
  * `"idle"`/`"loading"`, which render nothing here at all) and the trigger
  * that opens it; this component owns everything from the overlay in.
  *
  * docs/design/README.md's addendum, frames R1 (1920, modal)/R2 (360,
- * full-screen) — `Opika Registry Frames.dc.html`, opened directly. One
+ * full-screen) - `Opika Registry Frames.dc.html`, opened directly. One
  * overlay tree for both breakpoints: the mobile card is `w-full h-full` (a
  * true full-screen takeover, matching R2's own frame), the desktop card is
  * a centred `max-w-[640px]` box over a visible backdrop, matching R1.
@@ -164,10 +164,10 @@ export function ContactRevealDialog({
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
-  // Focus the dialog's own heading on mount — the entrance the mock's own
+  // Focus the dialog's own heading on mount - the entrance the mock's own
   // caption describes ("Фокус переходить на заголовок"). This component is
   // only ever mounted while open (the caller renders it conditionally), so
-  // a mount-only effect already is "once per open" — no `isOpen` dependency
+  // a mount-only effect already is "once per open" - no `isOpen` dependency
   // needed the way the pre-extraction single component required.
   //
   // A layout effect for the same reason as the scroll lock below (RF-F2):
@@ -215,7 +215,7 @@ export function ContactRevealDialog({
       // directly, because the element focus actually starts on is neither:
       // the dialog's heading carries tabindex="-1" and so is not in this
       // list at all. Comparing only to `first` left Shift+Tab from the
-      // heading falling through to the trigger button behind the overlay —
+      // heading falling through to the trigger button behind the overlay -
       // the trap held forwards and leaked backwards. `-1` also covers the
       // error state, where focus can still be outside the dialog.
       const active = document.activeElement;
@@ -284,7 +284,7 @@ export function ContactRevealDialog({
  * so without it the error dialog announced with no accessible name at all,
  * and focus stayed on the trigger button *behind* the overlay.
  *
- * `reason` picks the copy — `uk.errors.rateLimited` has no `eyebrow`
+ * `reason` picks the copy - `uk.errors.rateLimited` has no `eyebrow`
  * (`"eyebrow" in copy` guards it) and no retry button at all, rendered
  * conditionally rather than pointed at `uk.errors.loadFailed.action`: a
  * reveal-budget refusal cannot succeed on retry before the window resets,
@@ -332,14 +332,14 @@ function RevealError({
         </button>
       </div>
       {/*
-        `"action" in copy`, not `reason !== "rateLimited"` — states the
+        `"action" in copy`, not `reason !== "rateLimited"` - states the
         actual rule ("no retry only for a refusal with no action copy")
         rather than "only this one specific reason gets a retry", which
         would silently withhold retry from any future reason added to
         `RevealErrorReason` that a caller *does* want retryable, and lets
         TypeScript narrow `copy` itself so `copy.action` below is sound.
         `offline` is exactly the retryable case this used to only
-        anticipate in a comment — `copy.action` (not a hardcoded
+        anticipate in a comment - `copy.action` (not a hardcoded
         `uk.errors.loadFailed.action`) is what makes the button read
         "Спробувати ще раз" there instead of "Оновити", mirroring the
         deck's own `DeckErrorReason` handling.

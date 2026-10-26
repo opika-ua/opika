@@ -3,7 +3,7 @@
  * (before `animals.cardsByIds` resolves), one per saved id, matching
  * `AnimalCard`'s own box model (`gap-4 ... rounded-rg-card p-3`, a
  * `aspect-[4/5]` photo block, two text lines) closely enough that swapping
- * a skeleton for the real card causes no layout shift. Not a pixel match —
+ * a skeleton for the real card causes no layout shift. Not a pixel match -
  * `docs/standing-constraints.md`'s "test logic, not looks" era builds no
  * new visual test for this, and none is added here.
  */

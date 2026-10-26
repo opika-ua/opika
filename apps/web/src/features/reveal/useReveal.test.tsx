@@ -51,14 +51,14 @@ beforeEach(() => {
  * long-lived component reusing the same `useReveal` instance across many
  * different animals, so a slow response to an *earlier* `open()` call
  * landing after a *later* one must never overwrite what the later call
- * already resolved to. Caught on review — the deck's own tests never
+ * already resolved to. Caught on review - the deck's own tests never
  * exercised two overlapping calls directly; these do.
  *
  * Each test drives the two overlapping calls in strict, deterministic
  * order (first call's own request registered, then the second call
  * fired, then the second call's own resolution settled, only then the
  * first call's own deferred promise settled) rather than racing real
- * timers — the guard is meant to hold regardless of timing, and a fixed
+ * timers - the guard is meant to hold regardless of timing, and a fixed
  * order is what makes a failure attributable to the guard itself rather
  * than to test flakiness.
  *
@@ -74,7 +74,7 @@ beforeEach(() => {
 describe("useReveal's error reason", () => {
   /**
    * Same pattern `use-feed-deck.test.tsx` already uses for `INVALID_CURSOR`:
-   * `defined: true` matters — it's what a real contract-declared error
+   * `defined: true` matters - it's what a real contract-declared error
    * carries once the client deserializes it, and what `isDefinedError` (this
    * hook's own check) actually keys on. A bare `new ORPCError(code)`
    * defaults to `defined: false` and would silently take the "loadFailed"
@@ -136,7 +136,7 @@ describe("useReveal's error reason", () => {
   /**
    * G1 (audit 2026-10-22). `session.bootstrap` is what the per-IP limiter
    * actually protects, and it answers a raw 429 the client reports as
-   * `TOO_MANY_REQUESTS` — not a defined `RATE_LIMITED`. Its own reason, so the
+   * `TOO_MANY_REQUESTS` - not a defined `RATE_LIMITED`. Its own reason, so the
    * dialog doesn't call a limit a failure «на боці сайту». `animals.reveal` can
    * be refused the same way, and a *defined* `RATE_LIMITED` (the reveal budget,
    * also status 429) must keep its own reason.
@@ -170,8 +170,8 @@ describe("useReveal's error reason", () => {
 
   /**
    * Reviewer-found gap (`docs/reviews/chore/finish-line-block-1/b22b7c1.md`):
-   * a network failure reaching `session.bootstrap` itself — not
-   * `animals.reveal` — is the far more likely shape of "offline" on the
+   * a network failure reaching `session.bootstrap` itself - not
+   * `animals.reveal` - is the far more likely shape of "offline" on the
    * detail page, since this is the *first* request `open()` makes with no
    * `ensureSession` injected (`RevealFlow.tsx`'s own call site). The sibling
    * test above (a plain `Error`) proved the fallback-to-loadFailed case; this
@@ -228,7 +228,7 @@ describe("useReveal's generation guard", () => {
     await settle();
     expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" });
 
-    // The first call's slow response lands now — it must not un-resolve
+    // The first call's slow response lands now - it must not un-resolve
     // or overwrite the second call's already-applied result.
     act(() => {
       resolveFirst(revealFor(ANIMAL_A, "Мурчик"));
@@ -260,7 +260,7 @@ describe("useReveal's generation guard", () => {
     await settle();
     expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" });
 
-    // The first call's failure lands after the second already succeeded —
+    // The first call's failure lands after the second already succeeded -
     // it must not downgrade a real, already-shown result to an error.
     act(() => {
       rejectFirst(new Error("network error"));
@@ -322,7 +322,7 @@ describe("useReveal's generation guard", () => {
     expect(result.current.state).toEqual({ kind: "idle" });
 
     // The reveal this dialog was waiting on finally resolves, after the
-    // user already dismissed it — must not reopen the dialog behind them.
+    // user already dismissed it - must not reopen the dialog behind them.
     act(() => {
       resolveReveal(revealFor(ANIMAL_A, "Мурчик"));
     });

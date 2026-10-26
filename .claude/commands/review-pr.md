@@ -1,9 +1,9 @@
 ---
-description: Audit a pull request the way a sceptical reviewer would — claims against evidence, not code style.
+description: Audit a pull request the way a sceptical reviewer would - claims against evidence, not code style.
 argument-hint: <PR number, or a branch name>
 ---
 
-Audit **$ARGUMENTS**. This is not a code-style review — the `reviewer` subagent already ran
+Audit **$ARGUMENTS**. This is not a code-style review - the `reviewer` subagent already ran
 during implementation. This asks a different question: **is what the pull request claims
 actually true?**
 
@@ -19,7 +19,7 @@ For each definition-of-done item marked done: **find the thing that would fail i
 false.** A test, a harness assertion, a documented device test with a screenshot. (Until the
 brand lands, a behavioural one: CLAUDE.md, "Test logic, not looks".)
 
-If nothing would fail, the item is **asserted**, not verified — regardless of what the
+If nothing would fail, the item is **asserted**, not verified - regardless of what the
 body says. Say so plainly.
 
 This project has been misled three times by exactly this: a milestone reported `pnpm check`
@@ -51,7 +51,7 @@ compiling is not evidence.**
 ## 3. Check it against the design
 
 Where the pull request touches UI, compare against `docs/design/README.md`. The design
-specifies exact values — colours, spacing, motion timings, thresholds, pip geometry. A
+specifies exact values - colours, spacing, motion timings, thresholds, pip geometry. A
 deviation is a finding whether or not it looks fine, because the next surface built will
 inherit the drift. *Until the brand lands (CLAUDE.md, "Test logic, not looks"): check structure,
 states, copy and behaviour against the design, and that styling uses theme tokens only; visual
@@ -70,20 +70,20 @@ truth? Does it introduce a value that will need changing in two places?
 ```
 VERDICT: merge | merge with follow-ups | do not merge
 
-WHAT'S GOOD — brief, specific, and only if true
+WHAT'S GOOD - brief, specific, and only if true
 
-FINDINGS — most severe first
-  <file:line> — the defect, how it fails, what it costs
+FINDINGS - most severe first
+  <file:line> - the defect, how it fails, what it costs
 
 CLAIMS THAT DON'T HOLD
-  <the claim> — what the body says, what is actually true
+  <the claim> - what the body says, what is actually true
 
-VERIFIED vs ASSERTED — the honest ledger for this PR's definition of done
+VERIFIED vs ASSERTED - the honest ledger for this PR's definition of done
 
-BEFORE MERGING — what must change, if anything
-AFTER MERGING — what should become an issue
+BEFORE MERGING - what must change, if anything
+AFTER MERGING - what should become an issue
 ```
 
 State findings plainly. Do not soften a real defect to be agreeable, and do not manufacture
-findings to look thorough — "merge, nothing found" is a legitimate and useful result. If
+findings to look thorough - "merge, nothing found" is a legitimate and useful result. If
 the work is good, say so briefly and stop.

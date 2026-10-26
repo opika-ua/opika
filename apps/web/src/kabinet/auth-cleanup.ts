@@ -25,7 +25,7 @@ import { authExpiryRepo, kabinetInvitedUsersRepo } from "@opika/db/repos";
  *   sweep to the existing auth clean-up schedule. A dormant shelter's dead
  *   invitee is erased without any kabinet action"), also every account
  *   `kabinetInvitedUsersRepo.cleanupCandidates`/`deleteCandidates` finds
- *   eligible across every organisation — a departed invitee who never
+ *   eligible across every organisation - a departed invitee who never
  *   triggers a `registry.admins.*` call (no one ever removes or resends
  *   their dead invitation by hand) is erased here instead, within this
  *   cron's own 6-hour worst case, not left to wait indefinitely.

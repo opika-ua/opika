@@ -50,7 +50,7 @@ import { acceptEvidence } from "./registry-writes";
  * production sign-in answers 503 and accept-invitation isn't forwarded:
  * moving or splitting this file fails that test, and so does either
  * condition flipping, because that is the day a shelter can sign in and the
- * /prytulkam copy (A1–A3, B1) has to be live.
+ * /prytulkam copy (A1-A3, B1) has to be live.
  *
  * Each write that makes an invitation live (create's first admin, invite,
  * resend) emails the invitee a link to «Створіть пароль» (IN-Q3; PW-2, a new
@@ -399,7 +399,7 @@ export async function registryAdminsRemove(
   if (!removed) throw errors.NOT_FOUND();
   // GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4; Oleksii,
   // 2026-10-24), the accepted-member half: a withdrawn *pending* invite has
-  // no membership to lose here — `cleanUpInvitedUsers` below erases that
+  // no membership to lose here - `cleanUpInvitedUsers` below erases that
   // account (same shared mechanism, same invariant) if it now holds no
   // shelter role at all, whether or not it was ever signed into.
   if (admin.invite.status === "accepted") {

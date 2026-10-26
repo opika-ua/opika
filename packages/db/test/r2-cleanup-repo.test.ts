@@ -30,7 +30,7 @@ import {
 
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). Every test here uses a
- * real, migrated local database — jsonb array extraction and raw multi-row
+ * real, migrated local database - jsonb array extraction and raw multi-row
  * writes have no meaningful unit-level equivalent.
  */
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
@@ -100,7 +100,7 @@ describe("referencedStorageKeys / referencedObjectKeys", () => {
 describe("SQL_BATCH_SIZE", () => {
   it("stays well under Postgres's 65535 bind-parameter limit at this file's worst per-row rate (Tier 1 review, PR #200, note 7/9)", () => {
     // recordScan's INSERT binds 2 parameters per row (objectKey,
-    // firstSeenUnreferencedAt) — the most of any statement this file
+    // firstSeenUnreferencedAt) - the most of any statement this file
     // chunks. A batch size that still crosses the real limit, even at a
     // lower per-row rate than today's, defeats the whole point of
     // chunking; this is the guard a mutation like "bump it to 1,000,000"
@@ -169,7 +169,7 @@ describe("recordScan", () => {
     expect(await trackedUnreferencedObjects(db)).toHaveLength(1500);
 
     // Now make every one of them referenced, 10 photos per animal, sharing
-    // one city/shelter to keep the fixture setup itself fast — what this
+    // one city/shelter to keep the fixture setup itself fast - what this
     // test measures is the repo's own batching, not fixture insert speed.
     const city = makeCity();
     await cityRepo(db).insert(city);
@@ -203,7 +203,7 @@ describe("stillUnreferenced", () => {
 
   it("protects any object under a referenced photo's own path, not just the three known variants (Tier 1 review, PR #200, note 6)", async () => {
     await insertAnimalWithPhotos(["animals/a/1"]);
-    // Neither a known variant name nor the .webp extension — exactly the
+    // Neither a known variant name nor the .webp extension - exactly the
     // shape a future variant or a format migration would produce. The old
     // implementation (parsing a fixed variant/extension regex out of the
     // key) would have missed this; the parent-path check doesn't need to
@@ -266,7 +266,7 @@ describe("afterDeleted", () => {
     expect(await trackedUnreferencedObjects(db)).toEqual([]);
   }, 30_000);
 
-  it("nulls reveal snapshots across more than one SQL batch (round 3 Tier 1 delta review, finding 8 — " +
+  it("nulls reveal snapshots across more than one SQL batch (round 3 Tier 1 delta review, finding 8 - " +
     "the 1500-row afterDeleted test above exercises only the tracking-table DELETE chunking, never " +
     "the reveal-snapshot UPDATE chunking, since it has no reveals at all)", async () => {
     const city = makeCity();

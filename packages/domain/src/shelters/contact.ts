@@ -4,7 +4,7 @@ const E164Schema = z.string().regex(/^\+[1-9]\d{7,14}$/);
 
 /**
  * Channels are separate variants rather than a generic { type, value } pair
- * because each renders differently — tel:, mailto:, and two distinct deep-link
+ * because each renders differently - tel:, mailto:, and two distinct deep-link
  * schemes. A generic pair would push a switch over a raw string into every
  * surface that displays a contact, which is the duplication this avoids.
  *

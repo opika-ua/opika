@@ -16,7 +16,7 @@ const EXACT: Coordinates = { lat: 49.9935, lng: 36.2304 };
 /**
  * The geometry tests below only need a digest that varies with its input, so
  * the test-only policy is the honest fixture here. What it must never do is
- * silently become the thing production uses — see the last describe block.
+ * silently become the thing production uses - see the last describe block.
  */
 const policy = (
   overrides: { digest?: KeyedUnitDigest; fuzzRadiusMetres?: number } = {},
@@ -42,7 +42,7 @@ const seeds = (count: number): readonly string[] =>
 describe("the offset cannot be reproduced without the key", () => {
   it("differs between two servers holding different keys", () => {
     // The whole point. If these matched, the offset would be derivable from the
-    // shelter id — which ships to every client alongside the fuzzed point.
+    // shelter id - which ships to every client alongside the fuzzed point.
     const a = fuzzCoordinates(EXACT, "shelter-1", testOnlyLocationPolicy("key-a"));
     const b = fuzzCoordinates(EXACT, "shelter-1", testOnlyLocationPolicy("key-b"));
     expect(a.center).not.toEqual(b.center);
@@ -91,7 +91,7 @@ describe("the displacement matches the radius it advertises", () => {
   });
 
   it("actually uses the radius rather than hugging the true point", () => {
-    // Catches a shrunken radius, or sqrt(u) replaced by a higher power — both
+    // Catches a shrunken radius, or sqrt(u) replaced by a higher power - both
     // of which locate the shelter precisely while still reporting 1000 m.
     expect(median).toBeGreaterThan(0.6 * DEFAULT_FUZZ_RADIUS_METRES);
     expect(mean).toBeGreaterThan(0.5 * DEFAULT_FUZZ_RADIUS_METRES);

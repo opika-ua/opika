@@ -8,7 +8,7 @@ VERDICT: PASS WITH NOTES
 | Builder's mutation (exit path EXIT_EASE→EASE) reproduced: fails with `Expected "transform 280ms cubic-bezier(0.3, 0, 0, 1)" / Received "...(0.16, 1, 0.3, 1)"` | Rendered visual timing on a device (no harness assertion covers easing) |
 | Mutation: spring path EASE→EXIT_EASE. The spring-back pin test fails as expected | |
 | Mutation: reduced-motion *commit* exit (line 290) EXIT_EASE→EASE. **Survives, 15/15 green** (#1) | |
-| README:203–204, :786 checked against the constants: 280ms and `cubic-bezier(0.3, 0, 0, 1)` match | |
+| README:203-204, :786 checked against the constants: 280ms and `cubic-bezier(0.3, 0, 0, 1)` match | |
 
 Mutations ran in a temporary copy directory, which was then deleted. No tracked file was touched and `git status` is clean.
 
@@ -24,7 +24,7 @@ Mutations ran in a temporary copy directory, which was then deleted. No tracked 
 
 4. **[low] docs/build-plan.md G4 row says "3 new harness-adjacent unit assertions".** The commit actually has 2 new tests and 1 extended assertion, all happy-dom unit tests with no harness involvement. The row also implies the reduced-motion exit is pinned, and per #1 it is not.
 
-5. **[note, pre-existing, out of scope] use-swipe-gesture.ts:334–343: `onPointerCancel` ignores reduced motion.** It always sets a 300ms transform transition, so under reduced motion the card visibly slides back. That contradicts README:204, "the stack does not move". The fix belongs to the Opus spring row, which rewrites this function anyway. Leaving it alone here was correct, but nothing records the gap. Add it to the G4 row's open half.
+5. **[note, pre-existing, out of scope] use-swipe-gesture.ts:334-343: `onPointerCancel` ignores reduced motion.** It always sets a 300ms transform transition, so under reduced motion the card visibly slides back. That contradicts README:204, "the stack does not move". The fix belongs to the Opus spring row, which rewrites this function anyway. Leaving it alone here was correct, but nothing records the gap. Add it to the G4 row's open half.
 
 ## Answers to the four questions
 
@@ -35,7 +35,7 @@ Mutations ran in a temporary copy directory, which was then deleted. No tracked 
 
 ## SIMPLIFICATIONS
 
-- use-swipe-gesture.ts, the `SPRING_BACK_MS` doc comment (about 17 lines): cut it to 3–4 lines (the spec values 280/30 with no overshoot, the fact that CSS cannot express it, and a pointer to the G4 row). The rationale is already in the commit body and the build-plan row. Nothing breaks if this is wrong.
+- use-swipe-gesture.ts, the `SPRING_BACK_MS` doc comment (about 17 lines): cut it to 3-4 lines (the spec values 280/30 with no overshoot, the fact that CSS cannot express it, and a pointer to the G4 row). The rationale is already in the commit body and the build-plan row. Nothing breaks if this is wrong.
 
 ## TESTS
 

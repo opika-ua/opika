@@ -14,16 +14,16 @@ Inbox: every IN-E1..E15, IN-Q0..Q14, IN-T1..T8 row appears exactly once (IN-Q2 a
 #93 behaviour: the email work changes no #93 consumer. `shelter.profile.get` reads neither `invites` nor `linkBaseURL`; nothing in #93 used `ALREADY_A_MEMBER` or `ShelterAdminViewSchema` as an output | 
 
 FINDINGS (most severe first)
-1. [medium] docs/decisions-inbox/feat-h2-invite.md:42-44 vs feat-h2-admin-joined.md — IN-Q12, Q13 and Q14 are now in one branch, in two files, with opposite statuses (`open` in one, `answered` in the other).
+1. [medium] docs/decisions-inbox/feat-h2-invite.md:42-44 vs feat-h2-admin-joined.md - IN-Q12, Q13 and Q14 are now in one branch, in two files, with opposite statuses (`open` in one, `answered` in the other).
    Failure scenario: the PR merge appends both files to the main table, giving the same ID twice, once open and once answered.
    Evidence: grep of both files on HEAD. Fix: mark the feat-h2-invite.md rows as answered, pointing at the admin-joined rows, or merge the two files.
-2. [low] docs/h2-invite-copy-sheet.md:62,92 — two sections are both headed "## C." (the sign-in card fallback, and the confirm page). Each old branch used letter C on its own; the union put them side by side. uk.ts and copy-status.test.ts cite "sheet C" for the confirm page, which is now ambiguous. Rename one of them.
-3. [low] uk.ts `signInCard` comment ("Rendered by the screens PR"), IN-T6 ("restyle once the screens PR lands") and copy sheet C and L ("screens PR") — #93 *is* the screens PR and is merged. It renders neither `notArrived` nor the confirm restyle, so these obligations now point at a PR that has already shipped. Re-bind each one to a named follow-up.
+2. [low] docs/h2-invite-copy-sheet.md:62,92 - two sections are both headed "## C." (the sign-in card fallback, and the confirm page). Each old branch used letter C on its own; the union put them side by side. uk.ts and copy-status.test.ts cite "sheet C" for the confirm page, which is now ambiguous. Rename one of them.
+3. [low] uk.ts `signInCard` comment ("Rendered by the screens PR"), IN-T6 ("restyle once the screens PR lands") and copy sheet C and L ("screens PR") - #93 *is* the screens PR and is merged. It renders neither `notArrived` nor the confirm restyle, so these obligations now point at a PR that has already shipped. Re-bind each one to a named follow-up.
 4. [low] The commit bodies record `pnpm check` on "Node 22.22.3; engines want 24". #90 pins Node 24, so the green run is evidence on the wrong major. CI on 24 is the real gate.
-5. [info] The 009bae5 fold is fine. Its stale counts (1823) and its "no-referrer" wording describe that commit's moment. This doesn't matter if the PR is squash-merged as #89–#93 were. Note that 659b499..944086a do not typecheck on the new base (7de3300 says so itself), so the rewritten commits are not bisectable.
+5. [info] The 009bae5 fold is fine. Its stale counts (1823) and its "no-referrer" wording describe that commit's moment. This doesn't matter if the PR is squash-merged as #89-#93 were. Note that 659b499..944086a do not typecheck on the new base (7de3300 says so itself), so the rewritten commits are not bisectable.
 
 SIMPLIFICATIONS
-- apps/web/src/app/kabinet/page.tsx:23-24 — computes availability twice. Call `kabinetAvailabilityOrNotFound()` once, then `kabinetAuth()`. If this is wrong, the page's 404 would follow `kabinetAuth()`, and available-auth.test.ts catches that (mutated above).
+- apps/web/src/app/kabinet/page.tsx:23-24 - computes availability twice. Call `kabinetAvailabilityOrNotFound()` once, then `kabinetAuth()`. If this is wrong, the page's 404 would follow `kabinetAuth()`, and available-auth.test.ts catches that (mutated above).
 
 TESTS
 - packages/i18n copy-status.test.ts: 1 file, 19 passed

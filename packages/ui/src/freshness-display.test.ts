@@ -30,7 +30,7 @@ describe("freshnessLabel", () => {
    * (CLAUDE.md's non-negotiable plural-boundary suite, plus 3 to exercise
    * the "few" form 1/2 mask with "учора"/"позавчора"). This asserts the
    * {days} substitution around the domain's Intl output, not the plural
-   * rule itself — it would fail if the template broke, not if Intl did.
+   * rule itself - it would fail if the template broke, not if Intl did.
    */
   it.each([
     [1, "Оновлено учора"],

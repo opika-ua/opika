@@ -36,7 +36,7 @@ beforeEach(async () => {
  * row itself adds passes it. Before O-20, every one of this app's custom
  * error codes except `NOT_FOUND` (which happens to collide with an oRPC
  * *common* code of the same name) answered a bare `500` regardless of the
- * code thrown — `res.status >= 400` alone would have stayed green through
+ * code thrown - `res.status >= 400` alone would have stayed green through
  * that entire regression, since 500 is still `>= 400`. Asserting the real
  * status a client receives, not merely "some error happened," is the actual
  * guard.
@@ -71,8 +71,8 @@ async function bootstrap(): Promise<string> {
  * Insert a city, verified shelter, and published animal.
  *
  * The shelter gets a proper publicLocation via makeShelter's default
- * (uses publicLocationOf). The animal's publicLocation stays null —
- * valid per the schema — and the denormalised city_id column is set
+ * (uses publicLocationOf). The animal's publicLocation stays null -
+ * valid per the schema - and the denormalised city_id column is set
  * via the second arg to animalRepo.insert.
  */
 async function seedFeedAnimal(animalOverrides?: AnimalFixtureOverrides) {
@@ -170,8 +170,8 @@ describe("session", () => {
   it("bootstrap mints a fresh session when the cookie is unknown", async () => {
     // An unknown cookie triggers get-or-reject inside validateSession (returns
     // { ok: false }), and bootstrap is the sole endpoint that responds by
-    // minting. This is NOT the old deviceSessionId vulnerability — 256-bit
-    // hashed tokens can't collide — but it means bootstrap MUST be per-IP rate
+    // minting. This is NOT the old deviceSessionId vulnerability - 256-bit
+    // hashed tokens can't collide - but it means bootstrap MUST be per-IP rate
     // limited because unauthenticated callers can create unbounded adopter rows.
     const res = await h.call("session.bootstrap", {}, { cookie: "session=bogus" });
     expect(res.status).toBe(200);
@@ -360,7 +360,7 @@ describe("reveal", () => {
     expect(JSON.stringify(body)).not.toContain("exactAddress");
   });
 
-  it("is idempotent — second reveal returns the same id", async () => {
+  it("is idempotent - second reveal returns the same id", async () => {
     const cookie = await bootstrap();
     const { animal } = await seedFeedAnimal();
 
@@ -383,7 +383,7 @@ describe("reveal", () => {
    * O-20 coverage gap, found by the reviewer 2026-09-11: `ANIMAL_NOT_AVAILABLE`
    * and `SHELTER_NOT_VISIBLE` both changed status 500 -> 404 in the same row as
    * RATE_LIMITED/UNAUTHENTICATED/INVALID_CURSOR, but neither had a test here at
-   * all — a status regression on either would have stayed green.
+   * all - a status regression on either would have stayed green.
    */
   it("answers ANIMAL_NOT_AVAILABLE, at 404, for an adopted animal", async () => {
     const cookie = await bootstrap();
@@ -508,7 +508,7 @@ describe("swipes", () => {
 
 describe("reveal rate limit", () => {
   // The test harness's `h.call` defaults `now` to 2026-08-01T12:00:00Z when
-  // no override is passed (see test-harness.ts) — these two constants are
+  // no override is passed (see test-harness.ts) - these two constants are
   // relative to that default.
   /** Comfortably inside the 24h window. */
   const WITHIN_WINDOW = new Date("2026-08-01T11:00:00Z");
@@ -550,9 +550,9 @@ describe("reveal rate limit", () => {
 
   /**
    * Seed `count` distinct shelters, each with one animal already revealed by
-   * `adopterId` at `revealedAt` — building blocks for the tests below.
+   * `adopterId` at `revealedAt` - building blocks for the tests below.
    * Distinct shelters, not distinct animals at one shelter, because the
-   * budget counts `COUNT(DISTINCT shelter_id)` (2026-09-10 correction —
+   * budget counts `COUNT(DISTINCT shelter_id)` (2026-09-10 correction -
    * contacts are scrapeable per shelter, not per animal).
    */
   async function seedDistinctRevealedShelters(
@@ -582,7 +582,7 @@ describe("reveal rate limit", () => {
     expectError(res, "RATE_LIMITED", 429);
   });
 
-  it("does not rate-limit at 29 distinct shelters — the boundary is exactly 30, not 29", async () => {
+  it("does not rate-limit at 29 distinct shelters - the boundary is exactly 30, not 29", async () => {
     const { cookie, adopterId } = await bootstrapAdopter();
     await seedDistinctRevealedShelters(adopterId, 29);
 
@@ -590,7 +590,7 @@ describe("reveal rate limit", () => {
     const res = await h.call("animals.reveal", { animalId: thirtiethAnimal.id }, { cookie });
     expect(
       res.status,
-      `the 30th distinct shelter must still succeed — the cap is exactly 30, got ${res.status}`,
+      `the 30th distinct shelter must still succeed - the cap is exactly 30, got ${res.status}`,
     ).toBe(200);
   });
 
@@ -599,7 +599,7 @@ describe("reveal rate limit", () => {
     const shelters = await seedDistinctRevealedShelters(adopterId, 30);
 
     // A second, different animal at an already-revealed shelter costs
-    // nothing — the device already has that shelter's contact details.
+    // nothing - the device already has that shelter's contact details.
     const alreadyRevealedShelter = shelters[0]!;
     const secondAnimal = makeAnimal({ shelterId: alreadyRevealedShelter.id });
     await animalRepo(h.db).insert(secondAnimal, city.id);
@@ -617,13 +617,13 @@ describe("reveal rate limit", () => {
    * all): many reveal *rows* against a few shelters must not exhaust the
    * budget the way many reveal rows against many shelters does. 5 distinct
    * shelters, revealed 10 times each via 10 different animals apiece, is 50
-   * reveal rows — well past a row-count cap of 30 — but only 5 distinct
+   * reveal rows - well past a row-count cap of 30 - but only 5 distinct
    * shelters, so a 6th, genuinely new shelter must still succeed. Would not
    * be caught by the boundary test above: 30 shelters revealed once each has
    * row-count == distinct-count == 30, so a regression to plain `count()`
    * still passes that test.
    */
-  it("counts distinct shelters, not reveal rows — many repeats of a few shelters stay well under budget", async () => {
+  it("counts distinct shelters, not reveal rows - many repeats of a few shelters stay well under budget", async () => {
     const { cookie, adopterId } = await bootstrapAdopter();
     const reveals = revealRepo(h.db);
 
@@ -653,7 +653,7 @@ describe("reveal rate limit", () => {
 
   it("does not count reveals from outside the 24h window toward the budget", async () => {
     const { cookie, adopterId } = await bootstrapAdopter();
-    // 30 distinct shelters, all revealed >24h before the call's `now` — none
+    // 30 distinct shelters, all revealed >24h before the call's `now` - none
     // of these should count toward the current window's budget.
     await seedDistinctRevealedShelters(adopterId, 30, OUTSIDE_WINDOW);
 
@@ -668,7 +668,7 @@ describe("reveal rate limit", () => {
   it("does not grant a free re-reveal for a shelter last revealed outside the window", async () => {
     const { cookie, adopterId } = await bootstrapAdopter();
     // 29 shelters revealed *within* the window, plus one more this same
-    // adopter revealed >24h ago (outside it) — the old one must not count
+    // adopter revealed >24h ago (outside it) - the old one must not count
     // as "already revealed" for the free-re-reveal check below.
     await seedDistinctRevealedShelters(adopterId, 29);
     const [oldShelter] = await seedDistinctRevealedShelters(adopterId, 1, OUTSIDE_WINDOW);
@@ -678,7 +678,7 @@ describe("reveal rate limit", () => {
     const capRes = await h.call("animals.reveal", { animalId: thirtiethAnimal.id }, { cookie });
     expect(capRes.status, "setup: the 30th within-window shelter must succeed").toBe(200);
 
-    // A second, different animal at oldShelter — its only reveal was outside
+    // A second, different animal at oldShelter - its only reveal was outside
     // the window, so this must NOT be free, and the adopter is now at the
     // 30-shelter cap, so it must be rate-limited.
     const secondOldAnimal = makeAnimal({ shelterId: oldShelter!.id });
@@ -705,7 +705,7 @@ describe("reveal rate limit", () => {
       }),
     );
 
-    // B reveals a different animal at that same shelter — B has never
+    // B reveals a different animal at that same shelter - B has never
     // revealed this shelter themself, so it must count against B's own
     // (already exhausted) budget, not ride free on A's history.
     const animalForB = makeAnimal({ shelterId: sharedShelter.id });
@@ -796,7 +796,7 @@ describe("cursor stability", () => {
 // 9. Filter coverage: city, size, age, multi-filter
 // ---------------------------------------------------------------------------
 
-describe("feed filters — city", () => {
+describe("feed filters - city", () => {
   it("city filter returns only animals in the selected city", async () => {
     const city1 = makeCity({ name: { uk: "Київ", en: { text: "Kyiv", provenance: "human" } } });
     const city2 = makeCity({ name: { uk: "Львів", en: { text: "Lviv", provenance: "human" } } });
@@ -843,7 +843,7 @@ describe("feed filters — city", () => {
   });
 });
 
-describe("feed filters — size", () => {
+describe("feed filters - size", () => {
   it("size filter returns only matching animals", async () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
@@ -876,7 +876,7 @@ describe("feed filters — size", () => {
   });
 });
 
-describe("feed filters — age", () => {
+describe("feed filters - age", () => {
   it("age filter returns only animals in the selected bucket", async () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
@@ -918,7 +918,7 @@ describe("feed filters — age", () => {
   });
 });
 
-describe("feed filters — multi-filter combination", () => {
+describe("feed filters - multi-filter combination", () => {
   it("species + size returns only animals matching both", async () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
@@ -981,7 +981,7 @@ describe("gallery.list", () => {
     });
     await shelterRepo(h.db).insert(shelter);
 
-    // Edited recently, published long ago — a shelter tending an old listing,
+    // Edited recently, published long ago - a shelter tending an old listing,
     // which is the case that makes `last_updated_at` the wrong wait column.
     const oldTimer = makeAnimal({
       shelterId: shelter.id,
@@ -1055,7 +1055,7 @@ describe("gallery.list", () => {
   it("returns the sorted order the query produced, not a re-ranked one", async () => {
     // The lock on the one thing copying `feed.ts` too closely would break.
     // `feed.list` re-ranks its page with `scoreAnimal`, whose dominant term is
-    // freshness — so a gallery handler that did the same would return
+    // freshness - so a gallery handler that did the same would return
     // longest-waiting in something close to freshest order. Старожил is first
     // by wait and first by freshness; Новенький and Середній are the pair that
     // separate the two orderings.
@@ -1083,7 +1083,7 @@ describe("gallery.list", () => {
   });
 
   it("is reproducible as the clock advances", async () => {
-    // The property Phase E's definition of done rests on — "shares a URL that
+    // The property Phase E's definition of done rests on - "shares a URL that
     // reproduces exactly what they saw". Score is a function of freshness
     // decay, so a re-ranked page would drift between these two calls.
     await seedGalleryCorpus();
@@ -1120,7 +1120,7 @@ describe("gallery.list", () => {
       totalPages: number;
       page: number;
     };
-    // A 200 carrying the last valid page, not a 404 and not a bounce to 1 —
+    // A 200 carrying the last valid page, not a 404 and not a bounce to 1 -
     // the link is stale, not broken.
     expect(body.totalMatching).toBe(3);
     expect(body.totalPages).toBe(2);

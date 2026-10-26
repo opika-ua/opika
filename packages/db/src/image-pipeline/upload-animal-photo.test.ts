@@ -12,7 +12,7 @@ const PHOTO_ID = "b1000000-0000-4000-8000-000000000001";
 
 /**
  * `ImageStorageClient` exists precisely so `uploadAnimalPhoto` can be
- * tested without a real bucket — round-1 review found this test missing
+ * tested without a real bucket - round-1 review found this test missing
  * despite the interface already supporting it, not a gap that needed new
  * infrastructure to close.
  */
@@ -62,7 +62,7 @@ describe("uploadAnimalPhoto", () => {
     });
 
     // Real source dimensions, not any of IMAGE_VARIANTS' fixed sizes
-    // (176x176 / 640x800 / 1120x1400) — a mistake here would silently
+    // (176x176 / 640x800 / 1120x1400) - a mistake here would silently
     // corrupt the aspect ratio every downstream reader trusts.
     expect(photo.width).toBe(1023);
     expect(photo.height).toBe(782);

@@ -22,7 +22,7 @@ VERDICT: PASS WITH NOTES. Both blockers are resolved and nothing blocks the comm
    - That screen shows money-routing with the destination visible, so the link has to come from the shelter's live approved donation.
    - Failure scenario: a shelter moves its fundraiser, the operator approves the new link, and «Мої запити» still links to the abandoned page.
 2. **[low] `docs/design/README.md:740`** still specifies a "snapshot footnote" on the reveal card. No live screen shows it any more. Point that line at K4-Q11, so the next builder doesn't put the deleted claim back "per design".
-3. **[low] Commit body.** The original finding 4 (mutation records) stands until the commit exists. The body needs `mutation:` lines for M1–M5 or the builder's equivalents, plus the 48px floor crossing.
+3. **[low] Commit body.** The original finding 4 (mutation records) stands until the commit exists. The body needs `mutation:` lines for M1-M5 or the builder's equivalents, plus the 48px floor crossing.
 
 No public claim is still false. `liveOnSave.contacts` holds: both `animals.reveal` paths send `current`, and the client has no reveal cache.
 

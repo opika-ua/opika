@@ -111,13 +111,13 @@ describe("runSmoke against the local database", () => {
     const outcomes = await runSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
     // 25 through PR 3, R-UI 1's 26 (S1 row: admin counts and donationPending),
-    // K3's 27–31 (F-B1, K3-T7, RH-B7), then K2's 32–36 (the list's keyset,
+    // K3's 27-31 (F-B1, K3-T7, RH-B7), then K2's 32-36 (the list's keyset,
     // filters and counts; confirm/undo; the recorded moves), then KH-Q12's 37
     // (auth:revoke-all's purge), then 38 (the gallery's relaxation counts),
     // then 39 (fur set and cleared by the kabinet edit, filtered in the
     // gallery and the deck, DR1 S3), then 40 (the gallery list scoped to one
     // shelter, DR1 S5), then S8's 41 (animals.cardsByIds's findByIds), then
-    // GDPR photo retention's 42 — six checks (PR #200, Tier 1 review,
+    // GDPR photo retention's 42 - six checks (PR #200, Tier 1 review,
     // blocker 4): referencedStorageKeys' jsonb_array_elements SELECT,
     // referencedObjectKeys' derived variant, recordScan's track, still
     // Unreferenced's re-check, and afterDeleted's jsonb_set UPDATE plus a

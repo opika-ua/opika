@@ -16,7 +16,7 @@ import { RESET_PASSWORD_TTL_SECONDS } from "./password-mail";
 /**
  * Oleksii's final copy (2026-10-14) types the plural noun after a filled
  * number: «діє {minutes} хвилин» and «діє {hours} години». Ukrainian picks the
- * noun form from the number (1 хвилина, 2–4 хвилини, 5–20 хвилин; 72 години,
+ * noun form from the number (1 хвилина, 2-4 хвилини, 5-20 хвилин; 72 години,
  * but 75 годин), so each form is right for one value only, and a TTL change
  * would ship broken grammar with every test still green. His note on row 27:
  * "pin 15 in a test or move to Intl plural rules." These pins are that test.

@@ -21,12 +21,12 @@ import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "../src/te
 /**
  * GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4). Direct test of
  * `eraseUsersAndScrubHistory`'s SQL, independent of `registry.admins.remove`'s
- * own handler test — proves the compound condition (delete + both scrubs,
+ * own handler test - proves the compound condition (delete + both scrubs,
  * both or neither) and the scoping (the right shelter, the four history
  * kinds, every invitation row, the exact email) without going through the
  * full HTTP handler.
  *
- * Every admin — accepted or still pending — was created through an
+ * Every admin - accepted or still pending - was created through an
  * invitation (`auth_invitation` → `shelters.organization_id`, joined by the
  * deleted user's own email), which is how `eraseUsersAndScrubHistory` finds
  * which shelter's history to scrub, rather than being told. These fixtures
@@ -44,7 +44,7 @@ beforeEach(async () => truncateAll(db));
 const EMAIL = "departed@example.org";
 const NOW = new Date("2026-10-24T10:00:00.000Z");
 
-/** The operator every invitation needs as its `inviterId` — not under test here. */
+/** The operator every invitation needs as its `inviterId` - not under test here. */
 async function insertInviter() {
   const id = randomUUID();
   await db.insert(authUser).values({
@@ -92,15 +92,15 @@ async function insertShelterWithOrganization() {
 }
 
 /**
- * An admin — real invitation, real `invitation_created_users` row, with its
+ * An admin - real invitation, real `invitation_created_users` row, with its
  * own invitation status (`pending`/`accepted`/`canceled`) rather than an
  * implicit live-or-not flag: the generalised invariant (Oleksii, 2026-10-24,
  * the STOP decision, "A, generalised") no longer reads `firstSessionAt` at
  * all, only whether a *live* (pending, unexpired) invitation exists anywhere
- * for the address — this fixture has to be able to express every one of
+ * for the address - this fixture has to be able to express every one of
  * those states directly, not infer them from "accepted". `invitationEmail`
  * defaults to `email`; passing a different casing simulates the one case
- * normalisation at write time is meant to prevent — `eraseUsersAndScrubHistory`'s
+ * normalisation at write time is meant to prevent - `eraseUsersAndScrubHistory`'s
  * `lower()` joins are the defence in depth, not the only one, so the fixture
  * has to be able to force the mismatch directly rather than relying on
  * `invite()`'s own normalisation to never run.
@@ -390,7 +390,7 @@ describe("eraseUsersAndScrubHistory, via erasableIf (registry.admins.remove's ow
    * Oleksii's own test instruction for the STOP's fix (2026-10-24): "Test
    * that no row anywhere still holds the address after the erasure
    * (invitations, history, users)." Two dead invitations at two different
-   * shelters (a canceled one and an expired-pending one), neither live —
+   * shelters (a canceled one and an expired-pending one), neither live -
    * both must be scrubbed, not only the one whose shelter also has a
    * history row.
    */

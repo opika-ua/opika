@@ -134,7 +134,7 @@ const confirmed = <T extends Confirmable>(current: T, at: Date): T => ({
  * "fixes" them later:
  *
  * `adopted` is terminal. An animal that comes back after an adoption is a new
- * listing — new id, new URL, wait clock from zero — and this one stays as the
+ * listing - new id, new URL, wait clock from zero - and this one stays as the
  * record that the adoption happened.
  *
  * `draft -> withdrawn` is closed: a draft is deleted, not withdrawn.

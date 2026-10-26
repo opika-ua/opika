@@ -1,5 +1,5 @@
 /**
- * E2.5 (issue #28): `docs/design/README.md`'s "Keyboard" table — arrow keys
+ * E2.5 (issue #28): `docs/design/README.md`'s "Keyboard" table - arrow keys
  * move focus by the grid's actual column count, Home/End jump to first/
  * last, edges never wrap. A real keyboard, not markup inspection: every
  * assertion here reads `document.activeElement` after a real
@@ -13,7 +13,7 @@ import { DESKTOP, PHONE } from "./viewports";
 
 /**
  * `proxy.ts` rate-limits `/tvaryny` at 100 req/min per IP
- * (`api/rate-limit.ts`), keyed on the real client IP unless spoofed —
+ * (`api/rate-limit.ts`), keyed on the real client IP unless spoofed -
  * every test file that requests `/tvaryny` under its real identity shares
  * ONE budget with every other one, in the same 60s window, on a suite that
  * only grows. `gallery-rate-limit.harness.ts`'s own file comment named
@@ -23,11 +23,11 @@ import { DESKTOP, PHONE } from "./viewports";
  * `pnpm check`'s harness step started failing two of gallery-layout's
  * content-width tests with a real 429 ("Too Many Requests") the moment
  * this file's ~9 additional real requests were added to the shared
- * budget — reproduced by running file combinations until the minimal
+ * budget - reproduced by running file combinations until the minimal
  * failing set (this file + gallery-filters + gallery-layout) was found.
  * A unique per-file `x-forwarded-for` isolates this file's own request
  * volume from every other file's, the same way `gallery-rate-limit.
- * harness.ts` already isolates its own deliberate budget exhaustion —
+ * harness.ts` already isolates its own deliberate budget exhaustion -
  * see that file for why spoofing this header is expected and harmless
  * in this environment.
  *
@@ -60,8 +60,8 @@ async function focusedIndex(page: { evaluate: <T>(fn: () => T) => Promise<T> }):
  * count changed from 3 to 4 (`GalleryCard.tsx`'s/`page.tsx`'s grid
  * classes). `ArrowKeyGrid` reads the real, live column count off the
  * rendered `grid-template-columns` rather than a constant, so this file's
- * own job — proving arrow steps follow whatever the grid actually renders
- * — is unaffected by the redesign; only the *numbers* below (which row a
+ * own job - proving arrow steps follow whatever the grid actually renders
+ * - is unaffected by the redesign; only the *numbers* below (which row a
  * given card index falls in) needed updating for the new column count.
  */
 test.describe("/tvaryny arrow-key grid navigation (desktop, 4 columns)", () => {
@@ -85,12 +85,12 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 4 columns)", () => {
     expect(await focusedIndex(page), "ArrowUp moves back up by the column count").toBe(0);
   });
 
-  test("edges do not wrap — the rightmost card in a row stays put on ArrowRight", async ({
+  test("edges do not wrap - the rightmost card in a row stays put on ArrowRight", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
     // Card index 3 is the rightmost of the first 4-column row. Every card
-    // keeps its native tabIndex (no roving state — see ArrowKeyGrid's own
+    // keeps its native tabIndex (no roving state - see ArrowKeyGrid's own
     // doc comment for why), so focus() alone is enough to land here.
     await page.evaluate(() => {
       const card = document.querySelectorAll("[data-testid='animal-card']")[3] as HTMLElement;
@@ -105,7 +105,7 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 4 columns)", () => {
     ).toBe(3);
   });
 
-  test("edges do not wrap — the leftmost card in a row stays put on ArrowLeft", async ({
+  test("edges do not wrap - the leftmost card in a row stays put on ArrowLeft", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
@@ -134,13 +134,13 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 4 columns)", () => {
     expect(await focusedIndex(page), "Home jumps back to the first card").toBe(0);
   });
 
-  test("every card keeps its native tabIndex — arrow navigation never removes a card from Tab order", async ({
+  test("every card keeps its native tabIndex - arrow navigation never removes a card from Tab order", async ({
     page,
   }) => {
     // The regression this guards: an earlier version of ArrowKeyGrid used a
     // roving tabindex (the APG grid pattern's usual pairing with arrow-key
     // movement), reverted on review because it silently removed 23 of 24
-    // cards from the Tab sequence — a real, visible change to
+    // cards from the Tab sequence - a real, visible change to
     // docs/design/README.md's own Tab row ("cards in reading order"), not
     // the additive shortcut the design's Keyboard table asks for. Every
     // card's tabIndex should read exactly what the browser gives a plain
@@ -188,13 +188,13 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 4 columns)", () => {
     await page.keyboard.press("ArrowRight");
     expect(
       await focusedIndex(page),
-      "arrow navigation must operate on the new, filtered card set — cardsOf() re-queries " +
+      "arrow navigation must operate on the new, filtered card set - cardsOf() re-queries " +
         "the DOM fresh on every keypress rather than caching the pre-filter card list",
     ).toBe(1);
   });
 });
 
-test.describe("/tvaryny arrow-key grid navigation — the column count is read live", () => {
+test.describe("/tvaryny arrow-key grid navigation - the column count is read live", () => {
   test("a resize between two keypresses changes the vertical step, with no resize listener", async ({
     page,
   }) => {
@@ -202,7 +202,7 @@ test.describe("/tvaryny arrow-key grid navigation — the column count is read l
     // in this file asserts: the track count is re-read on every keypress
     // rather than captured at mount. Every other test opens at a single
     // viewport and stays there, so a value cached at mount would satisfy all
-    // of them — this is the only shape of test that can tell the two apart.
+    // of them - this is the only shape of test that can tell the two apart.
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
     await page.locator(CARD).first().focus();
 
@@ -213,23 +213,23 @@ test.describe("/tvaryny arrow-key grid navigation — the column count is read l
     await page.keyboard.press("ArrowDown");
     expect(
       await focusedIndex(page),
-      "after the resize the grid is 1 column, so ArrowDown must step by 1 — a column count " +
+      "after the resize the grid is 1 column, so ArrowDown must step by 1 - a column count " +
         "cached at mount would still step by 4 and land on 8",
     ).toBe(5);
   });
 });
 
-test.describe("/tvaryny arrow-key grid navigation — Tab order is never touched, JS or not", () => {
+test.describe("/tvaryny arrow-key grid navigation - Tab order is never touched, JS or not", () => {
   test("with JS disabled, Tab still walks from the first card to the second", async ({
     browser,
   }) => {
     // ArrowKeyGrid deliberately never sets tabIndex (see its own doc
     // comment for why a roving scheme was tried and reverted), so this
-    // should hold trivially — but "should hold" is exactly the kind of
+    // should hold trivially - but "should hold" is exactly the kind of
     // claim this harness exists to verify rather than assume, and it is
     // cheap insurance against a future change reintroducing tabIndex
     // manipulation. `gallery-filters.harness.ts`'s own no-JS Tab test
-    // cannot catch that on its own — it stops the moment it reaches the
+    // cannot catch that on its own - it stops the moment it reaches the
     // FIRST card, which is precisely the card a roving scheme would still
     // leave reachable. The second card is the first one that actually
     // distinguishes "every card tabbable" from "only one is."
@@ -255,7 +255,7 @@ test.describe("/tvaryny arrow-key grid navigation — Tab order is never touched
     // Real Tab presses, never `focus()`: `focus()` succeeds on a
     // `tabindex="-1"` element, so a focus()-based version of this passes
     // against the exact defect it names.
-    /** 14, not 12, since Phase T's header — see gallery-filters.harness.ts's
+    /** 14, not 12, since Phase T's header - see gallery-filters.harness.ts's
      * own note on this bound for why it stays tight rather than generous. */
     const MAX_TAB_PRESSES = 14;
     let reachedFirst = false;
@@ -275,7 +275,7 @@ test.describe("/tvaryny arrow-key grid navigation — Tab order is never touched
     const afterFirst = await page.evaluate(() => document.activeElement?.getAttribute("href"));
     expect(
       afterFirst,
-      "with no JS, Tab must continue from the first card to the second — a roving tabindex " +
+      "with no JS, Tab must continue from the first card to the second - a roving tabindex " +
         "rendered by the server would leave the second card at tabindex=-1 and skip it",
     ).toBe(secondHref);
 
@@ -283,12 +283,12 @@ test.describe("/tvaryny arrow-key grid navigation — Tab order is never touched
   });
 });
 
-test.describe("/tvaryny arrow-key grid navigation — page boundaries never trigger navigation", () => {
+test.describe("/tvaryny arrow-key grid navigation - page boundaries never trigger navigation", () => {
   test("Right on the last card and Left on the first card of page 2 leave focus and the URL unchanged", async ({
     page,
   }) => {
     // docs/gallery-contract-decisions.md §8: a page boundary gets no new
-    // rule — ArrowKeyGrid only ever sees the current page's own DOM, so
+    // rule - ArrowKeyGrid only ever sees the current page's own DOM, so
     // "the last card of page 2" is already the row-end/bounds-end case the
     // tests above cover for page 1, not a case E3 had to invent. What this
     // test actually proves, that page 1's own edge tests cannot: the
@@ -308,7 +308,7 @@ test.describe("/tvaryny arrow-key grid navigation — page boundaries never trig
     await page.keyboard.press("ArrowLeft");
     expect(
       await focusedIndex(page),
-      "ArrowLeft at the first card of page 2 must not move focus onto page 1's cards — " +
+      "ArrowLeft at the first card of page 2 must not move focus onto page 1's cards - " +
         "there is nothing in the DOM to move onto",
     ).toBe(0);
     expect(page.url(), "ArrowLeft must not trigger a page navigation").toBe(urlOnPage2);
@@ -330,7 +330,7 @@ test.describe("/tvaryny arrow-key grid navigation — page boundaries never trig
 });
 
 test.describe("/tvaryny arrow-key grid navigation (phone, 1 column)", () => {
-  test("ArrowRight/ArrowLeft do nothing — a single column has no horizontal neighbour", async ({
+  test("ArrowRight/ArrowLeft do nothing - a single column has no horizontal neighbour", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
@@ -339,11 +339,11 @@ test.describe("/tvaryny arrow-key grid navigation (phone, 1 column)", () => {
     await page.keyboard.press("ArrowRight");
     expect(
       await focusedIndex(page),
-      "at 1 column, every card is its own row — ArrowRight has no horizontal neighbour to move to",
+      "at 1 column, every card is its own row - ArrowRight has no horizontal neighbour to move to",
     ).toBe(0);
   });
 
-  test("ArrowDown moves to the next card — equivalent to reading order at 1 column", async ({
+  test("ArrowDown moves to the next card - equivalent to reading order at 1 column", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });

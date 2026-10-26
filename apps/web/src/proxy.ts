@@ -14,7 +14,7 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  * place in this app that sees a request before any page renders or any
  * `/api/rpc` handler runs.
  *
- * **The pre-launch gate**, added 2026-09-13 — a bot shutter, NOT a security
+ * **The pre-launch gate**, added 2026-09-13 - a bot shutter, NOT a security
  * boundary. While `SITE_IS_PUBLICLY_DISCOVERABLE` is false (`./seo-flags.ts`),
  * every request 403s unless it carries the shared secret below, except the
  * kabinet's own routes (`isGateExemptPath`, IN-Q1), which have their own
@@ -23,24 +23,24 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  * reasoning for what this does and does not protect, why there's no
  * user-agent carve-out, and why the `?gate=` secret appearing in logs and
  * browser history is accepted rather than fixed: `./api/prelaunch-gate.ts`'s
- * own top comment — the authoritative source, not duplicated here. Incident
+ * own top comment - the authoritative source, not duplicated here. Incident
  * writeup: `docs/decisions-pending-review.md`. The gate comes down in the
- * same change that flips `SITE_IS_PUBLICLY_DISCOVERABLE` — see that flag's
+ * same change that flips `SITE_IS_PUBLICLY_DISCOVERABLE` - see that flag's
  * own comment and `docs/build-plan.md`'s launch-gate section.
  *
  * **Per-IP rate limiting**, for pages that render through the in-process
  * router client (`api/server-client.ts`), not the HTTP `/api/rpc` route.
  * `docs/gallery-contract-decisions.md` §5 decided that Server Components
- * call the router in-process — no HTTP request, no code path through
+ * call the router in-process - no HTTP request, no code path through
  * `app/api/rpc/[...rpc]/route.ts`, and therefore none of the rate limiting
  * that route applies. A page URL is a more natural scrape target than the
  * raw RPC endpoint the HTTP path still protects, so this closes that gap
- * for the pages it covers (`isDiscoveryPagePath` below) — narrower than the
+ * for the pages it covers (`isDiscoveryPagePath` below) - narrower than the
  * gate above, which covers the whole site. The `/kabinet` pages have the
  * same gap and are limited here too, on the kabinet's own limiters
  * (`kabinet/page-limit.ts`, KH-Q8).
  *
- * `proxy.ts`, not `middleware.ts` — Next.js 16 renamed the convention (file
+ * `proxy.ts`, not `middleware.ts` - Next.js 16 renamed the convention (file
  * and exported function both) and defaults this file to the Node.js runtime
  * rather than Edge, which is also why the DB-dependent reveal limiter was
  * split into its own file rather than this one needing to avoid importing
@@ -50,10 +50,10 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  * Reuses `apiRateLimiter` rather than a second instance with its own budget.
  * In production (Phase 3, block 4, `docs/handoff-2026-10-04.md` §3) this is
  * now genuinely shared: `apiRateLimiter` is Upstash-backed whenever its
- * credentials are configured, and this proxy and the HTTP route — separate
- * deployment units on Vercel with independent module graphs — both read and
+ * credentials are configured, and this proxy and the HTTP route - separate
+ * deployment units on Vercel with independent module graphs - both read and
  * write the *same* Redis keys, not two independent counters. Only the
- * in-memory fallback (no Upstash credentials — local dev, CI, the harness)
+ * in-memory fallback (no Upstash credentials - local dev, CI, the harness)
  * still has the old per-instance gap: 100/min through this path *plus*
  * 100/min through the API, 200/min combined, not one shared 100/min bucket.
  * `rate-limit.ts`'s own comment carries the full account; this one exists
@@ -163,12 +163,12 @@ export function isCronPath(pathname: string): boolean {
 
 /**
  * S8's saved-page batch read (`animals.cardsByIds`) is built to carry no
- * cookie at all — `credentials: "omit"` (DR1-Q2), so the request can never
+ * cookie at all - `credentials: "omit"` (DR1-Q2), so the request can never
  * be tied to an adopter's session or correlated across visits, and can
  * never satisfy this gate's own cookie check either. Without this
  * exemption, the endpoint 403s on every call before launch, making the
  * feature permanently non-functional rather than merely logged-out-looking
- * — found by running the saved-page harness against a real server, not
+ * - found by running the saved-page harness against a real server, not
  * inferred.
  *
  * **S8-D1, settled.** An earlier version of this comment claimed the
@@ -177,10 +177,10 @@ export function isCronPath(pathname: string): boolean {
  * false (`/tvaryny` still requires the gate cookie; this path, once
  * exempted, answers *anyone* holding an animal id and no cookie at all).
  * Oleksii's own answer, 2026-10-23 (option (b), exempt it): the gate is a
- * bot shutter, not a security boundary — his own 2026-09-13 note, quoted
+ * bot shutter, not a security boundary - his own 2026-09-13 note, quoted
  * in full in `prelaunch-gate.ts`'s own top comment. The ids this path is
  * ever called with come only from gated pages (the gallery, the animal
- * page — both require the gate cookie to reach at all), so exempting this
+ * page - both require the gate cookie to reach at all), so exempting this
  * one batch-read procedure adds no way to enumerate ids that gating it
  * would otherwise have closed off. Enforced and tested, per his answer:
  * POST only (`route.ts`, `CARDS_BY_IDS_PATH`); at most 200 valid animal
@@ -241,7 +241,7 @@ function isDiscoveryPagePath(pathname: string): boolean {
  * Every request this file's own matcher gets to run against, except the two
  * kinds excluded on purpose: Next's own hashed, content-addressed static
  * build assets (`_next/static`, `_next/image`) and `favicon.ico`. Excluding
- * them isn't a gate weakness — they reveal nothing about the site's content
+ * them isn't a gate weakness - they reveal nothing about the site's content
  * and a browser that already holds the gate cookie needs them to render any
  * page at all. Everything else this matcher sees, including `/api/rpc/*`
  * and every app page, is in scope (the kabinet's routes and the cron path are
@@ -251,11 +251,11 @@ function isDiscoveryPagePath(pathname: string): boolean {
  *
  * ⚠ Not literally every request the app can produce a response for. Next's
  * config-level `redirects()` (`next.config.ts`: `/` → `/tvaryny`, `/discovery`
- * → `/tvaryny/gortaty`) run before this file at all — both are checked
+ * → `/tvaryny/gortaty`) run before this file at all - both are checked
  * without the gate seeing them, and both stay 308s regardless of the gate
  * secret. Left ungated deliberately, not overlooked: neither serves any
  * content, only a redirect to a route the gate *does* cover, so nothing is
- * exposed by the gap — an unauthenticated caller still hits the gate the
+ * exposed by the gap - an unauthenticated caller still hits the gate the
  * moment they follow either redirect.
  */
 export const config = {

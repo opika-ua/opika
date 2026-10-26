@@ -4,28 +4,28 @@ import type { R2CleanupState } from "./r2-cleanup-env";
 
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). The scheduled half of the
- * R2 clean-up job — `packages/db/src/r2-cleanup.ts`'s own doc comment covers
+ * R2 clean-up job - `packages/db/src/r2-cleanup.ts`'s own doc comment covers
  * the orchestration and the CLI's manual half (dry run, `--commit`,
  * `--grace-days`). This route always commits, at the default grace period
- * (`R2_CLEANUP_GRACE_PERIOD_DAYS`) — it never reads a grace-days override
+ * (`R2_CLEANUP_GRACE_PERIOD_DAYS`) - it never reads a grace-days override
  * from anywhere, which is what makes it the half Oleksii's "refused by the
  * scheduled job" describes: there is no input on this path to refuse, by
  * construction, not by a check.
  *
  * - **Who may call it:** Vercel's cron, the same `Authorization: Bearer
  *   <CRON_SECRET>` shape as `auth-cleanup.ts` (constant-time, SHA-256
- *   digests). No secret, or an empty one, refuses every call — fail closed.
+ *   digests). No secret, or an empty one, refuses every call - fail closed.
  * - **R2 credentials:** this job's own (`R2_CLEANUP_ACCESS_KEY_ID`/
  *   `R2_CLEANUP_SECRET_ACCESS_KEY`), never the upload token or the
- *   onboarding script's — `r2-cleanup-client.ts`'s own doc comment.
+ *   onboarding script's - `r2-cleanup-client.ts`'s own doc comment.
  *   Deliberately left off (`r2CleanupStateOf`'s `"off"`) answers 200, quiet
- *   — the expected state before Oleksii enables it, and the daily cron
+ *   - the expected state before Oleksii enables it, and the daily cron
  *   would otherwise report a 500 "failure" every single day until he does
  *   (Tier 1 review, PR #200, low finding). Genuinely broken (`"misconfigured"`
- *   — a padded value, or a half-entered credential) still refuses with 500,
+ *   - a padded value, or a half-entered credential) still refuses with 500,
  *   never skipping R2 and silently doing nothing.
  * - **What it logs:** counts only, never an object key, a storage key or an
- *   animal id — the same discipline as `auth-cleanup.ts`'s "log counts
+ *   animal id - the same discipline as `auth-cleanup.ts`'s "log counts
  *   only, never addresses."
  */
 export type R2CleanupCronConfig = {

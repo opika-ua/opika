@@ -10,7 +10,7 @@ import { z } from "zod";
  * Deliberately closed at two, and deliberately without a "best match" mode: the
  * list surface's premise is that the order is stated, understandable and
  * reproducible from a shared URL. The deck's `scoreAnimal` re-ranking is the
- * opposite bargain — it is a function of freshness decay, so it reorders the
+ * opposite bargain - it is a function of freshness decay, so it reorders the
  * same rows as time passes. That is right for a one-at-a-time deck and wrong
  * for a page someone sent to a friend, so no sort mode here maps to it.
  */

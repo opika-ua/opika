@@ -13,7 +13,7 @@ import { VERIFICATION_STATUSES } from "../shelters/verification/state";
 
 /**
  * Denormalised on purpose. If a shelter changes its phone number, the record
- * should still hold what the adopter was told — otherwise the record of a
+ * should still hold what the adopter was told - otherwise the record of a
  * conversation contradicts the conversation. (What the adopter is *shown*
  * is a separate question: the shelter's current name and contacts while it
  * is visible, K4-B4 and RUI4-F1. This stays the record either way.)
@@ -30,7 +30,7 @@ export const ShelterContactSnapshotSchema = z.object({
   publicLocation: PublicLocationSchema,
   /**
    * Derived from the lifecycle rather than restated, so adding a status cannot
-   * leave this list quietly behind — which is exactly what happened when
+   * leave this list quietly behind - which is exactly what happened when
    * `paused` was introduced.
    */
   verificationStatusAtReveal: z.enum(VERIFICATION_STATUSES),
@@ -66,7 +66,7 @@ export const ContactRevealSchema = z.object({
    * the snapshot keeps the frozen historical copy.
    *
    * Reaching the shelter by joining through the animal would be wrong as well
-   * as slow — the animal can be withdrawn or moved, and the reveal is a record
+   * as slow - the animal can be withdrawn or moved, and the reveal is a record
    * of what was true at the time. The queries that need it are the shelter's
    * own reveal count, abuse investigation across a suspended shelter, and the
    * reward ledger, which credits the shelter rather than the animal.

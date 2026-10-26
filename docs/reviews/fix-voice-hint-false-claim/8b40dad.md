@@ -15,7 +15,7 @@ Touched suites are green (see TESTS). |
 FINDINGS (most severe first)
 1. [medium] docs/design/Opika Kabinet.dc.html, Registry Frames, and Registry System still specify the old design.
    - Kabinet's voice frame shows "Поле 120 з токенами {дата} і {імʼя}", a sample sentence «Ми оновлювали цю картку {дата}…», the caption «{дата} і {імʼя} підставляємо ми», and «Слова притулку · дата автоматична». Frames and System carry the old attribution too.
-   - KABINET.md:9–13 sends the K2 builder to that mock as "final", and the standing rule is to open the mock.
+   - KABINET.md:9-13 sends the K2 builder to that mock as "final", and the standing rule is to open the mock.
    - Failure scenario: K2 builds from the frame and brings back `{дата}` and the deleted suffix.
    - Fix: add one line to README's amendment note and KABINET.md's N11/Voice saying the mock frames predate VH-Q1/Q2 and the prose wins on this point. Whether to edit the mocks is Oleksii's call; don't hand-edit them silently.
 2. [low] docs/design/README.md:292. "and appears only under a quote" is cited to "inbox VH-Q1 and VH-Q2", but neither answer says it.

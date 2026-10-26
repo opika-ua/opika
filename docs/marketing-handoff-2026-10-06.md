@@ -1,4 +1,4 @@
-# Marketing handoff — Opika, 2026-10-06
+# Marketing handoff - Opika, 2026-10-06
 
 For a session running the **Marketing** plugin (`/competitive-brief`, `/campaign-plan`,
 `/brand-review`, `/draft-content`). Read this whole file before invoking any skill. Context
@@ -6,19 +6,19 @@ that outranks anything a skill template assumes is in §2 and §3.
 
 ## 1. What Oleksii asked for (in this order)
 
-1. **Competitive brief** — `/competitive-brief`. How Kyiv-oblast shelters and adopters find each
+1. **Competitive brief** - `/competitive-brief`. How Kyiv-oblast shelters and adopters find each
    other today, and where Opika's positioning is unclaimed.
-2. **Brand voice guide + review of current copy** — write the guide first (there is none), then
+2. **Brand voice guide + review of current copy** - write the guide first (there is none), then
    `/brand-review` the live strings against it.
-3. **Overall brand improvement points** — Opika should read as a *register* (institutional,
+3. **Overall brand improvement points** - Opika should read as a *register* (institutional,
    trustworthy, Diia-adjacent) yet be a recognisable brand. Concrete, prioritised recommendations:
    name, mark, voice, visual system, what to keep and what to change.
-4. **Adopter launch campaign plan** — `/campaign-plan`. For public launch, which is months away
+4. **Adopter launch campaign plan** - `/campaign-plan`. For public launch, which is months away
    and has no date. Plan structure and channels; do not invent a calendar with real dates.
 
 **Output:** Markdown files in the repo at `D:\Startup\opika\docs\marketing\` (create the folder)
-— `competitive-brief.md`, `brand-voice.md`, `brand-review.md`, `brand-improvements.md`,
-`adopter-launch-plan.md` — plus a copy of each in the Claude project "Opika". Do not commit; the
+- `competitive-brief.md`, `brand-voice.md`, `brand-review.md`, `brand-improvements.md`,
+`adopter-launch-plan.md` - plus a copy of each in the Claude project "Opika". Do not commit; the
 dev session commits docs under its own loop. Date every file.
 
 ## 2. The product, in facts you may rely on
@@ -30,12 +30,12 @@ dev session commits docs under its own loop. Date every file.
   marketing spend. Everything on the site is Ukrainian-language only.
 - **Status:** built but not launched. `opika.org.ua` is live behind a pre-launch gate (403 without
   a secret), `noindex`, holding a labelled demo corpus of fictional shelters. **No real shelter
-  has been contacted yet and none will be until the product is finished and rehearsed** — that is
+  has been contacted yet and none will be until the product is finished and rehearsed** - that is
   Oleksii's decision, don't argue it in the marketing docs.
 - **Business model:** none at MVP. Free for shelters, free for adopters, no money passes through
   the platform, donations are external links to the shelter's own page. Phase 2 (far future) is
   rewarded-video ads *beside* listings, never affecting order.
-- **Name:** "Opika" (Опіка — guardianship/care; same word as Polish *opieka*) is a **working name**.
+- **Name:** "Opika" (Опіка - guardianship/care; same word as Polish *opieka*) is a **working name**.
   Domain `opika.org.ua`. A rename is possible; the brand-improvements doc may recommend one but
   must treat it as a cost (domain, every string, the mark) not a free move.
 - **Design system:** bespoke, called «Реєстр», styled after Diia / Reserv+ (Ukrainian state apps),
@@ -46,7 +46,7 @@ dev session commits docs under its own loop. Date every file.
   SEO-relevant: numbered pagination with indexable `?stor=N` URLs, per-animal pages with Open
   Graph metadata, city-slug URLs (`?misto=brovary`) landing now.
 
-## 3. Hard constraints on every claim — read before writing a single sentence
+## 3. Hard constraints on every claim - read before writing a single sentence
 
 The product's whole positioning is **literal honesty**: every sentence on the site must be
 mechanically true of how the code behaves. There is a register of commitments the shelter page
@@ -54,7 +54,7 @@ mechanically true of how the code behaves. There is a register of commitments th
 makes"). Marketing copy, taglines and campaign messaging must not contradict any of them:
 
 1. Listing order depends on date (and card completeness in the deck) and nothing else. No
-   "featured", no boost, no paid placement — ever in copy.
+   "featured", no boost, no paid placement - ever in copy.
 2. A shelter is never told that someone looked at a card. No "see who's interested" promises.
 3. Free, and any change is announced to shelters in advance. Do not write "free forever"; write
    "free, with notice before anything changes."
@@ -63,7 +63,7 @@ makes"). Marketing copy, taglines and campaign messaging must not contradict any
 5. Opika never touches money.
 6. The work on Opika's side is done by a named person. (This will change when self-serve shelter
    accounts ship; until then copy says "I", not "we" or "our team".)
-7. The freshness date says only "when the information was last updated" — never "confirmed".
+7. The freshness date says only "when the information was last updated" - never "confirmed".
 8. Both browsing modes show every animal; the deck only hides what *you* skipped.
 
 Additional rules from `docs/standing-constraints.md` and the design spec:
@@ -84,17 +84,17 @@ Additional rules from `docs/standing-constraints.md` and the design spec:
   animal shows only a city. Don't write "see animals near you on a map".
 - **Language:** Ukrainian, never Russian. English only for internal docs. Avoid Russian-origin
   calques that Ukrainian editors flag. Ukrainian copy that would go *on the site* is Oleksii's
-  to write or approve — the brand docs may propose Ukrainian lines, clearly marked as proposals.
+  to write or approve - the brand docs may propose Ukrainian lines, clearly marked as proposals.
 - **No real shelter data anywhere** in these docs; the repo is public. Fictional examples only.
 
 ## 4. Audiences
 
-- **Shelters / volunteer initiatives in Kyiv oblast** — the supply side and the hard side.
+- **Shelters / volunteer initiatives in Kyiv oblast** - the supply side and the hard side.
   Registered NGOs, sole proprietors, and unregistered volunteer groups (one person with 40 dogs
   and a phone). They already post on Instagram, Facebook groups, Telegram channels, OLX. They are
   overworked, distrustful of platforms that promise and vanish, and allergic to admin work. Their
   question: "what do I get for the effort, and will you waste my time?"
-- **Adopters** — people in Kyiv oblast (and Kyiv city) wanting a dog or cat, currently sifting
+- **Adopters** - people in Kyiv oblast (and Kyiv city) wanting a dog or cat, currently sifting
   OLX listings mixed with breeders, Telegram reposts with dead links, and Instagram stories that
   expire. Their question: "is this animal real, still available, and is this a real shelter?"
 - Later (Phase 4, not now): adopters in Poland/EU for cross-border adoption.
@@ -103,9 +103,9 @@ Additional rules from `docs/standing-constraints.md` and the design spec:
 
 Research live, don't rely on memory; note the research date. Cover at least:
 
-- **Marketplaces where animals are actually listed:** OLX.ua (pets section — includes breeders
+- **Marketplaces where animals are actually listed:** OLX.ua (pets section - includes breeders
   and free-to-good-home), Facebook groups (Kyiv adoption groups), Telegram channels, Instagram.
-- **Ukrainian adoption platforms/registries:** search for current ones — e.g. "Сіріус" shelter's
+- **Ukrainian adoption platforms/registries:** search for current ones - e.g. "Сіріус" shelter's
   own site, UAnimals, "Друг" / "Happy Paw" / "Hvost" / "Patron Pets" or whatever is currently
   live; municipal Kyiv shelter (Бородянка) pages; any state or municipal animal registry
   initiative (Diia-adjacent pet registration). Verify each is still alive.
@@ -115,24 +115,24 @@ Research live, don't rely on memory; note the research date. Cover at least:
   freshness/availability of listings, whether breeders/sellers are mixed in, whether the platform
   intermediates contact, whether it's free for shelters, Ukrainian-language quality, mobile
   experience on a cheap Android, shareability of a listing in Telegram.
-- Skip pricing/packaging, analyst reports, job postings, G2/Capterra — irrelevant to this market.
+- Skip pricing/packaging, analyst reports, job postings, G2/Capterra - irrelevant to this market.
 - Positioning map axes suggestion: *verified ↔ anyone can post* vs *registry ↔ social feed*.
 
-## 6. Brand voice — source material for the guide
+## 6. Brand voice - source material for the guide
 
 There is no written voice guide. Derive it from the strongest existing copy, in this order:
 
-1. `packages/i18n/src/messages/uk.ts` — every live string, keyed. `forShelters.*` (the letter to
+1. `packages/i18n/src/messages/uk.ts` - every live string, keyed. `forShelters.*` (the letter to
    shelters, eleven sections) is the voice at its best. `errors.*`, `demo.*`, `freshness.*` show
    it under pressure.
-2. `docs/prytulkam-argument.md` — the English argument the letter was written from.
-3. `docs/copy-and-ia-critique.md`, `docs/design-critique.md` — prior critiques; don't repeat
+2. `docs/prytulkam-argument.md` - the English argument the letter was written from.
+3. `docs/copy-and-ia-critique.md`, `docs/design-critique.md` - prior critiques; don't repeat
    their findings as new.
-4. `docs/design/README.md` — tone notes, the «Реєстр» rationale, string table.
+4. `docs/design/README.md` - tone notes, the «Реєстр» rationale, string table.
 
 Voice traits you'll find and should name: first person singular; plain, short declaratives;
 describes mechanism rather than promising outcomes; never exclaims; respectful of the shelter's
-time; no diminutives/cuteness ("пухнастики", "хвостики" — flag these as off-voice); state-app
+time; no diminutives/cuteness ("пухнастики", "хвостики" - flag these as off-voice); state-app
 register without bureaucratic coldness.
 
 `/brand-review` then checks the live strings against the guide. Severity: a claim that is false
@@ -142,14 +142,14 @@ or unprovable is *critical*; cuteness/diminutives *major*; register drift *minor
 
 Prioritised, each with effort and what it costs (never "fast"): is "Opika" the right name and
 why/why not; whether the mark and wordmark work at favicon, Telegram-avatar and OG-image sizes
-(none of the latter exist yet — the OG image for shared links is a real gap); a one-line
+(none of the latter exist yet - the OG image for shared links is a real gap); a one-line
 descriptor to sit under the name; how to be *recognisable* without breaking the registry register
 (colour ownership, the pips as a signature, typographic consistency); what the first
 shelter-facing material should look like (a one-page PDF/leaflet for a volunteer); social
-presence — which single channel to open first and what it must never do. Reference Diia's brand
+presence - which single channel to open first and what it must never do. Reference Diia's brand
 discipline as the model, not consumer pet brands.
 
-## 8. Adopter launch plan — constraints
+## 8. Adopter launch plan - constraints
 
 No date, no budget, one person. Channels realistic for that: the shelters' own Instagram/Telegram
 (each verified shelter is the distribution), Kyiv-oblast Telegram communities, organic search on
@@ -164,7 +164,7 @@ notifications (they don't exist).
 ```
 D:\Startup\opika\
   docs\build-plan.md                 plan of record (long)
-  docs\handoff-2026-10-04.md         current engineering handoff — the finish-line ledger
+  docs\handoff-2026-10-04.md         current engineering handoff - the finish-line ledger
   docs\standing-constraints.md       the commitments register is here
   docs\design\README.md              design system
   docs\prytulkam-argument.md         the shelter letter's argument

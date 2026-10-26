@@ -1,5 +1,5 @@
 /**
- * O-10/C6 + D-6 (`feat/d-6-detail-photo-gallery`) — `DetailPhotoGallery.tsx`'s
+ * O-10/C6 + D-6 (`feat/d-6-detail-photo-gallery`) - `DetailPhotoGallery.tsx`'s
  * dot indicator (mobile) and thumbnail strip (desktop) are new interactive
  * controls. Reviewer round 1 on this row found neither had a rendered
  * assertion for what markup inspection can't catch
@@ -12,15 +12,15 @@
  * A dedicated `x-forwarded-for` isolates this file from `animal-detail.
  * harness.ts`'s own already-tight request budget (that file's own top
  * comment: ~20 tests, each a full gallery navigation, already exhaust it)
- * rather than adding more tests there and risking tipping it over —
+ * rather than adding more tests there and risking tipping it over -
  * TEST-NET-2 (198.51.100.0/24), `.33`, the next unclaimed address (`.21`
  * through `.32` are claimed by other harness files).
  *
  * Finding an animal with ≥2 photos (needed for any dot or thumbnail to
  * render at all) without hardcoding an id: `packages/db/src/seed.ts`'s
  * `photoCount` formula gives every published, non-special-cased animal
- * `1 + (i % 5)` photos — 2 to 5 for 4 out of every 5 indices, only
- * `i % 5 === 0` ever yields exactly 1 — so the first few gallery cards are
+ * `1 + (i % 5)` photos - 2 to 5 for 4 out of every 5 indices, only
+ * `i % 5 === 0` ever yields exactly 1 - so the first few gallery cards are
  * overwhelmingly likely to already qualify. This checks real candidates from
  * the real gallery rather than asserting that probability, and fails with a
  * clear message (not a silent false pass) if the corpus's distribution ever
@@ -68,7 +68,7 @@ async function discoverMultiPhotoAnimalHref(
       }
     }
     throw new Error(
-      `none of the first ${MAX_CANDIDATES} gallery animals have more than one photo — ` +
+      `none of the first ${MAX_CANDIDATES} gallery animals have more than one photo - ` +
         "packages/db/src/seed.ts's photoCount distribution may have changed; this harness " +
         "needs a real multi-photo animal to exercise the dot/thumbnail controls at all.",
     );
@@ -77,7 +77,7 @@ async function discoverMultiPhotoAnimalHref(
   }
 }
 
-test.describe("detail page photo gallery — keyboard reachability", () => {
+test.describe("detail page photo gallery - keyboard reachability", () => {
   test("a mobile dot button is reachable by Tab", async ({ page, browser }) => {
     const href = await discoverMultiPhotoAnimalHref(browser);
     await openRoute(page, href, DETAIL_PHONE, { readySelector: DETAIL_READY });

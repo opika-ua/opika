@@ -23,8 +23,8 @@ key; any new string is given as its English sense, with the Ukrainian left to hi
 |---|---|---|
 | `auth_account.password` already exists (`text`, nullable) | `packages/db/src/schema/auth.ts` | Passwords need **no migration**. A credential is an `auth_account` row with `provider_id = 'credential'` |
 | `emailAndPassword: { enabled: false }` today | `apps/web/src/kabinet/auth.ts` | Enabling it adds `/sign-in/email`, `/sign-up/email`, `/request-password-reset`, `/reset-password`, `/change-password` |
-| Sign-in with an unknown address, or a user with no credential, still runs `password.hash(password)` and throws the same `401 INVALID_EMAIL_OR_PASSWORD` | `dist/api/routes/sign-in.mjs:287–310` | The enumeration property (§5) holds in Better Auth itself. Our layers must not break it |
-| `/request-password-reset` creates a token and calls `sendResetPassword` for **any** existing user, the operator included | `dist/api/routes/password.mjs:58–86` | Our `sendResetPassword` must send only to shelter admins, and a guard must stop the token being created for the operator (§4.6) |
+| Sign-in with an unknown address, or a user with no credential, still runs `password.hash(password)` and throws the same `401 INVALID_EMAIL_OR_PASSWORD` | `dist/api/routes/sign-in.mjs:287-310` | The enumeration property (§5) holds in Better Auth itself. Our layers must not break it |
+| `/request-password-reset` creates a token and calls `sendResetPassword` for **any** existing user, the operator included | `dist/api/routes/password.mjs:58-86` | Our `sendResetPassword` must send only to shelter admins, and a guard must stop the token being created for the operator (§4.6) |
 | `/reset-password` **creates** a credential account if the user has none | `password.mjs:162` | Without a guard, a reset would give the operator a password. That's the main hole (§4.6) |
 | Reset tokens are stored as `identifier = 'reset-password:<token>'`, in plain text by default | `password.mjs:77`, `db/internal-adapter.mjs:600` | His "stored hashed" needs `verification.storeIdentifier: { default: "plain", overrides: { "reset-password:": "hashed" } }` (SHA-256, built into 1.6.33, `verification-token-storage.mjs`) |
 | Sessions today: 7 days idle, 30 days absolute (HS-Q8); the absolute cap is enforced in our `hooks.before` and by the clean-up (`KABINET_SESSION_ABSOLUTE_MS`) | `auth.ts`, `auth-expiry-repo.ts` | F-B9's 30-day rolling / 90-day cap changes those two numbers (§4.5) |
@@ -86,12 +86,12 @@ the thrown error down, at any depth. If the walk stops first (on a loop, past 64
 read that throws), the throw is cleaned too (fail closed, his rule). So does an `errors` that is
 there but isn't an array (a `Set`, an array-like, a plain object): the walk can't see into it, so
 the throw is cleaned (F8-F2, his Q2). The cleaned chain itself only ever follows `cause` three
-hops deep from the outermost error (`CAUSE_DEPTH`) — four linked objects over three hops, not
+hops deep from the outermost error (`CAUSE_DEPTH`) - four linked objects over three hops, not
 three. When none of those four carries a SQLSTATE, a separate, deeper walk over the original
 error's `cause`/`errors` tree
 (`walkOf`, the same walk above, within its own 64-error limit) finds the facts of the first raw
 query error at whatever depth it's actually at, and attaches them to the outermost cleaned error
-only — the chain under it still stops at three hops (F8-F2). A cleaned error is never named `APIError`, so Better Auth answers it as
+only - the chain under it still stops at three hops (F8-F2). A cleaned error is never named `APIError`, so Better Auth answers it as
 a plain 500. Anything the transaction itself raises is cleaned (neon-http has no transactions: its
 refusal is cleaned as before). Every kabinet page, route and procedure reads through `kabinetDb()`
 (`apps/web/src/kabinet/kabinet-db.ts`, the served database cleaned), pinned by
@@ -158,7 +158,7 @@ The one new oRPC procedure goes through `implement(contract)`. It takes no sessi
 credential.
 
 ```ts
-// packages/contracts — kabinet.invitation.acceptWithPassword
+// packages/contracts - kabinet.invitation.acceptWithPassword
 input:  { token: InviteTokenSchema; password: string }       // never logged
 output: { kind: "signed_in" }                                 // session cookie set
 errors: INVITE_UNUSABLE            // unknown, expired, withdrawn, already used, or the address is an operator: one answer
@@ -209,9 +209,9 @@ stored hashed through the same `storeIdentifier` override, so **no migration** i
 |---|---|---|
 | Sign in with password | the kabinet per-IP budget | **increasing delay, no lockout:** after 5 failures in 15 min, each further attempt for that address waits 1, 2, 4, 8, then 15 min (the cap) before it is even checked; a success resets it |
 | Forgot password | 20/h | 3/h |
-| Reset (token POST) | 20/h | — (the token is single use) |
-| Change password | per user, the existing budget | — |
-| Invite acceptance | 20/h | — (single use) |
+| Reset (token POST) | 20/h | - (the token is single use) |
+| Change password | per user, the existing budget | - |
+| Invite acceptance | 20/h | - (single use) |
 
 The per-account delay applies to **any submitted address**, existing or not, so it can't be used
 to find accounts. Its message is the same for every address (§9, Q5).

@@ -10,7 +10,7 @@ interface SavedNavLinkProps {
 }
 
 /**
- * The header's «Збережені» link — only when something's actually saved.
+ * The header's «Збережені» link - only when something's actually saved.
  * Oleksii, from a live screenshot: "also show Збережені tab in header only
  * if we have something saved otherwise hide it."
  *
@@ -18,13 +18,13 @@ interface SavedNavLinkProps {
  * already documents for the identical constraint: `localStorage` doesn't
  * exist during server rendering, and reading it during the client's first
  * render (before hydration) would mismatch what the server sent. Renders
- * nothing until that effect runs — a page with saves pops the link in a
+ * nothing until that effect runs - a page with saves pops the link in a
  * moment after mount rather than risking a hydration mismatch, the same
  * trade-off `SaveButton` already makes for its own saved/unsaved state.
  *
  * `readLikesStore().items.length`, not `useSavedCards()`: the header only
  * needs to know *whether* anything is saved, not fetch each saved card's
- * full data from the server — that hook exists for the saved page itself,
+ * full data from the server - that hook exists for the saved page itself,
  * which actually renders the cards.
  */
 export function SavedNavLink({ className }: SavedNavLinkProps) {

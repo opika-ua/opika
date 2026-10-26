@@ -24,19 +24,19 @@ const ROUTE = "/tvaryny/gortaty";
 const CARD = "[data-testid='swipe-card']";
 
 /**
- * TEST-NET-2 (198.51.100.0/24), `.28` — same reasoning as
+ * TEST-NET-2 (198.51.100.0/24), `.28` - same reasoning as
  * `discovery-gesture.harness.ts`'s `.27`. `.21`-`.27` are already claimed.
  */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.28" } });
 
 /**
  * R2 (Phase R, `docs/build-plan.md`): the deck's own permanent home for
- * `docs/standing-constraints.md`'s "The swipe is filtering, not judging" —
+ * `docs/standing-constraints.md`'s "The swipe is filtering, not judging" -
  * moved here from its interim home on the detail page
  * (`animal-detail.harness.ts` no longer covers it). Real Ukrainian,
  * recovered verbatim, not redrafted. Visible from `ANDROID_PHONE` (360,
  * `docs/stack-decision.md`'s actual stated target) up; hidden at
- * `NARROW_PHONE` (320) specifically — see the notice's own comment in
+ * `NARROW_PHONE` (320) specifically - see the notice's own comment in
  * `SwipeDeck.tsx` for the reason.
  */
 test.describe("/tvaryny/gortaty not-a-judgement notice", () => {
@@ -47,13 +47,13 @@ test.describe("/tvaryny/gortaty not-a-judgement notice", () => {
       const notice = page.getByTestId("not-a-judgement-notice");
       await expect(notice).toBeVisible();
       // Transcribed from the design's own recovered copy, not compared
-      // against `uk.actions.notAJudgementNotice` itself — a self-comparing
+      // against `uk.actions.notAJudgementNotice` itself - a self-comparing
       // assertion passes against any value the constant happens to hold.
-      await expect(notice).toHaveText("«Не зараз» — це просто фільтр, а не оцінка тварини.");
+      await expect(notice).toHaveText("«Не зараз» - це просто фільтр, а не оцінка тварини.");
     });
   }
 
-  test(`is hidden at ${NARROW_PHONE.name} — the one width narrower than this product's stated audience`, async ({
+  test(`is hidden at ${NARROW_PHONE.name} - the one width narrower than this product's stated audience`, async ({
     page,
   }) => {
     await openRoute(page, ROUTE, NARROW_PHONE, { readySelector: CARD });
@@ -64,10 +64,10 @@ test.describe("/tvaryny/gortaty not-a-judgement notice", () => {
 
 /**
  * D-1/D-2 (Oleksii, Phase D decisions): `REGISTRY_HAS_NO_REAL_SHELTERS` is
- * true in the build this harness runs against — the same value production
- * runs — so the deck header shows the demo banner in place of the filters
+ * true in the build this harness runs against - the same value production
+ * runs - so the deck header shows the demo banner in place of the filters
  * phrase, real Ukrainian ("Демо"), landed 2026-09-06. The position count
- * stays and the progress bar degrades instead (D-1's degrade order — the
+ * stays and the progress bar degrades instead (D-1's degrade order - the
  * count alone already answers README.md:597-600's "otherwise invisible"
  * argument, the bar only duplicates it).
  */
@@ -85,19 +85,19 @@ test.describe("/tvaryny/gortaty demo banner", () => {
       await openRoute(page, `${ROUTE}?total=34`, viewport, { readySelector: CARD });
 
       // Transcribed from `uk.ts`, not compared against `uk.demo.deckLabel`
-      // itself — a self-comparing assertion passes against any value the
+      // itself - a self-comparing assertion passes against any value the
       // constant happens to hold, including an empty string.
       await expect(page.getByTestId("deck-demo-banner")).toHaveText("Демо");
 
       await expect(
         page.getByTestId("deck-position"),
-        `the position count is missing at ${viewport.name} — demo mode must not drop it, ` +
+        `the position count is missing at ${viewport.name} - demo mode must not drop it, ` +
           `Oleksii's Phase D decision`,
       ).toBeVisible();
 
       await expect(
         page.getByTestId("deck-progress-bar"),
-        `the progress bar is visible at ${viewport.name} alongside the demo banner — it should ` +
+        `the progress bar is visible at ${viewport.name} alongside the demo banner - it should ` +
           `degrade first (D-1's degrade order), before the count`,
       ).toBeHidden();
     });
@@ -138,7 +138,7 @@ test.describe("/tvaryny/gortaty keyboard reachability", () => {
  * The deck's error state. Reached by aborting the one request the deck makes
  * from the browser (`feed.list` over `/api/rpc`, `use-feed-deck.ts`). A
  * refused fetch is a `TypeError` at the fetch layer, which that hook maps to
- * the `offline` reason — the copy differs per reason, but the retry button is
+ * the `offline` reason - the copy differs per reason, but the retry button is
  * the same element in all three, so this covers the control rather than one
  * message.
  *

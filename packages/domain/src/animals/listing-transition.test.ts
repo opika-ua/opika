@@ -136,7 +136,7 @@ describe("listing transition table", () => {
 
 describe("the decisions the table encodes, named", () => {
   /** H2-7: a returned animal is a new listing, not this one reopened. */
-  it("treats adopted as terminal — nothing leaves it", () => {
+  it("treats adopted as terminal - nothing leaves it", () => {
     for (const eventType of LISTING_EVENT_TYPES) {
       expect(transitionListing(stateFor("adopted"), eventFor(eventType)).kind).toBe("illegal");
     }
@@ -190,7 +190,7 @@ describe("ordering", () => {
     );
   });
 
-  it("publishes a draft at any instant — a draft records none to be ordered against", () => {
+  it("publishes a draft at any instant - a draft records none to be ordered against", () => {
     const ancient = new Date("2000-01-01T00:00:00.000Z");
     expect(expectOk(transitionListing(stateFor("draft"), eventFor("publish", ancient)))).toEqual({
       kind: "published",

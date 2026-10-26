@@ -14,7 +14,7 @@ import { shelterContactOf, toView } from "./reveal";
 type Input = z.infer<typeof RevealsListMineInputSchema>;
 type Output = z.infer<typeof RevealsListMineOutputSchema>;
 
-/** The exact subset `revealsListMineContract` declares — see animals.ts's own comment (O-20). */
+/** The exact subset `revealsListMineContract` declares - see animals.ts's own comment (O-20). */
 type RevealsListMineErrors = ORPCErrorConstructorMap<{
   INVALID_CURSOR: typeof apiErrors.INVALID_CURSOR;
   UNAUTHENTICATED: typeof apiErrors.UNAUTHENTICATED;

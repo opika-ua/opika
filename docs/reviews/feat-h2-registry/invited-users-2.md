@@ -1,4 +1,4 @@
-# Re-review (delta only): fixes for invited-users.md findings 1–4, uncommitted tree on e4a61aa
+# Re-review (delta only): fixes for invited-users.md findings 1-4, uncommitted tree on e4a61aa
 
 VERDICT: PASS WITH NOTES
 

@@ -1,9 +1,9 @@
 # H2 copy sheet: Ukrainian for Oleksii to write in one sitting
 
 Inbox H2-8. Every string below ships as `[COPY PENDING]` until it's written here, and
-`copy-status.test.ts` pins each placeholder. **Rows A–C block the merge of whichever PR ships
+`copy-status.test.ts` pins each placeholder. **Rows A-C block the merge of whichever PR ships
 self-serve**: they are `/prytulkam` commitments (#6, #7), and a false commitment sentence must
-never be live. Rows D–F block nothing but their own screens.
+never be live. Rows D-F block nothing but their own screens.
 
 For each string: the key, where it shows, the current text if there is any, and the English
 sense of what is true once H2 ships. The English is a description of the facts, not a draft
@@ -11,7 +11,7 @@ to translate.
 
 ---
 
-## A. `/prytulkam` §7/§9/§10 — commitment #6 (blocks the self-serve merge)
+## A. `/prytulkam` §7/§9/§10 - commitment #6 (blocks the self-serve merge)
 
 ### A1. `forShelters.whatToPrepare` (§7)
 **Current (last paragraph is the part that goes false):**
@@ -29,7 +29,7 @@ sentence) stays true.
 
 **Added line.** **Final (Oleksii, 2026-10-14); in `uk.ts` since the commit that turns production sign-in on (the wiring commit), directly before §7's last paragraph**, pinned in `copy-status.test.ts`. His answer (row 91 of the PR #94 copy
 export, 2026-10-14, relayed by the coordinating session), verbatim: "Yes, include it: «Доступ до
-кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.» Place it directly before the
+кабінету я надсилаю сам - листом на адресу, яку ви мені вкажете.» Place it directly before the
 current last paragraph of §7, and ship it in the same commit as row 89."
 > Доступ до кабінету я надсилаю сам — листом на адресу, яку ви мені вкажете.
 
@@ -166,27 +166,27 @@ otherwise there is none.
 
 | List | Code | English sense | Design draft |
 |---|---|---|---|
-| Rejection | `insufficient_evidence` | not enough to verify yet | — |
-| | `identity_unverifiable` | couldn't confirm who you are | — |
-| | `duplicate_submission` | already registered / duplicate | — |
-| | `out_of_service_area` | outside the oblast we cover | — |
-| | `spam` | not a shelter application | — |
-| | `other` | other (see note) | — |
-| Suspension | `unresponsive` | not answering adopters | — |
-| | `complaint_upheld` | a complaint was checked and upheld | — |
-| | `listing_quality` | listings not kept accurate | — |
-| | `suspected_fraud` | suspected fraud | — |
-| | `other` | other (see note) | — |
+| Rejection | `insufficient_evidence` | not enough to verify yet | - |
+| | `identity_unverifiable` | couldn't confirm who you are | - |
+| | `duplicate_submission` | already registered / duplicate | - |
+| | `out_of_service_area` | outside the oblast we cover | - |
+| | `spam` | not a shelter application | - |
+| | `other` | other (see note) | - |
+| Suspension | `unresponsive` | not answering adopters | - |
+| | `complaint_upheld` | a complaint was checked and upheld | - |
+| | `listing_quality` | listings not kept accurate | - |
+| | `suspected_fraud` | suspected fraud | - |
+| | `other` | other (see note) | - |
 | Pause (shelter's own) | `seasonal_closure` | seasonal break | «Сезонна перерва» |
 | | `relocation` | moving | «Переїзд» |
 | | `capacity_reached` | no room | «Немає місця» |
 | | `staff_shortage` | not enough people | «Брак людей» |
 | | `other` | other | «Інше» |
-| Withdrawal (animal) | `adopted_elsewhere` | adopted through another route | — |
-| | `transferred` | moved to another shelter | — |
-| | `deceased` | died | — |
-| | `listing_error` | listed by mistake | — |
-| | `other` | other (see note) | — |
+| Withdrawal (animal) | `adopted_elsewhere` | adopted through another route | - |
+| | `transferred` | moved to another shelter | - |
+| | `deceased` | died | - |
+| | `listing_error` | listed by mistake | - |
+| | `other` | other (see note) | - |
 
 The rejection reason is shown to the shelter verbatim (K5); suspension and pause reasons also
 reach the shelter (K2's banner, S4). Tone matters most for those two lists. A rejection is a
@@ -240,6 +240,6 @@ second reason left to word.
 
 ## F. Not on this sheet, by design
 
-The cabinet's own UI strings (K1–K5, S1–S5) are the designer's draft text in
+The cabinet's own UI strings (K1-K5, S1-S5) are the designer's draft text in
 `docs/design/KABINET.md`. They'll ship `[COPY PENDING]` with their screens and get their own
 sheet as each UI PR lands, so this one stays short enough for one sitting.

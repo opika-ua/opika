@@ -8,7 +8,7 @@ demo:remove as the back-up path."
 Tier 1 means his explicit decisions before code. The questions are at the end (Q-R1..Q-R6), each
 with a recommendation.
 
-## The runbook's steps, against what R-UI 1–3 give the operator
+## The runbook's steps, against what R-UI 1-3 give the operator
 
 `docs/onboarding-a-shelter.md`, "Retiring the rehearsal shelter":
 

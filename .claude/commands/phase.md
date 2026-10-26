@@ -1,5 +1,5 @@
 ---
-description: Implement a phase from docs/build-plan.md — plan, gate if needed, build, review, open a PR.
+description: Implement a phase from docs/build-plan.md - plan, gate if needed, build, review, open a PR.
 argument-hint: <phase id, e.g. E or E1, or a phase name>
 ---
 
@@ -19,22 +19,22 @@ Implement phase **$ARGUMENTS** from `docs/build-plan.md`.
 
 `CLAUDE.md`, `docs/standing-constraints.md`, `docs/build-plan.md`, and the sections of
 `docs/design/README.md` relevant to this phase. These are the source of truth. If you
-believe one is wrong, say so and stop — do not quietly work around it.
+believe one is wrong, say so and stop - do not quietly work around it.
 
 **Check the documents against reality before trusting them.** A plan describes a moment.
 Confirm the paths, files and branches it names actually exist. This project has been
 misled twice by a document that was true when written.
 
-## Phase 0 — Orient
+## Phase 0 - Orient
 
 Confirm the working tree is clean, `main` is current, and `pnpm check` passes **before**
 you change anything, so a pre-existing failure is never mistaken for one you introduced.
 If it fails, stop and report.
 
 Extract this phase's tasks, hour estimate and definition of done. Restate the definition
-of done in your own words — that is the contract you will be held to.
+of done in your own words - that is the contract you will be held to.
 
-## Phase 1 — Plan, and decide whether to stop
+## Phase 1 - Plan, and decide whether to stop
 
 Produce a short plan: tasks in dependency order, the model for each per
 `docs/model-policy.md`, what you expect to be hard, and what you are deliberately not
@@ -57,28 +57,28 @@ Then check it against the gate conditions below.
 and why none applied.
 
 The 150% condition exists to tell the owner something is larger than planned, not to
-prompt cutting scope — report and wait for direction, don't pre-narrow the options to fit
+prompt cutting scope - report and wait for direction, don't pre-narrow the options to fit
 the original estimate. See `docs/standing-constraints.md`'s "Time is not a decision
 input": there is no deadline unless the owner states one in this phase's own brief: never
 infer one from a previous phase's framing or from how much work remains. When presenting
-options at a stop, describe what each achieves and what it costs in work — never contrast
+options at a stop, describe what each achieves and what it costs in work - never contrast
 one as "fast" against another as "real" or "thorough"; that framing pre-decides the
 tradeoff the stop exists to let the owner make.
 
-If Phase 0's own investigation is what reveals the 150% line has been crossed — not the
-plan's original number, but what you found once you looked — say so in gate terms before
+If Phase 0's own investigation is what reveals the 150% line has been crossed - not the
+plan's original number, but what you found once you looked - say so in gate terms before
 moving on to whatever other question the finding raises. E5 crossed it in Phase 0 (3 h
 planned, and the investigation alone found several times that missing) and the stop that
 followed was framed around two architecture questions, never around the hours condition
-itself; the right outcome happened, but not because the gate fired — see
+itself; the right outcome happened, but not because the gate fired - see
 `docs/build-plan.md`'s Part 3, E5 correction paragraph. A gate satisfied by coincidence
 isn't one the next overrun can rely on.
 
 The gate exists because wrong-direction work is far more expensive than a round-trip, and
-on a ten-hour week a wasted session is a wasted week. It is not a formality — but nor
+on a ten-hour week a wasted session is a wasted week. It is not a formality - but nor
 should it fire on work that is genuinely mechanical.
 
-## Phase 2 — Implement
+## Phase 2 - Implement
 
 Per `docs/handoff-2026-10-04.md` §4 / `CLAUDE.md`'s working loop (revised 2026-10-04): review
 now runs in parallel with building for Tier 2 rows, rather than only at the end of the phase.
@@ -88,7 +88,7 @@ For each task, in dependency order:
 1. Implement it. Tests alongside the unit, not batched at the end.
 2. Run `pnpm check`.
 3. **Commit** (green `pnpm check`, output pasted in the commit body). Nine files of finished
-   work were once lost to a branch switch because they sat uncommitted for hours — commit
+   work were once lost to a branch switch because they sat uncommitted for hours - commit
    after each task, not at the end.
 4. Classify the task's tier (`CLAUDE.md`'s Process tiers) and say it in the commit body. The
    review isn't run from this session ("Who does what"): Tier 1 goes to a fresh cloud reviewer,
@@ -99,7 +99,7 @@ For each task, in dependency order:
 Apply `docs/standing-constraints.md` throughout. If something is genuinely ambiguous and
 Phase 1 did not settle it, stop and ask rather than guessing.
 
-## Phase 3 — Review
+## Phase 3 - Review
 
 Before opening the PR, make sure every pending review has actually been read and acted on:
 
@@ -109,17 +109,17 @@ Before opening the PR, make sure every pending review has actually been read and
    decision, and the PR stays a draft until he answers. It never goes into the pull request as
    unresolved, and it never becomes "not a blocker".
 2. If any review file says `STOP` and it hasn't already been surfaced to Oleksii, do that now
-   per the working loop's STOP handling — the branch stays pushed with the decision pending,
+   per the working loop's STOP handling - the branch stays pushed with the decision pending,
    and the PR (if opened) stays a draft until it resolves.
 3. Run **one PR-level `opika-reviewer` pass** over the accumulated Tier 3 diff (docs, renames,
-   formatting, config with no runtime effect) — the only review those rows get.
+   formatting, config with no runtime effect) - the only review those rows get.
 
 If tests fail and the cause is not obvious, invoke the **debugger** subagent rather than
 guessing.
 
 If an unresolved `STOP` remains from step 2, stop and report. Do not open a pull request.
 
-## Phase 4 — Pull request
+## Phase 4 - Pull request
 
 The local agent's step, never a cloud builder's ("Who does what"); it opens the PR as a draft.
 Only once `pnpm check` is green, including `next build` and the harness:
@@ -131,14 +131,14 @@ gh pr create --draft --fill
 
 The body must contain:
 
-- **Phase** — id and one line.
-- **Definition of done** — each criterion marked **verified** (you ran something that
+- **Phase** - id and one line.
+- **Definition of done** - each criterion marked **verified** (you ran something that
   would fail if it were false) or **asserted** (you believe it but did not check). Never
   tick a user-interface item on markup inspection. An unmet criterion stated plainly is
   useful; a checkbox ticked optimistically costs a day later.
-- **Decisions made** — anything you settled that the plan did not, and why.
-- **Reviewer report** — resolved, unresolved, observations, in full.
-- **Follow-ups** — deferred work, and which phase owns it. File GitHub issues for
+- **Decisions made** - anything you settled that the plan did not, and why.
+- **Reviewer report** - resolved, unresolved, observations, in full.
+- **Follow-ups** - deferred work, and which phase owns it. File GitHub issues for
   anything that will outlive this branch.
 
 Then stop. Do not merge (*narrowed 2026-10-19:* except under CLAUDE.md's "Merge only the commit

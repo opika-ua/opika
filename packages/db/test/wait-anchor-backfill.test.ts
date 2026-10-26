@@ -12,20 +12,20 @@ import { insertLegacyShelter } from "./legacy-rows";
  * looked *before* it ran.
  *
  * This cannot ride on `setupTestDatabase()`, which applies every migration and
- * hands back a table that is already correct — a test against that would only
+ * hands back a table that is already correct - a test against that would only
  * prove the current schema exists. What has to be proved is the transformation:
  * rows in the pre-E0 shape (`reserved` carrying `since` and nothing else) go in,
  * and the anchor that comes out is the one that reflects how long each animal
  * has actually been waiting.
  *
  * The specific failure this is aimed at: `listing->>'since'` is present,
- * plausible, and produces a perfectly sortable column — while dating the moment
+ * plausible, and produces a perfectly sortable column - while dating the moment
  * the animal stopped being available. A backfill reading it (or defaulting to
  * `now()`) leaves nothing visibly broken. Only the ordering is wrong, and only
  * against data nobody has independently derived. So every assertion below
  * compares the anchor to an independently derived value rather than to
  * "not null", and the corpus is deliberately built with `since` constant across
- * rows and `created_at` varying — the shape that makes a wrong source look
+ * rows and `created_at` varying - the shape that makes a wrong source look
  * right.
  */
 
@@ -45,7 +45,7 @@ afterAll(async () => {
   // Most other test files' `setupTestDatabase()` calls do restore it, so
   // this only matters when this file happens to be the last to touch the
   // test database (one shared `opika_test`, harness included, until
-  // 2026-10-13; now derived per checkout) — confirmed reachable, not theoretical:
+  // 2026-10-13; now derived per checkout) - confirmed reachable, not theoretical:
   // `city-slug-backfill.test.ts` (the same technique, for migration 0005)
   // hit exactly this, breaking the harness's own `drizzle-kit migrate` step
   // with a "relation already exists" conflict from replaying migration 0000
@@ -67,7 +67,7 @@ async function migrationTags(): Promise<readonly string[]> {
  * Drizzle's own migrator is all-or-nothing, which is exactly what this test
  * cannot use: the point is to stop at the state before the backfill, write
  * legacy rows, and only then apply it. The `--> statement-breakpoint` marker is
- * drizzle-kit's own separator and never appears inside a statement — including
+ * drizzle-kit's own separator and never appears inside a statement - including
  * inside the `DO $$ ... $$` guard, whose semicolons would otherwise split
  * wrongly.
  */
@@ -170,7 +170,7 @@ function legacyReservedCorpus(): readonly LegacyAnimal[] {
   return Array.from({ length: 10 }, (_, i) => ({
     id: `a0000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
     // Spread across ten months, so an ordering derived from these is
-    // distinguishable from any ordering derived from a constant — and
+    // distinguishable from any ordering derived from a constant - and
     // deliberately *descending* with the id, so it is also distinguishable from
     // the id tiebreak the ordering falls back to when every anchor is equal.
     createdAt: new Date(Date.UTC(2025, 9 + (9 - i), 1, 12, 0, 0)),
@@ -182,7 +182,7 @@ function legacyReservedCorpus(): readonly LegacyAnimal[] {
 }
 
 /**
- * Insert a city in the pre-0005 shape via raw SQL — `cityRepo.insert` writes
+ * Insert a city in the pre-0005 shape via raw SQL - `cityRepo.insert` writes
  * the *current* schema, including the `slug` column added after
  * `BACKFILL_TAG`, which does not exist yet at this test's frozen schema
  * state. Same reasoning as `insertLegacyAnimal` above.
@@ -280,8 +280,8 @@ describe("0004 wait_anchor_at backfill", () => {
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
       .map((animal) => animal.id);
 
-    // The assertion the column exists for. Any constant source — `since`,
-    // `now()` — degenerates this to an ordering by id alone.
+    // The assertion the column exists for. Any constant source - `since`,
+    // `now()` - degenerates this to an ordering by id alone.
     expect(ordered.map((row) => row.id)).toEqual(expected);
     expect(ordered.map((row) => row.id)).not.toEqual([...expected].sort());
   });
@@ -299,7 +299,7 @@ describe("0004 wait_anchor_at backfill", () => {
     for (const row of rows) {
       // `rowToAnimal` hands this JSONB straight to `AnimalListingState` with no
       // Zod parse, so a missing or unrevivable `publishedAt` would be
-      // `undefined` at runtime on a type that declares it required — and would
+      // `undefined` at runtime on a type that declares it required - and would
       // typecheck perfectly.
       expect(row.published_at, `${row.id} has no publishedAt in its listing`).toMatch(
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
@@ -369,7 +369,7 @@ describe("0004 wait_anchor_at backfill", () => {
 
   it("aborts rather than shipping a discoverable row with no anchor", async () => {
     const { shelterId, cityId } = await seedFixtureShelter();
-    // A published row whose JSONB never carried `publishedAt` — the one legacy
+    // A published row whose JSONB never carried `publishedAt` - the one legacy
     // corruption the backfill has no source for. Without the migration's own
     // guard this would migrate "successfully" and leave a discoverable animal
     // that sorts last forever under longest-waiting.

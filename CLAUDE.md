@@ -1,18 +1,18 @@
-# Opika — repo brief for future sessions
+# Opika - repo brief for future sessions
 
 Read this before doing anything else in this repo. It exists so a future
 session (or a future you) doesn't have to re-derive decisions that are
 already made. The four source documents this brief distills are in
-`docs/`: `docs/stack-decision.md` (the ADR — full rationale, sources,
+`docs/`: `docs/stack-decision.md` (the ADR - full rationale, sources,
 verified prices/versions as of 2026-08-05), `docs/build-plan.md` (the
 phase plan and hour budget), `docs/design/README.md` (the "Keeper's
-Voice" design handoff — tokens, typography, spacing, motion, gesture
+Voice" design handoff - tokens, typography, spacing, motion, gesture
 spec, string table, all eight screens, and the gallery + desktop
-breakpoints), and `docs/standing-constraints.md` (imported below — the
+breakpoints), and `docs/standing-constraints.md` (imported below - the
 rules that apply to every phase, every pull request, every agent).
 **All four are the source of truth for their respective domains. Do not
 relitigate a stack choice, a phase sequence, or a design decision that's
-already settled in those docs — if something there looks wrong, ask
+already settled in those docs - if something there looks wrong, ask
 before overriding it.**
 
 @docs/standing-constraints.md
@@ -22,12 +22,12 @@ before overriding it.**
 A swipe-based pet adoption platform connecting adopters with verified
 shelters in one Ukrainian oblast. Solo developer, React/TypeScript
 background, ~10h/week. MVP scope, with an explicit (documented, not
-hand-waved) path through Phases 2–4 — ad revenue, registry integration,
+hand-waved) path through Phases 2-4 - ad revenue, registry integration,
 cross-border adoption to Poland/EU.
 
-## The name is not final — keep it out of the domain
+## The name is not final - keep it out of the domain
 
-"Opika" (Опіка — Ukrainian for guardianship/care, same word as Polish
+"Opika" (Опіка - Ukrainian for guardianship/care, same word as Polish
 "opieka") is a **working name**. It is used as the npm workspace scope
 (`@opika/contracts`, `@opika/domain`) and nowhere else that matters.
 
@@ -39,13 +39,13 @@ in an app-level config/i18n message, never in the domain or contract
 layer. Renaming the product should never require touching those two
 packages.
 
-## Stack — condensed from the ADR, do not re-decide these
+## Stack - condensed from the ADR, do not re-decide these
 
 | Layer            | Choice                                                                                                                                                                                                                   |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Client           | Next.js 16.3 App Router, PWA (Serwist), React 19.2, React Compiler pinned exact                                                                                                                                          |
 | Swipe deck       | Hand-rolled `PointerEvent` + `transform` (no gesture library)                                                                                                                                                            |
-| API contract     | oRPC (`@orpc/contract`) in contract-first mode, Zod 4 — **or tRPC v11, undecided, see Open Decisions**                                                                                                                   |
+| API contract     | oRPC (`@orpc/contract`) in contract-first mode, Zod 4 - **or tRPC v11, undecided, see Open Decisions**                                                                                                                   |
 | Server runtime   | Node 24 LTS, inside Next.js route handlers; domain logic framework-free                                                                                                                                                  |
 | DB               | Postgres 17 on Neon (Launch, `aws-eu-central-1`), PostGIS available but not enabled at MVP                                                                                                                               |
 | ORM              | Drizzle 0.45.x                                                                                                                                                                                                           |
@@ -56,7 +56,7 @@ packages.
 | Repo             | pnpm 11 workspaces + catalogs. Add Turborepo only when CI exceeds ~3 min                                                                                                                                                 |
 | Testing          | Vitest 4 (+ happy-dom & RTL in `apps/web`) + MSW 2 + Playwright rendering harness. Plain Docker PostGIS, not Testcontainers                                                                                                                                  |
 | CI               | GitHub Actions, `typecheck → lint → test → build:web → test:harness`                                                                                                                                                                                |
-| Backend language | TypeScript, not Go (see ADR §11 for the full argument — the performance delta is ~3ms and irrelevant at this scale; the real cost is losing exhaustive discriminated-union checking and doubling the maintainer surface) |
+| Backend language | TypeScript, not Go (see ADR §11 for the full argument - the performance delta is ~3ms and irrelevant at this scale; the real cost is losing exhaustive discriminated-union checking and doubling the maintainer surface) |
 
 Full rationale, current version numbers, and pricing sources:
 `docs/stack-decision.md`.
@@ -70,17 +70,17 @@ opika/
 │  └─ web/                      # adopter PWA. apps/partner only if the shelter dashboard
 │                                 ever splits out; starts as a route group in apps/web
 ├─ packages/
-│  ├─ contracts/                # Zod schemas + oRPC contract — M1, done
-│  ├─ domain/                   # pure TS: FSM, freshness, scoring. No I/O. — M1, done
-│  ├─ db/                       # Drizzle schema + repositories — M2, done
-│  ├─ ui/                       # shared primitives — Phase C4, done. Genuinely cross-feature
+│  ├─ contracts/                # Zod schemas + oRPC contract - M1, done
+│  ├─ domain/                   # pure TS: FSM, freshness, scoring. No I/O. - M1, done
+│  ├─ db/                       # Drizzle schema + repositories - M2, done
+│  ├─ ui/                       # shared primitives - Phase C4, done. Genuinely cross-feature
 │  │                              only (freshness display today); feature-local UI stays in
 │  │                              apps/web/src/features/*, not here
-│  └─ i18n/                     # uk/en message catalogues — Phase C4, done. Intl formatters
+│  └─ i18n/                     # uk/en message catalogues - Phase C4, done. Intl formatters
 │                                 (relative-time, plurals) stay in packages/domain, which
 │                                 already had them. Also small lookup helpers over the
 │                                 catalogues (ageBucketLabel/sizeLabel, E1) shared between
-│                                 the deck and the gallery — next-intl itself isn't wired
+│                                 the deck and the gallery - next-intl itself isn't wired
 │                                 until H3
 ├─ docs/                        # this repo's copies of the ADR, build plan, design, standing constraints
 └─ infra/ (docker-compose.yml lives at repo root instead, see below)
@@ -105,44 +105,51 @@ task.
   what the code does.
 - **Performance as a default**, not an afterthought, once there's a UI to
   optimize: code-splitting, tree-shaking, memoization. Target: this
-  should hold up cleanly past 300k MAU without an architecture change —
+  should hold up cleanly past 300k MAU without an architecture change -
   see the ADR's RPS math in §11.1 for what that actually requires (it's
   keyset pagination and N+1 elimination, not language choice).
 - **Prefer native Web APIs / native `Intl`** over a library even where a
   dependency would be justified. The ADR's "buy vs build" table (§12) is
-  the existing list of what's already been decided either way — check it
+  the existing list of what's already been decided either way - check it
   before reaching for a new dependency in a covered area.
 - **Modular by feature/domain**, not by technical layer.
 - **Testable and observable by construction.** Pure functions in
-  `packages/domain` are the cheapest tests in the codebase — if a domain
+  `packages/domain` are the cheapest tests in the codebase - if a domain
   function needs a DB or a mock to test, that's a design smell, not a
   testing problem.
+- **No em dash (U+2014 "—") and no en dash (U+2013 "–") anywhere we write**:
+  UI copy, emails, metadata, code comments, docs, commit messages, PR
+  bodies. Use a plain hyphen "-" (spaced " - " where a dash would separate
+  clauses), or rewrite the sentence. Owner, 2026-10-26. A verbatim quote of
+  someone's own words, or of an external source, is exempt - it stays
+  character-exact, dashes included; guarded for copy and metadata by
+  `apps/web/src/no-em-en-dash.test.ts` (see `docs/standing-constraints.md`).
 
 (No `any`, discriminated unions over booleans, `now` as a parameter,
-justify every dependency — `docs/standing-constraints.md`, not restated
+justify every dependency - `docs/standing-constraints.md`, not restated
 here.)
 
 ## Hard constraints for `packages/domain` and `packages/contracts`
 
 - `packages/domain` has **no dependency beyond Zod**. No database driver,
-  no Next.js, no `fetch`, no file I/O. Pure functions only — the general
+  no Next.js, no `fetch`, no file I/O. Pure functions only - the general
   "`now` is a parameter" rule is in `docs/standing-constraints.md`; this
   is the additional, domain-specific list of what else isn't allowed in.
 - `packages/contracts` defines schemas and the API contract shape with
-  **no implementation** — routers/handlers live elsewhere.
+  **no implementation** - routers/handlers live elsewhere.
 - No hardcoded brand strings (see "the name is not final," above).
 
 ## Phase scope discipline
 
 This repo is built phase-by-phase against `docs/build-plan.md`, whose
 Part 1 has the current status of everything through M5 and whose Part 2
-is the live phase list. **Do not scaffold ahead of the current phase** —
+is the live phase list. **Do not scaffold ahead of the current phase** -
 e.g. do not add a package or a schema table before a phase explicitly
 calls for it, even if it would be convenient to stub out. Premature
 scaffolding is exactly the kind of thing that turns into stale,
 half-wired code in a solo 10h/week project.
 
-## Decisions made during M1 scoping (settled — don't re-ask)
+## Decisions made during M1 scoping (settled - don't re-ask)
 
 1. **Contract layer: oRPC, on the stable 1.x line** (not the 2.0 beta).
    Matches the contract-first principle natively; keep every procedure
@@ -156,13 +163,13 @@ half-wired code in a solo 10h/week project.
    `ContactReveal` views. A reveal discloses contact channels only; the
    meeting place is agreed with the shelter in correspondence.
    **Revised 2026-10-15 (Oleksii, inbox EM-D1).**
-3. **Size buckets: 3-tier** — `small` / `medium` / `large`. Weight is
+3. **Size buckets: 3-tier** - `small` / `medium` / `large`. Weight is
    **never stored**, only the bucket. `SIZE_BUCKET_WEIGHT_HINTS_KG`
-   (<10kg / 10–25kg / 25kg+) exists purely as guidance for whoever fills in
-   the listing. _(Superseded the earlier 4-tier `giant` variant — that tier
+   (<10kg / 10-25kg / 25kg+) exists purely as guidance for whoever fills in
+   the listing. _(Superseded the earlier 4-tier `giant` variant - that tier
    is gone, deliberately, not by oversight.)_
-4. **Age buckets:** 4-tier, Petfinder-style — `baby` (<1yr) / `young`
-   (1–3yr) / `adult` (3–8yr) / `senior` (8yr+). **The bucket is derived, not
+4. **Age buckets:** 4-tier, Petfinder-style - `baby` (<1yr) / `young`
+   (1-3yr) / `adult` (3-8yr) / `senior` (8yr+). **The bucket is derived, not
    stored.** `Animal.age` holds an `AgeEstimate` (a birth date, or a bucket
    declared at a known time) and `ageBucketOf(estimate, now)` computes the
    bucket at read time, so a puppy listed in March is not still advertised
@@ -175,10 +182,10 @@ half-wired code in a solo 10h/week project.
    requiring a formal review first on spam models a click, not a lifecycle)
    and `suspended → rejected` (otherwise `suspended` means both "paused, may
    return" and "banned"). Closed: `under_review → suspended` (nothing to
-   suspend — it isn't in the feed) and `verified → under_review` (it would
+   suspend - it isn't in the feed) and `verified → under_review` (it would
    drop a shelter from the feed with no record it was ever verified, which is
    what `priorStatus` exists to prevent). Periodic re-verification, when
-   needed, is a **new `re_review` state** carrying its prior status — not an
+   needed, is a **new `re_review` state** carrying its prior status - not an
    overload of `under_review`.
 6. **`VerificationEvidence` is a list of discriminated items**, not a fixed
    record, because what a shelter can produce depends on its legal form. The
@@ -186,7 +193,7 @@ half-wired code in a solo 10h/week project.
    pure predicate. An **unregistered volunteer group can reach `verified`**,
    substituting a moderator site visit plus two independent references for
    the registration and banking records a registered entity supplies.
-   ⚠ Those thresholds are my proposal, not your specification — the shape is
+   ⚠ Those thresholds are my proposal, not your specification - the shape is
    settled, the numbers are yours to change.
 7. **`RejectionReason` and `SuspensionReason` are separate code lists**
    (+ optional free-text note). A shelter is rejected for reasons about its
@@ -213,9 +220,9 @@ half-wired code in a solo 10h/week project.
     (H2-14), never from `created_at`, because a listing's creation is not a
     confirmation.
 11. **Coordinate fuzzing: 1 km, one global policy.** `fuzzCoordinates` is
-    deterministic on the shelter id — a per-request offset would let an
+    deterministic on the shelter id - a per-request offset would let an
     observer average repeated samples back to the true position.
-12. **`pick`, never `omit`, decided here first** — for `Shelter`
+12. **`pick`, never `omit`, decided here first** - for `Shelter`
     specifically, where what's withheld is the exact address. Generalised
     into a standing rule in `docs/standing-constraints.md`; this entry
     just records that M1 is where and why it started.
@@ -236,9 +243,9 @@ half-wired code in a solo 10h/week project.
 14. **Rate limiting is split.** Generic per-IP: in-memory sliding window behind
     a `RateLimiter` interface (acknowledged per-instance in serverless; the
     interface is stable for a Redis/KV swap). Reveal limit: Postgres-persisted,
-    30 per 24h, counted from the existing `reveals` table — no new table needed,
+    30 per 24h, counted from the existing `reveals` table - no new table needed,
     survives cold starts. **Correction, 2026-09-10:** the 30 counts *distinct
-    shelters revealed*, not reveal rows — `reveals.shelter_id` was already on
+    shelters revealed*, not reveal rows - `reveals.shelter_id` was already on
     the row (decision unchanged), so no migration; the check gained a second
     query (a free-re-reveal existence check ahead of the distinct-count one).
     Contacts are scrapeable per shelter, not per animal; re-revealing a
@@ -263,23 +270,23 @@ Phase E (`docs/build-plan.md`), not yet built as of this entry.
     Reserved animals stay in the feed deliberately (reservations fall through),
     so the one that's waited longest and is provisionally spoken for is exactly
     the one that should stay visible. Requires a backfill across the 320 seeded
-    rows — a domain type change, not a pure addition.
+    rows - a domain type change, not a pure addition.
 17. **Gallery pagination is OFFSET, by name and in writing an exception to
     "keyset, never OFFSET."** `docs/standing-constraints.md`'s Code section
     carries the guard; this entry just confirms it's not an oversight. Bounded
-    at 2,000 matching rows per filter combination — chosen because past that
+    at 2,000 matching rows per filter combination - chosen because past that
     depth numbered pagination stops being sensible UI, not because Postgres
     needs protecting from the row-skip.
 
-## Obligations the contract cannot express — carry these into M2/M4
+## Obligations the contract cannot express - carry these into M2/M4
 
 Each is something the type system genuinely cannot enforce, so it has to
 live in a checklist rather than in a schema:
 
 - **Every handler goes through `implement(contract)`** (the standing
   rule; see `docs/standing-constraints.md`). Mechanism: oRPC validates
-  outputs at runtime and returns the _stripped_ object — verified in
-  `@orpc/server@1.14.14` — but only when a schema is attached. A handler
+  outputs at runtime and returns the _stripped_ object - verified in
+  `@orpc/server@1.14.14` - but only when a schema is attached. A handler
   on the plain `os` builder with no `.output()` returns whatever the
   handler produced, and the `pick`-based leak protection evaporates.
   `apps/web/src/api/handlers-implement-contract.test.ts` is the test that
@@ -289,18 +296,18 @@ live in a checklist rather than in a schema:
 - **The session cookie is server-minted only**: ≥128 bits from a CSPRNG,
   HttpOnly + Secure + SameSite=Lax. Session _validation_ is get-or-reject:
   an unknown token is `{ ok: false }`, never a new session.
-  `session.bootstrap` is the sole endpoint that mints — when validation
+  `session.bootstrap` is the sole endpoint that mints - when validation
   rejects (stale cookie, first visit), it creates a fresh adopter + session.
   This is safe because tokens are 256-bit random (no client-supplied value
   to collide on), but it means bootstrap MUST sit behind per-IP rate
-  limiting — without it, unauthenticated callers can create unbounded
+  limiting - without it, unauthenticated callers can create unbounded
   adopter rows.
 - **Sign the cursor and bind it to the filters.** Payload carries a kind
   tag (`feed` / `reveal`) and `filtersFingerprint(filters)`; a mismatch is
   `INVALID_CURSOR`. The branded type is a convenience for honest callers
   and provides nothing at a trust boundary.
 - **Clamp `swipes.record`'s `at`** to `[now - maxOfflineWindow, now]`.
-- **Never construct a `PublicLocation` by hand** — `publicLocationOf`
+- **Never construct a `PublicLocation` by hand** - `publicLocationOf`
   (for shelters, always `fuzzed_address` precision) and
   `animalPublicLocationOf` (for fostered animals, always `city`
   precision) are the only sanctioned paths. `PublicLocation` is a
@@ -318,15 +325,15 @@ live in a checklist rather than in a schema:
 - **Store `wait_anchor_at`** (from `waitAnchorOf`) as the indexed column,
   nullable, the same pattern as `age_anchor_at` above. Never sort "longest
   waiting" on `last_updated_at` (edit time, not availability time) or on
-  `reserved.since` (reservation start, not original publish — `reserved`
+  `reserved.since` (reservation start, not original publish - `reserved`
   carries `publishedAt` forward precisely so the two don't collide). Two
-  partial indexes, not one — `animals_wait_anchor_idx` (unfiltered) and
-  `animals_wait_anchor_filtered_idx` (filtered) — see
+  partial indexes, not one - `animals_wait_anchor_idx` (unfiltered) and
+  `animals_wait_anchor_filtered_idx` (filtered) - see
   `docs/gallery-contract-decisions.md` §2 for why one index can't serve
   both cases.
 - **`city_id` on animals** is the city the animal is discoverable in.
   For animals at their shelter it mirrors the shelter's city
-  (denormalised); for fostered animals it is the foster city — a
+  (denormalised); for fostered animals it is the foster city - a
   first-class property, not a projection. `Animal.publicLocation`
   (nullable) is `city`-precision when set (city + district, no
   coordinates); when null the animal is at the shelter and inherits the
@@ -347,14 +354,14 @@ live in a checklist rather than in a schema:
 Two suites are called out specifically because skipping them is how a
 solo project quietly accumulates the exact bugs they'd catch:
 
-1. **The shelter verification FSM transition table.** Exhaustive —
+1. **The shelter verification FSM transition table.** Exhaustive -
    every `(state, event)` pair, including the ones that must be
    rejected (e.g. `verified` cannot go directly to `pending`). ~50 lines,
    catches "we forgot the re-verify-after-suspension case" before it's a
    production incident.
 2. **Ukrainian plural/freshness boundaries** at 1, 2, 5, 11, 21, 22 days.
    `Intl.RelativeTimeFormat` gets Ukrainian's four plural forms right for
-   free, but only if it's called with the right unit and sign — test
+   free, but only if it's called with the right unit and sign - test
    that you're calling it right, not that `Intl` works.
 
 ## Windows development notes
@@ -362,7 +369,7 @@ solo project quietly accumulates the exact bugs they'd catch:
 You're developing on Windows. Two things matter here:
 
 - **Line endings:** `.gitattributes`' `* text=auto eol=lf` doesn't just
-  normalize line endings _in the repo_ — the `eol=lf` attribute overrides
+  normalize line endings _in the repo_ - the `eol=lf` attribute overrides
   `core.autocrlf` for every matched file (which is all of them) and forces
   LF in your working tree too, on Windows included. That's deliberate:
   it means every tracked file is LF on disk regardless of what
@@ -370,20 +377,20 @@ You're developing on Windows. Two things matter here:
   files this repo already tracks. Modern editors (VS Code, WebStorm) save
   LF files as LF without complaint. `core.autocrlf` still matters for
   _new, untracked_ files you create before they're covered by a
-  `.gitattributes` pattern — `git config --global core.autocrlf input` is
+  `.gitattributes` pattern - `git config --global core.autocrlf input` is
   the safer default on Windows (normalizes CRLF→LF on commit, doesn't
   force CRLF back on checkout), but don't expect it to change anything
   for files already in this repo.
 - **corepack:** run `corepack enable` once (may need an elevated
   terminal the first time on Windows). After that, `pnpm` resolves to
-  the exact version pinned in `package.json`'s `packageManager` field —
+  the exact version pinned in `package.json`'s `packageManager` field -
   don't install pnpm globally via npm. Node 24 (this project's pinned
-  major — `.nvmrc` / `.node-version` select it for nvm, fnm and the like,
+  major - `.nvmrc` / `.node-version` select it for nvm, fnm and the like,
   matching `engines` and CI) still bundles Corepack; Node 25+ drops it from the default
   distribution, so a future Node upgrade will need `npm install -g
 corepack` first. In CI, prefer `corepack enable && corepack install`
   (activates the pinned version explicitly) over a bare `corepack enable`
-  followed by an implicit lazy download — the latter can hit Corepack's
+  followed by an implicit lazy download - the latter can hit Corepack's
   interactive download-confirmation prompt, which doesn't reliably
   suppress via `COREPACK_ENABLE_DOWNLOAD_PROMPT=0` on every Corepack
   version. See `.github/workflows/ci.yml` for the pattern in practice.
@@ -391,14 +398,14 @@ corepack` first. In CI, prefer `corepack enable && corepack install`
 ## Module resolution (why `pnpm typecheck` is not enough)
 
 The whole repo is on `module: ESNext` / `moduleResolution: Bundler`.
-**Relative imports are extensionless** — `./freshness-display`, never
+**Relative imports are extensionless** - `./freshness-display`, never
 `./freshness-display.js`.
 
 This is not cosmetic. `tsc` maps `./x.js` to `./x.ts` under *every*
 resolution mode, so a `.js` extension typechecks perfectly clean and then
 fails only in the bundler, which looks for a literal `x.js` on disk.
 That is exactly how `/discovery` shipped to a green CI while being
-unbuildable. Turbopack has no escape hatch here —
+unbuildable. Turbopack has no escape hatch here -
 `experimental.extensionAlias` is on its explicitly-unsupported list.
 
 `packages/*` were previously NodeNext, which mandates the extensions.
@@ -421,10 +428,10 @@ Node-ESM entry point. No live exposure today (`postgres` resolves ESM,
 
 ```bash
 corepack enable          # once, machine-wide
-pnpm i                   # install — resolves the pinned pnpm automatically
+pnpm i                   # install - resolves the pinned pnpm automatically
 pnpm check                # typecheck -> lint -> test -> build:web -> test:harness, same as CI
 
-# db:migrate, db:seed and onboard:shelter have no root alias — always run them with --filter.
+# db:migrate, db:seed and onboard:shelter have no root alias - always run them with --filter.
 pnpm --filter @opika/db run db:migrate
 pnpm --filter @opika/db run db:seed
 pnpm --filter @opika/db run onboard:shelter
@@ -441,7 +448,7 @@ pnpm lint                 # biome check .
 pnpm lint:fix              # biome check --write .
 pnpm format                # biome format --write .
 pnpm test                 # vitest, all packages
-pnpm build:web            # DO NOT REMOVE from check — see "Module resolution"
+pnpm build:web            # DO NOT REMOVE from check - see "Module resolution"
 pnpm test:harness         # Playwright rendering harness against /tvaryny and /tvaryny/gortaty
 
 # One-time, and again after a Playwright version bump:
@@ -460,7 +467,7 @@ pnpm db:prune-test-dbs --yes  # drops only those whose recorded checkout no long
 ```
 
 `pnpm i && pnpm check` must pass on a clean clone (no `node_modules`,
-fresh install) before any milestone is considered done — that's the M0
+fresh install) before any milestone is considered done - that's the M0
 definition of done, and it stays true going forward. Note that M0
 reported this passing when it had never been run; "I believe it passes"
 is not the same claim as "I ran it and here is the output."
@@ -487,7 +494,7 @@ purpose, and neither is redundant:
   time, never the real clock (his condition for UI-U1..U7, 2026-10-20).
 
 The harness builds the app too, which makes `build:web` look duplicated.
-Keep both — `build:web` is the fast, specific failure, and it keeps
+Keep both - `build:web` is the fast, specific failure, and it keeps
 working if the harness is ever broken or quarantined.
 
 (Frozen with the other visual checks, until the brand lands.) One assertion in the harness is
@@ -495,7 +502,7 @@ marked `test.fail()`: the deck
 (`/tvaryny/gortaty`, migrated from `/discovery` in E5) is a 390px phone
 column and does not adapt at 1280x800. That gap is recorded, not hidden.
 When the responsive pass lands, Playwright will report an unexpected
-pass — that is the signal to delete the marker.
+pass - that is the signal to delete the marker.
 **2026-10-20:** that marker is deleted, with the other UI-measuring tests (Oleksii, verbatim:
 "UI-measuring tests: yes, keep both V-B2 tests (the 48px shared controls and the focus indicator being present). They’re accessibility guarantees, not looks. Drop the rest that measure appearance."). The deck's desktop gap is no longer asserted anywhere; the responsive pass is
 tracked as design work, not as a failing test.
@@ -549,12 +556,12 @@ say "frozen" describe the state before that date.
 
 ## Supply-chain note (why a version pin looks slightly stale)
 
-pnpm 11's `minimumReleaseAge` defaults to 1440 minutes (24h) — a newly
+pnpm 11's `minimumReleaseAge` defaults to 1440 minutes (24h) - a newly
 published package version won't resolve until it's a day old. This is
 deliberate and should stay on; it would have blocked the 2025 npm
 Shai-Hulud worm incidents entirely. If `pnpm-workspace.yaml`'s catalog
 pins a version one patch behind npm's absolute latest, that's usually
-why — it's the newest version that's already cleared quarantine. Don't
+why - it's the newest version that's already cleared quarantine. Don't
 "fix" this by bumping to `latest` and adding a `minimumReleaseAgeExclude`
 entry; wait a day, or pick the next-newest cleared version instead.
 @docs/model-policy.md
@@ -567,7 +574,7 @@ what lets work continue without Oleksii gating every step.
 ## Who does what (2026-10-23; supersedes the 2026-10-21 cloud/local split below, and the rules
 further below where they conflict)
 
-Cloud sessions ran from 2026-10-21 to 2026-10-23 (3–4 parallel builders, cloud Tier 1 reviewers).
+Cloud sessions ran from 2026-10-21 to 2026-10-23 (3-4 parallel builders, cloud Tier 1 reviewers).
 Oleksii ended that, verbatim (2026-10-23): "From now on, everything runs locally; no cloud
 sessions until I say otherwise. Keep local use lean." The mechanics he gave the same day,
 verbatim: "Local agents only. At most two at once. Builder and reviewer are always separate
@@ -582,8 +589,8 @@ What each role may do:
   - Opens each PR as a draft, with the verified-vs-asserted ledger in the body.
   - Reviews everything except Tier 1 itself, kept lean: the diff, the suites it touches, a few
     mutations, CI's `pnpm check`.
-  - Merges at the reviewed head — its own review for non-Tier-1, a fresh local reviewer's for
-    Tier 1 — on green CI. **It is the only one that merges.**
+  - Merges at the reviewed head - its own review for non-Tier-1, a fresh local reviewer's for
+    Tier 1 - on green CI. **It is the only one that merges.**
   - Writes a smoke sitting (`Claude outputs/SMOKE-sitting-<date>.txt`: one fresh child branch,
     `nvm use 24` first, every command in its `--filter` form, expected counts) for anything
     needing his real-Neon check, and does not merge that PR until he's run it.
@@ -594,7 +601,7 @@ What each role may do:
   - Its verdict names the exact head SHA on its first line; a verdict for any other SHA doesn't
     count.
   - It pushes only the review file, `docs/reviews/<branch>/<short-sha>.md`, on its own
-    `reviews/pr-<n>-<short-sha>` branch — the same mechanism the cloud reviewers used, just run
+    `reviews/pr-<n>-<short-sha>` branch - the same mechanism the cloud reviewers used, just run
     locally now.
 - **Oleksii:** runs the real-Neon smokes in batched sittings, the production migrations, takes
   the decisions and writes the copy, runs every other production action (env, DNS, deletions).
@@ -615,28 +622,28 @@ The rules (carried over from the cloud era, unchanged by the switch to local-onl
   every patch `=`, and the PR's files don't overlap main's new commits. Green CI on the rebased
   head is then the gate. Anything else gets a short delta review. His wording is quoted in full
   under "Merge only the commit that was reviewed". A rebase with real conflicts (not just `=`
-  patches over a clean range-diff) is never a bare "take one side" per hunk — a hunk can look like
+  patches over a clean range-diff) is never a bare "take one side" per hunk - a hunk can look like
   one branch's change when it's really unchanged context from a third branch that already landed;
   verify each resolved hunk against both sides' own diffs against their common ancestor, not just
   against the conflict markers.
 - **Smokes** are batched: one sitting, one fresh child branch, the commands in order, once or
   twice a day, in `Claude outputs/SMOKE-sitting-<date>.txt`.
 
-Dropped with the cloud sessions (2026-10-23): the cloud builder role; the "3–4 sessions in
+Dropped with the cloud sessions (2026-10-23): the cloud builder role; the "3-4 sessions in
 parallel" scale; the launch-file ritual (`Claude outputs/LAUNCH-batch-<date>.txt`, Oleksii
-starting each session by hand) — nothing starts a session for him to paste anymore; and the
+starting each session by hand) - nothing starts a session for him to paste anymore; and the
 launch-prompt network-naming rule, which existed only because a cloud prompt could end up quoted
 in a commit or PR of this public repository.
 
 Revised 2026-10-04 per `docs/handoff-2026-10-04.md` §4: review and decisions now run in
 parallel with building rather than ahead of it. The quality bar, the standing constraints and
-the Tier 1 gates are unchanged — what changed is *where* review happens and *what blocks the
+the Tier 1 gates are unchanged - what changed is *where* review happens and *what blocks the
 builder*. See the 2026-10-04 amendment below for the mechanism. Who reviews and who merges was
 revised on 2026-10-21 and again on 2026-10-23 ("Who does what", above).
 
 ## The loop
 
-Work proceeds in iterations. One iteration is one plan item — a D-row, a DECK-row, a fix, a
+Work proceeds in iterations. One iteration is one plan item - a D-row, a DECK-row, a fix, a
 sweep. For each iteration:
 
 1. Do the work.
@@ -670,15 +677,15 @@ sweep. For each iteration:
 Never spawn a review on work you have not finished, and never continue past a STOP by
 reinterpreting it as a note.
 
-### Amendment, 2026-09-06 — a STOP blocks a merge, not a commit
+### Amendment, 2026-09-06 - a STOP blocks a merge, not a commit
 
 A reviewer STOP blocks a **merge**, not a **commit**. When the reviewer returns STOP: commit
 the work on the branch first, push it, then surface the decision to Oleksii. Uncommitted work
-is a risk (a branch commit is not — it ships nothing to anyone and is fully reversible); never
+is a risk (a branch commit is not - it ships nothing to anyone and is fully reversible); never
 hold a green working tree uncommitted while waiting for an answer.
 
 Corollary: STOP-list items about documentation, attribution and provenance are **PR-blocking**,
-not commit-blocking. Only items that would reach users or destroy data block a commit —
+not commit-blocking. Only items that would reach users or destroy data block a commit -
 production writes, deletions, and secrets. (*Since 2026-10-21* the review runs on the pushed head,
 after the commit. So these three are the builder's own never-list in "Who does what": a secret, a
 production write or a deletion is never committed at all. A reviewer's STOP on one still blocks
@@ -686,23 +693,23 @@ the merge, and the builder removes it.) If the open PR is still a draft, keep it
 until the STOP resolves; if it's already open for review, say in the same message that a STOP
 finding is unresolved rather than merging over it.
 
-### Amendment, 2026-09-06 — review cadence
+### Amendment, 2026-09-06 - review cadence
 
 Between review passes on the same row, run only the test suites the fix actually touches, not
-the full `pnpm check`. Run a full `pnpm check` **once**, immediately before the commit — that
+the full `pnpm check`. Run a full `pnpm check` **once**, immediately before the commit - that
 is the one run whose green matters for the commit message and the PR body. Re-running the
 whole suite after every small fix is the same waste `test:harness` already warns against
 running twice concurrently: it slows the loop without changing what gets asserted.
 
-Tier 3 changes (see "Process tiers" below) get no reviewer pass at all — they are covered
+Tier 3 changes (see "Process tiers" below) get no reviewer pass at all - they are covered
 once, in the batch, at the PR-level pass. (*Since 2026-10-21* everything outside Tier 1, Tier 3
 included, gets one review: by the local agent, or by a fresh local reviewer when the local agent
 wrote it. See "Who does what".)
 
-### Amendment, 2026-10-04 — review runs beside building (superseded in part, 2026-10-21)
+### Amendment, 2026-10-04 - review runs beside building (superseded in part, 2026-10-21)
 
-(`docs/handoff-2026-10-04.md` §4.1–§4.3, an owner-stated process change, not a quality
-change — see "Process latency is a stated owner cost" in `docs/standing-constraints.md`.)
+(`docs/handoff-2026-10-04.md` §4.1-§4.3, an owner-stated process change, not a quality
+change - see "Process latency is a stated owner cost" in `docs/standing-constraints.md`.)
 
 What still holds:
 - **Review files are git-tracked:** every verdict is written to
@@ -728,7 +735,7 @@ Builds ran in parallel cloud sessions under the file-overlap rule from 2026-10-2
 local-only since (see "Who does what"). Each review is done by a fresh local reviewer for Tier 1,
 or by the local agent for everything else.
 
-### Amendment, 2026-10-17 — working mode (supersedes the rules above and below where they conflict, except "Who does what", 2026-10-21 and 2026-10-23, which supersedes it)
+### Amendment, 2026-10-17 - working mode (supersedes the rules above and below where they conflict, except "Who does what", 2026-10-21 and 2026-10-23, which supersedes it)
 
 Oleksii, 2026-10-17 (inbox WM-B1), verbatim:
 
@@ -752,7 +759,7 @@ What that changes, concretely:
   - **Tier 1:** auth and access, data deletion, production writes, secrets, R2, and anything a
     public page or an email claims. The full process stays: a full review before merge, real-Neon
     when SQL changes, his explicit decisions asked up front, full inbox records. (*Since
-    2026-10-21* the review runs in a fresh reviewer session on the pushed head, before merge —
+    2026-10-21* the review runs in a fresh reviewer session on the pushed head, before merge -
     cloud through 2026-10-23, a fresh local agent since. It used to run before the commit, in a
     worktree; see "Who does what".)
   - **Everything else** (the old Tiers 2 and 3) gets **one** review, by the local agent since
@@ -777,7 +784,7 @@ What that changes, concretely:
   for SQL, copy truth on public surfaces. **"No R2 deletes" gained its one named exception,
   2026-10-25:** the GDPR photo-retention job (`r2-cleanup-client.ts`, `docs/gdpr-analysis.md`)
   deletes an R2 object only after it has sat unreferenced for the grace period, and is the one
-  code path allowed `DeleteObjectsCommand`/`ListObjectsV2Command` — enforced structurally by
+  code path allowed `DeleteObjectsCommand`/`ListObjectsV2Command` - enforced structurally by
   `photo-pipeline-scan.test.ts`, which still fails any *other* file that imports either. "I merge
   everything" was narrowed twice:
   - *2026-10-19:* he allows merging a green PR whose exact head was reviewed, with two exceptions
@@ -789,21 +796,21 @@ What that changes, concretely:
 
 ## Decisions stop blocking
 
-(`docs/handoff-2026-10-04.md` §4.4.) `docs/decisions-inbox.md` — one table, on `main` only,
+(`docs/handoff-2026-10-04.md` §4.4.) `docs/decisions-inbox.md` - one table, on `main` only,
 append-only, columns `ID | Date | Row | Question | Options | Default taken | Oleksii's answer
-| Status` — replaces `docs/decisions-pending-review.md`'s 752-line narrative of per-branch
+| Status` - replaces `docs/decisions-pending-review.md`'s 752-line narrative of per-branch
 copies for new decisions.
 
 - A **Tier 2 decision never blocks the builder.** Take the recommended default, write the
   inbox row, continue. (Since 2026-10-17: any reversible decision, recorded as one inbox line and
   listed under "Decisions taken" in the PR; see the working-mode amendment.) Oleksii answers in bulk when he reviews the PR; an override becomes a
   small follow-up commit. **This does not touch the STOP list below** ("Stop and ask,
-  regardless of what the reviewer said") — an ambiguous design with no mock, a new or changed
+  regardless of what the reviewer said") - an ambiguous design with no mock, a new or changed
   user-facing claim, and the rest of that list are never "a Tier 2 decision" no matter which
   tier the surrounding code change is, and still stop and wait rather than taking a default.
   The inbox is for the other kind: a reversible implementation judgement call that used to be
   a "decisions needing your eye, not blocking" entry in `docs/decisions-pending-review.md`.
-- A **Tier 1 decision still blocks the merge** — but not the rest of the branch. Write the
+- A **Tier 1 decision still blocks the merge** - but not the rest of the branch. Write the
   row, commit the work, move to the next row that doesn't depend on it. Oleksii answers the
   batch, not one question at a time.
 - **Ukrainian copy never blocks code.** New strings ship as `[COPY PENDING]`, pinned by
@@ -811,9 +818,9 @@ copies for new decisions.
   copy that *does* block a merge is a `/prytulkam` commitment sentence (the register in
   `docs/standing-constraints.md`), because a false sentence must never be live.
 - Branches write new rows to `docs/decisions-inbox/<branch>.md`; the PR merge appends them to
-  the main table — no more hand-reconciled per-branch copies of a 750-line file.
+  the main table - no more hand-reconciled per-branch copies of a 750-line file.
 - `docs/decisions-pending-review.md` is superseded and kept as read-only history as of
-  2026-10-04 — don't add to it, don't migrate its already-resolved entries.
+  2026-10-04 - don't add to it, don't migrate its already-resolved entries.
 
 ## Agent rules (every agent, every session)
 
@@ -883,13 +890,13 @@ present the decision. Do not sit idle waiting.
 
 ## Reporting
 
-Between iterations, keep it short — what shipped, what the reviewer found, what is next. The
+Between iterations, keep it short - what shipped, what the reviewer found, what is next. The
 long form belongs in the PR body, not in chat.
 
 When you stop for a decision, the message has four parts and nothing else: the decision, the
 options, the consequence of each, your recommendation. No recap of what you built.
 
-Session reports to Oleksii: what shipped, what's in the inbox, what's next — under ten lines.
+Session reports to Oleksii: what shipped, what's in the inbox, what's next - under ten lines.
 Everything else is in the PR.
 
 ## Documentation diet
@@ -898,11 +905,11 @@ Everything else is in the PR.
 real tax on every session's context. Standing rule from 2026-10-04:
 
 - A **build-plan row is at most five lines**: status, PR, one sentence of what shipped, what's
-  verified vs asserted, follow-ups by ID. The narrative — review rounds, measurements, what
-  was mutated — lives in the **PR body** and in `docs/reviews/`. Existing long rows are left
+  verified vs asserted, follow-ups by ID. The narrative - review rounds, measurements, what
+  was mutated - lives in the **PR body** and in `docs/reviews/`. Existing long rows are left
   alone (don't spend a session rewriting history); new rows follow the rule.
 - The `pnpm check` wall-time paragraph and Part 3's hour-arithmetic paragraphs in
-  `docs/build-plan.md` are frozen — no more updates; `docs/handoff-2026-10-04.md` §3's ledger
+  `docs/build-plan.md` are frozen - no more updates; `docs/handoff-2026-10-04.md` §3's ledger
   is the plan of record for ordering from here.
 
 ## Standing constraints that outrank convenience
@@ -922,7 +929,7 @@ they get skipped:
   (For structure and content; not pixels, until the brand lands.)
 - Anything demo mode suppresses needs harness coverage of its non-demo state.
 - Local Postgres and Neon are not the same database. A driver-, connection-, or dialect-touching
-  change needs a check against real Neon before it's called verified — a green local suite
+  change needs a check against real Neon before it's called verified - a green local suite
   alone doesn't cover it.
 
 ## Process tiers
@@ -938,24 +945,24 @@ since) and the local agent for everything else; a PASS WITH NOTES merges and its
 batched. Where Tier 2 below says to spawn `opika-reviewer` in the background, read that as the
 local agent's one review.
 
-TIER 1 — full gate. Phase 0 questions answered and sent to Oleksii before code. Reviewer
+TIER 1 - full gate. Phase 0 questions answered and sent to Oleksii before code. Reviewer
 required. Mutation required. Applies to: production data, seed/truncate/migration paths,
 secrets and security, user-facing claims and the /prytulkam commitments, Ukrainian copy,
 asset licensing, anything a real shelter's data flows through.
 
-**Deleting existing copy that a shipped change made false is not gated the same way** —
+**Deleting existing copy that a shipped change made false is not gated the same way** -
 `docs/standing-constraints.md`'s "Removing a false claim is not the same gate as adding one":
 a deletion needs no Phase 0 round trip, since it can only narrow what a page asserts, never
 introduce a new claim. Writing whatever fuller, honest replacement comes later still goes
-through the full Tier 1 gate like any other new copy — the deletion and its eventual
+through the full Tier 1 gate like any other new copy - the deletion and its eventual
 replacement are two separate actions on two separate tiers, not one held hostage to the other.
 
-TIER 2 — reviewer only. No gate to Oleksii, no round trip. Do the work, pnpm check, commit,
+TIER 2 - reviewer only. No gate to Oleksii, no round trip. Do the work, pnpm check, commit,
 spawn opika-reviewer in the background against the commit (see the 2026-10-04 amendment to
 "The loop"), and continue to the next row without waiting on it. Applies to: app code, layout,
 tests, harness work, refactors.
 
-TIER 3 — light. pnpm check and commit. Reviewer runs once at PR level over the batch, not per
+TIER 3 - light. pnpm check and commit. Reviewer runs once at PR level over the batch, not per
 commit (since 2026-10-21, that review is the local agent's, or a fresh local reviewer's when the
 local agent wrote it). Applies to: renames with no behaviour change, doc edits, comments, formatting,
 config with no runtime effect.

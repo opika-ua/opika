@@ -4,7 +4,7 @@ import { createR2CleanupClient } from "./r2-cleanup-client";
 
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). Stubbed off the real
- * client's `send`, the same way `r2-client.test.ts` stubs `createR2Client` —
+ * client's `send`, the same way `r2-client.test.ts` stubs `createR2Client` -
  * nothing here leaves the machine. Whether R2 honours pagination and batch
  * delete the way S3 does is the production probe's question (Oleksii asked
  * for a separate test-bucket run before this is called verified against a

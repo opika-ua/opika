@@ -28,7 +28,7 @@ export function hmacDigest(secret: string): KeyedUnitDigest {
  * The production location policy. Call once at startup, store the result,
  * and pass it to every `publicLocationOf` call.
  *
- * Throws at boot if the secret is missing or too short — this turns
+ * Throws at boot if the secret is missing or too short - this turns
  * "someone deployed without the env var" from a silent privacy loss into
  * a process that refuses to start.
  */

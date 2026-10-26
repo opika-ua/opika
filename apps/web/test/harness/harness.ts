@@ -2,7 +2,7 @@
  * A small rendering harness over Playwright.
  *
  * It exists because three milestones in a row were signed off on checks that
- * confirmed the shape of the code rather than its behaviour — most sharply at
+ * confirmed the shape of the code rather than its behaviour - most sharply at
  * M5, where "the /discovery page renders" was concluded by fetching the HTML
  * and grepping it for card text, while the action row sat on top of the card
  * and the gesture did not work at all.
@@ -200,7 +200,7 @@ export interface FlickOptions {
  * velocity between the last two pointermove samples. `page.mouse` cannot drive
  * that: it stamps each event with the wall clock at the moment CDP delivers it,
  * so the velocity a test produces is really a measurement of the machine's
- * latency. That is not a slow test, it is a test that stops testing — an
+ * latency. That is not a slow test, it is a test that stops testing - an
  * assertion that "a 2px twitch does not commit" passes on a loaded runner
  * whether or not the code still refuses the twitch, and passes quietly.
  *

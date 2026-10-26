@@ -55,7 +55,7 @@ export const GalleryListOutputSchema = z.object({
    */
   totalMatching: countSchema,
 
-  /** Distinct shelters across the whole match set — the second half of the
+  /** Distinct shelters across the whole match set - the second half of the
    * result line, and a genuinely different aggregate from `totalMatching`. */
   totalShelters: countSchema,
 
@@ -90,7 +90,7 @@ export const galleryListContract = oc
  * How many more animals dropping one filter would show.
  *
  * A list rather than one nullable field per dimension, because the answer only
- * exists for a dimension the caller actually constrained — there is no "remove
+ * exists for a dimension the caller actually constrained - there is no "remove
  * the size filter" suggestion to make when no size filter is applied, and a
  * null meaning "not applicable" is a shape that invites being rendered as
  * "+0". The dimension names are `FeedFilters`' own, so acting on a suggestion
@@ -108,7 +108,7 @@ export const GalleryRelaxationCountsInputSchema = z.object({
 });
 
 export const GalleryRelaxationCountsOutputSchema = z.object({
-  /** Matches under the filters exactly as given — the number the no-match
+  /** Matches under the filters exactly as given - the number the no-match
    * state is explaining, and the baseline every `additional` is measured
    * against. */
   current: countSchema,
@@ -119,7 +119,7 @@ export const GalleryRelaxationCountsOutputSchema = z.object({
 /**
  * Its own procedure rather than more fields on `gallery.list`, because it
  * answers the question that only arises when there is no page of results to
- * carry an answer on — and it is a different query, a single scan with one
+ * carry an answer on - and it is a different query, a single scan with one
  * `COUNT(*) FILTER (...)` per constrained dimension, not a reuse of the page
  * fetch.
  */

@@ -19,7 +19,7 @@ describe("ReplaceNav", () => {
     expect(router.replace).toHaveBeenCalledWith("/tvaryny?vyd=dog", { scroll: false });
   });
 
-  it("does not intercept a modified click (new-tab intent) — ctrl/cmd/shift/middle-click pass through", () => {
+  it("does not intercept a modified click (new-tab intent) - ctrl/cmd/shift/middle-click pass through", () => {
     const router = mockAppRouter();
     render(
       <WithMockRouter router={router}>

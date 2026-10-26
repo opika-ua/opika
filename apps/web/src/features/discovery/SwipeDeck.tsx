@@ -30,19 +30,19 @@ const noopRef = (): void => {};
 
 /**
  * `reason` names one of the three failure copies `packages/i18n` already
- * carries (`uk.errors.offline` / `.loadFailed` / `.sessionExpired`) —
+ * carries (`uk.errors.offline` / `.loadFailed` / `.sessionExpired`) -
  * pre-written for exactly this deck, never wired to a real caller until
  * E5. `offline`: the fetch itself never reached the server (no network,
  * not an oRPC response). `sessionExpired`: the feed's cursor was rejected
- * (`INVALID_CURSOR` — signed and bound to this filter set, so a mismatch
+ * (`INVALID_CURSOR` - signed and bound to this filter set, so a mismatch
  * means resuming a stale cursor, not a user mistake); retrying restarts the
  * feed from its first page, matching the copy's own «Режим «по одній»
  * почнеться спочатку» (only once the button is pressed, audit 2026-10-22
- * #7). `loadFailed`: anything else — a real server-side failure, or an
- * oRPC-defined error with no dedicated copy of its own — `feed.list`'s own
+ * #7). `loadFailed`: anything else - a real server-side failure, or an
+ * oRPC-defined error with no dedicated copy of its own - `feed.list`'s own
  * `RATE_LIMITED` (the generic per-IP limiter, distinct from
  * `animals.reveal`'s reveal-budget `RATE_LIMITED`, which gained its own
- * `uk.errors.rateLimited` copy — see `useReveal.ts`) still falls here,
+ * `uk.errors.rateLimited` copy - see `useReveal.ts`) still falls here,
  * unaddressed by that row. The per-IP limiter's 429 is `tooManyRequests`
  * since the audit of 2026-10-22 (G1): `detail.rateLimited`, not «на боці
  * сайту».
@@ -57,8 +57,8 @@ export type DeckState =
 
 /**
  * R2 (Phase R, `docs/build-plan.md`): two directions, not three. «Далі»/↓
- * — a low-emphasis "skip visually, decide nothing" utility distinct from
- * «Не зараз» — existed only as an interim fix for R1's own transition: it
+ * - a low-emphasis "skip visually, decide nothing" utility distinct from
+ * «Не зараз» - existed only as an interim fix for R1's own transition: it
  * used to share `handleCommit("left")` with the real skip button, which
  * cost nothing before R1 wired `swipes.record`, but once a `"left"`
  * commit persists a 30-day exclusion, that reuse would have silently
@@ -78,7 +78,7 @@ interface SwipeDeckProps {
   /**
    * R3 (Phase R, `docs/build-plan.md`): the deck's own reveal
    * (`useReveal`, below) shares this exact memoised session-bootstrap
-   * promise from `use-feed-deck.ts`, rather than minting its own —
+   * promise from `use-feed-deck.ts`, rather than minting its own -
    * required, not optional, since two independent, concurrent,
    * cookie-less `session.bootstrap` calls can't tell the server they're
    * the same visitor and each mint their own adopter and session, only
@@ -87,13 +87,13 @@ interface SwipeDeckProps {
    */
   ensureSession: () => Promise<boolean>;
   /** R3 (Phase R, `docs/build-plan.md`): the deck's own reveal names the
-   * swiped animal's real city — see `handleCommit`'s own comment.
+   * swiped animal's real city - see `handleCommit`'s own comment.
    * Optional, defaulting to empty: most of this component's own tests
    * exercise something unrelated to city names, and `ContactRevealDialog`
    * already degrades gracefully for a city it can't resolve. */
   cityNames?: Record<CityId, string>;
   /**
-   * G5 (audit 2026-10-22): where the end state's «Переглянути список» goes — the
+   * G5 (audit 2026-10-22): where the end state's «Переглянути список» goes - the
    * gallery with the deck's own filters (`galleryHref`), so the person lands on the
    * list they were swiping through. Optional: without it the end state is text only.
    */
@@ -115,7 +115,7 @@ export function SwipeDeck({
   const writeButtonRef = useRef<HTMLButtonElement | null>(null);
   const exhaustedHeadingRef = useRef<HTMLDivElement | null>(null);
 
-  // Focus back on «Написати» when the reveal closes — the same
+  // Focus back on «Написати» when the reveal closes - the same
   // "close returns focus to whatever opened this" contract
   // `RevealFlow.tsx` already keeps for the detail page, missing here
   // until caught on review: without it, closing left focus nowhere in
@@ -125,7 +125,7 @@ export function SwipeDeck({
   // right-swipe on the *last* card opens the reveal and exhausts the deck
   // in the same tick, unmounting «Написати» (and this ref along with it)
   // while the dialog is still open. `exhaustedHeadingRef` is the fallback
-  // for that case — `ExhaustedState`'s own title, made focusable the same
+  // for that case - `ExhaustedState`'s own title, made focusable the same
   // way a dialog's own `#reveal-heading` is (`tabIndex={-1}`), since it's
   // the one element guaranteed to exist once the deck has rendered its
   // exhausted content and is the natural "here's where you are now" landing
@@ -140,7 +140,7 @@ export function SwipeDeck({
   }, [closeReveal]);
 
   /**
-   * R3 (Phase R, `docs/build-plan.md`): «Написати» — the button and the
+   * R3 (Phase R, `docs/build-plan.md`): «Написати» - the button and the
    * equivalent right-drag gesture, both funnelled through this same
    * `handleCommit("right")` branch (docs/design/README.md's "Every gesture
    * has a button" — the two are meant to be indistinguishable outcomes,
@@ -154,18 +154,18 @@ export function SwipeDeck({
    * at nothing if the deck just exhausted.
    *
    * City name resolved the same way the gallery's own cards already do
-   * (`cardCityId`, `../gallery/card-text.ts` — fostered animal's own city,
+   * (`cardCityId`, `../gallery/card-text.ts` - fostered animal's own city,
    * else the shelter's) against `cityNames`, the exact lookup
    * `GortatyPage`'s server component already builds for `filtersInWords`
-   * and hands down as a prop — caught on review: an earlier version of
+   * and hands down as a prop - caught on review: an earlier version of
    * this row passed `cityName: null` unconditionally on the stated reason
    * that no such lookup existed anywhere in the deck, which was false; the
    * lookup already existed one component up and was simply being
    * discarded after its first use. `?? null` only for a city genuinely
-   * missing from the lookup (a data gap, not a design choice) —
+   * missing from the lookup (a data gap, not a design choice) -
    * `ContactRevealDialog` already degrades gracefully for that case.
    *
-   * No re-entrancy guard here for a reveal already in flight — that guard
+   * No re-entrancy guard here for a reveal already in flight - that guard
    * has to run *before* a right-drag's exit animation starts, not inside
    * this function, which only ever runs after the card has already
    * finished sliding off-screen (see `canCommit`, passed to
@@ -201,7 +201,7 @@ export function SwipeDeck({
   }, []);
 
   // Refuses a right-drag's commit while a reveal from the *previous* card is
-  // still in flight — checked before the exit animation starts, so a refused
+  // still in flight - checked before the exit animation starts, so a refused
   // drag springs back to centre exactly like an under-threshold one, rather
   // than sliding off-screen and getting stuck there. See `canCommit`'s own
   // comment on `SwipeGestureCallbacks` for why this can't live inside
@@ -220,14 +220,14 @@ export function SwipeDeck({
 
   /**
    * "Focus lands on the top card" (docs/design/README.md, "Gallery → deck")
-   * — on entering the deck, and again on recovering into it from an error
+   * - on entering the deck, and again on recovering into it from an error
    * (retry): when the error card unmounts, its own focused heading goes
    * with it, and with no explicit re-focus a keyboard user would land on
-   * `<body>` with no sense of where they are — worse than "focus moved
+   * `<body>` with no sense of where they are - worse than "focus moved
    * again," not better. Deliberately NOT guarded against re-firing on
    * every swipe: `state.kind` stays `"ready"` across swipes (only the
    * `cards` array changes), so this effect's own `[state.kind]` dependency
-   * already skips it without an extra ref — verified by mutation, not
+   * already skips it without an extra ref - verified by mutation, not
    * assumed (`SwipeDeck.test.tsx`'s "does not steal focus back to the card
    * on a later swipe"). `topCardNodeRef` is a second callback ref on the
    * same element `cardRef` already attaches to; `useSwipeGesture` doesn't
@@ -273,7 +273,7 @@ export function SwipeDeck({
       // A column: the card stack takes the space that is left, and the action
       // row sits beneath it. The row used to be `position: absolute; bottom: 0`
       // inside the stack container, which put it *on top of* the card and over
-      // the shelter line — invisible to any check that reads the markup, since
+      // the shelter line - invisible to any check that reads the markup, since
       // both elements are present and correct in the DOM.
       <div className="flex-1 flex flex-col mt-group min-h-0">
         {/* min-h-0: flex items default to min-height:auto, which lets the stack
@@ -299,12 +299,12 @@ export function SwipeDeck({
             })}
         </div>
 
-        {/* Action buttons — docs/design/README.md, "The deck": originally
+        {/* Action buttons - docs/design/README.md, "The deck": originally
           three ("«Не зараз» (flex: 1, white) · «↓» (56 wide, white) ·
           «Написати» (flex: 1, #101112)"). R2 (Phase R, `docs/build-plan.md`)
-          drops the middle one — see `CommitDirection`'s own comment for why
+          drops the middle one - see `CommitDirection`'s own comment for why
           it existed only as an interim fix, never a permanent third
-          direction — leaving the two real decisions the design's mock
+          direction - leaving the two real decisions the design's mock
           frame never itself updated to show. */}
         <div data-testid="action-row" className="font-rg flex gap-2 mt-row shrink-0">
           <ActionButton
@@ -319,14 +319,14 @@ export function SwipeDeck({
             variant="primary"
             className="flex-1"
             onClick={() => handleCommit("right")}
-            // Disabled while a reveal is in flight — matches
+            // Disabled while a reveal is in flight - matches
             // `RevealFlow.tsx`'s own trigger. Closes the button half of
             // the re-entrancy gap a second commit could otherwise open
             // (two reveals in flight is the "stale response overwrites a
             // newer one" race `useReveal.ts`'s own generation guard
             // exists to make merely wasted, not visibly wrong). The drag
             // half is closed too, by `canCommit` (passed to
-            // `useSwipeGesture`, above) — gesture parity (Oleksii,
+            // `useSwipeGesture`, above) - gesture parity (Oleksii,
             // 2026-09-12) means the drag needs the identical outcome, not
             // a separate mechanism; see `canCommit`'s own comment on
             // `SwipeGestureCallbacks` for why it isn't this same `disabled`
@@ -342,12 +342,12 @@ export function SwipeDeck({
           (`AnimalDetailScreen.tsx`), marked interim there specifically
           because the deck had nowhere to put it without squeezing the
           header (`docs/design/README.md`'s Phase D deviation note). Same
-          typography and text as that interim placement — recovered copy,
+          typography and text as that interim placement - recovered copy,
           not redrafted. `mt-label` (4px), not `mt-group` (16px) or even
           `mt-row` (8px): this is a secondary disclaimer under two
           already-labelled buttons, not a new content block, and the deck's
           vertical budget is genuinely tight (`SwipeCard.tsx`'s own
-          elastic-photo comment) — the card stack above is `flex-1 min-h-0`,
+          elastic-photo comment) - the card stack above is `flex-1 min-h-0`,
           so this shrink-0 line's height comes out of the photo's own
           elastic slack, the same mechanism that already absorbs the action
           row's height.
@@ -356,16 +356,16 @@ export function SwipeDeck({
           (`NARROW_PHONE`, its own doc comment calls it "the narrowest width
           still worth calling a real device," not this product's stated
           target) the shelter line's own bottom margin measured a real 12px
-          before this notice existed — 4px above its 8px floor — with 18px
+          before this notice existed - 4px above its 8px floor - with 18px
           of further slack in the photo above its own floor
           (`MIN_PHOTO_HEIGHT_PX`). Not nothing, but not enough: at this
           width the Ukrainian sentence wraps to two lines, costing ~40px
           (36px of text plus its own margin), 18px more than the 22px this
-          viewport actually had left to give — a genuine clip
+          viewport actually had left to give - a genuine clip
           (measured: -10px against the 8px floor), not mere erosion.
           360px (`ANDROID_PHONE`, `docs/stack-decision.md`'s actual stated
-          target — "budget Android hardware") fits the sentence on one line
-          and measured clean with real slack once this line existed — see
+          target - "budget Android hardware") fits the sentence on one line
+          and measured clean with real slack once this line existed - see
           `discovery-layout.harness.ts`'s own coverage of both. The
           shelter's words are never what gives; a secondary
           disclaimer, at the one width narrower than this product's stated
@@ -386,13 +386,13 @@ export function SwipeDeck({
       {content}
       {/*
         R3 (Phase R, `docs/build-plan.md`): "the deck session must survive a
-        reveal — no exit back to the gallery." Rendered here, as a sibling
+        reveal - no exit back to the gallery." Rendered here, as a sibling
         of `content` rather than nested inside the "ready" branch above, on
         purpose: a swipe-right that exhausts the deck (the last card) still
         needs the dialog to keep showing over whatever `content` becomes
-        next (`ExhaustedState`) — nesting it inside the "ready" branch would
+        next (`ExhaustedState`) - nesting it inside the "ready" branch would
         have unmounted the dialog the instant `state.kind` changed
-        underneath it, mid-reveal. No `secondaryAction` — the dialog's own
+        underneath it, mid-reveal. No `secondaryAction` - the dialog's own
         ✕ and Esc are the only ways out, and both stay on the deck.
       */}
       {(revealState.kind === "error" || revealState.kind === "open") && (
@@ -422,21 +422,21 @@ function ActionButton({
   onClick,
   disabled,
 }: {
-  /** React 19's ref-as-prop, no `forwardRef` needed — R3's own reveal
+  /** React 19's ref-as-prop, no `forwardRef` needed - R3's own reveal
    * uses it to refocus «Написати» when the dialog closes. */
   ref?: React.Ref<HTMLButtonElement>;
   label: string;
-  /** Two, since R2 dropped the mock's third "↓" button — see
+  /** Two, since R2 dropped the mock's third "↓" button - see
    * `CommitDirection`'s own comment. */
   variant: "outlined" | "primary";
   className?: string;
   onClick: () => void;
   disabled?: boolean;
 }) {
-  // No border on any variant — "the single structural move that does most
+  // No border on any variant - "the single structural move that does most
   // of the work: borders are gone" (docs/design/README.md). Focus-visible
   // outline is the same ring every other focusable control in this app
-  // carries (see the error state's retry button, below) — missing here
+  // carries (see the error state's retry button, below) - missing here
   // until caught alongside R2's own rewrite of this component's variant
   // union: `docs/standing-constraints.md`'s "an interactive element ships
   // with its focus-visible styling and a test" rules out shipping either
@@ -475,9 +475,9 @@ function LoadingState() {
   return (
     <div className="flex-1 flex items-center justify-center font-rg text-sm leading-[normal] text-rg-ink-3">
       {/* Simple loading indicator. 0.8s, not Tailwind's built-in 1s
-          `animate-spin` — see `--animate-spin-fast` in globals.css. Track
+          `animate-spin` - see `--animate-spin-fast` in globals.css. Track
           and fill reuse `DeckScreen`'s own progress-bar pair (`rg-fill-
-          strong` / `rg-ink`) rather than `rg-registry` — that blue is a
+          strong` / `rg-ink`) rather than `rg-registry` - that blue is a
           reserved meaning, "confirmed by the state registry"
           (`docs/design/README.md:51`, the colour rule; `:107-108`, "never
           used as a button fill... otherwise it stops meaning 'registry'"),
@@ -495,7 +495,7 @@ function ErrorState({
   reason: DeckErrorReason;
   onRetry?: (() => void) | undefined;
 }) {
-  // `loadFailed` is the only one of the three with a `body` line — `offline`
+  // `loadFailed` is the only one of the three with a `body` line - `offline`
   // and `sessionExpired` are short enough without one.
   const copy = reason === "tooManyRequests" ? THROTTLED_COPY : uk.errors[reason];
 
@@ -503,11 +503,11 @@ function ErrorState({
   // these three had an explicit `lineHeight` before this migration, so they
   // rendered at the browser's UA-computed "normal", not a specific pixel
   // value and not Tailwind Preflight's inherited `line-height: 1.5` either
-  // — see the longer note by SwipeCard's shelter-line spans. Title keeps its
+  // - see the longer note by SwipeCard's shelter-line spans. Title keeps its
   // explicit 24.65px pairing; that one was pinned in the original too.
   //
   // V2 re-skin (block 6, `docs/handoff-2026-10-04.md` §3), synthesised from
-  // the gallery's own already-migrated `error.tsx` — no deck-specific mock
+  // the gallery's own already-migrated `error.tsx` - no deck-specific mock
   // exists. The retry button's primary (not secondary) treatment is a
   // recorded Tier 2 decision: DLE-1,
   // `docs/decisions-inbox/feat-deck-loading-error-v2.md`.
@@ -526,20 +526,20 @@ function ErrorState({
           <div className="text-[13px] leading-[normal] text-rg-ink-2">{copy.body}</div>
         )}
         {/*
-          56px, not 44 — `docs/design/README.md:200`'s touch-target table
+          56px, not 44 - `docs/design/README.md:200`'s touch-target table
           gives primary actions 56px, not the 48px floor "anywhere" else gets,
           and this button is the error state's one and only action (DLE-1).
-          Also a real focus-visible ring — this button previously had *no*
+          Also a real focus-visible ring - this button previously had *no*
           focus styling at all, which `docs/standing-constraints.md`'s "an
           interactive element ships with its focus-visible styling and a
           test" rules out outright. A keyboard user reaching the retry on a
           failed deck had no way to see where they were. Both are asserted in
           `discovery-layout.harness.ts`'s "/tvaryny/gortaty error state",
           which reaches this state by refusing the deck's own `feed.list`
-          request — the state had no harness coverage of any kind before,
+          request - the state had no harness coverage of any kind before,
           which is how a 44px target with no focus ring survived every gate.
           The ring is `rg-registry` because that is the ring every other
-          focusable element in the app has (README:201) — not a claim this
+          focusable element in the app has (README:201) - not a claim this
           button is itself registry-related.
         */}
         {onRetry && "action" in copy && (

@@ -7,7 +7,7 @@ import { AdopterIdSchema, AnimalIdSchema } from "../primitives/ids";
  *
  * This lives in the domain rather than beside the procedure that carries it,
  * because which animals an adopter has already been shown is a product rule,
- * not a transport concern — and the contract layer depends on the domain, never
+ * not a transport concern - and the contract layer depends on the domain, never
  * the reverse.
  */
 export const SwipeDirectionSchema = z.enum(["pass", "interested"]);
@@ -17,7 +17,7 @@ export const SwipeSchema = z.object({
   adopterId: AdopterIdSchema,
   animalId: AnimalIdSchema,
   direction: SwipeDirectionSchema,
-  /** When the swipe happened, not when it arrived — swipes are batched offline. */
+  /** When the swipe happened, not when it arrived - swipes are batched offline. */
   at: z.date(),
 });
 export type Swipe = z.infer<typeof SwipeSchema>;
@@ -48,7 +48,7 @@ const MS_PER_DAY = 86_400_000;
 /**
  * Whether a past swipe still excludes its animal from the feed.
  *
- * An "interested" swipe excludes permanently — the adopter has already acted on
+ * An "interested" swipe excludes permanently - the adopter has already acted on
  * that animal and showing it again reads as a bug. A "pass" expires, so the
  * deck can refill rather than going empty.
  */

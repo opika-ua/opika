@@ -1,4 +1,4 @@
-# «Для притулків» — copy: where it lives now
+# «Для притулків» - copy: where it lives now
 
 **The copy has landed. This file is no longer the text.**
 
@@ -18,7 +18,7 @@ would be lost otherwise.
 ## Whose voice this is
 
 The settled decision was that the owner writes the Ukrainian and the agent
-writes only the argument, because translating is how calques get in — the copy
+writes only the argument, because translating is how calques get in - the copy
 critique's D3 found one such construction already in the live catalogue. This
 draft was written by the agent after the request was restated, and then revised
 across several review rounds with the owner. **The register is still the
@@ -32,13 +32,13 @@ around it.
 system. «ми» nowhere.**
 
 «Ми» was doing two different jobs. In «Ми проговоримо це» the actor is a person,
-and the plural is a small inflation — the exact species the rest of the page
+and the plural is a small inflation - the exact species the rest of the page
 spends its credibility avoiding. In «Ми не пишемо за вас» the actor is the
 system, and «я» would read oddly, because the point is that no messaging feature
 exists, not that one person personally refrains.
 
-The counter-argument for keeping «ми» on the money section — that «я не беру
-грошей» sounds like a habit where «ми не беремо» sounds like a policy — does not
+The counter-argument for keeping «ми» on the money section - that «я не беру
+грошей» sounds like a habit where «ми не беремо» sounds like a policy - does not
 survive §2, which already carries the durability in «ви дізнаєтеся заздалегідь».
 The notice promise is what makes it a policy, not the pronoun.
 
@@ -47,8 +47,8 @@ The notice promise is what makes it a policy, not the pronoun.
 Both are **other people speaking**, quoted inside the copy. A global replace eats
 both, and neither failure is visible in review:
 
-1. **`cost`** — «поки ми не виростемо», a quoted lie told by *other services*.
-2. **`whyThatSentence`** — «дзвоніть, ми скажемо точно», one of three examples of
+1. **`cost`** - «поки ми не виростемо», a quoted lie told by *other services*.
+2. **`whyThatSentence`** - «дзвоніть, ми скажемо точно», one of three examples of
    *the shelter's own* freshness sentence. That «ми» is theirs.
 
 ## «картка» vs «сторінка»
@@ -61,7 +61,7 @@ badge and «усі інші картки недостовірними» are «к
 ## Cut, and why
 
 - **«Що завгодно, аби це було правдою»** (from `whyThatSentence`'s middle
-  paragraph). Not too demanding — *redundant*. «Саме це робить решту карток
+  paragraph). Not too demanding - *redundant*. «Саме це робить решту карток
   вартими довіри», one paragraph later, carries the same truth requirement as a
   benefit to the shelter rather than a condition on them.
 - **«немає місця, яке можна купити чи виграти»** (from `whatHappensToAnimals`).
@@ -77,7 +77,7 @@ badge and «усі інші картки недостовірними» are «к
 
 - **`howToLeave`.** Nothing in eleven sections answered "what if I regret this,"
   which is the first question anyone asks before handing their data to a stranger
-  with a website — and the answer is one of the strongest things the project can
+  with a website - and the answer is one of the strongest things the project can
   say.
 - **The photo-use clause** in `whatToPrepare`. Shelters get their photos lifted
   routinely; one sentence closes it.
@@ -88,6 +88,6 @@ badge and «усі інші картки недостовірними» are «к
   like `about.intro` rather than inventing a name. The argument document asks for
   a named person; adding it is a one-word edit the owner has to make.
 - **The English catalogue is still `COPY_PENDING`**, deliberately. It is written
-  from the finished Ukrainian at H3's native-speaker pass, not the reverse —
+  from the finished Ukrainian at H3's native-speaker pass, not the reverse -
   filling it in first would make it the de-facto source and reintroduce exactly
   the translated register D3 flagged.

@@ -15,7 +15,7 @@ signal.
 ## Method
 
 **1. Reproduce.** Run the failing thing and capture the exact output. If you cannot
-reproduce it, say so and stop — do not fix code based on a description of a failure
+reproduce it, say so and stop - do not fix code based on a description of a failure
 you never saw. A test that fails intermittently is itself the bug; report the
 flakiness rather than re-running until it passes.
 
@@ -24,7 +24,7 @@ flakiness rather than re-running until it passes.
 Ask what changed, not just what's wrong.
 
 **3. Diagnose.** State the cause in one sentence before you touch anything. If you
-cannot, you haven't isolated it yet — go back to step 2. Then state explicitly how
+cannot, you haven't isolated it yet - go back to step 2. Then state explicitly how
 the cause produces the observed symptom; if there's a gap in that chain, you have a
 theory, not a diagnosis.
 
@@ -34,7 +34,7 @@ the diff and hide whether the fix worked.
 
 **5. Prove it.** Add a regression test that fails without your fix and passes with it.
 Verify that claim by reverting the fix and watching the test fail. Then run
-`pnpm check` in full — a fix that breaks something else is not a fix.
+`pnpm check` in full - a fix that breaks something else is not a fix.
 
 ## Things that are not fixes
 
@@ -51,7 +51,7 @@ Flag these and refuse, rather than doing them:
 
 ## Domain traps in this codebase
 
-Failures here cluster in a few places — check these before general causes:
+Failures here cluster in a few places - check these before general causes:
 
 - **Time.** Pure functions take `now` as a parameter. A test failing near midnight, or
   differently in CI, usually means real clock access crept in. `freshnessOf` clamps
@@ -60,12 +60,12 @@ Failures here cluster in a few places — check these before general causes:
   `assertFullIcu` exists for exactly this; the fix is the runtime or the container
   image, not the assertion.
 - **Ukrainian plurals.** `uk` has four cardinal categories plus `other` for decimals:
-  1 = one; 2–4 = few; 0, 5–20 = many; 21 = one; 22 = few. A test failing at 21 or 22
+  1 = one; 2-4 = few; 0, 5-20 = many; 21 = one; 22 = few. A test failing at 21 or 22
   is almost certainly a hand-rolled pluralisation rather than `Intl`.
 - **Branded types.** A confusing assignability error usually means a value bypassed
-  its only sanctioned constructor — e.g. `FuzzedCoordinates` built from exact
+  its only sanctioned constructor - e.g. `FuzzedCoordinates` built from exact
   coordinates. That error is the type system working; the call site is the bug.
-- **ESM.** The repo is on `moduleResolution: Bundler` — relative imports are
+- **ESM.** The repo is on `moduleResolution: Bundler` - relative imports are
   extensionless. Do not "fix" a module-resolution error by adding a `.js`
   extension: `tsc` maps `./x.js` to `./x.ts` in every resolution mode, so the
   extension typechecks clean and fails only in Turbopack. `pnpm build:web` is
@@ -77,7 +77,7 @@ Failures here cluster in a few places — check these before general causes:
 
 ```
 SYMPTOM: what was observed, verbatim
-REPRODUCED: yes | no — the exact command
+REPRODUCED: yes | no - the exact command
 CAUSE: one sentence
 MECHANISM: how the cause produces the symptom
 FIX: what you changed and why that is the cause rather than a symptom

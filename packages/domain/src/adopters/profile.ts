@@ -6,7 +6,7 @@ import { FeedFiltersSchema } from "./feed-filters";
 /**
  * The `account` variant is unreachable while adopter accounts are deferred.
  * It is modelled anyway because the reason deferring them is safe is that
- * adding them stays additive — and that only holds if identity is a union from
+ * adding them stays additive - and that only holds if identity is a union from
  * the start. A boolean `isAnonymous` plus a nullable email would be the same
  * information with none of the guarantees.
  */
@@ -14,7 +14,7 @@ export const AdopterIdentitySchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("anonymous"),
     /**
-     * Server-issued and server-side only — it is carried to the client in an
+     * Server-issued and server-side only - it is carried to the client in an
      * HttpOnly cookie and never appears in a request body or a view. The length
      * floor encodes the minimum that is safe to treat as a bearer token: this
      * value alone decides which adopter's reveal history a request can read,

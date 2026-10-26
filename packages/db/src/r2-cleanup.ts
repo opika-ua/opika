@@ -1,10 +1,10 @@
 /**
  * `r2:cleanup`: GDPR photo retention (`docs/gdpr-analysis.md`). Deletes R2
  * photo objects that have sat unreferenced (no `animals.photos` row names
- * their storage key) for at least the grace period — `r2-cleanup-repo.ts`'s
+ * their storage key) for at least the grace period - `r2-cleanup-repo.ts`'s
  * own doc comments cover the reference rule and the tracking table,
  * `r2-cleanup-run.ts` the orchestration this CLI and the scheduled job both
- * share. This file is the CLI only — `r2-cleanup-run.ts` has no `prod-guard`
+ * share. This file is the CLI only - `r2-cleanup-run.ts` has no `prod-guard`
  * import, so `image-pipeline/server.ts` (which `apps/web`'s cron route
  * dynamically imports) re-exports from there, never from here; this file's
  * own `main()` is the one place `prod-guard`'s CLI-only guard belongs.
@@ -12,21 +12,21 @@
  * Two callers, two trust boundaries:
  *   - **The scheduled job** (`apps/web`'s `/api/cron/r2-cleanup`, Vercel
  *     cron, daily): calls `runR2Cleanup(db, r2, now, { commit: true })`
- *     directly, no CLI, no `--grace-days` — the default grace period is the
+ *     directly, no CLI, no `--grace-days` - the default grace period is the
  *     only one it ever uses. Its own file is the trust boundary (Vercel's
  *     `CRON_SECRET`), the same shape as `auth-cleanup.ts`.
  *   - **This CLI**, for an operator's own machine: dry run by default (DR-B1's
  *     convention, `demo:remove`/`db:full-reset`'s own shape), `--commit` to
- *     actually delete, and the one place `--grace-days` can be overridden —
+ *     actually delete, and the one place `--grace-days` can be overridden -
  *     his R2-B1 words, verbatim: "The post-reset run: design the one-off
  *     clean-up after the full reset: --grace-days 0 allowed only in a
  *     manual run with --commit and the typed --expect, refused by the
  *     scheduled job." So `--grace-days` requires `--commit`, by his own
- *     words — a Tier 1 delta review asked whether a read-only preview
+ *     words - a Tier 1 delta review asked whether a read-only preview
  *     (without `--commit`) should be allowed too; closed, 2026-10-26
  *     (`docs/decisions-inbox.md`, R2-F4): kept exactly as written here,
  *     the preview idea not adopted. `--expect` is required unconditionally
- *     either way (this script only ever targets production — there is
+ *     either way (this script only ever targets production - there is
  *     nothing to clean up locally, the same reasoning as `demo:remove`).
  *
  * Usage (from the repo root; `PROD_NEON_ENDPOINT` from the shell or the root
@@ -39,7 +39,7 @@
  * R2 credentials are this job's own (`R2_CLEANUP_ACCESS_KEY_ID`/
  * `R2_CLEANUP_SECRET_ACCESS_KEY`), never the upload token
  * (`R2_UPLOAD_*`) or the onboarding script's (`R2_ACCESS_KEY_ID`/
- * `R2_SECRET_ACCESS_KEY`) — `r2-cleanup-client.ts`'s own doc comment.
+ * `R2_SECRET_ACCESS_KEY`) - `r2-cleanup-client.ts`'s own doc comment.
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -70,14 +70,14 @@ const FLAG_SPELLING = /^-{1,2}[A-Za-z][A-Za-z0-9-]*$/;
 
 /**
  * Reads the whole command line (`process.argv`). `--expect` is validated by
- * `expectedTargetOf` in `main`, not here — this only tracks that it was
+ * `expectedTargetOf` in `main`, not here - this only tracks that it was
  * given once, with a value, the same split `demo:remove` uses. A non-default
  * `--grace-days` needs `--commit`: his R2-B1 words, verbatim, "--grace-days
  * 0 allowed only in a manual run with --commit and the typed --expect" (and,
  * since `--expect` is required unconditionally in `main` regardless of
  * `--grace-days`, "and the typed --expect" falls out of that rather than
  * needing its own check here). A Tier 1 delta review asked whether a
- * read-only preview without `--commit` should be allowed too — closed,
+ * read-only preview without `--commit` should be allowed too - closed,
  * 2026-10-26 (`docs/decisions-inbox.md`, R2-F4): not adopted, this
  * function's refusal stays as written.
  */
@@ -105,8 +105,8 @@ export function parseCleanupArgs(argv: readonly string[]): CleanupArgs {
     }
     if (arg === "--grace-days") {
       const value = args[i + 1];
-      // `Number("")` and `Number(" ")` are both 0 — the most destructive
-      // value this flag takes — so an empty or whitespace-only value must
+      // `Number("")` and `Number(" ")` are both 0 - the most destructive
+      // value this flag takes - so an empty or whitespace-only value must
       // be refused explicitly, never silently read as 0 (Tier 1 review,
       // PR #200, note 10).
       const trimmed = value?.trim();
