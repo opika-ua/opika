@@ -65,7 +65,7 @@ test.describe("saving an animal, from the gallery, shows up on the saved page", 
     await expect(page.locator(SAVE_BUTTON)).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("a reload keeps the save - real localStorage, not component state", async ({ page }) => {
+  test("a reload keeps the save – real localStorage, not component state", async ({ page }) => {
     await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
     await page.locator(CARD).first().click();
     const saveButton = page.locator(SAVE_BUTTON);
@@ -101,7 +101,7 @@ test.describe("the saved page's batch read", () => {
     expect(response.headers()["cache-control"]).toBe("no-store");
   });
 
-  test("the request carries no cookie - credentials: 'omit' (DR1-Q2)", async ({ page }) => {
+  test("the request carries no cookie – credentials: 'omit' (DR1-Q2)", async ({ page }) => {
     await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
     await page.locator(CARD).first().click();
     await page.locator(SAVE_BUTTON).click();
@@ -168,7 +168,7 @@ test.describe("the saved page's batch read", () => {
 
     expect(
       lastStatus,
-      `request ${BUDGET + 1} was not rate-limited - the gate exemption may have skipped the rate limiter too`,
+      `request ${BUDGET + 1} was not rate-limited – the gate exemption may have skipped the rate limiter too`,
     ).toBe(429);
   });
 });

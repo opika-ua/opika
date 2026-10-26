@@ -8,8 +8,8 @@ import {
 } from "./seo-flags";
 
 const INCOMPLETE_ANALYTICS_COPY =
-  "Сайт збирає базову статистику відвідувань - скільки людей заходить і наскільки швидко " +
-  "працюють сторінки - без реклами.";
+  "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко " +
+  "працюють сторінки – без реклами.";
 const LANDED_ANALYTICS_COPY = `${INCOMPLETE_ANALYTICS_COPY} ${PENDING_R4_2_ANALYTICS_SENTENCE}`;
 
 /**
@@ -85,7 +85,7 @@ it("metadataBase is the fixed SITE_ORIGIN constant, never left unset", async () 
  * render (`DeckScreen.test.tsx`, `animal-detail.harness.ts`) rather than
  * here, since neither's markup is reachable from this file's imports.
  */
-describe("SITE_IS_PUBLICLY_DISCOVERABLE - single source for noindex behaviour", () => {
+describe("SITE_IS_PUBLICLY_DISCOVERABLE – single source for noindex behaviour", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -106,7 +106,7 @@ describe("SITE_IS_PUBLICLY_DISCOVERABLE - single source for noindex behaviour", 
     ]);
   });
 
-  it("stays noindex at the launch-gate window - real shelters present, still not discoverable", async () => {
+  it("stays noindex at the launch-gate window – real shelters present, still not discoverable", async () => {
     vi.doMock("./seo-flags", () => ({
       SITE_IS_PUBLICLY_DISCOVERABLE: false,
       REGISTRY_HAS_NO_REAL_SHELTERS: false,
@@ -144,8 +144,8 @@ describe("SITE_IS_PUBLICLY_DISCOVERABLE - single source for noindex behaviour", 
  * describe block above covers. No flag to vary, so a single assertion
  * (not a per-flag-value case) is the correct amount of test here.
  */
-describe("app/robots.ts - always allows crawling", () => {
-  it("always allows - reads no flag at all", async () => {
+describe("app/robots.ts – always allows crawling", () => {
+  it("always allows – reads no flag at all", async () => {
     const robots = (await import("./app/robots")).default;
     expect(robots().rules).toEqual({ userAgent: "*", allow: "/" });
   });
@@ -186,15 +186,15 @@ describe("assertDemoDiscoverabilityInvariant", () => {
     );
   });
 
-  it("permits real shelters present while not yet discoverable - the launch-gate window", () => {
+  it("permits real shelters present while not yet discoverable – the launch-gate window", () => {
     expect(() => assertDemoDiscoverabilityInvariant(false, false)).not.toThrow();
   });
 
-  it("permits the fully-launched state - real shelters, publicly discoverable", () => {
+  it("permits the fully-launched state – real shelters, publicly discoverable", () => {
     expect(() => assertDemoDiscoverabilityInvariant(false, true)).not.toThrow();
   });
 
-  it("defaults to the real constants - permits today's actual state, no real shelters and not discoverable", () => {
+  it("defaults to the real constants – permits today's actual state, no real shelters and not discoverable", () => {
     expect(() => assertDemoDiscoverabilityInvariant()).not.toThrow();
   });
 });
@@ -239,17 +239,17 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
     );
   });
 
-  it("permits today's incomplete copy while the site is not yet discoverable - the pre-launch window", () => {
+  it("permits today's incomplete copy while the site is not yet discoverable – the pre-launch window", () => {
     expect(() =>
       assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY, false),
     ).not.toThrow();
   });
 
-  it("defaults to the real flag - permits today's actual, incomplete copy while still not discoverable", () => {
+  it("defaults to the real flag – permits today's actual, incomplete copy while still not discoverable", () => {
     expect(() => assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY)).not.toThrow();
   });
 
-  it("defaults to the real copy and the real flag - today's actual state on both", () => {
+  it("defaults to the real copy and the real flag – today's actual state on both", () => {
     expect(() => assertAnalyticsCopyMatchesGateState()).not.toThrow();
   });
 });
@@ -284,7 +284,7 @@ describe("verificationSuffix", () => {
     expect(verificationSuffix("verified", false)).toBe(" · перевірений");
   });
 
-  it("defaults to the real constant - suppresses today's actual state, no real shelters", () => {
+  it("defaults to the real constant – suppresses today's actual state, no real shelters", () => {
     expect(verificationSuffix("verified")).toBeNull();
   });
 });
@@ -297,7 +297,7 @@ describe("verificationSuffix", () => {
  * discovered when the site is publicly discoverable and the deck starts
  * competing with the gallery for the same search traffic.
  */
-describe("/tvaryny/gortaty noindex - independent of both seo-flags constants", () => {
+describe("/tvaryny/gortaty noindex – independent of both seo-flags constants", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -330,7 +330,7 @@ describe("/tvaryny/gortaty noindex - independent of both seo-flags constants", (
  * one.
  */
 const DEMO_BANNER_NOTICE =
-  "На сайті поки немає справжніх притулків - усі картки тут демонстраційні.";
+  "На сайті поки немає справжніх притулків – усі картки тут демонстраційні.";
 const REAL_PROMISE =
   "Собаки й коти з перевірених притулків Київщини шукають дім. Перегляньте список.";
 
@@ -345,7 +345,7 @@ const REAL_PROMISE =
  * describe block above - so this doesn't pass for a consumer that actually
  * reads the wrong flag.
  */
-describe("REGISTRY_HAS_NO_REAL_SHELTERS - root layout's default description swap (D-2)", () => {
+describe("REGISTRY_HAS_NO_REAL_SHELTERS – root layout's default description swap (D-2)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -363,7 +363,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS - root layout's default description swap
     expect(metadata.openGraph?.description).toBe(DEMO_BANNER_NOTICE);
   });
 
-  it("uses the real promise at the launch-gate window - real shelters, still not discoverable", async () => {
+  it("uses the real promise at the launch-gate window – real shelters, still not discoverable", async () => {
     vi.doMock("./seo-flags", () => ({
       SITE_IS_PUBLICLY_DISCOVERABLE: false,
       REGISTRY_HAS_NO_REAL_SHELTERS: false,
@@ -404,7 +404,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS - root layout's default description swap
  * ever makes this page read `REGISTRY_HAS_NO_REAL_SHELTERS` after all, the
  * mock stops being a no-op and this test starts noticing.
  */
-describe("/prytulkam - description is its own opening sentence, never the demo swap", () => {
+describe("/prytulkam – description is its own opening sentence, never the demo swap", () => {
   it.each([true, false])(
     "uses uk.forShelters.whatThisIs when REGISTRY_HAS_NO_REAL_SHELTERS=%s",
     async (registryHasNoRealShelters) => {
@@ -418,7 +418,7 @@ describe("/prytulkam - description is its own opening sentence, never the demo s
       const { metadata } = await import("./app/prytulkam/page");
 
       const whatThisIs =
-        "Opika - сайт, де тварини з перевірених притулків Київщини шукають дім, а кожен ваш підопічний отримує власну сторінку.";
+        "Opika – сайт, де тварини з перевірених притулків Київщини шукають дім, а кожен ваш підопічний отримує власну сторінку.";
       expect(metadata.description).toBe(whatThisIs);
       expect(metadata.openGraph?.description).toBe(whatThisIs);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
@@ -431,7 +431,7 @@ describe("/prytulkam - description is its own opening sentence, never the demo s
  * and the same caveat about what the `it.each` parameterisation does and
  * does not prove today.
  */
-describe("/pro - description is its own opening sentence, never the demo swap", () => {
+describe("/pro – description is its own opening sentence, never the demo swap", () => {
   it.each([true, false])(
     "uses uk.about.intro when REGISTRY_HAS_NO_REAL_SHELTERS=%s",
     async (registryHasNoRealShelters) => {
@@ -445,7 +445,7 @@ describe("/pro - description is its own opening sentence, never the demo swap", 
       const { metadata } = await import("./app/pro/page");
 
       const intro =
-        "Opika - сайт, де тварини з притулків Київщини шукають дім. Його робить одна людина - я, у вільний від роботи час. Немає команди й інвестора.";
+        "Opika – сайт, де тварини з притулків Київщини шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.";
       expect(metadata.description).toBe(intro);
       expect(metadata.openGraph?.description).toBe(intro);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
@@ -472,7 +472,7 @@ describe("/pro - description is its own opening sentence, never the demo swap", 
  * this test is about the swap in `generateMetadata`, which `animals.byId`'s
  * own integration coverage elsewhere does not touch.
  */
-describe("REGISTRY_HAS_NO_REAL_SHELTERS - /tvaryny/[animalId] link-preview description swap (D-2)", () => {
+describe("REGISTRY_HAS_NO_REAL_SHELTERS – /tvaryny/[animalId] link-preview description swap (D-2)", () => {
   const CITY_ID = "c0000000-0000-4000-8000-000000000001";
   const fakeAnimal = {
     id: "a0000000-0000-4000-8000-000000000001",
@@ -528,7 +528,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS - /tvaryny/[animalId] link-preview descr
     expect(metadata.openGraph?.description).toBe(DEMO_BANNER_NOTICE);
   });
 
-  it("uses the animal's own data at the launch-gate window - real shelters, still not discoverable", async () => {
+  it("uses the animal's own data at the launch-gate window – real shelters, still not discoverable", async () => {
     // Deliberately does NOT vary both flags in lockstep with the case above
     // - `(SITE=false, REGISTRY=false)` here vs. `(SITE=false, REGISTRY=true)`
     // above. Two cases that only ever move opposite each other cannot tell a

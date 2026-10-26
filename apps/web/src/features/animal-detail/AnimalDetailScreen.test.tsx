@@ -72,7 +72,7 @@ function makeShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterV
  * the same `vi.doMock` + `vi.resetModules` + dynamic re-import pattern
  * `DeckScreen.test.tsx` uses for its own demo-banner branch.
  */
-describe("AnimalDetailScreen - shelterVerifiedYears badge (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
+describe("AnimalDetailScreen – shelterVerifiedYears badge (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -135,7 +135,7 @@ describe("AnimalDetailScreen - shelterVerifiedYears badge (REGISTRY_HAS_NO_REAL_
  * URL shared into Telegram, and it had the demo disclosure in
  * `generateMetadata` only, never in the body a visitor actually opens.
  */
-describe("AnimalDetailScreen - demo disclosure banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
+describe("AnimalDetailScreen – demo disclosure banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -154,7 +154,7 @@ describe("AnimalDetailScreen - demo disclosure banner (REGISTRY_HAS_NO_REAL_SHEL
     );
 
     expect(screen.getByTestId("detail-demo-banner").textContent).toBe(
-      "На сайті поки немає справжніх притулків - усі картки тут демонстраційні.",
+      "На сайті поки немає справжніх притулків – усі картки тут демонстраційні.",
     );
   });
 
@@ -180,7 +180,7 @@ describe("AnimalDetailScreen - demo disclosure banner (REGISTRY_HAS_NO_REAL_SHEL
  * by his `detail.shelterRowLink` («Сторінка притулку «{name}»», transcribed
  * from his message), and the donation link stays here too (commitment 5).
  */
-describe("AnimalDetailScreen - the shelter row (designer round 1, S6)", () => {
+describe("AnimalDetailScreen – the shelter row (designer round 1, S6)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -261,7 +261,7 @@ describe("AnimalDetailScreen - the shelter row (designer round 1, S6)", () => {
   });
 });
 
-describe("AnimalDetailScreen - a city name is printed literally (review finding 2)", () => {
+describe("AnimalDetailScreen – a city name is printed literally (review finding 2)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -305,7 +305,7 @@ describe("AnimalDetailScreen subtitle, by sex", () => {
  * DR1 (S3), his rule: «Шерсть» with «Коротка» / «Довга», the form's words;
  * no row at all when fur isn't recorded (never «Не вказано» to adopters).
  */
-describe("AnimalDetailScreen - the fur fact", () => {
+describe("AnimalDetailScreen – the fur fact", () => {
   const renderWith = async (coatLength: AnimalDetailView["coatLength"]) => {
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
     render(

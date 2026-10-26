@@ -132,7 +132,7 @@ function renderDeck(overrides: { onSwipe?: (id: AnimalId, dir: CommitDirection) 
 }
 
 describe("SwipeDeck action row", () => {
-  it("renders exactly two actions - R2 dropped the third «Далі» button", () => {
+  it("renders exactly two actions – R2 dropped the third «Далі» button", () => {
     renderDeck();
 
     const actionRow = within(screen.getByTestId("action-row"));
@@ -145,7 +145,7 @@ describe("SwipeDeck action row", () => {
     renderDeck();
 
     const notice = screen.getByTestId("not-a-judgement-notice");
-    expect(notice.textContent).toBe("«Не зараз» - це просто фільтр, а не оцінка тварини.");
+    expect(notice.textContent).toBe("«Не зараз» – це просто фільтр, а не оцінка тварини.");
 
     // Real pixel placement is the harness's job (jsdom doesn't lay out);
     // DOM order is what this test can actually check, and it's what
@@ -268,7 +268,7 @@ describe("SwipeDeck reveal", () => {
     expect(screen.queryByTestId("reveal-dialog")).toBeNull();
   });
 
-  it("has no secondary 'back to gallery' link - the deck's own requirement is no exit at all", async () => {
+  it("has no secondary 'back to gallery' link – the deck's own requirement is no exit at all", async () => {
     const { cards } = renderDeckForReveal();
     const topCard = cards[0];
     if (!topCard) throw new Error("generateMockCards(5) must return at least one card");

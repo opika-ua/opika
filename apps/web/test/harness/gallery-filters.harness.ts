@@ -60,7 +60,7 @@ async function cardNames(page: {
  * the rail and the sheet now holds between this toggleable row and the
  * sheet instead.
  */
-test.describe("/tvaryny filter row vs sheet - mutually exclusive by breakpoint", () => {
+test.describe("/tvaryny filter row vs sheet – mutually exclusive by breakpoint", () => {
   test("at >=1024, the toggle button is visible and the sheet trigger is not", async ({ page }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
@@ -74,7 +74,7 @@ test.describe("/tvaryny filter row vs sheet - mutually exclusive by breakpoint",
     const triggerBox = await page.getByTestId("filter-sheet-trigger").boundingBox();
     expect(
       triggerBox,
-      "filter-sheet-trigger should have no bounding box (display:none) at desktop width - " +
+      "filter-sheet-trigger should have no bounding box (display:none) at desktop width – " +
         "the toggle row owns filtering there, not the sheet",
     ).toBeNull();
   });
@@ -94,13 +94,13 @@ test.describe("/tvaryny filter row vs sheet - mutually exclusive by breakpoint",
     const toggleBox = await page.getByTestId("gallery-filter-toggle").boundingBox();
     expect(
       toggleBox,
-      "gallery-filter-toggle should have no bounding box (display:none) at phone width - the " +
+      "gallery-filter-toggle should have no bounding box (display:none) at phone width – the " +
         "sheet owns filtering there, no mobile Figma section exists yet",
     ).toBeNull();
   });
 });
 
-test.describe("/tvaryny filters - URL is the single source of truth", () => {
+test.describe("/tvaryny filters – URL is the single source of truth", () => {
   test("a filter applied, then the URL reopened in a fresh context, reproduces the same result set", async ({
     page,
     browser,
@@ -229,7 +229,7 @@ test.describe("/tvaryny legacy city-id links redirect to their real slug", () =>
   });
 });
 
-test.describe("/tvaryny filters - work with JavaScript disabled", () => {
+test.describe("/tvaryny filters – work with JavaScript disabled", () => {
   test("the sheet's native form narrows the result set with no JS at all", async ({ browser }) => {
     const context = await browser.newContext({
       javaScriptEnabled: false,
@@ -283,7 +283,7 @@ test.describe("/tvaryny filters - work with JavaScript disabled", () => {
     await context.close();
   });
 
-  test("every card is still reachable by Tab with no JS - the grid never relies on script to be tabbable", async ({
+  test("every card is still reachable by Tab with no JS – the grid never relies on script to be tabbable", async ({
     browser,
   }) => {
     const context = await browser.newContext({
@@ -329,7 +329,7 @@ test.describe("/tvaryny filters - work with JavaScript disabled", () => {
 
     expect(
       reachedFirstCard,
-      `the first card was not reached within ${MAX_TAB_PRESSES} Tab presses - with no JS it ` +
+      `the first card was not reached within ${MAX_TAB_PRESSES} Tab presses – with no JS it ` +
         `must sit in the natural tab order (no tabindex="-1" roving scheme that only a ` +
         `script would ever repair)`,
     ).toBe(true);

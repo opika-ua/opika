@@ -165,7 +165,7 @@ describe("the two password emails (his F1 and F2, transcribed)", () => {
     expect(email.subject).toBe("Кабінет притулку: пароль змінено");
     expect(email.text.split("\n\n")).toEqual([
       "Пароль до кабінету притулку для цієї адреси щойно змінено. На інших пристроях виконано вихід.",
-      "Якщо це не ви - напишіть мені: hello@example.org\n- Олексій",
+      "Якщо це не ви – напишіть мені: hello@example.org\n- Олексій",
     ]);
     expect(email.html).not.toContain("<a ");
   });

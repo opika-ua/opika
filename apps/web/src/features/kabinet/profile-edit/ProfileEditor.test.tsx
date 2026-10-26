@@ -193,7 +193,7 @@ describe("contacts (answer 3, answer 4)", () => {
     await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
     expect(
       c.getByText(
-        "Профіль змінили після того, як ви його відкрили. Ваші зміни не збережено. Ось поточна версія - внесіть зміни ще раз.",
+        "Профіль змінили після того, як ви його відкрили. Ваші зміни не збережено. Ось поточна версія – внесіть зміни ще раз.",
       ),
     ).toBeTruthy();
     await userEvent.click(c.getByRole("button", { name: "Показати поточну версію" }));
@@ -215,7 +215,7 @@ describe("contacts (answer 3, answer 4)", () => {
     await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
     expect(
       c.getByText(
-        "Не збереглося - на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
+        "Не збереглося – на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
       ),
     ).toBeTruthy();
     await userEvent.click(c.getByRole("button", { name: "Спробувати ще раз" }));
@@ -253,13 +253,13 @@ describe("contacts (answer 3, answer 4)", () => {
     renderEditor();
     expect(
       within(contacts()).getByText(
-        "Нові контакти побачать одразу після збереження - коли натиснуть «Написати притулку».",
+        "Нові контакти побачать одразу після збереження – коли натиснуть «Написати притулку».",
       ),
     ).toBeTruthy();
     // CB-B1, item 1
     expect(
       within(contacts()).getByText(
-        "Ці контакти бачить людина, коли натискає «Написати притулку», - і пише вам сама. Листування йде напряму, без посередників.",
+        "Ці контакти бачить людина, коли натискає «Написати притулку», – і пише вам сама. Листування йде напряму, без посередників.",
       ),
     ).toBeTruthy();
   });
@@ -362,7 +362,7 @@ describe("the voice sentence (N11)", () => {
     await userEvent.clear(textarea());
     expect(preview.queryByText(/щосуботи/)).toBeNull();
     expect(preview.queryByRole("heading", { name: "Слова притулку" })).toBeNull();
-    expect(preview.getByText("Речення немає - на сторінці притулку його не буде.")).toBeTruthy();
+    expect(preview.getByText("Речення немає – на сторінці притулку його не буде.")).toBeTruthy();
   });
 
   /** His words: "Existing test-shelter sentences containing it are re-saved, not migrated." */
@@ -442,7 +442,7 @@ describe("the donation link (N20)", () => {
     renderEditor();
     expect(
       within(donation()).getByText(
-        "Лише https. Через сайт гроші не проходять - це зовнішнє посилання.",
+        "Лише https. Через сайт гроші не проходять – це зовнішнє посилання.",
       ),
     ).toBeTruthy();
   });
@@ -505,7 +505,7 @@ describe("the donation link (N20)", () => {
     renderEditor({ donationDeclined: true });
     const d = within(donation());
     const declined =
-      "Останнє запропоноване посилання не підтверджено. Якщо незрозуміло чому - напишіть мені.";
+      "Останнє запропоноване посилання не підтверджено. Якщо незрозуміло чому – напишіть мені.";
     expect(d.getByText(declined)).toBeTruthy();
     await userEvent.clear(field());
     await userEvent.type(field(), "https://send.monobank.ua/jar/abc");
@@ -701,7 +701,7 @@ describe("pause and resume (N21)", () => {
  */
 describe("a save whose answer is lost (K4-T16)", () => {
   const FAILED =
-    "Не збереглося - на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.";
+    "Не збереглося – на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.";
   const lost = () =>
     vi.fn(async () => {
       throw new TypeError("Failed to fetch");

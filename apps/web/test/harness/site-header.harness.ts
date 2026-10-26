@@ -40,7 +40,7 @@ async function firstAnimalHref(page: import("@playwright/test").Page): Promise<s
   if (cachedAnimalHref !== null) return cachedAnimalHref;
   await openRoute(page, GALLERY, PHONE, { readySelector: CARD });
   const href = await page.locator(CARD).first().getAttribute("href");
-  expect(href, "no animal card link on the gallery - cannot reach a detail page").toBeTruthy();
+  expect(href, "no animal card link on the gallery – cannot reach a detail page").toBeTruthy();
   cachedAnimalHref = href as string;
   return cachedAnimalHref;
 }
@@ -98,7 +98,7 @@ test.describe("the header is on every user-facing surface except the deck", () =
     await expect(page.locator(NAV_SAVED)).toHaveCount(0);
   });
 
-  test("the detail page carries it too - this is the URL people paste into Telegram", async ({
+  test("the detail page carries it too – this is the URL people paste into Telegram", async ({
     page,
   }) => {
     await seedASavedAnimal(page);
@@ -110,7 +110,7 @@ test.describe("the header is on every user-facing surface except the deck", () =
     await expect(page.locator(NAV_SAVED)).toHaveAttribute("href", SAVED);
   });
 
-  test("the deck does NOT carry it - docs/design/README.md:589, never two navigations at once", async ({
+  test("the deck does NOT carry it – docs/design/README.md:589, never two navigations at once", async ({
     page,
   }) => {
     await openRoute(page, DECK, PHONE, {
@@ -119,7 +119,7 @@ test.describe("the header is on every user-facing surface except the deck", () =
 
     expect(
       await page.locator(HEADER).count(),
-      "the deck's header replaces the gallery header by design - a site header here would be " +
+      "the deck's header replaces the gallery header by design – a site header here would be " +
         "the second navigation the design explicitly rules out, not a fix",
     ).toBe(0);
   });

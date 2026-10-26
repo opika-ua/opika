@@ -122,9 +122,9 @@ describe("S4 evidence", () => {
     expect(within(evidence).getByText("Доказів поки немає.")).toBeTruthy();
     // A registered NGO needs one of each (DEFAULT_VERIFICATION_POLICY).
     expect(
-      within(evidence).getByText("Для схвалення бракує: Реєстрація · ЄДРПОУ - 0 з 1."),
+      within(evidence).getByText("Для схвалення бракує: Реєстрація · ЄДРПОУ – 0 з 1."),
     ).toBeTruthy();
-    expect(within(evidence).getByText("Для схвалення бракує: Рекомендація - 0 з 1.")).toBeTruthy();
+    expect(within(evidence).getByText("Для схвалення бракує: Рекомендація – 0 з 1.")).toBeTruthy();
   });
 
   it("shows each item's facts, and that no document is attached where that is allowed", () => {
@@ -166,7 +166,7 @@ describe("S4 evidence", () => {
     expect(within(evidence).getByText("43 218 765")).toBeTruthy();
     expect(within(evidence).getByText("Власник рахунку")).toBeTruthy();
     expect(
-      within(evidence).getAllByText("Документ не додано - для цього типу доказу це дозволено."),
+      within(evidence).getAllByText("Документ не додано – для цього типу доказу це дозволено."),
     ).toHaveLength(2);
     expect(within(evidence).getByText("Телефон: +380501112233")).toBeTruthy();
     expect(within(evidence).getByText("Ветклініка")).toBeTruthy();
@@ -198,7 +198,7 @@ describe("S4 legal data, address, contacts, description", () => {
     expect(within(legal).getByText("1 січня 2020 р.")).toBeTruthy();
     expect(
       within(legal).getByText(
-        "Ці поля притулок бачить лише для читання. Зміна юридичної особи чи ЄДРПОУ не змінює статус автоматично - рішення за вами.",
+        "Ці поля притулок бачить лише для читання. Зміна юридичної особи чи ЄДРПОУ не змінює статус автоматично – рішення за вами.",
       ),
     ).toBeTruthy();
   });
@@ -217,7 +217,7 @@ describe("S4 legal data, address, contacts, description", () => {
     expect(within(address).getByText("Бровари, вул. Київська, 300, 07400")).toBeTruthy();
     expect(within(address).getByText("50.5, 30.8")).toBeTruthy();
     expect(
-      within(address).getByText("Ті, хто шукає тварину, не бачать точної адреси - лише місто."),
+      within(address).getByText("Ті, хто шукає тварину, не бачать точної адреси – лише місто."),
     ).toBeTruthy();
   });
 
@@ -279,7 +279,7 @@ describe("S4 blocked addresses, every answer", () => {
     });
     const blocked = blockedSection();
     expect(
-      within(blocked).getByText("olena@example.org - адреса не існує або не приймає пошту."),
+      within(blocked).getByText("olena@example.org – адреса не існує або не приймає пошту."),
     ).toBeTruthy();
     expect(within(blocked).queryByText(/жодна адреса/)).toBeNull();
     expect(
@@ -300,7 +300,7 @@ describe("S4 blocked addresses, every answer", () => {
       within(blocked).getByText("Список заблокованих адрес вдалося отримати лише частково."),
     ).toBeTruthy();
     expect(
-      within(blocked).getByText("petro@example.org - людина з цієї адреси відписалася від листів."),
+      within(blocked).getByText("petro@example.org – людина з цієї адреси відписалася від листів."),
     ).toBeTruthy();
     expect(within(blocked).queryByText(/жодна адреса/)).toBeNull();
   });

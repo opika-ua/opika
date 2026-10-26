@@ -92,7 +92,7 @@ test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
       .poll(() => topCardName(page), {
         message:
           `a 30px flick in 5ms (6 px/ms) is over the 0.45 px/ms commit velocity and should ` +
-          `have advanced the deck past "${before}" - if this fails alongside the tap test ` +
+          `have advanced the deck past "${before}" – if this fails alongside the tap test ` +
           `below, suspect the driver rather than the gesture`,
         timeout: 5_000,
       })
@@ -119,7 +119,7 @@ test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
 
     expect(
       await nameOnceSettled(page, before),
-      "a 2px twitch at 2 px/ms is a tap, not a swipe - the deck must not advance",
+      "a 2px twitch at 2 px/ms is a tap, not a swipe – the deck must not advance",
     ).toBe(before);
   });
 });

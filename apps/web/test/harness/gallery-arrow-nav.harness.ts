@@ -85,7 +85,7 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 4 columns)", () => {
     expect(await focusedIndex(page), "ArrowUp moves back up by the column count").toBe(0);
   });
 
-  test("edges do not wrap - the rightmost card in a row stays put on ArrowRight", async ({
+  test("edges do not wrap – the rightmost card in a row stays put on ArrowRight", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
@@ -105,7 +105,7 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 4 columns)", () => {
     ).toBe(3);
   });
 
-  test("edges do not wrap - the leftmost card in a row stays put on ArrowLeft", async ({
+  test("edges do not wrap – the leftmost card in a row stays put on ArrowLeft", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
@@ -134,7 +134,7 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 4 columns)", () => {
     expect(await focusedIndex(page), "Home jumps back to the first card").toBe(0);
   });
 
-  test("every card keeps its native tabIndex - arrow navigation never removes a card from Tab order", async ({
+  test("every card keeps its native tabIndex – arrow navigation never removes a card from Tab order", async ({
     page,
   }) => {
     // The regression this guards: an earlier version of ArrowKeyGrid used a
@@ -188,13 +188,13 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 4 columns)", () => {
     await page.keyboard.press("ArrowRight");
     expect(
       await focusedIndex(page),
-      "arrow navigation must operate on the new, filtered card set - cardsOf() re-queries " +
+      "arrow navigation must operate on the new, filtered card set – cardsOf() re-queries " +
         "the DOM fresh on every keypress rather than caching the pre-filter card list",
     ).toBe(1);
   });
 });
 
-test.describe("/tvaryny arrow-key grid navigation - the column count is read live", () => {
+test.describe("/tvaryny arrow-key grid navigation – the column count is read live", () => {
   test("a resize between two keypresses changes the vertical step, with no resize listener", async ({
     page,
   }) => {
@@ -213,13 +213,13 @@ test.describe("/tvaryny arrow-key grid navigation - the column count is read liv
     await page.keyboard.press("ArrowDown");
     expect(
       await focusedIndex(page),
-      "after the resize the grid is 1 column, so ArrowDown must step by 1 - a column count " +
+      "after the resize the grid is 1 column, so ArrowDown must step by 1 – a column count " +
         "cached at mount would still step by 4 and land on 8",
     ).toBe(5);
   });
 });
 
-test.describe("/tvaryny arrow-key grid navigation - Tab order is never touched, JS or not", () => {
+test.describe("/tvaryny arrow-key grid navigation – Tab order is never touched, JS or not", () => {
   test("with JS disabled, Tab still walks from the first card to the second", async ({
     browser,
   }) => {
@@ -275,7 +275,7 @@ test.describe("/tvaryny arrow-key grid navigation - Tab order is never touched, 
     const afterFirst = await page.evaluate(() => document.activeElement?.getAttribute("href"));
     expect(
       afterFirst,
-      "with no JS, Tab must continue from the first card to the second - a roving tabindex " +
+      "with no JS, Tab must continue from the first card to the second – a roving tabindex " +
         "rendered by the server would leave the second card at tabindex=-1 and skip it",
     ).toBe(secondHref);
 
@@ -283,7 +283,7 @@ test.describe("/tvaryny arrow-key grid navigation - Tab order is never touched, 
   });
 });
 
-test.describe("/tvaryny arrow-key grid navigation - page boundaries never trigger navigation", () => {
+test.describe("/tvaryny arrow-key grid navigation – page boundaries never trigger navigation", () => {
   test("Right on the last card and Left on the first card of page 2 leave focus and the URL unchanged", async ({
     page,
   }) => {
@@ -308,7 +308,7 @@ test.describe("/tvaryny arrow-key grid navigation - page boundaries never trigge
     await page.keyboard.press("ArrowLeft");
     expect(
       await focusedIndex(page),
-      "ArrowLeft at the first card of page 2 must not move focus onto page 1's cards - " +
+      "ArrowLeft at the first card of page 2 must not move focus onto page 1's cards – " +
         "there is nothing in the DOM to move onto",
     ).toBe(0);
     expect(page.url(), "ArrowLeft must not trigger a page navigation").toBe(urlOnPage2);
@@ -330,7 +330,7 @@ test.describe("/tvaryny arrow-key grid navigation - page boundaries never trigge
 });
 
 test.describe("/tvaryny arrow-key grid navigation (phone, 1 column)", () => {
-  test("ArrowRight/ArrowLeft do nothing - a single column has no horizontal neighbour", async ({
+  test("ArrowRight/ArrowLeft do nothing – a single column has no horizontal neighbour", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
@@ -339,11 +339,11 @@ test.describe("/tvaryny arrow-key grid navigation (phone, 1 column)", () => {
     await page.keyboard.press("ArrowRight");
     expect(
       await focusedIndex(page),
-      "at 1 column, every card is its own row - ArrowRight has no horizontal neighbour to move to",
+      "at 1 column, every card is its own row – ArrowRight has no horizontal neighbour to move to",
     ).toBe(0);
   });
 
-  test("ArrowDown moves to the next card - equivalent to reading order at 1 column", async ({
+  test("ArrowDown moves to the next card – equivalent to reading order at 1 column", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });

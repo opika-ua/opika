@@ -61,7 +61,7 @@ function expectedSlugFor(visibleCityNameUk: string): string {
   const nameEn = KNOWN_CITY_NAME_UK_TO_EN[visibleCityNameUk];
   if (nameEn === undefined) {
     throw new Error(
-      `"${visibleCityNameUk}" is not one of the 8 known seeded cities - either the seed corpus ` +
+      `"${visibleCityNameUk}" is not one of the 8 known seeded cities – either the seed corpus ` +
         "grew (add it to KNOWN_CITY_NAME_UK_TO_EN above) or this is a real bug.",
     );
   }
@@ -117,7 +117,7 @@ async function openFirstAnimalDetail(
 }
 
 test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
-  test("360 - name, photo, action row, and both back links are real and visible", async ({
+  test("360 – name, photo, action row, and both back links are real and visible", async ({
     page,
   }) => {
     await openFirstAnimalDetail(page, DETAIL_PHONE);
@@ -136,7 +136,7 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
     ).toBeHidden();
   });
 
-  test("1920 - desktop back link, sticky photo column, and thumbnails are real and visible", async ({
+  test("1920 – desktop back link, sticky photo column, and thumbnails are real and visible", async ({
     page,
   }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
@@ -320,7 +320,7 @@ test.describe("/tvaryny/[animalId] an unknown or malformed id 404s on-brand", ()
  * real network calls against the harness's own seeded database). "Before"
  * and "after" match the PR's own required screenshots.
  */
-test.describe("/tvaryny/[animalId] contact reveal - before, after, and close", () => {
+test.describe("/tvaryny/[animalId] contact reveal – before, after, and close", () => {
   test("before: the reveal trigger is present and the dialog is not", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
     await expect(page.getByTestId("reveal-trigger")).toBeVisible();
@@ -423,7 +423,7 @@ test.describe("the detail page's freshness block is the day count only", () => {
  * recorded here rather than silently assumed correct, same discipline
  * DECK-3 used for the text-scaling gap it also couldn't assert.
  */
-test.describe("shelter-verified badge - suppressed while the registry holds no real shelters", () => {
+test.describe("shelter-verified badge – suppressed while the registry holds no real shelters", () => {
   test("the manually-verified-years badge does not render on a real seeded animal's page", async ({
     page,
     browser,

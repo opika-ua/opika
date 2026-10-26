@@ -68,7 +68,7 @@ async function discoverMultiPhotoAnimalHref(
       }
     }
     throw new Error(
-      `none of the first ${MAX_CANDIDATES} gallery animals have more than one photo - ` +
+      `none of the first ${MAX_CANDIDATES} gallery animals have more than one photo – ` +
         "packages/db/src/seed.ts's photoCount distribution may have changed; this harness " +
         "needs a real multi-photo animal to exercise the dot/thumbnail controls at all.",
     );
@@ -77,7 +77,7 @@ async function discoverMultiPhotoAnimalHref(
   }
 }
 
-test.describe("detail page photo gallery - keyboard reachability", () => {
+test.describe("detail page photo gallery – keyboard reachability", () => {
   test("a mobile dot button is reachable by Tab", async ({ page, browser }) => {
     const href = await discoverMultiPhotoAnimalHref(browser);
     await openRoute(page, href, DETAIL_PHONE, { readySelector: DETAIL_READY });
