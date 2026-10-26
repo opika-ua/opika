@@ -2,7 +2,7 @@
 
 import { uk } from "@opika/i18n";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FilterIcon } from "./icons";
 
 /**
@@ -37,6 +37,40 @@ export function GalleryControlBlock({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(true);
+  /**
+   * Whether the row has finished expanding and can safely overflow - found on review
+   * (a real bug a live deployment surfaced, not a looks concern): `overflow-hidden`
+   * below is required *while the grid track is animating* (0fr↔1fr) so the row's
+   * content doesn't spill out mid-transition, but it also clips every dropdown's own
+   * popup panel (`GalleryFilterDropdowns.tsx`'s `absolute` `fieldset`), which must
+   * extend below this row once it's actually open - permanently, not just once the
+   * animation completes. `document.elementFromPoint()` against a real running page
+   * confirmed the popup was rendering at the right coordinates with the right
+   * `position: absolute`, just invisible, painted under the gallery grid below it.
+   *
+   * Starts equal to `open` (both `true` on mount) so neither a no-JS visitor nor the
+   * very first paint ever sees a clipped row - there is no animation to protect
+   * against before any state change has happened. Reset to `false` synchronously the
+   * instant `open` becomes `false` (closing has to clip immediately, the same way
+   * opening does), and only set back to `true` once the *opening* transition actually
+   * finishes (`onTransitionEnd` below) - never during a close, and never speculatively
+   * before the row has actually finished growing.
+   *
+   * `prefers-reduced-motion` is its own case, not just "the same thing, faster": a
+   * zero-duration CSS transition (`motion-reduce:duration-0` above) never fires
+   * `transitionend` at all, so a visitor with that preference would never see
+   * `expanded` become `true` again after the first close - every dropdown would stay
+   * permanently clipped from then on. Checked directly rather than waited for.
+   */
+  const [expanded, setExpanded] = useState(open);
+
+  useEffect(() => {
+    if (!open) {
+      setExpanded(false);
+      return;
+    }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setExpanded(true);
+  }, [open]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,17 +119,30 @@ export function GalleryControlBlock({
         Tab order - without it they'd stay reachable, focusably, at zero
         height, which is worse than the old unmounted version, not just
         different from it.
+
+        Found on review: `overflow-hidden` on the one grid item below can't be
+        permanent the way the comment above describes - it also clips every
+        dropdown's own popup (`GalleryFilterDropdowns.tsx`), which has to extend
+        below this row once it's actually open. `onTransitionEnd` here switches it
+        to `overflow-visible` the moment the *opening* transition genuinely
+        finishes (`expanded`, above) - `transitionend` also fires for a property
+        change on a child, so the `propertyName` check keeps this reacting to the
+        grid track's own transition specifically, not some unrelated one bubbling
+        up through it.
       */}
       <div
         id="gallery-filter-row"
         data-testid="gallery-filter-row"
         aria-hidden={open ? undefined : "true"}
         inert={open ? undefined : true}
+        onTransitionEnd={(event) => {
+          if (event.propertyName === "grid-template-rows" && open) setExpanded(true);
+        }}
         className={`hidden grid-cols-1 transition-[grid-template-rows] duration-300 ease-out motion-reduce:duration-0 desktop:grid ${
           open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
-        <div className="overflow-hidden">
+        <div className={expanded ? "overflow-visible" : "overflow-hidden"}>
           {/*
             No `flex-wrap` here (pet card PR 1b): seven dropdowns no longer fit
             one line at any desktop width, and a wrapping row would push the
