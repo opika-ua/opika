@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import { temperamentFilterLabel, temperamentLabelFor } from "./temperament-labels";
 
 /**
- * The table as the coordinating session's brief gave it (pet card redesign,
- * 2026-10-26, relayed there as approved in Phase 0; no message of his for it
- * is held here), transcribed rather than read from `uk.ts`, so a changed word
- * fails here. The apostrophe is U+02BC.
+ * His table (Oleksii, 2026-10-26, in the coordinating session; his message is
+ * quoted in full at `uk.ts`'s `temperament`), transcribed rather than read
+ * from `uk.ts`, so a changed word fails here. The apostrophe is U+02BC, as he
+ * asked. This file is the test he asked for, verbatim: "Add a unit test: the
+ * label picks the right form for male, female, unknown and the filter
+ * context."
  */
 const WORDS = {
   playful: ["Грайливий", "Грайлива", "Грайливі"],

@@ -700,14 +700,23 @@ export const uk = {
 
   // --- The pet card's temperament: chips, kabinet checkboxes, filter options ---
   /**
-   * As the coordinating session's brief gave them (pet card redesign,
-   * 2026-10-26), which relayed them as approved in the redesign's Phase 0.
-   * This branch holds no message of his for these words: the approval is the
-   * brief's statement, not a quote. One trait per key, three forms each:
-   * `masculine` for a male animal and one whose sex is «Не записано» (the
-   * card's long-standing rule, `grammaticalGenderOf`, the same one the age
-   * word follows), `feminine` for a female one, and `plural` for a filter
-   * option, which names the category rather than one animal. The three
+   * His words and his table. Oleksii, 2026-10-26, in the coordinating
+   * session, verbatim as that session relayed it to this branch, except that
+   * his nine-row table is shortened to the bracket, since the keys below are
+   * it, form for form: "PC-Q2, temperament labels (owner rewrite): no «вдача»
+   * phrasing. Use adjectives that agree with the animal's sex. Each trait
+   * gets male / female / plural forms in packages/i18n (domain keys
+   * unchanged): [his table: each trait's male / female / plural forms, as
+   * below] The apostrophe in «Сором'язливий» is ʼ (U+02BC), not '. Chips on
+   * the pet card use the animal's sex: male → male form, female → female
+   * form, sex not recorded → male form. Kabinet checkboxes use the form for
+   * the sex currently selected in the form, and update live if the sex
+   * changes. The gallery filter dropdown (and the chip link's accessible
+   * name) uses the plural. Add a unit test: the label picks the right form
+   * for male, female, unknown and the filter context."
+   *
+   * The forms follow `grammaticalGenderOf`, the age word's rule (his "sex not
+   * recorded → male form" is its masculine for «Не записано»). The three
    * «Ладнає з …» traits have no gender, only a number.
    */
   temperament: {
@@ -736,9 +745,18 @@ export const uk = {
 
   // --- The pet card's coat colour: the chip and the filter option ---
   /**
-   * From the same brief, on the same footing as `temperament` above. One
-   * form per colour, the neuter, which agrees with «забарвлення» in the chip and
-   * stands alone as a filter option; the animal's sex never changes it.
+   * Proposed to him, then confirmed by him. The coordinating session put this
+   * table to him in its Phase 0 proposal, on a research agent's
+   * recommendation: a pattern such as «смугастий» doesn't read as a colour,
+   * and a bare masculine colour word on a female animal's chip reads wrong.
+   * Oleksii confirmed it, 2026-10-26, in the coordinating session, verbatim:
+   * "Colour stays as approved: neuter forms agreeing with «забарвлення».
+   * Everything else from my previous message stands." He approved the
+   * proposed forms; he didn't write the words himself.
+   *
+   * One form per colour, the neuter, which agrees with «забарвлення» in the
+   * chip and stands alone as a filter option; the animal's sex never changes
+   * it.
    */
   coatColour: {
     names: {

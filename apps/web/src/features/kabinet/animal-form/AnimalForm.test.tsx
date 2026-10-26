@@ -1480,10 +1480,11 @@ describe("fur", () => {
 
 /**
  * The pet card's temperament and colour; the medical note has no field yet
- * (below). Words transcribed here, never read from `uk.ts`: the trait and
- * colour words as the coordinating session's brief gave them, the form's
- * kabinet strings as Oleksii approved them on 2026-10-26 (quoted in
- * `copy-status.test.ts`). Optional, never a publish gap, each clearable.
+ * (below). Words transcribed here, never read from `uk.ts`: the trait words
+ * as Oleksii wrote them and the colour words as he confirmed them (both
+ * quoted at `uk.ts`'s `temperament` and `coatColour`), and the form's kabinet
+ * strings as he approved them (quoted in `copy-status.test.ts`), all on
+ * 2026-10-26. Optional, never a publish gap, each clearable.
  */
 
 /** The «Інше» text field's own name: «Інше» stays the checkbox's and the radio's. */

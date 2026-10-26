@@ -3,10 +3,11 @@ import { describe, expect, it } from "vitest";
 import { colourChipLabel, colourFilterLabel } from "./colour-labels";
 
 /**
- * The table as the coordinating session's brief gave it (pet card redesign,
- * 2026-10-26, relayed there as approved in Phase 0; no message of his for it
- * is held here): one neuter form per colour, transcribed rather than read
- * from `uk.ts`.
+ * The table the coordinating session proposed to him and he confirmed
+ * (Oleksii, 2026-10-26, in the coordinating session, verbatim: "Colour stays
+ * as approved: neuter forms agreeing with «забарвлення». Everything else from
+ * my previous message stands."; the chain is at `uk.ts`'s `coatColour`): one
+ * neuter form per colour, transcribed rather than read from `uk.ts`.
  */
 const NAMES = {
   black: "Чорне",
