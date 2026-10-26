@@ -45,6 +45,31 @@ async function firstAnimalHref(page: import("@playwright/test").Page): Promise<s
   return cachedAnimalHref;
 }
 
+/**
+ * `NAV_SAVED` only renders once something's saved (`SavedNavLink.tsx`,
+ * Oleksii: "show Збережені tab in header only if we have something saved
+ * otherwise hide it"). An `addInitScript`, not a real save through the UI —
+ * these tests are about the header, not the save flow, and `likes-store.ts`'s
+ * own shape (`version`, `items[].animalId`/`likedAt`) is what `SavedNavLink`
+ * reads, so seeding it directly is the same state a real save would leave,
+ * reached without depending on `SaveButton` staying wired the way it is
+ * today. Registered before `openRoute`'s own `page.goto`, so it's in place
+ * for that navigation, same as every later one on this page.
+ */
+async function seedASavedAnimal(page: import("@playwright/test").Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "likes.v1",
+      JSON.stringify({
+        version: 1,
+        items: [
+          { animalId: "00000000-0000-4000-8000-000000000000", likedAt: new Date().toISOString() },
+        ],
+      }),
+    );
+  });
+}
+
 test.describe("the header is on every user-facing surface except the deck", () => {
   for (const [name, route] of [
     ["gallery", GALLERY],
@@ -52,6 +77,7 @@ test.describe("the header is on every user-facing surface except the deck", () =
     ["for shelters", FOR_SHELTERS],
   ] as const) {
     test(`${name} carries the wordmark and all three site links`, async ({ page }) => {
+      await seedASavedAnimal(page);
       await openRoute(page, route, PHONE, { readySelector: HEADER });
 
       await expect(page.locator(WORDMARK)).toHaveText("Opika");
@@ -61,9 +87,21 @@ test.describe("the header is on every user-facing surface except the deck", () =
     });
   }
 
+  /**
+   * Oleksii, from a live screenshot: "show Збережені tab in header only if
+   * we have something saved otherwise hide it." A fresh context has nothing
+   * in `localStorage` at all, so this is the real default, not a seeded one.
+   */
+  test("«Збережені» is absent for a visitor with nothing saved", async ({ page }) => {
+    await openRoute(page, GALLERY, PHONE, { readySelector: HEADER });
+    await expect(page.locator(NAV_ABOUT)).toHaveAttribute("href", ABOUT);
+    await expect(page.locator(NAV_SAVED)).toHaveCount(0);
+  });
+
   test("the detail page carries it too — this is the URL people paste into Telegram", async ({
     page,
   }) => {
+    await seedASavedAnimal(page);
     await openRoute(page, await firstAnimalHref(page), DETAIL_PHONE, { readySelector: HEADER });
 
     await expect(page.locator(WORDMARK)).toHaveText("Opika");
@@ -125,6 +163,7 @@ test.describe("the header is reachable by keyboard", () => {
   });
 
   test("the «Збережені» link is reachable by Tab", async ({ page }) => {
+    await seedASavedAnimal(page);
     await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
     await expectReachableByTab(page, {
       label: "header «Збережені» link",

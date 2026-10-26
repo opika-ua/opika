@@ -16,7 +16,15 @@ describe("GalleryControlBlock", () => {
     expect(screen.getByTestId("gallery-filter-toggle").getAttribute("aria-expanded")).toBe("true");
   });
 
-  it("clicking «Фільтр» hides the row; clicking again shows it", () => {
+  /**
+   * The row stays mounted at all times now (it used to unmount on close) —
+   * Oleksii asked for an animated height change, and an unmounted element
+   * has no height to animate from. `aria-hidden`/`inert` are what verify
+   * "closed" instead of DOM absence: `queryByText` doesn't look at either
+   * one, so it would still find "row content" with the row merely collapsed
+   * to zero height, which is why this isn't `toBeNull()` anymore.
+   */
+  it("clicking «Фільтр» marks the row aria-hidden and inert; clicking again clears both", () => {
     render(
       <GalleryControlBlock title={<h1>Каталог</h1>} trailing={null}>
         <span>row content</span>
@@ -24,12 +32,18 @@ describe("GalleryControlBlock", () => {
     );
 
     const toggle = screen.getByTestId("gallery-filter-toggle");
+    const row = screen.getByTestId("gallery-filter-row");
+    expect(row.getAttribute("aria-hidden")).toBeNull();
+    expect(row.inert).toBe(false);
+
     fireEvent.click(toggle);
-    expect(screen.queryByText("row content")).toBeNull();
+    expect(row.getAttribute("aria-hidden")).toBe("true");
+    expect(row.inert).toBe(true);
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
 
     fireEvent.click(toggle);
-    expect(screen.getByText("row content")).toBeTruthy();
+    expect(row.getAttribute("aria-hidden")).toBeNull();
+    expect(row.inert).toBe(false);
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
   });
 

@@ -74,10 +74,10 @@ const COAT_LABEL: Record<CoatLength, string> = {
  * `cursor-pointer`.
  *
  * Still multi-value (`FilterSelection`, toggle chips, never one-of-many)
- * for city/age/size — the hand-off's original "`<select>` if single-value"
- * guidance never applied here regardless of which disclosure mechanism
- * wraps the options, so this stays a list of real toggle links, not a
- * native `<select>` with single-choice semantics.
+ * for every dimension here — the hand-off's original "`<select>` if
+ * single-value" guidance never applied regardless of which disclosure
+ * mechanism wraps the options, so this stays a list of real toggle links,
+ * not a native `<select>` with single-choice semantics.
  *
  * The trailing icon swaps to a clear-all ✕ once a value is set — Oleksii,
  * mid-build, verbatim: "replacing chevron icon with X to clear all filters
@@ -138,7 +138,13 @@ function Dropdown({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative">
+    // flex-1 (not a fixed width): when five dropdowns don't fit one row and
+    // the last one wraps alone, flexbox distributes grow/shrink per wrapped
+    // line independently, so that lone item stretches to fill the row
+    // instead of sitting narrow beside empty space — the specific "looks a
+    // bit weird" Oleksii flagged from a live screenshot. min-w keeps it from
+    // shrinking past a readable width before the row wraps at all.
+    <div ref={rootRef} className="relative min-w-[11rem] flex-1">
       <button
         ref={buttonRef}
         type="button"
@@ -149,11 +155,19 @@ function Dropdown({
         // name, failing WCAG 2.5.3 (Label in Name) against the visible
         // <span> below. Ending with `label` verbatim is what satisfies it.
         aria-label={`${legend}: ${label}`}
-        className={`flex h-13 w-53 min-w-0 cursor-pointer items-center justify-between gap-3 rounded-brand-field border-2 bg-brand-page px-5 font-brand-ui text-[16px]/[1.2] font-semibold transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+        className={`flex h-13 w-full min-w-0 cursor-pointer items-center justify-between gap-3 rounded-brand-field border-2 bg-brand-page px-5 font-brand-ui text-[16px]/[1.2] font-semibold transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
           active ? "border-brand-accent text-brand-ink" : "border-brand-line text-brand-muted"
         } ${open ? "border-brand-accent" : ""}`}
       >
-        <span className="truncate">{label}</span>
+        {/* `uppercase` only on the placeholder, never on a selected value —
+            city/age/size/species's own legends ("МІСТО"/"ВІК"/"РОЗМІР"/"ВИД")
+            happen to already be uppercase strings, but fur's own approved
+            text (`uk.filters.coat`, "Шерсть") isn't, which is what made it
+            look inconsistent. Styling this here, once, generically on
+            `!active`, fixes that without touching any dimension's approved
+            Ukrainian — a selected value (e.g. "Бровари") still renders in
+            its own natural case regardless of dimension. */}
+        <span className={`truncate ${active ? "" : "uppercase"}`}>{label}</span>
         {/* Reserves the chevron's own slot even when it's replaced, so the
             label's truncation width never shifts between the two states. */}
         <span className="size-5 shrink-0" aria-hidden={active ? undefined : "true"}>
@@ -183,7 +197,7 @@ function Dropdown({
         </Link>
       )}
       {open && (
-        <fieldset className="absolute top-full left-0 z-20 mt-2 flex w-53 flex-col gap-1 rounded-brand-field border-2 border-brand-line bg-brand-page p-2 shadow-lg">
+        <fieldset className="absolute top-full left-0 z-20 mt-2 flex w-full min-w-53 flex-col gap-1 rounded-brand-field border-2 border-brand-line bg-brand-page p-2 shadow-lg">
           <legend className="sr-only">{legend}</legend>
           {children}
         </fieldset>
@@ -233,10 +247,13 @@ function DropdownOption({
  * dropdown wired to nothing would be a control that claims to filter and
  * doesn't; a sex filter, if wanted, is its own follow-up phase.
  *
- * Species and fur reuse `FilterSheet.tsx`'s own `SPECIES_LABEL`/
- * `COAT_LABEL` maps and `withToggledSpecies`/`withToggledCoat` helpers
- * verbatim — same dimensions, same toggle semantics, just this row's own
- * Dropdown/DropdownOption markup instead of the sheet's checkboxes.
+ * Species and fur mirror `FilterSheet.tsx`'s own `SPECIES_LABEL`/
+ * `COAT_LABEL` maps (duplicated, not imported — same risk `FilterRail.tsx`,
+ * the old toggle-link UI for these two dimensions, already carried before
+ * it was deleted) and reuse `filter-url.ts`'s `withToggledSpecies`/
+ * `withToggledCoat` — the same helpers `FilterRail` called, not
+ * `FilterSheet`, which submits a native `<form>` instead of navigating
+ * per-option links.
  *
  * Hidden below `desktop:` — "Below 1024px... Hide the dropdowns; «Фільтр»
  * opens the sheet" (`FilterSheet.tsx`, still wired at every width since
@@ -287,13 +304,18 @@ export function GalleryFilterDropdowns({
   return (
     <div
       data-testid="gallery-filter-dropdowns"
-      // flex-wrap: five dropdowns at w-53 (212px) plus four gap-3 (12px) gaps
-      // come to 1108px — wider than the 912px of content width the page's
-      // own desktop:px-14 gutters leave at the 1024px desktop floor (measured
-      // live, not assumed). Figma's frame never anticipated five, so there's
-      // no mock geometry to match here; wrapping onto a second line is the
-      // one option that neither causes horizontal overflow nor shrinks a
-      // control below its 212px readable width.
+      // flex-wrap: five dropdowns at their natural w-53 (212px) plus four
+      // gap-3 (12px) gaps come to 1108px — wider than the 912px of content
+      // width the page's own desktop:px-14 gutters leave at the 1024px
+      // desktop floor (measured live, not assumed). Figma's frame never
+      // anticipated five, so there's no mock geometry to match here.
+      // Each `Dropdown` is now `flex-1` rather than a fixed width (Oleksii,
+      // from a live screenshot: "2 rows of filters look a bit weird") — this
+      // doesn't stop wrapping from happening when it must, but it does mean
+      // a lone item stranded on its own row stretches to fill that row
+      // instead of sitting narrow beside empty space, which was the actual
+      // "weird" part: wrapping itself is fine, an orphaned narrow control
+      // isn't.
       className="hidden flex-wrap items-center gap-3 desktop:flex"
     >
       <Dropdown

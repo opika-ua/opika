@@ -159,6 +159,39 @@ describe("GalleryFilterDropdowns", () => {
     expect(screen.queryByTestId("dropdown-clear")).toBeNull();
   });
 
+  /**
+   * Tier 1 review finding (2881bc2): every key `relaxDimension` takes is a
+   * `FeedFilterDimension`, so a dropdown's own ✕ silently clearing the
+   * *wrong* dimension still type-checks — nothing catches it but a test
+   * that sets two dimensions at once and checks each ✕ by its own href.
+   */
+  it("each dropdown's own ✕ clears only its own dimension, not another one active at the same time", () => {
+    render(
+      <GalleryFilterDropdowns
+        filters={{
+          ...NO_FILTERS,
+          species: { kind: "oneOf", values: ["cat"] },
+          sizes: { kind: "oneOf", values: ["large"] },
+          coatLengths: { kind: "oneOf", values: ["long"] },
+          ages: { kind: "oneOf", values: ["young"] },
+        }}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+      />,
+    );
+
+    const speciesClear = screen.getByLabelText(
+      uk.filters.clearDimension.replace("{dimension}", uk.filters.species),
+    );
+    expect(speciesClear.getAttribute("href")).toBe("/tvaryny?rozmir=large&vik=young&sherst=long");
+
+    const coatClear = screen.getByLabelText(
+      uk.filters.clearDimension.replace("{dimension}", uk.filters.coat),
+    );
+    expect(coatClear.getAttribute("href")).toBe("/tvaryny?vyd=cat&rozmir=large&vik=young");
+  });
+
   it("marks the selected option with aria-current", () => {
     render(
       <GalleryFilterDropdowns

@@ -2,6 +2,7 @@ import { uk } from "@opika/i18n";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { WORDMARK } from "../../brand";
+import { SavedNavLink } from "../likes/SavedNavLink";
 import { BrandLogo } from "./BrandLogo";
 
 /**
@@ -269,10 +270,11 @@ export function SiteHeader({
             {uk.nav.kabinet}
           </Link>
         ) : (
-          // S8: the saved page (`/zberezheni`), linked from every surface the header is on.
-          <Link href="/zberezheni" data-testid="nav-saved" className={NAV_LINK_CLASS}>
-            {uk.nav.saved}
-          </Link>
+          // S8: the saved page (`/zberezheni`), linked from every surface the
+          // header is on — but only while there's something saved to link to
+          // (Oleksii, from a live screenshot: "show Збережені tab in header
+          // only if we have something saved otherwise hide it").
+          <SavedNavLink className={NAV_LINK_CLASS} />
         )}
       </nav>
 

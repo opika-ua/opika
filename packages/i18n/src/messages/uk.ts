@@ -973,20 +973,22 @@ export const uk = {
      * The gallery-v3 redesign hid the deck's own entry link from the gallery
      * (Oleksii, mid-build: "let's hide access to Гортати по одній page for
      * now as well"), so a shelter reading this page could no longer verify
-     * the second method from the site itself. Narrowed per
+     * the second method from the site itself. Narrowed to a pure deletion —
+     * «або по одній» cut, nothing added in its place — per
      * `docs/standing-constraints.md`'s "removing a false claim is not the
-     * same gate as adding one" — the deletion needs no round trip, and
-     * `/tvaryny/gortaty` still exists and still works, so this is a
-     * **temporary narrowing, not a withdrawal**: restore the fuller sentence
-     * once the deck has a real entry point again. The replacement sentence
-     * is the builder's own draft, not his words — flagged in the decisions
-     * inbox (GV3-Q3) pending his confirm-or-replace, same as GV3-Q2.
+     * same gate as adding one": a Tier 1 reviewer (2881bc2's review) caught
+     * that this row's first attempt added a new builder-written sentence
+     * about the deck instead, which is new copy and does need the normal
+     * gate regardless of how narrow or accurate it reads. A bare deletion
+     * needs neither his words nor a round trip. `/tvaryny/gortaty` itself
+     * is untouched and still works, so this is a **temporary narrowing, not
+     * a withdrawal**: restore «або по одній» once the deck has a real entry
+     * point again.
      */
     whatHappensToAnimals:
       "Кожна тварина отримує власну сторінку з фотографіями і власною адресою — її можна надіслати " +
       "в Telegram, показати знайомим, залишити під дописом.\n\n" +
-      "Тварин можна дивитися списком. Перегляд по одній поки не має посилання з каталогу, хоча " +
-      "сама сторінка ще працює.\n\n" +
+      "Тварин можна дивитися списком.\n\n" +
       "Список завжди показує всіх. У режимі «по одній» людина більше не бачить тих, на кого вже " +
       "натиснула «Не зараз» чи «Написати», — це памʼять лише її пристрою, і після «Не зараз» " +
       "тварина згодом зʼявляється знову. Від людини не ховається нічого, крім того, що вона " +

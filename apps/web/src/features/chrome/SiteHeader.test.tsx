@@ -1,7 +1,12 @@
 import { uk } from "@opika/i18n";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { toggleSavedAnimal } from "../likes/likes-store";
 import { SiteHeader } from "./SiteHeader";
+
+beforeEach(() => {
+  window.localStorage.clear();
+});
 
 /**
  * The critique findings this component exists for (E5, E1, B2, E7) are all
@@ -75,11 +80,48 @@ describe("SiteHeader", () => {
     expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
   });
 
-  it("a visitor (not signed in) sees «Збережені», not «Кабінет»", () => {
+  /**
+   * Oleksii, from a live screenshot: "show Збережені tab in header only if
+   * we have something saved otherwise hide it" — `SavedNavLink.tsx` reads
+   * `localStorage` in an effect (same reasoning `SaveButton.test.tsx`
+   * already documents for the identical constraint), so these use
+   * `findByRole`/`queryByRole`, not a synchronous assertion right after
+   * `render`.
+   */
+  it("a visitor with something saved sees «Збережені», not «Кабінет»", async () => {
+    toggleSavedAnimal("a1", new Date());
     render(<SiteHeader kabinetSignedIn={false} />);
 
-    expect(screen.getByRole("link", { name: uk.nav.saved })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: uk.nav.saved })).toBeTruthy();
     expect(screen.queryByRole("link", { name: uk.nav.kabinet })).toBeNull();
+  });
+
+  it("a visitor with nothing saved sees no «Збережені» link at all", async () => {
+    render(<SiteHeader kabinetSignedIn={false} />);
+
+    // Nothing to await for an absence — give the effect a tick to run (the
+    // same pattern as a positive case, just asserting the other outcome) so
+    // this doesn't pass merely because the check hasn't happened yet.
+    await screen.findByRole("link", { name: uk.nav.about });
+    expect(screen.queryByRole("link", { name: uk.nav.saved })).toBeNull();
+  });
+
+  /**
+   * The real scenario this whole feature is for: a visitor saves something
+   * on the page they're already looking at, header included — not a reload,
+   * not another tab. `likes-store.ts`'s `SAME_TAB_CHANGE_EVENT` is what
+   * makes this work at all: the native `storage` event never fires in the
+   * document that made the write, so without it this would stay stuck on
+   * the header's first render forever.
+   */
+  it("a save made after the header has already mounted makes «Збережені» appear, no reload", async () => {
+    render(<SiteHeader kabinetSignedIn={false} />);
+    await screen.findByRole("link", { name: uk.nav.about });
+    expect(screen.queryByRole("link", { name: uk.nav.saved })).toBeNull();
+
+    toggleSavedAnimal("a1", new Date());
+
+    expect(await screen.findByRole("link", { name: uk.nav.saved })).toBeTruthy();
   });
 
   it("the logo mark is marked decorative", () => {

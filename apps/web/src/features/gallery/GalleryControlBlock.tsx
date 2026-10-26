@@ -7,7 +7,7 @@ import { FilterIcon } from "./icons";
 
 /**
  * gallery-v3 (Figma `58:1617`) control block: «Фільтр» toggles the
- * dropdown row (city/age/size + sort) open or closed — it does not open
+ * dropdown row (city/age/size/species/fur + sort) open or closed — it does not open
  * `FilterSheet`'s modal. Designer clarification (verbatim, mid-build):
  * "this Filters button shows that search filters below or hides if they
  * are shown." Desktop only for now — "we don't have [a] mobile section in
@@ -33,7 +33,7 @@ export function GalleryControlBlock({
   title: ReactNode;
   /** `FilterSheet`'s own trigger (at narrow widths — it's `desktop:hidden`) — rendered before the toggle button. */
   trailing: ReactNode;
-  /** Row 2's content — the three dropdowns and the sort toggle. */
+  /** Row 2's content — the five dropdowns and the sort toggle. */
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(true);
@@ -59,23 +59,46 @@ export function GalleryControlBlock({
       </div>
 
       {/*
-        Conditional rendering, not a `hidden` attribute plus a `desktop:flex`
+        Always mounted, never a `hidden` attribute plus a `desktop:flex`
         class: the UA stylesheet's `[hidden] { display: none }` rule is a
         lower-precedence *origin* than any author stylesheet rule (Tailwind's
         utilities included), so `desktop:flex` would have kept winning at
-        >=1024 regardless of the `hidden` attribute — unmounting the row
-        entirely sidesteps that origin-precedence trap rather than fighting
-        it with specificity.
+        >=1024 regardless of the `hidden` attribute. `hidden` as a Tailwind
+        utility class (not the HTML attribute) doesn't have that problem —
+        it's an ordinary author-stylesheet rule `desktop:grid` already
+        overrides correctly at the breakpoint, the same mechanism every other
+        `hidden ... desktop:*` pair in this codebase already relies on.
+
+        The row used to unmount on close (`{open && (...)}`) instead of this.
+        Oleksii, from a live screenshot: "it would be nice if you'd animate
+        height change on filter appear/disappear" — an unmounted element has
+        no height to animate *from*, so this switches to the grid-rows 0fr/1fr
+        technique: a single-row grid track that transitions between 0fr and
+        1fr, with `overflow-hidden` on the one grid item clipping its content
+        while the track is collapsing. No motion library — CSS only, per the
+        standing "prefer native Web APIs" rule — and `motion-reduce:` drops
+        the transition to instant for anyone who's asked for that.
+
+        Always mounted now means `aria-hidden`/`inert` do what unmounting used
+        to: a screen reader doesn't announce the row while closed, and
+        `inert` additionally pulls every dropdown and the sort toggle out of
+        Tab order — without it they'd stay reachable, focusably, at zero
+        height, which is worse than the old unmounted version, not just
+        different from it.
       */}
-      {open && (
-        <div
-          id="gallery-filter-row"
-          data-testid="gallery-filter-row"
-          className="hidden items-center justify-between gap-4 desktop:flex"
-        >
-          {children}
+      <div
+        id="gallery-filter-row"
+        data-testid="gallery-filter-row"
+        aria-hidden={open ? undefined : "true"}
+        inert={open ? undefined : true}
+        className={`hidden grid-cols-1 transition-[grid-template-rows] duration-300 ease-out motion-reduce:duration-0 desktop:grid ${
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-4">{children}</div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

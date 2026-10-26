@@ -64,17 +64,30 @@ const readRaw = (): LikesStoreV1 => {
   }
 };
 
+/**
+ * `SAME_TAB_CHANGE_EVENT` exists because `storage` (below) never fires for
+ * the document that made the write — by spec, it's cross-tab only. A writer
+ * that already knows its own new value (`SaveButton`'s `toggle()`,
+ * `useSavedCards`' `removeSaved`) doesn't need this: both set their own
+ * state directly, right after their own write. A component that's merely
+ * watching from elsewhere in the tree and isn't the one writing — the
+ * header's `SavedNavLink`, which has no other way to learn "something was
+ * just saved on this same page" — does.
+ */
+const SAME_TAB_CHANGE_EVENT = "likes-store-changed";
+
 const writeRaw = (store: LikesStoreV1): void => {
   if (memoryFallback !== undefined) {
     memoryFallback = store;
-    return;
+  } else {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    } catch {
+      storageIsBlocked = true;
+      memoryFallback = store;
+    }
   }
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-  } catch {
-    storageIsBlocked = true;
-    memoryFallback = store;
-  }
+  window.dispatchEvent(new Event(SAME_TAB_CHANGE_EVENT));
 };
 
 /** Whether this page's save control is running on the in-memory fallback, for the saved page's own notice. */
@@ -111,14 +124,25 @@ export const toggleSavedAnimal = (animalId: string, now: Date): ToggleSavedResul
 };
 
 /**
- * Same-browser tabs stay in sync through the `storage` event (fired on every *other* document
- * using this origin, never the one that wrote — the plan's own note). Filtered to this store's
- * key so an unrelated `localStorage` write elsewhere on the site doesn't trigger a re-read.
+ * Two listeners, not one: `storage` fires on every *other* document using
+ * this origin (never the one that wrote — the plan's own note), filtered to
+ * this store's key so an unrelated `localStorage` write elsewhere on the
+ * site doesn't trigger a re-read; `SAME_TAB_CHANGE_EVENT` fires in *this*
+ * document, for every write regardless of who made it. A caller that's one
+ * of the writers (`SaveButton`, `useSavedCards`'s `removeSaved`) already
+ * updates its own state directly and just gets a redundant, idempotent
+ * re-read from its own write — harmless. A caller that only watches
+ * (`SavedNavLink`) needs the second listener to ever learn about a save
+ * made elsewhere on the same page at all.
  */
 export const subscribeToLikesChanges = (onChange: () => void): (() => void) => {
-  const listener = (event: StorageEvent) => {
+  const storageListener = (event: StorageEvent) => {
     if (event.key === STORAGE_KEY || event.key === null) onChange();
   };
-  window.addEventListener("storage", listener);
-  return () => window.removeEventListener("storage", listener);
+  window.addEventListener("storage", storageListener);
+  window.addEventListener(SAME_TAB_CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", storageListener);
+    window.removeEventListener(SAME_TAB_CHANGE_EVENT, onChange);
+  };
 };
